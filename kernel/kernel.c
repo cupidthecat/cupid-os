@@ -1,3 +1,15 @@
+ /**
+ * kernel.c
+ * 
+ * Main kernel file for cupid-os. Contains core kernel functionality including:
+ * - VGA text mode driver
+ * - Screen output functions
+ * - Basic screen manipulation (clear, scroll, cursor movement)
+ * - Character and string printing capabilities
+ */
+
+#include "idt.h"
+
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
 // Main kernel function
@@ -71,9 +83,15 @@ void print(const char* str) {
     }
 }
 
+// Test function for divide by zero
+void test_divide_by_zero() {
+    int a = 10;
+    int b = 0;
+    int c = a / b;  // This will trigger interrupt 0
+}
+
 void _start(void) {
     // We're already in protected mode with segments set up
-    // Just set up the stack (although bootloader already did this)
     __asm__ volatile(
         "mov $0x90000, %esp\n"
         "mov %esp, %ebp\n"
@@ -86,13 +104,24 @@ void _start(void) {
 void kmain(void) {
     clear_screen();
     
+    // Initialize IDT before printing
+    idt_init();
+    
     print("Welcome to cupid-os!\n");
     print("------------------\n");
     print("Kernel initialized successfully.\n");
-    print("System is ready.\n");
-    print("Printed using custom putchar function.\n");
-    // Halt the CPU
+    print("IDT initialized.\n");
+    print("Testing IDT with divide by zero...\n");
+    
+    // Enable interrupts
+    __asm__ volatile("sti");
+    
+    // Test divide by zero
+    test_divide_by_zero();
+    
+    print("If you see this, IDT is NOT working!\n");
+    
     while(1) {
         __asm__ volatile("hlt");
     }
-} 
+}
