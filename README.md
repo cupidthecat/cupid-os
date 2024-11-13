@@ -6,6 +6,8 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
 - `kernel/` - Kernel source code (32-bit protected mode C code)
 - `Makefile` - Build system
 
+## Todo
+- [ ]
 ## Features
 - Custom bootloader that switches from 16-bit real mode to 32-bit protected mode
 - Basic VGA text mode driver (80x25 characters)
