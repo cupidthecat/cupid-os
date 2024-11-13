@@ -1,11 +1,15 @@
 /**
- * kernel.c
+ * kernel.c - Core kernel functionality for cupid-os
  * 
- * Main kernel file for cupid-os. Contains core kernel functionality including:
- * - VGA text mode driver
- * - Screen output functions
- * - Basic screen manipulation (clear, scroll, cursor movement)
- * - Character and string printing capabilities
+ * This file implements the main kernel functionality including:
+ * - Core kernel initialization and entry point (_start and kmain)
+ * - VGA text mode driver with 80x25 character display
+ * - Screen output functions (print, putchar) 
+ * - Screen manipulation (clear_screen, cursor movement)
+ * - Port I/O functions (inb/outb) for hardware interaction
+ * - Interrupt handling setup (PIC, IDT initialization)
+ * - PS/2 keyboard driver initialization and interrupt handling
+ * - Main kernel loop with interrupt handling
  */
 
 #include "idt.h"

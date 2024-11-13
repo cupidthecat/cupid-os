@@ -1,10 +1,22 @@
-/**
- * keyboard.c - PS/2 Keyboard Driver
+/*
+ * PS/2 Keyboard Driver
  * 
- * This module implements a basic keyboard driver for PS/2 keyboards, providing:
- * - Hardware initialization and configuration
- * - IRQ1 interrupt handler for keyboard events
- * - Scancode processing and character mapping
+ * This driver implements a complete PS/2 keyboard interface with:
+ * - Full US keyboard layout support via scancode-to-ASCII mapping
+ * - Modifier key tracking (Shift, Caps Lock, Ctrl, Alt)
+ * - Key state tracking and event buffering
+ * - Key repeat functionality with configurable delays
+ * - Extended key support (F1-F12, arrow keys, etc)
+ * - Interrupt-driven input handling via IRQ1
+ * 
+ * The keyboard state is maintained in a global structure that tracks:
+ * - Current modifier key states
+ * - Key up/down states
+ * - Input event circular buffer
+ * - Key repeat timing and state
+ * 
+ * Key events are processed through an interrupt handler that manages
+ * both regular keypresses and special keys like modifiers and function keys.
  */
 
 #include "keyboard.h"
