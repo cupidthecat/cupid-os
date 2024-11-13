@@ -8,7 +8,7 @@ LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o
 
 all: $(OS_IMAGE)
 
@@ -36,6 +36,10 @@ kernel/irq.o: kernel/irq.c kernel/isr.h kernel/pic.h
 # Add new rule for keyboard.o
 drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
 	$(CC) $(CFLAGS) drivers/keyboard.c -o drivers/keyboard.o
+
+# Add new rule for timer.o
+drivers/timer.o: drivers/timer.c drivers/timer.h
+	$(CC) $(CFLAGS) drivers/timer.c -o drivers/timer.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

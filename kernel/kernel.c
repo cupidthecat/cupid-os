@@ -15,7 +15,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "../drivers/keyboard.h"
-
+#include "../drivers/timer.h"
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
 // Main kernel function
@@ -165,15 +165,51 @@ void kmain(void) {
     idt_init();
     print("IDT initialized.\n");
     
-    // Initialize keyboard
+    // Initialize timer (100 Hz)
+    timer_init(100);  // 100 Hz = 10ms per tick
+    print("Timer initialized at 100 Hz\n");
+
+    // Enable interrupts
+    __asm__ volatile("sti");
+
+    // Test timer functionality
+    print("\nTesting timer functions:\n");
+    
+    print("1. Sleeping for 2 seconds...\n");
+    timer_sleep_ms(2000);
+    print("Wake up!\n");
+
+    print("\n2. Getting system uptime...\n");
+    uint32_t uptime = timer_get_uptime_ms();
+    print("System uptime: ");
+    // Convert uptime to string and print
+    char uptime_str[20];
+    int pos = 0;
+    uint32_t temp = uptime;
+    do {
+        uptime_str[pos++] = '0' + (temp % 10);
+        temp /= 10;
+    } while (temp > 0);
+    uptime_str[pos] = '\0';
+    // Print in reverse order
+    while (--pos >= 0) {
+        putchar(uptime_str[pos]);
+    }
+    print(" ms\n");
+
+    print("\n3. Testing short delays...\n");
+    for (int i = 0; i < 5; i++) {
+        print(".");
+        timer_delay_us(200000);  // 200ms delay
+    }
+    print("\nDelay test complete!\n");
+
+    // Continue with keyboard init and main loop
     keyboard_init();
+    print("\nKeyboard ready!\n");
     
     print("\nWelcome to cupid-os!\n");
     print("------------------\n");
-    print("Start typing...\n");
-    
-    // Enable interrupts
-    __asm__ volatile("sti");
     
     // Main kernel loop
     while(1) {

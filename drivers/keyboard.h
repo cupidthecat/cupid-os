@@ -20,5 +20,6 @@ void keyboard_handler(struct registers* r);
 char keyboard_get_scancode(void);
 bool keyboard_get_key_state(uint8_t scancode);
 bool keyboard_get_function_key(uint8_t f_num);
+void keyboard_update_ticks(void);
 
 #endif 

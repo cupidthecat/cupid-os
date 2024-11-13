@@ -43,6 +43,8 @@ What I want cupid-os to be:
    - ✅ Set up basic exception handlers
    - ✅ Handle hardware interrupts
    - ✅ Implement PIC configuration
+   - ✅ Add detailed error messages for exceptions
+   - ✅ Support for custom interrupt handlers
 
 2. **Keyboard Input** (✅ Complete)
    - ✅ Implement PS/2 keyboard driver
@@ -54,13 +56,19 @@ What I want cupid-os to be:
    - ✅ Additional modifier keys (Ctrl, Alt)
    - ✅ Key repeat handling
    - ✅ Function keys support
+   - ✅ Extended key support
+   - ✅ Key debouncing
+   - ✅ Circular buffer implementation
 
-3. **Timer Support** (🔄 In Progress - Next Priority)
-   - ⭕ PIT (Programmable Interval Timer) implementation
-   - ⭕ Basic system clock
-   - ⭕ Timer interrupts
-   - ⭕ System tick counter
-   - ⭕ Sleep/delay functions
+3. **Timer Support** (🔄 In Progress)
+   - ✅ PIT (Programmable Interval Timer) implementation
+   - ✅ Basic system clock
+   - ✅ Timer interrupts
+   - ✅ System tick counter
+   - 🔄 Sleep/delay functions
+   - ⭕ Timer calibration
+   - ⭕ Multiple timer channels
+   - ⭕ Variable frequency support
 
 4. **Memory Management** (⭕ Planned)
    - ⭕ Physical memory manager
@@ -68,6 +76,9 @@ What I want cupid-os to be:
    - ⭕ Basic paging setup
    - ⭕ Memory protection
    - ⭕ Heap management
+   - ⭕ Memory mapping
+   - ⭕ Virtual memory support
+   - ⭕ Memory statistics tracking
 
 ### Phase 2 - Extended Features
 5. **Shell Interface** (⭕ Planned)
@@ -92,7 +103,7 @@ What I want cupid-os to be:
    - ⭕ Basic file operations
    - ⭕ Directory structure
    - ⭕ File permissions
-   
+
 ### Phase 3 - Advanced Features
 10. Custom compiler
 11. Advanced memory management
@@ -205,4 +216,13 @@ gdb
 
 ## License
 GNU v3
+
+## Recent Updates
+- Implemented comprehensive keyboard driver with full modifier key support
+- Added function key handling (F1-F12)
+- Implemented key repeat functionality with configurable delays
+- Added debouncing support for more reliable key input
+- Enhanced exception handling with detailed error messages
+- Implemented basic PIT timer with system tick counter
+- Added initial delay/sleep functionality using timer ticks
 

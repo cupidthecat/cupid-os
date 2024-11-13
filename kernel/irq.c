@@ -19,11 +19,6 @@ void irq_handler(struct registers* r) {
     // Get IRQ number (subtract 32 from interrupt number)
     int irq = r->int_no - 32;
     
-    print("IRQ received: ");
-    char irq_num[2] = {'0' + irq, '\0'};
-    print(irq_num);
-    print("\n");
-    
     // Call handler if it exists
     if (irq_handlers[irq]) {
         irq_handlers[irq](r);
