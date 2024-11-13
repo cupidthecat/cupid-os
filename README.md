@@ -1,4 +1,4 @@
-# CupidOS
+# cupid-os
 A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, and basic screen I/O.
 
 ## Structure
