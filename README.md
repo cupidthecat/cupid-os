@@ -1,9 +1,14 @@
 # cupid-os
-A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, and basic screen I/O.
+A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, interrupt handling, and basic screen I/O.
 
 ## Structure
 - `boot/` - Bootloader code (16-bit to 32-bit mode transition)
 - `kernel/` - Kernel source code (32-bit protected mode C code)
+  - `kernel.c` - Main kernel file
+  - `idt.c/h` - Interrupt Descriptor Table implementation
+  - `isr.c/h` - Interrupt Service Routines
+  - `types.h` - Custom type definitions
+  - `isr.asm` - Assembly interrupt service routines
 - `Makefile` - Build system
 
 ## Features
@@ -15,14 +20,21 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
   - Newline handling
   - Screen scrolling
   - Screen clearing
+- Interrupt handling:
+  - Interrupt Descriptor Table (IDT)
+  - Basic exception handlers
+  - Divide by zero handler
+  - Debug exception handler
+
 ## Development Roadmap
 ### Phase 1 - Core System Infrastructure
-1. **Interrupt Handling** (Current Priority)
-   - Implement IDT (Interrupt Descriptor Table)
-   - Set up basic interrupt handlers
-   - Handle hardware/software interrupts
+1. **Interrupt Handling** (✅ Basic Implementation Complete)
+   - ✅ Implement IDT (Interrupt Descriptor Table)
+   - ✅ Set up basic exception handlers
+   - 🔄 Handle hardware interrupts (Next)
+   - 🔄 Implement PIC configuration
 
-2. **Keyboard Input**
+2. **Keyboard Input** (Current Priority)
    - Implement PS/2 keyboard driver
    - Basic input buffer
    - Character input handling
@@ -84,16 +96,25 @@ make run
 - Switches to protected mode
 - Jumps to kernel at 0x1000
 
-### Kernel (`kernel/kernel.c`)
+### Kernel Components
+#### Main Kernel (`kernel/kernel.c`)
 - Entry point at 0x1000
 - Implements basic screen I/O
 - VGA text mode driver
-- Basic system initialization
+- System initialization
+- IDT initialization
+
+#### Interrupt System (`kernel/idt.c`, `kernel/isr.asm`)
+- IDT setup and management
+- Exception handlers
+- Interrupt service routines
+- Hardware interrupt support (in progress)
 
 ### Memory Layout
 - Bootloader: 0x7C00
 - Kernel: 0x1000
 - Stack: 0x90000
+- IDT: Dynamically allocated
 
 ## Development
 To modify or extend the OS:
