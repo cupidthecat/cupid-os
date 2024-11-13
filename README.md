@@ -6,16 +6,6 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
 - `kernel/` - Kernel source code (32-bit protected mode C code)
 - `Makefile` - Build system
 
-## Todo
-- [ ] Add keyboard input support
-- [ ] Implement a basic filesystem
-- [ ] Add simple shell interface
-- [ ] Support dynamic memory allocation
-- [ ] Add basic process management
-- [ ] Implement interrupt handling
-- [ ] Add timer/clock support
-- [ ] Basic device drivers (beyond VGA)
-
 ## Features
 - Custom bootloader that switches from 16-bit real mode to 32-bit protected mode
 - Basic VGA text mode driver (80x25 characters)
@@ -25,6 +15,40 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
   - Newline handling
   - Screen scrolling
   - Screen clearing
+## Development Roadmap
+### Phase 1 - Core System Infrastructure
+1. **Interrupt Handling** (Current Priority)
+   - Implement IDT (Interrupt Descriptor Table)
+   - Set up basic interrupt handlers
+   - Handle hardware/software interrupts
+
+2. **Keyboard Input**
+   - Implement PS/2 keyboard driver
+   - Basic input buffer
+   - Character input handling
+
+3. **Timer Support**
+   - PIT (Programmable Interval Timer) implementation
+   - Basic system clock
+   - Timer interrupts
+
+4. **Memory Management**
+   - Physical memory manager
+   - Simple memory allocation/deallocation
+   - Basic paging setup
+
+### Phase 2 - Extended Features
+5. Simple shell interface
+6. Basic process management
+7. Basic device drivers
+8. Simple filesystem
+9. Basic multitasking
+
+### Phase 3 - Advanced Features
+10. Custom compiler
+11. Advanced memory management
+12. Extended device support
+13. Multi-process scheduling
 
 ## Example of cupid-os
 ![alt text for cupid-os img](img/os.png)
