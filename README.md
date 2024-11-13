@@ -26,6 +26,9 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
   - Screen scrolling
   - Screen clearing
 
+## Example of cupid-os
+![alt text for cupid-os img](img/os.png)
+
 ## Requirements
 - NASM (Netwide Assembler) for bootloader compilation
 - GCC (32-bit support required)
