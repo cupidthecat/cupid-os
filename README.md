@@ -1,2 +1,2 @@
-# cupidos
-cupidos a minimal operating system 
+# cupid-os
+cupid-os a minimal operating system 
