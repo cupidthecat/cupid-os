@@ -4,8 +4,10 @@
 #include "types.h"
 
 // Screen output functions
-void clear_screen(void);
-void putchar(char c);
-void print(const char* str);
 
+// Add these function declarations at the top, after the #defines
+void print(const char* str);
+void putchar(char c);
+void clear_screen(void);
+void init_vga(void);
 #endif 

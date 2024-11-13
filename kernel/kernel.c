@@ -1,4 +1,4 @@
- /**
+/**
  * kernel.c
  * 
  * Main kernel file for cupid-os. Contains core kernel functionality including:
@@ -9,6 +9,8 @@
  */
 
 #include "idt.h"
+#include "pic.h"
+#include "../drivers/keyboard.h"
 
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
@@ -29,6 +31,51 @@ void kmain(void);
 static int cursor_x = 0;
 static int cursor_y = 0;
 
+// Add these port I/O functions at the top
+static inline void outb(uint16_t port, uint8_t value) {
+    __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
+}
+
+static inline uint8_t inb(uint16_t port) {
+    uint8_t ret;
+    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+// Add these VGA-related definitions at the top
+#define VGA_CTRL_REGISTER 0x3D4
+#define VGA_DATA_REGISTER 0x3D5
+#define VGA_OFFSET_LOW 0x0F
+#define VGA_OFFSET_HIGH 0x0E
+
+// Add these function declarations at the top, after the #defines
+void print(const char* str);
+void putchar(char c);
+void clear_screen(void);
+void init_vga(void);
+
+// Add this function to initialize the cursor
+void init_vga(void) {
+    // Reset the cursor position
+    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
+    outb(VGA_DATA_REGISTER, 0);
+    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
+    outb(VGA_DATA_REGISTER, 0);
+    
+    // Clear the screen with a known good attribute
+    volatile char* vidmem = (char*)VGA_MEMORY;
+    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
+        vidmem[i] = ' ';           // Space character
+        vidmem[i + 1] = 0x07;      // Light grey on black
+    }
+    
+    // Reset cursor position variables
+    cursor_x = 0;
+    cursor_y = 0;
+    
+    print("VGA initialized.\n");
+}
+
 // Clear the screen
 void clear_screen() {
     volatile char* vidmem = (char*)VGA_MEMORY;
@@ -42,7 +89,7 @@ void clear_screen() {
 
 // Print a single character
 void putchar(char c) {
-    volatile char* vidmem = (char*)VGA_MEMORY;
+    volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
     
     if(c == '\n') {
         cursor_x = 0;
@@ -74,6 +121,13 @@ void putchar(char c) {
         }
         cursor_y = VGA_HEIGHT - 1;
     }
+    
+    // Update hardware cursor
+    int pos = cursor_y * VGA_WIDTH + cursor_x;
+    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
+    outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
+    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
+    outb(VGA_DATA_REGISTER, pos & 0xFF);
 }
 
 // Print a string
@@ -81,13 +135,6 @@ void print(const char* str) {
     for(int i = 0; str[i] != '\0'; i++) {
         putchar(str[i]);
     }
-}
-
-// Test function for divide by zero
-void test_divide_by_zero() {
-    int a = 10;
-    int b = 0;
-    int c = a / b;  // This will trigger interrupt 0
 }
 
 void _start(void) {
@@ -102,25 +149,29 @@ void _start(void) {
 }
 
 void kmain(void) {
+    // Initialize VGA first
+    init_vga();
     clear_screen();
+    print("Testing output...\n");
     
-    // Initialize IDT before printing
+    // Initialize interrupts and PIC
+    pic_init();
+    print("PIC initialized.\n");
+    
     idt_init();
-    
-    print("Welcome to cupid-os!\n");
-    print("------------------\n");
-    print("Kernel initialized successfully.\n");
     print("IDT initialized.\n");
-    print("Testing IDT with divide by zero...\n");
+    
+    // Initialize keyboard
+    keyboard_init();
+    
+    print("\nWelcome to cupid-os!\n");
+    print("------------------\n");
+    print("Start typing...\n");
     
     // Enable interrupts
     __asm__ volatile("sti");
     
-    // Test divide by zero
-    test_divide_by_zero();
-    
-    print("If you see this, IDT is NOT working!\n");
-    
+    // Main kernel loop
     while(1) {
         __asm__ volatile("hlt");
     }

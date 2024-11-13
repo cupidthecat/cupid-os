@@ -1,6 +1,11 @@
 # cupid-os
 A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, interrupt handling, and basic screen I/O.
 
+What I want cupid-os to be: 
+- A multitasking, 32bit OS with a graphical user interface, that focuses on simplicity with inspiration from video games like menus and osakaOS
+- Another inspiration is the unix and linux kernel as well as the distros that comes from the linux kernel
+- I want it to be a space where I can grow as a operating systems engineer and explore new ideas
+
 ## Structure
 - `boot/` - Bootloader code (16-bit to 32-bit mode transition)
 - `kernel/` - Kernel source code (32-bit protected mode C code)
@@ -23,23 +28,32 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
 - Interrupt handling:
   - Interrupt Descriptor Table (IDT)
   - Basic exception handlers
-  - Divide by zero handler
-  - Debug exception handler
+  - Hardware interrupt support
+  - PIC (Programmable Interrupt Controller) configuration
+- Keyboard support:
+  - PS/2 keyboard driver
+  - Scancode to ASCII mapping
+  - Key state tracking
+  - Event buffer system
 
 ## Development Roadmap
 ### Phase 1 - Core System Infrastructure
-1. **Interrupt Handling** (✅ Basic Implementation Complete)
+1. **Interrupt Handling** (✅ Complete)
    - ✅ Implement IDT (Interrupt Descriptor Table)
    - ✅ Set up basic exception handlers
-   - 🔄 Handle hardware interrupts (Next)
-   - 🔄 Implement PIC configuration
+   - ✅ Handle hardware interrupts
+   - ✅ Implement PIC configuration
 
-2. **Keyboard Input** (Current Priority)
-   - Implement PS/2 keyboard driver
-   - Basic input buffer
-   - Character input handling
+2. **Keyboard Input** (🔄 In Progress)
+   - ✅ Implement PS/2 keyboard driver
+   - ✅ Basic input buffer
+   - ✅ Scancode handling
+   - 🔄 Input event processing
+   - 🔄 Keyboard state management
+   - ⭕ Modifier key support (Shift, Ctrl, Alt)
+   - ⭕ Key repeat handling
 
-3. **Timer Support**
+3. **Timer Support** (Next Priority)
    - PIT (Programmable Interval Timer) implementation
    - Basic system clock
    - Timer interrupts
@@ -109,6 +123,13 @@ make run
 - Exception handlers
 - Interrupt service routines
 - Hardware interrupt support (in progress)
+
+#### Input System (`drivers/keyboard.c`, `drivers/keyboard.h`)
+- PS/2 keyboard driver
+- Scancode to ASCII mapping
+- Key state tracking
+- Circular buffer for key events
+- Interrupt-driven input handling
 
 ### Memory Layout
 - Bootloader: 0x7C00

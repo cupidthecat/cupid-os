@@ -1,14 +1,14 @@
 # Compiler settings
 ASM=nasm
 CC=gcc
-CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel
+CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o
 
 all: $(OS_IMAGE)
 
@@ -27,6 +27,16 @@ kernel/idt.o: kernel/idt.c kernel/idt.h kernel/isr.h kernel/kernel.h
 kernel/isr.o: kernel/isr.asm
 	$(ASM) -f elf32 kernel/isr.asm -o kernel/isr.o
 
+kernel/pic.o: kernel/pic.c kernel/pic.h
+	$(CC) $(CFLAGS) -c kernel/pic.c -o kernel/pic.o
+
+kernel/irq.o: kernel/irq.c kernel/isr.h kernel/pic.h
+	$(CC) $(CFLAGS) kernel/irq.c -o kernel/irq.o
+
+# Add new rule for keyboard.o
+drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
+	$(CC) $(CFLAGS) drivers/keyboard.c -o drivers/keyboard.o
+
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
@@ -41,6 +51,6 @@ run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE)
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o $(OS_IMAGE)
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o $(OS_IMAGE)
 
 .PHONY: all run clean

@@ -1,58 +1,81 @@
-[bits 16]           ; We're working in 16-bit mode
-[org 0x7c00]        ; BIOS loads us at 0x7C00
+ [org 0x7c00]
+[bits 16]
 
-boot:
-    ; Save boot drive number FIRST - BIOS provides it in DL
-    mov [boot_drive], dl
+; Constants
+KERNEL_OFFSET equ 0x1000
 
-    ; Initialize segment registers
-    cli             ; Disable interrupts
+; Main bootloader entry point
+start:
+    ; Set up segments
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7C00  ; Set up stack
-    sti             ; Enable interrupts
+    mov sp, 0x9000
 
-    ; Print initial message
-    mov si, msg_start
+    ; Print boot message
+    mov si, MSG_BOOT
     call print_string
 
-    ; Reset disk system
-    xor ah, ah      ; Function 0 - Reset disk
-    mov dl, 0x00    ; Drive 0 = floppy
+    ; Load kernel
+    call load_kernel
+    
+    ; Switch to protected mode
+    call switch_to_pm
+    
+    jmp $
+
+; Load kernel from disk
+load_kernel:
+    mov si, MSG_LOAD_KERNEL
+    call print_string
+
+    mov bx, KERNEL_OFFSET   ; Load to this address
+    mov dh, 15             ; Load this many sectors
+    mov dl, [BOOT_DRIVE]   ; From boot drive
+    
+    mov ah, 0x02          ; BIOS read function
+    mov al, dh            ; Sectors to read
+    mov ch, 0             ; Cylinder 0
+    mov dh, 0             ; Head 0
+    mov cl, 2             ; Start from sector 2
     int 0x13
+    
     jc disk_error
+    ret
 
-    ; Print loading message
-    mov si, msg_loading
+disk_error:
+    mov si, MSG_DISK_ERROR
     call print_string
+    jmp $
 
-    ; Load kernel from disk
-    mov bx, 0x1000  ; Load kernel to 0x1000
-    mov dh, 5       ; Load 5 sectors
-    mov dl, 0x00    ; Use floppy drive
-    call disk_load
+; Print string (SI = string pointer)
+print_string:
+    pusha
+    mov ah, 0x0e
+.loop:
+    lodsb
+    test al, al
+    jz .done
+    int 0x10
+    jmp .loop
+.done:
+    popa
+    ret
 
-    ; Print success message
-    mov si, msg_loaded
-    call print_string
-
-    ; After loading kernel, prepare for protected mode
+; Switch to protected mode
+switch_to_pm:
     cli                     ; Disable interrupts
     lgdt [gdt_descriptor]   ; Load GDT
     
-    ; Enable protected mode
     mov eax, cr0
-    or eax, 1
-    mov cr0, eax
+    or eax, 0x1
+    mov cr0, eax           ; Set protected mode bit
     
-    ; Far jump to 32-bit code
-    jmp CODE_SEG:init_pm
+    jmp CODE_SEG:init_pm   ; Far jump to 32-bit code
 
 [bits 32]
 init_pm:
-    ; Initialize segment registers
     mov ax, DATA_SEG
     mov ds, ax
     mov ss, ax
@@ -60,92 +83,55 @@ init_pm:
     mov fs, ax
     mov gs, ax
     
-    ; Set up stack
     mov ebp, 0x90000
     mov esp, ebp
     
+    ; Print PM message directly to video memory
+    mov ebx, 0xb8000
+    mov al, 'P'
+    mov ah, 0x0f
+    mov [ebx], ax
+    
     ; Jump to kernel
-    jmp 0x1000
-
-print_string:
-    pusha
-    mov ah, 0x0e    ; BIOS teletype output
-.loop:
-    lodsb           ; Load next character
-    or al, al       ; Check if end of string
-    jz .done
-    int 0x10        ; Print character
-    jmp .loop
-.done:
-    popa
-    ret
-
-disk_load:
-    pusha           ; Save all registers
-    push dx         ; Save DX (sectors to read)
-    
-    mov ah, 0x02    ; BIOS read sector function
-    mov al, dh      ; Read DH sectors
-    mov ch, 0       ; Cylinder 0
-    mov dh, 0       ; Head 0
-    mov cl, 2       ; Start from sector 2
-    int 0x13        ; BIOS interrupt
-    
-    jc disk_error   ; Jump if error (carry flag set)
-    
-    pop dx          ; Restore DX
-    cmp dh, al      ; Compare sectors read
-    jne sectors_error
-    popa            ; Restore all registers
-    ret
-
-disk_error:
-    mov si, msg_disk_error
-    call print_string
-    jmp $
-
-sectors_error:
-    mov si, msg_sectors_error
-    call print_string
-    jmp $
-
-; Data
-boot_drive: db 0
-msg_start: db 'Starting boot sequence...', 13, 10, 0
-msg_loading: db 'Loading kernel...', 13, 10, 0
-msg_loaded: db 'Kernel loaded!', 13, 10, 0
-msg_disk_error: db 'Disk read error!', 13, 10, 0
-msg_sectors_error: db 'Incorrect sectors read!', 13, 10, 0
+    jmp CODE_SEG:KERNEL_OFFSET
 
 ; GDT
 gdt_start:
-    ; Null descriptor
-    dd 0x0
-    dd 0x0
-    
-    ; Code segment
-    dw 0xffff       ; Limit
-    dw 0x0          ; Base
-    db 0x0          ; Base
-    db 10011010b    ; Flags
-    db 11001111b    ; Flags + Limit
-    db 0x0          ; Base
-    
-    ; Data segment
-    dw 0xffff
-    dw 0x0
-    db 0x0
-    db 10010010b
-    db 11001111b
-    db 0x0
+    dq 0                ; Null descriptor
+
+gdt_code:
+    dw 0xffff          ; Limit
+    dw 0               ; Base
+    db 0               ; Base
+    db 10011010b       ; Access
+    db 11001111b       ; Granularity
+    db 0               ; Base
+
+gdt_data:
+    dw 0xffff          ; Limit
+    dw 0               ; Base
+    db 0               ; Base
+    db 10010010b       ; Access
+    db 11001111b       ; Granularity
+    db 0               ; Base
+
 gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
 
-CODE_SEG equ 0x08
-DATA_SEG equ 0x10
+; Constants
+CODE_SEG equ gdt_code - gdt_start
+DATA_SEG equ gdt_data - gdt_start
 
-times 510-($-$$) db 0   ; Pad with zeros
-dw 0xaa55               ; Boot signature 
+; Messages
+MSG_BOOT db 'Booting...', 13, 10, 0
+MSG_LOAD_KERNEL db 'Loading kernel...', 13, 10, 0
+MSG_DISK_ERROR db 'Disk error!', 13, 10, 0
+
+BOOT_DRIVE db 0
+
+; Padding and magic number
+times 510-($-$$) db 0
+dw 0xaa55
