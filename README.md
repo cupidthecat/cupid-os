@@ -7,7 +7,15 @@ A minimal operating system written in C and x86 Assembly. This project demonstra
 - `Makefile` - Build system
 
 ## Todo
-- [ ]
+- [ ] Add keyboard input support
+- [ ] Implement a basic filesystem
+- [ ] Add simple shell interface
+- [ ] Support dynamic memory allocation
+- [ ] Add basic process management
+- [ ] Implement interrupt handling
+- [ ] Add timer/clock support
+- [ ] Basic device drivers (beyond VGA)
+
 ## Features
 - Custom bootloader that switches from 16-bit real mode to 32-bit protected mode
 - Basic VGA text mode driver (80x25 characters)
