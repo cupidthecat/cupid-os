@@ -98,8 +98,5 @@ gdb
 5. Create a Pull Request
 
 ## License
-[Your chosen license]
-
-## Acknowledgments
-- [Any resources or inspirations you used]
+GNU v3
 
