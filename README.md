@@ -44,32 +44,55 @@ What I want cupid-os to be:
    - ✅ Handle hardware interrupts
    - ✅ Implement PIC configuration
 
-2. **Keyboard Input** (🔄 In Progress)
+2. **Keyboard Input** (✅ Complete)
    - ✅ Implement PS/2 keyboard driver
    - ✅ Basic input buffer
    - ✅ Scancode handling
-   - 🔄 Input event processing
-   - 🔄 Keyboard state management
-   - ⭕ Modifier key support (Shift, Ctrl, Alt)
-   - ⭕ Key repeat handling
+   - ✅ Input event processing
+   - ✅ Keyboard state management
+   - ✅ Modifier key support (Shift, Caps Lock)
+   - ✅ Additional modifier keys (Ctrl, Alt)
+   - ✅ Key repeat handling
+   - ✅ Function keys support
 
-3. **Timer Support** (Next Priority)
-   - PIT (Programmable Interval Timer) implementation
-   - Basic system clock
-   - Timer interrupts
+3. **Timer Support** (🔄 In Progress - Next Priority)
+   - ⭕ PIT (Programmable Interval Timer) implementation
+   - ⭕ Basic system clock
+   - ⭕ Timer interrupts
+   - ⭕ System tick counter
+   - ⭕ Sleep/delay functions
 
-4. **Memory Management**
-   - Physical memory manager
-   - Simple memory allocation/deallocation
-   - Basic paging setup
+4. **Memory Management** (⭕ Planned)
+   - ⭕ Physical memory manager
+   - ⭕ Simple memory allocation/deallocation
+   - ⭕ Basic paging setup
+   - ⭕ Memory protection
+   - ⭕ Heap management
 
 ### Phase 2 - Extended Features
-5. Simple shell interface
-6. Basic process management
-7. Basic device drivers
-8. Simple filesystem
-9. Basic multitasking
+5. **Shell Interface** (⭕ Planned)
+   - ⭕ Command parsing
+   - ⭕ Basic shell commands
+   - ⭕ Command history
+   - ⭕ Tab completion
 
+6. **Process Management** (⭕ Planned)
+   - ⭕ Process creation/termination
+   - ⭕ Basic scheduling
+   - ⭕ Process states
+   - ⭕ Context switching
+
+7. **Basic Device Drivers** (⭕ Planned)
+   - ✅ PS/2 Keyboard
+   - ⭕ VGA graphics
+   - ⭕ Serial port
+   - ⭕ Real-time clock
+
+8. **Simple Filesystem** (⭕ Planned)
+   - ⭕ Basic file operations
+   - ⭕ Directory structure
+   - ⭕ File permissions
+   
 ### Phase 3 - Advanced Features
 10. Custom compiler
 11. Advanced memory management
@@ -119,17 +142,23 @@ make run
 - IDT initialization
 
 #### Interrupt System (`kernel/idt.c`, `kernel/isr.asm`)
-- IDT setup and management
-- Exception handlers
-- Interrupt service routines
-- Hardware interrupt support (in progress)
+- Complete IDT setup and management
+- Exception handlers with detailed error messages
+- Hardware interrupt support (IRQ0-15)
+- Programmable Interrupt Controller (PIC) configuration
+- Custom interrupt handler registration
+- Debug exception handling
 
 #### Input System (`drivers/keyboard.c`, `drivers/keyboard.h`)
-- PS/2 keyboard driver
-- Scancode to ASCII mapping
-- Key state tracking
-- Circular buffer for key events
-- Interrupt-driven input handling
+- PS/2 keyboard driver with:
+  - Full US keyboard layout support
+  - Shift and Caps Lock modifiers
+  - Key state tracking
+  - Interrupt-driven input handling (IRQ1)
+  - Debouncing support
+  - Extended key support (e.g. right ctrl/alt)
+  - Circular buffer for key events
+  - Support for special keys (backspace, tab, enter)
 
 ### Memory Layout
 - Bootloader: 0x7C00
