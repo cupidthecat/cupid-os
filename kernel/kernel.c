@@ -86,7 +86,7 @@ void _start(void) {
 void kmain(void) {
     clear_screen();
     
-    print("Welcome to CupidOS!\n");
+    print("Welcome to cupid-os!\n");
     print("------------------\n");
     print("Kernel initialized successfully.\n");
     print("System is ready.\n");
