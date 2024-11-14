@@ -125,12 +125,15 @@ uint32_t timer_get_uptime_ms(void) {
     return (current_ticks * 1000) / frequency;
 }
 
-// Sleep for specified number of milliseconds
+// Sleep for specified number of milliseconds using TSC
 void timer_sleep_ms(uint32_t ms) {
-    uint64_t target_ticks = timer_state.ticks + udiv64((uint64_t)ms * timer_state.frequency, 1000);
-    
-    while (timer_state.ticks < target_ticks) {
-        __asm__ volatile("hlt");  // Power-efficient wait
+    // Calculate the number of CPU cycles needed for the delay
+    uint64_t start_tsc = rdtsc();
+    uint64_t cycles = udiv64(get_cpu_freq(), 1000) * ms; // Convert ms to cycles
+
+    // Busy-wait until the required number of cycles has passed
+    while ((rdtsc() - start_tsc) < cycles) {
+        __asm__ volatile("pause");  // More efficient busy-wait
     }
 }
 
@@ -177,5 +180,3 @@ bool timer_configure_channel(uint8_t channel, uint32_t frequency, timer_callback
     
     return true;
 }
-
-  

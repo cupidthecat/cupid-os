@@ -16,6 +16,7 @@
 #include "pic.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
+#include "../drivers/pit.h"
 #include "kernel.h"
 
 // Assembly entry point
@@ -161,7 +162,7 @@ void init_vga(void) {
  * - VGA text buffer is accessed directly at VGA_MEMORY
  * - Each character cell takes 2 bytes:
  *   - First byte: ASCII character (space in this case)
- *   - Second byte: Attribute byte (0x07 = light grey on black)
+ *   - Second byte: Attribute byte (0x07)
  * - Buffer size is VGA_WIDTH * VGA_HEIGHT characters
  */
 void clear_screen() {
@@ -431,6 +432,56 @@ uint32_t get_pit_ticks_per_ms(void) {
 }
 
 /**
+ * test_speaker - Test PC speaker functionality
+ * 
+ * Plays a series of tones to demonstrate PC speaker control:
+ * 1. Simple beep
+ * 2. Rising tone
+ * 3. Falling tone
+ */
+void test_speaker(void) {
+    print("Testing PC Speaker...\n");
+    
+    // Simple beep
+    print("Simple beep...\n");
+    beep();
+    
+    // Add a delay between tests
+    for(volatile int i = 0; i < 1000000; i++) {
+        __asm__ volatile("nop");
+    }
+    
+    // Rising tone
+    print("Rising tone...\n");
+    for(uint32_t freq = 100; freq < 2000; freq += 50) {
+        pc_speaker_on(freq);
+        // More reliable delay
+        for(volatile int i = 0; i < 100000; i++) {
+            __asm__ volatile("nop");
+        }
+    }
+    pc_speaker_off();
+    
+    // Add a delay between tests
+    for(volatile int i = 0; i < 1000000; i++) {
+        __asm__ volatile("nop");
+    }
+    
+    // Falling tone
+    print("Falling tone...\n");
+    for(uint32_t freq = 2000; freq > 100; freq -= 50) {
+        pc_speaker_on(freq);
+        // More reliable delay
+        for(volatile int i = 0; i < 100000; i++) {
+            __asm__ volatile("nop");
+        }
+    }
+    pc_speaker_off();
+    
+    print("Speaker test complete.\n");
+}
+
+/**
  * kmain - Main kernel entry point
  * 
  * This function initializes core kernel subsystems and drivers:
@@ -461,15 +512,21 @@ void kmain(void) {
     
     // Initialize keyboard before entering main loop
     keyboard_init();
-    // prints "keyboard init!"    
+    print("Keyboard initialized.\n");
+    test_speaker();
     // Enable interrupts
-    __asm__ volatile("sti");  // <-- Make sure interrupts are enabled!
+    __asm__ volatile("sti");
     
     print("\nWelcome to cupid-os!\n");
     print("------------------\n");
-    
-    // Main kernel loop
+    print("Start typing...\n");
+
+    // Main kernel loop - check for and display typed characters
     while(1) {
+        char c = keyboard_get_char();
+        if (c != 0) {  // If a character was typed
+            putchar(c);
+        }
         __asm__ volatile("hlt");
     }
 }

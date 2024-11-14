@@ -20,4 +20,10 @@
 void pit_init(uint32_t channel, uint32_t frequency);
 void pit_set_frequency(uint32_t channel, uint32_t frequency);
 
+// Add these declarations for PC speaker control
+void pc_speaker_on(uint32_t frequency);
+void pc_speaker_off(void);
+
+void beep(void);
+
 #endif 

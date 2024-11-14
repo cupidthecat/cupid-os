@@ -151,6 +151,9 @@ static bool function_keys[12] = {false};  // F1-F12 states
 // Add this function declaration at the top of the file, after the includes
 static void process_keypress(uint8_t key);
 
+// Add this declaration at the top of the file, after the includes
+static char get_ascii_from_scancode(uint8_t scancode);
+
 // Initialize keyboard
 void keyboard_init(void) {
     // Register keyboard interrupt handler
@@ -225,12 +228,7 @@ static void process_keypress(uint8_t key) {
     }
 
     // Convert scancode to ASCII
-    char ascii;
-    if (keyboard_state.modifier_states[MOD_SHIFT] ^ keyboard_state.modifier_states[MOD_CAPS]) {
-        ascii = shifted_scancode_to_ascii[key];
-    } else {
-        ascii = scancode_to_ascii[key];
-    }
+    char ascii = get_ascii_from_scancode(key);
 
     // Special handling for backspace
     if (ascii == '\b') {
@@ -263,7 +261,7 @@ static void process_keypress(uint8_t key) {
     }
 }
 
-// At the top of the file, after the includes:
+// Define the function after process_keypress
 static char get_ascii_from_scancode(uint8_t scancode) {
     // Only handle make codes (key press), ignore break codes (key release)
     if (scancode & 0x80) {
