@@ -461,8 +461,7 @@ void kmain(void) {
     
     // Initialize keyboard before entering main loop
     keyboard_init();
-    // prints "keyboard init!"   
-     
+    // prints "keyboard init!"    
     // Enable interrupts
     __asm__ volatile("sti");  // <-- Make sure interrupts are enabled!
     

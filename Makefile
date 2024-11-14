@@ -8,7 +8,7 @@ LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o
 
 all: $(OS_IMAGE)
 
@@ -17,7 +17,7 @@ $(BOOTLOADER): boot/boot.asm
 	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/kernel.o: kernel/kernel.c
+kernel/kernel.o: kernel/kernel.c kernel/kernel.h kernel/cpu.h
 	$(CC) $(CFLAGS) kernel/kernel.c -o kernel/kernel.o
 
 kernel/idt.o: kernel/idt.c kernel/idt.h kernel/isr.h kernel/kernel.h
@@ -40,6 +40,14 @@ drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
 # Add new rule for timer.o
 drivers/timer.o: drivers/timer.c drivers/timer.h
 	$(CC) $(CFLAGS) drivers/timer.c -o drivers/timer.o
+
+# Add a rule to compile math.c
+kernel/math.o: kernel/math.c kernel/math.h
+	$(CC) $(CFLAGS) kernel/math.c -o kernel/math.o
+
+# Add new rule for pit.o
+drivers/pit.o: drivers/pit.c drivers/pit.h
+	$(CC) $(CFLAGS) drivers/pit.c -o drivers/pit.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

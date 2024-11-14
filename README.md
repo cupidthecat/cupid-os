@@ -81,10 +81,14 @@ This design choice reflects our belief that users should be trusted and empowere
   - Multi-channel PIT support:
     - Channel 0: System timer (100Hz)
     - Channel 1: Custom timing events
-    - Channel 2: PC Speaker control
-  - Configurable timer frequencies
+    - Channel 2: PC Speaker control (planned)
+  - Configurable timer frequencies per channel
   - Hardware-based timing precision
   - CPU frequency detection
+  - Microsecond delay support
+  - Power-efficient sleep modes
+  - High-precision measurement capabilities
+  - Timer event callbacks
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -129,8 +133,10 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ System tick counter
    - ✅ Sleep/delay functions
    - ✅ Timer calibration
-   - 🔄 Multiple timer channels
-   - ⭕ Variable frequency support
+   - ✅ Multiple timer channels
+   - 🔄 Variable frequency support
+   - ⭕ PC Speaker support
+   - ⭕ High-precision timing modes
 
 4. **Memory Management** (⭕ Planned)
    - ⭕ Physical memory manager
