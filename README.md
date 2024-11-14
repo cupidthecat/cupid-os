@@ -1,19 +1,33 @@
 # cupid-os
-A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, interrupt handling, and basic screen I/O.
+A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. This project implements core OS functionality including:
 
-What I want cupid-os to be: 
-- A multitasking, 32bit OS with a graphical user interface, that focuses on simplicity with inspiration from video games, templeOS, osakaOS and the linux kernel
-- I want it to be a space where I can grow as a operating systems engineer and explore new ideas
+- Custom bootloader with protected mode transition
+- Comprehensive interrupt handling system
+- Advanced PS/2 keyboard driver with full US layout support
+- High-precision programmable timer system
+- VGA text mode graphics with custom character rendering
+
+The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
 ## Structure
 - `boot/` - Bootloader code (16-bit to 32-bit mode transition)
+  - `boot.asm` - Main bootloader implementation
 - `kernel/` - Kernel source code (32-bit protected mode C code)
   - `kernel.c` - Main kernel file
   - `idt.c/h` - Interrupt Descriptor Table implementation
   - `isr.c/h` - Interrupt Service Routines
-  - `types.h` - Custom type definitions
   - `isr.asm` - Assembly interrupt service routines
+  - `irq.c/h` - Hardware interrupt request handlers
+  - `pic.c/h` - Programmable Interrupt Controller driver
+  - `ports.h` - I/O port access functions
+  - `types.h` - Custom type definitions
+- `drivers/` - Device drivers
+  - `keyboard.c/h` - PS/2 keyboard driver
+  - `timer.c/h` - System timer implementation
+  - `pit.c/h` - Programmable Interval Timer driver
+- `link.ld` - Linker script for kernel
 - `Makefile` - Build system
+- `LICENSE` - GNU General Public License v3
 
 ## Features
 - Custom bootloader that switches from 16-bit real mode to 32-bit protected mode
@@ -248,4 +262,3 @@ GNU v3
 - Enhanced exception handling with detailed error messages
 - Implemented basic PIT timer with system tick counter
 - Added initial delay/sleep functionality using timer ticks
-
