@@ -41,21 +41,44 @@ int cursor_y = 0;
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
 
-// Timer callback for channel 0
+
+/**
+ * timer_callback_channel0 - Timer callback for channel 0
+ * 
+ * Increments the ticks_channel0 counter when called with channel 0.
+ * 
+ * @param r: Pointer to the registers structure
+ * @param channel: The timer channel (0 in this case)
+ */
 void timer_callback_channel0(struct registers* r, uint32_t channel) {
     if (channel == 0) {
         ticks_channel0++;
     }
 }
-
-// Timer callback for channel 1
+/**
+ * timer_callback_channel1 - Timer callback for channel 1
+ * 
+ * Increments the ticks_channel1 counter when called with channel 1.
+ * 
+ * @param r: Pointer to the registers structure
+ * @param channel: The timer channel (1 in this case)
+ */
 void timer_callback_channel1(struct registers* r, uint32_t channel) {
     if (channel == 1) {
         ticks_channel1++;
     }
 }
 
-// Get ticks for a specific channel
+/**
+ * timer_get_ticks_channel - Get the tick count for a specific timer channel
+ * 
+ * Returns the current tick count for the specified timer channel.
+ * - Channel 0: System tick counter
+ * - Channel 1: Reserved for future use (currently unused)
+ * 
+ * @param channel: The timer channel to get ticks for (0 or 1)
+ * @return: The current tick count for the specified channel
+ */
 uint32_t timer_get_ticks_channel(uint32_t channel) {
     if (channel == 0) {
         return ticks_channel0;
@@ -436,16 +459,15 @@ void kmain(void) {
     idt_init();
     print("IDT initialized.\n");
     
-    // Continue with keyboard init and main loop
+    // Initialize keyboard before entering main loop
     keyboard_init();
-    print("\nKeyboard ready!\n");
+    // prints "keyboard init!"   
+     
+    // Enable interrupts
+    __asm__ volatile("sti");  // <-- Make sure interrupts are enabled!
     
-    print("Calibrating timer...\n");
-    calibrate_timer();
-
     print("\nWelcome to cupid-os!\n");
     print("------------------\n");
-
     
     // Main kernel loop
     while(1) {

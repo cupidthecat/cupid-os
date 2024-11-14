@@ -12,7 +12,7 @@ The goal of cupid-os is to create an accessible, well-documented operating syste
 ## Philosophy
 cupid-os embraces a philosophy of complete user empowerment and transparency, inspired by TempleOS. Like TempleOS, cupid-os gives users full, unrestricted access to the entire system:
 
-There are no security boundaries or privilege levels—all code runs in ring 0. This can be changed depending on how cupid-os ends up. Minimal privilege levels will be implemented at the minimum.
+- No security boundaries or privilege levels - all code runs in ring 0
 - Direct hardware access from user programs
 - Full memory access with no virtual memory restrictions
 - Complete visibility into and control over all system internals

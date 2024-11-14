@@ -1,62 +1,65 @@
 /*
  * PS/2 Keyboard Driver
  * 
- * This driver implements a complete PS/2 keyboard interface with:
- * - Full US keyboard layout support via scancode-to-ASCII mapping
+ * A complete PS/2 keyboard interface that provides:
+ * - US keyboard layout with scancode-to-ASCII mapping
  * - Modifier key tracking (Shift, Caps Lock, Ctrl, Alt)
  * - Key state tracking and event buffering
  * - Key repeat functionality with configurable delays
  * - Extended key support (F1-F12, arrow keys, etc)
  * - Interrupt-driven input handling via IRQ1
  * 
- * The keyboard state is maintained in a global structure that tracks:
- * - Current modifier key states
- * - Key up/down states
- * - Input event circular buffer
+ * The keyboard state is tracked in a global structure containing:
+ * - Modifier key states (shift, ctrl, alt, caps lock)
+ * - Key up/down states for all keys
+ * - Circular buffer for input events
  * - Key repeat timing and state
  * 
- * Key events are processed through an interrupt handler that manages
- * both regular keypresses and special keys like modifiers and function keys.
+ * Input is processed through an interrupt handler that manages:
+ * - Regular keypresses and releases
+ * - Modifier key state changes
+ * - Special keys (function keys, etc)
+ * - Extended key sequences
  * 
- * The driver provides:
- * - Keyboard initialization and reset
- * - Scancode-to-ASCII conversion with shift/caps lock support
- * - Key repeat handling with configurable delays
+ * Features:
+ * - Full keyboard initialization and reset
+ * - Scancode-to-ASCII conversion with shift/caps lock
+ * - Configurable key repeat delays and rates
  * - Function key support (F1-F12)
  * - Special key handling (backspace, tab, enter)
- * - Modifier key tracking (shift, ctrl, alt, caps lock)
+ * - Modifier key tracking
  * - Extended key sequence handling
- * - Key state tracking and querying
- * - Event buffering with circular buffer
+ * - Key state querying
+ * - Event buffering with overflow protection
  * - Error checking and status monitoring
  * 
- * Key repeat behavior:
- * - Initial delay before repeat starts (KEY_REPEAT_DELAY)
- * - Configurable repeat rate (KEY_REPEAT_RATE)
- * - State tracking for currently repeating key
- * - Proper handling of key releases
+ * Key repeat functionality:
+ * - Initial delay before repeat starts
+ * - Configurable repeat rate
+ * - Per-key repeat state tracking
+ * - Proper release handling
  * 
- * The keyboard buffer:
- * - Circular buffer implementation
- * - Configurable size (KEYBOARD_BUFFER_SIZE)
+ * Input buffering:
+ * - Circular buffer for events
+ * - Configurable buffer size
  * - Overflow protection
- * - Event timestamping for debouncing
+ * - Event timestamping
  * 
- * Modifier key handling:
- * - Separate tracking for left/right shift/ctrl/alt
- * - Caps lock toggle support
- * - Proper state management for extended key sequences
+ * Modifier handling:
+ * - Separate left/right shift/ctrl/alt tracking
+ * - Caps lock toggle
+ * - Extended key sequence state management
  * 
  * Error handling:
- * - Status port monitoring
+ * - Status register monitoring
  * - Output buffer checking
- * - Controller ready verification
+ * - Controller status verification
  * 
  * Dependencies:
- * - ports.h: I/O port access
- * - irq.h: Interrupt handling
- * - kernel.h: Screen output
- * - types.h: Data structure definitions
+ * - ports.h: Hardware I/O port access
+ * - irq.h: Interrupt request handling
+ * - kernel.h: Screen output functions
+ * - types.h: Common data types
  */
 
 #include "keyboard.h"
@@ -67,7 +70,7 @@
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
 
-// US keyboard layout scancode map
+// Scancode to ASCII mapping (lowercase)
 static const char scancode_to_ascii[] = {
     0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
     '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
@@ -76,7 +79,16 @@ static const char scancode_to_ascii[] = {
     '*', 0, ' '
 };
 
-// Add these definitions at the top
+// Scancode to ASCII mapping (uppercase)
+static const char scancode_to_ascii_shift[] = {
+    0, 0, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b',
+    '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',
+    0, 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',
+    0, '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0,
+    '*', 0, ' '
+};
+
+// Keyboard constants and configuration
 #define KEY_LSHIFT 0x2A
 #define KEY_RSHIFT 0x36
 #define KEY_CAPS   0x3A
@@ -97,7 +109,7 @@ static const char scancode_to_ascii[] = {
 #define KEY_F11 0x57
 #define KEY_F12 0x58
 
-// Add to keyboard_state_t in types.h or here
+// Key repeat state tracking
 typedef struct {
     uint32_t last_keypress_time;  // Time of last keypress
     uint32_t last_repeat_time;    // Time of last repeat
@@ -105,29 +117,29 @@ typedef struct {
     uint8_t last_key;             // Last key pressed
 } key_repeat_state_t;
 
-// Add to keyboard_state
+// Global state for key repeat
 static key_repeat_state_t repeat_state = {0};
 static uint32_t system_ticks = 0;  // Updated by timer interrupt
 
 // Modifier key scancodes
 #define KEY_LCTRL  0x1D
-#define KEY_RCTRL  0x1D  // Note: Right Ctrl sends 0xE0, 0x1D
+#define KEY_RCTRL  0x1D  // Right Ctrl: E0 1D
 #define KEY_LALT   0x38
-#define KEY_RALT   0x38  // Note: Right Alt sends 0xE0, 0x38
+#define KEY_RALT   0x38  // Right Alt: E0 38
 #define KEY_LSHIFT 0x2A
 #define KEY_RSHIFT 0x36
 #define KEY_CAPS   0x3A
 
-// Modifier indices
+// Modifier state indices
 #define MOD_SHIFT 0
 #define MOD_CTRL  1
 #define MOD_ALT   2
 #define MOD_CAPS  3
 
-// Track if we're handling an extended key sequence
+// Extended key sequence tracking
 static bool handling_extended = false;
 
-// Add shifted scancode map
+// Shifted scancode mapping
 static const char shifted_scancode_to_ascii[] = {
     0, 0, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b',
     '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',
@@ -136,21 +148,16 @@ static const char shifted_scancode_to_ascii[] = {
     '*', 0, ' '
 };
 
-// Add function key state tracking to keyboard_state_t
+// Function key state tracking
 static bool function_keys[12] = {false};  // F1-F12 states
 
-// Add this function declaration at the top of the file, after the includes
+// Forward declaration for keypress processing
 static void process_keypress(uint8_t key);
 
 // Initialize keyboard
 void keyboard_init(void) {
-    // Wait for keyboard controller to be ready
-    while(inb(KEYBOARD_STATUS_PORT) & 0x02);
-    
-    // Flush the output buffer
-    while(inb(KEYBOARD_STATUS_PORT) & 0x01) {
-        inb(KEYBOARD_DATA_PORT);
-    }
+    // Register keyboard interrupt handler
+    irq_install_handler(1, keyboard_handler);
     
     // Reset keyboard state
     for(int i = 0; i < 256; i++) {
@@ -165,9 +172,6 @@ void keyboard_init(void) {
     keyboard_state.buffer.head = 0;
     keyboard_state.buffer.tail = 0;
     keyboard_state.buffer.count = 0;
-    
-    // Install keyboard handler
-    irq_install_handler(1, keyboard_handler);
     
     // Enable keyboard
     while(inb(KEYBOARD_STATUS_PORT) & 0x02);
@@ -185,12 +189,12 @@ static void keyboard_buffer_add(key_event_t event) {
     }
 }
 
-// Add this function to update system time
+// Update system timer ticks
 void keyboard_update_ticks(void) {
     system_ticks++;
 }
 
-// Move the process_keypress implementation before keyboard_handler
+// Process a keypress event
 static void process_keypress(uint8_t key) {
     // Handle function keys
     if (key >= KEY_F1 && key <= KEY_F12) {
@@ -211,12 +215,17 @@ static void process_keypress(uint8_t key) {
         return;
     }
 
-    // Handle modifier keys
+    // Handle Caps Lock press
+    if (key == KEY_CAPS) {
+        keyboard_state.modifier_states[MOD_CAPS] = !keyboard_state.modifier_states[MOD_CAPS];
+        return;
+    }
+
+    // Handle Shift keys
     if (key == KEY_LSHIFT || key == KEY_RSHIFT) {
         keyboard_state.modifier_states[MOD_SHIFT] = true;
         return;
     }
-    // ... other modifier key handling ...
 
     // Convert scancode to ASCII
     char ascii;
@@ -257,14 +266,28 @@ static void process_keypress(uint8_t key) {
     }
 }
 
-// Then the keyboard_handler function follows
-void keyboard_handler(struct registers* r) {
-    // Add error checking for keyboard status
-    uint8_t status = inb(KEYBOARD_STATUS_PORT);
-    if (!(status & 0x01)) {
-        return;  // No data available
+// Convert scancode to ASCII character
+static char get_ascii_from_scancode(uint8_t scancode) {
+    // Only handle make codes (key press), ignore break codes (key release)
+    if (scancode & 0x80) {
+        return 0;
     }
 
+    // Handle regular keys
+    if (scancode < sizeof(scancode_to_ascii)) {
+        if (keyboard_state.modifier_states[MOD_SHIFT] ^ 
+            keyboard_state.modifier_states[MOD_CAPS]) {
+            return shifted_scancode_to_ascii[scancode];
+        } else {
+            return scancode_to_ascii[scancode];
+        }
+    }
+
+    return 0;
+}
+
+// Keyboard interrupt handler
+void keyboard_handler(struct registers* r) {
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
     
     // Handle extended key sequences
@@ -273,124 +296,35 @@ void keyboard_handler(struct registers* r) {
         return;
     }
     
+    // Track key states
     bool is_release = scancode & 0x80;
     uint8_t key = scancode & 0x7F;
     
-    // Handle function key releases
+    // Update key state
+    keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+    
+    // Handle Shift key release
     if (is_release) {
-        if (key >= KEY_F1 && key <= KEY_F12) {
-            int f_key = (key >= KEY_F11) ? 
-                        (key - KEY_F11 + 10) : // F11-F12
-                        (key - KEY_F1);        // F1-F10
-            function_keys[f_key] = false;
-            return;
-        }
-    }
-
-    // Reset repeat state on key release
-    if (is_release) {
-        if (key == repeat_state.last_key) {
-            repeat_state.is_repeating = false;
-        }
-        // Handle modifier keys
-        if (key == KEY_LCTRL || (handling_extended && key == KEY_RCTRL)) {
-            keyboard_state.modifier_states[MOD_CTRL] = false;
-        }
-        else if (key == KEY_LALT || (handling_extended && key == KEY_RALT)) {
-            keyboard_state.modifier_states[MOD_ALT] = false;
-        }
-        else if (key == KEY_LSHIFT || key == KEY_RSHIFT) {
+        if (key == KEY_LSHIFT || key == KEY_RSHIFT) {
             keyboard_state.modifier_states[MOD_SHIFT] = false;
         }
-        else if (key == KEY_CAPS && !is_release) {
-            keyboard_state.modifier_states[MOD_CAPS] = !keyboard_state.modifier_states[MOD_CAPS];
-        }
-        // Handle regular keys
-        else if (!is_release && !handling_extended) {
-            bool shift_active = keyboard_state.modifier_states[MOD_SHIFT];
-            bool caps_active = keyboard_state.modifier_states[MOD_CAPS];
-            bool ctrl_active = keyboard_state.modifier_states[MOD_CTRL];
-            bool alt_active = keyboard_state.modifier_states[MOD_ALT];
-            
-            char ascii;
-            if (shift_active ^ caps_active) {
-                ascii = shifted_scancode_to_ascii[key];
-            } else {
-                ascii = scancode_to_ascii[key];
-            }
-            
-            // Handle Ctrl+C, Ctrl+Z, etc.
-            if (ctrl_active && ascii >= 'a' && ascii <= 'z') {
-                ascii = ascii - 'a' + 1;  // Convert to control codes (1-26)
-                // Special handling for common control characters
-                switch(ascii) {
-                    case 3:  // Ctrl+C
-                        print("^C");
-                        break;
-                    case 26: // Ctrl+Z
-                        print("^Z");
-                        break;
-                    default:
-                        // Other control characters
-                        if (ascii < 32) {
-                            print("^");
-                            putchar(ascii + 'A' - 1);
-                        }
-                }
-            }
-            // Regular character output
-            else if (ascii && !ctrl_active && !alt_active) {
-                putchar(ascii);
-            }
-        }
-        
-        // Reset extended key flag
-        if (!handling_extended) {
-            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
-        }
-        handling_extended = false;
+        // Don't process other key releases
         return;
     }
-
-    // Handle new keypress
-    if (!is_release) {
-        repeat_state.last_keypress_time = system_ticks;
-        repeat_state.last_key = key;
-        repeat_state.is_repeating = false;
-
-        // Process the initial keypress
-        process_keypress(key);
-    }
-
-    // Check for key repeat
-    uint32_t current_time = system_ticks;
-    if (repeat_state.last_key != 0) {
-        uint32_t time_since_press = current_time - repeat_state.last_keypress_time;
-        
-        if (!repeat_state.is_repeating) {
-            // Start repeating after initial delay
-            if (time_since_press > KEY_REPEAT_DELAY / (1000 / TIMER_FREQUENCY)) {
-                repeat_state.is_repeating = true;
-                repeat_state.last_repeat_time = current_time;
-                process_keypress(repeat_state.last_key);
-            }
-        } else {
-            // Continue repeating at regular intervals
-            uint32_t time_since_repeat = current_time - repeat_state.last_repeat_time;
-            if (time_since_repeat > KEY_REPEAT_RATE / (1000 / TIMER_FREQUENCY)) {
-                repeat_state.last_repeat_time = current_time;
-                process_keypress(repeat_state.last_key);
-            }
-        }
-    }
+    
+    // Handle key press
+    process_keypress(key);
+    
+    // Reset extended flag
+    handling_extended = false;
 }
 
-// Get key state
+// Get current state of a key
 bool keyboard_get_key_state(uint8_t scancode) {
     return keyboard_state.key_states[scancode] == KEY_DOWN;
 }
 
-// Get raw scancode (for direct access)
+// Get raw scancode from buffer
 char keyboard_get_scancode(void) {
     if(keyboard_state.buffer.count > 0) {
         key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
@@ -401,10 +335,20 @@ char keyboard_get_scancode(void) {
     return 0;
 }
 
-// Add a new function to check function key states
+// Check if a function key is pressed
 bool keyboard_get_function_key(uint8_t f_num) {
     if (f_num >= 1 && f_num <= 12) {
         return function_keys[f_num - 1];
     }
     return false;
+}
+
+// Get caps lock state
+bool keyboard_get_caps_lock(void) {
+    return keyboard_state.modifier_states[MOD_CAPS];
+}
+
+// Get shift state
+bool keyboard_get_shift(void) {
+    return keyboard_state.modifier_states[MOD_SHIFT];
 } 

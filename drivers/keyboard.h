@@ -21,5 +21,8 @@ char keyboard_get_scancode(void);
 bool keyboard_get_key_state(uint8_t scancode);
 bool keyboard_get_function_key(uint8_t f_num);
 void keyboard_update_ticks(void);
+char keyboard_get_char(void);
+bool keyboard_get_caps_lock(void);
+bool keyboard_get_shift(void);
 
 #endif 
