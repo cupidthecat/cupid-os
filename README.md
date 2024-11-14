@@ -2,8 +2,7 @@
 A minimal operating system written in C and x86 Assembly. This project demonstrates basic OS concepts including bootloader implementation, protected mode switching, interrupt handling, and basic screen I/O.
 
 What I want cupid-os to be: 
-- A multitasking, 32bit OS with a graphical user interface, that focuses on simplicity with inspiration from video games like menus and osakaOS
-- Another inspiration is the unix and linux kernel as well as the distros that comes from the linux kernel
+- A multitasking, 32bit OS with a graphical user interface, that focuses on simplicity with inspiration from video games, templeOS, osakaOS and the linux kernel
 - I want it to be a space where I can grow as a operating systems engineer and explore new ideas
 
 ## Structure
@@ -27,14 +26,38 @@ What I want cupid-os to be:
   - Screen clearing
 - Interrupt handling:
   - Interrupt Descriptor Table (IDT)
-  - Basic exception handlers
+  - Basic exception handlers with detailed error messages
   - Hardware interrupt support
   - PIC (Programmable Interrupt Controller) configuration
+  - Custom interrupt handler registration
+  - Debug exception handling
 - Keyboard support:
   - PS/2 keyboard driver
   - Scancode to ASCII mapping
+  - Full US keyboard layout support
   - Key state tracking
-  - Event buffer system
+  - Event buffer system with circular buffer implementation
+  - Interrupt-driven input handling (IRQ1)
+  - Comprehensive modifier key support (Shift, Ctrl, Alt, Caps Lock)
+  - Extended key support (e.g., right ctrl/alt)
+  - Function keys support (F1-F12)
+  - Key repeat handling with configurable delays
+  - Key debouncing
+  - Special key support (backspace, tab, enter)
+- Timer functionality:
+  - PIT (Programmable Interval Timer) implementation
+  - Basic system clock
+  - Timer interrupts
+  - System tick counter
+  - Basic sleep/delay functions
+  - Timer calibration using CPU timestamp counter (TSC)
+  - Multi-channel PIT support:
+    - Channel 0: System timer (100Hz)
+    - Channel 1: Custom timing events
+    - Channel 2: PC Speaker control
+  - Configurable timer frequencies
+  - Hardware-based timing precision
+  - CPU frequency detection
 
 ## Development Roadmap
 ### Phase 1 - Core System Infrastructure
@@ -65,9 +88,9 @@ What I want cupid-os to be:
    - ✅ Basic system clock
    - ✅ Timer interrupts
    - ✅ System tick counter
-   - 🔄 Sleep/delay functions
-   - ⭕ Timer calibration
-   - ⭕ Multiple timer channels
+   - ✅ Sleep/delay functions
+   - ✅ Timer calibration
+   - 🔄 Multiple timer channels
    - ⭕ Variable frequency support
 
 4. **Memory Management** (⭕ Planned)

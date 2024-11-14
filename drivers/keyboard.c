@@ -17,6 +17,46 @@
  * 
  * Key events are processed through an interrupt handler that manages
  * both regular keypresses and special keys like modifiers and function keys.
+ * 
+ * The driver provides:
+ * - Keyboard initialization and reset
+ * - Scancode-to-ASCII conversion with shift/caps lock support
+ * - Key repeat handling with configurable delays
+ * - Function key support (F1-F12)
+ * - Special key handling (backspace, tab, enter)
+ * - Modifier key tracking (shift, ctrl, alt, caps lock)
+ * - Extended key sequence handling
+ * - Key state tracking and querying
+ * - Event buffering with circular buffer
+ * - Error checking and status monitoring
+ * 
+ * Key repeat behavior:
+ * - Initial delay before repeat starts (KEY_REPEAT_DELAY)
+ * - Configurable repeat rate (KEY_REPEAT_RATE)
+ * - State tracking for currently repeating key
+ * - Proper handling of key releases
+ * 
+ * The keyboard buffer:
+ * - Circular buffer implementation
+ * - Configurable size (KEYBOARD_BUFFER_SIZE)
+ * - Overflow protection
+ * - Event timestamping for debouncing
+ * 
+ * Modifier key handling:
+ * - Separate tracking for left/right shift/ctrl/alt
+ * - Caps lock toggle support
+ * - Proper state management for extended key sequences
+ * 
+ * Error handling:
+ * - Status port monitoring
+ * - Output buffer checking
+ * - Controller ready verification
+ * 
+ * Dependencies:
+ * - ports.h: I/O port access
+ * - irq.h: Interrupt handling
+ * - kernel.h: Screen output
+ * - types.h: Data structure definitions
  */
 
 #include "keyboard.h"
@@ -186,7 +226,32 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
-    // Output the character
+    // Special handling for backspace
+    if (ascii == '\b') {
+        // Move cursor back one position
+        if (cursor_x > 0) {
+            cursor_x--;
+        } else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+        }
+        
+        // Clear the character at current position
+        volatile char* vidmem = (char*)VGA_MEMORY;
+        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+        vidmem[offset] = ' ';
+        vidmem[offset + 1] = 0x07;  // Light grey on black
+        
+        // Update hardware cursor
+        int pos = cursor_y * VGA_WIDTH + cursor_x;
+        outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
+        outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
+        outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
+        outb(VGA_DATA_REGISTER, pos & 0xFF);
+        return;
+    }
+
+    // Output other characters
     if (ascii) {
         putchar(ascii);
     }
