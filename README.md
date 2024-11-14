@@ -9,6 +9,19 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
+## Philosophy
+cupid-os embraces a philosophy of complete user empowerment and transparency, inspired by TempleOS. Like TempleOS, cupid-os gives users full, unrestricted access to the entire system:
+
+- No security boundaries or privilege levels - all code runs in ring 0
+- Direct hardware access from user programs
+- Full memory access with no virtual memory restrictions
+- Complete visibility into and control over all system internals
+- No artificial limitations or "protections" getting in the way
+
+The goal is to create a pure, simple environment where users have complete freedom to explore, experiment, and truly understand how their computer works at the lowest level. While this approach sacrifices security and isolation, it maximizes learning potential and enables direct hardware manipulation that modern OSes restrict.
+
+This design choice reflects our belief that users should be trusted and empowered rather than constrained. For educational and experimental purposes, having full access to bare metal is invaluable.
+
 ## Structure
 - `boot/` - Bootloader code (16-bit to 32-bit mode transition)
   - `boot.asm` - Main bootloader implementation
@@ -74,6 +87,18 @@ The goal of cupid-os is to create an accessible, well-documented operating syste
   - CPU frequency detection
 
 ## Development Roadmap
+The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
+
+- New requirements discovered during development
+- Technical challenges and learning opportunities encountered
+- Community feedback and contributions
+- Integration needs between different system components
+- Performance optimization requirements
+- Hardware support requirements
+- Testing and debugging needs
+
+As we progress, new phases and tasks may be added, existing ones may be modified, and priorities may shift to ensure we're building the most robust and useful system possible.
+
 ### Phase 1 - Core System Infrastructure
 1. **Interrupt Handling** (✅ Complete)
    - ✅ Implement IDT (Interrupt Descriptor Table)
