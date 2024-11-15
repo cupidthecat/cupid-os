@@ -4,19 +4,23 @@
  * This file implements the main kernel functionality including:
  * - Core kernel initialization and entry point (_start and kmain)
  * - VGA text mode driver with 80x25 character display
- * - Screen output functions (print, putchar) 
- * - Screen manipulation (clear_screen, cursor movement)
+ * - Screen output functions (print, putchar)
+ * - Screen manipulation (clear_screen, cursor movement) 
  * - Port I/O functions (inb/outb) for hardware interaction
  * - Interrupt handling setup (PIC, IDT initialization)
  * - PS/2 keyboard driver initialization and interrupt handling
- * - Main kernel loop with interrupt handling
+ * - Timer calibration and frequency measurement
+ * - System timing services via PIT channels
+ * - Main kernel loop with interrupt handling and power management
  */
 
 #include "idt.h"
 #include "pic.h"
+#include "kernel.h"
+#include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
-#include "kernel.h"
+#include "ports.h"
 
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
@@ -88,32 +92,11 @@ uint32_t timer_get_ticks_channel(uint32_t channel) {
     return 0;
 }
 
-/**
- * outb - Write a byte to a port
- * @param port: The port to write to
- * @param value: The byte to write to the port
- */
-static inline void outb(uint16_t port, uint8_t value) {
-    __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
-}
-/**
- * inb - Read a byte from a port
- * @param port: The port to read from
- * @return: The byte read from the port
- */
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
-
-// Add these VGA-related definitions at the top
 #define VGA_CTRL_REGISTER 0x3D4
 #define VGA_DATA_REGISTER 0x3D5
 #define VGA_OFFSET_LOW 0x0F
 #define VGA_OFFSET_HIGH 0x0E
 
-// Add these function declarations at the top, after the #defines
 void print(const char* str);
 void putchar(char c);
 void clear_screen(void);
@@ -456,15 +439,19 @@ void kmain(void) {
     pic_init();
     print("PIC initialized.\n");
     
+    // Explicitly unmask keyboard IRQ
+    pic_clear_mask(1);  // IRQ1 is keyboard
+    
     idt_init();
     print("IDT initialized.\n");
-    
-    // Initialize keyboard before entering main loop
+
+    // Initialize keyboard with explicit interrupt enable
     keyboard_init();
-    // prints "keyboard init!"    
-    // Enable interrupts
-    __asm__ volatile("sti");  // <-- Make sure interrupts are enabled!
     
+    // Enable interrupts before speaker init
+    __asm__ volatile("sti");  // Enable interrupts
+    
+    // Initialize speaker after interrupts are enabled
     print("\nWelcome to cupid-os!\n");
     print("------------------\n");
     

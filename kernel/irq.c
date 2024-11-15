@@ -6,7 +6,12 @@ static irq_handler_t irq_handlers[16] = { 0 };
 
 // Install a custom IRQ handler
 void irq_install_handler(int irq, irq_handler_t handler) {
-    irq_handlers[irq] = handler;
+    if (irq >= 0 && irq < 16) {
+        irq_handlers[irq] = handler;
+        print("IRQ handler installed for IRQ ");
+        // Add code to print irq number
+        print("\n");
+    }
 }
 
 // Remove an IRQ handler

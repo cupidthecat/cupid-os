@@ -1,13 +1,40 @@
 /*
  * Timer Driver Implementation
  * 
- * This file implements the Programmable Interval Timer (PIT) functionality:
- * - Initializes PIT Channel 0 for system timing
- * - Provides high precision timing services
- * - Handles timer interrupts (IRQ0)
- * - Tracks system uptime
- * - Implements sleep/delay functions
- * - Supports variable timer frequencies
+ * This file implements a comprehensive timer system using the Intel 8253/8254 
+ * Programmable Interval Timer (PIT). The PIT provides essential timing services
+ * for the operating system:
+ *
+ * Core Timer Features:
+ * - Configures PIT Channel 0 as the system timer (default 100Hz)
+ * - Handles timer interrupts (IRQ0) for regular system ticks
+ * - Maintains system uptime counter with millisecond precision
+ * - Provides sleep() and delay() functions for precise timing
+ * - Supports dynamic frequency adjustment (1Hz to 1.19MHz)
+ * 
+ * Advanced Capabilities:
+ * - Multi-channel support (3 independent timer channels):
+ *   - Channel 0: System timer for OS timing
+ *   - Channel 1: Available for custom timing events
+ *   - Channel 2: PC Speaker control
+ * - High precision timing using CPU timestamp counter (TSC)
+ * - Timer calibration for accurate delays
+ * - Configurable timer callbacks per channel
+ * - Power-efficient sleep modes using HLT
+ *
+ * Usage:
+ * - System timing and scheduling
+ * - Device driver timing requirements
+ * - User application delays
+ * - Sound generation via Channel 2
+ * - Performance measurements
+ * - Event timing and timeouts
+ *
+ * Dependencies:
+ * - ports.h: I/O port access
+ * - irq.h: Interrupt handling
+ * - types.h: Data structures
+ * - kernel.h: System functions
  */
 
 #include "../kernel/ports.h"

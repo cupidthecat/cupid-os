@@ -8,7 +8,7 @@ LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o drivers/speaker.o
 
 all: $(OS_IMAGE)
 
@@ -49,6 +49,10 @@ kernel/math.o: kernel/math.c kernel/math.h
 drivers/pit.o: drivers/pit.c drivers/pit.h
 	$(CC) $(CFLAGS) drivers/pit.c -o drivers/pit.o
 
+# Add new rule for speaker.o
+drivers/speaker.o: drivers/speaker.c drivers/speaker.h
+	$(CC) $(CFLAGS) drivers/speaker.c -o drivers/speaker.o
+
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
@@ -60,7 +64,7 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE)
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o $(OS_IMAGE)
