@@ -23,18 +23,34 @@ void pc_speaker_on(uint32_t frequency) {
     // Calculate PIT divisor for the desired frequency
     uint32_t divisor = 1193180 / frequency;
     
-    // Configure PIT channel 2 for square wave generation
-    pit_set_frequency(2, frequency);
+    // Temporarily disable interrupts while configuring speaker
+    __asm__ volatile("cli");
     
-    // Enable PC speaker by setting bits 0 and 1
-    uint8_t tmp = inb(PC_SPEAKER_PORT);
-    outb(PC_SPEAKER_PORT, tmp | PC_SPEAKER_ENABLE_BITS);
+    // Save current port B state
+    uint8_t tmp = inb(0x61);
+    
+    // Configure PIT channel 2
+    outb(0x43, 0xB6);  // 10110110 - channel 2, square wave, load LSB then MSB
+    outb(0x42, divisor & 0xFF);
+    outb(0x42, (divisor >> 8) & 0xFF);
+    
+    // Enable speaker without modifying other bits
+    outb(0x61, tmp | 0x03);
+    
+    // Re-enable interrupts
+    __asm__ volatile("sti");
 }
 
 void pc_speaker_off(void) {
-    // Disable PC speaker by clearing bits 0 and 1
-    uint8_t tmp = inb(PC_SPEAKER_PORT);
-    outb(PC_SPEAKER_PORT, tmp & ~PC_SPEAKER_ENABLE_BITS);
+    // Temporarily disable interrupts
+    __asm__ volatile("cli");
+    
+    // Save current port state and disable speaker bit
+    uint8_t tmp = inb(0x61) & 0xFC;  // Clear bits 0 and 1
+    outb(0x61, tmp);
+    
+    // Re-enable interrupts
+    __asm__ volatile("sti");
 }
 
 // Simple beep function that plays a 1kHz tone for 100ms

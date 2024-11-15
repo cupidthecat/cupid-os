@@ -441,19 +441,28 @@ void kmain(void) {
     
     // Explicitly unmask keyboard IRQ
     pic_clear_mask(1);  // IRQ1 is keyboard
+    keyboard_init();
     
     idt_init();
     print("IDT initialized.\n");
 
-    // Initialize keyboard with explicit interrupt enable
-    keyboard_init();
-    
-    // Enable interrupts before speaker init
+    // Enable interrupts FIRST
     __asm__ volatile("sti");  // Enable interrupts
     
-    // Initialize speaker after interrupts are enabled
     print("\nWelcome to cupid-os!\n");
     print("------------------\n");
+    // Modified speaker test loop with interrupt yields
+    // will break the 0x28 - 0x31 range of scancodes 
+    for(uint32_t freq = 100; freq < 2000; freq += 50) {
+        pc_speaker_on(freq);
+        
+        // Multiple interrupt yields for smoother operation
+        for(volatile int i = 0; i < 1; i++) {
+            __asm__ volatile("sti; hlt");  // Enable interrupts and halt until next interrupt
+        }
+        
+        pc_speaker_off();
+    }
     
     // Main kernel loop
     while(1) {

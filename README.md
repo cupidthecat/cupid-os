@@ -1,4 +1,6 @@
-# cupid-os
+# cupid-os - merge-speaker-main 
+This is a branch for working on the speaker driver in relation to the keyboard driver.
+
 A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. This project implements core OS functionality including:
 
 - Custom bootloader with protected mode transition
