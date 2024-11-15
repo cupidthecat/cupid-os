@@ -26,7 +26,7 @@ This design choice reflects our belief that users should be trusted and empowere
 - `boot/` - Bootloader code (16-bit to 32-bit mode transition)
   - `boot.asm` - Main bootloader implementation
 - `kernel/` - Kernel source code (32-bit protected mode C code)
-  - `kernel.c` - Main kernel file
+  - `kernel.c` - Main kernel file with VGA driver and core functionality
   - `idt.c/h` - Interrupt Descriptor Table implementation
   - `isr.c/h` - Interrupt Service Routines
   - `isr.asm` - Assembly interrupt service routines
@@ -35,11 +35,12 @@ This design choice reflects our belief that users should be trusted and empowere
   - `ports.h` - I/O port access functions
   - `types.h` - Custom type definitions
 - `drivers/` - Device drivers
-  - `keyboard.c/h` - PS/2 keyboard driver
-  - `timer.c/h` - System timer implementation
+  - `keyboard.c/h` - PS/2 keyboard driver with full US layout support
+  - `timer.c/h` - System timer and timing services
   - `pit.c/h` - Programmable Interval Timer driver
-- `link.ld` - Linker script for kernel
-- `Makefile` - Build system
+  - `speaker.c/h` - PC speaker driver for sound output
+- `link.ld` - Linker script for kernel image generation
+- `Makefile` - Build system configuration
 - `LICENSE` - GNU General Public License v3
 
 ## Features
