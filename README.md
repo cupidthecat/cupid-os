@@ -178,7 +178,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 11. Advanced memory management
 12. Extended device support
 13. Multi-process scheduling
-
+14. Custom music program in dedication to Terry A. Davis
 ## Example of cupid-os
 ![alt text for cupid-os img](img/os.png)
 
