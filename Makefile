@@ -8,7 +8,9 @@ LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o drivers/speaker.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
+           drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
+           drivers/speaker.o
 
 all: $(OS_IMAGE)
 

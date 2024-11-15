@@ -6,6 +6,7 @@
 // Expose cursor position variables
 extern int cursor_x;
 extern int cursor_y;
+extern uint16_t* video_memory;
 
 // VGA-related definitions
 #define VGA_WIDTH 80
@@ -23,5 +24,9 @@ void clear_screen(void);
 void init_vga(void);
 void print_int(uint32_t num);
 uint64_t get_cpu_freq(void);
+void update_cursor(int x, int y);
+
+// Function to scroll the screen
+void scroll_screen(void);
 
 #endif 

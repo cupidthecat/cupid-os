@@ -207,20 +207,18 @@ static void process_keypress(uint8_t key) {
 
     // Handle modifier key presses/releases
     switch (key) {
-        case KEY_CAPS:
-            if (!is_release) {
-                caps_lock_active = !caps_lock_active;  // Toggle Caps Lock on press
-            }
-            return;
-
         case KEY_LSHIFT:
             left_shift_active = !is_release;
-            keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
             return;
 
         case KEY_RSHIFT:
             right_shift_active = !is_release;
-            keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            return;
+
+        case KEY_CAPS:
+            if (!is_release) {
+                caps_lock_active = !caps_lock_active;
+            }
             return;
     }
 
@@ -229,37 +227,32 @@ static void process_keypress(uint8_t key) {
         return;
     }
 
-    // Determine if shift is active
-    bool shift_active = left_shift_active || right_shift_active;
-    
     // Get the appropriate character based on shift and caps lock states
+    bool shift_active = left_shift_active || right_shift_active;
     char ascii;
-    if (shift_active ^ caps_lock_active) {
-        // If either shift is active or caps lock (but not both), use uppercase
-        ascii = scancode_to_ascii_shift[key];
-    } else {
-        // Otherwise use lowercase
-        ascii = scancode_to_ascii[key];
-    }
 
-    // Special handling for backspace
-    if (key == 0x0E) {  // Backspace scancode
-        if (cursor_x > 0) {
-            cursor_x--;
-            putchar(' ');  // Clear the character
-            cursor_x--;    // Move cursor back again
-        } else if (cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-            putchar(' ');  // Clear the character
-            cursor_x = VGA_WIDTH - 1;
+    // Check if key is within valid range for scancode tables
+    if (key < sizeof(scancode_to_ascii)) {
+        if (shift_active ^ caps_lock_active) {
+            ascii = scancode_to_ascii_shift[key];
+        } else {
+            ascii = scancode_to_ascii[key];
         }
-        return;
-    }
 
-    // Output the character if it's valid
-    if (ascii) {
-        putchar(ascii);
+        // Handle backspace
+        if (ascii == '\b') {
+            if (cursor_x > 0) {
+                cursor_x--;
+                putchar(' ');  // Overwrite the character with a space
+                cursor_x--;    // Move cursor back again
+            }
+            return;
+        }
+
+        // Output the character if it's valid
+        if (ascii) {
+            putchar(ascii);
+        }
     }
 }
 
@@ -282,6 +275,7 @@ static char get_ascii_from_scancode(uint8_t scancode) {
         return scancode_to_ascii[scancode];
     }
 }
+
 static bool function_keys[12] = {false};
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
@@ -290,13 +284,6 @@ void keyboard_handler(struct registers* r) {
     // Handle extended key sequences
     if (scancode == KEY_EXTENDED) {
         handling_extended = true;
-        return;
-    }
-
-    // If we are handling an extended key, call the appropriate handler
-    if (handling_extended) {
-        handling_extended = false;
-        handle_extended_key(scancode);
         return;
     }
 
