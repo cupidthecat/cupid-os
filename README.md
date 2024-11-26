@@ -112,7 +112,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Implement PIC configuration
    - ✅ Add detailed error messages for exceptions
    - ✅ Support for custom interrupt handlers
-
+   - ⭕ Basic boot sequence logging
 2. **Keyboard Input** (✅ Complete)
    - ✅ Implement PS/2 keyboard driver
    - ✅ Basic input buffer
