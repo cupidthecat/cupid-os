@@ -136,7 +136,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Timer calibration
    - ✅ Multiple timer channels
    - ✅ Variable frequency support
-   - ✅ PC Speaker support
+   - X PC Speaker support [WILL BE SUPPORTED LATER]
    - 🔄 High-precision timing modes
 
 4. **Memory Management** (⭕ Planned)
