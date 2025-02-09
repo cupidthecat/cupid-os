@@ -22,9 +22,19 @@ char* strcpy(char* dest, const char* src) {
 
 char* strncpy(char* dest, const char* src, size_t n) {
     char* tmp = dest;
-    while (n-- && (*dest++ = *src++));
+    // Copy characters from src to dest until n is 0 or a null is copied.
+    while (n && (*dest = *src)) {
+        dest++;
+        src++;
+        n--;
+    }
+    // If n is not yet 0, pad the remainder of dest with '\0'
+    while (n--) {
+        *dest++ = '\0';
+    }
     return tmp;
 }
+
 
 void* memcpy(void* dest, const void* src, size_t n) {
     uint8_t* d = dest;

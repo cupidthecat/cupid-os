@@ -2,6 +2,7 @@
 #include "string.h"
 #include "keyboard.h"
 #include "../filesystem/fs.h"
+#include "../filesystem/path.h"
 
 #define MAX_INPUT_LEN 80
 
@@ -105,16 +106,82 @@ static void shell_mkdir(const char* args) {
 }
 
 static void shell_ls(const char* args) {
-    // List directory contents (skip the last reserved entry)
-    for (int i = 0; i < MAX_FILES - 1; i++) {
-        if (files[i].name[0] != 0 && files[i].name[0] != 0xFF) {
+    int target_dir;
+    
+    if (!args || strlen(args) == 0) {
+        // No argument: use the current directory.
+        target_dir = fs_current_directory;
+    } else {
+        // If the path starts with '/', resolve as an absolute path;
+        // otherwise, resolve relative to the current directory.
+        if (args[0] == '/') {
+            target_dir = resolve_path(args);
+        } else {
+            target_dir = resolve_relative_path(fs_current_directory, args);
+        }
+        if (target_dir < 0) {
+            print("Directory not found: ");
+            print(args);
+            print("\n");
+            return;
+        }
+    }
+    
+    // List only files whose parent equals target_dir.
+    for (int i = 0; i < MAX_FILES; i++) {
+        // Check if the file entry is used and if it belongs to target_dir.
+        if (files[i].name[0] != 0 && files[i].parent == target_dir) {
             char clean_name[MAX_FILENAME + 1];
+            // Clear the buffer so that stray characters are not printed.
+            memset(clean_name, 0, sizeof(clean_name));
             strncpy(clean_name, files[i].name, MAX_FILENAME);
-            clean_name[MAX_FILENAME] = '\0'; // Ensure termination
+            clean_name[MAX_FILENAME] = '\0';
             print(clean_name);
             print(files[i].is_dir ? " <DIR>\n" : "\n");
         }
     }
+}
+
+static void shell_cd(const char* args) {
+    if (!args || strlen(args) == 0) {
+        print("Usage: cd <directory>\n");
+        return;
+    }
+    // If the argument is ".", do nothing.
+    if (strcmp(args, ".") == 0) {
+        return;
+    }
+    // If the argument is "..", go to the parent directory (if not already at root).
+    if (strcmp(args, "..") == 0) {
+        // Here we assume that the root directory is index 0.
+        if (fs_current_directory != 0) {
+            fs_current_directory = files[fs_current_directory].parent;
+        }
+        return;
+    }
+    // Otherwise, look for a directory with the given name in the current directory.
+    int index = fs_find_in_directory(fs_current_directory, args);
+    if (index < 0) {
+        print("Directory not found: ");
+        print(args);
+        print("\n");
+        return;
+    }
+    if (!files[index].is_dir) {
+        print(args);
+        print(" is not a directory.\n");
+        return;
+    }
+    // Change the current directory to the found directory.
+    fs_current_directory = index;
+}
+
+static void shell_pwd(const char* args) {
+    (void)args; // Unused parameter
+    char path[MAX_PATH_LENGTH];
+    fs_get_current_path(path, sizeof(path));
+    print(path);
+    print("\n");
 }
 
 // List of supported commands
@@ -122,6 +189,8 @@ static struct shell_command commands[] = {
     {"echo", shell_echo},
     {"mkdir", shell_mkdir},
     {"ls", shell_ls},
+    {"cd", shell_cd},
+    {"pwd", shell_pwd},
     // {"cat", shell_cat},  // Comment out until implemented
     {0, 0}
 };

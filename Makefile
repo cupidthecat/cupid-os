@@ -10,7 +10,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
-            drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o
+            drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o filesystem/path.o
 
 all: $(OS_IMAGE)
 
@@ -66,6 +66,10 @@ kernel/string.o: kernel/string.c kernel/string.h
 # Add new rule for fs.o
 filesystem/fs.o: filesystem/fs.c filesystem/fs.h
 	$(CC) $(CFLAGS) filesystem/fs.c -o filesystem/fs.o
+
+# Add new rule for path.o
+filesystem/path.o: filesystem/path.c filesystem/path.h
+	$(CC) $(CFLAGS) filesystem/path.c -o filesystem/path.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
