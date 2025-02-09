@@ -13,3 +13,11 @@ int strcmp(const char* s1, const char* s2) {
     }
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
+
+void* memset(void* ptr, int value, size_t num) {
+    unsigned char* p = ptr;
+    while(num-- > 0) {
+        *p++ = (unsigned char)value;
+    }
+    return ptr;
+}

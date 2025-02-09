@@ -65,16 +65,18 @@ void shell_run(void) {
         char c = getchar();
         
         if (c == '\n') {
-            input[pos] = 0;
+            input[pos] = 0;  // Ensure null termination
             putchar('\n');         
             execute_command(input);
             pos = 0;
-            print("> ");           // Always print new prompt on a new line
+            memset(input, 0, sizeof(input)); // Clear buffer
+            print("> ");
         }
         else if (c == '\b') {
             if (pos > 0) {
                 pos--;
-                print("\b \b");
+                print("\b \b");  // Erase from screen
+                input[pos] = '\0'; // Remove from buffer
             }
         }
         else if (pos < MAX_INPUT_LEN) {

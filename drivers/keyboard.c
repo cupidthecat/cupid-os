@@ -254,21 +254,6 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
-    // Special handling for backspace
-    if (key == 0x0E) {  // Backspace scancode
-        if (cursor_x > 0) {
-            cursor_x--;
-            putchar(' ');  // Clear the character
-            cursor_x--;    // Move cursor back again
-        } else if (cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-            putchar(' ');  // Clear the character
-            cursor_x = VGA_WIDTH - 1;
-        }
-        return;
-    }    
-
     // *** Option 1: Do NOT echo here ***
     // If you comment out or remove the echo, the shell will handle printing.
     // if (ascii) {

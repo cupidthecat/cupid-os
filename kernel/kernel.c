@@ -191,6 +191,17 @@ void putchar(char c) {
     if(c == '\n') {
         cursor_x = 0;
         cursor_y++;
+    } else if(c == '\b') {  // Handle backspace
+        if(cursor_x > 0) {
+            cursor_x--;
+        } else if(cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+        }
+        // Clear the character at current position
+        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+        vidmem[offset] = ' ';
+        vidmem[offset + 1] = 0x07;
     } else {
         int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
         vidmem[offset] = c;
