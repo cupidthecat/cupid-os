@@ -105,14 +105,17 @@ static void shell_mkdir(const char* args) {
 }
 
 static void shell_ls(const char* args) {
-    // List directory contents
-    for(int i = 0; i < MAX_FILES; i++) {
-        if(files[i].name[0] != 0 && files[i].name[0] != 0xFF) {
-            print(files[i].name);
+    // List directory contents (skip the last reserved entry)
+    for (int i = 0; i < MAX_FILES - 1; i++) {
+        if (files[i].name[0] != 0 && files[i].name[0] != 0xFF) {
+            char clean_name[MAX_FILENAME + 1];
+            strncpy(clean_name, files[i].name, MAX_FILENAME);
+            clean_name[MAX_FILENAME] = '\0'; // Ensure termination
+            print(clean_name);
             print(files[i].is_dir ? " <DIR>\n" : "\n");
         }
     }
-} 
+}
 
 // List of supported commands
 static struct shell_command commands[] = {

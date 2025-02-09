@@ -15,7 +15,8 @@ void fs_init() {
     
     // Create root directory
     struct file_entry* root = &files[ROOT_INODE];
-    strcpy(root->name, "/");
+    strncpy(root->name, "/", MAX_FILENAME);
+    root->name[MAX_FILENAME-1] = '\0';
     root->is_dir = true;
     root->created = timer_get_uptime_ms();
 
@@ -26,7 +27,8 @@ int fs_create_file(const char* name, bool is_dir) {
     // Find free inode
     for(int i = 0; i < MAX_FILES; i++) {
         if(files[i].name[0] == 0) {
-            strcpy(files[i].name, name);
+            strncpy(files[i].name, name, MAX_FILENAME-1);
+            files[i].name[MAX_FILENAME-1] = '\0'; // Add null terminator
             files[i].is_dir = is_dir;
             files[i].created = timer_get_uptime_ms();
             return i;
