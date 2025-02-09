@@ -126,6 +126,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Extended key support
    - ✅ Key debouncing
    - ✅ Circular buffer implementation
+   - ⭕ Arrow keys
 
 3. **Timer Support** (🔄 In Progress)
    - ✅ PIT (Programmable Interval Timer) implementation
