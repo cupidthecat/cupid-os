@@ -1,5 +1,5 @@
 # cupid-os
-A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. This project implements core OS functionality including:
+A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. The project implements core OS functionality while serving as both a learning platform and a foundation for experimental OS concepts. Inspired by systems like TempleOS and OsakaOS, cupid-os aims to provide a transparent, hands-on environment where users can directly interact with hardware.
 
 - Custom bootloader with protected mode transition
 - Comprehensive interrupt handling system
@@ -22,74 +22,78 @@ The goal is to create a pure, simple environment where users have complete freed
 
 This design choice reflects our belief that users should be trusted and empowered rather than constrained. For educational and experimental purposes, having full access to bare metal is invaluable.
 
-## Structure
-- `boot/` - Bootloader code (16-bit to 32-bit mode transition)
-  - `boot.asm` - Main bootloader implementation
-- `kernel/` - Kernel source code (32-bit protected mode C code)
-  - `kernel.c` - Main kernel file with VGA driver and core functionality
-  - `idt.c/h` - Interrupt Descriptor Table implementation
-  - `isr.c/h` - Interrupt Service Routines
-  - `isr.asm` - Assembly interrupt service routines
-  - `irq.c/h` - Hardware interrupt request handlers
-  - `pic.c/h` - Programmable Interrupt Controller driver
-  - `ports.h` - I/O port access functions
-  - `types.h` - Custom type definitions
-- `drivers/` - Device drivers
-  - `keyboard.c/h` - PS/2 keyboard driver with full US layout support
-  - `timer.c/h` - System timer and timing services
-  - `pit.c/h` - Programmable Interval Timer driver
-  - `speaker.c/h` - PC speaker driver for sound output
-- `link.ld` - Linker script for kernel image generation
-- `Makefile` - Build system configuration
-- `LICENSE` - GNU General Public License v3
+## Project Structure
 
-## Features
-- Custom bootloader that switches from 16-bit real mode to 32-bit protected mode
-- Basic VGA text mode driver (80x25 characters)
-- Screen output with support for:
-  - Character printing
-  - String printing
-  - Newline handling
-  - Screen scrolling
-  - Screen clearing
-- Interrupt handling:
-  - Interrupt Descriptor Table (IDT)
-  - Basic exception handlers with detailed error messages
-  - Hardware interrupt support
-  - PIC (Programmable Interrupt Controller) configuration
-  - Custom interrupt handler registration
-  - Debug exception handling
-- Keyboard support:
-  - PS/2 keyboard driver
-  - Scancode to ASCII mapping
-  - Full US keyboard layout support
-  - Key state tracking
-  - Event buffer system with circular buffer implementation
-  - Interrupt-driven input handling (IRQ1)
-  - Comprehensive modifier key support (Shift, Ctrl, Alt, Caps Lock)
-  - Extended key support (e.g., right ctrl/alt)
-  - Function keys support (F1-F12)
-  - Key repeat handling with configurable delays
-  - Key debouncing
-  - Special key support (backspace, tab, enter)
-- Timer functionality:
-  - PIT (Programmable Interval Timer) implementation
-  - Basic system clock
-  - Timer interrupts
-  - System tick counter
-  - Basic sleep/delay functions
-  - Timer calibration using CPU timestamp counter (TSC)
-  - Multi-channel PIT support:
-    - Channel 0: System timer (100Hz)
-    - Channel 1: Custom timing events
-    - Channel 2: PC Speaker control (planned)
-  - Configurable timer frequencies per channel
-  - Hardware-based timing precision
-  - CPU frequency detection
-  - Microsecond delay support
-  - Power-efficient sleep modes
-  - High-precision measurement capabilities
-  - Timer event callbacks
+- **boot/**  
+  - `boot.asm` – Bootloader that sets up the environment, loads the kernel, and switches to protected mode.
+
+- **kernel/**  
+  - `kernel.c` – Main kernel file handling VGA initialization, timer calibration, and overall system startup.
+  - `idt.c/h` – IDT setup and gate configuration.
+  - `isr.asm` – Assembly routines for common ISR/IRQ stubs.
+  - `irq.c/h` – IRQ dispatch and handler installation.
+  - `pic.c/h` – PIC (Programmable Interrupt Controller) initialization and masking functions.
+  - `math.c/h` – Math utilities including 64-bit division, itoa, and hex printing.
+  - `shell.c/h` – A basic shell interface that handles user input and simple commands.
+  - `string.c/h` – Basic string manipulation functions.
+  - `cpu.h` – CPU utility functions (including `rdtsc` and CPU frequency detection).
+  - `kernel.h` – Core kernel definitions and shared globals (e.g., VGA parameters).
+
+- **drivers/**  
+  - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
+  - `timer.c/h` – Timer functions including sleep/delay, tick counting, and multi-channel support.
+  - `pit.c/h` – PIT configuration and frequency setup.
+  - `speaker.c/h` – PC speaker driver with tone and beep functionality.
+
+- **link.ld** – Linker script defining the kernel image layout.
+- **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
+- **LICENSE** – GNU General Public License v3.
+
+# Features
+
+- **Custom Bootloader & Protected Mode Transition**  
+  - Loads at `0x7C00` and sets up a simple boot message.
+  - Loads the kernel from disk and switches from 16-bit real mode to 32-bit protected mode.
+  - Sets up a Global Descriptor Table (GDT) for proper memory segmentation.
+
+- **Interrupt & Exception Handling**  
+  - Comprehensive Interrupt Descriptor Table (IDT) configuration.
+  - Exception handlers with detailed error messages.
+  - IRQ management with PIC remapping and custom handler registration.
+  - A common ISR/IRQ stub that saves processor state before dispatch.
+
+- **PS/2 Keyboard Driver**  
+  - Full US keyboard layout support.
+  - Interrupt-driven input processing (IRQ1) with scancode-to-ASCII conversion.
+  - **Enhanced Key Handling:**  
+    - Support for modifier keys (Shift, Ctrl, Alt, Caps Lock) with proper state tracking.
+    - Extended key support including arrow keys and the delete key.
+    - Circular buffer implementation for key event storage.
+    - Configurable key repeat and debouncing via timestamping.
+
+- **Timer & CPU Calibration**  
+  - Uses the Intel 8253/8254 Programmable Interval Timer (PIT) for system timing.
+  - Provides system tick counters, sleep/delay functions, and multi-channel timer callbacks.
+  - **High-Precision Timing:**  
+    - Calibrates using the CPU’s Time Stamp Counter (TSC) to measure the CPU frequency.
+    - Exposes `get_cpu_freq()` and `get_pit_ticks_per_ms()` for accurate timing calculations.
+    
+- **VGA Text Mode Graphics**  
+  - Basic VGA driver for an 80×25 text display.
+  - Functions for printing characters, strings, and integers.
+  - Automatic screen scrolling and hardware cursor updates.
+
+- **PC Speaker Driver**  
+  - Implements basic tone and beep functionality.
+  - Supports configuring PIT channel 2 to generate square waves for sound output.
+
+- **Shell Interface**  
+  - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
+  - Currently supports an `echo` command (with room for future expansion).
+
+- **Utility Libraries**  
+  - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
+  - **String Library:** Implements basic functions like `strlen` and `strcmp`.
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -151,25 +155,27 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ⭕ Memory statistics tracking
 
 ### Phase 2 - Extended Features
-5. **Shell Interface** (⭕ Planned)
-   - ⭕ Command parsing
+5. **Shell Interface** (🔄 In-Progress)
+   - ✅ Basic command parsing and prompt display.
+   - ✅ Currently supports the `echo` command.
+   - ⭕ Advanced command parsing
    - ⭕ Basic shell commands
    - ⭕ Command history
    - ⭕ Tab completion
 
-6. **Process Management** (⭕ Planned)
+7. **Process Management** (⭕ Planned)
    - ⭕ Process creation/termination
    - ⭕ Basic scheduling
    - ⭕ Process states
    - ⭕ Context switching
 
-7. **Basic Device Drivers** (⭕ Planned)
+8. **Basic Device Drivers** (⭕ Planned)
    - ✅ PS/2 Keyboard
    - ⭕ VGA graphics
    - ⭕ Serial port
    - ⭕ Real-time clock
 
-8. **Simple Filesystem** (⭕ Planned)
+9. **Simple Filesystem** (⭕ Planned)
    - ⭕ Basic file operations
    - ⭕ Directory structure
    - ⭕ File permissions
