@@ -56,7 +56,7 @@ void pic_init(void) {
     pic_clear_mask(0);  // Timer
     pic_clear_mask(1);  // Keyboard
 
-    print("PIC initialized.\n");
+    print("[:3] PIC initialized.\n");
 }
 
 void pic_send_eoi(uint8_t irq) {

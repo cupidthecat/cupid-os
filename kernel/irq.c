@@ -16,7 +16,7 @@ void irq_install_handler(int irq, irq_handler_t handler) {
         // Enable IRQ after setting handler
         pic_clear_mask(irq);
         
-        print("IRQ handler installed for IRQ ");
+        print("[:3] IRQ handler installed for IRQ ");
         // Add code to print irq number
         print("\n");
     }
@@ -42,7 +42,7 @@ void irq_handler(struct registers* r) {
 }
 
 void irq_list_handlers(void) {
-    print("Installed IRQ Handlers:\n");
+    print("[:3] Installed IRQ Handlers:\n");
     for(int i = 0; i < 16; i++) {
         if(irq_handlers[i]) {
             print("IRQ");
@@ -57,7 +57,7 @@ void irq_list_handlers(void) {
 }
 
 static void default_irq_handler(struct registers* r) {
-    print("Unhandled IRQ: ");
+    print("[>:3] Unhandled IRQ: ");
     char irq_str[3];
     itoa(r->int_no - 32, irq_str);
     print(irq_str);
@@ -68,5 +68,5 @@ void irq_init(void) {
     for(int i = 0; i < 16; i++) {
         irq_handlers[i] = default_irq_handler;
     }
-    print("IRQ subsystem initialized\n");
+    print("[:3] IRQ subsystem initialized\n");
 } 

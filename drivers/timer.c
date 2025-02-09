@@ -141,11 +141,11 @@ uint32_t timer_get_frequency(void) {
 uint32_t timer_get_uptime_ms(void) {
     // Safely get current tick count
     __asm__ volatile("cli");
-    uint64_t current_ticks = timer_get_ticks();  // Use uint64_t here
+    uint64_t current_ticks = timer_get_ticks();
     __asm__ volatile("sti");
     
-    // Calculate milliseconds using 32-bit math
-    return (uint32_t)((current_ticks * 1000) / frequency);
+    // Calculate milliseconds using timer state frequency
+    return (uint32_t)((current_ticks * 1000) / timer_state.frequency);
 }
 
 // Sleep for specified number of milliseconds

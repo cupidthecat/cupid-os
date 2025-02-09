@@ -171,7 +171,7 @@ void keyboard_init(void) {
     while (inb(KEYBOARD_STATUS_PORT) & 0x02);
     outb(KEYBOARD_DATA_PORT, KEYBOARD_CMD_ENABLE);
 
-    print("Keyboard initialized.\n");
+    print("[:3] Keyboard initialized.\n");
 }
 
 // Update system ticks (usually called from timer interrupt)
@@ -254,6 +254,24 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
+    // Special handling for backspace
+    /*
+    Removed, shell loop handles this
+
+    if (key == 0x0E) {  // Backspace scancode
+        if (cursor_x > 0) {
+            cursor_x--;
+            putchar(' ');  // Clear the character
+            cursor_x--;    // Move cursor back again
+        } else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+            putchar(' ');  // Clear the character
+            cursor_x = VGA_WIDTH - 1;
+        }
+        return;
+    }    
+    */
     // *** Option 1: Do NOT echo here ***
     // If you comment out or remove the echo, the shell will handle printing.
     // if (ascii) {

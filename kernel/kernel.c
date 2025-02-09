@@ -24,6 +24,7 @@
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
+#include "../filesystem/fs.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -448,9 +449,11 @@ void kmain(void) {
     pic_init();
     keyboard_init();
     calibrate_timer();
+    //timer_init(100);
+    fs_init();
 
-    debug_print_int("System Timer Frequency: ", timer_get_frequency());
-    debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+    debug_print_int("[:3] System Timer Frequency: ", timer_get_frequency());
+    debug_print_int("[:3] CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
 
     pic_clear_mask(1);
     __asm__ volatile("sti");

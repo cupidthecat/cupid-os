@@ -97,8 +97,8 @@ void idt_init(void) {
     // Load IDT
     load_idt(&idtp);
 
-    print("IDT gates set up.\n");
-    print("IDT initialized.\n");
+    print("[:3] IDT gates set up.\n");
+    print("[:3] IDT initialized.\n");
 }
 
 // Interrupt handler
@@ -111,23 +111,23 @@ void isr_handler(struct registers* r) {
         // Additional information for specific exceptions
         switch(r->int_no) {
             case 0:
-                print("EIP: Attempted division by zero\n");
+                print("[>:3] EIP: Attempted division by zero\n");
                 break;
                 
             case 6:
-                print("EIP: Invalid instruction executed\n");
+                print("[>:3] EIP: Invalid instruction executed\n");
                 break;
                 
             case 8:
-                print("Double fault - system error\n");
+                print("[>:3] Double fault - system error\n");
                 break;
                 
             case 13:
-                print("General protection fault\n");
+                print("[>:3] General protection fault\n");
                 break;
                 
             case 14:
-                print("Page Fault ( ");
+                print("[>:3] Page Fault ( ");
                 if (!(r->err_code & 0x1)) print("present ");
                 if (r->err_code & 0x2) print("write ");
                 if (r->err_code & 0x4) print("user ");
@@ -137,7 +137,7 @@ void isr_handler(struct registers* r) {
         }
     }
     
-    print("System Halted!\n");
+    print("[>:3] System Halted!\n");
     while(1) {
         __asm__ volatile("hlt");
     }
