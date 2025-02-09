@@ -3,23 +3,35 @@
 #include "keyboard.h"
 #include "../filesystem/fs.h"
 #include "../filesystem/path.h"
+#include "../drivers/vga.h"
 
-#define MAX_INPUT_LEN 80
+#define MAX_INPUT_LEN 80  // Maximum length of user input
 
-// Declare extern files array
+// Declare extern files array from filesystem
 extern struct file_entry files[MAX_FILES];
 
-// Shell command structure
+/**
+ * struct shell_command - Structure representing a shell command
+ * @name: Command name (string)
+ * @func: Pointer to function implementing the command
+ */
 struct shell_command {
     const char* name;
     void (*func)(const char*);
 };
 
+// Forward declarations
 static struct shell_command commands[];
 static void shell_mkdir(const char* args);
 static void shell_ls(const char* args);
 
-// Echo command implementation
+/**
+ * shell_echo - Implements the echo command
+ * @args: Arguments passed to the command (string to echo)
+ *
+ * Prints the provided arguments followed by a newline.
+ * If no arguments are provided, just prints a newline.
+ */
 static void shell_echo(const char* args) {
     if (args) {
         print(args);
@@ -27,7 +39,14 @@ static void shell_echo(const char* args) {
     print("\n");  // Ensure we always print a newline
 }
 
-// Find and execute a command
+/**
+ * execute_command - Parses and executes a shell command
+ * @input: The full input string from the user
+ *
+ * Splits the input into command and arguments, then searches for
+ * and executes the matching command. If no matching command is found,
+ * prints an error message.
+ */
 static void execute_command(const char* input) {
     char cmd[MAX_INPUT_LEN];
     const char* args = 0;
@@ -58,7 +77,13 @@ static void execute_command(const char* input) {
     print("'\n");
 }
 
-// Main shell loop
+/**
+ * shell_run - Main shell loop
+ *
+ * Implements the interactive shell interface. Handles user input,
+ * command execution, and basic line editing (backspace support).
+ * Runs in an infinite loop until system shutdown.
+ */
 void shell_run(void) {
     char input[MAX_INPUT_LEN + 1];
     int pos = 0;
@@ -90,7 +115,13 @@ void shell_run(void) {
     }
 }
 
-// New command implementations
+/**
+ * shell_mkdir - Implements the mkdir command
+ * @args: Directory name to create
+ *
+ * Creates a new directory with the specified name.
+ * Prints success or error message based on operation result.
+ */
 static void shell_mkdir(const char* args) {
     if (!args || strlen(args) == 0) {
         print("Error: Missing directory name\nUsage: mkdir <name>\n");
@@ -105,15 +136,19 @@ static void shell_mkdir(const char* args) {
     }
 }
 
+/**
+ * shell_ls - Implements the ls command
+ * @args: Optional directory path to list
+ *
+ * Lists contents of the current directory or specified directory.
+ * Shows directory entries with <DIR> marker for subdirectories.
+ */
 static void shell_ls(const char* args) {
     int target_dir;
     
     if (!args || strlen(args) == 0) {
-        // No argument: use the current directory.
         target_dir = fs_current_directory;
     } else {
-        // If the path starts with '/', resolve as an absolute path;
-        // otherwise, resolve relative to the current directory.
         if (args[0] == '/') {
             target_dir = resolve_path(args);
         } else {
@@ -127,21 +162,35 @@ static void shell_ls(const char* args) {
         }
     }
     
-    // List only files whose parent equals target_dir.
     for (int i = 0; i < MAX_FILES; i++) {
-        // Check if the file entry is used and if it belongs to target_dir.
         if (files[i].name[0] != 0 && files[i].parent == target_dir) {
+            // Create a properly null-terminated string
             char clean_name[MAX_FILENAME + 1];
-            // Clear the buffer so that stray characters are not printed.
             memset(clean_name, 0, sizeof(clean_name));
             strncpy(clean_name, files[i].name, MAX_FILENAME);
-            clean_name[MAX_FILENAME] = '\0';
+            clean_name[MAX_FILENAME] = '\0';  // Ensure null termination
+            
+            // Print the name with proper padding
             print(clean_name);
-            print(files[i].is_dir ? " <DIR>\n" : "\n");
+            print(" ");  // Add space between entries
+            
+            if (files[i].is_dir) {
+                print("<DIR>");
+            }
+            print("\n");
         }
     }
 }
 
+/**
+ * shell_cd - Implements the cd command
+ * @args: Directory path to change to
+ *
+ * Changes the current working directory. Supports:
+ * - Absolute paths (starting with /)
+ * - Relative paths
+ * - Special paths (. and ..)
+ */
 static void shell_cd(const char* args) {
     if (!args || strlen(args) == 0) {
         print("Usage: cd <directory>\n");
@@ -176,6 +225,12 @@ static void shell_cd(const char* args) {
     fs_current_directory = index;
 }
 
+/**
+ * shell_pwd - Implements the pwd command
+ * @args: Unused parameter (required for command function signature)
+ *
+ * Prints the current working directory path.
+ */
 static void shell_pwd(const char* args) {
     (void)args; // Unused parameter
     char path[MAX_PATH_LENGTH];
@@ -192,5 +247,5 @@ static struct shell_command commands[] = {
     {"cd", shell_cd},
     {"pwd", shell_pwd},
     // {"cat", shell_cat},  // Comment out until implemented
-    {0, 0}
+    {0, 0}  // Null terminator for command list
 };

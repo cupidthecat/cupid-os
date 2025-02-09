@@ -1,13 +1,17 @@
 /*
- * PC Speaker Driver Implementation
+ * Note: This PC speaker implementation is currently deprecated due to:
+ * - Limited hardware support on modern systems
+ * - Potential conflicts with keyboard
+ * - Lack of advanced audio features
  * 
- * This file implements basic PC speaker functionality:
- * - Initializes PIT channel 2 for speaker control
- * - Provides functions to play tones at specific frequencies
- * - Handles speaker enable/disable
- * - Implements basic beep functionality
+ * Future implementations should consider:
+ * - Sound Blaster or AC97 audio support
+ * - Digital audio playback
+ * - Mixing multiple audio streams
+ * - Volume control and audio effects
  */
 
+// 
 #include "speaker.h"
 #include "../kernel/ports.h"
 #include "timer.h"
@@ -50,8 +54,6 @@ void beep(void) {
     timer_sleep_ms(50);   // Sleep for 50 ms
 } 
 
-     
-     
 /**
  * test_speaker - Test PC speaker functionality
  * 

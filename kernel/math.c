@@ -2,7 +2,21 @@
 #include "types.h"
 #include "kernel.h"
 
-// 64-bit unsigned division
+/**
+ * udiv64 - Performs 64-bit unsigned division
+ * @dividend: The 64-bit number to be divided
+ * @divisor: The 32-bit number to divide by
+ * 
+ * This function implements binary long division to divide a 64-bit unsigned
+ * integer by a 32-bit unsigned integer. It works by:
+ * 1. Initializing quotient and remainder to 0
+ * 2. Iterating through each bit of the dividend from MSB to LSB
+ * 3. For each bit:
+ *    - Shifting the remainder left and adding the current bit
+ *    - If remainder >= divisor, subtract divisor and set quotient bit
+ * 
+ * Returns: 64-bit quotient of the division
+ */
 uint64_t udiv64(uint64_t dividend, uint32_t divisor) {
     uint64_t quotient = 0;
     uint64_t remainder = 0;
@@ -16,7 +30,19 @@ uint64_t udiv64(uint64_t dividend, uint32_t divisor) {
     return quotient;
 }
 
-// Converts an integer to a string.
+/**
+ * itoa - Converts an integer to a null-terminated string
+ * @value: The integer to convert (can be negative)
+ * @str: Pointer to buffer to store the result
+ * 
+ * This function converts an integer to its string representation by:
+ * 1. Handling the special case of 0
+ * 2. Handling negative numbers by recording the sign
+ * 3. Extracting digits from the number using modulo 10
+ * 4. Reversing the digits to get the correct order
+ * 
+ * Returns: Pointer to the resulting string (same as input str)
+ */
 char* itoa(int value, char* str) {
     int i = 0;
     int is_negative = 0;
@@ -57,7 +83,17 @@ char* itoa(int value, char* str) {
     return str;
 }
 
-// Prints an unsigned 32-bit value in hexadecimal format.
+/**
+ * print_hex - Prints a 32-bit unsigned integer in hexadecimal format
+ * @n: The number to print in hex
+ * 
+ * This function converts a 32-bit unsigned integer to its hexadecimal
+ * representation and prints it to the screen. It:
+ * 1. Uses a lookup table for hex digits (0-F)
+ * 2. Extracts each nibble (4 bits) from the number
+ * 3. Builds the hex string in reverse order
+ * 4. Prints the result with "0x" prefix
+ */
 void print_hex(uint32_t n) {
     char hex_chars[] = "0123456789ABCDEF";
     char hex[9];

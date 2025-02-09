@@ -54,6 +54,7 @@
 #include "../kernel/ports.h"
 #include "../kernel/irq.h"
 #include "../kernel/kernel.h"
+#include "../drivers/vga.h"
 
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
