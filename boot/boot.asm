@@ -31,7 +31,7 @@ load_kernel:
     call print_string
 
     mov bx, KERNEL_OFFSET   ; Load to this address
-    mov dh, 15             ; Load this many sectors
+    mov dh, 50             ; Load this many sectors
     mov dl, [BOOT_DRIVE]   ; From boot drive
     
     mov ah, 0x02          ; BIOS read function
@@ -78,13 +78,12 @@ switch_to_pm:
 init_pm:
     mov ax, DATA_SEG
     mov ds, ax
-    mov ss, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    
-    mov ebp, 0x90000
-    mov esp, ebp
+    mov ss, ax
+    mov esp, 0x90000  ; Ensure stack pointer is set
+    mov ebp, esp       ; Set base pointer to stack top
     
     ; Print PM message directly to video memory
     mov ebx, 0xb8000

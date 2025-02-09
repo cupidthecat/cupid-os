@@ -23,5 +23,6 @@ void clear_screen(void);
 void init_vga(void);
 void print_int(uint32_t num);
 uint64_t get_cpu_freq(void);
+void print_hex(uint32_t n);
 
 #endif 

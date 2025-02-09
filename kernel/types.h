@@ -8,6 +8,7 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
+typedef unsigned long size_t;
 
 typedef char int8_t;
 typedef short int16_t;
@@ -15,7 +16,7 @@ typedef int int32_t;
 typedef long long int64_t;
 
 // Keyboard buffer size (adjust as needed)
-#define KEYBOARD_BUFFER_SIZE 32
+#define KEYBOARD_BUFFER_SIZE 256
 
 // Key states
 typedef enum {
@@ -27,9 +28,9 @@ typedef enum {
 // Enhanced keyboard event structure
 typedef struct {
     uint8_t scancode;
-    key_state_t state;
-    uint32_t timestamp;    // For debouncing
-    bool is_modifier;      // For handling modifier keys (shift, ctrl, etc.)
+    char character;
+    bool pressed;
+    uint32_t timestamp;
 } key_event_t;
 
 // Circular buffer for keyboard events

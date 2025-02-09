@@ -8,7 +8,9 @@ LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o drivers/speaker.o
+KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
+            drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
+            drivers/speaker.o kernel/shell.o kernel/string.o
 
 all: $(OS_IMAGE)
 
@@ -52,6 +54,14 @@ drivers/pit.o: drivers/pit.c drivers/pit.h
 # Add new rule for speaker.o
 drivers/speaker.o: drivers/speaker.c drivers/speaker.h
 	$(CC) $(CFLAGS) drivers/speaker.c -o drivers/speaker.o
+
+# Add new rule for shell.o
+kernel/shell.o: kernel/shell.c kernel/shell.h
+	$(CC) $(CFLAGS) kernel/shell.c -o kernel/shell.o
+
+# Add new rule for string.o
+kernel/string.o: kernel/string.c kernel/string.h
+	$(CC) $(CFLAGS) kernel/string.c -o kernel/string.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

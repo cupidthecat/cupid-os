@@ -21,6 +21,7 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
 #include "ports.h"
+#include "shell.h"
 
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
@@ -430,32 +431,24 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
-    // Initialize VGA first
     init_vga();
     clear_screen();
     print("Testing output...\n");
     
-    // Initialize interrupts and PIC
+    idt_init();
+    print("IDT initialized.\n");
+    
     pic_init();
     print("PIC initialized.\n");
     
-    // Explicitly unmask keyboard IRQ
-    pic_clear_mask(1);  // IRQ1 is keyboard
-    
-    idt_init();
-    print("IDT initialized.\n");
-
-    // Initialize keyboard with explicit interrupt enable
     keyboard_init();
+    print("Keyboard initialized.\n");
     
-    // Enable interrupts before speaker init
-    __asm__ volatile("sti");  // Enable interrupts
+    pic_clear_mask(1);
+    __asm__ volatile("sti");
     
-    // Initialize speaker after interrupts are enabled
-    print("\nWelcome to cupid-os!\n");
-    print("------------------\n");
+    shell_run();
     
-    // Main kernel loop
     while(1) {
         __asm__ volatile("hlt");
     }

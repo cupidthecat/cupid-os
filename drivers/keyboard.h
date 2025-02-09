@@ -24,5 +24,6 @@ void keyboard_update_ticks(void);
 char keyboard_get_char(void);
 bool keyboard_get_caps_lock(void);
 bool keyboard_get_shift(void);
+char getchar(void);
 
 #endif 

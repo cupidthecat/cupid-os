@@ -194,8 +194,24 @@ static void handle_extended_key(uint8_t key) {
         case EXT_KEY_RIGHT: // Right arrow scancode: E0 4D
             print("[Right Arrow]");
             break;
+        case 0x53:  // Delete key (extended scancode: E0 53)
+            {
+                // Delete character at current cursor position on the current row:
+                int pos = cursor_y * VGA_WIDTH + cursor_x;
+                volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
+                // Shift characters to the left
+                for (int i = pos; i < (cursor_y + 1) * VGA_WIDTH - 1; i++) {
+                    vidmem[i * 2] = vidmem[(i + 1) * 2];
+                    vidmem[i * 2 + 1] = vidmem[(i + 1) * 2 + 1];
+                }
+                // Clear the last cell in the row
+                int last = (cursor_y + 1) * VGA_WIDTH - 1;
+                vidmem[last * 2] = ' ';
+                vidmem[last * 2 + 1] = 0x07;
+            }
+            break;
         default:
-            // Handle other extended keys if needed
+            // Other extended keys can be handled here
             break;
     }
 }
@@ -224,21 +240,17 @@ static void process_keypress(uint8_t key) {
             return;
     }
 
-    // Skip further processing for key releases
+    // Skip processing if key was released
     if (is_release) {
         return;
     }
 
-    // Determine if shift is active
+    // Determine if shift is active and pick the proper ASCII mapping
     bool shift_active = left_shift_active || right_shift_active;
-    
-    // Get the appropriate character based on shift and caps lock states
     char ascii;
     if (shift_active ^ caps_lock_active) {
-        // If either shift is active or caps lock (but not both), use uppercase
         ascii = scancode_to_ascii_shift[key];
     } else {
-        // Otherwise use lowercase
         ascii = scancode_to_ascii[key];
     }
 
@@ -255,11 +267,29 @@ static void process_keypress(uint8_t key) {
             cursor_x = VGA_WIDTH - 1;
         }
         return;
-    }
+    }    
 
-    // Output the character if it's valid
-    if (ascii) {
-        putchar(ascii);
+    // *** Option 1: Do NOT echo here ***
+    // If you comment out or remove the echo, the shell will handle printing.
+    // if (ascii) {
+    //     putchar(ascii);
+    // }
+
+    // *** Enqueue the key event into the circular buffer ***
+    key_event_t event;
+    event.scancode = key;
+    event.character = ascii;
+    event.pressed = true;
+    event.timestamp = system_ticks;  // or use a proper timing function
+
+    keyboard_buffer_t *buffer = &keyboard_state.buffer;
+    buffer->events[buffer->head] = event;
+    buffer->head = (buffer->head + 1) % KEYBOARD_BUFFER_SIZE;
+    if (buffer->count < KEYBOARD_BUFFER_SIZE) {
+        buffer->count++;
+    } else {
+        // If the buffer is full, overwrite the oldest event
+        buffer->tail = (buffer->tail + 1) % KEYBOARD_BUFFER_SIZE;
     }
 }
 
@@ -349,4 +379,16 @@ char keyboard_get_char(void) {
     
     // Convert scancode to ASCII
     return get_ascii_from_scancode(scancode);
+}
+
+char getchar(void) {
+    while(1) {
+        if (keyboard_state.buffer.count > 0) {
+            char c = keyboard_state.buffer.events[keyboard_state.buffer.tail].character;
+            keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
+            keyboard_state.buffer.count--;
+            return c;
+        }
+        __asm__ volatile("hlt");
+    }
 }
