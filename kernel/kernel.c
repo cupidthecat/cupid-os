@@ -17,11 +17,19 @@
 #include "idt.h"
 #include "pic.h"
 #include "kernel.h"
+#include "debug.h"
+#include "ports.h"
+#include "shell.h"
+#include "types.h"
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
-#include "ports.h"
-#include "shell.h"
+
+#define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
+#define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
+
+static uint64_t tsc_freq = 0;    // Stores CPU timestamp frequency
+static uint32_t pit_ticks_per_ms = 0; // Stores PIT ticks per millisecond
 
 // Assembly entry point
 void _start(void) __attribute__((section(".text.start")));
@@ -292,13 +300,6 @@ void _start(void) {
     kmain();
 }
 
-#define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
-#define CALIBRATION_MS 50        // Time to calibrate over (in milliseconds)
-
-static uint64_t tsc_freq = 0;    // Stores CPU timestamp frequency
-static uint32_t pit_ticks_per_ms = 0; // Stores PIT ticks per millisecond
-
-
 /**
  * rdtsc - Read the CPU's Time Stamp Counter
  * 
@@ -336,55 +337,52 @@ static inline uint64_t rdtsc(void) {
  * - tsc_freq: CPU frequency in Hz
  * - pit_ticks_per_ms: PIT ticks per millisecond for timing
  */
- void calibrate_timer(void) {
+void calibrate_timer(void) {
     // Configure PIT channel 0 for one-shot mode
     outb(0x43, 0x30);    // Channel 0, one-shot mode, binary
     
-    // Set initial count to maximum
-    outb(0x40, 0xFF);
-    outb(0x40, 0xFF);
+    // Calculate maximum safe duration for one-shot mode (55ms)
+    uint32_t max_ticks = 0xFFFF;
+    uint32_t actual_ms = (max_ticks * 1000) / PIT_FREQUENCY;
+    if(actual_ms > 50) actual_ms = 50;  // Clamp to 50ms max
+    
+    // Set initial count to maximum safe value
+    uint16_t initial_count = (PIT_FREQUENCY * actual_ms) / 1000;
+    outb(0x40, initial_count & 0xFF);
+    outb(0x40, (initial_count >> 8) & 0xFF);
     
     // Get starting TSC value
     uint64_t start_tsc = rdtsc();
     
-    // Wait for CALIBRATION_MS milliseconds
-    uint32_t ticks = (PIT_FREQUENCY * CALIBRATION_MS) / 1000;
+    // Wait for PIT to count down
     uint32_t count;
     do {
-        // Latch counter value
-        outb(0x43, 0x00);
-        // Read count
+        outb(0x43, 0x00); // Latch counter
         count = inb(0x40);
         count |= inb(0x40) << 8;
-    } while (count > (0xFFFF - ticks));
+    } while(count > 0 && count < 0xFFFF);
     
     // Get ending TSC value
     uint64_t end_tsc = rdtsc();
     
-    // Calculate CPU frequency (modified to avoid 64-bit division)
+    // Calculate CPU frequency with 128-bit intermediate
     uint64_t tsc_diff = end_tsc - start_tsc;
+    uint64_t freq_hz = (tsc_diff * 1000) / actual_ms;
     
-    // Calculate MHz directly to avoid 64-bit division
-    // First get the high 32 bits for rough MHz calculation
-    uint32_t freq_mhz = (uint32_t)(tsc_diff >> 32) * 1000 / CALIBRATION_MS;
-    if (freq_mhz == 0) {
-        // If high bits were 0, use low bits
-        freq_mhz = ((uint32_t)tsc_diff * 1000) / (CALIBRATION_MS * 1000000);
+    // Fallback checks
+    if(freq_hz < 1000000) {  // Below 1MHz is impossible for modern CPUs
+        freq_hz = 1000000000; // Default to 1GHz
     }
     
-    tsc_freq = (uint64_t)freq_mhz * 1000000;  // Store full frequency
-    
-    // Calculate PIT ticks per millisecond
+    tsc_freq = freq_hz;
     pit_ticks_per_ms = PIT_FREQUENCY / 1000;
     
     // Reset PIT to normal operation
-    timer_init(100);  // Reset to 100 Hz operation
+    timer_init(100);
     
-    // Print calibration results
-    print("Timer calibration complete:\n");
-    print("CPU Frequency: ");
-    print_int(freq_mhz); // Already in MHz
-    print(" MHz\n");
+    //print("Timer calibration complete:\n");
+    //debug_print_int("Calibration Window (ms): ", actual_ms);
+    //debug_print_int("CPU Frequency (MHz): ", (uint32_t)(tsc_freq / 1000000));
 }
 
 
@@ -436,14 +434,13 @@ void kmain(void) {
     print("Testing output...\n");
     
     idt_init();
-    print("IDT initialized.\n");
-    
     pic_init();
-    print("PIC initialized.\n");
-    
     keyboard_init();
-    print("Keyboard initialized.\n");
-    
+    calibrate_timer();
+
+    debug_print_int("System Timer Frequency: ", timer_get_frequency());
+    debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+
     pic_clear_mask(1);
     __asm__ volatile("sti");
     

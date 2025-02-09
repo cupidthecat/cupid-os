@@ -14,6 +14,7 @@
  */
 
 #include "pic.h"
+#include "kernel.h"
 
 // Helper functions for port I/O
 static inline void outb(uint16_t port, uint8_t value) {
@@ -54,6 +55,8 @@ void pic_init(void) {
     // Clear masks for timer (IRQ0) and keyboard (IRQ1)
     pic_clear_mask(0);  // Timer
     pic_clear_mask(1);  // Keyboard
+
+    print("PIC initialized.\n");
 }
 
 void pic_send_eoi(uint8_t irq) {

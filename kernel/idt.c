@@ -98,6 +98,7 @@ void idt_init(void) {
     load_idt(&idtp);
 
     print("IDT gates set up.\n");
+    print("IDT initialized.\n");
 }
 
 // Interrupt handler

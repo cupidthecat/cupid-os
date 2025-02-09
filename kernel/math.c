@@ -71,3 +71,39 @@ void print_hex(uint32_t n) {
     print("0x");
     print(hex);
 }
+
+/*
+ * __udivdi3 - Perform unsigned 64-bit division.
+ *
+ * This routine divides a 64-bit unsigned integer by another 64-bit
+ * unsigned integer using a simple binary long division algorithm.
+ *
+ * Parameters:
+ *   dividend - the 64-bit numerator
+ *   divisor  - the 64-bit denominator
+ *
+ * Returns:
+ *   The 64-bit quotient.
+ */
+uint64_t __udivdi3(uint64_t dividend, uint64_t divisor) {
+    uint64_t quotient = 0;
+    uint64_t remainder = 0;
+    int i;
+
+    // Check for divisor zero (you may want to handle this differently)
+    if (divisor == 0) {
+        // Division by zero; in a kernel you might want to halt or raise an error.
+        while (1)
+            ;
+    }
+
+    // Loop over each bit from high to low
+    for (i = 63; i >= 0; i--) {
+        remainder = (remainder << 1) | ((dividend >> i) & 1);
+        if (remainder >= divisor) {
+            remainder -= divisor;
+            quotient |= (1ULL << i);
+        }
+    }
+    return quotient;
+}

@@ -139,17 +139,13 @@ uint32_t timer_get_frequency(void) {
 
 // Get system uptime in milliseconds
 uint32_t timer_get_uptime_ms(void) {
-    // Use 32-bit arithmetic to avoid __udivdi3
-    uint32_t current_ticks;
-    
     // Safely get current tick count
     __asm__ volatile("cli");
-    current_ticks = (uint32_t)tick_count; // Only use lower 32 bits
+    uint64_t current_ticks = timer_get_ticks();  // Use uint64_t here
     __asm__ volatile("sti");
     
     // Calculate milliseconds using 32-bit math
-    // This will work correctly for about 49.7 days before wrapping
-    return (current_ticks * 1000) / frequency;
+    return (uint32_t)((current_ticks * 1000) / frequency);
 }
 
 // Sleep for specified number of milliseconds
