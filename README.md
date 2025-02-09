@@ -1,6 +1,9 @@
 # cupid-os
 A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. The project implements core OS functionality while serving as both a learning platform and a foundation for experimental OS concepts. Inspired by systems like TempleOS and OsakaOS, cupid-os aims to provide a transparent, hands-on environment where users can directly interact with hardware.
 
+## Example of cupid-os
+![alt text for cupid-os img](img/basic_shell.png)
+
 - Custom bootloader with protected mode transition
 - Comprehensive interrupt handling system
 - Advanced PS/2 keyboard driver with full US layout support
@@ -186,8 +189,6 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 12. Extended device support
 13. Multi-process scheduling
 14. Custom music program in dedication to Terry A. Davis
-## Example of cupid-os
-![alt text for cupid-os img](img/os.png)
 
 ## Requirements
 - NASM (Netwide Assembler) for bootloader compilation
