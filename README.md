@@ -28,44 +28,57 @@ This design choice reflects our belief that users should be trusted and empowere
 ## Project Structure
 
 - **boot/**  
-  - `boot.asm` – Bootloader that sets up the environment, loads the kernel, and switches to protected mode.
+  - **`boot.asm`** – The bootloader that runs at 0x7C00. It displays an initial boot message, loads the kernel from disk, sets up the initial environment, and transitions from 16‑bit real mode to 32‑bit protected mode.
 
 - **kernel/**  
-  - `kernel.c` – Main kernel file handling VGA initialization, timer calibration, and overall system startup.
-  - `idt.c/h` – IDT setup and gate configuration.
-  - `isr.asm` – Assembly routines for common ISR/IRQ stubs.
-  - `irq.c/h` – IRQ dispatch and handler installation.
-  - `pic.c/h` – PIC (Programmable Interrupt Controller) initialization and masking functions.
-  - `math.c/h` – Math utilities including 64-bit division, itoa, and hex printing.
-  - `shell.c/h` – A basic shell interface that handles user input and simple commands.
-  - `string.c/h` – Basic string manipulation functions.
-  - `cpu.h` – CPU utility functions (including `rdtsc` and CPU frequency detection).
-  - `kernel.h` – Core kernel definitions and shared globals (e.g., VGA parameters).
+  - **`kernel.c`** – The main kernel file responsible for initializing the VGA, setting up the system (IDT, PIC, timer, keyboard, filesystem), calibrating the CPU timer using the TSC, and entering the shell loop.
+  - **`idt.c/h`** – IDT setup and gate configuration, including exception and IRQ stubs.
+  - **`isr.asm`** – Assembly routines providing common ISR/IRQ stubs that save processor state and call C‑handlers.
+  - **`irq.c/h`** – IRQ handler dispatch and registration functions.
+  - **`pic.c/h`** – PIC initialization, remapping, and masking/unmasking functions.
+  - **`math.c/h`** – Math utilities including 64‑bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
+  - **`shell.c/h`** – A basic command‑line shell that parses user input and supports commands like `echo`, `mkdir`, `ls`, `cd`, and `pwd`.
+  - **`string.c/h`** – Standard string manipulation functions (`strlen`, `strcmp`, `strcpy`, `strncpy`, etc.).
+  - **`cpu.h`** – CPU utilities including an inline `rdtsc()` for high‑precision timing and CPU frequency detection.
+  - **`kernel.h`** – Core kernel definitions and shared globals (e.g., VGA parameters, boot constants).
 
 - **drivers/**  
-  - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
-  - `timer.c/h` – Timer functions including sleep/delay, tick counting, and multi-channel support.
-  - `pit.c/h` – PIT configuration and frequency setup.
-  - `speaker.c/h` – PC speaker driver with tone and beep functionality.
+  - **`keyboard.c/h`** – The PS/2 keyboard driver with:
+    - Full US keyboard layout support
+    - Interrupt‑driven input (IRQ1)
+    - Detailed handling of modifier keys (Shift, Ctrl, Alt, Caps Lock) and extended keys (arrow keys, delete)
+    - Circular buffer implementation for key event storage and configurable key repeat/debouncing
+  - **`timer.c/h`** – Timer routines that configure the Intel 8253/8254 PIT:
+    - System tick counter and sleep/delay functions (both millisecond and microsecond delays via TSC busy‑wait)
+    - Multi‑channel support with callback registration for additional timer events
+    - CPU calibration to determine frequency via the TSC
+  - **`pit.c/h`** – Functions to program the PIT for square‑wave generation and configurable frequencies.
+  - **`speaker.c/h`** – PC speaker driver offering functions to:
+    - Turn the speaker on/off at a specified frequency
+    - Play simple beeps and tones (note: the test routine is disabled to prevent interference with the keyboard driver)
 
-- **link.ld** – Linker script defining the kernel image layout.
-- **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
+- **filesystem/**  
+  - **`fs.c/h`** – A basic filesystem module supporting file and directory creation, listing, and management.
+  - **`path.c/h`** – Path resolution functions, including support for absolute and relative paths and maintaining the current working directory.
+
+- **link.ld** – The linker script that defines the memory layout of the kernel image.
+- **Makefile** – Build configuration for compiling the bootloader, kernel, drivers, and filesystem into a bootable disk image.
 - **LICENSE** – GNU General Public License v3.
 
 # Features
 
-- **Custom Bootloader & Protected Mode Transition**  
+### Custom Bootloader & Protected Mode Transition 
   - Loads at `0x7C00` and sets up a simple boot message.
   - Loads the kernel from disk and switches from 16-bit real mode to 32-bit protected mode.
   - Sets up a Global Descriptor Table (GDT) for proper memory segmentation.
 
-- **Interrupt & Exception Handling**  
+### Interrupt & Exception Handling  
   - Comprehensive Interrupt Descriptor Table (IDT) configuration.
   - Exception handlers with detailed error messages.
   - IRQ management with PIC remapping and custom handler registration.
   - A common ISR/IRQ stub that saves processor state before dispatch.
 
-- **PS/2 Keyboard Driver**  
+### PS/2 Keyboard Driver
   - Full US keyboard layout support.
   - Interrupt-driven input processing (IRQ1) with scancode-to-ASCII conversion.
   - **Enhanced Key Handling:**  
@@ -74,29 +87,37 @@ This design choice reflects our belief that users should be trusted and empowere
     - Circular buffer implementation for key event storage.
     - Configurable key repeat and debouncing via timestamping.
 
-- **Timer & CPU Calibration**  
+### Timer & CPU Calibration 
   - Uses the Intel 8253/8254 Programmable Interval Timer (PIT) for system timing.
   - Provides system tick counters, sleep/delay functions, and multi-channel timer callbacks.
   - **High-Precision Timing:**  
     - Calibrates using the CPU’s Time Stamp Counter (TSC) to measure the CPU frequency.
     - Exposes `get_cpu_freq()` and `get_pit_ticks_per_ms()` for accurate timing calculations.
     
-- **VGA Text Mode Graphics**  
+### VGA Text Mode Graphics 
   - Basic VGA driver for an 80×25 text display.
   - Functions for printing characters, strings, and integers.
   - Automatic screen scrolling and hardware cursor updates.
 
-- **PC Speaker Driver**  
+### PC Speaker Driver
+  - **Note:** Not yet implemented.
   - Implements basic tone and beep functionality.
   - Supports configuring PIT channel 2 to generate square waves for sound output.
 
-- **Shell Interface**  
-  - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
-  - Currently supports an `echo` command (with room for future expansion).
+### Shell Interface
+- **Built‑in Command Shell:** Presents a command‑line interface with a prompt.
+- **Implemented Commands:**
+  - `echo` – Prints text back to the console.
+  - `mkdir` – Creates a new directory in the filesystem.
+  - `ls` – Lists files and directories in the current (or specified) directory.
+  - `cd` – Changes the current working directory.
+  - `pwd` – Displays the current working directory.
 
-- **Utility Libraries**  
-  - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
-  - **String Library:** Implements basic functions like `strlen` and `strcmp`.
+- **Filesystem Integration:** Commands interact with a simple filesystem module for file and directory management.
+
+### Utility Libraries
+- **Math Library:** Offers 64‑bit division (`udiv64`), integer‑to‑string conversion (`itoa`), and hexadecimal printing.
+- **String Library:** Implements common routines like `strlen`, `strcmp`, `strcpy`, and `memset`.
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -120,6 +141,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Add detailed error messages for exceptions
    - ✅ Support for custom interrupt handlers
    - ⭕ Basic boot sequence logging
+     
 2. **Keyboard Input** (✅ Complete)
    - ✅ Implement PS/2 keyboard driver
    - ✅ Basic input buffer
@@ -133,6 +155,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Extended key support
    - ✅ Key debouncing
    - ✅ Circular buffer implementation
+   - ⭕ Additional key features and custom key maps
    - ⭕ Arrow keys
 
 3. **Timer Support** (🔄 In Progress)
@@ -179,9 +202,10 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ⭕ Real-time clock
 
 9. **Simple Filesystem** (⭕ Planned)
-   - ⭕ Basic file operations
-   - ⭕ Directory structure
-   - ⭕ File permissions
+   - ✅ Basic file operations and directory structure  
+   - ✅ Path resolution and current directory tracking  
+   - ⭕ File permissions and extended attributes
+
 
 ### Phase 3 - Advanced Features
 10. Custom compiler
