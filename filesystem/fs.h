@@ -43,5 +43,6 @@ void fs_init();
 int fs_resolve_path(const char* path);
 void fs_list_directory(int dir_inode);
 char* fs_get_current_path(char* buffer, size_t size);
+int fs_delete_file(const char* name);
 
 #endif

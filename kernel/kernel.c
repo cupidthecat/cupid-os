@@ -301,7 +301,7 @@ void kmain(void) {
     debug_print_int("[:3] System Timer Frequency: ", timer_get_frequency());
     debug_print_int("[:3] CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
 
-    print("VGA Color Text Support Test!!");
+    print("VGA Color Text Support Test!!\n");
     // Test VGA colors
     vga_set_color(VGA_RED, VGA_BLACK);
     print("Red text on black background\n");

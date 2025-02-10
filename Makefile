@@ -10,7 +10,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
-            drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o filesystem/path.o
+            drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o filesystem/path.o drivers/vga.o
 
 all: $(OS_IMAGE)
 
@@ -70,6 +70,10 @@ filesystem/fs.o: filesystem/fs.c filesystem/fs.h
 # Add new rule for path.o
 filesystem/path.o: filesystem/path.c filesystem/path.h
 	$(CC) $(CFLAGS) filesystem/path.c -o filesystem/path.o
+
+# Add new rule for vga.o
+drivers/vga.o: drivers/vga.c drivers/vga.h
+	$(CC) $(CFLAGS) drivers/vga.c -o drivers/vga.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

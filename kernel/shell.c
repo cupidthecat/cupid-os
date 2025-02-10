@@ -14,16 +14,36 @@ extern struct file_entry files[MAX_FILES];
  * struct shell_command - Structure representing a shell command
  * @name: Command name (string)
  * @func: Pointer to function implementing the command
+ * @help: Help text for the command
  */
 struct shell_command {
     const char* name;
     void (*func)(const char*);
+    const char* help;
 };
 
 // Forward declarations
-static struct shell_command commands[];
+static void shell_help(const char* args);
+static void shell_echo(const char* args);
 static void shell_mkdir(const char* args);
 static void shell_ls(const char* args);
+static void shell_cd(const char* args);
+static void shell_pwd(const char* args);
+static void shell_cat(const char* args);
+static void shell_rm(const char* args);
+
+// List of supported commands
+static struct shell_command commands[] = {
+    {"help", shell_help, "help [command] - Show help for commands"},
+    {"echo", shell_echo, "echo <text> - Print text to the screen"},
+    {"mkdir", shell_mkdir, "mkdir <name> - Create a new directory"},
+    {"ls", shell_ls, "ls [path] - List directory contents"},
+    {"cd", shell_cd, "cd <directory> - Change current directory"},
+    {"pwd", shell_pwd, "pwd - Print working directory"},
+    {"cat", shell_cat, "cat <file> - Display file contents"},
+    {"rm", shell_rm, "rm <name> - Remove a file or directory"},
+    {0, 0, 0}
+};
 
 /**
  * shell_echo - Implements the echo command
@@ -239,13 +259,101 @@ static void shell_pwd(const char* args) {
     print("\n");
 }
 
-// List of supported commands
-static struct shell_command commands[] = {
-    {"echo", shell_echo},
-    {"mkdir", shell_mkdir},
-    {"ls", shell_ls},
-    {"cd", shell_cd},
-    {"pwd", shell_pwd},
-    // {"cat", shell_cat},  // Comment out until implemented
-    {0, 0}  // Null terminator for command list
-};
+/**
+ * shell_help - Implements the help command
+ * @args: Optional command name to get help for
+ *
+ * Displays either:
+ * - List of all available commands when no arguments provided
+ * - Detailed help for a specific command when command name provided
+ */
+static void shell_help(const char* args) {
+    if (!args || strlen(args) == 0) {
+        // No arguments - show list of all commands
+        print("Available commands:\n");
+        for(int i=0; commands[i].name; i++) {
+            print(" - ");
+            print(commands[i].name);
+            print("\n");
+        }
+        print("Use 'help <command>' for more info\n");
+    } else {
+        // Argument provided - find and show help for specific command
+        for(int i=0; commands[i].name; i++) {
+            if(strcmp(args, commands[i].name) == 0) {
+                print(commands[i].help);
+                print("\n");
+                return;
+            }
+        }
+        // Command not found
+        print("No help found for: ");
+        print(args);
+        print("\n");
+    }
+}
+
+/**
+ * shell_cat - Implements the cat command
+ * @args: Name of file to display
+ *
+ * Displays basic information about a file. Currently shows:
+ * - File name
+ * - File size
+ * 
+ * Note: Actual file content display not yet implemented
+ */
+static void shell_cat(const char* args) {
+    if (!args || strlen(args) == 0) {
+        print("Usage: cat <filename>\n");
+        return;
+    }
+    
+    // Find file in current directory
+    int file = fs_find_in_directory(fs_current_directory, args);
+    if(file < 0) {
+        print("File not found: ");
+        print(args);
+        print("\n");
+        return;
+    }
+    
+    // Check if it's a directory (cat doesn't work on directories)
+    if(files[file].is_dir) {
+        print("Cannot cat directory\n");
+        return;
+    }
+    
+    // Display file information
+    print("File contents for ");
+    print(args);
+    print(":\n");
+    print("Size: ");
+    print_int(files[file].size);
+    print("\n");
+}
+
+/**
+ * shell_rm - Implements the rm command
+ * @args: Name of file/directory to remove
+ *
+ * Deletes a file or empty directory from the current directory.
+ * Prints success or error message based on operation result.
+ */
+static void shell_rm(const char* args) {
+    if (!args || strlen(args) == 0) {
+        print("Usage: rm <filename>\n");
+        return;
+    }
+    
+    // Attempt to delete file/directory
+    if(fs_delete_file(args) == 0) {
+        print("Deleted: ");
+        print(args);
+        print("\n");
+    } else {
+        print("Failed to delete ");
+        print(args);
+        print("\n");
+    }
+}

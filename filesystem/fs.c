@@ -133,3 +133,24 @@ char* fs_get_current_path(char* buffer, size_t size) {
     
     return buffer;
 }
+
+int fs_delete_file(const char* name) {
+    for(int i=0; i<MAX_FILES; i++) {
+        if(strcmp(files[i].name, name) == 0 && 
+           files[i].parent == fs_current_directory) 
+        {
+            // Check if directory is empty
+            if(files[i].is_dir) {
+                for(int j=0; j<MAX_FILES; j++) {
+                    if(files[j].parent == i) {
+                        print("Directory not empty\n");
+                        return -1;
+                    }
+                }
+            }
+            memset(&files[i], 0, sizeof(struct file_entry));
+            return 0;
+        }
+    }
+    return -1;
+}
