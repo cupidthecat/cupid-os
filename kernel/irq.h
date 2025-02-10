@@ -38,5 +38,6 @@ typedef void (*irq_handler_t)(struct registers*);
 void register_interrupt_handler(uint8_t n, irq_handler_t handler);  // Register handler for specific IRQ
 void irq_install_handler(int irq, irq_handler_t handler);           // Install IRQ handler
 void irq_uninstall_handler(int irq);                                // Remove IRQ handler
+void irq_handler(struct registers* r);
 
 #endif 

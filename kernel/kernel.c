@@ -23,6 +23,7 @@
 #include "types.h"
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
+#include "../drivers/mouse.h"
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "../filesystem/fs.h"
@@ -294,6 +295,7 @@ void kmain(void) {
     clear_screen();
     idt_init();
     pic_init();
+    mouse_init();
     keyboard_init();
     calibrate_timer();
     fs_init();
