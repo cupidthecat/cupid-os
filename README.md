@@ -25,7 +25,7 @@ The goal is to create a pure, simple environment where users have complete freed
 
 This design choice reflects our belief that users should be trusted and empowered rather than constrained. For educational and experimental purposes, having full access to bare metal is invaluable.
 
-With that being said cupid-os also will have a mix of influence from mostly Linux, templeOS, and OsakaOS. 
+With that being said cupid-os also will have a mix of influence from mostly Linux and UNIX-like systems, with some visual and other inspiration coming from both templeOS, and OsakaOS. 
 
 ## Project Structure
 
