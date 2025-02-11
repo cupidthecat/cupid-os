@@ -22,4 +22,7 @@ void boot_log_status(const char* status, uint8_t fg_color);
 #define BOOT_FAIL() boot_log_status("[ FAIL ]", VGA_RED)
 #define BOOT_INFO(msg) boot_log(msg, VGA_LIGHT_GREY)
 
+extern uint8_t _binary_zap_light16_psf_start[];
+extern uint8_t _binary_zap_light16_psf_end[];
+
 #endif 

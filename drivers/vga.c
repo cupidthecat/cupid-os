@@ -20,6 +20,8 @@ int cursor_y = 0;
 uint8_t vga_fg_color = VGA_LIGHT_GREY;
 uint8_t vga_bg_color = VGA_BLACK;
 
+uint8_t* font_data = 0;
+
 /**
  * vga_make_color - Combines foreground and background colors into a VGA attribute byte
  * @fg: Foreground color (4 bits)
@@ -132,56 +134,30 @@ void clear_screen() {
  * - Updates hardware cursor position via VGA registers
  */
 void putchar(char c) {
-    volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
+    static int cursor_x = 0, cursor_y = 0;
     
     if(c == '\n') {
         cursor_x = 0;
-        cursor_y++;
-    } else if(c == '\b') {  // Handle backspace
-        if(cursor_x > 0) {
-            cursor_x--;
-        } else if(cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-        }
-        // Clear the character at current position
-        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = ' ';
-        vidmem[offset + 1] = vga_make_color(vga_fg_color, vga_bg_color);
-    } else {
-        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = c;
-        vidmem[offset + 1] = vga_make_color(vga_fg_color, vga_bg_color);
-        cursor_x++;
+        cursor_y += FONT_HEIGHT;
+        return;
     }
     
-    // Handle screen scrolling
-    if(cursor_x >= VGA_WIDTH) {
+    uint8_t* glyph = font_data + c * FONT_HEIGHT;
+    
+    for(int y = 0; y < FONT_HEIGHT; y++) {
+        uint8_t row = glyph[y];
+        for(int x = 0; x < FONT_WIDTH; x++) {
+            if(row & (1 << (7 - x))) {  // Correct bit order
+                putpixel(cursor_x + x, cursor_y + y, vga_fg_color);
+            }
+        }
+    }
+    
+    cursor_x += FONT_WIDTH;
+    if(cursor_x >= 320 - FONT_WIDTH) {
         cursor_x = 0;
-        cursor_y++;
+        cursor_y += FONT_HEIGHT;
     }
-    
-    if(cursor_y >= VGA_HEIGHT) {
-        // Scroll the screen
-        for(int i = 0; i < (VGA_HEIGHT-1) * VGA_WIDTH * 2; i++) {
-            vidmem[i] = vidmem[i + VGA_WIDTH * 2];
-        }
-        
-        // Clear the last line
-        int last_line = (VGA_HEIGHT-1) * VGA_WIDTH * 2;
-        for(int i = 0; i < VGA_WIDTH * 2; i += 2) {
-            vidmem[last_line + i] = ' ';
-            vidmem[last_line + i + 1] = vga_make_color(vga_fg_color, vga_bg_color);
-        }
-        cursor_y = VGA_HEIGHT - 1;
-    }
-    
-    // Update hardware cursor
-    int pos = cursor_y * VGA_WIDTH + cursor_x;
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, pos & 0xFF);
 }
 
 void putpixel(int x, int y, uint8_t color) {
@@ -200,4 +176,14 @@ void draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint8_t color) {
 uint8_t getpixel(int x, int y) {
     volatile uint8_t* vidmem = (uint8_t*)0xA0000;
     return vidmem[y * 320 + x];
+}
+
+void load_font(uint8_t* font) {
+    // Verify PSF magic header
+    if(*((uint16_t*)font) != 0x0436) {  // PSF1 magic number
+        print("Invalid PSF font format!\n");
+        return;
+    }
+    font_data = font + 4; // Skip header
+    print("ZAP-Light16 font loaded\n");
 }

@@ -8,17 +8,18 @@
 // Use the same desktop background color defined in your original code.
 #define DESKTOP_BG_COLOR 0x1D
 // Define the height (in pixels) of the window "title bar"
-#define WINDOW_HEADER_HEIGHT 10
+#define WINDOW_HEADER_HEIGHT (FONT_HEIGHT + 2)  // Match font height + padding
 
 // Create one global window – you can also allocate more and manage them in a list.
 window_t current_window = {
-    .x = 50,
-    .y = 50,
-    .width = 100,
-    .height = 80,
+    .x = (320 - 280) / 2,  // Center horizontally
+    .y = (200 - 180) / 2,  // Center vertically
+    .width = 280,          // 280px wide (320px max)
+    .height = 180,         // 180px tall (200px max)
     .dragging = false,
     .drag_offset_x = 0,
-    .drag_offset_y = 0
+    .drag_offset_y = 0,
+    .title = "terminal"
 };
 
 // These are declared in your mouse driver.
@@ -32,10 +33,23 @@ extern volatile mouse_packet_t current_packet;
  * Clears the entire screen (320x200 in mode 0x13) using the desktop background color.
  */
 void desktop_init(void) {
-    // In mode 0x13 the video memory starts at 0xA0000.
+    // Clear screen
     draw_rect(0, 0, 320, 200, DESKTOP_BG_COLOR);
+    
+    // Draw initial window
+    desktop_draw_window(&current_window);
 }
 
+void putchar_at(char c, int x, int y) {
+    uint8_t* glyph = font_data + c * FONT_HEIGHT;
+    for(uint8_t cy = 0; cy < FONT_HEIGHT; cy++, glyph++) {
+        for(uint8_t cx = 0; cx < FONT_WIDTH; cx++) {
+            if(*glyph & (0x80 >> cx)) {
+                putpixel(x + cx, y + cy, vga_fg_color);
+            }
+        }
+    }
+}
 /*
  * desktop_draw_window()
  *
@@ -45,10 +59,22 @@ void desktop_init(void) {
 void desktop_draw_window(window_t *win) {
     // Draw the title bar (header) in color 0x4 (for example, red)
     draw_rect(win->x, win->y, win->width, WINDOW_HEADER_HEIGHT, 0x4);
+    
+    // Draw window title
+    if (win->title) {
+        int title_x = win->x + 4;
+        int title_y = win->y + (WINDOW_HEADER_HEIGHT - FONT_HEIGHT)/2;  // Center vertically
+        vga_set_color(VGA_WHITE, 0x4); // White text on red background
+        for (int i = 0; win->title[i]; i++) {
+            putchar_at(win->title[i], title_x, title_y);
+            title_x += FONT_WIDTH;
+        }
+    }
+    
     // Draw the window body (using a light gray color, for example 0x07)
     draw_rect(win->x, win->y + WINDOW_HEADER_HEIGHT, win->width, win->height - WINDOW_HEADER_HEIGHT, 0x07);
-
-    // (Optional) Draw a simple border – here we draw left, right and bottom borders in color 0.
+    
+    // Draw borders
     for (int j = win->y; j < win->y + win->height; j++) {
         putpixel(win->x, j, 0); // left border
         putpixel(win->x + win->width - 1, j, 0); // right border
@@ -161,3 +187,4 @@ void desktop_run(void) {
         __asm__ volatile("hlt");  // Halt until next interrupt
     }
 }
+

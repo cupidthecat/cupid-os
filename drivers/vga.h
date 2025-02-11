@@ -33,6 +33,9 @@
 #define FONT_WIDTH 8
 #define FONT_HEIGHT 16
 #define NUM_GLYPHS 256
+extern uint8_t* font_data;
+extern uint8_t vga_fg_color;
+extern uint8_t vga_bg_color;
 
 void putchar(char c);
 void clear_screen(void);
@@ -40,5 +43,6 @@ void init_vga(void);
 void putpixel(int x, int y, uint8_t color);
 void draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint8_t color);
 uint8_t getpixel(int x, int y);
+void load_font(uint8_t* font);
 
 #endif 

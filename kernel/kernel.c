@@ -292,6 +292,7 @@ uint32_t get_pit_ticks_per_ms(void) {
  */
 void kmain(void) {
     init_vga();
+    load_font(_binary_zap_light16_psf_start);
     clear_screen();
     idt_init();
     pic_init();
@@ -334,4 +335,6 @@ void kmain(void) {
         __asm__ volatile("hlt");
     }
 }
+
+extern uint8_t _binary_zap_light16_psf_start[];
 
