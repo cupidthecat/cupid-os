@@ -94,13 +94,31 @@ static void timer_irq_handler(struct registers* r) {
 }
 
 // Ensure rdtsc is defined at the top
+/**
+ * rdtsc - Read Time-Stamp Counter
+ * 
+ * Reads the processor's time-stamp counter using the RDTSC instruction.
+ * This counter increments with each CPU clock cycle and provides
+ * high-precision timing capabilities.
+ *
+ * Returns:
+ *   64-bit value where:
+ *   - Upper 32 bits = TSC high bits
+ *   - Lower 32 bits = TSC low bits
+ */
 static inline uint64_t rdtsc(void) {
     uint32_t low, high;
     __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
     return ((uint64_t)high << 32) | low;
 }
 
-// Initialize the PIT with specified frequency
+/**
+ * timer_init - Initialize the PIT with specified frequency
+ * @hz: Desired frequency in Hz (19 to 1193180)
+ *
+ * Configures PIT Channel 0 as the system timer with the specified frequency.
+ * Sets up interrupt handling and initializes timer state.
+ */
 void timer_init(uint32_t hz) {
     // Validate frequency
     if (hz < 19 || hz > 1193180) {
@@ -123,7 +141,14 @@ void timer_init(uint32_t hz) {
     timer_channels[0].active = true;
 }
 
-// Get the current tick count
+/**
+ * timer_get_ticks - Get the current tick count
+ * 
+ * Returns the number of timer ticks since system boot.
+ * Uses interrupt-safe access to read the tick count.
+ *
+ * @return: Number of ticks since boot
+ */
 uint64_t timer_get_ticks(void) {
     uint64_t ticks;
     __asm__ volatile("cli");  // Disable interrupts
@@ -132,23 +157,40 @@ uint64_t timer_get_ticks(void) {
     return ticks;
 }
 
-// Get the current timer frequency
+/**
+ * timer_get_frequency - Get the current timer frequency
+ * 
+ * @return: Current timer frequency in Hz
+ */
 uint32_t timer_get_frequency(void) {
     return timer_state.frequency;
 }
 
-// Get system uptime in milliseconds
+/**
+ * timer_get_uptime_ms - Get system uptime in milliseconds
+ * 
+ * Calculates system uptime based on tick count and timer frequency.
+ * Uses interrupt-safe access to read the tick count.
+ *
+ * @return: System uptime in milliseconds
+ */
 uint32_t timer_get_uptime_ms(void) {
     // Safely get current tick count
     __asm__ volatile("cli");
-    uint64_t current_ticks = timer_get_ticks();  // Use uint64_t here
+    uint64_t current_ticks = timer_get_ticks();
     __asm__ volatile("sti");
     
-    // Calculate milliseconds using 32-bit math
-    return (uint32_t)((current_ticks * 1000) / frequency);
+    // Calculate milliseconds using timer state frequency
+    return (uint32_t)((current_ticks * 1000) / timer_state.frequency);
 }
 
-// Sleep for specified number of milliseconds
+/**
+ * timer_sleep_ms - Sleep for specified number of milliseconds
+ * @ms: Number of milliseconds to sleep
+ *
+ * Implements power-efficient sleep using HLT instruction.
+ * Calculates target tick count based on current frequency.
+ */
 void timer_sleep_ms(uint32_t ms) {
     uint64_t target_ticks = timer_state.ticks + udiv64((uint64_t)ms * timer_state.frequency, 1000);
     
@@ -157,7 +199,13 @@ void timer_sleep_ms(uint32_t ms) {
     }
 }
 
-// Delay for specified number of microseconds
+/**
+ * timer_delay_us - Delay for specified number of microseconds
+ * @us: Number of microseconds to delay
+ *
+ * Uses CPU timestamp counter (TSC) for high-precision short delays.
+ * Implements busy-wait with PAUSE instruction for efficiency.
+ */
 void timer_delay_us(uint32_t us) {
     // For very short delays, use busy waiting with TSC
     uint64_t start_tsc = rdtsc();
@@ -168,6 +216,12 @@ void timer_delay_us(uint32_t us) {
     }
 }
 
+/**
+ * timer_start_measure - Start a timing measurement
+ * @measure: Pointer to timer_measure_t structure to store start time
+ *
+ * Initializes a timing measurement by storing the current tick count.
+ */
 void timer_start_measure(timer_measure_t* measure) {
     if (measure) {
         measure->start_tick = timer_get_ticks();
@@ -175,6 +229,14 @@ void timer_start_measure(timer_measure_t* measure) {
     }
 }
 
+/**
+ * timer_end_measure - End a timing measurement
+ * @measure: Pointer to timer_measure_t structure containing start time
+ *
+ * Calculates elapsed time since timer_start_measure was called.
+ *
+ * @return: Elapsed time in milliseconds
+ */
 uint64_t timer_end_measure(timer_measure_t* measure) {
     if (!measure) return 0;
     
@@ -183,6 +245,16 @@ uint64_t timer_end_measure(timer_measure_t* measure) {
     return measure->duration_ms;
 }
 
+/**
+ * timer_configure_channel - Configure a PIT channel
+ * @channel: Channel number (0-2)
+ * @frequency: Desired frequency in Hz
+ * @callback: Function to call on timer interrupt
+ *
+ * Configures a PIT channel with the specified frequency and callback.
+ *
+ * @return: true if successful, false if invalid channel
+ */
 bool timer_configure_channel(uint8_t channel, uint32_t frequency, timer_callback_t callback) {
     if (channel >= 3) return false;
     
@@ -200,5 +272,3 @@ bool timer_configure_channel(uint8_t channel, uint32_t frequency, timer_callback
     
     return true;
 }
-
-  

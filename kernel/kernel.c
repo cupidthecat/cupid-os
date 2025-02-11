@@ -23,7 +23,10 @@
 #include "types.h"
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
+#include "../drivers/mouse.h"
 #include "../drivers/timer.h"
+#include "../drivers/vga.h"
+#include "../filesystem/fs.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -36,24 +39,9 @@ void _start(void) __attribute__((section(".text.start")));
 // Main kernel function
 void kmain(void);
 
-// Screen dimensions
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-#define VGA_MEMORY 0xB8000
-
-// Colors
-#define VGA_BLACK 0
-#define VGA_LIGHT_GREY 7
-#define VGA_WHITE 15
-
-// Screen position
-int cursor_x = 0;
-int cursor_y = 0;
-
 // Global tick counters
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
-
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
@@ -101,143 +89,6 @@ uint32_t timer_get_ticks_channel(uint32_t channel) {
     return 0;
 }
 
-#define VGA_CTRL_REGISTER 0x3D4
-#define VGA_DATA_REGISTER 0x3D5
-#define VGA_OFFSET_LOW 0x0F
-#define VGA_OFFSET_HIGH 0x0E
-
-void print(const char* str);
-void putchar(char c);
-void clear_screen(void);
-void init_vga(void);
-
-/**
- * init_vga - Initialize the VGA text mode display
- * 
- * This function initializes the VGA text mode display by:
- * - Resetting the hardware cursor position to (0,0)
- * - Clearing the screen with light grey text on black background
- * - Resetting the software cursor position variables
- * - Printing an initialization message
- */
-void init_vga(void) {
-    // Reset the cursor position
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, 0);
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, 0);
-    
-    // Clear the screen with a known good attribute
-    volatile char* vidmem = (char*)VGA_MEMORY;
-    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
-        vidmem[i] = ' ';           // Space character
-        vidmem[i + 1] = 0x07;      // Light grey on black
-    }
-    
-    // Reset cursor position variables
-    cursor_x = 0;
-    cursor_y = 0;
-    
-    print("VGA initialized.\n");
-}
-
-/**
- * clear_screen - Clears the entire VGA text buffer and resets cursor position
- * 
- * This function:
- * - Fills the entire VGA text buffer with space characters
- * - Sets each character's attribute to light grey on black (0x07)
- * - Resets both X and Y cursor coordinates to 0
- * 
- * Implementation details:
- * - VGA text buffer is accessed directly at VGA_MEMORY
- * - Each character cell takes 2 bytes:
- *   - First byte: ASCII character (space in this case)
- *   - Second byte: Attribute byte (0x07 = light grey on black)
- * - Buffer size is VGA_WIDTH * VGA_HEIGHT characters
- */
-void clear_screen() {
-    volatile char* vidmem = (char*)VGA_MEMORY;
-    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
-        vidmem[i] = ' ';           // Space character
-        vidmem[i + 1] = 0x07;      // Light grey on black
-    }
-    cursor_x = 0;
-    cursor_y = 0;
-}
-
-/**
- * putchar - Outputs a single character to the VGA text buffer
- * 
- * Displays a character at the current cursor position and advances the cursor.
- * Handles special characters like newline, screen wrapping, and scrolling.
- * Updates both the software cursor position and hardware cursor.
- *
- * @param c: The character to display
- *
- * Implementation details:
- * - Each character takes 2 bytes in video memory:
- *   - First byte: ASCII character
- *   - Second byte: Attribute (color/style)
- * - Uses light grey on black (0x07) for character attributes
- * - Handles screen boundaries:
- *   - Wraps to next line when reaching end of line
- *   - Scrolls screen up when reaching bottom
- * - Updates hardware cursor position via VGA registers
- */
-void putchar(char c) {
-    volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
-    
-    if(c == '\n') {
-        cursor_x = 0;
-        cursor_y++;
-    } else if(c == '\b') {  // Handle backspace
-        if(cursor_x > 0) {
-            cursor_x--;
-        } else if(cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-        }
-        // Clear the character at current position
-        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = ' ';
-        vidmem[offset + 1] = 0x07;
-    } else {
-        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = c;
-        vidmem[offset + 1] = 0x07;  // Light grey on black
-        cursor_x++;
-    }
-    
-    // Handle screen scrolling
-    if(cursor_x >= VGA_WIDTH) {
-        cursor_x = 0;
-        cursor_y++;
-    }
-    
-    if(cursor_y >= VGA_HEIGHT) {
-        // Scroll the screen
-        for(int i = 0; i < (VGA_HEIGHT-1) * VGA_WIDTH * 2; i++) {
-            vidmem[i] = vidmem[i + VGA_WIDTH * 2];
-        }
-        
-        // Clear the last line
-        int last_line = (VGA_HEIGHT-1) * VGA_WIDTH * 2;
-        for(int i = 0; i < VGA_WIDTH * 2; i += 2) {
-            vidmem[last_line + i] = ' ';
-            vidmem[last_line + i + 1] = 0x07;
-        }
-        cursor_y = VGA_HEIGHT - 1;
-    }
-    
-    // Update hardware cursor
-    int pos = cursor_y * VGA_WIDTH + cursor_x;
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, pos & 0xFF);
-}
-
 /**
  * print_int - Prints an unsigned 32-bit integer to the screen
  * 
@@ -283,6 +134,7 @@ void print(const char* str) {
         putchar(str[i]);
     }
 }
+
 /**
  * _start - Entry point for the kernel
  * 
@@ -396,7 +248,6 @@ void calibrate_timer(void) {
     //debug_print_int("CPU Frequency (MHz): ", (uint32_t)(tsc_freq / 1000000));
 }
 
-
 /**
  * get_cpu_freq - Get the calibrated CPU frequency
  * 
@@ -442,15 +293,36 @@ uint32_t get_pit_ticks_per_ms(void) {
 void kmain(void) {
     init_vga();
     clear_screen();
-    print("Testing output...\n");
-    
     idt_init();
     pic_init();
+    mouse_init();
     keyboard_init();
     calibrate_timer();
+    fs_init();
 
-    debug_print_int("System Timer Frequency: ", timer_get_frequency());
-    debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+    debug_print_int("[:3] System Timer Frequency: ", timer_get_frequency());
+    debug_print_int("[:3] CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+
+    print("VGA Color Text Support Test!!\n");
+    // Test VGA colors
+    vga_set_color(VGA_RED, VGA_BLACK);
+    print("Red text on black background\n");
+    
+    vga_set_color(VGA_GREEN, VGA_BLACK);
+    print("Green text on black background\n");
+    
+    vga_set_color(VGA_BLUE, VGA_BLACK);
+    print("Blue text on black background\n");
+    
+    vga_set_color(VGA_WHITE, VGA_BLUE);
+    print("White text on blue background\n");
+    
+    vga_set_color(VGA_YELLOW, VGA_RED);
+    print("Yellow text on red background\n");
+    
+    // Reset to default colors
+    vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
+    print("Back to default colors\n");
 
     pic_clear_mask(1);
     __asm__ volatile("sti");

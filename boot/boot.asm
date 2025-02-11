@@ -16,7 +16,10 @@ start:
     ; Print boot message
     mov si, MSG_BOOT
     call print_string
-
+   ; -------------------------------
+    ; Set graphics mode 0x13 (320×200, 256 colors)
+    mov ax, 0x0013
+    int 0x10
     ; Load kernel
     call load_kernel
     
