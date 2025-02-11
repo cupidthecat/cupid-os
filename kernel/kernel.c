@@ -27,7 +27,7 @@
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "../filesystem/fs.h"
-
+#include "../drivers/desktop.h"
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
 
@@ -299,7 +299,8 @@ void kmain(void) {
     keyboard_init();
     calibrate_timer();
     fs_init();
-
+    desktop_init();
+    desktop_run();
     debug_print_int("[:3] System Timer Frequency: ", timer_get_frequency());
     debug_print_int("[:3] CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
 

@@ -30,9 +30,15 @@
 #define VGA_HEIGHT 25
 #define VGA_MEMORY 0xB8000
 
+#define FONT_WIDTH 8
+#define FONT_HEIGHT 16
+#define NUM_GLYPHS 256
+
 void putchar(char c);
 void clear_screen(void);
 void init_vga(void);
 void putpixel(int x, int y, uint8_t color);
+void draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint8_t color);
+uint8_t getpixel(int x, int y);
 
 #endif 

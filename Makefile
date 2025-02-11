@@ -10,7 +10,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
-            drivers/mouse.o drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o filesystem/path.o drivers/vga.o
+            drivers/mouse.o drivers/speaker.o kernel/shell.o kernel/string.o filesystem/fs.o filesystem/path.o drivers/vga.o drivers/desktop.o
 
 all: $(OS_IMAGE)
 
@@ -31,6 +31,9 @@ kernel/isr.o: kernel/isr.asm
 
 kernel/pic.o: kernel/pic.c kernel/pic.h
 	$(CC) $(CFLAGS) -c kernel/pic.c -o kernel/pic.o
+# Add new rule for desktop.o
+drivers/desktop.o: drivers/desktop.c drivers/desktop.h
+	$(CC) $(CFLAGS) drivers/desktop.c -o drivers/desktop.o
 
 kernel/irq.o: kernel/irq.c kernel/isr.h kernel/pic.h
 	$(CC) $(CFLAGS) kernel/irq.c -o kernel/irq.o

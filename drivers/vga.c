@@ -188,3 +188,16 @@ void putpixel(int x, int y, uint8_t color) {
     volatile uint8_t* vidmem = (uint8_t*)0xA0000; // Mode 0x13 memory
     vidmem[y * 320 + x] = color;
 }
+
+void draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint8_t color) {
+    for(int dy = 0; dy < h; dy++) {
+        for(int dx = 0; dx < w; dx++) {
+            putpixel(x + dx, y + dy, color);
+        }
+    }
+}
+
+uint8_t getpixel(int x, int y) {
+    volatile uint8_t* vidmem = (uint8_t*)0xA0000;
+    return vidmem[y * 320 + x];
+}

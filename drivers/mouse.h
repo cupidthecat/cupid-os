@@ -27,4 +27,7 @@ void mouse_wait(uint8_t type);
 void mouse_write(uint8_t data);
 uint8_t mouse_read(void);
 
+extern volatile int16_t mouse_x;
+extern volatile int16_t mouse_y;
+
 #endif
