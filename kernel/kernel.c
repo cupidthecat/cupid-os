@@ -291,8 +291,8 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
-    init_vga();
     load_font(_binary_zap_light16_psf_start);
+    init_vga();
     clear_screen();
     idt_init();
     pic_init();
