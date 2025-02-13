@@ -1,7 +1,7 @@
 #include "vga.h"
 #include "../kernel/ports.h"
 #include "../kernel/kernel.h"  // Add this to get access to print function
-
+#include "keyboard.h"
 // Screen dimensions
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
@@ -21,6 +21,8 @@ uint8_t vga_fg_color = VGA_LIGHT_GREY;
 uint8_t vga_bg_color = VGA_BLACK;
 
 uint8_t* font_data = 0;
+
+#define TERM_BUFFER_SIZE 256
 
 /**
  * vga_make_color - Combines foreground and background colors into a VGA attribute byte
@@ -69,24 +71,15 @@ static uint16_t get_vga_entry(unsigned char c) {
  * - Printing an initialization message
  */
 void init_vga(void) {
-    // Reset the cursor position
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, 0);
-    outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, 0);
+    // Set video mode to 0x13 through BIOS (already done in bootloader)
+    // Clear the screen with black background
+    clear_screen();
     
-    // Clear the screen with a known good attribute
-    volatile char* vidmem = (char*)VGA_MEMORY;
-    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
-        vidmem[i] = ' ';           // Space character
-        vidmem[i + 1] = 0x07;      // Light grey on black
-    }
-    
-    // Reset cursor position variables
+    // Initialize text cursor position
     cursor_x = 0;
     cursor_y = 0;
     
-    print("VGA initialized.\n");
+    print("VGA initialized (320x200x256).\n");
 }
 
 /**
@@ -105,17 +98,17 @@ void init_vga(void) {
  * - Buffer size is VGA_WIDTH * VGA_HEIGHT characters
  */
 void clear_screen() {
-    volatile char* vidmem = (char*)VGA_MEMORY;
-    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
-        vidmem[i] = ' ';           // Space character
-        vidmem[i + 1] = 0x07;      // Light grey on black
+    volatile uint8_t* vidmem = (uint8_t*)VGA_MEMORY;
+    // Fill entire video memory with black (0x00)
+    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+        vidmem[i] = vga_bg_color;
     }
     cursor_x = 0;
     cursor_y = 0;
 }
 
 /**
- * putchar - Outputs a single character to the VGA text buffer
+ * putchar -8 Outputs a single character to the VGA text buffer
  * 
  * Displays a character at the current cursor position and advances the cursor.
  * Handles special characters like newline, screen wrapping, and scrolling.
@@ -187,3 +180,4 @@ void load_font(uint8_t* font) {
     font_data = font + 4; // Skip header
     print("ZAP-Light16 font loaded\n");
 }
+

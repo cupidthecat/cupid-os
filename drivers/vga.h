@@ -26,9 +26,9 @@
 #define VGA_OFFSET_HIGH 0x0E
 
 // VGA-related definitions
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-#define VGA_MEMORY 0xB8000
+#define VGA_WIDTH 320
+#define VGA_HEIGHT 200
+#define VGA_MEMORY 0xA0000
 
 #define FONT_WIDTH 8
 #define FONT_HEIGHT 16

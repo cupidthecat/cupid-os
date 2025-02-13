@@ -4,11 +4,12 @@
 #define CLOSE_BUTTON_SIZE  10
 #define CLOSE_BUTTON_MARGIN 2
 #define CLOSE_BUTTON_BG    VGA_RED      // Use a red background for the button
-#define CLOSE_BUTTON_XCOLOR VGA_WHITE   // Use white for the “X”
+#define CLOSE_BUTTON_XCOLOR VGA_WHITE   // Use white for the "X"
 
 #include "../kernel/types.h"
 #include "mouse.h"
 
+#define MAX_WINDOWS 10
 typedef struct {
     int16_t x, y;
     uint16_t width, height;
@@ -16,6 +17,7 @@ typedef struct {
     int16_t drag_offset_x, drag_offset_y;
     const char* title;  // New title field
     bool visible;
+    uint8_t z_index;  // New z-order property
 } window_t;
 
 // Function prototypes
