@@ -181,3 +181,27 @@ void load_font(uint8_t* font) {
     print("ZAP-Light16 font loaded\n");
 }
 
+
+
+/**
+ * putchar_at
+ * Draws a single character at the specified (x,y) coordinate.
+ */
+void putchar_at(char c, int x, int y) {
+    if (!font_data)
+        return;
+    uint8_t* glyph = font_data + ((unsigned char)c) * FONT_HEIGHT;
+    for (int row = 0; row < FONT_HEIGHT; row++) {
+        uint8_t bits = glyph[row];
+        for (int col = 0; col < FONT_WIDTH; col++) {
+            int px = x + col;
+            int py = y + row;
+            if (px >= VGA_WIDTH || py >= VGA_HEIGHT)
+                continue;
+            if (bits & (0x80 >> col))
+                putpixel(px, py, vga_fg_color);
+            else
+                putpixel(px, py, vga_bg_color);
+        }
+    }
+}

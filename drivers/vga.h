@@ -44,5 +44,6 @@ void putpixel(int x, int y, uint8_t color);
 void draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint8_t color);
 uint8_t getpixel(int x, int y);
 void load_font(uint8_t* font);
-
+void putchar_at(char c, int x, int y);
+void vga_set_color(uint8_t fg, uint8_t bg);
 #endif 

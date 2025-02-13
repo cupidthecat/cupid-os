@@ -9,10 +9,10 @@
 static volatile bool mouse_ready = false; // Flag indicating if mouse data is ready
 static volatile uint8_t mouse_cycle = 0; // Current byte in mouse packet (0-2)
 static volatile int8_t mouse_byte[3]; // Stores the 3 bytes of mouse data
-volatile mouse_packet_t current_packet; // Current mouse packet data
+volatile mouse_packet_t current_packet = {0}; // Current mouse packet data
 volatile int16_t mouse_x = 160;  // Current mouse X position (center of 320x200 screen)
 volatile int16_t mouse_y = 100;  // Current mouse Y position (center of 320x200 screen)
-static uint8_t current_bg_pixels[4] = {0}; // Stores background pixels under cursor
+uint8_t current_bg_pixels[4] = {0}; // Stores background pixels under cursor
 
 /**
  * Initializes the PS/2 mouse

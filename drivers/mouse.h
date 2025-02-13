@@ -29,5 +29,7 @@ uint8_t mouse_read(void);
 
 extern volatile int16_t mouse_x;
 extern volatile int16_t mouse_y;
+extern volatile mouse_packet_t current_packet;
+extern uint8_t current_bg_pixels[4];
 
 #endif

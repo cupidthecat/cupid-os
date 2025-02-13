@@ -1,32 +1,15 @@
 #ifndef DESKTOP_H
 #define DESKTOP_H
 
-#define CLOSE_BUTTON_SIZE  10
-#define CLOSE_BUTTON_MARGIN 2
-#define CLOSE_BUTTON_BG    VGA_RED      // Use a red background for the button
-#define CLOSE_BUTTON_XCOLOR VGA_WHITE   // Use white for the "X"
-
 #include "../kernel/types.h"
-#include "mouse.h"
+#include "window.h"
 
-#define MAX_WINDOWS 10
-typedef struct {
-    int16_t x, y;
-    uint16_t width, height;
-    bool dragging;
-    int16_t drag_offset_x, drag_offset_y;
-    const char* title;  // New title field
-    bool visible;
-    uint8_t z_index;  // New z-order property
-} window_t;
+// Desktop background color
+#define DESKTOP_BG_COLOR 0x1D
+#define MAX_ACTIVE_WINDOWS 5
 
 // Function prototypes
 void desktop_init(void);
 void desktop_run(void);
-void desktop_font_test(void);
-void desktop_draw_window(window_t *win);
-
-// Add this after the function prototypes:
-extern window_t current_window;
 
 #endif
