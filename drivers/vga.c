@@ -2,9 +2,7 @@
 #include "../kernel/ports.h"
 #include "../kernel/kernel.h"  // Add this to get access to print function
 #include "keyboard.h"
-// Screen dimensions
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
+
 #define VGA_MEMORY 0xB8000
 
 // Colors
