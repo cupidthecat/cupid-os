@@ -305,27 +305,6 @@ void kmain(void) {
     debug_print_int("[:3] System Timer Frequency: ", timer_get_frequency());
     debug_print_int("[:3] CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
 
-    print("VGA Color Text Support Test!!\n");
-    // Test VGA colors
-    vga_set_color(VGA_RED, VGA_BLACK);
-    print("Red text on black background\n");
-    
-    vga_set_color(VGA_GREEN, VGA_BLACK);
-    print("Green text on black background\n");
-    
-    vga_set_color(VGA_BLUE, VGA_BLACK);
-    print("Blue text on black background\n");
-    
-    vga_set_color(VGA_WHITE, VGA_BLUE);
-    print("White text on blue background\n");
-    
-    vga_set_color(VGA_YELLOW, VGA_RED);
-    print("Yellow text on red background\n");
-    
-    // Reset to default colors
-    vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
-    print("Back to default colors\n");
-
     pic_clear_mask(1);
     __asm__ volatile("sti");
     
