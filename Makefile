@@ -89,7 +89,7 @@ drivers/mouse.o: drivers/mouse.c drivers/mouse.h
 
 # Add new rule for font.o
 kernel/font.o: zap-light16.psf
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 zap-light16.psf drivers/font.o
 
 # Add new rule for window.o
 drivers/window.o: drivers/window.c drivers/window.h
