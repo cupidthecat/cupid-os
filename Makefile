@@ -12,7 +12,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/mouse.o drivers/speaker.o kernel/shell.o kernel/string.o \
             filesystem/fs.o filesystem/path.o drivers/vga.o drivers/desktop.o \
-            drivers/window.o kernel/font.o
+            drivers/window.o drivers/font.o
 
 # Add objcopy definition at the top
 OBJCOPY=objcopy
@@ -89,7 +89,7 @@ drivers/mouse.o: drivers/mouse.c drivers/mouse.h
 
 # Add new rule for font.o
 kernel/font.o: zap-light16.psf
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 zap-light16.psf drivers/font.o
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 zap-light16.psf kernel/font.o
 
 # Add new rule for window.o
 drivers/window.o: drivers/window.c drivers/window.h
