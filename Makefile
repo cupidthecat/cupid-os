@@ -12,7 +12,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/mouse.o drivers/speaker.o kernel/shell.o kernel/string.o \
             filesystem/fs.o filesystem/path.o drivers/vga.o drivers/desktop.o \
-            drivers/window.o drivers/font.o
+            drivers/window.o kernel/font.o
 
 # Add objcopy definition at the top
 OBJCOPY=objcopy
