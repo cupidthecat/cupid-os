@@ -154,6 +154,10 @@ void putchar(char c) {
 }
 
 void putpixel(int x, int y, uint8_t color) {
+    // Clip coordinates to prevent writing off-screen.
+    if (x < 0 || x >= 320 || y < 0 || y >= 200) {
+        return;
+    }
     volatile uint8_t* vidmem = (uint8_t*)0xA0000; // Mode 0x13 memory
     vidmem[y * 320 + x] = color;
 }
@@ -181,8 +185,6 @@ void load_font(uint8_t* font) {
     print("ZAP-Light16 font loaded\n");
 }
 
-
-
 /**
  * putchar_at
  * Draws a single character at the specified (x,y) coordinate.
@@ -196,7 +198,8 @@ void putchar_at(char c, int x, int y) {
         for (int col = 0; col < FONT_WIDTH; col++) {
             int px = x + col;
             int py = y + row;
-            if (px >= VGA_WIDTH || py >= VGA_HEIGHT)
+            // Clip: if the pixel is outside the screen, skip drawing it.
+            if (px < 0 || px >= 320 || py < 0 || py >= 200)
                 continue;
             if (bits & (0x80 >> col))
                 putpixel(px, py, vga_fg_color);

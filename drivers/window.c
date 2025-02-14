@@ -66,9 +66,12 @@ void window_draw(window_t* win) {
     // Draw window title text inside the title bar.
     if (win->title) {
         int title_x = win->x + 4;
-        int title_y = win->y + (TITLE_BAR_HEIGHT - FONT_HEIGHT) / 2;
-        vga_set_color(VGA_WHITE, 0x04); // White text on blue background
-        for (int i = 0; win->title[i] && (title_x - win->x) < (win->width - 10); i++) {
+        int title_y = win->y + 2;  // Fixed position 2 pixels from top
+        vga_set_color(VGA_WHITE, 0x04);
+        
+        // Ensure title doesn't overflow into close button area
+        int max_title_width = win->width - CLOSE_BUTTON_SIZE - 8;
+        for (int i = 0; win->title[i] && (title_x < (win->x + max_title_width)); i++) {
             putchar_at(win->title[i], title_x, title_y);
             title_x += FONT_WIDTH;
         }

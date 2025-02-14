@@ -7,6 +7,7 @@
 // Global pointer for our main window.
 window_t* current_window = 0;
 extern volatile mouse_packet_t current_packet;
+
 void desktop_init(void) {
     // Clear the screen using the desktop background color.
     draw_rect(0, 0, 320, 200, DESKTOP_BG_COLOR);
