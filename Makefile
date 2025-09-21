@@ -1,7 +1,7 @@
 # Compiler settings
 ASM=nasm
 CC=gcc
-CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers
+CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -std=c99 -c -I./kernel -I./drivers
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Files
