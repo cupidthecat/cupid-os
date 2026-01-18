@@ -55,7 +55,6 @@
 
 // Global timer state
 static volatile uint64_t tick_count = 0;  // Number of timer ticks since boot
-static uint32_t frequency = 0;            // Current timer frequency in Hz
 
 // Timer state structure (using the one from types.h)
 static timer_state_t timer_state = {
@@ -141,11 +140,15 @@ uint32_t timer_get_frequency(void) {
 uint32_t timer_get_uptime_ms(void) {
     // Safely get current tick count
     __asm__ volatile("cli");
-    uint64_t current_ticks = timer_get_ticks();  // Use uint64_t here
+    uint64_t current_ticks = timer_get_ticks();
     __asm__ volatile("sti");
-    
+
+    if (timer_state.frequency == 0) {
+        return 0;
+    }
+
     // Calculate milliseconds using 32-bit math
-    return (uint32_t)((current_ticks * 1000) / frequency);
+    return (uint32_t)((current_ticks * 1000) / timer_state.frequency);
 }
 
 // Sleep for specified number of milliseconds
