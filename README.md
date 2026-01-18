@@ -94,11 +94,13 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
 
 - **Shell Interface**  
   - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
-  - Currently supports an `echo` command (with room for future expansion).
+  - Commands: `help`, `clear`, `echo`, `time`, `reboot`, `history`, `ls`, `cat`.
+  - Command history navigation (arrow up/down) and tab completion for command names.
 
 - **Utility Libraries**  
   - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
   - **String Library:** Implements basic functions like `strlen` and `strcmp`.
+  - **In-memory Filesystem:** Minimal read-only file table exposed via `ls`/`cat` in the shell.
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
