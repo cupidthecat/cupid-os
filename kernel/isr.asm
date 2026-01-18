@@ -15,6 +15,10 @@ global isr5
 global isr6
 global isr7
 global isr8
+global isr9
+global isr10
+global isr11
+global isr12
 global isr13
 global isr14
 
@@ -148,6 +152,30 @@ isr8:
     cli
     ; Note: Double fault pushes an error code
     push byte 8
+    jmp isr_common_stub
+
+isr9:
+    cli
+    push byte 0     ; Coprocessor segment overrun does not push error code
+    push byte 9
+    jmp isr_common_stub
+
+isr10:
+    cli
+    ; Bad TSS pushes an error code
+    push byte 10
+    jmp isr_common_stub
+
+isr11:
+    cli
+    ; Segment not present pushes an error code
+    push byte 11
+    jmp isr_common_stub
+
+isr12:
+    cli
+    ; Stack-segment fault pushes an error code
+    push byte 12
     jmp isr_common_stub
 
 isr13:

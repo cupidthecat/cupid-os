@@ -22,7 +22,6 @@
 #define IRQ15 47
 
 typedef void (*irq_handler_t)(struct registers*);
-void register_interrupt_handler(uint8_t n, irq_handler_t handler);
 void irq_install_handler(int irq, irq_handler_t handler);
 void irq_uninstall_handler(int irq);
 

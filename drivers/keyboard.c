@@ -317,13 +317,11 @@ bool keyboard_get_key_state(uint8_t scancode) {
 
 // Retrieve a raw scancode from the keyboard buffer
 char keyboard_get_scancode(void) {
-    if (keyboard_state.buffer.count > 0) {
-        key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
-        keyboard_state.buffer.head = (keyboard_state.buffer.head + 1) % KEYBOARD_BUFFER_SIZE;
-        keyboard_state.buffer.count--;
-        return event.scancode;
-    }
-    return 0;
+    if (keyboard_state.buffer.count == 0) return 0;
+    key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+    keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
+    keyboard_state.buffer.count--;
+    return (char)event.scancode;
 }
 
 // Check if a specific function key (1-12) is pressed
@@ -346,15 +344,9 @@ bool keyboard_get_shift(void) {
 
 // Retrieve a single character from keyboard input
 char keyboard_get_char(void) {
-    uint8_t scancode = inb(KEYBOARD_DATA_PORT);
-    
-    // Ignore key release
-    if (scancode & KEY_RELEASED) {
-        return 0;
-    }
-    
-    // Convert scancode to ASCII
-    return get_ascii_from_scancode(scancode);
+    key_event_t event;
+    if (!keyboard_read_event(&event)) return 0;
+    return event.character;
 }
 
 char getchar(void) {
@@ -377,4 +369,16 @@ bool keyboard_read_event(key_event_t* event) {
         }
         __asm__ volatile("hlt");
     }
+}
+
+// Non-blocking version of keyboard_read_event
+bool keyboard_try_read_event(key_event_t* event) {
+    if (!event || keyboard_state.buffer.count == 0) {
+        return false;
+    }
+
+    *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+    keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
+    keyboard_state.buffer.count--;
+    return true;
 }

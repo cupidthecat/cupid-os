@@ -89,7 +89,10 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
 
+run-noaudio: $(OS_IMAGE)
+	qemu-system-i386 -boot a -fda $(OS_IMAGE)
+
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)
 
-.PHONY: all run clean
+.PHONY: all run run-noaudio clean

@@ -26,5 +26,6 @@ bool keyboard_get_caps_lock(void);
 bool keyboard_get_shift(void);
 char getchar(void);
 bool keyboard_read_event(key_event_t* event);
+bool keyboard_try_read_event(key_event_t* event);
 
 #endif 

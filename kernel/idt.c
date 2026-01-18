@@ -57,6 +57,22 @@ static void dump_regs(struct registers* r) {
     print("\n");
 }
 
+static void pf_print_err(uint32_t err) {
+    // Intel PF error code bits:
+    // bit0 P: 0=non-present, 1=protection violation
+    // bit1 W/R: 0=read, 1=write
+    // bit2 U/S: 0=supervisor, 1=user
+    // bit3 RSVD: reserved bit violation
+    // bit4 I/D: 1=instruction fetch (if supported)
+    print("PF flags: ");
+    print((err & 1) ? "P " : "NP ");
+    print((err & 2) ? "W " : "R ");
+    print((err & 4) ? "U " : "S ");
+    if (err & 8)  print("RSVD ");
+    if (err & 16) print("IF ");
+    print("\n");
+}
+
 // External assembly function
 extern void load_idt(struct idt_ptr* ptr);
 
@@ -90,6 +106,10 @@ void idt_init(void) {
     idt_set_gate(6, (uint32_t)isr6, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(7, (uint32_t)isr7, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(8, (uint32_t)isr8, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(9, (uint32_t)isr9, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(10, (uint32_t)isr10, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(11, (uint32_t)isr11, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(12, (uint32_t)isr12, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(13, (uint32_t)isr13, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(14, (uint32_t)isr14, 0x08, IDT_INTERRUPT_GATE);
 
@@ -131,6 +151,7 @@ void isr_handler(struct registers* r) {
     dump_regs(r);
 
     if (r->int_no == 14) {
+        pf_print_err(r->err_code);
         uint32_t cr2;
         __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
 

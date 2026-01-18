@@ -13,6 +13,9 @@ start:
     mov ss, ax
     mov sp, 0x9000
 
+    ; Save BIOS boot drive
+    mov [BOOT_DRIVE], dl
+
     ; Print boot message
     mov si, MSG_BOOT
     call print_string

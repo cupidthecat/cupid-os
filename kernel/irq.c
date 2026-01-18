@@ -17,7 +17,9 @@ void irq_install_handler(int irq, irq_handler_t handler) {
         pic_clear_mask(irq);
         
         print("IRQ handler installed for IRQ ");
-        // Add code to print irq number
+        char num[4];
+        itoa(irq, num);
+        print(num);
         print("\n");
     }
 }
