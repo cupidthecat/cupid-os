@@ -60,6 +60,15 @@ static int shell_strncmp(const char* s1, const char* s2, size_t n) {
     return (unsigned char)*s1 - (unsigned char)*s2;
 }
 
+static bool shell_starts_with(const char* s, const char* prefix) {
+    while (*prefix) {
+        if (*s != *prefix) return false;
+        s++;
+        prefix++;
+    }
+    return true;
+}
+
 static void history_record(const char* line) {
     if (!line || line[0] == '\0') {
         return;
@@ -118,6 +127,51 @@ static void tab_complete(char* input, int* pos) {
     // Only complete the command (before first space)
     for (int i = 0; i < *pos; i++) {
         if (input[i] == ' ') {
+            // Special-case filename completion for "cat "
+            if (shell_starts_with(input, "cat ") && i == 3) {
+                size_t prefix_len = (size_t)(*pos - 4);
+                const char* prefix = &input[4];
+                const char* first_match = NULL;
+                int match_count = 0;
+
+                uint32_t file_count = fs_get_file_count();
+                for (uint32_t f = 0; f < file_count; f++) {
+                    const fs_file_t* file = fs_get_file(f);
+                    if (!file) continue;
+                    if (shell_strncmp(file->name, prefix, prefix_len) == 0) {
+                        if (match_count == 0) {
+                            first_match = file->name;
+                        }
+                        match_count++;
+                    }
+                }
+
+                if (match_count == 1 && first_match) {
+                    const char* completion = first_match + prefix_len;
+                    while (*completion && *pos < MAX_INPUT_LEN) {
+                        input[*pos] = *completion;
+                        putchar(*completion);
+                        (*pos)++;
+                        completion++;
+                    }
+                } else if (match_count > 1) {
+                    print("\n");
+                    for (uint32_t f = 0; f < file_count; f++) {
+                        const fs_file_t* file = fs_get_file(f);
+                        if (!file) continue;
+                        if (shell_strncmp(file->name, prefix, prefix_len) == 0) {
+                            print(file->name);
+                            print("  ");
+                        }
+                    }
+                    print("\n> ");
+                    for (int k = 0; k < *pos; k++) {
+                        putchar(input[k]);
+                    }
+                } else {
+                    // No match; do nothing
+                }
+            }
             return;
         }
     }
