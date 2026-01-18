@@ -24,6 +24,8 @@
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
+#include "fs.h"
+#include "memory.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -53,6 +55,8 @@ int cursor_y = 0;
 // Global tick counters
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
+
+extern uint32_t _kernel_end;
 
 
 /**
@@ -355,10 +359,12 @@ void calibrate_timer(void) {
     // Calculate maximum safe duration for one-shot mode (55ms)
     uint32_t max_ticks = 0xFFFF;
     uint32_t actual_ms = (max_ticks * 1000) / PIT_FREQUENCY;
+    if (actual_ms == 0) actual_ms = 1; // Avoid divide-by-zero
     if(actual_ms > 50) actual_ms = 50;  // Clamp to 50ms max
     
     // Set initial count to maximum safe value
     uint16_t initial_count = (PIT_FREQUENCY * actual_ms) / 1000;
+    if (initial_count == 0) initial_count = 1; // Ensure non-zero reload
     outb(0x40, initial_count & 0xFF);
     outb(0x40, (initial_count >> 8) & 0xFF);
     
@@ -443,14 +449,28 @@ void kmain(void) {
     init_vga();
     clear_screen();
     print("Testing output...\n");
+
+    pmm_init((uint32_t)&_kernel_end);
+    heap_init(HEAP_INITIAL_PAGES);
+    paging_init();
     
     idt_init();
     pic_init();
     keyboard_init();
     calibrate_timer();
+    fs_init();
 
     debug_print_int("System Timer Frequency: ", timer_get_frequency());
     debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+
+    // Print memory information
+    print("Memory Information:\n");
+    debug_print_int("Total Memory: ", TOTAL_MEMORY_BYTES / 1024 / 1024);
+    print(" MB\n");
+    debug_print_int("Total Pages: ", pmm_total_pages());
+    debug_print_int("Free Pages: ", pmm_free_pages());
+    debug_print_int("Used Pages: ", pmm_total_pages() - pmm_free_pages());
+    print("\n");
 
     pic_clear_mask(1);
     __asm__ volatile("sti");
@@ -461,4 +481,3 @@ void kmain(void) {
         __asm__ volatile("hlt");
     }
 }
-

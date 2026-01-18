@@ -147,6 +147,26 @@ static bool right_shift_active = false;
 
 // Add this function declaration
 static void process_keypress(uint8_t key);
+static void enqueue_event(uint8_t scancode, char ascii);
+
+// Helper to push a key event into the circular buffer
+static void enqueue_event(uint8_t scancode, char ascii) {
+    key_event_t event;
+    event.scancode = scancode;
+    event.character = ascii;
+    event.pressed = true;
+    event.timestamp = system_ticks;
+
+    keyboard_buffer_t *buffer = &keyboard_state.buffer;
+    buffer->events[buffer->head] = event;
+    buffer->head = (buffer->head + 1) % KEYBOARD_BUFFER_SIZE;
+    if (buffer->count < KEYBOARD_BUFFER_SIZE) {
+        buffer->count++;
+    } else {
+        // Overwrite oldest when full
+        buffer->tail = (buffer->tail + 1) % KEYBOARD_BUFFER_SIZE;
+    }
+}
 
 // Initialize keyboard
 void keyboard_init(void) {
@@ -181,34 +201,20 @@ void keyboard_update_ticks(void) {
 
 // Handle extended keys (e.g., arrow keys) after detecting `KEY_EXTENDED`
 static void handle_extended_key(uint8_t key) {
+    bool is_release = key & KEY_RELEASED;
+    key &= ~KEY_RELEASED;
+
+    if (is_release) {
+        return;
+    }
+
     switch (key) {
-        case EXT_KEY_UP:    // Up arrow scancode: E0 48
-            print("[Up Arrow]");
-            break;
-        case EXT_KEY_DOWN:  // Down arrow scancode: E0 50
-            print("[Down Arrow]");
-            break;
-        case EXT_KEY_LEFT:  // Left arrow scancode: E0 4B
-            print("[Left Arrow]");
-            break;
-        case EXT_KEY_RIGHT: // Right arrow scancode: E0 4D
-            print("[Right Arrow]");
-            break;
-        case 0x53:  // Delete key (extended scancode: E0 53)
-            {
-                // Delete character at current cursor position on the current row:
-                int pos = cursor_y * VGA_WIDTH + cursor_x;
-                volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
-                // Shift characters to the left
-                for (int i = pos; i < (cursor_y + 1) * VGA_WIDTH - 1; i++) {
-                    vidmem[i * 2] = vidmem[(i + 1) * 2];
-                    vidmem[i * 2 + 1] = vidmem[(i + 1) * 2 + 1];
-                }
-                // Clear the last cell in the row
-                int last = (cursor_y + 1) * VGA_WIDTH - 1;
-                vidmem[last * 2] = ' ';
-                vidmem[last * 2 + 1] = 0x07;
-            }
+        case EXT_KEY_UP:
+        case EXT_KEY_DOWN:
+        case EXT_KEY_LEFT:
+        case EXT_KEY_RIGHT:
+        case 0x53:  // Delete key
+            enqueue_event(key, 0);
             break;
         default:
             // Other extended keys can be handled here
@@ -220,6 +226,11 @@ static void handle_extended_key(uint8_t key) {
 static void process_keypress(uint8_t key) {
     bool is_release = key & KEY_RELEASED;
     key &= ~KEY_RELEASED;  // Remove release bit
+
+    // Ignore scancodes we don't have a translation for to avoid OOB access
+    if (key >= sizeof(scancode_to_ascii)) {
+        return;
+    }
 
     // Handle modifier key presses/releases
     switch (key) {
@@ -254,28 +265,8 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
-    // *** Option 1: Do NOT echo here ***
-    // If you comment out or remove the echo, the shell will handle printing.
-    // if (ascii) {
-    //     putchar(ascii);
-    // }
-
-    // *** Enqueue the key event into the circular buffer ***
-    key_event_t event;
-    event.scancode = key;
-    event.character = ascii;
-    event.pressed = true;
-    event.timestamp = system_ticks;  // or use a proper timing function
-
-    keyboard_buffer_t *buffer = &keyboard_state.buffer;
-    buffer->events[buffer->head] = event;
-    buffer->head = (buffer->head + 1) % KEYBOARD_BUFFER_SIZE;
-    if (buffer->count < KEYBOARD_BUFFER_SIZE) {
-        buffer->count++;
-    } else {
-        // If the buffer is full, overwrite the oldest event
-        buffer->tail = (buffer->tail + 1) % KEYBOARD_BUFFER_SIZE;
-    }
+    // Enqueue the key event into the circular buffer
+    enqueue_event(key, ascii);
 }
 
 // Convert scancode to ASCII
@@ -367,12 +358,22 @@ char keyboard_get_char(void) {
 }
 
 char getchar(void) {
-    while(1) {
+    key_event_t event;
+    keyboard_read_event(&event);
+    return event.character;
+}
+
+bool keyboard_read_event(key_event_t* event) {
+    if (!event) {
+        return false;
+    }
+
+    while (1) {
         if (keyboard_state.buffer.count > 0) {
-            char c = keyboard_state.buffer.events[keyboard_state.buffer.tail].character;
+            *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
             keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
             keyboard_state.buffer.count--;
-            return c;
+            return true;
         }
         __asm__ volatile("hlt");
     }

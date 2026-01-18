@@ -9,8 +9,9 @@ BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
-            drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
-            drivers/speaker.o kernel/shell.o kernel/string.o
+            kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
+            drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
+            kernel/paging.o
 
 all: $(OS_IMAGE)
 
@@ -62,6 +63,18 @@ kernel/shell.o: kernel/shell.c kernel/shell.h
 # Add new rule for string.o
 kernel/string.o: kernel/string.c kernel/string.h
 	$(CC) $(CFLAGS) kernel/string.c -o kernel/string.o
+
+# Add new rule for fs.o
+kernel/fs.o: kernel/fs.c kernel/fs.h
+	$(CC) $(CFLAGS) kernel/fs.c -o kernel/fs.o
+
+# Add new rule for memory.o
+kernel/memory.o: kernel/memory.c kernel/memory.h
+	$(CC) $(CFLAGS) kernel/memory.c -o kernel/memory.o
+
+# Add new rule for paging.o
+kernel/paging.o: kernel/paging.c kernel/memory.h
+	$(CC) $(CFLAGS) kernel/paging.c -o kernel/paging.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

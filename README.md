@@ -92,13 +92,20 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Implements basic tone and beep functionality.
   - Supports configuring PIT channel 2 to generate square waves for sound output.
 
+- **Memory Management Foundations**  
+  - Bitmap-backed physical page frame allocator (currently targeting the first 32MB).
+  - Identity-mapped paging setup with 4KB pages to keep addresses stable in ring 0.
+  - Kernel heap with a bump allocator + free list for small dynamic allocations.
+
 - **Shell Interface**  
   - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
-  - Currently supports an `echo` command (with room for future expansion).
+  - Commands: `help`, `clear`, `echo`, `time`, `reboot`, `history`, `ls`, `cat`.
+  - Command history navigation (arrow up/down) and tab completion for command names.
 
 - **Utility Libraries**  
   - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
   - **String Library:** Implements basic functions like `strlen` and `strcmp`.
+  - **In-memory Filesystem:** Minimal read-only file table exposed via `ls`/`cat` in the shell.
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -149,12 +156,12 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - X PC Speaker support [WILL BE SUPPORTED LATER]
    - 🔄 High-precision timing modes
 
-4. **Memory Management** (⭕ Planned)
-   - ⭕ Physical memory manager
-   - ⭕ Simple memory allocation/deallocation
-   - ⭕ Basic paging setup
+4. **Memory Management** (🔄 In Progress)
+   - ✅ Physical memory manager
+   - ✅ Simple memory allocation/deallocation
+   - ✅ Basic paging setup
    - ⭕ Memory protection
-   - ⭕ Heap management
+   - ✅ Heap management
    - ⭕ Memory mapping
    - ⭕ Virtual memory support
    - ⭕ Memory statistics tracking

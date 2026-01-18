@@ -55,7 +55,6 @@
 
 // Global timer state
 static volatile uint64_t tick_count = 0;  // Number of timer ticks since boot
-static uint32_t frequency = 0;            // Current timer frequency in Hz
 
 // Timer state structure (using the one from types.h)
 static timer_state_t timer_state = {
@@ -103,7 +102,7 @@ static inline uint64_t rdtsc(void) {
 // Initialize the PIT with specified frequency
 void timer_init(uint32_t hz) {
     // Validate frequency
-    if (hz < 19 || hz > 1193180) {
+    if (hz == 0 || hz < 19 || hz > 1193180) {
         hz = 100; // Default to 100Hz if invalid
     }
 
@@ -141,11 +140,15 @@ uint32_t timer_get_frequency(void) {
 uint32_t timer_get_uptime_ms(void) {
     // Safely get current tick count
     __asm__ volatile("cli");
-    uint64_t current_ticks = timer_get_ticks();  // Use uint64_t here
+    uint64_t current_ticks = timer_get_ticks();
     __asm__ volatile("sti");
-    
+
+    if (timer_state.frequency == 0) {
+        return 0;
+    }
+
     // Calculate milliseconds using 32-bit math
-    return (uint32_t)((current_ticks * 1000) / frequency);
+    return (uint32_t)((current_ticks * 1000) / timer_state.frequency);
 }
 
 // Sleep for specified number of milliseconds
@@ -184,7 +187,7 @@ uint64_t timer_end_measure(timer_measure_t* measure) {
 }
 
 bool timer_configure_channel(uint8_t channel, uint32_t frequency, timer_callback_t callback) {
-    if (channel >= 3) return false;
+    if (channel >= 3 || frequency == 0) return false;
     
     uint32_t divisor = 1193180 / frequency;
     uint8_t channel_port = PIT_CHANNEL0_DATA + channel;
