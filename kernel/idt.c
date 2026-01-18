@@ -16,6 +16,7 @@
 
 #include "idt.h"
 #include "isr.h"
+#include "kernel.h"
 
 // IDT entries array
 struct idt_entry idt[256];
@@ -39,6 +40,21 @@ const char* exception_messages[] = {
     "General Protection Fault",
     "Page Fault"
 };
+
+static void dump_regs(struct registers* r) {
+    print("INT: ");
+    print_int(r->int_no);
+    print("  ERR: ");
+    print_hex(r->err_code);
+    print("\n");
+    print("EIP: ");
+    print_hex(r->eip);
+    print("  CS: ");
+    print_hex(r->cs);
+    print("  EFLAGS: ");
+    print_hex(r->eflags);
+    print("\n");
+}
 
 // External assembly function
 extern void load_idt(struct idt_ptr* ptr);
@@ -103,40 +119,35 @@ void idt_init(void) {
 
 // Interrupt handler
 void isr_handler(struct registers* r) {
+    print("\nEXCEPTION: ");
     if (r->int_no < 15) {
-        print("\nEXCEPTION CAUGHT: ");
         print(exception_messages[r->int_no]);
-        print("\n");
-        
-        // Additional information for specific exceptions
-        switch(r->int_no) {
-            case 0:
-                print("EIP: Attempted division by zero\n");
-                break;
-                
-            case 6:
-                print("EIP: Invalid instruction executed\n");
-                break;
-                
-            case 8:
-                print("Double fault - system error\n");
-                break;
-                
-            case 13:
-                print("General protection fault\n");
-                break;
-                
-            case 14:
-                print("Page Fault ( ");
-                if (!(r->err_code & 0x1)) print("present ");
-                if (r->err_code & 0x2) print("write ");
-                if (r->err_code & 0x4) print("user ");
-                if (r->err_code & 0x8) print("reserved ");
-                print(")\n");
-                break;
-        }
+    } else {
+        print("Unknown");
     }
-    
+    print("\n");
+
+    dump_regs(r);
+
+    if (r->int_no == 14) {
+        uint32_t cr2;
+        __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+        print("CR2: ");
+        print_hex(cr2);
+        print("\n");
+
+        print("PF flags: ");
+        if (!(r->err_code & 0x1)) print("not-present ");
+        else print("present ");
+        if (r->err_code & 0x2) print("write ");
+        else print("read ");
+        if (r->err_code & 0x4) print("user ");
+        else print("kernel ");
+        if (r->err_code & 0x8) print("reserved ");
+        if (r->err_code & 0x10) print("instruction-fetch ");
+        print("\n");
+    }
+
     print("System Halted!\n");
     while(1) {
         __asm__ volatile("hlt");

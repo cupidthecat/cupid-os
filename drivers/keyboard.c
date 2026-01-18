@@ -227,6 +227,11 @@ static void process_keypress(uint8_t key) {
     bool is_release = key & KEY_RELEASED;
     key &= ~KEY_RELEASED;  // Remove release bit
 
+    // Ignore scancodes we don't have a translation for to avoid OOB access
+    if (key >= sizeof(scancode_to_ascii)) {
+        return;
+    }
+
     // Handle modifier key presses/releases
     switch (key) {
         case KEY_CAPS:

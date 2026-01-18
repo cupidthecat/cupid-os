@@ -43,7 +43,7 @@ isr_common_stub:
     push es
     push fs
     push gs
-    
+
     ; Load kernel data segment
     mov ax, 0x10
     mov ds, ax
@@ -69,8 +69,10 @@ isr_common_stub:
 irq_common_stub:
     pusha                   ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
     
-    mov ax, ds             ; Save data segment
-    push eax
+    push ds
+    push es
+    push fs
+    push gs
     
     mov ax, 0x10           ; Load kernel data segment
     mov ds, ax
@@ -82,13 +84,12 @@ irq_common_stub:
     
     call irq_handler       ; Call C handler
     
-    pop eax                ; Remove pushed stack pointer
+    add esp, 4             ; Remove pushed stack pointer
     
-    pop eax                ; Restore data segment
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+    pop gs                 ; Restore segment registers
+    pop fs
+    pop es
+    pop ds
     
     popa                   ; Restore registers
     add esp, 8             ; Clean up pushed error code and IRQ number

@@ -47,7 +47,7 @@ void pit_init(uint32_t channel, uint32_t frequency) {
  * frequency.
  */
 void pit_set_frequency(uint32_t channel, uint32_t frequency) {
-    if (channel > 2) return;  // Invalid channel
+    if (channel > 2 || frequency == 0) return;  // Invalid channel or bad freq
     
     // Calculate divisor from base PIT frequency
     uint32_t divisor = 1193182 / frequency;

@@ -20,6 +20,9 @@
 #define PC_SPEAKER_DATA_BIT 0x02
 
 void pc_speaker_on(uint32_t frequency) {
+    if (frequency == 0) {
+        return;  // Avoid divide-by-zero on PIT setup
+    }
     // Calculate PIT divisor for the desired frequency
     uint32_t divisor = 1193180 / frequency;
     
