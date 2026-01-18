@@ -26,4 +26,7 @@ uint64_t get_cpu_freq(void);
 void print_hex(uint32_t n);
 void fs_init(void);
 
+// Hard reboot via keyboard controller
+void system_reboot(void);
+
 #endif 

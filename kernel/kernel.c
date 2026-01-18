@@ -481,3 +481,18 @@ void kmain(void) {
         __asm__ volatile("hlt");
     }
 }
+
+void system_reboot(void) {
+    print("Rebooting...\n");
+    __asm__ volatile("cli");
+    // Wait for the keyboard controller input buffer to clear
+    while (inb(0x64) & 0x02) {
+        // busy wait
+    }
+    // Pulse CPU reset line
+    outb(0x64, 0xFE);
+    // If reset didn't happen instantly, stop here
+    while (1) {
+        __asm__ volatile("hlt");
+    }
+}

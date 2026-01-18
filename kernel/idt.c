@@ -17,6 +17,7 @@
 #include "idt.h"
 #include "isr.h"
 #include "kernel.h"
+#include "shell.h"
 
 // IDT entries array
 struct idt_entry idt[256];
@@ -132,20 +133,18 @@ void isr_handler(struct registers* r) {
     if (r->int_no == 14) {
         uint32_t cr2;
         __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
-        print("CR2: ");
-        print_hex(cr2);
-        print("\n");
 
-        print("PF flags: ");
-        if (!(r->err_code & 0x1)) print("not-present ");
-        else print("present ");
-        if (r->err_code & 0x2) print("write ");
-        else print("read ");
-        if (r->err_code & 0x4) print("user ");
-        else print("kernel ");
-        if (r->err_code & 0x8) print("reserved ");
-        if (r->err_code & 0x10) print("instruction-fetch ");
-        print("\n");
+        // Let keyboard/timer IRQs run while we're in the fault prompt.
+        __asm__ volatile("sti");
+        pf_action_t action = shell_pagefault_prompt(r, cr2);
+        // Prevent interrupts from firing in the tiny window before iret.
+        __asm__ volatile("cli");
+
+        if (action == PF_ACTION_REBOOT) {
+            system_reboot(); // never returns
+        }
+        // PF_ACTION_CONTINUE: just return and iret back to the faulting code.
+        return;
     }
 
     print("System Halted!\n");

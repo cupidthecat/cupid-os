@@ -5,6 +5,7 @@
 #include "ports.h"
 #include "types.h"
 #include "fs.h"
+#include "shell.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -30,6 +31,7 @@ static void shell_reboot_cmd(const char* args);
 static void shell_history_cmd(const char* args);
 static void shell_ls(const char* args);
 static void shell_cat(const char* args);
+static void shell_testpf_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -41,6 +43,7 @@ static struct shell_command commands[] = {
     {"history", "Show recent commands", shell_history_cmd},
     {"ls", "List files in the in-memory filesystem", shell_ls},
     {"cat", "Show a file from the in-memory filesystem", shell_cat},
+    {"testpf", "Test page fault handler (access invalid memory)", shell_testpf_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -263,15 +266,7 @@ static void shell_time_cmd(const char* args) {
 
 static void shell_reboot_cmd(const char* args) {
     (void)args;
-    print("Rebooting...\n");
-    __asm__ volatile("cli");
-    while (inb(0x64) & 0x02) {
-        // Wait for controller ready
-    }
-    outb(0x64, 0xFE);
-    while (1) {
-        __asm__ volatile("hlt");
-    }
+    system_reboot();
 }
 
 static void shell_history_cmd(const char* args) {
@@ -331,6 +326,22 @@ static void shell_cat(const char* args) {
     }
 }
 
+static void shell_testpf_cmd(const char* args) {
+    (void)args;
+    print("Testing page fault handler...\n");
+    print("Attempting to access invalid memory address 0xDEADBEEF\n");
+
+    // Try to read from an invalid memory address
+    // This should trigger a page fault since the address is not mapped
+    volatile uint32_t* invalid_addr = (volatile uint32_t*)0xDEADBEEF;
+    uint32_t value = *invalid_addr;  // This should cause a page fault
+
+    // If we get here, the page fault didn't occur (unlikely)
+    print("Unexpected: no page fault occurred, read value: ");
+    print_hex(value);
+    print("\n");
+}
+
 // Find and execute a command
 static void execute_command(const char* input) {
     // Skip empty input
@@ -365,6 +376,103 @@ static void execute_command(const char* input) {
     print("Unknown command: ");
     print(cmd);
     print("\n");  // Ensure we print a newline
+}
+
+static void pf_print_info(const struct registers* r, uint32_t cr2) {
+    print("\nPAGE FAULT\n");
+
+    print("CR2: ");
+    print_hex(cr2);
+    print("\n");
+
+    print("ERR: ");
+    print_hex(r->err_code);
+    print("  (");
+    if (!(r->err_code & 0x1)) print("not-present ");
+    else print("present ");
+    if (r->err_code & 0x2) print("write ");
+    else print("read ");
+    if (r->err_code & 0x4) print("user ");
+    else print("kernel ");
+    if (r->err_code & 0x8) print("reserved ");
+    if (r->err_code & 0x10) print("instruction-fetch ");
+    print(")\n");
+
+    print("EIP: ");
+    print_hex(r->eip);
+    print("  CS: ");
+    print_hex(r->cs);
+    print("  EFLAGS: ");
+    print_hex(r->eflags);
+    print("\n");
+}
+
+pf_action_t shell_pagefault_prompt(const struct registers* r, uint32_t cr2) {
+    // Minimal line editor (no history, no tab completion) for safety.
+    char buf[80 + 1];
+    int pos = 0;
+    memset(buf, 0, sizeof(buf));
+
+    pf_print_info(r, cr2);
+    print("\nType: continue | reboot | info | help\n");
+    print("pf> ");
+
+    while (1) {
+        key_event_t event;
+        keyboard_read_event(&event);
+
+        char c = event.character;
+        if (c == 0) {
+            // Ignore extended keys in fault shell
+            continue;
+        }
+
+        if (c == '\n') {
+            buf[pos] = '\0';
+            putchar('\n');
+
+            if (buf[0] == '\0') {
+                // empty -> just reprompt
+            } else if (strcmp(buf, "c") == 0 || strcmp(buf, "continue") == 0) {
+                print("Continuing (iret)...\n");
+                return PF_ACTION_CONTINUE;
+            } else if (strcmp(buf, "r") == 0 || strcmp(buf, "reboot") == 0) {
+                return PF_ACTION_REBOOT;
+            } else if (strcmp(buf, "info") == 0) {
+                pf_print_info(r, cr2);
+            } else if (strcmp(buf, "help") == 0) {
+                print("continue (c)  - return from the page fault handler\n");
+                print("reboot   (r)  - hard reboot\n");
+                print("info          - reprint CR2/flags/registers\n");
+            } else {
+                print("Unknown: ");
+                print(buf);
+                print("\n");
+            }
+
+            // reset line
+            pos = 0;
+            memset(buf, 0, sizeof(buf));
+            print("pf> ");
+            continue;
+        }
+
+        if (c == '\b') {
+            if (pos > 0) {
+                pos--;
+                buf[pos] = '\0';
+                print("\b \b");
+            }
+            continue;
+        }
+
+        if (c >= 32 && c <= 126) {
+            if (pos < 80) {
+                buf[pos++] = c;
+                putchar(c);
+            }
+        }
+    }
 }
 
 // Main shell loop
