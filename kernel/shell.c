@@ -8,6 +8,31 @@
 #include "shell.h"
 
 #define MAX_INPUT_LEN 80
+
+// Helper functions for safe command matching
+static int streq(const char *a, const char *b) {
+    while (*a && *b && *a == *b) { a++; b++; }
+    return (*a == 0 && *b == 0);
+}
+
+static void rstrip(char *s) {
+    // remove trailing spaces + \r + \n
+    int n = (int)strlen(s);
+    while (n > 0) {
+        char c = s[n - 1];
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            s[n - 1] = 0;
+            n--;
+        } else {
+            break;
+        }
+    }
+}
+
+static char* lskip(char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    return s;
+}
 #define HISTORY_SIZE 16
 
 // Scancodes for extended keys we care about
@@ -15,12 +40,6 @@
 #define SCANCODE_ARROW_DOWN  0x50
 #define SCANCODE_ARROW_LEFT  0x4B
 #define SCANCODE_ARROW_RIGHT 0x4D
-
-struct shell_command {
-    const char* name;
-    const char* description;
-    void (*func)(const char*);
-};
 
 // Forward declarations for commands
 static void shell_help(const char* args);
@@ -34,7 +53,7 @@ static void shell_cat(const char* args);
 static void shell_testpf_cmd(const char* args);
 
 // List of supported commands
-static struct shell_command commands[] = {
+const struct shell_command commands[] = {
     {"help", "Show available commands", shell_help},
     {"clear", "Clear the screen", shell_clear},
     {"echo", "Echo text back", shell_echo},
@@ -349,24 +368,42 @@ static void execute_command(const char* input) {
         return;
     }
 
+    // Make a copy and trim it
+    char line[MAX_INPUT_LEN + 1];
+    int len = strlen(input);
+    if (len > MAX_INPUT_LEN) len = MAX_INPUT_LEN;
+    for (int i = 0; i < len; i++) {
+        line[i] = input[i];
+    }
+    line[len] = '\0';
+
+    // Trim whitespace and control chars from both ends
+    rstrip(line);
+    char* trimmed = lskip(line);
+
+    // Skip empty input after trimming
+    if (!trimmed[0]) {
+        return;
+    }
+
     char cmd[MAX_INPUT_LEN];
     const char* args = 0;
-    
-    // Split input into command and arguments
+
+    // Split into command and arguments
     int i = 0;
-    while (input[i] && input[i] != ' ') {
-        cmd[i] = input[i];
+    while (trimmed[i] && trimmed[i] != ' ') {
+        cmd[i] = trimmed[i];
         i++;
     }
     cmd[i] = 0;
-    
-    if (input[i] == ' ') {
-        args = &input[i+1];
+
+    if (trimmed[i] == ' ') {
+        args = &trimmed[i+1];
     }
 
-    // Find and execute the command
+    // Find and execute the command using safe comparison
     for (int j = 0; commands[j].name; j++) {
-        if (strcmp(cmd, commands[j].name) == 0) {
+        if (streq(cmd, commands[j].name)) {
             commands[j].func(args);
             return;
         }

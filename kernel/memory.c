@@ -2,6 +2,10 @@
 
 #define BITMAP_SIZE (TOTAL_MEMORY_BYTES / PAGE_SIZE / 32)
 
+// External symbols from linker script
+extern uint32_t kernel_start;
+extern uint32_t _kernel_end;
+
 static uint32_t page_bitmap[BITMAP_SIZE];
 static const uint32_t total_pages = TOTAL_MEMORY_BYTES / PAGE_SIZE;
 static heap_block_t* heap_head = 0;
@@ -41,12 +45,20 @@ static void pmm_mark_region(uint32_t start, uint32_t end, uint8_t used) {
 void pmm_init(uint32_t kernel_end) {
     // Mark everything free then reserve the kernel region (including boot + stack)
     pmm_mark_region(0, TOTAL_MEMORY_BYTES, 0);
-    uint32_t reserved_end = align_up(kernel_end, PAGE_SIZE);
-    pmm_mark_region(0, reserved_end, 1);
+
+    // Reserve low memory (BIOS/IVT/etc)
+    pmm_mark_region(0x00000000, 0x00100000, 1);
+
+    // Reserve the kernel image (.text/.data/.bss) - use linker symbols for accuracy
+    uint32_t kernel_start_addr = (uint32_t)&kernel_start;
+    uint32_t kernel_end_addr = (uint32_t)&_kernel_end;
+    pmm_mark_region(kernel_start_addr, kernel_end_addr, 1);
+
+    // Reserve the kernel stack region (hardcoded in process.c)
+    pmm_mark_region(0x80000, 0x90000, 1);  // 0x80000 to 0x90000 (64KB stack region)
 
     // Keep critical low memory regions off-limits
     pmm_mark_region(0xB8000, 0xC0000, 1);                 // VGA text buffer
-    pmm_mark_region(0x90000 - (16 * PAGE_SIZE), 0x90000, 1); // Kernel stack (64KB)
     pmm_mark_region(0xA0000, 0x100000, 1);                // Legacy video/BIOS hole
 }
 

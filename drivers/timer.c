@@ -43,6 +43,8 @@
 #include "../kernel/kernel.h"
 #include "../drivers/keyboard.h"
 #include "../kernel/math.h"
+#include "../kernel/scheduler.h"
+#include "../kernel/process.h"
 
 // PIT hardware ports and constants
 #define PIT_CHANNEL0_DATA 0x40    // Channel 0 data port
@@ -77,19 +79,25 @@ static struct {
 // Timer interrupt handler - increments tick counter
 static void timer_irq_handler(struct registers* r) {
     tick_count++;
-    
+
     // Update timer state
     timer_state.ticks++;
-    
+
     // Call channel callbacks if configured
     for (int i = 0; i < 3; i++) {
         if (timer_channels[i].active && timer_channels[i].callback) {
             timer_channels[i].callback(r, i);
         }
     }
-    
+
     // Update keyboard ticks for key repeat functionality
     keyboard_update_ticks();
+
+    // Process scheduling - check if context switch needed
+    if (scheduler_tick()) {
+        // Quantum expired, perform context switch
+        process_switch_context(r);
+    }
 }
 
 // Ensure rdtsc is defined at the top

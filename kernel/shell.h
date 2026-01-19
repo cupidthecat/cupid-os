@@ -1,6 +1,16 @@
 #ifndef SHELL_H
 #define SHELL_H
 
+#include "types.h"
+
+struct shell_command {
+    const char* name;
+    const char* description;
+    void (*func)(const char*);
+};
+
+extern const struct shell_command commands[];
+
 void shell_run(void);
 
 #include "isr.h"

@@ -26,6 +26,7 @@
 #include "../drivers/timer.h"
 #include "fs.h"
 #include "memory.h"
+#include "../drivers/serial.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -240,6 +241,9 @@ void putchar(char c) {
     outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
     outb(VGA_DATA_REGISTER, pos & 0xFF);
+
+    // Mirror to serial for early debug/logging
+    serial_write_char(c);
 }
 
 /**
@@ -446,9 +450,12 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
+    serial_init(SERIAL_COM1);
+
     init_vga();
     clear_screen();
     print("Testing output...\n");
+
 
     pmm_init((uint32_t)&_kernel_end);
     heap_init(HEAP_INITIAL_PAGES);

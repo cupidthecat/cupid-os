@@ -32,15 +32,22 @@ void irq_uninstall_handler(int irq) {
 // IRQ handler dispatcher
 void irq_handler(struct registers* r) {
     // Get IRQ number (subtract 32 from interrupt number)
-    int irq = r->int_no - 32;
-    
+    int irq = (int)r->int_no - 32;
+
+    // Bounds check to prevent out-of-bounds access
+    if (irq < 0 || irq >= 16) {
+        // Don't touch irq_handlers[] out of range
+        pic_send_eoi(0); // At least ack master so you don't wedge
+        return;
+    }
+
     // Call handler if it exists
     if (irq_handlers[irq]) {
         irq_handlers[irq](r);
     }
-    
+
     // Send EOI to PIC
-    pic_send_eoi(irq);
+    pic_send_eoi((uint8_t)irq);
 }
 
 void irq_list_handlers(void) {

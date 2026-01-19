@@ -10,26 +10,15 @@ static const char motd_text[] =
 "Welcome to cupid-os!\n"
 "Commands: help, ls, cat <file>, time, clear, reboot\n";
 
-static fs_file_t fs_files[] = {
-    { "LICENSE.txt", 0, 0 },
-    { "MOTD.txt", 0, 0 },
+static const fs_file_t fs_files[] = {
+    { "LICENSE.txt", license_text, sizeof(license_text) - 1 },
+    { "MOTD.txt", motd_text, sizeof(motd_text) - 1 },
 };
 
-static uint32_t fs_file_count = sizeof(fs_files) / sizeof(fs_file_t);
+static const uint32_t fs_file_count = sizeof(fs_files) / sizeof(fs_file_t);
 
 void fs_init(void) {
-    // Wire static data pointers
-    fs_files[0].data = license_text;
-    fs_files[1].data = motd_text;
-
-    // Precompute sizes to avoid strlen at runtime in listings
-    for (uint32_t i = 0; i < fs_file_count; i++) {
-        if (fs_files[i].data) {
-            fs_files[i].size = (uint32_t)strlen(fs_files[i].data);
-        } else {
-            fs_files[i].size = 0;
-        }
-    }
+    // Files are now initialized at compile time
 }
 
 uint32_t fs_get_file_count(void) {
