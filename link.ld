@@ -16,4 +16,7 @@ SECTIONS
     .bss : {
         *(.bss)
     }
+    
+    /* Mark the end of the kernel for memory management */
+    _kernel_end = .;
 }
