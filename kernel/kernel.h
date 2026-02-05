@@ -2,6 +2,7 @@
 #define KERNEL_H
 
 #include "types.h"
+#include "isr.h"
 
 // Expose cursor position variables
 extern int cursor_x;
@@ -26,7 +27,13 @@ uint64_t get_cpu_freq(void);
 void print_hex(uint32_t n);
 void fs_init(void);
 
-// Hard reboot via keyboard controller
-void system_reboot(void);
+// Timer callback functions
+void timer_callback_channel0(struct registers* r, uint32_t channel);
+void timer_callback_channel1(struct registers* r, uint32_t channel);
+uint32_t timer_get_ticks_channel(uint32_t channel);
+
+// Timer calibration functions
+void calibrate_timer(void);
+uint32_t get_pit_ticks_per_ms(void);
 
 #endif 

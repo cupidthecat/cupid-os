@@ -1,4 +1,5 @@
 #include "isr.h"
+#include "irq.h"
 #include "pic.h"
 #include "math.h"
 
@@ -9,17 +10,15 @@ static irq_handler_t irq_handlers[16] = { 0 };
 void irq_install_handler(int irq, irq_handler_t handler) {
     if (irq >= 0 && irq < 16) {
         // Disable IRQ while modifying handler
-        pic_set_mask(irq);
+        pic_set_mask((uint8_t)irq);
         
         irq_handlers[irq] = handler;
         
         // Enable IRQ after setting handler
-        pic_clear_mask(irq);
+        pic_clear_mask((uint8_t)irq);
         
         print("IRQ handler installed for IRQ ");
-        char num[4];
-        itoa(irq, num);
-        print(num);
+        // Add code to print irq number
         print("\n");
     }
 }
@@ -32,20 +31,13 @@ void irq_uninstall_handler(int irq) {
 // IRQ handler dispatcher
 void irq_handler(struct registers* r) {
     // Get IRQ number (subtract 32 from interrupt number)
-    int irq = (int)r->int_no - 32;
-
-    // Bounds check to prevent out-of-bounds access
-    if (irq < 0 || irq >= 16) {
-        // Don't touch irq_handlers[] out of range
-        pic_send_eoi(0); // At least ack master so you don't wedge
-        return;
-    }
-
+    int irq = (int)(r->int_no - 32U);
+    
     // Call handler if it exists
     if (irq_handlers[irq]) {
         irq_handlers[irq](r);
     }
-
+    
     // Send EOI to PIC
     pic_send_eoi((uint8_t)irq);
 }
@@ -68,7 +60,7 @@ void irq_list_handlers(void) {
 static void default_irq_handler(struct registers* r) {
     print("Unhandled IRQ: ");
     char irq_str[3];
-    itoa(r->int_no - 32, irq_str);
+    itoa((int)(r->int_no - 32U), irq_str);
     print(irq_str);
     print("\n");
 }

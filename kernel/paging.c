@@ -3,6 +3,7 @@
 
 #define PAGE_PRESENT 0x1
 #define PAGE_RW 0x2
+#define PAGE_USER 0x4
 
 static uint32_t* page_directory = 0;
 
@@ -33,7 +34,7 @@ static void map_page_identity(uint32_t address) {
         return;
     }
 
-    table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW;
+    table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | PAGE_USER;
 }
 
 void paging_init(void) {

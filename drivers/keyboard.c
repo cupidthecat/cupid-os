@@ -134,7 +134,6 @@ typedef struct {
 } key_repeat_state_t;
 
 // Key repeat and system tick tracking
-static key_repeat_state_t repeat_state = {0};
 static uint32_t system_ticks = 0;  // Updated by timer interrupt
 
 // Track if we're handling an extended key sequence
@@ -159,12 +158,12 @@ static void enqueue_event(uint8_t scancode, char ascii) {
 
     keyboard_buffer_t *buffer = &keyboard_state.buffer;
     buffer->events[buffer->head] = event;
-    buffer->head = (buffer->head + 1) % KEYBOARD_BUFFER_SIZE;
-    if (buffer->count < KEYBOARD_BUFFER_SIZE) {
+    buffer->head = (uint8_t)((buffer->head + 1U) % KEYBOARD_BUFFER_SIZE);
+    if (buffer->count < 255U) {  /* Check against max value - 1 */
         buffer->count++;
     } else {
         // Overwrite oldest when full
-        buffer->tail = (buffer->tail + 1) % KEYBOARD_BUFFER_SIZE;
+        buffer->tail = (uint8_t)((buffer->tail + 1U) % KEYBOARD_BUFFER_SIZE);
     }
 }
 
@@ -201,8 +200,8 @@ void keyboard_update_ticks(void) {
 
 // Handle extended keys (e.g., arrow keys) after detecting `KEY_EXTENDED`
 static void handle_extended_key(uint8_t key) {
-    bool is_release = key & KEY_RELEASED;
-    key &= ~KEY_RELEASED;
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);
 
     if (is_release) {
         return;
@@ -224,8 +223,8 @@ static void handle_extended_key(uint8_t key) {
 
 // Process a normal key press, including function keys and modifiers
 static void process_keypress(uint8_t key) {
-    bool is_release = key & KEY_RELEASED;
-    key &= ~KEY_RELEASED;  // Remove release bit
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);  // Remove release bit
 
     // Ignore scancodes we don't have a translation for to avoid OOB access
     if (key >= sizeof(scancode_to_ascii)) {
@@ -291,6 +290,7 @@ static char get_ascii_from_scancode(uint8_t scancode) {
 static bool function_keys[12] = {false};
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
+    (void)r; /* Unused parameter */
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
 
     // Handle extended key sequences
@@ -317,11 +317,13 @@ bool keyboard_get_key_state(uint8_t scancode) {
 
 // Retrieve a raw scancode from the keyboard buffer
 char keyboard_get_scancode(void) {
-    if (keyboard_state.buffer.count == 0) return 0;
-    key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
-    keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
-    keyboard_state.buffer.count--;
-    return (char)event.scancode;
+    if (keyboard_state.buffer.count > 0) {
+        key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
+        keyboard_state.buffer.head = (uint8_t)((keyboard_state.buffer.head + 1U) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.buffer.count--;
+        return (char)event.scancode;
+    }
+    return 0;
 }
 
 // Check if a specific function key (1-12) is pressed
@@ -344,9 +346,15 @@ bool keyboard_get_shift(void) {
 
 // Retrieve a single character from keyboard input
 char keyboard_get_char(void) {
-    key_event_t event;
-    if (!keyboard_read_event(&event)) return 0;
-    return event.character;
+    uint8_t scancode = inb(KEYBOARD_DATA_PORT);
+    
+    // Ignore key release
+    if (scancode & KEY_RELEASED) {
+        return 0;
+    }
+    
+    // Convert scancode to ASCII
+    return get_ascii_from_scancode(scancode);
 }
 
 char getchar(void) {
@@ -363,22 +371,10 @@ bool keyboard_read_event(key_event_t* event) {
     while (1) {
         if (keyboard_state.buffer.count > 0) {
             *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
-            keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
+            keyboard_state.buffer.tail = (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
             keyboard_state.buffer.count--;
             return true;
         }
         __asm__ volatile("hlt");
     }
-}
-
-// Non-blocking version of keyboard_read_event
-bool keyboard_try_read_event(key_event_t* event) {
-    if (!event || keyboard_state.buffer.count == 0) {
-        return false;
-    }
-
-    *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
-    keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
-    keyboard_state.buffer.count--;
-    return true;
 }

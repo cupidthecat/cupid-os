@@ -1,7 +1,10 @@
 # Compiler settings
 ASM=nasm
 CC=gcc
-CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers
+# NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
+CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
+       -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
+       -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Files
@@ -87,12 +90,9 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
-
-run-noaudio: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE)
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)
 
-.PHONY: all run run-noaudio clean
+.PHONY: all run clean

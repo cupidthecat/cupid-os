@@ -68,6 +68,6 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
     
     // Program the PIT
     outb(PIT_COMMAND, command);
-    outb(PIT_CHANNEL0 + channel, divisor & 0xFF);         // Low byte
-    outb(PIT_CHANNEL0 + channel, (divisor >> 8) & 0xFF);  // High byte
+    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)(divisor & 0xFF));         // Low byte
+    outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)((divisor >> 8) & 0xFF));  // High byte
 } 

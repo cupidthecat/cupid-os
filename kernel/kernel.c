@@ -26,7 +26,6 @@
 #include "../drivers/timer.h"
 #include "fs.h"
 #include "memory.h"
-#include "../drivers/serial.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -69,6 +68,7 @@ extern uint32_t _kernel_end;
  * @param channel: The timer channel (0 in this case)
  */
 void timer_callback_channel0(struct registers* r, uint32_t channel) {
+    (void)r; /* Unused parameter */
     if (channel == 0) {
         ticks_channel0++;
     }
@@ -82,6 +82,7 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
  * @param channel: The timer channel (1 in this case)
  */
 void timer_callback_channel1(struct registers* r, uint32_t channel) {
+    (void)r; /* Unused parameter */
     if (channel == 1) {
         ticks_channel1++;
     }
@@ -209,7 +210,7 @@ void putchar(char c) {
         vidmem[offset + 1] = 0x07;
     } else {
         int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = c;
+        vidmem[offset] = (unsigned char)c;
         vidmem[offset + 1] = 0x07;  // Light grey on black
         cursor_x++;
     }
@@ -238,12 +239,9 @@ void putchar(char c) {
     // Update hardware cursor
     int pos = cursor_y * VGA_WIDTH + cursor_x;
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
+    outb(VGA_DATA_REGISTER, (uint8_t)((pos >> 8) & 0xFF));
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, pos & 0xFF);
-
-    // Mirror to serial for early debug/logging
-    serial_write_char(c);
+    outb(VGA_DATA_REGISTER, (uint8_t)(pos & 0xFF));
 }
 
 /**
@@ -269,7 +267,7 @@ void print_int(uint32_t num) {
         return;
     }
     while (num > 0) {
-        buffer[i++] = (num % 10) + '0';
+        buffer[i++] = (char)((num % 10) + (uint32_t)'0');
         num /= 10;
     }
     while (i > 0) {
@@ -367,10 +365,10 @@ void calibrate_timer(void) {
     if(actual_ms > 50) actual_ms = 50;  // Clamp to 50ms max
     
     // Set initial count to maximum safe value
-    uint16_t initial_count = (PIT_FREQUENCY * actual_ms) / 1000;
+    uint16_t initial_count = (uint16_t)((PIT_FREQUENCY * actual_ms) / 1000);
     if (initial_count == 0) initial_count = 1; // Ensure non-zero reload
-    outb(0x40, initial_count & 0xFF);
-    outb(0x40, (initial_count >> 8) & 0xFF);
+    outb(0x40, (uint8_t)(initial_count & 0xFF));
+    outb(0x40, (uint8_t)((initial_count >> 8) & 0xFF));
     
     // Get starting TSC value
     uint64_t start_tsc = rdtsc();
@@ -450,12 +448,9 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
-    serial_init(SERIAL_COM1);
-
     init_vga();
     clear_screen();
     print("Testing output...\n");
-
 
     pmm_init((uint32_t)&_kernel_end);
     heap_init(HEAP_INITIAL_PAGES);
@@ -485,21 +480,6 @@ void kmain(void) {
     shell_run();
     
     while(1) {
-        __asm__ volatile("hlt");
-    }
-}
-
-void system_reboot(void) {
-    print("Rebooting...\n");
-    __asm__ volatile("cli");
-    // Wait for the keyboard controller input buffer to clear
-    while (inb(0x64) & 0x02) {
-        // busy wait
-    }
-    // Pulse CPU reset line
-    outb(0x64, 0xFE);
-    // If reset didn't happen instantly, stop here
-    while (1) {
         __asm__ volatile("hlt");
     }
 }

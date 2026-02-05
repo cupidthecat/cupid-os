@@ -17,7 +17,6 @@
 #include "idt.h"
 #include "isr.h"
 #include "kernel.h"
-#include "shell.h"
 
 // IDT entries array
 struct idt_entry idt[256];
@@ -57,29 +56,13 @@ static void dump_regs(struct registers* r) {
     print("\n");
 }
 
-static void pf_print_err(uint32_t err) {
-    // Intel PF error code bits:
-    // bit0 P: 0=non-present, 1=protection violation
-    // bit1 W/R: 0=read, 1=write
-    // bit2 U/S: 0=supervisor, 1=user
-    // bit3 RSVD: reserved bit violation
-    // bit4 I/D: 1=instruction fetch (if supported)
-    print("PF flags: ");
-    print((err & 1) ? "P " : "NP ");
-    print((err & 2) ? "W " : "R ");
-    print((err & 4) ? "U " : "S ");
-    if (err & 8)  print("RSVD ");
-    if (err & 16) print("IF ");
-    print("\n");
-}
-
 // External assembly function
 extern void load_idt(struct idt_ptr* ptr);
 
 // Set an IDT gate
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].base_low = base & 0xFFFF;
-    idt[num].base_high = (base >> 16) & 0xFFFF;
+    idt[num].base_high = (uint16_t)((base >> 16) & 0xFFFF);
     idt[num].segment = sel;
     idt[num].reserved = 0;
     idt[num].flags = flags;
@@ -93,7 +76,7 @@ void idt_init(void) {
 
     // Clear IDT
     for(int i = 0; i < 256; i++) {
-        idt_set_gate(i, 0, 0, 0);
+        idt_set_gate((uint8_t)i, 0, 0, 0);
     }
 
     // Set up exception handlers
@@ -106,10 +89,6 @@ void idt_init(void) {
     idt_set_gate(6, (uint32_t)isr6, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(7, (uint32_t)isr7, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(8, (uint32_t)isr8, 0x08, IDT_INTERRUPT_GATE);
-    idt_set_gate(9, (uint32_t)isr9, 0x08, IDT_INTERRUPT_GATE);
-    idt_set_gate(10, (uint32_t)isr10, 0x08, IDT_INTERRUPT_GATE);
-    idt_set_gate(11, (uint32_t)isr11, 0x08, IDT_INTERRUPT_GATE);
-    idt_set_gate(12, (uint32_t)isr12, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(13, (uint32_t)isr13, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(14, (uint32_t)isr14, 0x08, IDT_INTERRUPT_GATE);
 
@@ -151,21 +130,22 @@ void isr_handler(struct registers* r) {
     dump_regs(r);
 
     if (r->int_no == 14) {
-        pf_print_err(r->err_code);
         uint32_t cr2;
         __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+        print("CR2: ");
+        print_hex(cr2);
+        print("\n");
 
-        // Let keyboard/timer IRQs run while we're in the fault prompt.
-        __asm__ volatile("sti");
-        pf_action_t action = shell_pagefault_prompt(r, cr2);
-        // Prevent interrupts from firing in the tiny window before iret.
-        __asm__ volatile("cli");
-
-        if (action == PF_ACTION_REBOOT) {
-            system_reboot(); // never returns
-        }
-        // PF_ACTION_CONTINUE: just return and iret back to the faulting code.
-        return;
+        print("PF flags: ");
+        if (!(r->err_code & 0x1)) print("not-present ");
+        else print("present ");
+        if (r->err_code & 0x2) print("write ");
+        else print("read ");
+        if (r->err_code & 0x4) print("user ");
+        else print("kernel ");
+        if (r->err_code & 0x8) print("reserved ");
+        if (r->err_code & 0x10) print("instruction-fetch ");
+        print("\n");
     }
 
     print("System Halted!\n");

@@ -34,7 +34,7 @@ char* itoa(int value, char* str) {
 
     while (value != 0) {
         int rem = value % 10;
-        str[i++] = rem + '0';
+        str[i++] = (char)(rem + '0');
         value /= 10;
     }
 
