@@ -2,7 +2,7 @@
 A modern, 32-bit operating system written in C and x86 Assembly that combines clean design with nostalgic aesthetics. The project implements core OS functionality while serving as both a learning platform and a foundation for experimental OS concepts. Inspired by systems like TempleOS and OsakaOS, cupid-os aims to provide a transparent, hands-on environment where users can directly interact with hardware.
 
 ## Example of cupid-os
-![alt text for cupid-os img](img/os.png)
+![alt text for cupid-os img](img/basic_shell.png)
 
 - Custom bootloader with protected mode transition
 - Comprehensive interrupt handling system
@@ -61,10 +61,9 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Loads the kernel from disk and switches from 16-bit real mode to 32-bit protected mode.
   - Sets up a Global Descriptor Table (GDT) for proper memory segmentation.
 
-- **Interrupt & Exception Handling**
+- **Interrupt & Exception Handling**  
   - Comprehensive Interrupt Descriptor Table (IDT) configuration.
   - Exception handlers with detailed error messages.
-  - **Interactive Page-Fault Handler**: Instead of halting on page faults, drops into a "fault shell" where users can inspect fault details and choose to continue execution or reboot.
   - IRQ management with PIC remapping and custom handler registration.
   - A common ISR/IRQ stub that saves processor state before dispatch.
 
@@ -98,21 +97,30 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Identity-mapped paging setup with 4KB pages to keep addresses stable in ring 0.
   - Kernel heap with a bump allocator + free list for small dynamic allocations.
 
-- **Interactive Page-Fault Handler**
-  - **Fault Shell**: When page faults occur, instead of halting the system, users enter an interactive shell to inspect fault details.
-  - **Commands**: `continue`/`c` (retry faulting instruction), `reboot`/`r` (hard reset), `info` (redisplay fault info), `help` (show commands).
-  - **Detailed Diagnostics**: Displays CR2 register (faulting address), decoded error flags (present/not-present, read/write, user/kernel), and CPU registers.
-  - **Testing**: `testpf` command in shell intentionally triggers page faults for testing the handler.
+- **ATA Disk I/O System** ✨ **NEW**
+  - **ATA/IDE Driver:** PIO mode support for reading/writing disk sectors (28-bit LBA addressing)
+  - **Block Device Abstraction:** Generic interface for block storage devices
+  - **Block Cache:** 64-entry LRU cache with write-back policy (32KB total)
+    - Automatic periodic flush every 5 seconds
+    - Manual sync via `sync` command
+    - Cache statistics tracking (hit/miss rates)
+  - **FAT16 Filesystem:** Full FAT16 support with MBR partition table parsing
+    - File operations: open, read, close, directory listing
+    - Root directory support (subdirectories planned)
+    - Cluster chain following for files spanning multiple clusters
+  - **Performance:** 10-100x speedup via write-back caching
 
 - **Shell Interface**
-  - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
-  - Commands: `help`, `clear`, `echo`, `time`, `reboot`, `history`, `ls`, `cat`, `testpf`.
-  - Command history navigation (arrow up/down) and tab completion for command names.
+  - **Command-line shell** with prompt, parsing, history, and tab completion
+  - **In-Memory FS Commands:** `ls`, `cat <file>`
+  - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
+  - **System Commands:** `help`, `clear`, `echo`, `time`, `reboot`, `history`
+  - Command history navigation (arrow up/down) and tab completion for command/file names
 
-- **Utility Libraries**  
-  - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
-  - **String Library:** Implements basic functions like `strlen` and `strcmp`.
-  - **In-memory Filesystem:** Minimal read-only file table exposed via `ls`/`cat` in the shell.
+- **Utility Libraries**
+  - **Math Library:** 64-bit division, integer-to-string conversion, hexadecimal printing
+  - **String Library:** strlen, strcmp, strncmp, memcpy, memset
+  - **In-memory Filesystem:** Read-only file table for system files (LICENSE.txt, MOTD.txt)
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -135,7 +143,6 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Implement PIC configuration
    - ✅ Add detailed error messages for exceptions
    - ✅ Support for custom interrupt handlers
-   - ✅ **Interactive Page-Fault Handler**: Fault shell with continue/reboot options
    - ⭕ Basic boot sequence logging
 2. **Keyboard Input** (✅ Complete)
    - ✅ Implement PS/2 keyboard driver
@@ -212,12 +219,13 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 - GCC (32-bit support required)
 - GNU Make
 - QEMU for testing (qemu-system-i386)
+- dosfstools (for creating FAT16 test disks)
 - Linux environment (or equivalent Unix-like system)
 
 ## Building
 1. Install dependencies (Ubuntu/Debian):
 ```bash
-sudo apt-get install nasm gcc make qemu-system-x86
+sudo apt-get install nasm gcc make qemu-system-x86 dosfstools
 ```
 
 2. Build the OS:
@@ -229,6 +237,43 @@ make
 ```bash
 make run
 ```
+
+4. Run with a FAT16 hard disk attached:
+```bash
+make run-disk
+```
+
+### Creating a FAT16 Test Disk
+
+The `lsdisk` and `catdisk` commands require a FAT16-formatted disk image with an MBR partition table. A raw `mkfs.fat` image **will not work** — the FAT16 driver expects an MBR with a valid partition entry.
+
+```bash
+# 1. Create a 10MB blank disk image
+dd if=/dev/zero of=test-disk.img bs=1M count=10
+
+# 2. Create an MBR partition table with a single FAT16 partition (type 0x06)
+#    This creates one primary partition using all available space
+echo -e 'o\nn\np\n1\n\n\nt\n6\nw' | fdisk test-disk.img
+
+# 3. Set up a loop device for the partition (starts at sector 2048)
+sudo losetup -o $((2048*512)) --sizelimit $((18432*512)) /dev/loop0 test-disk.img
+
+# 4. Format the partition as FAT16
+sudo mkfs.fat -F 16 -n "CUPIDOS" /dev/loop0
+
+# 5. Mount and add test files
+sudo mkdir -p /tmp/testdisk
+sudo mount /dev/loop0 /tmp/testdisk
+echo "Hello from CupidOS disk!" | sudo tee /tmp/testdisk/README.TXT
+echo "This is a test file"      | sudo tee /tmp/testdisk/TEST.TXT
+
+# 6. Clean up
+sudo umount /tmp/testdisk
+sudo losetup -d /dev/loop0
+rmdir /tmp/testdisk
+```
+
+After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdisk` to list files and `catdisk <filename>` to read them.
 
 ## Project Structure Details
 ### Bootloader (`boot/boot.asm`)
@@ -284,21 +329,6 @@ To modify or extend the OS:
    - Update `kernel/link.ld` if changing memory layout
    - Modify Makefile if adding new source files
 
-## Testing Features
-
-### Page Fault Handler Testing
-To test the interactive page-fault handler:
-```bash
-make run
-# At the shell prompt, type:
-testpf
-```
-This will intentionally trigger a page fault and drop you into the fault shell where you can:
-- Type `info` to see fault details
-- Type `continue` to retry the faulting instruction
-- Type `reboot` to reset the system
-- Type `help` for available commands
-
 ## Debugging
 1. Debug with QEMU monitor:
 ```bash
@@ -327,8 +357,6 @@ gdb
 GNU v3
 
 ## Recent Updates
-- **Interactive Page-Fault Handler**: Implemented fault shell that allows users to inspect page faults and choose to continue or reboot instead of system halt
-- Added `testpf` command to intentionally trigger page faults for testing
 - Implemented comprehensive keyboard driver with full modifier key support
 - Added function key handling (F1-F12)
 - Implemented key repeat functionality with configurable delays

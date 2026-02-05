@@ -6,6 +6,8 @@
 #include "types.h"
 #include "fs.h"
 #include "shell.h"
+#include "blockcache.h"
+#include "fat16.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -31,6 +33,10 @@ static void shell_reboot_cmd(const char* args);
 static void shell_history_cmd(const char* args);
 static void shell_ls(const char* args);
 static void shell_cat(const char* args);
+static void shell_sync(const char* args);
+static void shell_cachestats(const char* args);
+static void shell_lsdisk(const char* args);
+static void shell_catdisk(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -42,6 +48,10 @@ static struct shell_command commands[] = {
     {"history", "Show recent commands", shell_history_cmd},
     {"ls", "List files in the in-memory filesystem", shell_ls},
     {"cat", "Show a file from the in-memory filesystem", shell_cat},
+    {"sync", "Flush disk cache to disk", shell_sync},
+    {"cachestats", "Show cache statistics", shell_cachestats},
+    {"lsdisk", "List files on disk", shell_lsdisk},
+    {"catdisk", "Show file from disk", shell_catdisk},
     {0, 0, 0} // Null terminator
 };
 
@@ -330,6 +340,48 @@ static void shell_cat(const char* args) {
     } else {
         print("(empty file)\n");
     }
+}
+
+static void shell_sync(const char* args) {
+    (void)args;
+    blockcache_sync();
+    print("Cache flushed to disk\n");
+}
+
+static void shell_cachestats(const char* args) {
+    (void)args;
+    blockcache_stats();
+}
+
+static void shell_lsdisk(const char* args) {
+    (void)args;
+    fat16_list_root();
+}
+
+static void shell_catdisk(const char* args) {
+    if (!args || args[0] == '\0') {
+        print("Usage: catdisk <filename>\n");
+        return;
+    }
+
+    fat16_file_t* file = fat16_open(args);
+    if (!file) {
+        print("File not found: ");
+        print(args);
+        print("\n");
+        return;
+    }
+
+    char buffer[512];
+    int bytes_read;
+    while ((bytes_read = fat16_read(file, buffer, sizeof(buffer))) > 0) {
+        for (int i = 0; i < bytes_read; i++) {
+            putchar(buffer[i]);
+        }
+    }
+
+    fat16_close(file);
+    print("\n");
 }
 
 // Find and execute a command

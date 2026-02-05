@@ -2,16 +2,21 @@
 [bits 16]
 
 ; Constants
-KERNEL_OFFSET equ 0x1000
+; Kernel is loaded at linear address 0x10000 (ES=0x1000, BX=offset)
+KERNEL_SEGMENT equ 0x1000
+KERNEL_OFFSET  equ 0x10000   ; Linear address for protected mode jump
 
 ; Main bootloader entry point
 start:
+    ; Save boot drive (BIOS passes it in DL)
+    mov [BOOT_DRIVE], dl
+
     ; Set up segments
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x9000
+    mov sp, 0x7c00
 
     ; Print boot message
     mov si, MSG_BOOT
@@ -25,23 +30,66 @@ start:
     
     jmp $
 
-; Load kernel from disk
+; Load kernel from disk (in four chunks, one track at a time for max compatibility)
+; Floppy geometry: 18 sectors/track, 2 heads/cylinder
+; Need to read 70 sectors total starting from C:0 H:0 S:2
+; Kernel is loaded at ES:BX where ES=0x1000 → linear address 0x10000+BX
 load_kernel:
     mov si, MSG_LOAD_KERNEL
     call print_string
 
-    mov bx, KERNEL_OFFSET   ; Load to this address
-    mov dh, 50             ; Load this many sectors
-    mov dl, [BOOT_DRIVE]   ; From boot drive
-    
-    mov ah, 0x02          ; BIOS read function
-    mov al, dh            ; Sectors to read
+    ; Set ES to kernel segment for all BIOS disk reads
+    mov ax, KERNEL_SEGMENT
+    mov es, ax
+
+    ; Chunk 1: rest of track 0, head 0 (sectors 2-18 = 17 sectors)
+    mov bx, 0x0000        ; ES:BX = 0x1000:0x0000 = linear 0x10000
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 17
     mov ch, 0             ; Cylinder 0
     mov dh, 0             ; Head 0
-    mov cl, 2             ; Start from sector 2
+    mov cl, 2             ; Sector 2
     int 0x13
-    
     jc disk_error
+
+    ; Chunk 2: full track 0, head 1 (sectors 1-18 = 18 sectors)
+    mov bx, (17 * 512)    ; ES:BX = 0x1000:0x2200 = linear 0x12200
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 0             ; Cylinder 0
+    mov dh, 1             ; Head 1
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Chunk 3: full track 1, head 0 (sectors 1-18 = 18 sectors)
+    mov bx, (35 * 512)    ; ES:BX = 0x1000:0x4600 = linear 0x14600
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 1             ; Cylinder 1
+    mov dh, 0             ; Head 0
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Chunk 4: partial track 1, head 1 (sectors 1-17 = 17 sectors, total 70)
+    mov bx, (53 * 512)    ; ES:BX = 0x1000:0x6A00 = linear 0x16A00
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 17
+    mov ch, 1             ; Cylinder 1
+    mov dh, 1             ; Head 1
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Restore ES to 0 for print_string and other real-mode code
+    xor ax, ax
+    mov es, ax
+
     ret
 
 disk_error:

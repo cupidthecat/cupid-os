@@ -24,6 +24,10 @@
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
+#include "../drivers/ata.h"
+#include "blockdev.h"
+#include "blockcache.h"
+#include "fat16.h"
 #include "fs.h"
 #include "memory.h"
 
@@ -461,6 +465,30 @@ void kmain(void) {
     keyboard_init();
     calibrate_timer();
     fs_init();
+
+    // Initialize ATA disk driver
+    ata_init();
+
+    // Initialize block device layer and register ATA drives
+    blkdev_init();
+    ata_register_devices();
+
+    // Initialize block cache for first drive
+    block_device_t* hdd = blkdev_get(0);
+    if (hdd) {
+        if (blockcache_init(hdd) != 0) {
+            print("Block cache initialization failed\n");
+        } else {
+            // Set up periodic flush every 5 seconds using timer channel 1
+            timer_configure_channel(1, 100, blockcache_periodic_flush);
+            print("Block cache: periodic flush enabled (5s interval)\n");
+        }
+
+        // Initialize FAT16 filesystem
+        if (fat16_init() == 0) {
+            print("FAT16 mounted at /disk\n");
+        }
+    }
 
     debug_print_int("System Timer Frequency: ", timer_get_frequency());
     debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));

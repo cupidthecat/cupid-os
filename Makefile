@@ -14,7 +14,7 @@ OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
-            kernel/paging.o
+            kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o
 
 all: $(OS_IMAGE)
 
@@ -59,6 +59,10 @@ drivers/pit.o: drivers/pit.c drivers/pit.h
 drivers/speaker.o: drivers/speaker.c drivers/speaker.h
 	$(CC) $(CFLAGS) drivers/speaker.c -o drivers/speaker.o
 
+# Add new rule for ata.o
+drivers/ata.o: drivers/ata.c drivers/ata.h
+	$(CC) $(CFLAGS) drivers/ata.c -o drivers/ata.o
+
 # Add new rule for shell.o
 kernel/shell.o: kernel/shell.c kernel/shell.h
 	$(CC) $(CFLAGS) kernel/shell.c -o kernel/shell.o
@@ -79,6 +83,18 @@ kernel/memory.o: kernel/memory.c kernel/memory.h
 kernel/paging.o: kernel/paging.c kernel/memory.h
 	$(CC) $(CFLAGS) kernel/paging.c -o kernel/paging.o
 
+# Add new rule for blockdev.o
+kernel/blockdev.o: kernel/blockdev.c kernel/blockdev.h
+	$(CC) $(CFLAGS) kernel/blockdev.c -o kernel/blockdev.o
+
+# Add new rule for blockcache.o
+kernel/blockcache.o: kernel/blockcache.c kernel/blockcache.h
+	$(CC) $(CFLAGS) kernel/blockcache.c -o kernel/blockcache.o
+
+# Add new rule for fat16.o
+kernel/fat16.o: kernel/fat16.c kernel/fat16.h
+	$(CC) $(CFLAGS) kernel/fat16.c -o kernel/fat16.o
+
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
@@ -91,6 +107,9 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 
 run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker
+
+run-disk: $(OS_IMAGE)
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -audiodev none,id=speaker -machine pcspk-audiodev=speaker
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)
