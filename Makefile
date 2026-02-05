@@ -3,7 +3,7 @@ ASM=nasm
 CC=gcc
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
-       -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
+       -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
@@ -14,7 +14,8 @@ OS_IMAGE=cupidos.img
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
-            kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o
+            kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
+            drivers/serial.o kernel/panic.o
 
 all: $(OS_IMAGE)
 
@@ -95,6 +96,14 @@ kernel/blockcache.o: kernel/blockcache.c kernel/blockcache.h
 kernel/fat16.o: kernel/fat16.c kernel/fat16.h
 	$(CC) $(CFLAGS) kernel/fat16.c -o kernel/fat16.o
 
+# Serial port driver
+drivers/serial.o: drivers/serial.c drivers/serial.h
+	$(CC) $(CFLAGS) drivers/serial.c -o drivers/serial.o
+
+# Panic handler
+kernel/panic.o: kernel/panic.c kernel/panic.h
+	$(CC) $(CFLAGS) kernel/panic.c -o kernel/panic.o
+
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
@@ -106,10 +115,13 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
 run-disk: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -audiodev none,id=speaker -machine pcspk-audiodev=speaker
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+
+run-log: $(OS_IMAGE)
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)

@@ -43,12 +43,21 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `string.c/h` – Basic string manipulation functions.
   - `cpu.h` – CPU utility functions (including `rdtsc` and CPU frequency detection).
   - `kernel.h` – Core kernel definitions and shared globals (e.g., VGA parameters).
+  - `panic.c/h` – Enhanced kernel panic handler with register dumps, stack traces, and hex stack dumps.
+  - `assert.h` – Kernel assertion macros (`ASSERT`, `ASSERT_MSG`) with file/line reporting.
+  - `debug.h` – Debug utility definitions.
+  - `blockdev.c/h` – Generic block device abstraction layer.
+  - `blockcache.c/h` – 64-entry LRU block cache with write-back policy.
+  - `fat16.c/h` – FAT16 filesystem driver with MBR partition table support.
+  - `paging.c` – Identity-mapped paging setup (4KB pages, 32MB).
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
   - `timer.c/h` – Timer functions including sleep/delay, tick counting, and multi-channel support.
   - `pit.c/h` – PIT configuration and frequency setup.
   - `speaker.c/h` – PC speaker driver with tone and beep functionality.
+  - `serial.c/h` – COM1 serial port driver with formatted logging and circular log buffer.
+  - `ata.c/h` – ATA/IDE PIO-mode disk driver.
 
 - **link.ld** – Linker script defining the kernel image layout.
 - **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
@@ -110,11 +119,47 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Cluster chain following for files spanning multiple clusters
   - **Performance:** 10-100x speedup via write-back caching
 
+- **Debugging & Memory Safety** ✨ **NEW**
+  - **Serial Port Driver:** COM1 at 115200 baud (8N1), formatted output via `serial_printf()`
+    - Multi-level logging system: `KDEBUG`, `KINFO`, `KWARN`, `KERROR` macros
+    - In-memory circular log buffer (100 lines) viewable from shell
+    - Dual output to serial port and log buffer with timestamps
+  - **Enhanced Panic Handler:** Full system state dump on kernel panic
+    - Register dump (all GP registers + segment registers)
+    - Stack trace via EBP frame chain walking (up to 10 frames)
+    - Hex stack dump (128 bytes from ESP)
+    - System state (uptime, memory usage)
+    - Dual output to VGA screen and serial port
+  - **Kernel Assertions:** `ASSERT(cond)` and `ASSERT_MSG(cond, msg, ...)` macros
+    - Triggers kernel panic with file:line on failure
+    - Compiled out when `DEBUG` is not defined
+  - **Heap Canaries:** Front (`0xDEADBEEF`) and back (`0xBEEFDEAD`) guard values on every allocation
+    - Automatic corruption detection on `kfree()` with source location reporting
+    - Free-memory poisoning (`0xFEFEFEFE`) to catch use-after-free bugs
+    - Full heap walk via `memcheck` command
+  - **Allocation Tracking:** Records source file, line, timestamp for up to 1024 live allocations
+    - Leak detection with configurable age threshold
+    - Peak allocation watermark tracking
+  - **Enhanced Page Fault Handler:** Reads CR2 for faulting address
+    - Detects NULL pointer dereferences (address < 0x1000)
+    - Reports access type (read/write), cause (not-present/protection), and CPU mode
+
 - **Shell Interface**
   - **Command-line shell** with prompt, parsing, history, and tab completion
   - **In-Memory FS Commands:** `ls`, `cat <file>`
   - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
   - **System Commands:** `help`, `clear`, `echo`, `time`, `reboot`, `history`
+  - **Debug Commands:** ✨ **NEW**
+    - `memdump <hex_addr> [length]` – Hex + ASCII dump of memory region (default 64 bytes, max 512)
+    - `memstats` – Show heap and physical memory statistics
+    - `memleak [seconds]` – Detect allocations older than threshold (default 60s)
+    - `memcheck` – Walk all heap blocks and verify canary integrity
+    - `stacktrace` – Print current call stack (EBP chain)
+    - `registers` – Dump all general-purpose CPU registers + EFLAGS
+    - `sysinfo` – Show uptime, CPU frequency, timer frequency, and memory usage
+    - `loglevel [debug|info|warn|error|panic]` – Get/set serial log verbosity
+    - `logdump` – Print the in-memory circular log buffer
+    - `crashtest <type>` – Test crash handling (`panic`, `nullptr`, `divzero`, `assert`, `overflow`, `stackoverflow`)
   - Command history navigation (arrow up/down) and tab completion for command/file names
 
 - **Utility Libraries**
@@ -175,20 +220,27 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Physical memory manager
    - ✅ Simple memory allocation/deallocation
    - ✅ Basic paging setup
-   - ⭕ Memory protection
+   - ✅ Heap canaries (front/back guard values)
+   - ✅ Free-memory poisoning (use-after-free detection)
+   - ✅ Allocation tracking with source location
+   - ✅ Heap integrity checking
+   - ✅ Memory leak detection
    - ✅ Heap management
+   - ✅ Memory statistics tracking
+   - ⭕ Memory protection
    - ⭕ Memory mapping
    - ⭕ Virtual memory support
-   - ⭕ Memory statistics tracking
 
 ### Phase 2 - Extended Features
 5. **Shell Interface** (🔄 In-Progress)
-   - ✅ Basic command parsing and prompt display.
-   - ✅ Currently supports the `echo` command.
-   - ⭕ Advanced command parsing
-   - ⭕ Basic shell commands
-   - ⭕ Command history
-   - ⭕ Tab completion
+   - ✅ Basic command parsing and prompt display
+   - ✅ 22 built-in commands (system, filesystem, disk, debug)
+   - ✅ Advanced command parsing with argument splitting
+   - ✅ Command history (16 entries, arrow key navigation)
+   - ✅ Tab completion (commands and filenames)
+   - ✅ Debug/memory introspection commands
+   - ⭕ I/O redirection
+   - ⭕ Scripting support
 
 7. **Process Management** (⭕ Planned)
    - ⭕ Process creation/termination
@@ -196,10 +248,11 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ⭕ Process states
    - ⭕ Context switching
 
-8. **Basic Device Drivers** (⭕ Planned)
+8. **Basic Device Drivers** (🔄 In Progress)
    - ✅ PS/2 Keyboard
+   - ✅ ATA/IDE disk driver (PIO mode)
+   - ✅ Serial port (COM1, 115200 baud)
    - ⭕ VGA graphics
-   - ⭕ Serial port
    - ⭕ Real-time clock
 
 9. **Simple Filesystem** (⭕ Planned)
@@ -233,7 +286,7 @@ sudo apt-get install nasm gcc make qemu-system-x86 dosfstools
 make
 ```
 
-3. Run in QEMU:
+3. Run in QEMU (serial output to terminal):
 ```bash
 make run
 ```
@@ -241,6 +294,12 @@ make run
 4. Run with a FAT16 hard disk attached:
 ```bash
 make run-disk
+```
+
+5. Run with serial output logged to file:
+```bash
+make run-log
+# Serial output saved to debug.log
 ```
 
 ### Creating a FAT16 Test Disk
@@ -330,13 +389,42 @@ To modify or extend the OS:
    - Modify Makefile if adding new source files
 
 ## Debugging
-1. Debug with QEMU monitor:
+
+### Serial Console
+All `make run` and `make run-disk` targets include `-serial stdio`, so kernel log messages appear in your terminal automatically. Use `make run-log` to capture serial output to `debug.log` instead.
+
+From the shell, use these commands for runtime debugging:
+```
+memstats          # Show heap + PMM statistics
+memcheck          # Verify all heap canaries are intact
+memleak 10        # Find allocations older than 10 seconds
+memdump 0xB8000 64  # Hex dump 64 bytes of VGA memory
+stacktrace        # Print current call stack
+registers         # Dump CPU registers
+sysinfo           # Uptime, CPU freq, memory overview
+loglevel debug    # Set serial log verbosity (debug/info/warn/error/panic)
+logdump           # Print in-memory log buffer
+crashtestpanic   # Test panic handler (also: nullptr, divzero, assert, overflow, stackoverflow)
+```
+
+### Crash Testing
+The `crashtest` command deliberately triggers various faults to verify the panic handler:
+- `crashtest panic` – Kernel panic with message
+- `crashtest nullptr` – NULL pointer dereference (page fault)
+- `crashtest divzero` – Division by zero exception
+- `crashtest assert` – Assertion failure
+- `crashtest overflow` – Heap buffer overflow (detected by canary on free)
+- `crashtest stackoverflow` – 64KB stack allocation (page fault)
+
+Each crash produces a full register dump, stack trace, and hex stack dump on both the VGA screen and serial output.
+
+### QEMU Monitor
 ```bash
 make run
 # Press Ctrl+Alt+2 for QEMU monitor
 ```
 
-2. Debug with GDB:
+### GDB
 ```bash
 # Terminal 1
 qemu-system-i386 -s -S -boot a -fda cupidos.img
@@ -357,6 +445,9 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **Debugging & Memory Safety System** – Serial port driver (COM1, 115200 baud), enhanced panic handler with register/stack dumps, kernel assertions, heap canaries with corruption detection, allocation tracking with leak detection, free-memory poisoning, and 10 new debug shell commands
+- **ATA Disk I/O** – PIO-mode ATA driver, block device layer, 64-entry LRU write-back cache, FAT16 filesystem with MBR support
+- **Shell Enhancements** – 22 commands total, command history with arrow key navigation, tab completion for commands and filenames
 - Implemented comprehensive keyboard driver with full modifier key support
 - Added function key handling (F1-F12)
 - Implemented key repeat functionality with configurable delays

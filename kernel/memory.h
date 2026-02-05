@@ -3,29 +3,76 @@
 
 #include "types.h"
 
+/* ── Canary constants ─────────────────────────────────────────────── */
+#define CANARY_FRONT 0xDEADBEEF
+#define CANARY_BACK  0xBEEFDEAD
+#define POISON_FREE  0xFEFEFEFE
+
+/* ── Heap block header ────────────────────────────────────────────── */
 typedef struct heap_block {
-    size_t size;
-    struct heap_block* next;
-    uint8_t free;
+    uint32_t canary_front;       /* Must be CANARY_FRONT           */
+    size_t   size;               /* Size of the user-data region   */
+    struct heap_block *next;
+    uint8_t  free;
+    uint32_t timestamp;          /* Allocation time (ms)           */
+    const char *alloc_file;      /* Source file of allocation      */
+    uint32_t alloc_line;         /* Source line of allocation      */
 } heap_block_t;
 
+/* ── Constants ────────────────────────────────────────────────────── */
 #define PAGE_SIZE 4096
 #define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
 #define HEAP_INITIAL_PAGES 16
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
+/* ── PMM ──────────────────────────────────────────────────────────── */
 void pmm_init(uint32_t kernel_end);
-void* pmm_alloc_page(void);
-void* pmm_alloc_contiguous(uint32_t page_count);
-void pmm_free_page(void* address);
+void *pmm_alloc_page(void);
+void *pmm_alloc_contiguous(uint32_t page_count);
+void pmm_free_page(void *address);
 uint32_t pmm_free_pages(void);
 uint32_t pmm_total_pages(void);
 
+/* ── Paging ───────────────────────────────────────────────────────── */
 void paging_init(void);
 
-void heap_init(uint32_t initial_pages);
-void* kmalloc(size_t size);
-void kfree(void* ptr);
+/* ── Heap ─────────────────────────────────────────────────────────── */
+void  heap_init(uint32_t initial_pages);
+void *kmalloc_debug(size_t size, const char *file, uint32_t line);
+void  kfree(void *ptr);
+
+/* Macro so every call site automatically records file + line       */
+#define kmalloc(size) kmalloc_debug((size), __FILE__, __LINE__)
+
+/* ── Allocation tracking / memory safety ──────────────────────────── */
+#define MAX_ALLOCATIONS 1024
+
+typedef struct allocation_record {
+    void       *address;         /* User data pointer               */
+    uint32_t    size;            /* Size in bytes                   */
+    uint32_t    timestamp;       /* When allocated (ms since boot)  */
+    const char *file;            /* Source file                     */
+    uint32_t    line;            /* Source line                     */
+    uint8_t     active;          /* 1 = active, 0 = freed           */
+} allocation_record_t;
+
+typedef struct allocation_tracker {
+    allocation_record_t records[MAX_ALLOCATIONS];
+    uint32_t next_slot;          /* Circular index                  */
+    uint32_t active_count;
+    uint32_t total_bytes;        /* Currently allocated bytes       */
+    uint32_t peak_bytes;
+    uint32_t peak_count;
+} allocation_tracker_t;
+
+/* Check all live blocks for corrupted canaries.  Panics on failure. */
+void heap_check_integrity(void);
+
+/* Scan for allocations older than threshold_ms.                     */
+void detect_memory_leaks(uint32_t threshold_ms);
+
+/* Print allocation statistics to VGA (and serial).                  */
+void print_memory_stats(void);
 
 #endif

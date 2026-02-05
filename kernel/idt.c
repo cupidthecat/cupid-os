@@ -17,6 +17,8 @@
 #include "idt.h"
 #include "isr.h"
 #include "kernel.h"
+#include "panic.h"
+#include "../drivers/serial.h"
 
 // IDT entries array
 struct idt_entry idt[256];
@@ -40,21 +42,6 @@ const char* exception_messages[] = {
     "General Protection Fault",
     "Page Fault"
 };
-
-static void dump_regs(struct registers* r) {
-    print("INT: ");
-    print_int(r->int_no);
-    print("  ERR: ");
-    print_hex(r->err_code);
-    print("\n");
-    print("EIP: ");
-    print_hex(r->eip);
-    print("  CS: ");
-    print_hex(r->cs);
-    print("  EFLAGS: ");
-    print_hex(r->eflags);
-    print("\n");
-}
 
 // External assembly function
 extern void load_idt(struct idt_ptr* ptr);
@@ -119,37 +106,48 @@ void idt_init(void) {
 
 // Interrupt handler
 void isr_handler(struct registers* r) {
-    print("\nEXCEPTION: ");
-    if (r->int_no < 15) {
-        print(exception_messages[r->int_no]);
-    } else {
-        print("Unknown");
-    }
-    print("\n");
-
-    dump_regs(r);
-
+    /* ── Page Fault (INT 14) ── enhanced diagnostics ── */
     if (r->int_no == 14) {
         uint32_t cr2;
         __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
-        print("CR2: ");
+
+        /* Build a human-readable description */
+        const char *access = (r->err_code & 0x2) ? "WRITE" : "READ";
+        const char *present = (r->err_code & 0x1) ? "protection" : "not-present";
+        const char *mode = (r->err_code & 0x4) ? "user" : "kernel";
+
+        /* Detect common patterns */
+        if (cr2 < 0x1000) {
+            serial_printf("[PANIC] NULL pointer dereference: %s at 0x%x (%s, %s mode)\n",
+                          access, cr2, present, mode);
+            print("\nNULL POINTER DEREFERENCE\n");
+        } else {
+            serial_printf("[PANIC] Page fault: %s at 0x%x (%s, %s mode)\n",
+                          access, cr2, present, mode);
+            print("\nPAGE FAULT\n");
+        }
+
+        print("  Faulting address: ");
         print_hex(cr2);
+        print("\n  Access: ");
+        print(access);
+        print("  Cause: ");
+        print(present);
+        print("  Mode: ");
+        print(mode);
         print("\n");
 
-        print("PF flags: ");
-        if (!(r->err_code & 0x1)) print("not-present ");
-        else print("present ");
-        if (r->err_code & 0x2) print("write ");
-        else print("read ");
-        if (r->err_code & 0x4) print("user ");
-        else print("kernel ");
-        if (r->err_code & 0x8) print("reserved ");
-        if (r->err_code & 0x10) print("instruction-fetch ");
-        print("\n");
+        kernel_panic_regs(r, "Page fault");
     }
 
-    print("System Halted!\n");
-    while(1) {
-        __asm__ volatile("hlt");
+    /* ── Other exceptions ── */
+    const char *msg = "Unknown Exception";
+    if (r->int_no < 15) {
+        msg = exception_messages[r->int_no];
     }
+
+    serial_printf("[PANIC] CPU Exception %u: %s  err=0x%x\n",
+                  r->int_no, msg, r->err_code);
+
+    kernel_panic_regs(r, msg);
 } 

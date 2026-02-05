@@ -30,9 +30,9 @@ start:
     
     jmp $
 
-; Load kernel from disk (in four chunks, one track at a time for max compatibility)
+; Load kernel from disk (in chunks, one track at a time for max compatibility)
 ; Floppy geometry: 18 sectors/track, 2 heads/cylinder
-; Need to read 70 sectors total starting from C:0 H:0 S:2
+; Need to read 125 sectors total starting from C:0 H:0 S:2
 ; Kernel is loaded at ES:BX where ES=0x1000 → linear address 0x10000+BX
 load_kernel:
     mov si, MSG_LOAD_KERNEL
@@ -42,7 +42,7 @@ load_kernel:
     mov ax, KERNEL_SEGMENT
     mov es, ax
 
-    ; Chunk 1: rest of track 0, head 0 (sectors 2-18 = 17 sectors)
+    ; Chunk 1: rest of track 0, head 0 (sectors 2-18 = 17 sectors) [total: 17]
     mov bx, 0x0000        ; ES:BX = 0x1000:0x0000 = linear 0x10000
     mov dl, [BOOT_DRIVE]
     mov ah, 0x02
@@ -53,7 +53,7 @@ load_kernel:
     int 0x13
     jc disk_error
 
-    ; Chunk 2: full track 0, head 1 (sectors 1-18 = 18 sectors)
+    ; Chunk 2: full track 0, head 1 (sectors 1-18 = 18 sectors) [total: 35]
     mov bx, (17 * 512)    ; ES:BX = 0x1000:0x2200 = linear 0x12200
     mov dl, [BOOT_DRIVE]
     mov ah, 0x02
@@ -64,7 +64,7 @@ load_kernel:
     int 0x13
     jc disk_error
 
-    ; Chunk 3: full track 1, head 0 (sectors 1-18 = 18 sectors)
+    ; Chunk 3: full track 1, head 0 (sectors 1-18 = 18 sectors) [total: 53]
     mov bx, (35 * 512)    ; ES:BX = 0x1000:0x4600 = linear 0x14600
     mov dl, [BOOT_DRIVE]
     mov ah, 0x02
@@ -75,13 +75,46 @@ load_kernel:
     int 0x13
     jc disk_error
 
-    ; Chunk 4: partial track 1, head 1 (sectors 1-17 = 17 sectors, total 70)
+    ; Chunk 4: full track 1, head 1 (sectors 1-18 = 18 sectors) [total: 71]
     mov bx, (53 * 512)    ; ES:BX = 0x1000:0x6A00 = linear 0x16A00
     mov dl, [BOOT_DRIVE]
     mov ah, 0x02
-    mov al, 17
+    mov al, 18
     mov ch, 1             ; Cylinder 1
     mov dh, 1             ; Head 1
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Chunk 5: full track 2, head 0 (sectors 1-18 = 18 sectors) [total: 89]
+    mov bx, (71 * 512)    ; ES:BX = 0x1000:0x8E00 = linear 0x18E00
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 2             ; Cylinder 2
+    mov dh, 0             ; Head 0
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Chunk 6: full track 2, head 1 (sectors 1-18 = 18 sectors) [total: 107]
+    mov bx, (89 * 512)    ; ES:BX = 0x1000:0xB200 = linear 0x1B200
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 2             ; Cylinder 2
+    mov dh, 1             ; Head 1
+    mov cl, 1             ; Sector 1
+    int 0x13
+    jc disk_error
+
+    ; Chunk 7: full track 3, head 0 (sectors 1-18 = 18 sectors) [total: 125]
+    mov bx, (107 * 512)   ; ES:BX = 0x1000:0xD600 = linear 0x1D600
+    mov dl, [BOOT_DRIVE]
+    mov ah, 0x02
+    mov al, 18
+    mov ch, 3             ; Cylinder 3
+    mov dh, 0             ; Head 0
     mov cl, 1             ; Sector 1
     int 0x13
     jc disk_error
