@@ -102,5 +102,7 @@ fat16_file_t* fat16_open(const char* filename);
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count);
 int fat16_close(fat16_file_t* file);
 int fat16_list_root(void);
+int fat16_write_file(const char* filename, const void* data, uint32_t size);
+int fat16_delete_file(const char* filename);
 
 #endif

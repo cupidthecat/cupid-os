@@ -30,100 +30,126 @@ start:
     
     jmp $
 
-; Load kernel from disk (in chunks, one track at a time for max compatibility)
-; Floppy geometry: 18 sectors/track, 2 heads/cylinder
-; Need to read 125 sectors total starting from C:0 H:0 S:2
-; Kernel is loaded at ES:BX where ES=0x1000 → linear address 0x10000+BX
+; Load kernel from disk using a loop.
+; Floppy geometry: 18 sectors/track, 2 heads/cylinder.
+; Reads one full track at a time, advancing head/cylinder as needed.
+; Splits any read that would cross a 64KB DMA boundary.
+; Kernel is loaded starting at linear address 0x10000.
 load_kernel:
     mov si, MSG_LOAD_KERNEL
     call print_string
 
-    ; Set ES to kernel segment for all BIOS disk reads
-    mov ax, KERNEL_SEGMENT
-    mov es, ax
+    ; State: CHS position and linear destination
+    mov byte [cur_cyl], 0
+    mov byte [cur_head], 0
+    mov byte [cur_sect], 2      ; First sector after boot sector
+    mov byte [cur_count], 17    ; Remaining sectors in first track
+    mov word [dest_seg], 0x1000
+    mov word [dest_off], 0x0000
+    mov word [sectors_left], 179 ; Total sectors to load
 
-    ; Chunk 1: rest of track 0, head 0 (sectors 2-18 = 17 sectors) [total: 17]
-    mov bx, 0x0000        ; ES:BX = 0x1000:0x0000 = linear 0x10000
+.read_loop:
+    ; Check if done
+    cmp word [sectors_left], 0
+    je .done
+
+    ; Determine how many sectors to read this iteration
+    movzx ax, byte [cur_count]
+    cmp ax, [sectors_left]
+    jbe .count_ok
+    mov ax, [sectors_left]      ; Don't read more than needed
+.count_ok:
+
+    ; Check 64KB DMA boundary: max sectors before crossing
+    ; boundary_remain = (0x10000 - dest_off) / 512
+    push ax
+    mov bx, [dest_off]
+    mov cx, 0                   ; If dest_off == 0, full 64KB available
+    test bx, bx
+    jz .boundary_full
+    mov cx, bx
+    neg cx                      ; cx = 0x10000 - dest_off (works because 16-bit wrap)
+    shr cx, 9                   ; cx = remaining sectors before boundary
+    jmp .boundary_check
+.boundary_full:
+    mov cx, 128                 ; 64KB / 512 = 128, more than enough
+.boundary_check:
+    pop ax
+    cmp ax, cx
+    jbe .no_split
+    mov ax, cx                  ; Limit to boundary
+.no_split:
+    ; AX = number of sectors to read this call
+    test ax, ax
+    jz .advance_segment         ; dest_off is exactly at boundary
+
+    push ax                     ; Save sector count
+
+    ; Set up BIOS int 0x13 read
+    mov es, [dest_seg]
+    mov bx, [dest_off]
     mov dl, [BOOT_DRIVE]
+    mov dh, [cur_head]
+    mov ch, [cur_cyl]
+    mov cl, [cur_sect]
     mov ah, 0x02
-    mov al, 17
-    mov ch, 0             ; Cylinder 0
-    mov dh, 0             ; Head 0
-    mov cl, 2             ; Sector 2
+    ; AL already has sector count
     int 0x13
     jc disk_error
 
-    ; Chunk 2: full track 0, head 1 (sectors 1-18 = 18 sectors) [total: 35]
-    mov bx, (17 * 512)    ; ES:BX = 0x1000:0x2200 = linear 0x12200
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 0             ; Cylinder 0
-    mov dh, 1             ; Head 1
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+    pop cx                      ; CX = sectors just read
 
-    ; Chunk 3: full track 1, head 0 (sectors 1-18 = 18 sectors) [total: 53]
-    mov bx, (35 * 512)    ; ES:BX = 0x1000:0x4600 = linear 0x14600
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 1             ; Cylinder 1
-    mov dh, 0             ; Head 0
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+    ; Update sectors_left
+    sub [sectors_left], cx
 
-    ; Chunk 4: full track 1, head 1 (sectors 1-18 = 18 sectors) [total: 71]
-    mov bx, (53 * 512)    ; ES:BX = 0x1000:0x6A00 = linear 0x16A00
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 1             ; Cylinder 1
-    mov dh, 1             ; Head 1
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+    ; Advance destination: dest_off += cx * 512
+    shl cx, 9                   ; CX = bytes read
+    add [dest_off], cx
+    jnc .no_seg_advance         ; If no carry, no segment wrap
 
-    ; Chunk 5: full track 2, head 0 (sectors 1-18 = 18 sectors) [total: 89]
-    mov bx, (71 * 512)    ; ES:BX = 0x1000:0x8E00 = linear 0x18E00
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 2             ; Cylinder 2
-    mov dh, 0             ; Head 0
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+.advance_segment:
+    ; dest_off wrapped past 0xFFFF, advance segment by 0x1000
+    add word [dest_seg], 0x1000
+    ; dest_off already wrapped to correct low value
 
-    ; Chunk 6: full track 2, head 1 (sectors 1-18 = 18 sectors) [total: 107]
-    mov bx, (89 * 512)    ; ES:BX = 0x1000:0xB200 = linear 0x1B200
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 2             ; Cylinder 2
-    mov dh, 1             ; Head 1
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+.no_seg_advance:
+    ; Advance CHS: cur_sect += sectors_read, update cur_count
+    ; Recalculate: we need to know how many were read (cx was bytes, convert back)
+    shr cx, 9
+    add [cur_sect], cl
+    sub [cur_count], cl
 
-    ; Chunk 7: full track 3, head 0 (sectors 1-18 = 18 sectors) [total: 125]
-    mov bx, (107 * 512)   ; ES:BX = 0x1000:0xD600 = linear 0x1D600
-    mov dl, [BOOT_DRIVE]
-    mov ah, 0x02
-    mov al, 18
-    mov ch, 3             ; Cylinder 3
-    mov dh, 0             ; Head 0
-    mov cl, 1             ; Sector 1
-    int 0x13
-    jc disk_error
+    ; If cur_count > 0, more sectors remain in this track
+    cmp byte [cur_count], 0
+    jg .read_loop
 
+    ; Move to next track: toggle head, if head wraps to 0 increment cylinder
+    cmp byte [cur_head], 0
+    jne .next_cyl
+    mov byte [cur_head], 1
+    jmp .reset_track
+.next_cyl:
+    mov byte [cur_head], 0
+    inc byte [cur_cyl]
+.reset_track:
+    mov byte [cur_sect], 1
+    mov byte [cur_count], 18
+    jmp .read_loop
+
+.done:
     ; Restore ES to 0 for print_string and other real-mode code
     xor ax, ax
     mov es, ax
-
     ret
+
+; Loader state variables
+cur_cyl     db 0
+cur_head    db 0
+cur_sect    db 0
+cur_count   db 0
+dest_seg    dw 0
+dest_off    dw 0
+sectors_left dw 0
 
 disk_error:
     mov si, MSG_DISK_ERROR

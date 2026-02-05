@@ -15,7 +15,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
-            drivers/serial.o kernel/panic.o
+            drivers/serial.o kernel/panic.o kernel/ed.o
 
 all: $(OS_IMAGE)
 
@@ -103,6 +103,10 @@ drivers/serial.o: drivers/serial.c drivers/serial.h
 # Panic handler
 kernel/panic.o: kernel/panic.c kernel/panic.h
 	$(CC) $(CFLAGS) kernel/panic.c -o kernel/panic.o
+
+# Ed line editor
+kernel/ed.o: kernel/ed.c kernel/ed.h
+	$(CC) $(CFLAGS) kernel/ed.c -o kernel/ed.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

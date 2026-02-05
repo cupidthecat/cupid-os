@@ -2,11 +2,10 @@
  * FAT16 Filesystem Implementation
  *
  * Implements FAT16 filesystem with MBR partition support.
- * Provides file operations: open, read, close, list directory.
+ * Provides file operations: open, read, close, list directory, write.
  *
  * Limitations:
  * - Root directory only (no subdirectories)
- * - Read-only initially (write support future)
  * - 8.3 filenames only
  * - First partition only
  */
@@ -338,6 +337,350 @@ int fat16_close(fat16_file_t* file) {
     }
     file->is_open = 0;
     return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  FAT16 Write Support
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * fat16_write_fat_entry - Write a FAT table entry
+ *
+ * Writes to all FAT copies to keep them in sync.
+ *
+ * @param cluster: Cluster number
+ * @param value: Value to write
+ * @return 0 on success, -1 on error
+ */
+static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
+    if (cluster < 2) return -1;
+
+    uint32_t fat_offset = (uint32_t)cluster * 2;
+    uint32_t sector_offset = fat_offset / fs.bytes_per_sector;
+    uint32_t entry_offset = fat_offset % fs.bytes_per_sector;
+
+    /* Write to each FAT copy */
+    for (uint8_t fat_num = 0; fat_num < fs.num_fats; fat_num++) {
+        uint32_t fat_sector = fs.fat_start +
+            ((uint32_t)fat_num * fs.sectors_per_fat) + sector_offset;
+
+        uint8_t buffer[512];
+        if (blockcache_read(fat_sector, buffer) != 0) return -1;
+
+        *(uint16_t*)(&buffer[entry_offset]) = value;
+
+        if (blockcache_write(fat_sector, buffer) != 0) return -1;
+    }
+    return 0;
+}
+
+/**
+ * fat16_alloc_cluster - Allocate a free cluster from the FAT
+ *
+ * Scans the FAT for a free entry (value 0x0000), marks it as end-of-chain,
+ * and returns the cluster number.
+ *
+ * @return Cluster number (>= 2) on success, 0 on failure (disk full)
+ */
+static uint16_t fat16_alloc_cluster(void) {
+    /* Calculate total data clusters */
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+        fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+    uint32_t data_sectors = fs.total_sectors -
+        (fs.reserved_sectors + (uint32_t)fs.num_fats * fs.sectors_per_fat +
+         root_dir_sectors);
+    uint32_t total_clusters = data_sectors / fs.sectors_per_cluster;
+
+    /* Cluster numbers start at 2 */
+    for (uint16_t c = 2; c < (uint16_t)(total_clusters + 2); c++) {
+        uint16_t entry = fat16_read_fat_entry(c);
+        if (entry == FAT16_FREE) {
+            /* Mark as end-of-chain */
+            if (fat16_write_fat_entry(c, FAT16_EOC_MAX) != 0) return 0;
+            return c;
+        }
+    }
+    return 0; /* No free clusters */
+}
+
+/**
+ * fat16_free_chain - Free a cluster chain starting at the given cluster
+ *
+ * Follows the FAT chain and marks each cluster as free.
+ *
+ * @param cluster: Starting cluster of chain
+ */
+static void fat16_free_chain(uint16_t cluster) {
+    while (cluster >= 2 && cluster < FAT16_EOC_MIN &&
+           cluster != FAT16_BAD_CLUSTER) {
+        uint16_t next = fat16_read_fat_entry(cluster);
+        fat16_write_fat_entry(cluster, FAT16_FREE);
+        cluster = next;
+    }
+}
+
+/**
+ * fat16_write_file - Write (create or overwrite) a file in the root directory
+ *
+ * If the file already exists, its old cluster chain is freed and replaced.
+ * If it doesn't exist, a new directory entry is created.
+ *
+ * @param filename: 8.3 filename (e.g. "README.TXT")
+ * @param data: File content buffer
+ * @param size: Number of bytes to write
+ * @return Bytes written on success, -1 on error
+ */
+int fat16_write_file(const char* filename, const void* data, uint32_t size) {
+    if (!fat16_initialized) {
+        print("No FAT16 filesystem mounted\n");
+        return -1;
+    }
+
+    /* Convert filename to 8.3 format */
+    char name83[11];
+    fat16_filename_to_83(filename, name83);
+
+    /* ── Allocate cluster chain for the new data ── */
+    uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
+    uint32_t clusters_needed = 0;
+    if (size > 0) {
+        clusters_needed = (size + cluster_size - 1) / cluster_size;
+    }
+
+    uint16_t first_cluster = 0;
+    uint16_t prev_cluster = 0;
+
+    for (uint32_t i = 0; i < clusters_needed; i++) {
+        uint16_t c = fat16_alloc_cluster();
+        if (c == 0) {
+            /* Disk full - free any clusters we already allocated */
+            if (first_cluster) fat16_free_chain(first_cluster);
+            print("FAT16: disk full\n");
+            return -1;
+        }
+        if (i == 0) {
+            first_cluster = c;
+        } else {
+            /* Link previous cluster to this one */
+            if (fat16_write_fat_entry(prev_cluster, c) != 0) {
+                fat16_free_chain(first_cluster);
+                return -1;
+            }
+        }
+        prev_cluster = c;
+    }
+
+    /* ── Write file data to the allocated clusters ── */
+    {
+        uint16_t cur_cluster = first_cluster;
+        uint32_t bytes_written = 0;
+
+        while (bytes_written < size && cur_cluster >= 2 &&
+               cur_cluster < FAT16_EOC_MIN) {
+            uint32_t cluster_lba = fat16_cluster_to_lba(cur_cluster);
+
+            for (uint8_t s = 0; s < fs.sectors_per_cluster && bytes_written < size; s++) {
+                uint8_t sector_buf[512];
+                memset(sector_buf, 0, 512);
+
+                uint32_t to_copy = size - bytes_written;
+                if (to_copy > fs.bytes_per_sector)
+                    to_copy = fs.bytes_per_sector;
+
+                memcpy(sector_buf, (const uint8_t*)data + bytes_written, to_copy);
+
+                if (blockcache_write(cluster_lba + (uint32_t)s, sector_buf) != 0) {
+                    print("FAT16: write failed\n");
+                    return -1;
+                }
+                bytes_written += to_copy;
+            }
+
+            cur_cluster = fat16_read_fat_entry(cur_cluster);
+        }
+    }
+
+    /* ── Find or create directory entry ── */
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+        fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+
+    int found = 0;
+    int free_entry_sector = -1;
+    int free_entry_index = -1;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0)
+            return -1;
+
+        fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buffer;
+        for (int i = 0; i < 16; i++) {
+            /* End of directory? */
+            if (entries[i].filename[0] == 0x00) {
+                if (free_entry_sector < 0) {
+                    free_entry_sector = (int)sector;
+                    free_entry_index = i;
+                }
+                goto dir_search_done;
+            }
+
+            /* Deleted entry - remember as free slot */
+            if ((unsigned char)entries[i].filename[0] == 0xE5) {
+                if (free_entry_sector < 0) {
+                    free_entry_sector = (int)sector;
+                    free_entry_index = i;
+                }
+                continue;
+            }
+
+            /* Skip volume labels and directories */
+            if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY))
+                continue;
+
+            /* Compare filename */
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) {
+                    match = 0;
+                    break;
+                }
+            }
+
+            if (match) {
+                /* Existing file - free old cluster chain */
+                if (entries[i].first_cluster >= 2)
+                    fat16_free_chain(entries[i].first_cluster);
+
+                /* Update entry */
+                entries[i].first_cluster = first_cluster;
+                entries[i].file_size = size;
+                entries[i].attributes = FAT_ATTR_ARCHIVE;
+
+                if (blockcache_write(fs.root_dir_start + sector, buffer) != 0)
+                    return -1;
+
+                found = 1;
+                break;
+            }
+        }
+        if (found) break;
+    }
+
+dir_search_done:
+    if (!found) {
+        /* Create new directory entry */
+        if (free_entry_sector < 0) {
+            print("FAT16: root directory full\n");
+            /* Free the clusters we allocated */
+            if (first_cluster) fat16_free_chain(first_cluster);
+            return -1;
+        }
+
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + (uint32_t)free_entry_sector,
+                           buffer) != 0)
+            return -1;
+
+        fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buffer;
+        fat16_dir_entry_t* entry = &entries[free_entry_index];
+
+        /* Zero out the entry */
+        memset(entry, 0, sizeof(fat16_dir_entry_t));
+
+        /* Set filename */
+        for (int j = 0; j < 8; j++) entry->filename[j] = name83[j];
+        for (int j = 0; j < 3; j++) entry->ext[j] = name83[8 + j];
+
+        entry->attributes = FAT_ATTR_ARCHIVE;
+        entry->first_cluster = first_cluster;
+        entry->file_size = size;
+
+        /* If this was the end-of-directory marker, write a new end marker
+         * in the next slot (if within same sector) */
+        if (entries[free_entry_index].filename[0] != (char)0xE5) {
+            /* Was a 0x00 entry, need to put a new 0x00 terminator after */
+            if (free_entry_index + 1 < 16) {
+                if (entries[free_entry_index + 1].filename[0] != 0x00 &&
+                    (unsigned char)entries[free_entry_index + 1].filename[0] != 0xE5) {
+                    /* There's already data after, no need for terminator */
+                } else {
+                    entries[free_entry_index + 1].filename[0] = 0x00;
+                }
+            }
+        }
+
+        /* Write the entry back (it was zeroed above, set filename now) */
+        for (int j = 0; j < 8; j++) entry->filename[j] = name83[j];
+        for (int j = 0; j < 3; j++) entry->ext[j] = name83[8 + j];
+        entry->attributes = FAT_ATTR_ARCHIVE;
+        entry->first_cluster = first_cluster;
+        entry->file_size = size;
+
+        if (blockcache_write(fs.root_dir_start + (uint32_t)free_entry_sector,
+                            buffer) != 0)
+            return -1;
+    }
+
+    /* Flush the cache to ensure everything is on disk */
+    blockcache_sync();
+
+    return (int)size;
+}
+
+/**
+ * fat16_delete_file - Delete a file from the root directory
+ *
+ * Marks the directory entry as deleted (0xE5) and frees the cluster chain.
+ *
+ * @param filename: 8.3 filename to delete
+ * @return 0 on success, -1 on error
+ */
+int fat16_delete_file(const char* filename) {
+    if (!fat16_initialized) return -1;
+
+    char name83[11];
+    fat16_filename_to_83(filename, name83);
+
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+        fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0)
+            return -1;
+
+        fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buffer;
+        for (int i = 0; i < 16; i++) {
+            if (entries[i].filename[0] == 0x00) return -1; /* End of dir */
+            if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+            if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY))
+                continue;
+
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) {
+                    match = 0;
+                    break;
+                }
+            }
+
+            if (match) {
+                /* Free cluster chain */
+                if (entries[i].first_cluster >= 2)
+                    fat16_free_chain(entries[i].first_cluster);
+
+                /* Mark entry as deleted */
+                entries[i].filename[0] = (char)0xE5;
+
+                if (blockcache_write(fs.root_dir_start + sector, buffer) != 0)
+                    return -1;
+
+                blockcache_sync();
+                return 0;
+            }
+        }
+    }
+    return -1;
 }
 
 /**

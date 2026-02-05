@@ -13,6 +13,7 @@
 #include "panic.h"
 #include "assert.h"
 #include "../drivers/serial.h"
+#include "ed.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -52,6 +53,7 @@ static void shell_sysinfo(const char* args);
 static void shell_loglevel(const char* args);
 static void shell_logdump(const char* args);
 static void shell_crashtest(const char* args);
+static void shell_ed(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -77,6 +79,7 @@ static struct shell_command commands[] = {
     {"loglevel", "Set serial log level", shell_loglevel},
     {"logdump", "Show recent log entries", shell_logdump},
     {"crashtest", "Test crash handling", shell_crashtest},
+    {"ed", "Ed line editor", shell_ed},
     {0, 0, 0} // Null terminator
 };
 
@@ -631,6 +634,11 @@ static void shell_crashtest(const char* args) {
         print(args);
         print("\n");
     }
+}
+
+/* ── ed line editor ── */
+static void shell_ed(const char* args) {
+    ed_run(args);
 }
 
 // Find and execute a command

@@ -48,7 +48,8 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `debug.h` – Debug utility definitions.
   - `blockdev.c/h` – Generic block device abstraction layer.
   - `blockcache.c/h` – 64-entry LRU block cache with write-back policy.
-  - `fat16.c/h` – FAT16 filesystem driver with MBR partition table support.
+  - `fat16.c/h` – FAT16 filesystem driver with MBR partition table support (read/write).
+  - `ed.c/h` – Ed line editor (Unix ed(1) clone) with regex search, substitution, and undo.
   - `paging.c` – Identity-mapped paging setup (4KB pages, 32MB).
 
 - **drivers/**  
@@ -114,9 +115,12 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Manual sync via `sync` command
     - Cache statistics tracking (hit/miss rates)
   - **FAT16 Filesystem:** Full FAT16 support with MBR partition table parsing
-    - File operations: open, read, close, directory listing
+    - File operations: open, read, close, write, delete, directory listing
+    - `fat16_write_file()` – Create or overwrite files with automatic cluster allocation
+    - `fat16_delete_file()` – Remove files and free associated cluster chains
+    - Cluster chain management: allocation, following, and freeing
+    - FAT entry writes replicated across all FAT copies
     - Root directory support (subdirectories planned)
-    - Cluster chain following for files spanning multiple clusters
   - **Performance:** 10-100x speedup via write-back caching
 
 - **Debugging & Memory Safety** ✨ **NEW**
@@ -144,10 +148,31 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Detects NULL pointer dereferences (address < 0x1000)
     - Reports access type (read/write), cause (not-present/protection), and CPU mode
 
+- **Ed Line Editor** ✨ **NEW**
+  - A faithful implementation of the classic Unix `ed(1)` line editor
+  - **Address Forms:** Line numbers, `.` (current), `$` (last), `+`/`-` offsets, `/RE/` and `?RE?` regex search, `'x` marks, `%` (whole file), `addr,addr` ranges
+  - **Editing Commands:**
+    - `a` (append), `i` (insert), `c` (change) – Enter input mode; end with `.` on a line by itself
+    - `d` (delete), `j` (join), `m` (move), `t` (copy/transfer)
+    - `s/pattern/replacement/flags` – Substitute with `g` (global), `p` (print), `n` (number) flags
+    - `u` (undo) – Single-level undo of the last change
+  - **Display Commands:** `p` (print), `n` (number), `l` (list with escapes)
+  - **File Commands:**
+    - `e` / `E` (edit), `r` (read), `w` (write), `wq` (write & quit)
+    - `f` (filename) – Get/set current filename
+    - Reads from both in-memory filesystem and FAT16 disk
+    - Writes to FAT16 disk (`w`, `wq`, `W` commands persist data via ATA driver)
+  - **Search:** `/pattern/` forward, `?pattern?` backward with basic regex (`. * ^ $`)
+  - **Global Commands:** `g/RE/cmd` and `v/RE/cmd` (inverse global)
+  - **Other:** `=` (print line count), `k` (mark), `H`/`h` (error messages), `q`/`Q` (quit)
+  - **Limits:** 1024 lines max, 256 chars per line
+  - **Regex:** Supports `.` (any char), `*` (zero or more), `^` (start), `$` (end), literal chars
+
 - **Shell Interface**
   - **Command-line shell** with prompt, parsing, history, and tab completion
   - **In-Memory FS Commands:** `ls`, `cat <file>`
   - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
+  - **Editor:** `ed [file]` – Launch the ed line editor ✨ **NEW**
   - **System Commands:** `help`, `clear`, `echo`, `time`, `reboot`, `history`
   - **Debug Commands:** ✨ **NEW**
     - `memdump <hex_addr> [length]` – Hex + ASCII dump of memory region (default 64 bytes, max 512)
@@ -234,7 +259,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 ### Phase 2 - Extended Features
 5. **Shell Interface** (🔄 In-Progress)
    - ✅ Basic command parsing and prompt display
-   - ✅ 22 built-in commands (system, filesystem, disk, debug)
+   - ✅ 23 built-in commands (system, filesystem, disk, debug, editor)
    - ✅ Advanced command parsing with argument splitting
    - ✅ Command history (16 entries, arrow key navigation)
    - ✅ Tab completion (commands and filenames)
@@ -259,6 +284,16 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ⭕ Basic file operations
    - ⭕ Directory structure
    - ⭕ File permissions
+
+6. **Text Editor** (✅ Complete)
+   - ✅ Ed line editor (Unix ed(1) clone)
+   - ✅ Address parsing (line numbers, `.`, `$`, regex, marks)
+   - ✅ Input mode (append, insert, change)
+   - ✅ Editing commands (delete, join, move, copy, substitute)
+   - ✅ Regex search (forward/backward with basic regex)
+   - ✅ Global/inverse-global commands
+   - ✅ Single-level undo
+   - ✅ File I/O (in-memory fs + FAT16)
 
 ### Phase 3 - Advanced Features
 10. Custom compiler
@@ -369,6 +404,44 @@ After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdis
   - Circular buffer for key events
   - Support for special keys (backspace, tab, enter)
 
+#### Ed Line Editor (`kernel/ed.c`, `kernel/ed.h`)
+A faithful implementation of the classic Unix `ed(1)` line editor, operating entirely in-memory:
+- **Buffer management:** Up to 1024 lines × 256 chars, dynamically allocated via `kmalloc`/`kfree`
+- **Address parsing:** Numeric, `.`, `$`, `+`/`-` offsets, `/RE/` forward search, `?RE?` backward search, `'x` marks
+- **Input mode:** Append (`a`), insert (`i`), change (`c`) — terminated by `.` on its own line
+- **Editing:** Delete (`d`), join (`j`), move (`m`), transfer/copy (`t`), substitute (`s/pat/repl/flags`)
+- **Display:** Print (`p`), numbered print (`n`), escaped list (`l`)
+- **File I/O:** Edit (`e`/`E`), read (`r`), write (`w`/`wq`), filename (`f`) — reads from in-memory fs and FAT16
+- **Global:** `g/RE/cmd` executes command on matching lines; `v/RE/cmd` on non-matching lines
+- **Regex engine:** Basic regex supporting `.` (any), `*` (repeat), `^` (anchor start), `$` (anchor end)
+- **Undo:** Single-level full-buffer undo (`u`)
+- **Marks:** 26 named marks (`ka` through `kz`, accessed via `'a` through `'z`)
+
+**Usage:**
+```
+> ed                  # Start with empty buffer
+> ed LICENSE.txt      # Open file from in-memory filesystem
+> ed README.TXT       # Open file from FAT16 disk
+```
+
+**Example session:**
+```
+> ed
+a                     # Append mode
+Hello, world!
+This is cupid-os.
+.                     # End input
+1,2p                  # Print lines 1–2
+Hello, world!
+This is cupid-os.
+s/world/CupidOS/     # Substitute
+1p                    # Print line 1
+Hello, CupidOS!
+w test.txt            # Write (reports byte count)
+30
+q                     # Quit
+```
+
 ### Memory Layout
 - Bootloader: 0x7C00
 - Kernel: 0x1000
@@ -445,8 +518,10 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **FAT16 Write Support** – Files can now be created, overwritten, and deleted on FAT16 disk. Cluster allocation/freeing, FAT chain management, and directory entry creation are fully implemented. Ed's `w`/`wq`/`W` commands persist data through the full ATA write path.
+- **Ed Line Editor** – Full Unix ed(1) clone with address parsing, regex search/substitute, input mode, global commands, marks, single-level undo, and file I/O from both in-memory and FAT16 filesystems. Writes to FAT16 disk via ATA driver.
 - **Debugging & Memory Safety System** – Serial port driver (COM1, 115200 baud), enhanced panic handler with register/stack dumps, kernel assertions, heap canaries with corruption detection, allocation tracking with leak detection, free-memory poisoning, and 10 new debug shell commands
-- **ATA Disk I/O** – PIO-mode ATA driver, block device layer, 64-entry LRU write-back cache, FAT16 filesystem with MBR support
+- **ATA Disk I/O** – PIO-mode ATA driver, block device layer, 64-entry LRU write-back cache, FAT16 filesystem with MBR support (read & write)
 - **Shell Enhancements** – 22 commands total, command history with arrow key navigation, tab completion for commands and filenames
 - Implemented comprehensive keyboard driver with full modifier key support
 - Added function key handling (F1-F12)
