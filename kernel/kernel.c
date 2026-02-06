@@ -37,6 +37,8 @@
 #include "gui.h"
 #include "desktop.h"
 #include "terminal_app.h"
+#include "process.h"
+#include "../drivers/pit.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -67,6 +69,9 @@ int cursor_y = 0;
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
 
+/* Deferred reschedule flag — set inside IRQ, checked at safe points */
+static volatile bool need_reschedule = false;
+
 extern uint32_t _kernel_end;
 
 
@@ -82,6 +87,13 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
     (void)r; /* Unused parameter */
     if (channel == 0) {
         ticks_channel0++;
+
+        /* Mark that a reschedule is needed — the actual context switch
+         * happens at a safe voluntary point (desktop_run loop / yield),
+         * NOT inside the IRQ handler where stack manipulation is unsafe. */
+        if (process_is_active()) {
+            need_reschedule = true;
+        }
     }
 }
 /**
@@ -109,6 +121,23 @@ void timer_callback_channel1(struct registers* r, uint32_t channel) {
  * @param channel: The timer channel to get ticks for (0 or 1)
  * @return: The current tick count for the specified channel
  */
+/**
+ * kernel_check_reschedule - Check and perform deferred context switch
+ *
+ * Called from safe voluntary points (desktop event loop, process_yield)
+ * where ESP/EBP manipulation won't corrupt an IRQ stack frame.
+ */
+void kernel_check_reschedule(void) {
+    if (need_reschedule && process_is_active()) {
+        need_reschedule = false;
+        schedule();
+    }
+}
+
+void kernel_clear_reschedule(void) {
+    need_reschedule = false;
+}
+
 uint32_t timer_get_ticks_channel(uint32_t channel) {
     if (channel == 0) {
         return ticks_channel0;
@@ -535,6 +564,12 @@ void kmain(void) {
     mouse_init();
     KINFO("PS/2 mouse initialized");
 
+    // Initialize process subsystem (creates idle process PID 1)
+    process_init();
+
+    // Switch PIT to 100Hz for 10ms scheduler time slices
+    pit_set_scheduler_mode();
+
     // Initialize GUI and desktop
     gui_init();
     desktop_init();
@@ -546,6 +581,10 @@ void kmain(void) {
     // Enable keyboard interrupt
     pic_clear_mask(1);
     __asm__ volatile("sti");
+
+    // Start the process scheduler
+    process_register_current("desktop");   // Register main thread as PID 2
+    process_start_scheduler();
 
     KINFO("Entering desktop environment");
 

@@ -20,4 +20,7 @@
 void pit_init(uint32_t channel, uint32_t frequency);
 void pit_set_frequency(uint32_t channel, uint32_t frequency);
 
+// Configure PIT channel 0 for 100Hz scheduler ticks (10ms time slices)
+void pit_set_scheduler_mode(void);
+
 #endif 

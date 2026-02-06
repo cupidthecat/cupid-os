@@ -70,4 +70,14 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
     outb(PIT_COMMAND, command);
     outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)(divisor & 0xFF));         // Low byte
     outb((uint16_t)(PIT_CHANNEL0 + channel), (uint8_t)((divisor >> 8) & 0xFF));  // High byte
-} 
+}
+
+/**
+ * Configure PIT channel 0 for 100Hz scheduler mode (10ms time slices)
+ *
+ * Sets channel 0 to fire IRQ0 every 10ms, which the timer interrupt
+ * handler uses to trigger the round-robin scheduler.
+ */
+void pit_set_scheduler_mode(void) {
+    pit_set_frequency(0, 100);
+}

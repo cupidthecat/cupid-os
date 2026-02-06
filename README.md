@@ -11,6 +11,7 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 - VGA Mode 13h graphical desktop with draggable windows
 - PS/2 mouse driver with cursor rendering
 - Pastel-themed desktop environment with taskbar and icons
+- Preemptive multitasking with round-robin process scheduler
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
@@ -58,6 +59,8 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `gui.c/h` – Window manager with draggable windows, z-ordering, focus, and close buttons.
   - `desktop.c/h` – Desktop shell with background, taskbar, clickable icons, and main event loop.
   - `terminal_app.c/h` – GUI terminal application interfacing with the shell via character buffer.
+  - `process.c/h` – Process management: kernel threads, round-robin scheduler, context switching, process lifecycle.
+  - `context_switch.asm` – Pure assembly context switch routine: saves/restores callee-saved registers and ESP across process switches.
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
@@ -137,6 +140,33 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Implements basic tone and beep functionality.
   - Supports configuring PIT channel 2 to generate square waves for sound output.
 
+- **Process Management & Scheduler** ✨ **NEW**
+  - **Deferred Preemptive Multitasking:** Round-robin scheduler with 10ms time slices (100Hz PIT)
+    - Up to 32 concurrent kernel threads sharing a flat 32-bit address space
+    - All processes run in ring 0 (TempleOS-inspired, no security boundaries)
+    - Timer IRQ0 sets a `need_reschedule` flag; actual context switch deferred to safe voluntary points
+    - Safe reschedule points: desktop main loop (before HLT), `process_yield()`, idle process loop
+    - Avoids stack corruption from context switching inside interrupt handlers
+  - **Process Lifecycle:** Create, run, yield, kill, and exit processes
+    - Idle process (PID 1) always present, never exits, runs when nothing else is ready
+    - Desktop main thread registered as PID 2 via `process_register_current()`
+    - GUI terminal spawned as its own process (PID 3)
+    - Automatic process cleanup when entry function returns (exit trampoline)
+    - Deferred stack freeing — terminated process stacks freed lazily on slot reuse
+    - Stack canary (`0xDEADC0DE`) at bottom of each process stack, checked on every context switch
+  - **Pure Assembly Context Switch** (`context_switch.asm`)
+    - Saves all callee-saved registers (EBP, EDI, ESI, EBX) and EFLAGS onto the current stack
+    - Stores resulting ESP into the old process's PCB, switches ESP to new process, jumps to new EIP
+    - Resume label (`context_switch_resume`) pops saved registers and does `ret` — returns normally to caller
+    - New processes start at their entry function with `process_exit_trampoline` as the return address
+    - Process isolation: crashes in one process don't bring down the kernel
+  - **Shell Commands:**
+    - `ps` — List all processes with PID, state, and name
+    - `kill <pid>` — Terminate a process by PID
+    - `spawn [n]` — Create test counting processes (default 1, max 16)
+    - `yield` — Voluntarily give up CPU to next process
+  - **Process API:** `process_create()`, `process_exit()`, `process_yield()`, `process_kill()`, `process_list()`, `process_register_current()`
+
 - **Memory Management Foundations**  
   - Bitmap-backed physical page frame allocator (currently targeting the first 32MB).
   - Identity-mapped paging setup with 4KB pages to keep addresses stable in ring 0.
@@ -208,6 +238,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **In-Memory FS Commands:** `ls`, `cat <file>`
   - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
   - **Editor:** `ed [file]` – Launch the ed line editor ✨ **NEW**
+  - **Process Commands:** ✨ **NEW**
+    - `ps` – List all running processes (PID, state, name)
+    - `kill <pid>` – Terminate a process
+    - `spawn [n]` – Spawn test processes
+    - `yield` – Voluntarily yield CPU
   - **System Commands:** `help`, `clear`, `echo`, `time`, `reboot`, `history`
   - **Debug Commands:** ✨ **NEW**
     - `memdump <hex_addr> [length]` – Hex + ASCII dump of memory region (default 64 bytes, max 512)
@@ -302,11 +337,20 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ⭕ I/O redirection
    - ⭕ Scripting support
 
-7. **Process Management** (⭕ Planned)
-   - ⭕ Process creation/termination
-   - ⭕ Basic scheduling
-   - ⭕ Process states
-   - ⭕ Context switching
+7. **Process Management** (✅ Complete)
+   - ✅ Process creation/termination
+   - ✅ Basic scheduling (round-robin, 10ms time slices)
+   - ✅ Process states (READY, RUNNING, BLOCKED, TERMINATED)
+   - ✅ Pure assembly context switching (`context_switch.asm`)
+   - ✅ Deferred preemptive scheduling (flag-based, safe reschedule points)
+   - ✅ Idle process (PID 1, always present)
+   - ✅ Desktop thread registered as PID 2
+   - ✅ Terminal spawned as its own process (PID 3)
+   - ✅ Stack canary overflow detection
+   - ✅ Deferred stack freeing (lazy reaping of terminated processes)
+   - ✅ Shell commands: ps, kill, spawn, yield
+   - ⭕ Process blocking/sleeping
+   - ⭕ Inter-process communication
 
 8. **Basic Device Drivers** (🔄 In Progress)
    - ✅ PS/2 Keyboard
@@ -335,7 +379,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 10. Custom compiler
 11. Advanced memory management
 12. Extended device support
-13. Multi-process scheduling
+13. ~~Multi-process scheduling~~ ✅ Basic round-robin scheduling implemented
 14. Custom music program in dedication to Terry A. Davis
 
 ## Requirements
@@ -491,6 +535,32 @@ After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdis
 - Key forwarding from desktop event loop to shell
 - Shell dual output mode: text mode (VGA) or GUI buffer
 
+#### Process Scheduler (`kernel/process.c`, `kernel/process.h`, `kernel/context_switch.asm`)
+- **Process Control Block (PCB):** PID, state, saved CPU context (ESP/EIP + callee-saved regs), stack info, name
+- **Process Table:** Static array of 32 PCBs indexed by (PID − 1)
+- **Round-Robin Scheduler:** Equal 10ms time slices, triggered by PIT IRQ0
+  - Deferred preemptive: timer interrupt sets a `need_reschedule` flag (never calls `schedule()` from ISR)
+  - Context switch happens at safe voluntary points: desktop main loop, `process_yield()`, idle process
+  - Cooperative: `process_yield()` voluntarily gives up CPU
+- **Pure Assembly Context Switch** (`context_switch.asm`):
+  - `context_switch(old_esp, new_esp, new_eip)` — saves EBP, EDI, ESI, EBX, EFLAGS onto current stack
+  - Stores resulting ESP into `*old_esp`, switches ESP to `new_esp`, jumps to `new_eip`
+  - `context_switch_resume` — pops saved registers and does `ret`, returning normally to caller
+  - New processes start at their entry function; `process_exit_trampoline` is the return address on the stack
+- **Idle Process (PID 1):** Always present, runs `STI; HLT` loop, checks reschedule flag each iteration
+- **Desktop Thread (PID 2):** Kernel main thread registered via `process_register_current("desktop")`
+- **Terminal Process (PID 3):** GUI terminal spawned as its own process via `process_create()`
+- **Stack Management:**
+  - Canary value (`0xDEADC0DE`) at stack bottom, checked on every context switch
+  - Deferred stack freeing: terminated process stacks freed lazily when slot is reused
+- **Process API:**
+  - `process_create(entry, name, stack_size)` — Spawn new kernel thread
+  - `process_exit()` — Terminate current process, defer stack free, reschedule
+  - `process_yield()` — Voluntary CPU relinquish (clears reschedule flag first)
+  - `process_kill(pid)` — Terminate any process by PID
+  - `process_list()` — Print all processes (used by `ps` command)
+  - `process_register_current(name)` — Register an already-running thread in the process table
+
 #### Ed Line Editor (`kernel/ed.c`, `kernel/ed.h`)
 A faithful implementation of the classic Unix `ed(1)` line editor, operating entirely in-memory:
 - **Buffer management:** Up to 1024 lines × 256 chars, dynamically allocated via `kmalloc`/`kfree`
@@ -605,6 +675,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **Process Management & Scheduler** – Deferred preemptive multitasking with round-robin scheduling (10ms time slices at 100Hz). Up to 32 kernel threads with pure assembly context switching (`context_switch.asm`) that saves/restores callee-saved registers (EBP, EDI, ESI, EBX, EFLAGS). Timer IRQ sets a reschedule flag checked at safe voluntary points (desktop loop, yield, idle) to avoid stack corruption from ISR-level switching. Desktop runs as PID 2, GUI terminal as PID 3. Deferred stack freeing with lazy reaping, stack canary overflow detection, and 4 shell commands (`ps`, `kill`, `spawn`, `yield`).
 - **VGA Graphics & Desktop Environment** – Full graphical desktop with VGA Mode 13h (320×200, 256 colors). Pastel color palette, PS/2 mouse driver with cursor, window manager supporting up to 16 draggable overlapping windows with z-ordering, desktop shell with taskbar and clickable icons, and a GUI terminal application running the existing shell in a graphical window. Double-buffered rendering for flicker-free display.
 - **FAT16 Write Support** – Files can now be created, overwritten, and deleted on FAT16 disk. Cluster allocation/freeing, FAT chain management, and directory entry creation are fully implemented. Ed's `w`/`wq`/`W` commands persist data through the full ATA write path.
 - **Ed Line Editor** – Full Unix ed(1) clone with address parsing, regex search/substitute, input mode, global commands, marks, single-level undo, and file I/O from both in-memory and FAT16 filesystems. Writes to FAT16 disk via ATA driver.

@@ -12,6 +12,8 @@
 #include "font_8x8.h"
 #include "shell.h"
 #include "string.h"
+#include "process.h"
+#include "kernel.h"
 #include "../drivers/vga.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
@@ -26,6 +28,32 @@ static int terminal_wid = -1;  /* Window ID of the terminal */
 static int terminal_scroll_offset = 0;  /* Manual scroll offset (lines from bottom) */
 static bool cursor_visible = true;      /* Current blink state */
 static uint32_t last_blink_ms = 0;      /* Last time cursor toggled */
+static uint32_t terminal_pid = 0;       /* PID of the terminal process */
+
+/* ── Launch ───────────────────────────────────────────────────────── */
+
+/* Terminal process entry point — runs as its own process */
+static void terminal_process_entry(void) {
+    /* This process stays alive as long as the terminal window exists.
+     * The actual key handling is event-driven via the desktop loop
+     * calling terminal_handle_key().  This process just keeps the
+     * terminal alive in the process table and yields its time slice. */
+    while (1) {
+        /* Check if our window was closed */
+        if (terminal_wid < 0 || !gui_get_window(terminal_wid)) {
+            terminal_wid = -1;
+            terminal_pid = 0;
+            break;
+        }
+
+        /* Perform deferred reschedule check */
+        kernel_check_reschedule();
+
+        /* Yield until next time slice */
+        process_yield();
+    }
+    /* Falls through to process_exit_trampoline */
+}
 
 /* ── Launch ───────────────────────────────────────────────────────── */
 
@@ -55,7 +83,15 @@ void terminal_launch(void) {
     shell_set_output_mode(SHELL_OUTPUT_GUI);
 
     gui_set_focus(terminal_wid);
-    KINFO("Terminal launched (wid=%d)", terminal_wid);
+
+    /* Spawn the terminal as its own process */
+    terminal_pid = process_create(terminal_process_entry, "terminal",
+                                  DEFAULT_STACK_SIZE);
+    if (terminal_pid == 0) {
+        KWARN("terminal_launch: failed to create terminal process");
+    }
+
+    KINFO("Terminal launched (wid=%d, pid=%u)", terminal_wid, terminal_pid);
 }
 
 /* ── Redraw callback ──────────────────────────────────────────────── */

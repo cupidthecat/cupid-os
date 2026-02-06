@@ -55,7 +55,7 @@ load_kernel:
     mov byte [cur_count], 17    ; Remaining sectors in first track
     mov word [dest_seg], 0x1000
     mov word [dest_off], 0x0000
-    mov word [sectors_left], 179 ; Total sectors to load
+    mov word [sectors_left], 400 ; Total sectors to load (~200KB max kernel)
 
 .read_loop:
     ; Check if done

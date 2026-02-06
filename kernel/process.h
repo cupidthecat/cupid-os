@@ -1,91 +1,152 @@
+/**
+ * process.h - Process management and scheduler declarations for CupidOS
+ *
+ * Implements preemptive multitasking via kernel threads with round-robin
+ * scheduling.  All processes run in ring 0 sharing the same address space
+ * (TempleOS-inspired, no security boundaries).
+ *
+ * Key design points:
+ *   - Up to 32 concurrent processes
+ *   - 10ms time slices driven by PIT timer (100Hz)
+ *   - Idle process (PID 1) is always present, never exits
+ *   - Process crashes are isolated — faulty process is terminated,
+ *     kernel continues running
+ */
+
 #ifndef PROCESS_H
 #define PROCESS_H
 
 #include "types.h"
-#include "isr.h"
 
-// Process configuration
-#define MAX_PROCESSES 32
-#define PROCESS_STACK_PAGES 2
-#define PROCESS_STACK_SIZE  (PROCESS_STACK_PAGES * PAGE_SIZE)  // 8KB per process
-#define PROCESS_NAME_MAX 32
+/* ── Limits ───────────────────────────────────────────────────────── */
+#define MAX_PROCESSES       32
+#define DEFAULT_STACK_SIZE  8192      /* 8KB per process              */
+#define PROCESS_NAME_LEN    32
 
-// Number of priority levels (0 = highest, 7 = lowest)
-#define NUM_PRIORITIES 8
-#define DEFAULT_PRIORITY 4
+/* ── Stack canary for overflow detection ──────────────────────────── */
+#define STACK_CANARY        0xDEADC0DE
 
-// Process states
+/* ── Process states ───────────────────────────────────────────────── */
 typedef enum {
-    PROCESS_STATE_FREE = 0,     // Slot available for use
-    PROCESS_STATE_READY,        // Ready to run, in scheduler queue
-    PROCESS_STATE_RUNNING,      // Currently executing
-    PROCESS_STATE_BLOCKED,      // Waiting for I/O or event
-    PROCESS_STATE_TERMINATED    // Finished, awaiting cleanup
+    PROCESS_READY = 0,       /* Ready to run                         */
+    PROCESS_RUNNING,         /* Currently executing on CPU            */
+    PROCESS_BLOCKED,         /* Waiting for event (future use)        */
+    PROCESS_TERMINATED       /* Exited, slot can be reclaimed         */
 } process_state_t;
 
-// Process Control Block (PCB)
+/* ── Saved CPU context ────────────────────────────────────────────── */
 typedef struct {
-    // Identity
-    uint32_t pid;                   // Process ID (1-32, 0 = invalid/free)
-    char name[PROCESS_NAME_MAX];    // Human-readable name
+    uint32_t eax, ebx, ecx, edx;
+    uint32_t esi, edi, esp, ebp;
+    uint32_t eip, eflags;
+    uint32_t cs, ds, es, fs, gs, ss;
+} cpu_context_t;
 
-    // CPU State (saved during context switch)
-    uint32_t eax, ebx, ecx, edx;    // General purpose registers
-    uint32_t esi, edi, ebp;         // Index and base registers
-    uint32_t esp;                   // Stack pointer
-    uint32_t eip;                   // Instruction pointer
-    uint32_t eflags;                // CPU flags
+/* ── Process Control Block (PCB) ──────────────────────────────────── */
+typedef struct {
+    uint32_t         pid;                     /* 1–32, 0 = unused     */
+    process_state_t  state;                   /* Current state        */
+    cpu_context_t    context;                 /* Saved CPU registers  */
+    void            *stack_base;              /* Bottom of stack mem  */
+    uint32_t         stack_size;              /* Stack size in bytes  */
+    char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
+} process_t;
 
-    // Scheduling
-    uint8_t priority;               // 0-7 (0 = highest)
-    uint8_t state;                  // process_state_t
-    uint32_t quantum_remaining;     // Timer ticks left in current slice
-    uint32_t quantum_total;         // Total quantum for this priority
+/* ── Public API ───────────────────────────────────────────────────── */
 
-    // Memory
-    uint32_t stack_base;            // Bottom of allocated stack
-    uint32_t stack_size;            // Size of stack (always PROCESS_STACK_SIZE)
-    uint32_t stack_pages;           // Number of pages allocated for stack
-
-    // Bookkeeping
-    uint32_t ticks_used;            // Total CPU ticks consumed
-    uint32_t parent_pid;            // PID of parent process (0 for kernel)
-    int32_t exit_code;              // Exit code when terminated
-} pcb_t;
-
-// Quantum values per priority level (in timer ticks, assuming ~1ms per tick)
-// Priority 0 gets 50ms, priority 7 gets 10ms
-static const uint32_t priority_quantum[NUM_PRIORITIES] = {
-    50, 45, 40, 30, 25, 20, 15, 10
-};
-
-// Global process state (defined in process.c)
-extern pcb_t process_table[MAX_PROCESSES];
-extern pcb_t* current_process;
-extern uint32_t next_pid;
-
-// Process management functions
+/**
+ * process_init - Initialize the process subsystem
+ *
+ * Creates the idle process (PID 1) and sets up internal state.
+ * Must be called once during kernel boot before enabling the scheduler.
+ */
 void process_init(void);
-int32_t process_create(const char* name, void (*entry_point)(void), uint8_t priority);
-int32_t process_create_kernel(void);  // Special: makes current context PID 1
-void process_exit(int exit_code);
-int process_kill(uint32_t pid);
 
-// Process control
+/**
+ * process_create - Spawn a new kernel thread
+ *
+ * @entry_point: function to run as the process body
+ * @name:        human-readable name (shown by `ps`)
+ * @stack_size:  stack allocation in bytes (use DEFAULT_STACK_SIZE)
+ *
+ * Returns the new PID (2–32) on success, or 0 on failure.
+ */
+uint32_t process_create(void (*entry_point)(void),
+                        const char *name,
+                        uint32_t stack_size);
+
+/**
+ * process_exit - Terminate the currently running process
+ *
+ * Frees the process stack, marks the slot as free, and immediately
+ * reschedules.  Never returns.  Cannot exit the idle process (PID 1).
+ */
+void process_exit(void);
+
+/**
+ * process_yield - Voluntarily give up the CPU
+ *
+ * Marks the current process as READY and triggers a reschedule.
+ */
 void process_yield(void);
-int process_set_priority(uint32_t pid, uint8_t priority);
-process_state_t process_get_state(uint32_t pid);
-pcb_t* process_get_current(void);
-pcb_t* process_get_by_pid(uint32_t pid);
 
-// Blocking
-void process_block(void);
-void process_unblock(uint32_t pid);
+/**
+ * process_get_current_pid - Get the PID of the running process
+ */
+uint32_t process_get_current_pid(void);
 
-// Context switching (called from timer IRQ)
-void process_switch_context(struct registers* regs);
+/**
+ * process_kill - Terminate a process by PID
+ *
+ * Frees the stack, marks the slot as free, and reschedules if the
+ * killed process is the currently running one.  Cannot kill the idle
+ * process (PID 1).
+ */
+void process_kill(uint32_t pid);
 
-// String helper for state names
-const char* process_state_name(process_state_t state);
+/**
+ * process_list - Print all processes (used by `ps` shell command)
+ */
+void process_list(void);
 
-#endif
+/**
+ * schedule - Select and switch to the next READY process
+ *
+ * Called from the timer IRQ0 handler every 10ms for preemptive
+ * multitasking.  Also called explicitly by process_exit/process_yield.
+ *
+ * Uses round-robin scheduling with the idle process as a fallback.
+ */
+void schedule(void);
+
+/**
+ * process_is_active - Returns true if the scheduler is running
+ */
+bool process_is_active(void);
+
+/**
+ * process_get_count - Returns the number of active processes
+ */
+uint32_t process_get_count(void);
+
+/**
+ * process_start_scheduler - Activate preemptive scheduling
+ *
+ * Call after all initial processes are created and the PIT is set to
+ * 100Hz.  After this, every timer tick triggers schedule().
+ */
+void process_start_scheduler(void);
+
+/**
+ * process_register_current - Register the currently running thread
+ *
+ * Adds the calling thread (e.g. the kernel main / desktop loop) to
+ * the process table so the scheduler can save and restore its context.
+ * Does NOT allocate a new stack — uses the existing kernel stack.
+ *
+ * @name: human-readable name (e.g. "desktop")
+ * Returns: the assigned PID, or 0 on failure.
+ */
+uint32_t process_register_current(const char *name);
+
+#endif /* PROCESS_H */

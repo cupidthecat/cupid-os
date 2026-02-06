@@ -14,6 +14,7 @@
 #include "assert.h"
 #include "../drivers/serial.h"
 #include "ed.h"
+#include "process.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -222,6 +223,10 @@ static void shell_loglevel(const char* args);
 static void shell_logdump(const char* args);
 static void shell_crashtest(const char* args);
 static void shell_ed(const char* args);
+static void shell_ps(const char* args);
+static void shell_kill_cmd(const char* args);
+static void shell_spawn(const char* args);
+static void shell_yield_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -248,6 +253,10 @@ static struct shell_command commands[] = {
     {"logdump", "Show recent log entries", shell_logdump},
     {"crashtest", "Test crash handling", shell_crashtest},
     {"ed", "Ed line editor", shell_ed},
+    {"ps", "List all processes", shell_ps},
+    {"kill", "Kill a process by PID", shell_kill_cmd},
+    {"spawn", "Spawn test processes", shell_spawn},
+    {"yield", "Yield CPU to next process", shell_yield_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -817,6 +826,90 @@ static void shell_ed(const char* args) {
     ed_run(args);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  Process management shell commands
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ps - list all processes */
+static void shell_ps(const char* args) {
+    (void)args;
+    process_list();
+}
+
+/* kill <pid> - terminate a process */
+static void shell_kill_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: kill <pid>\n");
+        return;
+    }
+
+    /* Parse PID from args */
+    uint32_t pid = 0;
+    const char *p = args;
+    while (*p >= '0' && *p <= '9') {
+        pid = pid * 10 + (uint32_t)(*p - '0');
+        p++;
+    }
+
+    if (pid == 0) {
+        shell_print("Invalid PID\n");
+        return;
+    }
+    if (pid == 1) {
+        shell_print("Cannot kill idle process (PID 1)\n");
+        return;
+    }
+
+    shell_print("Killing PID ");
+    shell_print_int(pid);
+    shell_print("...\n");
+    process_kill(pid);
+}
+
+/* ── Test process for spawn command ── */
+static void test_counting_process(void) {
+    uint32_t pid = process_get_current_pid();
+    for (int i = 0; i < 10; i++) {
+        serial_printf("[PROCESS] PID %u count %d\n", pid, i);
+        process_yield();
+    }
+    /* process_exit called automatically via trampoline */
+}
+
+/* spawn [n] - create test processes (default 1) */
+static void shell_spawn(const char* args) {
+    uint32_t count = 1;
+
+    if (args && args[0] >= '1' && args[0] <= '9') {
+        count = 0;
+        const char *p = args;
+        while (*p >= '0' && *p <= '9') {
+            count = count * 10 + (uint32_t)(*p - '0');
+            p++;
+        }
+    }
+
+    if (count > 16) count = 16;
+
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t pid = process_create(test_counting_process, "test", DEFAULT_STACK_SIZE);
+        if (pid == 0) {
+            shell_print("Failed to create process\n");
+            break;
+        }
+        shell_print("Spawned PID ");
+        shell_print_int(pid);
+        shell_print("\n");
+    }
+}
+
+/* yield - voluntarily give up CPU */
+static void shell_yield_cmd(const char* args) {
+    (void)args;
+    shell_print("Yielding CPU...\n");
+    process_yield();
+}
+
 // Find and execute a command
 static void execute_command(const char* input) {
     // Skip empty input
@@ -850,7 +943,7 @@ static void execute_command(const char* input) {
     // Handle unknown command
     shell_print("Unknown command: ");
     shell_print(cmd);
-    shell_print("\n");  // Ensure we print a newline
+    shell_print("\n");
 }
 
 // Main shell loop

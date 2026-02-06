@@ -6,6 +6,7 @@
  */
 
 #include "desktop.h"
+#include "kernel.h"
 #include "gui.h"
 #include "graphics.h"
 #include "string.h"
@@ -282,6 +283,9 @@ void desktop_run(void) {
             vga_flip();
             needs_redraw = false;
         }
+
+        /* Check for deferred reschedule (preemptive time slice) */
+        kernel_check_reschedule();
 
         /* Yield CPU until next interrupt */
         __asm__ volatile("hlt");
