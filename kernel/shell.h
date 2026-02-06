@@ -9,6 +9,12 @@ typedef enum {
     SHELL_OUTPUT_GUI     /* Write to buffer for GUI terminal */
 } shell_output_mode_t;
 
+/* ── Per-cell color information ───────────────────────────────────── */
+typedef struct {
+    uint8_t fg;   /* VGA color index 0-15 */
+    uint8_t bg;   /* VGA color index 0-15 */
+} shell_color_t;
+
 /* ── GUI-mode buffer dimensions ───────────────────────────────────── */
 #define SHELL_COLS 80
 #define SHELL_ROWS 50
@@ -29,6 +35,9 @@ const char *shell_get_cwd(void);
 
 /* GUI mode: get the character buffer */
 const char *shell_get_buffer(void);
+
+/* GUI mode: get the color buffer (parallel to char buffer) */
+const shell_color_t *shell_get_color_buffer(void);
 
 /* GUI mode: get cursor position */
 int shell_get_cursor_x(void);

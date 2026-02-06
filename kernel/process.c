@@ -283,6 +283,18 @@ void process_kill(uint32_t pid) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  process_get_state — return state of a process by PID
+ * ══════════════════════════════════════════════════════════════════════ */
+int process_get_state(uint32_t pid) {
+    for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+        if (process_table[i].pid == pid && pid != 0) {
+            return (int)process_table[i].state;
+        }
+    }
+    return -1; /* Not found */
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  process_list — `ps` shell command
  * ══════════════════════════════════════════════════════════════════════ */
 void process_list(void) {

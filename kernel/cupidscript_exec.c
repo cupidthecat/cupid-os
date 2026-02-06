@@ -13,6 +13,10 @@
 #include "fs.h"
 #include "fat16.h"
 #include "vfs.h"
+#include "terminal_ansi.h"
+#include "cupidscript_streams.h"
+#include "cupidscript_jobs.h"
+#include "process.h"
 #include "../drivers/serial.h"
 
 /* ── output function pointers (set by shell integration) ───────────── */
@@ -154,12 +158,164 @@ static int evaluate_test(ast_node_t *node, script_context_t *ctx) {
  * ══════════════════════════════════════════════════════════════════════ */
 static int builtin_echo(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                         script_context_t *ctx) {
-    for (int i = 1; i < argc; i++) {
-        if (i > 1) cs_outchar(ctx, ' ');
+    int start_arg = 1;
+
+    /* Check for -c flag: echo -c <color> <text> */
+    if (argc >= 3 && strcmp(expanded[1], "-c") == 0) {
+        int color = parse_int(expanded[2]);
+        /* Emit ANSI foreground code */
+        char ansi_buf[16];
+        int p = 0;
+        ansi_buf[p++] = '\x1B';
+        ansi_buf[p++] = '[';
+        if (color >= 8) {
+            ansi_buf[p++] = '9';
+            ansi_buf[p++] = (char)('0' + (color - 8));
+        } else {
+            ansi_buf[p++] = '3';
+            ansi_buf[p++] = (char)('0' + color);
+        }
+        ansi_buf[p++] = 'm';
+        ansi_buf[p] = '\0';
+        cs_out(ctx, ansi_buf);
+
+        /* Print remaining args */
+        for (int i = 3; i < argc; i++) {
+            if (i > 3) cs_outchar(ctx, ' ');
+            cs_out(ctx, expanded[i]);
+        }
+        cs_outchar(ctx, '\n');
+
+        /* Reset color */
+        cs_out(ctx, "\x1B[0m");
+        return 0;
+    }
+
+    for (int i = start_arg; i < argc; i++) {
+        if (i > start_arg) cs_outchar(ctx, ' ');
         cs_out(ctx, expanded[i]);
     }
     cs_outchar(ctx, '\n');
     return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: setcolor <fg> [bg]
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_setcolor(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                            script_context_t *ctx) {
+    if (argc < 2) {
+        cs_out(ctx, "Usage: setcolor <fg> [bg]\n");
+        return 1;
+    }
+
+    int fg = parse_int(expanded[1]);
+    int bg = -1;
+    if (argc >= 3) {
+        bg = parse_int(expanded[2]);
+    }
+
+    /* Emit ANSI escape sequence */
+    char buf[32];
+    int p = 0;
+    buf[p++] = '\x1B';
+    buf[p++] = '[';
+
+    /* Foreground */
+    if (fg >= 8) {
+        buf[p++] = '9';
+        buf[p++] = (char)('0' + (fg - 8));
+    } else {
+        buf[p++] = '3';
+        buf[p++] = (char)('0' + fg);
+    }
+
+    /* Background */
+    if (bg >= 0) {
+        buf[p++] = ';';
+        buf[p++] = '4';
+        buf[p++] = (char)('0' + (bg & 7));
+    }
+
+    buf[p++] = 'm';
+    buf[p] = '\0';
+
+    cs_out(ctx, buf);
+    return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: resetcolor
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_resetcolor(script_context_t *ctx) {
+    cs_out(ctx, "\x1B[0m");
+    return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: printc <color> <text>
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_printc(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                          script_context_t *ctx) {
+    if (argc < 3) {
+        cs_out(ctx, "Usage: printc <fg> <text>\n");
+        return 1;
+    }
+
+    int color = parse_int(expanded[1]);
+
+    /* Emit color */
+    char ansi_buf[16];
+    int p = 0;
+    ansi_buf[p++] = '\x1B';
+    ansi_buf[p++] = '[';
+    if (color >= 8) {
+        ansi_buf[p++] = '9';
+        ansi_buf[p++] = (char)('0' + (color - 8));
+    } else {
+        ansi_buf[p++] = '3';
+        ansi_buf[p++] = (char)('0' + color);
+    }
+    ansi_buf[p++] = 'm';
+    ansi_buf[p] = '\0';
+    cs_out(ctx, ansi_buf);
+
+    /* Print text */
+    for (int i = 2; i < argc; i++) {
+        if (i > 2) cs_outchar(ctx, ' ');
+        cs_out(ctx, expanded[i]);
+    }
+    cs_outchar(ctx, '\n');
+
+    /* Reset */
+    cs_out(ctx, "\x1B[0m");
+    return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: jobs [-l]
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_jobs(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                        script_context_t *ctx) {
+    bool show_pids = false;
+    if (argc >= 2 && strcmp(expanded[1], "-l") == 0) {
+        show_pids = true;
+    }
+    job_list(&ctx->jobs, show_pids, ctx->print_fn);
+    return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: declare -A name (create associative array)
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_declare(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                           script_context_t *ctx) {
+    if (argc >= 3 && strcmp(expanded[1], "-A") == 0) {
+        cs_assoc_create(ctx->assoc_arrays, &ctx->assoc_count, expanded[2]);
+        return 0;
+    }
+    cs_out(ctx, "Usage: declare -A <name>\n");
+    return 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -199,6 +355,31 @@ static int execute_command(ast_node_t *node, script_context_t *ctx) {
     /* ── built-in: echo ────────────────────────────────────────── */
     if (strcmp(cmd, "echo") == 0) {
         return builtin_echo(argc, expanded, ctx);
+    }
+
+    /* ── built-in: setcolor ────────────────────────────────────── */
+    if (strcmp(cmd, "setcolor") == 0) {
+        return builtin_setcolor(argc, expanded, ctx);
+    }
+
+    /* ── built-in: resetcolor ──────────────────────────────────── */
+    if (strcmp(cmd, "resetcolor") == 0) {
+        return builtin_resetcolor(ctx);
+    }
+
+    /* ── built-in: printc ──────────────────────────────────────── */
+    if (strcmp(cmd, "printc") == 0) {
+        return builtin_printc(argc, expanded, ctx);
+    }
+
+    /* ── built-in: jobs ────────────────────────────────────────── */
+    if (strcmp(cmd, "jobs") == 0) {
+        return builtin_jobs(argc, expanded, ctx);
+    }
+
+    /* ── built-in: declare ─────────────────────────────────────── */
+    if (strcmp(cmd, "declare") == 0) {
+        return builtin_declare(argc, expanded, ctx);
     }
 
     /* ── check for user-defined function ───────────────────────── */
@@ -604,29 +785,39 @@ int cupidscript_run_file(const char *filename, const char *args) {
     }
 
     /* 5. Set up context and execute */
-    script_context_t ctx;
-    cupidscript_init_context(&ctx);
+    script_context_t *ctx = kmalloc(sizeof(script_context_t));
+    if (!ctx) {
+        void (*out)(const char *) = cs_print ? cs_print : print;
+        out("cupid: out of memory\n");
+        cupidscript_free_ast(ast);
+        kfree(tokens);
+        if (disk_buf) kfree(disk_buf);
+        return 1;
+    }
+    memset(ctx, 0, sizeof(script_context_t));
+    cupidscript_init_context(ctx);
 
     /* Set output functions */
-    if (cs_print) ctx.print_fn = cs_print;
-    if (cs_putchar) ctx.putchar_fn = cs_putchar;
-    if (cs_print_int) ctx.print_int_fn = cs_print_int;
+    if (cs_print) ctx->print_fn = cs_print;
+    if (cs_putchar) ctx->putchar_fn = cs_putchar;
+    if (cs_print_int) ctx->print_int_fn = cs_print_int;
 
     /* Set script name and arguments */
-    str_cpy(ctx.script_name, filename, MAX_VAR_NAME);
+    str_cpy(ctx->script_name, filename, MAX_VAR_NAME);
     if (args && args[0]) {
-        ctx.script_argc = parse_args(args, ctx.script_args);
+        ctx->script_argc = parse_args(args, ctx->script_args);
     }
 
     KINFO("CupidScript: executing '%s' with %d args", filename,
-          ctx.script_argc);
+          ctx->script_argc);
 
-    int result = cupidscript_execute(ast, &ctx);
+    int result = cupidscript_execute(ast, ctx);
 
     /* 6. Cleanup */
     cupidscript_free_ast(ast);
     kfree(tokens);
     if (disk_buf) kfree(disk_buf);
+    kfree(ctx);
 
     KINFO("CupidScript: '%s' finished with exit status %d",
           filename, result);

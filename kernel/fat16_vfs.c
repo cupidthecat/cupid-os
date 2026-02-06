@@ -23,6 +23,12 @@ typedef struct {
     fat16_file_t *fat_file;     /* Underlying FAT16 file handle       */
     uint8_t       is_dir;       /* 1 if opened as root directory      */
     int           enum_done;    /* For readdir: 1 if enumeration done */
+    /* Write buffering (FAT16 can only replace whole files) */
+    char          filename[64]; /* 8.3 filename for write-back        */
+    uint8_t      *write_buf;    /* Heap-allocated write buffer         */
+    uint32_t      write_len;    /* Bytes written so far                */
+    uint32_t      write_cap;    /* Allocated capacity                  */
+    bool          dirty;        /* True if writes were made            */
 } fat16_vfs_handle_t;
 
 /* ── Readdir callback context ─────────────────────────────────────── */
@@ -146,6 +152,12 @@ static int fat16_vfs_open(void *fs_private, const char *path,
         memset(h, 0, sizeof(fat16_vfs_handle_t));
         h->fat_file = f;
         h->is_dir = 0;
+        /* Store filename for write-back */
+        {
+            int k = 0;
+            while (name[k] && k < 63) { h->filename[k] = name[k]; k++; }
+            h->filename[k] = '\0';
+        }
         *file_handle = h;
         return VFS_OK;
     }
@@ -159,6 +171,12 @@ static int fat16_vfs_open(void *fs_private, const char *path,
     memset(h, 0, sizeof(fat16_vfs_handle_t));
     h->fat_file = f;
     h->is_dir = 0;
+    /* Store filename for potential write-back */
+    {
+        int k = 0;
+        while (name[k] && k < 63) { h->filename[k] = name[k]; k++; }
+        h->filename[k] = '\0';
+    }
 
     *file_handle = h;
     return VFS_OK;
@@ -172,7 +190,15 @@ static int fat16_vfs_close(void *file_handle) {
         /* Free the directory handle */
         kfree(h->fat_file);  /* This is actually fat16_vfs_dir_handle_t* */
     } else {
+        /* Flush any buffered writes */
+        if (h->dirty && h->write_buf && h->filename[0]) {
+            fat16_close(h->fat_file);
+            h->fat_file = NULL;
+            fat16_delete_file(h->filename);
+            fat16_write_file(h->filename, h->write_buf, h->write_len);
+        }
         if (h->fat_file) fat16_close(h->fat_file);
+        if (h->write_buf) kfree(h->write_buf);
     }
     kfree(h);
     return VFS_OK;
@@ -190,10 +216,36 @@ static int fat16_vfs_read(void *file_handle, void *buffer,
 
 static int fat16_vfs_write(void *file_handle, const void *buffer,
                            uint32_t count) {
-    (void)file_handle; (void)buffer; (void)count;
-    /* FAT16 write_file replaces entire file — cannot do partial writes
-     * through this interface easily. Return not supported. */
-    return VFS_ENOSYS;
+    fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
+    if (!h || h->is_dir) return VFS_EINVAL;
+    if (count == 0) return 0;
+
+    /* Allocate or grow write buffer as needed */
+    uint32_t needed = h->write_len + count;
+    if (!h->write_buf) {
+        /* Initial allocation — round up to 512 boundary */
+        h->write_cap = (needed + 511) & ~(uint32_t)511;
+        if (h->write_cap < 1024) h->write_cap = 1024;
+        h->write_buf = kmalloc(h->write_cap);
+        if (!h->write_buf) return VFS_EIO;
+        h->write_len = 0;
+    } else if (needed > h->write_cap) {
+        /* Grow: double or fit, whichever is larger */
+        uint32_t new_cap = h->write_cap * 2;
+        if (new_cap < needed) new_cap = (needed + 511) & ~(uint32_t)511;
+        uint8_t *nb = kmalloc(new_cap);
+        if (!nb) return VFS_EIO;
+        memcpy(nb, h->write_buf, h->write_len);
+        kfree(h->write_buf);
+        h->write_buf = nb;
+        h->write_cap = new_cap;
+    }
+
+    memcpy(h->write_buf + h->write_len, buffer, count);
+    h->write_len += count;
+    h->dirty = true;
+
+    return (int)count;
 }
 
 static int fat16_vfs_seek(void *file_handle, int32_t offset, int whence) {

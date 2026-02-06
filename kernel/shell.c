@@ -20,6 +20,7 @@
 #include "exec.h"
 #include "terminal_app.h"
 #include "notepad.h"
+#include "terminal_ansi.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -29,9 +30,17 @@
  * ══════════════════════════════════════════════════════════════════════ */
 static shell_output_mode_t output_mode = SHELL_OUTPUT_TEXT;
 static char gui_buffer[SHELL_ROWS * SHELL_COLS];
+static shell_color_t gui_color_buffer[SHELL_ROWS * SHELL_COLS];
+static terminal_color_state_t shell_ansi_state;
 static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
 static int gui_visible_cols = SHELL_COLS;  /* actual visible column width */
+
+/* ── I/O redirection capture buffer ─────────────────────────────── */
+#define REDIR_BUF_SIZE 4096
+static char  *redir_buf  = NULL;    /* heap-allocated when active */
+static int    redir_len  = 0;
+static bool   redir_active = false;
 
 /* ── Current working directory ──────────────────────────────────── */
 static char shell_cwd[VFS_MAX_PATH] = "/";
@@ -153,6 +162,12 @@ void shell_set_output_mode(shell_output_mode_t mode) {
     output_mode = mode;
     if (mode == SHELL_OUTPUT_GUI) {
         memset(gui_buffer, 0, sizeof(gui_buffer));
+        /* Initialize color buffer to default: light gray on black */
+        for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
+            gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
+            gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
+        }
+        ansi_init(&shell_ansi_state);
         gui_cursor_x = 0;
         gui_cursor_y = 0;
         /* Print initial prompt into GUI buffer */
@@ -203,6 +218,10 @@ const char *shell_get_buffer(void) {
     return gui_buffer;
 }
 
+const shell_color_t *shell_get_color_buffer(void) {
+    return gui_color_buffer;
+}
+
 int shell_get_cursor_x(void) {
     return gui_cursor_x;
 }
@@ -211,29 +230,90 @@ int shell_get_cursor_y(void) {
     return gui_cursor_y;
 }
 
-/* Put a character into the GUI buffer */
+/* Scroll both char and color buffers up one line */
+static void shell_gui_scroll(void) {
+    memcpy(gui_buffer, gui_buffer + SHELL_COLS,
+           (size_t)((SHELL_ROWS - 1) * SHELL_COLS));
+    memset(gui_buffer + (SHELL_ROWS - 1) * SHELL_COLS, 0, (size_t)SHELL_COLS);
+
+    memcpy(gui_color_buffer, gui_color_buffer + SHELL_COLS,
+           sizeof(shell_color_t) * (size_t)(SHELL_ROWS - 1) * (size_t)SHELL_COLS);
+    /* Clear last row colors to default */
+    for (int i = 0; i < SHELL_COLS; i++) {
+        gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].fg = ANSI_DEFAULT_FG;
+        gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].bg = ANSI_DEFAULT_BG;
+    }
+    gui_cursor_y = SHELL_ROWS - 1;
+}
+
+/* Store current ANSI color into a cell's color entry */
+static void shell_set_cell_color(int idx) {
+    gui_color_buffer[idx].fg = ansi_get_fg(&shell_ansi_state);
+    gui_color_buffer[idx].bg = ansi_get_bg(&shell_ansi_state);
+}
+
+/* Put a character into the GUI buffer with ANSI escape processing */
 static void shell_gui_putchar(char c) {
+    /* Feed character through ANSI parser first */
+    ansi_result_t result = ansi_process_char(&shell_ansi_state, c);
+
+    switch (result) {
+    case ANSI_RESULT_SKIP:
+        /* Escape sequence in progress or color code processed — nothing to display */
+        return;
+
+    case ANSI_RESULT_CLEAR:
+        /* ESC[2J — clear entire screen */
+        memset(gui_buffer, 0, sizeof(gui_buffer));
+        for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
+            gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
+            gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
+        }
+        gui_cursor_x = 0;
+        gui_cursor_y = 0;
+        return;
+
+    case ANSI_RESULT_HOME:
+        /* ESC[H — cursor home */
+        gui_cursor_x = 0;
+        gui_cursor_y = 0;
+        return;
+
+    case ANSI_RESULT_PRINT:
+        break; /* fall through to normal character handling */
+    }
+
+    /* Normal character handling */
     if (c == '\n') {
         /* Clear remainder of current line */
         for (int i = gui_cursor_x; i < SHELL_COLS; i++) {
-            gui_buffer[gui_cursor_y * SHELL_COLS + i] = 0;
+            int idx = gui_cursor_y * SHELL_COLS + i;
+            gui_buffer[idx] = 0;
+            gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+            gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
         }
         gui_cursor_x = 0;
         gui_cursor_y++;
     } else if (c == '\b') {
         if (gui_cursor_x > 0) {
             gui_cursor_x--;
-            gui_buffer[gui_cursor_y * SHELL_COLS + gui_cursor_x] = ' ';
+            int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
+            gui_buffer[idx] = ' ';
+            shell_set_cell_color(idx);
         }
     } else if (c == '\t') {
         /* Tab = 4 spaces */
         for (int t = 0; t < 4 && gui_cursor_x < gui_visible_cols; t++) {
-            gui_buffer[gui_cursor_y * SHELL_COLS + gui_cursor_x] = ' ';
+            int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
+            gui_buffer[idx] = ' ';
+            shell_set_cell_color(idx);
             gui_cursor_x++;
         }
     } else {
         if (gui_cursor_x < gui_visible_cols) {
-            gui_buffer[gui_cursor_y * SHELL_COLS + gui_cursor_x] = c;
+            int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
+            gui_buffer[idx] = c;
+            shell_set_cell_color(idx);
             gui_cursor_x++;
         }
     }
@@ -246,11 +326,7 @@ static void shell_gui_putchar(char c) {
 
     /* Scroll */
     if (gui_cursor_y >= SHELL_ROWS) {
-        /* Move everything up by one line */
-        memcpy(gui_buffer, gui_buffer + SHELL_COLS,
-               (size_t)((SHELL_ROWS - 1) * SHELL_COLS));
-        memset(gui_buffer + (SHELL_ROWS - 1) * SHELL_COLS, 0, (size_t)SHELL_COLS);
-        gui_cursor_y = SHELL_ROWS - 1;
+        shell_gui_scroll();
     }
 }
 
@@ -278,6 +354,12 @@ static void shell_gui_print_int(uint32_t num) {
  *  Output wrappers that route to GUI or text mode
  * ══════════════════════════════════════════════════════════════════════ */
 static void shell_print(const char *s) {
+    if (redir_active && redir_buf) {
+        while (*s && redir_len < REDIR_BUF_SIZE - 1) {
+            redir_buf[redir_len++] = *s++;
+        }
+        return;
+    }
     if (output_mode == SHELL_OUTPUT_GUI) {
         shell_gui_print(s);
     } else {
@@ -286,6 +368,12 @@ static void shell_print(const char *s) {
 }
 
 static void shell_putchar(char c) {
+    if (redir_active && redir_buf) {
+        if (redir_len < REDIR_BUF_SIZE - 1) {
+            redir_buf[redir_len++] = c;
+        }
+        return;
+    }
     if (output_mode == SHELL_OUTPUT_GUI) {
         shell_gui_putchar(c);
     } else {
@@ -294,6 +382,16 @@ static void shell_putchar(char c) {
 }
 
 static void shell_print_int(uint32_t num) {
+    if (redir_active && redir_buf) {
+        char tmp[12];
+        int i = 0;
+        if (num == 0) { tmp[i++] = '0'; }
+        else { while (num > 0) { tmp[i++] = (char)('0' + (num % 10)); num /= 10; } }
+        while (i > 0 && redir_len < REDIR_BUF_SIZE - 1) {
+            redir_buf[redir_len++] = tmp[--i];
+        }
+        return;
+    }
     if (output_mode == SHELL_OUTPUT_GUI) {
         shell_gui_print_int(num);
     } else {
@@ -367,6 +465,9 @@ static void shell_vwrite(const char* args);
 static void shell_exec_cmd(const char* args);
 static void shell_notepad_cmd(const char* args);
 static void shell_terminal_cmd(const char* args);
+static void shell_setcolor_cmd(const char* args);
+static void shell_resetcolor_cmd(const char* args);
+static void shell_printc_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -410,6 +511,9 @@ static struct shell_command commands[] = {
     {"exec", "Run a CUPD binary", shell_exec_cmd},
     {"notepad", "Open Notepad", shell_notepad_cmd},
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
+    {"setcolor", "Set terminal color (fg [bg])", shell_setcolor_cmd},
+    {"resetcolor", "Reset terminal colors", shell_resetcolor_cmd},
+    {"printc", "Print colored text (fg text)", shell_printc_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -774,6 +878,112 @@ static void shell_echo(const char* args) {
         shell_print(args);
     }
     shell_print("\n");  // Ensure we always print a newline
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Color commands – emit ANSI escape sequences through the shell output
+ * ══════════════════════════════════════════════════════════════════════ */
+static int shell_parse_int(const char *s) {
+    int n = 0;
+    int neg = 0;
+    if (*s == '-') { neg = 1; s++; }
+    while (*s >= '0' && *s <= '9') {
+        n = n * 10 + (*s - '0');
+        s++;
+    }
+    return neg ? -n : n;
+}
+
+static void shell_setcolor_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: setcolor <fg 0-15> [bg 0-7]\n");
+        return;
+    }
+
+    /* Parse fg */
+    const char *p = args;
+    while (*p == ' ') p++;
+    int fg = shell_parse_int(p);
+
+    /* Skip past fg number */
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+
+    int bg = -1;
+    if (*p) {
+        bg = shell_parse_int(p);
+    }
+
+    /* Build ANSI escape sequence */
+    char buf[32];
+    int i = 0;
+    buf[i++] = '\x1B';
+    buf[i++] = '[';
+    if (fg >= 8) {
+        buf[i++] = '9';
+        buf[i++] = (char)('0' + (fg - 8));
+    } else {
+        buf[i++] = '3';
+        buf[i++] = (char)('0' + fg);
+    }
+    if (bg >= 0) {
+        buf[i++] = ';';
+        buf[i++] = '4';
+        buf[i++] = (char)('0' + (bg & 7));
+    }
+    buf[i++] = 'm';
+    buf[i] = '\0';
+
+    shell_print(buf);
+}
+
+static void shell_resetcolor_cmd(const char* args) {
+    (void)args;
+    shell_print("\x1B[0m");
+}
+
+static void shell_printc_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: printc <fg 0-15> <text>\n");
+        return;
+    }
+
+    /* Parse fg color */
+    const char *p = args;
+    while (*p == ' ') p++;
+    int color = shell_parse_int(p);
+
+    /* Skip past color number to get text */
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+
+    if (*p == '\0') {
+        shell_print("Usage: printc <fg 0-15> <text>\n");
+        return;
+    }
+
+    /* Emit color */
+    char ansi_buf[16];
+    int i = 0;
+    ansi_buf[i++] = '\x1B';
+    ansi_buf[i++] = '[';
+    if (color >= 8) {
+        ansi_buf[i++] = '9';
+        ansi_buf[i++] = (char)('0' + (color - 8));
+    } else {
+        ansi_buf[i++] = '3';
+        ansi_buf[i++] = (char)('0' + color);
+    }
+    ansi_buf[i++] = 'm';
+    ansi_buf[i] = '\0';
+    shell_print(ansi_buf);
+
+    /* Print text */
+    shell_print(p);
+    shell_print("\n");
+
+    /* Reset */
+    shell_print("\x1B[0m");
 }
 
 static void shell_help(const char* args) {
@@ -1644,6 +1854,72 @@ static void execute_command(const char* input) {
         return;
     }
 
+    /* ── Check for output redirection (> or >>) ─────────────────── */
+    char clean_input[MAX_INPUT_LEN + 1];
+    char redir_file[VFS_MAX_PATH];
+    bool do_redir   = false;
+    bool do_append  = false;
+    redir_file[0] = '\0';
+
+    {
+        int len = 0;
+        while (input[len]) len++;
+
+        /* Scan for unquoted > */
+        bool in_squote = false;
+        bool in_dquote = false;
+        int rpos = -1;
+        for (int k = 0; k < len; k++) {
+            if (input[k] == '\'' && !in_dquote) in_squote = !in_squote;
+            else if (input[k] == '"' && !in_squote) in_dquote = !in_dquote;
+            else if (input[k] == '>' && !in_squote && !in_dquote) {
+                rpos = k;
+                break;
+            }
+        }
+
+        if (rpos >= 0) {
+            do_redir = true;
+            int fstart = rpos + 1;
+            if (fstart < len && input[fstart] == '>') {
+                do_append = true;
+                fstart++;
+            }
+            /* Skip spaces after > / >> */
+            while (fstart < len && input[fstart] == ' ') fstart++;
+
+            /* Extract filename */
+            int fi = 0;
+            while (fstart < len && input[fstart] != ' ' &&
+                   fi < VFS_MAX_PATH - 1) {
+                redir_file[fi++] = input[fstart++];
+            }
+            redir_file[fi] = '\0';
+
+            /* Copy everything before > into clean_input, trim trailing space */
+            int ci = 0;
+            for (int k = 0; k < rpos && k < MAX_INPUT_LEN; k++) {
+                clean_input[ci++] = input[k];
+            }
+            while (ci > 0 && clean_input[ci - 1] == ' ') ci--;
+            clean_input[ci] = '\0';
+
+            input = clean_input;
+        }
+    }
+
+    /* If redirecting, set up the capture buffer */
+    if (do_redir && redir_file[0]) {
+        redir_buf = kmalloc(REDIR_BUF_SIZE);
+        if (redir_buf) {
+            redir_len = 0;
+            redir_active = true;
+        } else {
+            shell_print("shell: out of memory for redirect\n");
+            do_redir = false;
+        }
+    }
+
     char cmd[MAX_INPUT_LEN];
     const char* args = 0;
     
@@ -1663,7 +1939,7 @@ static void execute_command(const char* input) {
     for (int j = 0; commands[j].name; j++) {
         if (strcmp(cmd, commands[j].name) == 0) {
             commands[j].func(args);
-            return;
+            goto redir_done;
         }
     }
 
@@ -1671,7 +1947,7 @@ static void execute_command(const char* input) {
     {
         char resolved[VFS_MAX_PATH];
         shell_resolve_path(cmd, resolved);
-        if (try_bin_dispatch(resolved, args)) return;
+        if (try_bin_dispatch(resolved, args)) goto redir_done;
     }
 
     /* Handle ./script.cup execution */
@@ -1679,20 +1955,54 @@ static void execute_command(const char* input) {
         const char *script_path = cmd + 2;
         if (shell_ends_with(script_path, ".cup")) {
             shell_cupid(args ? input + 2 : script_path);
-            return;
+            goto redir_done;
         }
     }
 
     /* Handle bare .cup files: script.cup → cupid script.cup */
     if (shell_ends_with(cmd, ".cup")) {
         shell_cupid(input);
-        return;
+        goto redir_done;
     }
 
     // Handle unknown command
     shell_print("Unknown command: ");
     shell_print(cmd);
     shell_print("\n");
+
+redir_done:
+    /* ── Flush redirect buffer to file if active ─────────────────── */
+    if (redir_active && redir_buf) {
+        redir_active = false;
+        redir_buf[redir_len] = '\0';
+
+        /* Resolve the redirect file path */
+        char rpath[VFS_MAX_PATH];
+        shell_resolve_path(redir_file, rpath);
+
+        uint32_t flags = O_WRONLY | O_CREAT;
+        flags |= do_append ? O_APPEND : O_TRUNC;
+        int fd = vfs_open(rpath, flags);
+        if (fd < 0) {
+            /* Restore normal output before printing error */
+            kfree(redir_buf);
+            redir_buf = NULL;
+            redir_len = 0;
+            shell_print("shell: cannot open ");
+            shell_print(rpath);
+            shell_print("\n");
+            return;
+        }
+
+        if (redir_len > 0) {
+            vfs_write(fd, redir_buf, (uint32_t)redir_len);
+        }
+        vfs_close(fd);
+
+        kfree(redir_buf);
+        redir_buf = NULL;
+        redir_len = 0;
+    }
 }
 
 // Main shell loop

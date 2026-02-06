@@ -9,21 +9,25 @@
 #define CUPIDSCRIPT_H
 
 #include "types.h"
+#include "terminal_ansi.h"
+#include "cupidscript_streams.h"
+#include "cupidscript_jobs.h"
+#include "cupidscript_arrays.h"
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Limits
  * ══════════════════════════════════════════════════════════════════════ */
-#define MAX_VARIABLES      128
-#define MAX_FUNCTIONS       32
+#define MAX_VARIABLES       64
+#define MAX_FUNCTIONS       16
 #define MAX_VAR_NAME        64
 #define MAX_VAR_VALUE      256
 #define MAX_TOKENS        2048
-#define MAX_ARGS            32
-#define MAX_WORD_LIST       64
-#define MAX_SEQUENCE       256
+#define MAX_ARGS            16
+#define MAX_WORD_LIST       32
+#define MAX_SEQUENCE       128
 #define MAX_TOKEN_LEN      256
-#define MAX_EXPAND_LEN     512
-#define MAX_SCRIPT_ARGS     16
+#define MAX_EXPAND_LEN     256
+#define MAX_SCRIPT_ARGS      8
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Token types
@@ -55,7 +59,17 @@ typedef enum {
     TOK_RBRACKET,        /* ] */
     TOK_COMMENT,         /* # ... (skipped) */
     TOK_ARITH,           /* $((...)) content */
-    TOK_HASH_BANG        /* #!/bin/cupid shebang */
+    TOK_HASH_BANG,       /* #!/bin/cupid shebang */
+    /* ── I/O redirection and pipeline tokens ── */
+    TOK_PIPE,            /* | */
+    TOK_REDIR_OUT,       /* > */
+    TOK_REDIR_APPEND,    /* >> */
+    TOK_REDIR_IN,        /* < */
+    TOK_REDIR_ERR,       /* 2> */
+    TOK_REDIR_ERR_OUT,   /* 2>&1 */
+    TOK_BACKGROUND,      /* & */
+    TOK_CMD_SUBST_START, /* $( */
+    TOK_BACKTICK         /* ` */
 } token_type_t;
 
 typedef struct {
@@ -147,7 +161,7 @@ typedef struct {
     ast_node_t *body;
 } cs_function_t;
 
-typedef struct {
+typedef struct script_context {
     cs_variable_t variables[MAX_VARIABLES];
     int var_count;
     cs_function_t functions[MAX_FUNCTIONS];
@@ -159,6 +173,17 @@ typedef struct {
     char script_name[MAX_VAR_NAME];
     char script_args[MAX_SCRIPT_ARGS][MAX_VAR_VALUE];
     int script_argc;
+    /* ── NEW: Stream system ── */
+    fd_table_t fd_table;
+    /* ── NEW: Job control ── */
+    job_table_t jobs;
+    /* ── NEW: Arrays ── */
+    cs_array_t arrays[MAX_ARRAYS];
+    int array_count;
+    cs_assoc_array_t assoc_arrays[MAX_ASSOC_ARRAYS];
+    int assoc_count;
+    /* ── NEW: Terminal color state ── */
+    terminal_color_state_t color_state;
     /* Output function pointers (for GUI/text mode routing) */
     void (*print_fn)(const char *);
     void (*putchar_fn)(char);
@@ -204,5 +229,19 @@ int cupidscript_run_file(const char *filename, const char *args);
 void cupidscript_set_output(void (*print_fn)(const char *),
                             void (*putchar_fn)(char),
                             void (*print_int_fn)(uint32_t));
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Public API - Advanced string operations  (cupidscript_strings.c)
+ * ══════════════════════════════════════════════════════════════════════ */
+char *cs_expand_advanced_var(const char *expr, script_context_t *ctx);
+char *cs_string_length(const char *value);
+char *cs_string_substring(const char *value, int start, int len);
+char *cs_string_remove_suffix(const char *value, const char *pattern, bool longest);
+char *cs_string_remove_prefix(const char *value, const char *pattern, bool longest);
+char *cs_string_replace(const char *value, const char *pattern,
+                         const char *replacement, bool replace_all);
+char *cs_string_toupper(const char *value);
+char *cs_string_tolower(const char *value);
+char *cs_string_capitalize(const char *value);
 
 #endif /* CUPIDSCRIPT_H */

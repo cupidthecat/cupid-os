@@ -125,6 +125,75 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
+        /* ── pipe | ────────────────────────────────────────────── */
+        if (c == '|') {
+            tokens[count].type = TOK_PIPE;
+            tokens[count].value[0] = '|';
+            tokens[count].value[1] = '\0';
+            tokens[count].line = line;
+            count++;
+            pos++;
+            continue;
+        }
+
+        /* ── redirection > >> ──────────────────────────────────── */
+        if (c == '>') {
+            if (pos + 1 < length && source[pos + 1] == '>') {
+                tokens[count].type = TOK_REDIR_APPEND;
+                tokens[count].value[0] = '>';
+                tokens[count].value[1] = '>';
+                tokens[count].value[2] = '\0';
+                tokens[count].line = line;
+                count++;
+                pos += 2;
+            } else {
+                tokens[count].type = TOK_REDIR_OUT;
+                tokens[count].value[0] = '>';
+                tokens[count].value[1] = '\0';
+                tokens[count].line = line;
+                count++;
+                pos++;
+            }
+            continue;
+        }
+
+        /* ── redirection < ─────────────────────────────────────── */
+        if (c == '<') {
+            tokens[count].type = TOK_REDIR_IN;
+            tokens[count].value[0] = '<';
+            tokens[count].value[1] = '\0';
+            tokens[count].line = line;
+            count++;
+            pos++;
+            continue;
+        }
+
+        /* ── background & ──────────────────────────────────────── */
+        if (c == '&') {
+            tokens[count].type = TOK_BACKGROUND;
+            tokens[count].value[0] = '&';
+            tokens[count].value[1] = '\0';
+            tokens[count].line = line;
+            count++;
+            pos++;
+            continue;
+        }
+
+        /* ── backtick ` (command substitution) ─────────────────── */
+        if (c == '`') {
+            pos++;
+            int start_bt = (int)pos;
+            while (pos < length && source[pos] != '`') pos++;
+            int len_bt = (int)pos - start_bt;
+            tokens[count].type = TOK_BACKTICK;
+            safe_copy(tokens[count].value, source + start_bt, len_bt,
+                      MAX_TOKEN_LEN);
+            tokens[count].line = line;
+            count++;
+            if (pos < length) pos++; /* skip closing ` */
+            continue;
+        }
+
         /* ── brackets [ ] ──────────────────────────────────────── */
         if (c == '[') {
             tokens[count].type = TOK_LBRACKET;
@@ -216,6 +285,30 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
+        /* ── $() command substitution ──────────────────────────── */
+        if (c == '$' && pos + 1 < length && source[pos + 1] == '(' &&
+            !(pos + 2 < length && source[pos + 2] == '(')) {
+            pos += 2; /* skip $( */
+            int start = (int)pos;
+            int depth = 1;
+            while (pos < length && depth > 0) {
+                if (source[pos] == '(') depth++;
+                else if (source[pos] == ')') {
+                    depth--;
+                    if (depth == 0) break;
+                }
+                pos++;
+            }
+            int len = (int)pos - start;
+            tokens[count].type = TOK_CMD_SUBST_START;
+            safe_copy(tokens[count].value, source + start, len,
+                      MAX_TOKEN_LEN);
+            tokens[count].line = line;
+            count++;
+            if (pos < length) pos++; /* skip closing ) */
+            continue;
+        }
+
         /* ── variables $VAR, $?, $#, $0-$9 ─────────────────────── */
         if (c == '$') {
             pos++;
@@ -236,9 +329,61 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     tokens[count].line = line;
                     count++;
                     pos++;
-                } else if (is_alpha(next)) {
+                } else if (next == '{') {
+                    /* ${...} — advanced variable expansion.
+                     * Store the whole ${...} content (without braces)
+                     * as a TOK_VARIABLE token, and let copy_token_to_argv
+                     * reconstruct $varname.  But for ${...} forms we
+                     * need to keep the braces so expand() sees ${...}.
+                     * Store the inner content in value, but prefix with
+                     * a sentinel '{' so we can reconstruct ${...}. */
+                    pos++; /* skip { */
                     int start = (int)pos;
-                    while (pos < length && is_alnum(source[pos])) pos++;
+                    int depth = 1;
+                    while (pos < length && depth > 0) {
+                        if (source[pos] == '{') depth++;
+                        else if (source[pos] == '}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        pos++;
+                    }
+                    int elen = (int)pos - start;
+                    if (pos < length) pos++; /* skip } */
+                    /* Store as TOK_WORD with value = ${...} already
+                     * reconstructed, so the parser copies it as-is and
+                     * expand() can process it. */
+                    tokens[count].type = TOK_WORD;
+                    /* Build "${...}" into token value */
+                    {
+                        int ti = 0;
+                        if (ti < MAX_TOKEN_LEN - 1)
+                            tokens[count].value[ti++] = '$';
+                        if (ti < MAX_TOKEN_LEN - 1)
+                            tokens[count].value[ti++] = '{';
+                        for (int k = 0;
+                             k < elen && ti < MAX_TOKEN_LEN - 1; k++) {
+                            tokens[count].value[ti++] = source[start + k];
+                        }
+                        if (ti < MAX_TOKEN_LEN - 1)
+                            tokens[count].value[ti++] = '}';
+                        tokens[count].value[ti] = '\0';
+                    }
+                    tokens[count].line = line;
+                    count++;
+                } else if (next == '!') {
+                    /* $! — last background PID */
+                    tokens[count].type = TOK_VARIABLE;
+                    tokens[count].value[0] = '!';
+                    tokens[count].value[1] = '\0';
+                    tokens[count].line = line;
+                    count++;
+                    pos++;
+                } else if (is_alpha(next) || next == '_') {
+                    int start = (int)pos;
+                    while (pos < length &&
+                           (is_alnum(source[pos]) || source[pos] == '_'))
+                        pos++;
                     int len = (int)pos - start;
                     tokens[count].type = TOK_VARIABLE;
                     safe_copy(tokens[count].value, source + start, len,
@@ -290,6 +435,25 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
+        /* ── 2> and 2>&1 redirections ──────────────────────────── */
+        if (c == '2' && pos + 1 < length && source[pos + 1] == '>') {
+            if (pos + 3 < length && source[pos + 2] == '&' &&
+                source[pos + 3] == '1') {
+                tokens[count].type = TOK_REDIR_ERR_OUT;
+                safe_copy(tokens[count].value, "2>&1", 4, MAX_TOKEN_LEN);
+                tokens[count].line = line;
+                count++;
+                pos += 4;
+            } else {
+                tokens[count].type = TOK_REDIR_ERR;
+                safe_copy(tokens[count].value, "2>", 2, MAX_TOKEN_LEN);
+                tokens[count].line = line;
+                count++;
+                pos += 2;
+            }
+            continue;
+        }
+
         /* ── words / keywords / assignments ────────────────────── */
         if (is_word_char(c) || c == '!' || c == '=') {
             int start = (int)pos;
@@ -320,7 +484,8 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     int valid = 1;
                     if (i == 0 || !is_alpha(word[0])) valid = 0;
                     for (int j = 1; j < i && valid; j++) {
-                        if (!is_alnum(word[j])) valid = 0;
+                        if (!is_alnum(word[j]) && word[j] != '_')
+                            valid = 0;
                     }
                     if (valid) {
                         eq_pos = i;

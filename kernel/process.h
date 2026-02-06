@@ -105,6 +105,14 @@ uint32_t process_get_current_pid(void);
 void process_kill(uint32_t pid);
 
 /**
+ * process_get_state - Get the state of a process by PID
+ *
+ * Returns the process_state_t for the given PID, or -1 if the PID
+ * does not refer to an active process slot.
+ */
+int process_get_state(uint32_t pid);
+
+/**
  * process_list - Print all processes (used by `ps` shell command)
  */
 void process_list(void);

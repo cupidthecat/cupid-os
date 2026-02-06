@@ -72,6 +72,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `cupidscript_parse.c` – CupidScript parser: transforms token stream into an Abstract Syntax Tree (AST).
   - `cupidscript_exec.c` – CupidScript interpreter/executor: walks the AST, executes commands, evaluates tests, manages control flow.
   - `cupidscript_runtime.c` – CupidScript runtime: variable storage, function registry, and `$VAR` expansion engine.
+  - `cupidscript_streams.c/h` – Stream system: file descriptor table, pipes, buffer I/O, and terminal stream wrappers.
+  - `cupidscript_strings.c` – Advanced bash-like string operations: substring, prefix/suffix removal, replacement, case conversion.
+  - `cupidscript_arrays.c/h` – Array and associative array support for CupidScript variables.
+  - `cupidscript_jobs.c/h` – Background job management: job table, process state tracking, job control builtins.
+  - `terminal_ansi.c/h` – ANSI escape sequence parser: color codes, cursor control, screen clearing for terminal color support.
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
@@ -142,6 +147,8 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Main event loop processing mouse and keyboard input
   - **GUI Terminal Application:** Shell running inside a graphical window
     - Character buffer (80×50) with scrolling support
+    - Per-character foreground/background color buffer with ANSI escape sequence processing
+    - 16-color VGA palette mapped to Mode 13h for colored text rendering
     - Dark background terminal rendering
     - Cursor underline display
     - Key forwarding from GUI to shell
@@ -261,7 +268,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Limits:** 1024 lines max, 256 chars per line
   - **Regex:** Supports `.` (any char), `*` (zero or more), `^` (start), `$` (end), literal chars
 
-- **CupidScript Scripting Language** ✨ **NEW**
+- **CupidScript Scripting Language** ✨ **ENHANCED**
   - A bash-like scripting language for cupid-os with `.cup` file extension
   - **Three invocation methods:**
     - `cupid script.cup [args]` — Run via the `cupid` shell command
@@ -270,7 +277,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Variables:**
     - Assignment: `NAME=frank`, `COUNT=42`
     - Expansion: `$NAME`, `$COUNT` — expands inside strings and arguments
-    - Special variables: `$?` (last exit status), `$#` (argument count), `$0` (script name), `$1`–`$9` (positional args)
+    - Special variables: `$?` (last exit status), `$#` (argument count), `$0` (script name), `$1`–`$9` (positional args), `$!` (last background PID)
     - Undefined variables expand to empty string (bash behavior)
   - **Conditionals:**
     - `if [ $X -eq 10 ]; then ... fi`
@@ -287,11 +294,44 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Arithmetic:** `$((expr))` expansion with `+`, `-`, `*`, `/`, `%`
   - **Comments:** `# comment` — full line and inline
   - **Shebang:** `#!/bin/cupid` supported (skipped during execution)
+  - **Terminal Color Support:** ✨ **NEW**
+    - ANSI escape sequence parser: `\e[30-37m`, `\e[40-47m`, `\e[90-97m`, `\e[0m`, `\e[1m`, `\e[2J`, `\e[H`
+    - Per-character foreground and background colors in GUI terminal
+    - Built-in color functions: `setcolor`, `resetcolor`, `printc`
+    - `echo -c <color> <text>` — colored echo shorthand
+    - 16-color VGA palette with Mode 13h mapping
+  - **I/O Redirection & Pipes:** ✨ **NEW**
+    - Pipe operator: `cmd1 | cmd2` — connect stdout to stdin
+    - Output redirection: `cmd > file`, `cmd >> file` (append)
+    - Input redirection: `cmd < file`
+    - Error redirection: `cmd 2> file`, `cmd 2>&1`
+    - File descriptor table with up to 16 open descriptors per context
+    - Stream types: terminal, buffer (pipes), and VFS file
+  - **Command Substitution:** ✨ **NEW**
+    - Modern syntax: `result=$(command)`
+    - Backtick syntax: `` result=`command` ``
+    - Nested substitution support
+  - **Background Jobs:** ✨ **NEW**
+    - Background execution: `command &`
+    - Job table with up to 32 tracked jobs
+    - `jobs` / `jobs -l` — list background jobs
+    - `$!` — PID of last background process
+  - **Arrays:** ✨ **NEW**
+    - Regular arrays: up to 256 elements, 32 arrays
+    - Associative arrays: `declare -A name`, key-value pairs
+    - Array access: `${arr[0]}`, `${arr[@]}`, `${#arr[@]}`
+  - **Advanced String Operations:** ✨ **NEW**
+    - Length: `${#var}`
+    - Substring: `${var:start:len}`
+    - Suffix removal: `${var%pattern}`, `${var%%pattern}`
+    - Prefix removal: `${var#pattern}`, `${var##pattern}`
+    - Replacement: `${var/pattern/replacement}`
+    - Case conversion: `${var^^}` (upper), `${var,,}` (lower), `${var^}` (capitalize)
   - **Architecture:** Lexer → Parser → AST → Interpreter pipeline
     - All allocations use `kmalloc`/`kfree` with full cleanup
     - Works in both text mode and GUI terminal
     - Scripts can call any built-in shell command
-  - **Limits:** 128 variables, 32 functions, 256-char values, 2048 tokens
+  - **Limits:** 128 variables, 32 functions, 256-char values, 2048 tokens, 32 arrays, 16 assoc arrays
   - Create scripts with the `ed` editor, save to FAT16 disk, and execute
 
 - **Shell Interface**
@@ -400,7 +440,12 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Debug/memory introspection commands
    - ✅ CupidScript scripting language (`.cup` files with variables, loops, functions)
    - ✅ VFS navigation commands (cd, pwd, ls, cat, mount, vls, vcat, vstat, vmkdir, vrm, vwrite, exec)
-   - ⭕ I/O redirection
+   - ✅ I/O redirection (pipes, `>`, `>>`, `<`, `2>`, `2>&1`)
+   - ✅ Terminal color support (ANSI escape codes + built-in color functions)
+   - ✅ Command substitution (`$()` and backticks)
+   - ✅ Background jobs (`&`, `jobs`, `$!`)
+   - ✅ Arrays and associative arrays
+   - ✅ Advanced string operations (`${var:0:5}`, `${var%pattern}`, `${var^^}`, etc.)
 
 7. **Process Management** (✅ Complete)
    - ✅ Process creation/termination
@@ -601,7 +646,10 @@ After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdis
 #### GUI Terminal (`kernel/terminal_app.c`, `kernel/terminal_app.h`)
 - Shell running inside a graphical window (280×160 default)
 - 80×50 character buffer with scrolling support
-- Dark background (COLOR_TERM_BG) with white text
+- Per-character color buffer: each cell stores foreground and background VGA color index
+- ANSI escape sequence processing: color codes parsed and stripped from output, colors applied per-character
+- 16-color VGA palette mapped to Mode 13h palette indices for graphical rendering
+- Dark background (COLOR_TERM_BG) with colored text (default: light gray)
 - Cursor underline rendering at current shell position
 - Key forwarding from desktop event loop to shell
 - Shell dual output mode: text mode (VGA) or GUI buffer
@@ -746,6 +794,14 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **Terminal Colors & ANSI Support** – Full ANSI escape sequence parser with 16-color VGA palette. Per-character foreground and background color tracking in the GUI terminal's 80×50 character buffer. Supports `\e[30-37m` / `\e[90-97m` foreground, `\e[40-47m` background, `\e[0m` reset, `\e[1m` bold, `\e[2J` clear, and `\e[H` cursor home. Colors mapped from VGA text-mode indices to Mode 13h palette for graphical rendering. New files: `terminal_ansi.c/h`.
+- **CupidScript I/O Redirection & Pipes** – Stream system with file descriptor table (16 fds per context), supporting terminal, buffer, and VFS file streams. Pipe operator (`|`) connects command stdout to next command's stdin. Output redirection (`>`, `>>`) and input redirection (`<`). Error redirection (`2>`, `2>&1`). New files: `cupidscript_streams.c/h`.
+- **CupidScript Color Builtins** – Built-in commands for terminal color output: `setcolor <fg> [bg]` sets persistent color, `resetcolor` returns to defaults, `printc <fg> <text>` prints colored text, and `echo -c <color> <text>` for colored echo. All emit ANSI escape codes internally.
+- **Command Substitution** – Both `$(command)` and `` `command` `` syntax for capturing command output into variables. Supports nesting.
+- **Background Jobs** – `command &` runs in background with job table tracking (up to 32 jobs). `jobs` / `jobs -l` lists active jobs. `$!` expands to PID of last background process.
+- **Arrays & Associative Arrays** – Regular arrays (up to 256 elements, 32 arrays) with create, set, get, append operations. Associative arrays via `declare -A name` with key-value storage (128 entries, 16 arrays). New files: `cupidscript_arrays.c/h`.
+- **Advanced String Operations** – Bash-style string manipulation in variable expansion: `${#var}` (length), `${var:start:len}` (substring), `${var%pattern}` / `${var%%pattern}` (suffix removal), `${var#pattern}` / `${var##pattern}` (prefix removal), `${var/old/new}` (replacement), `${var^^}` (uppercase), `${var,,}` (lowercase), `${var^}` (capitalize). New file: `cupidscript_strings.c`.
+- **Job Control** – Background job tracking integrated with process scheduler. `process_get_state()` API added for querying process state by PID. New files: `cupidscript_jobs.c/h`.
 - **Virtual File System (VFS)** – Linux-style VFS layer providing a unified file API across multiple filesystem backends. Three filesystem drivers: RamFS (in-memory directory tree for `/`, `/bin`, `/tmp`), DevFS (pseudo-devices at `/dev/null`, `/dev/zero`, `/dev/random`, `/dev/serial`), and a FAT16 VFS wrapper (persistent user files at `/home`). Hierarchical directory structure with mount points, path resolution via longest-prefix match, file descriptor table (64 fds), and mount table (16 mounts). CUPD program loader reads flat binaries with a 20-byte header (magic `0x43555044`), loads code+data sections, zeros BSS, and spawns processes. Shell now has current working directory tracking (prompt shows CWD), with 14 new VFS commands: `cd`, `pwd`, `ls`, `cat`, `mount`, `vls`, `vcat`, `vstat`, `vmkdir`, `vrm`, `vwrite`, `exec`. Notepad file dialog switched from direct FAT16 calls to VFS API with directory navigation and double-click support. Total shell commands: 38.
 - **CupidScript Scripting Language** – Bash-like scripting for cupid-os with variables (`$VAR`, `$?`, `$#`, `$0`–`$9`), if/else conditionals with test operators (`-eq`, `-ne`, `-lt`, `-gt`, `=`, `!=`), for/while loops, user-defined functions with positional arguments and return values, arithmetic expansion (`$((expr))`), and comments. Scripts use `.cup` extension, are created with the `ed` editor, and can be run via `cupid script.cup`, `./script.cup`, or just `script.cup`. Full lexer → parser → AST → interpreter pipeline with proper memory management. Integrates with all existing shell commands and works in both text and GUI terminal modes.
 - **Process Management & Scheduler** – Deferred preemptive multitasking with round-robin scheduling (10ms time slices at 100Hz). Up to 32 kernel threads with pure assembly context switching (`context_switch.asm`) that saves/restores callee-saved registers (EBP, EDI, ESI, EBX, EFLAGS). Timer IRQ sets a reschedule flag checked at safe voluntary points (desktop loop, yield, idle) to avoid stack corruption from ISR-level switching. Desktop runs as PID 2, GUI terminal as PID 3. Deferred stack freeing with lazy reaping, stack canary overflow detection, and 4 shell commands (`ps`, `kill`, `spawn`, `yield`).

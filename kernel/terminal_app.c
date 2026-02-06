@@ -14,6 +14,7 @@
 #include "string.h"
 #include "process.h"
 #include "kernel.h"
+#include "terminal_ansi.h"
 #include "../drivers/vga.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
@@ -138,6 +139,7 @@ void terminal_redraw(window_t *win) {
 
     /* Get shell buffer */
     const char *buf = shell_get_buffer();
+    const shell_color_t *colors = shell_get_color_buffer();
     int scx = shell_get_cursor_x();
     int scy = shell_get_cursor_y();
 
@@ -161,13 +163,31 @@ void terminal_redraw(window_t *win) {
         /* Skip row if it would extend past content area */
         if (py + char_h > content_y + (int16_t)content_h) break;
         for (int col = 0; col < chars_per_row; col++) {
-            char c = buf[src_row * SHELL_COLS + col];
+            int idx = src_row * SHELL_COLS + col;
+            char c = buf[idx];
             if (c && c != ' ') {
                 int16_t px = (int16_t)(content_x + col * char_w);
+                /* Get per-cell color, convert VGA index to Mode 13h palette */
+                uint8_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
                 if (scale == 1)
-                    gfx_draw_char(px, py, c, COLOR_TEXT_LIGHT);
+                    gfx_draw_char(px, py, c, fg_pal);
                 else
-                    gfx_draw_char_scaled(px, py, c, COLOR_TEXT_LIGHT, scale);
+                    gfx_draw_char_scaled(px, py, c, fg_pal, scale);
+            }
+            /* If cell has a non-black background, draw it */
+            if (colors[idx].bg != ANSI_COLOR_BLACK) {
+                int16_t px = (int16_t)(content_x + col * char_w);
+                uint8_t bg_pal = ansi_vga_to_palette(colors[idx].bg);
+                gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h,
+                              bg_pal);
+                /* Redraw char on top of background if present */
+                if (c && c != ' ') {
+                    uint8_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
+                    if (scale == 1)
+                        gfx_draw_char(px, py, c, fg_pal);
+                    else
+                        gfx_draw_char_scaled(px, py, c, fg_pal, scale);
+                }
             }
         }
     }

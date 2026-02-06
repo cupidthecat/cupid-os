@@ -66,6 +66,50 @@ static ast_node_t *alloc_node(node_type_t type) {
 static ast_node_t *parse_statement(void);
 static ast_node_t *parse_block(token_type_t end1, token_type_t end2);
 
+/* ── copy a token's value into an argv slot, restoring original form ── */
+static void copy_token_to_argv(char *dst, token_t *t, int max) {
+    int i = 0;
+    switch (t->type) {
+    case TOK_VARIABLE:
+        /* Restore $name form so expand() will recognize it */
+        dst[i++] = '$';
+        {
+            int j = 0;
+            while (t->value[j] && i < max - 1) {
+                dst[i++] = t->value[j++];
+            }
+        }
+        dst[i] = '\0';
+        return;
+    case TOK_ARITH:
+        /* Restore $((expr)) form so expand() will evaluate it */
+        if (i < max - 1) dst[i++] = '$';
+        if (i < max - 1) dst[i++] = '(';
+        if (i < max - 1) dst[i++] = '(';
+        {
+            int j = 0;
+            while (t->value[j] && i < max - 1) {
+                dst[i++] = t->value[j++];
+            }
+        }
+        if (i < max - 1) dst[i++] = ')';
+        if (i < max - 1) dst[i++] = ')';
+        dst[i] = '\0';
+        return;
+    default:
+        /* TOK_WORD, TOK_STRING, etc — copy as-is */
+        {
+            int j = 0;
+            while (t->value[j] && j < max - 1) {
+                dst[j] = t->value[j];
+                j++;
+            }
+            dst[j] = '\0';
+        }
+        return;
+    }
+}
+
 /* ── parse a test expression: [ arg1 op arg2 ] ─────────────────────── */
 static ast_node_t *parse_test(void) {
     /* The [ has already been consumed by the caller */
@@ -80,13 +124,8 @@ static ast_node_t *parse_test(void) {
         token_t *t = advance();
         if (n->data.test.argc < MAX_ARGS) {
             int idx = n->data.test.argc++;
-            /* Copy the token value */
-            int i = 0;
-            while (t->value[i] && i < MAX_TOKEN_LEN - 1) {
-                n->data.test.argv[idx][i] = t->value[i];
-                i++;
-            }
-            n->data.test.argv[idx][i] = '\0';
+            /* Use helper to restore $var / $((arith)) prefixes */
+            copy_token_to_argv(n->data.test.argv[idx], t, MAX_TOKEN_LEN);
         }
     }
 
@@ -217,12 +256,8 @@ static ast_node_t *parse_for(void) {
             token_t *w = advance();
             if (n->data.for_stmt.word_count < MAX_WORD_LIST) {
                 int idx = n->data.for_stmt.word_count++;
-                int i = 0;
-                while (w->value[i] && i < MAX_TOKEN_LEN - 1) {
-                    n->data.for_stmt.word_list[idx][i] = w->value[i];
-                    i++;
-                }
-                n->data.for_stmt.word_list[idx][i] = '\0';
+                copy_token_to_argv(n->data.for_stmt.word_list[idx],
+                                   w, MAX_TOKEN_LEN);
             }
         } else {
             advance(); /* skip unexpected tokens in word list */
@@ -302,15 +337,19 @@ static ast_node_t *parse_command_or_assignment(void) {
 
         advance(); /* consume = */
 
-        /* Value: could be a word, string, variable, arith, or empty */
+        /* Value: could be a word, string, variable, arith, or empty.
+         * The lexer may emit an empty TOK_WORD before $var or $((expr))
+         * because $ is not a word char.  Skip empty words and grab the
+         * real value token that follows. */
         if (is_word_token(peek()->type)) {
             token_t *val = advance();
-            i = 0;
-            while (val->value[i] && i < MAX_VAR_VALUE - 1) {
-                n->data.assignment.value[i] = val->value[i];
-                i++;
+            /* If the word is empty and the next token is a variable or
+             * arithmetic expression, that is the real value. */
+            if (val->value[0] == '\0' && is_word_token(peek()->type)) {
+                val = advance();
             }
-            n->data.assignment.value[i] = '\0';
+            copy_token_to_argv(n->data.assignment.value, val,
+                               MAX_VAR_VALUE);
         } else {
             /* Empty value */
             n->data.assignment.value[0] = '\0';
@@ -358,15 +397,8 @@ static ast_node_t *parse_command_or_assignment(void) {
 
     /* First word is argv[0] */
     n->data.command.argc = 0;
-    {
-        int i = 0;
-        while (first->value[i] && i < MAX_TOKEN_LEN - 1) {
-            n->data.command.argv[0][i] = first->value[i];
-            i++;
-        }
-        n->data.command.argv[0][i] = '\0';
-        n->data.command.argc = 1;
-    }
+    copy_token_to_argv(n->data.command.argv[0], first, MAX_TOKEN_LEN);
+    n->data.command.argc = 1;
 
     /* Collect remaining arguments */
     while (!at_end() && peek()->type != TOK_NEWLINE &&
@@ -376,12 +408,8 @@ static ast_node_t *parse_command_or_assignment(void) {
             token_t *arg = advance();
             if (n->data.command.argc < MAX_ARGS) {
                 int idx = n->data.command.argc++;
-                int i = 0;
-                while (arg->value[i] && i < MAX_TOKEN_LEN - 1) {
-                    n->data.command.argv[idx][i] = arg->value[i];
-                    i++;
-                }
-                n->data.command.argv[idx][i] = '\0';
+                copy_token_to_argv(n->data.command.argv[idx],
+                                   arg, MAX_TOKEN_LEN);
             }
         } else {
             break;

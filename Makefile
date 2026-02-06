@@ -17,7 +17,14 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
             drivers/serial.o kernel/panic.o kernel/ed.o \
             drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
-            kernel/gui.o kernel/desktop.o kernel/terminal_app.o
+            kernel/gui.o kernel/desktop.o kernel/terminal_app.o kernel/process.o kernel/context_switch.o \
+            kernel/clipboard.o kernel/notepad.o kernel/ui.o \
+            kernel/cupidscript_lex.o kernel/cupidscript_parse.o \
+            kernel/cupidscript_exec.o kernel/cupidscript_runtime.o \
+            kernel/cupidscript_streams.o kernel/cupidscript_strings.o \
+            kernel/cupidscript_arrays.o kernel/cupidscript_jobs.o \
+            kernel/terminal_ansi.o \
+            kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o
 
 all: $(OS_IMAGE)
 
@@ -137,6 +144,73 @@ kernel/desktop.o: kernel/desktop.c kernel/desktop.h
 # Terminal application
 kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h
 	$(CC) $(CFLAGS) kernel/terminal_app.c -o kernel/terminal_app.o
+
+# Process management and scheduler
+kernel/process.o: kernel/process.c kernel/process.h
+	$(CC) $(CFLAGS) kernel/process.c -o kernel/process.o
+
+# Context switch (assembly)
+kernel/context_switch.o: kernel/context_switch.asm
+	$(ASM) -f elf32 kernel/context_switch.asm -o kernel/context_switch.o
+
+# Clipboard
+kernel/clipboard.o: kernel/clipboard.c kernel/clipboard.h
+	$(CC) $(CFLAGS) kernel/clipboard.c -o kernel/clipboard.o
+
+# Notepad application
+kernel/notepad.o: kernel/notepad.c kernel/notepad.h
+	$(CC) $(CFLAGS) kernel/notepad.c -o kernel/notepad.o
+
+# UI widget toolkit
+kernel/ui.o: kernel/ui.c kernel/ui.h
+	$(CC) $(CFLAGS) kernel/ui.c -o kernel/ui.o
+
+kernel/cupidscript_lex.o: kernel/cupidscript_lex.c kernel/cupidscript.h
+	$(CC) $(CFLAGS) kernel/cupidscript_lex.c -o kernel/cupidscript_lex.o
+
+kernel/cupidscript_parse.o: kernel/cupidscript_parse.c kernel/cupidscript.h
+	$(CC) $(CFLAGS) kernel/cupidscript_parse.c -o kernel/cupidscript_parse.o
+
+kernel/cupidscript_exec.o: kernel/cupidscript_exec.c kernel/cupidscript.h kernel/shell.h
+	$(CC) $(CFLAGS) kernel/cupidscript_exec.c -o kernel/cupidscript_exec.o
+
+kernel/cupidscript_runtime.o: kernel/cupidscript_runtime.c kernel/cupidscript.h
+	$(CC) $(CFLAGS) kernel/cupidscript_runtime.c -o kernel/cupidscript_runtime.o
+
+kernel/cupidscript_streams.o: kernel/cupidscript_streams.c kernel/cupidscript_streams.h kernel/cupidscript.h
+	$(CC) $(CFLAGS) kernel/cupidscript_streams.c -o kernel/cupidscript_streams.o
+
+kernel/cupidscript_strings.o: kernel/cupidscript_strings.c kernel/cupidscript.h
+	$(CC) $(CFLAGS) kernel/cupidscript_strings.c -o kernel/cupidscript_strings.o
+
+kernel/cupidscript_arrays.o: kernel/cupidscript_arrays.c kernel/cupidscript_arrays.h
+	$(CC) $(CFLAGS) kernel/cupidscript_arrays.c -o kernel/cupidscript_arrays.o
+
+kernel/cupidscript_jobs.o: kernel/cupidscript_jobs.c kernel/cupidscript_jobs.h kernel/process.h
+	$(CC) $(CFLAGS) kernel/cupidscript_jobs.c -o kernel/cupidscript_jobs.o
+
+kernel/terminal_ansi.o: kernel/terminal_ansi.c kernel/terminal_ansi.h
+	$(CC) $(CFLAGS) kernel/terminal_ansi.c -o kernel/terminal_ansi.o
+
+# VFS core
+kernel/vfs.o: kernel/vfs.c kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/vfs.c -o kernel/vfs.o
+
+# RamFS
+kernel/ramfs.o: kernel/ramfs.c kernel/ramfs.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/ramfs.c -o kernel/ramfs.o
+
+# DevFS
+kernel/devfs.o: kernel/devfs.c kernel/devfs.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/devfs.c -o kernel/devfs.o
+
+# FAT16 VFS wrapper
+kernel/fat16_vfs.o: kernel/fat16_vfs.c kernel/fat16_vfs.h kernel/vfs.h kernel/fat16.h
+	$(CC) $(CFLAGS) kernel/fat16_vfs.c -o kernel/fat16_vfs.o
+
+# Program loader
+kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h
+	$(CC) $(CFLAGS) kernel/exec.c -o kernel/exec.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
