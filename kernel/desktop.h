@@ -2,6 +2,7 @@
 #define DESKTOP_H
 
 #include "types.h"
+#include "calendar.h"
 
 /* Maximum desktop icons */
 #define MAX_DESKTOP_ICONS 16
@@ -9,6 +10,10 @@
 /* Taskbar dimensions */
 #define TASKBAR_HEIGHT    20
 #define TASKBAR_Y         (200 - TASKBAR_HEIGHT)
+
+/* Calendar popup dimensions */
+#define CALENDAR_WIDTH    220
+#define CALENDAR_HEIGHT   170
 
 /* Desktop icon */
 typedef struct {
@@ -39,5 +44,10 @@ void desktop_draw_icons(void);
 
 /* Taskbar hit-test: returns window ID or -1 */
 int  desktop_hit_test_taskbar(int16_t mx, int16_t my);
+
+/* Calendar popup */
+void desktop_toggle_calendar(void);
+void desktop_close_calendar(void);
+bool desktop_calendar_visible(void);
 
 #endif

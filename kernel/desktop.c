@@ -14,6 +14,8 @@
 #include "../drivers/mouse.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/serial.h"
+#include "../drivers/rtc.h"
+#include "calendar.h"
 #include "terminal_app.h"
 #include "notepad.h"
 
@@ -21,11 +23,25 @@
 static desktop_icon_t icons[MAX_DESKTOP_ICONS];
 static int icon_count = 0;
 
+/* ── Clock & Calendar state ───────────────────────────────────────── */
+static char clock_time_str[16];
+static char clock_date_str[16];
+static uint8_t clock_last_minute = 255; /* Force initial update */
+static int16_t clock_hitbox_x = 0;
+static uint16_t clock_hitbox_width = 0;
+static calendar_state_t cal_state;
+
 /* ── Init ─────────────────────────────────────────────────────────── */
 
 void desktop_init(void) {
     icon_count = 0;
     memset(icons, 0, sizeof(icons));
+
+    /* Initialize calendar popup state */
+    memset(&cal_state, 0, sizeof(cal_state));
+    cal_state.visible = false;
+    clock_last_minute = 255; /* Force initial clock update */
+
     KINFO("Desktop initialized");
 }
 
@@ -112,6 +128,52 @@ void desktop_draw_taskbar(void) {
                           w->title, COLOR_TEXT_LIGHT);
             btn_x = (int16_t)(btn_x + (int16_t)btn_w + 2);
         }
+    }
+
+    /* ── Clock display (right-aligned) ────────────────────────── */
+    {
+        rtc_time_t time;
+        rtc_date_t date;
+        rtc_read_time(&time);
+        rtc_read_date(&date);
+
+        /* Only rebuild strings if minute changed */
+        if (time.minute != clock_last_minute) {
+            if (rtc_validate_time(&time)) {
+                format_time_12hr(&time, clock_time_str,
+                                 (int)sizeof(clock_time_str));
+            } else {
+                clock_time_str[0] = '-'; clock_time_str[1] = '-';
+                clock_time_str[2] = ':'; clock_time_str[3] = '-';
+                clock_time_str[4] = '-'; clock_time_str[5] = '\0';
+            }
+            if (rtc_validate_date(&date)) {
+                format_date_short(&date, clock_date_str,
+                                  (int)sizeof(clock_date_str));
+            } else {
+                clock_date_str[0] = '\0';
+            }
+            clock_last_minute = time.minute;
+        }
+
+        /* Calculate right-aligned position */
+        uint16_t time_w = gfx_text_width(clock_time_str);
+        uint16_t date_w = gfx_text_width(clock_date_str);
+        uint16_t spacing = 8;
+        uint16_t total_w = (uint16_t)(time_w + spacing + date_w);
+        int16_t cx = (int16_t)(VGA_GFX_WIDTH - (int16_t)total_w - 4);
+
+        gfx_draw_text(cx, (int16_t)(TASKBAR_Y + 6),
+                      clock_time_str, COLOR_TEXT_LIGHT);
+        if (clock_date_str[0]) {
+            gfx_draw_text((int16_t)(cx + (int16_t)time_w + (int16_t)spacing),
+                          (int16_t)(TASKBAR_Y + 6),
+                          clock_date_str, COLOR_TEXT_LIGHT);
+        }
+
+        /* Store hitbox for click detection */
+        clock_hitbox_x = cx;
+        clock_hitbox_width = total_w;
     }
 }
 
@@ -201,6 +263,213 @@ static int hit_test_icon(int16_t mx, int16_t my) {
     return -1;
 }
 
+/* ── Calendar popup ────────────────────────────────────────────────── */
+
+void desktop_toggle_calendar(void) {
+    if (cal_state.visible) {
+        cal_state.visible = false;
+    } else {
+        /* Initialize view to current date */
+        rtc_date_t date;
+        rtc_read_date(&date);
+        cal_state.view_month  = (int)date.month;
+        cal_state.view_year   = (int)date.year;
+        cal_state.today_day   = (int)date.day;
+        cal_state.today_month = (int)date.month;
+        cal_state.today_year  = (int)date.year;
+        cal_state.visible = true;
+    }
+}
+
+void desktop_close_calendar(void) {
+    cal_state.visible = false;
+}
+
+bool desktop_calendar_visible(void) {
+    return cal_state.visible;
+}
+
+/**
+ * desktop_draw_calendar - Draw the calendar popup centered on screen
+ *
+ * Layout:
+ *   ┌─────────────────────────────────────┐
+ *   │  <  February 2026  >    2:35:47 PM  │
+ *   ├─────────────────────────────────────┤
+ *   │  Su Mo Tu We Th Fr Sa               │
+ *   │                     1               │
+ *   │   2  3  4  5 [6] 7  8               │
+ *   │   ...                               │
+ *   └─────────────────────────────────────┘
+ */
+static void desktop_draw_calendar(void) {
+    if (!cal_state.visible) return;
+
+    int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
+    int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
+
+    /* Background */
+    gfx_fill_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_WINDOW_BG);
+    gfx_draw_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_BORDER);
+
+    /* ── Header: ◄ Month Year ► + time ─────────────────────── */
+    int16_t hdr_y = (int16_t)(cy + 4);
+
+    /* Left arrow  "<" */
+    gfx_draw_text((int16_t)(cx + 6), hdr_y, "<", COLOR_TEXT);
+
+    /* Month/Year centered in header */
+    {
+        char hdr_buf[32];
+        int pos = 0;
+        const char *mname = get_month_full((uint8_t)cal_state.view_month);
+        while (mname[pos] && pos < 20) {
+            hdr_buf[pos] = mname[pos];
+            pos++;
+        }
+        hdr_buf[pos++] = ' ';
+        /* Year */
+        {
+            char ybuf[8];
+            int yi = 0;
+            int yr = cal_state.view_year;
+            char tmp[8];
+            int tl = 0;
+            if (yr == 0) { tmp[tl++] = '0'; }
+            else { while (yr > 0) { tmp[tl++] = (char)('0' + (yr % 10)); yr /= 10; } }
+            while (tl > 0 && yi < 7) ybuf[yi++] = tmp[--tl];
+            ybuf[yi] = '\0';
+            int j = 0;
+            while (ybuf[j] && pos < 30) hdr_buf[pos++] = ybuf[j++];
+        }
+        hdr_buf[pos] = '\0';
+
+        uint16_t tw = gfx_text_width(hdr_buf);
+        int16_t tx = (int16_t)(cx + (CALENDAR_WIDTH - (int16_t)tw) / 2);
+        gfx_draw_text(tx, hdr_y, hdr_buf, COLOR_TEXT);
+    }
+
+    /* Right arrow ">" */
+    gfx_draw_text((int16_t)(cx + CALENDAR_WIDTH - 14), hdr_y, ">", COLOR_TEXT);
+
+    /* Time with seconds (right side of header) */
+    {
+        rtc_time_t t;
+        rtc_read_time(&t);
+        char tbuf[16];
+        format_time_12hr_sec(&t, tbuf, (int)sizeof(tbuf));
+        uint16_t ttw = gfx_text_width(tbuf);
+        gfx_draw_text((int16_t)(cx + CALENDAR_WIDTH - (int16_t)ttw - 4),
+                      (int16_t)(hdr_y + 12), tbuf, COLOR_TEXT);
+    }
+
+    /* Separator line */
+    int16_t sep_y = (int16_t)(cy + 26);
+    gfx_draw_hline(cx, sep_y, CALENDAR_WIDTH, COLOR_BORDER);
+
+    /* Full date line */
+    {
+        rtc_date_t d;
+        rtc_read_date(&d);
+        char full_date[48];
+        format_date_full(&d, full_date, (int)sizeof(full_date));
+        uint16_t fdw = gfx_text_width(full_date);
+        int16_t fdx = (int16_t)(cx + (CALENDAR_WIDTH - (int16_t)fdw) / 2);
+        gfx_draw_text(fdx, (int16_t)(sep_y + 3), full_date, COLOR_TEXT);
+    }
+
+    /* ── Day headers: Su Mo Tu We Th Fr Sa ─────────────────── */
+    int16_t grid_x = (int16_t)(cx + 10);
+    int16_t grid_y = (int16_t)(sep_y + 16);
+    {
+        static const char *day_hdrs[] = {
+            "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"
+        };
+        for (int i = 0; i < 7; i++) {
+            int16_t dx = (int16_t)(grid_x + i * 28);
+            gfx_draw_text(dx, grid_y, day_hdrs[i], COLOR_TEXT);
+        }
+    }
+
+    /* ── Day grid ──────────────────────────────────────────── */
+    int first_dow = get_first_weekday(cal_state.view_month, cal_state.view_year);
+    int days = get_days_in_month(cal_state.view_month, cal_state.view_year);
+    bool is_current = (cal_state.view_month == cal_state.today_month &&
+                       cal_state.view_year == cal_state.today_year);
+
+    int16_t row_y = (int16_t)(grid_y + 12);
+    int col = first_dow;
+
+    for (int d = 1; d <= days; d++) {
+        int16_t dx = (int16_t)(grid_x + col * 28);
+
+        /* Highlight current day */
+        if (is_current && d == cal_state.today_day) {
+            gfx_fill_rect((int16_t)(dx - 1), (int16_t)(row_y - 1),
+                          20, 10, COLOR_TITLEBAR);
+            /* Day number text in contrasting color */
+            char dbuf[4];
+            int dl = 0;
+            if (d >= 10) dbuf[dl++] = (char)('0' + (d / 10));
+            dbuf[dl++] = (char)('0' + (d % 10));
+            dbuf[dl] = '\0';
+            gfx_draw_text(dx, row_y, dbuf, COLOR_TEXT_LIGHT);
+        } else {
+            char dbuf[4];
+            int dl = 0;
+            if (d >= 10) dbuf[dl++] = (char)('0' + (d / 10));
+            dbuf[dl++] = (char)('0' + (d % 10));
+            dbuf[dl] = '\0';
+            gfx_draw_text(dx, row_y, dbuf, COLOR_TEXT);
+        }
+
+        col++;
+        if (col >= 7) {
+            col = 0;
+            row_y = (int16_t)(row_y + 12);
+        }
+    }
+}
+
+/**
+ * calendar_handle_click - Handle a click inside the calendar popup
+ *
+ * @param mx, my: Absolute screen coordinates of the click
+ * @return: true if click was consumed by the calendar
+ */
+static bool calendar_handle_click(int16_t mx, int16_t my) {
+    if (!cal_state.visible) return false;
+
+    int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
+    int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
+
+    /* Check if click is inside the calendar */
+    if (mx < cx || mx >= cx + CALENDAR_WIDTH ||
+        my < cy || my >= cy + CALENDAR_HEIGHT) {
+        /* Click outside — close calendar */
+        cal_state.visible = false;
+        return true; /* consumed: prevents click-through */
+    }
+
+    /* Check header area for navigation arrows */
+    int16_t hdr_y = (int16_t)(cy + 4);
+    if (my >= hdr_y && my < hdr_y + 12) {
+        /* Left arrow area */
+        if (mx >= cx + 2 && mx < cx + 20) {
+            calendar_prev_month(&cal_state);
+            return true;
+        }
+        /* Right arrow area */
+        if (mx >= cx + CALENDAR_WIDTH - 20 && mx < cx + CALENDAR_WIDTH - 2) {
+            calendar_next_month(&cal_state);
+            return true;
+        }
+    }
+
+    /* Clicked inside calendar but not on arrows — no action (view-only) */
+    return true;
+}
+
 /* ── Main event loop ──────────────────────────────────────────────── */
 
 void desktop_redraw_cycle(void) {
@@ -240,6 +509,7 @@ void desktop_redraw_cycle(void) {
         desktop_draw_icons();
         gui_draw_all_windows();
         desktop_draw_taskbar();
+        desktop_draw_calendar();
 
         mouse_save_under_cursor();
         mouse_draw_cursor();
@@ -280,11 +550,25 @@ void desktop_run(void) {
 
             /* Check taskbar clicks first */
             if (pressed && mouse.y >= TASKBAR_Y) {
-                int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
-                if (tb_id >= 0) {
-                    gui_set_focus(tb_id);
+                /* Check clock hitbox */
+                if (mouse.x >= clock_hitbox_x &&
+                    mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
+                    desktop_toggle_calendar();
                 } else {
-                    /* Possibly clicked on empty taskbar area - ignore */
+                    int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
+                    if (tb_id >= 0) {
+                        gui_set_focus(tb_id);
+                    }
+                }
+                /* Close calendar if clicking elsewhere on taskbar */
+                if (mouse.x < clock_hitbox_x && cal_state.visible) {
+                    cal_state.visible = false;
+                }
+            }
+            /* Check calendar popup clicks */
+            else if (pressed && cal_state.visible) {
+                if (!calendar_handle_click(mouse.x, mouse.y)) {
+                    /* Click was outside — calendar_handle_click closed it */
                 }
             }
             /* Check icon clicks */
@@ -310,6 +594,13 @@ void desktop_run(void) {
         {
             key_event_t event;
             while (keyboard_read_event(&event)) {
+                /* Escape closes calendar popup */
+                if (event.scancode == 0x01 && event.pressed &&
+                    cal_state.visible) {
+                    cal_state.visible = false;
+                    needs_redraw = true;
+                    continue;
+                }
                 /* Route key to focused window */
                 int np_wid = notepad_get_wid();
                 window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
@@ -332,6 +623,7 @@ void desktop_run(void) {
             desktop_draw_icons();
             gui_draw_all_windows();
             desktop_draw_taskbar();
+            desktop_draw_calendar();
 
             /* Draw mouse cursor on top */
             mouse_save_under_cursor();

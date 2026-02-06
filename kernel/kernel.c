@@ -46,6 +46,7 @@
 #include "fat16_vfs.h"
 #include "exec.h"
 #include "../drivers/pit.h"
+#include "../drivers/rtc.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -530,6 +531,9 @@ void kmain(void) {
 
     // Initialize filesystem
     fs_init();
+
+    // Initialize RTC (Real-Time Clock)
+    rtc_init();
 
     // Initialize ATA disk driver
     ata_init();

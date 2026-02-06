@@ -24,7 +24,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/cupidscript_streams.o kernel/cupidscript_strings.o \
             kernel/cupidscript_arrays.o kernel/cupidscript_jobs.o \
             kernel/terminal_ansi.o \
-            kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o
+            kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
+            drivers/rtc.o kernel/calendar.o
 
 all: $(OS_IMAGE)
 
@@ -105,6 +106,10 @@ kernel/blockcache.o: kernel/blockcache.c kernel/blockcache.h
 kernel/fat16.o: kernel/fat16.c kernel/fat16.h
 	$(CC) $(CFLAGS) kernel/fat16.c -o kernel/fat16.o
 
+# RTC (Real-Time Clock) driver
+drivers/rtc.o: drivers/rtc.c drivers/rtc.h
+	$(CC) $(CFLAGS) drivers/rtc.c -o drivers/rtc.o
+
 # Serial port driver
 drivers/serial.o: drivers/serial.c drivers/serial.h
 	$(CC) $(CFLAGS) drivers/serial.c -o drivers/serial.o
@@ -136,6 +141,10 @@ kernel/graphics.o: kernel/graphics.c kernel/graphics.h
 # GUI / window manager
 kernel/gui.o: kernel/gui.c kernel/gui.h
 	$(CC) $(CFLAGS) kernel/gui.c -o kernel/gui.o
+
+# Calendar math and formatting
+kernel/calendar.o: kernel/calendar.c kernel/calendar.h
+	$(CC) $(CFLAGS) kernel/calendar.c -o kernel/calendar.o
 
 # Desktop shell
 kernel/desktop.o: kernel/desktop.c kernel/desktop.h
@@ -223,13 +232,13 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
 run-disk: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
 run-log: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)
