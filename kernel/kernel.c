@@ -24,8 +24,28 @@
 #include "../drivers/speaker.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
+#include "../drivers/ata.h"
+#include "../drivers/serial.h"
+#include "../drivers/vga.h"
+#include "../drivers/mouse.h"
+#include "blockdev.h"
+#include "blockcache.h"
+#include "fat16.h"
 #include "fs.h"
 #include "memory.h"
+#include "graphics.h"
+#include "gui.h"
+#include "desktop.h"
+#include "terminal_app.h"
+#include "notepad.h"
+#include "clipboard.h"
+#include "process.h"
+#include "vfs.h"
+#include "ramfs.h"
+#include "devfs.h"
+#include "fat16_vfs.h"
+#include "exec.h"
+#include "../drivers/pit.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -56,6 +76,9 @@ int cursor_y = 0;
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
 
+/* Deferred reschedule flag — set inside IRQ, checked at safe points */
+static volatile bool need_reschedule = false;
+
 extern uint32_t _kernel_end;
 
 
@@ -68,8 +91,16 @@ extern uint32_t _kernel_end;
  * @param channel: The timer channel (0 in this case)
  */
 void timer_callback_channel0(struct registers* r, uint32_t channel) {
+    (void)r; /* Unused parameter */
     if (channel == 0) {
         ticks_channel0++;
+
+        /* Mark that a reschedule is needed — the actual context switch
+         * happens at a safe voluntary point (desktop_run loop / yield),
+         * NOT inside the IRQ handler where stack manipulation is unsafe. */
+        if (process_is_active()) {
+            need_reschedule = true;
+        }
     }
 }
 /**
@@ -81,6 +112,7 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
  * @param channel: The timer channel (1 in this case)
  */
 void timer_callback_channel1(struct registers* r, uint32_t channel) {
+    (void)r; /* Unused parameter */
     if (channel == 1) {
         ticks_channel1++;
     }
@@ -96,6 +128,23 @@ void timer_callback_channel1(struct registers* r, uint32_t channel) {
  * @param channel: The timer channel to get ticks for (0 or 1)
  * @return: The current tick count for the specified channel
  */
+/**
+ * kernel_check_reschedule - Check and perform deferred context switch
+ *
+ * Called from safe voluntary points (desktop event loop, process_yield)
+ * where ESP/EBP manipulation won't corrupt an IRQ stack frame.
+ */
+void kernel_check_reschedule(void) {
+    if (need_reschedule && process_is_active()) {
+        need_reschedule = false;
+        schedule();
+    }
+}
+
+void kernel_clear_reschedule(void) {
+    need_reschedule = false;
+}
+
 uint32_t timer_get_ticks_channel(uint32_t channel) {
     if (channel == 0) {
         return ticks_channel0;
@@ -190,6 +239,12 @@ void clear_screen() {
  * - Updates hardware cursor position via VGA registers
  */
 void putchar(char c) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_putchar_ext(c);
+        return;
+    }
+
     volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
     
     if(c == '\n') {
@@ -208,7 +263,7 @@ void putchar(char c) {
         vidmem[offset + 1] = 0x07;
     } else {
         int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = c;
+        vidmem[offset] = (unsigned char)c;
         vidmem[offset + 1] = 0x07;  // Light grey on black
         cursor_x++;
     }
@@ -237,9 +292,9 @@ void putchar(char c) {
     // Update hardware cursor
     int pos = cursor_y * VGA_WIDTH + cursor_x;
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-    outb(VGA_DATA_REGISTER, (pos >> 8) & 0xFF);
+    outb(VGA_DATA_REGISTER, (uint8_t)((pos >> 8) & 0xFF));
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-    outb(VGA_DATA_REGISTER, pos & 0xFF);
+    outb(VGA_DATA_REGISTER, (uint8_t)(pos & 0xFF));
 }
 
 /**
@@ -258,6 +313,11 @@ void putchar(char c) {
  * - Prints digits in reverse order to maintain correct number representation
  */
 void print_int(uint32_t num) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_print_int_ext(num);
+        return;
+    }
     char buffer[10];
     int i = 0;
     if (num == 0) {
@@ -265,7 +325,7 @@ void print_int(uint32_t num) {
         return;
     }
     while (num > 0) {
-        buffer[i++] = (num % 10) + '0';
+        buffer[i++] = (char)((num % 10) + (uint32_t)'0');
         num /= 10;
     }
     while (i > 0) {
@@ -283,6 +343,11 @@ void print_int(uint32_t num) {
  * @str: Pointer to the null-terminated string to print
  */
 void print(const char* str) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_print_ext(str);
+        return;
+    }
     for(int i = 0; str[i] != '\0'; i++) {
         putchar(str[i]);
     }
@@ -363,10 +428,10 @@ void calibrate_timer(void) {
     if(actual_ms > 50) actual_ms = 50;  // Clamp to 50ms max
     
     // Set initial count to maximum safe value
-    uint16_t initial_count = (PIT_FREQUENCY * actual_ms) / 1000;
+    uint16_t initial_count = (uint16_t)((PIT_FREQUENCY * actual_ms) / 1000);
     if (initial_count == 0) initial_count = 1; // Ensure non-zero reload
-    outb(0x40, initial_count & 0xFF);
-    outb(0x40, (initial_count >> 8) & 0xFF);
+    outb(0x40, (uint8_t)(initial_count & 0xFF));
+    outb(0x40, (uint8_t)((initial_count >> 8) & 0xFF));
     
     // Get starting TSC value
     uint64_t start_tsc = rdtsc();
@@ -446,38 +511,139 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
-    init_vga();
-    clear_screen();
-    print("Testing output...\n");
+    // Initialize serial port first for debug output
+    serial_init();
+    KINFO("cupid-os booting...");
 
+    // Initialize memory management
     pmm_init((uint32_t)&_kernel_end);
     heap_init(HEAP_INITIAL_PAGES);
     paging_init();
-    
+    KINFO("Memory management initialized");
+
+    // Initialize interrupts and drivers
     idt_init();
     pic_init();
     keyboard_init();
     calibrate_timer();
+    KINFO("Interrupts and timers initialized");
+
+    // Initialize filesystem
     fs_init();
 
-    debug_print_int("System Timer Frequency: ", timer_get_frequency());
-    debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+    // Initialize ATA disk driver
+    ata_init();
 
-    // Print memory information
-    print("Memory Information:\n");
-    debug_print_int("Total Memory: ", TOTAL_MEMORY_BYTES / 1024 / 1024);
-    print(" MB\n");
-    debug_print_int("Total Pages: ", pmm_total_pages());
-    debug_print_int("Free Pages: ", pmm_free_pages());
-    debug_print_int("Used Pages: ", pmm_total_pages() - pmm_free_pages());
-    print("\n");
+    // Initialize block device layer and register ATA drives
+    blkdev_init();
+    ata_register_devices();
 
+    // Initialize block cache for first drive
+    block_device_t* hdd = blkdev_get(0);
+    if (hdd) {
+        if (blockcache_init(hdd) != 0) {
+            KERROR("Block cache initialization failed");
+        } else {
+            // Set up periodic flush every 5 seconds using timer channel 1
+            timer_configure_channel(1, 100, blockcache_periodic_flush);
+            KINFO("Block cache: periodic flush enabled (5s interval)");
+        }
+
+        // Initialize FAT16 filesystem
+        if (fat16_init() == 0) {
+            KINFO("FAT16 mounted at /disk");
+        }
+    }
+
+    /* ── VFS initialization ──────────────────────────────────── */
+    vfs_init();
+    vfs_register_fs(ramfs_get_ops());
+    vfs_register_fs(devfs_get_ops());
+    vfs_register_fs(fat16_vfs_get_ops());
+
+    /* Mount root filesystem (ramfs) */
+    if (vfs_mount(NULL, "/", "ramfs") == VFS_OK) {
+        KINFO("VFS: mounted ramfs on /");
+    }
+
+    /* Create standard directories */
+    vfs_mkdir("/bin");
+    vfs_mkdir("/tmp");
+    vfs_mkdir("/home");
+
+    /* Mount devfs at /dev */
+    devfs_register_builtins();
+    if (vfs_mount(NULL, "/dev", "devfs") == VFS_OK) {
+        KINFO("VFS: mounted devfs on /dev");
+    }
+
+    /* Mount FAT16 at /home (user files on disk) */
+    if (hdd) {
+        if (vfs_mount(NULL, "/home", "fat16") == VFS_OK) {
+            KINFO("VFS: mounted fat16 on /home");
+        }
+    }
+
+    /* Pre-populate ramfs with in-memory files */
+    {
+        const vfs_mount_t *root_mnt = vfs_get_mount(0);
+        if (root_mnt && root_mnt->fs_private) {
+            uint32_t fcount = fs_get_file_count();
+            for (uint32_t fi = 0; fi < fcount; fi++) {
+                const fs_file_t *f = fs_get_file(fi);
+                if (f && f->name && f->data) {
+                    ramfs_add_file(root_mnt->fs_private,
+                                   f->name, f->data, f->size);
+                }
+            }
+        }
+    }
+    KINFO("VFS initialized");
+
+    KINFO("System Timer Frequency: %u Hz", timer_get_frequency());
+    KINFO("CPU Frequency: %u MHz", (uint32_t)(get_cpu_freq() / 1000000));
+    KINFO("Total Memory: %u MB", TOTAL_MEMORY_BYTES / 1024 / 1024);
+    KINFO("Total Pages: %u", pmm_total_pages());
+    KINFO("Free Pages: %u", pmm_free_pages());
+
+    // Initialize VGA graphics mode (Mode 13h already set by bootloader)
+    vga_set_mode_13h();      // Allocates back buffer and clears screen
+    vga_init_palette();      // Set up color palette
+    gfx_init();              // Initialize graphics primitives
+    KINFO("VGA graphics initialized (320x200, Mode 13h)");
+
+    // Initialize mouse driver
+    mouse_init();
+    KINFO("PS/2 mouse initialized");
+
+    // Initialize process subsystem (creates idle process PID 1)
+    process_init();
+
+    // Switch PIT to 100Hz for 10ms scheduler time slices
+    pit_set_scheduler_mode();
+
+    // Initialize clipboard subsystem
+    clipboard_init();
+
+    // Initialize GUI and desktop
+    gui_init();
+    desktop_init();
+    KINFO("GUI and desktop initialized");
+
+    // Add desktop icons
+    desktop_add_icon(10, 10, "Terminal", terminal_launch);
+    desktop_add_icon(10, 55, "Notepad", notepad_launch);
+
+    // Enable keyboard interrupt
     pic_clear_mask(1);
     __asm__ volatile("sti");
-    
-    shell_run();
-    
-    while(1) {
-        __asm__ volatile("hlt");
-    }
+
+    // Start the process scheduler
+    process_register_current("desktop");   // Register main thread as PID 2
+    process_start_scheduler();
+
+    KINFO("Entering desktop environment");
+
+    // Launch desktop (never returns)
+    desktop_run();
 }

@@ -89,6 +89,6 @@ void pic_clear_mask(uint8_t irq) {
         port = PIC2_DATA;
         irq -= 8;
     }
-    value = inb(port) & ~(1 << irq);
+    value = (uint8_t)(inb(port) & ~(1U << irq));
     outb(port, value);
 } 

@@ -34,7 +34,7 @@ char* itoa(int value, char* str) {
 
     while (value != 0) {
         int rem = value % 10;
-        str[i++] = rem + '0';
+        str[i++] = (char)(rem + '0');
         value /= 10;
     }
 
@@ -70,6 +70,23 @@ void print_hex(uint32_t n) {
 
     print("0x");
     print(hex);
+}
+
+// Prints an unsigned 16-bit value in hexadecimal format.
+void print_hex_word(uint16_t num) {
+    char hex_chars[] = "0123456789ABCDEF";
+    print("0x");
+    putchar(hex_chars[(num >> 12) & 0xF]);
+    putchar(hex_chars[(num >> 8) & 0xF]);
+    putchar(hex_chars[(num >> 4) & 0xF]);
+    putchar(hex_chars[num & 0xF]);
+}
+
+// Prints a single byte as two hex digits.
+void print_hex_byte(uint8_t num) {
+    char hex_chars[] = "0123456789ABCDEF";
+    putchar(hex_chars[(num >> 4) & 0xF]);
+    putchar(hex_chars[num & 0xF]);
 }
 
 /*

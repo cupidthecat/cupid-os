@@ -54,6 +54,9 @@
 #include "../kernel/ports.h"
 #include "../kernel/irq.h"
 #include "../kernel/kernel.h"
+#include "../kernel/shell.h"
+#include "../kernel/terminal_app.h"
+#include "../kernel/desktop.h"
 
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
@@ -134,7 +137,6 @@ typedef struct {
 } key_repeat_state_t;
 
 // Key repeat and system tick tracking
-static key_repeat_state_t repeat_state = {0};
 static uint32_t system_ticks = 0;  // Updated by timer interrupt
 
 // Track if we're handling an extended key sequence
@@ -144,6 +146,7 @@ static bool handling_extended = false;
 static bool caps_lock_active = false;
 static bool left_shift_active = false;
 static bool right_shift_active = false;
+static bool ctrl_active = false;
 
 // Add this function declaration
 static void process_keypress(uint8_t key);
@@ -159,12 +162,12 @@ static void enqueue_event(uint8_t scancode, char ascii) {
 
     keyboard_buffer_t *buffer = &keyboard_state.buffer;
     buffer->events[buffer->head] = event;
-    buffer->head = (buffer->head + 1) % KEYBOARD_BUFFER_SIZE;
-    if (buffer->count < KEYBOARD_BUFFER_SIZE) {
+    buffer->head = (uint8_t)((buffer->head + 1U) % KEYBOARD_BUFFER_SIZE);
+    if (buffer->count < 255U) {  /* Check against max value - 1 */
         buffer->count++;
     } else {
         // Overwrite oldest when full
-        buffer->tail = (buffer->tail + 1) % KEYBOARD_BUFFER_SIZE;
+        buffer->tail = (uint8_t)((buffer->tail + 1U) % KEYBOARD_BUFFER_SIZE);
     }
 }
 
@@ -201,8 +204,8 @@ void keyboard_update_ticks(void) {
 
 // Handle extended keys (e.g., arrow keys) after detecting `KEY_EXTENDED`
 static void handle_extended_key(uint8_t key) {
-    bool is_release = key & KEY_RELEASED;
-    key &= ~KEY_RELEASED;
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);
 
     if (is_release) {
         return;
@@ -224,8 +227,8 @@ static void handle_extended_key(uint8_t key) {
 
 // Process a normal key press, including function keys and modifiers
 static void process_keypress(uint8_t key) {
-    bool is_release = key & KEY_RELEASED;
-    key &= ~KEY_RELEASED;  // Remove release bit
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);  // Remove release bit
 
     // Ignore scancodes we don't have a translation for to avoid OOB access
     if (key >= sizeof(scancode_to_ascii)) {
@@ -243,11 +246,19 @@ static void process_keypress(uint8_t key) {
         case KEY_LSHIFT:
             left_shift_active = !is_release;
             keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
             return;
 
         case KEY_RSHIFT:
             right_shift_active = !is_release;
             keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+
+        case KEY_LCTRL:
+            ctrl_active = !is_release;
+            keyboard_state.modifier_states[MOD_CTRL] = ctrl_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
             return;
     }
 
@@ -291,6 +302,7 @@ static char get_ascii_from_scancode(uint8_t scancode) {
 static bool function_keys[12] = {false};
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
+    (void)r; /* Unused parameter */
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
 
     // Handle extended key sequences
@@ -319,9 +331,9 @@ bool keyboard_get_key_state(uint8_t scancode) {
 char keyboard_get_scancode(void) {
     if (keyboard_state.buffer.count > 0) {
         key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
-        keyboard_state.buffer.head = (keyboard_state.buffer.head + 1) % KEYBOARD_BUFFER_SIZE;
+        keyboard_state.buffer.head = (uint8_t)((keyboard_state.buffer.head + 1U) % KEYBOARD_BUFFER_SIZE);
         keyboard_state.buffer.count--;
-        return event.scancode;
+        return (char)event.scancode;
     }
     return 0;
 }
@@ -344,6 +356,11 @@ bool keyboard_get_shift(void) {
     return left_shift_active || right_shift_active;
 }
 
+// Get the current state of Ctrl
+bool keyboard_get_ctrl(void) {
+    return ctrl_active;
+}
+
 // Retrieve a single character from keyboard input
 char keyboard_get_char(void) {
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
@@ -359,7 +376,17 @@ char keyboard_get_char(void) {
 
 char getchar(void) {
     key_event_t event;
-    keyboard_read_event(&event);
+    /* Blocking: wait for a key event.
+     * In GUI mode, pump the display so the screen stays alive
+     * (needed when a blocking command like ed is running). */
+    while (!keyboard_read_event(&event)) {
+        if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+            /* Mark terminal dirty so any new output is painted */
+            terminal_mark_dirty();
+            desktop_redraw_cycle();
+        }
+        __asm__ volatile("hlt");
+    }
     return event.character;
 }
 
@@ -368,13 +395,12 @@ bool keyboard_read_event(key_event_t* event) {
         return false;
     }
 
-    while (1) {
-        if (keyboard_state.buffer.count > 0) {
-            *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
-            keyboard_state.buffer.tail = (keyboard_state.buffer.tail + 1) % KEYBOARD_BUFFER_SIZE;
-            keyboard_state.buffer.count--;
-            return true;
-        }
-        __asm__ volatile("hlt");
+    /* Non-blocking: return false if no events available */
+    if (keyboard_state.buffer.count > 0) {
+        *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+        keyboard_state.buffer.tail = (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.buffer.count--;
+        return true;
     }
+    return false;
 }

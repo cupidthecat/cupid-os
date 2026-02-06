@@ -23,8 +23,6 @@ void pc_speaker_on(uint32_t frequency) {
     if (frequency == 0) {
         return;  // Avoid divide-by-zero on PIT setup
     }
-    // Calculate PIT divisor for the desired frequency
-    uint32_t divisor = 1193180 / frequency;
     
     // Configure PIT channel 2 for square wave generation
     pit_set_frequency(2, frequency);
@@ -37,7 +35,7 @@ void pc_speaker_on(uint32_t frequency) {
 void pc_speaker_off(void) {
     // Disable PC speaker by clearing bits 0 and 1
     uint8_t tmp = inb(PC_SPEAKER_PORT);
-    outb(PC_SPEAKER_PORT, tmp & ~PC_SPEAKER_ENABLE_BITS);
+    outb(PC_SPEAKER_PORT, (uint8_t)(tmp & ~PC_SPEAKER_ENABLE_BITS));
 }
 
 // Simple beep function that plays a 1kHz tone for 100ms

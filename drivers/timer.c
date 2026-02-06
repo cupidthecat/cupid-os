@@ -43,6 +43,7 @@
 #include "../kernel/kernel.h"
 #include "../drivers/keyboard.h"
 #include "../kernel/math.h"
+#include "timer.h"
 
 // PIT hardware ports and constants
 #define PIT_CHANNEL0_DATA 0x40    // Channel 0 data port
@@ -64,9 +65,6 @@ static timer_state_t timer_state = {
     .is_calibrated = false
 };
 
-// Timer callback function type
-typedef void (*timer_callback_t)(struct registers*, uint32_t channel);
-
 // Channel configuration
 static struct {
     uint32_t frequency;
@@ -75,7 +73,7 @@ static struct {
 } timer_channels[3] = {0};
 
 // Timer interrupt handler - increments tick counter
-static void timer_irq_handler(struct registers* r) {
+void timer_irq_handler(struct registers* r) {
     tick_count++;
     
     // Update timer state
@@ -84,7 +82,7 @@ static void timer_irq_handler(struct registers* r) {
     // Call channel callbacks if configured
     for (int i = 0; i < 3; i++) {
         if (timer_channels[i].active && timer_channels[i].callback) {
-            timer_channels[i].callback(r, i);
+            timer_channels[i].callback(r, (uint32_t)i);
         }
     }
     
