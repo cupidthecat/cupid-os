@@ -40,6 +40,11 @@
 #include "notepad.h"
 #include "clipboard.h"
 #include "process.h"
+#include "vfs.h"
+#include "ramfs.h"
+#include "devfs.h"
+#include "fat16_vfs.h"
+#include "exec.h"
 #include "../drivers/pit.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
@@ -549,6 +554,51 @@ void kmain(void) {
             KINFO("FAT16 mounted at /disk");
         }
     }
+
+    /* ── VFS initialization ──────────────────────────────────── */
+    vfs_init();
+    vfs_register_fs(ramfs_get_ops());
+    vfs_register_fs(devfs_get_ops());
+    vfs_register_fs(fat16_vfs_get_ops());
+
+    /* Mount root filesystem (ramfs) */
+    if (vfs_mount(NULL, "/", "ramfs") == VFS_OK) {
+        KINFO("VFS: mounted ramfs on /");
+    }
+
+    /* Create standard directories */
+    vfs_mkdir("/bin");
+    vfs_mkdir("/tmp");
+    vfs_mkdir("/home");
+
+    /* Mount devfs at /dev */
+    devfs_register_builtins();
+    if (vfs_mount(NULL, "/dev", "devfs") == VFS_OK) {
+        KINFO("VFS: mounted devfs on /dev");
+    }
+
+    /* Mount FAT16 at /home (user files on disk) */
+    if (hdd) {
+        if (vfs_mount(NULL, "/home", "fat16") == VFS_OK) {
+            KINFO("VFS: mounted fat16 on /home");
+        }
+    }
+
+    /* Pre-populate ramfs with in-memory files */
+    {
+        const vfs_mount_t *root_mnt = vfs_get_mount(0);
+        if (root_mnt && root_mnt->fs_private) {
+            uint32_t fcount = fs_get_file_count();
+            for (uint32_t fi = 0; fi < fcount; fi++) {
+                const fs_file_t *f = fs_get_file(fi);
+                if (f && f->name && f->data) {
+                    ramfs_add_file(root_mnt->fs_private,
+                                   f->name, f->data, f->size);
+                }
+            }
+        }
+    }
+    KINFO("VFS initialized");
 
     KINFO("System Timer Frequency: %u Hz", timer_get_frequency());
     KINFO("CPU Frequency: %u MHz", (uint32_t)(get_cpu_freq() / 1000000));

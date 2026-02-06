@@ -16,6 +16,8 @@
 #include "ed.h"
 #include "process.h"
 #include "cupidscript.h"
+#include "vfs.h"
+#include "exec.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -28,6 +30,96 @@ static char gui_buffer[SHELL_ROWS * SHELL_COLS];
 static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
 static int gui_visible_cols = SHELL_COLS;  /* actual visible column width */
+
+/* ── Current working directory ──────────────────────────────────── */
+static char shell_cwd[VFS_MAX_PATH] = "/";
+
+/**
+ * Resolve a possibly-relative path against the CWD.
+ * Result written to `out` (must be VFS_MAX_PATH bytes).
+ *   - Absolute paths (starting with '/') are copied as-is.
+ *   - Relative paths are joined with CWD.
+ *   - ".." and "." components are resolved.
+ */
+static void shell_resolve_path(const char *input, char *out) {
+    char tmp[VFS_MAX_PATH];
+    int ti = 0;
+
+    if (!input || input[0] == '\0') {
+        /* No input => CWD */
+        int i = 0;
+        while (shell_cwd[i] && i < VFS_MAX_PATH - 1) {
+            out[i] = shell_cwd[i];
+            i++;
+        }
+        out[i] = '\0';
+        return;
+    }
+
+    if (input[0] == '/') {
+        /* Absolute path */
+        int i = 0;
+        while (input[i] && i < VFS_MAX_PATH - 1) {
+            tmp[i] = input[i];
+            i++;
+        }
+        tmp[i] = '\0';
+        ti = i;
+    } else {
+        /* Relative path: prepend CWD */
+        int i = 0;
+        while (shell_cwd[i] && ti < VFS_MAX_PATH - 1) {
+            tmp[ti++] = shell_cwd[i++];
+        }
+        if (ti > 0 && tmp[ti - 1] != '/' && ti < VFS_MAX_PATH - 1) {
+            tmp[ti++] = '/';
+        }
+        i = 0;
+        while (input[i] && ti < VFS_MAX_PATH - 1) {
+            tmp[ti++] = input[i++];
+        }
+        tmp[ti] = '\0';
+    }
+
+    /* Now normalize: split on '/' and resolve . and .. */
+    /* Use `out` as a stack of path components */
+    int oi = 0;
+    out[oi++] = '/';  /* Always starts with / */
+
+    const char *p = tmp;
+    while (*p) {
+        while (*p == '/') p++;  /* skip slashes */
+        if (*p == '\0') break;
+
+        /* Find end of component */
+        const char *end = p;
+        while (*end && *end != '/') end++;
+        int len = (int)(end - p);
+
+        if (len == 1 && p[0] == '.') {
+            /* "." => skip */
+        } else if (len == 2 && p[0] == '.' && p[1] == '.') {
+            /* ".." => go up one level */
+            if (oi > 1) {
+                oi--;  /* remove trailing slash or char */
+                while (oi > 1 && out[oi - 1] != '/') oi--;
+            }
+        } else {
+            /* Normal component */
+            if (oi > 1 && out[oi - 1] != '/') {
+                out[oi++] = '/';
+            }
+            for (int j = 0; j < len && oi < VFS_MAX_PATH - 1; j++) {
+                out[oi++] = p[j];
+            }
+        }
+        p = end;
+    }
+
+    /* Remove trailing slash (unless root) */
+    if (oi > 1 && out[oi - 1] == '/') oi--;
+    out[oi] = '\0';
+}
 
 /* Forward declarations */
 static void execute_command(const char *input);
@@ -42,7 +134,19 @@ void shell_set_output_mode(shell_output_mode_t mode) {
         gui_cursor_x = 0;
         gui_cursor_y = 0;
         /* Print initial prompt into GUI buffer */
-        const char *prompt = "cupid-os shell\n> ";
+        const char *prompt = "cupid-os shell\n";
+        while (*prompt) {
+            shell_gui_putchar(*prompt);
+            prompt++;
+        }
+        {
+            const char *cp = shell_cwd;
+            while (*cp) {
+                shell_gui_putchar(*cp);
+                cp++;
+            }
+        }
+        prompt = "> ";
         while (*prompt) {
             shell_gui_putchar(*prompt);
             prompt++;
@@ -229,6 +333,16 @@ static void shell_kill_cmd(const char* args);
 static void shell_spawn(const char* args);
 static void shell_yield_cmd(const char* args);
 static void shell_cupid(const char* args);
+static void shell_cd(const char* args);
+static void shell_pwd(const char* args);
+static void shell_vls(const char* args);
+static void shell_vcat(const char* args);
+static void shell_vmount(const char* args);
+static void shell_vstat(const char* args);
+static void shell_vmkdir(const char* args);
+static void shell_vrm(const char* args);
+static void shell_vwrite(const char* args);
+static void shell_exec_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -238,8 +352,10 @@ static struct shell_command commands[] = {
     {"time", "Show system uptime", shell_time_cmd},
     {"reboot", "Reboot the machine", shell_reboot_cmd},
     {"history", "Show recent commands", shell_history_cmd},
-    {"ls", "List files in the in-memory filesystem", shell_ls},
-    {"cat", "Show a file from the in-memory filesystem", shell_cat},
+    {"cd", "Change directory", shell_cd},
+    {"pwd", "Print working directory", shell_pwd},
+    {"ls", "List files in current directory", shell_ls},
+    {"cat", "Show file contents", shell_cat},
     {"sync", "Flush disk cache to disk", shell_sync},
     {"cachestats", "Show cache statistics", shell_cachestats},
     {"lsdisk", "List files on disk", shell_lsdisk},
@@ -260,6 +376,14 @@ static struct shell_command commands[] = {
     {"kill", "Kill a process by PID", shell_kill_cmd},
     {"spawn", "Spawn test processes", shell_spawn},
     {"yield", "Yield CPU to next process", shell_yield_cmd},
+    {"vls", "List files/dirs (VFS path)", shell_vls},
+    {"vcat", "Show file contents (VFS path)", shell_vcat},
+    {"mount", "Show mounted filesystems", shell_vmount},
+    {"vstat", "Show file/dir info (VFS path)", shell_vstat},
+    {"vmkdir", "Create directory (VFS path)", shell_vmkdir},
+    {"vrm", "Delete file (VFS path)", shell_vrm},
+    {"vwrite", "Write text to file (VFS path)", shell_vwrite},
+    {"exec", "Run a CUPD binary", shell_exec_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -519,16 +643,41 @@ static void shell_history_cmd(const char* args) {
 }
 
 static void shell_ls(const char* args) {
-    (void)args;
-    uint32_t count = fs_get_file_count();
-    for (uint32_t i = 0; i < count; i++) {
-        const fs_file_t* file = fs_get_file(i);
-        if (file) {
-            shell_print(file->name);
-            shell_print("  ");
-            shell_print_int(file->size);
-            shell_print(" bytes\n");
+    char path[VFS_MAX_PATH];
+    shell_resolve_path(args, path);
+
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        shell_print("ls: cannot open ");
+        shell_print(path);
+        shell_print("\n");
+        return;
+    }
+
+    vfs_dirent_t ent;
+    int count = 0;
+    while (vfs_readdir(fd, &ent) > 0) {
+        if (ent.type == VFS_TYPE_DIR) {
+            shell_print("[DIR]  ");
+        } else if (ent.type == VFS_TYPE_DEV) {
+            shell_print("[DEV]  ");
+        } else {
+            shell_print("       ");
         }
+        shell_print(ent.name);
+        if (ent.type == VFS_TYPE_FILE) {
+            shell_print("  ");
+            shell_print_int(ent.size);
+            shell_print(" bytes");
+        }
+        shell_print("\n");
+        count++;
+    }
+
+    vfs_close(fd);
+
+    if (count == 0) {
+        shell_print("(empty directory)\n");
     }
 }
 
@@ -538,24 +687,32 @@ static void shell_cat(const char* args) {
         return;
     }
 
-    const fs_file_t* file = fs_find(args);
-    if (!file) {
-        shell_print("File not found: ");
+    char path[VFS_MAX_PATH];
+    shell_resolve_path(args, path);
+
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        shell_print("cat: file not found: ");
         shell_print(args);
         shell_print("\n");
         return;
     }
 
-    if (file->data && file->size > 0) {
-        for (uint32_t i = 0; i < file->size; i++) {
-            shell_putchar(file->data[i]);
+    char buf[256];
+    int r;
+    uint32_t total = 0;
+    while ((r = vfs_read(fd, buf, sizeof(buf))) > 0) {
+        for (int i = 0; i < r; i++) {
+            shell_putchar(buf[i]);
         }
-        if (file->data[file->size - 1] != '\n') {
-            shell_print("\n");
+        total += (uint32_t)r;
+        if (total > 65536u) {
+            shell_print("\n[cat: output truncated at 64KB]\n");
+            break;
         }
-    } else {
-        shell_print("(empty file)\n");
     }
+    shell_print("\n");
+    vfs_close(fd);
 }
 
 static void shell_sync(const char* args) {
@@ -945,6 +1102,260 @@ static void shell_cupid(const char* args) {
     cupidscript_run_file(filename, script_args);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  VFS Shell Commands
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static void shell_cd(const char* args) {
+    char path[VFS_MAX_PATH];
+    shell_resolve_path(args, path);
+
+    /* Verify the target is a directory */
+    vfs_stat_t st;
+    int r = vfs_stat(path, &st);
+    if (r < 0) {
+        shell_print("cd: no such directory: ");
+        shell_print(args ? args : "");
+        shell_print("\n");
+        return;
+    }
+    if (st.type != VFS_TYPE_DIR) {
+        shell_print("cd: not a directory: ");
+        shell_print(args ? args : "");
+        shell_print("\n");
+        return;
+    }
+
+    /* Update CWD */
+    int i = 0;
+    while (path[i] && i < VFS_MAX_PATH - 1) {
+        shell_cwd[i] = path[i];
+        i++;
+    }
+    shell_cwd[i] = '\0';
+}
+
+static void shell_pwd(const char* args) {
+    (void)args;
+    shell_print(shell_cwd);
+    shell_print("\n");
+}
+
+static void shell_vls(const char* args) {
+    char path[VFS_MAX_PATH];
+    shell_resolve_path(args, path);
+
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        shell_print("vls: cannot open ");
+        shell_print(path);
+        shell_print("\n");
+        return;
+    }
+
+    vfs_dirent_t ent;
+    int count = 0;
+    while (vfs_readdir(fd, &ent) > 0) {
+        if (ent.type == VFS_TYPE_DIR) {
+            shell_print("[DIR]  ");
+        } else if (ent.type == VFS_TYPE_DEV) {
+            shell_print("[DEV]  ");
+        } else {
+            shell_print("       ");
+        }
+        shell_print(ent.name);
+        if (ent.type == VFS_TYPE_FILE) {
+            shell_print("  ");
+            shell_print_int(ent.size);
+            shell_print(" bytes");
+        }
+        shell_print("\n");
+        count++;
+    }
+
+    vfs_close(fd);
+
+    if (count == 0) {
+        shell_print("(empty directory)\n");
+    }
+}
+
+static void shell_vcat(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: vcat <path>\n");
+        return;
+    }
+
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    int fd = vfs_open(rpath, O_RDONLY);
+    if (fd < 0) {
+        shell_print("vcat: cannot open ");
+        shell_print(args);
+        shell_print("\n");
+        return;
+    }
+
+    char buf[256];
+    int r;
+    uint32_t total = 0;
+    while ((r = vfs_read(fd, buf, sizeof(buf))) > 0) {
+        for (int i = 0; i < r; i++) {
+            shell_putchar(buf[i]);
+        }
+        total += (uint32_t)r;
+        if (total > 65536u) {
+            shell_print("\n[vcat: output truncated at 64KB]\n");
+            break;
+        }
+    }
+    shell_print("\n");
+    vfs_close(fd);
+}
+
+static void shell_vmount(const char* args) {
+    (void)args;
+    int count = vfs_mount_count();
+    if (count == 0) {
+        shell_print("No filesystems mounted.\n");
+        return;
+    }
+    for (int i = 0; i < count; i++) {
+        const vfs_mount_t *m = vfs_get_mount(i);
+        if (m && m->mounted) {
+            shell_print(m->ops->name);
+            shell_print(" on ");
+            shell_print(m->path);
+            shell_print("\n");
+        }
+    }
+}
+
+static void shell_vstat(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: vstat <path>\n");
+        return;
+    }
+
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    vfs_stat_t st;
+    int r = vfs_stat(rpath, &st);
+    if (r < 0) {
+        shell_print("vstat: not found: ");
+        shell_print(args);
+        shell_print("\n");
+        return;
+    }
+
+    shell_print("Path: ");
+    shell_print(args);
+    shell_print("\nType: ");
+    if (st.type == VFS_TYPE_DIR) shell_print("directory");
+    else if (st.type == VFS_TYPE_DEV) shell_print("device");
+    else shell_print("file");
+    shell_print("\nSize: ");
+    shell_print_int(st.size);
+    shell_print(" bytes\n");
+}
+
+static void shell_vmkdir(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: vmkdir <path>\n");
+        return;
+    }
+
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    int r = vfs_mkdir(rpath);
+    if (r < 0) {
+        shell_print("vmkdir: failed to create ");
+        shell_print(args);
+        shell_print("\n");
+    }
+}
+
+static void shell_vrm(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: vrm <path>\n");
+        return;
+    }
+
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    int r = vfs_unlink(rpath);
+    if (r < 0) {
+        shell_print("vrm: failed to remove ");
+        shell_print(args);
+        shell_print("\n");
+    }
+}
+
+static void shell_vwrite(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: vwrite <path> <text>\n");
+        return;
+    }
+
+    /* Split path from content */
+    char rawpath[VFS_MAX_PATH];
+    int i = 0;
+    while (args[i] && args[i] != ' ' && i < VFS_MAX_PATH - 1) {
+        rawpath[i] = args[i];
+        i++;
+    }
+    rawpath[i] = '\0';
+
+    const char *text = "";
+    if (args[i] == ' ') {
+        text = &args[i + 1];
+    }
+
+    char path[VFS_MAX_PATH];
+    shell_resolve_path(rawpath, path);
+    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd < 0) {
+        shell_print("vwrite: cannot open ");
+        shell_print(path);
+        shell_print("\n");
+        return;
+    }
+
+    uint32_t len = (uint32_t)strlen(text);
+    int r = vfs_write(fd, text, len);
+    vfs_close(fd);
+
+    if (r < 0) {
+        shell_print("vwrite: write failed\n");
+    } else {
+        shell_print("Wrote ");
+        shell_print_int((uint32_t)r);
+        shell_print(" bytes to ");
+        shell_print(path);
+        shell_print("\n");
+    }
+}
+
+static void shell_exec_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: exec <path>\n");
+        return;
+    }
+
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    int r = exec(rpath, args);
+    if (r < 0) {
+        shell_print("exec: failed to load ");
+        shell_print(args);
+        shell_print("\n");
+    } else {
+        shell_print("Started process PID ");
+        shell_print_int((uint32_t)r);
+        shell_print("\n");
+    }
+}
+
 /* ── helper: check if string ends with suffix ── */
 static int shell_ends_with(const char *str, const char *suffix) {
     int slen = 0, xlen = 0;
@@ -1016,7 +1427,9 @@ void shell_run(void) {
     char input[MAX_INPUT_LEN + 1];
     int pos = 0;
     
-    shell_print("cupid-os shell\n> ");
+    shell_print("cupid-os shell\n");
+    shell_print(shell_cwd);
+    shell_print("> ");
     
     while (1) {
         key_event_t event;
@@ -1058,6 +1471,7 @@ void shell_run(void) {
             pos = 0;
             history_view = -1;
             memset(input, 0, sizeof(input)); // Clear buffer
+            shell_print(shell_cwd);
             shell_print("> ");
         }
         else if (c == '\b') {
@@ -1195,6 +1609,7 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
         gui_input_pos = 0;
         gui_history_view = -1;
         memset(gui_input, 0, sizeof(gui_input));
+        shell_gui_print(shell_cwd);
         shell_gui_print("> ");
     }
     else if (character == '\b') {

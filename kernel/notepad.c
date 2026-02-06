@@ -22,6 +22,7 @@
 #include "memory.h"
 #include "clipboard.h"
 #include "fat16.h"
+#include "vfs.h"
 #include "kernel.h"
 #include "process.h"
 #include "../drivers/vga.h"
@@ -278,6 +279,7 @@ static void notepad_menu_action(int menu, int item);
 static void notepad_open_dialog(bool save_mode);
 static void notepad_close_dialog(void);
 static void notepad_populate_dialog(void);
+static void notepad_dialog_navigate_dir(const char *dname);
 static void notepad_dialog_handle_key(uint8_t scancode, char character);
 static void notepad_dialog_handle_mouse(int16_t mx, int16_t my,
                                         uint8_t buttons, uint8_t prev_buttons,
@@ -834,9 +836,33 @@ static void notepad_do_new(void) {
     }
 }
 
+/* Current path for the file dialog */
+static char notepad_dialog_path[VFS_MAX_PATH] = "/home";
+
 static void notepad_open_file(const char *name) {
-    fat16_file_t *f = fat16_open(name);
-    if (!f) return;
+    /* Build full VFS path */
+    char vpath[VFS_MAX_PATH];
+    if (name[0] == '/') {
+        /* Already absolute */
+        int i = 0;
+        while (name[i] && i < VFS_MAX_PATH - 1) { vpath[i] = name[i]; i++; }
+        vpath[i] = '\0';
+    } else {
+        /* Relative to dialog path */
+        int i = 0, j = 0;
+        while (notepad_dialog_path[i] && j < VFS_MAX_PATH - 2) {
+            vpath[j++] = notepad_dialog_path[i++];
+        }
+        if (j > 0 && vpath[j - 1] != '/') vpath[j++] = '/';
+        i = 0;
+        while (name[i] && j < VFS_MAX_PATH - 1) {
+            vpath[j++] = name[i++];
+        }
+        vpath[j] = '\0';
+    }
+
+    int fd = vfs_open(vpath, O_RDONLY);
+    if (fd < 0) return;
 
     notepad_free_buffer();
     notepad_free_undo();
@@ -846,8 +872,8 @@ static void notepad_open_file(const char *name) {
     /* Read file contents */
     char read_buf[8192];
     memset(read_buf, 0, sizeof(read_buf));
-    int bytes = fat16_read(f, read_buf, sizeof(read_buf) - 1);
-    fat16_close(f);
+    int bytes = vfs_read(fd, read_buf, sizeof(read_buf) - 1);
+    vfs_close(fd);
 
     if (bytes <= 0) {
         notepad_init_buffer();
@@ -930,7 +956,33 @@ static void notepad_save_file(const char *name) {
     }
     write_buf[pos] = '\0';
 
-    fat16_write_file(name, write_buf, (uint32_t)pos);
+    /* Build full VFS path */
+    char vpath[VFS_MAX_PATH];
+    if (name[0] == '/') {
+        int k = 0;
+        while (name[k] && k < VFS_MAX_PATH - 1) { vpath[k] = name[k]; k++; }
+        vpath[k] = '\0';
+    } else {
+        int k = 0, j = 0;
+        while (notepad_dialog_path[k] && j < VFS_MAX_PATH - 2) {
+            vpath[j++] = notepad_dialog_path[k++];
+        }
+        if (j > 0 && vpath[j - 1] != '/') vpath[j++] = '/';
+        k = 0;
+        while (name[k] && j < VFS_MAX_PATH - 1) {
+            vpath[j++] = name[k++];
+        }
+        vpath[j] = '\0';
+    }
+
+    int fd = vfs_open(vpath, O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd >= 0) {
+        vfs_write(fd, write_buf, (uint32_t)pos);
+        vfs_close(fd);
+    } else {
+        /* Fallback: try writing directly via FAT16 */
+        fat16_write_file(name, write_buf, (uint32_t)pos);
+    }
     app.buffer.modified = false;
 
     /* Copy filename */
@@ -971,29 +1023,42 @@ static void notepad_do_save_as(void) {
  *  File dialog
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* Callback for fat16_enumerate_root to populate file dialog */
-static int notepad_enum_callback(const char *name, uint32_t size,
-                                 uint8_t attr, void *ctx) {
-    (void)ctx;
-    if (app.dialog.file_count >= 64) return 1;  /* stop */
-
-    file_entry_t *fe = &app.dialog.files[app.dialog.file_count];
-    int i = 0;
-    while (name[i] && i < 31) { fe->filename[i] = name[i]; i++; }
-    fe->filename[i] = '\0';
-    fe->size = size;
-    fe->is_directory = (attr & FAT_ATTR_DIRECTORY) != 0;
-    app.dialog.file_count++;
-    return 0;
-}
-
-/* Populate file list from FAT16 root directory */
+/* Populate file list from VFS directory */
 static void notepad_populate_dialog(void) {
     app.dialog.file_count = 0;
     app.dialog.selected_index = -1;
     app.dialog.scroll_offset = 0;
 
-    fat16_enumerate_root(notepad_enum_callback, NULL);
+    int fd = vfs_open(notepad_dialog_path, O_RDONLY);
+    if (fd < 0) {
+        /* Fallback: try root */
+        fd = vfs_open("/", O_RDONLY);
+        if (fd < 0) return;
+        notepad_dialog_path[0] = '/';
+        notepad_dialog_path[1] = '\0';
+    }
+
+    /* Add ".." entry if not at root */
+    if (notepad_dialog_path[0] != '/' || notepad_dialog_path[1] != '\0') {
+        file_entry_t *fe = &app.dialog.files[app.dialog.file_count];
+        notepad_strcpy(fe->filename, "..");
+        fe->size = 0;
+        fe->is_directory = true;
+        app.dialog.file_count++;
+    }
+
+    vfs_dirent_t ent;
+    while (app.dialog.file_count < 64 && vfs_readdir(fd, &ent) > 0) {
+        file_entry_t *fe = &app.dialog.files[app.dialog.file_count];
+        int i = 0;
+        while (ent.name[i] && i < 31) { fe->filename[i] = ent.name[i]; i++; }
+        fe->filename[i] = '\0';
+        fe->size = ent.size;
+        fe->is_directory = (ent.type == VFS_TYPE_DIR);
+        app.dialog.file_count++;
+    }
+
+    vfs_close(fd);
 }
 
 static void notepad_open_dialog(bool save_mode) {
@@ -1017,6 +1082,32 @@ static void notepad_close_dialog(void) {
     app.dialog.open = false;
 }
 
+/* Navigate the file dialog into a directory by name.
+   Used by Enter key, OK button, and double-click handlers. */
+static void notepad_dialog_navigate_dir(const char *dname) {
+    if (dname[0] == '.' && dname[1] == '.' && dname[2] == '\0') {
+        /* Go up: strip last path component */
+        int plen = (int)np_strlen(notepad_dialog_path);
+        if (plen > 1) {
+            plen--;
+            while (plen > 0 && notepad_dialog_path[plen] != '/') plen--;
+            if (plen == 0) plen = 1; /* keep root / */
+            notepad_dialog_path[plen] = '\0';
+        }
+    } else {
+        int plen = (int)np_strlen(notepad_dialog_path);
+        if (plen > 1 && plen < VFS_MAX_PATH - 2)
+            notepad_dialog_path[plen++] = '/';
+        int k = 0;
+        while (dname[k] && plen < VFS_MAX_PATH - 1)
+            notepad_dialog_path[plen++] = dname[k++];
+        notepad_dialog_path[plen] = '\0';
+    }
+    app.dialog.input_len = 0;
+    app.dialog.input[0] = '\0';
+    notepad_populate_dialog();
+}
+
 static void notepad_dialog_handle_key(uint8_t scancode, char character) {
     if (scancode == SC_ESCAPE) {
         notepad_close_dialog();
@@ -1033,6 +1124,14 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character) {
         }
         /* Confirm action */
         if (app.dialog.input_len > 0) {
+            /* Check if selected item is a directory — navigate into it */
+            int sel = app.dialog.selected_index;
+            if (sel >= 0 && sel < app.dialog.file_count &&
+                app.dialog.files[sel].is_directory &&
+                !app.dialog.save_mode) {
+                notepad_dialog_navigate_dir(app.dialog.files[sel].filename);
+                return;
+            }
             if (app.dialog.save_mode) {
                 notepad_save_file(app.dialog.input);
             } else {
@@ -1127,6 +1226,14 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my,
             app.dialog.input_len = (int)np_strlen(app.dialog.input);
         }
         if (app.dialog.input_len > 0) {
+            /* Check if selected item is a directory — navigate into it */
+            int sel = app.dialog.selected_index;
+            if (sel >= 0 && sel < app.dialog.file_count &&
+                app.dialog.files[sel].is_directory &&
+                !app.dialog.save_mode) {
+                notepad_dialog_navigate_dir(app.dialog.files[sel].filename);
+                return;
+            }
             if (app.dialog.save_mode)
                 notepad_save_file(app.dialog.input);
             else
@@ -1150,6 +1257,21 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my,
             int item = ((int)my - L.items_y) / DLG_ITEM_H
                        + app.dialog.scroll_offset;
             if (item >= 0 && item < app.dialog.file_count) {
+                /* Double-click: if same item clicked again, open/navigate */
+                if (app.dialog.selected_index == item) {
+                    if (app.dialog.files[item].is_directory) {
+                        notepad_dialog_navigate_dir(
+                            app.dialog.files[item].filename);
+                        return;
+                    }
+                    /* Double-click on file: open it */
+                    if (!app.dialog.save_mode) {
+                        notepad_open_file(
+                            app.dialog.files[item].filename);
+                        notepad_close_dialog();
+                        return;
+                    }
+                }
                 app.dialog.selected_index = item;
                 notepad_strcpy(app.dialog.input,
                                app.dialog.files[item].filename);

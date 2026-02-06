@@ -12,6 +12,7 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 - PS/2 mouse driver with cursor rendering
 - Pastel-themed desktop environment with taskbar and icons
 - Preemptive multitasking with round-robin process scheduler
+- Linux-style Virtual File System with RamFS, DevFS, and FAT16 backends
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
@@ -52,6 +53,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `blockdev.c/h` – Generic block device abstraction layer.
   - `blockcache.c/h` – 64-entry LRU block cache with write-back policy.
   - `fat16.c/h` – FAT16 filesystem driver with MBR partition table support (read/write).
+  - `vfs.c/h` – Virtual File System core: mount table, file descriptor table, path resolution, unified API.
+  - `ramfs.c/h` – In-memory filesystem with directory tree, used for root (`/`), `/bin`, `/tmp`.
+  - `devfs.c/h` – Device filesystem for `/dev` (null, zero, random, serial).
+  - `fat16_vfs.c/h` – FAT16 VFS wrapper, adapts existing FAT16 driver for unified VFS access at `/home`.
+  - `exec.c/h` – CUPD program loader: reads executable headers, loads code/data, spawns processes.
   - `ed.c/h` – Ed line editor (Unix ed(1) clone) with regex search, substitution, and undo.
   - `paging.c` – Identity-mapped paging setup (4KB pages, 32MB).
   - `font_8x8.c/h` – 8×8 monospaced bitmap font (ASCII 0–127) for graphical text rendering.
@@ -193,6 +199,23 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Root directory support (subdirectories planned)
   - **Performance:** 10-100x speedup via write-back caching
 
+- **Virtual File System (VFS)** ✨ **NEW**
+  - **Linux-style VFS layer** with unified API (`vfs_open`, `vfs_read`, `vfs_write`, `vfs_close`)
+    - Mount table supporting up to 16 simultaneous mount points
+    - File descriptor table with up to 64 open files
+    - Path resolution via longest-prefix match against mount table
+    - Current working directory with `.` and `..` navigation
+  - **Three filesystem backends:**
+    - **RamFS** — In-memory filesystem with full directory tree, used for root (`/`), `/bin`, `/tmp`
+    - **DevFS** — Device filesystem at `/dev` with null, zero, random, serial pseudo-devices
+    - **FAT16 VFS Wrapper** — Adapts existing FAT16 driver for unified access at `/home`
+  - **Directory hierarchy:** `/` (ramfs root), `/bin` (programs), `/tmp` (temp), `/home` (disk), `/dev` (devices)
+  - **CUPD Program Loader:** Load and execute flat binaries with 20-byte header (magic `0x43555044`)
+    - Validates header, allocates memory, loads code+data sections, zeros BSS, spawns process
+    - Max 256KB executables, integrated with process scheduler
+  - **Notepad VFS integration:** File dialog browses VFS directories with navigation, open/save via VFS API
+  - **12 new shell commands:** `cd`, `pwd`, `ls`, `cat`, `mount`, `vls`, `vcat`, `vstat`, `vmkdir`, `vrm`, `vwrite`, `exec`
+
 - **Debugging & Memory Safety** ✨ **NEW**
   - **Serial Port Driver:** COM1 at 115200 baud (8N1), formatted output via `serial_printf()`
     - Multi-level logging system: `KDEBUG`, `KINFO`, `KWARN`, `KERROR` macros
@@ -272,9 +295,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Create scripts with the `ed` editor, save to FAT16 disk, and execute
 
 - **Shell Interface**
-  - **Command-line shell** with prompt, parsing, history, and tab completion
-  - **In-Memory FS Commands:** `ls`, `cat <file>`
-  - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
+  - **Command-line shell** with prompt showing CWD, parsing, history, and tab completion
+  - **VFS Commands:** `cd <path>`, `pwd`, `ls [path]`, `cat <file>`, `mount` ✨ **NEW**
+  - **Advanced VFS Commands:** `vls`, `vcat`, `vstat`, `vmkdir`, `vrm`, `vwrite` ✨ **NEW**
+  - **Program Execution:** `exec <path>` – Load and run CUPD binaries from VFS ✨ **NEW**
+  - **Legacy Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
   - **Editor:** `ed [file]` – Launch the ed line editor
   - **Scripting:** `cupid <script.cup> [args]` – Run a CupidScript file ✨ **NEW**
   - **Process Commands:**
@@ -299,7 +324,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
 - **Utility Libraries**
   - **Math Library:** 64-bit division, integer-to-string conversion, hexadecimal printing
   - **String Library:** strlen, strcmp, strncmp, memcpy, memset
-  - **In-memory Filesystem:** Read-only file table for system files (LICENSE.txt, MOTD.txt)
+  - **In-memory Filesystem:** Legacy read-only file table for system files (LICENSE.txt, MOTD.txt), now pre-populated into VFS at boot
 
 ## Development Roadmap
 The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
@@ -367,13 +392,14 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 
 ### Phase 2 - Extended Features
 5. **Shell Interface** (🔄 In-Progress)
-   - ✅ Basic command parsing and prompt display
-   - ✅ 24 built-in commands (system, filesystem, disk, debug, editor, scripting)
+   - ✅ Basic command parsing and prompt display with CWD
+   - ✅ 38 built-in commands (system, filesystem, VFS, disk, debug, editor, scripting, process)
    - ✅ Advanced command parsing with argument splitting
    - ✅ Command history (16 entries, arrow key navigation)
    - ✅ Tab completion (commands and filenames)
    - ✅ Debug/memory introspection commands
    - ✅ CupidScript scripting language (`.cup` files with variables, loops, functions)
+   - ✅ VFS navigation commands (cd, pwd, ls, cat, mount, vls, vcat, vstat, vmkdir, vrm, vwrite, exec)
    - ⭕ I/O redirection
 
 7. **Process Management** (✅ Complete)
@@ -399,10 +425,16 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ PS/2 mouse driver (IRQ12, cursor rendering)
    - ⭕ Real-time clock
 
-9. **Simple Filesystem** (⭕ Planned)
-   - ⭕ Basic file operations
-   - ⭕ Directory structure
+9. **Simple Filesystem** (✅ Complete)
+   - ✅ VFS layer with mount table, path resolution, unified API
+   - ✅ RamFS (in-memory directory tree for root, /bin, /tmp)
+   - ✅ DevFS (device files: /dev/null, /dev/zero, /dev/random, /dev/serial)
+   - ✅ FAT16 VFS wrapper (persistent disk files at /home)
+   - ✅ CUPD program loader (flat binary format with header)
+   - ✅ Directory navigation (cd, pwd, ls, cat with CWD support)
+   - ✅ Notepad file dialog uses VFS for browsing, opening, and saving
    - ⭕ File permissions
+   - ⭕ Per-process file descriptors
 
 6. **Text Editor** (✅ Complete)
    - ✅ Ed line editor (Unix ed(1) clone)
@@ -714,6 +746,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **Virtual File System (VFS)** – Linux-style VFS layer providing a unified file API across multiple filesystem backends. Three filesystem drivers: RamFS (in-memory directory tree for `/`, `/bin`, `/tmp`), DevFS (pseudo-devices at `/dev/null`, `/dev/zero`, `/dev/random`, `/dev/serial`), and a FAT16 VFS wrapper (persistent user files at `/home`). Hierarchical directory structure with mount points, path resolution via longest-prefix match, file descriptor table (64 fds), and mount table (16 mounts). CUPD program loader reads flat binaries with a 20-byte header (magic `0x43555044`), loads code+data sections, zeros BSS, and spawns processes. Shell now has current working directory tracking (prompt shows CWD), with 14 new VFS commands: `cd`, `pwd`, `ls`, `cat`, `mount`, `vls`, `vcat`, `vstat`, `vmkdir`, `vrm`, `vwrite`, `exec`. Notepad file dialog switched from direct FAT16 calls to VFS API with directory navigation and double-click support. Total shell commands: 38.
 - **CupidScript Scripting Language** – Bash-like scripting for cupid-os with variables (`$VAR`, `$?`, `$#`, `$0`–`$9`), if/else conditionals with test operators (`-eq`, `-ne`, `-lt`, `-gt`, `=`, `!=`), for/while loops, user-defined functions with positional arguments and return values, arithmetic expansion (`$((expr))`), and comments. Scripts use `.cup` extension, are created with the `ed` editor, and can be run via `cupid script.cup`, `./script.cup`, or just `script.cup`. Full lexer → parser → AST → interpreter pipeline with proper memory management. Integrates with all existing shell commands and works in both text and GUI terminal modes.
 - **Process Management & Scheduler** – Deferred preemptive multitasking with round-robin scheduling (10ms time slices at 100Hz). Up to 32 kernel threads with pure assembly context switching (`context_switch.asm`) that saves/restores callee-saved registers (EBP, EDI, ESI, EBX, EFLAGS). Timer IRQ sets a reschedule flag checked at safe voluntary points (desktop loop, yield, idle) to avoid stack corruption from ISR-level switching. Desktop runs as PID 2, GUI terminal as PID 3. Deferred stack freeing with lazy reaping, stack canary overflow detection, and 4 shell commands (`ps`, `kill`, `spawn`, `yield`).
 - **VGA Graphics & Desktop Environment** – Full graphical desktop with VGA Mode 13h (320×200, 256 colors). Pastel color palette, PS/2 mouse driver with cursor, window manager supporting up to 16 draggable overlapping windows with z-ordering, desktop shell with taskbar and clickable icons, and a GUI terminal application running the existing shell in a graphical window. Double-buffered rendering for flicker-free display.
@@ -721,7 +754,7 @@ GNU v3
 - **Ed Line Editor** – Full Unix ed(1) clone with address parsing, regex search/substitute, input mode, global commands, marks, single-level undo, and file I/O from both in-memory and FAT16 filesystems. Writes to FAT16 disk via ATA driver.
 - **Debugging & Memory Safety System** – Serial port driver (COM1, 115200 baud), enhanced panic handler with register/stack dumps, kernel assertions, heap canaries with corruption detection, allocation tracking with leak detection, free-memory poisoning, and 10 new debug shell commands
 - **ATA Disk I/O** – PIO-mode ATA driver, block device layer, 64-entry LRU write-back cache, FAT16 filesystem with MBR support (read & write)
-- **Shell Enhancements** – 22 commands total, command history with arrow key navigation, tab completion for commands and filenames
+- **Shell Enhancements** – 38 commands total, command history with arrow key navigation, tab completion for commands and filenames
 - Implemented comprehensive keyboard driver with full modifier key support
 - Added function key handling (F1-F12)
 - Implemented key repeat functionality with configurable delays
