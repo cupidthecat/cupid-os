@@ -14,4 +14,7 @@
  * Pass NULL or "" for a new empty buffer. */
 void ed_run(const char *filename);
 
+/* Set output functions for ed (for GUI mode support) */
+void ed_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t));
+
 #endif

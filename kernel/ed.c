@@ -56,6 +56,17 @@ static int ed_marks[26];
 static char ed_last_search[ED_CMD_BUF_LEN];
 static char ed_last_replace[ED_CMD_BUF_LEN];
 
+/* Output function pointers (can be overridden) */
+static void (*ed_print)(const char*) = print;
+static void (*ed_putchar)(char) = putchar;
+static void (*ed_print_int_fn)(uint32_t) = print_int;
+
+void ed_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t)) {
+    if (print_fn) ed_print = print_fn;
+    if (putchar_fn) ed_putchar = putchar_fn;
+    if (print_int_fn) ed_print_int_fn = print_int_fn;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  Utility helpers
  * ══════════════════════════════════════════════════════════════════════ */
@@ -85,10 +96,10 @@ static char *ed_strdup(const char *s) {
 /* Print an integer (simple) */
 static void ed_print_int(int n) {
     if (n < 0) {
-        putchar('-');
+        ed_putchar('-');
         n = -n;
     }
-    print_int((uint32_t)n);
+    ed_print_int_fn((uint32_t)n);
 }
 
 /* Read a full line of input from the keyboard, return length.
@@ -99,16 +110,16 @@ static int ed_readline(char *buf, int maxlen) {
         char c = (char)getchar();
         if (c == '\n') {
             buf[pos] = '\0';
-            putchar('\n');
+            ed_putchar('\n');
             return pos;
         } else if (c == '\b') {
             if (pos > 0) {
                 pos--;
-                print("\b \b");
+                ed_print("\b \b");
             }
         } else if (c >= 0x20 && pos < maxlen - 1) {
             buf[pos++] = c;
-            putchar(c);
+            ed_putchar(c);
         }
     }
 }
@@ -116,10 +127,10 @@ static int ed_readline(char *buf, int maxlen) {
 /* Set an error message */
 static void ed_error(const char *msg) {
     ed_strcpy(ed_last_error, msg);
-    print("?\n");
+    ed_print("?\n");
     if (ed_show_errors) {
-        print(ed_last_error);
-        print("\n");
+        ed_print(ed_last_error);
+        ed_print("\n");
     }
 }
 
@@ -654,10 +665,10 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
     if (print_flag || number_flag) {
         if (number_flag) {
             ed_print_int(ed_cur);
-            putchar('\t');
+            ed_putchar('\t');
         }
-        print(ed_lines[ed_cur - 1]);
-        print("\n");
+        ed_print(ed_lines[ed_cur - 1]);
+        ed_print("\n");
     }
 }
 
@@ -669,20 +680,20 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
 static void ed_print_escaped(const char *s) {
     while (*s) {
         if (*s == '\\') {
-            print("\\\\");
+            ed_print("\\\\");
         } else if (*s == '\t') {
-            print("\\t");
+            ed_print("\\t");
         } else if (*s == '\b') {
-            print("\\b");
+            ed_print("\\b");
         } else if ((unsigned char)*s < 0x20 || (unsigned char)*s == 0x7F) {
-            print("\\x");
+            ed_print("\\x");
             print_hex_byte((uint8_t)*s);
         } else {
-            putchar(*s);
+            ed_putchar(*s);
         }
         s++;
     }
-    print("$\n");
+    ed_print("$\n");
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -797,8 +808,8 @@ static void ed_exec_command(const char *cmdline) {
         }
         if (ed_cur < ed_nlines) {
             ed_cur++;
-            print(ed_lines[ed_cur - 1]);
-            print("\n");
+            ed_print(ed_lines[ed_cur - 1]);
+            ed_print("\n");
         } else {
             ed_error("invalid address");
         }
@@ -982,8 +993,8 @@ static void ed_exec_command(const char *cmdline) {
         }
         p++;
         for (int i = addr1; i <= addr2; i++) {
-            print(ed_lines[i - 1]);
-            print("\n");
+            ed_print(ed_lines[i - 1]);
+            ed_print("\n");
         }
         ed_cur = addr2;
         break;
@@ -1002,9 +1013,9 @@ static void ed_exec_command(const char *cmdline) {
         p++;
         for (int i = addr1; i <= addr2; i++) {
             ed_print_int(i);
-            putchar('\t');
-            print(ed_lines[i - 1]);
-            print("\n");
+            ed_putchar('\t');
+            ed_print(ed_lines[i - 1]);
+            ed_print("\n");
         }
         ed_cur = addr2;
         break;
@@ -1032,7 +1043,7 @@ static void ed_exec_command(const char *cmdline) {
     case '=': {
         if (!has_range) addr2 = ed_nlines;
         ed_print_int(addr2);
-        print("\n");
+        ed_print("\n");
         break;
     }
 
@@ -1082,7 +1093,7 @@ static void ed_exec_command(const char *cmdline) {
         if (bytes < 0) return;
 
         ed_print_int(bytes);
-        print("\n");
+        ed_print("\n");
         ed_dirty = 0;
 
         if (do_quit) ed_quit = 1;
@@ -1109,7 +1120,7 @@ static void ed_exec_command(const char *cmdline) {
         ed_save_undo();
         int bytes = ed_load_text(f->data, f->size, addr1);
         ed_print_int(bytes);
-        print("\n");
+        ed_print("\n");
         ed_dirty = 1;
         break;
     }
@@ -1149,7 +1160,7 @@ static void ed_exec_command(const char *cmdline) {
             if (f) {
                 int bytes = ed_load_text(f->data, f->size, 0);
                 ed_print_int(bytes);
-                print("\n");
+                ed_print("\n");
             } else {
                 ed_error("cannot open file");
             }
@@ -1184,7 +1195,7 @@ static void ed_exec_command(const char *cmdline) {
             if (f) {
                 int bytes = ed_load_text(f->data, f->size, 0);
                 ed_print_int(bytes);
-                print("\n");
+                ed_print("\n");
             } else {
                 ed_error("cannot open file");
             }
@@ -1205,8 +1216,8 @@ static void ed_exec_command(const char *cmdline) {
             ed_filename[fi] = '\0';
         }
         if (ed_filename[0]) {
-            print(ed_filename);
-            print("\n");
+            ed_print(ed_filename);
+            ed_print("\n");
         } else {
             ed_error("no filename");
         }
@@ -1498,15 +1509,15 @@ static void ed_exec_command(const char *cmdline) {
     case 'H': {
         ed_show_errors = !ed_show_errors;
         if (ed_show_errors && ed_last_error[0]) {
-            print(ed_last_error);
-            print("\n");
+            ed_print(ed_last_error);
+            ed_print("\n");
         }
         break;
     }
     case 'h': {
         if (ed_last_error[0]) {
-            print(ed_last_error);
-            print("\n");
+            ed_print(ed_last_error);
+            ed_print("\n");
         }
         break;
     }
@@ -1534,8 +1545,8 @@ static void ed_exec_command(const char *cmdline) {
             return;
         }
         ed_cur = target;
-        print(ed_lines[ed_cur - 1]);
-        print("\n");
+        ed_print(ed_lines[ed_cur - 1]);
+        ed_print("\n");
         break;
     }
     case '-': {
@@ -1548,8 +1559,8 @@ static void ed_exec_command(const char *cmdline) {
             return;
         }
         ed_cur = target;
-        print(ed_lines[ed_cur - 1]);
-        print("\n");
+        ed_print(ed_lines[ed_cur - 1]);
+        ed_print("\n");
         break;
     }
 
@@ -1627,7 +1638,7 @@ static void ed_exec_command(const char *cmdline) {
         }
 
         ed_print_int(new_bytes);
-        print("\n");
+        ed_print("\n");
         ed_dirty = 0;
         break;
     }
@@ -1637,8 +1648,8 @@ static void ed_exec_command(const char *cmdline) {
         if (has_range && cmd == '\0') {
             if (addr2 >= 1 && addr2 <= ed_nlines) {
                 ed_cur = addr2;
-                print(ed_lines[ed_cur - 1]);
-                print("\n");
+                ed_print(ed_lines[ed_cur - 1]);
+                ed_print("\n");
             } else if (ed_nlines == 0) {
                 ed_error("invalid address");
             }
@@ -1686,7 +1697,7 @@ void ed_run(const char *filename) {
         if (f && f->data) {
             int bytes = ed_load_text(f->data, f->size, 0);
             ed_print_int(bytes);
-            print("\n");
+            ed_print("\n");
         } else {
             /* Try FAT16 filesystem */
             fat16_file_t *df = fat16_open(filename);
@@ -1704,10 +1715,10 @@ void ed_run(const char *filename) {
                 fat16_close(df);
                 int loaded = ed_load_text(bigbuf, (uint32_t)total, 0);
                 ed_print_int(loaded);
-                print("\n");
+                ed_print("\n");
             } else {
-                print(ed_filename);
-                print(": No such file\n");
+                ed_print(ed_filename);
+                ed_print(": No such file\n");
             }
         }
     }

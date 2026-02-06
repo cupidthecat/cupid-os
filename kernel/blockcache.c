@@ -21,6 +21,15 @@
 static block_cache_t cache;
 static uint32_t access_counter = 0;
 
+/* Output function pointers (can be overridden for GUI mode) */
+static void (*cache_print)(const char*) = print;
+static void (*cache_print_int)(uint32_t) = print_int;
+
+void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t)) {
+    if (print_fn) cache_print = print_fn;
+    if (print_int_fn) cache_print_int = print_int_fn;
+}
+
 /**
  * blockcache_init - Initialize block cache
  *
@@ -269,22 +278,22 @@ void blockcache_sync(void) {
  * blockcache_stats - Print cache statistics
  */
 void blockcache_stats(void) {
-    print("Cache statistics:\n");
-    print("  Hits: ");
-    print_int(cache.hits);
-    print("\n  Misses: ");
-    print_int(cache.misses);
-    print("\n  Evictions: ");
-    print_int(cache.evictions);
-    print("\n  Writebacks: ");
-    print_int(cache.writebacks);
-    print("\n");
+    cache_print("Cache statistics:\n");
+    cache_print("  Hits: ");
+    cache_print_int(cache.hits);
+    cache_print("\n  Misses: ");
+    cache_print_int(cache.misses);
+    cache_print("\n  Evictions: ");
+    cache_print_int(cache.evictions);
+    cache_print("\n  Writebacks: ");
+    cache_print_int(cache.writebacks);
+    cache_print("\n");
 
     if (cache.hits + cache.misses > 0) {
         uint32_t total = cache.hits + cache.misses;
         uint32_t hit_percent = (cache.hits * 100) / total;
-        print("  Hit rate: ");
-        print_int(hit_percent);
-        print("%\n");
+        cache_print("  Hit rate: ");
+        cache_print_int(hit_percent);
+        cache_print("%\n");
     }
 }

@@ -8,7 +8,9 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 - Comprehensive interrupt handling system
 - Advanced PS/2 keyboard driver with full US layout support
 - High-precision programmable timer system
-- VGA text mode graphics with custom character rendering
+- VGA Mode 13h graphical desktop with draggable windows
+- PS/2 mouse driver with cursor rendering
+- Pastel-themed desktop environment with taskbar and icons
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
@@ -51,6 +53,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `fat16.c/h` – FAT16 filesystem driver with MBR partition table support (read/write).
   - `ed.c/h` – Ed line editor (Unix ed(1) clone) with regex search, substitution, and undo.
   - `paging.c` – Identity-mapped paging setup (4KB pages, 32MB).
+  - `font_8x8.c/h` – 8×8 monospaced bitmap font (ASCII 0–127) for graphical text rendering.
+  - `graphics.c/h` – Graphics primitives: pixel, line (Bresenham), rectangle, and text drawing with clipping.
+  - `gui.c/h` – Window manager with draggable windows, z-ordering, focus, and close buttons.
+  - `desktop.c/h` – Desktop shell with background, taskbar, clickable icons, and main event loop.
+  - `terminal_app.c/h` – GUI terminal application interfacing with the shell via character buffer.
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
@@ -59,6 +66,8 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `speaker.c/h` – PC speaker driver with tone and beep functionality.
   - `serial.c/h` – COM1 serial port driver with formatted logging and circular log buffer.
   - `ata.c/h` – ATA/IDE PIO-mode disk driver.
+  - `vga.c/h` – VGA Mode 13h graphics driver (320×200, 256 colors) with double buffering.
+  - `mouse.c/h` – PS/2 mouse driver with IRQ12 handler and cursor rendering.
 
 - **link.ld** – Linker script defining the kernel image layout.
 - **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
@@ -93,10 +102,36 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Calibrates using the CPU’s Time Stamp Counter (TSC) to measure the CPU frequency.
     - Exposes `get_cpu_freq()` and `get_pit_ticks_per_ms()` for accurate timing calculations.
     
-- **VGA Text Mode Graphics**  
-  - Basic VGA driver for an 80×25 text display.
-  - Functions for printing characters, strings, and integers.
-  - Automatic screen scrolling and hardware cursor updates.
+- **VGA Graphics & Desktop Environment** ✨ **NEW**
+  - **VGA Mode 13h Driver:** 320×200 resolution, 256-color indexed mode with programmable RGB palette
+    - Pastel/soft aesthetic color palette (OsakaOS-inspired)
+    - Double buffering via heap-allocated back buffer for flicker-free rendering
+    - Direct linear framebuffer access at 0xA0000
+  - **Graphics Primitives:** Pixel plotting, Bresenham line drawing, filled/outlined rectangles
+    - 8×8 monospaced bitmap font with full ASCII coverage
+    - Text rendering with automatic clipping to screen bounds
+  - **PS/2 Mouse Driver:** IRQ12-driven with 3-byte packet parsing
+    - 8×10 pixel arrow cursor with outline for visibility
+    - Save-under buffer for non-destructive cursor rendering
+    - Button state tracking (left, right, middle)
+  - **Window Manager:** Up to 16 overlapping windows with z-ordering
+    - Window creation, destruction, and focus management
+    - Draggable title bars with drag offset tracking
+    - Close buttons with hit testing
+    - Focused/unfocused title bar color differentiation
+    - Application-specific redraw callbacks
+  - **Desktop Shell:** Complete desktop environment
+    - Solid pastel background with desktop icons
+    - Taskbar at bottom (20px) with "cupid-os" branding and window buttons
+    - Clickable desktop icons that launch applications
+    - Active window highlighting in taskbar
+    - Main event loop processing mouse and keyboard input
+  - **GUI Terminal Application:** Shell running inside a graphical window
+    - Character buffer (80×50) with scrolling support
+    - Dark background terminal rendering
+    - Cursor underline display
+    - Key forwarding from GUI to shell
+    - Shell dual output mode (text mode / GUI buffer)
 
 - **PC Speaker Driver**  
   - Implements basic tone and beep functionality.
@@ -277,7 +312,8 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ PS/2 Keyboard
    - ✅ ATA/IDE disk driver (PIO mode)
    - ✅ Serial port (COM1, 115200 baud)
-   - ⭕ VGA graphics
+   - ✅ VGA Mode 13h graphics (320×200, 256 colors)
+   - ✅ PS/2 mouse driver (IRQ12, cursor rendering)
    - ⭕ Real-time clock
 
 9. **Simple Filesystem** (⭕ Planned)
@@ -381,9 +417,10 @@ After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdis
 #### Main Kernel (`kernel/kernel.c`)
 - Entry point at 0x1000
 - Implements basic screen I/O
-- VGA text mode driver
+- VGA text mode driver (initial boot) → switches to Mode 13h graphics
 - System initialization
 - IDT initialization
+- Boots into graphical desktop environment
 
 #### Interrupt System (`kernel/idt.c`, `kernel/isr.asm`)
 - Complete IDT setup and management
@@ -403,6 +440,56 @@ After this, `make run-disk` will boot CupidOS with the disk attached. Use `lsdis
   - Extended key support (e.g. right ctrl/alt)
   - Circular buffer for key events
   - Support for special keys (backspace, tab, enter)
+
+#### VGA Graphics Driver (`drivers/vga.c`, `drivers/vga.h`)
+- VGA Mode 13h: 320×200 resolution, 256-color indexed mode
+- Programmable RGB palette with pastel/soft aesthetic (16 UI colors)
+- Double buffering via heap-allocated 64KB back buffer
+- Mode switching from text mode via VGA register programming
+- Direct linear framebuffer access at physical address 0xA0000
+
+#### PS/2 Mouse Driver (`drivers/mouse.c`, `drivers/mouse.h`)
+- IRQ12-driven PS/2 auxiliary device with 3-byte packet protocol
+- Sign-extended delta movement with overflow protection
+- Cursor position clamped to screen bounds (0-319, 0-199)
+- 8×10 pixel arrow cursor bitmap with outline for visibility
+- Save-under buffer for non-destructive cursor compositing
+- Button state tracking (left, right, middle) with press/release detection
+
+#### Graphics Primitives (`kernel/graphics.c`, `kernel/graphics.h`)
+- Pixel plotting with automatic bounds clipping
+- Bresenham's line algorithm for arbitrary-angle lines
+- Fast horizontal/vertical line drawing via `memset`
+- Filled and outlined rectangles
+- 8×8 bitmap font text rendering (ASCII 0-127)
+- Text width measurement for layout calculations
+
+#### Window Manager (`kernel/gui.c`, `kernel/gui.h`)
+- Up to 16 overlapping windows with z-ordered rendering
+- Window creation/destruction with unique IDs
+- Focus management: clicking raises window to top
+- Title bar dragging with drag offset tracking and screen clamping
+- Close button hit detection with "X" rendering
+- Focused vs unfocused visual differentiation (cyan vs gray title bars)
+- Application-specific redraw callbacks for content rendering
+- Dirty flag system for efficient partial redraws
+
+#### Desktop Shell (`kernel/desktop.c`, `kernel/desktop.h`)
+- Solid pastel background fill (light pink)
+- Taskbar (bottom 20px): "cupid-os" branding + window buttons
+- Active window highlighting in taskbar
+- Up to 16 clickable desktop icons with labels
+- Main event loop: mouse → keyboard → redraw → HLT cycle
+- Icon click launches applications (e.g., Terminal)
+- Taskbar click focuses corresponding window
+
+#### GUI Terminal (`kernel/terminal_app.c`, `kernel/terminal_app.h`)
+- Shell running inside a graphical window (280×160 default)
+- 80×50 character buffer with scrolling support
+- Dark background (COLOR_TERM_BG) with white text
+- Cursor underline rendering at current shell position
+- Key forwarding from desktop event loop to shell
+- Shell dual output mode: text mode (VGA) or GUI buffer
 
 #### Ed Line Editor (`kernel/ed.c`, `kernel/ed.h`)
 A faithful implementation of the classic Unix `ed(1)` line editor, operating entirely in-memory:
@@ -518,6 +605,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **VGA Graphics & Desktop Environment** – Full graphical desktop with VGA Mode 13h (320×200, 256 colors). Pastel color palette, PS/2 mouse driver with cursor, window manager supporting up to 16 draggable overlapping windows with z-ordering, desktop shell with taskbar and clickable icons, and a GUI terminal application running the existing shell in a graphical window. Double-buffered rendering for flicker-free display.
 - **FAT16 Write Support** – Files can now be created, overwritten, and deleted on FAT16 disk. Cluster allocation/freeing, FAT chain management, and directory entry creation are fully implemented. Ed's `w`/`wq`/`W` commands persist data through the full ATA write path.
 - **Ed Line Editor** – Full Unix ed(1) clone with address parsing, regex search/substitute, input mode, global commands, marks, single-level undo, and file I/O from both in-memory and FAT16 filesystems. Writes to FAT16 disk via ATA driver.
 - **Debugging & Memory Safety System** – Serial port driver (COM1, 115200 baud), enhanced panic handler with register/stack dumps, kernel assertions, heap canaries with corruption detection, allocation tracking with leak detection, free-memory poisoning, and 10 new debug shell commands

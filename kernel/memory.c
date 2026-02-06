@@ -18,6 +18,15 @@ static heap_block_t *heap_head = 0;
 /* ── Allocation tracker (global, zero-init) ─────────────────────── */
 static allocation_tracker_t tracker;
 
+/* Output function pointers (can be overridden for GUI mode) */
+static void (*mem_print)(const char*) = print;
+static void (*mem_print_int)(uint32_t) = print_int;
+
+void memory_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t)) {
+    if (print_fn) mem_print = print_fn;
+    if (print_int_fn) mem_print_int = print_int_fn;
+}
+
 static inline uint32_t align_up(uint32_t value, uint32_t align) {
     return (value + align - 1) & ~(align - 1);
 }
@@ -352,43 +361,43 @@ void detect_memory_leaks(uint32_t threshold_ms) {
                       rec->size, (uint32_t)rec->address,
                       rec->file ? rec->file : "?", rec->line,
                       now - rec->timestamp);
-        print("  LEAK: ");
-        print_int(rec->size);
-        print(" bytes at ");
+        mem_print("  LEAK: ");
+        mem_print_int(rec->size);
+        mem_print(" bytes at ");
         print_hex((uint32_t)rec->address);
-        print("  from ");
-        print(rec->file ? rec->file : "?");
-        print(":");
-        print_int(rec->line);
-        print("\n");
+        mem_print("  from ");
+        mem_print(rec->file ? rec->file : "?");
+        mem_print(":");
+        mem_print_int(rec->line);
+        mem_print("\n");
     }
 
     if (leaked_count > 0) {
         KERROR("Found %u leaked allocations (%u bytes total)",
                leaked_count, leaked_bytes);
-        print("Found "); print_int(leaked_count);
-        print(" leaked allocations ("); print_int(leaked_bytes);
-        print(" bytes)\n");
+        mem_print("Found "); mem_print_int(leaked_count);
+        mem_print(" leaked allocations ("); mem_print_int(leaked_bytes);
+        mem_print(" bytes)\n");
     } else {
         KINFO("No leaks detected");
-        print("No leaks detected\n");
+        mem_print("No leaks detected\n");
     }
 }
 
 void print_memory_stats(void) {
-    print("Memory Statistics:\n");
-    print("  Active allocations: "); print_int(tracker.active_count); print("\n");
-    print("  Total allocated:    "); print_int(tracker.total_bytes);
-    print(" bytes ("); print_int(tracker.total_bytes / 1024); print(" KB)\n");
-    print("  Peak allocations:   "); print_int(tracker.peak_count); print("\n");
-    print("  Peak memory:        "); print_int(tracker.peak_bytes);
-    print(" bytes ("); print_int(tracker.peak_bytes / 1024); print(" KB)\n");
+    mem_print("Memory Statistics:\n");
+    mem_print("  Active allocations: "); mem_print_int(tracker.active_count); mem_print("\n");
+    mem_print("  Total allocated:    "); mem_print_int(tracker.total_bytes);
+    mem_print(" bytes ("); mem_print_int(tracker.total_bytes / 1024); mem_print(" KB)\n");
+    mem_print("  Peak allocations:   "); mem_print_int(tracker.peak_count); mem_print("\n");
+    mem_print("  Peak memory:        "); mem_print_int(tracker.peak_bytes);
+    mem_print(" bytes ("); mem_print_int(tracker.peak_bytes / 1024); mem_print(" KB)\n");
 
     uint32_t free_pg  = pmm_free_pages();
     uint32_t total_pg = pmm_total_pages();
-    print("  Physical pages:     "); print_int(free_pg);
-    print(" free / "); print_int(total_pg); print(" total\n");
-    print("  Physical free:      "); print_int(free_pg * 4); print(" KB\n");
+    mem_print("  Physical pages:     "); mem_print_int(free_pg);
+    mem_print(" free / "); mem_print_int(total_pg); mem_print(" total\n");
+    mem_print("  Physical free:      "); mem_print_int(free_pg * 4); mem_print(" KB\n");
 
     serial_printf("memstats: active=%u  total_bytes=%u  peak_bytes=%u  "
                   "free_pages=%u  total_pages=%u\n",

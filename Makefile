@@ -15,7 +15,9 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
-            drivers/serial.o kernel/panic.o kernel/ed.o
+            drivers/serial.o kernel/panic.o kernel/ed.o \
+            drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
+            kernel/gui.o kernel/desktop.o kernel/terminal_app.o
 
 all: $(OS_IMAGE)
 
@@ -107,6 +109,34 @@ kernel/panic.o: kernel/panic.c kernel/panic.h
 # Ed line editor
 kernel/ed.o: kernel/ed.c kernel/ed.h
 	$(CC) $(CFLAGS) kernel/ed.c -o kernel/ed.o
+
+# VGA graphics mode driver
+drivers/vga.o: drivers/vga.c drivers/vga.h
+	$(CC) $(CFLAGS) drivers/vga.c -o drivers/vga.o
+
+# PS/2 mouse driver
+drivers/mouse.o: drivers/mouse.c drivers/mouse.h
+	$(CC) $(CFLAGS) drivers/mouse.c -o drivers/mouse.o
+
+# 8x8 bitmap font
+kernel/font_8x8.o: kernel/font_8x8.c kernel/font_8x8.h
+	$(CC) $(CFLAGS) kernel/font_8x8.c -o kernel/font_8x8.o
+
+# Graphics primitives
+kernel/graphics.o: kernel/graphics.c kernel/graphics.h
+	$(CC) $(CFLAGS) kernel/graphics.c -o kernel/graphics.o
+
+# GUI / window manager
+kernel/gui.o: kernel/gui.c kernel/gui.h
+	$(CC) $(CFLAGS) kernel/gui.c -o kernel/gui.o
+
+# Desktop shell
+kernel/desktop.o: kernel/desktop.c kernel/desktop.h
+	$(CC) $(CFLAGS) kernel/desktop.c -o kernel/desktop.o
+
+# Terminal application
+kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h
+	$(CC) $(CFLAGS) kernel/terminal_app.c -o kernel/terminal_app.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

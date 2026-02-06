@@ -54,6 +54,9 @@
 #include "../kernel/ports.h"
 #include "../kernel/irq.h"
 #include "../kernel/kernel.h"
+#include "../kernel/shell.h"
+#include "../kernel/terminal_app.h"
+#include "../kernel/desktop.h"
 
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
@@ -359,7 +362,17 @@ char keyboard_get_char(void) {
 
 char getchar(void) {
     key_event_t event;
-    keyboard_read_event(&event);
+    /* Blocking: wait for a key event.
+     * In GUI mode, pump the display so the screen stays alive
+     * (needed when a blocking command like ed is running). */
+    while (!keyboard_read_event(&event)) {
+        if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+            /* Mark terminal dirty so any new output is painted */
+            terminal_mark_dirty();
+            desktop_redraw_cycle();
+        }
+        __asm__ volatile("hlt");
+    }
     return event.character;
 }
 
@@ -368,13 +381,12 @@ bool keyboard_read_event(key_event_t* event) {
         return false;
     }
 
-    while (1) {
-        if (keyboard_state.buffer.count > 0) {
-            *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
-            keyboard_state.buffer.tail = (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
-            keyboard_state.buffer.count--;
-            return true;
-        }
-        __asm__ volatile("hlt");
+    /* Non-blocking: return false if no events available */
+    if (keyboard_state.buffer.count > 0) {
+        *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+        keyboard_state.buffer.tail = (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.buffer.count--;
+        return true;
     }
+    return false;
 }

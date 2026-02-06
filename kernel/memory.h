@@ -23,7 +23,7 @@ typedef struct heap_block {
 #define PAGE_SIZE 4096
 #define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
-#define HEAP_INITIAL_PAGES 16
+#define HEAP_INITIAL_PAGES 64
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 /* ── PMM ──────────────────────────────────────────────────────────── */
@@ -74,5 +74,8 @@ void detect_memory_leaks(uint32_t threshold_ms);
 
 /* Print allocation statistics to VGA (and serial).                  */
 void print_memory_stats(void);
+
+/* Set output functions for memory debugging (for GUI mode support) */
+void memory_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t));
 
 #endif

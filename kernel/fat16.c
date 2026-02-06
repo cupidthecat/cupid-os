@@ -20,6 +20,17 @@ static fat16_fs_t fs;
 static fat16_file_t open_files[8];
 static int fat16_initialized = 0;
 
+/* Output function pointers (can be overridden) */
+static void (*fat16_print)(const char*) = print;
+static void (*fat16_putchar)(char) = putchar;
+static void (*fat16_print_int)(uint32_t) = print_int;
+
+void fat16_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t)) {
+    if (print_fn) fat16_print = print_fn;
+    if (putchar_fn) fat16_putchar = putchar_fn;
+    if (print_int_fn) fat16_print_int = print_int_fn;
+}
+
 /**
  * fat16_read_fat_entry - Read FAT table entry
  *
@@ -690,14 +701,14 @@ int fat16_delete_file(const char* filename) {
  */
 int fat16_list_root(void) {
     if (!fat16_initialized) {
-        print("No FAT16 filesystem mounted\n");
+        fat16_print("No FAT16 filesystem mounted\n");
         return -1;
     }
 
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 + fs.bytes_per_sector - 1) / fs.bytes_per_sector;
     int file_count = 0;
 
-    print("Files in /disk:\n");
+    fat16_print("Files in /disk:\n");
 
     for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
         uint8_t buffer[512];
@@ -721,25 +732,25 @@ int fat16_list_root(void) {
             }
 
             // Print filename
-            print("  ");
+            fat16_print("  ");
             for (int j = 0; j < 8; j++) {
                 if (entries[i].filename[j] != ' ') {
-                    putchar(entries[i].filename[j]);
+                    fat16_putchar(entries[i].filename[j]);
                 }
             }
 
             if (entries[i].ext[0] != ' ') {
-                putchar('.');
+                fat16_putchar('.');
                 for (int j = 0; j < 3; j++) {
                     if (entries[i].ext[j] != ' ') {
-                        putchar(entries[i].ext[j]);
+                        fat16_putchar(entries[i].ext[j]);
                     }
                 }
             }
 
-            print(" (");
-            print_int(entries[i].file_size);
-            print(" bytes)\n");
+            fat16_print(" (");
+            fat16_print_int(entries[i].file_size);
+            fat16_print(" bytes)\n");
 
             file_count++;
         }

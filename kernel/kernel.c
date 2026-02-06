@@ -25,11 +25,18 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/timer.h"
 #include "../drivers/ata.h"
+#include "../drivers/serial.h"
+#include "../drivers/vga.h"
+#include "../drivers/mouse.h"
 #include "blockdev.h"
 #include "blockcache.h"
 #include "fat16.h"
 #include "fs.h"
 #include "memory.h"
+#include "graphics.h"
+#include "gui.h"
+#include "desktop.h"
+#include "terminal_app.h"
 
 #define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -196,6 +203,12 @@ void clear_screen() {
  * - Updates hardware cursor position via VGA registers
  */
 void putchar(char c) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_putchar_ext(c);
+        return;
+    }
+
     volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
     
     if(c == '\n') {
@@ -264,6 +277,11 @@ void putchar(char c) {
  * - Prints digits in reverse order to maintain correct number representation
  */
 void print_int(uint32_t num) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_print_int_ext(num);
+        return;
+    }
     char buffer[10];
     int i = 0;
     if (num == 0) {
@@ -289,6 +307,11 @@ void print_int(uint32_t num) {
  * @str: Pointer to the null-terminated string to print
  */
 void print(const char* str) {
+    /* Route to GUI buffer when in GUI mode */
+    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+        shell_gui_print_ext(str);
+        return;
+    }
     for(int i = 0; str[i] != '\0'; i++) {
         putchar(str[i]);
     }
@@ -452,18 +475,24 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
-    init_vga();
-    clear_screen();
-    print("Testing output...\n");
+    // Initialize serial port first for debug output
+    serial_init();
+    KINFO("cupid-os booting...");
 
+    // Initialize memory management
     pmm_init((uint32_t)&_kernel_end);
     heap_init(HEAP_INITIAL_PAGES);
     paging_init();
-    
+    KINFO("Memory management initialized");
+
+    // Initialize interrupts and drivers
     idt_init();
     pic_init();
     keyboard_init();
     calibrate_timer();
+    KINFO("Interrupts and timers initialized");
+
+    // Initialize filesystem
     fs_init();
 
     // Initialize ATA disk driver
@@ -477,37 +506,49 @@ void kmain(void) {
     block_device_t* hdd = blkdev_get(0);
     if (hdd) {
         if (blockcache_init(hdd) != 0) {
-            print("Block cache initialization failed\n");
+            KERROR("Block cache initialization failed");
         } else {
             // Set up periodic flush every 5 seconds using timer channel 1
             timer_configure_channel(1, 100, blockcache_periodic_flush);
-            print("Block cache: periodic flush enabled (5s interval)\n");
+            KINFO("Block cache: periodic flush enabled (5s interval)");
         }
 
         // Initialize FAT16 filesystem
         if (fat16_init() == 0) {
-            print("FAT16 mounted at /disk\n");
+            KINFO("FAT16 mounted at /disk");
         }
     }
 
-    debug_print_int("System Timer Frequency: ", timer_get_frequency());
-    debug_print_int("CPU Frequency (MHz): ", (uint32_t)(get_cpu_freq() / 1000000));
+    KINFO("System Timer Frequency: %u Hz", timer_get_frequency());
+    KINFO("CPU Frequency: %u MHz", (uint32_t)(get_cpu_freq() / 1000000));
+    KINFO("Total Memory: %u MB", TOTAL_MEMORY_BYTES / 1024 / 1024);
+    KINFO("Total Pages: %u", pmm_total_pages());
+    KINFO("Free Pages: %u", pmm_free_pages());
 
-    // Print memory information
-    print("Memory Information:\n");
-    debug_print_int("Total Memory: ", TOTAL_MEMORY_BYTES / 1024 / 1024);
-    print(" MB\n");
-    debug_print_int("Total Pages: ", pmm_total_pages());
-    debug_print_int("Free Pages: ", pmm_free_pages());
-    debug_print_int("Used Pages: ", pmm_total_pages() - pmm_free_pages());
-    print("\n");
+    // Initialize VGA graphics mode (Mode 13h already set by bootloader)
+    vga_set_mode_13h();      // Allocates back buffer and clears screen
+    vga_init_palette();      // Set up color palette
+    gfx_init();              // Initialize graphics primitives
+    KINFO("VGA graphics initialized (320x200, Mode 13h)");
 
+    // Initialize mouse driver
+    mouse_init();
+    KINFO("PS/2 mouse initialized");
+
+    // Initialize GUI and desktop
+    gui_init();
+    desktop_init();
+    KINFO("GUI and desktop initialized");
+
+    // Add desktop icons
+    desktop_add_icon(10, 10, "Terminal", terminal_launch);
+
+    // Enable keyboard interrupt
     pic_clear_mask(1);
     __asm__ volatile("sti");
-    
-    shell_run();
-    
-    while(1) {
-        __asm__ volatile("hlt");
-    }
+
+    KINFO("Entering desktop environment");
+
+    // Launch desktop (never returns)
+    desktop_run();
 }

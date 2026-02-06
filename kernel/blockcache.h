@@ -32,5 +32,6 @@ void blockcache_flush_all(void);
 void blockcache_periodic_flush(struct registers* r, uint32_t channel);
 void blockcache_sync(void);
 void blockcache_stats(void);
+void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t));
 
 #endif

@@ -14,6 +14,9 @@ void kernel_panic_regs(struct registers *regs,
 /* Print a stack trace starting from the given EBP / EIP. */
 void print_stack_trace(uint32_t ebp, uint32_t eip);
 
+/* Set output functions for panic/debug output (for GUI mode support) */
+void panic_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char));
+
 /* Capture current registers and panic (for use in macros). */
 #define PANIC(msg, ...) do { \
         uint32_t _ebp, _eip; \

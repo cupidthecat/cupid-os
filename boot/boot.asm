@@ -24,7 +24,16 @@ start:
 
     ; Load kernel
     call load_kernel
-    
+
+    ; Set VGA Mode 13h (320x200, 256 colors) via BIOS while still in real mode
+    mov ax, 0x0013
+    int 0x10
+
+    ; Restore segment registers after BIOS call (INT 10h may clobber them)
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+
     ; Switch to protected mode
     call switch_to_pm
     
