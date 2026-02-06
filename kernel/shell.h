@@ -42,4 +42,7 @@ void shell_gui_putchar_ext(char c);
 void shell_gui_print_ext(const char *s);
 void shell_gui_print_int_ext(uint32_t num);
 
+/* Execute a command line string (used by CupidScript) */
+void shell_execute_line(const char *line);
+
 #endif

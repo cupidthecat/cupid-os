@@ -15,6 +15,7 @@
 #include "../drivers/serial.h"
 #include "ed.h"
 #include "process.h"
+#include "cupidscript.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -227,6 +228,7 @@ static void shell_ps(const char* args);
 static void shell_kill_cmd(const char* args);
 static void shell_spawn(const char* args);
 static void shell_yield_cmd(const char* args);
+static void shell_cupid(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -253,6 +255,7 @@ static struct shell_command commands[] = {
     {"logdump", "Show recent log entries", shell_logdump},
     {"crashtest", "Test crash handling", shell_crashtest},
     {"ed", "Ed line editor", shell_ed},
+    {"cupid", "Run a CupidScript (.cup) file", shell_cupid},
     {"ps", "List all processes", shell_ps},
     {"kill", "Kill a process by PID", shell_kill_cmd},
     {"spawn", "Spawn test processes", shell_spawn},
@@ -910,6 +913,53 @@ static void shell_yield_cmd(const char* args) {
     process_yield();
 }
 
+/* ── cupid command: run a CupidScript file ── */
+static void shell_cupid(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: cupid <script.cup> [args...]\n");
+        return;
+    }
+
+    /* Split filename from arguments */
+    char filename[MAX_INPUT_LEN];
+    const char *script_args = NULL;
+    int i = 0;
+    while (args[i] && args[i] != ' ' && i < MAX_INPUT_LEN - 1) {
+        filename[i] = args[i];
+        i++;
+    }
+    filename[i] = '\0';
+    if (args[i] == ' ') {
+        script_args = &args[i + 1];
+    }
+
+    /* Set up CupidScript output routing */
+    if (output_mode == SHELL_OUTPUT_GUI) {
+        cupidscript_set_output(shell_gui_print, shell_gui_putchar,
+                               shell_gui_print_int);
+    } else {
+        cupidscript_set_output(shell_print, shell_putchar,
+                               shell_print_int);
+    }
+
+    cupidscript_run_file(filename, script_args);
+}
+
+/* ── helper: check if string ends with suffix ── */
+static int shell_ends_with(const char *str, const char *suffix) {
+    int slen = 0, xlen = 0;
+    while (str[slen]) slen++;
+    while (suffix[xlen]) xlen++;
+    if (xlen > slen) return 0;
+    return strcmp(str + slen - xlen, suffix) == 0;
+}
+
+/* ── shell_execute_line: public interface for CupidScript ── */
+void shell_execute_line(const char *line) {
+    if (!line || line[0] == '\0') return;
+    execute_command(line);
+}
+
 // Find and execute a command
 static void execute_command(const char* input) {
     // Skip empty input
@@ -938,6 +988,21 @@ static void execute_command(const char* input) {
             commands[j].func(args);
             return;
         }
+    }
+
+    /* Handle ./script.cup execution */
+    if (cmd[0] == '.' && cmd[1] == '/') {
+        const char *script_path = cmd + 2;
+        if (shell_ends_with(script_path, ".cup")) {
+            shell_cupid(args ? input + 2 : script_path);
+            return;
+        }
+    }
+
+    /* Handle bare .cup files: script.cup → cupid script.cup */
+    if (shell_ends_with(cmd, ".cup")) {
+        shell_cupid(input);
+        return;
     }
 
     // Handle unknown command
