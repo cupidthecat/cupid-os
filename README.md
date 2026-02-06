@@ -61,6 +61,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `terminal_app.c/h` – GUI terminal application interfacing with the shell via character buffer.
   - `process.c/h` – Process management: kernel threads, round-robin scheduler, context switching, process lifecycle.
   - `context_switch.asm` – Pure assembly context switch routine: saves/restores callee-saved registers and ESP across process switches.
+  - `cupidscript.h` – CupidScript scripting language header: token types, AST nodes, runtime context, and public API.
+  - `cupidscript_lex.c` – CupidScript lexer/tokenizer: breaks script source into tokens (keywords, variables, operators, strings).
+  - `cupidscript_parse.c` – CupidScript parser: transforms token stream into an Abstract Syntax Tree (AST).
+  - `cupidscript_exec.c` – CupidScript interpreter/executor: walks the AST, executes commands, evaluates tests, manages control flow.
+  - `cupidscript_runtime.c` – CupidScript runtime: variable storage, function registry, and `$VAR` expansion engine.
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
@@ -233,12 +238,46 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Limits:** 1024 lines max, 256 chars per line
   - **Regex:** Supports `.` (any char), `*` (zero or more), `^` (start), `$` (end), literal chars
 
+- **CupidScript Scripting Language** ✨ **NEW**
+  - A bash-like scripting language for cupid-os with `.cup` file extension
+  - **Three invocation methods:**
+    - `cupid script.cup [args]` — Run via the `cupid` shell command
+    - `./script.cup [args]` — Run with `./` prefix
+    - `script.cup [args]` — Run by typing the filename directly
+  - **Variables:**
+    - Assignment: `NAME=frank`, `COUNT=42`
+    - Expansion: `$NAME`, `$COUNT` — expands inside strings and arguments
+    - Special variables: `$?` (last exit status), `$#` (argument count), `$0` (script name), `$1`–`$9` (positional args)
+    - Undefined variables expand to empty string (bash behavior)
+  - **Conditionals:**
+    - `if [ $X -eq 10 ]; then ... fi`
+    - `if [ $NAME = "frank" ]; then ... else ... fi`
+    - Test operators: `-eq`, `-ne`, `-lt`, `-gt`, `-le`, `-ge` (numeric); `=`, `!=` (string); `-z`, `-n` (length)
+  - **Loops:**
+    - `for i in 1 2 3 4 5; do ... done` — iterate over word list
+    - `while [ $COUNT -lt 10 ]; do ... done` — conditional loop
+    - Safety limit: 10,000 iterations per while loop
+  - **Functions:**
+    - Definition: `greet() { echo "Hello $1"; }`
+    - Call: `greet frank` — arguments accessible via `$1`, `$2`, etc.
+    - `return N` — set exit status from a function
+  - **Arithmetic:** `$((expr))` expansion with `+`, `-`, `*`, `/`, `%`
+  - **Comments:** `# comment` — full line and inline
+  - **Shebang:** `#!/bin/cupid` supported (skipped during execution)
+  - **Architecture:** Lexer → Parser → AST → Interpreter pipeline
+    - All allocations use `kmalloc`/`kfree` with full cleanup
+    - Works in both text mode and GUI terminal
+    - Scripts can call any built-in shell command
+  - **Limits:** 128 variables, 32 functions, 256-char values, 2048 tokens
+  - Create scripts with the `ed` editor, save to FAT16 disk, and execute
+
 - **Shell Interface**
   - **Command-line shell** with prompt, parsing, history, and tab completion
   - **In-Memory FS Commands:** `ls`, `cat <file>`
   - **Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
-  - **Editor:** `ed [file]` – Launch the ed line editor ✨ **NEW**
-  - **Process Commands:** ✨ **NEW**
+  - **Editor:** `ed [file]` – Launch the ed line editor
+  - **Scripting:** `cupid <script.cup> [args]` – Run a CupidScript file ✨ **NEW**
+  - **Process Commands:**
     - `ps` – List all running processes (PID, state, name)
     - `kill <pid>` – Terminate a process
     - `spawn [n]` – Spawn test processes
@@ -329,13 +368,13 @@ As we progress, new phases and tasks may be added, existing ones may be modified
 ### Phase 2 - Extended Features
 5. **Shell Interface** (🔄 In-Progress)
    - ✅ Basic command parsing and prompt display
-   - ✅ 23 built-in commands (system, filesystem, disk, debug, editor)
+   - ✅ 24 built-in commands (system, filesystem, disk, debug, editor, scripting)
    - ✅ Advanced command parsing with argument splitting
    - ✅ Command history (16 entries, arrow key navigation)
    - ✅ Tab completion (commands and filenames)
    - ✅ Debug/memory introspection commands
+   - ✅ CupidScript scripting language (`.cup` files with variables, loops, functions)
    - ⭕ I/O redirection
-   - ⭕ Scripting support
 
 7. **Process Management** (✅ Complete)
    - ✅ Process creation/termination
@@ -675,6 +714,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **CupidScript Scripting Language** – Bash-like scripting for cupid-os with variables (`$VAR`, `$?`, `$#`, `$0`–`$9`), if/else conditionals with test operators (`-eq`, `-ne`, `-lt`, `-gt`, `=`, `!=`), for/while loops, user-defined functions with positional arguments and return values, arithmetic expansion (`$((expr))`), and comments. Scripts use `.cup` extension, are created with the `ed` editor, and can be run via `cupid script.cup`, `./script.cup`, or just `script.cup`. Full lexer → parser → AST → interpreter pipeline with proper memory management. Integrates with all existing shell commands and works in both text and GUI terminal modes.
 - **Process Management & Scheduler** – Deferred preemptive multitasking with round-robin scheduling (10ms time slices at 100Hz). Up to 32 kernel threads with pure assembly context switching (`context_switch.asm`) that saves/restores callee-saved registers (EBP, EDI, ESI, EBX, EFLAGS). Timer IRQ sets a reschedule flag checked at safe voluntary points (desktop loop, yield, idle) to avoid stack corruption from ISR-level switching. Desktop runs as PID 2, GUI terminal as PID 3. Deferred stack freeing with lazy reaping, stack canary overflow detection, and 4 shell commands (`ps`, `kill`, `spawn`, `yield`).
 - **VGA Graphics & Desktop Environment** – Full graphical desktop with VGA Mode 13h (320×200, 256 colors). Pastel color palette, PS/2 mouse driver with cursor, window manager supporting up to 16 draggable overlapping windows with z-ordering, desktop shell with taskbar and clickable icons, and a GUI terminal application running the existing shell in a graphical window. Double-buffered rendering for flicker-free display.
 - **FAT16 Write Support** – Files can now be created, overwritten, and deleted on FAT16 disk. Cluster allocation/freeing, FAT chain management, and directory entry creation are fully implemented. Ed's `w`/`wq`/`W` commands persist data through the full ATA write path.
