@@ -12,6 +12,7 @@
 #include "shell.h"
 #include "fs.h"
 #include "fat16.h"
+#include "vfs.h"
 #include "../drivers/serial.h"
 
 /* ── output function pointers (set by shell integration) ───────────── */
@@ -486,11 +487,65 @@ int cupidscript_run_file(const char *filename, const char *args) {
         source_len = file->size;
         KINFO("CupidScript: loading '%s' from in-memory fs (%u bytes)",
               filename, source_len);
-    } else {
-        /* 2. Try FAT16 disk */
+    }
+
+    /* 2. Try VFS (supports /home/file, /tmp/file, etc.) */
+    if (!source) {
+        /* Build VFS path: if not absolute, prepend CWD */
+        char vpath[VFS_MAX_PATH];
+        if (filename[0] == '/') {
+            int k = 0;
+            while (filename[k] && k < VFS_MAX_PATH - 1) {
+                vpath[k] = filename[k];
+                k++;
+            }
+            vpath[k] = '\0';
+        } else {
+            const char *cwd = shell_get_cwd();
+            int j = 0, k = 0;
+            while (cwd[k] && j < VFS_MAX_PATH - 2) {
+                vpath[j++] = cwd[k++];
+            }
+            if (j > 1) vpath[j++] = '/';
+            k = 0;
+            while (filename[k] && j < VFS_MAX_PATH - 1) {
+                vpath[j++] = filename[k++];
+            }
+            vpath[j] = '\0';
+        }
+
+        int fd = vfs_open(vpath, O_RDONLY);
+        if (fd >= 0) {
+            /* Get file size via stat */
+            vfs_stat_t st;
+            uint32_t fsize = 8192; /* default max */
+            if (vfs_stat(vpath, &st) == 0 && st.size > 0) {
+                fsize = st.size;
+            }
+            disk_buf = kmalloc(fsize + 1);
+            if (!disk_buf) {
+                vfs_close(fd);
+                void (*out)(const char *) = cs_print ? cs_print : print;
+                out("cupid: out of memory reading ");
+                out(filename);
+                out("\n");
+                return 1;
+            }
+            int total_read = vfs_read(fd, disk_buf, fsize);
+            vfs_close(fd);
+            if (total_read < 0) total_read = 0;
+            disk_buf[total_read] = '\0';
+            source = disk_buf;
+            source_len = (uint32_t)total_read;
+            KINFO("CupidScript: loading '%s' from VFS (%u bytes)",
+                  vpath, source_len);
+        }
+    }
+
+    /* 3. Try direct FAT16 (bare filenames like "script.cup") */
+    if (!source) {
         fat16_file_t *df = fat16_open(filename);
         if (!df) {
-            /* Output error through appropriate channel */
             void (*out)(const char *) = cs_print ? cs_print : print;
             out("cupid: cannot open ");
             out(filename);

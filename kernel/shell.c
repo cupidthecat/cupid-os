@@ -34,6 +34,10 @@ static int gui_visible_cols = SHELL_COLS;  /* actual visible column width */
 /* ── Current working directory ──────────────────────────────────── */
 static char shell_cwd[VFS_MAX_PATH] = "/";
 
+const char *shell_get_cwd(void) {
+    return shell_cwd;
+}
+
 /**
  * Resolve a possibly-relative path against the CWD.
  * Result written to `out` (must be VFS_MAX_PATH bytes).
@@ -403,15 +407,6 @@ static int shell_strncmp(const char* s1, const char* s2, size_t n) {
     return (unsigned char)*s1 - (unsigned char)*s2;
 }
 
-static bool shell_starts_with(const char* s, const char* prefix) {
-    while (*prefix) {
-        if (*s != *prefix) return false;
-        s++;
-        prefix++;
-    }
-    return true;
-}
-
 static void history_record(const char* line) {
     if (!line || line[0] == '\0') {
         return;
@@ -467,58 +462,211 @@ static void replace_input(const char* new_text, char* input, int* pos) {
 }
 
 static void tab_complete(char* input, int* pos) {
-    // Only complete the command (before first space)
+    /* ── Helper: re-display prompt + current input after listing matches ── */
+    #define REDRAW_PROMPT() do {                           \
+        shell_print("\n");                                 \
+        shell_print(shell_cwd);                            \
+        shell_print("> ");                                 \
+        for (int _k = 0; _k < *pos; _k++)                 \
+            shell_putchar(input[_k]);                      \
+    } while (0)
+
+    /* Find the first space to determine if we're completing
+       a command name or an argument. */
+    int first_space = -1;
     for (int i = 0; i < *pos; i++) {
-        if (input[i] == ' ') {
-            // Special-case filename completion for "cat "
-            if (shell_starts_with(input, "cat ") && i == 3) {
-                size_t prefix_len = (size_t)(*pos - 4);
-                const char* prefix = &input[4];
-                const char* first_match = NULL;
-                int match_count = 0;
-
-                uint32_t file_count = fs_get_file_count();
-                for (uint32_t f = 0; f < file_count; f++) {
-                    const fs_file_t* file = fs_get_file(f);
-                    if (!file) continue;
-                    if (shell_strncmp(file->name, prefix, prefix_len) == 0) {
-                        if (match_count == 0) {
-                            first_match = file->name;
-                        }
-                        match_count++;
-                    }
-                }
-
-                if (match_count == 1 && first_match) {
-                    const char* completion = first_match + prefix_len;
-                    while (*completion && *pos < MAX_INPUT_LEN) {
-                        input[*pos] = *completion;
-                        shell_putchar(*completion);
-                        (*pos)++;
-                        completion++;
-                    }
-                } else if (match_count > 1) {
-                    shell_print("\n");
-                    for (uint32_t f = 0; f < file_count; f++) {
-                        const fs_file_t* file = fs_get_file(f);
-                        if (!file) continue;
-                        if (shell_strncmp(file->name, prefix, prefix_len) == 0) {
-                            shell_print(file->name);
-                            shell_print("  ");
-                        }
-                    }
-                    shell_print("\n> ");
-                    for (int k = 0; k < *pos; k++) {
-                        shell_putchar(input[k]);
-                    }
-                } else {
-                    // No match; do nothing
-                }
-            }
-            return;
-        }
+        if (input[i] == ' ') { first_space = i; break; }
     }
 
+    /* ────────────────────────────────────────────────────────────────────
+     *  ARGUMENT / FILENAME COMPLETION
+     * ──────────────────────────────────────────────────────────────────── */
+    if (first_space >= 0) {
+        /* Extract the command name */
+        char cmd[MAX_INPUT_LEN + 1];
+        for (int i = 0; i < first_space && i < MAX_INPUT_LEN; i++)
+            cmd[i] = input[i];
+        cmd[first_space] = '\0';
+
+        /* Only complete filenames for commands that take paths */
+        bool wants_file =
+            strcmp(cmd, "cat") == 0   || strcmp(cmd, "cd") == 0    ||
+            strcmp(cmd, "ls") == 0    || strcmp(cmd, "vls") == 0   ||
+            strcmp(cmd, "vcat") == 0  || strcmp(cmd, "vstat") == 0 ||
+            strcmp(cmd, "vmkdir") == 0|| strcmp(cmd, "vrm") == 0   ||
+            strcmp(cmd, "vwrite") == 0|| strcmp(cmd, "exec") == 0  ||
+            strcmp(cmd, "ed") == 0    || strcmp(cmd, "cupid") == 0 ||
+            strcmp(cmd, "catdisk") == 0;
+
+        if (!wants_file) return;
+
+        /* Find the start of the last argument (after last space) */
+        int arg_start = first_space + 1;
+        for (int i = *pos - 1; i > first_space; i--) {
+            if (input[i] == ' ') { arg_start = i + 1; break; }
+        }
+
+        /* Extract the partial argument typed so far */
+        int arg_len = *pos - arg_start;
+        char arg_prefix[VFS_MAX_PATH];
+        for (int i = 0; i < arg_len && i < VFS_MAX_PATH - 1; i++)
+            arg_prefix[i] = input[arg_start + i];
+        arg_prefix[arg_len] = '\0';
+
+        /* Split arg_prefix into directory part and name prefix.
+         * E.g. "/home/HEL" → dir="/home", name_prefix="HEL"
+         * E.g. "HEL"       → dir=CWD,     name_prefix="HEL"
+         * E.g. "/dev/"      → dir="/dev",  name_prefix=""
+         */
+        char dir_path[VFS_MAX_PATH];
+        char name_prefix[VFS_MAX_NAME];
+        int name_prefix_len = 0;
+
+        /* Find last slash in arg_prefix */
+        int last_slash = -1;
+        for (int i = 0; i < arg_len; i++) {
+            if (arg_prefix[i] == '/') last_slash = i;
+        }
+
+        if (last_slash >= 0) {
+            /* Has a slash — directory part is everything up to & including slash */
+            if (last_slash == 0) {
+                dir_path[0] = '/';
+                dir_path[1] = '\0';
+            } else {
+                for (int i = 0; i < last_slash && i < VFS_MAX_PATH - 1; i++)
+                    dir_path[i] = arg_prefix[i];
+                dir_path[last_slash] = '\0';
+            }
+            /* Name prefix is everything after the last slash */
+            name_prefix_len = arg_len - last_slash - 1;
+            for (int i = 0; i < name_prefix_len && i < VFS_MAX_NAME - 1; i++)
+                name_prefix[i] = arg_prefix[last_slash + 1 + i];
+            name_prefix[name_prefix_len] = '\0';
+        } else {
+            /* No slash — use CWD as directory, whole arg is the name prefix */
+            shell_resolve_path(".", dir_path);
+            name_prefix_len = arg_len;
+            for (int i = 0; i < arg_len && i < VFS_MAX_NAME - 1; i++)
+                name_prefix[i] = arg_prefix[i];
+            name_prefix[name_prefix_len] = '\0';
+        }
+
+        /* Open the directory and collect matches */
+        int fd = vfs_open(dir_path, O_RDONLY);
+        if (fd < 0) return;
+
+        char first_match[VFS_MAX_NAME];
+        first_match[0] = '\0';
+        int match_count = 0;
+        bool first_is_dir = false;
+        vfs_dirent_t ent;
+
+        while (vfs_readdir(fd, &ent) > 0) {
+            if (shell_strncmp(ent.name, name_prefix,
+                              (size_t)name_prefix_len) == 0) {
+                if (match_count == 0) {
+                    int n = 0;
+                    while (ent.name[n] && n < VFS_MAX_NAME - 1) {
+                        first_match[n] = ent.name[n];
+                        n++;
+                    }
+                    first_match[n] = '\0';
+                    first_is_dir = (ent.type == VFS_TYPE_DIR);
+                }
+                match_count++;
+            }
+        }
+        vfs_close(fd);
+
+        if (match_count == 1) {
+            /* Single match — append the rest of the name */
+            const char *rest = first_match + name_prefix_len;
+            while (*rest && *pos < MAX_INPUT_LEN) {
+                input[*pos] = *rest;
+                shell_putchar(*rest);
+                (*pos)++;
+                rest++;
+            }
+            /* Append / for directories, space for files */
+            if (first_is_dir && *pos < MAX_INPUT_LEN) {
+                input[*pos] = '/';
+                shell_putchar('/');
+                (*pos)++;
+            } else if (!first_is_dir && *pos < MAX_INPUT_LEN) {
+                input[*pos] = ' ';
+                shell_putchar(' ');
+                (*pos)++;
+            }
+        } else if (match_count > 1) {
+            /* Multiple matches — find common prefix, then list all */
+            /* First, compute the longest common prefix among matches */
+            /* (Re-scan directory for this) */
+            int common_len = VFS_MAX_NAME;
+            fd = vfs_open(dir_path, O_RDONLY);
+            if (fd >= 0) {
+                bool first = true;
+                char common[VFS_MAX_NAME];
+                common[0] = '\0';
+                while (vfs_readdir(fd, &ent) > 0) {
+                    if (shell_strncmp(ent.name, name_prefix,
+                                      (size_t)name_prefix_len) != 0)
+                        continue;
+                    if (first) {
+                        int n = 0;
+                        while (ent.name[n] && n < VFS_MAX_NAME - 1) {
+                            common[n] = ent.name[n]; n++;
+                        }
+                        common[n] = '\0';
+                        common_len = n;
+                        first = false;
+                    } else {
+                        int n = 0;
+                        while (n < common_len && ent.name[n] &&
+                               common[n] == ent.name[n])
+                            n++;
+                        common_len = n;
+                        common[common_len] = '\0';
+                    }
+                }
+                vfs_close(fd);
+
+                /* Append common prefix beyond what's already typed */
+                if (common_len > name_prefix_len) {
+                    for (int ci = name_prefix_len;
+                         ci < common_len && *pos < MAX_INPUT_LEN; ci++) {
+                        input[*pos] = common[ci];
+                        shell_putchar(common[ci]);
+                        (*pos)++;
+                    }
+                    /* Don't list matches yet — user can press Tab again */
+                    return;
+                }
+            }
+
+            /* List all matches */
+            shell_print("\n");
+            fd = vfs_open(dir_path, O_RDONLY);
+            if (fd >= 0) {
+                while (vfs_readdir(fd, &ent) > 0) {
+                    if (shell_strncmp(ent.name, name_prefix,
+                                      (size_t)name_prefix_len) != 0)
+                        continue;
+                    shell_print(ent.name);
+                    if (ent.type == VFS_TYPE_DIR) shell_putchar('/');
+                    shell_print("  ");
+                }
+                vfs_close(fd);
+            }
+            REDRAW_PROMPT();
+        }
+        /* match_count == 0: no matches, do nothing */
+        return;
+    }
+
+    /* ────────────────────────────────────────────────────────────────────
+     *  COMMAND NAME COMPLETION
+     * ──────────────────────────────────────────────────────────────────── */
     size_t prefix_len = (size_t)(*pos);
     char prefix[MAX_INPUT_LEN + 1];
     for (size_t i = 0; i < prefix_len; i++) {
@@ -526,27 +674,65 @@ static void tab_complete(char* input, int* pos) {
     }
     prefix[prefix_len] = '\0';
 
-    const char* first_match = NULL;
+    const char* first_match_cmd = NULL;
     int match_count = 0;
 
     for (int i = 0; commands[i].name; i++) {
         if (shell_strncmp(commands[i].name, prefix, prefix_len) == 0) {
             if (match_count == 0) {
-                first_match = commands[i].name;
+                first_match_cmd = commands[i].name;
             }
             match_count++;
         }
     }
 
-    if (match_count == 1 && first_match) {
-        const char* completion = first_match + prefix_len;
+    if (match_count == 1 && first_match_cmd) {
+        const char* completion = first_match_cmd + prefix_len;
         while (*completion && *pos < MAX_INPUT_LEN) {
             input[*pos] = *completion;
             shell_putchar(*completion);
             (*pos)++;
             completion++;
         }
+        /* Add trailing space after command */
+        if (*pos < MAX_INPUT_LEN) {
+            input[*pos] = ' ';
+            shell_putchar(' ');
+            (*pos)++;
+        }
     } else if (match_count > 1) {
+        /* Compute longest common prefix among matching commands */
+        const char *common_cmd = NULL;
+        int common_cmd_len = 0;
+        for (int i = 0; commands[i].name; i++) {
+            if (shell_strncmp(commands[i].name, prefix, prefix_len) != 0)
+                continue;
+            if (!common_cmd) {
+                common_cmd = commands[i].name;
+                common_cmd_len = 0;
+                while (common_cmd[common_cmd_len]) common_cmd_len++;
+            } else {
+                int n = 0;
+                while (n < common_cmd_len &&
+                       commands[i].name[n] &&
+                       common_cmd[n] == commands[i].name[n])
+                    n++;
+                common_cmd_len = n;
+            }
+        }
+
+        /* Append common prefix beyond what's typed */
+        if (common_cmd && common_cmd_len > (int)prefix_len) {
+            for (int ci = (int)prefix_len;
+                 ci < common_cmd_len && *pos < MAX_INPUT_LEN; ci++) {
+                input[*pos] = common_cmd[ci];
+                shell_putchar(common_cmd[ci]);
+                (*pos)++;
+            }
+            return;
+        }
+
+        /* List all matching commands */
         shell_print("\n");
         for (int i = 0; commands[i].name; i++) {
             if (shell_strncmp(commands[i].name, prefix, prefix_len) == 0) {
@@ -554,11 +740,10 @@ static void tab_complete(char* input, int* pos) {
                 shell_print("  ");
             }
         }
-        shell_print("\n> ");
-        for (int i = 0; i < *pos; i++) {
-            shell_putchar(input[i]);
-        }
+        REDRAW_PROMPT();
     }
+
+    #undef REDRAW_PROMPT
 }
 
 // Echo command implementation

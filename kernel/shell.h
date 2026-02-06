@@ -24,6 +24,9 @@ void shell_set_output_mode(shell_output_mode_t mode);
 /* Get current output mode */
 shell_output_mode_t shell_get_output_mode(void);
 
+/* Get current working directory */
+const char *shell_get_cwd(void);
+
 /* GUI mode: get the character buffer */
 const char *shell_get_buffer(void);
 
