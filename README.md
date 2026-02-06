@@ -13,6 +13,7 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 - Pastel-themed desktop environment with taskbar and icons
 - Preemptive multitasking with round-robin process scheduler
 - Linux-style Virtual File System with RamFS, DevFS, and FAT16 backends
+- Real-time clock display in taskbar with interactive calendar popup
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
@@ -77,6 +78,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `cupidscript_arrays.c/h` – Array and associative array support for CupidScript variables.
   - `cupidscript_jobs.c/h` – Background job management: job table, process state tracking, job control builtins.
   - `terminal_ansi.c/h` – ANSI escape sequence parser: color codes, cursor control, screen clearing for terminal color support.
+  - `calendar.c/h` – Calendar math (leap year, days-in-month, Zeller's congruence) and time/date formatting for taskbar clock and calendar popup.
 
 - **drivers/**  
   - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
@@ -87,6 +89,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `ata.c/h` – ATA/IDE PIO-mode disk driver.
   - `vga.c/h` – VGA Mode 13h graphics driver (320×200, 256 colors) with double buffering.
   - `mouse.c/h` – PS/2 mouse driver with IRQ12 handler and cursor rendering.
+  - `rtc.c/h` – CMOS Real-Time Clock driver: reads time/date via I/O ports 0x70/0x71, BCD conversion, atomic reads, validation.
 
 - **link.ld** – Linker script defining the kernel image layout.
 - **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
@@ -142,6 +145,12 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Desktop Shell:** Complete desktop environment
     - Solid pastel background with desktop icons
     - Taskbar at bottom (20px) with "cupid-os" branding and window buttons
+    - **Real-time clock display** (right-aligned) showing time in 12-hour format and short date
+    - **Interactive calendar popup** — click clock to open a navigable monthly calendar
+      - Shows current month with highlighted today marker
+      - Left/right arrow buttons to navigate months
+      - Full date and time with seconds display
+      - Close by clicking outside or pressing Escape
     - Clickable desktop icons that launch applications
     - Active window highlighting in taskbar
     - Main event loop processing mouse and keyboard input
@@ -468,7 +477,7 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ Serial port (COM1, 115200 baud)
    - ✅ VGA Mode 13h graphics (320×200, 256 colors)
    - ✅ PS/2 mouse driver (IRQ12, cursor rendering)
-   - ⭕ Real-time clock
+   - ✅ Real-time clock (CMOS RTC driver with taskbar clock and calendar popup)
 
 9. **Simple Filesystem** (✅ Complete)
    - ✅ VFS layer with mount table, path resolution, unified API
@@ -794,6 +803,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **RTC Clock & Calendar** ✨ **NEW** – CMOS Real-Time Clock driver reading time/date via I/O ports 0x70/0x71 with BCD conversion and atomic reads. Digital clock displayed right-aligned in the taskbar (12-hour format with AM/PM and abbreviated date). Click the clock to open an interactive calendar popup showing a navigable monthly view with current day highlighting, month navigation arrows, and full date/time display. Close by clicking outside or pressing Escape. New files: `drivers/rtc.c/h`, `kernel/calendar.c/h`.
 - **Terminal Colors & ANSI Support** – Full ANSI escape sequence parser with 16-color VGA palette. Per-character foreground and background color tracking in the GUI terminal's 80×50 character buffer. Supports `\e[30-37m` / `\e[90-97m` foreground, `\e[40-47m` background, `\e[0m` reset, `\e[1m` bold, `\e[2J` clear, and `\e[H` cursor home. Colors mapped from VGA text-mode indices to Mode 13h palette for graphical rendering. New files: `terminal_ansi.c/h`.
 - **CupidScript I/O Redirection & Pipes** – Stream system with file descriptor table (16 fds per context), supporting terminal, buffer, and VFS file streams. Pipe operator (`|`) connects command stdout to next command's stdin. Output redirection (`>`, `>>`) and input redirection (`<`). Error redirection (`2>`, `2>&1`). New files: `cupidscript_streams.c/h`.
 - **CupidScript Color Builtins** – Built-in commands for terminal color output: `setcolor <fg> [bg]` sets persistent color, `resetcolor` returns to defaults, `printc <fg> <text>` prints colored text, and `echo -c <color> <text>` for colored echo. All emit ANSI escape codes internally.

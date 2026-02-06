@@ -4,7 +4,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 
 ---
 
-## 📖 Pages
+## Pages
 
 | Page | Description |
 |------|-------------|
@@ -15,12 +15,12 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
 | [Desktop Environment](Desktop-Environment) | VGA graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |
-| [Filesystem](Filesystem) | In-memory FS, FAT16 driver, disk I/O, block cache |
+| [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
 
 ---
 
-## 🏗️ System at a Glance
+## System at a Glance
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -30,7 +30,11 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
 ├──────────┴──────────┴───────────┴───────────────────┤
 │              Shell + CupidScript                    │
-│   24 commands │ bash-like scripting │ ed editor     │
+│   38+ commands │ bash-like scripting │ ed editor    │
+│   colors │ pipes │ redirects │ jobs │ arrays      │
+├─────────────────────────────────────────────────────┤
+│       Virtual File System (VFS)                      │
+│   RamFS (/) │ DevFS (/dev) │ FAT16 (/home)         │
 ├─────────────────────────────────────────────────────┤
 │              Process Scheduler                      │
 │   Round-robin │ 10ms slices │ 32 kernel threads     │
@@ -41,7 +45,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │ Keyboard │  Mouse   │   VGA     │    Serial         │
 │  (IRQ1)  │ (IRQ12)  │ Mode 13h  │   (COM1)          │
 ├──────────┴──────────┴───────────┴───────────────────┤
-│              FAT16 Filesystem                       │
+│              FAT16 + Block Cache + ATA               │
 │   Block cache │ ATA/IDE PIO │ MBR partitions        │
 ├─────────────────────────────────────────────────────┤
 │              Memory Management                      │
@@ -57,7 +61,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 
 ---
 
-## 🎯 Philosophy
+## Philosophy
 
 cupid-os embraces complete user empowerment:
 
@@ -70,7 +74,7 @@ This makes cupid-os ideal for learning how computers really work at the lowest l
 
 ---
 
-## 🔧 Quick Start
+## Quick Start
 
 ```bash
 # Install dependencies (Ubuntu/Debian)
@@ -88,7 +92,7 @@ make run-disk
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 cupid-os/
@@ -96,18 +100,28 @@ cupid-os/
 │   └── boot.asm              # Bootloader (real → protected mode)
 ├── kernel/
 │   ├── kernel.c/h             # Main kernel, VGA init, entry point
-│   ├── shell.c/h              # Shell with 24 commands
+│   ├── shell.c/h              # Shell with 38 commands + CWD
+│   ├── vfs.c/h                # Virtual File System core
+│   ├── ramfs.c/h              # In-memory filesystem (RamFS)
+│   ├── devfs.c/h              # Device filesystem (DevFS)
+│   ├── fat16_vfs.c/h          # FAT16 VFS wrapper
+│   ├── exec.c/h               # CUPD program loader
 │   ├── cupidscript*.c/h       # CupidScript scripting language
+│   ├── cupidscript_streams.c/h # Stream system (pipes, fd table)
+│   ├── cupidscript_strings.c  # Advanced string operations
+│   ├── cupidscript_arrays.c/h # Arrays & associative arrays
+│   ├── cupidscript_jobs.c/h   # Background job management
+│   ├── terminal_ansi.c/h      # ANSI escape sequence parser
 │   ├── ed.c/h                 # Ed line editor
 │   ├── process.c/h            # Process scheduler
 │   ├── context_switch.asm     # Assembly context switch
 │   ├── memory.c/h             # Heap, PMM, canaries
-│   ├── fat16.c/h              # FAT16 filesystem
+│   ├── fat16.c/h              # FAT16 filesystem driver
 │   ├── gui.c/h                # Window manager
 │   ├── desktop.c/h            # Desktop environment
 │   ├── graphics.c/h           # Drawing primitives
 │   ├── terminal_app.c/h       # GUI terminal
-│   ├── notepad.c/h            # Notepad application
+│   ├── notepad.c/h            # Notepad application (VFS file dialog)
 │   └── ...                    # IDT, IRQ, PIC, panic, etc.
 ├── drivers/
 │   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
@@ -125,6 +139,6 @@ cupid-os/
 
 ---
 
-## 📜 License
+## License
 
 cupid-os is released under the **GNU General Public License v3**.

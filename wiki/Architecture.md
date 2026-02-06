@@ -25,9 +25,15 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
             ├── heap_init()         — Kernel heap with canaries
             ├── keyboard_init()     — PS/2 keyboard (IRQ1)
             ├── pit_init()          — PIT at 100Hz (IRQ0)
-            ├── serial_init()       — COM1 at 115200 baud
-            ├── fat16_init()        — FAT16 filesystem + block cache
+            ├── serial_init()       — COM1 at 115200 baud            ├── rtc_init()          ─ CMOS Real-Time Clock            ├── fat16_init()        — FAT16 filesystem + block cache
             ├── fs_init()           — In-memory filesystem
+            ├── vfs_init()          — Virtual File System
+            │   ├── Register ramfs, devfs, fat16 filesystem types
+            │   ├── Mount ramfs at /
+            │   ├── Create /bin, /tmp, /home directories
+            │   ├── Mount devfs at /dev (null, zero, random, serial)
+            │   ├── Mount fat16 at /home (ATA disk)
+            │   └── Pre-populate /LICENSE.txt, /MOTD.txt
             ├── process_init()      — Process table, idle process (PID 1)
             ├── Register desktop as PID 2
             ├── vga_init_mode13h()  — Switch to 320×200 graphics
@@ -78,6 +84,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 | ISR/IRQ | `isr.asm`, `irq.c/h` | Interrupt/exception dispatching |
 | PIC | `pic.c/h` | Programmable interrupt controller |
 | Memory | `memory.c/h`, `paging.c` | PMM, heap, paging, canaries, leak detection |
+| VFS | `vfs.c/h` | Virtual filesystem, mount table, path resolution |
 | Panic | `panic.c/h`, `assert.h` | Crash handler, assertions |
 | Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
 | Math | `math.c/h` | 64-bit division, `itoa`, hex printing |
@@ -92,20 +99,27 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 | ATA | `ata.c/h` | — | PIO disk read/write |
 | Serial | `serial.c/h` | — | COM1 logging |
 | Speaker | `speaker.c/h` | — | PC speaker tones |
+| RTC | `rtc.c/h` | — | CMOS real-time clock |
 
 ### Subsystems
 | Subsystem | Files | Purpose |
 |-----------|-------|---------|
-| Shell | `shell.c/h` | 24-command interactive shell |
+| Shell | `shell.c/h` | 38-command interactive shell with CWD support |
 | CupidScript | `cupidscript*.c/h` | Bash-like scripting language |
 | Ed Editor | `ed.c/h` | Unix ed(1) line editor |
-| FAT16 | `fat16.c/h`, `blockdev.c/h`, `blockcache.c/h` | Filesystem with block cache |
-| In-Memory FS | `fs.c/h` | Read-only system file table |
+| VFS | `vfs.c/h` | Virtual File System with mount table and path resolution |
+| RamFS | `ramfs.c/h` | In-memory filesystem (root, /bin, /tmp) |
+| DevFS | `devfs.c/h` | Device filesystem (/dev/null, zero, random, serial) |
+| FAT16 VFS | `fat16_vfs.c/h` | FAT16 VFS wrapper for /home |
+| FAT16 | `fat16.c/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
+| In-Memory FS | `fs.c/h` | Legacy read-only system file table |
+| Exec | `exec.c/h` | CUPD program loader |
 | Process Mgr | `process.c/h`, `context_switch.asm` | Scheduler, context switching |
 | GUI | `gui.c/h`, `desktop.c/h`, `graphics.c/h`, `font_8x8.c/h` | Window manager, desktop |
 | Terminal | `terminal_app.c/h` | GUI terminal application |
-| Notepad | `notepad.c/h` | Text editor application |
+| Notepad | `notepad.c/h` | Text editor application (VFS file dialog) |
 | Clipboard | `clipboard.c/h` | System clipboard |
+| Calendar | `calendar.c/h` | Calendar math, time/date formatting, popup state |
 
 ---
 

@@ -77,8 +77,52 @@ Up to **16 overlapping windows** with z-ordered rendering.
 The taskbar sits at the bottom of the screen (20 pixels high):
 
 - Left side: "cupid-os" branding text
-- Right side: Buttons for each open window (click to focus)
+- Middle: Buttons for each open window (click to focus)
+- Right side: **Real-time clock** showing time (12-hour AM/PM) and short date
 - Active window is highlighted
+- Click the clock to open the **calendar popup**
+
+### Clock Display
+
+The clock reads from the CMOS Real-Time Clock (RTC) hardware:
+
+| Property | Value |
+|----------|-------|
+| Format | `2:35 PM  Feb 6` |
+| Position | Right-aligned in taskbar |
+| Update | Every minute (polls RTC each redraw, caches formatted strings) |
+| Click | Opens interactive calendar popup |
+
+### Calendar Popup
+
+Click the taskbar clock to open a 220×170 pixel calendar popup centered on screen:
+
+```
+┌─────────────────────────────────────┐
+│  <  February 2026  >                │
+│                        2:35:47 PM   │
+├─────────────────────────────────────┤
+│  Thursday, February 6, 2026        │
+│  Su Mo Tu We Th Fr Sa              │
+│                        1            │
+│   2  3  4  5 [6] 7  8              │
+│   9 10 11 12 13 14 15              │
+│  16 17 18 19 20 21 22              │
+│  23 24 25 26 27 28                 │
+└─────────────────────────────────────┘
+```
+
+**Features:**
+- Current day highlighted with colored background
+- Month/year header with `<` and `>` navigation arrows
+- Full date line (e.g., "Thursday, February 6, 2026")
+- Time display with seconds (updates each redraw)
+- Handles leap years and all month lengths correctly
+- Uses Zeller's congruence for weekday calculation
+
+**Close the popup:**
+- Click outside the calendar area
+- Press Escape
 
 ### Desktop Icons
 
@@ -100,15 +144,34 @@ The terminal application runs the shell inside a graphical window:
 | Default size | 280 × 160 pixels |
 | Character buffer | 80 columns × 50 rows |
 | Background | Dark (terminal-style) |
-| Text | White on dark background |
+| Default text | Light gray on dark background |
+| Color support | 16 foreground + 8 background colors via ANSI codes |
 | Cursor | Underline at current position |
 
 ### How It Works
 
 1. Shell writes to a **character buffer** (80×50) instead of VGA text memory
-2. Terminal app **renders** the buffer as graphical text inside its window
-3. Keyboard events are **forwarded** from the desktop event loop to the shell
-4. Shell has a **dual output mode**: text (VGA) or GUI (character buffer)
+2. **ANSI escape sequences** are parsed and stripped from the output stream
+3. A **parallel color buffer** stores per-character foreground/background VGA color indices
+4. Terminal app **renders** each character using its individual color, mapped to the Mode 13h palette
+5. Keyboard events are **forwarded** from the desktop event loop to the shell
+6. Shell has a **dual output mode**: text (VGA) or GUI (character buffer)
+
+### Color Rendering
+
+Each character cell in the terminal has:
+- **Character** — The ASCII character to display
+- **Foreground color** — VGA color index (0–15), mapped to Mode 13h palette
+- **Background color** — VGA color index (0–7), rendered as a colored rectangle behind the character
+
+The ANSI parser handles:
+- `\e[30m` – `\e[37m` — Standard foreground colors
+- `\e[40m` – `\e[47m` — Background colors
+- `\e[90m` – `\e[97m` — Bright foreground colors
+- `\e[0m` — Reset to defaults
+- `\e[1m` — Bold (bright foreground)
+- `\e[2J` — Clear screen
+- `\e[H` — Cursor home
 
 ### Interaction
 
@@ -143,6 +206,9 @@ The terminal application runs the shell inside a graphical window:
 | Click window body | Focus window |
 | Click desktop icon | Launch application |
 | Click taskbar button | Focus corresponding window |
+| Click taskbar clock | Toggle calendar popup |
+| Click calendar `<`/`>` | Navigate months |
+| Click outside calendar | Close calendar popup |
 
 ---
 

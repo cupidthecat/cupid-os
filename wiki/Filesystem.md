@@ -1,113 +1,217 @@
 # Filesystem
 
-cupid-os supports two filesystem layers: a built-in in-memory filesystem for bundled files, and a FAT16 driver for persistent disk storage via ATA/IDE.
+cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a unified file API across multiple filesystem types. The VFS enables a hierarchical directory structure (`/home`, `/dev`, `/tmp`, `/bin`) with three backend drivers: RamFS for in-memory storage, DevFS for device files, and a FAT16 wrapper for persistent disk storage.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────┐
-│       Shell / Applications      │
-├─────────────────────────────────┤
-│   In-Memory FS  │  FAT16 Driver │
-│   (fs.c/fs.h)   │ (fat16.c/h)   │
-├──────────────────┼───────────────┤
-│                  │  Block Cache   │
-│                  │ (blockcache.c) │
-│                  ├───────────────┤
-│                  │  Block Device  │
-│                  │  (blockdev.c)  │
-│                  ├───────────────┤
-│                  │   ATA Driver   │
-│                  │   (ata.c/h)    │
-└──────────────────┴───────────────┘
+┌──────────────────────────────────────────────────┐
+│         Shell / Notepad / Applications           │
+│   (cd, ls, cat, mount, vls, vcat, exec, ...)     │
+├──────────────────────────────────────────────────┤
+│           Virtual File System (VFS)              │
+│   vfs_open · vfs_read · vfs_write · vfs_close    │
+│   vfs_readdir · vfs_stat · vfs_mkdir · vfs_seek  │
+│   Mount table │ FD table │ Path resolution       │
+├────────────┬────────────┬────────────────────────┤
+│   RamFS    │   DevFS    │   FAT16 VFS Wrapper    │
+│ (ramfs.c)  │ (devfs.c)  │   (fat16_vfs.c)        │
+│            │            ├────────────────────────┤
+│ /          │ /dev       │   FAT16 Driver         │
+│ /bin       │            │   (fat16.c)            │
+│ /tmp       │            ├────────────────────────┤
+│            │            │   Block Cache (LRU)    │
+│            │            │   (blockcache.c)       │
+│            │            ├────────────────────────┤
+│            │            │   Block Device Layer   │
+│            │            │   (blockdev.c)         │
+│            │            ├────────────────────────┤
+│            │            │   ATA/IDE PIO Driver   │
+│            │            │   (ata.c)              │
+└────────────┴────────────┴────────────────────────┘
 ```
 
 ---
 
-## In-Memory Filesystem
+## VFS Layer
 
-The in-memory FS (`kernel/fs.c`) provides a simple read-only file table compiled into the kernel.
+The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications — shell, notepad, program loader — use VFS calls exclusively.
 
 ### Features
 
-- Fixed file table (static array of entries)
-- Each entry has: filename, pointer to data, size
-- Used for built-in scripts, default configuration, README
-- Accessed via `fs_read()` and `fs_list()`
+- **Mount table** — up to 16 simultaneous mount points
+- **File descriptor table** — up to 64 open files
+- **Path resolution** — longest-prefix match finds the correct filesystem
+- **Current working directory** — shell tracks CWD for relative paths
+- **Pluggable backends** — any filesystem implementing `vfs_fs_ops_t` can be mounted
 
-### API
+### Mount Points
+
+| Path | Filesystem | Purpose |
+|------|-----------|---------|
+| `/` | RamFS | Root filesystem, boot-time files |
+| `/dev` | DevFS | Device special files |
+| `/home` | FAT16 | User files on ATA disk |
+| `/bin` | RamFS | System programs (subdirectory of root) |
+| `/tmp` | RamFS | Temporary files (subdirectory of root) |
+
+### Directory Hierarchy
+
+```
+/                        (RamFS root)
+├── bin/                 (system programs — future)
+├── tmp/                 (temporary files)
+├── home/                (FAT16 — persistent user files on disk)
+│   ├── HELLO.TXT
+│   ├── SCRIPT.CUP
+│   └── ...
+└── dev/                 (DevFS — device special files)
+    ├── null             (discard sink / EOF source)
+    ├── zero             (infinite zero bytes)
+    ├── random           (pseudo-random bytes)
+    └── serial           (COM1 serial output)
+```
+
+### VFS API
 
 | Function | Description |
 |----------|-------------|
-| `fs_read(name, buf, size)` | Read a file's contents into buffer |
-| `fs_list()` | List all in-memory files |
-| `fs_find(name)` | Find a file entry by name |
+| `vfs_init()` | Initialize VFS mount and FD tables |
+| `vfs_register_fs(name, ops)` | Register a filesystem type |
+| `vfs_mount(source, target, type)` | Mount a filesystem at a path |
+| `vfs_open(path, flags)` | Open a file, returns fd |
+| `vfs_close(fd)` | Close a file descriptor |
+| `vfs_read(fd, buf, count)` | Read bytes from a file |
+| `vfs_write(fd, buf, count)` | Write bytes to a file |
+| `vfs_seek(fd, offset, whence)` | Seek within a file |
+| `vfs_stat(path, stat)` | Get file/directory information |
+| `vfs_readdir(fd, dirent)` | Read next directory entry |
+| `vfs_mkdir(path)` | Create a directory |
+| `vfs_unlink(path)` | Delete a file |
 
-### Shell Integration
+### Open Flags
 
-```
-> ls          # Lists in-memory files
-> cat file    # Reads from in-memory FS first, then FAT16
-```
+| Flag | Value | Description |
+|------|-------|-------------|
+| `O_RDONLY` | 0x0000 | Read only |
+| `O_WRONLY` | 0x0001 | Write only |
+| `O_RDWR` | 0x0002 | Read and write |
+| `O_CREAT` | 0x0100 | Create file if it doesn't exist |
+| `O_TRUNC` | 0x0200 | Truncate file to zero length |
+| `O_APPEND` | 0x0400 | Append to end of file |
 
-The shell checks the in-memory filesystem first, falling back to FAT16 for disk files.
+### Path Resolution
+
+When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
+
+1. **Longest prefix match** — scan mount table for best match
+   - `/home` matches → FAT16 filesystem
+2. **Calculate relative path** — strip mount prefix
+   - `/home/README.TXT` → `README.TXT`
+3. **Call filesystem driver** — `fat16_vfs_open(fs_data, "README.TXT", ...)`
+4. **Allocate file descriptor** — wrap in VFS fd and return to caller
+
+### Error Codes
+
+| Code | Name | Meaning |
+|------|------|---------|
+| 0 | `VFS_OK` | Success |
+| -2 | `VFS_ENOENT` | No such file or directory |
+| -5 | `VFS_EIO` | I/O error |
+| -12 | `VFS_ENOMEM` | Out of memory |
+| -17 | `VFS_EEXIST` | File already exists |
+| -20 | `VFS_ENOTDIR` | Not a directory |
+| -22 | `VFS_EINVAL` | Invalid argument |
+| -24 | `VFS_EMFILE` | Too many open files |
+| -28 | `VFS_ENOSPC` | No space left |
+| -38 | `VFS_ENOSYS` | Operation not supported |
 
 ---
 
-## FAT16 Driver
+## RamFS
 
-The FAT16 driver (`kernel/fat16.c`) provides full read/write access to a FAT16-formatted disk partition.
+The RAM filesystem (`kernel/ramfs.c/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
 
-### Supported Features
+### Features
 
-| Feature | Status |
-|---------|--------|
-| Read files | ✅ |
-| Write files | ✅ |
-| Delete files | ✅ |
-| List directory | ✅ |
-| Long filenames | ❌ (8.3 only) |
-| Subdirectories | ❌ (root dir only) |
-| Multiple partitions | ❌ (first partition) |
+- Full directory tree with parent/children pointers
+- Dynamic file content allocation (up to 64KB per file)
+- Create, read, write, delete files and directories
+- Auto-creates parent directories via `ramfs_mkdirs()`
+- Pre-populated at boot with built-in files (LICENSE.txt, MOTD.txt)
 
-### Disk Layout
+### Data Structure
 
-```
-┌────────────────┐  Sector 0
-│      MBR       │  Master Boot Record with partition table
-├────────────────┤  Partition start
-│  Boot Sector   │  BPB (BIOS Parameter Block)
-├────────────────┤
-│  FAT Table 1   │  File Allocation Table (primary)
-├────────────────┤
-│  FAT Table 2   │  File Allocation Table (backup)
-├────────────────┤
-│ Root Directory  │  Fixed-size root directory entries
-├────────────────┤
-│   Data Area    │  File data in clusters
-└────────────────┘
+```c
+ramfs_node_t {
+    name[64]        // Filename
+    data*           // File contents (NULL for directories)
+    size            // Current data size
+    capacity        // Allocated buffer size
+    type            // FILE or DIR
+    parent*         // Parent directory
+    children*       // First child (directories only)
+    next*           // Next sibling
+}
 ```
 
 ### How It Works
 
-1. **MBR Parsing**: Reads the partition table from sector 0 to find the FAT16 partition
-2. **BPB Reading**: Parses the BIOS Parameter Block for filesystem geometry (sectors per cluster, FAT size, root directory entries, etc.)
-3. **File Lookup**: Scans root directory entries for matching 8.3 filename
-4. **Cluster Chain**: Follows the FAT to read all clusters belonging to a file
-5. **Write Support**: Finds free clusters, updates FAT entries, writes directory entry
+- **Path lookup**: Split path on `/`, walk directory tree node by node
+- **File creation**: Allocate `ramfs_node_t`, link into parent's children list
+- **File write**: Grow data buffer if needed (allocate new, copy, free old)
+- **Directory listing**: Iterate children via `next` pointer
 
-### API
+---
 
-| Function | Description |
-|----------|-------------|
-| `fat16_init()` | Initialize driver, parse MBR and BPB |
-| `fat16_read(name, buf, max)` | Read file contents |
-| `fat16_write(name, data, size)` | Write/create a file |
-| `fat16_delete(name)` | Delete a file |
-| `fat16_list()` | List root directory entries |
-| `fat16_exists(name)` | Check if a file exists |
+## DevFS
+
+The device filesystem (`kernel/devfs.c/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
+
+### Built-in Devices
+
+| Device | Read behavior | Write behavior |
+|--------|--------------|----------------|
+| `/dev/null` | Returns EOF (0 bytes) | Discards all data |
+| `/dev/zero` | Returns zero bytes | Discards all data |
+| `/dev/random` | Returns pseudo-random bytes | Ignored |
+| `/dev/serial` | Not supported | Writes to COM1 serial |
+
+### Example Usage
+
+```
+> cat /dev/random     # Outputs random bytes (limited to 64KB)
+> vwrite /dev/null "test"   # Writes are silently discarded
+> vcat /dev/zero      # Outputs zero bytes (limited to 64KB)
+```
+
+**Note:** Reading from infinite devices (`/dev/zero`, `/dev/random`) is capped at 64KB to prevent system freezes.
+
+---
+
+## FAT16 VFS Wrapper
+
+The FAT16 VFS wrapper (`kernel/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making disk files accessible through the unified API.
+
+### How It Works
+
+- `fat16_vfs_open()` wraps `fat16_open()` for reading
+- `fat16_vfs_readdir()` uses `fat16_enumerate_root()` to list directory entries
+- `fat16_vfs_unlink()` wraps `fat16_delete_file()`
+- Read operations wrap `fat16_read()` with position tracking
+
+### Limitations
+
+| Feature | Status |
+|---------|--------|
+| Read files | ✅ via VFS |
+| List directory | ✅ via VFS readdir |
+| Delete files | ✅ via VFS unlink |
+| Write files | ⚠️ Fallback to `fat16_write_file()` |
+| Subdirectories | ❌ (root directory only) |
+| Long filenames | ❌ (8.3 format only) |
 
 ### Filename Rules
 
@@ -118,7 +222,51 @@ The FAT16 driver (`kernel/fat16.c`) provides full read/write access to a FAT16-f
 
 ---
 
-## Block Device Layer
+## Program Loader
+
+The program loader (`kernel/exec.c/h`) loads and runs CUPD-format executables from the VFS.
+
+### CUPD Executable Format
+
+```
+┌──────────────────────────┐  Offset 0
+│  Header (20 bytes)       │
+│  ├─ magic: 0x43555044    │  "CUPD"
+│  ├─ entry_offset         │  Entry point offset from image base
+│  ├─ code_size            │  Size of code section
+│  ├─ data_size            │  Size of initialized data
+│  └─ bss_size             │  Size of uninitialized data
+├──────────────────────────┤  Offset 20
+│  Code Section            │  Executable instructions
+├──────────────────────────┤
+│  Data Section            │  Initialized global data
+└──────────────────────────┘
+```
+
+### Loading Process
+
+1. Open executable via `vfs_open(path, O_RDONLY)`
+2. Read and validate 20-byte header (check magic `0x43555044`)
+3. Allocate memory for code + data + BSS (max 256KB)
+4. Load code and data sections from file
+5. Zero-fill BSS section
+6. Create a new kernel process pointing to the entry function
+7. Process runs as a normal scheduled thread
+
+### Shell Usage
+
+```
+> exec /home/hello.exe
+> exec /bin/myprog
+```
+
+---
+
+## Legacy Disk I/O Stack
+
+The VFS sits on top of the existing disk I/O stack, which remains unchanged.
+
+### Block Device Layer
 
 The block device abstraction (`kernel/blockdev.c`) provides a uniform interface between the filesystem and disk driver.
 
@@ -128,13 +276,9 @@ The block device abstraction (`kernel/blockdev.c`) provides a uniform interface 
 | `blockdev_write(sector, buf)` | Write one 512-byte sector |
 | `blockdev_init()` | Initialize the block device |
 
----
-
-## Block Cache
+### Block Cache
 
 An LRU (Least Recently Used) write-back cache (`kernel/blockcache.c`) sits between the block device layer and the ATA driver.
-
-### Configuration
 
 | Parameter | Value |
 |-----------|-------|
@@ -143,7 +287,7 @@ An LRU (Least Recently Used) write-back cache (`kernel/blockcache.c`) sits betwe
 | Eviction policy | LRU |
 | Write policy | Write-back (lazy) |
 
-### How It Works
+How it works:
 
 1. **Read hit**: Return cached sector immediately (no disk I/O)
 2. **Read miss**: Read from disk, store in cache, evict LRU if full
@@ -151,25 +295,9 @@ An LRU (Least Recently Used) write-back cache (`kernel/blockcache.c`) sits betwe
 4. **Sync**: Flush all dirty entries to disk
 5. **Eviction**: When a dirty entry is evicted, it's written to disk first
 
-### Cache Statistics
-
-```
-> cachestats
-Block Cache Statistics:
-  Entries: 64
-  Hits:    1,247
-  Misses:  83
-  Hit rate: 93.7%
-  Dirty:   4
-```
-
----
-
-## ATA/IDE Driver
+### ATA/IDE Driver
 
 The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE disk access.
-
-### Features
 
 | Feature | Status |
 |---------|--------|
@@ -180,62 +308,86 @@ The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE di
 | ATAPI/CD | ❌ |
 | Secondary channel | ❌ |
 
-### I/O Ports
-
-| Port | Register | Direction |
-|------|----------|-----------|
-| 0x1F0 | Data | R/W |
-| 0x1F1 | Error / Features | R/W |
-| 0x1F2 | Sector Count | W |
-| 0x1F3 | LBA Low | W |
-| 0x1F4 | LBA Mid | W |
-| 0x1F5 | LBA High | W |
-| 0x1F6 | Drive/Head | W |
-| 0x1F7 | Status / Command | R/W |
-
-### Read/Write Flow
-
-1. Wait for drive not busy (poll status register)
-2. Select drive and set LBA address
-3. Send READ SECTORS (0x20) or WRITE SECTORS (0x30) command
-4. Transfer 256 words (512 bytes) via port 0x1F0
-5. For writes: send CACHE FLUSH (0xE7) command
-
 ---
 
-## Disk Shell Commands
+## Shell Commands
+
+### VFS Commands
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| `cd` | `cd <path>` | Change current working directory |
+| `pwd` | `pwd` | Print current working directory |
+| `ls` | `ls [path]` | List files in current directory (or given path) |
+| `cat` | `cat <file>` | Display file contents (supports VFS paths) |
+| `mount` | `mount` | Show all mounted filesystems |
+| `vls` | `vls [path]` | List files at an absolute VFS path |
+| `vcat` | `vcat <path>` | Display file at an absolute VFS path |
+| `vstat` | `vstat <path>` | Show file/directory info (type, size) |
+| `vmkdir` | `vmkdir <path>` | Create a directory |
+| `vrm` | `vrm <path>` | Delete a file |
+| `vwrite` | `vwrite <path> <text>` | Write text to a file |
+| `exec` | `exec <path>` | Load and run a CUPD executable |
+
+### Legacy Disk Commands
 
 | Command | Description |
 |---------|-------------|
-| `lsdisk` | List files on FAT16 disk |
-| `catdisk <file>` | Read and display a file from disk |
-| `writedisk <file> <data>` | Write data to a file on disk |
-| `deldisk <file>` | Delete a file from disk |
+| `lsdisk` | List files on FAT16 disk directly |
+| `catdisk <file>` | Read a file from FAT16 disk directly |
 | `sync` | Flush block cache to disk |
 | `cachestats` | Show block cache hit/miss statistics |
 
-### Examples
+### Example Session
 
 ```
-> lsdisk
-HELLO   .TXT    1234  2024-01-15 10:30
-SCRIPT  .CUP     256  2024-01-15 11:00
+/home> ls
+HELLO   .TXT    1234
+SCRIPT  .CUP     256
 
-> catdisk HELLO.TXT
-Hello from the FAT16 filesystem!
+/home> cat HELLO.TXT
+Hello from CupidOS disk!
 
-> writedisk TEST.TXT This is a test file
-Written 19 bytes to TEST.TXT
+/home> cd /dev
+/dev> ls
+null
+zero
+random
+serial
 
-> sync
-Cache synced: 2 dirty blocks written
+/dev> cd /
+/> ls
+bin/
+tmp/
+home/
+dev/
+LICENSE.txt
+MOTD.txt
 
-> cachestats
-Block Cache Statistics:
-  Hits:    89
-  Misses:  12
-  Hit rate: 88.1%
+/> mount
+Mounted filesystems:
+  /       ramfs
+  /dev    devfs
+  /home   fat16
+
+/> vmkdir /tmp/test
+/> vwrite /tmp/test/hello.txt Hello World
+/> vcat /tmp/test/hello.txt
+Hello World
 ```
+
+---
+
+## Notepad Integration
+
+The Notepad application uses VFS for its file dialog, open, and save operations:
+
+- **File dialog** browses VFS directories starting at `/home`
+- **Directory navigation** — click directories or press Enter to navigate into them; `..` goes up
+- **Double-click** a file to open it, or a directory to enter it
+- **Open** reads file contents via `vfs_open()` / `vfs_read()` / `vfs_close()`
+- **Save** writes via `vfs_open(O_WRONLY | O_CREAT | O_TRUNC)` / `vfs_write()` / `vfs_close()`
+- Saving to `/home` persists data to the ATA disk through the FAT16 VFS wrapper
 
 ---
 
