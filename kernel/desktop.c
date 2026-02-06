@@ -212,7 +212,7 @@ void desktop_redraw_cycle(void) {
         needs_redraw = true;
 
         if (mouse.scroll_z != 0) {
-            int scroll_lines = (int)mouse.scroll_z * -5;
+            int scroll_lines = (int)mouse.scroll_z * 5;
             /* Route scroll to focused window */
             int np_wid = notepad_get_wid();
             window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
@@ -261,8 +261,8 @@ void desktop_run(void) {
             if (mouse.scroll_z != 0) {
                 /* Each scroll notch is ±1 in scroll_z.
                  * Multiply by 5 lines per notch for snappy scrolling.
-                 * Negative scroll_z = scroll up (show older content). */
-                int scroll_lines = (int)mouse.scroll_z * -5;
+                 * Positive scroll_z = scroll up (show older content). */
+                int scroll_lines = (int)mouse.scroll_z * 5;
                 /* Route scroll to focused window */
                 int np_wid = notepad_get_wid();
                 window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;

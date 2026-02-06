@@ -29,6 +29,7 @@
 #include "../drivers/timer.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/mouse.h"
+#include "ui.h"
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Constants
@@ -75,6 +76,8 @@
 #define SC_KEY_X 0x2D
 #define SC_KEY_Y 0x15
 #define SC_KEY_Z 0x2C
+#define SC_KEY_EQUALS 0x0D   /* =/+ key */
+#define SC_KEY_MINUS  0x0C   /* -/_ key */
 
 /* Menu item indices */
 #define MENU_NONE        -1
@@ -137,6 +140,31 @@ typedef struct {
     bool is_directory;
 } file_entry_t;
 
+#define DLG_W         220
+#define DLG_H         130
+#define DLG_LIST_H     72
+#define DLG_ITEM_H     10
+#define DLG_SCROLLBAR_W 12
+#define DLG_BTN_W      50
+#define DLG_BTN_H      14
+
+/* Computed layout for the file dialog — shared by draw and mouse */
+typedef struct {
+    ui_rect_t dialog;       /* Outer dialog rect                    */
+    ui_rect_t titlebar;     /* Title bar                            */
+    ui_rect_t list_area;    /* File list + scrollbar (sunken)       */
+    ui_rect_t list;         /* File list only (no scrollbar)        */
+    ui_rect_t scrollbar;    /* Vertical scrollbar                   */
+    ui_rect_t input_label;  /* "File:" label                        */
+    ui_rect_t input_field;  /* Text input field                     */
+    ui_rect_t ok_btn;       /* OK / Open / Save button              */
+    ui_rect_t cancel_btn;   /* Cancel button                        */
+    ui_rect_t status;       /* File count text area                 */
+    int       items_y;      /* Y of first file entry (absolute)     */
+    int       items_h;      /* Height available for file entries    */
+    int       items_visible;/* Number of visible file entries       */
+} dlg_layout_t;
+
 typedef struct {
     file_entry_t files[64];
     int file_count;
@@ -175,6 +203,9 @@ typedef struct {
     /* Cursor blink */
     bool cursor_visible;
     uint32_t last_blink_ms;
+
+    /* Font zoom: 1 = normal, 2 = 2x, 3 = 3x */
+    int font_scale;
 
     /* Process */
     uint32_t pid;
@@ -251,6 +282,7 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character);
 static void notepad_dialog_handle_mouse(int16_t mx, int16_t my,
                                         uint8_t buttons, uint8_t prev_buttons,
                                         window_t *win);
+static dlg_layout_t notepad_dialog_get_layout(window_t *win);
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Utility
@@ -335,8 +367,11 @@ static void notepad_get_viewport(int *vis_cols, int *vis_lines,
     if (cw < 8) cw = 8;
     if (ch < 8) ch = 8;
 
-    if (vis_cols)  *vis_cols  = cw / FONT_W;
-    if (vis_lines) *vis_lines = ch / FONT_H;
+    int scale = app.font_scale;
+    if (scale < 1) scale = 1;
+
+    if (vis_cols)  *vis_cols  = cw / (FONT_W * scale);
+    if (vis_lines) *vis_lines = ch / (FONT_H * scale);
     if (edit_x)    *edit_x    = cx;
     if (edit_y)    *edit_y    = cy;
     if (edit_w)    *edit_w    = cw;
@@ -1029,10 +1064,12 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character) {
             notepad_strcpy(app.dialog.input,
                            app.dialog.files[app.dialog.selected_index].filename);
             app.dialog.input_len = (int)np_strlen(app.dialog.input);
-            /* Adjust scroll if needed — 5 items visible in 58px/10px */
-            int max_visible = 58 / 10;
-            if (app.dialog.selected_index >= app.dialog.scroll_offset + max_visible) {
-                app.dialog.scroll_offset = app.dialog.selected_index - max_visible + 1;
+            /* Adjust scroll if needed */
+            int items_h = DLG_LIST_H - DLG_ITEM_H - 2;
+            int items_visible = items_h / DLG_ITEM_H;
+            if (items_visible < 1) items_visible = 1;
+            if (app.dialog.selected_index >= app.dialog.scroll_offset + items_visible) {
+                app.dialog.scroll_offset = app.dialog.selected_index - items_visible + 1;
             }
         }
         return;
@@ -1059,49 +1096,65 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my,
     bool pressed = (buttons & 0x01) && !(prev_buttons & 0x01);
     if (!pressed) return;
 
-    /* Dialog position (centered) */
-    int dlg_x = (int)win->x + ((int)win->width - 200) / 2;
-    int dlg_y = (int)win->y + ((int)win->height - 120) / 2;
+    /* Use the same layout as the draw function */
+    dlg_layout_t L = notepad_dialog_get_layout(win);
 
-    /* Cancel button: right side, bottom */
-    int cancel_x = dlg_x + 200 - 65;
-    int cancel_y = dlg_y + 120 - 16;
-    if (mx >= cancel_x && mx < cancel_x + 60 &&
-        my >= cancel_y && my < cancel_y + 12) {
-        notepad_close_dialog();
-        return;
+    /* ── Scrollbar clicks ──────────────────────────────────────── */
+    {
+        bool page = false;
+        int dir = ui_vscrollbar_hit(L.scrollbar, mx, my, &page);
+        if (dir != 0) {
+            int max_scroll = app.dialog.file_count - L.items_visible;
+            if (max_scroll < 0) max_scroll = 0;
+            if (page) {
+                app.dialog.scroll_offset += dir * L.items_visible;
+            } else {
+                app.dialog.scroll_offset += dir;
+            }
+            if (app.dialog.scroll_offset < 0) app.dialog.scroll_offset = 0;
+            if (app.dialog.scroll_offset > max_scroll)
+                app.dialog.scroll_offset = max_scroll;
+            return;
+        }
     }
 
-    /* OK button: left of cancel */
-    int ok_x = cancel_x - 65;
-    int ok_y = cancel_y;
-    if (mx >= ok_x && mx < ok_x + 60 &&
-        my >= ok_y && my < ok_y + 12) {
+    /* ── OK button ─────────────────────────────────────────────── */
+    if (ui_contains(L.ok_btn, mx, my)) {
+        if (app.dialog.input_len == 0 && app.dialog.selected_index >= 0 &&
+            app.dialog.selected_index < app.dialog.file_count) {
+            notepad_strcpy(app.dialog.input,
+                           app.dialog.files[app.dialog.selected_index].filename);
+            app.dialog.input_len = (int)np_strlen(app.dialog.input);
+        }
         if (app.dialog.input_len > 0) {
-            if (app.dialog.save_mode) {
+            if (app.dialog.save_mode)
                 notepad_save_file(app.dialog.input);
-            } else {
+            else
                 notepad_open_file(app.dialog.input);
-            }
         }
         notepad_close_dialog();
         return;
     }
 
-    /* File list item click */
-    int list_x = dlg_x + 10;
-    int list_y = dlg_y + 16;
-    int list_w = 180;
-    int list_h = 70;
+    /* ── Cancel button ─────────────────────────────────────────── */
+    if (ui_contains(L.cancel_btn, mx, my)) {
+        notepad_close_dialog();
+        return;
+    }
 
-    if (mx >= list_x && mx < list_x + list_w &&
-        my >= list_y && my < list_y + list_h) {
-        int item = (my - list_y) / 10 + app.dialog.scroll_offset;
-        if (item >= 0 && item < app.dialog.file_count) {
-            app.dialog.selected_index = item;
-            /* Copy filename to input */
-            notepad_strcpy(app.dialog.input, app.dialog.files[item].filename);
-            app.dialog.input_len = (int)np_strlen(app.dialog.input);
+    /* ── File list item click ──────────────────────────────────── */
+    {
+        ui_rect_t items_area = ui_rect(L.list.x, (int16_t)L.items_y,
+                                       L.list.w, (uint16_t)L.items_h);
+        if (ui_contains(items_area, mx, my)) {
+            int item = ((int)my - L.items_y) / DLG_ITEM_H
+                       + app.dialog.scroll_offset;
+            if (item >= 0 && item < app.dialog.file_count) {
+                app.dialog.selected_index = item;
+                notepad_strcpy(app.dialog.input,
+                               app.dialog.files[item].filename);
+                app.dialog.input_len = (int)np_strlen(app.dialog.input);
+            }
         }
     }
 }
@@ -1250,6 +1303,11 @@ static void notepad_draw_text_area(window_t *win) {
     notepad_get_viewport(&vis_cols, &vis_lines, &edit_x, &edit_y,
                          &edit_w, &edit_h, win);
 
+    int scale = app.font_scale;
+    if (scale < 1) scale = 1;
+    int char_w = FONT_W * scale;
+    int char_h = FONT_H * scale;
+
     /* White editing background */
     gfx_fill_rect((int16_t)edit_x, (int16_t)edit_y,
                   (uint16_t)edit_w, (uint16_t)edit_h, COLOR_TEXT_LIGHT);
@@ -1270,13 +1328,13 @@ static void notepad_draw_text_area(window_t *win) {
         if (!text) text = "";
         int len = (int)np_strlen(text);
 
-        int16_t py = (int16_t)(edit_y + row * FONT_H);
+        int16_t py = (int16_t)(edit_y + row * char_h);
 
         for (int col = 0; col < vis_cols; col++) {
             int src_col = col + app.buffer.scroll_x;
             if (src_col >= len) break;
 
-            int16_t px = (int16_t)(edit_x + col * FONT_W);
+            int16_t px = (int16_t)(edit_x + col * char_w);
 
             /* Check if this char is in selection */
             bool in_sel = false;
@@ -1293,10 +1351,16 @@ static void notepad_draw_text_area(window_t *win) {
             }
 
             if (in_sel) {
-                gfx_fill_rect(px, py, FONT_W, FONT_H, COLOR_BUTTON);
-                gfx_draw_char(px, py, text[src_col], COLOR_TEXT_LIGHT);
+                gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h, COLOR_BUTTON);
+                if (scale == 1)
+                    gfx_draw_char(px, py, text[src_col], COLOR_TEXT_LIGHT);
+                else
+                    gfx_draw_char_scaled(px, py, text[src_col], COLOR_TEXT_LIGHT, scale);
             } else {
-                gfx_draw_char(px, py, text[src_col], COLOR_BLACK);
+                if (scale == 1)
+                    gfx_draw_char(px, py, text[src_col], COLOR_BLACK);
+                else
+                    gfx_draw_char_scaled(px, py, text[src_col], COLOR_BLACK, scale);
             }
         }
 
@@ -1308,9 +1372,9 @@ static void notepad_draw_text_area(window_t *win) {
                 if (drawn_cols < 0) drawn_cols = 0;
                 if (drawn_cols < vis_cols) {
                     gfx_fill_rect(
-                        (int16_t)(edit_x + drawn_cols * FONT_W), py,
-                        (uint16_t)((vis_cols - drawn_cols) * FONT_W), FONT_H,
-                        COLOR_BUTTON);
+                        (int16_t)(edit_x + drawn_cols * char_w), py,
+                        (uint16_t)((vis_cols - drawn_cols) * char_w),
+                        (uint16_t)char_h, COLOR_BUTTON);
                 }
             }
         }
@@ -1323,9 +1387,9 @@ static void notepad_draw_text_area(window_t *win) {
 
         if (cursor_screen_row >= 0 && cursor_screen_row < vis_lines &&
             cursor_screen_col >= 0 && cursor_screen_col < vis_cols) {
-            int16_t cx = (int16_t)(edit_x + cursor_screen_col * FONT_W);
-            int16_t cy = (int16_t)(edit_y + cursor_screen_row * FONT_H);
-            gfx_draw_vline(cx, cy, FONT_H, COLOR_BLACK);
+            int16_t cx = (int16_t)(edit_x + cursor_screen_col * char_w);
+            int16_t cy = (int16_t)(edit_y + cursor_screen_row * char_h);
+            gfx_draw_vline(cx, cy, (uint16_t)char_h, COLOR_BLACK);
         }
     }
 }
@@ -1499,109 +1563,182 @@ static void notepad_draw_statusbar(window_t *win) {
     }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  File dialog layout — single source of truth for draw + mouse
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static dlg_layout_t notepad_dialog_get_layout(window_t *win) {
+    dlg_layout_t L;
+    ui_rect_t wr = ui_rect(win->x, win->y, win->width, win->height);
+
+    /* Center dialog in window */
+    L.dialog = ui_center(wr, DLG_W, DLG_H);
+
+    int16_t dx = L.dialog.x;
+    int16_t dy = L.dialog.y;
+
+    /* Title bar (inside the 3D outer border, 2px inset) */
+    L.titlebar = ui_rect((int16_t)(dx + 2), (int16_t)(dy + 2),
+                         (uint16_t)(DLG_W - 4), 12);
+
+    /* File list + scrollbar sunken area */
+    int16_t list_x = (int16_t)(dx + 4);
+    int16_t list_y = (int16_t)(dy + 16);
+    uint16_t list_inner_w = (uint16_t)(DLG_W - 8 - DLG_SCROLLBAR_W);
+
+    L.list_area = ui_rect(list_x, list_y,
+                          (uint16_t)(DLG_W - 8), DLG_LIST_H);
+    L.list      = ui_rect(list_x, list_y, list_inner_w, DLG_LIST_H);
+    L.scrollbar = ui_rect((int16_t)(list_x + (int16_t)list_inner_w),
+                          (int16_t)(list_y + 1),
+                          DLG_SCROLLBAR_W,
+                          (uint16_t)(DLG_LIST_H - 2));
+
+    /* Items area (below column header row) */
+    L.items_y = (int)list_y + DLG_ITEM_H + 1;
+    L.items_h = DLG_LIST_H - DLG_ITEM_H - 2;
+    L.items_visible = L.items_h / DLG_ITEM_H;
+    if (L.items_visible < 1) L.items_visible = 1;
+
+    /* Input row: "File:" label + text field */
+    int16_t row_y = (int16_t)(dy + 16 + DLG_LIST_H + 3);
+    L.input_label = ui_rect((int16_t)(dx + 4), row_y, 40, 14);
+    L.input_field = ui_rect((int16_t)(dx + 44), row_y,
+                            (uint16_t)(DLG_W - 48), 14);
+
+    /* OK / Cancel buttons (bottom-left) */
+    int16_t btn_y = (int16_t)(dy + DLG_H - DLG_BTN_H - 4);
+    L.ok_btn     = ui_rect((int16_t)(dx + 4), btn_y, DLG_BTN_W, DLG_BTN_H);
+    L.cancel_btn = ui_rect((int16_t)(dx + 4 + DLG_BTN_W + 6), btn_y,
+                           DLG_BTN_W, DLG_BTN_H);
+
+    /* File count status text (right of buttons) */
+    int16_t status_x = (int16_t)(dx + 4 + DLG_BTN_W + 6 + DLG_BTN_W + 8);
+    L.status = ui_rect(status_x, btn_y,
+                       (uint16_t)(DLG_W - (4 + DLG_BTN_W + 6 + DLG_BTN_W + 8)),
+                       DLG_BTN_H);
+
+    return L;
+}
+
 static void notepad_draw_file_dialog(window_t *win) {
     if (!app.dialog_open) return;
 
-    /* Center dialog in window */
-    int dlg_w = 200;
-    int dlg_h = 120;
-    int dlg_x = (int)win->x + ((int)win->width - dlg_w) / 2;
-    int dlg_y = (int)win->y + ((int)win->height - dlg_h) / 2;
+    dlg_layout_t L = notepad_dialog_get_layout(win);
 
-    /* Dialog background */
-    gfx_fill_rect((int16_t)dlg_x, (int16_t)dlg_y,
-                  (uint16_t)dlg_w, (uint16_t)dlg_h, COLOR_WINDOW_BG);
-    gfx_draw_rect((int16_t)dlg_x, (int16_t)dlg_y,
-                  (uint16_t)dlg_w, (uint16_t)dlg_h, COLOR_BORDER);
+    /* ── Drop shadow + dialog panel ────────────────────────────── */
+    ui_draw_shadow(L.dialog, COLOR_TEXT, 2);
+    ui_draw_panel(L.dialog, COLOR_WINDOW_BG, true, true);
 
-    /* Title bar */
-    gfx_fill_rect((int16_t)dlg_x, (int16_t)dlg_y,
-                  (uint16_t)dlg_w, 14, COLOR_TITLEBAR);
-    gfx_draw_text((int16_t)(dlg_x + 4), (int16_t)(dlg_y + 3),
-                  app.dialog.save_mode ? "Save As" : "Open File",
-                  COLOR_TEXT);
+    /* ── Title bar ─────────────────────────────────────────────── */
+    ui_draw_titlebar(L.titlebar,
+                     app.dialog.save_mode ? "Save As" : "Open", true);
 
-    /* File list area */
-    int list_x = dlg_x + 10;
-    int list_y = dlg_y + 16;
-    int list_w = 180;
-    int list_h = 58;
+    /* ── File list area (sunken) ───────────────────────────────── */
+    ui_draw_panel(L.list_area, COLOR_TEXT_LIGHT, true, false);
 
-    gfx_fill_rect((int16_t)list_x, (int16_t)list_y,
-                  (uint16_t)list_w, (uint16_t)list_h, COLOR_TEXT_LIGHT);
-    gfx_draw_rect((int16_t)list_x, (int16_t)list_y,
-                  (uint16_t)list_w, (uint16_t)list_h, COLOR_BORDER);
+    /* Column header */
+    gfx_fill_rect((int16_t)(L.list.x + 1), (int16_t)(L.list.y + 1),
+                  (uint16_t)(L.list.w - 1), DLG_ITEM_H, COLOR_BORDER);
+    gfx_draw_text((int16_t)(L.list.x + 4), (int16_t)(L.list.y + 2),
+                  "Name", COLOR_BLACK);
+    int size_col_x = (int)L.list.x + (int)L.list.w - 40;
+    gfx_draw_text((int16_t)size_col_x, (int16_t)(L.list.y + 2),
+                  "Size", COLOR_BLACK);
+    gfx_draw_vline((int16_t)(size_col_x - 3), (int16_t)(L.list.y + 1),
+                   DLG_ITEM_H, COLOR_TEXT);
 
-    /* Draw file entries */
-    int max_visible = list_h / 10;
-    for (int i = 0; i < max_visible && i + app.dialog.scroll_offset < app.dialog.file_count; i++) {
+    /* ── File entries ──────────────────────────────────────────── */
+    for (int i = 0; i < L.items_visible; i++) {
         int fi = i + app.dialog.scroll_offset;
-        int16_t fy = (int16_t)(list_y + 1 + i * 10);
+        if (fi >= app.dialog.file_count) break;
+        int16_t fy = (int16_t)(L.items_y + i * DLG_ITEM_H);
+
         if (fi == app.dialog.selected_index) {
-            gfx_fill_rect((int16_t)(list_x + 1), fy, (uint16_t)(list_w - 2), 10, COLOR_HIGHLIGHT);
+            gfx_fill_rect((int16_t)(L.list.x + 1), fy,
+                          (uint16_t)(L.list.w - 1), DLG_ITEM_H, COLOR_BUTTON);
         }
 
-        /* Show directory marker or file icon */
-        if (app.dialog.files[fi].is_directory) {
-            gfx_draw_text((int16_t)(list_x + 3), (int16_t)(fy + 1),
-                          "[DIR]", COLOR_TEXT);
-            gfx_draw_text((int16_t)(list_x + 44), (int16_t)(fy + 1),
-                          app.dialog.files[fi].filename, COLOR_BLACK);
-        } else {
-            gfx_draw_text((int16_t)(list_x + 3), (int16_t)(fy + 1),
-                          app.dialog.files[fi].filename, COLOR_BLACK);
+        uint8_t tc = (fi == app.dialog.selected_index)
+                     ? COLOR_TEXT_LIGHT : COLOR_BLACK;
 
-            /* Show file size right-aligned */
+        if (app.dialog.files[fi].is_directory) {
+            gfx_draw_text((int16_t)(L.list.x + 3), (int16_t)(fy + 1),
+                          "[D]", COLOR_HIGHLIGHT);
+            gfx_draw_text((int16_t)(L.list.x + 28), (int16_t)(fy + 1),
+                          app.dialog.files[fi].filename, tc);
+        } else {
+            gfx_draw_char((int16_t)(L.list.x + 3), (int16_t)(fy + 1),
+                          '|', COLOR_TEXT);
+            gfx_draw_char((int16_t)(L.list.x + 8), (int16_t)(fy + 1),
+                          '=', COLOR_TEXT);
+            gfx_draw_text((int16_t)(L.list.x + 18), (int16_t)(fy + 1),
+                          app.dialog.files[fi].filename, tc);
+        }
+
+        /* File size */
+        if (!app.dialog.files[fi].is_directory) {
             char size_buf[16];
             int sp = 0;
             uint32_t sz = app.dialog.files[fi].size;
-            if (sz == 0) {
-                size_buf[sp++] = '0';
+            if (sz < 1024) {
+                if (sz == 0) { size_buf[sp++] = '0'; }
+                else {
+                    char tmp[12]; int ti = 0;
+                    while (sz > 0) { tmp[ti++] = (char)('0' + (sz % 10)); sz /= 10; }
+                    for (int j = ti - 1; j >= 0; j--) size_buf[sp++] = tmp[j];
+                }
+                size_buf[sp++] = 'B';
             } else {
-                char tmp[12];
-                int ti = 0;
-                while (sz > 0) { tmp[ti++] = (char)('0' + (sz % 10)); sz /= 10; }
+                uint32_t kb = sz / 1024;
+                if (kb == 0) kb = 1;
+                char tmp[12]; int ti = 0;
+                while (kb > 0) { tmp[ti++] = (char)('0' + (kb % 10)); kb /= 10; }
                 for (int j = ti - 1; j >= 0; j--) size_buf[sp++] = tmp[j];
+                size_buf[sp++] = 'K';
             }
-            size_buf[sp++] = 'B';
             size_buf[sp] = '\0';
-            uint16_t sw = gfx_text_width(size_buf);
-            gfx_draw_text((int16_t)(list_x + list_w - (int)sw - 4),
-                          (int16_t)(fy + 1), size_buf, COLOR_TEXT);
+            gfx_draw_text((int16_t)size_col_x, (int16_t)(fy + 1),
+                          size_buf, tc);
         }
     }
 
     if (app.dialog.file_count == 0) {
-        gfx_draw_text((int16_t)(list_x + 4), (int16_t)(list_y + 4),
-                      "(no files found)", COLOR_TEXT);
+        gfx_draw_text((int16_t)(L.list.x + 8),
+                      (int16_t)(L.items_y + 4), "(empty)", COLOR_TEXT);
     }
 
-    /* Filename input field */
-    int input_y = dlg_y + 78;
-    gfx_fill_rect((int16_t)(dlg_x + 10), (int16_t)input_y,
-                  180, 12, COLOR_TEXT_LIGHT);
-    gfx_draw_rect((int16_t)(dlg_x + 10), (int16_t)input_y,
-                  180, 12, COLOR_BORDER);
-    gfx_draw_text((int16_t)(dlg_x + 12), (int16_t)(input_y + 2),
-                  app.dialog.input, COLOR_BLACK);
+    /* ── Vertical scrollbar ────────────────────────────────────── */
+    ui_draw_vscrollbar(L.scrollbar, app.dialog.file_count,
+                       L.items_visible, app.dialog.scroll_offset);
 
-    /* Cursor in input */
-    int cursor_px = dlg_x + 12 + app.dialog.input_len * FONT_W;
-    gfx_draw_vline((int16_t)cursor_px, (int16_t)(input_y + 1), 10, COLOR_BLACK);
+    /* ── "File:" label + input field ───────────────────────────── */
+    ui_draw_label(L.input_label, "File:", COLOR_BLACK, UI_ALIGN_LEFT);
+    ui_draw_textfield(L.input_field, app.dialog.input,
+                      app.dialog.input_len);
 
-    /* OK button */
-    int ok_x = dlg_x + dlg_w / 2 - 65;
-    int ok_y = dlg_y + 96;
-    gfx_fill_rect((int16_t)ok_x, (int16_t)ok_y, 60, 14, COLOR_BUTTON);
-    gfx_draw_rect((int16_t)ok_x, (int16_t)ok_y, 60, 14, COLOR_BORDER);
-    gfx_draw_text((int16_t)(ok_x + 22), (int16_t)(ok_y + 3), "OK", COLOR_TEXT_LIGHT);
+    /* ── OK and Cancel buttons ─────────────────────────────────── */
+    ui_draw_button(L.ok_btn,
+                   app.dialog.save_mode ? "Save" : "Open", true);
+    ui_draw_button(L.cancel_btn, "Cancel", false);
 
-    /* Cancel button */
-    int cancel_x = ok_x + 65;
-    gfx_fill_rect((int16_t)cancel_x, (int16_t)ok_y, 60, 14, COLOR_BUTTON);
-    gfx_draw_rect((int16_t)cancel_x, (int16_t)ok_y, 60, 14, COLOR_BORDER);
-    gfx_draw_text((int16_t)(cancel_x + 10), (int16_t)(ok_y + 3),
-                  "Cancel", COLOR_TEXT_LIGHT);
+    /* ── File count status ─────────────────────────────────────── */
+    {
+        char count_buf[24];
+        int cp = 0;
+        uint32_t fc = (uint32_t)app.dialog.file_count;
+        if (fc == 0) { count_buf[cp++] = '0'; }
+        else {
+            char tmp[12]; int ti = 0;
+            while (fc > 0) { tmp[ti++] = (char)('0' + (fc % 10)); fc /= 10; }
+            for (int j = ti - 1; j >= 0; j--) count_buf[cp++] = tmp[j];
+        }
+        count_buf[cp++] = ' ';
+        count_buf[cp++] = 'f'; count_buf[cp++] = 'i'; count_buf[cp++] = 'l';
+        count_buf[cp++] = 'e'; count_buf[cp++] = 's';
+        count_buf[cp] = '\0';
+        ui_draw_label(L.status, count_buf, COLOR_TEXT, UI_ALIGN_LEFT);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1668,6 +1805,7 @@ void notepad_launch(void) {
     app.cursor_visible = true;
     app.last_blink_ms = timer_get_uptime_ms();
     app.dialog_open = false;
+    app.font_scale = 1;
 
     notepad_init_buffer();
     notepad_clear_selection();
@@ -1761,6 +1899,13 @@ void notepad_handle_key(uint8_t scancode, char character) {
                 goto done;
             }
             case SC_KEY_A: notepad_select_all(); goto done;
+            case SC_KEY_EQUALS:
+                if (app.font_scale < 3) app.font_scale++;
+                goto done;
+            case SC_KEY_MINUS:
+                if (app.font_scale > 1) app.font_scale--;
+                goto done;
+            default: break;
         }
     }
 
@@ -1797,6 +1942,17 @@ void notepad_handle_key(uint8_t scancode, char character) {
             }
             case  1: notepad_select_all(); goto done;   /* Ctrl+A */
         }
+    }
+
+    /* Ctrl+=/- zoom: character-based fallback for keyboard layouts where
+     * the scancode check above didn't match */
+    if (ctrl_held && (character == '=' || character == '+')) {
+        if (app.font_scale < 3) app.font_scale++;
+        goto done;
+    }
+    if (ctrl_held && (character == '-' || character == '_')) {
+        if (app.font_scale > 1) app.font_scale--;
+        goto done;
     }
 
     /* Arrow keys with shift for selection */
@@ -2094,8 +2250,10 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     if (mx >= edit_x && mx < edit_x + edit_w &&
         my >= edit_y && my < edit_y + edit_h) {
 
-        int click_col  = (mx - edit_x) / FONT_W + app.buffer.scroll_x;
-        int click_line = (my - edit_y) / FONT_H + app.buffer.scroll_y;
+        int scale = app.font_scale;
+        if (scale < 1) scale = 1;
+        int click_col  = (mx - edit_x) / (FONT_W * scale) + app.buffer.scroll_x;
+        int click_line = (my - edit_y) / (FONT_H * scale) + app.buffer.scroll_y;
 
         /* Clamp */
         if (click_line >= app.buffer.line_count)
@@ -2151,6 +2309,21 @@ void notepad_handle_scroll(int delta) {
     window_t *win = gui_get_window(notepad_wid);
     if (!win) return;
     if (!(win->flags & WINDOW_FLAG_FOCUSED)) return;
+
+    /* If file dialog is open, scroll the file list instead */
+    if (app.dialog_open) {
+        dlg_layout_t L = notepad_dialog_get_layout(win);
+        int max_scroll = app.dialog.file_count - L.items_visible;
+        if (max_scroll < 0) max_scroll = 0;
+
+        app.dialog.scroll_offset += delta;
+        if (app.dialog.scroll_offset < 0) app.dialog.scroll_offset = 0;
+        if (app.dialog.scroll_offset > max_scroll)
+            app.dialog.scroll_offset = max_scroll;
+
+        win->flags |= WINDOW_FLAG_DIRTY;
+        return;
+    }
 
     app.buffer.scroll_y += delta;
 

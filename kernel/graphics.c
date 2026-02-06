@@ -120,3 +120,48 @@ uint16_t gfx_text_width(const char *text) {
     while (*text) { len++; text++; }
     return (uint16_t)(len * (uint16_t)FONT_W);
 }
+
+/* ── Scaled character drawing ─────────────────────────────────────── */
+
+void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint8_t color,
+                          int scale) {
+    if (scale <= 1) { gfx_draw_char(x, y, c, color); return; }
+
+    uint8_t idx = (uint8_t)c;
+    if (idx >= 128) idx = 0;
+    const uint8_t *glyph = font_8x8[idx];
+
+    for (int row = 0; row < FONT_H; row++) {
+        uint8_t bits = glyph[row];
+        for (int col = 0; col < FONT_W; col++) {
+            if (bits & (0x80U >> (unsigned)col)) {
+                gfx_fill_rect((int16_t)(x + (int16_t)(col * scale)),
+                              (int16_t)(y + (int16_t)(row * scale)),
+                              (uint16_t)scale, (uint16_t)scale, color);
+            }
+        }
+    }
+}
+
+void gfx_draw_text_scaled(int16_t x, int16_t y, const char *text,
+                          uint8_t color, int scale) {
+    int16_t cx = x;
+    int cw = (scale <= 1) ? FONT_W : FONT_W * scale;
+    while (*text) {
+        gfx_draw_char_scaled(cx, y, *text, color, scale);
+        cx = (int16_t)(cx + (int16_t)cw);
+        text++;
+    }
+}
+
+/* ── 3D raised/sunken rectangle (Windows 95 style) ────────────────── */
+
+void gfx_draw_3d_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
+                      bool raised) {
+    uint8_t light = raised ? COLOR_TEXT_LIGHT : COLOR_TEXT;
+    uint8_t dark  = raised ? COLOR_TEXT : COLOR_TEXT_LIGHT;
+    gfx_draw_hline(x, y, w, light);
+    gfx_draw_vline(x, y, h, light);
+    gfx_draw_hline(x, (int16_t)(y + (int16_t)h - 1), w, dark);
+    gfx_draw_vline((int16_t)(x + (int16_t)w - 1), y, h, dark);
+}

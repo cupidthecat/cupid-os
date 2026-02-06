@@ -26,4 +26,14 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint8_t color);
 void gfx_draw_text(int16_t x, int16_t y, const char *text, uint8_t color);
 uint16_t gfx_text_width(const char *text);
 
+/* ── Scaled text (integer scale factor) ───────────────────────────── */
+void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint8_t color,
+                          int scale);
+void gfx_draw_text_scaled(int16_t x, int16_t y, const char *text,
+                          uint8_t color, int scale);
+
+/* ── 3D button effect ─────────────────────────────────────────────── */
+void gfx_draw_3d_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
+                      bool raised);
+
 #endif
