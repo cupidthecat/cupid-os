@@ -158,11 +158,8 @@ void desktop_draw_icons(void) {
                           ">_", COLOR_TEXT_LIGHT);
         }
 
-        /* Label below icon */
-        uint16_t tw = gfx_text_width(ic->label);
-        int16_t lx = (int16_t)(ic->x + 16 - (int16_t)(tw / 2));
-        /* Clamp to screen bounds to prevent left clipping */
-        if (lx < 0) lx = 0;
+        /* Label below icon — left-aligned to icon edge */
+        int16_t lx = ic->x;
         gfx_draw_text(lx, (int16_t)(ic->y + 28), ic->label, COLOR_TEXT);
     }
 }

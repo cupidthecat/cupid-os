@@ -1170,12 +1170,12 @@ static void notepad_draw_menubar(window_t *win) {
     /* "File" button */
     uint8_t file_color = (app.active_menu == MENU_FILE) ? COLOR_HIGHLIGHT : COLOR_BORDER;
     gfx_fill_rect((int16_t)(mx + 2), my, 36, MENUBAR_H, file_color);
-    gfx_draw_text((int16_t)(mx + 6), (int16_t)(my + 2), "File", COLOR_BLACK);
+    gfx_draw_text((int16_t)(mx + 4), (int16_t)(my + 2), "File", COLOR_BLACK);
 
     /* "Edit" button */
     uint8_t edit_color = (app.active_menu == MENU_EDIT) ? COLOR_HIGHLIGHT : COLOR_BORDER;
     gfx_fill_rect((int16_t)(mx + 40), my, 36, MENUBAR_H, edit_color);
-    gfx_draw_text((int16_t)(mx + 44), (int16_t)(my + 2), "Edit", COLOR_BLACK);
+    gfx_draw_text((int16_t)(mx + 42), (int16_t)(my + 2), "Edit", COLOR_BLACK);
 }
 
 static void notepad_draw_dropdown(window_t *win) {
