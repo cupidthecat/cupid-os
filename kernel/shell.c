@@ -468,6 +468,7 @@ static void shell_terminal_cmd(const char* args);
 static void shell_setcolor_cmd(const char* args);
 static void shell_resetcolor_cmd(const char* args);
 static void shell_printc_cmd(const char* args);
+static void shell_cupidfetch(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -514,6 +515,7 @@ static struct shell_command commands[] = {
     {"setcolor", "Set terminal color (fg [bg])", shell_setcolor_cmd},
     {"resetcolor", "Reset terminal colors", shell_resetcolor_cmd},
     {"printc", "Print colored text (fg text)", shell_printc_cmd},
+    {"cupidfetch", "Show system info with ASCII art", shell_cupidfetch},
     {0, 0, 0} // Null terminator
 };
 
@@ -1001,11 +1003,16 @@ static void shell_help(const char* args) {
 static void shell_clear(const char* args) {
     (void)args;
     if (output_mode == SHELL_OUTPUT_GUI) {
-        /* Clear GUI buffer; the prompt will be printed by
-         * shell_gui_handle_key after the command returns. */
+        /* Clear GUI buffer and color buffer */
         memset(gui_buffer, 0, sizeof(gui_buffer));
+        for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
+            gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
+            gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
+        }
         gui_cursor_x = 0;
         gui_cursor_y = 0;
+        /* Reset ANSI color state so subsequent output uses defaults */
+        ansi_reset(&shell_ansi_state);
     } else {
         clear_screen();
     }
@@ -1323,6 +1330,177 @@ static void shell_sysinfo(const char* args) {
     shell_print_int(total_pg * 4); shell_print(" KB total\n");
 
     print_memory_stats();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  cupidfetch — neofetch-style system information display
+ *
+ *  Shows an ASCII art cat mascot alongside colored system details.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Helper: write a decimal number into buf, return chars written */
+static int cf_itoa(uint32_t val, char *buf, int bufsize) {
+    if (bufsize <= 0) return 0;
+    if (val == 0) { buf[0] = '0'; buf[1] = '\0'; return 1; }
+    char tmp[12];
+    int i = 0;
+    while (val > 0 && i < 11) {
+        tmp[i++] = (char)('0' + (val % 10));
+        val /= 10;
+    }
+    int j = 0;
+    while (i > 0 && j < bufsize - 1) buf[j++] = tmp[--i];
+    buf[j] = '\0';
+    return j;
+}
+
+static void shell_cupidfetch(const char* args) {
+    (void)args;
+
+    /* ── ANSI color codes ─────────────────────────────────────── */
+    const char *c_cat   = "\x1B[95m";   /* bright magenta */
+    const char *c_hdr   = "\x1B[93m";   /* bright yellow  */
+    const char *c_label = "\x1B[96m";   /* bright cyan    */
+    const char *c_val   = "\x1B[97m";   /* bright white   */
+    const char *c_rst   = "\x1B[0m";    /* reset          */
+
+    /* ── Compact ASCII cat (fits in ~34 cols) ─────────────────── */
+    /* Stacked layout: cat on top, info below.
+     * GUI terminal is only ~38 cols wide (310px / 8px font). */
+    shell_print(c_cat);
+    shell_print("   /\\_/\\   \n");
+    shell_print("  ( o.o )  ");
+    shell_print(c_hdr);
+    shell_print("cupid-os\n");
+    shell_print(c_cat);
+    shell_print("   > ^ <   ");
+    shell_print(c_hdr);
+    shell_print("-----------\n");
+    shell_print(c_cat);
+    shell_print("  /|   |\\  \n");
+    shell_print(" (_|   |_) \n");
+    shell_print(c_rst);
+
+    /* ── Gather system information ─────────────────────────────── */
+    uint32_t ms       = timer_get_uptime_ms();
+    uint32_t cpu_mhz  = (uint32_t)(get_cpu_freq() / 1000000);
+    uint32_t free_pg  = pmm_free_pages();
+    uint32_t total_pg = pmm_total_pages();
+    uint32_t free_kb  = free_pg * 4;
+    uint32_t total_kb = total_pg * 4;
+    uint32_t used_kb  = total_kb - free_kb;
+    uint32_t mem_pct  = total_kb ? (used_kb * 100) / total_kb : 0;
+    uint32_t procs    = process_get_count();
+    int      mounts   = vfs_mount_count();
+    int      gui_mode = (shell_get_output_mode() == SHELL_OUTPUT_GUI);
+
+    /* Uptime components */
+    uint32_t secs = ms / 1000;
+    uint32_t mins = secs / 60;  secs %= 60;
+    uint32_t hrs  = mins / 60;  mins %= 60;
+    uint32_t days = hrs  / 24;  hrs  %= 24;
+    (void)secs;
+
+    /* Convert memory to MiB */
+    uint32_t used_mib  = used_kb  / 1024;
+    uint32_t total_mib = total_kb / 1024;
+
+    char nbuf[16];
+
+    /* ── Info lines (each ≤ 36 chars) ─────────────────────────── */
+
+    /* OS */
+    shell_print(c_label);  shell_print("OS: ");
+    shell_print(c_val);    shell_print("cupid-os x86\n");
+
+    /* Kernel */
+    shell_print(c_label);  shell_print("Kernel: ");
+    shell_print(c_val);    shell_print("1.0.0\n");
+
+    /* Uptime */
+    shell_print(c_label);  shell_print("Uptime: ");
+    shell_print(c_val);
+    if (days > 0) {
+        cf_itoa(days, nbuf, 16);  shell_print(nbuf);
+        shell_print("d ");
+    }
+    if (hrs > 0 || days > 0) {
+        cf_itoa(hrs, nbuf, 16);   shell_print(nbuf);
+        shell_print("h ");
+    }
+    cf_itoa(mins, nbuf, 16);     shell_print(nbuf);
+    shell_print("m\n");
+
+    /* Shell */
+    shell_print(c_label);  shell_print("Shell: ");
+    shell_print(c_val);    shell_print("cupid shell\n");
+
+    /* Display */
+    shell_print(c_label);  shell_print("Display: ");
+    shell_print(c_val);
+    if (gui_mode) {
+        shell_print("320x200 256c\n");
+    } else {
+        shell_print("80x25 16c\n");
+    }
+
+    /* Terminal */
+    shell_print(c_label);  shell_print("Term: ");
+    shell_print(c_val);
+    shell_print(gui_mode ? "GUI\n" : "VGA Text\n");
+
+    /* CPU */
+    shell_print(c_label);  shell_print("CPU: ");
+    shell_print(c_val);    shell_print("x86 @ ");
+    cf_itoa(cpu_mhz, nbuf, 16); shell_print(nbuf);
+    shell_print(" MHz\n");
+
+    /* Memory */
+    shell_print(c_label);  shell_print("Mem: ");
+    shell_print(c_val);
+    cf_itoa(used_mib, nbuf, 16);  shell_print(nbuf);
+    shell_print("/");
+    cf_itoa(total_mib, nbuf, 16); shell_print(nbuf);
+    shell_print(" MiB (");
+    cf_itoa(mem_pct, nbuf, 16);   shell_print(nbuf);
+    shell_print("%)\n");
+
+    /* Processes */
+    shell_print(c_label);  shell_print("Procs: ");
+    shell_print(c_val);
+    cf_itoa(procs, nbuf, 16);    shell_print(nbuf);
+    shell_print(" running\n");
+
+    /* Mounts */
+    shell_print(c_label);  shell_print("Mounts: ");
+    shell_print(c_val);
+    cf_itoa((uint32_t)mounts, nbuf, 16); shell_print(nbuf);
+    shell_print(" fs\n");
+
+    /* ── Color palette bars ───────────────────────────────────── */
+    /* Standard colors (2-char blocks to fit) */
+    for (int c = 0; c < 8; c++) {
+        char esc[8];
+        esc[0] = '\x1B'; esc[1] = '[';
+        esc[2] = '4'; esc[3] = (char)('0' + c);
+        esc[4] = 'm'; esc[5] = '\0';
+        shell_print(esc);
+        shell_print("    ");
+    }
+    shell_print(c_rst);
+    shell_putchar('\n');
+
+    for (int c = 0; c < 8; c++) {
+        char esc[12];
+        esc[0] = '\x1B'; esc[1] = '[';
+        esc[2] = '1'; esc[3] = '0';
+        esc[4] = (char)('0' + c); esc[5] = 'm';
+        esc[6] = '\0';
+        shell_print(esc);
+        shell_print("    ");
+    }
+    shell_print(c_rst);
+    shell_putchar('\n');
 }
 
 /* ── loglevel [debug|info|warn|error|panic] ── */
