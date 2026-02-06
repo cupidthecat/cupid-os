@@ -96,6 +96,11 @@ typedef struct {
     uint8_t is_open;
 } fat16_file_t;
 
+// Callback for enumerating directory entries
+// Returns: 0 to continue, non-zero to stop
+typedef int (*fat16_enum_callback_t)(const char *name, uint32_t size,
+                                     uint8_t attr, void *ctx);
+
 // Public API
 int fat16_init(void);
 fat16_file_t* fat16_open(const char* filename);
@@ -105,5 +110,6 @@ int fat16_list_root(void);
 int fat16_write_file(const char* filename, const void* data, uint32_t size);
 int fat16_delete_file(const char* filename);
 void fat16_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t));
+int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx);
 
 #endif

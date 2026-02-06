@@ -55,6 +55,18 @@ static void terminal_process_entry(void) {
     /* Falls through to process_exit_trampoline */
 }
 
+/* ── Close callback (called by GUI when window is destroyed) ──────── */
+
+static void terminal_on_close(window_t *win) {
+    (void)win;
+    uint32_t pid = terminal_pid;
+    terminal_wid = -1;
+    terminal_pid = 0;
+    if (pid > 1) {
+        process_kill(pid);
+    }
+}
+
 /* ── Launch ───────────────────────────────────────────────────────── */
 
 void terminal_launch(void) {
@@ -70,6 +82,7 @@ void terminal_launch(void) {
     window_t *win = gui_get_window(terminal_wid);
     if (win) {
         win->redraw = terminal_redraw;
+        win->on_close = terminal_on_close;
     }
 
     /* Compute visible columns from window width and tell the shell */

@@ -30,6 +30,7 @@ typedef struct window {
     uint8_t   flags;
     void     *app_data;
     void    (*redraw)(struct window *win);
+    void    (*on_close)(struct window *win);
 } window_t;
 
 /* ── Drag state ───────────────────────────────────────────────────── */

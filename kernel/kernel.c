@@ -37,6 +37,8 @@
 #include "gui.h"
 #include "desktop.h"
 #include "terminal_app.h"
+#include "notepad.h"
+#include "clipboard.h"
 #include "process.h"
 #include "../drivers/pit.h"
 
@@ -570,6 +572,9 @@ void kmain(void) {
     // Switch PIT to 100Hz for 10ms scheduler time slices
     pit_set_scheduler_mode();
 
+    // Initialize clipboard subsystem
+    clipboard_init();
+
     // Initialize GUI and desktop
     gui_init();
     desktop_init();
@@ -577,6 +582,7 @@ void kmain(void) {
 
     // Add desktop icons
     desktop_add_icon(10, 10, "Terminal", terminal_launch);
+    desktop_add_icon(10, 55, "Notepad", notepad_launch);
 
     // Enable keyboard interrupt
     pic_clear_mask(1);

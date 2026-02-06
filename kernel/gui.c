@@ -88,6 +88,11 @@ int gui_destroy_window(int wid) {
     int idx = find_index(wid);
     if (idx < 0) return GUI_ERR_INVALID_ID;
 
+    /* Notify the application that its window is being destroyed */
+    if (windows[idx].on_close) {
+        windows[idx].on_close(&windows[idx]);
+    }
+
     /* Shift remaining windows down */
     for (int i = idx; i < win_count - 1; i++) {
         win_copy(&windows[i], &windows[i + 1]);

@@ -292,6 +292,18 @@ void process_list(void) {
         process_t *p = &process_table[i];
         if (p->pid == 0) continue;
 
+        /* Reap terminated processes so they don't linger in ps output */
+        if (p->state == PROCESS_TERMINATED) {
+            if (p->stack_base) {
+                kfree(p->stack_base);
+                p->stack_base = NULL;
+            }
+            p->pid = 0;
+            memset(p, 0, sizeof(process_t));
+            process_count--;
+            continue;
+        }
+
         if (p->pid < 10) print(" ");
         print_int(p->pid);
         print("   ");

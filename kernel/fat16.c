@@ -758,3 +758,79 @@ int fat16_list_root(void) {
 
     return file_count;
 }
+
+/**
+ * fat16_enumerate_root - Enumerate root directory entries via callback
+ *
+ * Calls the callback for each valid file/directory entry in the root
+ * directory.  The callback receives the human-readable filename (with
+ * extension), size, attributes, and user context pointer.
+ *
+ * @param callback: Function called for each entry
+ * @param ctx:      Opaque pointer forwarded to callback
+ * @return Number of entries enumerated, or -1 on error
+ */
+int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
+    if (!fat16_initialized || !callback) {
+        return -1;
+    }
+
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+                                 fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+    int count = 0;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0) {
+            return -1;
+        }
+
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+        for (int i = 0; i < 16; i++) {
+            if (entries[i].filename[0] == 0x00) {
+                return count;  /* End of directory */
+            }
+            if ((unsigned char)entries[i].filename[0] == 0xE5) {
+                continue;  /* Deleted entry */
+            }
+            /* Skip volume labels */
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID) {
+                continue;
+            }
+
+            /* Build human-readable name: "FILENAME.EXT" */
+            char name[13];
+            int pos = 0;
+
+            /* Copy base name, trim trailing spaces */
+            for (int j = 0; j < 8; j++) {
+                if (entries[i].filename[j] != ' ') {
+                    char ch = entries[i].filename[j];
+                    /* Convert to lowercase for display */
+                    if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+                    name[pos++] = ch;
+                }
+            }
+
+            /* Append extension if present */
+            if (entries[i].ext[0] != ' ') {
+                name[pos++] = '.';
+                for (int j = 0; j < 3; j++) {
+                    if (entries[i].ext[j] != ' ') {
+                        char ch = entries[i].ext[j];
+                        if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+                        name[pos++] = ch;
+                    }
+                }
+            }
+            name[pos] = '\0';
+
+            int ret = callback(name, entries[i].file_size,
+                               entries[i].attributes, ctx);
+            count++;
+            if (ret != 0) return count;
+        }
+    }
+
+    return count;
+}

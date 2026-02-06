@@ -15,6 +15,7 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/serial.h"
 #include "terminal_app.h"
+#include "notepad.h"
 
 /* ── Icon storage ─────────────────────────────────────────────────── */
 static desktop_icon_t icons[MAX_DESKTOP_ICONS];
@@ -119,12 +120,43 @@ void desktop_draw_icons(void) {
         desktop_icon_t *ic = &icons[i];
         if (!ic->active) continue;
 
-        /* Simple icon: a filled rectangle with a small symbol */
-        gfx_fill_rect(ic->x, ic->y, 32, 24, COLOR_BUTTON);
-        gfx_draw_rect(ic->x, ic->y, 32, 24, COLOR_BORDER);
-        /* Draw ">_" inside to represent terminal */
-        gfx_draw_text((int16_t)(ic->x + 4), (int16_t)(ic->y + 8),
-                      ">_", COLOR_TEXT_LIGHT);
+        /* Check if this is the Notepad icon */
+        if (ic->label[0] == 'N' && ic->label[1] == 'o' &&
+            ic->label[2] == 't' && ic->label[3] == 'e') {
+            /* Notepad icon: spiral-bound notebook */
+            /* Page background */
+            gfx_fill_rect(ic->x, ic->y, 32, 24, COLOR_TEXT_LIGHT);
+            gfx_draw_rect(ic->x, ic->y, 32, 24, COLOR_BLACK);
+
+            /* Spiral binding strip on left */
+            gfx_fill_rect(ic->x, ic->y, 6, 24, COLOR_BORDER);
+            /* Spiral coils */
+            for (int cy = 3; cy < 22; cy += 5) {
+                gfx_fill_rect((int16_t)(ic->x + 1), (int16_t)(ic->y + cy),
+                              4, 3, COLOR_TEXT_LIGHT);
+                gfx_draw_rect((int16_t)(ic->x + 1), (int16_t)(ic->y + cy),
+                              4, 3, COLOR_TEXT);
+            }
+
+            /* Ruled lines on the page */
+            for (int ly = 8; ly < 22; ly += 5) {
+                gfx_draw_hline((int16_t)(ic->x + 8), (int16_t)(ic->y + ly),
+                               20, COLOR_TEXT);
+            }
+
+            /* 3D effect: light top-left, dark bottom-right */
+            gfx_draw_hline(ic->x, ic->y, 32, COLOR_TEXT_LIGHT);
+            gfx_draw_vline(ic->x, ic->y, 24, COLOR_TEXT_LIGHT);
+            gfx_draw_hline(ic->x, (int16_t)(ic->y + 23), 32, COLOR_TEXT);
+            gfx_draw_vline((int16_t)(ic->x + 31), ic->y, 24, COLOR_TEXT);
+        } else {
+            /* Default icon (terminal): filled rectangle with symbol */
+            gfx_fill_rect(ic->x, ic->y, 32, 24, COLOR_BUTTON);
+            gfx_draw_rect(ic->x, ic->y, 32, 24, COLOR_BORDER);
+            /* Draw ">_" inside to represent terminal */
+            gfx_draw_text((int16_t)(ic->x + 4), (int16_t)(ic->y + 8),
+                          ">_", COLOR_TEXT_LIGHT);
+        }
 
         /* Label below icon */
         uint16_t tw = gfx_text_width(ic->label);
@@ -184,7 +216,14 @@ void desktop_redraw_cycle(void) {
 
         if (mouse.scroll_z != 0) {
             int scroll_lines = (int)mouse.scroll_z * -5;
-            terminal_handle_scroll(scroll_lines);
+            /* Route scroll to focused window */
+            int np_wid = notepad_get_wid();
+            window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+            if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+                notepad_handle_scroll(scroll_lines);
+            } else {
+                terminal_handle_scroll(scroll_lines);
+            }
             mouse.scroll_z = 0;
         }
 
@@ -196,6 +235,7 @@ void desktop_redraw_cycle(void) {
 
     /* Cursor blink */
     terminal_tick();
+    notepad_tick();
 
     /* Redraw if needed */
     if (needs_redraw || gui_any_dirty()) {
@@ -226,7 +266,14 @@ void desktop_run(void) {
                  * Multiply by 5 lines per notch for snappy scrolling.
                  * Negative scroll_z = scroll up (show older content). */
                 int scroll_lines = (int)mouse.scroll_z * -5;
-                terminal_handle_scroll(scroll_lines);
+                /* Route scroll to focused window */
+                int np_wid = notepad_get_wid();
+                window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+                if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+                    notepad_handle_scroll(scroll_lines);
+                } else {
+                    terminal_handle_scroll(scroll_lines);
+                }
                 mouse.scroll_z = 0;
             }
 
@@ -253,6 +300,12 @@ void desktop_run(void) {
             /* Forward to GUI window manager */
             else {
                 gui_handle_mouse(mouse.x, mouse.y, btn, prev);
+                /* Also forward to notepad if its window is focused */
+                int np_wid = notepad_get_wid();
+                window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+                if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+                    notepad_handle_mouse(mouse.x, mouse.y, btn, prev);
+                }
             }
         }
 
@@ -260,14 +313,21 @@ void desktop_run(void) {
         {
             key_event_t event;
             while (keyboard_read_event(&event)) {
-                /* Forward key to focused window's terminal */
-                terminal_handle_key(event.scancode, event.character);
+                /* Route key to focused window */
+                int np_wid = notepad_get_wid();
+                window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+                if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+                    notepad_handle_key(event.scancode, event.character);
+                } else {
+                    terminal_handle_key(event.scancode, event.character);
+                }
                 needs_redraw = true;
             }
         }
 
         /* ── Cursor blink tick ──────────────────────────────────── */
         terminal_tick();
+        notepad_tick();
 
         /* ── Redraw ─────────────────────────────────────────────── */
         if (needs_redraw || gui_any_dirty()) {

@@ -146,6 +146,7 @@ static bool handling_extended = false;
 static bool caps_lock_active = false;
 static bool left_shift_active = false;
 static bool right_shift_active = false;
+static bool ctrl_active = false;
 
 // Add this function declaration
 static void process_keypress(uint8_t key);
@@ -245,11 +246,19 @@ static void process_keypress(uint8_t key) {
         case KEY_LSHIFT:
             left_shift_active = !is_release;
             keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
             return;
 
         case KEY_RSHIFT:
             right_shift_active = !is_release;
             keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+
+        case KEY_LCTRL:
+            ctrl_active = !is_release;
+            keyboard_state.modifier_states[MOD_CTRL] = ctrl_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
             return;
     }
 
@@ -345,6 +354,11 @@ bool keyboard_get_caps_lock(void) {
 // Get the current state of Shift
 bool keyboard_get_shift(void) {
     return left_shift_active || right_shift_active;
+}
+
+// Get the current state of Ctrl
+bool keyboard_get_ctrl(void) {
+    return ctrl_active;
 }
 
 // Retrieve a single character from keyboard input
