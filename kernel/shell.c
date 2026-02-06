@@ -18,6 +18,8 @@
 #include "cupidscript.h"
 #include "vfs.h"
 #include "exec.h"
+#include "terminal_app.h"
+#include "notepad.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -60,10 +62,26 @@ static void shell_resolve_path(const char *input, char *out) {
         return;
     }
 
+    /* Find length, stripping trailing whitespace */
+    int input_len = 0;
+    while (input[input_len]) input_len++;
+    while (input_len > 0 && (input[input_len - 1] == ' ' ||
+                              input[input_len - 1] == '\t'))
+        input_len--;
+
+    if (input_len == 0) {
+        int i = 0;
+        while (shell_cwd[i] && i < VFS_MAX_PATH - 1) {
+            out[i] = shell_cwd[i]; i++;
+        }
+        out[i] = '\0';
+        return;
+    }
+
     if (input[0] == '/') {
         /* Absolute path */
         int i = 0;
-        while (input[i] && i < VFS_MAX_PATH - 1) {
+        while (i < input_len && i < VFS_MAX_PATH - 1) {
             tmp[i] = input[i];
             i++;
         }
@@ -79,7 +97,7 @@ static void shell_resolve_path(const char *input, char *out) {
             tmp[ti++] = '/';
         }
         i = 0;
-        while (input[i] && ti < VFS_MAX_PATH - 1) {
+        while (i < input_len && ti < VFS_MAX_PATH - 1) {
             tmp[ti++] = input[i++];
         }
         tmp[ti] = '\0';
@@ -347,6 +365,8 @@ static void shell_vmkdir(const char* args);
 static void shell_vrm(const char* args);
 static void shell_vwrite(const char* args);
 static void shell_exec_cmd(const char* args);
+static void shell_notepad_cmd(const char* args);
+static void shell_terminal_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -388,6 +408,8 @@ static struct shell_command commands[] = {
     {"vrm", "Delete file (VFS path)", shell_vrm},
     {"vwrite", "Write text to file (VFS path)", shell_vwrite},
     {"exec", "Run a CUPD binary", shell_exec_cmd},
+    {"notepad", "Open Notepad", shell_notepad_cmd},
+    {"terminal", "Open a Terminal window", shell_terminal_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -1521,6 +1543,50 @@ static void shell_vwrite(const char* args) {
     }
 }
 
+/* ── try_bin_dispatch: check if a resolved path is /bin/<app> and run it ──
+ * Returns true if handled, false if not a /bin path. */
+static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
+    if (resolved[0] != '/' || resolved[1] != 'b' ||
+        resolved[2] != 'i' || resolved[3] != 'n' ||
+        resolved[4] != '/') {
+        return false;
+    }
+
+    const char *app = resolved + 5;
+    serial_printf("[try_bin_dispatch] resolved='%s' app='%s'\n", resolved, app);
+    if (strcmp(app, "terminal") == 0) {
+        terminal_launch();
+    } else if (strcmp(app, "notepad") == 0) {
+        notepad_launch();
+    } else if (strcmp(app, "ed") == 0) {
+        shell_ed(extra_args);
+    } else if (strcmp(app, "cupid") == 0) {
+        shell_cupid(extra_args);
+    } else if (strcmp(app, "shell") == 0) {
+        shell_print("Shell is already running.\n");
+    } else {
+        /* Try it as a regular command name */
+        for (int j = 0; commands[j].name; j++) {
+            if (strcmp(app, commands[j].name) == 0) {
+                commands[j].func(extra_args);
+                return true;
+            }
+        }
+        /* Try as CUPD binary on disk */
+        int r = exec(resolved, app);
+        if (r >= 0) {
+            shell_print("Started process PID ");
+            shell_print_int((uint32_t)r);
+            shell_print("\n");
+        } else {
+            shell_print("Unknown binary: /bin/");
+            shell_print(app);
+            shell_print("\n");
+        }
+    }
+    return true;
+}
+
 static void shell_exec_cmd(const char* args) {
     if (!args || args[0] == '\0') {
         shell_print("Usage: exec <path>\n");
@@ -1529,6 +1595,11 @@ static void shell_exec_cmd(const char* args) {
 
     char rpath[VFS_MAX_PATH];
     shell_resolve_path(args, rpath);
+    serial_printf("[shell_exec_cmd] args='%s' rpath='%s'\n", args, rpath);
+
+    /* Check for /bin/ built-in dispatch first */
+    if (try_bin_dispatch(rpath, NULL)) return;
+
     int r = exec(rpath, args);
     if (r < 0) {
         shell_print("exec: failed to load ");
@@ -1539,6 +1610,16 @@ static void shell_exec_cmd(const char* args) {
         shell_print_int((uint32_t)r);
         shell_print("\n");
     }
+}
+
+static void shell_notepad_cmd(const char* args) {
+    (void)args;
+    notepad_launch();
+}
+
+static void shell_terminal_cmd(const char* args) {
+    (void)args;
+    terminal_launch();
 }
 
 /* ── helper: check if string ends with suffix ── */
@@ -1584,6 +1665,13 @@ static void execute_command(const char* input) {
             commands[j].func(args);
             return;
         }
+    }
+
+    /* Handle /bin/<app> execution — resolve the path first */
+    {
+        char resolved[VFS_MAX_PATH];
+        shell_resolve_path(cmd, resolved);
+        if (try_bin_dispatch(resolved, args)) return;
     }
 
     /* Handle ./script.cup execution */

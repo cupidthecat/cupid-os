@@ -596,6 +596,27 @@ void kmain(void) {
                                    f->name, f->data, f->size);
                 }
             }
+
+            /* Populate /bin with built-in application stubs */
+            static const char bin_marker[] = "CUPD_BUILTIN";
+            static const char *bin_apps[] = {
+                "terminal", "notepad", "ed", "cupid",
+                "shell", "help", "clear", "echo",
+                "ls", "cat", "cd", "pwd", "ps",
+                "kill", "exec", "mount", NULL
+            };
+            for (int bi = 0; bin_apps[bi]; bi++) {
+                char bpath[64];
+                int bp = 0;
+                const char *pfx = "bin/";
+                while (*pfx) bpath[bp++] = *pfx++;
+                const char *bn = bin_apps[bi];
+                while (*bn && bp < 62) bpath[bp++] = *bn++;
+                bpath[bp] = '\0';
+                ramfs_add_file(root_mnt->fs_private,
+                               bpath, bin_marker, sizeof(bin_marker));
+            }
+            KINFO("Populated /bin with built-in stubs");
         }
     }
     KINFO("VFS initialized");
