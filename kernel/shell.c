@@ -23,6 +23,7 @@
 #include "terminal_ansi.h"
 #include "calendar.h"
 #include "../drivers/rtc.h"
+#include "cupidc.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -472,6 +473,8 @@ static void shell_resetcolor_cmd(const char* args);
 static void shell_printc_cmd(const char* args);
 static void shell_cupidfetch(const char* args);
 static void shell_date(const char* args);
+static void shell_cupidc_cmd(const char* args);
+static void shell_ccc_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -520,6 +523,8 @@ static struct shell_command commands[] = {
     {"printc", "Print colored text (fg text)", shell_printc_cmd},
     {"date", "Show current date and time", shell_date},
     {"cupidfetch", "Show system info with ASCII art", shell_cupidfetch},
+    {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
+    {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -2086,6 +2091,83 @@ static int shell_ends_with(const char *str, const char *suffix) {
     return strcmp(str + slen - xlen, suffix) == 0;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  CupidC Compiler Commands
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* cupidc <file.cc> — JIT compile and run */
+static void shell_cupidc_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: cupidc <file.cc>\n");
+        shell_print("  Compile and run a CupidC source file\n");
+        return;
+    }
+    char rpath[VFS_MAX_PATH];
+    shell_resolve_path(args, rpath);
+    cupidc_jit(rpath);
+}
+
+/* ccc <file.cc> -o <output> — AOT compile to ELF binary */
+static void shell_ccc_cmd(const char* args) {
+    if (!args || args[0] == '\0') {
+        shell_print("Usage: ccc <file.cc> -o <output>\n");
+        shell_print("  Compile CupidC source to ELF binary\n");
+        return;
+    }
+
+    /* Parse: src_file -o out_file */
+    char src[VFS_MAX_PATH];
+    char out[VFS_MAX_PATH];
+    int si = 0, ai = 0;
+
+    /* Extract source file */
+    while (args[ai] && args[ai] != ' ' && si < VFS_MAX_PATH - 1) {
+        src[si++] = args[ai++];
+    }
+    src[si] = '\0';
+
+    /* Skip whitespace */
+    while (args[ai] == ' ') ai++;
+
+    /* Check for -o flag */
+    if (args[ai] == '-' && args[ai + 1] == 'o') {
+        ai += 2;
+        while (args[ai] == ' ') ai++;
+
+        int oi = 0;
+        while (args[ai] && args[ai] != ' ' && oi < VFS_MAX_PATH - 1) {
+            out[oi++] = args[ai++];
+        }
+        out[oi] = '\0';
+    } else {
+        /* Default output name: replace .cc with nothing, or append .elf */
+        int slen = 0;
+        while (src[slen]) slen++;
+
+        int oi = 0;
+        /* Copy up to .cc extension */
+        if (slen > 3 && src[slen - 3] == '.' && src[slen - 2] == 'c' &&
+            src[slen - 1] == 'c') {
+            for (int k = 0; k < slen - 3 && oi < VFS_MAX_PATH - 1; k++) {
+                out[oi++] = src[k];
+            }
+        } else {
+            for (int k = 0; k < slen && oi < VFS_MAX_PATH - 1; k++) {
+                out[oi++] = src[k];
+            }
+        }
+        out[oi] = '\0';
+    }
+
+    /* Resolve paths */
+    char rsrc[VFS_MAX_PATH];
+    char rout[VFS_MAX_PATH];
+    shell_resolve_path(src, rsrc);
+    shell_resolve_path(out, rout);
+
+    cupidc_aot(rsrc, rout);
+}
+
 /* ── shell_execute_line: public interface for CupidScript ── */
 void shell_execute_line(const char *line) {
     if (!line || line[0] == '\0') return;
@@ -2202,11 +2284,25 @@ static void execute_command(const char* input) {
             shell_cupid(args ? input + 2 : script_path);
             goto redir_done;
         }
+        if (shell_ends_with(script_path, ".cc")) {
+            char cc_path[VFS_MAX_PATH];
+            shell_resolve_path(script_path, cc_path);
+            cupidc_jit(cc_path);
+            goto redir_done;
+        }
     }
 
     /* Handle bare .cup files: script.cup → cupid script.cup */
     if (shell_ends_with(cmd, ".cup")) {
         shell_cupid(input);
+        goto redir_done;
+    }
+
+    /* Handle bare .cc files: program.cc → cupidc program.cc */
+    if (shell_ends_with(cmd, ".cc")) {
+        char cc_path[VFS_MAX_PATH];
+        shell_resolve_path(cmd, cc_path);
+        cupidc_jit(cc_path);
         goto redir_done;
     }
 

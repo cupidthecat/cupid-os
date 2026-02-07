@@ -12,6 +12,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
 | [CupidScript](CupidScript) | Scripting language guide — variables, loops, functions, examples |
+| [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler — JIT/AOT, inline assembly, kernel bindings |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
 | [Desktop Environment](Desktop-Environment) | VGA graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |
@@ -30,9 +31,9 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │  Desktop │ Terminal │  Notepad  │   User Scripts    │
 │  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
 ├──────────┴──────────┴───────────┴───────────────────┤
-│              Shell + CupidScript                    │
-│   38+ commands │ bash-like scripting │ ed editor    │
-│   colors │ pipes │ redirects │ jobs │ arrays      │
+│              Shell + CupidScript + CupidC           │
+│   40+ commands │ bash-like scripting │ C compiler  │
+│   colors │ pipes │ redirects │ jobs │ JIT + AOT   │
 ├─────────────────────────────────────────────────────┤
 │       Virtual File System (VFS)                      │
 │   RamFS (/) │ DevFS (/dev) │ FAT16 (/home)         │
@@ -108,6 +109,10 @@ cupid-os/
 │   ├── fat16_vfs.c/h          # FAT16 VFS wrapper
 │   ├── exec.c/h               # CUPD program loader
 │   ├── cupidscript*.c/h       # CupidScript scripting language
+│   ├── cupidc.h/c             # CupidC compiler (JIT/AOT driver)
+│   ├── cupidc_lex.c           # CupidC lexer (tokenizer)
+│   ├── cupidc_parse.c         # CupidC parser + x86 code gen
+│   ├── cupidc_elf.c           # CupidC ELF32 binary writer
 │   ├── cupidscript_streams.c/h # Stream system (pipes, fd table)
 │   ├── cupidscript_strings.c  # Advanced string operations
 │   ├── cupidscript_arrays.c/h # Arrays & associative arrays

@@ -1,0 +1,1850 @@
+/**
+ * cupidc_parse.c — Parser and x86 code generator for CupidC
+ *
+ * Single-pass recursive descent parser that emits x86 machine code
+ * directly into a code buffer.  Implements the full CupidC language:
+ *   - Types: int, char, void, pointers, arrays
+ *   - Expressions with full C operator precedence
+ *   - Control flow: if/else, while, for, break, continue, return
+ *   - Functions with cdecl calling convention
+ *   - Inline assembly blocks
+ *   - Kernel function bindings (print, kmalloc, etc.)
+ *   - Port I/O builtins (inb, outb)
+ */
+
+#include "cupidc.h"
+#include "string.h"
+#include "kernel.h"
+#include "../drivers/serial.h"
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  x86 Machine Code Emission Helpers
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Emit a single byte */
+static void emit8(cc_state_t *cc, uint8_t b) {
+    if (cc->code_pos < CC_MAX_CODE) {
+        cc->code[cc->code_pos++] = b;
+    } else {
+        cc->error = 1;
+    }
+}
+
+/* Emit a 32-bit little-endian value */
+static void emit32(cc_state_t *cc, uint32_t v) {
+    emit8(cc, (uint8_t)(v & 0xFF));
+    emit8(cc, (uint8_t)((v >> 8) & 0xFF));
+    emit8(cc, (uint8_t)((v >> 16) & 0xFF));
+    emit8(cc, (uint8_t)((v >> 24) & 0xFF));
+}
+
+/* Patch a 32-bit value at a specific offset */
+static void patch32(cc_state_t *cc, uint32_t offset, uint32_t value) {
+    if (offset + 4 <= CC_MAX_CODE) {
+        cc->code[offset]     = (uint8_t)(value & 0xFF);
+        cc->code[offset + 1] = (uint8_t)((value >> 8) & 0xFF);
+        cc->code[offset + 2] = (uint8_t)((value >> 16) & 0xFF);
+        cc->code[offset + 3] = (uint8_t)((value >> 24) & 0xFF);
+    }
+}
+
+/* Current code address (base + position) */
+static uint32_t cc_code_addr(cc_state_t *cc) {
+    return cc->code_base + cc->code_pos;
+}
+
+/* ── x86 instruction emitters ────────────────────────────────────── */
+
+/* mov eax, imm32 */
+static void emit_mov_eax_imm(cc_state_t *cc, uint32_t val) {
+    emit8(cc, 0xB8);
+    emit32(cc, val);
+}
+
+/* mov eax, [ebp + offset] (load local/param) */
+static void emit_load_local(cc_state_t *cc, int32_t offset) {
+    emit8(cc, 0x8B);               /* mov eax, [ebp+disp32] */
+    emit8(cc, 0x85);
+    emit32(cc, (uint32_t)offset);
+}
+
+/* mov [ebp + offset], eax (store local/param) */
+static void emit_store_local(cc_state_t *cc, int32_t offset) {
+    emit8(cc, 0x89);               /* mov [ebp+disp32], eax */
+    emit8(cc, 0x85);
+    emit32(cc, (uint32_t)offset);
+}
+
+/* push eax */
+static void emit_push_eax(cc_state_t *cc) {
+    emit8(cc, 0x50);
+}
+
+/* pop eax */
+static void emit_pop_eax(cc_state_t *cc) {
+    emit8(cc, 0x58);
+}
+
+/* pop ebx */
+static void emit_pop_ebx(cc_state_t *cc) {
+    emit8(cc, 0x5B);
+}
+
+/* push imm32 */
+static void emit_push_imm(cc_state_t *cc, uint32_t val) {
+    emit8(cc, 0x68);
+    emit32(cc, val);
+}
+
+/* call absolute address */
+static void emit_call_abs(cc_state_t *cc, uint32_t addr) {
+    uint32_t from = cc_code_addr(cc) + 5;
+    int32_t rel = (int32_t)(addr - from);
+    emit8(cc, 0xE8);
+    emit32(cc, (uint32_t)rel);
+}
+
+/* call relative (placeholder — returns offset of the rel32 for patching) */
+static uint32_t emit_call_rel_placeholder(cc_state_t *cc) {
+    emit8(cc, 0xE8);
+    uint32_t patch_pos = cc->code_pos;
+    emit32(cc, 0);  /* placeholder */
+    return patch_pos;
+}
+
+/* jmp rel32 (unconditional) — returns offset for patching */
+static uint32_t emit_jmp_placeholder(cc_state_t *cc) {
+    emit8(cc, 0xE9);
+    uint32_t patch_pos = cc->code_pos;
+    emit32(cc, 0);
+    return patch_pos;
+}
+
+/* jcc rel32 (conditional jump) — returns offset for patching */
+static uint32_t emit_jcc_placeholder(cc_state_t *cc, uint8_t cond) {
+    emit8(cc, 0x0F);
+    emit8(cc, cond);
+    uint32_t patch_pos = cc->code_pos;
+    emit32(cc, 0);
+    return patch_pos;
+}
+
+/* Patch a relative jump/call target to the current code position */
+static void patch_jump(cc_state_t *cc, uint32_t patch_pos) {
+    uint32_t target = cc->code_pos;
+    uint32_t from = patch_pos + 4; /* instruction after the rel32 */
+    int32_t rel = (int32_t)(target - from);
+    patch32(cc, patch_pos, (uint32_t)rel);
+}
+
+/* add esp, imm8 (clean up stack args) */
+static void emit_add_esp(cc_state_t *cc, int32_t val) {
+    if (val == 0) return;
+    emit8(cc, 0x83);
+    emit8(cc, 0xC4);
+    emit8(cc, (uint8_t)(val & 0xFF));
+}
+
+/* sub esp, imm32 (allocate locals) */
+static void emit_sub_esp(cc_state_t *cc, uint32_t val) {
+    if (val == 0) return;
+    emit8(cc, 0x81);
+    emit8(cc, 0xEC);
+    emit32(cc, val);
+}
+
+/* Function prologue: push ebp; mov ebp, esp */
+static void emit_prologue(cc_state_t *cc) {
+    emit8(cc, 0x55);               /* push ebp */
+    emit8(cc, 0x89);               /* mov ebp, esp */
+    emit8(cc, 0xE5);
+}
+
+/* Function epilogue: mov esp, ebp; pop ebp; ret */
+static void emit_epilogue(cc_state_t *cc) {
+    emit8(cc, 0x89);               /* mov esp, ebp */
+    emit8(cc, 0xEC);
+    emit8(cc, 0x5D);               /* pop ebp */
+    emit8(cc, 0xC3);               /* ret */
+}
+
+/* cmp eax, 0 */
+static void emit_cmp_eax_zero(cc_state_t *cc) {
+    emit8(cc, 0x83);
+    emit8(cc, 0xF8);
+    emit8(cc, 0x00);
+}
+
+/* ret */
+static void emit_ret(cc_state_t *cc) {
+    emit8(cc, 0xC3);
+}
+
+/* nop */
+static void emit_nop(cc_state_t *cc) {
+    emit8(cc, 0x90);
+}
+
+/* movzx eax, al (zero-extend byte to dword) */
+static void emit_movzx_eax_al(cc_state_t *cc) {
+    emit8(cc, 0x0F);
+    emit8(cc, 0xB6);
+    emit8(cc, 0xC0);
+}
+
+/* mov [eax], bl (store byte through pointer) */
+static void emit_store_byte_ptr(cc_state_t *cc) {
+    emit8(cc, 0x88);  /* mov [eax], bl */
+    emit8(cc, 0x18);
+}
+
+/* mov [eax], ebx (store dword through pointer) */
+static void emit_store_dword_ptr(cc_state_t *cc) {
+    emit8(cc, 0x89);  /* mov [eax], ebx */
+    emit8(cc, 0x18);
+}
+
+/* mov eax, [eax] (dereference dword pointer) */
+static void emit_deref_dword(cc_state_t *cc) {
+    emit8(cc, 0x8B);
+    emit8(cc, 0x00);
+}
+
+/* movzx eax, byte [eax] (dereference byte pointer) */
+static void emit_deref_byte(cc_state_t *cc) {
+    emit8(cc, 0x0F);
+    emit8(cc, 0xB6);
+    emit8(cc, 0x00);
+}
+
+/* lea eax, [ebp + offset] (address of local) */
+static void emit_lea_local(cc_state_t *cc, int32_t offset) {
+    emit8(cc, 0x8D);               /* lea eax, [ebp+disp32] */
+    emit8(cc, 0x85);
+    emit32(cc, (uint32_t)offset);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Error Handling
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static void cc_error(cc_state_t *cc, const char *msg) {
+    if (cc->error) return;  /* already errored */
+    cc->error = 1;
+
+    /* Build error message */
+    int i = 0;
+    const char *prefix = "CupidC Error (line ";
+    while (prefix[i] && i < 100) { cc->error_msg[i] = prefix[i]; i++; }
+
+    /* line number */
+    int line = cc->cur.line;
+    if (line == 0) line = cc->line;
+    char num[12];
+    int ni = 0;
+    if (line == 0) { num[ni++] = '0'; }
+    else {
+        int tmp = line;
+        char rev[12];
+        int ri = 0;
+        while (tmp > 0) { rev[ri++] = (char)('0' + tmp % 10); tmp /= 10; }
+        while (ri > 0) { num[ni++] = rev[--ri]; }
+    }
+    num[ni] = '\0';
+    int j = 0;
+    while (num[j] && i < 120) { cc->error_msg[i++] = num[j++]; }
+
+    const char *mid = "): ";
+    j = 0;
+    while (mid[j] && i < 120) { cc->error_msg[i++] = mid[j++]; }
+
+    j = 0;
+    while (msg[j] && i < 126) { cc->error_msg[i++] = msg[j++]; }
+    cc->error_msg[i++] = '\n';
+    cc->error_msg[i] = '\0';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Token Helpers
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static cc_token_t cc_next(cc_state_t *cc) {
+    return cc_lex_next(cc);
+}
+
+static cc_token_t cc_peek(cc_state_t *cc) {
+    return cc_lex_peek(cc);
+}
+
+static int cc_expect(cc_state_t *cc, cc_token_type_t type) {
+    cc_token_t tok = cc_next(cc);
+    if (tok.type != type) {
+        cc_error(cc, "unexpected token");
+        return 0;
+    }
+    return 1;
+}
+
+static int cc_match(cc_state_t *cc, cc_token_type_t type) {
+    if (cc_peek(cc).type == type) {
+        cc_next(cc);
+        return 1;
+    }
+    return 0;
+}
+
+/* ── Check if token is a type keyword ────────────────────────────── */
+static int cc_is_type(cc_token_type_t t) {
+    return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID;
+}
+
+/* ── Parse a type specifier, returns cc_type_t ───────────────────── */
+static cc_type_t cc_parse_type(cc_state_t *cc) {
+    cc_token_t tok = cc_next(cc);
+    cc_type_t base;
+    switch (tok.type) {
+    case CC_TOK_INT:  base = TYPE_INT;  break;
+    case CC_TOK_CHAR: base = TYPE_CHAR; break;
+    case CC_TOK_VOID: base = TYPE_VOID; break;
+    default:
+        cc_error(cc, "expected type");
+        return TYPE_INT;
+    }
+
+    /* Check for pointer */
+    if (cc_peek(cc).type == CC_TOK_STAR) {
+        cc_next(cc);
+        if (base == TYPE_INT)  return TYPE_INT_PTR;
+        if (base == TYPE_CHAR) return TYPE_CHAR_PTR;
+        return TYPE_PTR;
+    }
+    return base;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Symbol Table
+ * ══════════════════════════════════════════════════════════════════════ */
+
+void cc_sym_init(cc_state_t *cc) {
+    cc->sym_count = 0;
+}
+
+cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name) {
+    /* Search backwards so locals shadow globals/kernel */
+    for (int i = cc->sym_count - 1; i >= 0; i--) {
+        if (strcmp(cc->symbols[i].name, name) == 0) {
+            return &cc->symbols[i];
+        }
+    }
+    return NULL;
+}
+
+cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name,
+                        cc_sym_kind_t kind, cc_type_t type) {
+    if (cc->sym_count >= CC_MAX_SYMBOLS) {
+        cc_error(cc, "too many symbols");
+        return NULL;
+    }
+    cc_symbol_t *sym = &cc->symbols[cc->sym_count++];
+    memset(sym, 0, sizeof(*sym));
+    int i = 0;
+    while (name[i] && i < CC_MAX_IDENT - 1) {
+        sym->name[i] = name[i];
+        i++;
+    }
+    sym->name[i] = '\0';
+    sym->kind = kind;
+    sym->type = type;
+    return sym;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Forward Declarations for Parser
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static void cc_parse_statement(cc_state_t *cc);
+static void cc_parse_block(cc_state_t *cc);
+static void cc_parse_expression(cc_state_t *cc, int min_prec);
+static void cc_parse_primary(cc_state_t *cc);
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Expression Types for Tracking
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Track what kind of value the last expression produced */
+static cc_type_t cc_last_expr_type;
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Operator Precedence
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static int cc_precedence(cc_token_type_t op) {
+    switch (op) {
+    case CC_TOK_OR:       return 1;
+    case CC_TOK_AND:      return 2;
+    case CC_TOK_BOR:      return 3;
+    case CC_TOK_BXOR:     return 4;
+    case CC_TOK_AMP:      return 5;   /* bitwise AND */
+    case CC_TOK_EQEQ:
+    case CC_TOK_NE:       return 6;
+    case CC_TOK_LT:
+    case CC_TOK_GT:
+    case CC_TOK_LE:
+    case CC_TOK_GE:       return 7;
+    case CC_TOK_SHL:
+    case CC_TOK_SHR:      return 8;
+    case CC_TOK_PLUS:
+    case CC_TOK_MINUS:    return 9;
+    case CC_TOK_STAR:
+    case CC_TOK_SLASH:
+    case CC_TOK_PERCENT:  return 10;
+    default:           return -1;
+    }
+}
+
+static int cc_is_binary_op(cc_token_type_t t) {
+    return cc_precedence(t) > 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Expression Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Emit binary operation: EBX = left, EAX = right → result in EAX */
+static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
+    /* Pop left operand into EBX */
+    emit_pop_ebx(cc);
+
+    switch (op) {
+    case CC_TOK_PLUS:
+        emit8(cc, 0x01); emit8(cc, 0xD8);  /* add eax, ebx */
+        break;
+    case CC_TOK_MINUS:
+        /* ebx - eax: sub ebx, eax then mov eax, ebx */
+        emit8(cc, 0x29); emit8(cc, 0xC3);  /* sub ebx, eax */
+        emit8(cc, 0x89); emit8(cc, 0xD8);  /* mov eax, ebx */
+        break;
+    case CC_TOK_STAR:
+        emit8(cc, 0x0F); emit8(cc, 0xAF);  /* imul eax, ebx */
+        emit8(cc, 0xC3);
+        break;
+    case CC_TOK_SLASH:
+        /* ebx / eax: swap, sign-extend, idiv */
+        emit8(cc, 0x89); emit8(cc, 0xC1);  /* mov ecx, eax */
+        emit8(cc, 0x89); emit8(cc, 0xD8);  /* mov eax, ebx */
+        emit8(cc, 0x99);                    /* cdq (sign-extend eax→edx:eax) */
+        emit8(cc, 0xF7); emit8(cc, 0xF9);  /* idiv ecx */
+        break;
+    case CC_TOK_PERCENT:
+        emit8(cc, 0x89); emit8(cc, 0xC1);  /* mov ecx, eax */
+        emit8(cc, 0x89); emit8(cc, 0xD8);  /* mov eax, ebx */
+        emit8(cc, 0x99);                    /* cdq */
+        emit8(cc, 0xF7); emit8(cc, 0xF9);  /* idiv ecx */
+        emit8(cc, 0x89); emit8(cc, 0xD0);  /* mov eax, edx (remainder) */
+        break;
+
+    /* Comparison operators: cmp ebx, eax; setcc al; movzx eax, al */
+    case CC_TOK_EQEQ:
+        emit8(cc, 0x39); emit8(cc, 0xC3);  /* cmp ebx, eax */
+        emit8(cc, 0x0F); emit8(cc, 0x94); emit8(cc, 0xC0);  /* sete al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_NE:
+        emit8(cc, 0x39); emit8(cc, 0xC3);
+        emit8(cc, 0x0F); emit8(cc, 0x95); emit8(cc, 0xC0);  /* setne al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_LT:
+        emit8(cc, 0x39); emit8(cc, 0xC3);
+        emit8(cc, 0x0F); emit8(cc, 0x9C); emit8(cc, 0xC0);  /* setl al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_GT:
+        emit8(cc, 0x39); emit8(cc, 0xC3);
+        emit8(cc, 0x0F); emit8(cc, 0x9F); emit8(cc, 0xC0);  /* setg al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_LE:
+        emit8(cc, 0x39); emit8(cc, 0xC3);
+        emit8(cc, 0x0F); emit8(cc, 0x9E); emit8(cc, 0xC0);  /* setle al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_GE:
+        emit8(cc, 0x39); emit8(cc, 0xC3);
+        emit8(cc, 0x0F); emit8(cc, 0x9D); emit8(cc, 0xC0);  /* setge al */
+        emit_movzx_eax_al(cc);
+        break;
+
+    /* Bitwise */
+    case CC_TOK_AMP:
+        emit8(cc, 0x21); emit8(cc, 0xD8);  /* and eax, ebx */
+        break;
+    case CC_TOK_BOR:
+        emit8(cc, 0x09); emit8(cc, 0xD8);  /* or eax, ebx */
+        break;
+    case CC_TOK_BXOR:
+        emit8(cc, 0x31); emit8(cc, 0xD8);  /* xor eax, ebx */
+        break;
+    case CC_TOK_SHL:
+        /* ebx << eax: mov ecx, eax; mov eax, ebx; shl eax, cl */
+        emit8(cc, 0x89); emit8(cc, 0xC1);  /* mov ecx, eax */
+        emit8(cc, 0x89); emit8(cc, 0xD8);  /* mov eax, ebx */
+        emit8(cc, 0xD3); emit8(cc, 0xE0);  /* shl eax, cl */
+        break;
+    case CC_TOK_SHR:
+        emit8(cc, 0x89); emit8(cc, 0xC1);  /* mov ecx, eax */
+        emit8(cc, 0x89); emit8(cc, 0xD8);  /* mov eax, ebx */
+        emit8(cc, 0xD3); emit8(cc, 0xF8);  /* sar eax, cl */
+        break;
+
+    /* Logical */
+    case CC_TOK_AND:
+        /* Both operands already evaluated to 0 or non-0 */
+        emit8(cc, 0x85); emit8(cc, 0xDB);  /* test ebx, ebx */
+        emit8(cc, 0x0F); emit8(cc, 0x94); emit8(cc, 0xC1);  /* sete cl */
+        emit8(cc, 0x85); emit8(cc, 0xC0);  /* test eax, eax */
+        emit8(cc, 0x0F); emit8(cc, 0x94); emit8(cc, 0xC0);  /* sete al */
+        emit8(cc, 0x08); emit8(cc, 0xC8);  /* or al, cl */
+        emit8(cc, 0x0F); emit8(cc, 0x94); emit8(cc, 0xC0);  /* sete al */
+        emit_movzx_eax_al(cc);
+        break;
+    case CC_TOK_OR:
+        emit8(cc, 0x09); emit8(cc, 0xD8);  /* or eax, ebx */
+        /* normalize to 0/1 */
+        emit8(cc, 0x85); emit8(cc, 0xC0);  /* test eax, eax */
+        emit8(cc, 0x0F); emit8(cc, 0x95); emit8(cc, 0xC0);  /* setne al */
+        emit_movzx_eax_al(cc);
+        break;
+
+    default:
+        cc_error(cc, "unsupported operator");
+        break;
+    }
+}
+
+/* ── Parse variable reference or function call ───────────────────── */
+static void cc_parse_ident_expr(cc_state_t *cc) {
+    char name[CC_MAX_IDENT];
+    int i = 0;
+    while (cc->cur.text[i] && i < CC_MAX_IDENT - 1) {
+        name[i] = cc->cur.text[i];
+        i++;
+    }
+    name[i] = '\0';
+
+    /* Function call? */
+    if (cc_peek(cc).type == CC_TOK_LPAREN) {
+        cc_next(cc); /* consume '(' */
+
+        /* Count and push arguments (right to left by collecting first) */
+        uint32_t arg_addrs[CC_MAX_PARAMS];
+        int argc = 0;
+
+        if (cc_peek(cc).type != CC_TOK_RPAREN) {
+            /* Parse first argument */
+            cc_parse_expression(cc, 1);
+            emit_push_eax(cc);
+            argc++;
+
+            while (cc_match(cc, CC_TOK_COMMA)) {
+                cc_parse_expression(cc, 1);
+                emit_push_eax(cc);
+                argc++;
+            }
+        }
+        cc_expect(cc, CC_TOK_RPAREN);
+
+        /* Reverse args on stack for cdecl (we pushed left-to-right,
+         * need right-to-left). For simplicity in a single-pass compiler
+         * we just accept left-to-right push and adjust parameter access. */
+        /* Actually, cdecl pushes right-to-left, but since we parsed
+         * left-to-right, let's reverse the top `argc` stack entries */
+        if (argc > 1) {
+            /* Use a reversal loop:
+             * for each pair (i, argc-1-i) where i < argc/2, swap */
+            for (int a = 0; a < argc / 2; a++) {
+                int b = argc - 1 - a;
+                int off_a = a * 4;
+                int off_b = b * 4;
+                /* mov ecx, [esp+off_a] */
+                emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_a);
+                /* mov edx, [esp+off_b] */
+                emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_b);
+                /* mov [esp+off_a], edx */
+                emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_a);
+                /* mov [esp+off_b], ecx */
+                emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_b);
+            }
+        }
+        (void)arg_addrs;
+
+        /* Look up function */
+        cc_symbol_t *sym = cc_sym_find(cc, name);
+        if (sym) {
+            if (sym->kind == SYM_KERNEL) {
+                emit_call_abs(cc, sym->address);
+            } else if (sym->kind == SYM_FUNC) {
+                if (sym->is_defined) {
+                    /* Direct call to known address */
+                    uint32_t target = cc->code_base + (uint32_t)sym->offset;
+                    emit_call_abs(cc, target);
+                } else {
+                    /* Forward reference — add patch */
+                    uint32_t patch_pos = emit_call_rel_placeholder(cc);
+                    if (cc->patch_count < CC_MAX_PATCHES) {
+                        cc_patch_t *p = &cc->patches[cc->patch_count++];
+                        p->code_offset = patch_pos;
+                        int pi = 0;
+                        while (name[pi] && pi < CC_MAX_IDENT - 1) {
+                            p->name[pi] = name[pi]; pi++;
+                        }
+                        p->name[pi] = '\0';
+                    }
+                }
+            } else {
+                cc_error(cc, "not a function");
+            }
+        } else {
+            /* Unknown function — create forward ref */
+            cc_symbol_t *fsym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
+            if (fsym) {
+                fsym->param_count = argc;
+                fsym->is_defined = 0;
+            }
+            uint32_t patch_pos = emit_call_rel_placeholder(cc);
+            if (cc->patch_count < CC_MAX_PATCHES) {
+                cc_patch_t *p = &cc->patches[cc->patch_count++];
+                p->code_offset = patch_pos;
+                int pi = 0;
+                while (name[pi] && pi < CC_MAX_IDENT - 1) {
+                    p->name[pi] = name[pi]; pi++;
+                }
+                p->name[pi] = '\0';
+            }
+        }
+
+        /* Clean up arguments */
+        if (argc > 0) {
+            emit_add_esp(cc, (int32_t)(argc * 4));
+        }
+
+        cc_last_expr_type = TYPE_INT; /* assume int return */
+        return;
+    }
+
+    /* Variable reference */
+    cc_symbol_t *sym = cc_sym_find(cc, name);
+    if (!sym) {
+        cc_error(cc, "undefined variable");
+        return;
+    }
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        if (sym->is_array) {
+            /* Arrays: load the base address via LEA, not the value */
+            emit_lea_local(cc, sym->offset);
+        } else {
+            emit_load_local(cc, sym->offset);
+        }
+        cc_last_expr_type = sym->type;
+    } else if (sym->kind == SYM_GLOBAL) {
+        /* mov eax, [absolute_addr] */
+        emit8(cc, 0xA1);
+        emit32(cc, sym->address);
+        cc_last_expr_type = sym->type;
+    } else if (sym->kind == SYM_FUNC) {
+        /* Load function address into eax */
+        if (sym->is_defined) {
+            emit_mov_eax_imm(cc, cc->code_base + (uint32_t)sym->offset);
+        } else {
+            emit_mov_eax_imm(cc, sym->address);
+        }
+        cc_last_expr_type = TYPE_PTR;
+    } else if (sym->kind == SYM_KERNEL) {
+        emit_mov_eax_imm(cc, sym->address);
+        cc_last_expr_type = TYPE_PTR;
+    }
+}
+
+/* ── Primary expression ──────────────────────────────────────────── */
+static void cc_parse_primary(cc_state_t *cc) {
+    if (cc->error) return;
+
+    cc_token_t tok = cc_next(cc);
+
+    switch (tok.type) {
+    case CC_TOK_NUMBER:
+        emit_mov_eax_imm(cc, (uint32_t)tok.int_value);
+        cc_last_expr_type = TYPE_INT;
+        break;
+
+    case CC_TOK_CHAR_LIT:
+        emit_mov_eax_imm(cc, (uint32_t)tok.int_value);
+        cc_last_expr_type = TYPE_CHAR;
+        break;
+
+    case CC_TOK_STRING: {
+        /* Store string in data section, load address */
+        uint32_t str_addr = cc->data_base + cc->data_pos;
+        int si = 0;
+        while (tok.text[si] && cc->data_pos < CC_MAX_DATA) {
+            cc->data[cc->data_pos++] = (uint8_t)tok.text[si++];
+        }
+        if (cc->data_pos < CC_MAX_DATA) {
+            cc->data[cc->data_pos++] = 0; /* null terminator */
+        }
+        emit_mov_eax_imm(cc, str_addr);
+        cc_last_expr_type = TYPE_CHAR_PTR;
+        break;
+    }
+
+    case CC_TOK_IDENT:
+        cc_parse_ident_expr(cc);
+        break;
+
+    case CC_TOK_LPAREN: {
+        /* Check for type cast: (int)expr, (char*)expr */
+        cc_token_t p = cc_peek(cc);
+        if (cc_is_type(p.type)) {
+            cc_type_t cast_type = cc_parse_type(cc);
+            cc_expect(cc, CC_TOK_RPAREN);
+            cc_parse_primary(cc);
+            cc_last_expr_type = cast_type;
+        } else {
+            cc_parse_expression(cc, 1);
+            cc_expect(cc, CC_TOK_RPAREN);
+        }
+        break;
+    }
+
+    case CC_TOK_STAR: {
+        /* Dereference: *expr */
+        cc_parse_primary(cc);
+        cc_type_t ptr_type = cc_last_expr_type;
+        if (ptr_type == TYPE_CHAR_PTR) {
+            emit_deref_byte(cc);
+            cc_last_expr_type = TYPE_CHAR;
+        } else {
+            emit_deref_dword(cc);
+            cc_last_expr_type = TYPE_INT;
+        }
+        break;
+    }
+
+    case CC_TOK_AMP: {
+        /* Address-of: &var */
+        cc_token_t id = cc_next(cc);
+        if (id.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected variable after &");
+            return;
+        }
+        cc_symbol_t *sym = cc_sym_find(cc, id.text);
+        if (!sym) {
+            cc_error(cc, "undefined variable for &");
+            return;
+        }
+        if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+            emit_lea_local(cc, sym->offset);
+        } else if (sym->kind == SYM_GLOBAL) {
+            emit_mov_eax_imm(cc, sym->address);
+        } else {
+            cc_error(cc, "cannot take address of function");
+            return;
+        }
+        if (sym->type == TYPE_INT)       cc_last_expr_type = TYPE_INT_PTR;
+        else if (sym->type == TYPE_CHAR) cc_last_expr_type = TYPE_CHAR_PTR;
+        else                             cc_last_expr_type = TYPE_PTR;
+        break;
+    }
+
+    case CC_TOK_NOT: {
+        /* Logical NOT: !expr */
+        cc_parse_primary(cc);
+        emit_cmp_eax_zero(cc);
+        emit8(cc, 0x0F); emit8(cc, 0x94); emit8(cc, 0xC0); /* sete al */
+        emit_movzx_eax_al(cc);
+        cc_last_expr_type = TYPE_INT;
+        break;
+    }
+
+    case CC_TOK_BNOT: {
+        /* Bitwise NOT: ~expr */
+        cc_parse_primary(cc);
+        emit8(cc, 0xF7); emit8(cc, 0xD0); /* not eax */
+        cc_last_expr_type = TYPE_INT;
+        break;
+    }
+
+    case CC_TOK_MINUS: {
+        /* Unary minus: -expr */
+        cc_parse_primary(cc);
+        emit8(cc, 0xF7); emit8(cc, 0xD8); /* neg eax */
+        cc_last_expr_type = TYPE_INT;
+        break;
+    }
+
+    case CC_TOK_PLUSPLUS: {
+        /* Pre-increment: ++var */
+        cc_token_t id = cc_next(cc);
+        if (id.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected variable after ++");
+            return;
+        }
+        cc_symbol_t *sym = cc_sym_find(cc, id.text);
+        if (!sym) { cc_error(cc, "undefined variable"); return; }
+        if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+            emit_load_local(cc, sym->offset);
+            emit8(cc, 0x40);  /* inc eax */
+            emit_store_local(cc, sym->offset);
+        }
+        cc_last_expr_type = sym->type;
+        break;
+    }
+
+    case CC_TOK_MINUSMINUS: {
+        /* Pre-decrement: --var */
+        cc_token_t id = cc_next(cc);
+        if (id.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected variable after --");
+            return;
+        }
+        cc_symbol_t *sym = cc_sym_find(cc, id.text);
+        if (!sym) { cc_error(cc, "undefined variable"); return; }
+        if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+            emit_load_local(cc, sym->offset);
+            emit8(cc, 0x48);  /* dec eax */
+            emit_store_local(cc, sym->offset);
+        }
+        cc_last_expr_type = sym->type;
+        break;
+    }
+
+    default:
+        cc_error(cc, "expected expression");
+        break;
+    }
+
+    /* Handle postfix operations: [index], ++, -- */
+    for (;;) {
+        if (cc->error) return;
+        cc_token_t next = cc_peek(cc);
+
+        if (next.type == CC_TOK_LBRACK) {
+            /* Array subscript: expr[index] */
+            cc_next(cc);
+            cc_type_t base_type = cc_last_expr_type; /* save before index expr */
+            emit_push_eax(cc); /* push base address */
+
+            cc_parse_expression(cc, 1);
+
+            /* Determine element size based on pointer type */
+            if (base_type != TYPE_CHAR_PTR) {
+                /* Scale index by 4 for int pointers */
+                emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02);
+                /* shl eax, 2 */
+            }
+
+            emit_pop_ebx(cc); /* pop base into ebx */
+            emit8(cc, 0x01); emit8(cc, 0xD8); /* add eax, ebx */
+
+            /* Dereference */
+            if (base_type == TYPE_CHAR_PTR) {
+                emit_deref_byte(cc);
+                cc_last_expr_type = TYPE_CHAR;
+            } else {
+                emit_deref_dword(cc);
+                cc_last_expr_type = TYPE_INT;
+            }
+
+            cc_expect(cc, CC_TOK_RBRACK);
+            continue;
+        }
+
+        if (next.type == CC_TOK_PLUSPLUS) {
+            /* Postfix increment — not fully correct for all lvalues,
+             * but works for the common case of simple variables.
+             * The value before increment is left in EAX. */
+            cc_next(cc);
+            /* EAX already has current value from the primary parse */
+            break;
+        }
+
+        if (next.type == CC_TOK_MINUSMINUS) {
+            cc_next(cc);
+            break;
+        }
+
+        break;
+    }
+}
+
+/* ── Expression with precedence climbing ─────────────────────────── */
+static void cc_parse_expression(cc_state_t *cc, int min_prec) {
+    if (cc->error) return;
+
+    cc_parse_primary(cc);
+
+    while (!cc->error) {
+        cc_token_t op = cc_peek(cc);
+        int prec = cc_precedence(op.type);
+        if (prec < min_prec) break;
+        if (!cc_is_binary_op(op.type)) break;
+
+        cc_next(cc); /* consume operator */
+
+        emit_push_eax(cc); /* save left operand */
+        cc_parse_expression(cc, prec + 1);
+        cc_emit_binop(cc, op.type);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Assignment Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Parse assignment: var = expr, var += expr, *ptr = expr, arr[i] = expr */
+static void cc_parse_assignment(cc_state_t *cc, const char *name) {
+    cc_symbol_t *sym = cc_sym_find(cc, name);
+    if (!sym) {
+        cc_error(cc, "undefined variable in assignment");
+        return;
+    }
+
+    cc_token_t op = cc_next(cc); /* consume =, +=, etc. */
+
+    cc_parse_expression(cc, 1);
+
+    /* Handle compound assignment */
+    if (op.type != CC_TOK_EQ) {
+        /* Load current value into ebx */
+        emit_push_eax(cc); /* save RHS */
+        if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+            emit_load_local(cc, sym->offset);
+        } else if (sym->kind == SYM_GLOBAL) {
+            emit8(cc, 0xA1); emit32(cc, sym->address);
+        }
+        emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax (current val) */
+        emit_pop_eax(cc); /* restore RHS */
+
+        switch (op.type) {
+        case CC_TOK_PLUSEQ:
+            emit8(cc, 0x01); emit8(cc, 0xD8); /* add eax, ebx */
+            break;
+        case CC_TOK_MINUSEQ:
+            emit8(cc, 0x29); emit8(cc, 0xC3); /* sub ebx, eax */
+            emit8(cc, 0x89); emit8(cc, 0xD8); /* mov eax, ebx */
+            break;
+        case CC_TOK_STAREQ:
+            emit8(cc, 0x0F); emit8(cc, 0xAF); emit8(cc, 0xC3); /* imul eax, ebx */
+            break;
+        case CC_TOK_SLASHEQ:
+            emit8(cc, 0x89); emit8(cc, 0xC1); /* mov ecx, eax */
+            emit8(cc, 0x89); emit8(cc, 0xD8); /* mov eax, ebx */
+            emit8(cc, 0x99);                   /* cdq */
+            emit8(cc, 0xF7); emit8(cc, 0xF9); /* idiv ecx */
+            break;
+        default:
+            break;
+        }
+    }
+
+    /* Store result */
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        emit_store_local(cc, sym->offset);
+    } else if (sym->kind == SYM_GLOBAL) {
+        emit8(cc, 0xA3); emit32(cc, sym->address);
+    }
+}
+
+/* Parse pointer dereference assignment: *expr = val */
+static void cc_parse_deref_assignment(cc_state_t *cc) {
+    /* Parse the pointer expression (target address) */
+    cc_parse_primary(cc);
+    cc_type_t ptr_type = cc_last_expr_type;
+
+    cc_expect(cc, CC_TOK_EQ);
+
+    emit_push_eax(cc); /* save address */
+    cc_parse_expression(cc, 1);
+
+    /* EAX = value, stack top = address */
+    emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax (value) */
+    emit_pop_eax(cc);                  /* eax = address */
+
+    if (ptr_type == TYPE_CHAR_PTR || ptr_type == TYPE_CHAR) {
+        emit_store_byte_ptr(cc);
+    } else {
+        emit_store_dword_ptr(cc);
+    }
+}
+
+/* Parse array subscript assignment: arr[i] = val */
+static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
+    cc_symbol_t *sym = cc_sym_find(cc, name);
+    if (!sym) {
+        cc_error(cc, "undefined array");
+        return;
+    }
+
+    /* Parse index */
+    cc_parse_expression(cc, 1);
+
+    /* Scale index based on type */
+    int is_char = (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR);
+    if (!is_char) {
+        emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
+    }
+
+    /* Compute address = base + index */
+    emit_push_eax(cc);
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        if (sym->is_array) {
+            /* Array: base address is the stack location itself */
+            emit_lea_local(cc, sym->offset);
+        } else {
+            /* Pointer variable: load the pointer value */
+            emit_load_local(cc, sym->offset);
+        }
+    } else if (sym->kind == SYM_GLOBAL) {
+        emit_mov_eax_imm(cc, sym->address);
+    }
+
+    emit_pop_ebx(cc);
+    emit8(cc, 0x01); emit8(cc, 0xD8); /* add eax, ebx */
+
+    cc_expect(cc, CC_TOK_RBRACK);
+    emit_push_eax(cc); /* save computed address */
+
+    cc_expect(cc, CC_TOK_EQ);
+    cc_parse_expression(cc, 1);
+
+    /* EAX = value, stack = address */
+    emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax */
+    emit_pop_eax(cc);                  /* eax = address */
+
+    if (is_char) {
+        emit_store_byte_ptr(cc);
+    } else {
+        emit_store_dword_ptr(cc);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Inline Assembly Parser
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Parse a register name, returns register number (0-7) or -1 */
+static int cc_parse_reg(const char *text) {
+    if (strcmp(text, "eax") == 0) return 0;
+    if (strcmp(text, "ecx") == 0) return 1;
+    if (strcmp(text, "edx") == 0) return 2;
+    if (strcmp(text, "ebx") == 0) return 3;
+    if (strcmp(text, "esp") == 0) return 4;
+    if (strcmp(text, "ebp") == 0) return 5;
+    if (strcmp(text, "esi") == 0) return 6;
+    if (strcmp(text, "edi") == 0) return 7;
+    if (strcmp(text, "al")  == 0) return 0;
+    if (strcmp(text, "cl")  == 0) return 1;
+    if (strcmp(text, "dl")  == 0) return 2;
+    if (strcmp(text, "bl")  == 0) return 3;
+    return -1;
+}
+
+static void cc_parse_asm_block(cc_state_t *cc) {
+    cc_expect(cc, CC_TOK_LBRACE);
+
+    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+           cc_peek(cc).type != CC_TOK_EOF) {
+        cc_token_t instr = cc_next(cc);
+        if (instr.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected assembly instruction");
+            return;
+        }
+
+        /* No-operand instructions */
+        if (strcmp(instr.text, "cli") == 0) {
+            emit8(cc, 0xFA);
+        } else if (strcmp(instr.text, "sti") == 0) {
+            emit8(cc, 0xFB);
+        } else if (strcmp(instr.text, "hlt") == 0) {
+            emit8(cc, 0xF4);
+        } else if (strcmp(instr.text, "nop") == 0) {
+            emit_nop(cc);
+        } else if (strcmp(instr.text, "ret") == 0) {
+            emit_ret(cc);
+        } else if (strcmp(instr.text, "iret") == 0) {
+            emit8(cc, 0xCF);
+        } else if (strcmp(instr.text, "pushad") == 0) {
+            emit8(cc, 0x60);
+        } else if (strcmp(instr.text, "popad") == 0) {
+            emit8(cc, 0x61);
+        } else if (strcmp(instr.text, "cdq") == 0) {
+            emit8(cc, 0x99);
+
+        /* push reg / push imm */
+        } else if (strcmp(instr.text, "push") == 0) {
+            cc_token_t operand = cc_next(cc);
+            int reg = cc_parse_reg(operand.text);
+            if (reg >= 0) {
+                emit8(cc, (uint8_t)(0x50 + reg));
+            } else if (operand.type == CC_TOK_NUMBER) {
+                emit_push_imm(cc, (uint32_t)operand.int_value);
+            }
+
+        /* pop reg */
+        } else if (strcmp(instr.text, "pop") == 0) {
+            cc_token_t operand = cc_next(cc);
+            int reg = cc_parse_reg(operand.text);
+            if (reg >= 0) {
+                emit8(cc, (uint8_t)(0x58 + reg));
+            }
+
+        /* mov reg, imm / mov reg, reg */
+        } else if (strcmp(instr.text, "mov") == 0) {
+            cc_token_t dst = cc_next(cc);
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_token_t src = cc_next(cc);
+
+            int dreg = cc_parse_reg(dst.text);
+            int sreg = cc_parse_reg(src.text);
+
+            if (dreg >= 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, (uint8_t)(0xB8 + dreg));
+                emit32(cc, (uint32_t)src.int_value);
+            } else if (dreg >= 0 && sreg >= 0) {
+                emit8(cc, 0x89);
+                emit8(cc, (uint8_t)(0xC0 + sreg * 8 + dreg));
+            }
+
+        /* add reg, reg / add reg, imm */
+        } else if (strcmp(instr.text, "add") == 0) {
+            cc_token_t dst = cc_next(cc);
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_token_t src = cc_next(cc);
+            int dreg = cc_parse_reg(dst.text);
+            int sreg = cc_parse_reg(src.text);
+            if (dreg >= 0 && sreg >= 0) {
+                emit8(cc, 0x01);
+                emit8(cc, (uint8_t)(0xC0 + sreg * 8 + dreg));
+            } else if (dreg == 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, 0x05);
+                emit32(cc, (uint32_t)src.int_value);
+            } else if (dreg >= 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, 0x81);
+                emit8(cc, (uint8_t)(0xC0 + dreg));
+                emit32(cc, (uint32_t)src.int_value);
+            }
+
+        /* sub reg, reg / sub reg, imm */
+        } else if (strcmp(instr.text, "sub") == 0) {
+            cc_token_t dst = cc_next(cc);
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_token_t src = cc_next(cc);
+            int dreg = cc_parse_reg(dst.text);
+            int sreg = cc_parse_reg(src.text);
+            if (dreg >= 0 && sreg >= 0) {
+                emit8(cc, 0x29);
+                emit8(cc, (uint8_t)(0xC0 + sreg * 8 + dreg));
+            } else if (dreg == 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, 0x2D);
+                emit32(cc, (uint32_t)src.int_value);
+            } else if (dreg >= 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, 0x81);
+                emit8(cc, (uint8_t)(0xE8 + dreg));
+                emit32(cc, (uint32_t)src.int_value);
+            }
+
+        /* int imm8 (software interrupt) */
+        } else if (strcmp(instr.text, "int") == 0) {
+            cc_token_t operand = cc_next(cc);
+            emit8(cc, 0xCD);
+            emit8(cc, (uint8_t)operand.int_value);
+
+        /* inc reg */
+        } else if (strcmp(instr.text, "inc") == 0) {
+            cc_token_t operand = cc_next(cc);
+            int reg = cc_parse_reg(operand.text);
+            if (reg >= 0) emit8(cc, (uint8_t)(0x40 + reg));
+
+        /* dec reg */
+        } else if (strcmp(instr.text, "dec") == 0) {
+            cc_token_t operand = cc_next(cc);
+            int reg = cc_parse_reg(operand.text);
+            if (reg >= 0) emit8(cc, (uint8_t)(0x48 + reg));
+
+        /* xor reg, reg */
+        } else if (strcmp(instr.text, "xor") == 0) {
+            cc_token_t dst = cc_next(cc);
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_token_t src = cc_next(cc);
+            int dreg = cc_parse_reg(dst.text);
+            int sreg = cc_parse_reg(src.text);
+            if (dreg >= 0 && sreg >= 0) {
+                emit8(cc, 0x31);
+                emit8(cc, (uint8_t)(0xC0 + sreg * 8 + dreg));
+            }
+
+        /* call reg / call imm */
+        } else if (strcmp(instr.text, "call") == 0) {
+            cc_token_t operand = cc_next(cc);
+            int reg = cc_parse_reg(operand.text);
+            if (reg >= 0) {
+                emit8(cc, 0xFF);
+                emit8(cc, (uint8_t)(0xD0 + reg));
+            } else if (operand.type == CC_TOK_NUMBER) {
+                emit_call_abs(cc, (uint32_t)operand.int_value);
+            }
+
+        /* cmp reg, reg / cmp reg, imm */
+        } else if (strcmp(instr.text, "cmp") == 0) {
+            cc_token_t dst = cc_next(cc);
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_token_t src = cc_next(cc);
+            int dreg = cc_parse_reg(dst.text);
+            int sreg = cc_parse_reg(src.text);
+            if (dreg >= 0 && sreg >= 0) {
+                emit8(cc, 0x39);
+                emit8(cc, (uint8_t)(0xC0 + sreg * 8 + dreg));
+            } else if (dreg == 0 && src.type == CC_TOK_NUMBER) {
+                emit8(cc, 0x3D);
+                emit32(cc, (uint32_t)src.int_value);
+            }
+
+        /* out dx, al */
+        } else if (strcmp(instr.text, "out") == 0) {
+            cc_next(cc); /* dx */
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_next(cc); /* al */
+            emit8(cc, 0xEE);
+
+        /* in al, dx */
+        } else if (strcmp(instr.text, "in") == 0) {
+            cc_next(cc); /* al */
+            cc_expect(cc, CC_TOK_COMMA);
+            cc_next(cc); /* dx */
+            emit8(cc, 0xEC);
+
+        } else {
+            /* Unknown instruction — skip to semicolon */
+            cc_error(cc, "unknown assembly instruction");
+        }
+
+        /* Consume optional semicolon between asm instructions */
+        cc_match(cc, CC_TOK_SEMICOLON);
+    }
+
+    cc_expect(cc, CC_TOK_RBRACE);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Statement Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Variable declaration ────────────────────────────────────────── */
+static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
+    cc_token_t name_tok = cc_next(cc);
+    if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected variable name");
+        return;
+    }
+
+    /* Check for array declaration: type name[size] */
+    if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        cc_next(cc); /* consume '[' */
+        cc_token_t size_tok = cc_next(cc);
+        if (size_tok.type != CC_TOK_NUMBER) {
+            cc_error(cc, "expected array size");
+            return;
+        }
+        cc_expect(cc, CC_TOK_RBRACK);
+
+        int32_t arr_size = size_tok.int_value;
+        int elem_size = (type == TYPE_CHAR) ? 1 : 4;
+        int32_t total_bytes = arr_size * elem_size;
+        /* Align to 4 bytes */
+        total_bytes = (total_bytes + 3) & ~3;
+
+        cc->local_offset -= total_bytes;
+        cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL,
+                                       type == TYPE_CHAR ? TYPE_CHAR_PTR : TYPE_INT_PTR);
+        if (sym) {
+            sym->offset = cc->local_offset;
+            sym->is_array = 1;
+        }
+
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        return;
+    }
+
+    /* Regular variable */
+    cc->local_offset -= 4;
+    cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, type);
+    if (sym) {
+        sym->offset = cc->local_offset;
+    }
+
+    /* Check for initializer */
+    if (cc_peek(cc).type == CC_TOK_EQ) {
+        cc_next(cc); /* consume '=' */
+        cc_parse_expression(cc, 1);
+        emit_store_local(cc, cc->local_offset);
+    } else {
+        /* Zero-initialize */
+        emit_mov_eax_imm(cc, 0);
+        emit_store_local(cc, cc->local_offset);
+    }
+
+    cc_expect(cc, CC_TOK_SEMICOLON);
+}
+
+/* ── If statement ────────────────────────────────────────────────── */
+static void cc_parse_if(cc_state_t *cc) {
+    cc_expect(cc, CC_TOK_LPAREN);
+    cc_parse_expression(cc, 1);
+    cc_expect(cc, CC_TOK_RPAREN);
+
+    /* test eax, eax; je else_label */
+    emit_cmp_eax_zero(cc);
+    uint32_t else_patch = emit_jcc_placeholder(cc, 0x84); /* je */
+
+    cc_parse_statement(cc);
+
+    if (cc_peek(cc).type == CC_TOK_ELSE) {
+        cc_next(cc);
+        uint32_t end_patch = emit_jmp_placeholder(cc);
+        patch_jump(cc, else_patch);
+        cc_parse_statement(cc);
+        patch_jump(cc, end_patch);
+    } else {
+        patch_jump(cc, else_patch);
+    }
+}
+
+/* ── While loop ──────────────────────────────────────────────────── */
+static void cc_parse_while(cc_state_t *cc) {
+    uint32_t loop_start = cc->code_pos;
+
+    /* Push loop context */
+    int old_depth = cc->loop_depth;
+    if (cc->loop_depth < CC_MAX_BREAKS) {
+        cc->continue_targets[cc->loop_depth] = loop_start;
+        cc->loop_depth++;
+    }
+
+    cc_expect(cc, CC_TOK_LPAREN);
+    cc_parse_expression(cc, 1);
+    cc_expect(cc, CC_TOK_RPAREN);
+
+    emit_cmp_eax_zero(cc);
+    uint32_t exit_patch = emit_jcc_placeholder(cc, 0x84); /* je */
+
+    cc_parse_statement(cc);
+
+    /* jmp loop_start */
+    emit8(cc, 0xE9);
+    int32_t rel = (int32_t)(loop_start - (cc->code_pos + 4));
+    emit32(cc, (uint32_t)rel);
+
+    patch_jump(cc, exit_patch);
+
+    /* Patch break targets */
+    if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+        uint32_t break_target = cc->break_targets[old_depth];
+        if (break_target != 0) {
+            patch_jump(cc, break_target);
+        }
+    }
+    cc->loop_depth = old_depth;
+}
+
+/* ── For loop ────────────────────────────────────────────────────── */
+static void cc_parse_for(cc_state_t *cc) {
+    cc_expect(cc, CC_TOK_LPAREN);
+
+    /* Initializer */
+    if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
+        if (cc_is_type(cc_peek(cc).type)) {
+            cc_type_t type = cc_parse_type(cc);
+            cc_parse_declaration(cc, type);
+            /* declaration already consumed semicolon */
+        } else {
+            /* Expression statement */
+            cc_token_t id = cc_next(cc);
+            if (id.type == CC_TOK_IDENT && (cc_peek(cc).type == CC_TOK_EQ ||
+                cc_peek(cc).type == CC_TOK_PLUSEQ || cc_peek(cc).type == CC_TOK_MINUSEQ)) {
+                cc_parse_assignment(cc, id.text);
+            } else {
+                /* Put token back and parse as expression */
+                cc->has_peek = 1;
+                cc->peek_buf = cc->cur;
+                cc->cur = id;
+                cc_parse_expression(cc, 1);
+            }
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+    } else {
+        cc_next(cc); /* consume ';' */
+    }
+
+    uint32_t cond_start = cc->code_pos;
+
+    /* Push loop context */
+    int old_depth = cc->loop_depth;
+
+    /* Condition */
+    uint32_t exit_patch = 0;
+    if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
+        cc_parse_expression(cc, 1);
+        emit_cmp_eax_zero(cc);
+        exit_patch = emit_jcc_placeholder(cc, 0x84); /* je */
+    }
+    cc_expect(cc, CC_TOK_SEMICOLON);
+
+    /* Save increment expression position — we'll emit a jmp over it */
+    uint32_t inc_jump = emit_jmp_placeholder(cc);
+    uint32_t inc_start = cc->code_pos;
+
+    /* Set continue target to increment */
+    if (cc->loop_depth < CC_MAX_BREAKS) {
+        cc->continue_targets[cc->loop_depth] = inc_start;
+        cc->loop_depth++;
+    }
+
+    /* Increment */
+    if (cc_peek(cc).type != CC_TOK_RPAREN) {
+        cc_token_t id = cc_next(cc);
+        if (id.type == CC_TOK_IDENT && (cc_peek(cc).type == CC_TOK_EQ ||
+            cc_peek(cc).type == CC_TOK_PLUSEQ || cc_peek(cc).type == CC_TOK_MINUSEQ)) {
+            cc_parse_assignment(cc, id.text);
+        } else if (id.type == CC_TOK_IDENT && cc_peek(cc).type == CC_TOK_PLUSPLUS) {
+            cc_next(cc);
+            cc_symbol_t *sym = cc_sym_find(cc, id.text);
+            if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
+                emit_load_local(cc, sym->offset);
+                emit8(cc, 0x40); /* inc eax */
+                emit_store_local(cc, sym->offset);
+            }
+        } else if (id.type == CC_TOK_IDENT && cc_peek(cc).type == CC_TOK_MINUSMINUS) {
+            cc_next(cc);
+            cc_symbol_t *sym = cc_sym_find(cc, id.text);
+            if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
+                emit_load_local(cc, sym->offset);
+                emit8(cc, 0x48); /* dec eax */
+                emit_store_local(cc, sym->offset);
+            }
+        } else {
+            cc->has_peek = 1;
+            cc->peek_buf = cc->cur;
+            cc->cur = id;
+            cc_parse_expression(cc, 1);
+        }
+    }
+    cc_expect(cc, CC_TOK_RPAREN);
+
+    /* Jump back to condition */
+    emit8(cc, 0xE9);
+    {
+        int32_t rel = (int32_t)(cond_start - (cc->code_pos + 4));
+        emit32(cc, (uint32_t)rel);
+    }
+
+    /* Patch the jump over increment to body start */
+    patch_jump(cc, inc_jump);
+
+    /* Body */
+    cc_parse_statement(cc);
+
+    /* After body, jump to increment */
+    emit8(cc, 0xE9);
+    {
+        int32_t rel = (int32_t)(inc_start - (cc->code_pos + 4));
+        emit32(cc, (uint32_t)rel);
+    }
+
+    /* Patch exit */
+    if (exit_patch) {
+        patch_jump(cc, exit_patch);
+    }
+
+    /* Patch break targets */
+    if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+        uint32_t break_target = cc->break_targets[old_depth];
+        if (break_target != 0) {
+            patch_jump(cc, break_target);
+        }
+    }
+    cc->loop_depth = old_depth;
+}
+
+/* ── Return statement ────────────────────────────────────────────── */
+static void cc_parse_return(cc_state_t *cc) {
+    if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
+        cc_parse_expression(cc, 1);
+    }
+    cc_expect(cc, CC_TOK_SEMICOLON);
+
+    /* Emit epilogue (function cleanup + ret) */
+    emit_epilogue(cc);
+}
+
+/* ── Statement dispatch ──────────────────────────────────────────── */
+static void cc_parse_statement(cc_state_t *cc) {
+    if (cc->error) return;
+
+    cc_token_t tok = cc_peek(cc);
+
+    /* Variable declaration */
+    if (cc_is_type(tok.type)) {
+        cc_type_t type = cc_parse_type(cc);
+        cc_parse_declaration(cc, type);
+        return;
+    }
+
+    switch (tok.type) {
+    case CC_TOK_IF:
+        cc_next(cc);
+        cc_parse_if(cc);
+        break;
+
+    case CC_TOK_WHILE:
+        cc_next(cc);
+        cc_parse_while(cc);
+        break;
+
+    case CC_TOK_FOR:
+        cc_next(cc);
+        cc_parse_for(cc);
+        break;
+
+    case CC_TOK_RETURN:
+        cc_next(cc);
+        cc_parse_return(cc);
+        break;
+
+    case CC_TOK_BREAK:
+        cc_next(cc);
+        if (cc->loop_depth <= 0) {
+            cc_error(cc, "break outside loop");
+        } else {
+            uint32_t patch = emit_jmp_placeholder(cc);
+            cc->break_targets[cc->loop_depth - 1] = patch;
+        }
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+
+    case CC_TOK_CONTINUE:
+        cc_next(cc);
+        if (cc->loop_depth <= 0) {
+            cc_error(cc, "continue outside loop");
+        } else {
+            uint32_t target = cc->continue_targets[cc->loop_depth - 1];
+            emit8(cc, 0xE9);
+            int32_t rel = (int32_t)(target - (cc->code_pos + 4));
+            emit32(cc, (uint32_t)rel);
+        }
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+
+    case CC_TOK_ASM:
+        cc_next(cc);
+        cc_parse_asm_block(cc);
+        break;
+
+    case CC_TOK_LBRACE:
+        cc_next(cc);
+        cc_parse_block(cc);
+        break;
+
+    case CC_TOK_SEMICOLON:
+        cc_next(cc); /* empty statement */
+        break;
+
+    case CC_TOK_STAR: {
+        /* Dereference assignment: *ptr = val; */
+        cc_next(cc);
+        cc_parse_deref_assignment(cc);
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+    }
+
+    case CC_TOK_IDENT: {
+        cc_token_t id = cc_next(cc);
+        cc_token_t next = cc_peek(cc);
+
+        /* Assignment */
+        if (next.type == CC_TOK_EQ || next.type == CC_TOK_PLUSEQ ||
+            next.type == CC_TOK_MINUSEQ || next.type == CC_TOK_STAREQ ||
+            next.type == CC_TOK_SLASHEQ) {
+            cc_parse_assignment(cc, id.text);
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+        /* Array subscript assignment */
+        else if (next.type == CC_TOK_LBRACK) {
+            cc_next(cc); /* consume '[' */
+            cc_parse_subscript_assignment(cc, id.text);
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+        /* Post-increment */
+        else if (next.type == CC_TOK_PLUSPLUS) {
+            cc_next(cc);
+            cc_symbol_t *sym = cc_sym_find(cc, id.text);
+            if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
+                emit_load_local(cc, sym->offset);
+                emit8(cc, 0x40); /* inc eax */
+                emit_store_local(cc, sym->offset);
+            }
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+        /* Post-decrement */
+        else if (next.type == CC_TOK_MINUSMINUS) {
+            cc_next(cc);
+            cc_symbol_t *sym = cc_sym_find(cc, id.text);
+            if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
+                emit_load_local(cc, sym->offset);
+                emit8(cc, 0x48); /* dec eax */
+                emit_store_local(cc, sym->offset);
+            }
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+        /* Expression statement (function call, etc.) */
+        else {
+            /* We already consumed the identifier, so set it back as
+             * current and parse as expression */
+            cc_parse_ident_expr(cc);
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
+        break;
+    }
+
+    default:
+        cc_parse_expression(cc, 1);
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+    }
+}
+
+/* ── Block (compound statement) ──────────────────────────────────── */
+static void cc_parse_block(cc_state_t *cc) {
+    int saved_scope = cc->sym_count;
+    int saved_offset = cc->local_offset;
+
+    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+           cc_peek(cc).type != CC_TOK_EOF) {
+        cc_parse_statement(cc);
+    }
+
+    cc_expect(cc, CC_TOK_RBRACE);
+
+    /* Restore scope (pop local variables) */
+    cc->sym_count = saved_scope;
+    cc->local_offset = saved_offset;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Function Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static void cc_parse_function(cc_state_t *cc) {
+    cc_type_t ret_type = cc_parse_type(cc);
+
+    cc_token_t name_tok = cc_next(cc);
+    if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected function name");
+        return;
+    }
+
+    /* Register function symbol */
+    cc_symbol_t *func_sym = cc_sym_find(cc, name_tok.text);
+    if (!func_sym) {
+        func_sym = cc_sym_add(cc, name_tok.text, SYM_FUNC, ret_type);
+    }
+    if (func_sym) {
+        func_sym->kind = SYM_FUNC;
+        func_sym->type = ret_type;
+        func_sym->offset = (int32_t)cc->code_pos;
+        func_sym->is_defined = 1;
+    }
+
+    /* Is this main()? */
+    if (strcmp(name_tok.text, "main") == 0) {
+        cc->entry_offset = cc->code_pos;
+        cc->has_entry = 1;
+    }
+
+    cc_expect(cc, CC_TOK_LPAREN);
+
+    /* Save scope state */
+    int saved_scope = cc->sym_count;
+    cc->local_offset = 0;
+    cc->param_count = 0;
+
+    /* Parse parameters */
+    if (cc_peek(cc).type != CC_TOK_RPAREN) {
+        int param_offset = 8; /* first param at [ebp+8] */
+
+        cc_type_t ptype = cc_parse_type(cc);
+        cc_token_t pname = cc_next(cc);
+        if (pname.type == CC_TOK_IDENT) {
+            cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
+            if (psym) psym->offset = param_offset;
+            param_offset += 4;
+            cc->param_count++;
+        }
+
+        while (cc_match(cc, CC_TOK_COMMA)) {
+            ptype = cc_parse_type(cc);
+            pname = cc_next(cc);
+            if (pname.type == CC_TOK_IDENT) {
+                cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
+                if (psym) psym->offset = param_offset;
+                param_offset += 4;
+                cc->param_count++;
+            }
+        }
+    }
+
+    cc_expect(cc, CC_TOK_RPAREN);
+
+    if (func_sym) {
+        func_sym->param_count = cc->param_count;
+    }
+
+    /* Emit function prologue */
+    emit_prologue(cc);
+
+    /* Reserve space for locals (we'll patch this after parsing the body) */
+    uint32_t sub_esp_pos = cc->code_pos;
+    emit_sub_esp(cc, 256); /* placeholder — generous allocation */
+
+    /* Parse body */
+    cc_expect(cc, CC_TOK_LBRACE);
+
+    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+           cc_peek(cc).type != CC_TOK_EOF) {
+        cc_parse_statement(cc);
+    }
+    cc_expect(cc, CC_TOK_RBRACE);
+
+    /* Patch the sub esp with actual local space used */
+    int32_t locals_size = -cc->local_offset;
+    if (locals_size < 0) locals_size = 0;
+    /* Round up to 16-byte alignment */
+    locals_size = (locals_size + 15) & ~15;
+    if (locals_size == 0) locals_size = 16; /* minimum */
+    /* Patch: sub esp, imm32 at sub_esp_pos+2 */
+    patch32(cc, sub_esp_pos + 2, (uint32_t)locals_size);
+
+    /* Emit default epilogue (in case no return statement) */
+    emit_mov_eax_imm(cc, 0);
+    emit_epilogue(cc);
+
+    /* Restore scope */
+    cc->sym_count = saved_scope;
+    /* Re-add function symbol (it was part of the saved scope) */
+    if (func_sym) {
+        cc_symbol_t *new_sym = cc_sym_add(cc, name_tok.text, SYM_FUNC, ret_type);
+        if (new_sym) {
+            new_sym->offset = func_sym->offset;
+            new_sym->address = func_sym->address;
+            new_sym->param_count = func_sym->param_count;
+            new_sym->is_defined = 1;
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Top-Level Program Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
+
+void cc_parse_program(cc_state_t *cc) {
+
+    while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+        cc_token_t tok = cc_peek(cc);
+
+        if (cc_is_type(tok.type)) {
+            /* Could be function or global variable */
+            /* Look ahead: type name ( → function, type name ; → global */
+            /* Save lexer state */
+            int saved_pos = cc->pos;
+            int saved_line = cc->line;
+            int saved_has_peek = cc->has_peek;
+            cc_token_t saved_peek = cc->peek_buf;
+            cc_token_t saved_cur = cc->cur;
+
+            cc_type_t type = cc_parse_type(cc);
+            cc_token_t name_tok = cc_next(cc);
+            cc_token_t after = cc_peek(cc);
+
+            /* Restore lexer state */
+            cc->pos = saved_pos;
+            cc->line = saved_line;
+            cc->has_peek = saved_has_peek;
+            cc->peek_buf = saved_peek;
+            cc->cur = saved_cur;
+
+            if (after.type == CC_TOK_LPAREN) {
+                cc_parse_function(cc);
+            } else {
+                /* Global variable declaration */
+                (void)type;
+                (void)name_tok;
+                cc_type_t gtype = cc_parse_type(cc);
+                cc_token_t gname = cc_next(cc);
+                if (gname.type == CC_TOK_IDENT) {
+                    cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
+                    if (gsym) {
+                        gsym->address = cc->data_base + cc->data_pos;
+                        /* Reserve space in data section */
+                        int size = (gtype == TYPE_CHAR) ? 4 : 4; /* align to 4 */
+                        cc->data_pos += (uint32_t)size;
+                    }
+                    if (cc_match(cc, CC_TOK_EQ)) {
+                        /* TODO: handle global initializers */
+                        cc_next(cc); /* consume value */
+                    }
+                }
+                cc_expect(cc, CC_TOK_SEMICOLON);
+            }
+        } else {
+            cc_error(cc, "expected function or global declaration");
+            break;
+        }
+    }
+
+    /* Resolve forward references */
+    for (int i = 0; i < cc->patch_count; i++) {
+        cc_patch_t *p = &cc->patches[i];
+        cc_symbol_t *sym = cc_sym_find(cc, p->name);
+        if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
+            uint32_t target = cc->code_base + (uint32_t)sym->offset;
+            uint32_t from = cc->code_base + p->code_offset + 4;
+            int32_t rel = (int32_t)(target - from);
+            patch32(cc, p->code_offset, (uint32_t)rel);
+        } else if (sym && sym->kind == SYM_KERNEL) {
+            uint32_t target = sym->address;
+            uint32_t from = cc->code_base + p->code_offset + 4;
+            int32_t rel = (int32_t)(target - from);
+            patch32(cc, p->code_offset, (uint32_t)rel);
+        } else {
+            serial_printf("[cupidc] Unresolved symbol: %s\n", p->name);
+            /* Build descriptive error with symbol name */
+            if (!cc->error) {
+                cc->error = 1;
+                int ei = 0;
+                const char *pre = "CupidC Error: unresolved function '";
+                int j = 0;
+                while (pre[j] && ei < 100) cc->error_msg[ei++] = pre[j++];
+                j = 0;
+                while (p->name[j] && ei < 120) cc->error_msg[ei++] = p->name[j++];
+                cc->error_msg[ei++] = '\'';
+                cc->error_msg[ei++] = '\n';
+                cc->error_msg[ei] = '\0';
+            }
+        }
+    }
+}
