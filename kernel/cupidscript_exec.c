@@ -18,6 +18,8 @@
 #include "cupidscript_jobs.h"
 #include "process.h"
 #include "../drivers/serial.h"
+#include "../drivers/rtc.h"
+#include "calendar.h"
 
 /* ── output function pointers (set by shell integration) ───────────── */
 static void (*cs_print)(const char *) = NULL;
@@ -319,6 +321,58 @@ static int builtin_declare(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  Built-in: date [+epoch|+short]
+ * ══════════════════════════════════════════════════════════════════════ */
+static int builtin_date(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                        script_context_t *ctx) {
+    rtc_date_t date;
+    rtc_time_t time;
+    rtc_read_date(&date);
+    rtc_read_time(&time);
+
+    if (argc >= 2 && strcmp(expanded[1], "+epoch") == 0) {
+        char ebuf[16];
+        uint32_t epoch = rtc_get_epoch_seconds();
+        /* int-to-string */
+        if (epoch == 0) { ebuf[0] = '0'; ebuf[1] = '\0'; }
+        else {
+            char tmp[16]; int i = 0;
+            while (epoch > 0 && i < 15) {
+                tmp[i++] = (char)('0' + (epoch % 10));
+                epoch /= 10;
+            }
+            int j = 0;
+            while (i > 0) ebuf[j++] = tmp[--i];
+            ebuf[j] = '\0';
+        }
+        cs_out(ctx, ebuf);
+        cs_outchar(ctx, '\n');
+        return 0;
+    }
+
+    if (argc >= 2 && strcmp(expanded[1], "+short") == 0) {
+        char dbuf[20], tbuf[20];
+        format_date_short(&date, dbuf, 20);
+        format_time_12hr(&time, tbuf, 20);
+        cs_out(ctx, dbuf);
+        cs_out(ctx, "  ");
+        cs_out(ctx, tbuf);
+        cs_outchar(ctx, '\n');
+        return 0;
+    }
+
+    /* Default: full date + time */
+    char datebuf[48], timebuf[20];
+    format_date_full(&date, datebuf, 48);
+    format_time_12hr_sec(&time, timebuf, 20);
+    cs_out(ctx, datebuf);
+    cs_out(ctx, "  ");
+    cs_out(ctx, timebuf);
+    cs_outchar(ctx, '\n');
+    return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  Execute a command node
  *
  *  Expands variables, checks for functions, then dispatches.
@@ -380,6 +434,11 @@ static int execute_command(ast_node_t *node, script_context_t *ctx) {
     /* ── built-in: declare ─────────────────────────────────────── */
     if (strcmp(cmd, "declare") == 0) {
         return builtin_declare(argc, expanded, ctx);
+    }
+
+    /* ── built-in: date ────────────────────────────────────────── */
+    if (strcmp(cmd, "date") == 0) {
+        return builtin_date(argc, expanded, ctx);
     }
 
     /* ── check for user-defined function ───────────────────────── */

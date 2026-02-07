@@ -264,3 +264,38 @@ bool rtc_validate_date(const rtc_date_t *date) {
 
     return (date->day <= max_days);
 }
+
+uint32_t rtc_get_epoch_seconds(void) {
+    rtc_time_t time;
+    rtc_date_t date;
+
+    rtc_read_time(&time);
+    rtc_read_date(&date);
+
+    if (!rtc_validate_time(&time) || !rtc_validate_date(&date)) {
+        return 0;
+    }
+
+    /* Days from years since 1970 */
+    uint32_t days = 0;
+    for (uint16_t y = 1970; y < date.year; y++) {
+        bool leap = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0));
+        days += leap ? 366 : 365;
+    }
+
+    /* Days from months this year */
+    static const uint16_t mdays[] = {0,31,59,90,120,151,181,212,243,273,304,334};
+    if (date.month >= 1 && date.month <= 12) {
+        days += mdays[date.month - 1];
+    }
+    /* Add leap day if past February in a leap year */
+    if (date.month > 2) {
+        bool leap = (date.year % 4 == 0 &&
+                     (date.year % 100 != 0 || date.year % 400 == 0));
+        if (leap) days++;
+    }
+    days += (uint32_t)(date.day - 1);
+
+    return days * 86400 + (uint32_t)time.hour * 3600 +
+           (uint32_t)time.minute * 60 + (uint32_t)time.second;
+}

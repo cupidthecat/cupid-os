@@ -8,6 +8,7 @@
 #include "memory.h"
 #include "kernel.h"
 #include "../drivers/serial.h"
+#include "../drivers/rtc.h"
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Context initialization
@@ -105,6 +106,13 @@ const char *cupidscript_get_variable(script_context_t *ctx, const char *name) {
             return ctx->script_args[idx];
         }
         return ""; /* undefined args expand to empty */
+    }
+
+    /* $EPOCHSECONDS - seconds since Unix epoch */
+    if (strcmp(name, "EPOCHSECONDS") == 0) {
+        static char epoch_buf[16];
+        int_to_str((int)rtc_get_epoch_seconds(), epoch_buf, 16);
+        return epoch_buf;
     }
 
     /* Regular variables */

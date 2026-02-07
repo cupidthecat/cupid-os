@@ -14,6 +14,12 @@
 /* Launch Notepad (creates window, registers callbacks) */
 void notepad_launch(void);
 
+/* Launch Notepad and immediately open a file at the given VFS path.
+ * If save_path is non-NULL, Ctrl+S saves to save_path instead of
+ * the original open path (used for calendar notes: open from ramfs,
+ * save to FAT16). */
+void notepad_launch_with_file(const char *vfs_path, const char *save_path);
+
 /* Redraw callback for the notepad window */
 void notepad_redraw(window_t *win);
 

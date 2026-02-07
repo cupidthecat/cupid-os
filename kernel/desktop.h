@@ -10,10 +10,12 @@
 /* Taskbar dimensions */
 #define TASKBAR_HEIGHT    20
 #define TASKBAR_Y         (200 - TASKBAR_HEIGHT)
+#define TASKBAR_BTN_MAX_W 80   /* Max width of a window button in the taskbar */
+#define TASKBAR_BTN_START 80   /* X offset where window buttons begin */
 
 /* Calendar popup dimensions */
 #define CALENDAR_WIDTH    220
-#define CALENDAR_HEIGHT   170
+#define CALENDAR_HEIGHT   180
 
 /* Desktop icon */
 typedef struct {
@@ -46,6 +48,7 @@ void desktop_draw_icons(void);
 int  desktop_hit_test_taskbar(int16_t mx, int16_t my);
 
 /* Calendar popup */
+extern calendar_state_t cal_state;
 void desktop_toggle_calendar(void);
 void desktop_close_calendar(void);
 bool desktop_calendar_visible(void);

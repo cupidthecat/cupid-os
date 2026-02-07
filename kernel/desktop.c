@@ -29,7 +29,7 @@ static char clock_date_str[16];
 static uint8_t clock_last_minute = 255; /* Force initial update */
 static int16_t clock_hitbox_x = 0;
 static uint16_t clock_hitbox_width = 0;
-static calendar_state_t cal_state;
+calendar_state_t cal_state;
 
 /* ── Init ─────────────────────────────────────────────────────────── */
 
@@ -108,9 +108,14 @@ void desktop_draw_taskbar(void) {
 
     /* Simplified taskbar buttons: just enumerate windows */
     {
-        int16_t btn_x = 80;
+        int16_t btn_x = TASKBAR_BTN_START;
+        /* Reserve space for the clock on the right */
+        int16_t btn_limit = (int16_t)(clock_hitbox_x > 0
+                                      ? clock_hitbox_x - 4
+                                      : VGA_GFX_WIDTH - 60);
+
         /* We'll try IDs 1..64 (more than enough) */
-        for (uint32_t id = 1; id < 64 && btn_x < VGA_GFX_WIDTH - 10; id++) {
+        for (uint32_t id = 1; id < 64 && btn_x < btn_limit; id++) {
             window_t *w = gui_get_window((int)id);
             if (!w) continue;
             if (!(w->flags & WINDOW_FLAG_VISIBLE)) continue;
@@ -118,14 +123,41 @@ void desktop_draw_taskbar(void) {
             uint16_t btn_w = gfx_text_width(w->title);
             if (btn_w < 40) btn_w = 40;
             btn_w = (uint16_t)(btn_w + 8);
+            /* Cap to max button width */
+            if (btn_w > TASKBAR_BTN_MAX_W) btn_w = TASKBAR_BTN_MAX_W;
+
+            /* Don't draw if it would overflow past the clock */
+            if (btn_x + (int16_t)btn_w > btn_limit) {
+                btn_w = (uint16_t)(btn_limit - btn_x);
+                if (btn_w < 20) break; /* Too small to be useful */
+            }
 
             uint8_t bg = (w->flags & WINDOW_FLAG_FOCUSED) ? COLOR_TASKBAR_ACT : COLOR_TASKBAR;
             gfx_fill_rect(btn_x, (int16_t)(TASKBAR_Y + 2),
                           btn_w, (uint16_t)(TASKBAR_HEIGHT - 4), bg);
             gfx_draw_rect(btn_x, (int16_t)(TASKBAR_Y + 2),
                           btn_w, (uint16_t)(TASKBAR_HEIGHT - 4), COLOR_BORDER);
-            gfx_draw_text((int16_t)(btn_x + 4), (int16_t)(TASKBAR_Y + 6),
-                          w->title, COLOR_TEXT_LIGHT);
+
+            /* Draw truncated title: only as many chars as fit in btn_w - 8 */
+            {
+                int max_chars = (int)(btn_w - 8) / 8; /* 8px per char */
+                if (max_chars < 1) max_chars = 1;
+                char trunc[32];
+                int ti = 0;
+                while (w->title[ti] && ti < max_chars && ti < 31) {
+                    trunc[ti] = w->title[ti];
+                    ti++;
+                }
+                /* Add ellipsis if truncated */
+                if (w->title[ti] && ti >= max_chars && ti >= 2) {
+                    trunc[ti - 1] = '.';
+                    trunc[ti - 2] = '.';
+                }
+                trunc[ti] = '\0';
+                gfx_draw_text((int16_t)(btn_x + 4), (int16_t)(TASKBAR_Y + 6),
+                              trunc, COLOR_TEXT_LIGHT);
+            }
+
             btn_x = (int16_t)(btn_x + (int16_t)btn_w + 2);
         }
     }
@@ -231,8 +263,12 @@ void desktop_draw_icons(void) {
 int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
     if (my < TASKBAR_Y + 2 || my >= TASKBAR_Y + TASKBAR_HEIGHT) return -1;
 
-    int16_t btn_x = 80;
-    for (uint32_t id = 1; id < 64 && btn_x < VGA_GFX_WIDTH - 10; id++) {
+    int16_t btn_x = TASKBAR_BTN_START;
+    int16_t btn_limit = (int16_t)(clock_hitbox_x > 0
+                                  ? clock_hitbox_x - 4
+                                  : VGA_GFX_WIDTH - 60);
+
+    for (uint32_t id = 1; id < 64 && btn_x < btn_limit; id++) {
         window_t *w = gui_get_window((int)id);
         if (!w) continue;
         if (!(w->flags & WINDOW_FLAG_VISIBLE)) continue;
@@ -240,6 +276,12 @@ int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
         uint16_t btn_w = gfx_text_width(w->title);
         if (btn_w < 40) btn_w = 40;
         btn_w = (uint16_t)(btn_w + 8);
+        if (btn_w > TASKBAR_BTN_MAX_W) btn_w = TASKBAR_BTN_MAX_W;
+
+        if (btn_x + (int16_t)btn_w > btn_limit) {
+            btn_w = (uint16_t)(btn_limit - btn_x);
+            if (btn_w < 20) break;
+        }
 
         if (mx >= btn_x && mx < btn_x + (int16_t)btn_w) {
             return (int)w->id;
@@ -278,6 +320,9 @@ void desktop_toggle_calendar(void) {
         cal_state.today_month = (int)date.month;
         cal_state.today_year  = (int)date.year;
         cal_state.visible = true;
+
+        /* Discover notes already persisted to FAT16 */
+        calendar_scan_notes(&cal_state);
     }
 }
 
@@ -423,16 +468,66 @@ static void desktop_draw_calendar(void) {
             gfx_draw_text(dx, row_y, dbuf, COLOR_TEXT);
         }
 
+        /* Draw a dot under the date if it has a *saved* note */
+        {
+            calendar_note_t *dn = calendar_has_note(
+                &cal_state, cal_state.view_year,
+                cal_state.view_month, d);
+            if (dn && dn->saved) {
+                int16_t dot_x = (int16_t)(dx + 5);
+                int16_t dot_y = (int16_t)(row_y + 9);
+                gfx_fill_rect(dot_x, dot_y, 3, 3, COLOR_CLOSE_BG);
+            }
+        }
+
         col++;
         if (col >= 7) {
             col = 0;
-            row_y = (int16_t)(row_y + 12);
+            row_y = (int16_t)(row_y + 14);
         }
     }
 }
 
 /**
- * calendar_handle_click - Handle a click inside the calendar popup
+ * calendar_hit_test_day - Determine which day (1-31) was clicked
+ *
+ * @param mx, my: Absolute screen coordinates
+ * @return: day number (1-31) or 0 if no day was hit
+ */
+static int calendar_hit_test_day(int16_t mx, int16_t my) {
+    int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
+    int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
+    int16_t sep_y = (int16_t)(cy + 26);
+    int16_t grid_x = (int16_t)(cx + 10);
+    int16_t grid_y = (int16_t)(sep_y + 16);
+    int16_t row_y = (int16_t)(grid_y + 12);
+
+    int first_dow = get_first_weekday(cal_state.view_month, cal_state.view_year);
+    int days_in = get_days_in_month(cal_state.view_month, cal_state.view_year);
+    int col = first_dow;
+
+    for (int d = 1; d <= days_in; d++) {
+        int16_t dx = (int16_t)(grid_x + col * 28);
+
+        /* Each day cell is ~20px wide, ~14px tall */
+        if (mx >= dx - 1 && mx < dx + 20 &&
+            my >= row_y - 1 && my < row_y + 13) {
+            return d;
+        }
+
+        col++;
+        if (col >= 7) {
+            col = 0;
+            row_y = (int16_t)(row_y + 14);
+        }
+    }
+    return 0;
+}
+
+/**
+ * calendar_handle_click - Handle a left-click inside the calendar popup
+ *
+ * Left-clicking a date creates/opens a note for that date in Notepad.
  *
  * @param mx, my: Absolute screen coordinates of the click
  * @return: true if click was consumed by the calendar
@@ -466,8 +561,72 @@ static bool calendar_handle_click(int16_t mx, int16_t my) {
         }
     }
 
-    /* Clicked inside calendar but not on arrows — no action (view-only) */
+    /* Check if a day cell was clicked */
+    int hit_day = calendar_hit_test_day(mx, my);
+    if (hit_day > 0) {
+        /* Create or open a note for this date */
+        calendar_note_t *note = calendar_has_note(
+            &cal_state, cal_state.view_year,
+            cal_state.view_month, hit_day);
+
+        if (!note) {
+            /* Create a new note file */
+            note = calendar_create_note(
+                &cal_state, cal_state.view_year,
+                cal_state.view_month, hit_day);
+        }
+
+        if (note) {
+            /* Build full persistent VFS path: /home/<persist> */
+            char persist_path[128];
+            int pp = 0;
+            const char *pfx = "/home/";
+            while (*pfx) persist_path[pp++] = *pfx++;
+            int pk = 0;
+            while (note->persist[pk] && pp < 127)
+                persist_path[pp++] = note->persist[pk++];
+            persist_path[pp] = '\0';
+
+            /* Open from ramfs temp, save to FAT16 persistent */
+            notepad_launch_with_file(note->path, persist_path);
+        }
+        return true;
+    }
+
+    /* Clicked inside calendar but not on a day or arrows */
     return true;
+}
+
+/**
+ * calendar_handle_right_click - Handle a right-click inside the calendar popup
+ *
+ * Right-clicking a date with a note deletes the note.
+ *
+ * @param mx, my: Absolute screen coordinates of the click
+ * @return: true if click was consumed by the calendar
+ */
+static bool calendar_handle_right_click(int16_t mx, int16_t my) {
+    if (!cal_state.visible) return false;
+
+    int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
+    int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
+
+    /* Outside calendar — ignore */
+    if (mx < cx || mx >= cx + CALENDAR_WIDTH ||
+        my < cy || my >= cy + CALENDAR_HEIGHT) {
+        return false;
+    }
+
+    /* Check if a day cell was right-clicked */
+    int hit_day = calendar_hit_test_day(mx, my);
+    if (hit_day > 0) {
+        /* Delete the note for this date if one exists */
+        calendar_delete_note(&cal_state, cal_state.view_year,
+                             cal_state.view_month, hit_day);
+        return true;
+    }
+
+    return true; /* consumed even if no day hit (inside calendar) */
 }
 
 /* ── Main event loop ──────────────────────────────────────────────── */
@@ -547,6 +706,12 @@ void desktop_run(void) {
             uint8_t btn = mouse.buttons;
             uint8_t prev = mouse.prev_buttons;
             bool pressed = (btn & 0x01) && !(prev & 0x01);
+            bool right_pressed = (btn & 0x02) && !(prev & 0x02);
+
+            /* Right-click on calendar: delete note */
+            if (right_pressed && cal_state.visible) {
+                calendar_handle_right_click(mouse.x, mouse.y);
+            }
 
             /* Check taskbar clicks first */
             if (pressed && mouse.y >= TASKBAR_Y) {

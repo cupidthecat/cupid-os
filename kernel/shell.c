@@ -21,6 +21,8 @@
 #include "terminal_app.h"
 #include "notepad.h"
 #include "terminal_ansi.h"
+#include "calendar.h"
+#include "../drivers/rtc.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -469,6 +471,7 @@ static void shell_setcolor_cmd(const char* args);
 static void shell_resetcolor_cmd(const char* args);
 static void shell_printc_cmd(const char* args);
 static void shell_cupidfetch(const char* args);
+static void shell_date(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -515,6 +518,7 @@ static struct shell_command commands[] = {
     {"setcolor", "Set terminal color (fg [bg])", shell_setcolor_cmd},
     {"resetcolor", "Reset terminal colors", shell_resetcolor_cmd},
     {"printc", "Print colored text (fg text)", shell_printc_cmd},
+    {"date", "Show current date and time", shell_date},
     {"cupidfetch", "Show system info with ASCII art", shell_cupidfetch},
     {0, 0, 0} // Null terminator
 };
@@ -1332,12 +1336,6 @@ static void shell_sysinfo(const char* args) {
     print_memory_stats();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  cupidfetch — neofetch-style system information display
- *
- *  Shows an ASCII art cat mascot alongside colored system details.
- * ══════════════════════════════════════════════════════════════════════ */
-
 /* Helper: write a decimal number into buf, return chars written */
 static int cf_itoa(uint32_t val, char *buf, int bufsize) {
     if (bufsize <= 0) return 0;
@@ -1353,6 +1351,55 @@ static int cf_itoa(uint32_t val, char *buf, int bufsize) {
     buf[j] = '\0';
     return j;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  date — show current date and time from the RTC
+ * ══════════════════════════════════════════════════════════════════════ */
+static void shell_date(const char* args) {
+    rtc_date_t date;
+    rtc_time_t time;
+    rtc_read_date(&date);
+    rtc_read_time(&time);
+
+    if (args && args[0]) {
+        /* date +epoch  — print seconds since Unix epoch */
+        if (strcmp(args, "+epoch") == 0) {
+            char ebuf[16];
+            cf_itoa(rtc_get_epoch_seconds(), ebuf, 16);
+            shell_print(ebuf);
+            shell_putchar('\n');
+            return;
+        }
+        /* date +short  — "Feb 6, 2026  6:32 PM" */
+        if (strcmp(args, "+short") == 0) {
+            char dbuf[20];
+            char tbuf[20];
+            format_date_short(&date, dbuf, 20);
+            format_time_12hr(&time, tbuf, 20);
+            shell_print(dbuf);
+            shell_print("  ");
+            shell_print(tbuf);
+            shell_putchar('\n');
+            return;
+        }
+    }
+
+    /* Default: full date and time */
+    char datebuf[48];
+    char timebuf[20];
+    format_date_full(&date, datebuf, 48);
+    format_time_12hr_sec(&time, timebuf, 20);
+    shell_print(datebuf);
+    shell_print("  ");
+    shell_print(timebuf);
+    shell_putchar('\n');
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  cupidfetch — neofetch-style system information display
+ *
+ *  Shows an ASCII art cat mascot alongside colored system details.
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static void shell_cupidfetch(const char* args) {
     (void)args;
@@ -1476,6 +1523,26 @@ static void shell_cupidfetch(const char* args) {
     shell_print(c_val);
     cf_itoa((uint32_t)mounts, nbuf, 16); shell_print(nbuf);
     shell_print(" fs\n");
+
+    /* Date */
+    {
+        rtc_date_t cfdate;
+        rtc_time_t cftime;
+        rtc_read_date(&cfdate);
+        rtc_read_time(&cftime);
+        char datebuf[40];
+        char timebuf[20];
+        format_date_full(&cfdate, datebuf, 40);
+        format_time_12hr(&cftime, timebuf, 20);
+
+        shell_print(c_label);  shell_print("Date: ");
+        shell_print(c_val);    shell_print(datebuf);
+        shell_putchar('\n');
+
+        shell_print(c_label);  shell_print("Time: ");
+        shell_print(c_val);    shell_print(timebuf);
+        shell_putchar('\n');
+    }
 
     /* ── Color palette bars ───────────────────────────────────── */
     /* Standard colors (2-char blocks to fit) */

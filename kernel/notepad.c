@@ -25,6 +25,8 @@
 #include "vfs.h"
 #include "kernel.h"
 #include "process.h"
+#include "calendar.h"
+#include "desktop.h"
 #include "../drivers/vga.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
@@ -1010,6 +1012,24 @@ static void notepad_do_open(void) {
 static void notepad_do_save(void) {
     if (app.buffer.filename[0]) {
         notepad_save_file(app.buffer.filename);
+
+        /* If this looks like a calendar note (N_MMDD.TXT), mark saved */
+        const char *fn = app.buffer.filename;
+        if (!app.buffer.modified) {
+            /* Walk to the basename */
+            const char *base = fn;
+            for (const char *p = fn; *p; p++) {
+                if (*p == '/') base = p + 1;
+            }
+            if ((base[0] == 'n' || base[0] == 'N') && base[1] == '_') {
+                int m = (base[2] - '0') * 10 + (base[3] - '0');
+                int d = (base[4] - '0') * 10 + (base[5] - '0');
+                if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                    calendar_mark_saved(&cal_state,
+                                        cal_state.view_year, m, d);
+                }
+            }
+        }
     } else {
         notepad_do_save_as();
     }
@@ -1950,6 +1970,57 @@ void notepad_launch(void) {
     }
 
     KINFO("Notepad launched (wid=%d, pid=%u)", notepad_wid, app.pid);
+}
+
+void notepad_launch_with_file(const char *vfs_path, const char *save_path) {
+    /* Launch notepad if not already open */
+    notepad_launch();
+    if (notepad_wid < 0) return;
+
+    /* If a persistent copy exists on disk, open that instead of the
+       ramfs temp so the user's saved edits are preserved. */
+    bool opened_persist = false;
+    if (save_path && save_path[0]) {
+        int fd = vfs_open(save_path, O_RDONLY);
+        if (fd >= 0) {
+            vfs_close(fd);
+            notepad_open_file(save_path);
+            opened_persist = true;
+        }
+    }
+    if (!opened_persist) {
+        notepad_open_file(vfs_path);
+    }
+
+    /* Override the save filename so Ctrl+S writes to persistent storage */
+    if (save_path && save_path[0]) {
+        int i = 0;
+        while (save_path[i] && i < 63) {
+            app.buffer.filename[i] = save_path[i];
+            i++;
+        }
+        app.buffer.filename[i] = '\0';
+
+        /* Also update the dialog path so the file dialog points to /home */
+        notepad_dialog_path[0] = '/';
+        notepad_dialog_path[1] = 'h';
+        notepad_dialog_path[2] = 'o';
+        notepad_dialog_path[3] = 'm';
+        notepad_dialog_path[4] = 'e';
+        notepad_dialog_path[5] = '\0';
+
+        /* Update window title with the persistent name */
+        window_t *win = gui_get_window(notepad_wid);
+        if (win) {
+            notepad_strcpy(win->title, "Notepad - ");
+            int tlen = (int)np_strlen(win->title);
+            int j = 0;
+            while (save_path[j] && tlen < 63) {
+                win->title[tlen++] = save_path[j++];
+            }
+            win->title[tlen] = '\0';
+        }
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════

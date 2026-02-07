@@ -13,6 +13,21 @@
 #include "../drivers/rtc.h"
 
 /* ── Calendar popup state ─────────────────────────────────────────── */
+
+/* Maximum number of date notes tracked at once */
+#define CALENDAR_MAX_NOTES  32
+
+/* A single date note: year/month/day → VFS paths */
+typedef struct {
+    int  year;
+    int  month;  /* 1-12 */
+    int  day;    /* 1-31 */
+    char path[128];     /* ramfs temp path:  /notes/YYYY-MM-DD.txt  */
+    char persist[16];   /* FAT16 8.3 name:   N_MMDD.TXT             */
+    bool used;
+    bool saved;         /* true once saved to persistent storage    */
+} calendar_note_t;
+
 typedef struct {
     int view_month;   /* 1-12: month currently being viewed */
     int view_year;    /* Year currently being viewed */
@@ -20,6 +35,9 @@ typedef struct {
     int today_month;  /* Actual current month */
     int today_year;   /* Actual current year */
     bool visible;     /* Whether the popup is shown */
+
+    /* Date notes */
+    calendar_note_t notes[CALENDAR_MAX_NOTES];
 } calendar_state_t;
 
 /* ── Formatting functions ─────────────────────────────────────────── */
@@ -113,5 +131,59 @@ void calendar_prev_month(calendar_state_t *cal);
  * calendar_next_month - Navigate to next month
  */
 void calendar_next_month(calendar_state_t *cal);
+
+/* ── Date notes ───────────────────────────────────────────────────── */
+
+/**
+ * calendar_has_note - Check if a date has a note
+ * @return: pointer to the note entry, or NULL
+ */
+calendar_note_t *calendar_has_note(calendar_state_t *cal,
+                                   int year, int month, int day);
+
+/**
+ * calendar_create_note - Create a note file for a date
+ *
+ * Creates /notes/YYYY-MM-DD.txt via VFS (mkdir /notes if needed)
+ * and records it in the calendar state.
+ * @return: pointer to the note entry, or NULL on failure
+ */
+calendar_note_t *calendar_create_note(calendar_state_t *cal,
+                                      int year, int month, int day);
+
+/**
+ * calendar_delete_note - Delete a note file for a date
+ *
+ * Removes the VFS file and clears the calendar entry.
+ * @return: 0 on success, negative on error
+ */
+int calendar_delete_note(calendar_state_t *cal,
+                         int year, int month, int day);
+
+/**
+ * calendar_build_note_path - Build the ramfs temp path for a date note
+ */
+void calendar_build_note_path(int year, int month, int day,
+                              char *buf, int bufsize);
+
+/**
+ * calendar_build_persist_name - Build FAT16 8.3 filename "N_MMDD.TXT"
+ */
+void calendar_build_persist_name(int month, int day,
+                                 char *buf, int bufsize);
+
+/**
+ * calendar_scan_notes - Scan /home/ for existing persistent note files
+ *
+ * Called when the calendar popup opens to discover notes saved
+ * to FAT16 on previous sessions.
+ */
+void calendar_scan_notes(calendar_state_t *cal);
+
+/**
+ * calendar_mark_saved - Mark a note as persisted (dot shows)
+ */
+void calendar_mark_saved(calendar_state_t *cal,
+                         int year, int month, int day);
 
 #endif

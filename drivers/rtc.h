@@ -67,4 +67,14 @@ bool rtc_validate_time(const rtc_time_t *time);
  */
 bool rtc_validate_date(const rtc_date_t *date);
 
+/**
+ * rtc_get_epoch_seconds - Get seconds since Unix epoch (1970-01-01 00:00:00)
+ *
+ * Reads the current RTC time/date and computes a Unix timestamp.
+ * Note: Assumes the RTC is set to local time (no timezone offset).
+ *
+ * @return: Seconds since epoch, or 0 if RTC data is invalid
+ */
+uint32_t rtc_get_epoch_seconds(void);
+
 #endif
