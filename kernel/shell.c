@@ -48,6 +48,25 @@ static bool   redir_active = false;
 /* ── Current working directory ──────────────────────────────────── */
 static char shell_cwd[VFS_MAX_PATH] = "/";
 
+/* ── Program argument passing (TempleOS-style) ──────────────────── */
+#define SHELL_ARGS_MAX 256
+static char shell_program_args[SHELL_ARGS_MAX] = "";
+
+void shell_set_program_args(const char *args) {
+    int i = 0;
+    if (args) {
+        while (args[i] && i < SHELL_ARGS_MAX - 1) {
+            shell_program_args[i] = args[i];
+            i++;
+        }
+    }
+    shell_program_args[i] = '\0';
+}
+
+const char *shell_get_program_args(void) {
+    return shell_program_args;
+}
+
 const char *shell_get_cwd(void) {
     return shell_cwd;
 }
@@ -999,13 +1018,59 @@ static void shell_printc_cmd(const char* args) {
 
 static void shell_help(const char* args) {
     (void)args;
-    shell_print("Available commands:\n");
+    shell_print("Built-in commands:\n");
     for (int i = 0; commands[i].name; i++) {
         shell_print("  ");
         shell_print(commands[i].name);
         shell_print(" - ");
         shell_print(commands[i].description);
         shell_print("\n");
+    }
+
+    /* Auto-discover programs in /bin/ */
+    int bin_fd = vfs_open("/bin", O_RDONLY);
+    if (bin_fd >= 0) {
+        vfs_dirent_t ent;
+        int found = 0;
+        while (vfs_readdir(bin_fd, &ent) > 0) {
+            /* Skip entries that match a built-in command name */
+            int is_builtin = 0;
+            for (int j = 0; commands[j].name; j++) {
+                if (strcmp(ent.name, commands[j].name) == 0) {
+                    is_builtin = 1;
+                    break;
+                }
+            }
+            if (!is_builtin && ent.type == VFS_TYPE_FILE) {
+                if (!found) {
+                    shell_print("\nInstalled programs (/bin):\n");
+                    found = 1;
+                }
+                shell_print("  ");
+                shell_print(ent.name);
+                shell_print("\n");
+            }
+        }
+        vfs_close(bin_fd);
+    }
+
+    /* Auto-discover CupidC source programs in /home/bin/ */
+    int hbin_fd = vfs_open("/home/bin", O_RDONLY);
+    if (hbin_fd >= 0) {
+        vfs_dirent_t ent;
+        int found = 0;
+        while (vfs_readdir(hbin_fd, &ent) > 0) {
+            if (ent.type == VFS_TYPE_FILE) {
+                if (!found) {
+                    shell_print("\nCupidC programs (/home/bin):\n");
+                    found = 1;
+                }
+                shell_print("  ");
+                shell_print(ent.name);
+                shell_print("\n");
+            }
+        }
+        vfs_close(hbin_fd);
     }
 }
 
@@ -2275,6 +2340,114 @@ static void execute_command(const char* input) {
         char resolved[VFS_MAX_PATH];
         shell_resolve_path(cmd, resolved);
         if (try_bin_dispatch(resolved, args)) goto redir_done;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+     *  TempleOS-style auto-discovery: check /bin/ and /home/bin/
+     *  for programs matching the command name.  This lets CupidC
+     *  programs be added to the OS without recompiling the kernel.
+     *
+     *  Search order:
+     *    1. /bin/<cmd>        — ELF/CUPD binary (ramfs)
+     *    2. /bin/<cmd>.cc     — CupidC source   (ramfs)
+     *    3. /home/bin/<cmd>   — ELF/CUPD binary (disk)
+     *    4. /home/bin/<cmd>.cc — CupidC source  (disk, persistent)
+     * ══════════════════════════════════════════════════════════════ */
+    {
+        char bin_path[VFS_MAX_PATH];
+        vfs_stat_t bin_st;
+
+        /* --- 1. /bin/<cmd> (ELF binary in ramfs) --- */
+        {
+            int bp = 0;
+            const char *pfx = "/bin/";
+            while (*pfx) bin_path[bp++] = *pfx++;
+            int ci = 0;
+            while (cmd[ci] && bp < VFS_MAX_PATH - 1)
+                bin_path[bp++] = cmd[ci++];
+            bin_path[bp] = '\0';
+        }
+        if (vfs_stat(bin_path, &bin_st) >= 0 && bin_st.type == VFS_TYPE_FILE) {
+            /* Check if it's a .cc source (JIT) or binary (exec) */
+            if (shell_ends_with(bin_path, ".cc")) {
+                shell_set_program_args(args ? args : "");
+                cupidc_jit(bin_path);
+            } else {
+                shell_set_program_args(args ? args : "");
+                int r = exec(bin_path, cmd);
+                if (r < 0) {
+                    /* Not an ELF — might be a stub file, skip */
+                } else {
+                    shell_print("Started process PID ");
+                    shell_print_int((uint32_t)r);
+                    shell_print("\n");
+                }
+            }
+            goto redir_done;
+        }
+
+        /* --- 2. /bin/<cmd>.cc (CupidC source in ramfs) --- */
+        {
+            int bp = 0;
+            const char *pfx = "/bin/";
+            while (*pfx) bin_path[bp++] = *pfx++;
+            int ci = 0;
+            while (cmd[ci] && bp < VFS_MAX_PATH - 4)
+                bin_path[bp++] = cmd[ci++];
+            bin_path[bp++] = '.';
+            bin_path[bp++] = 'c';
+            bin_path[bp++] = 'c';
+            bin_path[bp] = '\0';
+        }
+        if (vfs_stat(bin_path, &bin_st) >= 0 && bin_st.type == VFS_TYPE_FILE) {
+            shell_set_program_args(args ? args : "");
+            cupidc_jit(bin_path);
+            goto redir_done;
+        }
+
+        /* --- 3. /home/bin/<cmd> (ELF binary on disk) --- */
+        {
+            int bp = 0;
+            const char *pfx = "/home/bin/";
+            while (*pfx) bin_path[bp++] = *pfx++;
+            int ci = 0;
+            while (cmd[ci] && bp < VFS_MAX_PATH - 1)
+                bin_path[bp++] = cmd[ci++];
+            bin_path[bp] = '\0';
+        }
+        if (vfs_stat(bin_path, &bin_st) >= 0 && bin_st.type == VFS_TYPE_FILE) {
+            shell_set_program_args(args ? args : "");
+            if (shell_ends_with(bin_path, ".cc")) {
+                cupidc_jit(bin_path);
+            } else {
+                int r = exec(bin_path, cmd);
+                if (r >= 0) {
+                    shell_print("Started process PID ");
+                    shell_print_int((uint32_t)r);
+                    shell_print("\n");
+                }
+            }
+            goto redir_done;
+        }
+
+        /* --- 4. /home/bin/<cmd>.cc (CupidC source on disk) --- */
+        {
+            int bp = 0;
+            const char *pfx = "/home/bin/";
+            while (*pfx) bin_path[bp++] = *pfx++;
+            int ci = 0;
+            while (cmd[ci] && bp < VFS_MAX_PATH - 4)
+                bin_path[bp++] = cmd[ci++];
+            bin_path[bp++] = '.';
+            bin_path[bp++] = 'c';
+            bin_path[bp++] = 'c';
+            bin_path[bp] = '\0';
+        }
+        if (vfs_stat(bin_path, &bin_st) >= 0 && bin_st.type == VFS_TYPE_FILE) {
+            shell_set_program_args(args ? args : "");
+            cupidc_jit(bin_path);
+            goto redir_done;
+        }
     }
 
     /* Handle ./script.cup execution */

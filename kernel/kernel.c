@@ -84,6 +84,10 @@ static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
 
+/* ── Embedded CupidC source files (built via objcopy) ──────────── */
+extern const char _binary_bin_mv_cc_start[];
+extern const char _binary_bin_mv_cc_end[];
+
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
@@ -640,6 +644,25 @@ void kmain(void) {
                                (uint32_t)strlen(bin_apps[bi].desc));
             }
             KINFO("Populated /bin with built-in stubs");
+
+            /* ── Embedded CupidC programs ─────────────────────────
+             * These .cc source files are compiled into the kernel via
+             * objcopy and installed at /bin/<name>.cc in ramfs.
+             * The shell auto-discovers them — no hardcoding needed.
+             * To add a new CupidC program:
+             *   1. Create bin/<name>.cc
+             *   2. Add objcopy rule in Makefile
+             *   3. Declare extern symbols in kernel.c
+             *   4. Add ramfs_add_file here
+             * That's it — the shell finds it automatically. */
+            {
+                uint32_t mv_size = (uint32_t)(_binary_bin_mv_cc_end
+                                            - _binary_bin_mv_cc_start);
+                ramfs_add_file(root_mnt->fs_private,
+                               "bin/mv.cc",
+                               _binary_bin_mv_cc_start, mv_size);
+                KINFO("Installed /bin/mv.cc (%u bytes CupidC source)", mv_size);
+            }
         }
     }
     KINFO("VFS initialized");

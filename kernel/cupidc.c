@@ -17,6 +17,7 @@
 #include "ports.h"
 #include "process.h"
 #include "exec.h"
+#include "shell.h"
 #include "../drivers/serial.h"
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -104,6 +105,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
     int (*p_strcmp)(const char *, const char *) = strcmp;
     BIND("strcmp", p_strcmp, 2);
 
+    int (*p_strncmp)(const char *, const char *, size_t) = strncmp;
+    BIND("strncmp", p_strncmp, 3);
+
     void *(*p_memset)(void *, int, size_t) = memset;
     BIND("memset", p_memset, 3);
 
@@ -130,6 +134,24 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
     int (*p_vfs_write)(int, const void *, uint32_t) = vfs_write;
     BIND("vfs_write", p_vfs_write, 3);
 
+    int (*p_vfs_seek)(int, int32_t, int) = vfs_seek;
+    BIND("vfs_seek", p_vfs_seek, 3);
+
+    int (*p_vfs_stat)(const char *, vfs_stat_t *) = vfs_stat;
+    BIND("vfs_stat", p_vfs_stat, 2);
+
+    int (*p_vfs_readdir)(int, vfs_dirent_t *) = vfs_readdir;
+    BIND("vfs_readdir", p_vfs_readdir, 2);
+
+    int (*p_vfs_mkdir)(const char *) = vfs_mkdir;
+    BIND("vfs_mkdir", p_vfs_mkdir, 1);
+
+    int (*p_vfs_unlink)(const char *) = vfs_unlink;
+    BIND("vfs_unlink", p_vfs_unlink, 1);
+
+    int (*p_vfs_rename)(const char *, const char *) = vfs_rename;
+    BIND("vfs_rename", p_vfs_rename, 2);
+
     /* Process management */
     void (*p_yield)(void) = cc_yield;
     BIND("yield", p_yield, 0);
@@ -144,6 +166,15 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
     /* Memory diagnostics */
     void (*p_memstats)(void) = print_memory_stats;
     BIND("memstats", p_memstats, 0);
+
+    /* Shell integration */
+    const char *(*p_get_cwd)(void) = shell_get_cwd;
+    BIND("get_cwd", p_get_cwd, 0);
+
+    /* TempleOS-style argument passing: CupidC programs call get_args()
+     * to receive command-line arguments set by the shell. */
+    const char *(*p_get_args)(void) = shell_get_program_args;
+    BIND("get_args", p_get_args, 0);
 
     #undef BIND
 }

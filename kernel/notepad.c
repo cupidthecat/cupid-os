@@ -872,7 +872,7 @@ static void notepad_open_file(const char *name) {
     notepad_clear_selection();
 
     /* Read file contents */
-    char read_buf[8192];
+    char read_buf[32768];
     memset(read_buf, 0, sizeof(read_buf));
     int bytes = vfs_read(fd, read_buf, sizeof(read_buf) - 1);
     vfs_close(fd);
@@ -942,17 +942,17 @@ static void notepad_open_file(const char *name) {
 
 static void notepad_save_file(const char *name) {
     /* Concatenate all lines with '\n' */
-    char write_buf[8192];
+    char write_buf[32768];
     int pos = 0;
 
-    for (int i = 0; i < app.buffer.line_count && pos < 8190; i++) {
+    for (int i = 0; i < app.buffer.line_count && pos < 32766; i++) {
         const char *text = app.buffer.lines[i] ? app.buffer.lines[i] : "";
         int len = (int)np_strlen(text);
 
-        for (int j = 0; j < len && pos < 8190; j++) {
+        for (int j = 0; j < len && pos < 32766; j++) {
             write_buf[pos++] = text[j];
         }
-        if (i < app.buffer.line_count - 1 && pos < 8190) {
+        if (i < app.buffer.line_count - 1 && pos < 32766) {
             write_buf[pos++] = '\n';
         }
     }

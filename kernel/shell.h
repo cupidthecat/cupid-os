@@ -57,4 +57,19 @@ void shell_gui_print_int_ext(uint32_t num);
 /* Execute a command line string (used by CupidScript) */
 void shell_execute_line(const char *line);
 
+/* ── Program argument passing (TempleOS-style) ────────────────────── */
+
+/**
+ * Set the arguments for the next CupidC program invocation.
+ * Called by the shell before JIT-compiling or exec'ing a /bin program.
+ * The CupidC program retrieves these via get_args().
+ */
+void shell_set_program_args(const char *args);
+
+/**
+ * Get the current program arguments string.
+ * CupidC programs call this as get_args() to receive their CLI args.
+ */
+const char *shell_get_program_args(void);
+
 #endif

@@ -300,6 +300,68 @@ int vfs_unlink(const char *path) {
     return m->ops->unlink(m->fs_private, rel_path);
 }
 
+/* ── Rename / Move ────────────────────────────────────────────────── */
+
+int vfs_rename(const char *old_path, const char *new_path) {
+    if (!old_path || old_path[0] != '/' ||
+        !new_path || new_path[0] != '/') return VFS_EINVAL;
+
+    /* Stat the source to confirm it exists and is a file */
+    vfs_stat_t st;
+    int rc = vfs_stat(old_path, &st);
+    if (rc < 0) return rc;
+    if (st.type == VFS_TYPE_DIR) return VFS_EISDIR; /* dirs not yet supported */
+
+    uint32_t file_size = st.size;
+
+    /* Open source for reading */
+    int src_fd = vfs_open(old_path, O_RDONLY);
+    if (src_fd < 0) return src_fd;
+
+    /* Create/truncate destination */
+    int dst_fd = vfs_open(new_path, O_WRONLY | O_CREAT | O_TRUNC);
+    if (dst_fd < 0) {
+        vfs_close(src_fd);
+        return dst_fd;
+    }
+
+    /* Copy data in chunks */
+    uint8_t buf[512];
+    uint32_t copied = 0;
+    while (copied < file_size) {
+        uint32_t chunk = file_size - copied;
+        if (chunk > 512) chunk = 512;
+        int r = vfs_read(src_fd, buf, chunk);
+        if (r <= 0) break;
+        int w = vfs_write(dst_fd, buf, (uint32_t)r);
+        if (w <= 0) break;
+        copied += (uint32_t)w;
+    }
+
+    vfs_close(src_fd);
+    vfs_close(dst_fd);
+
+    /* Only delete source if copy fully succeeded */
+    if (copied != file_size) {
+        serial_printf("[vfs] rename: copy incomplete (%u/%u), source preserved\n",
+                      copied, file_size);
+        /* Try to clean up the partial destination */
+        vfs_unlink(new_path);
+        return VFS_EIO;
+    }
+
+    /* Delete the source file */
+    rc = vfs_unlink(old_path);
+    if (rc < 0) {
+        /* Rename partially failed — destination exists, source still exists */
+        serial_printf("[vfs] rename: unlink old '%s' failed (%d)\n",
+                      old_path, rc);
+        return rc;
+    }
+
+    return VFS_OK;
+}
+
 /* ── Query ────────────────────────────────────────────────────────── */
 
 int vfs_mount_count(void) {

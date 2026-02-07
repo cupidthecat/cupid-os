@@ -126,6 +126,7 @@ int vfs_stat(const char *path, vfs_stat_t *st);
 int vfs_readdir(int fd, vfs_dirent_t *dirent);
 int vfs_mkdir(const char *path);
 int vfs_unlink(const char *path);
+int vfs_rename(const char *old_path, const char *new_path);
 
 /* Query */
 int vfs_mount_count(void);
