@@ -67,6 +67,7 @@ echo $UNDEFINED               # (prints nothing)
 | `$0` | Name of the script file |
 | `$1` – `$9` | Positional arguments |
 | `$!` | PID of the last background process |
+| `$EPOCHSECONDS` | Seconds since Unix epoch (Jan 1, 1970) from the RTC |
 
 ```bash
 #!/bin/cupid
@@ -468,6 +469,57 @@ jobs -l                       # Include PIDs
 
 ---
 
+## Date & Time
+
+The `date` command is a CupidScript built-in that reads the hardware RTC.
+
+### Formats
+
+```bash
+# Full date and time (default)
+date
+# Output: Friday, February 6, 2026  6:51:58 PM
+
+# Short format
+date +short
+# Output: Feb 6  6:51 PM
+
+# Unix epoch seconds
+date +epoch
+# Output: 1770393118
+```
+
+### Command Substitution
+
+```bash
+#!/bin/cupid
+# Capture date output into a variable
+TODAY=$(date +short)
+echo "Today is: $TODAY"
+
+# Use epoch for timestamps
+START=$EPOCHSECONDS
+echo "Script started at epoch: $START"
+```
+
+### `$EPOCHSECONDS` Variable
+
+The special variable `$EPOCHSECONDS` expands to the current Unix timestamp (seconds since January 1, 1970) read from the hardware RTC. Unlike `$(date +epoch)`, it does not require command substitution — it expands inline like any other variable.
+
+```bash
+#!/bin/cupid
+echo "Current epoch: $EPOCHSECONDS"
+
+# Use in arithmetic
+START=$EPOCHSECONDS
+# ... do work ...
+END=$EPOCHSECONDS
+ELAPSED=$(( END - START ))
+echo "Elapsed: $ELAPSED seconds"
+```
+
+---
+
 ## Arrays
 
 ### Regular Arrays
@@ -625,6 +677,8 @@ echo "=============================="
 echo "  CupidOS System Report"
 echo "=============================="
 echo ""
+date
+echo ""
 time
 echo ""
 echo "--- Memory ---"
@@ -746,6 +800,6 @@ The following features were previously listed as limitations and have since been
 
 ## See Also
 
-- [Shell Commands](Shell-Commands) — All 24 shell commands
+- [Shell Commands](Shell-Commands) — All shell commands
 - [Ed Editor](Ed-Editor) — Create and edit `.cup` files
 - [Architecture](Architecture) — CupidScript pipeline in context

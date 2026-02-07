@@ -17,6 +17,8 @@ cupid-os provides 38+ built-in shell commands. The shell features command histor
 | `reboot` | `reboot` | Reboot the machine via keyboard controller reset |
 | `history` | `history` | Show the last 16 commands entered |
 | `sysinfo` | `sysinfo` | Show uptime, CPU frequency, timer frequency, and memory usage |
+| `date` | `date [+epoch\|+short]` | Show current date and time from the RTC |
+| `cupidfetch` | `cupidfetch` | Show system info with ASCII art (includes date/time) |
 
 ### Filesystem Commands (VFS)
 
@@ -105,6 +107,18 @@ Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Lig
 | `assert` | Trigger an assertion failure |
 | `overflow` | Overflow a heap buffer (detected on free by canary check) |
 | `stackoverflow` | Allocate 64KB on stack (page fault) |
+
+### Date & Time Commands
+
+The `date` command reads the hardware Real-Time Clock (RTC) and displays the current date and time.
+
+| Usage | Output |
+|-------|--------|
+| `date` | Full format: `Friday, February 6, 2026  6:51:58 PM` |
+| `date +short` | Short format: `Feb 6  6:51 PM` |
+| `date +epoch` | Seconds since Unix epoch (Jan 1, 1970): `1770393118` |
+
+The `date` command is also available as a CupidScript built-in, so `$(date +epoch)` works for command substitution in scripts.
 
 ---
 

@@ -25,6 +25,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/cupidscript_arrays.o kernel/cupidscript_jobs.o \
             kernel/terminal_ansi.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
+            kernel/syscall.o \
             drivers/rtc.o kernel/calendar.o
 
 all: $(OS_IMAGE)
@@ -217,9 +218,13 @@ kernel/devfs.o: kernel/devfs.c kernel/devfs.h kernel/vfs.h
 kernel/fat16_vfs.o: kernel/fat16_vfs.c kernel/fat16_vfs.h kernel/vfs.h kernel/fat16.h
 	$(CC) $(CFLAGS) kernel/fat16_vfs.c -o kernel/fat16_vfs.o
 
-# Program loader
-kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h
+# Program loader (ELF + CUPD)
+kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/syscall.h
 	$(CC) $(CFLAGS) kernel/exec.c -o kernel/exec.o
+
+# Syscall table for ELF programs
+kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.h kernel/shell.h
+	$(CC) $(CFLAGS) kernel/syscall.c -o kernel/syscall.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

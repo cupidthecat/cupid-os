@@ -16,6 +16,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Desktop Environment](Desktop-Environment) | VGA graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |
 | [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
+| [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
 
 ---

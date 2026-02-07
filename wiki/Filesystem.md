@@ -224,15 +224,68 @@ The FAT16 VFS wrapper (`kernel/fat16_vfs.c/h`) adapts the existing FAT16 driver 
 
 ## Program Loader
 
-The program loader (`kernel/exec.c/h`) loads and runs CUPD-format executables from the VFS.
+The program loader (`kernel/exec.c/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
 
-### CUPD Executable Format
+### Supported Formats
+
+| Format | Magic Bytes | Description |
+|--------|-------------|-------------|
+| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Standard i386 ELF executables, compiled with GCC/Clang |
+| **CUPD** | `43 55 50 44` (`CUPD`) | CupidOS flat binary format (legacy) |
+
+### Format Detection
+
+```
+exec("/home/hello", "hello")
+       │
+       ▼
+┌─────────────────────┐
+│ Read first 4 bytes  │
+└────┬────────────────┘
+     │
+     ├─ 0x7F 'E' 'L' 'F'  → elf_exec()   (ELF32 loader)
+     │
+     ├─ 0x43555044 (CUPD)  → cupd_exec()  (CUPD loader)
+     │
+     └─ anything else      → VFS_EINVAL
+```
+
+### ELF32 Programs (Primary Format)
+
+ELF is the recommended format. Programs are compiled with a standard GCC cross-compiler and receive a **syscall table** pointer as their first argument. See the full [ELF Programs](ELF-Programs) wiki page for compiling, API reference, and examples.
+
+**Quick example:**
+
+```c
+#include "cupid.h"
+
+void _start(cupid_syscall_table_t *sys) {
+    cupid_init(sys);
+    print("Hello from ELF!\n");
+    exit();
+}
+```
+
+**Loading process (ELF):**
+
+1. Open file via `vfs_open(path, O_RDONLY)`
+2. Read and validate 52-byte ELF header (architecture, class, endianness)
+3. Read program headers, find all `PT_LOAD` segments
+4. Compute virtual address range (`min_vaddr` → `max_vaddr`)
+5. Reserve physical pages via `pmm_reserve_region()` (identity-mapped)
+6. Zero the entire region, then load each segment to its `p_vaddr`
+7. Create a process with `process_create_with_arg()`, passing the syscall table
+8. Process runs as a normal scheduled kernel thread
+
+### CUPD Programs (Legacy Format)
+
+CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 
 ```
 ┌──────────────────────────┐  Offset 0
 │  Header (20 bytes)       │
 │  ├─ magic: 0x43555044    │  "CUPD"
-│  ├─ entry_offset         │  Entry point offset from image base
+│  ├─ entry_offset         │  Entry point offset from code start
 │  ├─ code_size            │  Size of code section
 │  ├─ data_size            │  Size of initialized data
 │  └─ bss_size             │  Size of uninitialized data
@@ -243,11 +296,11 @@ The program loader (`kernel/exec.c/h`) loads and runs CUPD-format executables fr
 └──────────────────────────┘
 ```
 
-### Loading Process
+**Loading process (CUPD):**
 
-1. Open executable via `vfs_open(path, O_RDONLY)`
+1. Open file via `vfs_open(path, O_RDONLY)`
 2. Read and validate 20-byte header (check magic `0x43555044`)
-3. Allocate memory for code + data + BSS (max 256KB)
+3. Allocate memory via `kmalloc()` for code + data + BSS (max 256 KB)
 4. Load code and data sections from file
 5. Zero-fill BSS section
 6. Create a new kernel process pointing to the entry function
@@ -256,7 +309,8 @@ The program loader (`kernel/exec.c/h`) loads and runs CUPD-format executables fr
 ### Shell Usage
 
 ```
-> exec /home/hello.exe
+> exec /home/hello
+> exec /home/ls
 > exec /bin/myprog
 ```
 
