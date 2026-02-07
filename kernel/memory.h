@@ -23,8 +23,15 @@ typedef struct heap_block {
 #define PAGE_SIZE 4096
 #define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
-#define HEAP_INITIAL_PAGES 64
+#define HEAP_INITIAL_PAGES 256    /* 1MB initial heap (was 64 = 256KB) */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
+
+/* ── Stack guard constants ────────────────────────────────────────── */
+#define STACK_BOTTOM      0x110000u   /* Bottom of kernel stack (512KB) */
+#define STACK_TOP         0x190000u   /* Top of kernel stack            */
+#define STACK_SIZE        (STACK_TOP - STACK_BOTTOM)
+#define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex                 */
+#define STACK_GUARD_SIZE  16          /* Guard zone at bottom (bytes)   */
 
 /* ── PMM ──────────────────────────────────────────────────────────── */
 void pmm_init(uint32_t kernel_end);
@@ -85,5 +92,11 @@ void print_memory_stats(void);
 
 /* Set output functions for memory debugging (for GUI mode support) */
 void memory_set_output(void (*print_fn)(const char*), void (*print_int_fn)(uint32_t));
+
+/* ── Stack guard functions ────────────────────────────────────────── */
+void stack_guard_init(void);
+void stack_guard_check(void);
+uint32_t stack_usage_current(void);
+uint32_t stack_usage_peak(void);
 
 #endif

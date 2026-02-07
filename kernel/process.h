@@ -20,7 +20,7 @@
 
 /* ── Limits ───────────────────────────────────────────────────────── */
 #define MAX_PROCESSES       32
-#define DEFAULT_STACK_SIZE  8192      /* 8KB per process              */
+#define DEFAULT_STACK_SIZE  32768     /* 32KB per process             */
 #define PROCESS_NAME_LEN    32
 
 /* ── Stack canary for overflow detection ──────────────────────────── */

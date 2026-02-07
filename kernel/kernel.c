@@ -84,9 +84,14 @@ static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
 
-/* ── Embedded CupidC source files (built via objcopy) ──────────── */
-extern const char _binary_bin_mv_cc_start[];
-extern const char _binary_bin_mv_cc_end[];
+/* ── Embedded CupidC programs (auto-generated) ─────────────────── */
+/* The Makefile auto-discovers bin/ .cc files and generates
+ * kernel/bin_programs_gen.c with all extern symbols and an
+ * install_bin_programs() function.  To add a new CupidC program:
+ *   1. Create bin/<name>.cc
+ *   2. Run make
+ * That's it — everything else is automatic. */
+extern void install_bin_programs(void *fs_private);
 
 
 /**
@@ -320,6 +325,9 @@ void putchar(char c) {
  * - Prints digits in reverse order to maintain correct number representation
  */
 void print_int(uint32_t num) {
+    serial_printf("[print_int] num=%u (0x%x) gui_mode=%d\n",
+                  num, num, shell_get_output_mode() == SHELL_OUTPUT_GUI);
+
     /* Route to GUI buffer when in GUI mode */
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         shell_gui_print_int_ext(num);
@@ -364,22 +372,23 @@ void print(const char* str) {
  * 
  * This is the first function called after the bootloader hands control to the kernel.
  * It sets up the initial execution environment by:
- * 
+ *
  * 1. Setting up the stack:
- *    - Sets stack pointer (ESP) to 0x90000 for kernel stack space
+ *    - Sets stack pointer (ESP) to 0x190000 for kernel stack space (512KB stack)
+ *    - Stack grows downward from 0x190000 to 0x110000
  *    - Initializes base pointer (EBP) to match stack pointer
- * 
+ *
  * 2. Transferring control:
  *    - Calls kmain() to begin kernel initialization
  *    - kmain() never returns as it contains the main kernel loop
- * 
+ *
  * Note: When this function runs, we are already in 32-bit protected mode
  * with basic segment registers configured by the bootloader.
  */
 void _start(void) {
     // We're already in protected mode with segments set up
     __asm__ volatile(
-        "mov $0x90000, %esp\n"
+        "mov $0x190000, %esp\n"
         "mov %esp, %ebp\n"
     );
     
@@ -615,20 +624,9 @@ void kmain(void) {
             static const struct { const char *name; const char *desc; } bin_apps[] = {
                 {"terminal", "CupidOS GUI terminal emulator"},
                 {"notepad",  "CupidOS GUI text editor (Notepad)"},
-                {"ed",       "Ed line editor"},
                 {"cupid",    "CupidScript interpreter (.cup files)"},
                 {"shell",    "CupidOS interactive shell"},
-                {"help",     "Show available commands"},
-                {"clear",    "Clear the screen"},
-                {"echo",     "Echo text to terminal"},
-                {"ls",       "List directory contents"},
-                {"cat",      "Display file contents"},
-                {"cd",       "Change working directory"},
-                {"pwd",      "Print working directory"},
-                {"ps",       "List running processes"},
-                {"kill",     "Terminate a process by PID"},
                 {"exec",     "Execute an ELF or CUPD binary"},
-                {"mount",    "Show mounted filesystems"},
                 {NULL, NULL}
             };
             for (int bi = 0; bin_apps[bi].name; bi++) {
@@ -646,23 +644,10 @@ void kmain(void) {
             KINFO("Populated /bin with built-in stubs");
 
             /* ── Embedded CupidC programs ─────────────────────────
-             * These .cc source files are compiled into the kernel via
-             * objcopy and installed at /bin/<name>.cc in ramfs.
-             * The shell auto-discovers them — no hardcoding needed.
-             * To add a new CupidC program:
-             *   1. Create bin/<name>.cc
-             *   2. Add objcopy rule in Makefile
-             *   3. Declare extern symbols in kernel.c
-             *   4. Add ramfs_add_file here
-             * That's it — the shell finds it automatically. */
-            {
-                uint32_t mv_size = (uint32_t)(_binary_bin_mv_cc_end
-                                            - _binary_bin_mv_cc_start);
-                ramfs_add_file(root_mnt->fs_private,
-                               "bin/mv.cc",
-                               _binary_bin_mv_cc_start, mv_size);
-                KINFO("Installed /bin/mv.cc (%u bytes CupidC source)", mv_size);
-            }
+             * Auto-installed from all bin/ .cc files via generated code.
+             * To add a new program: just create bin/<name>.cc */
+            install_bin_programs(root_mnt->fs_private);
+            KINFO("Installed embedded CupidC programs");
         }
     }
     KINFO("VFS initialized");

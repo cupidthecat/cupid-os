@@ -658,6 +658,29 @@ void desktop_redraw_cycle(void) {
         /* Don't process clicks during blocking command */
     }
 
+    /* Process keyboard events (critical for JIT programs like ed) */
+    {
+        key_event_t event;
+        while (keyboard_read_event(&event)) {
+            /* Escape closes calendar popup */
+            if (event.scancode == 0x01 && event.pressed &&
+                cal_state.visible) {
+                cal_state.visible = false;
+                needs_redraw = true;
+                continue;
+            }
+            /* Route key to focused window */
+            int np_wid = notepad_get_wid();
+            window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+            if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+                notepad_handle_key(event.scancode, event.character);
+            } else {
+                terminal_handle_key(event.scancode, event.character);
+            }
+            needs_redraw = true;
+        }
+    }
+
     /* Cursor blink */
     terminal_tick();
     notepad_tick();

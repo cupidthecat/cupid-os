@@ -42,3 +42,65 @@ void* memcpy(void* dest, const void* src, size_t n) {
     }
     return dest;
 }
+
+char* strcpy(char* dest, const char* src) {
+    char* d = dest;
+    while ((*d++ = *src++)) {}
+    return dest;
+}
+
+char* strncpy(char* dest, const char* src, size_t n) {
+    char* d = dest;
+    while (n > 0 && *src) {
+        *d++ = *src++;
+        n--;
+    }
+    while (n > 0) {
+        *d++ = '\0';
+        n--;
+    }
+    return dest;
+}
+
+char* strcat(char* dest, const char* src) {
+    char* d = dest;
+    while (*d) d++;
+    while ((*d++ = *src++)) {}
+    return dest;
+}
+
+char* strchr(const char* s, int c) {
+    char* p = (char*)(unsigned long)s;
+    while (*p) {
+        if (*p == (char)c) return p;
+        p++;
+    }
+    return (c == 0) ? p : (char*)0;
+}
+
+char* strstr(const char* haystack, const char* needle) {
+    char* h0 = (char*)(unsigned long)haystack;
+    if (!*needle) return h0;
+    while (*h0) {
+        const char* h = h0;
+        const char* n = needle;
+        while (*h && *n && *h == *n) {
+            h++;
+            n++;
+        }
+        if (!*n) return h0;
+        h0++;
+    }
+    return (char*)0;
+}
+
+int memcmp(const void* s1, const void* s2, size_t n) {
+    const unsigned char* p1 = s1;
+    const unsigned char* p2 = s2;
+    while (n-- > 0) {
+        if (*p1 != *p2) return *p1 - *p2;
+        p1++;
+        p2++;
+    }
+    return 0;
+}

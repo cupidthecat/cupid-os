@@ -295,17 +295,58 @@ static int cc_match(cc_state_t *cc, cc_token_type_t type) {
 
 /* ── Check if token is a type keyword ────────────────────────────── */
 static int cc_is_type(cc_token_type_t t) {
-    return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID;
+    return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
+           t == CC_TOK_STRUCT || t == CC_TOK_BOOL;
+}
+
+/* Track what kind of value the last expression produced */
+static cc_type_t cc_last_expr_type;
+static int cc_last_expr_struct_index;   /* which struct, if TYPE_STRUCT */
+static int cc_last_type_struct_index;   /* set by cc_parse_type */
+
+/* ── Struct lookup helper ───────────────────────────────────────────── */
+static int cc_find_struct(cc_state_t *cc, const char *name) {
+    for (int i = 0; i < cc->struct_count; i++) {
+        if (strcmp(cc->structs[i].name, name) == 0) return i;
+    }
+    return -1;
+}
+
+static cc_field_t *cc_find_field(cc_state_t *cc, int struct_index,
+                                 const char *name) {
+    if (struct_index < 0 || struct_index >= cc->struct_count) return NULL;
+    cc_struct_def_t *sd = &cc->structs[struct_index];
+    for (int i = 0; i < sd->field_count; i++) {
+        if (strcmp(sd->fields[i].name, name) == 0) return &sd->fields[i];
+    }
+    return NULL;
 }
 
 /* ── Parse a type specifier, returns cc_type_t ───────────────────── */
 static cc_type_t cc_parse_type(cc_state_t *cc) {
     cc_token_t tok = cc_next(cc);
     cc_type_t base;
+    cc_last_type_struct_index = -1;
     switch (tok.type) {
     case CC_TOK_INT:  base = TYPE_INT;  break;
     case CC_TOK_CHAR: base = TYPE_CHAR; break;
     case CC_TOK_VOID: base = TYPE_VOID; break;
+    case CC_TOK_BOOL: base = TYPE_INT;  break;  /* bool is alias for int */
+    case CC_TOK_STRUCT: {
+        cc_token_t name_tok = cc_next(cc);
+        if (name_tok.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected struct name");
+            return TYPE_INT;
+        }
+        int si = cc_find_struct(cc, name_tok.text);
+        if (si < 0) {
+            cc_error(cc, "undefined struct");
+            return TYPE_INT;
+        }
+        cc_last_type_struct_index = si;
+        base = TYPE_STRUCT;
+        break;
+    }
     default:
         cc_error(cc, "expected type");
         return TYPE_INT;
@@ -314,8 +355,9 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     /* Check for pointer */
     if (cc_peek(cc).type == CC_TOK_STAR) {
         cc_next(cc);
-        if (base == TYPE_INT)  return TYPE_INT_PTR;
-        if (base == TYPE_CHAR) return TYPE_CHAR_PTR;
+        if (base == TYPE_INT)    return TYPE_INT_PTR;
+        if (base == TYPE_CHAR)   return TYPE_CHAR_PTR;
+        if (base == TYPE_STRUCT) return TYPE_STRUCT_PTR;
         return TYPE_PTR;
     }
     return base;
@@ -371,8 +413,8 @@ static void cc_parse_primary(cc_state_t *cc);
  *  Expression Types for Tracking
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* Track what kind of value the last expression produced */
-static cc_type_t cc_last_expr_type;
+/* Track what kind of value the last expression produced —
+ * (primary statics declared above, before cc_parse_type) */
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Operator Precedence
@@ -644,18 +686,25 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
 
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
-        if (sym->is_array) {
-            /* Arrays: load the base address via LEA, not the value */
+        if (sym->is_array || sym->type == TYPE_STRUCT) {
+            /* Arrays and structs: load the base address via LEA, not the value */
             emit_lea_local(cc, sym->offset);
         } else {
             emit_load_local(cc, sym->offset);
         }
         cc_last_expr_type = sym->type;
+        cc_last_expr_struct_index = sym->struct_index;
     } else if (sym->kind == SYM_GLOBAL) {
-        /* mov eax, [absolute_addr] */
-        emit8(cc, 0xA1);
-        emit32(cc, sym->address);
+        if (sym->is_array || sym->type == TYPE_STRUCT) {
+            /* Arrays/structs: load the base address as immediate */
+            emit_mov_eax_imm(cc, sym->address);
+        } else {
+            /* Scalar: load value from memory */
+            emit8(cc, 0xA1); /* mov eax, [addr] */
+            emit32(cc, sym->address);
+        }
         cc_last_expr_type = sym->type;
+        cc_last_expr_struct_index = sym->struct_index;
     } else if (sym->kind == SYM_FUNC) {
         /* Load function address into eax */
         if (sym->is_defined) {
@@ -706,14 +755,51 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_parse_ident_expr(cc);
         break;
 
+    case CC_TOK_SIZEOF: {
+        /* sizeof(type) or sizeof(struct Name) */
+        cc_expect(cc, CC_TOK_LPAREN);
+        cc_token_t p = cc_peek(cc);
+        int32_t size = 4; /* default = int */
+        if (p.type == CC_TOK_STRUCT) {
+            cc_next(cc); /* consume 'struct' */
+            cc_token_t sname = cc_next(cc);
+            int si = cc_find_struct(cc, sname.text);
+            if (si >= 0) {
+                size = cc->structs[si].total_size;
+            } else {
+                cc_error(cc, "sizeof: undefined struct");
+            }
+        } else if (p.type == CC_TOK_INT || p.type == CC_TOK_BOOL) {
+            cc_next(cc);
+            size = 4;
+            if (cc_peek(cc).type == CC_TOK_STAR) { cc_next(cc); size = 4; }
+        } else if (p.type == CC_TOK_CHAR) {
+            cc_next(cc);
+            if (cc_peek(cc).type == CC_TOK_STAR) { cc_next(cc); size = 4; }
+            else size = 1;
+        } else if (p.type == CC_TOK_VOID) {
+            cc_next(cc);
+            if (cc_peek(cc).type == CC_TOK_STAR) { cc_next(cc); size = 4; }
+            else size = 0;
+        } else {
+            cc_error(cc, "sizeof: expected type");
+        }
+        cc_expect(cc, CC_TOK_RPAREN);
+        emit_mov_eax_imm(cc, (uint32_t)size);
+        cc_last_expr_type = TYPE_INT;
+        break;
+    }
+
     case CC_TOK_LPAREN: {
-        /* Check for type cast: (int)expr, (char*)expr */
+        /* Check for type cast: (int)expr, (char*)expr, (struct Foo*)expr */
         cc_token_t p = cc_peek(cc);
         if (cc_is_type(p.type)) {
             cc_type_t cast_type = cc_parse_type(cc);
+            int cast_si = cc_last_type_struct_index;
             cc_expect(cc, CC_TOK_RPAREN);
             cc_parse_primary(cc);
             cc_last_expr_type = cast_type;
+            cc_last_expr_struct_index = cast_si;
         } else {
             cc_parse_expression(cc, 1);
             cc_expect(cc, CC_TOK_RPAREN);
@@ -800,6 +886,10 @@ static void cc_parse_primary(cc_state_t *cc) {
             emit_load_local(cc, sym->offset);
             emit8(cc, 0x40);  /* inc eax */
             emit_store_local(cc, sym->offset);
+        } else if (sym->kind == SYM_GLOBAL) {
+            emit8(cc, 0xA1); emit32(cc, sym->address);
+            emit8(cc, 0x40);  /* inc eax */
+            emit8(cc, 0xA3); emit32(cc, sym->address);
         }
         cc_last_expr_type = sym->type;
         break;
@@ -818,6 +908,10 @@ static void cc_parse_primary(cc_state_t *cc) {
             emit_load_local(cc, sym->offset);
             emit8(cc, 0x48);  /* dec eax */
             emit_store_local(cc, sym->offset);
+        } else if (sym->kind == SYM_GLOBAL) {
+            emit8(cc, 0xA1); emit32(cc, sym->address);
+            emit8(cc, 0x48);  /* dec eax */
+            emit8(cc, 0xA3); emit32(cc, sym->address);
         }
         cc_last_expr_type = sym->type;
         break;
@@ -828,10 +922,47 @@ static void cc_parse_primary(cc_state_t *cc) {
         break;
     }
 
-    /* Handle postfix operations: [index], ++, -- */
+    /* Handle postfix operations: [index], .field, ->field, ++, -- */
     for (;;) {
         if (cc->error) return;
         cc_token_t next = cc_peek(cc);
+
+        /* ── Struct member access: expr.field or expr->field ────── */
+        if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
+            cc_next(cc); /* consume . or -> */
+            cc_token_t field_tok = cc_next(cc);
+            if (field_tok.type != CC_TOK_IDENT) {
+                cc_error(cc, "expected field name");
+                return;
+            }
+            int si = cc_last_expr_struct_index;
+            cc_field_t *field = cc_find_field(cc, si, field_tok.text);
+            if (!field) {
+                cc_error(cc, "unknown struct field");
+                return;
+            }
+            /* eax = base address of struct; add field offset */
+            if (field->offset > 0) {
+                emit8(cc, 0x05); /* add eax, imm32 */
+                emit32(cc, (uint32_t)field->offset);
+            }
+            /* Determine result: if field is a sub-struct, keep address */
+            if (field->type == TYPE_STRUCT) {
+                cc_last_expr_type = TYPE_STRUCT;
+                cc_last_expr_struct_index = field->struct_index;
+            } else if (field->type == TYPE_STRUCT_PTR) {
+                emit_deref_dword(cc);
+                cc_last_expr_type = TYPE_STRUCT_PTR;
+                cc_last_expr_struct_index = field->struct_index;
+            } else if (field->type == TYPE_CHAR) {
+                emit_deref_byte(cc);
+                cc_last_expr_type = TYPE_CHAR;
+            } else {
+                emit_deref_dword(cc);
+                cc_last_expr_type = field->type;
+            }
+            continue;
+        }
 
         if (next.type == CC_TOK_LBRACK) {
             /* Array subscript: expr[index] */
@@ -1011,7 +1142,12 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
             emit_load_local(cc, sym->offset);
         }
     } else if (sym->kind == SYM_GLOBAL) {
-        emit_mov_eax_imm(cc, sym->address);
+        if (sym->is_array) {
+            emit_mov_eax_imm(cc, sym->address); /* base address of array */
+        } else {
+            /* Pointer variable: load the pointer value */
+            emit8(cc, 0xA1); emit32(cc, sym->address);
+        }
     }
 
     emit_pop_ebx(cc);
@@ -1020,8 +1156,53 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     cc_expect(cc, CC_TOK_RBRACK);
     emit_push_eax(cc); /* save computed address */
 
-    cc_expect(cc, CC_TOK_EQ);
+    /* Expect = or compound assignment (+=, -=, *=, /=) */
+    cc_token_t assign_op = cc_next(cc);
+    if (assign_op.type != CC_TOK_EQ && assign_op.type != CC_TOK_PLUSEQ &&
+        assign_op.type != CC_TOK_MINUSEQ && assign_op.type != CC_TOK_STAREQ &&
+        assign_op.type != CC_TOK_SLASHEQ) {
+        cc_error(cc, "expected assignment operator");
+        return;
+    }
+
+    if (assign_op.type != CC_TOK_EQ) {
+        /* Compound assignment: load current value from [address] first */
+        /* address is on the stack — peek at it */
+        emit8(cc, 0x8B); emit8(cc, 0x04); emit8(cc, 0x24); /* mov eax, [esp] */
+        if (is_char) {
+            emit_deref_byte(cc);
+        } else {
+            emit_deref_dword(cc);
+        }
+        emit_push_eax(cc); /* push current value */
+    }
+
     cc_parse_expression(cc, 1);
+
+    if (assign_op.type != CC_TOK_EQ) {
+        /* Pop old value into ebx, apply operation */
+        emit_pop_ebx(cc);
+        switch (assign_op.type) {
+        case CC_TOK_PLUSEQ:
+            emit8(cc, 0x01); emit8(cc, 0xD8); /* add eax, ebx */
+            break;
+        case CC_TOK_MINUSEQ:
+            emit8(cc, 0x29); emit8(cc, 0xC3); /* sub ebx, eax */
+            emit8(cc, 0x89); emit8(cc, 0xD8); /* mov eax, ebx */
+            break;
+        case CC_TOK_STAREQ:
+            emit8(cc, 0x0F); emit8(cc, 0xAF); emit8(cc, 0xC3); /* imul eax, ebx */
+            break;
+        case CC_TOK_SLASHEQ:
+            emit8(cc, 0x89); emit8(cc, 0xC1); /* mov ecx, eax */
+            emit8(cc, 0x89); emit8(cc, 0xD8); /* mov eax, ebx */
+            emit8(cc, 0x99);                   /* cdq */
+            emit8(cc, 0xF7); emit8(cc, 0xF9); /* idiv ecx */
+            break;
+        default:
+            break;
+        }
+    }
 
     /* EAX = value, stack = address */
     emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax */
@@ -1247,6 +1428,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
 
 /* ── Variable declaration ────────────────────────────────────────── */
 static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
+    int type_struct_index = cc_last_type_struct_index;
     cc_token_t name_tok = cc_next(cc);
     if (name_tok.type != CC_TOK_IDENT) {
         cc_error(cc, "expected variable name");
@@ -1270,22 +1452,68 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
         total_bytes = (total_bytes + 3) & ~3;
 
         cc->local_offset -= total_bytes;
+        if (cc->local_offset < cc->max_local_offset)
+            cc->max_local_offset = cc->local_offset;
         cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL,
                                        type == TYPE_CHAR ? TYPE_CHAR_PTR : TYPE_INT_PTR);
         if (sym) {
             sym->offset = cc->local_offset;
             sym->is_array = 1;
+            sym->struct_index = type_struct_index;
         }
 
         cc_expect(cc, CC_TOK_SEMICOLON);
         return;
     }
 
+    /* Struct variable: allocate full struct size on stack */
+    if (type == TYPE_STRUCT) {
+        if (type_struct_index < 0 || type_struct_index >= cc->struct_count) {
+            cc_error(cc, "invalid struct type");
+            return;
+        }
+        int32_t ssize = cc->structs[type_struct_index].total_size;
+        ssize = (ssize + 3) & ~3; /* align to 4 */
+        cc->local_offset -= ssize;
+        if (cc->local_offset < cc->max_local_offset)
+            cc->max_local_offset = cc->local_offset;
+        cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, TYPE_STRUCT);
+        if (sym) {
+            sym->offset = cc->local_offset;
+            sym->struct_index = type_struct_index;
+        }
+        /* Zero-initialize the struct */
+        emit_lea_local(cc, cc->local_offset);
+        emit_push_eax(cc);
+        emit_push_imm(cc, 0);
+        emit_push_imm(cc, (uint32_t)ssize);
+        /* Call memset(addr, 0, size) — push in reverse for cdecl */
+        /* Actually we need: memset(ptr, val, size) with ptr first */
+        /* Re-order: push size, push 0, push addr */
+        emit_add_esp(cc, 12); /* undo the pushes */
+        emit_lea_local(cc, cc->local_offset);
+        emit_push_imm(cc, (uint32_t)ssize);
+        emit_push_imm(cc, 0);
+        emit_push_eax(cc);
+        {
+            cc_symbol_t *ms = cc_sym_find(cc, "memset");
+            if (ms && ms->kind == SYM_KERNEL) {
+                emit_call_abs(cc, ms->address);
+            }
+        }
+        emit_add_esp(cc, 12);
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        return;
+    }
+
     /* Regular variable */
     cc->local_offset -= 4;
+    if (cc->local_offset < cc->max_local_offset)
+        cc->max_local_offset = cc->local_offset;
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, type);
     if (sym) {
         sym->offset = cc->local_offset;
+        sym->struct_index = type_struct_index;
     }
 
     /* Check for initializer */
@@ -1332,6 +1560,7 @@ static void cc_parse_while(cc_state_t *cc) {
     /* Push loop context */
     int old_depth = cc->loop_depth;
     if (cc->loop_depth < CC_MAX_BREAKS) {
+        cc->break_counts[cc->loop_depth] = 0;
         cc->continue_targets[cc->loop_depth] = loop_start;
         cc->loop_depth++;
     }
@@ -1352,12 +1581,12 @@ static void cc_parse_while(cc_state_t *cc) {
 
     patch_jump(cc, exit_patch);
 
-    /* Patch break targets */
+    /* Patch all break targets */
     if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
-        uint32_t break_target = cc->break_targets[old_depth];
-        if (break_target != 0) {
-            patch_jump(cc, break_target);
+        for (int i = 0; i < cc->break_counts[old_depth]; i++) {
+            patch_jump(cc, cc->break_patches[old_depth][i]);
         }
+        cc->break_counts[old_depth] = 0;
     }
     cc->loop_depth = old_depth;
 }
@@ -1411,6 +1640,7 @@ static void cc_parse_for(cc_state_t *cc) {
 
     /* Set continue target to increment */
     if (cc->loop_depth < CC_MAX_BREAKS) {
+        cc->break_counts[cc->loop_depth] = 0;
         cc->continue_targets[cc->loop_depth] = inc_start;
         cc->loop_depth++;
     }
@@ -1428,6 +1658,10 @@ static void cc_parse_for(cc_state_t *cc) {
                 emit_load_local(cc, sym->offset);
                 emit8(cc, 0x40); /* inc eax */
                 emit_store_local(cc, sym->offset);
+            } else if (sym && sym->kind == SYM_GLOBAL) {
+                emit8(cc, 0xA1); emit32(cc, sym->address);
+                emit8(cc, 0x40); /* inc eax */
+                emit8(cc, 0xA3); emit32(cc, sym->address);
             }
         } else if (id.type == CC_TOK_IDENT && cc_peek(cc).type == CC_TOK_MINUSMINUS) {
             cc_next(cc);
@@ -1436,6 +1670,10 @@ static void cc_parse_for(cc_state_t *cc) {
                 emit_load_local(cc, sym->offset);
                 emit8(cc, 0x48); /* dec eax */
                 emit_store_local(cc, sym->offset);
+            } else if (sym && sym->kind == SYM_GLOBAL) {
+                emit8(cc, 0xA1); emit32(cc, sym->address);
+                emit8(cc, 0x48); /* dec eax */
+                emit8(cc, 0xA3); emit32(cc, sym->address);
             }
         } else {
             cc->has_peek = 1;
@@ -1471,12 +1709,12 @@ static void cc_parse_for(cc_state_t *cc) {
         patch_jump(cc, exit_patch);
     }
 
-    /* Patch break targets */
+    /* Patch all break targets */
     if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
-        uint32_t break_target = cc->break_targets[old_depth];
-        if (break_target != 0) {
-            patch_jump(cc, break_target);
+        for (int i = 0; i < cc->break_counts[old_depth]; i++) {
+            patch_jump(cc, cc->break_patches[old_depth][i]);
         }
+        cc->break_counts[old_depth] = 0;
     }
     cc->loop_depth = old_depth;
 }
@@ -1521,6 +1759,121 @@ static void cc_parse_statement(cc_state_t *cc) {
         cc_parse_for(cc);
         break;
 
+    case CC_TOK_DO: {
+        /* do { body } while (cond); */
+        cc_next(cc);
+        uint32_t loop_start = cc->code_pos;
+        int old_depth = cc->loop_depth;
+        if (cc->loop_depth < CC_MAX_BREAKS) {
+            cc->break_counts[cc->loop_depth] = 0;
+            cc->continue_targets[cc->loop_depth] = loop_start;
+            cc->loop_depth++;
+        }
+        cc_parse_statement(cc);
+        cc_expect(cc, CC_TOK_WHILE);
+        cc_expect(cc, CC_TOK_LPAREN);
+        cc_parse_expression(cc, 1);
+        cc_expect(cc, CC_TOK_RPAREN);
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        /* If condition is true (non-zero), jump back to loop_start */
+        emit_cmp_eax_zero(cc);
+        emit8(cc, 0x0F); emit8(cc, 0x85); /* jne rel32 */
+        {
+            int32_t rel = (int32_t)(loop_start - (cc->code_pos + 4));
+            emit32(cc, (uint32_t)rel);
+        }
+        /* Patch all break targets */
+        if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+            for (int i = 0; i < cc->break_counts[old_depth]; i++) {
+                patch_jump(cc, cc->break_patches[old_depth][i]);
+            }
+            cc->break_counts[old_depth] = 0;
+        }
+        cc->loop_depth = old_depth;
+        break;
+    }
+
+    case CC_TOK_SWITCH: {
+        /* switch (expr) { case N: ... break; default: ... } */
+        cc_next(cc);
+        cc_expect(cc, CC_TOK_LPAREN);
+        cc_parse_expression(cc, 1);
+        cc_expect(cc, CC_TOK_RPAREN);
+        /* Save switch value on stack */
+        emit_push_eax(cc);
+
+        /* Use break mechanism for 'break' inside switch */
+        int old_depth = cc->loop_depth;
+        if (cc->loop_depth < CC_MAX_BREAKS) {
+            cc->break_counts[cc->loop_depth] = 0;
+            cc->loop_depth++;
+        }
+
+        cc_expect(cc, CC_TOK_LBRACE);
+
+        uint32_t next_case_patch = 0; /* patch for jne to next case */
+        int had_default = 0;
+
+        while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+               cc_peek(cc).type != CC_TOK_EOF) {
+            if (cc_peek(cc).type == CC_TOK_CASE) {
+                cc_next(cc);
+                /* Patch previous case's skip jump to here */
+                if (next_case_patch) patch_jump(cc, next_case_patch);
+                /* Compare switch value with case constant */
+                emit8(cc, 0x8B); emit8(cc, 0x04); emit8(cc, 0x24);
+                /* mov eax, [esp] — reload switch val */
+                cc_token_t cval = cc_next(cc);
+                if (cval.type == CC_TOK_NUMBER || cval.type == CC_TOK_CHAR_LIT) {
+                    emit8(cc, 0x3D); /* cmp eax, imm32 */
+                    emit32(cc, (uint32_t)cval.int_value);
+                } else {
+                    cc_error(cc, "case: expected constant");
+                    break;
+                }
+                cc_expect(cc, CC_TOK_COLON);
+                next_case_patch = emit_jcc_placeholder(cc, 0x85); /* jne */
+                /* Parse case body statements */
+                while (!cc->error &&
+                       cc_peek(cc).type != CC_TOK_CASE &&
+                       cc_peek(cc).type != CC_TOK_DEFAULT &&
+                       cc_peek(cc).type != CC_TOK_RBRACE &&
+                       cc_peek(cc).type != CC_TOK_EOF) {
+                    cc_parse_statement(cc);
+                }
+            } else if (cc_peek(cc).type == CC_TOK_DEFAULT) {
+                cc_next(cc);
+                cc_expect(cc, CC_TOK_COLON);
+                if (next_case_patch) patch_jump(cc, next_case_patch);
+                next_case_patch = 0;
+                had_default = 1;
+                while (!cc->error &&
+                       cc_peek(cc).type != CC_TOK_CASE &&
+                       cc_peek(cc).type != CC_TOK_RBRACE &&
+                       cc_peek(cc).type != CC_TOK_EOF) {
+                    cc_parse_statement(cc);
+                }
+            } else {
+                cc_error(cc, "expected case or default");
+                break;
+            }
+        }
+        cc_expect(cc, CC_TOK_RBRACE);
+        /* Patch final case skip if no default */
+        if (next_case_patch && !had_default) patch_jump(cc, next_case_patch);
+        /* Pop switch value */
+        emit_add_esp(cc, 4);
+        /* Patch all break targets to here */
+        if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+            for (int i = 0; i < cc->break_counts[old_depth]; i++) {
+                patch_jump(cc, cc->break_patches[old_depth][i]);
+            }
+            cc->break_counts[old_depth] = 0;
+        }
+        cc->loop_depth = old_depth;
+        break;
+    }
+
     case CC_TOK_RETURN:
         cc_next(cc);
         cc_parse_return(cc);
@@ -1532,7 +1885,13 @@ static void cc_parse_statement(cc_state_t *cc) {
             cc_error(cc, "break outside loop");
         } else {
             uint32_t patch = emit_jmp_placeholder(cc);
-            cc->break_targets[cc->loop_depth - 1] = patch;
+            int idx = cc->loop_depth - 1;
+            if (cc->break_counts[idx] < CC_MAX_BREAKS_PER_LOOP) {
+                cc->break_patches[idx][cc->break_counts[idx]] = patch;
+                cc->break_counts[idx]++;
+            } else {
+                cc_error(cc, "too many break statements in loop");
+            }
         }
         cc_expect(cc, CC_TOK_SEMICOLON);
         break;
@@ -1583,6 +1942,68 @@ static void cc_parse_statement(cc_state_t *cc) {
             cc_parse_assignment(cc, id.text);
             cc_expect(cc, CC_TOK_SEMICOLON);
         }
+        /* Struct member assignment: var.field = expr or var->field = expr */
+        else if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
+            cc_symbol_t *sym = cc_sym_find(cc, id.text);
+            if (!sym) { cc_error(cc, "undefined variable"); break; }
+            /* Load base address: LEA for local struct, load imm for global */
+            if (sym->kind == SYM_GLOBAL) {
+                if (sym->type == TYPE_STRUCT) {
+                    emit_mov_eax_imm(cc, sym->address);
+                } else {
+                    /* Pointer: load value */
+                    emit8(cc, 0xA1); emit32(cc, sym->address);
+                }
+            } else if (sym->type == TYPE_STRUCT) {
+                emit_lea_local(cc, sym->offset);
+            } else {
+                emit_load_local(cc, sym->offset);
+            }
+            int si = sym->struct_index;
+            /* Traverse member chain: a.b.c or a->b->c */
+            cc_type_t ftype = TYPE_INT;
+            while (cc_peek(cc).type == CC_TOK_DOT || cc_peek(cc).type == CC_TOK_ARROW) {
+                cc_next(cc); /* consume . or -> */
+                cc_token_t ftok = cc_next(cc);
+                if (ftok.type != CC_TOK_IDENT) { cc_error(cc, "expected field"); break; }
+                cc_field_t *fld = cc_find_field(cc, si, ftok.text);
+                if (!fld) { cc_error(cc, "unknown field"); break; }
+                if (fld->offset > 0) {
+                    emit8(cc, 0x05); emit32(cc, (uint32_t)fld->offset);
+                }
+                ftype = fld->type;
+                if (fld->type == TYPE_STRUCT) {
+                    si = fld->struct_index;
+                } else if (fld->type == TYPE_STRUCT_PTR) {
+                    emit_deref_dword(cc);
+                    si = fld->struct_index;
+                } else {
+                    /* Leaf field — next should be = */
+                    break;
+                }
+            }
+            /* Expect assignment operator */
+            if (cc_peek(cc).type != CC_TOK_EQ) {
+                /* Not an assignment — this is an expression statement */
+                /* (e.g., s.func_ptr(args);) — dereference and discard */
+                if (ftype == TYPE_CHAR) emit_deref_byte(cc);
+                else if (ftype != TYPE_STRUCT) emit_deref_dword(cc);
+                cc_expect(cc, CC_TOK_SEMICOLON);
+                break;
+            }
+            cc_next(cc); /* consume '=' */
+            emit_push_eax(cc); /* save field address */
+            cc_parse_expression(cc, 1);
+            /* eax = value, stack = field address */
+            emit8(cc, 0x89); emit8(cc, 0xC3); /* mov ebx, eax */
+            emit_pop_eax(cc);                   /* eax = address */
+            if (ftype == TYPE_CHAR) {
+                emit_store_byte_ptr(cc);
+            } else {
+                emit_store_dword_ptr(cc);
+            }
+            cc_expect(cc, CC_TOK_SEMICOLON);
+        }
         /* Array subscript assignment */
         else if (next.type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
@@ -1597,6 +2018,10 @@ static void cc_parse_statement(cc_state_t *cc) {
                 emit_load_local(cc, sym->offset);
                 emit8(cc, 0x40); /* inc eax */
                 emit_store_local(cc, sym->offset);
+            } else if (sym && sym->kind == SYM_GLOBAL) {
+                emit8(cc, 0xA1); emit32(cc, sym->address);
+                emit8(cc, 0x40); /* inc eax */
+                emit8(cc, 0xA3); emit32(cc, sym->address);
             }
             cc_expect(cc, CC_TOK_SEMICOLON);
         }
@@ -1608,6 +2033,10 @@ static void cc_parse_statement(cc_state_t *cc) {
                 emit_load_local(cc, sym->offset);
                 emit8(cc, 0x48); /* dec eax */
                 emit_store_local(cc, sym->offset);
+            } else if (sym && sym->kind == SYM_GLOBAL) {
+                emit8(cc, 0xA1); emit32(cc, sym->address);
+                emit8(cc, 0x48); /* dec eax */
+                emit8(cc, 0xA3); emit32(cc, sym->address);
             }
             cc_expect(cc, CC_TOK_SEMICOLON);
         }
@@ -1681,6 +2110,7 @@ static void cc_parse_function(cc_state_t *cc) {
     /* Save scope state */
     int saved_scope = cc->sym_count;
     cc->local_offset = 0;
+    cc->max_local_offset = 0;
     cc->param_count = 0;
 
     /* Parse parameters */
@@ -1731,7 +2161,7 @@ static void cc_parse_function(cc_state_t *cc) {
     cc_expect(cc, CC_TOK_RBRACE);
 
     /* Patch the sub esp with actual local space used */
-    int32_t locals_size = -cc->local_offset;
+    int32_t locals_size = -cc->max_local_offset;
     if (locals_size < 0) locals_size = 0;
     /* Round up to 16-byte alignment */
     locals_size = (locals_size + 15) & ~15;
@@ -1762,9 +2192,159 @@ static void cc_parse_function(cc_state_t *cc) {
  * ══════════════════════════════════════════════════════════════════════ */
 
 void cc_parse_program(cc_state_t *cc) {
+    cc->struct_count = 0;
 
     while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
         cc_token_t tok = cc_peek(cc);
+
+        /* ── Enum definition: enum { A, B = 5, C }; ─────────────── */
+        if (tok.type == CC_TOK_ENUM) {
+            cc_next(cc); /* consume 'enum' */
+            /* Optional enum name (ignored — we just create constants) */
+            if (cc_peek(cc).type == CC_TOK_IDENT) {
+                cc_next(cc); /* consume optional name */
+            }
+            cc_expect(cc, CC_TOK_LBRACE);
+            int32_t enum_val = 0;
+            while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+                   cc_peek(cc).type != CC_TOK_EOF) {
+                cc_token_t name_tok = cc_next(cc);
+                if (name_tok.type != CC_TOK_IDENT) {
+                    cc_error(cc, "expected enum constant name");
+                    break;
+                }
+                /* Optional explicit value: NAME = value */
+                if (cc_match(cc, CC_TOK_EQ)) {
+                    cc_token_t val_tok = cc_next(cc);
+                    int negate = 0;
+                    if (val_tok.type == CC_TOK_MINUS) {
+                        negate = 1;
+                        val_tok = cc_next(cc);
+                    }
+                    if (val_tok.type != CC_TOK_NUMBER) {
+                        cc_error(cc, "expected integer in enum");
+                        break;
+                    }
+                    enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+                }
+                /* Register as global constant in data section */
+                cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
+                if (gsym) {
+                    gsym->address = cc->data_base + cc->data_pos;
+                    memset(cc->data + cc->data_pos, 0, 4);
+                    uint32_t v = (uint32_t)enum_val;
+                    cc->data[cc->data_pos]     = (uint8_t)(v & 0xFF);
+                    cc->data[cc->data_pos + 1] = (uint8_t)((v >> 8) & 0xFF);
+                    cc->data[cc->data_pos + 2] = (uint8_t)((v >> 16) & 0xFF);
+                    cc->data[cc->data_pos + 3] = (uint8_t)((v >> 24) & 0xFF);
+                    cc->data_pos += 4;
+                }
+                enum_val++;
+                /* Comma between values (optional before closing brace) */
+                if (cc_peek(cc).type != CC_TOK_RBRACE) {
+                    cc_expect(cc, CC_TOK_COMMA);
+                }
+            }
+            cc_expect(cc, CC_TOK_RBRACE);
+            cc_expect(cc, CC_TOK_SEMICOLON);
+            continue;
+        }
+
+        /* ── Struct definition: struct Name { fields... }; ────────── */
+        if (tok.type == CC_TOK_STRUCT) {
+            /* Peek further: struct Name { → definition, struct Name var → decl */
+            int saved_pos = cc->pos;
+            int saved_line = cc->line;
+            int saved_has_peek = cc->has_peek;
+            cc_token_t saved_peek = cc->peek_buf;
+            cc_token_t saved_cur = cc->cur;
+
+            cc_next(cc); /* consume 'struct' */
+            cc_token_t sname = cc_next(cc);
+            cc_token_t after = cc_peek(cc);
+            (void)sname;
+
+            /* Restore lexer state */
+            cc->pos = saved_pos;
+            cc->line = saved_line;
+            cc->has_peek = saved_has_peek;
+            cc->peek_buf = saved_peek;
+            cc->cur = saved_cur;
+
+            if (after.type == CC_TOK_LBRACE) {
+                /* Struct definition */
+                cc_next(cc); /* consume 'struct' */
+                cc_token_t name_tok = cc_next(cc);
+                if (name_tok.type != CC_TOK_IDENT) {
+                    cc_error(cc, "expected struct name");
+                    break;
+                }
+                if (cc->struct_count >= CC_MAX_STRUCTS) {
+                    cc_error(cc, "too many struct definitions");
+                    break;
+                }
+                cc_struct_def_t *sd = &cc->structs[cc->struct_count];
+                memset(sd, 0, sizeof(*sd));
+                int ni = 0;
+                while (name_tok.text[ni] && ni < CC_MAX_IDENT - 1) {
+                    sd->name[ni] = name_tok.text[ni];
+                    ni++;
+                }
+                sd->name[ni] = '\0';
+                sd->field_count = 0;
+                sd->total_size = 0;
+
+                cc_expect(cc, CC_TOK_LBRACE);
+
+                int32_t field_offset = 0;
+                while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+                       cc_peek(cc).type != CC_TOK_EOF) {
+                    if (sd->field_count >= CC_MAX_FIELDS) {
+                        cc_error(cc, "too many fields in struct");
+                        break;
+                    }
+                    cc_type_t ftype = cc_parse_type(cc);
+                    int fsi = cc_last_type_struct_index;
+                    cc_token_t fname = cc_next(cc);
+                    if (fname.type != CC_TOK_IDENT) {
+                        cc_error(cc, "expected field name");
+                        break;
+                    }
+                    cc_field_t *f = &sd->fields[sd->field_count++];
+                    int fi = 0;
+                    while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
+                        f->name[fi] = fname.text[fi];
+                        fi++;
+                    }
+                    f->name[fi] = '\0';
+                    f->type = ftype;
+                    f->struct_index = fsi;
+                    f->offset = field_offset;
+
+                    /* Compute field size */
+                    int32_t fsize = 4; /* default: 4 bytes (int, ptr) */
+                    if (ftype == TYPE_STRUCT && fsi >= 0) {
+                        fsize = cc->structs[fsi].total_size;
+                    }
+                    /* Align to 4 bytes */
+                    fsize = (fsize + 3) & ~3;
+                    field_offset += fsize;
+
+                    cc_expect(cc, CC_TOK_SEMICOLON);
+                }
+                cc_expect(cc, CC_TOK_RBRACE);
+                cc_expect(cc, CC_TOK_SEMICOLON);
+
+                sd->total_size = (field_offset + 3) & ~3; /* align total */
+                cc->struct_count++;
+
+                serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\\n",
+                              sd->name, sd->field_count, sd->total_size);
+                continue;
+            }
+            /* Otherwise fall through: struct Name used as a type for
+             * a function return or global variable — handled below */
+        }
 
         if (cc_is_type(tok.type)) {
             /* Could be function or global variable */
@@ -1794,21 +2374,95 @@ void cc_parse_program(cc_state_t *cc) {
                 (void)type;
                 (void)name_tok;
                 cc_type_t gtype = cc_parse_type(cc);
+                int gtype_si = cc_last_type_struct_index;
                 cc_token_t gname = cc_next(cc);
-                if (gname.type == CC_TOK_IDENT) {
+                if (gname.type != CC_TOK_IDENT) {
+                    cc_error(cc, "expected variable name");
+                    break;
+                }
+
+                /* Global array: type name[size]; */
+                if (cc_peek(cc).type == CC_TOK_LBRACK) {
+                    cc_next(cc); /* consume '[' */
+                    cc_token_t size_tok = cc_next(cc);
+                    if (size_tok.type != CC_TOK_NUMBER) {
+                        cc_error(cc, "expected array size");
+                        break;
+                    }
+                    cc_expect(cc, CC_TOK_RBRACK);
+                    int32_t arr_elems = size_tok.int_value;
+                    int elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
+                    int32_t total_bytes = arr_elems * elem_size;
+                    total_bytes = (total_bytes + 3) & ~3;
+                    cc_type_t arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+                    cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
+                    if (gsym) {
+                        gsym->address = cc->data_base + cc->data_pos;
+                        gsym->is_array = 1;
+                        gsym->struct_index = gtype_si;
+                        memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
+                        cc->data_pos += (uint32_t)total_bytes;
+                    }
+                    cc_expect(cc, CC_TOK_SEMICOLON);
+                }
+                /* Global struct variable */
+                else if (gtype == TYPE_STRUCT && gtype_si >= 0) {
+                    int32_t ssize = cc->structs[gtype_si].total_size;
+                    ssize = (ssize + 3) & ~3;
+                    cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, TYPE_STRUCT);
+                    if (gsym) {
+                        gsym->address = cc->data_base + cc->data_pos;
+                        gsym->struct_index = gtype_si;
+                        memset(cc->data + cc->data_pos, 0, (size_t)ssize);
+                        cc->data_pos += (uint32_t)ssize;
+                    }
+                    cc_expect(cc, CC_TOK_SEMICOLON);
+                }
+                /* Scalar global variable */
+                else {
                     cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
                     if (gsym) {
                         gsym->address = cc->data_base + cc->data_pos;
-                        /* Reserve space in data section */
-                        int size = (gtype == TYPE_CHAR) ? 4 : 4; /* align to 4 */
-                        cc->data_pos += (uint32_t)size;
+                        gsym->struct_index = gtype_si;
+                        memset(cc->data + cc->data_pos, 0, 4);
+                        cc->data_pos += 4;
+
+                        /* Handle initializer: int x = 42; int y = -1; char *s = "hi"; */
+                        if (cc_match(cc, CC_TOK_EQ)) {
+                            cc_token_t val = cc_next(cc);
+                            uint32_t addr_off = gsym->address - cc->data_base;
+                            /* Handle negative initializer: -NUMBER */
+                            int negate = 0;
+                            if (val.type == CC_TOK_MINUS) {
+                                negate = 1;
+                                val = cc_next(cc);
+                            }
+                            if (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT) {
+                                int32_t sv = negate ? -val.int_value : val.int_value;
+                                uint32_t v = (uint32_t)sv;
+                                cc->data[addr_off]     = (uint8_t)(v & 0xFF);
+                                cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
+                                cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
+                                cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
+                            } else if (val.type == CC_TOK_STRING) {
+                                /* Store string in data, save address at variable */
+                                uint32_t str_addr = cc->data_base + cc->data_pos;
+                                int si = 0;
+                                while (val.text[si] && cc->data_pos < CC_MAX_DATA) {
+                                    cc->data[cc->data_pos++] = (uint8_t)val.text[si++];
+                                }
+                                if (cc->data_pos < CC_MAX_DATA) cc->data[cc->data_pos++] = 0;
+                                /* Align data_pos to 4 */
+                                cc->data_pos = (cc->data_pos + 3u) & ~3u;
+                                cc->data[addr_off]     = (uint8_t)(str_addr & 0xFF);
+                                cc->data[addr_off + 1] = (uint8_t)((str_addr >> 8) & 0xFF);
+                                cc->data[addr_off + 2] = (uint8_t)((str_addr >> 16) & 0xFF);
+                                cc->data[addr_off + 3] = (uint8_t)((str_addr >> 24) & 0xFF);
+                            }
+                        }
                     }
-                    if (cc_match(cc, CC_TOK_EQ)) {
-                        /* TODO: handle global initializers */
-                        cc_next(cc); /* consume value */
-                    }
+                    cc_expect(cc, CC_TOK_SEMICOLON);
                 }
-                cc_expect(cc, CC_TOK_SEMICOLON);
             }
         } else {
             cc_error(cc, "expected function or global declaration");

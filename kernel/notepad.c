@@ -40,7 +40,7 @@
 #define NOTEPAD_WIN_W       310
 #define NOTEPAD_WIN_H       168
 
-#define NOTEPAD_MAX_LINES   1024
+#define NOTEPAD_MAX_LINES   4096
 #define NOTEPAD_MAX_LINE_LEN 256
 
 #define MENUBAR_H           12
@@ -871,13 +871,41 @@ static void notepad_open_file(const char *name) {
     notepad_free_redo();
     notepad_clear_selection();
 
-    /* Read file contents */
-    char read_buf[32768];
-    memset(read_buf, 0, sizeof(read_buf));
-    int bytes = vfs_read(fd, read_buf, sizeof(read_buf) - 1);
+    /* Read file contents — grow buffer dynamically until EOF */
+    uint32_t buf_cap = 32768;               /* start at 32 KB          */
+    uint32_t buf_max = 512 * 1024;          /* hard cap: 512 KB        */
+    char *read_buf = kmalloc(buf_cap);
+    if (!read_buf) {
+        vfs_close(fd);
+        notepad_init_buffer();
+        return;
+    }
+
+    uint32_t total_read = 0;
+    for (;;) {
+        uint32_t space = buf_cap - total_read - 1; /* -1 for '\0' */
+        if (space == 0) {
+            /* Buffer full — try to grow */
+            if (buf_cap >= buf_max) break;  /* hard limit reached */
+            uint32_t new_cap = buf_cap * 2;
+            if (new_cap > buf_max) new_cap = buf_max;
+            char *new_buf = kmalloc(new_cap);
+            if (!new_buf) break;            /* out of memory, use what we have */
+            memcpy(new_buf, read_buf, total_read);
+            kfree(read_buf);
+            read_buf = new_buf;
+            buf_cap = new_cap;
+            space = buf_cap - total_read - 1;
+        }
+        int chunk = vfs_read(fd, read_buf + total_read, space);
+        if (chunk <= 0) break;              /* EOF or error */
+        total_read += (uint32_t)chunk;
+    }
     vfs_close(fd);
+    int bytes = (int)total_read;
 
     if (bytes <= 0) {
+        kfree(read_buf);
         notepad_init_buffer();
         return;
     }
@@ -910,6 +938,8 @@ static void notepad_open_file(const char *name) {
         }
     }
 
+    kfree(read_buf);
+
     if (app.buffer.line_count == 0) {
         app.buffer.lines[0] = notepad_strdup("");
         app.buffer.line_count = 1;
@@ -941,18 +971,24 @@ static void notepad_open_file(const char *name) {
 }
 
 static void notepad_save_file(const char *name) {
-    /* Concatenate all lines with '\n' */
-    char write_buf[32768];
-    int pos = 0;
+    /* Calculate total size needed */
+    uint32_t total_len = 0;
+    for (int i = 0; i < app.buffer.line_count; i++) {
+        total_len += (uint32_t)np_strlen(app.buffer.lines[i] ? app.buffer.lines[i] : "");
+        if (i < app.buffer.line_count - 1) total_len++; /* newline */
+    }
 
-    for (int i = 0; i < app.buffer.line_count && pos < 32766; i++) {
+    char *write_buf = kmalloc(total_len + 1);
+    if (!write_buf) return;
+
+    int pos = 0;
+    for (int i = 0; i < app.buffer.line_count; i++) {
         const char *text = app.buffer.lines[i] ? app.buffer.lines[i] : "";
         int len = (int)np_strlen(text);
-
-        for (int j = 0; j < len && pos < 32766; j++) {
+        for (int j = 0; j < len; j++) {
             write_buf[pos++] = text[j];
         }
-        if (i < app.buffer.line_count - 1 && pos < 32766) {
+        if (i < app.buffer.line_count - 1) {
             write_buf[pos++] = '\n';
         }
     }
@@ -979,12 +1015,19 @@ static void notepad_save_file(const char *name) {
 
     int fd = vfs_open(vpath, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd >= 0) {
-        vfs_write(fd, write_buf, (uint32_t)pos);
+        /* Write in chunks */
+        uint32_t written = 0;
+        while (written < (uint32_t)pos) {
+            int w = vfs_write(fd, write_buf + written, (uint32_t)pos - written);
+            if (w <= 0) break;
+            written += (uint32_t)w;
+        }
         vfs_close(fd);
     } else {
         /* Fallback: try writing directly via FAT16 */
         fat16_write_file(name, write_buf, (uint32_t)pos);
     }
+    kfree(write_buf);
     app.buffer.modified = false;
 
     /* Copy filename */

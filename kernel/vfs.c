@@ -176,19 +176,34 @@ int vfs_mount(const char *source, const char *target,
 /* ── File operations ──────────────────────────────────────────────── */
 
 int vfs_open(const char *path, uint32_t flags) {
-    if (!path || path[0] != '/') return VFS_EINVAL;
+    serial_printf("[vfs_open] path='%s' flags=0x%x\n", path ? path : "(null)", flags);
+
+    if (!path || path[0] != '/') {
+        serial_printf("[vfs_open] EINVAL: bad path\n");
+        return VFS_EINVAL;
+    }
 
     const char *rel_path = NULL;
     vfs_mount_t *m = find_mount(path, &rel_path);
-    if (!m) return VFS_ENOENT;
-    if (!m->ops->open) return VFS_ENOSYS;
+    if (!m) {
+        serial_printf("[vfs_open] ENOENT: no mount for '%s'\n", path);
+        return VFS_ENOENT;
+    }
+    if (!m->ops->open) {
+        serial_printf("[vfs_open] ENOSYS: no open op\n");
+        return VFS_ENOSYS;
+    }
 
     int fd = alloc_fd();
-    if (fd < 0) return VFS_EMFILE;
+    if (fd < 0) {
+        serial_printf("[vfs_open] EMFILE: no free fd\n");
+        return VFS_EMFILE;
+    }
 
     void *handle = NULL;
     int rc = m->ops->open(m->fs_private, rel_path, flags, &handle);
     if (rc < 0) {
+        serial_printf("[vfs_open] open failed: rc=%d\n", rc);
         fd_table[fd].in_use = 0;
         return rc;
     }
@@ -198,6 +213,7 @@ int vfs_open(const char *path, uint32_t flags) {
     fd_table[fd].fs_data = handle;
     fd_table[fd].mount = m;
 
+    serial_printf("[vfs_open] success: fd=%d\n", fd);
     return fd;
 }
 
@@ -232,14 +248,29 @@ int vfs_read(int fd, void *buffer, uint32_t count) {
 }
 
 int vfs_write(int fd, const void *buffer, uint32_t count) {
-    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) return VFS_EINVAL;
-    if (!fd_table[fd].in_use) return VFS_EINVAL;
-    if (!buffer) return VFS_EINVAL;
+    if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) {
+        serial_printf("[vfs_write] EINVAL: bad fd=%d\n", fd);
+        return VFS_EINVAL;
+    }
+    if (!fd_table[fd].in_use) {
+        serial_printf("[vfs_write] EINVAL: fd=%d not in use\n", fd);
+        return VFS_EINVAL;
+    }
+    if (!buffer) {
+        serial_printf("[vfs_write] EINVAL: null buffer\n");
+        return VFS_EINVAL;
+    }
+
+    serial_printf("[vfs_write] fd=%d count=%u buffer=%p\n", fd, count, buffer);
 
     vfs_file_t *f = &fd_table[fd];
-    if (!f->mount || !f->mount->ops->write) return VFS_ENOSYS;
+    if (!f->mount || !f->mount->ops->write) {
+        serial_printf("[vfs_write] ENOSYS: no write op\n");
+        return VFS_ENOSYS;
+    }
 
     int rc = f->mount->ops->write(f->fs_data, buffer, count);
+    serial_printf("[vfs_write] write returned rc=%d\n", rc);
     if (rc > 0) {
         f->position += (uint32_t)rc;
     }

@@ -23,25 +23,28 @@
 /* ══════════════════════════════════════════════════════════════════════
  *  Limits
  * ══════════════════════════════════════════════════════════════════════ */
-#define CC_MAX_CODE       (64u * 1024u)   /* 64KB code buffer          */
-#define CC_MAX_DATA       (16u * 1024u)   /* 16KB data/string buffer   */
-#define CC_MAX_SYMBOLS    256             /* max symbols in scope       */
-#define CC_MAX_LOCALS     64              /* max locals per function    */
-#define CC_MAX_PARAMS     8               /* max function parameters    */
-#define CC_MAX_PATCHES    256             /* max forward-ref patches    */
-#define CC_MAX_BREAKS     32              /* max nested break targets   */
-#define CC_MAX_IDENT      32              /* max identifier length      */
-#define CC_MAX_STRING     256             /* max string literal length  */
-#define CC_MAX_ERRORS     1               /* fail-fast: stop at first   */
-#define CC_MAX_FUNCS      128             /* max functions              */
+#define CC_MAX_CODE       (128u * 1024u)  /* 128KB code buffer          */
+#define CC_MAX_DATA       (32u * 1024u)   /* 32KB data/string buffer    */
+#define CC_MAX_SYMBOLS    512             /* max symbols in scope        */
+#define CC_MAX_LOCALS     128             /* max locals per function     */
+#define CC_MAX_PARAMS     16              /* max function parameters     */
+#define CC_MAX_PATCHES    512             /* max forward-ref patches     */
+#define CC_MAX_BREAKS     64              /* max nested loop depth        */
+#define CC_MAX_BREAKS_PER_LOOP 32         /* max break statements per loop */
+#define CC_MAX_IDENT      64              /* max identifier length       */
+#define CC_MAX_STRING     128             /* max string literal length   */
+#define CC_MAX_ERRORS     1               /* fail-fast: stop at first    */
+#define CC_MAX_FUNCS      256             /* max functions               */
+#define CC_MAX_STRUCTS    32              /* max struct definitions       */
+#define CC_MAX_FIELDS     16              /* max fields per struct        */
 
-/* Memory region for JIT code (1 MB starting at 4 MB) */
+/* Memory region for JIT code (128KB code + 32KB data) */
 #define CC_JIT_CODE_BASE  0x00400000u
-#define CC_JIT_DATA_BASE  0x00500000u
+#define CC_JIT_DATA_BASE  0x00420000u     /* 128KB after code */
 
 /* Memory region for AOT code */
 #define CC_AOT_CODE_BASE  0x00200000u
-#define CC_AOT_DATA_BASE  0x00210000u  /* 64KB after code (matches CC_MAX_CODE) */
+#define CC_AOT_DATA_BASE  0x00220000u     /* 128KB after code */
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Token Types
@@ -51,6 +54,9 @@ typedef enum {
     CC_TOK_INT, CC_TOK_CHAR, CC_TOK_VOID, CC_TOK_IF, CC_TOK_ELSE,
     CC_TOK_WHILE, CC_TOK_FOR, CC_TOK_RETURN, CC_TOK_ASM,
     CC_TOK_BREAK, CC_TOK_CONTINUE,
+    CC_TOK_STRUCT, CC_TOK_SIZEOF, CC_TOK_DO,
+    CC_TOK_SWITCH, CC_TOK_CASE, CC_TOK_DEFAULT,
+    CC_TOK_BOOL, CC_TOK_ENUM,
 
     /* Identifiers and literals */
     CC_TOK_IDENT,              /* variable/function names               */
@@ -71,6 +77,7 @@ typedef enum {
     CC_TOK_LPAREN, CC_TOK_RPAREN, CC_TOK_LBRACE, CC_TOK_RBRACE,
     CC_TOK_LBRACK, CC_TOK_RBRACK,
     CC_TOK_SEMICOLON, CC_TOK_COMMA,
+    CC_TOK_DOT, CC_TOK_ARROW, CC_TOK_COLON,
 
     CC_TOK_EOF,
     CC_TOK_ERROR
@@ -79,7 +86,7 @@ typedef enum {
 /* ── Token structure ─────────────────────────────────────────────── */
 typedef struct {
     cc_token_type_t type;
-    char            text[CC_MAX_IDENT];
+    char            text[CC_MAX_STRING];  /* holds idents & string content */
     int32_t         int_value;
     int             line;
 } cc_token_t;
@@ -104,7 +111,9 @@ typedef enum {
     TYPE_VOID,              /* void (functions only)                 */
     TYPE_PTR,               /* pointer (any)                         */
     TYPE_INT_PTR,           /* int*                                  */
-    TYPE_CHAR_PTR           /* char*                                 */
+    TYPE_CHAR_PTR,          /* char*                                 */
+    TYPE_STRUCT,            /* struct value (stack-allocated)         */
+    TYPE_STRUCT_PTR         /* pointer to struct                     */
 } cc_type_t;
 
 /* Symbol entry */
@@ -117,7 +126,24 @@ typedef struct {
     int           param_count;  /* for functions                     */
     int           is_defined;   /* has function body been emitted?   */
     int           is_array;     /* stack-allocated array?             */
+    int           struct_index; /* index into structs[] for struct types */
 } cc_symbol_t;
+
+/* ── Struct field definition ─────────────────────────────────────── */
+typedef struct {
+    char          name[CC_MAX_IDENT];
+    cc_type_t     type;
+    int32_t       offset;       /* byte offset within struct         */
+    int           struct_index; /* if type is struct, which struct    */
+} cc_field_t;
+
+/* ── Struct definition ───────────────────────────────────────────── */
+typedef struct {
+    char          name[CC_MAX_IDENT];
+    cc_field_t    fields[CC_MAX_FIELDS];
+    int           field_count;
+    int32_t       total_size;   /* total size in bytes (4-byte aligned) */
+} cc_struct_def_t;
 
 /* ── Forward reference patch ─────────────────────────────────────── */
 typedef struct {
@@ -153,8 +179,13 @@ typedef struct {
     cc_symbol_t symbols[CC_MAX_SYMBOLS];
     int         sym_count;
 
+    /* Struct definitions */
+    cc_struct_def_t structs[CC_MAX_STRUCTS];
+    int         struct_count;
+
     /* Local scope tracking */
-    int         local_offset;   /* current stack offset for locals   */
+    int         local_offset;       /* current stack offset for locals   */
+    int         max_local_offset;   /* deepest stack offset seen (most negative) */
     int         scope_start;    /* symbol index at function start    */
     int         param_count;    /* params in current function        */
 
@@ -163,7 +194,8 @@ typedef struct {
     int         patch_count;
 
     /* Break/continue stack for loops */
-    uint32_t    break_targets[CC_MAX_BREAKS];
+    uint32_t    break_patches[CC_MAX_BREAKS][CC_MAX_BREAKS_PER_LOOP];
+    int         break_counts[CC_MAX_BREAKS];
     uint32_t    continue_targets[CC_MAX_BREAKS];
     int         loop_depth;
 

@@ -33,6 +33,16 @@ shell_output_mode_t shell_get_output_mode(void);
 /* Get current working directory */
 const char *shell_get_cwd(void);
 
+/* Set current working directory (used by CupidC cd command) */
+void shell_set_cwd(const char *path);
+
+/* Resolve a relative path against CWD into an absolute path */
+void shell_resolve_path(const char *input, char *out);
+
+/* History access for CupidC programs */
+int shell_get_history_count(void);
+const char *shell_get_history_entry(int index);
+
 /* GUI mode: get the character buffer */
 const char *shell_get_buffer(void);
 
@@ -48,6 +58,39 @@ void shell_gui_handle_key(uint8_t scancode, char character);
 
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
+
+/* ── JIT program input routing (for GUI mode) ─────────────────────── */
+
+/**
+ * Check if a JIT program is currently running and consuming input.
+ * Returns 1 if a program is running, 0 if shell is active.
+ */
+int shell_jit_program_is_running(void);
+
+/**
+ * Deliver a character to the running JIT program's input buffer.
+ * Called by terminal when a program is running.
+ */
+void shell_jit_program_input(char c);
+
+/**
+ * Read a character from the JIT program input buffer (blocking).
+ * Called by getchar() when running in GUI mode.
+ * Returns the character, or 0 if interrupted.
+ */
+char shell_jit_program_getchar(void);
+
+/**
+ * Mark that a JIT program is about to start execution.
+ * Switches keyboard input routing to the program.
+ */
+void shell_jit_program_start(void);
+
+/**
+ * Mark that a JIT program has finished execution.
+ * Switches keyboard input routing back to the shell.
+ */
+void shell_jit_program_end(void);
 
 /* GUI mode: direct output to GUI buffer (used by kernel print routing) */
 void shell_gui_putchar_ext(char c);

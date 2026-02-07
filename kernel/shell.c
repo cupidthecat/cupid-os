@@ -10,15 +10,14 @@
 #include "fat16.h"
 #include "memory.h"
 #include "math.h"
-#include "panic.h"
 #include "assert.h"
 #include "../drivers/serial.h"
-#include "ed.h"
 #include "process.h"
 #include "cupidscript.h"
 #include "vfs.h"
 #include "exec.h"
 #include "terminal_app.h"
+#include "desktop.h"
 #include "notepad.h"
 #include "terminal_ansi.h"
 #include "calendar.h"
@@ -52,6 +51,14 @@ static char shell_cwd[VFS_MAX_PATH] = "/";
 #define SHELL_ARGS_MAX 256
 static char shell_program_args[SHELL_ARGS_MAX] = "";
 
+/* ── JIT program input routing (for GUI mode) ───────────────────── */
+#define JIT_INPUT_BUFFER_SIZE 256
+static char jit_input_buffer[JIT_INPUT_BUFFER_SIZE];
+static int jit_input_read_pos = 0;
+static int jit_input_write_pos = 0;
+static int jit_program_running = 0;
+static int jit_program_interrupted = 0;
+
 void shell_set_program_args(const char *args) {
     int i = 0;
     if (args) {
@@ -71,6 +78,15 @@ const char *shell_get_cwd(void) {
     return shell_cwd;
 }
 
+void shell_set_cwd(const char *path) {
+    int i = 0;
+    while (path[i] && i < VFS_MAX_PATH - 1) {
+        shell_cwd[i] = path[i];
+        i++;
+    }
+    shell_cwd[i] = '\0';
+}
+
 /**
  * Resolve a possibly-relative path against the CWD.
  * Result written to `out` (must be VFS_MAX_PATH bytes).
@@ -78,7 +94,7 @@ const char *shell_get_cwd(void) {
  *   - Relative paths are joined with CWD.
  *   - ".." and "." components are resolved.
  */
-static void shell_resolve_path(const char *input, char *out) {
+void shell_resolve_path(const char *input, char *out) {
     char tmp[VFS_MAX_PATH];
     int ti = 0;
 
@@ -179,6 +195,7 @@ static void execute_command(const char *input);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void shell_gui_print_int(uint32_t num);
+static int shell_ends_with(const char *str, const char *suffix);
 
 void shell_set_output_mode(shell_output_mode_t mode) {
     output_mode = mode;
@@ -212,14 +229,12 @@ void shell_set_output_mode(shell_output_mode_t mode) {
         }
         /* Configure all subsystems to use GUI output */
         fat16_set_output(shell_gui_print, shell_gui_putchar, shell_gui_print_int);
-        ed_set_output(shell_gui_print, shell_gui_putchar, shell_gui_print_int);
         memory_set_output(shell_gui_print, shell_gui_print_int);
         panic_set_output(shell_gui_print, shell_gui_putchar);
         blockcache_set_output(shell_gui_print, shell_gui_print_int);
     } else {
         /* Reset all subsystems to use kernel output */
         fat16_set_output(print, putchar, print_int);
-        ed_set_output(print, putchar, print_int);
         memory_set_output(print, print_int);
         panic_set_output(print, putchar);
         blockcache_set_output(print, print_int);
@@ -276,6 +291,7 @@ static void shell_set_cell_color(int idx) {
 
 /* Put a character into the GUI buffer with ANSI escape processing */
 static void shell_gui_putchar(char c) {
+
     /* Feed character through ANSI parser first */
     ansi_result_t result = ansi_process_char(&shell_ansi_state, c);
 
@@ -362,14 +378,25 @@ static void shell_gui_print(const char *s) {
 
 /* Print an integer into the GUI buffer */
 static void shell_gui_print_int(uint32_t num) {
+    serial_printf("[shell_gui_print_int] num=%u (0x%x)\n", num, num);
     char buf[12];
     int i = 0;
-    if (num == 0) { shell_gui_putchar('0'); return; }
+    if (num == 0) {
+        serial_printf("[shell_gui_print_int] printing '0'\n");
+        shell_gui_putchar('0');
+        return;
+    }
     while (num > 0) {
         buf[i++] = (char)((num % 10) + (uint32_t)'0');
         num /= 10;
     }
-    while (i > 0) shell_gui_putchar(buf[--i]);
+    serial_printf("[shell_gui_print_int] printing %d digits: ", i);
+    while (i > 0) {
+        char c = buf[--i];
+        serial_printf("'%c'", c);
+        shell_gui_putchar(c);
+    }
+    serial_printf("\n");
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -447,100 +474,20 @@ struct shell_command {
 };
 
 // Forward declarations for commands
-static void shell_help(const char* args);
-static void shell_clear(const char* args);
-static void shell_echo(const char* args);
-static void shell_time_cmd(const char* args);
-static void shell_reboot_cmd(const char* args);
-static void shell_history_cmd(const char* args);
-static void shell_ls(const char* args);
-static void shell_cat(const char* args);
-static void shell_sync(const char* args);
-static void shell_cachestats(const char* args);
-static void shell_lsdisk(const char* args);
-static void shell_catdisk(const char* args);
-static void shell_memdump(const char* args);
-static void shell_memstats(const char* args);
-static void shell_memleak(const char* args);
-static void shell_memcheck(const char* args);
-static void shell_stacktrace(const char* args);
-static void shell_registers(const char* args);
-static void shell_sysinfo(const char* args);
-static void shell_loglevel(const char* args);
-static void shell_logdump(const char* args);
-static void shell_crashtest(const char* args);
-static void shell_ed(const char* args);
-static void shell_ps(const char* args);
-static void shell_kill_cmd(const char* args);
-static void shell_spawn(const char* args);
-static void shell_yield_cmd(const char* args);
 static void shell_cupid(const char* args);
-static void shell_cd(const char* args);
-static void shell_pwd(const char* args);
-static void shell_vls(const char* args);
-static void shell_vcat(const char* args);
-static void shell_vmount(const char* args);
-static void shell_vstat(const char* args);
-static void shell_vmkdir(const char* args);
-static void shell_vrm(const char* args);
-static void shell_vwrite(const char* args);
 static void shell_exec_cmd(const char* args);
 static void shell_notepad_cmd(const char* args);
 static void shell_terminal_cmd(const char* args);
-static void shell_setcolor_cmd(const char* args);
-static void shell_resetcolor_cmd(const char* args);
-static void shell_printc_cmd(const char* args);
 static void shell_cupidfetch(const char* args);
-static void shell_date(const char* args);
 static void shell_cupidc_cmd(const char* args);
 static void shell_ccc_cmd(const char* args);
 
 // List of supported commands
 static struct shell_command commands[] = {
-    {"help", "Show available commands", shell_help},
-    {"clear", "Clear the screen", shell_clear},
-    {"echo", "Echo text back", shell_echo},
-    {"time", "Show system uptime", shell_time_cmd},
-    {"reboot", "Reboot the machine", shell_reboot_cmd},
-    {"history", "Show recent commands", shell_history_cmd},
-    {"cd", "Change directory", shell_cd},
-    {"pwd", "Print working directory", shell_pwd},
-    {"ls", "List files in current directory", shell_ls},
-    {"cat", "Show file contents", shell_cat},
-    {"sync", "Flush disk cache to disk", shell_sync},
-    {"cachestats", "Show cache statistics", shell_cachestats},
-    {"lsdisk", "List files on disk", shell_lsdisk},
-    {"catdisk", "Show file from disk", shell_catdisk},
-    {"memdump", "Dump memory region (hex addr len)", shell_memdump},
-    {"memstats", "Show memory statistics", shell_memstats},
-    {"memleak", "Detect memory leaks", shell_memleak},
-    {"memcheck", "Check heap integrity", shell_memcheck},
-    {"stacktrace", "Show call stack", shell_stacktrace},
-    {"registers", "Dump CPU registers", shell_registers},
-    {"sysinfo", "Show system information", shell_sysinfo},
-    {"loglevel", "Set serial log level", shell_loglevel},
-    {"logdump", "Show recent log entries", shell_logdump},
-    {"crashtest", "Test crash handling", shell_crashtest},
-    {"ed", "Ed line editor", shell_ed},
     {"cupid", "Run a CupidScript (.cup) file", shell_cupid},
-    {"ps", "List all processes", shell_ps},
-    {"kill", "Kill a process by PID", shell_kill_cmd},
-    {"spawn", "Spawn test processes", shell_spawn},
-    {"yield", "Yield CPU to next process", shell_yield_cmd},
-    {"vls", "List files/dirs (VFS path)", shell_vls},
-    {"vcat", "Show file contents (VFS path)", shell_vcat},
-    {"mount", "Show mounted filesystems", shell_vmount},
-    {"vstat", "Show file/dir info (VFS path)", shell_vstat},
-    {"vmkdir", "Create directory (VFS path)", shell_vmkdir},
-    {"vrm", "Delete file (VFS path)", shell_vrm},
-    {"vwrite", "Write text to file (VFS path)", shell_vwrite},
     {"exec", "Run a binary (ELF or CUPD)", shell_exec_cmd},
     {"notepad", "Open Notepad", shell_notepad_cmd},
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
-    {"setcolor", "Set terminal color (fg [bg])", shell_setcolor_cmd},
-    {"resetcolor", "Reset terminal colors", shell_resetcolor_cmd},
-    {"printc", "Print colored text (fg text)", shell_printc_cmd},
-    {"date", "Show current date and time", shell_date},
     {"cupidfetch", "Show system info with ASCII art", shell_cupidfetch},
     {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
@@ -590,11 +537,20 @@ static const char* history_get_from_newest(int offset) {
         return NULL;
     }
 
+
     int idx = history_next - 1 - offset;
     while (idx < 0) {
         idx += HISTORY_SIZE;
     }
     return history[idx];
+}
+
+int shell_get_history_count(void) {
+    return history_count;
+}
+
+const char *shell_get_history_entry(int index) {
+    return history_get_from_newest(index);
 }
 
 static void replace_input(const char* new_text, char* input, int* pos) {
@@ -647,12 +603,8 @@ static void tab_complete(char* input, int* pos) {
         /* Only complete filenames for commands that take paths */
         bool wants_file =
             strcmp(cmd, "cat") == 0   || strcmp(cmd, "cd") == 0    ||
-            strcmp(cmd, "ls") == 0    || strcmp(cmd, "vls") == 0   ||
-            strcmp(cmd, "vcat") == 0  || strcmp(cmd, "vstat") == 0 ||
-            strcmp(cmd, "vmkdir") == 0|| strcmp(cmd, "vrm") == 0   ||
-            strcmp(cmd, "vwrite") == 0|| strcmp(cmd, "exec") == 0  ||
-            strcmp(cmd, "ed") == 0    || strcmp(cmd, "cupid") == 0 ||
-            strcmp(cmd, "catdisk") == 0;
+            strcmp(cmd, "ls") == 0    || strcmp(cmd, "exec") == 0  ||
+            strcmp(cmd, "ed") == 0    || strcmp(cmd, "cupid") == 0;
 
         if (!wants_file) return;
 
@@ -822,6 +774,7 @@ static void tab_complete(char* input, int* pos) {
 
     /* ────────────────────────────────────────────────────────────────────
      *  COMMAND NAME COMPLETION
+     *  Matches against both built-in commands[] AND /bin/ programs
      * ──────────────────────────────────────────────────────────────────── */
     size_t prefix_len = (size_t)(*pos);
     char prefix[MAX_INPUT_LEN + 1];
@@ -830,20 +783,69 @@ static void tab_complete(char* input, int* pos) {
     }
     prefix[prefix_len] = '\0';
 
-    const char* first_match_cmd = NULL;
+    /* Collect all matching names into a small table.
+     * 64 entries is plenty for our command set. */
+    #define TAB_MAX_MATCHES 64
+    #define TAB_MAX_NAME    64
+    static char tab_matches[TAB_MAX_MATCHES][TAB_MAX_NAME];
     int match_count = 0;
 
+    /* 1) Built-in commands */
     for (int i = 0; commands[i].name; i++) {
         if (shell_strncmp(commands[i].name, prefix, prefix_len) == 0) {
-            if (match_count == 0) {
-                first_match_cmd = commands[i].name;
+            if (match_count < TAB_MAX_MATCHES) {
+                int n = 0;
+                while (commands[i].name[n] && n < TAB_MAX_NAME - 1) {
+                    tab_matches[match_count][n] = commands[i].name[n];
+                    n++;
+                }
+                tab_matches[match_count][n] = '\0';
+                match_count++;
             }
-            match_count++;
         }
     }
 
-    if (match_count == 1 && first_match_cmd) {
-        const char* completion = first_match_cmd + prefix_len;
+    /* 2) Programs in /bin/ — scan for .cc files and strip extension */
+    {
+        int bin_fd = vfs_open("/bin", O_RDONLY);
+        if (bin_fd >= 0) {
+            vfs_dirent_t ent;
+            while (vfs_readdir(bin_fd, &ent) > 0 && match_count < TAB_MAX_MATCHES) {
+                /* Only match .cc files */
+                if (!shell_ends_with(ent.name, ".cc")) continue;
+
+                /* Compute name without .cc extension */
+                int nlen = 0;
+                while (ent.name[nlen]) nlen++;
+                int base_len = nlen - 3; /* strip ".cc" */
+                if (base_len <= 0 || base_len >= TAB_MAX_NAME) continue;
+
+                char base_name[TAB_MAX_NAME];
+                for (int b = 0; b < base_len; b++)
+                    base_name[b] = ent.name[b];
+                base_name[base_len] = '\0';
+
+                /* Check prefix match */
+                if (shell_strncmp(base_name, prefix, prefix_len) != 0) continue;
+
+                /* Avoid duplicates (if a built-in has the same name) */
+                bool dup = false;
+                for (int m = 0; m < match_count; m++) {
+                    if (strcmp(tab_matches[m], base_name) == 0) { dup = true; break; }
+                }
+                if (dup) continue;
+
+                for (int b = 0; b < base_len; b++)
+                    tab_matches[match_count][b] = base_name[b];
+                tab_matches[match_count][base_len] = '\0';
+                match_count++;
+            }
+            vfs_close(bin_fd);
+        }
+    }
+
+    if (match_count == 1) {
+        const char *completion = tab_matches[0] + prefix_len;
         while (*completion && *pos < MAX_INPUT_LEN) {
             input[*pos] = *completion;
             shell_putchar(*completion);
@@ -857,32 +859,24 @@ static void tab_complete(char* input, int* pos) {
             (*pos)++;
         }
     } else if (match_count > 1) {
-        /* Compute longest common prefix among matching commands */
-        const char *common_cmd = NULL;
-        int common_cmd_len = 0;
-        for (int i = 0; commands[i].name; i++) {
-            if (shell_strncmp(commands[i].name, prefix, prefix_len) != 0)
-                continue;
-            if (!common_cmd) {
-                common_cmd = commands[i].name;
-                common_cmd_len = 0;
-                while (common_cmd[common_cmd_len]) common_cmd_len++;
-            } else {
-                int n = 0;
-                while (n < common_cmd_len &&
-                       commands[i].name[n] &&
-                       common_cmd[n] == commands[i].name[n])
-                    n++;
-                common_cmd_len = n;
-            }
+        /* Compute longest common prefix among all matches */
+        int common_len = TAB_MAX_NAME;
+        for (int m = 1; m < match_count; m++) {
+            int n = 0;
+            while (n < common_len &&
+                   tab_matches[0][n] &&
+                   tab_matches[m][n] &&
+                   tab_matches[0][n] == tab_matches[m][n])
+                n++;
+            common_len = n;
         }
 
         /* Append common prefix beyond what's typed */
-        if (common_cmd && common_cmd_len > (int)prefix_len) {
+        if (common_len > (int)prefix_len) {
             for (int ci = (int)prefix_len;
-                 ci < common_cmd_len && *pos < MAX_INPUT_LEN; ci++) {
-                input[*pos] = common_cmd[ci];
-                shell_putchar(common_cmd[ci]);
+                 ci < common_len && *pos < MAX_INPUT_LEN; ci++) {
+                input[*pos] = tab_matches[0][ci];
+                shell_putchar(tab_matches[0][ci]);
                 (*pos)++;
             }
             return;
@@ -890,11 +884,9 @@ static void tab_complete(char* input, int* pos) {
 
         /* List all matching commands */
         shell_print("\n");
-        for (int i = 0; commands[i].name; i++) {
-            if (shell_strncmp(commands[i].name, prefix, prefix_len) == 0) {
-                shell_print(commands[i].name);
-                shell_print("  ");
-            }
+        for (int m = 0; m < match_count; m++) {
+            shell_print(tab_matches[m]);
+            shell_print("  ");
         }
         REDRAW_PROMPT();
     }
@@ -902,509 +894,7 @@ static void tab_complete(char* input, int* pos) {
     #undef REDRAW_PROMPT
 }
 
-// Echo command implementation
-static void shell_echo(const char* args) {
-    if (args) {
-        shell_print(args);
-    }
-    shell_print("\n");  // Ensure we always print a newline
-}
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Color commands – emit ANSI escape sequences through the shell output
- * ══════════════════════════════════════════════════════════════════════ */
-static int shell_parse_int(const char *s) {
-    int n = 0;
-    int neg = 0;
-    if (*s == '-') { neg = 1; s++; }
-    while (*s >= '0' && *s <= '9') {
-        n = n * 10 + (*s - '0');
-        s++;
-    }
-    return neg ? -n : n;
-}
-
-static void shell_setcolor_cmd(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: setcolor <fg 0-15> [bg 0-7]\n");
-        return;
-    }
-
-    /* Parse fg */
-    const char *p = args;
-    while (*p == ' ') p++;
-    int fg = shell_parse_int(p);
-
-    /* Skip past fg number */
-    while (*p && *p != ' ') p++;
-    while (*p == ' ') p++;
-
-    int bg = -1;
-    if (*p) {
-        bg = shell_parse_int(p);
-    }
-
-    /* Build ANSI escape sequence */
-    char buf[32];
-    int i = 0;
-    buf[i++] = '\x1B';
-    buf[i++] = '[';
-    if (fg >= 8) {
-        buf[i++] = '9';
-        buf[i++] = (char)('0' + (fg - 8));
-    } else {
-        buf[i++] = '3';
-        buf[i++] = (char)('0' + fg);
-    }
-    if (bg >= 0) {
-        buf[i++] = ';';
-        buf[i++] = '4';
-        buf[i++] = (char)('0' + (bg & 7));
-    }
-    buf[i++] = 'm';
-    buf[i] = '\0';
-
-    shell_print(buf);
-}
-
-static void shell_resetcolor_cmd(const char* args) {
-    (void)args;
-    shell_print("\x1B[0m");
-}
-
-static void shell_printc_cmd(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: printc <fg 0-15> <text>\n");
-        return;
-    }
-
-    /* Parse fg color */
-    const char *p = args;
-    while (*p == ' ') p++;
-    int color = shell_parse_int(p);
-
-    /* Skip past color number to get text */
-    while (*p && *p != ' ') p++;
-    while (*p == ' ') p++;
-
-    if (*p == '\0') {
-        shell_print("Usage: printc <fg 0-15> <text>\n");
-        return;
-    }
-
-    /* Emit color */
-    char ansi_buf[16];
-    int i = 0;
-    ansi_buf[i++] = '\x1B';
-    ansi_buf[i++] = '[';
-    if (color >= 8) {
-        ansi_buf[i++] = '9';
-        ansi_buf[i++] = (char)('0' + (color - 8));
-    } else {
-        ansi_buf[i++] = '3';
-        ansi_buf[i++] = (char)('0' + color);
-    }
-    ansi_buf[i++] = 'm';
-    ansi_buf[i] = '\0';
-    shell_print(ansi_buf);
-
-    /* Print text */
-    shell_print(p);
-    shell_print("\n");
-
-    /* Reset */
-    shell_print("\x1B[0m");
-}
-
-static void shell_help(const char* args) {
-    (void)args;
-    shell_print("Built-in commands:\n");
-    for (int i = 0; commands[i].name; i++) {
-        shell_print("  ");
-        shell_print(commands[i].name);
-        shell_print(" - ");
-        shell_print(commands[i].description);
-        shell_print("\n");
-    }
-
-    /* Auto-discover programs in /bin/ */
-    int bin_fd = vfs_open("/bin", O_RDONLY);
-    if (bin_fd >= 0) {
-        vfs_dirent_t ent;
-        int found = 0;
-        while (vfs_readdir(bin_fd, &ent) > 0) {
-            /* Skip entries that match a built-in command name */
-            int is_builtin = 0;
-            for (int j = 0; commands[j].name; j++) {
-                if (strcmp(ent.name, commands[j].name) == 0) {
-                    is_builtin = 1;
-                    break;
-                }
-            }
-            if (!is_builtin && ent.type == VFS_TYPE_FILE) {
-                if (!found) {
-                    shell_print("\nInstalled programs (/bin):\n");
-                    found = 1;
-                }
-                shell_print("  ");
-                shell_print(ent.name);
-                shell_print("\n");
-            }
-        }
-        vfs_close(bin_fd);
-    }
-
-    /* Auto-discover CupidC source programs in /home/bin/ */
-    int hbin_fd = vfs_open("/home/bin", O_RDONLY);
-    if (hbin_fd >= 0) {
-        vfs_dirent_t ent;
-        int found = 0;
-        while (vfs_readdir(hbin_fd, &ent) > 0) {
-            if (ent.type == VFS_TYPE_FILE) {
-                if (!found) {
-                    shell_print("\nCupidC programs (/home/bin):\n");
-                    found = 1;
-                }
-                shell_print("  ");
-                shell_print(ent.name);
-                shell_print("\n");
-            }
-        }
-        vfs_close(hbin_fd);
-    }
-}
-
-static void shell_clear(const char* args) {
-    (void)args;
-    if (output_mode == SHELL_OUTPUT_GUI) {
-        /* Clear GUI buffer and color buffer */
-        memset(gui_buffer, 0, sizeof(gui_buffer));
-        for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
-            gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
-            gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
-        }
-        gui_cursor_x = 0;
-        gui_cursor_y = 0;
-        /* Reset ANSI color state so subsequent output uses defaults */
-        ansi_reset(&shell_ansi_state);
-    } else {
-        clear_screen();
-    }
-}
-
-static void shell_time_cmd(const char* args) {
-    (void)args;
-    uint32_t ms = timer_get_uptime_ms();
-    uint32_t seconds = ms / 1000;
-    uint32_t remainder = ms % 1000;
-
-    shell_print("Uptime: ");
-    shell_print_int(seconds);
-    shell_putchar('.');
-    // Print zero-padded remainder as fractional seconds
-    shell_putchar((char)('0' + (remainder / 100)));
-    shell_putchar((char)('0' + ((remainder / 10) % 10)));
-    shell_putchar((char)('0' + (remainder % 10)));
-    shell_print("s (");
-    shell_print_int(ms);
-    shell_print(" ms)\n");
-}
-
-static void shell_reboot_cmd(const char* args) {
-    (void)args;
-    shell_print("Rebooting...\n");
-    __asm__ volatile("cli");
-    while (inb(0x64) & 0x02) {
-        // Wait for controller ready
-    }
-    outb(0x64, 0xFE);
-    while (1) {
-        __asm__ volatile("hlt");
-    }
-}
-
-static void shell_history_cmd(const char* args) {
-    (void)args;
-    if (history_count == 0) {
-        shell_print("No history yet.\n");
-        return;
-    }
-
-    int start = history_count - 1;
-    for (int i = start; i >= 0; i--) {
-        const char* entry = history_get_from_newest(start - i);
-        shell_print_int((uint32_t)(history_count - i));
-        shell_print(": ");
-        shell_print(entry ? entry : "");
-        shell_print("\n");
-    }
-}
-
-static void shell_ls(const char* args) {
-    char path[VFS_MAX_PATH];
-    shell_resolve_path(args, path);
-
-    int fd = vfs_open(path, O_RDONLY);
-    if (fd < 0) {
-        shell_print("ls: cannot open ");
-        shell_print(path);
-        shell_print("\n");
-        return;
-    }
-
-    vfs_dirent_t ent;
-    int count = 0;
-    while (vfs_readdir(fd, &ent) > 0) {
-        if (ent.type == VFS_TYPE_DIR) {
-            shell_print("[DIR]  ");
-        } else if (ent.type == VFS_TYPE_DEV) {
-            shell_print("[DEV]  ");
-        } else {
-            shell_print("       ");
-        }
-        shell_print(ent.name);
-        if (ent.type == VFS_TYPE_FILE) {
-            shell_print("  ");
-            shell_print_int(ent.size);
-            shell_print(" bytes");
-        }
-        shell_print("\n");
-        count++;
-    }
-
-    vfs_close(fd);
-
-    if (count == 0) {
-        shell_print("(empty directory)\n");
-    }
-}
-
-static void shell_cat(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: cat <filename>\n");
-        return;
-    }
-
-    char path[VFS_MAX_PATH];
-    shell_resolve_path(args, path);
-
-    int fd = vfs_open(path, O_RDONLY);
-    if (fd < 0) {
-        shell_print("cat: file not found: ");
-        shell_print(args);
-        shell_print("\n");
-        return;
-    }
-
-    char buf[256];
-    int r;
-    uint32_t total = 0;
-    while ((r = vfs_read(fd, buf, sizeof(buf))) > 0) {
-        for (int i = 0; i < r; i++) {
-            shell_putchar(buf[i]);
-        }
-        total += (uint32_t)r;
-        if (total > 65536u) {
-            shell_print("\n[cat: output truncated at 64KB]\n");
-            break;
-        }
-    }
-    shell_print("\n");
-    vfs_close(fd);
-}
-
-static void shell_sync(const char* args) {
-    (void)args;
-    blockcache_sync();
-    shell_print("Cache flushed to disk\n");
-}
-
-static void shell_cachestats(const char* args) {
-    (void)args;
-    blockcache_stats();
-}
-
-static void shell_lsdisk(const char* args) {
-    (void)args;
-    fat16_list_root();
-}
-
-static void shell_catdisk(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: catdisk <filename>\n");
-        return;
-    }
-
-    fat16_file_t* file = fat16_open(args);
-    if (!file) {
-        shell_print("File not found: ");
-        shell_print(args);
-        shell_print("\n");
-        return;
-    }
-
-    char buffer[512];
-    int bytes_read;
-    while ((bytes_read = fat16_read(file, buffer, sizeof(buffer))) > 0) {
-        for (int i = 0; i < bytes_read; i++) {
-            shell_putchar(buffer[i]);
-        }
-    }
-
-    fat16_close(file);
-    shell_print("\n");
-}
-
-/* ══════════════════════════════════════════════════════════════════════
- *  Debugging & Memory Safety Shell Commands
- * ══════════════════════════════════════════════════════════════════════ */
-
-/* ── simple hex-string-to-uint32 parser ──────────────────────────── */
-static uint32_t parse_hex(const char* s) {
-    uint32_t val = 0;
-    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
-    while (*s) {
-        char c = *s;
-        uint32_t d;
-        if (c >= '0' && c <= '9') d = (uint32_t)(c - '0');
-        else if (c >= 'a' && c <= 'f') d = (uint32_t)(c - 'a') + 10;
-        else if (c >= 'A' && c <= 'F') d = (uint32_t)(c - 'A') + 10;
-        else break;
-        val = (val << 4) | d;
-        s++;
-    }
-    return val;
-}
-
-static uint32_t parse_dec(const char* s) {
-    uint32_t val = 0;
-    while (*s >= '0' && *s <= '9') {
-        val = val * 10 + (uint32_t)(*s - '0');
-        s++;
-    }
-    return val;
-}
-
-/* skip whitespace, return pointer to next token */
-static const char* skip_ws(const char* s) {
-    while (*s == ' ') s++;
-    return s;
-}
-
-/* skip non-whitespace */
-static const char* skip_nws(const char* s) {
-    while (*s && *s != ' ') s++;
-    return s;
-}
-
-/* ── memdump <addr> <len> ── */
-static void shell_memdump(const char* args) {
-    if (!args || !args[0]) {
-        shell_print("Usage: memdump <hex_addr> <length>\n");
-        return;
-    }
-    const char* p = skip_ws(args);
-    uint32_t addr = parse_hex(p);
-    p = skip_ws(skip_nws(p));
-    uint32_t len = 64;
-    if (*p) len = parse_dec(p);
-    if (len > 512) len = 512;
-
-    for (uint32_t i = 0; i < len; i += 16) {
-        print_hex(addr + i);
-        shell_print(": ");
-        for (uint32_t j = 0; j < 16 && (i + j) < len; j++) {
-            print_hex_byte(*((uint8_t*)(addr + i + j)));
-            shell_putchar(' ');
-        }
-        shell_print(" ");
-        for (uint32_t j = 0; j < 16 && (i + j) < len; j++) {
-            uint8_t b = *((uint8_t*)(addr + i + j));
-            shell_putchar((b >= 0x20 && b < 0x7F) ? (char)b : '.');
-        }
-        shell_print("\n");
-    }
-}
-
-/* ── memstats ── */
-static void shell_memstats(const char* args) {
-    (void)args;
-    print_memory_stats();
-}
-
-/* ── memleak [threshold_sec] ── */
-static void shell_memleak(const char* args) {
-    uint32_t threshold = 60000; /* default 60s */
-    if (args && args[0]) {
-        threshold = parse_dec(args) * 1000;
-        if (threshold == 0) threshold = 60000;
-    }
-    detect_memory_leaks(threshold);
-}
-
-/* ── memcheck ── */
-static void shell_memcheck(const char* args) {
-    (void)args;
-    shell_print("Checking heap integrity...\n");
-    heap_check_integrity();
-    shell_print("Heap integrity OK\n");
-}
-
-/* ── stacktrace ── */
-static void shell_stacktrace(const char* args) {
-    (void)args;
-    uint32_t ebp, eip;
-    __asm__ volatile("movl %%ebp, %0" : "=r"(ebp));
-    __asm__ volatile("call 1f\n1: popl %0" : "=r"(eip));
-    print_stack_trace(ebp, eip);
-}
-
-/* ── registers ── */
-static void shell_registers(const char* args) {
-    (void)args;
-    uint32_t eax_v, ebx_v, ecx_v, edx_v, esi_v, edi_v, ebp_v, esp_v, eflags_v;
-    __asm__ volatile("movl %%eax, %0" : "=r"(eax_v));
-    __asm__ volatile("movl %%ebx, %0" : "=r"(ebx_v));
-    __asm__ volatile("movl %%ecx, %0" : "=r"(ecx_v));
-    __asm__ volatile("movl %%edx, %0" : "=r"(edx_v));
-    __asm__ volatile("movl %%esi, %0" : "=r"(esi_v));
-    __asm__ volatile("movl %%edi, %0" : "=r"(edi_v));
-    __asm__ volatile("movl %%ebp, %0" : "=r"(ebp_v));
-    __asm__ volatile("movl %%esp, %0" : "=r"(esp_v));
-    __asm__ volatile("pushfl; popl %0" : "=r"(eflags_v));
-
-    shell_print("CPU Registers:\n");
-    shell_print("  EAX: "); print_hex(eax_v);
-    shell_print("  EBX: "); print_hex(ebx_v);
-    shell_print("  ECX: "); print_hex(ecx_v);
-    shell_print("  EDX: "); print_hex(edx_v);
-    shell_print("\n");
-    shell_print("  ESI: "); print_hex(esi_v);
-    shell_print("  EDI: "); print_hex(edi_v);
-    shell_print("  EBP: "); print_hex(ebp_v);
-    shell_print("  ESP: "); print_hex(esp_v);
-    shell_print("\n");
-    shell_print("  EFLAGS: "); print_hex(eflags_v); print("\n");
-}
-
-/* ── sysinfo ── */
-static void shell_sysinfo(const char* args) {
-    (void)args;
-    uint32_t ms = timer_get_uptime_ms();
-    shell_print("System Information:\n");
-    shell_print("  Uptime: "); shell_print_int(ms / 1000); shell_putchar('.');
-    shell_print_int(ms % 1000); shell_print("s\n");
-    shell_print("  CPU Freq: "); shell_print_int((uint32_t)(get_cpu_freq() / 1000000));
-    shell_print(" MHz\n");
-    shell_print("  Timer Freq: "); shell_print_int(timer_get_frequency()); shell_print(" Hz\n");
-
-    uint32_t free_pg  = pmm_free_pages();
-    uint32_t total_pg = pmm_total_pages();
-    shell_print("  Memory: "); shell_print_int(free_pg * 4); shell_print(" KB free / ");
-    shell_print_int(total_pg * 4); shell_print(" KB total\n");
-
-    print_memory_stats();
-}
 
 /* Helper: write a decimal number into buf, return chars written */
 static int cf_itoa(uint32_t val, char *buf, int bufsize) {
@@ -1420,49 +910,6 @@ static int cf_itoa(uint32_t val, char *buf, int bufsize) {
     while (i > 0 && j < bufsize - 1) buf[j++] = tmp[--i];
     buf[j] = '\0';
     return j;
-}
-
-/* ══════════════════════════════════════════════════════════════════════
- *  date — show current date and time from the RTC
- * ══════════════════════════════════════════════════════════════════════ */
-static void shell_date(const char* args) {
-    rtc_date_t date;
-    rtc_time_t time;
-    rtc_read_date(&date);
-    rtc_read_time(&time);
-
-    if (args && args[0]) {
-        /* date +epoch  — print seconds since Unix epoch */
-        if (strcmp(args, "+epoch") == 0) {
-            char ebuf[16];
-            cf_itoa(rtc_get_epoch_seconds(), ebuf, 16);
-            shell_print(ebuf);
-            shell_putchar('\n');
-            return;
-        }
-        /* date +short  — "Feb 6, 2026  6:32 PM" */
-        if (strcmp(args, "+short") == 0) {
-            char dbuf[20];
-            char tbuf[20];
-            format_date_short(&date, dbuf, 20);
-            format_time_12hr(&time, tbuf, 20);
-            shell_print(dbuf);
-            shell_print("  ");
-            shell_print(tbuf);
-            shell_putchar('\n');
-            return;
-        }
-    }
-
-    /* Default: full date and time */
-    char datebuf[48];
-    char timebuf[20];
-    format_date_full(&date, datebuf, 48);
-    format_time_12hr_sec(&time, timebuf, 20);
-    shell_print(datebuf);
-    shell_print("  ");
-    shell_print(timebuf);
-    shell_putchar('\n');
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1640,168 +1087,6 @@ static void shell_cupidfetch(const char* args) {
     shell_putchar('\n');
 }
 
-/* ── loglevel [debug|info|warn|error|panic] ── */
-static void shell_loglevel(const char* args) {
-    if (!args || !args[0]) {
-        shell_print("Current log level: ");
-        shell_print(get_log_level_name());
-        shell_print("\nUsage: loglevel <debug|info|warn|error|panic>\n");
-        return;
-    }
-    if (strcmp(args, "debug") == 0)      set_log_level(LOG_DEBUG);
-    else if (strcmp(args, "info") == 0)  set_log_level(LOG_INFO);
-    else if (strcmp(args, "warn") == 0)  set_log_level(LOG_WARN);
-    else if (strcmp(args, "error") == 0) set_log_level(LOG_ERROR);
-    else if (strcmp(args, "panic") == 0) set_log_level(LOG_PANIC);
-    else {
-        shell_print("Unknown level: ");
-        shell_print(args);
-        shell_print("\n");
-        return;
-    }
-    shell_print("Log level set to ");
-    shell_print(get_log_level_name());
-    shell_print("\n");
-    KINFO("Log level changed to %s", get_log_level_name());
-}
-
-/* ── logdump ── */
-static void shell_logdump(const char* args) {
-    (void)args;
-    shell_print("=== Recent Log Entries ===\n");
-    print_log_buffer();
-}
-
-/* ── crashtest <type> ── */
-static void shell_crashtest(const char* args) {
-    if (!args || !args[0]) {
-        shell_print("Usage: crashtest <type>\n");
-        shell_print("  Types: panic, nullptr, divzero, assert, overflow, stackoverflow\n");
-        return;
-    }
-    if (strcmp(args, "panic") == 0) {
-        kernel_panic("Test panic from shell");
-    } else if (strcmp(args, "nullptr") == 0) {
-        shell_print("Dereferencing NULL pointer...\n");
-        volatile int* p = (volatile int*)0;
-        (void)*p;
-    } else if (strcmp(args, "divzero") == 0) {
-        shell_print("Dividing by zero...\n");
-        volatile int a = 1;
-        volatile int b = 0;
-        volatile int c = a / b;
-        (void)c;
-    } else if (strcmp(args, "assert") == 0) {
-        ASSERT_MSG(1 == 2, "deliberate assertion failure from crashtest");
-    } else if (strcmp(args, "overflow") == 0) {
-        shell_print("Allocating and overflowing buffer...\n");
-        char* buf = kmalloc(16);
-        if (buf) {
-            memset(buf, 'A', 32);   /* overflow by 16 bytes */
-            kfree(buf);             /* should detect destroyed canary */
-        }
-    } else if (strcmp(args, "stackoverflow") == 0) {
-        shell_print("Triggering stack overflow...\n");
-        volatile char big[65536];
-        big[0] = 'x';
-        big[65535] = 'y';
-        (void)big;
-    } else {
-        shell_print("Unknown crash test: ");
-        shell_print(args);
-        shell_print("\n");
-    }
-}
-
-/* ── ed line editor ── */
-static void shell_ed(const char* args) {
-    ed_run(args);
-}
-
-/* ══════════════════════════════════════════════════════════════════════
- *  Process management shell commands
- * ══════════════════════════════════════════════════════════════════════ */
-
-/* ps - list all processes */
-static void shell_ps(const char* args) {
-    (void)args;
-    process_list();
-}
-
-/* kill <pid> - terminate a process */
-static void shell_kill_cmd(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: kill <pid>\n");
-        return;
-    }
-
-    /* Parse PID from args */
-    uint32_t pid = 0;
-    const char *p = args;
-    while (*p >= '0' && *p <= '9') {
-        pid = pid * 10 + (uint32_t)(*p - '0');
-        p++;
-    }
-
-    if (pid == 0) {
-        shell_print("Invalid PID\n");
-        return;
-    }
-    if (pid == 1) {
-        shell_print("Cannot kill idle process (PID 1)\n");
-        return;
-    }
-
-    shell_print("Killing PID ");
-    shell_print_int(pid);
-    shell_print("...\n");
-    process_kill(pid);
-}
-
-/* ── Test process for spawn command ── */
-static void test_counting_process(void) {
-    uint32_t pid = process_get_current_pid();
-    for (int i = 0; i < 10; i++) {
-        serial_printf("[PROCESS] PID %u count %d\n", pid, i);
-        process_yield();
-    }
-    /* process_exit called automatically via trampoline */
-}
-
-/* spawn [n] - create test processes (default 1) */
-static void shell_spawn(const char* args) {
-    uint32_t count = 1;
-
-    if (args && args[0] >= '1' && args[0] <= '9') {
-        count = 0;
-        const char *p = args;
-        while (*p >= '0' && *p <= '9') {
-            count = count * 10 + (uint32_t)(*p - '0');
-            p++;
-        }
-    }
-
-    if (count > 16) count = 16;
-
-    for (uint32_t i = 0; i < count; i++) {
-        uint32_t pid = process_create(test_counting_process, "test", DEFAULT_STACK_SIZE);
-        if (pid == 0) {
-            shell_print("Failed to create process\n");
-            break;
-        }
-        shell_print("Spawned PID ");
-        shell_print_int(pid);
-        shell_print("\n");
-    }
-}
-
-/* yield - voluntarily give up CPU */
-static void shell_yield_cmd(const char* args) {
-    (void)args;
-    shell_print("Yielding CPU...\n");
-    process_yield();
-}
-
 /* ── cupid command: run a CupidScript file ── */
 static void shell_cupid(const char* args) {
     if (!args || args[0] == '\0') {
@@ -1834,240 +1119,6 @@ static void shell_cupid(const char* args) {
     cupidscript_run_file(filename, script_args);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS Shell Commands
- * ══════════════════════════════════════════════════════════════════════ */
-
-static void shell_cd(const char* args) {
-    char path[VFS_MAX_PATH];
-    shell_resolve_path(args, path);
-
-    /* Verify the target is a directory */
-    vfs_stat_t st;
-    int r = vfs_stat(path, &st);
-    if (r < 0) {
-        shell_print("cd: no such directory: ");
-        shell_print(args ? args : "");
-        shell_print("\n");
-        return;
-    }
-    if (st.type != VFS_TYPE_DIR) {
-        shell_print("cd: not a directory: ");
-        shell_print(args ? args : "");
-        shell_print("\n");
-        return;
-    }
-
-    /* Update CWD */
-    int i = 0;
-    while (path[i] && i < VFS_MAX_PATH - 1) {
-        shell_cwd[i] = path[i];
-        i++;
-    }
-    shell_cwd[i] = '\0';
-}
-
-static void shell_pwd(const char* args) {
-    (void)args;
-    shell_print(shell_cwd);
-    shell_print("\n");
-}
-
-static void shell_vls(const char* args) {
-    char path[VFS_MAX_PATH];
-    shell_resolve_path(args, path);
-
-    int fd = vfs_open(path, O_RDONLY);
-    if (fd < 0) {
-        shell_print("vls: cannot open ");
-        shell_print(path);
-        shell_print("\n");
-        return;
-    }
-
-    vfs_dirent_t ent;
-    int count = 0;
-    while (vfs_readdir(fd, &ent) > 0) {
-        if (ent.type == VFS_TYPE_DIR) {
-            shell_print("[DIR]  ");
-        } else if (ent.type == VFS_TYPE_DEV) {
-            shell_print("[DEV]  ");
-        } else {
-            shell_print("       ");
-        }
-        shell_print(ent.name);
-        if (ent.type == VFS_TYPE_FILE) {
-            shell_print("  ");
-            shell_print_int(ent.size);
-            shell_print(" bytes");
-        }
-        shell_print("\n");
-        count++;
-    }
-
-    vfs_close(fd);
-
-    if (count == 0) {
-        shell_print("(empty directory)\n");
-    }
-}
-
-static void shell_vcat(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: vcat <path>\n");
-        return;
-    }
-
-    char rpath[VFS_MAX_PATH];
-    shell_resolve_path(args, rpath);
-    int fd = vfs_open(rpath, O_RDONLY);
-    if (fd < 0) {
-        shell_print("vcat: cannot open ");
-        shell_print(args);
-        shell_print("\n");
-        return;
-    }
-
-    char buf[256];
-    int r;
-    uint32_t total = 0;
-    while ((r = vfs_read(fd, buf, sizeof(buf))) > 0) {
-        for (int i = 0; i < r; i++) {
-            shell_putchar(buf[i]);
-        }
-        total += (uint32_t)r;
-        if (total > 65536u) {
-            shell_print("\n[vcat: output truncated at 64KB]\n");
-            break;
-        }
-    }
-    shell_print("\n");
-    vfs_close(fd);
-}
-
-static void shell_vmount(const char* args) {
-    (void)args;
-    int count = vfs_mount_count();
-    if (count == 0) {
-        shell_print("No filesystems mounted.\n");
-        return;
-    }
-    for (int i = 0; i < count; i++) {
-        const vfs_mount_t *m = vfs_get_mount(i);
-        if (m && m->mounted) {
-            shell_print(m->ops->name);
-            shell_print(" on ");
-            shell_print(m->path);
-            shell_print("\n");
-        }
-    }
-}
-
-static void shell_vstat(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: vstat <path>\n");
-        return;
-    }
-
-    char rpath[VFS_MAX_PATH];
-    shell_resolve_path(args, rpath);
-    vfs_stat_t st;
-    int r = vfs_stat(rpath, &st);
-    if (r < 0) {
-        shell_print("vstat: not found: ");
-        shell_print(args);
-        shell_print("\n");
-        return;
-    }
-
-    shell_print("Path: ");
-    shell_print(args);
-    shell_print("\nType: ");
-    if (st.type == VFS_TYPE_DIR) shell_print("directory");
-    else if (st.type == VFS_TYPE_DEV) shell_print("device");
-    else shell_print("file");
-    shell_print("\nSize: ");
-    shell_print_int(st.size);
-    shell_print(" bytes\n");
-}
-
-static void shell_vmkdir(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: vmkdir <path>\n");
-        return;
-    }
-
-    char rpath[VFS_MAX_PATH];
-    shell_resolve_path(args, rpath);
-    int r = vfs_mkdir(rpath);
-    if (r < 0) {
-        shell_print("vmkdir: failed to create ");
-        shell_print(args);
-        shell_print("\n");
-    }
-}
-
-static void shell_vrm(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: vrm <path>\n");
-        return;
-    }
-
-    char rpath[VFS_MAX_PATH];
-    shell_resolve_path(args, rpath);
-    int r = vfs_unlink(rpath);
-    if (r < 0) {
-        shell_print("vrm: failed to remove ");
-        shell_print(args);
-        shell_print("\n");
-    }
-}
-
-static void shell_vwrite(const char* args) {
-    if (!args || args[0] == '\0') {
-        shell_print("Usage: vwrite <path> <text>\n");
-        return;
-    }
-
-    /* Split path from content */
-    char rawpath[VFS_MAX_PATH];
-    int i = 0;
-    while (args[i] && args[i] != ' ' && i < VFS_MAX_PATH - 1) {
-        rawpath[i] = args[i];
-        i++;
-    }
-    rawpath[i] = '\0';
-
-    const char *text = "";
-    if (args[i] == ' ') {
-        text = &args[i + 1];
-    }
-
-    char path[VFS_MAX_PATH];
-    shell_resolve_path(rawpath, path);
-    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
-    if (fd < 0) {
-        shell_print("vwrite: cannot open ");
-        shell_print(path);
-        shell_print("\n");
-        return;
-    }
-
-    uint32_t len = (uint32_t)strlen(text);
-    int r = vfs_write(fd, text, len);
-    vfs_close(fd);
-
-    if (r < 0) {
-        shell_print("vwrite: write failed\n");
-    } else {
-        shell_print("Wrote ");
-        shell_print_int((uint32_t)r);
-        shell_print(" bytes to ");
-        shell_print(path);
-        shell_print("\n");
-    }
-}
-
 /* ── try_bin_dispatch: check if a resolved path is /bin/<app> and run it ──
  * Returns true if handled, false if not a /bin path. */
 static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
@@ -2083,8 +1134,6 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
         terminal_launch();
     } else if (strcmp(app, "notepad") == 0) {
         notepad_launch();
-    } else if (strcmp(app, "ed") == 0) {
-        shell_ed(extra_args);
     } else if (strcmp(app, "cupid") == 0) {
         shell_cupid(extra_args);
     } else if (strcmp(app, "shell") == 0) {
@@ -2097,7 +1146,13 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
                 return true;
             }
         }
-        /* Try as CUPD binary on disk */
+        /* Check if it's a .cc source file — JIT compile it */
+        if (shell_ends_with(resolved, ".cc")) {
+            shell_set_program_args(extra_args ? extra_args : "");
+            cupidc_jit(resolved);
+            return true;
+        }
+        /* Try as CUPD/ELF binary */
         int r = exec(resolved, app);
         if (r >= 0) {
             shell_print("Started process PID ");
@@ -2114,21 +1169,43 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
 
 static void shell_exec_cmd(const char* args) {
     if (!args || args[0] == '\0') {
-        shell_print("Usage: exec <path>\n");
+        shell_print("Usage: exec <path> [args...]\n");
         return;
     }
 
+    /* Split first word (program path) from remaining arguments */
+    char prog[VFS_MAX_PATH];
+    int pi = 0;
+    int ai = 0;
+    while (args[ai] == ' ') ai++;  /* skip leading spaces */
+    while (args[ai] && args[ai] != ' ' && pi < VFS_MAX_PATH - 1) {
+        prog[pi++] = args[ai++];
+    }
+    prog[pi] = '\0';
+    while (args[ai] == ' ') ai++;  /* skip spaces before args */
+    const char *prog_args = &args[ai];  /* remaining args (may be empty) */
+
     char rpath[VFS_MAX_PATH];
-    shell_resolve_path(args, rpath);
-    serial_printf("[shell_exec_cmd] args='%s' rpath='%s'\n", args, rpath);
+    shell_resolve_path(prog, rpath);
+    serial_printf("[shell_exec_cmd] prog='%s' rpath='%s' args='%s'\n",
+                  prog, rpath, prog_args);
+
+    /* Set program arguments before dispatch */
+    shell_set_program_args(prog_args);
 
     /* Check for /bin/ built-in dispatch first */
-    if (try_bin_dispatch(rpath, NULL)) return;
+    if (try_bin_dispatch(rpath, prog_args)) return;
 
-    int r = exec(rpath, args);
+    /* Check if it's a .cc source file — JIT compile it */
+    if (shell_ends_with(rpath, ".cc")) {
+        cupidc_jit(rpath);
+        return;
+    }
+
+    int r = exec(rpath, prog);
     if (r < 0) {
         shell_print("exec: failed to load ");
-        shell_print(args);
+        shell_print(prog);
         shell_print("\n");
     } else {
         shell_print("Started process PID ");
@@ -2372,18 +1449,18 @@ static void execute_command(const char* input) {
             if (shell_ends_with(bin_path, ".cc")) {
                 shell_set_program_args(args ? args : "");
                 cupidc_jit(bin_path);
+                goto redir_done;
             } else {
                 shell_set_program_args(args ? args : "");
                 int r = exec(bin_path, cmd);
-                if (r < 0) {
-                    /* Not an ELF — might be a stub file, skip */
-                } else {
+                if (r >= 0) {
                     shell_print("Started process PID ");
                     shell_print_int((uint32_t)r);
                     shell_print("\n");
+                    goto redir_done;
                 }
+                /* Not an ELF — might be a stub file, continue to try .cc version */
             }
-            goto redir_done;
         }
 
         /* --- 2. /bin/<cmd>.cc (CupidC source in ramfs) --- */
@@ -2419,15 +1496,17 @@ static void execute_command(const char* input) {
             shell_set_program_args(args ? args : "");
             if (shell_ends_with(bin_path, ".cc")) {
                 cupidc_jit(bin_path);
+                goto redir_done;
             } else {
                 int r = exec(bin_path, cmd);
                 if (r >= 0) {
                     shell_print("Started process PID ");
                     shell_print_int((uint32_t)r);
                     shell_print("\n");
+                    goto redir_done;
                 }
+                /* Not a valid binary, continue to try .cc version */
             }
-            goto redir_done;
         }
 
         /* --- 4. /home/bin/<cmd>.cc (CupidC source on disk) --- */
@@ -2450,19 +1529,37 @@ static void execute_command(const char* input) {
         }
     }
 
-    /* Handle ./script.cup execution */
+    /* Handle ./program execution */
     if (cmd[0] == '.' && cmd[1] == '/') {
-        const char *script_path = cmd + 2;
-        if (shell_ends_with(script_path, ".cup")) {
-            shell_cupid(args ? input + 2 : script_path);
+        char run_path[VFS_MAX_PATH];
+        shell_resolve_path(cmd + 2, run_path);
+        shell_set_program_args(args ? args : "");
+
+        if (shell_ends_with(run_path, ".cup")) {
+            shell_cupid(args ? input + 2 : cmd + 2);
             goto redir_done;
         }
-        if (shell_ends_with(script_path, ".cc")) {
-            char cc_path[VFS_MAX_PATH];
-            shell_resolve_path(script_path, cc_path);
-            cupidc_jit(cc_path);
+        if (shell_ends_with(run_path, ".cc")) {
+            cupidc_jit(run_path);
             goto redir_done;
         }
+        /* Try as ELF/CUPD binary */
+        vfs_stat_t dot_st;
+        if (vfs_stat(run_path, &dot_st) >= 0 && dot_st.type == VFS_TYPE_FILE) {
+            int r = exec(run_path, cmd + 2);
+            if (r >= 0) {
+                shell_print("Started process PID ");
+                shell_print_int((uint32_t)r);
+                shell_print("\n");
+            } else {
+                shell_print(run_path);
+                shell_print(": exec failed\n");
+            }
+            goto redir_done;
+        }
+        shell_print(run_path);
+        shell_print(": not found\n");
+        goto redir_done;
     }
 
     /* Handle bare .cup files: script.cup → cupid script.cup */
@@ -2659,8 +1756,78 @@ static void gui_exec_command(const char *input) {
     execute_command(input);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  JIT Program Input Routing (GUI Mode)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+int shell_jit_program_is_running(void) {
+    return jit_program_running;
+}
+
+void shell_jit_program_input(char c) {
+
+    /* Check for Ctrl+C (ASCII 3) to interrupt program */
+    if (c == 3) {
+        jit_program_interrupted = 1;
+        return;
+    }
+
+    /* Add to circular buffer */
+    int next_write = (jit_input_write_pos + 1) % JIT_INPUT_BUFFER_SIZE;
+    if (next_write != jit_input_read_pos) {
+        jit_input_buffer[jit_input_write_pos] = c;
+        jit_input_write_pos = next_write;
+    } else {
+    }
+}
+
+char shell_jit_program_getchar(void) {
+
+    /* Wait for input (blocking with GUI updates) */
+    while (jit_input_read_pos == jit_input_write_pos && !jit_program_interrupted) {
+        /* Pump GUI to keep display responsive */
+        if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+            terminal_mark_dirty();
+            desktop_redraw_cycle();
+        }
+        __asm__ volatile("hlt");
+    }
+
+    /* Check if interrupted */
+    if (jit_program_interrupted) {
+        return 0;  /* Return null to signal interruption */
+    }
+
+    /* Read from buffer */
+    char c = jit_input_buffer[jit_input_read_pos];
+    jit_input_read_pos = (jit_input_read_pos + 1) % JIT_INPUT_BUFFER_SIZE;
+
+    return c;
+}
+
+void shell_jit_program_start(void) {
+    jit_program_running = 1;
+    jit_program_interrupted = 0;
+    jit_input_read_pos = 0;
+    jit_input_write_pos = 0;
+}
+
+void shell_jit_program_end(void) {
+    jit_program_running = 0;
+    jit_program_interrupted = 0;
+}
+
 void shell_gui_handle_key(uint8_t scancode, char character) {
     if (output_mode != SHELL_OUTPUT_GUI) return;
+
+    /* If a JIT program is running, route input to it instead of shell */
+    if (jit_program_running) {
+        /* Only route actual characters, not key releases or non-character keys */
+        if (character != 0) {
+            shell_jit_program_input(character);
+        }
+        return;
+    }
 
     /* History navigation */
     if (character == 0 && scancode == SCANCODE_ARROW_UP) {

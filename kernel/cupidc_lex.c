@@ -104,14 +104,22 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     if (strcmp(text, "int") == 0)       return CC_TOK_INT;
     if (strcmp(text, "char") == 0)      return CC_TOK_CHAR;
     if (strcmp(text, "void") == 0)      return CC_TOK_VOID;
+    if (strcmp(text, "bool") == 0)      return CC_TOK_BOOL;
     if (strcmp(text, "if") == 0)        return CC_TOK_IF;
     if (strcmp(text, "else") == 0)      return CC_TOK_ELSE;
     if (strcmp(text, "while") == 0)     return CC_TOK_WHILE;
     if (strcmp(text, "for") == 0)       return CC_TOK_FOR;
+    if (strcmp(text, "do") == 0)        return CC_TOK_DO;
     if (strcmp(text, "return") == 0)    return CC_TOK_RETURN;
     if (strcmp(text, "asm") == 0)       return CC_TOK_ASM;
     if (strcmp(text, "break") == 0)     return CC_TOK_BREAK;
     if (strcmp(text, "continue") == 0)  return CC_TOK_CONTINUE;
+    if (strcmp(text, "struct") == 0)    return CC_TOK_STRUCT;
+    if (strcmp(text, "sizeof") == 0)    return CC_TOK_SIZEOF;
+    if (strcmp(text, "switch") == 0)    return CC_TOK_SWITCH;
+    if (strcmp(text, "case") == 0)      return CC_TOK_CASE;
+    if (strcmp(text, "default") == 0)   return CC_TOK_DEFAULT;
+    if (strcmp(text, "enum") == 0)      return CC_TOK_ENUM;
     return CC_TOK_IDENT;
 }
 
@@ -132,10 +140,23 @@ static char cc_parse_escape(cc_state_t *cc) {
         case 'n':  return '\n';
         case 't':  return '\t';
         case 'r':  return '\r';
+        case 'b':  return '\b';
         case '\\': return '\\';
         case '\'': return '\'';
         case '"':  return '"';
         case '0':  return '\0';
+        case 'x': {
+            /* Hexadecimal escape: \xNN */
+            char h1 = cc_next_char(cc);
+            char h2 = cc_next_char(cc);
+            int v1 = (h1 >= '0' && h1 <= '9') ? (h1 - '0') :
+                     (h1 >= 'a' && h1 <= 'f') ? (h1 - 'a' + 10) :
+                     (h1 >= 'A' && h1 <= 'F') ? (h1 - 'A' + 10) : 0;
+            int v2 = (h2 >= '0' && h2 <= '9') ? (h2 - '0') :
+                     (h2 >= 'a' && h2 <= 'f') ? (h2 - 'a' + 10) :
+                     (h2 >= 'A' && h2 <= 'F') ? (h2 - 'A' + 10) : 0;
+            return (char)((v1 << 4) | v2);
+        }
         default:   return c;
     }
 }
@@ -174,6 +195,21 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
         }
         tok.text[i] = '\0';
         tok.type = cc_check_keyword(tok.text);
+
+        /* Built-in constants: NULL, true, false → integer literals */
+        if (tok.type == CC_TOK_IDENT) {
+            if (strcmp(tok.text, "NULL") == 0) {
+                tok.type = CC_TOK_NUMBER;
+                tok.int_value = 0;
+            } else if (strcmp(tok.text, "true") == 0) {
+                tok.type = CC_TOK_NUMBER;
+                tok.int_value = 1;
+            } else if (strcmp(tok.text, "false") == 0) {
+                tok.type = CC_TOK_NUMBER;
+                tok.int_value = 0;
+            }
+        }
+
         cc->cur = tok;
         return tok;
     }
@@ -272,6 +308,9 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
         } else if (cc_peek_char(cc) == '=') {
             cc_next_char(cc); tok.type = CC_TOK_MINUSEQ;
             tok.text[0] = '-'; tok.text[1] = '='; tok.text[2] = '\0';
+        } else if (cc_peek_char(cc) == '>') {
+            cc_next_char(cc); tok.type = CC_TOK_ARROW;
+            tok.text[0] = '-'; tok.text[1] = '>'; tok.text[2] = '\0';
         } else {
             tok.type = CC_TOK_MINUS;
             tok.text[0] = '-'; tok.text[1] = '\0';
@@ -387,6 +426,8 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     case ']': tok.type = CC_TOK_RBRACK; tok.text[0] = ']'; tok.text[1] = '\0'; break;
     case ';': tok.type = CC_TOK_SEMICOLON; tok.text[0] = ';'; tok.text[1] = '\0'; break;
     case ',': tok.type = CC_TOK_COMMA; tok.text[0] = ','; tok.text[1] = '\0'; break;
+    case '.': tok.type = CC_TOK_DOT; tok.text[0] = '.'; tok.text[1] = '\0'; break;
+    case ':': tok.type = CC_TOK_COLON; tok.text[0] = ':'; tok.text[1] = '\0'; break;
 
     default:
         tok.type = CC_TOK_ERROR;

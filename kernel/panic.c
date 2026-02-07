@@ -90,7 +90,7 @@ void print_stack_trace(uint32_t ebp, uint32_t eip) {
     panic_print("  #0: "); print_hex(eip); print("\n");
 
     for (int i = 1; i < 10 && ebp != 0; i++) {
-        if (ebp < 0x1000 || ebp > 0x90000) {
+        if (ebp < 0x1000 || ebp > 0x190000) {
             dual_print("  (invalid stack frame)\n");
             break;
         }
