@@ -26,6 +26,7 @@ void kernel_check_reschedule(void);
 
 /* Clear the deferred reschedule flag without switching */
 void kernel_clear_reschedule(void);
+
 void clear_screen(void);
 void init_vga(void);
 void print_int(uint32_t num);

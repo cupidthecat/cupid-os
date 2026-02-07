@@ -34,6 +34,14 @@ void pmm_free_page(void *address);
 uint32_t pmm_free_pages(void);
 uint32_t pmm_total_pages(void);
 
+/**
+ * pmm_reserve_region - Mark a physical address range as used.
+ * pmm_release_region - Mark a physical address range as free.
+ * Used by the ELF loader to reserve/free pages at specific addresses.
+ */
+void pmm_reserve_region(uint32_t start, uint32_t size);
+void pmm_release_region(uint32_t start, uint32_t size);
+
 /* ── Paging ───────────────────────────────────────────────────────── */
 void paging_init(void);
 

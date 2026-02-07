@@ -512,7 +512,7 @@ static struct shell_command commands[] = {
     {"vmkdir", "Create directory (VFS path)", shell_vmkdir},
     {"vrm", "Delete file (VFS path)", shell_vrm},
     {"vwrite", "Write text to file (VFS path)", shell_vwrite},
-    {"exec", "Run a CUPD binary", shell_exec_cmd},
+    {"exec", "Run a binary (ELF or CUPD)", shell_exec_cmd},
     {"notepad", "Open Notepad", shell_notepad_cmd},
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
     {"setcolor", "Set terminal color (fg [bg])", shell_setcolor_cmd},

@@ -33,6 +33,7 @@
 #include "fat16.h"
 #include "fs.h"
 #include "memory.h"
+#include "string.h"
 #include "graphics.h"
 #include "gui.h"
 #include "desktop.h"
@@ -45,6 +46,7 @@
 #include "devfs.h"
 #include "fat16_vfs.h"
 #include "exec.h"
+#include "syscall.h"
 #include "../drivers/pit.h"
 #include "../drivers/rtc.h"
 
@@ -462,6 +464,9 @@ void calibrate_timer(void) {
     
     // Reset PIT to normal operation
     timer_init(100);
+
+    // Register channel 0 callback for preemptive scheduling
+    timer_configure_channel(0, 100, timer_callback_channel0);
     
     //print("Timer calibration complete:\n");
     //debug_print_int("Calibration Window (ms): ", actual_ms);
@@ -601,24 +606,38 @@ void kmain(void) {
                 }
             }
 
-            /* Populate /bin with built-in application stubs */
-            static const char bin_marker[] = "CUPD_BUILTIN";
-            static const char *bin_apps[] = {
-                "terminal", "notepad", "ed", "cupid",
-                "shell", "help", "clear", "echo",
-                "ls", "cat", "cd", "pwd", "ps",
-                "kill", "exec", "mount", NULL
+            /* Populate /bin with built-in application stubs.
+             * Each stub contains a description so ls shows distinct sizes. */
+            static const struct { const char *name; const char *desc; } bin_apps[] = {
+                {"terminal", "CupidOS GUI terminal emulator"},
+                {"notepad",  "CupidOS GUI text editor (Notepad)"},
+                {"ed",       "Ed line editor"},
+                {"cupid",    "CupidScript interpreter (.cup files)"},
+                {"shell",    "CupidOS interactive shell"},
+                {"help",     "Show available commands"},
+                {"clear",    "Clear the screen"},
+                {"echo",     "Echo text to terminal"},
+                {"ls",       "List directory contents"},
+                {"cat",      "Display file contents"},
+                {"cd",       "Change working directory"},
+                {"pwd",      "Print working directory"},
+                {"ps",       "List running processes"},
+                {"kill",     "Terminate a process by PID"},
+                {"exec",     "Execute an ELF or CUPD binary"},
+                {"mount",    "Show mounted filesystems"},
+                {NULL, NULL}
             };
-            for (int bi = 0; bin_apps[bi]; bi++) {
+            for (int bi = 0; bin_apps[bi].name; bi++) {
                 char bpath[64];
                 int bp = 0;
                 const char *pfx = "bin/";
                 while (*pfx) bpath[bp++] = *pfx++;
-                const char *bn = bin_apps[bi];
+                const char *bn = bin_apps[bi].name;
                 while (*bn && bp < 62) bpath[bp++] = *bn++;
                 bpath[bp] = '\0';
                 ramfs_add_file(root_mnt->fs_private,
-                               bpath, bin_marker, sizeof(bin_marker));
+                               bpath, bin_apps[bi].desc,
+                               (uint32_t)strlen(bin_apps[bi].desc));
             }
             KINFO("Populated /bin with built-in stubs");
         }
@@ -643,6 +662,9 @@ void kmain(void) {
 
     // Initialize process subsystem (creates idle process PID 1)
     process_init();
+
+    // Initialize syscall table for ELF program support
+    syscall_init();
 
     // Switch PIT to 100Hz for 10ms scheduler time slices
     pit_set_scheduler_mode();

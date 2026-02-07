@@ -49,6 +49,8 @@ typedef struct {
     cpu_context_t    context;                 /* Saved CPU registers  */
     void            *stack_base;              /* Bottom of stack mem  */
     uint32_t         stack_size;              /* Stack size in bytes  */
+    uint32_t         image_base;              /* ELF image load addr  */
+    uint32_t         image_size;              /* ELF image total size */
     char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
 } process_t;
 
@@ -74,6 +76,26 @@ void process_init(void);
 uint32_t process_create(void (*entry_point)(void),
                         const char *name,
                         uint32_t stack_size);
+
+/**
+ * process_create_with_arg - Spawn a new kernel thread with one argument
+ *
+ * Like process_create, but pushes `arg` onto the stack so the entry
+ * function can receive it as its first parameter.  Used by the ELF
+ * loader to pass the syscall table pointer to _start().
+ *
+ * @entry_point: function to run (cast to void(*)(void) but actually
+ *               takes one uint32_t argument)
+ * @name:        human-readable name
+ * @stack_size:  stack allocation in bytes
+ * @arg:         32-bit argument pushed onto the stack
+ *
+ * Returns the new PID (2–32) on success, or 0 on failure.
+ */
+uint32_t process_create_with_arg(void (*entry_point)(void),
+                                 const char *name,
+                                 uint32_t stack_size,
+                                 uint32_t arg);
 
 /**
  * process_exit - Terminate the currently running process
@@ -156,5 +178,17 @@ void process_start_scheduler(void);
  * Returns: the assigned PID, or 0 on failure.
  */
 uint32_t process_register_current(const char *name);
+
+/**
+ * process_set_image - Associate an ELF image region with a process
+ *
+ * Records the base address and size of memory loaded for an ELF
+ * program so it can be freed when the process exits.
+ *
+ * @pid:  the process PID
+ * @base: physical start address of the loaded ELF image
+ * @size: size in bytes of the loaded image
+ */
+void process_set_image(uint32_t pid, uint32_t base, uint32_t size);
 
 #endif /* PROCESS_H */

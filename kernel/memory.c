@@ -56,6 +56,16 @@ static void pmm_mark_region(uint32_t start, uint32_t end, uint8_t used) {
     }
 }
 
+void pmm_reserve_region(uint32_t start, uint32_t size) {
+    if (size == 0) return;
+    pmm_mark_region(start, start + size, 1);
+}
+
+void pmm_release_region(uint32_t start, uint32_t size) {
+    if (size == 0) return;
+    pmm_mark_region(start, start + size, 0);
+}
+
 void pmm_init(uint32_t kernel_end) {
     pmm_mark_region(0, TOTAL_MEMORY_BYTES, 0);
     uint32_t reserved_end = align_up(kernel_end, PAGE_SIZE);

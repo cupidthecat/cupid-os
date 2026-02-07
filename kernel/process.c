@@ -84,6 +84,12 @@ static uint32_t find_free_slot(void) {
                 kfree(process_table[i].stack_base);
                 process_table[i].stack_base = NULL;
             }
+            if (process_table[i].image_size > 0) {
+                pmm_release_region(process_table[i].image_base,
+                                   process_table[i].image_size);
+                process_table[i].image_base = 0;
+                process_table[i].image_size = 0;
+            }
             process_table[i].pid = 0;
             memset(&process_table[i], 0, sizeof(process_t));
             process_count--;
@@ -192,6 +198,90 @@ uint32_t process_create(void (*entry_point)(void),
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  process_create_with_arg — like process_create but pushes one
+ *  uint32_t argument onto the stack so the entry function receives it.
+ * ══════════════════════════════════════════════════════════════════════ */
+uint32_t process_create_with_arg(void (*entry_point)(void),
+                                 const char *name,
+                                 uint32_t stack_size,
+                                 uint32_t arg) {
+    if (!entry_point) {
+        KERROR("process_create_with_arg: NULL entry point");
+        return 0;
+    }
+    if (process_count >= MAX_PROCESSES) {
+        KWARN("process_create_with_arg: table full (%u/%u)",
+              process_count, (uint32_t)MAX_PROCESSES);
+        return 0;
+    }
+    if (stack_size < 1024) {
+        stack_size = DEFAULT_STACK_SIZE;
+    }
+
+    uint32_t slot = find_free_slot();
+    if (slot >= MAX_PROCESSES) {
+        KWARN("process_create_with_arg: no free slot");
+        return 0;
+    }
+
+    void *stack = kmalloc(stack_size);
+    if (!stack) {
+        KERROR("process_create_with_arg: stack alloc failed (%u bytes)",
+               stack_size);
+        return 0;
+    }
+
+    /* Place canary at the bottom of the stack */
+    *(uint32_t *)stack = STACK_CANARY;
+
+    process_t *p = &process_table[slot];
+    memset(p, 0, sizeof(process_t));
+
+    p->pid        = slot + 1;
+    p->state      = PROCESS_READY;
+    p->stack_base = stack;
+    p->stack_size = stack_size;
+
+    /* Copy name */
+    if (name) {
+        uint32_t i = 0;
+        while (name[i] && i < PROCESS_NAME_LEN - 1) {
+            p->name[i] = name[i];
+            i++;
+        }
+        p->name[i] = '\0';
+    }
+
+    /*
+     * Stack layout for a function that takes one argument:
+     *   [top of stack]
+     *     arg                  <- argument for entry_point
+     *     return address       <- process_exit_trampoline
+     *
+     * When context_switch jumps to entry_point, it executes as
+     * if called with `entry_point(arg)` and on return hits the
+     * trampoline.
+     */
+    uint32_t *sp = (uint32_t *)((uint32_t)stack + stack_size);
+    sp--;
+    *sp = arg;                                  /* argument */
+    sp--;
+    *sp = (uint32_t)process_exit_trampoline;    /* return address */
+
+    p->context.esp    = (uint32_t)sp;
+    p->context.eip    = (uint32_t)entry_point;
+
+    process_count++;
+
+    serial_printf("[PROCESS] Created PID %u \"%s\" with arg=0x%x "
+                  "(stack=%u, entry=0x%x)\n",
+                  p->pid, p->name, arg, stack_size,
+                  (uint32_t)entry_point);
+
+    return p->pid;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  process_exit
  * ══════════════════════════════════════════════════════════════════════ */
 void process_exit(void) {
@@ -215,6 +305,7 @@ void process_exit(void) {
      * schedule() will use dummy_esp path since current_pid == 0. */
     __asm__ volatile("sti");
     schedule();
+    serial_printf("[EXIT] BUG: schedule returned in process_exit\n");
 
     /* Should never reach here */
     while (1) { __asm__ volatile("hlt"); }
@@ -275,6 +366,11 @@ void process_kill(uint32_t pid) {
             kfree(p->stack_base);
             p->stack_base = NULL;
         }
+        if (p->image_size > 0) {
+            pmm_release_region(p->image_base, p->image_size);
+            p->image_base = 0;
+            p->image_size = 0;
+        }
         p->pid = 0;
         memset(p, 0, sizeof(process_t));
         process_count--;
@@ -309,6 +405,11 @@ void process_list(void) {
             if (p->stack_base) {
                 kfree(p->stack_base);
                 p->stack_base = NULL;
+            }
+            if (p->image_size > 0) {
+                pmm_release_region(p->image_base, p->image_size);
+                p->image_base = 0;
+                p->image_size = 0;
             }
             p->pid = 0;
             memset(p, 0, sizeof(process_t));
@@ -386,7 +487,10 @@ void schedule(void) {
         next_schedule_index = (next_schedule_index + 1) % MAX_PROCESSES;
         process_t *candidate = &process_table[next_schedule_index];
 
-        if (candidate->pid != 0 && candidate->state == PROCESS_READY) {
+        /* Skip the current process — we want a DIFFERENT one */
+        if (candidate->pid != 0 &&
+            candidate->pid != current_pid &&
+            candidate->state == PROCESS_READY) {
             next = candidate;
             break;
         }
@@ -508,4 +612,15 @@ uint32_t process_register_current(const char *name) {
                   p->pid, p->name);
 
     return p->pid;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  process_set_image — Associate an ELF image region with a process
+ * ══════════════════════════════════════════════════════════════════════ */
+void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
+    if (pid == 0 || pid > MAX_PROCESSES) return;
+    process_t *p = &process_table[pid - 1];
+    if (p->pid != pid) return;
+    p->image_base = base;
+    p->image_size = size;
 }
