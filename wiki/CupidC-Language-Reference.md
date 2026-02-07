@@ -51,15 +51,36 @@ them all when the loop ends.
 
 ### Built-in Functions
 
+#### I/O Functions
 - `print(char *s)` - Print a string
 - `putchar(char c)` - Print a single character
 - `print_int(int n)` - Print an integer
+- `print_hex(int n)` - Print integer in hexadecimal
 - `getchar()` - Read a character from keyboard
+
+#### Memory Functions
 - `kmalloc(int size)` - Allocate memory
 - `kfree(void *ptr)` - Free memory
+- `memset(void *ptr, int val, int size)` - Set memory bytes
+- `memcpy(void *dst, void *src, int size)` - Copy memory
+
+#### String Functions
 - `strlen(char *s)` - Get string length
 - `strcmp(char *s1, char *s2)` - Compare strings
-- `strcpy(char *dst, char *src)` - Copy string
+- `strncmp(char *s1, char *s2, int n)` - Compare first n characters
+
+#### File System Functions
+- `vfs_open(char *path, int flags)` - Open a file
+- `vfs_close(int fd)` - Close a file
+- `vfs_read(int fd, char *buf, int size)` - Read from file
+- `vfs_write(int fd, char *buf, int size)` - Write to file
+- `vfs_unlink(char *path)` - Delete a file
+- `vfs_mkdir(char *path)` - Create a directory
+- `resolve_path(char *rel, char *abs)` - Resolve relative path to absolute
+
+#### Program Functions
+- `get_args()` - Get command-line arguments as string
+- `exit(int code)` - Exit program with code
 
 ## Limitations
 
@@ -68,6 +89,74 @@ them all when the loop ends.
 - No `switch` statement with more than 64 cases
 - No floating point support
 - No preprocessor macros
+
+## Common Patterns
+
+### Parsing Command-Line Arguments
+
+Programs receive arguments as a single string via `get_args()`. To parse multiple space-separated arguments:
+
+```c
+// Parse a single token from a string
+int parse_token(char *str, int start, char *out, int maxlen) {
+    int i = start;
+
+    // Skip leading spaces
+    while (str[i] == ' ' || str[i] == '\t') {
+        i = i + 1;
+    }
+
+    // Check if end of string
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
+
+    // Copy token until space or end
+    int j = 0;
+    while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
+        out[j] = str[i];
+        i = i + 1;
+        j = j + 1;
+    }
+    out[j] = 0;
+
+    return i - start;
+}
+
+// Usage example
+void main() {
+    char *args = (char*)get_args();
+    char token[256];
+    int pos = 0;
+
+    while (1) {
+        int len = parse_token(args, pos, token, 256);
+        if (len == 0) break;  // No more tokens
+
+        print("Token: ");
+        print(token);
+        print("\n");
+
+        pos = pos + len;
+    }
+}
+```
+
+### Error Handling with VFS
+
+```c
+int fd = vfs_open(path, 0);
+if (fd < 0) {
+    print("Error opening file: ");
+    print(path);
+    print("\n");
+    return;
+}
+
+// Use file...
+vfs_close(fd);
+```
 
 ## Examples
 

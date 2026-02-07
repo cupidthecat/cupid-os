@@ -293,9 +293,31 @@ Forward references are supported: functions can call other functions that are de
 ```c
 char* msg = "Hello, CupidOS!\n";
 char ch = 'A';
+char esc = '\x1B';  // ESC character for ANSI codes
 ```
 
-Escape sequences: `\n` (newline), `\t` (tab), `\r` (carriage return), `\\` (backslash), `\'` (single quote), `\"` (double quote), `\0` (null).
+#### Escape Sequences
+
+CupidC supports the following escape sequences in string and character literals:
+
+| Escape | Meaning | ASCII Value |
+|--------|---------|-------------|
+| `\n` | Newline (LF) | 10 |
+| `\t` | Tab | 9 |
+| `\r` | Carriage return (CR) | 13 |
+| `\b` | Backspace | 8 |
+| `\\` | Backslash | 92 |
+| `\'` | Single quote | 39 |
+| `\"` | Double quote | 34 |
+| `\0` | Null terminator | 0 |
+| `\xNN` | Hexadecimal byte (00-FF) | Variable |
+
+**Hexadecimal Escapes**: The `\xNN` escape sequence allows specifying a byte value in hexadecimal. Both uppercase and lowercase hex digits are supported:
+
+```c
+char *red = "\x1B[31m";     // ANSI red color code
+print("\x48\x69");          // Prints "Hi" (0x48='H', 0x69='i')
+```
 
 String literals are stored in the data section and their address is loaded into registers.
 
