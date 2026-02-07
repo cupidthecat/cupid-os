@@ -13,6 +13,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
 | [CupidScript](CupidScript) | Scripting language guide — variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler — JIT/AOT, inline assembly, kernel bindings |
+| [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
 | [Desktop Environment](Desktop-Environment) | VGA graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |

@@ -35,6 +35,7 @@ cupid-os provides 38+ built-in shell commands. The shell features command histor
 | `vmkdir` | `vmkdir <path>` | Create a directory in VFS |
 | `vrm` | `vrm <path>` | Delete a file from VFS |
 | `vwrite` | `vwrite <path> <text>` | Write text to a VFS file |
+| `mv` | `mv <source> <dest>` | Move/rename a file (CupidC user program) |
 | `exec` | `exec <path>` | Load and run a CUPD executable |
 
 ### Legacy Disk Commands

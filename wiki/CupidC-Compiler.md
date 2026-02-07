@@ -207,6 +207,7 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 |----------|-----------|-------------|
 | `strlen` | `int strlen(char* s)` | Get string length |
 | `strcmp` | `int strcmp(char* a, char* b)` | Compare two strings |
+| `strncmp` | `int strncmp(char* a, char* b, int n)` | Compare up to n characters |
 | `memset` | `void* memset(void* p, int val, int n)` | Fill memory |
 | `memcpy` | `void* memcpy(void* dst, void* src, int n)` | Copy memory |
 
@@ -225,6 +226,19 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `vfs_close` | `int vfs_close(int fd)` | Close a file |
 | `vfs_read` | `int vfs_read(int fd, void* buf, int size)` | Read from file |
 | `vfs_write` | `int vfs_write(int fd, void* buf, int size)` | Write to file |
+| `vfs_seek` | `int vfs_seek(int fd, int offset, int whence)` | Seek within an open file |
+| `vfs_stat` | `int vfs_stat(char* path, void* stat_buf)` | Get file info (size + type) |
+| `vfs_readdir` | `int vfs_readdir(int fd, void* dirent)` | Read next directory entry |
+| `vfs_mkdir` | `int vfs_mkdir(char* path)` | Create a directory |
+| `vfs_unlink` | `int vfs_unlink(char* path)` | Delete a file |
+| `vfs_rename` | `int vfs_rename(char* old, char* new)` | Move/rename a file (copy + delete) |
+
+### Shell Integration
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `get_args` | `char* get_args()` | Get command-line arguments from the shell |
+| `get_cwd` | `char* get_cwd()` | Get current working directory |
 
 ### Process Management
 
@@ -505,6 +519,71 @@ When the parser encounters a call to an undefined function, it emits a placehold
 |---------|-------|-------------|
 | `cupidc` | `cupidc <file.cc>` | JIT compile and execute a CupidC source file |
 | `ccc` | `ccc <file.cc> -o <output>` | AOT compile to ELF32 binary |
+
+---
+
+## User Programs (TempleOS-style)
+
+CupidC programs can be placed in `/bin/` or `/home/bin/` and the shell discovers them automatically — no kernel recompile needed. Just type the program name and it runs.
+
+### How It Works
+
+When you type a command the shell doesn't recognize, it searches in order:
+
+1. `/bin/<cmd>` — ELF/CUPD binary in ramfs
+2. `/bin/<cmd>.cc` — CupidC source in ramfs (JIT compiled)
+3. `/home/bin/<cmd>` — ELF binary on disk
+4. `/home/bin/<cmd>.cc` — CupidC source on disk (JIT compiled)
+
+CupidC `.cc` files are JIT-compiled and run instantly. No build step.
+
+### Example: `mv` (Move/Rename Files)
+
+The `mv` command is a CupidC user program at `/bin/mv.cc`:
+
+```
+> mv old.txt new.txt        # rename a file
+> mv report.txt /tmp/       # move into a directory
+> mv /home/a.txt /home/b/   # absolute paths
+```
+
+Source (`bin/mv.cc`):
+
+```c
+// mv.cc - move/rename files for CupidOS
+
+void resolve_path(char *out, char *path) {
+    int i = 0;
+    if (path[0] == '/') {
+        while (path[i]) { out[i] = path[i]; i = i + 1; }
+        out[i] = 0;
+        return;
+    }
+    char *cwd = (char*)get_cwd();
+    int ci = 0;
+    while (cwd[ci]) { out[i] = cwd[ci]; i = i + 1; ci = ci + 1; }
+    if (i > 1) { out[i] = '/'; i = i + 1; }
+    int pi = 0;
+    while (path[pi]) { out[i] = path[pi]; i = i + 1; pi = pi + 1; }
+    out[i] = 0;
+}
+
+void main() {
+    char *args = (char*)get_args();
+    // ... parse source and dest, resolve paths,
+    // check if dest is a directory, call vfs_rename()
+}
+```
+
+Key patterns used:
+- `get_args()` — retrieve shell arguments
+- `get_cwd()` — resolve relative paths
+- `vfs_stat()` — check if destination is a directory
+- `vfs_rename()` — perform the move
+
+### Writing Your Own Program
+
+See the [User Programs](User-Programs) page for a complete guide.
 
 ---
 

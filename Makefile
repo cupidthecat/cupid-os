@@ -28,7 +28,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/syscall.o \
             kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
             kernel/cupidc_elf.o \
-            drivers/rtc.o kernel/calendar.o
+            drivers/rtc.o kernel/calendar.o \
+            bin/mv.o
 
 all: $(OS_IMAGE)
 
@@ -240,6 +241,11 @@ kernel/cupidc_parse.o: kernel/cupidc_parse.c kernel/cupidc.h
 
 kernel/cupidc_elf.o: kernel/cupidc_elf.c kernel/cupidc.h kernel/exec.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/cupidc_elf.c -o kernel/cupidc_elf.o
+
+# Embed CupidC source files into kernel binary via objcopy
+# These become available at /bin/<name>.cc in ramfs at boot.
+bin/mv.o: bin/mv.cc
+	objcopy -I binary -O elf32-i386 -B i386 bin/mv.cc bin/mv.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
