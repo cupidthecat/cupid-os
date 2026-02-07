@@ -7,6 +7,11 @@ CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c 
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
+# Auto-discover all CupidC programs in bin/
+BIN_CC_SRCS := $(wildcard bin/*.cc)
+BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
+BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -29,7 +34,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
             kernel/cupidc_elf.o \
             drivers/rtc.o kernel/calendar.o \
-            bin/mv.o
+            kernel/bin_programs_gen.o \
+            $(BIN_CC_OBJS)
 
 all: $(OS_IMAGE)
 
@@ -242,10 +248,28 @@ kernel/cupidc_parse.o: kernel/cupidc_parse.c kernel/cupidc.h
 kernel/cupidc_elf.o: kernel/cupidc_elf.c kernel/cupidc.h kernel/exec.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/cupidc_elf.c -o kernel/cupidc_elf.o
 
-# Embed CupidC source files into kernel binary via objcopy
-# These become available at /bin/<name>.cc in ramfs at boot.
-bin/mv.o: bin/mv.cc
-	objcopy -I binary -O elf32-i386 -B i386 bin/mv.cc bin/mv.o
+# Auto-generate bin_programs_gen.c from all bin/*.cc files
+# This generates extern declarations + install function automatically.
+# To add a new CupidC program: just create bin/<name>.cc — that's it!
+kernel/bin_programs_gen.c: $(BIN_CC_SRCS)
+	@echo "/* Auto-generated -- do not edit. */" > $@
+	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@
+	@echo '#include "ramfs.h"' >> $@
+	@echo '#include "types.h"' >> $@
+	@echo '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
+	@echo 'void install_bin_programs(void *fs_private);' >> $@
+	@echo 'void install_bin_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\\n", sz); }' >> $@;)
+	@echo '}' >> $@
+
+kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
+	$(CC) $(CFLAGS) kernel/bin_programs_gen.c -o kernel/bin_programs_gen.o
+
+# Pattern rule: embed any bin/*.cc file via objcopy
+bin/%.o: bin/%.cc
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)
@@ -267,6 +291,7 @@ run-log: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o $(OS_IMAGE)
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o \
+	      kernel/bin_programs_gen.c $(OS_IMAGE)
 
 .PHONY: all run clean

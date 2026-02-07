@@ -15,9 +15,11 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 | Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
 | Privilege level | Ring 0 — full system access |
 | Source extension | `.cc` |
-| Code size limit | 64 KB code, 16 KB data |
-| Max functions | 128 |
-| Max symbols | 256 |
+| Code size limit | 128 KB code, 32 KB data |
+| Max source file | 256 KB |
+| Max functions | 256 |
+| Max symbols | 512 |
+| Max structs | 32 (up to 16 fields each) |
 
 ---
 
@@ -52,20 +54,155 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 |------|------|-------------|
 | `int` | 32-bit | Signed integer |
 | `char` | 8-bit | Character / byte |
+| `bool` | 32-bit | Boolean (alias for int) |
 | `void` | — | No value (functions only) |
 | `int*` | 32-bit | Pointer to int |
 | `char*` | 32-bit | Pointer to char |
+| `struct` | varies | User-defined composite type |
+| `struct*` | 32-bit | Pointer to struct |
 
 ### Arrays
 
-Stack-allocated fixed-size arrays:
+Fixed-size arrays, both local (stack-allocated) and global (data section):
 
 ```c
-int arr[10];
-char buf[256];
+// Global arrays — stored in data section
+int scores[100];
+char buffer[256];
+
+void main() {
+    // Local arrays — stack-allocated
+    int arr[10];
+    char buf[64];
+
+    arr[0] = 42;
+    buf[0] = 'A';
+}
 ```
 
 Array elements are accessed with `arr[i]` and can be assigned with `arr[i] = value`.
+
+Compound assignment also works: `arr[i] += value`, `arr[i] -= value`, `arr[i] *= value`, `arr[i] /= value`.
+
+### Structs
+
+User-defined composite types with named fields:
+
+```c
+struct Point {
+    int x;
+    int y;
+};
+
+struct Rect {
+    struct Point origin;
+    int width;
+    int height;
+};
+
+void main() {
+    struct Point p;
+    p.x = 10;
+    p.y = 20;
+    print_int(p.x);
+
+    // Heap-allocated structs via pointer
+    struct Point *hp = kmalloc(sizeof(struct Point));
+    hp->x = 100;
+    hp->y = 200;
+    print_int(hp->x);
+    kfree(hp);
+}
+```
+
+**Struct features:**
+- Up to 32 named struct types, each with up to 16 fields
+- Field types: `int`, `char`, `void*`, `int*`, `char*`, nested `struct`
+- Stack-allocated structs (`struct Foo s;`) are zero-initialized
+- Heap-allocated structs via `kmalloc(sizeof(struct Foo))`
+- Member access with `.` (value) and `->` (pointer)
+- Chained access: `rect.origin.x`, `ptr->origin.y`
+- All fields are 4-byte aligned for x86 compatibility
+
+### sizeof Operator
+
+Compute the size of a type at compile time:
+
+```c
+int a = sizeof(int);           // 4
+int b = sizeof(char);          // 1
+int c = sizeof(struct Point);  // 8 (two ints)
+
+struct Foo *p = kmalloc(sizeof(struct Foo));
+```
+
+### Enumerations
+
+Define named integer constants:
+
+```c
+enum {
+    RED,        // 0
+    GREEN,      // 1
+    BLUE        // 2
+};
+
+enum Colors {
+    BLACK = 0,
+    WHITE = 15,
+    YELLOW = 14
+};
+
+void main() {
+    int color = RED;       // 0
+    int bg = WHITE;        // 15
+    print_int(color);
+}
+```
+
+Enum values are stored as global integers in the data section. Values auto-increment from 0, or can be set explicitly with `= value` (including negative values).
+
+### Global Variables
+
+Variables declared outside functions are stored in the data section:
+
+```c
+// Scalar globals with optional initializers
+int count = 0;
+int max_size = 1024;
+int error_code = -1;
+char *greeting = "Hello";
+
+// Global arrays
+int data[256];
+char name[64];
+
+// Global struct variables
+struct Point origin;
+
+void main() {
+    count = 42;
+    data[0] = 100;
+    origin.x = 10;
+    origin.y = 20;
+    print(greeting);
+}
+```
+
+Global variables support:
+- Integer and character literal initializers (including negative values)
+- String literal initializers (pointer to data section string)
+- Arrays of any supported element type
+- Struct variables (zero-initialized)
+- All operators: `=`, `+=`, `-=`, `*=`, `/=`, `++`, `--`
+
+### Built-in Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `NULL` | 0 | Null pointer constant |
+| `true` | 1 | Boolean true |
+| `false` | 0 | Boolean false |
 
 ### Operators
 
@@ -105,17 +242,36 @@ while (i < 10) {
     i++;
 }
 
+// Do-while loop
+do {
+    process();
+    i++;
+} while (i < 10);
+
 // For loop
 for (int i = 0; i < 10; i++) {
     print_int(i);
 }
+
+// Switch/case
+switch (cmd) {
+    case 'a':
+        print("add");
+        break;
+    case 'd':
+        print("delete");
+        break;
+    default:
+        print("unknown");
+        break;
+}
 ```
 
-`break` and `continue` work inside `while` and `for` loops.
+`break` and `continue` work inside `while`, `for`, `do-while` loops, and `switch` statements.
 
 ### Functions
 
-Functions use the cdecl calling convention. Up to 8 parameters per function.
+Functions use the cdecl calling convention. Up to 16 parameters per function.
 
 ```c
 int add(int a, int b) {
@@ -194,6 +350,12 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `print_hex` | `void print_hex(int n)` | Print hex value |
 | `clear_screen` | `void clear_screen()` | Clear the display |
 
+### Console Input
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `getchar` | `int getchar()` | Read a single character from the keyboard (blocking) |
+
 ### Memory Management
 
 | Function | Signature | Description |
@@ -208,8 +370,14 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `strlen` | `int strlen(char* s)` | Get string length |
 | `strcmp` | `int strcmp(char* a, char* b)` | Compare two strings |
 | `strncmp` | `int strncmp(char* a, char* b, int n)` | Compare up to n characters |
+| `strcpy` | `char* strcpy(char* dst, char* src)` | Copy string (including null terminator) |
+| `strncpy` | `char* strncpy(char* dst, char* src, int n)` | Copy up to n characters (pads with nulls) |
+| `strcat` | `char* strcat(char* dst, char* src)` | Concatenate src onto end of dst |
+| `strchr` | `char* strchr(char* s, int c)` | Find first occurrence of character c in s |
+| `strstr` | `char* strstr(char* haystack, char* needle)` | Find first occurrence of substring |
 | `memset` | `void* memset(void* p, int val, int n)` | Fill memory |
 | `memcpy` | `void* memcpy(void* dst, void* src, int n)` | Copy memory |
+| `memcmp` | `int memcmp(void* a, void* b, int n)` | Compare n bytes of memory |
 
 ### Port I/O
 
@@ -239,6 +407,33 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 |----------|-----------|-------------|
 | `get_args` | `char* get_args()` | Get command-line arguments from the shell |
 | `get_cwd` | `char* get_cwd()` | Get current working directory |
+| `set_cwd` | `void set_cwd(char* path)` | Set the shell's current working directory |
+| `resolve_path` | `void resolve_path(char* input, char* out)` | Resolve a relative path against CWD (out must be 256 bytes) |
+| `get_history_count` | `int get_history_count()` | Get the number of entries in shell history |
+| `get_history_entry` | `char* get_history_entry(int index)` | Get history entry by offset from newest (0 = most recent) |
+
+### Timer
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `uptime_ms` | `int uptime_ms()` | Get system uptime in milliseconds |
+
+### RTC (Real-Time Clock)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `rtc_hour` | `int rtc_hour()` | Current hour (0-23) |
+| `rtc_minute` | `int rtc_minute()` | Current minute (0-59) |
+| `rtc_second` | `int rtc_second()` | Current second (0-59) |
+| `rtc_day` | `int rtc_day()` | Current day of month (1-31) |
+| `rtc_month` | `int rtc_month()` | Current month (1-12) |
+| `rtc_year` | `int rtc_year()` | Current year (e.g. 2026) |
+| `rtc_weekday` | `int rtc_weekday()` | Day of week (0=Sunday, 6=Saturday) |
+| `rtc_epoch` | `int rtc_epoch()` | Seconds since Unix epoch (Jan 1, 1970) |
+| `date_full_string` | `char* date_full_string()` | Formatted date: "Thursday, February 6, 2026" |
+| `date_short_string` | `char* date_short_string()` | Formatted date: "Feb 6, 2026" |
+| `time_string` | `char* time_string()` | Formatted time: "6:32:15 PM" |
+| `time_short_string` | `char* time_short_string()` | Formatted time: "6:32 PM" |
 
 ### Process Management
 
@@ -247,12 +442,59 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `yield` | `void yield()` | Yield CPU to scheduler |
 | `exit` | `void exit()` | Terminate current process |
 | `exec` | `int exec(char* path, char* args)` | Execute a program |
+| `process_list` | `void process_list()` | Print all processes (PID, state, name) |
+| `process_kill` | `void process_kill(int pid)` | Terminate a process by PID |
+| `spawn_test` | `int spawn_test(int count)` | Spawn N test counting processes (max 16), returns count spawned |
+
+### Mount Info
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `mount_count` | `int mount_count()` | Get the number of mounted filesystems |
+| `mount_name` | `char* mount_name(int index)` | Get the filesystem name for mount at index |
+| `mount_path` | `char* mount_path(int index)` | Get the mount path for mount at index |
 
 ### Diagnostics
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `memstats` | `void memstats()` | Print memory statistics |
+| `memstats` | `void memstats()` | Print heap and physical memory statistics |
+| `detect_memory_leaks` | `void detect_memory_leaks(int ms)` | Report allocations older than `ms` milliseconds |
+| `heap_check_integrity` | `void heap_check_integrity()` | Walk heap blocks and verify canary values |
+| `pmm_free_pages` | `int pmm_free_pages()` | Number of free physical 4 KB pages |
+| `pmm_total_pages` | `int pmm_total_pages()` | Total number of physical 4 KB pages |
+| `dump_stack_trace` | `void dump_stack_trace()` | Print current call stack (EBP frame chain) |
+| `dump_registers` | `void dump_registers()` | Print all CPU registers + EFLAGS |
+| `peek_byte` | `int peek_byte(int addr)` | Read one byte from a memory address |
+| `print_hex_byte` | `void print_hex_byte(int val)` | Print a byte as 2 hex digits |
+| `get_cpu_mhz` | `int get_cpu_mhz()` | CPU frequency in MHz |
+| `timer_get_frequency` | `int timer_get_frequency()` | Timer interrupt rate in Hz |
+| `process_get_count` | `int process_get_count()` | Number of running processes |
+
+### Block Cache
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `blockcache_sync` | `void blockcache_sync()` | Flush all dirty cache blocks to disk |
+| `blockcache_stats` | `void blockcache_stats()` | Print cache hit/miss statistics |
+
+### Serial Log Control
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `set_log_level` | `void set_log_level(int level)` | Set log level (0=debug, 1=info, 2=warn, 3=error, 4=panic) |
+| `get_log_level_name` | `char* get_log_level_name()` | Current log level as a string |
+| `print_log_buffer` | `void print_log_buffer()` | Print the circular log buffer contents |
+
+### Crash Testing
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `kernel_panic` | `void kernel_panic(char* msg)` | Trigger a kernel panic with message |
+| `crashtest_nullptr` | `void crashtest_nullptr()` | Dereference NULL pointer |
+| `crashtest_divzero` | `void crashtest_divzero()` | Divide by zero |
+| `crashtest_overflow` | `void crashtest_overflow()` | Overflow heap buffer (canary detection) |
+| `crashtest_stackoverflow` | `void crashtest_stackoverflow()` | Allocate 64 KB on stack (page fault) |
 
 ---
 
@@ -428,17 +670,17 @@ Source (.cc)
 
 | File | Lines | Role |
 |------|-------|------|
-| `cupidc.h` | ~214 | Header: token types, symbol table, compiler state, public API |
-| `cupidc.c` | ~401 | Driver: JIT/AOT entry points, kernel bindings, state init |
-| `cupidc_lex.c` | ~415 | Lexer: tokenizes source into keywords, literals, operators |
-| `cupidc_parse.c` | ~1832 | Parser + x86 code generator: the core of the compiler |
+| `cupidc.h` | ~250 | Header: token types, symbol table, compiler state, public API |
+| `cupidc.c` | ~790 | Driver: JIT/AOT entry points, kernel bindings, state init |
+| `cupidc_lex.c` | ~445 | Lexer: tokenizes source into keywords, literals, operators |
+| `cupidc_parse.c` | ~2485 | Parser + x86 code generator: the core of the compiler |
 | `cupidc_elf.c` | — | ELF32 binary writer for AOT mode |
 
 ### Lexer
 
 The lexer (`cupidc_lex.c`) breaks source text into tokens:
 
-- **Keywords:** `int`, `char`, `void`, `if`, `else`, `while`, `for`, `return`, `asm`, `break`, `continue`
+- **Keywords:** `int`, `char`, `void`, `bool`, `if`, `else`, `while`, `for`, `do`, `return`, `asm`, `break`, `continue`, `struct`, `sizeof`, `switch`, `case`, `default`, `enum`
 - **Identifiers:** variable and function names
 - **Literals:** decimal integers, hex integers (`0xFF`), strings (`"..."`), character literals (`'A'`)
 - **Operators:** all arithmetic, comparison, logical, bitwise, assignment
@@ -500,15 +742,17 @@ When the parser encounters a call to an undefined function, it emits a placehold
 
 ## Limitations
 
-- **64 KB code limit** and **16 KB data limit** per program
-- **256 symbols** maximum (functions + variables + kernel bindings)
-- **8 parameters** maximum per function
-- **No structs or unions** — only primitive types and pointers
-- **No preprocessor** (`#include`, `#define` not supported)
+- **128 KB code limit** and **32 KB data limit** per program
+- **512 symbols** maximum (functions + variables + kernel bindings)
+- **16 parameters** maximum per function
+- **32 struct definitions** with up to 16 fields each
+- **No preprocessor** (`#include`, `#define` not supported) — use `enum` for constants
 - **No multi-file compilation** — single source file only
 - **No floating point** — integer arithmetic only
 - **No standard library** — only kernel bindings are available
-- **Global initializers** are not yet fully implemented
+- **No function pointers** — cannot store/call through function pointer variables
+- **No ternary operator** (`?:`) — use `if/else` instead
+- **No variadic functions** — fixed parameter count only
 - **Limited optimization** — single-pass compilation with no optimization passes
 
 ---
@@ -627,10 +871,11 @@ CupidC draws direct inspiration from TempleOS's HolyC:
 | Execution | JIT compiled | JIT + AOT (ELF) |
 | Architecture | x86-64 | x86-32 |
 | Privilege | Ring 0 | Ring 0 |
-| Types | Full C types + classes | int, char, void, pointers, arrays |
+| Types | Full C types + classes | int, char, void, bool, pointers, arrays, structs |
+| Enums | Yes | Yes |
 | Inline ASM | Yes | Yes |
 | Port I/O | Direct access | `inb()`/`outb()` builtins |
 | Hardware access | Full | Full |
-| Structs | Yes | Not yet |
+| Structs | Yes | Yes |
 | Classes | Yes | No |
 | Preprocessor | `#include` | No |

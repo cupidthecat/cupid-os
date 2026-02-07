@@ -1,6 +1,8 @@
 # Shell Commands
 
-cupid-os provides 38+ built-in shell commands. The shell features command history (arrow up/down), tab completion for commands and filenames, current working directory tracking, prompt display showing the CWD, and ANSI terminal color support.
+cupid-os provides shell commands through a mix of built-in functions and auto-discovered CupidC programs in `/bin/`. The shell features command history (arrow up/down), tab completion for commands and filenames, current working directory tracking, prompt display showing the CWD, and ANSI terminal color support.
+
+Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for how to write your own.
 
 ---
 
@@ -10,61 +12,54 @@ cupid-os provides 38+ built-in shell commands. The shell features command histor
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `help` | `help` | List all available commands with descriptions |
-| `clear` | `clear` | Clear the screen (works in both text and GUI modes) |
-| `echo` | `echo <text>` | Print text to the terminal |\n| `echo` | `echo -c <color> <text>` | Print colored text (auto-resets) |
-| `time` | `time` | Show system uptime in seconds and milliseconds |
-| `reboot` | `reboot` | Reboot the machine via keyboard controller reset |
-| `history` | `history` | Show the last 16 commands entered |
-| `sysinfo` | `sysinfo` | Show uptime, CPU frequency, timer frequency, and memory usage |
-| `date` | `date [+epoch\|+short]` | Show current date and time from the RTC |
+| `help` | `help` | List all available commands _(CupidC)_ |
+| `clear` | `clear` | Clear the screen _(CupidC)_ |
+| `echo` | `echo <text>` | Print text to the terminal _(CupidC)_ |
+| `echo` | `echo -c <color> <text>` | Print colored text (auto-resets) |
+| `time` | `time` | Show system uptime _(CupidC)_ |
+| `reboot` | `reboot` | Reboot the machine _(CupidC)_ |
+| `history` | `history` | Show the last 16 commands entered _(CupidC)_ |
+| `sysinfo` | `sysinfo` | Show uptime, CPU frequency, timer frequency, and memory usage _(CupidC)_ |
+| `date` | `date [+epoch\|+short]` | Show current date and time from the RTC _(CupidC)_ |
 | `cupidfetch` | `cupidfetch` | Show system info with ASCII art (includes date/time) |
 
 ### Filesystem Commands (VFS)
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `cd` | `cd <path>` | Change current working directory (supports `.` and `..`) |
-| `pwd` | `pwd` | Print current working directory |
-| `ls` | `ls [path]` | List files in the current directory or given path |
-| `cat` | `cat <file>` | Display file contents (relative to CWD or absolute) |
-| `mount` | `mount` | Show all mounted filesystems |
-| `vls` | `vls [path]` | List files at an absolute VFS path |
-| `vcat` | `vcat <path>` | Display file at an absolute VFS path |
-| `vstat` | `vstat <path>` | Show file/directory info (type, size) |
-| `vmkdir` | `vmkdir <path>` | Create a directory in VFS |
-| `vrm` | `vrm <path>` | Delete a file from VFS |
-| `vwrite` | `vwrite <path> <text>` | Write text to a VFS file |
-| `mv` | `mv <source> <dest>` | Move/rename a file (CupidC user program) |
+| `cd` | `cd [path]` | Change current working directory (supports `.` and `..`) _(CupidC)_ |
+| `pwd` | `pwd` | Print current working directory _(CupidC)_ |
+| `ls` | `ls [path]` | List files in the current directory or given path _(CupidC)_ |
+| `cat` | `cat <file>` | Display file contents (relative to CWD or absolute) _(CupidC)_ |
+| `mount` | `mount` | Show all mounted filesystems _(CupidC)_ |
+| `mv` | `mv <source> <dest>` | Move/rename a file _(CupidC)_ |
 | `exec` | `exec <path>` | Load and run a CUPD executable |
 
 ### Legacy Disk Commands
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `lsdisk` | `lsdisk` | List files on the FAT16 disk directly |
-| `catdisk` | `catdisk <filename>` | Display contents of a file from FAT16 disk directly |
-| `sync` | `sync` | Flush the block cache to disk |
-| `cachestats` | `cachestats` | Show block cache hit/miss statistics |
+| `sync` | `sync` | Flush the block cache to disk _(CupidC)_ |
+| `cachestats` | `cachestats` | Show block cache hit/miss statistics _(CupidC)_ |
 
 ### Editor & Scripting
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `ed` | `ed [filename]` | Launch the ed line editor (optionally opening a file) |
+| `ed` | `ed [filename]` | Launch the ed line editor — CupidC program ([details](Ed-Editor)) |
 | `cupid` | `cupid <script.cup> [args...]` | Run a CupidScript file |
 
 Scripts can also be run as:
 - `./script.cup [args]` — prefix with `./`
 - `script.cup [args]` — just type the `.cup` filename
 
-### Color Commands (CupidScript Builtins)
+### Color Commands
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `setcolor` | `setcolor <fg> [bg]` | Set terminal foreground (and optional background) color |
-| `resetcolor` | `resetcolor` | Reset colors to defaults (light gray on black) |
-| `printc` | `printc <fg> <text>` | Print text in a specific color (auto-resets) |
+| `setcolor` | `setcolor <fg> [bg]` | Set terminal foreground (and optional background) color _(CupidC)_ |
+| `resetcolor` | `resetcolor` | Reset colors to defaults (light gray on black) _(CupidC)_ |
+| `printc` | `printc <fg> <text>` | Print text in a specific color (auto-resets) _(CupidC)_ |
 
 Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Light Gray, 8=Dark Gray, 9=Light Blue, 10=Light Green, 11=Light Cyan, 12=Light Red, 13=Light Magenta, 14=Yellow, 15=White
 
@@ -79,24 +74,24 @@ Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Lig
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `ps` | `ps` | List all processes with PID, state, and name |
-| `kill` | `kill <pid>` | Terminate a process by PID (cannot kill PID 1) |
-| `spawn` | `spawn [n]` | Create 1–16 test counting processes |
-| `yield` | `yield` | Voluntarily yield CPU to the next process |
+| `ps` | `ps` | List all processes with PID, state, and name _(CupidC)_ |
+| `kill` | `kill <pid>` | Terminate a process by PID (cannot kill PID 1) _(CupidC)_ |
+| `spawn` | `spawn [n]` | Create 1–16 test counting processes _(CupidC)_ |
+| `yield` | `yield` | Voluntarily yield CPU to the next process _(CupidC)_ |
 
 ### Debug Commands
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `memdump` | `memdump <hex_addr> [length]` | Hex + ASCII dump of memory (default 64 bytes, max 512) |
-| `memstats` | `memstats` | Show heap and physical memory statistics |
-| `memleak` | `memleak [seconds]` | Detect allocations older than threshold (default 60s) |
-| `memcheck` | `memcheck` | Walk all heap blocks and verify canary integrity |
-| `stacktrace` | `stacktrace` | Print current call stack (EBP frame chain) |
-| `registers` | `registers` | Dump all general-purpose CPU registers + EFLAGS |
-| `loglevel` | `loglevel [level]` | Get/set serial log level (`debug`/`info`/`warn`/`error`/`panic`) |
-| `logdump` | `logdump` | Print the in-memory circular log buffer |
-| `crashtest` | `crashtest <type>` | Test crash handling (see below) |
+| `memdump` | `memdump <hex_addr> [length]` | Hex + ASCII dump of memory (default 64 bytes, max 512) _(CupidC)_ |
+| `memstats` | `memstats` | Show heap and physical memory statistics _(CupidC)_ |
+| `memleak` | `memleak [seconds]` | Detect allocations older than threshold (default 60s) _(CupidC)_ |
+| `memcheck` | `memcheck` | Walk all heap blocks and verify canary integrity _(CupidC)_ |
+| `stacktrace` | `stacktrace` | Print current call stack (EBP frame chain) _(CupidC)_ |
+| `registers` | `registers` | Dump all general-purpose CPU registers + EFLAGS _(CupidC)_ |
+| `loglevel` | `loglevel [level]` | Get/set serial log level (`debug`/`info`/`warn`/`error`/`panic`) _(CupidC)_ |
+| `logdump` | `logdump` | Print the in-memory circular log buffer _(CupidC)_ |
+| `crashtest` | `crashtest <type>` | Test crash handling (see below) _(CupidC)_ |
 
 ### Crash Test Types
 
@@ -248,10 +243,8 @@ Mounted filesystems:
   /home   fat16
 
 # Create and write files
-> vmkdir /tmp/test
-> vwrite /tmp/test/hello.txt Hello World
-> vcat /tmp/test/hello.txt
-Hello World
+> ed /tmp/test/hello.txt
+> cat /tmp/test/hello.txt
 
 # Legacy disk access
 > lsdisk
