@@ -1,4 +1,10 @@
-// mv.cc - move/rename files for CupidOS
+//help: Move or rename files
+//help: Usage: mv <source> <dest>
+//help: If <dest> is a directory, moves the file into it.
+//help: Supports both relative and absolute paths.
+//help: Examples:
+//help:   mv old.txt new.txt
+//help:   mv report.txt /tmp/
 
 void resolve_path(char *out, char *path) {
     int i = 0;

@@ -57,9 +57,13 @@
 #include "../kernel/shell.h"
 #include "../kernel/terminal_app.h"
 #include "../kernel/desktop.h"
+#include "serial.h"
 
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
+
+// Debug flag for keyboard (set to 1 to enable detailed logging)
+#define KEYBOARD_DEBUG 1
 
 // Scancode to ASCII mapping (lowercase)
 static const char scancode_to_ascii[] = {
@@ -276,6 +280,7 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
+
     // Enqueue the key event into the circular buffer
     enqueue_event(key, ascii);
 }
@@ -375,6 +380,16 @@ char keyboard_get_char(void) {
 }
 
 char getchar(void) {
+    /* In GUI mode with a JIT program running, use the program input buffer
+     * instead of the global keyboard buffer (which is consumed by the shell) */
+    int gui_mode = (shell_get_output_mode() == SHELL_OUTPUT_GUI);
+    int prog_running = shell_jit_program_is_running();
+
+    if (gui_mode && prog_running) {
+        return shell_jit_program_getchar();
+    }
+
+    /* Text mode or shell mode: read from global keyboard buffer */
     key_event_t event;
     /* Blocking: wait for a key event.
      * In GUI mode, pump the display so the screen stays alive

@@ -55,7 +55,7 @@ load_kernel:
     mov byte [cur_count], 17    ; Remaining sectors in first track
     mov word [dest_seg], 0x1000
     mov word [dest_off], 0x0000
-    mov word [sectors_left], 512 ; Total sectors to load (~256KB max kernel)
+    mov word [sectors_left], 1024 ; Total sectors to load (~512KB max kernel)
 
 .read_loop:
     ; Check if done
@@ -198,7 +198,7 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0x90000  ; Ensure stack pointer is set
+    mov esp, 0x190000 ; Boot stack at 1.5MB+ (above BSS)
     mov ebp, esp       ; Set base pointer to stack top
     
     ; Print PM message directly to video memory

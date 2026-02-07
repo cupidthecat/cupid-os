@@ -1,0 +1,46 @@
+#!/bin/cupid
+# build.cup - Build all CupidC programs in /bin
+#
+# Compiles each .cc source file in /bin to an ELF binary
+# in /home/bin using the ccc ahead-of-time compiler.
+#
+# Usage: cupid /bin/build.cup
+
+echo ""
+setcolor 15
+echo "=== Building CupidC Programs ==="
+resetcolor
+echo ""
+
+COUNT=0
+ERRORS=0
+
+for PROG in clear echo help mv reboot time; do
+    SOURCE="/bin/$PROG.cc"
+    OUTPUT="/home/bin/$PROG"
+
+    echo -c 11 "  Compiling $SOURCE -> $OUTPUT"
+    ccc $SOURCE -o $OUTPUT
+
+    if [ $? -eq 0 ]; then
+        printc 10 "  ✓ $PROG"
+        echo ""
+        COUNT=$((COUNT + 1))
+    else
+        printc 4 "  ✗ $PROG (build failed)"
+        echo ""
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
+echo ""
+setcolor 15
+echo "=== Build Complete ==="
+resetcolor
+echo -c 10 "  Succeeded: $COUNT"
+
+if [ $ERRORS -gt 0 ]; then
+    echo -c 4 "  Failed:    $ERRORS"
+fi
+
+echo ""
