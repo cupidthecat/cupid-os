@@ -26,6 +26,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/terminal_ansi.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/syscall.o \
+            kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
+            kernel/cupidc_elf.o \
             drivers/rtc.o kernel/calendar.o
 
 all: $(OS_IMAGE)
@@ -225,6 +227,19 @@ kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/
 # Syscall table for ELF programs
 kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.h kernel/shell.h
 	$(CC) $(CFLAGS) kernel/syscall.c -o kernel/syscall.o
+
+# CupidC compiler
+kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/memory.h kernel/exec.h
+	$(CC) $(CFLAGS) kernel/cupidc.c -o kernel/cupidc.o
+
+kernel/cupidc_lex.o: kernel/cupidc_lex.c kernel/cupidc.h
+	$(CC) $(CFLAGS) kernel/cupidc_lex.c -o kernel/cupidc_lex.o
+
+kernel/cupidc_parse.o: kernel/cupidc_parse.c kernel/cupidc.h
+	$(CC) $(CFLAGS) kernel/cupidc_parse.c -o kernel/cupidc_parse.o
+
+kernel/cupidc_elf.o: kernel/cupidc_elf.c kernel/cupidc.h kernel/exec.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/cupidc_elf.c -o kernel/cupidc_elf.o
 
 # Link kernel objects
 $(KERNEL): $(KERNEL_OBJS)

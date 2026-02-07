@@ -68,6 +68,11 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - `terminal_app.c/h` – GUI terminal application interfacing with the shell via character buffer.
   - `process.c/h` – Process management: kernel threads, round-robin scheduler, context switching, process lifecycle.
   - `context_switch.asm` – Pure assembly context switch routine: saves/restores callee-saved registers and ESP across process switches.
+  - `cupidc.h` – CupidC compiler header: token types, symbol table, compiler state, public API.
+  - `cupidc.c` – CupidC compiler driver: JIT/AOT entry points, kernel bindings registration, state initialization.
+  - `cupidc_lex.c` – CupidC lexer: tokenizes `.cc` source into keywords, identifiers, literals, operators.
+  - `cupidc_parse.c` – CupidC parser and x86 code generator: single-pass recursive descent that emits native machine code.
+  - `cupidc_elf.c` – CupidC ELF32 binary writer for AOT compilation output.
   - `cupidscript.h` – CupidScript scripting language header: token types, AST nodes, runtime context, and public API.
   - `cupidscript_lex.c` – CupidScript lexer/tokenizer: breaks script source into tokens (keywords, variables, operators, strings).
   - `cupidscript_parse.c` – CupidScript parser: transforms token stream into an Abstract Syntax Tree (AST).
@@ -257,6 +262,24 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Detects NULL pointer dereferences (address < 0x1000)
     - Reports access type (read/write), cause (not-present/protection), and CPU mode
 
+- **CupidC Compiler** ✨ **NEW**
+  - A HolyC-inspired C compiler that compiles `.cc` source files directly to x86 machine code
+  - **JIT Mode:** `cupidc program.cc` — compile and execute immediately in-memory
+  - **AOT Mode:** `ccc program.cc -o program` — compile to persistent ELF32 binary on disk
+  - **Types:** `int`, `char`, `void`, pointers (`int*`, `char*`), stack-allocated arrays
+  - **Operators:** Full C operator precedence — arithmetic, comparison, logical, bitwise, assignment, shift
+  - **Control Flow:** `if`/`else`, `while`, `for`, `break`, `continue`, `return`
+  - **Functions:** cdecl calling convention, up to 8 parameters, forward references with automatic resolution
+  - **Inline Assembly:** `asm { ... }` blocks with x86 instruction encoding (cli, sti, hlt, mov, add, sub, push, pop, int, etc.)
+  - **Direct Port I/O:** `inb()`/`outb()` builtins for hardware access
+  - **Kernel Bindings:** `print`, `println`, `putchar`, `print_int`, `print_hex`, `kmalloc`, `kfree`, `strlen`, `strcmp`, `memset`, `memcpy`, `vfs_open`, `vfs_read`, `vfs_write`, `vfs_close`, `yield`, `exit`, `exec`, `memstats`
+  - **String/Char Literals:** Full escape sequence support (`\n`, `\t`, `\0`, etc.)
+  - **Pointers:** Dereference (`*ptr`), address-of (`&var`), pointer arithmetic, array subscript (`arr[i]`)
+  - **Single-Pass Compiler:** Recursive descent parser emits x86 machine code directly — no AST, no IR
+  - **Architecture:** Lexer (`cupidc_lex.c`) → Parser + Code Gen (`cupidc_parse.c`) → JIT/AOT (`cupidc.c` / `cupidc_elf.c`)
+  - **Limits:** 64KB code, 16KB data, 256 symbols, 128 functions, 8 params per function
+  - **Ring 0:** Compiled programs run with full kernel privileges and unrestricted hardware access
+
 - **Ed Line Editor** ✨ **NEW**
   - A faithful implementation of the classic Unix `ed(1)` line editor
   - **Address Forms:** Line numbers, `.` (current), `$` (last), `+`/`-` offsets, `/RE/` and `?RE?` regex search, `'x` marks, `%` (whole file), `addr,addr` ranges
@@ -351,6 +374,7 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - **Legacy Disk Commands:** `lsdisk`, `catdisk <file>`, `sync`, `cachestats`
   - **Editor:** `ed [file]` – Launch the ed line editor
   - **Scripting:** `cupid <script.cup> [args]` – Run a CupidScript file ✨ **NEW**
+  - **Compiler:** `cupidc <file.cc>` – JIT compile and run CupidC source, `ccc <file.cc> -o <out>` – AOT compile to ELF binary ✨ **NEW**
   - **Process Commands:**
     - `ps` – List all running processes (PID, state, name)
     - `kill <pid>` – Terminate a process
@@ -501,7 +525,18 @@ As we progress, new phases and tasks may be added, existing ones may be modified
    - ✅ File I/O (in-memory fs + FAT16)
 
 ### Phase 3 - Advanced Features
-10. Custom compiler
+10. Custom compiler (✅ Complete — CupidC)
+   - ✅ HolyC-inspired C compiler with JIT and AOT modes
+   - ✅ Single-pass recursive descent parser with direct x86 code emission
+   - ✅ Types: int, char, void, pointers, arrays
+   - ✅ Control flow: if/else, while, for, break, continue, return
+   - ✅ Functions with cdecl calling convention and forward references
+   - ✅ Inline assembly support
+   - ✅ Kernel function bindings (print, kmalloc, VFS, etc.)
+   - ✅ ELF32 binary output for AOT mode
+   - ✅ Shell commands: `cupidc` (JIT), `ccc` (AOT)
+   - ⭕ Structs and unions
+   - ⭕ Preprocessor (#include, #define)
 11. Advanced memory management
 12. Extended device support
 13. ~~Multi-process scheduling~~ ✅ Basic round-robin scheduling implemented
@@ -803,6 +838,7 @@ gdb
 GNU v3
 
 ## Recent Updates
+- **CupidC Compiler** ✨ **NEW** — HolyC-inspired C compiler built into the kernel. Compiles `.cc` source files to native x86 machine code with both JIT (`cupidc program.cc`) and AOT (`ccc program.cc -o binary`) modes. Supports `int`/`char`/`void` types, pointers, arrays, full C operator precedence, if/else/while/for control flow, functions with cdecl calling convention and forward references, inline assembly (`asm { ... }`), direct port I/O (`inb`/`outb`), and 20+ kernel function bindings (print, kmalloc, VFS, process management). Single-pass recursive descent compiler emits x86 directly — no AST or IR. AOT mode produces ELF32 binaries via `cupidc_elf.c`. New files: `cupidc.h`, `cupidc.c`, `cupidc_lex.c`, `cupidc_parse.c`, `cupidc_elf.c`. New shell commands: `cupidc`, `ccc`.
 - **RTC Clock & Calendar** ✨ **NEW** – CMOS Real-Time Clock driver reading time/date via I/O ports 0x70/0x71 with BCD conversion and atomic reads. Digital clock displayed right-aligned in the taskbar (12-hour format with AM/PM and abbreviated date). Click the clock to open an interactive calendar popup showing a navigable monthly view with current day highlighting, month navigation arrows, and full date/time display. Close by clicking outside or pressing Escape. New files: `drivers/rtc.c/h`, `kernel/calendar.c/h`.
 - **Terminal Colors & ANSI Support** – Full ANSI escape sequence parser with 16-color VGA palette. Per-character foreground and background color tracking in the GUI terminal's 80×50 character buffer. Supports `\e[30-37m` / `\e[90-97m` foreground, `\e[40-47m` background, `\e[0m` reset, `\e[1m` bold, `\e[2J` clear, and `\e[H` cursor home. Colors mapped from VGA text-mode indices to Mode 13h palette for graphical rendering. New files: `terminal_ansi.c/h`.
 - **CupidScript I/O Redirection & Pipes** – Stream system with file descriptor table (16 fds per context), supporting terminal, buffer, and VFS file streams. Pipe operator (`|`) connects command stdout to next command's stdin. Output redirection (`>`, `>>`) and input redirection (`<`). Error redirection (`2>`, `2>&1`). New files: `cupidscript_streams.c/h`.
