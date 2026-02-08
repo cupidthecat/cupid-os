@@ -39,7 +39,7 @@ void main() {
     print(c_val);    print("cupid shell\n");
 
     print(c_label);  print("Display: ");
-    print(c_val);    print("320x200 256c\n");
+    print(c_val);    print("640x480 32bpp\n");
 
     print(c_label);  print("Term: ");
     print(c_val);    print("GUI\n");
