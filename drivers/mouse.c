@@ -252,3 +252,51 @@ void mouse_draw_cursor(void) {
         }
     }
 }
+
+void mouse_update_cursor_direct(void) {
+    /* Skip if no cursor was ever saved (before first full render) */
+    if (saved_x < 0) return;
+
+    uint32_t *disp = vga_get_display_buffer();
+    if (!disp) return;
+
+    /* Erase old cursor by restoring saved pixels onto the display buffer */
+    {
+        int row, col;
+        for (row = 0; row < CURSOR_H; row++) {
+            for (col = 0; col < CURSOR_W; col++) {
+                int16_t px = (int16_t)(saved_x + (int16_t)col);
+                int16_t py = (int16_t)(saved_y + (int16_t)row);
+                if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
+                    disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
+                        under_cursor[row * CURSOR_W + col];
+                }
+            }
+        }
+    }
+
+    /* Save new cursor area and draw cursor at new position */
+    saved_x = mouse.x;
+    saved_y = mouse.y;
+    {
+        int row, col;
+        for (row = 0; row < CURSOR_H; row++) {
+            uint8_t outline = cursor_outline[row];
+            uint8_t fill    = cursor_bitmap[row];
+            for (col = 0; col < CURSOR_W; col++) {
+                int16_t px = (int16_t)(saved_x + (int16_t)col);
+                int16_t py = (int16_t)(saved_y + (int16_t)row);
+                if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
+                    uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+                    under_cursor[row * CURSOR_W + col] =
+                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px];
+                    if (fill & mask) {
+                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR;
+                    } else if (outline & mask) {
+                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_BLACK;
+                    }
+                }
+            }
+        }
+    }
+}

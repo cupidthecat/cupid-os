@@ -28,57 +28,141 @@ void main() {
     print(" (_|   |_) \n");
     print(c_rst);
 
-    // System information
+    // Gather system information
+    int ms       = uptime_ms();
+    int cpu_mhz  = get_cpu_mhz();
+    int free_pg  = pmm_free_pages();
+    int total_pg = pmm_total_pages();
+    int free_kb  = free_pg * 4;
+    int total_kb = total_pg * 4;
+    int used_kb  = total_kb - free_kb;
+    int mem_pct  = total_kb ? (used_kb * 100) / total_kb : 0;
+    int procs    = process_get_count();
+    int mounts   = vfs_mount_count();
+    int gui      = is_gui_mode();
+
+    // Uptime components
+    int secs = ms / 1000;
+    int mins = secs / 60;  secs = secs % 60;
+    int hrs  = mins / 60;  mins = mins % 60;
+    int days = hrs  / 24;  hrs  = hrs  % 24;
+
+    // Memory in MiB
+    int used_mib  = used_kb  / 1024;
+    int total_mib = total_kb / 1024;
+
+    // OS
     print(c_label);  print("OS: ");
     print(c_val);    print("cupid-os x86\n");
 
+    // Kernel
     print(c_label);  print("Kernel: ");
     print(c_val);    print("1.0.0\n");
 
+    // Uptime
+    print(c_label);  print("Uptime: ");
+    print(c_val);
+    if (days > 0) {
+        print_int(days);
+        print("d ");
+    }
+    if (hrs > 0) {
+        print_int(hrs);
+        print("h ");
+    }
+    print_int(mins);
+    print("m\n");
+
+    // Shell
     print(c_label);  print("Shell: ");
     print(c_val);    print("cupid shell\n");
 
+    // Display
     print(c_label);  print("Display: ");
-    print(c_val);    print("640x480 32bpp\n");
+    print(c_val);
+    if (gui) {
+        print("640x480 32bpp\n");
+    } else {
+        print("80x25 16c\n");
+    }
 
+    // Terminal
     print(c_label);  print("Term: ");
-    print(c_val);    print("GUI\n");
+    print(c_val);
+    if (gui) {
+        print("GUI\n");
+    } else {
+        print("VGA Text\n");
+    }
 
-    // Color palette
-    print(c_rst);
+    // CPU
+    print(c_label);  print("CPU: ");
+    print(c_val);    print("x86 @ ");
+    print_int(cpu_mhz);
+    print(" MHz\n");
+
+    // Memory
+    print(c_label);  print("Mem: ");
+    print(c_val);
+    print_int(used_mib);
+    print("/");
+    print_int(total_mib);
+    print(" MiB (");
+    print_int(mem_pct);
+    print("%)\n");
+
+    // Processes
+    print(c_label);  print("Procs: ");
+    print(c_val);
+    print_int(procs);
+    print(" running\n");
+
+    // Mounts
+    print(c_label);  print("Mounts: ");
+    print(c_val);
+    print_int(mounts);
+    print(" fs\n");
+
+    // Date and Time
+    print(c_label);  print("Date: ");
+    print(c_val);    print(date_full_string());
     print("\n");
 
-    // Standard colors
+    print(c_label);  print("Time: ");
+    print(c_val);    print(time_string());
+    print("\n");
+
+    // Color palette bars (background colors + spaces, matching original)
+    print("\n");
     int i = 0;
     while (i < 8) {
         print("\x1B[");
-        if (i == 0) print("30");
-        if (i == 1) print("31");
-        if (i == 2) print("32");
-        if (i == 3) print("33");
-        if (i == 4) print("34");
-        if (i == 5) print("35");
-        if (i == 6) print("36");
-        if (i == 7) print("37");
-        print("m██");
+        if (i == 0) print("40");
+        if (i == 1) print("41");
+        if (i == 2) print("42");
+        if (i == 3) print("43");
+        if (i == 4) print("44");
+        if (i == 5) print("45");
+        if (i == 6) print("46");
+        if (i == 7) print("47");
+        print("m    ");
         i = i + 1;
     }
     print(c_rst);
     print("\n");
 
-    // Bright colors
     i = 0;
     while (i < 8) {
         print("\x1B[");
-        if (i == 0) print("90");
-        if (i == 1) print("91");
-        if (i == 2) print("92");
-        if (i == 3) print("93");
-        if (i == 4) print("94");
-        if (i == 5) print("95");
-        if (i == 6) print("96");
-        if (i == 7) print("97");
-        print("m██");
+        if (i == 0) print("100");
+        if (i == 1) print("101");
+        if (i == 2) print("102");
+        if (i == 3) print("103");
+        if (i == 4) print("104");
+        if (i == 5) print("105");
+        if (i == 6) print("106");
+        if (i == 7) print("107");
+        print("m    ");
         i = i + 1;
     }
     print(c_rst);

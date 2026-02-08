@@ -40,4 +40,7 @@ void vga_clear_screen(uint32_t color);
 /* Copy back buffer to linear framebuffer */
 void vga_flip(void);
 
+/* Get pointer to the currently displayed LFB page (for direct cursor updates) */
+uint32_t *vga_get_display_buffer(void);
+
 #endif

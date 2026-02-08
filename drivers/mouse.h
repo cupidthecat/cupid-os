@@ -34,4 +34,8 @@ void mouse_draw_cursor(void);
 void mouse_save_under_cursor(void);
 void mouse_restore_under_cursor(void);
 
+/* Fast path: restore old cursor and draw new cursor directly on the
+ * displayed LFB page — no memcpy/flip needed. */
+void mouse_update_cursor_direct(void);
+
 #endif
