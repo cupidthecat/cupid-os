@@ -61,10 +61,10 @@ bool ui_contains(ui_rect_t r, int16_t px, int16_t py);
 /* ── Drawing: low-level ───────────────────────────────────────────── */
 
 /* Drop shadow: dark rectangle offset behind `r` */
-void ui_draw_shadow(ui_rect_t r, uint8_t color, int16_t offset);
+void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset);
 
 /* Filled panel with optional Windows-95-style 3D raised/sunken edge */
-void ui_draw_panel(ui_rect_t r, uint8_t bg, bool border_3d, bool raised);
+void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised);
 
 /* ── Drawing: composite widgets ───────────────────────────────────── */
 
@@ -73,7 +73,7 @@ void ui_draw_panel(ui_rect_t r, uint8_t bg, bool border_3d, bool raised);
 void ui_draw_button(ui_rect_t r, const char *label, bool focused);
 
 /* Label: text with alignment, vertically centered in rect */
-void ui_draw_label(ui_rect_t r, const char *text, uint8_t color,
+void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
                    ui_align_t align);
 
 /* Sunken text-entry field with cursor.

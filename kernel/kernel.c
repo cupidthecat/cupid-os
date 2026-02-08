@@ -658,11 +658,10 @@ void kmain(void) {
     KINFO("Total Pages: %u", pmm_total_pages());
     KINFO("Free Pages: %u", pmm_free_pages());
 
-    // Initialize VGA graphics mode (Mode 13h already set by bootloader)
-    vga_set_mode_13h();      // Allocates back buffer and clears screen
-    vga_init_palette();      // Set up color palette
+    // Initialize VBE graphics (mode set by bootloader, LFB addr at 0x0500)
+    vga_init_vbe();          // Allocates back buffer and clears screen
     gfx_init();              // Initialize graphics primitives
-    KINFO("VGA graphics initialized (320x200, Mode 13h)");
+    KINFO("VBE graphics initialized (640x480, 32bpp)");
 
     // Initialize mouse driver
     mouse_init();
@@ -686,8 +685,8 @@ void kmain(void) {
     KINFO("GUI and desktop initialized");
 
     // Add desktop icons
-    desktop_add_icon(10, 10, "Terminal", terminal_launch);
-    desktop_add_icon(10, 55, "Notepad", notepad_launch);
+    desktop_add_icon(16, 16, "Terminal", terminal_launch);
+    desktop_add_icon(16, 80, "Notepad", notepad_launch);
 
     // Enable keyboard interrupt
     pic_clear_mask(1);

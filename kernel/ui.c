@@ -111,12 +111,12 @@ bool ui_contains(ui_rect_t r, int16_t px, int16_t py) {
  *  Drawing: low-level
  * ══════════════════════════════════════════════════════════════════════ */
 
-void ui_draw_shadow(ui_rect_t r, uint8_t color, int16_t offset) {
+void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
     gfx_fill_rect((int16_t)(r.x + offset), (int16_t)(r.y + offset),
                   r.w, r.h, color);
 }
 
-void ui_draw_panel(ui_rect_t r, uint8_t bg, bool border_3d, bool raised) {
+void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
     gfx_fill_rect(r.x, r.y, r.w, r.h, bg);
     if (border_3d) {
         gfx_draw_3d_rect(r.x, r.y, r.w, r.h, raised);
@@ -149,7 +149,7 @@ void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
 
 /* ── Label ────────────────────────────────────────────────────────── */
 
-void ui_draw_label(ui_rect_t r, const char *text, uint8_t color,
+void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
                    ui_align_t align) {
     uint16_t tw = gfx_text_width(text);
     int16_t tx;
@@ -196,7 +196,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
 /* ── Title bar ────────────────────────────────────────────────────── */
 
 void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
-    uint8_t bg = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
+    uint32_t bg = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
     gfx_fill_rect(r.x, r.y, r.w, r.h, bg);
 
     /* Left-aligned text with 3px padding, vertically centered */

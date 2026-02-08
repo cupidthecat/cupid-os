@@ -51,6 +51,18 @@ void paging_init(void) {
         map_page_identity(addr);
     }
 
+    /* Map VBE linear framebuffer region (address stored by bootloader at 0x0500).
+     * Covers 640*480*4 = 1,228,800 bytes rounded up to next 4KB page boundary. */
+    {
+        uint32_t lfb = *(volatile uint32_t *)0x0500U;
+        if (lfb != 0U && lfb >= 0x100000U) {
+            uint32_t off;
+            for (off = 0; off < 0x140000U; off += PAGE_SIZE) {
+                map_page_identity(lfb + off);
+            }
+        }
+    }
+
     uint32_t pd_phys = (uint32_t)page_directory;
     __asm__ volatile("mov %0, %%cr3" :: "r"(pd_phys));
 

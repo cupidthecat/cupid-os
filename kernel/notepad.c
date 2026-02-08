@@ -37,8 +37,8 @@
 /* ══════════════════════════════════════════════════════════════════════
  *  Constants
  * ══════════════════════════════════════════════════════════════════════ */
-#define NOTEPAD_WIN_W       310
-#define NOTEPAD_WIN_H       168
+#define NOTEPAD_WIN_W       540
+#define NOTEPAD_WIN_H       350
 
 #define NOTEPAD_MAX_LINES   4096
 #define NOTEPAD_MAX_LINE_LEN 256
@@ -1406,12 +1406,12 @@ static void notepad_draw_menubar(window_t *win) {
     gfx_fill_rect(mx, my, (uint16_t)(win->width - 2), MENUBAR_H, COLOR_BORDER);
 
     /* "File" button */
-    uint8_t file_color = (app.active_menu == MENU_FILE) ? COLOR_HIGHLIGHT : COLOR_BORDER;
+    uint32_t file_color = (app.active_menu == MENU_FILE) ? COLOR_HIGHLIGHT : COLOR_BORDER;
     gfx_fill_rect((int16_t)(mx + 2), my, 36, MENUBAR_H, file_color);
     gfx_draw_text((int16_t)(mx + 4), (int16_t)(my + 2), "File", COLOR_BLACK);
 
     /* "Edit" button */
-    uint8_t edit_color = (app.active_menu == MENU_EDIT) ? COLOR_HIGHLIGHT : COLOR_BORDER;
+    uint32_t edit_color = (app.active_menu == MENU_EDIT) ? COLOR_HIGHLIGHT : COLOR_BORDER;
     gfx_fill_rect((int16_t)(mx + 40), my, 36, MENUBAR_H, edit_color);
     gfx_draw_text((int16_t)(mx + 42), (int16_t)(my + 2), "Edit", COLOR_BLACK);
 }
@@ -1844,7 +1844,7 @@ static void notepad_draw_file_dialog(window_t *win) {
                           (uint16_t)(L.list.w - 1), DLG_ITEM_H, COLOR_BUTTON);
         }
 
-        uint8_t tc = (fi == app.dialog.selected_index)
+        uint32_t tc = (fi == app.dialog.selected_index)
                      ? COLOR_TEXT_LIGHT : COLOR_BLACK;
 
         if (app.dialog.files[fi].is_directory) {
@@ -1977,7 +1977,7 @@ void notepad_launch(void) {
 
     memset(&app, 0, sizeof(app));
 
-    notepad_wid = gui_create_window(5, 15, NOTEPAD_WIN_W, NOTEPAD_WIN_H,
+    notepad_wid = gui_create_window(50, 40, NOTEPAD_WIN_W, NOTEPAD_WIN_H,
                                     "Notepad");
     if (notepad_wid < 0) {
         KERROR("notepad_launch: failed to create window");

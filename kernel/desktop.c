@@ -132,7 +132,7 @@ void desktop_draw_taskbar(void) {
                 if (btn_w < 20) break; /* Too small to be useful */
             }
 
-            uint8_t bg = (w->flags & WINDOW_FLAG_FOCUSED) ? COLOR_TASKBAR_ACT : COLOR_TASKBAR;
+            uint32_t bg = (w->flags & WINDOW_FLAG_FOCUSED) ? COLOR_TASKBAR_ACT : COLOR_TASKBAR;
             gfx_fill_rect(btn_x, (int16_t)(TASKBAR_Y + 2),
                           btn_w, (uint16_t)(TASKBAR_HEIGHT - 4), bg);
             gfx_draw_rect(btn_x, (int16_t)(TASKBAR_Y + 2),
@@ -409,7 +409,7 @@ static void desktop_draw_calendar(void) {
     }
 
     /* Separator line */
-    int16_t sep_y = (int16_t)(cy + 26);
+    int16_t sep_y = (int16_t)(cy + 32);
     gfx_draw_hline(cx, sep_y, CALENDAR_WIDTH, COLOR_BORDER);
 
     /* Full date line */
@@ -420,18 +420,18 @@ static void desktop_draw_calendar(void) {
         format_date_full(&d, full_date, (int)sizeof(full_date));
         uint16_t fdw = gfx_text_width(full_date);
         int16_t fdx = (int16_t)(cx + (CALENDAR_WIDTH - (int16_t)fdw) / 2);
-        gfx_draw_text(fdx, (int16_t)(sep_y + 3), full_date, COLOR_TEXT);
+        gfx_draw_text(fdx, (int16_t)(sep_y + 5), full_date, COLOR_TEXT);
     }
 
     /* ── Day headers: Su Mo Tu We Th Fr Sa ─────────────────── */
-    int16_t grid_x = (int16_t)(cx + 10);
-    int16_t grid_y = (int16_t)(sep_y + 16);
+    int16_t grid_x = (int16_t)(cx + 16);
+    int16_t grid_y = (int16_t)(sep_y + 22);
     {
         static const char *day_hdrs[] = {
             "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"
         };
         for (int i = 0; i < 7; i++) {
-            int16_t dx = (int16_t)(grid_x + i * 28);
+            int16_t dx = (int16_t)(grid_x + i * 52);
             gfx_draw_text(dx, grid_y, day_hdrs[i], COLOR_TEXT);
         }
     }
@@ -442,16 +442,16 @@ static void desktop_draw_calendar(void) {
     bool is_current = (cal_state.view_month == cal_state.today_month &&
                        cal_state.view_year == cal_state.today_year);
 
-    int16_t row_y = (int16_t)(grid_y + 12);
+    int16_t row_y = (int16_t)(grid_y + 18);
     int col = first_dow;
 
     for (int d = 1; d <= days; d++) {
-        int16_t dx = (int16_t)(grid_x + col * 28);
+        int16_t dx = (int16_t)(grid_x + col * 52);
 
         /* Highlight current day */
         if (is_current && d == cal_state.today_day) {
             gfx_fill_rect((int16_t)(dx - 1), (int16_t)(row_y - 1),
-                          20, 10, COLOR_TITLEBAR);
+                          36, 14, COLOR_TITLEBAR);
             /* Day number text in contrasting color */
             char dbuf[4];
             int dl = 0;
@@ -483,7 +483,7 @@ static void desktop_draw_calendar(void) {
         col++;
         if (col >= 7) {
             col = 0;
-            row_y = (int16_t)(row_y + 14);
+            row_y = (int16_t)(row_y + 20);
         }
     }
 }
@@ -497,28 +497,28 @@ static void desktop_draw_calendar(void) {
 static int calendar_hit_test_day(int16_t mx, int16_t my) {
     int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
     int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
-    int16_t sep_y = (int16_t)(cy + 26);
-    int16_t grid_x = (int16_t)(cx + 10);
-    int16_t grid_y = (int16_t)(sep_y + 16);
-    int16_t row_y = (int16_t)(grid_y + 12);
+    int16_t sep_y = (int16_t)(cy + 32);
+    int16_t grid_x = (int16_t)(cx + 16);
+    int16_t grid_y = (int16_t)(sep_y + 22);
+    int16_t row_y = (int16_t)(grid_y + 18);
 
     int first_dow = get_first_weekday(cal_state.view_month, cal_state.view_year);
     int days_in = get_days_in_month(cal_state.view_month, cal_state.view_year);
     int col = first_dow;
 
     for (int d = 1; d <= days_in; d++) {
-        int16_t dx = (int16_t)(grid_x + col * 28);
+        int16_t dx = (int16_t)(grid_x + col * 52);
 
-        /* Each day cell is ~20px wide, ~14px tall */
-        if (mx >= dx - 1 && mx < dx + 20 &&
-            my >= row_y - 1 && my < row_y + 13) {
+        /* Each day cell is ~36px wide, ~20px tall */
+        if (mx >= dx - 1 && mx < dx + 36 &&
+            my >= row_y - 1 && my < row_y + 19) {
             return d;
         }
 
         col++;
         if (col >= 7) {
             col = 0;
-            row_y = (int16_t)(row_y + 14);
+            row_y = (int16_t)(row_y + 20);
         }
     }
     return 0;

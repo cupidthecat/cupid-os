@@ -167,7 +167,7 @@ static void draw_single_window(window_t *win) {
     gfx_draw_rect(win->x, win->y, win->width, win->height, COLOR_BORDER);
 
     /* Title bar background */
-    uint8_t title_color = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
+    uint32_t title_color = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
     gfx_fill_rect((int16_t)(win->x + 1), (int16_t)(win->y + 1),
                   (uint16_t)(win->width - 2), (uint16_t)(TITLEBAR_H - 1),
                   title_color);

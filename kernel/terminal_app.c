@@ -20,8 +20,8 @@
 #include "../drivers/timer.h"
 #include "../drivers/keyboard.h"
 
-#define TERM_WIN_W 310
-#define TERM_WIN_H 168
+#define TERM_WIN_W 560
+#define TERM_WIN_H 320
 
 #define CURSOR_BLINK_MS 500   /* Toggle cursor every 500 ms */
 
@@ -168,7 +168,7 @@ void terminal_redraw(window_t *win) {
             if (c && c != ' ') {
                 int16_t px = (int16_t)(content_x + col * char_w);
                 /* Get per-cell color, convert VGA index to Mode 13h palette */
-                uint8_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
+                uint32_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
                 if (scale == 1)
                     gfx_draw_char(px, py, c, fg_pal);
                 else
@@ -177,12 +177,12 @@ void terminal_redraw(window_t *win) {
             /* If cell has a non-black background, draw it */
             if (colors[idx].bg != ANSI_COLOR_BLACK) {
                 int16_t px = (int16_t)(content_x + col * char_w);
-                uint8_t bg_pal = ansi_vga_to_palette(colors[idx].bg);
+                uint32_t bg_pal = ansi_vga_to_palette(colors[idx].bg);
                 gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h,
                               bg_pal);
                 /* Redraw char on top of background if present */
                 if (c && c != ' ') {
-                    uint8_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
+                    uint32_t fg_pal = ansi_vga_to_palette(colors[idx].fg);
                     if (scale == 1)
                         gfx_draw_char(px, py, c, fg_pal);
                     else

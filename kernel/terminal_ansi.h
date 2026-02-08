@@ -82,9 +82,9 @@ uint8_t ansi_get_bg(const terminal_color_state_t *state);
 /* Reset color state to defaults */
 void ansi_reset(terminal_color_state_t *state);
 
-/* Map a VGA color index (0-15) to a Mode 13h palette color index.
+/* Map a VGA color index (0-15) to a 32-bit XRGB color value.
  * Used by the GUI terminal to convert VGA text-mode color codes
- * to the 256-color palette used in Mode 13h. */
-uint8_t ansi_vga_to_palette(uint8_t vga_color);
+ * to 32bpp true-color pixel values. */
+uint32_t ansi_vga_to_palette(uint8_t vga_color);
 
 #endif /* TERMINAL_ANSI_H */

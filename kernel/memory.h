@@ -23,7 +23,7 @@ typedef struct heap_block {
 #define PAGE_SIZE 4096
 #define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
-#define HEAP_INITIAL_PAGES 256    /* 1MB initial heap (was 64 = 256KB) */
+#define HEAP_INITIAL_PAGES 512    /* 2MB initial heap (needs room for 1.2MB VBE back buffer) */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 /* ── Stack guard constants ────────────────────────────────────────── */

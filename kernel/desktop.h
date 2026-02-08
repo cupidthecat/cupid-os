@@ -3,19 +3,20 @@
 
 #include "types.h"
 #include "calendar.h"
+#include "../drivers/vga.h"
 
 /* Maximum desktop icons */
 #define MAX_DESKTOP_ICONS 16
 
 /* Taskbar dimensions */
-#define TASKBAR_HEIGHT    20
-#define TASKBAR_Y         (200 - TASKBAR_HEIGHT)
-#define TASKBAR_BTN_MAX_W 80   /* Max width of a window button in the taskbar */
-#define TASKBAR_BTN_START 80   /* X offset where window buttons begin */
+#define TASKBAR_HEIGHT    24
+#define TASKBAR_Y         (VGA_GFX_HEIGHT - TASKBAR_HEIGHT)
+#define TASKBAR_BTN_MAX_W 120  /* Max width of a window button in the taskbar */
+#define TASKBAR_BTN_START 120  /* X offset where window buttons begin */
 
 /* Calendar popup dimensions */
-#define CALENDAR_WIDTH    220
-#define CALENDAR_HEIGHT   180
+#define CALENDAR_WIDTH    440
+#define CALENDAR_HEIGHT   320
 
 /* Desktop icon */
 typedef struct {

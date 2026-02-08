@@ -1,8 +1,8 @@
 /**
- * graphics.c - Graphics primitives for cupid-os VGA Mode 13h
+ * graphics.c - Graphics primitives for cupid-os VBE 640x480 32bpp
  *
  * Provides pixel, line, rectangle, and text drawing with automatic
- * clipping to screen bounds (320x200).
+ * clipping to screen bounds (640x480).
  */
 
 #include "graphics.h"
@@ -12,7 +12,7 @@
 
 /* ── Internal helpers ─────────────────────────────────────────────── */
 
-static uint8_t *fb;  /* Pointer to current back buffer */
+static uint32_t *fb;  /* Pointer to current back buffer */
 
 void gfx_init(void) {
     fb = vga_get_framebuffer();
@@ -20,39 +20,44 @@ void gfx_init(void) {
 
 /* ── Pixel ────────────────────────────────────────────────────────── */
 
-void gfx_plot_pixel(int16_t x, int16_t y, uint8_t color) {
+void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color) {
     if (x < 0 || x >= VGA_GFX_WIDTH || y < 0 || y >= VGA_GFX_HEIGHT)
         return;
-    fb[y * VGA_GFX_WIDTH + x] = color;
+    fb[(int32_t)y * VGA_GFX_WIDTH + (int32_t)x] = color;
 }
 
 /* ── Horizontal / vertical lines (fast) ───────────────────────────── */
 
-void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint8_t color) {
+void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint32_t color) {
     if (y < 0 || y >= VGA_GFX_HEIGHT) return;
     int16_t x1 = x;
     int16_t x2 = (int16_t)(x + (int16_t)w - 1);
     if (x1 < 0) x1 = 0;
     if (x2 >= VGA_GFX_WIDTH) x2 = VGA_GFX_WIDTH - 1;
     if (x1 > x2) return;
-    memset(&fb[y * VGA_GFX_WIDTH + x1], (int)color, (size_t)(x2 - x1 + 1));
+    uint32_t *row = &fb[(int32_t)y * VGA_GFX_WIDTH + (int32_t)x1];
+    int16_t count = (int16_t)(x2 - x1 + 1);
+    int16_t i;
+    for (i = 0; i < count; i++) {
+        row[i] = color;
+    }
 }
 
-void gfx_draw_vline(int16_t x, int16_t y, uint16_t h, uint8_t color) {
+void gfx_draw_vline(int16_t x, int16_t y, uint16_t h, uint32_t color) {
     if (x < 0 || x >= VGA_GFX_WIDTH) return;
     int16_t y1 = y;
     int16_t y2 = (int16_t)(y + (int16_t)h - 1);
     if (y1 < 0) y1 = 0;
     if (y2 >= VGA_GFX_HEIGHT) y2 = VGA_GFX_HEIGHT - 1;
     for (int16_t row = y1; row <= y2; row++) {
-        fb[row * VGA_GFX_WIDTH + x] = color;
+        fb[(int32_t)row * VGA_GFX_WIDTH + (int32_t)x] = color;
     }
 }
 
 /* ── General line (Bresenham) ─────────────────────────────────────── */
 
 void gfx_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
-                   uint8_t color) {
+                   uint32_t color) {
     int16_t dx = x2 - x1;
     int16_t dy = y2 - y1;
     int16_t sx = (dx >= 0) ? 1 : -1;
@@ -74,7 +79,7 @@ void gfx_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 /* ── Rectangles ───────────────────────────────────────────────────── */
 
 void gfx_draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
-                   uint8_t color) {
+                   uint32_t color) {
     gfx_draw_hline(x, y, w, color);
     gfx_draw_hline(x, (int16_t)(y + (int16_t)h - 1), w, color);
     gfx_draw_vline(x, y, h, color);
@@ -82,7 +87,7 @@ void gfx_draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
 }
 
 void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
-                   uint8_t color) {
+                   uint32_t color) {
     for (uint16_t row = 0; row < h; row++) {
         gfx_draw_hline(x, (int16_t)(y + (int16_t)row), w, color);
     }
@@ -90,9 +95,9 @@ void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
 
 /* ── Text ─────────────────────────────────────────────────────────── */
 
-void gfx_draw_char(int16_t x, int16_t y, char c, uint8_t color) {
+void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
     uint8_t idx = (uint8_t)c;
-    if (idx >= 128) idx = 0;
+    if (idx >= 128U) idx = 0U;
     const uint8_t *glyph = font_8x8[idx];
 
     for (int row = 0; row < FONT_H; row++) {
@@ -106,7 +111,7 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint8_t color) {
     }
 }
 
-void gfx_draw_text(int16_t x, int16_t y, const char *text, uint8_t color) {
+void gfx_draw_text(int16_t x, int16_t y, const char *text, uint32_t color) {
     int16_t cx = x;
     while (*text) {
         gfx_draw_char(cx, y, *text, color);
@@ -123,12 +128,12 @@ uint16_t gfx_text_width(const char *text) {
 
 /* ── Scaled character drawing ─────────────────────────────────────── */
 
-void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint8_t color,
+void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint32_t color,
                           int scale) {
     if (scale <= 1) { gfx_draw_char(x, y, c, color); return; }
 
     uint8_t idx = (uint8_t)c;
-    if (idx >= 128) idx = 0;
+    if (idx >= 128U) idx = 0U;
     const uint8_t *glyph = font_8x8[idx];
 
     for (int row = 0; row < FONT_H; row++) {
@@ -144,7 +149,7 @@ void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint8_t color,
 }
 
 void gfx_draw_text_scaled(int16_t x, int16_t y, const char *text,
-                          uint8_t color, int scale) {
+                          uint32_t color, int scale) {
     int16_t cx = x;
     int cw = (scale <= 1) ? FONT_W : FONT_W * scale;
     while (*text) {
@@ -158,8 +163,8 @@ void gfx_draw_text_scaled(int16_t x, int16_t y, const char *text,
 
 void gfx_draw_3d_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       bool raised) {
-    uint8_t light = raised ? COLOR_TEXT_LIGHT : COLOR_TEXT;
-    uint8_t dark  = raised ? COLOR_TEXT : COLOR_TEXT_LIGHT;
+    uint32_t light = raised ? COLOR_TEXT_LIGHT : COLOR_TEXT;
+    uint32_t dark  = raised ? COLOR_TEXT : COLOR_TEXT_LIGHT;
     gfx_draw_hline(x, y, w, light);
     gfx_draw_vline(x, y, h, light);
     gfx_draw_hline(x, (int16_t)(y + (int16_t)h - 1), w, dark);
