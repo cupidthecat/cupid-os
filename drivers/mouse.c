@@ -16,7 +16,7 @@
 #include "../drivers/serial.h"
 
 /* ── Global mouse state ───────────────────────────────────────────── */
-mouse_state_t mouse = { 160, 100, 0, 0, 0, false };
+mouse_state_t mouse = { 320, 240, 0, 0, 0, false };
 static bool has_scroll_wheel = false;
 
 /* ── Cursor bitmap (8x10 arrow) ───────────────────────────────────── */
@@ -50,8 +50,8 @@ static const uint8_t cursor_outline[CURSOR_H] = {
     0x3C  /* ..XXXX.. */
 };
 
-/* Save-under buffer */
-static uint8_t under_cursor[CURSOR_W * CURSOR_H];
+/* Save-under buffer (32bpp pixels) */
+static uint32_t under_cursor[CURSOR_W * CURSOR_H];
 static int16_t saved_x = -1, saved_y = -1;
 
 /* ── PS/2 controller helpers ──────────────────────────────────────── */
@@ -198,7 +198,7 @@ void mouse_init(void) {
 /* ── Cursor drawing ───────────────────────────────────────────────── */
 
 void mouse_save_under_cursor(void) {
-    uint8_t *framebuf = vga_get_framebuffer();
+    uint32_t *framebuf = vga_get_framebuffer();
     saved_x = mouse.x;
     saved_y = mouse.y;
 
@@ -207,7 +207,8 @@ void mouse_save_under_cursor(void) {
             int16_t px = (int16_t)(saved_x + (int16_t)col);
             int16_t py = (int16_t)(saved_y + (int16_t)row);
             if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
-                under_cursor[row * CURSOR_W + col] = framebuf[py * VGA_GFX_WIDTH + px];
+                under_cursor[row * CURSOR_W + col] =
+                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px];
             }
         }
     }
@@ -215,21 +216,22 @@ void mouse_save_under_cursor(void) {
 
 void mouse_restore_under_cursor(void) {
     if (saved_x < 0) return;
-    uint8_t *framebuf = vga_get_framebuffer();
+    uint32_t *framebuf = vga_get_framebuffer();
 
     for (int row = 0; row < CURSOR_H; row++) {
         for (int col = 0; col < CURSOR_W; col++) {
             int16_t px = (int16_t)(saved_x + (int16_t)col);
             int16_t py = (int16_t)(saved_y + (int16_t)row);
             if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
-                framebuf[py * VGA_GFX_WIDTH + px] = under_cursor[row * CURSOR_W + col];
+                framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
+                    under_cursor[row * CURSOR_W + col];
             }
         }
     }
 }
 
 void mouse_draw_cursor(void) {
-    uint8_t *framebuf = vga_get_framebuffer();
+    uint32_t *framebuf = vga_get_framebuffer();
 
     for (int row = 0; row < CURSOR_H; row++) {
         uint8_t outline = cursor_outline[row];
@@ -240,9 +242,11 @@ void mouse_draw_cursor(void) {
             if (px >= 0 && px < VGA_GFX_WIDTH && py >= 0 && py < VGA_GFX_HEIGHT) {
                 uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
                 if (fill & mask) {
-                    framebuf[py * VGA_GFX_WIDTH + px] = COLOR_CURSOR;
+                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
+                        COLOR_CURSOR;
                 } else if (outline & mask) {
-                    framebuf[py * VGA_GFX_WIDTH + px] = COLOR_BLACK;
+                    framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
+                        COLOR_BLACK;
                 }
             }
         }

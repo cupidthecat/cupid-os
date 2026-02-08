@@ -25,11 +25,45 @@ start:
     ; Load kernel
     call load_kernel
 
-    ; Set VGA Mode 13h (320x200, 256 colors) via BIOS while still in real mode
-    mov ax, 0x0013
-    int 0x10
-
-    ; Restore segment registers after BIOS call (INT 10h may clobber them)
+    ; ── VBE 640×480 32bpp via Bochs/QEMU I/O ports ─────────────────────
+    mov dx, 0x01CE
+    mov ax, 4           ; INDEX_ENABLE — disable first
+    out dx, ax
+    inc dx
+    xor ax, ax
+    out dx, ax
+    dec dx
+    mov ax, 1           ; INDEX_XRES
+    out dx, ax
+    inc dx
+    mov ax, 640
+    out dx, ax
+    dec dx
+    mov ax, 2           ; INDEX_YRES
+    out dx, ax
+    inc dx
+    mov ax, 480
+    out dx, ax
+    dec dx
+    mov ax, 3           ; INDEX_BPP
+    out dx, ax
+    inc dx
+    mov ax, 32
+    out dx, ax
+    dec dx
+    mov ax, 4           ; INDEX_ENABLE — enable with LFB
+    out dx, ax
+    inc dx
+    mov ax, 0x41
+    out dx, ax
+    ; Read PCI BAR0 of VGA device (Bus 0 Dev 2 Fn 0) for LFB address
+    mov eax, 0x80001010
+    mov dx, 0xCF8
+    out dx, eax
+    mov dx, 0xCFC
+    in eax, dx
+    and eax, 0xFFFFFFF0
+    mov [0x0500], eax
     xor ax, ax
     mov ds, ax
     mov es, ax
@@ -45,9 +79,6 @@ start:
 ; Splits any read that would cross a 64KB DMA boundary.
 ; Kernel is loaded starting at linear address 0x10000.
 load_kernel:
-    mov si, MSG_LOAD_KERNEL
-    call print_string
-
     ; State: CHS position and linear destination
     mov byte [cur_cyl], 0
     mov byte [cur_head], 0
@@ -242,7 +273,6 @@ DATA_SEG equ gdt_data - gdt_start
 
 ; Messages
 MSG_BOOT db 'Booting...', 13, 10, 0
-MSG_LOAD_KERNEL db 'Loading kernel...', 13, 10, 0
 MSG_DISK_ERROR db 'Disk error!', 13, 10, 0
 
 BOOT_DRIVE db 0
