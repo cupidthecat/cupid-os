@@ -1,14 +1,18 @@
 # Compiler settings
+.SUFFIXES:
 ASM=nasm
 CC=gcc
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
+# Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
+OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Auto-discover all CupidC programs in bin/
 BIN_CC_SRCS := $(wildcard bin/*.cc)
+$(info BIN_CC_SRCS=$(BIN_CC_SRCS))
 BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
 BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
 
@@ -32,7 +36,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/syscall.o \
             kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
-            kernel/cupidc_elf.o \
+            kernel/cupidc_elf.o kernel/gfx2d.o \
             drivers/rtc.o kernel/calendar.o \
             kernel/bin_programs_gen.o \
             $(BIN_CC_OBJS)
@@ -90,7 +94,7 @@ kernel/shell.o: kernel/shell.c kernel/shell.h
 
 # Add new rule for string.o
 kernel/string.o: kernel/string.c kernel/string.h
-	$(CC) $(CFLAGS) kernel/string.c -o kernel/string.o
+	$(CC) $(CFLAGS) $(OPT) kernel/string.c -o kernel/string.o
 
 # Add new rule for fs.o
 kernel/fs.o: kernel/fs.c kernel/fs.h
@@ -132,7 +136,7 @@ kernel/panic.o: kernel/panic.c kernel/panic.h
 kernel/ed.o: kernel/ed.c kernel/ed.h
 	$(CC) $(CFLAGS) kernel/ed.c -o kernel/ed.o
 
-# VGA graphics mode driver
+# VGA graphics mode driver (no -O2: physical address reads trigger array-bounds)
 drivers/vga.o: drivers/vga.c drivers/vga.h
 	$(CC) $(CFLAGS) drivers/vga.c -o drivers/vga.o
 
@@ -142,27 +146,27 @@ drivers/mouse.o: drivers/mouse.c drivers/mouse.h
 
 # 8x8 bitmap font
 kernel/font_8x8.o: kernel/font_8x8.c kernel/font_8x8.h
-	$(CC) $(CFLAGS) kernel/font_8x8.c -o kernel/font_8x8.o
+	$(CC) $(CFLAGS) $(OPT) kernel/font_8x8.c -o kernel/font_8x8.o
 
 # Graphics primitives
 kernel/graphics.o: kernel/graphics.c kernel/graphics.h
-	$(CC) $(CFLAGS) kernel/graphics.c -o kernel/graphics.o
+	$(CC) $(CFLAGS) $(OPT) kernel/graphics.c -o kernel/graphics.o
 
 # GUI / window manager
 kernel/gui.o: kernel/gui.c kernel/gui.h
-	$(CC) $(CFLAGS) kernel/gui.c -o kernel/gui.o
+	$(CC) $(CFLAGS) $(OPT) kernel/gui.c -o kernel/gui.o
 
 # Calendar math and formatting
 kernel/calendar.o: kernel/calendar.c kernel/calendar.h
-	$(CC) $(CFLAGS) kernel/calendar.c -o kernel/calendar.o
+	$(CC) $(CFLAGS) $(OPT) kernel/calendar.c -o kernel/calendar.o
 
 # Desktop shell
 kernel/desktop.o: kernel/desktop.c kernel/desktop.h
-	$(CC) $(CFLAGS) kernel/desktop.c -o kernel/desktop.o
+	$(CC) $(CFLAGS) $(OPT) kernel/desktop.c -o kernel/desktop.o
 
 # Terminal application
 kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h
-	$(CC) $(CFLAGS) kernel/terminal_app.c -o kernel/terminal_app.o
+	$(CC) $(CFLAGS) $(OPT) kernel/terminal_app.c -o kernel/terminal_app.o
 
 # Process management and scheduler
 kernel/process.o: kernel/process.c kernel/process.h
@@ -174,15 +178,15 @@ kernel/context_switch.o: kernel/context_switch.asm
 
 # Clipboard
 kernel/clipboard.o: kernel/clipboard.c kernel/clipboard.h
-	$(CC) $(CFLAGS) kernel/clipboard.c -o kernel/clipboard.o
+	$(CC) $(CFLAGS) $(OPT) kernel/clipboard.c -o kernel/clipboard.o
 
 # Notepad application
 kernel/notepad.o: kernel/notepad.c kernel/notepad.h
-	$(CC) $(CFLAGS) kernel/notepad.c -o kernel/notepad.o
+	$(CC) $(CFLAGS) $(OPT) kernel/notepad.c -o kernel/notepad.o
 
 # UI widget toolkit
 kernel/ui.o: kernel/ui.c kernel/ui.h
-	$(CC) $(CFLAGS) kernel/ui.c -o kernel/ui.o
+	$(CC) $(CFLAGS) $(OPT) kernel/ui.c -o kernel/ui.o
 
 kernel/cupidscript_lex.o: kernel/cupidscript_lex.c kernel/cupidscript.h
 	$(CC) $(CFLAGS) kernel/cupidscript_lex.c -o kernel/cupidscript_lex.o
@@ -209,7 +213,7 @@ kernel/cupidscript_jobs.o: kernel/cupidscript_jobs.c kernel/cupidscript_jobs.h k
 	$(CC) $(CFLAGS) kernel/cupidscript_jobs.c -o kernel/cupidscript_jobs.o
 
 kernel/terminal_ansi.o: kernel/terminal_ansi.c kernel/terminal_ansi.h
-	$(CC) $(CFLAGS) kernel/terminal_ansi.c -o kernel/terminal_ansi.o
+	$(CC) $(CFLAGS) $(OPT) kernel/terminal_ansi.c -o kernel/terminal_ansi.o
 
 # VFS core
 kernel/vfs.o: kernel/vfs.c kernel/vfs.h
@@ -234,6 +238,10 @@ kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/
 # Syscall table for ELF programs
 kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.h kernel/shell.h
 	$(CC) $(CFLAGS) kernel/syscall.c -o kernel/syscall.o
+
+# 2D graphics library
+kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d.c -o kernel/gfx2d.o
 
 # CupidC compiler
 kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/memory.h kernel/exec.h
@@ -283,13 +291,10 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 
 run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
-
 run-disk: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
-
 run-log: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
-
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o \
 	      kernel/bin_programs_gen.c $(OS_IMAGE)

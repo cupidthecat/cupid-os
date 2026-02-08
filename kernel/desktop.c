@@ -778,6 +778,12 @@ void desktop_run(void) {
   bool needs_redraw = true;
 
   while (1) {
+    /* Skip ALL desktop processing if a fullscreen app is running */
+    if (gfx2d_fullscreen_active()) {
+      process_yield();
+      continue;
+    }
+
     /* ── Process mouse ──────────────────────────────────────── */
     if (mouse.updated) {
       mouse.updated = false;
@@ -900,11 +906,14 @@ void desktop_run(void) {
     notepad_tick();
 
     /* ── Redraw ─────────────────────────────────────────────── */
+    /* ── Redraw ─────────────────────────────────────────────── */
     /* Skip desktop rendering if a fullscreen gfx2d app is running */
     if (gfx2d_fullscreen_active()) {
+      /* Also skip input processing so we don't steal clicks/keys */
       process_yield();
       continue;
     }
+
     if (needs_redraw || gui_any_dirty()) {
       static bool has_first_render = false;
       static bool fast_path_used = false;

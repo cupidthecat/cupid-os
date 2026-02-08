@@ -43,6 +43,7 @@ int gfx2d_height(void);
 
 /* ── Pixels & Lines ───────────────────────────────────────────────── */
 void gfx2d_pixel(int x, int y, uint32_t color);
+uint32_t gfx2d_getpixel(int x, int y);
 void gfx2d_line(int x1, int y1, int x2, int y2, uint32_t color);
 void gfx2d_hline(int x, int y, int w, uint32_t color);
 void gfx2d_vline(int x, int y, int h, uint32_t color);
@@ -160,5 +161,10 @@ void gfx2d_flood_fill(int x, int y, uint32_t color);
 void gfx2d_fullscreen_enter(void);
 void gfx2d_fullscreen_exit(void);
 int gfx2d_fullscreen_active(void); /* returns 1 if fullscreen mode is active */
+
+/* ── Mouse Cursor (for fullscreen apps) ──────────────────────────── */
+void gfx2d_draw_cursor(void); /* draw cursor at current mouse position */
+void gfx2d_cursor_hide(
+    void); /* restore pixels under cursor (call before canvas ops) */
 
 #endif /* GFX2D_H */

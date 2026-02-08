@@ -360,6 +360,9 @@ static void shell_gui_putchar(char c) {
   if (gui_cursor_y >= SHELL_ROWS) {
     shell_gui_scroll();
   }
+
+  /* Trigger window redraw immediately */
+  terminal_mark_dirty();
 }
 
 /* Print a string into the GUI buffer */
@@ -372,11 +375,9 @@ static void shell_gui_print(const char *s) {
 
 /* Print an integer into the GUI buffer */
 static void shell_gui_print_int(uint32_t num) {
-  serial_printf("[shell_gui_print_int] num=%u (0x%x)\n", num, num);
   char buf[12];
   int i = 0;
   if (num == 0) {
-    serial_printf("[shell_gui_print_int] printing '0'\n");
     shell_gui_putchar('0');
     return;
   }
@@ -384,13 +385,10 @@ static void shell_gui_print_int(uint32_t num) {
     buf[i++] = (char)((num % 10) + (uint32_t)'0');
     num /= 10;
   }
-  serial_printf("[shell_gui_print_int] printing %d digits: ", i);
   while (i > 0) {
     char c = buf[--i];
-    serial_printf("'%c'", c);
     shell_gui_putchar(c);
   }
-  serial_printf("\n");
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -898,7 +896,6 @@ static void tab_complete(char *input, int *pos) {
 
 #undef REDRAW_PROMPT
 }
-
 
 /* ── cupid command: run a CupidScript file ── */
 static void shell_cupid(const char *args) {

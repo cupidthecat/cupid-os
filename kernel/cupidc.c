@@ -11,6 +11,7 @@
 
 #include "cupidc.h"
 #include "../drivers/keyboard.h"
+#include "../drivers/mouse.h"
 #include "../drivers/rtc.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
@@ -317,6 +318,14 @@ static int cc_fp_frac(int a) { return a & 0xFFFF; }
 static int cc_fp_one(void) { return 65536; } /* FP_ONE = 1.0 in 16.16 */
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  Mouse Input Accessors for CupidC
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static int cc_mouse_x(void) { return (int)mouse.x; }
+static int cc_mouse_y(void) { return (int)mouse.y; }
+static int cc_mouse_buttons(void) { return (int)mouse.buttons; }
+
+/* ══════════════════════════════════════════════════════════════════════
  *  Kernel Bindings Registration
  * ══════════════════════════════════════════════════════════════════════ */
 
@@ -604,7 +613,18 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   char (*p_getchar)(void) = getchar;
   BIND("getchar", p_getchar, 0);
 
+  /* Mouse input */
+  int (*p_mouse_x)(void) = cc_mouse_x;
+  BIND("mouse_x", p_mouse_x, 0);
+
+  int (*p_mouse_y)(void) = cc_mouse_y;
+  BIND("mouse_y", p_mouse_y, 0);
+
+  int (*p_mouse_buttons)(void) = cc_mouse_buttons;
+  BIND("mouse_buttons", p_mouse_buttons, 0);
+
   /* String operations — extended */
+
   char *(*p_strcpy)(char *, const char *) = strcpy;
   BIND("strcpy", p_strcpy, 2);
 
@@ -624,6 +644,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("memcmp", p_memcmp, 3);
 
   /* ── gfx2d — 2D graphics library ────────────────────────────── */
+  void (*p_gfx2d_init)(void) = gfx2d_init;
+  BIND("gfx2d_init", p_gfx2d_init, 0);
+
   void (*p_gfx2d_clear)(uint32_t) = gfx2d_clear;
   BIND("gfx2d_clear", p_gfx2d_clear, 1);
 
@@ -638,6 +661,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   void (*p_gfx2d_pixel)(int, int, uint32_t) = gfx2d_pixel;
   BIND("gfx2d_pixel", p_gfx2d_pixel, 3);
+
+  uint32_t (*p_gfx2d_getpixel)(int, int) = gfx2d_getpixel;
+  BIND("gfx2d_getpixel", p_gfx2d_getpixel, 2);
 
   void (*p_gfx2d_pixel_alpha)(int, int, uint32_t) = gfx2d_pixel_alpha;
   BIND("gfx2d_pixel_alpha", p_gfx2d_pixel_alpha, 3);
@@ -859,7 +885,14 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_fullscreen_exit)(void) = gfx2d_fullscreen_exit;
   BIND("gfx2d_fullscreen_exit", p_gfx2d_fullscreen_exit, 0);
 
+  void (*p_gfx2d_draw_cursor)(void) = gfx2d_draw_cursor;
+  BIND("gfx2d_draw_cursor", p_gfx2d_draw_cursor, 0);
+
+  void (*p_gfx2d_cursor_hide)(void) = gfx2d_cursor_hide;
+  BIND("gfx2d_cursor_hide", p_gfx2d_cursor_hide, 0);
+
   /* ── Fixed-point math (16.16) ──────────────────────────────────────── */
+
   int (*p_fp_mul)(int, int) = cc_fp_mul;
   BIND("fp_mul", p_fp_mul, 2);
 

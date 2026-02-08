@@ -163,6 +163,8 @@ static void g2d_put(int x, int y, uint32_t c) {
 }
 
 static void g2d_put_alpha(int x, int y, uint32_t argb) {
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int w = g2d_active_w, h = g2d_active_h;
   uint32_t a = (argb >> 24) & 0xFFu;
   if (a == 0u)
     return;
@@ -176,10 +178,10 @@ static void g2d_put_alpha(int x, int y, uint32_t argb) {
     if (y < g2d_clip_y || y >= g2d_clip_y + g2d_clip_h)
       return;
   }
-  if (x < 0 || x >= G2D_W || y < 0 || y >= G2D_H)
+  if (x < 0 || x >= w || y < 0 || y >= h)
     return;
-  uint32_t dst = g2d_fb[(uint32_t)y * (uint32_t)G2D_W + (uint32_t)x];
-  g2d_fb[(uint32_t)y * (uint32_t)G2D_W + (uint32_t)x] =
+  uint32_t dst = fb[(uint32_t)y * (uint32_t)w + (uint32_t)x];
+  fb[(uint32_t)y * (uint32_t)w + (uint32_t)x] =
       g2d_blend(argb & 0x00FFFFFFu, dst, a);
 }
 
@@ -230,6 +232,12 @@ void gfx2d_init(void) {
 
 static int g2d_debug_frame = 0;
 void gfx2d_clear(uint32_t color) {
+  if (g2d_active_fb) {
+    int n = g2d_active_w * g2d_active_h;
+    for (int i = 0; i < n; i++)
+      g2d_active_fb[i] = color;
+    return;
+  }
   if (g2d_debug_frame < 3)
     serial_printf("[gfx2d] clear frame=%d\n", g2d_debug_frame);
   vga_clear_screen(color);
@@ -244,12 +252,14 @@ void gfx2d_flip(void) {
   vga_flip();
 }
 
-int gfx2d_width(void) { return G2D_W; }
-int gfx2d_height(void) { return G2D_H; }
+int gfx2d_width(void) { return g2d_active_w; }
+int gfx2d_height(void) { return g2d_active_h; }
 
 /* ── Pixel ────────────────────────────────────────────────────────── */
 
 void gfx2d_pixel(int x, int y, uint32_t color) { g2d_put(x, y, color); }
+
+uint32_t gfx2d_getpixel(int x, int y) { return g2d_get(x, y); }
 
 void gfx2d_pixel_alpha(int x, int y, uint32_t argb) {
   g2d_put_alpha(x, y, argb);
@@ -260,8 +270,11 @@ void gfx2d_pixel_alpha(int x, int y, uint32_t argb) {
 void gfx2d_hline(int x, int y, int w, uint32_t color) {
   int x1, x2;
   uint32_t *row;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
   int i, n;
-  if (y < 0 || y >= G2D_H)
+  if (y < 0 || y >= fb_h)
     return;
   if (g2d_clip_active && (y < g2d_clip_y || y >= g2d_clip_y + g2d_clip_h))
     return;
@@ -275,11 +288,11 @@ void gfx2d_hline(int x, int y, int w, uint32_t color) {
   }
   if (x1 < 0)
     x1 = 0;
-  if (x2 >= G2D_W)
-    x2 = G2D_W - 1;
+  if (x2 >= fb_w)
+    x2 = fb_w - 1;
   if (x1 > x2)
     return;
-  row = g2d_fb + (uint32_t)y * G2D_W + (uint32_t)x1;
+  row = fb + (uint32_t)y * (uint32_t)fb_w + (uint32_t)x1;
   n = x2 - x1 + 1;
   for (i = 0; i < n; i++)
     row[i] = color;
@@ -288,8 +301,11 @@ void gfx2d_hline(int x, int y, int w, uint32_t color) {
 void gfx2d_vline(int x, int y, int h, uint32_t color) {
   int y1, y2;
   uint32_t *col;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
   int i;
-  if (x < 0 || x >= G2D_W)
+  if (x < 0 || x >= fb_w)
     return;
   if (g2d_clip_active && (x < g2d_clip_x || x >= g2d_clip_x + g2d_clip_w))
     return;
@@ -303,12 +319,12 @@ void gfx2d_vline(int x, int y, int h, uint32_t color) {
   }
   if (y1 < 0)
     y1 = 0;
-  if (y2 >= G2D_H)
-    y2 = G2D_H - 1;
+  if (y2 >= fb_h)
+    y2 = fb_h - 1;
   if (y1 > y2)
     return;
-  col = g2d_fb + (uint32_t)y1 * G2D_W + (uint32_t)x;
-  for (i = y1; i <= y2; i++, col += G2D_W)
+  col = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x;
+  for (i = y1; i <= y2; i++, col += fb_w)
     *col = color;
 }
 
@@ -349,6 +365,9 @@ void gfx2d_rect(int x, int y, int w, int h, uint32_t color) {
 void gfx2d_rect_fill(int x, int y, int w, int h, uint32_t color) {
   int x1, x2, y1, y2, row, n;
   uint32_t *dst;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
   x1 = x;
   x2 = x + w - 1;
   y1 = y;
@@ -365,17 +384,17 @@ void gfx2d_rect_fill(int x, int y, int w, int h, uint32_t color) {
   }
   if (x1 < 0)
     x1 = 0;
-  if (x2 >= G2D_W)
-    x2 = G2D_W - 1;
+  if (x2 >= fb_w)
+    x2 = fb_w - 1;
   if (y1 < 0)
     y1 = 0;
-  if (y2 >= G2D_H)
-    y2 = G2D_H - 1;
+  if (y2 >= fb_h)
+    y2 = fb_h - 1;
   if (x1 > x2 || y1 > y2)
     return;
   n = x2 - x1 + 1;
-  dst = g2d_fb + (uint32_t)y1 * G2D_W + (uint32_t)x1;
-  for (row = y1; row <= y2; row++, dst += G2D_W) {
+  dst = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
+  for (row = y1; row <= y2; row++, dst += fb_w) {
     int i;
     for (i = 0; i < n; i++)
       dst[i] = color;
@@ -549,6 +568,9 @@ void gfx2d_rect_fill_alpha(int x, int y, int w, int h, uint32_t argb) {
 void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   int x1, x2, y1, y2, row, col, n, wm;
   uint32_t *first_row;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
   x1 = x;
   x2 = x + w - 1;
   y1 = y;
@@ -565,22 +587,22 @@ void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   }
   if (x1 < 0)
     x1 = 0;
-  if (x2 >= G2D_W)
-    x2 = G2D_W - 1;
+  if (x2 >= fb_w)
+    x2 = fb_w - 1;
   if (y1 < 0)
     y1 = 0;
-  if (y2 >= G2D_H)
-    y2 = G2D_H - 1;
+  if (y2 >= fb_h)
+    y2 = fb_h - 1;
   if (x1 > x2 || y1 > y2)
     return;
   n = x2 - x1 + 1;
   wm = (w > 1) ? w - 1 : 1;
   /* Fill first row with lerped colors, then memcpy to remaining rows */
-  first_row = g2d_fb + (uint32_t)y1 * G2D_W + (uint32_t)x1;
+  first_row = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
   for (col = 0; col < n; col++)
     first_row[col] = g2d_lerp(c1, c2, x1 - x + col, wm);
   for (row = y1 + 1; row <= y2; row++) {
-    uint32_t *r = g2d_fb + (uint32_t)row * G2D_W + (uint32_t)x1;
+    uint32_t *r = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
     memcpy(r, first_row, (size_t)n * sizeof(uint32_t));
   }
 }
@@ -1109,16 +1131,18 @@ void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha) {
     alpha = 255;
   int sw = g2d_surf_w[handle], sh = g2d_surf_h[handle];
   uint32_t *src = g2d_surf_data[handle];
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
   uint32_t a = (uint32_t)alpha;
   for (int sy = 0; sy < sh; sy++) {
     for (int sx = 0; sx < sw; sx++) {
       int dx = x + sx, dy = y + sy;
-      if (dx < 0 || dx >= G2D_W || dy < 0 || dy >= G2D_H)
+      if (dx < 0 || dx >= fb_w || dy < 0 || dy >= fb_h)
         continue;
       uint32_t s = src[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx];
-      uint32_t d = g2d_fb[(uint32_t)dy * (uint32_t)G2D_W + (uint32_t)dx];
-      g2d_fb[(uint32_t)dy * (uint32_t)G2D_W + (uint32_t)dx] =
-          g2d_blend(s, d, a);
+      uint32_t d = fb[(uint32_t)dy * (uint32_t)fb_w + (uint32_t)dx];
+      fb[(uint32_t)dy * (uint32_t)fb_w + (uint32_t)dx] = g2d_blend(s, d, a);
     }
   }
 }
@@ -1437,14 +1461,23 @@ void gfx2d_line_aa(int x0, int y0, int x1, int y1, uint32_t color) {
   }
 }
 
-/* Flood fill — iterative BFS using a small stack */
-#define FLOOD_STACK_SIZE 2048
+/* Flood fill — optimized scanline algorithm (much faster than 4-way BFS) */
+#define FLOOD_STACK_SIZE 4096
 void gfx2d_flood_fill(int x, int y, uint32_t color) {
   uint32_t target = g2d_get(x, y);
   if (target == color)
     return;
 
-  /* Stack of (x, y) pairs encoded as x*1024+y for speed */
+  /* Check clipping bounds */
+  int clip_x1 = g2d_clip_active ? g2d_clip_x : 0;
+  int clip_y1 = g2d_clip_active ? g2d_clip_y : 0;
+  int clip_x2 = g2d_clip_active ? (g2d_clip_x + g2d_clip_w - 1) : (G2D_W - 1);
+  int clip_y2 = g2d_clip_active ? (g2d_clip_y + g2d_clip_h - 1) : (G2D_H - 1);
+
+  if (x < clip_x1 || x > clip_x2 || y < clip_y1 || y > clip_y2)
+    return;
+
+  /* Stack stores (x, y) pairs as x*1024+y */
   static int flood_stack[FLOOD_STACK_SIZE];
   int sp = 0;
   flood_stack[sp++] = x * 1024 + y;
@@ -1452,16 +1485,61 @@ void gfx2d_flood_fill(int x, int y, uint32_t color) {
   while (sp > 0) {
     int v = flood_stack[--sp];
     int cx = v / 1024, cy = v % 1024;
-    if (cx < 0 || cx >= G2D_W || cy < 0 || cy >= G2D_H)
+
+    /* Skip if out of bounds or not target color */
+    if (cy < clip_y1 || cy > clip_y2)
       continue;
     if (g2d_get(cx, cy) != target)
       continue;
-    g2d_put(cx, cy, color);
-    if (sp < FLOOD_STACK_SIZE - 4) {
-      flood_stack[sp++] = (cx + 1) * 1024 + cy;
-      flood_stack[sp++] = (cx - 1) * 1024 + cy;
-      flood_stack[sp++] = cx * 1024 + (cy + 1);
-      flood_stack[sp++] = cx * 1024 + (cy - 1);
+
+    /* Scanline fill: extend left and right */
+    int lx = cx;
+    while (lx > clip_x1 && g2d_get(lx - 1, cy) == target)
+      lx--;
+    int rx = cx;
+    while (rx < clip_x2 && g2d_get(rx + 1, cy) == target)
+      rx++;
+
+    /* Fill the entire scanline at once */
+    for (int i = lx; i <= rx; i++)
+      g2d_put(i, cy, color);
+
+    /* Push spans above and below */
+    int above = cy - 1;
+    int below = cy + 1;
+
+    if (above >= clip_y1 && sp < FLOOD_STACK_SIZE - 2) {
+      int span_start = -1;
+      for (int i = lx; i <= rx; i++) {
+        if (g2d_get(i, above) == target) {
+          if (span_start < 0)
+            span_start = i;
+        } else {
+          if (span_start >= 0) {
+            flood_stack[sp++] = span_start * 1024 + above;
+            span_start = -1;
+          }
+        }
+      }
+      if (span_start >= 0)
+        flood_stack[sp++] = span_start * 1024 + above;
+    }
+
+    if (below <= clip_y2 && sp < FLOOD_STACK_SIZE - 2) {
+      int span_start = -1;
+      for (int i = lx; i <= rx; i++) {
+        if (g2d_get(i, below) == target) {
+          if (span_start < 0)
+            span_start = i;
+        } else {
+          if (span_start >= 0) {
+            flood_stack[sp++] = span_start * 1024 + below;
+            span_start = -1;
+          }
+        }
+      }
+      if (span_start >= 0)
+        flood_stack[sp++] = span_start * 1024 + below;
     }
   }
 }
@@ -1485,3 +1563,119 @@ void gfx2d_fullscreen_exit(void) {
 }
 
 int gfx2d_fullscreen_active(void) { return g2d_fullscreen_mode; }
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Mouse Cursor Rendering (for fullscreen apps)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+#include "../drivers/mouse.h"
+
+/* 8x10 arrow cursor bitmap (matches drivers/mouse.c) */
+#define G2D_CURSOR_W 8
+#define G2D_CURSOR_H 10
+
+static const uint8_t g2d_cursor_bitmap[G2D_CURSOR_H] = {
+    0x80, /* X....... */
+    0xC0, /* XX...... */
+    0xE0, /* XXX..... */
+    0xF0, /* XXXX.... */
+    0xF8, /* XXXXX... */
+    0xFC, /* XXXXXX.. */
+    0xFE, /* XXXXXXX. */
+    0xF0, /* XXXX.... */
+    0xD8, /* XX.XX... */
+    0x18  /* ...XX... */
+};
+
+static const uint8_t g2d_cursor_outline[G2D_CURSOR_H] = {
+    0xC0, /* XX...... */
+    0xE0, /* XXX..... */
+    0xF0, /* XXXX.... */
+    0xF8, /* XXXXX... */
+    0xFC, /* XXXXXX.. */
+    0xFE, /* XXXXXXX. */
+    0xFF, /* XXXXXXXX */
+    0xF8, /* XXXXX... */
+    0xFC, /* XXXXXX.. */
+    0x3C  /* ..XXXX.. */
+};
+
+/* Save-under buffer for cursor */
+static uint32_t g2d_cursor_under[G2D_CURSOR_W * G2D_CURSOR_H];
+static int g2d_cursor_saved_x = -1;
+static int g2d_cursor_saved_y = -1;
+
+/* Restore pixels under cursor (call before canvas drawing operations) */
+void gfx2d_cursor_hide(void) {
+  if (g2d_cursor_saved_x >= 0) {
+    for (int row = 0; row < G2D_CURSOR_H; row++) {
+      uint8_t outline = g2d_cursor_outline[row];
+      for (int col = 0; col < G2D_CURSOR_W; col++) {
+        int px = g2d_cursor_saved_x + col;
+        int py = g2d_cursor_saved_y + row;
+        uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+        if (outline & mask) {
+          if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
+            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px] =
+                g2d_cursor_under[row * G2D_CURSOR_W + col];
+          }
+        }
+      }
+    }
+    g2d_cursor_saved_x = -1; /* Mark as hidden */
+  }
+}
+
+void gfx2d_draw_cursor(void) {
+  int mx = mouse.x;
+  int my = mouse.y;
+
+  /* Restore pixels under previous cursor position */
+  if (g2d_cursor_saved_x >= 0) {
+    for (int row = 0; row < G2D_CURSOR_H; row++) {
+      uint8_t outline = g2d_cursor_outline[row];
+      for (int col = 0; col < G2D_CURSOR_W; col++) {
+        int px = g2d_cursor_saved_x + col;
+        int py = g2d_cursor_saved_y + row;
+        uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+        if (outline & mask) {
+          /* Only restore pixels that were part of cursor */
+          if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
+            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px] =
+                g2d_cursor_under[row * G2D_CURSOR_W + col];
+          }
+        }
+      }
+    }
+  }
+
+  /* Save pixels under new cursor position */
+  for (int row = 0; row < G2D_CURSOR_H; row++) {
+    for (int col = 0; col < G2D_CURSOR_W; col++) {
+      int px = mx + col;
+      int py = my + row;
+      if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
+        g2d_cursor_under[row * G2D_CURSOR_W + col] =
+            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px];
+      }
+    }
+  }
+  g2d_cursor_saved_x = mx;
+  g2d_cursor_saved_y = my;
+
+  /* Draw cursor at new position */
+  for (int row = 0; row < G2D_CURSOR_H; row++) {
+    uint8_t outline = g2d_cursor_outline[row];
+    uint8_t fill = g2d_cursor_bitmap[row];
+    for (int col = 0; col < G2D_CURSOR_W; col++) {
+      int px = mx + col;
+      int py = my + row;
+      uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+      if (fill & mask) {
+        g2d_put(px, py, 0xFFFFFF); /* White cursor */
+      } else if (outline & mask) {
+        g2d_put(px, py, 0x000000); /* Black outline */
+      }
+    }
+  }
+}
