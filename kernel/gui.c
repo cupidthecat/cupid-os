@@ -8,6 +8,7 @@
 
 #include "gui.h"
 #include "graphics.h"
+#include "gfx2d.h"
 #include "string.h"
 #include "../drivers/vga.h"
 #include "../drivers/serial.h"
@@ -19,6 +20,10 @@ static uint32_t  next_id   = 1;
 
 /* ── Drag state ───────────────────────────────────────────────────── */
 static drag_state_t drag = { false, -1, 0, 0 };
+
+
+/* ── Layout change tracking ───────────────────────────────────────── */
+static bool layout_changed_flag = true; /* start true to force first render */
 
 /* ── Init ─────────────────────────────────────────────────────────── */
 
@@ -77,6 +82,7 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
     win->title[i] = '\0';
 
     win_count++;
+    layout_changed_flag = true;
     gui_set_focus((int)win->id);
 
     KINFO("GUI: window %u created \"%s\" (%dx%d at %d,%d)",
@@ -103,6 +109,7 @@ int gui_destroy_window(int wid) {
     for (int i = 0; i < win_count; i++) {
         windows[i].flags |= WINDOW_FLAG_DIRTY;
     }
+    layout_changed_flag = true;
 
     KINFO("GUI: window %d destroyed", wid);
     return GUI_OK;
@@ -153,46 +160,72 @@ int gui_window_count(void) {
 
 bool gui_any_dirty(void) {
     for (int i = 0; i < win_count; i++) {
-        if (windows[i].flags & WINDOW_FLAG_DIRTY) return true;
+        if (windows[i].flags & (WINDOW_FLAG_DIRTY | WINDOW_FLAG_DRAGGING)) return true;
     }
     return false;
+}
+
+window_t *gui_get_window_by_index(int i) {
+    if (i < 0 || i >= win_count) return NULL;
+    return &windows[i];
+}
+
+bool gui_layout_changed(void) {
+    return layout_changed_flag;
+}
+
+void gui_clear_layout_changed(void) {
+    layout_changed_flag = false;
 }
 
 /* ── Drawing ──────────────────────────────────────────────────────── */
 
 static void draw_single_window(window_t *win) {
     bool focused = (win->flags & WINDOW_FLAG_FOCUSED) != 0;
+    int wx = (int)win->x, wy = (int)win->y;
+    int ww = (int)win->width;
 
-    /* Border */
-    gfx_draw_rect(win->x, win->y, win->width, win->height, COLOR_BORDER);
+    /* Drop shadow: single offset rect — window draws on top, shadow shows
+     * cleanly on right and bottom edges with a proper square corner. */
+    gfx_fill_rect((int16_t)(win->x + 3), (int16_t)(win->y + 3),
+                  win->width, win->height, 0x00606070u);
 
-    /* Title bar background */
-    uint32_t title_color = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
-    gfx_fill_rect((int16_t)(win->x + 1), (int16_t)(win->y + 1),
-                  (uint16_t)(win->width - 2), (uint16_t)(TITLEBAR_H - 1),
-                  title_color);
+    /* Window background */
+    gfx_fill_rect(win->x, win->y, win->width, win->height, COLOR_WINDOW_BG);
 
-    /* Title text (left-aligned with 4px padding) */
-    gfx_draw_text((int16_t)(win->x + 4), (int16_t)(win->y + 3),
-                  win->title, COLOR_TEXT);
+    /* Title bar gradient (only titlebar height — small area, fast) */
+    if (focused) {
+        gfx2d_gradient_h(wx + 1, wy + 1, ww - 2, TITLEBAR_H - 1,
+                          0x000060C8u, 0x0040A8F8u);
+    } else {
+        gfx2d_gradient_h(wx + 1, wy + 1, ww - 2, TITLEBAR_H - 1,
+                          0x006878A8u, 0x0090A8C8u);
+    }
 
-    /* Close button [X] in top-right corner */
-    int16_t cx = (int16_t)(win->x + (int16_t)win->width - CLOSE_BTN_SIZE - 2);
-    int16_t cy = (int16_t)(win->y + 2);
-    gfx_fill_rect(cx, cy, CLOSE_BTN_SIZE, CLOSE_BTN_SIZE, COLOR_CLOSE_BG);
-    /* Draw X inside close button */
-    gfx_draw_line((int16_t)(cx + 2), (int16_t)(cy + 2),
-                  (int16_t)(cx + CLOSE_BTN_SIZE - 3), (int16_t)(cy + CLOSE_BTN_SIZE - 3),
-                  COLOR_TEXT_LIGHT);
-    gfx_draw_line((int16_t)(cx + CLOSE_BTN_SIZE - 3), (int16_t)(cy + 2),
-                  (int16_t)(cx + 2), (int16_t)(cy + CLOSE_BTN_SIZE - 3),
-                  COLOR_TEXT_LIGHT);
+    /* Title text with shadow */
+    gfx2d_text_shadow(wx + 5, wy + 4, win->title,
+                       COLOR_TEXT_LIGHT, 0x00000000u, GFX2D_FONT_NORMAL);
 
-    /* Content area background */
+    /* Close button */
+    int16_t cbx = (int16_t)(win->x + (int16_t)win->width - CLOSE_BTN_SIZE - 2);
+    int16_t cby = (int16_t)(win->y + 2);
+    gfx_fill_rect(cbx, cby, CLOSE_BTN_SIZE, CLOSE_BTN_SIZE, COLOR_CLOSE_BG);
+    gfx2d_bevel((int)cbx, (int)cby, (int)CLOSE_BTN_SIZE, (int)CLOSE_BTN_SIZE, 1);
+    gfx_draw_line((int16_t)(cbx + 2), (int16_t)(cby + 2),
+                  (int16_t)(cbx + CLOSE_BTN_SIZE - 3),
+                  (int16_t)(cby + CLOSE_BTN_SIZE - 3), COLOR_TEXT_LIGHT);
+    gfx_draw_line((int16_t)(cbx + CLOSE_BTN_SIZE - 3), (int16_t)(cby + 2),
+                  (int16_t)(cbx + 2),
+                  (int16_t)(cby + CLOSE_BTN_SIZE - 3), COLOR_TEXT_LIGHT);
+
+    /* Content area */
     gfx_fill_rect((int16_t)(win->x + 1), (int16_t)(win->y + TITLEBAR_H),
                   (uint16_t)(win->width - 2),
                   (uint16_t)(win->height - TITLEBAR_H - 1),
                   COLOR_WINDOW_BG);
+
+    /* Border */
+    gfx_draw_rect(win->x, win->y, win->width, win->height, COLOR_BORDER);
 
     /* App-specific redraw */
     if (win->redraw) {
@@ -269,13 +302,20 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     if (drag.dragging) {
         if (released) {
             drag.dragging = false;
+            window_t *w = gui_get_window(drag.window_id);
+            if (w) {
+                w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
+                w->flags |= WINDOW_FLAG_DIRTY;
+            }
             drag.window_id = -1;
+            layout_changed_flag = true;
         } else {
             window_t *w = gui_get_window(drag.window_id);
             if (w) {
+                w->prev_x = w->x;
+                w->prev_y = w->y;
                 w->x = (int16_t)(mx - drag.drag_offset_x);
                 w->y = (int16_t)(my - drag.drag_offset_y);
-                /* Clamp so window stays partially on screen */
                 if (w->x < (int16_t)(-(int16_t)w->width + 20))
                     w->x = (int16_t)(-(int16_t)w->width + 20);
                 if (w->y < 0) w->y = 0;
@@ -283,7 +323,9 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                     w->x = (int16_t)(VGA_GFX_WIDTH - 20);
                 if (w->y > VGA_GFX_HEIGHT - 20)
                     w->y = (int16_t)(VGA_GFX_HEIGHT - 20);
-                w->flags |= WINDOW_FLAG_DIRTY;
+                w->flags |= WINDOW_FLAG_DRAGGING;
+                w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+                layout_changed_flag = true;
             }
         }
         return;
@@ -308,6 +350,8 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                 drag.window_id = title_id;
                 drag.drag_offset_x = (int16_t)(mx - w->x);
                 drag.drag_offset_y = (int16_t)(my - w->y);
+                w->prev_x = w->x;
+                w->prev_y = w->y;
             }
             return;
         }

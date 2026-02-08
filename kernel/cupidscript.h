@@ -17,16 +17,16 @@
 /* ══════════════════════════════════════════════════════════════════════
  *  Limits
  * ══════════════════════════════════════════════════════════════════════ */
-#define MAX_VARIABLES       64
+#define MAX_VARIABLES       32
 #define MAX_FUNCTIONS       16
 #define MAX_VAR_NAME        64
 #define MAX_VAR_VALUE      256
-#define MAX_TOKENS        2048
+#define MAX_TOKENS        1024
 #define MAX_ARGS            16
-#define MAX_WORD_LIST       32
-#define MAX_SEQUENCE       128
-#define MAX_TOKEN_LEN      256
-#define MAX_EXPAND_LEN     256
+#define MAX_WORD_LIST       16
+#define MAX_SEQUENCE        64
+#define MAX_TOKEN_LEN      128
+#define MAX_EXPAND_LEN     128
 #define MAX_SCRIPT_ARGS      8
 
 /* ══════════════════════════════════════════════════════════════════════

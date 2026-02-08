@@ -6,6 +6,9 @@
 /* Initialize graphics subsystem (call after vga_init_vbe) */
 void gfx_init(void);
 
+/* Update cached framebuffer pointer (call after vga_flip) */
+void gfx_set_framebuffer(uint32_t *fb);
+
 /* ── Pixel-level ──────────────────────────────────────────────────── */
 void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color);
 

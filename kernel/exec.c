@@ -165,11 +165,13 @@ int elf_exec(const char *path, const char *proc_name) {
 
     /* Sanity check: the vaddr range must be within identity-mapped memory
      * and must not overlap with the kernel or critical regions.
-     * We require vaddr >= 0x00200000 (2MB) to stay above kernel/heap,
-     * and the entire range must fit within the 32MB identity map. */
-    if (min_vaddr < 0x00200000) {
+     * We require vaddr >= 0x00400000 (4MB) to stay above kernel+heap+bss,
+     * and the entire range must fit within the 32MB identity map.
+     * (Kernel occupies 0x10000-~0x37000; user programs must be above that.) */
+    if (min_vaddr < 0x00400000) {
         vfs_close(fd);
-        serial_printf("[elf] Load address too low (0x%x) in %s\n",
+        serial_printf("[elf] Load address too low (0x%x) in %s — "
+                      "relink with -Ttext=0x00400000\n",
                       min_vaddr, path);
         return VFS_EINVAL;
     }

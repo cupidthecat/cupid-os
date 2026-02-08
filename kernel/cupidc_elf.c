@@ -7,7 +7,7 @@
  * The output ELF has:
  *   - ELF header (52 bytes)
  *   - Two program headers (PT_LOAD for code, PT_LOAD for data)
- *   - Code section loaded at 0x00200000
+ *   - Code section loaded at 0x00400000
  *   - Data section loaded after code
  */
 
@@ -18,7 +18,7 @@
 #include "kernel.h"
 #include "../drivers/serial.h"
 
-/* ELF load address — must be >= 0x00200000 per exec.c */
+/* ELF load address — must be >= 0x00400000 per exec.c */
 #define ELF_LOAD_ADDR    CC_AOT_CODE_BASE
 #define ELF_DATA_ADDR    CC_AOT_DATA_BASE
 

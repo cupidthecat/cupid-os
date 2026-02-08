@@ -12,10 +12,10 @@ typedef struct script_context script_context_t;
 /* ══════════════════════════════════════════════════════════════════════
  *  Limits
  * ══════════════════════════════════════════════════════════════════════ */
-#define MAX_ARRAY_SIZE     32
-#define MAX_ARRAYS          8
-#define MAX_ASSOC_SIZE     32
-#define MAX_ASSOC_ARRAYS    4
+#define MAX_ARRAY_SIZE     16
+#define MAX_ARRAYS          6
+#define MAX_ASSOC_SIZE     16
+#define MAX_ASSOC_ARRAYS    3
 
 #ifndef MAX_VAR_NAME
 #define MAX_VAR_NAME 64

@@ -14,6 +14,7 @@
 #define WINDOW_FLAG_VISIBLE  0x01
 #define WINDOW_FLAG_FOCUSED  0x02
 #define WINDOW_FLAG_DIRTY    0x04
+#define WINDOW_FLAG_DRAGGING 0x08  /* being dragged — skip content redraw */
 
 /* ── Constants ────────────────────────────────────────────────────── */
 #define MAX_WINDOWS     16
@@ -25,6 +26,7 @@
 typedef struct window {
     uint32_t  id;
     int16_t   x, y;
+    int16_t   prev_x, prev_y;  /* position before last drag move */
     uint16_t  width, height;
     char      title[64];
     uint8_t   flags;
@@ -70,5 +72,11 @@ int       gui_hit_test_window(int16_t mx, int16_t my);
 /* Query */
 int       gui_window_count(void);
 bool      gui_any_dirty(void);
+window_t *gui_get_window_by_index(int i);
+
+/* True if any window was created, destroyed, or moved since last clear */
+bool      gui_layout_changed(void);
+void      gui_clear_layout_changed(void);
+
 
 #endif

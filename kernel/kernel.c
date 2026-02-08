@@ -35,6 +35,7 @@
 #include "memory.h"
 #include "string.h"
 #include "graphics.h"
+#include "gfx2d.h"
 #include "gui.h"
 #include "desktop.h"
 #include "terminal_app.h"
@@ -661,6 +662,7 @@ void kmain(void) {
     // Initialize VBE graphics (mode set by bootloader, LFB addr at 0x0500)
     vga_init_vbe();          // Allocates back buffer and clears screen
     gfx_init();              // Initialize graphics primitives
+    gfx2d_init();            // Initialize 2D graphics library
     KINFO("VBE graphics initialized (640x480, 32bpp)");
 
     // Initialize mouse driver

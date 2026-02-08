@@ -18,6 +18,10 @@ void gfx_init(void) {
     fb = vga_get_framebuffer();
 }
 
+void gfx_set_framebuffer(uint32_t *new_fb) {
+    fb = new_fb;
+}
+
 /* ── Pixel ────────────────────────────────────────────────────────── */
 
 void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color) {
@@ -88,8 +92,19 @@ void gfx_draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
 
 void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
                    uint32_t color) {
-    for (uint16_t row = 0; row < h; row++) {
-        gfx_draw_hline(x, (int16_t)(y + (int16_t)row), w, color);
+    /* Clip once for the whole rect instead of per-row in gfx_draw_hline */
+    int x1 = (int)x, y1 = (int)y;
+    int x2 = x1 + (int)w - 1;
+    int y2 = y1 + (int)h - 1;
+    if (x1 < 0) x1 = 0;
+    if (y1 < 0) y1 = 0;
+    if (x2 >= VGA_GFX_WIDTH)  x2 = VGA_GFX_WIDTH - 1;
+    if (y2 >= VGA_GFX_HEIGHT) y2 = VGA_GFX_HEIGHT - 1;
+    if (x1 > x2 || y1 > y2) return;
+    int count = x2 - x1 + 1;
+    for (int row = y1; row <= y2; row++) {
+        uint32_t *dst = fb + (uint32_t)row * VGA_GFX_WIDTH + (uint32_t)x1;
+        for (int i = 0; i < count; i++) dst[i] = color;
     }
 }
 
@@ -100,12 +115,30 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
     if (idx >= 128U) idx = 0U;
     const uint8_t *glyph = font_8x8[idx];
 
+    /* Fast path: character entirely within screen — no per-pixel clip needed */
+    if ((int)x >= 0 && (int)x + FONT_W <= VGA_GFX_WIDTH &&
+        (int)y >= 0 && (int)y + FONT_H <= VGA_GFX_HEIGHT) {
+        for (int row = 0; row < FONT_H; row++) {
+            uint8_t bits = glyph[row];
+            if (!bits) continue;
+            uint32_t *rp = fb + (uint32_t)((int)y + row) * VGA_GFX_WIDTH + (uint32_t)x;
+            for (int col = 0; col < FONT_W; col++) {
+                if (bits & (0x80U >> (unsigned)col)) rp[col] = color;
+            }
+        }
+        return;
+    }
+    /* Slow path: clip per pixel for edge characters */
     for (int row = 0; row < FONT_H; row++) {
+        int py = (int)y + row;
+        if (py < 0 || py >= VGA_GFX_HEIGHT) continue;
         uint8_t bits = glyph[row];
+        if (!bits) continue;
+        uint32_t *rp = fb + (uint32_t)py * VGA_GFX_WIDTH;
         for (int col = 0; col < FONT_W; col++) {
             if (bits & (0x80U >> (unsigned)col)) {
-                gfx_plot_pixel((int16_t)(x + (int16_t)col),
-                               (int16_t)(y + (int16_t)row), color);
+                int px = (int)x + col;
+                if (px >= 0 && px < VGA_GFX_WIDTH) rp[px] = color;
             }
         }
     }
