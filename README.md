@@ -4,6 +4,7 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 ## Example of cupid-os
 ![alt text for cupid-os img](img/basic_shell.png)
 ![alt text for cupid-os img](img/paint.png)
+![alt text for cupid-os img](img/fm.png)
 
 - Custom bootloader with protected mode transition
 - Comprehensive interrupt handling system
