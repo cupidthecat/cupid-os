@@ -168,6 +168,9 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
     - Cursor underline display
     - Key forwarding from GUI to shell
     - Shell dual output mode (text mode / GUI buffer)
+  - **Bundled Applications:**
+    - **Paint:** Full-featured drawing program with multiple tools, brush sizes, colors, and file I/O
+    - **GfxDemo:** Graphics capabilities demonstration with particles, retro effects, and compositing
 
 - **PC Speaker Driver**  
   - Implements basic tone and beep functionality.

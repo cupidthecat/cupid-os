@@ -280,6 +280,12 @@ static void process_keypress(uint8_t key) {
         ascii = scancode_to_ascii[key];
     }
 
+    // Convert to control character when Ctrl is held (Ctrl+A=1 .. Ctrl+Z=26)
+    if (ctrl_active && ascii >= 'a' && ascii <= 'z') {
+        ascii = (char)(ascii - 'a' + 1);
+    } else if (ctrl_active && ascii >= 'A' && ascii <= 'Z') {
+        ascii = (char)(ascii - 'A' + 1);
+    }
 
     // Enqueue the key event into the circular buffer
     enqueue_event(key, ascii);

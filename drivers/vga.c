@@ -32,6 +32,7 @@ static int displayed_page = 0;
 
 /* Heap back buffer — all rendering goes here (fast cached RAM) */
 static uint32_t *back_buffer = NULL;
+static const uint32_t vga_retrace_timeout = 1000000U;
 
 /* ── Initialization ───────────────────────────────────────────────── */
 
@@ -79,6 +80,8 @@ uint32_t *vga_get_display_buffer(void) {
 }
 
 void vga_flip(void) {
+  uint32_t wait;
+
   if (!back_buffer)
     return;
 
@@ -86,13 +89,18 @@ void vga_flip(void) {
   uint32_t *hidden = lfb_ptr + (displayed_page ? 0U : (uint32_t)VGA_GFX_PIXELS);
   memcpy(hidden, back_buffer, (size_t)VGA_GFX_SIZE);
 
-  /* Wait for VSync (vertical retrace) to prevent tearing */
+  /* Wait for VSync (vertical retrace) to prevent tearing.
+   * Use a timeout so we never hard-lock if retrace status is unavailable. */
   /* Port 0x3DA bit 3 = vertical retrace in progress */
   /* First wait for any current retrace to end */
-  while ((inb(0x3DA) & 0x08)) {
+  wait = vga_retrace_timeout;
+  while ((inb(0x3DA) & 0x08) != 0 && wait > 0U) {
+    wait--;
   }
   /* Then wait for new retrace to start */
-  while (!(inb(0x3DA) & 0x08)) {
+  wait = vga_retrace_timeout;
+  while ((inb(0x3DA) & 0x08) == 0 && wait > 0U) {
+    wait--;
   }
 
   /* Atomically show the page we just filled */

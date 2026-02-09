@@ -39,6 +39,10 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/bmp.o \
             kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
+            kernel/gfx2d_assets.o kernel/gfx2d_transform.o kernel/gfx2d_effects.o \
+            kernel/gfx2d_icons.o \
+            kernel/gui_widgets.o kernel/gui_containers.o kernel/gui_menus.o \
+            kernel/gui_events.o kernel/gui_themes.o \
             kernel/bin_programs_gen.o \
             $(BIN_CC_OBJS)
 
@@ -162,7 +166,7 @@ kernel/calendar.o: kernel/calendar.c kernel/calendar.h
 	$(CC) $(CFLAGS) $(OPT) kernel/calendar.c -o kernel/calendar.o
 
 # Desktop shell
-kernel/desktop.o: kernel/desktop.c kernel/desktop.h
+kernel/desktop.o: kernel/desktop.c kernel/desktop.h kernel/gfx2d_icons.h kernel/cupidc.h
 	$(CC) $(CFLAGS) $(OPT) kernel/desktop.c -o kernel/desktop.o
 
 # Terminal application
@@ -252,8 +256,38 @@ kernel/vfs_helpers.o: kernel/vfs_helpers.c kernel/vfs_helpers.h kernel/vfs.h
 kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h kernel/vfs.h kernel/ui.h kernel/process.h drivers/keyboard.h drivers/mouse.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d.c -o kernel/gfx2d.o
 
+# gfx2d subsystems
+kernel/gfx2d_assets.o: kernel/gfx2d_assets.c kernel/gfx2d_assets.h kernel/gfx2d.h kernel/bmp.h kernel/vfs.h kernel/memory.h kernel/font_8x8.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_assets.c -o kernel/gfx2d_assets.o
+
+kernel/gfx2d_transform.o: kernel/gfx2d_transform.c kernel/gfx2d_transform.h kernel/gfx2d.h kernel/gfx2d_assets.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_transform.c -o kernel/gfx2d_transform.o
+
+kernel/gfx2d_effects.o: kernel/gfx2d_effects.c kernel/gfx2d_effects.h kernel/gfx2d.h kernel/memory.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_effects.c -o kernel/gfx2d_effects.o
+
+# Desktop icon system
+kernel/gfx2d_icons.o: kernel/gfx2d_icons.c kernel/gfx2d_icons.h kernel/gfx2d.h kernel/vfs.h kernel/string.h kernel/memory.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_icons.c -o kernel/gfx2d_icons.o
+
+# GUI subsystems
+kernel/gui_widgets.o: kernel/gui_widgets.c kernel/gui_widgets.h kernel/gfx2d.h kernel/ui.h kernel/font_8x8.h drivers/vga.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gui_widgets.c -o kernel/gui_widgets.o
+
+kernel/gui_containers.o: kernel/gui_containers.c kernel/gui_containers.h kernel/gfx2d.h kernel/ui.h kernel/font_8x8.h drivers/vga.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gui_containers.c -o kernel/gui_containers.o
+
+kernel/gui_menus.o: kernel/gui_menus.c kernel/gui_menus.h kernel/gfx2d.h kernel/ui.h kernel/font_8x8.h drivers/vga.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gui_menus.c -o kernel/gui_menus.o
+
+kernel/gui_events.o: kernel/gui_events.c kernel/gui_events.h kernel/gfx2d.h kernel/ui.h kernel/gui.h kernel/font_8x8.h drivers/vga.h kernel/memory.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gui_events.c -o kernel/gui_events.o
+
+kernel/gui_themes.o: kernel/gui_themes.c kernel/gui_themes.h kernel/string.h kernel/memory.h kernel/fs.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gui_themes.c -o kernel/gui_themes.o
+
 # CupidC compiler
-kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h
+kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h kernel/gfx2d_icons.h
 	$(CC) $(CFLAGS) kernel/cupidc.c -o kernel/cupidc.o
 
 kernel/cupidc_lex.o: kernel/cupidc_lex.c kernel/cupidc.h
