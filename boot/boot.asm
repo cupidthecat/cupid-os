@@ -16,7 +16,7 @@ start:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7c00
+    mov sp, 0x9000
 
     ; Print boot message
     mov si, MSG_BOOT
@@ -86,7 +86,7 @@ load_kernel:
     mov byte [cur_count], 17    ; Remaining sectors in first track
     mov word [dest_seg], 0x1000
     mov word [dest_off], 0x0000
-    mov word [sectors_left], 1024 ; Total sectors to load (~512KB max kernel)
+    mov word [sectors_left], 1152 ; Max sectors below BIOS hole (576KB)
 
 .read_loop:
     ; Check if done
@@ -229,7 +229,7 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0x190000 ; Boot stack at 1.5MB+ (above BSS)
+    mov esp, 0x280000 ; Boot stack above BSS+stack region
     mov ebp, esp       ; Set base pointer to stack top
     
     ; Print PM message directly to video memory

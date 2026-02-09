@@ -84,6 +84,7 @@ static uint32_t ticks_channel1 = 0;
 static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
+extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
 
 /* ── Embedded CupidC programs (auto-generated) ─────────────────── */
 /* The Makefile auto-discovers bin/ .cc files and generates
@@ -387,10 +388,20 @@ void print(const char* str) {
  * with basic segment registers configured by the bootloader.
  */
 void _start(void) {
-    // We're already in protected mode with segments set up
+    // We're already in protected mode with segments set up.
+    // BSS is placed above the BIOS hole (0x100000+) and must be
+    // zeroed explicitly since the bootloader only loads below 0xA0000.
     __asm__ volatile(
-        "mov $0x190000, %esp\n"
+        "mov $0x280000, %esp\n"
         "mov %esp, %ebp\n"
+        /* Zero BSS region (0x100000 to _kernel_end) */
+        "mov $_bss_start, %edi\n"
+        "mov $_kernel_end, %ecx\n"
+        "sub %edi, %ecx\n"
+        "shr $2, %ecx\n"
+        "xor %eax, %eax\n"
+        "cld\n"
+        "rep stosl\n"
     );
     
     // Call main kernel function

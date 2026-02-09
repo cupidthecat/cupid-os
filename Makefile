@@ -7,7 +7,6 @@ CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c 
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
-OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Auto-discover all CupidC programs in bin/
@@ -37,6 +36,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/syscall.o \
             kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
             kernel/cupidc_elf.o kernel/gfx2d.o \
+            kernel/bmp.o \
+            kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
             kernel/bin_programs_gen.o \
             $(BIN_CC_OBJS)
@@ -239,12 +240,20 @@ kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/
 kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.h kernel/shell.h
 	$(CC) $(CFLAGS) kernel/syscall.c -o kernel/syscall.o
 
-# 2D graphics library
-kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h
+# BMP image encoding/decoding
+kernel/bmp.o: kernel/bmp.c kernel/bmp.h kernel/vfs.h kernel/memory.h drivers/vga.h
+	$(CC) $(CFLAGS) $(OPT) kernel/bmp.c -o kernel/bmp.o
+
+# VFS helpers (read_all, write_all, read_text, write_text)
+kernel/vfs_helpers.o: kernel/vfs_helpers.c kernel/vfs_helpers.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/vfs_helpers.c -o kernel/vfs_helpers.o
+
+# 2D graphics library (includes file dialog)
+kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h kernel/vfs.h kernel/ui.h kernel/process.h drivers/keyboard.h drivers/mouse.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d.c -o kernel/gfx2d.o
 
 # CupidC compiler
-kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/memory.h kernel/exec.h
+kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h
 	$(CC) $(CFLAGS) kernel/cupidc.c -o kernel/cupidc.o
 
 kernel/cupidc_lex.o: kernel/cupidc_lex.c kernel/cupidc.h
