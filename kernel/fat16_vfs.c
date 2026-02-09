@@ -192,10 +192,47 @@ static int fat16_vfs_close(void *file_handle) {
     } else {
         /* Flush any buffered writes */
         if (h->dirty && h->write_buf && h->filename[0]) {
+            serial_printf("[fat16_vfs_close] flushing '%s', %u bytes\n",
+                         h->filename, h->write_len);
+
+            /* Save original file content for rollback */
+            fat16_file_t *orig = h->fat_file;
+            uint32_t orig_size = orig ? orig->file_size : 0;
+            uint8_t *backup = NULL;
+
+            if (orig && orig_size > 0) {
+                backup = kmalloc(orig_size);
+                if (backup) {
+                    /* Rewind and read original content */
+                    orig->position = 0;
+                    fat16_read(orig, backup, orig_size);
+                }
+            }
+
             fat16_close(h->fat_file);
             h->fat_file = NULL;
-            fat16_delete_file(h->filename);
-            fat16_write_file(h->filename, h->write_buf, h->write_len);
+            int del_rc = fat16_delete_file(h->filename);
+            serial_printf("[fat16_vfs_close] delete returned %d\n", del_rc);
+
+            int wr_rc = fat16_write_file(h->filename, h->write_buf, h->write_len);
+            serial_printf("[fat16_vfs_close] write returned %d\n", wr_rc);
+
+            if (wr_rc < 0 || (uint32_t)wr_rc != h->write_len) {
+                serial_printf("[fat16_vfs_close] ERROR: write failed! Attempting rollback...\n");
+                /* Try to restore original file */
+                if (backup && orig_size > 0) {
+                    int restore_rc = fat16_write_file(h->filename, backup, orig_size);
+                    if (restore_rc == 0) {
+                        serial_printf("[fat16_vfs_close] Rollback successful\n");
+                    } else {
+                        serial_printf("[fat16_vfs_close] CRITICAL: Rollback failed! File lost!\n");
+                    }
+                } else {
+                    serial_printf("[fat16_vfs_close] CRITICAL: No backup available! File lost!\n");
+                }
+            }
+
+            if (backup) kfree(backup);
         }
         if (h->fat_file) fat16_close(h->fat_file);
         if (h->write_buf) kfree(h->write_buf);

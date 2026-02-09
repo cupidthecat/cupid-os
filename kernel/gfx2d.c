@@ -7,11 +7,16 @@
  */
 
 #include "gfx2d.h"
+#include "../drivers/keyboard.h"
+#include "../drivers/mouse.h"
 #include "../drivers/serial.h"
 #include "../drivers/vga.h"
 #include "font_8x8.h"
+#include "graphics.h"
 #include "memory.h"
+#include "process.h"
 #include "string.h"
+#include "ui.h"
 #include "vfs.h"
 
 /* ── Internal state ───────────────────────────────────────────────── */
@@ -1678,4 +1683,769 @@ void gfx2d_draw_cursor(void) {
       }
     }
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  File Dialog — Modal open/save dialog with self-contained event loop
+ *
+ *  Adapted from notepad's file dialog.  Self-contained: renders
+ *  directly to the gfx2d framebuffer, blocks until the user confirms
+ *  or cancels.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Scancodes ────────────────────────────────────────────────────── */
+#define FDLG_SC_ESCAPE     0x01
+#define FDLG_SC_BACKSPACE  0x0E
+#define FDLG_SC_ENTER      0x1C
+#define FDLG_SC_ARROW_UP   0x48
+#define FDLG_SC_ARROW_DOWN 0x50
+#define FDLG_SC_PAGE_UP    0x49
+#define FDLG_SC_PAGE_DOWN  0x51
+
+/* ── Dialog constants ─────────────────────────────────────────────── */
+#define FDLG_MAX_FILES    64
+#define FDLG_INPUT_MAX    64
+#define FDLG_W            420
+#define FDLG_H            300
+#define FDLG_LIST_H       180
+#define FDLG_ITEM_H       10
+#define FDLG_SCROLLBAR_W  12
+#define FDLG_BTN_W        70
+#define FDLG_BTN_H        20
+
+/* ── File entry ───────────────────────────────────────────────────── */
+typedef struct {
+  char name[VFS_MAX_NAME];
+  uint32_t size;
+  bool is_directory;
+} fdlg_file_entry_t;
+
+/* ── Dialog layout ────────────────────────────────────────────────── */
+typedef struct {
+  ui_rect_t dialog;
+  ui_rect_t titlebar;
+  ui_rect_t list_area;
+  ui_rect_t list;
+  ui_rect_t scrollbar;
+  ui_rect_t input_label;
+  ui_rect_t input_field;
+  ui_rect_t ok_btn;
+  ui_rect_t cancel_btn;
+  ui_rect_t status;
+  int items_y;
+  int items_h;
+  int items_visible;
+} fdlg_layout_t;
+
+/* ── Dialog state ─────────────────────────────────────────────────── */
+typedef struct {
+  fdlg_file_entry_t files[FDLG_MAX_FILES];
+  int file_count;
+  int selected_index;
+  int scroll_offset;
+
+  char current_path[VFS_MAX_PATH];
+
+  char input[FDLG_INPUT_MAX];
+  int input_len;
+
+  bool save_mode;
+  const char *filter_ext;
+
+  bool user_confirmed;
+  bool done;
+  char *result_path;
+} fdlg_state_t;
+
+/* ── String helpers (local, avoid name collisions) ────────────────── */
+
+static int fdlg_strlen(const char *s) {
+  int n = 0;
+  while (s[n]) n++;
+  return n;
+}
+
+static void fdlg_strcpy(char *dst, const char *src) {
+  int i = 0;
+  while (src[i]) { dst[i] = src[i]; i++; }
+  dst[i] = '\0';
+}
+
+static int fdlg_strcmp(const char *a, const char *b) {
+  while (*a && *a == *b) { a++; b++; }
+  return (int)(unsigned char)*a - (int)(unsigned char)*b;
+}
+
+/* Case-insensitive compare */
+static int fdlg_strcasecmp(const char *a, const char *b) {
+  while (*a && *b) {
+    char ca = *a, cb = *b;
+    if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+    if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+    if (ca != cb) return (int)(unsigned char)ca - (int)(unsigned char)cb;
+    a++; b++;
+  }
+  char ca = *a, cb = *b;
+  if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+  if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+  return (int)(unsigned char)ca - (int)(unsigned char)cb;
+}
+
+/* ── Extension filter check ───────────────────────────────────────── */
+
+static bool fdlg_matches_filter(const char *filename, const char *filter_ext,
+                                 bool is_directory) {
+  if (is_directory) return true;
+  if (!filter_ext || filter_ext[0] == '\0') return true;
+
+  /* Find last '.' in filename */
+  const char *dot = NULL;
+  const char *p = filename;
+  while (*p) {
+    if (*p == '.') dot = p;
+    p++;
+  }
+  if (!dot) return false;
+
+  return fdlg_strcasecmp(dot, filter_ext) == 0;
+}
+
+/* ── Sort: directories first, then alphabetical ───────────────────── */
+
+static void fdlg_sort_files(fdlg_file_entry_t *files, int count) {
+  /* Simple insertion sort — fine for <= 64 entries */
+  for (int i = 1; i < count; i++) {
+    fdlg_file_entry_t tmp;
+    memcpy(&tmp, &files[i], sizeof(tmp));
+    int j = i - 1;
+    while (j >= 0) {
+      /* ".." always stays at index 0 */
+      if (files[j].name[0] == '.' && files[j].name[1] == '.' &&
+          files[j].name[2] == '\0')
+        break;
+
+      bool swap = false;
+      if (tmp.is_directory && !files[j].is_directory) {
+        swap = true;
+      } else if (tmp.is_directory == files[j].is_directory) {
+        if (fdlg_strcasecmp(tmp.name, files[j].name) < 0)
+          swap = true;
+      }
+
+      if (!swap) break;
+      memcpy(&files[j + 1], &files[j], sizeof(fdlg_file_entry_t));
+      j--;
+    }
+    memcpy(&files[j + 1], &tmp, sizeof(fdlg_file_entry_t));
+  }
+}
+
+/* ── Populate file list from VFS ──────────────────────────────────── */
+
+static void fdlg_populate(fdlg_state_t *dlg) {
+  dlg->file_count = 0;
+  dlg->selected_index = -1;
+  dlg->scroll_offset = 0;
+
+  int fd = vfs_open(dlg->current_path, O_RDONLY);
+  if (fd < 0) {
+    /* Fallback to root */
+    fd = vfs_open("/", O_RDONLY);
+    if (fd < 0) return;
+    dlg->current_path[0] = '/';
+    dlg->current_path[1] = '\0';
+  }
+
+  /* Add ".." if not at root */
+  if (dlg->current_path[0] != '/' || dlg->current_path[1] != '\0') {
+    fdlg_file_entry_t *fe = &dlg->files[dlg->file_count];
+    fdlg_strcpy(fe->name, "..");
+    fe->size = 0;
+    fe->is_directory = true;
+    dlg->file_count++;
+  }
+
+  vfs_dirent_t ent;
+  while (dlg->file_count < FDLG_MAX_FILES && vfs_readdir(fd, &ent) > 0) {
+    /* Apply extension filter */
+    bool is_dir = (ent.type == VFS_TYPE_DIR);
+    if (!fdlg_matches_filter(ent.name, dlg->filter_ext, is_dir))
+      continue;
+
+    fdlg_file_entry_t *fe = &dlg->files[dlg->file_count];
+    int i = 0;
+    while (ent.name[i] && i < VFS_MAX_NAME - 1) {
+      fe->name[i] = ent.name[i];
+      i++;
+    }
+    fe->name[i] = '\0';
+    fe->size = ent.size;
+    fe->is_directory = is_dir;
+    dlg->file_count++;
+  }
+
+  vfs_close(fd);
+
+  /* Sort: directories first, then alphabetical */
+  if (dlg->file_count > 1) {
+    int start = 0;
+    /* Skip ".." entry at index 0 */
+    if (dlg->files[0].name[0] == '.' && dlg->files[0].name[1] == '.' &&
+        dlg->files[0].name[2] == '\0')
+      start = 1;
+    fdlg_sort_files(&dlg->files[start], dlg->file_count - start);
+  }
+}
+
+/* ── Path navigation ──────────────────────────────────────────────── */
+
+static void fdlg_navigate(fdlg_state_t *dlg, const char *dname) {
+  if (dname[0] == '.' && dname[1] == '.' && dname[2] == '\0') {
+    /* Go up: strip last path component */
+    int plen = fdlg_strlen(dlg->current_path);
+    if (plen > 1) {
+      plen--;
+      while (plen > 0 && dlg->current_path[plen] != '/')
+        plen--;
+      if (plen == 0) plen = 1; /* keep root "/" */
+      dlg->current_path[plen] = '\0';
+    }
+  } else {
+    int plen = fdlg_strlen(dlg->current_path);
+    if (plen > 1 && plen < VFS_MAX_PATH - 2)
+      dlg->current_path[plen++] = '/';
+    int k = 0;
+    while (dname[k] && plen < VFS_MAX_PATH - 1)
+      dlg->current_path[plen++] = dname[k++];
+    dlg->current_path[plen] = '\0';
+  }
+  dlg->input_len = 0;
+  dlg->input[0] = '\0';
+  fdlg_populate(dlg);
+}
+
+/* ── Build result path ────────────────────────────────────────────── */
+
+static void fdlg_build_result_path(fdlg_state_t *dlg, char *out) {
+  int plen = fdlg_strlen(dlg->current_path);
+  int nlen = fdlg_strlen(dlg->input);
+
+  int i = 0;
+  /* Copy current_path */
+  for (int j = 0; j < plen && i < VFS_MAX_PATH - 2; j++)
+    out[i++] = dlg->current_path[j];
+
+  /* Add separator if needed */
+  if (plen > 1 && i < VFS_MAX_PATH - 1)
+    out[i++] = '/';
+
+  /* Copy filename */
+  for (int j = 0; j < nlen && i < VFS_MAX_PATH - 1; j++)
+    out[i++] = dlg->input[j];
+
+  out[i] = '\0';
+}
+
+/* ── Compute layout ───────────────────────────────────────────────── */
+
+static fdlg_layout_t fdlg_get_layout(void) {
+  fdlg_layout_t L;
+
+  /* Center on 640x480 screen */
+  int16_t dx = (int16_t)((G2D_W - FDLG_W) / 2);
+  int16_t dy = (int16_t)((G2D_H - FDLG_H) / 2);
+
+  L.dialog = ui_rect(dx, dy, FDLG_W, FDLG_H);
+
+  /* Title bar */
+  L.titlebar = ui_rect((int16_t)(dx + 2), (int16_t)(dy + 2),
+                       (uint16_t)(FDLG_W - 4), 16);
+
+  /* File list + scrollbar sunken area */
+  int16_t list_x = (int16_t)(dx + 4);
+  int16_t list_y = (int16_t)(dy + 22);
+  uint16_t list_inner_w = (uint16_t)(FDLG_W - 8 - FDLG_SCROLLBAR_W);
+
+  L.list_area = ui_rect(list_x, list_y, (uint16_t)(FDLG_W - 8), FDLG_LIST_H);
+  L.list = ui_rect(list_x, list_y, list_inner_w, FDLG_LIST_H);
+  L.scrollbar = ui_rect((int16_t)(list_x + (int16_t)list_inner_w),
+                        (int16_t)(list_y + 1),
+                        FDLG_SCROLLBAR_W, (uint16_t)(FDLG_LIST_H - 2));
+
+  /* Items area (below column header row) */
+  L.items_y = (int)list_y + FDLG_ITEM_H + 1;
+  L.items_h = FDLG_LIST_H - FDLG_ITEM_H - 2;
+  L.items_visible = L.items_h / FDLG_ITEM_H;
+  if (L.items_visible < 1) L.items_visible = 1;
+
+  /* Input row */
+  int16_t row_y = (int16_t)(dy + 22 + FDLG_LIST_H + 6);
+  L.input_label = ui_rect((int16_t)(dx + 4), row_y, 40, 16);
+  L.input_field = ui_rect((int16_t)(dx + 44), row_y,
+                          (uint16_t)(FDLG_W - 48), 16);
+
+  /* Buttons */
+  int16_t btn_y = (int16_t)(dy + FDLG_H - FDLG_BTN_H - 6);
+  L.ok_btn = ui_rect((int16_t)(dx + 4), btn_y, FDLG_BTN_W, FDLG_BTN_H);
+  L.cancel_btn = ui_rect((int16_t)(dx + 4 + FDLG_BTN_W + 8), btn_y,
+                         FDLG_BTN_W, FDLG_BTN_H);
+
+  /* Status text */
+  int16_t status_x = (int16_t)(dx + 4 + FDLG_BTN_W + 8 + FDLG_BTN_W + 12);
+  L.status = ui_rect(status_x, btn_y,
+                     (uint16_t)(FDLG_W - (4 + FDLG_BTN_W + 8 + FDLG_BTN_W + 12)),
+                     FDLG_BTN_H);
+
+  return L;
+}
+
+/* ── Int-to-string helper ─────────────────────────────────────────── */
+
+static int fdlg_itoa(char *buf, uint32_t val) {
+  if (val == 0) { buf[0] = '0'; buf[1] = '\0'; return 1; }
+  char tmp[12];
+  int ti = 0;
+  while (val > 0) {
+    tmp[ti++] = (char)('0' + (val % 10));
+    val /= 10;
+  }
+  int sp = 0;
+  for (int j = ti - 1; j >= 0; j--)
+    buf[sp++] = tmp[j];
+  buf[sp] = '\0';
+  return sp;
+}
+
+/* ── Render the dialog ────────────────────────────────────────────── */
+
+static void fdlg_render(fdlg_state_t *dlg) {
+  fdlg_layout_t L = fdlg_get_layout();
+
+  /* Drop shadow + dialog panel */
+  ui_draw_shadow(L.dialog, COLOR_TEXT, 2);
+  ui_draw_panel(L.dialog, COLOR_WINDOW_BG, true, true);
+
+  /* Title bar */
+  {
+    char title[48];
+    int ti = 0;
+    const char *base = dlg->save_mode ? "Save As" : "Open";
+    while (base[ti]) { title[ti] = base[ti]; ti++; }
+
+    /* Show filter in title if present */
+    if (dlg->filter_ext && dlg->filter_ext[0]) {
+      title[ti++] = ' ';
+      title[ti++] = '(';
+      title[ti++] = '*';
+      const char *ext = dlg->filter_ext;
+      while (*ext && ti < 44) title[ti++] = *ext++;
+      title[ti++] = ')';
+    }
+    title[ti] = '\0';
+    ui_draw_titlebar(L.titlebar, title, true);
+  }
+
+  /* File list area (sunken) */
+  ui_draw_panel(L.list_area, COLOR_TEXT_LIGHT, true, false);
+
+  /* Column header */
+  gfx_fill_rect((int16_t)(L.list.x + 1), (int16_t)(L.list.y + 1),
+                (uint16_t)(L.list.w - 1), FDLG_ITEM_H, COLOR_BORDER);
+  gfx_draw_text((int16_t)(L.list.x + 4), (int16_t)(L.list.y + 2),
+                "Name", COLOR_BLACK);
+  int size_col_x = (int)L.list.x + (int)L.list.w - 50;
+  gfx_draw_text((int16_t)size_col_x, (int16_t)(L.list.y + 2),
+                "Size", COLOR_BLACK);
+  gfx_draw_vline((int16_t)(size_col_x - 3), (int16_t)(L.list.y + 1),
+                 FDLG_ITEM_H, COLOR_TEXT);
+
+  /* File entries */
+  for (int i = 0; i < L.items_visible; i++) {
+    int fi = i + dlg->scroll_offset;
+    if (fi >= dlg->file_count) break;
+    int16_t fy = (int16_t)(L.items_y + i * FDLG_ITEM_H);
+
+    /* Highlight selected row */
+    if (fi == dlg->selected_index) {
+      gfx_fill_rect((int16_t)(L.list.x + 1), fy,
+                    (uint16_t)(L.list.w - 1), FDLG_ITEM_H, COLOR_BUTTON);
+    }
+
+    uint32_t tc = (fi == dlg->selected_index) ? COLOR_TEXT_LIGHT : COLOR_BLACK;
+
+    if (dlg->files[fi].is_directory) {
+      gfx_draw_text((int16_t)(L.list.x + 3), (int16_t)(fy + 1),
+                    "[D]", COLOR_HIGHLIGHT);
+      gfx_draw_text((int16_t)(L.list.x + 28), (int16_t)(fy + 1),
+                    dlg->files[fi].name, tc);
+      /* Show <DIR> in size column */
+      gfx_draw_text((int16_t)size_col_x, (int16_t)(fy + 1), "<DIR>", tc);
+    } else {
+      gfx_draw_char((int16_t)(L.list.x + 3), (int16_t)(fy + 1), '|',
+                    COLOR_TEXT);
+      gfx_draw_char((int16_t)(L.list.x + 8), (int16_t)(fy + 1), '=',
+                    COLOR_TEXT);
+      gfx_draw_text((int16_t)(L.list.x + 18), (int16_t)(fy + 1),
+                    dlg->files[fi].name, tc);
+
+      /* File size */
+      char size_buf[16];
+      uint32_t sz = dlg->files[fi].size;
+      int sp;
+      if (sz < 1024) {
+        sp = fdlg_itoa(size_buf, sz);
+        size_buf[sp++] = 'B';
+        size_buf[sp] = '\0';
+      } else {
+        uint32_t kb = sz / 1024;
+        if (kb == 0) kb = 1;
+        sp = fdlg_itoa(size_buf, kb);
+        size_buf[sp++] = 'K';
+        size_buf[sp] = '\0';
+      }
+      gfx_draw_text((int16_t)size_col_x, (int16_t)(fy + 1), size_buf, tc);
+    }
+  }
+
+  if (dlg->file_count == 0) {
+    gfx_draw_text((int16_t)(L.list.x + 8), (int16_t)(L.items_y + 4),
+                  "(empty)", COLOR_TEXT);
+  }
+
+  /* Vertical scrollbar */
+  ui_draw_vscrollbar(L.scrollbar, dlg->file_count, L.items_visible,
+                     dlg->scroll_offset);
+
+  /* "File:" label + input field */
+  ui_draw_label(L.input_label, "File:", COLOR_BLACK, UI_ALIGN_LEFT);
+  ui_draw_textfield(L.input_field, dlg->input, dlg->input_len);
+
+  /* OK / Cancel buttons */
+  ui_draw_button(L.ok_btn, dlg->save_mode ? "Save" : "Open", true);
+  ui_draw_button(L.cancel_btn, "Cancel", false);
+
+  /* File count status */
+  {
+    char count_buf[24];
+    int cp = fdlg_itoa(count_buf, (uint32_t)dlg->file_count);
+    count_buf[cp++] = ' ';
+    count_buf[cp++] = 'f';
+    count_buf[cp++] = 'i';
+    count_buf[cp++] = 'l';
+    count_buf[cp++] = 'e';
+    count_buf[cp++] = 's';
+    count_buf[cp] = '\0';
+    ui_draw_label(L.status, count_buf, COLOR_TEXT, UI_ALIGN_LEFT);
+  }
+
+  /* Current path at bottom */
+  gfx_draw_text((int16_t)(L.dialog.x + 4),
+                (int16_t)(L.dialog.y + FDLG_H - 10),
+                dlg->current_path, COLOR_TEXT);
+}
+
+/* ── Confirm action (enter / OK button) ───────────────────────────── */
+
+static void fdlg_confirm(fdlg_state_t *dlg) {
+  /* If no input but something is selected, use selected name */
+  if (dlg->input_len == 0 && dlg->selected_index >= 0 &&
+      dlg->selected_index < dlg->file_count) {
+    fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
+    dlg->input_len = fdlg_strlen(dlg->input);
+  }
+
+  if (dlg->input_len > 0) {
+    /* If selected item is a directory — navigate */
+    int sel = dlg->selected_index;
+    if (sel >= 0 && sel < dlg->file_count &&
+        dlg->files[sel].is_directory) {
+      /* Navigate if the input matches the selected directory name */
+      if (fdlg_strcmp(dlg->input, dlg->files[sel].name) == 0) {
+        fdlg_navigate(dlg, dlg->files[sel].name);
+        return;
+      }
+    }
+    /* Confirm with current input */
+    dlg->user_confirmed = true;
+    dlg->done = true;
+    return;
+  }
+
+  /* Nothing selected and no input — do nothing */
+}
+
+/* ── Handle keyboard ──────────────────────────────────────────────── */
+
+static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
+  if (scancode == FDLG_SC_ESCAPE) {
+    dlg->done = true;
+    return;
+  }
+
+  if (scancode == FDLG_SC_ENTER) {
+    fdlg_confirm(dlg);
+    return;
+  }
+
+  if (scancode == FDLG_SC_ARROW_UP) {
+    if (dlg->selected_index > 0) {
+      dlg->selected_index--;
+      fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
+      dlg->input_len = fdlg_strlen(dlg->input);
+      if (dlg->selected_index < dlg->scroll_offset)
+        dlg->scroll_offset = dlg->selected_index;
+    }
+    return;
+  }
+
+  if (scancode == FDLG_SC_ARROW_DOWN) {
+    if (dlg->selected_index < dlg->file_count - 1) {
+      dlg->selected_index++;
+      fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
+      dlg->input_len = fdlg_strlen(dlg->input);
+      fdlg_layout_t L = fdlg_get_layout();
+      if (dlg->selected_index >= dlg->scroll_offset + L.items_visible)
+        dlg->scroll_offset = dlg->selected_index - L.items_visible + 1;
+    }
+    return;
+  }
+
+  if (scancode == FDLG_SC_PAGE_UP) {
+    fdlg_layout_t L = fdlg_get_layout();
+    dlg->scroll_offset -= L.items_visible;
+    if (dlg->scroll_offset < 0) dlg->scroll_offset = 0;
+    dlg->selected_index -= L.items_visible;
+    if (dlg->selected_index < 0) dlg->selected_index = 0;
+    if (dlg->selected_index < dlg->file_count) {
+      fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
+      dlg->input_len = fdlg_strlen(dlg->input);
+    }
+    return;
+  }
+
+  if (scancode == FDLG_SC_PAGE_DOWN) {
+    fdlg_layout_t L = fdlg_get_layout();
+    int max_scroll = dlg->file_count - L.items_visible;
+    if (max_scroll < 0) max_scroll = 0;
+    dlg->scroll_offset += L.items_visible;
+    if (dlg->scroll_offset > max_scroll) dlg->scroll_offset = max_scroll;
+    dlg->selected_index += L.items_visible;
+    if (dlg->selected_index >= dlg->file_count)
+      dlg->selected_index = dlg->file_count - 1;
+    if (dlg->selected_index >= 0 && dlg->selected_index < dlg->file_count) {
+      fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
+      dlg->input_len = fdlg_strlen(dlg->input);
+    }
+    return;
+  }
+
+  if (scancode == FDLG_SC_BACKSPACE) {
+    if (dlg->input_len > 0) {
+      dlg->input_len--;
+      dlg->input[dlg->input_len] = '\0';
+    }
+    return;
+  }
+
+  /* Regular printable character */
+  if (ch >= 32 && ch < 127 && dlg->input_len < FDLG_INPUT_MAX - 1) {
+    dlg->input[dlg->input_len++] = ch;
+    dlg->input[dlg->input_len] = '\0';
+  }
+}
+
+/* ── Handle mouse ─────────────────────────────────────────────────── */
+
+static void fdlg_handle_mouse(fdlg_state_t *dlg, int16_t mx, int16_t my,
+                               uint8_t buttons, uint8_t prev_buttons) {
+  bool pressed = (buttons & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+  if (!pressed) return;
+
+  fdlg_layout_t L = fdlg_get_layout();
+
+  /* Scrollbar clicks */
+  {
+    bool page = false;
+    int dir = ui_vscrollbar_hit(L.scrollbar, mx, my, &page);
+    if (dir != 0) {
+      int max_scroll = dlg->file_count - L.items_visible;
+      if (max_scroll < 0) max_scroll = 0;
+      if (page)
+        dlg->scroll_offset += dir * L.items_visible;
+      else
+        dlg->scroll_offset += dir;
+      if (dlg->scroll_offset < 0) dlg->scroll_offset = 0;
+      if (dlg->scroll_offset > max_scroll) dlg->scroll_offset = max_scroll;
+      return;
+    }
+  }
+
+  /* OK button */
+  if (ui_contains(L.ok_btn, mx, my)) {
+    fdlg_confirm(dlg);
+    return;
+  }
+
+  /* Cancel button */
+  if (ui_contains(L.cancel_btn, mx, my)) {
+    dlg->done = true;
+    return;
+  }
+
+  /* File list item click */
+  {
+    ui_rect_t items_area = ui_rect(L.list.x, (int16_t)L.items_y,
+                                   L.list.w, (uint16_t)L.items_h);
+    if (ui_contains(items_area, mx, my)) {
+      int item = ((int)my - L.items_y) / FDLG_ITEM_H + dlg->scroll_offset;
+      if (item >= 0 && item < dlg->file_count) {
+        /* Double-click: clicking same item again */
+        if (dlg->selected_index == item) {
+          if (dlg->files[item].is_directory) {
+            fdlg_navigate(dlg, dlg->files[item].name);
+            return;
+          }
+          /* Double-click on file: select it */
+          if (!dlg->save_mode) {
+            fdlg_strcpy(dlg->input, dlg->files[item].name);
+            dlg->input_len = fdlg_strlen(dlg->input);
+            dlg->user_confirmed = true;
+            dlg->done = true;
+            return;
+          }
+        }
+        dlg->selected_index = item;
+        fdlg_strcpy(dlg->input, dlg->files[item].name);
+        dlg->input_len = fdlg_strlen(dlg->input);
+      }
+    }
+  }
+}
+
+/* ── Handle scroll wheel ─────────────────────────────────────────── */
+
+static void fdlg_handle_scroll(fdlg_state_t *dlg, int8_t delta) {
+  fdlg_layout_t L = fdlg_get_layout();
+  int max_scroll = dlg->file_count - L.items_visible;
+  if (max_scroll < 0) max_scroll = 0;
+  dlg->scroll_offset += (int)delta;
+  if (dlg->scroll_offset < 0) dlg->scroll_offset = 0;
+  if (dlg->scroll_offset > max_scroll) dlg->scroll_offset = max_scroll;
+}
+
+/* ── Main dialog event loop ───────────────────────────────────────── */
+
+static int fdlg_run(fdlg_state_t *dlg) {
+  uint8_t prev_buttons = mouse.buttons;
+
+  while (!dlg->done) {
+    /* Read keyboard events */
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (evt.pressed) {
+        fdlg_handle_key(dlg, evt.scancode, evt.character);
+        if (dlg->done) break;
+      }
+    }
+    if (dlg->done) break;
+
+    /* Read mouse state */
+    int16_t mx = mouse.x;
+    int16_t my = mouse.y;
+    uint8_t btns = mouse.buttons;
+
+    fdlg_handle_mouse(dlg, mx, my, btns, prev_buttons);
+    prev_buttons = btns;
+
+    /* Scroll wheel */
+    if (mouse.scroll_z != 0) {
+      fdlg_handle_scroll(dlg, mouse.scroll_z);
+      mouse.scroll_z = 0;
+    }
+
+    /* Render */
+    gfx2d_cursor_hide();
+    fdlg_render(dlg);
+    gfx2d_draw_cursor();
+    gfx2d_flip();
+
+    process_yield();
+  }
+
+  if (dlg->user_confirmed && dlg->input_len > 0) {
+    fdlg_build_result_path(dlg, dlg->result_path);
+    return 1;
+  }
+  return 0;
+}
+
+/* ── Public API ───────────────────────────────────────────────────── */
+
+int gfx2d_file_dialog_open(const char *start_path, char *result_path,
+                            const char *filter_ext) {
+  if (!result_path) return VFS_EINVAL;
+
+  fdlg_state_t dlg;
+  memset(&dlg, 0, sizeof(dlg));
+  dlg.save_mode = false;
+  dlg.filter_ext = filter_ext;
+  dlg.result_path = result_path;
+  dlg.done = false;
+  dlg.user_confirmed = false;
+
+  /* Set start path */
+  if (start_path && start_path[0]) {
+    int i = 0;
+    while (start_path[i] && i < VFS_MAX_PATH - 1) {
+      dlg.current_path[i] = start_path[i];
+      i++;
+    }
+    dlg.current_path[i] = '\0';
+  } else {
+    dlg.current_path[0] = '/';
+    dlg.current_path[1] = '\0';
+  }
+
+  fdlg_populate(&dlg);
+  return fdlg_run(&dlg);
+}
+
+int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
+                            char *result_path, const char *filter_ext) {
+  if (!result_path) return VFS_EINVAL;
+
+  fdlg_state_t dlg;
+  memset(&dlg, 0, sizeof(dlg));
+  dlg.save_mode = true;
+  dlg.filter_ext = filter_ext;
+  dlg.result_path = result_path;
+  dlg.done = false;
+  dlg.user_confirmed = false;
+
+  /* Set start path */
+  if (start_path && start_path[0]) {
+    int i = 0;
+    while (start_path[i] && i < VFS_MAX_PATH - 1) {
+      dlg.current_path[i] = start_path[i];
+      i++;
+    }
+    dlg.current_path[i] = '\0';
+  } else {
+    dlg.current_path[0] = '/';
+    dlg.current_path[1] = '\0';
+  }
+
+  /* Pre-fill default filename */
+  if (default_name && default_name[0]) {
+    int i = 0;
+    while (default_name[i] && i < FDLG_INPUT_MAX - 1) {
+      dlg.input[i] = default_name[i];
+      i++;
+    }
+    dlg.input[i] = '\0';
+    dlg.input_len = i;
+  }
+
+  fdlg_populate(&dlg);
+  return fdlg_run(&dlg);
 }

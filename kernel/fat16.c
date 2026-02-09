@@ -15,6 +15,7 @@
 #include "kernel.h"
 #include "debug.h"
 #include "string.h"
+#include "../drivers/serial.h"
 
 static fat16_fs_t fs;
 static fat16_file_t open_files[8];
@@ -277,6 +278,7 @@ fat16_file_t* fat16_open(const char* filename) {
  */
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
     if (!file || !file->is_open) {
+        serial_printf("[fat16_read] ERROR: invalid file handle\n");
         return -1;
     }
 
@@ -289,30 +291,69 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         return 0;
     }
 
+    serial_printf("[fat16_read] pos=%u count=%u filesize=%u first_cluster=%u\n",
+                 file->position, count, file->file_size, file->first_cluster);
+
     uint32_t bytes_read = 0;
     uint16_t current_cluster = file->first_cluster;
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
 
     // Skip to current position's cluster
     uint32_t skip_bytes = file->position;
+    uint32_t skipped_clusters = 0;
     while (skip_bytes >= cluster_size) {
-        current_cluster = fat16_read_fat_entry(current_cluster);
-        if (current_cluster >= FAT16_EOC_MIN) {
+        uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
+        if (next_cluster >= FAT16_EOC_MIN) {
+            serial_printf("[READ SKIP] Hit EOC after %u clusters (wanted to skip %u bytes)\n",
+                         skipped_clusters, file->position);
             return (int)bytes_read;
         }
+        current_cluster = next_cluster;
         skip_bytes -= cluster_size;
+        skipped_clusters++;
+    }
+    if (file->position > 0 && skipped_clusters > 0) {
+        serial_printf("[READ] Skipped %u clusters to reach position %u, now at cluster %u\n",
+                     skipped_clusters, file->position, current_cluster);
     }
 
     // Read data
     uint8_t sector_buffer[512];
+    uint32_t clusters_read = 0;
+    uint16_t last_logged_cluster = 0xFFFF;
+
     while (bytes_read < count) {
         uint32_t cluster_lba = fat16_cluster_to_lba(current_cluster);
         uint32_t offset_in_cluster = (file->position + bytes_read) % cluster_size;
         uint32_t sector_in_cluster = offset_in_cluster / fs.bytes_per_sector;
         uint32_t offset_in_sector = offset_in_cluster % fs.bytes_per_sector;
 
+        /* Log each cluster we read from */
+        if (current_cluster != last_logged_cluster) {
+            if (clusters_read < 5 || clusters_read % 50 == 0) {
+                serial_printf("[READ] reading cluster[%u]=%u → LBA %u-%u (offset_in_cluster=%u)\n",
+                             clusters_read, current_cluster, cluster_lba,
+                             cluster_lba + fs.sectors_per_cluster - 1, offset_in_cluster);
+            }
+            last_logged_cluster = current_cluster;
+        }
+
         if (blockcache_read(cluster_lba + sector_in_cluster, sector_buffer) != 0) {
+            serial_printf("[fat16_read] ERROR: blockcache_read failed at LBA %u\n",
+                         cluster_lba + sector_in_cluster);
             return -1;
+        }
+
+        /* Debug: check if sector is all zeros */
+        if ((bytes_read % 10240) == 0) {  /* Log every ~10KB */
+            uint32_t zero_count = 0;
+            for (uint32_t i = 0; i < 512; i++) {
+                if (sector_buffer[i] == 0) zero_count++;
+            }
+            if (zero_count == 512) {
+                serial_printf("[fat16_read] WARNING: sector at LBA %u is ALL ZEROS! cluster=%u\n",
+                             cluster_lba + sector_in_cluster, current_cluster);
+            }
         }
 
         uint32_t bytes_to_copy = fs.bytes_per_sector - offset_in_sector;
@@ -325,8 +366,16 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
 
         // Check if we need to move to next cluster
         if ((offset_in_cluster + bytes_to_copy) >= cluster_size && bytes_read < count) {
-            current_cluster = fat16_read_fat_entry(current_cluster);
+            uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
+            if (clusters_read < 5 || clusters_read % 50 == 0) {
+                serial_printf("[READ] cluster %u → next %u (EOC if >= 0x%04X)\n",
+                             current_cluster, next_cluster, FAT16_EOC_MIN);
+            }
+            current_cluster = next_cluster;
+            clusters_read++;
             if (current_cluster >= FAT16_EOC_MIN) {
+                serial_printf("[READ] Hit EOC after %u clusters, bytes_read=%u\n",
+                             clusters_read, bytes_read);
                 break;
             }
         }
@@ -364,7 +413,10 @@ int fat16_close(fat16_file_t* file) {
  * @return 0 on success, -1 on error
  */
 static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
-    if (cluster < 2) return -1;
+    if (cluster < 2) {
+        serial_printf("[fat16_write_fat_entry] ERROR: invalid cluster %u\n", cluster);
+        return -1;
+    }
 
     uint32_t fat_offset = (uint32_t)cluster * 2;
     uint32_t sector_offset = fat_offset / fs.bytes_per_sector;
@@ -376,11 +428,21 @@ static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
             ((uint32_t)fat_num * fs.sectors_per_fat) + sector_offset;
 
         uint8_t buffer[512];
-        if (blockcache_read(fat_sector, buffer) != 0) return -1;
+        int read_rc = blockcache_read(fat_sector, buffer);
+        if (read_rc != 0) {
+            serial_printf("[fat16_write_fat_entry] ERROR: read FAT%u sector %u failed (rc=%d)\n",
+                         fat_num, fat_sector, read_rc);
+            return -1;
+        }
 
         *(uint16_t*)(&buffer[entry_offset]) = value;
 
-        if (blockcache_write(fat_sector, buffer) != 0) return -1;
+        int write_rc = blockcache_write(fat_sector, buffer);
+        if (write_rc != 0) {
+            serial_printf("[fat16_write_fat_entry] ERROR: write FAT%u sector %u failed (rc=%d)\n",
+                         fat_num, fat_sector, write_rc);
+            return -1;
+        }
     }
     return 0;
 }
@@ -411,6 +473,8 @@ static uint16_t fat16_alloc_cluster(void) {
             return c;
         }
     }
+    serial_printf("[fat16_alloc_cluster] DISK FULL: no free clusters (total=%u)\n",
+                 total_clusters);
     return 0; /* No free clusters */
 }
 
@@ -442,7 +506,11 @@ static void fat16_free_chain(uint16_t cluster) {
  * @return Bytes written on success, -1 on error
  */
 int fat16_write_file(const char* filename, const void* data, uint32_t size) {
+    serial_printf("[fat16_write_file] START: filename='%s' size=%u\n",
+                 filename ? filename : "(null)", size);
+
     if (!fat16_initialized) {
+        serial_printf("[fat16_write_file] ERROR: not initialized\n");
         print("No FAT16 filesystem mounted\n");
         return -1;
     }
@@ -450,6 +518,9 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     /* Convert filename to 8.3 format */
     char name83[11];
     fat16_filename_to_83(filename, name83);
+    serial_printf("[fat16_write_file] name83='%c%c%c%c%c%c%c%c.%c%c%c'\n",
+                 name83[0], name83[1], name83[2], name83[3], name83[4], name83[5], name83[6], name83[7],
+                 name83[8], name83[9], name83[10]);
 
     /* ── Allocate cluster chain for the new data ── */
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
@@ -457,6 +528,9 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     if (size > 0) {
         clusters_needed = (size + cluster_size - 1) / cluster_size;
     }
+
+    serial_printf("[fat16_write_file] size=%u cluster_size=%u clusters_needed=%u\n",
+                 size, cluster_size, clusters_needed);
 
     uint16_t first_cluster = 0;
     uint16_t prev_cluster = 0;
@@ -466,14 +540,23 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         if (c == 0) {
             /* Disk full - free any clusters we already allocated */
             if (first_cluster) fat16_free_chain(first_cluster);
+            serial_printf("[fat16_write_file] alloc failed at cluster %u/%u\n", i, clusters_needed);
             print("FAT16: disk full\n");
             return -1;
         }
         if (i == 0) {
             first_cluster = c;
+            serial_printf("[ALLOC] cluster[0]=%u (first)\n", c);
         } else {
             /* Link previous cluster to this one */
-            if (fat16_write_fat_entry(prev_cluster, c) != 0) {
+            if (i < 5 || i % 50 == 0 || i >= clusters_needed - 5) {
+                serial_printf("[ALLOC] cluster[%u]=%u, linking [%u]=%u → %u\n",
+                             i, c, i-1, prev_cluster, c);
+            }
+            int link_rc = fat16_write_fat_entry(prev_cluster, c);
+            if (link_rc != 0) {
+                serial_printf("[ALLOC] ERROR: link failed at cluster[%u]: FAT[%u]=%u returned %d\n",
+                             i, prev_cluster, c, link_rc);
                 fat16_free_chain(first_cluster);
                 return -1;
             }
@@ -481,39 +564,125 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         prev_cluster = c;
     }
 
+    /* Mark the last cluster with EOC marker */
+    if (clusters_needed > 0) {
+        serial_printf("[ALLOC] Setting EOC: FAT[%u]=%u (cluster[%u])\n",
+                     prev_cluster, FAT16_EOC_MAX, clusters_needed - 1);
+        int eoc_rc = fat16_write_fat_entry(prev_cluster, FAT16_EOC_MAX);
+        if (eoc_rc != 0) {
+            serial_printf("[ALLOC] ERROR: EOC write failed! FAT[%u]=0x%04X returned %d\n",
+                         prev_cluster, FAT16_EOC_MAX, eoc_rc);
+            fat16_free_chain(first_cluster);
+            return -1;
+        }
+        serial_printf("[ALLOC] EOC marker set successfully\n");
+    }
+
+    /* Flush FAT writes to ensure chain is on disk */
+    blockcache_sync();
+
+    /* Verify FAT chain integrity */
+    {
+        serial_printf("[fat16_write_file] Verifying FAT chain: first=%u\n", first_cluster);
+        uint16_t verify_cluster = first_cluster;
+        uint32_t chain_len = 0;
+        while (verify_cluster >= 2 && verify_cluster < FAT16_EOC_MIN && chain_len < clusters_needed + 10) {
+            uint16_t next = fat16_read_fat_entry(verify_cluster);
+            if (chain_len < 5 || chain_len % 50 == 0) {
+                serial_printf("[VERIFY] chain[%u] = %u → %u (EOC if >= 0x%04X)\n",
+                             chain_len, verify_cluster, next, FAT16_EOC_MIN);
+            }
+            verify_cluster = next;
+            chain_len++;
+        }
+        serial_printf("[VERIFY] Chain length: %u (expected %u)\n", chain_len, clusters_needed);
+        if (chain_len != clusters_needed) {
+            serial_printf("[VERIFY] ERROR: Chain length mismatch!\n");
+            return -1;
+        }
+    }
+
     /* ── Write file data to the allocated clusters ── */
     {
         uint16_t cur_cluster = first_cluster;
         uint32_t bytes_written = 0;
+        uint32_t clusters_written = 0;
 
-        while (bytes_written < size && cur_cluster >= 2 &&
+        /* Write to ALL allocated clusters (determined by clusters_needed) */
+        while (clusters_written < clusters_needed && cur_cluster >= 2 &&
                cur_cluster < FAT16_EOC_MIN) {
             uint32_t cluster_lba = fat16_cluster_to_lba(cur_cluster);
 
-            for (uint8_t s = 0; s < fs.sectors_per_cluster && bytes_written < size; s++) {
+            /* Log first few and some later clusters */
+            if (clusters_written < 5 || clusters_written % 50 == 0) {
+                serial_printf("[WRITE] cluster[%u]=%u → LBA %u-%u\n",
+                             clusters_written, cur_cluster, cluster_lba,
+                             cluster_lba + fs.sectors_per_cluster - 1);
+            }
+
+            /* Write ALL sectors in this cluster, even if past EOF */
+            for (uint8_t s = 0; s < fs.sectors_per_cluster; s++) {
                 uint8_t sector_buf[512];
                 memset(sector_buf, 0, 512);
 
-                uint32_t to_copy = size - bytes_written;
-                if (to_copy > fs.bytes_per_sector)
-                    to_copy = fs.bytes_per_sector;
+                /* Only copy data if we haven't written everything yet */
+                if (bytes_written < size) {
+                    uint32_t to_copy = size - bytes_written;
+                    if (to_copy > fs.bytes_per_sector)
+                        to_copy = fs.bytes_per_sector;
 
-                memcpy(sector_buf, (const uint8_t*)data + bytes_written, to_copy);
+                    memcpy(sector_buf, (const uint8_t*)data + bytes_written, to_copy);
+                    bytes_written += to_copy;
+                }
+                /* If bytes_written >= size, sector_buf remains all zeros */
 
                 if (blockcache_write(cluster_lba + (uint32_t)s, sector_buf) != 0) {
                     print("FAT16: write failed\n");
                     return -1;
                 }
-                bytes_written += to_copy;
             }
 
-            cur_cluster = fat16_read_fat_entry(cur_cluster);
+            clusters_written++;
+
+            /* DIAGNOSTIC: Flush after EVERY cluster to force write-through */
+            if (clusters_written % 10 == 0) {
+                serial_printf("[WRITE] Flushing cache at cluster %u/%u\n",
+                             clusters_written, clusters_needed);
+            }
+            blockcache_sync();
+
+            uint16_t next_cluster = fat16_read_fat_entry(cur_cluster);
+            if (clusters_written < 5 || clusters_written % 50 == 0) {
+                serial_printf("[WRITE] cluster %u → next %u (EOC if >= 0x%04X)\n",
+                             cur_cluster, next_cluster, FAT16_EOC_MIN);
+            }
+            cur_cluster = next_cluster;
         }
+
+        /* Verify all data was written */
+        serial_printf("[fat16_write_file] wrote %u clusters, %u bytes (size=%u)\n",
+                     clusters_written, bytes_written, size);
+        if (bytes_written < size) {
+            print("FAT16: write incomplete - wrote ");
+            debug_print_int("", bytes_written);
+            print(" of ");
+            debug_print_int("", size);
+            print(" bytes\n");
+            serial_printf("[fat16_write_file] INCOMPLETE: %u < %u\n", bytes_written, size);
+            return -1;
+        }
+
+        /* Final flush to ensure all remaining data is on disk */
+        serial_printf("[WRITE] Final flush after writing all %u clusters\n", clusters_written);
+        blockcache_sync();
     }
 
     /* ── Find or create directory entry ── */
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
         fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+
+    serial_printf("[fat16_write_file] searching directory: root_dir_start=%u sectors=%u\n",
+                 fs.root_dir_start, root_dir_sectors);
 
     int found = 0;
     int free_entry_sector = -1;
@@ -521,8 +690,11 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
 
     for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
         uint8_t buffer[512];
-        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0)
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0) {
+            serial_printf("[fat16_write_file] ERROR: blockcache_read failed at sector %u\n",
+                         fs.root_dir_start + sector);
             return -1;
+        }
 
         fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buffer;
         for (int i = 0; i < 16; i++) {
@@ -578,9 +750,13 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     }
 
 dir_search_done:
+    serial_printf("[fat16_write_file] dir search done: found=%d free_sector=%d free_index=%d\n",
+                 found, free_entry_sector, free_entry_index);
+
     if (!found) {
         /* Create new directory entry */
         if (free_entry_sector < 0) {
+            serial_printf("[fat16_write_file] ERROR: root directory full\n");
             print("FAT16: root directory full\n");
             /* Free the clusters we allocated */
             if (first_cluster) fat16_free_chain(first_cluster);

@@ -167,4 +167,29 @@ void gfx2d_draw_cursor(void); /* draw cursor at current mouse position */
 void gfx2d_cursor_hide(
     void); /* restore pixels under cursor (call before canvas ops) */
 
+/* ── File Dialogs (modal, self-contained event loop) ─────────────── */
+
+/**
+ * Shows a modal file open dialog with directory navigation.
+ *
+ * @param start_path   Initial directory (e.g., "/", "/home")
+ * @param result_path  Output buffer (must be VFS_MAX_PATH bytes)
+ * @param filter_ext   Optional extension filter (e.g., ".txt") or NULL
+ * @return 1 if file selected, 0 if cancelled, negative on error
+ */
+int gfx2d_file_dialog_open(const char *start_path, char *result_path,
+                            const char *filter_ext);
+
+/**
+ * Shows a modal file save dialog with directory navigation.
+ *
+ * @param start_path    Initial directory
+ * @param default_name  Pre-filled filename (can be NULL or "")
+ * @param result_path   Output buffer (must be VFS_MAX_PATH bytes)
+ * @param filter_ext    Optional extension filter or NULL
+ * @return 1 if path entered, 0 if cancelled, negative on error
+ */
+int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
+                            char *result_path, const char *filter_ext);
+
 #endif /* GFX2D_H */

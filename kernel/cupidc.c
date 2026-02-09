@@ -16,6 +16,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 #include "blockcache.h"
+#include "bmp.h"
 #include "calendar.h"
 #include "ed.h"
 #include "exec.h"
@@ -29,6 +30,7 @@
 #include "shell.h"
 #include "string.h"
 #include "vfs.h"
+#include "vfs_helpers.h"
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Port I/O wrappers for CupidC kernel bindings
@@ -911,6 +913,45 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fp_one)(void) = cc_fp_one;
   BIND("FP_ONE", p_fp_one, 0);
 
+  /* ── BMP image encoding/decoding ────────────────────────────── */
+
+  int (*p_bmp_get_info)(const char *, bmp_info_t *) = bmp_get_info;
+  BIND("bmp_get_info", p_bmp_get_info, 2);
+
+  int (*p_bmp_decode)(const char *, uint32_t *, uint32_t) = bmp_decode;
+  BIND("bmp_decode", p_bmp_decode, 3);
+
+  int (*p_bmp_encode)(const char *, const uint32_t *,
+                      uint32_t, uint32_t) = bmp_encode;
+  BIND("bmp_encode", p_bmp_encode, 4);
+
+  int (*p_bmp_decode_to_fb)(const char *, int, int) = bmp_decode_to_fb;
+  BIND("bmp_decode_to_fb", p_bmp_decode_to_fb, 3);
+
+  /* ── File dialogs ───────────────────────────────────────────── */
+
+  int (*p_file_dlg_open)(const char *, char *, const char *) =
+      gfx2d_file_dialog_open;
+  BIND("file_dialog_open", p_file_dlg_open, 3);
+
+  int (*p_file_dlg_save)(const char *, const char *, char *, const char *) =
+      gfx2d_file_dialog_save;
+  BIND("file_dialog_save", p_file_dlg_save, 4);
+
+  /* ── VFS helpers ────────────────────────────────────────────── */
+
+  int (*p_vfs_read_all)(const char *, void *, uint32_t) = vfs_read_all;
+  BIND("vfs_read_all", p_vfs_read_all, 3);
+
+  int (*p_vfs_write_all)(const char *, const void *, uint32_t) = vfs_write_all;
+  BIND("vfs_write_all", p_vfs_write_all, 3);
+
+  int (*p_vfs_read_text)(const char *, char *, uint32_t) = vfs_read_text;
+  BIND("vfs_read_text", p_vfs_read_text, 3);
+
+  int (*p_vfs_write_text)(const char *, const char *) = vfs_write_text;
+  BIND("vfs_write_text", p_vfs_write_text, 2);
+
 #undef BIND
 }
 
@@ -1076,6 +1117,26 @@ void cupidc_jit(const char *path) {
 
   serial_printf("[cupidc] Compiled: %u bytes code, %u bytes data\n",
                 cc->code_pos, cc->data_pos);
+
+  /* Guard: reject programs that exceed JIT region limits */
+  if (cc->code_pos > CC_MAX_CODE) {
+    serial_printf("[cupidc] ERROR: code size %u exceeds max %u\n",
+                  cc->code_pos, (unsigned)CC_MAX_CODE);
+    print("CupidC: program too large (code overflow)\n");
+    kfree(source);
+    cc_cleanup_state(cc);
+    kfree(cc);
+    return;
+  }
+  if (cc->data_pos > CC_MAX_DATA) {
+    serial_printf("[cupidc] ERROR: data size %u exceeds max %u\n",
+                  cc->data_pos, (unsigned)CC_MAX_DATA);
+    print("CupidC: program too large (data overflow)\n");
+    kfree(source);
+    cc_cleanup_state(cc);
+    kfree(cc);
+    return;
+  }
 
   /* JIT code/data regions are permanently reserved at boot by pmm_init()
    * so the heap never allocates into them.  Just copy and execute. */
