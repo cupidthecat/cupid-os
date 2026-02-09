@@ -39,6 +39,10 @@ int is_dragging = 0;
 /* Buffer for file I/O (One row at a time) */
 int row_buffer[600];
 
+/* Current file tracking for Save/Save As pattern */
+char current_file_path[128];
+int has_current_file = 0;
+
 /* ── Initialization ───────────────────────────────────────────────── */
 
 void init_palette() {
@@ -73,88 +77,30 @@ void my_sleep(int ms) {
 
 /* ── File I/O ─────────────────────────────────────────────────────── */
 
-void save_drawing() {
-  /* Show "Saving..." */
-  gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, 0xFFFF00);
-  gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, "Saving...", 0x000000, 1);
-  gfx2d_flip();
-
-  int fd = vfs_open("/home/frank/drawing.raw", 1); /* 1 = O_WRONLY | O_CREAT */
-  if (fd < 0) {
-    gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 150, 30, 0xFF0000);
-    gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, "Error: Open failed", 0xFFFFFF, 1);
-    gfx2d_flip();
-    return;
-  }
-
-  /* Write dimensions */
-  int w = CANVAS_W;
-  int h = CANVAS_H;
-  vfs_write(fd, &w, 4);
-  vfs_write(fd, &h, 4);
-
-  /* Read pixels from surface and write to file using static buffer */
-  gfx2d_surface_set_active(canvas_surf);
-
-  int y = 0;
-  while (y < h) {
-    int x = 0;
-    while (x < w) {
-      row_buffer[x] = gfx2d_getpixel(x, y);
-      x++;
-    }
-    vfs_write(fd, row_buffer, w * 4);
-    y++;
-  }
-
-  gfx2d_surface_unset_active();
-
-  vfs_close(fd);
-
-  /* details: fill over message */
-  gfx2d_surface_set_active(canvas_surf);
-  /* (we don't want to draw on the canvas, just force a redraw of that area
-   * later) */
-  gfx2d_surface_unset_active();
-
-  /* Flash success */
-  gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, 0x00FF00);
-  gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, "Saved!", 0x000000, 1);
+void show_message(char* msg, int color) {
+  gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, color);
+  gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, msg, 0x000000, 1);
   gfx2d_flip();
 }
 
-void load_drawing() {
-  int fd = vfs_open("/home/frank/drawing.raw", 0); /* 0 = O_RDONLY */
-  if (fd < 0) {
-    gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 150, 30, 0xFF0000);
-    gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, "File not found", 0xFFFFFF, 1);
-    gfx2d_flip();
-    return;
+int save_to_bmp(char* path) {
+  int w = CANVAS_W;
+  int h = CANVAS_H;
+
+  /* Allocate buffer for canvas pixels (600x448x4 = ~1MB) */
+  int* pixel_buffer = (int*)kmalloc(w * h * 4);
+  if (pixel_buffer == 0) {
+    return -1;
   }
 
-  int w;
-  int h;
-  vfs_read(fd, &w, 4);
-  vfs_read(fd, &h, 4);
-
-  if (w != CANVAS_W) {
-    /* Mismatch handling */
-    vfs_close(fd);
-    return;
-  }
-  if (h != CANVAS_H) {
-    vfs_close(fd);
-    return;
-  }
-
+  /* Read all pixels from canvas surface */
   gfx2d_surface_set_active(canvas_surf);
 
   int y = 0;
   while (y < h) {
-    vfs_read(fd, row_buffer, w * 4);
     int x = 0;
     while (x < w) {
-      gfx2d_pixel(x, y, row_buffer[x]);
+      pixel_buffer[y * w + x] = gfx2d_getpixel(x, y);
       x++;
     }
     y++;
@@ -162,11 +108,155 @@ void load_drawing() {
 
   gfx2d_surface_unset_active();
 
-  vfs_close(fd);
+  /* Encode to BMP file */
+  int result = bmp_encode(path, pixel_buffer, w, h);
 
-  gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, 0x00FF00);
-  gfx2d_text(CANVAS_X + 20, CANVAS_Y + 20, "Loaded!", 0x000000, 1);
-  gfx2d_flip();
+  /* Free the buffer */
+  kfree(pixel_buffer);
+
+  if (result == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+int load_from_bmp(char* path) {
+  /* Get BMP info (bmp_info_t has 4 uint32 fields: width, height, bpp, data_size) */
+  int info[4];
+  if (bmp_get_info(path, info) != 0) {
+    return -1;
+  }
+
+  int bmp_w = info[0];
+  int bmp_h = info[1];
+  int data_size = info[3];
+
+  /* Allocate buffer for decoded pixels */
+  int* pixel_buffer = (int*)kmalloc(data_size);
+  if (pixel_buffer == 0) {
+    return -1;
+  }
+
+  /* Decode BMP into buffer */
+  if (bmp_decode(path, pixel_buffer, data_size) != 0) {
+    kfree(pixel_buffer);
+    return -1;
+  }
+
+  /* Clear canvas to white first */
+  gfx2d_surface_set_active(canvas_surf);
+  gfx2d_clear(0xFFFFFF);
+
+  /* Draw pixels onto canvas (clamp to canvas bounds) */
+  int draw_h = bmp_h;
+  if (draw_h > CANVAS_H) draw_h = CANVAS_H;
+  int draw_w = bmp_w;
+  if (draw_w > CANVAS_W) draw_w = CANVAS_W;
+
+  int y = 0;
+  while (y < draw_h) {
+    int x = 0;
+    while (x < draw_w) {
+      gfx2d_pixel(x, y, pixel_buffer[y * bmp_w + x]);
+      x++;
+    }
+    y++;
+  }
+
+  gfx2d_surface_unset_active();
+
+  /* Free the buffer */
+  kfree(pixel_buffer);
+
+  return 0;
+}
+
+void save_drawing() {
+  char path[128];
+
+  /* If we have a current file, save directly without dialog */
+  if (has_current_file) {
+    int i = 0;
+    while (i < 128) {
+      path[i] = current_file_path[i];
+      if (path[i] == 0) break;
+      i++;
+    }
+  } else {
+    /* No current file - show save dialog */
+    int result = file_dialog_save("/home", "untitled.bmp", path, ".bmp");
+    if (result != 1) {
+      return;
+    }
+  }
+
+  /* Perform the save */
+  if (save_to_bmp(path) == 0) {
+    /* Success - update current file */
+    int i = 0;
+    while (i < 128 && path[i] != 0) {
+      current_file_path[i] = path[i];
+      i++;
+    }
+    current_file_path[i] = '\0';
+    has_current_file = 1;
+
+    show_message("Saved!", 0x00FF00);
+  } else {
+    show_message("Error!", 0xFF0000);
+  }
+}
+
+void save_drawing_as() {
+  char path[128];
+
+  /* Always show dialog for Save As */
+  int result = file_dialog_save("/home", "untitled.bmp", path, ".bmp");
+  if (result != 1) {
+    return;
+  }
+
+  /* Perform the save */
+  if (save_to_bmp(path) == 0) {
+    /* Success - update current file */
+    int i = 0;
+    while (i < 128 && path[i] != 0) {
+      current_file_path[i] = path[i];
+      i++;
+    }
+    current_file_path[i] = '\0';
+    has_current_file = 1;
+
+    show_message("Saved!", 0x00FF00);
+  } else {
+    show_message("Error!", 0xFF0000);
+  }
+}
+
+void load_drawing() {
+  char path[128];
+
+  /* Show open dialog */
+  int result = file_dialog_open("/home", path, ".bmp");
+  if (result != 1) {
+    return;
+  }
+
+  /* Load the BMP */
+  if (load_from_bmp(path) == 0) {
+    /* Success - update current file */
+    int i = 0;
+    while (i < 128 && path[i] != 0) {
+      current_file_path[i] = path[i];
+      i++;
+    }
+    current_file_path[i] = '\0';
+    has_current_file = 1;
+
+    show_message("Loaded!", 0x00FF00);
+  } else {
+    show_message("Error!", 0xFF0000);
+  }
 }
 
 /* ── UI Drawing ───────────────────────────────────────────────────── */
@@ -235,8 +325,13 @@ void draw_toolbar() {
   gfx2d_bevel(4, 400, 32, 20, 1);
   gfx2d_text(8, 406, "SV", 0x000000, 0);
 
-  gfx2d_bevel(4, 430, 32, 20, 1);
-  gfx2d_text(8, 436, "LD", 0x000000, 0);
+  /* Save As button */
+  gfx2d_bevel(4, 425, 32, 20, 1);
+  gfx2d_text(8, 431, "SA", 0x000000, 0);
+
+  /* Load button */
+  gfx2d_bevel(4, 450, 32, 20, 1);
+  gfx2d_text(8, 456, "LD", 0x000000, 0);
 }
 
 void draw_palette() {
@@ -408,6 +503,10 @@ int main() {
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
 
+  /* Initialize file tracking */
+  current_file_path[0] = '\0';
+  has_current_file = 0;
+
   /* Clear canvas to white */
   gfx2d_surface_set_active(canvas_surf);
   gfx2d_clear(0xFFFFFF);
@@ -450,7 +549,10 @@ int main() {
           if (my >= 400 && my < 420) {
             save_drawing();
           }
-          if (my >= 430 && my < 450) {
+          if (my >= 425 && my < 445) {
+            save_drawing_as();
+          }
+          if (my >= 450 && my < 470) {
             load_drawing();
           }
         } else {
