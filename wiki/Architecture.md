@@ -9,23 +9,26 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 ```
 BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
     │
-    ├── Set up stack at 0x90000
-    ├── Load kernel from disk (sectors 1+) to 0x1000
-    ├── Enable A20 line
+    ├── Set up stack at 0x7C00
+    ├── Load kernel from disk (sectors 1+) to 0x10000
+    ├── Set 640×480×32bpp via Bochs VBE I/O ports (0x01CE/0x01CF)
+    ├── Read VBE LFB address from PCI BAR0 → store at 0x0500
     ├── Set up GDT (flat model: code + data segments)
     ├── Switch to protected mode (CR0 bit 0)
-    └── Far jump to kernel entry at 0x1000
+    └── Far jump to kernel entry at 0x10000
             │
-            ├── init_vga()          — VGA text mode setup
             ├── idt_init()          — Interrupt Descriptor Table
             ├── pic_init()          — PIC remapping (IRQ0→32, IRQ8→40)
             ├── irq_init()          — IRQ handler registration
             ├── pmm_init()          — Physical memory manager
             ├── paging_init()       — Identity-mapped 4KB pages (32MB)
-            ├── heap_init()         — Kernel heap with canaries
+            │                         + maps VBE LFB region from 0x0500
+            ├── heap_init()         — Kernel heap (2MB) with canaries
             ├── keyboard_init()     — PS/2 keyboard (IRQ1)
             ├── pit_init()          — PIT at 100Hz (IRQ0)
-            ├── serial_init()       — COM1 at 115200 baud            ├── rtc_init()          ─ CMOS Real-Time Clock            ├── fat16_init()        — FAT16 filesystem + block cache
+            ├── serial_init()       — COM1 at 115200 baud
+            ├── rtc_init()          — CMOS Real-Time Clock
+            ├── fat16_init()        — FAT16 filesystem + block cache
             ├── fs_init()           — In-memory filesystem
             ├── vfs_init()          — Virtual File System
             │   ├── Register ramfs, devfs, fat16 filesystem types
@@ -36,7 +39,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
             │   └── Pre-populate /LICENSE.txt, /MOTD.txt
             ├── process_init()      — Process table, idle process (PID 1)
             ├── Register desktop as PID 2
-            ├── vga_init_mode13h()  — Switch to 320×200 graphics
+            ├── vga_init_vbe()      — Init 640×480 32bpp framebuffer
             ├── mouse_init()        — PS/2 mouse (IRQ12)
             └── desktop_run()       — Main event loop
 ```
@@ -48,28 +51,37 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 ```
 0x00000000 ┌──────────────────────────┐
            │ Interrupt Vector Table    │ (not used — we use IDT)
+0x00000500 ├──────────────────────────┤
+           │ VBE LFB address          │ ← Written by bootloader
 0x00001000 ├──────────────────────────┤
            │ Kernel Code + Data       │ ← Loaded by bootloader
-           │ (.text, .data, .bss)     │
+           │ (.text, .data, .bss)     │ ← starts at 0x10000
            ├──────────────────────────┤
-           │ Kernel Heap              │ ← kmalloc/kfree
-           │ (grows upward)           │
-           │ Canary-protected blocks  │
+           │ Boot Stack               │ ← 0x7C00 (real mode)
+0x00110000 ├──────────────────────────┤
+           │ Stack Guard Region       │ ← 512KB kernel stack
+0x00190000 ├──────────────────────────┤
+           │ Kernel Heap              │ ← kmalloc/kfree, 2MB
+           │ (canary-protected)       │ ← includes VBE back buffer
            ├──────────────────────────┤
            │ Process Stacks           │ ← kmalloc'd, 4KB+ each
            │ (canary at bottom)       │
-0x00090000 ├──────────────────────────┤
-           │ Boot Stack               │ ← Initial kernel stack
 0x000A0000 ├──────────────────────────┤
-           │ VGA Framebuffer          │ ← Mode 13h (64KB)
-0x000B8000 ├──────────────────────────┤
-           │ VGA Text Memory          │ ← Text mode (4KB)
+           │ VGA Text Memory          │ ← Text mode (legacy)
 0x00100000 ├──────────────────────────┤
            │ Extended Memory          │ ← PMM bitmap manages this
            │ (pages allocated here)   │
 0x02000000 ├──────────────────────────┤
            │ End of managed memory    │ (32MB total)
            └──────────────────────────┘
+           ·
+           · (unmapped gap)
+           ·
+0xFD000000 ┌──────────────────────────┐
+           │ VBE Linear Framebuffer   │ ← 640×480×4 = 1.2MB
+           │ (identity-mapped by      │   PCI BAR0, QEMU default
+           │  paging_init)            │
+0xFD140000 └──────────────────────────┘
 ```
 
 ---
@@ -95,7 +107,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 | Keyboard | `keyboard.c/h` | IRQ1 | PS/2 input with modifiers |
 | Mouse | `mouse.c/h` | IRQ12 | PS/2 mouse with cursor |
 | Timer | `timer.c/h`, `pit.c/h` | IRQ0 | 100Hz PIT, uptime, sleep |
-| VGA | `vga.c/h` | — | Mode 13h, double buffering |
+| VGA | `vga.c/h` | — | VBE 640×480 32bpp, double buffering |
 | ATA | `ata.c/h` | — | PIO disk read/write |
 | Serial | `serial.c/h` | — | COM1 logging |
 | Speaker | `speaker.c/h` | — | PC speaker tones |

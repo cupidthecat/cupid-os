@@ -269,6 +269,8 @@ switch (cmd) {
 
 `break` and `continue` work inside `while`, `for`, `do-while` loops, and `switch` statements.
 
+**Break statement implementation**: CupidC supports multiple `break` statements per loop (up to 32 breaks per loop, 64 nested loop levels). The compiler maintains an array of break patch locations and patches them all when the loop ends.
+
 ### Functions
 
 Functions use the cdecl calling convention. Up to 16 parameters per function.
@@ -493,6 +495,35 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `timer_get_frequency` | `int timer_get_frequency()` | Timer interrupt rate in Hz |
 | `process_get_count` | `int process_get_count()` | Number of running processes |
 
+### BMP Image Encoding/Decoding
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `bmp_get_info` | `int bmp_get_info(char* path, void* info)` | Get BMP dimensions without loading pixels (fills `bmp_info_t`) |
+| `bmp_decode` | `int bmp_decode(char* path, int* buf, int size)` | Decode 24-bit BMP to 32bpp XRGB buffer |
+| `bmp_encode` | `int bmp_encode(char* path, int* buf, int w, int h)` | Encode 32bpp XRGB buffer to 24-bit BMP file |
+| `bmp_decode_to_fb` | `int bmp_decode_to_fb(char* path, int x, int y)` | Decode BMP directly to framebuffer at position |
+
+All BMP functions return `0` on success. Error codes: `-1` (invalid), `-2` (unsupported format), `-3` (I/O error), `-4` (buffer too small).
+
+### File Dialogs
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `file_dialog_open` | `int file_dialog_open(char* start, char* result, char* ext)` | Show modal file open dialog; returns 1 if selected, 0 if cancelled |
+| `file_dialog_save` | `int file_dialog_save(char* start, char* name, char* result, char* ext)` | Show modal file save dialog; returns 1 if confirmed, 0 if cancelled |
+
+The `result` buffer must be 128 bytes. Pass `0` for `ext` to show all files.
+
+### VFS Helpers
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `vfs_read_all` | `int vfs_read_all(char* path, void* buf, int max)` | Read entire file into buffer; returns bytes read or negative error |
+| `vfs_write_all` | `int vfs_write_all(char* path, void* buf, int size)` | Write buffer to file (creates/truncates); returns bytes written or negative error |
+| `vfs_read_text` | `int vfs_read_text(char* path, char* buf, int max)` | Read text file as null-terminated string; returns string length |
+| `vfs_write_text` | `int vfs_write_text(char* path, char* text)` | Write null-terminated string to file; returns bytes written |
+
 ### Block Cache
 
 | Function | Signature | Description |
@@ -657,6 +688,116 @@ void main() {
     vfs_close(fd);
 }
 ```
+
+---
+
+## Common Patterns
+
+### Parsing Command-Line Arguments
+
+Programs receive arguments as a single string via `get_args()`. To parse multiple space-separated arguments, use a token parsing function:
+
+```c
+// Parse a single token from a string
+int parse_token(char *str, int start, char *out, int maxlen) {
+    int i = start;
+
+    // Skip leading spaces
+    while (str[i] == ' ' || str[i] == '\t') {
+        i = i + 1;
+    }
+
+    // Check if end of string
+    if (str[i] == 0) {
+        out[0] = 0;
+        return 0;
+    }
+
+    // Copy token until space or end
+    int j = 0;
+    while (str[i] != 0 && str[i] != ' ' && str[i] != '\t' && j < maxlen - 1) {
+        out[j] = str[i];
+        i = i + 1;
+        j = j + 1;
+    }
+    out[j] = 0;
+
+    return i - start;
+}
+
+// Usage example
+void main() {
+    char *args = (char*)get_args();
+    char token[256];
+    int pos = 0;
+
+    while (1) {
+        int len = parse_token(args, pos, token, 256);
+        if (len == 0) break;  // No more tokens
+
+        print("Token: ");
+        print(token);
+        print("\n");
+
+        pos = pos + len;
+    }
+}
+```
+
+This pattern is used in commands like `rm` to handle multiple file arguments.
+
+### Error Handling with VFS
+
+VFS functions return negative error codes on failure. Check return values and provide user-friendly error messages:
+
+```c
+int fd = vfs_open(path, 0);
+if (fd < 0) {
+    print("Error opening file: ");
+    print(path);
+    print("\n");
+    return;
+}
+
+// Use file...
+vfs_close(fd);
+```
+
+Common VFS error codes:
+- `-2`: No such file or directory (ENOENT)
+- `-13`: Permission denied (EACCES)
+- `-21`: Is a directory (EISDIR)
+
+### Using ANSI Colors
+
+Use hexadecimal escape sequences to embed ANSI color codes:
+
+```c
+void main() {
+    char *red = "\x1B[31m";
+    char *green = "\x1B[32m";
+    char *reset = "\x1B[0m";
+
+    print(red);
+    print("Error: ");
+    print(reset);
+    print("Something went wrong\n");
+
+    print(green);
+    print("Success!\n");
+    print(reset);
+}
+```
+
+Common ANSI codes:
+- `\x1B[0m` — Reset all attributes
+- `\x1B[31m` — Red text
+- `\x1B[32m` — Green text
+- `\x1B[33m` — Yellow text
+- `\x1B[34m` — Blue text
+- `\x1B[35m` — Magenta text
+- `\x1B[36m` — Cyan text
+- `\x1B[95m` — Bright magenta
 
 ---
 

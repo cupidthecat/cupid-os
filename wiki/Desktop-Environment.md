@@ -1,6 +1,6 @@
 # Desktop Environment
 
-cupid-os features a complete graphical desktop environment built on VGA Mode 13h (320×200, 256 colors). It includes a window manager, desktop shell with taskbar and icons, a mouse-driven GUI terminal, and a notepad application.
+cupid-os features a complete graphical desktop environment built on VBE 640×480 32-bit true color. It includes a window manager, desktop shell with taskbar and icons, a mouse-driven GUI terminal, and a notepad application.
 
 ---
 
@@ -8,7 +8,7 @@ cupid-os features a complete graphical desktop environment built on VGA Mode 13h
 
 The desktop is the default interface after boot. It provides:
 
-- **Pastel-themed background** (OsakaOS-inspired aesthetic)
+- **Pastel-themed background** (Temple OS / OsakaOS-inspired aesthetic, 32bpp true color)
 - **Taskbar** at the bottom with "cupid-os" branding and window buttons
 - **Clickable desktop icons** that launch applications
 - **Draggable overlapping windows** with close buttons
@@ -16,35 +16,40 @@ The desktop is the default interface after boot. It provides:
 
 ---
 
-## VGA Graphics
+## VBE Graphics
 
-### Mode 13h
+### VBE 640×480 32bpp
 
 | Property | Value |
 |----------|-------|
-| Resolution | 320 × 200 pixels |
-| Colors | 256 (indexed) |
-| Framebuffer | Linear at 0xA0000 |
-| Buffering | Double-buffered (heap-allocated back buffer) |
+| Resolution | 640 × 480 pixels |
+| Color depth | 32bpp true color (XRGB 0x00RRGGBB) |
+| Framebuffer | Linear at 0xFD000000 (QEMU PCI BAR0) |
+| Buffering | Double-buffered (1.2MB heap-allocated back buffer) |
+| Mode set | Bochs VBE I/O ports 0x01CE / 0x01CF |
+| LFB discovery | PCI config space BAR0 read in bootloader |
 
-The color palette is programmed with soft pastel colors for the UI:
+The UI uses a soft pastel color scheme (`drivers/vga.h`):
 
-| Index | Color | Use |
-|-------|-------|-----|
-| 0 | Black | Terminal background |
-| 1 | White | Text |
-| 2 | Light pink | Desktop background |
-| 3 | Soft cyan | Focused title bars |
-| 4 | Light gray | Unfocused title bars |
-| 5 | Dark gray | Window borders |
-| ... | ... | Various UI elements |
+| Constant | XRGB Value | Use |
+|----------|-----------|-----|
+| `COLOR_DESKTOP_BG` | `#FFE8F0` | Pink blush desktop |
+| `COLOR_TASKBAR` | `#E8D8F8` | Lavender mist taskbar |
+| `COLOR_TITLEBAR` | `#B8DDFF` | Powder blue focused title |
+| `COLOR_TITLE_UNFOC` | `#C8C8D0` | Silver unfocused title |
+| `COLOR_WINDOW_BG` | `#FFF0F5` | Soft rose white window body |
+| `COLOR_CLOSE_BG` | `#FF9090` | Coral red close button |
+| `COLOR_TERM_BG` | `#141418` | Near-black terminal |
+| `COLOR_TEXT` | `#282830` | Dark charcoal text |
+| `COLOR_BORDER` | `#9898A0` | Cool gray borders |
 
 ### Graphics Primitives
 
 - **Pixel** — Plot with bounds clipping
-- **Line** — Bresenham's algorithm for arbitrary angles; fast `memset` for horizontal/vertical
+- **Line** — Bresenham's algorithm for arbitrary angles; per-pixel loop for horizontal/vertical
 - **Rectangle** — Filled and outlined
-- **Text** — 8×8 monospaced bitmap font (ASCII 0–127)
+- **3D rect** — Windows-95-style raised/sunken edges
+- **Text** — 8×8 monospaced bitmap font (ASCII 0–127), scalable 1×/2×/3×
 
 ---
 
@@ -74,7 +79,7 @@ Up to **16 overlapping windows** with z-ordered rendering.
 
 ### Taskbar
 
-The taskbar sits at the bottom of the screen (20 pixels high):
+The taskbar sits at the bottom of the screen (24 pixels high):
 
 - Left side: "cupid-os" branding text
 - Middle: Buttons for each open window (click to focus)
@@ -95,7 +100,7 @@ The clock reads from the CMOS Real-Time Clock (RTC) hardware:
 
 ### Calendar Popup
 
-Click the taskbar clock to open a 220×170 pixel calendar popup centered on screen:
+Click the taskbar clock to open a 440×320 pixel calendar popup centered on screen:
 
 ```
 ┌────────────────────────────────────┐
@@ -141,12 +146,13 @@ The terminal application runs the shell inside a graphical window:
 
 | Property | Value |
 |----------|-------|
-| Default size | 280 × 160 pixels |
+| Default size | 560 × 320 pixels |
 | Character buffer | 80 columns × 50 rows |
-| Background | Dark (terminal-style) |
+| Background | Dark (`#141418`) |
 | Default text | Light gray on dark background |
 | Color support | 16 foreground + 8 background colors via ANSI codes |
-| Cursor | Underline at current position |
+| Cursor | Blinking vertical bar, 500ms toggle |
+| Font zoom | Ctrl+`+` / Ctrl+`-` to scale 1×, 2×, 3× |
 
 ### How It Works
 
@@ -161,7 +167,7 @@ The terminal application runs the shell inside a graphical window:
 
 Each character cell in the terminal has:
 - **Character** — The ASCII character to display
-- **Foreground color** — VGA color index (0–15), mapped to Mode 13h palette
+- **Foreground color** — VGA color index (0–15), mapped to 32bpp XRGB via `ansi_vga_to_palette()`
 - **Background color** — VGA color index (0–7), rendered as a colored rectangle behind the character
 
 The ANSI parser handles:
@@ -194,7 +200,7 @@ The ANSI parser handles:
 
 - 8×10 pixel arrow bitmap with outline for visibility
 - **Save-under buffer** — saves the pixels beneath the cursor for non-destructive rendering
-- Position clamped to screen bounds (0–319 horizontal, 0–199 vertical)
+- Position clamped to screen bounds (0–639 horizontal, 0–479 vertical)
 
 ### Mouse Interactions
 

@@ -15,7 +15,7 @@ echo ""
 COUNT=0
 ERRORS=0
 
-for PROG in clear echo help mv reboot time; do
+for PROG in clear echo help mkdir mv reboot time; do
     SOURCE="/bin/$PROG.cc"
     OUTPUT="/home/bin/$PROG"
 

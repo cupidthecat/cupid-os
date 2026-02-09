@@ -128,6 +128,41 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 | -28 | `VFS_ENOSPC` | No space left |
 | -38 | `VFS_ENOSYS` | Operation not supported |
 
+### VFS Helpers
+
+High-level convenience functions for common file I/O patterns. These wrap the low-level `vfs_open` / `vfs_read` / `vfs_write` / `vfs_close` sequence into single calls. Defined in `kernel/vfs_helpers.c/h` and available as CupidC bindings.
+
+| Function | Description |
+|----------|-------------|
+| `vfs_read_all(path, buffer, max_size)` | Read entire file into buffer. Returns bytes read, or negative VFS error. |
+| `vfs_write_all(path, buffer, size)` | Write buffer to file (creates or truncates). Returns bytes written, or negative VFS error. |
+| `vfs_read_text(path, buffer, max_size)` | Read file as null-terminated string. Reserves 1 byte for `\0`. Returns string length. |
+| `vfs_write_text(path, text)` | Write null-terminated string to file. Returns bytes written (excluding null). |
+
+**Error handling:** All functions return `>= 0` on success, negative VFS error codes on failure (e.g., `VFS_ENOENT`, `VFS_EIO`, `VFS_ENOSPC`). File descriptors are always properly closed, even on error paths.
+
+**Example (CupidC):**
+```c
+void main() {
+    char buf[1024];
+
+    // Read a text file
+    int len = vfs_read_text("/home/notes.txt", buf, 1024);
+    if (len >= 0) {
+        print("Contents: ");
+        println(buf);
+    } else {
+        println("Read failed");
+    }
+
+    // Write a text file
+    int ret = vfs_write_text("/home/output.txt", "Hello from CupidC!");
+    if (ret >= 0) {
+        println("Written successfully");
+    }
+}
+```
+
 ---
 
 ## RamFS

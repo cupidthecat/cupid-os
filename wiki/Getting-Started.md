@@ -71,7 +71,7 @@ Boots into the graphical desktop. Serial output appears in your terminal.
 ```bash
 make run-disk
 ```
-Requires a `test-disk.img` file (see below). Enables `lsdisk`, `catdisk`, disk writes, and CupidScript files on disk.
+Requires a `test-disk.img` file — see the **[Disk Setup](Disk-Setup)** guide for full instructions. Enables `lsdisk`, `catdisk`, disk writes, and CupidScript files on disk.
 
 ### Serial Logging
 ```bash
@@ -118,7 +118,7 @@ When cupid-os boots, you'll see:
 
 1. **Bootloader** — Loads kernel at 0x1000, switches to protected mode
 2. **Kernel init** — IDT, PIC, PIT, keyboard, memory, paging, serial
-3. **Desktop** — VGA Mode 13h graphical desktop with pastel theme
+3. **Desktop** — VBE 640×480 32bpp graphical desktop with pastel theme
 
 ### Exploring the Shell
 
@@ -146,4 +146,5 @@ cupid hello.cup   # Run your script
 - **[Shell Commands](Shell-Commands)** — Full command reference
 - **[CupidScript](CupidScript)** — Write and run scripts
 - **[Ed Editor](Ed-Editor)** — Create and edit files
+- **[Disk Setup](Disk-Setup)** — Create a FAT16 disk image for persistent storage
 - **[Desktop Environment](Desktop-Environment)** — Using the GUI

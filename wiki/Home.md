@@ -13,11 +13,13 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
 | [CupidScript](CupidScript) | Scripting language guide — variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler — JIT/AOT, inline assembly, kernel bindings |
+| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
-| [Desktop Environment](Desktop-Environment) | VGA graphics, window manager, mouse, terminal app |
+| [Desktop Environment](Desktop-Environment) | VBE 640×480 32bpp graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |
 | [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
+| [Disk Setup](Disk-Setup) | Creating and formatting FAT16 disk images for QEMU |
 | [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
 
@@ -45,8 +47,8 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │              Window Manager (GUI)                   │
 │   16 windows │ z-order │ drag │ focus │ taskbar     │
 ├──────────┬──────────┬───────────┬───────────────────┤
-│ Keyboard │  Mouse   │   VGA     │    Serial         │
-│  (IRQ1)  │ (IRQ12)  │ Mode 13h  │   (COM1)          │
+│ Keyboard │  Mouse   │   VBE     │    Serial         │
+│  (IRQ1)  │ (IRQ12)  │640×480    │   (COM1)          │
 ├──────────┴──────────┴───────────┴───────────────────┤
 │              FAT16 + Block Cache + ATA               │
 │   Block cache │ ATA/IDE PIO │ MBR partitions        │
@@ -133,7 +135,7 @@ cupid-os/
 ├── drivers/
 │   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
 │   ├── mouse.c/h              # PS/2 mouse (IRQ12)
-│   ├── vga.c/h                # VGA Mode 13h
+│   ├── vga.c/h                # VBE 640×480 32bpp
 │   ├── ata.c/h                # ATA/IDE disk
 │   ├── serial.c/h             # COM1 serial port
 │   ├── timer.c/h + pit.c/h    # PIT timer
