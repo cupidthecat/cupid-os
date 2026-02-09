@@ -38,6 +38,7 @@ static int16_t clock_hitbox_x = 0;
 static uint16_t clock_hitbox_width = 0;
 static uint32_t desktop_anim_tick = 0; /* Animation frame counter */
 calendar_state_t cal_state;
+static bool cal_prev_visible = false; /* Track calendar visibility changes */
 
 /* ── Init ─────────────────────────────────────────────────────────── */
 
@@ -420,8 +421,17 @@ static void desktop_draw_calendar(void) {
   gfx_fill_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_WINDOW_BG);
   gfx_draw_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_BORDER);
 
-  /* ── Header: ◄ Month Year ► + time ─────────────────────── */
-  int16_t hdr_y = (int16_t)(cy + 4);
+  /* Close button "x" — top-right corner */
+  {
+    int16_t close_x = (int16_t)(cx + CALENDAR_WIDTH - 20);
+    int16_t close_y = (int16_t)(cy + 2);
+    gfx_fill_rect(close_x, close_y, 18, 18, COLOR_CLOSE_BG);
+    gfx_draw_rect(close_x, close_y, 18, 18, COLOR_BORDER);
+    gfx_draw_text((int16_t)(close_x + 5), (int16_t)(close_y + 5), "x", COLOR_TEXT_LIGHT);
+  }
+
+  /* ── Header: ◄ Month Year ► (below close button) ──────── */
+  int16_t hdr_y = (int16_t)(cy + 20);
 
   /* Left arrow  "<" */
   gfx_draw_text((int16_t)(cx + 6), hdr_y, "<", COLOR_TEXT);
@@ -480,7 +490,7 @@ static void desktop_draw_calendar(void) {
   }
 
   /* Separator line */
-  int16_t sep_y = (int16_t)(cy + 32);
+  int16_t sep_y = (int16_t)(cy + 44);
   gfx_draw_hline(cx, sep_y, CALENDAR_WIDTH, COLOR_BORDER);
 
   /* Full date line */
@@ -495,7 +505,7 @@ static void desktop_draw_calendar(void) {
   }
 
   /* ── Day headers: Su Mo Tu We Th Fr Sa ─────────────────── */
-  int16_t grid_x = (int16_t)(cx + 16);
+  int16_t grid_x = (int16_t)(cx + (CALENDAR_WIDTH - 7 * 52) / 2);
   int16_t grid_y = (int16_t)(sep_y + 22);
   {
     static const char *day_hdrs[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
@@ -567,8 +577,8 @@ static void desktop_draw_calendar(void) {
 static int calendar_hit_test_day(int16_t mx, int16_t my) {
   int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
   int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
-  int16_t sep_y = (int16_t)(cy + 32);
-  int16_t grid_x = (int16_t)(cx + 16);
+  int16_t sep_y = (int16_t)(cy + 44);
+  int16_t grid_x = (int16_t)(cx + (CALENDAR_WIDTH - 7 * 52) / 2);
   int16_t grid_y = (int16_t)(sep_y + 22);
   int16_t row_y = (int16_t)(grid_y + 18);
 
@@ -617,7 +627,19 @@ static bool calendar_handle_click(int16_t mx, int16_t my) {
   }
 
   /* Check header area for navigation arrows */
-  int16_t hdr_y = (int16_t)(cy + 4);
+  int16_t hdr_y = (int16_t)(cy + 20);
+
+  /* Close button (top-right corner, above nav arrows) */
+  {
+    int16_t close_x = (int16_t)(cx + CALENDAR_WIDTH - 20);
+    int16_t close_y = (int16_t)(cy + 2);
+    if (mx >= close_x && mx < close_x + 18 &&
+        my >= close_y && my < close_y + 18) {
+      cal_state.visible = false;
+      return true;
+    }
+  }
+
   if (my >= hdr_y && my < hdr_y + 12) {
     /* Left arrow area */
     if (mx >= cx + 2 && mx < cx + 20) {
@@ -835,7 +857,9 @@ void desktop_run(void) {
           }
         }
         /* Close calendar if clicking elsewhere on taskbar */
-        if (mouse.x < clock_hitbox_x && cal_state.visible) {
+        if (cal_state.visible &&
+            !(mouse.x >= clock_hitbox_x &&
+              mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width)) {
           cal_state.visible = false;
         }
       }
@@ -918,8 +942,12 @@ void desktop_run(void) {
       static bool has_first_render = false;
       static bool fast_path_used = false;
 
+      /* Check if calendar visibility changed */
+      bool cal_visibility_changed = (cal_state.visible != cal_prev_visible);
+      cal_prev_visible = cal_state.visible;
+
       if (!gui_any_dirty() && !gui_layout_changed() && !cal_state.visible &&
-          has_first_render) {
+          !cal_visibility_changed && has_first_render) {
         /* Fast path: only cursor moved — write directly to displayed LFB */
         mouse_update_cursor_direct();
         fast_path_used = true;
@@ -928,7 +956,7 @@ void desktop_run(void) {
          * If fast path ran since last full render, back_buffer has a stale
          * cursor at the old position (fast path never touches back_buffer).
          * Force a full background repaint to cover it. */
-        if (gui_layout_changed() || fast_path_used) {
+        if (gui_layout_changed() || fast_path_used || cal_visibility_changed) {
           fast_path_used = false;
           desktop_anim_tick++;
           desktop_draw_background();
