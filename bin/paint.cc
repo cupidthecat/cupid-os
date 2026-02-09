@@ -1,3 +1,10 @@
+//icon: "Paint"
+//icon_desc: "CupidPaint - Drawing Program"
+//icon_x: 10
+//icon_y: 190
+//icon_type: app
+//icon_color: 0xFF6600
+
 /* paint.cc — CupidPaint
  *
  * A Win95-style paint program for CupidOS.
@@ -498,7 +505,6 @@ int main() {
 
   /* Enter graphics mode */
   gfx2d_init();
-  gfx2d_fullscreen_enter();
 
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
@@ -617,6 +623,5 @@ int main() {
     gfx2d_flip();
   }
 
-  gfx2d_fullscreen_exit();
   return 0;
 }

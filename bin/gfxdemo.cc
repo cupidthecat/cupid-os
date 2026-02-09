@@ -1,3 +1,10 @@
+//icon: "GFX Demo"
+//icon_desc: "2D Graphics Showcase"
+//icon_x: 10
+//icon_y: 250
+//icon_type: app
+//icon_color: 0x8000FF
+
 /* gfxdemo.cc — 2D graphics showcase for cupid-os gfx2d library
  *
  * Demonstrates gfx2d capabilities:
