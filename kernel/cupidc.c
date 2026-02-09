@@ -21,9 +21,11 @@
 #include "ed.h"
 #include "exec.h"
 #include "gfx2d.h"
+#include "gfx2d_icons.h"
 #include "kernel.h"
 #include "math.h"
 #include "memory.h"
+#include "notepad.h"
 #include "panic.h"
 #include "ports.h"
 #include "process.h"
@@ -56,6 +58,13 @@ static void cc_yield(void) { process_yield(); }
 
 /* ── Wrapper for process_exit ────────────────────────────────────── */
 static void cc_exit(void) { process_exit(); }
+
+/* Open a file in GUI notepad from CupidC apps. */
+static void cc_notepad_open_file(const char *path) {
+  if (!path || path[0] == '\0')
+    return;
+  notepad_launch_with_file(path, path);
+}
 
 /* ── Test counting process for spawn command ─────────────────────── */
 static void cc_test_counting_process(void) {
@@ -326,6 +335,11 @@ static int cc_fp_one(void) { return 65536; } /* FP_ONE = 1.0 in 16.16 */
 static int cc_mouse_x(void) { return (int)mouse.x; }
 static int cc_mouse_y(void) { return (int)mouse.y; }
 static int cc_mouse_buttons(void) { return (int)mouse.buttons; }
+static int cc_mouse_scroll(void) {
+  int dz = (int)mouse.scroll_z;
+  mouse.scroll_z = 0;
+  return dz;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Kernel Bindings Registration
@@ -603,6 +617,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_ed_run)(const char *) = ed_run;
   BIND("ed_run", p_ed_run, 1);
 
+  /* Notepad integration */
+  void (*p_notepad_open_file)(const char *) = cc_notepad_open_file;
+  BIND("notepad_open_file", p_notepad_open_file, 1);
+
   /* GUI mode query */
   uint32_t (*p_is_gui)(void) = cc_is_gui_mode;
   BIND("is_gui_mode", p_is_gui, 0);
@@ -615,6 +633,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   char (*p_getchar)(void) = getchar;
   BIND("getchar", p_getchar, 0);
 
+  /* Non-blocking keyboard poll */
+  char (*p_poll_key)(void) = shell_jit_program_pollchar;
+  BIND("poll_key", p_poll_key, 0);
+
   /* Mouse input */
   int (*p_mouse_x)(void) = cc_mouse_x;
   BIND("mouse_x", p_mouse_x, 0);
@@ -624,6 +646,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_mouse_buttons)(void) = cc_mouse_buttons;
   BIND("mouse_buttons", p_mouse_buttons, 0);
+
+  int (*p_mouse_scroll)(void) = cc_mouse_scroll;
+  BIND("mouse_scroll", p_mouse_scroll, 0);
 
   /* String operations — extended */
 
@@ -951,6 +976,67 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_vfs_write_text)(const char *, const char *) = vfs_write_text;
   BIND("vfs_write_text", p_vfs_write_text, 2);
+
+  int (*p_vfs_copy_file)(const char *, const char *) = vfs_copy_file;
+  BIND("vfs_copy_file", p_vfs_copy_file, 2);
+
+  /* ── String extras ──────────────────────────────────────────── */
+
+  char *(*p_strrchr)(const char *, int) = strrchr;
+  BIND("strrchr", p_strrchr, 2);
+
+  /* ── Dialog helpers ─────────────────────────────────────────── */
+
+  int (*p_confirm_dlg)(const char *) = gfx2d_confirm_dialog;
+  BIND("confirm_dialog", p_confirm_dlg, 1);
+
+  int (*p_input_dlg)(const char *, char *, int) = gfx2d_input_dialog;
+  BIND("input_dialog", p_input_dlg, 3);
+
+  void (*p_message_dlg)(const char *) = gfx2d_message_dialog;
+  BIND("message_dialog", p_message_dlg, 1);
+
+  int (*p_popup_menu)(int, int, const char **, int) = gfx2d_popup_menu;
+  BIND("popup_menu", p_popup_menu, 4);
+
+  /* ── Desktop icon system ──────────────────────────────────────────── */
+  int (*p_icon_register)(const char *, const char *, int, int) =
+      gfx2d_icon_register;
+  BIND("register_desktop_icon", p_icon_register, 4);
+
+  void (*p_icon_set_desc)(int, const char *) = gfx2d_icon_set_desc;
+  BIND("set_icon_desc", p_icon_set_desc, 2);
+
+  void (*p_icon_set_type)(int, int) = gfx2d_icon_set_type;
+  BIND("set_icon_type", p_icon_set_type, 2);
+
+  void (*p_icon_set_color)(int, uint32_t) = gfx2d_icon_set_color;
+  BIND("set_icon_color", p_icon_set_color, 2);
+
+  void (*p_icon_set_drawer)(int, void (*)(int, int)) =
+      gfx2d_icon_set_custom_drawer;
+  BIND("set_icon_drawer", p_icon_set_drawer, 2);
+
+  int (*p_icon_find)(const char *) = gfx2d_icon_find_by_path;
+  BIND("get_my_icon_handle", p_icon_find, 1);
+
+  void (*p_icon_set_pos)(int, int, int) = gfx2d_icon_set_pos;
+  BIND("set_icon_pos", p_icon_set_pos, 3);
+
+  const char *(*p_icon_get_label)(int) = gfx2d_icon_get_label;
+  BIND("get_icon_label", p_icon_get_label, 1);
+
+  const char *(*p_icon_get_path)(int) = gfx2d_icon_get_path;
+  BIND("get_icon_path", p_icon_get_path, 1);
+
+  int (*p_icon_at_pos)(int, int) = gfx2d_icon_at_pos;
+  BIND("icon_at_pos", p_icon_at_pos, 2);
+
+  int (*p_icon_count)(void) = gfx2d_icon_count;
+  BIND("icon_count", p_icon_count, 0);
+
+  void (*p_icons_save)(void) = gfx2d_icons_save;
+  BIND("icons_save", p_icons_save, 0);
 
 #undef BIND
 }

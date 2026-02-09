@@ -10,6 +10,7 @@
 #include "exec.h"
 #include "fat16.h"
 #include "fs.h"
+#include "gfx2d.h"
 #include "kernel.h"
 #include "keyboard.h"
 #include "math.h"
@@ -329,9 +330,6 @@ static void shell_gui_putchar(char c) {
   } else if (c == '\b') {
     if (gui_cursor_x > 0) {
       gui_cursor_x--;
-      int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
-      gui_buffer[idx] = ' ';
-      shell_set_cell_color(idx);
     }
   } else if (c == '\t') {
     /* Tab = 4 spaces */
@@ -541,12 +539,17 @@ const char *shell_get_history_entry(int index) {
   return history_get_from_newest(index);
 }
 
-static void replace_input(const char *new_text, char *input, int *pos) {
-  // Erase current buffer from screen
+static void replace_input(const char *new_text, char *input, int *pos, int *cursor) {
+  // Erase current buffer from screen: move cursor to end, then erase all
+  while (*cursor < *pos) {
+    shell_putchar(input[*cursor]);
+    (*cursor)++;
+  }
   while (*pos > 0) {
     shell_print("\b \b");
     (*pos)--;
   }
+  *cursor = 0;
 
   // Load new text
   int i = 0;
@@ -559,6 +562,7 @@ static void replace_input(const char *new_text, char *input, int *pos) {
   }
   input[i] = '\0';
   *pos = i;
+  *cursor = i;
 }
 
 static void tab_complete(char *input, int *pos) {
@@ -1446,7 +1450,8 @@ redir_done:
 // Main shell loop
 void shell_run(void) {
   char input[MAX_INPUT_LEN + 1];
-  int pos = 0;
+  int pos = 0;    // length of input
+  int cursor = 0; // cursor position within input
 
   shell_print("cupid-os shell\n");
   shell_print(shell_cwd);
@@ -1462,7 +1467,7 @@ void shell_run(void) {
       if (history_count > 0 && history_view < history_count - 1) {
         history_view++;
         const char *entry = history_get_from_newest(history_view);
-        replace_input(entry, input, &pos);
+        replace_input(entry, input, &pos, &cursor);
       }
       continue;
     } else if (event.character == 0 && event.scancode == SCANCODE_ARROW_DOWN) {
@@ -1470,17 +1475,53 @@ void shell_run(void) {
         if (history_view > 0) {
           history_view--;
           const char *entry = history_get_from_newest(history_view);
-          replace_input(entry, input, &pos);
+          replace_input(entry, input, &pos, &cursor);
         } else if (history_view == 0) {
           history_view = -1;
-          replace_input("", input, &pos);
+          replace_input("", input, &pos, &cursor);
         }
       }
       continue;
     }
 
+    // Left arrow: move cursor left
+    if (event.character == 0 && event.scancode == SCANCODE_ARROW_LEFT) {
+      if (cursor > 0) {
+        cursor--;
+        shell_putchar('\b');
+      }
+      continue;
+    }
+
+    // Right arrow: move cursor right
+    if (event.character == 0 && event.scancode == SCANCODE_ARROW_RIGHT) {
+      if (cursor < pos) {
+        shell_putchar(input[cursor]);
+        cursor++;
+      }
+      continue;
+    }
+
     if (c == '\t') {
+      // Move cursor to end before tab completion
+      while (cursor < pos) {
+        shell_putchar(input[cursor]);
+        cursor++;
+      }
       tab_complete(input, &pos);
+      cursor = pos;
+      continue;
+    }
+
+    // Ctrl+C: cancel current line
+    if (c == 3) {
+      shell_print("^C\n");
+      pos = 0;
+      cursor = 0;
+      memset(input, 0, sizeof(input));
+      history_view = -1;
+      shell_print(shell_cwd);
+      shell_print("> ");
       continue;
     }
 
@@ -1490,20 +1531,59 @@ void shell_run(void) {
       history_record(input);
       execute_command(input);
       pos = 0;
+      cursor = 0;
       history_view = -1;
       memset(input, 0, sizeof(input)); // Clear buffer
       shell_print(shell_cwd);
       shell_print("> ");
     } else if (c == '\b') {
-      if (pos > 0) {
+      if (cursor > 0) {
+        // Delete character before cursor
+        cursor--;
+        // Shift characters left
+        for (int i = cursor; i < pos - 1; i++) {
+          input[i] = input[i + 1];
+        }
         pos--;
-        shell_print("\b \b"); // Erase from screen
-        input[pos] = '\0';    // Remove from buffer
+        input[pos] = '\0';
+        // Move screen cursor back
+        shell_putchar('\b');
+        // Re-render from cursor to end
+        for (int i = cursor; i < pos; i++) {
+          shell_putchar(input[i]);
+        }
+        shell_putchar(' '); // Erase trailing character
+        // Move cursor back to correct position
+        for (int i = 0; i < pos - cursor + 1; i++) {
+          shell_putchar('\b');
+        }
       }
       history_view = -1; // Stop browsing when editing
     } else if (c && pos < MAX_INPUT_LEN) {
-      input[pos++] = c;
-      shell_putchar(c);
+      if (cursor == pos) {
+        // Append at end (fast path)
+        input[pos++] = c;
+        input[pos] = '\0';
+        cursor++;
+        shell_putchar(c);
+      } else {
+        // Insert in middle: shift characters right
+        for (int i = pos; i > cursor; i--) {
+          input[i] = input[i - 1];
+        }
+        input[cursor] = c;
+        pos++;
+        input[pos] = '\0';
+        // Print from cursor to end
+        for (int i = cursor; i < pos; i++) {
+          shell_putchar(input[i]);
+        }
+        cursor++;
+        // Move cursor back to correct position
+        for (int i = 0; i < pos - cursor; i++) {
+          shell_putchar('\b');
+        }
+      }
       history_view = -1; // Stop browsing when typing
     }
   }
@@ -1518,15 +1598,26 @@ void shell_run(void) {
  * ══════════════════════════════════════════════════════════════════════ */
 
 static char gui_input[MAX_INPUT_LEN + 1];
-static int gui_input_pos = 0;
+static int gui_input_pos = 0;    // length of input
+static int gui_input_cursor = 0; // cursor position within input
 static int gui_history_view = -1;
 
 /* GUI-mode wrappers (print/putchar go to GUI buffer) */
 static void gui_replace_input(const char *new_text) {
+  // Move cursor to end first
+  while (gui_input_cursor < gui_input_pos) {
+    shell_gui_putchar(gui_input[gui_input_cursor]);
+    gui_input_cursor++;
+  }
+  // Erase all
   while (gui_input_pos > 0) {
+    shell_gui_putchar('\b');
+    shell_gui_putchar(' ');
     shell_gui_putchar('\b');
     gui_input_pos--;
   }
+  gui_input_cursor = 0;
+
   int i = 0;
   if (new_text) {
     while (new_text[i] && i < MAX_INPUT_LEN) {
@@ -1537,6 +1628,7 @@ static void gui_replace_input(const char *new_text) {
   }
   gui_input[i] = '\0';
   gui_input_pos = i;
+  gui_input_cursor = i;
 }
 
 /* Temporarily redirect print/putchar to GUI buffer, execute command,
@@ -1629,6 +1721,14 @@ char shell_jit_program_getchar(void) {
   return c;
 }
 
+char shell_jit_program_pollchar(void) {
+  if (jit_input_read_pos == jit_input_write_pos)
+    return 0; /* No key available */
+  char c = jit_input_buffer[jit_input_read_pos];
+  jit_input_read_pos = (jit_input_read_pos + 1) % JIT_INPUT_BUFFER_SIZE;
+  return c;
+}
+
 void shell_jit_program_start(void) {
   jit_program_running = 1;
   jit_program_interrupted = 0;
@@ -1639,6 +1739,11 @@ void shell_jit_program_start(void) {
 void shell_jit_program_end(void) {
   jit_program_running = 0;
   jit_program_interrupted = 0;
+
+  /* Defensive cleanup: fullscreen apps can bypass their own teardown paths. */
+  if (gfx2d_fullscreen_active()) {
+    gfx2d_fullscreen_exit();
+  }
 }
 
 void shell_gui_handle_key(uint8_t scancode, char character) {
@@ -1650,6 +1755,11 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     /* Only route actual characters, not key releases or non-character keys */
     if (character != 0) {
       shell_jit_program_input(character);
+    }
+    /* Also route arrow left/right scancodes for JIT programs that need them */
+    if (character == 0 && (scancode == SCANCODE_ARROW_LEFT ||
+                           scancode == SCANCODE_ARROW_RIGHT)) {
+      /* JIT programs currently don't handle raw scancodes, skip */
     }
     return;
   }
@@ -1677,10 +1787,46 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     return;
   }
 
+  /* Left arrow: move cursor left */
+  if (character == 0 && scancode == SCANCODE_ARROW_LEFT) {
+    if (gui_input_cursor > 0) {
+      gui_input_cursor--;
+      shell_gui_putchar('\b');
+    }
+    return;
+  }
+
+  /* Right arrow: move cursor right */
+  if (character == 0 && scancode == SCANCODE_ARROW_RIGHT) {
+    if (gui_input_cursor < gui_input_pos) {
+      shell_gui_putchar(gui_input[gui_input_cursor]);
+      gui_input_cursor++;
+    }
+    return;
+  }
+
   /* Tab completion */
   if (character == '\t') {
+    /* Move cursor to end before tab completion */
+    while (gui_input_cursor < gui_input_pos) {
+      shell_gui_putchar(gui_input[gui_input_cursor]);
+      gui_input_cursor++;
+    }
     tab_complete(gui_input, &gui_input_pos);
+    gui_input_cursor = gui_input_pos;
     gui_history_view = -1;
+    return;
+  }
+
+  /* Ctrl+C: cancel current line */
+  if (character == 3) {
+    shell_gui_print("^C\n");
+    gui_input_pos = 0;
+    gui_input_cursor = 0;
+    gui_history_view = -1;
+    memset(gui_input, 0, sizeof(gui_input));
+    shell_gui_print(shell_cwd);
+    shell_gui_print("> ");
     return;
   }
 
@@ -1690,26 +1836,62 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
 
     if (gui_input_pos > 0) {
       history_record(gui_input);
-      /* Execute command - output goes to VGA text memory (hidden)
-       * AND we mirror it by patching print/putchar temporarily */
       gui_exec_command(gui_input);
     }
 
     gui_input_pos = 0;
+    gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
     shell_gui_print(shell_cwd);
     shell_gui_print("> ");
   } else if (character == '\b') {
-    if (gui_input_pos > 0) {
+    if (gui_input_cursor > 0) {
+      gui_input_cursor--;
+      /* Shift characters left */
+      for (int i = gui_input_cursor; i < gui_input_pos - 1; i++) {
+        gui_input[i] = gui_input[i + 1];
+      }
       gui_input_pos--;
-      shell_gui_print("\b \b");
       gui_input[gui_input_pos] = '\0';
+      /* Move screen cursor back */
+      shell_gui_putchar('\b');
+      /* Re-render from cursor to end */
+      for (int i = gui_input_cursor; i < gui_input_pos; i++) {
+        shell_gui_putchar(gui_input[i]);
+      }
+      shell_gui_putchar(' '); /* Erase trailing char */
+      /* Move cursor back to correct position */
+      for (int i = 0; i < gui_input_pos - gui_input_cursor + 1; i++) {
+        shell_gui_putchar('\b');
+      }
     }
     gui_history_view = -1;
   } else if (character && gui_input_pos < MAX_INPUT_LEN) {
-    gui_input[gui_input_pos++] = character;
-    shell_gui_putchar(character);
+    if (gui_input_cursor == gui_input_pos) {
+      /* Append at end (fast path) */
+      gui_input[gui_input_pos++] = character;
+      gui_input[gui_input_pos] = '\0';
+      gui_input_cursor++;
+      shell_gui_putchar(character);
+    } else {
+      /* Insert in middle: shift characters right */
+      for (int i = gui_input_pos; i > gui_input_cursor; i--) {
+        gui_input[i] = gui_input[i - 1];
+      }
+      gui_input[gui_input_cursor] = character;
+      gui_input_pos++;
+      gui_input[gui_input_pos] = '\0';
+      /* Print from cursor to end */
+      for (int i = gui_input_cursor; i < gui_input_pos; i++) {
+        shell_gui_putchar(gui_input[i]);
+      }
+      gui_input_cursor++;
+      /* Move cursor back to correct position */
+      for (int i = 0; i < gui_input_pos - gui_input_cursor; i++) {
+        shell_gui_putchar('\b');
+      }
+    }
     gui_history_view = -1;
   }
 

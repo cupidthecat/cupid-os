@@ -192,4 +192,42 @@ int gfx2d_file_dialog_open(const char *start_path, char *result_path,
 int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
                             char *result_path, const char *filter_ext);
 
+/* ── Modal Dialog Helpers ─────────────────────────────────────────── */
+
+/**
+ * Shows a modal Yes/No confirmation dialog.
+ *
+ * @param message  The message to display
+ * @return 1 if Yes, 0 if No
+ */
+int gfx2d_confirm_dialog(const char *message);
+
+/**
+ * Shows a modal text input dialog.
+ *
+ * @param prompt   Prompt text displayed above the input field
+ * @param result   Output buffer for the entered text
+ * @param maxlen   Maximum length of result buffer
+ * @return 1 if text entered, 0 if cancelled
+ */
+int gfx2d_input_dialog(const char *prompt, char *result, int maxlen);
+
+/**
+ * Shows a modal message dialog with OK button.
+ *
+ * @param message  The message to display
+ */
+void gfx2d_message_dialog(const char *message);
+
+/**
+ * Shows a modal popup/context menu.
+ *
+ * @param x      X position of menu
+ * @param y      Y position of menu
+ * @param items  Array of string pointers (menu item labels)
+ * @param count  Number of menu items (max 16)
+ * @return selected index (0-based) or -1 if cancelled
+ */
+int gfx2d_popup_menu(int x, int y, const char **items, int count);
+
 #endif /* GFX2D_H */

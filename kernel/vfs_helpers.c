@@ -100,3 +100,53 @@ int vfs_write_text(const char *path, const char *text) {
   uint32_t len = (uint32_t)strlen(text);
   return vfs_write_all(path, text, len);
 }
+
+/* ── vfs_copy_file ────────────────────────────────────────────────── */
+
+int vfs_copy_file(const char *src, const char *dest) {
+  if (!src || !dest)
+    return VFS_EINVAL;
+
+  /* Get source file size */
+  vfs_stat_t st;
+  int rc = vfs_stat(src, &st);
+  if (rc < 0)
+    return rc;
+
+  int src_fd = vfs_open(src, O_RDONLY);
+  if (src_fd < 0)
+    return src_fd;
+
+  int dst_fd = vfs_open(dest, O_WRONLY | O_CREAT | O_TRUNC);
+  if (dst_fd < 0) {
+    vfs_close(src_fd);
+    return dst_fd;
+  }
+
+  char buf[512];
+  uint32_t total = 0;
+  while (total < st.size) {
+    uint32_t chunk = st.size - total;
+    if (chunk > 512)
+      chunk = 512;
+    int r = vfs_read(src_fd, buf, chunk);
+    if (r < 0) {
+      vfs_close(src_fd);
+      vfs_close(dst_fd);
+      return r;
+    }
+    if (r == 0)
+      break;
+    int w = vfs_write(dst_fd, buf, (uint32_t)r);
+    if (w < 0) {
+      vfs_close(src_fd);
+      vfs_close(dst_fd);
+      return w;
+    }
+    total += (uint32_t)r;
+  }
+
+  vfs_close(src_fd);
+  vfs_close(dst_fd);
+  return (int)total;
+}

@@ -320,6 +320,7 @@ static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
 static cc_type_t cc_last_expr_type;
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_type_struct_index; /* set by cc_parse_type */
+static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
 /* ── Struct lookup helper ───────────────────────────────────────────── */
 static int cc_find_struct(cc_state_t *cc, const char *name) {
@@ -822,6 +823,15 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    if (sym->is_array && sym->array_elem_size > 0)
+      cc_last_expr_elem_size = sym->array_elem_size;
+    else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
+             sym->struct_index >= 0 && sym->struct_index < cc->struct_count)
+      cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
+    else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
+      cc_last_expr_elem_size = 1;
+    else
+      cc_last_expr_elem_size = 4;
   } else if (sym->kind == SYM_GLOBAL) {
     if (sym->is_array || sym->type == TYPE_STRUCT) {
       /* Arrays/structs: load the base address as immediate */
@@ -833,6 +843,15 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    if (sym->is_array && sym->array_elem_size > 0)
+      cc_last_expr_elem_size = sym->array_elem_size;
+    else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
+             sym->struct_index >= 0 && sym->struct_index < cc->struct_count)
+      cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
+    else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
+      cc_last_expr_elem_size = 1;
+    else
+      cc_last_expr_elem_size = 4;
   } else if (sym->kind == SYM_FUNC) {
     /* Load function address into eax */
     if (sym->is_defined) {
@@ -983,8 +1002,20 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_type = TYPE_INT_PTR;
     else if (sym->type == TYPE_CHAR)
       cc_last_expr_type = TYPE_CHAR_PTR;
+    else if (sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR)
+      cc_last_expr_type = TYPE_STRUCT_PTR;
     else
       cc_last_expr_type = TYPE_PTR;
+    cc_last_expr_struct_index = sym->struct_index;
+    if (sym->is_array && sym->array_elem_size > 0)
+      cc_last_expr_elem_size = sym->array_elem_size;
+    else if ((sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR) &&
+             sym->struct_index >= 0 && sym->struct_index < cc->struct_count)
+      cc_last_expr_elem_size = cc->structs[sym->struct_index].total_size;
+    else if (sym->type == TYPE_CHAR || sym->type == TYPE_CHAR_PTR)
+      cc_last_expr_elem_size = 1;
+    else
+      cc_last_expr_elem_size = 4;
     break;
   }
 
@@ -1103,7 +1134,13 @@ static void cc_parse_primary(cc_state_t *cc) {
         emit32(cc, (uint32_t)field->offset);
       }
       /* Determine result: if field is a sub-struct, keep address */
-      if (field->type == TYPE_STRUCT) {
+      if (field->array_count > 0) {
+        /* Array field: address is already in eax, treat as pointer */
+        if (field->type == TYPE_CHAR)
+          cc_last_expr_type = TYPE_CHAR_PTR;
+        else
+          cc_last_expr_type = TYPE_PTR;
+      } else if (field->type == TYPE_STRUCT) {
         cc_last_expr_type = TYPE_STRUCT;
         cc_last_expr_struct_index = field->struct_index;
       } else if (field->type == TYPE_STRUCT_PTR) {
@@ -1123,31 +1160,57 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (next.type == CC_TOK_LBRACK) {
       /* Array subscript: expr[index] */
       cc_next(cc);
-      cc_type_t base_type = cc_last_expr_type; /* save before index expr */
-      emit_push_eax(cc);                       /* push base address */
+      cc_type_t base_type = cc_last_expr_type;
+      int base_elem_size = cc_last_expr_elem_size;
+      int base_si = cc_last_expr_struct_index;
+      emit_push_eax(cc); /* push base address */
 
       cc_parse_expression(cc, 1);
 
-      /* Determine element size based on pointer type */
-      if (base_type != TYPE_CHAR_PTR) {
-        /* Scale index by 4 for int pointers */
+      /* Scale index by element size */
+      if (base_elem_size <= 1) {
+        /* no scaling for byte elements */
+      } else if (base_elem_size == 2) {
         emit8(cc, 0xC1);
         emit8(cc, 0xE0);
-        emit8(cc, 0x02);
-        /* shl eax, 2 */
+        emit8(cc, 0x01); /* shl eax, 1 */
+      } else if (base_elem_size == 4) {
+        emit8(cc, 0xC1);
+        emit8(cc, 0xE0);
+        emit8(cc, 0x02); /* shl eax, 2 */
+      } else {
+        /* imul eax, eax, imm32 */
+        emit8(cc, 0x69);
+        emit8(cc, 0xC0);
+        emit32(cc, (uint32_t)base_elem_size);
       }
 
       emit_pop_ebx(cc); /* pop base into ebx */
       emit8(cc, 0x01);
       emit8(cc, 0xD8); /* add eax, ebx */
 
-      /* Dereference */
-      if (base_type == TYPE_CHAR_PTR) {
+      /* Determine result type */
+      if (base_type == TYPE_STRUCT_PTR) {
+        /* Struct array/pointer subscript: address of element */
+        cc_last_expr_type = TYPE_STRUCT;
+        cc_last_expr_struct_index = base_si;
+        cc_last_expr_elem_size = 4;
+      } else if (base_type == TYPE_CHAR_PTR && base_elem_size > 1) {
+        /* 2D char array first subscript: pointer to row */
+        cc_last_expr_type = TYPE_CHAR_PTR;
+        cc_last_expr_elem_size = 1;
+      } else if (base_type == TYPE_CHAR_PTR) {
         emit_deref_byte(cc);
         cc_last_expr_type = TYPE_CHAR;
+        cc_last_expr_elem_size = 0;
+      } else if (base_type == TYPE_INT_PTR && base_elem_size > 4) {
+        /* 2D int array first subscript: pointer to row */
+        cc_last_expr_type = TYPE_INT_PTR;
+        cc_last_expr_elem_size = 4;
       } else {
         emit_deref_dword(cc);
         cc_last_expr_type = TYPE_INT;
+        cc_last_expr_elem_size = 0;
       }
 
       cc_expect(cc, CC_TOK_RBRACK);
@@ -1194,8 +1257,8 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
   }
 
-  /* ── Ternary operator ?: ─────────────────────────────────────── */
-  if (!cc->error) {
+  /* ── Ternary operator ?: (lowest precedence, below || which is 1) ── */
+  if (!cc->error && min_prec <= 1) {
     cc_token_t maybe_q = cc_peek(cc);
     if (maybe_q.type == CC_TOK_QUESTION) {
       cc_next(cc); /* consume ? */
@@ -1324,7 +1387,7 @@ static void cc_parse_deref_assignment(cc_state_t *cc) {
   }
 }
 
-/* Parse array subscript assignment: arr[i] = val */
+/* Parse array subscript assignment: arr[i]=val, arr[i].f=val, arr[i][j]=val */
 static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   cc_symbol_t *sym = cc_sym_find(cc, name);
   if (!sym) {
@@ -1335,30 +1398,49 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   /* Parse index */
   cc_parse_expression(cc, 1);
 
-  /* Scale index based on type */
-  int is_char = (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR);
-  if (!is_char) {
+  /* Get element size for scaling */
+  int elem_size;
+  if (sym->is_array && sym->array_elem_size > 0)
+    elem_size = sym->array_elem_size;
+  else if (sym->type == TYPE_STRUCT_PTR && sym->struct_index >= 0 &&
+           sym->struct_index < cc->struct_count)
+    elem_size = cc->structs[sym->struct_index].total_size;
+  else if (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR)
+    elem_size = 1;
+  else
+    elem_size = 4;
+
+  /* Scale index by element size */
+  if (elem_size <= 1) {
+    /* no scaling */
+  } else if (elem_size == 2) {
+    emit8(cc, 0xC1);
+    emit8(cc, 0xE0);
+    emit8(cc, 0x01); /* shl eax, 1 */
+  } else if (elem_size == 4) {
     emit8(cc, 0xC1);
     emit8(cc, 0xE0);
     emit8(cc, 0x02); /* shl eax, 2 */
+  } else {
+    /* imul eax, eax, imm32 */
+    emit8(cc, 0x69);
+    emit8(cc, 0xC0);
+    emit32(cc, (uint32_t)elem_size);
   }
 
-  /* Compute address = base + index */
+  /* Compute address = base + scaled_index */
   emit_push_eax(cc);
 
   if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
     if (sym->is_array) {
-      /* Array: base address is the stack location itself */
       emit_lea_local(cc, sym->offset);
     } else {
-      /* Pointer variable: load the pointer value */
       emit_load_local(cc, sym->offset);
     }
   } else if (sym->kind == SYM_GLOBAL) {
     if (sym->is_array) {
-      emit_mov_eax_imm(cc, sym->address); /* base address of array */
+      emit_mov_eax_imm(cc, sym->address);
     } else {
-      /* Pointer variable: load the pointer value */
       emit8(cc, 0xA1);
       emit32(cc, sym->address);
     }
@@ -1369,6 +1451,94 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   emit8(cc, 0xD8); /* add eax, ebx */
 
   cc_expect(cc, CC_TOK_RBRACK);
+
+  /* Determine final store type */
+  int is_char = (sym->type == TYPE_CHAR_PTR || sym->type == TYPE_CHAR);
+
+  /* Handle struct array element member chain: arr[i].field = val */
+  if (sym->type == TYPE_STRUCT_PTR &&
+      (cc_peek(cc).type == CC_TOK_DOT ||
+       cc_peek(cc).type == CC_TOK_ARROW)) {
+    int si = sym->struct_index;
+    cc_type_t ftype = TYPE_INT;
+    while (cc_peek(cc).type == CC_TOK_DOT ||
+           cc_peek(cc).type == CC_TOK_ARROW) {
+      cc_next(cc); /* consume . or -> */
+      cc_token_t ftok = cc_next(cc);
+      if (ftok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected field");
+        return;
+      }
+      cc_field_t *fld = cc_find_field(cc, si, ftok.text);
+      if (!fld) {
+        cc_error(cc, "unknown field");
+        return;
+      }
+      if (fld->offset > 0) {
+        emit8(cc, 0x05);
+        emit32(cc, (uint32_t)fld->offset);
+      }
+      ftype = fld->type;
+      if (fld->type == TYPE_STRUCT) {
+        si = fld->struct_index;
+      } else if (fld->type == TYPE_STRUCT_PTR) {
+        emit_deref_dword(cc);
+        si = fld->struct_index;
+      } else if (fld->array_count > 0) {
+        ftype = (fld->type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_PTR;
+        break;
+      } else {
+        break;
+      }
+    }
+    is_char = (ftype == TYPE_CHAR);
+
+    /* Handle subscript on struct field: arr[i].field[j] = val */
+    if (cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc); /* consume '[' */
+      emit_push_eax(cc);
+      cc_parse_expression(cc, 1);
+      if (ftype != TYPE_CHAR && ftype != TYPE_CHAR_PTR) {
+        emit8(cc, 0xC1);
+        emit8(cc, 0xE0);
+        emit8(cc, 0x02); /* shl eax, 2 */
+      }
+      emit_pop_ebx(cc);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8); /* add eax, ebx */
+      cc_expect(cc, CC_TOK_RBRACK);
+      is_char = (ftype == TYPE_CHAR || ftype == TYPE_CHAR_PTR);
+    }
+  }
+  /* Handle 2D char array second subscript: arr[i][j] = val */
+  else if (is_char && elem_size > 1 &&
+           cc_peek(cc).type == CC_TOK_LBRACK) {
+    cc_next(cc); /* consume '[' */
+    emit_push_eax(cc);
+    cc_parse_expression(cc, 1);
+    /* Inner elements are char (1 byte) — no scaling */
+    emit_pop_ebx(cc);
+    emit8(cc, 0x01);
+    emit8(cc, 0xD8); /* add eax, ebx */
+    cc_expect(cc, CC_TOK_RBRACK);
+    is_char = 1;
+  }
+  /* Handle 2D int array second subscript */
+  else if (!is_char && elem_size > 4 &&
+           cc_peek(cc).type == CC_TOK_LBRACK) {
+    cc_next(cc); /* consume '[' */
+    emit_push_eax(cc);
+    cc_parse_expression(cc, 1);
+    emit8(cc, 0xC1);
+    emit8(cc, 0xE0);
+    emit8(cc, 0x02); /* shl eax, 2 */
+    emit_pop_ebx(cc);
+    emit8(cc, 0x01);
+    emit8(cc, 0xD8); /* add eax, ebx */
+    cc_expect(cc, CC_TOK_RBRACK);
+    is_char = 0;
+  }
+
   emit_push_eax(cc); /* save computed address */
 
   /* Expect = or compound assignment (+=, -=, *=, /=) */
@@ -1675,7 +1845,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     return;
   }
 
-  /* Check for array declaration: type name[size] */
+  /* Check for array declaration: type name[size] or name[M][N] */
   if (cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     cc_token_t size_tok = cc_next(cc);
@@ -1686,21 +1856,58 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_expect(cc, CC_TOK_RBRACK);
 
     int32_t arr_size = size_tok.int_value;
-    int elem_size = (type == TYPE_CHAR) ? 1 : 4;
-    int32_t total_bytes = arr_size * elem_size;
+    int32_t inner_dim = 0;
+    /* Check for 2D array: type name[M][N] */
+    if (cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc); /* consume '[' */
+      cc_token_t inner_tok = cc_next(cc);
+      if (inner_tok.type != CC_TOK_NUMBER) {
+        cc_error(cc, "expected array size");
+        return;
+      }
+      cc_expect(cc, CC_TOK_RBRACK);
+      inner_dim = inner_tok.int_value;
+    }
+
+    int32_t total_bytes;
+    int aes; /* array_elem_size for subscript scaling */
+    cc_type_t arr_type;
+
+    if (type == TYPE_STRUCT && type_struct_index >= 0 &&
+        type_struct_index < cc->struct_count) {
+      /* Array of structs */
+      int32_t ssize = cc->structs[type_struct_index].total_size;
+      ssize = (ssize + 3) & ~3;
+      total_bytes = arr_size * ssize;
+      aes = ssize;
+      arr_type = TYPE_STRUCT_PTR;
+    } else if (inner_dim > 0) {
+      /* 2D array */
+      int base_elem = (type == TYPE_CHAR) ? 1 : 4;
+      int32_t row_size = inner_dim * base_elem;
+      total_bytes = arr_size * row_size;
+      aes = row_size;
+      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+    } else {
+      /* 1D array */
+      int elem_size = (type == TYPE_CHAR) ? 1 : 4;
+      total_bytes = arr_size * elem_size;
+      aes = elem_size;
+      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+    }
+
     /* Align to 4 bytes */
     total_bytes = (total_bytes + 3) & ~3;
 
     cc->local_offset -= total_bytes;
     if (cc->local_offset < cc->max_local_offset)
       cc->max_local_offset = cc->local_offset;
-    cc_symbol_t *sym =
-        cc_sym_add(cc, name_tok.text, SYM_LOCAL,
-                   type == TYPE_CHAR ? TYPE_CHAR_PTR : TYPE_INT_PTR);
+    cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, arr_type);
     if (sym) {
       sym->offset = cc->local_offset;
       sym->is_array = 1;
       sym->struct_index = type_struct_index;
+      sym->array_elem_size = aes;
     }
 
     cc_expect(cc, CC_TOK_SEMICOLON);
@@ -2297,6 +2504,10 @@ static void cc_parse_statement(cc_state_t *cc) {
         } else if (fld->type == TYPE_STRUCT_PTR) {
           emit_deref_dword(cc);
           si = fld->struct_index;
+        } else if (fld->array_count > 0) {
+          /* Array field: keep address, break for subscript or use */
+          ftype = (fld->type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_PTR;
+          break;
         } else {
           /* Leaf field — next should be = */
           break;
@@ -2674,10 +2885,27 @@ void cc_parse_program(cc_state_t *cc) {
           f->type = ftype;
           f->struct_index = fsi;
           f->offset = field_offset;
+          f->array_count = 0;
+
+          /* Check for array field: name[N] */
+          if (cc_peek(cc).type == CC_TOK_LBRACK) {
+            cc_next(cc); /* consume '[' */
+            cc_token_t size_tok = cc_next(cc);
+            if (size_tok.type != CC_TOK_NUMBER) {
+              cc_error(cc, "expected array size");
+              break;
+            }
+            f->array_count = size_tok.int_value;
+            cc_expect(cc, CC_TOK_RBRACK);
+          }
 
           /* Compute field size */
           int32_t fsize = 4; /* default: 4 bytes (int, ptr) */
-          if (ftype == TYPE_STRUCT && fsi >= 0) {
+          if (ftype == TYPE_CHAR && f->array_count > 0) {
+            fsize = f->array_count; /* char arrays: 1 byte per element */
+          } else if (f->array_count > 0) {
+            fsize = 4 * f->array_count; /* int arrays: 4 bytes per element */
+          } else if (ftype == TYPE_STRUCT && fsi >= 0) {
             fsize = cc->structs[fsi].total_size;
           }
           /* Align to 4 bytes */
@@ -2735,7 +2963,7 @@ void cc_parse_program(cc_state_t *cc) {
           break;
         }
 
-        /* Global array: type name[size]; */
+        /* Global array: type name[size]; or name[M][N]; */
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc); /* consume '[' */
           cc_token_t size_tok = cc_next(cc);
@@ -2745,16 +2973,50 @@ void cc_parse_program(cc_state_t *cc) {
           }
           cc_expect(cc, CC_TOK_RBRACK);
           int32_t arr_elems = size_tok.int_value;
-          int elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
-          int32_t total_bytes = arr_elems * elem_size;
+          int32_t inner_dim = 0;
+          /* Check for 2D array */
+          if (cc_peek(cc).type == CC_TOK_LBRACK) {
+            cc_next(cc); /* consume '[' */
+            cc_token_t inner_tok = cc_next(cc);
+            if (inner_tok.type != CC_TOK_NUMBER) {
+              cc_error(cc, "expected array size");
+              break;
+            }
+            cc_expect(cc, CC_TOK_RBRACK);
+            inner_dim = inner_tok.int_value;
+          }
+          int32_t total_bytes;
+          int aes;
+          cc_type_t arr_type;
+          if (gtype == TYPE_STRUCT && gtype_si >= 0 &&
+              gtype_si < cc->struct_count) {
+            /* Array of structs */
+            int32_t ssize = cc->structs[gtype_si].total_size;
+            ssize = (ssize + 3) & ~3;
+            total_bytes = arr_elems * ssize;
+            aes = ssize;
+            arr_type = TYPE_STRUCT_PTR;
+          } else if (inner_dim > 0) {
+            /* 2D array */
+            int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
+            int32_t row_size = inner_dim * base_elem;
+            total_bytes = arr_elems * row_size;
+            aes = row_size;
+            arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+          } else {
+            /* 1D array */
+            int elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
+            total_bytes = arr_elems * elem_size;
+            aes = elem_size;
+            arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+          }
           total_bytes = (total_bytes + 3) & ~3;
-          cc_type_t arr_type =
-              (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
           if (gsym) {
             gsym->address = cc->data_base + cc->data_pos;
             gsym->is_array = 1;
             gsym->struct_index = gtype_si;
+            gsym->array_elem_size = aes;
             memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
             cc->data_pos += (uint32_t)total_bytes;
           }

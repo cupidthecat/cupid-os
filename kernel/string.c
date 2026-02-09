@@ -78,6 +78,16 @@ char* strchr(const char* s, int c) {
     return (c == 0) ? p : (char*)0;
 }
 
+char* strrchr(const char* s, int c) {
+    char* last = (char*)0;
+    char* p = (char*)(unsigned long)s;
+    while (*p) {
+        if (*p == (char)c) last = p;
+        p++;
+    }
+    return (c == 0) ? p : last;
+}
+
 char* strstr(const char* haystack, const char* needle) {
     char* h0 = (char*)(unsigned long)haystack;
     if (!*needle) return h0;

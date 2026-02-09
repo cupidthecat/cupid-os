@@ -264,17 +264,13 @@ void putchar(char c) {
     if(c == '\n') {
         cursor_x = 0;
         cursor_y++;
-    } else if(c == '\b') {  // Handle backspace
+    } else if(c == '\b') {  // Handle backspace (move cursor only)
         if(cursor_x > 0) {
             cursor_x--;
         } else if(cursor_y > 0) {
             cursor_y--;
             cursor_x = VGA_WIDTH - 1;
         }
-        // Clear the character at current position
-        int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
-        vidmem[offset] = ' ';
-        vidmem[offset + 1] = 0x07;
     } else {
         int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
         vidmem[offset] = (unsigned char)c;
@@ -696,10 +692,6 @@ void kmain(void) {
     gui_init();
     desktop_init();
     KINFO("GUI and desktop initialized");
-
-    // Add desktop icons
-    desktop_add_icon(16, 16, "Terminal", terminal_launch);
-    desktop_add_icon(16, 80, "Notepad", notepad_launch);
 
     // Enable keyboard interrupt
     pic_clear_mask(1);

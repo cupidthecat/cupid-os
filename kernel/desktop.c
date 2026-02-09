@@ -15,9 +15,11 @@
 #include "calendar.h"
 #include "gfx2d.h"
 #include "graphics.h"
+#include "gfx2d_icons.h"
 #include "gui.h"
 #include "kernel.h"
 #include "notepad.h"
+#include "cupidc.h"
 #include "process.h"
 #include "string.h"
 #include "terminal_app.h"
@@ -42,6 +44,14 @@ static bool cal_prev_visible = false; /* Track calendar visibility changes */
 
 /* ── Init ─────────────────────────────────────────────────────────── */
 
+/* Wrappers for icon drawers (custom_draw takes 2 args, draw funcs take 3) */
+static void draw_terminal_icon(int x, int y) {
+  gfx2d_draw_icon_terminal(x, y, 0x404040);
+}
+static void draw_notepad_icon(int x, int y) {
+  gfx2d_draw_icon_notepad(x, y, 0xFFFF80);
+}
+
 void desktop_init(void) {
   icon_count = 0;
   memset(icons, 0, sizeof(icons));
@@ -50,6 +60,33 @@ void desktop_init(void) {
   memset(&cal_state, 0, sizeof(cal_state));
   cal_state.visible = false;
   clock_last_minute = 255; /* Force initial clock update */
+
+  /* Initialize desktop icon system and scan /bin for icon directives */
+  gfx2d_icons_init();
+
+  /* Register built-in kernel icons (Terminal, Notepad) */
+  {
+    int h;
+
+    h = gfx2d_icon_register("Terminal", "__kernel_terminal", 10, 10);
+    if (h >= 0) {
+      gfx2d_icon_set_desc(h, "CupidOS Terminal");
+      gfx2d_icon_set_color(h, 0x404040);
+      gfx2d_icon_set_custom_drawer(h, draw_terminal_icon);
+      gfx2d_icon_set_launch(h, terminal_launch);
+    }
+
+    h = gfx2d_icon_register("Notepad", "__kernel_notepad", 10, 70);
+    if (h >= 0) {
+      gfx2d_icon_set_desc(h, "CupidOS Notepad");
+      gfx2d_icon_set_color(h, 0xFFFF80);
+      gfx2d_icon_set_custom_drawer(h, draw_notepad_icon);
+      gfx2d_icon_set_launch(h, notepad_launch);
+    }
+  }
+
+  /* Scan /bin for .cc files with //icon: directives */
+  gfx2d_icons_scan_bin();
 
   KINFO("Desktop initialized");
 }
@@ -271,53 +308,8 @@ void desktop_draw_taskbar(void) {
 }
 
 void desktop_draw_icons(void) {
-  for (int i = 0; i < icon_count; i++) {
-    desktop_icon_t *ic = &icons[i];
-    if (!ic->active)
-      continue;
-
-    /* Check if this is the Notepad icon */
-    if (ic->label[0] == 'N' && ic->label[1] == 'o' && ic->label[2] == 't' &&
-        ic->label[3] == 'e') {
-      /* Notepad icon: spiral-bound notebook */
-      /* Page background */
-      gfx_fill_rect(ic->x, ic->y, 32, 24, COLOR_TEXT_LIGHT);
-      gfx_draw_rect(ic->x, ic->y, 32, 24, COLOR_BLACK);
-
-      /* Spiral binding strip on left */
-      gfx_fill_rect(ic->x, ic->y, 6, 24, COLOR_BORDER);
-      /* Spiral coils */
-      for (int cy = 3; cy < 22; cy += 5) {
-        gfx_fill_rect((int16_t)(ic->x + 1), (int16_t)(ic->y + cy), 4, 3,
-                      COLOR_TEXT_LIGHT);
-        gfx_draw_rect((int16_t)(ic->x + 1), (int16_t)(ic->y + cy), 4, 3,
-                      COLOR_TEXT);
-      }
-
-      /* Ruled lines on the page */
-      for (int ly = 8; ly < 22; ly += 5) {
-        gfx_draw_hline((int16_t)(ic->x + 8), (int16_t)(ic->y + ly), 20,
-                       COLOR_TEXT);
-      }
-
-      /* 3D effect: light top-left, dark bottom-right */
-      gfx_draw_hline(ic->x, ic->y, 32, COLOR_TEXT_LIGHT);
-      gfx_draw_vline(ic->x, ic->y, 24, COLOR_TEXT_LIGHT);
-      gfx_draw_hline(ic->x, (int16_t)(ic->y + 23), 32, COLOR_TEXT);
-      gfx_draw_vline((int16_t)(ic->x + 31), ic->y, 24, COLOR_TEXT);
-    } else {
-      /* Default icon (terminal): filled rectangle with symbol */
-      gfx_fill_rect(ic->x, ic->y, 32, 24, COLOR_BUTTON);
-      gfx_draw_rect(ic->x, ic->y, 32, 24, COLOR_BORDER);
-      /* Draw ">_" inside to represent terminal */
-      gfx_draw_text((int16_t)(ic->x + 4), (int16_t)(ic->y + 8), ">_",
-                    COLOR_TEXT_LIGHT);
-    }
-
-    /* Label below icon — left-aligned to icon edge */
-    int16_t lx = ic->x;
-    gfx_draw_text(lx, (int16_t)(ic->y + 28), ic->label, COLOR_TEXT);
-  }
+  /* Draw all registered gfx2d icons (kernel + auto-discovered) */
+  gfx2d_icons_draw_all();
 }
 
 /* ── Taskbar hit-test ─────────────────────────────────────────────── */
@@ -354,20 +346,6 @@ int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
       return (int)w->id;
     }
     btn_x = (int16_t)(btn_x + (int16_t)btn_w + 2);
-  }
-  return -1;
-}
-
-/* ── Icon hit-test ────────────────────────────────────────────────── */
-
-static int hit_test_icon(int16_t mx, int16_t my) {
-  for (int i = 0; i < icon_count; i++) {
-    desktop_icon_t *ic = &icons[i];
-    if (!ic->active)
-      continue;
-    if (mx >= ic->x && mx < ic->x + 32 && my >= ic->y && my < ic->y + 24) {
-      return i;
-    }
   }
   return -1;
 }
@@ -798,6 +776,7 @@ void desktop_redraw_cycle(void) {
 
 void desktop_run(void) {
   bool needs_redraw = true;
+  bool force_full_repaint = false;
 
   while (1) {
     /* Skip ALL desktop processing if a fullscreen app is running */
@@ -886,9 +865,24 @@ void desktop_run(void) {
       }
       /* Check icon clicks */
       else if (pressed && gui_hit_test_window(mouse.x, mouse.y) < 0) {
-        int ic_idx = hit_test_icon(mouse.x, mouse.y);
-        if (ic_idx >= 0 && icons[ic_idx].launch) {
-          icons[ic_idx].launch();
+        /* Check gfx2d desktop icons (unified system) */
+        int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
+        if (gfx_icon >= 0) {
+          gfx2d_icon_select(gfx_icon);
+          /* Try direct launch callback first (kernel icons) */
+          void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
+          if (launch_fn) {
+            launch_fn();
+          } else {
+            /* Fall back to cupidc_jit for .cc programs */
+            const char *prog = gfx2d_icon_get_path(gfx_icon);
+            if (prog && prog[0]) {
+              cupidc_jit(prog);
+            }
+          }
+          /* App launch/return may leave stale framebuffer contents. */
+          force_full_repaint = true;
+          needs_redraw = true;
         }
       }
       /* Forward to GUI window manager */
@@ -946,7 +940,8 @@ void desktop_run(void) {
       bool cal_visibility_changed = (cal_state.visible != cal_prev_visible);
       cal_prev_visible = cal_state.visible;
 
-      if (!gui_any_dirty() && !gui_layout_changed() && !cal_state.visible &&
+      if (!force_full_repaint && !gui_any_dirty() && !gui_layout_changed() &&
+          !cal_state.visible &&
           !cal_visibility_changed && has_first_render) {
         /* Fast path: only cursor moved — write directly to displayed LFB */
         mouse_update_cursor_direct();
@@ -956,8 +951,10 @@ void desktop_run(void) {
          * If fast path ran since last full render, back_buffer has a stale
          * cursor at the old position (fast path never touches back_buffer).
          * Force a full background repaint to cover it. */
-        if (gui_layout_changed() || fast_path_used || cal_visibility_changed) {
+        if (force_full_repaint || gui_layout_changed() || fast_path_used ||
+            cal_visibility_changed) {
           fast_path_used = false;
+          force_full_repaint = false;
           desktop_anim_tick++;
           desktop_draw_background();
           desktop_draw_icons();

@@ -2449,3 +2449,307 @@ int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
   fdlg_populate(&dlg);
   return fdlg_run(&dlg);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Confirm Dialog — modal Yes/No dialog
+ * ══════════════════════════════════════════════════════════════════════ */
+
+int gfx2d_confirm_dialog(const char *message) {
+  if (!message) return 0;
+
+  int sw = gfx2d_width();
+  int sh = gfx2d_height();
+  int16_t dw = 300, dh = 120;
+  int16_t dx = (int16_t)((sw - dw) / 2);
+  int16_t dy = (int16_t)((sh - dh) / 2);
+
+  ui_rect_t dialog  = ui_rect(dx, dy, (uint16_t)dw, (uint16_t)dh);
+  ui_rect_t body    = dialog;
+  ui_rect_t tbar    = ui_cut_top(&body, 20);
+  ui_rect_t btn_row = ui_cut_bottom(&body, 30);
+
+  ui_rect_t yes_btn = ui_rect((int16_t)(dx + dw / 2 - 80), (int16_t)(btn_row.y + 5), 70, 20);
+  ui_rect_t no_btn  = ui_rect((int16_t)(dx + dw / 2 + 10), (int16_t)(btn_row.y + 5), 70, 20);
+
+  int result = -1;
+  uint8_t prev_buttons = mouse.buttons;
+
+  while (result < 0) {
+    /* Keyboard */
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (!evt.pressed) continue;
+      if (evt.character == 'y' || evt.character == 'Y') result = 1;
+      if (evt.character == 'n' || evt.character == 'N') result = 0;
+      if (evt.scancode == FDLG_SC_ESCAPE) result = 0;
+      if (evt.scancode == FDLG_SC_ENTER)  result = 1;
+    }
+
+    /* Mouse */
+    int16_t mx = mouse.x, my = mouse.y;
+    uint8_t btns = mouse.buttons;
+    bool pressed = (btns & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+    prev_buttons = btns;
+
+    if (pressed) {
+      if (ui_contains(yes_btn, mx, my)) result = 1;
+      if (ui_contains(no_btn, mx, my))  result = 0;
+    }
+
+    /* Render */
+    gfx2d_cursor_hide();
+    ui_draw_shadow(dialog, COLOR_TEXT, 2);
+    ui_draw_panel(dialog, COLOR_WINDOW_BG, true, true);
+    ui_draw_titlebar(tbar, "Confirm", true);
+
+    ui_rect_t msg_area = ui_pad(body, 8);
+    ui_draw_label(msg_area, message, COLOR_BLACK, UI_ALIGN_CENTER);
+    ui_draw_button(yes_btn, "Yes", true);
+    ui_draw_button(no_btn, "No", false);
+    gfx2d_draw_cursor();
+    gfx2d_flip();
+    process_yield();
+  }
+  return result;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Input Dialog — modal text input dialog
+ * ══════════════════════════════════════════════════════════════════════ */
+
+int gfx2d_input_dialog(const char *prompt, char *result, int maxlen) {
+  if (!prompt || !result || maxlen <= 0) return 0;
+
+  int sw = gfx2d_width();
+  int sh = gfx2d_height();
+  int16_t dw = 340, dh = 140;
+  int16_t dx = (int16_t)((sw - dw) / 2);
+  int16_t dy = (int16_t)((sh - dh) / 2);
+
+  ui_rect_t dialog  = ui_rect(dx, dy, (uint16_t)dw, (uint16_t)dh);
+  ui_rect_t body    = dialog;
+  ui_rect_t tbar    = ui_cut_top(&body, 20);
+  ui_rect_t btn_row = ui_cut_bottom(&body, 30);
+
+  ui_rect_t ok_btn     = ui_rect((int16_t)(dx + dw / 2 - 80), (int16_t)(btn_row.y + 5), 70, 20);
+  ui_rect_t cancel_btn = ui_rect((int16_t)(dx + dw / 2 + 10), (int16_t)(btn_row.y + 5), 70, 20);
+
+  char input[128];
+  int input_len = 0;
+  input[0] = '\0';
+
+  int done = 0;
+  int confirmed = 0;
+  uint8_t prev_buttons = mouse.buttons;
+
+  while (!done) {
+    /* Keyboard */
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (!evt.pressed) continue;
+      if (evt.scancode == FDLG_SC_ESCAPE) { done = 1; break; }
+      if (evt.scancode == FDLG_SC_ENTER) {
+        confirmed = 1; done = 1; break;
+      }
+      if (evt.scancode == FDLG_SC_BACKSPACE) {
+        if (input_len > 0) { input_len--; input[input_len] = '\0'; }
+      } else if (evt.character >= 0x20 && evt.character < 0x7F) {
+        if (input_len < maxlen - 1 && input_len < 126) {
+          input[input_len] = evt.character;
+          input_len++;
+          input[input_len] = '\0';
+        }
+      }
+    }
+
+    /* Mouse */
+    int16_t mx = mouse.x, my = mouse.y;
+    uint8_t btns = mouse.buttons;
+    bool pressed = (btns & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+    prev_buttons = btns;
+
+    if (pressed) {
+      if (ui_contains(ok_btn, mx, my))     { confirmed = 1; done = 1; }
+      if (ui_contains(cancel_btn, mx, my)) { done = 1; }
+    }
+
+    /* Render */
+    gfx2d_cursor_hide();
+    ui_draw_shadow(dialog, COLOR_TEXT, 2);
+    ui_draw_panel(dialog, COLOR_WINDOW_BG, true, true);
+    ui_draw_titlebar(tbar, "Input", true);
+
+    ui_rect_t prompt_area = ui_rect((int16_t)(dx + 10), (int16_t)(tbar.y + tbar.h + 8), (uint16_t)(dw - 20), 16);
+    ui_draw_label(prompt_area, prompt, COLOR_BLACK, UI_ALIGN_LEFT);
+
+    ui_rect_t field = ui_rect((int16_t)(dx + 10), (int16_t)(prompt_area.y + 22), (uint16_t)(dw - 20), 20);
+    ui_draw_textfield(field, input, input_len);
+
+    ui_draw_button(ok_btn, "OK", true);
+    ui_draw_button(cancel_btn, "Cancel", false);
+    gfx2d_draw_cursor();
+    gfx2d_flip();
+    process_yield();
+  }
+
+  if (confirmed && input_len > 0) {
+    int i = 0;
+    while (i < input_len && i < maxlen - 1) { result[i] = input[i]; i++; }
+    result[i] = '\0';
+    return 1;
+  }
+  return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Message Dialog — modal OK dialog
+ * ══════════════════════════════════════════════════════════════════════ */
+
+void gfx2d_message_dialog(const char *message) {
+  if (!message) return;
+
+  int sw = gfx2d_width();
+  int sh = gfx2d_height();
+  int16_t dw = 300, dh = 110;
+  int16_t dx = (int16_t)((sw - dw) / 2);
+  int16_t dy = (int16_t)((sh - dh) / 2);
+
+  ui_rect_t dialog  = ui_rect(dx, dy, (uint16_t)dw, (uint16_t)dh);
+  ui_rect_t body    = dialog;
+  ui_rect_t tbar    = ui_cut_top(&body, 20);
+  ui_rect_t btn_row = ui_cut_bottom(&body, 30);
+
+  ui_rect_t ok_btn = ui_rect((int16_t)(dx + dw / 2 - 35), (int16_t)(btn_row.y + 5), 70, 20);
+
+  int done = 0;
+  uint8_t prev_buttons = mouse.buttons;
+
+  while (!done) {
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (!evt.pressed) continue;
+      if (evt.scancode == FDLG_SC_ESCAPE || evt.scancode == FDLG_SC_ENTER)
+        done = 1;
+    }
+
+    int16_t mx = mouse.x, my = mouse.y;
+    uint8_t btns = mouse.buttons;
+    bool pressed = (btns & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+    prev_buttons = btns;
+
+    if (pressed && ui_contains(ok_btn, mx, my)) done = 1;
+
+    gfx2d_cursor_hide();
+    ui_draw_shadow(dialog, COLOR_TEXT, 2);
+    ui_draw_panel(dialog, COLOR_WINDOW_BG, true, true);
+    ui_draw_titlebar(tbar, "Message", true);
+
+    ui_rect_t msg_area = ui_pad(body, 8);
+    ui_draw_label(msg_area, message, COLOR_BLACK, UI_ALIGN_CENTER);
+    ui_draw_button(ok_btn, "OK", true);
+    gfx2d_draw_cursor();
+    gfx2d_flip();
+    process_yield();
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Popup Menu — modal context menu, returns selected index or -1
+ * ══════════════════════════════════════════════════════════════════════ */
+
+int gfx2d_popup_menu(int x, int y, const char **items, int count) {
+  if (!items || count <= 0) return -1;
+  if (count > 16) count = 16;
+
+  int item_h = 18;
+  int pad = 4;
+  int max_w = 60;
+
+  /* Measure widths */
+  int i;
+  for (i = 0; i < count; i++) {
+    int tw = gfx2d_text_width(items[i], 1) + pad * 4;
+    if (tw > max_w) max_w = tw;
+  }
+
+  int menu_w = max_w;
+  int menu_h = count * item_h + pad * 2;
+  int msw = gfx2d_width();
+  int msh = gfx2d_height();
+
+  /* Clamp to screen */
+  if (x + menu_w > msw) x = msw - menu_w;
+  if (y + menu_h > msh) y = msh - menu_h;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+
+  int hover = -1;
+  int selected = -1;
+  uint8_t prev_buttons = mouse.buttons;
+
+  while (selected < 0) {
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (!evt.pressed) continue;
+      if (evt.scancode == FDLG_SC_ESCAPE) { selected = -2; break; }
+      if (evt.scancode == FDLG_SC_ENTER && hover >= 0) {
+        selected = hover; break;
+      }
+      if (evt.scancode == FDLG_SC_ARROW_UP) {
+        hover--;
+        if (hover < 0) hover = count - 1;
+      }
+      if (evt.scancode == FDLG_SC_ARROW_DOWN) {
+        hover++;
+        if (hover >= count) hover = 0;
+      }
+    }
+    if (selected == -2) { selected = -1; break; }
+
+    int mx = mouse.x, my = mouse.y;
+    uint8_t btns = mouse.buttons;
+    bool pressed = (btns & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+    prev_buttons = btns;
+
+    /* Update hover from mouse position */
+    if (mx >= x && mx < x + menu_w && my >= y + pad && my < y + menu_h - pad) {
+      hover = (my - y - pad) / item_h;
+      if (hover >= count) hover = count - 1;
+    }
+
+    if (pressed) {
+      if (mx >= x && mx < x + menu_w && my >= y + pad && my < y + menu_h - pad) {
+        selected = (my - y - pad) / item_h;
+        if (selected >= count) selected = count - 1;
+      } else {
+        /* Clicked outside */
+        selected = -1;
+        break;
+      }
+    }
+
+    /* Render */
+    gfx2d_cursor_hide();
+
+    /* Shadow */
+    gfx2d_rect_fill(x + 2, y + 2, menu_w, menu_h, 0x00404040);
+    /* Background */
+    gfx2d_rect_fill(x, y, menu_w, menu_h, COLOR_WINDOW_BG);
+    gfx2d_rect(x, y, menu_w, menu_h, COLOR_BORDER);
+
+    for (i = 0; i < count; i++) {
+      int iy = y + pad + i * item_h;
+      if (i == hover) {
+        gfx2d_rect_fill(x + 1, iy, menu_w - 2, item_h, COLOR_BUTTON);
+        gfx2d_text(x + pad * 2, iy + 3, items[i], COLOR_TEXT_LIGHT, 1);
+      } else {
+        gfx2d_text(x + pad * 2, iy + 3, items[i], COLOR_BLACK, 1);
+      }
+    }
+
+    gfx2d_draw_cursor();
+    gfx2d_flip();
+    process_yield();
+  }
+  return selected;
+}

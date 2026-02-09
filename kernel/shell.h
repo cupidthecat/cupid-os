@@ -81,6 +81,12 @@ void shell_jit_program_input(char c);
 char shell_jit_program_getchar(void);
 
 /**
+ * Non-blocking poll for a character from the JIT program input buffer.
+ * Returns 0 if no key is available, otherwise the character.
+ */
+char shell_jit_program_pollchar(void);
+
+/**
  * Mark that a JIT program is about to start execution.
  * Switches keyboard input routing to the program.
  */

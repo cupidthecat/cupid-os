@@ -173,6 +173,7 @@ typedef struct {
   int is_defined;   /* has function body been emitted?   */
   int is_array;     /* stack-allocated array?             */
   int struct_index; /* index into structs[] for struct types */
+  int array_elem_size; /* element size for array subscript scaling */
 } cc_symbol_t;
 
 /* ── Struct field definition ─────────────────────────────────────── */
@@ -181,6 +182,7 @@ typedef struct {
   cc_type_t type;
   int32_t offset;   /* byte offset within struct         */
   int struct_index; /* if type is struct, which struct    */
+  int array_count;  /* >0 if this field is a fixed array  */
 } cc_field_t;
 
 /* ── Struct definition ───────────────────────────────────────────── */

@@ -35,4 +35,10 @@ int vfs_read_text(const char *path, char *buffer, uint32_t max_size);
  */
 int vfs_write_text(const char *path, const char *text);
 
+/**
+ * Copy a file from src to dest.
+ * @return bytes copied on success, negative VFS error on failure
+ */
+int vfs_copy_file(const char *src, const char *dest);
+
 #endif /* VFS_HELPERS_H */
