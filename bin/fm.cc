@@ -68,6 +68,7 @@ int running = 1;
 
 /* Clipboard for copy/cut */
 char clip_paths[8][128];
+int clip_is_dir[8];  /* 1 if the clipboard item is a directory */
 int clip_count = 0;
 int clip_cut = 0;  /* 1 = cut mode (move), 0 = copy mode */
 
@@ -314,12 +315,14 @@ void fm_copy() {
   while (i < file_count && clip_count < 8) {
     if (files[i].selected) {
       fm_build_path(clip_paths[clip_count], cwd, files[i].name);
+      clip_is_dir[clip_count] = files[i].is_dir;
       clip_count++;
     }
     i++;
   }
   if (clip_count == 0 && cursor_idx >= 0 && cursor_idx < file_count) {
     fm_build_path(clip_paths[0], cwd, files[cursor_idx].name);
+    clip_is_dir[0] = files[cursor_idx].is_dir;
     clip_count = 1;
   }
 }
@@ -345,10 +348,25 @@ void fm_paste() {
     char dst[128];
     fm_build_path(dst, cwd, name);
 
-    if (clip_cut) {
-      vfs_rename(src, dst);
+    /* Skip if source and destination are the same path */
+    if (strcmp(src, dst) == 0) {
+      i++;
+      continue;
+    }
+
+    if (clip_is_dir[i]) {
+      /* Directory: create at destination */
+      vfs_mkdir(dst);
+      /* For cut: try to remove source (only works if empty) */
+      if (clip_cut) {
+        vfs_unlink(src);
+      }
     } else {
-      vfs_copy_file(src, dst);
+      if (clip_cut) {
+        vfs_rename(src, dst);
+      } else {
+        vfs_copy_file(src, dst);
+      }
     }
     i++;
   }
