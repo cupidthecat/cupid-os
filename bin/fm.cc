@@ -466,16 +466,14 @@ void fm_render(int mx, int my, int click) {
   /* Background */
   gfx2d_rect_fill(0, 0, scrw, scrh, COL_BG);
 
-  /* Title bar */
-  gfx2d_rect_fill(0, 0, scrw, FM_TITLEBAR_H, COL_TITLEBAR);
-  gfx2d_text(8, 4, "CupidFM - File Manager", COL_WHITE, 1);
-
-  /* Close button */
-  int close_x = scrw - 20;
-  gfx2d_rect_fill(close_x, 2, 16, 16, 0x00FF9090);
-  gfx2d_text(close_x + 4, 4, "X", COL_BLACK, 1);
-  if (click && mx >= close_x && mx < close_x + 16 && my >= 2 && my < 18) {
-    running = 0;
+  /* App title bar with close/minimize buttons */
+  int tb_action = gfx2d_app_toolbar("CupidFM", mx, my, click);
+  if (tb_action == 1 || gfx2d_should_quit()) {
+    running = 0; /* Close */
+    return;
+  }
+  if (tb_action == 2) {
+    gfx2d_minimize("CupidFM"); /* Minimize to taskbar */
     return;
   }
 
@@ -643,6 +641,9 @@ void fm_context_menu(int mx, int my) {
 /* ── Main loop ────────────────────────────────────────────────────── */
 
 int main() {
+  /* Enter fullscreen mode */
+  gfx2d_fullscreen_enter();
+
   /* Start at root or cwd */
   char *start = get_cwd();
   if (start != 0 && start[0] != 0) {
@@ -782,5 +783,6 @@ int main() {
     yield();
   }
 
+  gfx2d_fullscreen_exit();
   return 0;
 }

@@ -20,10 +20,12 @@ int TOOL_RECT = 2;
 int TOOL_CIRCLE = 3;
 int TOOL_FILL = 4;
 
+int TOOLBAR_H = 20;
+
 int CANVAS_X = 40;
-int CANVAS_Y = 0;
+int CANVAS_Y = 20;
 int CANVAS_W = 600;
-int CANVAS_H = 448;
+int CANVAS_H = 428;
 
 /* Palette colors (16 standard VGA/Win95 colors) */
 int palette[16];
@@ -269,8 +271,8 @@ void load_drawing() {
 /* ── UI Drawing ───────────────────────────────────────────────────── */
 
 void draw_toolbar() {
-  /* Toolbar background */
-  gfx2d_panel(0, 0, 40, 480);
+  /* Side toolbar background (below app toolbar) */
+  gfx2d_panel(0, TOOLBAR_H, 40, 480 - TOOLBAR_H);
 
   /* Tools */
   /* Replaced array of strings with explicit calls because array init might be
@@ -279,7 +281,7 @@ void draw_toolbar() {
 
   int i = 0;
   while (i < 5) {
-    int y = 10 + i * 40;
+    int y = TOOLBAR_H + 10 + i * 40;
     int selected = 0;
     if (current_tool == i)
       selected = 1;
@@ -303,8 +305,8 @@ void draw_toolbar() {
 
   /* Brush Size Controls */
   /* [+] */
-  gfx2d_bevel(4, 250, 32, 20, 1);
-  gfx2d_text(15, 256, "+", 0x000000, 1);
+  gfx2d_bevel(4, TOOLBAR_H + 250, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + 256, "+", 0x000000, 1);
 
   /* Size Indicator */
   char size_str[4];
@@ -321,34 +323,35 @@ void draw_toolbar() {
     size_str[2] = 0;
   }
 
-  gfx2d_rect_fill(10, 275, 20, 10, 0xC0C0C0);
-  gfx2d_text(15, 275, size_str, 0x000000, 0);
+  gfx2d_rect_fill(10, TOOLBAR_H + 275, 20, 10, 0xC0C0C0);
+  gfx2d_text(15, TOOLBAR_H + 275, size_str, 0x000000, 0);
 
   /* [-] */
-  gfx2d_bevel(4, 290, 32, 20, 1);
-  gfx2d_text(15, 296, "-", 0x000000, 1);
+  gfx2d_bevel(4, TOOLBAR_H + 290, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + 296, "-", 0x000000, 1);
 
   /* Save/Load Buttons */
-  gfx2d_bevel(4, 400, 32, 20, 1);
-  gfx2d_text(8, 406, "SV", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + 400, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + 406, "SV", 0x000000, 0);
 
   /* Save As button */
-  gfx2d_bevel(4, 425, 32, 20, 1);
-  gfx2d_text(8, 431, "SA", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + 425, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + 431, "SA", 0x000000, 0);
 
   /* Load button */
-  gfx2d_bevel(4, 450, 32, 20, 1);
-  gfx2d_text(8, 456, "LD", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + 450, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + 456, "LD", 0x000000, 0);
 }
 
 void draw_palette() {
   /* Palette background */
-  gfx2d_panel(40, 448, 600, 32);
+  int palette_y = CANVAS_Y + CANVAS_H;
+  gfx2d_panel(40, palette_y, 600, 32);
 
   int i = 0;
   while (i < 16) {
     int x = 40 + 4 + i * 32;
-    int y = 448 + 4;
+    int y = palette_y + 4;
 
     /* Highlight selected color */
     if (palette[i] == current_color) {
@@ -505,6 +508,7 @@ int main() {
 
   /* Enter graphics mode */
   gfx2d_init();
+  gfx2d_fullscreen_enter();
 
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
@@ -519,6 +523,7 @@ int main() {
   gfx2d_surface_unset_active();
 
   int quit = 0;
+  int prev_buttons = 0;
 
   while (quit == 0) {
     /* Input */
@@ -526,6 +531,7 @@ int main() {
     int my = mouse_y();
     int b = mouse_buttons();
     int click = (b & 1);
+    int left_click = (b & 1) && !(prev_buttons & 1);
 
     /* Handle Click/Drag */
     if (click) {
@@ -535,40 +541,42 @@ int main() {
         drag_start_x = mx;
         drag_start_y = my;
 
-        /* UI Interaction */
-        if (mx < 40) { /* Toolbar */
-          if (my >= 10 && my < 210) {
-            current_tool = (my - 10) / 40;
+        /* UI Interaction — skip if click is in the title bar area */
+        if (my < TOOLBAR_H) {
+          /* Handled by gfx2d_app_toolbar */
+        } else if (mx < 40) { /* Side Toolbar */
+          if (my >= TOOLBAR_H + 10 && my < TOOLBAR_H + 210) {
+            current_tool = (my - TOOLBAR_H - 10) / 40;
             if (current_tool > 4)
               current_tool = 4;
           }
-          if (my >= 250 && my < 270) {
+          if (my >= TOOLBAR_H + 250 && my < TOOLBAR_H + 270) {
             /* Brush Size + */
             if (brush_size < 10)
               brush_size++;
           }
-          if (my >= 290 && my < 310) {
+          if (my >= TOOLBAR_H + 290 && my < TOOLBAR_H + 310) {
             /* Brush Size - */
             if (brush_size > 1)
               brush_size--;
           }
-          if (my >= 400 && my < 420) {
+          if (my >= TOOLBAR_H + 400 && my < TOOLBAR_H + 420) {
             save_drawing();
           }
-          if (my >= 425 && my < 445) {
+          if (my >= TOOLBAR_H + 425 && my < TOOLBAR_H + 445) {
             save_drawing_as();
           }
-          if (my >= 450 && my < 470) {
+          if (my >= TOOLBAR_H + 450 && my < TOOLBAR_H + 470) {
             load_drawing();
           }
         } else {
-          if (my > 448) { /* Palette */
+          if (my > TOOLBAR_H + 428) { /* Palette */
             int col_idx = (mx - 44) / 32;
             if (col_idx >= 0 && col_idx < 16) {
               current_color = palette[col_idx];
             }
           } else {
-            if (mx >= CANVAS_X && my <= CANVAS_H) { /* Canvas */
+            if (mx >= CANVAS_X && my >= CANVAS_Y && my <= CANVAS_Y + CANVAS_H) { /* Canvas */
               is_dragging = 1;
               if (current_tool == TOOL_PENCIL || current_tool == TOOL_FILL) {
                 use_tool(mx, my, 0);
@@ -602,9 +610,19 @@ int main() {
     /* Update Prev Mouse */
     mouse_prev_x = mx;
     mouse_prev_y = my;
+    prev_buttons = b;
 
     /* Render */
     gfx2d_clear(0xC0C0C0); /* Desktop BG */
+
+    /* Draw App Toolbar (title bar with close/minimize) */
+    int tb_action = gfx2d_app_toolbar("CupidPaint", mx, my, left_click);
+    if (tb_action == 1 || gfx2d_should_quit()) {
+      quit = 1; /* Close */
+    }
+    if (tb_action == 2) {
+      gfx2d_minimize("CupidPaint"); /* Minimize to taskbar */
+    }
 
     /* Draw Canvas */
     gfx2d_surface_blit(canvas_surf, CANVAS_X, CANVAS_Y);
@@ -623,5 +641,6 @@ int main() {
     gfx2d_flip();
   }
 
+  gfx2d_fullscreen_exit();
   return 0;
 }
