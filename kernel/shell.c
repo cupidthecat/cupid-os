@@ -59,6 +59,19 @@ static int jit_input_read_pos = 0;
 static int jit_input_write_pos = 0;
 static int jit_program_running = 0;
 static int jit_program_interrupted = 0;
+static int jit_program_killed = 0;
+static char jit_program_name[64] = {0};
+
+/* Stack for nested JIT programs (e.g. minimized app + user runs ps) */
+#define JIT_STACK_MAX 4
+static struct {
+  char name[64];
+  int  running;
+  int  killed;
+  void *saved_code;  /* kmalloc'd copy of CC_JIT_CODE_BASE region */
+  void *saved_data;  /* kmalloc'd copy of CC_JIT_DATA_BASE region */
+} jit_stack[JIT_STACK_MAX];
+static int jit_stack_depth = 0;
 
 void shell_set_program_args(const char *args) {
   int i = 0;
@@ -1677,8 +1690,6 @@ static void gui_exec_command(const char *input) {
  *  JIT Program Input Routing (GUI Mode)
  * ══════════════════════════════════════════════════════════════════════ */
 
-int shell_jit_program_is_running(void) { return jit_program_running; }
-
 void shell_jit_program_input(char c) {
 
   /* Check for Ctrl+C (ASCII 3) to interrupt program */
@@ -1729,21 +1740,144 @@ char shell_jit_program_pollchar(void) {
   return c;
 }
 
-void shell_jit_program_start(void) {
+void shell_jit_program_start(const char *name) {
+  /* If a JIT program is already loaded, push its state onto the stack */
+  if (jit_program_name[0] != '\0' && jit_stack_depth < JIT_STACK_MAX) {
+    int d = jit_stack_depth;
+    int j = 0;
+    while (jit_program_name[j]) {
+      jit_stack[d].name[j] = jit_program_name[j];
+      j++;
+    }
+    jit_stack[d].name[j] = '\0';
+    jit_stack[d].running = jit_program_running;
+    jit_stack[d].killed  = jit_program_killed;
+
+    /* Save the JIT code+data regions so they survive being overwritten */
+    jit_stack[d].saved_code = kmalloc(CC_MAX_CODE);
+    jit_stack[d].saved_data = kmalloc(CC_MAX_DATA);
+    if (jit_stack[d].saved_code)
+      memcpy(jit_stack[d].saved_code, (void *)CC_JIT_CODE_BASE, CC_MAX_CODE);
+    if (jit_stack[d].saved_data)
+      memcpy(jit_stack[d].saved_data, (void *)CC_JIT_DATA_BASE, CC_MAX_DATA);
+
+    jit_stack_depth++;
+    serial_printf("[shell] JIT stack push depth=%d saved %s\n", jit_stack_depth, jit_stack[d].name);
+  }
+
   jit_program_running = 1;
   jit_program_interrupted = 0;
+  jit_program_killed = 0;
   jit_input_read_pos = 0;
   jit_input_write_pos = 0;
+
+  /* Store the program name for ps listing */
+  int i = 0;
+  if (name) {
+    /* Extract basename: skip path prefix */
+    const char *base = name;
+    for (const char *p = name; *p; p++) {
+      if (*p == '/') base = p + 1;
+    }
+    /* Copy basename, strip .cc extension */
+    while (base[i] && i < 62) {
+      if (base[i] == '.' && base[i+1] == 'c' && base[i+2] == 'c' && base[i+3] == '\0')
+        break;
+      jit_program_name[i] = base[i];
+      i++;
+    }
+  }
+  jit_program_name[i] = '\0';
 }
 
 void shell_jit_program_end(void) {
-  jit_program_running = 0;
-  jit_program_interrupted = 0;
+  /* Pop previous JIT state if we nested */
+  if (jit_stack_depth > 0) {
+    jit_stack_depth--;
+    int d = jit_stack_depth;
+    int j = 0;
+    while (jit_stack[d].name[j]) {
+      jit_program_name[j] = jit_stack[d].name[j];
+      j++;
+    }
+    jit_program_name[j] = '\0';
+    jit_program_running = jit_stack[d].running;
+    jit_program_killed  = jit_stack[d].killed;
+    jit_program_interrupted = 0;
+
+    /* Restore the saved JIT code+data regions */
+    if (jit_stack[d].saved_code) {
+      memcpy((void *)CC_JIT_CODE_BASE, jit_stack[d].saved_code, CC_MAX_CODE);
+      kfree(jit_stack[d].saved_code);
+      jit_stack[d].saved_code = NULL;
+    }
+    if (jit_stack[d].saved_data) {
+      memcpy((void *)CC_JIT_DATA_BASE, jit_stack[d].saved_data, CC_MAX_DATA);
+      kfree(jit_stack[d].saved_data);
+      jit_stack[d].saved_data = NULL;
+    }
+    serial_printf("[shell] JIT stack pop depth=%d restored %s\n", jit_stack_depth, jit_program_name);
+  } else {
+    jit_program_running = 0;
+    jit_program_interrupted = 0;
+    jit_program_killed = 0;
+    jit_program_name[0] = '\0';
+  }
 
   /* Defensive cleanup: fullscreen apps can bypass their own teardown paths. */
   if (gfx2d_fullscreen_active()) {
     gfx2d_fullscreen_exit();
   }
+}
+
+void shell_jit_program_suspend(void) {
+  jit_program_running = 0;
+}
+
+void shell_jit_program_resume(void) {
+  jit_program_running = 1;
+}
+
+int shell_jit_program_is_running(void) {
+  return jit_program_name[0] != '\0' || jit_stack_depth > 0;
+}
+
+const char *shell_jit_program_get_name(void) {
+  return jit_program_name;
+}
+
+void shell_jit_program_kill(void) {
+  /* Kill the suspended (minimized) JIT program, not the active one */
+  if (jit_stack_depth > 0) {
+    jit_stack[jit_stack_depth - 1].killed = 1;
+  } else {
+    jit_program_killed = 1;
+    jit_program_interrupted = 1;
+  }
+}
+
+void shell_jit_program_kill_at(int index) {
+  if (index >= 0 && index < jit_stack_depth) {
+    jit_stack[index].killed = 1;
+  } else if (index == jit_stack_depth) {
+    /* The active (topmost) JIT program */
+    jit_program_killed = 1;
+    jit_program_interrupted = 1;
+  }
+}
+
+int shell_jit_program_was_killed(void) {
+  return jit_program_killed;
+}
+
+int shell_jit_suspended_count(void) {
+  return jit_stack_depth;
+}
+
+const char *shell_jit_suspended_get_name(int index) {
+  if (index >= 0 && index < jit_stack_depth)
+    return jit_stack[index].name;
+  return "";
 }
 
 void shell_gui_handle_key(uint8_t scancode, char character) {

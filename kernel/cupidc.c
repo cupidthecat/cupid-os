@@ -912,6 +912,15 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_fullscreen_exit)(void) = gfx2d_fullscreen_exit;
   BIND("gfx2d_fullscreen_exit", p_gfx2d_fullscreen_exit, 0);
 
+  int (*p_gfx2d_app_toolbar)(const char *, int, int, int) =
+      gfx2d_app_toolbar;
+  BIND("gfx2d_app_toolbar", p_gfx2d_app_toolbar, 4);
+
+  void (*p_gfx2d_minimize)(const char *) = gfx2d_minimize;
+  BIND("gfx2d_minimize", p_gfx2d_minimize, 1);
+  int (*p_gfx2d_should_quit)(void) = gfx2d_should_quit;
+  BIND("gfx2d_should_quit", p_gfx2d_should_quit, 0);
+
   void (*p_gfx2d_draw_cursor)(void) = gfx2d_draw_cursor;
   BIND("gfx2d_draw_cursor", p_gfx2d_draw_cursor, 0);
 
@@ -1227,6 +1236,10 @@ void cupidc_jit(const char *path) {
   /* JIT code/data regions are permanently reserved at boot by pmm_init()
    * so the heap never allocates into them.  Just copy and execute. */
 
+  /* Save the current JIT regions BEFORE overwriting (for nested JIT programs).
+   * This must happen before the memcpy so we preserve the previous program. */
+  shell_jit_program_start(path);
+
   /* Copy code and data to execution regions */
   memcpy((void *)CC_JIT_CODE_BASE, cc->code, cc->code_pos);
   memcpy((void *)CC_JIT_DATA_BASE, cc->data, cc->data_pos);
@@ -1240,9 +1253,6 @@ void cupidc_jit(const char *path) {
 
   /* Check stack health before execution */
   stack_guard_check();
-
-  /* Mark program as running (routes GUI keyboard input to program) */
-  shell_jit_program_start();
 
   /* Execute the program directly (JIT — synchronous) */
   entry_fn();

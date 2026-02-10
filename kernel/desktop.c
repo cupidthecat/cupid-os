@@ -21,6 +21,7 @@
 #include "notepad.h"
 #include "cupidc.h"
 #include "process.h"
+#include "shell.h"
 #include "string.h"
 #include "terminal_app.h"
 
@@ -772,6 +773,217 @@ void desktop_redraw_cycle(void) {
 
     vga_flip();
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Minimized fullscreen app support
+ *
+ *  When a fullscreen JIT program calls gfx2d_minimize(), we need to
+ *  run the desktop event loop with a taskbar button for the app.
+ *  Since JIT programs execute synchronously (blocking the desktop
+ *  loop), this function takes over as the temporary event loop until
+ *  the user clicks the taskbar button to restore the app.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+void desktop_run_minimized_loop(const char *app_name) {
+  serial_printf("[desktop] minimized app: %s\n", app_name);
+
+  bool restore_requested = false;
+  uint8_t prev_btns = mouse.buttons;
+
+  while (!restore_requested) {
+    /* Check if the minimized program was killed */
+    if (shell_jit_program_was_killed()) {
+      serial_printf("[desktop] minimized app killed: %s\n", app_name);
+      break;
+    }
+
+    /* Recalculate all minimized JIT button positions each frame
+     * (stack depth can change if a nested JIT program launches/exits) */
+    int16_t jit_btn_x = TASKBAR_BTN_START;
+    /* Skip past GUI window buttons */
+    for (uint32_t id = 1; id < 64; id++) {
+      window_t *w = gui_get_window((int)id);
+      if (!w || !(w->flags & WINDOW_FLAG_VISIBLE)) continue;
+      uint16_t bw = gfx_text_width(w->title);
+      if (bw < 40) bw = 40;
+      bw = (uint16_t)(bw + 8);
+      if (bw > TASKBAR_BTN_MAX_W) bw = TASKBAR_BTN_MAX_W;
+      jit_btn_x = (int16_t)(jit_btn_x + (int16_t)bw + 2);
+    }
+
+    /* Build list of minimized JIT buttons: suspended stack + current app */
+    int n_suspended = shell_jit_suspended_count();
+    /* We only care about stack entries below us (indices 0..n_suspended-1
+     * are older minimized apps; the topmost entry is us but we pass
+     * ourselves as app_name). */
+    #define MAX_JIT_BTNS 8
+    struct {
+      int16_t  x;
+      uint16_t w;
+      const char *name;
+    } jit_btns[MAX_JIT_BTNS];
+    int n_btns = 0;
+
+    /* Add suspended (deeper) JIT apps */
+    for (int si = 0; si < n_suspended && n_btns < MAX_JIT_BTNS; si++) {
+      const char *sname = shell_jit_suspended_get_name(si);
+      if (sname[0] == '\0') continue;
+      uint16_t bw = gfx_text_width(sname);
+      if (bw < 40) bw = 40;
+      bw = (uint16_t)(bw + 8);
+      if (bw > TASKBAR_BTN_MAX_W) bw = TASKBAR_BTN_MAX_W;
+      jit_btns[n_btns].x = jit_btn_x;
+      jit_btns[n_btns].w = bw;
+      jit_btns[n_btns].name = sname;
+      n_btns++;
+      jit_btn_x = (int16_t)(jit_btn_x + (int16_t)bw + 2);
+    }
+
+    /* Add the current minimized app (the one we can restore) */
+    int current_btn_idx = -1;
+    if (n_btns < MAX_JIT_BTNS) {
+      uint16_t bw = gfx_text_width(app_name);
+      if (bw < 40) bw = 40;
+      bw = (uint16_t)(bw + 8);
+      if (bw > TASKBAR_BTN_MAX_W) bw = TASKBAR_BTN_MAX_W;
+      current_btn_idx = n_btns;
+      jit_btns[n_btns].x = jit_btn_x;
+      jit_btns[n_btns].w = bw;
+      jit_btns[n_btns].name = app_name;
+      n_btns++;
+    }
+
+    /* ── Process mouse ──────────────────────────────────────── */
+    if (mouse.updated) {
+      mouse.updated = false;
+
+      uint8_t btn = mouse.buttons;
+      bool pressed = (btn & 0x01) && !(prev_btns & 0x01);
+
+      if (pressed) {
+        /* Check for click on the current app's taskbar button (restore) */
+        if (mouse.y >= TASKBAR_Y && current_btn_idx >= 0 &&
+            mouse.x >= jit_btns[current_btn_idx].x &&
+            mouse.x < jit_btns[current_btn_idx].x +
+                       (int16_t)jit_btns[current_btn_idx].w) {
+          restore_requested = true;
+        }
+        /* Check clock hitbox */
+        else if (mouse.y >= TASKBAR_Y &&
+                 mouse.x >= clock_hitbox_x &&
+                 mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
+          desktop_toggle_calendar();
+        }
+        /* Handle other taskbar window buttons */
+        else if (mouse.y >= TASKBAR_Y) {
+          int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
+          if (tb_id >= 0) {
+            gui_set_focus(tb_id);
+          }
+        }
+        /* Calendar popup clicks */
+        else if (cal_state.visible) {
+          calendar_handle_click(mouse.x, mouse.y);
+        }
+        /* Icon clicks */
+        else if (gui_hit_test_window(mouse.x, mouse.y) < 0) {
+          int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
+          if (gfx_icon >= 0) {
+            gfx2d_icon_select(gfx_icon);
+            /* Launch the program (same as main desktop loop) */
+            void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
+            if (launch_fn) {
+              launch_fn();
+            } else {
+              const char *prog = gfx2d_icon_get_path(gfx_icon);
+              if (prog && prog[0]) {
+                cupidc_jit(prog);
+              }
+            }
+          }
+        }
+        /* Window clicks */
+        else {
+          gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+          int np_wid = notepad_get_wid();
+          window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+          if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+            notepad_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+          }
+        }
+      }
+      prev_btns = btn;
+    }
+
+    /* ── Process keyboard ───────────────────────────────────── */
+    {
+      key_event_t event;
+      while (keyboard_read_event(&event)) {
+        if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
+          cal_state.visible = false;
+          continue;
+        }
+        int np_wid = notepad_get_wid();
+        window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+        if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+          notepad_handle_key(event.scancode, event.character);
+        } else {
+          terminal_handle_key(event.scancode, event.character);
+        }
+      }
+    }
+
+    /* ── Cursor blink tick ──────────────────────────────────── */
+    terminal_tick();
+    notepad_tick();
+
+    /* ── Render ─────────────────────────────────────────────── */
+    desktop_anim_tick++;
+    desktop_draw_background();
+    desktop_draw_icons();
+    gui_draw_all_windows();
+
+    /* Draw the standard taskbar */
+    desktop_draw_taskbar();
+
+    /* Draw minimized JIT app buttons on the taskbar */
+    for (int bi = 0; bi < n_btns; bi++) {
+      uint32_t bg = COLOR_TASKBAR;
+      gfx_fill_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
+                     jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4), bg);
+      gfx_draw_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
+                     jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4),
+                     COLOR_BORDER);
+
+      /* Truncate title to fit button */
+      int max_chars = (int)(jit_btns[bi].w - 8) / 8;
+      if (max_chars < 1) max_chars = 1;
+      char trunc[32];
+      int ti = 0;
+      while (jit_btns[bi].name[ti] && ti < max_chars && ti < 31) {
+        trunc[ti] = jit_btns[bi].name[ti];
+        ti++;
+      }
+      if (jit_btns[bi].name[ti] && ti >= max_chars && ti >= 2) {
+        trunc[ti - 1] = '.';
+        trunc[ti - 2] = '.';
+      }
+      trunc[ti] = '\0';
+      gfx_draw_text((int16_t)(jit_btns[bi].x + 4),
+                    (int16_t)(TASKBAR_Y + 6), trunc, COLOR_TEXT_LIGHT);
+    }
+
+    desktop_draw_calendar();
+
+    mouse_save_under_cursor();
+    mouse_draw_cursor();
+    vga_flip();
+
+    process_yield();
+  }
+
+  serial_printf("[desktop] restoring app: %s\n", app_name);
 }
 
 void desktop_run(void) {

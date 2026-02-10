@@ -11,10 +11,12 @@
 #include "../drivers/mouse.h"
 #include "../drivers/serial.h"
 #include "../drivers/vga.h"
+#include "desktop.h"
 #include "font_8x8.h"
 #include "graphics.h"
 #include "memory.h"
 #include "process.h"
+#include "shell.h"
 #include "string.h"
 #include "ui.h"
 #include "vfs.h"
@@ -209,6 +211,7 @@ void gfx2d_init(void) {
   g2d_clip_w = G2D_W;
   g2d_clip_h = G2D_H;
   for (i = 0; i < GFX2D_MAX_SPRITES; i++) {
+    if (g2d_sprite_used[i]) continue; /* preserve in-use sprites */
     g2d_sprite_data[i] = NULL;
     g2d_sprite_w[i] = 0;
     g2d_sprite_h[i] = 0;
@@ -216,8 +219,9 @@ void gfx2d_init(void) {
   }
   /* Initialize blend mode */
   g2d_blend_mode_val = GFX2D_BLEND_NORMAL;
-  /* Initialize surface pool */
+  /* Initialize surface pool — skip surfaces still in use (from minimized apps) */
   for (i = 0; i < GFX2D_MAX_SURFACES; i++) {
+    if (g2d_surf_used[i]) continue; /* preserve in-use surfaces */
     g2d_surf_data[i] = NULL;
     g2d_surf_w[i] = 0;
     g2d_surf_h[i] = 0;
@@ -228,6 +232,7 @@ void gfx2d_init(void) {
   g2d_active_h = G2D_H;
   /* Initialize particle systems */
   for (i = 0; i < GFX2D_MAX_PARTICLE_SYSTEMS; i++) {
+    if (g2d_psys_used[i]) continue; /* preserve in-use systems */
     g2d_psys_used[i] = 0;
   }
   serial_printf("[gfx2d] initialized\n");
@@ -1568,6 +1573,64 @@ void gfx2d_fullscreen_exit(void) {
 }
 
 int gfx2d_fullscreen_active(void) { return g2d_fullscreen_mode; }
+
+int gfx2d_should_quit(void) { return shell_jit_program_was_killed(); }
+
+void gfx2d_minimize(const char *app_name) {
+  /* Exit fullscreen so the desktop can render */
+  gfx2d_fullscreen_exit();
+  /* Suspend JIT input routing so keys go to the shell/desktop */
+  shell_jit_program_suspend();
+  /* Run the desktop with a taskbar button for this app */
+  desktop_run_minimized_loop(app_name);
+  /* Resume JIT input routing for the app */
+  shell_jit_program_resume();
+  /* Re-enter fullscreen */
+  gfx2d_fullscreen_enter();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  App Toolbar (title bar with close/minimize for fullscreen apps)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
+  int w = g2d_active_w;
+  int h = GFX2D_TOOLBAR_H;
+  int btn_sz = 16;
+  int btn_y = 2;
+
+  /* Title bar gradient background (Win95-style blue) */
+  gfx2d_gradient_h(0, 0, w, h, 0x000080u, 0x1084D0u);
+
+  /* Title text (white, with shadow) */
+  gfx2d_text(6, (h - 8) / 2, title, 0xFFFFFFu, GFX2D_FONT_NORMAL);
+
+  /* Close button [X] — right side */
+  int close_x = w - 20;
+  gfx2d_rect_fill(close_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
+  gfx2d_bevel(close_x, btn_y, btn_sz, btn_sz, 1);
+  gfx2d_text(close_x + 4, btn_y + 4, "X", 0x000000u, GFX2D_FONT_NORMAL);
+
+  /* Minimize button [_] — left of close */
+  int min_x = close_x - 20;
+  gfx2d_rect_fill(min_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
+  gfx2d_bevel(min_x, btn_y, btn_sz, btn_sz, 1);
+  gfx2d_text(min_x + 5, btn_y + 4, "_", 0x000000u, GFX2D_FONT_NORMAL);
+
+  /* Bottom border line */
+  gfx2d_hline(0, h - 1, w, 0x808080u);
+
+  /* Hit-test buttons on click */
+  if (clicked && my >= btn_y && my < btn_y + btn_sz) {
+    if (mx >= close_x && mx < close_x + btn_sz) {
+      return GFX2D_TOOLBAR_CLOSE;
+    }
+    if (mx >= min_x && mx < min_x + btn_sz) {
+      return GFX2D_TOOLBAR_MINIMIZE;
+    }
+  }
+  return GFX2D_TOOLBAR_NONE;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Mouse Cursor Rendering (for fullscreen apps)

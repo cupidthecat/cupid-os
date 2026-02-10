@@ -24,6 +24,7 @@
 #include "string.h"
 #include "types.h"
 #include "debug.h"
+#include "shell.h"
 #include "../drivers/serial.h"
 
 /* ── Assembly context switch (context_switch.asm) ─────────────────── */
@@ -336,6 +337,26 @@ void process_kill(uint32_t pid) {
         KWARN("Cannot kill PID %u", pid);
         return;
     }
+
+    /* Virtual PIDs 99,98,97... = JIT programs (99 = oldest, descending) */
+    if (pid >= 96 && pid <= 99) {
+        int jit_count = shell_jit_suspended_count();
+        int jit_index = (int)(99 - pid); /* PID 99=index 0, 98=index 1, etc */
+        if (jit_index < jit_count) {
+            const char *name = shell_jit_suspended_get_name(jit_index);
+            serial_printf("[PROCESS] Killing JIT program \"%s\"\n", name);
+            print("Killing JIT program: ");
+            print(name);
+            print("\n");
+            shell_jit_program_kill_at(jit_index);
+        } else {
+            print("No JIT program at PID ");
+            print_int(pid);
+            print("\n");
+        }
+        return;
+    }
+
     if (pid > MAX_PROCESSES) {
         KWARN("Invalid PID %u", pid);
         return;
@@ -436,7 +457,24 @@ void process_list(void) {
     }
     print("Total: ");
     print_int(process_count);
-    print(" process(es)\n");
+    print(" process(es)");
+
+    /* Show suspended (minimized) JIT programs */
+    int jit_count = shell_jit_suspended_count();
+    if (jit_count > 0) {
+        print(", ");
+        print_int((uint32_t)jit_count);
+        print(" JIT program(s)");
+    }
+    print("\n");
+
+    for (int j = 0; j < jit_count; j++) {
+        uint32_t vpid = 99 - (uint32_t)j;
+        print_int(vpid);
+        print("   SUSPENDED  ");
+        print(shell_jit_suspended_get_name(j));
+        print(" (JIT)\n");
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════

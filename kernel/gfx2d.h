@@ -161,6 +161,35 @@ void gfx2d_flood_fill(int x, int y, uint32_t color);
 void gfx2d_fullscreen_enter(void);
 void gfx2d_fullscreen_exit(void);
 int gfx2d_fullscreen_active(void); /* returns 1 if fullscreen mode is active */
+int gfx2d_should_quit(void);        /* returns 1 if program was killed via ps/kill */
+
+/* ── App Toolbar (title bar with close/minimize for fullscreen apps) ─ */
+#define GFX2D_TOOLBAR_H       20
+#define GFX2D_TOOLBAR_NONE     0
+#define GFX2D_TOOLBAR_CLOSE    1
+#define GFX2D_TOOLBAR_MINIMIZE 2
+
+/**
+ * Draws a Win95-style title bar at the top of the screen (y=0).
+ * Contains the app title, a close [X] button, and a minimize [_] button.
+ *
+ * @param title   Application title to display
+ * @param mx      Current mouse X position
+ * @param my      Current mouse Y position
+ * @param clicked 1 if left mouse button was just pressed, 0 otherwise
+ * @return GFX2D_TOOLBAR_NONE, GFX2D_TOOLBAR_CLOSE, or GFX2D_TOOLBAR_MINIMIZE
+ */
+int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked);
+
+/**
+ * Minimizes the current fullscreen app.
+ * Exits fullscreen, shows the desktop with a taskbar button for the app,
+ * and blocks until the user clicks the taskbar button to restore.
+ * Then re-enters fullscreen and returns.
+ *
+ * @param app_name  Name shown on the taskbar button
+ */
+void gfx2d_minimize(const char *app_name);
 
 /* ── Mouse Cursor (for fullscreen apps) ──────────────────────────── */
 void gfx2d_draw_cursor(void); /* draw cursor at current mouse position */

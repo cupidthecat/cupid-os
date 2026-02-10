@@ -48,6 +48,11 @@ void desktop_draw_icons(void);
 /* Taskbar hit-test: returns window ID or -1 */
 int  desktop_hit_test_taskbar(int16_t mx, int16_t my);
 
+/* Minimized fullscreen app support.
+ * Runs the desktop event loop with a taskbar button for the minimized app.
+ * Blocks until the user clicks the taskbar button to restore the app. */
+void desktop_run_minimized_loop(const char *app_name);
+
 /* Calendar popup */
 extern calendar_state_t cal_state;
 void desktop_toggle_calendar(void);

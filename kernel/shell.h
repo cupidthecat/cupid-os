@@ -89,14 +89,62 @@ char shell_jit_program_pollchar(void);
 /**
  * Mark that a JIT program is about to start execution.
  * Switches keyboard input routing to the program.
+ * @param name  The file path of the program (basename is stored for ps).
  */
-void shell_jit_program_start(void);
+void shell_jit_program_start(const char *name);
 
 /**
  * Mark that a JIT program has finished execution.
  * Switches keyboard input routing back to the shell.
  */
 void shell_jit_program_end(void);
+
+/**
+ * Temporarily suspend JIT program input routing (e.g. when minimized).
+ * Keys will go to the shell/desktop instead of the JIT program.
+ */
+void shell_jit_program_suspend(void);
+
+/**
+ * Resume JIT program input routing after a suspend.
+ */
+void shell_jit_program_resume(void);
+
+/**
+ * Check if a JIT program is currently loaded (running or minimized).
+ */
+int shell_jit_program_is_running(void);
+
+/**
+ * Get the name of the currently loaded JIT program.
+ */
+const char *shell_jit_program_get_name(void);
+
+/**
+ * Signal a running JIT program to terminate (used by kill command).
+ */
+void shell_jit_program_kill(void);
+
+/**
+ * Kill a specific JIT program by stack index.
+ * Index 0 = oldest suspended, jit_stack_depth = active.
+ */
+void shell_jit_program_kill_at(int index);
+
+/**
+ * Check if the JIT program was killed (for gfx2d_should_quit).
+ */
+int shell_jit_program_was_killed(void);
+
+/**
+ * Get the number of suspended (minimized) JIT programs on the stack.
+ */
+int shell_jit_suspended_count(void);
+
+/**
+ * Get the name of a suspended JIT program by stack index.
+ */
+const char *shell_jit_suspended_get_name(int index);
 
 /* GUI mode: direct output to GUI buffer (used by kernel print routing) */
 void shell_gui_putchar_ext(char c);
