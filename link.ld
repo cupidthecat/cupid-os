@@ -2,7 +2,12 @@ OUTPUT_FORMAT("binary")
 ENTRY(_start)
 SECTIONS
 {
-    . = 0x10000;
+    /*
+     * Kernel is loaded at 1MB (0x100000) by the bootloader via unreal mode.
+     * This gives us ~31MB of contiguous space (up to the 32MB identity map)
+     * instead of the old 576KB limit below the BIOS hole.
+     */
+    . = 0x100000;
     .text : {
         *(.text.start)
         *(.text)
@@ -17,23 +22,8 @@ SECTIONS
 
     _loaded_end = .;
 
-    /*
-     * Safety check: the kernel binary (text + rodata + data) must fit
-     * below the BIOS/VGA memory hole that starts at physical 0xA0000.
-     * If this assertion fires, the kernel has grown too large.
-     */
-    ASSERT(_loaded_end <= 0xA0000,
-           "Kernel binary (text+data) exceeds limit — overlaps BIOS hole at 0xA0000")
-
-    /*
-     * BSS is placed above the BIOS/VGA memory hole (0xA0000-0xFFFFF).
-     * The region 0xA0000-0xFFFFF is mapped to VGA framebuffer and BIOS
-     * ROM — NOT usable RAM.  Placing BSS here caused silent corruption
-     * of kernel data structures whenever the kernel grew large enough.
-     *
-     * The kernel zeros BSS explicitly in protected mode (_start).
-     */
-    . = 0x100000;
+    /* BSS immediately follows data — no gap needed since we're above 1MB */
+    . = ALIGN(4096);
     _bss_start = .;
     .bss : {
         *(.bss)
@@ -42,4 +32,11 @@ SECTIONS
 
     /* Mark the end of the kernel for memory management */
     _kernel_end = .;
+
+    /*
+     * Safety check: kernel must fit within the 32MB identity-mapped region.
+     * The floppy limit (1.44MB) is the practical ceiling for now.
+     */
+    ASSERT(_loaded_end <= 0x200000,
+           "Kernel binary (text+data) exceeds 1MB limit for floppy image")
 }

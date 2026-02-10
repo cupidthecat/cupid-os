@@ -35,7 +35,9 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/syscall.o \
             kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
-            kernel/cupidc_elf.o kernel/gfx2d.o \
+            kernel/cupidc_elf.o \
+            kernel/as.o kernel/as_lex.o kernel/as_parse.o kernel/as_elf.o \
+            kernel/gfx2d.o \
             kernel/bmp.o \
             kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
@@ -299,6 +301,19 @@ kernel/cupidc_parse.o: kernel/cupidc_parse.c kernel/cupidc.h
 kernel/cupidc_elf.o: kernel/cupidc_elf.c kernel/cupidc.h kernel/exec.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/cupidc_elf.c -o kernel/cupidc_elf.o
 
+# CupidASM assembler
+kernel/as.o: kernel/as.c kernel/as.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h
+	$(CC) $(CFLAGS) kernel/as.c -o kernel/as.o
+
+kernel/as_lex.o: kernel/as_lex.c kernel/as.h
+	$(CC) $(CFLAGS) kernel/as_lex.c -o kernel/as_lex.o
+
+kernel/as_parse.o: kernel/as_parse.c kernel/as.h
+	$(CC) $(CFLAGS) kernel/as_parse.c -o kernel/as_parse.o
+
+kernel/as_elf.o: kernel/as_elf.c kernel/as.h kernel/exec.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/as_elf.c -o kernel/as_elf.o
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc — that's it!
@@ -326,11 +341,11 @@ bin/%.o: bin/%.cc
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
 
-# Create disk image
+# Create disk image (boot.bin = 5 sectors: 1 boot + 4 stage2, kernel at sector 5)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=2880
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 count=1
-	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512
+	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
 run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
