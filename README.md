@@ -4,11 +4,18 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 ## Example of cupid-os
 ![alt text for cupid-os img](img/basic_shell.png)
 
-- Custom bootloader with protected mode transition
+**Key Features:**
+- VBE 640×480 32bpp desktop environment with window manager
+- CupidC compiler (HolyC-inspired) — JIT and AOT compilation
+- CupidASM assembler — Intel-syntax x86-32 with JIT/AOT modes
+- CupidScript — Bash-like scripting language with pipes and redirects
+- 40+ shell commands with advanced features (pipes, redirects, jobs)
+- VFS with RamFS, DevFS, and FAT16 disk support
+- Process scheduler with 32 kernel threads
+- Custom bootloader with unreal mode for loading above 1MB
 - Comprehensive interrupt handling system
-- Advanced PS/2 keyboard driver with full US layout support
+- Advanced PS/2 keyboard and mouse drivers
 - High-precision programmable timer system
-- VGA text mode graphics with custom character rendering
 
 The goal of cupid-os is to create an accessible, well-documented operating system that serves as both a learning platform and a foundation for experimental OS concepts. Drawing inspiration from TempleOS, OsakaOS, and classic game systems, it focuses on combining technical excellence with an engaging user experience.
 
@@ -57,9 +64,53 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
 # Features
 
 - **Custom Bootloader & Protected Mode Transition**  
-  - Loads at `0x7C00` and sets up a simple boot message.
-  - Loads the kernel from disk and switches from 16-bit real mode to 32-bit protected mode.
-  - Sets up a Global Descriptor Table (GDT) for proper memory segmentation.
+  - Two-stage bootloader with unreal mode support
+  - Loads kernel above 1MB (0x100000) via chunked CHS reads
+  - Enables A20 line and sets up VBE 640×480 32bpp graphics
+  - Sets up a Global Descriptor Table (GDT) for proper memory segmentation
+
+- **CupidC Compiler (HolyC-inspired)**
+  - Single-pass recursive descent C compiler built into the kernel
+  - JIT mode: compile and run `.cc` files instantly in-memory
+  - AOT mode: compile to ELF32 binaries on disk
+  - Full ring-0 access with kernel bindings for I/O, memory, VFS, graphics
+  - Inline assembly support
+  - Struct support with up to 16 fields
+  - 128KB code, 32KB data, 256 functions, 512 symbols
+
+- **CupidASM Assembler**
+  - Intel-syntax x86-32 assembler with NASM-compatible syntax
+  - JIT mode: assemble and execute `.asm` files in-memory
+  - AOT mode: assemble to ELF32 binaries
+  - 62 mnemonics, 24 registers (8/16/32-bit)
+  - Kernel bindings for direct function calls (print, malloc, VFS, etc.)
+  - 128KB code, 32KB data, 512 labels, single-pass with forward references
+  - 8 demo programs included (hello, math, loops, recursion, sorting)
+
+- **CupidScript Language**
+  - Bash-like scripting language with `.cup` extension
+  - Variables, loops (`for`, `while`), conditionals (`if`/`else`)
+  - Functions with parameters and return values
+  - Pipes (`|`), redirects (`>`, `>>`), background jobs (`&`)
+  - Arrays and string manipulation
+  - Integration with shell commands
+
+- **Shell Interface**
+  - 40+ built-in commands (ls, cat, cd, mkdir, rm, cp, mv, mount, etc.)
+  - Command history with arrow navigation and tab completion
+  - Pipes, redirects, and background job control
+  - Colorized output and prompt customization
+  - CupidScript interpreter integration
+  - Direct `.cc`, `.asm`, and `.cup` execution
+
+- **Desktop Environment**
+  - VBE 640×480 32bpp linear framebuffer
+  - Window manager with drag, focus, minimize, close
+  - Z-order management for up to 16 windows
+  - Taskbar with clock and window list
+  - Terminal application with ANSI escape sequence support
+  - Notepad application with file dialog
+  - Mouse cursor rendering with hardware acceleration
 
 - **Interrupt & Exception Handling**  
   - Comprehensive Interrupt Descriptor Table (IDT) configuration.
@@ -97,107 +148,107 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
   - Identity-mapped paging setup with 4KB pages to keep addresses stable in ring 0.
   - Kernel heap with a bump allocator + free list for small dynamic allocations.
 
-- **Shell Interface**  
-  - **Now Implemented:** A simple command-line shell with a prompt and basic command parsing.
-  - Commands: `help`, `clear`, `echo`, `time`, `reboot`, `history`, `ls`, `cat`.
-  - Command history navigation (arrow up/down) and tab completion for command names.
+- **Virtual File System (VFS)**
+  - Unified file API with POSIX-like operations (open, read, write, close, seek, etc.)
+  - Multiple filesystem support: RamFS (root /), DevFS (/dev), FAT16 (/home)
+  - Path parsing with directory traversal
+  - Inode abstraction for files and directories
+  - Device file support (/dev/null, /dev/zero, /dev/random, etc.)
+  - Mount point management
 
-- **Utility Libraries**  
-  - **Math Library:** Includes 64-bit division (`udiv64`), integer-to-string conversion (`itoa`), and hexadecimal printing.
-  - **String Library:** Implements basic functions like `strlen` and `strcmp`.
-  - **In-memory Filesystem:** Minimal read-only file table exposed via `ls`/`cat` in the shell.
+- **Process Management**
+  - Multi-tasking with up to 32 concurrent threads
+  - Preemptive round-robin scheduler (10ms time slices)
+  - Process states: running, ready, blocked, zombie
+  - Kernel and user-space threads
+  - Process creation/termination (spawn, exit, wait)
+  - Signal handling and inter-process communication
+
+- **Memory Management**
+  - Physical Memory Manager (PMM) with bitmap allocator
+  - 32MB identity-mapped address space for ring-0 kernel
+  - Kernel heap with bump allocator and free list
+  - Stack allocation at 0x800000-0x880000 with guard pages
+  - Page frame allocation for processes
+  - Memory statistics and leak detection tools
+
+- **ELF Loader**
+  - Full ELF32 binary loader for executable files
+  - Supports program headers and section headers
+  - BSS zeroing and data/code loading
+  - Relocation support for position-independent code
+  - Integration with process creation system
+
+- **Device Drivers**
+  - **PS/2 Keyboard**: IRQ1-driven, full US layout, modifier keys, key repeat, circular buffer
+  - **PS/2 Mouse**: IRQ12-driven, 3-button support, movement tracking, cursor rendering
+  - **ATA/IDE**: PIO read/write, CHS/LBA28 addressing, primary/secondary channels
+  - **VGA**: 80×25 text mode, hardware cursor, color attributes
+  - **VBE**: 640×480 32bpp linear framebuffer for GUI
+  - **PIT (Timer)**: 8253/8254 programmable timer, system ticks, sleep functions
+  - **RTC**: Real-time clock, calendar functions, CMOS access
+  - **Serial**: COM1/COM2 UART driver for debugging
+  - **PC Speaker**: Tone generation via PIT channel 2
+
+- **Graphics & GUI**
+  - 2D graphics library with primitives (line, rect, circle, filled shapes)
+  - BMP image loading and rendering (24-bit/32-bit)
+  - 8×8 bitmap font renderer with color support
+  - Clipping and bounds checking
+  - Icon library for desktop applications
+  - Alpha blending and effects
+
+- **Interrupt & Exception Handling**
+  - Comprehensive IDT (Interrupt Descriptor Table) with 256 entries
+  - Exception handlers for all CPU exceptions (0-31)
+  - IRQ handling with PIC remapping (32-47)
+  - Custom interrupt handler registration
+  - Detailed error messages with register dumps and stack traces
+
+- **Utility Libraries**
+  - **String**: strlen, strcmp, strcpy, strcat, strtok, strstr, etc.
+  - **Math**: 64-bit division, modulo, square root, itoa, atoi
+  - **Memory**: memcpy, memset, memmove, memcmp
+  - **Date/Time**: Calendar calculations, RTC integration
+  - **Debug**: Assertion framework, kernel logging, memory dumps
+
+## Recent Updates
+
+- **CupidC Compiler** (January 2025): Full HolyC-inspired C compiler with JIT/AOT modes, inline assembly, struct support, and kernel bindings
+- **CupidASM Assembler** (January 2025): Intel-syntax x86-32 assembler with 62 mnemonics, JIT/AOT modes, and NASM compatibility
+- **Desktop Environment** (January 2025): VBE graphics with window manager, terminal app, notepad, taskbar, and mouse cursor
+- **Virtual File System** (January 2025): Unified VFS layer with RamFS, DevFS, and FAT16 support
+- **Process Scheduler** (December 2024): Preemptive multi-tasking with 32 threads and round-robin scheduling
+- **Two-Stage Bootloader** (January 2025): Rewritten bootloader with unreal mode for loading kernel above 1MB
+- **CupidScript** (December 2024): Bash-like scripting language with pipes, redirects, loops, and functions
 
 ## Development Roadmap
-The development roadmap outlined below represents our current plans and priorities. However, it's important to note that this roadmap is flexible and will evolve based on:
 
-- New requirements discovered during development
-- Technical challenges and learning opportunities encountered
-- Community feedback and contributions
-- Integration needs between different system components
-- Performance optimization requirements
-- Hardware support requirements
-- Testing and debugging needs
+### ✅ Completed (Phases 1-3)
+1. **Core Infrastructure**: Bootloader, IDT, exceptions, IRQ handling, PIC configuration
+2. **Device Drivers**: PS/2 keyboard/mouse, ATA/IDE, VGA, VBE, PIT, RTC, serial, PC speaker
+3. **Memory Management**: PMM, heap allocator, paging, stack guard
+4. **Process Management**: Multi-tasking scheduler, process creation/termination, context switching
+5. **File Systems**: VFS layer, RamFS, DevFS, FAT16 with read/write support
+6. **Shell Interface**: 40+ commands, history, tab completion, pipes, redirects, background jobs
+7. **Compilers**: CupidC (C compiler), CupidASM (assembler), CupidScript (scripting)
+8. **Desktop Environment**: Window manager, terminal, notepad, taskbar, mouse support
+9. **Graphics**: 2D library, BMP loader, font renderer, icons, effects
 
-As we progress, new phases and tasks may be added, existing ones may be modified, and priorities may shift to ensure we're building the most robust and useful system possible.
+### 🔄 In Progress (Phase 4 - Enhancement & Optimization)
+- **Networking Stack**: Ethernet driver, TCP/IP implementation, sockets API
+- **Advanced IPC**: Message queues, shared memory, semaphores
+- **User Mode**: Ring-3 process support, system calls, user-space isolation
+- **Virtual Memory**: Demand paging, copy-on-write, memory-mapped files
+- **Performance**: Block cache optimization, lazy evaluation, JIT compiler improvements
 
-### Phase 1 - Core System Infrastructure
-1. **Interrupt Handling** (✅ Complete)
-   - ✅ Implement IDT (Interrupt Descriptor Table)
-   - ✅ Set up basic exception handlers
-   - ✅ Handle hardware interrupts
-   - ✅ Implement PIC configuration
-   - ✅ Add detailed error messages for exceptions
-   - ✅ Support for custom interrupt handlers
-   - ⭕ Basic boot sequence logging
-2. **Keyboard Input** (✅ Complete)
-   - ✅ Implement PS/2 keyboard driver
-   - ✅ Basic input buffer
-   - ✅ Scancode handling
-   - ✅ Input event processing
-   - ✅ Keyboard state management
-   - ✅ Modifier key support (Shift, Caps Lock)
-   - ✅ Additional modifier keys (Ctrl, Alt)
-   - ✅ Key repeat handling
-   - ✅ Function keys support
-   - ✅ Extended key support
-   - ✅ Key debouncing
-   - ✅ Circular buffer implementation
-   - ⭕ Arrow keys
-
-3. **Timer Support** (🔄 In Progress)
-   - ✅ PIT (Programmable Interval Timer) implementation
-   - ✅ Basic system clock
-   - ✅ Timer interrupts
-   - ✅ System tick counter
-   - ✅ Sleep/delay functions
-   - ✅ Timer calibration
-   - ✅ Multiple timer channels
-   - ✅ Variable frequency support
-   - X PC Speaker support [WILL BE SUPPORTED LATER]
-   - 🔄 High-precision timing modes
-
-4. **Memory Management** (🔄 In Progress)
-   - ✅ Physical memory manager
-   - ✅ Simple memory allocation/deallocation
-   - ✅ Basic paging setup
-   - ⭕ Memory protection
-   - ✅ Heap management
-   - ⭕ Memory mapping
-   - ⭕ Virtual memory support
-   - ⭕ Memory statistics tracking
-
-### Phase 2 - Extended Features
-5. **Shell Interface** (🔄 In-Progress)
-   - ✅ Basic command parsing and prompt display.
-   - ✅ Currently supports the `echo` command.
-   - ⭕ Advanced command parsing
-   - ⭕ Basic shell commands
-   - ⭕ Command history
-   - ⭕ Tab completion
-
-7. **Process Management** (⭕ Planned)
-   - ⭕ Process creation/termination
-   - ⭕ Basic scheduling
-   - ⭕ Process states
-   - ⭕ Context switching
-
-8. **Basic Device Drivers** (⭕ Planned)
-   - ✅ PS/2 Keyboard
-   - ⭕ VGA graphics
-   - ⭕ Serial port
-   - ⭕ Real-time clock
-
-9. **Simple Filesystem** (⭕ Planned)
-   - ⭕ Basic file operations
-   - ⭕ Directory structure
-   - ⭕ File permissions
-
-### Phase 3 - Advanced Features
-10. Custom compiler
-11. Advanced memory management
-12. Extended device support
-13. Multi-process scheduling
-14. Custom music program in dedication to Terry A. Davis
+### 📋 Planned (Phase 5 - Expansion)
+- **Audio Support**: Sound card driver, PCM playback, mixer
+- **USB Support**: UHCI/EHCI drivers, USB mass storage, HID devices
+- **Advanced Filesystems**: ext2/ext3 support, journaling
+- **Package Manager**: Binary package format, dependency resolution
+- **Self-Hosting**: Build CupidOS from within CupidOS (compiler toolchain)
+- **Music & Multimedia**: Custom music program in dedication to Terry A. Davis
 
 ## Requirements
 - NASM (Netwide Assembler) for bootloader compilation
@@ -222,92 +273,152 @@ make
 make run
 ```
 
-## Project Structure Details
+## Project Structure
+
 ### Bootloader (`boot/boot.asm`)
-- Loads at 0x7C00 (BIOS loading point)
-- Sets up initial environment
-- Loads kernel from disk
-- Switches to protected mode
-- Jumps to kernel at 0x1000
+- Two-stage bootloader: 512-byte stage 1 + 2KB stage 2
+- Stage 1: Loads at 0x7C00, loads stage 2 from sectors 1-4 to 0x7E00
+- Stage 2: Unreal mode setup for >1MB access, VBE initialization, kernel loading
+- Loads kernel from sector 5+ to 0x100000 via chunked CHS reads
+- Enables A20 line, sets up GDT, switches to protected mode
+- Boots into kernel at 0x100000
 
 ### Kernel Components
-#### Main Kernel (`kernel/kernel.c`)
-- Entry point at 0x1000
-- Implements basic screen I/O
-- VGA text mode driver
-- System initialization
-- IDT initialization
+
+#### Core Kernel (`kernel/kernel.c`)
+- Entry point at 0x100000
+- Stack at 0x880000 (grows down to 0x800000)
+- Initializes IDT, GDT, PIC, PIT, keyboard, mouse, VGA, VBE
+- Launches desktop environment or shell based on graphics mode
+- Main event loop for GUI or command processing
+
+#### Compilers & Languages
+- **CupidC** (`kernel/cupidc*.c`): C compiler with lexer, parser, code generator, ELF output
+- **CupidASM** (`kernel/as*.c`): x86-32 assembler with Intel syntax, JIT/AOT modes
+- **CupidScript** (`kernel/cupidscript*.c`): Bash-like scripting with pipes, loops, functions
+
+#### File Systems (`kernel/vfs.c`, `kernel/fat16*.c`, `kernel/devfs.c`)
+- VFS layer with unified file operations (open, read, write, close, seek)
+- RamFS: In-memory root filesystem
+- DevFS: Device files (/dev/null, /dev/zero, /dev/random, etc.)
+- FAT16: Read/write support for disk partitions mounted at /home
+
+#### Process Management (`kernel/process.c`)
+- Multi-tasking scheduler with up to 32 threads
+- Preemptive round-robin scheduling (10ms time slices)
+- Process creation (spawn), termination (exit), waiting (wait)
+- Context switching via timer interrupt (IRQ0)
+
+#### Memory Management (`kernel/memory.c`, `kernel/pmm.c`)
+- Physical Memory Manager (PMM) with bitmap allocator
+- Identity-mapped 32MB address space
+- Kernel heap with bump allocator and free list
+- Stack guard pages at 0x800000-0x880000
+
+#### Graphics & Desktop (`kernel/desktop.c`, `kernel/gfx2d*.c`)
+- VBE 640×480 32bpp linear framebuffer
+- 2D graphics primitives (line, rect, circle, filled shapes)
+- BMP image loader and renderer
+- Window manager with drag, focus, minimize, close
+- Terminal and notepad applications
+- Taskbar with clock and window list
+
+#### Device Drivers (`drivers/*.c`)
+- **PS/2 Keyboard** (`keyboard.c`): IRQ1-driven, full US layout, modifiers
+- **PS/2 Mouse** (`mouse.c`): IRQ12-driven, 3-button support, cursor rendering
+- **ATA/IDE** (`ata.c`): PIO mode, CHS/LBA28 addressing, read/write
+- **PIT Timer** (`pit.c`, `timer.c`): 8253/8254 timer, system ticks, sleep
+- **RTC** (`rtc.c`): Real-time clock, CMOS access
+- **VGA** (`vga.c`): 80×25 text mode, hardware cursor
+- **Serial** (`serial.c`): COM1/COM2 UART for debugging
+- **PC Speaker** (`speaker.c`): Tone generation
 
 #### Interrupt System (`kernel/idt.c`, `kernel/isr.asm`)
-- Complete IDT setup and management
-- Exception handlers with detailed error messages
-- Hardware interrupt support (IRQ0-15)
-- Programmable Interrupt Controller (PIC) configuration
+- 256-entry IDT with CPU exceptions (0-31) and IRQs (32-47)
+- PIC remapping and IRQ masking
 - Custom interrupt handler registration
-- Debug exception handling
+- Stack trace and register dump on exceptions
 
-#### Input System (`drivers/keyboard.c`, `drivers/keyboard.h`)
-- PS/2 keyboard driver with:
-  - Full US keyboard layout support
-  - Shift and Caps Lock modifiers
-  - Key state tracking
-  - Interrupt-driven input handling (IRQ1)
-  - Debouncing support
-  - Extended key support (e.g. right ctrl/alt)
-  - Circular buffer for key events
-  - Support for special keys (backspace, tab, enter)
+#### Shell (`kernel/shell.c`, `bin/*.cc`)
+- 40+ built-in commands (ls, cat, cd, mkdir, rm, cp, mv, mount, ps, kill, etc.)
+- Command history with arrow navigation and tab completion
+- Pipes, redirects, background jobs
+- Direct execution of .cc, .asm, .cup files
 
 ### Memory Layout
-- Bootloader: 0x7C00
-- Kernel: 0x1000
-- Stack: 0x90000
-- IDT: Dynamically allocated
+- Bootloader Stage 1: 0x7C00 (512 bytes)
+- Bootloader Stage 2: 0x7E00 (2KB)
+- Kernel Load Address: 0x100000 (1MB)
+- Stack: 0x880000 → 0x800000 (512KB, grows down)
+- CupidC JIT Code: 0x400000 (128KB code + 32KB data)
+- CupidASM JIT Code: 0x500000 (128KB code + 32KB data)
+- Framebuffer: Auto-detected via VBE (typically 0xE0000000+)
 
 ## Development
-To modify or extend the OS:
 
-1. Bootloader changes:
-   - Edit `boot/boot.asm`
-   - Modify GDT if adding memory segments
-   - Update kernel loading if kernel size changes
+### Making Changes
+1. **Bootloader modifications**:
+   - Edit [boot/boot.asm](boot/boot.asm)
+   - Update GDT/VBE settings if needed
+   - Adjust kernel loading address or sector count
 
-2. Kernel changes:
-   - Edit `kernel/kernel.c`
-   - Update `kernel/link.ld` if changing memory layout
-   - Modify Makefile if adding new source files
+2. **Kernel modifications**:
+   - Edit kernel source files in [kernel/](kernel/)
+   - Add new drivers in [drivers/](drivers/)
+   - Update [Makefile](Makefile) when adding new .c/.asm files
 
-## Debugging
-1. Debug with QEMU monitor:
+3. **User programs**:
+   - Create .cc files in [bin/](bin/) for CupidC programs
+   - Create .asm files in [demos/](demos/) for CupidASM programs
+   - Create .cup files for CupidScript scripts
+
+### Testing
+Run in QEMU with graphics:
 ```bash
 make run
-# Press Ctrl+Alt+2 for QEMU monitor
 ```
 
-2. Debug with GDB:
+Run in text mode (no GUI):
 ```bash
-# Terminal 1
-qemu-system-i386 -s -S -boot a -fda cupidos.img
+qemu-system-i386 -fda cupidos.img
+```
 
-# Terminal 2
+### Debugging
+1. **QEMU monitor** (press Ctrl+Alt+2 in QEMU window):
+```bash
+make run
+# Use monitor commands: info registers, info mem, etc.
+```
+
+2. **GDB debugging**:
+```bash
+# Terminal 1 - Start QEMU with GDB stub
+qemu-system-i386 -s -S -fda cupidos.img
+
+# Terminal 2 - Connect GDB
 gdb
 (gdb) target remote localhost:1234
+(gdb) break *0x100000
+(gdb) continue
 ```
 
+3. **Serial port logging**:
+```bash
+# Kernel prints debug messages to COM1
+make run  # QEMU captures serial output to terminal
+```
+
+
 ## Contributing
+Contributions are welcome! Please:
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create a feature branch
+3. Make your changes with clear commit messages
+4. Test thoroughly with `make run`
+5. Submit a pull request
 
 ## License
-GNU v3
+GNU General Public License v3.0
 
-## Recent Updates
-- Implemented comprehensive keyboard driver with full modifier key support
-- Added function key handling (F1-F12)
-- Implemented key repeat functionality with configurable delays
-- Added debouncing support for more reliable key input
-- Enhanced exception handling with detailed error messages
-- Implemented basic PIT timer with system tick counter
-- Added initial delay/sleep functionality using timer ticks
+## Acknowledgments
+Inspired by Terry A. Davis and TempleOS. Built as a learning project to explore OS development, compiler design, and low-level programming.
