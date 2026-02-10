@@ -76,12 +76,12 @@ void pmm_init(uint32_t kernel_end) {
   pmm_mark_region(0, reserved_end, 1);
 
   pmm_mark_region(0xA0000, 0x100000, 1);  /* BIOS/VGA hole  */
-  pmm_mark_region(0x200000, 0x280000, 1); /* kernel stack (512KB) */
+  pmm_mark_region(0x800000, 0x880000, 1); /* kernel stack (512KB) */
 
   /* Reserve CupidC JIT/AOT execution regions so the heap never
    * allocates into them.  Each region = 128KB code + 32KB data. */
-  pmm_mark_region(0x00200000, 0x00228000, 1); /* AOT region     */
-  pmm_mark_region(0x00400000, 0x00428000, 1); /* JIT region     */
+  pmm_mark_region(0x00400000, 0x00428000, 1); /* CupidC JIT region */
+  pmm_mark_region(0x00500000, 0x00528000, 1); /* ASM JIT region */
 
   /* Initialize stack guard after reserving the region */
   stack_guard_init();

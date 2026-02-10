@@ -310,6 +310,11 @@ static void notepad_strcpy(char *dst, const char *src) {
   }
 }
 
+static int np_strcmp(const char *a, const char *b) {
+  while (*a && *a == *b) { a++; b++; }
+  return (unsigned char)*a - (unsigned char)*b;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  Buffer management
  * ══════════════════════════════════════════════════════════════════════ */
@@ -1018,10 +1023,10 @@ static void notepad_open_file(const char *name) {
   app.buffer.scroll_y = 0;
   app.buffer.modified = false;
 
-  /* Copy filename */
+  /* Copy full absolute path so future saves use the correct location */
   int i = 0;
-  while (name[i] && i < 63) {
-    app.buffer.filename[i] = name[i];
+  while (vpath[i] && i < 63) {
+    app.buffer.filename[i] = vpath[i];
     i++;
   }
   app.buffer.filename[i] = '\0';
@@ -1033,8 +1038,8 @@ static void notepad_open_file(const char *name) {
     /* Append filename */
     int tlen = (int)np_strlen(win->title);
     int j = 0;
-    while (name[j] && tlen < 63) {
-      win->title[tlen++] = name[j++];
+    while (vpath[j] && tlen < 63) {
+      win->title[tlen++] = vpath[j++];
     }
     win->title[tlen] = '\0';
   }
@@ -1103,15 +1108,15 @@ static void notepad_save_file(const char *name) {
     vfs_close(fd);
   } else {
     /* Fallback: try writing directly via FAT16 */
-    fat16_write_file(name, write_buf, (uint32_t)pos);
+    fat16_write_file(vpath, write_buf, (uint32_t)pos);
   }
   kfree(write_buf);
   app.buffer.modified = false;
 
-  /* Copy filename */
+  /* Copy full absolute path as filename so future Ctrl+S uses the right path */
   int i = 0;
-  while (name[i] && i < 63) {
-    app.buffer.filename[i] = name[i];
+  while (vpath[i] && i < 63) {
+    app.buffer.filename[i] = vpath[i];
     i++;
   }
   app.buffer.filename[i] = '\0';
@@ -1122,8 +1127,8 @@ static void notepad_save_file(const char *name) {
     notepad_strcpy(win->title, "Notepad - ");
     int tlen = (int)np_strlen(win->title);
     int j = 0;
-    while (name[j] && tlen < 63) {
-      win->title[tlen++] = name[j++];
+    while (vpath[j] && tlen < 63) {
+      win->title[tlen++] = vpath[j++];
     }
     win->title[tlen] = '\0';
   }
@@ -1270,10 +1275,12 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character) {
     }
     /* Confirm action */
     if (app.dialog.input_len > 0) {
-      /* Check if selected item is a directory — navigate into it */
+      /* Navigate into a directory only if the input text exactly matches
+         a directory entry — not just because a dir happens to be selected */
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
-          app.dialog.files[sel].is_directory && !app.dialog.save_mode) {
+          app.dialog.files[sel].is_directory &&
+          np_strcmp(app.dialog.input, app.dialog.files[sel].filename) == 0) {
         notepad_dialog_navigate_dir(app.dialog.files[sel].filename);
         return;
       }
@@ -1376,10 +1383,12 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
       app.dialog.input_len = (int)np_strlen(app.dialog.input);
     }
     if (app.dialog.input_len > 0) {
-      /* Check if selected item is a directory — navigate into it */
+      /* Navigate into a directory only if the input text exactly matches
+         a directory entry — not just because a dir happens to be selected */
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
-          app.dialog.files[sel].is_directory && !app.dialog.save_mode) {
+          app.dialog.files[sel].is_directory &&
+          np_strcmp(app.dialog.input, app.dialog.files[sel].filename) == 0) {
         notepad_dialog_navigate_dir(app.dialog.files[sel].filename);
         return;
       }

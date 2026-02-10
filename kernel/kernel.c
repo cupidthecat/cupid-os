@@ -385,19 +385,19 @@ void print(const char* str) {
  */
 void _start(void) {
     // We're already in protected mode with segments set up.
-    // BSS is placed above the BIOS hole (0x100000+) and must be
-    // zeroed explicitly since the bootloader only loads below 0xA0000.
+    // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
-        "mov $0x280000, %esp\n"
-        "mov %esp, %ebp\n"
-        /* Zero BSS region (0x100000 to _kernel_end) */
-        "mov $_bss_start, %edi\n"
-        "mov $_kernel_end, %ecx\n"
-        "sub %edi, %ecx\n"
-        "shr $2, %ecx\n"
-        "xor %eax, %eax\n"
+        "mov $0x880000, %%esp\n"
+        "mov %%esp, %%ebp\n"
+        /* Zero BSS region (_bss_start to _kernel_end) */
+        "mov $_bss_start, %%edi\n"
+        "mov $_kernel_end, %%ecx\n"
+        "sub %%edi, %%ecx\n"
+        "shr $2, %%ecx\n"
+        "xor %%eax, %%eax\n"
         "cld\n"
         "rep stosl\n"
+        ::: "eax", "ecx", "edi", "memory"
     );
     
     // Call main kernel function

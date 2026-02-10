@@ -4,6 +4,7 @@
 #include "assert.h"
 #include "blockcache.h"
 #include "calendar.h"
+#include "as.h"
 #include "cupidc.h"
 #include "cupidscript.h"
 #include "desktop.h"
@@ -483,6 +484,8 @@ static void shell_notepad_cmd(const char *args);
 static void shell_terminal_cmd(const char *args);
 static void shell_cupidc_cmd(const char *args);
 static void shell_ccc_cmd(const char *args);
+static void shell_asm_cmd(const char *args);
+static void shell_cupidasm_cmd(const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -492,6 +495,8 @@ static struct shell_command commands[] = {
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
     {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
+    {"as", "Assemble and run .asm file", shell_asm_cmd},
+    {"cupidasm", "Assemble .asm to ELF binary", shell_cupidasm_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -1144,6 +1149,121 @@ static void shell_ccc_cmd(const char *args) {
   cupidc_aot(rsrc, rout);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  CupidASM Assembler Commands
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* as <file.asm> — JIT assemble and run */
+static void shell_asm_cmd(const char *args) {
+  if (!args || args[0] == '\0') {
+    shell_print("Usage: as <file.asm>\n");
+    shell_print("  Assemble and run an assembly source file\n");
+    shell_print("  as -o <output> <file.asm>  — assemble to ELF binary\n");
+    return;
+  }
+
+  /* Check for -o flag (AOT mode) */
+  if (args[0] == '-' && args[1] == 'o') {
+    int ai = 2;
+    while (args[ai] == ' ') ai++;
+
+    /* Parse output filename */
+    char out[VFS_MAX_PATH];
+    int oi = 0;
+    while (args[ai] && args[ai] != ' ' && oi < VFS_MAX_PATH - 1) {
+      out[oi++] = args[ai++];
+    }
+    out[oi] = '\0';
+
+    /* Skip whitespace */
+    while (args[ai] == ' ') ai++;
+
+    /* Parse source filename */
+    char src[VFS_MAX_PATH];
+    int si = 0;
+    while (args[ai] && args[ai] != ' ' && si < VFS_MAX_PATH - 1) {
+      src[si++] = args[ai++];
+    }
+    src[si] = '\0';
+
+    if (src[0] == '\0' || out[0] == '\0') {
+      shell_print("Usage: as -o <output> <file.asm>\n");
+      return;
+    }
+
+    char rsrc[VFS_MAX_PATH];
+    char rout[VFS_MAX_PATH];
+    shell_resolve_path(src, rsrc);
+    shell_resolve_path(out, rout);
+    as_aot(rsrc, rout);
+    return;
+  }
+
+  char rpath[VFS_MAX_PATH];
+  shell_resolve_path(args, rpath);
+  as_jit(rpath);
+}
+
+/* cupidasm <file.asm> -o <output> — AOT assemble to ELF binary */
+static void shell_cupidasm_cmd(const char *args) {
+  if (!args || args[0] == '\0') {
+    shell_print("Usage: cupidasm <file.asm> -o <output>\n");
+    shell_print("  Assemble source to ELF binary\n");
+    return;
+  }
+
+  /* Parse: src_file -o out_file */
+  char src[VFS_MAX_PATH];
+  char out[VFS_MAX_PATH];
+  int si = 0, ai = 0;
+
+  /* Extract source file */
+  while (args[ai] && args[ai] != ' ' && si < VFS_MAX_PATH - 1) {
+    src[si++] = args[ai++];
+  }
+  src[si] = '\0';
+
+  /* Skip whitespace */
+  while (args[ai] == ' ') ai++;
+
+  /* Check for -o flag */
+  if (args[ai] == '-' && args[ai + 1] == 'o') {
+    ai += 2;
+    while (args[ai] == ' ') ai++;
+
+    int oi = 0;
+    while (args[ai] && args[ai] != ' ' && oi < VFS_MAX_PATH - 1) {
+      out[oi++] = args[ai++];
+    }
+    out[oi] = '\0';
+  } else {
+    /* Default output name: replace .asm extension or append nothing */
+    int slen = 0;
+    while (src[slen]) slen++;
+
+    int oi = 0;
+    if (slen > 4 && src[slen - 4] == '.' && src[slen - 3] == 'a' &&
+        src[slen - 2] == 's' && src[slen - 1] == 'm') {
+      for (int k = 0; k < slen - 4 && oi < VFS_MAX_PATH - 1; k++) {
+        out[oi++] = src[k];
+      }
+    } else {
+      for (int k = 0; k < slen && oi < VFS_MAX_PATH - 1; k++) {
+        out[oi++] = src[k];
+      }
+    }
+    out[oi] = '\0';
+  }
+
+  /* Resolve paths */
+  char rsrc[VFS_MAX_PATH];
+  char rout[VFS_MAX_PATH];
+  shell_resolve_path(src, rsrc);
+  shell_resolve_path(out, rout);
+
+  as_aot(rsrc, rout);
+}
+
 /* ── shell_execute_line: public interface for CupidScript ── */
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
@@ -1387,6 +1507,10 @@ static void execute_command(const char *input) {
       cupidc_jit(run_path);
       goto redir_done;
     }
+    if (shell_ends_with(run_path, ".asm")) {
+      as_jit(run_path);
+      goto redir_done;
+    }
     /* Try as ELF/CUPD binary */
     vfs_stat_t dot_st;
     if (vfs_stat(run_path, &dot_st) >= 0 && dot_st.type == VFS_TYPE_FILE) {
@@ -1417,6 +1541,14 @@ static void execute_command(const char *input) {
     char cc_path[VFS_MAX_PATH];
     shell_resolve_path(cmd, cc_path);
     cupidc_jit(cc_path);
+    goto redir_done;
+  }
+
+  /* Handle bare .asm files: program.asm → as program.asm */
+  if (shell_ends_with(cmd, ".asm")) {
+    char asm_path[VFS_MAX_PATH];
+    shell_resolve_path(cmd, asm_path);
+    as_jit(asm_path);
     goto redir_done;
   }
 

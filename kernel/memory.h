@@ -28,8 +28,8 @@ typedef struct heap_block {
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 /* ── Stack guard constants ────────────────────────────────────────── */
-#define STACK_BOTTOM 0x200000u /* Bottom of kernel stack (512KB) */
-#define STACK_TOP 0x280000u    /* Top of kernel stack            */
+#define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */
+#define STACK_TOP 0x880000u    /* Top of kernel stack            */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex                 */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes)   */

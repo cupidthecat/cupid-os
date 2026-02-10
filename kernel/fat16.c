@@ -199,6 +199,57 @@ int fat16_init(void) {
     return 0;
 }
 
+/* ── Subdirectory path helpers ────────────────────────────────────── */
+
+/* Split "dir/file" into dir_out and name_out.
+ * Returns 1 if a slash was found, 0 if flat name.
+ * Handles only one level of subdirectory. */
+static int fat16_split_path(const char *path, char *dir_out, char *name_out) {
+    int slash = -1;
+    int i;
+    for (i = 0; path[i]; i++) {
+        if (path[i] == '/') slash = i;
+    }
+    if (slash < 0) {
+        dir_out[0] = '\0';
+        for (i = 0; path[i] && i < 63; i++) name_out[i] = path[i];
+        name_out[i] = '\0';
+        return 0;
+    }
+    for (i = 0; i < slash && i < 63; i++) dir_out[i] = path[i];
+    dir_out[i] = '\0';
+    int j = 0;
+    for (i = slash + 1; path[i] && j < 63; i++, j++) name_out[j] = path[i];
+    name_out[j] = '\0';
+    return 1;
+}
+
+/* Return the first cluster of a directory named dirname (in the root dir),
+ * or 0 if not found. */
+static uint16_t fat16_get_dir_cluster(const char *dirname) {
+    char name83[11];
+    fat16_filename_to_83(dirname, name83);
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+                                  fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buf[512];
+        if (blockcache_read(fs.root_dir_start + sector, buf) != 0) return 0;
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buf;
+        for (int i = 0; i < 16; i++) {
+            if (entries[i].filename[0] == 0x00) return 0;
+            if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+            if (!(entries[i].attributes & FAT_ATTR_DIRECTORY)) continue;
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) { match = 0; break; }
+            }
+            if (match) return entries[i].first_cluster;
+        }
+    }
+    return 0;
+}
+
 /**
  * fat16_open - Open a file
  *
@@ -209,6 +260,49 @@ fat16_file_t* fat16_open(const char* filename) {
     if (!fat16_initialized) {
         print("No FAT16 filesystem mounted\n");
         return NULL;
+    }
+
+    /* Handle subdirectory path (e.g., "asm/hello.txt") */
+    {
+        char dir_part[64], name_part[64];
+        if (fat16_split_path(filename, dir_part, name_part) && dir_part[0]) {
+            uint16_t dir_cluster = fat16_get_dir_cluster(dir_part);
+            if (!dir_cluster) return NULL;
+            char name83s[11];
+            fat16_filename_to_83(name_part, name83s);
+            uint16_t cur = dir_cluster;
+            while (cur >= 2 && cur < FAT16_EOC_MIN) {
+                uint32_t lba = fat16_cluster_to_lba(cur);
+                for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster; s++) {
+                    uint8_t buf[512];
+                    if (blockcache_read(lba + s, buf) != 0) return NULL;
+                    fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buf;
+                    for (int i = 0; i < 16; i++) {
+                        if (entries[i].filename[0] == 0x00) return NULL;
+                        if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+                        if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY)) continue;
+                        int match = 1;
+                        for (int j = 0; j < 11; j++) {
+                            if (entries[i].filename[j] != name83s[j]) { match = 0; break; }
+                        }
+                        if (match) {
+                            for (int j = 0; j < 8; j++) {
+                                if (!open_files[j].is_open) {
+                                    open_files[j].first_cluster = entries[i].first_cluster;
+                                    open_files[j].file_size = entries[i].file_size;
+                                    open_files[j].position = 0;
+                                    open_files[j].is_open = 1;
+                                    return &open_files[j];
+                                }
+                            }
+                            return NULL; /* Too many open files */
+                        }
+                    }
+                }
+                cur = fat16_read_fat_entry(cur);
+            }
+            return NULL;
+        }
     }
 
     // Convert filename to 8.3 format
@@ -678,6 +772,72 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     }
 
     /* ── Find or create directory entry ── */
+
+    /* Handle subdirectory path (e.g. "asm/hello.txt") */
+    {
+        char dir_part[64], name_part[64];
+        if (fat16_split_path(filename, dir_part, name_part) && dir_part[0]) {
+            uint16_t dir_cluster = fat16_get_dir_cluster(dir_part);
+            if (!dir_cluster) {
+                if (first_cluster) fat16_free_chain(first_cluster);
+                return -1;
+            }
+            /* Rebuild 8.3 name from just the base filename */
+            fat16_filename_to_83(name_part, name83);
+            int sub_found = 0;
+            uint16_t cur = dir_cluster;
+            while (cur >= 2 && cur < FAT16_EOC_MIN && !sub_found) {
+                uint32_t lba = fat16_cluster_to_lba(cur);
+                for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster && !sub_found; s++) {
+                    uint8_t buffer[512];
+                    if (blockcache_read(lba + s, buffer) != 0) {
+                        if (first_cluster) fat16_free_chain(first_cluster);
+                        return -1;
+                    }
+                    fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+                    for (int i = 0; i < 16; i++) {
+                        if (entries[i].filename[0] == 0x00) {
+                            /* Create new entry here */
+                            memset(&entries[i], 0, sizeof(fat16_dir_entry_t));
+                            for (int j = 0; j < 8; j++) entries[i].filename[j] = name83[j];
+                            for (int j = 0; j < 3; j++) entries[i].ext[j] = name83[8 + j];
+                            entries[i].attributes = FAT_ATTR_ARCHIVE;
+                            entries[i].first_cluster = first_cluster;
+                            entries[i].file_size = size;
+                            if (i + 1 < 16) entries[i + 1].filename[0] = 0x00;
+                            blockcache_write(lba + s, buffer);
+                            sub_found = 1;
+                            break;
+                        }
+                        if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+                        if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+                        int match = 1;
+                        for (int j = 0; j < 11; j++) {
+                            if (entries[i].filename[j] != name83[j]) { match = 0; break; }
+                        }
+                        if (match) {
+                            if (entries[i].first_cluster >= 2)
+                                fat16_free_chain(entries[i].first_cluster);
+                            entries[i].first_cluster = first_cluster;
+                            entries[i].file_size = size;
+                            entries[i].attributes = FAT_ATTR_ARCHIVE;
+                            blockcache_write(lba + s, buffer);
+                            sub_found = 1;
+                            break;
+                        }
+                    }
+                }
+                cur = fat16_read_fat_entry(cur);
+            }
+            if (!sub_found) {
+                if (first_cluster) fat16_free_chain(first_cluster);
+                return -1;
+            }
+            blockcache_sync();
+            return (int)size;
+        }
+    }
+
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
         fs.bytes_per_sector - 1) / fs.bytes_per_sector;
 
@@ -824,6 +984,45 @@ dir_search_done:
  */
 int fat16_delete_file(const char* filename) {
     if (!fat16_initialized) return -1;
+
+    /* Handle subdirectory path */
+    {
+        char dir_part[64], name_part[64];
+        if (fat16_split_path(filename, dir_part, name_part) && dir_part[0]) {
+            uint16_t dir_cluster = fat16_get_dir_cluster(dir_part);
+            if (!dir_cluster) return -1;
+            char name83s[11];
+            fat16_filename_to_83(name_part, name83s);
+            uint16_t cur = dir_cluster;
+            while (cur >= 2 && cur < FAT16_EOC_MIN) {
+                uint32_t lba = fat16_cluster_to_lba(cur);
+                for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster; s++) {
+                    uint8_t buffer[512];
+                    if (blockcache_read(lba + s, buffer) != 0) return -1;
+                    fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+                    for (int i = 0; i < 16; i++) {
+                        if (entries[i].filename[0] == 0x00) return -1;
+                        if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+                        if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY)) continue;
+                        int match = 1;
+                        for (int j = 0; j < 11; j++) {
+                            if (entries[i].filename[j] != name83s[j]) { match = 0; break; }
+                        }
+                        if (match) {
+                            if (entries[i].first_cluster >= 2)
+                                fat16_free_chain(entries[i].first_cluster);
+                            entries[i].filename[0] = (char)0xE5;
+                            blockcache_write(lba + s, buffer);
+                            blockcache_sync();
+                            return 0;
+                        }
+                    }
+                }
+                cur = fat16_read_fat_entry(cur);
+            }
+            return -1;
+        }
+    }
 
     char name83[11];
     fat16_filename_to_83(filename, name83);
