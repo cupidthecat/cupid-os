@@ -122,6 +122,25 @@ static int fat16_vfs_open(void *fs_private, const char *path,
         return VFS_OK;
     }
 
+    /* Opening a subdirectory? */
+    if (fat16_is_dir(name)) {
+        fat16_vfs_dir_handle_t *dh = kmalloc(sizeof(fat16_vfs_dir_handle_t));
+        if (!dh) return VFS_EIO;
+        memset(dh, 0, sizeof(fat16_vfs_dir_handle_t));
+
+        fat16_enumerate_subdir(name, fat16_vfs_enum_cb, &dh->ctx);
+        dh->index = 0;
+
+        fat16_vfs_handle_t *h = kmalloc(sizeof(fat16_vfs_handle_t));
+        if (!h) { kfree(dh); return VFS_EIO; }
+        memset(h, 0, sizeof(fat16_vfs_handle_t));
+        h->fat_file = (fat16_file_t *)dh;
+        h->is_dir = 1;
+
+        *file_handle = h;
+        return VFS_OK;
+    }
+
     /* Create a new file? */
     if (flags & O_CREAT) {
         /* For create, attempt open first — if fails, write empty file */
@@ -316,6 +335,16 @@ static int fat16_vfs_stat(void *fs_private, const char *path,
         return VFS_OK;
     }
 
+    /* Check if it's a directory by scanning the root dir directly */
+    {
+        int found_as_dir = fat16_is_dir(name);
+        if (found_as_dir > 0) {
+            st->type = VFS_TYPE_DIR;
+            st->size = 0;
+            return VFS_OK;
+        }
+    }
+
     /* Open file to get size, then close */
     fat16_file_t *f = fat16_open(name);
     if (!f) return VFS_ENOENT;
@@ -349,8 +378,11 @@ static int fat16_vfs_readdir(void *file_handle, vfs_dirent_t *dirent) {
 }
 
 static int fat16_vfs_mkdir(void *fs_private, const char *path) {
-    (void)fs_private; (void)path;
-    return VFS_ENOSYS;  /* FAT16 driver doesn't support subdirs */
+    (void)fs_private;
+    const char *name = fat16_vfs_strip(path);
+    if (name[0] == '\0') return VFS_EINVAL;
+    int rc = fat16_mkdir(name);
+    return (rc == 0) ? VFS_OK : VFS_EIO;
 }
 
 static int fat16_vfs_unlink(void *fs_private, const char *path) {

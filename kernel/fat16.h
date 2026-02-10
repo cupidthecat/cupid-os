@@ -111,5 +111,9 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size);
 int fat16_delete_file(const char* filename);
 void fat16_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void (*print_int_fn)(uint32_t));
 int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx);
+int fat16_mkdir(const char *dirname);
+int fat16_is_dir(const char *dirname);
+int fat16_enumerate_subdir(const char *dirname,
+                           fat16_enum_callback_t callback, void *ctx);
 
 #endif

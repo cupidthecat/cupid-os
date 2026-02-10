@@ -871,6 +871,156 @@ int fat16_delete_file(const char* filename) {
 }
 
 /**
+ * fat16_is_dir - Check if a name refers to a directory in the root dir
+ *
+ * @return 1 if it's a directory, 0 if not found or not a dir
+ */
+int fat16_is_dir(const char *dirname) {
+    if (!fat16_initialized || !dirname || dirname[0] == '\0') return 0;
+
+    char name83[11];
+    fat16_filename_to_83(dirname, name83);
+
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+                                  fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0) return 0;
+
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+        for (int i = 0; i < 16; i++) {
+            if (entries[i].filename[0] == 0x00) return 0;
+            if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+            if (!(entries[i].attributes & FAT_ATTR_DIRECTORY)) continue;
+
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) { match = 0; break; }
+            }
+            if (match) return 1;
+        }
+    }
+    return 0;
+}
+
+/**
+ * fat16_mkdir - Create a subdirectory in the FAT16 root directory
+ *
+ * Allocates a cluster, initialises it with '.' and '..' entries, and
+ * writes a ATTR_DIRECTORY entry into the root directory.
+ *
+ * @param dirname: Directory name (8.3 style)
+ * @return 0 on success, -1 on error
+ */
+int fat16_mkdir(const char *dirname) {
+    if (!fat16_initialized || !dirname || dirname[0] == '\0') return -1;
+
+    char name83[11];
+    fat16_filename_to_83(dirname, name83);
+
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+                                  fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+
+    /* First pass: check for existing entry with same name and find free slot */
+    int free_sector = -1;
+    int free_index  = -1;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors; sector++) {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + sector, buffer) != 0) return -1;
+
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+        for (int i = 0; i < 16; i++) {
+            if (entries[i].filename[0] == 0x00) {
+                /* End-of-directory marker — record free slot and stop scan */
+                if (free_sector < 0) { free_sector = (int)sector; free_index = i; }
+                goto scan_done;
+            }
+            if ((unsigned char)entries[i].filename[0] == 0xE5) {
+                if (free_sector < 0) { free_sector = (int)sector; free_index = i; }
+                continue;
+            }
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+
+            /* Check name match (file OR directory) */
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) { match = 0; break; }
+            }
+            if (match) return -1; /* Already exists */
+        }
+    }
+scan_done:
+    if (free_sector < 0) return -1; /* Root directory full */
+
+    /* Allocate a cluster for the directory contents */
+    uint16_t cluster = fat16_alloc_cluster();
+    if (cluster == 0) return -1;
+
+    /* Zero-fill the cluster */
+    uint32_t lba = fat16_cluster_to_lba(cluster);
+    {
+        uint8_t zero[512];
+        memset(zero, 0, 512);
+        for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster; s++) {
+            blockcache_write(lba + s, zero);
+        }
+    }
+
+    /* Write '.' and '..' entries into the first sector of the cluster */
+    {
+        uint8_t first[512];
+        memset(first, 0, 512);
+        fat16_dir_entry_t *dot = (fat16_dir_entry_t *)first;
+
+        /* '.' — points to this directory */
+        memset(dot[0].filename, ' ', 8);
+        memset(dot[0].ext,      ' ', 3);
+        dot[0].filename[0] = '.';
+        dot[0].attributes  = FAT_ATTR_DIRECTORY;
+        dot[0].first_cluster = cluster;
+
+        /* '..' — points to root (cluster 0 in FAT16 root) */
+        memset(dot[1].filename, ' ', 8);
+        memset(dot[1].ext,      ' ', 3);
+        dot[1].filename[0] = '.';
+        dot[1].filename[1] = '.';
+        dot[1].attributes  = FAT_ATTR_DIRECTORY;
+        dot[1].first_cluster = 0;
+
+        blockcache_write(lba, first);
+    }
+
+    /* Write directory entry in root dir */
+    {
+        uint8_t buffer[512];
+        if (blockcache_read(fs.root_dir_start + (uint32_t)free_sector, buffer) != 0) {
+            fat16_free_chain(cluster);
+            return -1;
+        }
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
+        fat16_dir_entry_t *e = &entries[free_index];
+
+        memset(e, 0, sizeof(fat16_dir_entry_t));
+        for (int j = 0; j < 8; j++) e->filename[j] = name83[j];
+        for (int j = 0; j < 3; j++) e->ext[j]      = name83[8 + j];
+        e->attributes    = FAT_ATTR_DIRECTORY;
+        e->first_cluster = cluster;
+        e->file_size     = 0;
+
+        if (blockcache_write(fs.root_dir_start + (uint32_t)free_sector, buffer) != 0) {
+            fat16_free_chain(cluster);
+            return -1;
+        }
+    }
+
+    blockcache_sync();
+    return 0;
+}
+
+/**
  * fat16_list_root - List root directory
  *
  * @return Number of files listed
@@ -1006,6 +1156,109 @@ int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
             count++;
             if (ret != 0) return count;
         }
+    }
+
+    return count;
+}
+
+/**
+ * fat16_enumerate_subdir - Enumerate entries inside a subdirectory
+ *
+ * Finds the named directory in the root dir, then walks its cluster chain
+ * calling the callback for each valid entry (skips '.' and '..').
+ *
+ * @param dirname:  Directory name (8.3 compatible)
+ * @param callback: Called per entry
+ * @param ctx:      Passed through to callback
+ * @return Number of entries enumerated, -1 on error
+ */
+int fat16_enumerate_subdir(const char *dirname,
+                           fat16_enum_callback_t callback, void *ctx) {
+    if (!fat16_initialized || !dirname || !callback) return -1;
+
+    char name83[11];
+    fat16_filename_to_83(dirname, name83);
+
+    /* Find the directory entry in root dir */
+    uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
+                                  fs.bytes_per_sector - 1) / fs.bytes_per_sector;
+    uint16_t dir_cluster = 0;
+    int found = 0;
+
+    for (uint32_t sector = 0; sector < root_dir_sectors && !found; sector++) {
+        uint8_t buf[512];
+        if (blockcache_read(fs.root_dir_start + sector, buf) != 0) return -1;
+
+        fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buf;
+        for (int i = 0; i < 16 && !found; i++) {
+            if (entries[i].filename[0] == 0x00) goto search_done;
+            if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+            if (!(entries[i].attributes & FAT_ATTR_DIRECTORY)) continue;
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+
+            int match = 1;
+            for (int j = 0; j < 11; j++) {
+                if (entries[i].filename[j] != name83[j]) { match = 0; break; }
+            }
+            if (match) { dir_cluster = entries[i].first_cluster; found = 1; }
+        }
+    }
+search_done:
+    if (!found) return -1;
+
+    /* Walk the cluster chain and enumerate entries */
+    int count = 0;
+    uint16_t cur = dir_cluster;
+
+    while (cur >= 2 && cur < FAT16_EOC_MIN) {
+        uint32_t lba = fat16_cluster_to_lba(cur);
+
+        for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster; s++) {
+            uint8_t buf2[512];
+            if (blockcache_read(lba + s, buf2) != 0) return -1;
+
+            fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buf2;
+            for (int i = 0; i < 16; i++) {
+                if (entries[i].filename[0] == 0x00) return count;
+                if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+                if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+
+                /* Skip '.' and '..' */
+                if (entries[i].filename[0] == '.' &&
+                    (entries[i].filename[1] == ' ' ||
+                     entries[i].filename[1] == '.'))
+                    continue;
+
+                /* Build human-readable name */
+                char name[13];
+                int pos = 0;
+                for (int j = 0; j < 8; j++) {
+                    if (entries[i].filename[j] != ' ') {
+                        char ch = entries[i].filename[j];
+                        if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+                        name[pos++] = ch;
+                    }
+                }
+                if (entries[i].ext[0] != ' ') {
+                    name[pos++] = '.';
+                    for (int j = 0; j < 3; j++) {
+                        if (entries[i].ext[j] != ' ') {
+                            char ch = entries[i].ext[j];
+                            if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+                            name[pos++] = ch;
+                        }
+                    }
+                }
+                name[pos] = '\0';
+
+                int ret = callback(name, entries[i].file_size,
+                                   entries[i].attributes, ctx);
+                count++;
+                if (ret != 0) return count;
+            }
+        }
+
+        cur = fat16_read_fat_entry(cur);
     }
 
     return count;
