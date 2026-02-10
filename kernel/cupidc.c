@@ -378,6 +378,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_clear)(void) = clear_screen;
   BIND("clear_screen", p_clear, 0);
 
+  void (*p_serial_printf)(const char *, ...) = serial_printf;
+  BIND("serial_printf", p_serial_printf, 1);
+
   /* Memory management */
   /* kmalloc_debug takes (size, file, line) but CupidC programs should
    * just call kmalloc(size).  We bind to a wrapper that fills in
@@ -1051,8 +1054,85 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  Source File Reading Helper
+ *  Source File / Preprocessor Helpers
  * ══════════════════════════════════════════════════════════════════════ */
+
+#define CC_PP_MAX_OUTPUT (512u * 1024u)
+#define CC_PP_MAX_MACROS 128
+#define CC_PP_MAX_MACRO_VALUE 256
+#define CC_PP_MAX_INCLUDE_DEPTH 8
+#define CC_PP_MAX_PATH 256
+#define CC_PP_MAX_COND_DEPTH 32
+
+typedef struct {
+  char name[CC_MAX_IDENT];
+  char value[CC_PP_MAX_MACRO_VALUE];
+} cc_pp_macro_t;
+
+typedef struct {
+  cc_pp_macro_t macros[CC_PP_MAX_MACROS];
+  int macro_count;
+
+  int in_block_comment;
+  int active;
+  int cond_depth;
+  int cond_parent[CC_PP_MAX_COND_DEPTH];
+  int cond_taken[CC_PP_MAX_COND_DEPTH];
+
+  char *out;
+  uint32_t out_len;
+  uint32_t out_cap;
+
+  int error;
+  const char *error_msg;
+} cc_pp_state_t;
+
+static int cc_pp_is_space(char c) {
+  return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+static int cc_pp_is_alpha(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static int cc_pp_is_alnum(char c) {
+  return cc_pp_is_alpha(c) || (c >= '0' && c <= '9');
+}
+
+static int cc_pp_word_eq(const char *start, const char *end, const char *word) {
+  int i = 0;
+  while (start + i < end && word[i]) {
+    if (start[i] != word[i])
+      return 0;
+    i++;
+  }
+  return (start + i == end) && (word[i] == '\0');
+}
+
+static void cc_pp_set_error(cc_pp_state_t *pp, const char *msg) {
+  if (pp->error)
+    return;
+  pp->error = 1;
+  pp->error_msg = msg;
+}
+
+static void cc_pp_append_char(cc_pp_state_t *pp, char c) {
+  if (pp->error)
+    return;
+  if (pp->out_len + 1u >= pp->out_cap) {
+    cc_pp_set_error(pp, "expanded source too large");
+    return;
+  }
+  pp->out[pp->out_len++] = c;
+}
+
+static void cc_pp_append_range(cc_pp_state_t *pp, const char *start,
+                               const char *end) {
+  const char *p = start;
+  while (!pp->error && p < end) {
+    cc_pp_append_char(pp, *p++);
+  }
+}
 
 static char *cc_read_source(const char *path) {
   int fd = vfs_open(path, O_RDONLY);
@@ -1101,6 +1181,339 @@ static char *cc_read_source(const char *path) {
 
   vfs_close(fd);
   return source;
+}
+
+static int cc_pp_find_macro(cc_pp_state_t *pp, const char *name) {
+  int i;
+  for (i = 0; i < pp->macro_count; i++) {
+    if (strcmp(pp->macros[i].name, name) == 0)
+      return i;
+  }
+  return -1;
+}
+
+static void cc_pp_set_macro(cc_pp_state_t *pp, const char *name,
+                            const char *value) {
+  int idx = cc_pp_find_macro(pp, name);
+  if (idx < 0) {
+    if (pp->macro_count >= CC_PP_MAX_MACROS) {
+      cc_pp_set_error(pp, "too many #define macros");
+      return;
+    }
+    idx = pp->macro_count++;
+  }
+
+  strncpy(pp->macros[idx].name, name, CC_MAX_IDENT - 1);
+  pp->macros[idx].name[CC_MAX_IDENT - 1] = '\0';
+  strncpy(pp->macros[idx].value, value, CC_PP_MAX_MACRO_VALUE - 1);
+  pp->macros[idx].value[CC_PP_MAX_MACRO_VALUE - 1] = '\0';
+}
+
+static void cc_pp_resolve_include(const char *base_path, const char *inc_path,
+                                  char *out_path) {
+  if (inc_path[0] == '/') {
+    strncpy(out_path, inc_path, CC_PP_MAX_PATH - 1);
+    out_path[CC_PP_MAX_PATH - 1] = '\0';
+    return;
+  }
+
+  const char *slash = strrchr(base_path, '/');
+  if (!slash) {
+    strncpy(out_path, inc_path, CC_PP_MAX_PATH - 1);
+    out_path[CC_PP_MAX_PATH - 1] = '\0';
+    return;
+  }
+
+  int dir_len = (int)(slash - base_path + 1);
+  if (dir_len < 0)
+    dir_len = 0;
+  if (dir_len > CC_PP_MAX_PATH - 1)
+    dir_len = CC_PP_MAX_PATH - 1;
+
+  memcpy(out_path, base_path, (size_t)dir_len);
+  int oi = dir_len;
+  int ii = 0;
+  while (inc_path[ii] && oi < CC_PP_MAX_PATH - 1) {
+    out_path[oi++] = inc_path[ii++];
+  }
+  out_path[oi] = '\0';
+}
+
+static void cc_pp_expand_line(cc_pp_state_t *pp, const char *line_start,
+                              const char *line_end) {
+  const char *p = line_start;
+  while (!pp->error && p < line_end) {
+    if (pp->in_block_comment) {
+      cc_pp_append_char(pp, *p);
+      if (*p == '*' && (p + 1) < line_end && p[1] == '/') {
+        cc_pp_append_char(pp, '/');
+        p += 2;
+        pp->in_block_comment = 0;
+      } else {
+        p++;
+      }
+      continue;
+    }
+
+    if (*p == '/' && (p + 1) < line_end && p[1] == '/') {
+      cc_pp_append_range(pp, p, line_end);
+      return;
+    }
+
+    if (*p == '/' && (p + 1) < line_end && p[1] == '*') {
+      cc_pp_append_char(pp, '/');
+      cc_pp_append_char(pp, '*');
+      p += 2;
+      pp->in_block_comment = 1;
+      continue;
+    }
+
+    if (*p == '"' || *p == '\'') {
+      char q = *p;
+      cc_pp_append_char(pp, *p++);
+      while (!pp->error && p < line_end) {
+        char c = *p++;
+        cc_pp_append_char(pp, c);
+        if (c == '\\' && p < line_end) {
+          cc_pp_append_char(pp, *p++);
+          continue;
+        }
+        if (c == q)
+          break;
+      }
+      continue;
+    }
+
+    if (cc_pp_is_alpha(*p)) {
+      char ident[CC_MAX_IDENT];
+      int len = 0;
+      const char *id_start = p;
+      while (p < line_end && cc_pp_is_alnum(*p)) {
+        if (len < CC_MAX_IDENT - 1)
+          ident[len++] = *p;
+        p++;
+      }
+      ident[len] = '\0';
+
+      int mi = cc_pp_find_macro(pp, ident);
+      if (mi >= 0) {
+        const char *val = pp->macros[mi].value;
+        while (!pp->error && *val) {
+          cc_pp_append_char(pp, *val++);
+        }
+      } else {
+        cc_pp_append_range(pp, id_start, p);
+      }
+      continue;
+    }
+
+    cc_pp_append_char(pp, *p++);
+  }
+}
+
+static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth);
+
+static void cc_pp_handle_directive(cc_pp_state_t *pp, const char *cur_path,
+                                   const char *line_start,
+                                   const char *line_end, int depth) {
+  const char *p = line_start;
+  while (p < line_end && cc_pp_is_space(*p))
+    p++;
+  if (p >= line_end || *p != '#')
+    return;
+  p++; /* consume '#' */
+
+  while (p < line_end && cc_pp_is_space(*p))
+    p++;
+
+  const char *kw_start = p;
+  while (p < line_end && cc_pp_is_alpha(*p))
+    p++;
+  const char *kw_end = p;
+
+  while (p < line_end && cc_pp_is_space(*p))
+    p++;
+
+  if (cc_pp_word_eq(kw_start, kw_end, "include")) {
+    if (!pp->active)
+      return;
+    if (p >= line_end || *p != '"')
+      return;
+    p++;
+    char inc_path[CC_PP_MAX_PATH];
+    int pi = 0;
+    while (p < line_end && *p != '"' && pi < CC_PP_MAX_PATH - 1) {
+      inc_path[pi++] = *p++;
+    }
+    inc_path[pi] = '\0';
+    if (p >= line_end || *p != '"') {
+      cc_pp_set_error(pp, "malformed #include");
+      return;
+    }
+    char resolved[CC_PP_MAX_PATH];
+    cc_pp_resolve_include(cur_path, inc_path, resolved);
+    cc_pp_process_file(pp, resolved, depth + 1);
+    return;
+  }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "define")) {
+    if (!pp->active)
+      return;
+
+    if (p >= line_end || !cc_pp_is_alpha(*p)) {
+      cc_pp_set_error(pp, "malformed #define");
+      return;
+    }
+
+    char name[CC_MAX_IDENT];
+    int ni = 0;
+    while (p < line_end && cc_pp_is_alnum(*p)) {
+      if (ni < CC_MAX_IDENT - 1)
+        name[ni++] = *p;
+      p++;
+    }
+    name[ni] = '\0';
+
+    if (p < line_end && *p == '(') {
+      /* Function-like macros are not part of this phase. */
+      return;
+    }
+
+    while (p < line_end && cc_pp_is_space(*p))
+      p++;
+
+    const char *val_start = p;
+    const char *val_end = line_end;
+    while (val_end > val_start && cc_pp_is_space(*(val_end - 1)))
+      val_end--;
+
+    char value[CC_PP_MAX_MACRO_VALUE];
+    int vi = 0;
+    while (val_start < val_end && vi < CC_PP_MAX_MACRO_VALUE - 1) {
+      value[vi++] = *val_start++;
+    }
+    value[vi] = '\0';
+    cc_pp_set_macro(pp, name, value);
+    return;
+  }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "ifdef") ||
+      cc_pp_word_eq(kw_start, kw_end, "ifndef")) {
+    if (pp->cond_depth >= CC_PP_MAX_COND_DEPTH) {
+      cc_pp_set_error(pp, "preprocessor nesting too deep");
+      return;
+    }
+    char name[CC_MAX_IDENT];
+    int ni = 0;
+    while (p < line_end && cc_pp_is_alnum(*p) && ni < CC_MAX_IDENT - 1) {
+      name[ni++] = *p++;
+    }
+    name[ni] = '\0';
+    int defined = (ni > 0 && cc_pp_find_macro(pp, name) >= 0) ? 1 : 0;
+    int cond_true = cc_pp_word_eq(kw_start, kw_end, "ifdef") ? defined : !defined;
+
+    pp->cond_parent[pp->cond_depth] = pp->active;
+    pp->cond_taken[pp->cond_depth] = cond_true ? 1 : 0;
+    pp->active = pp->active && cond_true;
+    pp->cond_depth++;
+    return;
+  }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "else")) {
+    if (pp->cond_depth <= 0) {
+      cc_pp_set_error(pp, "unmatched #else");
+      return;
+    }
+    int idx = pp->cond_depth - 1;
+    pp->active = pp->cond_parent[idx] && !pp->cond_taken[idx];
+    pp->cond_taken[idx] = 1;
+    return;
+  }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "endif")) {
+    if (pp->cond_depth <= 0) {
+      cc_pp_set_error(pp, "unmatched #endif");
+      return;
+    }
+    pp->cond_depth--;
+    pp->active = pp->cond_parent[pp->cond_depth];
+    return;
+  }
+}
+
+static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth) {
+  if (pp->error)
+    return;
+  if (depth > CC_PP_MAX_INCLUDE_DEPTH) {
+    cc_pp_set_error(pp, "include depth exceeded");
+    return;
+  }
+
+  char *source = cc_read_source(path);
+  if (!source) {
+    cc_pp_set_error(pp, "cannot read source/include file");
+    return;
+  }
+
+  const char *p = source;
+  while (!pp->error && *p) {
+    const char *line_start = p;
+    while (*p && *p != '\n')
+      p++;
+    const char *line_end = p;
+
+    const char *s = line_start;
+    while (s < line_end && cc_pp_is_space(*s))
+      s++;
+
+    if (s < line_end && *s == '#') {
+      cc_pp_handle_directive(pp, path, line_start, line_end, depth);
+    } else if (pp->active) {
+      cc_pp_expand_line(pp, line_start, line_end);
+    }
+
+    if (*p == '\n') {
+      cc_pp_append_char(pp, '\n');
+      p++;
+    }
+  }
+
+  kfree(source);
+}
+
+static char *cc_preprocess_source(const char *path) {
+  cc_pp_state_t pp;
+  memset(&pp, 0, sizeof(pp));
+  pp.active = 1;
+  pp.out_cap = CC_PP_MAX_OUTPUT;
+  pp.out = kmalloc(pp.out_cap);
+  if (!pp.out) {
+    print("CupidC: out of memory for preprocessor\n");
+    return NULL;
+  }
+
+  cc_pp_process_file(&pp, path, 0);
+
+  if (!pp.error && pp.cond_depth != 0) {
+    cc_pp_set_error(&pp, "unterminated #ifdef/#ifndef block");
+  }
+
+  if (!pp.error) {
+    cc_pp_append_char(&pp, '\0');
+  }
+
+  if (pp.error) {
+    print("CupidC preprocess error");
+    if (pp.error_msg) {
+      print(": ");
+      print(pp.error_msg);
+    }
+    print("\n");
+    kfree(pp.out);
+    return NULL;
+  }
+
+  return pp.out;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1172,8 +1585,8 @@ static void cc_cleanup_state(cc_state_t *cc) {
 void cupidc_jit(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
 
-  /* Read source file */
-  char *source = cc_read_source(path);
+  /* Read and preprocess source file */
+  char *source = cc_preprocess_source(path);
   if (!source)
     return;
 
@@ -1289,8 +1702,8 @@ void cupidc_jit(const char *path) {
 void cupidc_aot(const char *src_path, const char *out_path) {
   serial_printf("[cupidc] AOT compile: %s -> %s\n", src_path, out_path);
 
-  /* Read source file */
-  char *source = cc_read_source(src_path);
+  /* Read and preprocess source file */
+  char *source = cc_preprocess_source(src_path);
   if (!source)
     return;
 

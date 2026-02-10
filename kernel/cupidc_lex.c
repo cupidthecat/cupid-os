@@ -142,6 +142,10 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_TYPEDEF;
   if (strcmp(text, "const") == 0)
     return CC_TOK_CONST;
+  if (strcmp(text, "static") == 0)
+    return CC_TOK_STATIC;
+  if (strcmp(text, "volatile") == 0)
+    return CC_TOK_VOLATILE;
   return CC_TOK_IDENT;
 }
 
@@ -252,10 +256,10 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     int i = 0;
     int32_t val = 0;
 
-    /* Check for hex: 0x... */
-    if (c == '0' && cc_peek_char2(cc) == 'x') {
+    /* Check for hex: 0x... or 0X... */
+    if (c == '0' && (cc_peek_char2(cc) == 'x' || cc_peek_char2(cc) == 'X')) {
       tok.text[i++] = cc_next_char(cc); /* '0' */
-      tok.text[i++] = cc_next_char(cc); /* 'x' */
+      tok.text[i++] = cc_next_char(cc); /* 'x'/'X' */
       while (cc_is_hexdigit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
         char h = cc_next_char(cc);
         tok.text[i++] = h;
@@ -275,6 +279,13 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
         val = val * 10 + (d - '0');
       }
     }
+
+    /* Accept optional unsigned suffix: 123u, 0xFFU */
+    if ((cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') &&
+        i < CC_MAX_IDENT - 1) {
+      tok.text[i++] = cc_next_char(cc);
+    }
+
     tok.text[i] = '\0';
     tok.type = CC_TOK_NUMBER;
     tok.int_value = val;
@@ -443,10 +454,19 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       tok.text[2] = '\0';
     } else if (cc_peek_char(cc) == '<') {
       cc_next_char(cc);
-      tok.type = CC_TOK_SHL;
-      tok.text[0] = '<';
-      tok.text[1] = '<';
-      tok.text[2] = '\0';
+      if (cc_peek_char(cc) == '=') {
+        cc_next_char(cc);
+        tok.type = CC_TOK_SHLEQ;
+        tok.text[0] = '<';
+        tok.text[1] = '<';
+        tok.text[2] = '=';
+        tok.text[3] = '\0';
+      } else {
+        tok.type = CC_TOK_SHL;
+        tok.text[0] = '<';
+        tok.text[1] = '<';
+        tok.text[2] = '\0';
+      }
     } else {
       tok.type = CC_TOK_LT;
       tok.text[0] = '<';
@@ -463,10 +483,19 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       tok.text[2] = '\0';
     } else if (cc_peek_char(cc) == '>') {
       cc_next_char(cc);
-      tok.type = CC_TOK_SHR;
-      tok.text[0] = '>';
-      tok.text[1] = '>';
-      tok.text[2] = '\0';
+      if (cc_peek_char(cc) == '=') {
+        cc_next_char(cc);
+        tok.type = CC_TOK_SHREQ;
+        tok.text[0] = '>';
+        tok.text[1] = '>';
+        tok.text[2] = '=';
+        tok.text[3] = '\0';
+      } else {
+        tok.type = CC_TOK_SHR;
+        tok.text[0] = '>';
+        tok.text[1] = '>';
+        tok.text[2] = '\0';
+      }
     } else {
       tok.type = CC_TOK_GT;
       tok.text[0] = '>';
@@ -480,6 +509,12 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       tok.type = CC_TOK_AND;
       tok.text[0] = '&';
       tok.text[1] = '&';
+      tok.text[2] = '\0';
+    } else if (cc_peek_char(cc) == '=') {
+      cc_next_char(cc);
+      tok.type = CC_TOK_ANDEQ;
+      tok.text[0] = '&';
+      tok.text[1] = '=';
       tok.text[2] = '\0';
     } else {
       tok.type = CC_TOK_AMP;
@@ -495,6 +530,12 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       tok.text[0] = '|';
       tok.text[1] = '|';
       tok.text[2] = '\0';
+    } else if (cc_peek_char(cc) == '=') {
+      cc_next_char(cc);
+      tok.type = CC_TOK_OREQ;
+      tok.text[0] = '|';
+      tok.text[1] = '=';
+      tok.text[2] = '\0';
     } else {
       tok.type = CC_TOK_BOR;
       tok.text[0] = '|';
@@ -503,9 +544,17 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     break;
 
   case '^':
-    tok.type = CC_TOK_BXOR;
-    tok.text[0] = '^';
-    tok.text[1] = '\0';
+    if (cc_peek_char(cc) == '=') {
+      cc_next_char(cc);
+      tok.type = CC_TOK_XOREQ;
+      tok.text[0] = '^';
+      tok.text[1] = '=';
+      tok.text[2] = '\0';
+    } else {
+      tok.type = CC_TOK_BXOR;
+      tok.text[0] = '^';
+      tok.text[1] = '\0';
+    }
     break;
 
   case '~':
@@ -555,9 +604,19 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     tok.text[1] = '\0';
     break;
   case '.':
-    tok.type = CC_TOK_DOT;
-    tok.text[0] = '.';
-    tok.text[1] = '\0';
+    if (cc_peek_char(cc) == '.' && cc_peek_char2(cc) == '.') {
+      cc_next_char(cc);
+      cc_next_char(cc);
+      tok.type = CC_TOK_ELLIPSIS;
+      tok.text[0] = '.';
+      tok.text[1] = '.';
+      tok.text[2] = '.';
+      tok.text[3] = '\0';
+    } else {
+      tok.type = CC_TOK_DOT;
+      tok.text[0] = '.';
+      tok.text[1] = '\0';
+    }
     break;
   case ':':
     tok.type = CC_TOK_COLON;

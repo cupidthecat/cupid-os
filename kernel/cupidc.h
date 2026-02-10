@@ -73,6 +73,8 @@ typedef enum {
   CC_TOK_UNSIGNED,
   CC_TOK_TYPEDEF,
   CC_TOK_CONST,
+  CC_TOK_STATIC,
+  CC_TOK_VOLATILE,
 
   /* Identifiers and literals */
   CC_TOK_IDENT,    /* variable/function names               */
@@ -106,6 +108,11 @@ typedef enum {
   CC_TOK_MINUSEQ,
   CC_TOK_STAREQ,
   CC_TOK_SLASHEQ,
+  CC_TOK_ANDEQ,
+  CC_TOK_OREQ,
+  CC_TOK_XOREQ,
+  CC_TOK_SHLEQ,
+  CC_TOK_SHREQ,
   CC_TOK_PLUSPLUS,
   CC_TOK_MINUSMINUS,
   CC_TOK_AMP, /* & (address-of, also bitwise AND)      */
@@ -120,6 +127,7 @@ typedef enum {
   CC_TOK_SEMICOLON,
   CC_TOK_COMMA,
   CC_TOK_DOT,
+  CC_TOK_ELLIPSIS,
   CC_TOK_ARROW,
   CC_TOK_COLON,
   CC_TOK_QUESTION,
@@ -190,7 +198,9 @@ typedef struct {
   char name[CC_MAX_IDENT];
   cc_field_t fields[CC_MAX_FIELDS];
   int field_count;
-  int32_t total_size; /* total size in bytes (4-byte aligned) */
+  int32_t total_size; /* total size in bytes (includes field padding) */
+  int32_t align;      /* natural alignment (1 or 4 for current types) */
+  int is_complete;    /* 1 after full definition parsed, 0 for forward tag */
 } cc_struct_def_t;
 
 /* ── Forward reference patch ─────────────────────────────────────── */

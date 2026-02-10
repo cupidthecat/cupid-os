@@ -789,6 +789,7 @@ void desktop_run_minimized_loop(const char *app_name) {
   serial_printf("[desktop] minimized app: %s\n", app_name);
 
   bool restore_requested = false;
+  bool needs_redraw = true;
   uint8_t prev_btns = mouse.buttons;
 
   while (!restore_requested) {
@@ -857,41 +858,62 @@ void desktop_run_minimized_loop(const char *app_name) {
     /* ── Process mouse ──────────────────────────────────────── */
     if (mouse.updated) {
       mouse.updated = false;
+      needs_redraw = true;
+
+      /* Handle scroll wheel for focused windows while minimized */
+      if (mouse.scroll_z != 0) {
+        int scroll_lines = (int)mouse.scroll_z * 5;
+        int np_wid = notepad_get_wid();
+        window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+        if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+          notepad_handle_scroll(scroll_lines);
+        } else {
+          terminal_handle_scroll(scroll_lines);
+        }
+        mouse.scroll_z = 0;
+      }
 
       uint8_t btn = mouse.buttons;
       bool pressed = (btn & 0x01) && !(prev_btns & 0x01);
+      bool right_pressed = (btn & 0x02) && !(prev_btns & 0x02);
+
+      /* Right-click on calendar: delete note */
+      if (right_pressed && cal_state.visible) {
+        calendar_handle_right_click(mouse.x, mouse.y);
+      }
 
       if (pressed) {
-        /* Check for click on the current app's taskbar button (restore) */
+        /* Check for click on the current app's taskbar button (restore). */
         if (mouse.y >= TASKBAR_Y && current_btn_idx >= 0 &&
             mouse.x >= jit_btns[current_btn_idx].x &&
             mouse.x < jit_btns[current_btn_idx].x +
                        (int16_t)jit_btns[current_btn_idx].w) {
           restore_requested = true;
-        }
-        /* Check clock hitbox */
-        else if (mouse.y >= TASKBAR_Y &&
-                 mouse.x >= clock_hitbox_x &&
-                 mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
+        } else if (mouse.y >= TASKBAR_Y &&
+                   mouse.x >= clock_hitbox_x &&
+                   mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
+          /* Check clock hitbox */
           desktop_toggle_calendar();
-        }
-        /* Handle other taskbar window buttons */
-        else if (mouse.y >= TASKBAR_Y) {
+        } else if (pressed && mouse.y >= TASKBAR_Y) {
+          /* Handle other taskbar window buttons */
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
             gui_set_focus(tb_id);
           }
-        }
-        /* Calendar popup clicks */
-        else if (cal_state.visible) {
+          /* Close calendar if clicking elsewhere on taskbar */
+          if (cal_state.visible &&
+              !(mouse.x >= clock_hitbox_x &&
+                mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width)) {
+            cal_state.visible = false;
+          }
+        } else if (pressed && cal_state.visible) {
+          /* Calendar popup click handling */
           calendar_handle_click(mouse.x, mouse.y);
-        }
-        /* Icon clicks */
-        else if (gui_hit_test_window(mouse.x, mouse.y) < 0) {
+        } else if (pressed && gui_hit_test_window(mouse.x, mouse.y) < 0) {
+          /* Icon clicks */
           int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
           if (gfx_icon >= 0) {
             gfx2d_icon_select(gfx_icon);
-            /* Launch the program (same as main desktop loop) */
             void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
             if (launch_fn) {
               launch_fn();
@@ -901,16 +923,18 @@ void desktop_run_minimized_loop(const char *app_name) {
                 cupidc_jit(prog);
               }
             }
+            needs_redraw = true;
           }
         }
-        /* Window clicks */
-        else {
-          gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
-          int np_wid = notepad_get_wid();
-          window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
-          if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
-            notepad_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
-          }
+      }
+
+      /* Always forward current button state so window dragging/release works. */
+      gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+      {
+        int np_wid = notepad_get_wid();
+        window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+        if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+          notepad_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
         }
       }
       prev_btns = btn;
@@ -922,6 +946,7 @@ void desktop_run_minimized_loop(const char *app_name) {
       while (keyboard_read_event(&event)) {
         if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
           cal_state.visible = false;
+          needs_redraw = true;
           continue;
         }
         int np_wid = notepad_get_wid();
@@ -931,6 +956,7 @@ void desktop_run_minimized_loop(const char *app_name) {
         } else {
           terminal_handle_key(event.scancode, event.character);
         }
+        needs_redraw = true;
       }
     }
 
@@ -939,46 +965,50 @@ void desktop_run_minimized_loop(const char *app_name) {
     notepad_tick();
 
     /* ── Render ─────────────────────────────────────────────── */
-    desktop_anim_tick++;
-    desktop_draw_background();
-    desktop_draw_icons();
-    gui_draw_all_windows();
+    if (needs_redraw || gui_any_dirty()) {
+      desktop_anim_tick++;
+      desktop_draw_background();
+      desktop_draw_icons();
+      gui_draw_all_windows();
 
-    /* Draw the standard taskbar */
-    desktop_draw_taskbar();
+      /* Draw the standard taskbar */
+      desktop_draw_taskbar();
 
-    /* Draw minimized JIT app buttons on the taskbar */
-    for (int bi = 0; bi < n_btns; bi++) {
-      uint32_t bg = COLOR_TASKBAR;
-      gfx_fill_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
-                     jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4), bg);
-      gfx_draw_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
-                     jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4),
-                     COLOR_BORDER);
+      /* Draw minimized JIT app buttons on the taskbar */
+      for (int bi = 0; bi < n_btns; bi++) {
+        uint32_t bg = COLOR_TASKBAR;
+        gfx_fill_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
+                       jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4), bg);
+        gfx_draw_rect(jit_btns[bi].x, (int16_t)(TASKBAR_Y + 2),
+                       jit_btns[bi].w, (uint16_t)(TASKBAR_HEIGHT - 4),
+                       COLOR_BORDER);
 
-      /* Truncate title to fit button */
-      int max_chars = (int)(jit_btns[bi].w - 8) / 8;
-      if (max_chars < 1) max_chars = 1;
-      char trunc[32];
-      int ti = 0;
-      while (jit_btns[bi].name[ti] && ti < max_chars && ti < 31) {
-        trunc[ti] = jit_btns[bi].name[ti];
-        ti++;
+        /* Truncate title to fit button */
+        int max_chars = (int)(jit_btns[bi].w - 8) / 8;
+        if (max_chars < 1) max_chars = 1;
+        char trunc[32];
+        int ti = 0;
+        while (jit_btns[bi].name[ti] && ti < max_chars && ti < 31) {
+          trunc[ti] = jit_btns[bi].name[ti];
+          ti++;
+        }
+        if (jit_btns[bi].name[ti] && ti >= max_chars && ti >= 2) {
+          trunc[ti - 1] = '.';
+          trunc[ti - 2] = '.';
+        }
+        trunc[ti] = '\0';
+        gfx_draw_text((int16_t)(jit_btns[bi].x + 4),
+                      (int16_t)(TASKBAR_Y + 6), trunc, COLOR_TEXT_LIGHT);
       }
-      if (jit_btns[bi].name[ti] && ti >= max_chars && ti >= 2) {
-        trunc[ti - 1] = '.';
-        trunc[ti - 2] = '.';
-      }
-      trunc[ti] = '\0';
-      gfx_draw_text((int16_t)(jit_btns[bi].x + 4),
-                    (int16_t)(TASKBAR_Y + 6), trunc, COLOR_TEXT_LIGHT);
+
+      desktop_draw_calendar();
+
+      mouse_save_under_cursor();
+      mouse_draw_cursor();
+      vga_flip();
+
+      needs_redraw = false;
     }
-
-    desktop_draw_calendar();
-
-    mouse_save_under_cursor();
-    mouse_draw_cursor();
-    vga_flip();
 
     process_yield();
   }

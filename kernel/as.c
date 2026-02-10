@@ -128,9 +128,10 @@ static void *as_jit_malloc(size_t size) {
   return kmalloc_debug(size, "asm", 0);
 }
 
-/* Register kernel functions so JIT asm programs can call them directly.
- * These become pre-defined labels: `call print`, `call print_int`, etc. */
-static void as_register_kernel_bindings(as_state_t *as) {
+/* Register kernel functions as pre-defined labels so asm programs can call
+ * them directly (e.g. `call print`).  JIT and AOT share most bindings, but
+ * `exit` differs: JIT returns to as_jit(), AOT must terminate its process. */
+static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   /* Console output */
   AS_BIND(as, "print",        print);
   AS_BIND(as, "putchar",      putchar);
@@ -155,7 +156,11 @@ static void as_register_kernel_bindings(as_state_t *as) {
   AS_BIND(as, "vfs_write",    vfs_write);
 
   /* Process */
-  AS_BIND(as, "exit",         as_jit_exit);
+  if (jit_mode) {
+    AS_BIND(as, "exit",       as_jit_exit);
+  } else {
+    AS_BIND(as, "exit",       process_exit);
+  }
   AS_BIND(as, "yield",        process_yield);
   AS_BIND(as, "sleep_ms",     timer_sleep_ms);
 
@@ -197,12 +202,13 @@ static int as_init_state(as_state_t *as, int jit_mode) {
   if (jit_mode) {
     as->code_base = AS_JIT_CODE_BASE;
     as->data_base = AS_JIT_DATA_BASE;
-    /* Register kernel functions so JIT programs can call them */
-    as_register_kernel_bindings(as);
   } else {
     as->code_base = AS_AOT_CODE_BASE;
     as->data_base = AS_AOT_DATA_BASE;
   }
+
+  /* Register pre-defined kernel symbols for both JIT and AOT assembly. */
+  as_register_kernel_bindings(as, jit_mode);
 
   /* Register syscall table offsets as equ constants.
    * These match cupid_syscall_table_t field offsets so AOT programs

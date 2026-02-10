@@ -1207,52 +1207,88 @@ static void shell_asm_cmd(const char *args) {
 /* cupidasm <file.asm> -o <output> — AOT assemble to ELF binary */
 static void shell_cupidasm_cmd(const char *args) {
   if (!args || args[0] == '\0') {
-    shell_print("Usage: cupidasm <file.asm> -o <output>\n");
+    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
+    shell_print("   or: cupidasm -o <output> <file.asm>\n");
     shell_print("  Assemble source to ELF binary\n");
     return;
   }
 
-  /* Parse: src_file -o out_file */
+  /* Parse up to 3 whitespace-delimited tokens. */
+  char tok0[VFS_MAX_PATH];
+  char tok1[VFS_MAX_PATH];
+  char tok2[VFS_MAX_PATH];
   char src[VFS_MAX_PATH];
   char out[VFS_MAX_PATH];
-  int si = 0, ai = 0;
+  int ai = 0;
 
-  /* Extract source file */
-  while (args[ai] && args[ai] != ' ' && si < VFS_MAX_PATH - 1) {
-    src[si++] = args[ai++];
-  }
-  src[si] = '\0';
+  tok0[0] = '\0';
+  tok1[0] = '\0';
+  tok2[0] = '\0';
+  src[0] = '\0';
+  out[0] = '\0';
 
-  /* Skip whitespace */
   while (args[ai] == ' ') ai++;
 
-  /* Check for -o flag */
-  if (args[ai] == '-' && args[ai + 1] == 'o') {
-    ai += 2;
-    while (args[ai] == ' ') ai++;
+  int i = 0;
+  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
+    tok0[i++] = args[ai++];
+  }
+  tok0[i] = '\0';
 
-    int oi = 0;
-    while (args[ai] && args[ai] != ' ' && oi < VFS_MAX_PATH - 1) {
-      out[oi++] = args[ai++];
-    }
-    out[oi] = '\0';
-  } else {
-    /* Default output name: replace .asm extension or append nothing */
-    int slen = 0;
-    while (src[slen]) slen++;
+  while (args[ai] == ' ') ai++;
 
-    int oi = 0;
-    if (slen > 4 && src[slen - 4] == '.' && src[slen - 3] == 'a' &&
-        src[slen - 2] == 's' && src[slen - 1] == 'm') {
+  i = 0;
+  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
+    tok1[i++] = args[ai++];
+  }
+  tok1[i] = '\0';
+
+  while (args[ai] == ' ') ai++;
+
+  i = 0;
+  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
+    tok2[i++] = args[ai++];
+  }
+  tok2[i] = '\0';
+
+  while (args[ai] == ' ') ai++;
+  if (args[ai] != '\0' || tok0[0] == '\0') {
+    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
+    shell_print("   or: cupidasm -o <output> <file.asm>\n");
+    return;
+  }
+
+  /* Accept both orders:
+   *   cupidasm <src> -o <out>
+   *   cupidasm -o <out> <src>
+   * plus:
+   *   cupidasm <src>         (default output derived from source)
+   */
+  if (tok1[0] == '\0') {
+    int slen = 0, oi = 0;
+    while (tok0[slen]) slen++;
+    if (slen > 4 && tok0[slen - 4] == '.' && tok0[slen - 3] == 'a' &&
+        tok0[slen - 2] == 's' && tok0[slen - 1] == 'm') {
       for (int k = 0; k < slen - 4 && oi < VFS_MAX_PATH - 1; k++) {
-        out[oi++] = src[k];
+        out[oi++] = tok0[k];
       }
     } else {
       for (int k = 0; k < slen && oi < VFS_MAX_PATH - 1; k++) {
-        out[oi++] = src[k];
+        out[oi++] = tok0[k];
       }
     }
     out[oi] = '\0';
+    strcpy(src, tok0);
+  } else if (strcmp(tok0, "-o") == 0 && tok1[0] && tok2[0]) {
+    strcpy(out, tok1);
+    strcpy(src, tok2);
+  } else if (strcmp(tok1, "-o") == 0 && tok2[0]) {
+    strcpy(src, tok0);
+    strcpy(out, tok2);
+  } else {
+    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
+    shell_print("   or: cupidasm -o <output> <file.asm>\n");
+    return;
   }
 
   /* Resolve paths */
