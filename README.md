@@ -3,6 +3,8 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 
 ## Example of cupid-os
 ![alt text for cupid-os img](img/basic_shell.png)
+[!alt txt](img/fm.png)
+[!alt txt](img/paint.png)
 
 **Key Features:**
 - VBE 640×480 32bpp desktop environment with window manager
