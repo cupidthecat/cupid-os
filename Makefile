@@ -349,6 +349,14 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 
 run: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+
+# Create a fresh 50MB HDD image with an MBR + FAT16 partition (type 0x06).
+# Run this once before using run-disk.  Safe to re-run: destroys all disk data.
+disk:
+	dd if=/dev/zero of=test-disk.img bs=512 count=102400
+	printf "2048,,6\n" | sfdisk test-disk.img
+	mkfs.fat -F 16 --offset=2048 test-disk.img 100352
+
 run-disk: $(OS_IMAGE)
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 run-log: $(OS_IMAGE)
