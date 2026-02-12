@@ -113,7 +113,49 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     }
 }
 
+/* ── ESP alignment diagnostic ──────────────────────────────────────── */
+static int esp_misalign_reported = 0;
+
 void serial_printf(const char *fmt, ...) {
+    if (!esp_misalign_reported) {
+        uint32_t esp_val;
+        __asm__ volatile("mov %%esp, %0" : "=r"(esp_val));
+        if ((esp_val & 3) != 0) {
+            esp_misalign_reported = 1;
+            uint32_t esp_mod = esp_val & 3;
+            /* Get return address (caller of serial_printf) */
+            uint32_t ret_addr;
+            __asm__ volatile("movl 4(%%ebp), %0" : "=r"(ret_addr));
+            /* Use raw serial output to avoid recursion */
+            serial_write_string("\n[ESP_DIAG] MISALIGNED ESP=0x");
+            {
+                const char hex[] = "0123456789abcdef";
+                char buf[9];
+                uint32_t v = esp_val;
+                for (int i = 7; i >= 0; i--) {
+                    buf[i] = hex[v & 0xF];
+                    v >>= 4;
+                }
+                buf[8] = '\0';
+                serial_write_string(buf);
+            }
+            serial_write_string(" mod4=");
+            serial_write_char((char)('0' + esp_mod));
+            serial_write_string(" ret=0x");
+            {
+                const char hex[] = "0123456789abcdef";
+                char buf[9];
+                uint32_t rv = ret_addr;
+                for (int i = 7; i >= 0; i--) {
+                    buf[i] = hex[rv & 0xF];
+                    rv >>= 4;
+                }
+                buf[8] = '\0';
+                serial_write_string(buf);
+            }
+            serial_write_string("\n");
+        }
+    }
     __builtin_va_list ap;
     __builtin_va_start(ap, fmt);
     vserial_printf(fmt, ap);
