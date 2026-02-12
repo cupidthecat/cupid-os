@@ -14,13 +14,16 @@
 #include "kernel.h"
 #include "vfs.h"
 #include "process.h"
+#include "shell.h"
 #include "memory.h"
 #include "string.h"
 #include "syscall.h"
 #include "../drivers/serial.h"
 
-/* Maximum executable size (256 KB) */
-#define EXEC_MAX_SIZE (256u * 1024u)
+/* Maximum executable size (1 MB) */
+#define EXEC_MAX_SIZE (1024u * 1024u)
+/* Self-hosted compiler binaries need more stack than tiny shell apps. */
+#define EXEC_STACK_SIZE (DEFAULT_STACK_SIZE * 4u)
 
 /* Maximum number of ELF program headers we support */
 #define ELF_MAX_PHDRS 16
@@ -222,6 +225,33 @@ int elf_exec(const char *path, const char *proc_name) {
 
     vfs_close(fd);
 
+    /* Verify load integrity by checking a few bytes at various offsets */
+    {
+        serial_printf("[elf] Verifying loaded code integrity for %s\n", path);
+        uint8_t *check_addr = (uint8_t *)min_vaddr;
+        serial_printf("[elf]   @0x%x: ", (uint32_t)check_addr);
+        for (int i = 0; i < 8; i++) {
+            serial_printf("%x ", check_addr[i]);
+        }
+        serial_printf("\n");
+        if (total_size > 0x10000) {
+            check_addr = (uint8_t *)(min_vaddr + 0x10000);
+            serial_printf("[elf]   @0x%x: ", (uint32_t)check_addr);
+            for (int i = 0; i < 8; i++) {
+                serial_printf("%x ", check_addr[i]);
+            }
+            serial_printf("\n");
+        }
+        if (total_size > 0x2c89c) {
+            check_addr = (uint8_t *)(min_vaddr + 0x2c89c); /* Crash offset */
+            serial_printf("[elf]   @0x%x (crash site): ", (uint32_t)check_addr);
+            for (int i = 0; i < 8; i++) {
+                serial_printf("%x ", check_addr[i]);
+            }
+            serial_printf("\n");
+        }
+    }
+
     /* The entry point is the ELF's e_entry — since we loaded at the
      * exact virtual addresses the ELF expects, we use it directly. */
     uint32_t entry_addr = ehdr.e_entry;
@@ -236,7 +266,7 @@ int elf_exec(const char *path, const char *proc_name) {
     /* Create process with syscall table argument on the stack.
      * We use process_create_with_arg to push the arg before entry. */
     uint32_t pid = process_create_with_arg(
-        entry_fn, pname, DEFAULT_STACK_SIZE,
+        entry_fn, pname, EXEC_STACK_SIZE,
         (uint32_t)syscall_get_table()
     );
 
@@ -249,6 +279,7 @@ int elf_exec(const char *path, const char *proc_name) {
     /* Associate the image memory with the process so it gets
      * freed when the process exits. */
     process_set_image(pid, page_base, page_size);
+    process_set_program_args(pid, shell_get_program_args());
 
     serial_printf("[elf] Loaded %s as PID %u (ELF32, %u bytes at 0x%x)\n",
                   path, pid, total_size, min_vaddr);
@@ -348,12 +379,13 @@ int cupd_exec(const char *path, const char *proc_name) {
     const char *pname = proc_name ? proc_name : path;
 
     /* Create the process */
-    uint32_t pid = process_create(entry, pname, DEFAULT_STACK_SIZE);
+    uint32_t pid = process_create(entry, pname, EXEC_STACK_SIZE);
     if (pid == 0) {
         kfree(image);
         serial_printf("[cupd] Failed to create process for %s\n", path);
         return VFS_EIO;
     }
+    process_set_program_args(pid, shell_get_program_args());
 
     serial_printf("[cupd] Loaded %s as PID %u (CUPD, %u bytes)\n",
                   path, pid, total);

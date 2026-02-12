@@ -570,6 +570,7 @@ void kmain(void) {
 
     // Initialize block cache for first drive
     block_device_t* hdd = blkdev_get(0);
+    int fat16_ok = 0;
     if (hdd) {
         if (blockcache_init(hdd) != 0) {
             KERROR("Block cache initialization failed");
@@ -581,7 +582,10 @@ void kmain(void) {
 
         // Initialize FAT16 filesystem
         if (fat16_init() == 0) {
-            KINFO("FAT16 mounted at /disk");
+            fat16_ok = 1;
+            KINFO("FAT16 filesystem initialized");
+        } else {
+            KERROR("FAT16 init failed (no valid FAT16 partition on disk)");
         }
     }
 
@@ -608,7 +612,7 @@ void kmain(void) {
     }
 
     /* Mount FAT16 at /home (user files on disk) */
-    if (hdd) {
+    if (fat16_ok) {
         if (vfs_mount(NULL, "/home", "fat16") == VFS_OK) {
             KINFO("VFS: mounted fat16 on /home");
         }

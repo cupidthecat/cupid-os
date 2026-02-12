@@ -199,6 +199,10 @@ int fat16_init(void) {
     return 0;
 }
 
+int fat16_is_initialized(void) {
+    return fat16_initialized;
+}
+
 /* ── Subdirectory path helpers ────────────────────────────────────── */
 
 /* Split "dir/file" into dir_out and name_out.

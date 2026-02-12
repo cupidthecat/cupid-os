@@ -22,6 +22,7 @@
 #define MAX_PROCESSES       32
 #define DEFAULT_STACK_SIZE  32768     /* 32KB per process             */
 #define PROCESS_NAME_LEN    32
+#define PROCESS_ARGS_LEN    256
 
 /* ── Stack canary for overflow detection ──────────────────────────── */
 #define STACK_CANARY        0xDEADC0DE
@@ -52,6 +53,7 @@ typedef struct {
     uint32_t         image_base;              /* ELF image load addr  */
     uint32_t         image_size;              /* ELF image total size */
     char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
+    char             args[PROCESS_ARGS_LEN];  /* Program argument copy */
 } process_t;
 
 /* ── Public API ───────────────────────────────────────────────────── */
@@ -190,5 +192,20 @@ uint32_t process_register_current(const char *name);
  * @size: size in bytes of the loaded image
  */
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size);
+
+/**
+ * process_set_program_args - Copy argument string into a process slot
+ *
+ * @pid:  target process ID
+ * @args: NUL-terminated argument string (may be NULL)
+ */
+void process_set_program_args(uint32_t pid, const char *args);
+
+/**
+ * process_get_program_args - Get argument string for a process
+ *
+ * Returns a stable pointer to the process-owned argument buffer.
+ */
+const char *process_get_program_args(uint32_t pid);
 
 #endif /* PROCESS_H */

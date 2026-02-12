@@ -129,6 +129,9 @@ void syscall_init(void) {
   /* Program execution */
   syscall_table.exec = syscall_exec;
 
+  /* Argument retrieval */
+  syscall_table.get_args = shell_get_program_args;
+
   serial_printf("[SYSCALL] Syscall table initialized (v%u, %u bytes)\n",
                 syscall_table.version, syscall_table.table_size);
 }

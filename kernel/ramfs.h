@@ -12,7 +12,7 @@
  * ══════════════════════════════════════════════════════════════════════ */
 
 #define RAMFS_MAX_FILES   128
-#define RAMFS_MAX_DATA    (64 * 1024)  /* 64KB max per file */
+#define RAMFS_MAX_DATA    (1024 * 1024) /* 1MB max per file */
 
 /* Get the VFS operations struct for ramfs */
 vfs_fs_ops_t *ramfs_get_ops(void);

@@ -26,7 +26,16 @@ static void emit8(cc_state_t *cc, uint8_t b) {
   if (cc->code_pos < CC_MAX_CODE) {
     cc->code[cc->code_pos++] = b;
   } else {
-    cc->error = 1;
+    if (!cc->error) {
+      const char *msg = "CupidC Error: code segment overflow\n";
+      int i = 0;
+      cc->error = 1;
+      while (msg[i] && i < 126) {
+        cc->error_msg[i] = msg[i];
+        i++;
+      }
+      cc->error_msg[i] = '\0';
+    }
   }
 }
 
@@ -51,6 +60,22 @@ static void patch32(cc_state_t *cc, uint32_t offset, uint32_t value) {
 /* Current code address (base + position) */
 static uint32_t cc_code_addr(cc_state_t *cc) {
   return cc->code_base + cc->code_pos;
+}
+
+/* Forward declaration — cc_error is defined later in this file */
+static void cc_error(cc_state_t *cc, const char *msg);
+
+/* Allocate `size` bytes from the data segment, zero-filled.
+ * Returns the offset within cc->data, or (uint32_t)-1 on overflow. */
+static uint32_t cc_data_alloc(cc_state_t *cc, uint32_t size) {
+  if (cc->data_pos + size > CC_MAX_DATA) {
+    cc_error(cc, "data segment overflow");
+    return (uint32_t)-1;
+  }
+  uint32_t off = cc->data_pos;
+  memset(cc->data + off, 0, size);
+  cc->data_pos += size;
+  return off;
 }
 
 /* ── x86 instruction emitters ────────────────────────────────────── */
@@ -271,6 +296,23 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   }
   cc->error_msg[i++] = '\n';
   cc->error_msg[i] = '\0';
+}
+
+/* Guard parser loops against non-consuming iterations to avoid hangs. */
+static int cc_guard_progress(cc_state_t *cc, int *prev_pos, const char *where) {
+  if (cc->error)
+    return 0;
+  if (*prev_pos == cc->pos) {
+    cc_token_t stuck = cc_lex_peek(cc);
+    serial_printf(
+        "[cupidc] Parser stuck in %s at line %d (tok=%d text='%s' pos=%d)\n",
+        where, stuck.line ? stuck.line : cc->line, (int)stuck.type, stuck.text,
+        cc->pos);
+    cc_error(cc, "parser made no progress");
+    return 0;
+  }
+  *prev_pos = cc->pos;
+  return 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2147,12 +2189,12 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     total_bytes = (total_bytes + 3) & ~3;
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, arr_type);
     if (sym) {
-      sym->address = cc->data_base + cc->data_pos;
+      uint32_t doff = cc_data_alloc(cc, (uint32_t)total_bytes);
+      if (doff == (uint32_t)-1) return;
+      sym->address = cc->data_base + doff;
       sym->is_array = 1;
       sym->struct_index = type_struct_index;
       sym->array_elem_size = aes;
-      memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
-      cc->data_pos += (uint32_t)total_bytes;
     }
     if (cc_match(cc, CC_TOK_EQ)) {
       if (!cc_skip_brace_initializer(cc))
@@ -2175,10 +2217,10 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     int32_t alloc_size = cc_align_up(ssize, 4);
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_STRUCT);
     if (sym) {
-      sym->address = cc->data_base + cc->data_pos;
+      uint32_t doff = cc_data_alloc(cc, (uint32_t)alloc_size);
+      if (doff == (uint32_t)-1) return;
+      sym->address = cc->data_base + doff;
       sym->struct_index = type_struct_index;
-      memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
-      cc->data_pos += (uint32_t)alloc_size;
     }
     if (cc_match(cc, CC_TOK_EQ)) {
       if (!cc_skip_brace_initializer(cc))
@@ -2190,10 +2232,10 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 
   cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, type);
   if (sym) {
-    sym->address = cc->data_base + cc->data_pos;
+    uint32_t doff = cc_data_alloc(cc, 4);
+    if (doff == (uint32_t)-1) return;
+    sym->address = cc->data_base + doff;
     sym->struct_index = type_struct_index;
-    memset(cc->data + cc->data_pos, 0, 4);
-    cc->data_pos += 4;
   }
 
   if (cc_match(cc, CC_TOK_EQ)) {
@@ -2720,9 +2762,12 @@ static void cc_parse_statement(cc_state_t *cc) {
 
     uint32_t next_case_patch = 0; /* patch for jne to next case */
     int had_default = 0;
+    int switch_prev_pos = -1;
 
     while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
            cc_peek(cc).type != CC_TOK_EOF) {
+      if (!cc_guard_progress(cc, &switch_prev_pos, "switch"))
+        break;
       if (cc_peek(cc).type == CC_TOK_CASE) {
         cc_next(cc);
         /* Patch previous case's skip jump to here */
@@ -2744,10 +2789,13 @@ static void cc_parse_statement(cc_state_t *cc) {
         cc_expect(cc, CC_TOK_COLON);
         next_case_patch = emit_jcc_placeholder(cc, 0x85); /* jne */
         /* Parse case body statements */
+        int case_prev_pos = -1;
         while (!cc->error && cc_peek(cc).type != CC_TOK_CASE &&
                cc_peek(cc).type != CC_TOK_DEFAULT &&
                cc_peek(cc).type != CC_TOK_RBRACE &&
                cc_peek(cc).type != CC_TOK_EOF) {
+          if (!cc_guard_progress(cc, &case_prev_pos, "switch-case"))
+            break;
           cc_parse_statement(cc);
         }
       } else if (cc_peek(cc).type == CC_TOK_DEFAULT) {
@@ -2757,9 +2805,12 @@ static void cc_parse_statement(cc_state_t *cc) {
           patch_jump(cc, next_case_patch);
         next_case_patch = 0;
         had_default = 1;
+        int default_prev_pos = -1;
         while (!cc->error && cc_peek(cc).type != CC_TOK_CASE &&
                cc_peek(cc).type != CC_TOK_RBRACE &&
                cc_peek(cc).type != CC_TOK_EOF) {
+          if (!cc_guard_progress(cc, &default_prev_pos, "switch-default"))
+            break;
           cc_parse_statement(cc);
         }
       } else {
@@ -2872,6 +2923,8 @@ static void cc_parse_statement(cc_state_t *cc) {
         emit_load_local(cc, sym->offset);
       }
       int si = sym->struct_index;
+      int field_arr_elem_size = 0;
+      cc_type_t field_arr_base_type = TYPE_INT;
       /* Traverse member chain: a.b.c or a->b->c */
       cc_type_t ftype = TYPE_INT;
       while (cc_peek(cc).type == CC_TOK_DOT ||
@@ -2907,12 +2960,50 @@ static void cc_parse_statement(cc_state_t *cc) {
         } else if (fld->array_count > 0) {
           /* Array field: keep address, break for subscript or use */
           ftype = (fld->type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_PTR;
+          field_arr_base_type = fld->type;
+          if (fld->type == TYPE_CHAR)
+            field_arr_elem_size = 1;
+          else
+            field_arr_elem_size = 4;
           break;
         } else {
           /* Leaf field — next should be = */
           break;
         }
       }
+
+      /* Struct field subscript assignment: obj.field[i] = v / obj->field[i] = v */
+      if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        if (field_arr_elem_size <= 0) {
+          cc_error(cc, "subscript on non-array field");
+          break;
+        }
+        cc_next(cc); /* consume '[' */
+        emit_push_eax(cc); /* save base field address */
+        cc_parse_expression(cc, 1); /* eax = index */
+        if (field_arr_elem_size == 2) {
+          emit8(cc, 0xC1);
+          emit8(cc, 0xE0);
+          emit8(cc, 0x01); /* shl eax, 1 */
+        } else if (field_arr_elem_size == 4) {
+          emit8(cc, 0xC1);
+          emit8(cc, 0xE0);
+          emit8(cc, 0x02); /* shl eax, 2 */
+        } else if (field_arr_elem_size > 4) {
+          emit8(cc, 0x69);
+          emit8(cc, 0xC0); /* imul eax, eax, imm32 */
+          emit32(cc, (uint32_t)field_arr_elem_size);
+        }
+        emit_pop_ebx(cc);
+        emit8(cc, 0x01);
+        emit8(cc, 0xD8); /* add eax, ebx */
+        cc_expect(cc, CC_TOK_RBRACK);
+        if (field_arr_base_type == TYPE_CHAR)
+          ftype = TYPE_CHAR;
+        else
+          ftype = TYPE_INT;
+      }
+
       /* Expect assignment operator */
       cc_token_t assign_op = cc_peek(cc);
       if (!cc_is_assignment_op(assign_op.type)) {
@@ -3019,9 +3110,12 @@ static void cc_parse_statement(cc_state_t *cc) {
 static void cc_parse_block(cc_state_t *cc) {
   int saved_scope = cc->sym_count;
   int saved_offset = cc->local_offset;
+  int prev_pos = -1;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
          cc_peek(cc).type != CC_TOK_EOF) {
+    if (!cc_guard_progress(cc, &prev_pos, "block"))
+      break;
     cc_parse_statement(cc);
   }
 
@@ -3139,9 +3233,12 @@ static void cc_parse_function(cc_state_t *cc) {
 
   /* Parse body */
   cc_expect(cc, CC_TOK_LBRACE);
+  int func_prev_pos = -1;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
          cc_peek(cc).type != CC_TOK_EOF) {
+    if (!cc_guard_progress(cc, &func_prev_pos, "function-body"))
+      break;
     cc_parse_statement(cc);
   }
   cc_expect(cc, CC_TOK_RBRACE);
@@ -3181,8 +3278,11 @@ static void cc_parse_function(cc_state_t *cc) {
 
 void cc_parse_program(cc_state_t *cc) {
   cc->struct_count = 0;
+  int prev_pos = -1;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+    if (!cc_guard_progress(cc, &prev_pos, "top-level"))
+      break;
     cc_token_t tok = cc_peek(cc);
     if (tok.type == CC_TOK_STATIC) {
       /* File-scope static is accepted; linkage is not distinguished. */
@@ -3223,14 +3323,14 @@ void cc_parse_program(cc_state_t *cc) {
         /* Register as global constant in data section */
         cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
         if (gsym) {
-          gsym->address = cc->data_base + cc->data_pos;
-          memset(cc->data + cc->data_pos, 0, 4);
+          uint32_t doff = cc_data_alloc(cc, 4);
+          if (doff == (uint32_t)-1) break;
+          gsym->address = cc->data_base + doff;
           uint32_t v = (uint32_t)enum_val;
-          cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
-          cc->data[cc->data_pos + 1] = (uint8_t)((v >> 8) & 0xFF);
-          cc->data[cc->data_pos + 2] = (uint8_t)((v >> 16) & 0xFF);
-          cc->data[cc->data_pos + 3] = (uint8_t)((v >> 24) & 0xFF);
-          cc->data_pos += 4;
+          cc->data[doff] = (uint8_t)(v & 0xFF);
+          cc->data[doff + 1] = (uint8_t)((v >> 8) & 0xFF);
+          cc->data[doff + 2] = (uint8_t)((v >> 16) & 0xFF);
+          cc->data[doff + 3] = (uint8_t)((v >> 24) & 0xFF);
         }
         enum_val++;
         /* Comma between values (optional before closing brace) */
@@ -3377,7 +3477,7 @@ void cc_parse_program(cc_state_t *cc) {
         sd->total_size = cc_align_up(field_offset, struct_align);
         sd->is_complete = 1;
 
-        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\\n",
+        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\n",
                       sd->name, sd->field_count, sd->total_size);
         continue;
       }
@@ -3486,12 +3586,12 @@ void cc_parse_program(cc_state_t *cc) {
           total_bytes = (total_bytes + 3) & ~3;
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
           if (gsym) {
-            gsym->address = cc->data_base + cc->data_pos;
+            uint32_t doff = cc_data_alloc(cc, (uint32_t)total_bytes);
+            if (doff == (uint32_t)-1) break;
+            gsym->address = cc->data_base + doff;
             gsym->is_array = 1;
             gsym->struct_index = gtype_si;
             gsym->array_elem_size = aes;
-            memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
-            cc->data_pos += (uint32_t)total_bytes;
           }
           cc_expect(cc, CC_TOK_SEMICOLON);
         }
@@ -3506,10 +3606,10 @@ void cc_parse_program(cc_state_t *cc) {
           cc_symbol_t *gsym =
               cc_sym_add(cc, gname.text, SYM_GLOBAL, TYPE_STRUCT);
           if (gsym) {
-            gsym->address = cc->data_base + cc->data_pos;
+            uint32_t doff = cc_data_alloc(cc, (uint32_t)alloc_size);
+            if (doff == (uint32_t)-1) break;
+            gsym->address = cc->data_base + doff;
             gsym->struct_index = gtype_si;
-            memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
-            cc->data_pos += (uint32_t)alloc_size;
           }
           if (cc_match(cc, CC_TOK_EQ)) {
             if (!cc_skip_brace_initializer(cc))
@@ -3521,15 +3621,15 @@ void cc_parse_program(cc_state_t *cc) {
         else {
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
           if (gsym) {
-            gsym->address = cc->data_base + cc->data_pos;
+            uint32_t doff = cc_data_alloc(cc, 4);
+            if (doff == (uint32_t)-1) break;
+            gsym->address = cc->data_base + doff;
             gsym->struct_index = gtype_si;
-            memset(cc->data + cc->data_pos, 0, 4);
-            cc->data_pos += 4;
 
             /* Handle initializer: int x = 42; int y = -1; char *s = "hi"; */
             if (cc_match(cc, CC_TOK_EQ)) {
               cc_token_t val = cc_next(cc);
-              uint32_t addr_off = gsym->address - cc->data_base;
+              uint32_t addr_off = doff;
               /* Handle negative initializer: -NUMBER */
               int negate = 0;
               if (val.type == CC_TOK_MINUS) {

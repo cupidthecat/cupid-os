@@ -22,6 +22,9 @@ static int mount_count = 0;
 
 /* ── File descriptor table ────────────────────────────────────────── */
 static vfs_file_t fd_table[VFS_MAX_OPEN_FILES];
+static uint32_t vfs_write_bad_fd_logs = 0;
+static uint32_t vfs_write_not_in_use_logs = 0;
+static uint32_t vfs_write_null_buf_logs = 0;
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Internal helpers
@@ -249,19 +252,27 @@ int vfs_read(int fd, void *buffer, uint32_t count) {
 
 int vfs_write(int fd, const void *buffer, uint32_t count) {
     if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) {
-        serial_printf("[vfs_write] EINVAL: bad fd=%d\n", fd);
+        if (vfs_write_bad_fd_logs < 8 || (vfs_write_bad_fd_logs & 255) == 0) {
+            serial_printf("[vfs_write] EINVAL: bad fd=%d\n", fd);
+        }
+        vfs_write_bad_fd_logs++;
         return VFS_EINVAL;
     }
     if (!fd_table[fd].in_use) {
-        serial_printf("[vfs_write] EINVAL: fd=%d not in use\n", fd);
+        if (vfs_write_not_in_use_logs < 8 ||
+            (vfs_write_not_in_use_logs & 255) == 0) {
+            serial_printf("[vfs_write] EINVAL: fd=%d not in use\n", fd);
+        }
+        vfs_write_not_in_use_logs++;
         return VFS_EINVAL;
     }
     if (!buffer) {
-        serial_printf("[vfs_write] EINVAL: null buffer\n");
+        if (vfs_write_null_buf_logs < 8 || (vfs_write_null_buf_logs & 255) == 0) {
+            serial_printf("[vfs_write] EINVAL: null buffer\n");
+        }
+        vfs_write_null_buf_logs++;
         return VFS_EINVAL;
     }
-
-    serial_printf("[vfs_write] fd=%d count=%u buffer=%p\n", fd, count, buffer);
 
     vfs_file_t *f = &fd_table[fd];
     if (!f->mount || !f->mount->ops->write) {
@@ -270,7 +281,6 @@ int vfs_write(int fd, const void *buffer, uint32_t count) {
     }
 
     int rc = f->mount->ops->write(f->fs_data, buffer, count);
-    serial_printf("[vfs_write] write returned rc=%d\n", rc);
     if (rc > 0) {
         f->position += (uint32_t)rc;
     }

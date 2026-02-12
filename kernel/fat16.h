@@ -103,6 +103,7 @@ typedef int (*fat16_enum_callback_t)(const char *name, uint32_t size,
 
 // Public API
 int fat16_init(void);
+int fat16_is_initialized(void);
 fat16_file_t* fat16_open(const char* filename);
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count);
 int fat16_close(fat16_file_t* file);

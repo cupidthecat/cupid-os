@@ -53,6 +53,103 @@ static void cc_println(const char *s) {
   print("\n");
 }
 
+/* ── serial_printf wrapper for CupidC programs ───────────────────── */
+/* Mirrors output to GUI terminal when shell is in GUI mode, while still
+ * preserving serial output for debugging. */
+static void cc_prog_putc(char c) {
+  serial_write_char(c);
+  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+    shell_gui_putchar_ext(c);
+  }
+}
+
+static void cc_prog_puts(const char *s) {
+  if (!s) {
+    s = "(null)";
+  }
+  while (*s) {
+    cc_prog_putc(*s);
+    s++;
+  }
+}
+
+static void cc_prog_put_dec(uint32_t num) {
+  char buf[12];
+  int i = 0;
+  if (num == 0) {
+    cc_prog_putc('0');
+    return;
+  }
+  while (num > 0) {
+    buf[i++] = (char)('0' + (num % 10));
+    num /= 10;
+  }
+  while (i > 0) {
+    cc_prog_putc(buf[--i]);
+  }
+}
+
+static void cc_prog_put_hex(uint32_t num) {
+  const char hex[] = "0123456789abcdef";
+  cc_prog_putc('0');
+  cc_prog_putc('x');
+  for (int i = 28; i >= 0; i -= 4) {
+    cc_prog_putc(hex[(num >> i) & 0xF]);
+  }
+}
+
+static void cc_prog_serial_printf(const char *fmt, ...) {
+  __builtin_va_list ap;
+  __builtin_va_start(ap, fmt);
+  while (*fmt) {
+    if (*fmt != '%') {
+      cc_prog_putc(*fmt);
+      fmt++;
+      continue;
+    }
+    fmt++;
+    switch (*fmt) {
+    case 's':
+      cc_prog_puts(__builtin_va_arg(ap, const char *));
+      break;
+    case 'd': {
+      int v = __builtin_va_arg(ap, int);
+      if (v < 0) {
+        cc_prog_putc('-');
+        v = -v;
+      }
+      cc_prog_put_dec((uint32_t)v);
+      break;
+    }
+    case 'u':
+      cc_prog_put_dec(__builtin_va_arg(ap, uint32_t));
+      break;
+    case 'x':
+      cc_prog_put_hex(__builtin_va_arg(ap, uint32_t));
+      break;
+    case 'p':
+      cc_prog_put_hex((uint32_t)__builtin_va_arg(ap, void *));
+      break;
+    case 'c':
+      cc_prog_putc((char)__builtin_va_arg(ap, int));
+      break;
+    case '%':
+      cc_prog_putc('%');
+      break;
+    default:
+      cc_prog_putc('%');
+      if (*fmt) {
+        cc_prog_putc(*fmt);
+      }
+      break;
+    }
+    if (*fmt) {
+      fmt++;
+    }
+  }
+  __builtin_va_end(ap);
+}
+
 /* ── Wrapper for process_yield ───────────────────────────────────── */
 static void cc_yield(void) { process_yield(); }
 
@@ -378,7 +475,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_clear)(void) = clear_screen;
   BIND("clear_screen", p_clear, 0);
 
-  void (*p_serial_printf)(const char *, ...) = serial_printf;
+  void (*p_serial_printf)(const char *, ...) = cc_prog_serial_printf;
   BIND("serial_printf", p_serial_printf, 1);
 
   /* Memory management */

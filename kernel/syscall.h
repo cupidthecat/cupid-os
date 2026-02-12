@@ -75,6 +75,9 @@ typedef struct cupid_syscall_table {
   /* ── Program execution ────────────────────────────────────────── */
   int (*exec)(const char *path, const char *name);
 
+  /* ── Argument retrieval ───────────────────────────────────────── */
+  const char *(*get_args)(void);
+
 } cupid_syscall_table_t;
 
 /* ── Kernel-side API ──────────────────────────────────────────────── */

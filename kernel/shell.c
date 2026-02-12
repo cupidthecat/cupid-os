@@ -85,7 +85,14 @@ void shell_set_program_args(const char *args) {
   shell_program_args[i] = '\0';
 }
 
-const char *shell_get_program_args(void) { return shell_program_args; }
+const char *shell_get_program_args(void) {
+  uint32_t pid = process_get_current_pid();
+  const char *per_proc = process_get_program_args(pid);
+  if (per_proc && per_proc[0]) {
+    return per_proc;
+  }
+  return shell_program_args;
+}
 
 const char *shell_get_cwd(void) { return shell_cwd; }
 
@@ -959,7 +966,8 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
   }
 
   const char *app = resolved + 5;
-  serial_printf("[try_bin_dispatch] resolved='%s' app='%s'\n", resolved, app);
+  serial_printf("[try_bin_dispatch] resolved='%s' app='%s' args='%s'\n",
+                resolved, app, extra_args ? extra_args : "");
   if (strcmp(app, "terminal") == 0) {
     terminal_launch();
   } else if (strcmp(app, "notepad") == 0) {
@@ -972,6 +980,7 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
     /* Try it as a regular command name */
     for (int j = 0; commands[j].name; j++) {
       if (strcmp(app, commands[j].name) == 0) {
+        shell_set_program_args(extra_args ? extra_args : "");
         commands[j].func(extra_args);
         return true;
       }
@@ -983,6 +992,7 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
       return true;
     }
     /* Try as CUPD/ELF binary */
+    shell_set_program_args(extra_args ? extra_args : "");
     int r = exec(resolved, app);
     if (r >= 0) {
       shell_print("Started process PID ");

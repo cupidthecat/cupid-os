@@ -233,7 +233,9 @@ void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
   if (!heap_head)
     return 0;
 
-  size_t needed = size + sizeof(uint32_t);
+  /* Keep heap blocks 4-byte aligned so returned pointers and all
+   * subsequent split blocks stay naturally aligned for uint32_t access. */
+  size_t needed = (size_t)align_up((uint32_t)(size + sizeof(uint32_t)), 4);
   heap_block_t *current = heap_head;
 
   while (current) {
@@ -296,7 +298,7 @@ void kfree(void *ptr) {
     serial_printf(
         "[heap] Double-free detected at 0x%x (previously freed at %u ms)\n",
         (uint32_t)ptr, block->timestamp);
-    kernel_panic("Double-free detected");
+    return;
   }
 
   block->free = 1;

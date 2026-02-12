@@ -183,7 +183,8 @@ uint32_t process_create(void (*entry_point)(void),
      * We set up the stack so that a `ret` from entry_point goes to
      * process_exit_trampoline.
      */
-    uint32_t *sp = (uint32_t *)((uint32_t)stack + stack_size);
+    uint32_t stack_top = ((uint32_t)stack + stack_size) & ~0x3u;
+    uint32_t *sp = (uint32_t *)stack_top;
     sp--;
     *sp = (uint32_t)process_exit_trampoline;  /* return address for entry_point */
 
@@ -263,7 +264,8 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
      * if called with `entry_point(arg)` and on return hits the
      * trampoline.
      */
-    uint32_t *sp = (uint32_t *)((uint32_t)stack + stack_size);
+    uint32_t stack_top = ((uint32_t)stack + stack_size) & ~0x3u;
+    uint32_t *sp = (uint32_t *)stack_top;
     sp--;
     *sp = arg;                                  /* argument */
     sp--;
@@ -278,6 +280,9 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
                   "(stack=%u, entry=0x%x)\n",
                   p->pid, p->name, arg, stack_size,
                   (uint32_t)entry_point);
+    serial_printf("[PROCESS] stack_base=0x%x stack_top=0x%x sp=0x%x mod4=%u\n",
+                  (uint32_t)stack, stack_top,
+                  (uint32_t)sp, ((uint32_t)sp) & 3);
 
     return p->pid;
 }
@@ -661,4 +666,30 @@ void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
     if (p->pid != pid) return;
     p->image_base = base;
     p->image_size = size;
+}
+
+void process_set_program_args(uint32_t pid, const char *args) {
+    uint32_t i = 0;
+    process_t *p;
+    if (pid == 0 || pid > MAX_PROCESSES) return;
+    p = &process_table[pid - 1];
+    if (p->pid != pid) return;
+    if (!args) {
+        p->args[0] = '\0';
+        return;
+    }
+    while (args[i] && i < PROCESS_ARGS_LEN - 1) {
+        p->args[i] = args[i];
+        i++;
+    }
+    p->args[i] = '\0';
+}
+
+const char *process_get_program_args(uint32_t pid) {
+    static const char empty[] = "";
+    process_t *p;
+    if (pid == 0 || pid > MAX_PROCESSES) return empty;
+    p = &process_table[pid - 1];
+    if (p->pid != pid) return empty;
+    return p->args;
 }
