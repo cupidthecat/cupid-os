@@ -15,6 +15,12 @@ $(info BIN_CC_SRCS=$(BIN_CC_SRCS))
 BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
 BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
 
+# Auto-discover embeddable headers used by CupidC demos/programs
+BIN_HDR_SRCS := $(wildcard bin/*.h)
+$(info BIN_HDR_SRCS=$(BIN_HDR_SRCS))
+BIN_HDR_OBJS := $(BIN_HDR_SRCS:.h=.h.o)
+BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -34,7 +40,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/terminal_ansi.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/syscall.o \
-            kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
+			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
+			kernel/cupidc_string.o \
             kernel/cupidc_elf.o \
             kernel/as.o kernel/as_lex.o kernel/as_parse.o kernel/as_elf.o \
             kernel/gfx2d.o \
@@ -46,7 +53,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/gui_widgets.o kernel/gui_containers.o kernel/gui_menus.o \
             kernel/gui_events.o kernel/gui_themes.o \
             kernel/bin_programs_gen.o \
-            $(BIN_CC_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS)
 
 all: $(OS_IMAGE)
 
@@ -289,8 +296,11 @@ kernel/gui_themes.o: kernel/gui_themes.c kernel/gui_themes.h kernel/string.h ker
 	$(CC) $(CFLAGS) $(OPT) kernel/gui_themes.c -o kernel/gui_themes.o
 
 # CupidC compiler
-kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h kernel/gfx2d_icons.h
+kernel/cupidc.o: kernel/cupidc.c kernel/cupidc.h kernel/cupidc_string.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/exec.h kernel/gfx2d_icons.h
 	$(CC) $(CFLAGS) kernel/cupidc.c -o kernel/cupidc.o
+
+kernel/cupidc_string.o: kernel/cupidc_string.c kernel/cupidc_string.h kernel/types.h
+	$(CC) $(CFLAGS) kernel/cupidc_string.c -o kernel/cupidc_string.o
 
 kernel/cupidc_lex.o: kernel/cupidc_lex.c kernel/cupidc.h
 	$(CC) $(CFLAGS) kernel/cupidc_lex.c -o kernel/cupidc_lex.o
@@ -317,17 +327,20 @@ kernel/as_elf.o: kernel/as_elf.c kernel/as.h kernel/exec.h kernel/vfs.h
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc — that's it!
-kernel/bin_programs_gen.c: $(BIN_CC_SRCS)
+kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@
 	@echo '#include "ramfs.h"' >> $@
 	@echo '#include "types.h"' >> $@
 	@echo '#include "../drivers/serial.h"' >> $@
 	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
 	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
 	@echo 'void install_bin_programs(void *fs_private);' >> $@
 	@echo 'void install_bin_programs(void *fs_private) {' >> $@
 	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
@@ -335,6 +348,10 @@ kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
 
 # Pattern rule: embed any bin/*.cc file via objcopy
 bin/%.o: bin/%.cc
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
+bin/%.h.o: bin/%.h
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects
@@ -348,13 +365,33 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	@if [ ! -f test-disk.img ]; then \
+		echo "test-disk.img not found; creating FAT16 disk image..."; \
+		$(MAKE) disk; \
+	fi
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+
+# Create a fresh 50MB HDD image with an MBR + FAT16 partition (type 0x06).
+# Run this once before using run-disk.  Safe to re-run: destroys all disk data.
+disk:
+	dd if=/dev/zero of=test-disk.img bs=512 count=102400
+	printf "2048,,6\n" | sfdisk test-disk.img
+	mkfs.fat -F 16 --offset=2048 test-disk.img 100352
+
 run-disk: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -hda test-disk.img -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	@if [ ! -f test-disk.img ]; then \
+		echo "test-disk.img not found; creating FAT16 disk image..."; \
+		$(MAKE) disk; \
+	fi
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 run-log: $(OS_IMAGE)
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+	@if [ ! -f test-disk.img ]; then \
+		echo "test-disk.img not found; creating FAT16 disk image..."; \
+		$(MAKE) disk; \
+	fi
+	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o \
 	      kernel/bin_programs_gen.c $(OS_IMAGE)
 
-.PHONY: all run clean
+.PHONY: all run disk run-disk run-log clean
