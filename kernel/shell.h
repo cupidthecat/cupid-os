@@ -17,7 +17,7 @@ typedef struct {
 
 /* ── GUI-mode buffer dimensions ───────────────────────────────────── */
 #define SHELL_COLS 80
-#define SHELL_ROWS 50
+#define SHELL_ROWS 500
 
 /* ── Public API ───────────────────────────────────────────────────── */
 

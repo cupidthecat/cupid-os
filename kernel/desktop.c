@@ -13,17 +13,22 @@
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "calendar.h"
+#include "bmp.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "gfx2d_icons.h"
 #include "gui.h"
+#include "gui_widgets.h"
 #include "kernel.h"
+#include "memory.h"
 #include "notepad.h"
 #include "cupidc.h"
 #include "process.h"
 #include "shell.h"
 #include "string.h"
 #include "terminal_app.h"
+#include "ui.h"
+#include "vfs.h"
 
 /* ── Icon storage ─────────────────────────────────────────────────── */
 static desktop_icon_t icons[MAX_DESKTOP_ICONS];
@@ -32,6 +37,19 @@ static int icon_count = 0;
 /* ── Background gradient row cache ───────────────────────────────── */
 static uint32_t bg_lut[VGA_GFX_HEIGHT];
 static uint32_t bg_lut_top = 0xFFFFFFFFu; /* invalid sentinel */
+
+/* ── Background mode state ───────────────────────────────────────── */
+enum {
+  DESKTOP_BG_ANIM = 0,
+  DESKTOP_BG_SOLID = 1,
+  DESKTOP_BG_BMP = 2
+};
+
+static uint8_t desktop_bg_mode = DESKTOP_BG_ANIM;
+static uint32_t desktop_bg_solid = COLOR_DESKTOP_BG;
+static char desktop_bg_bmp_path[VFS_MAX_PATH];
+static uint32_t *desktop_bg_bmp_scaled = NULL; /* VGA_GFX_WIDTH * TASKBAR_Y */
+static const char *DESKTOP_BG_CONFIG_PATH = "/home/.desktop_bg.conf";
 
 /* ── Clock & Calendar state ───────────────────────────────────────── */
 static char clock_time_str[16];
@@ -42,6 +60,10 @@ static uint16_t clock_hitbox_width = 0;
 static uint32_t desktop_anim_tick = 0; /* Animation frame counter */
 calendar_state_t cal_state;
 static bool cal_prev_visible = false; /* Track calendar visibility changes */
+
+static void desktop_draw_calendar(void);
+static void desktop_bg_save_config(void);
+static void desktop_bg_load_config(void);
 
 /* ── Init ─────────────────────────────────────────────────────────── */
 
@@ -89,6 +111,9 @@ void desktop_init(void) {
   /* Scan /bin for .cc files with //icon: directives */
   gfx2d_icons_scan_bin();
 
+  /* Load persisted desktop background preference (if any). */
+  desktop_bg_load_config();
+
   KINFO("Desktop initialized");
 }
 
@@ -130,7 +155,450 @@ static uint32_t desktop_blend_colors(uint32_t c1, uint32_t c2, int t, int max) {
   return (r << 16) | (g << 8) | b;
 }
 
+static void desktop_bg_copy_path(char *dst, const char *src, int cap) {
+  int i = 0;
+  if (!dst || cap <= 0)
+    return;
+  if (!src) {
+    dst[0] = '\0';
+    return;
+  }
+  while (src[i] && i < cap - 1) {
+    dst[i] = src[i];
+    i++;
+  }
+  dst[i] = '\0';
+}
+
+static int desktop_bg_apply_bmp(const char *path) {
+  bmp_info_t info;
+  uint32_t *src;
+
+  if (!path || !path[0])
+    return BMP_EINVAL;
+
+  if (bmp_get_info(path, &info) != BMP_OK)
+    return BMP_EFORMAT;
+
+  src = (uint32_t *)kmalloc(info.data_size);
+  if (!src)
+    return BMP_ENOMEM;
+
+  if (bmp_decode(path, src, info.data_size) != BMP_OK) {
+    kfree(src);
+    return BMP_EFORMAT;
+  }
+
+  if (!desktop_bg_bmp_scaled) {
+    desktop_bg_bmp_scaled =
+        (uint32_t *)kmalloc((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u);
+    if (!desktop_bg_bmp_scaled) {
+      kfree(src);
+      return BMP_ENOMEM;
+    }
+  }
+
+  memset(desktop_bg_bmp_scaled, 0,
+         (size_t)((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u));
+
+  for (int y = 0; y < TASKBAR_Y; y++) {
+    uint32_t sy;
+    if (TASKBAR_Y > 1) {
+      sy = ((uint32_t)y * (info.height - 1u) +
+            ((uint32_t)TASKBAR_Y - 1u) / 2u) /
+           ((uint32_t)TASKBAR_Y - 1u);
+    } else {
+      sy = 0;
+    }
+    if (sy >= info.height)
+      sy = info.height - 1;
+    for (int x = 0; x < VGA_GFX_WIDTH; x++) {
+      uint32_t sx;
+      if (VGA_GFX_WIDTH > 1) {
+        sx = ((uint32_t)x * (info.width - 1u) +
+              ((uint32_t)VGA_GFX_WIDTH - 1u) / 2u) /
+             ((uint32_t)VGA_GFX_WIDTH - 1u);
+      } else {
+        sx = 0;
+      }
+      if (sx >= info.width)
+        sx = info.width - 1;
+      desktop_bg_bmp_scaled[y * VGA_GFX_WIDTH + x] = src[sy * info.width + sx];
+    }
+  }
+
+  desktop_bg_copy_path(desktop_bg_bmp_path, path, VFS_MAX_PATH);
+  desktop_bg_mode = DESKTOP_BG_BMP;
+  kfree(src);
+  return BMP_OK;
+}
+
+static int desktop_parse_uint_dec(const char *s, uint32_t *out) {
+  uint32_t v = 0;
+  int i = 0;
+  if (!s || !out)
+    return 0;
+  if (s[0] == '\0')
+    return 0;
+  while (s[i] >= '0' && s[i] <= '9') {
+    v = v * 10u + (uint32_t)(s[i] - '0');
+    i++;
+  }
+  if (i == 0)
+    return 0;
+  *out = v;
+  return 1;
+}
+
+static int desktop_parse_uint_hex(const char *s, uint32_t *out) {
+  uint32_t v = 0;
+  int i = 0;
+  if (!s || !out)
+    return 0;
+  if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+    s += 2;
+  if (s[0] == '\0')
+    return 0;
+  while (s[i]) {
+    uint32_t d;
+    char c = s[i];
+    if (c >= '0' && c <= '9')
+      d = (uint32_t)(c - '0');
+    else if (c >= 'a' && c <= 'f')
+      d = (uint32_t)(10 + c - 'a');
+    else if (c >= 'A' && c <= 'F')
+      d = (uint32_t)(10 + c - 'A');
+    else
+      return 0;
+    v = (v << 4) | d;
+    i++;
+  }
+  *out = v;
+  return 1;
+}
+
+static void desktop_bg_save_config(void) {
+  int fd = vfs_open(DESKTOP_BG_CONFIG_PATH, O_WRONLY | O_CREAT | O_TRUNC);
+  if (fd < 0)
+    return;
+
+  {
+    const char *hdr = "# cupid-os desktop background settings\n";
+    vfs_write(fd, hdr, (uint32_t)strlen(hdr));
+  }
+
+  {
+    char line[64];
+    int pos = 0;
+    uint32_t mode = (uint32_t)desktop_bg_mode;
+
+    line[pos++] = 'm'; line[pos++] = 'o'; line[pos++] = 'd'; line[pos++] = 'e';
+    line[pos++] = '=';
+    if (mode == 0) {
+      line[pos++] = '0';
+    } else {
+      char tmp[16];
+      int ti = 0;
+      while (mode > 0 && ti < 15) {
+        tmp[ti++] = (char)('0' + (mode % 10u));
+        mode /= 10u;
+      }
+      while (ti > 0)
+        line[pos++] = tmp[--ti];
+    }
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[64];
+    const char *hx = "0123456789ABCDEF";
+    uint32_t c = desktop_bg_solid & 0x00FFFFFFu;
+    int pos = 0;
+    line[pos++] = 's'; line[pos++] = 'o'; line[pos++] = 'l'; line[pos++] = 'i'; line[pos++] = 'd';
+    line[pos++] = '=';
+    line[pos++] = '0';
+    line[pos++] = 'x';
+    line[pos++] = hx[(c >> 20) & 0xFu];
+    line[pos++] = hx[(c >> 16) & 0xFu];
+    line[pos++] = hx[(c >> 12) & 0xFu];
+    line[pos++] = hx[(c >> 8) & 0xFu];
+    line[pos++] = hx[(c >> 4) & 0xFu];
+    line[pos++] = hx[c & 0xFu];
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[192];
+    int pos = 0;
+    int i = 0;
+    line[pos++] = 'b'; line[pos++] = 'm'; line[pos++] = 'p'; line[pos++] = '=';
+    while (desktop_bg_bmp_path[i] && pos < 190) {
+      line[pos++] = desktop_bg_bmp_path[i++];
+    }
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  vfs_close(fd);
+}
+
+static void desktop_bg_load_config(void) {
+  int fd = vfs_open(DESKTOP_BG_CONFIG_PATH, O_RDONLY);
+  char buf[512];
+  int n;
+  uint32_t mode = (uint32_t)desktop_bg_mode;
+  uint32_t solid = desktop_bg_solid;
+  char bmp_path[VFS_MAX_PATH];
+
+  bmp_path[0] = '\0';
+  if (fd < 0)
+    return;
+
+  n = vfs_read(fd, buf, 511);
+  vfs_close(fd);
+  if (n <= 0)
+    return;
+  buf[n] = '\0';
+
+  {
+    char *line = buf;
+    while (line && *line) {
+      char *next = strchr(line, '\n');
+      if (next)
+        *next = '\0';
+
+      if (line[0] != '#' && line[0] != '\0' && line[0] != '\r') {
+        if (strncmp(line, "mode=", 5) == 0) {
+          uint32_t v;
+          if (desktop_parse_uint_dec(line + 5, &v) && v <= 2u)
+            mode = v;
+        } else if (strncmp(line, "solid=", 6) == 0) {
+          uint32_t c;
+          if (desktop_parse_uint_hex(line + 6, &c))
+            solid = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "bmp=", 4) == 0) {
+          desktop_bg_copy_path(bmp_path, line + 4, VFS_MAX_PATH);
+        }
+      }
+
+      if (next)
+        line = next + 1;
+      else
+        break;
+    }
+  }
+
+  desktop_bg_solid = solid;
+  desktop_bg_mode = (uint8_t)mode;
+
+  if (desktop_bg_mode == DESKTOP_BG_BMP) {
+    if (!bmp_path[0] || desktop_bg_apply_bmp(bmp_path) != BMP_OK) {
+      desktop_bg_mode = DESKTOP_BG_SOLID;
+      desktop_bg_bmp_path[0] = '\0';
+    }
+  } else if (bmp_path[0]) {
+    desktop_bg_copy_path(desktop_bg_bmp_path, bmp_path, VFS_MAX_PATH);
+  }
+}
+
+static void desktop_open_bg_settings_dialog(void) {
+  bool done = false;
+  bool apply_changes = false;
+  uint8_t prev_buttons = mouse.buttons;
+
+  int r = (int)((desktop_bg_solid >> 16) & 0xFFu);
+  int g = (int)((desktop_bg_solid >> 8) & 0xFFu);
+  int b = (int)(desktop_bg_solid & 0xFFu);
+  bool use_bmp = (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_path[0]);
+  bool drag_r = false, drag_g = false, drag_b = false;
+  char bmp_path[VFS_MAX_PATH];
+  bmp_path[0] = '\0';
+  if (desktop_bg_bmp_path[0]) {
+    desktop_bg_copy_path(bmp_path, desktop_bg_bmp_path, VFS_MAX_PATH);
+  }
+
+  while (!done) {
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (!evt.pressed)
+        continue;
+      if (evt.scancode == 0x01) {
+        done = true;
+        apply_changes = false;
+      } else if (evt.scancode == 0x1C) {
+        done = true;
+        apply_changes = true;
+      }
+    }
+
+    int16_t mx = mouse.x;
+    int16_t my = mouse.y;
+    uint8_t btn = mouse.buttons;
+    bool pressed = (btn & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
+    bool released = !(btn & MOUSE_LEFT) && (prev_buttons & MOUSE_LEFT);
+
+    int16_t dw = 430;
+    int16_t dh = 250;
+    int16_t dx = (int16_t)((VGA_GFX_WIDTH - dw) / 2);
+    int16_t dy = (int16_t)((TASKBAR_Y - dh) / 2);
+
+    ui_rect_t dialog = ui_rect(dx, dy, (uint16_t)dw, (uint16_t)dh);
+    ui_rect_t title = ui_rect((int16_t)(dx + 2), (int16_t)(dy + 2),
+                              (uint16_t)(dw - 4), 16);
+
+    ui_rect_t row_r = ui_rect((int16_t)(dx + 16), (int16_t)(dy + 36),
+                              (uint16_t)(dw - 150), 18);
+    ui_rect_t row_g = ui_rect((int16_t)(dx + 16), (int16_t)(dy + 62),
+                              (uint16_t)(dw - 150), 18);
+    ui_rect_t row_b = ui_rect((int16_t)(dx + 16), (int16_t)(dy + 88),
+                              (uint16_t)(dw - 150), 18);
+    ui_rect_t swatch = ui_rect((int16_t)(dx + dw - 118), (int16_t)(dy + 36),
+                               100, 70);
+    ui_rect_t use_bmp_box = ui_rect((int16_t)(dx + 16), (int16_t)(dy + 118),
+                                    140, 16);
+    ui_rect_t browse_btn = ui_rect((int16_t)(dx + 160), (int16_t)(dy + 114),
+                                   120, 22);
+    ui_rect_t use_color_btn =
+        ui_rect((int16_t)(dx + 16), (int16_t)(dy + 146), 120, 22);
+    ui_rect_t apply_btn =
+        ui_rect((int16_t)(dx + dw - 150), (int16_t)(dy + dh - 32), 64, 22);
+    ui_rect_t cancel_btn =
+        ui_rect((int16_t)(dx + dw - 78), (int16_t)(dy + dh - 32), 64, 22);
+
+    if (pressed) {
+      if (ui_contains(row_r, mx, my))
+        drag_r = true;
+      if (ui_contains(row_g, mx, my))
+        drag_g = true;
+      if (ui_contains(row_b, mx, my))
+        drag_b = true;
+
+      if (ui_contains(browse_btn, mx, my)) {
+        char selected[VFS_MAX_PATH];
+        if (gfx2d_file_dialog_open("/home", selected, ".bmp") == 1) {
+          desktop_bg_copy_path(bmp_path, selected, VFS_MAX_PATH);
+          use_bmp = true;
+        }
+      }
+
+      if (ui_contains(use_color_btn, mx, my)) {
+        use_bmp = false;
+      }
+
+      if (ui_draw_checkbox(use_bmp_box, "Use BMP image", use_bmp, true, mx,
+                           my, true)) {
+        use_bmp = !use_bmp;
+      }
+
+      if (ui_contains(apply_btn, mx, my)) {
+        done = true;
+        apply_changes = true;
+      } else if (ui_contains(cancel_btn, mx, my)) {
+        done = true;
+        apply_changes = false;
+      }
+    }
+
+    if (released) {
+      drag_r = false;
+      drag_g = false;
+      drag_b = false;
+    }
+    prev_buttons = btn;
+
+    desktop_anim_tick++;
+    desktop_draw_background();
+    desktop_draw_icons();
+    gui_draw_all_windows();
+    desktop_draw_taskbar();
+    desktop_draw_calendar();
+
+    ui_draw_shadow(dialog, COLOR_TEXT, 2);
+    ui_draw_panel(dialog, COLOR_WINDOW_BG, true, true);
+    ui_draw_titlebar(title, "Change Desktop Background", true);
+
+    r = ui_draw_slider_labeled(row_r, "Red", r, 0, 255, drag_r, mx, my);
+    g = ui_draw_slider_labeled(row_g, "Green", g, 0, 255, drag_g, mx, my);
+    b = ui_draw_slider_labeled(row_b, "Blue", b, 0, 255, drag_b, mx, my);
+
+    ui_draw_panel(swatch, COLOR_WINDOW_BG, true, false);
+    gfx_fill_rect((int16_t)(swatch.x + 4), (int16_t)(swatch.y + 4),
+                  (uint16_t)(swatch.w - 8), (uint16_t)(swatch.h - 8),
+                  ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+
+    (void)ui_draw_checkbox(use_bmp_box, "Use BMP image", use_bmp, true, mx, my,
+                           false);
+    ui_draw_button(browse_btn, "Browse BMP...", false);
+    ui_draw_button(use_color_btn, "Use Color", false);
+    ui_draw_button(apply_btn, "Apply", true);
+    ui_draw_button(cancel_btn, "Cancel", false);
+
+    {
+      char path_disp[56];
+      int i = 0;
+      if (bmp_path[0]) {
+        while (bmp_path[i] && i < 55) {
+          path_disp[i] = bmp_path[i];
+          i++;
+        }
+      }
+      path_disp[i] = '\0';
+      ui_draw_label(ui_rect((int16_t)(dx + 16), (int16_t)(dy + 176),
+                            (uint16_t)(dw - 32), 16),
+                    bmp_path[0] ? path_disp : "No BMP selected", COLOR_TEXT,
+                    UI_ALIGN_LEFT);
+    }
+
+    mouse_save_under_cursor();
+    mouse_draw_cursor();
+    vga_flip();
+    process_yield();
+  }
+
+  if (!apply_changes)
+    return;
+
+  desktop_bg_solid = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+  if (use_bmp) {
+    if (!bmp_path[0]) {
+      gfx2d_message_dialog("Please choose a BMP file first.");
+      desktop_bg_mode = DESKTOP_BG_SOLID;
+      return;
+    }
+    if (desktop_bg_apply_bmp(bmp_path) != BMP_OK) {
+      gfx2d_message_dialog("Failed to load BMP background.");
+      desktop_bg_mode = DESKTOP_BG_SOLID;
+      desktop_bg_save_config();
+      return;
+    }
+    desktop_bg_mode = DESKTOP_BG_BMP;
+  } else {
+    desktop_bg_mode = DESKTOP_BG_SOLID;
+  }
+
+  desktop_bg_save_config();
+}
+
 void desktop_draw_background(void) {
+  if (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled) {
+    uint32_t *fb = vga_get_framebuffer();
+    for (int row = 0; row < TASKBAR_Y; row++) {
+      memcpy(fb + row * VGA_GFX_WIDTH,
+             desktop_bg_bmp_scaled + row * VGA_GFX_WIDTH,
+             (uint32_t)VGA_GFX_WIDTH * 4u);
+    }
+    return;
+  }
+
+  if (desktop_bg_mode == DESKTOP_BG_SOLID) {
+    for (int row = 0; row < TASKBAR_Y; row++) {
+      gfx_draw_hline(0, (int16_t)row, VGA_GFX_WIDTH, desktop_bg_solid);
+    }
+    return;
+  }
+
   /* Slowly cycle background hue between rose, lavender, and peach */
   /* Period: ~512 ticks ≈ several seconds at ~60Hz */
   uint32_t t = desktop_anim_tick & 511;
@@ -206,9 +674,9 @@ void desktop_draw_taskbar(void) {
     int16_t btn_limit =
         (int16_t)(clock_hitbox_x > 0 ? clock_hitbox_x - 4 : VGA_GFX_WIDTH - 60);
 
-    /* We'll try IDs 1..64 (more than enough) */
-    for (uint32_t id = 1; id < 64 && btn_x < btn_limit; id++) {
-      window_t *w = gui_get_window((int)id);
+    int wc_live = gui_window_count();
+    for (int wi = 0; wi < wc_live && btn_x < btn_limit; wi++) {
+      window_t *w = gui_get_window_by_index(wi);
       if (!w)
         continue;
       if (!(w->flags & WINDOW_FLAG_VISIBLE))
@@ -323,8 +791,9 @@ int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
   int16_t btn_limit =
       (int16_t)(clock_hitbox_x > 0 ? clock_hitbox_x - 4 : VGA_GFX_WIDTH - 60);
 
-  for (uint32_t id = 1; id < 64 && btn_x < btn_limit; id++) {
-    window_t *w = gui_get_window((int)id);
+  int wc_live = gui_window_count();
+  for (int wi = 0; wi < wc_live && btn_x < btn_limit; wi++) {
+    window_t *w = gui_get_window_by_index(wi);
     if (!w)
       continue;
     if (!(w->flags & WINDOW_FLAG_VISIBLE))
@@ -803,8 +1272,9 @@ void desktop_run_minimized_loop(const char *app_name) {
      * (stack depth can change if a nested JIT program launches/exits) */
     int16_t jit_btn_x = TASKBAR_BTN_START;
     /* Skip past GUI window buttons */
-    for (uint32_t id = 1; id < 64; id++) {
-      window_t *w = gui_get_window((int)id);
+    int wc_live = gui_window_count();
+    for (int wi = 0; wi < wc_live; wi++) {
+      window_t *w = gui_get_window_by_index(wi);
       if (!w || !(w->flags & WINDOW_FLAG_VISIBLE)) continue;
       uint16_t bw = gfx_text_width(w->title);
       if (bw < 40) bw = 40;
@@ -1063,6 +1533,19 @@ void desktop_run(void) {
       /* Right-click on calendar: delete note */
       if (right_pressed && cal_state.visible) {
         calendar_handle_right_click(mouse.x, mouse.y);
+      }
+
+      /* Right-click desktop context menu */
+      if (right_pressed && !cal_state.visible && mouse.y < TASKBAR_Y &&
+          gui_hit_test_window(mouse.x, mouse.y) < 0 &&
+          gfx2d_icon_at_pos(mouse.x, mouse.y) < 0) {
+        const char *desktop_menu[] = {"Change Desktop Background"};
+        int pick = gfx2d_popup_menu(mouse.x, mouse.y, desktop_menu, 1);
+        if (pick == 0) {
+          desktop_open_bg_settings_dialog();
+        }
+        force_full_repaint = true;
+        needs_redraw = true;
       }
 
       /* Check taskbar clicks first */

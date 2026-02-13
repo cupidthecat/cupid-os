@@ -55,6 +55,18 @@ static void win_copy(window_t *dst, const window_t *src) {
 
 int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       const char *title) {
+  if (w < 40 || h < (uint16_t)(TITLEBAR_H + 8))
+    return GUI_ERR_INVALID_ARGS;
+
+  if (x < (int16_t)(-(int16_t)w + 20))
+    x = (int16_t)(-(int16_t)w + 20);
+  if (y < 0)
+    y = 0;
+  if (x > VGA_GFX_WIDTH - 20)
+    x = (int16_t)(VGA_GFX_WIDTH - 20);
+  if (y > VGA_GFX_HEIGHT - 20)
+    y = (int16_t)(VGA_GFX_HEIGHT - 20);
+
   if (win_count >= MAX_WINDOWS) {
     KERROR("GUI: cannot create window, limit reached");
     return GUI_ERR_TOO_MANY;
@@ -96,6 +108,11 @@ int gui_destroy_window(int wid) {
   if (idx < 0)
     return GUI_ERR_INVALID_ID;
 
+  if (drag.dragging && drag.window_id == wid) {
+    drag.dragging = false;
+    drag.window_id = -1;
+  }
+
   /* Notify the application that its window is being destroyed */
   if (windows[idx].on_close) {
     windows[idx].on_close(&windows[idx]);
@@ -106,6 +123,17 @@ int gui_destroy_window(int wid) {
     win_copy(&windows[i], &windows[i + 1]);
   }
   win_count--;
+  if (win_count >= 0 && win_count < MAX_WINDOWS) {
+    memset(&windows[win_count], 0, sizeof(window_t));
+  }
+
+  /* Keep focus consistent: top window is always focused when any exist. */
+  for (int i = 0; i < win_count; i++) {
+    windows[i].flags &= (uint8_t)~WINDOW_FLAG_FOCUSED;
+  }
+  if (win_count > 0) {
+    windows[win_count - 1].flags |= WINDOW_FLAG_FOCUSED;
+  }
 
   /* Mark everything dirty */
   for (int i = 0; i < win_count; i++) {

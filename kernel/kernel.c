@@ -94,6 +94,7 @@ extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
  *   2. Run make
  * That's it — everything else is automatic. */
 extern void install_bin_programs(void *fs_private);
+extern void install_docs_programs(void *fs_private);
 
 
 /**
@@ -605,6 +606,7 @@ void kmain(void) {
 
     /* Create standard directories */
     vfs_mkdir("/bin");
+    vfs_mkdir("/docs");
     vfs_mkdir("/tmp");
     vfs_mkdir("/home");
 
@@ -669,6 +671,11 @@ void kmain(void) {
              * To add a new program: just create bin/<name>.cc */
             install_bin_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidC programs");
+
+            /* ── Embedded CupidDoc files ──────────────────────────
+             * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt */
+            install_docs_programs(root_mnt->fs_private);
+            KINFO("Installed embedded CupidDoc files");
         }
     }
     KINFO("VFS initialized");

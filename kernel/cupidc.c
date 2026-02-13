@@ -340,6 +340,7 @@ static int cc_mouse_scroll(void) {
   mouse.scroll_z = 0;
   return dz;
 }
+static int cc_key_shift_held(void) { return keyboard_get_shift() ? 1 : 0; }
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Kernel Bindings Registration
@@ -639,6 +640,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   /* Non-blocking keyboard poll */
   char (*p_poll_key)(void) = shell_jit_program_pollchar;
   BIND("poll_key", p_poll_key, 0);
+
+  /* Keyboard modifier state */
+  int (*p_key_shift_held)(void) = cc_key_shift_held;
+  BIND("key_shift_held", p_key_shift_held, 0);
 
   /* Mouse input */
   int (*p_mouse_x)(void) = cc_mouse_x;

@@ -248,8 +248,11 @@ void terminal_handle_key(uint8_t scancode, char character) {
 
     if (character == 0 && scancode == SCANCODE_PAGE_UP) {
         terminal_scroll_offset += 5;  /* Scroll up 5 lines */
-        if (terminal_scroll_offset > SHELL_ROWS - 10) {
-            terminal_scroll_offset = SHELL_ROWS - 10;
+        {
+            int max_scroll = shell_get_cursor_y();
+            if (terminal_scroll_offset > max_scroll) {
+                terminal_scroll_offset = max_scroll;
+            }
         }
         win->flags |= WINDOW_FLAG_DIRTY;
         return;

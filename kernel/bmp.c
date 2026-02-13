@@ -41,6 +41,36 @@ static void write_le32(uint8_t *p, uint32_t v)
     p[3] = (uint8_t)((v >> 24) & 0xFF);
 }
 
+static int bmp_read_exact(int fd, void *buffer, uint32_t count)
+{
+    uint8_t *dst = (uint8_t *)buffer;
+    uint32_t total = 0;
+
+    while (total < count) {
+        int rc = vfs_read(fd, dst + total, count - total);
+        if (rc <= 0)
+            return BMP_EIO;
+        total += (uint32_t)rc;
+    }
+
+    return BMP_OK;
+}
+
+static int bmp_write_exact(int fd, const void *buffer, uint32_t count)
+{
+    const uint8_t *src = (const uint8_t *)buffer;
+    uint32_t total = 0;
+
+    while (total < count) {
+        int rc = vfs_write(fd, src + total, count - total);
+        if (rc <= 0)
+            return BMP_EIO;
+        total += (uint32_t)rc;
+    }
+
+    return BMP_OK;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  Internal: parse and validate BMP headers from a file descriptor
  * ══════════════════════════════════════════════════════════════════════ */
@@ -50,7 +80,8 @@ static void write_le32(uint8_t *p, uint32_t v)
  * On success, fills *info and leaves fd positioned at pixel data.
  * Returns BMP_OK or negative error.
  */
-static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset)
+static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
+                            int *top_down)
 {
     uint8_t hdr[BMP_HEADER_SIZE];
     int rc;
@@ -107,6 +138,9 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset)
     /* Treat negative height as top-down; take absolute value */
     uint32_t width  = (uint32_t)w;
     uint32_t height = (h > 0) ? (uint32_t)h : (uint32_t)(-h);
+    if (top_down) {
+        *top_down = (h < 0) ? 1 : 0;
+    }
 
     if (width > BMP_MAX_DIM || height > BMP_MAX_DIM) {
         KERROR("BMP: dimensions %ux%u exceed max %u\n",
@@ -138,7 +172,7 @@ int bmp_get_info(const char *path, bmp_info_t *info)
     }
 
     uint32_t data_offset = 0;
-    int rc = bmp_read_headers(fd, info, &data_offset);
+    int rc = bmp_read_headers(fd, info, &data_offset, 0);
     vfs_close(fd);
     return rc;
 }
@@ -160,7 +194,8 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
 
     bmp_info_t info;
     uint32_t   data_offset = 0;
-    int rc = bmp_read_headers(fd, &info, &data_offset);
+    int top_down = 0;
+    int rc = bmp_read_headers(fd, &info, &data_offset, &top_down);
     if (rc != BMP_OK) {
         vfs_close(fd);
         return rc;
@@ -200,26 +235,17 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
         /* BMP row index: bottom-up → read row for (height - 1 - y) */
         uint32_t dest_row = y;  /* top-down in output */
 
-        rc = vfs_read(fd, row_buf, row_bytes);
-        if (rc < (int)row_bytes) {
-            KERROR("BMP: short read at row %u (got %d, need %u)\n",
-                   y, rc, row_bytes);
+        rc = bmp_read_exact(fd, row_buf, row_bytes);
+        if (rc != BMP_OK) {
+            KERROR("BMP: read error at row %u\n", y);
             kfree(row_buf);
             vfs_close(fd);
             return BMP_EIO;
         }
 
-        /* Debug: check if row is all zeros (black stripe) */
-        uint32_t nonzero_count = 0;
-        for (uint32_t i = 0; i < row_bytes && i < 30; i++) {
-            if (row_buf[i] != 0) nonzero_count++;
-        }
-        if (nonzero_count == 0 && y % 50 == 0) {
-            serial_printf("[BMP] Row %u: first 30 bytes are all zero!\n", y);
-        }
-
         /* Convert BGR triplets → XRGB uint32_t */
-        uint32_t *dest = buffer + (height - 1 - dest_row) * width;
+        uint32_t out_row = top_down ? dest_row : (height - 1 - dest_row);
+        uint32_t *dest = buffer + out_row * width;
         uint32_t x;
         for (x = 0; x < width; x++) {
             uint8_t b = row_buf[x * 3 + 0];
@@ -271,8 +297,8 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     /* reserved fields at offset 6..9 stay 0 */
     write_le32(hdr + 10, BMP_HEADER_SIZE); /* data offset = 54 */
 
-    int rc = vfs_write(fd, hdr, BMP_FILE_HDR_SIZE);
-    if (rc < BMP_FILE_HDR_SIZE) {
+    int rc = bmp_write_exact(fd, hdr, BMP_FILE_HDR_SIZE);
+    if (rc != BMP_OK) {
         vfs_close(fd);
         return BMP_EIO;
     }
@@ -290,8 +316,8 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     write_le32(dib + 20, pixel_data_size);     /* image data size */
     /* x/y pixels per meter, colors used/important: all 0 */
 
-    rc = vfs_write(fd, dib, BMP_DIB_HDR_SIZE);
-    if (rc < BMP_DIB_HDR_SIZE) {
+    rc = bmp_write_exact(fd, dib, BMP_DIB_HDR_SIZE);
+    if (rc != BMP_OK) {
         vfs_close(fd);
         return BMP_EIO;
     }
@@ -326,8 +352,8 @@ int bmp_encode(const char *path, const uint32_t *buffer,
             row_buf[pad_start++] = 0;
         }
 
-        rc = vfs_write(fd, row_buf, row_bytes);
-        if (rc < (int)row_bytes) {
+        rc = bmp_write_exact(fd, row_buf, row_bytes);
+        if (rc != BMP_OK) {
             KERROR("BMP: write error at row %u\n", y);
             kfree(row_buf);
             vfs_close(fd);
@@ -360,7 +386,8 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
 
     bmp_info_t info;
     uint32_t   data_offset = 0;
-    int rc = bmp_read_headers(fd, &info, &data_offset);
+    int top_down = 0;
+    int rc = bmp_read_headers(fd, &info, &data_offset, &top_down);
     if (rc != BMP_OK) {
         vfs_close(fd);
         return rc;
@@ -384,15 +411,16 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
 
     uint32_t y;
     for (y = 0; y < height; y++) {
-        rc = vfs_read(fd, row_buf, row_bytes);
-        if (rc < (int)row_bytes) {
+        rc = bmp_read_exact(fd, row_buf, row_bytes);
+        if (rc != BMP_OK) {
             kfree(row_buf);
             vfs_close(fd);
             return BMP_EIO;
         }
 
         /* BMP bottom-up → framebuffer row */
-        int fb_y = dest_y + (int)(height - 1 - y);
+        int fb_y = top_down ? (dest_y + (int)y)
+                            : (dest_y + (int)(height - 1 - y));
         if (fb_y < 0 || fb_y >= VGA_GFX_HEIGHT)
             continue;
 
