@@ -27,6 +27,18 @@ int CANVAS_Y = 20;
 int CANVAS_W = 600;
 int CANVAS_H = 428;
 
+int BRUSH_PLUS_Y = 250;
+int BRUSH_SIZE_Y = 275;
+int BRUSH_MINUS_Y = 290;
+
+int ZOOM_PLUS_Y = 325;
+int ZOOM_SIZE_Y = 350;
+int ZOOM_MINUS_Y = 365;
+
+int SAVE_Y = 390;
+int SAVE_AS_Y = 415;
+int LOAD_Y = 440;
+
 /* Palette colors (16 standard VGA/Win95 colors) */
 int palette[16];
 
@@ -36,6 +48,11 @@ int canvas_surf = -1;
 int current_tool = 0;         /* TOOL_PENCIL */
 int current_color = 0x000000; /* Black */
 int brush_size = 1;
+int zoom_level = 1;
+int view_x = 0;
+int view_y = 0;
+
+int* canvas_snapshot = 0;
 
 int mouse_prev_x = 0;
 int mouse_prev_y = 0;
@@ -44,6 +61,12 @@ int mouse_is_down = 0;
 int drag_start_x = 0;
 int drag_start_y = 0;
 int is_dragging = 0;
+
+int pan_is_down = 0;
+int pan_start_mouse_x = 0;
+int pan_start_mouse_y = 0;
+int pan_start_view_x = 0;
+int pan_start_view_y = 0;
 
 /* Buffer for file I/O (One row at a time) */
 int row_buffer[600];
@@ -305,8 +328,8 @@ void draw_toolbar() {
 
   /* Brush Size Controls */
   /* [+] */
-  gfx2d_bevel(4, TOOLBAR_H + 250, 32, 20, 1);
-  gfx2d_text(15, TOOLBAR_H + 256, "+", 0x000000, 1);
+  gfx2d_bevel(4, TOOLBAR_H + BRUSH_PLUS_Y, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + BRUSH_PLUS_Y + 6, "+", 0x000000, 1);
 
   /* Size Indicator */
   char size_str[4];
@@ -323,24 +346,45 @@ void draw_toolbar() {
     size_str[2] = 0;
   }
 
-  gfx2d_rect_fill(10, TOOLBAR_H + 275, 20, 10, 0xC0C0C0);
-  gfx2d_text(15, TOOLBAR_H + 275, size_str, 0x000000, 0);
+  gfx2d_rect_fill(10, TOOLBAR_H + BRUSH_SIZE_Y, 20, 10, 0xC0C0C0);
+  gfx2d_text(15, TOOLBAR_H + BRUSH_SIZE_Y, size_str, 0x000000, 0);
 
   /* [-] */
-  gfx2d_bevel(4, TOOLBAR_H + 290, 32, 20, 1);
-  gfx2d_text(15, TOOLBAR_H + 296, "-", 0x000000, 1);
+  gfx2d_bevel(4, TOOLBAR_H + BRUSH_MINUS_Y, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + BRUSH_MINUS_Y + 6, "-", 0x000000, 1);
+
+  /* Zoom Controls */
+  gfx2d_bevel(4, TOOLBAR_H + ZOOM_PLUS_Y, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + ZOOM_PLUS_Y + 6, "+", 0x000000, 1);
+
+  char zoom_str[4];
+  zoom_str[0] = '1';
+  zoom_str[1] = 'x';
+  zoom_str[2] = 0;
+  if (zoom_level == 2)
+    zoom_str[0] = '2';
+  if (zoom_level == 3)
+    zoom_str[0] = '3';
+  if (zoom_level == 4)
+    zoom_str[0] = '4';
+
+  gfx2d_rect_fill(9, TOOLBAR_H + ZOOM_SIZE_Y, 24, 10, 0xC0C0C0);
+  gfx2d_text(10, TOOLBAR_H + ZOOM_SIZE_Y, zoom_str, 0x000000, 0);
+
+  gfx2d_bevel(4, TOOLBAR_H + ZOOM_MINUS_Y, 32, 20, 1);
+  gfx2d_text(15, TOOLBAR_H + ZOOM_MINUS_Y + 6, "-", 0x000000, 1);
 
   /* Save/Load Buttons */
-  gfx2d_bevel(4, TOOLBAR_H + 400, 32, 20, 1);
-  gfx2d_text(8, TOOLBAR_H + 406, "SV", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + SAVE_Y, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + SAVE_Y + 6, "SV", 0x000000, 0);
 
   /* Save As button */
-  gfx2d_bevel(4, TOOLBAR_H + 425, 32, 20, 1);
-  gfx2d_text(8, TOOLBAR_H + 431, "SA", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + SAVE_AS_Y, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + SAVE_AS_Y + 6, "SA", 0x000000, 0);
 
   /* Load button */
-  gfx2d_bevel(4, TOOLBAR_H + 450, 32, 20, 1);
-  gfx2d_text(8, TOOLBAR_H + 456, "LD", 0x000000, 0);
+  gfx2d_bevel(4, TOOLBAR_H + LOAD_Y, 32, 20, 1);
+  gfx2d_text(8, TOOLBAR_H + LOAD_Y + 6, "LD", 0x000000, 0);
 }
 
 void draw_palette() {
@@ -365,24 +409,112 @@ void draw_palette() {
   }
 }
 
+int screen_to_canvas_x(int sx) {
+  if (sx < CANVAS_X)
+    return -1;
+  return view_x + (sx - CANVAS_X) / zoom_level;
+}
+
+int screen_to_canvas_y(int sy) {
+  if (sy < CANVAS_Y)
+    return -1;
+  return view_y + (sy - CANVAS_Y) / zoom_level;
+}
+
+int canvas_to_screen_x(int cx) {
+  return CANVAS_X + (cx - view_x) * zoom_level;
+}
+
+int canvas_to_screen_y(int cy) {
+  return CANVAS_Y + (cy - view_y) * zoom_level;
+}
+
+void clamp_view_origin() {
+  int view_w = CANVAS_W / zoom_level;
+  int view_h = CANVAS_H / zoom_level;
+
+  if (view_w < 1)
+    view_w = 1;
+  if (view_h < 1)
+    view_h = 1;
+
+  int max_x = CANVAS_W - view_w;
+  int max_y = CANVAS_H - view_h;
+
+  if (max_x < 0)
+    max_x = 0;
+  if (max_y < 0)
+    max_y = 0;
+
+  if (view_x < 0)
+    view_x = 0;
+  if (view_y < 0)
+    view_y = 0;
+  if (view_x > max_x)
+    view_x = max_x;
+  if (view_y > max_y)
+    view_y = max_y;
+}
+
+void draw_canvas_view() {
+  clamp_view_origin();
+
+  if (zoom_level <= 1) {
+    gfx2d_surface_blit(canvas_surf, CANVAS_X, CANVAS_Y);
+    return;
+  }
+
+  if (canvas_snapshot == 0)
+    return;
+
+  gfx2d_surface_set_active(canvas_surf);
+  int y = 0;
+  while (y < CANVAS_H) {
+    int x = 0;
+    while (x < CANVAS_W) {
+      canvas_snapshot[y * CANVAS_W + x] = gfx2d_getpixel(x, y);
+      x++;
+    }
+    y++;
+  }
+  gfx2d_surface_unset_active();
+
+  y = 0;
+  while (y < CANVAS_H) {
+    int src_y = view_y + y / zoom_level;
+    int x = 0;
+    while (x < CANVAS_W) {
+      int src_x = view_x + x / zoom_level;
+      int color = canvas_snapshot[src_y * CANVAS_W + src_x];
+      gfx2d_pixel(CANVAS_X + x, CANVAS_Y + y, color);
+      x++;
+    }
+    y++;
+  }
+}
+
 /* ── Tool Logic ───────────────────────────────────────────────────── */
 
 void use_tool(int x, int y, int dragging) {
   /* Adjust to canvas coordinates */
-  int cx = x - CANVAS_X;
-  int cy = y - CANVAS_Y;
+  int cx = screen_to_canvas_x(x);
+  int cy = screen_to_canvas_y(y);
+
+  if (cx < 0 || cy < 0 || cx >= CANVAS_W || cy >= CANVAS_H)
+    return;
 
   gfx2d_surface_set_active(canvas_surf);
 
   if (current_tool == TOOL_PENCIL) {
-    if (mouse_prev_x > CANVAS_X) {
+    int prev_cx = screen_to_canvas_x(mouse_prev_x);
+    int prev_cy = screen_to_canvas_y(mouse_prev_y);
+    if (prev_cx >= 0 && prev_cx < CANVAS_W && prev_cy >= 0 && prev_cy < CANVAS_H) {
       if (brush_size == 1) {
-        gfx2d_line(mouse_prev_x - CANVAS_X, mouse_prev_y - CANVAS_Y, cx, cy,
-                   current_color);
+        gfx2d_line(prev_cx, prev_cy, cx, cy, current_color);
       } else {
         /* Simulated thick line */
-        int x1 = mouse_prev_x - CANVAS_X;
-        int y1 = mouse_prev_y - CANVAS_Y;
+        int x1 = prev_cx;
+        int y1 = prev_cy;
         int x2 = cx;
         int y2 = cy;
 
@@ -435,41 +567,77 @@ void draw_preview(int mx, int my) {
   if (is_dragging == 0)
     return;
 
-  int x1 = drag_start_x;
-  int y1 = drag_start_y;
-  int x2 = mx;
-  int y2 = my;
+  int x1 = screen_to_canvas_x(drag_start_x);
+  int y1 = screen_to_canvas_y(drag_start_y);
+  int x2 = screen_to_canvas_x(mx);
+  int y2 = screen_to_canvas_y(my);
+
+  if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
+    return;
 
   /* Clip preview to canvas */
-  if (x1 < CANVAS_X)
-    x1 = CANVAS_X;
-  if (x2 < CANVAS_X)
-    x2 = CANVAS_X;
-  if (y1 > CANVAS_H)
-    y1 = CANVAS_H;
-  if (y2 > CANVAS_H)
-    y2 = CANVAS_H;
+  if (x1 < 0)
+    x1 = 0;
+  if (x2 < 0)
+    x2 = 0;
+  if (y1 < 0)
+    y1 = 0;
+  if (y2 < 0)
+    y2 = 0;
+  if (x1 >= CANVAS_W)
+    x1 = CANVAS_W - 1;
+  if (x2 >= CANVAS_W)
+    x2 = CANVAS_W - 1;
+  if (y1 >= CANVAS_H)
+    y1 = CANVAS_H - 1;
+  if (y2 >= CANVAS_H)
+    y2 = CANVAS_H - 1;
+
+  int sx1 = canvas_to_screen_x(x1);
+  int sy1 = canvas_to_screen_y(y1);
+  int sx2 = canvas_to_screen_x(x2);
+  int sy2 = canvas_to_screen_y(y2);
 
   /* Draw primitives directly to screen (over canvas blit) */
   if (current_tool == TOOL_LINE) {
-    gfx2d_line(x1, y1, x2, y2, current_color);
+    gfx2d_line(sx1, sy1, sx2, sy2, current_color);
   }
   if (current_tool == TOOL_RECT) {
-    gfx2d_rect(x1, y1, x2 - x1, y2 - y1, current_color);
+    gfx2d_rect(sx1, sy1, sx2 - sx1, sy2 - sy1, current_color);
   }
   if (current_tool == TOOL_CIRCLE) {
-    int r = (x2 - x1);
+    int r = (sx2 - sx1);
     if (r < 0)
       r = -r;
-    gfx2d_circle(x1, y1, r, current_color);
+    gfx2d_circle(sx1, sy1, r, current_color);
   }
 }
 
 void commit_shape(int mx, int my) {
-  int x1 = drag_start_x - CANVAS_X;
-  int y1 = drag_start_y - CANVAS_Y;
-  int x2 = mx - CANVAS_X;
-  int y2 = my - CANVAS_Y;
+  int x1 = screen_to_canvas_x(drag_start_x);
+  int y1 = screen_to_canvas_y(drag_start_y);
+  int x2 = screen_to_canvas_x(mx);
+  int y2 = screen_to_canvas_y(my);
+
+  if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
+    return;
+
+  if (x1 < 0)
+    x1 = 0;
+  if (x2 < 0)
+    x2 = 0;
+  if (y1 < 0)
+    y1 = 0;
+  if (y2 < 0)
+    y2 = 0;
+  if (x1 >= CANVAS_W)
+    x1 = CANVAS_W - 1;
+  if (x2 >= CANVAS_W)
+    x2 = CANVAS_W - 1;
+  if (y1 >= CANVAS_H)
+    y1 = CANVAS_H - 1;
+  if (y2 >= CANVAS_H)
+    y2 = CANVAS_H - 1;
 
   gfx2d_surface_set_active(canvas_surf);
 
@@ -512,6 +680,7 @@ int main() {
 
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
+  canvas_snapshot = (int*)kmalloc(CANVAS_W * CANVAS_H * 4);
 
   /* Initialize file tracking */
   current_file_path[0] = '\0';
@@ -530,11 +699,56 @@ int main() {
     int mx = mouse_x();
     int my = mouse_y();
     int b = mouse_buttons();
+    int scroll_dz = mouse_scroll();
+    int shift_held = key_shift_held();
     int click = (b & 1);
+    int right_click = (b & 2);
     int left_click = (b & 1) && !(prev_buttons & 1);
 
+    /* Mouse wheel: Shift+wheel zooms, wheel alone pans vertically */
+    if (scroll_dz != 0) {
+      if (shift_held) {
+        if (scroll_dz < 0) {
+          if (zoom_level < 4)
+            zoom_level++;
+        } else {
+          if (zoom_level > 1)
+            zoom_level--;
+        }
+        clamp_view_origin();
+      } else {
+        if (zoom_level > 1) {
+          view_y = view_y + scroll_dz * 12;
+          clamp_view_origin();
+        }
+      }
+    }
+
+    /* Right-drag panning when zoomed in */
+    if (right_click) {
+      if (pan_is_down == 0) {
+        if (zoom_level > 1 && mx >= CANVAS_X && mx < CANVAS_X + CANVAS_W &&
+            my >= CANVAS_Y && my < CANVAS_Y + CANVAS_H) {
+          pan_is_down = 1;
+          pan_start_mouse_x = mx;
+          pan_start_mouse_y = my;
+          pan_start_view_x = view_x;
+          pan_start_view_y = view_y;
+          is_dragging = 0;
+        }
+      } else {
+        int dx = mx - pan_start_mouse_x;
+        int dy = my - pan_start_mouse_y;
+        view_x = pan_start_view_x - (dx / zoom_level);
+        view_y = pan_start_view_y - (dy / zoom_level);
+        clamp_view_origin();
+      }
+    } else {
+      pan_is_down = 0;
+    }
+
     /* Handle Click/Drag */
-    if (click) {
+    if (click && pan_is_down == 0) {
       if (mouse_is_down == 0) {
         /* Just pressed */
         mouse_is_down = 1;
@@ -550,23 +764,36 @@ int main() {
             if (current_tool > 4)
               current_tool = 4;
           }
-          if (my >= TOOLBAR_H + 250 && my < TOOLBAR_H + 270) {
+          if (my >= TOOLBAR_H + BRUSH_PLUS_Y &&
+              my < TOOLBAR_H + BRUSH_PLUS_Y + 20) {
             /* Brush Size + */
             if (brush_size < 10)
               brush_size++;
           }
-          if (my >= TOOLBAR_H + 290 && my < TOOLBAR_H + 310) {
+          if (my >= TOOLBAR_H + BRUSH_MINUS_Y &&
+              my < TOOLBAR_H + BRUSH_MINUS_Y + 20) {
             /* Brush Size - */
             if (brush_size > 1)
               brush_size--;
           }
-          if (my >= TOOLBAR_H + 400 && my < TOOLBAR_H + 420) {
+          if (my >= TOOLBAR_H + ZOOM_PLUS_Y && my < TOOLBAR_H + ZOOM_PLUS_Y + 20) {
+            if (zoom_level < 4)
+              zoom_level++;
+            clamp_view_origin();
+          }
+          if (my >= TOOLBAR_H + ZOOM_MINUS_Y &&
+              my < TOOLBAR_H + ZOOM_MINUS_Y + 20) {
+            if (zoom_level > 1)
+              zoom_level--;
+            clamp_view_origin();
+          }
+          if (my >= TOOLBAR_H + SAVE_Y && my < TOOLBAR_H + SAVE_Y + 20) {
             save_drawing();
           }
-          if (my >= TOOLBAR_H + 425 && my < TOOLBAR_H + 445) {
+          if (my >= TOOLBAR_H + SAVE_AS_Y && my < TOOLBAR_H + SAVE_AS_Y + 20) {
             save_drawing_as();
           }
-          if (my >= TOOLBAR_H + 450 && my < TOOLBAR_H + 470) {
+          if (my >= TOOLBAR_H + LOAD_Y && my < TOOLBAR_H + LOAD_Y + 20) {
             load_drawing();
           }
         } else {
@@ -576,7 +803,8 @@ int main() {
               current_color = palette[col_idx];
             }
           } else {
-            if (mx >= CANVAS_X && my >= CANVAS_Y && my <= CANVAS_Y + CANVAS_H) { /* Canvas */
+            if (mx >= CANVAS_X && mx < CANVAS_X + CANVAS_W && my >= CANVAS_Y &&
+                my < CANVAS_Y + CANVAS_H) { /* Canvas */
               is_dragging = 1;
               if (current_tool == TOOL_PENCIL || current_tool == TOOL_FILL) {
                 use_tool(mx, my, 0);
@@ -625,7 +853,7 @@ int main() {
     }
 
     /* Draw Canvas */
-    gfx2d_surface_blit(canvas_surf, CANVAS_X, CANVAS_Y);
+    draw_canvas_view();
 
     /* Draw Preview (if any) */
     draw_preview(mx, my);
@@ -642,5 +870,7 @@ int main() {
   }
 
   gfx2d_fullscreen_exit();
+  if (canvas_snapshot)
+    kfree(canvas_snapshot);
   return 0;
 }
