@@ -1,0 +1,183 @@
+>comment CupidMark converted document
+>h1 CupidASM Guide (.asm)
+Verified against source on: 2026-02-13
+
+>h2 Overview
+CupidASM is the in-OS x86-32 assembler in CupidOS.
+
+Two main modes:
+1) JIT assemble + run
+   as file.asm
+
+2) AOT assemble to ELF binary
+   cupidasm file.asm -o output
+   or
+   as -o output file.asm
+
+Shell convenience:
+- Typing a bare .asm path also works:
+  ./demo.asm
+  demo.asm
+
+>h2 Entry Point Requirement
+Assembler requires one of these labels:
+- main:
+- _start:
+
+If neither exists, assembly reports:
+  no main: or _start: label found
+
+>h2 Lexer / Syntax Basics
+Case handling:
+- Mnemonics and registers are case-insensitive.
+
+Comments:
+- ';' starts a line comment.
+
+Strings / chars:
+- "text" string literals supported in data directives.
+- Character literals supported, including escapes.
+
+Numbers:
+- Decimal: 123
+- Hex: 0x7B
+- Binary: 0b1111011
+
+Memory operand forms (implemented):
+- [reg]
+- [reg+disp]
+- [reg-disp]
+- [reg+reg]
+- [addr]
+- [label]
+
+>h2 Labels And Constants
+Label forms:
+- name:
+- name :
+
+Constants:
+- name equ 123
+
+Forward references:
+- Supported through patch resolution pass after parse/encode.
+
+>h2 Sections And Directives
+Sections:
+- section .text
+- section .data
+- section .bss (treated as data section bucket in current implementation)
+
+Data directives:
+- db
+- dw
+- dd
+- resb
+- times
+
+Supported patterns include:
+- db "hello", 0
+- dw 0x1234
+- dd label
+- resb 64
+- times 16 db 0
+- times 32 nop
+
+Accepted but effectively ignored for linking:
+- global <symbol>
+- extern <symbol>
+
+Current limitation:
+- %include token is recognized but include expansion is TODO (not executed).
+- resw/resd are tokenized in lexer tables but not fully handled in parser path.
+
+>h2 Instruction Support (Current Parser Path)
+Flow/control:
+- call
+- jmp
+- je/jne/jz/jnz
+- jl/jg/jle/jge
+- jb/jbe/ja/jae
+- js/jns/jo/jno
+- ret
+- int
+
+Data movement:
+- mov
+- lea
+- xchg
+- movzx
+- movsx
+- push / pop
+
+ALU and bit ops:
+- add sub and or xor cmp test
+- not neg
+- inc dec
+- mul imul div idiv
+- shl shr sar rol ror
+
+System/string-ish:
+- nop hlt cli sti iret leave
+- pushad popad pushfd popfd
+- cdq cbw cwde
+- movsb movsd stosb stosd
+- rep (prefix handler for string instructions)
+- in / out
+
+Short jumps:
+- jmp short label is supported.
+
+>h2 JIT Vs AOT Details
+JIT path (`as file.asm`):
+- Assembles source in-memory
+- Copies code/data into fixed JIT regions
+- Executes directly
+- Returns to shell after completion
+
+AOT path (`cupidasm` or `as -o`):
+- Assembles source
+- Writes ELF32 output file via assembler ELF writer
+- Useful for later exec workflows
+
+>h2 Debugging Tips
+1) Start tiny and grow:
+   - Build a minimal main: that just ret.
+2) Prefer explicit section headers in test files.
+3) If jump patch errors occur, verify label spelling and scope.
+4) For short jump range issues, use normal near jump instead of short.
+5) Keep one instruction per line while debugging parser errors.
+
+>h2 Minimal Example
+section .text
+
+main:
+    mov eax, 1
+    add eax, 2
+    ret
+
+Run:
+  as /home/demo.asm
+
+>h2 Data Example
+section .data
+msg db "hello", 0
+
+section .text
+main:
+    mov eax, msg
+    ret
+
+>h2 Common Workflow
+1) Create source:
+   ed /home/demo.asm
+
+2) JIT test:
+   as /home/demo.asm
+
+3) Produce ELF:
+   cupidasm /home/demo.asm -o /home/demo
+
+4) Run ELF (if desired):
+   exec /home/demo
+

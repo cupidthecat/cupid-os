@@ -1,0 +1,71 @@
+>comment CupidMark converted document
+>h1 GUI Terminal and Embedded Shell
+Verified against source on: 2026-02-13
+
+>h2 What "Embedded Shell" Means Here
+CupidOS has one shell core that can output in:
+- Text mode (classic VGA)
+- GUI buffer mode (Terminal app window)
+
+The Terminal window renders shell text buffer cells and ANSI colors.
+
+>h2 How To Open Terminal
+From shell:
+  terminal
+
+From desktop:
+- Use terminal app icon/launcher.
+
+Only one terminal window instance is kept at a time by terminal app logic.
+
+>h2 Key Controls In GUI Terminal
+Typing:
+- Normal keys go to shell line editor.
+
+Scrolling:
+- Mouse wheel scrolls terminal history.
+- Page Up / Page Down scroll by chunks.
+
+Zoom:
+- Ctrl + '+' to increase font scale (up to 3x)
+- Ctrl + '-' to decrease font scale
+
+Cursor:
+- Blinks on focused terminal window.
+
+>h2 How Program Input Routing Works
+When a JIT program (CupidC or CupidASM) starts:
+- Shell marks program as running.
+- Keyboard input is routed to program input buffer.
+
+When program exits:
+- Input routing returns to shell prompt.
+
+This allows interactive programs to receive keystrokes in GUI mode.
+
+>h2 Desktop App Integration
+Shell can launch GUI apps:
+  notepad
+  terminal
+
+Some CupidC programs are GUI apps (paint, fm, gfx demos) and can be launched
+from shell if they are available in /bin or /home/bin.
+
+>h2 Text Mode Vs GUI Mode Differences
+Text mode:
+- Kernel print/putchar go directly to VGA text memory.
+
+GUI mode:
+- Output is redirected into shell GUI buffer.
+- FAT16/memory/panic/blockcache output routes are switched to GUI-aware
+  output callbacks while shell is in GUI output mode.
+
+>h2 Practical Tips
+1) If a graphics app says it requires GUI mode, run it from desktop terminal.
+2) If terminal output looks clipped, adjust zoom (Ctrl +/-).
+3) If debugging command-line behavior, text-mode shell can be simpler.
+
+>h2 See Also
+01SHELL.TXT for shell editing and dispatch behavior
+04CUPIDC.TXT for GUI-capable CupidC bindings
+

@@ -1,0 +1,145 @@
+>comment CupidMark converted document
+>h1 CupidScript Guide (.cup)
+Verified against source on: 2026-02-13
+
+>h2 What It Is
+CupidScript is CupidOS's shell scripting language.
+It is interpreted from .cup files and executes shell commands.
+
+>h2 How To Run
+Preferred:
+  cupid script.cup [args...]
+
+Also supported from shell:
+  ./script.cup [args...]
+  script.cup [args...]
+
+>h2 Script Loading Order
+Runner tries:
+1) In-memory fs table
+2) VFS path (absolute or CWD-relative)
+3) Direct FAT16 open fallback
+
+>h2 Basic Syntax
+Assignment:
+  NAME=value
+  X=42
+
+Command:
+  echo "hello"
+  ls /home
+
+Conditionals:
+  if [ "$X" = "42" ]; then
+    echo "ok"
+  else
+    echo "no"
+  fi
+
+Loops:
+  while [ "$N" -lt "5" ]; do
+    echo "$N"
+    N=$((N + 1))
+  done
+
+  for item in one two three; do
+    echo "$item"
+  done
+
+Functions:
+  greet() {
+    echo "hello $1"
+    return 0
+  }
+  greet world
+
+>h2 Return Codes And Special Variables
+$?    last exit status
+$#    number of script args
+$0    script name
+$1..$9 positional args
+$!    last background PID slot (see limitation notes)
+$EPOCHSECONDS current RTC epoch seconds
+
+>h2 Variable Expansion
+Basic:
+  $VAR
+  ${VAR}
+
+Arithmetic:
+  $((A + 1))
+  $((COUNT * 2))
+
+Advanced bash-like forms implemented:
+  ${#var}           length
+  ${var:start:len}  substring
+  ${var%pat}        remove shortest suffix
+  ${var%%pat}       remove longest suffix
+  ${var#pat}        remove shortest prefix
+  ${var##pat}       remove longest prefix
+  ${var/old/new}    replace first
+  ${var//old/new}   replace all
+  ${var^^}          uppercase
+  ${var,,}          lowercase
+  ${var^}           capitalize first
+
+>h2 Test Expressions
+Unary:
+  -z STRING
+  -n STRING
+
+Numeric:
+  -eq -ne -lt -gt -le -ge
+
+String:
+  =  !=
+
+>h2 Built-Ins Inside CupidScript
+echo
+setcolor
+resetcolor
+printc
+jobs
+declare -A <name>
+date [+epoch|+short]
+
+Unknown commands are passed to shell_execute_line() and run as shell commands.
+
+>h2 Associative Arrays
+Create:
+  declare -A map
+
+Supported runtime operations exist for key/value maps, but ergonomic
+shell-like syntax coverage is still evolving. Keep scripts simple.
+
+>h2 Important Current Limitations
+Lexer support exists for:
+  |  >  >>  <  2>  2>&1  &  backticks  $(...)
+
+But current parser/executor primarily handles command/assignment/flow nodes.
+So in practice:
+- Pipe and redirection tokens are not yet fully wired through AST execution.
+- Background job table exists, but full "&" execution path is incomplete.
+- jobs builtin is present, but many scripts will see no active jobs unless
+  explicit job wiring is added in future code.
+
+>h2 Recommended Style Today
+1) Use straightforward sequential commands.
+2) Use variables + if/while/for heavily (these work well).
+3) Use temporary files manually instead of expecting full pipe semantics.
+4) Prefer explicit absolute paths for reliability.
+
+>h2 Minimal Example
+#!/bin/cupid
+NAME=world
+COUNT=0
+
+echo "hello $NAME"
+
+while [ "$COUNT" -lt "3" ]; do
+  echo "count=$COUNT"
+  COUNT=$((COUNT + 1))
+done
+
+echo "epoch=$EPOCHSECONDS"
+

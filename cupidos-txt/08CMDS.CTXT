@@ -1,0 +1,66 @@
+>comment CupidMark converted document
+>h1 CupidOS Command Quick Reference
+Verified against source on: 2026-02-13
+
+>h2 Note
+Use:
+  help
+  help <command>
+for in-system command help pulled from /bin source comments where available.
+
+>h2 Shell Built-Ins (Dispatched Directly)
+cupid      - run CupidScript file (.cup)
+exec       - execute binary path (ELF or CUPD)
+notepad    - launch GUI notepad
+terminal   - launch GUI terminal
+cupidc     - JIT compile and run .cc source
+ccc        - compile .cc to ELF output
+as         - assemble and run .asm source (or with -o output)
+cupidasm   - assemble .asm to ELF output
+
+>h2 Current /bin .cc Programs (Auto-Discovered)
+System / shell:
+  help clear echo time date reboot history sysinfo cupidfetch
+
+Filesystem:
+  pwd cd ls cat mount mkdir rmdir mv rm ed
+
+Color / output:
+  setcolor resetcolor printc
+
+Processes:
+  ps kill spawn yield
+
+Memory / debug:
+  memstats memcheck memleak memdump stacktrace registers
+  loglevel logdump crashtest
+
+Disk cache:
+  sync cachestats
+
+GUI / graphics:
+  paint fm gfxdemo gfxtest gfxgui_test bmptest
+
+Test / dev utilities currently shipped:
+  test test_print cupidc_test1 cupidc_test2 cupidc_test3
+  cupidc_test4 cupidc_test5 old_cc2 old_cc2_single
+
+>h2 Script Files Shipped In /bin
+build.cup is included as a script file.
+Run explicitly as:
+  cupid /bin/build.cup
+or:
+  /bin/build.cup
+
+>h2 Shell Special Execution Shortcuts
+script.cup         -> runs via cupid
+program.cc         -> runs via cupidc
+program.asm        -> runs via as
+./relative_path    -> executes by extension or as binary
+
+>h2 Auto-Discovery Path Order
+/bin/<cmd>
+/bin/<cmd>.cc
+/home/bin/<cmd>
+/home/bin/<cmd>.cc
+

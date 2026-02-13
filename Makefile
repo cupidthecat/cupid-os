@@ -21,6 +21,12 @@ $(info BIN_HDR_SRCS=$(BIN_HDR_SRCS))
 BIN_HDR_OBJS := $(BIN_HDR_SRCS:.h=.h.o)
 BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
 
+# Auto-discover CupidDoc files to embed at boot (/docs/*.ctxt in ramfs)
+DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
+$(info DOC_CTXT_SRCS=$(DOC_CTXT_SRCS))
+DOC_CTXT_OBJS := $(DOC_CTXT_SRCS:.CTXT=.o)
+DOC_CTXT_NAMES := $(notdir $(basename $(DOC_CTXT_SRCS)))
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -53,7 +59,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/gui_widgets.o kernel/gui_containers.o kernel/gui_menus.o \
             kernel/gui_events.o kernel/gui_themes.o \
             kernel/bin_programs_gen.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS)
+			kernel/docs_programs_gen.o \
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS)
 
 all: $(OS_IMAGE)
 
@@ -346,12 +353,33 @@ kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
 	$(CC) $(CFLAGS) kernel/bin_programs_gen.c -o kernel/bin_programs_gen.o
 
+# Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
+kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) Makefile
+	@echo "/* Auto-generated -- do not edit. */" > $@
+	@echo "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */" >> $@
+	@echo '#include "ramfs.h"' >> $@
+	@echo '#include "types.h"' >> $@
+	@echo '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(n)_CTXT_start[];' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(n)_CTXT_end[];' >> $@;)
+	@echo 'void install_docs_programs(void *fs_private);' >> $@
+	@echo 'void install_docs_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(n)_CTXT_end - _binary_cupidos_txt_$(n)_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(n)_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\\n", sz); }' >> $@;)
+	@echo '}' >> $@
+
+kernel/docs_programs_gen.o: kernel/docs_programs_gen.c
+	$(CC) $(CFLAGS) kernel/docs_programs_gen.c -o kernel/docs_programs_gen.o
+
 # Pattern rule: embed any bin/*.cc file via objcopy
 bin/%.o: bin/%.cc
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
 bin/%.h.o: bin/%.h
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any cupidos-txt/*.CTXT file via objcopy
+cupidos-txt/%.o: cupidos-txt/%.CTXT
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects
@@ -391,7 +419,7 @@ run-log: $(OS_IMAGE)
 	fi
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o \
-	      kernel/bin_programs_gen.c $(OS_IMAGE)
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o \
+	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c $(OS_IMAGE)
 
 .PHONY: all run disk run-disk run-log clean

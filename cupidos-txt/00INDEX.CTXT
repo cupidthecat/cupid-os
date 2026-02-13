@@ -1,0 +1,46 @@
+>comment CupidMark converted document
+>h1 CupidOS User Documentation
+Verified against source on: 2026-02-13
+
+This folder is a source-verified documentation set for users inside CupidOS.
+It focuses on what is implemented now, not just planned wiki features.
+
+>h2 Files In This Folder
+00INDEX.TXT   - This index and reading order
+01SHELL.TXT   - Interactive shell usage and command dispatch behavior
+02FILESYS.TXT - VFS layout, FAT16 behavior, and storage limitations
+03CUPIDSC.TXT - CupidScript syntax, variables, flow control, and limits
+04CUPIDC.TXT  - Writing and running CupidC programs
+05ELFPROG.TXT - Writing ELF user C programs with user/cupid.h
+06GUITERM.TXT - GUI terminal ("embedded shell") behavior and controls
+07LABS.TXT    - Safe "mess around" experiments and workflows
+08CMDS.TXT    - Command quick reference (built-ins + /bin programs)
+09EMBED.TXT   - How to embed docs into ramfs/fat16 for in-OS reading
+10ASM.txt     - CupidASM guide (.asm), JIT/AOT usage, syntax, limitations
+
+>h2 What Is Important To Know First
+1) The shell is command-dispatch driven:
+   - Built-ins handle compiler/scripting/GUI launch commands.
+   - Most day-to-day commands come from /bin/*.cc and are JIT-compiled.
+
+2) Filesystems are split:
+   - /      = ramfs (in-memory, non-persistent)
+   - /dev   = devfs
+   - /home  = FAT16 disk (persistent if disk image is used)
+
+3) CupidScript and CupidC are different:
+   - CupidScript (.cup): interpreted shell scripting language.
+   - CupidC (.cc): custom C-like language compiled inside CupidOS.
+   - ELF C programs are a third path (see 05ELFPROG.TXT).
+
+4) Some wiki pages are ahead of implementation:
+   - This docs set calls out current limitations where relevant.
+
+>h2 Suggested Reading Order
+1) 01SHELL.TXT
+2) 02FILESYS.TXT
+3) 03CUPIDSC.TXT and 04CUPIDC.TXT
+4) 10ASM.txt (if you use assembly workflows)
+5) 06GUITERM.TXT
+6) 07LABS.TXT
+7) 08CMDS.TXT as a lookup reference

@@ -1,0 +1,59 @@
+>comment CupidMark converted document
+>h1 How To Embed These Docs Into CupidOS Storage
+Verified against source on: 2026-02-13
+
+This repo folder is source documentation. To make docs readable inside
+running CupidOS, use one of these methods.
+
+>h2 Method A: FAT16 Persistent Docs (/home)
+Goal:
+- Put docs under /home so they persist with disk image.
+
+Recommended target layout:
+  /home/docs/00index.txt
+  /home/docs/01shell.txt
+  ...
+
+Notes:
+- FAT16 naming is 8.3-oriented in current driver path. Keep filenames short.
+- Root-level files are the most reliable workflow currently.
+
+Simple in-OS approach:
+1) Make directory:
+   mkdir /home/docs
+2) Create files one-by-one with ed and paste content.
+3) Run sync after edits.
+
+>h2 Method B: RAMFS Memory Docs (/)
+Goal:
+- Bundle small docs directly in kernel boot memory files.
+
+Current in-memory static file table is in:
+  kernel/fs.c
+
+You can add entries by:
+1) Defining static const char text blocks
+2) Adding them to fs_files[]
+3) Wiring data pointers and sizes in fs_init()
+
+Tradeoff:
+- Always available at boot
+- Non-persistent (rebuilt image required)
+
+>h2 Method C: Auto-Install Doc Files To RAMFS At Boot (Advanced)
+Pattern exists for /bin programs:
+- Makefile auto-embeds bin/*.cc with objcopy
+- kernel/bin_programs_gen.c installs them into ramfs /bin
+
+You can implement a similar generator for docs/*.txt to install into /docs.
+
+Tradeoff:
+- Scales better than hardcoding large strings in kernel/fs.c
+- Requires Makefile and kernel generation changes
+
+>h2 Practical Recommendation
+For day-to-day user readability:
+1) Keep canonical docs in this repo folder
+2) Copy selected short 8.3-named files into /home root or /home/docs
+3) sync after updates
+

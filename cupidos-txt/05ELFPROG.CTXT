@@ -1,0 +1,89 @@
+>comment CupidMark converted document
+>h1 ELF User C Programs (user/cupid.h)
+Verified against source on: 2026-02-13
+
+>h2 Overview
+This is the GCC/ELF program path, separate from CupidC.
+
+ELF programs are loaded by exec() and receive a syscall table pointer.
+In your program entry, call cupid_init(sys) then use wrapper functions.
+
+>h2 Basic Entry Template
+#include "../cupid.h"
+
+void _start(cupid_syscall_table_t *sys) {
+    cupid_init(sys);
+    print("Hello from ELF program\n");
+    exit();
+}
+
+>h2 Build Flow
+From repo root:
+  make -C user
+
+This builds example ELF binaries in:
+  user/build/
+
+Examples included now:
+  hello
+  ls
+  cat
+
+>h2 Running ELF Programs
+1) Place binary somewhere in VFS (often /home)
+2) Run:
+   exec /home/hello
+
+or run direct command if you have a matching shell dispatch setup.
+
+>h2 Syscall Table API (Highlights)
+Console:
+  print, putchar, print_int, print_hex, clear_screen
+
+Memory:
+  malloc, free
+
+Strings:
+  strlen, strcmp, strncmp, memset, memcpy
+
+VFS:
+  open/close/read/write/seek/stat/readdir/mkdir/unlink
+
+Process:
+  exit, yield, getpid, kill, sleep_ms
+
+Shell integration:
+  shell_execute, shell_get_cwd
+
+Time:
+  uptime_ms
+
+Program execution:
+  exec_program
+
+>h2 Important Limits
+- No libc. Use cupid.h wrappers.
+- No argc/argv in classic POSIX style yet.
+- Keep binary load addresses valid (examples use -Ttext=0x00400000).
+- Everything runs ring 0 in CupidOS model (no user/kernel isolation).
+
+>h2 Manual Compile Example
+Compile object:
+  gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 -Iuser \
+      -c user/examples/hello.c -o hello.o
+
+Link ELF32:
+  ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
+     -o hello hello.o
+
+Then copy to /home and run with:
+  exec /home/hello
+
+>h2 When To Choose This Path
+Use ELF C when you want:
+- external toolchain control
+- lower-level loader behavior testing
+- compatibility with explicit syscall-table interface
+
+Use CupidC (04CUPIDC.TXT) when you want quickest in-OS iteration.
+

@@ -1,0 +1,91 @@
+>comment CupidMark converted document
+>h1 CupidOS Filesystems and FAT16
+Verified against source on: 2026-02-13
+
+>h2 Mount Layout
+CupidOS initializes these mounts:
+
+/      -> ramfs
+/dev   -> devfs
+/home  -> fat16 (if ATA disk is present and FAT16 init succeeds)
+
+>h2 Standard Directories Created At Boot
+/bin
+/tmp
+/home
+
+>h2 RAMFS VS FAT16
+RAMFS (/):
+- In-memory, non-persistent
+- Good for temporary runtime files in current session
+- /bin is populated at boot with built-in stubs and embedded .cc command files
+
+FAT16 (/home):
+- Persistent disk-backed storage (disk image / real disk)
+- Intended for user files and user programs
+- Mounted via VFS FAT16 wrapper
+
+DEVFS (/dev):
+- Device filesystem mount
+
+>h2 In-Memory File Table (Legacy Static Files)
+Kernel static fs entries currently include:
+- LICENSE.txt
+- MOTD.txt
+
+They are loaded into ramfs during boot.
+
+>h2 FAT16 Driver Reality (Current Implementation)
+Implemented:
+- FAT16 partition detection from MBR (first matching FAT16 partition type)
+- File open/read/close
+- File create/write/overwrite
+- File delete
+- Root directory enumeration
+- Root-level directory create (mkdir)
+- Subdirectory enumeration for directories directly under FAT16 root
+
+Important practical limitations:
+- 8.3 naming model is enforced by FAT filename conversion routines.
+- Wrapper still behaves mostly like flat root for file opens/writes.
+- Creating files inside subdirectories through VFS path "dir/file.txt"
+  is not a reliable workflow yet.
+- Best-supported workflow today: keep user files and scripts in /home root,
+  and user command sources in /home/bin.
+
+>h2 Write Path Details
+FAT16 VFS write path buffers output and rewrites whole file on close.
+If write fails, rollback attempts to restore original content.
+
+>h2 Block Cache
+Disk I/O goes through block cache.
+Useful commands:
+- sync       : flush cache now
+- cachestats : print cache hit/miss statistics
+
+>h2 Persistent Program Workflow
+Place custom command sources in:
+  /home/bin/<name>.cc
+Then run:
+  <name>
+Shell auto-discovers and JIT-compiles from /home/bin.
+
+>h2 Path Safety Tips
+- Use absolute paths when learning:
+    /home/myfile.txt
+    /tmp/test.txt
+- Use pwd frequently.
+- Verify with:
+    ls
+    cat
+    mount
+
+>h2 Where To Put These Doc Files In A Live System
+If you want docs readable inside running CupidOS:
+- Put copies in /home (persistent) or /tmp (session only).
+- /home is recommended for long-term docs.
+
+>h2 See Also
+01SHELL.TXT for path resolution behavior
+04CUPIDC.TXT and 05ELFPROG.TXT for program placement conventions
+

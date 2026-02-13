@@ -1,0 +1,108 @@
+>comment CupidMark converted document
+>h1 CupidOS Shell Guide
+Verified against source on: 2026-02-13
+
+>h2 Overview
+CupidOS uses a custom shell with:
+- Current working directory prompt (example: /home> )
+- Command history (16 entries)
+- Command and filename tab-completion
+- Basic line editing (left/right arrows, backspace, Ctrl+C cancel line)
+- Optional GUI output mode via the Terminal app
+
+>h2 Input Limits
+- Max command line length: 80 characters
+- History size: 16 commands
+
+>h2 Prompt And Paths
+Prompt shows current CWD:
+  / > 
+  /home > 
+Use:
+  cd /path
+  pwd
+
+Path resolution rules:
+- Absolute path starts with /
+- Relative path is resolved from current CWD
+- "." and ".." are normalized
+
+>h2 How Commands Are Resolved
+When you type a command, shell dispatch order is:
+
+1) Shell built-ins table
+   cupid, exec, notepad, terminal, cupidc, ccc, as, cupidasm
+
+2) Direct /bin dispatch paths (special app stubs and known programs)
+
+3) Auto-discovery search order:
+   /bin/<cmd>          (ELF/CUPD binary)
+   /bin/<cmd>.cc       (CupidC source, JIT)
+   /home/bin/<cmd>     (ELF/CUPD binary on FAT16)
+   /home/bin/<cmd>.cc  (CupidC source on FAT16, JIT)
+
+4) "./..." execution
+   ./file.cup  -> CupidScript runner
+   ./file.cc   -> CupidC JIT
+   ./file.asm  -> CupidASM JIT
+   ./binary    -> exec loader
+
+5) Bare extension convenience
+   file.cup  -> cupid file.cup
+   file.cc   -> cupidc file.cc
+   file.asm  -> as file.asm
+
+>h2 Output Redirection
+Interactive shell supports:
+  command > file
+  command >> file
+
+Implementation notes:
+- Shell captures printed output into a buffer and writes file at end.
+- Redirect target path is resolved using CWD.
+- Redirection currently focuses on shell-visible output streams.
+
+>h2 Current Limits To Expect
+- Generic pipeline execution with "|" is NOT implemented in shell command
+  dispatcher.
+- Input redirection "<" and stderr forms are tokenized in CupidScript lexer
+  work, but are not fully executed by current command AST executor.
+- For reliable automation, use direct commands and explicit temp files.
+
+>h2 Tab Completion
+Command completion:
+- Matches built-ins and /bin/*.cc programs.
+
+Filename completion:
+- Enabled for commands that expect paths: cat, cd, ls, exec, ed, cupid
+- Completes from current directory or typed path prefix
+
+If one match:
+- Completes full name
+- Appends "/" for directories, space for files
+
+If multiple matches:
+- First tab extends common prefix
+- Next tab can list matches
+
+>h2 History And Editing
+- Up arrow: older command
+- Down arrow: newer command
+- Left/right arrows: move cursor within current line
+- Backspace: delete before cursor
+- Ctrl+C: cancel line, print fresh prompt
+
+>h2 GUI Mode Vs Text Mode
+Text mode:
+- Output goes to VGA text console.
+
+GUI mode (Terminal window):
+- Shell writes into GUI buffer
+- ANSI colors are rendered in terminal view
+- Cursor blink and scrolling managed by terminal app
+
+>h2 See Also
+02FILESYS.TXT for mount points and persistence behavior
+06GUITERM.TXT for Terminal app specifics
+08CMDS.TXT for command list
+
