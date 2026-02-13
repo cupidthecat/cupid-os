@@ -85,8 +85,13 @@ static const char *fat16_vfs_strip(const char *path) {
 
 static int fat16_vfs_mount(const char *source, void **fs_private) {
     (void)source;
-    /* FAT16 is already initialized globally by fat16_init().
-     * We don't need per-mount state; use a sentinel pointer. */
+    if (!fat16_is_initialized()) {
+        if (fat16_init() != 0) {
+            return VFS_EIO;
+        }
+    }
+
+    /* We don't need per-mount state; use a sentinel pointer. */
     *fs_private = (void *)1;
     return VFS_OK;
 }

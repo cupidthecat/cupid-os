@@ -568,6 +568,8 @@ void kmain(void) {
     blkdev_init();
     ata_register_devices();
 
+    int fat16_ready = 0;
+
     // Initialize block cache for first drive
     block_device_t* hdd = blkdev_get(0);
     if (hdd) {
@@ -581,8 +583,13 @@ void kmain(void) {
 
         // Initialize FAT16 filesystem
         if (fat16_init() == 0) {
+            fat16_ready = 1;
             KINFO("FAT16 mounted at /disk");
+        } else {
+            KERROR("FAT16 init failed; /home will not be mounted");
         }
+    } else {
+        KERROR("No block device available; /home FAT16 mount skipped");
     }
 
     /* ── VFS initialization ──────────────────────────────────── */
@@ -607,11 +614,17 @@ void kmain(void) {
         KINFO("VFS: mounted devfs on /dev");
     }
 
-    /* Mount FAT16 at /home (user files on disk) */
-    if (hdd) {
-        if (vfs_mount(NULL, "/home", "fat16") == VFS_OK) {
+    /* Mount FAT16 at /home (persistent user files) */
+    if (hdd && fat16_ready) {
+        int rc = vfs_mount(NULL, "/home", "fat16");
+        if (rc == VFS_OK) {
             KINFO("VFS: mounted fat16 on /home");
+        } else {
+            KERROR("VFS: failed to mount fat16 on /home (%d)", rc);
+            KERROR("/home is not persistent (using root ramfs directory)");
         }
+    } else {
+        KERROR("/home is not persistent (FAT16 unavailable)");
     }
 
     /* Pre-populate ramfs with in-memory files */
