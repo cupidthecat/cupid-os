@@ -14,181 +14,292 @@ Verified against source on: 2026-02-13
 >rule
 
 >h2 Overview
-CupidASM is the in-OS x86-32 assembler in CupidOS.
+CupidASM is CupidOS's in-kernel x86-32 assembler.
 
-Two main modes:
-1) JIT assemble + run
-   as file.asm
+Modes:
+1) JIT run
+   as /home/demo.asm
 
-2) AOT assemble to ELF binary
-   cupidasm file.asm -o output
-   or
-   as -o output file.asm
+2) AOT ELF output
+   as -o /home/demo /home/demo.asm
+   cupidasm /home/demo.asm -o /home/demo
 
-Shell convenience:
-- Typing a bare .asm path also works:
-  ./demo.asm
-  demo.asm
-
->h2 Entry Point Requirement
-Assembler requires one of these labels:
+Entry labels:
 - main:
 - _start:
 
-If neither exists, assembly reports:
-  no main: or _start: label found
+Calling convention:
+- cdecl
+- Caller must clean stack after calls.
 
->h2 Lexer / Syntax Basics
-Case handling:
-- Mnemonics and registers are case-insensitive.
+>box
+Important: Most runtime crashes in asm demos are stack cleanup bugs.
+If you push N arguments, always add esp, N*4 after call.
+>endbox
+
+>h2 Syntax And Core Language Features
+Case:
+- Mnemonics/registers/directives are case-insensitive.
 
 Comments:
-- ';' starts a line comment.
-
-Strings / chars:
-- "text" string literals supported in data directives.
-- Character literals supported, including escapes.
+- ; starts a line comment.
 
 Numbers:
 - Decimal: 123
 - Hex: 0x7B
 - Binary: 0b1111011
 
-Memory operand forms (implemented):
-- [reg]
-- [reg+disp]
-- [reg-disp]
-- [reg+reg]
-- [addr]
-- [label]
-
->h2 Labels And Constants
-Label forms:
+Labels:
 - name:
 - name :
 
 Constants:
-- name equ 123
+- NAME equ 123
 
 Forward references:
-- Supported through patch resolution pass after parse/encode.
+- Supported via patch resolution pass.
 
->h2 Sections And Directives
+Memory operand forms:
+- [reg]
+- [reg+disp]
+- [reg-disp]
+- [reg+reg]
+- [label]
+- [addr]
+
 Sections:
 - section .text
 - section .data
-- section .bss (treated as data section bucket in current implementation)
+- section .bss
 
-Data directives:
-- db
-- dw
-- dd
-- resb
+Data/reserve directives:
+- db dw dd
+- resb resw resd
+- rb rw rd (aliases)
+- reserve (alias of resb)
 - times
 
-Supported patterns include:
-- db "hello", 0
-- dw 0x1234
-- dd label
-- resb 64
-- times 16 db 0
-- times 32 nop
+Supported declaration styles:
+- buf resb 64
+- buf: resb 64
+- arr: rd 8
 
-Accepted but effectively ignored for linking:
+Accepted directives:
 - global <symbol>
 - extern <symbol>
 
-Current limitation:
-- %include token is recognized but include expansion is TODO (not executed).
-- resw/resd are tokenized in lexer tables but not fully handled in parser path.
+Known limitation:
+- %include token is recognized but include expansion is not implemented.
 
->h2 Instruction Support (Current Parser Path)
-Flow/control:
-- call
-- jmp
-- je/jne/jz/jnz
-- jl/jg/jle/jge
-- jb/jbe/ja/jae
-- js/jns/jo/jno
-- ret
-- int
+>h2 Instruction Coverage
+Data/control:
+- mov lea xchg movzx movsx
+- push pop call ret
+- jmp (including jmp short)
+- je jne jz jnz jl jg jle jge jb jbe ja jae js jns jo jno
 
-Data movement:
-- mov
-- lea
-- xchg
-- movzx
-- movsx
-- push / pop
-
-ALU and bit ops:
+ALU/logic:
 - add sub and or xor cmp test
-- not neg
-- inc dec
+- inc dec not neg
 - mul imul div idiv
 - shl shr sar rol ror
 
-System/string-ish:
+System/string ops:
 - nop hlt cli sti iret leave
 - pushad popad pushfd popfd
 - cdq cbw cwde
 - movsb movsd stosb stosd
-- rep (prefix handler for string instructions)
-- in / out
+- rep
+- int
 
-Short jumps:
-- jmp short label is supported.
+>h2 JIT And AOT Behavior
+JIT (`as file.asm`):
+- Assembles in memory.
+- Copies code/data to fixed JIT regions.
+- Executes immediately and returns to shell.
 
->h2 JIT Vs AOT Details
-JIT path (`as file.asm`):
-- Assembles source in-memory
-- Copies code/data into fixed JIT regions
-- Executes directly
-- Returns to shell after completion
+AOT (`as -o` / `cupidasm -o`):
+- Assembles source.
+- Writes ELF32 output file.
 
-AOT path (`cupidasm` or `as -o`):
-- Assembles source
-- Writes ELF32 output file via assembler ELF writer
-- Useful for later exec workflows
+>h2 SYS_* Constants (AOT/JIT Portability)
+Offsets match cupid_syscall_table_t:
 
->h2 Debugging Tips
-1) Start tiny and grow:
-   - Build a minimal main: that just ret.
-2) Prefer explicit section headers in test files.
-3) If jump patch errors occur, verify label spelling and scope.
-4) For short jump range issues, use normal near jump instead of short.
-5) Keep one instruction per line while debugging parser errors.
+- SYS_VERSION = 0
+- SYS_TABLE_SIZE = 4
+- SYS_SIZE = 4
+- SYS_PRINT = 8
+- SYS_PUTCHAR = 12
+- SYS_PRINT_INT = 16
+- SYS_PRINT_HEX = 20
+- SYS_CLEAR_SCREEN = 24
+- SYS_MALLOC = 28
+- SYS_FREE = 32
+- SYS_STRLEN = 36
+- SYS_STRCMP = 40
+- SYS_STRNCMP = 44
+- SYS_MEMSET = 48
+- SYS_MEMCPY = 52
+- SYS_VFS_OPEN = 56
+- SYS_VFS_CLOSE = 60
+- SYS_VFS_READ = 64
+- SYS_VFS_WRITE = 68
+- SYS_VFS_SEEK = 72
+- SYS_VFS_STAT = 76
+- SYS_VFS_READDIR = 80
+- SYS_VFS_MKDIR = 84
+- SYS_VFS_UNLINK = 88
+- SYS_EXIT = 92
+- SYS_YIELD = 96
+- SYS_GETPID = 100
+- SYS_KILL = 104
+- SYS_SLEEP_MS = 108
+- SYS_SHELL_EXEC = 112
+- SYS_SHELL_EXEC_LINE = 112
+- SYS_SHELL_EXECUTE = 112
+- SYS_SHELL_CWD = 116
+- SYS_SHELL_GET_CWD = 116
+- SYS_UPTIME_MS = 120
+- SYS_EXEC = 124
+- SYS_VFS_RENAME = 128
+- SYS_VFS_COPY_FILE = 132
+- SYS_VFS_COPY = 132
+- SYS_VFS_READ_ALL = 136
+- SYS_VFS_WRITE_ALL = 140
+- SYS_VFS_READ_TEXT = 144
+- SYS_VFS_WRITE_TEXT = 148
+- SYS_MEMSTATS = 152
 
->h2 Minimal Example
-section .text
+>h2 Full Prebound Function Surface
+CupidASM now exposes full parity with CupidC binding names.
 
-main:
-    mov eax, 1
-    add eax, 2
-    ret
+Console/print:
+- print println putchar print_int print_hex clear_screen serial_printf
+- __cc_Print __cc_PrintLine
 
-Run:
-  as /home/demo.asm
+Memory/string:
+- kmalloc kfree malloc free
+- strlen strcmp strncmp strcpy strncpy strchr strcat strrchr strstr
+- memcmp memset memcpy
 
->h2 Data Example
-section .data
-msg db "hello", 0
+Port I/O:
+- outb inb
 
-section .text
-main:
-    mov eax, msg
-    ret
+VFS/files:
+- vfs_open vfs_close vfs_read vfs_write vfs_seek vfs_stat vfs_readdir
+- vfs_mkdir vfs_unlink vfs_rename vfs_copy_file
+- vfs_read_all vfs_write_all vfs_read_text vfs_write_text
+- mount_count vfs_mount_count mount_name mount_path
 
->h2 Common Workflow
-1) Create source:
+Process/shell/exec:
+- exit yield getpid kill sleep_ms
+- process_list process_count process_get_count process_kill spawn_test
+- shell_execute shell_get_cwd get_cwd set_cwd resolve_path
+- get_history_count get_history_entry get_args
+- getchar poll_key
+- exec syscall_get_table
+
+Time/RTC:
+- uptime_ms timer_get_frequency get_cpu_mhz
+- rtc_hour rtc_minute rtc_second rtc_day rtc_month rtc_year rtc_weekday
+- rtc_epoch
+- date_full_string date_short_string time_string time_short_string
+
+Diagnostics/debug/system:
+- memstats
+- peek_byte
+- is_gui_mode
+- kernel_panic
+- print_hex_byte
+- key_shift_held mouse_x mouse_y mouse_buttons mouse_scroll
+- blockcache_sync blockcache_stats
+- detect_memory_leaks heap_check_integrity pmm_free_pages pmm_total_pages
+- set_log_level get_log_level_name print_log_buffer
+- dump_stack_trace dump_registers
+- crashtest_nullptr crashtest_divzero crashtest_overflow crashtest_stackoverflow
+- ed_run notepad_open_file
+
+Fixed-point:
+- fp_mul fp_div fp_from_int fp_to_int fp_frac FP_ONE
+
+BMP:
+- bmp_get_info bmp_decode bmp_encode bmp_decode_to_fb
+
+Dialogs/icons:
+- file_dialog_open file_dialog_save
+- confirm_dialog input_dialog message_dialog popup_menu
+- register_desktop_icon set_icon_desc set_icon_type set_icon_color
+- set_icon_drawer get_my_icon_handle set_icon_pos
+- get_icon_label get_icon_path icon_at_pos icon_count icons_save
+
+gfx2d full set:
+- gfx2d_init gfx2d_clear gfx2d_flip gfx2d_width gfx2d_height
+- gfx2d_pixel gfx2d_getpixel gfx2d_pixel_alpha
+- gfx2d_line gfx2d_hline gfx2d_vline
+- gfx2d_rect gfx2d_rect_fill gfx2d_rect_round gfx2d_rect_round_fill
+- gfx2d_circle gfx2d_circle_fill gfx2d_ellipse gfx2d_ellipse_fill
+- gfx2d_rect_fill_alpha gfx2d_gradient_h gfx2d_gradient_v gfx2d_shadow
+- gfx2d_dither_rect gfx2d_scanlines gfx2d_clip_set gfx2d_clip_clear
+- gfx2d_sprite_load gfx2d_sprite_free gfx2d_sprite_draw
+- gfx2d_sprite_draw_alpha gfx2d_sprite_draw_scaled
+- gfx2d_sprite_width gfx2d_sprite_height
+- gfx2d_text gfx2d_text_shadow gfx2d_text_outline
+- gfx2d_text_width gfx2d_text_height
+- gfx2d_vignette gfx2d_pixelate gfx2d_invert gfx2d_tint
+- gfx2d_bevel gfx2d_panel gfx2d_titlebar
+- gfx2d_copper_bars gfx2d_plasma gfx2d_checkerboard
+- gfx2d_blend_mode
+- gfx2d_surface_alloc gfx2d_surface_free gfx2d_surface_fill
+- gfx2d_surface_set_active gfx2d_surface_unset_active
+- gfx2d_surface_blit gfx2d_surface_blit_alpha
+- gfx2d_tween_linear gfx2d_tween_ease_in_out
+- gfx2d_tween_bounce gfx2d_tween_elastic
+- gfx2d_particles_create gfx2d_particles_free gfx2d_particle_emit
+- gfx2d_particles_update gfx2d_particles_draw gfx2d_particles_alive
+- gfx2d_bezier gfx2d_tri_fill gfx2d_line_aa gfx2d_flood_fill
+- gfx2d_fullscreen_enter gfx2d_fullscreen_exit
+- gfx2d_app_toolbar gfx2d_minimize gfx2d_should_quit
+- gfx2d_draw_cursor gfx2d_cursor_hide
+
+>h2 Demo Programs
+Core demos:
+- demos/hello.asm
+- demos/math.asm
+- demos/loop.asm
+- demos/stack.asm
+- demos/fibonacci.asm
+- demos/factorial.asm
+- demos/data.asm
+- demos/bubblesort.asm
+
+Assembler/system demos:
+- demos/fs_syscalls.asm
+- demos/reserve_directives.asm
+- demos/asm_compat_reserve.asm
+- demos/syscall_table_demo.asm
+- demos/syscall_vfs_extended_demo.asm
+
+Parity demos:
+- demos/parity_core.asm
+- demos/parity_gfx2d.asm
+- demos/parity_diag.asm
+
+>h2 Recommended Workflow
+1) Edit source:
    ed /home/demo.asm
 
-2) JIT test:
+2) Test JIT:
    as /home/demo.asm
 
-3) Produce ELF:
-   cupidasm /home/demo.asm -o /home/demo
+3) Build ELF:
+   as -o /home/demo /home/demo.asm
 
-4) Run ELF (if desired):
+4) Run ELF:
    exec /home/demo
+
+>h2 Disk Sync Note For Demos
+If running from /home/demos on FAT image, sync workspace demos first:
+- make sync-demos
+
+Without sync, you may execute stale 8.3 copies on disk.
 

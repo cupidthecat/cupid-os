@@ -1,4 +1,4 @@
-; fibonacci.asm — Compute and print first 15 Fibonacci numbers
+    ; fibonacci.asm — Compute and print first 15 Fibonacci numbers
 ; Run: as demos/fibonacci.asm
 
 section .data
@@ -21,15 +21,18 @@ main:
     cmp  ecx, 0
     je   .fib_done
 
-    ; Print current fib number (eax)
+    ; Print current fib number (eax).
+    ; Caller-saved regs (eax/ecx/edx) may be clobbered by calls.
     push ecx                 ; save counter
     push ebx                 ; save fib(n-1)
-    push eax
+    push eax                 ; save fib(n-2)
+    push eax                 ; arg: current number
     call print_int
     add  esp, 4
     push space
     call print
     add  esp, 4
+    pop  eax                 ; restore fib(n-2)
     pop  ebx                 ; restore fib(n-1)
     pop  ecx                 ; restore counter
 

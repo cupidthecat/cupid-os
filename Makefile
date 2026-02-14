@@ -418,8 +418,20 @@ run-log: $(OS_IMAGE)
 		$(MAKE) disk; \
 	fi
 	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+
+# Sync local demos/*.asm into FAT16 test disk at /home/demos/
+sync-demos:
+	@if [ ! -f test-disk.img ]; then \
+		echo "test-disk.img not found; creating FAT16 disk image..."; \
+		$(MAKE) disk; \
+	fi
+	-@mmd -i test-disk.img@@1048576 ::/home
+	-@mmd -i test-disk.img@@1048576 ::/home/demos
+	mcopy -o -i test-disk.img@@1048576 demos/*.asm ::/home/demos/
+	@echo "Synced demos/*.asm -> test-disk.img:/home/demos/"
+
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o \
 	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c $(OS_IMAGE)
 
-.PHONY: all run disk run-disk run-log clean
+.PHONY: all run disk run-disk run-log sync-demos clean
