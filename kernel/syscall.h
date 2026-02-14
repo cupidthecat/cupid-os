@@ -21,7 +21,7 @@
 #include "vfs.h"
 
 /* ── Syscall table version (bump when adding fields) ──────────────── */
-#define CUPID_SYSCALL_VERSION 1
+#define CUPID_SYSCALL_VERSION 2
 
 /* ── Syscall table structure ──────────────────────────────────────── */
 typedef struct cupid_syscall_table {
@@ -57,6 +57,12 @@ typedef struct cupid_syscall_table {
   int (*vfs_readdir)(int fd, vfs_dirent_t *dirent);
   int (*vfs_mkdir)(const char *path);
   int (*vfs_unlink)(const char *path);
+  int (*vfs_rename)(const char *old_path, const char *new_path);
+  int (*vfs_copy_file)(const char *src, const char *dest);
+  int (*vfs_read_all)(const char *path, void *buffer, uint32_t max_size);
+  int (*vfs_write_all)(const char *path, const void *buffer, uint32_t size);
+  int (*vfs_read_text)(const char *path, char *buffer, uint32_t max_size);
+  int (*vfs_write_text)(const char *path, const char *text);
 
   /* ── Process management ───────────────────────────────────────── */
   void (*exit)(void);
@@ -74,6 +80,9 @@ typedef struct cupid_syscall_table {
 
   /* ── Program execution ────────────────────────────────────────── */
   int (*exec)(const char *path, const char *name);
+
+  /* ── Diagnostics ──────────────────────────────────────────────── */
+  void (*memstats)(void);
 
 } cupid_syscall_table_t;
 

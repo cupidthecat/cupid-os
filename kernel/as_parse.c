@@ -1334,6 +1334,28 @@ static void as_handle_resb(as_state_t *as) {
   }
 }
 
+static void as_handle_resw(as_state_t *as) {
+  as_token_t tok = as_advance(as);
+  if (tok.type != AS_TOK_NUMBER) {
+    as_error(as, "resw requires count");
+    return;
+  }
+  for (int32_t i = 0; i < tok.int_value; i++) {
+    emit_data16(as, 0);
+  }
+}
+
+static void as_handle_resd(as_state_t *as) {
+  as_token_t tok = as_advance(as);
+  if (tok.type != AS_TOK_NUMBER) {
+    as_error(as, "resd requires count");
+    return;
+  }
+  for (int32_t i = 0; i < tok.int_value; i++) {
+    emit_data32(as, 0);
+  }
+}
+
 static void as_handle_times(as_state_t *as) {
   as_token_t count_tok = as_advance(as);
   if (count_tok.type != AS_TOK_NUMBER) {
@@ -1474,16 +1496,24 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* Identifier followed by db/dw/dd — data label */
+       /* Identifier followed by db/dw/dd/res* — data label */
       if (next.type == AS_TOK_DIRECTIVE &&
           (strcmp(next.text, "db") == 0 || strcmp(next.text, "dw") == 0 ||
-           strcmp(next.text, "dd") == 0)) {
+           strcmp(next.text, "dd") == 0 || strcmp(next.text, "resb") == 0 ||
+           strcmp(next.text, "resw") == 0 || strcmp(next.text, "resd") == 0 ||
+         strcmp(next.text, "rb") == 0 || strcmp(next.text, "rw") == 0 ||
+         strcmp(next.text, "rd") == 0 ||
+           strcmp(next.text, "reserve") == 0)) {
         /* Define label at current data position */
         as_add_label(as, ident_tok.text, as_data_addr(as), 1, 0);
         as_advance(as); /* consume directive */
         if (strcmp(next.text, "db") == 0)      as_handle_db(as);
         else if (strcmp(next.text, "dw") == 0)  as_handle_dw(as);
-        else                                    as_handle_dd(as);
+        else if (strcmp(next.text, "dd") == 0)  as_handle_dd(as);
+        else if (strcmp(next.text, "resb") == 0 || strcmp(next.text, "rb") == 0) as_handle_resb(as);
+        else if (strcmp(next.text, "resw") == 0 || strcmp(next.text, "rw") == 0) as_handle_resw(as);
+        else if (strcmp(next.text, "resd") == 0 || strcmp(next.text, "rd") == 0) as_handle_resd(as);
+        else                                       as_handle_resb(as); /* reserve */
         as_expect_newline_or_eof(as);
         continue;
       }
@@ -1503,6 +1533,28 @@ void as_parse_program(as_state_t *as) {
           as->entry_offset = as->code_pos;
           as->has_entry = 1;
         }
+
+        /* NASM-style inline data declaration after label:
+         *   name: db ...
+         *   buf:  resb 64
+         */
+        as_token_t after_colon = as_lex_peek(as);
+        if (after_colon.type == AS_TOK_DIRECTIVE) {
+          as_advance(as);
+          if (strcmp(after_colon.text, "db") == 0) { as_handle_db(as); as_expect_newline_or_eof(as); continue; }
+          if (strcmp(after_colon.text, "dw") == 0) { as_handle_dw(as); as_expect_newline_or_eof(as); continue; }
+          if (strcmp(after_colon.text, "dd") == 0) { as_handle_dd(as); as_expect_newline_or_eof(as); continue; }
+          if (strcmp(after_colon.text, "resb") == 0 || strcmp(after_colon.text, "rb") == 0 || strcmp(after_colon.text, "reserve") == 0) {
+            as_handle_resb(as); as_expect_newline_or_eof(as); continue;
+          }
+          if (strcmp(after_colon.text, "resw") == 0 || strcmp(after_colon.text, "rw") == 0) {
+            as_handle_resw(as); as_expect_newline_or_eof(as); continue;
+          }
+          if (strcmp(after_colon.text, "resd") == 0 || strcmp(after_colon.text, "rd") == 0) {
+            as_handle_resd(as); as_expect_newline_or_eof(as); continue;
+          }
+        }
+
         continue;
       }
 
@@ -1533,6 +1585,12 @@ void as_parse_program(as_state_t *as) {
       if (strcmp(tok.text, "dw") == 0)   { as_handle_dw(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "dd") == 0)   { as_handle_dd(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "resb") == 0) { as_handle_resb(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "resw") == 0) { as_handle_resw(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "resd") == 0) { as_handle_resd(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "rb") == 0) { as_handle_resb(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "rw") == 0) { as_handle_resw(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "rd") == 0) { as_handle_resd(as); as_expect_newline_or_eof(as); continue; }
+      if (strcmp(tok.text, "reserve") == 0) { as_handle_resb(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "times") == 0) { as_handle_times(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "global") == 0 || strcmp(tok.text, "extern") == 0) {
         /* Just consume the identifier — we don't do linking yet */

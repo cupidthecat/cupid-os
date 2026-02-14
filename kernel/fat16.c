@@ -254,6 +254,34 @@ static uint16_t fat16_get_dir_cluster(const char *dirname) {
     return 0;
 }
 
+/* Return 1 if directory cluster contains no entries other than '.'/'..'. */
+static int fat16_dir_cluster_is_empty(uint16_t dir_cluster) {
+    uint16_t cur = dir_cluster;
+    while (cur >= 2 && cur < FAT16_EOC_MIN) {
+        uint32_t lba = fat16_cluster_to_lba(cur);
+        for (uint32_t s = 0; s < (uint32_t)fs.sectors_per_cluster; s++) {
+            uint8_t buf[512];
+            if (blockcache_read(lba + s, buf) != 0) return 0;
+            fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buf;
+            for (int i = 0; i < 16; i++) {
+                if (entries[i].filename[0] == 0x00) return 1;
+                if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
+                if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
+
+                if (entries[i].filename[0] == '.') {
+                    if (entries[i].filename[1] == ' ') continue;      /* . */
+                    if (entries[i].filename[1] == '.' &&
+                        entries[i].filename[2] == ' ') continue;      /* .. */
+                }
+
+                return 0;
+            }
+        }
+        cur = fat16_read_fat_entry(cur);
+    }
+    return 1;
+}
+
 /**
  * fat16_open - Open a file
  *
@@ -1007,12 +1035,18 @@ int fat16_delete_file(const char* filename) {
                     for (int i = 0; i < 16; i++) {
                         if (entries[i].filename[0] == 0x00) return -1;
                         if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
-                        if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY)) continue;
+                        if (entries[i].attributes & FAT_ATTR_VOLUME_ID) continue;
                         int match = 1;
                         for (int j = 0; j < 11; j++) {
                             if (entries[i].filename[j] != name83s[j]) { match = 0; break; }
                         }
                         if (match) {
+                            if (entries[i].attributes & FAT_ATTR_DIRECTORY) {
+                                if (entries[i].first_cluster >= 2 &&
+                                    !fat16_dir_cluster_is_empty(entries[i].first_cluster)) {
+                                    return -1;
+                                }
+                            }
                             if (entries[i].first_cluster >= 2)
                                 fat16_free_chain(entries[i].first_cluster);
                             entries[i].filename[0] = (char)0xE5;
@@ -1043,7 +1077,7 @@ int fat16_delete_file(const char* filename) {
         for (int i = 0; i < 16; i++) {
             if (entries[i].filename[0] == 0x00) return -1; /* End of dir */
             if ((unsigned char)entries[i].filename[0] == 0xE5) continue;
-            if (entries[i].attributes & (FAT_ATTR_VOLUME_ID | FAT_ATTR_DIRECTORY))
+            if (entries[i].attributes & FAT_ATTR_VOLUME_ID)
                 continue;
 
             int match = 1;
@@ -1055,6 +1089,13 @@ int fat16_delete_file(const char* filename) {
             }
 
             if (match) {
+                if (entries[i].attributes & FAT_ATTR_DIRECTORY) {
+                    if (entries[i].first_cluster >= 2 &&
+                        !fat16_dir_cluster_is_empty(entries[i].first_cluster)) {
+                        return -1;
+                    }
+                }
+
                 /* Free cluster chain */
                 if (entries[i].first_cluster >= 2)
                     fat16_free_chain(entries[i].first_cluster);

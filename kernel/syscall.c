@@ -17,6 +17,7 @@
 #include "shell.h"
 #include "string.h"
 #include "vfs.h"
+#include "vfs_helpers.h"
 
 
 /* ── Wrappers for functions that need adaptation ──────────────────── */
@@ -111,6 +112,12 @@ void syscall_init(void) {
   syscall_table.vfs_readdir = vfs_readdir;
   syscall_table.vfs_mkdir = vfs_mkdir;
   syscall_table.vfs_unlink = vfs_unlink;
+  syscall_table.vfs_rename = vfs_rename;
+  syscall_table.vfs_copy_file = vfs_copy_file;
+  syscall_table.vfs_read_all = vfs_read_all;
+  syscall_table.vfs_write_all = vfs_write_all;
+  syscall_table.vfs_read_text = vfs_read_text;
+  syscall_table.vfs_write_text = vfs_write_text;
 
   /* Process management */
   syscall_table.exit = syscall_exit;
@@ -128,6 +135,9 @@ void syscall_init(void) {
 
   /* Program execution */
   syscall_table.exec = syscall_exec;
+
+  /* Diagnostics */
+  syscall_table.memstats = print_memory_stats;
 
   serial_printf("[SYSCALL] Syscall table initialized (v%u, %u bytes)\n",
                 syscall_table.version, syscall_table.table_size);

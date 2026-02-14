@@ -165,7 +165,7 @@ static const as_reg_info_t *as_find_register(const char *name) {
 
 static const char *as_directives[] = {
   "db", "dw", "dd", "equ", "section", "global", "extern",
-  "times", "resb", "resw", "resd",
+  "times", "resb", "resw", "resd", "rb", "rw", "rd", "reserve",
   NULL
 };
 
