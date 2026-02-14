@@ -182,6 +182,43 @@ void fm_build_path(char *out, char *dir, char *name) {
   fm_strcat(out, name);
 }
 
+/* Recursively delete a path. For directories, delete children first. */
+int fm_delete_path_recursive(char *path, int is_dir) {
+  if (!path || !path[0]) return -1;
+
+  /* Safety: never allow deleting root from FM */
+  if (path[0] == '/' && path[1] == 0) return -1;
+
+  if (!is_dir) {
+    return vfs_unlink(path);
+  }
+
+  int fd = vfs_open(path, 0);
+  if (fd >= 0) {
+    char dirent[72];
+    while (1) {
+      int r = vfs_readdir(fd, (void*)dirent);
+      if (r <= 0) break;
+
+      char *dname = dirent;
+      char *dtype_ptr = dirent + 68;
+
+      /* Skip . and .. */
+      if (dname[0] == '.' && dname[1] == 0) continue;
+      if (dname[0] == '.' && dname[1] == '.' && dname[2] == 0) continue;
+
+      char child[128];
+      fm_build_path(child, path, dname);
+      int child_is_dir = (*dtype_ptr == 1) ? 1 : 0;
+      fm_delete_path_recursive(child, child_is_dir);
+    }
+    vfs_close(fd);
+  }
+
+  /* Remove the directory itself (now expected empty). */
+  return vfs_unlink(path);
+}
+
 /* ── Directory reading (sorted: dirs first, then alpha) ───────────── */
 
 void fm_sort_files() {
@@ -296,7 +333,13 @@ void fm_open_selected() {
       gfx2d_minimize("CupidFM");
       return;
     }
-    ed_run(path);
+
+    /* Try running as a program first; if it fails, always fall back to
+     * opening in Notepad so files are still viewable/editable. */
+    if (exec(path, files[cursor_idx].name) < 0) {
+      notepad_open_file(path);
+      gfx2d_minimize("CupidFM");
+    }
   }
 }
 
@@ -379,9 +422,9 @@ void fm_paste() {
     if (clip_is_dir[i]) {
       /* Directory: create at destination */
       vfs_mkdir(dst);
-      /* For cut: try to remove source (only works if empty) */
+      /* For cut: remove source tree. (Copy is still shallow.) */
       if (clip_cut) {
-        vfs_unlink(src);
+        fm_delete_path_recursive(src, 1);
       }
     } else {
       if (clip_cut) {
@@ -418,20 +461,39 @@ void fm_delete_selected() {
 
   if (!confirm_dialog(msg)) return;
 
+  int deleted = 0;
+  int failed = 0;
   int i = 0;
   while (i < file_count) {
     if (files[i].selected) {
+      /* Never delete parent marker if present */
+      if (fm_strcmp(files[i].name, "..") == 0) {
+        i++;
+        continue;
+      }
+
       char path[128];
       fm_build_path(path, cwd, files[i].name);
-      if (files[i].is_dir) {
-        /* Try rmdir — only works on empty dirs */
-        vfs_unlink(path);
-      } else {
-        vfs_unlink(path);
-      }
+      int rc = fm_delete_path_recursive(path, files[i].is_dir);
+      if (rc == 0) deleted++;
+      else failed++;
     }
     i++;
   }
+
+  if (failed > 0) {
+    char out[64];
+    char n1[12];
+    char n2[12];
+    fm_strcpy(out, "Deleted ");
+    fm_itoa(deleted, n1);
+    fm_strcat(out, n1);
+    fm_strcat(out, ", failed ");
+    fm_itoa(failed, n2);
+    fm_strcat(out, n2);
+    message_dialog(out);
+  }
+
   fm_refresh();
 }
 
