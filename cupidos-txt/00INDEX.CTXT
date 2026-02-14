@@ -44,6 +44,8 @@ Manual tip: Press F2 in Notepad to switch between source and rendered view.
    - /      = ramfs (in-memory, non-persistent)
    - /dev   = devfs
    - /home  = FAT16 disk (persistent if disk image is used)
+   - Host copy uses mtools FAT root (::/) which maps to /home
+     Example: mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
 
 3) CupidScript and CupidC are different:
    - CupidScript (.cup): interpreted shell scripting language.

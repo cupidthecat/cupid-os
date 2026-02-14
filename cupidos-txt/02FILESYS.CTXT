@@ -20,8 +20,27 @@ CupidOS initializes these mounts:
 /dev   -> devfs
 /home  -> fat16 (if ATA disk is present and FAT16 init succeeds)
 
+Boot/storage model (current):
+- Single HDD image: cupidos.img
+- MBR + bootloader + kernel + FAT16 partition in one file
+- /home is mounted from that FAT16 partition (persistent)
+
+Build sizing controls:
+- make HDD_MB=100
+- make HDD_MB=200
+- Default is HDD_MB=200
+
+Persistence behavior:
+- make and make run reuse existing cupidos.img
+- make clean keeps cupidos.img
+- make clean-image removes only cupidos.img
+- make distclean removes build artifacts and cupidos.img
+
 >h2 Standard Directories Created At Boot
 /bin
+/docs
+/docs/demos
+/demos
 /tmp
 /home
 
@@ -35,6 +54,10 @@ FAT16 (/home):
 - Persistent disk-backed storage (disk image / real disk)
 - Intended for user files and user programs
 - Mounted via VFS FAT16 wrapper
+
+Demo sources:
+- Embedded at boot under /demos/*.asm
+- Mirrored under /docs/demos/*.asm for docs-relative open paths
 
 DEVFS (/dev):
 - Device filesystem mount
@@ -74,6 +97,10 @@ Useful commands:
 - sync       : flush cache now
 - cachestats : print cache hit/miss statistics
 
+Demo sync workflow:
+- make sync-demos copies local demos/*.asm into /home/demos
+- This updates the persistent FAT16 partition inside cupidos.img
+
 >h2 Persistent Program Workflow
 Place custom command sources in:
   /home/bin/<name>.cc
@@ -95,6 +122,14 @@ Shell auto-discovers and JIT-compiles from /home/bin.
 If you want docs readable inside running CupidOS:
 - Put copies in /home (persistent) or /tmp (session only).
 - /home is recommended for long-term docs.
+
+Host-to-/home copy quick commands (mtools):
+  mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
+  mdir  -i cupidos.img@@2097152 ::/
+
+Mapping reminder:
+- FAT root ::/ maps to CupidOS /home.
+- So ::/cupid.bmp appears as /home/cupid.bmp in CupidOS.
 
 >h2 See Also
 01SHELL.TXT for path resolution behavior

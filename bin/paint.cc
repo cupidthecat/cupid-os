@@ -334,6 +334,22 @@ int load_from_bmp(char* path) {
   int bmp_h = info[1];
   int data_size = info[3];
 
+  /* Prevent huge allocations on constrained heap.
+     For oversized images, stream+scale directly into canvas surface. */
+  int max_decode_size = CANVAS_W * CANVAS_H * 4;
+  if (data_size <= 0) {
+    return -1;
+  }
+
+  if (data_size > max_decode_size) {
+    int rc = bmp_decode_to_surface_fit(path, canvas_surf, CANVAS_W, CANVAS_H);
+    if (rc != 0) {
+      return -1;
+    }
+    canvas_dirty = 1;
+    return 0;
+  }
+
   /* Allocate buffer for decoded pixels */
   int* pixel_buffer = (int*)kmalloc(data_size);
   if (pixel_buffer == 0) {
@@ -456,7 +472,8 @@ void load_drawing() {
   }
 
   /* Load the BMP */
-  if (load_from_bmp(path) == 0) {
+  int load_rc = load_from_bmp(path);
+  if (load_rc == 0) {
     /* Success - update current file */
     int i = 0;
     while (i < 128 && path[i] != 0) {

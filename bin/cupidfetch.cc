@@ -40,6 +40,18 @@ void main() {
     int procs    = process_get_count();
     int mounts   = vfs_mount_count();
     int gui      = is_gui_mode();
+    int storage_total_b = storage_total_bytes();
+    int storage_free_b  = storage_free_bytes();
+    if (storage_total_b < 0) {
+        storage_total_b = 0;
+    }
+    if (storage_free_b < 0) {
+        storage_free_b = 0;
+    }
+    if (storage_free_b > storage_total_b) {
+        storage_free_b = storage_total_b;
+    }
+    int storage_used_b  = storage_total_b - storage_free_b;
 
     // Uptime components
     int secs = ms / 1000;
@@ -50,6 +62,21 @@ void main() {
     // Memory in MiB
     int used_mib  = used_kb  / 1024;
     int total_mib = total_kb / 1024;
+    int storage_used_mib  = storage_used_b  / (1024 * 1024);
+    int storage_total_mib = storage_total_b / (1024 * 1024);
+    int storage_free_mib  = storage_free_b  / (1024 * 1024);
+    int storage_pct = 0;
+    if (storage_total_mib > 0) {
+        storage_pct = (storage_used_mib * 100) / storage_total_mib;
+    } else if (storage_total_b > 0) {
+        storage_pct = (storage_used_b * 100) / storage_total_b;
+    }
+    if (storage_pct < 0) {
+        storage_pct = 0;
+    }
+    if (storage_pct > 100) {
+        storage_pct = 100;
+    }
 
     // OS
     print(c_label);  print("OS: ");
@@ -122,6 +149,22 @@ void main() {
     print(c_val);
     print_int(mounts);
     print(" fs\n");
+
+    // Storage
+    print(c_label);  print("Storage: ");
+    print(c_val);
+    if (storage_total_b > 0) {
+        print_int(storage_used_mib);
+        print("/");
+        print_int(storage_total_mib);
+        print(" MiB (");
+        print_int(storage_pct);
+        print("%)  free ");
+        print_int(storage_free_mib);
+        print(" MiB\n");
+    } else {
+        print("N/A\n");
+    }
 
     // Date and Time
     print(c_label);  print("Date: ");

@@ -10,7 +10,6 @@
 ; ═══════════════════════════════════════════════════════════════════════
 
 STAGE2_SECTORS     equ 4       ; Stage 2 = 4 sectors (2KB)
-KERNEL_START_SECT  equ 6       ; Kernel starts at CHS sector 6 (1-indexed)
 
 start:
     mov [BOOT_DRIVE], dl        ; Save boot drive from BIOS
@@ -20,21 +19,23 @@ start:
     mov ss, ax
     mov sp, 0x9000
 
-    ; Load stage 2 (4 sectors from sector 2) to 0x7E00
-    mov ax, 0x07E0              ; Segment = 0x7E00 >> 4
-    mov es, ax
-    xor bx, bx                 ; Offset 0
-    mov ah, 0x02                ; BIOS read sectors
-    mov al, STAGE2_SECTORS
-    mov ch, 0                   ; Cylinder 0
-    mov cl, 2                   ; Start at CHS sector 2
-    mov dh, 0                   ; Head 0
+    ; Load stage 2 (4 sectors from LBA 1) to 0x7E00 via EDD
+    mov si, .dap
+    mov ah, 0x42
     mov dl, [BOOT_DRIVE]
     int 0x13
     jc .s1err
 
     ; Jump to stage 2 (label resolves to 0x7E00 due to org math)
     jmp 0x0000:stage2_entry
+
+.dap:
+    db 0x10            ; DAP size
+    db 0               ; reserved
+    dw STAGE2_SECTORS  ; sectors to read
+    dw 0x0000          ; buffer offset
+    dw 0x07E0          ; buffer segment (-> 0x7E00)
+    dq 1               ; LBA start
 
 .s1err:
     mov ah, 0x0e
@@ -44,8 +45,20 @@ start:
 
 BOOT_DRIVE db 0
 
-; ── Pad to 510 bytes + boot signature ──
-times 510-($-$$) db 0
+; ── MBR partition table at byte offset 446 ──
+times 446-($-$$) db 0
+
+; Partition entry 1: FAT16, bootable, LBA 4096, 98304 sectors
+db 0x80
+db 0xFE, 0xFF, 0xFF
+db 0x06
+db 0xFE, 0xFF, 0xFF
+dd 4096
+dd 98304
+
+; Partition entries 2-4: empty
+times 48 db 0
+
 dw 0xAA55
 
 
@@ -94,41 +107,34 @@ stage2_entry:
     mov es, ax
     sti
 
-    ; ── Load kernel above 1MB (chunked CHS reads) ──────────────────
-    mov byte [cur_cyl], 0
-    mov byte [cur_head], 0
-    mov byte [cur_sect], KERNEL_START_SECT
-    mov byte [cur_count], 18 - KERNEL_START_SECT + 1  ; 13 sectors left in first track
+    ; ── Load kernel above 1MB (chunked LBA reads) ──────────────────
     mov dword [dest_high], KERNEL_OFFSET
-    mov word [sectors_left], 2875   ; Full remaining floppy capacity (~1.40MB)
+    mov word [sectors_left], 4091    ; LBA 5 through 4095
 
 .read_loop:
     cmp word [sectors_left], 0
     je .load_done
 
     ; How many sectors to read this iteration
-    movzx ax, byte [cur_count]
-    cmp ax, [sectors_left]
-    jbe .count_ok
     mov ax, [sectors_left]
-.count_ok:
     cmp ax, SECTORS_PER_CHUNK
     jbe .chunk_ok
     mov ax, SECTORS_PER_CHUNK
 .chunk_ok:
     test ax, ax
-    jz .advance_track
+    jz .load_done
 
     push ax                     ; Save sector count for later
 
-    ; Read sectors to temp buffer at TEMP_SEGMENT:0
-    mov es, word [temp_seg_val]
-    xor bx, bx
+    ; Read sectors to temp buffer at TEMP_SEGMENT:0 via LBA EDD
+    mov word [chunk_dap + 2], ax
+    mov eax, dword [lba_current]
+    mov dword [chunk_dap + 8], eax
+    mov eax, dword [lba_current + 4]
+    mov dword [chunk_dap + 12], eax
+    mov si, chunk_dap
+    mov ah, 0x42
     mov dl, [BOOT_DRIVE]
-    mov dh, [cur_head]
-    mov ch, [cur_cyl]
-    mov cl, [cur_sect]
-    mov ah, 0x02
     int 0x13
     jc disk_error
 
@@ -159,23 +165,11 @@ stage2_entry:
     shl eax, 9                  ; bytes = sectors × 512
     add [dest_high], eax
     sub [sectors_left], cx
-    add [cur_sect], cl
-    sub [cur_count], cl
 
-    cmp byte [cur_count], 0
-    jg .read_loop
-
-.advance_track:
-    cmp byte [cur_head], 0
-    jne .next_cyl
-    mov byte [cur_head], 1
-    jmp .reset_track
-.next_cyl:
-    mov byte [cur_head], 0
-    inc byte [cur_cyl]
-.reset_track:
-    mov byte [cur_sect], 1
-    mov byte [cur_count], 18
+    ; Advance LBA counter
+    movzx eax, cx
+    add dword [lba_current], eax
+    adc dword [lba_current + 4], 0
     jmp .read_loop
 
 .load_done:
@@ -238,13 +232,17 @@ stage2_entry:
     jmp CODE_SEG:init_pm
 
 ; ── Stage 2 data ────────────────────────────────────────────────────
-cur_cyl      db 0
-cur_head     db 0
-cur_sect     db 0
-cur_count    db 0
+lba_current  dq 5
 dest_high    dd 0
 sectors_left dw 0
-temp_seg_val dw TEMP_SEGMENT
+
+chunk_dap:
+    db 0x10
+    db 0
+    dw 0
+    dw 0x0000
+    dw TEMP_SEGMENT
+    dq 0
 
 disk_error:
     mov ah, 0x0e

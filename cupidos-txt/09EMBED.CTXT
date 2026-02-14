@@ -20,6 +20,20 @@ running CupidOS, use one of these methods.
 Goal:
 - Put docs under /home so they persist with disk image.
 
+Current image model:
+- cupidos.img is a single HDD image.
+- /home is a FAT16 partition inside cupidos.img.
+
+Image sizing:
+- Build with make HDD_MB=100 or make HDD_MB=200
+- Default is HDD_MB=200
+
+Persistence behavior:
+- make and make run preserve existing cupidos.img
+- make clean preserves cupidos.img
+- make clean-image removes only cupidos.img
+- make distclean removes build artifacts and cupidos.img
+
 Recommended target layout:
   /home/docs/00index.txt
   /home/docs/01shell.txt
@@ -34,6 +48,15 @@ Simple in-OS approach:
    mkdir /home/docs
 2) Create files one-by-one with ed and paste content.
 3) Run sync after edits.
+
+Host copy approach (recommended for bulk docs):
+  mcopy -o -i cupidos.img@@2097152 00INDEX.CTXT ::/00INDEX.CTXT
+  mcopy -o -i cupidos.img@@2097152 01SHELL.CTXT ::/01SHELL.CTXT
+  mdir  -i cupidos.img@@2097152 ::/
+
+Mapping reminder:
+- FAT ::/ is CupidOS /home.
+- Copy to ::/ (not ::/home).
 
 >h2 Method B: RAMFS Memory Docs (/)
 Goal:
@@ -52,11 +75,15 @@ Tradeoff:
 - Non-persistent (rebuilt image required)
 
 >h2 Method C: Auto-Install Doc Files To RAMFS At Boot (Advanced)
-Pattern exists for /bin programs:
-- Makefile auto-embeds bin/*.cc with objcopy
-- kernel/bin_programs_gen.c installs them into ramfs /bin
+Pattern is already implemented for:
+- /bin programs (bin/*.cc)
+- /docs pages (cupidos-txt/*.CTXT)
+- /demos asm sources (demos/*.asm)
 
-You can implement a similar generator for docs/*.txt to install into /docs.
+Build-time generators:
+- kernel/bin_programs_gen.c
+- kernel/docs_programs_gen.c
+- kernel/demos_programs_gen.c
 
 Tradeoff:
 - Scales better than hardcoding large strings in kernel/fs.c
@@ -67,4 +94,7 @@ For day-to-day user readability:
 1) Keep canonical docs in this repo folder
 2) Copy selected short 8.3-named files into /home root or /home/docs
 3) sync after updates
+
+For asm demos used in docs:
+- Use make sync-demos to refresh /home/demos in cupidos.img
 
