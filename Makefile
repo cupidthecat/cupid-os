@@ -360,11 +360,11 @@ kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) Makefile
 	@echo '#include "ramfs.h"' >> $@
 	@echo '#include "types.h"' >> $@
 	@echo '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(n)_CTXT_start[];' >> $@;)
-	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(n)_CTXT_end[];' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
 	@echo 'void install_docs_programs(void *fs_private);' >> $@
 	@echo 'void install_docs_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(n)_CTXT_end - _binary_cupidos_txt_$(n)_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(n)_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/docs_programs_gen.o: kernel/docs_programs_gen.c
