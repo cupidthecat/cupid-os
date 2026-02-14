@@ -34,9 +34,9 @@ SECTIONS
     _kernel_end = .;
 
     /*
-     * Safety check: kernel must fit within the 32MB identity-mapped region.
-     * The floppy limit (1.44MB) is the practical ceiling for now.
+     * Safety check: kernel text+data must fit in bootloader kernel area
+     * (LBA 5..4095 = 4091 sectors = 0x1FF600 bytes) loaded at 0x100000.
      */
-        ASSERT(_loaded_end <= 0x267600,
-            "Kernel binary (text+data) exceeds available floppy image capacity")
+    ASSERT(_loaded_end <= 0x2FF600,
+           "Kernel binary (text+data) exceeds reserved HDD kernel area")
 }

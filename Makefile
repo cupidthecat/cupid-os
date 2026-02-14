@@ -37,6 +37,11 @@ DEMO_ASM_NAMES := $(notdir $(basename $(DEMO_ASM_SRCS)))
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
+HDD_MB ?= 200
+FAT_START_LBA ?= 4096
+OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
+FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
+FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
@@ -418,52 +423,40 @@ demos/%.o: demos/%.asm
 $(KERNEL): $(KERNEL_OBJS)
 	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
 
-# Create disk image (boot.bin = 5 sectors: 1 boot + 4 stage2, kernel at sector 5)
+# Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
-	dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=2880
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512
+	@if [ ! -f $(OS_IMAGE) ]; then \
+		echo "[make] Creating new persistent image $(OS_IMAGE) ($(HDD_MB)MB)"; \
+		dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
+		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
+		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
+	else \
+		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+	fi
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
 run: $(OS_IMAGE)
-	@if [ ! -f test-disk.img ]; then \
-		echo "test-disk.img not found; creating FAT16 disk image..."; \
-		$(MAKE) disk; \
-	fi
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
-# Create a fresh 50MB HDD image with an MBR + FAT16 partition (type 0x06).
-# Run this once before using run-disk.  Safe to re-run: destroys all disk data.
-disk:
-	dd if=/dev/zero of=test-disk.img bs=512 count=102400
-	printf "2048,,6\n" | sfdisk test-disk.img
-	mkfs.fat -F 16 --offset=2048 test-disk.img 100352
-
-run-disk: $(OS_IMAGE)
-	@if [ ! -f test-disk.img ]; then \
-		echo "test-disk.img not found; creating FAT16 disk image..."; \
-		$(MAKE) disk; \
-	fi
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 run-log: $(OS_IMAGE)
-	@if [ ! -f test-disk.img ]; then \
-		echo "test-disk.img not found; creating FAT16 disk image..."; \
-		$(MAKE) disk; \
-	fi
-	qemu-system-i386 -boot a -fda $(OS_IMAGE) -drive file=test-disk.img,format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+	qemu-system-i386 -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
-# Sync local demos/*.asm into FAT16 test disk at /home/demos/
-sync-demos:
-	@if [ ! -f test-disk.img ]; then \
-		echo "test-disk.img not found; creating FAT16 disk image..."; \
-		$(MAKE) disk; \
-	fi
-	-@mmd -i test-disk.img@@1048576 ::/home
-	-@mmd -i test-disk.img@@1048576 ::/home/demos
-	mcopy -o -i test-disk.img@@1048576 demos/*.asm ::/home/demos/
-	@echo "Synced demos/*.asm -> test-disk.img:/home/demos/"
+# Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
+sync-demos: $(OS_IMAGE)
+	-@mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/home
+	-@mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/home/demos
+	mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) demos/*.asm ::/home/demos/
+	@echo "Synced demos/*.asm -> $(OS_IMAGE):/home/demos/"
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
-	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c $(OS_IMAGE)
+	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c
 
-.PHONY: all run disk run-disk run-log sync-demos clean
+clean-image:
+	rm -f $(OS_IMAGE)
+
+distclean: clean clean-image
+
+.PHONY: all run run-log sync-demos clean clean-image distclean

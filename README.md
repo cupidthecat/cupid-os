@@ -271,10 +271,41 @@ sudo apt-get install nasm gcc make qemu-system-x86
 make
 ```
 
+The HDD image size is configurable at build time:
+```bash
+make HDD_MB=100
+make HDD_MB=200
+```
+Default is `HDD_MB=200`.
+
 3. Run in QEMU:
 ```bash
 make run
 ```
+
+### Persistent `/home` and image lifecycle
+- `cupidos.img` contains bootloader + kernel area + FAT16 partition.
+- FAT16 is mounted in cupid-os as `/home`.
+- `make` reuses existing `cupidos.img` (preserves `/home` data).
+- `make clean` keeps `cupidos.img`.
+- `make clean-image` removes only `cupidos.img`.
+- `make distclean` removes build artifacts and `cupidos.img`.
+
+### Copy files from host into `/home`
+Use `mtools` (`mcopy`, `mdir`, `mmd`) on the FAT partition inside `cupidos.img`.
+
+Default FAT partition offset is `4096 * 512 = 2097152` bytes.
+
+```bash
+# copy host file into OS path /home/cupid.bmp
+mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
+
+# verify in FAT root (this is OS /home)
+mdir -i cupidos.img@@2097152 ::/
+```
+
+If you change `FAT_START_LBA`, recompute offset as:
+`offset_bytes = FAT_START_LBA * 512`.
 
 ## Project Structure
 
@@ -383,7 +414,7 @@ make run
 
 Run in text mode (no GUI):
 ```bash
-qemu-system-i386 -fda cupidos.img
+qemu-system-i386 -boot c -hda cupidos.img
 ```
 
 ### Debugging
@@ -396,7 +427,7 @@ make run
 2. **GDB debugging**:
 ```bash
 # Terminal 1 - Start QEMU with GDB stub
-qemu-system-i386 -s -S -fda cupidos.img
+qemu-system-i386 -s -S -boot c -hda cupidos.img
 
 # Terminal 2 - Connect GDB
 gdb
