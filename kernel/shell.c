@@ -483,6 +483,7 @@ static void shell_exec_cmd(const char *args);
 static void shell_notepad_cmd(const char *args);
 static void shell_terminal_cmd(const char *args);
 static void shell_cupidc_cmd(const char *args);
+static void shell_cc_cmd(const char *args);
 static void shell_ccc_cmd(const char *args);
 static void shell_asm_cmd(const char *args);
 static void shell_cupidasm_cmd(const char *args);
@@ -493,6 +494,7 @@ static struct shell_command commands[] = {
     {"exec", "Run a binary (ELF or CUPD)", shell_exec_cmd},
     {"notepad", "Open Notepad", shell_notepad_cmd},
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
+    {"cc", "Interactive CupidC REPL (or run a .cc file)", shell_cc_cmd},
     {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
     {"as", "Assemble and run .asm file", shell_asm_cmd},
@@ -1069,6 +1071,201 @@ static int shell_ends_with(const char *str, const char *suffix) {
   return strcmp(str + slen - xlen, suffix) == 0;
 }
 
+static int shell_readline_cc_repl(char *buf, int max_len) {
+  int pos = 0;
+  for (;;) {
+    char c = getchar();
+
+    if (c == 4) { /* Ctrl+D */
+      if (pos == 0) {
+        return -1;
+      }
+      continue;
+    }
+
+    if (c == '\r') {
+      continue;
+    }
+
+    if (c == '\n') {
+      buf[pos] = '\0';
+      shell_putchar('\n');
+      return pos;
+    }
+
+    if (c == '\b') {
+      if (pos > 0) {
+        pos--;
+        shell_print("\b \b");
+      }
+      continue;
+    }
+
+    if (c && pos < max_len - 1) {
+      buf[pos++] = c;
+      shell_putchar(c);
+    }
+  }
+}
+
+static int shell_write_text_file(const char *path, const char *text) {
+  int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);
+  if (fd < 0)
+    return -1;
+
+  uint32_t len = (uint32_t)strlen(text);
+  uint32_t written = 0;
+  while (written < len) {
+    int w = vfs_write(fd, text + written, len - written);
+    if (w <= 0) {
+      vfs_close(fd);
+      return -1;
+    }
+    written += (uint32_t)w;
+  }
+
+  vfs_close(fd);
+  return 0;
+}
+
+static int shell_cc_line_brace_delta(const char *line) {
+  int delta = 0;
+  int in_string = 0;
+  int in_char = 0;
+  int escape = 0;
+
+  for (int i = 0; line[i]; i++) {
+    char c = line[i];
+
+    if (escape) {
+      escape = 0;
+      continue;
+    }
+
+    if (c == '\\') {
+      escape = 1;
+      continue;
+    }
+
+    if (!in_char && c == '"') {
+      in_string = !in_string;
+      continue;
+    }
+
+    if (!in_string && c == '\'') {
+      in_char = !in_char;
+      continue;
+    }
+
+    if (in_string || in_char)
+      continue;
+
+    if (c == '{')
+      delta++;
+    else if (c == '}')
+      delta--;
+  }
+
+  return delta;
+}
+
+static void shell_cc_repl(void) {
+  enum { CC_REPL_LINE_MAX = 512, CC_REPL_SRC_MAX = 64 * 1024 };
+  const char *tmp_path = "/cc_repl_tmp.cc";
+  char *session_src = kmalloc(CC_REPL_SRC_MAX);
+  char *pending_src = kmalloc(CC_REPL_SRC_MAX);
+  char *candidate_src = kmalloc(CC_REPL_SRC_MAX);
+  char line[CC_REPL_LINE_MAX];
+  uint32_t src_len = 0;
+  uint32_t pending_len = 0;
+  int brace_depth = 0;
+
+  if (!session_src || !pending_src || !candidate_src) {
+    shell_print("cc: out of memory\n");
+    if (session_src)
+      kfree(session_src);
+    if (pending_src)
+      kfree(pending_src);
+    if (candidate_src)
+      kfree(candidate_src);
+    return;
+  }
+  session_src[0] = '\0';
+  pending_src[0] = '\0';
+  candidate_src[0] = '\0';
+
+  shell_print("CupidC v2 — Enter runs when blocks are complete. Ctrl+D to exit.\n");
+
+  for (;;) {
+    shell_print(brace_depth > 0 ? "..> " : "cc> ");
+    int n = shell_readline_cc_repl(line, CC_REPL_LINE_MAX);
+    if (n < 0) {
+      shell_print("\n");
+      break;
+    }
+
+    if (n == 0) {
+      continue;
+    }
+
+    if (strcmp(line, ".exit") == 0 || strcmp(line, "exit") == 0) {
+      break;
+    }
+
+    /* Stage line in pending snippet. */
+    {
+      uint32_t add_len = (uint32_t)n;
+      if (pending_len + add_len + 2u >= CC_REPL_SRC_MAX) {
+        shell_print("cc: session too large\n");
+        continue;
+      }
+      memcpy(pending_src + pending_len, line, add_len);
+      pending_len += add_len;
+      pending_src[pending_len++] = '\n';
+      pending_src[pending_len] = '\0';
+    }
+
+    brace_depth += shell_cc_line_brace_delta(line);
+    if (brace_depth < 0)
+      brace_depth = 0;
+
+    if (brace_depth > 0) {
+      continue;
+    }
+
+    /* Build candidate = committed session + pending snippet. */
+    if (src_len + pending_len + 1u >= CC_REPL_SRC_MAX) {
+      shell_print("cc: session too large\n");
+      pending_len = 0;
+      pending_src[0] = '\0';
+      brace_depth = 0;
+      continue;
+    }
+    memcpy(candidate_src, session_src, src_len);
+    memcpy(candidate_src + src_len, pending_src, pending_len);
+    candidate_src[src_len + pending_len] = '\0';
+
+    if (shell_write_text_file(tmp_path, candidate_src) < 0) {
+      shell_print("cc: failed to write temp source\n");
+      continue;
+    }
+
+    if (cupidc_jit_status(tmp_path) == 0) {
+      memcpy(session_src + src_len, pending_src, pending_len);
+      src_len += pending_len;
+      session_src[src_len] = '\0';
+    }
+
+    pending_len = 0;
+    pending_src[0] = '\0';
+    brace_depth = 0;
+  }
+
+  kfree(session_src);
+  kfree(pending_src);
+  kfree(candidate_src);
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  CupidC Compiler Commands
  * ══════════════════════════════════════════════════════════════════════ */
@@ -1080,6 +1277,19 @@ static void shell_cupidc_cmd(const char *args) {
     shell_print("  Compile and run a CupidC source file\n");
     return;
   }
+  char rpath[VFS_MAX_PATH];
+  shell_resolve_path(args, rpath);
+  cupidc_jit(rpath);
+}
+
+/* cc [file.cc] — interactive CupidC REPL or file JIT */
+static void shell_cc_cmd(const char *args) {
+  if (!args || args[0] == '\0') {
+    shell_cc_repl();
+    return;
+  }
+
+  /* cc <file.cc> behaves like cupidc <file.cc> */
   char rpath[VFS_MAX_PATH];
   shell_resolve_path(args, rpath);
   cupidc_jit(rpath);

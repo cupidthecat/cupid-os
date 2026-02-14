@@ -20,7 +20,9 @@ static int win_count = 0;
 static uint32_t next_id = 1;
 
 /* ── Drag state ───────────────────────────────────────────────────── */
-static drag_state_t drag = {false, -1, 0, 0};
+static drag_state_t drag = {false, false, -1, 0, 0, 0, 0, 0, 0};
+
+#define RESIZE_GRIP_SIZE 12
 
 /* ── Layout change tracking ───────────────────────────────────────── */
 static bool layout_changed_flag = true; /* start true to force first render */
@@ -31,6 +33,7 @@ void gui_init(void) {
   win_count = 0;
   next_id = 1;
   drag.dragging = false;
+  drag.resizing = false;
   memset(windows, 0, sizeof(windows));
   KINFO("GUI initialized (max %d windows)", MAX_WINDOWS);
 }
@@ -208,6 +211,28 @@ bool gui_layout_changed(void) { return layout_changed_flag; }
 
 void gui_clear_layout_changed(void) { layout_changed_flag = false; }
 
+bool gui_is_dragging_any(void) { return drag.dragging; }
+
+bool gui_is_dragging_window(int wid) {
+  return drag.dragging && drag.window_id == wid;
+}
+
+/* Front-to-back hit test for bottom-right resize grip */
+static int gui_hit_test_resize(int16_t mx, int16_t my) {
+  for (int i = win_count - 1; i >= 0; i--) {
+    window_t *w = &windows[i];
+    if (!(w->flags & WINDOW_FLAG_VISIBLE))
+      continue;
+    int16_t rx = (int16_t)(w->x + (int16_t)w->width - RESIZE_GRIP_SIZE);
+    int16_t ry = (int16_t)(w->y + (int16_t)w->height - RESIZE_GRIP_SIZE);
+    if (mx >= rx && mx < w->x + (int16_t)w->width &&
+        my >= ry && my < w->y + (int16_t)w->height) {
+      return (int)w->id;
+    }
+  }
+  return -1;
+}
+
 /* ── Drawing ──────────────────────────────────────────────────────── */
 
 static void draw_single_window(window_t *win) {
@@ -255,6 +280,17 @@ static void draw_single_window(window_t *win) {
 
   /* Border */
   gfx_draw_rect(win->x, win->y, win->width, win->height, COLOR_BORDER);
+
+  /* Bottom-right resize grip */
+  {
+    int gx = wx + (int)win->width - 2;
+    int gy = wy + (int)win->height - 2;
+    for (int i = 0; i < 4; i++) {
+      gfx_draw_line((int16_t)(gx - 2 - i * 3), (int16_t)(gy),
+                    (int16_t)(gx), (int16_t)(gy - 2 - i * 3),
+                    COLOR_BORDER);
+    }
+  }
 
   /* App-specific redraw */
   if (win->redraw) {
@@ -338,27 +374,57 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
       window_t *w = gui_get_window(drag.window_id);
       if (w) {
         w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
+        w->flags &= (uint8_t)~WINDOW_FLAG_RESIZING;
         w->flags |= WINDOW_FLAG_DIRTY;
       }
+      drag.resizing = false;
       drag.window_id = -1;
       layout_changed_flag = true;
     } else {
       window_t *w = gui_get_window(drag.window_id);
       if (w) {
-        w->prev_x = w->x;
-        w->prev_y = w->y;
-        w->x = (int16_t)(mx - drag.drag_offset_x);
-        w->y = (int16_t)(my - drag.drag_offset_y);
-        if (w->x < (int16_t)(-(int16_t)w->width + 20))
-          w->x = (int16_t)(-(int16_t)w->width + 20);
-        if (w->y < 0)
-          w->y = 0;
-        if (w->x > VGA_GFX_WIDTH - 20)
-          w->x = (int16_t)(VGA_GFX_WIDTH - 20);
-        if (w->y > VGA_GFX_HEIGHT - 20)
-          w->y = (int16_t)(VGA_GFX_HEIGHT - 20);
-        w->flags |= WINDOW_FLAG_DRAGGING;
-        w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+        if (drag.resizing) {
+          int nw = (int)drag.start_width + ((int)mx - (int)drag.start_mouse_x);
+          int nh =
+              (int)drag.start_height + ((int)my - (int)drag.start_mouse_y);
+          int max_w = VGA_GFX_WIDTH - (int)w->x;
+          int max_h = VGA_GFX_HEIGHT - (int)w->y;
+
+          if (nw < 40)
+            nw = 40;
+          if (nh < TITLEBAR_H + 8)
+            nh = TITLEBAR_H + 8;
+          if (max_w < 40)
+            max_w = 40;
+          if (max_h < TITLEBAR_H + 8)
+            max_h = TITLEBAR_H + 8;
+          if (nw > max_w)
+            nw = max_w;
+          if (nh > max_h)
+            nh = max_h;
+
+          w->width = (uint16_t)nw;
+          w->height = (uint16_t)nh;
+          w->flags |= WINDOW_FLAG_RESIZING;
+          w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
+          w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+        } else {
+          w->prev_x = w->x;
+          w->prev_y = w->y;
+          w->x = (int16_t)(mx - drag.drag_offset_x);
+          w->y = (int16_t)(my - drag.drag_offset_y);
+          if (w->x < (int16_t)(-(int16_t)w->width + 20))
+            w->x = (int16_t)(-(int16_t)w->width + 20);
+          if (w->y < 0)
+            w->y = 0;
+          if (w->x > VGA_GFX_WIDTH - 20)
+            w->x = (int16_t)(VGA_GFX_WIDTH - 20);
+          if (w->y > VGA_GFX_HEIGHT - 20)
+            w->y = (int16_t)(VGA_GFX_HEIGHT - 20);
+          w->flags |= WINDOW_FLAG_DRAGGING;
+          w->flags &= (uint8_t)~WINDOW_FLAG_RESIZING;
+          w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+        }
         layout_changed_flag = true;
       }
     }
@@ -374,6 +440,27 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
       return;
     }
 
+    /* Check bottom-right resize grip */
+    int resize_id = gui_hit_test_resize(mx, my);
+    if (resize_id >= 0) {
+      gui_set_focus(resize_id);
+      window_t *w = gui_get_window(resize_id);
+      if (w) {
+        drag.dragging = true;
+        drag.resizing = true;
+        drag.window_id = resize_id;
+        drag.start_mouse_x = mx;
+        drag.start_mouse_y = my;
+        drag.start_width = w->width;
+        drag.start_height = w->height;
+        w->flags |= WINDOW_FLAG_RESIZING;
+        w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
+        w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+        layout_changed_flag = true;
+      }
+      return;
+    }
+
     /* Check title bar for drag */
     int title_id = gui_hit_test_titlebar(mx, my);
     if (title_id >= 0) {
@@ -381,11 +468,15 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
       window_t *w = gui_get_window(title_id);
       if (w) {
         drag.dragging = true;
+        drag.resizing = false;
         drag.window_id = title_id;
         drag.drag_offset_x = (int16_t)(mx - w->x);
         drag.drag_offset_y = (int16_t)(my - w->y);
         w->prev_x = w->x;
         w->prev_y = w->y;
+        w->flags |= WINDOW_FLAG_DRAGGING;
+        w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+        layout_changed_flag = true;
       }
       return;
     }

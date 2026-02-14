@@ -301,8 +301,12 @@ static int cc_match(cc_state_t *cc, cc_token_type_t type) {
 /* ── Check if token is a type keyword ────────────────────────────── */
 static int cc_is_type(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
+         t == CC_TOK_U0 || t == CC_TOK_U8 || t == CC_TOK_U16 ||
+         t == CC_TOK_U32 || t == CC_TOK_I8 || t == CC_TOK_I16 ||
+         t == CC_TOK_I32 ||
          t == CC_TOK_STRUCT || t == CC_TOK_BOOL || t == CC_TOK_UNSIGNED ||
-         t == CC_TOK_CONST || t == CC_TOK_VOLATILE;
+         t == CC_TOK_CONST || t == CC_TOK_VOLATILE || t == CC_TOK_REG ||
+         t == CC_TOK_NOREG;
 }
 
 /* ── Find typedef alias, returns type or -1 if not found ─────────── */
@@ -316,9 +320,13 @@ static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
   return (cc_type_t)-1;
 }
 
+static int cc_find_struct(cc_state_t *cc, const char *name);
+
 static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
   return cc_is_type(tok.type) ||
-         (tok.type == CC_TOK_IDENT && (int)cc_find_typedef(cc, tok.text) >= 0);
+         (tok.type == CC_TOK_IDENT &&
+          ((int)cc_find_typedef(cc, tok.text) >= 0 ||
+           cc_find_struct(cc, tok.text) >= 0));
 }
 
 /* Track what kind of value the last expression produced */
@@ -377,6 +385,22 @@ static cc_field_t *cc_find_field(cc_state_t *cc, int struct_index,
   return NULL;
 }
 
+static void cc_make_method_symbol(char *out, const char *class_name,
+                                  const char *method_name) {
+  int i = 0;
+  int j = 0;
+  while (class_name[i] && j < CC_MAX_IDENT - 1) {
+    out[j++] = class_name[i++];
+  }
+  if (j < CC_MAX_IDENT - 1)
+    out[j++] = '_';
+  i = 0;
+  while (method_name[i] && j < CC_MAX_IDENT - 1) {
+    out[j++] = method_name[i++];
+  }
+  out[j] = '\0';
+}
+
 /* ── Parse a type specifier, returns cc_type_t ───────────────────── */
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
@@ -384,8 +408,9 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_last_type_struct_index = -1;
 
   /* Strip qualifiers: const, unsigned, volatile (order-agnostic). */
-  while (tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
-         tok.type == CC_TOK_VOLATILE) {
+    while (tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
+      tok.type == CC_TOK_VOLATILE || tok.type == CC_TOK_REG ||
+      tok.type == CC_TOK_NOREG) {
     tok = cc_next(cc);
   }
 
@@ -399,15 +424,44 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   case CC_TOK_VOID:
     base = TYPE_VOID;
     break;
+  case CC_TOK_U0:
+    base = TYPE_U0;
+    break;
+  case CC_TOK_U8:
+    base = TYPE_U8;
+    break;
+  case CC_TOK_U16:
+    base = TYPE_U16;
+    break;
+  case CC_TOK_U32:
+    base = TYPE_U32;
+    break;
+  case CC_TOK_I8:
+    base = TYPE_I8;
+    break;
+  case CC_TOK_I16:
+    base = TYPE_I16;
+    break;
+  case CC_TOK_I32:
+    base = TYPE_I32;
+    break;
   case CC_TOK_BOOL:
-    base = TYPE_INT;
-    break; /* bool is alias for int */
+    base = TYPE_BOOL;
+    break; /* Bool/bool is alias for int */
   case CC_TOK_IDENT: {
     /* Check if this is a typedef alias */
     cc_type_t td = cc_find_typedef(cc, tok.text);
     if ((int)td >= 0) {
       base = td;
       break;
+    }
+    {
+      int si = cc_find_struct(cc, tok.text);
+      if (si >= 0) {
+        cc_last_type_struct_index = si;
+        base = TYPE_STRUCT;
+        break;
+      }
     }
     cc_error(cc, "expected type");
     return TYPE_INT;
@@ -431,9 +485,11 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   }
 
   /* Allow trailing qualifiers after base type (e.g. char const *). */
-  while (cc_peek(cc).type == CC_TOK_CONST ||
-         cc_peek(cc).type == CC_TOK_UNSIGNED ||
-         cc_peek(cc).type == CC_TOK_VOLATILE)
+    while (cc_peek(cc).type == CC_TOK_CONST ||
+      cc_peek(cc).type == CC_TOK_UNSIGNED ||
+      cc_peek(cc).type == CC_TOK_VOLATILE ||
+      cc_peek(cc).type == CC_TOK_REG ||
+      cc_peek(cc).type == CC_TOK_NOREG)
     cc_next(cc);
 
   /* Pointer depth support: T*, T**, ... */
@@ -442,9 +498,11 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     cc_next(cc);
     pointer_depth++;
     /* Ignore pointer qualifiers: char *const, char *const * ... */
-    while (cc_peek(cc).type == CC_TOK_CONST ||
-           cc_peek(cc).type == CC_TOK_UNSIGNED ||
-           cc_peek(cc).type == CC_TOK_VOLATILE) {
+        while (cc_peek(cc).type == CC_TOK_CONST ||
+          cc_peek(cc).type == CC_TOK_UNSIGNED ||
+          cc_peek(cc).type == CC_TOK_VOLATILE ||
+          cc_peek(cc).type == CC_TOK_REG ||
+          cc_peek(cc).type == CC_TOK_NOREG) {
       cc_next(cc);
     }
   }
@@ -623,6 +681,118 @@ static void cc_parse_statement(cc_state_t *cc);
 static void cc_parse_block(cc_state_t *cc);
 static void cc_parse_expression(cc_state_t *cc, int min_prec);
 static void cc_parse_primary(cc_state_t *cc);
+
+static int cc_is_prescan_type_token(cc_token_type_t t) {
+  return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
+         t == CC_TOK_U0 || t == CC_TOK_U8 || t == CC_TOK_U16 ||
+         t == CC_TOK_U32 || t == CC_TOK_I8 || t == CC_TOK_I16 ||
+         t == CC_TOK_I32 || t == CC_TOK_BOOL || t == CC_TOK_STRUCT;
+}
+
+static void cc_prescan_add_function(cc_state_t *cc, const char *name) {
+  cc_symbol_t *sym = cc_sym_find(cc, name);
+  if (!sym) {
+    sym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
+  }
+  if (sym && sym->kind != SYM_KERNEL) {
+    sym->kind = SYM_FUNC;
+    if (!sym->is_defined) {
+      sym->offset = 0;
+      sym->address = 0;
+      sym->param_count = 0;
+    }
+  }
+}
+
+static void cc_prescan_functions(cc_state_t *cc) {
+  int saved_pos = cc->pos;
+  int saved_line = cc->line;
+  int saved_has_peek = cc->has_peek;
+  cc_token_t saved_peek = cc->peek_buf;
+  cc_token_t saved_cur = cc->cur;
+
+  cc->pos = 0;
+  cc->line = 1;
+  cc->has_peek = 0;
+
+  int brace_depth = 0;
+
+  while (!cc->error) {
+    cc_token_t tok = cc_lex_next(cc);
+    if (tok.type == CC_TOK_EOF || tok.type == CC_TOK_ERROR)
+      break;
+
+    if (tok.type == CC_TOK_LBRACE) {
+      brace_depth++;
+      continue;
+    }
+    if (tok.type == CC_TOK_RBRACE) {
+      if (brace_depth > 0)
+        brace_depth--;
+      continue;
+    }
+    if (brace_depth != 0)
+      continue;
+
+    if (tok.type == CC_TOK_STATIC || tok.type == CC_TOK_CONST ||
+        tok.type == CC_TOK_UNSIGNED || tok.type == CC_TOK_VOLATILE) {
+      tok = cc_lex_next(cc);
+    }
+    while (tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
+           tok.type == CC_TOK_VOLATILE) {
+      tok = cc_lex_next(cc);
+    }
+
+    if (!cc_is_prescan_type_token(tok.type))
+      continue;
+
+    if (tok.type == CC_TOK_STRUCT) {
+      cc_token_t sname = cc_lex_next(cc);
+      if (sname.type != CC_TOK_IDENT)
+        continue;
+      tok = cc_lex_next(cc);
+    } else {
+      tok = cc_lex_next(cc);
+    }
+
+    while (tok.type == CC_TOK_STAR) {
+      tok = cc_lex_next(cc);
+    }
+
+    if (tok.type != CC_TOK_IDENT)
+      continue;
+    char fname[CC_MAX_IDENT];
+    int fi = 0;
+    while (tok.text[fi] && fi < CC_MAX_IDENT - 1) {
+      fname[fi] = tok.text[fi];
+      fi++;
+    }
+    fname[fi] = '\0';
+
+    tok = cc_lex_next(cc);
+    if (tok.type != CC_TOK_LPAREN)
+      continue;
+
+    cc_prescan_add_function(cc, fname);
+
+    int paren_depth = 1;
+    while (paren_depth > 0) {
+      tok = cc_lex_next(cc);
+      if (tok.type == CC_TOK_EOF || tok.type == CC_TOK_ERROR)
+        break;
+      if (tok.type == CC_TOK_LPAREN)
+        paren_depth++;
+      else if (tok.type == CC_TOK_RPAREN)
+        paren_depth--;
+    }
+  }
+
+  cc->pos = saved_pos;
+  cc->line = saved_line;
+  cc->has_peek = saved_has_peek;
+  cc->peek_buf = saved_peek;
+  cc->cur = saved_cur;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Expression Types for Tracking
@@ -906,6 +1076,28 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     }
     (void)arg_addrs;
+
+    /* Builtins: Print(fmt, ...) and PrintLine(fmt, ...) */
+    if (strcmp(name, "Print") == 0 || strcmp(name, "PrintLine") == 0) {
+      if (argc <= 0) {
+        cc_error(cc, "Print/PrintLine require at least a format argument");
+        return;
+      }
+
+      cc_symbol_t *printf_sym =
+          cc_sym_find(cc, (strcmp(name, "Print") == 0) ? "__cc_Print"
+                                                       : "__cc_PrintLine");
+      if (!printf_sym || printf_sym->kind != SYM_KERNEL) {
+        cc_error(cc, "Print builtin binding missing");
+        return;
+      }
+
+      emit_call_abs(cc, printf_sym->address);
+      emit_add_esp(cc, (int32_t)(argc * 4));
+
+      cc_last_expr_type = TYPE_INT;
+      return;
+    }
 
     /* Look up function */
     cc_symbol_t *sym = cc_sym_find(cc, name);
@@ -1227,6 +1419,88 @@ static void cc_parse_primary(cc_state_t *cc) {
     break;
   }
 
+  case CC_TOK_NEW: {
+    cc_type_t alloc_type = cc_parse_type(cc);
+    int alloc_si = cc_last_type_struct_index;
+    int32_t elem_size = cc_type_size(cc, alloc_type, alloc_si);
+
+    if (alloc_type == TYPE_VOID || elem_size <= 0) {
+      cc_error(cc, "invalid type for new");
+      return;
+    }
+
+    if (alloc_type == TYPE_STRUCT && !cc_struct_is_complete(cc, alloc_si)) {
+      cc_error(cc, "new of incomplete struct type");
+      return;
+    }
+
+    if (cc_match(cc, CC_TOK_LBRACK)) {
+      cc_parse_expression(cc, 1);
+      cc_expect(cc, CC_TOK_RBRACK);
+
+      if (elem_size == 1) {
+        /* no scale */
+      } else if (elem_size == 2) {
+        emit8(cc, 0xC1);
+        emit8(cc, 0xE0);
+        emit8(cc, 0x01); /* shl eax,1 */
+      } else if (elem_size == 4) {
+        emit8(cc, 0xC1);
+        emit8(cc, 0xE0);
+        emit8(cc, 0x02); /* shl eax,2 */
+      } else {
+        emit8(cc, 0x69);
+        emit8(cc, 0xC0); /* imul eax,eax,imm32 */
+        emit32(cc, (uint32_t)elem_size);
+      }
+    } else {
+      emit_mov_eax_imm(cc, (uint32_t)elem_size);
+    }
+
+    /* size in eax */
+    emit_push_eax(cc); /* save size */
+    emit_push_eax(cc); /* kmalloc(size) */
+
+    {
+      cc_symbol_t *kmalloc_sym = cc_sym_find(cc, "kmalloc");
+      if (!kmalloc_sym || kmalloc_sym->kind != SYM_KERNEL) {
+        cc_error(cc, "kmalloc binding missing");
+        return;
+      }
+      emit_call_abs(cc, kmalloc_sym->address);
+    }
+    emit_add_esp(cc, 4);
+
+    emit_pop_ebx(cc);  /* ebx=size */
+    emit_push_eax(cc); /* preserve ptr as expression result */
+
+    /* memset(ptr, 0, size) */
+    emit8(cc, 0x53);      /* push ebx (size) */
+    emit_push_imm(cc, 0); /* c = 0 */
+    emit_push_eax(cc);    /* ptr */
+    {
+      cc_symbol_t *memset_sym = cc_sym_find(cc, "memset");
+      if (!memset_sym || memset_sym->kind != SYM_KERNEL) {
+        cc_error(cc, "memset binding missing");
+        return;
+      }
+      emit_call_abs(cc, memset_sym->address);
+    }
+    emit_add_esp(cc, 12);
+
+    emit_pop_eax(cc); /* ptr result */
+
+    if (alloc_type == TYPE_CHAR)
+      cc_last_expr_type = TYPE_CHAR_PTR;
+    else if (alloc_type == TYPE_STRUCT) {
+      cc_last_expr_type = TYPE_STRUCT_PTR;
+      cc_last_expr_struct_index = alloc_si;
+    } else
+      cc_last_expr_type = TYPE_PTR;
+
+    break;
+  }
+
   case CC_TOK_PLUSPLUS: {
     /* Pre-increment: ++var */
     cc_token_t id = cc_next(cc);
@@ -1302,6 +1576,117 @@ static void cc_parse_primary(cc_state_t *cc) {
         return;
       }
       int si = cc_last_expr_struct_index;
+
+      /* Method call sugar: obj.Method(args) -> Class_Method(&obj, args)
+       * or ptr->Method(args) -> Class_Method(ptr, args). */
+      if ((cc_last_expr_type == TYPE_STRUCT ||
+           cc_last_expr_type == TYPE_STRUCT_PTR) &&
+          cc_peek(cc).type == CC_TOK_LPAREN && si >= 0 &&
+          si < cc->struct_count) {
+        char method_sym_name[CC_MAX_IDENT];
+        cc_make_method_symbol(method_sym_name, cc->structs[si].name,
+                              field_tok.text);
+
+        cc_next(cc); /* consume '(' */
+
+        /* First implicit argument is self pointer in eax. */
+        int argc = 0;
+        emit_push_eax(cc);
+        argc++;
+
+        if (cc_peek(cc).type != CC_TOK_RPAREN) {
+          cc_parse_expression(cc, 1);
+          emit_push_eax(cc);
+          argc++;
+
+          while (cc_match(cc, CC_TOK_COMMA)) {
+            cc_parse_expression(cc, 1);
+            emit_push_eax(cc);
+            argc++;
+          }
+        }
+        cc_expect(cc, CC_TOK_RPAREN);
+
+        /* Reverse pushed args (same convention as normal calls). */
+        if (argc > 1) {
+          int a;
+          for (a = 0; a < argc / 2; a++) {
+            int b = argc - 1 - a;
+            int off_a = a * 4;
+            int off_b = b * 4;
+            emit8(cc, 0x8B);
+            emit8(cc, 0x8C);
+            emit8(cc, 0x24);
+            emit32(cc, (uint32_t)off_a); /* mov ecx, [esp+off_a] */
+            emit8(cc, 0x8B);
+            emit8(cc, 0x94);
+            emit8(cc, 0x24);
+            emit32(cc, (uint32_t)off_b); /* mov edx, [esp+off_b] */
+            emit8(cc, 0x89);
+            emit8(cc, 0x94);
+            emit8(cc, 0x24);
+            emit32(cc, (uint32_t)off_a); /* mov [esp+off_a], edx */
+            emit8(cc, 0x89);
+            emit8(cc, 0x8C);
+            emit8(cc, 0x24);
+            emit32(cc, (uint32_t)off_b); /* mov [esp+off_b], ecx */
+          }
+        }
+
+        {
+          cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
+          if (msym) {
+            if (msym->kind == SYM_FUNC && msym->is_defined) {
+              emit_call_abs(cc, cc->code_base + (uint32_t)msym->offset);
+            } else if (msym->kind == SYM_KERNEL) {
+              emit_call_abs(cc, msym->address);
+            } else if (msym->kind == SYM_FUNC) {
+              uint32_t patch_pos = emit_call_rel_placeholder(cc);
+              if (cc->patch_count < CC_MAX_PATCHES) {
+                cc_patch_t *p = &cc->patches[cc->patch_count++];
+                p->code_offset = patch_pos;
+                int mi = 0;
+                while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
+                  p->name[mi] = method_sym_name[mi];
+                  mi++;
+                }
+                p->name[mi] = '\0';
+              }
+            } else {
+              cc_error(cc, "not a method");
+              return;
+            }
+          } else {
+            cc_symbol_t *fsym =
+                cc_sym_add(cc, method_sym_name, SYM_FUNC, TYPE_INT);
+            if (fsym) {
+              fsym->param_count = argc;
+              fsym->is_defined = 0;
+            }
+            {
+              uint32_t patch_pos = emit_call_rel_placeholder(cc);
+              if (cc->patch_count < CC_MAX_PATCHES) {
+                cc_patch_t *p = &cc->patches[cc->patch_count++];
+                p->code_offset = patch_pos;
+                int mi = 0;
+                while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
+                  p->name[mi] = method_sym_name[mi];
+                  mi++;
+                }
+                p->name[mi] = '\0';
+              }
+            }
+          }
+        }
+
+        if (argc > 0) {
+          emit_add_esp(cc, (int32_t)(argc * 4));
+        }
+
+        cc_last_expr_type = TYPE_INT;
+        continue;
+      }
+
       cc_field_t *field = cc_find_field(cc, si, field_tok.text);
       if (!field) {
         cc_error(cc, "unknown struct field");
@@ -2819,6 +3204,53 @@ static void cc_parse_statement(cc_state_t *cc) {
     cc_expect(cc, CC_TOK_SEMICOLON);
     break;
 
+  case CC_TOK_DEL: {
+    cc_next(cc); /* consume del */
+    cc_token_t id = cc_next(cc);
+    if (id.type != CC_TOK_IDENT) {
+      cc_error(cc, "del expects a pointer variable");
+      break;
+    }
+
+    cc_symbol_t *sym = cc_sym_find(cc, id.text);
+    if (!sym) {
+      cc_error(cc, "undefined variable");
+      break;
+    }
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      emit_load_local(cc, sym->offset);
+    } else if (sym->kind == SYM_GLOBAL) {
+      emit8(cc, 0xA1);
+      emit32(cc, sym->address);
+    } else {
+      cc_error(cc, "del expects a variable");
+      break;
+    }
+
+    emit_push_eax(cc);
+    {
+      cc_symbol_t *kfree_sym = cc_sym_find(cc, "kfree");
+      if (!kfree_sym || kfree_sym->kind != SYM_KERNEL) {
+        cc_error(cc, "kfree binding missing");
+        break;
+      }
+      emit_call_abs(cc, kfree_sym->address);
+    }
+    emit_add_esp(cc, 4);
+
+    emit_mov_eax_imm(cc, 0);
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      emit_store_local(cc, sym->offset);
+    } else if (sym->kind == SYM_GLOBAL) {
+      emit8(cc, 0xA3);
+      emit32(cc, sym->address);
+    }
+
+    cc_expect(cc, CC_TOK_SEMICOLON);
+    break;
+  }
+
   case CC_TOK_ASM:
     cc_next(cc);
     cc_parse_asm_block(cc);
@@ -2857,6 +3289,153 @@ static void cc_parse_statement(cc_state_t *cc) {
         cc_error(cc, "undefined variable");
         break;
       }
+
+      /* Method-call statement sugar: obj.Method(args); / ptr->Method(args); */
+      {
+        int saved_pos = cc->pos;
+        int saved_line = cc->line;
+        int saved_has_peek = cc->has_peek;
+        cc_token_t saved_peek = cc->peek_buf;
+        cc_token_t saved_cur = cc->cur;
+
+        cc_token_t dot_or_arrow_tok = cc_next(cc);
+        cc_token_t member_tok = cc_next(cc);
+        int is_method_stmt =
+            ((dot_or_arrow_tok.type == CC_TOK_DOT ||
+              dot_or_arrow_tok.type == CC_TOK_ARROW) &&
+             member_tok.type == CC_TOK_IDENT &&
+             cc_peek(cc).type == CC_TOK_LPAREN &&
+             sym->struct_index >= 0 && sym->struct_index < cc->struct_count &&
+             (sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR));
+
+        cc->pos = saved_pos;
+        cc->line = saved_line;
+        cc->has_peek = saved_has_peek;
+        cc->peek_buf = saved_peek;
+        cc->cur = saved_cur;
+
+        if (is_method_stmt) {
+          char method_sym_name[CC_MAX_IDENT];
+          cc_make_method_symbol(method_sym_name,
+                                cc->structs[sym->struct_index].name,
+                                member_tok.text);
+
+          /* Load object/self pointer into eax. */
+          if (sym->kind == SYM_GLOBAL) {
+            if (sym->type == TYPE_STRUCT)
+              emit_mov_eax_imm(cc, sym->address);
+            else {
+              emit8(cc, 0xA1);
+              emit32(cc, sym->address);
+            }
+          } else if (sym->type == TYPE_STRUCT) {
+            emit_lea_local(cc, sym->offset);
+          } else {
+            emit_load_local(cc, sym->offset);
+          }
+
+          cc_next(cc); /* consume . or -> */
+          cc_next(cc); /* consume method name */
+          cc_expect(cc, CC_TOK_LPAREN);
+
+          {
+            int argc = 0;
+
+            emit_push_eax(cc); /* implicit self */
+            argc++;
+
+            if (cc_peek(cc).type != CC_TOK_RPAREN) {
+              cc_parse_expression(cc, 1);
+              emit_push_eax(cc);
+              argc++;
+              while (cc_match(cc, CC_TOK_COMMA)) {
+                cc_parse_expression(cc, 1);
+                emit_push_eax(cc);
+                argc++;
+              }
+            }
+            cc_expect(cc, CC_TOK_RPAREN);
+
+            if (argc > 1) {
+              int a;
+              for (a = 0; a < argc / 2; a++) {
+                int b = argc - 1 - a;
+                int off_a = a * 4;
+                int off_b = b * 4;
+                emit8(cc, 0x8B);
+                emit8(cc, 0x8C);
+                emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_a);
+                emit8(cc, 0x8B);
+                emit8(cc, 0x94);
+                emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_b);
+                emit8(cc, 0x89);
+                emit8(cc, 0x94);
+                emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_a);
+                emit8(cc, 0x89);
+                emit8(cc, 0x8C);
+                emit8(cc, 0x24);
+                emit32(cc, (uint32_t)off_b);
+              }
+            }
+
+            {
+              cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
+              if (msym) {
+                if (msym->kind == SYM_FUNC && msym->is_defined) {
+                  emit_call_abs(cc, cc->code_base + (uint32_t)msym->offset);
+                } else if (msym->kind == SYM_KERNEL) {
+                  emit_call_abs(cc, msym->address);
+                } else if (msym->kind == SYM_FUNC) {
+                  uint32_t patch_pos = emit_call_rel_placeholder(cc);
+                  if (cc->patch_count < CC_MAX_PATCHES) {
+                    cc_patch_t *p = &cc->patches[cc->patch_count++];
+                    p->code_offset = patch_pos;
+                    int mi = 0;
+                    while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
+                      p->name[mi] = method_sym_name[mi];
+                      mi++;
+                    }
+                    p->name[mi] = '\0';
+                  }
+                } else {
+                  cc_error(cc, "not a method");
+                  break;
+                }
+              } else {
+                cc_symbol_t *fsym =
+                    cc_sym_add(cc, method_sym_name, SYM_FUNC, TYPE_INT);
+                if (fsym) {
+                  fsym->param_count = argc;
+                  fsym->is_defined = 0;
+                }
+                {
+                  uint32_t patch_pos = emit_call_rel_placeholder(cc);
+                  if (cc->patch_count < CC_MAX_PATCHES) {
+                    cc_patch_t *p = &cc->patches[cc->patch_count++];
+                    p->code_offset = patch_pos;
+                    int mi = 0;
+                    while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
+                      p->name[mi] = method_sym_name[mi];
+                      mi++;
+                    }
+                    p->name[mi] = '\0';
+                  }
+                }
+              }
+            }
+
+            if (argc > 0)
+              emit_add_esp(cc, (int32_t)(argc * 4));
+          }
+
+          cc_expect(cc, CC_TOK_SEMICOLON);
+          break;
+        }
+      }
+
       /* Load base address: LEA for local struct, load imm for global */
       if (sym->kind == SYM_GLOBAL) {
         if (sym->type == TYPE_STRUCT) {
@@ -3175,12 +3754,146 @@ static void cc_parse_function(cc_state_t *cc) {
   }
 }
 
+static void cc_parse_class_method(cc_state_t *cc, int class_index,
+                                  cc_type_t ret_type,
+                                  const char *method_name) {
+  char full_name[CC_MAX_IDENT];
+  cc_make_method_symbol(full_name, cc->structs[class_index].name, method_name);
+
+  cc_symbol_t *func_sym = cc_sym_find(cc, full_name);
+  if (!func_sym) {
+    func_sym = cc_sym_add(cc, full_name, SYM_FUNC, ret_type);
+  }
+  if (func_sym) {
+    func_sym->kind = SYM_FUNC;
+    func_sym->type = ret_type;
+    func_sym->offset = (int32_t)cc->code_pos;
+    func_sym->is_defined = 1;
+  }
+
+  cc_expect(cc, CC_TOK_LPAREN);
+
+  int saved_scope = cc->sym_count;
+  cc->local_offset = 0;
+  cc->max_local_offset = 0;
+  cc->param_count = 0;
+
+  /* Implicit self parameter at [ebp+8]. */
+  {
+    cc_symbol_t *self_sym = cc_sym_add(cc, "self", SYM_PARAM, TYPE_STRUCT_PTR);
+    if (self_sym) {
+      self_sym->offset = 8;
+      self_sym->struct_index = class_index;
+    }
+    cc->param_count = 1;
+  }
+
+  if (cc_peek(cc).type != CC_TOK_RPAREN) {
+    int param_offset = 12; /* after implicit self */
+
+    if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
+      cc_next(cc);
+    } else {
+      cc_type_t ptype = cc_parse_type(cc);
+      int psi = cc_last_type_struct_index;
+
+      if (!(ptype == TYPE_VOID && cc_peek(cc).type == CC_TOK_RPAREN)) {
+        cc_token_t pname = cc_next(cc);
+        if (pname.type != CC_TOK_IDENT) {
+          cc_error(cc, "expected parameter name");
+          return;
+        }
+        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
+        if (psym) {
+          psym->offset = param_offset;
+          psym->struct_index = psi;
+        }
+        param_offset += 4;
+        cc->param_count++;
+      }
+
+      while (cc_match(cc, CC_TOK_COMMA)) {
+        if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
+          cc_next(cc);
+          break;
+        }
+        ptype = cc_parse_type(cc);
+        psi = cc_last_type_struct_index;
+        cc_token_t pname = cc_next(cc);
+        if (pname.type != CC_TOK_IDENT) {
+          cc_error(cc, "expected parameter name");
+          return;
+        }
+        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
+        if (psym) {
+          psym->offset = param_offset;
+          psym->struct_index = psi;
+        }
+        param_offset += 4;
+        cc->param_count++;
+      }
+    }
+  }
+
+  cc_expect(cc, CC_TOK_RPAREN);
+
+  if (func_sym) {
+    func_sym->param_count = cc->param_count;
+  }
+
+  emit_prologue(cc);
+  {
+    uint32_t sub_esp_pos = cc->code_pos;
+    emit_sub_esp(cc, 256);
+
+    cc_expect(cc, CC_TOK_LBRACE);
+    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+           cc_peek(cc).type != CC_TOK_EOF) {
+      cc_parse_statement(cc);
+    }
+    cc_expect(cc, CC_TOK_RBRACE);
+
+    {
+      int32_t locals_size = -cc->max_local_offset;
+      if (locals_size < 0)
+        locals_size = 0;
+      locals_size = (locals_size + 15) & ~15;
+      if (locals_size == 0)
+        locals_size = 16;
+      patch32(cc, sub_esp_pos + 2, (uint32_t)locals_size);
+    }
+  }
+
+  emit_mov_eax_imm(cc, 0);
+  emit_epilogue(cc);
+
+  cc->sym_count = saved_scope;
+
+  if (func_sym) {
+    cc_symbol_t *new_sym = cc_sym_add(cc, full_name, SYM_FUNC, ret_type);
+    if (new_sym) {
+      new_sym->offset = func_sym->offset;
+      new_sym->address = func_sym->address;
+      new_sym->param_count = func_sym->param_count;
+      new_sym->is_defined = 1;
+    }
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  Top-Level Program Parsing
  * ══════════════════════════════════════════════════════════════════════ */
 
 void cc_parse_program(cc_state_t *cc) {
   cc->struct_count = 0;
+
+  /* Pass 1: collect top-level function symbols for use-before-define. */
+  cc_prescan_functions(cc);
+
+  int has_top_level_statements = 0;
+  int top_level_started = 0;
+  uint32_t top_level_offset = 0;
+  uint32_t top_level_sub_esp_pos = 0;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
     cc_token_t tok = cc_peek(cc);
@@ -3263,6 +3976,148 @@ void cc_parse_program(cc_state_t *cc) {
         cc->typedef_types[cc->typedef_count] = td_type;
         cc->typedef_count++;
       }
+      continue;
+    }
+
+    /* ── Class definition: class Name { fields... methods... }; ─── */
+    if (tok.type == CC_TOK_CLASS) {
+      cc_next(cc); /* consume 'class' */
+      cc_token_t name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected class name");
+        break;
+      }
+      int sidx = cc_get_or_add_struct_tag(cc, name_tok.text);
+      if (sidx < 0)
+        break;
+
+      cc_struct_def_t *sd = &cc->structs[sidx];
+      if (sd->is_complete) {
+        cc_error(cc, "redefinition of class");
+        break;
+      }
+      sd->field_count = 0;
+      sd->total_size = 0;
+      sd->align = 1;
+      sd->is_complete = 0;
+
+      cc_expect(cc, CC_TOK_LBRACE);
+
+      {
+        int32_t field_offset = 0;
+        int32_t struct_align = 1;
+
+        while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+               cc_peek(cc).type != CC_TOK_EOF) {
+          if (!cc_is_type_or_typedef(cc, cc_peek(cc))) {
+            cc_error(cc, "expected class field or method declaration");
+            break;
+          }
+
+          /* Look ahead: <type> <name> '(' => method, else field */
+          int saved_pos = cc->pos;
+          int saved_line = cc->line;
+          int saved_has_peek = cc->has_peek;
+          cc_token_t saved_peek = cc->peek_buf;
+          cc_token_t saved_cur = cc->cur;
+
+          cc_parse_type(cc);
+          cc_token_t member_name = cc_next(cc);
+          cc_token_t after_member = cc_peek(cc);
+
+          cc->pos = saved_pos;
+          cc->line = saved_line;
+          cc->has_peek = saved_has_peek;
+          cc->peek_buf = saved_peek;
+          cc->cur = saved_cur;
+
+          if (member_name.type != CC_TOK_IDENT) {
+            cc_error(cc, "expected class member name");
+            break;
+          }
+
+          if (after_member.type == CC_TOK_LPAREN) {
+            cc_type_t mret = cc_parse_type(cc);
+            cc_token_t mname = cc_next(cc);
+            if (mname.type != CC_TOK_IDENT) {
+              cc_error(cc, "expected method name");
+              break;
+            }
+            cc_parse_class_method(cc, sidx, mret, mname.text);
+            if (cc->error)
+              break;
+            continue;
+          }
+
+          if (sd->field_count >= CC_MAX_FIELDS) {
+            cc_error(cc, "too many fields in class");
+            break;
+          }
+
+          {
+            cc_type_t ftype = cc_parse_type(cc);
+            int fsi = cc_last_type_struct_index;
+            cc_token_t fname = cc_next(cc);
+            if (fname.type != CC_TOK_IDENT) {
+              cc_error(cc, "expected field name");
+              break;
+            }
+
+            cc_field_t *f = &sd->fields[sd->field_count++];
+            int fi = 0;
+            while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
+              f->name[fi] = fname.text[fi];
+              fi++;
+            }
+            f->name[fi] = '\0';
+            f->type = ftype;
+            f->struct_index = fsi;
+            f->array_count = 0;
+
+            if (cc_peek(cc).type == CC_TOK_LBRACK) {
+              cc_next(cc);
+              cc_token_t size_tok = cc_next(cc);
+              if (size_tok.type != CC_TOK_NUMBER) {
+                cc_error(cc, "expected array size");
+                break;
+              }
+              f->array_count = size_tok.int_value;
+              cc_expect(cc, CC_TOK_RBRACK);
+            }
+
+            if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
+              cc_error(cc, "field has incomplete struct type");
+              break;
+            }
+
+            {
+              int32_t elem_size = cc_type_size(cc, ftype, fsi);
+              int32_t field_align = cc_type_align(cc, ftype, fsi);
+              int32_t fsize = elem_size;
+              if (f->array_count > 0)
+                fsize = elem_size * f->array_count;
+
+              field_offset = cc_align_up(field_offset, field_align);
+              f->offset = field_offset;
+              field_offset += fsize;
+              if (field_align > struct_align)
+                struct_align = field_align;
+            }
+
+            cc_expect(cc, CC_TOK_SEMICOLON);
+          }
+        }
+
+        cc_expect(cc, CC_TOK_RBRACE);
+        cc_expect(cc, CC_TOK_SEMICOLON);
+
+        sd->align = struct_align;
+        sd->total_size = cc_align_up(field_offset, struct_align);
+        sd->is_complete = 1;
+      }
+
+      serial_printf("[cupidc] Defined class '%s': %d fields, %d bytes\n",
+                    sd->name, sd->field_count, sd->total_size);
       continue;
     }
 
@@ -3420,7 +4275,21 @@ void cc_parse_program(cc_state_t *cc) {
       cc->cur = saved_cur;
 
       if (after.type == CC_TOK_LPAREN) {
+        /* If we're in implicit top-level execution mode, emitted function
+         * bodies must be skipped by __start so execution doesn't fall-through
+         * into them as straight-line code. */
+        uint32_t skip_func_jmp = 0;
+        int has_skip_jmp = 0;
+        if (top_level_started) {
+          skip_func_jmp = emit_jmp_placeholder(cc);
+          has_skip_jmp = 1;
+        }
+
         cc_parse_function(cc);
+
+        if (has_skip_jmp) {
+          patch_jump(cc, skip_func_jmp);
+        }
       } else {
         /* Global variable declaration */
         (void)type;
@@ -3565,9 +4434,81 @@ void cc_parse_program(cc_state_t *cc) {
         }
       }
     } else {
-      cc_error(cc, "expected function or global declaration");
-      break;
+      /* Top-level executable statement (HolyC-style script mode).
+       * We compile these into an implicit __start() thunk and execute it.
+       */
+      if (!top_level_started) {
+        cc_symbol_t *start_sym = cc_sym_find(cc, "__start");
+        if (!start_sym) {
+          start_sym = cc_sym_add(cc, "__start", SYM_FUNC, TYPE_VOID);
+        }
+        if (start_sym) {
+          start_sym->kind = SYM_FUNC;
+          start_sym->type = TYPE_VOID;
+          start_sym->offset = (int32_t)cc->code_pos;
+          start_sym->is_defined = 1;
+          start_sym->param_count = 0;
+        }
+
+        top_level_offset = cc->code_pos;
+        cc->local_offset = 0;
+        cc->max_local_offset = 0;
+        cc->param_count = 0;
+
+        emit_prologue(cc);
+        top_level_sub_esp_pos = cc->code_pos;
+        emit_sub_esp(cc, 256); /* placeholder, patched at end */
+
+        top_level_started = 1;
+      }
+
+      has_top_level_statements = 1;
+      cc_parse_statement(cc);
     }
+  }
+
+  if (!cc->error && top_level_started) {
+    /* If main() exists, run it after top-level statements for compatibility. */
+    cc_symbol_t *main_sym = cc_sym_find(cc, "main");
+    if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined) {
+      uint32_t target = cc->code_base + (uint32_t)main_sym->offset;
+      emit_call_abs(cc, target);
+    }
+
+    /* Default return from implicit __start. */
+    emit_mov_eax_imm(cc, 0);
+    emit_epilogue(cc);
+
+    /* Patch stack allocation for locals used by top-level statements. */
+    int32_t locals_size = -cc->max_local_offset;
+    if (locals_size < 0)
+      locals_size = 0;
+    locals_size = (locals_size + 15) & ~15;
+    if (locals_size == 0)
+      locals_size = 16;
+    patch32(cc, top_level_sub_esp_pos + 2, (uint32_t)locals_size);
+
+    /* Drop top-level locals/params while preserving globals/functions. */
+    {
+      int write_i = 0;
+      int read_i;
+      for (read_i = 0; read_i < cc->sym_count; read_i++) {
+        cc_symbol_t *s = &cc->symbols[read_i];
+        if (s->kind == SYM_LOCAL || s->kind == SYM_PARAM) {
+          continue;
+        }
+        if (write_i != read_i) {
+          cc->symbols[write_i] = cc->symbols[read_i];
+        }
+        write_i++;
+      }
+      cc->sym_count = write_i;
+    }
+  }
+
+  if (!cc->error && has_top_level_statements) {
+    cc->entry_offset = top_level_offset;
+    cc->has_entry = 1;
   }
 
   /* Resolve forward references */

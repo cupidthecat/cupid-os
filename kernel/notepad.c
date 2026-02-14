@@ -145,18 +145,19 @@ typedef struct {
   bool is_directory;
 } file_entry_t;
 
-#define DLG_W 220
-#define DLG_H 130
-#define DLG_LIST_H 72
-#define DLG_ITEM_H 10
+#define DLG_W 400
+#define DLG_H 300
+#define DLG_LIST_H 190
+#define DLG_ITEM_H 14
 #define DLG_SCROLLBAR_W 12
-#define DLG_BTN_W 50
-#define DLG_BTN_H 14
+#define DLG_BTN_W 60
+#define DLG_BTN_H 24
 
 /* Computed layout for the file dialog — shared by draw and mouse */
 typedef struct {
   ui_rect_t dialog;      /* Outer dialog rect                    */
   ui_rect_t titlebar;    /* Title bar                            */
+  ui_rect_t path_row;    /* Current directory display            */
   ui_rect_t list_area;   /* File list + scrollbar (sunken)       */
   ui_rect_t list;        /* File list only (no scrollbar)        */
   ui_rect_t scrollbar;   /* Vertical scrollbar                   */
@@ -194,6 +195,17 @@ typedef struct {
   int ctxt_scroll_x_px;
   int ctxt_content_height;
   int ctxt_content_width;
+  uint32_t ctxt_style_bg;
+  uint32_t ctxt_style_h1;
+  uint32_t ctxt_style_h2;
+  uint32_t ctxt_style_h3;
+  uint32_t ctxt_style_body;
+  uint32_t ctxt_style_rule;
+  uint32_t ctxt_style_box_bg;
+  uint32_t ctxt_style_box_text;
+  uint32_t ctxt_style_link;
+  uint32_t ctxt_style_link_hover;
+  uint16_t ctxt_style_mask;
   struct {
     uint8_t type;
     char text[NOTEPAD_MAX_LINE_LEN];
@@ -268,7 +280,9 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                                    uint32_t base_color, int scale,
                                    int16_t max_x, int line_h,
                                    uint32_t link_color,
-                                   uint32_t link_hover_color);
+                                   uint32_t link_hover_color,
+                                   uint32_t code_fg,
+                                   uint32_t code_bg);
 static int notepad_ctxt_line_height(uint8_t type);
 static int notepad_ctxt_line_scale(uint8_t type);
 static int notepad_ctxt_hit_link(int16_t mx, int16_t my);
@@ -460,7 +474,10 @@ static int notepad_buffer_looks_ctxt(void) {
         np_strncmp(line, ">rule", 5) == 0 ||
         np_strncmp(line, ">center", 7) == 0 ||
         np_strncmp(line, ">comment", 8) == 0 ||
-        np_strncmp(line, ">color", 6) == 0 || np_strncmp(line, ">box", 4) == 0 ||
+        np_strncmp(line, ">color", 6) == 0 ||
+        np_strncmp(line, ">text", 5) == 0 ||
+        np_strncmp(line, ">style", 6) == 0 ||
+        np_strncmp(line, ">box", 4) == 0 ||
         np_strncmp(line, ">endbox", 7) == 0 ||
         np_strncmp(line, ">theme", 6) == 0) {
       return 1;
@@ -487,6 +504,7 @@ static int notepad_toggle_ctxt_mode(window_t *win) {
   } else {
     app.render_mode = true;
     app.ctxt_theme_light = false;
+    app.ctxt_style_mask = 0;
     app.ctxt_scroll_px = 0;
     app.ctxt_scroll_x_px = 0;
     app.ctxt_hover_link = -1;
@@ -508,6 +526,19 @@ enum {
   CTXT_LINE_BOX_START,
   CTXT_LINE_BOX_END,
   CTXT_LINE_COMMENT
+};
+
+enum {
+  CTXT_STYLE_BG        = 1u << 0,
+  CTXT_STYLE_H1        = 1u << 1,
+  CTXT_STYLE_H2        = 1u << 2,
+  CTXT_STYLE_H3        = 1u << 3,
+  CTXT_STYLE_BODY      = 1u << 4,
+  CTXT_STYLE_RULE      = 1u << 5,
+  CTXT_STYLE_BOX_BG    = 1u << 6,
+  CTXT_STYLE_BOX_TEXT  = 1u << 7,
+  CTXT_STYLE_LINK      = 1u << 8,
+  CTXT_STYLE_LINK_HOV  = 1u << 9
 };
 
 typedef struct {
@@ -543,6 +574,31 @@ static ctxt_theme_t notepad_ctxt_theme(bool light) {
     t.box_text = 0xAADDFF;
   }
   return t;
+}
+
+static void notepad_ctxt_apply_style_overrides(ctxt_theme_t *t,
+                                               uint32_t *link_color,
+                                               uint32_t *link_hover_color) {
+  if (app.ctxt_style_mask & CTXT_STYLE_BG)
+    t->bg = app.ctxt_style_bg;
+  if (app.ctxt_style_mask & CTXT_STYLE_H1)
+    t->h1 = app.ctxt_style_h1;
+  if (app.ctxt_style_mask & CTXT_STYLE_H2)
+    t->h2 = app.ctxt_style_h2;
+  if (app.ctxt_style_mask & CTXT_STYLE_H3)
+    t->h3 = app.ctxt_style_h3;
+  if (app.ctxt_style_mask & CTXT_STYLE_BODY)
+    t->body = app.ctxt_style_body;
+  if (app.ctxt_style_mask & CTXT_STYLE_RULE)
+    t->rule = app.ctxt_style_rule;
+  if (app.ctxt_style_mask & CTXT_STYLE_BOX_BG)
+    t->box_bg = app.ctxt_style_box_bg;
+  if (app.ctxt_style_mask & CTXT_STYLE_BOX_TEXT)
+    t->box_text = app.ctxt_style_box_text;
+  if (app.ctxt_style_mask & CTXT_STYLE_LINK)
+    *link_color = app.ctxt_style_link;
+  if (app.ctxt_style_mask & CTXT_STYLE_LINK_HOV)
+    *link_hover_color = app.ctxt_style_link_hover;
 }
 
 static int notepad_ctxt_line_height(uint8_t type) {
@@ -596,6 +652,7 @@ static void notepad_ctxt_parse(void) {
   uint32_t current_fg = 0;
   bool box_active = false;
   uint32_t box_bg = 0;
+  app.ctxt_style_mask = 0;
 
   for (int i = 0; i < app.buffer.line_count && i < NOTEPAD_MAX_LINES; i++) {
     const char *src = app.buffer.lines[i] ? app.buffer.lines[i] : "";
@@ -630,6 +687,68 @@ static void notepad_ctxt_parse(void) {
           current_fg = 0;
         } else if (np_parse_hex6(arg, &parsed)) {
           current_fg = parsed;
+        }
+        type = CTXT_LINE_COMMENT;
+        text = "";
+      } else if (np_strncmp(src, ">text", 5) == 0) {
+        const char *arg = np_skip_spaces(src + 5);
+        uint32_t parsed;
+        if (*arg == '\0') {
+          current_fg = 0;
+        } else if (np_parse_hex6(arg, &parsed)) {
+          current_fg = parsed;
+        }
+        type = CTXT_LINE_COMMENT;
+        text = "";
+      } else if (np_strncmp(src, ">style", 6) == 0) {
+        const char *arg = np_skip_spaces(src + 6);
+        if (np_strncmp(arg, "reset", 5) == 0) {
+          app.ctxt_style_mask = 0;
+        } else {
+          char key[16];
+          int ki = 0;
+          while (*arg && *arg != ' ' && *arg != '\t' && ki < 15) {
+            key[ki++] = *arg++;
+          }
+          key[ki] = '\0';
+          arg = np_skip_spaces(arg);
+
+          uint32_t parsed;
+          if (np_parse_hex6(arg, &parsed)) {
+            if (np_strcasecmp(key, "bg") == 0) {
+              app.ctxt_style_bg = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_BG;
+            } else if (np_strcasecmp(key, "h1") == 0) {
+              app.ctxt_style_h1 = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_H1;
+            } else if (np_strcasecmp(key, "h2") == 0) {
+              app.ctxt_style_h2 = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_H2;
+            } else if (np_strcasecmp(key, "h3") == 0) {
+              app.ctxt_style_h3 = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_H3;
+            } else if (np_strcasecmp(key, "body") == 0) {
+              app.ctxt_style_body = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_BODY;
+            } else if (np_strcasecmp(key, "rule") == 0) {
+              app.ctxt_style_rule = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_RULE;
+            } else if (np_strcasecmp(key, "box") == 0 ||
+                       np_strcasecmp(key, "boxbg") == 0) {
+              app.ctxt_style_box_bg = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_BOX_BG;
+            } else if (np_strcasecmp(key, "boxtext") == 0) {
+              app.ctxt_style_box_text = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_BOX_TEXT;
+            } else if (np_strcasecmp(key, "link") == 0) {
+              app.ctxt_style_link = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_LINK;
+            } else if (np_strcasecmp(key, "linkhover") == 0 ||
+                       np_strcasecmp(key, "hover") == 0) {
+              app.ctxt_style_link_hover = parsed;
+              app.ctxt_style_mask |= CTXT_STYLE_LINK_HOV;
+            }
+          }
         }
         type = CTXT_LINE_COMMENT;
         text = "";
@@ -916,9 +1035,15 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                                    uint32_t base_color, int scale,
                                    int16_t max_x, int line_h,
                                    uint32_t link_color,
-                                   uint32_t link_hover_color) {
+                                   uint32_t link_hover_color,
+                                   uint32_t code_fg,
+                                   uint32_t code_bg) {
   int16_t cx = x;
   uint32_t cur_color = base_color;
+  uint32_t cur_bg = 0;
+  int bold = 0;
+  int underline = 0;
+  int code_mode = 0;
   const char *p = text;
   int char_w = FONT_W * scale;
 
@@ -1036,6 +1161,10 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
         int len = (int)(end - (p + 1));
         if (len == 0) {
           cur_color = base_color;
+          cur_bg = 0;
+          bold = 0;
+          underline = 0;
+          code_mode = 0;
           p = end + 1;
           continue;
         }
@@ -1050,15 +1179,81 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
           p = end + 1;
           continue;
         }
+        if (len >= 10 && p[1] == 'b' && p[2] == 'g' && p[3] == ':' &&
+            p[4] == '#') {
+          char hex[8];
+          int hi = 0;
+          for (int k = 4; k < 11 && hi < 7; k++) {
+            hex[hi++] = p[k];
+          }
+          hex[hi] = '\0';
+          cur_bg = notepad_ctxt_inline_color(hex, cur_bg);
+          p = end + 1;
+          continue;
+        }
+        if (len == 1 && p[1] == 'b') {
+          bold = 1;
+          p = end + 1;
+          continue;
+        }
+        if (len == 2 && p[1] == '/' && p[2] == 'b') {
+          bold = 0;
+          p = end + 1;
+          continue;
+        }
+        if (len == 1 && p[1] == 'u') {
+          underline = 1;
+          p = end + 1;
+          continue;
+        }
+        if (len == 2 && p[1] == '/' && p[2] == 'u') {
+          underline = 0;
+          p = end + 1;
+          continue;
+        }
+        if (len == 4 && p[1] == 'c' && p[2] == 'o' && p[3] == 'd' &&
+            p[4] == 'e') {
+          code_mode = 1;
+          cur_bg = code_bg;
+          cur_color = code_fg;
+          p = end + 1;
+          continue;
+        }
+        if (len == 5 && p[1] == '/' && p[2] == 'c' && p[3] == 'o' &&
+            p[4] == 'd' && p[5] == 'e') {
+          code_mode = 0;
+          cur_bg = 0;
+          cur_color = base_color;
+          p = end + 1;
+          continue;
+        }
       }
     }
 
     if (cx + char_w > max_x)
       break;
+
+    if (cur_bg != 0) {
+      gfx_fill_rect(cx, y, (uint16_t)char_w, (uint16_t)line_h, cur_bg);
+    }
+
     if (scale == 1)
       gfx_draw_char(cx, y, *p, cur_color);
     else
       gfx_draw_char_scaled(cx, y, *p, cur_color, scale);
+
+    if (bold) {
+      if (scale == 1)
+        gfx_draw_char((int16_t)(cx + 1), y, *p, cur_color);
+      else
+        gfx_draw_char_scaled((int16_t)(cx + 1), y, *p, cur_color, scale);
+    }
+
+    if (underline || code_mode) {
+      int ul_y = y + (line_h > 2 ? line_h - 2 : 0);
+      gfx_draw_hline(cx, (int16_t)ul_y, (uint16_t)char_w, cur_color);
+    }
+
     cx = (int16_t)(cx + char_w);
     p++;
   }
@@ -1071,6 +1266,9 @@ static void notepad_draw_ctxt_area(window_t *win) {
   ctxt_theme_t theme = notepad_ctxt_theme(app.ctxt_theme_light);
   uint32_t link_color = app.ctxt_theme_light ? 0x1D4ED8 : 0x66B3FF;
   uint32_t link_hover_color = app.ctxt_theme_light ? 0x0A3AA9 : 0x9ED0FF;
+  notepad_ctxt_apply_style_overrides(&theme, &link_color, &link_hover_color);
+  uint32_t code_fg = theme.box_text;
+  uint32_t code_bg = theme.box_bg;
 
   app.ctxt_link_count = 0;
 
@@ -1149,7 +1347,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
       tx = (int16_t)(tx - app.ctxt_scroll_x_px);
       notepad_ctxt_draw_text(tx, (int16_t)y, text, fg, scale,
                  (int16_t)(content_x + content_w), line_h,
-                 link_color, link_hover_color);
+                 link_color, link_hover_color, code_fg, code_bg);
     }
 
     y += line_h;
@@ -2844,14 +3042,18 @@ static dlg_layout_t notepad_dialog_get_layout(window_t *win) {
 
   /* Title bar (inside the 3D outer border, 2px inset) */
   L.titlebar =
-      ui_rect((int16_t)(dx + 2), (int16_t)(dy + 2), (uint16_t)(DLG_W - 4), 12);
+      ui_rect((int16_t)(dx + 3), (int16_t)(dy + 3), (uint16_t)(DLG_W - 6), 20);
+
+    /* Current path row */
+    L.path_row = ui_rect((int16_t)(dx + 10), (int16_t)(dy + 28),
+               (uint16_t)(DLG_W - 20), 10);
 
   /* File list + scrollbar sunken area */
-  int16_t list_x = (int16_t)(dx + 4);
-  int16_t list_y = (int16_t)(dy + 16);
-  uint16_t list_inner_w = (uint16_t)(DLG_W - 8 - DLG_SCROLLBAR_W);
+    int16_t list_x = (int16_t)(dx + 10);
+    int16_t list_y = (int16_t)(dy + 40);
+    uint16_t list_inner_w = (uint16_t)(DLG_W - 20 - DLG_SCROLLBAR_W);
 
-  L.list_area = ui_rect(list_x, list_y, (uint16_t)(DLG_W - 8), DLG_LIST_H);
+    L.list_area = ui_rect(list_x, list_y, (uint16_t)(DLG_W - 20), DLG_LIST_H);
   L.list = ui_rect(list_x, list_y, list_inner_w, DLG_LIST_H);
   L.scrollbar =
       ui_rect((int16_t)(list_x + (int16_t)list_inner_w), (int16_t)(list_y + 1),
@@ -2865,22 +3067,21 @@ static dlg_layout_t notepad_dialog_get_layout(window_t *win) {
     L.items_visible = 1;
 
   /* Input row: "File:" label + text field */
-  int16_t row_y = (int16_t)(dy + 16 + DLG_LIST_H + 3);
-  L.input_label = ui_rect((int16_t)(dx + 4), row_y, 40, 14);
+    int16_t row_y = (int16_t)(dy + 40 + DLG_LIST_H + 14);
+    L.input_label = ui_rect((int16_t)(dx + 10), row_y, 40, 20);
   L.input_field =
-      ui_rect((int16_t)(dx + 44), row_y, (uint16_t)(DLG_W - 48), 14);
+      ui_rect((int16_t)(dx + 50), row_y, (uint16_t)(DLG_W - 60 - 140), 20);
 
-  /* OK / Cancel buttons (bottom-left) */
-  int16_t btn_y = (int16_t)(dy + DLG_H - DLG_BTN_H - 4);
-  L.ok_btn = ui_rect((int16_t)(dx + 4), btn_y, DLG_BTN_W, DLG_BTN_H);
-  L.cancel_btn =
-      ui_rect((int16_t)(dx + 4 + DLG_BTN_W + 6), btn_y, DLG_BTN_W, DLG_BTN_H);
+    /* OK / Cancel buttons (bottom-right) */
+    int16_t btn_y = row_y;
+    L.ok_btn = ui_rect((int16_t)(dx + DLG_W - 140), btn_y, DLG_BTN_W, DLG_BTN_H);
+    L.cancel_btn =
+      ui_rect((int16_t)(dx + DLG_W - 70), btn_y, DLG_BTN_W, DLG_BTN_H);
 
-  /* File count status text (right of buttons) */
-  int16_t status_x = (int16_t)(dx + 4 + DLG_BTN_W + 6 + DLG_BTN_W + 8);
-  L.status = ui_rect(status_x, btn_y,
-                     (uint16_t)(DLG_W - (4 + DLG_BTN_W + 6 + DLG_BTN_W + 8)),
-                     DLG_BTN_H);
+    /* File count status text (own line under controls; no overlap) */
+    int16_t status_x = (int16_t)(dx + 10);
+    int16_t status_y = (int16_t)(dy + DLG_H - 14);
+    L.status = ui_rect(status_x, status_y, (uint16_t)(DLG_W - 20), 10);
 
   return L;
 }
@@ -2892,11 +3093,22 @@ static void notepad_draw_file_dialog(window_t *win) {
   dlg_layout_t L = notepad_dialog_get_layout(win);
 
   /* ── Drop shadow + dialog panel ────────────────────────────── */
-  ui_draw_shadow(L.dialog, COLOR_TEXT, 2);
-  ui_draw_panel(L.dialog, COLOR_WINDOW_BG, true, true);
+  ui_draw_shadow(L.dialog, COLOR_TEXT, 3);
+  ui_draw_panel(L.dialog, COLOR_BORDER, true, true);
 
   /* ── Title bar ─────────────────────────────────────────────── */
-  ui_draw_titlebar(L.titlebar, app.dialog.save_mode ? "Save As" : "Open", true);
+  gfx_fill_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h, 0x000080);
+  gfx_draw_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h,
+                COLOR_TEXT_LIGHT);
+  gfx_draw_text((int16_t)(L.titlebar.x + 6), (int16_t)(L.titlebar.y + 6),
+                app.dialog.save_mode ? "Save File" : "Open File", 0xFFFFFF);
+
+  /* ── Current path row ──────────────────────────────────────── */
+  {
+    char path_disp[64];
+    np_copy_limited(path_disp, notepad_dialog_path, 64);
+    gfx_draw_text(L.path_row.x, L.path_row.y, path_disp, COLOR_BLACK);
+  }
 
   /* ── File list area (sunken) ───────────────────────────────── */
   ui_draw_panel(L.list_area, COLOR_TEXT_LIGHT, true, false);
@@ -2918,27 +3130,56 @@ static void notepad_draw_file_dialog(window_t *win) {
     if (fi >= app.dialog.file_count)
       break;
     int16_t fy = (int16_t)(L.items_y + i * DLG_ITEM_H);
+    int16_t list_bottom = (int16_t)(L.list.y + (int16_t)L.list.h - 1);
+    if (fy < L.list.y || fy + FONT_H >= list_bottom)
+      continue;
 
     if (fi == app.dialog.selected_index) {
       gfx_fill_rect((int16_t)(L.list.x + 1), fy, (uint16_t)(L.list.w - 1),
-                    DLG_ITEM_H, COLOR_BUTTON);
+                    DLG_ITEM_H, 0x000080);
     }
 
     uint32_t tc =
-        (fi == app.dialog.selected_index) ? COLOR_TEXT_LIGHT : COLOR_BLACK;
+        (fi == app.dialog.selected_index) ? 0xFFFFFF : COLOR_BLACK;
 
-    if (app.dialog.files[fi].is_directory) {
-      gfx_draw_text((int16_t)(L.list.x + 3), (int16_t)(fy + 1), "[D]",
-                    COLOR_HIGHLIGHT);
-      gfx_draw_text((int16_t)(L.list.x + 28), (int16_t)(fy + 1),
-                    app.dialog.files[fi].filename, tc);
-    } else {
-      gfx_draw_char((int16_t)(L.list.x + 3), (int16_t)(fy + 1), '|',
-                    COLOR_TEXT);
-      gfx_draw_char((int16_t)(L.list.x + 8), (int16_t)(fy + 1), '=',
-                    COLOR_TEXT);
-      gfx_draw_text((int16_t)(L.list.x + 18), (int16_t)(fy + 1),
-                    app.dialog.files[fi].filename, tc);
+    {
+      char name_buf[40];
+      int max_name_px = size_col_x - ((int)L.list.x + 28) - 4;
+      int max_name_chars = max_name_px / FONT_W;
+      if (max_name_chars < 1)
+        max_name_chars = 1;
+      if (max_name_chars > 35)
+        max_name_chars = 35;
+
+      int ni = 0;
+      const char *src_name = app.dialog.files[fi].filename;
+      while (src_name[ni] && ni < max_name_chars) {
+        name_buf[ni] = src_name[ni];
+        ni++;
+      }
+      if (src_name[ni] && max_name_chars >= 3) {
+        name_buf[max_name_chars - 3] = '.';
+        name_buf[max_name_chars - 2] = '.';
+        name_buf[max_name_chars - 1] = '.';
+        ni = max_name_chars;
+      }
+      name_buf[ni] = '\0';
+
+      if (app.dialog.files[fi].is_directory) {
+        uint32_t dir_col =
+          (fi == app.dialog.selected_index) ? COLOR_TEXT_LIGHT : 0x0000AA;
+        gfx_draw_text((int16_t)(L.list.x + 3), (int16_t)(fy + 1), "[D]",
+                      dir_col);
+        gfx_draw_text((int16_t)(L.list.x + 28), (int16_t)(fy + 1), name_buf,
+                      tc);
+      } else {
+        gfx_draw_char((int16_t)(L.list.x + 3), (int16_t)(fy + 1), '|',
+                      COLOR_TEXT);
+        gfx_draw_char((int16_t)(L.list.x + 8), (int16_t)(fy + 1), '=',
+                      COLOR_TEXT);
+        gfx_draw_text((int16_t)(L.list.x + 18), (int16_t)(fy + 1), name_buf,
+                      tc);
+      }
     }
 
     /* File size */
@@ -2993,8 +3234,8 @@ static void notepad_draw_file_dialog(window_t *win) {
   ui_draw_textfield(L.input_field, app.dialog.input, app.dialog.input_len);
 
   /* ── OK and Cancel buttons ─────────────────────────────────── */
-  ui_draw_button(L.ok_btn, app.dialog.save_mode ? "Save" : "Open", true);
-  ui_draw_button(L.cancel_btn, "Cancel", false);
+  ui_draw_button(L.ok_btn, "OK", true);
+  ui_draw_button(L.cancel_btn, "Cancel", true);
 
   /* ── File count status ─────────────────────────────────────── */
   {
@@ -3536,6 +3777,8 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   if (!win)
     return;
   if (!(win->flags & WINDOW_FLAG_FOCUSED))
+    return;
+  if (win->flags & (WINDOW_FLAG_DRAGGING | WINDOW_FLAG_RESIZING))
     return;
 
   bool pressed = (buttons & 0x01) && !(prev_buttons & 0x01);

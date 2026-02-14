@@ -54,6 +54,13 @@ typedef enum {
   CC_TOK_INT,
   CC_TOK_CHAR,
   CC_TOK_VOID,
+  CC_TOK_U0,
+  CC_TOK_U8,
+  CC_TOK_U16,
+  CC_TOK_U32,
+  CC_TOK_I8,
+  CC_TOK_I16,
+  CC_TOK_I32,
   CC_TOK_IF,
   CC_TOK_ELSE,
   CC_TOK_WHILE,
@@ -63,11 +70,14 @@ typedef enum {
   CC_TOK_BREAK,
   CC_TOK_CONTINUE,
   CC_TOK_STRUCT,
+  CC_TOK_CLASS,
   CC_TOK_SIZEOF,
   CC_TOK_DO,
   CC_TOK_SWITCH,
   CC_TOK_CASE,
   CC_TOK_DEFAULT,
+  CC_TOK_NEW,
+  CC_TOK_DEL,
   CC_TOK_BOOL,
   CC_TOK_ENUM,
   CC_TOK_UNSIGNED,
@@ -75,6 +85,8 @@ typedef enum {
   CC_TOK_CONST,
   CC_TOK_STATIC,
   CC_TOK_VOLATILE,
+  CC_TOK_REG,
+  CC_TOK_NOREG,
 
   /* Identifiers and literals */
   CC_TOK_IDENT,    /* variable/function names               */
@@ -169,6 +181,17 @@ typedef enum {
   TYPE_STRUCT_PTR, /* pointer to struct                     */
   TYPE_FUNC_PTR    /* int (*fn)(...) — function pointer     */
 } cc_type_t;
+
+/* HolyC-style type aliases (kept as aliases for full backward compatibility)
+ */
+#define TYPE_U0 TYPE_VOID
+#define TYPE_U8 TYPE_CHAR
+#define TYPE_U16 TYPE_INT
+#define TYPE_U32 TYPE_INT
+#define TYPE_I8 TYPE_CHAR
+#define TYPE_I16 TYPE_INT
+#define TYPE_I32 TYPE_INT
+#define TYPE_BOOL TYPE_INT
 
 /* Symbol entry */
 typedef struct {
@@ -284,6 +307,14 @@ typedef struct {
  * @param path  VFS path to the .cc source file
  */
 void cupidc_jit(const char *path);
+
+/**
+ * cupidc_jit_status — Compile and execute, returning success/failure.
+ *
+ * @param path  VFS path to the .cc source file
+ * @return 0 on success, -1 on compile/load/run setup failure
+ */
+int cupidc_jit_status(const char *path);
 
 /**
  * cupidc_aot — Compile a .cc source to an ELF32 binary on disk.

@@ -1768,13 +1768,13 @@ void gfx2d_draw_cursor(void) {
 /* ── Dialog constants ─────────────────────────────────────────────── */
 #define FDLG_MAX_FILES    64
 #define FDLG_INPUT_MAX    64
-#define FDLG_W            420
+#define FDLG_W            400
 #define FDLG_H            300
-#define FDLG_LIST_H       180
-#define FDLG_ITEM_H       10
+#define FDLG_LIST_H       190
+#define FDLG_ITEM_H       14
 #define FDLG_SCROLLBAR_W  12
-#define FDLG_BTN_W        70
-#define FDLG_BTN_H        20
+#define FDLG_BTN_W        60
+#define FDLG_BTN_H        24
 
 /* ── File entry ───────────────────────────────────────────────────── */
 typedef struct {
@@ -1787,6 +1787,7 @@ typedef struct {
 typedef struct {
   ui_rect_t dialog;
   ui_rect_t titlebar;
+  ui_rect_t path_row;
   ui_rect_t list_area;
   ui_rect_t list;
   ui_rect_t scrollbar;
@@ -2021,15 +2022,19 @@ static fdlg_layout_t fdlg_get_layout(void) {
   L.dialog = ui_rect(dx, dy, FDLG_W, FDLG_H);
 
   /* Title bar */
-  L.titlebar = ui_rect((int16_t)(dx + 2), (int16_t)(dy + 2),
-                       (uint16_t)(FDLG_W - 4), 16);
+  L.titlebar = ui_rect((int16_t)(dx + 3), (int16_t)(dy + 3),
+                       (uint16_t)(FDLG_W - 6), 20);
+
+  /* Current path row */
+  L.path_row = ui_rect((int16_t)(dx + 10), (int16_t)(dy + 28),
+                       (uint16_t)(FDLG_W - 20), 10);
 
   /* File list + scrollbar sunken area */
-  int16_t list_x = (int16_t)(dx + 4);
-  int16_t list_y = (int16_t)(dy + 22);
-  uint16_t list_inner_w = (uint16_t)(FDLG_W - 8 - FDLG_SCROLLBAR_W);
+  int16_t list_x = (int16_t)(dx + 10);
+  int16_t list_y = (int16_t)(dy + 40);
+  uint16_t list_inner_w = (uint16_t)(FDLG_W - 20 - FDLG_SCROLLBAR_W);
 
-  L.list_area = ui_rect(list_x, list_y, (uint16_t)(FDLG_W - 8), FDLG_LIST_H);
+  L.list_area = ui_rect(list_x, list_y, (uint16_t)(FDLG_W - 20), FDLG_LIST_H);
   L.list = ui_rect(list_x, list_y, list_inner_w, FDLG_LIST_H);
   L.scrollbar = ui_rect((int16_t)(list_x + (int16_t)list_inner_w),
                         (int16_t)(list_y + 1),
@@ -2042,22 +2047,21 @@ static fdlg_layout_t fdlg_get_layout(void) {
   if (L.items_visible < 1) L.items_visible = 1;
 
   /* Input row */
-  int16_t row_y = (int16_t)(dy + 22 + FDLG_LIST_H + 6);
-  L.input_label = ui_rect((int16_t)(dx + 4), row_y, 40, 16);
-  L.input_field = ui_rect((int16_t)(dx + 44), row_y,
-                          (uint16_t)(FDLG_W - 48), 16);
+  int16_t row_y = (int16_t)(dy + 40 + FDLG_LIST_H + 14);
+  L.input_label = ui_rect((int16_t)(dx + 10), row_y, 40, 20);
+  L.input_field = ui_rect((int16_t)(dx + 50), row_y,
+                          (uint16_t)(FDLG_W - 60 - 140), 20);
 
-  /* Buttons */
-  int16_t btn_y = (int16_t)(dy + FDLG_H - FDLG_BTN_H - 6);
-  L.ok_btn = ui_rect((int16_t)(dx + 4), btn_y, FDLG_BTN_W, FDLG_BTN_H);
-  L.cancel_btn = ui_rect((int16_t)(dx + 4 + FDLG_BTN_W + 8), btn_y,
+  /* Buttons (right side) */
+  int16_t btn_y = row_y;
+  L.ok_btn = ui_rect((int16_t)(dx + FDLG_W - 140), btn_y, FDLG_BTN_W, FDLG_BTN_H);
+  L.cancel_btn = ui_rect((int16_t)(dx + FDLG_W - 70), btn_y,
                          FDLG_BTN_W, FDLG_BTN_H);
 
-  /* Status text */
-  int16_t status_x = (int16_t)(dx + 4 + FDLG_BTN_W + 8 + FDLG_BTN_W + 12);
-  L.status = ui_rect(status_x, btn_y,
-                     (uint16_t)(FDLG_W - (4 + FDLG_BTN_W + 8 + FDLG_BTN_W + 12)),
-                     FDLG_BTN_H);
+  /* Status text (own bottom line) */
+  int16_t status_x = (int16_t)(dx + 10);
+  int16_t status_y = (int16_t)(dy + FDLG_H - 14);
+  L.status = ui_rect(status_x, status_y, (uint16_t)(FDLG_W - 20), 10);
 
   return L;
 }
@@ -2085,14 +2089,14 @@ static void fdlg_render(fdlg_state_t *dlg) {
   fdlg_layout_t L = fdlg_get_layout();
 
   /* Drop shadow + dialog panel */
-  ui_draw_shadow(L.dialog, COLOR_TEXT, 2);
-  ui_draw_panel(L.dialog, COLOR_WINDOW_BG, true, true);
+  ui_draw_shadow(L.dialog, COLOR_TEXT, 3);
+  ui_draw_panel(L.dialog, COLOR_BORDER, true, true);
 
   /* Title bar */
   {
     char title[48];
     int ti = 0;
-    const char *base = dlg->save_mode ? "Save As" : "Open";
+    const char *base = dlg->save_mode ? "Save File" : "Open File";
     while (base[ti]) { title[ti] = base[ti]; ti++; }
 
     /* Show filter in title if present */
@@ -2105,7 +2109,23 @@ static void fdlg_render(fdlg_state_t *dlg) {
       title[ti++] = ')';
     }
     title[ti] = '\0';
-    ui_draw_titlebar(L.titlebar, title, true);
+    gfx_fill_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h, 0x000080);
+    gfx_draw_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h,
+                  COLOR_TEXT_LIGHT);
+    gfx_draw_text((int16_t)(L.titlebar.x + 6), (int16_t)(L.titlebar.y + 6),
+                  title, 0xFFFFFF);
+  }
+
+  /* Current path row */
+  {
+    char path_disp[64];
+    int pi = 0;
+    while (dlg->current_path[pi] && pi < 63) {
+      path_disp[pi] = dlg->current_path[pi];
+      pi++;
+    }
+    path_disp[pi] = '\0';
+    gfx_draw_text(L.path_row.x, L.path_row.y, path_disp, COLOR_BLACK);
   }
 
   /* File list area (sunken) */
@@ -2127,20 +2147,50 @@ static void fdlg_render(fdlg_state_t *dlg) {
     int fi = i + dlg->scroll_offset;
     if (fi >= dlg->file_count) break;
     int16_t fy = (int16_t)(L.items_y + i * FDLG_ITEM_H);
+    int16_t list_bottom = (int16_t)(L.list.y + (int16_t)L.list.h - 1);
+    if (fy < L.list.y || fy + FONT_H >= list_bottom)
+      continue;
 
     /* Highlight selected row */
     if (fi == dlg->selected_index) {
       gfx_fill_rect((int16_t)(L.list.x + 1), fy,
-                    (uint16_t)(L.list.w - 1), FDLG_ITEM_H, COLOR_BUTTON);
+                    (uint16_t)(L.list.w - 1), FDLG_ITEM_H, 0x000080);
     }
 
     uint32_t tc = (fi == dlg->selected_index) ? COLOR_TEXT_LIGHT : COLOR_BLACK;
 
+    char name_buf[40];
+    {
+      int name_start_x = (dlg->files[fi].is_directory) ? ((int)L.list.x + 28)
+                                                       : ((int)L.list.x + 18);
+      int max_name_px = size_col_x - name_start_x - 4;
+      int max_name_chars = max_name_px / FONT_W;
+      if (max_name_chars < 1)
+        max_name_chars = 1;
+      if (max_name_chars > 35)
+        max_name_chars = 35;
+
+      int ni = 0;
+      const char *src_name = dlg->files[fi].name;
+      while (src_name[ni] && ni < max_name_chars) {
+        name_buf[ni] = src_name[ni];
+        ni++;
+      }
+      if (src_name[ni] && max_name_chars >= 3) {
+        name_buf[max_name_chars - 3] = '.';
+        name_buf[max_name_chars - 2] = '.';
+        name_buf[max_name_chars - 1] = '.';
+        ni = max_name_chars;
+      }
+      name_buf[ni] = '\0';
+    }
+
     if (dlg->files[fi].is_directory) {
+      uint32_t dir_col = (fi == dlg->selected_index) ? COLOR_TEXT_LIGHT : 0x0000AA;
       gfx_draw_text((int16_t)(L.list.x + 3), (int16_t)(fy + 1),
-                    "[D]", COLOR_HIGHLIGHT);
+                    "[D]", dir_col);
       gfx_draw_text((int16_t)(L.list.x + 28), (int16_t)(fy + 1),
-                    dlg->files[fi].name, tc);
+                    name_buf, tc);
       /* Show <DIR> in size column */
       gfx_draw_text((int16_t)size_col_x, (int16_t)(fy + 1), "<DIR>", tc);
     } else {
@@ -2149,7 +2199,7 @@ static void fdlg_render(fdlg_state_t *dlg) {
       gfx_draw_char((int16_t)(L.list.x + 8), (int16_t)(fy + 1), '=',
                     COLOR_TEXT);
       gfx_draw_text((int16_t)(L.list.x + 18), (int16_t)(fy + 1),
-                    dlg->files[fi].name, tc);
+                    name_buf, tc);
 
       /* File size */
       char size_buf[16];
@@ -2184,8 +2234,8 @@ static void fdlg_render(fdlg_state_t *dlg) {
   ui_draw_textfield(L.input_field, dlg->input, dlg->input_len);
 
   /* OK / Cancel buttons */
-  ui_draw_button(L.ok_btn, dlg->save_mode ? "Save" : "Open", true);
-  ui_draw_button(L.cancel_btn, "Cancel", false);
+  ui_draw_button(L.ok_btn, "OK", true);
+  ui_draw_button(L.cancel_btn, "Cancel", true);
 
   /* File count status */
   {
@@ -2201,10 +2251,6 @@ static void fdlg_render(fdlg_state_t *dlg) {
     ui_draw_label(L.status, count_buf, COLOR_TEXT, UI_ALIGN_LEFT);
   }
 
-  /* Current path at bottom */
-  gfx_draw_text((int16_t)(L.dialog.x + 4),
-                (int16_t)(L.dialog.y + FDLG_H - 10),
-                dlg->current_path, COLOR_TEXT);
 }
 
 /* ── Confirm action (enter / OK button) ───────────────────────────── */

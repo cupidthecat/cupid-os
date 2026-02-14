@@ -1400,7 +1400,7 @@ void desktop_run_minimized_loop(const char *app_name) {
 
       /* Always forward current button state so window dragging/release works. */
       gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
-      {
+      if (!gui_is_dragging_any()) {
         int np_wid = notepad_get_wid();
         window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
         if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
@@ -1580,11 +1580,13 @@ void desktop_run(void) {
         /* If click was outside calendar, pass through to window manager */
         if (!click_inside) {
           gui_handle_mouse(mouse.x, mouse.y, btn, prev);
-          /* Also forward to notepad if its window is focused */
-          int np_wid = notepad_get_wid();
-          window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
-          if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
-            notepad_handle_mouse(mouse.x, mouse.y, btn, prev);
+          if (!gui_is_dragging_any()) {
+            /* Also forward to notepad if its window is focused */
+            int np_wid = notepad_get_wid();
+            window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+            if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+              notepad_handle_mouse(mouse.x, mouse.y, btn, prev);
+            }
           }
         }
       }
@@ -1613,11 +1615,13 @@ void desktop_run(void) {
       /* Forward to GUI window manager */
       else {
         gui_handle_mouse(mouse.x, mouse.y, btn, prev);
-        /* Also forward to notepad if its window is focused */
-        int np_wid = notepad_get_wid();
-        window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
-        if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
-          notepad_handle_mouse(mouse.x, mouse.y, btn, prev);
+        if (!gui_is_dragging_any()) {
+          /* Also forward to notepad if its window is focused */
+          int np_wid = notepad_get_wid();
+          window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+          if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+            notepad_handle_mouse(mouse.x, mouse.y, btn, prev);
+          }
         }
       }
     }

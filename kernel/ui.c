@@ -177,14 +177,58 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
     /* Sunken background */
     ui_draw_panel(r, COLOR_TEXT_LIGHT, true, false);
 
-    /* Text with 2px left padding, vertically centered */
+    /* Text with 2px left padding, vertically centered (clipped to box width) */
     int16_t tx = (int16_t)(r.x + 2);
     int16_t ty = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)FONT_H) / 2));
-    gfx_draw_text(tx, ty, text, COLOR_BLACK);
+    int max_chars = ((int)r.w - 4) / FONT_W;
+    if (max_chars < 1)
+        max_chars = 1;
+
+    char visible[128];
+    int vis_len = 0;
+    int text_len = (int)strlen(text);
+    int start = 0;
+
+    if (text_len > max_chars) {
+        if (max_chars >= 4) {
+            visible[0] = '.';
+            visible[1] = '.';
+            visible[2] = '.';
+            start = text_len - (max_chars - 3);
+            if (start < 0)
+                start = 0;
+            vis_len = 3;
+            while (text[start] && vis_len < max_chars && vis_len < 127) {
+                visible[vis_len++] = text[start++];
+            }
+        } else {
+            start = text_len - max_chars;
+            if (start < 0)
+                start = 0;
+            while (text[start] && vis_len < max_chars && vis_len < 127) {
+                visible[vis_len++] = text[start++];
+            }
+        }
+    } else {
+        while (text[vis_len] && vis_len < max_chars && vis_len < 127)
+            vis_len++;
+        for (int i = 0; i < vis_len; i++)
+            visible[i] = text[i];
+    }
+    visible[vis_len] = '\0';
+
+    gfx_draw_text(tx, ty, visible, COLOR_BLACK);
 
     /* Blinking cursor */
     if (cursor_pos >= 0) {
-        int16_t cx = (int16_t)(tx + (int16_t)(cursor_pos * FONT_W));
+        int rel_cursor = cursor_pos - start;
+        if (text_len > max_chars && max_chars >= 4)
+            rel_cursor += 3;
+        if (rel_cursor < 0)
+            rel_cursor = 0;
+        if (rel_cursor > vis_len)
+            rel_cursor = vis_len;
+        int16_t cx = (int16_t)(tx + (int16_t)(rel_cursor * FONT_W));
         int16_t max_x = (int16_t)(r.x + (int16_t)r.w - 2);
         if (cx < max_x) {
             gfx_draw_vline(cx, (int16_t)(r.y + 2),

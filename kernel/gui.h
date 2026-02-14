@@ -15,6 +15,7 @@
 #define WINDOW_FLAG_FOCUSED  0x02
 #define WINDOW_FLAG_DIRTY    0x04
 #define WINDOW_FLAG_DRAGGING 0x08  /* being dragged — skip content redraw */
+#define WINDOW_FLAG_RESIZING 0x10  /* being resized */
 
 /* ── Constants ────────────────────────────────────────────────────── */
 #define MAX_WINDOWS     16
@@ -38,8 +39,11 @@ typedef struct window {
 /* ── Drag state ───────────────────────────────────────────────────── */
 typedef struct {
     bool   dragging;
+    bool   resizing;
     int    window_id;
     int16_t drag_offset_x, drag_offset_y;
+    int16_t start_mouse_x, start_mouse_y;
+    uint16_t start_width, start_height;
 } drag_state_t;
 
 /* ── Public API ───────────────────────────────────────────────────── */
@@ -77,6 +81,10 @@ window_t *gui_get_window_by_index(int i);
 /* True if any window was created, destroyed, or moved since last clear */
 bool      gui_layout_changed(void);
 void      gui_clear_layout_changed(void);
+
+/* Drag state query */
+bool      gui_is_dragging_any(void);
+bool      gui_is_dragging_window(int wid);
 
 
 #endif

@@ -104,7 +104,23 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_CHAR;
   if (strcmp(text, "void") == 0)
     return CC_TOK_VOID;
+  if (strcmp(text, "U0") == 0)
+    return CC_TOK_U0;
+  if (strcmp(text, "U8") == 0)
+    return CC_TOK_U8;
+  if (strcmp(text, "U16") == 0)
+    return CC_TOK_U16;
+  if (strcmp(text, "U32") == 0)
+    return CC_TOK_U32;
+  if (strcmp(text, "I8") == 0)
+    return CC_TOK_I8;
+  if (strcmp(text, "I16") == 0)
+    return CC_TOK_I16;
+  if (strcmp(text, "I32") == 0)
+    return CC_TOK_I32;
   if (strcmp(text, "bool") == 0)
+    return CC_TOK_BOOL;
+  if (strcmp(text, "Bool") == 0)
     return CC_TOK_BOOL;
   if (strcmp(text, "if") == 0)
     return CC_TOK_IF;
@@ -126,6 +142,8 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_CONTINUE;
   if (strcmp(text, "struct") == 0)
     return CC_TOK_STRUCT;
+  if (strcmp(text, "class") == 0)
+    return CC_TOK_CLASS;
   if (strcmp(text, "sizeof") == 0)
     return CC_TOK_SIZEOF;
   if (strcmp(text, "switch") == 0)
@@ -134,6 +152,10 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_CASE;
   if (strcmp(text, "default") == 0)
     return CC_TOK_DEFAULT;
+  if (strcmp(text, "new") == 0)
+    return CC_TOK_NEW;
+  if (strcmp(text, "del") == 0)
+    return CC_TOK_DEL;
   if (strcmp(text, "enum") == 0)
     return CC_TOK_ENUM;
   if (strcmp(text, "unsigned") == 0)
@@ -146,6 +168,10 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_STATIC;
   if (strcmp(text, "volatile") == 0)
     return CC_TOK_VOLATILE;
+  if (strcmp(text, "reg") == 0)
+    return CC_TOK_REG;
+  if (strcmp(text, "noreg") == 0)
+    return CC_TOK_NOREG;
   return CC_TOK_IDENT;
 }
 

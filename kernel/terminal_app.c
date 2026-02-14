@@ -123,6 +123,14 @@ void terminal_redraw(window_t *win) {
     uint16_t content_w = (uint16_t)(win->width - 4);
     uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - 2);
 
+    /* Keep shell wrap width in sync with current terminal width */
+    {
+        int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
+        if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
+        if (vis_cols < 1) vis_cols = 1;
+        shell_set_visible_cols(vis_cols);
+    }
+
     /* Dark terminal background */
     gfx_fill_rect(content_x, content_y, content_w, content_h, COLOR_TERM_BG);
 
@@ -222,7 +230,7 @@ void terminal_handle_key(uint8_t scancode, char character) {
         if (terminal_font_scale < 3) {
             terminal_font_scale++;
             /* Update visible cols for the shell line-wrap */
-            uint16_t content_w = (uint16_t)(TERM_WIN_W - 4);
+            uint16_t content_w = (uint16_t)(win->width - 4);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
             if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
             shell_set_visible_cols(vis_cols);
@@ -233,7 +241,7 @@ void terminal_handle_key(uint8_t scancode, char character) {
     if (ctrl_held && (scancode == SC_KEY_MINUS || character == '-' || character == '_')) {
         if (terminal_font_scale > 1) {
             terminal_font_scale--;
-            uint16_t content_w = (uint16_t)(TERM_WIN_W - 4);
+            uint16_t content_w = (uint16_t)(win->width - 4);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
             if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
             shell_set_visible_cols(vis_cols);

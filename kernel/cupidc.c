@@ -53,6 +53,163 @@ static void cc_println(const char *s) {
   print("\n");
 }
 
+typedef __builtin_va_list cc_va_list;
+#define cc_va_start(ap, last) __builtin_va_start(ap, last)
+#define cc_va_end(ap) __builtin_va_end(ap)
+#define cc_va_arg(ap, type) __builtin_va_arg(ap, type)
+
+static void cc_print_signed_i32(int32_t v) {
+  if (v < 0) {
+    print("-");
+    print_int((uint32_t)(0 - v));
+  } else {
+    print_int((uint32_t)v);
+  }
+}
+
+static void cc_print_builtin(const char *fmt, ...) {
+  if (!fmt)
+    return;
+
+  cc_va_list ap;
+  cc_va_start(ap, fmt);
+
+  while (*fmt) {
+    if (*fmt != '%') {
+      char ch[2];
+      ch[0] = *fmt;
+      ch[1] = '\0';
+      print(ch);
+      fmt++;
+      continue;
+    }
+
+    fmt++;
+    if (*fmt == '\0')
+      break;
+
+    switch (*fmt) {
+    case 'd': {
+      int32_t v = cc_va_arg(ap, int32_t);
+      cc_print_signed_i32(v);
+      break;
+    }
+    case 'u': {
+      uint32_t v = cc_va_arg(ap, uint32_t);
+      print_int(v);
+      break;
+    }
+    case 'x':
+    case 'X': {
+      uint32_t v = cc_va_arg(ap, uint32_t);
+      print_hex(v);
+      break;
+    }
+    case 'c': {
+      int v = cc_va_arg(ap, int);
+      putchar((char)v);
+      break;
+    }
+    case 's': {
+      const char *s = cc_va_arg(ap, const char *);
+      if (s)
+        print(s);
+      else
+        print("(null)");
+      break;
+    }
+    case 'p': {
+      uint32_t v = (uint32_t)cc_va_arg(ap, const void *);
+      print_hex(v);
+      break;
+    }
+    case '%':
+      print("%");
+      break;
+    default:
+      print("%");
+      putchar(*fmt);
+      break;
+    }
+    fmt++;
+  }
+
+  cc_va_end(ap);
+}
+
+static void cc_printline_builtin(const char *fmt, ...) {
+  if (!fmt) {
+    print("\n");
+    return;
+  }
+
+  cc_va_list ap;
+  cc_va_start(ap, fmt);
+
+  while (*fmt) {
+    if (*fmt != '%') {
+      char ch[2];
+      ch[0] = *fmt;
+      ch[1] = '\0';
+      print(ch);
+      fmt++;
+      continue;
+    }
+
+    fmt++;
+    if (*fmt == '\0')
+      break;
+
+    switch (*fmt) {
+    case 'd': {
+      int32_t v = cc_va_arg(ap, int32_t);
+      cc_print_signed_i32(v);
+      break;
+    }
+    case 'u': {
+      uint32_t v = cc_va_arg(ap, uint32_t);
+      print_int(v);
+      break;
+    }
+    case 'x':
+    case 'X': {
+      uint32_t v = cc_va_arg(ap, uint32_t);
+      print_hex(v);
+      break;
+    }
+    case 'c': {
+      int v = cc_va_arg(ap, int);
+      putchar((char)v);
+      break;
+    }
+    case 's': {
+      const char *s = cc_va_arg(ap, const char *);
+      if (s)
+        print(s);
+      else
+        print("(null)");
+      break;
+    }
+    case 'p': {
+      uint32_t v = (uint32_t)cc_va_arg(ap, const void *);
+      print_hex(v);
+      break;
+    }
+    case '%':
+      print("%");
+      break;
+    default:
+      print("%");
+      putchar(*fmt);
+      break;
+    }
+    fmt++;
+  }
+
+  cc_va_end(ap);
+  print("\n");
+}
+
 /* ── Wrapper for process_yield ───────────────────────────────────── */
 static void cc_yield(void) { process_yield(); }
 
@@ -381,6 +538,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   void (*p_serial_printf)(const char *, ...) = serial_printf;
   BIND("serial_printf", p_serial_printf, 1);
+
+  void (*p_cc_print_builtin)(const char *, ...) = cc_print_builtin;
+  BIND("__cc_Print", p_cc_print_builtin, 1);
+
+  void (*p_cc_printline_builtin)(const char *, ...) = cc_printline_builtin;
+  BIND("__cc_PrintLine", p_cc_printline_builtin, 1);
 
   /* Memory management */
   /* kmalloc_debug takes (size, file, line) but CupidC programs should
@@ -1068,6 +1231,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 #define CC_PP_MAX_INCLUDE_DEPTH 8
 #define CC_PP_MAX_PATH 256
 #define CC_PP_MAX_COND_DEPTH 32
+#define CC_PP_MAX_EXE_FUNCS 128
 
 typedef struct {
   char name[CC_MAX_IDENT];
@@ -1090,6 +1254,12 @@ typedef struct {
 
   int error;
   const char *error_msg;
+
+  int jit_mode;
+  int exe_skip_depth;
+  int exe_skip_reported;
+  int exe_capture_depth;
+  int exe_func_counter;
 } cc_pp_state_t;
 
 static int cc_pp_is_space(char c) {
@@ -1136,6 +1306,63 @@ static void cc_pp_append_range(cc_pp_state_t *pp, const char *start,
   const char *p = start;
   while (!pp->error && p < end) {
     cc_pp_append_char(pp, *p++);
+  }
+}
+
+static void cc_pp_append_text(cc_pp_state_t *pp, const char *s) {
+  while (!pp->error && *s) {
+    cc_pp_append_char(pp, *s++);
+  }
+}
+
+static void cc_pp_append_uint_dec(cc_pp_state_t *pp, uint32_t v) {
+  char buf[16];
+  int i = 0;
+  if (v == 0) {
+    cc_pp_append_char(pp, '0');
+    return;
+  }
+  while (v > 0 && i < (int)(sizeof(buf) - 1)) {
+    buf[i++] = (char)('0' + (v % 10u));
+    v /= 10u;
+  }
+  while (i > 0) {
+    cc_pp_append_char(pp, buf[--i]);
+  }
+}
+
+static void cc_pp_update_brace_depth(const char *start, const char *end,
+                                     int *depth) {
+  const char *p = start;
+  int in_str = 0;
+  char q = '\0';
+  while (p < end) {
+    if (!in_str && *p == '/' && (p + 1) < end && p[1] == '/') {
+      break;
+    }
+    if (!in_str && (*p == '"' || *p == '\'')) {
+      in_str = 1;
+      q = *p;
+      p++;
+      continue;
+    }
+    if (in_str) {
+      if (*p == '\\' && (p + 1) < end) {
+        p += 2;
+        continue;
+      }
+      if (*p == q) {
+        in_str = 0;
+      }
+      p++;
+      continue;
+    }
+    if (*p == '{') {
+      (*depth)++;
+    } else if (*p == '}') {
+      (*depth)--;
+    }
+    p++;
   }
 }
 
@@ -1444,6 +1671,41 @@ static void cc_pp_handle_directive(cc_pp_state_t *pp, const char *cur_path,
     pp->active = pp->cond_parent[pp->cond_depth];
     return;
   }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "exe")) {
+    if (!pp->active)
+      return;
+
+    while (p < line_end && cc_pp_is_space(*p))
+      p++;
+    if (p >= line_end || *p != '{') {
+      cc_pp_set_error(pp, "malformed #exe (expected '{')");
+      return;
+    }
+
+    if (pp->jit_mode) {
+      int exe_id;
+      int depth_local;
+      if (pp->exe_func_counter >= CC_PP_MAX_EXE_FUNCS) {
+        cc_pp_set_error(pp, "too many #exe blocks");
+        return;
+      }
+      exe_id = pp->exe_func_counter++;
+
+      cc_pp_append_text(pp, "void __cc_exe_");
+      cc_pp_append_uint_dec(pp, (uint32_t)exe_id);
+      cc_pp_append_text(pp, "(void) ");
+      cc_pp_expand_line(pp, p, line_end);
+
+      depth_local = 0;
+      cc_pp_update_brace_depth(p, line_end, &depth_local);
+      pp->exe_capture_depth = depth_local;
+    } else {
+      pp->exe_skip_depth = 1;
+      pp->exe_skip_reported = 1;
+    }
+    return;
+  }
 }
 
 static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth) {
@@ -1467,6 +1729,29 @@ static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth) {
       p++;
     const char *line_end = p;
 
+    if (pp->exe_capture_depth > 0) {
+      int depth_delta = 0;
+      cc_pp_expand_line(pp, line_start, line_end);
+      cc_pp_update_brace_depth(line_start, line_end, &depth_delta);
+      pp->exe_capture_depth += depth_delta;
+      if (*p == '\n') {
+        cc_pp_append_char(pp, '\n');
+        p++;
+      }
+      continue;
+    }
+
+    if (pp->exe_skip_depth > 0) {
+      int depth_delta = 0;
+      cc_pp_update_brace_depth(line_start, line_end, &depth_delta);
+      pp->exe_skip_depth += depth_delta;
+
+      if (*p == '\n') {
+        p++;
+      }
+      continue;
+    }
+
     const char *s = line_start;
     while (s < line_end && cc_pp_is_space(*s))
       s++;
@@ -1486,10 +1771,11 @@ static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth) {
   kfree(source);
 }
 
-static char *cc_preprocess_source(const char *path) {
+static char *cc_preprocess_source(const char *path, int jit_mode) {
   cc_pp_state_t pp;
   memset(&pp, 0, sizeof(pp));
   pp.active = 1;
+  pp.jit_mode = jit_mode;
   pp.out_cap = CC_PP_MAX_OUTPUT;
   pp.out = kmalloc(pp.out_cap);
   if (!pp.out) {
@@ -1505,6 +1791,10 @@ static char *cc_preprocess_source(const char *path) {
 
   if (!pp.error) {
     cc_pp_append_char(&pp, '\0');
+  }
+
+  if (!pp.error && !jit_mode && pp.exe_skip_reported) {
+    print("CupidC: warning: #exe blocks skipped in AOT mode\n");
   }
 
   if (pp.error) {
@@ -1583,29 +1873,39 @@ static void cc_cleanup_state(cc_state_t *cc) {
   cc->data = NULL;
 }
 
+static int cc_name_starts_with(const char *s, const char *prefix) {
+  int i = 0;
+  while (prefix[i]) {
+    if (s[i] != prefix[i])
+      return 0;
+    i++;
+  }
+  return 1;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  JIT Mode — Compile and Execute
  * ══════════════════════════════════════════════════════════════════════ */
 
-void cupidc_jit(const char *path) {
+int cupidc_jit_status(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
 
   /* Read and preprocess source file */
-  char *source = cc_preprocess_source(path);
+  char *source = cc_preprocess_source(path, 1);
   if (!source)
-    return;
+    return -1;
 
   /* Heap-allocate compiler state (~24KB — too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
   if (!cc) {
     print("CupidC: out of memory for compiler state\n");
     kfree(source);
-    return;
+    return -1;
   }
   if (cc_init_state(cc, 1) < 0) {
     kfree(cc);
     kfree(source);
-    return;
+    return -1;
   }
 
   /* Lex + parse + generate code */
@@ -1617,15 +1917,15 @@ void cupidc_jit(const char *path) {
     kfree(source);
     cc_cleanup_state(cc);
     kfree(cc);
-    return;
+    return -1;
   }
 
   if (!cc->has_entry) {
-    print("CupidC: no main() function found\n");
+    print("CupidC: no entry point found (main or top-level statements)\n");
     kfree(source);
     cc_cleanup_state(cc);
     kfree(cc);
-    return;
+    return -1;
   }
 
   serial_printf("[cupidc] Compiled: %u bytes code, %u bytes data\n",
@@ -1639,7 +1939,7 @@ void cupidc_jit(const char *path) {
     kfree(source);
     cc_cleanup_state(cc);
     kfree(cc);
-    return;
+    return -1;
   }
   if (cc->data_pos > CC_MAX_DATA) {
     serial_printf("[cupidc] ERROR: data size %u exceeds max %u\n",
@@ -1648,7 +1948,7 @@ void cupidc_jit(const char *path) {
     kfree(source);
     cc_cleanup_state(cc);
     kfree(cc);
-    return;
+    return -1;
   }
 
   /* JIT code/data regions are permanently reserved at boot by pmm_init()
@@ -1661,6 +1961,45 @@ void cupidc_jit(const char *path) {
   /* Copy code and data to execution regions */
   memcpy((void *)CC_JIT_CODE_BASE, cc->code, cc->code_pos);
   memcpy((void *)CC_JIT_DATA_BASE, cc->data, cc->data_pos);
+
+  /* Execute compile-time #exe functions once before normal entry. */
+  {
+    uint32_t called_offsets[CC_PP_MAX_EXE_FUNCS];
+    int called_count = 0;
+    int i;
+    for (i = 0; i < cc->sym_count; i++) {
+      cc_symbol_t *sym = &cc->symbols[i];
+      if (sym->kind != SYM_FUNC || !sym->is_defined)
+        continue;
+      if (!cc_name_starts_with(sym->name, "__cc_exe_"))
+        continue;
+
+      /* Dedup duplicate function symbols that share the same offset. */
+      {
+        int j;
+        int seen = 0;
+        for (j = 0; j < called_count; j++) {
+          if (called_offsets[j] == (uint32_t)sym->offset) {
+            seen = 1;
+            break;
+          }
+        }
+        if (seen)
+          continue;
+      }
+
+      {
+        uint32_t fn_addr = CC_JIT_CODE_BASE + (uint32_t)sym->offset;
+        void (*fn)(void);
+        memcpy(&fn, &fn_addr, sizeof(fn));
+        fn();
+      }
+
+      if (called_count < CC_PP_MAX_EXE_FUNCS) {
+        called_offsets[called_count++] = (uint32_t)sym->offset;
+      }
+    }
+  }
 
   /* Calculate entry point */
   uint32_t entry_addr = CC_JIT_CODE_BASE + cc->entry_offset;
@@ -1698,7 +2037,10 @@ void cupidc_jit(const char *path) {
   kfree(source);
   cc_cleanup_state(cc);
   kfree(cc);
+  return 0;
 }
+
+void cupidc_jit(const char *path) { (void)cupidc_jit_status(path); }
 
 /* ══════════════════════════════════════════════════════════════════════
  *  AOT Mode — Compile to ELF Binary
@@ -1708,7 +2050,7 @@ void cupidc_aot(const char *src_path, const char *out_path) {
   serial_printf("[cupidc] AOT compile: %s -> %s\n", src_path, out_path);
 
   /* Read and preprocess source file */
-  char *source = cc_preprocess_source(src_path);
+  char *source = cc_preprocess_source(src_path, 0);
   if (!source)
     return;
 
@@ -1738,7 +2080,7 @@ void cupidc_aot(const char *src_path, const char *out_path) {
   }
 
   if (!cc->has_entry) {
-    print("CupidC: no main() function found\n");
+    print("CupidC: no entry point found (main or top-level statements)\n");
     kfree(source);
     cc_cleanup_state(cc);
     kfree(cc);
