@@ -4,6 +4,8 @@
 //help: controller to perform a hardware reboot.
 
 void main() {
+    println("Syncing disk cache...");
+    blockcache_sync();
     println("Rebooting...");
     asm { cli; }
     // Wait for keyboard controller ready

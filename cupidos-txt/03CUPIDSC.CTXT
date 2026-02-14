@@ -1,6 +1,17 @@
 >comment CupidMark converted document
 >h1 CupidScript Guide (.cup)
 Verified against source on: 2026-02-13
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
 
 >h2 What It Is
 CupidScript is CupidOS's shell scripting language.

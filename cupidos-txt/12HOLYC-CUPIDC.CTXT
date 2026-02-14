@@ -1,0 +1,125 @@
+>comment CupidMark converted document
+>h1 HolyC-Style CupidC Features
+Verified against source on: 2026-02-13
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
+
+>h2 Purpose
+This page documents HolyC-inspired language features currently implemented in
+CupidC, plus important behavior notes.
+
+>h2 Feature 1: Sized Type Keywords
+Supported keywords:
+  U0, U8, U16, U32, I8, I16, I32, Bool
+
+Compatibility:
+- Legacy int/char/void code continues to work.
+- Bool is accepted as a language type token.
+
+>h2 Feature 2: Top-Level Execution
+Main is no longer mandatory.
+
+These both work:
+  U32 x = 7;
+  Print("x=%u\n", x);
+
+and:
+  void main() { ... }
+
+If both exist, top-level statements run and then main() is called.
+
+>h2 Feature 3: class Syntax + Methods
+class is accepted as a struct-style data type with methods.
+
+Method call forms supported:
+  obj.Method(...)
+  ptr->Method(...)
+
+Methods compile with implicit self parameter lowering.
+
+>h2 Feature 4: Forward Function Calls
+Two-pass symbol registration supports calling functions before their bodies
+appear in the file.
+
+Example style:
+  U32 A() { return B(); }
+  U32 B() { return 42; }
+
+>h2 Feature 5: Print Builtin
+Language-level builtins:
+  Print(fmt, ...)
+  PrintLine("text")
+
+Format support includes practical console cases used by CupidC demos:
+  %d %u %x %X %s %c %p %%
+
+>h2 Feature 6: #exe Blocks
+#exe is implemented.
+
+Behavior:
+- JIT mode: #exe blocks are transformed to hidden functions and executed once
+  before normal entry.
+- AOT mode: #exe blocks are skipped with warning.
+
+>h2 Feature 7: new / del
+Supported forms:
+  new T
+  new T[n]
+  del p;
+
+Lowering behavior:
+- new: kmalloc + zero-init
+- del: kfree + pointer reset to null
+
+>h2 Feature 8: reg / noreg
+reg and noreg are accepted as storage hints.
+
+Current behavior:
+- Parsed and accepted.
+- Treated as semantic no-op hints in current compiler backend.
+
+>h2 Feature 9: Absolute Addressing Sugar
+Literal-to-pointer style is supported for systems-style memory access.
+
+Typical pattern:
+  U8 *v = (U8*)0xB8000;
+
+>h2 Feature 10: cc Interactive REPL
+Shell command:
+  cc
+
+REPL behavior:
+- Multi-line blocks supported via brace balancing.
+- Code compiles when block is complete.
+- Failed snippets are not committed to session state.
+- Exit with Ctrl+D, .exit, or exit.
+
+File mode:
+  cc /path/to/file.cc
+
+>h2 Related Demo Programs
+Feature demos are in /bin:
+  feature1_types.cc
+  feature2_top_level.cc
+  feature3_class.cc
+  feature4_forward_calls.cc
+  feature5_print_builtin.cc
+  feature6_exe.cc
+  feature7_new_del.cc
+  feature8_reg_noreg.cc
+  feature9_abs_addr.cc
+  feature10_repl.cc
+
+>h2 Practical Notes
+1) CupidC is intentionally small and kernel-integrated, not full GCC C.
+2) Keep programs simple, direct, and one-file where possible.
+3) For large programs, prefer incremental testing with small compile units.

@@ -1,6 +1,17 @@
 >comment CupidMark converted document
 >h1 CupidOS User Documentation
 Verified against source on: 2026-02-13
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
 
 This folder is a source-verified documentation set for users inside CupidOS.
 It focuses on what is implemented now, not just planned wiki features.
@@ -17,6 +28,12 @@ It focuses on what is implemented now, not just planned wiki features.
 08CMDS.TXT    - Command quick reference (built-ins + /bin programs)
 09EMBED.TXT   - How to embed docs into ramfs/fat16 for in-OS reading
 10ASM.txt     - CupidASM guide (.asm), JIT/AOT usage, syntax, limitations
+11CTXT.TXT   - How .CTXT docs are written, parsed, and organized
+12HOLYC-CUPIDC.TXT - HolyC-inspired CupidC feature reference (implemented now)
+
+>box
+Manual tip: Press F2 in Notepad to switch between source and rendered view.
+>endbox
 
 >h2 What Is Important To Know First
 1) The shell is command-dispatch driven:
@@ -44,3 +61,5 @@ It focuses on what is implemented now, not just planned wiki features.
 5) 06GUITERM.TXT
 6) 07LABS.TXT
 7) 08CMDS.TXT as a lookup reference
+8) 11CTXT.TXT when writing new documentation pages
+9) 12HOLYC-CUPIDC.TXT for HolyC-style CupidC language features

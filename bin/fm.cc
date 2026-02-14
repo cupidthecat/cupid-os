@@ -123,6 +123,16 @@ int fm_ends_with_txt(char *name) {
          fm_tolower(name[n - 1]) == 't';
 }
 
+int fm_ends_with_ctxt(char *name) {
+  int n = fm_strlen(name);
+  if (n < 5) return 0;
+  return fm_tolower(name[n - 5]) == '.' &&
+         fm_tolower(name[n - 4]) == 'c' &&
+         fm_tolower(name[n - 3]) == 't' &&
+         fm_tolower(name[n - 2]) == 'x' &&
+         fm_tolower(name[n - 1]) == 't';
+}
+
 int fm_ends_with_cc(char *name) {
   int n = fm_strlen(name);
   if (n < 3) return 0;
@@ -280,6 +290,7 @@ void fm_open_selected() {
     /* Open text/code files in GUI Notepad.
      * CupidFM is fullscreen; minimize it so desktop input can reach Notepad. */
     if (fm_ends_with_txt(files[cursor_idx].name) ||
+        fm_ends_with_ctxt(files[cursor_idx].name) ||
         fm_ends_with_cc(files[cursor_idx].name)) {
       notepad_open_file(path);
       gfx2d_minimize("CupidFM");

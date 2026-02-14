@@ -1,0 +1,110 @@
+>comment CupidMark converted document
+>h1 .CTXT Manual Format Guide
+Verified against source on: 2026-02-13
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
+
+>h2 What .CTXT Is
+.CTXT is plain text source with lightweight render tags used by Notepad render mode.
+It is designed for docs that still read cleanly in source form.
+
+>h2 Render Basics
+Open any .ctxt file in Notepad and press F2 to toggle:
+- Source mode (editable raw text)
+- Render mode (manual-style presentation)
+
+>h2 Line Tags
+Supported block tags:
+- >h1 / >h2 / >h3        headings
+- >rule                  horizontal separator
+- >center Text           centered line
+- >comment ...           source-only comment (not rendered)
+- >box [#RRGGBB]         callout block start (optional custom bg)
+- >endbox                callout block end
+- >color #RRGGBB         set running body text color
+- >text #RRGGBB          alias of >color
+- >color                 reset running body text color
+- >theme dark|light      base palette preset
+
+>h2 Style Palette Overrides
+Use >style to customize document palette from inside the text itself.
+
+Syntax:
+   >style <key> #RRGGBB
+   >style reset
+
+Keys:
+- bg, h1, h2, h3
+- body, rule
+- box, boxbg, boxtext
+- link, linkhover
+
+Example:
+   >style bg #0A1222
+   >style body #E8EEFF
+   >style h2 #82B0FF
+
+>h2 Inline Styling Tags
+Inline tags can appear inside normal text lines.
+
+Color:
+   {c:#RRGGBB}colored text{}
+
+Background highlight:
+   {bg:#203050}highlight{}
+
+Bold / underline:
+   {b}bold{/b}
+   {u}underlined{/u}
+
+Code span:
+   {code}literal{/code}
+
+Reset all inline state:
+   {}
+
+>box
+Tip: Inline tags keep source readable while giving render mode a true manual look.
+>endbox
+
+>h2 Links
+Two link forms are supported:
+1) Markdown style:
+    [Open CupidC Guide](04CUPIDC.CTXT)
+2) Bare path-like tokens:
+    /docs/04CUPIDC.ctxt
+
+Links are clickable in render mode.
+
+>h2 Manual Template
+Use this as a starter:
+
+>comment CupidMark converted document
+>h1 My Manual Page
+Verified against source on: YYYY-MM-DD
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style rule #B8B1A3
+>rule
+
+>h2 Overview
+One short paragraph.
+
+>h2 Quick Steps
+1) Step one
+2) Step two
+
+>box
+Use {code}inline code{/code}, {b}emphasis{/b}, and {u}important notes{/u}.
+>endbox
