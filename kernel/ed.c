@@ -1,4 +1,5 @@
 /**
+ *  outdated - ed was rewritten in cupid c 
  * ed.c - Ed line editor for cupid-os
  *
  * A faithful implementation of the classic Unix ed(1) line editor.

@@ -95,6 +95,7 @@ extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
  * That's it — everything else is automatic. */
 extern void install_bin_programs(void *fs_private);
 extern void install_docs_programs(void *fs_private);
+extern void install_demo_programs(void *fs_private);
 
 
 /**
@@ -607,6 +608,8 @@ void kmain(void) {
     /* Create standard directories */
     vfs_mkdir("/bin");
     vfs_mkdir("/docs");
+    vfs_mkdir("/docs/demos");
+    vfs_mkdir("/demos");
     vfs_mkdir("/tmp");
     vfs_mkdir("/home");
 
@@ -676,6 +679,11 @@ void kmain(void) {
              * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt */
             install_docs_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidDoc files");
+
+            /* ── Embedded CupidASM demo files ─────────────────────
+             * Auto-installed from demos .asm files into /demos .asm */
+            install_demo_programs(root_mnt->fs_private);
+            KINFO("Installed embedded CupidASM demos");
         }
     }
     KINFO("VFS initialized");

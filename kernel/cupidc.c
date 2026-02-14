@@ -2107,3 +2107,79 @@ void cupidc_aot(const char *src_path, const char *out_path) {
   cc_cleanup_state(cc);
   kfree(cc);
 }
+
+void cupidc_dis(const char *src_path, dis_output_fn out_fn) {
+  char *source;
+  cc_state_t *cc;
+  dis_sym_t syms[DIS_MAX_SYMS];
+  int i;
+  int nsyms = 0;
+
+  if (!src_path || src_path[0] == '\0') {
+    if (out_fn)
+      out_fn("cupidc dis: invalid source path\n");
+    else
+      print("cupidc dis: invalid source path\n");
+    return;
+  }
+
+  source = cc_preprocess_source(src_path, 1);
+  if (!source)
+    return;
+
+  cc = kmalloc(sizeof(cc_state_t));
+  if (!cc) {
+    if (out_fn)
+      out_fn("CupidC: out of memory for compiler state\n");
+    else
+      print("CupidC: out of memory for compiler state\n");
+    kfree(source);
+    return;
+  }
+
+  if (cc_init_state(cc, 1) < 0) {
+    kfree(cc);
+    kfree(source);
+    return;
+  }
+
+  cc_lex_init(cc, source);
+  cc_parse_program(cc);
+
+  if (cc->error) {
+    if (out_fn)
+      out_fn(cc->error_msg);
+    else
+      print(cc->error_msg);
+    kfree(source);
+    cc_cleanup_state(cc);
+    kfree(cc);
+    return;
+  }
+
+  for (i = 0; i < cc->sym_count && nsyms < DIS_MAX_SYMS; i++) {
+    const cc_symbol_t *sym = &cc->symbols[i];
+    int k;
+
+    if (sym->kind != SYM_FUNC || !sym->is_defined) {
+      continue;
+    }
+
+    syms[nsyms].addr = CC_JIT_CODE_BASE + (uint32_t)sym->offset;
+    for (k = 0; k < (int)sizeof(syms[nsyms].name) - 1; k++) {
+      char c = sym->name[k];
+      syms[nsyms].name[k] = c;
+      if (c == '\0') {
+        break;
+      }
+    }
+    syms[nsyms].name[sizeof(syms[nsyms].name) - 1] = '\0';
+    nsyms++;
+  }
+
+  dis_disassemble(cc->code, cc->code_pos, CC_JIT_CODE_BASE, syms, nsyms, out_fn);
+
+  kfree(source);
+  cc_cleanup_state(cc);
+  kfree(cc);
+}

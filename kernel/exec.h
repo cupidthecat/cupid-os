@@ -65,6 +65,36 @@ typedef struct {
     uint32_t p_align;           /* Alignment (power of 2)           */
 } __attribute__((packed)) elf32_phdr_t;
 
+/* ── ELF32 section header (40 bytes) ─────────────────────────────── */
+typedef struct {
+    uint32_t sh_name;       /* Section name (index into string table)  */
+    uint32_t sh_type;       /* Section type                             */
+    uint32_t sh_flags;      /* Section flags                            */
+    uint32_t sh_addr;       /* Section virtual address                  */
+    uint32_t sh_offset;     /* Offset in file                           */
+    uint32_t sh_size;       /* Section size in bytes                    */
+    uint32_t sh_link;       /* Link to another section                  */
+    uint32_t sh_info;       /* Additional information                   */
+    uint32_t sh_addralign;  /* Address alignment                        */
+    uint32_t sh_entsize;    /* Entry size (for tables)                  */
+} __attribute__((packed)) elf32_shdr_t;
+
+#define ELF_SHT_NULL    0   /* Null section                             */
+#define ELF_SHT_SYMTAB  2   /* Symbol table section type                */
+#define ELF_SHT_STRTAB  3   /* String table section type                */
+#define ELF_STB_GLOBAL  1   /* Global binding (in st_info high nibble)  */
+#define ELF_STT_FUNC    2   /* Function type (in st_info low nibble)    */
+
+/* ── ELF32 symbol table entry (16 bytes) ─────────────────────────── */
+typedef struct {
+    uint32_t st_name;   /* Symbol name (index into string table)      */
+    uint32_t st_value;  /* Symbol value (address for functions)        */
+    uint32_t st_size;   /* Symbol size in bytes                        */
+    uint8_t  st_info;   /* Symbol type and binding                     */
+    uint8_t  st_other;  /* Symbol visibility                           */
+    uint16_t st_shndx;  /* Section index                               */
+} __attribute__((packed)) elf32_sym_t;
+
 /**
  * exec — Load and execute a binary from the VFS.
  *

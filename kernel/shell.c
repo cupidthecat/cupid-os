@@ -5,6 +5,7 @@
 #include "blockcache.h"
 #include "calendar.h"
 #include "as.h"
+#include "dis.h"
 #include "cupidc.h"
 #include "cupidscript.h"
 #include "desktop.h"
@@ -487,6 +488,7 @@ static void shell_cc_cmd(const char *args);
 static void shell_ccc_cmd(const char *args);
 static void shell_asm_cmd(const char *args);
 static void shell_cupidasm_cmd(const char *args);
+static void shell_dis_cmd(const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -499,6 +501,7 @@ static struct shell_command commands[] = {
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
     {"as", "Assemble and run .asm file", shell_asm_cmd},
     {"cupidasm", "Assemble .asm to ELF binary", shell_cupidasm_cmd},
+    {"dis", "Disassemble ELF binary or .cc file", shell_dis_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -1005,6 +1008,19 @@ static void shell_exec_cmd(const char *args) {
     return;
   }
 
+  /* exec -d <file> : disassemble instead of execute */
+  if (args[0] == '-' && args[1] == 'd' && args[2] == ' ') {
+    char rpath[VFS_MAX_PATH];
+    const char *file = args + 3;
+    shell_resolve_path(file, rpath);
+    if (shell_ends_with(rpath, ".cc")) {
+      cupidc_dis(rpath, shell_print);
+    } else {
+      (void)dis_elf(rpath, shell_print);
+    }
+    return;
+  }
+
   /* Split first word (program path) from remaining arguments */
   char prog[VFS_MAX_PATH];
   int pi = 0;
@@ -1289,6 +1305,14 @@ static void shell_cc_cmd(const char *args) {
     return;
   }
 
+  if (args[0] == '-' && args[1] == 'd' && args[2] == ' ') {
+    char rpath[VFS_MAX_PATH];
+    const char *file = args + 3;
+    shell_resolve_path(file, rpath);
+    cupidc_dis(rpath, shell_print);
+    return;
+  }
+
   /* cc <file.cc> behaves like cupidc <file.cc> */
   char rpath[VFS_MAX_PATH];
   shell_resolve_path(args, rpath);
@@ -1508,6 +1532,40 @@ static void shell_cupidasm_cmd(const char *args) {
   shell_resolve_path(out, rout);
 
   as_aot(rsrc, rout);
+}
+
+static void shell_dis_cmd(const char *args) {
+  char path[VFS_MAX_PATH];
+  char rpath[VFS_MAX_PATH];
+  int ai = 0;
+  int pi = 0;
+  int len;
+
+  if (!args || args[0] == '\0') {
+    shell_print("Usage: dis <file.elf|file.cc>\n");
+    return;
+  }
+
+  while (args[ai] == ' ')
+    ai++;
+  while (args[ai] && args[ai] != ' ' && pi < VFS_MAX_PATH - 1) {
+    path[pi++] = args[ai++];
+  }
+  path[pi] = '\0';
+
+  if (path[0] == '\0') {
+    shell_print("Usage: dis <file.elf|file.cc>\n");
+    return;
+  }
+
+  shell_resolve_path(path, rpath);
+  len = (int)strlen(rpath);
+  if (len >= 3 && rpath[len - 3] == '.' && rpath[len - 2] == 'c' &&
+      rpath[len - 1] == 'c') {
+    cupidc_dis(rpath, shell_print);
+  } else {
+    (void)dis_elf(rpath, shell_print);
+  }
 }
 
 /* ── shell_execute_line: public interface for CupidScript ── */

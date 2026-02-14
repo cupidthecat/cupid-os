@@ -19,6 +19,7 @@
 #define CUPIDC_H
 
 #include "types.h"
+#include "dis.h"
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Limits
@@ -323,6 +324,14 @@ int cupidc_jit_status(const char *path);
  * @param out_path   VFS path for the output ELF binary
  */
 void cupidc_aot(const char *src_path, const char *out_path);
+
+/**
+ * cupidc_dis — Compile a .cc source and disassemble generated code.
+ *
+ * @param src_path  VFS path to .cc source file
+ * @param out_fn    Output callback (NULL uses kernel print)
+ */
+void cupidc_dis(const char *src_path, dis_output_fn out_fn);
 
 /* ── Lexer API (used internally) ─────────────────────────────────── */
 void cc_lex_init(cc_state_t *cc, const char *source);
