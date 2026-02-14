@@ -94,6 +94,9 @@ typedef struct {
     uint32_t file_size;
     uint32_t position;
     uint8_t is_open;
+    uint16_t cached_cluster;
+    uint32_t cached_cluster_index;
+    uint8_t cache_valid;
 } fat16_file_t;
 
 // Callback for enumerating directory entries
@@ -116,5 +119,9 @@ int fat16_mkdir(const char *dirname);
 int fat16_is_dir(const char *dirname);
 int fat16_enumerate_subdir(const char *dirname,
                            fat16_enum_callback_t callback, void *ctx);
+
+/* Storage capacity helpers (valid after fat16_init) */
+uint32_t fat16_total_bytes(void);
+uint32_t fat16_free_bytes(void);
 
 #endif

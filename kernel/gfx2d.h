@@ -130,6 +130,7 @@ void gfx2d_surface_set_active(int handle); /* redirect drawing here */
 void gfx2d_surface_unset_active(void);     /* back to screen */
 void gfx2d_surface_blit(int handle, int x, int y);
 void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha);
+uint32_t *gfx2d_surface_data(int handle, int *w, int *h);
 
 /* ── Tweening / Easing (integer, t=0..dur maps start..end) ───────── */
 int gfx2d_tween_linear(int t, int start, int end, int dur);

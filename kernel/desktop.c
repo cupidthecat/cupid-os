@@ -172,7 +172,6 @@ static void desktop_bg_copy_path(char *dst, const char *src, int cap) {
 
 static int desktop_bg_apply_bmp(const char *path) {
   bmp_info_t info;
-  uint32_t *src;
 
   if (!path || !path[0])
     return BMP_EINVAL;
@@ -180,56 +179,44 @@ static int desktop_bg_apply_bmp(const char *path) {
   if (bmp_get_info(path, &info) != BMP_OK)
     return BMP_EFORMAT;
 
-  src = (uint32_t *)kmalloc(info.data_size);
-  if (!src)
-    return BMP_ENOMEM;
-
-  if (bmp_decode(path, src, info.data_size) != BMP_OK) {
-    kfree(src);
-    return BMP_EFORMAT;
-  }
-
   if (!desktop_bg_bmp_scaled) {
     desktop_bg_bmp_scaled =
         (uint32_t *)kmalloc((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u);
     if (!desktop_bg_bmp_scaled) {
-      kfree(src);
       return BMP_ENOMEM;
     }
   }
 
-  memset(desktop_bg_bmp_scaled, 0,
-         (size_t)((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u));
+  {
+    int surf = gfx2d_surface_alloc(VGA_GFX_WIDTH, TASKBAR_Y);
+    if (surf < 0) {
+      return BMP_ENOMEM;
+    }
 
-  for (int y = 0; y < TASKBAR_Y; y++) {
-    uint32_t sy;
-    if (TASKBAR_Y > 1) {
-      sy = ((uint32_t)y * (info.height - 1u) +
-            ((uint32_t)TASKBAR_Y - 1u) / 2u) /
-           ((uint32_t)TASKBAR_Y - 1u);
-    } else {
-      sy = 0;
+    if (bmp_decode_to_surface_fit(path, surf, VGA_GFX_WIDTH, TASKBAR_Y) != BMP_OK) {
+      gfx2d_surface_free(surf);
+      return BMP_EFORMAT;
     }
-    if (sy >= info.height)
-      sy = info.height - 1;
-    for (int x = 0; x < VGA_GFX_WIDTH; x++) {
-      uint32_t sx;
-      if (VGA_GFX_WIDTH > 1) {
-        sx = ((uint32_t)x * (info.width - 1u) +
-              ((uint32_t)VGA_GFX_WIDTH - 1u) / 2u) /
-             ((uint32_t)VGA_GFX_WIDTH - 1u);
-      } else {
-        sx = 0;
+
+    {
+      int sw = 0;
+      int sh = 0;
+      uint32_t *src = gfx2d_surface_data(surf, &sw, &sh);
+      if (!src || sw < VGA_GFX_WIDTH || sh < TASKBAR_Y) {
+        gfx2d_surface_free(surf);
+        return BMP_EFORMAT;
       }
-      if (sx >= info.width)
-        sx = info.width - 1;
-      desktop_bg_bmp_scaled[y * VGA_GFX_WIDTH + x] = src[sy * info.width + sx];
+      for (int y = 0; y < TASKBAR_Y; y++) {
+        memcpy(desktop_bg_bmp_scaled + y * VGA_GFX_WIDTH,
+               src + y * sw,
+               (uint32_t)VGA_GFX_WIDTH * 4u);
+      }
     }
+    gfx2d_surface_free(surf);
   }
 
   desktop_bg_copy_path(desktop_bg_bmp_path, path, VFS_MAX_PATH);
   desktop_bg_mode = DESKTOP_BG_BMP;
-  kfree(src);
   return BMP_OK;
 }
 

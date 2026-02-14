@@ -84,4 +84,17 @@ int bmp_encode(const char *path, const uint32_t *buffer,
  */
 int bmp_decode_to_fb(const char *path, int dest_x, int dest_y);
 
+/**
+ * Decode a BMP file into a gfx2d surface, scaling to fit destination size.
+ * Uses streaming row reads to avoid allocating width*height*4 buffers.
+ *
+ * @param path        VFS path to .bmp file
+ * @param surface_id  Destination gfx2d surface id
+ * @param dest_w      Destination width in pixels (>0)
+ * @param dest_h      Destination height in pixels (>0)
+ * @return            BMP_OK on success, negative error code on failure
+ */
+int bmp_decode_to_surface_fit(const char *path, int surface_id,
+                              int dest_w, int dest_h);
+
 #endif /* BMP_H */

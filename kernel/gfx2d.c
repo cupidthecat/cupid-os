@@ -1120,6 +1120,16 @@ void gfx2d_surface_unset_active(void) {
   g2d_active_h = G2D_H;
 }
 
+uint32_t *gfx2d_surface_data(int handle, int *w, int *h) {
+  if (handle < 0 || handle >= GFX2D_MAX_SURFACES || !g2d_surf_used[handle])
+    return NULL;
+  if (w)
+    *w = g2d_surf_w[handle];
+  if (h)
+    *h = g2d_surf_h[handle];
+  return g2d_surf_data[handle];
+}
+
 void gfx2d_surface_blit(int handle, int x, int y) {
   if (handle < 0 || handle >= GFX2D_MAX_SURFACES || !g2d_surf_used[handle])
     return;

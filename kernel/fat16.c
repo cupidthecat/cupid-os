@@ -203,6 +203,46 @@ int fat16_is_initialized(void) {
     return fat16_initialized;
 }
 
+uint32_t fat16_total_bytes(void) {
+    if (!fat16_initialized) {
+        return 0;
+    }
+
+    return fs.total_sectors * fs.bytes_per_sector;
+}
+
+uint32_t fat16_free_bytes(void) {
+    uint32_t root_dir_sectors;
+    uint32_t data_sectors;
+    uint32_t cluster_count;
+    uint32_t free_clusters = 0;
+    uint32_t cluster_bytes;
+    uint32_t c;
+
+    if (!fat16_initialized) {
+        return 0;
+    }
+
+    root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32u +
+                        fs.bytes_per_sector - 1u) / fs.bytes_per_sector;
+
+    data_sectors = fs.total_sectors -
+        ((uint32_t)fs.reserved_sectors +
+         ((uint32_t)fs.num_fats * (uint32_t)fs.sectors_per_fat) +
+         root_dir_sectors);
+
+    cluster_count = data_sectors / (uint32_t)fs.sectors_per_cluster;
+    cluster_bytes = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
+
+    for (c = 2u; c < cluster_count + 2u; c++) {
+        if (fat16_read_fat_entry((uint16_t)c) == FAT16_FREE) {
+            free_clusters++;
+        }
+    }
+
+    return free_clusters * cluster_bytes;
+}
+
 /* ── Subdirectory path helpers ────────────────────────────────────── */
 
 /* Split "dir/file" into dir_out and name_out.
@@ -324,6 +364,9 @@ fat16_file_t* fat16_open(const char* filename) {
                                     open_files[j].file_size = entries[i].file_size;
                                     open_files[j].position = 0;
                                     open_files[j].is_open = 1;
+                                    open_files[j].cached_cluster = entries[i].first_cluster;
+                                    open_files[j].cached_cluster_index = 0;
+                                    open_files[j].cache_valid = 1;
                                     return &open_files[j];
                                 }
                             }
@@ -382,6 +425,9 @@ fat16_file_t* fat16_open(const char* filename) {
                         open_files[j].file_size = entries[i].file_size;
                         open_files[j].position = 0;
                         open_files[j].is_open = 1;
+                        open_files[j].cached_cluster = entries[i].first_cluster;
+                        open_files[j].cached_cluster_index = 0;
+                        open_files[j].cache_valid = 1;
                         return &open_files[j];
                     }
                 }
@@ -404,7 +450,6 @@ fat16_file_t* fat16_open(const char* filename) {
  */
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
     if (!file || !file->is_open) {
-        serial_printf("[fat16_read] ERROR: invalid file handle\n");
         return -1;
     }
 
@@ -417,69 +462,40 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         return 0;
     }
 
-    serial_printf("[fat16_read] pos=%u count=%u filesize=%u first_cluster=%u\n",
-                 file->position, count, file->file_size, file->first_cluster);
-
     uint32_t bytes_read = 0;
-    uint16_t current_cluster = file->first_cluster;
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
+    uint32_t target_cluster_index = file->position / cluster_size;
+    uint32_t offset_in_cluster = file->position % cluster_size;
 
-    // Skip to current position's cluster
-    uint32_t skip_bytes = file->position;
-    uint32_t skipped_clusters = 0;
-    while (skip_bytes >= cluster_size) {
+    uint16_t current_cluster = file->first_cluster;
+    uint32_t current_cluster_index = 0;
+
+    if (file->cache_valid &&
+        file->cached_cluster >= 2 &&
+        target_cluster_index >= file->cached_cluster_index) {
+        current_cluster = file->cached_cluster;
+        current_cluster_index = file->cached_cluster_index;
+    }
+
+    while (current_cluster_index < target_cluster_index) {
         uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
         if (next_cluster >= FAT16_EOC_MIN) {
-            serial_printf("[READ SKIP] Hit EOC after %u clusters (wanted to skip %u bytes)\n",
-                         skipped_clusters, file->position);
             return (int)bytes_read;
         }
         current_cluster = next_cluster;
-        skip_bytes -= cluster_size;
-        skipped_clusters++;
-    }
-    if (file->position > 0 && skipped_clusters > 0) {
-        serial_printf("[READ] Skipped %u clusters to reach position %u, now at cluster %u\n",
-                     skipped_clusters, file->position, current_cluster);
+        current_cluster_index++;
     }
 
     // Read data
     uint8_t sector_buffer[512];
-    uint32_t clusters_read = 0;
-    uint16_t last_logged_cluster = 0xFFFF;
 
     while (bytes_read < count) {
         uint32_t cluster_lba = fat16_cluster_to_lba(current_cluster);
-        uint32_t offset_in_cluster = (file->position + bytes_read) % cluster_size;
         uint32_t sector_in_cluster = offset_in_cluster / fs.bytes_per_sector;
         uint32_t offset_in_sector = offset_in_cluster % fs.bytes_per_sector;
 
-        /* Log each cluster we read from */
-        if (current_cluster != last_logged_cluster) {
-            if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] reading cluster[%u]=%u → LBA %u-%u (offset_in_cluster=%u)\n",
-                             clusters_read, current_cluster, cluster_lba,
-                             cluster_lba + fs.sectors_per_cluster - 1, offset_in_cluster);
-            }
-            last_logged_cluster = current_cluster;
-        }
-
         if (blockcache_read(cluster_lba + sector_in_cluster, sector_buffer) != 0) {
-            serial_printf("[fat16_read] ERROR: blockcache_read failed at LBA %u\n",
-                         cluster_lba + sector_in_cluster);
             return -1;
-        }
-
-        /* Debug: check if sector is all zeros */
-        if ((bytes_read % 10240) == 0) {  /* Log every ~10KB */
-            uint32_t zero_count = 0;
-            for (uint32_t i = 0; i < 512; i++) {
-                if (sector_buffer[i] == 0) zero_count++;
-            }
-            if (zero_count == 512) {
-                serial_printf("[fat16_read] WARNING: sector at LBA %u is ALL ZEROS! cluster=%u\n",
-                             cluster_lba + sector_in_cluster, current_cluster);
-            }
         }
 
         uint32_t bytes_to_copy = fs.bytes_per_sector - offset_in_sector;
@@ -489,25 +505,28 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
 
         memcpy((uint8_t*)buffer + bytes_read, sector_buffer + offset_in_sector, bytes_to_copy);
         bytes_read += bytes_to_copy;
+        offset_in_cluster += bytes_to_copy;
 
         // Check if we need to move to next cluster
-        if ((offset_in_cluster + bytes_to_copy) >= cluster_size && bytes_read < count) {
+        if (offset_in_cluster >= cluster_size) {
+            offset_in_cluster -= cluster_size;
             uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
-            if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] cluster %u → next %u (EOC if >= 0x%04X)\n",
-                             current_cluster, next_cluster, FAT16_EOC_MIN);
-            }
             current_cluster = next_cluster;
-            clusters_read++;
+            current_cluster_index++;
             if (current_cluster >= FAT16_EOC_MIN) {
-                serial_printf("[READ] Hit EOC after %u clusters, bytes_read=%u\n",
-                             clusters_read, bytes_read);
                 break;
             }
         }
     }
 
     file->position += bytes_read;
+    if (current_cluster >= 2 && current_cluster < FAT16_EOC_MIN) {
+        file->cached_cluster = current_cluster;
+        file->cached_cluster_index = current_cluster_index;
+        file->cache_valid = 1;
+    } else {
+        file->cache_valid = 0;
+    }
     return (int)bytes_read;
 }
 

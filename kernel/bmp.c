@@ -6,6 +6,7 @@
  */
 
 #include "bmp.h"
+#include "gfx2d.h"
 #include "memory.h"
 #include "string.h"
 #include "vfs.h"
@@ -445,5 +446,167 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
     vfs_close(fd);
 
     KDEBUG("BMP: decoded '%s' to fb at (%d,%d)\n", path, dest_x, dest_y);
+    return BMP_OK;
+}
+
+int bmp_decode_to_surface_fit(const char *path, int surface_id,
+                              int dest_w, int dest_h)
+{
+    if (!path || dest_w <= 0 || dest_h <= 0)
+        return BMP_EINVAL;
+
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        KERROR("BMP: cannot open '%s' (err %d)\n", path, fd);
+        return BMP_EIO;
+    }
+
+    bmp_info_t info;
+    uint32_t data_offset = 0;
+    int top_down = 0;
+    int rc = bmp_read_headers(fd, &info, &data_offset, &top_down);
+    if (rc != BMP_OK) {
+        vfs_close(fd);
+        return rc;
+    }
+
+    uint32_t width = info.width;
+    uint32_t height = info.height;
+    uint32_t row_bytes = (width * 3 + 3) & ~3u;
+
+    int surf_w = 0;
+    int surf_h = 0;
+    uint32_t *surf = gfx2d_surface_data(surface_id, &surf_w, &surf_h);
+    if (!surf || surf_w <= 0 || surf_h <= 0) {
+        vfs_close(fd);
+        return BMP_EINVAL;
+    }
+
+    int draw_w = dest_w;
+    int draw_h = dest_h;
+    if (draw_w > surf_w)
+        draw_w = surf_w;
+    if (draw_h > surf_h)
+        draw_h = surf_h;
+    if (draw_w <= 0 || draw_h <= 0) {
+        vfs_close(fd);
+        return BMP_EINVAL;
+    }
+
+    uint8_t *row_buf = (uint8_t *)kmalloc(row_bytes);
+    if (!row_buf) {
+        vfs_close(fd);
+        return BMP_ENOMEM;
+    }
+
+    uint32_t *x_off = (uint32_t *)kmalloc((uint32_t)draw_w * sizeof(uint32_t));
+    if (!x_off) {
+        kfree(row_buf);
+        vfs_close(fd);
+        return BMP_ENOMEM;
+    }
+
+    uint32_t *scaled_row = (uint32_t *)kmalloc((uint32_t)draw_w * 4u);
+    if (!scaled_row) {
+        kfree(x_off);
+        kfree(row_buf);
+        vfs_close(fd);
+        return BMP_ENOMEM;
+    }
+
+    int dx;
+    for (dx = 0; dx < draw_w; dx++) {
+        uint32_t sx = ((uint32_t)dx * width) / (uint32_t)draw_w;
+        if (sx >= width)
+            sx = width - 1;
+        x_off[dx] = sx * 3u;
+    }
+
+    {
+        uint32_t clear_count = (uint32_t)surf_w * (uint32_t)surf_h;
+        uint32_t i;
+        for (i = 0; i < clear_count; i++) {
+            surf[i] = 0x00FFFFFFu;
+        }
+    }
+
+    if (vfs_seek(fd, (int32_t)data_offset, SEEK_SET) < 0) {
+        kfree(scaled_row);
+        kfree(x_off);
+        kfree(row_buf);
+        vfs_close(fd);
+        return BMP_EIO;
+    }
+
+    uint32_t current_file_row = 0;
+    int cached_file_row = -1;
+    for (int it = 0; it < draw_h; it++) {
+        int dy = top_down ? it : (draw_h - 1 - it);
+        uint32_t src_y = ((uint32_t)dy * height) / (uint32_t)draw_h;
+        if (src_y >= height)
+            src_y = height - 1u;
+
+        uint32_t file_row_u = top_down ? src_y : (height - 1u - src_y);
+        int file_row = (int)file_row_u;
+
+        if (file_row != cached_file_row) {
+            uint32_t target_file_row = (uint32_t)file_row;
+            if (target_file_row < current_file_row) {
+                uint32_t row_off = data_offset + target_file_row * row_bytes;
+                if (vfs_seek(fd, (int32_t)row_off, SEEK_SET) < 0) {
+                    kfree(scaled_row);
+                    kfree(x_off);
+                    kfree(row_buf);
+                    vfs_close(fd);
+                    return BMP_EIO;
+                }
+            } else if (target_file_row > current_file_row) {
+                uint32_t skip_rows = target_file_row - current_file_row;
+                uint32_t skip_bytes = skip_rows * row_bytes;
+                if (vfs_seek(fd, (int32_t)skip_bytes, SEEK_CUR) < 0) {
+                    kfree(scaled_row);
+                    kfree(x_off);
+                    kfree(row_buf);
+                    vfs_close(fd);
+                    return BMP_EIO;
+                }
+            }
+
+            rc = bmp_read_exact(fd, row_buf, row_bytes);
+            if (rc != BMP_OK) {
+                kfree(scaled_row);
+                kfree(x_off);
+                kfree(row_buf);
+                vfs_close(fd);
+                return rc;
+            }
+
+            current_file_row = target_file_row + 1u;
+
+            for (dx = 0; dx < draw_w; dx++) {
+                uint32_t off = x_off[dx];
+                uint8_t b = row_buf[off + 0u];
+                uint8_t g = row_buf[off + 1u];
+                uint8_t r = row_buf[off + 2u];
+                scaled_row[dx] = ((uint32_t)r << 16) |
+                                 ((uint32_t)g << 8) |
+                                 (uint32_t)b;
+            }
+
+            cached_file_row = file_row;
+        }
+
+        memcpy(surf + (uint32_t)dy * (uint32_t)surf_w,
+               scaled_row,
+               (uint32_t)draw_w * 4u);
+    }
+
+    kfree(scaled_row);
+    kfree(x_off);
+    kfree(row_buf);
+    vfs_close(fd);
+
+    KDEBUG("BMP: streamed '%s' to surface %d fit %dx%d\n",
+           path, surface_id, dest_w, dest_h);
     return BMP_OK;
 }

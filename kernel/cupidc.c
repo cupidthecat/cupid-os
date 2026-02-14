@@ -20,6 +20,7 @@
 #include "calendar.h"
 #include "ed.h"
 #include "exec.h"
+#include "fat16.h"
 #include "gfx2d.h"
 #include "gfx2d_icons.h"
 #include "kernel.h"
@@ -660,6 +661,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   const char *(*p_mount_path)(int) = cc_mount_path;
   BIND("mount_path", p_mount_path, 1);
 
+  uint32_t (*p_storage_total_bytes)(void) = fat16_total_bytes;
+  BIND("storage_total_bytes", p_storage_total_bytes, 0);
+
+  uint32_t (*p_storage_free_bytes)(void) = fat16_free_bytes;
+  BIND("storage_free_bytes", p_storage_free_bytes, 0);
+
   /* TempleOS-style argument passing: CupidC programs call get_args()
    * to receive command-line arguments set by the shell. */
   const char *(*p_get_args)(void) = shell_get_program_args;
@@ -1132,6 +1139,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_bmp_decode_to_fb)(const char *, int, int) = bmp_decode_to_fb;
   BIND("bmp_decode_to_fb", p_bmp_decode_to_fb, 3);
+
+  int (*p_bmp_decode_to_surface_fit)(const char *, int, int, int) =
+      bmp_decode_to_surface_fit;
+  BIND("bmp_decode_to_surface_fit", p_bmp_decode_to_surface_fit, 4);
 
   /* ── File dialogs ───────────────────────────────────────────── */
 
