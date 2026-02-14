@@ -12,7 +12,7 @@ This guide walks you through building cupid-os from source and running it in QEM
 | **GCC** (32-bit support) | C compiler for kernel and drivers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **dosfstools** | Creating FAT16 test disk images |
+| **dosfstools** | Creating FAT16 partition in the HDD image |
 | **Linux environment** | Ubuntu, Debian, WSL, or equivalent |
 
 ---
@@ -45,33 +45,39 @@ make
 This produces:
 - `boot/boot.bin` — 512-byte bootloader
 - `kernel/kernel.bin` — Flat binary kernel
-- `cupidos.img` — Bootable 1.44MB floppy image
+- `cupidos.img` — Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
+
+### Choose HDD Size
+
+```bash
+make HDD_MB=100
+make HDD_MB=200
+```
+
+Default is `HDD_MB=200`.
 
 ### Build Targets
 
 | Target | Description |
 |--------|-------------|
 | `make` | Build the OS image |
-| `make clean` | Remove all build artifacts |
+| `make clean` | Remove build artifacts (keeps `cupidos.img`) |
+| `make clean-image` | Remove only `cupidos.img` |
+| `make distclean` | Remove build artifacts + `cupidos.img` |
 | `make run` | Build and run in QEMU (serial to stdout) |
-| `make run-disk` | Build and run with FAT16 hard disk attached |
 | `make run-log` | Build and run with serial output saved to `debug.log` |
+| `make sync-demos` | Copy local `demos/*.asm` into `/home/demos` in `cupidos.img` |
 
 ---
 
 ## Running in QEMU
 
-### Basic (no disk)
+### Basic Boot
 ```bash
 make run
 ```
-Boots into the graphical desktop. Serial output appears in your terminal.
-
-### With FAT16 Disk
-```bash
-make run-disk
-```
-Requires a `test-disk.img` file — see the **[Disk Setup](Disk-Setup)** guide for full instructions. Enables `lsdisk`, `catdisk`, disk writes, and CupidScript files on disk.
+Boots into the graphical desktop from HDD (`-boot c -hda cupidos.img`).
+Serial output appears in your terminal.
 
 ### Serial Logging
 ```bash
@@ -81,34 +87,32 @@ All serial output (debug logs, kernel messages) saved to `debug.log`.
 
 ---
 
-## Creating a FAT16 Test Disk
+## HDD Image Notes
 
-The disk commands and CupidScript file execution require a FAT16 disk image with an MBR partition table:
+`make` now creates a single HDD image (`cupidos.img`) that already contains:
+- MBR boot sector + Stage 2 + kernel area
+- FAT16 partition mounted as `/home`
+
+By default, FAT starts at LBA 4096 (offset `2097152` bytes).
+
+You no longer need a separate `test-disk.img`.
+
+---
+
+## Copy Host Files Into `/home`
+
+Use `mtools` against the FAT partition inside `cupidos.img`:
 
 ```bash
-# 1. Create a 10MB blank image
-dd if=/dev/zero of=test-disk.img bs=1M count=10
+# Host file -> OS /home/cupid.bmp
+mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
 
-# 2. Create MBR with a FAT16 partition (type 0x06)
-echo -e 'o\nn\np\n1\n\n\nt\n6\nw' | fdisk test-disk.img
-
-# 3. Set up loop device for the partition
-sudo losetup -o $((2048*512)) --sizelimit $((18432*512)) /dev/loop0 test-disk.img
-
-# 4. Format as FAT16
-sudo mkfs.fat -F 16 -n "CUPIDOS" /dev/loop0
-
-# 5. Mount and add files
-sudo mkdir -p /tmp/testdisk
-sudo mount /dev/loop0 /tmp/testdisk
-echo "Hello from CupidOS!" | sudo tee /tmp/testdisk/README.TXT
-echo -e '#!/bin/cupid\nNAME=world\necho "Hello $NAME"' | sudo tee /tmp/testdisk/HELLO.CUP
-
-# 6. Clean up
-sudo umount /tmp/testdisk
-sudo losetup -d /dev/loop0
-rmdir /tmp/testdisk
+# Verify (FAT root == OS /home)
+mdir -i cupidos.img@@2097152 ::/
 ```
+
+If `FAT_START_LBA` changes, recompute offset:
+`offset_bytes = FAT_START_LBA * 512`.
 
 ---
 
@@ -116,7 +120,7 @@ rmdir /tmp/testdisk
 
 When cupid-os boots, you'll see:
 
-1. **Bootloader** — Loads kernel at 0x1000, switches to protected mode
+1. **Bootloader** — Loads kernel from HDD LBA sectors to 0x100000, switches to protected mode
 2. **Kernel init** — IDT, PIC, PIT, keyboard, memory, paging, serial
 3. **Desktop** — VBE 640×480 32bpp graphical desktop with pastel theme
 
@@ -146,5 +150,5 @@ cupid hello.cup   # Run your script
 - **[Shell Commands](Shell-Commands)** — Full command reference
 - **[CupidScript](CupidScript)** — Write and run scripts
 - **[Ed Editor](Ed-Editor)** — Create and edit files
-- **[Disk Setup](Disk-Setup)** — Create a FAT16 disk image for persistent storage
+- **[Disk Setup](Disk-Setup)** — Work with the FAT16 partition inside `cupidos.img`
 - **[Desktop Environment](Desktop-Environment)** — Using the GUI

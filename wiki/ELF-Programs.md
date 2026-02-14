@@ -44,19 +44,16 @@ ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
 Copy the binary onto the FAT16 disk image:
 
 ```bash
-# Mount the disk partition (offset = 2048 sectors × 512 bytes)
-sudo losetup -o $((2048*512)) --sizelimit $((18432*512)) /dev/loop0 test-disk.img
-sudo mkdir -p /tmp/testdisk
-sudo mount /dev/loop0 /tmp/testdisk
+# Build image (or reuse existing)
+make
 
-# Copy programs (use 8.3 uppercase names for FAT16)
-sudo cp user/build/hello /tmp/testdisk/HELLO
-sudo cp user/build/ls    /tmp/testdisk/LS
-sudo cp user/build/cat   /tmp/testdisk/CAT
+# Copy programs (FAT root ::/ maps to CupidOS /home)
+mcopy -o -i cupidos.img@@2097152 user/build/hello ::/HELLO
+mcopy -o -i cupidos.img@@2097152 user/build/ls    ::/LS
+mcopy -o -i cupidos.img@@2097152 user/build/cat   ::/CAT
 
-# Unmount
-sudo umount /tmp/testdisk
-sudo losetup -d /dev/loop0
+# Verify
+mdir -i cupidos.img@@2097152 ::/
 ```
 
 ### 4. Run in CupidOS
@@ -403,25 +400,19 @@ void _start(cupid_syscall_table_t *sys) {
 
 ## Deploying Programs to Disk
 
-ELF binaries go on the FAT16 disk image. The main `Makefile` has a `run-disk` target that handles QEMU, but you need to manually copy ELF programs onto the disk:
+ELF binaries go on the FAT16 partition inside `cupidos.img`:
 
 ```bash
 # Build the programs
 make -C user
 
-# Mount the FAT16 partition
-sudo losetup -o $((2048*512)) --sizelimit $((18432*512)) /dev/loop0 test-disk.img
-sudo mkdir -p /tmp/testdisk
-sudo mount /dev/loop0 /tmp/testdisk
+# Copy programs into FAT root (::/), which appears as /home in CupidOS
+mcopy -o -i cupidos.img@@2097152 user/build/hello ::/HELLO
+mcopy -o -i cupidos.img@@2097152 user/build/ls    ::/LS
+mcopy -o -i cupidos.img@@2097152 user/build/cat   ::/CAT
 
-# Copy programs (FAT16 uses 8.3 uppercase names)
-sudo cp user/build/hello /tmp/testdisk/HELLO
-sudo cp user/build/ls    /tmp/testdisk/LS
-sudo cp user/build/cat   /tmp/testdisk/CAT
-
-# Unmount
-sudo umount /tmp/testdisk
-sudo losetup -d /dev/loop0
+# List contents
+mdir -i cupidos.img@@2097152 ::/
 ```
 
 Then in CupidOS:

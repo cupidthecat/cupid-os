@@ -1,29 +1,22 @@
 # Disk Setup
 
-This guide explains how to create, partition, and format a FAT16 disk image for use with cupid-os in QEMU. A disk image is required for persistent file storage — anything saved to `/home` lives on this disk.
+This guide explains the current disk model and how to work with the FAT16 partition inside `cupidos.img`. Persistent file storage in `/home` lives in this partition.
 
 ---
 
 ## Quick Setup (Copy-Paste)
 
-If you just want a working disk image fast:
+If you just want a working HDD image fast:
 
 ```bash
-# Create 10MB FAT16 disk image with MBR
-dd if=/dev/zero of=test-disk.img bs=1M count=10
-echo -e "o\nn\np\n1\n\n\nt\n6\nw" | fdisk test-disk.img
+# Build (or reuse) cupidos.img
+make HDD_MB=200
 
-# Format and populate
-LOOP=$(sudo losetup --show -fP test-disk.img)
-sudo mkfs.fat -F 16 -n "CUPIDOS" ${LOOP}p1
-sudo mkdir -p /mnt/cupidos
-sudo mount ${LOOP}p1 /mnt/cupidos
-echo "Hello from CupidOS!" | sudo tee /mnt/cupidos/HELLO.TXT
-sudo umount /mnt/cupidos
-sudo losetup -d $LOOP
+# Copy host file into FAT root (maps to /home in CupidOS)
+mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
 
-# Boot with disk attached
-make run-disk
+# Boot
+make run
 ```
 
 That's it. Read on for a detailed explanation of each step.
@@ -50,98 +43,68 @@ sudo pacman -S dosfstools util-linux
 
 ## Step-by-Step Guide
 
-### 1. Create a Blank Disk Image
+### 1. Build (or Reuse) the HDD Image
 
 ```bash
-dd if=/dev/zero of=test-disk.img bs=1M count=10
+make
 ```
+This creates `cupidos.img` (or reuses the existing image) with:
+- MBR boot code + partition table
+- Stage 2 + kernel area
+- FAT16 partition mounted at `/home`
 
-This creates a 10 MB file filled with zeros, representing a blank hard drive. You can use a larger size (e.g., `count=32` for 32 MB) but FAT16 requires the partition to be **at most 2 GB** and **at least ~1 MB**.
-
-| Size | Use Case |
-|------|----------|
-| 10 MB | Simple testing, a few files |
-| 32 MB | More files, CupidScript projects |
-| 64 MB | Heavy use, many ELF binaries |
-
-### 2. Create an MBR Partition Table
+Choose image size with `HDD_MB`:
 
 ```bash
-echo -e "o\nn\np\n1\n\n\nt\n6\nw" | fdisk test-disk.img
+make HDD_MB=100
+make HDD_MB=200
 ```
 
-This runs `fdisk` non-interactively to:
+Default is `HDD_MB=200`.
 
-| Command | What it does |
-|---------|-------------|
-| `o` | Create a new empty DOS (MBR) partition table |
-| `n` | Add a new partition |
-| `p` | Make it a primary partition |
-| `1` | Partition number 1 |
-| *(empty)* | Default first sector (2048) |
-| *(empty)* | Default last sector (use all space) |
-| `t` | Change partition type |
-| `6` | Type `0x06` — FAT16 (CHS, ≥32 MB) or FAT16B |
-| `w` | Write the table to disk and exit |
+### 2. Copy Files from Host (Recommended: mtools)
 
-**Why MBR?** cupid-os reads the MBR partition table at boot to locate the FAT16 filesystem. The kernel's FAT16 driver (`fat16.c`) scans all four MBR partition entries looking for type `0x04`, `0x06`, or `0x0E`. Without a valid MBR partition table, the disk won't be recognized.
-
-**Manual fdisk (interactive):** If you prefer to do it manually:
-```bash
-fdisk test-disk.img
-```
-Then type these commands one at a time:
-```
-Command: o          ← create new partition table
-Command: n          ← new partition
-  Type:  p          ← primary
-  Number: 1
-  First sector: (press Enter for default)
-  Last sector:  (press Enter for default)
-Command: t          ← change type
-  Hex code: 6       ← FAT16
-Command: w          ← write and exit
-```
-
-### 3. Set Up a Loop Device
-
-To format the partition inside the image file, Linux needs to treat it as a block device:
+Install `mtools` if needed:
 
 ```bash
-LOOP=$(sudo losetup --show -fP test-disk.img)
-echo "Loop device: $LOOP"
+sudo apt-get update
+sudo apt-get install -y mtools
 ```
 
-The `-fP` flags:
-- `-f` — find the first available loop device
-- `-P` — scan and create partition sub-devices (e.g., `/dev/loop0p1`)
-
-After this, `${LOOP}p1` refers to the first partition inside the image.
-
-**Alternative (manual offset):** If `-P` doesn't work on your system:
-```bash
-# The default first partition starts at sector 2048 (byte offset 1048576)
-sudo losetup -o $((2048*512)) --sizelimit $((18432*512)) /dev/loop0 test-disk.img
-# Then use /dev/loop0 instead of ${LOOP}p1 below
-```
-
-### 4. Format as FAT16
+Copy files into FAT root:
 
 ```bash
-sudo mkfs.fat -F 16 -n "CUPIDOS" ${LOOP}p1
+mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
 ```
 
-| Flag | Meaning |
-|------|---------|
-| `-F 16` | Force FAT16 format (not FAT12 or FAT32) |
-| `-n "CUPIDOS"` | Volume label (up to 11 characters, optional) |
-
-### 5. Mount and Add Files
+List files:
 
 ```bash
-sudo mkdir -p /mnt/cupidos
-sudo mount ${LOOP}p1 /mnt/cupidos
+mdir -i cupidos.img@@2097152 ::/
 ```
+
+Mapping:
+- FAT `::/` corresponds to CupidOS `/home`
+- `::/cupid.bmp` becomes `/home/cupid.bmp` in CupidOS
+
+If `FAT_START_LBA` is customized, use offset:
+
+```bash
+offset_bytes=$((FAT_START_LBA*512))
+mcopy -o -i cupidos.img@@${offset_bytes} file.txt ::/file.txt
+```
+
+### 3. Alternate Linux Loop-Mount Method
+
+If you prefer mounting from Linux directly:
+
+```bash
+sudo mount -o loop,offset=$((4096*512)) cupidos.img /mnt/cupidos
+```
+
+This mounts the FAT16 partition directly from `cupidos.img`.
+
+### 4. Add Files (Loop-Mount Path)
 
 Now copy files into it:
 
@@ -178,42 +141,30 @@ EOF
 - No spaces or special characters in filenames
 - Only the **root directory** is supported (no subdirectories)
 
-### 6. Unmount and Clean Up
+### 5. Unmount
 
 ```bash
 sudo umount /mnt/cupidos
-sudo losetup -d $LOOP
 ```
 
-Your `test-disk.img` is now ready to use.
+Your `cupidos.img` now contains the updated `/home` data.
 
 ---
 
-## Booting with the Disk
+## Booting
 
-### Using make run-disk
-
-The easiest way — the Makefile has a built-in target:
+Use:
 
 ```bash
-make run-disk
+make run
 ```
-
-This runs:
-```
-qemu-system-i386 -boot a -fda cupidos.img -hda test-disk.img \
-    -rtc base=localtime -serial stdio
-```
-
-The floppy (`-fda`) contains the boot image. The hard disk (`-hda`) is your FAT16 data disk, mounted at `/home` inside cupid-os.
 
 ### Manual QEMU Command
 
 ```bash
 qemu-system-i386 \
-    -boot a \
-    -fda cupidos.img \
-    -hda test-disk.img \
+  -boot c \
+  -hda cupidos.img \
     -rtc base=localtime \
     -audiodev none,id=speaker \
     -machine pcspk-audiodev=speaker \
@@ -222,9 +173,8 @@ qemu-system-i386 \
 
 | Flag | Purpose |
 |------|---------|
-| `-boot a` | Boot from floppy (drive A) |
-| `-fda cupidos.img` | Floppy drive — contains bootloader + kernel |
-| `-hda test-disk.img` | Hard disk — your FAT16 data disk |
+| `-boot c` | Boot from hard disk |
+| `-hda cupidos.img` | HDD image with bootloader, kernel, and FAT16 `/home` |
 | `-rtc base=localtime` | Set RTC to host's local time |
 | `-serial stdio` | Route serial debug output to your terminal |
 
@@ -232,7 +182,7 @@ qemu-system-i386 \
 
 ## Using the Disk in cupid-os
 
-Once booted with `make run-disk`, the FAT16 partition is automatically mounted at `/home`:
+Once booted with `make run`, the FAT16 partition is automatically mounted at `/home`:
 
 ```
 /> mount
@@ -289,40 +239,27 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ---
 
-## Modifying the Disk After Creation
+## Persistence and Cleaning
 
-You can re-mount the image on your host to add, remove, or edit files:
-
-```bash
-# Re-attach
-LOOP=$(sudo losetup --show -fP test-disk.img)
-sudo mount ${LOOP}p1 /mnt/cupidos
-
-# Make changes
-sudo cp new-file.txt /mnt/cupidos/NEWFILE.TXT
-sudo rm /mnt/cupidos/OLD.TXT
-
-# Clean up
-sudo umount /mnt/cupidos
-sudo losetup -d $LOOP
-```
+- `make` and `make run` keep existing `cupidos.img`
+- `make clean` keeps `cupidos.img`
+- `make clean-image` removes only `cupidos.img`
+- `make distclean` removes build artifacts and `cupidos.img`
 
 ---
 
 ## Troubleshooting
 
 ### "Disk error!" on boot
-- The **floppy image** (`cupidos.img`) is corrupt or missing. Run `make` to rebuild it.
-- This is unrelated to the hard disk image — the bootloader loads from floppy only.
+- `cupidos.img` may be missing or corrupted. Rebuild with `make`.
 
 ### No files visible in /home
-- Check that `test-disk.img` exists in the project root directory.
-- Verify the MBR partition table: `fdisk -l test-disk.img`
-- Ensure the partition type is `0x04`, `0x06`, or `0x0E` (FAT16).
-- Check serial output for `FAT16 mounted at /disk` or error messages.
+- Verify files were copied to FAT root `::/` (not `::/home`).
+- Check FAT listing from host: `mdir -i cupidos.img@@2097152 ::/`.
+- Check serial output for FAT16 mount messages.
 
 ### "mount" doesn't show /home as fat16
-- QEMU wasn't started with `-hda test-disk.img`. Use `make run-disk`.
+- QEMU may not be using `cupidos.img`; use `make run`.
 - The ATA driver didn't detect the disk — check serial log for ATA init messages.
 
 ### Files not persisting after reboot
@@ -334,62 +271,13 @@ sudo losetup -d $LOOP
 - Use only uppercase letters, digits, and underscores.
 - No long filename (LFN) support.
 
-### losetup -P doesn't create partition devices
-- Some older kernels don't support `-P`. Use the manual offset method:
-  ```bash
-  # Check partition offset
-  fdisk -l test-disk.img
-  # Look for "Start" column — usually 2048
-  sudo losetup -o $((2048*512)) /dev/loop0 test-disk.img
-  # Use /dev/loop0 instead of ${LOOP}p1
-  ```
+### Wrong offset in mtools/loop mount
+- Default FAT offset is `2097152` bytes (`4096 * 512`).
+- If `FAT_START_LBA` changed, recompute offset as `FAT_START_LBA * 512`.
 
 ### Permission denied
 - Loop device and mount operations require `sudo`.
 - If using WSL, ensure you're running in a WSL terminal (not PowerShell directly).
-
----
-
-## Helper Script
-
-Save this as `mkdisk.sh` in your project root for convenience:
-
-```bash
-#!/bin/bash
-# mkdisk.sh — Create a FAT16 test disk for cupid-os
-set -e
-
-IMG="${1:-test-disk.img}"
-SIZE="${2:-10}"
-
-echo "Creating ${SIZE}MB disk image: $IMG"
-dd if=/dev/zero of="$IMG" bs=1M count="$SIZE" 2>/dev/null
-echo -e "o\nn\np\n1\n\n\nt\n6\nw" | fdisk "$IMG" > /dev/null 2>&1
-
-LOOP=$(sudo losetup --show -fP "$IMG")
-sudo mkfs.fat -F 16 -n "CUPIDOS" "${LOOP}p1" > /dev/null
-
-sudo mkdir -p /mnt/cupidos
-sudo mount "${LOOP}p1" /mnt/cupidos
-
-echo "Hello from CupidOS!" | sudo tee /mnt/cupidos/HELLO.TXT > /dev/null
-cat <<'SCRIPT' | sudo tee /mnt/cupidos/HELLO.CUP > /dev/null
-#!/bin/cupid
-echo "Hello from CupidScript on disk!"
-SCRIPT
-
-sudo umount /mnt/cupidos
-sudo losetup -d "$LOOP"
-
-echo "Done! Run with: make run-disk"
-```
-
-Usage:
-```bash
-chmod +x mkdisk.sh
-./mkdisk.sh                  # Creates test-disk.img (10 MB)
-./mkdisk.sh my-disk.img 32   # Creates my-disk.img (32 MB)
-```
 
 ---
 

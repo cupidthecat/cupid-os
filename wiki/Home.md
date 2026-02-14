@@ -13,6 +13,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
 | [CupidScript](CupidScript) | Scripting language guide — variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler — JIT/AOT, inline assembly, kernel bindings |
+| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler — Intel syntax, JIT/AOT, 62 instructions, kernel bindings |
 | [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
@@ -90,9 +91,6 @@ make
 
 # Run (with serial output)
 make run
-
-# Run with FAT16 disk
-make run-disk
 ```
 
 ---
