@@ -122,6 +122,28 @@ AOT (`as -o` / `cupidasm -o`):
 - Assembles source.
 - Writes ELF32 output file.
 
+>h2 Disassembler (CupidDis)
+CupidOS now includes an x86-32 disassembler integrated with shell commands.
+
+Direct command:
+- dis <file.elf>
+- dis <file.cc>    (compile-then-disassemble, no execution)
+
+Flags on existing commands:
+- cc -d <file.cc>   (compile-then-disassemble)
+- exec -d <file>    (disassemble ELF instead of running)
+
+What it prints:
+- Address column
+- Raw instruction bytes
+- Mnemonic + operands
+- Function labels when symbols are available
+
+Behavior notes:
+- Unknown/truncated instructions are emitted as db 0xXX and decoding continues.
+- For .cc input, CupidC compiles in JIT mode and disassembles emitted machine code.
+- For ELF input, disassembly uses loadable segment bytes and ELF symbol table labels.
+
 >h2 SYS_* Constants (AOT/JIT Portability)
 Offsets match cupid_syscall_table_t:
 
@@ -296,6 +318,9 @@ Parity demos:
 
 4) Run ELF:
    exec /home/demo
+
+5) Inspect generated machine code:
+   dis /home/demo
 
 >h2 Disk Sync Note For Demos
 If running from /home/demos on FAT image, sync workspace demos first:

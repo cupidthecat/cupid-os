@@ -21,6 +21,8 @@ Two modes:
    cupidc file.cc
 2) AOT to ELF:
    ccc file.cc -o output
+3) Compile + disassemble (no run):
+  cc -d file.cc
 
 Shell also auto-discovers and runs:
 - /bin/<name>.cc
@@ -123,6 +125,10 @@ GUI/graphics:
 
 4) Produce ELF artifact:
    ccc /home/bin/mycmd.cc -o /home/mycmd
+
+5) Inspect generated instructions:
+  cc -d /home/bin/mycmd.cc
+  dis /home/mycmd
 
 >h2 Error Handling Tips
 - CupidC fails fast and reports line-oriented compiler errors.

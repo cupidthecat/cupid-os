@@ -29,6 +29,19 @@ ccc        - compile .cc to ELF output
 as         - assemble and run .asm source (or with -o output)
 cupidasm   - assemble .asm to ELF output
 
+>h2 Disassembly Quick Reference
+dis <file.elf>
+  disassemble ELF32 i386 machine code with labels when available
+
+dis <file.cc>
+  compile .cc then disassemble generated code (no execution)
+
+cc -d <file.cc>
+  CupidC compile-then-disassemble shortcut (no execution)
+
+exec -d <file>
+  disassemble target instead of running it
+
 >h2 Current /bin .cc Programs (Auto-Discovered)
 System / shell:
   help clear echo time date reboot history sysinfo cupidfetch

@@ -27,6 +27,12 @@ $(info DOC_CTXT_SRCS=$(DOC_CTXT_SRCS))
 DOC_CTXT_OBJS := $(DOC_CTXT_SRCS:.CTXT=.o)
 DOC_CTXT_NAMES := $(notdir $(basename $(DOC_CTXT_SRCS)))
 
+# Auto-discover CupidASM demos to embed at boot (/demos/*.asm in ramfs)
+DEMO_ASM_SRCS := $(wildcard demos/*.asm)
+$(info DEMO_ASM_SRCS=$(DEMO_ASM_SRCS))
+DEMO_ASM_OBJS := $(DEMO_ASM_SRCS:.asm=.o)
+DEMO_ASM_NAMES := $(notdir $(basename $(DEMO_ASM_SRCS)))
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -49,7 +55,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
             kernel/cupidc_elf.o \
-            kernel/as.o kernel/as_lex.o kernel/as_parse.o kernel/as_elf.o \
+			kernel/as.o kernel/as_lex.o kernel/as_parse.o kernel/as_elf.o \
+			kernel/dis.o \
             kernel/gfx2d.o \
             kernel/bmp.o \
             kernel/vfs_helpers.o \
@@ -60,7 +67,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/gui_events.o kernel/gui_themes.o \
             kernel/bin_programs_gen.o \
 			kernel/docs_programs_gen.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS)
+			kernel/demos_programs_gen.o \
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DEMO_ASM_OBJS)
 
 all: $(OS_IMAGE)
 
@@ -331,6 +339,9 @@ kernel/as_parse.o: kernel/as_parse.c kernel/as.h
 kernel/as_elf.o: kernel/as_elf.c kernel/as.h kernel/exec.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/as_elf.c -o kernel/as_elf.o
 
+kernel/dis.o: kernel/dis.c kernel/dis.h kernel/types.h kernel/exec.h kernel/vfs.h kernel/vfs_helpers.h
+	$(CC) $(CFLAGS) kernel/dis.c -o kernel/dis.o
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc — that's it!
@@ -370,6 +381,23 @@ kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) Makefile
 kernel/docs_programs_gen.o: kernel/docs_programs_gen.c
 	$(CC) $(CFLAGS) kernel/docs_programs_gen.c -o kernel/docs_programs_gen.o
 
+# Auto-generate demos_programs_gen.c from demos/*.asm files
+kernel/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
+	@echo "/* Auto-generated -- do not edit. */" > $@
+	@echo "/* Lists all embedded CupidASM demos from demos/ directory */" >> $@
+	@echo '#include "ramfs.h"' >> $@
+	@echo '#include "types.h"' >> $@
+	@echo '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(DEMO_ASM_NAMES),echo 'extern const char _binary_demos_$(n)_asm_start[];' >> $@;)
+	@$(foreach n,$(DEMO_ASM_NAMES),echo 'extern const char _binary_demos_$(n)_asm_end[];' >> $@;)
+	@echo 'void install_demo_programs(void *fs_private);' >> $@
+	@echo 'void install_demo_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(DEMO_ASM_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\\n", sz); }' >> $@;)
+	@echo '}' >> $@
+
+kernel/demos_programs_gen.o: kernel/demos_programs_gen.c
+	$(CC) $(CFLAGS) kernel/demos_programs_gen.c -o kernel/demos_programs_gen.o
+
 # Pattern rule: embed any bin/*.cc file via objcopy
 bin/%.o: bin/%.cc
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
@@ -380,6 +408,10 @@ bin/%.h.o: bin/%.h
 
 # Pattern rule: embed any cupidos-txt/*.CTXT file via objcopy
 cupidos-txt/%.o: cupidos-txt/%.CTXT
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any demos/*.asm file via objcopy
+demos/%.o: demos/%.asm
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects
@@ -431,7 +463,7 @@ sync-demos:
 	@echo "Synced demos/*.asm -> test-disk.img:/home/demos/"
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o \
-	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c $(OS_IMAGE)
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
+	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c $(OS_IMAGE)
 
 .PHONY: all run disk run-disk run-log sync-demos clean

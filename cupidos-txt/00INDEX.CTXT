@@ -27,7 +27,7 @@ It focuses on what is implemented now, not just planned wiki features.
 07LABS.TXT    - Safe "mess around" experiments and workflows
 08CMDS.TXT    - Command quick reference (built-ins + /bin programs)
 09EMBED.TXT   - How to embed docs into ramfs/fat16 for in-OS reading
-10ASM.CTXT    - CupidASM guide (.asm), full functions/features, JIT/AOT usage
+10ASM.CTXT    - CupidASM + CupidDis guide (.asm/.elf/.cc), full functions/features, JIT/AOT/disassembly usage
 11CTXT.TXT   - How .CTXT docs are written, parsed, and organized
 12HOLYC-CUPIDC.TXT - HolyC-inspired CupidC feature reference (implemented now)
 
@@ -57,7 +57,7 @@ Manual tip: Press F2 in Notepad to switch between source and rendered view.
 1) 01SHELL.TXT
 2) 02FILESYS.TXT
 3) 03CUPIDSC.TXT and 04CUPIDC.TXT
-4) 10ASM.txt (if you use assembly workflows)
+4) 10ASM.CTXT (assembly + disassembly workflows)
 5) 06GUITERM.TXT
 6) 07LABS.TXT
 7) 08CMDS.TXT as a lookup reference

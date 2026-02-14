@@ -37,6 +37,6 @@ SECTIONS
      * Safety check: kernel must fit within the 32MB identity-mapped region.
      * The floppy limit (1.44MB) is the practical ceiling for now.
      */
-    ASSERT(_loaded_end <= 0x200000,
-           "Kernel binary (text+data) exceeds 1MB limit for floppy image")
+        ASSERT(_loaded_end <= 0x267600,
+            "Kernel binary (text+data) exceeds available floppy image capacity")
 }

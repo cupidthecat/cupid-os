@@ -100,7 +100,7 @@ stage2_entry:
     mov byte [cur_sect], KERNEL_START_SECT
     mov byte [cur_count], 18 - KERNEL_START_SECT + 1  ; 13 sectors left in first track
     mov dword [dest_high], KERNEL_OFFSET
-    mov word [sectors_left], 2560   ; Up to 1.25MB of kernel
+    mov word [sectors_left], 2875   ; Full remaining floppy capacity (~1.40MB)
 
 .read_loop:
     cmp word [sectors_left], 0
