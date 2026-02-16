@@ -281,7 +281,7 @@ int main() {
 
   /* Cache the SV color picker to avoid per-pixel HSV recalc every frame */
   int picker_w = 170;
-  int picker_h = 70;   /* will be updated once we know the layout */
+  int picker_h = 70;
   int sv_cache = gfx2d_surface_alloc(picker_w, picker_h);
   int sv_cache_hue = -1;  /* invalid — force first draw */
 
@@ -443,6 +443,16 @@ int main() {
       int ph = (mode == 4) ? 56 : 70;
       int hx = px + pw + 8;
       int hw = 14;
+
+      if (pw != picker_w || ph != picker_h) {
+        if (sv_cache >= 0) {
+          gfx2d_surface_free(sv_cache);
+        }
+        picker_w = pw;
+        picker_h = ph;
+        sv_cache = gfx2d_surface_alloc(picker_w, picker_h);
+        sv_cache_hue = -1;
+      }
 
       gfx2d_text(px, py - 12, "Color Picker", 0x203048, 1);
 
