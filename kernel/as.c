@@ -18,6 +18,7 @@
 #include "vfs_helpers.h"
 #include "ports.h"
 #include "calendar.h"
+#include "desktop.h"
 #include "math.h"
 #include "panic.h"
 #include "blockcache.h"
@@ -651,6 +652,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "set_icon_type", gfx2d_icon_set_type);
   AS_BIND(as, "set_icon_color", gfx2d_icon_set_color);
   AS_BIND(as, "set_icon_drawer", gfx2d_icon_set_custom_drawer);
+  AS_BIND(as, "gfx2d_icon_draw_named", gfx2d_icon_draw_named);
   AS_BIND(as, "get_my_icon_handle", gfx2d_icon_find_by_path);
   AS_BIND(as, "set_icon_pos", gfx2d_icon_set_pos);
   AS_BIND(as, "get_icon_label", gfx2d_icon_get_label);
@@ -682,6 +684,12 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "gfx2d_rect_fill_alpha", gfx2d_rect_fill_alpha);
   AS_BIND(as, "gfx2d_gradient_h", gfx2d_gradient_h);
   AS_BIND(as, "gfx2d_gradient_v", gfx2d_gradient_v);
+  AS_BIND(as, "gfx2d_color_hsv", gfx2d_color_hsv);
+  AS_BIND(as, "gfx2d_color_picker_draw_sv", gfx2d_color_picker_draw_sv);
+  AS_BIND(as, "gfx2d_color_picker_draw_hue", gfx2d_color_picker_draw_hue);
+  AS_BIND(as, "gfx2d_color_picker_pick_hue", gfx2d_color_picker_pick_hue);
+  AS_BIND(as, "gfx2d_color_picker_pick_sat", gfx2d_color_picker_pick_sat);
+  AS_BIND(as, "gfx2d_color_picker_pick_val", gfx2d_color_picker_pick_val);
   AS_BIND(as, "gfx2d_shadow", gfx2d_shadow);
   AS_BIND(as, "gfx2d_dither_rect", gfx2d_dither_rect);
   AS_BIND(as, "gfx2d_scanlines", gfx2d_scanlines);
@@ -697,6 +705,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "gfx2d_text", gfx2d_text);
   AS_BIND(as, "gfx2d_text_shadow", gfx2d_text_shadow);
   AS_BIND(as, "gfx2d_text_outline", gfx2d_text_outline);
+  AS_BIND(as, "gfx2d_text_wrap", gfx2d_text_wrap);
   AS_BIND(as, "gfx2d_text_width", gfx2d_text_width);
   AS_BIND(as, "gfx2d_text_height", gfx2d_text_height);
   AS_BIND(as, "gfx2d_vignette", gfx2d_vignette);
@@ -717,6 +726,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "gfx2d_surface_unset_active", gfx2d_surface_unset_active);
   AS_BIND(as, "gfx2d_surface_blit", gfx2d_surface_blit);
   AS_BIND(as, "gfx2d_surface_blit_alpha", gfx2d_surface_blit_alpha);
+  AS_BIND(as, "gfx2d_surface_blit_scaled", gfx2d_surface_blit_scaled);
   AS_BIND(as, "gfx2d_tween_linear", gfx2d_tween_linear);
   AS_BIND(as, "gfx2d_tween_ease_in_out", gfx2d_tween_ease_in_out);
   AS_BIND(as, "gfx2d_tween_bounce", gfx2d_tween_bounce);
@@ -733,11 +743,33 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "gfx2d_flood_fill", gfx2d_flood_fill);
   AS_BIND(as, "gfx2d_fullscreen_enter", gfx2d_fullscreen_enter);
   AS_BIND(as, "gfx2d_fullscreen_exit", gfx2d_fullscreen_exit);
+  AS_BIND(as, "gfx2d_window_reset", gfx2d_window_reset);
+  AS_BIND(as, "gfx2d_window_frame", gfx2d_window_frame);
+  AS_BIND(as, "gfx2d_window_x", gfx2d_window_x);
+  AS_BIND(as, "gfx2d_window_y", gfx2d_window_y);
+  AS_BIND(as, "gfx2d_window_w", gfx2d_window_w);
+  AS_BIND(as, "gfx2d_window_h", gfx2d_window_h);
+  AS_BIND(as, "gfx2d_window_content_x", gfx2d_window_content_x);
+  AS_BIND(as, "gfx2d_window_content_y", gfx2d_window_content_y);
+  AS_BIND(as, "gfx2d_window_content_w", gfx2d_window_content_w);
+  AS_BIND(as, "gfx2d_window_content_h", gfx2d_window_content_h);
   AS_BIND(as, "gfx2d_app_toolbar", gfx2d_app_toolbar);
   AS_BIND(as, "gfx2d_minimize", gfx2d_minimize);
   AS_BIND(as, "gfx2d_should_quit", gfx2d_should_quit);
   AS_BIND(as, "gfx2d_draw_cursor", gfx2d_draw_cursor);
   AS_BIND(as, "gfx2d_cursor_hide", gfx2d_cursor_hide);
+  AS_BIND(as, "desktop_bg_set_mode_anim", desktop_bg_set_mode_anim);
+  AS_BIND(as, "desktop_bg_set_mode_solid", desktop_bg_set_mode_solid);
+  AS_BIND(as, "desktop_bg_set_mode_gradient", desktop_bg_set_mode_gradient);
+  AS_BIND(as, "desktop_bg_set_mode_tiled_pattern", desktop_bg_set_mode_tiled_pattern);
+  AS_BIND(as, "desktop_bg_set_mode_tiled_bmp", desktop_bg_set_mode_tiled_bmp);
+  AS_BIND(as, "desktop_bg_set_mode_bmp", desktop_bg_set_mode_bmp);
+  AS_BIND(as, "desktop_bg_get_mode", desktop_bg_get_mode);
+  AS_BIND(as, "desktop_bg_get_solid_color", desktop_bg_get_solid_color);
+  AS_BIND(as, "desktop_bg_set_anim_theme", desktop_bg_set_anim_theme);
+  AS_BIND(as, "desktop_bg_get_anim_theme", desktop_bg_get_anim_theme);
+  AS_BIND(as, "desktop_bg_get_tiled_pattern", desktop_bg_get_tiled_pattern);
+  AS_BIND(as, "desktop_bg_get_tiled_use_bmp", desktop_bg_get_tiled_use_bmp);
 }
 
 static int as_init_state(as_state_t *as, int jit_mode) {

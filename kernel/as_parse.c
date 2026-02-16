@@ -11,7 +11,19 @@
 
 #include "as.h"
 #include "string.h"
+#include "memory.h"
+#include "vfs.h"
+#include "shell.h"
 #include "../drivers/serial.h"
+
+typedef struct {
+  const char *source;
+  int pos;
+  int line;
+  as_token_t cur;
+  as_token_t peek_buf;
+  int has_peek;
+} as_lex_snapshot_t;
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Code / Data Emission Helpers
@@ -206,6 +218,64 @@ static void as_expect_newline_or_eof(as_state_t *as) {
     }
   }
   if (tok.type == AS_TOK_NEWLINE) as_advance(as);
+}
+
+static char *as_read_include_source(const char *raw_path) {
+  char path[AS_MAX_STRING];
+
+  if (!raw_path || raw_path[0] == '\0') return NULL;
+
+  if (raw_path[0] == '/') {
+    int i = 0;
+    while (raw_path[i] && i < AS_MAX_STRING - 1) {
+      path[i] = raw_path[i];
+      i++;
+    }
+    path[i] = '\0';
+  } else {
+    const char *cwd = shell_get_cwd();
+    int p = 0;
+    int i = 0;
+    while (cwd && cwd[i] && p < AS_MAX_STRING - 1) {
+      path[p++] = cwd[i++];
+    }
+    if (p > 0 && path[p - 1] != '/' && p < AS_MAX_STRING - 1) {
+      path[p++] = '/';
+    }
+    i = 0;
+    while (raw_path[i] && p < AS_MAX_STRING - 1) {
+      path[p++] = raw_path[i++];
+    }
+    path[p] = '\0';
+  }
+
+  int fd = vfs_open(path, O_RDONLY);
+  if (fd < 0) return NULL;
+
+  vfs_stat_t st;
+  if (vfs_stat(path, &st) < 0 || st.size == 0 || st.size > 256u * 1024u) {
+    vfs_close(fd);
+    return NULL;
+  }
+
+  char *source = kmalloc(st.size + 1);
+  if (!source) {
+    vfs_close(fd);
+    return NULL;
+  }
+
+  uint32_t total = 0;
+  while (total < st.size) {
+    uint32_t chunk = st.size - total;
+    if (chunk > 512) chunk = 512;
+    int r = vfs_read(fd, source + total, chunk);
+    if (r <= 0) break;
+    total += (uint32_t)r;
+  }
+  source[total] = '\0';
+
+  vfs_close(fd);
+  return source;
 }
 
 /* Skip blank lines / newline tokens */
@@ -417,8 +487,20 @@ static void as_encode_noops(as_state_t *as, const char *mn) {
   if (strcmp(mn, "cwde") == 0)   { emit8(as, 0x98); return; }
   if (strcmp(mn, "movsb") == 0)  { emit8(as, 0xA4); return; }
   if (strcmp(mn, "movsd") == 0)  { emit8(as, 0xA5); return; }
+  if (strcmp(mn, "movsw") == 0)  { emit8(as, 0x66); emit8(as, 0xA5); return; }
   if (strcmp(mn, "stosb") == 0)  { emit8(as, 0xAA); return; }
   if (strcmp(mn, "stosd") == 0)  { emit8(as, 0xAB); return; }
+  if (strcmp(mn, "stosw") == 0)  { emit8(as, 0x66); emit8(as, 0xAB); return; }
+  if (strcmp(mn, "cld") == 0)    { emit8(as, 0xFC); return; }
+  if (strcmp(mn, "std") == 0)    { emit8(as, 0xFD); return; }
+  if (strcmp(mn, "clc") == 0)    { emit8(as, 0xF8); return; }
+  if (strcmp(mn, "stc") == 0)    { emit8(as, 0xF9); return; }
+  if (strcmp(mn, "cmc") == 0)    { emit8(as, 0xF5); return; }
+  if (strcmp(mn, "int3") == 0)   { emit8(as, 0xCC); return; }
+  if (strcmp(mn, "pushf") == 0)  { emit8(as, 0x9C); return; }
+  if (strcmp(mn, "popf") == 0)   { emit8(as, 0x9D); return; }
+  if (strcmp(mn, "pusha") == 0)  { emit8(as, 0x60); return; }
+  if (strcmp(mn, "popa") == 0)   { emit8(as, 0x61); return; }
   as_error(as, "unknown no-operand instruction");
 }
 
@@ -615,16 +697,26 @@ static void as_encode_jmp(as_state_t *as, const char *mn) {
   /* Conditional jumps — all use near (rel32) by default */
   if (strcmp(mn, "je") == 0 || strcmp(mn, "jz") == 0)    jcc_code = 0x84;
   if (strcmp(mn, "jne") == 0 || strcmp(mn, "jnz") == 0)  jcc_code = 0x85;
+  if (strcmp(mn, "jc") == 0 || strcmp(mn, "jnae") == 0)  jcc_code = 0x82;
+  if (strcmp(mn, "jnc") == 0 || strcmp(mn, "jnb") == 0)  jcc_code = 0x83;
+  if (strcmp(mn, "jna") == 0)  jcc_code = 0x86;
+  if (strcmp(mn, "jnbe") == 0) jcc_code = 0x87;
   if (strcmp(mn, "jl") == 0)   jcc_code = 0x8C;
   if (strcmp(mn, "jg") == 0)   jcc_code = 0x8F;
   if (strcmp(mn, "jle") == 0)  jcc_code = 0x8E;
   if (strcmp(mn, "jge") == 0)  jcc_code = 0x8D;
+  if (strcmp(mn, "jnge") == 0) jcc_code = 0x8C;
+  if (strcmp(mn, "jnl") == 0)  jcc_code = 0x8D;
+  if (strcmp(mn, "jng") == 0)  jcc_code = 0x8E;
+  if (strcmp(mn, "jnle") == 0) jcc_code = 0x8F;
   if (strcmp(mn, "jb") == 0)   jcc_code = 0x82;
   if (strcmp(mn, "jbe") == 0)  jcc_code = 0x86;
   if (strcmp(mn, "ja") == 0)   jcc_code = 0x87;
   if (strcmp(mn, "jae") == 0)  jcc_code = 0x83;
   if (strcmp(mn, "js") == 0)   jcc_code = 0x88;
   if (strcmp(mn, "jns") == 0)  jcc_code = 0x89;
+  if (strcmp(mn, "jp") == 0 || strcmp(mn, "jpe") == 0) jcc_code = 0x8A;
+  if (strcmp(mn, "jnp") == 0 || strcmp(mn, "jpo") == 0) jcc_code = 0x8B;
   if (strcmp(mn, "jo") == 0)   jcc_code = 0x80;
   if (strcmp(mn, "jno") == 0)  jcc_code = 0x81;
 
@@ -1445,9 +1537,11 @@ static void as_resolve_patches(as_state_t *as) {
 void as_parse_program(as_state_t *as) {
   /* NOTE: do NOT reset label_count here — kernel bindings and equ
    * constants were registered during as_init_state() and must survive. */
-  as->patch_count = 0;
-  as->current_section = 0; /* start in .text */
-  as->has_entry = 0;
+  if (as->include_depth == 0) {
+    as->patch_count = 0;
+    as->current_section = 0; /* start in .text */
+    as->has_entry = 0;
+  }
 
   for (;;) {
     if (as->error) return;
@@ -1601,9 +1695,47 @@ void as_parse_program(as_state_t *as) {
 
       /* %include */
       if (strcmp(tok.text, "%include") == 0) {
-        /* Include is handled at a higher level; skip for now */
         as_token_t file = as_advance(as);
-        (void)file; /* TODO: implement include */
+        if (file.type != AS_TOK_STRING && file.type != AS_TOK_IDENT) {
+          as_error(as, "%include requires a file path");
+          as_expect_newline_or_eof(as);
+          continue;
+        }
+
+        if (as->include_depth >= AS_MAX_INCLUDE_DEPTH) {
+          as_error(as, "%include depth exceeded");
+          as_expect_newline_or_eof(as);
+          continue;
+        }
+
+        char *inc_src = as_read_include_source(file.text);
+        if (!inc_src) {
+          as_error(as, "failed to read include file");
+          as_expect_newline_or_eof(as);
+          continue;
+        }
+
+        as_lex_snapshot_t snap;
+        snap.source = as->source;
+        snap.pos = as->pos;
+        snap.line = as->line;
+        snap.cur = as->cur;
+        snap.peek_buf = as->peek_buf;
+        snap.has_peek = as->has_peek;
+
+        as->include_depth++;
+        as_lex_init(as, inc_src);
+        as_parse_program(as);
+        as->include_depth--;
+
+        as->source = snap.source;
+        as->pos = snap.pos;
+        as->line = snap.line;
+        as->cur = snap.cur;
+        as->peek_buf = snap.peek_buf;
+        as->has_peek = snap.has_peek;
+
+        kfree(inc_src);
         as_expect_newline_or_eof(as);
         continue;
       }
@@ -1626,7 +1758,13 @@ void as_parse_program(as_state_t *as) {
           strcmp(mn, "popfd") == 0 || strcmp(mn, "cdq") == 0 ||
           strcmp(mn, "cbw") == 0 || strcmp(mn, "cwde") == 0 ||
           strcmp(mn, "movsb") == 0 || strcmp(mn, "movsd") == 0 ||
-          strcmp(mn, "stosb") == 0 || strcmp(mn, "stosd") == 0) {
+          strcmp(mn, "movsw") == 0 || strcmp(mn, "stosb") == 0 ||
+          strcmp(mn, "stosd") == 0 || strcmp(mn, "stosw") == 0 ||
+          strcmp(mn, "cld") == 0 || strcmp(mn, "std") == 0 ||
+          strcmp(mn, "clc") == 0 || strcmp(mn, "stc") == 0 ||
+          strcmp(mn, "cmc") == 0 || strcmp(mn, "int3") == 0 ||
+          strcmp(mn, "pushf") == 0 || strcmp(mn, "popf") == 0 ||
+          strcmp(mn, "pusha") == 0 || strcmp(mn, "popa") == 0) {
         as_encode_noops(as, mn);
         as_expect_newline_or_eof(as);
         continue;
@@ -1688,7 +1826,14 @@ void as_parse_program(as_state_t *as) {
           strcmp(mn, "jbe") == 0 || strcmp(mn, "ja") == 0 ||
           strcmp(mn, "jae") == 0 || strcmp(mn, "js") == 0 ||
           strcmp(mn, "jns") == 0 || strcmp(mn, "jo") == 0 ||
-          strcmp(mn, "jno") == 0) {
+          strcmp(mn, "jno") == 0 || strcmp(mn, "jc") == 0 ||
+          strcmp(mn, "jnc") == 0 || strcmp(mn, "jnae") == 0 ||
+          strcmp(mn, "jnb") == 0 || strcmp(mn, "jna") == 0 ||
+          strcmp(mn, "jnbe") == 0 || strcmp(mn, "jnge") == 0 ||
+          strcmp(mn, "jnl") == 0 || strcmp(mn, "jng") == 0 ||
+          strcmp(mn, "jnle") == 0 || strcmp(mn, "jp") == 0 ||
+          strcmp(mn, "jpe") == 0 || strcmp(mn, "jnp") == 0 ||
+          strcmp(mn, "jpo") == 0) {
         as_encode_jmp(as, mn);
         as_expect_newline_or_eof(as);
         continue;
@@ -1758,7 +1903,7 @@ void as_parse_program(as_state_t *as) {
   }
 
   /* Resolve forward references */
-  if (!as->error) {
+  if (!as->error && as->include_depth == 0) {
     as_resolve_patches(as);
   }
 }
