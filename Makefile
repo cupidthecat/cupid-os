@@ -202,7 +202,7 @@ kernel/desktop.o: kernel/desktop.c kernel/desktop.h kernel/gfx2d_icons.h kernel/
 kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h
 	$(CC) $(CFLAGS) $(OPT) kernel/terminal_app.c -o kernel/terminal_app.o
 
-# Process management and scheduler
+# Process management and round-robin scheduler (process.c)
 kernel/process.o: kernel/process.c kernel/process.h
 	$(CC) $(CFLAGS) kernel/process.c -o kernel/process.o
 

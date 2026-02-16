@@ -40,6 +40,21 @@ void vga_clear_screen(uint32_t color);
 /* Copy back buffer to linear framebuffer */
 void vga_flip(void);
 
+/* Mark a dirty rectangle for the next vga_flip().
+ * Rectangle is clipped to screen bounds; multiple calls are unioned. */
+void vga_mark_dirty(int x, int y, int w, int h);
+
+/* Mark the full screen dirty for the next vga_flip(). */
+void vga_mark_dirty_full(void);
+
+/* Enable/disable retrace wait inside vga_flip (default: enabled). */
+void vga_set_vsync_wait(bool enabled);
+
+/* Returns true if at least ~16ms have passed since the last vga_flip()
+ * (~60 fps cap). Use this to skip rendering work when the frame budget
+ * has not yet elapsed. */
+bool vga_flip_ready(void);
+
 /* Get pointer to the currently displayed LFB page (for direct cursor updates) */
 uint32_t *vga_get_display_buffer(void);
 

@@ -73,11 +73,11 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
 }
 
 /**
- * Configure PIT channel 0 for 100Hz scheduler mode (10ms time slices)
+ * Configure PIT channel 0 for 200Hz scheduler mode (5ms time slices)
  *
- * Sets channel 0 to fire IRQ0 every 10ms, which the timer interrupt
- * handler uses to trigger the round-robin scheduler.
+ * Sets channel 0 to fire IRQ0 every 5ms for smoother desktop and
+ * lower input latency (was 100Hz / 10ms).
  */
 void pit_set_scheduler_mode(void) {
-    pit_set_frequency(0, 100);
+    pit_set_frequency(0, 200);
 }

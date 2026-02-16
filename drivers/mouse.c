@@ -197,6 +197,23 @@ void mouse_init(void) {
 
 /* ── Cursor drawing ───────────────────────────────────────────────── */
 
+/* Mark the dirty region covering both the OLD cursor position (saved_x/y)
+ * and the NEW position (mouse.x/y).  Call this BEFORE restore+save+draw
+ * so the caller can skip vga_mark_dirty_full() for cursor-only updates. */
+void mouse_mark_cursor_dirty(void) {
+    /* Compute bounding box of old and new cursor positions */
+    int x0 = (saved_x >= 0) ? (int)saved_x : (int)mouse.x;
+    int y0 = (saved_x >= 0) ? (int)saved_y : (int)mouse.y;
+    int x1 = (int)mouse.x;
+    int y1 = (int)mouse.y;
+    /* Union */
+    if (x1 < x0) { int t = x0; x0 = x1; x1 = t; }
+    if (y1 < y0) { int t = y0; y0 = y1; y1 = t; }
+    /* Add cursor dimensions and 1-pixel margin */
+    vga_mark_dirty(x0 - 1, y0 - 1, (x1 - x0) + CURSOR_W + 2,
+                   (y1 - y0) + CURSOR_H + 2);
+}
+
 void mouse_save_under_cursor(void) {
     uint32_t *framebuf = vga_get_framebuffer();
     saved_x = mouse.x;
