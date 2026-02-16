@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-02-13
+Verified against source on: 2026-02-14
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -253,6 +253,7 @@ Dialogs/icons:
 - register_desktop_icon set_icon_desc set_icon_type set_icon_color
 - set_icon_drawer get_my_icon_handle set_icon_pos
 - get_icon_label get_icon_path icon_at_pos icon_count icons_save
+- gfx2d_icon_draw_named
 
 gfx2d full set:
 - gfx2d_init gfx2d_clear gfx2d_flip gfx2d_width gfx2d_height
@@ -266,6 +267,7 @@ gfx2d full set:
 - gfx2d_sprite_draw_alpha gfx2d_sprite_draw_scaled
 - gfx2d_sprite_width gfx2d_sprite_height
 - gfx2d_text gfx2d_text_shadow gfx2d_text_outline
+- gfx2d_text_wrap
 - gfx2d_text_width gfx2d_text_height
 - gfx2d_vignette gfx2d_pixelate gfx2d_invert gfx2d_tint
 - gfx2d_bevel gfx2d_panel gfx2d_titlebar
@@ -273,7 +275,7 @@ gfx2d full set:
 - gfx2d_blend_mode
 - gfx2d_surface_alloc gfx2d_surface_free gfx2d_surface_fill
 - gfx2d_surface_set_active gfx2d_surface_unset_active
-- gfx2d_surface_blit gfx2d_surface_blit_alpha
+- gfx2d_surface_blit gfx2d_surface_blit_alpha gfx2d_surface_blit_scaled
 - gfx2d_tween_linear gfx2d_tween_ease_in_out
 - gfx2d_tween_bounce gfx2d_tween_elastic
 - gfx2d_particles_create gfx2d_particles_free gfx2d_particle_emit

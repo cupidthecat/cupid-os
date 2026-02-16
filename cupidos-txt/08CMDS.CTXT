@@ -47,7 +47,37 @@ System / shell:
   help clear echo time date reboot history sysinfo cupidfetch
 
 Filesystem:
-  pwd cd ls cat mount mkdir rmdir mv rm ed
+  pwd cd ls cat mount mkdir rmdir mv cp rm touch find grep ed
+
+>h2 New File/Search Tools
+cp <source> <dest>
+  Copy file to a new path.
+  If <dest> is a directory, source basename is used.
+  Examples:
+    cp notes.txt notes.bak
+    cp /home/log.txt /home/archive/
+
+touch <file1> [file2] ...
+  Create one or more files if they do not exist.
+  Examples:
+    touch new.txt
+    touch /home/a.txt /home/b.txt
+
+find [path] [name]
+  Recursively list paths under [path] (default: current directory).
+  If [name] is provided, only matching paths are shown.
+  Examples:
+    find
+    find /home
+    find /home demo
+
+grep <pattern> <path> [path] ...
+  Recursively search files and print matches as:
+    path:line:content
+  Examples:
+    grep TODO /home
+    grep include /docs/demos/hello.asm
+    grep print /bin /home/bin
 
 Color / output:
   setcolor resetcolor printc
@@ -87,4 +117,12 @@ program.asm        -> runs via as
 /bin/<cmd>.cc
 /home/bin/<cmd>
 /home/bin/<cmd>.cc
+
+>h2 Desktop Shortcuts
+Global desktop shortcuts:
+- Ctrl + Alt + T  open Terminal
+- Ctrl + Alt + N  open Notepad
+- Ctrl + Alt + E  toggle Neon FX
+- Ctrl + Alt + C  toggle CRT Overlay
+- F5              rescan desktop icons from /bin directives
 

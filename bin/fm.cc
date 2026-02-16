@@ -14,7 +14,8 @@
 
 /* ── Constants ────────────────────────────────────────────────────── */
 
-int FM_MAX_FILES    = 64;
+int FM_FILES_INIT_CAP = 64;
+int FM_FILES_MAX_CAP  = 256;
 int FM_MAX_PATH     = 128;
 int FM_MAX_NAME     = 64;
 int FM_ITEM_H       = 16;
@@ -60,11 +61,13 @@ struct fm_entry {
 /* ── Global State ─────────────────────────────────────────────────── */
 
 char cwd[128];
-struct fm_entry files[64];
+struct fm_entry files[256];
 int file_count = 0;
 int scroll_off = 0;
 int cursor_idx = 0;
-int running = 1;
+int fm_should_close = 0;
+int fm_frame_count = 0;
+int startup_input_grace_until = 0;
 
 /* Clipboard for copy/cut */
 char clip_paths[8][128];
@@ -85,9 +88,27 @@ int visible_items = 0;
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
+int fm_reserve_files(int needed) {
+  if (needed <= FM_FILES_MAX_CAP) return 1;
+  return 0;
+}
+
+void fm_release_files() {
+  file_count = 0;
+}
+
 void fm_strcpy(char *dst, char *src) {
   int i = 0;
   while (src[i]) { dst[i] = src[i]; i++; }
+  dst[i] = 0;
+}
+
+void fm_copy_name64(char *dst, char *src) {
+  int i = 0;
+  while (i < 63 && src[i]) {
+    dst[i] = src[i];
+    i = i + 1;
+  }
   dst[i] = 0;
 }
 
@@ -195,13 +216,12 @@ int fm_delete_path_recursive(char *path, int is_dir) {
 
   int fd = vfs_open(path, 0);
   if (fd >= 0) {
-    char dirent[72];
+    char ent[72];
     while (1) {
-      int r = vfs_readdir(fd, (void*)dirent);
+      int r = vfs_readdir(fd, ent);
       if (r <= 0) break;
 
-      char *dname = dirent;
-      char *dtype_ptr = dirent + 68;
+      char *dname = ent;
 
       /* Skip . and .. */
       if (dname[0] == '.' && dname[1] == 0) continue;
@@ -209,7 +229,7 @@ int fm_delete_path_recursive(char *path, int is_dir) {
 
       char child[128];
       fm_build_path(child, path, dname);
-      int child_is_dir = (*dtype_ptr == 1) ? 1 : 0;
+      int child_is_dir = (ent[68] == VFS_TYPE_DIR) ? 1 : 0;
       fm_delete_path_recursive(child, child_is_dir);
     }
     vfs_close(fd);
@@ -250,27 +270,37 @@ void fm_refresh() {
   scroll_off = 0;
   cursor_idx = 0;
 
+  if (!fm_reserve_files(FM_FILES_INIT_CAP)) {
+    message_dialog("Out of memory");
+    return;
+  }
+
   int fd = vfs_open(cwd, 0);
   if (fd < 0) return;
 
-  /* Use a dirent buffer: name(64) + size(4) + type(1) = ~69 bytes
-   * CupidC struct alignment: we read raw bytes. */
-  char dirent[72];
-  while (file_count < 64) {
-    int r = vfs_readdir(fd, (void*)dirent);
+  char ent[72];
+  while (1) {
+    int r = vfs_readdir(fd, ent);
     if (r <= 0) break;
 
-    /* dirent layout: char name[64], uint32_t size, uint8_t type */
-    char *dname = dirent;
-    int *dsize_ptr = (int*)(dirent + 64);
-    char *dtype_ptr = dirent + 68;
+    char *dname = ent;
 
     /* Skip "." entry */
     if (dname[0] == '.' && dname[1] == 0) continue;
 
-    fm_strcpy(files[file_count].name, dname);
-    files[file_count].size = *dsize_ptr;
-    files[file_count].is_dir = (*dtype_ptr == 1) ? 1 : 0;
+    if (file_count >= FM_FILES_MAX_CAP) {
+      if (!fm_reserve_files(file_count + 1)) break;
+    }
+
+    fm_copy_name64(files[file_count].name, dname);
+    {
+      int b0 = ((int)ent[64]) & 255;
+      int b1 = ((int)ent[65]) & 255;
+      int b2 = ((int)ent[66]) & 255;
+      int b3 = ((int)ent[67]) & 255;
+      files[file_count].size = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+    }
+    files[file_count].is_dir = ((((int)ent[68]) & 255) == VFS_TYPE_DIR) ? 1 : 0;
     files[file_count].selected = 0;
     file_count++;
   }
@@ -290,6 +320,15 @@ void fm_navigate(char *path) {
   vfs_close(fd);
   fm_strcpy(cwd, path);
   fm_refresh();
+}
+
+int fm_try_set_start_dir(char *path) {
+  int fd = vfs_open(path, 0);
+  if (fd < 0)
+    return 0;
+  vfs_close(fd);
+  fm_strcpy(cwd, path);
+  return 1;
 }
 
 void fm_go_up() {
@@ -570,9 +609,11 @@ void fm_render(int mx, int my, int click) {
 
   /* App title bar with close/minimize buttons */
   int tb_action = gfx2d_app_toolbar("CupidFM", mx, my, click);
-  if (tb_action == 1 || gfx2d_should_quit()) {
-    running = 0; /* Close */
-    return;
+  if (tb_action == 1) {
+    if (uptime_ms() > startup_input_grace_until && fm_frame_count > 30) {
+      fm_should_close = 1; /* Close */
+      return;
+    }
   }
   if (tb_action == 2) {
     gfx2d_minimize("CupidFM"); /* Minimize to taskbar */
@@ -746,6 +787,15 @@ int main() {
   /* Enter fullscreen mode */
   gfx2d_fullscreen_enter();
 
+  /* Reset key runtime state in case globals persist across JIT runs. */
+  fm_should_close = 0;
+  fm_frame_count = 0;
+  file_count = 0;
+  scroll_off = 0;
+  cursor_idx = 0;
+  clip_count = 0;
+  clip_cut = 0;
+
   /* Start at root or cwd */
   char *start = get_cwd();
   if (start != 0 && start[0] != 0) {
@@ -755,13 +805,54 @@ int main() {
     cwd[1] = 0;
   }
 
+  /* Prefer a content directory if root is empty in this environment. */
+  if (cwd[0] == '/' && cwd[1] == 0) {
+    if (!fm_try_set_start_dir("/home")) {
+      if (!fm_try_set_start_dir("/bin")) {
+        if (!fm_try_set_start_dir("/docs")) {
+          if (!fm_try_set_start_dir("/cupidos-txt")) {
+            if (!fm_try_set_start_dir("/demos")) {
+              cwd[0] = '/';
+              cwd[1] = 0;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!fm_reserve_files(FM_FILES_INIT_CAP)) {
+    message_dialog("Out of memory");
+    gfx2d_fullscreen_exit();
+    return 1;
+  }
+
   fm_refresh();
 
-  int prev_buttons = 0;
+  /* If root shows empty, auto-fallback to common populated dirs. */
+  if (file_count == 0 && cwd[0] == '/' && cwd[1] == 0) {
+    if (fm_try_set_start_dir("/home") || fm_try_set_start_dir("/bin") ||
+        fm_try_set_start_dir("/docs") || fm_try_set_start_dir("/cupidos-txt") ||
+        fm_try_set_start_dir("/demos")) {
+      fm_refresh();
+    }
+  }
+
+  int prev_buttons = mouse_buttons();
   int dbl_click_time = 0;
   int dbl_click_idx = -1;
+  startup_input_grace_until = uptime_ms() + 3000;
 
-  while (running) {
+  /* Drain potentially stale key events from launcher context. */
+  {
+    int i = 0;
+    while (i < 64) {
+      poll_key();
+      i++;
+    }
+  }
+
+  while (!fm_should_close) {
     int mx = mouse_x();
     int my = mouse_y();
     int btns = mouse_buttons();
@@ -773,11 +864,21 @@ int main() {
     char c = poll_key();
     if (c != 0) ch = c;
 
+    if (uptime_ms() <= startup_input_grace_until) {
+      left_click = 0;
+      right_click = 0;
+      ch = 0;
+    }
+
     /* Key-based navigation uses getchar scan-code limitations —
      * we check for common key characters instead */
 
     /* Escape = quit */
-    if (ch == 27) running = 0;
+    if (ch == 27) {
+      if (uptime_ms() > startup_input_grace_until && fm_frame_count > 30) {
+        fm_should_close = 1;
+      }
+    }
 
     /* Enter = open */
     if (ch == 13 || ch == 10) fm_open_selected();
@@ -881,10 +982,12 @@ int main() {
     fm_render(mx, my, left_click);
     gfx2d_draw_cursor();
     gfx2d_flip();
+    fm_frame_count = fm_frame_count + 1;
 
     yield();
   }
 
   gfx2d_fullscreen_exit();
+  fm_release_files();
   return 0;
 }

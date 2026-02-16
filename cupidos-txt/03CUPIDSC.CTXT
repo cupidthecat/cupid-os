@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidScript Guide (.cup)
-Verified against source on: 2026-02-13
+Verified against source on: 2026-02-14
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -116,6 +116,32 @@ date [+epoch|+short]
 
 Unknown commands are passed to shell_execute_line() and run as shell commands.
 
+>h2 Pipelines, Redirection, Background (Current Behavior)
+Implemented tokens and execution paths:
+  |  >  >>  <  2>  2>&1  &
+
+Pipeline semantics right now are argument-forwarding style (not POSIX stdin filter style).
+Example:
+  echo left | echo right
+prints:
+  right left
+
+Redirection examples:
+  echo first > /home/p1.txt
+  echo second >> /home/p1.txt
+  echo prefix < /home/p1.txt
+
+Background:
+  ls &
+  jobs
+  echo $!
+
+Async background is supported for external executable commands.
+If command resolution lands on .cc source, CupidScript attempts AOT compile
+to /home/.bg_<name>.elf and then launches it via exec().
+If a command shape cannot be safely launched async, CupidScript falls back
+to foreground execution with a status message.
+
 >h2 Associative Arrays
 Create:
   declare -A map
@@ -124,20 +150,25 @@ Supported runtime operations exist for key/value maps, but ergonomic
 shell-like syntax coverage is still evolving. Keep scripts simple.
 
 >h2 Important Current Limitations
-Lexer support exists for:
-  |  >  >>  <  2>  2>&1  &  backticks  $(...)
+Not full POSIX shell behavior yet.
 
-But current parser/executor primarily handles command/assignment/flow nodes.
-So in practice:
-- Pipe and redirection tokens are not yet fully wired through AST execution.
-- Background job table exists, but full "&" execution path is incomplete.
-- jobs builtin is present, but many scripts will see no active jobs unless
-  explicit job wiring is added in future code.
+1) Pipelines are currently argv-forwarding style.
+  They do not provide full streaming stdin/stdout filter semantics.
+
+2) Input redirection (<) for script-level command wiring reads bounded text
+  from the redirected source into command input handling.
+
+3) Async background support targets external executable launch paths.
+  Built-in/script-function/background combinations with complex redirection
+  may fall back to foreground execution.
+
+4) jobs shows CupidScript-tracked jobs for the current script context.
+  If no script jobs are active, it may delegate to shell jobs output.
 
 >h2 Recommended Style Today
-1) Use straightforward sequential commands.
-2) Use variables + if/while/for heavily (these work well).
-3) Use temporary files manually instead of expecting full pipe semantics.
+1) Use variables + if/while/for/functions heavily (stable paths).
+2) Use > and >> for deterministic output capture.
+3) For portable scripts, treat pipeline behavior as argv chaining.
 4) Prefer explicit absolute paths for reliability.
 
 >h2 Minimal Example

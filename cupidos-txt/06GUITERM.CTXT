@@ -62,6 +62,25 @@ Shell can launch GUI apps:
 Some CupidC programs are GUI apps (paint, fm, gfx demos) and can be launched
 from shell if they are available in /bin or /home/bin.
 
+>h2 Desktop Window Controls
+Window manager controls:
+- Drag a window by its title bar to move it.
+- Drag from the bottom-right corner grip to resize.
+- Click [X] to close.
+
+Notes:
+- Resize is clamped so windows stay on-screen with minimum dimensions.
+- Bottom-edge interactions now prioritize window hit-testing so resize works
+  reliably even when the pointer is near the taskbar area.
+
+>h2 Desktop Global Shortcuts
+While on desktop:
+- Ctrl + Alt + T  -> open Terminal
+- Ctrl + Alt + N  -> open Notepad
+- Ctrl + Alt + E  -> toggle Neon desktop FX
+- Ctrl + Alt + C  -> toggle CRT overlay FX
+- F5              -> rescan /bin icon directives
+
 >h2 Text Mode Vs GUI Mode Differences
 Text mode:
 - Kernel print/putchar go directly to VGA text memory.
