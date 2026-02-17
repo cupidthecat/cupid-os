@@ -40,29 +40,29 @@ With that being said cupid-os also will have a mix of influence from mostly Linu
 ## Project Structure
 
 - **boot/**  
-  - `boot.asm` – Bootloader that sets up the environment, loads the kernel, and switches to protected mode.
+  - `boot.asm` - Bootloader that sets up the environment, loads the kernel, and switches to protected mode.
 
 - **kernel/**  
-  - `kernel.c` – Main kernel file handling VGA initialization, timer calibration, and overall system startup.
-  - `idt.c/h` – IDT setup and gate configuration.
-  - `isr.asm` – Assembly routines for common ISR/IRQ stubs.
-  - `irq.c/h` – IRQ dispatch and handler installation.
-  - `pic.c/h` – PIC (Programmable Interrupt Controller) initialization and masking functions.
-  - `math.c/h` – Math utilities including 64-bit division, itoa, and hex printing.
-  - `shell.c/h` – A basic shell interface that handles user input and simple commands.
-  - `string.c/h` – Basic string manipulation functions.
-  - `cpu.h` – CPU utility functions (including `rdtsc` and CPU frequency detection).
-  - `kernel.h` – Core kernel definitions and shared globals (e.g., VGA parameters).
+  - `kernel.c` - Main kernel file handling VGA initialization, timer calibration, and overall system startup.
+  - `idt.c/h` - IDT setup and gate configuration.
+  - `isr.asm` - Assembly routines for common ISR/IRQ stubs.
+  - `irq.c/h` - IRQ dispatch and handler installation.
+  - `pic.c/h` - PIC (Programmable Interrupt Controller) initialization and masking functions.
+  - `math.c/h` - Math utilities including 64-bit division, itoa, and hex printing.
+  - `shell.c/h` - A basic shell interface that handles user input and simple commands.
+  - `string.c/h` - Basic string manipulation functions.
+  - `cpu.h` - CPU utility functions (including `rdtsc` and CPU frequency detection).
+  - `kernel.h` - Core kernel definitions and shared globals (e.g., VGA parameters).
 
 - **drivers/**  
-  - `keyboard.c/h` – PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
-  - `timer.c/h` – Timer functions including sleep/delay, tick counting, and multi-channel support.
-  - `pit.c/h` – PIT configuration and frequency setup.
-  - `speaker.c/h` – PC speaker driver with tone and beep functionality.
+  - `keyboard.c/h` - PS/2 keyboard driver with enhanced key support (arrow keys, delete, and modifiers).
+  - `timer.c/h` - Timer functions including sleep/delay, tick counting, and multi-channel support.
+  - `pit.c/h` - PIT configuration and frequency setup.
+  - `speaker.c/h` - PC speaker driver with tone and beep functionality.
 
-- **link.ld** – Linker script defining the kernel image layout.
-- **Makefile** – Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
-- **LICENSE** – GNU General Public License v3.
+- **link.ld** - Linker script defining the kernel image layout.
+- **Makefile** - Build configuration that compiles the bootloader, kernel, and drivers into a bootable image.
+- **LICENSE** - GNU General Public License v3.
 
 # Features
 
