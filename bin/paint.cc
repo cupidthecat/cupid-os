@@ -605,6 +605,87 @@ void draw_palette() {
   }
 }
 
+int point_in_rect(int px, int py, int x, int y, int w, int h) {
+  if (px < x || py < y)
+    return 0;
+  if (px >= x + w || py >= y + h)
+    return 0;
+  return 1;
+}
+
+int handle_sidebar_click(int mx, int my) {
+  int btn_x = 4;
+  int btn_w = 48;
+
+  if (!point_in_rect(mx, my, btn_x, TOOLBAR_H, btn_w, 460))
+    return 0;
+
+  int grid_x = 4;
+  int grid_y = TOOLBAR_H + TOOL_GRID_Y;
+  int grid_w = (TOOL_BTN_W * 2) + TOOL_GAP_X;
+  int grid_h = (TOOL_BTN_H * 3) + (TOOL_GAP_Y * 2);
+  if (point_in_rect(mx, my, grid_x, grid_y, grid_w, grid_h)) {
+    int rel_y = my - grid_y;
+    int row = rel_y / (TOOL_BTN_H + TOOL_GAP_Y);
+    int col = 0;
+    if (mx >= 4 + TOOL_BTN_W + TOOL_GAP_X)
+      col = 1;
+    int t = row * 2 + col;
+    if (t >= 0 && t <= TOOL_SELECT)
+      current_tool = t;
+    return 1;
+  }
+
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + BRUSH_PLUS_Y, btn_w, 20)) {
+    if (brush_size < 10)
+      brush_size++;
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + BRUSH_MINUS_Y, btn_w, 20)) {
+    if (brush_size > 1)
+      brush_size--;
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + ZOOM_PLUS_Y, btn_w, 20)) {
+    if (zoom_level < 4)
+      zoom_level++;
+    clamp_view_origin();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + ZOOM_MINUS_Y, btn_w, 20)) {
+    if (zoom_level > 1)
+      zoom_level--;
+    clamp_view_origin();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + CROP_Y, btn_w, 20)) {
+    crop_to_selection();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + RESIZE_UP_Y, btn_w, 20)) {
+    resize_canvas_200();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + RESIZE_DOWN_Y, btn_w, 20)) {
+    resize_canvas_50();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + SAVE_Y, btn_w, 20)) {
+    save_drawing();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + SAVE_AS_Y, btn_w, 20)) {
+    save_drawing_as();
+    return 1;
+  }
+  if (point_in_rect(mx, my, btn_x, TOOLBAR_H + LOAD_Y, btn_w, 20)) {
+    load_drawing();
+    return 1;
+  }
+
+  return 0;
+}
+
 int screen_to_canvas_x(int sx) {
   if (sx < CANVAS_X)
     return -1;
@@ -1463,58 +1544,7 @@ int main() {
         if (my < TOOLBAR_H) {
           /* Handled by gfx2d_app_toolbar */
         } else if (mx < CANVAS_X) { /* Side Toolbar */
-          if (my >= TOOLBAR_H + TOOL_GRID_Y &&
-              my < TOOLBAR_H + TOOL_GRID_Y + 3 * (TOOL_BTN_H + TOOL_GAP_Y) - TOOL_GAP_Y) {
-            int rel_y = my - (TOOLBAR_H + TOOL_GRID_Y);
-            int row = rel_y / (TOOL_BTN_H + TOOL_GAP_Y);
-            int col = 0;
-            if (mx >= 4 + TOOL_BTN_W + TOOL_GAP_X)
-              col = 1;
-            int t = row * 2 + col;
-            if (t >= 0 && t <= TOOL_SELECT)
-              current_tool = t;
-          }
-          if (my >= TOOLBAR_H + BRUSH_PLUS_Y &&
-              my < TOOLBAR_H + BRUSH_PLUS_Y + 20) {
-            /* Brush Size + */
-            if (brush_size < 10)
-              brush_size++;
-          }
-          if (my >= TOOLBAR_H + BRUSH_MINUS_Y &&
-              my < TOOLBAR_H + BRUSH_MINUS_Y + 20) {
-            /* Brush Size - */
-            if (brush_size > 1)
-              brush_size--;
-          }
-          if (my >= TOOLBAR_H + ZOOM_PLUS_Y && my < TOOLBAR_H + ZOOM_PLUS_Y + 20) {
-            if (zoom_level < 4)
-              zoom_level++;
-            clamp_view_origin();
-          }
-          if (my >= TOOLBAR_H + ZOOM_MINUS_Y &&
-              my < TOOLBAR_H + ZOOM_MINUS_Y + 20) {
-            if (zoom_level > 1)
-              zoom_level--;
-            clamp_view_origin();
-          }
-          if (my >= TOOLBAR_H + CROP_Y && my < TOOLBAR_H + CROP_Y + 20) {
-            crop_to_selection();
-          }
-          if (my >= TOOLBAR_H + RESIZE_UP_Y && my < TOOLBAR_H + RESIZE_UP_Y + 20) {
-            resize_canvas_200();
-          }
-          if (my >= TOOLBAR_H + RESIZE_DOWN_Y && my < TOOLBAR_H + RESIZE_DOWN_Y + 20) {
-            resize_canvas_50();
-          }
-          if (my >= TOOLBAR_H + SAVE_Y && my < TOOLBAR_H + SAVE_Y + 20) {
-            save_drawing();
-          }
-          if (my >= TOOLBAR_H + SAVE_AS_Y && my < TOOLBAR_H + SAVE_AS_Y + 20) {
-            save_drawing_as();
-          }
-          if (my >= TOOLBAR_H + LOAD_Y && my < TOOLBAR_H + LOAD_Y + 20) {
-            load_drawing();
-          }
+          handle_sidebar_click(mx, my);
         } else {
           if (my >= CANVAS_Y + CANVAS_H) { /* Palette */
             int col_idx = (mx - (CANVAS_X + 4)) / 32;
