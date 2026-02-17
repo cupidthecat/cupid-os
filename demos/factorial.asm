@@ -1,4 +1,4 @@
-; factorial.asm — Recursive factorial
+; factorial.asm - Recursive factorial
 ; Computes and prints factorial(1) through factorial(10).
 ; Run: as demos/factorial.asm
 
@@ -9,7 +9,7 @@ section .data
 
 section .text
 
-; factorial(n) — returns n! in EAX
+; factorial(n) - returns n! in EAX
 ; Argument: n passed on the stack
 factorial:
     push ebp

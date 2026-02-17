@@ -1,4 +1,4 @@
-; asm_compat_reserve.asm — NASM-style reserve compatibility demo
+; asm_compat_reserve.asm - NASM-style reserve compatibility demo
 ; Run: as demos/asm_compat_reserve.asm
 
 section .data

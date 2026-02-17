@@ -5,14 +5,12 @@
 //icon_type: folder
 //icon_color: 0xFFFF00
 
-/* fm.cc — CupidFM: Graphical File Manager for CupidOS
+/* fm.cc - CupidFM: Graphical File Manager
  *
  * A Win95-style file manager written entirely in CupidC.
  * Features: directory navigation, file ops (copy/paste/delete/rename),
  * new folder creation, list view, context menus, keyboard shortcuts.
  */
-
-/* ── Constants ────────────────────────────────────────────────────── */
 
 int FM_FILES_INIT_CAP = 64;
 int FM_FILES_MAX_CAP  = 256;
@@ -49,16 +47,12 @@ int COL_SHADOW   = 0x00404040;
 /* VFS type flags */
 int VFS_TYPE_DIR = 1;
 
-/* ── File entry ───────────────────────────────────────────────────── */
-
 struct fm_entry {
   char name[64];
   int size;
   int is_dir;
   int selected;
 };
-
-/* ── Global State ─────────────────────────────────────────────────── */
 
 char cwd[128];
 struct fm_entry files[256];
@@ -85,8 +79,6 @@ int list_y = 0;
 int list_w = 640;
 int list_h = 380;
 int visible_items = 0;
-
-/* ── Helpers ──────────────────────────────────────────────────────── */
 
 int fm_reserve_files(int needed) {
   if (needed <= FM_FILES_MAX_CAP) return 1;
@@ -239,8 +231,6 @@ int fm_delete_path_recursive(char *path, int is_dir) {
   return vfs_unlink(path);
 }
 
-/* ── Directory reading (sorted: dirs first, then alpha) ───────────── */
-
 void fm_sort_files() {
   int i = 0;
   while (i < file_count - 1) {
@@ -307,8 +297,6 @@ void fm_refresh() {
   vfs_close(fd);
   fm_sort_files();
 }
-
-/* ── Navigation ───────────────────────────────────────────────────── */
 
 void fm_navigate(char *path) {
   /* Verify directory exists before navigating */
@@ -382,8 +370,6 @@ void fm_open_selected() {
   }
 }
 
-/* ── Selection ────────────────────────────────────────────────────── */
-
 void fm_select_all() {
   int i = 0;
   while (i < file_count) {
@@ -409,8 +395,6 @@ int fm_count_selected() {
   }
   return c;
 }
-
-/* ── Clipboard operations ─────────────────────────────────────────── */
 
 void fm_copy() {
   clip_count = 0;
@@ -480,8 +464,6 @@ void fm_paste() {
   }
   fm_refresh();
 }
-
-/* ── File operations ──────────────────────────────────────────────── */
 
 void fm_delete_selected() {
   int count = fm_count_selected();
@@ -564,8 +546,6 @@ void fm_new_folder() {
   }
 }
 
-/* ── Icon drawing (simple 16x16 icons from primitives) ────────────── */
-
 void draw_folder_icon(int x, int y) {
   /* Folder tab */
   gfx2d_rect_fill(x, y, 7, 3, COL_ICON_DIR);
@@ -590,8 +570,6 @@ void draw_file_icon(int x, int y) {
   gfx2d_hline(x + 3, y + 8, 4, COL_ICON_FIL);
 }
 
-/* ── Toolbar button helper ────────────────────────────────────────── */
-
 int tb_btn(int x, int y, int w, char *label, int mx, int my, int click) {
   int hover = (mx >= x && mx < x + w && my >= y && my < y + FM_TOOLBAR_H - 4);
   int color = hover ? COL_HOVER : COL_TOOLBAR;
@@ -600,8 +578,6 @@ int tb_btn(int x, int y, int w, char *label, int mx, int my, int click) {
   gfx2d_text(x + 4, y + 5, label, COL_BLACK, 1);
   return hover && click;
 }
-
-/* ── Rendering ────────────────────────────────────────────────────── */
 
 void fm_render(int mx, int my, int click) {
   /* Background */
@@ -756,8 +732,6 @@ void fm_render(int mx, int my, int click) {
   gfx2d_text(6, sy + 3, status, COL_TEXT, 1);
 }
 
-/* ── Context menu ─────────────────────────────────────────────────── */
-
 void fm_context_menu(int mx, int my) {
   char *items[8];
   items[0] = "Open";
@@ -780,8 +754,6 @@ void fm_context_menu(int mx, int my) {
   if (choice == 6) fm_new_folder();
   if (choice == 7) fm_refresh();
 }
-
-/* ── Main loop ────────────────────────────────────────────────────── */
 
 int main() {
   /* Enter fullscreen mode */
@@ -859,7 +831,7 @@ int main() {
     int left_click = (btns & 1) && !(prev_buttons & 1);
     int right_click = (btns & 2) && !(prev_buttons & 2);
 
-    /* ── Keyboard handling (non-blocking) ─────────────────────── */
+    /* Keyboard handling (non-blocking) */
     int ch = 0;
     char c = poll_key();
     if (c != 0) ch = c;
@@ -870,7 +842,7 @@ int main() {
       ch = 0;
     }
 
-    /* Key-based navigation uses getchar scan-code limitations —
+    /* Key-based navigation uses getchar scan-code limitations -
      * we check for common key characters instead */
 
     /* Escape = quit */
@@ -897,10 +869,10 @@ int main() {
     if (ch == 127) fm_delete_selected();
 
     /* 'n' for new folder (when not typing) */
-    /* F2 rename — we can't easily detect F-keys via getchar,
+    /* F2 rename - we can't easily detect F-keys via getchar,
        so we use keyboard_read would be needed. Skipping for now. */
 
-    /* ── Mouse — list area clicks ─────────────────────────────── */
+    /* Mouse - list area clicks */
     int items_y = list_y + FM_ITEM_H;
     int items_h = list_h - FM_ITEM_H;
     int items_visible = items_h / FM_ITEM_H;
@@ -917,12 +889,12 @@ int main() {
           /* Double-click detection */
           int now = uptime_ms();
           if (clicked_idx == dbl_click_idx && (now - dbl_click_time) < 400) {
-            /* Double-click — open */
+            /* Double-click - open */
             cursor_idx = clicked_idx;
             fm_open_selected();
             dbl_click_idx = -1;
           } else {
-            /* Single click — select */
+            /* Single click - select */
             fm_deselect_all();
             cursor_idx = clicked_idx;
             files[cursor_idx].selected = 1;
@@ -948,7 +920,7 @@ int main() {
       }
     }
 
-    /* Right-click — context menu */
+    /* Right-click - context menu */
     if (right_click) {
       if (mx >= list_x && mx < list_x + list_w &&
           my >= items_y && my < items_y + items_h) {
@@ -965,7 +937,7 @@ int main() {
       fm_context_menu(mx, my);
     }
 
-    /* ── Scroll wheel ─────────────────────────────────────────── */
+    /* Scroll wheel */
     int scroll_dz = mouse_scroll();
     if (scroll_dz != 0) {
       scroll_off = scroll_off + scroll_dz * 3;
@@ -977,7 +949,7 @@ int main() {
 
     prev_buttons = btns;
 
-    /* ── Render ───────────────────────────────────────────────── */
+    /* Render */
     gfx2d_cursor_hide();
     fm_render(mx, my, left_click);
     gfx2d_draw_cursor();

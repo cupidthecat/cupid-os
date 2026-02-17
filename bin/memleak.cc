@@ -1,4 +1,4 @@
-// memleak.cc — Detect memory leaks
+// memleak.cc - Detect memory leaks
 // Usage: memleak [threshold_sec]
 
 void main() {

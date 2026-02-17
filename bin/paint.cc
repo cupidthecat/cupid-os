@@ -5,13 +5,11 @@
 //icon_type: app
 //icon_color: 0xFF6600
 
-/* paint.cc — CupidPaint
+/* paint.cc - CupidPaint
  *
  * A Win95-style paint program for CupidOS.
  * REFACTOR: Removed preprocessor macros for CupidC compatibility.
  */
-
-/* ── Constants ────────────────────────────────────────────────────── */
 
 /* Replaced #define with global variables */
 int TOOL_PENCIL = 0;
@@ -52,8 +50,6 @@ int LOAD_Y = 415;
 
 /* Palette colors (16 standard VGA/Win95 colors) */
 int palette[16];
-
-/* ── Global State ─────────────────────────────────────────────────── */
 
 int canvas_surf = -1;
 int current_tool = 0;         /* TOOL_PENCIL */
@@ -143,8 +139,6 @@ void reset_runtime_state() {
   has_current_file = 0;
 }
 
-/* ── Initialization ───────────────────────────────────────────────── */
-
 void init_palette() {
   palette[0] = 0x000000;  /* Black */
   palette[1] = 0x808080;  /* Dark Gray */
@@ -163,8 +157,6 @@ void init_palette() {
   palette[14] = 0x800080; /* Purple */
   palette[15] = 0xFF00FF; /* Fuchsia */
 }
-
-/* ── Helpers ──────────────────────────────────────────────────────── */
 
 /* Simple sleep wrapper if needed, or rely on built-in if available */
 /* We will just use 'yield()' loops for now if sleep isn't guaranteed,
@@ -216,8 +208,6 @@ void settle_selection_before_file_op() {
   sel_buf_w = 0;
   sel_buf_h = 0;
 }
-
-/* ── File I/O ─────────────────────────────────────────────────────── */
 
 void show_message(char* msg, int color) {
   gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, color);
@@ -488,8 +478,6 @@ void load_drawing() {
     show_message("Error!", 0xFF0000);
   }
 }
-
-/* ── UI Drawing ───────────────────────────────────────────────────── */
 
 void draw_toolbar() {
   /* Side toolbar background (below app toolbar) */
@@ -1184,8 +1172,6 @@ void draw_canvas_view() {
   }
 }
 
-/* ── Tool Logic ───────────────────────────────────────────────────── */
-
 void use_tool(int x, int y, int dragging) {
   /* Adjust to canvas coordinates */
   int cx = screen_to_canvas_x(x);
@@ -1374,8 +1360,6 @@ void commit_shape(int mx, int my) {
   canvas_dirty = 1;
 }
 
-/* ── Main Loop ────────────────────────────────────────────────────── */
-
 int main() {
   reset_runtime_state();
   init_palette();
@@ -1475,7 +1459,7 @@ int main() {
         drag_start_x = mx;
         drag_start_y = my;
 
-        /* UI Interaction — skip if click is in the title bar area */
+        /* UI Interaction - skip if click is in the title bar area */
         if (my < TOOLBAR_H) {
           /* Handled by gfx2d_app_toolbar */
         } else if (mx < CANVAS_X) { /* Side Toolbar */

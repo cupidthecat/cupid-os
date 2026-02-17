@@ -5,7 +5,7 @@
 //icon_type: app
 //icon_color: 0x44AAFF
 
-/* BG Studio — Desktop background editor */
+/* BG Studio - Desktop background editor */
 
 int clamp255(int v) {
   if (v < 0) return 0;
@@ -138,11 +138,11 @@ void draw_preview_kitty(int tick, int sw, int sh) {
   }
 }
 
-/* Optimized tiled preview — uses hlines instead of per-pixel gfx2d_pixel */
+/* Optimized tiled preview - uses hlines instead of per-pixel gfx2d_pixel */
 void draw_tiled_preview(int pattern, int fg, int bg, int x0, int y0, int w, int h) {
   int y;
   if (pattern == 1) {
-    /* Sparse dots: only 2 pixels on per 8x8 tile — draw bg fill then dots */
+    /* Sparse dots: only 2 pixels on per 8x8 tile - draw bg fill then dots */
     gfx2d_rect_fill(x0, y0, w, h, bg);
     for (y = 0; y < h; y++) {
       int ly = y & 7;
@@ -163,7 +163,7 @@ void draw_tiled_preview(int pattern, int fg, int bg, int x0, int y0, int w, int 
     gfx2d_dither_rect(x0, y0, w, h, bg, fg, 0);
     return;
   }
-  /* pattern == 0: 2x2 block checker — draw as alternating 2-pixel hlines */
+  /* pattern == 0: 2x2 block checker - draw as alternating 2-pixel hlines */
   for (y = 0; y < h; y++) {
     int ly = y & 7;
     int row_phase = (ly >> 1) & 1;
@@ -283,7 +283,7 @@ int main() {
   int picker_w = 170;
   int picker_h = 70;
   int sv_cache = gfx2d_surface_alloc(picker_w, picker_h);
-  int sv_cache_hue = -1;  /* invalid — force first draw */
+  int sv_cache_hue = -1;  /* invalid - force first draw */
 
   while (!done) {
     int mx = mouse_x();

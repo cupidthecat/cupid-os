@@ -1,4 +1,4 @@
-; stack.asm — Stack frame and function call test
+; stack.asm - Stack frame and function call test
 ; Tests push/pop, call/ret, stack frames, and prints results.
 ; Run: as demos/stack.asm
 
@@ -9,7 +9,7 @@ section .data
 
 section .text
 
-; add_numbers(a, b) — returns a + b in eax
+; add_numbers(a, b) - returns a + b in eax
 add_numbers:
     push ebp
     mov  ebp, esp
@@ -18,7 +18,7 @@ add_numbers:
     pop  ebp
     ret
 
-; multiply(a, b) — returns a * b in eax (repeated addition)
+; multiply(a, b) - returns a * b in eax (repeated addition)
 multiply:
     push ebp
     mov  ebp, esp

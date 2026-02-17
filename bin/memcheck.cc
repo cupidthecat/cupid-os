@@ -1,4 +1,4 @@
-// memcheck.cc — Check heap integrity
+// memcheck.cc - Check heap integrity
 void main() {
     print("Checking heap integrity...\n");
     heap_check_integrity();

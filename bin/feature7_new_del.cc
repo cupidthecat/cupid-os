@@ -1,4 +1,4 @@
-//help: CupidC Feature 7 demo — new / del keywords
+//help: CupidC Feature 7 demo - new / del keywords
 //help: Usage: feature7_new_del
 //help: Verifies new T, new T[n], zero-init, and del pointer reset behavior.
 

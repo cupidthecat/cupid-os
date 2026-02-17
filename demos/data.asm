@@ -1,4 +1,4 @@
-; data.asm — Data section test
+; data.asm - Data section test
 ; Tests db, dd directives, data references, and prints results.
 ; Run: as demos/data.asm
 

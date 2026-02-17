@@ -1,4 +1,4 @@
-; parity_gfx2d.asm — gfx2d parity bindings smoke test for CupidASM
+; parity_gfx2d.asm - gfx2d parity bindings smoke test for CupidASM
 ; Run: as demos/parity_gfx2d.asm
 
 section .data

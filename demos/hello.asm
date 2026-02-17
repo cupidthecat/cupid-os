@@ -1,4 +1,4 @@
-; hello.asm — Hello World for CupidASM (JIT mode)
+; hello.asm - Hello World for CupidASM (JIT mode)
 ; Calls kernel print() directly via pre-registered bindings.
 ; Run with: as demos/hello.asm
 

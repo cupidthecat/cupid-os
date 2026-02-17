@@ -1,4 +1,4 @@
-; jcc_aliases.asm — Conditional jump alias demo
+; jcc_aliases.asm - Conditional jump alias demo
 ; Exercises aliases like jnc/jc/jpe/jpo/jnl/jng.
 ; Run: as demos/jcc_aliases.asm
 

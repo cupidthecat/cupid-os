@@ -1,4 +1,4 @@
-//help: CupidC Feature 1 demo — sized type keywords + legacy aliases
+//help: CupidC Feature 1 demo - sized type keywords + legacy aliases
 //help: Usage: feature1_types
 //help: Verifies U0/U8/U16/U32/I8/I16/I32/Bool parse and run, while int/char/void remain valid.
 

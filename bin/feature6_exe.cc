@@ -1,4 +1,4 @@
-//help: CupidC Feature 6 demo — #exe blocks
+//help: CupidC Feature 6 demo - #exe blocks
 //help: Usage: feature6_exe
 //help: Verifies #exe block support in JIT mode.
 

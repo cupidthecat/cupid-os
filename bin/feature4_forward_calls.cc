@@ -1,4 +1,4 @@
-//help: CupidC Feature 4 demo — two-pass style function resolution
+//help: CupidC Feature 4 demo - two-pass style function resolution
 //help: Usage: feature4_forward_calls
 //help: Verifies function calls work before definition, without prototypes.
 

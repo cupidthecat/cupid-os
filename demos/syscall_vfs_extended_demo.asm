@@ -1,4 +1,4 @@
-; syscall_vfs_extended_demo.asm — Extended syscall table VFS demo
+; syscall_vfs_extended_demo.asm - Extended syscall table VFS demo
 ; Run: as demos/syscall_vfs_extended_demo.asm
 
 section .data

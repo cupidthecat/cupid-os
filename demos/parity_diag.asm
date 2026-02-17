@@ -1,4 +1,4 @@
-; parity_diag.asm — diagnostics/debug parity bindings test for CupidASM
+; parity_diag.asm - diagnostics/debug parity bindings test for CupidASM
 ; Run: as demos/parity_diag.asm
 
 section .data

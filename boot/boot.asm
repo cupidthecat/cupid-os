@@ -1,13 +1,11 @@
  [org 0x7c00]
 [bits 16]
 
-; ═══════════════════════════════════════════════════════════════════════
-;  STAGE 1 — Boot Sector (512 bytes)
-;  Loads stage 2 from sectors 2-5 to 0x7E00, then jumps to it.
-;  With [org 0x7c00], stage 2 labels at offset 512+ resolve to 0x7E00+
-;  which is exactly where we load them. BOOT_DRIVE in stage 1 memory
-;  remains accessible since the boot sector stays in RAM at 0x7C00.
-; ═══════════════════════════════════════════════════════════════════════
+; STAGE 1 - Boot Sector (512 bytes)
+; Loads stage 2 from sectors 2-5 to 0x7E00, then jumps to it.
+; With [org 0x7c00], stage 2 labels at offset 512+ resolve to 0x7E00+
+; which is exactly where we load them. BOOT_DRIVE in stage 1 memory
+; remains accessible since the boot sector stays in RAM at 0x7C00.
 
 STAGE2_SECTORS     equ 4       ; Stage 2 = 4 sectors (2KB)
 
@@ -45,7 +43,7 @@ start:
 
 BOOT_DRIVE db 0
 
-; ── MBR partition table at byte offset 446 ──
+; MBR partition table at byte offset 446
 times 446-($-$$) db 0
 
 ; Partition entry 1: FAT16, bootable, LBA 4096, 98304 sectors
@@ -62,10 +60,8 @@ times 48 db 0
 dw 0xAA55
 
 
-; ═══════════════════════════════════════════════════════════════════════
-;  STAGE 2 — Loaded at 0x7E00 (= 0x7C00 + 512)
-;  A20 → unreal mode → load kernel to 1MB → VBE → protected mode → go
-; ═══════════════════════════════════════════════════════════════════════
+; STAGE 2 - Loaded at 0x7E00 (= 0x7C00 + 512)
+; A20 → unreal mode → load kernel to 1MB → VBE → protected mode → go
 
 KERNEL_OFFSET      equ 0x100000  ; Kernel destination (1MB)
 TEMP_SEGMENT       equ 0x1000    ; Temp buffer segment
@@ -78,15 +74,15 @@ stage2_entry:
     mov ds, ax
     mov es, ax
 
-    ; ── Enable A20 line ─────────────────────────────────────────────
+    ; Enable A20 line
     in al, 0x92
     or al, 2
     out 0x92, al
 
-    ; ── Enter unreal mode ───────────────────────────────────────────
+    ; Enter unreal mode
     ; Briefly enable PM just to load DS/ES with 4GB-limit descriptors,
     ; then return to real mode. CS is never changed, so [bits 16] is
-    ; correct throughout — no far jump needed.
+    ; correct throughout - no far jump needed.
     cli
     lgdt [gdt_descriptor]
 
@@ -101,13 +97,13 @@ stage2_entry:
     and al, 0xFE
     mov cr0, eax              ; PE=0: back to real mode
 
-    ; Restore segment bases to 0 — cached 4GB limit stays in descriptor
+    ; Restore segment bases to 0 - cached 4GB limit stays in descriptor
     xor ax, ax
     mov ds, ax
     mov es, ax
     sti
 
-    ; ── Load kernel above 1MB (chunked LBA reads) ──────────────────
+    ; Load kernel above 1MB (chunked LBA reads)
     mov dword [dest_high], KERNEL_OFFSET
     mov word [sectors_left], 4091    ; LBA 5 through 4095
 
@@ -176,9 +172,9 @@ stage2_entry:
     xor ax, ax
     mov es, ax
 
-    ; ── VBE 640×480 32bpp via Bochs/QEMU I/O ports ─────────────────
+    ; VBE 640×480 32bpp via Bochs/QEMU I/O ports
     mov dx, 0x01CE
-    mov ax, 4               ; INDEX_ENABLE — disable first
+    mov ax, 4               ; INDEX_ENABLE - disable first
     out dx, ax
     inc dx
     xor ax, ax
@@ -202,7 +198,7 @@ stage2_entry:
     mov ax, 32
     out dx, ax
     dec dx
-    mov ax, 4               ; INDEX_ENABLE — enable with LFB
+    mov ax, 4               ; INDEX_ENABLE - enable with LFB
     out dx, ax
     inc dx
     mov ax, 0x41
@@ -221,7 +217,7 @@ stage2_entry:
     mov ds, ax
     mov es, ax
 
-    ; ── Switch to protected mode ────────────────────────────────────
+    ; Switch to protected mode
     cli
     lgdt [gdt_descriptor]
 
@@ -231,7 +227,7 @@ stage2_entry:
 
     jmp CODE_SEG:init_pm
 
-; ── Stage 2 data ────────────────────────────────────────────────────
+; Stage 2 data
 lba_current  dq 5
 dest_high    dd 0
 sectors_left dw 0
@@ -250,7 +246,7 @@ disk_error:
     int 0x10
     jmp $
 
-; ── 32-bit protected mode entry ─────────────────────────────────────
+; 32-bit protected mode entry
 [bits 32]
 init_pm:
     mov ax, DATA_SEG
@@ -269,7 +265,7 @@ init_pm:
     ; Jump to kernel at 1MB
     jmp CODE_SEG:KERNEL_OFFSET
 
-; ── GDT ─────────────────────────────────────────────────────────────
+; GDT
 [bits 16]
 gdt_start:
     dq 0                        ; Null descriptor
@@ -296,5 +292,5 @@ gdt_descriptor:
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
-; ── Pad stage 2 to exactly STAGE2_SECTORS × 512 bytes ──────────────
+; Pad stage 2 to exactly STAGE2_SECTORS × 512 bytes
 times (512 + STAGE2_SECTORS * 512) - ($-$$) db 0

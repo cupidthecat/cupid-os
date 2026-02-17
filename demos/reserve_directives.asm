@@ -1,4 +1,4 @@
-; reserve_directives.asm — Demonstrate resw/resd support
+; reserve_directives.asm - Demonstrate resw/resd support
 ; Run: as demos/reserve_directives.asm
 
 section .data

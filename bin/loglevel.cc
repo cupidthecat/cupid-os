@@ -1,4 +1,4 @@
-// loglevel.cc — Get/set serial log level
+// loglevel.cc - Get/set serial log level
 // Usage: loglevel [debug|info|warn|error|panic]
 
 void main() {

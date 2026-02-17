@@ -1,4 +1,4 @@
-    ; fibonacci.asm — Compute and print first 15 Fibonacci numbers
+    ; fibonacci.asm - Compute and print first 15 Fibonacci numbers
 ; Run: as demos/fibonacci.asm
 
 section .data

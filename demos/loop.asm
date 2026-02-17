@@ -1,4 +1,4 @@
-; loop.asm — Loop and conditional branch test
+; loop.asm - Loop and conditional branch test
 ; Computes sum of 1..100 = 5050 and prints it.
 ; Run: as demos/loop.asm
 
@@ -18,7 +18,7 @@ main:
     cmp ecx, 101
     jl  .sum_loop         ; while counter < 101
 
-    ; eax = 5050 — print it
+    ; eax = 5050 - print it
     push eax              ; save result
     push msg
     call print

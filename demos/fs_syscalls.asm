@@ -1,4 +1,4 @@
-; fs_syscalls.asm — Demonstrate expanded CupidASM VFS/process bindings
+; fs_syscalls.asm - Demonstrate expanded CupidASM VFS/process bindings
 ; Run: as demos/fs_syscalls.asm
 
 section .data

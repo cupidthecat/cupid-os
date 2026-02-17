@@ -1,4 +1,4 @@
-; bubblesort.asm — Bubble sort on an integer array
+; bubblesort.asm - Bubble sort on an integer array
 ; Sorts 8 integers in-place and prints them before and after.
 ; Run: as demos/bubblesort.asm
 
@@ -12,7 +12,7 @@ section .data
 
 section .text
 
-; print_array — prints len dwords starting at arr
+; print_array - prints len dwords starting at arr
 print_array:
     push ebp
     mov  ebp, esp

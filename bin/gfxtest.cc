@@ -1,4 +1,4 @@
-/* gfxtest.cc — Simple gfx2d test to verify rendering works */
+/* gfxtest.cc - Simple gfx2d test to verify rendering works */
 
 int main() {
   gfx2d_fullscreen_enter();

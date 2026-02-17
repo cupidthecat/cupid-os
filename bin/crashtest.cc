@@ -1,4 +1,4 @@
-// crashtest.cc — Test crash handling
+// crashtest.cc - Test crash handling
 // Usage: crashtest <type>
 //   Types: panic, nullptr, divzero, overflow, stackoverflow
 

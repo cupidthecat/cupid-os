@@ -4,7 +4,7 @@
 //help: Commands: a i c d p n l = q Q w r e f s m t j k u g v H h
 //help: Enter '.' on a line by itself to end input mode.
 
-// ── Constants ──────────────────────────────────────────────────────
+// Constants
 enum {
     MAX_LINES    = 1024,
     MAX_LINE_LEN = 256,
@@ -16,7 +16,7 @@ enum {
     VFS_TRUNC    = 512
 };
 
-// ── Global state ───────────────────────────────────────────────────
+// Global state
 int ed_lines[1024];
 int ed_nlines;
 int ed_cur;
@@ -33,7 +33,7 @@ int ed_undo_cur;
 int ed_undo_valid;
 int ed_marks[26];
 
-// ── Utility ────────────────────────────────────────────────────────
+// Utility
 int ed_isdigit(int c) {
     if (c >= '0' && c <= '9') return 1;
     return 0;
@@ -90,7 +90,7 @@ void ed_strcopy(char *dst, char *src) {
     dst[i] = 0;
 }
 
-// ── Error handling ─────────────────────────────────────────────────
+// Error handling
 void ed_error(char *msg) {
     ed_strcopy(ed_lerr, msg);
     print("?\n");
@@ -100,7 +100,7 @@ void ed_error(char *msg) {
     }
 }
 
-// ── Buffer manipulation ───────────────────────────────────────────
+// Buffer manipulation
 int ed_insert_line(int after, char *text) {
     if (ed_nlines >= MAX_LINES) {
         ed_error("buffer full");
@@ -158,7 +158,7 @@ int ed_replace_line(int pos, char *text) {
     return 1;
 }
 
-// ── Undo ───────────────────────────────────────────────────────────
+// Undo
 void ed_save_undo() {
     int i = 0;
     while (i < ed_undo_nlines) {
@@ -208,7 +208,7 @@ void ed_restore_undo() {
     ed_undo_cur = tmp_c;
 }
 
-// ── Regex engine ───────────────────────────────────────────────────
+// Regex engine
 // Merged match_here and match_star to avoid mutual recursion
 int ed_match_here(char *pat, char *text) {
     while (1) {
@@ -280,7 +280,7 @@ int ed_match_end(char *pat, char *text) {
     return (int)(t - text);
 }
 
-// ── Console I/O ────────────────────────────────────────────────────
+// Console I/O
 void ed_readline(char *buf, int maxlen) {
     putchar(':');
     int i = 0;
@@ -331,7 +331,7 @@ int ed_read_input_line(char *buf, int maxlen) {
     return i;
 }
 
-// ── Input mode (for a, i, c commands) ──────────────────────────────
+// Input mode (for a, i, c commands)
 int ed_input_mode(int after) {
     char buf[256];
     int count = 0;
@@ -346,7 +346,7 @@ int ed_input_mode(int after) {
     return after + count;
 }
 
-// ── Text loading ───────────────────────────────────────────────────
+// Text loading
 int ed_load_text(char *data, int size, int after) {
     int bytes = 0;
     char line[256];
@@ -382,7 +382,7 @@ int ed_load_text(char *data, int size, int after) {
     return bytes;
 }
 
-// ── File I/O ───────────────────────────────────────────────────────
+// File I/O
 int ed_read_file(char *fname) {
     char path[256];
     resolve_path(fname, path);
@@ -449,7 +449,7 @@ int ed_write_file(char *fname, int from, int to) {
     return total;
 }
 
-// ── Address parsing ────────────────────────────────────────────────
+// Address parsing
 // Returns address (1-based), -1 if no address, -2 on error.
 int ed_parse_addr(char *cmd, int *pos) {
     int addr = -1;
@@ -555,7 +555,7 @@ int ed_parse_addr(char *cmd, int *pos) {
     return addr;
 }
 
-// ── Substitution on a single line ──────────────────────────────────
+// Substitution on a single line
 int ed_sub_line(int linenum, char *pattern, char *repl, int gflag, int count_tgt) {
     char *line = (char*)ed_lines[linenum - 1];
     if (line == 0) return 0;
@@ -663,7 +663,7 @@ int ed_sub_line(int linenum, char *pattern, char *repl, int gflag, int count_tgt
     return subs;
 }
 
-// ── Command execution ──────────────────────────────────────────────
+// Command execution
 void ed_exec_cmd(char *cmdline) {
     int pos = 0;
     int addr1;
@@ -768,7 +768,7 @@ void ed_exec_cmd(char *cmdline) {
 
     // Command dispatch
     if (cmd == 'a') {
-        // ── Append ──
+        // Append
         if (has_range == 0) addr1 = ed_cur;
         if (ed_nlines == 0) addr1 = 0;
         else if (addr1 < 0 || addr1 > ed_nlines) {
@@ -779,7 +779,7 @@ void ed_exec_cmd(char *cmdline) {
         ed_save_undo();
         ed_input_mode(addr1);
     } else if (cmd == 'i') {
-        // ── Insert ──
+        // Insert
         if (has_range == 0) addr1 = ed_cur;
         if (ed_nlines == 0) addr1 = 0;
         else if (addr1 < 1) addr1 = 1;
@@ -795,7 +795,7 @@ void ed_exec_cmd(char *cmdline) {
             ed_input_mode(0);
         }
     } else if (cmd == 'c') {
-        // ── Change ──
+        // Change
         if (ed_nlines == 0) {
             pos = pos + 1;
             ed_save_undo();
@@ -816,7 +816,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_input_mode(insert_at);
     } else if (cmd == 'd') {
-        // ── Delete ──
+        // Delete
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -836,7 +836,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_dirty = 1;
     } else if (cmd == 'p') {
-        // ── Print ──
+        // Print
         if (ed_nlines == 0) {
             ed_error("invalid address");
             return;
@@ -854,7 +854,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_cur = addr2;
     } else if (cmd == 'n') {
-        // ── Number ──
+        // Number
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -870,7 +870,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_cur = addr2;
     } else if (cmd == 'l') {
-        // ── List (show escaped) ──
+        // List (show escaped)
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -900,12 +900,12 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_cur = addr2;
     } else if (cmd == '=') {
-        // ── Print line number ──
+        // Print line number
         if (has_range == 0) addr2 = ed_nlines;
         print_int(addr2);
         print("\n");
     } else if (cmd == 'q') {
-        // ── Quit ──
+        // Quit
         if (ed_dirty) {
             ed_error("warning: buffer modified");
             ed_dirty = 0; // allow second q to quit
@@ -913,10 +913,10 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_quit = 1;
     } else if (cmd == 'Q') {
-        // ── Quit unconditionally ──
+        // Quit unconditionally
         ed_quit = 1;
     } else if (cmd == 'w') {
-        // ── Write ──
+        // Write
         pos = pos + 1;
         // Check for wq
         int do_quit = 0;
@@ -966,7 +966,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         if (do_quit) ed_quit = 1;
     } else if (cmd == 'W') {
-        // ── Write append ──
+        // Write append
         pos = pos + 1;
         while (cmdline[pos] == ' ') pos = pos + 1;
         if (cmdline[pos] != 0) {
@@ -1056,7 +1056,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         kfree(combined);
     } else if (cmd == 'r') {
-        // ── Read file into buffer ──
+        // Read file into buffer
         pos = pos + 1;
         while (cmdline[pos] == ' ') pos = pos + 1;
         char rfname[64];
@@ -1104,7 +1104,7 @@ void ed_exec_cmd(char *cmdline) {
         print("\n");
         ed_dirty = 1;
     } else if (cmd == 'e' || cmd == 'E') {
-        // ── Edit (load new file) ──
+        // Edit (load new file)
         if (cmd == 'e' && ed_dirty) {
             ed_error("warning: buffer modified");
             ed_dirty = 0;
@@ -1144,7 +1144,7 @@ void ed_exec_cmd(char *cmdline) {
             print(": No such file\n");
         }
     } else if (cmd == 'f') {
-        // ── Filename ──
+        // Filename
         pos = pos + 1;
         while (cmdline[pos] == ' ') pos = pos + 1;
         if (cmdline[pos] != 0) {
@@ -1163,7 +1163,7 @@ void ed_exec_cmd(char *cmdline) {
             ed_error("no filename");
         }
     } else if (cmd == 's') {
-        // ── Substitute ──
+        // Substitute
         pos = pos + 1;
         int delim = cmdline[pos];
         if (delim == 0 || delim == ' ' || delim == '\n') {
@@ -1262,7 +1262,7 @@ void ed_exec_cmd(char *cmdline) {
             print("\n");
         }
     } else if (cmd == 'm') {
-        // ── Move lines ──
+        // Move lines
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -1312,7 +1312,7 @@ void ed_exec_cmd(char *cmdline) {
         ed_dirty = 1;
         kfree(tmp);
     } else if (cmd == 't') {
-        // ── Transfer (copy) lines ──
+        // Transfer (copy) lines
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
             return;
@@ -1334,7 +1334,7 @@ void ed_exec_cmd(char *cmdline) {
         ed_cur = dest + count;
         ed_dirty = 1;
     } else if (cmd == 'j') {
-        // ── Join lines ──
+        // Join lines
         if (has_range == 0) {
             addr1 = ed_cur;
             addr2 = ed_cur + 1;
@@ -1385,7 +1385,7 @@ void ed_exec_cmd(char *cmdline) {
         ed_dirty = 1;
         kfree(joined);
     } else if (cmd == 'k') {
-        // ── Mark ──
+        // Mark
         pos = pos + 1;
         int mark_ch = cmdline[pos];
         if (mark_ch < 'a' || mark_ch > 'z') {
@@ -1399,10 +1399,10 @@ void ed_exec_cmd(char *cmdline) {
         }
         ed_marks[mark_ch - 'a'] = addr2;
     } else if (cmd == 'u') {
-        // ── Undo ──
+        // Undo
         ed_restore_undo();
     } else if (cmd == 'g') {
-        // ── Global ──
+        // Global
         if (ed_nlines == 0) {
             ed_error("invalid address");
             return;
@@ -1482,7 +1482,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         kfree(marked);
     } else if (cmd == 'v') {
-        // ── Inverse global ──
+        // Inverse global
         if (ed_nlines == 0) {
             ed_error("invalid address");
             return;
@@ -1559,7 +1559,7 @@ void ed_exec_cmd(char *cmdline) {
         }
         kfree(vmarked);
     } else if (cmd == 'H') {
-        // ── Toggle error messages ──
+        // Toggle error messages
         if (ed_show_errs == 0) ed_show_errs = 1;
         else ed_show_errs = 0;
         if (ed_show_errs && ed_lerr[0] != 0) {
@@ -1567,15 +1567,15 @@ void ed_exec_cmd(char *cmdline) {
             print("\n");
         }
     } else if (cmd == 'h') {
-        // ── Show last error ──
+        // Show last error
         if (ed_lerr[0] != 0) {
             print(ed_lerr);
             print("\n");
         }
     } else if (cmd == 'P') {
-        // ── Prompt toggle (accepted, no-op) ──
+        // Prompt toggle (accepted, no-op)
     } else if (cmd == '+') {
-        // ── Forward navigation ──
+        // Forward navigation
         pos = pos + 1;
         int offset = 1;
         if (ed_isdigit(cmdline[pos])) offset = ed_parse_int_at(cmdline, &pos);
@@ -1588,7 +1588,7 @@ void ed_exec_cmd(char *cmdline) {
         print((char*)ed_lines[ed_cur - 1]);
         print("\n");
     } else if (cmd == '-') {
-        // ── Backward navigation ──
+        // Backward navigation
         pos = pos + 1;
         int offset = 1;
         if (ed_isdigit(cmdline[pos])) offset = ed_parse_int_at(cmdline, &pos);
@@ -1605,7 +1605,7 @@ void ed_exec_cmd(char *cmdline) {
     }
 }
 
-// ── Main entry point ───────────────────────────────────────────────
+// Main entry point
 void main() {
     // Initialize state
     ed_nlines = 0;

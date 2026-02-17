@@ -1,4 +1,4 @@
-; include_helper.asm — Support file for include_feature.asm
+; include_helper.asm - Support file for include_feature.asm
 ; Demonstrates symbols imported via %include.
 
 section .data

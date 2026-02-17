@@ -1,4 +1,4 @@
-; math.asm — Arithmetic operations test
+; math.asm - Arithmetic operations test
 ; Tests add, sub, mul, div, shifts, and logic ops.
 ; Prints each result using kernel print_int.
 ; Run: as demos/math.asm

@@ -1,4 +1,4 @@
-//help: CupidC Feature 3 demo — class keyword with methods and implicit self
+//help: CupidC Feature 3 demo - class keyword with methods and implicit self
 //help: Usage: feature3_class
 //help: Verifies class fields, methods, self, and method-call sugar.
 

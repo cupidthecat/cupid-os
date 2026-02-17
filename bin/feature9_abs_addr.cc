@@ -1,4 +1,4 @@
-//help: CupidC Feature 9 demo — absolute addressing sugar
+//help: CupidC Feature 9 demo - absolute addressing sugar
 //help: Usage: feature9_abs_addr
 //help: Verifies pointer assignment from integer literal without casts.
 

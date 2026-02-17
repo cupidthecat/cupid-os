@@ -1,4 +1,4 @@
-// memstats.cc — Show memory statistics
+// memstats.cc - Show memory statistics
 void main() {
     memstats();
 }

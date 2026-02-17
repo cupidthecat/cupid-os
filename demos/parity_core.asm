@@ -1,4 +1,4 @@
-; parity_core.asm — Core CupidC-parity bindings test for CupidASM
+; parity_core.asm - Core CupidC-parity bindings test for CupidASM
 ; Run: as demos/parity_core.asm
 
 section .data

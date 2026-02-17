@@ -1,4 +1,4 @@
-// sysinfo.cc — Show system information
+// sysinfo.cc - Show system information
 
 void main() {
     int ms = uptime_ms();

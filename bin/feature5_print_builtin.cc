@@ -1,4 +1,4 @@
-    //help: CupidC Feature 5 demo — Print/PrintLine builtins
+    //help: CupidC Feature 5 demo - Print/PrintLine builtins
     //help: Usage: feature5_print_builtin
     //help: Verifies compiler-recognized Print and PrintLine with format args.
 

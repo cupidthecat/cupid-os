@@ -1,4 +1,4 @@
-/* bmptest.cc — BMP encode/decode round-trip test
+/* bmptest.cc - BMP encode/decode round-trip test
  *
  * Creates a test pattern in memory, encodes it as a 24-bit BMP,
  * decodes it back, verifies pixels match, then displays on screen.

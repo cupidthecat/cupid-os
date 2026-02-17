@@ -5,7 +5,7 @@
 //icon_type: app
 //icon_color: 0x8000FF
 
-/* gfxdemo.cc — 2D graphics showcase for cupid-os gfx2d library
+/* gfxdemo.cc - 2D graphics showcase for cupid-os gfx2d library
  *
  * Demonstrates gfx2d capabilities:
  *   - Animated gradient background

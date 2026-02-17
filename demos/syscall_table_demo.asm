@@ -1,4 +1,4 @@
-; syscall_table_demo.asm — Validate syscall table offsets from CupidASM
+; syscall_table_demo.asm - Validate syscall table offsets from CupidASM
 ; Run: as demos/syscall_table_demo.asm
 
 section .data
