@@ -17,11 +17,9 @@
 #include "../kernel/kernel.h"
 #include "../drivers/serial.h"
 
-/* ── CMOS Ports ───────────────────────────────────────────────────── */
 #define CMOS_INDEX  0x70
 #define CMOS_DATA   0x71
 
-/* ── CMOS Registers ───────────────────────────────────────────────── */
 #define RTC_REG_SECONDS  0x00
 #define RTC_REG_MINUTES  0x02
 #define RTC_REG_HOURS    0x04
@@ -31,10 +29,7 @@
 #define RTC_REG_STATUS_A 0x0A
 #define RTC_REG_STATUS_B 0x0B
 
-/* ── Century register (if available) ──────────────────────────────── */
 #define RTC_REG_CENTURY  0x32
-
-/* ── Internal helpers ─────────────────────────────────────────────── */
 
 /**
  * cmos_read - Read a single CMOS register
@@ -105,8 +100,6 @@ static uint8_t get_weekday(uint8_t day, uint8_t month, uint16_t year) {
     return (uint8_t)dow;
 }
 
-/* ── Public API ───────────────────────────────────────────────────── */
-
 void rtc_init(void) {
     rtc_time_t time;
     rtc_date_t date;
@@ -156,7 +149,7 @@ void rtc_read_time(rtc_time_t *time) {
     status_b = cmos_read(RTC_REG_STATUS_B);
 
     if (!(status_b & 0x04)) {
-        /* BCD mode — convert to binary */
+        /* BCD mode - convert to binary */
         sec = bcd_to_bin(sec);
         min = bcd_to_bin(min);
         hr  = bcd_to_bin((uint8_t)(hr & 0x7F));  /* Mask out AM/PM bit */
@@ -214,7 +207,7 @@ void rtc_read_date(rtc_date_t *date) {
     status_b = cmos_read(RTC_REG_STATUS_B);
 
     if (!(status_b & 0x04)) {
-        /* BCD mode — convert to binary */
+        /* BCD mode - convert to binary */
         day = bcd_to_bin(day);
         mon = bcd_to_bin(mon);
         yr  = bcd_to_bin(yr);

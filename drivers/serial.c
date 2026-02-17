@@ -4,7 +4,6 @@
 #include "../kernel/string.h"
 #include "timer.h"
 
-/* ── UART register helpers ────────────────────────────────────────── */
 #define SERIAL_DATA(base)        (base)
 #define SERIAL_INT_EN(base)      ((uint16_t)(base + 1))
 #define SERIAL_FIFO_CTRL(base)   ((uint16_t)(base + 2))
@@ -12,7 +11,6 @@
 #define SERIAL_MODEM_CTRL(base)  ((uint16_t)(base + 4))
 #define SERIAL_LINE_STATUS(base) ((uint16_t)(base + 5))
 
-/* ── State ────────────────────────────────────────────────────────── */
 static log_level_t current_log_level = LOG_DEBUG;
 
 /* In-memory circular log buffer */
@@ -20,7 +18,6 @@ static char   log_buffer[LOG_BUFFER_LINES][LOG_LINE_MAX];
 static uint32_t log_write_idx  = 0;   /* next slot to write              */
 static uint32_t log_stored     = 0;   /* how many lines stored (≤ MAX)   */
 
-/* ── Init ─────────────────────────────────────────────────────────── */
 void serial_init(void) {
     /* Disable interrupts */
     outb(SERIAL_INT_EN(SERIAL_COM1), 0x00);
@@ -40,7 +37,6 @@ void serial_init(void) {
     outb(SERIAL_MODEM_CTRL(SERIAL_COM1), 0x03);
 }
 
-/* ── Low-level write ──────────────────────────────────────────────── */
 static int serial_transmit_ready(void) {
     return inb(SERIAL_LINE_STATUS(SERIAL_COM1)) & 0x20;
 }
@@ -61,7 +57,6 @@ void serial_write_string(const char *str) {
     }
 }
 
-/* ── Numeric helpers ──────────────────────────────────────────────── */
 static void serial_print_dec(uint32_t num) {
     char buf[12];
     int i = 0;
@@ -82,7 +77,6 @@ static void serial_print_hex(uint32_t num) {
     serial_write_string(buf);
 }
 
-/* ── serial_printf ────────────────────────────────────────────────── */
 static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     while (*fmt) {
         if (*fmt != '%') { serial_write_char(*fmt); fmt++; continue; }
@@ -113,7 +107,6 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     }
 }
 
-/* ── ESP alignment diagnostic ──────────────────────────────────────── */
 static int esp_misalign_reported = 0;
 
 void serial_printf(const char *fmt, ...) {
@@ -162,8 +155,6 @@ void serial_printf(const char *fmt, ...) {
     __builtin_va_end(ap);
 }
 
-/* ── In-memory log buffer helpers ─────────────────────────────────── */
-
 /* Append a line to the circular log buffer.  line should NOT contain '\n'. */
 static void log_buffer_append(const char *line) {
     size_t len = strlen(line);
@@ -194,7 +185,6 @@ void print_log_buffer(void) {
     }
 }
 
-/* ── Logging API ──────────────────────────────────────────────────── */
 void set_log_level(log_level_t level) { current_log_level = level; }
 
 const char *get_log_level_name(void) {
@@ -215,7 +205,7 @@ void klog(log_level_t level, const char *fmt, ...) {
     char line[LOG_LINE_MAX];
     int  pos = 0;
 
-    /* ── timestamp ── */
+    /* timestamp */
     uint32_t ms      = timer_get_uptime_ms();
     uint32_t seconds = ms / 1000;
     uint32_t millis  = ms % 1000;
@@ -252,7 +242,7 @@ void klog(log_level_t level, const char *fmt, ...) {
     if (pos < LOG_LINE_MAX-1) line[pos++] = ']';
     if (pos < LOG_LINE_MAX-1) line[pos++] = ' ';
 
-    /* ── user message ── */
+    /* user message */
     __builtin_va_list ap;
     __builtin_va_start(ap, fmt);
 

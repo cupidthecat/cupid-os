@@ -10,7 +10,6 @@
 #define VGA_GFX_PIXELS  (VGA_GFX_WIDTH * VGA_GFX_HEIGHT)
 #define VGA_GFX_SIZE    (VGA_GFX_PIXELS * VGA_GFX_BPP)
 
-/* ── 32bpp XRGB pastel palette (0x00RRGGBB) — Temple OS vibe ─────── */
 #define COLOR_BLACK         0x00000000U  /* Pure black          */
 #define COLOR_WINDOW_BG     0x00FFF0F5U  /* Soft rose white     */
 #define COLOR_TITLEBAR      0x00B8DDFFU  /* Powder blue         */

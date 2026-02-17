@@ -11,8 +11,6 @@
 
 #include "../kernel/types.h"
 
-/* ── Data structures ──────────────────────────────────────────────── */
-
 typedef struct {
     uint8_t second;  /* 0-59 */
     uint8_t minute;  /* 0-59 */
@@ -25,8 +23,6 @@ typedef struct {
     uint16_t year;    /* Full year (e.g. 2026) */
     uint8_t  weekday; /* 0=Sunday, 6=Saturday */
 } rtc_date_t;
-
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /**
  * rtc_init - Initialize the RTC driver

@@ -15,11 +15,9 @@
 #include "../kernel/graphics.h"
 #include "../drivers/serial.h"
 
-/* ── Global mouse state ───────────────────────────────────────────── */
 mouse_state_t mouse = { 320, 240, 0, 0, 0, false };
 static bool has_scroll_wheel = false;
 
-/* ── Cursor bitmap (8x10 arrow) ───────────────────────────────────── */
 #define CURSOR_W 8
 #define CURSOR_H 10
 
@@ -54,8 +52,6 @@ static const uint8_t cursor_outline[CURSOR_H] = {
 static uint32_t under_cursor[CURSOR_W * CURSOR_H];
 static int16_t saved_x = -1, saved_y = -1;
 
-/* ── PS/2 controller helpers ──────────────────────────────────────── */
-
 static void mouse_wait_write(void) {
     int timeout = 100000;
     while (timeout-- > 0) {
@@ -78,8 +74,6 @@ static void mouse_cmd(uint8_t cmd) {
     mouse_wait_read();
     (void)inb(0x60);        /* Read ACK (0xFA) */
 }
-
-/* ── IRQ12 handler ────────────────────────────────────────────────── */
 
 void mouse_irq_handler(struct registers *r) {
     (void)r;
@@ -127,8 +121,6 @@ void mouse_irq_handler(struct registers *r) {
     }
 }
 
-/* ── Initialization ───────────────────────────────────────────────── */
-
 static void mouse_set_sample_rate(uint8_t rate) {
     mouse_cmd(0xF3);           /* Set sample rate command */
     mouse_cmd(rate);           /* Desired rate */
@@ -140,7 +132,7 @@ static void mouse_enable_scroll_wheel(void) {
     mouse_set_sample_rate(100);
     mouse_set_sample_rate(80);
 
-    /* Read device ID — if it's 3, scroll wheel is active */
+    /* Read device ID - if it's 3, scroll wheel is active */
     mouse_wait_write();
     outb(0x64, 0xD4);
     mouse_wait_write();
@@ -194,8 +186,6 @@ void mouse_init(void) {
 
     KINFO("PS/2 mouse initialized");
 }
-
-/* ── Cursor drawing ───────────────────────────────────────────────── */
 
 /* Mark the dirty region covering both the OLD cursor position (saved_x/y)
  * and the NEW position (mouse.x/y).  Call this BEFORE restore+save+draw

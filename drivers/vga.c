@@ -4,7 +4,7 @@
  * Double-buffered rendering:
  *  - All drawing goes to a heap-allocated back buffer (cached RAM, fast)
  *  - vga_flip() memcpy's to the *hidden* LFB page, then swaps Y_OFFSET
- *    atomically — no tearing, no rendering to uncached VRAM
+ *    atomically - no tearing, no rendering to uncached VRAM
  */
 
 #include "vga.h"
@@ -28,9 +28,9 @@ static inline void vbe_write(uint16_t idx, uint16_t val) {
 /* LFB base (identity-mapped, uncached VRAM) */
 static uint32_t *lfb_ptr = NULL;
 
-/* Heap back buffer — all rendering goes here (fast cached RAM) */
+/* Heap back buffer - all rendering goes here (fast cached RAM) */
 static uint32_t *back_buffer = NULL;
-/* VSync wait disabled — we use single-buffer rendering which avoids both
+/* VSync wait disabled - we use single-buffer rendering which avoids both
  * the Y_OFFSET flip overhead and the VSync busy-wait latency. */
 static bool vga_wait_vsync = false;
 
@@ -105,8 +105,6 @@ void vga_mark_dirty_full(void) {
   dirty_y1 = VGA_GFX_HEIGHT;
 }
 
-/* ── Initialization ───────────────────────────────────────────────── */
-
 void vga_init_vbe(void) {
   uint32_t addr = *(volatile uint32_t *)0x0500U;
   if (addr == 0U)
@@ -126,8 +124,6 @@ void vga_init_vbe(void) {
   vga_clear_screen(COLOR_BLACK);
   vga_mark_dirty_full();
 }
-
-/* ── Framebuffer access ───────────────────────────────────────────── */
 
 uint32_t *vga_get_framebuffer(void) {
   return back_buffer ? back_buffer : lfb_ptr;
@@ -160,7 +156,7 @@ void vga_flip(void) {
     return;
 
   /* Single-buffer present: copy back_buffer → page 0 (always displayed).
-   * No Y_OFFSET flip — eliminates the port I/O that triggers a full QEMU
+   * No Y_OFFSET flip - eliminates the port I/O that triggers a full QEMU
    * display re-render on every frame, including expensive software scaling
    * in QEMU fullscreen mode. */
   uint32_t *page0 = lfb_ptr;

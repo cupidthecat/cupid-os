@@ -349,7 +349,7 @@ kernel/dis.o: kernel/dis.c kernel/dis.h kernel/types.h kernel/exec.h kernel/vfs.
 
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
-# To add a new CupidC program: just create bin/<name>.cc — that's it!
+# To add a new CupidC program: just create bin/<name>.cc - that's it!
 kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@

@@ -9,9 +9,9 @@ A modern, 32-bit operating system written in C and x86 Assembly that combines cl
 
 **Key Features:**
 - VBE 640×480 32bpp desktop environment with window manager
-- CupidC compiler (HolyC-inspired) — JIT and AOT compilation
-- CupidASM assembler — Intel-syntax x86-32 with JIT/AOT modes
-- CupidScript — Bash-like scripting language with pipes and redirects
+- CupidC compiler (HolyC-inspired) - JIT and AOT compilation
+- CupidASM assembler - Intel-syntax x86-32 with JIT/AOT modes
+- CupidScript - Bash-like scripting language with pipes and redirects
 - 40+ shell commands with advanced features (pipes, redirects, jobs)
 - VFS with RamFS, DevFS, and FAT16 disk support
 - Process scheduler with 32 kernel threads

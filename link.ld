@@ -22,7 +22,7 @@ SECTIONS
 
     _loaded_end = .;
 
-    /* BSS immediately follows data — no gap needed since we're above 1MB */
+    /* BSS immediately follows data - no gap needed since we're above 1MB */
     . = ALIGN(4096);
     _bss_start = .;
     .bss : {
