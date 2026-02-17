@@ -240,14 +240,6 @@ static int devfs_unlink_op(void *fs_private, const char *path) {
     return VFS_ENOSYS;  /* Cannot unlink devices */
 }
 
-static int devfs_rename_op(void *fs_private, const char *old_path,
-                           const char *new_path) {
-    (void)fs_private;
-    (void)old_path;
-    (void)new_path;
-    return VFS_ENOSYS;  /* Cannot rename devices */
-}
-
 /* VFS operations struct */
 
 static vfs_fs_ops_t devfs_ops = {
@@ -262,8 +254,7 @@ static vfs_fs_ops_t devfs_ops = {
     .stat     = devfs_stat,
     .readdir  = devfs_readdir,
     .mkdir    = devfs_mkdir_op,
-    .unlink   = devfs_unlink_op,
-    .rename   = devfs_rename_op
+    .unlink   = devfs_unlink_op
 };
 
 vfs_fs_ops_t *devfs_get_ops(void) {

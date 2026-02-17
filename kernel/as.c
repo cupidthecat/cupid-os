@@ -894,7 +894,6 @@ static void as_cleanup_state(as_state_t *as) {
 }
 
 /* JIT Mode - Assemble and Execute */
- */
 
 void as_jit(const char *path) {
   serial_printf("[asm] JIT assemble: %s\n", path);

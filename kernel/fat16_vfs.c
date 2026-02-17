@@ -391,15 +391,6 @@ static int fat16_vfs_unlink(void *fs_private, const char *path) {
     return (result == 0) ? VFS_OK : VFS_EIO;
 }
 
-static int fat16_vfs_rename(void *fs_private, const char *old_path,
-                            const char *new_path) {
-    (void)fs_private;
-    (void)old_path;
-    (void)new_path;
-    /* Native FAT16 rename is not implemented in this wrapper yet. */
-    return VFS_ENOSYS;
-}
-
 /* VFS operations struct */
 
 static vfs_fs_ops_t fat16_vfs_ops = {
@@ -414,8 +405,7 @@ static vfs_fs_ops_t fat16_vfs_ops = {
     .stat     = fat16_vfs_stat,
     .readdir  = fat16_vfs_readdir,
     .mkdir    = fat16_vfs_mkdir,
-    .unlink   = fat16_vfs_unlink,
-    .rename   = fat16_vfs_rename
+    .unlink   = fat16_vfs_unlink
 };
 
 vfs_fs_ops_t *fat16_vfs_get_ops(void) {

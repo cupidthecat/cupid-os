@@ -40,7 +40,6 @@
  * The compiler binds calls to outb()/inb() to these wrappers which
  * match cdecl calling convention with 32-bit args on the stack.
  * ══════════════════════════════════════════════════════════════════════ */
- */
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
