@@ -1,5 +1,5 @@
 /**
- * as.h — CupidASM assembler for CupidOS
+ * as.h - CupidASM assembler for CupidOS
  *
  * An x86-32 assembler that runs inside CupidOS.  Intel-style syntax,
  * single-pass encoding with forward-reference patch table, JIT and
@@ -20,9 +20,7 @@
 
 #include "types.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Limits
- * ══════════════════════════════════════════════════════════════════════ */
+/* Limits */
 #define AS_MAX_CODE    (128u * 1024u) /* 128KB code buffer           */
 #define AS_MAX_DATA    (32u * 1024u)  /* 32KB data buffer            */
 #define AS_MAX_LABELS  512            /* max labels                  */
@@ -40,9 +38,7 @@
 #define AS_AOT_CODE_BASE  0x00500000u
 #define AS_AOT_DATA_BASE  0x00520000u
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Token Types
- * ══════════════════════════════════════════════════════════════════════ */
+/* Token Types */
 typedef enum {
   AS_TOK_MNEMONIC,    /* mov, push, call, ret, ...           */
   AS_TOK_REGISTER,    /* eax, ebx, esp, al, cx, ...          */
@@ -63,7 +59,6 @@ typedef enum {
   AS_TOK_ERROR        /* lexer error                         */
 } as_token_type_t;
 
-/* ── Token structure ─────────────────────────────────────────────── */
 typedef struct {
   as_token_type_t type;
   char text[AS_MAX_IDENT]; /* holds idents, mnemonics, strings */
@@ -73,9 +68,7 @@ typedef struct {
   int line;
 } as_token_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Instruction Encoding
- * ══════════════════════════════════════════════════════════════════════ */
+/* Instruction Encoding */
 
 /* Operand forms */
 typedef enum {
@@ -103,9 +96,7 @@ typedef struct {
   int          plus_reg;  /* 1 = last opcode byte += reg index */
 } as_enc_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Label Table & Forward References
- * ══════════════════════════════════════════════════════════════════════ */
+/* Label Table & Forward References */
 
 /* Defined label / equ constant */
 typedef struct {
@@ -123,9 +114,7 @@ typedef struct {
   int      width;              /* 1=byte (rel8), 4=dword             */
 } as_patch_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Assembler State
- * ══════════════════════════════════════════════════════════════════════ */
+/* Assembler State */
 typedef struct {
   /* Source */
   const char *source;
@@ -173,34 +162,29 @@ typedef struct {
   int include_depth;
 } as_state_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API */
 
 /**
- * as_jit — Assemble and immediately execute a .asm source file.
+ * as_jit - Assemble and immediately execute a .asm source file.
  *
  * @param path  VFS path to the .asm source file
  */
 void as_jit(const char *path);
 
 /**
- * as_aot — Assemble a .asm source to an ELF32 binary on disk.
+ * as_aot - Assemble a .asm source to an ELF32 binary on disk.
  *
  * @param src_path   VFS path to the .asm source file
  * @param out_path   VFS path for the output ELF binary
  */
 void as_aot(const char *src_path, const char *out_path);
 
-/* ── Lexer API (used internally) ─────────────────────────────────── */
 void       as_lex_init(as_state_t *as, const char *source);
 as_token_t as_lex_next(as_state_t *as);
 as_token_t as_lex_peek(as_state_t *as);
 
-/* ── Parser + Encoder API (used internally) ──────────────────────── */
 void as_parse_program(as_state_t *as);
 
-/* ── ELF Writer API (used internally) ────────────────────────────── */
 int as_write_elf(as_state_t *as, const char *path);
 
 #endif /* AS_H */

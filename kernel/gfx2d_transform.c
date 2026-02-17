@@ -13,11 +13,9 @@
 #include "string.h"
 #include "../drivers/serial.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Integer sine/cosine lookup (returns fixed-point, 1.0 = FP_ONE)
- *
- *  Table covers 0-359 degrees.  Values stored as 16.16 fixed-point.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Integer sine/cosine lookup (returns fixed-point, 1.0 = FP_ONE)
+ * Table covers 0-359 degrees.  Values stored as 16.16 fixed-point.
+ */
 
 /* sin/cos for 0..90 degrees, 16.16 fixed-point (65536 = 1.0) */
 static const int sin_table_q1[91] = {
@@ -51,17 +49,14 @@ static int fp_cos(int deg) {
     return fp_sin(deg + 90);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Transform matrix: [a, b, c, d, tx, ty]
- *
- *  Represents the 3x3 matrix:
- *    | a  b  tx |
- *    | c  d  ty |
- *    | 0  0  1  |
- *
- *  a,b,c,d are 16.16 fixed-point; tx,ty are pixel offsets in
- *  fixed-point (FP_TO_INT to get screen coords).
- * ══════════════════════════════════════════════════════════════════════ */
+/* Transform matrix: [a, b, c, d, tx, ty]
+ * Represents the 3x3 matrix:
+ * | a  b  tx |
+ * | c  d  ty |
+ * | 0  0  1  |
+ * a,b,c,d are 16.16 fixed-point; tx,ty are pixel offsets in
+ * fixed-point (FP_TO_INT to get screen coords).
+ */
 
 typedef struct {
     int m[6]; /* a, b, c, d, tx, ty */
@@ -90,15 +85,11 @@ static void mat_mul(g2d_mat_t *result, const g2d_mat_t *A,
     memcpy(result->m, r.m, sizeof(r.m));
 }
 
-/* ── Transform state ──────────────────────────────────────────────── */
-
 static g2d_mat_t g2d_current_mat;
 static g2d_mat_t g2d_mat_stack[GFX2D_TRANSFORM_STACK_DEPTH];
 static int g2d_mat_sp = 0; /* stack pointer */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API */
 
 void gfx2d_transform_init(void) {
     mat_identity(&g2d_current_mat);
@@ -182,13 +173,11 @@ void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
                         g2d_current_mat.m[5]);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Transformed drawing
- *
- *  Strategy: For each destination pixel in the bounding box, compute
- *  the inverse-transformed source coordinate and sample from the
- *  original image/sprite.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Transformed drawing
+ * Strategy: For each destination pixel in the bounding box, compute
+ * the inverse-transformed source coordinate and sample from the
+ * original image/sprite.
+ */
 
 /* Invert the current 2x2 + translation matrix */
 static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
@@ -228,13 +217,13 @@ static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
 
 void gfx2d_image_draw_transformed(int handle, int x, int y) {
     int iw, ih;
+    const uint32_t *img;
     g2d_mat_t inv;
     int bx0, by0, bx1, by1;
     int dx, dy;
 
-    iw = gfx2d_image_width(handle);
-    ih = gfx2d_image_height(handle);
-    if (iw <= 0 || ih <= 0) return;
+    img = gfx2d_image_data(handle, &iw, &ih);
+    if (!img || iw <= 0 || ih <= 0) return;
 
     if (mat_invert(&g2d_current_mat, &inv) < 0) return;
 
@@ -260,22 +249,33 @@ void gfx2d_image_draw_transformed(int handle, int x, int y) {
     bx0 -= 1; by0 -= 1;
     bx1 += 1; by1 += 1;
 
+    {
+        int sw = gfx2d_width();
+        int sh = gfx2d_height();
+        if (bx0 < 0) bx0 = 0;
+        if (by0 < 0) by0 = 0;
+        if (bx1 >= sw) bx1 = sw - 1;
+        if (by1 >= sh) by1 = sh - 1;
+        if (bx0 > bx1 || by0 > by1) return;
+    }
+
     /* Scan bounding box, inverse-transform to source coords */
     for (dy = by0; dy <= by1; dy++) {
+        int fx0 = INT_TO_FP(bx0);
+        int fy = INT_TO_FP(dy);
+        int sx_fp = FP_MUL(inv.m[0], fx0) + FP_MUL(inv.m[1], fy) + inv.m[4];
+        int sy_fp = FP_MUL(inv.m[2], fx0) + FP_MUL(inv.m[3], fy) + inv.m[5];
         for (dx = bx0; dx <= bx1; dx++) {
-            int fx = INT_TO_FP(dx);
-            int fy = INT_TO_FP(dy);
-            int sx_fp = FP_MUL(inv.m[0], fx) +
-                        FP_MUL(inv.m[1], fy) + inv.m[4];
-            int sy_fp = FP_MUL(inv.m[2], fx) +
-                        FP_MUL(inv.m[3], fy) + inv.m[5];
             int sx_i = FP_TO_INT(sx_fp) - x;
             int sy_i = FP_TO_INT(sy_fp) - y;
 
             if (sx_i >= 0 && sx_i < iw && sy_i >= 0 && sy_i < ih) {
-                uint32_t px = gfx2d_image_get_pixel(handle, sx_i, sy_i);
+                uint32_t px = img[(uint32_t)sy_i * (uint32_t)iw + (uint32_t)sx_i];
                 gfx2d_pixel(dx, dy, px);
             }
+
+            sx_fp += inv.m[0];
+            sy_fp += inv.m[2];
         }
     }
 }
@@ -313,28 +313,32 @@ void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
     bx0 -= 1; by0 -= 1;
     bx1 += 1; by1 += 1;
 
+    {
+        int swd = gfx2d_width();
+        int shd = gfx2d_height();
+        if (bx0 < 0) bx0 = 0;
+        if (by0 < 0) by0 = 0;
+        if (bx1 >= swd) bx1 = swd - 1;
+        if (by1 >= shd) by1 = shd - 1;
+        if (bx0 > bx1 || by0 > by1) return;
+    }
+
     for (dy = by0; dy <= by1; dy++) {
+        int fx0 = INT_TO_FP(bx0);
+        int fy = INT_TO_FP(dy);
+        int sx_fp = FP_MUL(inv.m[0], fx0) + FP_MUL(inv.m[1], fy) + inv.m[4];
+        int sy_fp = FP_MUL(inv.m[2], fx0) + FP_MUL(inv.m[3], fy) + inv.m[5];
         for (dx = bx0; dx <= bx1; dx++) {
-            int fx = INT_TO_FP(dx);
-            int fy = INT_TO_FP(dy);
-            int sx_fp = FP_MUL(inv.m[0], fx) +
-                        FP_MUL(inv.m[1], fy) + inv.m[4];
-            int sy_fp = FP_MUL(inv.m[2], fx) +
-                        FP_MUL(inv.m[3], fy) + inv.m[5];
             int sx_i = FP_TO_INT(sx_fp) - x;
             int sy_i = FP_TO_INT(sy_fp) - y;
 
             if (sx_i >= 0 && sx_i < sw && sy_i >= 0 && sy_i < sh) {
-                /* Use gfx2d_getpixel-style access — need direct sprite
-                   pixel access, but we go through the draw API */
-                gfx2d_sprite_draw(handle, dx - sx_i, dy - sy_i);
-                /* Only draw the specific pixel, so break inner after marking
-                   — Actually, more efficient to just plot the pixel.
-                   Since there's no public sprite get_pixel, we use
-                   the image draw for now and recommend images for
-                   transformed drawing. We'll just skip sprite pixels. */
-                (void)0;
+                uint32_t px = gfx2d_sprite_get_pixel(handle, sx_i, sy_i);
+                gfx2d_pixel(dx, dy, px & 0x00FFFFFFu);
             }
+
+            sx_fp += inv.m[0];
+            sy_fp += inv.m[2];
         }
     }
 }

@@ -7,8 +7,6 @@
 #include "string.h"
 #include "../drivers/serial.h"
 
-/* ── helpers ────────────────────────────────────────────────────────── */
-
 static int is_alpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
@@ -54,12 +52,10 @@ static void safe_copy(char *dst, const char *src, int len, int max) {
     dst[n] = '\0';
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  cupidscript_tokenize
- *
- *  Tokenizes `source` (length bytes) into the `tokens` array.
- *  Returns the number of tokens produced.
- * ══════════════════════════════════════════════════════════════════════ */
+/* cupidscript_tokenize
+ * Tokenizes `source` (length bytes) into the `tokens` array.
+ * Returns the number of tokens produced.
+ */
 int cupidscript_tokenize(const char *source, uint32_t length,
                          token_t *tokens, int max_tokens)
 {
@@ -70,13 +66,13 @@ int cupidscript_tokenize(const char *source, uint32_t length,
     while (pos < length && count < max_tokens - 1) {
         char c = source[pos];
 
-        /* ── skip spaces & tabs ─────────────────────────────────── */
+        /* skip spaces & tabs */
         if (c == ' ' || c == '\t') {
             pos++;
             continue;
         }
 
-        /* ── newlines ───────────────────────────────────────────── */
+        /* newlines */
         if (c == '\n') {
             tokens[count].type = TOK_NEWLINE;
             tokens[count].value[0] = '\n';
@@ -88,13 +84,13 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── carriage return (skip, handle \r\n) ────────────────── */
+        /* carriage return (skip, handle \r\n) */
         if (c == '\r') {
             pos++;
             continue;
         }
 
-        /* ── shebang #!/... (skip entire line) ──────────────────── */
+        /* shebang #!/... (skip entire line) */
         if (c == '#' && pos + 1 < length && source[pos + 1] == '!') {
             tokens[count].type = TOK_HASH_BANG;
             int start = (int)pos;
@@ -107,14 +103,14 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── comments ───────────────────────────────────────────── */
+        /* comments */
         if (c == '#') {
             /* skip rest of line */
             while (pos < length && source[pos] != '\n') pos++;
             continue;
         }
 
-        /* ── semicolons ─────────────────────────────────────────── */
+        /* semicolons */
         if (c == ';') {
             tokens[count].type = TOK_SEMICOLON;
             tokens[count].value[0] = ';';
@@ -125,7 +121,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── pipe | ────────────────────────────────────────────── */
+        /* pipe | */
         if (c == '|') {
             tokens[count].type = TOK_PIPE;
             tokens[count].value[0] = '|';
@@ -136,7 +132,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── redirection > >> ──────────────────────────────────── */
+        /* redirection > >> */
         if (c == '>') {
             if (pos + 1 < length && source[pos + 1] == '>') {
                 tokens[count].type = TOK_REDIR_APPEND;
@@ -157,7 +153,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── redirection < ─────────────────────────────────────── */
+        /* redirection < */
         if (c == '<') {
             tokens[count].type = TOK_REDIR_IN;
             tokens[count].value[0] = '<';
@@ -168,7 +164,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── background & ──────────────────────────────────────── */
+        /* background & */
         if (c == '&') {
             tokens[count].type = TOK_BACKGROUND;
             tokens[count].value[0] = '&';
@@ -179,7 +175,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── backtick ` (command substitution) ─────────────────── */
+        /* backtick ` (command substitution) */
         if (c == '`') {
             pos++;
             int start_bt = (int)pos;
@@ -194,7 +190,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── brackets [ ] ──────────────────────────────────────── */
+        /* brackets [ ] */
         if (c == '[') {
             tokens[count].type = TOK_LBRACKET;
             tokens[count].value[0] = '[';
@@ -214,7 +210,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── braces { } ────────────────────────────────────────── */
+        /* braces { } */
         if (c == '{') {
             tokens[count].type = TOK_LBRACE;
             tokens[count].value[0] = '{';
@@ -234,7 +230,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── parentheses ( ) ───────────────────────────────────── */
+        /* parentheses ( ) */
         if (c == '(') {
             tokens[count].type = TOK_LPAREN;
             tokens[count].value[0] = '(';
@@ -254,7 +250,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── $((expr)) arithmetic expansion ─────────────────────── */
+        /* $((expr)) arithmetic expansion */
         if (c == '$' && pos + 1 < length && source[pos + 1] == '(' &&
             pos + 2 < length && source[pos + 2] == '(') {
             pos += 3; /* skip $(( */
@@ -285,7 +281,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── $() command substitution ──────────────────────────── */
+        /* $() command substitution */
         if (c == '$' && pos + 1 < length && source[pos + 1] == '(' &&
             !(pos + 2 < length && source[pos + 2] == '(')) {
             pos += 2; /* skip $( */
@@ -309,7 +305,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── variables $VAR, $?, $#, $0-$9 ─────────────────────── */
+        /* variables $VAR, $?, $#, $0-$9 */
         if (c == '$') {
             pos++;
             if (pos < length) {
@@ -330,7 +326,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     count++;
                     pos++;
                 } else if (next == '{') {
-                    /* ${...} — advanced variable expansion.
+                    /* ${...} - advanced variable expansion.
                      * Store the whole ${...} content (without braces)
                      * as a TOK_VARIABLE token, and let copy_token_to_argv
                      * reconstruct $varname.  But for ${...} forms we
@@ -372,7 +368,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     tokens[count].line = line;
                     count++;
                 } else if (next == '!') {
-                    /* $! — last background PID */
+                    /* $! - last background PID */
                     tokens[count].type = TOK_VARIABLE;
                     tokens[count].value[0] = '!';
                     tokens[count].value[1] = '\0';
@@ -391,7 +387,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     tokens[count].line = line;
                     count++;
                 } else {
-                    /* bare $ — treat as word */
+                    /* bare $ - treat as word */
                     tokens[count].type = TOK_WORD;
                     tokens[count].value[0] = '$';
                     tokens[count].value[1] = '\0';
@@ -402,7 +398,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── double-quoted strings ─────────────────────────────── */
+        /* double-quoted strings */
         if (c == '"') {
             pos++;
             int start = (int)pos;
@@ -420,7 +416,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── single-quoted strings (no expansion) ──────────────── */
+        /* single-quoted strings (no expansion) */
         if (c == '\'') {
             pos++;
             int start = (int)pos;
@@ -435,7 +431,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── 2> and 2>&1 redirections ──────────────────────────── */
+        /* 2> and 2>&1 redirections */
         if (c == '2' && pos + 1 < length && source[pos + 1] == '>') {
             if (pos + 3 < length && source[pos + 2] == '&' &&
                 source[pos + 3] == '1') {
@@ -454,7 +450,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── words / keywords / assignments ────────────────────── */
+        /* words / keywords / assignments */
         if (is_word_char(c) || c == '!' || c == '=') {
             int start = (int)pos;
 
@@ -535,7 +531,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             continue;
         }
 
-        /* ── unknown character — skip ──────────────────────────── */
+        /* unknown character - skip */
         pos++;
     }
 

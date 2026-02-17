@@ -1,5 +1,5 @@
 /**
- * dis.h — CupidDis x86-32 disassembler
+ * dis.h - CupidDis x86-32 disassembler
  */
 #ifndef DIS_H
 #define DIS_H

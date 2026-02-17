@@ -17,8 +17,6 @@
 #include "math.h"
 #include "../drivers/vga.h"
 
-/* ── Local helpers ────────────────────────────────────────────────── */
-
 static const uint32_t COL_CHECK_BG   = 0x00FFFFFF;
 static const uint32_t COL_CHECK_MARK = 0x00282830;
 static const uint32_t COL_DISABLED   = 0x009898A0;
@@ -29,7 +27,6 @@ static const uint32_t COL_PROGRESS_BAR = 0x0080C0FF;
 static const uint32_t COL_TOGGLE_ON    = 0x0080D080;
 static const uint32_t COL_TOGGLE_OFF   = 0x00C0C0C0;
 
-/* ── Small itoa for numbers ────────────────────────────────────── */
 static void int_to_str(int v, char *buf, int bufsz) {
     int neg = 0;
     int i = 0;
@@ -61,9 +58,7 @@ void gui_widgets_init(void) {
     /* Nothing to initialize */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Checkbox
- * ══════════════════════════════════════════════════════════════════════ */
+/* Checkbox */
 
 bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
                       bool enabled, int16_t mx, int16_t my, bool clicked) {
@@ -101,9 +96,7 @@ bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
     return hit;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Radio Button
- * ══════════════════════════════════════════════════════════════════════ */
+/* Radio Button */
 
 bool ui_draw_radio(ui_rect_t r, const char *label, bool selected,
                    bool enabled, int16_t mx, int16_t my, bool clicked) {
@@ -155,9 +148,7 @@ int ui_radio_group(ui_rect_t r, const char **labels, int count,
     return new_selected;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Dropdown / Combo Box
- * ══════════════════════════════════════════════════════════════════════ */
+/* Dropdown / Combo Box */
 
 bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
                       ui_dropdown_state_t *state, int16_t mx, int16_t my,
@@ -250,9 +241,7 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
     return changed;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  List Box
- * ══════════════════════════════════════════════════════════════════════ */
+/* List Box */
 
 int ui_listbox_hit(ui_rect_t r, int offset, int item_height, int count,
                    int16_t mx, int16_t my) {
@@ -334,9 +323,7 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
     return changed;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Slider (Horizontal)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Slider (Horizontal) */
 
 int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
                      int16_t mx, int16_t my) {
@@ -458,9 +445,7 @@ int ui_draw_slider_labeled(ui_rect_t r, const char *label, int value,
     return slider_val + min;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Progress Bar
- * ══════════════════════════════════════════════════════════════════════ */
+/* Progress Bar */
 
 void ui_draw_progressbar(ui_rect_t r, int value, int max, bool show_text) {
     ui_draw_progressbar_styled(r, value, max, COL_PROGRESS_BAR, COL_PROGRESS_BG);
@@ -523,9 +508,7 @@ void ui_draw_progressbar_styled(ui_rect_t r, int value, int max,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Spinner
- * ══════════════════════════════════════════════════════════════════════ */
+/* Spinner */
 
 bool ui_draw_spinner(ui_rect_t r, ui_spinner_state_t *state,
                      int min, int max, int16_t mx, int16_t my,
@@ -587,9 +570,7 @@ bool ui_draw_spinner(ui_rect_t r, ui_spinner_state_t *state,
     return changed;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Toggle Switch
- * ══════════════════════════════════════════════════════════════════════ */
+/* Toggle Switch */
 
 bool ui_draw_toggle(ui_rect_t r, bool on, bool enabled,
                     int16_t mx, int16_t my, bool clicked) {

@@ -12,8 +12,6 @@
 #include "types.h"
 #include "../drivers/rtc.h"
 
-/* ── Calendar popup state ─────────────────────────────────────────── */
-
 /* Maximum number of date notes tracked at once */
 #define CALENDAR_MAX_NOTES  32
 
@@ -39,8 +37,6 @@ typedef struct {
     /* Date notes */
     calendar_note_t notes[CALENDAR_MAX_NOTES];
 } calendar_state_t;
-
-/* ── Formatting functions ─────────────────────────────────────────── */
 
 /**
  * format_time_12hr - Format time as "H:MM AM/PM"
@@ -78,8 +74,6 @@ void format_date_short(const rtc_date_t *date, char *buf, int bufsize);
  */
 void format_date_full(const rtc_date_t *date, char *buf, int bufsize);
 
-/* ── Name lookup ──────────────────────────────────────────────────── */
-
 /**
  * get_month_abbr - Get abbreviated month name (e.g. "Feb")
  * @param month: 1-12
@@ -97,8 +91,6 @@ const char *get_month_full(uint8_t month);
  * @param weekday: 0=Sunday, 6=Saturday
  */
 const char *get_weekday_name(uint8_t weekday);
-
-/* ── Calendar math ────────────────────────────────────────────────── */
 
 /**
  * is_leap_year - Check if a year is a leap year
@@ -120,8 +112,6 @@ int get_days_in_month(int month, int year);
  */
 int get_first_weekday(int month, int year);
 
-/* ── Calendar popup navigation ────────────────────────────────────── */
-
 /**
  * calendar_prev_month - Navigate to previous month
  */
@@ -131,8 +121,6 @@ void calendar_prev_month(calendar_state_t *cal);
  * calendar_next_month - Navigate to next month
  */
 void calendar_next_month(calendar_state_t *cal);
-
-/* ── Date notes ───────────────────────────────────────────────────── */
 
 /**
  * calendar_has_note - Check if a date has a note

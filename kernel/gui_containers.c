@@ -12,7 +12,6 @@
 #include "string.h"
 #include "../drivers/vga.h"
 
-/* ── Constants / Colors ───────────────────────────────────────────── */
 #define SPLITTER_W   4
 #define TAB_PAD_H    4
 #define TAB_PAD_W   12
@@ -29,9 +28,7 @@ void gui_containers_init(void) {
     /* Nothing to initialize */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Tab Control
- * ══════════════════════════════════════════════════════════════════════ */
+/* Tab Control */
 
 int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
                    ui_tabbar_state_t *state, int16_t mx, int16_t my,
@@ -135,9 +132,7 @@ int ui_tabs_handle_input(ui_tabs_t *tabs, const char **labels, int count,
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Split Panes
- * ══════════════════════════════════════════════════════════════════════ */
+/* Split Panes */
 
 void ui_split_h(ui_rect_t r, ui_split_state_t *state,
                 ui_rect_t *left, ui_rect_t *right,
@@ -258,9 +253,7 @@ void ui_draw_splitter_v(ui_rect_t r, int y, bool hover, bool dragging) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Scroll Area
- * ══════════════════════════════════════════════════════════════════════ */
+/* Scroll Area */
 
 void ui_scroll_init(ui_scroll_state_t *state, int content_w, int content_h,
                     int viewport_w, int viewport_h) {
@@ -371,9 +364,7 @@ void ui_scroll_end_content(void) {
     gfx2d_clip_clear();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Tree View
- * ══════════════════════════════════════════════════════════════════════ */
+/* Tree View */
 
 static int tree_flatten_recursive(ui_tree_node_t *node,
                                   ui_tree_node_t **out, int max,
@@ -476,9 +467,7 @@ ui_tree_node_t *ui_draw_treeview(ui_rect_t r, ui_tree_node_t *root,
     return clicked_node;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Group Box & Containers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Group Box & Containers */
 
 ui_rect_t ui_draw_groupbox(ui_rect_t r, const char *title) {
     int title_w = (int)strlen(title) * FONT_W + 8;

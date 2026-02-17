@@ -1,5 +1,5 @@
 /**
- * cupidc_elf.c — ELF32 binary writer for the CupidC compiler
+ * cupidc_elf.c - ELF32 binary writer for the CupidC compiler
  *
  * Writes compiled CupidC code as a standard ELF32 executable that
  * can be loaded by the existing CupidOS ELF loader.
@@ -18,7 +18,7 @@
 #include "kernel.h"
 #include "../drivers/serial.h"
 
-/* ELF load address — must be >= 0x00400000 per exec.c */
+/* ELF load address - must be >= 0x00400000 per exec.c */
 #define ELF_LOAD_ADDR    CC_AOT_CODE_BASE
 #define ELF_DATA_ADDR    CC_AOT_DATA_BASE
 
@@ -31,8 +31,8 @@ int cc_write_elf(cc_state_t *cc, const char *path) {
     /*
      * Layout:
      *   Offset 0x00: ELF header (52 bytes)
-     *   Offset 0x34: Program header 1 — code (32 bytes)
-     *   Offset 0x54: Program header 2 — data (32 bytes)
+     *   Offset 0x34: Program header 1 - code (32 bytes)
+     *   Offset 0x54: Program header 2 - data (32 bytes)
      *   Offset 0x74: padding to 0x80
      *   Offset 0x80: code section
      *   Offset 0x80 + code_size (aligned): data section

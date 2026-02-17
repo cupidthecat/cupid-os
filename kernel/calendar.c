@@ -9,7 +9,6 @@
 #include "string.h"
 #include "vfs.h"
 
-/* ── Name tables ──────────────────────────────────────────────────── */
 /* Use 2D char arrays (not pointer arrays) so the string data is stored
  * inline in .rodata as one contiguous block, avoiding linker issues
  * where pointer targets in .rodata.str1.1 subsections get dropped. */
@@ -29,8 +28,6 @@ static const char weekday_names[][10] = {
     "Sunday",   "Monday",   "Tuesday",  "Wednesday",
     "Thursday", "Friday",   "Saturday"
 };
-
-/* ── Internal helpers ─────────────────────────────────────────────── */
 
 /**
  * int_to_str - Convert a small unsigned integer to a string
@@ -80,8 +77,6 @@ static int str_append(char *buf, int pos, int bufsize, const char *src) {
     }
     return i;
 }
-
-/* ── Formatting functions ─────────────────────────────────────────── */
 
 void format_time_12hr(const rtc_time_t *time, char *buf, int bufsize) {
     if (bufsize < 10) { buf[0] = '\0'; return; }
@@ -177,8 +172,6 @@ void format_date_full(const rtc_date_t *date, char *buf, int bufsize) {
     buf[pos] = '\0';
 }
 
-/* ── Name lookup ──────────────────────────────────────────────────── */
-
 const char *get_month_abbr(uint8_t month) {
     if (month < 1 || month > 12) return "???";
     return month_abbr[month - 1];
@@ -193,8 +186,6 @@ const char *get_weekday_name(uint8_t weekday) {
     if (weekday > 6) return "Unknown";
     return weekday_names[weekday];
 }
-
-/* ── Calendar math ────────────────────────────────────────────────── */
 
 bool is_leap_year(int year) {
     if (year % 400 == 0) return true;
@@ -230,8 +221,6 @@ int get_first_weekday(int month, int year) {
     return day;
 }
 
-/* ── Calendar popup navigation ────────────────────────────────────── */
-
 void calendar_prev_month(calendar_state_t *cal) {
     cal->view_month--;
     if (cal->view_month < 1) {
@@ -247,8 +236,6 @@ void calendar_next_month(calendar_state_t *cal) {
         cal->view_year++;
     }
 }
-
-/* ── Date notes ───────────────────────────────────────────────────── */
 
 /**
  * calendar_build_note_path - Build "/notes/YYYY-MM-DD.txt" (ramfs temp)
@@ -383,7 +370,7 @@ calendar_note_t *calendar_create_note(calendar_state_t *cal,
     slot->month = month;
     slot->day   = day;
     slot->used  = true;
-    slot->saved = false; /* Not yet persisted — no dot */
+    slot->saved = false; /* Not yet persisted - no dot */
 
     /* Store ramfs temp path */
     int k = 0;

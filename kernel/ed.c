@@ -23,17 +23,13 @@
 #include "fat16.h"
 #include "../drivers/keyboard.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Constants
- * ══════════════════════════════════════════════════════════════════════ */
+/* Constants */
 #define ED_MAX_LINES     1024
 #define ED_MAX_LINE_LEN  256
 #define ED_CMD_BUF_LEN   512
 #define ED_FILENAME_LEN  64
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Editor state
- * ══════════════════════════════════════════════════════════════════════ */
+/* Editor state */
 static char *ed_lines[ED_MAX_LINES];     /* Array of line pointers      */
 static int   ed_nlines;                  /* Total number of lines       */
 static int   ed_cur;                     /* Current line (1-based, 0=no lines) */
@@ -68,9 +64,7 @@ void ed_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), void
     if (print_int_fn) ed_print_int_fn = print_int_fn;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Utility helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Utility helpers */
 
 /* Our own strlen since the kernel one is available */
 static size_t ed_strlen(const char *s) {
@@ -150,9 +144,7 @@ static int ed_parse_int(const char **pp) {
     return val;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Undo support (single-level)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Undo support (single-level) */
 
 static void ed_save_undo(void) {
     /* Free old undo state */
@@ -200,9 +192,7 @@ static void ed_do_undo(void) {
     ed_dirty = 1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Buffer manipulation
- * ══════════════════════════════════════════════════════════════════════ */
+/* Buffer manipulation */
 
 /* Insert a line AFTER position 'after' (0 = insert at beginning).
  * Returns 1 on success, 0 on failure. */
@@ -259,9 +249,7 @@ static int ed_replace_line(int pos, const char *text) {
     return 1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Basic regex matching (supports . * ^ $ and literal characters)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Basic regex matching (supports . * ^ $ and literal characters) */
 
 /* Match pattern at a specific position in text.
  * Returns 1 if matched, 0 otherwise.
@@ -325,9 +313,7 @@ static const char *ed_regex_match_end(const char *pat, const char *text) {
     return t;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Address parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Address parsing */
 
 /* Parse a single address from the command string.
  * Returns the resolved line number (1-based), or -1 on error.
@@ -440,9 +426,7 @@ static int ed_parse_address(const char **pp, int *set) {
     return addr;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Input mode (used by a, i, c commands)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Input mode (used by a, i, c commands) */
 
 /* Read lines from input until a line containing only "." is entered.
  * Insert them after 'after' (1-based index; 0 = before first line).
@@ -461,9 +445,7 @@ static int ed_input_mode(int after) {
     return after + count;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Substitution
- * ══════════════════════════════════════════════════════════════════════ */
+/* Substitution */
 
 /* Perform s/pattern/replacement/flags on a single line.
  * Returns 1 if a substitution was made, 0 otherwise. */
@@ -673,9 +655,7 @@ static void ed_cmd_substitute(int addr1, int addr2, const char *cmd) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Line display helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Line display helpers */
 
 /* Print a line with special character escaping (for 'l' command) */
 static void ed_print_escaped(const char *s) {
@@ -697,9 +677,7 @@ static void ed_print_escaped(const char *s) {
     ed_print("$\n");
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Load / save buffer
- * ══════════════════════════════════════════════════════════════════════ */
+/* Load / save buffer */
 
 /* Load text data into the buffer starting after 'after' (0 for empty buf).
  * Splits on newlines. Returns byte count. */
@@ -789,9 +767,7 @@ static int ed_write_to_disk(const char *filename, int from, int to) {
     return total;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Command execution
- * ══════════════════════════════════════════════════════════════════════ */
+/* Command execution */
 
 static void ed_exec_command(const char *cmdline) {
     const char *p = cmdline;
@@ -910,7 +886,7 @@ static void ed_exec_command(const char *cmdline) {
     /* Handle the command */
     switch (cmd) {
 
-    /* ── (a)ppend ── */
+    /* (a)ppend */
     case 'a': {
         if (!has_range) addr1 = ed_cur;
         if (ed_nlines == 0) addr1 = 0;
@@ -924,7 +900,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (i)nsert ── */
+    /* (i)nsert */
     case 'i': {
         if (!has_range) addr1 = ed_cur;
         if (ed_nlines == 0) addr1 = 0;
@@ -941,7 +917,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (c)hange ── */
+    /* (c)hange */
     case 'c': {
         if (ed_nlines == 0) {
             /* Change on empty buffer = insert */
@@ -964,7 +940,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (d)elete ── */
+    /* (d)elete */
     case 'd': {
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
@@ -982,7 +958,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (p)rint ── */
+    /* (p)rint */
     case 'p': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1001,7 +977,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (n)umber ── */
+    /* (n)umber */
     case 'n': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1022,7 +998,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (l)ist ── */
+    /* (l)ist */
     case 'l': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1040,7 +1016,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (=) print line number ── */
+    /* (=) print line number */
     case '=': {
         if (!has_range) addr2 = ed_nlines;
         ed_print_int(addr2);
@@ -1048,7 +1024,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (q)uit / (Q)uit ── */
+    /* (q)uit / (Q)uit */
     case 'q': {
         p++;
         if (ed_dirty) {
@@ -1064,7 +1040,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (w)rite ── */
+    /* (w)rite */
     case 'w': {
         p++;
         int do_quit = 0;
@@ -1101,7 +1077,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (r)ead ── */
+    /* (r)ead */
     case 'r': {
         p++;
         while (*p == ' ') p++;
@@ -1126,7 +1102,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (e)dit ── */
+    /* (e)dit */
     case 'e': {
         p++;
         if (*p == '!') {
@@ -1170,7 +1146,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (E)dit unconditional ── */
+    /* (E)dit unconditional */
     case 'E': {
         p++;
         while (*p == ' ') p++;
@@ -1205,7 +1181,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (f)ilename ── */
+    /* (f)ilename */
     case 'f': {
         p++;
         while (*p == ' ') p++;
@@ -1225,7 +1201,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (s)ubstitute ── */
+    /* (s)ubstitute */
     case 's': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1239,7 +1215,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (m)ove ── */
+    /* (m)ove */
     case 'm': {
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
@@ -1287,7 +1263,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (t)ransfer (copy) ── */
+    /* (t)ransfer (copy) */
     case 't': {
         if (ed_nlines == 0 || addr1 < 1 || addr2 > ed_nlines) {
             ed_error("invalid address");
@@ -1315,7 +1291,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (j)oin ── */
+    /* (j)oin */
     case 'j': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1353,7 +1329,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (k)mark ── */
+    /* (k)mark */
     case 'k': {
         p++;
         if (*p < 'a' || *p > 'z') {
@@ -1368,13 +1344,13 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (u)ndo ── */
+    /* (u)ndo */
     case 'u': {
         ed_do_undo();
         break;
     }
 
-    /* ── (g)lobal ── */
+    /* (g)lobal */
     case 'g': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1445,7 +1421,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (v) inverse global ── */
+    /* (v) inverse global */
     case 'v': {
         if (ed_nlines == 0) {
             ed_error("invalid address");
@@ -1506,7 +1482,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (H)elp toggle / (h)elp ── */
+    /* (H)elp toggle / (h)elp */
     case 'H': {
         ed_show_errors = !ed_show_errors;
         if (ed_show_errors && ed_last_error[0]) {
@@ -1523,19 +1499,19 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (P)rompt toggle - we just accept it ── */
+    /* (P)rompt toggle - we just accept it */
     case 'P': {
         /* In our implementation, prompt is always shown */
         break;
     }
 
-    /* ── Address-only (go to line) ── */
+    /* Address-only (go to line) */
     case '\0': {
         /* Already handled at top */
         break;
     }
 
-    /* ── Newline / +/- ── */
+    /* Newline / +/- */
     case '+': {
         p++;
         int offset = 1;
@@ -1565,7 +1541,7 @@ static void ed_exec_command(const char *cmdline) {
         break;
     }
 
-    /* ── (W)rite append ── */
+    /* (W)rite append */
     case 'W': {
         p++;
         while (*p == ' ') p++;
@@ -1661,9 +1637,7 @@ static void ed_exec_command(const char *cmdline) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Main entry point
- * ══════════════════════════════════════════════════════════════════════ */
+/* Main entry point */
 
 void ed_run(const char *filename) {
     /* Initialize state */

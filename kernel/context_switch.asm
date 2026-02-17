@@ -1,4 +1,4 @@
-; context_switch.asm — Low-level context switch for CupidOS scheduler
+; context_switch.asm - Low-level context switch for CupidOS scheduler
 ;
 ; void context_switch(uint32_t *old_esp, uint32_t new_esp, uint32_t new_eip);
 ;
@@ -8,7 +8,7 @@
 ;
 ; When a saved process is later resumed (via new_eip pointing to
 ; .resume below), the saved registers are popped and the function
-; returns normally to its caller — as if context_switch() just returned.
+; returns normally to its caller - as if context_switch() just returned.
 
 [BITS 32]
 section .text
@@ -42,7 +42,7 @@ context_switch:
     mov esp, ecx
     jmp edx
 
-; ── Resume point ──────────────────────────────────────────────────
+; Resume point
 ; When a previously-saved process is rescheduled, new_eip points here.
 ; The new_esp points to the stack where we pushed EBX/ESI/EDI/EBP/EFLAGS.
 context_switch_resume:

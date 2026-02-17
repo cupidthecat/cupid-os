@@ -10,6 +10,7 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/mouse.h"
 #include "../drivers/serial.h"
+#include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "desktop.h"
 #include "font_8x8.h"
@@ -20,8 +21,6 @@
 #include "string.h"
 #include "ui.h"
 #include "vfs.h"
-
-/* ── Internal state ───────────────────────────────────────────────── */
 
 static uint32_t *g2d_fb;
 
@@ -70,7 +69,18 @@ static int g2d_psys_used[GFX2D_MAX_PARTICLE_SYSTEMS];
 #define G2D_W 640
 #define G2D_H 480
 
-/* ── Integer sine approximation ───────────────────────────────────── */
+/* Returns floor(sqrt(n)), used for rounded-rect and circle helpers */
+static int g2d_isqrt(int n) {
+  if (n <= 0) return 0;
+  int x = n;
+  int x1 = (x + 1) >> 1;
+  while (x1 < x) {
+    x  = x1;
+    x1 = (x + n / x) >> 1;
+  }
+  return x;
+}
+
 /* Returns 127*sin(2*PI*a/256), parabolic approximation */
 static int32_t g2d_isin(int32_t a) {
   int32_t half, qr, v;
@@ -81,7 +91,6 @@ static int32_t g2d_isin(int32_t a) {
   return (a < 128) ? v : -v;
 }
 
-/* ── Color component helpers ──────────────────────────────────────── */
 /* Fast blend: (a*s + ia*d + 128) >> 8  ≈ (a*s + ia*d) / 255 */
 static uint32_t g2d_blend(uint32_t src, uint32_t dst, uint32_t a) {
   uint32_t ia = 255u - a;
@@ -150,7 +159,6 @@ static uint32_t g2d_apply_blend(uint32_t src, uint32_t dst) {
   return (r << 16) | (g << 8) | b;
 }
 
-/* ── Clipped pixel write ──────────────────────────────────────────── */
 static void g2d_put(int x, int y, uint32_t c) {
   uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
   int w = g2d_active_w, h = g2d_active_h;
@@ -200,8 +208,6 @@ static uint32_t g2d_get(int x, int y) {
   return fb[(uint32_t)y * (uint32_t)w + (uint32_t)x];
 }
 
-/* ── Init ─────────────────────────────────────────────────────────── */
-
 void gfx2d_init(void) {
   int i;
   g2d_fb = vga_get_framebuffer();
@@ -219,7 +225,7 @@ void gfx2d_init(void) {
   }
   /* Initialize blend mode */
   g2d_blend_mode_val = GFX2D_BLEND_NORMAL;
-  /* Initialize surface pool — skip surfaces still in use (from minimized apps) */
+  /* Initialize surface pool - skip surfaces still in use (from minimized apps) */
   for (i = 0; i < GFX2D_MAX_SURFACES; i++) {
     if (g2d_surf_used[i]) continue; /* preserve in-use surfaces */
     g2d_surf_data[i] = NULL;
@@ -238,14 +244,31 @@ void gfx2d_init(void) {
   serial_printf("[gfx2d] initialized\n");
 }
 
-/* ── Screen ───────────────────────────────────────────────────────── */
-
 static int g2d_debug_frame = 0;
+static uint32_t g2d_last_flip_ms = 0;
+
+static void g2d_fill32(uint32_t *dst, int n, uint32_t color) {
+  while (n >= 8) {
+    dst[0] = color;
+    dst[1] = color;
+    dst[2] = color;
+    dst[3] = color;
+    dst[4] = color;
+    dst[5] = color;
+    dst[6] = color;
+    dst[7] = color;
+    dst += 8;
+    n -= 8;
+  }
+  while (n-- > 0) {
+    *dst++ = color;
+  }
+}
+
 void gfx2d_clear(uint32_t color) {
   if (g2d_active_fb) {
     int n = g2d_active_w * g2d_active_h;
-    for (int i = 0; i < n; i++)
-      g2d_active_fb[i] = color;
+    g2d_fill32(g2d_active_fb, n, color);
     return;
   }
   if (g2d_debug_frame < 3)
@@ -256,6 +279,26 @@ void gfx2d_clear(uint32_t color) {
 void gfx2d_set_framebuffer(uint32_t *new_fb) { g2d_fb = new_fb; }
 
 void gfx2d_flip(void) {
+  if (gfx2d_fullscreen_active()) {
+    uint32_t now = timer_get_uptime_ms();
+    if (g2d_last_flip_ms != 0) {
+      /* Sleep (hlt) until ~16ms have elapsed since the last flip.
+       * Using hlt instead of process_yield() lets the CPU go truly idle
+       * between PIT ticks, freeing the host CPU for QEMU's display
+       * scaling pass - especially important in QEMU fullscreen mode. */
+      while ((uint32_t)(now - g2d_last_flip_ms) < 16u) {
+        __asm__ volatile("hlt");
+        now = timer_get_uptime_ms();
+      }
+    }
+    g2d_last_flip_ms = now;
+  } else {
+    /* Windowed mode: still cap to ~60 fps so app loops don't flood
+     * VRAM with memcpy calls faster than QEMU can display them. */
+    if (!vga_flip_ready()) return;
+    g2d_last_flip_ms = 0;
+  }
+
   if (g2d_debug_frame < 3)
     serial_printf("[gfx2d] flip frame=%d\n", g2d_debug_frame);
   g2d_debug_frame++;
@@ -265,8 +308,6 @@ void gfx2d_flip(void) {
 int gfx2d_width(void) { return g2d_active_w; }
 int gfx2d_height(void) { return g2d_active_h; }
 
-/* ── Pixel ────────────────────────────────────────────────────────── */
-
 void gfx2d_pixel(int x, int y, uint32_t color) { g2d_put(x, y, color); }
 
 uint32_t gfx2d_getpixel(int x, int y) { return g2d_get(x, y); }
@@ -274,8 +315,6 @@ uint32_t gfx2d_getpixel(int x, int y) { return g2d_get(x, y); }
 void gfx2d_pixel_alpha(int x, int y, uint32_t argb) {
   g2d_put_alpha(x, y, argb);
 }
-
-/* ── Lines ────────────────────────────────────────────────────────── */
 
 void gfx2d_hline(int x, int y, int w, uint32_t color) {
   int x1, x2;
@@ -304,8 +343,8 @@ void gfx2d_hline(int x, int y, int w, uint32_t color) {
     return;
   row = fb + (uint32_t)y * (uint32_t)fb_w + (uint32_t)x1;
   n = x2 - x1 + 1;
-  for (i = 0; i < n; i++)
-    row[i] = color;
+  (void)i;
+  g2d_fill32(row, n, color);
 }
 
 void gfx2d_vline(int x, int y, int h, uint32_t color) {
@@ -339,6 +378,19 @@ void gfx2d_vline(int x, int y, int h, uint32_t color) {
 }
 
 void gfx2d_line(int x1, int y1, int x2, int y2, uint32_t color) {
+  if (y1 == y2) {
+    int x = x1 < x2 ? x1 : x2;
+    int w = (x1 < x2 ? x2 - x1 : x1 - x2) + 1;
+    gfx2d_hline(x, y1, w, color);
+    return;
+  }
+  if (x1 == x2) {
+    int y = y1 < y2 ? y1 : y2;
+    int h = (y1 < y2 ? y2 - y1 : y1 - y2) + 1;
+    gfx2d_vline(x1, y, h, color);
+    return;
+  }
+
   int dx = x2 - x1, dy = y2 - y1;
   int sx = (dx >= 0) ? 1 : -1;
   int sy = (dy >= 0) ? 1 : -1;
@@ -362,8 +414,6 @@ void gfx2d_line(int x1, int y1, int x2, int y2, uint32_t color) {
     }
   }
 }
-
-/* ── Rectangles ───────────────────────────────────────────────────── */
 
 void gfx2d_rect(int x, int y, int w, int h, uint32_t color) {
   gfx2d_hline(x, y, w, color);
@@ -405,9 +455,7 @@ void gfx2d_rect_fill(int x, int y, int w, int h, uint32_t color) {
   n = x2 - x1 + 1;
   dst = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
   for (row = y1; row <= y2; row++, dst += fb_w) {
-    int i;
-    for (i = 0; i < n; i++)
-      dst[i] = color;
+    g2d_fill32(dst, n, color);
   }
 }
 
@@ -425,10 +473,8 @@ void gfx2d_rect_round(int x, int y, int w, int h, int r, uint32_t color) {
   gfx2d_vline(x + w - 1, y + r, h - 2 * r, color);
   /* Corners using midpoint circle quarter */
   for (i = 0; i <= r; i++) {
-    int j = (int)(r * r - i * i);
-    int k = 0;
-    while (k * k < j)
-      k++;
+    int j = r * r - i * i;
+    int k = g2d_isqrt(j);
     /* 4 corners */
     g2d_put(x + r - i, y + r - k, color);
     g2d_put(x + w - 1 - r + i, y + r - k, color);
@@ -448,24 +494,14 @@ void gfx2d_rect_round_fill(int x, int y, int w, int h, int r, uint32_t color) {
     int off = 0;
     if (row < r) {
       int dy = r - row;
-      int dx = (int)(r * r - dy * dy);
-      int k = 0;
-      while (k * k < dx)
-        k++;
-      off = r - k;
+      off = r - g2d_isqrt(r * r - dy * dy);
     } else if (row >= h - r) {
       int dy = row - (h - r - 1);
-      int dx = (int)(r * r - dy * dy);
-      int k = 0;
-      while (k * k < dx)
-        k++;
-      off = r - k;
+      off = r - g2d_isqrt(r * r - dy * dy);
     }
     gfx2d_hline(x + off, yy, w - 2 * off, color);
   }
 }
-
-/* ── Circles & Ellipses ───────────────────────────────────────────── */
 
 void gfx2d_circle(int cx, int cy, int r, uint32_t color) {
   int x = 0, y = r, d = 3 - 2 * r;
@@ -554,26 +590,58 @@ void gfx2d_ellipse(int cx, int cy, int rx, int ry, uint32_t color) {
 void gfx2d_ellipse_fill(int cx, int cy, int rx, int ry, uint32_t color) {
   int y;
   for (y = -ry; y <= ry; y++) {
-    /* width at this y: x = rx * sqrt(1 - (y/ry)^2) */
-    int dy = y * y * rx * rx;
-    int rr = ry * ry * rx * rx;
-    int xw = 0;
-    while ((xw + 1) * (xw + 1) * ry * ry + dy <= rr)
-      xw++;
+    /* width at this y: xw = rx * sqrt(1 - (y/ry)^2) */
+    int dy2 = y * y;
+    int ry2 = ry * ry;
+    int xw = (int)((rx * g2d_isqrt(ry2 - dy2)) / ry);
     gfx2d_hline(cx - xw, cy + y, 2 * xw + 1, color);
   }
 }
 
-/* ── Alpha blending ───────────────────────────────────────────────── */
-
 void gfx2d_rect_fill_alpha(int x, int y, int w, int h, uint32_t argb) {
+  uint32_t a = (argb >> 24) & 0xFFu;
+  if (a == 0u) return;
+  if (a >= 255u) {
+    /* Fully opaque: use fast fill */
+    gfx2d_rect_fill(x, y, w, h, argb & 0x00FFFFFFu);
+    return;
+  }
+  /* Partial alpha: blend row by row */
   int row, col;
-  for (row = 0; row < h; row++)
-    for (col = 0; col < w; col++)
-      g2d_put_alpha(x + col, y + row, argb);
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
+  uint32_t rgb = argb & 0x00FFFFFFu;
+  uint32_t ia = 255u - a;
+  /* Pre-clip */
+  int x1 = x, x2 = x + w - 1, y1 = y, y2 = y + h - 1;
+  if (g2d_clip_active) {
+    if (x1 < g2d_clip_x) x1 = g2d_clip_x;
+    if (x2 >= g2d_clip_x + g2d_clip_w) x2 = g2d_clip_x + g2d_clip_w - 1;
+    if (y1 < g2d_clip_y) y1 = g2d_clip_y;
+    if (y2 >= g2d_clip_y + g2d_clip_h) y2 = g2d_clip_y + g2d_clip_h - 1;
+  }
+  if (x1 < 0) x1 = 0;
+  if (x2 >= fb_w) x2 = fb_w - 1;
+  if (y1 < 0) y1 = 0;
+  if (y2 >= fb_h) y2 = fb_h - 1;
+  if (x1 > x2 || y1 > y2) return;
+  int n = x2 - x1 + 1;
+  /* Precompute blended src contribution (constant across all pixels) */
+  uint32_t src_r = ((rgb >> 16) & 0xFFu) * a;
+  uint32_t src_g = ((rgb >> 8)  & 0xFFu) * a;
+  uint32_t src_b = ( rgb        & 0xFFu) * a;
+  for (row = y1; row <= y2; row++) {
+    uint32_t *dst = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
+    for (col = 0; col < n; col++) {
+      uint32_t d = dst[col];
+      uint32_t r = (src_r + ((d >> 16) & 0xFFu) * ia + 128u) >> 8;
+      uint32_t g = (src_g + ((d >>  8) & 0xFFu) * ia + 128u) >> 8;
+      uint32_t b = (src_b + ( d        & 0xFFu) * ia + 128u) >> 8;
+      dst[col] = (r << 16) | (g << 8) | b;
+    }
+  }
 }
-
-/* ── Gradients ────────────────────────────────────────────────────── */
 
 void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   int x1, x2, y1, y2, row, col, n, wm;
@@ -618,74 +686,409 @@ void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
 }
 
 void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
-  int row;
-  for (row = 0; row < h; row++) {
-    uint32_t c = g2d_lerp(c1, c2, row, h - 1);
+  int x1, x2, y1, y2;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
+
+  x1 = x;
+  x2 = x + w - 1;
+  y1 = y;
+  y2 = y + h - 1;
+  if (g2d_clip_active) {
+    if (x1 < g2d_clip_x)
+      x1 = g2d_clip_x;
+    if (x2 >= g2d_clip_x + g2d_clip_w)
+      x2 = g2d_clip_x + g2d_clip_w - 1;
+    if (y1 < g2d_clip_y)
+      y1 = g2d_clip_y;
+    if (y2 >= g2d_clip_y + g2d_clip_h)
+      y2 = g2d_clip_y + g2d_clip_h - 1;
+  }
+  if (x1 < 0)
+    x1 = 0;
+  if (x2 >= fb_w)
+    x2 = fb_w - 1;
+  if (y1 < 0)
+    y1 = 0;
+  if (y2 >= fb_h)
+    y2 = fb_h - 1;
+  if (x1 > x2 || y1 > y2)
+    return;
+
+  int n = x2 - x1 + 1;
+  int hm = (h > 1) ? h - 1 : 1;
+  int start_t = y1 - y;
+  for (int row = y1; row <= y2; row++) {
+    uint32_t c = g2d_lerp(c1, c2, start_t + (row - y1), hm);
+    uint32_t *dst = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
+    g2d_fill32(dst, n, c);
+  }
+}
+
+void gfx2d_gradient_radial(int x, int y, int w, int h,
+                           uint32_t inner, uint32_t outer) {
+  if (w <= 0 || h <= 0)
+    return;
+
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
+
+  /* Pre-clip to avoid per-pixel checks */
+  int x1 = x, x2 = x + w - 1, y1 = y, y2 = y + h - 1;
+  if (g2d_clip_active) {
+    if (x1 < g2d_clip_x) x1 = g2d_clip_x;
+    if (x2 >= g2d_clip_x + g2d_clip_w) x2 = g2d_clip_x + g2d_clip_w - 1;
+    if (y1 < g2d_clip_y) y1 = g2d_clip_y;
+    if (y2 >= g2d_clip_y + g2d_clip_h) y2 = g2d_clip_y + g2d_clip_h - 1;
+  }
+  if (x1 < 0) x1 = 0;
+  if (x2 >= fb_w) x2 = fb_w - 1;
+  if (y1 < 0) y1 = 0;
+  if (y2 >= fb_h) y2 = fb_h - 1;
+  if (x1 > x2 || y1 > y2) return;
+
+  int gcx = x + (w / 2);
+  int gcy = y + (h / 2);
+  int rx = (w > 1) ? (w - 1) / 2 : 1;
+  int ry = (h > 1) ? (h - 1) / 2 : 1;
+  int maxd2 = rx * rx + ry * ry;
+  if (maxd2 <= 0) maxd2 = 1;
+
+  /* Only write blend_mode == NORMAL fast path */
+  if (g2d_blend_mode_val == GFX2D_BLEND_NORMAL) {
+    for (int py = y1; py <= y2; py++) {
+      int dy = py - gcy;
+      uint32_t *row_ptr = fb + (uint32_t)py * (uint32_t)fb_w + (uint32_t)x1;
+      for (int px = x1; px <= x2; px++) {
+        int dx = px - gcx;
+        int d2 = dx * dx + dy * dy;
+        if (d2 > maxd2) d2 = maxd2;
+        *row_ptr++ = g2d_lerp(inner, outer, d2, maxd2);
+      }
+    }
+  } else {
+    for (int py = y1; py <= y2; py++) {
+      int dy = py - gcy;
+      for (int px = x1; px <= x2; px++) {
+        int dx = px - gcx;
+        int d2 = dx * dx + dy * dy;
+        if (d2 > maxd2) d2 = maxd2;
+        g2d_put(px, py, g2d_lerp(inner, outer, d2, maxd2));
+      }
+    }
+  }
+}
+
+static int g2d_color_clamp(int v, int lo, int hi) {
+  if (v < lo)
+    return lo;
+  if (v > hi)
+    return hi;
+  return v;
+}
+
+uint32_t gfx2d_color_hsv(int hue, int sat, int val) {
+  int h = hue;
+  int s = g2d_color_clamp(sat, 0, 255);
+  int v = g2d_color_clamp(val, 0, 255);
+
+  while (h < 0)
+    h += 360;
+  while (h >= 360)
+    h -= 360;
+
+  if (s == 0) {
+    return ((uint32_t)v << 16) | ((uint32_t)v << 8) | (uint32_t)v;
+  }
+
+  {
+    int region = h / 60;
+    int f = h % 60;
+    int p = (v * (255 - s)) / 255;
+    int q = (v * (255 - ((s * f) / 60))) / 255;
+    int t = (v * (255 - ((s * (60 - f)) / 60))) / 255;
+    int r = 0, g = 0, b = 0;
+
+    if (region == 0) {
+      r = v; g = t; b = p;
+    } else if (region == 1) {
+      r = q; g = v; b = p;
+    } else if (region == 2) {
+      r = p; g = v; b = t;
+    } else if (region == 3) {
+      r = p; g = q; b = v;
+    } else if (region == 4) {
+      r = t; g = p; b = v;
+    } else {
+      r = v; g = p; b = q;
+    }
+
+    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+  }
+}
+
+void gfx2d_color_picker_draw_sv(int x, int y, int w, int h,
+                                int hue, int sat, int val) {
+  if (w <= 1 || h <= 1)
+    return;
+
+  for (int row = 0; row < h; row++) {
+    int pv = 255 - ((row * 255) / (h - 1));
+    for (int col = 0; col < w; col++) {
+      int ps = (col * 255) / (w - 1);
+      g2d_put(x + col, y + row, gfx2d_color_hsv(hue, ps, pv));
+    }
+  }
+
+  gfx2d_rect(x, y, w, h, 0x203040u);
+
+  {
+    int cx = x + ((g2d_color_clamp(sat, 0, 255) * (w - 1)) / 255);
+    int cy = y + (((255 - g2d_color_clamp(val, 0, 255)) * (h - 1)) / 255);
+    gfx2d_circle(cx, cy, 4, 0xFFFFFFu);
+    gfx2d_circle(cx, cy, 5, 0x000000u);
+  }
+}
+
+void gfx2d_color_picker_draw_hue(int x, int y, int w, int h, int hue) {
+  if (w <= 1 || h <= 1)
+    return;
+
+  for (int row = 0; row < h; row++) {
+    int ph = (row * 359) / (h - 1);
+    uint32_t c = gfx2d_color_hsv(ph, 255, 255);
     gfx2d_hline(x, y + row, w, c);
   }
-}
 
-/* ── Drop Shadow ──────────────────────────────────────────────────── */
+  gfx2d_rect(x, y, w, h, 0x203040u);
 
-void gfx2d_shadow(int x, int y, int w, int h, int blur, uint32_t color) {
-  int i, row, col;
-  uint32_t base_a = (color >> 24) & 0xFFu;
-  if (base_a == 0u)
-    base_a = 180u; /* default semi-transparent */
-  for (i = 0; i < blur; i++) {
-    uint32_t a = base_a * (uint32_t)(blur - i) / (uint32_t)blur;
-    uint32_t argb = ((a & 0xFFu) << 24) | (color & 0x00FFFFFFu);
-    int ox = i + 2, oy = i + 2;
-    for (row = oy; row < oy + h; row++)
-      for (col = ox; col < ox + w; col++)
-        g2d_put_alpha(x + col, y + row, argb);
+  {
+    int marker = (g2d_color_clamp(hue, 0, 359) * (h - 1)) / 359;
+    int yy = y + marker;
+    gfx2d_hline(x, yy, w, 0xFFFFFFu);
+    if (yy + 1 < y + h)
+      gfx2d_hline(x, yy + 1, w, 0x000000u);
   }
 }
 
-/* ── Dithering ────────────────────────────────────────────────────── */
+int gfx2d_color_picker_pick_hue(int x, int y, int w, int h, int mx, int my) {
+  (void)x;
+  (void)w;
+  (void)mx;
+  int py;
+  if (h <= 1)
+    return 0;
+  py = g2d_color_clamp(my - y, 0, h - 1);
+  return (py * 359) / (h - 1);
+}
+
+int gfx2d_color_picker_pick_sat(int x, int y, int w, int h, int mx, int my) {
+  (void)y;
+  (void)h;
+  (void)my;
+  int px;
+  if (w <= 1)
+    return 0;
+  px = g2d_color_clamp(mx - x, 0, w - 1);
+  return (px * 255) / (w - 1);
+}
+
+int gfx2d_color_picker_pick_val(int x, int y, int w, int h, int mx, int my) {
+  (void)x;
+  (void)w;
+  (void)mx;
+  int py;
+  if (h <= 1)
+    return 255;
+  py = g2d_color_clamp(my - y, 0, h - 1);
+  return 255 - ((py * 255) / (h - 1));
+}
+
+void gfx2d_glow_circle(int cx, int cy, int radius, uint32_t color, int alpha) {
+  if (radius <= 0 || alpha <= 0)
+    return;
+  if (alpha > 255)
+    alpha = 255;
+
+  int r2 = radius * radius;
+  if (r2 <= 0)
+    return;
+
+  int x0 = cx - radius;
+  int x1 = cx + radius;
+  int y0 = cy - radius;
+  int y1 = cy + radius;
+
+  for (int py = y0; py <= y1; py++) {
+    int dy = py - cy;
+    for (int px = x0; px <= x1; px++) {
+      int dx = px - cx;
+      int d2 = dx * dx + dy * dy;
+      if (d2 > r2)
+        continue;
+
+      int a = (alpha * (r2 - d2)) / r2;
+      if (a <= 0)
+        continue;
+      g2d_put_alpha(px, py, ((uint32_t)a << 24) | (color & 0x00FFFFFFu));
+    }
+  }
+}
+
+void gfx2d_light_sweep(int x, int y, int w, int h, int tick, uint32_t color,
+                       int alpha) {
+  if (w <= 0 || h <= 0 || alpha <= 0)
+    return;
+  if (alpha > 255)
+    alpha = 255;
+
+  int center = tick % (w + h + 40);
+  int band = 18;
+
+  for (int row = 0; row < h; row++) {
+    int py = y + row;
+    for (int col = 0; col < w; col++) {
+      int px = x + col;
+      int k = col + row;
+      int dist = k - center;
+      if (dist < 0)
+        dist = -dist;
+      if (dist > band)
+        continue;
+
+      int a = (alpha * (band - dist)) / band;
+      if (a <= 0)
+        continue;
+      g2d_put_alpha(px, py, ((uint32_t)a << 24) | (color & 0x00FFFFFFu));
+    }
+  }
+}
+
+void gfx2d_shadow(int x, int y, int w, int h, int blur, uint32_t color) {
+  /* Single-pass shadow: for each pixel in the extended shadow region,
+   * take the max alpha from overlapping blur passes.  Since each pass i
+   * covers offset (i+2,i+2) with alpha = base_a*(blur-i)/blur, the
+   * outermost pixel at offset blur+1 only gets one contribution while
+   * inner pixels accumulate.  We compute the alpha by counting how many
+   * passes cover a given (row,col) offset - equivalent to pass index 0..n-1
+   * where n = min(row-2, col-2, blur) when those are >=0. */
+  uint32_t base_a = (color >> 24) & 0xFFu;
+  if (base_a == 0u)
+    base_a = 180u;
+  if (blur <= 0) return;
+
+  uint32_t rgb = color & 0x00FFFFFFu;
+  /* The shadow rect spans from (2,2) to (blur+1+w, blur+1+h) relative to (x,y) */
+  int sh_x = x + 2;
+  int sh_y = y + 2;
+  int sh_w = w + blur - 1;
+  int sh_h = h + blur - 1;
+
+  for (int row = 0; row < sh_h; row++) {
+    for (int col = 0; col < sh_w; col++) {
+      /* How many blur passes cover this pixel?
+       * Pass i covers cols [i..i+w-1], rows [i..i+h-1].
+       * Number of passes covering (col,row): passes where i<=col && i<=row && i<blur
+       * => n_passes = min(col, row, blur-1) + 1  (clamped to passes that also fit w,h)
+       * For simplicity use min(col,row,blur-1)+1 which gives fade at edges */
+      int nc = (col < blur) ? col : blur - 1;
+      int nr = (row < blur) ? row : blur - 1;
+      int n_passes = (nc < nr ? nc : nr) + 1;
+      /* Average alpha: sum of base_a*(blur-i)/blur for i=0..n_passes-1
+       * = base_a/blur * sum(blur-i for i=0..n_p-1)
+       * = base_a/blur * (blur*n_p - n_p*(n_p-1)/2)
+       * We cap at base_a */
+      uint32_t a = (uint32_t)base_a * (uint32_t)n_passes / (uint32_t)blur;
+      if (a > base_a) a = base_a;
+      if (a == 0) continue;
+      g2d_put_alpha(sh_x + col, sh_y + row, (a << 24) | rgb);
+    }
+  }
+}
 
 void gfx2d_dither_rect(int x, int y, int w, int h, uint32_t c1, uint32_t c2,
                        int pattern) {
   int row, col;
-  for (row = 0; row < h; row++) {
-    for (col = 0; col < w; col++) {
-      int use_c2 = 0;
-      switch (pattern) {
-      case GFX2D_DITHER_CHECKER:
-        use_c2 = ((row + col) & 1);
-        break;
-      case GFX2D_DITHER_HLINES:
-        use_c2 = (row & 1);
-        break;
-      case GFX2D_DITHER_VLINES:
-        use_c2 = (col & 1);
-        break;
-      case GFX2D_DITHER_DIAGONAL:
-        use_c2 = (((row + col) & 3) == 0);
-        break;
-      default:
-        use_c2 = ((row + col) & 1);
-        break;
-      }
-      g2d_put(x + col, y + row, use_c2 ? c2 : c1);
+  /* Hoist switch outside loops to avoid per-pixel branch */
+  switch (pattern) {
+  case GFX2D_DITHER_HLINES:
+    for (row = 0; row < h; row++) {
+      uint32_t c = (row & 1) ? c2 : c1;
+      for (col = 0; col < w; col++)
+        g2d_put(x + col, y + row, c);
     }
+    break;
+  case GFX2D_DITHER_VLINES:
+    for (row = 0; row < h; row++)
+      for (col = 0; col < w; col++)
+        g2d_put(x + col, y + row, (col & 1) ? c2 : c1);
+    break;
+  case GFX2D_DITHER_DIAGONAL:
+    for (row = 0; row < h; row++)
+      for (col = 0; col < w; col++)
+        g2d_put(x + col, y + row, (((row + col) & 3) == 0) ? c2 : c1);
+    break;
+  default: /* GFX2D_DITHER_CHECKER */
+    for (row = 0; row < h; row++)
+      for (col = 0; col < w; col++)
+        g2d_put(x + col, y + row, ((row + col) & 1) ? c2 : c1);
+    break;
   }
 }
-
-/* ── Scanlines (CRT effect) ───────────────────────────────────────── */
 
 void gfx2d_scanlines(int x, int y, int w, int h, int alpha) {
-  int row, col;
+  int x1 = x;
+  int y1 = y;
+  int x2 = x + w;
+  int y2 = y + h;
+  uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+  int fb_w = g2d_active_w;
+  int fb_h = g2d_active_h;
+
+  if (g2d_clip_active) {
+    if (x1 < g2d_clip_x)
+      x1 = g2d_clip_x;
+    if (y1 < g2d_clip_y)
+      y1 = g2d_clip_y;
+    if (x2 > g2d_clip_x + g2d_clip_w)
+      x2 = g2d_clip_x + g2d_clip_w;
+    if (y2 > g2d_clip_y + g2d_clip_h)
+      y2 = g2d_clip_y + g2d_clip_h;
+  }
+
+  if (x1 < 0)
+    x1 = 0;
+  if (y1 < 0)
+    y1 = 0;
+  if (x2 > fb_w)
+    x2 = fb_w;
+  if (y2 > fb_h)
+    y2 = fb_h;
+  if (x1 >= x2 || y1 >= y2)
+    return;
+
   uint32_t a = (uint32_t)(alpha & 0xFF);
-  uint32_t dark = (a << 24);             /* 0xAA000000 — black overlay */
-  for (row = y; row < y + h; row += 2) { /* every other row */
-    for (col = x; col < x + w; col++) {
-      g2d_put_alpha(col, row, dark);
+  if (a == 0u)
+    return;
+  uint32_t ia = 255u - a;
+
+  int row = y1;
+  if (row & 1)
+    row++;
+  for (; row < y2; row += 2) {
+    uint32_t *dst = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
+    int n = x2 - x1;
+    for (int col = 0; col < n; col++) {
+      uint32_t d = dst[col];
+      /* Packed multiply: scale R and B simultaneously, then G */
+      uint32_t rb = ((d & 0x00FF00FFu) * ia + 0x00800080u) >> 8;
+      uint32_t g  = (((d >> 8) & 0xFFu) * ia + 128u) >> 8;
+      dst[col] = (rb & 0x00FF00FFu) | (g << 8);
     }
   }
 }
-
-/* ── Clipping ─────────────────────────────────────────────────────── */
 
 void gfx2d_clip_set(int x, int y, int w, int h) {
   g2d_clip_active = 1;
@@ -696,8 +1099,6 @@ void gfx2d_clip_set(int x, int y, int w, int h) {
 }
 
 void gfx2d_clip_clear(void) { g2d_clip_active = 0; }
-
-/* ── Sprites ──────────────────────────────────────────────────────── */
 
 int gfx2d_sprite_load(const char *path) {
   int i, fd;
@@ -814,7 +1215,17 @@ int gfx2d_sprite_height(int handle) {
   return g2d_sprite_used[handle] ? g2d_sprite_h[handle] : 0;
 }
 
-/* ── Text ─────────────────────────────────────────────────────────── */
+uint32_t gfx2d_sprite_get_pixel(int handle, int x, int y) {
+  if (handle < 0 || handle >= GFX2D_MAX_SPRITES)
+    return 0u;
+  if (!g2d_sprite_used[handle])
+    return 0u;
+  int w = g2d_sprite_w[handle];
+  int h = g2d_sprite_h[handle];
+  if (x < 0 || x >= w || y < 0 || y >= h)
+    return 0u;
+  return g2d_sprite_data[handle][(uint32_t)y * (uint32_t)w + (uint32_t)x];
+}
 
 static void g2d_draw_char(int x, int y, char c, uint32_t color, int font) {
   uint8_t idx = (uint8_t)c;
@@ -883,6 +1294,54 @@ void gfx2d_text_outline(int x, int y, const char *str, uint32_t color,
   gfx2d_text(x, y, str, color, font);
 }
 
+void gfx2d_text_wrap(int x, int y, int w, const char *str, uint32_t color,
+                     int font) {
+  if (!str || w <= 0)
+    return;
+
+  int char_w = (font == GFX2D_FONT_SMALL) ? 6 :
+               (font == GFX2D_FONT_LARGE) ? 16 : 8;
+  int line_h = gfx2d_text_height(font) + 2;
+  int max_chars = w / char_w;
+  if (max_chars < 1)
+    max_chars = 1;
+
+  int cy = y;
+  const char *p = str;
+  while (*p) {
+    if (*p == '\n') {
+      p++;
+      cy += line_h;
+      continue;
+    }
+
+    char line[256];
+    int len = 0;
+    int last_space = -1;
+    const char *scan = p;
+
+    while (*scan && *scan != '\n' && len < max_chars && len < 255) {
+      line[len] = *scan;
+      if (*scan == ' ' || *scan == '\t')
+        last_space = len;
+      len++;
+      scan++;
+    }
+
+    if (*scan && *scan != '\n' && len >= max_chars && last_space > 0) {
+      len = last_space;
+      scan = p + last_space;
+      while (*scan == ' ' || *scan == '\t')
+        scan++;
+    }
+
+    line[len] = '\0';
+    gfx2d_text(x, cy, line, color, font);
+    cy += line_h;
+    p = scan;
+  }
+}
+
 int gfx2d_text_width(const char *str, int font) {
   int cw = (font == GFX2D_FONT_SMALL) ? 6 : (font == GFX2D_FONT_LARGE) ? 16 : 8;
   int n = 0;
@@ -894,8 +1353,6 @@ int gfx2d_text_width(const char *str, int font) {
 }
 
 int gfx2d_text_height(int font) { return (font == GFX2D_FONT_LARGE) ? 16 : 8; }
-
-/* ── Retro Atmosphere Effects ─────────────────────────────────────── */
 
 void gfx2d_vignette(int strength) {
   int x, y;
@@ -945,8 +1402,6 @@ void gfx2d_tint(int x, int y, int w, int h, uint32_t color, int alpha) {
   gfx2d_rect_fill_alpha(x, y, w, h, argb);
 }
 
-/* ── Win95-Style UI Helpers ───────────────────────────────────────── */
-
 void gfx2d_bevel(int x, int y, int w, int h, int raised) {
   uint32_t light = raised ? 0x00FFFFFFu : 0x00404040u;
   uint32_t dark = raised ? 0x00404040u : 0x00FFFFFFu;
@@ -971,8 +1426,6 @@ void gfx2d_panel(int x, int y, int w, int h) {
 void gfx2d_titlebar(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   gfx2d_gradient_h(x, y, w, h, c1, c2);
 }
-
-/* ── Demo Scene Effects ───────────────────────────────────────────── */
 
 void gfx2d_copper_bars(int y, int count, int spacing, int *colors) {
   int i, row;
@@ -1059,15 +1512,11 @@ void gfx2d_checkerboard(int x, int y, int w, int h, int size, uint32_t c1,
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  NEW: Blend Modes
- * ══════════════════════════════════════════════════════════════════════ */
+/* NEW: Blend Modes */
 
 void gfx2d_blend_mode(int mode) { g2d_blend_mode_val = mode; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  NEW: Offscreen Surfaces
- * ══════════════════════════════════════════════════════════════════════ */
+/* NEW: Offscreen Surfaces */
 
 int gfx2d_surface_alloc(int w, int h) {
   int i;
@@ -1102,8 +1551,7 @@ void gfx2d_surface_fill(int handle, uint32_t color) {
   if (handle < 0 || handle >= GFX2D_MAX_SURFACES || !g2d_surf_used[handle])
     return;
   int n = g2d_surf_w[handle] * g2d_surf_h[handle];
-  for (int i = 0; i < n; i++)
-    g2d_surf_data[handle][i] = color;
+  g2d_fill32(g2d_surf_data[handle], n, color);
 }
 
 void gfx2d_surface_set_active(int handle) {
@@ -1118,6 +1566,17 @@ void gfx2d_surface_unset_active(void) {
   g2d_active_fb = NULL;
   g2d_active_w = G2D_W;
   g2d_active_h = G2D_H;
+}
+
+/* Copy current main framebuffer into an existing surface (fast memcpy). */
+void gfx2d_capture_screen_to_surface(int handle) {
+  if (handle < 0 || handle >= GFX2D_MAX_SURFACES || !g2d_surf_used[handle])
+    return;
+  int sw = g2d_surf_w[handle];
+  int sh = g2d_surf_h[handle];
+  if (sw != G2D_W || sh != G2D_H)
+    return; /* only full-screen captures supported */
+  memcpy(g2d_surf_data[handle], g2d_fb, (size_t)G2D_W * (size_t)G2D_H * 4u);
 }
 
 uint32_t *gfx2d_surface_data(int handle, int *w, int *h) {
@@ -1135,6 +1594,22 @@ void gfx2d_surface_blit(int handle, int x, int y) {
     return;
   int sw = g2d_surf_w[handle], sh = g2d_surf_h[handle];
   uint32_t *src = g2d_surf_data[handle];
+
+  {
+    uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
+    int fb_w = g2d_active_w;
+    int fb_h = g2d_active_h;
+
+    if (g2d_blend_mode_val == GFX2D_BLEND_NORMAL && !g2d_clip_active && x >= 0 &&
+        y >= 0 && x + sw <= fb_w && y + sh <= fb_h) {
+      for (int sy = 0; sy < sh; sy++) {
+        memcpy(fb + (uint32_t)(y + sy) * (uint32_t)fb_w + (uint32_t)x,
+               src + (uint32_t)sy * (uint32_t)sw, (uint32_t)sw * 4u);
+      }
+      return;
+    }
+  }
+
   for (int sy = 0; sy < sh; sy++) {
     for (int sx = 0; sx < sw; sx++) {
       g2d_put(x + sx, y + sy, src[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
@@ -1154,6 +1629,16 @@ void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha) {
   uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
   int fb_w = g2d_active_w;
   int fb_h = g2d_active_h;
+
+  if (alpha >= 255 && g2d_blend_mode_val == GFX2D_BLEND_NORMAL &&
+      !g2d_clip_active && x >= 0 && y >= 0 && x + sw <= fb_w && y + sh <= fb_h) {
+    for (int sy = 0; sy < sh; sy++) {
+      memcpy(fb + (uint32_t)(y + sy) * (uint32_t)fb_w + (uint32_t)x,
+             src + (uint32_t)sy * (uint32_t)sw, (uint32_t)sw * 4u);
+    }
+    return;
+  }
+
   uint32_t a = (uint32_t)alpha;
   for (int sy = 0; sy < sh; sy++) {
     for (int sx = 0; sx < sw; sx++) {
@@ -1167,9 +1652,33 @@ void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  NEW: Tweening / Easing Functions
- * ══════════════════════════════════════════════════════════════════════ */
+void gfx2d_surface_blit_scaled(int handle, int x, int y, int w, int h) {
+  if (handle < 0 || handle >= GFX2D_MAX_SURFACES || !g2d_surf_used[handle])
+    return;
+  if (w <= 0 || h <= 0)
+    return;
+
+  int sw = g2d_surf_w[handle], sh = g2d_surf_h[handle];
+  if (sw <= 0 || sh <= 0)
+    return;
+
+  if (w == sw && h == sh) {
+    gfx2d_surface_blit(handle, x, y);
+    return;
+  }
+
+  uint32_t *src = g2d_surf_data[handle];
+  for (int dy = 0; dy < h; dy++) {
+    int sy = (dy * sh) / h;
+    for (int dx = 0; dx < w; dx++) {
+      int sx = (dx * sw) / w;
+      g2d_put(x + dx, y + dy,
+              src[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
+    }
+  }
+}
+
+/* NEW: Tweening / Easing Functions */
 
 int gfx2d_tween_linear(int t, int start, int end, int dur) {
   if (dur <= 0)
@@ -1246,9 +1755,7 @@ int gfx2d_tween_elastic(int t, int start, int end, int dur) {
   return start + elastic;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  NEW: Particle System
- * ══════════════════════════════════════════════════════════════════════ */
+/* NEW: Particle System */
 
 int gfx2d_particles_create(void) {
   for (int i = 0; i < GFX2D_MAX_PARTICLE_SYSTEMS; i++) {
@@ -1344,9 +1851,82 @@ int gfx2d_particles_alive(int handle) {
   return count;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  NEW: Advanced Drawing Tools
- * ══════════════════════════════════════════════════════════════════════ */
+/* NEW: Advanced Drawing Tools */
+
+void gfx2d_tri(int x0, int y0, int x1, int y1, int x2, int y2,
+               uint32_t color) {
+  gfx2d_line(x0, y0, x1, y1, color);
+  gfx2d_line(x1, y1, x2, y2, color);
+  gfx2d_line(x2, y2, x0, y0, color);
+}
+
+void gfx2d_line_thick(int x0, int y0, int x1, int y1,
+                      int thickness, uint32_t color) {
+  if (thickness <= 1) {
+    gfx2d_line(x0, y0, x1, y1, color);
+    return;
+  }
+
+  int dx = x1 - x0, dy = y1 - y0;
+  int sx = (dx >= 0) ? 1 : -1;
+  int sy = (dy >= 0) ? 1 : -1;
+  if (dx < 0)
+    dx = -dx;
+  if (dy < 0)
+    dy = -dy;
+  int err = dx - dy;
+  int half = thickness / 2;
+
+  for (;;) {
+    gfx2d_rect_fill(x0 - half, y0 - half, thickness, thickness, color);
+    if (x0 == x1 && y0 == y1)
+      break;
+    int e2 = err * 2;
+    if (e2 > -dy) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
+
+void gfx2d_circle_thick(int x, int y, int r, int thickness, uint32_t color) {
+  if (r <= 0)
+    return;
+  if (thickness <= 1) {
+    gfx2d_circle(x, y, r, color);
+    return;
+  }
+  if (thickness >= r) {
+    gfx2d_circle_fill(x, y, r, color);
+    return;
+  }
+
+  int r_in = r - thickness + 1;
+  if (r_in < 0)
+    r_in = 0;
+
+  for (int yy = -r; yy <= r; yy++) {
+    int yy2 = yy * yy;
+    int xo = 0;
+    while ((xo + 1) * (xo + 1) + yy2 <= r * r)
+      xo++;
+
+    int xi = 0;
+    if (r_in > 0) {
+      while ((xi + 1) * (xi + 1) + yy2 <= r_in * r_in)
+        xi++;
+    }
+
+    if (xo > 0) {
+      gfx2d_hline(x - xo, y + yy, xo - xi + 1, color);
+      gfx2d_hline(x + xi, y + yy, xo - xi + 1, color);
+    }
+  }
+}
 
 /* Quadratic Bezier: iterative parametric evaluation (no recursion) */
 void gfx2d_bezier(int x0, int y0, int x1, int y1, int x2, int y2,
@@ -1380,7 +1960,7 @@ void gfx2d_bezier(int x0, int y0, int x1, int y1, int x2, int y2,
   }
 }
 
-/* Filled triangle — scanline rasterization */
+/* Filled triangle - scanline rasterization */
 void gfx2d_tri_fill(int x0, int y0, int x1, int y1, int x2, int y2,
                     uint32_t color) {
   /* Sort vertices by y */
@@ -1434,6 +2014,69 @@ void gfx2d_tri_fill(int x0, int y0, int x1, int y1, int x2, int y2,
   }
 }
 
+void gfx2d_tri_fill_gradient(int x0, int y0, uint32_t c0,
+                             int x1, int y1, uint32_t c1,
+                             int x2, int y2, uint32_t c2) {
+  int min_x = x0;
+  int max_x = x0;
+  int min_y = y0;
+  int max_y = y0;
+  if (x1 < min_x)
+    min_x = x1;
+  if (x2 < min_x)
+    min_x = x2;
+  if (x1 > max_x)
+    max_x = x1;
+  if (x2 > max_x)
+    max_x = x2;
+  if (y1 < min_y)
+    min_y = y1;
+  if (y2 < min_y)
+    min_y = y2;
+  if (y1 > max_y)
+    max_y = y1;
+  if (y2 > max_y)
+    max_y = y2;
+
+  int den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+  if (den == 0)
+    return;
+  int den_sign = den;
+  if (den < 0)
+    den = -den;
+
+  uint32_t r0 = (c0 >> 16) & 0xFFu, g0 = (c0 >> 8) & 0xFFu, b0 = c0 & 0xFFu;
+  uint32_t r1 = (c1 >> 16) & 0xFFu, g1 = (c1 >> 8) & 0xFFu, b1 = c1 & 0xFFu;
+  uint32_t r2 = (c2 >> 16) & 0xFFu, g2 = (c2 >> 8) & 0xFFu, b2 = c2 & 0xFFu;
+
+  for (int py = min_y; py <= max_y; py++) {
+    for (int px = min_x; px <= max_x; px++) {
+      int w0 = (y1 - y2) * (px - x2) + (x2 - x1) * (py - y2);
+      int w1 = (y2 - y0) * (px - x2) + (x0 - x2) * (py - y2);
+      int w2 = den_sign - w0 - w1;
+
+      if (den_sign < 0) {
+        w0 = -w0;
+        w1 = -w1;
+        w2 = -w2;
+      }
+
+      if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+        uint32_t r = (r0 * (uint32_t)w0 + r1 * (uint32_t)w1 +
+                      r2 * (uint32_t)w2) /
+                     (uint32_t)den;
+        uint32_t g = (g0 * (uint32_t)w0 + g1 * (uint32_t)w1 +
+                      g2 * (uint32_t)w2) /
+                     (uint32_t)den;
+        uint32_t b = (b0 * (uint32_t)w0 + b1 * (uint32_t)w1 +
+                      b2 * (uint32_t)w2) /
+                     (uint32_t)den;
+        g2d_put(px, py, (r << 16) | (g << 8) | b);
+      }
+    }
+  }
+}
+
 /* Wu's anti-aliased line */
 void gfx2d_line_aa(int x0, int y0, int x1, int y1, uint32_t color) {
   int steep = (y1 - y0 < 0 ? -(y1 - y0) : (y1 - y0)) >
@@ -1481,7 +2124,7 @@ void gfx2d_line_aa(int x0, int y0, int x1, int y1, uint32_t color) {
   }
 }
 
-/* Flood fill — optimized scanline algorithm (much faster than 4-way BFS) */
+/* Flood fill - optimized scanline algorithm (much faster than 4-way BFS) */
 #define FLOOD_STACK_SIZE 4096
 void gfx2d_flood_fill(int x, int y, uint32_t color) {
   uint32_t target = g2d_get(x, y);
@@ -1564,14 +2207,14 @@ void gfx2d_flood_fill(int x, int y, uint32_t color) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Fullscreen Mode (pauses desktop rendering)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Fullscreen Mode (pauses desktop rendering) */
 
 static int g2d_fullscreen_mode = 0;
 
 void gfx2d_fullscreen_enter(void) {
   g2d_fullscreen_mode = 1;
+  g2d_last_flip_ms = 0;
+  vga_set_vsync_wait(false);
   /* Refresh the framebuffer pointer in case it changed */
   g2d_fb = vga_get_framebuffer();
   serial_printf("[gfx2d] fullscreen mode entered (fb=%x)\n", (uint32_t)g2d_fb);
@@ -1579,6 +2222,8 @@ void gfx2d_fullscreen_enter(void) {
 
 void gfx2d_fullscreen_exit(void) {
   g2d_fullscreen_mode = 0;
+  g2d_last_flip_ms = 0;
+  vga_set_vsync_wait(true);
   serial_printf("[gfx2d] fullscreen mode exited\n");
 }
 
@@ -1599,9 +2244,7 @@ void gfx2d_minimize(const char *app_name) {
   gfx2d_fullscreen_enter();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  App Toolbar (title bar with close/minimize for fullscreen apps)
- * ══════════════════════════════════════════════════════════════════════ */
+/* App Toolbar (title bar with close/minimize for fullscreen apps) */
 
 int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
   int w = g2d_active_w;
@@ -1615,13 +2258,13 @@ int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
   /* Title text (white, with shadow) */
   gfx2d_text(6, (h - 8) / 2, title, 0xFFFFFFu, GFX2D_FONT_NORMAL);
 
-  /* Close button [X] — right side */
+  /* Close button [X] - right side */
   int close_x = w - 20;
   gfx2d_rect_fill(close_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
   gfx2d_bevel(close_x, btn_y, btn_sz, btn_sz, 1);
   gfx2d_text(close_x + 4, btn_y + 4, "X", 0x000000u, GFX2D_FONT_NORMAL);
 
-  /* Minimize button [_] — left of close */
+  /* Minimize button [_] - left of close */
   int min_x = close_x - 20;
   gfx2d_rect_fill(min_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
   gfx2d_bevel(min_x, btn_y, btn_sz, btn_sz, 1);
@@ -1642,9 +2285,118 @@ int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
   return GFX2D_TOOLBAR_NONE;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mouse Cursor Rendering (for fullscreen apps)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Windowed App Frame Helper (for fullscreen apps) */
+
+static int g2d_win_x = 80;
+static int g2d_win_y = 60;
+static int g2d_win_w = 480;
+static int g2d_win_h = 320;
+static int g2d_win_dragging = 0;
+static int g2d_win_drag_off_x = 0;
+static int g2d_win_drag_off_y = 0;
+
+static int g2d_clamp_i(int v, int lo, int hi) {
+  if (v < lo)
+    return lo;
+  if (v > hi)
+    return hi;
+  return v;
+}
+
+void gfx2d_window_reset(int x, int y, int w, int h) {
+  int sw = g2d_active_w;
+  int sh = g2d_active_h;
+
+  if (w < 120)
+    w = 120;
+  if (h < 80)
+    h = 80;
+  if (w > sw)
+    w = sw;
+  if (h > sh)
+    h = sh;
+
+  g2d_win_w = w;
+  g2d_win_h = h;
+  g2d_win_x = g2d_clamp_i(x, 0, sw - g2d_win_w);
+  g2d_win_y = g2d_clamp_i(y, 0, sh - g2d_win_h);
+  g2d_win_dragging = 0;
+  g2d_win_drag_off_x = 0;
+  g2d_win_drag_off_y = 0;
+}
+
+int gfx2d_window_frame(const char *title, int mx, int my,
+                       int clicked, int mouse_down) {
+  int title_h = GFX2D_TOOLBAR_H;
+  int btn_sz = 14;
+  int btn_pad = 3;
+  int action = GFX2D_WINDOW_NONE;
+
+  int close_x = g2d_win_x + g2d_win_w - btn_pad - btn_sz;
+  int min_x = close_x - 2 - btn_sz;
+  int btn_y = g2d_win_y + btn_pad;
+
+  if (clicked) {
+    if (my >= btn_y && my < btn_y + btn_sz) {
+      if (mx >= close_x && mx < close_x + btn_sz) {
+        action = GFX2D_WINDOW_CLOSE;
+      } else if (mx >= min_x && mx < min_x + btn_sz) {
+        action = GFX2D_WINDOW_MINIMIZE;
+      }
+    }
+
+    if (action == GFX2D_WINDOW_NONE &&
+        mx >= g2d_win_x && mx < g2d_win_x + g2d_win_w &&
+        my >= g2d_win_y && my < g2d_win_y + title_h) {
+      g2d_win_dragging = 1;
+      g2d_win_drag_off_x = mx - g2d_win_x;
+      g2d_win_drag_off_y = my - g2d_win_y;
+    }
+  }
+
+  if (!mouse_down) {
+    g2d_win_dragging = 0;
+  }
+
+  if (g2d_win_dragging) {
+    int sw = g2d_active_w;
+    int sh = g2d_active_h;
+    int nx = mx - g2d_win_drag_off_x;
+    int ny = my - g2d_win_drag_off_y;
+    g2d_win_x = g2d_clamp_i(nx, 0, sw - g2d_win_w);
+    g2d_win_y = g2d_clamp_i(ny, 0, sh - g2d_win_h);
+  }
+
+  gfx2d_shadow(g2d_win_x + 3, g2d_win_y + 3, g2d_win_w, g2d_win_h,
+               2, 0x000000u);
+  gfx2d_rect_fill(g2d_win_x, g2d_win_y, g2d_win_w, g2d_win_h, 0xC0C0C0u);
+  gfx2d_bevel(g2d_win_x, g2d_win_y, g2d_win_w, g2d_win_h, 1);
+
+  gfx2d_gradient_h(g2d_win_x + 2, g2d_win_y + 2, g2d_win_w - 4, title_h - 2,
+                   0x000080u, 0x1084D0u);
+  gfx2d_text(g2d_win_x + 8, g2d_win_y + 6, title, 0xFFFFFFu, GFX2D_FONT_NORMAL);
+
+  gfx2d_rect_fill(close_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
+  gfx2d_bevel(close_x, btn_y, btn_sz, btn_sz, 1);
+  gfx2d_text(close_x + 3, btn_y + 3, "X", 0x000000u, GFX2D_FONT_NORMAL);
+
+  gfx2d_rect_fill(min_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
+  gfx2d_bevel(min_x, btn_y, btn_sz, btn_sz, 1);
+  gfx2d_text(min_x + 4, btn_y + 3, "_", 0x000000u, GFX2D_FONT_NORMAL);
+
+  return action;
+}
+
+int gfx2d_window_x(void) { return g2d_win_x; }
+int gfx2d_window_y(void) { return g2d_win_y; }
+int gfx2d_window_w(void) { return g2d_win_w; }
+int gfx2d_window_h(void) { return g2d_win_h; }
+int gfx2d_window_content_x(void) { return g2d_win_x + 2; }
+int gfx2d_window_content_y(void) { return g2d_win_y + GFX2D_TOOLBAR_H + 1; }
+int gfx2d_window_content_w(void) { return g2d_win_w - 4; }
+int gfx2d_window_content_h(void) { return g2d_win_h - GFX2D_TOOLBAR_H - 3; }
+
+/* Mouse Cursor Rendering (for fullscreen apps) */
 
 #include "../drivers/mouse.h"
 
@@ -1685,6 +2437,7 @@ static int g2d_cursor_saved_y = -1;
 
 /* Restore pixels under cursor (call before canvas drawing operations) */
 void gfx2d_cursor_hide(void) {
+  uint32_t *fb = g2d_fb;
   if (g2d_cursor_saved_x >= 0) {
     for (int row = 0; row < G2D_CURSOR_H; row++) {
       uint8_t outline = g2d_cursor_outline[row];
@@ -1694,7 +2447,7 @@ void gfx2d_cursor_hide(void) {
         uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
         if (outline & mask) {
           if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
-            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px] =
+            fb[(uint32_t)py * G2D_W + (uint32_t)px] =
                 g2d_cursor_under[row * G2D_CURSOR_W + col];
           }
         }
@@ -1707,6 +2460,7 @@ void gfx2d_cursor_hide(void) {
 void gfx2d_draw_cursor(void) {
   int mx = mouse.x;
   int my = mouse.y;
+  uint32_t *fb = g2d_fb;
 
   /* Restore pixels under previous cursor position */
   if (g2d_cursor_saved_x >= 0) {
@@ -1719,7 +2473,7 @@ void gfx2d_draw_cursor(void) {
         if (outline & mask) {
           /* Only restore pixels that were part of cursor */
           if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
-            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px] =
+            fb[(uint32_t)py * G2D_W + (uint32_t)px] =
                 g2d_cursor_under[row * G2D_CURSOR_W + col];
           }
         }
@@ -1734,7 +2488,7 @@ void gfx2d_draw_cursor(void) {
       int py = my + row;
       if (px >= 0 && px < G2D_W && py >= 0 && py < G2D_H) {
         g2d_cursor_under[row * G2D_CURSOR_W + col] =
-            g2d_fb[(uint32_t)py * G2D_W + (uint32_t)px];
+            fb[(uint32_t)py * G2D_W + (uint32_t)px];
       }
     }
   }
@@ -1749,24 +2503,23 @@ void gfx2d_draw_cursor(void) {
       int px = mx + col;
       int py = my + row;
       uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+      if (px < 0 || px >= G2D_W || py < 0 || py >= G2D_H)
+        continue;
       if (fill & mask) {
-        g2d_put(px, py, 0xFFFFFF); /* White cursor */
+        fb[(uint32_t)py * G2D_W + (uint32_t)px] = 0x00FFFFFFu;
       } else if (outline & mask) {
-        g2d_put(px, py, 0x000000); /* Black outline */
+        fb[(uint32_t)py * G2D_W + (uint32_t)px] = 0x00000000u;
       }
     }
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File Dialog — Modal open/save dialog with self-contained event loop
- *
- *  Adapted from notepad's file dialog.  Self-contained: renders
- *  directly to the gfx2d framebuffer, blocks until the user confirms
- *  or cancels.
- * ══════════════════════════════════════════════════════════════════════ */
+/* File Dialog - Modal open/save dialog with self-contained event loop
+ * Adapted from notepad's file dialog.  Self-contained: renders
+ * directly to the gfx2d framebuffer, blocks until the user confirms
+ * or cancels.
+ */
 
-/* ── Scancodes ────────────────────────────────────────────────────── */
 #define FDLG_SC_ESCAPE     0x01
 #define FDLG_SC_BACKSPACE  0x0E
 #define FDLG_SC_ENTER      0x1C
@@ -1775,8 +2528,8 @@ void gfx2d_draw_cursor(void) {
 #define FDLG_SC_PAGE_UP    0x49
 #define FDLG_SC_PAGE_DOWN  0x51
 
-/* ── Dialog constants ─────────────────────────────────────────────── */
-#define FDLG_MAX_FILES    64
+#define FDLG_FILES_INIT_CAP 64
+#define FDLG_FILES_MAX_CAP  2048
 #define FDLG_INPUT_MAX    64
 #define FDLG_W            400
 #define FDLG_H            300
@@ -1786,14 +2539,12 @@ void gfx2d_draw_cursor(void) {
 #define FDLG_BTN_W        60
 #define FDLG_BTN_H        24
 
-/* ── File entry ───────────────────────────────────────────────────── */
 typedef struct {
   char name[VFS_MAX_NAME];
   uint32_t size;
   bool is_directory;
 } fdlg_file_entry_t;
 
-/* ── Dialog layout ────────────────────────────────────────────────── */
 typedef struct {
   ui_rect_t dialog;
   ui_rect_t titlebar;
@@ -1811,9 +2562,9 @@ typedef struct {
   int items_visible;
 } fdlg_layout_t;
 
-/* ── Dialog state ─────────────────────────────────────────────────── */
 typedef struct {
-  fdlg_file_entry_t files[FDLG_MAX_FILES];
+  fdlg_file_entry_t *files;
+  int file_cap;
   int file_count;
   int selected_index;
   int scroll_offset;
@@ -1831,7 +2582,50 @@ typedef struct {
   char *result_path;
 } fdlg_state_t;
 
-/* ── String helpers (local, avoid name collisions) ────────────────── */
+static void fdlg_release_files(fdlg_state_t *dlg) {
+  if (!dlg)
+    return;
+  if (dlg->files) {
+    kfree(dlg->files);
+    dlg->files = NULL;
+  }
+  dlg->file_cap = 0;
+  dlg->file_count = 0;
+}
+
+static bool fdlg_reserve_files(fdlg_state_t *dlg, int needed) {
+  if (!dlg || needed <= 0)
+    return false;
+  if (dlg->file_cap >= needed)
+    return true;
+
+  int new_cap = dlg->file_cap > 0 ? dlg->file_cap : FDLG_FILES_INIT_CAP;
+  while (new_cap < needed && new_cap < FDLG_FILES_MAX_CAP) {
+    int doubled = new_cap * 2;
+    if (doubled <= new_cap)
+      break;
+    new_cap = doubled;
+  }
+  if (new_cap < needed)
+    new_cap = needed;
+  if (new_cap > FDLG_FILES_MAX_CAP)
+    return false;
+
+  size_t bytes = (size_t)new_cap * sizeof(fdlg_file_entry_t);
+  fdlg_file_entry_t *buf = (fdlg_file_entry_t *)kmalloc((uint32_t)bytes);
+  if (!buf)
+    return false;
+
+  if (dlg->files && dlg->file_count > 0) {
+    memcpy(buf, dlg->files, (size_t)dlg->file_count * sizeof(fdlg_file_entry_t));
+  }
+  if (dlg->files)
+    kfree(dlg->files);
+
+  dlg->files = buf;
+  dlg->file_cap = new_cap;
+  return true;
+}
 
 static int fdlg_strlen(const char *s) {
   int n = 0;
@@ -1865,8 +2659,6 @@ static int fdlg_strcasecmp(const char *a, const char *b) {
   return (int)(unsigned char)ca - (int)(unsigned char)cb;
 }
 
-/* ── Extension filter check ───────────────────────────────────────── */
-
 static bool fdlg_matches_filter(const char *filename, const char *filter_ext,
                                  bool is_directory) {
   if (is_directory) return true;
@@ -1884,10 +2676,8 @@ static bool fdlg_matches_filter(const char *filename, const char *filter_ext,
   return fdlg_strcasecmp(dot, filter_ext) == 0;
 }
 
-/* ── Sort: directories first, then alphabetical ───────────────────── */
-
 static void fdlg_sort_files(fdlg_file_entry_t *files, int count) {
-  /* Simple insertion sort — fine for <= 64 entries */
+  /* Simple insertion sort - acceptable for dialog-sized lists */
   for (int i = 1; i < count; i++) {
     fdlg_file_entry_t tmp;
     memcpy(&tmp, &files[i], sizeof(tmp));
@@ -1914,12 +2704,13 @@ static void fdlg_sort_files(fdlg_file_entry_t *files, int count) {
   }
 }
 
-/* ── Populate file list from VFS ──────────────────────────────────── */
-
 static void fdlg_populate(fdlg_state_t *dlg) {
   dlg->file_count = 0;
   dlg->selected_index = -1;
   dlg->scroll_offset = 0;
+
+  if (!fdlg_reserve_files(dlg, FDLG_FILES_INIT_CAP))
+    return;
 
   int fd = vfs_open(dlg->current_path, O_RDONLY);
   if (fd < 0) {
@@ -1932,6 +2723,10 @@ static void fdlg_populate(fdlg_state_t *dlg) {
 
   /* Add ".." if not at root */
   if (dlg->current_path[0] != '/' || dlg->current_path[1] != '\0') {
+    if (!fdlg_reserve_files(dlg, dlg->file_count + 1)) {
+      vfs_close(fd);
+      return;
+    }
     fdlg_file_entry_t *fe = &dlg->files[dlg->file_count];
     fdlg_strcpy(fe->name, "..");
     fe->size = 0;
@@ -1940,11 +2735,14 @@ static void fdlg_populate(fdlg_state_t *dlg) {
   }
 
   vfs_dirent_t ent;
-  while (dlg->file_count < FDLG_MAX_FILES && vfs_readdir(fd, &ent) > 0) {
+  while (vfs_readdir(fd, &ent) > 0) {
     /* Apply extension filter */
     bool is_dir = (ent.type == VFS_TYPE_DIR);
     if (!fdlg_matches_filter(ent.name, dlg->filter_ext, is_dir))
       continue;
+
+    if (!fdlg_reserve_files(dlg, dlg->file_count + 1))
+      break;
 
     fdlg_file_entry_t *fe = &dlg->files[dlg->file_count];
     int i = 0;
@@ -1971,8 +2769,6 @@ static void fdlg_populate(fdlg_state_t *dlg) {
   }
 }
 
-/* ── Path navigation ──────────────────────────────────────────────── */
-
 static void fdlg_navigate(fdlg_state_t *dlg, const char *dname) {
   if (dname[0] == '.' && dname[1] == '.' && dname[2] == '\0') {
     /* Go up: strip last path component */
@@ -1998,8 +2794,6 @@ static void fdlg_navigate(fdlg_state_t *dlg, const char *dname) {
   fdlg_populate(dlg);
 }
 
-/* ── Build result path ────────────────────────────────────────────── */
-
 static void fdlg_build_result_path(fdlg_state_t *dlg, char *out) {
   int plen = fdlg_strlen(dlg->current_path);
   int nlen = fdlg_strlen(dlg->input);
@@ -2019,8 +2813,6 @@ static void fdlg_build_result_path(fdlg_state_t *dlg, char *out) {
 
   out[i] = '\0';
 }
-
-/* ── Compute layout ───────────────────────────────────────────────── */
 
 static fdlg_layout_t fdlg_get_layout(void) {
   fdlg_layout_t L;
@@ -2076,8 +2868,6 @@ static fdlg_layout_t fdlg_get_layout(void) {
   return L;
 }
 
-/* ── Int-to-string helper ─────────────────────────────────────────── */
-
 static int fdlg_itoa(char *buf, uint32_t val) {
   if (val == 0) { buf[0] = '0'; buf[1] = '\0'; return 1; }
   char tmp[12];
@@ -2092,8 +2882,6 @@ static int fdlg_itoa(char *buf, uint32_t val) {
   buf[sp] = '\0';
   return sp;
 }
-
-/* ── Render the dialog ────────────────────────────────────────────── */
 
 static void fdlg_render(fdlg_state_t *dlg) {
   fdlg_layout_t L = fdlg_get_layout();
@@ -2263,8 +3051,6 @@ static void fdlg_render(fdlg_state_t *dlg) {
 
 }
 
-/* ── Confirm action (enter / OK button) ───────────────────────────── */
-
 static void fdlg_confirm(fdlg_state_t *dlg) {
   /* If no input but something is selected, use selected name */
   if (dlg->input_len == 0 && dlg->selected_index >= 0 &&
@@ -2274,7 +3060,7 @@ static void fdlg_confirm(fdlg_state_t *dlg) {
   }
 
   if (dlg->input_len > 0) {
-    /* If selected item is a directory — navigate */
+    /* If selected item is a directory - navigate */
     int sel = dlg->selected_index;
     if (sel >= 0 && sel < dlg->file_count &&
         dlg->files[sel].is_directory) {
@@ -2290,10 +3076,8 @@ static void fdlg_confirm(fdlg_state_t *dlg) {
     return;
   }
 
-  /* Nothing selected and no input — do nothing */
+  /* Nothing selected and no input - do nothing */
 }
-
-/* ── Handle keyboard ──────────────────────────────────────────────── */
 
 static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
   if (scancode == FDLG_SC_ESCAPE) {
@@ -2373,8 +3157,6 @@ static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
   }
 }
 
-/* ── Handle mouse ─────────────────────────────────────────────────── */
-
 static void fdlg_handle_mouse(fdlg_state_t *dlg, int16_t mx, int16_t my,
                                uint8_t buttons, uint8_t prev_buttons) {
   bool pressed = (buttons & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
@@ -2441,8 +3223,6 @@ static void fdlg_handle_mouse(fdlg_state_t *dlg, int16_t mx, int16_t my,
   }
 }
 
-/* ── Handle scroll wheel ─────────────────────────────────────────── */
-
 static void fdlg_handle_scroll(fdlg_state_t *dlg, int8_t delta) {
   fdlg_layout_t L = fdlg_get_layout();
   int max_scroll = dlg->file_count - L.items_visible;
@@ -2451,8 +3231,6 @@ static void fdlg_handle_scroll(fdlg_state_t *dlg, int8_t delta) {
   if (dlg->scroll_offset < 0) dlg->scroll_offset = 0;
   if (dlg->scroll_offset > max_scroll) dlg->scroll_offset = max_scroll;
 }
-
-/* ── Main dialog event loop ───────────────────────────────────────── */
 
 static int fdlg_run(fdlg_state_t *dlg) {
   uint8_t prev_buttons = mouse.buttons;
@@ -2498,8 +3276,6 @@ static int fdlg_run(fdlg_state_t *dlg) {
   return 0;
 }
 
-/* ── Public API ───────────────────────────────────────────────────── */
-
 int gfx2d_file_dialog_open(const char *start_path, char *result_path,
                             const char *filter_ext) {
   if (!result_path) return VFS_EINVAL;
@@ -2526,7 +3302,11 @@ int gfx2d_file_dialog_open(const char *start_path, char *result_path,
   }
 
   fdlg_populate(&dlg);
-  return fdlg_run(&dlg);
+  {
+    int rc = fdlg_run(&dlg);
+    fdlg_release_files(&dlg);
+    return rc;
+  }
 }
 
 int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
@@ -2566,12 +3346,14 @@ int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
   }
 
   fdlg_populate(&dlg);
-  return fdlg_run(&dlg);
+  {
+    int rc = fdlg_run(&dlg);
+    fdlg_release_files(&dlg);
+    return rc;
+  }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Confirm Dialog — modal Yes/No dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* Confirm Dialog - modal Yes/No dialog */
 
 int gfx2d_confirm_dialog(const char *message) {
   if (!message) return 0;
@@ -2632,9 +3414,7 @@ int gfx2d_confirm_dialog(const char *message) {
   return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Input Dialog — modal text input dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* Input Dialog - modal text input dialog */
 
 int gfx2d_input_dialog(const char *prompt, char *result, int maxlen) {
   if (!prompt || !result || maxlen <= 0) return 0;
@@ -2720,16 +3500,115 @@ int gfx2d_input_dialog(const char *prompt, char *result, int maxlen) {
   return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Message Dialog — modal OK dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* Message Dialog - modal OK dialog */
+
+static const char *g2d_message_next_line(const char *p, int max_chars,
+                                         char *out, int out_cap) {
+  int len = 0;
+  int last_space = -1;
+  const char *scan;
+
+  if (!p) {
+    if (out && out_cap > 0)
+      out[0] = '\0';
+    return p;
+  }
+
+  if (*p == '\n') {
+    if (out && out_cap > 0)
+      out[0] = '\0';
+    return p + 1;
+  }
+
+  scan = p;
+  while (*scan && *scan != '\n' && len < max_chars && len < out_cap - 1) {
+    if (*scan == ' ' || *scan == '\t')
+      last_space = len;
+    len++;
+    scan++;
+  }
+
+  if (*scan && *scan != '\n' && len >= max_chars && last_space > 0) {
+    len = last_space;
+    scan = p + last_space;
+    while (*scan == ' ' || *scan == '\t')
+      scan++;
+  }
+
+  if (out && out_cap > 0) {
+    int i;
+    for (i = 0; i < len && i < out_cap - 1; i++)
+      out[i] = p[i];
+    out[i] = '\0';
+  }
+
+  if (*scan == '\n')
+    return scan + 1;
+  return scan;
+}
+
+static int g2d_message_count_lines(const char *message, int max_chars) {
+  int lines = 0;
+  const char *p = message;
+  char sink[2];
+
+  if (!message || !message[0])
+    return 1;
+
+  while (*p) {
+    const char *next = g2d_message_next_line(p, max_chars, sink, sizeof(sink));
+    lines++;
+    if (next <= p) {
+      p++;
+    } else {
+      p = next;
+    }
+  }
+
+  if (lines < 1)
+    lines = 1;
+  return lines;
+}
 
 void gfx2d_message_dialog(const char *message) {
   if (!message) return;
 
   int sw = gfx2d_width();
   int sh = gfx2d_height();
-  int16_t dw = 300, dh = 110;
+  int16_t dw = 300;
+  if (sw > 360) {
+    int want = sw - 120;
+    if (want > 520)
+      want = 520;
+    if (want < 300)
+      want = 300;
+    dw = (int16_t)want;
+  }
+
+  int text_w = dw - 20;
+  int char_w = 8;
+  int max_chars = text_w / char_w;
+  if (max_chars < 1)
+    max_chars = 1;
+
+  int lines = g2d_message_count_lines(message, max_chars);
+
+  int line_h = gfx2d_text_height(GFX2D_FONT_NORMAL) + 2;
+  int text_h = lines * line_h;
+
+  int16_t dh = (int16_t)(20 + 30 + text_h + 18);
+  if (dh < 110)
+    dh = 110;
+  {
+    int max_h = sh - 80;
+    if (max_h > 240)
+      max_h = 240;
+    if (max_h < 110)
+      max_h = 110;
+    if (dh > max_h)
+      dh = (int16_t)max_h;
+  }
+
   int16_t dx = (int16_t)((sw - dw) / 2);
   int16_t dy = (int16_t)((sh - dh) / 2);
 
@@ -2737,8 +3616,17 @@ void gfx2d_message_dialog(const char *message) {
   ui_rect_t body    = dialog;
   ui_rect_t tbar    = ui_cut_top(&body, 20);
   ui_rect_t btn_row = ui_cut_bottom(&body, 30);
+  ui_rect_t msg_area = ui_pad(body, 8);
 
   ui_rect_t ok_btn = ui_rect((int16_t)(dx + dw / 2 - 35), (int16_t)(btn_row.y + 5), 70, 20);
+
+  int visible_lines = msg_area.h / line_h;
+  if (visible_lines < 1)
+    visible_lines = 1;
+  int max_scroll = lines - visible_lines;
+  if (max_scroll < 0)
+    max_scroll = 0;
+  int scroll_line = 0;
 
   int done = 0;
   uint8_t prev_buttons = mouse.buttons;
@@ -2749,6 +3637,30 @@ void gfx2d_message_dialog(const char *message) {
       if (!evt.pressed) continue;
       if (evt.scancode == FDLG_SC_ESCAPE || evt.scancode == FDLG_SC_ENTER)
         done = 1;
+      else if (evt.scancode == FDLG_SC_ARROW_UP) {
+        if (scroll_line > 0)
+          scroll_line--;
+      } else if (evt.scancode == FDLG_SC_ARROW_DOWN) {
+        if (scroll_line < max_scroll)
+          scroll_line++;
+      } else if (evt.scancode == FDLG_SC_PAGE_UP) {
+        scroll_line -= visible_lines;
+        if (scroll_line < 0)
+          scroll_line = 0;
+      } else if (evt.scancode == FDLG_SC_PAGE_DOWN) {
+        scroll_line += visible_lines;
+        if (scroll_line > max_scroll)
+          scroll_line = max_scroll;
+      }
+    }
+
+    if (mouse.scroll_z != 0) {
+      scroll_line -= (int)mouse.scroll_z;
+      if (scroll_line < 0)
+        scroll_line = 0;
+      if (scroll_line > max_scroll)
+        scroll_line = max_scroll;
+      mouse.scroll_z = 0;
     }
 
     int16_t mx = mouse.x, my = mouse.y;
@@ -2763,8 +3675,45 @@ void gfx2d_message_dialog(const char *message) {
     ui_draw_panel(dialog, COLOR_WINDOW_BG, true, true);
     ui_draw_titlebar(tbar, "Message", true);
 
-    ui_rect_t msg_area = ui_pad(body, 8);
-    ui_draw_label(msg_area, message, COLOR_BLACK, UI_ALIGN_CENTER);
+    if (msg_area.h > 0) {
+      gfx2d_clip_set(msg_area.x, msg_area.y, msg_area.w, msg_area.h);
+      {
+        const char *p = message;
+        int line_idx = 0;
+        int drawn = 0;
+        int y0 = msg_area.y;
+        char line[256];
+
+        if (lines <= visible_lines) {
+          int spare = visible_lines - lines;
+          if (spare > 0)
+            y0 += (spare * line_h) / 2;
+        }
+
+        while (*p && line_idx < scroll_line) {
+          const char *next = g2d_message_next_line(p, max_chars, line,
+                                                   (int)sizeof(line));
+          if (next <= p)
+            p++;
+          else
+            p = next;
+          line_idx++;
+        }
+
+        while (*p && drawn < visible_lines) {
+          const char *next = g2d_message_next_line(p, max_chars, line,
+                                                   (int)sizeof(line));
+          gfx2d_text(msg_area.x, y0 + drawn * line_h, line, COLOR_BLACK,
+                     GFX2D_FONT_NORMAL);
+          if (next <= p)
+            p++;
+          else
+            p = next;
+          drawn++;
+        }
+      }
+      gfx2d_clip_clear();
+    }
     ui_draw_button(ok_btn, "OK", true);
     gfx2d_draw_cursor();
     gfx2d_flip();
@@ -2772,9 +3721,7 @@ void gfx2d_message_dialog(const char *message) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Popup Menu — modal context menu, returns selected index or -1
- * ══════════════════════════════════════════════════════════════════════ */
+/* Popup Menu - modal context menu, returns selected index or -1 */
 
 int gfx2d_popup_menu(int x, int y, const char **items, int count) {
   if (!items || count <= 0) return -1;
@@ -2871,4 +3818,30 @@ int gfx2d_popup_menu(int x, int y, const char **items, int count) {
     process_yield();
   }
   return selected;
+}
+
+void gfx2d_tooltip(int x, int y, const char *text) {
+  if (!text || !text[0])
+    return;
+
+  int sw = gfx2d_width();
+  int sh = gfx2d_height();
+  int tw = gfx2d_text_width(text, GFX2D_FONT_NORMAL);
+  int th = gfx2d_text_height(GFX2D_FONT_NORMAL);
+  int pad = 4;
+  int bw = tw + pad * 2;
+  int bh = th + pad * 2;
+
+  if (x + bw > sw)
+    x = sw - bw;
+  if (y + bh > sh)
+    y = sh - bh;
+  if (x < 0)
+    x = 0;
+  if (y < 0)
+    y = 0;
+
+  gfx2d_rect_fill_alpha(x, y, bw, bh, 0xC0000000u);
+  gfx2d_rect(x, y, bw, bh, 0x00FFFFFFu);
+  gfx2d_text(x + pad, y + pad, text, 0x00FFFFFFu, GFX2D_FONT_NORMAL);
 }

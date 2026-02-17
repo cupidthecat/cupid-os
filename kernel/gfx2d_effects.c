@@ -12,8 +12,6 @@
 #include "string.h"
 #include "../drivers/serial.h"
 
-/* ── Helpers ──────────────────────────────────────────────────────── */
-
 static int clamp255(int v) {
     if (v < 0) return 0;
     if (v > 255) return 255;
@@ -42,9 +40,7 @@ void gfx2d_effects_init(void) {
     /* Nothing to initialize currently */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Blur
- * ══════════════════════════════════════════════════════════════════════ */
+/* Blur */
 
 void gfx2d_blur_box(int x, int y, int w, int h, int radius) {
     int row, col, kr, kc;
@@ -207,9 +203,7 @@ void gfx2d_blur_motion(int x, int y, int w, int h,
     kfree(tmp);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Color Manipulation
- * ══════════════════════════════════════════════════════════════════════ */
+/* Color Manipulation */
 
 void gfx2d_brightness(int x, int y, int w, int h, int amount) {
     int row, col;
@@ -350,9 +344,7 @@ void gfx2d_tint_ex(int x, int y, int w, int h, uint32_t color,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Edge Detection & Stylization
- * ══════════════════════════════════════════════════════════════════════ */
+/* Edge Detection & Stylization */
 
 void gfx2d_edges(int x, int y, int w, int h, uint32_t edge_color) {
     int row, col;
@@ -477,9 +469,7 @@ void gfx2d_posterize(int x, int y, int w, int h, int levels) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Convolution Kernel System
- * ══════════════════════════════════════════════════════════════════════ */
+/* Convolution Kernel System */
 
 void gfx2d_convolve_3x3(int x, int y, int w, int h,
                          int kernel[9], int divisor) {
@@ -567,9 +557,7 @@ void gfx2d_convolve_5x5(int x, int y, int w, int h,
     kfree(tmp);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Retro / CRT Effects
- * ══════════════════════════════════════════════════════════════════════ */
+/* Retro / CRT Effects */
 
 void gfx2d_chromatic_aberration(int x, int y, int w, int h, int offset) {
     int row, col;

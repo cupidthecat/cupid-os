@@ -14,9 +14,7 @@
 #include "cupidscript_jobs.h"
 #include "cupidscript_arrays.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Limits
- * ══════════════════════════════════════════════════════════════════════ */
+/* Limits */
 #define MAX_VARIABLES       32
 #define MAX_FUNCTIONS       16
 #define MAX_VAR_NAME        64
@@ -29,9 +27,7 @@
 #define MAX_EXPAND_LEN     128
 #define MAX_SCRIPT_ARGS      8
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Token types
- * ══════════════════════════════════════════════════════════════════════ */
+/* Token types */
 typedef enum {
     TOK_EOF,
     TOK_NEWLINE,
@@ -60,7 +56,7 @@ typedef enum {
     TOK_COMMENT,         /* # ... (skipped) */
     TOK_ARITH,           /* $((...)) content */
     TOK_HASH_BANG,       /* #!/bin/cupid shebang */
-    /* ── I/O redirection and pipeline tokens ── */
+    /* I/O redirection and pipeline tokens */
     TOK_PIPE,            /* | */
     TOK_REDIR_OUT,       /* > */
     TOK_REDIR_APPEND,    /* >> */
@@ -78,11 +74,10 @@ typedef struct {
     int line;
 } token_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  AST node types
- * ══════════════════════════════════════════════════════════════════════ */
+/* AST node types */
 typedef enum {
     NODE_COMMAND,         /* Simple command: echo hello */
+    NODE_PIPELINE,        /* cmd1 | cmd2 ... [&] */
     NODE_ASSIGNMENT,      /* VAR=value */
     NODE_IF,              /* if/then/else/fi */
     NODE_WHILE,           /* while/do/done */
@@ -102,7 +97,16 @@ struct ast_node {
         struct {                     /* COMMAND */
             char argv[MAX_ARGS][MAX_TOKEN_LEN];
             int argc;
+            redirection_t redirections[MAX_REDIRECTIONS];
+            int redir_count;
+            bool background;
         } command;
+
+        struct {                     /* PIPELINE */
+            ast_node_t *commands[MAX_PIPELINE_CMDS];
+            int command_count;
+            bool background;
+        } pipeline;
 
         struct {                     /* ASSIGNMENT */
             char name[MAX_VAR_NAME];
@@ -148,9 +152,7 @@ struct ast_node {
     } data;
 };
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Runtime context
- * ══════════════════════════════════════════════════════════════════════ */
+/* Runtime context */
 typedef struct {
     char name[MAX_VAR_NAME];
     char value[MAX_VAR_VALUE];
@@ -173,16 +175,16 @@ typedef struct script_context {
     char script_name[MAX_VAR_NAME];
     char script_args[MAX_SCRIPT_ARGS][MAX_VAR_VALUE];
     int script_argc;
-    /* ── NEW: Stream system ── */
+    /* NEW: Stream system */
     fd_table_t fd_table;
-    /* ── NEW: Job control ── */
+    /* NEW: Job control */
     job_table_t jobs;
-    /* ── NEW: Arrays ── */
+    /* NEW: Arrays */
     cs_array_t arrays[MAX_ARRAYS];
     int array_count;
     cs_assoc_array_t assoc_arrays[MAX_ASSOC_ARRAYS];
     int assoc_count;
-    /* ── NEW: Terminal color state ── */
+    /* NEW: Terminal color state */
     terminal_color_state_t color_state;
     /* Output function pointers (for GUI/text mode routing) */
     void (*print_fn)(const char *);
@@ -190,21 +192,15 @@ typedef struct script_context {
     void (*print_int_fn)(uint32_t);
 } script_context_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Lexer  (cupidscript_lex.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Lexer  (cupidscript_lex.c) */
 int cupidscript_tokenize(const char *source, uint32_t length,
                          token_t *tokens, int max_tokens);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Parser  (cupidscript_parse.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Parser  (cupidscript_parse.c) */
 ast_node_t *cupidscript_parse(token_t *tokens, int token_count);
 void cupidscript_free_ast(ast_node_t *node);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Runtime  (cupidscript_runtime.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Runtime  (cupidscript_runtime.c) */
 void cupidscript_init_context(script_context_t *ctx);
 const char *cupidscript_get_variable(script_context_t *ctx, const char *name);
 void cupidscript_set_variable(script_context_t *ctx, const char *name,
@@ -215,14 +211,10 @@ void cupidscript_register_function(script_context_t *ctx, const char *name,
 ast_node_t *cupidscript_lookup_function(script_context_t *ctx,
                                         const char *name);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Executor  (cupidscript_exec.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Executor  (cupidscript_exec.c) */
 int cupidscript_execute(ast_node_t *ast, script_context_t *ctx);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Top-level entry  (called from shell.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Top-level entry  (called from shell.c) */
 int cupidscript_run_file(const char *filename, const char *args);
 
 /* Set output functions (for GUI mode support) */
@@ -230,9 +222,7 @@ void cupidscript_set_output(void (*print_fn)(const char *),
                             void (*putchar_fn)(char),
                             void (*print_int_fn)(uint32_t));
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API - Advanced string operations  (cupidscript_strings.c)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API - Advanced string operations  (cupidscript_strings.c) */
 char *cs_expand_advanced_var(const char *expr, script_context_t *ctx);
 char *cs_string_length(const char *value);
 char *cs_string_substring(const char *value, int start, int len);

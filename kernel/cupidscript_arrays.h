@@ -9,9 +9,7 @@
 /* Forward declarations */
 typedef struct script_context script_context_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Limits
- * ══════════════════════════════════════════════════════════════════════ */
+/* Limits */
 #define MAX_ARRAY_SIZE     16
 #define MAX_ARRAYS          6
 #define MAX_ASSOC_SIZE     16
@@ -25,9 +23,7 @@ typedef struct script_context script_context_t;
 #define MAX_VAR_VALUE 256
 #endif
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Regular array
- * ══════════════════════════════════════════════════════════════════════ */
+/* Regular array */
 typedef struct {
     char name[MAX_VAR_NAME];
     char elements[MAX_ARRAY_SIZE][MAX_VAR_VALUE];
@@ -35,18 +31,14 @@ typedef struct {
     bool used;
 } cs_array_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Associative array entry
- * ══════════════════════════════════════════════════════════════════════ */
+/* Associative array entry */
 typedef struct {
     char key[MAX_VAR_NAME];
     char value[MAX_VAR_VALUE];
     bool used;
 } cs_assoc_entry_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Associative array
- * ══════════════════════════════════════════════════════════════════════ */
+/* Associative array */
 typedef struct {
     char name[MAX_VAR_NAME];
     cs_assoc_entry_t entries[MAX_ASSOC_SIZE];
@@ -54,9 +46,7 @@ typedef struct {
     bool used;
 } cs_assoc_array_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Regular array API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Regular array API */
 
 /* Create array from list of values */
 void cs_array_create(cs_array_t *arrays, int *array_count,
@@ -82,9 +72,7 @@ void cs_array_append(cs_array_t *arrays, int array_count,
 cs_array_t *cs_array_find(cs_array_t *arrays, int array_count,
                            const char *name);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Associative array API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Associative array API */
 
 /* Create associative array */
 void cs_assoc_create(cs_assoc_array_t *assocs, int *assoc_count,

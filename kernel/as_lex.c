@@ -1,5 +1,5 @@
 /**
- * as_lex.c — Lexer for the CupidASM assembler
+ * as_lex.c - Lexer for the CupidASM assembler
  *
  * Tokenizes CupidASM source code into a stream of tokens.
  * Handles mnemonics, registers, integer literals (decimal, hex, binary),
@@ -10,8 +10,6 @@
 
 #include "as.h"
 #include "string.h"
-
-/* ── Character classification helpers ────────────────────────────── */
 
 static int as_is_space(char c) {
   return c == ' ' || c == '\t' || c == '\r';
@@ -30,7 +28,6 @@ static int as_is_hexdigit(char c) {
   return as_is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-/* ── Case-insensitive string comparison ──────────────────────────── */
 static int as_stricmp(const char *a, const char *b) {
   while (*a && *b) {
     char ca = *a, cb = *b;
@@ -53,8 +50,6 @@ static void as_tolower_str(char *dst, const char *src, int max) {
   dst[i] = '\0';
 }
 
-/* ── Peek at current character without consuming ─────────────────── */
-
 static char as_peek_char(as_state_t *as) {
   if (as->source[as->pos] == '\0')
     return '\0';
@@ -70,8 +65,6 @@ static char as_next_char(as_state_t *as) {
   as->pos++;
   return c;
 }
-
-/* ── Skip whitespace (NOT newlines — they are tokens) and comments ─ */
 
 static void as_skip_whitespace(as_state_t *as) {
   for (;;) {
@@ -95,9 +88,7 @@ static void as_skip_whitespace(as_state_t *as) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mnemonic Table — all supported x86 mnemonics
- * ══════════════════════════════════════════════════════════════════════ */
+/* Mnemonic Table - all supported x86 mnemonics */
 
 static const char *as_mnemonics[] = {
   "mov", "push", "pop", "call", "ret", "jmp",
@@ -131,9 +122,7 @@ static int as_is_mnemonic(const char *word) {
   return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Register Table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Register Table */
 
 typedef struct {
   const char *name;
@@ -162,9 +151,7 @@ static const as_reg_info_t *as_find_register(const char *name) {
   return NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Directive Table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Directive Table */
 
 static const char *as_directives[] = {
   "db", "dw", "dd", "equ", "section", "global", "extern",
@@ -179,9 +166,7 @@ static int as_is_directive(const char *word) {
   return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Lexer Init & Token Functions
- * ══════════════════════════════════════════════════════════════════════ */
+/* Lexer Init & Token Functions */
 
 void as_lex_init(as_state_t *as, const char *source) {
   as->source = source;
@@ -217,9 +202,7 @@ static as_token_t as_make_token(as_token_type_t type, const char *text,
   return tok;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Main Lexer — as_lex_next()
- * ══════════════════════════════════════════════════════════════════════ */
+/* Main Lexer - as_lex_next() */
 
 as_token_t as_lex_next(as_state_t *as) {
   /* Return peeked token if available */
@@ -239,7 +222,7 @@ as_token_t as_lex_next(as_state_t *as) {
     return as->cur;
   }
 
-  /* Newline — instruction boundary */
+  /* Newline - instruction boundary */
   if (c == '\n') {
     as_next_char(as);
     as->cur = as_make_token(AS_TOK_NEWLINE, "\n", as->line);
@@ -357,7 +340,7 @@ as_token_t as_lex_next(as_state_t *as) {
     }
     nbuf[ni] = '\0';
 
-    /* Check for suffix 'h' (e.g. 0FFh) — not required but nice */
+    /* Check for suffix 'h' (e.g. 0FFh) - not required but nice */
     as->cur = as_make_token(AS_TOK_NUMBER, nbuf, as->line);
     as->cur.int_value = val;
     return as->cur;
@@ -441,7 +424,7 @@ as_token_t as_lex_next(as_state_t *as) {
     default: break;
   }
 
-  /* Unknown character — skip */
+  /* Unknown character - skip */
   as->cur = as_make_token(AS_TOK_ERROR, "?", as->line);
   return as->cur;
 }

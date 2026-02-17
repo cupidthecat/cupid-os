@@ -10,8 +10,6 @@
 #include "string.h"
 #include "../drivers/vga.h"
 
-/* ── Internal helpers ─────────────────────────────────────────────── */
-
 static uint32_t *fb;  /* Pointer to current back buffer */
 
 void gfx_init(void) {
@@ -22,15 +20,11 @@ void gfx_set_framebuffer(uint32_t *new_fb) {
     fb = new_fb;
 }
 
-/* ── Pixel ────────────────────────────────────────────────────────── */
-
 void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color) {
     if (x < 0 || x >= VGA_GFX_WIDTH || y < 0 || y >= VGA_GFX_HEIGHT)
         return;
     fb[(int32_t)y * VGA_GFX_WIDTH + (int32_t)x] = color;
 }
-
-/* ── Horizontal / vertical lines (fast) ───────────────────────────── */
 
 void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint32_t color) {
     if (y < 0 || y >= VGA_GFX_HEIGHT) return;
@@ -58,8 +52,6 @@ void gfx_draw_vline(int16_t x, int16_t y, uint16_t h, uint32_t color) {
     }
 }
 
-/* ── General line (Bresenham) ─────────────────────────────────────── */
-
 void gfx_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                    uint32_t color) {
     int16_t dx = x2 - x1;
@@ -79,8 +71,6 @@ void gfx_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
         if (e2 <  dx) { err = (int16_t)(err + dx); y1 = (int16_t)(y1 + sy); }
     }
 }
-
-/* ── Rectangles ───────────────────────────────────────────────────── */
 
 void gfx_draw_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
                    uint32_t color) {
@@ -108,14 +98,12 @@ void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
     }
 }
 
-/* ── Text ─────────────────────────────────────────────────────────── */
-
 void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
     uint8_t idx = (uint8_t)c;
     if (idx >= 128U) idx = 0U;
     const uint8_t *glyph = font_8x8[idx];
 
-    /* Fast path: character entirely within screen — no per-pixel clip needed */
+    /* Fast path: character entirely within screen - no per-pixel clip needed */
     if ((int)x >= 0 && (int)x + FONT_W <= VGA_GFX_WIDTH &&
         (int)y >= 0 && (int)y + FONT_H <= VGA_GFX_HEIGHT) {
         for (int row = 0; row < FONT_H; row++) {
@@ -159,8 +147,6 @@ uint16_t gfx_text_width(const char *text) {
     return (uint16_t)(len * (uint16_t)FONT_W);
 }
 
-/* ── Scaled character drawing ─────────────────────────────────────── */
-
 void gfx_draw_char_scaled(int16_t x, int16_t y, char c, uint32_t color,
                           int scale) {
     if (scale <= 1) { gfx_draw_char(x, y, c, color); return; }
@@ -191,8 +177,6 @@ void gfx_draw_text_scaled(int16_t x, int16_t y, const char *text,
         text++;
     }
 }
-
-/* ── 3D raised/sunken rectangle (Windows 95 style) ────────────────── */
 
 void gfx_draw_3d_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       bool raised) {

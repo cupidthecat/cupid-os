@@ -17,14 +17,33 @@
 #include "cupidscript_streams.h"
 #include "cupidscript_jobs.h"
 #include "process.h"
+#include "exec.h"
+#include "cupidc.h"
 #include "../drivers/serial.h"
 #include "../drivers/rtc.h"
 #include "calendar.h"
 
-/* ── output function pointers (set by shell integration) ───────────── */
 static void (*cs_print)(const char *) = NULL;
 static void (*cs_putchar)(char) = NULL;
 static void (*cs_print_int)(uint32_t) = NULL;
+
+/* Active command-output redirection target (for built-ins/functions). */
+static script_context_t *cs_active_ctx = NULL;
+static int cs_active_stdout_fd = CS_STDOUT;
+
+typedef struct {
+    int stdout_fd;
+    int stderr_fd;
+    int stdin_fd;
+    bool background;
+} cs_exec_opts_t;
+
+static void cs_exec_opts_default(cs_exec_opts_t *opts) {
+    opts->stdout_fd = CS_STDOUT;
+    opts->stderr_fd = CS_STDERR;
+    opts->stdin_fd = CS_STDIN;
+    opts->background = false;
+}
 
 void cupidscript_set_output(void (*print_fn)(const char *),
                             void (*putchar_fn)(char),
@@ -36,18 +55,30 @@ void cupidscript_set_output(void (*print_fn)(const char *),
 
 /* Use context's output or fall back to globals */
 static void cs_out(script_context_t *ctx, const char *s) {
+    if (cs_active_ctx && s) {
+        int len = 0;
+        while (s[len]) len++;
+        if (len > 0) {
+            int w = fd_write(&cs_active_ctx->fd_table, cs_active_stdout_fd,
+                             s, (size_t)len);
+            if (w >= 0) return;
+        }
+    }
     if (ctx->print_fn) ctx->print_fn(s);
     else if (cs_print) cs_print(s);
     else print(s);
 }
 
 static void cs_outchar(script_context_t *ctx, char c) {
+    if (cs_active_ctx) {
+        int w = fd_write(&cs_active_ctx->fd_table, cs_active_stdout_fd, &c, 1);
+        if (w >= 0) return;
+    }
     if (ctx->putchar_fn) ctx->putchar_fn(c);
     else if (cs_putchar) cs_putchar(c);
     else putchar(c);
 }
 
-/* ── helper: copy string ───────────────────────────────────────────── */
 static void str_cpy(char *dst, const char *src, int max) {
     int i = 0;
     while (src[i] && i < max - 1) {
@@ -57,7 +88,6 @@ static void str_cpy(char *dst, const char *src, int max) {
     dst[i] = '\0';
 }
 
-/* ── helper: parse integer from string ─────────────────────────────── */
 static int parse_int(const char *s) {
     int val = 0;
     int neg = 0;
@@ -69,15 +99,12 @@ static int parse_int(const char *s) {
     return neg ? -val : val;
 }
 
-/* ── forward declaration ───────────────────────────────────────────── */
 static int execute_node(ast_node_t *node, script_context_t *ctx);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Test expression evaluator
- *
- *  Evaluates [ arg1 op arg2 ] style test expressions.
- *  Returns 0 for true (success), 1 for false (failure).
- * ══════════════════════════════════════════════════════════════════════ */
+/* Test expression evaluator
+ * Evaluates [ arg1 op arg2 ] style test expressions.
+ * Returns 0 for true (success), 1 for false (failure).
+ */
 static int evaluate_test(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_TEST) return 1;
 
@@ -153,11 +180,9 @@ static int evaluate_test(ast_node_t *node, script_context_t *ctx) {
     return 1; /* default: false */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in command: echo
- *
- *  Handles echo specially so we can do $VAR expansion in arguments.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in command: echo
+ * Handles echo specially so we can do $VAR expansion in arguments.
+ */
 static int builtin_echo(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                         script_context_t *ctx) {
     int start_arg = 1;
@@ -201,9 +226,7 @@ static int builtin_echo(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: setcolor <fg> [bg]
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: setcolor <fg> [bg] */
 static int builtin_setcolor(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                             script_context_t *ctx) {
     if (argc < 2) {
@@ -246,17 +269,13 @@ static int builtin_setcolor(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: resetcolor
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: resetcolor */
 static int builtin_resetcolor(script_context_t *ctx) {
     cs_out(ctx, "\x1B[0m");
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: printc <color> <text>
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: printc <color> <text> */
 static int builtin_printc(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                           script_context_t *ctx) {
     if (argc < 3) {
@@ -294,22 +313,25 @@ static int builtin_printc(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: jobs [-l]
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: jobs [-l] */
 static int builtin_jobs(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                         script_context_t *ctx) {
     bool show_pids = false;
     if (argc >= 2 && strcmp(expanded[1], "-l") == 0) {
         show_pids = true;
     }
+
+    if (ctx->jobs.job_count == 0) {
+        if (show_pids) shell_execute_line("jobs -l");
+        else shell_execute_line("jobs");
+        return 0;
+    }
+
     job_list(&ctx->jobs, show_pids, ctx->print_fn);
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: declare -A name (create associative array)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: declare -A name (create associative array) */
 static int builtin_declare(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                            script_context_t *ctx) {
     if (argc >= 3 && strcmp(expanded[1], "-A") == 0) {
@@ -320,9 +342,7 @@ static int builtin_declare(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
     return 1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in: date [+epoch|+short]
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in: date [+epoch|+short] */
 static int builtin_date(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                         script_context_t *ctx) {
     rtc_date_t date;
@@ -372,14 +392,278 @@ static int builtin_date(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a command node
- *
- *  Expands variables, checks for functions, then dispatches.
- * ══════════════════════════════════════════════════════════════════════ */
-static int execute_command(ast_node_t *node, script_context_t *ctx) {
+static int cs_build_cmdline(char out[256], int argc,
+                            char expanded[MAX_ARGS][MAX_EXPAND_LEN]) {
+    int pos = 0;
+    if (!out) return 0;
+
+    for (int i = 0; i < argc; i++) {
+        if (i > 0 && pos < 255) out[pos++] = ' ';
+        int j = 0;
+        while (expanded[i][j] && pos < 255) {
+            out[pos++] = expanded[i][j++];
+        }
+    }
+    out[pos] = '\0';
+    return pos;
+}
+
+static int cs_ends_with(const char *str, const char *suffix) {
+    int slen = 0;
+    int xlen = 0;
+    while (str[slen]) slen++;
+    while (suffix[xlen]) xlen++;
+    if (xlen > slen) return 0;
+    return strcmp(str + slen - xlen, suffix) == 0;
+}
+
+static void cs_basename(const char *path, char *out, int max) {
+    int start = 0;
+    int i = 0;
+    while (path[i]) {
+        if (path[i] == '/') start = i + 1;
+        i++;
+    }
+    int j = 0;
+    while (path[start] && j < max - 1) {
+        out[j++] = path[start++];
+    }
+    out[j] = '\0';
+}
+
+static int cs_build_prog_args(char out[256], int argc,
+                              char expanded[MAX_ARGS][MAX_EXPAND_LEN]) {
+    int pos = 0;
+    out[0] = '\0';
+    for (int i = 1; i < argc; i++) {
+        if (i > 1 && pos < 255) out[pos++] = ' ';
+        int j = 0;
+        while (expanded[i][j] && pos < 255) {
+            out[pos++] = expanded[i][j++];
+        }
+    }
+    out[pos] = '\0';
+    return pos;
+}
+
+static int cs_try_async_exec_background(script_context_t *ctx,
+                                        const char *cmd,
+                                        int argc,
+                                        char expanded[MAX_ARGS][MAX_EXPAND_LEN],
+                                        const char *cmdline,
+                                        ast_node_t *node) {
+    if (!ctx || !cmd || !cmd[0]) return 0;
+
+    /* For now, only plain external commands are async-safe here. */
+    if (node && node->type == NODE_COMMAND && node->data.command.redir_count > 0) {
+        return 0;
+    }
+
+    /* Built-ins/functions are not external commands. */
+    if (strcmp(cmd, "echo") == 0 || strcmp(cmd, "setcolor") == 0 ||
+        strcmp(cmd, "resetcolor") == 0 || strcmp(cmd, "printc") == 0 ||
+        strcmp(cmd, "jobs") == 0 || strcmp(cmd, "declare") == 0 ||
+        strcmp(cmd, "date") == 0) {
+        return 0;
+    }
+
+    char candidates[6][VFS_MAX_PATH];
+    int candidate_count = 0;
+
+    /* 1) resolved direct path */
+    shell_resolve_path(cmd, candidates[candidate_count]);
+    candidate_count++;
+
+    /* 2) /bin/<cmd> */
+    {
+        int p = 0;
+        const char *pre = "/bin/";
+        while (*pre && p < VFS_MAX_PATH - 1) candidates[1][p++] = *pre++;
+        int i = 0;
+        while (cmd[i] && p < VFS_MAX_PATH - 1) candidates[1][p++] = cmd[i++];
+        candidates[candidate_count][p] = '\0';
+        candidate_count++;
+    }
+
+    /* 3) /home/bin/<cmd> */
+    {
+        int p = 0;
+        const char *pre = "/home/bin/";
+        while (*pre && p < VFS_MAX_PATH - 1) candidates[2][p++] = *pre++;
+        int i = 0;
+        while (cmd[i] && p < VFS_MAX_PATH - 1) candidates[2][p++] = cmd[i++];
+        candidates[candidate_count][p] = '\0';
+        candidate_count++;
+    }
+
+    /* 4) /bin/<cmd>.cc */
+    {
+        int p = 0;
+        const char *pre = "/bin/";
+        while (*pre && p < VFS_MAX_PATH - 1) candidates[candidate_count][p++] = *pre++;
+        int i = 0;
+        while (cmd[i] && p < VFS_MAX_PATH - 4) candidates[candidate_count][p++] = cmd[i++];
+        candidates[candidate_count][p++] = '.';
+        candidates[candidate_count][p++] = 'c';
+        candidates[candidate_count][p++] = 'c';
+        candidates[candidate_count][p] = '\0';
+        candidate_count++;
+    }
+
+    /* 5) /home/bin/<cmd>.cc */
+    {
+        int p = 0;
+        const char *pre = "/home/bin/";
+        while (*pre && p < VFS_MAX_PATH - 1) candidates[candidate_count][p++] = *pre++;
+        int i = 0;
+        while (cmd[i] && p < VFS_MAX_PATH - 4) candidates[candidate_count][p++] = cmd[i++];
+        candidates[candidate_count][p++] = '.';
+        candidates[candidate_count][p++] = 'c';
+        candidates[candidate_count][p++] = 'c';
+        candidates[candidate_count][p] = '\0';
+        candidate_count++;
+    }
+
+    for (int c = 0; c < candidate_count; c++) {
+        const char *path = candidates[c];
+
+        vfs_stat_t st;
+        if (vfs_stat(path, &st) < 0 || st.type != VFS_TYPE_FILE) {
+            continue;
+        }
+
+        char exec_path[VFS_MAX_PATH];
+        str_cpy(exec_path, path, VFS_MAX_PATH);
+
+        if (cs_ends_with(path, ".cc")) {
+            /* Compile source -> ELF, then launch ELF in background. */
+            char base[PROCESS_NAME_LEN];
+            cs_basename(path, base, PROCESS_NAME_LEN);
+            int bi = 0;
+            while (base[bi]) bi++;
+            if (bi >= 3 && base[bi - 3] == '.' && base[bi - 2] == 'c' && base[bi - 1] == 'c') {
+                base[bi - 3] = '\0';
+            }
+
+            int p = 0;
+            const char *pre = "/home/.bg_";
+            while (*pre && p < VFS_MAX_PATH - 1) exec_path[p++] = *pre++;
+            int i = 0;
+            while (base[i] && p < VFS_MAX_PATH - 5) exec_path[p++] = base[i++];
+            exec_path[p++] = '.';
+            exec_path[p++] = 'e';
+            exec_path[p++] = 'l';
+            exec_path[p++] = 'f';
+            exec_path[p] = '\0';
+
+            cupidc_aot(path, exec_path);
+
+            vfs_stat_t out_st;
+            if (vfs_stat(exec_path, &out_st) < 0 || out_st.type != VFS_TYPE_FILE) {
+                continue;
+            }
+        } else if (cs_ends_with(path, ".cup") || cs_ends_with(path, ".asm")) {
+            continue;
+        }
+
+        char prog_args[256];
+        cs_build_prog_args(prog_args, argc, expanded);
+        shell_set_program_args(prog_args);
+
+        char proc_name[PROCESS_NAME_LEN];
+        cs_basename(exec_path, proc_name, PROCESS_NAME_LEN);
+        if (proc_name[0] == '\0') {
+            str_cpy(proc_name, cmd, PROCESS_NAME_LEN);
+        }
+
+        int pid = exec(exec_path, proc_name);
+        if (pid >= 0) {
+            job_add(&ctx->jobs, (uint32_t)pid, cmdline);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int cs_spawn_shell_background(script_context_t *ctx,
+                                     const char *cmdline) {
+    if (!cmdline || cmdline[0] == '\0') return 0;
+
+    if (ctx && ctx->print_fn) {
+        ctx->print_fn("cupid: async background unsupported for this command shape; running foreground\n");
+    }
+    shell_execute_line(cmdline);
+    return 0;
+}
+
+static void cs_apply_command_redirections(ast_node_t *node,
+                                          script_context_t *ctx,
+                                          cs_exec_opts_t *opts,
+                                          int opened_fds[MAX_REDIRECTIONS],
+                                          int *opened_count) {
+    if (!node || node->type != NODE_COMMAND || !ctx || !opts) return;
+
+    for (int i = 0; i < node->data.command.redir_count; i++) {
+        redirection_t *r = &node->data.command.redirections[i];
+
+        if (r->target_fd >= 0) {
+            if (r->source_fd == 2) {
+                opts->stderr_fd = r->target_fd;
+            } else {
+                opts->stdout_fd = r->target_fd;
+            }
+            continue;
+        }
+
+        if (!r->filename) continue;
+
+        int flags = O_RDONLY;
+        if (r->source_fd == 0) {
+            flags = O_RDONLY;
+        } else {
+            flags = O_WRONLY | O_CREAT;
+            flags |= r->append ? O_APPEND : O_TRUNC;
+        }
+
+        int fd = fd_open_file(&ctx->fd_table, r->filename, flags);
+        if (fd < 0) {
+            opts->stderr_fd = CS_STDERR;
+            opts->stdout_fd = CS_STDOUT;
+            continue;
+        }
+
+        if (*opened_count < MAX_REDIRECTIONS) {
+            opened_fds[*opened_count] = fd;
+            (*opened_count)++;
+        }
+
+        if (r->source_fd == 0) {
+            opts->stdin_fd = fd;
+        } else if (r->source_fd == 2) {
+            opts->stderr_fd = fd;
+        } else {
+            opts->stdout_fd = fd;
+        }
+    }
+}
+
+/* Execute a command node
+ * Expands variables, checks for functions, then dispatches.
+ */
+static int execute_command_internal(ast_node_t *node, script_context_t *ctx,
+                                    cs_exec_opts_t *base_opts) {
     if (!node || node->type != NODE_COMMAND) return 1;
     if (node->data.command.argc == 0) return 0;
+
+    cs_exec_opts_t opts;
+    int opened_fds[MAX_REDIRECTIONS];
+    int opened_count = 0;
+    for (int i = 0; i < MAX_REDIRECTIONS; i++) opened_fds[i] = -1;
+    cs_exec_opts_default(&opts);
+    if (base_opts) opts = *base_opts;
+    cs_apply_command_redirections(node, ctx, &opts, opened_fds, &opened_count);
+    if (node->data.command.background) opts.background = true;
 
     /* Expand variables in all argv[] */
     char expanded[MAX_ARGS][MAX_EXPAND_LEN];
@@ -395,118 +679,226 @@ static int execute_command(ast_node_t *node, script_context_t *ctx) {
         }
     }
 
+    if (opts.stdin_fd != CS_STDIN && argc < MAX_ARGS) {
+        char *stdin_text = fd_get_buffer_contents(&ctx->fd_table, opts.stdin_fd);
+        if (stdin_text && stdin_text[0]) {
+            str_cpy(expanded[argc], stdin_text, MAX_EXPAND_LEN);
+            argc++;
+        }
+        if (stdin_text) kfree(stdin_text);
+    }
+
     const char *cmd = expanded[0];
+    int result = 0;
 
-    /* Skip empty commands (e.g. from empty variable expansion) */
-    if (cmd[0] == '\0') return 0;
+    if (cmd[0] == '\0') {
+        result = 0;
+        goto done_no_active;
+    }
+    if (strcmp(cmd, "!") == 0 || cmd[0] == '#' || cmd[0] == '/') {
+        result = 0;
+        goto done_no_active;
+    }
 
-    /* Skip shell-isms that aren't real commands:
-     * "!"  — bash negation operator
-     * "#"  — comment that leaked through
-     * Paths like "/bin/cupid" from shebangs parsed as commands */
-    if (strcmp(cmd, "!") == 0 || cmd[0] == '#' || cmd[0] == '/') return 0;
+    script_context_t *saved_ctx = cs_active_ctx;
+    int saved_stdout_fd = cs_active_stdout_fd;
+    cs_active_ctx = ctx;
+    cs_active_stdout_fd = opts.stdout_fd;
 
-    /* ── built-in: echo ────────────────────────────────────────── */
+    /* built-in commands */
     if (strcmp(cmd, "echo") == 0) {
-        return builtin_echo(argc, expanded, ctx);
+        result = builtin_echo(argc, expanded, ctx);
+        goto done;
     }
-
-    /* ── built-in: setcolor ────────────────────────────────────── */
     if (strcmp(cmd, "setcolor") == 0) {
-        return builtin_setcolor(argc, expanded, ctx);
+        result = builtin_setcolor(argc, expanded, ctx);
+        goto done;
     }
-
-    /* ── built-in: resetcolor ──────────────────────────────────── */
     if (strcmp(cmd, "resetcolor") == 0) {
-        return builtin_resetcolor(ctx);
+        result = builtin_resetcolor(ctx);
+        goto done;
     }
-
-    /* ── built-in: printc ──────────────────────────────────────── */
     if (strcmp(cmd, "printc") == 0) {
-        return builtin_printc(argc, expanded, ctx);
+        result = builtin_printc(argc, expanded, ctx);
+        goto done;
     }
-
-    /* ── built-in: jobs ────────────────────────────────────────── */
     if (strcmp(cmd, "jobs") == 0) {
-        return builtin_jobs(argc, expanded, ctx);
+        result = builtin_jobs(argc, expanded, ctx);
+        goto done;
     }
-
-    /* ── built-in: declare ─────────────────────────────────────── */
     if (strcmp(cmd, "declare") == 0) {
-        return builtin_declare(argc, expanded, ctx);
+        result = builtin_declare(argc, expanded, ctx);
+        goto done;
     }
-
-    /* ── built-in: date ────────────────────────────────────────── */
     if (strcmp(cmd, "date") == 0) {
-        return builtin_date(argc, expanded, ctx);
+        result = builtin_date(argc, expanded, ctx);
+        goto done;
     }
 
-    /* ── check for user-defined function ───────────────────────── */
-    ast_node_t *func_body = cupidscript_lookup_function(ctx, cmd);
-    if (func_body) {
-        /* Save current positional args */
-        char saved_args[MAX_SCRIPT_ARGS][MAX_VAR_VALUE];
-        int saved_argc = ctx->script_argc;
-        char saved_name[MAX_VAR_NAME];
-        str_cpy(saved_name, ctx->script_name, MAX_VAR_NAME);
-        for (int i = 0; i < saved_argc && i < MAX_SCRIPT_ARGS; i++) {
-            str_cpy(saved_args[i], ctx->script_args[i], MAX_VAR_VALUE);
-        }
+    /* user-defined function */
+    {
+        ast_node_t *func_body = cupidscript_lookup_function(ctx, cmd);
+        if (func_body) {
+            char saved_args[MAX_SCRIPT_ARGS][MAX_VAR_VALUE];
+            int saved_argc = ctx->script_argc;
+            char saved_name[MAX_VAR_NAME];
+            str_cpy(saved_name, ctx->script_name, MAX_VAR_NAME);
+            for (int i = 0; i < saved_argc && i < MAX_SCRIPT_ARGS; i++) {
+                str_cpy(saved_args[i], ctx->script_args[i], MAX_VAR_VALUE);
+            }
 
-        /* Set new positional args from function call */
-        str_cpy(ctx->script_name, cmd, MAX_VAR_NAME);
-        ctx->script_argc = argc - 1;
-        for (int i = 1; i < argc && i - 1 < MAX_SCRIPT_ARGS; i++) {
-            str_cpy(ctx->script_args[i - 1], expanded[i], MAX_VAR_VALUE);
-        }
+            str_cpy(ctx->script_name, cmd, MAX_VAR_NAME);
+            ctx->script_argc = argc - 1;
+            for (int i = 1; i < argc && i - 1 < MAX_SCRIPT_ARGS; i++) {
+                str_cpy(ctx->script_args[i - 1], expanded[i], MAX_VAR_VALUE);
+            }
 
-        /* Execute function body */
-        ctx->return_flag = 0;
-        int result = execute_node(func_body, ctx);
-
-        if (ctx->return_flag) {
-            result = ctx->return_value;
             ctx->return_flag = 0;
+            result = execute_node(func_body, ctx);
+            if (ctx->return_flag) {
+                result = ctx->return_value;
+                ctx->return_flag = 0;
+            }
+
+            str_cpy(ctx->script_name, saved_name, MAX_VAR_NAME);
+            ctx->script_argc = saved_argc;
+            for (int i = 0; i < saved_argc && i < MAX_SCRIPT_ARGS; i++) {
+                str_cpy(ctx->script_args[i], saved_args[i], MAX_VAR_VALUE);
+            }
+
+            ctx->last_exit_status = result;
+            goto done;
+        }
+    }
+
+    /* shell dispatch (external commands) */
+    {
+        char cmdline[256];
+        cs_build_cmdline(cmdline, argc, expanded);
+        if (cmdline[0] == '\0') {
+            result = 0;
+            goto done;
         }
 
-        /* Restore positional args */
-        str_cpy(ctx->script_name, saved_name, MAX_VAR_NAME);
-        ctx->script_argc = saved_argc;
-        for (int i = 0; i < saved_argc && i < MAX_SCRIPT_ARGS; i++) {
-            str_cpy(ctx->script_args[i], saved_args[i], MAX_VAR_VALUE);
+        /* Append redirections for shell commands (best-effort). */
+        for (int i = 0; i < node->data.command.redir_count; i++) {
+            redirection_t *r = &node->data.command.redirections[i];
+            int p = 0;
+            while (cmdline[p]) p++;
+            if (p >= 250) break;
+
+            cmdline[p++] = ' ';
+            if (r->target_fd == 1 && r->source_fd == 2) {
+                cmdline[p++] = '2';
+                cmdline[p++] = '>';
+                cmdline[p++] = '&';
+                cmdline[p++] = '1';
+                cmdline[p] = '\0';
+                continue;
+            }
+
+            if (r->source_fd == 2) cmdline[p++] = '2';
+            if (r->source_fd == 0) cmdline[p++] = '<';
+            else if (r->append) {
+                cmdline[p++] = '>';
+                cmdline[p++] = '>';
+            } else {
+                cmdline[p++] = '>';
+            }
+            cmdline[p++] = ' ';
+            if (r->filename) {
+                int j = 0;
+                while (r->filename[j] && p < 255) {
+                    cmdline[p++] = r->filename[j++];
+                }
+            }
+            cmdline[p] = '\0';
         }
 
+        if (opts.background) {
+            if (cs_try_async_exec_background(ctx, cmd, argc, expanded, cmdline, node)) {
+                result = 0;
+            } else {
+                result = cs_spawn_shell_background(ctx, cmdline);
+            }
+        } else {
+            shell_execute_line(cmdline);
+            result = 0;
+        }
         ctx->last_exit_status = result;
-        return result;
     }
 
-    /* ── dispatch to shell commands ────────────────────────────── */
-    /* Build a single command string from expanded args to pass to shell */
-    char cmdline[MAX_EXPAND_LEN];
-    int pos = 0;
-    for (int i = 0; i < argc; i++) {
-        if (i > 0 && pos < MAX_EXPAND_LEN - 1) {
-            cmdline[pos++] = ' ';
-        }
-        int j = 0;
-        while (expanded[i][j] && pos < MAX_EXPAND_LEN - 1) {
-            cmdline[pos++] = expanded[i][j++];
+done:
+    cs_active_ctx = saved_ctx;
+    cs_active_stdout_fd = saved_stdout_fd;
+done_no_active:
+    for (int i = 0; i < opened_count; i++) {
+        if (opened_fds[i] >= 0) {
+            fd_close(&ctx->fd_table, opened_fds[i]);
         }
     }
-    cmdline[pos] = '\0';
-
-    /* Skip if command line ended up empty */
-    if (cmdline[0] == '\0') return 0;
-
-    /* Use the shell's execute_command via shell_execute_line */
-    shell_execute_line(cmdline);
-    ctx->last_exit_status = 0; /* shell doesn't return status yet */
-    return 0;
+    return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute an assignment node
- * ══════════════════════════════════════════════════════════════════════ */
+static int execute_command(ast_node_t *node, script_context_t *ctx) {
+    cs_exec_opts_t opts;
+    cs_exec_opts_default(&opts);
+    return execute_command_internal(node, ctx, &opts);
+}
+
+static int execute_pipeline(ast_node_t *node, script_context_t *ctx) {
+    if (!node || node->type != NODE_PIPELINE) return 1;
+    if (node->data.pipeline.command_count <= 0) return 0;
+
+    int prev_read_fd = CS_STDIN;
+    int result = 0;
+
+    for (int i = 0; i < node->data.pipeline.command_count; i++) {
+        ast_node_t *cmd = node->data.pipeline.commands[i];
+        if (!cmd || cmd->type != NODE_COMMAND) {
+            result = 1;
+            break;
+        }
+
+        int next_read_fd = CS_STDIN;
+        int write_fd = CS_STDOUT;
+        bool is_last = (i == node->data.pipeline.command_count - 1);
+
+        if (!is_last) {
+            if (fd_create_pipe(&ctx->fd_table, &next_read_fd, &write_fd) != 0) {
+                result = 1;
+                break;
+            }
+        }
+
+        cs_exec_opts_t opts;
+        cs_exec_opts_default(&opts);
+        opts.stdin_fd = prev_read_fd;
+        opts.stdout_fd = write_fd;
+        opts.background = is_last ? node->data.pipeline.background : false;
+
+        result = execute_command_internal(cmd, ctx, &opts);
+
+        if (prev_read_fd >= 3) {
+            fd_close(&ctx->fd_table, prev_read_fd);
+        }
+        if (write_fd >= 3) {
+            fd_close(&ctx->fd_table, write_fd);
+        }
+
+        prev_read_fd = next_read_fd;
+        if (result != 0) break;
+    }
+
+    if (prev_read_fd >= 3) {
+        fd_close(&ctx->fd_table, prev_read_fd);
+    }
+
+    ctx->last_exit_status = result;
+    return result;
+}
+
+/* Execute an assignment node */
 static int execute_assignment(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_ASSIGNMENT) return 1;
 
@@ -523,9 +915,7 @@ static int execute_assignment(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute an if statement
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute an if statement */
 static int execute_if(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_IF) return 1;
 
@@ -534,7 +924,7 @@ static int execute_if(ast_node_t *node, script_context_t *ctx) {
         node->data.if_stmt.condition->type == NODE_TEST) {
         cond = evaluate_test(node->data.if_stmt.condition, ctx);
     } else {
-        /* Condition is a command — run it and check exit status */
+        /* Condition is a command - run it and check exit status */
         cond = execute_node(node->data.if_stmt.condition, ctx);
     }
 
@@ -547,9 +937,7 @@ static int execute_if(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a while loop
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute a while loop */
 static int execute_while(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_WHILE) return 1;
 
@@ -581,9 +969,7 @@ static int execute_while(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a for loop
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute a for loop */
 static int execute_for(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_FOR) return 1;
 
@@ -608,11 +994,8 @@ static int execute_for(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a function definition
- *
- *  Just registers the function — doesn't execute the body.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute a function definition
+ * Just registers the function - doesn't execute the body. */
 static int execute_function_def(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_FUNCTION_DEF) return 1;
 
@@ -621,9 +1004,7 @@ static int execute_function_def(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a return statement
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute a return statement */
 static int execute_return(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_RETURN) return 1;
 
@@ -632,28 +1013,26 @@ static int execute_return(ast_node_t *node, script_context_t *ctx) {
     return node->data.return_stmt.exit_code;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute a sequence of statements
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute a sequence of statements */
 static int execute_sequence(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_SEQUENCE) return 1;
 
     int result = 0;
     for (int i = 0; i < node->data.sequence.count; i++) {
+        job_check_completed(&ctx->jobs, ctx->print_fn);
         result = execute_node(node->data.sequence.statements[i], ctx);
         if (ctx->return_flag) break;
     }
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Execute any AST node (main dispatcher)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Execute any AST node (main dispatcher) */
 static int execute_node(ast_node_t *node, script_context_t *ctx) {
     if (!node) return 0;
 
     switch (node->type) {
     case NODE_COMMAND:      return execute_command(node, ctx);
+    case NODE_PIPELINE:     return execute_pipeline(node, ctx);
     case NODE_ASSIGNMENT:   return execute_assignment(node, ctx);
     case NODE_IF:           return execute_if(node, ctx);
     case NODE_WHILE:        return execute_while(node, ctx);
@@ -667,16 +1046,12 @@ static int execute_node(ast_node_t *node, script_context_t *ctx) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public: execute an AST
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public: execute an AST */
 int cupidscript_execute(ast_node_t *ast, script_context_t *ctx) {
     return execute_node(ast, ctx);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Helper: parse arguments string into individual args
- * ══════════════════════════════════════════════════════════════════════ */
+/* Helper: parse arguments string into individual args */
 static int parse_args(const char *args, char argv[MAX_SCRIPT_ARGS][MAX_VAR_VALUE]) {
     if (!args || !args[0]) return 0;
 
@@ -701,12 +1076,9 @@ static int parse_args(const char *args, char argv[MAX_SCRIPT_ARGS][MAX_VAR_VALUE
     return argc;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  cupidscript_run_file
- *
- *  Top-level entry point: reads a script file and executes it.
- *  Called from shell.c.
- * ══════════════════════════════════════════════════════════════════════ */
+/* cupidscript_run_file
+ * Top-level entry point: reads a script file and executes it.
+ * Called from shell.c. */
 int cupidscript_run_file(const char *filename, const char *args) {
     const char *source = NULL;
     uint32_t source_len = 0;
@@ -860,6 +1232,10 @@ int cupidscript_run_file(const char *filename, const char *args) {
     if (cs_print) ctx->print_fn = cs_print;
     if (cs_putchar) ctx->putchar_fn = cs_putchar;
     if (cs_print_int) ctx->print_int_fn = cs_print_int;
+
+    /* Keep fd-table terminal outputs in sync with active script output. */
+    ctx->fd_table.fds[CS_STDOUT].terminal.output_fn = ctx->print_fn;
+    ctx->fd_table.fds[CS_STDERR].terminal.output_fn = ctx->print_fn;
 
     /* Set script name and arguments */
     str_cpy(ctx->script_name, filename, MAX_VAR_NAME);

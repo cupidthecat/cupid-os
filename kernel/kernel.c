@@ -51,7 +51,7 @@
 #include "../drivers/pit.h"
 #include "../drivers/rtc.h"
 
-#define PIT_FREQUENCY 1193180    // Base PIT frequency in Hz
+#define PIT_FREQUENCY 1193180     // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
 
 static uint64_t tsc_freq = 0;    // Stores CPU timestamp frequency
@@ -80,23 +80,22 @@ int cursor_y = 0;
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
 
-/* Deferred reschedule flag — set inside IRQ, checked at safe points */
+/* Deferred reschedule flag - set inside IRQ, checked at safe points */
 static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
 extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
 
-/* ── Embedded CupidC programs (auto-generated) ─────────────────── */
 /* The Makefile auto-discovers bin/ .cc files and generates
  * kernel/bin_programs_gen.c with all extern symbols and an
  * install_bin_programs() function.  To add a new CupidC program:
  *   1. Create bin/<name>.cc
  *   2. Run make
- * That's it — everything else is automatic. */
+ * That's it - everything else is automatic. 
+ */
 extern void install_bin_programs(void *fs_private);
 extern void install_docs_programs(void *fs_private);
 extern void install_demo_programs(void *fs_private);
-
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
@@ -111,7 +110,7 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
     if (channel == 0) {
         ticks_channel0++;
 
-        /* Mark that a reschedule is needed — the actual context switch
+        /* Mark that a reschedule is needed - the actual context switch
          * happens at a safe voluntary point (desktop_run loop / yield),
          * NOT inside the IRQ handler where stack manipulation is unsafe. */
         if (process_is_active()) {
@@ -496,7 +495,6 @@ void calibrate_timer(void) {
     //debug_print_int("CPU Frequency (MHz): ", (uint32_t)(tsc_freq / 1000000));
 }
 
-
 /**
  * get_cpu_freq - Get the calibrated CPU frequency
  * 
@@ -594,7 +592,7 @@ void kmain(void) {
         KERROR("No block device available; /home FAT16 mount skipped");
     }
 
-    /* ── VFS initialization ──────────────────────────────────── */
+    /* VFS initialization */
     vfs_init();
     vfs_register_fs(ramfs_get_ops());
     vfs_register_fs(devfs_get_ops());
@@ -669,19 +667,21 @@ void kmain(void) {
             }
             KINFO("Populated /bin with built-in stubs");
 
-            /* ── Embedded CupidC programs ─────────────────────────
+            /* Embedded CupidC programs 
              * Auto-installed from all bin/ .cc files via generated code.
-             * To add a new program: just create bin/<name>.cc */
+             * To add a new program: just create bin/<name>.cc 
+             */
             install_bin_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidC programs");
 
-            /* ── Embedded CupidDoc files ──────────────────────────
-             * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt */
+            /* Embedded CupidDoc files
+            * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt 
+            */
             install_docs_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidDoc files");
 
-            /* ── Embedded CupidASM demo files ─────────────────────
-             * Auto-installed from demos .asm files into /demos .asm */
+            /* Embedded CupidASM demo files
+            * Auto-installed from demos .asm files into /demos .asm */
             install_demo_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidASM demos");
         }

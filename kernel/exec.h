@@ -1,5 +1,5 @@
 /**
- * exec.h — Program loader for CupidOS
+ * exec.h - Program loader for CupidOS
  *
  * Loads and runs CUPD flat binaries and ELF32 executables from the VFS.
  * Format detection is automatic based on magic bytes:
@@ -12,10 +12,8 @@
 
 #include "types.h"
 
-/* ── CUPD binary magic number ─────────────────────────────────────── */
 #define CUPD_MAGIC 0x43555044  /* "CUPD" in little-endian */
 
-/* ── CUPD executable header (20 bytes) ────────────────────────────── */
 typedef struct {
     uint32_t magic;        /* Must be CUPD_MAGIC              */
     uint32_t entry_offset; /* Entry point offset from code start */
@@ -24,7 +22,6 @@ typedef struct {
     uint32_t bss_size;     /* Size of BSS (zeroed) in bytes    */
 } __attribute__((packed)) cupd_header_t;
 
-/* ── ELF32 constants ──────────────────────────────────────────────── */
 #define ELF_MAGIC_0     0x7F
 #define ELF_MAGIC_1     'E'
 #define ELF_MAGIC_2     'L'
@@ -35,7 +32,6 @@ typedef struct {
 #define ELF_MACHINE_386 3
 #define ELF_PT_LOAD     1
 
-/* ── ELF32 header (52 bytes) ─────────────────────────────────────── */
 typedef struct {
     uint8_t  e_ident[16];       /* Magic: 0x7F 'E' 'L' 'F' + class/endian */
     uint16_t e_type;            /* ET_EXEC (2) for executables      */
@@ -53,7 +49,6 @@ typedef struct {
     uint16_t e_shstrndx;        /* String table section index       */
 } __attribute__((packed)) elf32_ehdr_t;
 
-/* ── ELF32 program header (32 bytes) ─────────────────────────────── */
 typedef struct {
     uint32_t p_type;            /* PT_LOAD (1) for loadable segment */
     uint32_t p_offset;          /* Offset in file                   */
@@ -65,7 +60,6 @@ typedef struct {
     uint32_t p_align;           /* Alignment (power of 2)           */
 } __attribute__((packed)) elf32_phdr_t;
 
-/* ── ELF32 section header (40 bytes) ─────────────────────────────── */
 typedef struct {
     uint32_t sh_name;       /* Section name (index into string table)  */
     uint32_t sh_type;       /* Section type                             */
@@ -85,7 +79,6 @@ typedef struct {
 #define ELF_STB_GLOBAL  1   /* Global binding (in st_info high nibble)  */
 #define ELF_STT_FUNC    2   /* Function type (in st_info low nibble)    */
 
-/* ── ELF32 symbol table entry (16 bytes) ─────────────────────────── */
 typedef struct {
     uint32_t st_name;   /* Symbol name (index into string table)      */
     uint32_t st_value;  /* Symbol value (address for functions)        */
@@ -96,7 +89,7 @@ typedef struct {
 } __attribute__((packed)) elf32_sym_t;
 
 /**
- * exec — Load and execute a binary from the VFS.
+ * exec - Load and execute a binary from the VFS.
  *
  * Detects format (ELF or CUPD), validates, allocates memory,
  * loads segments, and creates a new process.  For ELF binaries,
@@ -110,7 +103,7 @@ typedef struct {
 int exec(const char *path, const char *name);
 
 /**
- * elf_exec — Load and execute an ELF32 binary (internal).
+ * elf_exec - Load and execute an ELF32 binary (internal).
  *
  * @param path       VFS path to ELF executable
  * @param proc_name  Process name for debugging
@@ -120,7 +113,7 @@ int exec(const char *path, const char *name);
 int elf_exec(const char *path, const char *proc_name);
 
 /**
- * cupd_exec — Load and execute a CUPD flat binary (internal).
+ * cupd_exec - Load and execute a CUPD flat binary (internal).
  *
  * @param path       VFS path to CUPD executable
  * @param proc_name  Process name for debugging

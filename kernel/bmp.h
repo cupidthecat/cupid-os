@@ -11,15 +11,11 @@
 
 #include "types.h"
 
-/* ── BMP error codes ──────────────────────────────────────────────── */
-
 #define BMP_OK       0
 #define BMP_EINVAL  -1   /* Invalid file/parameters */
 #define BMP_EFORMAT -2   /* Unsupported BMP format  */
 #define BMP_EIO     -3   /* File I/O error          */
 #define BMP_ENOMEM  -4   /* Buffer too small        */
-
-/* ── BMP image info ───────────────────────────────────────────────── */
 
 typedef struct {
     uint32_t width;
@@ -28,15 +24,11 @@ typedef struct {
     uint32_t data_size;   /* bytes needed for XRGB buffer: w*h*4    */
 } bmp_info_t;
 
-/* ── BMP file format constants ────────────────────────────────────── */
-
 #define BMP_SIGNATURE       0x4D42   /* "BM" in little-endian         */
 #define BMP_FILE_HDR_SIZE   14       /* BMP file header size          */
 #define BMP_DIB_HDR_SIZE    40       /* BITMAPINFOHEADER size         */
 #define BMP_HEADER_SIZE     54       /* file header + DIB header      */
 #define BMP_MAX_DIM         8192     /* max width or height           */
-
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /**
  * Get BMP dimensions without loading pixel data.

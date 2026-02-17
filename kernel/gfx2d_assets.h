@@ -10,17 +10,14 @@
 
 #include "types.h"
 
-/* ── Limits ───────────────────────────────────────────────────────── */
 #define GFX2D_MAX_IMAGES 16
 #define GFX2D_MAX_FONTS   8
 
-/* ── Text effect flags (bitmask) ──────────────────────────────────── */
 #define GFX2D_TEXT_SHADOW       0x01
 #define GFX2D_TEXT_OUTLINE      0x02
 #define GFX2D_TEXT_UNDERLINE    0x04
 #define GFX2D_TEXT_STRIKETHROUGH 0x08
 
-/* ── Font file format (.fnt) ──────────────────────────────────────── */
 #define GFX2D_FNT_MAGIC  0x00544E46   /* "FNT\0" in little-endian */
 
 typedef struct {
@@ -32,8 +29,6 @@ typedef struct {
     uint32_t last_char;    /* Last ASCII code         */
     uint32_t flags;        /* Reserved flags          */
 } gfx2d_fnt_header_t;
-
-/* ── Image API ────────────────────────────────────────────────────── */
 
 /** Load a BMP image from VFS path. Returns handle (>= 0) or -1. */
 int  gfx2d_image_load(const char *path);
@@ -61,7 +56,9 @@ int  gfx2d_image_height(int handle);
 /** Get pixel color at (x,y) within the image. */
 uint32_t gfx2d_image_get_pixel(int handle, int x, int y);
 
-/* ── Font API ─────────────────────────────────────────────────────── */
+/** Get direct image pixel buffer and dimensions (read-only).
+ *  Returns NULL on invalid handle. */
+const uint32_t *gfx2d_image_data(int handle, int *w, int *h);
 
 /** Load a .fnt bitmap font from VFS path. Returns handle (>= 0) or -1. */
 int  gfx2d_font_load(const char *path);
@@ -83,7 +80,6 @@ int  gfx2d_font_text_height(int handle);
 void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
                    int font_handle, int effects);
 
-/* ── Module init ──────────────────────────────────────────────────── */
 void gfx2d_assets_init(void);
 
 #endif /* GFX2D_ASSETS_H */

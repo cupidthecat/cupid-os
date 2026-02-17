@@ -9,14 +9,10 @@
 /* Forward declaration */
 typedef struct script_context script_context_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Constants
- * ══════════════════════════════════════════════════════════════════════ */
+/* Constants */
 #define MAX_JOBS 8
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Job state
- * ══════════════════════════════════════════════════════════════════════ */
+/* Job state */
 typedef enum {
     JOB_NONE,
     JOB_RUNNING,
@@ -24,9 +20,7 @@ typedef enum {
     JOB_DONE
 } job_state_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Job entry
- * ══════════════════════════════════════════════════════════════════════ */
+/* Job entry */
 typedef struct {
     uint32_t    pid;            /* Process ID */
     int         job_id;         /* Job number for %1, %2 etc. */
@@ -35,9 +29,7 @@ typedef struct {
     int         exit_code;
 } job_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Job table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Job table */
 typedef struct {
     job_t    jobs[MAX_JOBS];
     int      job_count;
@@ -45,9 +37,7 @@ typedef struct {
     uint32_t last_bg_pid;     /* $! variable */
 } job_table_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API */
 
 /* Initialize job table */
 void job_table_init(job_table_t *table);

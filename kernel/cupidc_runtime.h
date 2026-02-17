@@ -1,5 +1,5 @@
 /**
- * cupidc_runtime.h — Dynamic data structures for CupidC programs
+ * cupidc_runtime.h - Dynamic data structures for CupidC programs
  *
  * Provides Array and HashTable implementations that CupidC programs
  * can use via kernel API bindings.  These are essential for the
@@ -11,9 +11,7 @@
 
 #include "types.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Dynamic Array
- * ══════════════════════════════════════════════════════════════════════ */
+/* Dynamic Array */
 
 typedef struct {
   void **data;
@@ -29,9 +27,7 @@ int cc_array_count(cc_array_t *arr);
 void cc_array_free(cc_array_t *arr);
 void cc_array_clear(cc_array_t *arr);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Hash Table (string -> string)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Hash Table (string -> string) */
 
 typedef struct cc_hash_entry {
   char *key;

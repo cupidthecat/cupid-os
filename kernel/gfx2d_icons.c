@@ -13,11 +13,9 @@
 #include "vfs.h"
 #include "../drivers/serial.h"
 
-/* ── Icon storage ─────────────────────────────────────────────────── */
 static gfx2d_icon_t icons[GFX2D_MAX_ICONS];
 static int icon_count = 0;
 
-/* ── Config file path ─────────────────────────────────────────────── */
 static const char *ICON_CONFIG_PATH = "/home/.desktop_icons.conf";
 static const int ICON_LEFT_MARGIN = 20;
 
@@ -28,9 +26,7 @@ static int clamp_icon_x(int x) {
     return x;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Initialization
- * ══════════════════════════════════════════════════════════════════════ */
+/* Initialization */
 
 void gfx2d_icons_init(void) {
     icon_count = 0;
@@ -38,9 +34,7 @@ void gfx2d_icons_init(void) {
     serial_printf("[icons] Icon system initialized\n");
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Icon Registration
- * ══════════════════════════════════════════════════════════════════════ */
+/* Icon Registration */
 
 int gfx2d_icon_register(const char *label, const char *program_path,
                         int x, int y) {
@@ -161,6 +155,21 @@ const char *gfx2d_icon_get_path(int handle) {
     return icons[handle].program_path;
 }
 
+const char *gfx2d_icon_get_desc(int handle) {
+    if (handle < 0 || handle >= icon_count) return "";
+    return icons[handle].description;
+}
+
+int gfx2d_icon_get_x(int handle) {
+    if (handle < 0 || handle >= icon_count) return 0;
+    return icons[handle].x;
+}
+
+int gfx2d_icon_get_y(int handle) {
+    if (handle < 0 || handle >= icon_count) return 0;
+    return icons[handle].y;
+}
+
 void gfx2d_icon_select(int handle) {
     /* Deselect all first */
     for (int i = 0; i < icon_count; i++)
@@ -191,9 +200,7 @@ int gfx2d_icon_count(void) {
     return icon_count;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Hit Testing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Hit Testing */
 
 int gfx2d_icon_at_pos(int x, int y) {
     for (int i = 0; i < icon_count; i++) {
@@ -218,9 +225,7 @@ int gfx2d_icons_handle_click(int x, int y) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Default Icon Drawing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Default Icon Drawing */
 
 void gfx2d_draw_icon_app(int x, int y, uint32_t color) {
     /* Application window icon (32x32) */
@@ -332,9 +337,20 @@ void gfx2d_draw_icon_default(int x, int y, int type, uint32_t color) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Icon Rendering
- * ══════════════════════════════════════════════════════════════════════ */
+void gfx2d_icon_draw_named(const char *label, int x, int y, uint32_t color) {
+    if (!label)
+        return;
+    for (int i = 0; i < icon_count; i++) {
+        if (!icons[i].enabled)
+            continue;
+        if (strcmp(icons[i].label, label) == 0) {
+            gfx2d_draw_icon_default(x, y, icons[i].type, color);
+            return;
+        }
+    }
+}
+
+/* Icon Rendering */
 
 static void draw_single_icon(gfx2d_icon_t *icon) {
     int x = clamp_icon_x(icon->x);
@@ -386,11 +402,9 @@ void gfx2d_icons_draw_all(void) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Directive Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Directive Parsing */
 
-/* Helper: skip leading whitespace and optional quotes */
+/* skip leading whitespace and optional quotes */
 static void parse_directive_value(const char *src, char *dst, int max) {
     /* Skip leading whitespace */
     while (*src == ' ' || *src == '\t') src++;
@@ -411,7 +425,7 @@ static void parse_directive_value(const char *src, char *dst, int max) {
     dst[i] = '\0';
 }
 
-/* Helper: parse integer from directive value */
+/* parse integer from directive value */
 static int parse_directive_int(const char *src) {
     while (*src == ' ' || *src == '\t') src++;
     int val = 0;
@@ -424,7 +438,7 @@ static int parse_directive_int(const char *src) {
     return neg ? -val : val;
 }
 
-/* Helper: parse hex from directive value (0xRRGGBB) */
+/* parse hex from directive value (0xRRGGBB) */
 static uint32_t parse_directive_hex(const char *src) {
     while (*src == ' ' || *src == '\t') src++;
     if (*src == '0' && (*(src + 1) == 'x' || *(src + 1) == 'X'))
@@ -444,6 +458,106 @@ static uint32_t parse_directive_hex(const char *src) {
         src++;
     }
     return val;
+}
+
+static int directive_key_eq(const char *key, int key_len, const char *lit) {
+    int i = 0;
+    while (lit[i]) {
+        if (i >= key_len || key[i] != lit[i])
+            return 0;
+        i++;
+    }
+    return i == key_len;
+}
+
+/* Parse //app: label="Paint"; desc="..."; icon=app; x=120; y=80; */
+static int parse_app_inline_fields(const char *src, icon_info_t *info) {
+    const char *p = src;
+    int found = 0;
+
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '\0' || *p == '\r' || *p == '\n')
+        return 0;
+
+    if (strchr(p, '=') == 0) {
+        return 0;
+    }
+
+    while (*p) {
+        while (*p == ' ' || *p == '\t' || *p == ';') p++;
+        if (*p == '\0' || *p == '\r' || *p == '\n')
+            break;
+
+        const char *kstart = p;
+        int klen = 0;
+        while ((p[klen] >= 'a' && p[klen] <= 'z') ||
+               (p[klen] >= 'A' && p[klen] <= 'Z') ||
+               p[klen] == '_') {
+            klen++;
+        }
+        if (klen <= 0) {
+            while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
+            continue;
+        }
+        p += klen;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != '=') {
+            while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
+            continue;
+        }
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+
+        char val[96];
+        int vi = 0;
+        if (*p == '"') {
+            p++;
+            while (*p && *p != '"' && vi < (int)sizeof(val) - 1) {
+                val[vi++] = *p++;
+            }
+            if (*p == '"') p++;
+        } else {
+            while (*p && *p != ';' && *p != '\n' && *p != '\r' &&
+                   vi < (int)sizeof(val) - 1) {
+                val[vi++] = *p++;
+            }
+            while (vi > 0 && (val[vi - 1] == ' ' || val[vi - 1] == '\t'))
+                vi--;
+        }
+        val[vi] = '\0';
+
+        if (directive_key_eq(kstart, klen, "label")) {
+            strncpy(info->label, val, GFX2D_ICON_LABEL_MAX - 1);
+            info->label[GFX2D_ICON_LABEL_MAX - 1] = '\0';
+            found = 1;
+        } else if (directive_key_eq(kstart, klen, "desc")) {
+            strncpy(info->description, val, GFX2D_ICON_DESC_MAX - 1);
+            info->description[GFX2D_ICON_DESC_MAX - 1] = '\0';
+            found = 1;
+        } else if (directive_key_eq(kstart, klen, "icon")) {
+            if (strcmp(val, "folder") == 0)
+                info->type = ICON_TYPE_FOLDER;
+            else if (strcmp(val, "file") == 0)
+                info->type = ICON_TYPE_FILE;
+            else
+                info->type = ICON_TYPE_APP;
+            found = 1;
+        } else if (directive_key_eq(kstart, klen, "x")) {
+            info->x = parse_directive_int(val);
+            found = 1;
+        } else if (directive_key_eq(kstart, klen, "y")) {
+            info->y = parse_directive_int(val);
+            found = 1;
+        } else if (directive_key_eq(kstart, klen, "color")) {
+            info->color = parse_directive_hex(val);
+            found = 1;
+        }
+
+        while (*p && *p != ';' && *p != '\n' && *p != '\r') p++;
+        if (*p == ';') p++;
+    }
+
+    return found;
 }
 
 int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
@@ -507,6 +621,37 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
             else if (strncmp(line, "//icon_color:", 13) == 0) {
                 info->color = parse_directive_hex(line + 13);
             }
+            else if (strncmp(line, "//app:", 6) == 0) {
+                found_icon = 1;
+                if (!parse_app_inline_fields(line + 6, info)) {
+                    parse_directive_value(line + 6, info->label,
+                                         GFX2D_ICON_LABEL_MAX);
+                }
+                info->type = ICON_TYPE_APP;
+            }
+            else if (strncmp(line, "//app_desc:", 11) == 0) {
+                parse_directive_value(line + 11, info->description,
+                                     GFX2D_ICON_DESC_MAX);
+            }
+            else if (strncmp(line, "//app_x:", 8) == 0) {
+                info->x = parse_directive_int(line + 8);
+            }
+            else if (strncmp(line, "//app_y:", 8) == 0) {
+                info->y = parse_directive_int(line + 8);
+            }
+            else if (strncmp(line, "//app_icon:", 11) == 0) {
+                char type_str[32];
+                parse_directive_value(line + 11, type_str, 32);
+                if (strcmp(type_str, "folder") == 0)
+                    info->type = ICON_TYPE_FOLDER;
+                else if (strcmp(type_str, "file") == 0)
+                    info->type = ICON_TYPE_FILE;
+                else
+                    info->type = ICON_TYPE_APP;
+            }
+            else if (strncmp(line, "//app_color:", 12) == 0) {
+                info->color = parse_directive_hex(line + 12);
+            }
 
             /* Stop scanning after first non-comment, non-blank line
              * once we've passed the header area */
@@ -530,9 +675,7 @@ done:
     return found_icon;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Auto-Discovery: Scan /bin for icons
- * ══════════════════════════════════════════════════════════════════════ */
+/* Auto-Discovery: Scan /bin for icons */
 
 void gfx2d_icons_scan_bin(void) {
     int fd = vfs_open("/bin", O_RDONLY);
@@ -584,9 +727,7 @@ void gfx2d_icons_scan_bin(void) {
     gfx2d_icons_load();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Persistence: Save/Load icon positions
- * ══════════════════════════════════════════════════════════════════════ */
+/* Persistence: Save/Load icon positions */
 
 void gfx2d_icons_save(void) {
     int fd = vfs_open(ICON_CONFIG_PATH, O_WRONLY | O_CREAT | O_TRUNC);
@@ -664,7 +805,7 @@ void gfx2d_icons_save(void) {
 void gfx2d_icons_load(void) {
     int fd = vfs_open(ICON_CONFIG_PATH, O_RDONLY);
     if (fd < 0) {
-        /* Config file doesn't exist yet — that's fine */
+        /* Config file doesn't exist yet - that's fine */
         return;
     }
 

@@ -1,5 +1,5 @@
 /**
- * cupidc.h — CupidC compiler for CupidOS
+ * cupidc.h - CupidC compiler for CupidOS
  *
  * A HolyC-inspired C compiler that compiles directly to x86 machine code
  * and can emit ELF32 binaries.  Runs in ring 0 with full system access.
@@ -21,9 +21,7 @@
 #include "types.h"
 #include "dis.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Limits
- * ══════════════════════════════════════════════════════════════════════ */
+/* Limits */
 #define CC_MAX_CODE (128u * 1024u) /* 128KB code buffer          */
 #define CC_MAX_DATA (32u * 1024u)  /* 32KB data/string buffer    */
 #define CC_MAX_SYMBOLS 512         /* max symbols in scope        */
@@ -43,13 +41,11 @@
 #define CC_JIT_CODE_BASE 0x00400000u
 #define CC_JIT_DATA_BASE 0x00420000u /* 128KB after code */
 
-/* Memory region for AOT-compiled ELF output — must be >= 0x400000 */
+/* Memory region for AOT-compiled ELF output - must be >= 0x400000 */
 #define CC_AOT_CODE_BASE 0x00400000u
 #define CC_AOT_DATA_BASE 0x00420000u /* 128KB after code */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Token Types
- * ══════════════════════════════════════════════════════════════════════ */
+/* Token Types */
 typedef enum {
   /* Keywords */
   CC_TOK_INT,
@@ -149,7 +145,6 @@ typedef enum {
   CC_TOK_ERROR
 } cc_token_type_t;
 
-/* ── Token structure ─────────────────────────────────────────────── */
 typedef struct {
   cc_token_type_t type;
   char text[CC_MAX_STRING]; /* holds idents & string content */
@@ -157,9 +152,7 @@ typedef struct {
   int line;
 } cc_token_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Symbol Table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Symbol Table */
 
 /* Symbol kind */
 typedef enum {
@@ -180,7 +173,7 @@ typedef enum {
   TYPE_CHAR_PTR,   /* char*                                 */
   TYPE_STRUCT,     /* struct value (stack-allocated)         */
   TYPE_STRUCT_PTR, /* pointer to struct                     */
-  TYPE_FUNC_PTR    /* int (*fn)(...) — function pointer     */
+  TYPE_FUNC_PTR    /* int (*fn)(...) - function pointer     */
 } cc_type_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)
@@ -208,7 +201,6 @@ typedef struct {
   int array_elem_size; /* element size for array subscript scaling */
 } cc_symbol_t;
 
-/* ── Struct field definition ─────────────────────────────────────── */
 typedef struct {
   char name[CC_MAX_IDENT];
   cc_type_t type;
@@ -217,7 +209,6 @@ typedef struct {
   int array_count;  /* >0 if this field is a fixed array  */
 } cc_field_t;
 
-/* ── Struct definition ───────────────────────────────────────────── */
 typedef struct {
   char name[CC_MAX_IDENT];
   cc_field_t fields[CC_MAX_FIELDS];
@@ -227,15 +218,12 @@ typedef struct {
   int is_complete;    /* 1 after full definition parsed, 0 for forward tag */
 } cc_struct_def_t;
 
-/* ── Forward reference patch ─────────────────────────────────────── */
 typedef struct {
   uint32_t code_offset;    /* where in code buffer to patch     */
   char name[CC_MAX_IDENT]; /* target symbol name                */
 } cc_patch_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Compiler State
- * ══════════════════════════════════════════════════════════════════════ */
+/* Compiler State */
 typedef struct {
   /* Source */
   const char *source;
@@ -298,19 +286,17 @@ typedef struct {
   int typedef_count;
 } cc_state_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API */
 
 /**
- * cupidc_jit — Compile and immediately execute a .cc source file.
+ * cupidc_jit - Compile and immediately execute a .cc source file.
  *
  * @param path  VFS path to the .cc source file
  */
 void cupidc_jit(const char *path);
 
 /**
- * cupidc_jit_status — Compile and execute, returning success/failure.
+ * cupidc_jit_status - Compile and execute, returning success/failure.
  *
  * @param path  VFS path to the .cc source file
  * @return 0 on success, -1 on compile/load/run setup failure
@@ -318,7 +304,7 @@ void cupidc_jit(const char *path);
 int cupidc_jit_status(const char *path);
 
 /**
- * cupidc_aot — Compile a .cc source to an ELF32 binary on disk.
+ * cupidc_aot - Compile a .cc source to an ELF32 binary on disk.
  *
  * @param src_path   VFS path to the .cc source file
  * @param out_path   VFS path for the output ELF binary
@@ -326,25 +312,21 @@ int cupidc_jit_status(const char *path);
 void cupidc_aot(const char *src_path, const char *out_path);
 
 /**
- * cupidc_dis — Compile a .cc source and disassemble generated code.
+ * cupidc_dis - Compile a .cc source and disassemble generated code.
  *
  * @param src_path  VFS path to .cc source file
  * @param out_fn    Output callback (NULL uses kernel print)
  */
 void cupidc_dis(const char *src_path, dis_output_fn out_fn);
 
-/* ── Lexer API (used internally) ─────────────────────────────────── */
 void cc_lex_init(cc_state_t *cc, const char *source);
 cc_token_t cc_lex_next(cc_state_t *cc);
 cc_token_t cc_lex_peek(cc_state_t *cc);
 
-/* ── Parser + Codegen API (used internally) ──────────────────────── */
 void cc_parse_program(cc_state_t *cc);
 
-/* ── ELF Writer API (used internally) ────────────────────────────── */
 int cc_write_elf(cc_state_t *cc, const char *path);
 
-/* ── Symbol table API (used internally) ──────────────────────────── */
 void cc_sym_init(cc_state_t *cc);
 cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name);
 cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,

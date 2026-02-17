@@ -1,5 +1,5 @@
 /**
- * as_parse.c — Parser + x86 encoder for the CupidASM assembler
+ * as_parse.c - Parser + x86 encoder for the CupidASM assembler
  *
  * Single-pass parser that reads tokens from the lexer and emits
  * x86-32 machine code directly into code/data buffers.  Forward
@@ -25,9 +25,7 @@ typedef struct {
   int has_peek;
 } as_lex_snapshot_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Code / Data Emission Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Code / Data Emission Helpers */
 
 static void as_error(as_state_t *as, const char *msg) {
   if (as->error) return;
@@ -115,15 +113,14 @@ static void emit_data32(as_state_t *as, uint32_t v) {
   emit_data8(as, (uint8_t)((v >> 24) & 0xFF));
 }
 
-/* ── ModRM byte builder ──────────────────────────────────────────── */
 
 static uint8_t modrm(int mod, int reg, int rm) {
   return (uint8_t)(((mod & 3) << 6) | ((reg & 7) << 3) | (rm & 7));
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Label Table Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 /* Case-insensitive comparison */
 static int as_label_strcmp(const char *a, const char *b) {
@@ -199,9 +196,9 @@ static void as_add_patch(as_state_t *as, uint32_t code_offset,
   p->name[i] = '\0';
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Token Consumption Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static as_token_t as_advance(as_state_t *as) {
   return as_lex_next(as);
@@ -285,12 +282,12 @@ static void as_skip_newlines(as_state_t *as) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Memory Operand Parser
  *
  *  Parses: [reg], [reg+disp], [reg-disp], [reg+reg], [addr]
  *  Returns base register index, displacement, and flags.
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 typedef struct {
   int has_base;      /* 1 if base register present */
@@ -323,14 +320,14 @@ static as_mem_operand_t as_parse_mem(as_state_t *as) {
       tok = as_advance(as);
 
       if (tok.type == AS_TOK_REGISTER) {
-        /* [reg+reg] — SIB encoding */
+        /* [reg+reg] - SIB encoding */
         mem.has_index = 1;
         mem.index_reg = tok.reg_index;
       } else if (tok.type == AS_TOK_NUMBER) {
         mem.has_disp = 1;
         mem.disp = tok.int_value * sign;
       } else if (tok.type == AS_TOK_IDENT) {
-        /* [reg+label] — label as displacement */
+        /* [reg+label] - label as displacement */
         mem.has_disp = 1;
         mem.disp_is_label = 1;
         int i = 0;
@@ -342,11 +339,11 @@ static as_mem_operand_t as_parse_mem(as_state_t *as) {
       }
     }
   } else if (tok.type == AS_TOK_NUMBER) {
-    /* [imm32] — direct memory access */
+    /* [imm32] - direct memory access */
     mem.has_disp = 1;
     mem.disp = tok.int_value;
   } else if (tok.type == AS_TOK_IDENT) {
-    /* [label] — label as address */
+    /* [label] - label as address */
     mem.has_disp = 1;
     mem.disp_is_label = 1;
     int i = 0;
@@ -372,7 +369,7 @@ static as_mem_operand_t as_parse_mem(as_state_t *as) {
 static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
                                as_mem_operand_t *mem) {
   if (!mem->has_base && mem->has_disp) {
-    /* [disp32] — mod=00, rm=5 (direct addressing) */
+    /* [disp32] - mod=00, rm=5 (direct addressing) */
     emit8(as, modrm(0, reg_or_digit, 5));
     if (mem->disp_is_label) {
       as_label_t *lbl = as_find_label(as, mem->label_name);
@@ -394,7 +391,7 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
     /* ESP (4) requires SIB byte */
     if (base == 4) {
       if (!mem->has_disp || mem->disp == 0) {
-        /* [esp] — mod=00, rm=4 (SIB), SIB = 0x24 */
+        /* [esp] - mod=00, rm=4 (SIB), SIB = 0x24 */
         emit8(as, modrm(0, reg_or_digit, 4));
         emit8(as, 0x24);
       } else if (mem->disp >= -128 && mem->disp <= 127) {
@@ -419,14 +416,14 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
     }
 
     if (!mem->has_disp || mem->disp == 0) {
-      /* [reg] — mod=00 */
+      /* [reg] - mod=00 */
       emit8(as, modrm(0, reg_or_digit, base));
     } else if (mem->disp >= -128 && mem->disp <= 127 && !mem->disp_is_label) {
-      /* [reg+disp8] — mod=01 */
+      /* [reg+disp8] - mod=01 */
       emit8(as, modrm(1, reg_or_digit, base));
       emit8(as, (uint8_t)(int8_t)mem->disp);
     } else {
-      /* [reg+disp32] — mod=10 */
+      /* [reg+disp32] - mod=10 */
       emit8(as, modrm(2, reg_or_digit, base));
       if (mem->disp_is_label) {
         as_label_t *lbl = as_find_label(as, mem->label_name);
@@ -443,11 +440,11 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Resolve an identifier to its immediate value.
  *  If it's an equ, returns its value.  If it's a defined label,
  *  returns its address.  Otherwise returns 0 and sets *needs_patch.
- * ══════════════════════════════════════════════════════════════════════ */
+*/
 
 static uint32_t as_resolve_ident(as_state_t *as, const char *name,
                                   int *needs_patch) {
@@ -456,7 +453,7 @@ static uint32_t as_resolve_ident(as_state_t *as, const char *name,
   if (lbl && lbl->defined) {
     return lbl->address;
   }
-  /* Not yet defined — needs a patch */
+  /* Not yet defined - needs a patch */
   *needs_patch = 1;
   /* Ensure label exists in table for later definition */
   if (!lbl) {
@@ -465,11 +462,10 @@ static uint32_t as_resolve_ident(as_state_t *as, const char *name,
   return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Instruction Encoders
- * ══════════════════════════════════════════════════════════════════════ */
+*/
 
-/* ── NOP / RET / HLT / CLI / STI / LEAVE / etc. (no operands) ──── */
 static void as_encode_noops(as_state_t *as, const char *mn) {
   if (strcmp(mn, "nop") == 0)    { emit8(as, 0x90); return; }
   if (strcmp(mn, "ret") == 0)    { emit8(as, 0xC3); return; }
@@ -504,7 +500,6 @@ static void as_encode_noops(as_state_t *as, const char *mn) {
   as_error(as, "unknown no-operand instruction");
 }
 
-/* ── REP prefix ──────────────────────────────────────────────────── */
 static void as_encode_rep(as_state_t *as) {
   emit8(as, 0xF3);
   /* Next token should be a string instruction */
@@ -516,7 +511,6 @@ static void as_encode_rep(as_state_t *as) {
   }
 }
 
-/* ── PUSH ────────────────────────────────────────────────────────── */
 static void as_encode_push(as_state_t *as) {
   as_token_t tok = as_lex_peek(as);
 
@@ -567,7 +561,6 @@ static void as_encode_push(as_state_t *as) {
   as_error(as, "invalid operand for push");
 }
 
-/* ── POP ─────────────────────────────────────────────────────────── */
 static void as_encode_pop(as_state_t *as) {
   as_token_t tok = as_advance(as);
   if (tok.type == AS_TOK_REGISTER && tok.reg_size == 4) {
@@ -577,7 +570,6 @@ static void as_encode_pop(as_state_t *as) {
   as_error(as, "invalid operand for pop");
 }
 
-/* ── INC / DEC ───────────────────────────────────────────────────── */
 static void as_encode_incdec(as_state_t *as, const char *mn) {
   as_token_t tok = as_advance(as);
   if (tok.type == AS_TOK_REGISTER && tok.reg_size == 4) {
@@ -600,7 +592,6 @@ static void as_encode_incdec(as_state_t *as, const char *mn) {
   as_error(as, "invalid operand for inc/dec");
 }
 
-/* ── NOT / NEG ───────────────────────────────────────────────────── */
 static void as_encode_not_neg(as_state_t *as, const char *mn) {
   as_token_t tok = as_advance(as);
   if (tok.type == AS_TOK_REGISTER && tok.reg_size == 4) {
@@ -612,7 +603,6 @@ static void as_encode_not_neg(as_state_t *as, const char *mn) {
   as_error(as, "invalid operand for not/neg");
 }
 
-/* ── MUL / DIV / IMUL / IDIV (single reg operand, uses eax/edx) ── */
 static void as_encode_muldiv(as_state_t *as, const char *mn) {
   as_token_t tok = as_advance(as);
   if (tok.type != AS_TOK_REGISTER || tok.reg_size != 4) {
@@ -628,7 +618,6 @@ static void as_encode_muldiv(as_state_t *as, const char *mn) {
   emit8(as, modrm(3, digit, tok.reg_index));
 }
 
-/* ── INT (interrupt) ─────────────────────────────────────────────── */
 static void as_encode_int(as_state_t *as) {
   as_token_t tok = as_advance(as);
   if (tok.type != AS_TOK_NUMBER) {
@@ -639,7 +628,6 @@ static void as_encode_int(as_state_t *as) {
   emit8(as, (uint8_t)tok.int_value);
 }
 
-/* ── CALL ────────────────────────────────────────────────────────── */
 static void as_encode_call(as_state_t *as) {
   as_token_t tok = as_lex_peek(as);
 
@@ -677,7 +665,6 @@ static void as_encode_call(as_state_t *as) {
   as_error(as, "invalid operand for call");
 }
 
-/* ── JMP and Jcc (conditional jumps) ─────────────────────────────── */
 static void as_encode_jmp(as_state_t *as, const char *mn) {
   as_token_t tok = as_lex_peek(as);
 
@@ -694,7 +681,7 @@ static void as_encode_jmp(as_state_t *as, const char *mn) {
     }
   }
 
-  /* Conditional jumps — all use near (rel32) by default */
+  /* Conditional jumps - all use near (rel32) by default */
   if (strcmp(mn, "je") == 0 || strcmp(mn, "jz") == 0)    jcc_code = 0x84;
   if (strcmp(mn, "jne") == 0 || strcmp(mn, "jnz") == 0)  jcc_code = 0x85;
   if (strcmp(mn, "jc") == 0 || strcmp(mn, "jnae") == 0)  jcc_code = 0x82;
@@ -812,7 +799,6 @@ as_parse_imm_operand(as_state_t *as, int *needs_patch,
   return 0;
 }
 
-/* ── MOV ─────────────────────────────────────────────────────────── */
 static void as_encode_mov(as_state_t *as) {
   as_token_t dst = as_advance(as);
 
@@ -956,7 +942,6 @@ static void as_encode_mov(as_state_t *as) {
   as_error(as, "invalid operand for mov");
 }
 
-/* ── LEA ─────────────────────────────────────────────────────────── */
 static void as_encode_lea(as_state_t *as) {
   as_token_t dst = as_advance(as);
   if (dst.type != AS_TOK_REGISTER || dst.reg_size != 4) {
@@ -981,7 +966,6 @@ static void as_encode_lea(as_state_t *as) {
   as_emit_modrm_mem(as, dst.reg_index, &mem);
 }
 
-/* ── XCHG ────────────────────────────────────────────────────────── */
 static void as_encode_xchg(as_state_t *as) {
   as_token_t dst = as_advance(as);
   if (dst.type != AS_TOK_REGISTER || dst.reg_size != 4) {
@@ -1009,7 +993,6 @@ static void as_encode_xchg(as_state_t *as) {
   }
 }
 
-/* ── MOVZX / MOVSX ───────────────────────────────────────────────── */
 static void as_encode_movzx_sx(as_state_t *as, const char *mn) {
   as_token_t dst = as_advance(as);
   if (dst.type != AS_TOK_REGISTER || dst.reg_size != 4) {
@@ -1038,7 +1021,6 @@ static void as_encode_movzx_sx(as_state_t *as, const char *mn) {
   as_error(as, "invalid source for movzx/movsx");
 }
 
-/* ── ALU: ADD, SUB, AND, OR, XOR, CMP, TEST, SHL, SHR, SAR ─────── */
 static void as_encode_alu(as_state_t *as, const char *mn) {
   as_token_t dst = as_advance(as);
 
@@ -1261,7 +1243,6 @@ static void as_encode_alu(as_state_t *as, const char *mn) {
   as_error(as, "invalid ALU destination");
 }
 
-/* ── IN / OUT ────────────────────────────────────────────────────── */
 static void as_encode_in(as_state_t *as) {
   as_token_t dst = as_advance(as);
   if (dst.type != AS_TOK_REGISTER) {
@@ -1332,9 +1313,9 @@ static void as_encode_out(as_state_t *as) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Directive Handlers
- * ══════════════════════════════════════════════════════════════════════ */
+*/
 
 /* db "string", 0   or   db 0x41, 0x42, 0 */
 static void as_handle_db(as_state_t *as) {
@@ -1471,9 +1452,9 @@ static void as_handle_times(as_state_t *as) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Forward-Reference Patch Resolution (second pass)
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static void as_resolve_patches(as_state_t *as) {
   for (int i = 0; i < as->patch_count; i++) {
@@ -1527,15 +1508,15 @@ static void as_resolve_patches(as_state_t *as) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Main Parser — as_parse_program()
+/*
+ *  Main Parser - as_parse_program()
  *
  *  Reads one statement per line:
  *    label_def | directive | mnemonic [operands] | blank line
- * ══════════════════════════════════════════════════════════════════════ */
+*/
 
 void as_parse_program(as_state_t *as) {
-  /* NOTE: do NOT reset label_count here — kernel bindings and equ
+  /* NOTE: do NOT reset label_count here - kernel bindings and equ
    * constants were registered during as_init_state() and must survive. */
   if (as->include_depth == 0) {
     as->patch_count = 0;
@@ -1551,7 +1532,7 @@ void as_parse_program(as_state_t *as) {
 
     if (tok.type == AS_TOK_EOF) break;
 
-    /* ── Label definition ── */
+    /* Label definition */
     if (tok.type == AS_TOK_LABEL_DEF) {
       as_advance(as);
       uint32_t addr;
@@ -1571,7 +1552,7 @@ void as_parse_program(as_state_t *as) {
       continue;
     }
 
-    /* ── Identifier followed by equ or : ── */
+    /* Identifier followed by equ or : */
     if (tok.type == AS_TOK_IDENT) {
       /* Peek further to see if next token is 'equ' directive */
       as_token_t ident_tok = as_advance(as);
@@ -1590,7 +1571,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-       /* Identifier followed by db/dw/dd/res* — data label */
+       /* Identifier followed by db/dw/dd/res* - data label */
       if (next.type == AS_TOK_DIRECTIVE &&
           (strcmp(next.text, "db") == 0 || strcmp(next.text, "dw") == 0 ||
            strcmp(next.text, "dd") == 0 || strcmp(next.text, "resb") == 0 ||
@@ -1612,7 +1593,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* Identifier followed by colon — label definition */
+      /* Identifier followed by colon - label definition */
       if (next.type == AS_TOK_COLON) {
         as_advance(as); /* consume : */
         uint32_t addr;
@@ -1657,7 +1638,7 @@ void as_parse_program(as_state_t *as) {
       continue;
     }
 
-    /* ── Directives ── */
+    /* Directives */
     if (tok.type == AS_TOK_DIRECTIVE) {
       as_advance(as);
 
@@ -1687,7 +1668,7 @@ void as_parse_program(as_state_t *as) {
       if (strcmp(tok.text, "reserve") == 0) { as_handle_resb(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "times") == 0) { as_handle_times(as); as_expect_newline_or_eof(as); continue; }
       if (strcmp(tok.text, "global") == 0 || strcmp(tok.text, "extern") == 0) {
-        /* Just consume the identifier — we don't do linking yet */
+        /* Just consume the identifier - we don't do linking yet */
         as_advance(as);
         as_expect_newline_or_eof(as);
         continue;
@@ -1744,7 +1725,7 @@ void as_parse_program(as_state_t *as) {
       continue;
     }
 
-    /* ── Mnemonics (instructions) ── */
+    /* Mnemonics (instructions) */
     if (tok.type == AS_TOK_MNEMONIC) {
       as_advance(as);
       const char *mn = tok.text;
@@ -1893,7 +1874,7 @@ void as_parse_program(as_state_t *as) {
       continue;
     }
 
-    /* Unknown token — skip line */
+    /* Unknown token - skip line */
     as_error(as, "unexpected token");
     as_advance(as);
     while (as_lex_peek(as).type != AS_TOK_NEWLINE &&

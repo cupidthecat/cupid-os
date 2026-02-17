@@ -9,8 +9,6 @@
 
 #include "types.h"
 
-/* ── Theme Color Palette ──────────────────────────────────────────── */
-
 typedef struct {
     /* Window colors */
     uint32_t window_bg;
@@ -59,8 +57,6 @@ typedef struct {
     uint32_t taskbar_text;
 } ui_theme_t;
 
-/* ── Style Properties ─────────────────────────────────────────────── */
-
 typedef struct {
     int  window_shadow_offset;
     int  window_shadow_blur;
@@ -73,8 +69,6 @@ typedef struct {
     int  animation_duration_ms;
 } ui_style_t;
 
-/* ── API ──────────────────────────────────────────────────────────── */
-
 void        ui_theme_set(const ui_theme_t *theme);
 ui_theme_t *ui_theme_get(void);
 void        ui_theme_reset_default(void);
@@ -85,8 +79,6 @@ ui_style_t *ui_style_get(void);
 /* Load/save from .theme file (INI-style) */
 int         ui_theme_load(const char *path);
 int         ui_theme_save(const char *path);
-
-/* ── Built-in Theme Presets ───────────────────────────────────────── */
 
 extern const ui_theme_t UI_THEME_WINDOWS95;
 extern const ui_theme_t UI_THEME_PASTEL_DREAM;

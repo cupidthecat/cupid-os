@@ -8,7 +8,6 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── parser state ──────────────────────────────────────────────────── */
 static token_t *toks;
 static int tok_count;
 static int tok_pos;
@@ -49,8 +48,6 @@ static int is_word_token(token_type_t t) {
            t == TOK_ARITH;
 }
 
-/* ── node allocation ───────────────────────────────────────────────── */
-
 static ast_node_t *alloc_node(node_type_t type) {
     ast_node_t *n = kmalloc(sizeof(ast_node_t));
     if (!n) {
@@ -62,11 +59,63 @@ static ast_node_t *alloc_node(node_type_t type) {
     return n;
 }
 
-/* ── forward declarations ──────────────────────────────────────────── */
 static ast_node_t *parse_statement(void);
 static ast_node_t *parse_block(token_type_t end1, token_type_t end2);
+static void copy_token_to_argv(char *dst, token_t *t, int max);
 
-/* ── copy a token's value into an argv slot, restoring original form ── */
+/* Parse one redirection token + optional target into command metadata. */
+static int parse_redirection(ast_node_t *cmd, token_type_t tt) {
+    if (!cmd || cmd->type != NODE_COMMAND) return 0;
+    if (cmd->data.command.redir_count >= MAX_REDIRECTIONS) return 0;
+
+    redirection_t *r = &cmd->data.command
+                            .redirections[cmd->data.command.redir_count++];
+    r->filename = NULL;
+    r->source_fd = 1;
+    r->target_fd = -1;
+    r->append = false;
+
+    if (tt == TOK_REDIR_OUT) {
+        r->source_fd = 1;
+        r->append = false;
+    } else if (tt == TOK_REDIR_APPEND) {
+        r->source_fd = 1;
+        r->append = true;
+    } else if (tt == TOK_REDIR_IN) {
+        r->source_fd = 0;
+    } else if (tt == TOK_REDIR_ERR) {
+        r->source_fd = 2;
+        r->append = false;
+    } else if (tt == TOK_REDIR_ERR_OUT) {
+        r->source_fd = 2;
+        r->target_fd = 1;
+        return 1;
+    } else {
+        return 0;
+    }
+
+    /* File target is required for >, >>, <, 2> */
+    if (!is_word_token(peek()->type)) {
+        KERROR("CupidScript: expected redirection target on line %d",
+               peek()->line);
+        return 0;
+    }
+
+    token_t *t = advance();
+    char tmp[MAX_TOKEN_LEN];
+    copy_token_to_argv(tmp, t, MAX_TOKEN_LEN);
+    int len = 0;
+    while (tmp[len]) len++;
+    char *fname = kmalloc((size_t)len + 1);
+    if (!fname) {
+        KERROR("CupidScript: out of memory for redirection target");
+        return 0;
+    }
+    for (int i = 0; i <= len; i++) fname[i] = tmp[i];
+    r->filename = fname;
+    return 1;
+}
+
 static void copy_token_to_argv(char *dst, token_t *t, int max) {
     int i = 0;
     switch (t->type) {
@@ -97,7 +146,7 @@ static void copy_token_to_argv(char *dst, token_t *t, int max) {
         dst[i] = '\0';
         return;
     default:
-        /* TOK_WORD, TOK_STRING, etc — copy as-is */
+        /* TOK_WORD, TOK_STRING, etc - copy as-is */
         {
             int j = 0;
             while (t->value[j] && j < max - 1) {
@@ -110,7 +159,50 @@ static void copy_token_to_argv(char *dst, token_t *t, int max) {
     }
 }
 
-/* ── parse a test expression: [ arg1 op arg2 ] ─────────────────────── */
+/* Parse one command segment starting with already-consumed first token. */
+static ast_node_t *parse_simple_command_from_first(token_t *first) {
+    ast_node_t *n = alloc_node(NODE_COMMAND);
+    if (!n) return NULL;
+
+    n->data.command.argc = 0;
+    n->data.command.redir_count = 0;
+    n->data.command.background = false;
+
+    copy_token_to_argv(n->data.command.argv[0], first, MAX_TOKEN_LEN);
+    n->data.command.argc = 1;
+
+    while (!at_end() && peek()->type != TOK_NEWLINE &&
+           peek()->type != TOK_SEMICOLON && peek()->type != TOK_RBRACE) {
+        token_type_t tt = peek()->type;
+
+        if (is_word_token(tt)) {
+            token_t *arg = advance();
+            if (n->data.command.argc < MAX_ARGS) {
+                int idx = n->data.command.argc++;
+                copy_token_to_argv(n->data.command.argv[idx],
+                                   arg, MAX_TOKEN_LEN);
+            }
+            continue;
+        }
+
+        if (tt == TOK_REDIR_OUT || tt == TOK_REDIR_APPEND ||
+            tt == TOK_REDIR_IN || tt == TOK_REDIR_ERR ||
+            tt == TOK_REDIR_ERR_OUT) {
+            advance();
+            parse_redirection(n, tt);
+            continue;
+        }
+
+        if (tt == TOK_BACKGROUND || tt == TOK_PIPE) {
+            break;
+        }
+
+        break;
+    }
+
+    return n;
+}
+
 static ast_node_t *parse_test(void) {
     /* The [ has already been consumed by the caller */
     ast_node_t *n = alloc_node(NODE_TEST);
@@ -135,7 +227,6 @@ static ast_node_t *parse_test(void) {
     return n;
 }
 
-/* ── parse if/then/else/fi ─────────────────────────────────────────── */
 static ast_node_t *parse_if(void) {
     ast_node_t *n = alloc_node(NODE_IF);
     if (!n) return NULL;
@@ -181,7 +272,6 @@ static ast_node_t *parse_if(void) {
     return n;
 }
 
-/* ── parse while/do/done ───────────────────────────────────────────── */
 static ast_node_t *parse_while(void) {
     ast_node_t *n = alloc_node(NODE_WHILE);
     if (!n) return NULL;
@@ -218,7 +308,6 @@ static ast_node_t *parse_while(void) {
     return n;
 }
 
-/* ── parse for/in/do/done ──────────────────────────────────────────── */
 static ast_node_t *parse_for(void) {
     ast_node_t *n = alloc_node(NODE_FOR);
     if (!n) return NULL;
@@ -286,7 +375,6 @@ static ast_node_t *parse_for(void) {
     return n;
 }
 
-/* ── parse function definition: name() { body } ───────────────────── */
 static ast_node_t *parse_function_def(const char *name) {
     ast_node_t *n = alloc_node(NODE_FUNCTION_DEF);
     if (!n) return NULL;
@@ -298,7 +386,7 @@ static ast_node_t *parse_function_def(const char *name) {
     }
     n->data.function_def.name[i] = '\0';
 
-    /* We've already consumed name( ) — now expect { */
+    /* We've already consumed name( ) - now expect { */
     skip_newlines();
     if (peek()->type != TOK_LBRACE) {
         KERROR("CupidScript: expected '{' for function '%s' on line %d",
@@ -319,7 +407,6 @@ static ast_node_t *parse_function_def(const char *name) {
     return n;
 }
 
-/* ── parse a simple command or assignment ──────────────────────────── */
 static ast_node_t *parse_command_or_assignment(void) {
     token_t *first = advance();
 
@@ -391,35 +478,64 @@ static ast_node_t *parse_command_or_assignment(void) {
         return n;
     }
 
-    /* Regular command: collect all words on this line */
-    ast_node_t *n = alloc_node(NODE_COMMAND);
+    /* Regular command: collect args + redirections until separator */
+    ast_node_t *n = parse_simple_command_from_first(first);
     if (!n) return NULL;
 
-    /* First word is argv[0] */
-    n->data.command.argc = 0;
-    copy_token_to_argv(n->data.command.argv[0], first, MAX_TOKEN_LEN);
-    n->data.command.argc = 1;
+    /* Pipeline: cmd1 | cmd2 | ... */
+    if (peek()->type == TOK_PIPE) {
+        ast_node_t *pipe = alloc_node(NODE_PIPELINE);
+        if (!pipe) return n;
+        pipe->data.pipeline.command_count = 0;
+        pipe->data.pipeline.background = false;
+        pipe->data.pipeline.commands[pipe->data.pipeline.command_count++] = n;
 
-    /* Collect remaining arguments */
-    while (!at_end() && peek()->type != TOK_NEWLINE &&
-           peek()->type != TOK_SEMICOLON &&
-           peek()->type != TOK_RBRACE) {
-        if (is_word_token(peek()->type)) {
-            token_t *arg = advance();
-            if (n->data.command.argc < MAX_ARGS) {
-                int idx = n->data.command.argc++;
-                copy_token_to_argv(n->data.command.argv[idx],
-                                   arg, MAX_TOKEN_LEN);
+        while (peek()->type == TOK_PIPE) {
+            advance(); /* consume | */
+
+            if (!is_word_token(peek()->type)) {
+                KERROR("CupidScript: expected command after '|' on line %d",
+                       peek()->line);
+                break;
             }
-        } else {
-            break;
+
+            if (pipe->data.pipeline.command_count >= MAX_PIPELINE_CMDS) {
+                KERROR("CupidScript: pipeline too long (max %d)",
+                       MAX_PIPELINE_CMDS);
+                break;
+            }
+
+                 token_t *seg_first = advance();
+                 ast_node_t *next_cmd = parse_simple_command_from_first(seg_first);
+                 if (!next_cmd) {
+                KERROR("CupidScript: invalid pipeline command on line %d",
+                       peek()->line);
+                break;
+            }
+            pipe->data.pipeline.commands[pipe->data.pipeline.command_count++] =
+                next_cmd;
+
+            if (peek()->type != TOK_PIPE) {
+                break;
+            }
         }
+
+        if (peek()->type == TOK_BACKGROUND) {
+            advance();
+            pipe->data.pipeline.background = true;
+        }
+
+        return pipe;
+    }
+
+    if (peek()->type == TOK_BACKGROUND) {
+        advance();
+        n->data.command.background = true;
     }
 
     return n;
 }
 
-/* ── parse a single statement ──────────────────────────────────────── */
 static ast_node_t *parse_statement(void) {
     skip_newlines();
 
@@ -441,7 +557,6 @@ static ast_node_t *parse_statement(void) {
     return NULL;
 }
 
-/* ── parse a block of statements until end1 or end2 token ──────────── */
 static ast_node_t *parse_block(token_type_t end1, token_type_t end2) {
     ast_node_t *seq = alloc_node(NODE_SEQUENCE);
     if (!seq) return NULL;
@@ -464,11 +579,9 @@ static ast_node_t *parse_block(token_type_t end1, token_type_t end2) {
     return seq;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  cupidscript_parse
- *
- *  Parses `tokens` (token_count entries) and returns an AST root.
- * ══════════════════════════════════════════════════════════════════════ */
+/* cupidscript_parse
+ * Parses `tokens` (token_count entries) and returns an AST root.
+ */
 ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
     toks = tokens;
     tok_count = token_count;
@@ -494,11 +607,9 @@ ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
     return root;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  cupidscript_free_ast
- *
- *  Recursively frees an AST node and all its children.
- * ══════════════════════════════════════════════════════════════════════ */
+/* cupidscript_free_ast
+ * Recursively frees an AST node and all its children.
+ */
 void cupidscript_free_ast(ast_node_t *node) {
     if (!node) return;
 
@@ -516,7 +627,12 @@ void cupidscript_free_ast(ast_node_t *node) {
         cupidscript_free_ast(node->data.for_stmt.body);
         break;
     case NODE_FUNCTION_DEF:
-        /* Don't free function body — it may be referenced by context */
+        /* Don't free function body - it may be referenced by context */
+        break;
+    case NODE_PIPELINE:
+        for (int i = 0; i < node->data.pipeline.command_count; i++) {
+            cupidscript_free_ast(node->data.pipeline.commands[i]);
+        }
         break;
     case NODE_SEQUENCE:
         for (int i = 0; i < node->data.sequence.count; i++) {
@@ -524,6 +640,13 @@ void cupidscript_free_ast(ast_node_t *node) {
         }
         break;
     case NODE_COMMAND:
+        for (int i = 0; i < node->data.command.redir_count; i++) {
+            if (node->data.command.redirections[i].filename) {
+                kfree(node->data.command.redirections[i].filename);
+                node->data.command.redirections[i].filename = NULL;
+            }
+        }
+        break;
     case NODE_ASSIGNMENT:
     case NODE_RETURN:
     case NODE_TEST:

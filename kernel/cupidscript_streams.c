@@ -60,6 +60,7 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
 
     switch (fdesc->type) {
         case FD_BUFFER: {
+            char *old_data = fdesc->buffer.data;
             size_t needed = fdesc->buffer.size + len;
             
             // Expand buffer if necessary
@@ -72,15 +73,37 @@ int fd_write(fd_table_t *table, int fd, const char *buf, size_t len) {
                 
                 if (fdesc->buffer.data) {
                     memcpy(new_data, fdesc->buffer.data, fdesc->buffer.size);
-                    kfree(fdesc->buffer.data);
+                    if (fdesc->buffer.owner) {
+                        kfree(fdesc->buffer.data);
+                    }
                 }
                 fdesc->buffer.data = new_data;
                 fdesc->buffer.capacity = new_capacity;
+                fdesc->buffer.owner = true;
+
+                /* If buffer moved, repoint peer FDs sharing the same pipe. */
+                for (int i = 0; i < MAX_FDS; i++) {
+                    if (i == fd) continue;
+                    if (table->fds[i].type == FD_BUFFER &&
+                        table->fds[i].buffer.data == old_data) {
+                        table->fds[i].buffer.data = new_data;
+                        table->fds[i].buffer.capacity = new_capacity;
+                    }
+                }
             }
             
             // Append data
             memcpy(fdesc->buffer.data + fdesc->buffer.size, buf, len);
             fdesc->buffer.size += len;
+
+            /* Keep shared-pipe size in sync for all FDs using same buffer. */
+            for (int i = 0; i < MAX_FDS; i++) {
+                if (i == fd) continue;
+                if (table->fds[i].type == FD_BUFFER &&
+                    table->fds[i].buffer.data == fdesc->buffer.data) {
+                    table->fds[i].buffer.size = fdesc->buffer.size;
+                }
+            }
             return (int)len;
         }
         case FD_FILE:
@@ -109,7 +132,7 @@ void fd_close(fd_table_t *table, int fd) {
 
     switch (fdesc->type) {
         case FD_BUFFER:
-            if (fdesc->buffer.data) {
+            if (fdesc->buffer.data && fdesc->buffer.owner) {
                 kfree(fdesc->buffer.data);
                 fdesc->buffer.data = NULL;
             }
@@ -139,6 +162,9 @@ int fd_dup(fd_table_t *table, int oldfd, int newfd) {
 
     // Copy fd (shallow copy for now - both fds point to same resource)
     table->fds[newfd] = table->fds[oldfd];
+    if (table->fds[newfd].type == FD_BUFFER) {
+        table->fds[newfd].buffer.owner = false;
+    }
 
     return newfd;
 }
@@ -172,6 +198,7 @@ int fd_create_pipe(fd_table_t *table, int *read_fd, int *write_fd) {
     table->fds[rfd].buffer.size = 0;
     table->fds[rfd].buffer.read_pos = 0;
     table->fds[rfd].buffer.capacity = 4096;
+    table->fds[rfd].buffer.owner = true;
 
     // Setup write end (same buffer)
     table->fds[wfd].type = FD_BUFFER;
@@ -179,6 +206,7 @@ int fd_create_pipe(fd_table_t *table, int *read_fd, int *write_fd) {
     table->fds[wfd].buffer.size = 0;
     table->fds[wfd].buffer.read_pos = 0;
     table->fds[wfd].buffer.capacity = 4096;
+    table->fds[wfd].buffer.owner = false;
 
     *read_fd = rfd;
     *write_fd = wfd;
@@ -207,25 +235,44 @@ int fd_create_buffer(fd_table_t *table, size_t capacity) {
     table->fds[fd].buffer.size = 0;
     table->fds[fd].buffer.read_pos = 0;
     table->fds[fd].buffer.capacity = capacity;
+    table->fds[fd].buffer.owner = true;
 
     return fd;
 }
 
 char *fd_get_buffer_contents(fd_table_t *table, int fd) {
-    if (fd < 0 || fd >= MAX_FDS || table->fds[fd].type != FD_BUFFER) {
+    if (fd < 0 || fd >= MAX_FDS) {
         return NULL;
     }
 
     file_descriptor_t *fdesc = &table->fds[fd];
-    
-    // Allocate new string with null terminator
-    char *result = kmalloc(fdesc->buffer.size + 1);
-    if (!result) return NULL;
 
-    memcpy(result, fdesc->buffer.data, fdesc->buffer.size);
-    result[fdesc->buffer.size] = '\0';
+    if (fdesc->type == FD_BUFFER) {
+        /* Allocate new string with null terminator */
+        char *result = kmalloc(fdesc->buffer.size + 1);
+        if (!result) return NULL;
 
-    return result;  // Caller must free
+        memcpy(result, fdesc->buffer.data, fdesc->buffer.size);
+        result[fdesc->buffer.size] = '\0';
+        return result;
+    }
+
+    if (fdesc->type == FD_FILE) {
+        /* Read file contents from current offset into a bounded buffer. */
+        char *result = kmalloc(1025);
+        if (!result) return NULL;
+
+        int total = 0;
+        while (total < 1024) {
+            int r = fd_read(table, fd, result + total, (size_t)(1024 - total));
+            if (r <= 0) break;
+            total += r;
+        }
+        result[total] = '\0';
+        return result;
+    }
+
+    return NULL;
 }
 
 int fd_open_file(fd_table_t *table, const char *filename, int flags) {

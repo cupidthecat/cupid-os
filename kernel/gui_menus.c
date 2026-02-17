@@ -12,7 +12,6 @@
 #include "string.h"
 #include "../drivers/vga.h"
 
-/* ── Constants ────────────────────────────────────────────────────── */
 #define MENUBAR_H        20
 #define MENU_ITEM_W_MIN 120
 #define MENU_ITEM_H      20
@@ -34,9 +33,7 @@ void gui_menus_init(void) {
     /* Nothing to initialize */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Menu Bar
- * ══════════════════════════════════════════════════════════════════════ */
+/* Menu Bar */
 
 int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                     ui_menubar_state_t *state, int16_t mx, int16_t my,
@@ -196,9 +193,7 @@ ui_rect_t ui_menubar_content_rect(ui_rect_t window, int menubar_height) {
                    (uint16_t)((int)window.h - menubar_height));
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Context Menu
- * ══════════════════════════════════════════════════════════════════════ */
+/* Context Menu */
 
 void ui_context_menu_show(ui_context_menu_state_t *state,
                           int16_t x, int16_t y) {
@@ -318,9 +313,7 @@ void ui_context_menu_handle_input(ui_context_menu_state_t *state,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Toolbar
- * ══════════════════════════════════════════════════════════════════════ */
+/* Toolbar */
 
 int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
                     ui_toolbar_state_t *state, int16_t mx, int16_t my,
@@ -459,9 +452,7 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Status Bar
- * ══════════════════════════════════════════════════════════════════════ */
+/* Status Bar */
 
 void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
                        int count) {
@@ -521,9 +512,7 @@ void ui_draw_statusbar_simple(ui_rect_t r, const char *text) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Tooltip
- * ══════════════════════════════════════════════════════════════════════ */
+/* Tooltip */
 
 void ui_tooltip_update(ui_tooltip_state_t *state, const char *text,
                        int16_t mx, int16_t my, uint32_t tick) {
@@ -565,9 +554,7 @@ void ui_draw_tooltip(ui_tooltip_state_t *state) {
                state->text, COLOR_TEXT, GFX2D_FONT_NORMAL);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Keyboard Shortcuts
- * ══════════════════════════════════════════════════════════════════════ */
+/* Keyboard Shortcuts */
 
 int ui_shortcuts_handle(ui_shortcut_t *shortcuts, int count,
                         uint8_t scancode, bool ctrl, bool alt, bool shift) {

@@ -13,9 +13,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/vga.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Little-endian helpers (x86 is LE-native, but be explicit)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Little-endian helpers (x86 is LE-native, but be explicit) */
 
 static uint16_t read_le16(const uint8_t *p)
 {
@@ -72,9 +70,7 @@ static int bmp_write_exact(int fd, const void *buffer, uint32_t count)
     return BMP_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Internal: parse and validate BMP headers from a file descriptor
- * ══════════════════════════════════════════════════════════════════════ */
+/* Internal: parse and validate BMP headers from a file descriptor */
 
 /**
  * Read and validate BMP file header + DIB header.
@@ -157,9 +153,7 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
     return BMP_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  bmp_get_info — read BMP dimensions without loading pixel data
- * ══════════════════════════════════════════════════════════════════════ */
+/* bmp_get_info - read BMP dimensions without loading pixel data */
 
 int bmp_get_info(const char *path, bmp_info_t *info)
 {
@@ -178,9 +172,7 @@ int bmp_get_info(const char *path, bmp_info_t *info)
     return rc;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  bmp_decode — decode BMP to 32bpp XRGB buffer
- * ══════════════════════════════════════════════════════════════════════ */
+/* bmp_decode - decode BMP to 32bpp XRGB buffer */
 
 int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
 {
@@ -263,9 +255,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
     return BMP_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  bmp_encode — encode 32bpp XRGB buffer as 24-bit BMP
- * ══════════════════════════════════════════════════════════════════════ */
+/* bmp_encode - encode 32bpp XRGB buffer as 24-bit BMP */
 
 int bmp_encode(const char *path, const uint32_t *buffer,
                uint32_t width, uint32_t height)
@@ -287,7 +277,7 @@ int bmp_encode(const char *path, const uint32_t *buffer,
         return BMP_EIO;
     }
 
-    /* ── Write 14-byte file header ─────────────────────────────── */
+    /* Write 14-byte file header */
     uint8_t hdr[BMP_HEADER_SIZE];
     memset(hdr, 0, BMP_HEADER_SIZE);
 
@@ -304,7 +294,7 @@ int bmp_encode(const char *path, const uint32_t *buffer,
         return BMP_EIO;
     }
 
-    /* ── Write 40-byte DIB header (BITMAPINFOHEADER) ───────────── */
+    /* Write 40-byte DIB header (BITMAPINFOHEADER) */
     uint8_t dib[BMP_DIB_HDR_SIZE];
     memset(dib, 0, BMP_DIB_HDR_SIZE);
 
@@ -323,7 +313,7 @@ int bmp_encode(const char *path, const uint32_t *buffer,
         return BMP_EIO;
     }
 
-    /* ── Write pixel data (bottom-to-top scanlines) ────────────── */
+    /* Write pixel data (bottom-to-top scanlines) */
 
     /* Allocate temp buffer for one row */
     uint8_t *row_buf = (uint8_t *)kmalloc(row_bytes);
@@ -370,9 +360,7 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     return BMP_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  bmp_decode_to_fb — decode BMP directly to VGA framebuffer
- * ══════════════════════════════════════════════════════════════════════ */
+/* bmp_decode_to_fb - decode BMP directly to VGA framebuffer */
 
 int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
 {

@@ -1,5 +1,5 @@
 /**
- * cupidc_runtime.c — Dynamic data structures for CupidC programs
+ * cupidc_runtime.c - Dynamic data structures for CupidC programs
  *
  * Implements Array and HashTable for CupidC shell and other programs.
  */
@@ -8,9 +8,7 @@
 #include "memory.h"
 #include "string.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Dynamic Array
- * ══════════════════════════════════════════════════════════════════════ */
+/* Dynamic Array */
 
 #define ARRAY_INITIAL_CAP 8
 
@@ -82,9 +80,7 @@ void cc_array_free(cc_array_t *arr) {
   kfree(arr);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Hash Table (string -> string)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Hash Table (string -> string) */
 
 /* DJB2 hash function */
 static uint32_t hash_djb2(const char *key, int bucket_count) {

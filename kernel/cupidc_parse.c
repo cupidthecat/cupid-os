@@ -1,5 +1,5 @@
 /**
- * cupidc_parse.c — Parser and x86 code generator for CupidC
+ * cupidc_parse.c - Parser and x86 code generator for CupidC
  *
  * Single-pass recursive descent parser that emits x86 machine code
  * directly into a code buffer.  Implements the full CupidC language:
@@ -17,9 +17,7 @@
 #include "kernel.h"
 #include "string.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  x86 Machine Code Emission Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* x86 Machine Code Emission Helpers */
 
 /* Emit a single byte */
 static void emit8(cc_state_t *cc, uint8_t b) {
@@ -52,8 +50,6 @@ static void patch32(cc_state_t *cc, uint32_t offset, uint32_t value) {
 static uint32_t cc_code_addr(cc_state_t *cc) {
   return cc->code_base + cc->code_pos;
 }
-
-/* ── x86 instruction emitters ────────────────────────────────────── */
 
 /* mov eax, imm32 */
 static void emit_mov_eax_imm(cc_state_t *cc, uint32_t val) {
@@ -98,7 +94,7 @@ static void emit_call_abs(cc_state_t *cc, uint32_t addr) {
   emit32(cc, (uint32_t)rel);
 }
 
-/* call relative (placeholder — returns offset of the rel32 for patching) */
+/* call relative (placeholder - returns offset of the rel32 for patching) */
 static uint32_t emit_call_rel_placeholder(cc_state_t *cc) {
   emit8(cc, 0xE8);
   uint32_t patch_pos = cc->code_pos;
@@ -106,7 +102,7 @@ static uint32_t emit_call_rel_placeholder(cc_state_t *cc) {
   return patch_pos;
 }
 
-/* jmp rel32 (unconditional) — returns offset for patching */
+/* jmp rel32 (unconditional) - returns offset for patching */
 static uint32_t emit_jmp_placeholder(cc_state_t *cc) {
   emit8(cc, 0xE9);
   uint32_t patch_pos = cc->code_pos;
@@ -114,7 +110,7 @@ static uint32_t emit_jmp_placeholder(cc_state_t *cc) {
   return patch_pos;
 }
 
-/* jcc rel32 (conditional jump) — returns offset for patching */
+/* jcc rel32 (conditional jump) - returns offset for patching */
 static uint32_t emit_jcc_placeholder(cc_state_t *cc, uint8_t cond) {
   emit8(cc, 0x0F);
   emit8(cc, cond);
@@ -216,9 +212,7 @@ static void emit_lea_local(cc_state_t *cc, int32_t offset) {
   emit32(cc, (uint32_t)offset);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Error Handling
- * ══════════════════════════════════════════════════════════════════════ */
+/* Error Handling */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
   if (cc->error)
@@ -273,9 +267,7 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Token Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Token Helpers */
 
 static cc_token_t cc_next(cc_state_t *cc) { return cc_lex_next(cc); }
 
@@ -298,7 +290,6 @@ static int cc_match(cc_state_t *cc, cc_token_type_t type) {
   return 0;
 }
 
-/* ── Check if token is a type keyword ────────────────────────────── */
 static int cc_is_type(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
          t == CC_TOK_U0 || t == CC_TOK_U8 || t == CC_TOK_U16 ||
@@ -309,7 +300,6 @@ static int cc_is_type(cc_token_type_t t) {
          t == CC_TOK_NOREG;
 }
 
-/* ── Find typedef alias, returns type or -1 if not found ─────────── */
 static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
   int i;
   for (i = 0; i < cc->typedef_count; i++) {
@@ -335,7 +325,6 @@ static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
-/* ── Struct lookup helper ───────────────────────────────────────────── */
 static int cc_find_struct(cc_state_t *cc, const char *name) {
   for (int i = 0; i < cc->struct_count; i++) {
     if (strcmp(cc->structs[i].name, name) == 0)
@@ -401,7 +390,6 @@ static void cc_make_method_symbol(char *out, const char *class_name,
   out[j] = '\0';
 }
 
-/* ── Parse a type specifier, returns cc_type_t ───────────────────── */
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
@@ -638,9 +626,7 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
   return cc_type_size(cc, type, struct_index);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Symbol Table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Symbol Table */
 
 void cc_sym_init(cc_state_t *cc) { cc->sym_count = 0; }
 
@@ -673,9 +659,7 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   return sym;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Forward Declarations for Parser
- * ══════════════════════════════════════════════════════════════════════ */
+/* Forward Declarations for Parser */
 
 static void cc_parse_statement(cc_state_t *cc);
 static void cc_parse_block(cc_state_t *cc);
@@ -794,16 +778,12 @@ static void cc_prescan_functions(cc_state_t *cc) {
   cc->cur = saved_cur;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Expression Types for Tracking
- * ══════════════════════════════════════════════════════════════════════ */
+/* Expression Types for Tracking */
 
-/* Track what kind of value the last expression produced —
+/* Track what kind of value the last expression produced -
  * (primary statics declared above, before cc_parse_type) */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Operator Precedence
- * ══════════════════════════════════════════════════════════════════════ */
+/* Operator Precedence */
 
 static int cc_precedence(cc_token_type_t op) {
   switch (op) {
@@ -842,9 +822,7 @@ static int cc_precedence(cc_token_type_t op) {
 
 static int cc_is_binary_op(cc_token_type_t t) { return cc_precedence(t) > 0; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Expression Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Expression Parsing */
 
 /* Emit binary operation: EBX = left, EAX = right → result in EAX */
 static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
@@ -1009,7 +987,6 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   }
 }
 
-/* ── Parse variable reference or function call ───────────────────── */
 static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
@@ -1110,7 +1087,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           uint32_t target = cc->code_base + (uint32_t)sym->offset;
           emit_call_abs(cc, target);
         } else {
-          /* Forward reference — add patch */
+          /* Forward reference - add patch */
           uint32_t patch_pos = emit_call_rel_placeholder(cc);
           if (cc->patch_count < CC_MAX_PATCHES) {
             cc_patch_t *p = &cc->patches[cc->patch_count++];
@@ -1140,7 +1117,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         cc_error(cc, "not a function");
       }
     } else {
-      /* Unknown function — create forward ref */
+      /* Unknown function - create forward ref */
       cc_symbol_t *fsym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
       if (fsym) {
         fsym->param_count = argc;
@@ -1227,7 +1204,6 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
   }
 }
 
-/* ── Primary expression ──────────────────────────────────────────── */
 static void cc_parse_primary(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -1566,7 +1542,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       return;
     cc_token_t next = cc_peek(cc);
 
-    /* ── Struct member access: expr.field or expr->field ────── */
+    /* Struct member access: expr.field or expr->field */
     if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
       postfix_lvalue_valid = 0;
       cc_next(cc); /* consume . or -> */
@@ -1831,7 +1807,6 @@ static void cc_parse_primary(cc_state_t *cc) {
   }
 }
 
-/* ── Expression with precedence climbing ─────────────────────────── */
 static void cc_parse_expression(cc_state_t *cc, int min_prec) {
   if (cc->error)
     return;
@@ -1853,7 +1828,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
   }
 
-  /* ── Ternary operator ?: (lowest precedence, below || which is 1) ── */
+  /* Ternary operator ?: (lowest precedence, below || which is 1) */
   if (!cc->error && min_prec <= 1) {
     cc_token_t maybe_q = cc_peek(cc);
     if (maybe_q.type == CC_TOK_QUESTION) {
@@ -1891,9 +1866,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Assignment Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Assignment Parsing */
 
 static int cc_is_assignment_op(cc_token_type_t t) {
   return t == CC_TOK_EQ || t == CC_TOK_PLUSEQ || t == CC_TOK_MINUSEQ ||
@@ -2163,7 +2136,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    /* Inner elements are char (1 byte) — no scaling */
+    /* Inner elements are char (1 byte) - no scaling */
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
@@ -2197,7 +2170,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
   if (assign_op.type != CC_TOK_EQ) {
     /* Compound assignment: load current value from [address] first */
-    /* address is on the stack — peek at it */
+    /* address is on the stack - peek at it */
     emit8(cc, 0x8B);
     emit8(cc, 0x04);
     emit8(cc, 0x24); /* mov eax, [esp] */
@@ -2229,9 +2202,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Inline Assembly Parser
- * ══════════════════════════════════════════════════════════════════════ */
+/* Inline Assembly Parser */
 
 /* Parse a register name, returns register number (0-7) or -1 */
 static int cc_parse_reg(const char *text) {
@@ -2439,7 +2410,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
       emit8(cc, 0xEC);
 
     } else {
-      /* Unknown instruction — skip to semicolon */
+      /* Unknown instruction - skip to semicolon */
       cc_error(cc, "unknown assembly instruction");
     }
 
@@ -2450,9 +2421,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_RBRACE);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Statement Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Statement Parsing */
 
 static int cc_skip_brace_initializer(cc_state_t *cc) {
   if (!cc_match(cc, CC_TOK_LBRACE)) {
@@ -2597,7 +2566,6 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
   cc_expect(cc, CC_TOK_SEMICOLON);
 }
 
-/* ── Variable declaration ────────────────────────────────────────── */
 static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
   cc_token_t name_tok = cc_next(cc);
@@ -2703,7 +2671,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     emit_push_eax(cc);
     emit_push_imm(cc, 0);
     emit_push_imm(cc, (uint32_t)alloc_size);
-    /* Call memset(addr, 0, size) — push in reverse for cdecl */
+    /* Call memset(addr, 0, size) - push in reverse for cdecl */
     /* Actually we need: memset(ptr, val, size) with ptr first */
     /* Re-order: push size, push 0, push addr */
     emit_add_esp(cc, 12); /* undo the pushes */
@@ -2751,7 +2719,6 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   cc_expect(cc, CC_TOK_SEMICOLON);
 }
 
-/* ── If statement ────────────────────────────────────────────────── */
 static void cc_parse_if(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
@@ -2774,7 +2741,6 @@ static void cc_parse_if(cc_state_t *cc) {
   }
 }
 
-/* ── While loop ──────────────────────────────────────────────────── */
 static void cc_parse_while(cc_state_t *cc) {
   uint32_t loop_start = cc->code_pos;
 
@@ -2812,7 +2778,6 @@ static void cc_parse_while(cc_state_t *cc) {
   cc->loop_depth = old_depth;
 }
 
-/* ── For loop ────────────────────────────────────────────────────── */
 static void cc_parse_for(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
 
@@ -2854,7 +2819,7 @@ static void cc_parse_for(cc_state_t *cc) {
   }
   cc_expect(cc, CC_TOK_SEMICOLON);
 
-  /* Save increment expression position — we'll emit a jmp over it */
+  /* Save increment expression position - we'll emit a jmp over it */
   uint32_t inc_jump = emit_jmp_placeholder(cc);
   uint32_t inc_start = cc->code_pos;
 
@@ -2943,7 +2908,6 @@ static void cc_parse_for(cc_state_t *cc) {
   cc->loop_depth = old_depth;
 }
 
-/* ── Return statement ────────────────────────────────────────────── */
 static void cc_parse_return(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
     cc_parse_expression(cc, 1);
@@ -2954,7 +2918,6 @@ static void cc_parse_return(cc_state_t *cc) {
   emit_epilogue(cc);
 }
 
-/* ── Statement dispatch ──────────────────────────────────────────── */
 static void cc_parse_statement(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -3117,7 +3080,7 @@ static void cc_parse_statement(cc_state_t *cc) {
         emit8(cc, 0x8B);
         emit8(cc, 0x04);
         emit8(cc, 0x24);
-        /* mov eax, [esp] — reload switch val */
+        /* mov eax, [esp] - reload switch val */
         cc_token_t cval = cc_next(cc);
         if (cval.type == CC_TOK_NUMBER || cval.type == CC_TOK_CHAR_LIT) {
           emit8(cc, 0x3D); /* cmp eax, imm32 */
@@ -3488,15 +3451,15 @@ static void cc_parse_statement(cc_state_t *cc) {
           ftype = (fld->type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_PTR;
           break;
         } else {
-          /* Leaf field — next should be = */
+          /* Leaf field - next should be = */
           break;
         }
       }
       /* Expect assignment operator */
       cc_token_t assign_op = cc_peek(cc);
       if (!cc_is_assignment_op(assign_op.type)) {
-        /* Not an assignment — this is an expression statement */
-        /* (e.g., s.func_ptr(args);) — dereference and discard */
+        /* Not an assignment - this is an expression statement */
+        /* (e.g., s.func_ptr(args);) - dereference and discard */
         if (ftype == TYPE_CHAR)
           emit_deref_byte(cc);
         else if (ftype != TYPE_STRUCT)
@@ -3594,7 +3557,6 @@ static void cc_parse_statement(cc_state_t *cc) {
   }
 }
 
-/* ── Block (compound statement) ──────────────────────────────────── */
 static void cc_parse_block(cc_state_t *cc) {
   int saved_scope = cc->sym_count;
   int saved_offset = cc->local_offset;
@@ -3611,9 +3573,7 @@ static void cc_parse_block(cc_state_t *cc) {
   cc->local_offset = saved_offset;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Function Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Function Parsing */
 
 static void cc_parse_function(cc_state_t *cc) {
   cc_type_t ret_type = cc_parse_type(cc);
@@ -3714,7 +3674,7 @@ static void cc_parse_function(cc_state_t *cc) {
 
   /* Reserve space for locals (we'll patch this after parsing the body) */
   uint32_t sub_esp_pos = cc->code_pos;
-  emit_sub_esp(cc, 256); /* placeholder — generous allocation */
+  emit_sub_esp(cc, 256); /* placeholder - generous allocation */
 
   /* Parse body */
   cc_expect(cc, CC_TOK_LBRACE);
@@ -3880,9 +3840,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Top-Level Program Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+/* Top-Level Program Parsing */
 
 void cc_parse_program(cc_state_t *cc) {
   cc->struct_count = 0;
@@ -3903,10 +3861,10 @@ void cc_parse_program(cc_state_t *cc) {
       tok = cc_peek(cc);
     }
 
-    /* ── Enum definition: enum { A, B = 5, C }; ─────────────── */
+    /* Enum definition: enum { A, B = 5, C }; */
     if (tok.type == CC_TOK_ENUM) {
       cc_next(cc); /* consume 'enum' */
-      /* Optional enum name (ignored — we just create constants) */
+      /* Optional enum name (ignored - we just create constants) */
       if (cc_peek(cc).type == CC_TOK_IDENT) {
         cc_next(cc); /* consume optional name */
       }
@@ -3956,7 +3914,7 @@ void cc_parse_program(cc_state_t *cc) {
       continue;
     }
 
-    /* ── Typedef: typedef <type> <alias>; ────────────────────── */
+    /* Typedef: typedef <type> <alias>; */
     if (tok.type == CC_TOK_TYPEDEF) {
       cc_next(cc); /* consume 'typedef' */
       cc_type_t td_type = cc_parse_type(cc);
@@ -3979,7 +3937,7 @@ void cc_parse_program(cc_state_t *cc) {
       continue;
     }
 
-    /* ── Class definition: class Name { fields... methods... }; ─── */
+    /* Class definition: class Name { fields... methods... }; */
     if (tok.type == CC_TOK_CLASS) {
       cc_next(cc); /* consume 'class' */
       cc_token_t name_tok = cc_next(cc);
@@ -4121,7 +4079,7 @@ void cc_parse_program(cc_state_t *cc) {
       continue;
     }
 
-    /* ── Struct definition: struct Name { fields... }; ────────── */
+    /* Struct definition: struct Name { fields... }; */
     if (tok.type == CC_TOK_STRUCT) {
       /* Peek further: struct Name { → definition, struct Name var → decl */
       int saved_pos = cc->pos;
@@ -4250,7 +4208,7 @@ void cc_parse_program(cc_state_t *cc) {
         continue;
       }
       /* Otherwise fall through: struct Name used as a type for
-       * a function return or global variable — handled below */
+       * a function return or global variable - handled below */
     }
 
     if (cc_is_type_or_typedef(cc, tok)) {

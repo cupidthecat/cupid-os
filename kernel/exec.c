@@ -1,9 +1,9 @@
 /**
- * exec.c — Program loader for CupidOS
+ * exec.c - Program loader for CupidOS
  *
  * Supports two binary formats:
- *   1. ELF32 — Standard i386 ELF executables (compiled with GCC/Clang)
- *   2. CUPD  — CupidOS flat binary format (20-byte header + code + data)
+ *   1. ELF32 - Standard i386 ELF executables (compiled with GCC/Clang)
+ *   2. CUPD  - CupidOS flat binary format (20-byte header + code + data)
  *
  * Format detection is automatic: the first 4 bytes determine which
  * loader is used.  ELF programs receive a pointer to the kernel
@@ -25,12 +25,10 @@
 /* Maximum number of ELF program headers we support */
 #define ELF_MAX_PHDRS 16
 
-/* ══════════════════════════════════════════════════════════════════════
- *  ELF32 Loader
- * ══════════════════════════════════════════════════════════════════════ */
+/* ELF32 Loader */
 
 /**
- * elf_validate_header — Check that an ELF header is valid for CupidOS.
+ * elf_validate_header - Check that an ELF header is valid for CupidOS.
  * Returns 0 on success, VFS_EINVAL on failure.
  */
 static int elf_validate_header(const elf32_ehdr_t *hdr) {
@@ -170,7 +168,7 @@ int elf_exec(const char *path, const char *proc_name) {
      * (Kernel occupies 0x10000-~0x37000; user programs must be above that.) */
     if (min_vaddr < 0x00400000) {
         vfs_close(fd);
-        serial_printf("[elf] Load address too low (0x%x) in %s — "
+        serial_printf("[elf] Load address too low (0x%x) in %s - "
                       "relink with -Ttext=0x00400000\n",
                       min_vaddr, path);
         return VFS_EINVAL;
@@ -222,7 +220,7 @@ int elf_exec(const char *path, const char *proc_name) {
 
     vfs_close(fd);
 
-    /* The entry point is the ELF's e_entry — since we loaded at the
+    /* The entry point is the ELF's e_entry - since we loaded at the
      * exact virtual addresses the ELF expects, we use it directly. */
     uint32_t entry_addr = ehdr.e_entry;
 
@@ -260,9 +258,7 @@ int elf_exec(const char *path, const char *proc_name) {
     return (int)pid;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  CUPD Flat Binary Loader (original format)
- * ══════════════════════════════════════════════════════════════════════ */
+/* CUPD Flat Binary Loader (original format) */
 
 int cupd_exec(const char *path, const char *proc_name) {
     if (!path) return VFS_EINVAL;
@@ -361,9 +357,7 @@ int cupd_exec(const char *path, const char *proc_name) {
     return (int)pid;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  exec() — Auto-detecting loader (ELF or CUPD)
- * ══════════════════════════════════════════════════════════════════════ */
+/* exec() - Auto-detecting loader (ELF or CUPD) */
 
 int exec(const char *path, const char *name) {
     if (!path) return VFS_EINVAL;

@@ -12,9 +12,7 @@
 #include "math.h"
 #include "../drivers/serial.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Initialize job table
- * ══════════════════════════════════════════════════════════════════════ */
+/* Initialize job table */
 void job_table_init(job_table_t *table) {
     memset(table, 0, sizeof(job_table_t));
     table->job_count = 0;
@@ -22,9 +20,7 @@ void job_table_init(job_table_t *table) {
     table->last_bg_pid = 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Add a new running job
- * ══════════════════════════════════════════════════════════════════════ */
+/* Add a new running job */
 int job_add(job_table_t *table, uint32_t pid, const char *command) {
     if (table->job_count >= MAX_JOBS) {
         KERROR("CupidScript: too many jobs (max %d)", MAX_JOBS);
@@ -54,9 +50,7 @@ int job_add(job_table_t *table, uint32_t pid, const char *command) {
     return job->job_id;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Check for completed jobs
- * ══════════════════════════════════════════════════════════════════════ */
+/* Check for completed jobs */
 void job_check_completed(job_table_t *table,
                          void (*print_fn)(const char *)) {
     for (int i = 0; i < table->job_count; i++) {
@@ -110,9 +104,7 @@ void job_check_completed(job_table_t *table,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  List all active jobs
- * ══════════════════════════════════════════════════════════════════════ */
+/* List all active jobs */
 void job_list(job_table_t *table, bool show_pids,
               void (*print_fn)(const char *)) {
     if (!print_fn) return;
@@ -177,9 +169,7 @@ void job_list(job_table_t *table, bool show_pids,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Find job by ID or PID
- * ══════════════════════════════════════════════════════════════════════ */
+/* Find job by ID or PID */
 
 job_t *job_find_by_id(job_table_t *table, int job_id) {
     for (int i = 0; i < table->job_count; i++) {
@@ -199,9 +189,7 @@ job_t *job_find_by_pid(job_table_t *table, uint32_t pid) {
     return NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Parse job spec: %1 → 1, %2 → 2, etc.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Parse job spec: %1 → 1, %2 → 2, etc. */
 int job_parse_spec(const char *spec) {
     if (!spec || spec[0] != '%') return -1;
 

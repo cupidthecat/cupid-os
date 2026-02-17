@@ -10,7 +10,6 @@
 
 #include "types.h"
 
-/* ── Limits ───────────────────────────────────────────────────────── */
 #define GFX2D_MAX_ICONS       32
 #define GFX2D_ICON_SIZE       32   /* 32x32 pixel icons */
 #define GFX2D_ICON_GRID_SIZE  60   /* Grid snap spacing */
@@ -18,13 +17,11 @@
 #define GFX2D_ICON_DESC_MAX   64
 #define GFX2D_ICON_PATH_MAX   128
 
-/* ── Icon types ───────────────────────────────────────────────────── */
 #define ICON_TYPE_APP         0
 #define ICON_TYPE_FOLDER      1
 #define ICON_TYPE_FILE        2
 #define ICON_TYPE_CUSTOM      3
 
-/* ── Icon info (parsed from //icon: directives) ──────────────────── */
 typedef struct {
     char     label[GFX2D_ICON_LABEL_MAX];
     char     description[GFX2D_ICON_DESC_MAX];
@@ -34,7 +31,6 @@ typedef struct {
     uint32_t color;
 } icon_info_t;
 
-/* ── Desktop icon descriptor ─────────────────────────────────────── */
 typedef struct {
     char     label[GFX2D_ICON_LABEL_MAX];
     char     description[GFX2D_ICON_DESC_MAX];
@@ -48,8 +44,6 @@ typedef struct {
     int      selected;
     int      enabled;
 } gfx2d_icon_t;
-
-/* ── Icon Management API ─────────────────────────────────────────── */
 
 /** Initialize the icon system */
 void gfx2d_icons_init(void);
@@ -91,6 +85,15 @@ const char *gfx2d_icon_get_label(int handle);
 /** Get icon program path */
 const char *gfx2d_icon_get_path(int handle);
 
+/** Get icon description */
+const char *gfx2d_icon_get_desc(int handle);
+
+/** Get icon X position */
+int gfx2d_icon_get_x(int handle);
+
+/** Get icon Y position */
+int gfx2d_icon_get_y(int handle);
+
 /** Select an icon (deselects others) */
 void gfx2d_icon_select(int handle);
 
@@ -118,8 +121,6 @@ void gfx2d_icon_unregister(int handle);
 /** Get total number of registered icons */
 int gfx2d_icon_count(void);
 
-/* ── Icon Scanning / Directive Parsing ───────────────────────────── */
-
 /** Scan /bin for .cc files with //icon: directives and register them */
 void gfx2d_icons_scan_bin(void);
 
@@ -127,13 +128,12 @@ void gfx2d_icons_scan_bin(void);
  *  Returns 1 if //icon: was found, 0 otherwise. */
 int gfx2d_icons_parse_directives(const char *path, icon_info_t *info);
 
-/* ── Default Icon Drawing ────────────────────────────────────────── */
-
 void gfx2d_draw_icon_app(int x, int y, uint32_t color);
 void gfx2d_draw_icon_folder(int x, int y, uint32_t color);
 void gfx2d_draw_icon_file(int x, int y, uint32_t color);
 void gfx2d_draw_icon_default(int x, int y, int type, uint32_t color);
 void gfx2d_draw_icon_terminal(int x, int y, uint32_t color);
 void gfx2d_draw_icon_notepad(int x, int y, uint32_t color);
+void gfx2d_icon_draw_named(const char *label, int x, int y, uint32_t color);
 
 #endif /* GFX2D_ICONS_H */

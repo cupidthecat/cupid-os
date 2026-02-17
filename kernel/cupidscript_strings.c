@@ -20,7 +20,6 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── helper: simple pattern match (supports * wildcard at end) ────── */
 static bool simple_match(const char *pattern, const char *str, int str_len) {
     int pi = 0, si = 0;
     int plen = 0;
@@ -58,9 +57,7 @@ static bool simple_match(const char *pattern, const char *str, int str_len) {
     return pi == plen && si == str_len;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String length: ${#var}
- * ══════════════════════════════════════════════════════════════════════ */
+/* String length: ${#var} */
 char *cs_string_length(const char *value) {
     char *result = kmalloc(16);
     if (!result) return NULL;
@@ -89,9 +86,7 @@ char *cs_string_length(const char *value) {
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Substring: ${var:start:len}
- * ══════════════════════════════════════════════════════════════════════ */
+/* Substring: ${var:start:len} */
 char *cs_string_substring(const char *value, int start, int len) {
     int vlen = 0;
     while (value[vlen]) vlen++;
@@ -122,9 +117,7 @@ char *cs_string_substring(const char *value, int start, int len) {
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Suffix removal: ${var%pattern} (shortest) / ${var%%pattern} (longest)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Suffix removal: ${var%pattern} (shortest) / ${var%%pattern} (longest) */
 char *cs_string_remove_suffix(const char *value, const char *pattern,
                                bool longest) {
     int vlen = 0;
@@ -168,9 +161,7 @@ char *cs_string_remove_suffix(const char *value, const char *pattern,
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Prefix removal: ${var#pattern} (shortest) / ${var##pattern} (longest)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Prefix removal: ${var#pattern} (shortest) / ${var##pattern} (longest) */
 char *cs_string_remove_prefix(const char *value, const char *pattern,
                                bool longest) {
     int vlen = 0;
@@ -213,9 +204,7 @@ char *cs_string_remove_prefix(const char *value, const char *pattern,
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String replacement: ${var/old/new} or ${var//old/new}
- * ══════════════════════════════════════════════════════════════════════ */
+/* String replacement: ${var/old/new} or ${var//old/new} */
 char *cs_string_replace(const char *value, const char *pattern,
                          const char *replacement, bool replace_all) {
     int vlen = 0;
@@ -270,9 +259,7 @@ char *cs_string_replace(const char *value, const char *pattern,
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Case conversion: ${var^^} / ${var,,} / ${var^}
- * ══════════════════════════════════════════════════════════════════════ */
+/* Case conversion: ${var^^} / ${var,,} / ${var^} */
 char *cs_string_toupper(const char *value) {
     int len = 0;
     while (value[len]) len++;
@@ -325,17 +312,15 @@ char *cs_string_capitalize(const char *value) {
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Main advanced variable expansion entry point
- *
- *  Called from cupidscript_runtime.c when ${...} is detected.
- *  `expr` points to the content after "${" (before closing "}").
- * ══════════════════════════════════════════════════════════════════════ */
+/* Main advanced variable expansion entry point
+ * Called from cupidscript_runtime.c when ${...} is detected.
+ * `expr` points to the content after "${" (before closing "}").
+ */
 char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     int elen = 0;
     while (expr[elen] && expr[elen] != '}') elen++;
 
-    /* ── ${#var} — string length ───────────────────────────────── */
+    /* ${#var} - string length */
     if (expr[0] == '#') {
         char varname[MAX_VAR_NAME];
         int i = 0;
@@ -365,7 +350,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     const char *value = cupidscript_get_variable(ctx, varname);
     if (!value) value = "";
 
-    /* No operator — just return the variable value */
+    /* No operator - just return the variable value */
     if (pos >= elen) {
         int vlen = 0;
         while (value[vlen]) vlen++;
@@ -376,7 +361,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
 
     char op = expr[pos];
 
-    /* ── ${var:start:len} — substring ──────────────────────────── */
+    /* ${var:start:len} - substring */
     if (op == ':') {
         pos++;  /* skip : */
         /* Parse start */
@@ -404,7 +389,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         return cs_string_substring(value, start, len);
     }
 
-    /* ── ${var%pattern} / ${var%%pattern} — suffix removal ─────── */
+    /* ${var%pattern} / ${var%%pattern} - suffix removal */
     if (op == '%') {
         pos++;
         bool longest = false;
@@ -421,7 +406,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         return cs_string_remove_suffix(value, pattern, longest);
     }
 
-    /* ── ${var#pattern} / ${var##pattern} — prefix removal ─────── */
+    /* ${var#pattern} / ${var##pattern} - prefix removal */
     if (op == '#') {
         pos++;
         bool longest = false;
@@ -438,7 +423,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         return cs_string_remove_prefix(value, pattern, longest);
     }
 
-    /* ── ${var/old/new} / ${var//old/new} — replacement ────────── */
+    /* ${var/old/new} / ${var//old/new} - replacement */
     if (op == '/') {
         pos++;
         bool replace_all = false;
@@ -468,7 +453,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         return cs_string_replace(value, old_pat, new_pat, replace_all);
     }
 
-    /* ── ${var^^} / ${var,,} / ${var^} — case conversion ───────── */
+    /* ${var^^} / ${var,,} / ${var^} - case conversion */
     if (op == '^') {
         pos++;
         if (pos < elen && expr[pos] == '^') {
@@ -482,7 +467,7 @@ char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
         if (pos < elen && expr[pos] == ',') {
             return cs_string_tolower(value);
         }
-        /* Single , — lowercase first char */
+        /* Single , - lowercase first char */
         int vlen = 0;
         while (value[vlen]) vlen++;
         char *r = kmalloc((size_t)vlen + 1);

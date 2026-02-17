@@ -1,5 +1,5 @@
 /**
- * cupidc.c — CupidC compiler driver for CupidOS
+ * cupidc.c - CupidC compiler driver for CupidOS
  *
  * Provides the main entry points for JIT and AOT compilation:
  *   - cupidc_jit(): Compile and execute a .cc file immediately
@@ -18,6 +18,7 @@
 #include "blockcache.h"
 #include "bmp.h"
 #include "calendar.h"
+#include "desktop.h"
 #include "ed.h"
 #include "exec.h"
 #include "fat16.h"
@@ -35,12 +36,11 @@
 #include "vfs.h"
 #include "vfs_helpers.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Port I/O wrappers for CupidC kernel bindings
- *
- *  The compiler binds calls to outb()/inb() to these wrappers which
- *  match cdecl calling convention with 32-bit args on the stack.
+/* Port I/O wrappers for CupidC kernel bindings
+ * The compiler binds calls to outb()/inb() to these wrappers which
+ * match cdecl calling convention with 32-bit args on the stack.
  * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
@@ -48,7 +48,6 @@ static void cc_outb(uint32_t port, uint32_t value) {
 
 static uint32_t cc_inb(uint32_t port) { return (uint32_t)inb((uint16_t)port); }
 
-/* ── Print a newline ─────────────────────────────────────────────── */
 static void cc_println(const char *s) {
   print(s);
   print("\n");
@@ -211,10 +210,8 @@ static void cc_printline_builtin(const char *fmt, ...) {
   print("\n");
 }
 
-/* ── Wrapper for process_yield ───────────────────────────────────── */
 static void cc_yield(void) { process_yield(); }
 
-/* ── Wrapper for process_exit ────────────────────────────────────── */
 static void cc_exit(void) { process_exit(); }
 
 /* Open a file in GUI notepad from CupidC apps. */
@@ -224,7 +221,6 @@ static void cc_notepad_open_file(const char *path) {
   notepad_launch_with_file(path, path);
 }
 
-/* ── Test counting process for spawn command ─────────────────────── */
 static void cc_test_counting_process(void) {
   uint32_t pid = process_get_current_pid();
   for (int i = 0; i < 10; i++) {
@@ -233,7 +229,6 @@ static void cc_test_counting_process(void) {
   }
 }
 
-/* ── Spawn N test processes, return count actually spawned ────────── */
 static uint32_t cc_spawn_test(uint32_t count) {
   if (count > 16)
     count = 16;
@@ -251,7 +246,6 @@ static uint32_t cc_spawn_test(uint32_t count) {
   return spawned;
 }
 
-/* ── RTC accessors (CupidC can't access struct fields) ───────────── */
 static int cc_rtc_hour(void) {
   rtc_time_t t;
   rtc_read_time(&t);
@@ -324,7 +318,6 @@ static const char *cc_time_short_string(void) {
   return cc_time_short_buf;
 }
 
-/* ── Mount info accessors (CupidC can't access struct fields) ────── */
 static const char *cc_mount_name(int index) {
   const vfs_mount_t *m = vfs_get_mount(index);
   if (m && m->mounted && m->ops)
@@ -339,8 +332,6 @@ static const char *cc_mount_path(int index) {
   return NULL;
 }
 
-/* ── Debug/System wrappers for CupidC ────────────────────────────── */
-
 /* CupidC can't do inline asm, so we provide a wrapper that captures
  * the current EBP/EIP and calls print_stack_trace(). */
 static void cc_dump_stack_trace(void) {
@@ -350,7 +341,7 @@ static void cc_dump_stack_trace(void) {
   print_stack_trace(ebp, eip);
 }
 
-/* CupidC can't do inline asm — capture and print all CPU registers */
+/* CupidC can't do inline asm - capture and print all CPU registers */
 static void cc_dump_registers(void) {
   uint32_t eax_v, ebx_v, ecx_v, edx_v, esi_v, edi_v, ebp_v, esp_v, eflags_v;
   __asm__ volatile("movl %%eax, %0" : "=r"(eax_v));
@@ -397,15 +388,15 @@ static int cc_peek_byte(uint32_t addr) {
   return (int)*((volatile uint8_t *)addr);
 }
 
-/* is_gui_mode — wrapper for shell_get_output_mode() */
+/* is_gui_mode - wrapper for shell_get_output_mode() */
 static uint32_t cc_is_gui_mode(void) {
   return (shell_get_output_mode() == SHELL_OUTPUT_GUI) ? 1 : 0;
 }
 
-/* kernel_panic is variadic — provide simple 1-arg wrapper */
+/* kernel_panic is variadic - provide simple 1-arg wrapper */
 static void cc_kernel_panic_msg(const char *msg) { kernel_panic("%s", msg); }
 
-/* Crashtest wrappers — CupidC can't do volatile pointer tricks etc. */
+/* Crashtest wrappers - CupidC can't do volatile pointer tricks etc. */
 static void cc_crashtest_nullptr(void) {
   volatile int *p = (volatile int *)0;
   (void)*p;
@@ -433,12 +424,10 @@ static void cc_crashtest_stackoverflow(void) {
   (void)big;
 }
 
-/* Print a byte as 2 hex digits — wrapper with uint32_t arg for CupidC */
+/* Print a byte as 2 hex digits - wrapper with uint32_t arg for CupidC */
 static void cc_print_hex_byte(uint32_t val) { print_hex_byte((uint8_t)val); }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  16.16 Fixed-Point Math Helpers for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/* 16.16 Fixed-Point Math Helpers for CupidC */
 
 static int cc_fp_mul(int a, int b) {
   /* Use 64-bit multiply (no libgcc needed for multiply, only divide) */
@@ -486,9 +475,7 @@ static int cc_fp_to_int(int a) { return a >> 16; }
 static int cc_fp_frac(int a) { return a & 0xFFFF; }
 static int cc_fp_one(void) { return 65536; } /* FP_ONE = 1.0 in 16.16 */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mouse Input Accessors for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/* Mouse Input Accessors for CupidC */
 
 static int cc_mouse_x(void) { return (int)mouse.x; }
 static int cc_mouse_y(void) { return (int)mouse.y; }
@@ -500,9 +487,7 @@ static int cc_mouse_scroll(void) {
 }
 static int cc_key_shift_held(void) { return keyboard_get_shift() ? 1 : 0; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Kernel Bindings Registration
- * ══════════════════════════════════════════════════════════════════════ */
+/* Kernel Bindings Registration */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
 /* Helper macro to add a kernel function binding */
@@ -641,7 +626,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   const char *(*p_get_history_entry)(int) = shell_get_history_entry;
   BIND("get_history_entry", p_get_history_entry, 1);
 
-  /* Process management — extended */
+  /* Process management - extended */
   void (*p_process_list)(void) = process_list;
   BIND("process_list", p_process_list, 0);
 
@@ -676,7 +661,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_uptime)(void) = timer_get_uptime_ms;
   BIND("uptime_ms", p_uptime, 0);
 
-  /* RTC — individual field accessors */
+  /* RTC - individual field accessors */
   int (*p_rtc_hour)(void) = cc_rtc_hour;
   BIND("rtc_hour", p_rtc_hour, 0);
 
@@ -701,7 +686,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_rtc_epoch)(void) = rtc_get_epoch_seconds;
   BIND("rtc_epoch", p_rtc_epoch, 0);
 
-  /* RTC — formatted string accessors */
+  /* RTC - formatted string accessors */
   const char *(*p_date_full)(void) = cc_date_full_string;
   BIND("date_full_string", p_date_full, 0);
 
@@ -721,7 +706,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_blockcache_stats)(void) = blockcache_stats;
   BIND("blockcache_stats", p_blockcache_stats, 0);
 
-  /* Memory diagnostics — extended */
+  /* Memory diagnostics - extended */
   void (*p_detect_leaks)(uint32_t) = detect_memory_leaks;
   BIND("detect_memory_leaks", p_detect_leaks, 1);
 
@@ -734,7 +719,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_pmm_total)(void) = pmm_total_pages;
   BIND("pmm_total_pages", p_pmm_total, 0);
 
-  /* Timer — extended */
+  /* Timer - extended */
   uint32_t (*p_timer_freq)(void) = timer_get_frequency;
   BIND("timer_get_frequency", p_timer_freq, 0);
 
@@ -742,7 +727,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_cpu_mhz)(void) = cc_get_cpu_mhz;
   BIND("get_cpu_mhz", p_cpu_mhz, 0);
 
-  /* Process info — extended */
+  /* Process info - extended */
   uint32_t (*p_proc_count)(void) = process_get_count;
   BIND("process_get_count", p_proc_count, 0);
 
@@ -828,7 +813,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_mouse_scroll)(void) = cc_mouse_scroll;
   BIND("mouse_scroll", p_mouse_scroll, 0);
 
-  /* String operations — extended */
+  /* String operations - extended */
 
   char *(*p_strcpy)(char *, const char *) = strcpy;
   BIND("strcpy", p_strcpy, 2);
@@ -848,7 +833,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_memcmp)(const void *, const void *, size_t) = memcmp;
   BIND("memcmp", p_memcmp, 3);
 
-  /* ── gfx2d — 2D graphics library ────────────────────────────── */
+  /* gfx2d - 2D graphics library */
   void (*p_gfx2d_init)(void) = gfx2d_init;
   BIND("gfx2d_init", p_gfx2d_init, 0);
 
@@ -921,6 +906,33 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_gradient_v;
   BIND("gfx2d_gradient_v", p_gfx2d_gradient_v, 6);
 
+    void (*p_gfx2d_gradient_radial)(int, int, int, int, uint32_t, uint32_t) =
+      gfx2d_gradient_radial;
+    BIND("gfx2d_gradient_radial", p_gfx2d_gradient_radial, 6);
+
+      uint32_t (*p_gfx2d_color_hsv)(int, int, int) = gfx2d_color_hsv;
+      BIND("gfx2d_color_hsv", p_gfx2d_color_hsv, 3);
+
+      void (*p_gfx2d_color_picker_draw_sv)(int, int, int, int, int, int, int) =
+        gfx2d_color_picker_draw_sv;
+      BIND("gfx2d_color_picker_draw_sv", p_gfx2d_color_picker_draw_sv, 7);
+
+      void (*p_gfx2d_color_picker_draw_hue)(int, int, int, int, int) =
+        gfx2d_color_picker_draw_hue;
+      BIND("gfx2d_color_picker_draw_hue", p_gfx2d_color_picker_draw_hue, 5);
+
+      int (*p_gfx2d_color_picker_pick_hue)(int, int, int, int, int, int) =
+        gfx2d_color_picker_pick_hue;
+      BIND("gfx2d_color_picker_pick_hue", p_gfx2d_color_picker_pick_hue, 6);
+
+      int (*p_gfx2d_color_picker_pick_sat)(int, int, int, int, int, int) =
+        gfx2d_color_picker_pick_sat;
+      BIND("gfx2d_color_picker_pick_sat", p_gfx2d_color_picker_pick_sat, 6);
+
+      int (*p_gfx2d_color_picker_pick_val)(int, int, int, int, int, int) =
+        gfx2d_color_picker_pick_val;
+      BIND("gfx2d_color_picker_pick_val", p_gfx2d_color_picker_pick_val, 6);
+
   void (*p_gfx2d_shadow)(int, int, int, int, int, uint32_t) = gfx2d_shadow;
   BIND("gfx2d_shadow", p_gfx2d_shadow, 6);
 
@@ -970,6 +982,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
                                int) = gfx2d_text_outline;
   BIND("gfx2d_text_outline", p_gfx2d_text_outline, 6);
 
+  void (*p_gfx2d_text_wrap)(int, int, int, const char *, uint32_t, int) =
+      gfx2d_text_wrap;
+  BIND("gfx2d_text_wrap", p_gfx2d_text_wrap, 6);
+
   int (*p_gfx2d_text_width)(const char *, int) = gfx2d_text_width;
   BIND("gfx2d_text_width", p_gfx2d_text_width, 2);
 
@@ -1008,11 +1024,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_checkerboard;
   BIND("gfx2d_checkerboard", p_gfx2d_checkerboard, 7);
 
-  /* ── gfx2d — blend modes ─────────────────────────────────────────── */
+  /* gfx2d - blend modes */
   void (*p_gfx2d_blend_mode)(int) = gfx2d_blend_mode;
   BIND("gfx2d_blend_mode", p_gfx2d_blend_mode, 1);
 
-  /* ── gfx2d — surfaces ────────────────────────────────────────────── */
+  /* gfx2d - surfaces */
   int (*p_gfx2d_surface_alloc)(int, int) = gfx2d_surface_alloc;
   BIND("gfx2d_surface_alloc", p_gfx2d_surface_alloc, 2);
 
@@ -1035,7 +1051,15 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_surface_blit_alpha;
   BIND("gfx2d_surface_blit_alpha", p_gfx2d_surface_blit_alpha, 4);
 
-  /* ── gfx2d — tweening ────────────────────────────────────────────── */
+    void (*p_gfx2d_surface_blit_scaled)(int, int, int, int, int) =
+      gfx2d_surface_blit_scaled;
+    BIND("gfx2d_surface_blit_scaled", p_gfx2d_surface_blit_scaled, 5);
+
+  void (*p_gfx2d_capture_screen_to_surface)(int) =
+      gfx2d_capture_screen_to_surface;
+  BIND("gfx2d_capture_screen_to_surface", p_gfx2d_capture_screen_to_surface, 1);
+
+  /* gfx2d - tweening */
   int (*p_gfx2d_tween_linear)(int, int, int, int) = gfx2d_tween_linear;
   BIND("gfx2d_tween_linear", p_gfx2d_tween_linear, 4);
 
@@ -1049,7 +1073,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_tween_elastic)(int, int, int, int) = gfx2d_tween_elastic;
   BIND("gfx2d_tween_elastic", p_gfx2d_tween_elastic, 4);
 
-  /* ── gfx2d — particles ───────────────────────────────────────────── */
+  /* gfx2d - particles */
   int (*p_gfx2d_particles_create)(void) = gfx2d_particles_create;
   BIND("gfx2d_particles_create", p_gfx2d_particles_create, 0);
 
@@ -1069,7 +1093,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_particles_alive)(int) = gfx2d_particles_alive;
   BIND("gfx2d_particles_alive", p_gfx2d_particles_alive, 1);
 
-  /* ── gfx2d — drawing tools ───────────────────────────────────────── */
+  /* gfx2d - drawing tools */
+    void (*p_gfx2d_tri)(int, int, int, int, int, int, uint32_t) = gfx2d_tri;
+    BIND("gfx2d_tri", p_gfx2d_tri, 7);
+
   void (*p_gfx2d_bezier)(int, int, int, int, int, int, uint32_t) = gfx2d_bezier;
   BIND("gfx2d_bezier", p_gfx2d_bezier, 7);
 
@@ -1077,18 +1104,62 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_tri_fill;
   BIND("gfx2d_tri_fill", p_gfx2d_tri_fill, 7);
 
+    void (*p_gfx2d_tri_fill_gradient)(int, int, uint32_t, int, int, uint32_t,
+                    int, int, uint32_t) =
+      gfx2d_tri_fill_gradient;
+    BIND("gfx2d_tri_fill_gradient", p_gfx2d_tri_fill_gradient, 9);
+
+    void (*p_gfx2d_line_thick)(int, int, int, int, int, uint32_t) =
+      gfx2d_line_thick;
+    BIND("gfx2d_line_thick", p_gfx2d_line_thick, 6);
+
+    void (*p_gfx2d_circle_thick)(int, int, int, int, uint32_t) =
+      gfx2d_circle_thick;
+    BIND("gfx2d_circle_thick", p_gfx2d_circle_thick, 5);
+
   void (*p_gfx2d_line_aa)(int, int, int, int, uint32_t) = gfx2d_line_aa;
   BIND("gfx2d_line_aa", p_gfx2d_line_aa, 5);
 
   void (*p_gfx2d_flood_fill)(int, int, uint32_t) = gfx2d_flood_fill;
   BIND("gfx2d_flood_fill", p_gfx2d_flood_fill, 3);
 
-  /* ── gfx2d — fullscreen mode ─────────────────────────────────────── */
+  /* gfx2d - fullscreen mode */
   void (*p_gfx2d_fullscreen_enter)(void) = gfx2d_fullscreen_enter;
   BIND("gfx2d_fullscreen_enter", p_gfx2d_fullscreen_enter, 0);
 
   void (*p_gfx2d_fullscreen_exit)(void) = gfx2d_fullscreen_exit;
   BIND("gfx2d_fullscreen_exit", p_gfx2d_fullscreen_exit, 0);
+
+    void (*p_gfx2d_window_reset)(int, int, int, int) = gfx2d_window_reset;
+    BIND("gfx2d_window_reset", p_gfx2d_window_reset, 4);
+
+    int (*p_gfx2d_window_frame)(const char *, int, int, int, int) =
+      gfx2d_window_frame;
+    BIND("gfx2d_window_frame", p_gfx2d_window_frame, 5);
+
+    int (*p_gfx2d_window_x)(void) = gfx2d_window_x;
+    BIND("gfx2d_window_x", p_gfx2d_window_x, 0);
+
+    int (*p_gfx2d_window_y)(void) = gfx2d_window_y;
+    BIND("gfx2d_window_y", p_gfx2d_window_y, 0);
+
+    int (*p_gfx2d_window_w)(void) = gfx2d_window_w;
+    BIND("gfx2d_window_w", p_gfx2d_window_w, 0);
+
+    int (*p_gfx2d_window_h)(void) = gfx2d_window_h;
+    BIND("gfx2d_window_h", p_gfx2d_window_h, 0);
+
+    int (*p_gfx2d_window_content_x)(void) = gfx2d_window_content_x;
+    BIND("gfx2d_window_content_x", p_gfx2d_window_content_x, 0);
+
+    int (*p_gfx2d_window_content_y)(void) = gfx2d_window_content_y;
+    BIND("gfx2d_window_content_y", p_gfx2d_window_content_y, 0);
+
+    int (*p_gfx2d_window_content_w)(void) = gfx2d_window_content_w;
+    BIND("gfx2d_window_content_w", p_gfx2d_window_content_w, 0);
+
+    int (*p_gfx2d_window_content_h)(void) = gfx2d_window_content_h;
+    BIND("gfx2d_window_content_h", p_gfx2d_window_content_h, 0);
 
   int (*p_gfx2d_app_toolbar)(const char *, int, int, int) =
       gfx2d_app_toolbar;
@@ -1105,7 +1176,47 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_cursor_hide)(void) = gfx2d_cursor_hide;
   BIND("gfx2d_cursor_hide", p_gfx2d_cursor_hide, 0);
 
-  /* ── Fixed-point math (16.16) ──────────────────────────────────────── */
+  void (*p_desktop_bg_set_mode_anim)(void) = desktop_bg_set_mode_anim;
+  BIND("desktop_bg_set_mode_anim", p_desktop_bg_set_mode_anim, 0);
+
+  void (*p_desktop_bg_set_mode_solid)(uint32_t) = desktop_bg_set_mode_solid;
+  BIND("desktop_bg_set_mode_solid", p_desktop_bg_set_mode_solid, 1);
+
+  void (*p_desktop_bg_set_mode_gradient)(uint32_t, uint32_t) =
+      desktop_bg_set_mode_gradient;
+  BIND("desktop_bg_set_mode_gradient", p_desktop_bg_set_mode_gradient, 2);
+
+    void (*p_desktop_bg_set_mode_tiled_pattern)(int, uint32_t, uint32_t) =
+      desktop_bg_set_mode_tiled_pattern;
+    BIND("desktop_bg_set_mode_tiled_pattern", p_desktop_bg_set_mode_tiled_pattern,
+       3);
+
+    int (*p_desktop_bg_set_mode_tiled_bmp)(const char *) =
+      desktop_bg_set_mode_tiled_bmp;
+    BIND("desktop_bg_set_mode_tiled_bmp", p_desktop_bg_set_mode_tiled_bmp, 1);
+
+  int (*p_desktop_bg_set_mode_bmp)(const char *) = desktop_bg_set_mode_bmp;
+  BIND("desktop_bg_set_mode_bmp", p_desktop_bg_set_mode_bmp, 1);
+
+  int (*p_desktop_bg_get_mode)(void) = desktop_bg_get_mode;
+  BIND("desktop_bg_get_mode", p_desktop_bg_get_mode, 0);
+
+  uint32_t (*p_desktop_bg_get_solid_color)(void) = desktop_bg_get_solid_color;
+  BIND("desktop_bg_get_solid_color", p_desktop_bg_get_solid_color, 0);
+
+  void (*p_desktop_bg_set_anim_theme)(int) = desktop_bg_set_anim_theme;
+  BIND("desktop_bg_set_anim_theme", p_desktop_bg_set_anim_theme, 1);
+
+  int (*p_desktop_bg_get_anim_theme)(void) = desktop_bg_get_anim_theme;
+  BIND("desktop_bg_get_anim_theme", p_desktop_bg_get_anim_theme, 0);
+
+  int (*p_desktop_bg_get_tiled_pattern)(void) = desktop_bg_get_tiled_pattern;
+  BIND("desktop_bg_get_tiled_pattern", p_desktop_bg_get_tiled_pattern, 0);
+
+  int (*p_desktop_bg_get_tiled_use_bmp)(void) = desktop_bg_get_tiled_use_bmp;
+  BIND("desktop_bg_get_tiled_use_bmp", p_desktop_bg_get_tiled_use_bmp, 0);
+
+  /* Fixed-point math (16.16) */
 
   int (*p_fp_mul)(int, int) = cc_fp_mul;
   BIND("fp_mul", p_fp_mul, 2);
@@ -1125,7 +1236,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fp_one)(void) = cc_fp_one;
   BIND("FP_ONE", p_fp_one, 0);
 
-  /* ── BMP image encoding/decoding ────────────────────────────── */
+  /* BMP image encoding/decoding */
 
   int (*p_bmp_get_info)(const char *, bmp_info_t *) = bmp_get_info;
   BIND("bmp_get_info", p_bmp_get_info, 2);
@@ -1144,7 +1255,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       bmp_decode_to_surface_fit;
   BIND("bmp_decode_to_surface_fit", p_bmp_decode_to_surface_fit, 4);
 
-  /* ── File dialogs ───────────────────────────────────────────── */
+  /* File dialogs */
 
   int (*p_file_dlg_open)(const char *, char *, const char *) =
       gfx2d_file_dialog_open;
@@ -1154,7 +1265,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_file_dialog_save;
   BIND("file_dialog_save", p_file_dlg_save, 4);
 
-  /* ── VFS helpers ────────────────────────────────────────────── */
+  /* VFS helpers */
 
   int (*p_vfs_read_all)(const char *, void *, uint32_t) = vfs_read_all;
   BIND("vfs_read_all", p_vfs_read_all, 3);
@@ -1171,12 +1282,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_vfs_copy_file)(const char *, const char *) = vfs_copy_file;
   BIND("vfs_copy_file", p_vfs_copy_file, 2);
 
-  /* ── String extras ──────────────────────────────────────────── */
+  /* String extras */
 
   char *(*p_strrchr)(const char *, int) = strrchr;
   BIND("strrchr", p_strrchr, 2);
 
-  /* ── Dialog helpers ─────────────────────────────────────────── */
+  /* Dialog helpers */
 
   int (*p_confirm_dlg)(const char *) = gfx2d_confirm_dialog;
   BIND("confirm_dialog", p_confirm_dlg, 1);
@@ -1190,7 +1301,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_popup_menu)(int, int, const char **, int) = gfx2d_popup_menu;
   BIND("popup_menu", p_popup_menu, 4);
 
-  /* ── Desktop icon system ──────────────────────────────────────────── */
+  /* Desktop icon system */
   int (*p_icon_register)(const char *, const char *, int, int) =
       gfx2d_icon_register;
   BIND("register_desktop_icon", p_icon_register, 4);
@@ -1207,6 +1318,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_icon_set_drawer)(int, void (*)(int, int)) =
       gfx2d_icon_set_custom_drawer;
   BIND("set_icon_drawer", p_icon_set_drawer, 2);
+
+    void (*p_icon_draw_named)(const char *, int, int, uint32_t) =
+      gfx2d_icon_draw_named;
+    BIND("gfx2d_icon_draw_named", p_icon_draw_named, 4);
 
   int (*p_icon_find)(const char *) = gfx2d_icon_find_by_path;
   BIND("get_my_icon_handle", p_icon_find, 1);
@@ -1232,9 +1347,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 #undef BIND
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Source File / Preprocessor Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Source File / Preprocessor Helpers */
 
 #define CC_PP_MAX_OUTPUT (512u * 1024u)
 #define CC_PP_MAX_MACROS 128
@@ -1822,9 +1935,7 @@ static char *cc_preprocess_source(const char *path, int jit_mode) {
   return pp.out;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Compiler State Initialization
- * ══════════════════════════════════════════════════════════════════════ */
+/* Compiler State Initialization */
 
 static int cc_init_state(cc_state_t *cc, int jit_mode) {
   memset(cc, 0, sizeof(*cc));
@@ -1894,9 +2005,7 @@ static int cc_name_starts_with(const char *s, const char *prefix) {
   return 1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  JIT Mode — Compile and Execute
- * ══════════════════════════════════════════════════════════════════════ */
+/* JIT Mode - Compile and Execute */
 
 int cupidc_jit_status(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
@@ -1906,7 +2015,7 @@ int cupidc_jit_status(const char *path) {
   if (!source)
     return -1;
 
-  /* Heap-allocate compiler state (~24KB — too large for stack) */
+  /* Heap-allocate compiler state (~24KB - too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
   if (!cc) {
     print("CupidC: out of memory for compiler state\n");
@@ -2022,7 +2131,7 @@ int cupidc_jit_status(const char *path) {
   /* Check stack health before execution */
   stack_guard_check();
 
-  /* Execute the program directly (JIT — synchronous) */
+  /* Execute the program directly (JIT - synchronous) */
   entry_fn();
 
   /* Mark program as finished (routes GUI keyboard input back to shell) */
@@ -2044,7 +2153,7 @@ int cupidc_jit_status(const char *path) {
         usage_peak / 1024, STACK_SIZE / 1024);
   }
 
-  /* Clean up — do NOT release the JIT region; it stays reserved */
+  /* Clean up - do NOT release the JIT region; it stays reserved */
   kfree(source);
   cc_cleanup_state(cc);
   kfree(cc);
@@ -2053,9 +2162,7 @@ int cupidc_jit_status(const char *path) {
 
 void cupidc_jit(const char *path) { (void)cupidc_jit_status(path); }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  AOT Mode — Compile to ELF Binary
- * ══════════════════════════════════════════════════════════════════════ */
+/* AOT Mode - Compile to ELF Binary */
 
 void cupidc_aot(const char *src_path, const char *out_path) {
   serial_printf("[cupidc] AOT compile: %s -> %s\n", src_path, out_path);
@@ -2065,7 +2172,7 @@ void cupidc_aot(const char *src_path, const char *out_path) {
   if (!source)
     return;
 
-  /* Heap-allocate compiler state (~24KB — too large for stack) */
+  /* Heap-allocate compiler state (~24KB - too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
   if (!cc) {
     print("CupidC: out of memory for compiler state\n");

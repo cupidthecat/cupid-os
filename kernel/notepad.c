@@ -34,9 +34,7 @@
 #include "ui.h"
 #include "vfs.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Constants
- * ══════════════════════════════════════════════════════════════════════ */
+/* Constants */
 #define NOTEPAD_WIN_W 540
 #define NOTEPAD_WIN_H 350
 
@@ -109,9 +107,7 @@
 #define EMENU_SELECT_ALL 7
 #define EMENU_COUNT 8
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Data structures
- * ══════════════════════════════════════════════════════════════════════ */
+/* Data structures */
 
 typedef struct {
   char *lines[NOTEPAD_MAX_LINES];
@@ -152,8 +148,10 @@ typedef struct {
 #define DLG_SCROLLBAR_W 12
 #define DLG_BTN_W 60
 #define DLG_BTN_H 24
+#define DLG_FILES_INIT_CAP 64
+#define DLG_FILES_MAX_CAP 2048
 
-/* Computed layout for the file dialog — shared by draw and mouse */
+/* Computed layout for the file dialog - shared by draw and mouse */
 typedef struct {
   ui_rect_t dialog;      /* Outer dialog rect                    */
   ui_rect_t titlebar;    /* Title bar                            */
@@ -172,7 +170,8 @@ typedef struct {
 } dlg_layout_t;
 
 typedef struct {
-  file_entry_t files[64];
+  file_entry_t *files;
+  int file_cap;
   int file_count;
   int selected_index;
   int scroll_offset;
@@ -254,15 +253,11 @@ typedef struct {
   uint32_t pid;
 } notepad_app_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Static state
- * ══════════════════════════════════════════════════════════════════════ */
+/* Static state */
 static notepad_app_t app;
 static int notepad_wid = -1;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Forward declarations
- * ══════════════════════════════════════════════════════════════════════ */
+/* Forward declarations */
 static void notepad_init_buffer(void);
 static void notepad_free_buffer(void);
 static char *notepad_strdup(const char *s);
@@ -348,9 +343,51 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                                         uint8_t prev_buttons, window_t *win);
 static dlg_layout_t notepad_dialog_get_layout(window_t *win);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Utility
- * ══════════════════════════════════════════════════════════════════════ */
+static void notepad_dialog_release_files(void) {
+  if (app.dialog.files) {
+    kfree(app.dialog.files);
+    app.dialog.files = NULL;
+  }
+  app.dialog.file_cap = 0;
+  app.dialog.file_count = 0;
+}
+
+static bool notepad_dialog_reserve_files(int needed) {
+  if (needed <= 0)
+    return false;
+  if (app.dialog.file_cap >= needed)
+    return true;
+
+  int new_cap = app.dialog.file_cap > 0 ? app.dialog.file_cap : DLG_FILES_INIT_CAP;
+  while (new_cap < needed && new_cap < DLG_FILES_MAX_CAP) {
+    int doubled = new_cap * 2;
+    if (doubled <= new_cap)
+      break;
+    new_cap = doubled;
+  }
+  if (new_cap < needed)
+    new_cap = needed;
+  if (new_cap > DLG_FILES_MAX_CAP)
+    return false;
+
+  size_t bytes = (size_t)new_cap * sizeof(file_entry_t);
+  file_entry_t *buf = (file_entry_t *)kmalloc((uint32_t)bytes);
+  if (!buf)
+    return false;
+
+  if (app.dialog.files && app.dialog.file_count > 0) {
+    memcpy(buf, app.dialog.files,
+           (size_t)app.dialog.file_count * sizeof(file_entry_t));
+  }
+  if (app.dialog.files)
+    kfree(app.dialog.files);
+
+  app.dialog.files = buf;
+  app.dialog.file_cap = new_cap;
+  return true;
+}
+
+/* Utility */
 
 static size_t np_strlen(const char *s) {
   size_t n = 0;
@@ -447,6 +484,19 @@ static void np_copy_limited(char *dst, const char *src, int max_len) {
     i++;
   }
   dst[i] = '\0';
+}
+
+static void np_append_limited(char *dst, const char *suffix, int max_len) {
+  int d = 0;
+  int s = 0;
+  if (!dst || !suffix || max_len <= 0)
+    return;
+  while (dst[d] && d < max_len - 1)
+    d++;
+  while (suffix[s] && d < max_len - 1) {
+    dst[d++] = suffix[s++];
+  }
+  dst[d] = '\0';
 }
 
 static int notepad_filename_is_ctxt(const char *path) {
@@ -938,58 +988,57 @@ static int notepad_ctxt_hit_link(int16_t mx, int16_t my) {
   return -1;
 }
 
+static int notepad_try_open_path(const char *path) {
+  int fd;
+  if (!path || !path[0])
+    return 0;
+  fd = vfs_open(path, O_RDONLY);
+  if (fd < 0)
+    return 0;
+  vfs_close(fd);
+  notepad_open_file(path);
+  return 1;
+}
+
 static void notepad_ctxt_open_link(const char *target) {
   char resolved[VFS_MAX_PATH];
+  static const char *ext_variants[] = {".ctxt", ".CTXT", ".txt", ".TXT"};
   notepad_ctxt_resolve_link(target, resolved);
 
-  int fd = vfs_open(resolved, O_RDONLY);
-  if (fd >= 0) {
-    vfs_close(fd);
-    notepad_open_file(resolved);
+  if (notepad_try_open_path(resolved))
     return;
-  }
 
   char alt[VFS_MAX_PATH];
-  np_copy_limited(alt, resolved, VFS_MAX_PATH);
-  if (np_ends_with_case(alt, ".txt") || np_ends_with_case(alt, ".ctxt")) {
-    int len = (int)np_strlen(alt);
-    int dot = -1;
-    for (int i = 0; i < len; i++) {
-      if (alt[i] == '.')
-        dot = i;
-    }
-    if (dot >= 0 && dot < VFS_MAX_PATH - 6) {
+  int len = (int)np_strlen(resolved);
+  int dot = -1;
+  for (int i = 0; i < len; i++) {
+    if (resolved[i] == '.')
+      dot = i;
+  }
+
+  if (dot >= 0 && dot < VFS_MAX_PATH - 6 &&
+      (np_ends_with_case(resolved, ".txt") ||
+       np_ends_with_case(resolved, ".ctxt"))) {
+    for (int e = 0; e < 4; e++) {
+      np_copy_limited(alt, resolved, VFS_MAX_PATH);
       alt[dot] = '\0';
-      int ai = dot;
-      alt[ai++] = '.';
-      alt[ai++] = 'c';
-      alt[ai++] = 't';
-      alt[ai++] = 'x';
-      alt[ai++] = 't';
-      alt[ai] = '\0';
-      fd = vfs_open(alt, O_RDONLY);
-      if (fd >= 0) {
-        vfs_close(fd);
-        notepad_open_file(alt);
+      if ((int)np_strlen(alt) + (int)np_strlen(ext_variants[e]) >=
+          VFS_MAX_PATH)
+        continue;
+      np_append_limited(alt, ext_variants[e], VFS_MAX_PATH);
+      if (notepad_try_open_path(alt))
         return;
-      }
     }
   }
 
-  if (!np_ends_with_case(resolved, ".ctxt") &&
-      (int)np_strlen(resolved) < VFS_MAX_PATH - 6) {
-    np_copy_limited(alt, resolved, VFS_MAX_PATH);
-    int len = (int)np_strlen(alt);
-    alt[len++] = '.';
-    alt[len++] = 'c';
-    alt[len++] = 't';
-    alt[len++] = 'x';
-    alt[len++] = 't';
-    alt[len] = '\0';
-    fd = vfs_open(alt, O_RDONLY);
-    if (fd >= 0) {
-      vfs_close(fd);
-      notepad_open_file(alt);
+  if (dot < 0 && len < VFS_MAX_PATH - 6) {
+    for (int e = 0; e < 4; e++) {
+      np_copy_limited(alt, resolved, VFS_MAX_PATH);
+      if ((int)np_strlen(alt) + (int)np_strlen(ext_variants[e]) >=
+          VFS_MAX_PATH)
+        continue;
+      np_append_limited(alt, ext_variants[e], VFS_MAX_PATH);
+      if (notepad_try_open_path(alt))
       return;
     }
   }
@@ -1354,9 +1403,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Buffer management
- * ══════════════════════════════════════════════════════════════════════ */
+/* Buffer management */
 
 static void notepad_init_buffer(void) {
   memset(&app.buffer, 0, sizeof(app.buffer));
@@ -1400,9 +1447,7 @@ static int notepad_max_line_width(void) {
   return max_w;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Viewport calculation
- * ══════════════════════════════════════════════════════════════════════ */
+/* Viewport calculation */
 
 static void notepad_get_viewport(int *vis_cols, int *vis_lines, int *edit_x,
                                  int *edit_y, int *edit_w, int *edit_h,
@@ -1460,9 +1505,7 @@ static void notepad_ensure_cursor_visible(void) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Selection
- * ══════════════════════════════════════════════════════════════════════ */
+/* Selection */
 
 static void notepad_clear_selection(void) {
   app.selection.active = false;
@@ -1618,9 +1661,7 @@ static void notepad_select_all(void) {
   app.buffer.cursor_col = app.selection.end_col;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Undo / Redo (single-level deep copy)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Undo / Redo (single-level deep copy) */
 
 static void notepad_free_undo(void) {
   for (int i = 0; i < app.undo_line_count; i++) {
@@ -1716,9 +1757,7 @@ static void notepad_do_redo(void) {
   app.buffer.modified = true;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Editing operations
- * ══════════════════════════════════════════════════════════════════════ */
+/* Editing operations */
 
 static void notepad_insert_char(char c) {
   if (notepad_has_selection()) {
@@ -1919,9 +1958,7 @@ static void notepad_move_cursor(int dl, int dc) {
   notepad_ensure_cursor_visible();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File operations
- * ══════════════════════════════════════════════════════════════════════ */
+/* File operations */
 
 static void notepad_do_new(void) {
   /* TODO: prompt if modified (requires modal dialog) */
@@ -1986,7 +2023,7 @@ static void notepad_open_file(const char *name) {
   notepad_free_redo();
   notepad_clear_selection();
 
-  /* Read file contents — grow buffer dynamically until EOF */
+  /* Read file contents - grow buffer dynamically until EOF */
   uint32_t buf_cap = 32768;      /* start at 32 KB          */
   uint32_t buf_max = 512 * 1024; /* hard cap: 512 KB        */
   char *read_buf = kmalloc(buf_cap);
@@ -2000,7 +2037,7 @@ static void notepad_open_file(const char *name) {
   for (;;) {
     uint32_t space = buf_cap - total_read - 1; /* -1 for '\0' */
     if (space == 0) {
-      /* Buffer full — try to grow */
+      /* Buffer full - try to grow */
       if (buf_cap >= buf_max)
         break; /* hard limit reached */
       uint32_t new_cap = buf_cap * 2;
@@ -2228,15 +2265,16 @@ static void notepad_do_save(void) {
 
 static void notepad_do_save_as(void) { notepad_open_dialog(true); }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* File dialog */
 
 /* Populate file list from VFS directory */
 static void notepad_populate_dialog(void) {
   app.dialog.file_count = 0;
   app.dialog.selected_index = -1;
   app.dialog.scroll_offset = 0;
+
+  if (!notepad_dialog_reserve_files(DLG_FILES_INIT_CAP))
+    return;
 
   int fd = vfs_open(notepad_dialog_path, O_RDONLY);
   if (fd < 0) {
@@ -2250,6 +2288,10 @@ static void notepad_populate_dialog(void) {
 
   /* Add ".." entry if not at root */
   if (notepad_dialog_path[0] != '/' || notepad_dialog_path[1] != '\0') {
+    if (!notepad_dialog_reserve_files(app.dialog.file_count + 1)) {
+      vfs_close(fd);
+      return;
+    }
     file_entry_t *fe = &app.dialog.files[app.dialog.file_count];
     notepad_strcpy(fe->filename, "..");
     fe->size = 0;
@@ -2258,7 +2300,9 @@ static void notepad_populate_dialog(void) {
   }
 
   vfs_dirent_t ent;
-  while (app.dialog.file_count < 64 && vfs_readdir(fd, &ent) > 0) {
+  while (vfs_readdir(fd, &ent) > 0) {
+    if (!notepad_dialog_reserve_files(app.dialog.file_count + 1))
+      break;
     file_entry_t *fe = &app.dialog.files[app.dialog.file_count];
     int i = 0;
     while (ent.name[i] && i < 31) {
@@ -2340,7 +2384,7 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character) {
     /* Confirm action */
     if (app.dialog.input_len > 0) {
       /* Navigate into a directory only if the input text exactly matches
-         a directory entry — not just because a dir happens to be selected */
+         a directory entry - not just because a dir happens to be selected */
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
           app.dialog.files[sel].is_directory &&
@@ -2417,7 +2461,6 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   /* Use the same layout as the draw function */
   dlg_layout_t L = notepad_dialog_get_layout(win);
 
-  /* ── Scrollbar clicks ──────────────────────────────────────── */
   {
     bool page = false;
     int dir = ui_vscrollbar_hit(L.scrollbar, mx, my, &page);
@@ -2438,7 +2481,6 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     }
   }
 
-  /* ── OK button ─────────────────────────────────────────────── */
   if (ui_contains(L.ok_btn, mx, my)) {
     if (app.dialog.input_len == 0 && app.dialog.selected_index >= 0 &&
         app.dialog.selected_index < app.dialog.file_count) {
@@ -2448,7 +2490,7 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     }
     if (app.dialog.input_len > 0) {
       /* Navigate into a directory only if the input text exactly matches
-         a directory entry — not just because a dir happens to be selected */
+         a directory entry - not just because a dir happens to be selected */
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
           app.dialog.files[sel].is_directory &&
@@ -2465,13 +2507,11 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     return;
   }
 
-  /* ── Cancel button ─────────────────────────────────────────── */
   if (ui_contains(L.cancel_btn, mx, my)) {
     notepad_close_dialog();
     return;
   }
 
-  /* ── File list item click ──────────────────────────────────── */
   {
     ui_rect_t items_area =
         ui_rect(L.list.x, (int16_t)L.items_y, L.list.w, (uint16_t)L.items_h);
@@ -2499,9 +2539,7 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Menu system
- * ══════════════════════════════════════════════════════════════════════ */
+/* Menu system */
 
 static void notepad_menu_action(int menu, int item) {
   app.active_menu = MENU_NONE;
@@ -2569,9 +2607,7 @@ static void notepad_menu_action(int menu, int item) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Rendering
- * ══════════════════════════════════════════════════════════════════════ */
+/* Rendering */
 
 static void notepad_draw_menubar(window_t *win) {
   int16_t mx = (int16_t)(win->x + 1);
@@ -2766,7 +2802,7 @@ static void notepad_draw_text_area(window_t *win) {
     /* Draw selection background for empty part of selected lines */
     if (has_sel) {
       if (src_line > sel_sl && src_line < sel_el) {
-        /* Entire line selected — fill remaining space */
+        /* Entire line selected - fill remaining space */
         int drawn_cols = len - app.buffer.scroll_x;
         if (drawn_cols < 0)
           drawn_cols = 0;
@@ -2799,7 +2835,6 @@ static void notepad_draw_scrollbars(window_t *win) {
   notepad_get_viewport(&vis_cols, &vis_lines, &edit_x, &edit_y, &edit_w,
                        &edit_h, win);
 
-  /* ── Vertical scrollbar (right edge) ──────────────────────── */
   int vscroll_x = edit_x + edit_w;
   int vscroll_y = edit_y;
   int vscroll_h = edit_h;
@@ -2858,7 +2893,6 @@ static void notepad_draw_scrollbars(window_t *win) {
                   (uint16_t)(VSCROLL_W - 2), (uint16_t)thumb_h, COLOR_TEXT);
   }
 
-  /* ── Horizontal scrollbar (bottom edge) ───────────────────── */
   int hscroll_x = edit_x;
   int hscroll_y = edit_y + edit_h;
   int hscroll_w = edit_w;
@@ -3026,9 +3060,7 @@ static void notepad_draw_statusbar(window_t *win) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File dialog layout — single source of truth for draw + mouse
- * ══════════════════════════════════════════════════════════════════════ */
+/* File dialog layout - single source of truth for draw + mouse */
 
 static dlg_layout_t notepad_dialog_get_layout(window_t *win) {
   dlg_layout_t L;
@@ -3092,25 +3124,21 @@ static void notepad_draw_file_dialog(window_t *win) {
 
   dlg_layout_t L = notepad_dialog_get_layout(win);
 
-  /* ── Drop shadow + dialog panel ────────────────────────────── */
   ui_draw_shadow(L.dialog, COLOR_TEXT, 3);
   ui_draw_panel(L.dialog, COLOR_BORDER, true, true);
 
-  /* ── Title bar ─────────────────────────────────────────────── */
   gfx_fill_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h, 0x000080);
   gfx_draw_rect(L.titlebar.x, L.titlebar.y, L.titlebar.w, L.titlebar.h,
                 COLOR_TEXT_LIGHT);
   gfx_draw_text((int16_t)(L.titlebar.x + 6), (int16_t)(L.titlebar.y + 6),
                 app.dialog.save_mode ? "Save File" : "Open File", 0xFFFFFF);
 
-  /* ── Current path row ──────────────────────────────────────── */
   {
     char path_disp[64];
     np_copy_limited(path_disp, notepad_dialog_path, 64);
     gfx_draw_text(L.path_row.x, L.path_row.y, path_disp, COLOR_BLACK);
   }
 
-  /* ── File list area (sunken) ───────────────────────────────── */
   ui_draw_panel(L.list_area, COLOR_TEXT_LIGHT, true, false);
 
   /* Column header */
@@ -3124,7 +3152,6 @@ static void notepad_draw_file_dialog(window_t *win) {
   gfx_draw_vline((int16_t)(size_col_x - 3), (int16_t)(L.list.y + 1), DLG_ITEM_H,
                  COLOR_TEXT);
 
-  /* ── File entries ──────────────────────────────────────────── */
   for (int i = 0; i < L.items_visible; i++) {
     int fi = i + app.dialog.scroll_offset;
     if (fi >= app.dialog.file_count)
@@ -3225,19 +3252,15 @@ static void notepad_draw_file_dialog(window_t *win) {
                   COLOR_TEXT);
   }
 
-  /* ── Vertical scrollbar ────────────────────────────────────── */
   ui_draw_vscrollbar(L.scrollbar, app.dialog.file_count, L.items_visible,
                      app.dialog.scroll_offset);
 
-  /* ── "File:" label + input field ───────────────────────────── */
   ui_draw_label(L.input_label, "File:", COLOR_BLACK, UI_ALIGN_LEFT);
   ui_draw_textfield(L.input_field, app.dialog.input, app.dialog.input_len);
 
-  /* ── OK and Cancel buttons ─────────────────────────────────── */
   ui_draw_button(L.ok_btn, "OK", true);
   ui_draw_button(L.cancel_btn, "Cancel", true);
 
-  /* ── File count status ─────────────────────────────────────── */
   {
     char count_buf[24];
     int cp = 0;
@@ -3265,9 +3288,7 @@ static void notepad_draw_file_dialog(window_t *win) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Main redraw callback
- * ══════════════════════════════════════════════════════════════════════ */
+/* Main redraw callback */
 
 void notepad_redraw(window_t *win) {
   notepad_draw_menubar(win);
@@ -3278,9 +3299,7 @@ void notepad_redraw(window_t *win) {
   notepad_draw_file_dialog(win); /* Draw dialog on top of everything */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Process entry point
- * ══════════════════════════════════════════════════════════════════════ */
+/* Process entry point */
 
 static void notepad_process_entry(void) {
   while (1) {
@@ -3294,14 +3313,11 @@ static void notepad_process_entry(void) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Launch
- * ══════════════════════════════════════════════════════════════════════ */
-
-/* ── Close callback (called by GUI when window is destroyed) ──────── */
+/* Launch */
 
 static void notepad_on_close(window_t *win) {
   (void)win;
+  notepad_dialog_release_files();
   uint32_t pid = app.pid;
   notepad_wid = -1;
   app.pid = 0;
@@ -3417,9 +3433,7 @@ void notepad_launch_with_file(const char *vfs_path, const char *save_path) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Key handling
- * ══════════════════════════════════════════════════════════════════════ */
+/* Key handling */
 
 void notepad_handle_key(uint8_t scancode, char character) {
   if (notepad_wid < 0)
@@ -3765,9 +3779,7 @@ done:
   win->flags |= WINDOW_FLAG_DIRTY;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mouse handling
- * ══════════════════════════════════════════════════════════════════════ */
+/* Mouse handling */
 
 void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                           uint8_t prev_buttons) {
@@ -3812,7 +3824,6 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     return;
   }
 
-  /* ── Menu bar clicks ──────────────────────────────────────── */
   int menu_y = (int)win->y + TITLEBAR_H;
   if (pressed && my >= menu_y && my < menu_y + MENUBAR_H) {
     int rel_x = mx - (int)win->x - 1;
@@ -3830,7 +3841,6 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     return;
   }
 
-  /* ── Dropdown menu interaction ────────────────────────────── */
   if (app.active_menu != MENU_NONE) {
     int ddx, ddy, dd_w, item_count;
 
@@ -3879,7 +3889,6 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     }
   }
 
-  /* ── Scrollbar clicks ─────────────────────────────────────── */
   int edit_x, edit_y, edit_w, edit_h;
   int vis_cols, vis_lines;
   notepad_get_viewport(&vis_cols, &vis_lines, &edit_x, &edit_y, &edit_w,
@@ -4012,7 +4021,6 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     return;
   }
 
-  /* ── Text area clicks (selection/cursor) ──────────────────── */
   if (mx >= edit_x && mx < edit_x + edit_w && my >= edit_y &&
       my < edit_y + edit_h) {
 
@@ -4084,9 +4092,7 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Scroll wheel
- * ══════════════════════════════════════════════════════════════════════ */
+/* Scroll wheel */
 
 void notepad_handle_scroll(int delta) {
   if (notepad_wid < 0)
@@ -4170,9 +4176,7 @@ void notepad_handle_scroll(int delta) {
   win->flags |= WINDOW_FLAG_DIRTY;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Cursor blink tick
- * ══════════════════════════════════════════════════════════════════════ */
+/* Cursor blink tick */
 
 void notepad_tick(void) {
   if (notepad_wid < 0)
@@ -4194,8 +4198,6 @@ void notepad_tick(void) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Query
- * ══════════════════════════════════════════════════════════════════════ */
+/* Query */
 
 int notepad_get_wid(void) { return notepad_wid; }

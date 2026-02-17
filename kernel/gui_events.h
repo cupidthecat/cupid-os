@@ -11,7 +11,6 @@
 #include "ui.h"
 #include "gui.h"
 
-/* ── Event Types ──────────────────────────────────────────────────── */
 typedef enum {
     UI_EVENT_NONE = 0,
     UI_EVENT_CLICK,
@@ -33,7 +32,6 @@ typedef enum {
     UI_EVENT_WINDOW_CLOSE
 } ui_event_type_t;
 
-/* ── Event Data ───────────────────────────────────────────────────── */
 typedef struct {
     ui_event_type_t type;
     int16_t  mouse_x, mouse_y;
@@ -45,7 +43,6 @@ typedef struct {
     void    *user_data;
 } ui_event_t;
 
-/* ── Event Callback ───────────────────────────────────────────────── */
 typedef void (*ui_event_callback_t)(ui_event_t *event, void *context);
 
 typedef struct {
@@ -61,7 +58,6 @@ void ui_register_handler(window_t *win, ui_event_handler_t handler);
 void ui_emit_event(window_t *win, ui_event_t *event);
 void ui_process_events(window_t *win);
 
-/* ── Message Box ──────────────────────────────────────────────────── */
 typedef enum {
     UI_MSGBOX_INFO,
     UI_MSGBOX_WARNING,
@@ -104,7 +100,6 @@ ui_msgbox_result_t ui_msgbox(const char *title, const char *message,
 ui_msgbox_result_t ui_msgbox_draw(ui_msgbox_state_t *state,
                                    int16_t mx, int16_t my, bool clicked);
 
-/* ── Input Dialog ─────────────────────────────────────────────────── */
 typedef struct {
     bool   active;
     char  *buffer;
@@ -124,7 +119,6 @@ int  ui_input_dialog_draw(ui_input_dialog_state_t *state,
                           int16_t mx, int16_t my, bool clicked,
                           uint8_t key, char ch);
 
-/* ── Color Picker ─────────────────────────────────────────────────── */
 typedef struct {
     uint32_t selected_color;
     int hue;            /* 0-359 */
@@ -140,7 +134,6 @@ bool ui_draw_colorpicker(ui_rect_t r, ui_colorpicker_state_t *state,
 bool ui_draw_color_swatch(ui_rect_t r, uint32_t color,
                           int16_t mx, int16_t my, bool clicked);
 
-/* ── Progress Dialog ──────────────────────────────────────────────── */
 typedef struct {
     bool        active;
     bool        cancelable;

@@ -15,8 +15,6 @@ void panic_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char)) {
     if (putchar_fn) panic_putchar = putchar_fn;
 }
 
-/* ── helpers ──────────────────────────────────────────────────────── */
-
 static void dual_print(const char *s) {
     panic_print(s);
     serial_write_string(s);
@@ -43,8 +41,6 @@ static void vga_hex_byte(uint8_t num) {
     panic_putchar(hex[(num >> 4) & 0xF]);
     panic_putchar(hex[ num       & 0xF]);
 }
-
-/* ── Register dump ────────────────────────────────────────────────── */
 
 static void print_registers(struct registers *regs) {
     dual_print("\nREGISTERS:\n");
@@ -81,8 +77,6 @@ static void print_registers(struct registers *regs) {
     panic_print("\n");
 }
 
-/* ── Stack trace ──────────────────────────────────────────────────── */
-
 void print_stack_trace(uint32_t ebp, uint32_t eip) {
     dual_print("\nSTACK TRACE:\n");
 
@@ -110,8 +104,6 @@ void print_stack_trace(uint32_t ebp, uint32_t eip) {
     }
 }
 
-/* ── Stack hex dump ───────────────────────────────────────────────── */
-
 static void print_stack_dump(uint32_t esp) {
     dual_print("\nSTACK DUMP:\n");
 
@@ -133,8 +125,6 @@ static void print_stack_dump(uint32_t esp) {
     }
 }
 
-/* ── System state summary ─────────────────────────────────────────── */
-
 static void print_system_state(void) {
     dual_print("\nSYSTEM STATE:\n");
 
@@ -150,8 +140,6 @@ static void print_system_state(void) {
     panic_print("  Memory: "); print_int(free_pg * 4); print(" KB free / ");
     print_int(total_pg * 4); print(" KB total\n");
 }
-
-/* ── kernel_panic (no register context) ───────────────────────────── */
 
 void kernel_panic(const char *fmt, ...) {
     __asm__ volatile("cli");
@@ -194,8 +182,6 @@ void kernel_panic(const char *fmt, ...) {
 
     while (1) { __asm__ volatile("hlt"); }
 }
-
-/* ── kernel_panic_regs (with register context from ISR) ───────────── */
 
 void kernel_panic_regs(struct registers *regs, const char *fmt, ...) {
     __asm__ volatile("cli");

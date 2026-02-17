@@ -10,9 +10,7 @@
 #include "memory.h"
 #include "vfs.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in Theme Presets
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in Theme Presets */
 
 const ui_theme_t UI_THEME_WINDOWS95 = {
     /* window */
@@ -266,9 +264,7 @@ const ui_theme_t UI_THEME_VAPORWAVE = {
     .taskbar_text            = 0x0001CDFE
 };
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Active State
- * ══════════════════════════════════════════════════════════════════════ */
+/* Active State */
 
 static ui_theme_t g_active_theme;
 static ui_style_t g_active_style;
@@ -307,11 +303,9 @@ ui_style_t *ui_style_get(void) {
     return &g_active_style;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Theme File I/O
- * ══════════════════════════════════════════════════════════════════════ */
+/* Theme File I/O */
 
-/* Helper: parse hex value from string like "0x00FF80" or "FF80" */
+/* parse hex value from string like "0x00FF80" or "FF80" */
 static uint32_t parse_hex(const char *s) {
     uint32_t val = 0;
     /* Skip "0x" or "0X" prefix */
@@ -331,7 +325,7 @@ static uint32_t parse_hex(const char *s) {
     return val;
 }
 
-/* Helper: write hex to buffer */
+/* write hex to buffer */
 static int hex_to_str(uint32_t v, char *buf) {
     static const char hex[] = "0123456789ABCDEF";
     int i;

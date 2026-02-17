@@ -1,5 +1,5 @@
 /**
- * fat16_vfs.c — FAT16 VFS wrapper for CupidOS
+ * fat16_vfs.c - FAT16 VFS wrapper for CupidOS
  *
  * Wraps the existing FAT16 driver (root-directory-only flat namespace)
  * into the VFS filesystem operations interface.
@@ -17,8 +17,6 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── FAT16 VFS file handle ────────────────────────────────────────── */
-
 typedef struct {
     fat16_file_t *fat_file;     /* Underlying FAT16 file handle       */
     uint8_t       is_dir;       /* 1 if opened as root directory      */
@@ -30,8 +28,6 @@ typedef struct {
     uint32_t      write_cap;    /* Allocated capacity                  */
     bool          dirty;        /* True if writes were made            */
 } fat16_vfs_handle_t;
-
-/* ── Readdir callback context ─────────────────────────────────────── */
 
 #define FAT16_VFS_MAX_ENTRIES 128
 
@@ -46,12 +42,10 @@ typedef struct {
     int                 index;
 } fat16_vfs_dir_handle_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Internal helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Internal helpers */
 
 /**
- * Callback for fat16_enumerate_root — collects entries into context.
+ * Callback for fat16_enumerate_root - collects entries into context.
  */
 static int fat16_vfs_enum_cb(const char *name, uint32_t size,
                              uint8_t attr, void *ctx) {
@@ -79,9 +73,7 @@ static const char *fat16_vfs_strip(const char *path) {
     return path;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations implementation
- * ══════════════════════════════════════════════════════════════════════ */
+/* VFS operations implementation */
 
 static int fat16_vfs_mount(const char *source, void **fs_private) {
     (void)source;
@@ -148,7 +140,7 @@ static int fat16_vfs_open(void *fs_private, const char *path,
 
     /* Create a new file? */
     if (flags & O_CREAT) {
-        /* For create, attempt open first — if fails, write empty file */
+        /* For create, attempt open first - if fails, write empty file */
         fat16_file_t *f = fat16_open(name);
         if (!f) {
             uint8_t empty = 0;
@@ -284,7 +276,7 @@ static int fat16_vfs_write(void *file_handle, const void *buffer,
     /* Allocate or grow write buffer as needed */
     uint32_t needed = h->write_len + count;
     if (!h->write_buf) {
-        /* Initial allocation — round up to 512 boundary */
+        /* Initial allocation - round up to 512 boundary */
         h->write_cap = (needed + 511) & ~(uint32_t)511;
         if (h->write_cap < 1024) h->write_cap = 1024;
         h->write_buf = kmalloc(h->write_cap);
@@ -313,7 +305,7 @@ static int fat16_vfs_seek(void *file_handle, int32_t offset, int whence) {
     fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
     if (!h || !h->fat_file || h->is_dir) return VFS_EINVAL;
 
-    /* FAT16 driver doesn't have seek — manually adjust position */
+    /* FAT16 driver doesn't have seek - manually adjust position */
     fat16_file_t *f = h->fat_file;
     int32_t new_pos;
     switch (whence) {
@@ -399,9 +391,16 @@ static int fat16_vfs_unlink(void *fs_private, const char *path) {
     return (result == 0) ? VFS_OK : VFS_EIO;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations struct
- * ══════════════════════════════════════════════════════════════════════ */
+static int fat16_vfs_rename(void *fs_private, const char *old_path,
+                            const char *new_path) {
+    (void)fs_private;
+    (void)old_path;
+    (void)new_path;
+    /* Native FAT16 rename is not implemented in this wrapper yet. */
+    return VFS_ENOSYS;
+}
+
+/* VFS operations struct */
 
 static vfs_fs_ops_t fat16_vfs_ops = {
     .name     = "fat16",
@@ -415,7 +414,8 @@ static vfs_fs_ops_t fat16_vfs_ops = {
     .stat     = fat16_vfs_stat,
     .readdir  = fat16_vfs_readdir,
     .mkdir    = fat16_vfs_mkdir,
-    .unlink   = fat16_vfs_unlink
+    .unlink   = fat16_vfs_unlink,
+    .rename   = fat16_vfs_rename
 };
 
 vfs_fs_ops_t *fat16_vfs_get_ops(void) {

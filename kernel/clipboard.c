@@ -9,10 +9,7 @@
 #include "string.h"
 #include "../drivers/serial.h"
 
-/* ── Global clipboard instance ────────────────────────────────────── */
 static clipboard_t clipboard;
-
-/* ── Init ─────────────────────────────────────────────────────────── */
 
 void clipboard_init(void) {
     memset(&clipboard, 0, sizeof(clipboard));
@@ -20,8 +17,6 @@ void clipboard_init(void) {
     clipboard.length = 0;
     KINFO("Clipboard initialized (%d bytes max)", CLIPBOARD_MAX_SIZE);
 }
-
-/* ── Copy ─────────────────────────────────────────────────────────── */
 
 void clipboard_copy(const char *data, int length) {
     if (!data || length <= 0) return;
@@ -33,8 +28,6 @@ void clipboard_copy(const char *data, int length) {
     clipboard.length = length;
     clipboard.has_data = true;
 }
-
-/* ── Get ──────────────────────────────────────────────────────────── */
 
 const char *clipboard_get_data(void) {
     if (!clipboard.has_data) return NULL;
@@ -48,8 +41,6 @@ int clipboard_get_length(void) {
 bool clipboard_has_data(void) {
     return clipboard.has_data;
 }
-
-/* ── Clear ────────────────────────────────────────────────────────── */
 
 void clipboard_clear(void) {
     clipboard.has_data = false;

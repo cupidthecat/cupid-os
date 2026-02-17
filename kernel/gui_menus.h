@@ -10,8 +10,6 @@
 #include "types.h"
 #include "ui.h"
 
-/* ── Menu Item ────────────────────────────────────────────────────── */
-
 typedef struct {
     const char *label;
     int         id;          /* unique ID for this item   */
@@ -28,8 +26,6 @@ typedef struct {
     int             item_count;
 } ui_menu_t;
 
-/* ── Menu Bar ─────────────────────────────────────────────────────── */
-
 typedef struct {
     int  open_menu;     /* index of open dropdown (-1 = none) */
     int  hover_item;    /* hovered item inside open menu      */
@@ -41,8 +37,6 @@ int  ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                      bool clicked, bool released);
 
 ui_rect_t ui_menubar_content_rect(ui_rect_t window, int menubar_height);
-
-/* ── Context Menu ─────────────────────────────────────────────────── */
 
 typedef struct {
     bool  visible;
@@ -61,8 +55,6 @@ void ui_context_menu_handle_input(ui_context_menu_state_t *state,
                                   ui_rect_t trigger_area,
                                   int16_t mx, int16_t my,
                                   uint8_t buttons);
-
-/* ── Toolbar ──────────────────────────────────────────────────────── */
 
 typedef struct {
     int         id;
@@ -99,8 +91,6 @@ int  ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items,
                         int count, ui_toolbar_state_t *state,
                         int16_t mx, int16_t my, bool clicked);
 
-/* ── Status Bar ───────────────────────────────────────────────────── */
-
 typedef struct {
     const char *text;
     int         width;      /* 0 = flexible, >0 = fixed */
@@ -110,8 +100,6 @@ typedef struct {
 void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
                        int count);
 void ui_draw_statusbar_simple(ui_rect_t r, const char *text);
-
-/* ── Tooltip ──────────────────────────────────────────────────────── */
 
 #define UI_TOOLTIP_DELAY  500   /* ms before tooltip shows */
 
@@ -125,8 +113,6 @@ typedef struct {
 void ui_tooltip_update(ui_tooltip_state_t *state, const char *text,
                        int16_t mx, int16_t my, uint32_t tick);
 void ui_draw_tooltip(ui_tooltip_state_t *state);
-
-/* ── Keyboard Shortcuts ───────────────────────────────────────────── */
 
 typedef struct {
     int  key_scancode;

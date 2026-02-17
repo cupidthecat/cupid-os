@@ -3,12 +3,10 @@
 
 #include "types.h"
 
-/* ── Canary constants ─────────────────────────────────────────────── */
 #define CANARY_FRONT 0xDEADBEEF
 #define CANARY_BACK 0xBEEFDEAD
 #define POISON_FREE 0xFEFEFEFE
 
-/* ── Heap block header ────────────────────────────────────────────── */
 typedef struct heap_block {
   uint32_t canary_front; /* Must be CANARY_FRONT           */
   size_t size;           /* Size of the user-data region   */
@@ -19,7 +17,6 @@ typedef struct heap_block {
   uint32_t alloc_line;    /* Source line of allocation      */
 } heap_block_t;
 
-/* ── Constants ────────────────────────────────────────────────────── */
 #define PAGE_SIZE 4096
 #define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
@@ -27,14 +24,12 @@ typedef struct heap_block {
   2048 /* 8MB initial heap (plenty for VBE + surfaces) */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
-/* ── Stack guard constants ────────────────────────────────────────── */
 #define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */
 #define STACK_TOP 0x880000u    /* Top of kernel stack            */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex                 */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes)   */
 
-/* ── PMM ──────────────────────────────────────────────────────────── */
 void pmm_init(uint32_t kernel_end);
 void *pmm_alloc_page(void);
 void *pmm_alloc_contiguous(uint32_t page_count);
@@ -50,10 +45,8 @@ uint32_t pmm_total_pages(void);
 void pmm_reserve_region(uint32_t start, uint32_t size);
 void pmm_release_region(uint32_t start, uint32_t size);
 
-/* ── Paging ───────────────────────────────────────────────────────── */
 void paging_init(void);
 
-/* ── Heap ─────────────────────────────────────────────────────────── */
 void heap_init(uint32_t initial_pages);
 void *kmalloc_debug(size_t size, const char *file, uint32_t line);
 void kfree(void *ptr);
@@ -61,7 +54,6 @@ void kfree(void *ptr);
 /* Macro so every call site automatically records file + line       */
 #define kmalloc(size) kmalloc_debug((size), __FILE__, __LINE__)
 
-/* ── Allocation tracking / memory safety ──────────────────────────── */
 #define MAX_ALLOCATIONS 1024
 
 typedef struct allocation_record {
@@ -95,7 +87,6 @@ void print_memory_stats(void);
 void memory_set_output(void (*print_fn)(const char *),
                        void (*print_int_fn)(uint32_t));
 
-/* ── Stack guard functions ────────────────────────────────────────── */
 void stack_guard_init(void);
 void stack_guard_check(void);
 uint32_t stack_usage_current(void);

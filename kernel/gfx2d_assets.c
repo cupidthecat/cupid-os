@@ -14,18 +14,14 @@
 #include "vfs.h"
 #include "../drivers/serial.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Image pool
- * ══════════════════════════════════════════════════════════════════════ */
+/* Image pool */
 
 static uint32_t *g2d_img_data[GFX2D_MAX_IMAGES];
 static int       g2d_img_w[GFX2D_MAX_IMAGES];
 static int       g2d_img_h[GFX2D_MAX_IMAGES];
 static int       g2d_img_used[GFX2D_MAX_IMAGES];
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Font pool
- * ══════════════════════════════════════════════════════════════════════ */
+/* Font pool */
 
 typedef struct {
     uint8_t *glyph_data;      /* Raw 1-bpp glyph bitmaps (row-major, MSB left) */
@@ -39,9 +35,7 @@ typedef struct {
 static g2d_font_t g2d_fonts[GFX2D_MAX_FONTS];
 static int g2d_default_font = -1;  /* -1 = use built-in 8x8 */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Init
- * ══════════════════════════════════════════════════════════════════════ */
+/* Init */
 
 void gfx2d_assets_init(void) {
     int i;
@@ -56,9 +50,7 @@ void gfx2d_assets_init(void) {
     g2d_default_font = -1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Image loading (BMP)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Image loading (BMP) */
 
 int gfx2d_image_load(const char *path) {
     int i;
@@ -213,15 +205,25 @@ uint32_t gfx2d_image_get_pixel(int handle, int x, int y) {
     return g2d_img_data[handle][(uint32_t)y * (uint32_t)w + (uint32_t)x];
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Font loading (.fnt format)
- *
- *  .fnt file layout:
- *    - gfx2d_fnt_header_t (28 bytes)
- *    - For each char (first_char..last_char):
- *        char_height bytes of row data (1 byte per row, MSB = left pixel)
- *        (same format as font_8x8, but variable size)
- * ══════════════════════════════════════════════════════════════════════ */
+const uint32_t *gfx2d_image_data(int handle, int *w, int *h) {
+    if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
+        return NULL;
+    if (!g2d_img_used[handle])
+        return NULL;
+    if (w)
+        *w = g2d_img_w[handle];
+    if (h)
+        *h = g2d_img_h[handle];
+    return g2d_img_data[handle];
+}
+
+/* Font loading (.fnt format)
+ * .fnt file layout:
+ * - gfx2d_fnt_header_t (28 bytes)
+ * - For each char (first_char..last_char):
+ * char_height bytes of row data (1 byte per row, MSB = left pixel)
+ * (same format as font_8x8, but variable size)
+ */
 
 int gfx2d_font_load(const char *path) {
     int i, fd;
@@ -342,8 +344,6 @@ int gfx2d_font_text_height(int handle) {
     return FONT_H;
 }
 
-/* ── Draw a single custom font glyph ─────────────────────────────── */
-
 static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
                               char ch, uint32_t color) {
     int code = (int)(unsigned char)ch;
@@ -366,8 +366,6 @@ static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
         }
     }
 }
-
-/* ── Draw text with effects ───────────────────────────────────────── */
 
 void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
                    int font_handle, int effects) {

@@ -10,9 +10,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/rtc.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Context initialization
- * ══════════════════════════════════════════════════════════════════════ */
+/* Context initialization */
 void cupidscript_init_context(script_context_t *ctx) {
     memset(ctx, 0, sizeof(script_context_t));
     ctx->var_count = 0;
@@ -37,11 +35,9 @@ void cupidscript_init_context(script_context_t *ctx) {
     ctx->print_int_fn = print_int;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Variable management
- * ══════════════════════════════════════════════════════════════════════ */
+/* Variable management */
 
-/* Helper: copy src to dst, at most (max-1) chars, null-terminate */
+/* copy src to dst, at most (max-1) chars, null-terminate */
 static void str_copy(char *dst, const char *src, int max) {
     int i = 0;
     while (src[i] && i < max - 1) {
@@ -51,7 +47,7 @@ static void str_copy(char *dst, const char *src, int max) {
     dst[i] = '\0';
 }
 
-/* Helper: integer to string */
+/* integer to string */
 static void int_to_str(int val, char *buf, int bufsize) {
     if (bufsize <= 0) return;
     if (val < 0) {
@@ -147,12 +143,10 @@ void cupidscript_set_variable(script_context_t *ctx, const char *name,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Variable expansion
- *
- *  Replaces $VAR patterns in a string with their values.
- *  Returns a kmalloc'd string — caller must kfree().
- * ══════════════════════════════════════════════════════════════════════ */
+/* Variable expansion
+ * Replaces $VAR patterns in a string with their values.
+ * Returns a kmalloc'd string - caller must kfree().
+ */
 
 static int is_varname_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
@@ -202,7 +196,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 continue;
             }
 
-            /* $! — last background PID */
+            /* $! - last background PID */
             if (str[i] == '!') {
                 i++;
                 char pid_str[16];
@@ -228,7 +222,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 continue;
             }
 
-            /* ${...} — advanced variable operations */
+            /* ${...} - advanced variable operations */
             if (str[i] == '{') {
                 i++; /* skip { */
                 /* Find matching } */
@@ -262,7 +256,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 continue;
             }
 
-            /* $((expr)) — arithmetic */
+            /* $((expr)) - arithmetic */
             if (str[i] == '(' && i + 1 < len && str[i + 1] == '(') {
                 /* Find matching )) */
                 i += 2;
@@ -395,13 +389,11 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
     return result;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Function management
- * ══════════════════════════════════════════════════════════════════════ */
+/* Function management */
 
 void cupidscript_register_function(script_context_t *ctx, const char *name,
                                    ast_node_t *body) {
-    /* Check if function already exists — update it */
+    /* Check if function already exists - update it */
     for (int i = 0; i < ctx->func_count; i++) {
         if (strcmp(ctx->functions[i].name, name) == 0) {
             ctx->functions[i].body = body;

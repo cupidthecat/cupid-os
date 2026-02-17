@@ -30,33 +30,64 @@
 #include "ui.h"
 #include "vfs.h"
 
-/* ── Icon storage ─────────────────────────────────────────────────── */
 static desktop_icon_t icons[MAX_DESKTOP_ICONS];
 static int icon_count = 0;
 
-/* ── Background gradient row cache ───────────────────────────────── */
 static uint32_t bg_lut[VGA_GFX_HEIGHT];
 static uint32_t bg_lut_top = 0xFFFFFFFFu; /* invalid sentinel */
 
-/* ── Background mode state ───────────────────────────────────────── */
 enum {
   DESKTOP_BG_ANIM = 0,
   DESKTOP_BG_SOLID = 1,
-  DESKTOP_BG_BMP = 2
+  DESKTOP_BG_BMP = 2,
+  DESKTOP_BG_GRADIENT = 3,
+  DESKTOP_BG_TILED = 4
 };
 
 static uint8_t desktop_bg_mode = DESKTOP_BG_ANIM;
 static uint32_t desktop_bg_solid = COLOR_DESKTOP_BG;
+static uint32_t desktop_bg_grad_top = COLOR_DESKTOP_BG;
+static uint32_t desktop_bg_grad_bottom = COLOR_TASKBAR;
+static uint8_t desktop_anim_theme = DESKTOP_ANIM_THEME_KITTY;
+static uint32_t desktop_tile_fg = 0x00C0C0C0u;
+static uint32_t desktop_tile_bg = 0x00008080u;
+static uint8_t desktop_tile_pattern = DESKTOP_TILE_PATTERN_CHECKER;
+static uint8_t desktop_tile_use_bmp = 0;
+static char desktop_tile_bmp_path[VFS_MAX_PATH];
+static uint32_t *desktop_tile_bmp_data = NULL;
+static int desktop_tile_bmp_w = 0;
+static int desktop_tile_bmp_h = 0;
 static char desktop_bg_bmp_path[VFS_MAX_PATH];
 static uint32_t *desktop_bg_bmp_scaled = NULL; /* VGA_GFX_WIDTH * TASKBAR_Y */
 static const char *DESKTOP_BG_CONFIG_PATH = "/home/.desktop_bg.conf";
 
-/* ── Clock & Calendar state ───────────────────────────────────────── */
+static uint32_t *workspace_base_cache = NULL; /* bg + icon glyphs (no hover FX) */
+static bool workspace_base_cache_valid = false;
+static uint8_t workspace_cache_bg_mode = 0xFFu;
+static uint32_t workspace_cache_bg_solid = 0u;
+static uint32_t workspace_cache_bg_grad_top = 0u;
+static uint32_t workspace_cache_bg_grad_bottom = 0u;
+static uint32_t workspace_cache_tile_fg = 0u;
+static uint32_t workspace_cache_tile_bg = 0u;
+static uint8_t workspace_cache_tile_pattern = 0u;
+static uint8_t workspace_cache_tile_use_bmp = 0u;
+static bool workspace_cache_has_bmp = false;
+static int desktop_icon_stamp = 1;
+static int workspace_cache_icon_stamp = 0;
+static bool workspace_base_drawn_with_icons = false;
+
+static uint32_t *taskbar_base_cache = NULL; /* taskbar gradient + separator + brand */
+static bool taskbar_base_cache_valid = false;
+
 static char clock_time_str[16];
 static char clock_date_str[16];
 static uint8_t clock_last_minute = 255; /* Force initial update */
+static uint32_t clock_last_poll_ms = 0;
 static int16_t clock_hitbox_x = 0;
 static uint16_t clock_hitbox_width = 0;
+static uint32_t taskbar_last_draw_ms = 0;
+static int taskbar_last_window_count = -1;
+static int taskbar_last_focus_id = -1;
 static uint32_t desktop_anim_tick = 0; /* Animation frame counter */
 calendar_state_t cal_state;
 static bool cal_prev_visible = false; /* Track calendar visibility changes */
@@ -64,8 +95,159 @@ static bool cal_prev_visible = false; /* Track calendar visibility changes */
 static void desktop_draw_calendar(void);
 static void desktop_bg_save_config(void);
 static void desktop_bg_load_config(void);
+static void desktop_draw_icon_hover_fx(void);
+static void desktop_redraw_workspace_region(int16_t x, int16_t y,
+                                            uint16_t w, uint16_t h);
 
-/* ── Init ─────────────────────────────────────────────────────────── */
+static void desktop_invalidate_workspace_cache(void) {
+  workspace_base_cache_valid = false;
+}
+
+static void desktop_invalidate_taskbar_cache(void) { taskbar_base_cache_valid = false; }
+
+static void desktop_icons_changed(void) {
+  desktop_icon_stamp++;
+  if (desktop_icon_stamp <= 0)
+    desktop_icon_stamp = 1;
+  desktop_invalidate_workspace_cache();
+}
+
+static void desktop_mark_dirty_rect(int x, int y, int w, int h) {
+  vga_mark_dirty(x, y, w, h);
+}
+
+static void desktop_fill_row32(uint32_t *dst, int n, uint32_t color) {
+  while (n >= 8) {
+    dst[0] = color;
+    dst[1] = color;
+    dst[2] = color;
+    dst[3] = color;
+    dst[4] = color;
+    dst[5] = color;
+    dst[6] = color;
+    dst[7] = color;
+    dst += 8;
+    n -= 8;
+  }
+  while (n-- > 0) {
+    *dst++ = color;
+  }
+}
+
+static void desktop_launch_icon_handle(int gfx_icon) {
+  if (gfx_icon < 0)
+    return;
+
+  gfx2d_icon_select(gfx_icon);
+  desktop_icons_changed();
+  void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
+  if (launch_fn) {
+    launch_fn();
+    return;
+  }
+
+  {
+    const char *prog = gfx2d_icon_get_path(gfx_icon);
+    if (prog && prog[0]) {
+      cupidc_jit(prog);
+    }
+  }
+}
+
+static void desktop_show_icon_info(int gfx_icon) {
+  char msg[256];
+  const char *label = gfx2d_icon_get_label(gfx_icon);
+  const char *path = gfx2d_icon_get_path(gfx_icon);
+  const char *desc = gfx2d_icon_get_desc(gfx_icon);
+  int p = 0;
+
+  const char *h1 = "Icon: ";
+  while (*h1 && p < 255)
+    msg[p++] = *h1++;
+  while (label && *label && p < 255)
+    msg[p++] = *label++;
+
+  if (path && path[0] && p < 254) {
+    msg[p++] = '\n';
+    const char *h2 = "Path: ";
+    while (*h2 && p < 255)
+      msg[p++] = *h2++;
+    while (*path && p < 255)
+      msg[p++] = *path++;
+  }
+
+  if (desc && desc[0] && p < 254) {
+    msg[p++] = '\n';
+    const char *h3 = "Desc: ";
+    while (*h3 && p < 255)
+      msg[p++] = *h3++;
+    while (*desc && p < 255)
+      msg[p++] = *desc++;
+  }
+
+  msg[p] = '\0';
+  gfx2d_message_dialog(msg);
+}
+
+static bool desktop_handle_global_shortcuts(const key_event_t *event,
+                                            bool *force_full_repaint) {
+  if (!event || !event->pressed)
+    return false;
+
+  bool ctrl = keyboard_get_ctrl();
+  bool alt = keyboard_get_alt();
+  char ch = event->character;
+
+  if (ctrl && alt && (event->scancode == 0x14 || ch == 't' || ch == 'T' ||
+                      ch == 20)) { /* Ctrl+T = 20 */
+    terminal_launch();
+    if (force_full_repaint)
+      *force_full_repaint = true;
+    return true;
+  }
+
+  if (ctrl && alt && (event->scancode == 0x31 || ch == 'n' || ch == 'N' ||
+                      ch == 14)) { /* Ctrl+N = 14 */
+    notepad_launch();
+    if (force_full_repaint)
+      *force_full_repaint = true;
+    return true;
+  }
+
+  if (event->scancode == 0x3F) { /* F5 */
+    gfx2d_icons_scan_bin();
+    desktop_icons_changed();
+    if (force_full_repaint)
+      *force_full_repaint = true;
+    return true;
+  }
+
+  return false;
+}
+
+static void desktop_draw_hover_tooltip(void) {
+  if (mouse.y >= TASKBAR_Y)
+    return;
+  if (mouse.buttons & (MOUSE_LEFT | MOUSE_RIGHT))
+    return;
+  if (gui_hit_test_window(mouse.x, mouse.y) >= 0)
+    return;
+
+  int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
+  if (gfx_icon < 0)
+    return;
+
+  {
+    const char *tip = gfx2d_icon_get_desc(gfx_icon);
+    if (!tip || !tip[0])
+      tip = gfx2d_icon_get_label(gfx_icon);
+    {
+      int ix = gfx2d_icon_get_x(gfx_icon);
+      int iy = gfx2d_icon_get_y(gfx_icon);
+      gfx2d_tooltip(ix + GFX2D_ICON_SIZE + 8, iy + 4, tip);
+    }
+  }
+}
 
 /* Wrappers for icon drawers (custom_draw takes 2 args, draw funcs take 3) */
 static void draw_terminal_icon(int x, int y) {
@@ -110,14 +292,16 @@ void desktop_init(void) {
 
   /* Scan /bin for .cc files with //icon: directives */
   gfx2d_icons_scan_bin();
+  desktop_icons_changed();
+
+  desktop_invalidate_workspace_cache();
+  desktop_invalidate_taskbar_cache();
 
   /* Load persisted desktop background preference (if any). */
   desktop_bg_load_config();
 
   KINFO("Desktop initialized");
 }
-
-/* ── Icons ────────────────────────────────────────────────────────── */
 
 void desktop_add_icon(int16_t x, int16_t y, const char *label,
                       void (*launch)(void)) {
@@ -137,9 +321,7 @@ void desktop_add_icon(int16_t x, int16_t y, const char *label,
   ic->label[i] = '\0';
 }
 
-/* ── Drawing ──────────────────────────────────────────────────────── */
-
-/* Helper: blend two RGB colors by factor t (0..max) */
+/* blend two RGB colors by factor t (0..max) */
 static uint32_t desktop_blend_colors(uint32_t c1, uint32_t c2, int t, int max) {
   if (max <= 0)
     return c1;
@@ -153,6 +335,67 @@ static uint32_t desktop_blend_colors(uint32_t c1, uint32_t c2, int t, int max) {
       ((c1 & 0xFFu) * (uint32_t)(max - t) + (c2 & 0xFFu) * (uint32_t)t) /
       (uint32_t)max;
   return (r << 16) | (g << 8) | b;
+}
+
+static uint32_t desktop_anim_top_color(void) {
+  uint32_t t = desktop_anim_tick & 511u;
+  uint32_t base = desktop_bg_solid & 0x00FFFFFFu;
+  if (base == 0)
+    base = COLOR_DESKTOP_BG;
+  if (t < 170u) {
+    return desktop_blend_colors(base, 0xEEDDFFu, (int)t, 170);
+  }
+  if (t < 340u) {
+    return desktop_blend_colors(0xEEDDFFu, 0xFFF0E0u, (int)(t - 170u), 170);
+  }
+  return desktop_blend_colors(0xFFF0E0u, base, (int)(t - 340u),
+                              172);
+}
+
+static void desktop_draw_cloud8(int x, int y, uint32_t c_hi, uint32_t c_lo) {
+  gfx_fill_rect((int16_t)(x + 4), (int16_t)(y + 8), 44, 12, c_lo);
+  gfx_fill_rect((int16_t)(x + 12), (int16_t)(y + 2), 14, 10, c_hi);
+  gfx_fill_rect((int16_t)(x + 24), (int16_t)(y + 0), 16, 12, c_hi);
+  gfx_fill_rect((int16_t)(x + 38), (int16_t)(y + 4), 12, 8, c_hi);
+}
+
+static void desktop_draw_theme_kitty(void) {
+  int y = TASKBAR_Y - 28;
+  int x = (int)(desktop_anim_tick % (uint32_t)(VGA_GFX_WIDTH + 40)) - 20;
+  int leg = (int)((desktop_anim_tick >> 3) & 1u);
+
+  desktop_draw_cloud8(28, 26, 0xFFFFFFu, 0xE5F2FFu);
+  desktop_draw_cloud8(180, 38, 0xFFFFFFu, 0xE5F2FFu);
+  desktop_draw_cloud8(320, 24, 0xFFFFFFu, 0xE5F2FFu);
+
+  gfx_fill_rect((int16_t)(x + 4), (int16_t)(y + 8), 18, 10, 0xD8C2A8u);
+  gfx_fill_rect((int16_t)(x + 18), (int16_t)(y + 5), 10, 10, 0xE8D0B7u);
+  gfx_fill_rect((int16_t)(x + 19), (int16_t)(y + 2), 3, 4, 0xB89270u);
+  gfx_fill_rect((int16_t)(x + 24), (int16_t)(y + 2), 3, 4, 0xB89270u);
+  gfx_fill_rect((int16_t)(x + 22), (int16_t)(y + 9), 2, 2, 0x402818u);
+  gfx_fill_rect((int16_t)(x + 27), (int16_t)(y + 9), 2, 2, 0x402818u);
+  gfx_fill_rect((int16_t)(x + 20), (int16_t)(y + 17), 3, 3, 0xA67F5Du);
+  gfx_fill_rect((int16_t)(x + 25), (int16_t)(y + 17), 3, 3, 0xA67F5Du);
+  if (leg) {
+    gfx_fill_rect((int16_t)(x + 4), (int16_t)(y + 18), 4, 4, 0x8E6D4Fu);
+    gfx_fill_rect((int16_t)(x + 14), (int16_t)(y + 18), 4, 4, 0x8E6D4Fu);
+  } else {
+    gfx_fill_rect((int16_t)(x + 8), (int16_t)(y + 18), 4, 4, 0x8E6D4Fu);
+    gfx_fill_rect((int16_t)(x + 18), (int16_t)(y + 18), 4, 4, 0x8E6D4Fu);
+  }
+  gfx_fill_rect((int16_t)(x + 0), (int16_t)(y + 10), 5, 3, 0xB89270u);
+
+  gfx_draw_text((int16_t)(x - 12), (int16_t)(y - 10), "<3", 0xFF8FC1u);
+}
+
+static void desktop_update_bg_lut(uint32_t top) {
+  if (top == bg_lut_top)
+    return;
+  bg_lut_top = top;
+  int max_row = (TASKBAR_Y > 1) ? TASKBAR_Y - 1 : 1;
+  for (int row = 0; row < TASKBAR_Y; row++) {
+    bg_lut[row] = desktop_blend_colors(top, COLOR_TASKBAR, row, max_row);
+  }
 }
 
 static void desktop_bg_copy_path(char *dst, const char *src, int cap) {
@@ -172,11 +415,15 @@ static void desktop_bg_copy_path(char *dst, const char *src, int cap) {
 
 static int desktop_bg_apply_bmp(const char *path) {
   bmp_info_t info;
+  uint32_t max_decode_size = (uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u;
 
   if (!path || !path[0])
     return BMP_EINVAL;
 
   if (bmp_get_info(path, &info) != BMP_OK)
+    return BMP_EFORMAT;
+
+  if (info.width == 0 || info.height == 0 || info.data_size == 0)
     return BMP_EFORMAT;
 
   if (!desktop_bg_bmp_scaled) {
@@ -187,7 +434,32 @@ static int desktop_bg_apply_bmp(const char *path) {
     }
   }
 
-  {
+  if (info.data_size <= max_decode_size) {
+    uint32_t *decoded = (uint32_t *)kmalloc(info.data_size);
+    if (!decoded)
+      return BMP_ENOMEM;
+
+    if (bmp_decode(path, decoded, info.data_size) != BMP_OK) {
+      kfree(decoded);
+      return BMP_EFORMAT;
+    }
+
+    for (uint32_t y = 0; y < (uint32_t)TASKBAR_Y; y++) {
+      uint32_t src_y = (y * info.height) / (uint32_t)TASKBAR_Y;
+      if (src_y >= info.height)
+        src_y = info.height - 1u;
+      uint32_t *dst_row = desktop_bg_bmp_scaled + y * (uint32_t)VGA_GFX_WIDTH;
+      uint32_t *src_row = decoded + src_y * info.width;
+      for (uint32_t x = 0; x < (uint32_t)VGA_GFX_WIDTH; x++) {
+        uint32_t src_x = (x * info.width) / (uint32_t)VGA_GFX_WIDTH;
+        if (src_x >= info.width)
+          src_x = info.width - 1u;
+        dst_row[x] = src_row[src_x];
+      }
+    }
+
+    kfree(decoded);
+  } else {
     int surf = gfx2d_surface_alloc(VGA_GFX_WIDTH, TASKBAR_Y);
     if (surf < 0) {
       return BMP_ENOMEM;
@@ -201,15 +473,18 @@ static int desktop_bg_apply_bmp(const char *path) {
     {
       int sw = 0;
       int sh = 0;
+      uint32_t src_stride = 0;
+      size_t row_bytes = (size_t)((uint32_t)VGA_GFX_WIDTH * sizeof(uint32_t));
       uint32_t *src = gfx2d_surface_data(surf, &sw, &sh);
       if (!src || sw < VGA_GFX_WIDTH || sh < TASKBAR_Y) {
         gfx2d_surface_free(surf);
         return BMP_EFORMAT;
       }
-      for (int y = 0; y < TASKBAR_Y; y++) {
-        memcpy(desktop_bg_bmp_scaled + y * VGA_GFX_WIDTH,
-               src + y * sw,
-               (uint32_t)VGA_GFX_WIDTH * 4u);
+      src_stride = (uint32_t)sw;
+      for (uint32_t y = 0; y < (uint32_t)TASKBAR_Y; y++) {
+        memcpy(desktop_bg_bmp_scaled + y * (uint32_t)VGA_GFX_WIDTH,
+               src + y * src_stride,
+               row_bytes);
       }
     }
     gfx2d_surface_free(surf);
@@ -217,7 +492,157 @@ static int desktop_bg_apply_bmp(const char *path) {
 
   desktop_bg_copy_path(desktop_bg_bmp_path, path, VFS_MAX_PATH);
   desktop_bg_mode = DESKTOP_BG_BMP;
+  desktop_invalidate_workspace_cache();
   return BMP_OK;
+}
+
+static int desktop_bg_apply_tile_bmp(const char *path) {
+  bmp_info_t info;
+  uint32_t src_w;
+  uint32_t src_h;
+  uint32_t tile_w;
+  uint32_t tile_h;
+  uint32_t *pixels;
+  uint32_t pixel_count;
+  uint32_t bytes;
+  const uint32_t max_tile_dim = 256u;
+
+  if (!path || !path[0])
+    return BMP_EINVAL;
+
+  if (bmp_get_info(path, &info) != BMP_OK)
+    return BMP_EFORMAT;
+
+  if (info.width == 0 || info.height == 0)
+    return BMP_EFORMAT;
+
+  src_w = info.width;
+  src_h = info.height;
+  tile_w = src_w;
+  tile_h = src_h;
+
+  if (tile_w > max_tile_dim || tile_h > max_tile_dim) {
+    if (tile_w >= tile_h) {
+      tile_h = (tile_h * max_tile_dim) / tile_w;
+      tile_w = max_tile_dim;
+    } else {
+      tile_w = (tile_w * max_tile_dim) / tile_h;
+      tile_h = max_tile_dim;
+    }
+    if (tile_w == 0)
+      tile_w = 1;
+    if (tile_h == 0)
+      tile_h = 1;
+  }
+
+  if (tile_w > 0xFFFFFFFFu / tile_h)
+    return BMP_EFORMAT;
+  pixel_count = tile_w * tile_h;
+  bytes = pixel_count * 4u;
+
+  pixels = (uint32_t *)kmalloc(bytes);
+  if (!pixels)
+    return BMP_ENOMEM;
+
+  if (tile_w == src_w && tile_h == src_h && info.data_size == bytes &&
+      bmp_decode(path, pixels, bytes) == BMP_OK) {
+    /* Decoded directly into final tile buffer. */
+  } else {
+    int surf = gfx2d_surface_alloc((int)tile_w, (int)tile_h);
+    if (surf < 0) {
+      kfree(pixels);
+      return BMP_ENOMEM;
+    }
+
+    if (bmp_decode_to_surface_fit(path, surf, (int)tile_w, (int)tile_h) !=
+        BMP_OK) {
+      gfx2d_surface_free(surf);
+      kfree(pixels);
+      return BMP_EFORMAT;
+    }
+
+    {
+      int sw = 0;
+      int sh = 0;
+      uint32_t src_stride = 0;
+      uint32_t row_words = 0;
+      size_t row_bytes = 0;
+      uint32_t *src = gfx2d_surface_data(surf, &sw, &sh);
+      if (!src || sw < (int)tile_w || sh < (int)tile_h) {
+        gfx2d_surface_free(surf);
+        kfree(pixels);
+        return BMP_EFORMAT;
+      }
+
+      src_stride = (uint32_t)sw;
+      row_words = tile_w;
+      row_bytes = (size_t)row_words * sizeof(uint32_t);
+
+      for (uint32_t y = 0; y < tile_h; y++) {
+        memcpy(pixels + y * row_words,
+               src + y * src_stride,
+               row_bytes);
+      }
+    }
+
+    gfx2d_surface_free(surf);
+  }
+
+  if (desktop_tile_bmp_data)
+    kfree(desktop_tile_bmp_data);
+
+  desktop_tile_bmp_data = pixels;
+  desktop_tile_bmp_w = (int)tile_w;
+  desktop_tile_bmp_h = (int)tile_h;
+  desktop_bg_copy_path(desktop_tile_bmp_path, path, VFS_MAX_PATH);
+  desktop_tile_use_bmp = 1;
+  return BMP_OK;
+}
+
+static void desktop_draw_tiled_region(int x0, int y0, int x1, int y1) {
+  uint32_t *fb = vga_get_framebuffer();
+  int y;
+
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 > VGA_GFX_WIDTH) x1 = VGA_GFX_WIDTH;
+  if (y1 > TASKBAR_Y) y1 = TASKBAR_Y;
+  if (x1 <= x0 || y1 <= y0)
+    return;
+
+  if (desktop_tile_use_bmp && desktop_tile_bmp_data &&
+      desktop_tile_bmp_w > 0 && desktop_tile_bmp_h > 0) {
+    for (y = y0; y < y1; y++) {
+      int x;
+      int ty = y % desktop_tile_bmp_h;
+      uint32_t *dst = fb + y * VGA_GFX_WIDTH;
+      for (x = x0; x < x1; x++) {
+        int tx = x % desktop_tile_bmp_w;
+        dst[x] = desktop_tile_bmp_data[ty * desktop_tile_bmp_w + tx];
+      }
+    }
+    return;
+  }
+
+  for (y = y0; y < y1; y++) {
+    int x;
+    uint32_t *dst = fb + y * VGA_GFX_WIDTH;
+    for (x = x0; x < x1; x++) {
+      int local_x = x & 7;
+      int local_y = y & 7;
+      int on = 0;
+
+      if (desktop_tile_pattern == DESKTOP_TILE_PATTERN_DIAG) {
+        on = ((local_x + local_y) & 3) == 0;
+      } else if (desktop_tile_pattern == DESKTOP_TILE_PATTERN_DOTS) {
+        on = (local_x == 1 || local_x == 5) && (local_y == 1 || local_y == 5);
+      } else {
+        on = (((local_x >> 1) + (local_y >> 1)) & 1);
+      }
+
+      dst[x] = on ? desktop_tile_fg : desktop_tile_bg;
+    }
+  }
 }
 
 static int desktop_parse_uint_dec(const char *s, uint32_t *out) {
@@ -300,9 +725,122 @@ static void desktop_bg_save_config(void) {
   {
     char line[64];
     const char *hx = "0123456789ABCDEF";
+    uint32_t c = desktop_tile_fg & 0x00FFFFFFu;
+    int pos = 0;
+    line[pos++] = 't'; line[pos++] = 'i'; line[pos++] = 'l'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'f'; line[pos++] = 'g'; line[pos++] = '=';
+    line[pos++] = '0'; line[pos++] = 'x';
+    line[pos++] = hx[(c >> 20) & 0xFu];
+    line[pos++] = hx[(c >> 16) & 0xFu];
+    line[pos++] = hx[(c >> 12) & 0xFu];
+    line[pos++] = hx[(c >> 8) & 0xFu];
+    line[pos++] = hx[(c >> 4) & 0xFu];
+    line[pos++] = hx[c & 0xFu];
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[64];
+    const char *hx = "0123456789ABCDEF";
+    uint32_t c = desktop_tile_bg & 0x00FFFFFFu;
+    int pos = 0;
+    line[pos++] = 't'; line[pos++] = 'i'; line[pos++] = 'l'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'b'; line[pos++] = 'g'; line[pos++] = '=';
+    line[pos++] = '0'; line[pos++] = 'x';
+    line[pos++] = hx[(c >> 20) & 0xFu];
+    line[pos++] = hx[(c >> 16) & 0xFu];
+    line[pos++] = hx[(c >> 12) & 0xFu];
+    line[pos++] = hx[(c >> 8) & 0xFu];
+    line[pos++] = hx[(c >> 4) & 0xFu];
+    line[pos++] = hx[c & 0xFu];
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[32];
+    int pos = 0;
+    uint32_t p = (uint32_t)desktop_tile_pattern;
+    line[pos++] = 't'; line[pos++] = 'i'; line[pos++] = 'l'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'p'; line[pos++] = 'a'; line[pos++] = 't'; line[pos++] = 't'; line[pos++] = 'e'; line[pos++] = 'r'; line[pos++] = 'n';
+    line[pos++] = '=';
+    line[pos++] = (char)('0' + (p % 10u));
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[32];
+    int pos = 0;
+    line[pos++] = 't'; line[pos++] = 'i'; line[pos++] = 'l'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'u'; line[pos++] = 's'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'b'; line[pos++] = 'm'; line[pos++] = 'p';
+    line[pos++] = '=';
+    line[pos++] = desktop_tile_use_bmp ? '1' : '0';
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[192];
+    int pos = 0;
+    int i = 0;
+    line[pos++] = 't'; line[pos++] = 'i'; line[pos++] = 'l'; line[pos++] = 'e'; line[pos++] = '_';
+    line[pos++] = 'b'; line[pos++] = 'm'; line[pos++] = 'p'; line[pos++] = '=';
+    while (desktop_tile_bmp_path[i] && pos < 190) {
+      line[pos++] = desktop_tile_bmp_path[i++];
+    }
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[64];
+    const char *hx = "0123456789ABCDEF";
     uint32_t c = desktop_bg_solid & 0x00FFFFFFu;
     int pos = 0;
     line[pos++] = 's'; line[pos++] = 'o'; line[pos++] = 'l'; line[pos++] = 'i'; line[pos++] = 'd';
+    line[pos++] = '=';
+    line[pos++] = '0';
+    line[pos++] = 'x';
+    line[pos++] = hx[(c >> 20) & 0xFu];
+    line[pos++] = hx[(c >> 16) & 0xFu];
+    line[pos++] = hx[(c >> 12) & 0xFu];
+    line[pos++] = hx[(c >> 8) & 0xFu];
+    line[pos++] = hx[(c >> 4) & 0xFu];
+    line[pos++] = hx[c & 0xFu];
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[64];
+    const char *hx = "0123456789ABCDEF";
+    uint32_t c = desktop_bg_grad_top & 0x00FFFFFFu;
+    int pos = 0;
+    line[pos++] = 'g'; line[pos++] = 'r'; line[pos++] = 'a'; line[pos++] = 'd'; line[pos++] = '_';
+    line[pos++] = 't'; line[pos++] = 'o'; line[pos++] = 'p';
+    line[pos++] = '=';
+    line[pos++] = '0';
+    line[pos++] = 'x';
+    line[pos++] = hx[(c >> 20) & 0xFu];
+    line[pos++] = hx[(c >> 16) & 0xFu];
+    line[pos++] = hx[(c >> 12) & 0xFu];
+    line[pos++] = hx[(c >> 8) & 0xFu];
+    line[pos++] = hx[(c >> 4) & 0xFu];
+    line[pos++] = hx[c & 0xFu];
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
+  {
+    char line[64];
+    const char *hx = "0123456789ABCDEF";
+    uint32_t c = desktop_bg_grad_bottom & 0x00FFFFFFu;
+    int pos = 0;
+    line[pos++] = 'g'; line[pos++] = 'r'; line[pos++] = 'a'; line[pos++] = 'd'; line[pos++] = '_';
+    line[pos++] = 'b'; line[pos++] = 'o'; line[pos++] = 't'; line[pos++] = 't'; line[pos++] = 'o'; line[pos++] = 'm';
     line[pos++] = '=';
     line[pos++] = '0';
     line[pos++] = 'x';
@@ -328,6 +866,29 @@ static void desktop_bg_save_config(void) {
     vfs_write(fd, line, (uint32_t)pos);
   }
 
+  {
+    char line[64];
+    int pos = 0;
+    uint32_t theme = (uint32_t)desktop_anim_theme;
+
+    line[pos++] = 't'; line[pos++] = 'h'; line[pos++] = 'e'; line[pos++] = 'm'; line[pos++] = 'e';
+    line[pos++] = '=';
+    if (theme == 0) {
+      line[pos++] = '0';
+    } else {
+      char tmp[16];
+      int ti = 0;
+      while (theme > 0 && ti < 15) {
+        tmp[ti++] = (char)('0' + (theme % 10u));
+        theme /= 10u;
+      }
+      while (ti > 0)
+        line[pos++] = tmp[--ti];
+    }
+    line[pos++] = '\n';
+    vfs_write(fd, line, (uint32_t)pos);
+  }
+
   vfs_close(fd);
 }
 
@@ -337,9 +898,18 @@ static void desktop_bg_load_config(void) {
   int n;
   uint32_t mode = (uint32_t)desktop_bg_mode;
   uint32_t solid = desktop_bg_solid;
+  uint32_t grad_top = desktop_bg_grad_top;
+  uint32_t grad_bottom = desktop_bg_grad_bottom;
+  uint32_t tile_fg = desktop_tile_fg;
+  uint32_t tile_bg = desktop_tile_bg;
+  uint32_t tile_pattern = (uint32_t)desktop_tile_pattern;
+  uint32_t tile_use_bmp = (uint32_t)desktop_tile_use_bmp;
+  uint32_t theme = (uint32_t)desktop_anim_theme;
   char bmp_path[VFS_MAX_PATH];
+  char tile_bmp_path[VFS_MAX_PATH];
 
   bmp_path[0] = '\0';
+  tile_bmp_path[0] = '\0';
   if (fd < 0)
     return;
 
@@ -359,12 +929,42 @@ static void desktop_bg_load_config(void) {
       if (line[0] != '#' && line[0] != '\0' && line[0] != '\r') {
         if (strncmp(line, "mode=", 5) == 0) {
           uint32_t v;
-          if (desktop_parse_uint_dec(line + 5, &v) && v <= 2u)
+          if (desktop_parse_uint_dec(line + 5, &v) && v <= 4u)
             mode = v;
+        } else if (strncmp(line, "theme=", 6) == 0) {
+          uint32_t v;
+          if (desktop_parse_uint_dec(line + 6, &v) && v <= 3u)
+            theme = v;
         } else if (strncmp(line, "solid=", 6) == 0) {
           uint32_t c;
           if (desktop_parse_uint_hex(line + 6, &c))
             solid = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "grad_top=", 9) == 0) {
+          uint32_t c;
+          if (desktop_parse_uint_hex(line + 9, &c))
+            grad_top = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "grad_bottom=", 12) == 0) {
+          uint32_t c;
+          if (desktop_parse_uint_hex(line + 12, &c))
+            grad_bottom = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "tile_fg=", 8) == 0) {
+          uint32_t c;
+          if (desktop_parse_uint_hex(line + 8, &c))
+            tile_fg = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "tile_bg=", 8) == 0) {
+          uint32_t c;
+          if (desktop_parse_uint_hex(line + 8, &c))
+            tile_bg = c & 0x00FFFFFFu;
+        } else if (strncmp(line, "tile_pattern=", 13) == 0) {
+          uint32_t v;
+          if (desktop_parse_uint_dec(line + 13, &v) && v <= 2u)
+            tile_pattern = v;
+        } else if (strncmp(line, "tile_use_bmp=", 13) == 0) {
+          uint32_t v;
+          if (desktop_parse_uint_dec(line + 13, &v) && (v == 0u || v == 1u))
+            tile_use_bmp = v;
+        } else if (strncmp(line, "tile_bmp=", 9) == 0) {
+          desktop_bg_copy_path(tile_bmp_path, line + 9, VFS_MAX_PATH);
         } else if (strncmp(line, "bmp=", 4) == 0) {
           desktop_bg_copy_path(bmp_path, line + 4, VFS_MAX_PATH);
         }
@@ -378,7 +978,16 @@ static void desktop_bg_load_config(void) {
   }
 
   desktop_bg_solid = solid;
+  desktop_bg_grad_top = grad_top;
+  desktop_bg_grad_bottom = grad_bottom;
+  desktop_tile_fg = tile_fg;
+  desktop_tile_bg = tile_bg;
+  desktop_tile_pattern = (uint8_t)tile_pattern;
+  desktop_tile_use_bmp = (uint8_t)tile_use_bmp;
+  desktop_bg_copy_path(desktop_tile_bmp_path, tile_bmp_path, VFS_MAX_PATH);
+  desktop_anim_theme = (uint8_t)theme;
   desktop_bg_mode = (uint8_t)mode;
+  desktop_invalidate_workspace_cache();
 
   if (desktop_bg_mode == DESKTOP_BG_BMP) {
     if (!bmp_path[0] || desktop_bg_apply_bmp(bmp_path) != BMP_OK) {
@@ -387,6 +996,20 @@ static void desktop_bg_load_config(void) {
     }
   } else if (bmp_path[0]) {
     desktop_bg_copy_path(desktop_bg_bmp_path, bmp_path, VFS_MAX_PATH);
+  }
+
+  if (desktop_tile_bmp_data) {
+    kfree(desktop_tile_bmp_data);
+    desktop_tile_bmp_data = NULL;
+    desktop_tile_bmp_w = 0;
+    desktop_tile_bmp_h = 0;
+  }
+
+  if (desktop_tile_use_bmp && desktop_tile_bmp_path[0]) {
+    if (desktop_bg_apply_tile_bmp(desktop_tile_bmp_path) != BMP_OK) {
+      desktop_tile_use_bmp = 0;
+      desktop_tile_bmp_path[0] = '\0';
+    }
   }
 }
 
@@ -540,6 +1163,7 @@ static void desktop_open_bg_settings_dialog(void) {
 
     mouse_save_under_cursor();
     mouse_draw_cursor();
+    vga_mark_dirty_full();
     vga_flip();
     process_yield();
   }
@@ -565,66 +1189,308 @@ static void desktop_open_bg_settings_dialog(void) {
     desktop_bg_mode = DESKTOP_BG_SOLID;
   }
 
+  desktop_invalidate_workspace_cache();
+
   desktop_bg_save_config();
 }
 
+void desktop_bg_set_mode_anim(void) {
+  desktop_bg_mode = DESKTOP_BG_ANIM;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+}
+
+void desktop_bg_set_mode_solid(uint32_t color) {
+  desktop_bg_solid = color & 0x00FFFFFFu;
+  desktop_bg_mode = DESKTOP_BG_SOLID;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+}
+
+void desktop_bg_set_mode_gradient(uint32_t top_color, uint32_t bottom_color) {
+  desktop_bg_grad_top = top_color & 0x00FFFFFFu;
+  desktop_bg_grad_bottom = bottom_color & 0x00FFFFFFu;
+  desktop_bg_mode = DESKTOP_BG_GRADIENT;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+}
+
+void desktop_bg_set_mode_tiled_pattern(int pattern, uint32_t fg, uint32_t bg) {
+  if (pattern < DESKTOP_TILE_PATTERN_CHECKER)
+    pattern = DESKTOP_TILE_PATTERN_CHECKER;
+  if (pattern > DESKTOP_TILE_PATTERN_DOTS)
+    pattern = DESKTOP_TILE_PATTERN_DOTS;
+
+  desktop_tile_pattern = (uint8_t)pattern;
+  desktop_tile_fg = fg & 0x00FFFFFFu;
+  desktop_tile_bg = bg & 0x00FFFFFFu;
+  desktop_tile_use_bmp = 0;
+  desktop_bg_mode = DESKTOP_BG_TILED;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+}
+
+int desktop_bg_set_mode_tiled_bmp(const char *path) {
+  int rc = desktop_bg_apply_tile_bmp(path);
+  if (rc != BMP_OK)
+    return rc;
+  desktop_bg_mode = DESKTOP_BG_TILED;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+  return BMP_OK;
+}
+
+int desktop_bg_set_mode_bmp(const char *path) {
+  int rc = desktop_bg_apply_bmp(path);
+  if (rc != BMP_OK) {
+    return rc;
+  }
+  desktop_bg_mode = DESKTOP_BG_BMP;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+  return BMP_OK;
+}
+
+int desktop_bg_get_mode(void) { return (int)desktop_bg_mode; }
+
+uint32_t desktop_bg_get_solid_color(void) { return desktop_bg_solid & 0x00FFFFFFu; }
+
+void desktop_bg_set_anim_theme(int theme) {
+  (void)theme;
+  desktop_anim_theme = DESKTOP_ANIM_THEME_KITTY;
+  desktop_bg_mode = DESKTOP_BG_ANIM;
+  desktop_invalidate_workspace_cache();
+  desktop_bg_save_config();
+}
+
+int desktop_bg_get_anim_theme(void) { return DESKTOP_ANIM_THEME_KITTY; }
+
+int desktop_bg_get_tiled_pattern(void) { return (int)desktop_tile_pattern; }
+
+int desktop_bg_get_tiled_use_bmp(void) { return (int)desktop_tile_use_bmp; }
+
 void desktop_draw_background(void) {
+  workspace_base_drawn_with_icons = false;
+
+  if (desktop_bg_mode != DESKTOP_BG_ANIM) {
+    size_t workspace_bytes =
+        (size_t)TASKBAR_Y * (size_t)VGA_GFX_WIDTH * sizeof(uint32_t);
+    bool has_bmp = (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled);
+    bool has_grad = (desktop_bg_mode == DESKTOP_BG_GRADIENT);
+    bool has_tiled = (desktop_bg_mode == DESKTOP_BG_TILED);
+    bool can_cache = (desktop_bg_mode == DESKTOP_BG_SOLID) || has_bmp ||
+             has_grad || has_tiled;
+
+    if (can_cache && !workspace_base_cache) {
+      workspace_base_cache = (uint32_t *)kmalloc((uint32_t)workspace_bytes);
+    }
+
+    if (can_cache && workspace_base_cache) {
+      bool cache_match = workspace_base_cache_valid &&
+                         workspace_cache_bg_mode == desktop_bg_mode &&
+                         workspace_cache_bg_solid == desktop_bg_solid &&
+                         workspace_cache_bg_grad_top == desktop_bg_grad_top &&
+                         workspace_cache_bg_grad_bottom == desktop_bg_grad_bottom &&
+                         workspace_cache_tile_fg == desktop_tile_fg &&
+                         workspace_cache_tile_bg == desktop_tile_bg &&
+                         workspace_cache_tile_pattern == desktop_tile_pattern &&
+                         workspace_cache_tile_use_bmp == desktop_tile_use_bmp &&
+                         workspace_cache_has_bmp == has_bmp &&
+                         workspace_cache_icon_stamp == desktop_icon_stamp;
+
+      if (!cache_match) {
+        uint32_t *fb_build = vga_get_framebuffer();
+        if (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled) {
+          memcpy(fb_build, desktop_bg_bmp_scaled, workspace_bytes);
+        } else if (desktop_bg_mode == DESKTOP_BG_GRADIENT) {
+          gfx2d_gradient_v(0, 0, VGA_GFX_WIDTH, TASKBAR_Y,
+                           desktop_bg_grad_top, desktop_bg_grad_bottom);
+        } else if (desktop_bg_mode == DESKTOP_BG_TILED) {
+          desktop_draw_tiled_region(0, 0, VGA_GFX_WIDTH, TASKBAR_Y);
+        } else {
+          gfx_fill_rect(0, 0, VGA_GFX_WIDTH, TASKBAR_Y, desktop_bg_solid);
+        }
+        gfx2d_icons_draw_all();
+        memcpy(workspace_base_cache, fb_build, workspace_bytes);
+
+        workspace_base_cache_valid = true;
+        workspace_cache_bg_mode = desktop_bg_mode;
+        workspace_cache_bg_solid = desktop_bg_solid;
+        workspace_cache_bg_grad_top = desktop_bg_grad_top;
+        workspace_cache_bg_grad_bottom = desktop_bg_grad_bottom;
+        workspace_cache_tile_fg = desktop_tile_fg;
+        workspace_cache_tile_bg = desktop_tile_bg;
+        workspace_cache_tile_pattern = desktop_tile_pattern;
+        workspace_cache_tile_use_bmp = desktop_tile_use_bmp;
+        workspace_cache_has_bmp = has_bmp;
+        workspace_cache_icon_stamp = desktop_icon_stamp;
+      }
+
+      memcpy(vga_get_framebuffer(), workspace_base_cache, workspace_bytes);
+      workspace_base_drawn_with_icons = true;
+      return;
+    }
+  }
+
   if (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled) {
     uint32_t *fb = vga_get_framebuffer();
-    for (int row = 0; row < TASKBAR_Y; row++) {
-      memcpy(fb + row * VGA_GFX_WIDTH,
-             desktop_bg_bmp_scaled + row * VGA_GFX_WIDTH,
-             (uint32_t)VGA_GFX_WIDTH * 4u);
-    }
+    memcpy(fb, desktop_bg_bmp_scaled,
+           (size_t)TASKBAR_Y * (size_t)VGA_GFX_WIDTH * sizeof(uint32_t));
     return;
   }
 
   if (desktop_bg_mode == DESKTOP_BG_SOLID) {
-    for (int row = 0; row < TASKBAR_Y; row++) {
-      gfx_draw_hline(0, (int16_t)row, VGA_GFX_WIDTH, desktop_bg_solid);
+    gfx_fill_rect(0, 0, VGA_GFX_WIDTH, TASKBAR_Y, desktop_bg_solid);
+    return;
+  }
+
+  if (desktop_bg_mode == DESKTOP_BG_GRADIENT) {
+    gfx2d_gradient_v(0, 0, VGA_GFX_WIDTH, TASKBAR_Y,
+                     desktop_bg_grad_top, desktop_bg_grad_bottom);
+    return;
+  }
+
+  if (desktop_bg_mode == DESKTOP_BG_TILED) {
+    desktop_draw_tiled_region(0, 0, VGA_GFX_WIDTH, TASKBAR_Y);
+    return;
+  }
+
+  uint32_t top = desktop_anim_top_color();
+  desktop_update_bg_lut(top);
+
+  /* Fill from LUT directly into framebuffer (faster than per-line API calls). */
+  {
+    uint32_t *fb = vga_get_framebuffer();
+    for (int row = 0; row < (int)TASKBAR_Y; row++) {
+      desktop_fill_row32(fb + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH,
+                         VGA_GFX_WIDTH, bg_lut[row]);
+    }
+  }
+
+  desktop_draw_theme_kitty();
+}
+
+static void desktop_redraw_workspace_region(int16_t x, int16_t y,
+                                            uint16_t w, uint16_t h) {
+  if (w == 0 || h == 0)
+    return;
+
+  int x0 = x;
+  int y0 = y;
+  int x1 = x + (int16_t)w;
+  int y1 = y + (int16_t)h;
+
+  if (x0 < 0)
+    x0 = 0;
+  if (y0 < 0)
+    y0 = 0;
+  if (x1 > VGA_GFX_WIDTH)
+    x1 = VGA_GFX_WIDTH;
+  if (y1 > TASKBAR_Y)
+    y1 = TASKBAR_Y;
+  if (x1 <= x0 || y1 <= y0)
+    return;
+
+  desktop_mark_dirty_rect(x0, y0, x1 - x0, y1 - y0);
+
+  bool used_cache = false;
+  bool can_cache = (desktop_bg_mode == DESKTOP_BG_SOLID) ||
+                   (desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled) ||
+                   (desktop_bg_mode == DESKTOP_BG_GRADIENT) ||
+                   (desktop_bg_mode == DESKTOP_BG_TILED);
+
+  if (can_cache && workspace_base_cache_valid && workspace_base_cache) {
+    int copy_w = x1 - x0;
+    uint32_t *fb = vga_get_framebuffer();
+    for (int row = y0; row < y1; row++) {
+      memcpy(fb + row * VGA_GFX_WIDTH + x0,
+             workspace_base_cache + row * VGA_GFX_WIDTH + x0,
+             (uint32_t)copy_w * 4u);
+    }
+    used_cache = true;
+  }
+
+  if (!used_cache && desktop_bg_mode == DESKTOP_BG_BMP && desktop_bg_bmp_scaled) {
+    uint32_t *fb = vga_get_framebuffer();
+    int copy_w = x1 - x0;
+    for (int row = y0; row < y1; row++) {
+      memcpy(fb + row * VGA_GFX_WIDTH + x0,
+             desktop_bg_bmp_scaled + row * VGA_GFX_WIDTH + x0,
+             (uint32_t)copy_w * 4u);
+    }
+  } else if (!used_cache && desktop_bg_mode == DESKTOP_BG_SOLID) {
+    gfx_fill_rect((int16_t)x0, (int16_t)y0, (uint16_t)(x1 - x0),
+                  (uint16_t)(y1 - y0), desktop_bg_solid);
+  } else if (!used_cache && desktop_bg_mode == DESKTOP_BG_GRADIENT) {
+    gfx2d_clip_set(x0, y0, x1 - x0, y1 - y0);
+    gfx2d_gradient_v(0, 0, VGA_GFX_WIDTH, TASKBAR_Y,
+                     desktop_bg_grad_top, desktop_bg_grad_bottom);
+    gfx2d_clip_clear();
+  } else if (!used_cache && desktop_bg_mode == DESKTOP_BG_TILED) {
+    desktop_draw_tiled_region(x0, y0, x1, y1);
+  } else if (!used_cache) {
+    uint32_t top = desktop_anim_top_color();
+    desktop_update_bg_lut(top);
+    {
+      uint32_t *fb = vga_get_framebuffer();
+      int copy_w = x1 - x0;
+      for (int row = y0; row < y1; row++) {
+        desktop_fill_row32(fb + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH +
+                               (uint32_t)x0,
+                           copy_w, bg_lut[row]);
+      }
+    }
+  }
+
+  gfx2d_clip_set(x0, y0, x1 - x0, y1 - y0);
+  if (used_cache) {
+    desktop_draw_icon_hover_fx();
+  } else {
+    desktop_draw_icons();
+  }
+  gfx2d_clip_clear();
+}
+
+static void desktop_draw_icon_hover_fx(void) {
+  (void)0;
+}
+
+static void desktop_draw_taskbar_base(void) {
+  uint32_t *fb = vga_get_framebuffer();
+  int row;
+
+  if (!taskbar_base_cache) {
+    size_t bytes = (size_t)TASKBAR_HEIGHT * (size_t)VGA_GFX_WIDTH *
+                   sizeof(uint32_t);
+    taskbar_base_cache = (uint32_t *)kmalloc((uint32_t)bytes);
+  }
+
+  if (taskbar_base_cache_valid && taskbar_base_cache) {
+    for (row = 0; row < TASKBAR_HEIGHT; row++) {
+      memcpy(fb + (uint32_t)(TASKBAR_Y + row) * (uint32_t)VGA_GFX_WIDTH,
+             taskbar_base_cache + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH,
+             (size_t)VGA_GFX_WIDTH * sizeof(uint32_t));
     }
     return;
   }
 
-  /* Slowly cycle background hue between rose, lavender, and peach */
-  /* Period: ~512 ticks ≈ several seconds at ~60Hz */
-  uint32_t t = desktop_anim_tick & 511;
+  gfx2d_gradient_v(0, TASKBAR_Y, VGA_GFX_WIDTH, TASKBAR_HEIGHT, 0x00DDD0F0u,
+                   COLOR_TASKBAR);
+  gfx_draw_hline(0, TASKBAR_Y, VGA_GFX_WIDTH, COLOR_BORDER);
+  gfx_draw_text(4, (int16_t)(TASKBAR_Y + 6), "cupid-os", COLOR_TEXT_LIGHT);
 
-  /* Interpolate 3 colors in a triangle: rose → lavender → peach → rose */
-  uint32_t top;
-  if (t < 170) {
-    top = desktop_blend_colors(COLOR_DESKTOP_BG, 0xEEDDFF, (int)t, 170);
-  } else if (t < 340) {
-    top = desktop_blend_colors(0xEEDDFF, 0xFFF0E0, (int)(t - 170), 170);
-  } else {
-    top = desktop_blend_colors(0xFFF0E0, COLOR_DESKTOP_BG, (int)(t - 340), 172);
-  }
-
-  /* Rebuild LUT only when the top colour changes */
-  if (top != bg_lut_top) {
-    bg_lut_top = top;
-    int max_row = (TASKBAR_Y > 1) ? TASKBAR_Y - 1 : 1;
-    for (int row = 0; row < TASKBAR_Y; row++) {
-      bg_lut[row] = desktop_blend_colors(top, COLOR_TASKBAR, row, max_row);
+  if (taskbar_base_cache) {
+    for (row = 0; row < TASKBAR_HEIGHT; row++) {
+      memcpy(taskbar_base_cache + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH,
+             fb + (uint32_t)(TASKBAR_Y + row) * (uint32_t)VGA_GFX_WIDTH,
+             (size_t)VGA_GFX_WIDTH * sizeof(uint32_t));
     }
-  }
-
-  /* Fill from LUT (no per-row division) */
-  for (int row = 0; row < (int)TASKBAR_Y; row++) {
-    gfx_draw_hline(0, (int16_t)row, VGA_GFX_WIDTH, bg_lut[row]);
+    taskbar_base_cache_valid = true;
   }
 }
 
 void desktop_draw_taskbar(void) {
-  /* Taskbar: gradient base */
-  gfx2d_gradient_v(0, TASKBAR_Y, VGA_GFX_WIDTH, TASKBAR_HEIGHT, 0x00DDD0F0u,
-                   COLOR_TASKBAR);
-
-  /* Top separator line */
-  gfx_draw_hline(0, TASKBAR_Y, VGA_GFX_WIDTH, COLOR_BORDER);
-
-  /* "cupid-os" branding on the left */
-  gfx_draw_text(4, (int16_t)(TASKBAR_Y + 6), "cupid-os", COLOR_TEXT_LIGHT);
+  desktop_draw_taskbar_base();
 
   /* Window buttons starting at x=80 */
   int wc = gui_window_count();
@@ -716,31 +1582,38 @@ void desktop_draw_taskbar(void) {
     }
   }
 
-  /* ── Clock display (right-aligned) ────────────────────────── */
+  /* Clock display (right-aligned) */
   {
-    rtc_time_t time;
-    rtc_date_t date;
-    rtc_read_time(&time);
-    rtc_read_date(&date);
+    uint32_t now_ms = timer_get_uptime_ms();
+    if (clock_last_minute == 255 ||
+        (uint32_t)(now_ms - clock_last_poll_ms) >= 1000u) {
+      rtc_time_t time;
+      rtc_date_t date;
+      rtc_read_time(&time);
+      rtc_read_date(&date);
+      clock_last_poll_ms = now_ms;
 
-    /* Only rebuild strings if minute changed */
-    if (time.minute != clock_last_minute) {
-      if (rtc_validate_time(&time)) {
-        format_time_12hr(&time, clock_time_str, (int)sizeof(clock_time_str));
-      } else {
-        clock_time_str[0] = '-';
-        clock_time_str[1] = '-';
-        clock_time_str[2] = ':';
-        clock_time_str[3] = '-';
-        clock_time_str[4] = '-';
-        clock_time_str[5] = '\0';
+      /* Rebuild strings only when minute changes. */
+      if (time.minute != clock_last_minute) {
+        if (rtc_validate_time(&time)) {
+          format_time_12hr(&time, clock_time_str,
+                           (int)sizeof(clock_time_str));
+        } else {
+          clock_time_str[0] = '-';
+          clock_time_str[1] = '-';
+          clock_time_str[2] = ':';
+          clock_time_str[3] = '-';
+          clock_time_str[4] = '-';
+          clock_time_str[5] = '\0';
+        }
+        if (rtc_validate_date(&date)) {
+          format_date_short(&date, clock_date_str,
+                            (int)sizeof(clock_date_str));
+        } else {
+          clock_date_str[0] = '\0';
+        }
+        clock_last_minute = time.minute;
       }
-      if (rtc_validate_date(&date)) {
-        format_date_short(&date, clock_date_str, (int)sizeof(clock_date_str));
-      } else {
-        clock_date_str[0] = '\0';
-      }
-      clock_last_minute = time.minute;
     }
 
     /* Calculate right-aligned position */
@@ -764,11 +1637,11 @@ void desktop_draw_taskbar(void) {
 }
 
 void desktop_draw_icons(void) {
-  /* Draw all registered gfx2d icons (kernel + auto-discovered) */
-  gfx2d_icons_draw_all();
+  if (!workspace_base_drawn_with_icons) {
+    gfx2d_icons_draw_all();
+  }
+  desktop_draw_icon_hover_fx();
 }
-
-/* ── Taskbar hit-test ─────────────────────────────────────────────── */
 
 int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
   if (my < TASKBAR_Y + 2 || my >= TASKBAR_Y + TASKBAR_HEIGHT)
@@ -806,8 +1679,6 @@ int desktop_hit_test_taskbar(int16_t mx, int16_t my) {
   }
   return -1;
 }
-
-/* ── Calendar popup ────────────────────────────────────────────────── */
 
 void desktop_toggle_calendar(void) {
   if (cal_state.visible) {
@@ -856,7 +1727,7 @@ static void desktop_draw_calendar(void) {
   gfx_fill_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_WINDOW_BG);
   gfx_draw_rect(cx, cy, CALENDAR_WIDTH, CALENDAR_HEIGHT, COLOR_BORDER);
 
-  /* Close button "x" — top-right corner */
+  /* Close button "x" - top-right corner */
   {
     int16_t close_x = (int16_t)(cx + CALENDAR_WIDTH - 20);
     int16_t close_y = (int16_t)(cy + 2);
@@ -865,7 +1736,7 @@ static void desktop_draw_calendar(void) {
     gfx_draw_text((int16_t)(close_x + 5), (int16_t)(close_y + 5), "x", COLOR_TEXT_LIGHT);
   }
 
-  /* ── Header: ◄ Month Year ► (below close button) ──────── */
+  /* Header: ◄ Month Year ► (below close button) */
   int16_t hdr_y = (int16_t)(cy + 20);
 
   /* Left arrow  "<" */
@@ -939,7 +1810,7 @@ static void desktop_draw_calendar(void) {
     gfx_draw_text(fdx, (int16_t)(sep_y + 5), full_date, COLOR_TEXT);
   }
 
-  /* ── Day headers: Su Mo Tu We Th Fr Sa ─────────────────── */
+  /* Day headers: Su Mo Tu We Th Fr Sa */
   int16_t grid_x = (int16_t)(cx + (CALENDAR_WIDTH - 7 * 52) / 2);
   int16_t grid_y = (int16_t)(sep_y + 22);
   {
@@ -950,7 +1821,7 @@ static void desktop_draw_calendar(void) {
     }
   }
 
-  /* ── Day grid ──────────────────────────────────────────── */
+  /* Day grid */
   int first_dow = get_first_weekday(cal_state.view_month, cal_state.view_year);
   int days = get_days_in_month(cal_state.view_month, cal_state.view_year);
   bool is_current = (cal_state.view_month == cal_state.today_month &&
@@ -1056,7 +1927,7 @@ static bool calendar_handle_click(int16_t mx, int16_t my) {
   /* Check if click is inside the calendar */
   if (mx < cx || mx >= cx + CALENDAR_WIDTH || my < cy ||
       my >= cy + CALENDAR_HEIGHT) {
-    /* Click outside — close calendar */
+    /* Click outside - close calendar */
     cal_state.visible = false;
     return true; /* consumed: prevents click-through */
   }
@@ -1141,7 +2012,7 @@ static bool calendar_handle_right_click(int16_t mx, int16_t my) {
   int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
   int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
 
-  /* Outside calendar — ignore */
+  /* Outside calendar - ignore */
   if (mx < cx || mx >= cx + CALENDAR_WIDTH || my < cy ||
       my >= cy + CALENDAR_HEIGHT) {
     return false;
@@ -1159,15 +2030,15 @@ static bool calendar_handle_right_click(int16_t mx, int16_t my) {
   return true; /* consumed even if no day hit (inside calendar) */
 }
 
-/* ── Main event loop ──────────────────────────────────────────────── */
-
 void desktop_redraw_cycle(void) {
   bool needs_redraw = false;
+  bool mouse_only = false; /* true if only mouse position changed */
+  static bool cycle_has_first_render = false;
 
   /* Process mouse */
   if (mouse.updated) {
     mouse.updated = false;
-    needs_redraw = true;
+    mouse_only = true; /* assume cursor-only until we see scroll/key */
 
     if (mouse.scroll_z != 0) {
       int scroll_lines = (int)mouse.scroll_z * 5;
@@ -1180,6 +2051,8 @@ void desktop_redraw_cycle(void) {
         terminal_handle_scroll(scroll_lines);
       }
       mouse.scroll_z = 0;
+      needs_redraw = true;
+      mouse_only = false;
     }
 
     uint8_t btn = mouse.buttons;
@@ -1197,6 +2070,7 @@ void desktop_redraw_cycle(void) {
       if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
         cal_state.visible = false;
         needs_redraw = true;
+        mouse_only = false;
         continue;
       }
       /* Route key to focused window */
@@ -1208,6 +2082,7 @@ void desktop_redraw_cycle(void) {
         terminal_handle_key(event.scancode, event.character);
       }
       needs_redraw = true;
+      mouse_only = false;
     }
   }
 
@@ -1215,11 +2090,35 @@ void desktop_redraw_cycle(void) {
   terminal_tick();
   notepad_tick();
 
+  bool any_dirty = gui_any_dirty();
+
+  /* Fast path: cursor moved but nothing else changed - just update cursor.
+   * Use mouse_mark_cursor_dirty() to only copy the ~10x10 px cursor region
+   * to VRAM instead of the full 1.2MB back buffer. */
+  if (mouse_only && !needs_redraw && !any_dirty && cycle_has_first_render) {
+    mouse_mark_cursor_dirty();   /* mark old+new cursor rect before moving */
+    mouse_restore_under_cursor();
+    mouse_save_under_cursor();
+    mouse_draw_cursor();
+    vga_flip();
+    return;
+  }
+
   /* Redraw if needed */
-  if (needs_redraw || gui_any_dirty()) {
-    desktop_anim_tick++; /* Drive animated background */
+  if (needs_redraw || mouse_only || any_dirty) {
+    /* Only increment anim tick for actual content redraws, and throttle it */
+    if (needs_redraw || any_dirty) {
+      static uint32_t anim_frame = 0;
+      if (++anim_frame >= 3u) { /* update animation every 3 redraws */
+        anim_frame = 0;
+        desktop_anim_tick++;
+      }
+    }
     desktop_draw_background();
     desktop_draw_icons();
+    /* Only mark windows dirty when background was repainted (not cursor-only) */
+    if (needs_redraw || any_dirty)
+      gui_mark_all_dirty();
     gui_draw_all_windows();
     desktop_draw_taskbar();
     desktop_draw_calendar();
@@ -1227,19 +2126,19 @@ void desktop_redraw_cycle(void) {
     mouse_save_under_cursor();
     mouse_draw_cursor();
 
+    vga_mark_dirty_full();
     vga_flip();
+    cycle_has_first_render = true;
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Minimized fullscreen app support
- *
- *  When a fullscreen JIT program calls gfx2d_minimize(), we need to
- *  run the desktop event loop with a taskbar button for the app.
- *  Since JIT programs execute synchronously (blocking the desktop
- *  loop), this function takes over as the temporary event loop until
- *  the user clicks the taskbar button to restore the app.
- * ══════════════════════════════════════════════════════════════════════ */
+/* Minimized fullscreen app support
+ * When a fullscreen JIT program calls gfx2d_minimize(), we need to
+ * run the desktop event loop with a taskbar button for the app.
+ * Since JIT programs execute synchronously (blocking the desktop
+ * loop), this function takes over as the temporary event loop until
+ * the user clicks the taskbar button to restore the app.
+ */
 
 void desktop_run_minimized_loop(const char *app_name) {
   serial_printf("[desktop] minimized app: %s\n", app_name);
@@ -1249,6 +2148,7 @@ void desktop_run_minimized_loop(const char *app_name) {
   uint8_t prev_btns = mouse.buttons;
 
   while (!restore_requested) {
+    bool repainted_workspace = false;
     /* Check if the minimized program was killed */
     if (shell_jit_program_was_killed()) {
       serial_printf("[desktop] minimized app killed: %s\n", app_name);
@@ -1312,7 +2212,7 @@ void desktop_run_minimized_loop(const char *app_name) {
       n_btns++;
     }
 
-    /* ── Process mouse ──────────────────────────────────────── */
+    /* Process mouse */
     if (mouse.updated) {
       mouse.updated = false;
       needs_redraw = true;
@@ -1334,6 +2234,23 @@ void desktop_run_minimized_loop(const char *app_name) {
       bool pressed = (btn & 0x01) && !(prev_btns & 0x01);
       bool right_pressed = (btn & 0x02) && !(prev_btns & 0x02);
 
+      if (right_pressed && !cal_state.visible && mouse.y < TASKBAR_Y &&
+          gui_hit_test_window(mouse.x, mouse.y) < 0) {
+        int icon_menu_target = gfx2d_icon_at_pos(mouse.x, mouse.y);
+        if (icon_menu_target >= 0) {
+          mouse_restore_under_cursor();
+          const char *icon_menu[] = {"Open", "Info"};
+          int pick = gfx2d_popup_menu(mouse.x, mouse.y, icon_menu, 2);
+          if (pick == 0) {
+            desktop_launch_icon_handle(icon_menu_target);
+            needs_redraw = true;
+          } else if (pick == 1) {
+            desktop_show_icon_info(icon_menu_target);
+            needs_redraw = true;
+          }
+        }
+      }
+
       /* Right-click on calendar: delete note */
       if (right_pressed && cal_state.visible) {
         calendar_handle_right_click(mouse.x, mouse.y);
@@ -1346,16 +2263,21 @@ void desktop_run_minimized_loop(const char *app_name) {
             mouse.x < jit_btns[current_btn_idx].x +
                        (int16_t)jit_btns[current_btn_idx].w) {
           restore_requested = true;
+          needs_redraw = true;
         } else if (mouse.y >= TASKBAR_Y &&
                    mouse.x >= clock_hitbox_x &&
                    mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
           /* Check clock hitbox */
           desktop_toggle_calendar();
+          needs_redraw = true;
         } else if (pressed && mouse.y >= TASKBAR_Y) {
-          /* Handle other taskbar window buttons */
+          /* Handle other taskbar window buttons - no window-hit guard,
+           * the taskbar strip belongs to the taskbar regardless of whether
+           * a window's bounds extend into it. */
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
             gui_set_focus(tb_id);
+            needs_redraw = true;
           }
           /* Close calendar if clicking elsewhere on taskbar */
           if (cal_state.visible &&
@@ -1370,37 +2292,36 @@ void desktop_run_minimized_loop(const char *app_name) {
           /* Icon clicks */
           int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
           if (gfx_icon >= 0) {
-            gfx2d_icon_select(gfx_icon);
-            void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
-            if (launch_fn) {
-              launch_fn();
-            } else {
-              const char *prog = gfx2d_icon_get_path(gfx_icon);
-              if (prog && prog[0]) {
-                cupidc_jit(prog);
-              }
-            }
+            desktop_launch_icon_handle(gfx_icon);
             needs_redraw = true;
           }
         }
       }
 
-      /* Always forward current button state so window dragging/release works. */
-      gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
-      if (!gui_is_dragging_any()) {
-        int np_wid = notepad_get_wid();
-        window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
-        if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
-          notepad_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+      /* Forward mouse to window manager for dragging/focus - but NOT for
+       * clicks in the taskbar strip; those were already handled above and
+       * must not also interact with windows whose bodies extend there. */
+      if (mouse.y < TASKBAR_Y || !(btn & MOUSE_LEFT)) {
+        gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+        if (!gui_is_dragging_any()) {
+          int np_wid = notepad_get_wid();
+          window_t *np_win = np_wid >= 0 ? gui_get_window(np_wid) : NULL;
+          if (np_win && (np_win->flags & WINDOW_FLAG_FOCUSED)) {
+            notepad_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
+          }
         }
       }
       prev_btns = btn;
     }
 
-    /* ── Process keyboard ───────────────────────────────────── */
+    /* Process keyboard */
     {
       key_event_t event;
       while (keyboard_read_event(&event)) {
+        if (desktop_handle_global_shortcuts(&event, NULL)) {
+          needs_redraw = true;
+          continue;
+        }
         if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
           cal_state.visible = false;
           needs_redraw = true;
@@ -1417,19 +2338,24 @@ void desktop_run_minimized_loop(const char *app_name) {
       }
     }
 
-    /* ── Cursor blink tick ──────────────────────────────────── */
+    /* Cursor blink tick */
     terminal_tick();
     notepad_tick();
 
-    /* ── Render ─────────────────────────────────────────────── */
+    /* Render */
     if (needs_redraw || gui_any_dirty()) {
       desktop_anim_tick++;
       desktop_draw_background();
       desktop_draw_icons();
+      repainted_workspace = true;
+      if (repainted_workspace)
+        gui_mark_all_dirty();
       gui_draw_all_windows();
 
       /* Draw the standard taskbar */
       desktop_draw_taskbar();
+
+      desktop_draw_hover_tooltip();
 
       /* Draw minimized JIT app buttons on the taskbar */
       for (int bi = 0; bi < n_btns; bi++) {
@@ -1458,10 +2384,11 @@ void desktop_run_minimized_loop(const char *app_name) {
                       (int16_t)(TASKBAR_Y + 6), trunc, COLOR_TEXT_LIGHT);
       }
 
-      desktop_draw_calendar();
+        desktop_draw_calendar();
 
       mouse_save_under_cursor();
       mouse_draw_cursor();
+      vga_mark_dirty_full();
       vga_flip();
 
       needs_redraw = false;
@@ -1476,18 +2403,32 @@ void desktop_run_minimized_loop(const char *app_name) {
 void desktop_run(void) {
   bool needs_redraw = true;
   bool force_full_repaint = false;
+  static int last_hover_icon = -2;
+  bool mouse_buttons_changed = false;
+  bool mouse_scroll_activity = false;
+  enum {
+    CURSOR_W = 8,
+    CURSOR_H = 10,
+    CURSOR_PAD = 1
+  };
 
   while (1) {
+    bool mouse_activity = false;
+    mouse_buttons_changed = false;
+    mouse_scroll_activity = false;
+
     /* Skip ALL desktop processing if a fullscreen app is running */
     if (gfx2d_fullscreen_active()) {
-      process_yield();
+      __asm__ volatile("hlt");
       continue;
     }
 
-    /* ── Process mouse ──────────────────────────────────────── */
+    /* Process mouse */
     if (mouse.updated) {
       mouse.updated = false;
-      needs_redraw = true;
+      mouse_activity = true;
+      mouse_buttons_changed = (mouse.buttons != mouse.prev_buttons);
+      mouse_scroll_activity = (mouse.scroll_z != 0);
 
       /* Handle scroll wheel – consume accumulated delta */
       if (mouse.scroll_z != 0) {
@@ -1517,34 +2458,53 @@ void desktop_run(void) {
       bool pressed = (btn & 0x01) && !(prev & 0x01);
       bool right_pressed = (btn & 0x02) && !(prev & 0x02);
 
-      /* Right-click on calendar: delete note */
-      if (right_pressed && cal_state.visible) {
-        calendar_handle_right_click(mouse.x, mouse.y);
-      }
+      if (btn != prev)
+        needs_redraw = true;
 
-      /* Right-click desktop context menu */
-      if (right_pressed && !cal_state.visible && mouse.y < TASKBAR_Y &&
-          gui_hit_test_window(mouse.x, mouse.y) < 0 &&
-          gfx2d_icon_at_pos(mouse.x, mouse.y) < 0) {
-        const char *desktop_menu[] = {"Change Desktop Background"};
-        int pick = gfx2d_popup_menu(mouse.x, mouse.y, desktop_menu, 1);
-        if (pick == 0) {
-          desktop_open_bg_settings_dialog();
+      if (right_pressed && cal_state.visible) {
+        /* Right-click on calendar: delete note */
+        calendar_handle_right_click(mouse.x, mouse.y);
+      } else if (right_pressed && !cal_state.visible && mouse.y < TASKBAR_Y &&
+                 gui_hit_test_window(mouse.x, mouse.y) < 0) {
+        int icon_menu_target = gfx2d_icon_at_pos(mouse.x, mouse.y);
+        mouse_restore_under_cursor();
+        if (icon_menu_target >= 0) {
+          const char *icon_menu[] = {"Open", "Info"};
+          int pick = gfx2d_popup_menu(mouse.x, mouse.y, icon_menu, 2);
+          if (pick == 0) {
+            desktop_launch_icon_handle(icon_menu_target);
+          } else if (pick == 1) {
+            desktop_show_icon_info(icon_menu_target);
+          }
+        } else {
+          const char *desktop_menu[] = {
+              "Change Desktop Background"
+          };
+          int pick = gfx2d_popup_menu(mouse.x, mouse.y, desktop_menu, 1);
+          if (pick == 0) {
+            desktop_open_bg_settings_dialog();
+          }
         }
         force_full_repaint = true;
         needs_redraw = true;
       }
 
-      /* Check taskbar clicks first */
-      if (pressed && mouse.y >= TASKBAR_Y) {
+      /* Check taskbar clicks first.  No window-hit guard: the taskbar is
+       * always drawn on top, so any click at y >= TASKBAR_Y belongs to it
+       * even if a window's bounding box extends into that strip. */
+        if (pressed && mouse.y >= TASKBAR_Y) {
         /* Check clock hitbox */
         if (mouse.x >= clock_hitbox_x &&
             mouse.x < clock_hitbox_x + (int16_t)clock_hitbox_width) {
           desktop_toggle_calendar();
+          force_full_repaint = true;
+          needs_redraw = true;
         } else {
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
             gui_set_focus(tb_id);
+            force_full_repaint = true;
+            needs_redraw = true;
           }
         }
         /* Close calendar if clicking elsewhere on taskbar */
@@ -1582,18 +2542,7 @@ void desktop_run(void) {
         /* Check gfx2d desktop icons (unified system) */
         int gfx_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
         if (gfx_icon >= 0) {
-          gfx2d_icon_select(gfx_icon);
-          /* Try direct launch callback first (kernel icons) */
-          void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
-          if (launch_fn) {
-            launch_fn();
-          } else {
-            /* Fall back to cupidc_jit for .cc programs */
-            const char *prog = gfx2d_icon_get_path(gfx_icon);
-            if (prog && prog[0]) {
-              cupidc_jit(prog);
-            }
-          }
+          desktop_launch_icon_handle(gfx_icon);
           /* App launch/return may leave stale framebuffer contents. */
           force_full_repaint = true;
           needs_redraw = true;
@@ -1611,12 +2560,34 @@ void desktop_run(void) {
           }
         }
       }
+
+      {
+        int hover_icon = -1;
+        if (!cal_state.visible && mouse.y < TASKBAR_Y &&
+            !(mouse.buttons & (MOUSE_LEFT | MOUSE_RIGHT)) &&
+            gui_hit_test_window(mouse.x, mouse.y) < 0) {
+          hover_icon = gfx2d_icon_at_pos(mouse.x, mouse.y);
+        }
+
+        /* Tooltip is anchored to icon position. Repaint only when
+         * hover target changes (enter/leave/switch icon). */
+        if (hover_icon != last_hover_icon) {
+          last_hover_icon = hover_icon;
+          force_full_repaint = true;
+          needs_redraw = true;
+        }
+      }
+
     }
 
-    /* ── Process keyboard ───────────────────────────────────── */
+    /* Process keyboard */
     {
       key_event_t event;
       while (keyboard_read_event(&event)) {
+        if (desktop_handle_global_shortcuts(&event, &force_full_repaint)) {
+          needs_redraw = true;
+          continue;
+        }
         /* Escape closes calendar popup */
         if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
           cal_state.visible = false;
@@ -1635,66 +2606,168 @@ void desktop_run(void) {
       }
     }
 
-    /* ── Cursor blink tick ──────────────────────────────────── */
+    /* Cursor blink tick */
     terminal_tick();
     notepad_tick();
 
-    /* ── Redraw ─────────────────────────────────────────────── */
-    /* ── Redraw ─────────────────────────────────────────────── */
+    /* Redraw */
+    /* Redraw */
     /* Skip desktop rendering if a fullscreen gfx2d app is running */
     if (gfx2d_fullscreen_active()) {
       /* Also skip input processing so we don't steal clicks/keys */
-      process_yield();
+      __asm__ volatile("hlt");
       continue;
     }
 
-    if (needs_redraw || gui_any_dirty()) {
-      static bool has_first_render = false;
-      static bool fast_path_used = false;
+    bool any_dirty = gui_any_dirty();
+    bool layout_changed = gui_layout_changed();
+    bool mouse_over_window = (gui_hit_test_window(mouse.x, mouse.y) >= 0);
+    static bool has_first_render = false;
+    bool repainted_workspace = false;
+    bool cal_visibility_changed = (cal_state.visible != cal_prev_visible);
+    cal_prev_visible = cal_state.visible;
 
-      /* Check if calendar visibility changed */
-      bool cal_visibility_changed = (cal_state.visible != cal_prev_visible);
-      cal_prev_visible = cal_state.visible;
+    if (mouse_activity && mouse_over_window && !mouse_buttons_changed &&
+        !mouse_scroll_activity && !needs_redraw && !force_full_repaint &&
+        !layout_changed && !cal_state.visible && !cal_visibility_changed) {
+      gui_mark_all_dirty();
+      any_dirty = true;
+    }
 
-      if (!force_full_repaint && !gui_any_dirty() && !gui_layout_changed() &&
-          !cal_state.visible &&
-          !cal_visibility_changed && has_first_render) {
-        /* Fast path: only cursor moved — write directly to displayed LFB */
-        mouse_update_cursor_direct();
-        fast_path_used = true;
-      } else {
+    /* Rate-limit animated background to ~60 fps: only force a full redraw
+     * when enough time has elapsed since the last vga_flip().  Between frames
+     * the cursor-only fast path below still handles mouse movement smoothly. */
+    if (desktop_bg_mode == DESKTOP_BG_ANIM && !force_full_repaint &&
+        !layout_changed && !cal_visibility_changed && vga_flip_ready()) {
+      needs_redraw = true;
+    }
+
+    /* If only mouse moved and nothing else changed, do a cursor-only
+     * backbuffer refresh to keep display/backbuffer fully in sync. */
+    if (mouse_activity && !needs_redraw && !force_full_repaint && !any_dirty &&
+      !layout_changed && !mouse_buttons_changed && !mouse_scroll_activity &&
+      !cal_state.visible && !cal_visibility_changed && !mouse_over_window &&
+        has_first_render) {
+      mouse_mark_cursor_dirty();   /* mark old+new cursor rect before moving */
+      mouse_restore_under_cursor();
+      mouse_save_under_cursor();
+      mouse_draw_cursor();
+      vga_flip();
+      needs_redraw = false;
+      continue;
+    }
+    if (needs_redraw || any_dirty) {
+
+      bool draw_taskbar_now = false;
+      {
+        uint32_t now_ms = timer_get_uptime_ms();
+        int wc_now = gui_window_count();
+        int focus_now = -1;
+        window_t *fw = gui_get_focused_window();
+        if (fw)
+          focus_now = (int)fw->id;
+
+        if (!has_first_render || force_full_repaint || layout_changed ||
+          cal_visibility_changed ||
+            wc_now != taskbar_last_window_count ||
+            focus_now != taskbar_last_focus_id ||
+            (uint32_t)(now_ms - taskbar_last_draw_ms) >= 1000u) {
+          draw_taskbar_now = true;
+        }
+      }
+
         /* Full scene render.
          * If fast path ran since last full render, back_buffer has a stale
          * cursor at the old position (fast path never touches back_buffer).
          * Force a full background repaint to cover it. */
-        if (force_full_repaint || gui_layout_changed() || fast_path_used ||
-            cal_visibility_changed) {
-          fast_path_used = false;
+        if (force_full_repaint || layout_changed || cal_visibility_changed) {
           force_full_repaint = false;
-          desktop_anim_tick++;
-          desktop_draw_background();
-          desktop_draw_icons();
-          gui_clear_layout_changed();
+          if (layout_changed && gui_is_dragging_any() &&
+              !cal_visibility_changed) {
+            int16_t rx;
+            int16_t ry;
+            uint16_t rw;
+            uint16_t rh;
+            if (gui_get_drag_invalidate_rect(&rx, &ry, &rw, &rh)) {
+              desktop_anim_tick++;
+              desktop_redraw_workspace_region(rx, ry, rw, rh);
+              /* Mark all windows dirty so any window overlapping the
+               * repainted region gets composited back on top.  Without
+               * this, windows behind the dragged one are erased because
+               * only the background is repainted but they never get
+               * a redraw pass. */
+              repainted_workspace = true;
+            } else {
+              desktop_anim_tick++;
+              desktop_draw_background();
+              desktop_draw_icons();
+              repainted_workspace = true;
+            }
+            gui_clear_layout_changed();
+            layout_changed = false;
+          } else {
+            desktop_anim_tick++;
+            desktop_draw_background();
+            desktop_draw_icons();
+            repainted_workspace = true;
+            if (layout_changed) {
+              gui_clear_layout_changed();
+              layout_changed = false;
+            }
+          }
         } else {
-          mouse_restore_under_cursor();
+          if (desktop_bg_mode == DESKTOP_BG_ANIM) {
+            /* Throttle animation: advance tick every 4 frames to reduce
+             * LUT recalculation and background repaints */
+            static uint32_t anim_main_frame = 0;
+            if (++anim_main_frame >= 4u) {
+              anim_main_frame = 0;
+              desktop_anim_tick++;
+            }
+            desktop_draw_background();
+            desktop_draw_icons();
+            repainted_workspace = true;
+          } else {
+            mouse_restore_under_cursor();
+          }
         }
+
+        if (repainted_workspace)
+          gui_mark_all_dirty();
         gui_draw_all_windows();
-        desktop_draw_taskbar();
+        /* Always redraw the taskbar after windows so it is never obscured.
+         * Windows whose bodies extend below TASKBAR_Y would otherwise paint
+         * over it on frames where draw_taskbar_now is false (e.g. when only
+         * window content is dirty).  The taskbar strip is 640×24 px and
+         * cheap to render. */
+        {
+          uint32_t now_ms = timer_get_uptime_ms();
+          window_t *fw = gui_get_focused_window();
+          desktop_draw_taskbar();
+          if (draw_taskbar_now) {
+            taskbar_last_draw_ms = now_ms;
+            taskbar_last_window_count = gui_window_count();
+            taskbar_last_focus_id = fw ? (int)fw->id : -1;
+          }
+        }
         desktop_draw_calendar();
+        desktop_draw_hover_tooltip();
         mouse_save_under_cursor();
         mouse_draw_cursor();
+        vga_mark_dirty_full();
         vga_flip();
         has_first_render = true;
-      }
 
-      /* FPS counter: print to serial once per second */
+      /* FPS counter: print to serial every 5 seconds (lower overhead) */
       {
         static uint32_t fps_frames = 0;
         static uint32_t fps_last_ms = 0;
         fps_frames++;
         uint32_t now = timer_get_uptime_ms();
-        if (now - fps_last_ms >= 1000U) {
-          serial_printf("[fps] %u fps\n", fps_frames);
+        if (now - fps_last_ms >= 5000U) {
+          uint32_t elapsed = now - fps_last_ms;
+          uint32_t fps = elapsed ? (fps_frames * 1000U) / elapsed : 0U;
+          serial_printf("[fps] %u fps\n", fps);
           fps_frames = 0;
           fps_last_ms = now;
         }

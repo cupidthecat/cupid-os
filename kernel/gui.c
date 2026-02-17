@@ -7,27 +7,22 @@
  */
 
 #include "gui.h"
+#include "desktop.h"
 #include "../drivers/serial.h"
 #include "../drivers/vga.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "string.h"
 
-
-/* ── Window array (z-ordered) ─────────────────────────────────────── */
 static window_t windows[MAX_WINDOWS];
 static int win_count = 0;
 static uint32_t next_id = 1;
 
-/* ── Drag state ───────────────────────────────────────────────────── */
 static drag_state_t drag = {false, false, -1, 0, 0, 0, 0, 0, 0};
 
 #define RESIZE_GRIP_SIZE 12
 
-/* ── Layout change tracking ───────────────────────────────────────── */
 static bool layout_changed_flag = true; /* start true to force first render */
-
-/* ── Init ─────────────────────────────────────────────────────────── */
 
 void gui_init(void) {
   win_count = 0;
@@ -37,8 +32,6 @@ void gui_init(void) {
   memset(windows, 0, sizeof(windows));
   KINFO("GUI initialized (max %d windows)", MAX_WINDOWS);
 }
-
-/* ── Helpers ──────────────────────────────────────────────────────── */
 
 /* Find array index for a given window ID; returns -1 if not found */
 static int find_index(int wid) {
@@ -53,8 +46,6 @@ static int find_index(int wid) {
 static void win_copy(window_t *dst, const window_t *src) {
   memcpy(dst, src, sizeof(window_t));
 }
-
-/* ── Create / Destroy ─────────────────────────────────────────────── */
 
 int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       const char *title) {
@@ -148,8 +139,6 @@ int gui_destroy_window(int wid) {
   return GUI_OK;
 }
 
-/* ── Focus ────────────────────────────────────────────────────────── */
-
 int gui_set_focus(int wid) {
   int idx = find_index(wid);
   if (idx < 0)
@@ -217,6 +206,69 @@ bool gui_is_dragging_window(int wid) {
   return drag.dragging && drag.window_id == wid;
 }
 
+void gui_mark_all_dirty(void) {
+  for (int i = 0; i < win_count; i++) {
+    if (windows[i].flags & WINDOW_FLAG_VISIBLE) {
+      windows[i].flags |= WINDOW_FLAG_DIRTY;
+    }
+  }
+}
+
+bool gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
+                                  uint16_t *w, uint16_t *h) {
+  if (!x || !y || !w || !h)
+    return false;
+  if (!drag.dragging)
+    return false;
+
+  window_t *win = gui_get_window(drag.window_id);
+  if (!win)
+    return false;
+
+  int old_x = (int)win->prev_x;
+  int old_y = (int)win->prev_y;
+  int old_w = (int)win->width;
+  int old_h = (int)win->height;
+
+  if (drag.resizing) {
+    old_w = (int)drag.start_width;
+    old_h = (int)drag.start_height;
+  }
+
+  int new_x = (int)win->x;
+  int new_y = (int)win->y;
+  int new_w = (int)win->width;
+  int new_h = (int)win->height;
+
+  int rx0 = old_x < new_x ? old_x : new_x;
+  int ry0 = old_y < new_y ? old_y : new_y;
+  int rx1 = (old_x + old_w) > (new_x + new_w) ? (old_x + old_w) : (new_x + new_w);
+  int ry1 = (old_y + old_h) > (new_y + new_h) ? (old_y + old_h) : (new_y + new_h);
+
+  rx0 -= 4;
+  ry0 -= 4;
+  rx1 += 4;
+  ry1 += 4;
+
+  if (rx0 < 0)
+    rx0 = 0;
+  if (ry0 < 0)
+    ry0 = 0;
+  if (rx1 > VGA_GFX_WIDTH)
+    rx1 = VGA_GFX_WIDTH;
+  if (ry1 > VGA_GFX_HEIGHT)
+    ry1 = VGA_GFX_HEIGHT;
+
+  if (rx1 <= rx0 || ry1 <= ry0)
+    return false;
+
+  *x = (int16_t)rx0;
+  *y = (int16_t)ry0;
+  *w = (uint16_t)(rx1 - rx0);
+  *h = (uint16_t)(ry1 - ry0);
+  return true;
+}
+
 /* Front-to-back hit test for bottom-right resize grip */
 static int gui_hit_test_resize(int16_t mx, int16_t my) {
   for (int i = win_count - 1; i >= 0; i--) {
@@ -233,14 +285,12 @@ static int gui_hit_test_resize(int16_t mx, int16_t my) {
   return -1;
 }
 
-/* ── Drawing ──────────────────────────────────────────────────────── */
-
 static void draw_single_window(window_t *win) {
   bool focused = (win->flags & WINDOW_FLAG_FOCUSED) != 0;
   int wx = (int)win->x, wy = (int)win->y;
   int ww = (int)win->width;
 
-  /* Drop shadow: single offset rect — window draws on top, shadow shows
+  /* Drop shadow: single offset rect - window draws on top, shadow shows
    * cleanly on right and bottom edges with a proper square corner. */
   gfx_fill_rect((int16_t)(win->x + 3), (int16_t)(win->y + 3), win->width,
                 win->height, 0x00606070u);
@@ -248,7 +298,7 @@ static void draw_single_window(window_t *win) {
   /* Window background */
   gfx_fill_rect(win->x, win->y, win->width, win->height, COLOR_WINDOW_BG);
 
-  /* Title bar gradient (only titlebar height — small area, fast) */
+  /* Title bar gradient (only titlebar height - small area, fast) */
   if (focused) {
     gfx2d_gradient_h(wx + 1, wy + 1, ww - 2, TITLEBAR_H - 1, 0x000060C8u,
                      0x0040A8F8u);
@@ -309,15 +359,28 @@ int gui_draw_window(int wid) {
 }
 
 void gui_draw_all_windows(void) {
-  /* Draw all windows back-to-front */
+  int first = -1;
+
   for (int i = 0; i < win_count; i++) {
+    if (!(windows[i].flags & WINDOW_FLAG_VISIBLE))
+      continue;
+    if (windows[i].flags &
+        (WINDOW_FLAG_DIRTY | WINDOW_FLAG_DRAGGING | WINDOW_FLAG_RESIZING)) {
+      first = i;
+      break;
+    }
+  }
+
+  if (first < 0)
+    return;
+
+  /* Redraw from the first changed window to top to preserve occlusion. */
+  for (int i = first; i < win_count; i++) {
     if (windows[i].flags & WINDOW_FLAG_VISIBLE) {
       draw_single_window(&windows[i]);
     }
   }
 }
-
-/* ── Hit testing (front to back) ──────────────────────────────────── */
 
 int gui_hit_test_titlebar(int16_t mx, int16_t my) {
   for (int i = win_count - 1; i >= 0; i--) {
@@ -359,8 +422,6 @@ int gui_hit_test_window(int16_t mx, int16_t my) {
   }
   return -1;
 }
-
-/* ── Input handling ───────────────────────────────────────────────── */
 
 void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                       uint8_t prev_buttons) {
@@ -419,8 +480,10 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
             w->y = 0;
           if (w->x > VGA_GFX_WIDTH - 20)
             w->x = (int16_t)(VGA_GFX_WIDTH - 20);
-          if (w->y > VGA_GFX_HEIGHT - 20)
-            w->y = (int16_t)(VGA_GFX_HEIGHT - 20);
+          /* Keep the title bar above the taskbar so windows can never
+           * be dragged on top of it. */
+          if (w->y > TASKBAR_Y - TITLEBAR_H)
+            w->y = (int16_t)(TASKBAR_Y - TITLEBAR_H);
           w->flags |= WINDOW_FLAG_DRAGGING;
           w->flags &= (uint8_t)~WINDOW_FLAG_RESIZING;
           w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;

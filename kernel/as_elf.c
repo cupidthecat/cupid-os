@@ -1,5 +1,5 @@
 /**
- * as_elf.c — ELF32 binary writer for the CupidASM assembler
+ * as_elf.c - ELF32 binary writer for the CupidASM assembler
  *
  * Writes assembled code as a standard ELF32 executable that
  * can be loaded by the existing CupidOS ELF loader.
@@ -18,7 +18,7 @@
 #include "kernel.h"
 #include "../drivers/serial.h"
 
-/* ELF load address — assembler region */
+/* ELF load address - assembler region */
 #define ASM_ELF_LOAD_ADDR    AS_AOT_CODE_BASE
 #define ASM_ELF_DATA_ADDR    AS_AOT_DATA_BASE
 
@@ -28,8 +28,8 @@ int as_write_elf(as_state_t *as, const char *path) {
     /*
      * Layout:
      *   Offset 0x00: ELF header (52 bytes)
-     *   Offset 0x34: Program header 1 — code (32 bytes)
-     *   Offset 0x54: Program header 2 — data (32 bytes)
+     *   Offset 0x34: Program header 1 - code (32 bytes)
+     *   Offset 0x54: Program header 2 - data (32 bytes)
      *   Offset 0x74: padding to 0x80
      *   Offset 0x80: code section
      *   Offset 0x80 + code_size (aligned): data section

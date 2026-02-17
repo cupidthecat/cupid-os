@@ -106,7 +106,7 @@ void idt_init(void) {
 
 // Interrupt handler
 void isr_handler(struct registers* r) {
-    /* ── Page Fault (INT 14) ── enhanced diagnostics ── */
+    /* Page Fault (INT 14) - enhanced diagnostics */
     if (r->int_no == 14) {
         uint32_t cr2;
         __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
@@ -140,7 +140,7 @@ void isr_handler(struct registers* r) {
         kernel_panic_regs(r, "Page fault");
     }
 
-    /* ── Other exceptions ── */
+    /* Other exceptions */
     const char *msg = "Unknown Exception";
     if (r->int_no < 15) {
         msg = exception_messages[r->int_no];

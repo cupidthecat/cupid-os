@@ -10,9 +10,7 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Regular array operations
- * ══════════════════════════════════════════════════════════════════════ */
+/* Regular array operations */
 
 cs_array_t *cs_array_find(cs_array_t *arrays, int array_count,
                            const char *name) {
@@ -111,9 +109,7 @@ void cs_array_append(cs_array_t *arrays, int array_count,
     arr->length++;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Associative array operations
- * ══════════════════════════════════════════════════════════════════════ */
+/* Associative array operations */
 
 cs_assoc_array_t *cs_assoc_find(cs_assoc_array_t *assocs, int assoc_count,
                                  const char *name) {

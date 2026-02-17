@@ -1,5 +1,5 @@
 /**
- * as.c — CupidASM assembler driver for CupidOS
+ * as.c - CupidASM assembler driver for CupidOS
  *
  * Provides the main entry points for JIT and AOT assembly:
  *   - as_jit(): Assemble and execute a .asm file immediately
@@ -33,9 +33,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Read source file from VFS
- * ══════════════════════════════════════════════════════════════════════ */
+/* Read source file from VFS */
 
 static char *as_read_source(const char *path) {
   int fd = vfs_open(path, O_RDONLY);
@@ -86,9 +84,7 @@ static char *as_read_source(const char *path) {
   return source;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Assembler State Initialization / Cleanup
- * ══════════════════════════════════════════════════════════════════════ */
+/* Assembler State Initialization / Cleanup */
 
 /* Register an equ constant in the label table */
 static void as_bind_equ(as_state_t *as, const char *name, uint32_t value) {
@@ -107,14 +103,14 @@ static void as_bind_equ(as_state_t *as, const char *name, uint32_t value) {
 
 /* Register a kernel symbol as a pre-defined label with an absolute address.
  * Used in JIT mode so asm programs can `call print`, etc. */
-/* Helper: convert a function pointer to uint32_t address safely */
+/* convert a function pointer to uint32_t address safely */
 static uint32_t fn_to_u32(void (*fn)(void)) {
   uint32_t addr;
   memcpy(&addr, &fn, sizeof(addr));
   return addr;
 }
 
-/* Macro to bind a kernel function — casts any function type through
+/* Macro to bind a kernel function - casts any function type through
  * void(*)(void) so we only extract the address, never call through it. */
 #define AS_BIND(as, name, fn) \
   as_bind((as), (name), fn_to_u32((void(*)(void))(fn)))
@@ -133,9 +129,8 @@ static void as_bind(as_state_t *as, const char *name, uint32_t addr) {
   lbl->is_equ  = 0;
 }
 
-/* ── Thin wrappers for kernel APIs that are macros or misnamed ──── */
 static void as_jit_exit(void) {
-  /* For JIT mode, exit just returns — the caller (as_jit) handles cleanup */
+  /* For JIT mode, exit just returns - the caller (as_jit) handles cleanup */
 }
 
 static void *as_jit_malloc(size_t size) {
@@ -898,9 +893,8 @@ static void as_cleanup_state(as_state_t *as) {
   as->data = NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  JIT Mode — Assemble and Execute
- * ══════════════════════════════════════════════════════════════════════ */
+/* JIT Mode - Assemble and Execute */
+ */
 
 void as_jit(const char *path) {
   serial_printf("[asm] JIT assemble: %s\n", path);
@@ -983,7 +977,7 @@ void as_jit(const char *path) {
   /* Check stack health before execution */
   stack_guard_check();
 
-  /* Execute the program directly (JIT — synchronous) */
+  /* Execute the program directly (JIT - synchronous) */
   entry_fn();
 
   /* Mark program as finished */
@@ -1000,9 +994,7 @@ void as_jit(const char *path) {
   kfree(as);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  AOT Mode — Assemble to ELF Binary
- * ══════════════════════════════════════════════════════════════════════ */
+/* AOT Mode - Assemble to ELF Binary */
 
 void as_aot(const char *src_path, const char *out_path) {
   serial_printf("[asm] AOT assemble: %s -> %s\n", src_path, out_path);

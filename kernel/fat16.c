@@ -243,8 +243,6 @@ uint32_t fat16_free_bytes(void) {
     return free_clusters * cluster_bytes;
 }
 
-/* ── Subdirectory path helpers ────────────────────────────────────── */
-
 /* Split "dir/file" into dir_out and name_out.
  * Returns 1 if a slash was found, 0 if flat name.
  * Handles only one level of subdirectory. */
@@ -544,9 +542,7 @@ int fat16_close(fat16_file_t* file) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  FAT16 Write Support
- * ══════════════════════════════════════════════════════════════════════ */
+/* FAT16 Write Support */
 
 /**
  * fat16_write_fat_entry - Write a FAT table entry
@@ -667,7 +663,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
                  name83[0], name83[1], name83[2], name83[3], name83[4], name83[5], name83[6], name83[7],
                  name83[8], name83[9], name83[10]);
 
-    /* ── Allocate cluster chain for the new data ── */
+    /* Allocate cluster chain for the new data */
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
     uint32_t clusters_needed = 0;
     if (size > 0) {
@@ -747,7 +743,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         }
     }
 
-    /* ── Write file data to the allocated clusters ── */
+    /* Write file data to the allocated clusters */
     {
         uint16_t cur_cluster = first_cluster;
         uint32_t bytes_written = 0;
@@ -822,7 +818,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         blockcache_sync();
     }
 
-    /* ── Find or create directory entry ── */
+    /* Find or create directory entry */
 
     /* Handle subdirectory path (e.g. "asm/hello.txt") */
     {
@@ -1197,7 +1193,7 @@ int fat16_mkdir(const char *dirname) {
         fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
         for (int i = 0; i < 16; i++) {
             if (entries[i].filename[0] == 0x00) {
-                /* End-of-directory marker — record free slot and stop scan */
+                /* End-of-directory marker - record free slot and stop scan */
                 if (free_sector < 0) { free_sector = (int)sector; free_index = i; }
                 goto scan_done;
             }
@@ -1238,14 +1234,14 @@ scan_done:
         memset(first, 0, 512);
         fat16_dir_entry_t *dot = (fat16_dir_entry_t *)first;
 
-        /* '.' — points to this directory */
+        /* '.' - points to this directory */
         memset(dot[0].filename, ' ', 8);
         memset(dot[0].ext,      ' ', 3);
         dot[0].filename[0] = '.';
         dot[0].attributes  = FAT_ATTR_DIRECTORY;
         dot[0].first_cluster = cluster;
 
-        /* '..' — points to root (cluster 0 in FAT16 root) */
+        /* '..' - points to root (cluster 0 in FAT16 root) */
         memset(dot[1].filename, ' ', 8);
         memset(dot[1].ext,      ' ', 3);
         dot[1].filename[0] = '.';

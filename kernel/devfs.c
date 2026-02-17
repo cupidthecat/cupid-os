@@ -1,5 +1,5 @@
 /**
- * devfs.c — Device filesystem for CupidOS
+ * devfs.c - Device filesystem for CupidOS
  *
  * Provides /dev with pseudo-devices like null, zero, random, serial.
  * Each device is registered with read/write callbacks.
@@ -11,8 +11,6 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── Device registry entry ────────────────────────────────────────── */
-
 typedef struct {
     char    name[VFS_MAX_NAME];
     int   (*read)(void *buf, uint32_t count);
@@ -20,14 +18,10 @@ typedef struct {
     int     in_use;
 } devfs_device_t;
 
-/* ── DevFS instance ───────────────────────────────────────────────── */
-
 typedef struct {
     devfs_device_t devices[DEVFS_MAX_DEVICES];
     int            device_count;
 } devfs_t;
-
-/* ── DevFS file handle ────────────────────────────────────────────── */
 
 typedef struct {
     devfs_device_t *device;
@@ -37,9 +31,7 @@ typedef struct {
 /* Singleton instance pointer for device registration before mount */
 static devfs_t *g_devfs = NULL;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Built-in devices
- * ══════════════════════════════════════════════════════════════════════ */
+/* Built-in devices */
 
 static int dev_null_read(void *buf, uint32_t count) {
     (void)buf; (void)count;
@@ -95,9 +87,7 @@ static int dev_serial_write(const void *buf, uint32_t count) {
     return (int)count;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Internal helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/* Internal helpers */
 
 static devfs_device_t *devfs_find_device(devfs_t *fs, const char *name) {
     for (int i = 0; i < fs->device_count; i++) {
@@ -108,9 +98,7 @@ static devfs_device_t *devfs_find_device(devfs_t *fs, const char *name) {
     return NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations implementation
- * ══════════════════════════════════════════════════════════════════════ */
+/* VFS operations implementation */
 
 static int devfs_mount(const char *source, void **fs_private) {
     (void)source;
@@ -252,9 +240,15 @@ static int devfs_unlink_op(void *fs_private, const char *path) {
     return VFS_ENOSYS;  /* Cannot unlink devices */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations struct
- * ══════════════════════════════════════════════════════════════════════ */
+static int devfs_rename_op(void *fs_private, const char *old_path,
+                           const char *new_path) {
+    (void)fs_private;
+    (void)old_path;
+    (void)new_path;
+    return VFS_ENOSYS;  /* Cannot rename devices */
+}
+
+/* VFS operations struct */
 
 static vfs_fs_ops_t devfs_ops = {
     .name     = "devfs",
@@ -268,16 +262,15 @@ static vfs_fs_ops_t devfs_ops = {
     .stat     = devfs_stat,
     .readdir  = devfs_readdir,
     .mkdir    = devfs_mkdir_op,
-    .unlink   = devfs_unlink_op
+    .unlink   = devfs_unlink_op,
+    .rename   = devfs_rename_op
 };
 
 vfs_fs_ops_t *devfs_get_ops(void) {
     return &devfs_ops;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Device registration
- * ══════════════════════════════════════════════════════════════════════ */
+/* Device registration */
 
 int devfs_register_device(const char *name,
                           int (*read)(void *buf, uint32_t count),
@@ -306,9 +299,7 @@ int devfs_register_device(const char *name,
     return VFS_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Register built-in devices (call during init)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Register built-in devices (call during init) */
 
 void devfs_register_builtins(void) {
     devfs_register_device("null",   dev_null_read,   dev_null_write);

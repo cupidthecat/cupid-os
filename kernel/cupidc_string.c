@@ -1,5 +1,5 @@
 /**
- * cupidc_string.c — String utility functions for CupidC programs
+ * cupidc_string.c - String utility functions for CupidC programs
  *
  * Provides additional string operations beyond the basic kernel string.h.
  * These are bound into CupidC as kernel API calls so that CupidC shell
@@ -10,9 +10,7 @@
 #include "memory.h"
 #include "string.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String duplication
- * ══════════════════════════════════════════════════════════════════════ */
+/* String duplication */
 
 char *cc_strdup(const char *s) {
   if (!s)
@@ -25,9 +23,7 @@ char *cc_strdup(const char *s) {
   return dup;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String concatenation with length limit
- * ══════════════════════════════════════════════════════════════════════ */
+/* String concatenation with length limit */
 
 char *cc_strncat(char *dst, const char *src, uint32_t n) {
   char *d = dst;
@@ -41,9 +37,7 @@ char *cc_strncat(char *dst, const char *src, uint32_t n) {
   return dst;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String tokenization (static state — not reentrant)
- * ══════════════════════════════════════════════════════════════════════ */
+/* String tokenization (static state - not reentrant) */
 
 static char *strtok_state = (char *)0;
 
@@ -96,9 +90,7 @@ char *cc_strtok(char *s, const char *delim) {
   return token;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String/number conversion
- * ══════════════════════════════════════════════════════════════════════ */
+/* String/number conversion */
 
 int cc_atoi(const char *s) {
   if (!s)
@@ -162,9 +154,7 @@ char *cc_itoa(int n, char *buf) {
   return buf;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Character classification
- * ══════════════════════════════════════════════════════════════════════ */
+/* Character classification */
 
 int cc_isspace(int c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
@@ -195,9 +185,7 @@ int cc_tolower(int c) {
   return c;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  String utilities
- * ══════════════════════════════════════════════════════════════════════ */
+/* String utilities */
 
 /* Trim leading and trailing whitespace in-place. Returns s. */
 char *cc_strtrim(char *s) {
@@ -256,9 +244,7 @@ int cc_endswith(const char *s, const char *suffix) {
   return strcmp(s + slen - suflen, suffix) == 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Memory move (handles overlapping regions)
- * ══════════════════════════════════════════════════════════════════════ */
+/* Memory move (handles overlapping regions) */
 
 void *cc_memmove(void *dst, const void *src, uint32_t n) {
   uint8_t *d = (uint8_t *)dst;

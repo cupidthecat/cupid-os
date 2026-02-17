@@ -12,17 +12,13 @@
 /* Forward declaration */
 typedef struct script_context script_context_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Constants
- * ══════════════════════════════════════════════════════════════════════ */
+/* Constants */
 #define MAX_FDS   16
 #define CS_STDIN  0
 #define CS_STDOUT 1
 #define CS_STDERR 2
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File descriptor types
- * ══════════════════════════════════════════════════════════════════════ */
+/* File descriptor types */
 typedef enum {
     FD_CLOSED,
     FD_BUFFER,      /* In-memory buffer (pipes, command substitution) */
@@ -30,9 +26,7 @@ typedef enum {
     FD_TERMINAL     /* Terminal input/output */
 } fd_type_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File descriptor
- * ══════════════════════════════════════════════════════════════════════ */
+/* File descriptor */
 typedef struct {
     fd_type_t type;
     union {
@@ -41,6 +35,7 @@ typedef struct {
             size_t size;
             size_t read_pos;
             size_t capacity;
+            bool   owner;
         } buffer;
         struct {
             int vfs_fd;
@@ -51,17 +46,13 @@ typedef struct {
     };
 } file_descriptor_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  File descriptor table
- * ══════════════════════════════════════════════════════════════════════ */
+/* File descriptor table */
 typedef struct {
     file_descriptor_t fds[MAX_FDS];
     int next_fd;
 } fd_table_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Pipeline / redirection structures
- * ══════════════════════════════════════════════════════════════════════ */
+/* Pipeline / redirection structures */
 
 #define MAX_PIPELINE_CMDS 8
 
@@ -86,9 +77,7 @@ typedef struct {
     bool background;    /* True if ends with & */
 } pipeline_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/* Public API */
 
 /* Initialize fd_table with default stdin/stdout/stderr */
 void fd_table_init(fd_table_t *table, script_context_t *ctx);

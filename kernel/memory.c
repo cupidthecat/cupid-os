@@ -5,23 +5,18 @@
 #include "panic.h"
 #include "string.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Physical Memory Manager (PMM) – unchanged logic, cleaned up
- * ══════════════════════════════════════════════════════════════════════ */
-
+/* Physical Memory Manager (PMM) – unchanged logic, cleaned up
+  * and integrated with the heap allocator. */
 #define BITMAP_SIZE (TOTAL_MEMORY_BYTES / PAGE_SIZE / 32)
 
 static uint32_t page_bitmap[BITMAP_SIZE];
 static const uint32_t total_pages = TOTAL_MEMORY_BYTES / PAGE_SIZE;
 static heap_block_t *heap_head = 0;
 
-/* ── Allocation tracker (global, zero-init) ─────────────────────── */
 static allocation_tracker_t tracker;
 
-/* ── Stack guard tracking ───────────────────────────────────────── */
 static uint32_t stack_peak_usage = 0;
 
-/* ── Output function pointers (for GUI mode) ───────────────────── */
 static void (*mem_print)(const char *) = print;
 static void (*mem_print_int)(uint32_t) = print_int;
 
@@ -140,10 +135,8 @@ uint32_t pmm_free_pages(void) {
 
 uint32_t pmm_total_pages(void) { return total_pages; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Heap Allocator with Memory Safety Features
- * ══════════════════════════════════════════════════════════════════════ */
-
+/* Heap Allocator with Memory Safety Features */
+  
 static uint32_t get_back_canary_addr(heap_block_t *block) {
   return (uint32_t)block + sizeof(heap_block_t) + block->size;
 }

@@ -13,8 +13,6 @@
 #include "memory.h"
 #include "../drivers/vga.h"
 
-/* ── Event System ─────────────────────────────────────────────────── */
-
 /* Per-window event handler table (using a simple static table for now) */
 static ui_event_handler_t g_handlers[UI_MAX_EVENT_HANDLERS];
 static int                g_handler_count = 0;
@@ -76,9 +74,7 @@ void ui_process_events(window_t *win) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Message Box
- * ══════════════════════════════════════════════════════════════════════ */
+/* Message Box */
 
 /* Dialog dimensions */
 #define MSGBOX_W  280
@@ -238,9 +234,7 @@ ui_msgbox_result_t ui_msgbox(const char *title, const char *message,
     return UI_MSGBOX_RESULT_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Input Dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* Input Dialog */
 
 #define INPUT_DLG_W  300
 #define INPUT_DLG_H  110
@@ -337,9 +331,7 @@ int ui_input_dialog_draw(ui_input_dialog_state_t *state,
     return 0; /* still active */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Color Picker
- * ══════════════════════════════════════════════════════════════════════ */
+/* Color Picker */
 
 /* Simple HSV to RGB conversion (integer-only) */
 static uint32_t hsv_to_rgb(int h, int s, int v) {
@@ -560,9 +552,7 @@ bool ui_draw_color_swatch(ui_rect_t r, uint32_t color,
     return clicked && hover;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Progress Dialog
- * ══════════════════════════════════════════════════════════════════════ */
+/* Progress Dialog */
 
 #define PROGRESS_DLG_W  300
 #define PROGRESS_DLG_H   90

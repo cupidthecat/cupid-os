@@ -1,5 +1,5 @@
 /**
- * devfs.h — Device filesystem interface for CupidOS
+ * devfs.h - Device filesystem interface for CupidOS
  *
  * Exposes kernel devices as files under /dev.
  * Built-in devices: null, zero, random, serial.

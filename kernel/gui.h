@@ -3,27 +3,23 @@
 
 #include "types.h"
 
-/* ── Error codes ──────────────────────────────────────────────────── */
 #define GUI_OK                0
 #define GUI_ERR_NO_MEMORY    -1
 #define GUI_ERR_TOO_MANY     -2
 #define GUI_ERR_INVALID_ID   -3
 #define GUI_ERR_INVALID_ARGS -4
 
-/* ── Window flags ─────────────────────────────────────────────────── */
 #define WINDOW_FLAG_VISIBLE  0x01
 #define WINDOW_FLAG_FOCUSED  0x02
 #define WINDOW_FLAG_DIRTY    0x04
-#define WINDOW_FLAG_DRAGGING 0x08  /* being dragged — skip content redraw */
+#define WINDOW_FLAG_DRAGGING 0x08  /* being dragged - skip content redraw */
 #define WINDOW_FLAG_RESIZING 0x10  /* being resized */
 
-/* ── Constants ────────────────────────────────────────────────────── */
 #define MAX_WINDOWS     16
 #define TITLEBAR_H      14
 #define CLOSE_BTN_SIZE  10
 #define BORDER_W         1
 
-/* ── Window structure ─────────────────────────────────────────────── */
 typedef struct window {
     uint32_t  id;
     int16_t   x, y;
@@ -36,7 +32,6 @@ typedef struct window {
     void    (*on_close)(struct window *win);
 } window_t;
 
-/* ── Drag state ───────────────────────────────────────────────────── */
 typedef struct {
     bool   dragging;
     bool   resizing;
@@ -46,7 +41,6 @@ typedef struct {
     uint16_t start_width, start_height;
 } drag_state_t;
 
-/* ── Public API ───────────────────────────────────────────────────── */
 void      gui_init(void);
 
 /* Returns window ID (>= 0) on success, negative on error */
@@ -85,6 +79,11 @@ void      gui_clear_layout_changed(void);
 /* Drag state query */
 bool      gui_is_dragging_any(void);
 bool      gui_is_dragging_window(int wid);
+void      gui_mark_all_dirty(void);
 
+/* During active drag/resize, returns the workspace region that must be
+ * repainted under moving/resizing window(s). Returns false if unavailable. */
+bool      gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
+                                       uint16_t *w, uint16_t *h);
 
 #endif
