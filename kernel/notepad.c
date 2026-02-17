@@ -273,7 +273,7 @@ static void notepad_draw_ctxt_area(window_t *win);
 static int notepad_ctxt_text_width(const char *text, int scale);
 static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                                    uint32_t base_color, int scale,
-                                   int16_t max_x, int line_h,
+                                   int16_t min_x, int16_t max_x, int line_h,
                                    uint32_t link_color,
                                    uint32_t link_hover_color,
                                    uint32_t code_fg,
@@ -1082,7 +1082,7 @@ static int notepad_ctxt_text_width(const char *text, int scale) {
 
 static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                                    uint32_t base_color, int scale,
-                                   int16_t max_x, int line_h,
+                                   int16_t min_x, int16_t max_x, int line_h,
                                    uint32_t link_color,
                                    uint32_t link_hover_color,
                                    uint32_t code_fg,
@@ -1114,20 +1114,28 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
           int start_x = cx;
           int i = 0;
           for (; i < tok_len && cx + char_w <= max_x; i++) {
-            if (scale == 1)
-              gfx_draw_char(cx, y, tok[i], draw_col);
-            else
-              gfx_draw_char_scaled(cx, y, tok[i], draw_col, scale);
+            if (cx + char_w > min_x && cx < max_x) {
+              if (scale == 1)
+                gfx_draw_char(cx, y, tok[i], draw_col);
+              else
+                gfx_draw_char_scaled(cx, y, tok[i], draw_col, scale);
+            }
             cx = (int16_t)(cx + char_w);
           }
 
-          int link_w = cx - start_x;
+          int vis_start = start_x;
+          if (vis_start < min_x)
+            vis_start = min_x;
+          int vis_end = cx;
+          if (vis_end > max_x)
+            vis_end = max_x;
+          int link_w = vis_end - vis_start;
           if (link_w > 0) {
-            gfx_draw_hline((int16_t)start_x,
+            gfx_draw_hline((int16_t)vis_start,
                            (int16_t)(y + (line_h > 2 ? line_h - 2 : 0)),
                            (uint16_t)link_w, draw_col);
             if (app.ctxt_link_count < 256) {
-              app.ctxt_links[app.ctxt_link_count].x = (int16_t)start_x;
+              app.ctxt_links[app.ctxt_link_count].x = (int16_t)vis_start;
               app.ctxt_links[app.ctxt_link_count].y = y;
               app.ctxt_links[app.ctxt_link_count].w = (uint16_t)link_w;
               app.ctxt_links[app.ctxt_link_count].h = (uint16_t)line_h;
@@ -1170,22 +1178,30 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
             bool is_hover = (app.ctxt_hover_link == cur_link_index);
             uint32_t draw_col = is_hover ? link_hover_color : link_color;
             for (; li < label_len && cx + char_w <= max_x; li++) {
-              if (scale == 1)
-                gfx_draw_char(cx, y, p[1 + li], draw_col);
-              else
-                gfx_draw_char_scaled(cx, y, p[1 + li], draw_col, scale);
+              if (cx + char_w > min_x && cx < max_x) {
+                if (scale == 1)
+                  gfx_draw_char(cx, y, p[1 + li], draw_col);
+                else
+                  gfx_draw_char_scaled(cx, y, p[1 + li], draw_col, scale);
+              }
               cx = (int16_t)(cx + char_w);
             }
 
-            int link_w = cx - start_x;
+            int vis_start = start_x;
+            if (vis_start < min_x)
+              vis_start = min_x;
+            int vis_end = cx;
+            if (vis_end > max_x)
+              vis_end = max_x;
+            int link_w = vis_end - vis_start;
             if (link_w > 0) {
               uint32_t ucol = is_hover ? link_hover_color : link_color;
-              gfx_draw_hline((int16_t)start_x,
+              gfx_draw_hline((int16_t)vis_start,
                              (int16_t)(y + (line_h > 2 ? line_h - 2 : 0)),
                              (uint16_t)link_w, ucol);
 
               if (app.ctxt_link_count < 256) {
-                app.ctxt_links[app.ctxt_link_count].x = (int16_t)start_x;
+                app.ctxt_links[app.ctxt_link_count].x = (int16_t)vis_start;
                 app.ctxt_links[app.ctxt_link_count].y = y;
                 app.ctxt_links[app.ctxt_link_count].w = (uint16_t)link_w;
                 app.ctxt_links[app.ctxt_link_count].h = (uint16_t)line_h;
@@ -1279,28 +1295,30 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
       }
     }
 
-    if (cx + char_w > max_x)
+    if (cx >= max_x)
       break;
 
-    if (cur_bg != 0) {
-      gfx_fill_rect(cx, y, (uint16_t)char_w, (uint16_t)line_h, cur_bg);
-    }
+    if (cx + char_w > min_x && cx < max_x) {
+      if (cur_bg != 0) {
+        gfx_fill_rect(cx, y, (uint16_t)char_w, (uint16_t)line_h, cur_bg);
+      }
 
-    if (scale == 1)
-      gfx_draw_char(cx, y, *p, cur_color);
-    else
-      gfx_draw_char_scaled(cx, y, *p, cur_color, scale);
-
-    if (bold) {
       if (scale == 1)
-        gfx_draw_char((int16_t)(cx + 1), y, *p, cur_color);
+        gfx_draw_char(cx, y, *p, cur_color);
       else
-        gfx_draw_char_scaled((int16_t)(cx + 1), y, *p, cur_color, scale);
-    }
+        gfx_draw_char_scaled(cx, y, *p, cur_color, scale);
 
-    if (underline || code_mode) {
-      int ul_y = y + (line_h > 2 ? line_h - 2 : 0);
-      gfx_draw_hline(cx, (int16_t)ul_y, (uint16_t)char_w, cur_color);
+      if (bold) {
+        if (scale == 1)
+          gfx_draw_char((int16_t)(cx + 1), y, *p, cur_color);
+        else
+          gfx_draw_char_scaled((int16_t)(cx + 1), y, *p, cur_color, scale);
+      }
+
+      if (underline || code_mode) {
+        int ul_y = y + (line_h > 2 ? line_h - 2 : 0);
+        gfx_draw_hline(cx, (int16_t)ul_y, (uint16_t)char_w, cur_color);
+      }
     }
 
     cx = (int16_t)(cx + char_w);
@@ -1395,6 +1413,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
       }
       tx = (int16_t)(tx - app.ctxt_scroll_x_px);
       notepad_ctxt_draw_text(tx, (int16_t)y, text, fg, scale,
+                 (int16_t)content_x,
                  (int16_t)(content_x + content_w), line_h,
                  link_color, link_hover_color, code_fg, code_bg);
     }
