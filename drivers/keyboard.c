@@ -55,8 +55,9 @@
 #include "../kernel/irq.h"
 #include "../kernel/kernel.h"
 #include "../kernel/shell.h"
-#include "../kernel/terminal_app.h"
 #include "../kernel/desktop.h"
+#include "../kernel/gui.h"
+#include "../kernel/process.h"
 #include "serial.h"
 
 // Global keyboard state
@@ -420,18 +421,23 @@ char getchar(void) {
         return shell_jit_program_getchar();
     }
 
+    if (gui_mode && !prog_running) {
+        while (1) {
+            window_t *focused = gui_get_focused_window();
+            if (focused && focused->key_head != focused->key_tail) {
+                int key = focused->key_queue[focused->key_head];
+                focused->key_head = (focused->key_head + 1) & 15;
+                return (char)(key & 0xFF);
+            }
+            process_yield();
+        }
+    }
+
     /* Text mode or shell mode: read from global keyboard buffer */
     key_event_t event;
-    /* Blocking: wait for a key event.
-     * In GUI mode, pump the display so the screen stays alive
-     * (needed when a blocking command like ed is running). */
+    /* Blocking: wait for a key event. GUI redraw is handled by desktop loop. */
     while (!keyboard_read_event(&event)) {
-        if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-            /* Mark terminal dirty so any new output is painted */
-            terminal_mark_dirty();
-            desktop_redraw_cycle();
-        }
-        __asm__ volatile("hlt");
+        process_yield();
     }
     return event.character;
 }

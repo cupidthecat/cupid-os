@@ -10,6 +10,7 @@
 #include "vga.h"
 #include "../kernel/memory.h"
 #include "../kernel/ports.h"
+#include "../kernel/simd.h"
 #include "../kernel/string.h"
 #include "../kernel/types.h"
 #include "../drivers/timer.h"
@@ -28,7 +29,10 @@ static inline void vbe_write(uint16_t idx, uint16_t val) {
 /* LFB base (identity-mapped, uncached VRAM) */
 static uint32_t *lfb_ptr = NULL;
 
-/* Heap back buffer - all rendering goes here (fast cached RAM) */
+/* Heap back buffer - all rendering goes here (fast cached RAM).
+ * raw_back_buffer keeps the original kmalloc pointer, while back_buffer is
+ * 16-byte aligned for SSE2 streaming stores. */
+static uint32_t *raw_back_buffer = NULL;
 static uint32_t *back_buffer = NULL;
 /* VSync wait disabled - we use single-buffer rendering which avoids both
  * the Y_OFFSET flip overhead and the VSync busy-wait latency. */
@@ -118,7 +122,11 @@ void vga_init_vbe(void) {
 
   /* Allocate heap back buffer for fast rendering */
   if (!back_buffer) {
-    back_buffer = (uint32_t *)kmalloc(VGA_GFX_SIZE);
+    uint32_t aligned_addr;
+    raw_back_buffer = (uint32_t *)kmalloc(VGA_GFX_SIZE + 15u);
+    aligned_addr = (uint32_t)raw_back_buffer;
+    aligned_addr = (aligned_addr + 15u) & ~15u;
+    back_buffer = (uint32_t *)aligned_addr;
   }
 
   vga_clear_screen(COLOR_BLACK);
@@ -131,14 +139,7 @@ uint32_t *vga_get_framebuffer(void) {
 
 void vga_clear_screen(uint32_t color) {
   uint32_t *dst = back_buffer ? back_buffer : lfb_ptr;
-  uint32_t n = (uint32_t)VGA_GFX_PIXELS;
-  /* Unrolled 8-pixel fill for better throughput */
-  while (n >= 8U) {
-    dst[0] = color; dst[1] = color; dst[2] = color; dst[3] = color;
-    dst[4] = color; dst[5] = color; dst[6] = color; dst[7] = color;
-    dst += 8; n -= 8U;
-  }
-  while (n-- > 0U) { *dst++ = color; }
+  simd_memset32(dst, color, (uint32_t)VGA_GFX_PIXELS);
   vga_mark_dirty_full();
   /* NOTE: Do NOT write directly to LFB pages here!
    * That would cause the clear color to flash on screen
@@ -162,20 +163,18 @@ void vga_flip(void) {
   uint32_t *page0 = lfb_ptr;
 
   if (dirty_full || !dirty_active) {
-    memcpy(page0, back_buffer, (size_t)VGA_GFX_SIZE);
+    simd_memcpy(page0, back_buffer, (uint32_t)VGA_GFX_SIZE);
   } else {
-    int x0 = dirty_x0;
-    int y0 = dirty_y0;
-    int x1 = dirty_x1;
-    int y1 = dirty_y1;
-    size_t bytes = (size_t)(x1 - x0) * sizeof(uint32_t);
-    for (int row = y0; row < y1; row++) {
-      uint32_t *dst = page0 + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH +
-                      (uint32_t)x0;
-      uint32_t *src = back_buffer + (uint32_t)row * (uint32_t)VGA_GFX_WIDTH +
-                      (uint32_t)x0;
-      memcpy(dst, src, bytes);
-    }
+    uint32_t x0 = (uint32_t)dirty_x0;
+    uint32_t y0 = (uint32_t)dirty_y0;
+    uint32_t x1 = (uint32_t)dirty_x1;
+    uint32_t y1 = (uint32_t)dirty_y1;
+    simd_blit_rect(page0 + y0 * (uint32_t)VGA_GFX_WIDTH + x0,
+                   back_buffer + y0 * (uint32_t)VGA_GFX_WIDTH + x0,
+                   (uint32_t)VGA_GFX_WIDTH,
+                   (uint32_t)VGA_GFX_WIDTH,
+                   x1 - x0,
+                   y1 - y0);
   }
 
   dirty_active = false;

@@ -7,6 +7,7 @@ CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c 
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
+OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
 
 # Auto-discover all CupidC programs in bin/
@@ -48,13 +49,14 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
             drivers/serial.o kernel/panic.o kernel/ed.o \
             drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
-            kernel/gui.o kernel/desktop.o kernel/terminal_app.o kernel/process.o kernel/context_switch.o \
-            kernel/clipboard.o kernel/notepad.o kernel/ui.o \
+			kernel/gui.o kernel/desktop.o kernel/process.o kernel/context_switch.o \
+			kernel/clipboard.o kernel/ui.o \
             kernel/cupidscript_lex.o kernel/cupidscript_parse.o \
             kernel/cupidscript_exec.o kernel/cupidscript_runtime.o \
             kernel/cupidscript_streams.o kernel/cupidscript_strings.o \
             kernel/cupidscript_arrays.o kernel/cupidscript_jobs.o \
-            kernel/terminal_ansi.o \
+			kernel/ansi.o \
+			kernel/terminal_app.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/syscall.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
@@ -67,6 +69,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
             kernel/gfx2d_assets.o kernel/gfx2d_transform.o kernel/gfx2d_effects.o \
+			kernel/simd.o \
             kernel/gfx2d_icons.o \
             kernel/gui_widgets.o kernel/gui_containers.o kernel/gui_menus.o \
             kernel/gui_events.o kernel/gui_themes.o \
@@ -84,6 +87,11 @@ $(BOOTLOADER): boot/boot.asm
 # Compile C source files
 kernel/kernel.o: kernel/kernel.c kernel/kernel.h kernel/cpu.h
 	$(CC) $(CFLAGS) kernel/kernel.c -o kernel/kernel.o
+
+# simd.c uses SSE2 inline asm helpers; keep freestanding include policy
+SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) -msse2 -O2
+kernel/simd.o: kernel/simd.c kernel/simd.h
+	$(CC) $(SIMD_CFLAGS) kernel/simd.c -o kernel/simd.o
 
 kernel/idt.o: kernel/idt.c kernel/idt.h kernel/isr.h kernel/kernel.h
 	$(CC) $(CFLAGS) kernel/idt.c -o kernel/idt.o
@@ -187,7 +195,7 @@ kernel/graphics.o: kernel/graphics.c kernel/graphics.h
 	$(CC) $(CFLAGS) $(OPT) kernel/graphics.c -o kernel/graphics.o
 
 # GUI / window manager
-kernel/gui.o: kernel/gui.c kernel/gui.h
+kernel/gui.o: kernel/gui.c kernel/gui.h kernel/process.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gui.c -o kernel/gui.o
 
 # Calendar math and formatting
@@ -199,7 +207,13 @@ kernel/desktop.o: kernel/desktop.c kernel/desktop.h kernel/gfx2d_icons.h kernel/
 	$(CC) $(CFLAGS) $(OPT) kernel/desktop.c -o kernel/desktop.o
 
 # Terminal application
-kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h
+kernel/ansi.o: kernel/ansi.c kernel/ansi.h
+	$(CC) $(CFLAGS) $(OPT) kernel/ansi.c -o kernel/ansi.o
+
+kernel/terminal_ansi.o: kernel/terminal_ansi.c kernel/terminal_ansi.h
+	$(CC) $(CFLAGS) $(OPT) kernel/terminal_ansi.c -o kernel/terminal_ansi.o
+
+kernel/terminal_app.o: kernel/terminal_app.c kernel/terminal_app.h kernel/terminal_ansi.h
 	$(CC) $(CFLAGS) $(OPT) kernel/terminal_app.c -o kernel/terminal_app.o
 
 # Process management and round-robin scheduler (process.c)
@@ -213,10 +227,6 @@ kernel/context_switch.o: kernel/context_switch.asm
 # Clipboard
 kernel/clipboard.o: kernel/clipboard.c kernel/clipboard.h
 	$(CC) $(CFLAGS) $(OPT) kernel/clipboard.c -o kernel/clipboard.o
-
-# Notepad application
-kernel/notepad.o: kernel/notepad.c kernel/notepad.h
-	$(CC) $(CFLAGS) $(OPT) kernel/notepad.c -o kernel/notepad.o
 
 # UI widget toolkit
 kernel/ui.o: kernel/ui.c kernel/ui.h
@@ -245,9 +255,6 @@ kernel/cupidscript_arrays.o: kernel/cupidscript_arrays.c kernel/cupidscript_arra
 
 kernel/cupidscript_jobs.o: kernel/cupidscript_jobs.c kernel/cupidscript_jobs.h kernel/process.h
 	$(CC) $(CFLAGS) kernel/cupidscript_jobs.c -o kernel/cupidscript_jobs.o
-
-kernel/terminal_ansi.o: kernel/terminal_ansi.c kernel/terminal_ansi.h
-	$(CC) $(CFLAGS) $(OPT) kernel/terminal_ansi.c -o kernel/terminal_ansi.o
 
 # VFS core
 kernel/vfs.o: kernel/vfs.c kernel/vfs.h
@@ -438,10 +445,10 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
 run-log: $(OS_IMAGE)
-	qemu-system-i386 -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
 sync-demos: $(OS_IMAGE)

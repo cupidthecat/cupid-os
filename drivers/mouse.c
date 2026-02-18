@@ -14,6 +14,7 @@
 #include "../drivers/vga.h"
 #include "../kernel/graphics.h"
 #include "../drivers/serial.h"
+#include "../kernel/string.h"
 
 mouse_state_t mouse = { 320, 240, 0, 0, 0, false };
 static bool has_scroll_wheel = false;
@@ -209,6 +210,18 @@ void mouse_save_under_cursor(void) {
     saved_x = mouse.x;
     saved_y = mouse.y;
 
+    /* Fast path: cursor fully within screen bounds — no per-pixel check */
+    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
+        saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
+        uint32_t *src = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
+        for (int row = 0; row < CURSOR_H; row++) {
+            memcpy(&under_cursor[row * CURSOR_W], src + row * VGA_GFX_WIDTH,
+                   CURSOR_W * sizeof(uint32_t));
+        }
+        return;
+    }
+
+    /* Slow path: cursor near screen edge */
     for (int row = 0; row < CURSOR_H; row++) {
         for (int col = 0; col < CURSOR_W; col++) {
             int16_t px = (int16_t)(saved_x + (int16_t)col);
@@ -225,6 +238,18 @@ void mouse_restore_under_cursor(void) {
     if (saved_x < 0) return;
     uint32_t *framebuf = vga_get_framebuffer();
 
+    /* Fast path: cursor fully within screen bounds — no per-pixel check */
+    if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
+        saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
+        uint32_t *dst = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
+        for (int row = 0; row < CURSOR_H; row++) {
+            memcpy(dst + row * VGA_GFX_WIDTH, &under_cursor[row * CURSOR_W],
+                   CURSOR_W * sizeof(uint32_t));
+        }
+        return;
+    }
+
+    /* Slow path: cursor near screen edge */
     for (int row = 0; row < CURSOR_H; row++) {
         for (int col = 0; col < CURSOR_W; col++) {
             int16_t px = (int16_t)(saved_x + (int16_t)col);
@@ -240,6 +265,27 @@ void mouse_restore_under_cursor(void) {
 void mouse_draw_cursor(void) {
     uint32_t *framebuf = vga_get_framebuffer();
 
+    /* Fast path: cursor fully within screen bounds — skip per-pixel bounds check */
+    if (mouse.x >= 0 && (int)mouse.x + CURSOR_W <= VGA_GFX_WIDTH &&
+        mouse.y >= 0 && (int)mouse.y + CURSOR_H <= VGA_GFX_HEIGHT) {
+        uint32_t *row_ptr = framebuf + (int32_t)mouse.y * VGA_GFX_WIDTH + (int32_t)mouse.x;
+        for (int row = 0; row < CURSOR_H; row++) {
+            uint8_t outline = cursor_outline[row];
+            uint8_t fill    = cursor_bitmap[row];
+            for (int col = 0; col < CURSOR_W; col++) {
+                uint8_t mask = (uint8_t)(0x80U >> (unsigned)col);
+                if (fill & mask) {
+                    row_ptr[col] = COLOR_CURSOR;
+                } else if (outline & mask) {
+                    row_ptr[col] = COLOR_BLACK;
+                }
+            }
+            row_ptr += VGA_GFX_WIDTH;
+        }
+        return;
+    }
+
+    /* Slow path: cursor near screen edge */
     for (int row = 0; row < CURSOR_H; row++) {
         uint8_t outline = cursor_outline[row];
         uint8_t fill    = cursor_bitmap[row];
