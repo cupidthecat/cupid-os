@@ -46,10 +46,12 @@ context_switch:
 ; When a previously-saved process is rescheduled, new_eip points here.
 ; The new_esp points to the stack where we pushed EBX/ESI/EDI/EBP/EFLAGS.
 context_switch_resume:
-    popfd                     ; restore EFLAGS (includes IF → sti)
+    and dword [esp], ~(1 << 8) ; clear TF — never restore single-step mode
+    popfd                      ; restore EFLAGS (includes IF → sti)
+    cld                        ; clear DF — C ABI requires it clear on function entry
     pop ebx
     pop esi
     pop edi
     pop ebp
-    ret                       ; return to whoever called context_switch()
+    ret                        ; return to whoever called context_switch()
 

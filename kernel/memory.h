@@ -18,10 +18,10 @@ typedef struct heap_block {
 } heap_block_t;
 
 #define PAGE_SIZE 4096
-#define TOTAL_MEMORY_BYTES (32 * 1024 * 1024)
+#define TOTAL_MEMORY_BYTES (128 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
 #define HEAP_INITIAL_PAGES                                                     \
-  2048 /* 8MB initial heap (plenty for VBE + surfaces) */
+  8192 /* 32MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 #define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */

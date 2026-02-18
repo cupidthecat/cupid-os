@@ -10,6 +10,8 @@
 #include "types.h"
 #include "ui.h"
 
+#define MENUBAR_H 20
+
 typedef struct {
     const char *label;
     int         id;          /* unique ID for this item   */

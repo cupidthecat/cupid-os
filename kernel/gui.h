@@ -19,9 +19,12 @@
 #define TITLEBAR_H      14
 #define CLOSE_BTN_SIZE  10
 #define BORDER_W         1
+#define WINDOW_CONTENT_TOP_PAD 0
+#define WINDOW_CONTENT_BORDER  1
 
 typedef struct window {
     uint32_t  id;
+    uint32_t  owner_pid;
     int16_t   x, y;
     int16_t   prev_x, prev_y;  /* position before last drag move */
     uint16_t  width, height;
@@ -30,6 +33,12 @@ typedef struct window {
     void     *app_data;
     void    (*redraw)(struct window *win);
     void    (*on_close)(struct window *win);
+    int       key_queue[16];
+    int       key_head;
+    int       key_tail;
+    uint32_t *content_cache;
+    uint16_t  content_cache_w;
+    uint16_t  content_cache_h;
 } window_t;
 
 typedef struct {
@@ -47,10 +56,14 @@ void      gui_init(void);
 int       gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                             const char *title);
 int       gui_destroy_window(int wid);
+int       gui_destroy_windows_by_owner(uint32_t owner_pid);
 
 /* Drawing */
 int       gui_draw_window(int wid);
-void      gui_draw_all_windows(void);
+/* draw_shadows: pass true when the background was repainted (shadows must
+ * be redrawn); pass false when only window content changed and no windows
+ * moved (shadow pixels in back_buffer are already correct from prev frame). */
+void      gui_draw_all_windows(bool draw_shadows);
 
 /* Focus */
 int       gui_set_focus(int wid);
@@ -80,6 +93,10 @@ void      gui_clear_layout_changed(void);
 bool      gui_is_dragging_any(void);
 bool      gui_is_dragging_window(int wid);
 void      gui_mark_all_dirty(void);
+void      gui_mark_visible_rects(void);
+int       gui_cache_window_content(int wid);
+/* True if focused window has no redraw callback (self-rendering CupidC app) */
+bool      gui_focused_is_self_rendering(void);
 
 /* During active drag/resize, returns the workspace region that must be
  * repainted under moving/resizing window(s). Returns false if unavailable. */

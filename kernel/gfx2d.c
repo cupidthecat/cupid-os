@@ -16,6 +16,7 @@
 #include "font_8x8.h"
 #include "graphics.h"
 #include "memory.h"
+#include "simd.h"
 #include "process.h"
 #include "shell.h"
 #include "string.h"
@@ -248,21 +249,9 @@ static int g2d_debug_frame = 0;
 static uint32_t g2d_last_flip_ms = 0;
 
 static void g2d_fill32(uint32_t *dst, int n, uint32_t color) {
-  while (n >= 8) {
-    dst[0] = color;
-    dst[1] = color;
-    dst[2] = color;
-    dst[3] = color;
-    dst[4] = color;
-    dst[5] = color;
-    dst[6] = color;
-    dst[7] = color;
-    dst += 8;
-    n -= 8;
-  }
-  while (n-- > 0) {
-    *dst++ = color;
-  }
+  if (n <= 0)
+    return;
+  simd_memset32(dst, color, (uint32_t)n);
 }
 
 void gfx2d_clear(uint32_t color) {
@@ -305,6 +294,7 @@ void gfx2d_flip(void) {
   vga_flip();
 }
 
+uint32_t *gfx2d_get_active_fb(void) { return g2d_active_fb ? g2d_active_fb : g2d_fb; }
 int gfx2d_width(void) { return g2d_active_w; }
 int gfx2d_height(void) { return g2d_active_h; }
 
@@ -644,7 +634,7 @@ void gfx2d_rect_fill_alpha(int x, int y, int w, int h, uint32_t argb) {
 }
 
 void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
-  int x1, x2, y1, y2, row, col, n, wm;
+  int x1, x2, y1, y2, row, col, n;
   uint32_t *first_row;
   uint32_t *fb = g2d_active_fb ? g2d_active_fb : g2d_fb;
   int fb_w = g2d_active_w;
@@ -674,14 +664,33 @@ void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   if (x1 > x2 || y1 > y2)
     return;
   n = x2 - x1 + 1;
-  wm = (w > 1) ? w - 1 : 1;
-  /* Fill first row with lerped colors, then memcpy to remaining rows */
+  /* Incremental fixed-point interpolation: 3 divisions total (at setup),
+   * zero divisions in the per-pixel loop — replaces g2d_lerp per pixel. */
   first_row = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
-  for (col = 0; col < n; col++)
-    first_row[col] = g2d_lerp(c1, c2, x1 - x + col, wm);
+  {
+    int32_t steps = (w > 1) ? w - 1 : 1;
+    int32_t r_fp  = (int32_t)((c1 >> 16) & 0xFFu) << 16;
+    int32_t g_fp  = (int32_t)((c1 >>  8) & 0xFFu) << 16;
+    int32_t b_fp  = (int32_t)( c1        & 0xFFu) << 16;
+    int32_t r_step = (((int32_t)((c2 >> 16) & 0xFFu) - (int32_t)((c1 >> 16) & 0xFFu)) << 16) / steps;
+    int32_t g_step = (((int32_t)((c2 >>  8) & 0xFFu) - (int32_t)((c1 >>  8) & 0xFFu)) << 16) / steps;
+    int32_t b_step = (((int32_t)( c2        & 0xFFu) - (int32_t)( c1        & 0xFFu)) << 16) / steps;
+    int32_t skip   = x1 - x; /* left-clip offset into gradient */
+    r_fp += r_step * skip;
+    g_fp += g_step * skip;
+    b_fp += b_step * skip;
+    for (col = 0; col < n; col++) {
+      first_row[col] = (((uint32_t)(r_fp >> 16) & 0xFFu) << 16) |
+                       (((uint32_t)(g_fp >> 16) & 0xFFu) <<  8) |
+                        ((uint32_t)(b_fp >> 16) & 0xFFu);
+      r_fp += r_step;
+      g_fp += g_step;
+      b_fp += b_step;
+    }
+  }
   for (row = y1 + 1; row <= y2; row++) {
     uint32_t *r = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
-    memcpy(r, first_row, (size_t)n * sizeof(uint32_t));
+    simd_memcpy(r, first_row, (uint32_t)n * 4u);
   }
 }
 
@@ -717,12 +726,29 @@ void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
     return;
 
   int n = x2 - x1 + 1;
-  int hm = (h > 1) ? h - 1 : 1;
-  int start_t = y1 - y;
-  for (int row = y1; row <= y2; row++) {
-    uint32_t c = g2d_lerp(c1, c2, start_t + (row - y1), hm);
-    uint32_t *dst = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
-    g2d_fill32(dst, n, c);
+  /* Incremental fixed-point interpolation per row — no per-row division. */
+  {
+    int32_t steps  = (h > 1) ? h - 1 : 1;
+    int32_t r_fp   = (int32_t)((c1 >> 16) & 0xFFu) << 16;
+    int32_t g_fp   = (int32_t)((c1 >>  8) & 0xFFu) << 16;
+    int32_t b_fp   = (int32_t)( c1        & 0xFFu) << 16;
+    int32_t r_step = (((int32_t)((c2 >> 16) & 0xFFu) - (int32_t)((c1 >> 16) & 0xFFu)) << 16) / steps;
+    int32_t g_step = (((int32_t)((c2 >>  8) & 0xFFu) - (int32_t)((c1 >>  8) & 0xFFu)) << 16) / steps;
+    int32_t b_step = (((int32_t)( c2        & 0xFFu) - (int32_t)( c1        & 0xFFu)) << 16) / steps;
+    int32_t skip   = y1 - y; /* top-clip offset */
+    r_fp += r_step * skip;
+    g_fp += g_step * skip;
+    b_fp += b_step * skip;
+    for (int row = y1; row <= y2; row++) {
+      uint32_t c = (((uint32_t)(r_fp >> 16) & 0xFFu) << 16) |
+                   (((uint32_t)(g_fp >> 16) & 0xFFu) <<  8) |
+                    ((uint32_t)(b_fp >> 16) & 0xFFu);
+      uint32_t *dst = fb + (uint32_t)row * (uint32_t)fb_w + (uint32_t)x1;
+      g2d_fill32(dst, n, c);
+      r_fp += r_step;
+      g_fp += g_step;
+      b_fp += b_step;
+    }
   }
 }
 
@@ -1633,8 +1659,18 @@ void gfx2d_surface_blit_alpha(int handle, int x, int y, int alpha) {
   if (alpha >= 255 && g2d_blend_mode_val == GFX2D_BLEND_NORMAL &&
       !g2d_clip_active && x >= 0 && y >= 0 && x + sw <= fb_w && y + sh <= fb_h) {
     for (int sy = 0; sy < sh; sy++) {
-      memcpy(fb + (uint32_t)(y + sy) * (uint32_t)fb_w + (uint32_t)x,
-             src + (uint32_t)sy * (uint32_t)sw, (uint32_t)sw * 4u);
+      simd_memcpy(fb + (uint32_t)(y + sy) * (uint32_t)fb_w + (uint32_t)x,
+                  src + (uint32_t)sy * (uint32_t)sw, (uint32_t)sw * 4u);
+    }
+    return;
+  }
+
+  if (g2d_blend_mode_val == GFX2D_BLEND_NORMAL && !g2d_clip_active &&
+      x >= 0 && y >= 0 && x + sw <= fb_w && y + sh <= fb_h) {
+    for (int sy = 0; sy < sh; sy++) {
+      uint32_t *dst_row = fb + (uint32_t)(y + sy) * (uint32_t)fb_w + (uint32_t)x;
+      const uint32_t *src_row = src + (uint32_t)sy * (uint32_t)sw;
+      simd_blend_row(dst_row, src_row, (uint32_t)sw, (uint8_t)alpha);
     }
     return;
   }
@@ -2249,8 +2285,11 @@ void gfx2d_minimize(const char *app_name) {
 int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
   int w = g2d_active_w;
   int h = GFX2D_TOOLBAR_H;
-  int btn_sz = 16;
-  int btn_y = 2;
+  int btn_sz = h - 4;
+  if (btn_sz < 8)
+    btn_sz = 8;
+  int btn_y = (h - btn_sz) / 2;
+  int btn_gap = 2;
 
   /* Title bar gradient background (Win95-style blue) */
   gfx2d_gradient_h(0, 0, w, h, 0x000080u, 0x1084D0u);
@@ -2259,16 +2298,18 @@ int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked) {
   gfx2d_text(6, (h - 8) / 2, title, 0xFFFFFFu, GFX2D_FONT_NORMAL);
 
   /* Close button [X] - right side */
-  int close_x = w - 20;
+  int close_x = w - 2 - btn_sz;
   gfx2d_rect_fill(close_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
   gfx2d_bevel(close_x, btn_y, btn_sz, btn_sz, 1);
-  gfx2d_text(close_x + 4, btn_y + 4, "X", 0x000000u, GFX2D_FONT_NORMAL);
+  gfx2d_text(close_x + (btn_sz - 8) / 2, btn_y + (btn_sz - 8) / 2, "X",
+             0x000000u, GFX2D_FONT_NORMAL);
 
   /* Minimize button [_] - left of close */
-  int min_x = close_x - 20;
+  int min_x = close_x - btn_gap - btn_sz;
   gfx2d_rect_fill(min_x, btn_y, btn_sz, btn_sz, 0xC0C0C0u);
   gfx2d_bevel(min_x, btn_y, btn_sz, btn_sz, 1);
-  gfx2d_text(min_x + 5, btn_y + 4, "_", 0x000000u, GFX2D_FONT_NORMAL);
+  gfx2d_text(min_x + (btn_sz - 8) / 2, btn_y + (btn_sz - 8) / 2 + 1, "_",
+             0x000000u, GFX2D_FONT_NORMAL);
 
   /* Bottom border line */
   gfx2d_hline(0, h - 1, w, 0x808080u);
@@ -3268,6 +3309,9 @@ static int fdlg_run(fdlg_state_t *dlg) {
 
     process_yield();
   }
+
+  /* Ensure dialog cursor overlay is removed before returning to caller. */
+  gfx2d_cursor_hide();
 
   if (dlg->user_confirmed && dlg->input_len > 0) {
     fdlg_build_result_path(dlg, dlg->result_path);

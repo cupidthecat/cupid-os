@@ -27,6 +27,8 @@ static const uint32_t COL_PROGRESS_BAR = 0x0080C0FF;
 static const uint32_t COL_TOGGLE_ON    = 0x0080D080;
 static const uint32_t COL_TOGGLE_OFF   = 0x00C0C0C0;
 
+#define DROPDOWN_ITEM_H (FONT_H + 4)
+
 static void int_to_str(int v, char *buf, int bufsz) {
     int neg = 0;
     int i = 0;
@@ -189,7 +191,7 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
         state->hover_item = -1;
     } else if (state->open) {
         /* Draw dropdown list */
-        int item_h = (int)r.h;
+        int item_h = DROPDOWN_ITEM_H;
         int list_h = item_h * count;
         int16_t list_y = (int16_t)(r.y + (int16_t)r.h);
         ui_rect_t list_r = ui_rect(r.x, list_y, r.w, (uint16_t)list_h);
@@ -272,9 +274,12 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
     if (scroll_delta != 0 && ui_contains(r, mx, my)) {
         state->offset += scroll_delta;
         if (state->offset < 0) state->offset = 0;
-        if (state->offset > count - visible)
-            state->offset = count - visible;
-        if (state->offset < 0) state->offset = 0;
+        if (count > visible) {
+            if (state->offset > count - visible)
+                state->offset = count - visible;
+        } else {
+            state->offset = 0;
+        }
     }
 
     /* Hover tracking */

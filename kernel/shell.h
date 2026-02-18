@@ -3,23 +3,19 @@
 
 #include "types.h"
 
-/* ── Shell output modes ───────────────────────────────────────────── */
 typedef enum {
     SHELL_OUTPUT_TEXT,   /* Direct VGA text mode (default) */
     SHELL_OUTPUT_GUI     /* Write to buffer for GUI terminal */
 } shell_output_mode_t;
 
-/* ── Per-cell color information ───────────────────────────────────── */
 typedef struct {
     uint8_t fg;   /* VGA color index 0-15 */
     uint8_t bg;   /* VGA color index 0-15 */
 } shell_color_t;
 
-/* ── GUI-mode buffer dimensions ───────────────────────────────────── */
 #define SHELL_COLS 80
 #define SHELL_ROWS 500
 
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /* Original text-mode shell loop (blocking) */
 void shell_run(void);
@@ -59,7 +55,6 @@ void shell_gui_handle_key(uint8_t scancode, char character);
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
 
-/* ── JIT program input routing (for GUI mode) ─────────────────────── */
 
 /**
  * Check if a JIT program is currently running and consuming input.
@@ -90,8 +85,9 @@ char shell_jit_program_pollchar(void);
  * Mark that a JIT program is about to start execution.
  * Switches keyboard input routing to the program.
  * @param name  The file path of the program (basename is stored for ps).
+ * @return 1 on success, 0 on failure (e.g., unable to snapshot nested JIT state).
  */
-void shell_jit_program_start(const char *name);
+int shell_jit_program_start(const char *name);
 
 /**
  * Mark that a JIT program has finished execution.
@@ -146,6 +142,13 @@ int shell_jit_suspended_count(void);
  */
 const char *shell_jit_suspended_get_name(int index);
 
+/**
+ * Remove suspended JIT stack entries owned by a process PID.
+ * Used when a process is killed/reaped so stale suspended entries
+ * do not remain visible in ps output.
+ */
+void shell_jit_discard_by_owner(uint32_t pid);
+
 /* GUI mode: direct output to GUI buffer (used by kernel print routing) */
 void shell_gui_putchar_ext(char c);
 void shell_gui_print_ext(const char *s);
@@ -154,7 +157,6 @@ void shell_gui_print_int_ext(uint32_t num);
 /* Execute a command line string (used by CupidScript) */
 void shell_execute_line(const char *line);
 
-/* ── Program argument passing (TempleOS-style) ────────────────────── */
 
 /**
  * Set the arguments for the next CupidC program invocation.

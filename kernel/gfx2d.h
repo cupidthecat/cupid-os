@@ -37,6 +37,7 @@ void gfx2d_set_framebuffer(uint32_t *fb);
 
 void gfx2d_clear(uint32_t color);
 void gfx2d_flip(void);
+uint32_t *gfx2d_get_active_fb(void);
 int gfx2d_width(void);
 int gfx2d_height(void);
 
@@ -170,7 +171,7 @@ void gfx2d_fullscreen_exit(void);
 int gfx2d_fullscreen_active(void); /* returns 1 if fullscreen mode is active */
 int gfx2d_should_quit(void);        /* returns 1 if program was killed via ps/kill */
 
-#define GFX2D_TOOLBAR_H       20
+#define GFX2D_TOOLBAR_H       14
 #define GFX2D_TOOLBAR_NONE     0
 #define GFX2D_TOOLBAR_CLOSE    1
 #define GFX2D_TOOLBAR_MINIMIZE 2

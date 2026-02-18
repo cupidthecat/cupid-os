@@ -107,12 +107,12 @@ ui_msgbox_result_t ui_msgbox_draw(ui_msgbox_state_t *state,
 
     if (!state->active) return UI_MSGBOX_RESULT_CANCEL;
 
-    dx = (int16_t)((640 - MSGBOX_W) / 2);
-    dy = (int16_t)((480 - MSGBOX_H) / 2);
+    dx = (int16_t)((VGA_GFX_WIDTH - MSGBOX_W) / 2);
+    dy = (int16_t)((VGA_GFX_HEIGHT - MSGBOX_H) / 2);
     dlg = ui_rect(dx, dy, MSGBOX_W, MSGBOX_H);
 
     /* Dim background */
-    gfx2d_rect_fill(0, 0, 640, 480, 0x40000000);
+    gfx2d_rect_fill(0, 0, VGA_GFX_WIDTH, VGA_GFX_HEIGHT, 0x40000000);
 
     /* Dialog frame */
     gfx2d_rect_fill(dx, dy, MSGBOX_W, MSGBOX_H, COLOR_WINDOW_BG);
@@ -259,11 +259,11 @@ int ui_input_dialog_draw(ui_input_dialog_state_t *state,
 
     if (!state->active) return state->confirmed ? 1 : -1;
 
-    dx = (int16_t)((640 - INPUT_DLG_W) / 2);
-    dy = (int16_t)((480 - INPUT_DLG_H) / 2);
+    dx = (int16_t)((VGA_GFX_WIDTH - INPUT_DLG_W) / 2);
+    dy = (int16_t)((VGA_GFX_HEIGHT - INPUT_DLG_H) / 2);
 
     /* Dim background */
-    gfx2d_rect_fill(0, 0, 640, 480, 0x40000000);
+    gfx2d_rect_fill(0, 0, VGA_GFX_WIDTH, VGA_GFX_HEIGHT, 0x40000000);
 
     /* Dialog frame */
     gfx2d_rect_fill(dx, dy, INPUT_DLG_W, INPUT_DLG_H, COLOR_WINDOW_BG);
@@ -591,8 +591,8 @@ void ui_progress_dialog_draw(ui_progress_dialog_t *dlg,
 
     if (!dlg->active) return;
 
-    dx = (int16_t)((640 - PROGRESS_DLG_W) / 2);
-    dy = (int16_t)((480 - PROGRESS_DLG_H) / 2);
+    dx = (int16_t)((VGA_GFX_WIDTH - PROGRESS_DLG_W) / 2);
+    dy = (int16_t)((VGA_GFX_HEIGHT - PROGRESS_DLG_H) / 2);
 
     /* Dialog frame */
     gfx2d_rect_fill(dx, dy, PROGRESS_DLG_W, PROGRESS_DLG_H,

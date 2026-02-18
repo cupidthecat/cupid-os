@@ -74,8 +74,8 @@ void pmm_init(uint32_t kernel_end) {
   pmm_mark_region(0x800000, 0x880000, 1); /* kernel stack (512KB) */
 
   /* Reserve CupidC JIT/AOT execution regions so the heap never
-   * allocates into them.  Each region = 128KB code + 32KB data. */
-  pmm_mark_region(0x00400000, 0x00428000, 1); /* CupidC JIT region */
+   * allocates into them.  Region size = 128KB code + 512KB data. */
+  pmm_mark_region(0x00400000, 0x004A0000, 1); /* CupidC JIT region */
   pmm_mark_region(0x00500000, 0x00528000, 1); /* ASM JIT region */
 
   /* Initialize stack guard after reserving the region */
@@ -483,6 +483,10 @@ void stack_guard_check(void) {
 uint32_t stack_usage_current(void) {
   uint32_t esp;
   __asm__ volatile("movl %%esp, %0" : "=r"(esp));
+
+  if (esp < STACK_BOTTOM || esp > STACK_TOP) {
+    return 0;
+  }
 
   /* Stack grows downward, so usage = top - current */
   uint32_t usage = STACK_TOP - esp;

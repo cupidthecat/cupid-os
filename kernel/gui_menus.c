@@ -12,7 +12,6 @@
 #include "string.h"
 #include "../drivers/vga.h"
 
-#define MENUBAR_H        20
 #define MENU_ITEM_W_MIN 120
 #define MENU_ITEM_H      20
 #define MENU_PAD          6

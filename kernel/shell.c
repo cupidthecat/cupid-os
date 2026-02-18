@@ -17,12 +17,12 @@
 #include "keyboard.h"
 #include "math.h"
 #include "memory.h"
-#include "notepad.h"
 #include "ports.h"
 #include "process.h"
-#include "string.h"
-#include "terminal_ansi.h"
 #include "terminal_app.h"
+#include "string.h"
+#include "gui.h"
+#include "ansi.h"
 #include "timer.h"
 #include "types.h"
 #include "vfs.h"
@@ -30,9 +30,9 @@
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  GUI output mode support
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 static shell_output_mode_t output_mode = SHELL_OUTPUT_TEXT;
 static char gui_buffer[SHELL_ROWS * SHELL_COLS];
 static shell_color_t gui_color_buffer[SHELL_ROWS * SHELL_COLS];
@@ -41,20 +41,20 @@ static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
 static int gui_visible_cols = SHELL_COLS; /* actual visible column width */
 
-/* ── I/O redirection capture buffer ─────────────────────────────── */
+/* I/O redirection capture buffer */
 #define REDIR_BUF_SIZE 4096
 static char *redir_buf = NULL; /* heap-allocated when active */
 static int redir_len = 0;
 static bool redir_active = false;
 
-/* ── Current working directory ──────────────────────────────────── */
+/* Current working directory */
 static char shell_cwd[VFS_MAX_PATH] = "/";
 
-/* ── Program argument passing (TempleOS-style) ──────────────────── */
+/* Program argument passing (TempleOS-style) */
 #define SHELL_ARGS_MAX 256
 static char shell_program_args[SHELL_ARGS_MAX] = "";
 
-/* ── JIT program input routing (for GUI mode) ───────────────────── */
+/* JIT program input routing (for GUI mode) */
 #define JIT_INPUT_BUFFER_SIZE 256
 static char jit_input_buffer[JIT_INPUT_BUFFER_SIZE];
 static int jit_input_read_pos = 0;
@@ -67,13 +67,15 @@ static char jit_program_name[64] = {0};
 /* Stack for nested JIT programs (e.g. minimized app + user runs ps) */
 #define JIT_STACK_MAX 4
 static struct {
-  char name[64];
-  int  running;
-  int  killed;
-  void *saved_code;  /* kmalloc'd copy of CC_JIT_CODE_BASE region */
-  void *saved_data;  /* kmalloc'd copy of CC_JIT_DATA_BASE region */
+  char     name[64];
+  int      running;
+  int      killed;
+  void    *saved_code;  /* kmalloc'd copy of CC_JIT_CODE_BASE region */
+  void    *saved_data;  /* kmalloc'd copy of CC_JIT_DATA_BASE region */
+  uint32_t owner_pid;   /* PID that was blocked when this entry was pushed */
 } jit_stack[JIT_STACK_MAX];
-static int jit_stack_depth = 0;
+static int      jit_stack_depth = 0;
+static uint32_t jit_owner_pid   = 0; /* PID whose stack frames live in CC_JIT_CODE_BASE */
 
 void shell_set_program_args(const char *args) {
   int i = 0;
@@ -216,7 +218,27 @@ static void shell_gui_print(const char *s);
 static void shell_gui_print_int(uint32_t num);
 static int shell_ends_with(const char *str, const char *suffix);
 
+static void shell_mark_terminal_dirty(void) {
+  int n = gui_window_count();
+  for (int i = 0; i < n; i++) {
+    window_t *w = gui_get_window_by_index(i);
+    if (!w)
+      continue;
+    if (strcmp(w->title, "Terminal") == 0) {
+      w->flags |= WINDOW_FLAG_DIRTY;
+    }
+  }
+}
+
+static void shell_launch_terminal_cc(void) {
+  terminal_launch();
+}
+
 void shell_set_output_mode(shell_output_mode_t mode) {
+  if (output_mode == mode) {
+    return;
+  }
+
   output_mode = mode;
   if (mode == SHELL_OUTPUT_GUI) {
     memset(gui_buffer, 0, sizeof(gui_buffer));
@@ -374,8 +396,8 @@ static void shell_gui_putchar(char c) {
     shell_gui_scroll();
   }
 
-  /* Trigger window redraw immediately */
-  terminal_mark_dirty();
+  if (output_mode == SHELL_OUTPUT_GUI)
+    shell_mark_terminal_dirty();
 }
 
 /* Print a string into the GUI buffer */
@@ -404,9 +426,9 @@ static void shell_gui_print_int(uint32_t num) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Output wrappers that route to GUI or text mode
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 static void shell_print(const char *s) {
   if (redir_active && redir_buf) {
     while (*s && redir_len < REDIR_BUF_SIZE - 1) {
@@ -483,6 +505,7 @@ static void shell_cupid(const char *args);
 static void shell_exec_cmd(const char *args);
 static void shell_notepad_cmd(const char *args);
 static void shell_terminal_cmd(const char *args);
+static void shell_ps_cmd(const char *args);
 static void shell_cupidc_cmd(const char *args);
 static void shell_cc_cmd(const char *args);
 static void shell_ccc_cmd(const char *args);
@@ -496,6 +519,7 @@ static struct shell_command commands[] = {
     {"exec", "Run a binary (ELF or CUPD)", shell_exec_cmd},
     {"notepad", "Open Notepad", shell_notepad_cmd},
     {"terminal", "Open a Terminal window", shell_terminal_cmd},
+    {"ps", "List running processes", shell_ps_cmd},
     {"cc", "Interactive CupidC REPL (or run a .cc file)", shell_cc_cmd},
     {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
@@ -589,7 +613,7 @@ static void replace_input(const char *new_text, char *input, int *pos, int *curs
 }
 
 static void tab_complete(char *input, int *pos) {
-/* ── Helper: re-display prompt + current input after listing matches ── */
+/* Helper: re-display prompt + current input after listing matches  */
 #define REDRAW_PROMPT()                                                        \
   do {                                                                         \
     shell_print("\n");                                                         \
@@ -609,9 +633,9 @@ static void tab_complete(char *input, int *pos) {
     }
   }
 
-  /* ────────────────────────────────────────────────────────────────────
+  /*
    *  ARGUMENT / FILENAME COMPLETION
-   * ──────────────────────────────────────────────────────────────────── */
+   */
   if (first_space >= 0) {
     /* Extract the command name */
     char cmd[MAX_INPUT_LEN + 1];
@@ -796,10 +820,10 @@ static void tab_complete(char *input, int *pos) {
     return;
   }
 
-  /* ────────────────────────────────────────────────────────────────────
+  /*
    *  COMMAND NAME COMPLETION
    *  Matches against both built-in commands[] AND /bin/ programs
-   * ──────────────────────────────────────────────────────────────────── */
+   */
   size_t prefix_len = (size_t)(*pos);
   char prefix[MAX_INPUT_LEN + 1];
   for (size_t i = 0; i < prefix_len; i++) {
@@ -924,7 +948,6 @@ static void tab_complete(char *input, int *pos) {
 #undef REDRAW_PROMPT
 }
 
-/* ── cupid command: run a CupidScript file ── */
 static void shell_cupid(const char *args) {
   if (!args || args[0] == '\0') {
     shell_print("Usage: cupid <script.cup> [args...]\n");
@@ -966,9 +989,9 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
   const char *app = resolved + 5;
   serial_printf("[try_bin_dispatch] resolved='%s' app='%s'\n", resolved, app);
   if (strcmp(app, "terminal") == 0) {
-    terminal_launch();
+    shell_launch_terminal_cc();
   } else if (strcmp(app, "notepad") == 0) {
-    notepad_launch();
+    desktop_notepad_launch();
   } else if (strcmp(app, "cupid") == 0) {
     shell_cupid(extra_args);
   } else if (strcmp(app, "shell") == 0) {
@@ -1067,15 +1090,19 @@ static void shell_exec_cmd(const char *args) {
 
 static void shell_notepad_cmd(const char *args) {
   (void)args;
-  notepad_launch();
+  desktop_notepad_launch();
 }
 
 static void shell_terminal_cmd(const char *args) {
   (void)args;
-  terminal_launch();
+  shell_launch_terminal_cc();
 }
 
-/* ── helper: check if string ends with suffix ── */
+static void shell_ps_cmd(const char *args) {
+  (void)args;
+  process_list();
+}
+
 static int shell_ends_with(const char *str, const char *suffix) {
   int slen = 0, xlen = 0;
   while (str[slen])
@@ -1383,9 +1410,9 @@ static void shell_ccc_cmd(const char *args) {
   cupidc_aot(rsrc, rout);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  CupidASM Assembler Commands
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 /* as <file.asm> — JIT assemble and run */
 static void shell_asm_cmd(const char *args) {
@@ -1568,7 +1595,6 @@ static void shell_dis_cmd(const char *args) {
   }
 }
 
-/* ── shell_execute_line: public interface for CupidScript ── */
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
     return;
@@ -1582,7 +1608,7 @@ static void execute_command(const char *input) {
     return;
   }
 
-  /* ── Check for output redirection (> or >>) ─────────────────── */
+  /* Check for output redirection (> or >>) */
   char clean_input[MAX_INPUT_LEN + 1];
   char redir_file[VFS_MAX_PATH];
   bool do_redir = false;
@@ -1683,7 +1709,7 @@ static void execute_command(const char *input) {
       goto redir_done;
   }
 
-  /* ══════════════════════════════════════════════════════════════
+  /*
    *  TempleOS-style auto-discovery: check /bin/ and /home/bin/
    *  for programs matching the command name.  This lets CupidC
    *  programs be added to the OS without recompiling the kernel.
@@ -1693,7 +1719,7 @@ static void execute_command(const char *input) {
    *    2. /bin/<cmd>.cc     — CupidC source   (ramfs)
    *    3. /home/bin/<cmd>   — ELF/CUPD binary (disk)
    *    4. /home/bin/<cmd>.cc — CupidC source  (disk, persistent)
-   * ══════════════════════════════════════════════════════════════ */
+   */
   {
     char bin_path[VFS_MAX_PATH];
     vfs_stat_t bin_st;
@@ -1728,7 +1754,7 @@ static void execute_command(const char *input) {
       }
     }
 
-    /* --- 2. /bin/<cmd>.cc (CupidC source in ramfs) --- */
+    /* /bin/<cmd>.cc (CupidC source in ramfs) */
     {
       int bp = 0;
       const char *pfx = "/bin/";
@@ -1748,7 +1774,7 @@ static void execute_command(const char *input) {
       goto redir_done;
     }
 
-    /* --- 3. /home/bin/<cmd> (ELF binary on disk) --- */
+    /* /home/bin/<cmd> (ELF binary on disk) */
     {
       int bp = 0;
       const char *pfx = "/home/bin/";
@@ -1776,7 +1802,7 @@ static void execute_command(const char *input) {
       }
     }
 
-    /* --- 4. /home/bin/<cmd>.cc (CupidC source on disk) --- */
+    /* /home/bin/<cmd>.cc (CupidC source on disk) */
     {
       int bp = 0;
       const char *pfx = "/home/bin/";
@@ -1862,7 +1888,7 @@ static void execute_command(const char *input) {
   shell_print("\n");
 
 redir_done:
-  /* ── Flush redirect buffer to file if active ─────────────────── */
+  /* Flush redirect buffer to file if active */
   if (redir_active && redir_buf) {
     redir_active = false;
     redir_buf[redir_len] = '\0';
@@ -2038,13 +2064,13 @@ void shell_run(void) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  GUI-mode shell key handler
  *
  *  Called from terminal_app.c when a key is pressed while the
  *  terminal window is focused.  Mirrors the text-mode shell_run()
  *  logic but writes to the GUI buffer instead of VGA text memory.
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static char gui_input[MAX_INPUT_LEN + 1];
 static int gui_input_pos = 0;    // length of input
@@ -2122,9 +2148,9 @@ static void gui_exec_command(const char *input) {
   execute_command(input);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  JIT Program Input Routing (GUI Mode)
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 void shell_jit_program_input(char c) {
 
@@ -2145,15 +2171,10 @@ void shell_jit_program_input(char c) {
 
 char shell_jit_program_getchar(void) {
 
-  /* Wait for input (blocking with GUI updates) */
+  /* Wait for input. Desktop process owns GUI redraw/input dispatch. */
   while (jit_input_read_pos == jit_input_write_pos &&
          !jit_program_interrupted) {
-    /* Pump GUI to keep display responsive */
-    if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-      terminal_mark_dirty();
-      desktop_redraw_cycle();
-    }
-    __asm__ volatile("hlt");
+    process_yield();
   }
 
   /* Check if interrupted */
@@ -2176,7 +2197,7 @@ char shell_jit_program_pollchar(void) {
   return c;
 }
 
-void shell_jit_program_start(const char *name) {
+int shell_jit_program_start(const char *name) {
   /* If a JIT program is already loaded, push its state onto the stack */
   if (jit_program_name[0] != '\0' && jit_stack_depth < JIT_STACK_MAX) {
     int d = jit_stack_depth;
@@ -2192,14 +2213,37 @@ void shell_jit_program_start(const char *name) {
     /* Save the JIT code+data regions so they survive being overwritten */
     jit_stack[d].saved_code = kmalloc(CC_MAX_CODE);
     jit_stack[d].saved_data = kmalloc(CC_MAX_DATA);
-    if (jit_stack[d].saved_code)
-      memcpy(jit_stack[d].saved_code, (void *)CC_JIT_CODE_BASE, CC_MAX_CODE);
-    if (jit_stack[d].saved_data)
-      memcpy(jit_stack[d].saved_data, (void *)CC_JIT_DATA_BASE, CC_MAX_DATA);
+    if (!jit_stack[d].saved_code || !jit_stack[d].saved_data) {
+      if (jit_stack[d].saved_code) {
+        kfree(jit_stack[d].saved_code);
+        jit_stack[d].saved_code = NULL;
+      }
+      if (jit_stack[d].saved_data) {
+        kfree(jit_stack[d].saved_data);
+        jit_stack[d].saved_data = NULL;
+      }
+      serial_printf("[shell] JIT stack push failed: insufficient memory to snapshot %s\n",
+                    jit_program_name);
+      return 0;
+    }
+    memcpy(jit_stack[d].saved_code, (void *)CC_JIT_CODE_BASE, CC_MAX_CODE);
+    memcpy(jit_stack[d].saved_data, (void *)CC_JIT_DATA_BASE, CC_MAX_DATA);
+
+    /* Block the process that owns the JIT region so the scheduler
+     * won't dispatch it while a different program's code is loaded
+     * there.  It will be unblocked when the pop restores its code. */
+    jit_stack[d].owner_pid = jit_owner_pid;
+    if (jit_owner_pid != 0) {
+      process_block(jit_owner_pid);
+    }
 
     jit_stack_depth++;
-    serial_printf("[shell] JIT stack push depth=%d saved %s\n", jit_stack_depth, jit_stack[d].name);
+    serial_printf("[shell] JIT stack push depth=%d saved %s (blocked PID %u)\n",
+                  jit_stack_depth, jit_stack[d].name, jit_owner_pid);
   }
+
+  /* Current process now owns the JIT region */
+  jit_owner_pid = process_get_current_pid();
 
   jit_program_running = 1;
   jit_program_interrupted = 0;
@@ -2224,6 +2268,7 @@ void shell_jit_program_start(const char *name) {
     }
   }
   jit_program_name[i] = '\0';
+  return 1;
 }
 
 void shell_jit_program_end(void) {
@@ -2252,8 +2297,19 @@ void shell_jit_program_end(void) {
       kfree(jit_stack[d].saved_data);
       jit_stack[d].saved_data = NULL;
     }
-    serial_printf("[shell] JIT stack pop depth=%d restored %s\n", jit_stack_depth, jit_program_name);
+
+    /* The previous owner's code is now back in the JIT region — safe
+     * to let the scheduler dispatch it again. */
+    uint32_t prev_owner = jit_stack[d].owner_pid;
+    jit_owner_pid = prev_owner;
+    if (prev_owner != 0) {
+      process_unblock(prev_owner);
+    }
+
+    serial_printf("[shell] JIT stack pop depth=%d restored %s (unblocked PID %u)\n",
+                  jit_stack_depth, jit_program_name, prev_owner);
   } else {
+    jit_owner_pid = 0;
     jit_program_running = 0;
     jit_program_interrupted = 0;
     jit_program_killed = 0;
@@ -2275,7 +2331,13 @@ void shell_jit_program_resume(void) {
 }
 
 int shell_jit_program_is_running(void) {
-  return jit_program_name[0] != '\0' || jit_stack_depth > 0;
+  if (!jit_program_running)
+    return 0;
+  if (jit_program_name[0] == '\0')
+    return 0;
+  if (strcmp(jit_program_name, "terminal") == 0)
+    return 0;
+  return 1;
 }
 
 const char *shell_jit_program_get_name(void) {
@@ -2294,7 +2356,25 @@ void shell_jit_program_kill(void) {
 
 void shell_jit_program_kill_at(int index) {
   if (index >= 0 && index < jit_stack_depth) {
-    jit_stack[index].killed = 1;
+    uint32_t owner_pid = jit_stack[index].owner_pid;
+
+    if (jit_stack[index].saved_code) {
+      kfree(jit_stack[index].saved_code);
+      jit_stack[index].saved_code = NULL;
+    }
+    if (jit_stack[index].saved_data) {
+      kfree(jit_stack[index].saved_data);
+      jit_stack[index].saved_data = NULL;
+    }
+
+    for (int i = index; i < jit_stack_depth - 1; i++) {
+      jit_stack[i] = jit_stack[i + 1];
+    }
+    jit_stack_depth--;
+
+    if (owner_pid != 0) {
+      process_kill(owner_pid);
+    }
   } else if (index == jit_stack_depth) {
     /* The active (topmost) JIT program */
     jit_program_killed = 1;
@@ -2316,12 +2396,50 @@ const char *shell_jit_suspended_get_name(int index) {
   return "";
 }
 
+void shell_jit_discard_by_owner(uint32_t pid) {
+  if (pid == 0)
+    return;
+
+  for (int i = 0; i < jit_stack_depth;) {
+    if (jit_stack[i].owner_pid == pid) {
+      if (jit_stack[i].saved_code) {
+        kfree(jit_stack[i].saved_code);
+        jit_stack[i].saved_code = NULL;
+      }
+      if (jit_stack[i].saved_data) {
+        kfree(jit_stack[i].saved_data);
+        jit_stack[i].saved_data = NULL;
+      }
+
+      for (int j = i; j < jit_stack_depth - 1; j++) {
+        jit_stack[j] = jit_stack[j + 1];
+      }
+      jit_stack_depth--;
+      continue;
+    }
+    i++;
+  }
+
+  if (jit_owner_pid == pid) {
+    jit_owner_pid = 0;
+    jit_program_running = 0;
+    jit_program_killed = 1;
+    jit_program_interrupted = 1;
+    jit_program_name[0] = '\0';
+  }
+}
+
 void shell_gui_handle_key(uint8_t scancode, char character) {
   if (output_mode != SHELL_OUTPUT_GUI)
     return;
 
+  window_t *focused = gui_get_focused_window();
+  int terminal_focused =
+      (focused && strcmp(focused->title, "Terminal") == 0) ? 1 : 0;
+
   /* If a JIT program is running, route input to it instead of shell */
-  if (jit_program_running) {
+  if (jit_program_running && strcmp(jit_program_name, "terminal") != 0 &&
+      !terminal_focused) {
     /* Only route actual characters, not key releases or non-character keys */
     if (character != 0) {
       shell_jit_program_input(character);

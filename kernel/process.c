@@ -25,20 +25,22 @@
 #include "types.h"
 #include "debug.h"
 #include "shell.h"
+#include "gui.h"
+#include "simd.h"
 #include "../drivers/serial.h"
 
-/* ── Assembly context switch (context_switch.asm) ─────────────────── */
 extern void context_switch(uint32_t *old_esp, uint32_t new_esp, uint32_t new_eip);
 extern void context_switch_resume(void);  /* resume label address */
 
-/* ── Internal state ───────────────────────────────────────────────── */
 static process_t  process_table[MAX_PROCESSES];
 static uint32_t   current_pid          = 0;
 static uint32_t   next_schedule_index  = 0;
 static uint32_t   process_count        = 0;
 static bool       scheduler_active     = false;
+static uint8_t    proc_fxsave[MAX_PROCESSES][512]
+                    __attribute__((aligned(16)));
+static bool       proc_fxsave_valid[MAX_PROCESSES];
 
-/* ── State name strings ───────────────────────────────────────────── */
 static const char *state_names[] = {
     "READY",
     "RUNNING",
@@ -46,9 +48,9 @@ static const char *state_names[] = {
     "TERMINATED"
 };
 
-/* ── Forward declarations ─────────────────────────────────────────── */
 static void idle_process(void);
 static uint32_t find_free_slot(void);
+static void process_reap_terminated(void);
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Trampoline: if a process entry function returns, we land here
@@ -79,22 +81,6 @@ static void idle_process(void) {
  * ══════════════════════════════════════════════════════════════════════ */
 static uint32_t find_free_slot(void) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
-        /* Reap terminated processes (deferred from process_exit) */
-        if (process_table[i].state == PROCESS_TERMINATED && process_table[i].pid != 0) {
-            if (process_table[i].stack_base) {
-                kfree(process_table[i].stack_base);
-                process_table[i].stack_base = NULL;
-            }
-            if (process_table[i].image_size > 0) {
-                pmm_release_region(process_table[i].image_base,
-                                   process_table[i].image_size);
-                process_table[i].image_base = 0;
-                process_table[i].image_size = 0;
-            }
-            process_table[i].pid = 0;
-            memset(&process_table[i], 0, sizeof(process_t));
-            process_count--;
-        }
         if (process_table[i].pid == 0) {
             return i;
         }
@@ -102,11 +88,43 @@ static uint32_t find_free_slot(void) {
     return MAX_PROCESSES;
 }
 
+static void process_reap_terminated(void) {
+    for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+        if (process_table[i].state != PROCESS_TERMINATED ||
+            process_table[i].pid == 0) {
+            continue;
+        }
+
+        uint32_t dead_pid = process_table[i].pid;
+        shell_jit_discard_by_owner(dead_pid);
+        gui_destroy_windows_by_owner(dead_pid);
+
+        if (process_table[i].stack_base) {
+            kfree(process_table[i].stack_base);
+            process_table[i].stack_base = NULL;
+        }
+        if (process_table[i].image_size > 0) {
+            pmm_release_region(process_table[i].image_base,
+                               process_table[i].image_size);
+            process_table[i].image_base = 0;
+            process_table[i].image_size = 0;
+        }
+
+        process_table[i].pid = 0;
+        proc_fxsave_valid[i] = false;
+        memset(&process_table[i], 0, sizeof(process_t));
+        if (process_count > 0) {
+            process_count--;
+        }
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  *  process_init
  * ══════════════════════════════════════════════════════════════════════ */
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
+    memset(proc_fxsave_valid, 0, sizeof(proc_fxsave_valid));
     current_pid         = 0;
     next_schedule_index = 0;
     process_count       = 0;
@@ -126,6 +144,8 @@ void process_init(void) {
 uint32_t process_create(void (*entry_point)(void),
                         const char *name,
                         uint32_t stack_size) {
+    process_reap_terminated();
+
     if (!entry_point) {
         KERROR("process_create: NULL entry point");
         return 0;
@@ -183,12 +203,17 @@ uint32_t process_create(void (*entry_point)(void),
      * We set up the stack so that a `ret` from entry_point goes to
      * process_exit_trampoline.
      */
-    uint32_t *sp = (uint32_t *)((uint32_t)stack + stack_size);
+    uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
+    uint32_t *sp = (uint32_t *)top;
     sp--;
     *sp = (uint32_t)process_exit_trampoline;  /* return address for entry_point */
 
     p->context.esp    = (uint32_t)sp;
     p->context.eip    = (uint32_t)entry_point;
+    if (simd_enabled()) {
+        simd_context_save(proc_fxsave[slot]);
+        proc_fxsave_valid[slot] = true;
+    }
 
     process_count++;
 
@@ -206,6 +231,8 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,
                                  uint32_t stack_size,
                                  uint32_t arg) {
+    process_reap_terminated();
+
     if (!entry_point) {
         KERROR("process_create_with_arg: NULL entry point");
         return 0;
@@ -263,7 +290,8 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
      * if called with `entry_point(arg)` and on return hits the
      * trampoline.
      */
-    uint32_t *sp = (uint32_t *)((uint32_t)stack + stack_size);
+    uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
+    uint32_t *sp = (uint32_t *)top;
     sp--;
     *sp = arg;                                  /* argument */
     sp--;
@@ -271,6 +299,10 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
 
     p->context.esp    = (uint32_t)sp;
     p->context.eip    = (uint32_t)entry_point;
+    if (simd_enabled()) {
+        simd_context_save(proc_fxsave[slot]);
+        proc_fxsave_valid[slot] = true;
+    }
 
     process_count++;
 
@@ -288,12 +320,23 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
 void process_exit(void) {
     __asm__ volatile("cli");
 
-    if (current_pid == 0 || current_pid == 1) {
+    uint32_t exit_pid = current_pid;
+    if (exit_pid == 0) {
+        for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+            if (process_table[i].pid != 0 &&
+                process_table[i].state == PROCESS_RUNNING) {
+                exit_pid = process_table[i].pid;
+                break;
+            }
+        }
+    }
+
+    if (exit_pid == 0 || exit_pid == 1) {
         __asm__ volatile("sti");
         return;
     }
 
-    process_t *p = &process_table[current_pid - 1];
+    process_t *p = &process_table[exit_pid - 1];
     serial_printf("[PROCESS] PID %u \"%s\" exiting\n", p->pid, p->name);
 
     /* Mark terminated but DON'T free the stack yet — we're still
@@ -383,6 +426,8 @@ void process_kill(uint32_t pid) {
     } else {
         /* Killing another process — safe to free stack now */
         p->state = PROCESS_TERMINATED;
+        shell_jit_discard_by_owner(pid);
+        gui_destroy_windows_by_owner(pid);
         if (p->stack_base) {
             kfree(p->stack_base);
             p->stack_base = NULL;
@@ -393,6 +438,7 @@ void process_kill(uint32_t pid) {
             p->image_size = 0;
         }
         p->pid = 0;
+        proc_fxsave_valid[pid - 1] = false;
         memset(p, 0, sizeof(process_t));
         process_count--;
         __asm__ volatile("sti");
@@ -415,28 +461,13 @@ int process_get_state(uint32_t pid) {
  *  process_list — `ps` shell command
  * ══════════════════════════════════════════════════════════════════════ */
 void process_list(void) {
+    process_reap_terminated();
+
     print("PID  STATE      NAME\n");
     print("---  ---------  ----------------\n");
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         process_t *p = &process_table[i];
         if (p->pid == 0) continue;
-
-        /* Reap terminated processes so they don't linger in ps output */
-        if (p->state == PROCESS_TERMINATED) {
-            if (p->stack_base) {
-                kfree(p->stack_base);
-                p->stack_base = NULL;
-            }
-            if (p->image_size > 0) {
-                pmm_release_region(p->image_base, p->image_size);
-                p->image_base = 0;
-                p->image_size = 0;
-            }
-            p->pid = 0;
-            memset(p, 0, sizeof(process_t));
-            process_count--;
-            continue;
-        }
 
         if (p->pid < 10) print(" ");
         print_int(p->pid);
@@ -511,6 +542,7 @@ void schedule(void) {
             kfree(current->stack_base);
             current->stack_base = NULL;
             current->pid = 0;
+            proc_fxsave_valid[current_pid - 1] = false;
             memset(current, 0, sizeof(process_t));
             process_count--;
             current_pid = 0;
@@ -580,12 +612,22 @@ void schedule(void) {
         /* context_switch saves ESP into old->context.esp,
          * and sets the resume EIP to context_switch_resume */
         old->context.eip = (uint32_t)context_switch_resume;
+        if (simd_enabled()) {
+            simd_context_save(proc_fxsave[old_pid - 1]);
+            proc_fxsave_valid[old_pid - 1] = true;
+            if (proc_fxsave_valid[next->pid - 1]) {
+                simd_context_restore(proc_fxsave[next->pid - 1]);
+            }
+        }
         __asm__ volatile("sti");
         context_switch(&old->context.esp, new_esp, new_eip);
         /* We resume here when rescheduled */
     } else {
         /* No valid old process — just switch (e.g. during exit) */
         uint32_t dummy_esp;
+        if (simd_enabled() && proc_fxsave_valid[next->pid - 1]) {
+            simd_context_restore(proc_fxsave[next->pid - 1]);
+        }
         __asm__ volatile("sti");
         context_switch(&dummy_esp, new_esp, new_eip);
     }
@@ -599,7 +641,18 @@ bool process_is_active(void) {
 }
 
 uint32_t process_get_count(void) {
-    return process_count;
+    process_reap_terminated();
+    {
+        uint32_t live_count = 0;
+        for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+            if (process_table[i].pid != 0 &&
+                process_table[i].state != PROCESS_TERMINATED) {
+                live_count++;
+            }
+        }
+        process_count = live_count;
+        return live_count;
+    }
 }
 
 void process_start_scheduler(void) {
@@ -615,6 +668,8 @@ void process_start_scheduler(void) {
  *  Does NOT allocate a stack — the kernel stack is managed externally.
  * ══════════════════════════════════════════════════════════════════════ */
 uint32_t process_register_current(const char *name) {
+    process_reap_terminated();
+
     if (process_count >= MAX_PROCESSES) {
         KWARN("process_register_current: table full");
         return 0;
@@ -645,11 +700,42 @@ uint32_t process_register_current(const char *name) {
 
     process_count++;
     current_pid = p->pid;
+    if (simd_enabled()) {
+        simd_context_save(proc_fxsave[slot]);
+        proc_fxsave_valid[slot] = true;
+    }
 
     serial_printf("[PROCESS] Registered current thread as PID %u \"%s\"\n",
                   p->pid, p->name);
 
     return p->pid;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  process_block / process_unblock — Suspend/resume a READY process
+ *
+ *  Used by the JIT region manager (shell.c) to prevent a process from
+ *  being scheduled while the shared JIT code region contains code that
+ *  belongs to a different process.
+ * ══════════════════════════════════════════════════════════════════════ */
+void process_block(uint32_t pid) {
+    if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;
+    __asm__ volatile("cli");
+    process_t *p = &process_table[pid - 1];
+    if (p->pid == pid && p->state == PROCESS_READY) {
+        p->state = PROCESS_BLOCKED;
+    }
+    __asm__ volatile("sti");
+}
+
+void process_unblock(uint32_t pid) {
+    if (pid == 0 || pid > MAX_PROCESSES) return;
+    __asm__ volatile("cli");
+    process_t *p = &process_table[pid - 1];
+    if (p->pid == pid && p->state == PROCESS_BLOCKED) {
+        p->state = PROCESS_READY;
+    }
+    __asm__ volatile("sti");
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -30,7 +30,6 @@
 #define SC_KEY_MINUS   0x0C   /* -/_ key */
 #define SC_LCTRL       0x1D
 
-/* ── Terminal state ───────────────────────────────────────────────── */
 static int terminal_wid = -1;  /* Window ID of the terminal */
 static int terminal_scroll_offset = 0;  /* Manual scroll offset (lines from bottom) */
 static bool cursor_visible = true;      /* Current blink state */
@@ -38,7 +37,6 @@ static uint32_t last_blink_ms = 0;      /* Last time cursor toggled */
 static uint32_t terminal_pid = 0;       /* PID of the terminal process */
 static int terminal_font_scale = 1;     /* Font zoom: 1 = normal, 2 = 2x, 3 = 3x */
 
-/* ── Launch ───────────────────────────────────────────────────────── */
 
 /* Terminal process entry point — runs as its own process */
 static void terminal_process_entry(void) {
@@ -63,7 +61,6 @@ static void terminal_process_entry(void) {
     /* Falls through to process_exit_trampoline */
 }
 
-/* ── Close callback (called by GUI when window is destroyed) ──────── */
 
 static void terminal_on_close(window_t *win) {
     (void)win;
@@ -75,7 +72,6 @@ static void terminal_on_close(window_t *win) {
     }
 }
 
-/* ── Launch ───────────────────────────────────────────────────────── */
 
 void terminal_launch(void) {
     /* Don't open a second terminal if one already exists */
@@ -115,13 +111,12 @@ void terminal_launch(void) {
     KINFO("Terminal launched (wid=%d, pid=%u)", terminal_wid, terminal_pid);
 }
 
-/* ── Redraw callback ──────────────────────────────────────────────── */
 
 void terminal_redraw(window_t *win) {
     int16_t content_x = (int16_t)(win->x + 2);
-    int16_t content_y = (int16_t)(win->y + TITLEBAR_H + 1);
+    int16_t content_y = (int16_t)(win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD);
     uint16_t content_w = (uint16_t)(win->width - 4);
-    uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - 2);
+    uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER);
 
     /* Keep shell wrap width in sync with current terminal width */
     {
@@ -215,7 +210,6 @@ void terminal_redraw(window_t *win) {
     }
 }
 
-/* ── Key forwarding ───────────────────────────────────────────────── */
 
 void terminal_handle_key(uint8_t scancode, char character) {
     /* Only process if terminal window exists and is focused */
@@ -287,7 +281,6 @@ void terminal_handle_key(uint8_t scancode, char character) {
     win->flags |= WINDOW_FLAG_DIRTY;
 }
 
-/* ── Cursor blink tick (called from desktop loop) ─────────────────── */
 
 void terminal_mark_dirty(void) {
     if (terminal_wid < 0) return;
@@ -311,7 +304,6 @@ void terminal_tick(void) {
     }
 }
 
-/* ── Mouse wheel scroll ───────────────────────────────────────────── */
 
 void terminal_handle_scroll(int delta) {
     if (terminal_wid < 0) return;

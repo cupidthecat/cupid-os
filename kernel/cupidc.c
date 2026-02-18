@@ -18,16 +18,19 @@
 #include "blockcache.h"
 #include "bmp.h"
 #include "calendar.h"
+#include "clipboard.h"
 #include "desktop.h"
 #include "ed.h"
 #include "exec.h"
 #include "fat16.h"
+#include "ansi.h"
 #include "gfx2d.h"
 #include "gfx2d_icons.h"
+#include "graphics.h"
+#include "gui.h"
 #include "kernel.h"
 #include "math.h"
 #include "memory.h"
-#include "notepad.h"
 #include "panic.h"
 #include "ports.h"
 #include "process.h"
@@ -35,6 +38,9 @@
 #include "string.h"
 #include "vfs.h"
 #include "vfs_helpers.h"
+
+char cc_notepad_open_path[256];
+char cc_notepad_save_path[256];
 
 /* Port I/O wrappers for CupidC kernel bindings
  * The compiler binds calls to outb()/inb() to these wrappers which
@@ -48,8 +54,37 @@ static void cc_outb(uint32_t port, uint32_t value) {
 static uint32_t cc_inb(uint32_t port) { return (uint32_t)inb((uint16_t)port); }
 
 static void cc_println(const char *s) {
-  print(s);
-  print("\n");
+  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+    shell_gui_print_ext(s ? s : "");
+    shell_gui_putchar_ext('\n');
+  } else {
+    print(s ? s : "");
+    print("\n");
+  }
+}
+
+static void cc_print(const char *s) {
+  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+    shell_gui_print_ext(s ? s : "");
+  } else {
+    print(s ? s : "");
+  }
+}
+
+static void cc_putchar(char c) {
+  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+    shell_gui_putchar_ext(c);
+  } else {
+    putchar(c);
+  }
+}
+
+static void cc_print_int(uint32_t v) {
+  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
+    shell_gui_print_int_ext(v);
+  } else {
+    print_int(v);
+  }
 }
 
 typedef __builtin_va_list cc_va_list;
@@ -217,7 +252,37 @@ static void cc_exit(void) { process_exit(); }
 static void cc_notepad_open_file(const char *path) {
   if (!path || path[0] == '\0')
     return;
-  notepad_launch_with_file(path, path);
+  desktop_notepad_launch_with_file(path, path);
+}
+
+static void cc_clipboard_set(int ptr, int len) {
+  clipboard_copy((const char *)(uint32_t)ptr, len);
+}
+
+static int cc_clipboard_get(void) {
+  const char *d = clipboard_get_data();
+  return (int)(uint32_t)d;
+}
+
+static int cc_clipboard_len(void) { return clipboard_get_length(); }
+
+static void cc_notepad_get_open_path(int out_ptr, int out_save_ptr) {
+  char *out = (char *)(uint32_t)out_ptr;
+  char *out_save = (char *)(uint32_t)out_save_ptr;
+  int i = 0;
+  while (cc_notepad_open_path[i] && i < 255) {
+    out[i] = cc_notepad_open_path[i];
+    i++;
+  }
+  out[i] = '\0';
+  cc_notepad_open_path[0] = '\0';
+  i = 0;
+  while (cc_notepad_save_path[i] && i < 255) {
+    out_save[i] = cc_notepad_save_path[i];
+    i++;
+  }
+  out_save[i] = '\0';
+  cc_notepad_save_path[0] = '\0';
 }
 
 static void cc_test_counting_process(void) {
@@ -485,6 +550,223 @@ static int cc_mouse_scroll(void) {
   return dz;
 }
 static int cc_key_shift_held(void) { return keyboard_get_shift() ? 1 : 0; }
+static int cc_keyboard_ctrl_held(void) { return keyboard_get_ctrl() ? 1 : 0; }
+
+static void cc_terminal_window_redraw(window_t *win) {
+  if (!win)
+    return;
+
+  int16_t content_x = (int16_t)(win->x + 2);
+  int16_t content_y =
+      (int16_t)(win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD);
+  uint16_t content_w = (uint16_t)(win->width - 4);
+  uint16_t content_h =
+      (uint16_t)(win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER);
+
+  int cell = 8;
+  int cols = (int)content_w / cell;
+  int rows = (int)content_h / cell;
+  if (cols > SHELL_COLS)
+    cols = SHELL_COLS;
+  if (rows > SHELL_ROWS)
+    rows = SHELL_ROWS;
+  if (rows < 1)
+    rows = 1;
+
+  gfx_fill_rect(content_x, content_y, content_w, content_h, 0x001E1E1Eu);
+
+  const char *buf = shell_get_buffer();
+  const shell_color_t *colors = shell_get_color_buffer();
+  int shell_cx = shell_get_cursor_x();
+  int shell_cy = shell_get_cursor_y();
+
+  int first_row = shell_cy - rows + 1;
+  if (first_row < 0)
+    first_row = 0;
+
+  for (int r = 0; r < rows; r++) {
+    int src_row = first_row + r;
+    if (src_row < 0 || src_row >= SHELL_ROWS)
+      continue;
+    int py = content_y + r * cell;
+    for (int c = 0; c < cols; c++) {
+      int idx = src_row * SHELL_COLS + c;
+      int px = content_x + c * cell;
+      uint8_t fg = colors[idx].fg;
+      uint8_t bg = colors[idx].bg;
+      char ch = buf[idx];
+
+      if (bg != 0) {
+        gfx_fill_rect((int16_t)px, (int16_t)py, (uint16_t)cell, (uint16_t)cell,
+                      ansi_vga_to_palette(bg));
+      }
+      if (ch != 0 && ch != ' ') {
+        gfx_draw_char((int16_t)px, (int16_t)py, ch, ansi_vga_to_palette(fg));
+      }
+    }
+  }
+
+  int vis_cursor_row = shell_cy - first_row;
+  if (vis_cursor_row >= 0 && vis_cursor_row < rows && shell_cx >= 0 &&
+      shell_cx < cols) {
+    int cx = content_x + shell_cx * cell;
+    int cy = content_y + vis_cursor_row * cell;
+    gfx_fill_rect((int16_t)cx, (int16_t)cy, 2, (uint16_t)cell,
+                  ansi_vga_to_palette(7));
+  }
+}
+
+/* GUI window wrappers for CupidC terminal process */
+static int cc_gui_win_create(const char *title, int x, int y, int w, int h) {
+  static int terminal_wid = -1;
+  if (title && strcmp(title, "Terminal") == 0) {
+    if (terminal_wid >= 0 && gui_get_window(terminal_wid))
+      return -1;
+  }
+
+  int wid = gui_create_window((int16_t)x, (int16_t)y, (uint16_t)w,
+                              (uint16_t)h, title);
+  if (wid >= 0 && title && strcmp(title, "Terminal") == 0) {
+    terminal_wid = wid;
+    window_t *win = gui_get_window(wid);
+    if (win) {
+      win->redraw = cc_terminal_window_redraw;
+    }
+  }
+  if (wid >= 0) {
+    (void)gui_draw_window(wid);
+  }
+  return wid;
+}
+
+static void cc_gui_win_close(int win_id) { (void)gui_destroy_window(win_id); }
+
+static int cc_gui_win_is_open(int win_id) {
+  return gui_get_window(win_id) ? 1 : 0;
+}
+
+static int cc_gui_win_content_x(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return 0;
+  return (int)win->x + 2;
+}
+
+static int cc_gui_win_content_y(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return 0;
+  return (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
+}
+
+static int cc_gui_win_content_w(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return 0;
+  return (int)win->width - 4;
+}
+
+static int cc_gui_win_content_h(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return 0;
+  return (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER;
+}
+
+static int cc_gui_win_poll_key(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return -1;
+  if (win->key_head == win->key_tail)
+    return -1;
+  int key = win->key_queue[win->key_head];
+  win->key_head = (win->key_head + 1) & 15;
+  return key;
+}
+
+static void cc_gui_win_flip(int win_id) {
+  window_t *focused = gui_get_focused_window();
+  if (!focused)
+    return;
+  if ((int)focused->id != win_id)
+    return;
+
+  mouse_restore_under_cursor();
+  (void)gui_cache_window_content(win_id);
+  mouse_save_under_cursor();
+  mouse_draw_cursor();
+  vga_flip();
+}
+
+static int cc_gui_win_can_draw(int win_id) {
+  window_t *focused = gui_get_focused_window();
+  if (!focused)
+    return 0;
+  if ((int)focused->id != win_id)
+    return 0;
+  return 1;
+}
+
+static int cc_gui_win_focus(int win_id) { return gui_set_focus(win_id); }
+
+static int cc_gui_win_draw_frame(int win_id) {
+  window_t *focused = gui_get_focused_window();
+  if (!focused)
+    return -1;
+  if ((int)focused->id != win_id)
+    return 0;
+  return gui_draw_window(win_id);
+}
+
+/* Shell buffer wrappers */
+static int cc_shell_buf_rows(void) { return SHELL_ROWS; }
+static int cc_shell_buf_cols(void) { return SHELL_COLS; }
+
+static int cc_shell_buf_char(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS)
+    return 0;
+  const char *buf = shell_get_buffer();
+  return (int)(unsigned char)buf[row * SHELL_COLS + col];
+}
+
+static int cc_shell_buf_color(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS)
+    return 0x07;
+  const shell_color_t *colors = shell_get_color_buffer();
+  const shell_color_t cell = colors[row * SHELL_COLS + col];
+  return (int)(cell.fg | (uint8_t)(cell.bg << 4));
+}
+
+static int cc_shell_cursor_x(void) { return shell_get_cursor_x(); }
+static int cc_shell_cursor_y(void) { return shell_get_cursor_y(); }
+
+static void cc_shell_send_key(int scancode, int ch) {
+  shell_gui_handle_key((uint8_t)scancode, (char)ch);
+}
+
+/* Text glyph wrappers */
+static void cc_gfx2d_char(int x, int y, int ch, int color) {
+  gfx_draw_char((int16_t)x, (int16_t)y, (char)ch, (uint32_t)color);
+}
+
+static void cc_gfx2d_char_scaled(int x, int y, int ch, int color, int scale) {
+  if (scale < 1)
+    scale = 1;
+  if (scale > 3)
+    scale = 3;
+  gfx_draw_char_scaled((int16_t)x, (int16_t)y, (char)ch, (uint32_t)color,
+                       scale);
+}
+
+static void cc_gfx2d_text_simple(int x, int y, const char *str, int color) {
+  gfx_draw_text((int16_t)x, (int16_t)y, str, (uint32_t)color);
+}
+
+static uint32_t cc_ansi_color(int idx) {
+  if (idx < 0 || idx > 15)
+    idx = ANSI_DEFAULT_FG;
+  return ansi_vga_to_palette((uint8_t)idx);
+}
 
 /* Kernel Bindings Registration */
 
@@ -503,16 +785,16 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   } while (0)
 
   /* Console output */
-  void (*p_print)(const char *) = print;
+  void (*p_print)(const char *) = cc_print;
   BIND("print", p_print, 1);
 
   void (*p_println)(const char *) = cc_println;
   BIND("println", p_println, 1);
 
-  void (*p_putchar)(char) = putchar;
+  void (*p_putchar)(char) = cc_putchar;
   BIND("putchar", p_putchar, 1);
 
-  void (*p_print_int)(uint32_t) = print_int;
+  void (*p_print_int)(uint32_t) = cc_print_int;
   BIND("print_int", p_print_int, 1);
 
   void (*p_print_hex)(uint32_t) = print_hex;
@@ -811,6 +1093,79 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_mouse_scroll)(void) = cc_mouse_scroll;
   BIND("mouse_scroll", p_mouse_scroll, 0);
+
+  int (*p_keyboard_ctrl_held)(void) = cc_keyboard_ctrl_held;
+  BIND("keyboard_ctrl_held", p_keyboard_ctrl_held, 0);
+
+  int (*p_gui_win_create)(const char *, int, int, int, int) = cc_gui_win_create;
+  BIND("gui_win_create", p_gui_win_create, 5);
+
+  void (*p_gui_win_close)(int) = cc_gui_win_close;
+  BIND("gui_win_close", p_gui_win_close, 1);
+
+  int (*p_gui_win_is_open)(int) = cc_gui_win_is_open;
+  BIND("gui_win_is_open", p_gui_win_is_open, 1);
+
+  int (*p_gui_win_content_x)(int) = cc_gui_win_content_x;
+  BIND("gui_win_content_x", p_gui_win_content_x, 1);
+
+  int (*p_gui_win_content_y)(int) = cc_gui_win_content_y;
+  BIND("gui_win_content_y", p_gui_win_content_y, 1);
+
+  int (*p_gui_win_content_w)(int) = cc_gui_win_content_w;
+  BIND("gui_win_content_w", p_gui_win_content_w, 1);
+
+  int (*p_gui_win_content_h)(int) = cc_gui_win_content_h;
+  BIND("gui_win_content_h", p_gui_win_content_h, 1);
+
+  int (*p_gui_win_poll_key)(int) = cc_gui_win_poll_key;
+  BIND("gui_win_poll_key", p_gui_win_poll_key, 1);
+
+  void (*p_gui_win_flip)(int) = cc_gui_win_flip;
+  BIND("gui_win_flip", p_gui_win_flip, 1);
+
+  int (*p_gui_win_can_draw)(int) = cc_gui_win_can_draw;
+  BIND("gui_win_can_draw", p_gui_win_can_draw, 1);
+
+  int (*p_gui_win_focus)(int) = cc_gui_win_focus;
+  BIND("gui_win_focus", p_gui_win_focus, 1);
+
+  int (*p_gui_win_draw_frame)(int) = cc_gui_win_draw_frame;
+  BIND("gui_win_draw_frame", p_gui_win_draw_frame, 1);
+
+  int (*p_shell_buf_rows)(void) = cc_shell_buf_rows;
+  BIND("shell_buf_rows", p_shell_buf_rows, 0);
+
+  int (*p_shell_buf_cols)(void) = cc_shell_buf_cols;
+  BIND("shell_buf_cols", p_shell_buf_cols, 0);
+
+  int (*p_shell_buf_char)(int, int) = cc_shell_buf_char;
+  BIND("shell_buf_char", p_shell_buf_char, 2);
+
+  int (*p_shell_buf_color)(int, int) = cc_shell_buf_color;
+  BIND("shell_buf_color", p_shell_buf_color, 2);
+
+  int (*p_shell_cursor_x)(void) = cc_shell_cursor_x;
+  BIND("shell_cursor_x", p_shell_cursor_x, 0);
+
+  int (*p_shell_cursor_y)(void) = cc_shell_cursor_y;
+  BIND("shell_cursor_y", p_shell_cursor_y, 0);
+
+  void (*p_shell_send_key)(int, int) = cc_shell_send_key;
+  BIND("shell_send_key", p_shell_send_key, 2);
+
+  void (*p_gfx2d_char)(int, int, int, int) = cc_gfx2d_char;
+  BIND("gfx2d_char", p_gfx2d_char, 4);
+
+  void (*p_gfx2d_char_scaled)(int, int, int, int, int) = cc_gfx2d_char_scaled;
+  BIND("gfx2d_char_scaled", p_gfx2d_char_scaled, 5);
+
+  void (*p_gfx2d_text_simple)(int, int, const char *, int) =
+      cc_gfx2d_text_simple;
+  BIND("gfx2d_text_simple", p_gfx2d_text_simple, 4);
+
+  uint32_t (*p_ansi_color)(int) = cc_ansi_color;
+  BIND("ansi_color", p_ansi_color, 1);
 
   /* String operations - extended */
 
@@ -1343,6 +1698,18 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_icons_save)(void) = gfx2d_icons_save;
   BIND("icons_save", p_icons_save, 0);
 
+  void (*p_cbset)(void) = (void (*)(void))cc_clipboard_set;
+  BIND("clipboard_set", p_cbset, 2);
+
+  void (*p_cbget)(void) = (void (*)(void))cc_clipboard_get;
+  BIND("clipboard_get", p_cbget, 0);
+
+  void (*p_cblen)(void) = (void (*)(void))cc_clipboard_len;
+  BIND("clipboard_len", p_cblen, 0);
+
+  void (*p_nop_get_path)(void) = (void (*)(void))cc_notepad_get_open_path;
+  BIND("notepad_get_open_path", p_nop_get_path, 2);
+
 #undef BIND
 }
 
@@ -1355,6 +1722,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 #define CC_PP_MAX_PATH 256
 #define CC_PP_MAX_COND_DEPTH 32
 #define CC_PP_MAX_EXE_FUNCS 128
+#define CC_PP_MAX_SEEN_FILES 64
+
+static char cc_pp_seen_files_storage[CC_PP_MAX_SEEN_FILES][CC_PP_MAX_PATH];
 
 typedef struct {
   char name[CC_MAX_IDENT];
@@ -1383,6 +1753,9 @@ typedef struct {
   int exe_skip_reported;
   int exe_capture_depth;
   int exe_func_counter;
+
+  char *seen_files;
+  int seen_count;
 } cc_pp_state_t;
 
 static int cc_pp_is_space(char c) {
@@ -1666,7 +2039,41 @@ static void cc_pp_expand_line(cc_pp_state_t *pp, const char *line_start,
   }
 }
 
+static int cc_pp_file_seen(cc_pp_state_t *pp, const char *path);
+static void cc_pp_add_seen(cc_pp_state_t *pp, const char *path);
 static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth);
+
+static int cc_pp_file_seen(cc_pp_state_t *pp, const char *path) {
+  int i;
+  for (i = 0; i < pp->seen_count; i++) {
+    const char *a = pp->seen_files + (i * CC_PP_MAX_PATH);
+    const char *b = path;
+    while (*a && *b && *a == *b) {
+      a++;
+      b++;
+    }
+    if (*a == '\0' && *b == '\0')
+      return 1;
+  }
+  return 0;
+}
+
+static void cc_pp_add_seen(cc_pp_state_t *pp, const char *path) {
+  int i;
+  char *slot;
+  if (pp->seen_count >= CC_PP_MAX_SEEN_FILES)
+    return;
+  if (cc_pp_file_seen(pp, path))
+    return;
+  slot = pp->seen_files + (pp->seen_count * CC_PP_MAX_PATH);
+  i = 0;
+  while (path[i] && i < 255) {
+    slot[i] = path[i];
+    i++;
+  }
+  slot[i] = '\0';
+  pp->seen_count++;
+}
 
 static void cc_pp_handle_directive(cc_pp_state_t *pp, const char *cur_path,
                                    const char *line_start,
@@ -1707,7 +2114,26 @@ static void cc_pp_handle_directive(cc_pp_state_t *pp, const char *cur_path,
     }
     char resolved[CC_PP_MAX_PATH];
     cc_pp_resolve_include(cur_path, inc_path, resolved);
+    if (cc_pp_file_seen(pp, resolved))
+      return;
     cc_pp_process_file(pp, resolved, depth + 1);
+    return;
+  }
+
+  if (cc_pp_word_eq(kw_start, kw_end, "pragma")) {
+    const char *kw2_start;
+    const char *kw2_end;
+    if (!pp->active)
+      return;
+    while (p < line_end && cc_pp_is_space(*p))
+      p++;
+    kw2_start = p;
+    while (p < line_end && cc_pp_is_alpha(*p))
+      p++;
+    kw2_end = p;
+    if (cc_pp_word_eq(kw2_start, kw2_end, "once")) {
+      cc_pp_add_seen(pp, cur_path);
+    }
     return;
   }
 
@@ -1897,6 +2323,7 @@ static void cc_pp_process_file(cc_pp_state_t *pp, const char *path, int depth) {
 static char *cc_preprocess_source(const char *path, int jit_mode) {
   cc_pp_state_t pp;
   memset(&pp, 0, sizeof(pp));
+  pp.seen_count = 0;
   pp.active = 1;
   pp.jit_mode = jit_mode;
   pp.out_cap = CC_PP_MAX_OUTPUT;
@@ -1905,6 +2332,9 @@ static char *cc_preprocess_source(const char *path, int jit_mode) {
     print("CupidC: out of memory for preprocessor\n");
     return NULL;
   }
+
+  pp.seen_files = (char *)cc_pp_seen_files_storage;
+  memset(pp.seen_files, 0, CC_PP_MAX_SEEN_FILES * CC_PP_MAX_PATH);
 
   cc_pp_process_file(&pp, path, 0);
 
@@ -2010,9 +2440,13 @@ int cupidc_jit_status(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
 
   /* Read and preprocess source file */
+  serial_printf("[cupidc] preprocess begin\n");
   char *source = cc_preprocess_source(path, 1);
-  if (!source)
+  if (!source) {
+    serial_printf("[cupidc] preprocess failed\n");
     return -1;
+  }
+  serial_printf("[cupidc] preprocess done\n");
 
   /* Heap-allocate compiler state (~24KB - too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
@@ -2028,10 +2462,13 @@ int cupidc_jit_status(const char *path) {
   }
 
   /* Lex + parse + generate code */
+  serial_printf("[cupidc] parse begin\n");
   cc_lex_init(cc, source);
   cc_parse_program(cc);
+  serial_printf("[cupidc] parse end\n");
 
   if (cc->error) {
+    serial_printf("[cupidc] parse produced error: %s", cc->error_msg);
     print(cc->error_msg);
     kfree(source);
     cc_cleanup_state(cc);
@@ -2040,6 +2477,7 @@ int cupidc_jit_status(const char *path) {
   }
 
   if (!cc->has_entry) {
+    serial_printf("[cupidc] no entry after parse (has_entry=0)\n");
     print("CupidC: no entry point found (main or top-level statements)\n");
     kfree(source);
     cc_cleanup_state(cc);
@@ -2075,7 +2513,13 @@ int cupidc_jit_status(const char *path) {
 
   /* Save the current JIT regions BEFORE overwriting (for nested JIT programs).
    * This must happen before the memcpy so we preserve the previous program. */
-  shell_jit_program_start(path);
+  if (!shell_jit_program_start(path)) {
+    print("CupidC: cannot launch nested JIT program (snapshot failed)\n");
+    kfree(source);
+    cc_cleanup_state(cc);
+    kfree(cc);
+    return -1;
+  }
 
   /* Copy code and data to execution regions */
   memcpy((void *)CC_JIT_CODE_BASE, cc->code, cc->code_pos);

@@ -9,6 +9,7 @@
 #include "gfx2d_effects.h"
 #include "gfx2d.h"
 #include "memory.h"
+#include "simd.h"
 #include "string.h"
 #include "../drivers/serial.h"
 
@@ -43,94 +44,66 @@ void gfx2d_effects_init(void) {
 /* Blur */
 
 void gfx2d_blur_box(int x, int y, int w, int h, int radius) {
-    int row, col, kr, kc;
-    int ksize;
     uint32_t *tmp;
+    uint32_t *tmp2;
     uint32_t tmp_size;
+    uint32_t *fbuf;
+    int fbuf_w;
+    int fbuf_h;
+    int row;
+    int x0;
+    int y0;
+    int x1;
+    int y1;
 
     if (radius < 1) radius = 1;
     if (radius > 8) radius = 8;
     if (w <= 0 || h <= 0) return;
 
+    fbuf = gfx2d_get_active_fb();
+    fbuf_w = gfx2d_width();
+    fbuf_h = gfx2d_height();
+
+    x0 = x;
+    y0 = y;
+    x1 = x + w;
+    y1 = y + h;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > fbuf_w) x1 = fbuf_w;
+    if (y1 > fbuf_h) y1 = fbuf_h;
+    if (x1 <= x0 || y1 <= y0) return;
+
+    w = x1 - x0;
+    h = y1 - y0;
+
     tmp_size = (uint32_t)w * (uint32_t)h * 4u;
     tmp = (uint32_t *)kmalloc(tmp_size);
     if (!tmp) return;
 
-    ksize = 2 * radius + 1;
+    tmp2 = (uint32_t *)kmalloc(tmp_size);
+    if (!tmp2) {
+        kfree(tmp);
+        return;
+    }
 
-    /* Read source pixels into temp buffer */
-    for (row = 0; row < h; row++)
-        for (col = 0; col < w; col++)
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                gfx2d_getpixel(x + col, y + row);
-
-    /* Horizontal pass: blur into framebuffer */
     for (row = 0; row < h; row++) {
-        for (col = 0; col < w; col++) {
-            int sr = 0, sg = 0, sb = 0, cnt = 0;
-            for (kc = -radius; kc <= radius; kc++) {
-                int sc = col + kc;
-                if (sc < 0 || sc >= w) continue;
-                uint32_t px = tmp[(uint32_t)row * (uint32_t)w + (uint32_t)sc];
-                sr += R(px);
-                sg += G(px);
-                sb += B(px);
-                cnt++;
-            }
-            if (cnt > 0) {
-                sr /= cnt; sg /= cnt; sb /= cnt;
-            }
-            tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                RGB(sr, sg, sb);
-        }
+        simd_memcpy(tmp + (uint32_t)row * (uint32_t)w,
+                    fbuf + (uint32_t)(y0 + row) * (uint32_t)fbuf_w + (uint32_t)x0,
+                    (uint32_t)w * 4u);
     }
 
-    /* Vertical pass: blur from framebuffer back */
-    /* Read horizontal-blurred data, then do vertical */
-    {
-        uint32_t *tmp2 = (uint32_t *)kmalloc(tmp_size);
-        if (!tmp2) {
-            /* fallback: write horizontal-only result */
-            for (row = 0; row < h; row++)
-                for (col = 0; col < w; col++)
-                    gfx2d_pixel(x + col, y + row,
-                                tmp[(uint32_t)row * (uint32_t)w + (uint32_t)col]);
-            kfree(tmp);
-            return;
-        }
+    simd_blur_h_pass(tmp2, tmp, w, h, radius);
+    simd_blur_v_pass(tmp, tmp2, w, h, radius);
 
-        for (col = 0; col < w; col++) {
-            for (row = 0; row < h; row++) {
-                int sr2 = 0, sg2 = 0, sb2 = 0, cnt2 = 0;
-                for (kr = -radius; kr <= radius; kr++) {
-                    int sr_row = row + kr;
-                    if (sr_row < 0 || sr_row >= h) continue;
-                    uint32_t px = tmp[(uint32_t)sr_row * (uint32_t)w +
-                                      (uint32_t)col];
-                    sr2 += R(px);
-                    sg2 += G(px);
-                    sb2 += B(px);
-                    cnt2++;
-                }
-                if (cnt2 > 0) {
-                    sr2 /= cnt2; sg2 /= cnt2; sb2 /= cnt2;
-                }
-                tmp2[(uint32_t)row * (uint32_t)w + (uint32_t)col] =
-                    RGB(sr2, sg2, sb2);
-            }
-        }
-
-        /* Write result */
-        for (row = 0; row < h; row++)
-            for (col = 0; col < w; col++)
-                gfx2d_pixel(x + col, y + row,
-                            tmp2[(uint32_t)row * (uint32_t)w + (uint32_t)col]);
-
-        kfree(tmp2);
+    for (row = 0; row < h; row++) {
+        simd_memcpy(fbuf + (uint32_t)(y0 + row) * (uint32_t)fbuf_w + (uint32_t)x0,
+                    tmp + (uint32_t)row * (uint32_t)w,
+                    (uint32_t)w * 4u);
     }
 
+    kfree(tmp2);
     kfree(tmp);
-    (void)ksize;
 }
 
 void gfx2d_blur_box_surface(int surf_handle, int radius) {

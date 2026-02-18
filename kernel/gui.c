@@ -7,11 +7,14 @@
  */
 
 #include "gui.h"
+#include "simd.h"
 #include "desktop.h"
 #include "../drivers/serial.h"
 #include "../drivers/vga.h"
 #include "gfx2d.h"
 #include "graphics.h"
+#include "memory.h"
+#include "process.h"
 #include "string.h"
 
 static window_t windows[MAX_WINDOWS];
@@ -47,6 +50,17 @@ static void win_copy(window_t *dst, const window_t *src) {
   memcpy(dst, src, sizeof(window_t));
 }
 
+static void free_window_cache(window_t *win) {
+  if (!win)
+    return;
+  if (win->content_cache) {
+    kfree(win->content_cache);
+    win->content_cache = NULL;
+  }
+  win->content_cache_w = 0;
+  win->content_cache_h = 0;
+}
+
 int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       const char *title) {
   if (w < 40 || h < (uint16_t)(TITLEBAR_H + 8))
@@ -58,8 +72,16 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
     y = 0;
   if (x > VGA_GFX_WIDTH - 20)
     x = (int16_t)(VGA_GFX_WIDTH - 20);
-  if (y > VGA_GFX_HEIGHT - 20)
-    y = (int16_t)(VGA_GFX_HEIGHT - 20);
+  if (y > TASKBAR_Y - TITLEBAR_H)
+    y = (int16_t)(TASKBAR_Y - TITLEBAR_H);
+
+  {
+    int max_h = TASKBAR_Y - (int)y;
+    if (max_h < TITLEBAR_H + 8)
+      max_h = TITLEBAR_H + 8;
+    if ((int)h > max_h)
+      h = (uint16_t)max_h;
+  }
 
   if (win_count >= MAX_WINDOWS) {
     KERROR("GUI: cannot create window, limit reached");
@@ -70,6 +92,7 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
   memset(win, 0, sizeof(window_t));
 
   win->id = next_id++;
+  win->owner_pid = process_get_current_pid();
   win->x = x;
   win->y = y;
   win->width = w;
@@ -77,6 +100,8 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
   win->flags = WINDOW_FLAG_VISIBLE | WINDOW_FLAG_DIRTY;
   win->redraw = NULL;
   win->app_data = NULL;
+  win->key_head = 0;
+  win->key_tail = 0;
 
   /* Copy title safely */
   int i = 0;
@@ -112,6 +137,8 @@ int gui_destroy_window(int wid) {
     windows[idx].on_close(&windows[idx]);
   }
 
+  free_window_cache(&windows[idx]);
+
   /* Shift remaining windows down */
   for (int i = idx; i < win_count - 1; i++) {
     win_copy(&windows[i], &windows[i + 1]);
@@ -137,6 +164,24 @@ int gui_destroy_window(int wid) {
 
   KINFO("GUI: window %d destroyed", wid);
   return GUI_OK;
+}
+
+int gui_destroy_windows_by_owner(uint32_t owner_pid) {
+  if (owner_pid == 0)
+    return 0;
+
+  int destroyed = 0;
+  for (int i = 0; i < win_count;) {
+    if (windows[i].owner_pid == owner_pid) {
+      int wid = (int)windows[i].id;
+      if (gui_destroy_window(wid) == GUI_OK) {
+        destroyed++;
+        continue;
+      }
+    }
+    i++;
+  }
+  return destroyed;
 }
 
 int gui_set_focus(int wid) {
@@ -170,7 +215,14 @@ window_t *gui_get_focused_window(void) {
   window_t *top = &windows[win_count - 1];
   if (top->flags & WINDOW_FLAG_FOCUSED)
     return top;
-  return NULL;
+
+  /* Recover from transient focus-flag desync: top window is authoritative
+   * for keyboard routing and z-order interaction. */
+  for (int i = 0; i < win_count; i++) {
+    windows[i].flags &= (uint8_t)~WINDOW_FLAG_FOCUSED;
+  }
+  top->flags |= WINDOW_FLAG_FOCUSED | WINDOW_FLAG_DIRTY;
+  return top;
 }
 
 window_t *gui_get_window(int wid) {
@@ -212,6 +264,57 @@ void gui_mark_all_dirty(void) {
       windows[i].flags |= WINDOW_FLAG_DIRTY;
     }
   }
+}
+
+int gui_cache_window_content(int wid) {
+  int idx = find_index(wid);
+  if (idx < 0)
+    return GUI_ERR_INVALID_ID;
+
+  window_t *win = &windows[idx];
+  int cx = (int)win->x + 1;
+  int cy = (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
+  int cw = (int)win->width - 2;
+  int ch = (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER;
+
+  if (cw <= 0 || ch <= 0)
+    return GUI_ERR_INVALID_ARGS;
+
+  if (cx < 0 || cy < 0 || cx + cw > VGA_GFX_WIDTH || cy + ch > VGA_GFX_HEIGHT)
+    return GUI_ERR_INVALID_ARGS;
+
+  if (!win->content_cache || win->content_cache_w != (uint16_t)cw ||
+      win->content_cache_h != (uint16_t)ch) {
+    uint32_t *buf = (uint32_t *)kmalloc((uint32_t)cw * (uint32_t)ch * 4u);
+    if (!buf)
+      return GUI_ERR_NO_MEMORY;
+    free_window_cache(win);
+    win->content_cache = buf;
+    win->content_cache_w = (uint16_t)cw;
+    win->content_cache_h = (uint16_t)ch;
+  }
+
+  {
+    uint32_t *fb = vga_get_framebuffer();
+    for (int row = 0; row < ch; row++) {
+      memcpy(win->content_cache + row * cw,
+             fb + (cy + row) * VGA_GFX_WIDTH + cx,
+             (uint32_t)cw * 4u);
+    }
+  }
+
+  return GUI_OK;
+}
+
+/* Returns true when the focused window has no redraw callback — it is a
+ * self-rendering CupidC app that calls vga_flip() itself.  The desktop
+ * uses this to skip its own flip during drag so the displayed frame always
+ * contains both the desktop's chrome and the app's content. */
+bool gui_focused_is_self_rendering(void) {
+  window_t *focused = gui_get_focused_window();
+  if (!focused)
+    return false;
+  return focused->redraw == NULL;
 }
 
 bool gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
@@ -269,34 +372,16 @@ bool gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
   return true;
 }
 
-/* Front-to-back hit test for bottom-right resize grip */
-static int gui_hit_test_resize(int16_t mx, int16_t my) {
-  for (int i = win_count - 1; i >= 0; i--) {
-    window_t *w = &windows[i];
-    if (!(w->flags & WINDOW_FLAG_VISIBLE))
-      continue;
-    int16_t rx = (int16_t)(w->x + (int16_t)w->width - RESIZE_GRIP_SIZE);
-    int16_t ry = (int16_t)(w->y + (int16_t)w->height - RESIZE_GRIP_SIZE);
-    if (mx >= rx && mx < w->x + (int16_t)w->width &&
-        my >= ry && my < w->y + (int16_t)w->height) {
-      return (int)w->id;
-    }
-  }
-  return -1;
+
+static void draw_single_window_shadow(window_t *win) {
+  gfx_fill_rect((int16_t)(win->x + 3), (int16_t)(win->y + 3), win->width,
+                win->height, 0x00606070u);
 }
 
 static void draw_single_window(window_t *win) {
   bool focused = (win->flags & WINDOW_FLAG_FOCUSED) != 0;
   int wx = (int)win->x, wy = (int)win->y;
   int ww = (int)win->width;
-
-  /* Drop shadow: single offset rect - window draws on top, shadow shows
-   * cleanly on right and bottom edges with a proper square corner. */
-  gfx_fill_rect((int16_t)(win->x + 3), (int16_t)(win->y + 3), win->width,
-                win->height, 0x00606070u);
-
-  /* Window background */
-  gfx_fill_rect(win->x, win->y, win->width, win->height, COLOR_WINDOW_BG);
 
   /* Title bar gradient (only titlebar height - small area, fast) */
   if (focused) {
@@ -323,10 +408,32 @@ static void draw_single_window(window_t *win) {
                 (int16_t)(cbx + 2), (int16_t)(cby + CLOSE_BTN_SIZE - 3),
                 COLOR_TEXT_LIGHT);
 
-  /* Content area */
-  gfx_fill_rect((int16_t)(win->x + 1), (int16_t)(win->y + TITLEBAR_H),
-                (uint16_t)(win->width - 2),
-                (uint16_t)(win->height - TITLEBAR_H - 1), COLOR_WINDOW_BG);
+  /* Content area.
+   * Callback-based apps overdraw via win->redraw below.
+   * Self-rendering apps (no redraw callback) replay their most recent
+   * captured content if available so unfocused windows keep their last frame. */
+  {
+    int cx = (int)win->x + 1;
+    int cy = (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
+    int cw = (int)win->width - 2;
+    int ch = (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER;
+    bool in_bounds = (cx >= 0 && cy >= 0 && cw > 0 && ch > 0 &&
+                      cx + cw <= VGA_GFX_WIDTH &&
+                      cy + ch <= VGA_GFX_HEIGHT);
+
+    if (in_bounds && !win->redraw && win->content_cache &&
+        win->content_cache_w == (uint16_t)cw &&
+        win->content_cache_h == (uint16_t)ch) {
+      uint32_t *fb = vga_get_framebuffer();
+      simd_blit_rect(fb + (uint32_t)cy * (uint32_t)VGA_GFX_WIDTH + (uint32_t)cx,
+                     win->content_cache,
+                     (uint32_t)VGA_GFX_WIDTH, (uint32_t)cw,
+                     (uint32_t)cw, (uint32_t)ch);
+    } else {
+      gfx_fill_rect((int16_t)cx, (int16_t)cy, (uint16_t)cw, (uint16_t)ch,
+                    COLOR_WINDOW_BG);
+    }
+  }
 
   /* Border */
   gfx_draw_rect(win->x, win->y, win->width, win->height, COLOR_BORDER);
@@ -358,7 +465,18 @@ int gui_draw_window(int wid) {
   return GUI_OK;
 }
 
-void gui_draw_all_windows(void) {
+void gui_mark_visible_rects(void) {
+  for (int i = 0; i < win_count; i++) {
+    window_t *w = &windows[i];
+    if (!(w->flags & WINDOW_FLAG_VISIBLE))
+      continue;
+    /* Include drop shadow (+3 right/bottom) and a pixel of border clearance */
+    vga_mark_dirty((int)w->x - 1, (int)w->y - 1,
+                   (int)w->width + 5, (int)w->height + 5);
+  }
+}
+
+void gui_draw_all_windows(bool draw_shadows) {
   int first = -1;
 
   for (int i = 0; i < win_count; i++) {
@@ -373,6 +491,17 @@ void gui_draw_all_windows(void) {
 
   if (first < 0)
     return;
+
+  /* Draw shadows first (back-to-front pass) so they sit behind all windows.
+   * When the background wasn't repainted this frame, old shadow pixels are
+   * still correct in the back_buffer — skip the fill entirely. */
+  if (draw_shadows) {
+    for (int i = first; i < win_count; i++) {
+      if (windows[i].flags & WINDOW_FLAG_VISIBLE) {
+        draw_single_window_shadow(&windows[i]);
+      }
+    }
+  }
 
   /* Redraw from the first changed window to top to preserve occlusion. */
   for (int i = first; i < win_count; i++) {
@@ -425,18 +554,21 @@ int gui_hit_test_window(int16_t mx, int16_t my) {
 
 void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
                       uint8_t prev_buttons) {
-  bool pressed = (buttons & 0x01) && !(prev_buttons & 0x01);
-  bool released = !(buttons & 0x01) && (prev_buttons & 0x01);
+  bool lmb_now = (buttons & 0x01) != 0;
+  bool lmb_prev = (prev_buttons & 0x01) != 0;
+  bool pressed = lmb_now && !lmb_prev;
+  bool released = !lmb_now && lmb_prev;
 
   /* Dragging in progress */
   if (drag.dragging) {
-    if (released) {
+    if (!lmb_now || released) {
       drag.dragging = false;
       window_t *w = gui_get_window(drag.window_id);
       if (w) {
         w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
         w->flags &= (uint8_t)~WINDOW_FLAG_RESIZING;
         w->flags |= WINDOW_FLAG_DIRTY;
+        gui_mark_all_dirty();
       }
       drag.resizing = false;
       drag.window_id = -1;
@@ -449,7 +581,7 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
           int nh =
               (int)drag.start_height + ((int)my - (int)drag.start_mouse_y);
           int max_w = VGA_GFX_WIDTH - (int)w->x;
-          int max_h = VGA_GFX_HEIGHT - (int)w->y;
+          int max_h = TASKBAR_Y - (int)w->y;
 
           if (nw < 40)
             nw = 40;
@@ -468,7 +600,7 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
           w->height = (uint16_t)nh;
           w->flags |= WINDOW_FLAG_RESIZING;
           w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
-          w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+          w->flags |= WINDOW_FLAG_DIRTY;
         } else {
           w->prev_x = w->x;
           w->prev_y = w->y;
@@ -486,7 +618,7 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
             w->y = (int16_t)(TASKBAR_Y - TITLEBAR_H);
           w->flags |= WINDOW_FLAG_DRAGGING;
           w->flags &= (uint8_t)~WINDOW_FLAG_RESIZING;
-          w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
+          w->flags |= WINDOW_FLAG_DIRTY;
         }
         layout_changed_flag = true;
       }
@@ -496,59 +628,70 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
 
   /* New press */
   if (pressed) {
-    /* Check close button first */
-    int close_id = gui_hit_test_close(mx, my);
-    if (close_id >= 0) {
-      gui_destroy_window(close_id);
+    /* Find the topmost window under the cursor first.  All subsequent
+     * hit-tests are scoped to this one window so that occluded windows
+     * (behind a higher-z peer) can never accidentally steal a click. */
+    int top_wid = gui_hit_test_window(mx, my);
+    if (top_wid < 0)
+      return; /* click landed on bare desktop */
+
+    window_t *w = gui_get_window(top_wid);
+    if (!w)
+      return;
+
+    /* Close button — only within the topmost window */
+    int16_t cbx = (int16_t)(w->x + (int16_t)w->width - CLOSE_BTN_SIZE - 2);
+    int16_t cby = (int16_t)(w->y + 2);
+    if (mx >= cbx && mx < cbx + CLOSE_BTN_SIZE &&
+        my >= cby && my < cby + CLOSE_BTN_SIZE) {
+      gui_destroy_window(top_wid);
       return;
     }
 
-    /* Check bottom-right resize grip */
-    int resize_id = gui_hit_test_resize(mx, my);
-    if (resize_id >= 0) {
-      gui_set_focus(resize_id);
-      window_t *w = gui_get_window(resize_id);
-      if (w) {
-        drag.dragging = true;
-        drag.resizing = true;
-        drag.window_id = resize_id;
-        drag.start_mouse_x = mx;
-        drag.start_mouse_y = my;
-        drag.start_width = w->width;
-        drag.start_height = w->height;
-        w->flags |= WINDOW_FLAG_RESIZING;
-        w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
-        w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
-        layout_changed_flag = true;
-      }
+    /* Resize grip (bottom-right corner) — only within the topmost window */
+    int16_t rgx = (int16_t)(w->x + (int16_t)w->width  - RESIZE_GRIP_SIZE);
+    int16_t rgy = (int16_t)(w->y + (int16_t)w->height - RESIZE_GRIP_SIZE);
+    if (mx >= rgx && mx < w->x + (int16_t)w->width &&
+        my >= rgy && my < w->y + (int16_t)w->height) {
+      gui_set_focus(top_wid);
+      w = gui_get_window(top_wid);
+      if (!w)
+        return;
+      drag.dragging      = true;
+      drag.resizing      = true;
+      drag.window_id     = top_wid;
+      drag.start_mouse_x = mx;
+      drag.start_mouse_y = my;
+      drag.start_width   = w->width;
+      drag.start_height  = w->height;
+      w->flags |= WINDOW_FLAG_RESIZING;
+      w->flags &= (uint8_t)~WINDOW_FLAG_DRAGGING;
+      w->flags |= WINDOW_FLAG_DIRTY;
+      layout_changed_flag = true;
       return;
     }
 
-    /* Check title bar for drag */
-    int title_id = gui_hit_test_titlebar(mx, my);
-    if (title_id >= 0) {
-      gui_set_focus(title_id);
-      window_t *w = gui_get_window(title_id);
-      if (w) {
-        drag.dragging = true;
-        drag.resizing = false;
-        drag.window_id = title_id;
-        drag.drag_offset_x = (int16_t)(mx - w->x);
-        drag.drag_offset_y = (int16_t)(my - w->y);
-        w->prev_x = w->x;
-        w->prev_y = w->y;
-        w->flags |= WINDOW_FLAG_DRAGGING;
-        w->flags &= (uint8_t)~WINDOW_FLAG_DIRTY;
-        layout_changed_flag = true;
-      }
+    /* Title bar drag — only within the topmost window */
+    if (my >= w->y && my < w->y + TITLEBAR_H) {
+      gui_set_focus(top_wid);
+      w = gui_get_window(top_wid);
+      if (!w)
+        return;
+      drag.dragging      = true;
+      drag.resizing      = false;
+      drag.window_id     = top_wid;
+      drag.drag_offset_x = (int16_t)(mx - w->x);
+      drag.drag_offset_y = (int16_t)(my - w->y);
+      w->prev_x = w->x;
+      w->prev_y = w->y;
+      w->flags |= WINDOW_FLAG_DRAGGING;
+      w->flags |= WINDOW_FLAG_DIRTY;
+      layout_changed_flag = true;
       return;
     }
 
-    /* Click on window body -> focus */
-    int body_id = gui_hit_test_window(mx, my);
-    if (body_id >= 0) {
-      gui_set_focus(body_id);
-    }
+    /* Click on window body → focus */
+    gui_set_focus(top_wid);
   }
 }
 
@@ -557,11 +700,10 @@ void gui_handle_key(uint8_t scancode, char character) {
   if (!focused)
     return;
 
-  /* Forward to application via redraw callback convention:
-   * The desktop/terminal layer handles this externally. */
-  (void)scancode;
-  (void)character;
-
-  /* Mark dirty so the window redraws (app may have changed state) */
-  focused->flags |= WINDOW_FLAG_DIRTY;
+  int next = (focused->key_tail + 1) & 15;
+  if (next != focused->key_head) {
+    focused->key_queue[focused->key_tail] =
+        ((int)scancode << 8) | (unsigned char)character;
+    focused->key_tail = next;
+  }
 }

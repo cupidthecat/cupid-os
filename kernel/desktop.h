@@ -76,6 +76,11 @@ int  desktop_hit_test_taskbar(int16_t mx, int16_t my);
  * Blocks until the user clicks the taskbar button to restore the app. */
 void desktop_run_minimized_loop(const char *app_name);
 
+/* CupidC notepad launcher */
+void desktop_notepad_launch(void);
+void desktop_notepad_launch_with_file(const char *vfs_path,
+                                      const char *save_path);
+
 /* Calendar popup */
 extern calendar_state_t cal_state;
 void desktop_toggle_calendar(void);

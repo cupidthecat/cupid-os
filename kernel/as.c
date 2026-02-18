@@ -24,7 +24,6 @@
 #include "blockcache.h"
 #include "bmp.h"
 #include "ed.h"
-#include "notepad.h"
 #include "gfx2d.h"
 #include "gfx2d_icons.h"
 #include "../drivers/rtc.h"
@@ -383,7 +382,7 @@ static uint32_t as_spawn_test(uint32_t count) {
 
 static void as_notepad_open_file(const char *path) {
   if (!path || path[0] == '\0') return;
-  notepad_launch_with_file(path, path);
+  desktop_notepad_launch_with_file(path, path);
 }
 
 static void as_dump_stack_trace(void) {
@@ -960,7 +959,13 @@ void as_jit(const char *path) {
   }
 
   /* Mark JIT program as running */
-  shell_jit_program_start(path);
+  if (!shell_jit_program_start(path)) {
+    print("asm: cannot launch nested JIT program (snapshot failed)\n");
+    kfree(source);
+    as_cleanup_state(as);
+    kfree(as);
+    return;
+  }
 
   /* Copy code and data to execution regions */
   memcpy((void *)AS_JIT_CODE_BASE, as->code, as->code_pos);

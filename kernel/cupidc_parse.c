@@ -267,6 +267,14 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
+static int cc_data_reserve(cc_state_t *cc, uint32_t bytes) {
+  if (bytes > (CC_MAX_DATA - cc->data_pos)) {
+    cc_error(cc, "data section overflow");
+    return 0;
+  }
+  return 1;
+}
+
 /* Token Helpers */
 
 static cc_token_t cc_next(cc_state_t *cc) { return cc_lex_next(cc); }
@@ -1225,14 +1233,18 @@ static void cc_parse_primary(cc_state_t *cc) {
 
   case CC_TOK_STRING: {
     /* Store string in data section, load address */
+    int slen = 0;
+    while (tok.text[slen])
+      slen++;
+    if (!cc_data_reserve(cc, (uint32_t)(slen + 1))) {
+      return;
+    }
     uint32_t str_addr = cc->data_base + cc->data_pos;
     int si = 0;
-    while (tok.text[si] && cc->data_pos < CC_MAX_DATA) {
+    while (tok.text[si]) {
       cc->data[cc->data_pos++] = (uint8_t)tok.text[si++];
     }
-    if (cc->data_pos < CC_MAX_DATA) {
-      cc->data[cc->data_pos++] = 0; /* null terminator */
-    }
+    cc->data[cc->data_pos++] = 0; /* null terminator */
     emit_mov_eax_imm(cc, str_addr);
     cc_last_expr_type = TYPE_CHAR_PTR;
     break;
@@ -1828,41 +1840,43 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
   }
 
-  /* Ternary operator ?: (lowest precedence, below || which is 1) */
-  if (!cc->error && min_prec <= 1) {
-    cc_token_t maybe_q = cc_peek(cc);
-    if (maybe_q.type == CC_TOK_QUESTION) {
-      cc_next(cc); /* consume ? */
-      /* EAX = condition; test it */
-      emit8(cc, 0x85);
-      emit8(cc, 0xC0); /* test eax, eax */
-      uint32_t jz_off = cc->code_pos;
-      emit8(cc, 0x0F);
-      emit8(cc, 0x84);
-      emit32(cc, 0); /* jz <false> placeholder */
+  /* Ternary operator ?: (lowest precedence; right-associative).
+   * We keep this outside binary-op precedence handling and only allow
+   * it when caller accepts lowest-precedence expressions (min_prec <= 1). */
+  while (!cc->error && min_prec <= 1 && cc_peek(cc).type == CC_TOK_QUESTION) {
+    cc_next(cc); /* consume ? */
 
-      /* parse true branch */
-      cc_parse_expression(cc, 1);
-      /* skip false branch */
-      uint32_t jmp_off = cc->code_pos;
-      emit8(cc, 0xE9);
-      emit32(cc, 0); /* jmp <end> placeholder */
+    /* EAX currently holds condition value. */
+    emit8(cc, 0x85);
+    emit8(cc, 0xC0); /* test eax, eax */
+    uint32_t jz_off = cc->code_pos;
+    emit8(cc, 0x0F);
+    emit8(cc, 0x84);
+    emit32(cc, 0); /* jz <false> placeholder */
 
-      /* patch jz to here (false branch) */
-      patch32(cc, jz_off + 2, (uint32_t)(cc->code_pos - (jz_off + 6)));
+    /* Parse true arm. */
+    cc_parse_expression(cc, 1);
 
-      /* expect ':' */
-      cc_token_t colon = cc_next(cc);
-      if (colon.type != CC_TOK_COLON) {
-        cc_error(cc, "expected ':' in ternary");
-        return;
-      }
-      /* parse false branch */
-      cc_parse_expression(cc, 1);
+    /* Jump over false arm. */
+    uint32_t jmp_off = cc->code_pos;
+    emit8(cc, 0xE9);
+    emit32(cc, 0); /* jmp <end> placeholder */
 
-      /* patch jmp to here (end) */
-      patch32(cc, jmp_off + 1, (uint32_t)(cc->code_pos - (jmp_off + 5)));
+    /* False arm starts here. */
+    patch32(cc, jz_off + 2, (uint32_t)(cc->code_pos - (jz_off + 6)));
+
+    cc_token_t colon = cc_next(cc);
+    if (colon.type != CC_TOK_COLON) {
+      cc_error(cc, "expected ':' in ternary");
+      return;
     }
+
+    /* Parse false arm. Using min_prec=1 keeps right-associative chaining:
+     * a ? b : c ? d : e  => a ? b : (c ? d : e). */
+    cc_parse_expression(cc, 1);
+
+    /* End of ternary expression. */
+    patch32(cc, jmp_off + 1, (uint32_t)(cc->code_pos - (jmp_off + 5)));
   }
 }
 
@@ -2501,6 +2515,8 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     total_bytes = (total_bytes + 3) & ~3;
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, arr_type);
     if (sym) {
+      if (!cc_data_reserve(cc, (uint32_t)total_bytes))
+        return;
       sym->address = cc->data_base + cc->data_pos;
       sym->is_array = 1;
       sym->struct_index = type_struct_index;
@@ -2529,6 +2545,8 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     int32_t alloc_size = cc_align_up(ssize, 4);
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_STRUCT);
     if (sym) {
+      if (!cc_data_reserve(cc, (uint32_t)alloc_size))
+        return;
       sym->address = cc->data_base + cc->data_pos;
       sym->struct_index = type_struct_index;
       memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
@@ -2544,6 +2562,8 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 
   cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, type);
   if (sym) {
+    if (!cc_data_reserve(cc, 4))
+      return;
     sym->address = cc->data_base + cc->data_pos;
     sym->struct_index = type_struct_index;
     memset(cc->data + cc->data_pos, 0, 4);
@@ -3852,8 +3872,20 @@ void cc_parse_program(cc_state_t *cc) {
   int top_level_started = 0;
   uint32_t top_level_offset = 0;
   uint32_t top_level_sub_esp_pos = 0;
+  uint32_t parse_iter = 0;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+    parse_iter++;
+    if ((parse_iter & 2047u) == 0u) {
+      cc_token_t pt = cc_peek(cc);
+      serial_printf("[cupidc] parse iter=%u line=%d tok=%d\n", parse_iter,
+                    pt.line, (int)pt.type);
+    }
+    if (parse_iter > 500000u) {
+      cc_error(cc, "parser runaway");
+      break;
+    }
+
     cc_token_t tok = cc_peek(cc);
     if (tok.type == CC_TOK_STATIC) {
       /* File-scope static is accepted; linkage is not distinguished. */
@@ -3894,6 +3926,8 @@ void cc_parse_program(cc_state_t *cc) {
         /* Register as global constant in data section */
         cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
         if (gsym) {
+          if (!cc_data_reserve(cc, 4))
+            break;
           gsym->address = cc->data_base + cc->data_pos;
           memset(cc->data + cc->data_pos, 0, 4);
           uint32_t v = (uint32_t)enum_val;
@@ -4313,6 +4347,8 @@ void cc_parse_program(cc_state_t *cc) {
           total_bytes = (total_bytes + 3) & ~3;
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
           if (gsym) {
+            if (!cc_data_reserve(cc, (uint32_t)total_bytes))
+              break;
             gsym->address = cc->data_base + cc->data_pos;
             gsym->is_array = 1;
             gsym->struct_index = gtype_si;
@@ -4333,6 +4369,8 @@ void cc_parse_program(cc_state_t *cc) {
           cc_symbol_t *gsym =
               cc_sym_add(cc, gname.text, SYM_GLOBAL, TYPE_STRUCT);
           if (gsym) {
+            if (!cc_data_reserve(cc, (uint32_t)alloc_size))
+              break;
             gsym->address = cc->data_base + cc->data_pos;
             gsym->struct_index = gtype_si;
             memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
@@ -4348,6 +4386,8 @@ void cc_parse_program(cc_state_t *cc) {
         else {
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
           if (gsym) {
+            if (!cc_data_reserve(cc, 4))
+              break;
             gsym->address = cc->data_base + cc->data_pos;
             gsym->struct_index = gtype_si;
             memset(cc->data + cc->data_pos, 0, 4);
@@ -4372,13 +4412,18 @@ void cc_parse_program(cc_state_t *cc) {
                 cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
               } else if (val.type == CC_TOK_STRING) {
                 /* Store string in data, save address at variable */
+                int slen = 0;
+                while (val.text[slen])
+                  slen++;
+                if (!cc_data_reserve(cc, (uint32_t)(slen + 1))) {
+                  break;
+                }
                 uint32_t str_addr = cc->data_base + cc->data_pos;
                 int si = 0;
-                while (val.text[si] && cc->data_pos < CC_MAX_DATA) {
+                while (val.text[si]) {
                   cc->data[cc->data_pos++] = (uint8_t)val.text[si++];
                 }
-                if (cc->data_pos < CC_MAX_DATA)
-                  cc->data[cc->data_pos++] = 0;
+                cc->data[cc->data_pos++] = 0;
                 /* Align data_pos to 4 */
                 cc->data_pos = (cc->data_pos + 3u) & ~3u;
                 cc->data[addr_off] = (uint8_t)(str_addr & 0xFF);

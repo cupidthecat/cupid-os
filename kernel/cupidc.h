@@ -23,11 +23,11 @@
 
 /* Limits */
 #define CC_MAX_CODE (128u * 1024u) /* 128KB code buffer          */
-#define CC_MAX_DATA (32u * 1024u)  /* 32KB data/string buffer    */
-#define CC_MAX_SYMBOLS 512         /* max symbols in scope        */
+#define CC_MAX_DATA (512u * 1024u) /* 512KB data/string buffer   */
+#define CC_MAX_SYMBOLS 2048        /* max symbols in scope        */
 #define CC_MAX_LOCALS 128          /* max locals per function     */
 #define CC_MAX_PARAMS 16           /* max function parameters     */
-#define CC_MAX_PATCHES 512         /* max forward-ref patches     */
+#define CC_MAX_PATCHES 2048        /* max forward-ref patches     */
 #define CC_MAX_BREAKS 64           /* max nested loop depth        */
 #define CC_MAX_BREAKS_PER_LOOP 32  /* max break statements per loop */
 #define CC_MAX_IDENT 64            /* max identifier length       */
@@ -37,7 +37,7 @@
 #define CC_MAX_STRUCTS 32          /* max struct definitions       */
 #define CC_MAX_FIELDS 16           /* max fields per struct        */
 
-/* Memory region for JIT code (128KB code + 32KB data) */
+/* Memory region for JIT code (128KB code + 512KB data) */
 #define CC_JIT_CODE_BASE 0x00400000u
 #define CC_JIT_DATA_BASE 0x00420000u /* 128KB after code */
 

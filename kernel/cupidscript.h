@@ -9,7 +9,7 @@
 #define CUPIDSCRIPT_H
 
 #include "types.h"
-#include "terminal_ansi.h"
+#include "ansi.h"
 #include "cupidscript_streams.h"
 #include "cupidscript_jobs.h"
 #include "cupidscript_arrays.h"

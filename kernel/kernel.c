@@ -33,13 +33,12 @@
 #include "fat16.h"
 #include "fs.h"
 #include "memory.h"
+#include "simd.h"
 #include "string.h"
 #include "graphics.h"
 #include "gfx2d.h"
 #include "gui.h"
 #include "desktop.h"
-#include "terminal_app.h"
-#include "notepad.h"
 #include "clipboard.h"
 #include "process.h"
 #include "vfs.h"
@@ -694,10 +693,16 @@ void kmain(void) {
     KINFO("Total Pages: %u", pmm_total_pages());
     KINFO("Free Pages: %u", pmm_free_pages());
 
+    simd_init();
+    KINFO("SIMD SSE2: %s", simd_enabled() ? "enabled" : "disabled");
+
     // Initialize VBE graphics (mode set by bootloader, LFB addr at 0x0500)
     vga_init_vbe();          // Allocates back buffer and clears screen
     gfx_init();              // Initialize graphics primitives
     gfx2d_init();            // Initialize 2D graphics library
+#ifdef SIMD_BENCH
+    simd_benchmark();
+#endif
     KINFO("VBE graphics initialized (640x480, 32bpp)");
 
     // Initialize mouse driver

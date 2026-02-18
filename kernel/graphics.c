@@ -7,6 +7,7 @@
 
 #include "graphics.h"
 #include "font_8x8.h"
+#include "simd.h"
 #include "string.h"
 #include "../drivers/vga.h"
 
@@ -34,11 +35,7 @@ void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint32_t color) {
     if (x2 >= VGA_GFX_WIDTH) x2 = VGA_GFX_WIDTH - 1;
     if (x1 > x2) return;
     uint32_t *row = &fb[(int32_t)y * VGA_GFX_WIDTH + (int32_t)x1];
-    int16_t count = (int16_t)(x2 - x1 + 1);
-    int16_t i;
-    for (i = 0; i < count; i++) {
-        row[i] = color;
-    }
+    simd_memset32(row, color, (uint32_t)(x2 - x1 + 1));
 }
 
 void gfx_draw_vline(int16_t x, int16_t y, uint16_t h, uint32_t color) {
@@ -91,11 +88,8 @@ void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
     if (x2 >= VGA_GFX_WIDTH)  x2 = VGA_GFX_WIDTH - 1;
     if (y2 >= VGA_GFX_HEIGHT) y2 = VGA_GFX_HEIGHT - 1;
     if (x1 > x2 || y1 > y2) return;
-    int count = x2 - x1 + 1;
-    for (int row = y1; row <= y2; row++) {
-        uint32_t *dst = fb + (uint32_t)row * VGA_GFX_WIDTH + (uint32_t)x1;
-        for (int i = 0; i < count; i++) dst[i] = color;
-    }
+    simd_fill_rect(fb, (uint32_t)VGA_GFX_WIDTH,
+                   x1, y1, x2 - x1 + 1, y2 - y1 + 1, color);
 }
 
 void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {

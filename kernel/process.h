@@ -18,15 +18,12 @@
 
 #include "types.h"
 
-/* ── Limits ───────────────────────────────────────────────────────── */
 #define MAX_PROCESSES       32
 #define DEFAULT_STACK_SIZE  32768     /* 32KB per process             */
 #define PROCESS_NAME_LEN    32
 
-/* ── Stack canary for overflow detection ──────────────────────────── */
 #define STACK_CANARY        0xDEADC0DE
 
-/* ── Process states ───────────────────────────────────────────────── */
 typedef enum {
     PROCESS_READY = 0,       /* Ready to run                         */
     PROCESS_RUNNING,         /* Currently executing on CPU            */
@@ -34,7 +31,6 @@ typedef enum {
     PROCESS_TERMINATED       /* Exited, slot can be reclaimed         */
 } process_state_t;
 
-/* ── Saved CPU context ────────────────────────────────────────────── */
 typedef struct {
     uint32_t eax, ebx, ecx, edx;
     uint32_t esi, edi, esp, ebp;
@@ -42,7 +38,6 @@ typedef struct {
     uint32_t cs, ds, es, fs, gs, ss;
 } cpu_context_t;
 
-/* ── Process Control Block (PCB) ──────────────────────────────────── */
 typedef struct {
     uint32_t         pid;                     /* 1–32, 0 = unused     */
     process_state_t  state;                   /* Current state        */
@@ -54,7 +49,6 @@ typedef struct {
     char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
 } process_t;
 
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /**
  * process_init - Initialize the process subsystem
@@ -190,5 +184,27 @@ uint32_t process_register_current(const char *name);
  * @size: size in bytes of the loaded image
  */
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size);
+
+/**
+ * process_block - Suspend a READY process so the scheduler skips it
+ *
+ * Sets the process state to PROCESS_BLOCKED.  The process will not be
+ * scheduled until process_unblock() is called.  Safe to call on a
+ * process that is already blocked or terminated (no-op in those cases).
+ *
+ * @pid: PID of the process to block (must not be 0 or 1/idle)
+ */
+void process_block(uint32_t pid);
+
+/**
+ * process_unblock - Return a blocked process to the READY state
+ *
+ * Transitions the process from PROCESS_BLOCKED back to PROCESS_READY
+ * so the scheduler will dispatch it again.  No-op if the process is
+ * not currently blocked (e.g. already terminated or running).
+ *
+ * @pid: PID of the process to unblock
+ */
+void process_unblock(uint32_t pid);
 
 #endif /* PROCESS_H */

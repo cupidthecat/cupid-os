@@ -70,8 +70,7 @@ int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
         /* Label */
         {
             int16_t tx = (int16_t)(tab_r.x + TAB_PAD_W);
-            int16_t ty = (int16_t)(tab_r.y + (th - FONT_H) / 2 +
-                                   (active ? 0 : 1));
+            int16_t ty = (int16_t)(tab_r.y + (th - FONT_H) / 2);
             gfx2d_text(tx, ty, tab_labels[i], COLOR_TEXT, GFX2D_FONT_NORMAL);
         }
 

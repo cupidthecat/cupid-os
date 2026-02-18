@@ -13,7 +13,7 @@
 #include "fs.h"
 #include "fat16.h"
 #include "vfs.h"
-#include "terminal_ansi.h"
+#include "ansi.h"
 #include "cupidscript_streams.h"
 #include "cupidscript_jobs.h"
 #include "process.h"
