@@ -13,9 +13,9 @@
 #include "string.h"
 #include "../drivers/vga.h"
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Constructors / layout helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 ui_rect_t ui_rect(int16_t x, int16_t y, uint16_t w, uint16_t h) {
     ui_rect_t r;
@@ -98,18 +98,18 @@ ui_rect_t ui_cut_right(ui_rect_t *r, uint16_t width) {
     return slice;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Hit testing
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 bool ui_contains(ui_rect_t r, int16_t px, int16_t py) {
     return px >= r.x && px < (int16_t)(r.x + (int16_t)r.w) &&
            py >= r.y && py < (int16_t)(r.y + (int16_t)r.h);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Drawing: low-level
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
     gfx_fill_rect((int16_t)(r.x + offset), (int16_t)(r.y + offset),
@@ -123,11 +123,11 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Drawing: composite widgets
- * ══════════════════════════════════════════════════════════════════════ */
+  */
 
-/* ── Button ───────────────────────────────────────────────────────── */
+/* Button */
 
 void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
     /* Background + 3D raised edge */
@@ -147,7 +147,7 @@ void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
     gfx_draw_text(tx, ty, label, COLOR_BLACK);
 }
 
-/* ── Label ────────────────────────────────────────────────────────── */
+/* Label */
 
 void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
                    ui_align_t align) {
@@ -171,7 +171,7 @@ void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
     gfx_draw_text(tx, ty, text, color);
 }
 
-/* ── Text field (sunken input box) ────────────────────────────────── */
+/* Text field (sunken input box) */
 
 void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
     /* Sunken background */
@@ -237,7 +237,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
     }
 }
 
-/* ── Title bar ────────────────────────────────────────────────────── */
+/* Title bar */
 
 void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
     uint32_t bg = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
@@ -249,7 +249,7 @@ void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
     gfx_draw_text(tx, ty, title, COLOR_TEXT_LIGHT);
 }
 
-/* ── Vertical scrollbar ───────────────────────────────────────────── */
+/* Vertical scrollbar */
 
 void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
     int rw = (int)r.w;
@@ -292,7 +292,7 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
     }
 }
 
-/* ── Vertical scrollbar hit test ──────────────────────────────────── */
+/* Vertical scrollbar hit test */
 
 int ui_vscrollbar_hit(ui_rect_t r, int16_t mx, int16_t my, bool *page) {
     if (!ui_contains(r, mx, my)) return 0;

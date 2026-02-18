@@ -16,9 +16,9 @@
 #include "terminal_ansi.h"
 #include "string.h"
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Initialization
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 void ansi_init(terminal_color_state_t *state) {
     state->fg_color  = ANSI_DEFAULT_FG;
@@ -36,9 +36,9 @@ void ansi_reset(terminal_color_state_t *state) {
     state->bold      = false;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Color accessors
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 uint8_t ansi_get_fg(const terminal_color_state_t *state) {
     uint8_t fg = state->fg_color;
@@ -52,7 +52,7 @@ uint8_t ansi_get_bg(const terminal_color_state_t *state) {
     return state->bg_color;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  ANSI-to-VGA color mapping
  *
  *  ANSI 30-37 maps to VGA colors in a specific order:
@@ -64,7 +64,7 @@ uint8_t ansi_get_bg(const terminal_color_state_t *state) {
  *    ANSI 5 (magenta) → VGA 5
  *    ANSI 6 (cyan)    → VGA 3
  *    ANSI 7 (white)   → VGA 7
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 static const uint8_t ansi_to_vga[8] = {
     0,  /* ANSI black   → VGA black */
     4,  /* ANSI red     → VGA red */
@@ -76,11 +76,11 @@ static const uint8_t ansi_to_vga[8] = {
     7   /* ANSI white   → VGA light gray */
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  VGA-to-32bpp XRGB color mapping (pastel / Temple OS vibe)
  *
  *  Maps VGA text-mode color indices (0-15) to 32-bit XRGB pixel values.
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 static const uint32_t vga_to_rgb32[16] = {
     0x00141418U, /* 0  Black         */
     0x000060A8U, /* 1  Blue          */
@@ -105,9 +105,9 @@ uint32_t ansi_vga_to_palette(uint8_t vga_color) {
     return vga_to_rgb32[vga_color];
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Parse a single numeric parameter from the escape buffer
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static int parse_number(const char *buf, int start, int end) {
     int val = 0;
@@ -121,19 +121,19 @@ static int parse_number(const char *buf, int start, int end) {
     return found ? val : -1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Process a complete CSI sequence: ESC [ ... <final>
  *
  *  The escape buffer contains everything after ESC [ up to and
  *  including the final character.
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 static ansi_result_t process_csi(terminal_color_state_t *state) {
     int len = state->esc_len;
     if (len < 1) return ANSI_RESULT_SKIP;
 
     char final_char = state->esc_buf[len - 1];
 
-    /* ── SGR (Select Graphic Rendition): final char 'm' ────────── */
+    /* SGR (Select Graphic Rendition): final char 'm' */
     if (final_char == 'm') {
         /* Parse semicolon-separated parameters */
         int params[8];
@@ -194,7 +194,7 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         return ANSI_RESULT_SKIP;
     }
 
-    /* ── Cursor Position / Home: final char 'H' or 'f' ─────────── */
+    /* Cursor Position / Home: final char 'H' or 'f' */
     if (final_char == 'H' || final_char == 'f') {
         /* ESC[H  — cursor home */
         if (len == 1) {
@@ -204,7 +204,7 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         return ANSI_RESULT_HOME;
     }
 
-    /* ── Erase Display: ESC[2J ─────────────────────────────────── */
+    /* Erase Display: ESC[2J */
     if (final_char == 'J') {
         int param = parse_number(state->esc_buf, 0, len - 1);
         if (param == 2 || param == 3) {
@@ -213,7 +213,7 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         return ANSI_RESULT_SKIP;
     }
 
-    /* ── Erase Line: ESC[K (ignored for now) ───────────────────── */
+    /* Erase Line: ESC[K (ignored for now) */
     if (final_char == 'K') {
         return ANSI_RESULT_SKIP;
     }
@@ -222,9 +222,9 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
     return ANSI_RESULT_SKIP;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Main character processing
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
     /* Currently inside an escape sequence? */

@@ -12,14 +12,12 @@
  *  is automatically centered/padded without manual pixel math.
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Rectangle primitive ──────────────────────────────────────────── */
 
 typedef struct {
     int16_t  x, y;
     uint16_t w, h;
 } ui_rect_t;
 
-/* ── Text alignment ───────────────────────────────────────────────── */
 
 typedef enum {
     UI_ALIGN_LEFT   = 0,
@@ -27,7 +25,6 @@ typedef enum {
     UI_ALIGN_RIGHT  = 2
 } ui_align_t;
 
-/* ── Constructors / layout helpers ────────────────────────────────── */
 
 /* Build a rect from components */
 ui_rect_t ui_rect(int16_t x, int16_t y, uint16_t w, uint16_t h);
@@ -53,12 +50,10 @@ ui_rect_t ui_cut_left(ui_rect_t *r, uint16_t width);
 /* Slice `width` pixels from the right */
 ui_rect_t ui_cut_right(ui_rect_t *r, uint16_t width);
 
-/* ── Hit testing ──────────────────────────────────────────────────── */
 
 /* Returns true if (px, py) is inside r */
 bool ui_contains(ui_rect_t r, int16_t px, int16_t py);
 
-/* ── Drawing: low-level ───────────────────────────────────────────── */
 
 /* Drop shadow: dark rectangle offset behind `r` */
 void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset);
@@ -66,7 +61,6 @@ void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset);
 /* Filled panel with optional Windows-95-style 3D raised/sunken edge */
 void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised);
 
-/* ── Drawing: composite widgets ───────────────────────────────────── */
 
 /* Button: 3D raised panel + auto-centered label.
  * If `focused` is true, draws a 1px black focus ring. */

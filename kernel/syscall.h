@@ -20,10 +20,8 @@
 #include "types.h"
 #include "vfs.h"
 
-/* ── Syscall table version (bump when adding fields) ──────────────── */
 #define CUPID_SYSCALL_VERSION 2
 
-/* ── Syscall table structure ──────────────────────────────────────── */
 typedef struct cupid_syscall_table {
   /* ── Version / identification ─────────────────────────────────── */
   uint32_t version;    /* CUPID_SYSCALL_VERSION             */
@@ -86,7 +84,6 @@ typedef struct cupid_syscall_table {
 
 } cupid_syscall_table_t;
 
-/* ── Kernel-side API ──────────────────────────────────────────────── */
 
 /**
  * syscall_init — Initialize the global syscall table.

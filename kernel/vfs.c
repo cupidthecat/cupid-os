@@ -11,21 +11,21 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── Registered filesystem types ──────────────────────────────────── */
+/* Registered filesystem types */
 #define VFS_MAX_FS_TYPES 8
 static vfs_fs_ops_t *fs_types[VFS_MAX_FS_TYPES];
 static int fs_type_count = 0;
 
-/* ── Mount table ──────────────────────────────────────────────────── */
+/* Mount table */
 static vfs_mount_t mounts[VFS_MAX_MOUNTS];
 static int mount_count = 0;
 
-/* ── File descriptor table ────────────────────────────────────────── */
+/* File descriptor table */
 static vfs_file_t fd_table[VFS_MAX_OPEN_FILES];
 
-/* ══════════════════════════════════════════════════════════════════════
+/* 
  *  Internal helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 static size_t vfs_strlen(const char *s) {
     size_t len = 0;
@@ -117,9 +117,9 @@ static int alloc_fd(void) {
     return -1;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/*
  *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+ */
 
 int vfs_init(void) {
     memset(mounts, 0, sizeof(mounts));
@@ -173,7 +173,7 @@ int vfs_mount(const char *source, const char *target,
     return VFS_OK;
 }
 
-/* ── File operations ──────────────────────────────────────────────── */
+/* File operations */
 
 int vfs_open(const char *path, uint32_t flags) {
     serial_printf("[vfs_open] path='%s' flags=0x%x\n", path ? path : "(null)", flags);
@@ -331,7 +331,7 @@ int vfs_unlink(const char *path) {
     return m->ops->unlink(m->fs_private, rel_path);
 }
 
-/* ── Rename / Move ────────────────────────────────────────────────── */
+/* Rename / Move */
 
 int vfs_rename(const char *old_path, const char *new_path) {
     if (!old_path || old_path[0] != '/' ||
@@ -393,7 +393,7 @@ int vfs_rename(const char *old_path, const char *new_path) {
     return VFS_OK;
 }
 
-/* ── Query ────────────────────────────────────────────────────────── */
+/* Query */
 
 int vfs_mount_count(void) {
     return mount_count;

@@ -20,7 +20,7 @@
 #include "vfs_helpers.h"
 
 
-/* ── Wrappers for functions that need adaptation ──────────────────── */
+/* Wrappers for functions that need adaptation */
 
 /**
  * Wrapper for kmalloc — strips the debug file/line tracking since
@@ -74,7 +74,6 @@ static int syscall_exec(const char *path, const char *name) {
   return exec(path, name);
 }
 
-/* ── Global syscall table ─────────────────────────────────────────── */
 static cupid_syscall_table_t syscall_table;
 
 void syscall_init(void) {

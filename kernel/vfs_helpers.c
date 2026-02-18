@@ -9,7 +9,7 @@
 #include "vfs.h"
 #include "string.h"
 
-/* ── vfs_read_all ─────────────────────────────────────────────────── */
+/* vfs_read_all */
 
 int vfs_read_all(const char *path, void *buffer, uint32_t max_size) {
   if (!path || !buffer)
@@ -47,7 +47,7 @@ int vfs_read_all(const char *path, void *buffer, uint32_t max_size) {
   return (int)total;
 }
 
-/* ── vfs_write_all ────────────────────────────────────────────────── */
+/* vfs_write_all */
 
 int vfs_write_all(const char *path, const void *buffer, uint32_t size) {
   if (!path || (!buffer && size > 0))
@@ -76,7 +76,7 @@ int vfs_write_all(const char *path, const void *buffer, uint32_t size) {
   return (int)total;
 }
 
-/* ── vfs_read_text ────────────────────────────────────────────────── */
+/* vfs_read_text */
 
 int vfs_read_text(const char *path, char *buffer, uint32_t max_size) {
   if (!path || !buffer || max_size == 0)
@@ -91,7 +91,7 @@ int vfs_read_text(const char *path, char *buffer, uint32_t max_size) {
   return r;
 }
 
-/* ── vfs_write_text ───────────────────────────────────────────────── */
+/* vfs_write_text */
 
 int vfs_write_text(const char *path, const char *text) {
   if (!path || !text)
@@ -101,7 +101,7 @@ int vfs_write_text(const char *path, const char *text) {
   return vfs_write_all(path, text, len);
 }
 
-/* ── vfs_copy_file ────────────────────────────────────────────────── */
+/* vfs_copy_file */
 
 int vfs_copy_file(const char *src, const char *dest) {
   if (!src || !dest)

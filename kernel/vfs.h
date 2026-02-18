@@ -10,7 +10,6 @@
  *  filesystem types with hierarchical mount points.
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Error codes (negative) ───────────────────────────────────────── */
 #define VFS_OK       0
 #define VFS_ENOENT  -2    /* No such file or directory */
 #define VFS_EACCES  -13   /* Permission denied         */
@@ -23,7 +22,6 @@
 #define VFS_EIO     -5    /* I/O error                 */
 #define VFS_ENOSYS  -38   /* Function not implemented  */
 
-/* ── Open flags ───────────────────────────────────────────────────── */
 #define O_RDONLY   0x0000
 #define O_WRONLY   0x0001
 #define O_RDWR     0x0002
@@ -31,39 +29,32 @@
 #define O_TRUNC    0x0200
 #define O_APPEND   0x0400
 
-/* ── Seek whence ──────────────────────────────────────────────────── */
 #define SEEK_SET   0
 #define SEEK_CUR   1
 #define SEEK_END   2
 
-/* ── File types ───────────────────────────────────────────────────── */
 #define VFS_TYPE_FILE   0
 #define VFS_TYPE_DIR    1
 #define VFS_TYPE_DEV    2
 
-/* ── Limits ───────────────────────────────────────────────────────── */
 #define VFS_MAX_OPEN_FILES 64
 #define VFS_MAX_MOUNTS     16
 #define VFS_MAX_PATH       128
 #define VFS_MAX_NAME       64
 
-/* ── Forward declarations ─────────────────────────────────────────── */
 struct vfs_mount;
 
-/* ── Directory entry ──────────────────────────────────────────────── */
 typedef struct {
     char     name[VFS_MAX_NAME];
     uint32_t size;
     uint8_t  type;    /* VFS_TYPE_FILE, VFS_TYPE_DIR, VFS_TYPE_DEV */
 } vfs_dirent_t;
 
-/* ── File statistics ──────────────────────────────────────────────── */
 typedef struct {
     uint32_t size;
     uint8_t  type;
 } vfs_stat_t;
 
-/* ── Filesystem operations interface ──────────────────────────────── */
 typedef struct {
     const char *name;  /* "ramfs", "devfs", "fat16" */
 
@@ -83,7 +74,6 @@ typedef struct {
     int (*unlink)(void *fs_private, const char *path);
 } vfs_fs_ops_t;
 
-/* ── Mount point entry ────────────────────────────────────────────── */
 typedef struct vfs_mount {
     char           path[VFS_MAX_PATH]; /* mount path, e.g. "/home" */
     vfs_fs_ops_t  *ops;
@@ -91,7 +81,6 @@ typedef struct vfs_mount {
     uint8_t        mounted;
 } vfs_mount_t;
 
-/* ── VFS file handle ──────────────────────────────────────────────── */
 typedef struct {
     uint32_t       flags;
     uint32_t       position;
@@ -100,7 +89,6 @@ typedef struct {
     uint8_t        in_use;
 } vfs_file_t;
 
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /* Initialize VFS subsystem */
 int vfs_init(void);

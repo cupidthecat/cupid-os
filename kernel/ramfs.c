@@ -12,7 +12,6 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/* ── Internal node structure ──────────────────────────────────────── */
 
 typedef struct ramfs_node {
     char     name[VFS_MAX_NAME];
@@ -26,13 +25,11 @@ typedef struct ramfs_node {
     struct ramfs_node *next;      /* Next sibling             */
 } ramfs_node_t;
 
-/* ── RamFS instance ───────────────────────────────────────────────── */
 
 typedef struct {
     ramfs_node_t *root;
 } ramfs_t;
 
-/* ── RamFS file handle ────────────────────────────────────────────── */
 
 typedef struct {
     ramfs_node_t *node;
