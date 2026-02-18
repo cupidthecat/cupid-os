@@ -47,16 +47,13 @@ static void cc_outb(uint32_t port, uint32_t value) {
 
 static uint32_t cc_inb(uint32_t port) { return (uint32_t)inb((uint16_t)port); }
 
-/* ── Print a newline ─────────────────────────────────────────────── */
 static void cc_println(const char *s) {
   print(s);
   print("\n");
 }
 
-/* ── Wrapper for process_yield ───────────────────────────────────── */
 static void cc_yield(void) { process_yield(); }
 
-/* ── Wrapper for process_exit ────────────────────────────────────── */
 static void cc_exit(void) { process_exit(); }
 
 /* Open a file in GUI notepad from CupidC apps. */
@@ -66,7 +63,6 @@ static void cc_notepad_open_file(const char *path) {
   notepad_launch_with_file(path, path);
 }
 
-/* ── Test counting process for spawn command ─────────────────────── */
 static void cc_test_counting_process(void) {
   uint32_t pid = process_get_current_pid();
   for (int i = 0; i < 10; i++) {
@@ -75,7 +71,6 @@ static void cc_test_counting_process(void) {
   }
 }
 
-/* ── Spawn N test processes, return count actually spawned ────────── */
 static uint32_t cc_spawn_test(uint32_t count) {
   if (count > 16)
     count = 16;
@@ -93,7 +88,6 @@ static uint32_t cc_spawn_test(uint32_t count) {
   return spawned;
 }
 
-/* ── RTC accessors (CupidC can't access struct fields) ───────────── */
 static int cc_rtc_hour(void) {
   rtc_time_t t;
   rtc_read_time(&t);
@@ -166,7 +160,6 @@ static const char *cc_time_short_string(void) {
   return cc_time_short_buf;
 }
 
-/* ── Mount info accessors (CupidC can't access struct fields) ────── */
 static const char *cc_mount_name(int index) {
   const vfs_mount_t *m = vfs_get_mount(index);
   if (m && m->mounted && m->ops)
@@ -181,7 +174,6 @@ static const char *cc_mount_path(int index) {
   return NULL;
 }
 
-/* ── Debug/System wrappers for CupidC ────────────────────────────── */
 
 /* CupidC can't do inline asm, so we provide a wrapper that captures
  * the current EBP/EIP and calls print_stack_trace(). */

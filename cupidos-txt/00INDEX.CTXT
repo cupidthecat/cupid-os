@@ -55,6 +55,10 @@ Manual tip: Press F2 in Notepad to switch between source and rendered view.
 4) Some wiki pages are ahead of implementation:
    - This docs set calls out current limitations where relevant.
 
+5) Rendering performance:
+   - Graphics is software-rendered with an SSE2 SIMD acceleration layer.
+   - APIs stay the same; acceleration is internal to kernel rendering paths.
+
 >h2 Suggested Reading Order
 1) 01SHELL.TXT
 2) 02FILESYS.TXT

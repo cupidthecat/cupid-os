@@ -195,6 +195,12 @@ Offsets match cupid_syscall_table_t:
 >h2 Full Prebound Function Surface
 CupidASM now exposes full parity with CupidC binding names.
 
+Newly emphasized parity set for 2026-02-17:
+- desktop background controls are available in asm too
+- icon/dialog helpers match CupidC naming
+- windowed app frame helpers remain gfx2d_window_* in asm
+   (gui_win_* is currently CupidC-specific)
+
 Console/print:
 - print println putchar print_int print_hex clear_screen serial_printf
 - __cc_Print __cc_PrintLine
@@ -284,6 +290,31 @@ gfx2d full set:
 - gfx2d_fullscreen_enter gfx2d_fullscreen_exit
 - gfx2d_app_toolbar gfx2d_minimize gfx2d_should_quit
 - gfx2d_draw_cursor gfx2d_cursor_hide
+
+Desktop background controls:
+- desktop_bg_set_mode_anim
+- desktop_bg_set_mode_solid
+- desktop_bg_set_mode_gradient
+- desktop_bg_set_mode_tiled_pattern
+- desktop_bg_set_mode_tiled_bmp
+- desktop_bg_set_mode_bmp
+- desktop_bg_get_mode
+- desktop_bg_get_solid_color
+- desktop_bg_set_anim_theme
+- desktop_bg_get_anim_theme
+- desktop_bg_get_tiled_pattern
+- desktop_bg_get_tiled_use_bmp
+
+Parity aliases/helpers to be aware of:
+- shell_execute -> shell_execute_line binding
+- process_count and process_get_count both available
+- mount_count and vfs_mount_count both available
+
+>h2 Notepad Rewrite Binding Notes (2026-02-17)
+For the CupidC notepad rewrite, new bindings were added on the CupidC side
+(clipboard_set/get/len and notepad_get_open_path).
+
+CupidASM binding surface is unchanged by this rewrite.
 
 >h2 Demo Programs
 Core demos:

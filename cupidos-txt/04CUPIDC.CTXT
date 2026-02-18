@@ -67,6 +67,7 @@ Supported core features include:
 - structs (including field access)
 - arrays
 - if / else
+- ternary conditional operator (cond ? a : b)
 - while / for / do-while
 - switch / case / default
 - break / continue / return
@@ -81,6 +82,14 @@ Known practical constraints:
 - Preprocessor/macros are not a normal workflow.
 - One-file program style is the easiest path.
 
+>h2 Preprocessor Update (2026-02-17)
+CupidC now supports:
+- #pragma once
+
+Use this at the top of reusable include-style .cc files (for example
+bin/ctxt.cc) to prevent duplicate-definition errors when a file is
+included multiple times.
+
 >h2 Useful Bindings (Partial List)
 Console:
   print, println, putchar, print_int, print_hex, clear_screen
@@ -92,6 +101,9 @@ VFS:
   vfs_open, vfs_read, vfs_write, vfs_seek, vfs_close
   vfs_stat, vfs_readdir, vfs_mkdir, vfs_unlink, vfs_rename
   vfs_read_all, vfs_write_all, vfs_read_text, vfs_write_text, vfs_copy_file
+
+Clipboard:
+  clipboard_set, clipboard_get, clipboard_len
 
 Shell/process:
   get_cwd, set_cwd, resolve_path, get_history_count, get_history_entry
@@ -112,6 +124,15 @@ Disk/cache:
 
 GUI/graphics:
   Large gfx2d and desktop UI binding set is available in GUI mode.
+
+Notepad integration (CupidC app handoff):
+  notepad_get_open_path(out_path, out_save_path)
+  (used by bin/notepad.cc to receive desktop/calendar launch paths)
+
+Rendering backend note (2026-02-17):
+- CupidOS now uses an internal SSE2 SIMD acceleration layer for hot paths.
+- This speeds up framebuffer flip, clear, rect fill, and alpha blit loops.
+- CupidC gfx2d APIs are unchanged; programs do not need source changes.
 
 >h2 New Graphics/Desktop Bindings (2026-02-14)
 Recently added for GUI app and desktop-oriented workflows:
@@ -146,6 +167,56 @@ Desktop app source metadata now also supports:
 - //app: label="Name"; desc="Description"; icon=app; x=120; y=80;
 
 This registers launchable desktop icons when /bin .cc files are scanned.
+
+>h2 New Windowed App + Terminal Bindings (2026-02-17)
+These were added for true windowed CupidC apps (for example the rewritten
+BG Studio and terminal.cc window process):
+
+Window lifecycle:
+- gui_win_create(title, x, y, w, h) -> int window_id (or -1)
+- gui_win_is_open(window_id) -> int
+- gui_win_close(window_id)
+
+Window content geometry:
+- gui_win_content_x(window_id) -> int
+- gui_win_content_y(window_id) -> int
+- gui_win_content_w(window_id) -> int
+- gui_win_content_h(window_id) -> int
+
+Window input + present:
+- gui_win_poll_key(window_id) -> packed key or -1
+  packed format: (scancode << 8) | char
+- gui_win_flip(window_id)
+  note: flips only when that window is focused (prevents z-order fights)
+
+Terminal/shell buffer surface:
+- shell_buf_rows() / shell_buf_cols()
+- shell_buf_char(row, col)
+- shell_buf_color(row, col)
+- shell_cursor_x() / shell_cursor_y()
+- shell_send_key(scancode, ch)
+
+Terminal rendering helpers:
+- ansi_color(vga_idx) -> 24-bit RGB
+- gfx2d_char(x, y, ch, color)
+- gfx2d_char_scaled(x, y, ch, color, scale)
+- gfx2d_text_simple(x, y, str, color)
+
+Input helper added with windowed terminal controls:
+- keyboard_ctrl_held() -> int
+
+Desktop background control bindings used by BG Studio:
+- desktop_bg_set_mode_anim(theme)
+- desktop_bg_set_mode_solid(color)
+- desktop_bg_set_mode_gradient(top, bottom)
+- desktop_bg_set_mode_tiled_pattern(pattern, fg, bg)
+- desktop_bg_set_mode_tiled_bmp(path)
+- desktop_bg_set_mode_bmp(path)
+- desktop_bg_get_mode()
+- desktop_bg_get_solid_color()
+- desktop_bg_get_anim_theme()
+- desktop_bg_get_tiled_pattern()
+- desktop_bg_get_tiled_use_bmp()
 
 >h2 Fast Workflow
 1) Create source:

@@ -3,23 +3,19 @@
 
 #include "types.h"
 
-/* ── Shell output modes ───────────────────────────────────────────── */
 typedef enum {
     SHELL_OUTPUT_TEXT,   /* Direct VGA text mode (default) */
     SHELL_OUTPUT_GUI     /* Write to buffer for GUI terminal */
 } shell_output_mode_t;
 
-/* ── Per-cell color information ───────────────────────────────────── */
 typedef struct {
     uint8_t fg;   /* VGA color index 0-15 */
     uint8_t bg;   /* VGA color index 0-15 */
 } shell_color_t;
 
-/* ── GUI-mode buffer dimensions ───────────────────────────────────── */
 #define SHELL_COLS 80
 #define SHELL_ROWS 500
 
-/* ── Public API ───────────────────────────────────────────────────── */
 
 /* Original text-mode shell loop (blocking) */
 void shell_run(void);
@@ -59,7 +55,6 @@ void shell_gui_handle_key(uint8_t scancode, char character);
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
 
-/* ── JIT program input routing (for GUI mode) ─────────────────────── */
 
 /**
  * Check if a JIT program is currently running and consuming input.
@@ -154,7 +149,6 @@ void shell_gui_print_int_ext(uint32_t num);
 /* Execute a command line string (used by CupidScript) */
 void shell_execute_line(const char *line);
 
-/* ── Program argument passing (TempleOS-style) ────────────────────── */
 
 /**
  * Set the arguments for the next CupidC program invocation.

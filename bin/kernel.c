@@ -38,7 +38,6 @@
 #include "gfx2d.h"
 #include "gui.h"
 #include "desktop.h"
-#include "terminal_app.h"
 #include "notepad.h"
 #include "clipboard.h"
 #include "process.h"
@@ -86,7 +85,6 @@ static volatile bool need_reschedule = false;
 extern uint32_t _kernel_end;
 extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
 
-/* ── Embedded CupidC programs (auto-generated) ─────────────────── */
 /* The Makefile auto-discovers bin/ .cc files and generates
  * kernel/bin_programs_gen.c with all extern symbols and an
  * install_bin_programs() function.  To add a new CupidC program:

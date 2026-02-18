@@ -78,9 +78,26 @@ int sel_move_off_x = 0;
 int sel_move_off_y = 0;
 int sel_move_draw_x = 0;
 int sel_move_draw_y = 0;
+int sel_draw_x = 0;
+int sel_draw_y = 0;
+int sel_draw_w = 0;
+int sel_draw_h = 0;
+int sel_drag_mode = 0; /* 0=none, 1=move, 2=resize */
+int sel_resize_handle = 0;
+int sel_resize_anchor_x = 0;
+int sel_resize_anchor_y = 0;
+int sel_resize_base_x = 0;
+int sel_resize_base_y = 0;
+int sel_resize_base_w = 0;
+int sel_resize_base_h = 0;
 int sel_buf_w = 0;
 int sel_buf_h = 0;
 int* sel_buffer = 0;
+
+int SEL_H_LEFT = 1;
+int SEL_H_RIGHT = 2;
+int SEL_H_TOP = 4;
+int SEL_H_BOTTOM = 8;
 
 int pan_is_down = 0;
 int pan_start_mouse_x = 0;
@@ -124,6 +141,18 @@ void reset_runtime_state() {
   sel_move_off_y = 0;
   sel_move_draw_x = 0;
   sel_move_draw_y = 0;
+  sel_draw_x = 0;
+  sel_draw_y = 0;
+  sel_draw_w = 0;
+  sel_draw_h = 0;
+  sel_drag_mode = 0;
+  sel_resize_handle = 0;
+  sel_resize_anchor_x = 0;
+  sel_resize_anchor_y = 0;
+  sel_resize_base_x = 0;
+  sel_resize_base_y = 0;
+  sel_resize_base_w = 0;
+  sel_resize_base_h = 0;
   sel_buf_w = 0;
   sel_buf_h = 0;
   sel_buffer = 0;
@@ -734,7 +763,59 @@ int point_in_selection(int cx, int cy) {
   return 1;
 }
 
-void selection_move_start(int cx, int cy) {
+int selection_handle_size() {
+  int hs = zoom_level + 4;
+  if (hs < 5)
+    hs = 5;
+  if (hs > 9)
+    hs = 9;
+  return hs;
+}
+
+int selection_hit_handle(int mx, int my) {
+  if (sel_active == 0 || sel_move_active)
+    return 0;
+
+  int x1 = sel_x1;
+  int y1 = sel_y1;
+  int x2 = sel_x2;
+  int y2 = sel_y2;
+  normalize_rect(&x1, &y1, &x2, &y2);
+
+  int sx1 = canvas_to_screen_x(x1);
+  int sy1 = canvas_to_screen_y(y1);
+  int sx2 = canvas_to_screen_x(x2);
+  int sy2 = canvas_to_screen_y(y2);
+  int sxm = (sx1 + sx2) / 2;
+  int sym = (sy1 + sy2) / 2;
+  int hs = selection_handle_size();
+  int hr = hs / 2;
+
+  if (point_in_rect(mx, my, sx1 - hr, sy1 - hr, hs, hs))
+    return SEL_H_LEFT | SEL_H_TOP;
+  if (point_in_rect(mx, my, sx2 - hr, sy1 - hr, hs, hs))
+    return SEL_H_RIGHT | SEL_H_TOP;
+  if (point_in_rect(mx, my, sx1 - hr, sy2 - hr, hs, hs))
+    return SEL_H_LEFT | SEL_H_BOTTOM;
+  if (point_in_rect(mx, my, sx2 - hr, sy2 - hr, hs, hs))
+    return SEL_H_RIGHT | SEL_H_BOTTOM;
+
+  if (point_in_rect(mx, my, sxm - hr, sy1 - hr, hs, hs))
+    return SEL_H_TOP;
+  if (point_in_rect(mx, my, sxm - hr, sy2 - hr, hs, hs))
+    return SEL_H_BOTTOM;
+  if (point_in_rect(mx, my, sx1 - hr, sym - hr, hs, hs))
+    return SEL_H_LEFT;
+  if (point_in_rect(mx, my, sx2 - hr, sym - hr, hs, hs))
+    return SEL_H_RIGHT;
+
+  return 0;
+}
+
+int selection_lift_active() {
+  if (sel_active == 0)
+    return 0;
+
   int x1 = sel_x1;
   int y1 = sel_y1;
   int x2 = sel_x2;
@@ -749,7 +830,7 @@ void selection_move_start(int cx, int cy) {
   sel_buf_w = x2 - x1 + 1;
   sel_buf_h = y2 - y1 + 1;
   if (sel_buf_w <= 0 || sel_buf_h <= 0)
-    return;
+    return 0;
 
   if (sel_buffer)
     kfree(sel_buffer);
@@ -757,7 +838,7 @@ void selection_move_start(int cx, int cy) {
   if (sel_buffer == 0) {
     sel_buf_w = 0;
     sel_buf_h = 0;
-    return;
+    return 0;
   }
 
   gfx2d_surface_set_active(canvas_surf);
@@ -772,7 +853,6 @@ void selection_move_start(int cx, int cy) {
     y++;
   }
 
-  /* Clear lifted area */
   y = 0;
   while (y < sel_buf_h) {
     int x = 0;
@@ -786,15 +866,59 @@ void selection_move_start(int cx, int cy) {
   gfx2d_surface_unset_active();
 
   sel_move_active = 1;
-  sel_move_off_x = cx - x1;
-  sel_move_off_y = cy - y1;
   sel_move_draw_x = x1;
   sel_move_draw_y = y1;
+  sel_draw_x = x1;
+  sel_draw_y = y1;
+  sel_draw_w = sel_buf_w;
+  sel_draw_h = sel_buf_h;
   canvas_dirty = 1;
+  return 1;
+}
+
+void selection_move_start(int cx, int cy) {
+  if (!selection_lift_active())
+    return;
+
+  sel_drag_mode = 1;
+  sel_resize_handle = 0;
+  sel_move_off_x = cx - sel_draw_x;
+  sel_move_off_y = cy - sel_draw_y;
+}
+
+void selection_resize_start(int handle, int cx, int cy) {
+  if (!selection_lift_active())
+    return;
+
+  sel_drag_mode = 2;
+  sel_resize_handle = handle;
+  sel_resize_base_x = sel_draw_x;
+  sel_resize_base_y = sel_draw_y;
+  sel_resize_base_w = sel_draw_w;
+  sel_resize_base_h = sel_draw_h;
+
+  int left = sel_draw_x;
+  int right = sel_draw_x + sel_draw_w - 1;
+  int top = sel_draw_y;
+  int bottom = sel_draw_y + sel_draw_h - 1;
+
+  if (handle & SEL_H_LEFT)
+    sel_resize_anchor_x = right;
+  else if (handle & SEL_H_RIGHT)
+    sel_resize_anchor_x = left;
+  else
+    sel_resize_anchor_x = cx;
+
+  if (handle & SEL_H_TOP)
+    sel_resize_anchor_y = bottom;
+  else if (handle & SEL_H_BOTTOM)
+    sel_resize_anchor_y = top;
+  else
+    sel_resize_anchor_y = cy;
 }
 
 void selection_move_update(int cx, int cy) {
-  if (sel_move_active == 0)
+  if (sel_move_active == 0 || sel_drag_mode != 1)
     return;
 
   int nx = cx - sel_move_off_x;
@@ -804,11 +928,84 @@ void selection_move_update(int cx, int cy) {
     nx = 0;
   if (ny < 0)
     ny = 0;
-  if (nx + sel_buf_w > CANVAS_W)
-    nx = CANVAS_W - sel_buf_w;
-  if (ny + sel_buf_h > CANVAS_H)
-    ny = CANVAS_H - sel_buf_h;
+  if (nx + sel_draw_w > CANVAS_W)
+    nx = CANVAS_W - sel_draw_w;
+  if (ny + sel_draw_h > CANVAS_H)
+    ny = CANVAS_H - sel_draw_h;
 
+  sel_draw_x = nx;
+  sel_draw_y = ny;
+  sel_move_draw_x = nx;
+  sel_move_draw_y = ny;
+}
+
+void selection_resize_update(int cx, int cy) {
+  if (sel_move_active == 0 || sel_drag_mode != 2)
+    return;
+
+  int nx = sel_resize_base_x;
+  int ny = sel_resize_base_y;
+  int nw = sel_resize_base_w;
+  int nh = sel_resize_base_h;
+
+  if (sel_resize_handle & (SEL_H_LEFT | SEL_H_RIGHT)) {
+    int edge_x = cx;
+    if (edge_x < 0)
+      edge_x = 0;
+    if (edge_x >= CANVAS_W)
+      edge_x = CANVAS_W - 1;
+
+    int left = sel_resize_anchor_x;
+    int right = edge_x;
+    if (left > right) {
+      int t = left;
+      left = right;
+      right = t;
+    }
+    nx = left;
+    nw = right - left + 1;
+  }
+
+  if (sel_resize_handle & (SEL_H_TOP | SEL_H_BOTTOM)) {
+    int edge_y = cy;
+    if (edge_y < 0)
+      edge_y = 0;
+    if (edge_y >= CANVAS_H)
+      edge_y = CANVAS_H - 1;
+
+    int top = sel_resize_anchor_y;
+    int bottom = edge_y;
+    if (top > bottom) {
+      int t = top;
+      top = bottom;
+      bottom = t;
+    }
+    ny = top;
+    nh = bottom - top + 1;
+  }
+
+  if (nx < 0) {
+    nw = nw + nx;
+    nx = 0;
+  }
+  if (ny < 0) {
+    nh = nh + ny;
+    ny = 0;
+  }
+  if (nx + nw > CANVAS_W)
+    nw = CANVAS_W - nx;
+  if (ny + nh > CANVAS_H)
+    nh = CANVAS_H - ny;
+
+  if (nw < 1)
+    nw = 1;
+  if (nh < 1)
+    nh = 1;
+
+  sel_draw_x = nx;
+  sel_draw_y = ny;
+  sel_draw_w = nw;
+  sel_draw_h = nh;
   sel_move_draw_x = nx;
   sel_move_draw_y = ny;
 }
@@ -819,23 +1016,31 @@ void selection_move_commit() {
 
   gfx2d_surface_set_active(canvas_surf);
   int y = 0;
-  while (y < sel_buf_h) {
+  while (y < sel_draw_h) {
+    int sy = (y * sel_buf_h) / sel_draw_h;
     int x = 0;
-    while (x < sel_buf_w) {
-      gfx2d_pixel(sel_move_draw_x + x, sel_move_draw_y + y,
-                  sel_buffer[y * sel_buf_w + x]);
+    while (x < sel_draw_w) {
+      int sx = (x * sel_buf_w) / sel_draw_w;
+      gfx2d_pixel(sel_draw_x + x, sel_draw_y + y,
+                  sel_buffer[sy * sel_buf_w + sx]);
       x++;
     }
     y++;
   }
   gfx2d_surface_unset_active();
 
-  sel_x1 = sel_move_draw_x;
-  sel_y1 = sel_move_draw_y;
-  sel_x2 = sel_move_draw_x + sel_buf_w - 1;
-  sel_y2 = sel_move_draw_y + sel_buf_h - 1;
+  sel_x1 = sel_draw_x;
+  sel_y1 = sel_draw_y;
+  sel_x2 = sel_draw_x + sel_draw_w - 1;
+  sel_y2 = sel_draw_y + sel_draw_h - 1;
   sel_active = 1;
   sel_move_active = 0;
+  sel_drag_mode = 0;
+  sel_resize_handle = 0;
+  sel_draw_x = 0;
+  sel_draw_y = 0;
+  sel_draw_w = 0;
+  sel_draw_h = 0;
   canvas_dirty = 1;
 
   if (sel_buffer) {
@@ -1146,18 +1351,20 @@ void draw_selection_overlay() {
   int y2 = sel_y2;
 
   if (sel_move_active && sel_buffer) {
-    x1 = sel_move_draw_x;
-    y1 = sel_move_draw_y;
-    x2 = sel_move_draw_x + sel_buf_w - 1;
-    y2 = sel_move_draw_y + sel_buf_h - 1;
+    x1 = sel_draw_x;
+    y1 = sel_draw_y;
+    x2 = sel_draw_x + sel_draw_w - 1;
+    y2 = sel_draw_y + sel_draw_h - 1;
 
     int dy = 0;
-    while (dy < sel_buf_h) {
+    while (dy < sel_draw_h) {
+      int src_y = (dy * sel_buf_h) / sel_draw_h;
       int sy = canvas_to_screen_y(y1 + dy);
       int dx = 0;
-      while (dx < sel_buf_w) {
+      while (dx < sel_draw_w) {
+        int src_x = (dx * sel_buf_w) / sel_draw_w;
         int sx = canvas_to_screen_x(x1 + dx);
-        int col = sel_buffer[dy * sel_buf_w + dx];
+        int col = sel_buffer[src_y * sel_buf_w + src_x];
         if (zoom_level <= 1) {
           gfx2d_pixel(sx, sy, col);
         } else {
@@ -1176,6 +1383,31 @@ void draw_selection_overlay() {
   int sx2 = canvas_to_screen_x(x2);
   int sy2 = canvas_to_screen_y(y2);
   gfx2d_rect(sx1, sy1, sx2 - sx1 + zoom_level, sy2 - sy1 + zoom_level, 0x0066AAFF);
+
+  if (!sel_move_active && current_tool == TOOL_SELECT) {
+    int sxm = (sx1 + sx2) / 2;
+    int sym = (sy1 + sy2) / 2;
+    int hs = selection_handle_size();
+    int hr = hs / 2;
+
+    gfx2d_rect_fill(sx1 - hr, sy1 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx1 - hr, sy1 - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sx2 - hr, sy1 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx2 - hr, sy1 - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sx1 - hr, sy2 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx1 - hr, sy2 - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sx2 - hr, sy2 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx2 - hr, sy2 - hr, hs, hs, 0x0066AAFF);
+
+    gfx2d_rect_fill(sxm - hr, sy1 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sxm - hr, sy1 - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sxm - hr, sy2 - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sxm - hr, sy2 - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sx1 - hr, sym - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx1 - hr, sym - hr, hs, hs, 0x0066AAFF);
+    gfx2d_rect_fill(sx2 - hr, sym - hr, hs, hs, 0xFFFFFF);
+    gfx2d_rect(sx2 - hr, sym - hr, hs, hs, 0x0066AAFF);
+  }
 }
 
 void refresh_canvas_snapshot() {
@@ -1556,9 +1788,17 @@ int main() {
                 my < CANVAS_Y + CANVAS_H) { /* Canvas */
               int ccx = screen_to_canvas_x(mx);
               int ccy = screen_to_canvas_y(my);
-              if (current_tool == TOOL_SELECT && point_in_selection(ccx, ccy)) {
-                selection_move_start(ccx, ccy);
-                is_dragging = 0;
+              if (current_tool == TOOL_SELECT) {
+                int handle = selection_hit_handle(mx, my);
+                if (handle != 0) {
+                  selection_resize_start(handle, ccx, ccy);
+                  is_dragging = 0;
+                } else if (point_in_selection(ccx, ccy)) {
+                  selection_move_start(ccx, ccy);
+                  is_dragging = 0;
+                } else {
+                  is_dragging = 1;
+                }
               } else {
                 is_dragging = 1;
               }
@@ -1575,8 +1815,13 @@ int main() {
         if (sel_move_active) {
           int ccx = screen_to_canvas_x(mx);
           int ccy = screen_to_canvas_y(my);
-          if (ccx >= 0 && ccy >= 0)
-            selection_move_update(ccx, ccy);
+          if (ccx >= 0 && ccy >= 0) {
+            if (sel_drag_mode == 2) {
+              selection_resize_update(ccx, ccy);
+            } else {
+              selection_move_update(ccx, ccy);
+            }
+          }
         } else if (is_dragging) {
           if (current_tool == TOOL_PENCIL) {
             use_tool(mx, my, 1);

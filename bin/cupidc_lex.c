@@ -10,7 +10,6 @@
 #include "cupidc.h"
 #include "string.h"
 
-/* ── Character classification helpers ────────────────────────────── */
 
 static int cc_is_space(char c) {
   return c == ' ' || c == '\t' || c == '\r' || c == '\n';
@@ -28,7 +27,6 @@ static int cc_is_hexdigit(char c) {
   return cc_is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-/* ── Peek at current character without consuming ─────────────────── */
 
 static char cc_peek_char(cc_state_t *cc) {
   if (cc->source[cc->pos] == '\0')
@@ -54,7 +52,6 @@ static char cc_peek_char2(cc_state_t *cc) {
   return cc->source[cc->pos + 1];
 }
 
-/* ── Skip whitespace and comments ────────────────────────────────── */
 
 static void cc_skip_whitespace(cc_state_t *cc) {
   for (;;) {
@@ -95,7 +92,6 @@ static void cc_skip_whitespace(cc_state_t *cc) {
   }
 }
 
-/* ── Keyword matching ────────────────────────────────────────────── */
 
 static cc_token_type_t cc_check_keyword(const char *text) {
   if (strcmp(text, "int") == 0)
@@ -149,7 +145,6 @@ static cc_token_type_t cc_check_keyword(const char *text) {
   return CC_TOK_IDENT;
 }
 
-/* ── Initialize lexer ────────────────────────────────────────────── */
 
 void cc_lex_init(cc_state_t *cc, const char *source) {
   cc->source = source;
@@ -158,7 +153,6 @@ void cc_lex_init(cc_state_t *cc, const char *source) {
   cc->has_peek = 0;
 }
 
-/* ── Parse an escape character ───────────────────────────────────── */
 
 static char cc_parse_escape(cc_state_t *cc) {
   char c = cc_next_char(cc);
@@ -198,7 +192,6 @@ static char cc_parse_escape(cc_state_t *cc) {
   }
 }
 
-/* ── Lex next token ──────────────────────────────────────────────── */
 
 cc_token_t cc_lex_next(cc_state_t *cc) {
   /* If we have a peeked token, return it */
@@ -640,7 +633,6 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
   return tok;
 }
 
-/* ── Peek at next token without consuming ────────────────────────── */
 
 cc_token_t cc_lex_peek(cc_state_t *cc) {
   if (cc->has_peek) {

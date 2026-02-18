@@ -53,7 +53,6 @@ static uint32_t cc_code_addr(cc_state_t *cc) {
   return cc->code_base + cc->code_pos;
 }
 
-/* ── x86 instruction emitters ────────────────────────────────────── */
 
 /* mov eax, imm32 */
 static void emit_mov_eax_imm(cc_state_t *cc, uint32_t val) {
@@ -298,14 +297,12 @@ static int cc_match(cc_state_t *cc, cc_token_type_t type) {
   return 0;
 }
 
-/* ── Check if token is a type keyword ────────────────────────────── */
 static int cc_is_type(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
          t == CC_TOK_STRUCT || t == CC_TOK_BOOL || t == CC_TOK_UNSIGNED ||
          t == CC_TOK_CONST || t == CC_TOK_VOLATILE;
 }
 
-/* ── Find typedef alias, returns type or -1 if not found ─────────── */
 static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
   int i;
   for (i = 0; i < cc->typedef_count; i++) {
@@ -327,7 +324,6 @@ static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
-/* ── Struct lookup helper ───────────────────────────────────────────── */
 static int cc_find_struct(cc_state_t *cc, const char *name) {
   for (int i = 0; i < cc->struct_count; i++) {
     if (strcmp(cc->structs[i].name, name) == 0)
@@ -377,7 +373,6 @@ static cc_field_t *cc_find_field(cc_state_t *cc, int struct_index,
   return NULL;
 }
 
-/* ── Parse a type specifier, returns cc_type_t ───────────────────── */
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
@@ -839,7 +834,6 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   }
 }
 
-/* ── Parse variable reference or function call ───────────────────── */
 static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
@@ -1035,7 +1029,6 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
   }
 }
 
-/* ── Primary expression ──────────────────────────────────────────── */
 static void cc_parse_primary(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -1446,7 +1439,6 @@ static void cc_parse_primary(cc_state_t *cc) {
   }
 }
 
-/* ── Expression with precedence climbing ─────────────────────────── */
 static void cc_parse_expression(cc_state_t *cc, int min_prec) {
   if (cc->error)
     return;
@@ -2212,7 +2204,6 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
   cc_expect(cc, CC_TOK_SEMICOLON);
 }
 
-/* ── Variable declaration ────────────────────────────────────────── */
 static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
   cc_token_t name_tok = cc_next(cc);
@@ -2366,7 +2357,6 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   cc_expect(cc, CC_TOK_SEMICOLON);
 }
 
-/* ── If statement ────────────────────────────────────────────────── */
 static void cc_parse_if(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
@@ -2389,7 +2379,6 @@ static void cc_parse_if(cc_state_t *cc) {
   }
 }
 
-/* ── While loop ──────────────────────────────────────────────────── */
 static void cc_parse_while(cc_state_t *cc) {
   uint32_t loop_start = cc->code_pos;
 
@@ -2427,7 +2416,6 @@ static void cc_parse_while(cc_state_t *cc) {
   cc->loop_depth = old_depth;
 }
 
-/* ── For loop ────────────────────────────────────────────────────── */
 static void cc_parse_for(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
 
@@ -2558,7 +2546,6 @@ static void cc_parse_for(cc_state_t *cc) {
   cc->loop_depth = old_depth;
 }
 
-/* ── Return statement ────────────────────────────────────────────── */
 static void cc_parse_return(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
     cc_parse_expression(cc, 1);
@@ -2569,7 +2556,6 @@ static void cc_parse_return(cc_state_t *cc) {
   emit_epilogue(cc);
 }
 
-/* ── Statement dispatch ──────────────────────────────────────────── */
 static void cc_parse_statement(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -3015,7 +3001,6 @@ static void cc_parse_statement(cc_state_t *cc) {
   }
 }
 
-/* ── Block (compound statement) ──────────────────────────────────── */
 static void cc_parse_block(cc_state_t *cc) {
   int saved_scope = cc->sym_count;
   int saved_offset = cc->local_offset;
