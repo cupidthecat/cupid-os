@@ -3,7 +3,11 @@
 
 #define NULL ((void*)0)
 
+#if !defined(__cplusplus)
+#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 202311L)
 typedef enum { false = 0, true = 1 } bool;
+#endif
+#endif
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
