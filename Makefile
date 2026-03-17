@@ -4,6 +4,7 @@ ASM=nasm
 CC=gcc
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
+	-mno-mmx -mno-sse -mno-sse2 -msoft-float \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
