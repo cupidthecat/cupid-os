@@ -1,5 +1,5 @@
 /**
- * cat.c — ELF 'cat' command for CupidOS
+ * cat.c - ELF 'cat' command for CupidOS
  *
  * Reads and displays file contents.
  * Note: This is a standalone ELF program. Since the kernel doesn't

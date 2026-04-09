@@ -23,6 +23,7 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 | `date` | `date [+epoch\|+short]` | Show current date and time from the RTC _(CupidC)_ |
 | `cupidfetch` | `cupidfetch` | Show system info with ASCII art (includes date/time) |
 | `godspeak` | `godspeak` | Print one random word from `/god/Vocab.DD` in GodSpeak format _(CupidC)_ |
+| `godsong` | `godsong [seed]` | Play a TempleOS-inspired randomized PC speaker melody _(CupidC)_ |
 
 ### Filesystem Commands (VFS)
 

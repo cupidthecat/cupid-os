@@ -1,5 +1,5 @@
 /**
- * hello.c — Example ELF program for CupidOS
+ * hello.c - Example ELF program for CupidOS
  *
  * Compile:
  *   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \

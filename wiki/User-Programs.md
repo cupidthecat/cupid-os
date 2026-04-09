@@ -476,6 +476,31 @@ Cupid says: wisdom
 
 **Bindings used:** `get_args`, `vfs_read_text`, `uptime_ms`, `print`, `println`
 
+### `godsong` - TempleOS-Inspired Sound Toy
+
+**Location:** `/bin/godsong.cc`
+
+Plays a randomized PC speaker melody inspired by TempleOS `GodSong.HC`.
+
+```
+> godsong
+godsong seed=123456
+godsong: playing...
+godsong: done
+
+> godsong 42
+godsong seed=42
+godsong: playing...
+godsong: done
+```
+
+**Notes:**
+- Standalone CupidC app (no extra user-space libraries required)
+- Uses built-in PC speaker and timer bindings
+- Optional numeric seed gives repeatable melodies
+
+**Bindings used:** `get_args`, `uptime_ms`, `sleep_ms`, `pc_speaker_on`, `pc_speaker_off`, `print`, `println`, `print_int`
+
 ### `cd` - Change Directory
 
 **Location:** `/bin/cd.cc`

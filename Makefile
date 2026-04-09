@@ -45,6 +45,7 @@ GOD_DD_OBJS := $(GOD_DD_SRCS:.DD=.o)
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
+QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
 FAT_START_LBA ?= 4096
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
@@ -481,10 +482,10 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
 run: $(OS_IMAGE)
-	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker -serial stdio
 
 run-log: $(OS_IMAGE)
-	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker -serial file:debug.log
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
 sync-demos: $(OS_IMAGE)

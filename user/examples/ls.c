@@ -1,5 +1,5 @@
 /**
- * ls.c — ELF 'ls' command for CupidOS
+ * ls.c - ELF 'ls' command for CupidOS
  *
  * Lists directory contents using the VFS.
  *

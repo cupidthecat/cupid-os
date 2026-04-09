@@ -1,5 +1,5 @@
 /**
- * cupid.h — CupidOS User-Space API Header
+ * cupid.h - CupidOS User-Space API Header
  *
  * Include this header in ELF programs compiled for CupidOS.
  * It provides access to all kernel services through the syscall
@@ -128,12 +128,12 @@ typedef struct cupid_syscall_table {
 } cupid_syscall_table_t;
 
 /* ══════════════════════════════════════════════════════════════════════
- *  Global syscall table pointer — set by cupid_init()
+ *  Global syscall table pointer - set by cupid_init()
  * ══════════════════════════════════════════════════════════════════════ */
 static cupid_syscall_table_t *__sys = NULL;
 
 /**
- * cupid_init — Initialize the userspace API.
+ * cupid_init - Initialize the userspace API.
  * Call this at the start of _start() with the table pointer.
  */
 static inline void cupid_init(cupid_syscall_table_t *sys) {
@@ -141,7 +141,7 @@ static inline void cupid_init(cupid_syscall_table_t *sys) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  Convenience wrappers — call these after cupid_init()
+ *  Convenience wrappers - call these after cupid_init()
  * ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Console I/O ──────────────────────────────────────────────────── */

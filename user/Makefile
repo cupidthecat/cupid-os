@@ -1,4 +1,4 @@
-# user/Makefile — Build ELF programs for CupidOS
+# user/Makefile - Build ELF programs for CupidOS
 #
 # Usage:
 #   make -C user              # Build all example programs
