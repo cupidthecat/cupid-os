@@ -15,6 +15,7 @@
 #include "desktop.h"
 #include "font_8x8.h"
 #include "graphics.h"
+#include "gui.h"
 #include "memory.h"
 #include "simd.h"
 #include "process.h"
@@ -665,7 +666,7 @@ void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
     return;
   n = x2 - x1 + 1;
   /* Incremental fixed-point interpolation: 3 divisions total (at setup),
-   * zero divisions in the per-pixel loop — replaces g2d_lerp per pixel. */
+   * zero divisions in the per-pixel loop - replaces g2d_lerp per pixel. */
   first_row = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
   {
     int32_t steps = (w > 1) ? w - 1 : 1;
@@ -726,7 +727,7 @@ void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
     return;
 
   int n = x2 - x1 + 1;
-  /* Incremental fixed-point interpolation per row — no per-row division. */
+  /* Incremental fixed-point interpolation per row - no per-row division. */
   {
     int32_t steps  = (h > 1) ? h - 1 : 1;
     int32_t r_fp   = (int32_t)((c1 >> 16) & 0xFFu) << 16;
@@ -2579,6 +2580,7 @@ void gfx2d_draw_cursor(void) {
 #define FDLG_SCROLLBAR_W  12
 #define FDLG_BTN_W        60
 #define FDLG_BTN_H        24
+#define FDLG_BACKDROP_PAD 4
 
 typedef struct {
   char name[VFS_MAX_NAME];
@@ -2617,6 +2619,10 @@ typedef struct {
 
   bool save_mode;
   const char *filter_ext;
+  int16_t viewport_x;
+  int16_t viewport_y;
+  uint16_t viewport_w;
+  uint16_t viewport_h;
 
   bool user_confirmed;
   bool done;
@@ -2855,12 +2861,25 @@ static void fdlg_build_result_path(fdlg_state_t *dlg, char *out) {
   out[i] = '\0';
 }
 
-static fdlg_layout_t fdlg_get_layout(void) {
+static fdlg_layout_t fdlg_get_layout(const fdlg_state_t *dlg) {
   fdlg_layout_t L;
+  int view_x = 0;
+  int view_y = 0;
+  int view_w = G2D_W;
+  int view_h = G2D_H;
 
-  /* Center on 640x480 screen */
-  int16_t dx = (int16_t)((G2D_W - FDLG_W) / 2);
-  int16_t dy = (int16_t)((G2D_H - FDLG_H) / 2);
+  if (dlg) {
+    view_x = dlg->viewport_x;
+    view_y = dlg->viewport_y;
+    if (dlg->viewport_w > 0)
+      view_w = dlg->viewport_w;
+    if (dlg->viewport_h > 0)
+      view_h = dlg->viewport_h;
+  }
+
+  /* Center in the current viewport. */
+  int16_t dx = (int16_t)(view_x + (view_w - FDLG_W) / 2);
+  int16_t dy = (int16_t)(view_y + (view_h - FDLG_H) / 2);
 
   L.dialog = ui_rect(dx, dy, FDLG_W, FDLG_H);
 
@@ -2909,6 +2928,24 @@ static fdlg_layout_t fdlg_get_layout(void) {
   return L;
 }
 
+static void fdlg_copy_region(uint32_t *buf, const uint32_t *fb, int stride,
+                             int x, int y, int w, int h) {
+  for (int row = 0; row < h; row++) {
+    memcpy(buf + row * w,
+           fb + (uint32_t)(y + row) * (uint32_t)stride + (uint32_t)x,
+           (uint32_t)w * 4u);
+  }
+}
+
+static void fdlg_restore_region(uint32_t *fb, int stride, const uint32_t *buf,
+                                int x, int y, int w, int h) {
+  for (int row = 0; row < h; row++) {
+    memcpy(fb + (uint32_t)(y + row) * (uint32_t)stride + (uint32_t)x,
+           buf + row * w,
+           (uint32_t)w * 4u);
+  }
+}
+
 static int fdlg_itoa(char *buf, uint32_t val) {
   if (val == 0) { buf[0] = '0'; buf[1] = '\0'; return 1; }
   char tmp[12];
@@ -2925,7 +2962,7 @@ static int fdlg_itoa(char *buf, uint32_t val) {
 }
 
 static void fdlg_render(fdlg_state_t *dlg) {
-  fdlg_layout_t L = fdlg_get_layout();
+  fdlg_layout_t L = fdlg_get_layout(dlg);
 
   /* Drop shadow + dialog panel */
   ui_draw_shadow(L.dialog, COLOR_TEXT, 3);
@@ -3147,7 +3184,7 @@ static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
       dlg->selected_index++;
       fdlg_strcpy(dlg->input, dlg->files[dlg->selected_index].name);
       dlg->input_len = fdlg_strlen(dlg->input);
-      fdlg_layout_t L = fdlg_get_layout();
+      fdlg_layout_t L = fdlg_get_layout(dlg);
       if (dlg->selected_index >= dlg->scroll_offset + L.items_visible)
         dlg->scroll_offset = dlg->selected_index - L.items_visible + 1;
     }
@@ -3155,7 +3192,7 @@ static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
   }
 
   if (scancode == FDLG_SC_PAGE_UP) {
-    fdlg_layout_t L = fdlg_get_layout();
+    fdlg_layout_t L = fdlg_get_layout(dlg);
     dlg->scroll_offset -= L.items_visible;
     if (dlg->scroll_offset < 0) dlg->scroll_offset = 0;
     dlg->selected_index -= L.items_visible;
@@ -3168,7 +3205,7 @@ static void fdlg_handle_key(fdlg_state_t *dlg, uint8_t scancode, char ch) {
   }
 
   if (scancode == FDLG_SC_PAGE_DOWN) {
-    fdlg_layout_t L = fdlg_get_layout();
+    fdlg_layout_t L = fdlg_get_layout(dlg);
     int max_scroll = dlg->file_count - L.items_visible;
     if (max_scroll < 0) max_scroll = 0;
     dlg->scroll_offset += L.items_visible;
@@ -3203,7 +3240,7 @@ static void fdlg_handle_mouse(fdlg_state_t *dlg, int16_t mx, int16_t my,
   bool pressed = (buttons & MOUSE_LEFT) && !(prev_buttons & MOUSE_LEFT);
   if (!pressed) return;
 
-  fdlg_layout_t L = fdlg_get_layout();
+  fdlg_layout_t L = fdlg_get_layout(dlg);
 
   /* Scrollbar clicks */
   {
@@ -3265,7 +3302,7 @@ static void fdlg_handle_mouse(fdlg_state_t *dlg, int16_t mx, int16_t my,
 }
 
 static void fdlg_handle_scroll(fdlg_state_t *dlg, int8_t delta) {
-  fdlg_layout_t L = fdlg_get_layout();
+  fdlg_layout_t L = fdlg_get_layout(dlg);
   int max_scroll = dlg->file_count - L.items_visible;
   if (max_scroll < 0) max_scroll = 0;
   dlg->scroll_offset += (int)delta;
@@ -3273,8 +3310,38 @@ static void fdlg_handle_scroll(fdlg_state_t *dlg, int8_t delta) {
   if (dlg->scroll_offset > max_scroll) dlg->scroll_offset = max_scroll;
 }
 
-static int fdlg_run(fdlg_state_t *dlg) {
+static int fdlg_run_screen(fdlg_state_t *dlg) {
   uint8_t prev_buttons = mouse.buttons;
+  fdlg_layout_t L = fdlg_get_layout(dlg);
+  int bx = (int)L.dialog.x - FDLG_BACKDROP_PAD;
+  int by = (int)L.dialog.y - FDLG_BACKDROP_PAD;
+  int bw = (int)L.dialog.w + FDLG_BACKDROP_PAD * 2;
+  int bh = (int)L.dialog.h + FDLG_BACKDROP_PAD * 2;
+  uint32_t *backdrop = NULL;
+  uint32_t *fb = g2d_fb;
+
+  if (bx < 0) {
+    bw += bx;
+    bx = 0;
+  }
+  if (by < 0) {
+    bh += by;
+    by = 0;
+  }
+  if (bx + bw > G2D_W)
+    bw = G2D_W - bx;
+  if (by + bh > G2D_H)
+    bh = G2D_H - by;
+
+  gfx2d_cursor_hide();
+  mouse_restore_under_cursor();
+
+  if (bw > 0 && bh > 0) {
+    backdrop = (uint32_t *)kmalloc((uint32_t)bw * (uint32_t)bh * 4u);
+    if (backdrop) {
+      fdlg_copy_region(backdrop, fb, G2D_W, bx, by, bw, bh);
+    }
+  }
 
   while (!dlg->done) {
     /* Read keyboard events */
@@ -3303,21 +3370,187 @@ static int fdlg_run(fdlg_state_t *dlg) {
 
     /* Render */
     gfx2d_cursor_hide();
+    if (backdrop) {
+      fdlg_restore_region(fb, G2D_W, backdrop, bx, by, bw, bh);
+    }
     fdlg_render(dlg);
     gfx2d_draw_cursor();
+    vga_mark_dirty_full();
     gfx2d_flip();
 
     process_yield();
   }
 
-  /* Ensure dialog cursor overlay is removed before returning to caller. */
   gfx2d_cursor_hide();
+  if (backdrop) {
+    fdlg_restore_region(fb, G2D_W, backdrop, bx, by, bw, bh);
+    kfree(backdrop);
+  }
+  mouse_save_under_cursor();
+  mouse_draw_cursor();
+  vga_mark_dirty_full();
+  vga_flip();
 
   if (dlg->user_confirmed && dlg->input_len > 0) {
     fdlg_build_result_path(dlg, dlg->result_path);
     return 1;
   }
   return 0;
+}
+
+static bool fdlg_window_modal_target(window_t **out_win,
+                                     int *out_cx, int *out_cy,
+                                     int *out_cw, int *out_ch) {
+  window_t *win = gui_get_focused_window();
+  int cw;
+  int ch;
+
+  if (!win || win->redraw || gfx2d_fullscreen_active())
+    return false;
+
+  cw = (int)win->width - 2;
+  ch = (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER;
+  if (cw < FDLG_W + FDLG_BACKDROP_PAD * 2 ||
+      ch < FDLG_H + FDLG_BACKDROP_PAD * 2) {
+    return false;
+  }
+
+  if (out_win)
+    *out_win = win;
+  if (out_cx)
+    *out_cx = (int)win->x + 1;
+  if (out_cy)
+    *out_cy = (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
+  if (out_cw)
+    *out_cw = cw;
+  if (out_ch)
+    *out_ch = ch;
+  return true;
+}
+
+static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
+                           int screen_cx, int screen_cy,
+                           int content_w, int content_h) {
+  uint8_t prev_buttons = mouse.buttons;
+  fdlg_layout_t L = fdlg_get_layout(dlg);
+  int bx = (int)L.dialog.x - FDLG_BACKDROP_PAD;
+  int by = (int)L.dialog.y - FDLG_BACKDROP_PAD;
+  int bw = (int)L.dialog.w + FDLG_BACKDROP_PAD * 2;
+  int bh = (int)L.dialog.h + FDLG_BACKDROP_PAD * 2;
+  uint32_t *backdrop = NULL;
+  uint32_t *surface_fb;
+  int stride;
+  int height;
+
+  if (bx < 0) {
+    bw += bx;
+    bx = 0;
+  }
+  if (by < 0) {
+    bh += by;
+    by = 0;
+  }
+  if (bx + bw > content_w)
+    bw = content_w - bx;
+  if (by + bh > content_h)
+    bh = content_h - by;
+
+  if (gui_begin_window_paint((int)win->id) != GUI_OK)
+    return GUI_ERR_INVALID_ARGS;
+
+  surface_fb = gfx2d_get_active_fb();
+  stride = gfx2d_width();
+  height = gfx2d_height();
+  if (!surface_fb || stride != content_w || height != content_h) {
+    gfx2d_surface_unset_active();
+    return GUI_ERR_INVALID_ARGS;
+  }
+
+  if (bw > 0 && bh > 0) {
+    backdrop = (uint32_t *)kmalloc((uint32_t)bw * (uint32_t)bh * 4u);
+    if (backdrop)
+      fdlg_copy_region(backdrop, surface_fb, stride, bx, by, bw, bh);
+  }
+  gfx2d_surface_unset_active();
+
+  while (!dlg->done) {
+    key_event_t evt;
+    while (keyboard_read_event(&evt)) {
+      if (evt.pressed) {
+        fdlg_handle_key(dlg, evt.scancode, evt.character);
+        if (dlg->done)
+          break;
+      }
+    }
+    if (dlg->done)
+      break;
+
+    {
+      int16_t mx = (int16_t)(mouse.x - screen_cx);
+      int16_t my = (int16_t)(mouse.y - screen_cy);
+      uint8_t btns = mouse.buttons;
+
+      fdlg_handle_mouse(dlg, mx, my, btns, prev_buttons);
+      prev_buttons = btns;
+    }
+
+    if (mouse.scroll_z != 0) {
+      fdlg_handle_scroll(dlg, mouse.scroll_z);
+      mouse.scroll_z = 0;
+    }
+
+    if (gui_begin_window_paint((int)win->id) != GUI_OK)
+      break;
+    surface_fb = gfx2d_get_active_fb();
+    if (surface_fb && backdrop) {
+      fdlg_restore_region(surface_fb, stride, backdrop, bx, by, bw, bh);
+    }
+    fdlg_render(dlg);
+    gui_end_window_paint((int)win->id);
+    gui_present_windows();
+
+    process_yield();
+  }
+
+  if (gui_begin_window_paint((int)win->id) == GUI_OK) {
+    surface_fb = gfx2d_get_active_fb();
+    if (surface_fb && backdrop) {
+      fdlg_restore_region(surface_fb, stride, backdrop, bx, by, bw, bh);
+    }
+    gui_end_window_paint((int)win->id);
+    gui_present_windows();
+  }
+
+  if (backdrop)
+    kfree(backdrop);
+
+  if (dlg->user_confirmed && dlg->input_len > 0) {
+    fdlg_build_result_path(dlg, dlg->result_path);
+    return 1;
+  }
+  return 0;
+}
+
+static int fdlg_run(fdlg_state_t *dlg) {
+  window_t *win = NULL;
+  int cx = 0;
+  int cy = 0;
+  int cw = G2D_W;
+  int ch = G2D_H;
+
+  if (fdlg_window_modal_target(&win, &cx, &cy, &cw, &ch)) {
+    dlg->viewport_x = 0;
+    dlg->viewport_y = 0;
+    dlg->viewport_w = (uint16_t)cw;
+    dlg->viewport_h = (uint16_t)ch;
+    return fdlg_run_window(dlg, win, cx, cy, cw, ch);
+  }
+
+  dlg->viewport_x = 0;
+  dlg->viewport_y = 0;
+  dlg->viewport_w = G2D_W;
+  dlg->viewport_h = G2D_H;
+  return fdlg_run_screen(dlg);
 }
 
 int gfx2d_file_dialog_open(const char *start_path, char *result_path,

@@ -38,7 +38,7 @@ static uint32_t terminal_pid = 0;       /* PID of the terminal process */
 static int terminal_font_scale = 1;     /* Font zoom: 1 = normal, 2 = 2x, 3 = 3x */
 
 
-/* Terminal process entry point — runs as its own process */
+/* Terminal process entry point - runs as its own process */
 static void terminal_process_entry(void) {
     /* This process stays alive as long as the terminal window exists.
      * The actual key handling is event-driven via the desktop loop

@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "string.h"
 #include "vfs.h"
+#include "../drivers/keyboard.h"
 
 void fd_table_init(fd_table_t *table, script_context_t *ctx) {
     // Clear all fds
@@ -44,8 +45,13 @@ int fd_read(fd_table_t *table, int fd, char *buf, size_t len) {
         case FD_FILE:
             return vfs_read(fdesc->file.vfs_fd, buf, len);
         case FD_TERMINAL:
-            // For now, terminal input is not implemented via this system
-            return 0;
+            if (!buf || len == 0) return 0;
+            {
+                char c = getchar();
+                if (c == '\r') c = '\n';
+                buf[0] = c;
+            }
+            return 1;
         default:
             return -1;
     }

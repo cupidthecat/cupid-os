@@ -1,4 +1,5 @@
 /**
+ * notepad.cc is used instead of .c to allow for cupid c JIT compilation 
  * notepad.c - Windows XP-style Notepad for cupid-os
  *
  * Full GUI text editor with menu bar, scrollbars, file operations,
@@ -23,7 +24,6 @@
 #include "calendar.h"
 #include "clipboard.h"
 #include "desktop.h"
-#include "fat16.h"
 #include "font_8x8.h"
 #include "graphics.h"
 #include "gui.h"
@@ -329,6 +329,8 @@ static void notepad_do_save(void);
 static void notepad_do_save_as(void);
 static void notepad_open_file(const char *name);
 static void notepad_save_file(const char *name);
+static bool notepad_confirm_discard_changes(void);
+static bool notepad_can_close(window_t *win);
 
 /* Menu */
 static void notepad_menu_action(int menu, int item);
@@ -1980,7 +1982,8 @@ static void notepad_move_cursor(int dl, int dc) {
 /* File operations */
 
 static void notepad_do_new(void) {
-  /* TODO: prompt if modified (requires modal dialog) */
+  if (!notepad_confirm_discard_changes())
+    return;
   notepad_free_buffer();
   notepad_free_undo();
   notepad_free_redo();
@@ -2002,6 +2005,12 @@ static void notepad_do_new(void) {
   if (win) {
     notepad_strcpy(win->title, "Notepad");
   }
+}
+
+static bool notepad_confirm_discard_changes(void) {
+  if (!app.buffer.modified)
+    return true;
+  return gfx2d_confirm_dialog("Discard unsaved changes?") != 0;
 }
 
 /* Current path for the file dialog */
@@ -2215,9 +2224,9 @@ static void notepad_save_file(const char *name) {
     vpath[j] = '\0';
   }
 
+  bool saved = false;
   int fd = vfs_open(vpath, O_WRONLY | O_CREAT | O_TRUNC);
   if (fd >= 0) {
-    /* Write in chunks */
     uint32_t written = 0;
     while (written < (uint32_t)pos) {
       int w = vfs_write(fd, write_buf + written, (uint32_t)pos - written);
@@ -2225,12 +2234,13 @@ static void notepad_save_file(const char *name) {
         break;
       written += (uint32_t)w;
     }
-    vfs_close(fd);
-  } else {
-    /* Fallback: try writing directly via FAT16 */
-    fat16_write_file(vpath, write_buf, (uint32_t)pos);
+    saved = (written == (uint32_t)pos && vfs_close(fd) >= 0);
   }
   kfree(write_buf);
+  if (!saved) {
+    gfx2d_message_dialog("Save failed");
+    return;
+  }
   app.buffer.modified = false;
 
   /* Copy full absolute path as filename so future Ctrl+S uses the right path */
@@ -2254,7 +2264,11 @@ static void notepad_save_file(const char *name) {
   }
 }
 
-static void notepad_do_open(void) { notepad_open_dialog(false); }
+static void notepad_do_open(void) {
+  if (!notepad_confirm_discard_changes())
+    return;
+  notepad_open_dialog(false);
+}
 
 static void notepad_do_save(void) {
   if (app.buffer.filename[0]) {
@@ -2578,8 +2592,7 @@ static void notepad_menu_action(int menu, int item) {
       notepad_do_save_as();
       break;
     case FMENU_EXIT:
-      gui_destroy_window(notepad_wid);
-      notepad_wid = -1;
+      (void)gui_destroy_window(notepad_wid);
       break;
     default:
       break;
@@ -3345,6 +3358,11 @@ static void notepad_on_close(window_t *win) {
   }
 }
 
+static bool notepad_can_close(window_t *win) {
+  (void)win;
+  return notepad_confirm_discard_changes();
+}
+
 void notepad_launch(void) {
   /* Don't open a second instance */
   if (notepad_wid >= 0 && gui_get_window(notepad_wid))
@@ -3385,6 +3403,7 @@ void notepad_launch(void) {
   window_t *win = gui_get_window(notepad_wid);
   if (win) {
     win->redraw = notepad_redraw;
+    win->can_close = notepad_can_close;
     win->on_close = notepad_on_close;
   }
 
@@ -3401,6 +3420,11 @@ void notepad_launch(void) {
 }
 
 void notepad_launch_with_file(const char *vfs_path, const char *save_path) {
+  if (notepad_wid >= 0 && gui_get_window(notepad_wid) &&
+      !notepad_confirm_discard_changes()) {
+    return;
+  }
+
   /* Launch notepad if not already open */
   notepad_launch();
   if (notepad_wid < 0)
@@ -3559,8 +3583,7 @@ void notepad_handle_key(uint8_t scancode, char character) {
       notepad_do_save();
       goto done;
     case SC_KEY_Q:
-      gui_destroy_window(notepad_wid);
-      notepad_wid = -1;
+      (void)gui_destroy_window(notepad_wid);
       return;
     case SC_KEY_Z:
       notepad_do_undo();
@@ -3621,8 +3644,7 @@ void notepad_handle_key(uint8_t scancode, char character) {
       notepad_do_save();
       goto done; /* Ctrl+S */
     case 17:     /* Ctrl+Q */
-      gui_destroy_window(notepad_wid);
-      notepad_wid = -1;
+      (void)gui_destroy_window(notepad_wid);
       return;
     case 26:
       notepad_do_undo();

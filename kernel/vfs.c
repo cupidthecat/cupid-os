@@ -1,5 +1,5 @@
 /**
- * vfs.c — Virtual File System for CupidOS
+ * vfs.c - Virtual File System for CupidOS
  *
  * Provides a unified file API across multiple filesystem types
  * (RamFS, DevFS, FAT16) with hierarchical mount points and
@@ -78,7 +78,7 @@ static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
 
     if (best && rel_path) {
         if (best_len == 1 && best->path[0] == '/') {
-            /* Root mount — relative path is everything after "/" */
+            /* Root mount - relative path is everything after "/" */
             *rel_path = path + 1;
         } else {
             /* Skip mount prefix and any trailing '/' */
@@ -384,7 +384,7 @@ int vfs_rename(const char *old_path, const char *new_path) {
     /* Delete the source file */
     rc = vfs_unlink(old_path);
     if (rc < 0) {
-        /* Rename partially failed — destination exists, source still exists */
+        /* Rename partially failed - destination exists, source still exists */
         serial_printf("[vfs] rename: unlink old '%s' failed (%d)\n",
                       old_path, rc);
         return rc;

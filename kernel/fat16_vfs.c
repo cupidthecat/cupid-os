@@ -21,12 +21,13 @@ typedef struct {
     fat16_file_t *fat_file;     /* Underlying FAT16 file handle       */
     uint8_t       is_dir;       /* 1 if opened as root directory      */
     int           enum_done;    /* For readdir: 1 if enumeration done */
-    /* Write buffering (FAT16 can only replace whole files) */
     char          filename[64]; /* 8.3 filename for write-back        */
     uint8_t      *write_buf;    /* Heap-allocated write buffer         */
     uint32_t      write_len;    /* Bytes written so far                */
     uint32_t      write_cap;    /* Allocated capacity                  */
+    uint32_t      cursor;       /* Logical file position               */
     bool          dirty;        /* True if writes were made            */
+    bool          writable;     /* Opened with write access            */
 } fat16_vfs_handle_t;
 
 #define FAT16_VFS_MAX_ENTRIES 128
@@ -71,6 +72,75 @@ static int fat16_vfs_enum_cb(const char *name, uint32_t size,
 static const char *fat16_vfs_strip(const char *path) {
     while (*path == '/') path++;
     return path;
+}
+
+static uint32_t fat16_vfs_round_capacity(uint32_t need) {
+    uint32_t cap = (need + 511u) & ~(uint32_t)511u;
+    if (cap < 1024u) {
+        cap = 1024u;
+    }
+    return cap;
+}
+
+static int fat16_vfs_ensure_capacity(fat16_vfs_handle_t *h, uint32_t need) {
+    if (!h) return VFS_EINVAL;
+    if (need <= h->write_cap) return VFS_OK;
+
+    uint32_t new_cap = h->write_cap ? h->write_cap : 1024u;
+    while (new_cap < need) {
+        new_cap *= 2u;
+    }
+
+    uint8_t *nb = kmalloc(new_cap);
+    if (!nb) return VFS_EIO;
+
+    if (h->write_buf && h->write_len > 0) {
+        memcpy(nb, h->write_buf, h->write_len);
+    }
+    if (new_cap > h->write_len) {
+        memset(nb + h->write_len, 0, new_cap - h->write_len);
+    }
+
+    if (h->write_buf) {
+        kfree(h->write_buf);
+    }
+    h->write_buf = nb;
+    h->write_cap = new_cap;
+    return VFS_OK;
+}
+
+static int fat16_vfs_prepare_write_buffer(fat16_vfs_handle_t *h,
+                                          uint32_t flags) {
+    if (!h || h->is_dir) return VFS_EINVAL;
+    if (h->write_buf) return VFS_OK;
+
+    uint32_t initial_len = 0;
+    if (!(flags & O_TRUNC) && h->fat_file) {
+        initial_len = h->fat_file->file_size;
+    }
+
+    h->write_cap = fat16_vfs_round_capacity(initial_len);
+    h->write_buf = kmalloc(h->write_cap);
+    if (!h->write_buf) return VFS_EIO;
+    memset(h->write_buf, 0, h->write_cap);
+
+    if (initial_len > 0) {
+        uint32_t saved_pos = h->fat_file->position;
+        h->fat_file->position = 0;
+        int rc = fat16_read(h->fat_file, h->write_buf, initial_len);
+        h->fat_file->position = saved_pos;
+        if (rc < 0 || (uint32_t)rc != initial_len) {
+            kfree(h->write_buf);
+            h->write_buf = NULL;
+            h->write_cap = 0;
+            return VFS_EIO;
+        }
+    }
+
+    h->write_len = initial_len;
+    h->cursor = (flags & O_APPEND) ? initial_len : 0;
+    h->dirty = (flags & O_TRUNC) != 0;
+    return VFS_OK;
 }
 
 /* VFS operations implementation */
@@ -168,11 +238,17 @@ static int fat16_vfs_open(void *fs_private, const char *path,
         memset(h, 0, sizeof(fat16_vfs_handle_t));
         h->fat_file = f;
         h->is_dir = 0;
+        h->writable = (flags & (O_WRONLY | O_RDWR | O_APPEND)) != 0;
         /* Store filename for write-back */
         {
             int k = 0;
             while (name[k] && k < 63) { h->filename[k] = name[k]; k++; }
             h->filename[k] = '\0';
+        }
+        if (h->writable && fat16_vfs_prepare_write_buffer(h, flags) < 0) {
+            fat16_close(f);
+            kfree(h);
+            return VFS_EIO;
         }
         *file_handle = h;
         return VFS_OK;
@@ -187,11 +263,17 @@ static int fat16_vfs_open(void *fs_private, const char *path,
     memset(h, 0, sizeof(fat16_vfs_handle_t));
     h->fat_file = f;
     h->is_dir = 0;
+    h->writable = (flags & (O_WRONLY | O_RDWR | O_APPEND)) != 0;
     /* Store filename for potential write-back */
     {
         int k = 0;
         while (name[k] && k < 63) { h->filename[k] = name[k]; k++; }
         h->filename[k] = '\0';
+    }
+    if (h->writable && fat16_vfs_prepare_write_buffer(h, flags) < 0) {
+        fat16_close(f);
+        kfree(h);
+        return VFS_EIO;
     }
 
     *file_handle = h;
@@ -230,21 +312,26 @@ static int fat16_vfs_close(void *file_handle) {
             int del_rc = fat16_delete_file(h->filename);
             serial_printf("[fat16_vfs_close] delete returned %d\n", del_rc);
 
-            int wr_rc = fat16_write_file(h->filename, h->write_buf, h->write_len);
-            serial_printf("[fat16_vfs_close] write returned %d\n", wr_rc);
+            {
+                uint8_t empty = 0;
+                const void *src = h->write_len > 0 ? (const void *)h->write_buf
+                                                   : (const void *)&empty;
+                int wr_rc = fat16_write_file(h->filename, src, h->write_len);
+                serial_printf("[fat16_vfs_close] write returned %d\n", wr_rc);
 
-            if (wr_rc < 0 || (uint32_t)wr_rc != h->write_len) {
-                serial_printf("[fat16_vfs_close] ERROR: write failed! Attempting rollback...\n");
-                /* Try to restore original file */
-                if (backup && orig_size > 0) {
-                    int restore_rc = fat16_write_file(h->filename, backup, orig_size);
-                    if (restore_rc == 0) {
-                        serial_printf("[fat16_vfs_close] Rollback successful\n");
+                if (wr_rc < 0 || (uint32_t)wr_rc != h->write_len) {
+                    serial_printf("[fat16_vfs_close] ERROR: write failed! Attempting rollback...\n");
+                    /* Try to restore original file */
+                    if (backup && orig_size > 0) {
+                        int restore_rc = fat16_write_file(h->filename, backup, orig_size);
+                        if (restore_rc == 0) {
+                            serial_printf("[fat16_vfs_close] Rollback successful\n");
+                        } else {
+                            serial_printf("[fat16_vfs_close] CRITICAL: Rollback failed! File lost!\n");
+                        }
                     } else {
-                        serial_printf("[fat16_vfs_close] CRITICAL: Rollback failed! File lost!\n");
+                        serial_printf("[fat16_vfs_close] CRITICAL: No backup available! File lost!\n");
                     }
-                } else {
-                    serial_printf("[fat16_vfs_close] CRITICAL: No backup available! File lost!\n");
                 }
             }
 
@@ -260,8 +347,19 @@ static int fat16_vfs_close(void *file_handle) {
 static int fat16_vfs_read(void *file_handle, void *buffer,
                           uint32_t count) {
     fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
-    if (!h || !h->fat_file) return VFS_EINVAL;
+    if (!h) return VFS_EINVAL;
     if (h->is_dir) return VFS_EISDIR;
+
+    if (h->write_buf) {
+        if (h->cursor >= h->write_len) return 0;
+        if (count > h->write_len - h->cursor) {
+            count = h->write_len - h->cursor;
+        }
+        memcpy(buffer, h->write_buf + h->cursor, count);
+        h->cursor += count;
+        return (int)count;
+    }
+    if (!h->fat_file) return VFS_EINVAL;
 
     int result = fat16_read(h->fat_file, buffer, count);
     return result;
@@ -272,30 +370,27 @@ static int fat16_vfs_write(void *file_handle, const void *buffer,
     fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
     if (!h || h->is_dir) return VFS_EINVAL;
     if (count == 0) return 0;
+    if (!h->writable) return VFS_EACCES;
 
-    /* Allocate or grow write buffer as needed */
-    uint32_t needed = h->write_len + count;
     if (!h->write_buf) {
-        /* Initial allocation - round up to 512 boundary */
-        h->write_cap = (needed + 511) & ~(uint32_t)511;
-        if (h->write_cap < 1024) h->write_cap = 1024;
-        h->write_buf = kmalloc(h->write_cap);
-        if (!h->write_buf) return VFS_EIO;
-        h->write_len = 0;
-    } else if (needed > h->write_cap) {
-        /* Grow: double or fit, whichever is larger */
-        uint32_t new_cap = h->write_cap * 2;
-        if (new_cap < needed) new_cap = (needed + 511) & ~(uint32_t)511;
-        uint8_t *nb = kmalloc(new_cap);
-        if (!nb) return VFS_EIO;
-        memcpy(nb, h->write_buf, h->write_len);
-        kfree(h->write_buf);
-        h->write_buf = nb;
-        h->write_cap = new_cap;
+        int prep_rc = fat16_vfs_prepare_write_buffer(h, 0);
+        if (prep_rc < 0) return prep_rc;
     }
 
-    memcpy(h->write_buf + h->write_len, buffer, count);
-    h->write_len += count;
+    if (h->cursor + count > h->write_cap) {
+        int grow_rc = fat16_vfs_ensure_capacity(h, h->cursor + count);
+        if (grow_rc < 0) return grow_rc;
+    }
+
+    if (h->cursor > h->write_len) {
+        memset(h->write_buf + h->write_len, 0, h->cursor - h->write_len);
+    }
+
+    memcpy(h->write_buf + h->cursor, buffer, count);
+    h->cursor += count;
+    if (h->cursor > h->write_len) {
+        h->write_len = h->cursor;
+    }
     h->dirty = true;
 
     return (int)count;
@@ -303,7 +398,24 @@ static int fat16_vfs_write(void *file_handle, const void *buffer,
 
 static int fat16_vfs_seek(void *file_handle, int32_t offset, int whence) {
     fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
-    if (!h || !h->fat_file || h->is_dir) return VFS_EINVAL;
+    if (!h || h->is_dir) return VFS_EINVAL;
+
+    if (h->write_buf) {
+        int32_t base = 0;
+        switch (whence) {
+            case SEEK_SET: base = 0; break;
+            case SEEK_CUR: base = (int32_t)h->cursor; break;
+            case SEEK_END: base = (int32_t)h->write_len; break;
+            default: return VFS_EINVAL;
+        }
+        if (base + offset < 0) {
+            h->cursor = 0;
+        } else {
+            h->cursor = (uint32_t)(base + offset);
+        }
+        return (int)h->cursor;
+    }
+    if (!h->fat_file) return VFS_EINVAL;
 
     /* FAT16 driver doesn't have seek - manually adjust position */
     fat16_file_t *f = h->fat_file;

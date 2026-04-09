@@ -1,5 +1,5 @@
 /**
- * syscall.c — Kernel syscall table implementation for CupidOS
+ * syscall.c - Kernel syscall table implementation for CupidOS
  *
  * Populates the global function-pointer table that is passed to ELF
  * programs at launch.  Each slot in the table points to the real
@@ -23,7 +23,7 @@
 /* Wrappers for functions that need adaptation */
 
 /**
- * Wrapper for kmalloc — strips the debug file/line tracking since
+ * Wrapper for kmalloc - strips the debug file/line tracking since
  * user programs don't have kernel source paths.
  */
 static void *syscall_malloc(size_t size) {
@@ -31,7 +31,7 @@ static void *syscall_malloc(size_t size) {
 }
 
 /**
- * Wrapper for process_exit — matches the void(*)(void) signature.
+ * Wrapper for process_exit - matches the void(*)(void) signature.
  */
 static void syscall_exit(void) { process_exit(); }
 

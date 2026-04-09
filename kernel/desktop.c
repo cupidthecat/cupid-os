@@ -14,11 +14,13 @@
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "calendar.h"
+#include "app_launch.h"
 #include "bmp.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "gfx2d_icons.h"
 #include "gui.h"
+#include "gui_themes.h"
 #include "gui_widgets.h"
 #include "kernel.h"
 #include "memory.h"
@@ -101,7 +103,6 @@ static void desktop_bg_load_config(void);
 static void desktop_draw_icon_hover_fx(void);
 static void desktop_redraw_workspace_region(int16_t x, int16_t y,
                                             uint16_t w, uint16_t h);
-static void terminal_launch_cc(void);
 
 static void desktop_invalidate_workspace_cache(void) {
   workspace_base_cache_valid = false;
@@ -124,6 +125,19 @@ static void desktop_fill_row32(uint32_t *dst, int n, uint32_t color) {
   simd_memset32(dst, color, (uint32_t)n);
 }
 
+static uint32_t desktop_mix_color(uint32_t c1, uint32_t c2, int t, int max) {
+  int r1 = (c1 >> 16) & 255;
+  int g1 = (c1 >> 8) & 255;
+  int b1 = c1 & 255;
+  int r2 = (c2 >> 16) & 255;
+  int g2 = (c2 >> 8) & 255;
+  int b2 = c2 & 255;
+  int r = (r1 * (max - t) + r2 * t) / max;
+  int g = (g1 * (max - t) + g2 * t) / max;
+  int b = (b1 * (max - t) + b2 * t) / max;
+  return (uint32_t)((r << 16) | (g << 8) | b);
+}
+
 static void desktop_launch_icon_handle(int gfx_icon) {
   if (gfx_icon < 0)
     return;
@@ -140,6 +154,9 @@ static void desktop_launch_icon_handle(int gfx_icon) {
   {
     const char *prog = gfx2d_icon_get_path(gfx_icon);
     if (prog && prog[0]) {
+      if (app_launch_by_path(prog, NULL)) {
+        return;
+      }
       serial_printf("[desktop] icon cupidc_jit path=%s handle=%d\n", prog,
                     gfx_icon);
       cupidc_jit(prog);
@@ -193,7 +210,7 @@ static bool desktop_handle_global_shortcuts(const key_event_t *event,
 
   if (ctrl && alt && (event->scancode == 0x14 || ch == 't' || ch == 'T' ||
                       ch == 20)) { /* Ctrl+T = 20 */
-    terminal_launch_cc();
+    (void)app_launch_by_name("terminal", NULL);
     if (force_full_repaint)
       *force_full_repaint = true;
     return true;
@@ -201,7 +218,7 @@ static bool desktop_handle_global_shortcuts(const key_event_t *event,
 
   if (ctrl && alt && (event->scancode == 0x31 || ch == 'n' || ch == 'N' ||
                       ch == 14)) { /* Ctrl+N = 14 */
-    desktop_notepad_launch();
+    (void)app_launch_by_name("notepad", NULL);
     if (force_full_repaint)
       *force_full_repaint = true;
     return true;
@@ -250,31 +267,27 @@ static void draw_notepad_icon(int x, int y) {
   gfx2d_draw_icon_notepad(x, y, 0xFFFF80);
 }
 
-static void terminal_launch_cc(void) {
-  terminal_launch();
-}
+static void desktop_apply_app_icon_style(int handle,
+                                         const app_descriptor_t *app) {
+  if (handle < 0 || !app) {
+    return;
+  }
 
-static void notepad_cc_process_entry(void) {
-  cupidc_jit("/bin/notepad.cc");
-  process_exit();
-}
+  gfx2d_icon_set_desc(handle, app->description);
+  gfx2d_icon_set_type(handle, app->icon_type);
+  gfx2d_icon_set_color(handle, app->icon_color);
 
-static void fm_cc_process_entry(void) {
-  cupidc_jit("/bin/fm.cc");
-  process_exit();
+  if (app->icon_style == APP_ICON_STYLE_TERMINAL) {
+    gfx2d_icon_set_custom_drawer(handle, draw_terminal_icon);
+  } else if (app->icon_style == APP_ICON_STYLE_NOTEPAD) {
+    gfx2d_icon_set_custom_drawer(handle, draw_notepad_icon);
+  }
 }
 
 void desktop_notepad_launch(void) {
-  enum { NOTEPAD_JIT_STACK = 262144 };
   shell_set_output_mode(SHELL_OUTPUT_GUI);
-  (void)process_create(notepad_cc_process_entry, "notepad", NOTEPAD_JIT_STACK);
-}
-
-static void desktop_fm_launch(void) {
-  enum { FM_JIT_STACK = 262144 };
-  shell_set_output_mode(SHELL_OUTPUT_GUI);
-  serial_printf("[desktop] launching fm via process_create\n");
-  (void)process_create(fm_cc_process_entry, "fm", FM_JIT_STACK);
+  (void)app_launch_cupidc_process("/bin/notepad.cc", "notepad",
+                                  PROCESS_DOMAIN_HOSTED);
 }
 
 void desktop_notepad_launch_with_file(const char *path, const char *save_path) {
@@ -307,24 +320,19 @@ void desktop_init(void) {
   /* Initialize desktop icon system and scan /bin for icon directives */
   gfx2d_icons_init();
 
-  /* Register built-in kernel icons (Terminal, Notepad) */
+  /* Seed icons from the canonical app registry before source scanning. */
   {
-    int h;
+    int i;
+    for (i = 0; i < app_descriptor_count(); i++) {
+      const app_descriptor_t *app = app_descriptor_at(i);
+      int h;
 
-    h = gfx2d_icon_register("Terminal", "__kernel_terminal", 10, 10);
-    if (h >= 0) {
-      gfx2d_icon_set_desc(h, "CupidOS Terminal");
-      gfx2d_icon_set_color(h, 0x404040);
-      gfx2d_icon_set_custom_drawer(h, draw_terminal_icon);
-      gfx2d_icon_set_launch(h, terminal_launch_cc);
-    }
+      if (!app || !app->desktop_visible) {
+        continue;
+      }
 
-    h = gfx2d_icon_register("Notepad", "__kernel_notepad", 10, 70);
-    if (h >= 0) {
-      gfx2d_icon_set_desc(h, "CupidOS Notepad");
-      gfx2d_icon_set_color(h, 0xFFFF80);
-      gfx2d_icon_set_custom_drawer(h, draw_notepad_icon);
-      gfx2d_icon_set_launch(h, desktop_notepad_launch);
+      h = gfx2d_icon_register(app->label, app->path, app->icon_x, app->icon_y);
+      desktop_apply_app_icon_style(h, app);
     }
   }
 
@@ -332,28 +340,16 @@ void desktop_init(void) {
   gfx2d_icons_scan_bin();
 
   {
-    int cc_term = gfx2d_icon_find_by_path("/bin/terminal.cc");
-    if (cc_term >= 0) {
-      gfx2d_icon_set_color(cc_term, 0x404040);
-      gfx2d_icon_set_custom_drawer(cc_term, draw_terminal_icon);
-      gfx2d_icon_set_launch(cc_term, terminal_launch_cc);
-    }
+    int i;
+    for (i = 0; i < app_descriptor_count(); i++) {
+      const app_descriptor_t *app = app_descriptor_at(i);
+      int handle;
 
-    /* Keep a single Notepad icon: built-in kernel icon only.
-     * /bin/notepad.cc may also declare //icon directives, which would
-     * create a duplicate desktop icon after scan. */
-    {
-      int cc_notepad = gfx2d_icon_find_by_path("/bin/notepad.cc");
-      if (cc_notepad >= 0) {
-        gfx2d_icon_unregister(cc_notepad);
+      if (!app) {
+        continue;
       }
-    }
-
-    {
-      int cc_fm = gfx2d_icon_find_by_path("/bin/fm.cc");
-      if (cc_fm >= 0) {
-        gfx2d_icon_set_launch(cc_fm, desktop_fm_launch);
-      }
+      handle = gfx2d_icon_find_by_path(app->path);
+      desktop_apply_app_icon_style(handle, app);
     }
   }
 
@@ -1553,6 +1549,7 @@ static void desktop_draw_icon_hover_fx(void) {
 }
 
 static void desktop_draw_taskbar_base(void) {
+  ui_theme_t *theme = ui_theme_get();
   uint32_t *fb = vga_get_framebuffer();
   uint32_t tb_bytes = (uint32_t)TASKBAR_HEIGHT * (uint32_t)VGA_GFX_WIDTH *
                       (uint32_t)sizeof(uint32_t);
@@ -1568,10 +1565,11 @@ static void desktop_draw_taskbar_base(void) {
     return;
   }
 
-  gfx2d_gradient_v(0, TASKBAR_Y, VGA_GFX_WIDTH, TASKBAR_HEIGHT, 0x00DDD0F0u,
-                   COLOR_TASKBAR);
-  gfx_draw_hline(0, TASKBAR_Y, VGA_GFX_WIDTH, COLOR_BORDER);
-  gfx_draw_text(4, (int16_t)(TASKBAR_Y + 6), "cupid-os", COLOR_TEXT_LIGHT);
+  gfx2d_gradient_v(0, TASKBAR_Y, VGA_GFX_WIDTH, TASKBAR_HEIGHT,
+                   desktop_mix_color(theme->taskbar_bg, 0x00FFFFFFu, 1, 5),
+                   theme->taskbar_bg);
+  gfx_draw_hline(0, TASKBAR_Y, VGA_GFX_WIDTH, theme->window_border);
+  gfx_draw_text(4, (int16_t)(TASKBAR_Y + 6), "cupid-os", theme->taskbar_text);
 
   if (taskbar_base_cache) {
     simd_memcpy(taskbar_base_cache,
@@ -1581,6 +1579,7 @@ static void desktop_draw_taskbar_base(void) {
 }
 
 void desktop_draw_taskbar(void) {
+  ui_theme_t *theme = ui_theme_get();
   desktop_draw_taskbar_base();
 
   /* Window buttons starting at x=80 */
@@ -1641,12 +1640,15 @@ void desktop_draw_taskbar(void) {
           break; /* Too small to be useful */
       }
 
-      uint32_t bg =
-          (w->flags & WINDOW_FLAG_FOCUSED) ? COLOR_TASKBAR_ACT : COLOR_TASKBAR;
+      uint32_t bg = (w->flags & WINDOW_FLAG_FOCUSED)
+                        ? theme->accent_primary
+                        : ((w->flags & WINDOW_FLAG_MINIMIZED)
+                               ? theme->button_face
+                               : theme->taskbar_bg);
       gfx_fill_rect(btn_x, (int16_t)(TASKBAR_Y + 2), btn_w,
                     (uint16_t)(TASKBAR_HEIGHT - 4), bg);
       gfx_draw_rect(btn_x, (int16_t)(TASKBAR_Y + 2), btn_w,
-                    (uint16_t)(TASKBAR_HEIGHT - 4), COLOR_BORDER);
+                    (uint16_t)(TASKBAR_HEIGHT - 4), theme->window_border);
 
       /* Draw truncated title: only as many chars as fit in btn_w - 8 */
       {
@@ -1666,7 +1668,7 @@ void desktop_draw_taskbar(void) {
         }
         trunc[ti] = '\0';
         gfx_draw_text((int16_t)(btn_x + 4), (int16_t)(TASKBAR_Y + 6), trunc,
-                      COLOR_TEXT_LIGHT);
+                      theme->taskbar_text);
       }
 
       btn_x = (int16_t)(btn_x + (int16_t)btn_w + 2);
@@ -1715,10 +1717,11 @@ void desktop_draw_taskbar(void) {
     int16_t cx = (int16_t)(VGA_GFX_WIDTH - (int16_t)total_w - 4);
 
     gfx_draw_text(cx, (int16_t)(TASKBAR_Y + 6), clock_time_str,
-                  COLOR_TEXT_LIGHT);
+                  theme->taskbar_text);
     if (clock_date_str[0]) {
       gfx_draw_text((int16_t)(cx + (int16_t)time_w + (int16_t)spacing),
-                    (int16_t)(TASKBAR_Y + 6), clock_date_str, COLOR_TEXT_LIGHT);
+                    (int16_t)(TASKBAR_Y + 6), clock_date_str,
+                    theme->taskbar_text);
     }
 
     /* Store hitbox for click detection */
@@ -2371,7 +2374,7 @@ void desktop_run_minimized_loop(const char *app_name) {
            * a window's bounds extend into it. */
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
-            gui_set_focus(tb_id);
+            gui_restore_window(tb_id);
             needs_redraw = true;
           }
           /* Close calendar if clicking elsewhere on taskbar */
@@ -2617,7 +2620,7 @@ void desktop_run(void) {
         } else {
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
-            gui_set_focus(tb_id);
+            gui_restore_window(tb_id);
             force_full_repaint = true;
             needs_redraw = true;
           }
@@ -2735,8 +2738,6 @@ void desktop_run(void) {
     bool cal_visibility_changed = (cal_state.visible != cal_prev_visible);
     cal_prev_visible = cal_state.visible;
     bool dragging_now = gui_is_dragging_any();
-    int hover_wid = gui_hit_test_window(mouse.x, mouse.y);
-    bool hover_window = (hover_wid >= 0);
 
     if (was_dragging_any && !dragging_now) {
       post_drag_settle_frames = 4;
@@ -2750,24 +2751,18 @@ void desktop_run(void) {
       needs_redraw = true;
     }
 
-    /* Prefer compositor correctness when multiple windows are active:
-     * full repaint avoids transient z-order artifacts and flashing from
-     * mixed partial redraw paths while interacting with stacked windows. */
-    if (gui_window_count() > 1 &&
-        (mouse_buttons_changed || mouse_scroll_activity || any_dirty ||
-         layout_changed || needs_redraw)) {
+    /* Keep full repaints for pointer-driven interactions that change
+     * occlusion (clicks that may refocus/reorder windows).  Layout changes
+     * and scroll activity are handled by the normal dirty-window path
+     * without needing a full desktop repaint. */
+    if (gui_window_count() > 1 && mouse_buttons_changed) {
       force_full_repaint = true;
     }
 
-    /* In overlapped-window scenarios, cursor-only restore/save can replay
-     * stale pixels from a previous composition and smear the top window. */
-    if (gui_window_count() > 1 && mouse_activity && hover_window) {
-      needs_redraw = true;
-    }
-
-    if (cal_state.visible && mouse_activity && !mouse_buttons_changed &&
-        !mouse_scroll_activity && !needs_redraw && !force_full_repaint &&
-        !layout_changed && !cal_visibility_changed) {
+    /* Calendar popup: only force redraw on button/scroll interaction,
+     * not on bare mouse movement (the cursor-only fast path handles that). */
+    if (cal_state.visible && mouse_activity &&
+        (mouse_buttons_changed || mouse_scroll_activity)) {
       needs_redraw = true;
     }
 
@@ -2869,7 +2864,7 @@ void desktop_run(void) {
             }
             /* Only repaint background when the tick actually changed.
              * On the other 3 frames the back-buffer still has the correct
-             * background — just restore the cursor area and skip the 640x456
+             * background - just restore the cursor area and skip the 640x456
              * pixel fill entirely. */
             if (desktop_anim_tick != last_anim_tick) {
               desktop_draw_background();
@@ -2910,8 +2905,8 @@ void desktop_run(void) {
         if (repainted_workspace) {
           vga_mark_dirty_full();
         } else {
-          /* Only windows + taskbar changed: blit only those rows to VRAM */
-          gui_mark_visible_rects();
+          /* Only copy windows redrawn in this pass plus the taskbar strip. */
+          gui_mark_redraw_regions(false);
           vga_mark_dirty(0, (int)TASKBAR_Y,
                          (int)VGA_GFX_WIDTH,
                          (int)VGA_GFX_HEIGHT - (int)TASKBAR_Y);

@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "../drivers/rtc.h"
 #include "../drivers/serial.h"
+#include "app_launch.h"
 #include "assert.h"
 #include "blockcache.h"
 #include "calendar.h"
@@ -230,10 +231,6 @@ static void shell_mark_terminal_dirty(void) {
   }
 }
 
-static void shell_launch_terminal_cc(void) {
-  terminal_launch();
-}
-
 void shell_set_output_mode(shell_output_mode_t mode) {
   if (output_mode == mode) {
     return;
@@ -328,12 +325,12 @@ static void shell_gui_putchar(char c) {
 
   switch (result) {
   case ANSI_RESULT_SKIP:
-    /* Escape sequence in progress or color code processed — nothing to display
+    /* Escape sequence in progress or color code processed - nothing to display
      */
     return;
 
   case ANSI_RESULT_CLEAR:
-    /* ESC[2J — clear entire screen */
+    /* ESC[2J - clear entire screen */
     memset(gui_buffer, 0, sizeof(gui_buffer));
     for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
       gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
@@ -344,7 +341,7 @@ static void shell_gui_putchar(char c) {
     return;
 
   case ANSI_RESULT_HOME:
-    /* ESC[H — cursor home */
+    /* ESC[H - cursor home */
     gui_cursor_x = 0;
     gui_cursor_y = 0;
     return;
@@ -493,6 +490,7 @@ void shell_gui_print_int_ext(uint32_t num) { shell_gui_print_int(num); }
 #define SCANCODE_ARROW_DOWN 0x50
 #define SCANCODE_ARROW_LEFT 0x4B
 #define SCANCODE_ARROW_RIGHT 0x4D
+#define SCANCODE_F7 0x41
 
 struct shell_command {
   const char *name;
@@ -684,7 +682,7 @@ static void tab_complete(char *input, int *pos) {
     }
 
     if (last_slash >= 0) {
-      /* Has a slash — directory part is everything up to & including slash */
+      /* Has a slash - directory part is everything up to & including slash */
       if (last_slash == 0) {
         dir_path[0] = '/';
         dir_path[1] = '\0';
@@ -699,7 +697,7 @@ static void tab_complete(char *input, int *pos) {
         name_prefix[i] = arg_prefix[last_slash + 1 + i];
       name_prefix[name_prefix_len] = '\0';
     } else {
-      /* No slash — use CWD as directory, whole arg is the name prefix */
+      /* No slash - use CWD as directory, whole arg is the name prefix */
       shell_resolve_path(".", dir_path);
       name_prefix_len = arg_len;
       for (int i = 0; i < arg_len && i < VFS_MAX_NAME - 1; i++)
@@ -735,7 +733,7 @@ static void tab_complete(char *input, int *pos) {
     vfs_close(fd);
 
     if (match_count == 1) {
-      /* Single match — append the rest of the name */
+      /* Single match - append the rest of the name */
       const char *rest = first_match + name_prefix_len;
       while (*rest && *pos < MAX_INPUT_LEN) {
         input[*pos] = *rest;
@@ -754,7 +752,7 @@ static void tab_complete(char *input, int *pos) {
         (*pos)++;
       }
     } else if (match_count > 1) {
-      /* Multiple matches — find common prefix, then list all */
+      /* Multiple matches - find common prefix, then list all */
       /* First, compute the longest common prefix among matches */
       /* (Re-scan directory for this) */
       int common_len = VFS_MAX_NAME;
@@ -794,7 +792,7 @@ static void tab_complete(char *input, int *pos) {
             shell_putchar(common[ci]);
             (*pos)++;
           }
-          /* Don't list matches yet — user can press Tab again */
+          /* Don't list matches yet - user can press Tab again */
           return;
         }
       }
@@ -853,7 +851,7 @@ static void tab_complete(char *input, int *pos) {
     }
   }
 
-  /* 2) Programs in /bin/ — scan for .cc files and strip extension */
+  /* 2) Programs in /bin/ - scan for .cc files and strip extension */
   {
     int bin_fd = vfs_open("/bin", O_RDONLY);
     if (bin_fd >= 0) {
@@ -988,11 +986,21 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
 
   const char *app = resolved + 5;
   serial_printf("[try_bin_dispatch] resolved='%s' app='%s'\n", resolved, app);
-  if (strcmp(app, "terminal") == 0) {
-    shell_launch_terminal_cc();
-  } else if (strcmp(app, "notepad") == 0) {
-    desktop_notepad_launch();
-  } else if (strcmp(app, "cupid") == 0) {
+  {
+    char app_name[VFS_MAX_NAME];
+    int i = 0;
+    while (app[i] && app[i] != '.' && i < VFS_MAX_NAME - 1) {
+      app_name[i] = app[i];
+      i++;
+    }
+    app_name[i] = '\0';
+    if (app_launch_by_name(app_name, extra_args) ||
+        app_launch_by_path(resolved, extra_args)) {
+      return true;
+    }
+  }
+
+  if (strcmp(app, "cupid") == 0) {
     shell_cupid(extra_args);
   } else if (strcmp(app, "shell") == 0) {
     shell_print("Shell is already running.\n");
@@ -1004,7 +1012,7 @@ static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
         return true;
       }
     }
-    /* Check if it's a .cc source file — JIT compile it */
+    /* Check if it's a .cc source file - JIT compile it */
     if (shell_ends_with(resolved, ".cc")) {
       shell_set_program_args(extra_args ? extra_args : "");
       cupidc_jit(resolved);
@@ -1070,7 +1078,7 @@ static void shell_exec_cmd(const char *args) {
   if (try_bin_dispatch(rpath, prog_args))
     return;
 
-  /* Check if it's a .cc source file — JIT compile it */
+  /* Check if it's a .cc source file - JIT compile it */
   if (shell_ends_with(rpath, ".cc")) {
     cupidc_jit(rpath);
     return;
@@ -1089,13 +1097,11 @@ static void shell_exec_cmd(const char *args) {
 }
 
 static void shell_notepad_cmd(const char *args) {
-  (void)args;
-  desktop_notepad_launch();
+  (void)app_launch_by_name("notepad", args);
 }
 
 static void shell_terminal_cmd(const char *args) {
-  (void)args;
-  shell_launch_terminal_cc();
+  (void)app_launch_by_name("terminal", args);
 }
 
 static void shell_ps_cmd(const char *args) {
@@ -1237,7 +1243,7 @@ static void shell_cc_repl(void) {
   pending_src[0] = '\0';
   candidate_src[0] = '\0';
 
-  shell_print("CupidC v2 — Enter runs when blocks are complete. Ctrl+D to exit.\n");
+  shell_print("CupidC v2 - Enter runs when blocks are complete. Ctrl+D to exit.\n");
 
   for (;;) {
     shell_print(brace_depth > 0 ? "..> " : "cc> ");
@@ -1313,7 +1319,7 @@ static void shell_cc_repl(void) {
  *  CupidC Compiler Commands
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* cupidc <file.cc> — JIT compile and run */
+/* cupidc <file.cc> - JIT compile and run */
 static void shell_cupidc_cmd(const char *args) {
   if (!args || args[0] == '\0') {
     shell_print("Usage: cupidc <file.cc>\n");
@@ -1325,7 +1331,7 @@ static void shell_cupidc_cmd(const char *args) {
   cupidc_jit(rpath);
 }
 
-/* cc [file.cc] — interactive CupidC REPL or file JIT */
+/* cc [file.cc] - interactive CupidC REPL or file JIT */
 static void shell_cc_cmd(const char *args) {
   if (!args || args[0] == '\0') {
     shell_cc_repl();
@@ -1346,7 +1352,7 @@ static void shell_cc_cmd(const char *args) {
   cupidc_jit(rpath);
 }
 
-/* ccc <file.cc> -o <output> — AOT compile to ELF binary */
+/* ccc <file.cc> -o <output> - AOT compile to ELF binary */
 static void shell_ccc_cmd(const char *args) {
   if (!args || args[0] == '\0') {
     shell_print("Usage: ccc <file.cc> -o <output>\n");
@@ -1414,12 +1420,12 @@ static void shell_ccc_cmd(const char *args) {
  *  CupidASM Assembler Commands
  */
 
-/* as <file.asm> — JIT assemble and run */
+/* as <file.asm> - JIT assemble and run */
 static void shell_asm_cmd(const char *args) {
   if (!args || args[0] == '\0') {
     shell_print("Usage: as <file.asm>\n");
     shell_print("  Assemble and run an assembly source file\n");
-    shell_print("  as -o <output> <file.asm>  — assemble to ELF binary\n");
+    shell_print("  as -o <output> <file.asm>  - assemble to ELF binary\n");
     return;
   }
 
@@ -1465,7 +1471,7 @@ static void shell_asm_cmd(const char *args) {
   as_jit(rpath);
 }
 
-/* cupidasm <file.asm> -o <output> — AOT assemble to ELF binary */
+/* cupidasm <file.asm> -o <output> - AOT assemble to ELF binary */
 static void shell_cupidasm_cmd(const char *args) {
   if (!args || args[0] == '\0') {
     shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
@@ -1701,7 +1707,10 @@ static void execute_command(const char *input) {
     }
   }
 
-  /* Handle /bin/<app> execution — resolve the path first */
+  if (app_launch_by_name(cmd, args))
+    goto redir_done;
+
+  /* Handle /bin/<app> execution - resolve the path first */
   {
     char resolved[VFS_MAX_PATH];
     shell_resolve_path(cmd, resolved);
@@ -1715,10 +1724,10 @@ static void execute_command(const char *input) {
    *  programs be added to the OS without recompiling the kernel.
    *
    *  Search order:
-   *    1. /bin/<cmd>        — ELF/CUPD binary (ramfs)
-   *    2. /bin/<cmd>.cc     — CupidC source   (ramfs)
-   *    3. /home/bin/<cmd>   — ELF/CUPD binary (disk)
-   *    4. /home/bin/<cmd>.cc — CupidC source  (disk, persistent)
+   *    1. /bin/<cmd>        - ELF/CUPD binary (ramfs)
+   *    2. /bin/<cmd>.cc     - CupidC source   (ramfs)
+   *    3. /home/bin/<cmd>   - ELF/CUPD binary (disk)
+   *    4. /home/bin/<cmd>.cc - CupidC source  (disk, persistent)
    */
   {
     char bin_path[VFS_MAX_PATH];
@@ -1750,7 +1759,7 @@ static void execute_command(const char *input) {
           shell_print("\n");
           goto redir_done;
         }
-        /* Not an ELF — might be a stub file, continue to try .cc version */
+        /* Not an ELF - might be a stub file, continue to try .cc version */
       }
     }
 
@@ -1938,6 +1947,18 @@ void shell_run(void) {
     char c = event.character;
 
     // History navigation with up/down arrows
+    if (event.character == 0 && event.scancode == SCANCODE_F7) {
+      shell_putchar('\n');
+      execute_command("godspeak");
+      pos = 0;
+      cursor = 0;
+      history_view = -1;
+      memset(input, 0, sizeof(input));
+      shell_print(shell_cwd);
+      shell_print("> ");
+      continue;
+    }
+
     if (event.character == 0 && event.scancode == SCANCODE_ARROW_UP) {
       if (history_count > 0 && history_view < history_count - 1) {
         history_view++;
@@ -2298,7 +2319,7 @@ void shell_jit_program_end(void) {
       jit_stack[d].saved_data = NULL;
     }
 
-    /* The previous owner's code is now back in the JIT region — safe
+    /* The previous owner's code is now back in the JIT region - safe
      * to let the scheduler dispatch it again. */
     uint32_t prev_owner = jit_stack[d].owner_pid;
     jit_owner_pid = prev_owner;
@@ -2453,6 +2474,18 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
   }
 
   /* History navigation */
+  if (character == 0 && scancode == SCANCODE_F7) {
+    shell_gui_putchar('\n');
+    execute_command("godspeak");
+    gui_input_pos = 0;
+    gui_input_cursor = 0;
+    gui_history_view = -1;
+    memset(gui_input, 0, sizeof(gui_input));
+    shell_gui_print(shell_cwd);
+    shell_gui_print("> ");
+    return;
+  }
+
   if (character == 0 && scancode == SCANCODE_ARROW_UP) {
     if (history_count > 0 && gui_history_view < history_count - 1) {
       gui_history_view++;

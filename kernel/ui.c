@@ -1,5 +1,5 @@
 /**
- * ui.c — Lightweight UI widget toolkit for cupid-os
+ * ui.c - Lightweight UI widget toolkit for cupid-os
  *
  * Builds on top of the raw graphics primitives in graphics.h to
  * provide composite, self-contained widgets (buttons, labels, panels,
@@ -8,10 +8,45 @@
  */
 
 #include "ui.h"
+#include "gui_themes.h"
+#include "gfx2d.h"
 #include "graphics.h"
 #include "font_8x8.h"
 #include "string.h"
 #include "../drivers/vga.h"
+
+static int ui_channel(uint32_t color, int shift) {
+    return (int)((color >> shift) & 0xFFu);
+}
+
+static uint32_t ui_titlebar_text_color(uint32_t preferred,
+                                       uint32_t start,
+                                       uint32_t end) {
+    int br = (ui_channel(start, 16) + ui_channel(end, 16)) / 2;
+    int bg = (ui_channel(start, 8) + ui_channel(end, 8)) / 2;
+    int bb = (ui_channel(start, 0) + ui_channel(end, 0)) / 2;
+    int brightness = br * 30 + bg * 59 + bb * 11;
+
+    (void)preferred;
+    return brightness < 14000 ? 0x00FFFFFFu : 0x00000000u;
+}
+
+static void ui_draw_3d_frame(ui_rect_t r, bool raised) {
+    ui_theme_t *theme = ui_theme_get();
+    uint32_t light = theme->button_highlight;
+    uint32_t dark = theme->button_shadow;
+
+    if (!raised) {
+        uint32_t tmp = light;
+        light = dark;
+        dark = tmp;
+    }
+
+    gfx_draw_hline(r.x, r.y, r.w, light);
+    gfx_draw_vline(r.x, r.y, r.h, light);
+    gfx_draw_hline(r.x, (int16_t)(r.y + (int16_t)r.h - 1), r.w, dark);
+    gfx_draw_vline((int16_t)(r.x + (int16_t)r.w - 1), r.y, r.h, dark);
+}
 
 /*
  *  Constructors / layout helpers
@@ -117,9 +152,15 @@ void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
 }
 
 void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
+    ui_theme_t *theme = ui_theme_get();
+    if (bg == 0) {
+        bg = theme->window_bg;
+    }
     gfx_fill_rect(r.x, r.y, r.w, r.h, bg);
     if (border_3d) {
-        gfx_draw_3d_rect(r.x, r.y, r.w, r.h, raised);
+        ui_draw_3d_frame(r, raised);
+    } else {
+        gfx_draw_rect(r.x, r.y, r.w, r.h, theme->window_border);
     }
 }
 
@@ -130,21 +171,22 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
 /* Button */
 
 void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
+    ui_theme_t *theme = ui_theme_get();
     /* Background + 3D raised edge */
-    ui_draw_panel(r, COLOR_WINDOW_BG, true, true);
+    ui_draw_panel(r, theme->button_face, true, true);
 
     /* Focus ring (black outline) */
     if (focused) {
         gfx_draw_rect((int16_t)(r.x - 1), (int16_t)(r.y - 1),
                       (uint16_t)(r.w + 2), (uint16_t)(r.h + 2),
-                      COLOR_BLACK);
+                      theme->accent_primary);
     }
 
     /* Auto-center label text */
     uint16_t tw = gfx_text_width(label);
     int16_t tx = (int16_t)(r.x + (int16_t)((r.w - tw) / 2));
     int16_t ty = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)FONT_H) / 2));
-    gfx_draw_text(tx, ty, label, COLOR_BLACK);
+    gfx_draw_text(tx, ty, label, theme->button_text);
 }
 
 /* Label */
@@ -174,8 +216,9 @@ void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
 /* Text field (sunken input box) */
 
 void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
+    ui_theme_t *theme = ui_theme_get();
     /* Sunken background */
-    ui_draw_panel(r, COLOR_TEXT_LIGHT, true, false);
+    ui_draw_panel(r, theme->input_bg, true, false);
 
     /* Text with 2px left padding, vertically centered (clipped to box width) */
     int16_t tx = (int16_t)(r.x + 2);
@@ -217,7 +260,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
     }
     visible[vis_len] = '\0';
 
-    gfx_draw_text(tx, ty, visible, COLOR_BLACK);
+    gfx_draw_text(tx, ty, visible, theme->input_text);
 
     /* Blinking cursor */
     if (cursor_pos >= 0) {
@@ -232,7 +275,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
         int16_t max_x = (int16_t)(r.x + (int16_t)r.w - 2);
         if (cx < max_x) {
             gfx_draw_vline(cx, (int16_t)(r.y + 2),
-                           (uint16_t)(r.h - 4), COLOR_BLACK);
+                           (uint16_t)(r.h - 4), theme->input_text);
         }
     }
 }
@@ -240,36 +283,43 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
 /* Title bar */
 
 void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
-    uint32_t bg = focused ? COLOR_TITLEBAR : COLOR_TITLE_UNFOC;
-    gfx_fill_rect(r.x, r.y, r.w, r.h, bg);
+    ui_theme_t *theme = ui_theme_get();
+    uint32_t start = focused ? theme->titlebar_active_start
+                             : theme->titlebar_inactive_start;
+    uint32_t end = focused ? theme->titlebar_active_end
+                           : theme->titlebar_inactive_end;
+    uint32_t text = ui_titlebar_text_color(theme->titlebar_text, start, end);
+    gfx2d_gradient_h(r.x, r.y, r.w, r.h, start, end);
 
     /* Left-aligned text with 3px padding, vertically centered */
     int16_t tx = (int16_t)(r.x + 3);
     int16_t ty = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)FONT_H) / 2));
-    gfx_draw_text(tx, ty, title, COLOR_TEXT_LIGHT);
+    gfx_draw_text(tx, ty, title, text);
 }
 
 /* Vertical scrollbar */
 
 void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
+    ui_theme_t *theme = ui_theme_get();
     int rw = (int)r.w;
     int rh = (int)r.h;
 
     /* Track background */
-    gfx_fill_rect(r.x, r.y, r.w, r.h, COLOR_BORDER);
+    gfx_fill_rect(r.x, r.y, r.w, r.h, theme->menu_separator);
 
     /* Up arrow button */
     ui_rect_t up_btn = ui_rect(r.x, r.y, r.w, r.w);
-    ui_draw_panel(up_btn, COLOR_WINDOW_BG, true, true);
-    gfx_draw_char((int16_t)(r.x + 2), (int16_t)(r.y + 2), '^', COLOR_BLACK);
+    ui_draw_panel(up_btn, theme->button_face, true, true);
+    gfx_draw_char((int16_t)(r.x + 2), (int16_t)(r.y + 2), '^',
+                  theme->button_text);
 
     /* Down arrow button */
     ui_rect_t dn_btn = ui_rect(r.x,
                                (int16_t)(r.y + (int16_t)r.h - (int16_t)r.w),
                                r.w, r.w);
-    ui_draw_panel(dn_btn, COLOR_WINDOW_BG, true, true);
+    ui_draw_panel(dn_btn, theme->button_face, true, true);
     gfx_draw_char((int16_t)(dn_btn.x + 2), (int16_t)(dn_btn.y + 2),
-                  'v', COLOR_BLACK);
+                  'v', theme->button_text);
 
     /* Thumb (only if content overflows) */
     int track_h = rh - 2 * rw;
@@ -288,7 +338,7 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
         int16_t thumb_y = (int16_t)(r.y + (int16_t)r.w + (int16_t)thumb_off);
         ui_rect_t thumb = ui_rect((int16_t)(r.x + 1), thumb_y,
                                   (uint16_t)(rw - 2), (uint16_t)thumb_h);
-        ui_draw_panel(thumb, COLOR_WINDOW_BG, true, true);
+        ui_draw_panel(thumb, theme->button_face, true, true);
     }
 }
 
@@ -313,7 +363,7 @@ int ui_vscrollbar_hit(ui_rect_t r, int16_t mx, int16_t my, bool *page) {
         return 1;
     }
 
-    /* Track area — page scroll */
+    /* Track area - page scroll */
     if (page) *page = true;
     int mid = ry + rh / 2;
     return (my < (int16_t)mid) ? -1 : 1;

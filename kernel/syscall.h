@@ -1,10 +1,10 @@
 /**
- * syscall.h — Kernel syscall table for CupidOS ELF programs
+ * syscall.h - Kernel syscall table for CupidOS ELF programs
  *
  * Provides a function-pointer table that the ELF loader passes to
  * user programs.  Since CupidOS runs everything in ring 0 with a
  * flat address space (TempleOS-style), there is no privilege boundary
- * — the table simply gives ELF programs clean access to kernel APIs
+ * - the table simply gives ELF programs clean access to kernel APIs
  * without needing to know fixed addresses.
  *
  * Usage from an ELF program:
@@ -86,13 +86,13 @@ typedef struct cupid_syscall_table {
 
 
 /**
- * syscall_init — Initialize the global syscall table.
+ * syscall_init - Initialize the global syscall table.
  * Must be called during kernel boot after all subsystems are ready.
  */
 void syscall_init(void);
 
 /**
- * syscall_get_table — Get a pointer to the global syscall table.
+ * syscall_get_table - Get a pointer to the global syscall table.
  * The ELF loader passes this to user programs.
  */
 cupid_syscall_table_t *syscall_get_table(void);

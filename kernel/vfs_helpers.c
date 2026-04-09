@@ -1,5 +1,5 @@
 /**
- * vfs_helpers.c — High-level VFS convenience functions
+ * vfs_helpers.c - High-level VFS convenience functions
  *
  * Simple read/write-all wrappers around the VFS layer so callers
  * don't need to manually open / read-loop / close.

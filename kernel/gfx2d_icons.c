@@ -7,6 +7,7 @@
  */
 
 #include "gfx2d_icons.h"
+#include "app_launch.h"
 #include "gfx2d.h"
 #include "string.h"
 #include "memory.h"
@@ -707,12 +708,22 @@ void gfx2d_icons_scan_bin(void) {
         /* Parse icon directives */
         icon_info_t info;
         if (gfx2d_icons_parse_directives(path, &info)) {
+            const app_descriptor_t *app = app_find_by_path(path);
+            if (app && gfx2d_icon_find_by_path(path) >= 0) {
+                continue;
+            }
             int handle = gfx2d_icon_register(info.label, path,
                                              info.x, info.y);
             if (handle >= 0) {
-                gfx2d_icon_set_desc(handle, info.description);
-                gfx2d_icon_set_type(handle, info.type);
-                gfx2d_icon_set_color(handle, info.color);
+                if (app) {
+                    gfx2d_icon_set_desc(handle, app->description);
+                    gfx2d_icon_set_type(handle, app->icon_type);
+                    gfx2d_icon_set_color(handle, app->icon_color);
+                } else {
+                    gfx2d_icon_set_desc(handle, info.description);
+                    gfx2d_icon_set_type(handle, info.type);
+                    gfx2d_icon_set_color(handle, info.color);
+                }
                 registered++;
             }
         }

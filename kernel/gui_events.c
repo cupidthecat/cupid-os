@@ -13,49 +13,103 @@
 #include "memory.h"
 #include "../drivers/vga.h"
 
-/* Per-window event handler table (using a simple static table for now) */
-static ui_event_handler_t g_handlers[UI_MAX_EVENT_HANDLERS];
-static int                g_handler_count = 0;
-
-/* Event queue */
 #define EVENT_QUEUE_SIZE 32
-static ui_event_t g_event_queue[EVENT_QUEUE_SIZE];
-static int        g_event_head = 0;
-static int        g_event_tail = 0;
+
+typedef struct {
+    int                win_id; /* 0 = global/default, -1 = unused */
+    ui_event_handler_t handlers[UI_MAX_EVENT_HANDLERS];
+    int                handler_count;
+    ui_event_t         queue[EVENT_QUEUE_SIZE];
+    int                event_head;
+    int                event_tail;
+} ui_event_slot_t;
+
+static ui_event_slot_t g_slots[MAX_WINDOWS + 1];
+
+static ui_event_slot_t *ui_event_slot_for(window_t *win, bool create) {
+    int target_id = win ? (int)win->id : 0;
+    int i;
+
+    for (i = 0; i < MAX_WINDOWS + 1; i++) {
+        if (g_slots[i].win_id == target_id) {
+            return &g_slots[i];
+        }
+    }
+
+    if (!create) {
+        return NULL;
+    }
+
+    /* Reclaim stale window slots before giving up. */
+    for (i = 0; i < MAX_WINDOWS + 1; i++) {
+        if (g_slots[i].win_id > 0 && !gui_get_window(g_slots[i].win_id)) {
+            g_slots[i].win_id = -1;
+            g_slots[i].handler_count = 0;
+            g_slots[i].event_head = 0;
+            g_slots[i].event_tail = 0;
+        }
+    }
+
+    for (i = 0; i < MAX_WINDOWS + 1; i++) {
+        if (g_slots[i].win_id < 0) {
+            g_slots[i].win_id = target_id;
+            g_slots[i].handler_count = 0;
+            g_slots[i].event_head = 0;
+            g_slots[i].event_tail = 0;
+            return &g_slots[i];
+        }
+    }
+
+    return NULL;
+}
 
 void gui_events_init(void) {
-    g_handler_count = 0;
-    g_event_head = 0;
-    g_event_tail = 0;
+    int i;
+    for (i = 0; i < MAX_WINDOWS + 1; i++) {
+        g_slots[i].win_id = -1;
+        g_slots[i].handler_count = 0;
+        g_slots[i].event_head = 0;
+        g_slots[i].event_tail = 0;
+    }
+    /* Reserve slot 0 for global/non-windowed dialogs. */
+    g_slots[0].win_id = 0;
 }
 
 void ui_register_handler(window_t *win, ui_event_handler_t handler) {
-    (void)win;
-    if (g_handler_count < UI_MAX_EVENT_HANDLERS) {
-        g_handlers[g_handler_count++] = handler;
+    ui_event_slot_t *slot = ui_event_slot_for(win, true);
+    if (slot && slot->handler_count < UI_MAX_EVENT_HANDLERS) {
+        slot->handlers[slot->handler_count++] = handler;
     }
 }
 
 void ui_emit_event(window_t *win, ui_event_t *event) {
+    ui_event_slot_t *slot = ui_event_slot_for(win, true);
     int next;
-    (void)win;
 
-    next = (g_event_tail + 1) % EVENT_QUEUE_SIZE;
-    if (next != g_event_head) {
-        g_event_queue[g_event_tail] = *event;
-        g_event_tail = next;
+    if (!slot) {
+        return;
+    }
+
+    next = (slot->event_tail + 1) % EVENT_QUEUE_SIZE;
+    if (next != slot->event_head) {
+        slot->queue[slot->event_tail] = *event;
+        slot->event_tail = next;
     }
 }
 
 void ui_process_events(window_t *win) {
-    (void)win;
+    ui_event_slot_t *slot = ui_event_slot_for(win, false);
 
-    while (g_event_head != g_event_tail) {
-        ui_event_t *ev = &g_event_queue[g_event_head];
+    if (!slot) {
+        return;
+    }
+
+    while (slot->event_head != slot->event_tail) {
+        ui_event_t *ev = &slot->queue[slot->event_head];
         int i;
 
-        for (i = 0; i < g_handler_count; i++) {
-            ui_event_handler_t *h = &g_handlers[i];
+        for (i = 0; i < slot->handler_count; i++) {
+            ui_event_handler_t *h = &slot->handlers[i];
 
             /* Filter by widget_id */
             if (h->widget_id != 0 && h->widget_id != ev->widget_id)
@@ -70,7 +124,7 @@ void ui_process_events(window_t *win) {
             }
         }
 
-        g_event_head = (g_event_head + 1) % EVENT_QUEUE_SIZE;
+        slot->event_head = (slot->event_head + 1) % EVENT_QUEUE_SIZE;
     }
 }
 
@@ -370,6 +424,46 @@ static void rgb_from_color(uint32_t c, int *r, int *g, int *b) {
     *b = (int)(c & 0xFF);
 }
 
+static void hsv_from_rgb(int r, int g, int b, int *h, int *s, int *v) {
+    int maxc = r;
+    int minc = r;
+    int delta;
+    int hue = 0;
+
+    if (g > maxc) maxc = g;
+    if (b > maxc) maxc = b;
+    if (g < minc) minc = g;
+    if (b < minc) minc = b;
+
+    delta = maxc - minc;
+    *v = maxc;
+
+    if (maxc <= 0) {
+        *s = 0;
+        *h = 0;
+        return;
+    }
+
+    *s = (delta * 255) / maxc;
+    if (delta == 0) {
+        *h = 0;
+        return;
+    }
+
+    if (maxc == r) {
+        hue = (60 * (g - b)) / delta;
+    } else if (maxc == g) {
+        hue = 120 + (60 * (b - r)) / delta;
+    } else {
+        hue = 240 + (60 * (r - g)) / delta;
+    }
+
+    while (hue < 0) hue += 360;
+    while (hue >= 360) hue -= 360;
+    if (hue > 359) hue = 359;
+    *h = hue;
+}
+
 bool ui_draw_colorpicker(ui_rect_t r, ui_colorpicker_state_t *state,
                          int16_t mx, int16_t my, bool clicked) {
     bool changed = false;
@@ -526,7 +620,8 @@ bool ui_draw_colorpicker(ui_rect_t r, ui_colorpicker_state_t *state,
                 state->selected_color = state->recent_colors[i];
                 rgb_from_color(state->selected_color,
                               &state->red, &state->green, &state->blue);
-                /* TODO: convert RGB to HSV */
+                hsv_from_rgb(state->red, state->green, state->blue,
+                             &state->hue, &state->saturation, &state->value);
                 changed = true;
             }
         }

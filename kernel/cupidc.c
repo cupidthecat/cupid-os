@@ -15,6 +15,7 @@
 #include "../drivers/rtc.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
+#include "../drivers/vga.h"
 #include "blockcache.h"
 #include "bmp.h"
 #include "calendar.h"
@@ -649,7 +650,7 @@ static int cc_gui_win_content_x(int win_id) {
   window_t *win = gui_get_window(win_id);
   if (!win)
     return 0;
-  return (int)win->x + 2;
+  return (int)win->x + 1;
 }
 
 static int cc_gui_win_content_y(int win_id) {
@@ -663,7 +664,7 @@ static int cc_gui_win_content_w(int win_id) {
   window_t *win = gui_get_window(win_id);
   if (!win)
     return 0;
-  return (int)win->width - 4;
+  return (int)win->width - 2;
 }
 
 static int cc_gui_win_content_h(int win_id) {
@@ -680,31 +681,56 @@ static int cc_gui_win_poll_key(int win_id) {
   if (win->key_head == win->key_tail)
     return -1;
   int key = win->key_queue[win->key_head];
-  win->key_head = (win->key_head + 1) & 15;
+  win->key_head = (win->key_head + 1) % GUI_KEY_QUEUE_SIZE;
   return key;
 }
 
+static int cc_gui_win_begin_paint(int win_id) {
+  return gui_begin_window_paint(win_id);
+}
+
+static int cc_gui_win_end_paint(int win_id) {
+  return gui_end_window_paint(win_id);
+}
+
+static int cc_gui_win_invalidate(int win_id) {
+  return gui_invalidate_window(win_id);
+}
+
+static int cc_gui_win_invalidate_rect(int win_id, int x, int y, int w, int h) {
+  return gui_invalidate_window_rect(win_id, x, y, w, h);
+}
+
+static int cc_gui_win_present(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win)
+    return GUI_ERR_INVALID_ID;
+  if (gui_is_minimized(win_id))
+    return GUI_OK;
+  return gui_present_windows();
+}
+
 static void cc_gui_win_flip(int win_id) {
-  window_t *focused = gui_get_focused_window();
-  if (!focused)
-    return;
-  if ((int)focused->id != win_id)
+  window_t *win = gui_get_window(win_id);
+  if (!win)
     return;
 
-  mouse_restore_under_cursor();
+  /* Compatibility path for older immediate-mode hosted apps: cache the
+   * content they drew into the screen backbuffer into the retained
+   * per-window surface, then present through the compositor path. */
   (void)gui_cache_window_content(win_id);
-  mouse_save_under_cursor();
-  mouse_draw_cursor();
-  vga_flip();
+  (void)gui_invalidate_window(win_id);
+  (void)gui_present_windows();
 }
 
 static int cc_gui_win_can_draw(int win_id) {
   window_t *focused = gui_get_focused_window();
-  if (!focused)
+  window_t *win = gui_get_window(win_id);
+  if (!win || gui_is_minimized(win_id))
     return 0;
-  if ((int)focused->id != win_id)
-    return 0;
-  return 1;
+  if (focused && (int)focused->id == win_id)
+    return 1;
+  return (win->flags & WINDOW_FLAG_DIRTY) ? 1 : 0;
 }
 
 static int cc_gui_win_focus(int win_id) { return gui_set_focus(win_id); }
@@ -715,6 +741,10 @@ static int cc_gui_win_draw_frame(int win_id) {
     return -1;
   if ((int)focused->id != win_id)
     return 0;
+  /* Hide the mouse cursor before the app draws its content so the app
+   * never paints over cursor pixels in the back buffer.  The cursor
+   * will be re-drawn in cc_gui_win_flip after the frame is complete. */
+  mouse_restore_under_cursor();
   return gui_draw_window(win_id);
 }
 
@@ -1120,6 +1150,22 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_gui_win_poll_key)(int) = cc_gui_win_poll_key;
   BIND("gui_win_poll_key", p_gui_win_poll_key, 1);
+
+  int (*p_gui_win_begin_paint)(int) = cc_gui_win_begin_paint;
+  BIND("gui_win_begin_paint", p_gui_win_begin_paint, 1);
+
+  int (*p_gui_win_end_paint)(int) = cc_gui_win_end_paint;
+  BIND("gui_win_end_paint", p_gui_win_end_paint, 1);
+
+  int (*p_gui_win_invalidate)(int) = cc_gui_win_invalidate;
+  BIND("gui_win_invalidate", p_gui_win_invalidate, 1);
+
+  int (*p_gui_win_invalidate_rect)(int, int, int, int, int) =
+      cc_gui_win_invalidate_rect;
+  BIND("gui_win_invalidate_rect", p_gui_win_invalidate_rect, 5);
+
+  int (*p_gui_win_present)(int) = cc_gui_win_present;
+  BIND("gui_win_present", p_gui_win_present, 1);
 
   void (*p_gui_win_flip)(int) = cc_gui_win_flip;
   BIND("gui_win_flip", p_gui_win_flip, 1);

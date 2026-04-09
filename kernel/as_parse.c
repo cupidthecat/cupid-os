@@ -1869,7 +1869,21 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      as_error(as, "unimplemented instruction");
+      {
+        char err[64];
+        const char *prefix = "unsupported instruction: ";
+        char *d = err;
+        const char *src = prefix;
+        while (*src && d < err + 62) {
+          *d++ = *src++;
+        }
+        src = mn;
+        while (*src && d < err + 63) {
+          *d++ = *src++;
+        }
+        *d = '\0';
+        as_error(as, err);
+      }
       as_expect_newline_or_eof(as);
       continue;
     }

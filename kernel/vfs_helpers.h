@@ -4,7 +4,7 @@
 #include "types.h"
 
 /* ══════════════════════════════════════════════════════════════════════
- *  vfs_helpers.h — High-level VFS convenience functions
+ *  vfs_helpers.h - High-level VFS convenience functions
  *
  *  Provides simple read/write-all operations so callers don't need
  *  to manually open/read-loop/close.  All functions return >= 0 on

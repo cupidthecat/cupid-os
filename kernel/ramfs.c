@@ -1,5 +1,5 @@
 /**
- * ramfs.c — In-memory filesystem for CupidOS
+ * ramfs.c - In-memory filesystem for CupidOS
  *
  * Implements a simple RAM-based filesystem with directory tree support.
  * Files are stored in dynamically allocated memory.  Used for root
@@ -103,6 +103,22 @@ static ramfs_node_t *ramfs_lookup(ramfs_node_t *dir, const char *path) {
     return cur;
 }
 
+static void ramfs_free_node(ramfs_node_t *node) {
+    while (node) {
+        ramfs_node_t *next = node->next;
+        if (node->children) {
+            ramfs_free_node(node->children);
+            node->children = NULL;
+        }
+        if (node->data) {
+            kfree(node->data);
+            node->data = NULL;
+        }
+        kfree(node);
+        node = next;
+    }
+}
+
 /**
  * Ensure parent directories exist for a path, create them if needed.
  * Returns the parent directory node.
@@ -178,8 +194,13 @@ static int ramfs_mount(const char *source, void **fs_private) {
 }
 
 static int ramfs_unmount(void *fs_private) {
-    /* TODO: free all nodes. For now just free the instance. */
-    (void)fs_private;
+    ramfs_t *fs = (ramfs_t *)fs_private;
+    if (!fs) return VFS_OK;
+    if (fs->root) {
+        ramfs_free_node(fs->root);
+        fs->root = NULL;
+    }
+    kfree(fs);
     return VFS_OK;
 }
 

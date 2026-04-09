@@ -38,6 +38,11 @@
 #include "graphics.h"
 #include "gfx2d.h"
 #include "gui.h"
+#include "gui_containers.h"
+#include "gui_events.h"
+#include "gui_menus.h"
+#include "gui_themes.h"
+#include "gui_widgets.h"
 #include "desktop.h"
 #include "clipboard.h"
 #include "process.h"
@@ -45,6 +50,7 @@
 #include "ramfs.h"
 #include "devfs.h"
 #include "fat16_vfs.h"
+#include "homefs.h"
 #include "exec.h"
 #include "syscall.h"
 #include "../drivers/pit.h"
@@ -95,6 +101,8 @@ extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
 extern void install_bin_programs(void *fs_private);
 extern void install_docs_programs(void *fs_private);
 extern void install_demo_programs(void *fs_private);
+extern const char _binary_god_Vocab_DD_start[];
+extern const char _binary_god_Vocab_DD_end[];
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
@@ -596,6 +604,7 @@ void kmain(void) {
     vfs_register_fs(ramfs_get_ops());
     vfs_register_fs(devfs_get_ops());
     vfs_register_fs(fat16_vfs_get_ops());
+    vfs_register_fs(homefs_get_ops());
 
     /* Mount root filesystem (ramfs) */
     if (vfs_mount(NULL, "/", "ramfs") == VFS_OK) {
@@ -607,8 +616,10 @@ void kmain(void) {
     vfs_mkdir("/docs");
     vfs_mkdir("/docs/demos");
     vfs_mkdir("/demos");
+    vfs_mkdir("/god");
     vfs_mkdir("/tmp");
     vfs_mkdir("/home");
+    vfs_mkdir("/disk");
 
     /* Mount devfs at /dev */
     devfs_register_builtins();
@@ -616,14 +627,27 @@ void kmain(void) {
         KINFO("VFS: mounted devfs on /dev");
     }
 
-    /* Mount FAT16 at /home (persistent user files) */
+    /* Mount raw FAT16 view at /disk for compatibility and diagnostics. */
     if (hdd && fat16_ready) {
-        int rc = vfs_mount(NULL, "/home", "fat16");
+        int rc = vfs_mount(NULL, "/disk", "fat16");
         if (rc == VFS_OK) {
-            KINFO("VFS: mounted fat16 on /home");
+            KINFO("VFS: mounted fat16 on /disk");
         } else {
-            KERROR("VFS: failed to mount fat16 on /home (%d)", rc);
-            KERROR("/home is not persistent (using root ramfs directory)");
+            KERROR("VFS: failed to mount fat16 on /disk (%d)", rc);
+        }
+
+        rc = vfs_mount(NULL, "/home", "homefs");
+        if (rc == VFS_OK) {
+            KINFO("VFS: mounted homefs on /home");
+        } else {
+            KERROR("VFS: failed to mount homefs on /home (%d)", rc);
+            rc = vfs_mount(NULL, "/home", "fat16");
+            if (rc == VFS_OK) {
+                KINFO("VFS: fallback mounted fat16 on /home");
+            } else {
+                KERROR("VFS: fallback mount fat16 on /home failed (%d)", rc);
+                KERROR("/home is not persistent (using root ramfs directory)");
+            }
         }
     } else {
         KERROR("/home is not persistent (FAT16 unavailable)");
@@ -683,6 +707,16 @@ void kmain(void) {
             * Auto-installed from demos .asm files into /demos .asm */
             install_demo_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidASM demos");
+
+            {
+                uint32_t vocab_sz =
+                    (uint32_t)(_binary_god_Vocab_DD_end - _binary_god_Vocab_DD_start);
+                ramfs_add_file(root_mnt->fs_private,
+                               "god/Vocab.DD",
+                               _binary_god_Vocab_DD_start,
+                               vocab_sz);
+                KINFO("Installed /god/Vocab.DD (%u bytes)", vocab_sz);
+            }
         }
     }
     KINFO("VFS initialized");
@@ -700,6 +734,11 @@ void kmain(void) {
     vga_init_vbe();          // Allocates back buffer and clears screen
     gfx_init();              // Initialize graphics primitives
     gfx2d_init();            // Initialize 2D graphics library
+    gui_themes_init();
+    gui_widgets_init();
+    gui_containers_init();
+    gui_menus_init();
+    gui_events_init();
 #ifdef SIMD_BENCH
     simd_benchmark();
 #endif

@@ -52,6 +52,9 @@ int shell_get_cursor_y(void);
 /* GUI mode: handle a keypress (called from terminal_app) */
 void shell_gui_handle_key(uint8_t scancode, char character);
 
+/* GUI mode: insert a full text snippet at the current cursor. */
+void shell_gui_insert_text(const char *text);
+
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
 

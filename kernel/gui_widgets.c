@@ -10,6 +10,7 @@
  */
 
 #include "gui_widgets.h"
+#include "gui_themes.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "font_8x8.h"
@@ -64,16 +65,17 @@ void gui_widgets_init(void) {
 
 bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
                       bool enabled, int16_t mx, int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int box_size = 12;
     int16_t bx = r.x;
     int16_t by = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)box_size) / 2));
-    uint32_t fg = enabled ? COLOR_TEXT : COL_DISABLED;
+    uint32_t fg = enabled ? theme->button_text : theme->button_disabled_text;
     bool hit = false;
 
     /* Box background */
     gfx2d_rect_fill(bx, by, box_size, box_size,
                     enabled ? COL_CHECK_BG : 0x00E0E0E0);
-    gfx2d_rect(bx, by, box_size, box_size, COLOR_BORDER);
+    gfx2d_rect(bx, by, box_size, box_size, theme->window_border);
 
     /* Check mark */
     if (checked) {
@@ -102,16 +104,17 @@ bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
 
 bool ui_draw_radio(ui_rect_t r, const char *label, bool selected,
                    bool enabled, int16_t mx, int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int radius = 6;
     int16_t cx = (int16_t)(r.x + radius);
     int16_t cy = (int16_t)(r.y + (int16_t)(r.h / 2));
-    uint32_t fg = enabled ? COLOR_TEXT : COL_DISABLED;
+    uint32_t fg = enabled ? theme->button_text : theme->button_disabled_text;
     bool hit = false;
 
     /* Outer circle */
     gfx2d_circle_fill(cx, cy, radius,
                       enabled ? COL_CHECK_BG : 0x00E0E0E0);
-    gfx2d_circle(cx, cy, radius, COLOR_BORDER);
+    gfx2d_circle(cx, cy, radius, theme->window_border);
 
     /* Inner filled circle when selected */
     if (selected) {
@@ -155,10 +158,11 @@ int ui_radio_group(ui_rect_t r, const char **labels, int count,
 bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
                       ui_dropdown_state_t *state, int16_t mx, int16_t my,
                       bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     bool changed = false;
     int16_t arrow_w = 16;
     ui_rect_t btn_area;
-    uint32_t sel_text_color = COLOR_TEXT;
+    uint32_t sel_text_color = theme->button_text;
 
     /* Draw the closed dropdown button */
     ui_draw_panel(r, COL_CHECK_BG, true, true);
@@ -181,8 +185,8 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
     {
         int16_t ax = (int16_t)(btn_area.x + (int16_t)(arrow_w / 2));
         int16_t ay = (int16_t)(btn_area.y + (int16_t)(r.h / 2));
-        gfx2d_line(ax - 3, ay - 1, ax, ay + 2, COLOR_TEXT);
-        gfx2d_line(ax, ay + 2, ax + 3, ay - 1, COLOR_TEXT);
+        gfx2d_line(ax - 3, ay - 1, ax, ay + 2, theme->button_text);
+        gfx2d_line(ax, ay + 2, ax + 3, ay - 1, theme->button_text);
     }
 
     /* Handle click on closed dropdown */
@@ -200,7 +204,8 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
         /* Background */
         gfx2d_rect_fill(list_r.x, list_r.y, (int)list_r.w, list_h,
                         COL_CHECK_BG);
-        gfx2d_rect(list_r.x, list_r.y, (int)list_r.w, list_h, COLOR_BORDER);
+        gfx2d_rect(list_r.x, list_r.y, (int)list_r.w, list_h,
+                   theme->window_border);
 
         /* Track hover */
         state->hover_item = -1;
@@ -218,13 +223,13 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
 
             if (i == state->hover_item) {
                 gfx2d_rect_fill(ir.x + 1, ir.y, (int)ir.w - 2,
-                                item_h, COLOR_TITLEBAR);
+                                item_h, theme->menu_hover);
             }
 
             ui_rect_t label_r = ui_pad_xy(ir, 3, 0);
             ui_draw_label(label_r, items[i],
-                          (i == state->hover_item) ? COLOR_TEXT_LIGHT
-                                                   : COLOR_TEXT,
+                          (i == state->hover_item) ? theme->titlebar_text
+                                                   : theme->button_text,
                           UI_ALIGN_LEFT);
         }
 
@@ -300,13 +305,13 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
 
         /* Highlight */
         if (idx == state->selected) {
-            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, COLOR_TITLEBAR);
-            ui_draw_label(ir, items[idx], COLOR_TEXT_LIGHT, UI_ALIGN_LEFT);
+            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, ui_theme_get()->menu_selected);
+            ui_draw_label(ir, items[idx], ui_theme_get()->titlebar_text, UI_ALIGN_LEFT);
         } else if (idx == state->hover_item) {
-            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, COLOR_HIGHLIGHT);
-            ui_draw_label(ir, items[idx], COLOR_TEXT, UI_ALIGN_LEFT);
+            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, ui_theme_get()->menu_hover);
+            ui_draw_label(ir, items[idx], ui_theme_get()->button_text, UI_ALIGN_LEFT);
         } else {
-            ui_draw_label(ir, items[idx], COLOR_TEXT, UI_ALIGN_LEFT);
+            ui_draw_label(ir, items[idx], ui_theme_get()->button_text, UI_ALIGN_LEFT);
         }
     }
 
@@ -352,7 +357,7 @@ int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
 
     /* Track */
     gfx2d_rect_fill(r.x, track_y, (int)r.w, track_h, COL_SLIDER_TRACK);
-    gfx2d_rect(r.x, track_y, (int)r.w, track_h, COLOR_BORDER);
+    gfx2d_rect(r.x, track_y, (int)r.w, track_h, ui_theme_get()->window_border);
 
     /* Filled portion */
     {

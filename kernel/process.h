@@ -9,7 +9,7 @@
  *   - Up to 32 concurrent processes
  *   - 10ms time slices driven by PIT timer (100Hz)
  *   - Idle process (PID 1) is always present, never exits
- *   - Process crashes are isolated — faulty process is terminated,
+ *   - Process crashes are isolated - faulty process is terminated,
  *     kernel continues running
  */
 
@@ -31,6 +31,12 @@ typedef enum {
     PROCESS_TERMINATED       /* Exited, slot can be reclaimed         */
 } process_state_t;
 
+typedef enum {
+    PROCESS_DOMAIN_KERNEL = 0,   /* Kernel-owned thread / service      */
+    PROCESS_DOMAIN_HOSTED,       /* Hosted in-kernel app/runtime       */
+    PROCESS_DOMAIN_EXTERNAL      /* ELF/CUPD program via loader        */
+} process_domain_t;
+
 typedef struct {
     uint32_t eax, ebx, ecx, edx;
     uint32_t esi, edi, esp, ebp;
@@ -46,6 +52,7 @@ typedef struct {
     uint32_t         stack_size;              /* Stack size in bytes  */
     uint32_t         image_base;              /* ELF image load addr  */
     uint32_t         image_size;              /* ELF image total size */
+    process_domain_t domain;                  /* Execution domain     */
     char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
 } process_t;
 
@@ -71,6 +78,11 @@ uint32_t process_create(void (*entry_point)(void),
                         const char *name,
                         uint32_t stack_size);
 
+uint32_t process_create_ex(void (*entry_point)(void),
+                           const char *name,
+                           uint32_t stack_size,
+                           process_domain_t domain);
+
 /**
  * process_create_with_arg - Spawn a new kernel thread with one argument
  *
@@ -90,6 +102,12 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,
                                  uint32_t stack_size,
                                  uint32_t arg);
+
+uint32_t process_create_with_arg_ex(void (*entry_point)(void),
+                                    const char *name,
+                                    uint32_t stack_size,
+                                    uint32_t arg,
+                                    process_domain_t domain);
 
 /**
  * process_exit - Terminate the currently running process
@@ -166,7 +184,7 @@ void process_start_scheduler(void);
  *
  * Adds the calling thread (e.g. the kernel main / desktop loop) to
  * the process table so the scheduler can save and restore its context.
- * Does NOT allocate a new stack — uses the existing kernel stack.
+ * Does NOT allocate a new stack - uses the existing kernel stack.
  *
  * @name: human-readable name (e.g. "desktop")
  * Returns: the assigned PID, or 0 on failure.
@@ -206,5 +224,7 @@ void process_block(uint32_t pid);
  * @pid: PID of the process to unblock
  */
 void process_unblock(uint32_t pid);
+
+const char *process_domain_name(process_domain_t domain);
 
 #endif /* PROCESS_H */

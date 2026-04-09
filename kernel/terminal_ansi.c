@@ -196,11 +196,11 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
 
     /* Cursor Position / Home: final char 'H' or 'f' */
     if (final_char == 'H' || final_char == 'f') {
-        /* ESC[H  — cursor home */
+        /* ESC[H  - cursor home */
         if (len == 1) {
             return ANSI_RESULT_HOME;
         }
-        /* ESC[row;colH — position (we note it but don't act) */
+        /* ESC[row;colH - position (we note it but don't act) */
         return ANSI_RESULT_HOME;
     }
 
@@ -218,7 +218,7 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         return ANSI_RESULT_SKIP;
     }
 
-    /* Unknown CSI sequence — skip */
+    /* Unknown CSI sequence - skip */
     return ANSI_RESULT_SKIP;
 }
 
@@ -232,12 +232,12 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
         /* Waiting for '[' to start a CSI sequence? */
         if (!state->in_csi) {
             if (c == '[') {
-                /* CSI sequence started — begin collecting params */
+                /* CSI sequence started - begin collecting params */
                 state->in_csi = true;
                 state->esc_len = 0;
                 return ANSI_RESULT_SKIP;
             } else {
-                /* Not a CSI sequence — abort */
+                /* Not a CSI sequence - abort */
                 state->in_escape = false;
                 state->esc_len = 0;
                 return ANSI_RESULT_SKIP;
@@ -265,7 +265,7 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
             return ANSI_RESULT_SKIP;
         }
 
-        /* Unexpected character in escape — abort */
+        /* Unexpected character in escape - abort */
         state->in_escape = false;
         state->in_csi    = false;
         state->esc_len = 0;
@@ -280,6 +280,6 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
         return ANSI_RESULT_SKIP;
     }
 
-    /* Regular character — render it with current colors */
+    /* Regular character - render it with current colors */
     return ANSI_RESULT_PRINT;
 }

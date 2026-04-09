@@ -5,7 +5,7 @@
 #include "vfs.h"
 
 /* ══════════════════════════════════════════════════════════════════════
- *  ramfs.h — In-memory filesystem for CupidOS
+ *  ramfs.h - In-memory filesystem for CupidOS
  *
  *  Provides a simple RAM-based filesystem with directory tree support.
  *  Used for /, /bin, /tmp mount points.

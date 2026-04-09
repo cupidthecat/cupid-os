@@ -50,11 +50,11 @@ typedef struct {
 } terminal_color_state_t;
 
 /* ══════════════════════════════════════════════════════════════════════
- *  Parser result — what to do with each character
+ *  Parser result - what to do with each character
  * ══════════════════════════════════════════════════════════════════════ */
 typedef enum {
     ANSI_RESULT_PRINT,    /* Render this character normally */
-    ANSI_RESULT_SKIP,     /* Part of escape sequence — don't render */
+    ANSI_RESULT_SKIP,     /* Part of escape sequence - don't render */
     ANSI_RESULT_CLEAR,    /* Clear screen command was received */
     ANSI_RESULT_HOME      /* Move cursor to home position */
 } ansi_result_t;

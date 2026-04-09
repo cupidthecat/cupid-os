@@ -233,9 +233,9 @@ int elf_exec(const char *path, const char *proc_name) {
 
     /* Create process with syscall table argument on the stack.
      * We use process_create_with_arg to push the arg before entry. */
-    uint32_t pid = process_create_with_arg(
+    uint32_t pid = process_create_with_arg_ex(
         entry_fn, pname, DEFAULT_STACK_SIZE,
-        (uint32_t)syscall_get_table()
+        (uint32_t)syscall_get_table(), PROCESS_DOMAIN_EXTERNAL
     );
 
     if (pid == 0) {
@@ -344,7 +344,8 @@ int cupd_exec(const char *path, const char *proc_name) {
     const char *pname = proc_name ? proc_name : path;
 
     /* Create the process */
-    uint32_t pid = process_create(entry, pname, DEFAULT_STACK_SIZE);
+    uint32_t pid = process_create_ex(entry, pname, DEFAULT_STACK_SIZE,
+                                     PROCESS_DOMAIN_EXTERNAL);
     if (pid == 0) {
         kfree(image);
         serial_printf("[cupd] Failed to create process for %s\n", path);

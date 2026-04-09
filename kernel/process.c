@@ -48,9 +48,21 @@ static const char *state_names[] = {
     "TERMINATED"
 };
 
+static const char *domain_names[] = {
+    "kernel",
+    "hosted",
+    "external"
+};
+
 static void idle_process(void);
 static uint32_t find_free_slot(void);
 static void process_reap_terminated(void);
+static uint32_t process_create_common(void (*entry_point)(void),
+                                      const char *name,
+                                      uint32_t stack_size,
+                                      bool with_arg,
+                                      uint32_t arg,
+                                      process_domain_t domain);
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Trampoline: if a process entry function returns, we land here
@@ -62,7 +74,7 @@ static void process_exit_trampoline(void) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  Idle process — PID 1, always present
+ *  Idle process - PID 1, always present
  * ══════════════════════════════════════════════════════════════════════ */
 static void idle_process(void) {
     while (1) {
@@ -141,9 +153,12 @@ void process_init(void) {
 /* ══════════════════════════════════════════════════════════════════════
  *  process_create
  * ══════════════════════════════════════════════════════════════════════ */
-uint32_t process_create(void (*entry_point)(void),
-                        const char *name,
-                        uint32_t stack_size) {
+static uint32_t process_create_common(void (*entry_point)(void),
+                                      const char *name,
+                                      uint32_t stack_size,
+                                      bool with_arg,
+                                      uint32_t arg,
+                                      process_domain_t domain) {
     process_reap_terminated();
 
     if (!entry_point) {
@@ -181,6 +196,10 @@ uint32_t process_create(void (*entry_point)(void),
     p->state      = PROCESS_READY;
     p->stack_base = stack;
     p->stack_size = stack_size;
+    if (domain > PROCESS_DOMAIN_EXTERNAL) {
+        domain = PROCESS_DOMAIN_KERNEL;
+    }
+    p->domain     = domain;
 
     /* Copy name */
     if (name) {
@@ -205,8 +224,12 @@ uint32_t process_create(void (*entry_point)(void),
      */
     uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
     uint32_t *sp = (uint32_t *)top;
+    if (with_arg) {
+        sp--;
+        *sp = arg;
+    }
     sp--;
-    *sp = (uint32_t)process_exit_trampoline;  /* return address for entry_point */
+    *sp = (uint32_t)process_exit_trampoline;
 
     p->context.esp    = (uint32_t)sp;
     p->context.eip    = (uint32_t)entry_point;
@@ -217,101 +240,55 @@ uint32_t process_create(void (*entry_point)(void),
 
     process_count++;
 
-    serial_printf("[PROCESS] Created PID %u \"%s\" (stack=%u, entry=0x%x)\n",
-                  p->pid, p->name, stack_size, (uint32_t)entry_point);
+    if (with_arg) {
+        serial_printf("[PROCESS] Created PID %u \"%s\" domain=%s arg=0x%x "
+                      "(stack=%u, entry=0x%x)\n",
+                      p->pid, p->name, process_domain_name(p->domain), arg,
+                      stack_size, (uint32_t)entry_point);
+    } else {
+        serial_printf("[PROCESS] Created PID %u \"%s\" domain=%s "
+                      "(stack=%u, entry=0x%x)\n",
+                      p->pid, p->name, process_domain_name(p->domain),
+                      stack_size, (uint32_t)entry_point);
+    }
 
     return p->pid;
 }
 
+uint32_t process_create(void (*entry_point)(void),
+                        const char *name,
+                        uint32_t stack_size) {
+    return process_create_common(entry_point, name, stack_size, false, 0,
+                                 PROCESS_DOMAIN_KERNEL);
+}
+
+uint32_t process_create_ex(void (*entry_point)(void),
+                           const char *name,
+                           uint32_t stack_size,
+                           process_domain_t domain) {
+    return process_create_common(entry_point, name, stack_size, false, 0,
+                                 domain);
+}
+
 /* ══════════════════════════════════════════════════════════════════════
- *  process_create_with_arg — like process_create but pushes one
+ *  process_create_with_arg - like process_create but pushes one
  *  uint32_t argument onto the stack so the entry function receives it.
  * ══════════════════════════════════════════════════════════════════════ */
 uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,
                                  uint32_t stack_size,
                                  uint32_t arg) {
-    process_reap_terminated();
+    return process_create_common(entry_point, name, stack_size, true, arg,
+                                 PROCESS_DOMAIN_KERNEL);
+}
 
-    if (!entry_point) {
-        KERROR("process_create_with_arg: NULL entry point");
-        return 0;
-    }
-    if (process_count >= MAX_PROCESSES) {
-        KWARN("process_create_with_arg: table full (%u/%u)",
-              process_count, (uint32_t)MAX_PROCESSES);
-        return 0;
-    }
-    if (stack_size < 1024) {
-        stack_size = DEFAULT_STACK_SIZE;
-    }
-
-    uint32_t slot = find_free_slot();
-    if (slot >= MAX_PROCESSES) {
-        KWARN("process_create_with_arg: no free slot");
-        return 0;
-    }
-
-    void *stack = kmalloc(stack_size);
-    if (!stack) {
-        KERROR("process_create_with_arg: stack alloc failed (%u bytes)",
-               stack_size);
-        return 0;
-    }
-
-    /* Place canary at the bottom of the stack */
-    *(uint32_t *)stack = STACK_CANARY;
-
-    process_t *p = &process_table[slot];
-    memset(p, 0, sizeof(process_t));
-
-    p->pid        = slot + 1;
-    p->state      = PROCESS_READY;
-    p->stack_base = stack;
-    p->stack_size = stack_size;
-
-    /* Copy name */
-    if (name) {
-        uint32_t i = 0;
-        while (name[i] && i < PROCESS_NAME_LEN - 1) {
-            p->name[i] = name[i];
-            i++;
-        }
-        p->name[i] = '\0';
-    }
-
-    /*
-     * Stack layout for a function that takes one argument:
-     *   [top of stack]
-     *     arg                  <- argument for entry_point
-     *     return address       <- process_exit_trampoline
-     *
-     * When context_switch jumps to entry_point, it executes as
-     * if called with `entry_point(arg)` and on return hits the
-     * trampoline.
-     */
-    uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
-    uint32_t *sp = (uint32_t *)top;
-    sp--;
-    *sp = arg;                                  /* argument */
-    sp--;
-    *sp = (uint32_t)process_exit_trampoline;    /* return address */
-
-    p->context.esp    = (uint32_t)sp;
-    p->context.eip    = (uint32_t)entry_point;
-    if (simd_enabled()) {
-        simd_context_save(proc_fxsave[slot]);
-        proc_fxsave_valid[slot] = true;
-    }
-
-    process_count++;
-
-    serial_printf("[PROCESS] Created PID %u \"%s\" with arg=0x%x "
-                  "(stack=%u, entry=0x%x)\n",
-                  p->pid, p->name, arg, stack_size,
-                  (uint32_t)entry_point);
-
-    return p->pid;
+uint32_t process_create_with_arg_ex(void (*entry_point)(void),
+                                    const char *name,
+                                    uint32_t stack_size,
+                                    uint32_t arg,
+                                    process_domain_t domain) {
+    return process_create_common(entry_point, name, stack_size, true, arg,
+                                 domain);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -339,13 +316,13 @@ void process_exit(void) {
     process_t *p = &process_table[exit_pid - 1];
     serial_printf("[PROCESS] PID %u \"%s\" exiting\n", p->pid, p->name);
 
-    /* Mark terminated but DON'T free the stack yet — we're still
+    /* Mark terminated but DON'T free the stack yet - we're still
      * running on it.  The stack will be freed lazily when the slot
      * is reused by process_create or after schedule switches away. */
     p->state = PROCESS_TERMINATED;
     current_pid = 0;
 
-    /* Reschedule — never returns.
+    /* Reschedule - never returns.
      * schedule() will use dummy_esp path since current_pid == 0. */
     __asm__ volatile("sti");
     schedule();
@@ -417,14 +394,14 @@ void process_kill(uint32_t pid) {
     serial_printf("[PROCESS] Killing PID %u \"%s\"\n", p->pid, p->name);
 
     if (pid == current_pid) {
-        /* Killing self — mark terminated and reschedule.
+        /* Killing self - mark terminated and reschedule.
          * Stack freed later by reaper in find_free_slot. */
         p->state = PROCESS_TERMINATED;
         current_pid = 0;
         __asm__ volatile("sti");
         schedule();
     } else {
-        /* Killing another process — safe to free stack now */
+        /* Killing another process - safe to free stack now */
         p->state = PROCESS_TERMINATED;
         shell_jit_discard_by_owner(pid);
         gui_destroy_windows_by_owner(pid);
@@ -446,7 +423,7 @@ void process_kill(uint32_t pid) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  process_get_state — return state of a process by PID
+ *  process_get_state - return state of a process by PID
  * ══════════════════════════════════════════════════════════════════════ */
 int process_get_state(uint32_t pid) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
@@ -458,13 +435,13 @@ int process_get_state(uint32_t pid) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  process_list — `ps` shell command
+ *  process_list - `ps` shell command
  * ══════════════════════════════════════════════════════════════════════ */
 void process_list(void) {
     process_reap_terminated();
 
-    print("PID  STATE      NAME\n");
-    print("---  ---------  ----------------\n");
+    print("PID  STATE      DOMAIN    NAME\n");
+    print("---  ---------  --------  ----------------\n");
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         process_t *p = &process_table[i];
         if (p->pid == 0) continue;
@@ -482,6 +459,14 @@ void process_list(void) {
         uint32_t slen = 0;
         while (sname[slen]) slen++;
         for (uint32_t pad = slen; pad < 11; pad++) print(" ");
+
+        {
+            const char *dname = process_domain_name(p->domain);
+            uint32_t dlen = 0;
+            print(dname);
+            while (dname[dlen]) dlen++;
+            for (uint32_t pad = dlen; pad < 10; pad++) print(" ");
+        }
 
         print(p->name);
         print("\n");
@@ -509,7 +494,7 @@ void process_list(void) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  schedule — Round-robin context switch
+ *  schedule - Round-robin context switch
  *
  *  1. Find the next READY process (round-robin, fallback to idle)
  *  2. If different from current, call the assembly context_switch()
@@ -518,7 +503,7 @@ void process_list(void) {
  *
  *  When a previously-saved process is rescheduled, context_switch()
  *  jumps to context_switch_resume which pops the saved regs and
- *  returns normally — so schedule() returns to its caller as if
+ *  returns normally - so schedule() returns to its caller as if
  *  nothing happened.
  * ══════════════════════════════════════════════════════════════════════ */
 void schedule(void) {
@@ -557,7 +542,7 @@ void schedule(void) {
         next_schedule_index = (next_schedule_index + 1) % MAX_PROCESSES;
         process_t *candidate = &process_table[next_schedule_index];
 
-        /* Skip the current process — we want a DIFFERENT one */
+        /* Skip the current process - we want a DIFFERENT one */
         if (candidate->pid != 0 &&
             candidate->pid != current_pid &&
             candidate->state == PROCESS_READY) {
@@ -571,7 +556,7 @@ void schedule(void) {
     if (!next) {
         next = &process_table[0];
         if (next->pid == 0) {
-            /* No processes at all — just re-enable interrupts */
+            /* No processes at all - just re-enable interrupts */
             if (current_pid != 0 && current_pid <= MAX_PROCESSES) {
                 process_table[current_pid - 1].state = PROCESS_RUNNING;
             }
@@ -580,7 +565,7 @@ void schedule(void) {
         }
     }
 
-    /* Same process — just mark running and return */
+    /* Same process - just mark running and return */
     if (next->pid == current_pid && current_pid != 0) {
         next->state = PROCESS_RUNNING;
         __asm__ volatile("sti");
@@ -603,7 +588,7 @@ void schedule(void) {
      *   mov esp, new_esp
      *   jmp new_eip
      *
-     * It never returns to us — when THIS process is later resumed,
+     * It never returns to us - when THIS process is later resumed,
      * context_switch_resume pops the saved regs and does `ret`,
      * returning us right here. */
 
@@ -623,7 +608,7 @@ void schedule(void) {
         context_switch(&old->context.esp, new_esp, new_eip);
         /* We resume here when rescheduled */
     } else {
-        /* No valid old process — just switch (e.g. during exit) */
+        /* No valid old process - just switch (e.g. during exit) */
         uint32_t dummy_esp;
         if (simd_enabled() && proc_fxsave_valid[next->pid - 1]) {
             simd_context_restore(proc_fxsave[next->pid - 1]);
@@ -661,11 +646,11 @@ void process_start_scheduler(void) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  process_register_current — Register the already-running thread
+ *  process_register_current - Register the already-running thread
  *
  *  Used to add the kernel main thread (desktop loop) to the process
  *  table so the scheduler can properly save and restore its context.
- *  Does NOT allocate a stack — the kernel stack is managed externally.
+ *  Does NOT allocate a stack - the kernel stack is managed externally.
  * ══════════════════════════════════════════════════════════════════════ */
 uint32_t process_register_current(const char *name) {
     process_reap_terminated();
@@ -688,6 +673,7 @@ uint32_t process_register_current(const char *name) {
     p->state      = PROCESS_RUNNING;
     p->stack_base = NULL;           /* We don't own this stack */
     p->stack_size = 0;
+    p->domain     = PROCESS_DOMAIN_KERNEL;
 
     if (name) {
         uint32_t i = 0;
@@ -711,8 +697,15 @@ uint32_t process_register_current(const char *name) {
     return p->pid;
 }
 
+const char *process_domain_name(process_domain_t domain) {
+    if (domain > PROCESS_DOMAIN_EXTERNAL) {
+        return domain_names[PROCESS_DOMAIN_KERNEL];
+    }
+    return domain_names[domain];
+}
+
 /* ══════════════════════════════════════════════════════════════════════
- *  process_block / process_unblock — Suspend/resume a READY process
+ *  process_block / process_unblock - Suspend/resume a READY process
  *
  *  Used by the JIT region manager (shell.c) to prevent a process from
  *  being scheduled while the shared JIT code region contains code that
@@ -739,7 +732,7 @@ void process_unblock(uint32_t pid) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  process_set_image — Associate an ELF image region with a process
+ *  process_set_image - Associate an ELF image region with a process
  * ══════════════════════════════════════════════════════════════════════ */
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
     if (pid == 0 || pid > MAX_PROCESSES) return;

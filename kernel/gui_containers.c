@@ -6,6 +6,7 @@
  */
 
 #include "gui_containers.h"
+#include "gui_themes.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "font_8x8.h"
@@ -33,6 +34,7 @@ void gui_containers_init(void) {
 int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
                    ui_tabbar_state_t *state, int16_t mx, int16_t my,
                    bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int i;
     int tab_x = (int)r.x;
     int new_active = -1;
@@ -63,15 +65,16 @@ int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
         }
 
         /* Tab border (top, left, right) */
-        gfx2d_hline(tab_r.x, tab_r.y, tw, COLOR_BORDER);
-        gfx2d_vline(tab_r.x, tab_r.y, th, COLOR_BORDER);
-        gfx2d_vline(tab_r.x + tw - 1, tab_r.y, th, COLOR_BORDER);
+        gfx2d_hline(tab_r.x, tab_r.y, tw, theme->window_border);
+        gfx2d_vline(tab_r.x, tab_r.y, th, theme->window_border);
+        gfx2d_vline(tab_r.x + tw - 1, tab_r.y, th, theme->window_border);
 
         /* Label */
         {
             int16_t tx = (int16_t)(tab_r.x + TAB_PAD_W);
             int16_t ty = (int16_t)(tab_r.y + (th - FONT_H) / 2);
-            gfx2d_text(tx, ty, tab_labels[i], COLOR_TEXT, GFX2D_FONT_NORMAL);
+            gfx2d_text(tx, ty, tab_labels[i], theme->button_text,
+                       GFX2D_FONT_NORMAL);
         }
 
         /* Handle click */
@@ -85,7 +88,7 @@ int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
 
     /* Bottom border line for the bar */
     gfx2d_hline(r.x, (int)(r.y + (int16_t)r.h - 1),
-                (int)r.w, COLOR_BORDER);
+                (int)r.w, theme->window_border);
 
     return new_active;
 }
@@ -122,7 +125,7 @@ int ui_tabs_handle_input(ui_tabs_t *tabs, const char **labels, int count,
     /* Draw content border */
     gfx2d_rect(tabs->content_rect.x, tabs->content_rect.y,
                (int)tabs->content_rect.w, (int)tabs->content_rect.h,
-               COLOR_BORDER);
+               ui_theme_get()->window_border);
     gfx2d_rect_fill(tabs->content_rect.x + 1, tabs->content_rect.y,
                     (int)tabs->content_rect.w - 2,
                     (int)tabs->content_rect.h - 1,
@@ -277,11 +280,20 @@ void ui_scroll_handle_input(ui_scroll_state_t *state, ui_rect_t r,
         state->scroll_y += wheel_delta * 20;
     }
 
-    /* Drag scrolling not implemented for simplicity in bare-metal.
-       Could be expanded if needed. */
-    (void)pressed;
-    (void)mx;
-    (void)my;
+    if (!pressed) {
+        state->dragging = false;
+    } else if (!state->dragging && ui_contains(r, mx, my)) {
+        state->dragging = true;
+        state->drag_start_x = mx;
+        state->drag_start_y = my;
+    } else if (state->dragging) {
+        int dx = (int)mx - (int)state->drag_start_x;
+        int dy = (int)my - (int)state->drag_start_y;
+        state->scroll_x -= dx;
+        state->scroll_y -= dy;
+        state->drag_start_x = mx;
+        state->drag_start_y = my;
+    }
 
     /* Clamp scroll position */
     max_x = state->content_w - state->viewport_w;

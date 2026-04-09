@@ -13,6 +13,7 @@
  */
 
 #include "blockcache.h"
+#include "homefs.h"
 #include "kernel.h"
 #include "memory.h"
 #include "string.h"
@@ -271,6 +272,7 @@ void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
  * blockcache_sync - Manual cache flush (sync command)
  */
 void blockcache_sync(void) {
+    (void)homefs_sync();
     blockcache_flush_all();
 }
 

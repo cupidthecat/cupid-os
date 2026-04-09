@@ -4,7 +4,7 @@
 #include "types.h"
 
 /* ══════════════════════════════════════════════════════════════════════
- *  ui.h — Lightweight UI widget toolkit for cupid-os
+ *  ui.h - Lightweight UI widget toolkit for cupid-os
  *
  *  Provides a ui_rect_t layout primitive and composite widget drawing
  *  functions (buttons, labels, panels, text fields, scrollbars) so

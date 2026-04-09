@@ -4,7 +4,7 @@
 #include "types.h"
 
 /* ══════════════════════════════════════════════════════════════════════
- *  vfs.h — Virtual File System for CupidOS
+ *  vfs.h - Virtual File System for CupidOS
  *
  *  Linux-style VFS providing unified file API across multiple
  *  filesystem types with hierarchical mount points.
@@ -100,7 +100,7 @@ int vfs_register_fs(vfs_fs_ops_t *ops);
 int vfs_mount(const char *source, const char *target,
               const char *fs_type);
 
-/* File operations — return fd (>= 0) or negative error */
+/* File operations - return fd (>= 0) or negative error */
 int vfs_open(const char *path, uint32_t flags);
 int vfs_close(int fd);
 int vfs_read(int fd, void *buffer, uint32_t count);

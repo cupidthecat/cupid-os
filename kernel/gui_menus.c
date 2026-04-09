@@ -6,6 +6,7 @@
  */
 
 #include "gui_menus.h"
+#include "gui_themes.h"
 #include "gfx2d.h"
 #include "graphics.h"
 #include "font_8x8.h"
@@ -18,16 +19,6 @@
 #define TOOLBAR_BTN_SIZE 24
 #define TOOLTIP_PAD       4
 
-static const uint32_t COL_MENU_BG       = 0x00F0F0F0;
-static const uint32_t COL_MENU_HOVER    = 0x00D0E4F8;
-static const uint32_t COL_MENU_DISABLED = 0x00A0A0A0;
-static const uint32_t COL_MENU_SEP      = 0x00C8C8D0;
-static const uint32_t COL_TOOLBAR_BG    = 0x00E8E8E8;
-static const uint32_t COL_TOOLBAR_HOVER = 0x00D0E0F0;
-static const uint32_t COL_TOOLTIP_BG    = 0x00FFFFDD;
-static const uint32_t COL_TOOLTIP_BORD  = 0x00404040;
-static const uint32_t COL_STATUSBAR_BG  = 0x00D8D8E0;
-
 void gui_menus_init(void) {
     /* Nothing to initialize */
 }
@@ -37,12 +28,13 @@ void gui_menus_init(void) {
 int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                     ui_menubar_state_t *state, int16_t mx, int16_t my,
                     bool clicked, bool released) {
+    ui_theme_t *theme = ui_theme_get();
     int i, tx;
     int result = 0;
 
     /* Background */
-    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, COL_MENU_BG);
-    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, COLOR_BORDER);
+    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
+    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, theme->window_border);
 
     state->mouse_in_bar = ui_contains(r, mx, my);
 
@@ -57,13 +49,13 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 
         /* Title highlight */
         if (is_open || hover) {
-            gfx2d_rect_fill(tx, r.y, tw, (int)r.h, COL_MENU_HOVER);
+            gfx2d_rect_fill(tx, r.y, tw, (int)r.h, theme->menu_hover);
         }
 
         /* Title text */
         gfx2d_text(tx + MENU_PAD,
                    r.y + ((int)r.h - FONT_H) / 2,
-                   menus[i].title, COLOR_TEXT, GFX2D_FONT_NORMAL);
+                   menus[i].title, theme->menu_text, GFX2D_FONT_NORMAL);
 
         /* Open on click, or hover-switch when one is already open */
         if (clicked && hover) {
@@ -99,8 +91,8 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
             my2 = (int16_t)(r.y + (int16_t)r.h);
 
             /* Menu background + border */
-            gfx2d_rect_fill(tx, my2, mw, mh, COL_MENU_BG);
-            gfx2d_rect(tx, my2, mw, mh, COLOR_BORDER);
+            gfx2d_rect_fill(tx, my2, mw, mh, theme->menu_bg);
+            gfx2d_rect(tx, my2, mw, mh, theme->window_border);
 
             /* Shadow */
             gfx2d_hline(tx + 2, my2 + mh, mw, 0x00808080);
@@ -113,7 +105,8 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
 
                 if (mi->separator) {
                     /* Separator line */
-                    gfx2d_hline(tx + 3, item_y + 3, mw - 6, COL_MENU_SEP);
+                    gfx2d_hline(tx + 3, item_y + 3, mw - 6,
+                                theme->menu_separator);
                     item_y += 8;
                     continue;
                 }
@@ -128,20 +121,20 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                     if (item_hover && mi->enabled) {
                         state->hover_item = j;
                         gfx2d_rect_fill(tx + 1, item_y, mw - 2,
-                                        MENU_ITEM_H, COL_MENU_HOVER);
+                                        MENU_ITEM_H, theme->menu_hover);
                     }
 
                     /* Checkmark */
                     if (mi->checked) {
                         gfx2d_text(tx + 4,
                                    item_y + (MENU_ITEM_H - FONT_H) / 2,
-                                   "*", COLOR_TEXT, GFX2D_FONT_NORMAL);
+                                   "*", theme->menu_text, GFX2D_FONT_NORMAL);
                     }
 
                     /* Label */
                     {
-                        uint32_t col = mi->enabled ? COLOR_TEXT
-                                                   : COL_MENU_DISABLED;
+                        uint32_t col = mi->enabled ? theme->menu_text
+                                                   : theme->menu_disabled_text;
                         gfx2d_text(tx + 20,
                                    item_y + (MENU_ITEM_H - FONT_H) / 2,
                                    mi->label, col, GFX2D_FONT_NORMAL);
@@ -150,8 +143,8 @@ int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                     /* Shortcut text */
                     if (mi->shortcut) {
                         int sw = (int)strlen(mi->shortcut) * FONT_W;
-                        uint32_t col = mi->enabled ? 0x00808080
-                                                   : COL_MENU_DISABLED;
+                        uint32_t col = mi->enabled ? theme->button_disabled_text
+                                                   : theme->menu_disabled_text;
                         gfx2d_text(tx + mw - sw - 8,
                                    item_y + (MENU_ITEM_H - FONT_H) / 2,
                                    mi->shortcut, col, GFX2D_FONT_NORMAL);
@@ -205,6 +198,7 @@ void ui_context_menu_show(ui_context_menu_state_t *state,
 int ui_draw_context_menu(ui_menu_item_t *items, int count,
                          ui_context_menu_state_t *state,
                          int16_t mx, int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int i, mw, mh, item_y, result;
 
     if (!state->visible) return 0;
@@ -228,8 +222,8 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
     }
 
     /* Background + border + shadow */
-    gfx2d_rect_fill(state->x, state->y, mw, mh, COL_MENU_BG);
-    gfx2d_rect(state->x, state->y, mw, mh, COLOR_BORDER);
+    gfx2d_rect_fill(state->x, state->y, mw, mh, theme->menu_bg);
+    gfx2d_rect(state->x, state->y, mw, mh, theme->window_border);
     gfx2d_hline(state->x + 2, state->y + mh, mw, 0x00808080);
     gfx2d_vline(state->x + mw, state->y + 2, mh, 0x00808080);
 
@@ -238,7 +232,8 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
 
     for (i = 0; i < count; i++) {
         if (items[i].separator) {
-            gfx2d_hline(state->x + 3, item_y + 3, mw - 6, COL_MENU_SEP);
+            gfx2d_hline(state->x + 3, item_y + 3, mw - 6,
+                        theme->menu_separator);
             item_y += 8;
             continue;
         }
@@ -253,20 +248,20 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
             if (hover && items[i].enabled) {
                 state->hover_item = i;
                 gfx2d_rect_fill(state->x + 1, item_y, mw - 2,
-                                MENU_ITEM_H, COL_MENU_HOVER);
+                                MENU_ITEM_H, theme->menu_hover);
             }
 
             /* Checkmark */
             if (items[i].checked) {
                 gfx2d_text(state->x + 4,
                            item_y + (MENU_ITEM_H - FONT_H) / 2,
-                           "*", COLOR_TEXT, GFX2D_FONT_NORMAL);
+                           "*", theme->menu_text, GFX2D_FONT_NORMAL);
             }
 
             /* Label */
             {
-                uint32_t col = items[i].enabled ? COLOR_TEXT
-                                                : COL_MENU_DISABLED;
+                uint32_t col = items[i].enabled ? theme->menu_text
+                                                : theme->menu_disabled_text;
                 gfx2d_text(state->x + 20,
                            item_y + (MENU_ITEM_H - FONT_H) / 2,
                            items[i].label, col, GFX2D_FONT_NORMAL);
@@ -277,7 +272,8 @@ int ui_draw_context_menu(ui_menu_item_t *items, int count,
                 int sw = (int)strlen(items[i].shortcut) * FONT_W;
                 gfx2d_text(state->x + mw - sw - 8,
                            item_y + (MENU_ITEM_H - FONT_H) / 2,
-                           items[i].shortcut, 0x00808080, GFX2D_FONT_NORMAL);
+                           items[i].shortcut, theme->button_disabled_text,
+                           GFX2D_FONT_NORMAL);
             }
 
             if (clicked && hover && items[i].enabled) {
@@ -317,14 +313,15 @@ void ui_context_menu_handle_input(ui_context_menu_state_t *state,
 int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
                     ui_toolbar_state_t *state, int16_t mx, int16_t my,
                     bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
     result = 0;
     state->hover_button = -1;
 
     /* Background */
-    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, COL_TOOLBAR_BG);
-    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, COLOR_BORDER);
+    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
+    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, theme->window_border);
 
     bx = r.x + 2;
 
@@ -340,9 +337,9 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
 
         /* Button background */
         if (pressed || (hover && clicked)) {
-            ui_draw_panel(br, COLOR_WINDOW_BG, true, false);
+            ui_draw_panel(br, theme->button_face, true, false);
         } else if (hover) {
-            ui_draw_panel(br, COL_TOOLBAR_HOVER, true, true);
+            ui_draw_panel(br, theme->menu_hover, true, true);
         }
 
         /* Icon (sprite) or label fallback */
@@ -357,7 +354,8 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
             gfx2d_text(bx + (TOOLBAR_BTN_SIZE - FONT_W) / 2,
                        r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2,
                        c,
-                       buttons[i].enabled ? COLOR_TEXT : COL_MENU_DISABLED,
+                       buttons[i].enabled ? theme->button_text
+                                          : theme->button_disabled_text,
                        GFX2D_FONT_NORMAL);
         }
 
@@ -384,20 +382,21 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
 int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
                        ui_toolbar_state_t *state, int16_t mx, int16_t my,
                        bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
     result = 0;
     state->hover_button = -1;
 
-    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, COL_TOOLBAR_BG);
-    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, COLOR_BORDER);
+    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
+    gfx2d_hline(r.x, r.y + (int)r.h - 1, (int)r.w, theme->window_border);
 
     bx = r.x + 2;
 
     for (i = 0; i < count; i++) {
         switch (items[i].type) {
         case UI_TOOLBAR_SEPARATOR:
-            gfx2d_vline(bx + 2, r.y + 3, (int)r.h - 6, COL_MENU_SEP);
+            gfx2d_vline(bx + 2, r.y + 3, (int)r.h - 6, theme->menu_separator);
             bx += 8;
             break;
 
@@ -418,9 +417,9 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
             if (hover) state->hover_button = i;
 
             if (pressed || (hover && clicked)) {
-                ui_draw_panel(br, COLOR_WINDOW_BG, true, false);
+                ui_draw_panel(br, theme->button_face, true, false);
             } else if (hover) {
-                ui_draw_panel(br, COL_TOOLBAR_HOVER, true, true);
+                ui_draw_panel(br, theme->menu_hover, true, true);
             }
 
             if (btn->icon_sprite >= 0) {
@@ -432,7 +431,8 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
                 gfx2d_text(bx + (TOOLBAR_BTN_SIZE - FONT_W) / 2,
                            r.y + 2 + (TOOLBAR_BTN_SIZE - FONT_H) / 2,
                            c,
-                           btn->enabled ? COLOR_TEXT : COL_MENU_DISABLED,
+                           btn->enabled ? theme->button_text
+                                        : theme->button_disabled_text,
                            GFX2D_FONT_NORMAL);
             }
 
@@ -455,14 +455,15 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
 
 void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
                        int count) {
+    ui_theme_t *theme = ui_theme_get();
     int i, sx;
     int flex_count = 0;
     int fixed_total = 0;
     int flex_w;
 
     /* Background */
-    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, COL_STATUSBAR_BG);
-    gfx2d_hline(r.x, r.y, (int)r.w, COLOR_BORDER);
+    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
+    gfx2d_hline(r.x, r.y, (int)r.w, theme->window_border);
 
     /* Calculate flexible space */
     for (i = 0; i < count; i++) {
@@ -489,12 +490,13 @@ void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
 
         /* Section divider */
         if (i > 0) {
-            gfx2d_vline(sx - 1, r.y + 2, (int)r.h - 4, COLOR_BORDER);
+            gfx2d_vline(sx - 1, r.y + 2, (int)r.h - 4, theme->window_border);
         }
 
         /* Text */
         if (sections[i].text) {
-            ui_draw_label(sr, sections[i].text, COLOR_TEXT, sections[i].align);
+            ui_draw_label(sr, sections[i].text, theme->button_text,
+                          sections[i].align);
         }
 
         sx += sec_w + 2;
@@ -502,12 +504,13 @@ void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
 }
 
 void ui_draw_statusbar_simple(ui_rect_t r, const char *text) {
-    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, COL_STATUSBAR_BG);
-    gfx2d_hline(r.x, r.y, (int)r.w, COLOR_BORDER);
+    ui_theme_t *theme = ui_theme_get();
+    gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
+    gfx2d_hline(r.x, r.y, (int)r.w, theme->window_border);
 
     if (text) {
         gfx2d_text(r.x + 4, r.y + ((int)r.h - FONT_H) / 2,
-                   text, COLOR_TEXT, GFX2D_FONT_NORMAL);
+                   text, theme->button_text, GFX2D_FONT_NORMAL);
     }
 }
 
@@ -533,6 +536,7 @@ void ui_tooltip_update(ui_tooltip_state_t *state, const char *text,
 }
 
 void ui_draw_tooltip(ui_tooltip_state_t *state) {
+    ui_theme_t *theme = ui_theme_get();
     int tw, th;
 
     if (!state->visible || !state->text) return;
@@ -545,12 +549,12 @@ void ui_draw_tooltip(ui_tooltip_state_t *state) {
     if (state->y + th > 480) state->y = (int16_t)(state->y - th - 20);
 
     /* Background + border */
-    gfx2d_rect_fill(state->x, state->y, tw, th, COL_TOOLTIP_BG);
-    gfx2d_rect(state->x, state->y, tw, th, COL_TOOLTIP_BORD);
+    gfx2d_rect_fill(state->x, state->y, tw, th, theme->input_bg);
+    gfx2d_rect(state->x, state->y, tw, th, theme->window_border);
 
     /* Text */
     gfx2d_text(state->x + TOOLTIP_PAD, state->y + TOOLTIP_PAD,
-               state->text, COLOR_TEXT, GFX2D_FONT_NORMAL);
+               state->text, theme->button_text, GFX2D_FONT_NORMAL);
 }
 
 /* Keyboard Shortcuts */
