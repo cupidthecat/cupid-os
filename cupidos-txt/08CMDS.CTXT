@@ -44,7 +44,7 @@ exec -d <file>
 
 >h2 Current /bin .cc Programs (Auto-Discovered)
 System / shell:
-  help clear echo time date reboot history sysinfo cupidfetch godspeak
+  help clear echo time date reboot history sysinfo cupidfetch godspeak godsong
 
 Filesystem:
   pwd cd ls cat mount mkdir rmdir mv cp rm touch find grep ed
@@ -131,4 +131,9 @@ Global desktop shortcuts:
   godspeak
 - F7 in CupidC Notepad inserts generated GodSpeak text at the cursor.
 - Dictionary source is /god/Vocab.DD.
+
+>h2 GodSong Sound Toy
+godsong [seed]
+  Play a TempleOS-inspired randomized PC speaker melody.
+  If [seed] is given, melody output is deterministic.
 
