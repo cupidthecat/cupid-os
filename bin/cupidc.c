@@ -1,5 +1,5 @@
 /**
- * cupidc.c — CupidC compiler driver for CupidOS
+ * cupidc.c - CupidC compiler driver for CupidOS
  *
  * Provides the main entry points for JIT and AOT compilation:
  *   - cupidc_jit(): Compile and execute a .cc file immediately
@@ -184,7 +184,7 @@ static void cc_dump_stack_trace(void) {
   print_stack_trace(ebp, eip);
 }
 
-/* CupidC can't do inline asm — capture and print all CPU registers */
+/* CupidC can't do inline asm - capture and print all CPU registers */
 static void cc_dump_registers(void) {
   uint32_t eax_v, ebx_v, ecx_v, edx_v, esi_v, edi_v, ebp_v, esp_v, eflags_v;
   __asm__ volatile("movl %%eax, %0" : "=r"(eax_v));
@@ -231,15 +231,15 @@ static int cc_peek_byte(uint32_t addr) {
   return (int)*((volatile uint8_t *)addr);
 }
 
-/* is_gui_mode — wrapper for shell_get_output_mode() */
+/* is_gui_mode - wrapper for shell_get_output_mode() */
 static uint32_t cc_is_gui_mode(void) {
   return (shell_get_output_mode() == SHELL_OUTPUT_GUI) ? 1 : 0;
 }
 
-/* kernel_panic is variadic — provide simple 1-arg wrapper */
+/* kernel_panic is variadic - provide simple 1-arg wrapper */
 static void cc_kernel_panic_msg(const char *msg) { kernel_panic("%s", msg); }
 
-/* Crashtest wrappers — CupidC can't do volatile pointer tricks etc. */
+/* Crashtest wrappers - CupidC can't do volatile pointer tricks etc. */
 static void cc_crashtest_nullptr(void) {
   volatile int *p = (volatile int *)0;
   (void)*p;
@@ -267,7 +267,7 @@ static void cc_crashtest_stackoverflow(void) {
   (void)big;
 }
 
-/* Print a byte as 2 hex digits — wrapper with uint32_t arg for CupidC */
+/* Print a byte as 2 hex digits - wrapper with uint32_t arg for CupidC */
 static void cc_print_hex_byte(uint32_t val) { print_hex_byte((uint8_t)val); }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -469,7 +469,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   const char *(*p_get_history_entry)(int) = shell_get_history_entry;
   BIND("get_history_entry", p_get_history_entry, 1);
 
-  /* Process management — extended */
+  /* Process management - extended */
   void (*p_process_list)(void) = process_list;
   BIND("process_list", p_process_list, 0);
 
@@ -498,7 +498,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_uptime)(void) = timer_get_uptime_ms;
   BIND("uptime_ms", p_uptime, 0);
 
-  /* RTC — individual field accessors */
+  /* RTC - individual field accessors */
   int (*p_rtc_hour)(void) = cc_rtc_hour;
   BIND("rtc_hour", p_rtc_hour, 0);
 
@@ -523,7 +523,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_rtc_epoch)(void) = rtc_get_epoch_seconds;
   BIND("rtc_epoch", p_rtc_epoch, 0);
 
-  /* RTC — formatted string accessors */
+  /* RTC - formatted string accessors */
   const char *(*p_date_full)(void) = cc_date_full_string;
   BIND("date_full_string", p_date_full, 0);
 
@@ -543,7 +543,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_blockcache_stats)(void) = blockcache_stats;
   BIND("blockcache_stats", p_blockcache_stats, 0);
 
-  /* Memory diagnostics — extended */
+  /* Memory diagnostics - extended */
   void (*p_detect_leaks)(uint32_t) = detect_memory_leaks;
   BIND("detect_memory_leaks", p_detect_leaks, 1);
 
@@ -556,7 +556,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_pmm_total)(void) = pmm_total_pages;
   BIND("pmm_total_pages", p_pmm_total, 0);
 
-  /* Timer — extended */
+  /* Timer - extended */
   uint32_t (*p_timer_freq)(void) = timer_get_frequency;
   BIND("timer_get_frequency", p_timer_freq, 0);
 
@@ -564,7 +564,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_cpu_mhz)(void) = cc_get_cpu_mhz;
   BIND("get_cpu_mhz", p_cpu_mhz, 0);
 
-  /* Process info — extended */
+  /* Process info - extended */
   uint32_t (*p_proc_count)(void) = process_get_count;
   BIND("process_get_count", p_proc_count, 0);
 
@@ -650,7 +650,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_mouse_scroll)(void) = cc_mouse_scroll;
   BIND("mouse_scroll", p_mouse_scroll, 0);
 
-  /* String operations — extended */
+  /* String operations - extended */
 
   char *(*p_strcpy)(char *, const char *) = strcpy;
   BIND("strcpy", p_strcpy, 2);
@@ -670,7 +670,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_memcmp)(const void *, const void *, size_t) = memcmp;
   BIND("memcmp", p_memcmp, 3);
 
-  /* ── gfx2d — 2D graphics library ────────────────────────────── */
+  /* ── gfx2d - 2D graphics library ────────────────────────────── */
   void (*p_gfx2d_init)(void) = gfx2d_init;
   BIND("gfx2d_init", p_gfx2d_init, 0);
 
@@ -830,11 +830,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_checkerboard;
   BIND("gfx2d_checkerboard", p_gfx2d_checkerboard, 7);
 
-  /* ── gfx2d — blend modes ─────────────────────────────────────────── */
+  /* ── gfx2d - blend modes ─────────────────────────────────────────── */
   void (*p_gfx2d_blend_mode)(int) = gfx2d_blend_mode;
   BIND("gfx2d_blend_mode", p_gfx2d_blend_mode, 1);
 
-  /* ── gfx2d — surfaces ────────────────────────────────────────────── */
+  /* ── gfx2d - surfaces ────────────────────────────────────────────── */
   int (*p_gfx2d_surface_alloc)(int, int) = gfx2d_surface_alloc;
   BIND("gfx2d_surface_alloc", p_gfx2d_surface_alloc, 2);
 
@@ -857,7 +857,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_surface_blit_alpha;
   BIND("gfx2d_surface_blit_alpha", p_gfx2d_surface_blit_alpha, 4);
 
-  /* ── gfx2d — tweening ────────────────────────────────────────────── */
+  /* ── gfx2d - tweening ────────────────────────────────────────────── */
   int (*p_gfx2d_tween_linear)(int, int, int, int) = gfx2d_tween_linear;
   BIND("gfx2d_tween_linear", p_gfx2d_tween_linear, 4);
 
@@ -871,7 +871,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_tween_elastic)(int, int, int, int) = gfx2d_tween_elastic;
   BIND("gfx2d_tween_elastic", p_gfx2d_tween_elastic, 4);
 
-  /* ── gfx2d — particles ───────────────────────────────────────────── */
+  /* ── gfx2d - particles ───────────────────────────────────────────── */
   int (*p_gfx2d_particles_create)(void) = gfx2d_particles_create;
   BIND("gfx2d_particles_create", p_gfx2d_particles_create, 0);
 
@@ -891,7 +891,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_particles_alive)(int) = gfx2d_particles_alive;
   BIND("gfx2d_particles_alive", p_gfx2d_particles_alive, 1);
 
-  /* ── gfx2d — drawing tools ───────────────────────────────────────── */
+  /* ── gfx2d - drawing tools ───────────────────────────────────────── */
   void (*p_gfx2d_bezier)(int, int, int, int, int, int, uint32_t) = gfx2d_bezier;
   BIND("gfx2d_bezier", p_gfx2d_bezier, 7);
 
@@ -905,7 +905,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_flood_fill)(int, int, uint32_t) = gfx2d_flood_fill;
   BIND("gfx2d_flood_fill", p_gfx2d_flood_fill, 3);
 
-  /* ── gfx2d — fullscreen mode ─────────────────────────────────────── */
+  /* ── gfx2d - fullscreen mode ─────────────────────────────────────── */
   void (*p_gfx2d_fullscreen_enter)(void) = gfx2d_fullscreen_enter;
   BIND("gfx2d_fullscreen_enter", p_gfx2d_fullscreen_enter, 0);
 
@@ -1576,7 +1576,7 @@ static void cc_cleanup_state(cc_state_t *cc) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  JIT Mode — Compile and Execute
+ *  JIT Mode - Compile and Execute
  * ══════════════════════════════════════════════════════════════════════ */
 
 void cupidc_jit(const char *path) {
@@ -1587,7 +1587,7 @@ void cupidc_jit(const char *path) {
   if (!source)
     return;
 
-  /* Heap-allocate compiler state (~24KB — too large for stack) */
+  /* Heap-allocate compiler state (~24KB - too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
   if (!cc) {
     print("CupidC: out of memory for compiler state\n");
@@ -1664,7 +1664,7 @@ void cupidc_jit(const char *path) {
   /* Check stack health before execution */
   stack_guard_check();
 
-  /* Execute the program directly (JIT — synchronous) */
+  /* Execute the program directly (JIT - synchronous) */
   entry_fn();
 
   /* Mark program as finished (routes GUI keyboard input back to shell) */
@@ -1686,14 +1686,14 @@ void cupidc_jit(const char *path) {
         usage_peak / 1024, STACK_SIZE / 1024);
   }
 
-  /* Clean up — do NOT release the JIT region; it stays reserved */
+  /* Clean up - do NOT release the JIT region; it stays reserved */
   kfree(source);
   cc_cleanup_state(cc);
   kfree(cc);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  AOT Mode — Compile to ELF Binary
+ *  AOT Mode - Compile to ELF Binary
  * ══════════════════════════════════════════════════════════════════════ */
 
 void cupidc_aot(const char *src_path, const char *out_path) {
@@ -1704,7 +1704,7 @@ void cupidc_aot(const char *src_path, const char *out_path) {
   if (!source)
     return;
 
-  /* Heap-allocate compiler state (~24KB — too large for stack) */
+  /* Heap-allocate compiler state (~24KB - too large for stack) */
   cc_state_t *cc = kmalloc(sizeof(cc_state_t));
   if (!cc) {
     print("CupidC: out of memory for compiler state\n");

@@ -79,7 +79,7 @@ int cursor_y = 0;
 static uint32_t ticks_channel0 = 0;
 static uint32_t ticks_channel1 = 0;
 
-/* Deferred reschedule flag — set inside IRQ, checked at safe points */
+/* Deferred reschedule flag - set inside IRQ, checked at safe points */
 static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
@@ -90,7 +90,7 @@ extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
  * install_bin_programs() function.  To add a new CupidC program:
  *   1. Create bin/<name>.cc
  *   2. Run make
- * That's it — everything else is automatic. */
+ * That's it - everything else is automatic. */
 extern void install_bin_programs(void *fs_private);
 
 
@@ -107,7 +107,7 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
     if (channel == 0) {
         ticks_channel0++;
 
-        /* Mark that a reschedule is needed — the actual context switch
+        /* Mark that a reschedule is needed - the actual context switch
          * happens at a safe voluntary point (desktop_run loop / yield),
          * NOT inside the IRQ handler where stack manipulation is unsafe. */
         if (process_is_active()) {

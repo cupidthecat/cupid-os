@@ -1,5 +1,5 @@
 /**
- * cupidc_parse.c — Parser and x86 code generator for CupidC
+ * cupidc_parse.c - Parser and x86 code generator for CupidC
  *
  * Single-pass recursive descent parser that emits x86 machine code
  * directly into a code buffer.  Implements the full CupidC language:
@@ -97,7 +97,7 @@ static void emit_call_abs(cc_state_t *cc, uint32_t addr) {
   emit32(cc, (uint32_t)rel);
 }
 
-/* call relative (placeholder — returns offset of the rel32 for patching) */
+/* call relative (placeholder - returns offset of the rel32 for patching) */
 static uint32_t emit_call_rel_placeholder(cc_state_t *cc) {
   emit8(cc, 0xE8);
   uint32_t patch_pos = cc->code_pos;
@@ -105,7 +105,7 @@ static uint32_t emit_call_rel_placeholder(cc_state_t *cc) {
   return patch_pos;
 }
 
-/* jmp rel32 (unconditional) — returns offset for patching */
+/* jmp rel32 (unconditional) - returns offset for patching */
 static uint32_t emit_jmp_placeholder(cc_state_t *cc) {
   emit8(cc, 0xE9);
   uint32_t patch_pos = cc->code_pos;
@@ -113,7 +113,7 @@ static uint32_t emit_jmp_placeholder(cc_state_t *cc) {
   return patch_pos;
 }
 
-/* jcc rel32 (conditional jump) — returns offset for patching */
+/* jcc rel32 (conditional jump) - returns offset for patching */
 static uint32_t emit_jcc_placeholder(cc_state_t *cc, uint8_t cond) {
   emit8(cc, 0x0F);
   emit8(cc, cond);
@@ -623,7 +623,7 @@ static void cc_parse_primary(cc_state_t *cc);
  *  Expression Types for Tracking
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* Track what kind of value the last expression produced —
+/* Track what kind of value the last expression produced -
  * (primary statics declared above, before cc_parse_type) */
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -912,7 +912,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           uint32_t target = cc->code_base + (uint32_t)sym->offset;
           emit_call_abs(cc, target);
         } else {
-          /* Forward reference — add patch */
+          /* Forward reference - add patch */
           uint32_t patch_pos = emit_call_rel_placeholder(cc);
           if (cc->patch_count < CC_MAX_PATCHES) {
             cc_patch_t *p = &cc->patches[cc->patch_count++];
@@ -942,7 +942,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         cc_error(cc, "not a function");
       }
     } else {
-      /* Unknown function — create forward ref */
+      /* Unknown function - create forward ref */
       cc_symbol_t *fsym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
       if (fsym) {
         fsym->param_count = argc;
@@ -1770,7 +1770,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    /* Inner elements are char (1 byte) — no scaling */
+    /* Inner elements are char (1 byte) - no scaling */
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
@@ -1804,7 +1804,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
   if (assign_op.type != CC_TOK_EQ) {
     /* Compound assignment: load current value from [address] first */
-    /* address is on the stack — peek at it */
+    /* address is on the stack - peek at it */
     emit8(cc, 0x8B);
     emit8(cc, 0x04);
     emit8(cc, 0x24); /* mov eax, [esp] */
@@ -2046,7 +2046,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
       emit8(cc, 0xEC);
 
     } else {
-      /* Unknown instruction — skip to semicolon */
+      /* Unknown instruction - skip to semicolon */
       cc_error(cc, "unknown assembly instruction");
     }
 
@@ -2309,7 +2309,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     emit_push_eax(cc);
     emit_push_imm(cc, 0);
     emit_push_imm(cc, (uint32_t)alloc_size);
-    /* Call memset(addr, 0, size) — push in reverse for cdecl */
+    /* Call memset(addr, 0, size) - push in reverse for cdecl */
     /* Actually we need: memset(ptr, val, size) with ptr first */
     /* Re-order: push size, push 0, push addr */
     emit_add_esp(cc, 12); /* undo the pushes */
@@ -2457,7 +2457,7 @@ static void cc_parse_for(cc_state_t *cc) {
   }
   cc_expect(cc, CC_TOK_SEMICOLON);
 
-  /* Save increment expression position — we'll emit a jmp over it */
+  /* Save increment expression position - we'll emit a jmp over it */
   uint32_t inc_jump = emit_jmp_placeholder(cc);
   uint32_t inc_start = cc->code_pos;
 
@@ -2718,7 +2718,7 @@ static void cc_parse_statement(cc_state_t *cc) {
         emit8(cc, 0x8B);
         emit8(cc, 0x04);
         emit8(cc, 0x24);
-        /* mov eax, [esp] — reload switch val */
+        /* mov eax, [esp] - reload switch val */
         cc_token_t cval = cc_next(cc);
         if (cval.type == CC_TOK_NUMBER || cval.type == CC_TOK_CHAR_LIT) {
           emit8(cc, 0x3D); /* cmp eax, imm32 */
@@ -2895,15 +2895,15 @@ static void cc_parse_statement(cc_state_t *cc) {
           ftype = (fld->type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_PTR;
           break;
         } else {
-          /* Leaf field — next should be = */
+          /* Leaf field - next should be = */
           break;
         }
       }
       /* Expect assignment operator */
       cc_token_t assign_op = cc_peek(cc);
       if (!cc_is_assignment_op(assign_op.type)) {
-        /* Not an assignment — this is an expression statement */
-        /* (e.g., s.func_ptr(args);) — dereference and discard */
+        /* Not an assignment - this is an expression statement */
+        /* (e.g., s.func_ptr(args);) - dereference and discard */
         if (ftype == TYPE_CHAR)
           emit_deref_byte(cc);
         else if (ftype != TYPE_STRUCT)
@@ -3120,7 +3120,7 @@ static void cc_parse_function(cc_state_t *cc) {
 
   /* Reserve space for locals (we'll patch this after parsing the body) */
   uint32_t sub_esp_pos = cc->code_pos;
-  emit_sub_esp(cc, 256); /* placeholder — generous allocation */
+  emit_sub_esp(cc, 256); /* placeholder - generous allocation */
 
   /* Parse body */
   cc_expect(cc, CC_TOK_LBRACE);
@@ -3178,7 +3178,7 @@ void cc_parse_program(cc_state_t *cc) {
     /* ── Enum definition: enum { A, B = 5, C }; ─────────────── */
     if (tok.type == CC_TOK_ENUM) {
       cc_next(cc); /* consume 'enum' */
-      /* Optional enum name (ignored — we just create constants) */
+      /* Optional enum name (ignored - we just create constants) */
       if (cc_peek(cc).type == CC_TOK_IDENT) {
         cc_next(cc); /* consume optional name */
       }
@@ -3380,7 +3380,7 @@ void cc_parse_program(cc_state_t *cc) {
         continue;
       }
       /* Otherwise fall through: struct Name used as a type for
-       * a function return or global variable — handled below */
+       * a function return or global variable - handled below */
     }
 
     if (cc_is_type_or_typedef(cc, tok)) {

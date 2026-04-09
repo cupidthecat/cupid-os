@@ -1137,7 +1137,7 @@ int fat16_mkdir(const char *dirname) {
         fat16_dir_entry_t *entries = (fat16_dir_entry_t *)buffer;
         for (int i = 0; i < 16; i++) {
             if (entries[i].filename[0] == 0x00) {
-                /* End-of-directory marker — record free slot and stop scan */
+                /* End-of-directory marker - record free slot and stop scan */
                 if (free_sector < 0) { free_sector = (int)sector; free_index = i; }
                 goto scan_done;
             }
@@ -1178,14 +1178,14 @@ scan_done:
         memset(first, 0, 512);
         fat16_dir_entry_t *dot = (fat16_dir_entry_t *)first;
 
-        /* '.' — points to this directory */
+        /* '.' - points to this directory */
         memset(dot[0].filename, ' ', 8);
         memset(dot[0].ext,      ' ', 3);
         dot[0].filename[0] = '.';
         dot[0].attributes  = FAT_ATTR_DIRECTORY;
         dot[0].first_cluster = cluster;
 
-        /* '..' — points to root (cluster 0 in FAT16 root) */
+        /* '..' - points to root (cluster 0 in FAT16 root) */
         memset(dot[1].filename, ' ', 8);
         memset(dot[1].ext,      ' ', 3);
         dot[1].filename[0] = '.';

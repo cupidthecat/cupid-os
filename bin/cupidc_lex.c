@@ -1,5 +1,5 @@
 /**
- * cupidc_lex.c — Lexer for the CupidC compiler
+ * cupidc_lex.c - Lexer for the CupidC compiler
  *
  * Tokenizes CupidC source code into a stream of tokens.
  * Handles keywords, identifiers, integer literals (decimal & hex),

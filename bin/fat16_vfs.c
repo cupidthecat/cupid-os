@@ -1,5 +1,5 @@
 /**
- * fat16_vfs.c — FAT16 VFS wrapper for CupidOS
+ * fat16_vfs.c - FAT16 VFS wrapper for CupidOS
  *
  * Wraps the existing FAT16 driver (root-directory-only flat namespace)
  * into the VFS filesystem operations interface.
@@ -51,7 +51,7 @@ typedef struct {
  * ══════════════════════════════════════════════════════════════════════ */
 
 /**
- * Callback for fat16_enumerate_root — collects entries into context.
+ * Callback for fat16_enumerate_root - collects entries into context.
  */
 static int fat16_vfs_enum_cb(const char *name, uint32_t size,
                              uint8_t attr, void *ctx) {
@@ -148,7 +148,7 @@ static int fat16_vfs_open(void *fs_private, const char *path,
 
     /* Create a new file? */
     if (flags & O_CREAT) {
-        /* For create, attempt open first — if fails, write empty file */
+        /* For create, attempt open first - if fails, write empty file */
         fat16_file_t *f = fat16_open(name);
         if (!f) {
             uint8_t empty = 0;
@@ -284,7 +284,7 @@ static int fat16_vfs_write(void *file_handle, const void *buffer,
     /* Allocate or grow write buffer as needed */
     uint32_t needed = h->write_len + count;
     if (!h->write_buf) {
-        /* Initial allocation — round up to 512 boundary */
+        /* Initial allocation - round up to 512 boundary */
         h->write_cap = (needed + 511) & ~(uint32_t)511;
         if (h->write_cap < 1024) h->write_cap = 1024;
         h->write_buf = kmalloc(h->write_cap);
@@ -313,7 +313,7 @@ static int fat16_vfs_seek(void *file_handle, int32_t offset, int whence) {
     fat16_vfs_handle_t *h = (fat16_vfs_handle_t *)file_handle;
     if (!h || !h->fat_file || h->is_dir) return VFS_EINVAL;
 
-    /* FAT16 driver doesn't have seek — manually adjust position */
+    /* FAT16 driver doesn't have seek - manually adjust position */
     fat16_file_t *f = h->fat_file;
     int32_t new_pos;
     switch (whence) {

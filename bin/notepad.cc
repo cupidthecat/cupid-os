@@ -57,6 +57,12 @@ int hb_drag_off;
 char file_buf[32768];
 char clip_buf[4096];
 
+char gs_vocab[65536];
+int gs_vocab_len;
+int gs_vocab_loaded;
+int gs_seed;
+int gs_phrase_active;
+
 int COL_BG;
 int COL_TEXT;
 int COL_CURSOR;
@@ -68,6 +74,105 @@ int COL_STATUSBAR;
 int COL_STATUS_TEXT;
 int COL_SCROLLBAR;
 int COL_THUMB;
+
+int np_gs_rand() {
+  gs_seed = gs_seed * 1103515245 + 12345;
+  return (gs_seed >> 1) & 0x7FFFFFFF;
+}
+
+void np_gs_seed_once() {
+  if (gs_seed == 0) {
+    int t = uptime_ms();
+    gs_seed = t ^ 0x5EEDC0DE;
+    if (gs_seed == 0) gs_seed = 1;
+  }
+}
+
+int np_gs_load_vocab() {
+  if (gs_vocab_loaded) return gs_vocab_len > 0;
+  gs_vocab_len = vfs_read_text("/god/Vocab.DD", gs_vocab, 65535);
+  if (gs_vocab_len <= 0) {
+    gs_vocab_loaded = 1;
+    gs_vocab_len = 0;
+    return 0;
+  }
+  gs_vocab[gs_vocab_len] = 0;
+  gs_vocab_loaded = 1;
+  return 1;
+}
+
+int np_gs_pick_word(char *out, int out_max) {
+  int i = 0;
+  int seen = 0;
+  int pick_start = -1;
+  int pick_len = 0;
+
+  if (out_max < 2) return 0;
+  if (!np_gs_load_vocab()) return 0;
+
+  while (i < gs_vocab_len) {
+    int ls = i;
+    int le = i;
+
+    while (le < gs_vocab_len && gs_vocab[le] != 10 && gs_vocab[le] != 13) {
+      le = le + 1;
+    }
+
+    if (le > ls) {
+      seen = seen + 1;
+      if ((np_gs_rand() % seen) == 0) {
+        pick_start = ls;
+        pick_len = le - ls;
+      }
+    }
+
+    i = le;
+    while (i < gs_vocab_len && (gs_vocab[i] == 10 || gs_vocab[i] == 13)) {
+      i = i + 1;
+    }
+  }
+
+  if (pick_start < 0 || pick_len <= 0) return 0;
+  if (pick_len > out_max - 1) pick_len = out_max - 1;
+
+  i = 0;
+  while (i < pick_len) {
+    out[i] = gs_vocab[pick_start + i];
+    i = i + 1;
+  }
+  out[pick_len] = 0;
+  return 1;
+}
+
+void np_gs_insert_word() {
+  char word[128];
+  int i;
+  char *prefix = "Cupid says: ";
+
+  np_gs_seed_once();
+  if (!np_gs_pick_word(word, 128)) return;
+
+  save_undo();
+  if (sel_active) delete_selection();
+
+  if (!gs_phrase_active) {
+    i = 0;
+    while (prefix[i]) {
+      insert_char(prefix[i]);
+      i = i + 1;
+    }
+  }
+
+  i = 0;
+  while (word[i]) {
+    insert_char(word[i]);
+    i = i + 1;
+  }
+  insert_char(' ');
+  gs_phrase_active = 1;
+}
+
+void np_gs_reset_phrase() { gs_phrase_active = 0; }
 
 void np_strcpy(char *dst, char *src, int max) {
   int i = 0;
@@ -1290,10 +1395,18 @@ void handle_key(int sc, int ch) {
   blink_ms = uptime_ms();
 
   if (sc == 1) {
+    np_gs_reset_phrase();
     active_menu = -1;
     clear_sel();
     return;
   }
+
+  if (sc == 65) {
+    np_gs_insert_word();
+    return;
+  }
+
+  np_gs_reset_phrase();
 
   if (ctrl) {
     int k_n = (lo == 'n' || sc == 49);
