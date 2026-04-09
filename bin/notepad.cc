@@ -84,6 +84,12 @@ int np_strlen(char *s) {
   return n;
 }
 
+int np_strcmp(char *a, char *b) {
+  int i = 0;
+  while (a[i] && b[i] && a[i] == b[i]) i = i + 1;
+  return a[i] - b[i];
+}
+
 int np_tolower(int ch) {
   if (ch >= 65 && ch <= 90) return ch + 32;
   return ch;
@@ -175,6 +181,94 @@ void np_path_join(char *base, char *name, char *out, int max) {
   }
   out[oi] = 0;
   np_strcpy(out + oi, name, max - oi);
+}
+
+void np_dirname(char *path, char *out, int max) {
+  int slash = -1;
+  int i = 0;
+  if (max < 2) return;
+  if (path == 0 || path[0] == 0) {
+    out[0] = 47;
+    out[1] = 0;
+    return;
+  }
+  while (path[i]) {
+    if (path[i] == 47) slash = i;
+    i = i + 1;
+  }
+  if (slash <= 0) {
+    out[0] = 47;
+    out[1] = 0;
+    return;
+  }
+  if (slash >= max) slash = max - 1;
+  i = 0;
+  while (i < slash) {
+    out[i] = path[i];
+    i = i + 1;
+  }
+  out[i] = 0;
+}
+
+void np_basename(char *path, char *out, int max) {
+  int start = 0;
+  int i = 0;
+  if (max < 1) return;
+  if (path == 0 || path[0] == 0) {
+    out[0] = 0;
+    return;
+  }
+  while (path[i]) {
+    if (path[i] == 47) start = i + 1;
+    i = i + 1;
+  }
+  np_strcpy(out, path + start, max);
+}
+
+void current_dialog_dir(char *out, int max) {
+  if (save_path_alt[0]) {
+    np_dirname(save_path_alt, out, max);
+    return;
+  }
+  if (filename[0]) {
+    np_dirname(filename, out, max);
+    return;
+  }
+  np_strcpy(out, "/home", max);
+}
+
+void current_dialog_name(char *out, int max) {
+  if (save_path_alt[0]) {
+    np_basename(save_path_alt, out, max);
+    if (out[0]) return;
+  }
+  if (filename[0]) {
+    np_basename(filename, out, max);
+    if (out[0]) return;
+  }
+  np_strcpy(out, "untitled.txt", max);
+}
+
+int build_buffer_text() {
+  int ci = 0;
+  int li = 0;
+  while (li < line_count && ci < 32766) {
+    char *lp = lines[li];
+    int ll = line_lens[li];
+    int j = 0;
+    while (j < ll && ci < 32766) {
+      file_buf[ci] = lp[j];
+      ci = ci + 1;
+      j = j + 1;
+    }
+    if (li + 1 < line_count && ci < 32766) {
+      file_buf[ci] = 10;
+      ci = ci + 1;
+    }
+    li = li + 1;
+  }
+  file_buf[ci] = 0;
+  return ci;
 }
 
 int np_try_open_candidate(char *candidate) {
@@ -852,11 +946,8 @@ void do_new() {
 
 void parse_ctxt_if_needed() {
   if (!is_ctxt) return;
-  int n = vfs_read_text(filename, file_buf, 32767);
-  if (n > 0) {
-    file_buf[n] = 0;
-    ctxt_parse(file_buf, n);
-  }
+  int n = build_buffer_text();
+  ctxt_parse(file_buf, n);
 }
 
 void load_file(char *path) {
@@ -909,6 +1000,7 @@ void load_file(char *path) {
   modified = 0;
   clear_sel();
   np_strcpy(filename, path, 256);
+  save_path_alt[0] = 0;
   is_ctxt = ends_with_ctxt(path);
   render_mode = is_ctxt;
   ctxt_sy = 0;
@@ -917,39 +1009,37 @@ void load_file(char *path) {
 }
 
 void save_file(char *path) {
-  int ci = 0;
-  int li = 0;
-  while (li < line_count && ci < 32700) {
-    char *lp = lines[li];
-    int ll = line_lens[li];
-    int j = 0;
-    while (j < ll && ci < 32700) {
-      file_buf[ci] = lp[j];
-      ci = ci + 1;
-      j = j + 1;
-    }
-    file_buf[ci] = 10;
-    ci = ci + 1;
-    li = li + 1;
-  }
-  file_buf[ci] = 0;
+  int ci = build_buffer_text();
   vfs_write_text(path, file_buf);
+  np_strcpy(filename, path, 256);
+  if (save_path_alt[0] && np_strcmp(save_path_alt, path) == 0) {
+    save_path_alt[0] = 0;
+  }
   modified = 0;
   parse_ctxt_if_needed();
 }
 
 void do_open() {
+  char start[256];
   char out[256];
+  current_dialog_dir(start, 256);
   out[0] = 0;
-  int ok = file_dialog_open("/", out, "");
-  if (ok && out[0]) load_file(out);
+  int ok = file_dialog_open(start, out, "");
+  if (ok && out[0]) {
+    load_file(out);
+    save_path_alt[0] = 0;
+  }
 }
 
 void do_save() {
   if (filename[0] == 0) {
+    char start[256];
+    char suggest[256];
     char out[256];
+    current_dialog_dir(start, 256);
+    current_dialog_name(suggest, 256);
     out[0] = 0;
-    int ok = file_dialog_save("/", "untitled.txt", out, "");
+    int ok = file_dialog_save(start, suggest, out, "");
     if (!ok || !out[0]) return;
     np_strcpy(filename, out, 256);
   }
@@ -958,10 +1048,15 @@ void do_save() {
 }
 
 void do_save_as() {
+  char start[256];
+  char suggest[256];
   char out[256];
+  current_dialog_dir(start, 256);
+  current_dialog_name(suggest, 256);
   out[0] = 0;
-  int ok = file_dialog_save("/", filename, out, "");
+  int ok = file_dialog_save(start, suggest, out, "");
   if (!ok || !out[0]) return;
+  save_path_alt[0] = 0;
   np_strcpy(filename, out, 256);
   save_file(filename);
 }
@@ -1191,6 +1286,9 @@ void handle_key(int sc, int ch) {
   int ctrl = keyboard_ctrl_held();
   int lo = np_tolower(ch);
 
+  cursor_on = 1;
+  blink_ms = uptime_ms();
+
   if (sc == 1) {
     active_menu = -1;
     clear_sel();
@@ -1275,6 +1373,11 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
     left_released = mouse_lmb_latch;
     mouse_lmb_latch = 0;
     left_held = 0;
+  }
+
+  if (left_clicked || left_held) {
+    cursor_on = 1;
+    blink_ms = uptime_ms();
   }
   int menu_y = cy;
 
@@ -1528,6 +1631,26 @@ void main() {
   should_close = 0;
 
   save_path_alt[0] = 0;
+  {
+    char open_path[256];
+    char save_path[256];
+    open_path[0] = 0;
+    save_path[0] = 0;
+    notepad_get_open_path(open_path, save_path);
+
+    if (save_path[0] && np_readable_file(save_path)) {
+      load_file(save_path);
+    } else if (open_path[0]) {
+      load_file(open_path);
+    }
+
+    if (save_path[0]) {
+      np_strcpy(filename, save_path, 256);
+      save_path_alt[0] = 0;
+      is_ctxt = ends_with_ctxt(filename);
+      if (render_mode && is_ctxt) parse_ctxt_if_needed();
+    }
+  }
 
   while (gui_win_is_open(win)) {
     if (should_close) {
@@ -1541,12 +1664,14 @@ void main() {
       continue;
     }
 
-    int cx = gui_win_content_x(win);
-    int cy = gui_win_content_y(win);
+    int screen_cx = gui_win_content_x(win);
+    int screen_cy = gui_win_content_y(win);
+    int cx = 0;
+    int cy = 0;
     int cw = gui_win_content_w(win);
     int ch_h = gui_win_content_h(win);
 
-    gui_win_draw_frame(win);
+    int dirty = 0;
 
     int rows = get_rows(ch_h);
     int cols = get_cols(cw - 12);
@@ -1556,12 +1681,16 @@ void main() {
       int sc = (key >> 8) & 255;
       int ch = key & 255;
       handle_key(sc, ch);
+      dirty = 1;
       key = gui_win_poll_key(win);
     }
 
     {
       int delta = mouse_scroll();
       if (delta != 0) {
+        cursor_on = 1;
+        blink_ms = uptime_ms();
+        dirty = 1;
         int use_x = key_shift_held();
         if (render_mode && is_ctxt) {
           if (use_x) {
@@ -1585,7 +1714,31 @@ void main() {
 
     clamp_scroll_state(ch_h, cw);
 
-    handle_mouse(mouse_x(), mouse_y(), mouse_buttons(), cx, cy, cw, ch_h);
+    {
+      int old_buttons = prev_buttons;
+      handle_mouse(mouse_x() - screen_cx, mouse_y() - screen_cy,
+                   mouse_buttons(), cx, cy, cw, ch_h);
+      if (mouse_buttons() != old_buttons || drag_sel || sb_dragging || hb_dragging || active_menu >= 0) {
+        dirty = 1;
+      }
+    }
+
+    /* Blink cursor BEFORE drawing so the rendered state is consistent */
+    if (uptime_ms() - blink_ms > 500) {
+      cursor_on = 1 - cursor_on;
+      blink_ms = uptime_ms();
+      dirty = 1;
+    }
+
+    if (!dirty) {
+      yield();
+      continue;
+    }
+
+    if (gui_win_begin_paint(win) != 0) {
+      yield();
+      continue;
+    }
 
     ensure_cursor_visible(rows, cols);
     clamp_scroll_state(ch_h, cw);
@@ -1594,12 +1747,8 @@ void main() {
     draw_status(cx, cy, cw, ch_h);
     draw_menu(cx, cy, cw);
 
-    if (uptime_ms() - blink_ms > 500) {
-      cursor_on = 1 - cursor_on;
-      blink_ms = uptime_ms();
-    }
-
-    gui_win_flip(win);
+    gui_win_end_paint(win);
+    gui_win_present(win);
     yield();
   }
 

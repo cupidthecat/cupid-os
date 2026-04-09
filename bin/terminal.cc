@@ -77,8 +77,8 @@ void main() {
     }
 
     {
-      int cx = gui_win_content_x(win);
-      int cy = gui_win_content_y(win);
+      int cx = 0;
+      int cy = 0;
       int cw = gui_win_content_w(win);
       int ch = gui_win_content_h(win);
       int cell = 8 * scale;
@@ -99,6 +99,11 @@ void main() {
       int rows_pad = inner_h / cell;
       if (cols_pad > cols) cols_pad = cols;
       if (rows_pad > rows) rows_pad = rows;
+
+      if (gui_win_begin_paint(win) != 0) {
+        yield();
+        continue;
+      }
 
       gfx2d_rect_fill(cx, cy, cw, ch, 0x001E1E1E);
 
@@ -140,6 +145,8 @@ void main() {
           gfx2d_rect_fill(px, py, 3, cell, ansi_color(7));
         }
       }
+
+      gui_win_end_paint(win);
     }
 
     {
@@ -150,8 +157,7 @@ void main() {
       }
     }
 
-    gui_win_draw_frame(win);
-    gui_win_flip(win);
+    gui_win_present(win);
     yield();
   }
 

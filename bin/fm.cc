@@ -754,8 +754,10 @@ void main() {
     int left_click = (btns & 1) && !(prev_buttons & 1);
     int right_click = (btns & 2) && !(prev_buttons & 2);
 
-    int cx = gui_win_content_x(win);
-    int cy = gui_win_content_y(win);
+    int screen_cx = gui_win_content_x(win);
+    int screen_cy = gui_win_content_y(win);
+    int cx = 0;
+    int cy = 0;
     int cw = gui_win_content_w(win);
     int ch = gui_win_content_h(win);
 
@@ -764,11 +766,9 @@ void main() {
     view_w = cw;
     view_h = ch;
 
-    int lmx = mx - cx;
-    int lmy = my - cy;
+    int lmx = mx - screen_cx;
+    int lmy = my - screen_cy;
     int in_content = (lmx >= 0 && lmx < cw && lmy >= 0 && lmy < ch) ? 1 : 0;
-
-    gui_win_draw_frame(win);
 
     if (can_draw) {
       /* Keyboard */
@@ -878,8 +878,11 @@ void main() {
 
     prev_buttons = btns;
 
-    fm_render(cx, cy, cw, ch, lmx, lmy, can_draw && left_click && in_content);
-    gui_win_flip(win);
+    if (gui_win_begin_paint(win) == 0) {
+      fm_render(cx, cy, cw, ch, lmx, lmy, left_click && in_content);
+      gui_win_end_paint(win);
+      gui_win_present(win);
+    }
 
     frame_count = frame_count + 1;
     yield();
