@@ -123,9 +123,14 @@ void timer_init(uint32_t hz) {
 // Get the current tick count
 uint64_t timer_get_ticks(void) {
     uint64_t ticks;
-    __asm__ volatile("cli");  // Disable interrupts
+    /*
+     * Preserve the caller's interrupt state instead of forcing IF=1.
+     * Early boot code queries uptime before the IDT/PIC are ready, and an
+     * unconditional STI here can trigger a fault long before init completes.
+     */
+    __asm__ volatile("pushf\n\tcli" ::: "memory");
     ticks = timer_state.ticks;
-    __asm__ volatile("sti");  // Enable interrupts
+    __asm__ volatile("popf" ::: "memory");
     return ticks;
 }
 
@@ -136,10 +141,7 @@ uint32_t timer_get_frequency(void) {
 
 // Get system uptime in milliseconds
 uint32_t timer_get_uptime_ms(void) {
-    // Safely get current tick count
-    __asm__ volatile("cli");
     uint64_t current_ticks = timer_get_ticks();
-    __asm__ volatile("sti");
 
     if (timer_state.frequency == 0) {
         return 0;

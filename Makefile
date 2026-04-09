@@ -2,6 +2,7 @@
 .SUFFIXES:
 ASM=nasm
 CC=gcc
+BOOT_STAGE2_SECTORS=4
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
 	-mno-mmx -mno-sse -mno-sse2 -msoft-float \
@@ -44,6 +45,7 @@ FAT_START_LBA ?= 4096
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
+BOOTLOADER_BYTES := $(shell expr \( 1 + $(BOOT_STAGE2_SECTORS) \) \* 512)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
@@ -84,6 +86,7 @@ all: $(OS_IMAGE)
 # Compile bootloader
 $(BOOTLOADER): boot/boot.asm
 	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
+	@test "$$(stat -c%s $(BOOTLOADER))" -eq "$(BOOTLOADER_BYTES)"
 
 # Compile C source files
 kernel/kernel.o: kernel/kernel.c kernel/kernel.h kernel/cpu.h
@@ -442,13 +445,29 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
 	fi
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=$(BOOT_STAGE2_SECTORS)
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
-run: $(OS_IMAGE)
+.PHONY: image-sync
+image-sync: $(KERNEL)
+	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
+	@test "$$(stat -c%s $(BOOTLOADER))" -eq "$(BOOTLOADER_BYTES)"
+	@if [ ! -f $(OS_IMAGE) ]; then \
+		echo "[make] Creating new persistent image $(OS_IMAGE) ($(HDD_MB)MB)"; \
+		dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
+		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
+		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
+	else \
+		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+	fi
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=$(BOOT_STAGE2_SECTORS)
+	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+
+run: image-sync
 	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
-run-log: $(OS_IMAGE)
+run-log: image-sync
 	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
