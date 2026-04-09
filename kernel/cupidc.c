@@ -14,6 +14,7 @@
 #include "../drivers/mouse.h"
 #include "../drivers/rtc.h"
 #include "../drivers/serial.h"
+#include "../drivers/speaker.h"
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "blockcache.h"
@@ -875,6 +876,13 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_inb)(uint32_t) = cc_inb;
   BIND("inb", p_inb, 1);
 
+  /* PC speaker */
+  void (*p_pc_speaker_on)(uint32_t) = pc_speaker_on;
+  BIND("pc_speaker_on", p_pc_speaker_on, 1);
+
+  void (*p_pc_speaker_off)(void) = pc_speaker_off;
+  BIND("pc_speaker_off", p_pc_speaker_off, 0);
+
   /* VFS file operations */
   int (*p_vfs_open)(const char *, uint32_t) = vfs_open;
   BIND("vfs_open", p_vfs_open, 2);
@@ -971,6 +979,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   /* Timer */
   uint32_t (*p_uptime)(void) = timer_get_uptime_ms;
   BIND("uptime_ms", p_uptime, 0);
+
+  void (*p_sleep_ms)(uint32_t) = timer_sleep_ms;
+  BIND("sleep_ms", p_sleep_ms, 1);
 
   /* RTC - individual field accessors */
   int (*p_rtc_hour)(void) = cc_rtc_hour;
