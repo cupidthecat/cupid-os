@@ -37,15 +37,15 @@ cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a 
 
 ## VFS Layer
 
-The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications — shell, notepad, program loader — use VFS calls exclusively.
+The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications - shell, notepad, program loader - use VFS calls exclusively.
 
 ### Features
 
-- **Mount table** — up to 16 simultaneous mount points
-- **File descriptor table** — up to 64 open files
-- **Path resolution** — longest-prefix match finds the correct filesystem
-- **Current working directory** — shell tracks CWD for relative paths
-- **Pluggable backends** — any filesystem implementing `vfs_fs_ops_t` can be mounted
+- **Mount table** - up to 16 simultaneous mount points
+- **File descriptor table** - up to 64 open files
+- **Path resolution** - longest-prefix match finds the correct filesystem
+- **Current working directory** - shell tracks CWD for relative paths
+- **Pluggable backends** - any filesystem implementing `vfs_fs_ops_t` can be mounted
 
 ### Mount Points
 
@@ -61,13 +61,13 @@ The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file
 
 ```
 /                        (RamFS root)
-├── bin/                 (system programs — future)
+├── bin/                 (system programs - future)
 ├── tmp/                 (temporary files)
-├── home/                (FAT16 — persistent user files on disk)
+├── home/                (FAT16 - persistent user files on disk)
 │   ├── HELLO.TXT
 │   ├── SCRIPT.CUP
 │   └── ...
-└── dev/                 (DevFS — device special files)
+└── dev/                 (DevFS - device special files)
     ├── null             (discard sink / EOF source)
     ├── zero             (infinite zero bytes)
     ├── random           (pseudo-random bytes)
@@ -106,12 +106,12 @@ The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file
 
 When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
-1. **Longest prefix match** — scan mount table for best match
+1. **Longest prefix match** - scan mount table for best match
    - `/home` matches → FAT16 filesystem
-2. **Calculate relative path** — strip mount prefix
+2. **Calculate relative path** - strip mount prefix
    - `/home/README.TXT` → `README.TXT`
-3. **Call filesystem driver** — `fat16_vfs_open(fs_data, "README.TXT", ...)`
-4. **Allocate file descriptor** — wrap in VFS fd and return to caller
+3. **Call filesystem driver** - `fat16_vfs_open(fs_data, "README.TXT", ...)`
+4. **Allocate file descriptor** - wrap in VFS fd and return to caller
 
 ### Error Codes
 
@@ -472,7 +472,7 @@ Hello World
 The Notepad application uses VFS for its file dialog, open, and save operations:
 
 - **File dialog** browses VFS directories starting at `/home`
-- **Directory navigation** — click directories or press Enter to navigate into them; `..` goes up
+- **Directory navigation** - click directories or press Enter to navigate into them; `..` goes up
 - **Double-click** a file to open it, or a directory to enter it
 - **Open** reads file contents via `vfs_open()` / `vfs_read()` / `vfs_close()`
 - **Save** writes via `vfs_open(O_WRONLY | O_CREAT | O_TRUNC)` / `vfs_write()` / `vfs_close()`
@@ -517,7 +517,7 @@ qemu-system-i386 -hda disk.img -serial stdio ...
 
 ## See Also
 
-- [Architecture](Architecture) — How the filesystem fits into the system
-- [CupidScript](CupidScript) — Running `.cup` scripts from disk
-- [Shell Commands](Shell-Commands) — Full command reference
-- [Debugging](Debugging) — Serial logging from filesystem operations
+- [Architecture](Architecture) - How the filesystem fits into the system
+- [CupidScript](CupidScript) - Running `.cup` scripts from disk
+- [Shell Commands](Shell-Commands) - Full command reference
+- [Debugging](Debugging) - Serial logging from filesystem operations

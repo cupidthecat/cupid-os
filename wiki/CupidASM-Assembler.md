@@ -1,6 +1,6 @@
 # CupidASM Assembler
 
-CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It assembles Intel-syntax `.asm` source files to native machine code and can either execute them immediately (JIT) or produce ELF32 binaries on disk (AOT). Like CupidC, JIT programs run in ring 0 with full kernel access — no restrictions.
+CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It assembles Intel-syntax `.asm` source files to native machine code and can either execute them immediately (JIT) or produce ELF32 binaries on disk (AOT). Like CupidC, JIT programs run in ring 0 with full kernel access - no restrictions.
 
 ---
 
@@ -13,7 +13,7 @@ CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It asse
 | Assembler type | Single-pass with forward-reference patch table |
 | Calling convention | cdecl |
 | Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
-| Privilege level | Ring 0 — full system access |
+| Privilege level | Ring 0 - full system access |
 | Source extension | `.asm` |
 | Code size limit | 128 KB |
 | Data size limit | 32 KB |
@@ -28,7 +28,7 @@ CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It asse
 
 ## Getting Started
 
-### JIT Mode — Assemble and Run Instantly
+### JIT Mode - Assemble and Run Instantly
 
 ```
 > as demos/hello.asm
@@ -42,7 +42,7 @@ You can also run `.asm` files directly with `./`:
 > ./demos/hello.asm
 ```
 
-### AOT Mode — Assemble to ELF Binary
+### AOT Mode - Assemble to ELF Binary
 
 Using the `as` command with `-o`:
 
@@ -129,7 +129,7 @@ CupidASM uses the **cdecl** calling convention:
 ### Function Example
 
 ```asm
-; add_numbers(a, b) — returns a + b in eax
+; add_numbers(a, b) - returns a + b in eax
 add_numbers:
     push ebp
     mov  ebp, esp
@@ -261,9 +261,9 @@ section .data
 
 | Instruction | Description | Condition |
 |-------------|-------------|-----------|
-| `jmp` | Unconditional jump | — |
-| `call` | Call function | — |
-| `ret` | Return from function | — |
+| `jmp` | Unconditional jump | - |
+| `call` | Call function | - |
+| `ret` | Return from function | - |
 | `je` / `jz` | Jump if equal / zero | ZF=1 |
 | `jne` / `jnz` | Jump if not equal / not zero | ZF=0 |
 | `jl` | Jump if less (signed) | SF≠OF |
@@ -584,7 +584,7 @@ multiply(6, 7) = 42
 ## Complete Example: Bubble Sort
 
 ```asm
-; bubblesort.asm — Bubble sort on an integer array
+; bubblesort.asm - Bubble sort on an integer array
 section .data
     arr     dd 5, 3, 8, 1, 9, 2, 7, 4
     count   dd 8
@@ -595,7 +595,7 @@ section .data
 
 section .text
 
-; print_array() — prints all elements
+; print_array() - prints all elements
 print_array:
     push ebp
     mov  ebp, esp
@@ -627,7 +627,7 @@ print_array:
     pop  ebp
     ret
 
-; bubble_sort() — sorts arr[] in place
+; bubble_sort() - sorts arr[] in place
 bubble_sort:
     push ebp
     mov  ebp, esp
@@ -729,9 +729,9 @@ main:
 ## Tips
 
 - **Entry point**: Every program needs a `main:` or `_start:` label.
-- **Return from main**: Use `ret` to return control to the shell. Don't `hlt` — that stops the whole OS.
-- **Preserve registers**: If you call kernel functions, save `ecx` and `edx` first — they may be clobbered.
+- **Return from main**: Use `ret` to return control to the shell. Don't `hlt` - that stops the whole OS.
+- **Preserve registers**: If you call kernel functions, save `ecx` and `edx` first - they may be clobbered.
 - **Null-terminate strings**: All strings passed to `print` must end with `0`.
 - **Clean the stack**: After `call`, always `add esp, N` where N = number of bytes pushed as arguments.
-- **Forward references**: Labels can be referenced before they're defined — the assembler patches them automatically.
+- **Forward references**: Labels can be referenced before they're defined - the assembler patches them automatically.
 - **Case insensitive**: Mnemonics and register names are case-insensitive (`MOV EAX, 1` works).

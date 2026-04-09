@@ -87,8 +87,8 @@ Every allocation from `kmalloc()` is wrapped with canary values:
 └─────────────┴──────────────────┴─────────────┘
 ```
 
-- **Head canary**: `0xDEADBEEF` — placed before user data
-- **Tail canary**: `0xBEEFDEAD` — placed after user data
+- **Head canary**: `0xDEADBEEF` - placed before user data
+- **Tail canary**: `0xBEEFDEAD` - placed after user data
 - Checked on every `kfree()` call
 - Buffer overflows and underflows corrupt canaries → detected and reported
 
@@ -272,6 +272,6 @@ If the condition is false → kernel panic with file, line, and message.
 
 ## See Also
 
-- [Architecture](Architecture) — System memory layout
-- [Process Management](Process-Management) — Stack canaries and process table
-- [Shell Commands](Shell-Commands) — Full command reference
+- [Architecture](Architecture) - System memory layout
+- [Process Management](Process-Management) - Stack canaries and process table
+- [Shell Commands](Shell-Commands) - Full command reference

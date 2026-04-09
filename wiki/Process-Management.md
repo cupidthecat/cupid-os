@@ -227,6 +227,6 @@ Killing PID 4...
 
 ## See Also
 
-- [Architecture](Architecture) — How the scheduler fits into the system
-- [Desktop Environment](Desktop-Environment) — Desktop as PID 2
-- [Debugging](Debugging) — Stack traces and crash testing
+- [Architecture](Architecture) - How the scheduler fits into the system
+- [Desktop Environment](Desktop-Environment) - Desktop as PID 2
+- [Debugging](Debugging) - Stack traces and crash testing

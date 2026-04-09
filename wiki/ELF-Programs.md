@@ -1,6 +1,6 @@
 # ELF Programs
 
-CupidOS supports loading and running standard **ELF32 i386** executables compiled with GCC or Clang. Programs run as kernel threads in ring 0 and access kernel services through a **syscall table** — a struct of function pointers passed to the program's `_start()` entry point.
+CupidOS supports loading and running standard **ELF32 i386** executables compiled with GCC or Clang. Programs run as kernel threads in ring 0 and access kernel services through a **syscall table** - a struct of function pointers passed to the program's `_start()` entry point.
 
 ---
 
@@ -106,7 +106,7 @@ Hello from an ELF program!
 
 ### Memory Model
 
-CupidOS uses a **flat 32 MB identity-mapped** address space. ELF programs are loaded directly at the virtual addresses specified in their program headers — no address translation needed.
+CupidOS uses a **flat 32 MB identity-mapped** address space. ELF programs are loaded directly at the virtual addresses specified in their program headers - no address translation needed.
 
 ```
 Physical / Virtual Memory (32 MB identity-mapped):
@@ -178,10 +178,10 @@ To add a new program:
 
 Every ELF program must:
 
-1. **Include `cupid.h`** — provides types, constants, and wrapper functions
-2. **Implement `_start(cupid_syscall_table_t *sys)`** — the entry point
-3. **Call `cupid_init(sys)`** — stores the syscall table pointer globally
-4. **Call `exit()` when done** — cleans up the process
+1. **Include `cupid.h`** - provides types, constants, and wrapper functions
+2. **Implement `_start(cupid_syscall_table_t *sys)`** - the entry point
+3. **Call `cupid_init(sys)`** - stores the syscall table pointer globally
+4. **Call `exit()` when done** - cleans up the process
 
 ```c
 #include "cupid.h"
@@ -302,7 +302,7 @@ typedef struct {
 
 ## Example Programs
 
-### hello.c — Hello World
+### hello.c - Hello World
 
 ```c
 #include "cupid.h"
@@ -325,7 +325,7 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-### ls.c — Directory Listing
+### ls.c - Directory Listing
 
 ```c
 #include "cupid.h"
@@ -366,7 +366,7 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-### cat.c — Display File Contents
+### cat.c - Display File Contents
 
 ```c
 #include "cupid.h"
@@ -493,7 +493,7 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 - ❌ ELF64 (64-bit)
 - ❌ Non-i386 architectures
 - ❌ Command-line arguments (programs can't receive argc/argv)
-- ❌ Standard C library (no libc — use syscall table wrappers)
+- ❌ Standard C library (no libc - use syscall table wrappers)
 - ❌ Multiple ELF programs at the same link address simultaneously
 
 ### Constraints
@@ -511,7 +511,7 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 
 ## See Also
 
-- [Filesystem](Filesystem) — VFS, mount points, FAT16 disk I/O
-- [Process Management](Process-Management) — Scheduler, context switching
-- [Shell Commands](Shell-Commands) — `exec` command reference
-- [Architecture](Architecture) — System memory layout
+- [Filesystem](Filesystem) - VFS, mount points, FAT16 disk I/O
+- [Process Management](Process-Management) - Scheduler, context switching
+- [Shell Commands](Shell-Commands) - `exec` command reference
+- [Architecture](Architecture) - System memory layout

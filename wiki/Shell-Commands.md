@@ -22,6 +22,7 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 | `sysinfo` | `sysinfo` | Show uptime, CPU frequency, timer frequency, and memory usage _(CupidC)_ |
 | `date` | `date [+epoch\|+short]` | Show current date and time from the RTC _(CupidC)_ |
 | `cupidfetch` | `cupidfetch` | Show system info with ASCII art (includes date/time) |
+| `godspeak` | `godspeak` | Print one random word from `/god/Vocab.DD` in GodSpeak format _(CupidC)_ |
 
 ### Filesystem Commands (VFS)
 
@@ -46,12 +47,12 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `ed` | `ed [filename]` | Launch the ed line editor — CupidC program ([details](Ed-Editor)) |
+| `ed` | `ed [filename]` | Launch the ed line editor - CupidC program ([details](Ed-Editor)) |
 | `cupid` | `cupid <script.cup> [args...]` | Run a CupidScript file |
 
 Scripts can also be run as:
-- `./script.cup [args]` — prefix with `./`
-- `script.cup [args]` — just type the `.cup` filename
+- `./script.cup [args]` - prefix with `./`
+- `script.cup [args]` - just type the `.cup` filename
 
 ### Color Commands
 
@@ -181,13 +182,18 @@ jobs -l                 # List with PIDs
 - Multiple matches → lists all possibilities
 
 ### Command History
-- **Up arrow** — Previous command
-- **Down arrow** — Next command (or clear line)
+- **Up arrow** - Previous command
+- **Down arrow** - Next command (or clear line)
 - Up to 16 commands stored
 
 ### Input Editing
-- **Backspace** — Delete last character
+- **Backspace** - Delete last character
 - Characters are echoed as typed
+
+### F7 GodSpeak Hotkey
+- **F7 in Terminal/shell** - Runs `godspeak` (standalone CupidC program)
+- **F7 in CupidC Notepad** - Inserts GodSpeak text at cursor (prefix once, then additional words on repeated F7)
+- Data source: `/god/Vocab.DD`
 
 ### Prompt
 
@@ -277,6 +283,6 @@ q
 
 ## See Also
 
-- [CupidScript](CupidScript) — Scripting language reference
-- [Ed Editor](Ed-Editor) — Editor usage guide
-- [Debugging](Debugging) — In-depth debugging guide
+- [CupidScript](CupidScript) - Scripting language reference
+- [Ed Editor](Ed-Editor) - Editor usage guide
+- [Debugging](Debugging) - In-depth debugging guide

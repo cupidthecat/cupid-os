@@ -1,6 +1,6 @@
 # User Programs
 
-cupid-os supports TempleOS-style user programs — drop a `.cc` file into `/bin/` or `/home/bin/` and the shell discovers it automatically. No kernel recompile, no linking, no build step. Just write the source and type the command name.
+cupid-os supports TempleOS-style user programs - drop a `.cc` file into `/bin/` or `/home/bin/` and the shell discovers it automatically. No kernel recompile, no linking, no build step. Just write the source and type the command name.
 
 ---
 
@@ -17,7 +17,7 @@ When you type a command the shell doesn't recognize as a built-in, it searches t
 
 CupidC `.cc` files are JIT-compiled and run instantly. ELF binaries are loaded and executed as kernel threads.
 
-Programs in `/bin/` (ramfs) are baked into the OS image at build time. Programs in `/home/bin/` (FAT16 disk) can be created, edited, and deployed at runtime — no reboot needed.
+Programs in `/bin/` (ramfs) are baked into the OS image at build time. Programs in `/home/bin/` (FAT16 disk) can be created, edited, and deployed at runtime - no reboot needed.
 
 ---
 
@@ -44,7 +44,7 @@ To add a new build-time program:
 1. Create `bin/<name>.cc`
 2. Run `make`
 
-That's it — no need to edit `kernel.c`, the `Makefile`, or any other file.
+That's it - no need to edit `kernel.c`, the `Makefile`, or any other file.
 
 **Option B: Runtime (disk)**
 
@@ -116,8 +116,8 @@ void main() {
 
 Every program should start with `//help:` comment lines. These are read by the `help` command:
 
-- **First `//help:` line** — one-line summary, shown in `help` listing
-- **Additional `//help:` lines** — detailed usage, shown with `help <command>`
+- **First `//help:` line** - one-line summary, shown in `help` listing
+- **Additional `//help:` lines** - detailed usage, shown with `help <command>`
 
 ```c
 //help: Move or rename files
@@ -129,13 +129,13 @@ Every program should start with `//help:` comment lines. These are read by the `
 //help:   mv report.txt /tmp/
 ```
 
-The `help` command reads the source file itself to extract these lines — source IS the documentation.
+The `help` command reads the source file itself to extract these lines - source IS the documentation.
 
 ### Rules
 
 - Every program must have a `void main()` function
-- No `#include` needed — kernel bindings are pre-registered
-- No structs — use `char`, `int`, pointers, and arrays
+- No `#include` needed - kernel bindings are pre-registered
+- No structs - use `char`, `int`, pointers, and arrays
 - Max 64 KB code, 16 KB data per program
 - Programs run in ring 0 with full kernel access
 
@@ -357,7 +357,7 @@ void main() {
 
 ## Included Programs
 
-### `help` — List Available Commands
+### `help` - List Available Commands
 
 **Location:** `/bin/help.cc`
 
@@ -393,7 +393,7 @@ Examples:
 
 **Bindings used:** `get_args`, `vfs_open`, `vfs_read`, `vfs_readdir`, `vfs_close`, `strlen`, `print`, `println`
 
-### `pwd` — Print Working Directory
+### `pwd` - Print Working Directory
 
 **Location:** `/bin/pwd.cc`
 
@@ -406,7 +406,7 @@ Prints the absolute path of the current working directory.
 
 **Bindings used:** `get_cwd`, `println`
 
-### `ls` — List Files and Directories
+### `ls` - List Files and Directories
 
 **Location:** `/bin/ls.cc`
 
@@ -429,7 +429,7 @@ Lists files and directories in the given path (or CWD if no argument). Directori
 
 **Bindings used:** `get_args`, `resolve_path`, `vfs_open`, `vfs_readdir`, `vfs_close`, `print`, `println`, `print_int`
 
-### `cat` — Display File Contents
+### `cat` - Display File Contents
 
 **Location:** `/bin/cat.cc`
 
@@ -442,7 +442,7 @@ Welcome to CupidOS!
 
 **Bindings used:** `get_args`, `resolve_path`, `strlen`, `vfs_open`, `vfs_read`, `vfs_close`, `print`, `println`, `putchar`
 
-### `history` — Show Command History
+### `history` - Show Command History
 
 **Location:** `/bin/history.cc`
 
@@ -458,7 +458,25 @@ Displays recently executed commands, numbered from oldest to newest.
 
 **Bindings used:** `get_history_count`, `get_history_entry`, `print`, `print_int`
 
-### `cd` — Change Directory
+### `godspeak` - TempleOS-Style Random Word
+
+**Location:** `/bin/godspeak.cc`
+
+Prints a random non-empty line from `/god/Vocab.DD` as a single GodSpeak phrase.
+
+```
+> godspeak
+Cupid says: wisdom
+```
+
+**Notes:**
+- Standalone CupidC implementation (no kernel godspeak dependency required)
+- F7 in Terminal/shell triggers `godspeak`
+- F7 in CupidC Notepad inserts generated words inline at the caret
+
+**Bindings used:** `get_args`, `vfs_read_text`, `uptime_ms`, `print`, `println`
+
+### `cd` - Change Directory
 
 **Location:** `/bin/cd.cc`
 
@@ -477,7 +495,7 @@ Changes the shell's current working directory. With no arguments, changes to `/`
 
 **Bindings used:** `get_args`, `resolve_path`, `strlen`, `vfs_stat`, `set_cwd`, `print`, `println`
 
-### `ps` — List Processes
+### `ps` - List Processes
 
 **Location:** `/bin/ps.cc`
 
@@ -494,7 +512,7 @@ Total: 2 process(es)
 
 **Bindings used:** `process_list`
 
-### `kill` — Kill a Process
+### `kill` - Kill a Process
 
 **Location:** `/bin/kill.cc`
 
@@ -509,7 +527,7 @@ Killing PID 3...
 
 **Bindings used:** `get_args`, `process_kill`, `print`, `print_int`, `println`
 
-### `spawn` — Spawn Test Processes
+### `spawn` - Spawn Test Processes
 
 **Location:** `/bin/spawn.cc`
 
@@ -524,7 +542,7 @@ Spawned PID 5
 
 **Bindings used:** `get_args`, `spawn_test`
 
-### `yield` — Yield CPU
+### `yield` - Yield CPU
 
 **Location:** `/bin/yield.cc`
 
@@ -537,7 +555,7 @@ Yielding CPU...
 
 **Bindings used:** `yield`, `println`
 
-### `mount` — Show Mounted Filesystems
+### `mount` - Show Mounted Filesystems
 
 **Location:** `/bin/mount.cc`
 
@@ -553,7 +571,7 @@ devfs on /dev
 
 **Bindings used:** `mount_count`, `mount_name`, `mount_path`, `print`, `println`
 
-### `echo` — Print Text
+### `echo` - Print Text
 
 **Location:** `/bin/echo.cc`
 
@@ -566,7 +584,7 @@ Hello, CupidOS!
 
 **Bindings used:** `get_args`, `strlen`, `print`
 
-### `clear` — Clear the Screen
+### `clear` - Clear the Screen
 
 **Location:** `/bin/clear.cc`
 
@@ -578,7 +596,7 @@ Clears the terminal by emitting ANSI escape sequences (`ESC[2J` to erase display
 
 **Bindings used:** `print`
 
-### `time` — Show System Uptime
+### `time` - Show System Uptime
 
 **Location:** `/bin/time.cc`
 
@@ -591,7 +609,7 @@ Uptime: 42.567s (42567 ms)
 
 **Bindings used:** `uptime_ms`, `print_int`, `putchar`, `print`, `println`
 
-### `reboot` — Reboot the Machine
+### `reboot` - Reboot the Machine
 
 **Location:** `/bin/reboot.cc`
 
@@ -604,7 +622,7 @@ Rebooting...
 
 **Bindings used:** `println`, `inb`, `outb`, inline asm (`cli`, `hlt`)
 
-### `mv` — Move/Rename Files
+### `mv` - Move/Rename Files
 
 **Location:** `/bin/mv.cc`
 
@@ -620,10 +638,10 @@ Moves or renames files. If the destination is a directory, the file is moved int
 1. Calls `get_args()` to get `<source> <dest>`
 2. Parses into two separate path strings
 3. Resolves relative paths using `get_cwd()`
-4. Checks if dest is a directory via `vfs_stat()` — if so, appends the source filename
+4. Checks if dest is a directory via `vfs_stat()` - if so, appends the source filename
 5. Calls `vfs_rename()` to perform the move (copy + delete)
 
-### `setcolor` — Set Terminal Color
+### `setcolor` - Set Terminal Color
 
 **Location:** `/bin/setcolor.cc`
 
@@ -638,7 +656,7 @@ Sets the terminal foreground and optionally background color using ANSI escape c
 
 **Bindings used:** `get_args`, `strlen`, `putchar`, `println`
 
-### `resetcolor` — Reset Terminal Colors
+### `resetcolor` - Reset Terminal Colors
 
 **Location:** `/bin/resetcolor.cc`
 
@@ -650,7 +668,7 @@ Resets terminal foreground and background colors to their defaults by emitting `
 
 **Bindings used:** `putchar`, `print`
 
-### `printc` — Print Colored Text
+### `printc` - Print Colored Text
 
 **Location:** `/bin/printc.cc`
 
@@ -667,7 +685,7 @@ Success!
 
 **Bindings used:** `get_args`, `strlen`, `putchar`, `print`, `println`
 
-### `date` — Show Date and Time
+### `date` - Show Date and Time
 
 **Location:** `/bin/date.cc`
 
@@ -688,7 +706,7 @@ Feb 7, 2026  3:45 PM
 
 **Bindings used:** `get_args`, `strcmp`, `print`, `println`, `print_int`, `date_full_string`, `date_short_string`, `time_string`, `time_short_string`, `rtc_epoch`
 
-### `sync` — Flush Disk Cache
+### `sync` - Flush Disk Cache
 
 **Location:** `/bin/sync.cc`
 
@@ -701,7 +719,7 @@ Cache flushed to disk
 
 **Bindings used:** `blockcache_sync`, `print`
 
-### `cachestats` — Show Cache Statistics
+### `cachestats` - Show Cache Statistics
 
 **Location:** `/bin/cachestats.cc`
 
@@ -713,7 +731,7 @@ Displays block cache hit/miss statistics.
 
 **Bindings used:** `blockcache_stats`
 
-### `memdump` — Hex Memory Dump
+### `memdump` - Hex Memory Dump
 
 **Location:** `/bin/memdump.cc`
 
@@ -728,7 +746,7 @@ Displays a hex + ASCII dump of a memory region. Accepts a hex address and option
 
 **Bindings used:** `get_args`, `print`, `print_hex`, `print_hex_byte`, `putchar`, `peek_byte`
 
-### `memstats` — Show Memory Statistics
+### `memstats` - Show Memory Statistics
 
 **Location:** `/bin/memstats.cc`
 
@@ -740,7 +758,7 @@ Prints heap and physical memory usage statistics.
 
 **Bindings used:** `memstats`
 
-### `memleak` — Detect Memory Leaks
+### `memleak` - Detect Memory Leaks
 
 **Location:** `/bin/memleak.cc`
 
@@ -753,7 +771,7 @@ Reports heap allocations older than a specified threshold. Default is 60 seconds
 
 **Bindings used:** `get_args`, `detect_memory_leaks`
 
-### `memcheck` — Check Heap Integrity
+### `memcheck` - Check Heap Integrity
 
 **Location:** `/bin/memcheck.cc`
 
@@ -767,7 +785,7 @@ Heap integrity OK
 
 **Bindings used:** `print`, `heap_check_integrity`
 
-### `stacktrace` — Show Call Stack
+### `stacktrace` - Show Call Stack
 
 **Location:** `/bin/stacktrace.cc`
 
@@ -779,7 +797,7 @@ Prints the current EBP frame chain with return addresses.
 
 **Bindings used:** `dump_stack_trace`
 
-### `registers` — Dump CPU Registers
+### `registers` - Dump CPU Registers
 
 **Location:** `/bin/registers.cc`
 
@@ -795,7 +813,7 @@ CPU Registers:
 
 **Bindings used:** `dump_registers`
 
-### `sysinfo` — Show System Information
+### `sysinfo` - Show System Information
 
 **Location:** `/bin/sysinfo.cc`
 
@@ -812,7 +830,7 @@ System Information:
 
 **Bindings used:** `uptime_ms`, `get_cpu_mhz`, `timer_get_frequency`, `pmm_free_pages`, `pmm_total_pages`, `print`, `print_int`, `putchar`, `memstats`
 
-### `loglevel` — Get/Set Serial Log Level
+### `loglevel` - Get/Set Serial Log Level
 
 **Location:** `/bin/loglevel.cc`
 
@@ -829,7 +847,7 @@ Log level set to DEBUG
 
 **Bindings used:** `get_args`, `strcmp`, `set_log_level`, `get_log_level_name`, `print`
 
-### `logdump` — Show Recent Log Entries
+### `logdump` - Show Recent Log Entries
 
 **Location:** `/bin/logdump.cc`
 
@@ -845,7 +863,7 @@ Prints the contents of the in-memory circular log buffer.
 
 **Bindings used:** `print`, `print_log_buffer`
 
-### `crashtest` — Test Crash Handling
+### `crashtest` - Test Crash Handling
 
 **Location:** `/bin/crashtest.cc`
 
@@ -871,7 +889,7 @@ Triggers various crash scenarios for testing the kernel's error handling.
 
 ---
 
-### `ed` — Line Editor
+### `ed` - Line Editor
 
 **Location:** `/bin/ed.cc`
 
@@ -904,7 +922,7 @@ See also: [Ed Editor](Ed-Editor)
 - **Keep files small.** Notepad has a 32 KB buffer. The CupidC compiler has a 256 KB source limit. Write compact code.
 - **No verbose comments.** Every byte counts on an embedded OS. Use short comments or none.
 - **Test with `cupidc`.** Run `cupidc /bin/yourprog.cc` to JIT-compile and test before deploying.
-- **Use `println` for errors.** There's no stderr — just print error messages and `return`.
+- **Use `println` for errors.** There's no stderr - just print error messages and `return`.
 - **Structs are supported.** Define structs for structured data (max 32 structs, 16 fields each).
 - **Programs in `/home/bin/` persist across reboots** since they're on the FAT16 disk. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
 
@@ -912,7 +930,7 @@ See also: [Ed Editor](Ed-Editor)
 
 ## See Also
 
-- [CupidC Compiler](CupidC-Compiler) — full language reference and compiler internals
-- [Shell Commands](Shell-Commands) — all built-in commands
-- [Filesystem](Filesystem) — VFS, ramfs, FAT16, and directory structure
-- [ELF Programs](ELF-Programs) — compiling native C programs with GCC for cupid-os
+- [CupidC Compiler](CupidC-Compiler) - full language reference and compiler internals
+- [Shell Commands](Shell-Commands) - all built-in commands
+- [Filesystem](Filesystem) - VFS, ramfs, FAT16, and directory structure
+- [ELF Programs](ELF-Programs) - compiling native C programs with GCC for cupid-os

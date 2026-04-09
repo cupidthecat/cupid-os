@@ -45,11 +45,11 @@ The UI uses a soft pastel color scheme (`drivers/vga.h`):
 
 ### Graphics Primitives
 
-- **Pixel** — Plot with bounds clipping
-- **Line** — Bresenham's algorithm for arbitrary angles; per-pixel loop for horizontal/vertical
-- **Rectangle** — Filled and outlined
-- **3D rect** — Windows-95-style raised/sunken edges
-- **Text** — 8×8 monospaced bitmap font (ASCII 0–127), scalable 1×/2×/3×
+- **Pixel** - Plot with bounds clipping
+- **Line** - Bresenham's algorithm for arbitrary angles; per-pixel loop for horizontal/vertical
+- **Rectangle** - Filled and outlined
+- **3D rect** - Windows-95-style raised/sunken edges
+- **Text** - 8×8 monospaced bitmap font (ASCII 0–127), scalable 1×/2×/3×
 
 ---
 
@@ -59,19 +59,19 @@ Up to **16 overlapping windows** with z-ordered rendering.
 
 ### Window Features
 
-- **Title bar** — Displays window name, changes color based on focus (cyan = focused, gray = unfocused)
-- **Close button** — "X" in the title bar with hit testing
-- **Dragging** — Click and drag title bar to reposition; clamped to screen bounds
-- **Focus** — Click a window to raise it to the top
-- **Redraw callbacks** — Each application registers its own rendering function
+- **Title bar** - Displays window name, changes color based on focus (cyan = focused, gray = unfocused)
+- **Close button** - "X" in the title bar with hit testing
+- **Dragging** - Click and drag title bar to reposition; clamped to screen bounds
+- **Focus** - Click a window to raise it to the top
+- **Redraw callbacks** - Each application registers its own rendering function
 
 ### Window Lifecycle
 
-1. **Create** — `gui_create_window(x, y, w, h, title, callback)`
-2. **Focus** — Click to bring to front
-3. **Drag** — Click title bar and move
-4. **Close** — Click "X" button
-5. **Destroy** — Window removed from manager
+1. **Create** - `gui_create_window(x, y, w, h, title, callback)`
+2. **Focus** - Click to bring to front
+3. **Drag** - Click title bar and move
+4. **Close** - Click "X" button
+5. **Destroy** - Window removed from manager
 
 ---
 
@@ -166,23 +166,23 @@ The terminal application runs the shell inside a graphical window:
 ### Color Rendering
 
 Each character cell in the terminal has:
-- **Character** — The ASCII character to display
-- **Foreground color** — VGA color index (0–15), mapped to 32bpp XRGB via `ansi_vga_to_palette()`
-- **Background color** — VGA color index (0–7), rendered as a colored rectangle behind the character
+- **Character** - The ASCII character to display
+- **Foreground color** - VGA color index (0–15), mapped to 32bpp XRGB via `ansi_vga_to_palette()`
+- **Background color** - VGA color index (0–7), rendered as a colored rectangle behind the character
 
 The ANSI parser handles:
-- `\e[30m` – `\e[37m` — Standard foreground colors
-- `\e[40m` – `\e[47m` — Background colors
-- `\e[90m` – `\e[97m` — Bright foreground colors
-- `\e[0m` — Reset to defaults
-- `\e[1m` — Bold (bright foreground)
-- `\e[2J` — Clear screen
-- `\e[H` — Cursor home
+- `\e[30m` – `\e[37m` - Standard foreground colors
+- `\e[40m` – `\e[47m` - Background colors
+- `\e[90m` – `\e[97m` - Bright foreground colors
+- `\e[0m` - Reset to defaults
+- `\e[1m` - Bold (bright foreground)
+- `\e[2J` - Clear screen
+- `\e[H` - Cursor home
 
 ### Interaction
 
 - Click the terminal window to focus it
-- Type commands as normal — they appear in the terminal window
+- Type commands as normal - they appear in the terminal window
 - All shell commands work, including `ed`, `cupid`, debug commands, etc.
 - Scroll support for output longer than the visible area
 
@@ -199,7 +199,7 @@ The ANSI parser handles:
 ### Cursor
 
 - 8×10 pixel arrow bitmap with outline for visibility
-- **Save-under buffer** — saves the pixels beneath the cursor for non-destructive rendering
+- **Save-under buffer** - saves the pixels beneath the cursor for non-destructive rendering
 - Position clamped to screen bounds (0–639 horizontal, 0–479 vertical)
 
 ### Mouse Interactions
@@ -248,6 +248,6 @@ while (1) {
 
 ## See Also
 
-- [Shell Commands](Shell-Commands) — Commands available in the terminal
-- [Process Management](Process-Management) — How the desktop integrates with the scheduler
-- [Architecture](Architecture) — System component overview
+- [Shell Commands](Shell-Commands) - Commands available in the terminal
+- [Process Management](Process-Management) - How the desktop integrates with the scheduler
+- [Architecture](Architecture) - System component overview

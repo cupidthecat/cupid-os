@@ -26,9 +26,9 @@ That's it. Read on for a detailed explanation of each step.
 ## Requirements
 
 - **Linux** (or WSL) with root/sudo access
-- **fdisk** — included in `util-linux` (pre-installed on most distros)
-- **mkfs.fat** — from `dosfstools`
-- **losetup** — from `util-linux`
+- **fdisk** - included in `util-linux` (pre-installed on most distros)
+- **mkfs.fat** - from `dosfstools`
+- **losetup** - from `util-linux`
 
 Install if needed:
 ```bash
@@ -137,7 +137,7 @@ EOF
 
 **FAT16 filename rules:**
 - Maximum **8 characters** for the name, **3** for the extension (8.3 format)
-- Names are stored as **uppercase** — `hello.txt` becomes `HELLO.TXT`
+- Names are stored as **uppercase** - `hello.txt` becomes `HELLO.TXT`
 - No spaces or special characters in filenames
 - Only the **root directory** is supported (no subdirectories)
 
@@ -260,14 +260,14 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ### "mount" doesn't show /home as fat16
 - QEMU may not be using `cupidos.img`; use `make run`.
-- The ATA driver didn't detect the disk — check serial log for ATA init messages.
+- The ATA driver didn't detect the disk - check serial log for ATA init messages.
 
 ### Files not persisting after reboot
 - Run `sync` before closing QEMU to flush the block cache.
 - The auto-flush runs every 5 seconds, but closing QEMU abruptly can lose unflushed writes.
 
 ### Filenames appear truncated or garbled
-- FAT16 uses **8.3 format** — names longer than 8 characters are truncated.
+- FAT16 uses **8.3 format** - names longer than 8 characters are truncated.
 - Use only uppercase letters, digits, and underscores.
 - No long filename (LFN) support.
 
@@ -283,7 +283,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ## See Also
 
-- [Getting Started](Getting-Started) — Build and run cupid-os
-- [Filesystem](Filesystem) — VFS architecture, RamFS, DevFS, FAT16 internals
-- [Shell Commands](Shell-Commands) — Full command reference
-- [CupidScript](CupidScript) — Writing scripts to run from disk
+- [Getting Started](Getting-Started) - Build and run cupid-os
+- [Filesystem](Filesystem) - VFS architecture, RamFS, DevFS, FAT16 internals
+- [Shell Commands](Shell-Commands) - Full command reference
+- [CupidScript](CupidScript) - Writing scripts to run from disk

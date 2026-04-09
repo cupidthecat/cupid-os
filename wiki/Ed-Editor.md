@@ -58,8 +58,8 @@ q                       # Quit
 
 Ed has two modes:
 
-1. **Command mode** (default) — Enter commands to navigate, edit, display, and save
-2. **Input mode** — Enter text line by line; exit by typing `.` alone on a line
+1. **Command mode** (default) - Enter commands to navigate, edit, display, and save
+2. **Input mode** - Enter text line by line; exit by typing `.` alone on a line
 
 Commands that enter input mode: `a` (append), `i` (insert), `c` (change).
 
@@ -235,6 +235,6 @@ Done!
 
 ## See Also
 
-- [CupidScript](CupidScript) — Write scripts to run with `cupid`
-- [Shell Commands](Shell-Commands) — All shell commands including `ed`
-- [Filesystem](Filesystem) — File I/O and FAT16 details
+- [CupidScript](CupidScript) - Write scripts to run with `cupid`
+- [Shell Commands](Shell-Commands) - All shell commands including `ed`
+- [Filesystem](Filesystem) - File I/O and FAT16 details

@@ -6,7 +6,7 @@ A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel b
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly — no imports needed.
+The `gfx2d` library lives in `kernel/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
 
 **Target display:** 640×480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -178,7 +178,7 @@ void gfx2d_titlebar(int x, int y, int w, int h,
 
 ### Demo Scene Effects
 
-Tick-based — pass `uptime_ms()` for animation. No floating point; plasma uses integer sine LUT.
+Tick-based - pass `uptime_ms()` for animation. No floating point; plasma uses integer sine LUT.
 
 ```c
 void gfx2d_copper_bars(int y, int count, int spacing, int *colors);
@@ -375,7 +375,7 @@ int bmp_decode_to_fb(char *path, int x, int y);  // decode BMP directly to frame
 
 **Supported format:** BITMAPINFOHEADER (Windows 3.x+), 24-bit uncompressed only. Max dimension: 8192×8192.
 
-**Example — Screenshot:**
+**Example - Screenshot:**
 ```c
 void main() {
     // Capture the framebuffer as a BMP
@@ -386,7 +386,7 @@ void main() {
 }
 ```
 
-**Example — Load and display:**
+**Example - Load and display:**
 ```c
 void main() {
     // Decode directly to screen

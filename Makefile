@@ -36,6 +36,11 @@ $(info DEMO_ASM_SRCS=$(DEMO_ASM_SRCS))
 DEMO_ASM_OBJS := $(DEMO_ASM_SRCS:.asm=.o)
 DEMO_ASM_NAMES := $(notdir $(basename $(DEMO_ASM_SRCS)))
 
+# TempleOS God vocabulary data (embedded at boot)
+GOD_DD_SRCS := $(wildcard god/*.DD)
+$(info GOD_DD_SRCS=$(GOD_DD_SRCS))
+GOD_DD_OBJS := $(GOD_DD_SRCS:.DD=.o)
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -53,6 +58,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
 			kernel/gui.o kernel/desktop.o kernel/app_launch.o kernel/process.o kernel/context_switch.o \
 			kernel/clipboard.o kernel/ui.o \
+			kernel/godspeak.o \
             kernel/cupidscript_lex.o kernel/cupidscript_parse.o \
             kernel/cupidscript_exec.o kernel/cupidscript_runtime.o \
             kernel/cupidscript_streams.o kernel/cupidscript_strings.o \
@@ -79,7 +85,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/bin_programs_gen.o \
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DEMO_ASM_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -250,6 +256,10 @@ kernel/clipboard.o: kernel/clipboard.c kernel/clipboard.h
 # UI widget toolkit
 kernel/ui.o: kernel/ui.c kernel/ui.h
 	$(CC) $(CFLAGS) $(OPT) kernel/ui.c -o kernel/ui.o
+
+# GodSpeak helper
+kernel/godspeak.o: kernel/godspeak.c kernel/godspeak.h
+	$(CC) $(CFLAGS) $(OPT) kernel/godspeak.c -o kernel/godspeak.o
 
 kernel/cupidscript_lex.o: kernel/cupidscript_lex.c kernel/cupidscript.h
 	$(CC) $(CFLAGS) kernel/cupidscript_lex.c -o kernel/cupidscript_lex.o
@@ -446,6 +456,10 @@ cupidos-txt/%.o: cupidos-txt/%.CTXT
 
 # Pattern rule: embed any demos/*.asm file via objcopy
 demos/%.o: demos/%.asm
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any god/*.DD file via objcopy
+god/%.o: god/%.DD
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects

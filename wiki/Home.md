@@ -1,6 +1,6 @@
 # cupid-os Wiki
 
-Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system written in C and x86 Assembly, combining clean design with nostalgic aesthetics. It runs entirely in ring 0 with no security boundaries — inspired by TempleOS and OsakaOS.
+Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system written in C and x86 Assembly, combining clean design with nostalgic aesthetics. It runs entirely in ring 0 with no security boundaries - inspired by TempleOS and OsakaOS.
 
 ---
 
@@ -11,9 +11,9 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Getting Started](Getting-Started) | Build requirements, compiling, booting in QEMU |
 | [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
-| [CupidScript](CupidScript) | Scripting language guide — variables, loops, functions, examples |
-| [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler — JIT/AOT, inline assembly, kernel bindings |
-| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler — Intel syntax, JIT/AOT, 62 instructions, kernel bindings |
+| [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
+| [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
+| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, 62 instructions, kernel bindings |
 | [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
@@ -71,10 +71,10 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 
 cupid-os embraces complete user empowerment:
 
-- **No security boundaries** — all code runs in ring 0
-- **Direct hardware access** — no abstraction hiding the metal
-- **Full memory visibility** — no virtual memory restrictions
-- **Transparency** — every byte of the system is inspectable
+- **No security boundaries** - all code runs in ring 0
+- **Direct hardware access** - no abstraction hiding the metal
+- **Full memory visibility** - no virtual memory restrictions
+- **Transparency** - every byte of the system is inspectable
 
 This makes cupid-os ideal for learning how computers really work at the lowest level.
 

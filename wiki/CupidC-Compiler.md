@@ -1,6 +1,6 @@
 # CupidC Compiler
 
-CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code and runs them with full ring-0 privileges — no VM, no interpreter, no restrictions. Inspired by TempleOS's HolyC, CupidC embodies cupid-os's philosophy of complete user empowerment.
+CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code and runs them with full ring-0 privileges - no VM, no interpreter, no restrictions. Inspired by TempleOS's HolyC, CupidC embodies cupid-os's philosophy of complete user empowerment.
 
 ---
 
@@ -13,7 +13,7 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 | Compiler type | Single-pass recursive descent |
 | Calling convention | cdecl |
 | Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
-| Privilege level | Ring 0 — full system access |
+| Privilege level | Ring 0 - full system access |
 | Source extension | `.cc` |
 | Code size limit | 128 KB code, 32 KB data |
 | Max source file | 256 KB |
@@ -25,7 +25,7 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 
 ## Getting Started
 
-### JIT Mode — Compile and Run Instantly
+### JIT Mode - Compile and Run Instantly
 
 ```
 > cupidc program.cc
@@ -33,7 +33,7 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 
 Compiles the source to memory and executes immediately. No binary is saved to disk. Perfect for rapid development and testing.
 
-### AOT Mode — Compile to ELF Binary
+### AOT Mode - Compile to ELF Binary
 
 ```
 > ccc program.cc -o program
@@ -55,7 +55,7 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `int` | 32-bit | Signed integer |
 | `char` | 8-bit | Character / byte |
 | `bool` | 32-bit | Boolean (alias for int) |
-| `void` | — | No value (functions only) |
+| `void` | - | No value (functions only) |
 | `int*` | 32-bit | Pointer to int |
 | `char*` | 32-bit | Pointer to char |
 | `struct` | varies | User-defined composite type |
@@ -66,12 +66,12 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 Fixed-size arrays, both local (stack-allocated) and global (data section):
 
 ```c
-// Global arrays — stored in data section
+// Global arrays - stored in data section
 int scores[100];
 char buffer[256];
 
 void main() {
-    // Local arrays — stack-allocated
+    // Local arrays - stack-allocated
     int arr[10];
     char buf[64];
 
@@ -286,7 +286,7 @@ void main() {
 }
 ```
 
-Every program must have a `main()` function — it is the entry point.
+Every program must have a `main()` function - it is the entry point.
 
 Forward references are supported: functions can call other functions that are defined later in the file. The compiler resolves these after parsing is complete.
 
@@ -790,14 +790,14 @@ void main() {
 ```
 
 Common ANSI codes:
-- `\x1B[0m` — Reset all attributes
-- `\x1B[31m` — Red text
-- `\x1B[32m` — Green text
-- `\x1B[33m` — Yellow text
-- `\x1B[34m` — Blue text
-- `\x1B[35m` — Magenta text
-- `\x1B[36m` — Cyan text
-- `\x1B[95m` — Bright magenta
+- `\x1B[0m` - Reset all attributes
+- `\x1B[31m` - Red text
+- `\x1B[32m` - Green text
+- `\x1B[33m` - Yellow text
+- `\x1B[34m` - Blue text
+- `\x1B[35m` - Magenta text
+- `\x1B[36m` - Cyan text
+- `\x1B[95m` - Bright magenta
 
 ---
 
@@ -805,7 +805,7 @@ Common ANSI codes:
 
 ### Pipeline
 
-CupidC is a **single-pass** compiler — it lexes, parses, and emits x86 machine code in one pass through the source:
+CupidC is a **single-pass** compiler - it lexes, parses, and emits x86 machine code in one pass through the source:
 
 ```
 Source (.cc)
@@ -824,8 +824,8 @@ Source (.cc)
          │ raw bytes
          ▼
 ┌─────────────────┐
-│  JIT: Execute    │  cupidc.c — copy to memory, jump to main()
-│  AOT: Write ELF  │  cupidc_elf.c — emit ELF32 binary to disk
+│  JIT: Execute    │  cupidc.c - copy to memory, jump to main()
+│  AOT: Write ELF  │  cupidc_elf.c - emit ELF32 binary to disk
 └─────────────────┘
 ```
 
@@ -837,7 +837,7 @@ Source (.cc)
 | `cupidc.c` | ~790 | Driver: JIT/AOT entry points, kernel bindings, state init |
 | `cupidc_lex.c` | ~445 | Lexer: tokenizes source into keywords, literals, operators |
 | `cupidc_parse.c` | ~2485 | Parser + x86 code generator: the core of the compiler |
-| `cupidc_elf.c` | — | ELF32 binary writer for AOT mode |
+| `cupidc_elf.c` | - | ELF32 binary writer for AOT mode |
 
 ### Lexer
 
@@ -909,14 +909,14 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - **512 symbols** maximum (functions + variables + kernel bindings)
 - **16 parameters** maximum per function
 - **32 struct definitions** with up to 16 fields each
-- **No preprocessor** (`#include`, `#define` not supported) — use `enum` for constants
-- **No multi-file compilation** — single source file only
-- **No floating point** — integer arithmetic only
-- **No standard library** — only kernel bindings are available
-- **No function pointers** — cannot store/call through function pointer variables
-- **No ternary operator** (`?:`) — use `if/else` instead
-- **No variadic functions** — fixed parameter count only
-- **Limited optimization** — single-pass compilation with no optimization passes
+- **No preprocessor** (`#include`, `#define` not supported) - use `enum` for constants
+- **No multi-file compilation** - single source file only
+- **No floating point** - integer arithmetic only
+- **No standard library** - only kernel bindings are available
+- **No function pointers** - cannot store/call through function pointer variables
+- **No ternary operator** (`?:`) - use `if/else` instead
+- **No variadic functions** - fixed parameter count only
+- **Limited optimization** - single-pass compilation with no optimization passes
 
 ---
 
@@ -931,16 +931,16 @@ When the parser encounters a call to an undefined function, it emits a placehold
 
 ## User Programs (TempleOS-style)
 
-CupidC programs can be placed in `/bin/` or `/home/bin/` and the shell discovers them automatically — no kernel recompile needed. Just type the program name and it runs.
+CupidC programs can be placed in `/bin/` or `/home/bin/` and the shell discovers them automatically - no kernel recompile needed. Just type the program name and it runs.
 
 ### How It Works
 
 When you type a command the shell doesn't recognize, it searches in order:
 
-1. `/bin/<cmd>` — ELF/CUPD binary in ramfs
-2. `/bin/<cmd>.cc` — CupidC source in ramfs (JIT compiled)
-3. `/home/bin/<cmd>` — ELF binary on disk
-4. `/home/bin/<cmd>.cc` — CupidC source on disk (JIT compiled)
+1. `/bin/<cmd>` - ELF/CUPD binary in ramfs
+2. `/bin/<cmd>.cc` - CupidC source in ramfs (JIT compiled)
+3. `/home/bin/<cmd>` - ELF binary on disk
+4. `/home/bin/<cmd>.cc` - CupidC source on disk (JIT compiled)
 
 CupidC `.cc` files are JIT-compiled and run instantly. No build step.
 
@@ -983,10 +983,10 @@ void main() {
 ```
 
 Key patterns used:
-- `get_args()` — retrieve shell arguments
-- `get_cwd()` — resolve relative paths
-- `vfs_stat()` — check if destination is a directory
-- `vfs_rename()` — perform the move
+- `get_args()` - retrieve shell arguments
+- `get_cwd()` - resolve relative paths
+- `vfs_stat()` - check if destination is a directory
+- `vfs_rename()` - perform the move
 
 ### Writing Your Own Program
 

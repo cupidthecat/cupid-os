@@ -43,9 +43,9 @@ make
 ```
 
 This produces:
-- `boot/boot.bin` — 512-byte bootloader
-- `kernel/kernel.bin` — Flat binary kernel
-- `cupidos.img` — Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
+- `boot/boot.bin` - 512-byte bootloader
+- `kernel/kernel.bin` - Flat binary kernel
+- `cupidos.img` - Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
 
 ### Choose HDD Size
 
@@ -120,9 +120,9 @@ If `FAT_START_LBA` changes, recompute offset:
 
 When cupid-os boots, you'll see:
 
-1. **Bootloader** — Loads kernel from HDD LBA sectors to 0x100000, switches to protected mode
-2. **Kernel init** — IDT, PIC, PIT, keyboard, memory, paging, serial
-3. **Desktop** — VBE 640×480 32bpp graphical desktop with pastel theme
+1. **Bootloader** - Loads kernel from HDD LBA sectors to 0x100000, switches to protected mode
+2. **Kernel init** - IDT, PIC, PIT, keyboard, memory, paging, serial
+3. **Desktop** - VBE 640×480 32bpp graphical desktop with pastel theme
 
 ### Exploring the Shell
 
@@ -147,8 +147,8 @@ cupid hello.cup   # Run your script
 
 ## Next Steps
 
-- **[Shell Commands](Shell-Commands)** — Full command reference
-- **[CupidScript](CupidScript)** — Write and run scripts
-- **[Ed Editor](Ed-Editor)** — Create and edit files
-- **[Disk Setup](Disk-Setup)** — Work with the FAT16 partition inside `cupidos.img`
-- **[Desktop Environment](Desktop-Environment)** — Using the GUI
+- **[Shell Commands](Shell-Commands)** - Full command reference
+- **[CupidScript](CupidScript)** - Write and run scripts
+- **[Ed Editor](Ed-Editor)** - Create and edit files
+- **[Disk Setup](Disk-Setup)** - Work with the FAT16 partition inside `cupidos.img`
+- **[Desktop Environment](Desktop-Environment)** - Using the GUI
