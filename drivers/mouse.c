@@ -210,7 +210,7 @@ void mouse_save_under_cursor(void) {
     saved_x = mouse.x;
     saved_y = mouse.y;
 
-    /* Fast path: cursor fully within screen bounds — no per-pixel check */
+    /* Fast path: cursor fully within screen bounds - no per-pixel check */
     if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
         saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *src = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
@@ -238,7 +238,7 @@ void mouse_restore_under_cursor(void) {
     if (saved_x < 0) return;
     uint32_t *framebuf = vga_get_framebuffer();
 
-    /* Fast path: cursor fully within screen bounds — no per-pixel check */
+    /* Fast path: cursor fully within screen bounds - no per-pixel check */
     if (saved_x >= 0 && (int)saved_x + CURSOR_W <= VGA_GFX_WIDTH &&
         saved_y >= 0 && (int)saved_y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *dst = framebuf + (int32_t)saved_y * VGA_GFX_WIDTH + (int32_t)saved_x;
@@ -265,7 +265,7 @@ void mouse_restore_under_cursor(void) {
 void mouse_draw_cursor(void) {
     uint32_t *framebuf = vga_get_framebuffer();
 
-    /* Fast path: cursor fully within screen bounds — skip per-pixel bounds check */
+    /* Fast path: cursor fully within screen bounds - skip per-pixel bounds check */
     if (mouse.x >= 0 && (int)mouse.x + CURSOR_W <= VGA_GFX_WIDTH &&
         mouse.y >= 0 && (int)mouse.y + CURSOR_H <= VGA_GFX_HEIGHT) {
         uint32_t *row_ptr = framebuf + (int32_t)mouse.y * VGA_GFX_WIDTH + (int32_t)mouse.x;
@@ -277,7 +277,7 @@ void mouse_draw_cursor(void) {
                 if (fill & mask) {
                     row_ptr[col] = COLOR_CURSOR;
                 } else if (outline & mask) {
-                    row_ptr[col] = COLOR_BLACK;
+                    row_ptr[col] = COLOR_CURSOR_OUTLINE;
                 }
             }
             row_ptr += VGA_GFX_WIDTH;
@@ -299,7 +299,7 @@ void mouse_draw_cursor(void) {
                         COLOR_CURSOR;
                 } else if (outline & mask) {
                     framebuf[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
-                        COLOR_BLACK;
+                        COLOR_CURSOR_OUTLINE;
                 }
             }
         }
@@ -346,7 +346,8 @@ void mouse_update_cursor_direct(void) {
                     if (fill & mask) {
                         disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_CURSOR;
                     } else if (outline & mask) {
-                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] = COLOR_BLACK;
+                        disp[(int32_t)py * VGA_GFX_WIDTH + (int32_t)px] =
+                            COLOR_CURSOR_OUTLINE;
                     }
                 }
             }

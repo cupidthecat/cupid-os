@@ -44,7 +44,7 @@ exec -d <file>
 
 >h2 Current /bin .cc Programs (Auto-Discovered)
 System / shell:
-  help clear echo time date reboot history sysinfo cupidfetch
+  help clear echo time date reboot history sysinfo cupidfetch godspeak
 
 Filesystem:
   pwd cd ls cat mount mkdir rmdir mv cp rm touch find grep ed
@@ -125,4 +125,10 @@ Global desktop shortcuts:
 - Ctrl + Alt + E  toggle Neon FX
 - Ctrl + Alt + C  toggle CRT Overlay
 - F5              rescan desktop icons from /bin directives
+
+>h2 GodSpeak Shortcut
+- F7 in Terminal/shell runs:
+  godspeak
+- F7 in CupidC Notepad inserts generated GodSpeak text at the cursor.
+- Dictionary source is /god/Vocab.DD.
 

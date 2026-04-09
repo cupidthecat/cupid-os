@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-02-14
+Verified against source on: 2026-04-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -187,7 +187,50 @@ Window input + present:
 - gui_win_poll_key(window_id) -> packed key or -1
   packed format: (scancode << 8) | char
 - gui_win_flip(window_id)
-  note: flips only when that window is focused (prevents z-order fights)
+  compatibility wrapper; older apps can keep using this
+
+>h2 Windowed Graphics Update (2026-04-09)
+Hosted/windowed CupidC apps now render through retained per-window surfaces.
+This removes the old "focused window owns the screen" behavior and lets the
+desktop compositor present hosted windows without fighting app-local flips.
+
+Recommended paint/present flow for windowed CupidC apps:
+- gui_win_begin_paint(window_id) -> int
+  binds the window's retained content surface as the active gfx2d target
+- gui_win_end_paint(window_id) -> int
+  unbinds the active surface and marks the window content dirty
+- gui_win_present(window_id) -> int
+  asks the compositor to present dirty hosted windows
+
+Explicit invalidation helpers:
+- gui_win_invalidate(window_id) -> int
+- gui_win_invalidate_rect(window_id, x, y, w, h) -> int
+
+Compatibility notes:
+- gui_win_flip(window_id) still exists for older code paths
+- gui_win_flip(window_id) now routes through the retained-window compositor
+  path instead of directly owning screen presentation
+- older code should still run, but new code should prefer:
+  gui_win_begin_paint -> draw -> gui_win_end_paint -> gui_win_present
+
+Rendering model notes:
+- gfx2d surface rendering is now the canonical hosted-window path
+- shared UI helpers that use gfx_* and ui_* drawing now respect the active
+  gfx2d target, so they work correctly inside retained window surfaces
+- unfocused hosted windows keep their last composited content instead of
+  depending on focused redraw timing
+- window titlebars now choose a readable foreground color from the titlebar
+  brightness so hosted windows do not end up with dark text on dark chrome
+
+Dialog behavior:
+- file_dialog_open(start_path, out_path, filter_ext)
+- file_dialog_save(start_path, default_name, out_path, filter_ext)
+- when called from a focused hosted GUI window such as Notepad, file dialogs
+  now render as modal overlays inside that window's retained content surface
+- if no hosted window target is available, dialogs fall back to the older
+  screen-modal path
+- this change was made to remove flashing and z-order conflicts between modal
+  dialogs and the desktop compositor
 
 Terminal/shell buffer surface:
 - shell_buf_rows() / shell_buf_cols()
@@ -249,4 +292,3 @@ Use CupidC when:
 Use ELF C (see 05ELFPROG.TXT) when:
 - You want external GCC-based build flow.
 - You want a stable syscall-table ABI style entrypoint.
-

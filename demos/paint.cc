@@ -1,4 +1,4 @@
-/* paint.cc — CupidPaint
+/* paint.cc - CupidPaint
  *
  * A Win95-style paint program for CupidOS.
  * REFACTOR: Removed preprocessor macros for CupidC compatibility.

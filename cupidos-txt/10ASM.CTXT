@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-02-14
+Verified against source on: 2026-04-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -201,6 +201,24 @@ Newly emphasized parity set for 2026-02-17:
 - windowed app frame helpers remain gfx2d_window_* in asm
    (gui_win_* is currently CupidC-specific)
 
+>h2 Graphics/Desktop Runtime Update (2026-04-09)
+The underlying GUI compositor and dialog behavior changed even though most
+binding names stayed the same.
+
+Rendering/runtime notes:
+- hosted/windowed CupidC apps now render through retained per-window surfaces
+- shared gfx_* and ui_* helpers respect the active gfx2d surface target
+- window titlebars now force readable contrast against the titlebar
+  background instead of trusting a bad theme text color
+
+Dialog behavior notes:
+- file_dialog_open / file_dialog_save still use the same call surface
+- when called from a focused hosted GUI window, file dialogs now render
+  inside that window's retained content surface instead of fighting the
+  desktop compositor with a separate screen-modal loop
+- if no hosted window target is available, the older screen-modal behavior
+  is still used as fallback
+
 Console/print:
 - print println putchar print_int print_hex clear_screen serial_printf
 - __cc_Print __cc_PrintLine
@@ -360,4 +378,3 @@ If running from /home/demos on FAT image, sync workspace demos first:
 - make sync-demos
 
 Without sync, you may execute stale 8.3 copies on disk.
-

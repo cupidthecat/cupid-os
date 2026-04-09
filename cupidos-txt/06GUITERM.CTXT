@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 GUI Terminal and Embedded Shell
-Verified against source on: 2026-02-13
+Verified against source on: 2026-04-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -32,6 +32,7 @@ Only one terminal window instance is kept at a time by terminal app logic.
 >h2 Key Controls In GUI Terminal
 Typing:
 - Normal keys go to shell line editor.
+- F7 runs godspeak (standalone CupidC /bin/godspeak.cc command).
 
 Scrolling:
 - Mouse wheel scrolls terminal history.
@@ -66,12 +67,15 @@ from shell if they are available in /bin or /home/bin.
 Window manager controls:
 - Drag a window by its title bar to move it.
 - Drag from the bottom-right corner grip to resize.
+- Click [_] to minimize.
 - Click [X] to close.
 
 Notes:
 - Resize is clamped so windows stay on-screen with minimum dimensions.
 - Bottom-edge interactions now prioritize window hit-testing so resize works
   reliably even when the pointer is near the taskbar area.
+- Title text is rendered with automatic contrast against the titlebar so
+  active and inactive window titles remain readable across built-in themes.
 
 >h2 Desktop Global Shortcuts
 While on desktop:
@@ -94,8 +98,8 @@ GUI mode:
 1) If a graphics app says it requires GUI mode, run it from desktop terminal.
 2) If terminal output looks clipped, adjust zoom (Ctrl +/-).
 3) If debugging command-line behavior, text-mode shell can be simpler.
+4) GodSpeak has no terminal button; use F7 or run `godspeak` directly.
 
 >h2 See Also
 01SHELL.TXT for shell editing and dispatch behavior
 04CUPIDC.TXT for GUI-capable CupidC bindings
-

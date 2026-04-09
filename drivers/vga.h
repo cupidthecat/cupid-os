@@ -26,6 +26,7 @@
 #define COLOR_TASKBAR_ACT   0x00D0C0F0U  /* Active violet       */
 #define COLOR_TERM_BG       0x00141418U  /* Near-black          */
 #define COLOR_CURSOR        0x00F0F0F0U  /* Off-white           */
+#define COLOR_CURSOR_OUTLINE 0x00809098U /* Soft cursor outline */
 
 /* Initialize VBE graphics (reads LFB address stored by bootloader) */
 void vga_init_vbe(void);

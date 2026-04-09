@@ -62,6 +62,7 @@
 
 // Global keyboard state
 static keyboard_state_t keyboard_state = {0};
+static bool function_keys[12] = {false};
 
 // Debug flag for keyboard (set to 1 to enable detailed logging)
 #define KEYBOARD_DEBUG 1
@@ -250,6 +251,26 @@ static void process_keypress(uint8_t key) {
     bool is_release = (key & KEY_RELEASED) != 0;
     key = (uint8_t)(key & ~KEY_RELEASED);  // Remove release bit
 
+    /* Handle function keys before ASCII translation bounds checks. */
+    {
+        int fidx = -1;
+        if (key >= KEY_F1 && key <= KEY_F10) {
+            fidx = (int)(key - KEY_F1);
+        } else if (key == KEY_F11) {
+            fidx = 10;
+        } else if (key == KEY_F12) {
+            fidx = 11;
+        }
+
+        if (fidx >= 0) {
+            function_keys[fidx] = !is_release;
+            if (!is_release) {
+                enqueue_event(key, 0);
+            }
+            return;
+        }
+    }
+
     // Ignore scancodes we don't have a translation for to avoid OOB access
     if (key >= sizeof(scancode_to_ascii)) {
         return;
@@ -332,7 +353,6 @@ static char get_ascii_from_scancode(uint8_t scancode) {
         return scancode_to_ascii[scancode];
     }
 }
-static bool function_keys[12] = {false};
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
     (void)r; /* Unused parameter */
@@ -426,7 +446,7 @@ char getchar(void) {
             window_t *focused = gui_get_focused_window();
             if (focused && focused->key_head != focused->key_tail) {
                 int key = focused->key_queue[focused->key_head];
-                focused->key_head = (focused->key_head + 1) & 15;
+                focused->key_head = (focused->key_head + 1) % GUI_KEY_QUEUE_SIZE;
                 return (char)(key & 0xFF);
             }
             process_yield();
