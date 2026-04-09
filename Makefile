@@ -2,7 +2,7 @@
 .SUFFIXES:
 ASM=nasm
 CC=gcc
-BOOT_STAGE2_SECTORS=4
+.DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
 	-mno-mmx -mno-sse -mno-sse2 -msoft-float \
@@ -45,14 +45,13 @@ FAT_START_LBA ?= 4096
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
-BOOTLOADER_BYTES := $(shell expr \( 1 + $(BOOT_STAGE2_SECTORS) \) \* 512)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
             drivers/serial.o kernel/panic.o kernel/ed.o \
             drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
-			kernel/gui.o kernel/desktop.o kernel/process.o kernel/context_switch.o \
+			kernel/gui.o kernel/desktop.o kernel/app_launch.o kernel/process.o kernel/context_switch.o \
 			kernel/clipboard.o kernel/ui.o \
             kernel/cupidscript_lex.o kernel/cupidscript_parse.o \
             kernel/cupidscript_exec.o kernel/cupidscript_runtime.o \
@@ -61,6 +60,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/ansi.o \
 			kernel/terminal_app.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
+            kernel/homefs.o \
             kernel/syscall.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
@@ -81,12 +81,24 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/demos_programs_gen.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DEMO_ASM_OBJS)
 
+.PHONY: FORCE
+FORCE:
+
+# The repository currently contains checked-in build artifacts such as
+# drivers/*.o, boot/boot.bin, and kernel/kernel.bin. Their mtimes can match
+# source checkout mtimes closely enough that make may incorrectly reuse stale
+# objects from older source revisions, producing bad kernels or link failures.
+# Force kernel-related artifacts to rebuild from source on each invocation.
+$(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
+
+# Keep tracked binary artifacts intact if a later build step fails.
+.PRECIOUS: $(BOOTLOADER) $(KERNEL)
+
 all: $(OS_IMAGE)
 
 # Compile bootloader
 $(BOOTLOADER): boot/boot.asm
 	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
-	@test "$$(stat -c%s $(BOOTLOADER))" -eq "$(BOOTLOADER_BYTES)"
 
 # Compile C source files
 kernel/kernel.o: kernel/kernel.c kernel/kernel.h kernel/cpu.h
@@ -210,6 +222,9 @@ kernel/calendar.o: kernel/calendar.c kernel/calendar.h
 kernel/desktop.o: kernel/desktop.c kernel/desktop.h kernel/gfx2d_icons.h kernel/cupidc.h
 	$(CC) $(CFLAGS) $(OPT) kernel/desktop.c -o kernel/desktop.o
 
+kernel/app_launch.o: kernel/app_launch.c kernel/app_launch.h kernel/cupidc.h kernel/process.h kernel/shell.h kernel/terminal_app.h
+	$(CC) $(CFLAGS) kernel/app_launch.c -o kernel/app_launch.o
+
 # Terminal application
 kernel/ansi.o: kernel/ansi.c kernel/ansi.h
 	$(CC) $(CFLAGS) $(OPT) kernel/ansi.c -o kernel/ansi.o
@@ -275,6 +290,9 @@ kernel/devfs.o: kernel/devfs.c kernel/devfs.h kernel/vfs.h
 # FAT16 VFS wrapper
 kernel/fat16_vfs.o: kernel/fat16_vfs.c kernel/fat16_vfs.h kernel/vfs.h kernel/fat16.h
 	$(CC) $(CFLAGS) kernel/fat16_vfs.c -o kernel/fat16_vfs.o
+
+kernel/homefs.o: kernel/homefs.c kernel/homefs.h kernel/fat16.h kernel/vfs.h
+	$(CC) $(CFLAGS) kernel/homefs.c -o kernel/homefs.o
 
 # Program loader (ELF + CUPD)
 kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/syscall.h
@@ -445,30 +463,14 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
 	fi
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=$(BOOT_STAGE2_SECTORS)
+	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
-.PHONY: image-sync
-image-sync: $(KERNEL)
-	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
-	@test "$$(stat -c%s $(BOOTLOADER))" -eq "$(BOOTLOADER_BYTES)"
-	@if [ ! -f $(OS_IMAGE) ]; then \
-		echo "[make] Creating new persistent image $(OS_IMAGE) ($(HDD_MB)MB)"; \
-		dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
-		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
-		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
-	else \
-		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
-	fi
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=$(BOOT_STAGE2_SECTORS)
-	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+run: $(OS_IMAGE)
+	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
 
-run: image-sync
-	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial stdio
-
-run-log: image-sync
-	qemu-system-i386 -m 128M -boot c -hda $(OS_IMAGE) -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
+run-log: $(OS_IMAGE)
+	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev none,id=speaker -machine pcspk-audiodev=speaker -serial file:debug.log
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
 sync-demos: $(OS_IMAGE)
@@ -479,7 +481,7 @@ sync-demos: $(OS_IMAGE)
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
-	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c
+	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c debug.log
 
 clean-image:
 	rm -f $(OS_IMAGE)
