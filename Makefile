@@ -30,6 +30,12 @@ $(info DOC_CTXT_SRCS=$(DOC_CTXT_SRCS))
 DOC_CTXT_OBJS := $(DOC_CTXT_SRCS:.CTXT=.o)
 DOC_CTXT_NAMES := $(notdir $(basename $(DOC_CTXT_SRCS)))
 
+# Explicit doc assets embedded alongside the manuals
+DOC_ASSET_SRCS := image.bmp
+$(info DOC_ASSET_SRCS=$(DOC_ASSET_SRCS))
+DOC_ASSET_OBJS := $(DOC_ASSET_SRCS:.bmp=.bmp.o)
+DOC_ASSET_NAMES := $(notdir $(basename $(DOC_ASSET_SRCS)))
+
 # Auto-discover CupidASM demos to embed at boot (/demos/*.asm in ramfs)
 DEMO_ASM_SRCS := $(wildcard demos/*.asm)
 $(info DEMO_ASM_SRCS=$(DEMO_ASM_SRCS))
@@ -86,7 +92,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/bin_programs_gen.o \
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -410,17 +416,20 @@ kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
 	$(CC) $(CFLAGS) kernel/bin_programs_gen.c -o kernel/bin_programs_gen.o
 
 # Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
-kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) Makefile
+kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */" >> $@
 	@echo '#include "ramfs.h"' >> $@
 	@echo '#include "types.h"' >> $@
 	@echo '#include "../drivers/serial.h"' >> $@
 	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
 	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
 	@echo 'void install_docs_programs(void *fs_private);' >> $@
 	@echo 'void install_docs_programs(void *fs_private) {' >> $@
 	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/docs_programs_gen.o: kernel/docs_programs_gen.c
@@ -453,6 +462,9 @@ bin/%.h.o: bin/%.h
 
 # Pattern rule: embed any cupidos-txt/*.CTXT file via objcopy
 cupidos-txt/%.o: cupidos-txt/%.CTXT
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+%.bmp.o: %.bmp
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any demos/*.asm file via objcopy

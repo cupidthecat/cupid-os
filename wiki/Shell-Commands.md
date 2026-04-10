@@ -198,10 +198,22 @@ jobs -l                 # List with PIDs
 
 ### Prompt
 
-The shell prompt shows the current working directory:
+The shell prompt is also a TempleOS-style CupidC REPL. It shows the current
+working directory and, after a successful REPL evaluation, prints the last
+execution time and `ans` before the next prompt. The reference behavior comes
+from TempleOS's `ExeCmdLine()`, `LexStmt2Bin()`, and `CmdLinePmt()`.
 
 ```
 /home> _
+```
+
+Example:
+
+```
+/home> 3 + 4;
+0.000s ans=0x00000007=7
+/home> ans;
+0.000s ans=0x00000007=7
 ```
 
 Navigate with `cd` to change the prompt:
@@ -211,6 +223,24 @@ Navigate with `cd` to change the prompt:
 /dev> cd /
 /> _
 ```
+
+REPL notes:
+
+- CupidC is tried before normal command dispatch.
+- End REPL statements with semicolons for HolyC-style behavior.
+- Zero-argument REPL-defined functions can be called as `Foo;`, matching the
+  TempleOS command line convention.
+- Multi-line blocks use a continuation prompt:
+
+```
+/home> U32 Add(U32 a, U32 b) {
+..>   return a + b;
+..> }
+```
+
+- Reset persistent REPL state with `reset`.
+- Forward-call patches now stay in the long-lived REPL compiler state, so a
+  later function definition can satisfy earlier REPL-defined callers.
 
 ---
 

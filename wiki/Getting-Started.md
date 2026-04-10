@@ -124,6 +124,21 @@ When cupid-os boots, you'll see:
 2. **Kernel init** - IDT, PIC, PIT, keyboard, memory, paging, serial
 3. **Desktop** - VBE 640×480 32bpp graphical desktop with pastel theme
 
+### Live Docs
+
+CupidOS ships a TempleOS-inspired DolDoc-like manual set inside the OS.
+
+Open **Notepad**, browse to `/docs/00INDEX.ctxt`, and press `F2` to switch
+between raw source and rendered view.
+
+In rendered view, `.ctxt` manuals can contain:
+- runnable CupidC code blocks
+- clickable `open:`, `shell:`, and `repl:` links
+- buttons, tree widgets, and inline BMP sprites
+
+The shipped manuals also embed `/docs/image.bmp`, which is used by the DolDoc
+examples and widget demos.
+
 ### Exploring the Shell
 
 Click the **Terminal** icon on the desktop (or boot in text mode). You'll see:
@@ -138,6 +153,7 @@ Try these commands to get started:
 help              # List all commands
 sysinfo           # System information
 ls                # List in-memory files
+ls /docs          # List embedded manuals
 lsdisk            # List files on FAT16 disk
 ed hello.cup      # Create a script with the editor
 cupid hello.cup   # Run your script

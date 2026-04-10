@@ -1042,3 +1042,54 @@ CupidC draws direct inspiration from TempleOS's HolyC:
 | Structs | Yes | Yes |
 | Classes | Yes | No |
 | Preprocessor | `#include` | No |
+
+## Shell REPL
+
+CupidOS now uses a TempleOS-style CupidC REPL directly at the normal shell prompt.
+The shell tries to compile each line as CupidC first and only falls back to normal
+command dispatch when REPL parsing or compilation fails. The north-star behavior
+is TempleOS's `ExeCmdLine()`, `LexStmt2Bin()`, and `CmdLinePmt()`.
+
+### Prompt behavior
+
+- End statements and expressions with semicolons, HolyC-style.
+- Zero-argument REPL functions can be invoked as `Foo;`.
+- Multi-line blocks stay open until braces balance.
+- The next prompt shows the elapsed execution time.
+- Expression results are surfaced as TempleOS-style `ans`.
+- Forward-call fixups persist across prompt entries, so later function
+  definitions can resolve earlier REPL-defined callers.
+
+Example:
+
+```c
+/home> U32 x = 7;
+/home> x + 5;
+0.001s ans=0x0000000C=12
+/home> ans;
+0.000s ans=0x0000000C=12
+/home> U32 Add(U32 a, U32 b) {
+..>   return a + b;
+..> }
+/home> Add(2, 3);
+0.000s ans=0x00000005=5
+```
+
+### Fallback behavior
+
+These still resolve as shell commands because they are not valid CupidC REPL input:
+
+```text
+help
+ls /home
+```
+
+### Resetting REPL state
+
+Use:
+
+```text
+reset
+```
+
+This clears persistent REPL variables, functions, structs, typedefs, and `ans`.
