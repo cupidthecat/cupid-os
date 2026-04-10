@@ -12,15 +12,68 @@
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - CupidASM, an Intel-syntax x86-32 assembler with JIT and ELF32 AOT output
 - CupidScript, a shell scripting language with pipes, redirects, and job control
-- 40+ shell commands with history, tab completion, pipes, and redirects
-- VFS with RamFS (root), DevFS (/dev), and FAT16 (/home)
+- 73 built-in shell programs with history, tab completion, pipes, and redirects
+- VFS with RamFS (/), DevFS (/dev), FAT16 (/disk), and persistent homefs (/home)
 - Preemptive round-robin scheduler, up to 32 kernel threads
+- Process domains in scheduler and `ps` output (kernel/hosted/external)
 - Two-stage bootloader that loads the kernel above 1MB via unreal mode
 - GUI apps: Notepad, Terminal with ANSI colors, Paint, Calendar, File Manager
 - 64-entry LRU disk block cache with write-back policy
-- 6 GUI themes including a Windows 95 style and a dark mode
+- 6 GUI themes: Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, Vaporwave
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP image codec
+
+## Feature demo quickstart
+
+After `make run`, these shell commands exercise the major subsystems:
+
+```sh
+# 1) Filesystems and persistence
+mount
+ls /
+ls /home
+mkdir /home/demo
+echo hello > /home/demo/hello.txt
+cat /home/demo/hello.txt
+
+# 2) Processing and scheduling
+ps
+time ls /
+
+# 3) Shell features: pipes, redirects, history
+ls /bin | grep gfx > /home/demo/gfx.txt
+cat /home/demo/gfx.txt
+history
+
+# 4) CupidC JIT and language features
+feature1_types
+feature3_class
+feature10_repl
+feature11_ternary
+
+# 5) CupidASM demo execution
+as /demos/hello.asm
+as /demos/syscall_vfs_extended_demo.asm
+
+# 6) GUI apps and graphics
+terminal
+notepad
+fm
+paint
+gfxdemo
+gfxtest
+
+# 7) Introspection and debugging tools
+sysinfo
+registers
+memstats
+stacktrace
+logdump
+
+# 8) Audio/speaker demos
+godsong
+godspeak
+```
 
 ## Philosophy
 
@@ -62,7 +115,13 @@ make HDD_MB=100
 
 ### Copying files into /home
 
-The FAT16 partition sits at byte offset 2097152 (4096 * 512) inside cupidos.img. Use mtools to put files there:
+CupidOS now mounts FAT16 at `/disk` and mounts persistent `homefs` at `/home`.
+
+- `/disk` is the raw FAT16 partition in `cupidos.img`.
+- `/home` is `homefs`, serialized into `HOMEFS.SYS` on FAT16.
+- On first boot without `HOMEFS.SYS`, `homefs` imports existing FAT16 files.
+
+The FAT16 partition sits at byte offset 2097152 (4096 * 512) inside `cupidos.img`. Use mtools to put files in the FAT16 backend:
 
 ```bash
 mcopy -o -i cupidos.img@@2097152 myfile.txt ::/myfile.txt
@@ -91,13 +150,13 @@ QEMU monitor is at Ctrl+Alt+2. Serial output comes through stdout on `make run`.
 ```
 cupid-os/
   boot/           two-stage BIOS bootloader
-  kernel/         kernel source (58 C files, ~47k lines)
+  kernel/         kernel source (68 C files + headers/asm)
   drivers/        hardware drivers (9 C files)
-  bin/            built-in CupidC programs (65 .cc files)
+  bin/            built-in CupidC programs (73 .cc files)
   demos/          CupidASM demo programs (19 .asm files)
   user/           example ELF user programs and cupid.h header
-  wiki/           documentation (17 Markdown files)
-  docs/plans/     design docs
+  wiki/           documentation (20 Markdown files)
+  docs/superpowers/  additional project docs
   cupidos-txt/    embedded rich-text docs (.CTXT format)
   img/            screenshots
   link.ld         linker script
@@ -125,7 +184,8 @@ Disk layout:
 LBA 0       MBR / Stage 1
 LBA 1-4     Stage 2
 LBA 5-4095  Kernel binary (up to ~2MB)
-LBA 4096+   FAT16 partition, mounted as /home
+LBA 4096+   FAT16 partition (mounted as /disk)
+           homefs persistent container (HOMEFS.SYS), mounted as /home
 ```
 
 ---
@@ -172,6 +232,7 @@ Up to 32 threads. Scheduler is preemptive, driven by IRQ0 at 200Hz (5ms slices).
 | `devfs.c/.h` | /dev entries: null, zero, console, serial, random |
 | `fat16.c/.h` | FAT16: MBR parsing, cluster chains, file read/write/create |
 | `fat16_vfs.c/.h` | FAT16 to VFS adapter |
+| `homefs.c/.h` | Persistent logical filesystem for /home, serialized to HOMEFS.SYS |
 | `blockdev.c/.h` | Block device abstraction |
 | `blockcache.c/.h` | 64-entry LRU sector cache, write-back, flushes periodically |
 
@@ -182,7 +243,8 @@ Filesystem layout at runtime:
   demos/    CupidASM demo programs
   docs/     documentation
   dev/      DevFS: null, zero, console, serial, random
-  home/     FAT16, persistent user data on disk
+  disk/     FAT16 raw partition view
+  home/     homefs persistent user data (backed by HOMEFS.SYS on FAT16)
 ```
 
 ### Graphics
@@ -212,7 +274,7 @@ All rendering goes to a RAM back buffer first. `vga_flip()` copies it to the lin
 | `gui_events.c/.h` | Mouse, keyboard, and window event dispatch |
 | `ui.c/.h` | Higher-level controls on top of the widget layer |
 
-Themes include Windows 95, Modern, Dark, and a few others. Theme files can be saved and loaded from disk.
+Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, and Vaporwave. Theme files can be saved and loaded from disk.
 
 ### Desktop
 
@@ -292,20 +354,22 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-65 CupidC programs embedded in RamFS at boot, all directly runnable from the shell:
+73 CupidC programs embedded in RamFS at boot, all directly runnable from the shell:
 
 | Category | Programs |
 |----------|---------|
-| File ops | cat, cp, find, grep, ls, mkdir, mv, rm, rmdir, touch |
-| Text | ed, echo, clear, setcolor, resetcolor |
-| System | date, help, history, ps, kill, sysinfo, time, registers, yield |
-| Memory | memdump, memstats, memcheck, memleak |
-| Debug | logdump, loglevel, stacktrace, crashtest |
-| Graphics | gfxdemo, gfxtest, paint, bmptest |
-| Shell | cd, pwd, mount, sync, reboot, spawn, cachestats |
-| Network | cupidfetch |
-| CupidC demos | feature1_types through feature10_repl, cupidc_test1 through cupidc_test5 |
-| Build | build.cup |
+| Core shell/filesystem | cat, cd, cp, find, grep, ls, mkdir, mount, mv, pwd, rm, rmdir, sync, touch |
+| Text/console | clear, echo, ed, printc, resetcolor, setcolor |
+| Process/system | date, help, history, kill, ps, reboot, spawn, sysinfo, time, yield |
+| Introspection/debug | cachestats, crashtest, logdump, loglevel, registers, stacktrace |
+| Memory tools | memcheck, memdump, memleak, memstats |
+| GUI/graphics apps | bgstudio, bmptest, fm, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
+| Audio/speech | godsong, godspeak |
+| Compiler/language demos | cupidc_test1, cupidc_test2, cupidc_test3, cupidc_test4, cupidc_test5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
+| Legacy compiler experiments | old_cc2, old_cc2_single |
+| Test programs | test, test_print |
+| Networking | cupidfetch |
+| Misc utility | ctxt |
 
 ---
 
