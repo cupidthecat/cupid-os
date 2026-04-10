@@ -27,7 +27,9 @@
 #include "fat16.h"
 #include "ansi.h"
 #include "gfx2d.h"
+#include "gfx2d_assets.h"
 #include "gfx2d_icons.h"
+#include "gfx2d_transform.h"
 #include "graphics.h"
 #include "gui.h"
 #include "kernel.h"
@@ -43,6 +45,7 @@
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
+static repl_state_t repl_state = {0};
 
 /* Port I/O wrappers for CupidC kernel bindings
  * The compiler binds calls to outb()/inb() to these wrappers which
@@ -1102,6 +1105,31 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_notepad_open_file)(const char *) = cc_notepad_open_file;
   BIND("notepad_open_file", p_notepad_open_file, 1);
 
+  void (*p_shell_execute_line)(const char *) = shell_execute_line;
+  BIND("shell_execute_line", p_shell_execute_line, 1);
+
+  void (*p_shell_set_output_mode)(int) = (void (*)(int))shell_set_output_mode;
+  BIND("shell_set_output_mode", p_shell_set_output_mode, 1);
+
+  void (*p_shell_gui_reset_input)(void) = shell_gui_reset_input;
+  BIND("shell_gui_reset_input", p_shell_gui_reset_input, 0);
+
+  void (*p_shell_gui_execute_line)(const char *) = shell_gui_execute_line;
+  BIND("shell_gui_execute_line", p_shell_gui_execute_line, 1);
+
+  void (*p_shell_jit_program_suspend)(void) = shell_jit_program_suspend;
+  BIND("shell_jit_program_suspend", p_shell_jit_program_suspend, 0);
+
+  void (*p_shell_jit_program_resume)(void) = shell_jit_program_resume;
+  BIND("shell_jit_program_resume", p_shell_jit_program_resume, 0);
+
+  int (*p_repl_eval)(const char *) = repl_eval;
+  BIND("repl_eval", p_repl_eval, 1);
+
+  int (*p_repl_consume_prompt_result)(int32_t *, int *, uint32_t *) =
+      repl_consume_prompt_result;
+  BIND("repl_consume_prompt_result", p_repl_consume_prompt_result, 3);
+
   /* GUI mode query */
   uint32_t (*p_is_gui)(void) = cc_is_gui_mode;
   BIND("is_gui_mode", p_is_gui, 0);
@@ -1359,6 +1387,36 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   void (*p_gfx2d_clip_clear)(void) = gfx2d_clip_clear;
   BIND("gfx2d_clip_clear", p_gfx2d_clip_clear, 0);
+
+  int (*p_gfx2d_image_load)(const char *) = gfx2d_image_load;
+  BIND("gfx2d_image_load", p_gfx2d_image_load, 1);
+
+  void (*p_gfx2d_image_free)(int) = gfx2d_image_free;
+  BIND("gfx2d_image_free", p_gfx2d_image_free, 1);
+
+  void (*p_gfx2d_image_draw)(int, int, int) = gfx2d_image_draw;
+  BIND("gfx2d_image_draw", p_gfx2d_image_draw, 3);
+
+  void (*p_gfx2d_image_draw_scaled)(int, int, int, int, int) =
+      gfx2d_image_draw_scaled;
+  BIND("gfx2d_image_draw_scaled", p_gfx2d_image_draw_scaled, 5);
+
+  void (*p_gfx2d_image_draw_region)(int, int, int, int, int, int, int) =
+      gfx2d_image_draw_region;
+  BIND("gfx2d_image_draw_region", p_gfx2d_image_draw_region, 7);
+
+  int (*p_gfx2d_image_width)(int) = gfx2d_image_width;
+  BIND("gfx2d_image_width", p_gfx2d_image_width, 1);
+
+  int (*p_gfx2d_image_height)(int) = gfx2d_image_height;
+  BIND("gfx2d_image_height", p_gfx2d_image_height, 1);
+
+  uint32_t (*p_gfx2d_image_get_pixel)(int, int, int) = gfx2d_image_get_pixel;
+  BIND("gfx2d_image_get_pixel", p_gfx2d_image_get_pixel, 3);
+
+  void (*p_gfx2d_image_draw_transformed)(int, int, int) =
+      gfx2d_image_draw_transformed;
+  BIND("gfx2d_image_draw_transformed", p_gfx2d_image_draw_transformed, 3);
 
   int (*p_gfx2d_sprite_load)(const char *) = gfx2d_sprite_load;
   BIND("gfx2d_sprite_load", p_gfx2d_sprite_load, 1);
@@ -2479,6 +2537,335 @@ static void cc_cleanup_state(cc_state_t *cc) {
     kfree(cc->data);
   cc->code = NULL;
   cc->data = NULL;
+}
+
+static void repl_free_state(void) {
+  if (repl_state.cc) {
+    cc_cleanup_state(repl_state.cc);
+    kfree(repl_state.cc);
+    repl_state.cc = NULL;
+  }
+  repl_state.active = 0;
+  repl_state.last_answer_valid = 0;
+  repl_state.last_answer = 0;
+  repl_state.last_eval_ms = 0;
+  repl_state.last_result_is_void = 0;
+  repl_state.new_answer = 0;
+  repl_state.code_committed = 0;
+  repl_state.data_committed = 0;
+  repl_state.sym_committed = 0;
+  repl_state.struct_committed = 0;
+  repl_state.typedef_committed = 0;
+  repl_state.patch_committed = 0;
+  repl_state.stmt_count = 0;
+}
+
+static void repl_store_ans_value(int32_t value) {
+  cc_symbol_t *ans_sym;
+  uint32_t addr_off;
+  uint32_t uvalue;
+
+  if (!repl_state.cc)
+    return;
+
+  ans_sym = cc_sym_find(repl_state.cc, "ans");
+  if (!ans_sym || ans_sym->kind != SYM_GLOBAL)
+    return;
+
+  addr_off = ans_sym->address - repl_state.cc->data_base;
+  if (addr_off + 4 > CC_MAX_DATA)
+    return;
+
+  uvalue = (uint32_t)value;
+  repl_state.cc->data[addr_off] = (uint8_t)(uvalue & 0xFF);
+  repl_state.cc->data[addr_off + 1] = (uint8_t)((uvalue >> 8) & 0xFF);
+  repl_state.cc->data[addr_off + 2] = (uint8_t)((uvalue >> 16) & 0xFF);
+  repl_state.cc->data[addr_off + 3] = (uint8_t)((uvalue >> 24) & 0xFF);
+}
+
+static int repl_bootstrap(void) {
+  cc_symbol_t *ans_sym;
+
+  if (repl_state.active && repl_state.cc)
+    return 0;
+
+  if (repl_state.cc)
+    repl_free_state();
+
+  repl_state.cc = kmalloc(sizeof(cc_state_t));
+  if (!repl_state.cc) {
+    print("CupidC REPL: out of memory for compiler state\n");
+    return -1;
+  }
+
+  if (cc_init_state(repl_state.cc, 1) < 0) {
+    kfree(repl_state.cc);
+    repl_state.cc = NULL;
+    return -1;
+  }
+
+  ans_sym = cc_sym_add(repl_state.cc, "ans", SYM_GLOBAL, TYPE_INT);
+  if (!ans_sym || repl_state.cc->data_pos + 4 > CC_MAX_DATA) {
+    print("CupidC REPL: failed to initialize ans\n");
+    repl_free_state();
+    return -1;
+  }
+  ans_sym->address = repl_state.cc->data_base + repl_state.cc->data_pos;
+  memset(repl_state.cc->data + repl_state.cc->data_pos, 0, 4);
+  repl_state.cc->data_pos += 4;
+
+  repl_state.code_committed = repl_state.cc->code_pos;
+  repl_state.data_committed = repl_state.cc->data_pos;
+  repl_state.sym_committed = repl_state.cc->sym_count;
+  repl_state.struct_committed = repl_state.cc->struct_count;
+  repl_state.typedef_committed = repl_state.cc->typedef_count;
+  repl_state.patch_committed = repl_state.cc->patch_count;
+  repl_state.last_answer_valid = 0;
+  repl_state.last_answer = 0;
+  repl_state.last_eval_ms = 0;
+  repl_state.last_result_is_void = 0;
+  repl_state.new_answer = 0;
+  repl_state.active = 1;
+  repl_state.stmt_count = 0;
+  repl_store_ans_value(0);
+  return 0;
+}
+
+static void repl_restore_committed_state(void) {
+  if (!repl_state.cc)
+    return;
+
+  repl_state.cc->code_pos = repl_state.code_committed;
+  repl_state.cc->data_pos = repl_state.data_committed;
+  repl_state.cc->sym_count = repl_state.sym_committed;
+  repl_state.cc->struct_count = repl_state.struct_committed;
+  repl_state.cc->typedef_count = repl_state.typedef_committed;
+  repl_state.cc->patch_count = repl_state.patch_committed;
+  repl_state.cc->has_entry = 0;
+  repl_state.cc->entry_offset = 0;
+  repl_state.cc->local_offset = 0;
+  repl_state.cc->max_local_offset = 0;
+  repl_state.cc->param_count = 0;
+  repl_state.cc->loop_depth = 0;
+  repl_state.cc->error = 0;
+  repl_state.cc->error_msg[0] = '\0';
+}
+
+static void repl_commit_state(void) {
+  if (!repl_state.cc)
+    return;
+
+  repl_state.code_committed = repl_state.cc->code_pos;
+  repl_state.data_committed = repl_state.cc->data_pos;
+  repl_state.sym_committed = repl_state.cc->sym_count;
+  repl_state.struct_committed = repl_state.cc->struct_count;
+  repl_state.typedef_committed = repl_state.cc->typedef_count;
+  repl_state.patch_committed = repl_state.cc->patch_count;
+}
+
+static int repl_has_unresolved_new_patches(cc_state_t *cc, int patch_start) {
+  int i;
+
+  if (!cc)
+    return 0;
+
+  for (i = patch_start; i < cc->patch_count; i++) {
+    cc_patch_t *p = &cc->patches[i];
+    cc_symbol_t *sym = cc_sym_find(cc, p->name);
+    if (!sym)
+      return 1;
+    if (sym->kind == SYM_FUNC && sym->is_defined)
+      continue;
+    if (sym->kind == SYM_KERNEL)
+      continue;
+    return 1;
+  }
+
+  return 0;
+}
+
+static int repl_copy_source(const char *line, char **out_src) {
+  size_t len = strlen(line);
+  size_t out_len = len + 1u;
+  char *src = kmalloc(out_len);
+  if (!src)
+    return -1;
+
+  memcpy(src, line, len);
+  src[len] = '\0';
+  *out_src = src;
+  return 0;
+}
+
+void repl_init(void) {
+  (void)repl_bootstrap();
+}
+
+void repl_reset(void) {
+  repl_free_state();
+  (void)repl_bootstrap();
+}
+
+int repl_consume_prompt_result(int32_t *value, int *has_value,
+                               uint32_t *elapsed_ms) {
+  if (!repl_state.new_answer)
+    return 0;
+
+  if (value)
+    *value = repl_state.last_answer;
+  if (has_value)
+    *has_value = repl_state.last_answer_valid && !repl_state.last_result_is_void;
+  if (elapsed_ms)
+    *elapsed_ms = repl_state.last_eval_ms;
+  repl_state.new_answer = 0;
+  return 1;
+}
+
+int repl_eval(const char *line) {
+  uint32_t snapshot_last_eval_ms = repl_state.last_eval_ms;
+  int snapshot_last_result_is_void = repl_state.last_result_is_void;
+  int snapshot_new_answer = repl_state.new_answer;
+
+  if (!line || line[0] == '\0')
+    return -1;
+
+  if (repl_bootstrap() < 0)
+    return -1;
+
+  char *source = NULL;
+  if (repl_copy_source(line, &source) < 0)
+    return -1;
+
+  cc_state_t *cc = repl_state.cc;
+  uint32_t snapshot_code = repl_state.code_committed;
+  uint32_t snapshot_data = repl_state.data_committed;
+  int snapshot_sym = repl_state.sym_committed;
+  int snapshot_struct = repl_state.struct_committed;
+  int snapshot_typedef = repl_state.typedef_committed;
+  int snapshot_patch = repl_state.patch_committed;
+  int snapshot_last_answer = repl_state.last_answer;
+  int snapshot_last_answer_valid = repl_state.last_answer_valid;
+
+  cc->error = 0;
+  cc->error_msg[0] = '\0';
+  cc->has_entry = 0;
+  cc->entry_offset = 0;
+  cc->local_offset = 0;
+  cc->max_local_offset = 0;
+  cc->param_count = 0;
+  cc->loop_depth = 0;
+
+  cc_lex_init(cc, source);
+  int is_expr = 0;
+  cc_parse_repl_line(cc, &is_expr);
+
+  if (cc->error) {
+    repl_state.code_committed = snapshot_code;
+    repl_state.data_committed = snapshot_data;
+    repl_state.sym_committed = snapshot_sym;
+    repl_state.struct_committed = snapshot_struct;
+    repl_state.typedef_committed = snapshot_typedef;
+    repl_state.patch_committed = snapshot_patch;
+    repl_state.last_answer = snapshot_last_answer;
+    repl_state.last_answer_valid = snapshot_last_answer_valid;
+    repl_state.last_eval_ms = snapshot_last_eval_ms;
+    repl_state.last_result_is_void = snapshot_last_result_is_void;
+    repl_state.new_answer = snapshot_new_answer;
+    repl_restore_committed_state();
+    kfree(source);
+    return -1;
+  }
+
+  if (!cc->has_entry) {
+    repl_commit_state();
+    kfree(source);
+    return 0;
+  }
+
+  if (repl_has_unresolved_new_patches(cc, snapshot_patch)) {
+    repl_state.code_committed = snapshot_code;
+    repl_state.data_committed = snapshot_data;
+    repl_state.sym_committed = snapshot_sym;
+    repl_state.struct_committed = snapshot_struct;
+    repl_state.typedef_committed = snapshot_typedef;
+    repl_state.patch_committed = snapshot_patch;
+    repl_state.last_answer = snapshot_last_answer;
+    repl_state.last_answer_valid = snapshot_last_answer_valid;
+    repl_state.last_eval_ms = snapshot_last_eval_ms;
+    repl_state.last_result_is_void = snapshot_last_result_is_void;
+    repl_state.new_answer = snapshot_new_answer;
+    repl_restore_committed_state();
+    kfree(source);
+    return -1;
+  }
+
+  if (cc->code_pos > CC_MAX_CODE || cc->data_pos > CC_MAX_DATA) {
+    repl_state.code_committed = snapshot_code;
+    repl_state.data_committed = snapshot_data;
+    repl_state.sym_committed = snapshot_sym;
+    repl_state.struct_committed = snapshot_struct;
+    repl_state.typedef_committed = snapshot_typedef;
+    repl_state.patch_committed = snapshot_patch;
+    repl_state.last_answer = snapshot_last_answer;
+    repl_state.last_answer_valid = snapshot_last_answer_valid;
+    repl_state.last_eval_ms = snapshot_last_eval_ms;
+    repl_state.last_result_is_void = snapshot_last_result_is_void;
+    repl_state.new_answer = snapshot_new_answer;
+    repl_restore_committed_state();
+    kfree(source);
+    return -1;
+  }
+
+  if (!shell_jit_program_start("repl")) {
+    repl_state.code_committed = snapshot_code;
+    repl_state.data_committed = snapshot_data;
+    repl_state.sym_committed = snapshot_sym;
+    repl_state.struct_committed = snapshot_struct;
+    repl_state.typedef_committed = snapshot_typedef;
+    repl_state.patch_committed = snapshot_patch;
+    repl_state.last_answer = snapshot_last_answer;
+    repl_state.last_answer_valid = snapshot_last_answer_valid;
+    repl_state.last_eval_ms = snapshot_last_eval_ms;
+    repl_state.last_result_is_void = snapshot_last_result_is_void;
+    repl_state.new_answer = snapshot_new_answer;
+    repl_restore_committed_state();
+    kfree(source);
+    return -1;
+  }
+
+  memcpy((void *)CC_JIT_CODE_BASE, cc->code, cc->code_pos);
+  memcpy((void *)CC_JIT_DATA_BASE, cc->data, cc->data_pos);
+
+  {
+    uint32_t entry_addr = CC_JIT_CODE_BASE + cc->entry_offset;
+    int32_t (*entry_fn)(void);
+    uint32_t start_ms;
+    uint32_t end_ms;
+    memcpy(&entry_fn, &entry_addr, sizeof(entry_fn));
+    start_ms = timer_get_uptime_ms();
+    int32_t result = entry_fn();
+    end_ms = timer_get_uptime_ms();
+    shell_jit_program_end();
+
+    if (is_expr) {
+      repl_state.last_answer = result;
+      repl_state.last_answer_valid = 1;
+      repl_state.last_result_is_void = 0;
+      repl_store_ans_value(result);
+    } else {
+      repl_state.last_answer = 0;
+      repl_state.last_answer_valid = 0;
+      repl_state.last_result_is_void = 1;
+      repl_store_ans_value(0);
+    }
+    repl_state.last_eval_ms = end_ms - start_ms;
+    repl_state.new_answer = 1;
+  }
+
+  repl_commit_state();
+
+  kfree(source);
+  return 0;
 }
 
 static int cc_name_starts_with(const char *s, const char *prefix) {

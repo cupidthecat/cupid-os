@@ -86,6 +86,8 @@ void gfx2d_scanlines(int x, int y, int w, int h, int alpha);
 
 void gfx2d_clip_set(int x, int y, int w, int h);
 void gfx2d_clip_clear(void);
+bool gfx2d_clip_is_active(void);
+void gfx2d_clip_get(int *x, int *y, int *w, int *h);
 
 int gfx2d_sprite_load(const char *path);
 void gfx2d_sprite_free(int handle);

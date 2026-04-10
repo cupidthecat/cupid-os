@@ -1080,7 +1080,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       emit_call_abs(cc, printf_sym->address);
       emit_add_esp(cc, (int32_t)(argc * 4));
 
-      cc_last_expr_type = TYPE_INT;
+      cc_last_expr_type = TYPE_VOID;
       return;
     }
 
@@ -1149,7 +1149,11 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       emit_add_esp(cc, (int32_t)(argc * 4));
     }
 
-    cc_last_expr_type = TYPE_INT; /* assume int return */
+    if (strcmp(name, "print") == 0 || strcmp(name, "println") == 0) {
+      cc_last_expr_type = TYPE_VOID;
+    } else {
+      cc_last_expr_type = TYPE_INT; /* assume int return */
+    }
     return;
   }
 
@@ -1205,10 +1209,10 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     } else {
       emit_mov_eax_imm(cc, sym->address);
     }
-    cc_last_expr_type = TYPE_PTR;
+    cc_last_expr_type = TYPE_FUNC_PTR;
   } else if (sym->kind == SYM_KERNEL) {
     emit_mov_eax_imm(cc, sym->address);
-    cc_last_expr_type = TYPE_PTR;
+    cc_last_expr_type = TYPE_FUNC_PTR;
   }
 }
 
@@ -4544,6 +4548,494 @@ void cc_parse_program(cc_state_t *cc) {
         cc->error_msg[ei++] = '\'';
         cc->error_msg[ei++] = '\n';
         cc->error_msg[ei] = '\0';
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  REPL Line Parsing — TempleOS-style direct statement compilation
+ * ══════════════════════════════════════════════════════════════════════ */
+
+static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
+  int saved_pos = cc->pos;
+  int saved_line = cc->line;
+  int saved_has_peek = cc->has_peek;
+  cc_token_t saved_peek = cc->peek_buf;
+  cc_token_t saved_cur = cc->cur;
+  cc_token_t ident_tok;
+  cc_token_t after_tok;
+  cc_symbol_t *sym;
+
+  if (cc_peek(cc).type != CC_TOK_IDENT)
+    return 0;
+
+  ident_tok = cc_next(cc);
+  after_tok = cc_peek(cc);
+
+  cc->pos = saved_pos;
+  cc->line = saved_line;
+  cc->has_peek = saved_has_peek;
+  cc->peek_buf = saved_peek;
+  cc->cur = saved_cur;
+
+  if (after_tok.type != CC_TOK_SEMICOLON && after_tok.type != CC_TOK_EOF)
+    return 0;
+
+  sym = cc_sym_find(cc, ident_tok.text);
+  if (!sym || sym->param_count != 0)
+    return 0;
+  if (sym->kind != SYM_FUNC && sym->kind != SYM_KERNEL)
+    return 0;
+
+  cc_next(cc); /* consume identifier */
+
+  if (sym->kind == SYM_KERNEL) {
+    emit_call_abs(cc, sym->address);
+    cc_last_expr_type = TYPE_VOID;
+    *is_expr = 0;
+  } else {
+    if (sym->is_defined) {
+      uint32_t target = cc->code_base + (uint32_t)sym->offset;
+      emit_call_abs(cc, target);
+    } else {
+      uint32_t patch_pos = emit_call_rel_placeholder(cc);
+      if (cc->patch_count < CC_MAX_PATCHES) {
+        cc_patch_t *p = &cc->patches[cc->patch_count++];
+        p->code_offset = patch_pos;
+        int pi = 0;
+        while (ident_tok.text[pi] && pi < CC_MAX_IDENT - 1) {
+          p->name[pi] = ident_tok.text[pi];
+          pi++;
+        }
+        p->name[pi] = '\0';
+      }
+    }
+    cc_last_expr_type = sym->type;
+    *is_expr = sym->type != TYPE_VOID;
+  }
+
+  if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+    cc_next(cc);
+  return 1;
+}
+
+void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
+  *is_expr = 0;
+
+  if (cc->error || cc_peek(cc).type == CC_TOK_EOF)
+    return;
+
+  cc_token_t tok = cc_peek(cc);
+
+  /* ── Static qualifier ─────────────────────────────────────────── */
+  if (tok.type == CC_TOK_STATIC) {
+    cc_next(cc);
+    tok = cc_peek(cc);
+  }
+
+  /* ── Enum definition: enum { A, B = 5, C }; ─────────────────── */
+  if (tok.type == CC_TOK_ENUM) {
+    cc_next(cc);
+    if (cc_peek(cc).type == CC_TOK_IDENT)
+      cc_next(cc);
+    cc_expect(cc, CC_TOK_LBRACE);
+    int32_t enum_val = 0;
+    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+           cc_peek(cc).type != CC_TOK_EOF) {
+      cc_token_t name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected enum constant name");
+        return;
+      }
+      if (cc_match(cc, CC_TOK_EQ)) {
+        cc_token_t val_tok = cc_next(cc);
+        int negate = 0;
+        if (val_tok.type == CC_TOK_MINUS) {
+          negate = 1;
+          val_tok = cc_next(cc);
+        }
+        if (val_tok.type != CC_TOK_NUMBER) {
+          cc_error(cc, "expected integer in enum");
+          return;
+        }
+        enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+      }
+      cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
+      if (gsym) {
+        gsym->address = cc->data_base + cc->data_pos;
+        memset(cc->data + cc->data_pos, 0, 4);
+        uint32_t v = (uint32_t)enum_val;
+        cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
+        cc->data[cc->data_pos + 1] = (uint8_t)((v >> 8) & 0xFF);
+        cc->data[cc->data_pos + 2] = (uint8_t)((v >> 16) & 0xFF);
+        cc->data[cc->data_pos + 3] = (uint8_t)((v >> 24) & 0xFF);
+        cc->data_pos += 4;
+      }
+      enum_val++;
+      if (cc_peek(cc).type != CC_TOK_RBRACE)
+        cc_expect(cc, CC_TOK_COMMA);
+    }
+    cc_expect(cc, CC_TOK_RBRACE);
+    if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+      cc_next(cc);
+    return;
+  }
+
+  /* ── Typedef: typedef <type> <alias>; ──────────────────────────── */
+  if (tok.type == CC_TOK_TYPEDEF) {
+    cc_next(cc);
+    cc_type_t td_type = cc_parse_type(cc);
+    cc_token_t alias_tok = cc_next(cc);
+    if (alias_tok.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected typedef alias name");
+      return;
+    }
+    if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+      cc_next(cc);
+    if (cc->typedef_count < 16) {
+      int ti = 0;
+      while (alias_tok.text[ti] && ti < CC_MAX_IDENT - 1) {
+        cc->typedef_names[cc->typedef_count][ti] = alias_tok.text[ti];
+        ti++;
+      }
+      cc->typedef_names[cc->typedef_count][ti] = '\0';
+      cc->typedef_types[cc->typedef_count] = td_type;
+      cc->typedef_count++;
+    }
+    return;
+  }
+
+  /* ── Struct definition: struct Name { fields... }; ──────────────── */
+  if (tok.type == CC_TOK_STRUCT) {
+    int saved_pos = cc->pos;
+    int saved_line = cc->line;
+    int saved_has_peek = cc->has_peek;
+    cc_token_t saved_peek = cc->peek_buf;
+    cc_token_t saved_cur = cc->cur;
+
+    cc_next(cc);
+    cc_token_t sname = cc_next(cc);
+    cc_token_t after = cc_peek(cc);
+    (void)sname;
+
+    cc->pos = saved_pos;
+    cc->line = saved_line;
+    cc->has_peek = saved_has_peek;
+    cc->peek_buf = saved_peek;
+    cc->cur = saved_cur;
+
+    if (after.type == CC_TOK_LBRACE) {
+      cc_next(cc);
+      cc_token_t name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected struct name");
+        return;
+      }
+      int sidx = cc_get_or_add_struct_tag(cc, name_tok.text);
+      if (sidx < 0)
+        return;
+      cc_struct_def_t *sd = &cc->structs[sidx];
+      if (sd->is_complete) {
+        cc_error(cc, "redefinition of struct");
+        return;
+      }
+      sd->field_count = 0;
+      sd->total_size = 0;
+      sd->align = 1;
+      sd->is_complete = 0;
+
+      cc_expect(cc, CC_TOK_LBRACE);
+      int32_t field_offset = 0;
+      int32_t struct_align = 1;
+      while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+             cc_peek(cc).type != CC_TOK_EOF) {
+        if (sd->field_count >= CC_MAX_FIELDS) {
+          cc_error(cc, "too many fields in struct");
+          return;
+        }
+        cc_type_t ftype = cc_parse_type(cc);
+        int fsi = cc_last_type_struct_index;
+        cc_token_t fname = cc_next(cc);
+        if (fname.type != CC_TOK_IDENT) {
+          cc_error(cc, "expected field name");
+          return;
+        }
+        cc_field_t *f = &sd->fields[sd->field_count++];
+        int fi = 0;
+        while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
+          f->name[fi] = fname.text[fi];
+          fi++;
+        }
+        f->name[fi] = '\0';
+        f->type = ftype;
+        f->struct_index = fsi;
+        f->array_count = 0;
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          cc_token_t size_tok = cc_next(cc);
+          if (size_tok.type != CC_TOK_NUMBER) {
+            cc_error(cc, "expected array size");
+            return;
+          }
+          f->array_count = size_tok.int_value;
+          cc_expect(cc, CC_TOK_RBRACK);
+        }
+        if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
+          cc_error(cc, "field has incomplete struct type");
+          return;
+        }
+        int32_t elem_size = cc_type_size(cc, ftype, fsi);
+        int32_t field_align_val = cc_type_align(cc, ftype, fsi);
+        int32_t fsize = elem_size;
+        if (f->array_count > 0)
+          fsize = elem_size * f->array_count;
+        field_offset = cc_align_up(field_offset, field_align_val);
+        f->offset = field_offset;
+        field_offset += fsize;
+        if (field_align_val > struct_align)
+          struct_align = field_align_val;
+        cc_expect(cc, CC_TOK_SEMICOLON);
+      }
+      cc_expect(cc, CC_TOK_RBRACE);
+      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+        cc_next(cc);
+      sd->align = struct_align;
+      sd->total_size = cc_align_up(field_offset, struct_align);
+      sd->is_complete = 1;
+      return;
+    }
+    if (after.type == CC_TOK_SEMICOLON) {
+      cc_next(cc);
+      cc_token_t name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected struct name");
+        return;
+      }
+      cc_expect(cc, CC_TOK_SEMICOLON);
+      cc_get_or_add_struct_tag(cc, name_tok.text);
+      return;
+    }
+    /* Fall through — struct used as type for variable or function */
+  }
+
+  /* ── Check if line starts with a type (function def or global var) ── */
+  if (cc_is_type_or_typedef(cc, tok)) {
+    int saved_pos = cc->pos;
+    int saved_line = cc->line;
+    int saved_has_peek = cc->has_peek;
+    cc_token_t saved_peek = cc->peek_buf;
+    cc_token_t saved_cur = cc->cur;
+
+    cc_type_t type = cc_parse_type(cc);
+    cc_token_t name_tok = cc_next(cc);
+    cc_token_t after = cc_peek(cc);
+
+    cc->pos = saved_pos;
+    cc->line = saved_line;
+    cc->has_peek = saved_has_peek;
+    cc->peek_buf = saved_peek;
+    cc->cur = saved_cur;
+
+    if (after.type == CC_TOK_LPAREN) {
+      cc_parse_function(cc);
+
+      for (int i = 0; i < cc->patch_count; i++) {
+        cc_patch_t *p = &cc->patches[i];
+        cc_symbol_t *sym = cc_sym_find(cc, p->name);
+        if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
+          uint32_t target = cc->code_base + (uint32_t)sym->offset;
+          uint32_t from = cc->code_base + p->code_offset + 4;
+          int32_t rel = (int32_t)(target - from);
+          patch32(cc, p->code_offset, (uint32_t)rel);
+        } else if (sym && sym->kind == SYM_KERNEL) {
+          uint32_t target = sym->address;
+          uint32_t from = cc->code_base + p->code_offset + 4;
+          int32_t rel = (int32_t)(target - from);
+          patch32(cc, p->code_offset, (uint32_t)rel);
+        }
+      }
+      return;
+    }
+
+    (void)type;
+    (void)name_tok;
+    cc_type_t gtype = cc_parse_type(cc);
+    int gtype_si = cc_last_type_struct_index;
+    cc_token_t gname = cc_next(cc);
+    if (gname.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected variable name");
+      return;
+    }
+
+    if (cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc);
+      cc_token_t size_tok = cc_next(cc);
+      if (size_tok.type != CC_TOK_NUMBER) {
+        cc_error(cc, "expected array size");
+        return;
+      }
+      cc_expect(cc, CC_TOK_RBRACK);
+      int32_t arr_elems = size_tok.int_value;
+      int32_t elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
+      cc_type_t arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      if (gtype == TYPE_STRUCT && gtype_si >= 0 && gtype_si < cc->struct_count) {
+        elem_size = cc->structs[gtype_si].total_size;
+        arr_type = TYPE_STRUCT_PTR;
+      }
+      int32_t total_bytes = (arr_elems * elem_size + 3) & ~3;
+      cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
+      if (gsym) {
+        gsym->address = cc->data_base + cc->data_pos;
+        gsym->is_array = 1;
+        gsym->struct_index = gtype_si;
+        gsym->array_elem_size = elem_size;
+        memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
+        cc->data_pos += (uint32_t)total_bytes;
+      }
+      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+        cc_next(cc);
+      return;
+    }
+
+    if (gtype == TYPE_STRUCT && gtype_si >= 0) {
+      if (!cc_struct_is_complete(cc, gtype_si)) {
+        cc_error(cc, "incomplete struct type");
+        return;
+      }
+      int32_t ssize = cc->structs[gtype_si].total_size;
+      int32_t alloc_size = cc_align_up(ssize, 4);
+      cc_symbol_t *gsym =
+          cc_sym_add(cc, gname.text, SYM_GLOBAL, TYPE_STRUCT);
+      if (gsym) {
+        gsym->address = cc->data_base + cc->data_pos;
+        gsym->struct_index = gtype_si;
+        memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
+        cc->data_pos += (uint32_t)alloc_size;
+      }
+      if (cc_match(cc, CC_TOK_EQ)) {
+        if (!cc_skip_brace_initializer(cc))
+          return;
+      }
+      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+        cc_next(cc);
+      return;
+    }
+
+    {
+      cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
+      if (gsym) {
+        gsym->address = cc->data_base + cc->data_pos;
+        gsym->struct_index = gtype_si;
+        memset(cc->data + cc->data_pos, 0, 4);
+        cc->data_pos += 4;
+
+        if (cc_match(cc, CC_TOK_EQ)) {
+          cc_token_t val = cc_next(cc);
+          uint32_t addr_off = gsym->address - cc->data_base;
+          int negate = 0;
+          if (val.type == CC_TOK_MINUS) {
+            negate = 1;
+            val = cc_next(cc);
+          }
+          if (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT) {
+            int32_t sv = negate ? -val.int_value : val.int_value;
+            uint32_t v = (uint32_t)sv;
+            cc->data[addr_off] = (uint8_t)(v & 0xFF);
+            cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
+            cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
+            cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
+          } else if (val.type == CC_TOK_STRING) {
+            uint32_t str_addr = cc->data_base + cc->data_pos;
+            int si = 0;
+            while (val.text[si] && cc->data_pos < CC_MAX_DATA) {
+              cc->data[cc->data_pos++] = (uint8_t)val.text[si++];
+            }
+            if (cc->data_pos < CC_MAX_DATA)
+              cc->data[cc->data_pos++] = 0;
+            cc->data_pos = (cc->data_pos + 3u) & ~3u;
+            cc->data[addr_off] = (uint8_t)(str_addr & 0xFF);
+            cc->data[addr_off + 1] = (uint8_t)((str_addr >> 8) & 0xFF);
+            cc->data[addr_off + 2] = (uint8_t)((str_addr >> 16) & 0xFF);
+            cc->data[addr_off + 3] = (uint8_t)((str_addr >> 24) & 0xFF);
+          }
+        }
+      }
+      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+        cc_next(cc);
+      return;
+    }
+  }
+
+  /* ── Statement / Expression — emit executable code ─────────────── */
+  {
+    cc->entry_offset = cc->code_pos;
+    cc->has_entry = 1;
+
+    emit_prologue(cc);
+    uint32_t sub_esp_pos = cc->code_pos;
+    emit_sub_esp(cc, 256);
+
+    int saved_scope = cc->sym_count;
+    cc->local_offset = 0;
+    cc->max_local_offset = 0;
+    cc->param_count = 0;
+
+    int last_was_expr = 0;
+
+    while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+      last_was_expr = 0;
+      cc_token_t next = cc_peek(cc);
+
+      if (cc_is_type_or_typedef(cc, next)) {
+        cc_parse_statement(cc);
+        continue;
+      }
+
+      if (next.type == CC_TOK_IF || next.type == CC_TOK_WHILE ||
+          next.type == CC_TOK_FOR || next.type == CC_TOK_DO ||
+          next.type == CC_TOK_SWITCH || next.type == CC_TOK_LBRACE) {
+        cc_parse_statement(cc);
+        continue;
+      }
+
+      if (cc_repl_try_zero_arg_call(cc, &last_was_expr))
+        continue;
+
+      cc_parse_expression(cc, 1);
+      last_was_expr = 1;
+      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+        cc_next(cc);
+    }
+
+    *is_expr = last_was_expr && cc_last_expr_type != TYPE_VOID &&
+               cc_last_expr_type != TYPE_FUNC_PTR;
+
+    int32_t locals_size = -cc->max_local_offset;
+    if (locals_size < 0)
+      locals_size = 0;
+    locals_size = (locals_size + 15) & ~15;
+    if (locals_size == 0)
+      locals_size = 16;
+    patch32(cc, sub_esp_pos + 2, (uint32_t)locals_size);
+
+    emit_epilogue(cc);
+
+    cc->sym_count = saved_scope;
+
+    for (int i = 0; i < cc->patch_count; i++) {
+      cc_patch_t *p = &cc->patches[i];
+      cc_symbol_t *sym = cc_sym_find(cc, p->name);
+      if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
+        uint32_t target = cc->code_base + (uint32_t)sym->offset;
+        uint32_t from = cc->code_base + p->code_offset + 4;
+        int32_t rel = (int32_t)(target - from);
+        patch32(cc, p->code_offset, (uint32_t)rel);
+      } else if (sym && sym->kind == SYM_KERNEL) {
+        uint32_t target = sym->address;
+        uint32_t from = cc->code_base + p->code_offset + 4;
+        int32_t rel = (int32_t)(target - from);
+        patch32(cc, p->code_offset, (uint32_t)rel);
       }
     }
   }

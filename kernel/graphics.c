@@ -29,6 +29,25 @@ static int gfx_current_h(void) {
     return active ? gfx2d_height() : VGA_GFX_HEIGHT;
 }
 
+static void gfx_clip_bounds(int *x1, int *y1, int *x2, int *y2) {
+    int width = gfx_current_w();
+    int height = gfx_current_h();
+
+    *x1 = 0;
+    *y1 = 0;
+    *x2 = width - 1;
+    *y2 = height - 1;
+
+    if (gfx2d_clip_is_active()) {
+        int clip_x, clip_y, clip_w, clip_h;
+        gfx2d_clip_get(&clip_x, &clip_y, &clip_w, &clip_h);
+        if (clip_x > *x1) *x1 = clip_x;
+        if (clip_y > *y1) *y1 = clip_y;
+        if (clip_x + clip_w - 1 < *x2) *x2 = clip_x + clip_w - 1;
+        if (clip_y + clip_h - 1 < *y2) *y2 = clip_y + clip_h - 1;
+    }
+}
+
 void gfx_init(void) {
     fb = vga_get_framebuffer();
 }
@@ -40,7 +59,9 @@ void gfx_set_framebuffer(uint32_t *new_fb) {
 void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color) {
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
-    if (x < 0 || x >= width || y < 0 || y >= gfx_current_h())
+    int clip_x1, clip_y1, clip_x2, clip_y2;
+    gfx_clip_bounds(&clip_x1, &clip_y1, &clip_x2, &clip_y2);
+    if (x < clip_x1 || x > clip_x2 || y < clip_y1 || y > clip_y2)
         return;
     dst[(int32_t)y * width + (int32_t)x] = color;
 }
@@ -48,11 +69,13 @@ void gfx_plot_pixel(int16_t x, int16_t y, uint32_t color) {
 void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint32_t color) {
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
-    if (y < 0 || y >= gfx_current_h()) return;
+    int clip_x1, clip_y1, clip_x2, clip_y2;
+    gfx_clip_bounds(&clip_x1, &clip_y1, &clip_x2, &clip_y2);
+    if (y < clip_y1 || y > clip_y2) return;
     int16_t x1 = x;
     int16_t x2 = (int16_t)(x + (int16_t)w - 1);
-    if (x1 < 0) x1 = 0;
-    if (x2 >= width) x2 = (int16_t)(width - 1);
+    if (x1 < clip_x1) x1 = (int16_t)clip_x1;
+    if (x2 > clip_x2) x2 = (int16_t)clip_x2;
     if (x1 > x2) return;
     uint32_t *row = &dst[(int32_t)y * width + (int32_t)x1];
     simd_memset32(row, color, (uint32_t)(x2 - x1 + 1));
@@ -61,12 +84,14 @@ void gfx_draw_hline(int16_t x, int16_t y, uint16_t w, uint32_t color) {
 void gfx_draw_vline(int16_t x, int16_t y, uint16_t h, uint32_t color) {
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
-    int height = gfx_current_h();
-    if (x < 0 || x >= width) return;
+    int clip_x1, clip_y1, clip_x2, clip_y2;
+    gfx_clip_bounds(&clip_x1, &clip_y1, &clip_x2, &clip_y2);
+    if (x < clip_x1 || x > clip_x2) return;
     int16_t y1 = y;
     int16_t y2 = (int16_t)(y + (int16_t)h - 1);
-    if (y1 < 0) y1 = 0;
-    if (y2 >= height) y2 = (int16_t)(height - 1);
+    if (y1 < clip_y1) y1 = (int16_t)clip_y1;
+    if (y2 > clip_y2) y2 = (int16_t)clip_y2;
+    if (y1 > y2) return;
     for (int16_t row = y1; row <= y2; row++) {
         dst[(int32_t)row * width + (int32_t)x] = color;
     }
@@ -104,15 +129,16 @@ void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
                    uint32_t color) {
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
-    int height = gfx_current_h();
+    int clip_x1, clip_y1, clip_x2, clip_y2;
+    gfx_clip_bounds(&clip_x1, &clip_y1, &clip_x2, &clip_y2);
     /* Clip once for the whole rect instead of per-row in gfx_draw_hline */
     int x1 = (int)x, y1 = (int)y;
     int x2 = x1 + (int)w - 1;
     int y2 = y1 + (int)h - 1;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-    if (x2 >= width)  x2 = width - 1;
-    if (y2 >= height) y2 = height - 1;
+    if (x1 < clip_x1) x1 = clip_x1;
+    if (y1 < clip_y1) y1 = clip_y1;
+    if (x2 > clip_x2) x2 = clip_x2;
+    if (y2 > clip_y2) y2 = clip_y2;
     if (x1 > x2 || y1 > y2) return;
     simd_fill_rect(dst, (uint32_t)width,
                    x1, y1, x2 - x1 + 1, y2 - y1 + 1, color);
@@ -122,13 +148,15 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
     int height = gfx_current_h();
+    int clip_x1, clip_y1, clip_x2, clip_y2;
     uint8_t idx = (uint8_t)c;
     if (idx >= 128U) idx = 0U;
     const uint8_t *glyph = font_8x8[idx];
+    gfx_clip_bounds(&clip_x1, &clip_y1, &clip_x2, &clip_y2);
 
-    /* Fast path: character entirely within screen - no per-pixel clip needed */
-    if ((int)x >= 0 && (int)x + FONT_W <= width &&
-        (int)y >= 0 && (int)y + FONT_H <= height) {
+    /* Fast path: character entirely within current clip bounds. */
+    if ((int)x >= clip_x1 && (int)x + FONT_W - 1 <= clip_x2 &&
+        (int)y >= clip_y1 && (int)y + FONT_H - 1 <= clip_y2) {
         for (int row = 0; row < FONT_H; row++) {
             uint8_t bits = glyph[row];
             if (!bits) continue;
@@ -142,14 +170,14 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
     /* Slow path: clip per pixel for edge characters */
     for (int row = 0; row < FONT_H; row++) {
         int py = (int)y + row;
-        if (py < 0 || py >= height) continue;
+        if (py < clip_y1 || py > clip_y2 || py < 0 || py >= height) continue;
         uint8_t bits = glyph[row];
         if (!bits) continue;
         uint32_t *rp = dst + (uint32_t)py * (uint32_t)width;
         for (int col = 0; col < FONT_W; col++) {
             if (bits & (0x80U >> (unsigned)col)) {
                 int px = (int)x + col;
-                if (px >= 0 && px < width) rp[px] = color;
+                if (px >= clip_x1 && px <= clip_x2 && px >= 0 && px < width) rp[px] = color;
             }
         }
     }

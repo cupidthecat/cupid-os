@@ -332,4 +332,67 @@ cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name);
 cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
                         cc_type_t type);
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  REPL (HolyC-style interactive shell)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Persistent REPL state — lives until reboot or explicit reset */
+typedef struct {
+  cc_state_t *cc;          /* Persistent compiler state (symbols/code/data accumulate) */
+  uint32_t stmt_count;     /* Counter for internal label generation */
+  uint32_t code_committed; /* Bytes of code permanently committed */
+  uint32_t data_committed; /* Bytes of data permanently committed */
+  int sym_committed;       /* Number of symbols permanently committed */
+  int struct_committed;    /* Number of structs permanently committed */
+  int typedef_committed;   /* Number of typedefs permanently committed */
+  int patch_committed;     /* Number of patches permanently committed */
+  int32_t last_answer;     /* Result of last expression (like TempleOS Fs->answer) */
+  int last_answer_valid;   /* Whether last_answer holds a meaningful value */
+  uint32_t last_eval_ms;   /* Last successful REPL execution time in milliseconds */
+  int last_result_is_void; /* Last executed REPL statement returned void */
+  int new_answer;          /* Prompt should display the last successful result */
+  int active;              /* REPL initialized? */
+} repl_state_t;
+
+/**
+ * repl_init - Initialize the persistent REPL state.
+ * Called once at shell startup. Allocates cc_state_t, registers kernel bindings.
+ */
+void repl_init(void);
+
+/**
+ * repl_eval - Try to JIT-compile and execute a line as CupidC.
+ *
+ * @param line  The input line (will be copied internally)
+ * @return 0 on success, -1 on compilation failure (caller should fall back)
+ */
+int repl_eval(const char *line);
+
+/**
+ * repl_consume_prompt_result - Fetch and clear the pending prompt result.
+ *
+ * @param value      Receives last answer when available
+ * @param has_value  Receives 1 if answer should be printed, 0 for void/no value
+ * @param elapsed_ms Receives elapsed execution time in milliseconds
+ * @return 1 if a prompt result was pending, 0 otherwise
+ */
+int repl_consume_prompt_result(int32_t *value, int *has_value,
+                               uint32_t *elapsed_ms);
+
+/**
+ * repl_reset - Wipe REPL state and reinitialize.
+ * Frees the old compiler state, allocates fresh, re-registers bindings.
+ */
+void repl_reset(void);
+
+/**
+ * cc_parse_repl_line - Parse a single REPL line (statement, expression, or declaration).
+ * Sets cc->has_entry and cc->entry_offset if code needs to be executed.
+ * Sets *is_expr to 1 if the line was an expression (for auto-print).
+ *
+ * @param cc      Compiler state
+ * @param is_expr Output: set to 1 if the line is an expression-statement
+ */
+void cc_parse_repl_line(cc_state_t *cc, int *is_expr);
+
 #endif /* CUPIDC_H */

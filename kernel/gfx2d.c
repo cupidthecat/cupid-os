@@ -1127,6 +1127,19 @@ void gfx2d_clip_set(int x, int y, int w, int h) {
 
 void gfx2d_clip_clear(void) { g2d_clip_active = 0; }
 
+bool gfx2d_clip_is_active(void) { return g2d_clip_active != 0; }
+
+void gfx2d_clip_get(int *x, int *y, int *w, int *h) {
+  if (x)
+    *x = g2d_clip_x;
+  if (y)
+    *y = g2d_clip_y;
+  if (w)
+    *w = g2d_clip_w;
+  if (h)
+    *h = g2d_clip_h;
+}
+
 int gfx2d_sprite_load(const char *path) {
   int i, fd;
   uint32_t w, h, px_count, px_bytes;

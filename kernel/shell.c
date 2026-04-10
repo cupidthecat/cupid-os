@@ -30,6 +30,7 @@
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
+#define SHELL_REPL_PENDING_MAX (64 * 1024)
 
 /*
  *  GUI output mode support
@@ -77,6 +78,120 @@ static struct {
 } jit_stack[JIT_STACK_MAX];
 static int      jit_stack_depth = 0;
 static uint32_t jit_owner_pid   = 0; /* PID whose stack frames live in CC_JIT_CODE_BASE */
+static char shell_repl_pending[SHELL_REPL_PENDING_MAX];
+static uint32_t shell_repl_pending_len = 0;
+static int shell_repl_brace_depth = 0;
+static char gui_repl_pending[SHELL_REPL_PENDING_MAX];
+static uint32_t gui_repl_pending_len = 0;
+static int gui_repl_brace_depth = 0;
+
+static void shell_putchar(char c);
+static void shell_print(const char *s);
+static void shell_gui_putchar(char c);
+static void shell_gui_print(const char *s);
+static void gui_exec_command(const char *input);
+
+static void shell_print_u32_padded(uint32_t value, int width) {
+  char buf[16];
+  int pos = 0;
+
+  do {
+    buf[pos++] = (char)('0' + (value % 10u));
+    value /= 10u;
+  } while (value && pos < (int)sizeof(buf));
+
+  while (pos < width && pos < (int)sizeof(buf))
+    buf[pos++] = '0';
+  while (pos-- > 0)
+    shell_putchar(buf[pos]);
+}
+
+static void shell_gui_print_u32_padded(uint32_t value, int width) {
+  char buf[16];
+  int pos = 0;
+
+  do {
+    buf[pos++] = (char)('0' + (value % 10u));
+    value /= 10u;
+  } while (value && pos < (int)sizeof(buf));
+
+  while (pos < width && pos < (int)sizeof(buf))
+    buf[pos++] = '0';
+  while (pos-- > 0)
+    shell_gui_putchar(buf[pos]);
+}
+
+static void shell_print_repl_result_prefix(void) {
+  int32_t value = 0;
+  int has_value = 0;
+  uint32_t elapsed_ms = 0;
+
+  if (!repl_consume_prompt_result(&value, &has_value, &elapsed_ms))
+    return;
+
+  print_int(elapsed_ms / 1000u);
+  shell_putchar('.');
+  shell_print_u32_padded(elapsed_ms % 1000u, 3);
+  shell_print("s");
+  if (has_value) {
+    shell_print(" ans=0x");
+    print_hex((uint32_t)value);
+    shell_putchar('=');
+    if (value < 0) {
+      shell_putchar('-');
+      print_int((uint32_t)(-(int64_t)value));
+    } else {
+      print_int((uint32_t)value);
+    }
+  }
+  shell_putchar('\n');
+}
+
+static void shell_gui_print_repl_result_prefix(void) {
+  int32_t value = 0;
+  int has_value = 0;
+  uint32_t elapsed_ms = 0;
+
+  if (!repl_consume_prompt_result(&value, &has_value, &elapsed_ms))
+    return;
+
+  print_int(elapsed_ms / 1000u);
+  shell_gui_putchar('.');
+  shell_gui_print_u32_padded(elapsed_ms % 1000u, 3);
+  shell_gui_print("s");
+  if (has_value) {
+    shell_gui_print(" ans=0x");
+    print_hex((uint32_t)value);
+    shell_gui_putchar('=');
+    if (value < 0) {
+      shell_gui_putchar('-');
+      print_int((uint32_t)(-(int64_t)value));
+    } else {
+      print_int((uint32_t)value);
+    }
+  }
+  shell_gui_putchar('\n');
+}
+
+static void shell_print_prompt(void) {
+  shell_print_repl_result_prefix();
+  if (shell_repl_brace_depth > 0) {
+    shell_print("..> ");
+  } else {
+    shell_print(shell_cwd);
+    shell_print("> ");
+  }
+}
+
+static void shell_gui_print_prompt(void) {
+  shell_gui_print_repl_result_prefix();
+  if (gui_repl_brace_depth > 0) {
+    shell_gui_print("..> ");
+  } else {
+    shell_gui_print(shell_cwd);
+    shell_gui_print("> ");
+  }
+}
 
 void shell_set_program_args(const char *args) {
   int i = 0;
@@ -247,24 +362,11 @@ void shell_set_output_mode(shell_output_mode_t mode) {
     ansi_init(&shell_ansi_state);
     gui_cursor_x = 0;
     gui_cursor_y = 0;
-    /* Print initial prompt into GUI buffer */
-    const char *prompt = "cupid-os shell\n";
-    while (*prompt) {
-      shell_gui_putchar(*prompt);
-      prompt++;
-    }
-    {
-      const char *cp = shell_cwd;
-      while (*cp) {
-        shell_gui_putchar(*cp);
-        cp++;
-      }
-    }
-    prompt = "> ";
-    while (*prompt) {
-      shell_gui_putchar(*prompt);
-      prompt++;
-    }
+    gui_repl_pending_len = 0;
+    gui_repl_pending[0] = '\0';
+    gui_repl_brace_depth = 0;
+    shell_gui_print("cupid-os shell\n");
+    shell_gui_print_prompt();
     /* Configure all subsystems to use GUI output */
     fat16_set_output(shell_gui_print, shell_gui_putchar, shell_gui_print_int);
     memory_set_output(shell_gui_print, shell_gui_print_int);
@@ -507,6 +609,7 @@ static void shell_ps_cmd(const char *args);
 static void shell_cupidc_cmd(const char *args);
 static void shell_cc_cmd(const char *args);
 static void shell_ccc_cmd(const char *args);
+static void shell_reset_cmd(const char *args);
 static void shell_asm_cmd(const char *args);
 static void shell_cupidasm_cmd(const char *args);
 static void shell_dis_cmd(const char *args);
@@ -521,6 +624,7 @@ static struct shell_command commands[] = {
     {"cc", "Interactive CupidC REPL (or run a .cc file)", shell_cc_cmd},
     {"cupidc", "Compile and run CupidC (.cc) file", shell_cupidc_cmd},
     {"ccc", "Compile CupidC to ELF binary", shell_ccc_cmd},
+    {"reset", "Reset the CupidC REPL state", shell_reset_cmd},
     {"as", "Assemble and run .asm file", shell_asm_cmd},
     {"cupidasm", "Assemble .asm to ELF binary", shell_cupidasm_cmd},
     {"dis", "Disassemble ELF binary or .cc file", shell_dis_cmd},
@@ -615,8 +719,7 @@ static void tab_complete(char *input, int *pos) {
 #define REDRAW_PROMPT()                                                        \
   do {                                                                         \
     shell_print("\n");                                                         \
-    shell_print(shell_cwd);                                                    \
-    shell_print("> ");                                                         \
+    shell_print_prompt();                                                      \
     for (int _k = 0; _k < *pos; _k++)                                          \
       shell_putchar(input[_k]);                                                \
   } while (0)
@@ -1218,6 +1321,49 @@ static int shell_cc_line_brace_delta(const char *line) {
   return delta;
 }
 
+static int shell_repl_stage_line(char *pending_buf, uint32_t *pending_len,
+                                 int *brace_depth, const char *line,
+                                 char *full_buf, uint32_t full_buf_size) {
+  uint32_t line_len = (uint32_t)strlen(line);
+
+  if (line_len == 0 && *pending_len == 0)
+    return 0;
+
+  if (*pending_len + line_len + 2u >= SHELL_REPL_PENDING_MAX) {
+    shell_print("shell: REPL input too large\n");
+    *pending_len = 0;
+    pending_buf[0] = '\0';
+    *brace_depth = 0;
+    return -1;
+  }
+
+  memcpy(pending_buf + *pending_len, line, line_len);
+  *pending_len += line_len;
+  pending_buf[(*pending_len)++] = '\n';
+  pending_buf[*pending_len] = '\0';
+
+  *brace_depth += shell_cc_line_brace_delta(line);
+  if (*brace_depth < 0)
+    *brace_depth = 0;
+  if (*brace_depth > 0)
+    return 0;
+
+  if (*pending_len + 1u > full_buf_size) {
+    shell_print("shell: REPL input too large\n");
+    *pending_len = 0;
+    pending_buf[0] = '\0';
+    *brace_depth = 0;
+    return -1;
+  }
+
+  memcpy(full_buf, pending_buf, *pending_len);
+  full_buf[*pending_len] = '\0';
+  *pending_len = 0;
+  pending_buf[0] = '\0';
+  *brace_depth = 0;
+  return 1;
+}
+
 static void shell_cc_repl(void) {
   enum { CC_REPL_LINE_MAX = 512, CC_REPL_SRC_MAX = 64 * 1024 };
   const char *tmp_path = "/cc_repl_tmp.cc";
@@ -1350,6 +1496,12 @@ static void shell_cc_cmd(const char *args) {
   char rpath[VFS_MAX_PATH];
   shell_resolve_path(args, rpath);
   cupidc_jit(rpath);
+}
+
+static void shell_reset_cmd(const char *args) {
+  (void)args;
+  repl_reset();
+  shell_print("REPL state reset\n");
 }
 
 /* ccc <file.cc> -o <output> - AOT compile to ELF binary */
@@ -1609,8 +1761,38 @@ void shell_execute_line(const char *line) {
 
 // Find and execute a command
 static void execute_command(const char *input) {
+  char normalized_input[SHELL_REPL_PENDING_MAX];
+  int ni = 0;
+  int start = 0;
+  int end = 0;
+
   // Skip empty input
   if (!input || input[0] == '\0') {
+    return;
+  }
+
+  while (input[start] == ' ' || input[start] == '\t' || input[start] == '\n' ||
+         input[start] == '\r') {
+    start++;
+  }
+
+  end = start;
+  while (input[end]) {
+    end++;
+  }
+  while (end > start &&
+         (input[end - 1] == ' ' || input[end - 1] == '\t' ||
+          input[end - 1] == '\n' || input[end - 1] == '\r')) {
+    end--;
+  }
+
+  while (start < end && ni < SHELL_REPL_PENDING_MAX - 1) {
+    normalized_input[ni++] = input[start++];
+  }
+  normalized_input[ni] = '\0';
+  input = normalized_input;
+
+  if (input[0] == '\0') {
     return;
   }
 
@@ -1683,6 +1865,9 @@ static void execute_command(const char *input) {
       do_redir = false;
     }
   }
+
+  if (repl_eval(input) == 0)
+    goto redir_done;
 
   char cmd[MAX_INPUT_LEN];
   const char *args = 0;
@@ -1934,12 +2119,16 @@ redir_done:
 // Main shell loop
 void shell_run(void) {
   char input[MAX_INPUT_LEN + 1];
+  char full_input[SHELL_REPL_PENDING_MAX];
   int pos = 0;    // length of input
   int cursor = 0; // cursor position within input
 
+  repl_init();
   shell_print("cupid-os shell\n");
-  shell_print(shell_cwd);
-  shell_print("> ");
+  shell_repl_pending_len = 0;
+  shell_repl_pending[0] = '\0';
+  shell_repl_brace_depth = 0;
+  shell_print_prompt();
 
   while (1) {
     key_event_t event;
@@ -1954,8 +2143,7 @@ void shell_run(void) {
       cursor = 0;
       history_view = -1;
       memset(input, 0, sizeof(input));
-      shell_print(shell_cwd);
-      shell_print("> ");
+      shell_print_prompt();
       continue;
     }
 
@@ -2016,22 +2204,30 @@ void shell_run(void) {
       cursor = 0;
       memset(input, 0, sizeof(input));
       history_view = -1;
-      shell_print(shell_cwd);
-      shell_print("> ");
+      shell_repl_pending_len = 0;
+      shell_repl_pending[0] = '\0';
+      shell_repl_brace_depth = 0;
+      shell_print_prompt();
       continue;
     }
 
     if (c == '\n') {
       input[pos] = 0; // Ensure null termination
       shell_putchar('\n');
-      history_record(input);
-      execute_command(input);
+      {
+        int repl_ready = shell_repl_stage_line(
+            shell_repl_pending, &shell_repl_pending_len, &shell_repl_brace_depth,
+            input, full_input, sizeof(full_input));
+        if (repl_ready > 0) {
+          history_record(full_input);
+          execute_command(full_input);
+        }
+      }
       pos = 0;
       cursor = 0;
       history_view = -1;
       memset(input, 0, sizeof(input)); // Clear buffer
-      shell_print(shell_cwd);
-      shell_print("> ");
+      shell_print_prompt();
     } else if (c == '\b') {
       if (cursor > 0) {
         // Delete character before cursor
@@ -2097,6 +2293,49 @@ static char gui_input[MAX_INPUT_LEN + 1];
 static int gui_input_pos = 0;    // length of input
 static int gui_input_cursor = 0; // cursor position within input
 static int gui_history_view = -1;
+
+void shell_gui_insert_text(const char *text) {
+  if (!text || output_mode != SHELL_OUTPUT_GUI)
+    return;
+  while (*text) {
+    shell_gui_putchar(*text);
+    text++;
+  }
+}
+
+void shell_gui_reset_input(void) {
+  gui_input_pos = 0;
+  gui_input_cursor = 0;
+  gui_history_view = -1;
+  gui_input[0] = '\0';
+  gui_repl_pending_len = 0;
+  gui_repl_pending[0] = '\0';
+  gui_repl_brace_depth = 0;
+}
+
+void shell_gui_execute_line(const char *line) {
+  char gui_full_input[SHELL_REPL_PENDING_MAX];
+
+  if (output_mode != SHELL_OUTPUT_GUI || !line)
+    return;
+
+  shell_gui_insert_text(line);
+  shell_gui_putchar('\n');
+
+  if (line[0] || gui_repl_pending_len > 0) {
+    int repl_ready =
+        shell_repl_stage_line(gui_repl_pending, &gui_repl_pending_len,
+                              &gui_repl_brace_depth, line, gui_full_input,
+                              sizeof(gui_full_input));
+    if (repl_ready > 0) {
+      history_record(gui_full_input);
+      gui_exec_command(gui_full_input);
+    }
+  }
+
+  shell_gui_reset_input();
+  shell_gui_print_prompt();
+}
 
 /* GUI-mode wrappers (print/putchar go to GUI buffer) */
 static void gui_replace_input(const char *new_text) {
@@ -2451,6 +2690,8 @@ void shell_jit_discard_by_owner(uint32_t pid) {
 }
 
 void shell_gui_handle_key(uint8_t scancode, char character) {
+  static char gui_full_input[SHELL_REPL_PENDING_MAX];
+
   if (output_mode != SHELL_OUTPUT_GUI)
     return;
 
@@ -2481,8 +2722,7 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
-    shell_gui_print(shell_cwd);
-    shell_gui_print("> ");
+    shell_gui_print_prompt();
     return;
   }
 
@@ -2546,8 +2786,10 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
-    shell_gui_print(shell_cwd);
-    shell_gui_print("> ");
+    gui_repl_pending_len = 0;
+    gui_repl_pending[0] = '\0';
+    gui_repl_brace_depth = 0;
+    shell_gui_print_prompt();
     return;
   }
 
@@ -2555,17 +2797,22 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     gui_input[gui_input_pos] = '\0';
     shell_gui_putchar('\n');
 
-    if (gui_input_pos > 0) {
-      history_record(gui_input);
-      gui_exec_command(gui_input);
+    if (gui_input_pos > 0 || gui_repl_pending_len > 0) {
+      int repl_ready =
+          shell_repl_stage_line(gui_repl_pending, &gui_repl_pending_len,
+                                &gui_repl_brace_depth, gui_input, gui_full_input,
+                                sizeof(gui_full_input));
+      if (repl_ready > 0) {
+        history_record(gui_full_input);
+        gui_exec_command(gui_full_input);
+      }
     }
 
     gui_input_pos = 0;
     gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
-    shell_gui_print(shell_cwd);
-    shell_gui_print("> ");
+    shell_gui_print_prompt();
   } else if (character == '\b') {
     if (gui_input_cursor > 0) {
       gui_input_cursor--;

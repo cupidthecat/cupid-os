@@ -22,14 +22,18 @@
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
 #include "calendar.h"
+#include "bmp.h"
 #include "clipboard.h"
+#include "cupidc.h"
 #include "desktop.h"
 #include "font_8x8.h"
+#include "gfx2d.h"
 #include "graphics.h"
 #include "gui.h"
 #include "kernel.h"
 #include "memory.h"
 #include "process.h"
+#include "shell.h"
 #include "string.h"
 #include "ui.h"
 #include "vfs.h"
@@ -40,6 +44,11 @@
 
 #define NOTEPAD_MAX_LINES 4096
 #define NOTEPAD_MAX_LINE_LEN 256
+#define NOTEPAD_CTXT_MAX_ACTIONS 128
+#define NOTEPAD_CTXT_MAX_ACTION_PAYLOAD 2048
+#define NOTEPAD_CTXT_MAX_SPRITES 64
+#define NOTEPAD_CTXT_MAX_TREES 32
+#define NOTEPAD_STATUS_MSG_MAX 96
 
 #define MENUBAR_H 12
 #define STATUSBAR_H 10
@@ -49,6 +58,12 @@
 #define SCROLL_THUMB_MIN 20
 
 #define CURSOR_BLINK_MS 500
+
+#define NP_LIGHT_PANEL 0xE7E2D6u
+#define NP_LIGHT_PANEL_EDGE 0xA79F90u
+#define NP_LIGHT_PANEL_TEXT 0x2A241Cu
+#define NP_LIGHT_HILITE 0xC7E0FFu
+#define NP_LIGHT_TRACK 0xD6D0C2u
 
 /* Scancode definitions */
 #define SC_BACKSPACE 0x0E
@@ -134,6 +149,12 @@ typedef struct {
   int drag_start_scroll;
 } scrollbar_state_t;
 
+enum {
+  CTXT_ACTION_OPEN = 0,
+  CTXT_ACTION_SHELL,
+  CTXT_ACTION_REPL
+};
+
 /* File browser dialog */
 typedef struct {
   char filename[32];
@@ -210,6 +231,10 @@ typedef struct {
     char text[NOTEPAD_MAX_LINE_LEN];
     uint32_t color;
     uint32_t bg_color;
+    int16_t ref;
+    int16_t aux_w;
+    int16_t aux_h;
+    uint32_t tree_mask;
   } ctxt_lines[NOTEPAD_MAX_LINES];
   int ctxt_line_count;
 
@@ -218,10 +243,36 @@ typedef struct {
     int16_t y;
     uint16_t w;
     uint16_t h;
+    uint8_t action_type;
+    int16_t ref;
     char target[VFS_MAX_PATH];
   } ctxt_links[256];
   int ctxt_link_count;
   int ctxt_hover_link;
+
+  struct {
+    uint8_t type;
+    char label[64];
+    char payload[NOTEPAD_CTXT_MAX_ACTION_PAYLOAD];
+  } ctxt_actions[NOTEPAD_CTXT_MAX_ACTIONS];
+  int ctxt_action_count;
+
+  struct {
+    char path[VFS_MAX_PATH];
+    int width;
+    int height;
+    int16_t action_ref;
+  } ctxt_sprites[NOTEPAD_CTXT_MAX_SPRITES];
+  int ctxt_sprite_count;
+
+  struct {
+    char label[64];
+    bool open;
+  } ctxt_trees[NOTEPAD_CTXT_MAX_TREES];
+  int ctxt_tree_count;
+
+  char status_message[NOTEPAD_STATUS_MSG_MAX];
+  uint32_t status_message_until_ms;
 
   /* Menu state */
   int active_menu;
@@ -283,8 +334,11 @@ static int notepad_ctxt_line_scale(uint8_t type);
 static int notepad_ctxt_hit_link(int16_t mx, int16_t my);
 static void notepad_ctxt_resolve_link(const char *target, char *out);
 static void notepad_ctxt_open_link(const char *target);
+static void notepad_ctxt_run_action(uint8_t action_type, const char *target);
 static int notepad_ctxt_max_scroll(window_t *win);
 static int notepad_ctxt_max_scroll_x(window_t *win);
+static void notepad_ctxt_refresh_metrics(void);
+static void notepad_set_status_message(const char *msg);
 
 /* Rendering */
 static void notepad_draw_menubar(window_t *win);
@@ -531,7 +585,13 @@ static int notepad_buffer_looks_ctxt(void) {
         np_strncmp(line, ">style", 6) == 0 ||
         np_strncmp(line, ">box", 4) == 0 ||
         np_strncmp(line, ">endbox", 7) == 0 ||
-        np_strncmp(line, ">theme", 6) == 0) {
+        np_strncmp(line, ">theme", 6) == 0 ||
+        np_strncmp(line, ">tree", 5) == 0 ||
+        np_strncmp(line, ">endtree", 8) == 0 ||
+        np_strncmp(line, ">button", 7) == 0 ||
+        np_strncmp(line, ">code", 5) == 0 ||
+        np_strncmp(line, ">endcode", 8) == 0 ||
+        np_strncmp(line, ">sprite", 7) == 0) {
       return 1;
     }
   }
@@ -560,6 +620,7 @@ static int notepad_toggle_ctxt_mode(window_t *win) {
     app.ctxt_scroll_px = 0;
     app.ctxt_scroll_x_px = 0;
     app.ctxt_hover_link = -1;
+    app.ctxt_tree_count = 0;
     notepad_ctxt_parse();
   }
 
@@ -577,7 +638,12 @@ enum {
   CTXT_LINE_CENTER,
   CTXT_LINE_BOX_START,
   CTXT_LINE_BOX_END,
-  CTXT_LINE_COMMENT
+  CTXT_LINE_COMMENT,
+  CTXT_LINE_BUTTON,
+  CTXT_LINE_TREE,
+  CTXT_LINE_CODE_HEADER,
+  CTXT_LINE_CODE,
+  CTXT_LINE_SPRITE
 };
 
 enum {
@@ -660,6 +726,16 @@ static int notepad_ctxt_line_height(uint8_t type) {
     return FONT_H + 1;
   if (type == CTXT_LINE_RULE)
     return 8;
+  if (type == CTXT_LINE_BUTTON)
+    return FONT_H + 10;
+  if (type == CTXT_LINE_TREE)
+    return FONT_H + 6;
+  if (type == CTXT_LINE_CODE_HEADER)
+    return FONT_H + 8;
+  if (type == CTXT_LINE_CODE)
+    return FONT_H + 3;
+  if (type == CTXT_LINE_SPRITE)
+    return FONT_H + 8;
   if (type == CTXT_LINE_BOX_START || type == CTXT_LINE_BOX_END ||
       type == CTXT_LINE_COMMENT)
     return 2;
@@ -696,15 +772,200 @@ static int notepad_ctxt_max_scroll_x(window_t *win) {
   return max_scroll;
 }
 
-static void notepad_ctxt_parse(void) {
-  app.ctxt_line_count = 0;
+static void np_copy_trimmed(char *dst, const char *src, int max_len) {
+  int len = 0;
+  int start = 0;
+  int end;
+
+  if (!dst || max_len <= 0) {
+    return;
+  }
+  dst[0] = '\0';
+  if (!src)
+    return;
+
+  while (src[start] == ' ' || src[start] == '\t')
+    start++;
+  while (src[start + len])
+    len++;
+  end = start + len;
+  while (end > start &&
+         (src[end - 1] == ' ' || src[end - 1] == '\t' || src[end - 1] == '\r'))
+    end--;
+
+  len = end - start;
+  if (len < 0)
+    len = 0;
+  if (len >= max_len)
+    len = max_len - 1;
+  for (int i = 0; i < len; i++)
+    dst[i] = src[start + i];
+  dst[len] = '\0';
+}
+
+static int np_parse_u16_value(const char *src, int *out_value) {
+  int value = 0;
+  int digits = 0;
+
+  if (!src || !out_value)
+    return 0;
+  while (*src == ' ' || *src == '\t')
+    src++;
+  while (*src >= '0' && *src <= '9') {
+    value = value * 10 + (*src - '0');
+    digits++;
+    src++;
+  }
+  if (digits == 0)
+    return 0;
+  *out_value = value;
+  return 1;
+}
+
+static int notepad_ctxt_add_action(uint8_t type, const char *label,
+                                   const char *payload) {
+  int idx;
+
+  if (app.ctxt_action_count >= NOTEPAD_CTXT_MAX_ACTIONS)
+    return -1;
+
+  idx = app.ctxt_action_count++;
+  app.ctxt_actions[idx].type = type;
+  np_copy_limited(app.ctxt_actions[idx].label, label ? label : "",
+                  (int)sizeof(app.ctxt_actions[idx].label));
+  np_copy_limited(app.ctxt_actions[idx].payload, payload ? payload : "",
+                  (int)sizeof(app.ctxt_actions[idx].payload));
+  return idx;
+}
+
+static int notepad_ctxt_add_sprite(const char *path, int width, int height,
+                                   int16_t action_ref) {
+  int idx;
+
+  if (app.ctxt_sprite_count >= NOTEPAD_CTXT_MAX_SPRITES)
+    return -1;
+
+  idx = app.ctxt_sprite_count++;
+  np_copy_limited(app.ctxt_sprites[idx].path, path ? path : "", VFS_MAX_PATH);
+  app.ctxt_sprites[idx].width = width;
+  app.ctxt_sprites[idx].height = height;
+  app.ctxt_sprites[idx].action_ref = action_ref;
+  return idx;
+}
+
+static int notepad_ctxt_add_tree(const char *label, bool open) {
+  int idx;
+
+  if (app.ctxt_tree_count >= NOTEPAD_CTXT_MAX_TREES)
+    return -1;
+
+  idx = app.ctxt_tree_count++;
+  np_copy_limited(app.ctxt_trees[idx].label, label ? label : "",
+                  (int)sizeof(app.ctxt_trees[idx].label));
+  app.ctxt_trees[idx].open = open;
+  return idx;
+}
+
+static int notepad_ctxt_line_is_visible(int idx) {
+  uint32_t mask;
+
+  if (idx < 0 || idx >= app.ctxt_line_count)
+    return 0;
+
+  mask = app.ctxt_lines[idx].tree_mask;
+  for (int tree = 0; tree < app.ctxt_tree_count; tree++) {
+    if ((mask & (1u << tree)) != 0u && !app.ctxt_trees[tree].open)
+      return 0;
+  }
+
+  return 1;
+}
+
+static void notepad_ctxt_refresh_metrics(void) {
   app.ctxt_content_height = 8;
   app.ctxt_content_width = 8;
+
+  for (int i = 0; i < app.ctxt_line_count; i++) {
+    uint8_t t = app.ctxt_lines[i].type;
+    int scale = notepad_ctxt_line_scale(t);
+    int line_w;
+
+    if (!notepad_ctxt_line_is_visible(i))
+      continue;
+
+    if (t == CTXT_LINE_COMMENT || t == CTXT_LINE_BOX_START ||
+        t == CTXT_LINE_BOX_END)
+      continue;
+
+    if (t == CTXT_LINE_BUTTON || t == CTXT_LINE_TREE) {
+      line_w = gfx_text_width(app.ctxt_lines[i].text) + 20;
+    } else if (t == CTXT_LINE_CODE_HEADER) {
+      line_w = gfx_text_width(app.ctxt_lines[i].text) + 86;
+    } else if (t == CTXT_LINE_SPRITE) {
+      line_w = app.ctxt_lines[i].aux_w + 8;
+      if (line_w < gfx_text_width(app.ctxt_lines[i].text) + 8)
+        line_w = gfx_text_width(app.ctxt_lines[i].text) + 8;
+      app.ctxt_content_height += app.ctxt_lines[i].aux_h;
+    } else {
+      line_w = notepad_ctxt_text_width(app.ctxt_lines[i].text, scale);
+    }
+
+    if (app.ctxt_lines[i].bg_color != 0)
+      line_w += 4;
+    if (line_w > app.ctxt_content_width)
+      app.ctxt_content_width = line_w;
+    app.ctxt_content_height += notepad_ctxt_line_height(t);
+  }
+}
+
+static int notepad_ctxt_parse_action_spec(const char *spec, uint8_t *type_out,
+                                          char *payload_out,
+                                          int payload_out_len) {
+  const char *payload = spec;
+  uint8_t type = CTXT_ACTION_SHELL;
+
+  if (!spec || !type_out || !payload_out || payload_out_len <= 0)
+    return 0;
+
+  while (*payload == ' ' || *payload == '\t')
+    payload++;
+
+  if (np_strncmp(payload, "open:", 5) == 0) {
+    type = CTXT_ACTION_OPEN;
+    payload += 5;
+  } else if (np_strncmp(payload, "shell:", 6) == 0) {
+    type = CTXT_ACTION_SHELL;
+    payload += 6;
+  } else if (np_strncmp(payload, "repl:", 5) == 0) {
+    type = CTXT_ACTION_REPL;
+    payload += 5;
+  }
+
+  np_copy_trimmed(payload_out, payload, payload_out_len);
+  *type_out = type;
+  return payload_out[0] != '\0';
+}
+
+static void notepad_set_status_message(const char *msg) {
+  np_copy_limited(app.status_message, msg ? msg : "",
+                  NOTEPAD_STATUS_MSG_MAX);
+  app.status_message_until_ms = timer_get_uptime_ms() + 3500u;
+}
+
+static void notepad_ctxt_parse(void) {
+  app.ctxt_line_count = 0;
+  app.ctxt_action_count = 0;
+  app.ctxt_sprite_count = 0;
+  app.ctxt_tree_count = 0;
 
   uint32_t current_fg = 0;
   bool box_active = false;
   uint32_t box_bg = 0;
   app.ctxt_style_mask = 0;
+  int code_action = -1;
+  int tree_stack[NOTEPAD_CTXT_MAX_TREES];
+  int tree_top = 0;
+  uint32_t current_tree_mask = 0;
 
   for (int i = 0; i < app.buffer.line_count && i < NOTEPAD_MAX_LINES; i++) {
     const char *src = app.buffer.lines[i] ? app.buffer.lines[i] : "";
@@ -712,8 +973,189 @@ static void notepad_ctxt_parse(void) {
     uint32_t color = current_fg;
     uint32_t bg_color = box_active ? box_bg : 0;
     const char *text = src;
+    int16_t ref = -1;
+    int16_t aux_w = 0;
+    int16_t aux_h = 0;
+    uint32_t line_tree_mask = current_tree_mask;
 
-    if (src[0] == '>') {
+    if (code_action >= 0) {
+      if (np_strncmp(src, ">endcode", 8) == 0) {
+        code_action = -1;
+        continue;
+      }
+      type = CTXT_LINE_CODE;
+      color = 0;
+      bg_color = 0;
+      text = src;
+      ref = (int16_t)code_action;
+      if (app.ctxt_actions[code_action].payload[0]) {
+        np_append_limited(app.ctxt_actions[code_action].payload, "\n",
+                          NOTEPAD_CTXT_MAX_ACTION_PAYLOAD);
+      }
+      np_append_limited(app.ctxt_actions[code_action].payload, src,
+                        NOTEPAD_CTXT_MAX_ACTION_PAYLOAD);
+    } else if (src[0] == '>') {
+      if (np_strncmp(src, ">code", 5) == 0) {
+        const char *arg = np_skip_spaces(src + 5);
+        char label[64];
+        np_copy_trimmed(label, arg, (int)sizeof(label));
+        if (label[0] == '\0')
+          np_copy_limited(label, "Run CupidC", (int)sizeof(label));
+        code_action = notepad_ctxt_add_action(CTXT_ACTION_REPL, label, "");
+        type = CTXT_LINE_CODE_HEADER;
+        text = label;
+        ref = (int16_t)code_action;
+      } else if (np_strncmp(src, ">button", 7) == 0) {
+        const char *arg = np_skip_spaces(src + 7);
+        const char *sep = arg;
+        char label[64];
+        char action_buf[NOTEPAD_CTXT_MAX_ACTION_PAYLOAD];
+        uint8_t action_type;
+        while (*sep && *sep != '|')
+          sep++;
+        if (*sep == '|') {
+          char raw_label[64];
+          int ll = (int)(sep - arg);
+          if (ll >= (int)sizeof(raw_label))
+            ll = (int)sizeof(raw_label) - 1;
+          for (int j = 0; j < ll; j++)
+            raw_label[j] = arg[j];
+          raw_label[ll] = '\0';
+          np_copy_trimmed(label, raw_label, (int)sizeof(label));
+          if (notepad_ctxt_parse_action_spec(sep + 1, &action_type, action_buf,
+                                             (int)sizeof(action_buf))) {
+            type = CTXT_LINE_BUTTON;
+            text = label;
+            ref = (int16_t)notepad_ctxt_add_action(action_type, label, action_buf);
+          } else {
+            type = CTXT_LINE_COMMENT;
+            text = "";
+          }
+        } else {
+          type = CTXT_LINE_COMMENT;
+          text = "";
+        }
+      } else if (np_strncmp(src, ">tree", 5) == 0) {
+        const char *arg = np_skip_spaces(src + 5);
+        bool open = false;
+        char label[64];
+        int tree_idx;
+
+        if (np_strncmp(arg, "open ", 5) == 0) {
+          open = true;
+          arg = np_skip_spaces(arg + 5);
+        } else if (np_strncmp(arg, "closed ", 7) == 0) {
+          arg = np_skip_spaces(arg + 7);
+        }
+
+        np_copy_trimmed(label, arg, (int)sizeof(label));
+        if (label[0] == '\0')
+          np_copy_limited(label, "Section", (int)sizeof(label));
+
+        tree_idx = notepad_ctxt_add_tree(label, open);
+        if (tree_idx >= 0) {
+          type = CTXT_LINE_TREE;
+          text = label;
+          ref = (int16_t)tree_idx;
+          line_tree_mask = current_tree_mask;
+          if (tree_top < NOTEPAD_CTXT_MAX_TREES) {
+            tree_stack[tree_top++] = tree_idx;
+            current_tree_mask |= (1u << tree_idx);
+          }
+        } else {
+          type = CTXT_LINE_COMMENT;
+          text = "";
+        }
+      } else if (np_strncmp(src, ">endtree", 8) == 0) {
+        type = CTXT_LINE_COMMENT;
+        text = "";
+        line_tree_mask = current_tree_mask;
+        if (tree_top > 0) {
+          int tree_idx = tree_stack[--tree_top];
+          current_tree_mask &= ~(1u << tree_idx);
+        }
+      } else if (np_strncmp(src, ">sprite", 7) == 0) {
+        const char *arg = np_skip_spaces(src + 7);
+        const char *sep = arg;
+        char sprite_args[VFS_MAX_PATH];
+        char sprite_spec[VFS_MAX_PATH];
+        char action_buf[NOTEPAD_CTXT_MAX_ACTION_PAYLOAD];
+        int path_len = 0;
+        int draw_w = 0;
+        int draw_h = 0;
+        int action_ref = -1;
+        bmp_info_t info;
+        int sprite_idx;
+        uint8_t action_type = CTXT_ACTION_OPEN;
+
+        while (*sep && *sep != '|')
+          sep++;
+        if (*sep == '|') {
+          int args_len = (int)(sep - arg);
+          if (args_len >= VFS_MAX_PATH)
+            args_len = VFS_MAX_PATH - 1;
+          for (int j = 0; j < args_len; j++)
+            sprite_args[j] = arg[j];
+          sprite_args[args_len] = '\0';
+          if (notepad_ctxt_parse_action_spec(sep + 1, &action_type, action_buf,
+                                             (int)sizeof(action_buf))) {
+            action_ref = (int16_t)notepad_ctxt_add_action(action_type, "sprite",
+                                                          action_buf);
+            if (action_ref < 0) {
+              type = CTXT_LINE_COMMENT;
+              text = "";
+              goto ctxt_sprite_done;
+            }
+          }
+          arg = sprite_args;
+        }
+
+        while (arg[path_len] && arg[path_len] != ' ' && arg[path_len] != '\t' &&
+               path_len < VFS_MAX_PATH - 1) {
+          sprite_spec[path_len] = arg[path_len];
+          path_len++;
+        }
+        sprite_spec[path_len] = '\0';
+        arg = np_skip_spaces(arg + path_len);
+        if (*arg)
+          (void)np_parse_u16_value(arg, &draw_w);
+        while (*arg && *arg != ' ' && *arg != '\t')
+          arg++;
+        arg = np_skip_spaces(arg);
+        if (*arg)
+          (void)np_parse_u16_value(arg, &draw_h);
+        if (sprite_spec[0] != '\0') {
+          if ((draw_w <= 0 || draw_h <= 0) &&
+              bmp_get_info(sprite_spec, &info) == BMP_OK) {
+            if (draw_w <= 0)
+              draw_w = (int)info.width;
+            if (draw_h <= 0)
+              draw_h = (int)info.height;
+          }
+          sprite_idx =
+              notepad_ctxt_add_sprite(sprite_spec, draw_w, draw_h, action_ref);
+          if (sprite_idx >= 0) {
+            type = CTXT_LINE_SPRITE;
+            text = sprite_spec;
+            ref = (int16_t)sprite_idx;
+            aux_w = (int16_t)draw_w;
+            aux_h = (int16_t)draw_h;
+          } else {
+            type = CTXT_LINE_COMMENT;
+            text = "";
+          }
+        } else {
+          type = CTXT_LINE_COMMENT;
+          text = "";
+        }
+ctxt_sprite_done:
+        ;
+      }
+    }
+
+    if (code_action < 0 && src[0] == '>' &&
+        type != CTXT_LINE_BUTTON && type != CTXT_LINE_CODE_HEADER &&
+        type != CTXT_LINE_SPRITE) {
       if (np_strncmp(src, ">h1", 3) == 0) {
         type = CTXT_LINE_H1;
         text = np_skip_spaces(src + 3);
@@ -834,21 +1276,15 @@ static void notepad_ctxt_parse(void) {
     app.ctxt_lines[app.ctxt_line_count].type = type;
     app.ctxt_lines[app.ctxt_line_count].color = color;
     app.ctxt_lines[app.ctxt_line_count].bg_color = bg_color;
+    app.ctxt_lines[app.ctxt_line_count].ref = ref;
+    app.ctxt_lines[app.ctxt_line_count].aux_w = aux_w;
+    app.ctxt_lines[app.ctxt_line_count].aux_h = aux_h;
+    app.ctxt_lines[app.ctxt_line_count].tree_mask = line_tree_mask;
     np_copy_limited(app.ctxt_lines[app.ctxt_line_count].text, text,
                     NOTEPAD_MAX_LINE_LEN);
     app.ctxt_line_count++;
   }
-
-  for (int i = 0; i < app.ctxt_line_count; i++) {
-    uint8_t t = app.ctxt_lines[i].type;
-    int scale = notepad_ctxt_line_scale(t);
-    int line_w = notepad_ctxt_text_width(app.ctxt_lines[i].text, scale);
-    if (app.ctxt_lines[i].bg_color != 0)
-      line_w += 4;
-    if (line_w > app.ctxt_content_width)
-      app.ctxt_content_width = line_w;
-    app.ctxt_content_height += notepad_ctxt_line_height(t);
-  }
+  notepad_ctxt_refresh_metrics();
 }
 
 static uint32_t notepad_ctxt_inline_color(const char *spec, uint32_t fallback) {
@@ -1046,6 +1482,82 @@ static void notepad_ctxt_open_link(const char *target) {
   }
 }
 
+static void notepad_ctxt_run_action(uint8_t action_type, const char *target) {
+  if (!target || !target[0])
+    return;
+
+  if (action_type == CTXT_ACTION_OPEN) {
+    notepad_ctxt_open_link(target);
+    return;
+  }
+
+  if (action_type == CTXT_ACTION_SHELL) {
+    shell_execute_line(target);
+    notepad_set_status_message("Executed document action");
+    return;
+  }
+
+  if (action_type == CTXT_ACTION_REPL) {
+    int32_t value = 0;
+    int has_value = 0;
+    uint32_t elapsed_ms = 0;
+    char msg[NOTEPAD_STATUS_MSG_MAX];
+
+    if (repl_eval(target) == 0) {
+      if (repl_consume_prompt_result(&value, &has_value, &elapsed_ms)) {
+        int pos = 0;
+        msg[0] = '\0';
+        if (elapsed_ms >= 1000u) {
+          msg[pos++] = (char)('0' + (elapsed_ms / 1000u) % 10u);
+          msg[pos++] = '.';
+          msg[pos++] = (char)('0' + ((elapsed_ms / 100u) % 10u));
+          msg[pos++] = (char)('0' + ((elapsed_ms / 10u) % 10u));
+          msg[pos++] = (char)('0' + (elapsed_ms % 10u));
+        } else {
+          msg[pos++] = '0';
+          msg[pos++] = '.';
+          msg[pos++] = (char)('0' + ((elapsed_ms / 100u) % 10u));
+          msg[pos++] = (char)('0' + ((elapsed_ms / 10u) % 10u));
+          msg[pos++] = (char)('0' + (elapsed_ms % 10u));
+        }
+        msg[pos++] = 's';
+        if (has_value && pos < NOTEPAD_STATUS_MSG_MAX - 8) {
+          msg[pos++] = ' ';
+          msg[pos++] = 'a';
+          msg[pos++] = 'n';
+          msg[pos++] = 's';
+          msg[pos++] = '=';
+          if (value < 0 && pos < NOTEPAD_STATUS_MSG_MAX - 2) {
+            msg[pos++] = '-';
+            value = -value;
+          }
+          {
+            char tmp[16];
+            int ti = 0;
+            uint32_t v = (uint32_t)value;
+            if (v == 0) {
+              tmp[ti++] = '0';
+            } else {
+              while (v > 0 && ti < (int)sizeof(tmp)) {
+                tmp[ti++] = (char)('0' + (v % 10u));
+                v /= 10u;
+              }
+            }
+            while (ti-- > 0 && pos < NOTEPAD_STATUS_MSG_MAX - 1)
+              msg[pos++] = tmp[ti];
+          }
+        }
+        msg[pos] = '\0';
+        notepad_set_status_message(msg);
+      } else {
+        notepad_set_status_message("Executed CupidC snippet");
+      }
+    } else {
+      notepad_set_status_message("CupidC snippet failed");
+    }
+  }
+}
+
 static int notepad_ctxt_text_width(const char *text, int scale) {
   int width = 0;
   int char_w = FONT_W * scale;
@@ -1141,6 +1653,8 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
               app.ctxt_links[app.ctxt_link_count].y = y;
               app.ctxt_links[app.ctxt_link_count].w = (uint16_t)link_w;
               app.ctxt_links[app.ctxt_link_count].h = (uint16_t)line_h;
+              app.ctxt_links[app.ctxt_link_count].action_type = CTXT_ACTION_OPEN;
+              app.ctxt_links[app.ctxt_link_count].ref = -1;
               np_copy_limited(app.ctxt_links[app.ctxt_link_count].target, tok,
                               VFS_MAX_PATH);
               app.ctxt_link_count++;
@@ -1166,6 +1680,8 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
           int target_len = (int)(r - (close + 2));
           if (label_len > 0 && target_len > 0) {
             char target[VFS_MAX_PATH];
+            char payload[VFS_MAX_PATH];
+            uint8_t action_type = CTXT_ACTION_OPEN;
             int tl = 0;
             const char *ts = close + 2;
             while (tl < target_len && tl < VFS_MAX_PATH - 1) {
@@ -1173,6 +1689,11 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
               tl++;
             }
             target[tl] = '\0';
+            if (!notepad_ctxt_parse_action_spec(target, &action_type, payload,
+                                                (int)sizeof(payload))) {
+              action_type = CTXT_ACTION_OPEN;
+              np_copy_limited(payload, target, VFS_MAX_PATH);
+            }
 
             int start_x = cx;
             int li = 0;
@@ -1207,8 +1728,10 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                 app.ctxt_links[app.ctxt_link_count].y = y;
                 app.ctxt_links[app.ctxt_link_count].w = (uint16_t)link_w;
                 app.ctxt_links[app.ctxt_link_count].h = (uint16_t)line_h;
+                app.ctxt_links[app.ctxt_link_count].action_type = action_type;
+                app.ctxt_links[app.ctxt_link_count].ref = -1;
                 np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
-                                target, VFS_MAX_PATH);
+                                payload, VFS_MAX_PATH);
                 app.ctxt_link_count++;
               }
             }
@@ -1328,6 +1851,49 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
   }
 }
 
+static void notepad_ctxt_draw_sprite(const char *path, int16_t x, int16_t y,
+                                     int draw_w, int draw_h, uint32_t border) {
+  bmp_info_t info;
+  uint32_t *pixels;
+
+  if (!path || !path[0] || draw_w <= 0 || draw_h <= 0) {
+    return;
+  }
+
+  if (bmp_get_info(path, &info) != BMP_OK || info.data_size == 0) {
+    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
+    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(missing sprite)",
+                  border);
+    return;
+  }
+
+  pixels = (uint32_t *)kmalloc(info.data_size);
+  if (!pixels) {
+    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
+    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(sprite OOM)", border);
+    return;
+  }
+
+  if (bmp_decode(path, pixels, info.data_size) != BMP_OK) {
+    kfree(pixels);
+    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
+    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(sprite error)", border);
+    return;
+  }
+
+  for (int dy = 0; dy < draw_h; dy++) {
+    uint32_t src_y = (uint32_t)((dy * (int)info.height) / draw_h);
+    for (int dx = 0; dx < draw_w; dx++) {
+      uint32_t src_x = (uint32_t)((dx * (int)info.width) / draw_w);
+      gfx_plot_pixel((int16_t)(x + dx), (int16_t)(y + dy),
+                     pixels[src_y * info.width + src_x]);
+    }
+  }
+
+  gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
+  kfree(pixels);
+}
+
 static void notepad_draw_ctxt_area(window_t *win) {
   int edit_x, edit_y, edit_w, edit_h;
   notepad_get_viewport(NULL, NULL, &edit_x, &edit_y, &edit_w, &edit_h, win);
@@ -1343,6 +1909,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
 
   gfx_fill_rect((int16_t)edit_x, (int16_t)edit_y, (uint16_t)edit_w,
                 (uint16_t)edit_h, theme.bg);
+  gfx2d_clip_set(edit_x, edit_y, edit_w, edit_h);
 
   int margin = 8;
   int content_x = edit_x + margin;
@@ -1359,14 +1926,14 @@ static void notepad_draw_ctxt_area(window_t *win) {
     int scale = notepad_ctxt_line_scale(t);
     uint32_t fg = theme.body;
 
+    if (!notepad_ctxt_line_is_visible(i))
+      continue;
+
     if (t == CTXT_LINE_COMMENT) {
-      y += line_h;
       continue;
     }
-    if (t == CTXT_LINE_BOX_START || t == CTXT_LINE_BOX_END) {
-      y += line_h;
+    if (t == CTXT_LINE_BOX_START || t == CTXT_LINE_BOX_END)
       continue;
-    }
 
     if (t == CTXT_LINE_H1) {
       fg = theme.h1;
@@ -1389,10 +1956,6 @@ static void notepad_draw_ctxt_area(window_t *win) {
     }
     if (y >= edit_y + edit_h)
       break;
-    if (y < edit_y || y + line_h > edit_y + edit_h) {
-      y += line_h;
-      continue;
-    }
 
     if (app.ctxt_lines[i].bg_color != 0 && t != CTXT_LINE_RULE) {
       gfx_fill_rect((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
@@ -1404,6 +1967,153 @@ static void notepad_draw_ctxt_area(window_t *win) {
     if (t == CTXT_LINE_RULE) {
       gfx_draw_hline((int16_t)content_x, (int16_t)(y + 3), (uint16_t)content_w,
                      fg);
+    } else if (t == CTXT_LINE_BUTTON) {
+      ui_rect_t btn = ui_rect((int16_t)content_x, (int16_t)y,
+                              (uint16_t)(gfx_text_width(text) + 20),
+                              (uint16_t)(line_h - 2));
+      ui_draw_button(btn, text, app.ctxt_hover_link == app.ctxt_link_count);
+      if (app.ctxt_link_count < 256) {
+        app.ctxt_links[app.ctxt_link_count].x = btn.x;
+        app.ctxt_links[app.ctxt_link_count].y = btn.y;
+        app.ctxt_links[app.ctxt_link_count].w = btn.w;
+        app.ctxt_links[app.ctxt_link_count].h = btn.h;
+        app.ctxt_links[app.ctxt_link_count].action_type =
+            (uint8_t)((app.ctxt_lines[i].ref >= 0 &&
+                       app.ctxt_lines[i].ref < app.ctxt_action_count)
+                          ? app.ctxt_actions[app.ctxt_lines[i].ref].type
+                          : CTXT_ACTION_SHELL);
+        app.ctxt_links[app.ctxt_link_count].ref = app.ctxt_lines[i].ref;
+        if (app.ctxt_lines[i].ref >= 0 &&
+            app.ctxt_lines[i].ref < app.ctxt_action_count) {
+          np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
+                          app.ctxt_actions[app.ctxt_lines[i].ref].payload,
+                          VFS_MAX_PATH);
+        } else {
+          app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
+        }
+        app.ctxt_link_count++;
+      }
+    } else if (t == CTXT_LINE_TREE) {
+      char label[NOTEPAD_MAX_LINE_LEN];
+      int tree_idx = app.ctxt_lines[i].ref;
+      bool tree_open = false;
+      ui_rect_t hit;
+
+      if (tree_idx >= 0 && tree_idx < app.ctxt_tree_count)
+        tree_open = app.ctxt_trees[tree_idx].open;
+
+      label[0] = tree_open ? '-' : '+';
+      label[1] = ' ';
+      np_copy_limited(label + 2, text, NOTEPAD_MAX_LINE_LEN - 2);
+      hit = ui_rect((int16_t)content_x, (int16_t)y,
+                    (uint16_t)(gfx_text_width(label) + 12),
+                    (uint16_t)(line_h - 1));
+      ui_draw_button(hit, label, app.ctxt_hover_link == app.ctxt_link_count);
+      if (app.ctxt_link_count < 256) {
+        app.ctxt_links[app.ctxt_link_count].x = hit.x;
+        app.ctxt_links[app.ctxt_link_count].y = hit.y;
+        app.ctxt_links[app.ctxt_link_count].w = hit.w;
+        app.ctxt_links[app.ctxt_link_count].h = hit.h;
+        app.ctxt_links[app.ctxt_link_count].action_type = 255u;
+        app.ctxt_links[app.ctxt_link_count].ref = (int16_t)tree_idx;
+        app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
+        app.ctxt_link_count++;
+      }
+    } else if (t == CTXT_LINE_CODE_HEADER) {
+      gfx_fill_rect((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
+                    (uint16_t)line_h, code_bg);
+      gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
+                     theme.rule);
+      gfx_draw_text((int16_t)(content_x + 6), (int16_t)(y + 2), text, code_fg);
+      {
+        ui_rect_t btn = ui_rect((int16_t)(content_x + content_w - 66),
+                                (int16_t)(y + 1), 60,
+                                (uint16_t)(line_h - 2));
+        ui_draw_button(btn, "Run", app.ctxt_hover_link == app.ctxt_link_count);
+        if (app.ctxt_link_count < 256) {
+          app.ctxt_links[app.ctxt_link_count].x = btn.x;
+          app.ctxt_links[app.ctxt_link_count].y = btn.y;
+          app.ctxt_links[app.ctxt_link_count].w = btn.w;
+          app.ctxt_links[app.ctxt_link_count].h = btn.h;
+          app.ctxt_links[app.ctxt_link_count].action_type = CTXT_ACTION_REPL;
+          app.ctxt_links[app.ctxt_link_count].ref = app.ctxt_lines[i].ref;
+          if (app.ctxt_lines[i].ref >= 0 &&
+              app.ctxt_lines[i].ref < app.ctxt_action_count) {
+            np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
+                            app.ctxt_actions[app.ctxt_lines[i].ref].payload,
+                            VFS_MAX_PATH);
+          } else {
+            app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
+          }
+          app.ctxt_link_count++;
+        }
+      }
+    } else if (t == CTXT_LINE_CODE) {
+      bool is_hover = false;
+      uint32_t fill = code_bg;
+
+      if (app.ctxt_lines[i].ref >= 0)
+        is_hover = (app.ctxt_hover_link == app.ctxt_link_count);
+      if (is_hover)
+        fill = app.ctxt_theme_light ? 0xD8E6FF : 0x24314A;
+
+      gfx_fill_rect((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
+                    (uint16_t)line_h, fill);
+      gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
+                     theme.rule);
+      gfx_draw_text((int16_t)(content_x + 6), (int16_t)(y + 1), text, code_fg);
+      if (app.ctxt_lines[i].ref >= 0 && app.ctxt_link_count < 256) {
+        app.ctxt_links[app.ctxt_link_count].x = (int16_t)content_x;
+        app.ctxt_links[app.ctxt_link_count].y = (int16_t)y;
+        app.ctxt_links[app.ctxt_link_count].w = (uint16_t)content_w;
+        app.ctxt_links[app.ctxt_link_count].h = (uint16_t)line_h;
+        app.ctxt_links[app.ctxt_link_count].action_type = CTXT_ACTION_REPL;
+        app.ctxt_links[app.ctxt_link_count].ref = app.ctxt_lines[i].ref;
+        if (app.ctxt_lines[i].ref < app.ctxt_action_count) {
+          np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
+                          app.ctxt_actions[app.ctxt_lines[i].ref].payload,
+                          VFS_MAX_PATH);
+        } else {
+          app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
+        }
+        app.ctxt_link_count++;
+      }
+    } else if (t == CTXT_LINE_SPRITE) {
+      bool is_hover = false;
+
+      if (app.ctxt_lines[i].ref >= 0 && app.ctxt_lines[i].ref < app.ctxt_sprite_count &&
+          app.ctxt_sprites[app.ctxt_lines[i].ref].action_ref >= 0)
+        is_hover = (app.ctxt_hover_link == app.ctxt_link_count);
+      gfx_fill_rect((int16_t)content_x, (int16_t)y,
+                    (uint16_t)(app.ctxt_lines[i].aux_w + 8),
+                    (uint16_t)(app.ctxt_lines[i].aux_h + 8),
+                    is_hover ? (app.ctxt_theme_light ? 0xD8E6FF : 0x24314A)
+                             : code_bg);
+      if (app.ctxt_lines[i].ref >= 0 &&
+          app.ctxt_lines[i].ref < app.ctxt_sprite_count) {
+        notepad_ctxt_draw_sprite(app.ctxt_sprites[app.ctxt_lines[i].ref].path,
+                                 (int16_t)(content_x + 4), (int16_t)(y + 4),
+                                 app.ctxt_lines[i].aux_w,
+                                 app.ctxt_lines[i].aux_h, theme.rule);
+        if (app.ctxt_sprites[app.ctxt_lines[i].ref].action_ref >= 0 &&
+            app.ctxt_sprites[app.ctxt_lines[i].ref].action_ref <
+                app.ctxt_action_count &&
+            app.ctxt_link_count < 256) {
+          int action_ref = app.ctxt_sprites[app.ctxt_lines[i].ref].action_ref;
+          app.ctxt_links[app.ctxt_link_count].x = (int16_t)content_x;
+          app.ctxt_links[app.ctxt_link_count].y = (int16_t)y;
+          app.ctxt_links[app.ctxt_link_count].w =
+              (uint16_t)(app.ctxt_lines[i].aux_w + 8);
+          app.ctxt_links[app.ctxt_link_count].h =
+              (uint16_t)(app.ctxt_lines[i].aux_h + 8);
+          app.ctxt_links[app.ctxt_link_count].action_type =
+              app.ctxt_actions[action_ref].type;
+          app.ctxt_links[app.ctxt_link_count].ref = (int16_t)action_ref;
+          np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
+                          app.ctxt_actions[action_ref].payload, VFS_MAX_PATH);
+          app.ctxt_link_count++;
+        }
+      }
     } else {
       int16_t tx = (int16_t)content_x;
       if (app.ctxt_lines[i].bg_color != 0)
@@ -1421,7 +2131,11 @@ static void notepad_draw_ctxt_area(window_t *win) {
     }
 
     y += line_h;
+    if (t == CTXT_LINE_SPRITE)
+      y += app.ctxt_lines[i].aux_h;
   }
+
+  gfx2d_clip_clear();
 }
 
 /* Buffer management */
@@ -1999,6 +2713,12 @@ static void notepad_do_new(void) {
   app.ctxt_content_width = 0;
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
+  app.ctxt_action_count = 0;
+  app.ctxt_sprite_count = 0;
+  app.ctxt_tree_count = 0;
+  app.ctxt_tree_count = 0;
+  app.status_message[0] = '\0';
+  app.status_message_until_ms = 0;
 
   /* Update title */
   window_t *win = gui_get_window(notepad_wid);
@@ -2156,6 +2876,11 @@ static void notepad_open_file(const char *name) {
   app.ctxt_content_width = 0;
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
+  app.ctxt_action_count = 0;
+  app.ctxt_sprite_count = 0;
+  app.ctxt_tree_count = 0;
+  app.status_message[0] = '\0';
+  app.status_message_until_ms = 0;
   if (app.is_ctxt_file) {
     notepad_ctxt_parse();
   }
@@ -2646,19 +3371,21 @@ static void notepad_draw_menubar(window_t *win) {
   int16_t my = (int16_t)(win->y + TITLEBAR_H);
 
   /* Menu bar background */
-  gfx_fill_rect(mx, my, (uint16_t)(win->width - 2), MENUBAR_H, COLOR_BORDER);
+  gfx_fill_rect(mx, my, (uint16_t)(win->width - 2), MENUBAR_H, NP_LIGHT_PANEL);
 
   /* "File" button */
   uint32_t file_color =
-      (app.active_menu == MENU_FILE) ? COLOR_HIGHLIGHT : COLOR_BORDER;
+      (app.active_menu == MENU_FILE) ? NP_LIGHT_HILITE : NP_LIGHT_PANEL;
   gfx_fill_rect((int16_t)(mx + 2), my, 36, MENUBAR_H, file_color);
-  gfx_draw_text((int16_t)(mx + 4), (int16_t)(my + 2), "File", COLOR_BLACK);
+  gfx_draw_text((int16_t)(mx + 4), (int16_t)(my + 2), "File",
+                NP_LIGHT_PANEL_TEXT);
 
   /* "Edit" button */
   uint32_t edit_color =
-      (app.active_menu == MENU_EDIT) ? COLOR_HIGHLIGHT : COLOR_BORDER;
+      (app.active_menu == MENU_EDIT) ? NP_LIGHT_HILITE : NP_LIGHT_PANEL;
   gfx_fill_rect((int16_t)(mx + 40), my, 36, MENUBAR_H, edit_color);
-  gfx_draw_text((int16_t)(mx + 42), (int16_t)(my + 2), "Edit", COLOR_BLACK);
+  gfx_draw_text((int16_t)(mx + 42), (int16_t)(my + 2), "Edit",
+                NP_LIGHT_PANEL_TEXT);
 }
 
 static void notepad_draw_dropdown(window_t *win) {
@@ -2727,31 +3454,32 @@ static void notepad_draw_dropdown(window_t *win) {
   uint16_t dd_h = (uint16_t)(item_count * 14 + 4);
 
   /* Dropdown background */
-  gfx_fill_rect(ddx, ddy, dd_w, dd_h, COLOR_TEXT_LIGHT);
-  gfx_draw_rect(ddx, ddy, dd_w, dd_h, COLOR_BORDER);
+  gfx_fill_rect(ddx, ddy, dd_w, dd_h, 0xF7F2E8u);
+  gfx_draw_rect(ddx, ddy, dd_w, dd_h, NP_LIGHT_PANEL_EDGE);
 
   for (int i = 0; i < item_count; i++) {
     int16_t iy = (int16_t)(ddy + 2 + i * 14);
 
     if (separators[i]) {
       gfx_draw_hline((int16_t)(ddx + 4), (int16_t)(iy + 6),
-                     (uint16_t)(dd_w - 8), COLOR_BORDER);
+                     (uint16_t)(dd_w - 8), NP_LIGHT_PANEL_EDGE);
       continue;
     }
 
     /* Hover highlight */
     if (i == app.hover_item) {
       gfx_fill_rect((int16_t)(ddx + 2), iy, (uint16_t)(dd_w - 4), 14,
-                    COLOR_HIGHLIGHT);
+                    NP_LIGHT_HILITE);
     }
 
-    gfx_draw_text((int16_t)(ddx + 8), (int16_t)(iy + 3), items[i], COLOR_BLACK);
+    gfx_draw_text((int16_t)(ddx + 8), (int16_t)(iy + 3), items[i],
+                  NP_LIGHT_PANEL_TEXT);
 
     /* Right-aligned shortcut */
     if (shortcuts[i][0]) {
       uint16_t sw = gfx_text_width(shortcuts[i]);
       gfx_draw_text((int16_t)(ddx + (int16_t)dd_w - (int16_t)sw - 8),
-                    (int16_t)(iy + 3), shortcuts[i], COLOR_TEXT);
+                    (int16_t)(iy + 3), shortcuts[i], NP_LIGHT_PANEL_EDGE);
     }
   }
 }
@@ -2771,10 +3499,14 @@ static void notepad_draw_text_area(window_t *win) {
     scale = 1;
   int char_w = FONT_W * scale;
   int char_h = FONT_H * scale;
+  uint32_t editor_bg = 0xF5F5F0;
+  uint32_t editor_fg = 0x111111;
+  uint32_t editor_sel_bg = 0xB8DDFF;
+  uint32_t editor_cursor = 0x2255AA;
 
-  /* White editing background */
+  /* Light editing background to match the default CTXT document palette. */
   gfx_fill_rect((int16_t)edit_x, (int16_t)edit_y, (uint16_t)edit_w,
-                (uint16_t)edit_h, COLOR_TEXT_LIGHT);
+                (uint16_t)edit_h, editor_bg);
 
   /* Compute selection bounds (normalized) */
   int sel_sl = 0, sel_sc = 0, sel_el = 0, sel_ec = 0;
@@ -2818,16 +3550,17 @@ static void notepad_draw_text_area(window_t *win) {
       }
 
       if (in_sel) {
-        gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h, COLOR_BUTTON);
+        gfx_fill_rect(px, py, (uint16_t)char_w, (uint16_t)char_h,
+                      editor_sel_bg);
         if (scale == 1)
-          gfx_draw_char(px, py, text[src_col], COLOR_TEXT_LIGHT);
+          gfx_draw_char(px, py, text[src_col], editor_fg);
         else
-          gfx_draw_char_scaled(px, py, text[src_col], COLOR_TEXT_LIGHT, scale);
+          gfx_draw_char_scaled(px, py, text[src_col], editor_fg, scale);
       } else {
         if (scale == 1)
-          gfx_draw_char(px, py, text[src_col], COLOR_BLACK);
+          gfx_draw_char(px, py, text[src_col], editor_fg);
         else
-          gfx_draw_char_scaled(px, py, text[src_col], COLOR_BLACK, scale);
+          gfx_draw_char_scaled(px, py, text[src_col], editor_fg, scale);
       }
     }
 
@@ -2841,7 +3574,7 @@ static void notepad_draw_text_area(window_t *win) {
         if (drawn_cols < vis_cols) {
           gfx_fill_rect((int16_t)(edit_x + drawn_cols * char_w), py,
                         (uint16_t)((vis_cols - drawn_cols) * char_w),
-                        (uint16_t)char_h, COLOR_BUTTON);
+                        (uint16_t)char_h, editor_sel_bg);
         }
       }
     }
@@ -2856,7 +3589,7 @@ static void notepad_draw_text_area(window_t *win) {
         cursor_screen_col >= 0 && cursor_screen_col < vis_cols) {
       int16_t cx = (int16_t)(edit_x + cursor_screen_col * char_w);
       int16_t cy = (int16_t)(edit_y + cursor_screen_row * char_h);
-      gfx_draw_vline(cx, cy, (uint16_t)char_h, COLOR_BLACK);
+      gfx_draw_vline(cx, cy, (uint16_t)char_h, editor_cursor);
     }
   }
 }
@@ -2873,25 +3606,25 @@ static void notepad_draw_scrollbars(window_t *win) {
 
   /* Background */
   gfx_fill_rect((int16_t)vscroll_x, (int16_t)vscroll_y, VSCROLL_W,
-                (uint16_t)vscroll_h, COLOR_BORDER);
+                (uint16_t)vscroll_h, NP_LIGHT_TRACK);
 
   /* Up arrow */
   gfx_fill_rect((int16_t)vscroll_x, (int16_t)vscroll_y, VSCROLL_W,
-                SCROLL_ARROW_SIZE, COLOR_TEXT_LIGHT);
+                SCROLL_ARROW_SIZE, NP_LIGHT_PANEL);
   gfx_draw_rect((int16_t)vscroll_x, (int16_t)vscroll_y, VSCROLL_W,
-                SCROLL_ARROW_SIZE, COLOR_BORDER);
+                SCROLL_ARROW_SIZE, NP_LIGHT_PANEL_EDGE);
   /* Triangle pointing up */
   gfx_draw_char((int16_t)(vscroll_x + 2), (int16_t)(vscroll_y + 2), '^',
-                COLOR_BLACK);
+                NP_LIGHT_PANEL_TEXT);
 
   /* Down arrow */
   int down_y = vscroll_y + vscroll_h - SCROLL_ARROW_SIZE;
   gfx_fill_rect((int16_t)vscroll_x, (int16_t)down_y, VSCROLL_W,
-                SCROLL_ARROW_SIZE, COLOR_TEXT_LIGHT);
+                SCROLL_ARROW_SIZE, NP_LIGHT_PANEL);
   gfx_draw_rect((int16_t)vscroll_x, (int16_t)down_y, VSCROLL_W,
-                SCROLL_ARROW_SIZE, COLOR_BORDER);
+                SCROLL_ARROW_SIZE, NP_LIGHT_PANEL_EDGE);
   gfx_draw_char((int16_t)(vscroll_x + 2), (int16_t)(down_y + 2), 'v',
-                COLOR_BLACK);
+                NP_LIGHT_PANEL_TEXT);
 
   /* Thumb */
   int track_h = vscroll_h - 2 * SCROLL_ARROW_SIZE;
@@ -2920,9 +3653,10 @@ static void notepad_draw_scrollbars(window_t *win) {
     int thumb_y = vscroll_y + SCROLL_ARROW_SIZE + thumb_y_off;
     gfx_fill_rect((int16_t)(vscroll_x + 1), (int16_t)thumb_y,
                   (uint16_t)(VSCROLL_W - 2), (uint16_t)thumb_h,
-                  COLOR_TEXT_LIGHT);
+                  NP_LIGHT_PANEL);
     gfx_draw_rect((int16_t)(vscroll_x + 1), (int16_t)thumb_y,
-                  (uint16_t)(VSCROLL_W - 2), (uint16_t)thumb_h, COLOR_TEXT);
+                  (uint16_t)(VSCROLL_W - 2), (uint16_t)thumb_h,
+                  NP_LIGHT_PANEL_EDGE);
   }
 
   int hscroll_x = edit_x;
@@ -2931,24 +3665,24 @@ static void notepad_draw_scrollbars(window_t *win) {
 
   /* Background */
   gfx_fill_rect((int16_t)hscroll_x, (int16_t)hscroll_y, (uint16_t)hscroll_w,
-                HSCROLL_H, COLOR_BORDER);
+                HSCROLL_H, NP_LIGHT_TRACK);
 
   /* Left arrow */
   gfx_fill_rect((int16_t)hscroll_x, (int16_t)hscroll_y, SCROLL_ARROW_SIZE,
-                HSCROLL_H, COLOR_TEXT_LIGHT);
+                HSCROLL_H, NP_LIGHT_PANEL);
   gfx_draw_rect((int16_t)hscroll_x, (int16_t)hscroll_y, SCROLL_ARROW_SIZE,
-                HSCROLL_H, COLOR_BORDER);
+                HSCROLL_H, NP_LIGHT_PANEL_EDGE);
   gfx_draw_char((int16_t)(hscroll_x + 3), (int16_t)(hscroll_y + 2), '<',
-                COLOR_BLACK);
+                NP_LIGHT_PANEL_TEXT);
 
   /* Right arrow */
   int right_x = hscroll_x + hscroll_w - SCROLL_ARROW_SIZE;
   gfx_fill_rect((int16_t)right_x, (int16_t)hscroll_y, SCROLL_ARROW_SIZE,
-                HSCROLL_H, COLOR_TEXT_LIGHT);
+                HSCROLL_H, NP_LIGHT_PANEL);
   gfx_draw_rect((int16_t)right_x, (int16_t)hscroll_y, SCROLL_ARROW_SIZE,
-                HSCROLL_H, COLOR_BORDER);
+                HSCROLL_H, NP_LIGHT_PANEL_EDGE);
   gfx_draw_char((int16_t)(right_x + 3), (int16_t)(hscroll_y + 2), '>',
-                COLOR_BLACK);
+                NP_LIGHT_PANEL_TEXT);
 
   /* Thumb */
   int track_w = hscroll_w - 2 * SCROLL_ARROW_SIZE;
@@ -2975,14 +3709,15 @@ static void notepad_draw_scrollbars(window_t *win) {
       int thumb_x = hscroll_x + SCROLL_ARROW_SIZE + thumb_x_off;
       gfx_fill_rect((int16_t)thumb_x, (int16_t)(hscroll_y + 1),
                     (uint16_t)thumb_w, (uint16_t)(HSCROLL_H - 2),
-                    COLOR_TEXT_LIGHT);
+                    NP_LIGHT_PANEL);
       gfx_draw_rect((int16_t)thumb_x, (int16_t)(hscroll_y + 1),
-                    (uint16_t)thumb_w, (uint16_t)(HSCROLL_H - 2), COLOR_TEXT);
+                    (uint16_t)thumb_w, (uint16_t)(HSCROLL_H - 2),
+                    NP_LIGHT_PANEL_EDGE);
     } else {
       gfx_fill_rect((int16_t)(hscroll_x + SCROLL_ARROW_SIZE),
                     (int16_t)(hscroll_y + 1),
                     (uint16_t)(track_w > 0 ? track_w : 0),
-                    (uint16_t)(HSCROLL_H - 2), COLOR_BORDER);
+                    (uint16_t)(HSCROLL_H - 2), NP_LIGHT_TRACK);
     }
   } else if (track_w > 0 && max_w > vis_cols) {
     int thumb_w = (track_w * vis_cols) / max_w;
@@ -2999,14 +3734,14 @@ static void notepad_draw_scrollbars(window_t *win) {
 
     int thumb_x = hscroll_x + SCROLL_ARROW_SIZE + thumb_x_off;
     gfx_fill_rect((int16_t)thumb_x, (int16_t)(hscroll_y + 1), (uint16_t)thumb_w,
-                  (uint16_t)(HSCROLL_H - 2), COLOR_TEXT_LIGHT);
+                  (uint16_t)(HSCROLL_H - 2), NP_LIGHT_PANEL);
     gfx_draw_rect((int16_t)thumb_x, (int16_t)(hscroll_y + 1), (uint16_t)thumb_w,
-                  (uint16_t)(HSCROLL_H - 2), COLOR_TEXT);
+                  (uint16_t)(HSCROLL_H - 2), NP_LIGHT_PANEL_EDGE);
   }
 
   /* Corner box where scrollbars meet */
   gfx_fill_rect((int16_t)(edit_x + edit_w), (int16_t)(edit_y + edit_h),
-                VSCROLL_W, HSCROLL_H, COLOR_BORDER);
+                VSCROLL_W, HSCROLL_H, NP_LIGHT_TRACK);
 }
 
 static void notepad_draw_statusbar(window_t *win) {
@@ -3014,7 +3749,7 @@ static void notepad_draw_statusbar(window_t *win) {
   int16_t sx = (int16_t)(win->x + 1);
   uint16_t sw = (uint16_t)(win->width - 2);
 
-  gfx_fill_rect(sx, sy, sw, STATUSBAR_H, COLOR_BORDER);
+  gfx_fill_rect(sx, sy, sw, STATUSBAR_H, NP_LIGHT_PANEL);
 
   /* Format "Ln X, Col Y" */
   char status[32];
@@ -3071,11 +3806,17 @@ static void notepad_draw_statusbar(window_t *win) {
   /* Right-align */
   uint16_t tw = gfx_text_width(status);
   gfx_draw_text((int16_t)(sx + (int16_t)sw - (int16_t)tw - 4),
-                (int16_t)(sy + 1), status, COLOR_TEXT);
+                (int16_t)(sy + 1), status, NP_LIGHT_PANEL_TEXT);
 
   if (app.is_ctxt_file) {
     const char *mode = app.render_mode ? "[RENDERED]" : "[SOURCE]";
-    gfx_draw_text((int16_t)(sx + 4), (int16_t)(sy + 1), mode, COLOR_TEXT);
+    const char *left_text = mode;
+    if (app.status_message[0] != '\0' &&
+        timer_get_uptime_ms() <= app.status_message_until_ms) {
+      left_text = app.status_message;
+    }
+    gfx_draw_text((int16_t)(sx + 4), (int16_t)(sy + 1), left_text,
+                  NP_LIGHT_PANEL_TEXT);
   }
 
   /* Modified indicator in title bar */
@@ -3394,6 +4135,11 @@ void notepad_launch(void) {
   app.ctxt_content_width = 0;
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
+  app.ctxt_action_count = 0;
+  app.ctxt_sprite_count = 0;
+  app.ctxt_tree_count = 0;
+  app.status_message[0] = '\0';
+  app.status_message_until_ms = 0;
 
   notepad_init_buffer();
   notepad_clear_selection();
@@ -4072,7 +4818,25 @@ void notepad_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
         win->flags |= WINDOW_FLAG_DIRTY;
       }
       if (pressed && hit >= 0 && hit < app.ctxt_link_count) {
-        notepad_ctxt_open_link(app.ctxt_links[hit].target);
+        if (app.ctxt_links[hit].action_type == 255u &&
+            app.ctxt_links[hit].ref >= 0 &&
+            app.ctxt_links[hit].ref < app.ctxt_tree_count) {
+          int tree_idx = app.ctxt_links[hit].ref;
+          app.ctxt_trees[tree_idx].open = !app.ctxt_trees[tree_idx].open;
+          notepad_ctxt_refresh_metrics();
+          if (app.ctxt_scroll_px > notepad_ctxt_max_scroll(win))
+            app.ctxt_scroll_px = notepad_ctxt_max_scroll(win);
+          if (app.ctxt_scroll_x_px > notepad_ctxt_max_scroll_x(win))
+            app.ctxt_scroll_x_px = notepad_ctxt_max_scroll_x(win);
+        } else if (app.ctxt_links[hit].ref >= 0 &&
+            app.ctxt_links[hit].ref < app.ctxt_action_count) {
+          notepad_ctxt_run_action(app.ctxt_actions[app.ctxt_links[hit].ref].type,
+                                  app.ctxt_actions[app.ctxt_links[hit].ref]
+                                      .payload);
+        } else {
+          notepad_ctxt_run_action(app.ctxt_links[hit].action_type,
+                                  app.ctxt_links[hit].target);
+        }
         win->flags |= WINDOW_FLAG_DIRTY;
       }
       win->flags |= WINDOW_FLAG_DIRTY;

@@ -55,6 +55,12 @@ void shell_gui_handle_key(uint8_t scancode, char character);
 /* GUI mode: insert a full text snippet at the current cursor. */
 void shell_gui_insert_text(const char *text);
 
+/* GUI mode: clear the in-progress input line/editor state. */
+void shell_gui_reset_input(void);
+
+/* GUI mode: submit a line, execute it, and print the next prompt. */
+void shell_gui_execute_line(const char *line);
+
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
 
