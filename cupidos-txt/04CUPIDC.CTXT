@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-04-09
+Verified against source on: 2026-04-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -12,8 +12,10 @@ Verified against source on: 2026-04-09
 >style link #1D4ED8
 >style linkhover #0B3AA8
 >rule
+>sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
 
 >h2 What Is CupidC
+>tree open What Is CupidC
 CupidC is the in-OS C-like compiler used for most shell programs in /bin.
 
 Two modes:
@@ -30,13 +32,28 @@ Shell also auto-discovers and runs:
 So if a file exists there, you can often just type:
   <name>
 
+>code Quick JIT Expression
+U32 x = 6;
+x * 7;
+>endcode
+>endtree
+
 >h2 Entry Point
+>tree Entry Point
 Use:
   void main() { ... }
 or:
   int main() { ... return 0; }
 
+>code Entry Point Example
+void main() {
+  println("Entry point works.");
+}
+>endcode
+>endtree
+
 >h2 Command-Line Arguments
+>tree Command-Line Arguments
 CupidC programs read args via:
   char *args = get_args();
 
@@ -51,7 +68,18 @@ Example:
     }
   }
 
+>code Read Args
+char *args = get_args();
+if (args && args[0]) {
+  println(args);
+} else {
+  println("no args");
+}
+>endcode
+>endtree
+
 >h2 Hello Example
+>tree Hello Example
 void main() {
   println("Hello from CupidC");
   print("cwd: ");
@@ -61,7 +89,14 @@ void main() {
 Save as /home/bin/hello.cc, then run:
   hello
 
+>code Hello CupidC
+println("Hello from CupidC");
+println(get_cwd());
+>endcode
+>endtree
+
 >h2 Language Features (Current)
+>tree Language Features (Current)
 Supported core features include:
 - int, char, void, pointers
 - structs (including field access)
@@ -82,7 +117,16 @@ Known practical constraints:
 - Preprocessor/macros are not a normal workflow.
 - One-file program style is the easiest path.
 
+>code Arithmetic And Control Flow
+U32 a = 10;
+U32 b = 20;
+U32 sum = a + b;
+sum;
+>endcode
+>endtree
+
 >h2 Preprocessor Update (2026-02-17)
+>tree Preprocessor Update (2026-02-17)
 CupidC now supports:
 - #pragma once
 
@@ -90,7 +134,14 @@ Use this at the top of reusable include-style .cc files (for example
 bin/ctxt.cc) to prevent duplicate-definition errors when a file is
 included multiple times.
 
+>code Pragma Once Pattern
+U32 val = 42;
+val + 0;
+>endcode
+>endtree
+
 >h2 Useful Bindings (Partial List)
+>tree Useful Bindings (Partial List)
 Console:
   print, println, putchar, print_int, print_hex, clear_screen
 
@@ -134,7 +185,12 @@ Rendering backend note (2026-02-17):
 - This speeds up framebuffer flip, clear, rect fill, and alpha blit loops.
 - CupidC gfx2d APIs are unchanged; programs do not need source changes.
 
+>button Show Uptime | shell:uptime
+>button List /bin | shell:ls /bin
+>endtree
+
 >h2 New Graphics/Desktop Bindings (2026-02-14)
+>tree New Graphics/Desktop Bindings (2026-02-14)
 Recently added for GUI app and desktop-oriented workflows:
 
 - gfx2d_text_wrap(x, y, w, str, color, font)
@@ -167,8 +223,10 @@ Desktop app source metadata now also supports:
 - //app: label="Name"; desc="Description"; icon=app; x=120; y=80;
 
 This registers launchable desktop icons when /bin .cc files are scanned.
+>endtree
 
 >h2 New Windowed App + Terminal Bindings (2026-02-17)
+>tree New Windowed App + Terminal Bindings (2026-02-17)
 These were added for true windowed CupidC apps (for example the rewritten
 BG Studio and terminal.cc window process):
 
@@ -189,7 +247,14 @@ Window input + present:
 - gui_win_flip(window_id)
   compatibility wrapper; older apps can keep using this
 
+>code Open A Window
+I32 wid = gui_win_create("Test", 100, 80, 320, 240);
+gui_win_is_open(wid);
+>endcode
+>endtree
+
 >h2 Windowed Graphics Update (2026-04-09)
+>tree Windowed Graphics Update (2026-04-09)
 Hosted/windowed CupidC apps now render through retained per-window surfaces.
 This removes the old "focused window owns the screen" behavior and lets the
 desktop compositor present hosted windows without fighting app-local flips.
@@ -260,8 +325,10 @@ Desktop background control bindings used by BG Studio:
 - desktop_bg_get_anim_theme()
 - desktop_bg_get_tiled_pattern()
 - desktop_bg_get_tiled_use_bmp()
+>endtree
 
 >h2 Fast Workflow
+>tree Fast Workflow
 1) Create source:
    ed /home/bin/mycmd.cc
 
@@ -278,13 +345,26 @@ Desktop background control bindings used by BG Studio:
   cc -d /home/bin/mycmd.cc
   dis /home/mycmd
 
+>button Edit A File | shell:ed /home/bin/hello.cc
+>button Run Hello | shell:cupidc /bin/hello.cc
+>endtree
+
 >h2 Error Handling Tips
+>tree Error Handling Tips
 - CupidC fails fast and reports line-oriented compiler errors.
 - If behavior is odd, reduce code to a tiny repro and re-add features.
 - Keep stack usage modest.
 - Prefer kmalloc for large buffers.
 
+>code Safe Arithmetic Check
+U32 big = 1000;
+U32 small = 7;
+big - small;
+>endcode
+>endtree
+
 >h2 When To Use CupidC Vs ELF C
+>tree When To Use CupidC Vs ELF C
 Use CupidC when:
 - You want fastest edit/run loop inside CupidOS shell.
 - You want direct access to many kernel helper bindings.
@@ -292,3 +372,10 @@ Use CupidC when:
 Use ELF C (see 05ELFPROG.TXT) when:
 - You want external GCC-based build flow.
 - You want a stable syscall-table ABI style entrypoint.
+>endtree
+
+>h2 See Also
+[03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
+[12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)
+[09EMBED.CTXT - embedding](open:09EMBED.CTXT)
+[11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)

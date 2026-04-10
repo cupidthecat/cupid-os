@@ -1,6 +1,6 @@
 >comment CupidMark converted document
->h1 How To Embed These Docs Into CupidOS Storage
-Verified against source on: 2026-02-13
+>h1 DolDoc Docs In CupidOS Storage
+Verified against source on: 2026-04-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -13,35 +13,51 @@ Verified against source on: 2026-02-13
 >style linkhover #0B3AA8
 >rule
 
-This repo folder is source documentation. To make docs readable inside
-running CupidOS, use one of these methods.
+This repo folder is the source of truth for the shipped manual set.
+CupidOS embeds every `cupidos-txt/*.CTXT` file into ramfs as `/docs/*.ctxt`,
+then renders them inside Notepad as live DolDoc-style manuals.
+
+>sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
+>button Open Docs Index | open:00INDEX.CTXT
+>button List /docs | shell:ls /docs
+>button Open DolDoc Manual | open:11CTXT.CTXT
+
+>h2 Canonical Path
+>tree open Canonical Path
+Canonical authoring path:
+- repo source: `cupidos-txt/*.CTXT`
+- boot-time install: `/docs/*.ctxt`
+- renderer host: Notepad render mode
+
+Workflow:
+1) Edit the source file in `cupidos-txt/`
+2) Build CupidOS so the file is embedded into ramfs
+3) Open `/docs/00INDEX.ctxt` or any `/docs/*.ctxt` page in Notepad
+4) Press F2 to switch between source and rendered DolDoc view
+
+This is the TempleOS-style path. The document source stays readable as text,
+but rendered view gains live buttons, runnable CupidC, action links, trees,
+and inline BMP widgets.
+>endtree
 
 >h2 Method A: FAT16 Persistent Docs (/home)
+>tree open Method A: FAT16 Persistent Docs
 Goal:
-- Put docs under /home so they persist with disk image.
+- Copy docs under /home when you want user-editable or persistent local copies.
 
 Current image model:
 - cupidos.img is a single HDD image.
-- /home is a FAT16 partition inside cupidos.img.
-
-Image sizing:
-- Build with make HDD_MB=100 or make HDD_MB=200
-- Default is HDD_MB=200
-
-Persistence behavior:
-- make and make run preserve existing cupidos.img
-- make clean preserves cupidos.img
-- make clean-image removes only cupidos.img
-- make distclean removes build artifacts and cupidos.img
+- /home is the persistent writable filesystem inside cupidos.img.
 
 Recommended target layout:
-  /home/docs/00index.txt
-  /home/docs/01shell.txt
+  /home/docs/00INDEX.CTXT
+  /home/docs/01SHELL.CTXT
   ...
 
 Notes:
-- FAT16 naming is 8.3-oriented in current driver path. Keep filenames short.
-- Root-level files are the most reliable workflow currently.
+- `/docs/*.ctxt` is still the shipped canonical manual set.
+- `/home/docs` is best treated as a user copy or scratch area.
+- Keeping the `.CTXT` extension preserves Notepad render-mode detection.
 
 Simple in-OS approach:
 1) Make directory:
@@ -58,27 +74,36 @@ Mapping reminder:
 - FAT ::/ is CupidOS /home.
 - Copy to ::/ (not ::/home).
 
+If you open a copied `.CTXT` file in Notepad, the same DolDoc-lite renderer
+still applies as long as the filename keeps the `.ctxt` or `.CTXT` suffix.
+
+>code Embed Basics
+U32 embed_answer = 40 + 2;
+embed_answer;
+>endcode
+>endtree
+
 >h2 Method B: RAMFS Memory Docs (/)
+>tree Method B: RAMFS Memory Docs
 Goal:
 - Bundle small docs directly in kernel boot memory files.
 
-Current in-memory static file table is in:
-  kernel/fs.c
-
-You can add entries by:
-1) Defining static const char text blocks
-2) Adding them to fs_files[]
-3) Wiring data pointers and sizes in fs_init()
+This is now mostly the legacy/manual approach.
+For shipped manuals, prefer the generated `/docs/*.ctxt` install path instead
+of hardcoding text blobs into `kernel/fs.c`.
 
 Tradeoff:
 - Always available at boot
 - Non-persistent (rebuilt image required)
+>endtree
 
 >h2 Method C: Auto-Install Doc Files To RAMFS At Boot (Advanced)
+>tree Method C: Auto-Install Doc Files To RAMFS At Boot
 Pattern is already implemented for:
 - /bin programs (bin/*.cc)
 - /docs pages (cupidos-txt/*.CTXT)
 - /demos asm sources (demos/*.asm)
+- /docs/image.bmp sprite assets
 
 Build-time generators:
 - kernel/bin_programs_gen.c
@@ -89,12 +114,28 @@ Tradeoff:
 - Scales better than hardcoding large strings in kernel/fs.c
 - Requires Makefile and kernel generation changes
 
+>button List /docs | shell:ls /docs
+>button Open 00INDEX | open:00INDEX.CTXT
+>endtree
+
 >h2 Practical Recommendation
-For day-to-day user readability:
-1) Keep canonical docs in this repo folder
-2) Copy selected short 8.3-named files into /home root or /home/docs
-3) sync after updates
+>tree Practical Recommendation
+For shipped system manuals:
+1) Keep canonical docs in `cupidos-txt/`
+2) Rebuild so they install to `/docs/*.ctxt`
+3) Browse them in Notepad render mode
+
+For user-customized copies:
+1) Copy selected `.CTXT` files into `/home/docs`
+2) Edit them there
+3) Keep the `.CTXT` extension so render mode still works
 
 For asm demos used in docs:
 - Use make sync-demos to refresh /home/demos in cupidos.img
+>endtree
 
+>h2 See Also
+[00INDEX.CTXT - docs index](open:00INDEX.CTXT)
+[11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)
+[04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
+[05ELFPROG.CTXT - ELF programs](open:05ELFPROG.CTXT)

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
->h1 ELF User C Programs (user/cupid.h)
-Verified against source on: 2026-02-13
+>h1 ELF User Programs (user/cupid.h)
+Verified against source on: 2026-04-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,87 +14,134 @@ Verified against source on: 2026-02-13
 >rule
 
 >h2 Overview
-This is the GCC/ELF program path, separate from CupidC.
+>tree open Overview
+This is the GCC/ELF path, separate from CupidC source JIT.
 
-ELF programs are loaded by exec() and receive a syscall table pointer.
-In your program entry, call cupid_init(sys) then use wrapper functions.
+`kernel/exec.c` currently supports:
+- ELF32 executables
+- i386 machine type
+- `ET_EXEC`
+- PT_LOAD segment loading
 
->h2 Basic Entry Template
-#include "../cupid.h"
+ELF programs are started as external processes and receive the syscall table
+pointer as the first argument to `_start`.
+>endtree
 
-void _start(cupid_syscall_table_t *sys) {
-    cupid_init(sys);
-    print("Hello from ELF program\n");
-    exit();
-}
+>h2 Entry Point
+>tree open Entry Point
+Use the wrapper header:
+  user/cupid.h
+
+Canonical entry:
+  void _start(cupid_syscall_table_t *sys) {
+      cupid_init(sys);
+      ...
+      exit();
+  }
+
+`cupid_init(sys)` stores the syscall table so wrapper functions can forward to
+the kernel.
+>endtree
+
+>h2 Loader Constraints
+>tree open Loader Constraints
+Source-verified loader checks from `kernel/exec.c`:
+- ELF32 only
+- little-endian
+- executable type required
+- i386 only
+- at least one PT_LOAD segment
+- image size must be <= 256 KB
+- load address must be >= `0x00400000`
+- image must fit inside the identity-mapped range
+
+If the binary violates those rules, `exec` rejects it.
+>endtree
 
 >h2 Build Flow
-From repo root:
+>tree open Build Flow
+The user-space examples live under:
+- `user/examples/hello.c`
+- `user/examples/ls.c`
+- `user/examples/cat.c`
+
+Build them with:
   make -C user
 
-This builds example ELF binaries in:
+The current `user/Makefile` writes outputs to:
   user/build/
-
-Examples included now:
-  hello
-  ls
-  cat
+>endtree
 
 >h2 Running ELF Programs
-1) Place binary somewhere in VFS (often /home)
-2) Run:
-   exec /home/hello
+>tree open Running ELF Programs
+Run a compiled binary by path:
+  exec /home/hello
 
-or run direct command if you have a matching shell dispatch setup.
+You can also disassemble instead of run:
+  exec -d /home/hello
 
->h2 Syscall Table API (Highlights)
-Console:
-  print, putchar, print_int, print_hex, clear_screen
+The shell prints the started PID when loading succeeds.
+>button ls /home | shell:ls /home
+>button ls /home/bin | shell:ls /home/bin
+>endtree
 
-Memory:
-  malloc, free
+>h2 Syscall Wrapper Surface
+>tree Syscall Wrapper Surface
+`user/cupid.h` exposes wrappers around the syscall table for:
+- console I/O
+- memory allocation
+- string helpers
+- VFS file and directory calls
+- process helpers
+- shell execution
+- uptime/time queries
+- program execution
 
-Strings:
-  strlen, strcmp, strncmp, memset, memcpy
+This path is explicit and toolchain-friendly compared to CupidC's
+pre-registered bindings.
+>endtree
 
-VFS:
-  open/close/read/write/seek/stat/readdir/mkdir/unlink
+>h2 Process Model
+>tree Process Model
+ELF programs are created through `process_create_with_arg_ex(...)` with:
+  `PROCESS_DOMAIN_EXTERNAL`
 
-Process:
-  exit, yield, getpid, kill, sleep_ms
+That is classification, not isolation:
+- ELF programs are distinct in the process table
+- the system still runs in one shared ring-0 address space
+>button ps | shell:ps
+>endtree
 
-Shell integration:
-  shell_execute, shell_get_cwd
-
-Time:
-  uptime_ms
-
-Program execution:
-  exec_program
-
->h2 Important Limits
-- No libc. Use cupid.h wrappers.
-- No argc/argv in classic POSIX style yet.
-- Keep binary load addresses valid (examples use -Ttext=0x00400000).
-- Everything runs ring 0 in CupidOS model (no user/kernel isolation).
-
->h2 Manual Compile Example
-Compile object:
+>h2 Manual Compile Reference
+>tree Manual Compile Reference
+Example object build:
   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 -Iuser \
       -c user/examples/hello.c -o hello.o
 
-Link ELF32:
+Example link:
   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
      -o hello hello.o
 
-Then copy to /home and run with:
-  exec /home/hello
+The `-Ttext=0x00400000` choice matters because the loader rejects low load
+addresses.
+>endtree
 
->h2 When To Choose This Path
-Use ELF C when you want:
-- external toolchain control
-- lower-level loader behavior testing
-- compatibility with explicit syscall-table interface
+>h2 When To Use ELF Instead Of CupidC
+>tree When To Use ELF Instead Of CupidC
+Choose ELF when you want:
+- explicit external toolchain control
+- direct syscall-table style programming
+- fixed binary artifacts on disk
+- loader/disassembly testing through `exec` and `exec -d`
 
-Use CupidC (04CUPIDC.TXT) when you want quickest in-OS iteration.
+Choose CupidC when you want:
+- zero-build source execution
+- REPL integration
+- TempleOS-style source-first workflow
+>endtree
 
+>h2 See Also
+[04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
+[02FILESYS.CTXT - storage layout](open:02FILESYS.CTXT)
+[08CMDS.CTXT - command reference](open:08CMDS.CTXT)
+[10ASM.CTXT - assembler workflow](open:10ASM.CTXT)

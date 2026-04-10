@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-02-13
+Verified against source on: 2026-04-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -13,127 +13,213 @@ Verified against source on: 2026-02-13
 >style linkhover #0B3AA8
 >rule
 
->h2 Note
+>h2 Help System
+>tree open Help System
+`help` reads `//help:` lines directly from `/bin/*.cc` and `/home/bin/*.cc`.
+
+That means command source is also command documentation.
+
 Use:
   help
   help <command>
-for in-system command help pulled from /bin source comments where available.
 
->h2 Shell Built-Ins (Dispatched Directly)
-cupid      - run CupidScript file (.cup)
-exec       - execute binary path (ELF or CUPD)
-notepad    - launch GUI notepad
-terminal   - launch GUI terminal
-cupidc     - JIT compile and run .cc source
-ccc        - compile .cc to ELF output
-as         - assemble and run .asm source (or with -o output)
-cupidasm   - assemble .asm to ELF output
+>button help | shell:help
+>button help ls | shell:help ls
+>endtree
 
->h2 Disassembly Quick Reference
-dis <file.elf>
-  disassemble ELF32 i386 machine code with labels when available
+>h2 Shell Built-Ins
+>tree open Shell Built-Ins
+Built-ins verified in `kernel/shell.c`:
+- `cupid`
+- `exec`
+- `notepad`
+- `terminal`
+- `ps`
+- `cc`
+- `reset`
+- `cupidc`
+- `ccc`
+- `as`
+- `cupidasm`
+- `jobs`
+>endtree
 
-dis <file.cc>
-  compile .cc then disassemble generated code (no execution)
+>h2 Execution Shortcuts
+>tree open Execution Shortcuts
+The shell also treats extensions specially:
+- `file.cup`  -> `cupid file.cup`
+- `file.cc`   -> `cupidc file.cc`
+- `file.asm`  -> `as file.asm`
+- `./path`    -> execute by extension or binary loader
 
-cc -d <file.cc>
-  CupidC compile-then-disassemble shortcut (no execution)
+Disassembly shortcuts:
+- `cc -d file.cc`
+- `exec -d file`
+>endtree
 
-exec -d <file>
-  disassemble target instead of running it
+>h2 Auto-Discovery Order
+>tree Auto-Discovery Order
+Command lookup order after built-ins:
+1) `/bin/<cmd>`
+2) `/bin/<cmd>.cc`
+3) `/home/bin/<cmd>`
+4) `/home/bin/<cmd>.cc`
 
->h2 Current /bin .cc Programs (Auto-Discovered)
-System / shell:
-  help clear echo time date reboot history sysinfo cupidfetch godspeak godsong
+This is the TempleOS-style source-first workflow for shipped and user programs.
+>button ls /bin | shell:ls /bin
+>button ls /home/bin | shell:ls /home/bin
+>endtree
 
-Filesystem:
-  pwd cd ls cat mount mkdir rmdir mv cp rm touch find grep ed
+>h2 File and Directory Commands
+>tree open File and Directory Commands
+Source-backed command set from shipped `/bin/*.cc`:
+- `ls [path]`
+- `pwd`
+- `cd [path]`
+- `cat <file>`
+- `cp <source> <dest>`
+- `mv <source> <dest>`
+- `rm <file...>`
+- `mkdir <dir...>`
+- `rmdir <dir...>`
+- `touch <file...>`
+- `find [path] [name]`
+- `grep <pattern> <path> [path] ...`
+- `mount`
+- `ed [file]`
 
->h2 New File/Search Tools
-cp <source> <dest>
-  Copy file to a new path.
-  If <dest> is a directory, source basename is used.
-  Examples:
-    cp notes.txt notes.bak
-    cp /home/log.txt /home/archive/
+>button ls /docs | shell:ls /docs
+>button pwd | shell:pwd
+>button mount | shell:mount
+>button find /docs CTXT | shell:find /docs CTXT
+>button grep DolDoc /docs | shell:grep DolDoc /docs
+>endtree
 
-touch <file1> [file2] ...
-  Create one or more files if they do not exist.
-  Examples:
-    touch new.txt
-    touch /home/a.txt /home/b.txt
+>h2 Shell and Info Commands
+>tree open Shell and Info Commands
+Core shipped commands:
+- `help`
+- `clear`
+- `echo`
+- `time`
+- `date`
+- `history`
+- `reboot`
+- `sysinfo`
+- `cupidfetch`
+- `godspeak`
+- `godsong`
+- `setcolor`
+- `resetcolor`
+- `printc`
 
-find [path] [name]
-  Recursively list paths under [path] (default: current directory).
-  If [name] is provided, only matching paths are shown.
-  Examples:
-    find
-    find /home
-    find /home demo
+>button date | shell:date
+>button sysinfo | shell:sysinfo
+>button history | shell:history
+>button cupidfetch | shell:cupidfetch
+>button godspeak | shell:godspeak
+>endtree
 
-grep <pattern> <path> [path] ...
-  Recursively search files and print matches as:
-    path:line:content
-  Examples:
-    grep TODO /home
-    grep include /docs/demos/hello.asm
-    grep print /bin /home/bin
+>h2 Process and Debug Commands
+>tree Process and Debug Commands
+Process/debug tools currently shipped:
+- `ps`
+- `kill`
+- `spawn`
+- `yield`
+- `memstats`
+- `memcheck`
+- `memleak`
+- `memdump`
+- `stacktrace`
+- `registers`
+- `loglevel`
+- `logdump`
+- `crashtest`
+- `sync`
+- `cachestats`
 
-Color / output:
-  setcolor resetcolor printc
+>button ps | shell:ps
+>button memstats | shell:memstats
+>button sync | shell:sync
+>button cachestats | shell:cachestats
+>endtree
 
-Processes:
-  ps kill spawn yield
+>h2 GUI and Graphics Commands
+>tree GUI and Graphics Commands
+Shipped GUI/app-side commands and demos:
+- `terminal`
+- `notepad`
+- `fm`
+- `paint`
+- `gfxdemo`
+- `gfxtest`
+- `gfxgui_test`
+- `bmptest`
+- `bgstudio`
 
-Memory / debug:
-  memstats memcheck memleak memdump stacktrace registers
-  loglevel logdump crashtest
+>button Terminal | shell:terminal
+>button Notepad | shell:notepad
+>button FM | shell:fm
+>button Paint | shell:paint
+>endtree
 
-Disk cache:
-  sync cachestats
+>h2 Compiler and Feature Demos
+>tree Compiler and Feature Demos
+Compiler/language test programs currently embedded in `/bin`:
+- `cupidc_test1` .. `cupidc_test5`
+- `feature1_types`
+- `feature2_top_level`
+- `feature3_class`
+- `feature4_forward_calls`
+- `feature5_print_builtin`
+- `feature6_exe`
+- `feature7_new_del`
+- `feature8_reg_noreg`
+- `feature9_abs_addr`
+- `feature10_repl`
+- `feature11_ternary`
+- `old_cc2`
+- `old_cc2_single`
+>endtree
 
-GUI / graphics:
-  paint fm gfxdemo gfxtest gfxgui_test bmptest
+>h2 Assembler and Loader Commands
+>tree Assembler and Loader Commands
+Command forms verified in the shell:
+- `as file.asm`
+- `as -o output file.asm`
+- `cupidasm file.asm`
+- `cupidasm file.asm -o output`
+- `cupidasm -o output file.asm`
+- `exec /path/to/binary`
+- `exec -d /path/to/binary`
 
-Test / dev utilities currently shipped:
-  test test_print cupidc_test1 cupidc_test2 cupidc_test3
-  cupidc_test4 cupidc_test5 old_cc2 old_cc2_single
+>button ls /demos | shell:ls /demos
+>button as /demos/hello.asm | shell:as /demos/hello.asm
+>endtree
 
->h2 Script Files Shipped In /bin
-build.cup is included as a script file.
-Run explicitly as:
+>h2 Script Files
+>tree Script Files
+Shipped `.cup` scripts can be run through `cupid` or by direct shell shortcut.
+
+Example:
   cupid /bin/build.cup
-or:
   /bin/build.cup
 
->h2 Shell Special Execution Shortcuts
-script.cup         -> runs via cupid
-program.cc         -> runs via cupidc
-program.asm        -> runs via as
-./relative_path    -> executes by extension or as binary
+>button Show build.cup | shell:cat /bin/build.cup
+>endtree
 
->h2 Auto-Discovery Path Order
-/bin/<cmd>
-/bin/<cmd>.cc
-/home/bin/<cmd>
-/home/bin/<cmd>.cc
+>h2 Hotkeys
+>tree Hotkeys
+Source-backed shell hotkey:
+- F7 in shell/Terminal -> `godspeak`
 
->h2 Desktop Shortcuts
-Global desktop shortcuts:
-- Ctrl + Alt + T  open Terminal
-- Ctrl + Alt + N  open Notepad
-- Ctrl + Alt + E  toggle Neon FX
-- Ctrl + Alt + C  toggle CRT Overlay
-- F5              rescan desktop icons from /bin directives
+Desktop/global app hotkeys are documented in the desktop docs; this page keeps
+the shell-facing command behavior only.
+>endtree
 
->h2 GodSpeak Shortcut
-- F7 in Terminal/shell runs:
-  godspeak
-- F7 in CupidC Notepad inserts generated GodSpeak text at the cursor.
-- Dictionary source is /god/Vocab.DD.
-
->h2 GodSong Sound Toy
-godsong [seed]
-  Play a TempleOS-inspired randomized PC speaker melody.
-  If [seed] is given, melody output is deterministic.
-
+>h2 See Also
+[01SHELL.CTXT - shell behavior](open:01SHELL.CTXT)
+[02FILESYS.CTXT - storage](open:02FILESYS.CTXT)
+[03CUPIDSC.CTXT - scripting](open:03CUPIDSC.CTXT)
+[10ASM.CTXT - assembler](open:10ASM.CTXT)

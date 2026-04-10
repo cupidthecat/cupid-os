@@ -1,6 +1,6 @@
 >comment CupidMark converted document
->h1 CupidOS Filesystems and FAT16
-Verified against source on: 2026-02-13
+>h1 CupidOS Filesystems and Storage
+Verified against source on: 2026-04-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,124 +14,178 @@ Verified against source on: 2026-02-13
 >rule
 
 >h2 Mount Layout
-CupidOS initializes these mounts:
+>tree open Mount Layout
+Source-verified mount flow from `kernel/kernel.c`:
 
 /      -> ramfs
 /dev   -> devfs
-/home  -> fat16 (if ATA disk is present and FAT16 init succeeds)
+/disk  -> raw fat16
+/home  -> homefs
 
-Boot/storage model (current):
-- Single HDD image: cupidos.img
-- MBR + bootloader + kernel + FAT16 partition in one file
-- /home is mounted from that FAT16 partition (persistent)
+If `homefs` mount fails, the kernel falls back to mounting raw FAT16 at
+`/home`.
 
-Build sizing controls:
-- make HDD_MB=100
-- make HDD_MB=200
-- Default is HDD_MB=200
+This is the biggest storage change compared to older CupidOS docs:
+`/home` is no longer just the FAT16 namespace. The current kernel treats FAT16
+as the persistence backend and exposes a higher-level `homefs` filesystem at
+`/home`.
 
-Persistence behavior:
-- make and make run reuse existing cupidos.img
-- make clean keeps cupidos.img
-- make clean-image removes only cupidos.img
-- make distclean removes build artifacts and cupidos.img
+>button mount | shell:mount
+>button ls / | shell:ls /
+>button ls /disk | shell:ls /disk
+>button ls /home | shell:ls /home
+>endtree
 
->h2 Standard Directories Created At Boot
-/bin
-/docs
-/docs/demos
-/demos
-/tmp
-/home
+>h2 RAMFS
+>tree open RAMFS
+`/` is ramfs.
 
->h2 RAMFS VS FAT16
-RAMFS (/):
-- In-memory, non-persistent
-- Good for temporary runtime files in current session
-- /bin is populated at boot with built-in stubs and embedded .cc command files
+Current boot-installed content includes:
+- `/bin/*.cc` embedded command sources and stubs
+- `/docs/*.ctxt` manuals
+- `/docs/image.bmp`
+- `/demos/*.asm`
+- `/docs/demos/*.asm`
 
-FAT16 (/home):
-- Persistent disk-backed storage (disk image / real disk)
-- Intended for user files and user programs
-- Mounted via VFS FAT16 wrapper
+Ramfs is session-local and rebuilt from source at boot.
+It is the canonical location for shipped manuals and demos.
 
-Demo sources:
-- Embedded at boot under /demos/*.asm
-- Mirrored under /docs/demos/*.asm for docs-relative open paths
+>button ls /docs | shell:ls /docs
+>button ls /demos | shell:ls /demos
+>endtree
 
-DEVFS (/dev):
-- Device filesystem mount
+>h2 DEVFS
+>tree DEVFS
+`/dev` is a device mount managed by the VFS.
 
->h2 In-Memory File Table (Legacy Static Files)
-Kernel static fs entries currently include:
-- LICENSE.txt
-- MOTD.txt
+It exists to separate device-facing paths from ordinary files and manuals.
+For day-to-day use you mostly notice it through:
+- the mount table
+- lower-level filesystem/device debugging
+>button ls /dev | shell:ls /dev
+>endtree
 
-They are loaded into ramfs during boot.
+>h2 Raw FAT16 Layer
+>tree FAT16 Layer
+The kernel still initializes and mounts a raw FAT16 filesystem on `/disk`.
 
->h2 FAT16 Driver Reality (Current Implementation)
-Implemented:
-- FAT16 partition detection from MBR (first matching FAT16 partition type)
-- File open/read/close
-- File create/write/overwrite
-- File delete
-- Root directory enumeration
-- Root-level directory create (mkdir)
-- Subdirectory enumeration for directories directly under FAT16 root
+What the source supports today:
+- partition detection from the HDD image
+- open/read/write/delete
+- directory enumeration
+- persistence across boots through `cupidos.img`
 
-Important practical limitations:
-- 8.3 naming model is enforced by FAT filename conversion routines.
-- Wrapper still behaves mostly like flat root for file opens/writes.
-- Creating files inside subdirectories through VFS path "dir/file.txt"
-  is not a reliable workflow yet.
-- Best-supported workflow today: keep user files and scripts in /home root,
-  and user command sources in /home/bin.
+The important architectural point is that FAT16 is now the storage substrate,
+not the preferred user-facing namespace.
 
->h2 Write Path Details
-FAT16 VFS write path buffers output and rewrites whole file on close.
-If write fails, rollback attempts to restore original content.
+Older docs that described `/home` as direct FAT16 are stale.
+The current truth is:
+- `/disk` = raw FAT16 view
+- `/home` = `homefs`, with FAT16 fallback only if needed
+>endtree
 
->h2 Block Cache
-Disk I/O goes through block cache.
-Useful commands:
-- sync       : flush cache now
-- cachestats : print cache hit/miss statistics
+>h2 HomeFS
+>tree open HomeFS
+`homefs` is implemented in `kernel/homefs.c`.
 
-Demo sync workflow:
-- make sync-demos copies local demos/*.asm into /home/demos
-- This updates the persistent FAT16 partition inside cupidos.img
+Source-verified behavior:
+- tree-based filesystem
+- nested directories
+- long names up to VFS limits
+- files and directories stored as nodes
+- persisted into one FAT16-hosted container file:
+  `HOMEFS.SYS`
+
+Design goal:
+- keep FAT16 as a compatibility/storage backend
+- avoid exposing FAT16 naming/layout limitations directly at `/home`
+
+So user workflows should prefer:
+  /home
+not:
+  /disk
+
+>button ls /home | shell:ls /home
+>button ls /home/bin | shell:ls /home/bin
+>endtree
+
+>h2 Standard Directories
+>tree Standard Directories
+Directories visible in the current shipped image/manual workflow:
+- `/bin`
+- `/docs`
+- `/docs/demos`
+- `/demos`
+- `/tmp`
+- `/home`
+
+Typical usage:
+- `/bin`   shipped command sources and app stubs
+- `/docs`  shipped live manuals
+- `/demos` shipped asm demos
+- `/tmp`   transient scratch data
+- `/home`  persistent user files and user programs
+>endtree
 
 >h2 Persistent Program Workflow
-Place custom command sources in:
-  /home/bin/<name>.cc
-Then run:
-  <name>
-Shell auto-discovers and JIT-compiles from /home/bin.
+>tree open Persistent Program Workflow
+Shell auto-discovery checks `/home/bin` directly.
 
->h2 Path Safety Tips
-- Use absolute paths when learning:
-    /home/myfile.txt
-    /tmp/test.txt
-- Use pwd frequently.
-- Verify with:
-    ls
-    cat
-    mount
+Recommended persistent workflow:
+1) create a file in `/home/bin/<name>.cc`
+2) run `<name>`
+3) the shell JIT-compiles it from `/home/bin`
 
->h2 Where To Put These Doc Files In A Live System
-If you want docs readable inside running CupidOS:
-- Put copies in /home (persistent) or /tmp (session only).
-- /home is recommended for long-term docs.
+This is source-verified in `kernel/shell.c`, where `/home/bin/<cmd>` and
+`/home/bin/<cmd>.cc` are part of the command search order.
+>button ls /home/bin | shell:ls /home/bin
+>endtree
 
-Host-to-/home copy quick commands (mtools):
+>h2 Copying Data Into The Image
+>tree Copying Data Into The Image
+Host-side FAT helpers still target the raw FAT partition inside `cupidos.img`.
+
+Mapping reminder:
+- FAT root `::/` corresponds to the persistent storage area inside the image
+- the running OS normally exposes that through `/home` via `homefs`
+
+Example host commands:
   mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
   mdir  -i cupidos.img@@2097152 ::/
 
-Mapping reminder:
-- FAT root ::/ maps to CupidOS /home.
-- So ::/cupid.bmp appears as /home/cupid.bmp in CupidOS.
+Use this for bulk host-to-image transfer.
+Use in-OS editing under `/home` for normal runtime work.
+>endtree
+
+>h2 Cache and Sync
+>tree Cache and Sync
+Disk writes go through the block cache.
+
+Useful commands:
+- `sync`       flush dirty data
+- `cachestats` print cache hit/miss statistics
+
+If you are doing persistent edits or demo sync work, use `sync` before reboot.
+>button sync | shell:sync
+>button cachestats | shell:cachestats
+>endtree
+
+>h2 Manual and Demo Embedding
+>tree Manual and Demo Embedding
+The shipped docs path is source-generated at build time:
+- `cupidos-txt/*.CTXT` -> `/docs/*.ctxt`
+- `image.bmp` -> `/docs/image.bmp`
+- `demos/*.asm` -> `/demos/*.asm` and `/docs/demos/*.asm`
+
+So:
+- `/docs` is the canonical in-OS manual set
+- `/home` is where user-edited persistent copies belong
+>button Open Docs Index | open:00INDEX.CTXT
+>button Open Embed Guide | open:09EMBED.CTXT
+>endtree
 
 >h2 See Also
-01SHELL.TXT for path resolution behavior
-04CUPIDC.TXT and 05ELFPROG.TXT for program placement conventions
-
+[01SHELL.CTXT - shell dispatch](open:01SHELL.CTXT)
+[05ELFPROG.CTXT - ELF programs](open:05ELFPROG.CTXT)
+[08CMDS.CTXT - command reference](open:08CMDS.CTXT)
+[09EMBED.CTXT - doc embedding](open:09EMBED.CTXT)
