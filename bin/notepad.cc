@@ -44,6 +44,14 @@ int is_ctxt;
 int render_mode;
 int ctxt_sy;
 int ctxt_sx;
+int console_open;
+int console_focus;
+int console_scroll;
+char console_input[128];
+int console_input_len;
+char ctxt_status[128];
+char ctxt_status_detail[192];
+int ctxt_status_until;
 
 int prev_buttons;
 int drag_sel;
@@ -53,6 +61,8 @@ int sb_dragging;
 int sb_drag_off;
 int hb_dragging;
 int hb_drag_off;
+
+int NOTEPAD_CONSOLE_H;
 
 char file_buf[32768];
 char clip_buf[4096];
@@ -183,10 +193,28 @@ void np_strcpy(char *dst, char *src, int max) {
   dst[i] = 0;
 }
 
+void np_strcat(char *dst, char *src, int max) {
+  int d = 0;
+  int s = 0;
+  while (dst[d] && d < max - 1) d = d + 1;
+  while (src[s] && d < max - 1) {
+    dst[d] = src[s];
+    d = d + 1;
+    s = s + 1;
+  }
+  dst[d] = 0;
+}
+
 int np_strlen(char *s) {
   int n = 0;
   while (s[n]) n = n + 1;
   return n;
+}
+
+int np_clamp(int v, int lo, int hi) {
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
 }
 
 int np_strcmp(char *a, char *b) {
@@ -200,6 +228,10 @@ int np_tolower(int ch) {
   return ch;
 }
 
+int np_is_space(int ch) {
+  return ch == 32 || ch == 9 || ch == 10 || ch == 13;
+}
+
 void np_to_lower_str(char *src, char *dst, int max) {
   int i = 0;
   if (max < 1) return;
@@ -211,6 +243,7 @@ void np_to_lower_str(char *src, char *dst, int max) {
 }
 
 int np_readable_file(char *path) {
+  if (path == 0 || path[0] == 0) return 0;
   int fd = vfs_open(path, 0);
   if (fd < 0) return 0;
   vfs_close(fd);
@@ -391,6 +424,15 @@ int np_try_open_candidate(char *candidate) {
     load_file(candidate);
     return 1;
   }
+  np_ext_to_lower(candidate, alt2, 256);
+  if (alt2[0] && np_strcmp(alt2, candidate) != 0) {
+    serial_printf("[notepad.cc] link try ext lowercase: %s\n", alt2);
+    if (np_readable_file(alt2)) {
+      serial_printf("[notepad.cc] link open ext lowercase: %s\n", alt2);
+      load_file(alt2);
+      return 1;
+    }
+  }
   np_to_lower_str(candidate, low, 256);
   if (low[0]) {
     serial_printf("[notepad.cc] link try lowercase: %s\n", low);
@@ -441,13 +483,13 @@ int np_open_link_target(char *target) {
     resolve_link_path(target, path, 256);
     if (path[0] && np_try_open_candidate(path)) return 1;
 
+    np_path_join("/docs", target, path, 256);
+    if (np_try_open_candidate(path)) return 1;
+
     np_path_join("/", target, path, 256);
     if (np_try_open_candidate(path)) return 1;
 
     np_path_join("/home", target, path, 256);
-    if (np_try_open_candidate(path)) return 1;
-
-    np_path_join("/cupidos-txt", target, path, 256);
     if (np_try_open_candidate(path)) return 1;
   }
 
@@ -468,6 +510,297 @@ int np_open_link_target(char *target) {
   }
 
   return 0;
+}
+
+void np_set_ctxt_status(char *msg) {
+  np_strcpy(ctxt_status, msg, 128);
+  ctxt_status_detail[0] = 0;
+  ctxt_status_until = uptime_ms() + 5500;
+}
+
+void np_set_ctxt_status_ex(char *msg, char *detail) {
+  np_strcpy(ctxt_status, msg, 128);
+  if (detail) np_strcpy(ctxt_status_detail, detail, 192);
+  else ctxt_status_detail[0] = 0;
+  ctxt_status_until = uptime_ms() + 5500;
+}
+
+void np_format_elapsed(int elapsed_ms, char *out, int max) {
+  int whole;
+  int frac;
+  char num[32];
+  out[0] = 0;
+  whole = elapsed_ms / 1000;
+  frac = elapsed_ms % 1000;
+  np_int_to_str(whole, out, max);
+  np_strcat(out, ".", max);
+  num[0] = 48 + ((frac / 100) % 10);
+  num[1] = 48 + ((frac / 10) % 10);
+  num[2] = 48 + (frac % 10);
+  num[3] = 's';
+  num[4] = 0;
+  np_strcat(out, num, max);
+}
+
+void np_make_preview(char *src, char *dst, int max) {
+  int i = 0;
+  int d = 0;
+  int gap = 0;
+  if (max < 2) return;
+  while (src[i] && d < max - 1) {
+    int ch = src[i];
+    if (np_is_space(ch)) {
+      if (d > 0) gap = 1;
+    } else {
+      if (gap && d < max - 1) {
+        dst[d] = ' ';
+        d = d + 1;
+      }
+      dst[d] = ch;
+      d = d + 1;
+      gap = 0;
+    }
+    i = i + 1;
+  }
+  dst[d] = 0;
+}
+
+int np_has_block_syntax(char *src) {
+  int i = 0;
+  while (src[i]) {
+    if (src[i] == '{' || src[i] == '}') return 1;
+    i = i + 1;
+  }
+  return 0;
+}
+
+int np_trim_line_copy(char *src, int start, int end, char *dst, int max) {
+  int i = 0;
+  while (start < end && np_is_space(src[start])) start = start + 1;
+  while (end > start && np_is_space(src[end - 1])) end = end - 1;
+  while (start < end && i < max - 1) {
+    dst[i] = src[start];
+    i = i + 1;
+    start = start + 1;
+  }
+  dst[i] = 0;
+  return i;
+}
+
+int np_run_ctxt_repl(char *target, int *value, int *has_value,
+                     int *elapsed_ms, int *had_result) {
+  int start = 0;
+  int i = 0;
+  int total_ms = 0;
+  int last_value = 0;
+  int last_has_value = 0;
+  int saw_prompt = 0;
+  int saw_line = 0;
+  int local_value = 0;
+  int local_has_value = 0;
+  int local_ms = 0;
+  char line[256];
+
+  if (!target || !target[0]) return 0;
+
+  if (!np_has_block_syntax(target)) {
+    while (1) {
+      if (target[i] == 10 || target[i] == 13 || target[i] == 0) {
+        int len = np_trim_line_copy(target, start, i, line, 256);
+        if (len > 0) {
+          saw_line = 1;
+          if (repl_eval(line) != 0) return 0;
+          if (repl_consume_prompt_result(&local_value, &local_has_value, &local_ms)) {
+            total_ms = total_ms + local_ms;
+            last_value = local_value;
+            last_has_value = local_has_value;
+            saw_prompt = 1;
+          }
+        }
+        if (target[i] == 13 && target[i + 1] == 10) i = i + 1;
+        if (target[i] == 0) break;
+        start = i + 1;
+      }
+      i = i + 1;
+    }
+    if (saw_line) {
+      if (value) *value = last_value;
+      if (has_value) *has_value = last_has_value;
+      if (elapsed_ms) *elapsed_ms = total_ms;
+      if (had_result) *had_result = saw_prompt;
+      return 1;
+    }
+  }
+
+  if (repl_eval(target) != 0) return 0;
+  if (repl_consume_prompt_result(&local_value, &local_has_value, &local_ms)) {
+    if (value) *value = local_value;
+    if (has_value) *has_value = local_has_value;
+    if (elapsed_ms) *elapsed_ms = local_ms;
+    if (had_result) *had_result = 1;
+  } else {
+    if (value) *value = 0;
+    if (has_value) *has_value = 0;
+    if (elapsed_ms) *elapsed_ms = 0;
+    if (had_result) *had_result = 0;
+  }
+  return 1;
+}
+
+int np_console_h() {
+  if (!console_open) return 0;
+  return NOTEPAD_CONSOLE_H;
+}
+
+void np_toggle_console() {
+  console_open = 1 - console_open;
+  if (!console_open) {
+    console_focus = 0;
+    console_scroll = 0;
+    console_input[0] = 0;
+    console_input_len = 0;
+  }
+}
+
+void np_console_open_for_output() {
+  shell_set_output_mode(1);
+  shell_gui_reset_input();
+  console_open = 1;
+  console_focus = 1;
+  console_scroll = 0;
+}
+
+void np_console_clear_input() {
+  console_input[0] = 0;
+  console_input_len = 0;
+}
+
+void np_console_submit() {
+  shell_set_output_mode(1);
+  shell_gui_execute_line(console_input);
+  np_console_clear_input();
+  console_scroll = 0;
+}
+
+void np_console_emit(char *prefix, char *msg) {
+  if (prefix && prefix[0]) print(prefix);
+  if (msg && msg[0]) print(msg);
+  print("\n");
+}
+
+void np_console_rect(int cy, int ch_h, int *out_y, int *out_h) {
+  int h = np_console_h();
+  int y = cy + ch_h - 10 - h;
+  if (out_y) *out_y = y;
+  if (out_h) *out_h = h;
+}
+
+int np_console_visible_rows(int cw) {
+  int cell = 8;
+  int console_h = np_console_h();
+  int inner_w = cw - 8;
+  int inner_h = console_h - 16;
+  int cols = inner_w / cell;
+  int rows = inner_h / cell;
+  if (cols > shell_buf_cols()) cols = shell_buf_cols();
+  if (rows > shell_buf_rows()) rows = shell_buf_rows();
+  if (rows < 1) rows = 1;
+  return rows;
+}
+
+int np_console_first_row(int cw) {
+  int cursor_row = shell_cursor_y();
+  int rows = np_console_visible_rows(cw);
+  int first = cursor_row - rows - console_scroll + 1;
+  if (first < 0) first = 0;
+  return first;
+}
+
+void np_console_clamp_scroll(int cw) {
+  int max_scroll = shell_cursor_y();
+  int rows = np_console_visible_rows(cw);
+  if (rows > max_scroll) max_scroll = shell_cursor_y();
+  console_scroll = np_clamp(console_scroll, 0, max_scroll);
+}
+
+void np_int_to_str(int v, char *out, int max) {
+  char tmp[32];
+  int n = 0;
+  int i = 0;
+  if (max < 2) return;
+  if (v == 0) {
+    out[0] = '0';
+    out[1] = 0;
+    return;
+  }
+  if (v < 0) {
+    out[i] = '-';
+    i = i + 1;
+    v = -v;
+  }
+  while (v > 0 && n < 31) {
+    tmp[n] = 48 + (v % 10);
+    n = n + 1;
+    v = v / 10;
+  }
+  while (n > 0 && i < max - 1) {
+    n = n - 1;
+    out[i] = tmp[n];
+    i = i + 1;
+  }
+  out[i] = 0;
+}
+
+void np_run_ctxt_action(int action, int ref, char *target) {
+  char detail[192];
+  detail[0] = 0;
+  np_make_preview(target, detail, 192);
+  if (action == CTXT_ACT_TREE) {
+    ctxt_toggle_tree(ref);
+    return;
+  }
+  if (action == CTXT_ACT_OPEN) {
+    if (!np_open_link_target(target)) np_set_ctxt_status_ex("Open failed", detail);
+    return;
+  }
+  if (action == CTXT_ACT_SHELL) {
+    np_console_open_for_output();
+    np_console_emit("shell> ", detail);
+    shell_execute_line(target);
+    np_set_ctxt_status_ex("Shell action executed", detail);
+    return;
+  }
+  if (action == CTXT_ACT_REPL) {
+    int value = 0;
+    int has_value = 0;
+    int elapsed_ms = 0;
+    int had_result = 0;
+    char elapsed[32];
+    char num[32];
+    char msg[128];
+    np_console_open_for_output();
+    np_console_emit("cupidc> ", detail);
+    if (np_run_ctxt_repl(target, &value, &has_value, &elapsed_ms, &had_result)) {
+      if (had_result) {
+        np_format_elapsed(elapsed_ms, elapsed, 32);
+        np_strcpy(msg, "CupidC ", 128);
+        np_strcat(msg, elapsed, 128);
+        if (has_value) {
+          np_strcat(msg, " ans=", 128);
+          np_int_to_str(value, num, 32);
+          np_strcat(msg, num, 128);
+        }
+        np_console_emit("", msg);
+        np_set_ctxt_status_ex(msg, detail);
+      } else {
+        np_console_emit("", "CupidC executed");
+        np_set_ctxt_status_ex("CupidC executed", detail);
+      }
+    } else {
+      np_console_emit("", "CupidC failed");
+      np_set_ctxt_status_ex("CupidC failed", detail);
+    }
+  }
 }
 
 void resolve_link_path(char *target, char *out, int max) {
@@ -520,7 +853,7 @@ void clear_sel() { sel_active = 0; }
 int get_cols(int width_px) { return width_px / (8 * font_scale); }
 
 int get_rows(int content_h) {
-  int usable = content_h - 12 - 10 - 12;
+  int usable = content_h - 12 - 10 - 12 - np_console_h();
   if (usable < 8) usable = 8;
   return usable / (8 * font_scale);
 }
@@ -570,6 +903,7 @@ void clamp_scroll_state(int ch_h, int cw) {
 void scrollbar_metrics(int ch_h, int cw, int *out_vx, int *out_vy, int *out_vh,
                       int *out_thumb_y, int *out_thumb_h, int *out_max_top) {
   int area_h = ch_h - 12 - 10;
+  area_h = area_h - np_console_h();
   int vx = 0;
   int vy = 0;
   int vh = 0;
@@ -657,6 +991,7 @@ void hscrollbar_metrics(int ch_h, int cw, int *out_hx, int *out_hy, int *out_hw,
 
   hx = 0;
   hy = ch_h - 10 - 12;
+  hy = hy - np_console_h();
   hw = cw - 12;
   if (hw < 8) hw = 8;
 
@@ -1045,8 +1380,13 @@ void do_new() {
   modified = 0;
   is_ctxt = 0;
   render_mode = 0;
+  console_focus = 0;
   ctxt_sy = 0;
   ctxt_sx = 0;
+  ctxt_status[0] = 0;
+  ctxt_status_detail[0] = 0;
+  ctxt_status_until = 0;
+  np_console_clear_input();
 }
 
 void parse_ctxt_if_needed() {
@@ -1108,8 +1448,13 @@ void load_file(char *path) {
   save_path_alt[0] = 0;
   is_ctxt = ends_with_ctxt(path);
   render_mode = is_ctxt;
+  console_focus = 0;
   ctxt_sy = 0;
   ctxt_sx = 0;
+  ctxt_status[0] = 0;
+  ctxt_status_detail[0] = 0;
+  ctxt_status_until = 0;
+  np_console_clear_input();
   parse_ctxt_if_needed();
 }
 
@@ -1168,41 +1513,63 @@ void do_save_as() {
 
 void draw_menu(int cx, int cy, int cw) {
   int my = cy;
-  gfx2d_rect_fill(cx, my, cw, 12, COL_MENUBAR);
-  if (active_menu == 0) gfx2d_rect_fill(cx, my, 36, 12, COL_MENU_HOV);
-  gfx2d_text(cx + 4, my + 2, "File", COL_MENU_TEXT, 1);
-  if (active_menu == 1) gfx2d_rect_fill(cx + 40, my, 36, 12, COL_MENU_HOV);
-  gfx2d_text(cx + 44, my + 2, "Edit", COL_MENU_TEXT, 1);
+  int bar_bg = COL_MENUBAR;
+  int menu_text = COL_MENU_TEXT;
+  int menu_hov = COL_MENU_HOV;
+  int menu_border = COL_THUMB;
+  if (render_mode && is_ctxt) {
+    bar_bg = ctxt_col_box_bg;
+    menu_text = ctxt_col_box_text;
+    menu_hov = ctxt_theme_light ? 0x00E7E0D2 : 0x00404A63;
+    menu_border = ctxt_col_rule;
+  }
+  gfx2d_rect_fill(cx, my, cw, 12, bar_bg);
+  if (active_menu == 0) gfx2d_rect_fill(cx, my, 36, 12, menu_hov);
+  gfx2d_text(cx + 4, my + 2, "File", menu_text, 1);
+  if (active_menu == 1) gfx2d_rect_fill(cx + 40, my, 36, 12, menu_hov);
+  gfx2d_text(cx + 44, my + 2, "Edit", menu_text, 1);
 
   if (active_menu == 0) {
     int dx = cx;
     int dy = my + 12;
-    gfx2d_rect_fill(dx, dy, 90, 60, COL_MENUBAR);
-    gfx2d_rect(dx, dy, 90, 60, COL_THUMB);
-    gfx2d_text(dx + 4, dy + 2, "New", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 14, "Open", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 26, "Save", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 38, "Save As", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 50, "Exit", COL_MENU_TEXT, 1);
+    gfx2d_rect_fill(dx, dy, 104, 72, bar_bg);
+    gfx2d_rect(dx, dy, 104, 72, menu_border);
+    gfx2d_text(dx + 4, dy + 2, "New", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 14, "Open", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 26, "Save", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 38, "Save As", menu_text, 1);
+    if (console_open) gfx2d_text(dx + 4, dy + 50, "Hide Console", menu_text, 1);
+    else gfx2d_text(dx + 4, dy + 50, "Show Console", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 62, "Exit", menu_text, 1);
   }
 
   if (active_menu == 1) {
     int dx = cx + 40;
     int dy = my + 12;
-    gfx2d_rect_fill(dx, dy, 110, 72, COL_MENUBAR);
-    gfx2d_rect(dx, dy, 110, 72, COL_THUMB);
-    gfx2d_text(dx + 4, dy + 2, "Undo", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 14, "Cut", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 26, "Copy", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 38, "Paste", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 50, "Sel All", COL_MENU_TEXT, 1);
-    gfx2d_text(dx + 4, dy + 62, "Render F2", COL_MENU_TEXT, 1);
+    gfx2d_rect_fill(dx, dy, 110, 72, bar_bg);
+    gfx2d_rect(dx, dy, 110, 72, menu_border);
+    gfx2d_text(dx + 4, dy + 2, "Undo", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 14, "Cut", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 26, "Copy", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 38, "Paste", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 50, "Sel All", menu_text, 1);
+    gfx2d_text(dx + 4, dy + 62, "Render F2", menu_text, 1);
   }
 }
 
 void draw_status(int cx, int cy, int cw, int ch_h) {
   int y = cy + ch_h - 10;
-  gfx2d_rect_fill(cx, y, cw, 10, COL_STATUSBAR);
+  int status_bg = COL_STATUSBAR;
+  int status_text = COL_STATUS_TEXT;
+  if (render_mode && is_ctxt) {
+    status_bg = ctxt_col_box_bg;
+    status_text = ctxt_col_box_text;
+  }
+  gfx2d_rect_fill(cx, y, cw, 10, status_bg);
+  if (render_mode && is_ctxt && ctxt_status[0] && uptime_ms() <= ctxt_status_until) {
+    gfx2d_text(cx + 4, y + 1, ctxt_status, status_text, 1);
+    return;
+  }
   char buf[64];
   int i = 0;
   int v;
@@ -1225,11 +1592,11 @@ void draw_status(int cx, int cy, int cw, int ch_h) {
   if (v >= 10) { buf[i] = 48 + (v / 10); i = i + 1; v = v % 10; }
   buf[i] = 48 + v; i = i + 1;
   buf[i] = 0;
-  gfx2d_text(cx + 4, y + 1, buf, COL_STATUS_TEXT, 1);
+  gfx2d_text(cx + 4, y + 1, buf, status_text, 1);
   if (modified) {
     int rx = cx + cw - 18;
     if (rx < cx + 4) rx = cx + 4;
-    gfx2d_text(rx, y + 1, "*", COL_STATUS_TEXT, 1);
+    gfx2d_text(rx, y + 1, "*", status_text, 1);
   }
 }
 
@@ -1278,7 +1645,7 @@ int sel_span_for_line(int li, int len, int *out_sc, int *out_ec) {
 
 void draw_text_area(int cx, int cy, int cw, int ch_h) {
   int area_y = cy + 12;
-  int area_h = ch_h - 12 - 10 - 12;
+  int area_h = ch_h - 12 - 10 - 12 - np_console_h();
   int area_w = cw - 12;
   int rows = get_rows(ch_h);
   int cols = get_cols(area_w);
@@ -1292,6 +1659,20 @@ void draw_text_area(int cx, int cy, int cw, int ch_h) {
     int render_h = area_h - ctxt_top_pad;
     if (render_h < 1) render_h = 1;
     ctxt_render(cx, render_y, area_w, render_h, ctxt_sy, ctxt_sx);
+    if (ctxt_status[0] && uptime_ms() <= ctxt_status_until) {
+      int toast_w = gfx2d_text_width(ctxt_status, 1) + 12;
+      int toast_h = ctxt_status_detail[0] ? 22 : 12;
+      int detail_w = 0;
+      if (ctxt_status_detail[0]) detail_w = gfx2d_text_width(ctxt_status_detail, 1) + 12;
+      if (detail_w > toast_w) toast_w = detail_w;
+      if (toast_w > area_w - 8) toast_w = area_w - 8;
+      gfx2d_panel(cx + 4, area_y + 2, toast_w, toast_h, ctxt_col_box_bg);
+      gfx2d_rect(cx + 4, area_y + 2, toast_w, toast_h, ctxt_col_rule);
+      gfx2d_text(cx + 8, area_y + 4, ctxt_status, ctxt_col_box_text, 1);
+      if (ctxt_status_detail[0]) {
+        gfx2d_text(cx + 8, area_y + 13, ctxt_status_detail, ctxt_col_body, 1);
+      }
+    }
     return;
   }
 
@@ -1349,8 +1730,95 @@ void draw_text_area(int cx, int cy, int cw, int ch_h) {
   }
 }
 
+void draw_console(int cx, int cy, int cw, int ch_h) {
+  int console_h = np_console_h();
+  int y;
+  int h;
+  int inner_x = cx + 4;
+  int inner_y;
+  int inner_w = cw - 8;
+  int inner_h;
+  int cell = 8;
+  int cols;
+  int rows;
+  int shell_rows;
+  int first_row;
+  int cursor_row;
+  int r = 0;
+  int panel_bg = render_mode && is_ctxt ? ctxt_col_box_bg : 0x00181C24;
+  int border = render_mode && is_ctxt ? ctxt_col_rule : 0x00404A63;
+  int title = render_mode && is_ctxt ? ctxt_col_box_text : 0x00D4D4D4;
+
+  if (console_h <= 0) return;
+
+  np_console_rect(cy, ch_h, &y, &h);
+  gfx2d_rect_fill(cx, y, cw, h, panel_bg);
+  gfx2d_rect(cx, y, cw, h, border);
+  gfx2d_text(cx + 4, y + 2, console_focus ? "Console Input" : "Console Output", title, 1);
+
+  inner_y = y + 12;
+  inner_h = h - 16;
+  if (inner_h < 8) inner_h = 8;
+  gfx2d_rect_fill(inner_x, inner_y, inner_w, inner_h, 0x001E1E1E);
+
+  cols = inner_w / cell;
+  rows = inner_h / cell;
+  if (cols > shell_buf_cols()) cols = shell_buf_cols();
+  if (rows > shell_buf_rows()) rows = shell_buf_rows();
+  if (cols < 1) cols = 1;
+  if (rows < 1) rows = 1;
+  shell_rows = rows - 1;
+  if (shell_rows < 1) shell_rows = 1;
+
+  np_console_clamp_scroll(cw);
+  cursor_row = shell_cursor_y();
+  first_row = np_console_first_row(cw);
+
+  while (r < shell_rows) {
+    int buf_row = first_row + r;
+    int c = 0;
+    int py = inner_y + r * cell;
+    if (buf_row >= 0 && buf_row < shell_buf_rows()) {
+      while (c < cols) {
+        int glyph = shell_buf_char(buf_row, c);
+        int col = shell_buf_color(buf_row, c);
+        int fg = col & 15;
+        int bg = (col >> 4) & 15;
+        int px = inner_x + c * cell;
+        if (bg != 0) gfx2d_rect_fill(px, py, cell, cell, ansi_color(bg));
+        if (glyph != 0 && glyph != 32) {
+          int dfg = fg;
+          if (dfg == 0) dfg = 7;
+          gfx2d_char_scaled(px, py, glyph, ansi_color(dfg), 1);
+        }
+        c = c + 1;
+      }
+    }
+    r = r + 1;
+  }
+
+  {
+    int input_y = inner_y + shell_rows * cell;
+    int i = 0;
+    if (input_y + cell <= inner_y + inner_h) {
+      gfx2d_rect_fill(inner_x, input_y, inner_w, cell, 0x00242A3B);
+      gfx2d_char_scaled(inner_x, input_y, '>', ansi_color(7), 1);
+      gfx2d_char_scaled(inner_x + cell, input_y, ' ', ansi_color(7), 1);
+      while (console_input[i] && i < cols - 2) {
+        gfx2d_char_scaled(inner_x + (i + 2) * cell, input_y,
+                          console_input[i], ansi_color(7), 1);
+        i = i + 1;
+      }
+      if (console_focus && cursor_on) {
+        int px = inner_x + (console_input_len + 2) * cell;
+        gfx2d_rect_fill(px, input_y, 2, cell, ansi_color(7));
+      }
+    }
+  }
+}
+
 void draw_scrollbars(int cx, int cy, int cw, int ch_h) {
-  int area_h = ch_h - 12 - 10;
+  int area_h = ch_h - 12 - 10 - np_console_h();
   int vx = cx + cw - 12;
   int vy = cy + 12;
   int vh = area_h - 12;
@@ -1366,6 +1834,13 @@ void draw_scrollbars(int cx, int cy, int cw, int ch_h) {
   int thumb_x;
   int thumb_w;
   int max_left;
+  int scroll_bg = COL_SCROLLBAR;
+  int thumb_col = COL_THUMB;
+
+  if (render_mode && is_ctxt) {
+    scroll_bg = ctxt_col_box_bg;
+    thumb_col = ctxt_col_rule;
+  }
 
   scrollbar_metrics(ch_h, cw, &rel_vx, &rel_vy, &rel_vh, &thumb_y, &thumb_h,
                     &max_top);
@@ -1374,17 +1849,17 @@ void draw_scrollbars(int cx, int cy, int cw, int ch_h) {
   vy = cy + rel_vy;
   vh = rel_vh;
 
-  gfx2d_rect_fill(vx, vy, 12, vh, COL_SCROLLBAR);
-  gfx2d_rect_fill(vx + 2, cy + thumb_y, 8, thumb_h, COL_THUMB);
+  gfx2d_rect_fill(vx, vy, 12, vh, scroll_bg);
+  gfx2d_rect_fill(vx + 2, cy + thumb_y, 8, thumb_h, thumb_col);
 
-  int hy = cy + ch_h - 10 - 12;
+  int hy = cy + ch_h - 10 - 12 - np_console_h();
   hscrollbar_metrics(ch_h, cw, &rel_hx, &rel_hy, &rel_hw, &thumb_x, &thumb_w,
                      &max_left);
-  gfx2d_rect_fill(cx + rel_hx, cy + rel_hy, rel_hw, 12, COL_SCROLLBAR);
-  gfx2d_rect_fill(cx + thumb_x, cy + rel_hy + 2, thumb_w, 8, COL_THUMB);
+  gfx2d_rect_fill(cx + rel_hx, cy + rel_hy, rel_hw, 12, scroll_bg);
+  gfx2d_rect_fill(cx + thumb_x, cy + rel_hy + 2, thumb_w, 8, thumb_col);
 
   /* Bottom-right corner where vertical and horizontal bars meet */
-  gfx2d_rect_fill(cx + cw - 12, cy + rel_hy, 12, 12, COL_SCROLLBAR);
+  gfx2d_rect_fill(cx + cw - 12, cy + rel_hy, 12, 12, scroll_bg);
 }
 
 void handle_key(int sc, int ch) {
@@ -1407,6 +1882,40 @@ void handle_key(int sc, int ch) {
   }
 
   np_gs_reset_phrase();
+
+  if (console_open && console_focus) {
+    if (sc == 1) {
+      console_focus = 0;
+      return;
+    }
+    if (sc == 73) {
+      console_scroll = console_scroll + 5;
+      return;
+    }
+    if (sc == 81) {
+      console_scroll = console_scroll - 5;
+      if (console_scroll < 0) console_scroll = 0;
+      return;
+    }
+    if (sc == 28) {
+      np_console_submit();
+      return;
+    }
+    if (sc == 14) {
+      if (console_input_len > 0) {
+        console_input_len = console_input_len - 1;
+        console_input[console_input_len] = 0;
+      }
+      return;
+    }
+    if (ch >= 32 && ch < 127 && console_input_len < 127) {
+      console_input[console_input_len] = ch;
+      console_input_len = console_input_len + 1;
+      console_input[console_input_len] = 0;
+      return;
+    }
+    return;
+  }
 
   if (ctrl) {
     int k_n = (lo == 'n' || sc == 49);
@@ -1518,6 +2027,7 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
     thumb_y = cy + thumb_y;
 
     if (left_clicked && mx >= vx && mx < vx + 12 && my >= vy && my < vy + vh) {
+      console_focus = 0;
       if (my >= thumb_y && my < thumb_y + thumb_h) {
         sb_dragging = 1;
         sb_drag_off = my - thumb_y;
@@ -1565,6 +2075,7 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
       thumb_x = cx + thumb_x;
 
       if (left_clicked && mx >= hx && mx < hx + hw && my >= hy && my < hy + 12) {
+        console_focus = 0;
         if (mx >= thumb_x && mx < thumb_x + thumb_w) {
           hb_dragging = 1;
           hb_drag_off = mx - thumb_x;
@@ -1598,11 +2109,12 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
   if (left_clicked) {
     if (active_menu == 0) {
       int dy = menu_y + 12;
-      if (mx >= cx && mx < cx + 90 && my >= dy && my < dy + 60) {
+      if (mx >= cx && mx < cx + 104 && my >= dy && my < dy + 72) {
         if (my < dy + 12) do_new();
         else if (my < dy + 24) do_open();
         else if (my < dy + 36) do_save();
         else if (my < dy + 48) do_save_as();
+        else if (my < dy + 60) np_toggle_console();
         else should_close = 1;
         active_menu = -1;
         prev_buttons = buttons;
@@ -1643,16 +2155,25 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
 
   if (render_mode && is_ctxt) {
     if (left_clicked) {
+      int console_y;
+      int console_h;
+      np_console_rect(cy, ch_h, &console_y, &console_h);
+      if (console_h > 0 && my >= console_y && my < console_y + console_h) {
+        shell_set_output_mode(1);
+        shell_gui_reset_input();
+        console_focus = 1;
+        prev_buttons = buttons;
+        return;
+      }
+      console_focus = 0;
       int lidx = ctxt_link_at(mx, my, ctxt_sy, ctxt_sx);
-      serial_printf("[notepad.cc] link click mx=%d my=%d idx=%d count=%d\n", mx, my, lidx, ctxt_link_count);
       if (lidx >= 0) {
         char target[256];
+        int action = ctxt_get_link_action(lidx);
+        int ref = ctxt_get_link_ref(lidx);
         target[0] = 0;
         ctxt_get_link(lidx, target, 256);
-        serial_printf("[notepad.cc] link target: %s file=%s\n", target, filename);
-        if (!np_open_link_target(target)) {
-          serial_printf("[notepad.cc] link unresolved: %s\n", target);
-        }
+        np_run_ctxt_action(action, ref, target);
       }
     }
     prev_buttons = buttons;
@@ -1660,6 +2181,19 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
   }
 
   int area_y = cy + 12;
+  {
+    int console_y;
+    int console_h;
+    np_console_rect(cy, ch_h, &console_y, &console_h);
+    if (left_clicked && console_h > 0 && my >= console_y && my < console_y + console_h) {
+      shell_set_output_mode(1);
+      shell_gui_reset_input();
+      console_focus = 1;
+      prev_buttons = buttons;
+      return;
+    }
+  }
+  if (left_clicked) console_focus = 0;
   int cell = 8 * font_scale;
   int rows = get_rows(ch_h);
   int cols = get_cols(cw - 12);
@@ -1727,6 +2261,7 @@ void main() {
 
   init_buffer();
   font_scale = 1;
+  NOTEPAD_CONSOLE_H = 96;
   active_menu = -1;
   cursor_on = 1;
   blink_ms = uptime_ms();
@@ -1734,6 +2269,13 @@ void main() {
   is_ctxt = 0;
   ctxt_sy = 0;
   ctxt_sx = 0;
+  ctxt_status[0] = 0;
+  ctxt_status_detail[0] = 0;
+  ctxt_status_until = 0;
+  console_open = 0;
+  console_focus = 0;
+  console_scroll = 0;
+  np_console_clear_input();
   drag_sel = 0;
   prev_buttons = 0;
   mouse_lmb_latch = 0;
@@ -1805,7 +2347,17 @@ void main() {
         blink_ms = uptime_ms();
         dirty = 1;
         int use_x = key_shift_held();
-        if (render_mode && is_ctxt) {
+        int local_mx = mouse_x() - screen_cx;
+        int local_my = mouse_y() - screen_cy;
+        int console_y;
+        int console_h;
+        np_console_rect(cy, ch_h, &console_y, &console_h);
+        if (console_h > 0 && local_mx >= cx && local_mx < cx + cw &&
+            local_my >= console_y && local_my < console_y + console_h) {
+          console_scroll = console_scroll - delta;
+          if (console_scroll < 0) console_scroll = 0;
+          np_console_clamp_scroll(cw);
+        } else if (render_mode && is_ctxt) {
           if (use_x) {
             ctxt_sx = ctxt_sx - delta * 16;
             if (ctxt_sx < 0) ctxt_sx = 0;
@@ -1857,6 +2409,7 @@ void main() {
     clamp_scroll_state(ch_h, cw);
     draw_text_area(cx, cy, cw, ch_h);
     draw_scrollbars(cx, cy, cw, ch_h);
+    draw_console(cx, cy, cw, ch_h);
     draw_status(cx, cy, cw, ch_h);
     draw_menu(cx, cy, cw);
 

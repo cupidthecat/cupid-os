@@ -1,15 +1,15 @@
-// Feature 10 demo: cc REPL integration
-// Try interactive mode in shell:
-//   cc
-// Then enter lines like:
-//   void main() {
-//   Print("hello from repl\\n");
-//   }
-// The REPL waits for balanced braces before compiling.
-// Failed snippets are not committed to the current session.
-// You can also run single lines:
+// Feature 10 demo: TempleOS-style shell REPL
+// Type CupidC directly at the normal shell prompt:
 //   U32 x = 7;
-//   Print("x=%u\\n", x);
-// Exit with Ctrl+D or .exit
+//   x + 5;
+//   ans;
+//
+// Multi-line blocks stay open until braces balance:
+//   U32 Add(U32 a, U32 b) {
+//     return a + b;
+//   }
+//
+// The shell prompt reports the last result on the next prompt and
+// failed snippets do not corrupt the persistent REPL session.
 
 Print("Feature10 file-mode check via cc/cupidc\n");
