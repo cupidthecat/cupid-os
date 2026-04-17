@@ -1651,7 +1651,8 @@ void draw_text_area(int cx, int cy, int cw, int ch_h) {
   int cols = get_cols(area_w);
   int cell = 8 * font_scale;
 
-  gfx2d_rect_fill(cx, area_y, area_w, area_h, COL_BG);
+  int area_bg = (render_mode && is_ctxt) ? ctxt_col_bg : COL_BG;
+  gfx2d_rect_fill(cx, area_y, area_w, area_h, area_bg);
 
   if (render_mode && is_ctxt) {
     int ctxt_top_pad = 8;

@@ -219,6 +219,23 @@ int ctxt_parse_u32(char *src) {
   return v;
 }
 
+int ctxt_named_color(char *name) {
+  if (ctxt_strcmp(name, "black") == 0) return 0x00000000;
+  if (ctxt_strcmp(name, "red") == 0) return 0x00FF5555;
+  if (ctxt_strcmp(name, "green") == 0) return 0x0055FF55;
+  if (ctxt_strcmp(name, "yellow") == 0) return 0x00FFFF55;
+  if (ctxt_strcmp(name, "blue") == 0) return 0x005555FF;
+  if (ctxt_strcmp(name, "purple") == 0) return 0x00FF55FF;
+  if (ctxt_strcmp(name, "cyan") == 0) return 0x0055FFFF;
+  if (ctxt_strcmp(name, "white") == 0) return 0x00FFFFFF;
+  if (ctxt_strcmp(name, "ltgray") == 0) return 0x00AAAAAA;
+  if (ctxt_strcmp(name, "dkgray") == 0) return 0x00555555;
+  if (ctxt_strcmp(name, "dkred") == 0) return 0x00AA0000;
+  if (ctxt_strcmp(name, "dkblue") == 0) return 0x000000AA;
+  if (ctxt_strcmp(name, "dkgreen") == 0) return 0x0000AA00;
+  return -1;
+}
+
 void ctxt_set_theme(int light) {
   ctxt_theme_light = light;
   if (light) {
@@ -250,6 +267,22 @@ void ctxt_set_theme(int light) {
   }
 }
 
+void ctxt_set_theme_temple() {
+  ctxt_theme_light = 0;
+  ctxt_col_bg = 0x00000000;
+  ctxt_col_h1 = 0x00FFFF55;
+  ctxt_col_h2 = 0x0055FFFF;
+  ctxt_col_h3 = 0x00FF5555;
+  ctxt_col_body = 0x00FFFFFF;
+  ctxt_col_rule = 0x00AA0000;
+  ctxt_col_box_bg = 0x00AA0000;
+  ctxt_col_box_text = 0x00FFFFFF;
+  ctxt_col_link = 0x0055FFFF;
+  ctxt_col_link_hover = 0x00FFFF55;
+  ctxt_col_code_bg = 0x00000000;
+  ctxt_col_code_text = 0x0055FF55;
+}
+
 void ctxt_reset() {
   ctxt_line_count = 0;
   ctxt_link_count = 0;
@@ -277,7 +310,7 @@ void ctxt_reset() {
   CTXT_MAX_LINES = 1024;
   CTXT_MAX_LINKS = 192;
   CTXT_MAX_TEXT = 128;
-  ctxt_set_theme(0);
+  ctxt_set_theme(1);
 }
 
 int ctxt_line_h(int type) {
@@ -438,7 +471,10 @@ void ctxt_parse(int buf_ptr, int len) {
     ctxt_line_ref[n] = -1;
     ctxt_line_aux_a[n] = 0;
     ctxt_line_aux_b[n] = 0;
-    ctxt_line_tree_mask[n] = tree_mask;
+    /* Snapshot BEFORE >tree/>endtree update tree_mask. A tree's own button
+     * line must be visible regardless of its own open/closed state — otherwise
+     * a closed tree hides the toggle that would open it. */
+    int line_tree_mask = tree_mask;
 
     if (code_action >= 0) {
       if (ctxt_starts_with(line, ">endcode")) {
@@ -475,6 +511,10 @@ void ctxt_parse(int buf_ptr, int len) {
         ctxt_line_text[n][0] = 0;
       } else if (ctxt_starts_with(line, ">theme dark")) {
         ctxt_set_theme(0);
+        type = CTXT_COMMENT;
+        ctxt_line_text[n][0] = 0;
+      } else if (ctxt_starts_with(line, ">theme temple")) {
+        ctxt_set_theme_temple();
         type = CTXT_COMMENT;
         ctxt_line_text[n][0] = 0;
       } else if (ctxt_starts_with(line, ">style ")) {
@@ -664,7 +704,7 @@ void ctxt_parse(int buf_ptr, int len) {
     ctxt_line_ref[n] = ref;
     ctxt_line_aux_a[n] = aux_a;
     ctxt_line_aux_b[n] = aux_b;
-    ctxt_line_tree_mask[n] = tree_mask;
+    ctxt_line_tree_mask[n] = line_tree_mask;
     ctxt_line_bg_color[n] = in_box ? cur_box_bg : 0;
     ctxt_line_count = ctxt_line_count + 1;
   }
@@ -695,7 +735,108 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
   int ch_w = 8 * scale;
   int px = base_x;
   int ti = 0;
+  int cur_fg = fg;
+  int cur_bg = 0;
   while (text[ti]) {
+    if (text[ti] == 36) {
+      int li = ti + 1;
+      char code[8];
+      char arg[64];
+      char arg2[128];
+      int ci = 0;
+      int ai = 0;
+      int has_arg = 0;
+      while (text[li] && text[li] != 36 && text[li] != 44 && ci < 7) {
+        code[ci] = text[li];
+        ci = ci + 1;
+        li = li + 1;
+      }
+      code[ci] = 0;
+      if (text[li] == 44) {
+        has_arg = 1;
+        li = li + 1;
+        if (text[li] == 34) li = li + 1;
+        while (text[li] && text[li] != 36 && text[li] != 34 && ai < 63) {
+          arg[ai] = text[li];
+          ai = ai + 1;
+          li = li + 1;
+        }
+        arg[ai] = 0;
+        if (text[li] == 34) li = li + 1;
+        if (text[li] == 44) {
+          int a2 = 0;
+          li = li + 1;
+          while (text[li] && text[li] != 36 && a2 < 127) {
+            arg2[a2] = text[li];
+            a2 = a2 + 1;
+            li = li + 1;
+          }
+          arg2[a2] = 0;
+        } else {
+          arg2[0] = 0;
+        }
+      } else {
+        arg[0] = 0;
+        arg2[0] = 0;
+      }
+      if (text[li] == 36) {
+        if (ctxt_strcmp(code, "FG") == 0) {
+          if (has_arg) {
+            int c = arg[0] == 35 ? ctxt_parse_color(arg, 0) : ctxt_named_color(arg);
+            if (c >= 0) cur_fg = c;
+          } else {
+            cur_fg = fg;
+          }
+          ti = li + 1;
+          continue;
+        } else if (ctxt_strcmp(code, "BG") == 0) {
+          if (has_arg) {
+            int c = arg[0] == 35 ? ctxt_parse_color(arg, 0) : ctxt_named_color(arg);
+            if (c >= 0) cur_bg = c;
+          } else {
+            cur_bg = 0;
+          }
+          ti = li + 1;
+          continue;
+        } else if (ctxt_strcmp(code, "CM") == 0) {
+          ti = li + 1;
+          continue;
+        } else if (ctxt_strcmp(code, "TX") == 0) {
+          int k = 0;
+          while (arg[k]) {
+            if (cur_bg) gfx2d_rect_fill(px, py, ch_w, lh, cur_bg);
+            if (px + ch_w > x && px < x2 && py + lh > y && py < y2) {
+              gfx2d_char_scaled(px, py, arg[k], cur_fg, scale);
+            }
+            px = px + ch_w;
+            k = k + 1;
+          }
+          ti = li + 1;
+          continue;
+        } else if (ctxt_strcmp(code, "LK") == 0) {
+          char payload[256];
+          int action_type = CTXT_ACT_OPEN;
+          int ux = px;
+          int k = 0;
+          while (arg[k]) {
+            if (px + ch_w > x && px < x2 && py + lh > y && py < y2) {
+              gfx2d_char_scaled(px, py, arg[k], ctxt_col_link, scale);
+            }
+            px = px + ch_w;
+            k = k + 1;
+          }
+          if (arg2[0] && ctxt_parse_action(arg2, &action_type, payload, 256)) {
+            int uw = k * ch_w;
+            if (uw > 0) {
+              gfx2d_hline(ux, py + lh - 2, uw, ctxt_col_link);
+              ctxt_add_link_rect(ux, py, uw, lh, action_type, -1, payload);
+            }
+          }
+          ti = li + 1;
+          continue;
+        }
+      }
+    }
     if (text[ti] == 91) {
       int li = ti + 1;
       char label[64];
@@ -775,8 +916,11 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
       }
     }
 
+    if (cur_bg && px + ch_w > x && px < x2 && py + lh > y && py < y2) {
+      gfx2d_rect_fill(px, py, ch_w, lh, cur_bg);
+    }
     if (px + ch_w > x && px < x2 && py + lh > y && py < y2) {
-      gfx2d_char_scaled(px, py, text[ti], fg, scale);
+      gfx2d_char_scaled(px, py, text[ti], cur_fg, scale);
     }
     px = px + ch_w;
     ti = ti + 1;
