@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 .CTXT DolDoc Manual
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -37,7 +37,7 @@ Use markdown-style links for inline actions:
 
 Standalone button widgets are still supported:
 >button Open CupidC Guide | open:04CUPIDC.CTXT
->button Show Running Jobs | shell:jobs
+>button Show Processes | shell:ps
 >button Evaluate 40 + 2 | repl:40 + 2;
 >endtree
 

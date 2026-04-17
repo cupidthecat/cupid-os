@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 GUI Terminal and Embedded Shell
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -84,7 +84,7 @@ terminal window.
 >endtree
 
 >h2 GodSpeak Hotkey
->tree GodSpeak Hotkey
+>tree open GodSpeak Hotkey
 F7 in the shell or GUI Terminal runs:
   godspeak
 
@@ -95,7 +95,7 @@ feature.
 >endtree
 
 >h2 Related GUI Apps
->tree Related GUI Apps
+>tree open Related GUI Apps
 Core GUI app names used by the launcher:
 - `terminal`
 - `notepad`
@@ -110,7 +110,7 @@ through the shared app-launch path instead of ad hoc special cases.
 >endtree
 
 >h2 Notes
->tree Notes
+>tree open Notes
 There is also a hosted `/bin/terminal.cc` program in the tree, but the main
 GUI terminal path used by the OS desktop/shell launcher is the kernel-side
 terminal app.

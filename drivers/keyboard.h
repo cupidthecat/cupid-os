@@ -29,4 +29,8 @@ bool keyboard_get_alt(void);
 char getchar(void);
 bool keyboard_read_event(key_event_t* event);
 
-#endif 
+/* Inject a PS/2-style scancode byte (high bit = release) as if it came
+ * from the IRQ1 ISR. Used by USB HID driver to unify input paths. */
+void keyboard_inject_scancode(uint8_t raw_scancode);
+
+#endif

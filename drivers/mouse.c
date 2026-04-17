@@ -306,6 +306,16 @@ void mouse_draw_cursor(void) {
     }
 }
 
+void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy) {
+    mouse.prev_buttons = mouse.buttons;
+    mouse.buttons = (uint8_t)(buttons & 0x07u);
+    int nx = (int)mouse.x + (int)dx;
+    int ny = (int)mouse.y + (int)dy;
+    mouse.x = (int16_t)CLAMP(nx, 0, VGA_GFX_WIDTH - 1);
+    mouse.y = (int16_t)CLAMP(ny, 0, VGA_GFX_HEIGHT - 1);
+    mouse.updated = true;
+}
+
 void mouse_update_cursor_direct(void) {
     /* Skip if no cursor was ever saved (before first full render) */
     if (saved_x < 0) return;

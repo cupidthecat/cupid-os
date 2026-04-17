@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -69,7 +69,7 @@ Known limitation:
 >endtree
 
 >h2 Instruction Coverage
->tree Instruction Coverage
+>tree open Instruction Coverage
 CupidASM is practical, not NASM-complete.
 
 The current assembler handles the core integer/control-flow set used by the
@@ -121,7 +121,7 @@ source path by stripping `.asm`.
 >endtree
 
 >h2 Disassembly Workflow
->tree Disassembly Workflow
+>tree open Disassembly Workflow
 Useful inspection commands:
 - `exec -d /home/hello`
 - `dis file.elf`
@@ -150,7 +150,7 @@ refreshes the demo set there.
 >endtree
 
 >h2 Practical Workflow
->tree Practical Workflow
+>tree open Practical Workflow
 Recommended loop:
 1) inspect a shipped demo under `/demos`
 2) run it with `as`

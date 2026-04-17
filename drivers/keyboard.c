@@ -476,3 +476,9 @@ bool keyboard_read_event(key_event_t* event) {
     }
     return false;
 }
+
+void keyboard_inject_scancode(uint8_t raw_scancode) {
+    /* Route through same path as IRQ1: process_keypress already handles
+     * make/break via the 0x80 high bit. */
+    process_keypress(raw_scancode);
+}

@@ -1,0 +1,520 @@
+>comment CupidMark converted document
+>h1 USB Host Controller Stack
+Verified against source on: 2026-04-16
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
+
+>h2 Overview
+>tree open Overview
+CupidOS P4 implements a full USB host controller stack with:
+
+  - USB 1.1 via UHCI (IO-port registers, BAR4)
+  - USB 2.0 via EHCI (MMIO registers, BAR0)
+  - Intel companion routing: EHCI claims all ports first, releases LS/FS to UHCI
+  - Three class drivers: HID boot protocol, Hub, Mass Storage (BBB+SCSI)
+  - HID events merged into existing PS/2 event queue (unified input stream)
+  - Mass storage registers as block_device_t: usb0, usb1, ...
+
+Source files:
+  kernel/pci.h + pci.c         PCI enumeration layer
+  kernel/usb_hc.h              Host controller vtable
+  kernel/usb.h + usb.c         USB core: enumeration FSM, work queue
+  kernel/uhci.c                UHCI 1.1 driver
+  kernel/ehci.c                EHCI 2.0 driver
+  kernel/usb_hid.c             HID keyboard + mouse
+  kernel/usb_hub.c             Hub class driver
+  kernel/usb_msc.c             Mass storage (BBB + SCSI)
+>endtree
+
+>h2 Boot Order: EHCI Before UHCI
+>tree open Boot Order
+>box
+CRITICAL: EHCI MUST initialise before UHCI. Reversed order causes
+port-ownership races that permanently cap high-speed devices at USB 1.1.
+>endbox
+
+Correct call sequence:
+
+usb_init()
+  ehci_init_all()    // first: claims all ports via CONFIGFLAG=1
+  uhci_init_all()    // second: receives released LS/FS ports
+
+Why it matters:
+
+1) EHCI writes CONFIGFLAG=1 to claim all downstream ports from the PCI
+   host controller.
+
+2) EHCI then inspects each PORTSC.LINE_STATUS. A line state of K (LS)
+   or J (FS) means a non-high-speed device is attached.
+
+3) For such ports, EHCI sets PORTSC.PORT_OWNER=1, releasing the port to
+   the companion UHCI controller.
+
+4) If UHCI runs first, it begins driving its ports before EHCI can claim
+   them. A high-speed device is then reset in full-speed mode and remains
+   capped at 12 Mbit/s for that boot session.
+>endtree
+
+>h2 PCI Layer
+>tree open PCI Layer
+Source: kernel/pci.c + kernel/pci.h
+
+Enumeration: pci_init() scans bus 0, devices 0-31.
+  - Read vendor/device ID at config offset 0x00.
+  - Skip if vendor = 0xFFFF (slot empty).
+  - Check header type at offset 0x0E.
+  - Bit 7 of header type = multi-function: probe all 8 functions.
+  - Otherwise probe function 0 only.
+
+BAR count by header type:
+  Type 0 (general device): 6 BARs
+  Type 1 (PCI bridge):     2 BARs
+  Type 2 (CardBus):        0 BARs
+
+USB class codes used by pci_find_by_class():
+  class=0x0C  subclass=0x03  prog_if=0x00 -> OHCI  (not supported)
+  class=0x0C  subclass=0x03  prog_if=0x10 -> UHCI
+  class=0x0C  subclass=0x03  prog_if=0x20 -> EHCI
+  class=0x0C  subclass=0x03  prog_if=0x30 -> xHCI  (not supported)
+
+Bus master enable — Status bit preservation:
+
+  PCI Status register has R/WC (read/write-1-to-clear) bits. Naive
+  read-modify-write that ORs Status would clear error flags. Correct:
+
+uint32_t v = pci_read32(bus, dev, fn, 0x04);
+// Mask Status (upper 16 bits) to zero before writing — safe for R/WC
+v = (v & 0x0000FFFF) | PCI_CMD_BUS_MASTER;
+pci_write32(bus, dev, fn, 0x04, v);
+>endtree
+
+>h2 USB Core
+>tree open USB Core
+Source: kernel/usb.c + kernel/usb_hc.h + kernel/usb.h
+
+Host controller vtable (usb_hc_t):
+
+typedef struct usb_hc {
+  int  (*submit_sync)     (struct usb_hc*, usb_transfer_t*);
+  int  (*submit_interrupt)(struct usb_hc*, usb_transfer_t*,
+                           usb_callback_t, void*);
+  int  (*port_count)      (struct usb_hc*);
+  int  (*port_status)     (struct usb_hc*, int port);
+  int  (*port_reset)      (struct usb_hc*, int port);
+  void (*irq_handler)     (struct usb_hc*);
+  void *priv;   // uhci_t* or ehci_t*
+} usb_hc_t;
+
+Device model (usb_device_t):
+  - addr:        USB address assigned during enumeration (1-127)
+  - speed:       USB_SPEED_LOW / FULL / HIGH
+  - class:       bDeviceClass from device descriptor
+  - vid / pid:   vendor ID / product ID
+  - depth:       hub nesting depth (0 = root)
+  - tt_hub_addr: transaction translator hub address (HS hubs only)
+  - tt_port:     TT port on that hub
+  - hc:          pointer to owning HC
+  - class_priv:  class driver private state
+
+Capacity: 32 devices global (USB_MAX_DEVICES).
+Hub depth cap: 5 levels.
+
+Lock-free work queue:
+  IRQ context and 256ms poll callbacks call:
+    usb_port_change(hc, port)          root port hot-plug
+    usb_hub_port_change(hub_dev, port) hub port hot-plug
+  Both push a {hc, port} tuple onto a ring buffer without locking.
+  The main idle loop drains it via usb_process_pending().
+
+Enumeration FSM (per pending port):
+
+port_reset(hc, port)
+GET_DESCRIPTOR(addr=0, len=8)      // bMaxPacketSize0
+SET_ADDRESS(new_addr)
+GET_DESCRIPTOR(new_addr, len=18)   // full device descriptor
+GET_CONFIGURATION(len=9)           // header -> wTotalLength
+GET_CONFIGURATION(len=wTotalLength)// full config tree
+SET_CONFIGURATION(bConfigVal)
+driver_probe_match()               // first matching class wins
+
+usb_control() builds an 8-byte SETUP packet and runs 3-phase control
+transfer (SETUP -> optional DATA -> STATUS) via hc->submit_sync.
+>endtree
+
+>h2 UHCI Driver
+>tree open UHCI Driver
+Source: kernel/uhci.c
+
+Register access: IO-port at BAR4 (bit 0 set in BAR value).
+IO base = pci_read32(..., 0x20) & ~3.
+
+Key registers (offset from IO base):
+  0x00  USBCMD      Run/Stop, Host Reset, Global Suspend
+  0x02  USBSTS      Interrupt status (write 1 to clear)
+  0x04  USBINTR     Interrupt enable mask
+  0x06  FRNUM       Current frame number (11-bit)
+  0x08  FLBASEADD   Frame list physical base (4KB aligned)
+  0x0C  SOFMOD      Start-of-frame timing
+  0x10  PORTSC0     Port 0 status/control
+  0x12  PORTSC1     Port 1 status/control
+
+Data structures:
+  1024-entry frame list (4KB page, one 32-bit phys pointer per slot).
+  Single skeleton QH (skel_qh) inserted in every frame list slot.
+  32-byte Transfer Descriptors (TDs) linked off skel_qh.
+
+>box
+CRITICAL: kmalloc returns pointers at +12 from 16-byte-aligned blocks
+(12-byte block header). UHCI TDs and QHs require 16-byte alignment.
+Manual alignment is applied with a raw backup pointer for kfree().
+>endbox
+
+void *raw = kmalloc(sizeof(uhci_qh_t) + 15);
+uhci_qh_t *qh = (uhci_qh_t*)(((uintptr_t)raw + 15) & ~15);
+// save raw for kfree(); use qh for hardware access
+
+Legacy SMI disable (BIOS USB ownership release):
+
+// PCI config offset 0xC0 = LEGSUP register
+// 0x8F00: bit13 disables SMI, low nibble clears pending status
+pci_write16(bus, dev, fn, 0xC0, 0x8F00);
+
+Hot-plug: UHCI has no reliable hot-plug IRQ. The idle loop calls
+uhci_poll_ports() every 256ms. On CONNECT_STATUS_CHANGE, calls
+usb_port_change(hc, port) to trigger enumeration.
+>endtree
+
+>h2 EHCI Driver
+>tree open EHCI Driver
+Source: kernel/ehci.c
+
+MMIO mapping:
+  BAR0 is a memory BAR (bit 0 clear). Typical address: 0xFEBxxxxx,
+  above the 128MB identity-map. Must call paging_map_mmio(bar0, 4096)
+  before any register access.
+
+Register layout:
+  BAR0 + 0         Capability registers (RO)
+                     CAPLENGTH (1 byte) -> offset to operational regs
+                     HCIVERSION, HCSPARAMS, HCCPARAMS
+  BAR0 + CAPLENGTH  Operational registers (R/W)
+                     USBCMD, USBSTS, USBINTR, FRINDEX
+                     CTRLDSSEGMENT, PERIODICLISTBASE
+                     ASYNCLISTADDR, CONFIGFLAG, PORTSC[0..N]
+
+BIOS handoff (USBLEGSUP):
+  1. Read HCCPARAMS[15:8] for extended capability list pointer.
+  2. Walk list, find CapID=0x01 (USBLEGSUP).
+  3. Set OS_OWNED bit (bit 24).
+  4. Poll BIOS_OWNED (bit 16) for up to 1 second.
+  5. Force clear if BIOS did not release.
+
+uint32_t leg = read_ext_cap(base, usblegsup_off);
+leg |= (1 << 24);   // OS_OWNED = 1
+write_ext_cap(base, usblegsup_off, leg);
+for (int i = 0; i < 1000; i++) {
+  if (!(read_ext_cap(base, usblegsup_off) & (1<<16))) break;
+  pit_sleep_ms(1);
+}
+// force clear BIOS_OWNED
+leg = read_ext_cap(base, usblegsup_off) & ~(1<<16);
+write_ext_cap(base, usblegsup_off, leg);
+
+>box
+CRITICAL: EHCI QHs and qTDs require 32-byte alignment.
+Same manual pattern as UHCI, with 31-byte padding and _raw pointer saved.
+>endbox
+
+void *raw = kmalloc(sizeof(ehci_qh_t) + 31);
+ehci_qh_t *qh = (ehci_qh_t*)(((uintptr_t)raw + 31) & ~31);
+
+CONFIGFLAG and companion routing:
+
+// Claim all ports for EHCI
+op->CONFIGFLAG = 1;
+// Release LS/FS ports to companion UHCI
+for (int p = 0; p < nports; p++) {
+  uint32_t ps = op->PORTSC[p];
+  if (LINE_STATUS(ps) != K_HISPEED)
+    op->PORTSC[p] = ps | PORT_OWNER;
+}
+
+Async schedule: circular doubly-linked QH list with dummy head (H=1).
+Periodic schedule: 1024-entry frame list; HID/Hub interrupt pipes
+  inserted at 256ms intervals (every 256th frame slot).
+
+qTD page pointers: each qTD carries 5 x 4KB page buffer pointers,
+supporting up to 20KB per transfer without chaining.
+>endtree
+
+>h2 HID Driver
+>tree open HID Driver
+Source: kernel/usb_hid.c
+
+Claimed when: bInterfaceClass=0x03 (HID) AND bInterfaceSubClass=0x01
+(Boot Interface Subclass). Both keyboard and mouse use this driver.
+
+On probe:
+
+// Switch to boot protocol (avoid report descriptors)
+usb_control(dev, 0x21, SET_PROTOCOL, 0, iface, 0, NULL);
+// Disable idle reports — only send on state change
+usb_control(dev, 0x21, SET_IDLE,     0, iface, 0, NULL);
+
+Keyboard report format (8 bytes per interrupt poll):
+  Byte 0: Modifier bitmap
+            bit0=Left Ctrl   bit4=Right Ctrl
+            bit1=Left Shift  bit5=Right Shift
+            bit2=Left Alt    bit6=Right Alt
+            bit3=Left GUI    bit7=Right GUI
+  Byte 1: Reserved (0x00)
+  Bytes 2-7: Up to 6 simultaneous keycodes (0x00=no key)
+
+Keyboard processing:
+  Diff new report against previous to find key-down and key-up events.
+  Translate each keycode through HID-usage -> PS/2-scancode table
+  (~100 entries covering printable ASCII, modifiers, F1-F10, arrows,
+  Backspace, Enter, Escape, Tab, Delete, Insert, Home, End, PgUp/Dn).
+  Inject via keyboard_inject_scancode().
+
+Mouse report format (3 bytes per interrupt poll):
+  Byte 0: Button bitmap (bit0=left, bit1=right, bit2=middle)
+  Byte 1: X displacement (signed, relative)
+  Byte 2: Y displacement (signed, relative)
+
+Mouse processing:
+  Inject via mouse_inject_event(dx, dy, buttons).
+  Shell and GUI window manager receive USB mouse events identically
+  to PS/2 mouse events — unified input stream.
+>endtree
+
+>h2 Hub Driver
+>tree open Hub Driver
+Source: kernel/usb_hub.c
+
+Claimed when: bDeviceClass=0x09 (Hub).
+
+Probe sequence:
+  1. GET_DESCRIPTOR(HUB) -> 7+ byte hub descriptor.
+  2. Read bNbrPorts (downstream port count).
+  3. Read bPwrOn2PwrGood (power-on delay in 2ms units).
+  4. SET_FEATURE(PORT_POWER) for each port.
+  5. Wait bPwrOn2PwrGood * 2 ms.
+
+Status-change polling (256ms interval):
+  Interrupt IN endpoint returns a bitmap where bit N = port N changed.
+
+Per changed port:
+
+GET_PORT_STATUS(port)             // wPortStatus + wPortChange
+if C_PORT_CONNECTION set:
+  CLEAR_FEATURE(C_PORT_CONNECTION)
+  sleep(100ms)                    // debounce
+  if PORT_CONNECTION set:         // device still present
+    SET_FEATURE(PORT_RESET)
+    poll until PORT_RESET clears
+    CLEAR_FEATURE(C_PORT_RESET)
+    usb_hub_port_change(hub_dev, port)  // triggers enumeration
+
+Depth cap: maximum nesting depth = 5.
+  Before recursing into a new hub: check parent_depth + 1 <= 5.
+  Devices beyond depth 5 are silently ignored.
+  (USB 2.0 spec allows 7; CupidOS caps at 5.)
+
+Transaction Translator routing:
+  Full-speed or low-speed devices behind a high-speed hub need TT bridging.
+  Driver sets on child device:
+    child->tt_hub_addr = hub_dev->addr
+    child->tt_port     = port
+  EHCI uses these to configure SPLIT transactions in the QH.
+>endtree
+
+>h2 Mass Storage Driver
+>tree open Mass Storage Driver
+Source: kernel/usb_msc.c
+
+Bulk-Only Transport (BBB) phases:
+
+Host -> Device:  CBW  (31 bytes, OUT bulk endpoint)
+                  dCBWSignature = 0x43425355 ("USBC")
+                  dCBWTag       = monotonic tag
+                  dCBWDataTransferLength = byte count
+                  bmCBWFlags: 0x80=device->host, 0x00=host->device
+                  bCBWLUN = 0
+                  bCBWCBLength = SCSI CDB length
+                  CBWCB = SCSI Command Descriptor Block
+Host <-> Device: DATA (optional, direction from bmCBWFlags)
+Device -> Host:  CSW  (13 bytes, IN bulk endpoint)
+                  bCSWStatus: 0=OK, 1=fail, 2=phase error
+
+SCSI commands implemented:
+  0x12  INQUIRY           Device identification string
+  0x00  TEST_UNIT_READY   Check if medium is accessible
+  0x25  READ_CAPACITY(10) Block count + block size
+  0x28  READ(10)          Read sector range
+  0x2A  WRITE(10)         Write sector range
+
+Block device registration:
+  After READ_CAPACITY success, driver calls block_register() with:
+    name       = "usb0" / "usb1" / ...
+    read_block = usb_msc_read
+    write_block= usb_msc_write
+    block_size = from READ_CAPACITY response
+    block_count= from READ_CAPACITY response
+    priv       = msc_state pointer
+
+MBR parsing (sector 0):
+  Check bytes 510-511 for 0x55AA signature.
+  Parse 4 x 16-byte partition entries at offsets 0x01BE - 0x01FD:
+    +0  Status (0x80 = active/bootable)
+    +4  Partition type
+    +8  LBA start sector
+    +12 LBA sector count
+  FAT16 types detected: 0x04, 0x06, 0x0E.
+
+>box
+Auto-mount status: NOT YET WIRED.
+
+fat16.c is a single-instance driver hardcoded to ATA. Mounting a second
+FAT16 volume requires per-instance state refactoring throughout fat16.c.
+
+Current behaviour: USB mass storage = raw block device only.
+MBR partitions are detected and logged at enumeration time.
+FAT16 file operations on USB drives are not yet available.
+
+Planned fix: heap-allocate fat16 instance state and thread it through
+every VFS call. Wire usb_msc_probe() into fat16_mount().
+>endbox
+>endtree
+
+>h2 Shell Commands
+>tree open Shell Commands
+usb — list all enumerated devices
+
+CupidOS> usb
+[0] addr=1  speed=HIGH  vid=8086 pid=1234  class=09 parent=root
+[1] addr=2  speed=FULL  vid=045e pid=0745  class=03 parent=0
+[2] addr=3  speed=FULL  vid=093a pid=2510  class=03 parent=0
+[3] addr=4  speed=FULL  vid=0781 pid=5567  class=08 parent=0
+
+Fields: device index, USB address, speed (LOW/FULL/HIGH), vendor ID,
+product ID, class code, parent (root = root port, number = hub index).
+
+usb hubs — show hub tree by depth
+
+CupidOS> usb hubs
+depth=0  addr=1  ports=4  (root hub via EHCI)
+  depth=1  addr=2  port=1  speed=FULL  (HID keyboard)
+  depth=1  addr=3  port=2  speed=FULL  (HID mouse)
+  depth=1  addr=4  port=3  speed=FULL  (mass storage)
+
+usb hc — show host controller boot summary
+
+CupidOS> usb hc
+EHCI: BAR0=0xfebf0000 ports=4 BIOS_handoff=OK
+UHCI: IO=0xc080 ports=2 legacy_SMI=disabled
+
+Verifies that EHCI initialised before UHCI and BIOS handoff completed.
+>endtree
+
+>h2 QEMU Test Invocations
+>tree open QEMU Test Invocations
+HID keyboard and mouse:
+
+qemu-system-i386 \
+  -drive if=ide,format=raw,file=cupidos.img \
+  -device piix3-usb-uhci \
+  -device usb-ehci \
+  -device usb-kbd \
+  -device usb-mouse \
+  -serial stdio
+
+USB mass storage:
+
+# Create test image first:
+dd if=/dev/zero of=test.img bs=1M count=64
+mkfs.fat -F 16 test.img
+
+qemu-system-i386 \
+  -drive if=ide,format=raw,file=cupidos.img \
+  -device piix3-usb-uhci \
+  -device usb-ehci \
+  -drive if=none,id=ustick,file=test.img,format=raw \
+  -device usb-storage,drive=ustick \
+  -serial stdio
+
+Full stack (HID + storage):
+
+qemu-system-i386 \
+  -drive if=ide,format=raw,file=cupidos.img \
+  -device piix3-usb-uhci \
+  -device usb-ehci \
+  -device usb-kbd \
+  -device usb-mouse \
+  -drive if=none,id=ustick,file=test.img,format=raw \
+  -device usb-storage,drive=ustick \
+  -serial stdio
+
+Note: piix3-usb-uhci emulates UHCI. OHCI (VIA/SiS real hardware) is not
+emulated and not supported by CupidOS.
+>endtree
+
+>h2 Known Limits
+>tree open Known Limits
+No OHCI:
+  VIA and SiS chipsets use OHCI. QEMU uses UHCI. Real OHCI hardware
+  is not supported.
+
+No xHCI:
+  USB 3.x is out of scope for P4. Not planned.
+
+No isochronous transfers:
+  Audio class, webcam, and video capture devices are unsupported.
+  Isochronous scheduling not implemented.
+
+BBB only (no UAS):
+  USB Attached SCSI (UAS) is a USB 3.0 protocol. Not implemented.
+
+Flat PCI bus 0 scan:
+  PCI bridges are not traversed. Devices behind bridges are invisible
+  to pci_find_by_class().
+
+No power management:
+  USB suspend, resume, remote wakeup, and selective suspend are not
+  implemented.
+
+HID boot protocol only:
+  No HID report descriptor parser. Devices that do not support the
+  boot protocol subclass (gaming keyboards, pointing devices with
+  extended reports) cannot be used.
+
+32-device global limit:
+  USB_MAX_DEVICES = 32. Large installations with many hub-attached
+  devices may hit this limit.
+
+Hub depth 5:
+  USB 2.0 specification allows 7 levels of hub nesting. CupidOS caps
+  at 5 for simplicity.
+
+EHCI+UHCI companion handoff timing issue:
+  Full-speed devices on a system with both EHCI and UHCI controllers
+  may occasionally fail to enumerate correctly due to companion handoff
+  timing. UHCI-only configurations (no EHCI present) enumerate reliably.
+  Under investigation (P4-DEBT).
+
+FAT16 auto-mount not wired:
+  USB mass storage registers as raw block device only.
+  File-level FAT16 access on USB drives is planned but not yet available.
+>endtree
+
+>rule
+[Back to Index](open:00INDEX.CTXT)

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -36,12 +36,19 @@ Built-ins verified in `kernel/shell.c`:
 - `terminal`
 - `ps`
 - `cc`
-- `reset`
 - `cupidc`
 - `ccc`
+- `reset`
 - `as`
 - `cupidasm`
-- `jobs`
+- `dis`
+- `theme`
+- `temple`
+- `adam`
+- `holyc`
+
+Note: `jobs` is a CupidScript-only builtin (runs inside `.cup` scripts),
+not a shell built-in.
 >endtree
 
 >h2 Execution Shortcuts
@@ -58,7 +65,7 @@ Disassembly shortcuts:
 >endtree
 
 >h2 Auto-Discovery Order
->tree Auto-Discovery Order
+>tree open Auto-Discovery Order
 Command lookup order after built-ins:
 1) `/bin/<cmd>`
 2) `/bin/<cmd>.cc`
@@ -121,7 +128,7 @@ Core shipped commands:
 >endtree
 
 >h2 Process and Debug Commands
->tree Process and Debug Commands
+>tree open Process and Debug Commands
 Process/debug tools currently shipped:
 - `ps`
 - `kill`
@@ -146,7 +153,7 @@ Process/debug tools currently shipped:
 >endtree
 
 >h2 GUI and Graphics Commands
->tree GUI and Graphics Commands
+>tree open GUI and Graphics Commands
 Shipped GUI/app-side commands and demos:
 - `terminal`
 - `notepad`
@@ -165,7 +172,7 @@ Shipped GUI/app-side commands and demos:
 >endtree
 
 >h2 Compiler and Feature Demos
->tree Compiler and Feature Demos
+>tree open Compiler and Feature Demos
 Compiler/language test programs currently embedded in `/bin`:
 - `cupidc_test1` .. `cupidc_test5`
 - `feature1_types`
@@ -179,12 +186,18 @@ Compiler/language test programs currently embedded in `/bin`:
 - `feature9_abs_addr`
 - `feature10_repl`
 - `feature11_ternary`
+- `feature12_float`
+- `feature13_double`
+- `feature14_simd`
+- `feature15_libm`
+- `feature16_asm_fpu`
+- `fp_drill`
 - `old_cc2`
 - `old_cc2_single`
 >endtree
 
 >h2 Assembler and Loader Commands
->tree Assembler and Loader Commands
+>tree open Assembler and Loader Commands
 Command forms verified in the shell:
 - `as file.asm`
 - `as -o output file.asm`
@@ -199,7 +212,7 @@ Command forms verified in the shell:
 >endtree
 
 >h2 Script Files
->tree Script Files
+>tree open Script Files
 Shipped `.cup` scripts can be run through `cupid` or by direct shell shortcut.
 
 Example:
@@ -210,7 +223,7 @@ Example:
 >endtree
 
 >h2 Hotkeys
->tree Hotkeys
+>tree open Hotkeys
 Source-backed shell hotkey:
 - F7 in shell/Terminal -> `godspeak`
 

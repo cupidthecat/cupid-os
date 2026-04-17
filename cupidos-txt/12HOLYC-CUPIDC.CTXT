@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -25,7 +25,7 @@ answer;
 >endtree
 
 >h2 Feature 1: Sized Type Keywords
->tree Feature 1: Sized Type Keywords
+>tree open Feature 1: Sized Type Keywords
 Supported keywords:
   U0, U8, U16, U32, I8, I16, I32, Bool
 
@@ -42,7 +42,7 @@ large + medium + small;
 >endtree
 
 >h2 Feature 2: Top-Level Execution
->tree Feature 2: Top-Level Execution
+>tree open Feature 2: Top-Level Execution
 Main is no longer mandatory.
 
 These both work:
@@ -61,7 +61,7 @@ answer;
 >endtree
 
 >h2 Feature 3: class Syntax + Methods
->tree Feature 3: class Syntax + Methods
+>tree open Feature 3: class Syntax + Methods
 class is accepted as a struct-style data type with methods.
 
 Method call forms supported:
@@ -85,7 +85,7 @@ p.Sum();
 >endtree
 
 >h2 Feature 4: Forward Function Calls
->tree Feature 4: Forward Function Calls
+>tree open Feature 4: Forward Function Calls
 Two-pass symbol registration supports calling functions before their bodies
 appear in the file.
 
@@ -101,7 +101,7 @@ First();
 >endtree
 
 >h2 Feature 5: Print Builtin
->tree Feature 5: Print Builtin
+>tree open Feature 5: Print Builtin
 Language-level builtins:
   Print(fmt, ...)
   PrintLine("text")
@@ -116,7 +116,7 @@ Print("val=%u\n", val);
 >endtree
 
 >h2 Feature 6: #exe Blocks
->tree Feature 6: #exe Blocks
+>tree open Feature 6: #exe Blocks
 #exe is implemented.
 
 Behavior:
@@ -131,7 +131,7 @@ init_val * 2;
 >endtree
 
 >h2 Feature 7: new / del
->tree Feature 7: new / del
+>tree open Feature 7: new / del
 Supported forms:
   new T
   new T[n]
@@ -151,7 +151,7 @@ result;
 >endtree
 
 >h2 Feature 8: reg / noreg
->tree Feature 8: reg / noreg
+>tree open Feature 8: reg / noreg
 reg and noreg are accepted as storage hints.
 
 Current behavior:
@@ -165,7 +165,7 @@ fast * 3;
 >endtree
 
 >h2 Feature 9: Absolute Addressing Sugar
->tree Feature 9: Absolute Addressing Sugar
+>tree open Feature 9: Absolute Addressing Sugar
 Literal-to-pointer style is supported for systems-style memory access.
 
 Typical pattern:
@@ -178,7 +178,7 @@ vga[0];
 >endtree
 
 >h2 Feature 10: TempleOS-Style Shell REPL
->tree Feature 10: TempleOS-Style Shell REPL
+>tree open Feature 10: TempleOS-Style Shell REPL
 Primary entry point:
   type CupidC directly at the normal shell prompt
 
@@ -220,7 +220,7 @@ x + y;
 >endtree
 
 >h2 Related Demo Programs
->tree Related Demo Programs
+>tree open Related Demo Programs
 Feature demos are in /bin:
   feature1_types.cc
   feature2_top_level.cc
@@ -232,12 +232,21 @@ Feature demos are in /bin:
   feature8_reg_noreg.cc
   feature9_abs_addr.cc
   feature10_repl.cc
+  feature11_ternary.cc
+  feature12_float.cc
+  feature13_double.cc
+  feature14_simd.cc
+  feature15_libm.cc
+  feature16_asm_fpu.cc
 
->button List Feature Demos | shell:ls /bin/feature*.cc
+Float/double/SIMD/libm/inline-asm coverage lives in features 12-16.
+See 04CUPIDC.CTXT for the full language reference.
+
+>button List Feature Demos | shell:ls /bin
 >endtree
 
 >h2 Practical Notes
->tree Practical Notes
+>tree open Practical Notes
 1) CupidC is intentionally small and kernel-integrated, not full GCC C.
 2) Keep programs simple, direct, and one-file where possible.
 3) For large programs, prefer incremental testing with small compile units.

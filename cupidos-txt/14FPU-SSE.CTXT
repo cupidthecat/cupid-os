@@ -1,0 +1,139 @@
+>comment CupidMark converted document
+>h1 FPU + SSE2 + CupidC Float/Double
+Verified against source on: 2026-04-17
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
+
+>h2 Overview
+>tree open Overview
+CupidOS supports hardware x87 + SSE/SSE2 floating point end-to-end:
+kernel, language, assembler, libm, printf.
+
+  - Build: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
+  - Init: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
+    and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
+  - Context switch: `context_switch.asm` FXSAVEs the outgoing PCB's
+    `fp_state[512]` and FXRSTORs the incoming task's. Eager: no CR0.TS games.
+  - PCB: `process_t.fp_state` is 512 bytes at 16-byte alignment. Offset 80.
+  - Exceptions: IDT vectors 7 (#NM), 16 (#MF), 19 (#XF) route to
+    `fpu_nm_handler`/`fpu_mf_handler`/`fpu_xf_handler`, which call `panic_fpu`
+    with a serial dump of FSW/FCW/MXCSR. Should never fire under masked
+    MXCSR + eager switch.
+>endtree
+
+>h2 CupidC FP Types
+>tree open CupidC FP Types
+  float    — 4 bytes, SSE scalar.
+  double   — 8 bytes, SSE scalar.
+  float4   — 16 bytes, SSE packed (4 floats).
+  double2  — 16 bytes, SSE packed (2 doubles).
+
+>h3 Arithmetic
+Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
+scalar opcodes (ADDSS/ADDSD/etc.). Implicit promotion:
+  `int + float -> float`, `float + double -> double`.
+SIMD types need matching types for `+/-/*//`; mixing scalar and SIMD is a
+compile error.
+
+>h3 Casts
+`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. `(double)1.5f` widens.
+Casts lower to CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+
+>h3 Element Access
+`v.x / v.y / v.z / v.w` on float4 extracts a scalar float via SHUFPS.
+`v.x / v.y` on double2 via SHUFPD.
+
+>h3 Intrinsics
+`_mm_*_ps` (17 variants) and `_mm_*_pd` (11 variants) are recognized by name
+and inlined as SSE opcodes. See `kernel/simd_intrin.h` for the full list.
+>endtree
+
+>h2 libm
+>tree open libm
+25 operations (50 symbols with f-variants).
+
+Hardware fast-paths:
+  sqrt, sin, cos, tan, atan, atan2, fabs, floor, ceil, round,
+  trunc, fmod, exp2, log2.
+
+Composite:
+  exp, log, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter.
+
+>box
+IMPORTANT: libm functions use a CupidC-internal ABI (result returned in
+XMM0, not ST(0) as System V would expect). Calling them from plain kernel
+C will NOT work with default GCC code. They are intended to be called from
+CupidC JIT'd code via the BIND_T table.
+>endbox
+>endtree
+
+>h2 CupidASM Opcodes
+>tree open CupidASM Opcodes
+Phase B adds ~80 new opcodes:
+
+  FPU state control (FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR)
+  SSE scalar  (23): MOVSS/SD, ADDSS/SD, and more.
+  SSE packed  (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more.
+  x87         (25): FLD, FSIN, FPATAN, F2XM1, FYL2X, and more.
+
+Register tokens: XMM0-7 and ST0-7.
+>endtree
+
+>h2 Testing
+>tree open Testing
+Test programs:
+  `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
+  `bin/feature13_double.cc`   double + transcendentals.
+  `bin/feature14_simd.cc`     float4/double2 + intrinsics.
+  `bin/feature15_libm.cc`     cycle 8 functions x 7 inputs vs glibc reference.
+  `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
+  `bin/fp_drill.cc`           manual #XF provocation (panics kernel).
+  `demos/fpu_kernel.asm`      CupidASM FPU state + scalar + packed + x87.
+  `demos/simd_blur.asm`       SIMD box blur via MOVUPS/ADDPS/MULPS.
+
+Interactive: boot QEMU graphical, type the command in the shell.
+
+[Run float feature test](shell:cc /bin/feature12_float.cc)
+>endtree
+
+>h2 Stress Test
+>tree open Stress Test
+`fpu_context_stress()` in `kernel/fpu.c` spawns 8 threads each running 100k
+sin() loops, compares against a serial reference. Gated by `-DFPU_STRESS`.
+
+To run: add `-DFPU_STRESS` to `CFLAGS`, rebuild, boot.
+Panics on corruption.
+>endtree
+
+>h2 Exception Drill
+>tree open Exception Drill
+`fp_drill` shell command unmasks DE in MXCSR and divides by zero, verifying
+the #XF handler panics with MXCSR dump.
+
+>box
+WARNING: Kernel reboot required after running `fp_drill`.
+>endbox
+>endtree
+
+>h2 Verification
+>box
+How to verify P1 FPU/SSE:
+
+cc /bin/feature12_float.cc
+
+Expected output: PASS
+
+[Run now](shell:cc /bin/feature12_float.cc)
+>endbox
+
+>rule
+[Back to Index](open:00INDEX.CTXT)
