@@ -37,6 +37,21 @@ static void map_page_identity(uint32_t address) {
     table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | PAGE_USER;
 }
 
+/* Map an MMIO region (physical == virtual, no-cache) so ring-0 drivers
+ * can access BARs that live above IDENTITY_MAP_SIZE (e.g. EHCI at ~0xfeb...). */
+void paging_map_mmio(uint32_t phys_addr, uint32_t size) {
+    uint32_t addr = phys_addr & ~((uint32_t)PAGE_SIZE - 1u);
+    uint32_t end  = (phys_addr + size + (uint32_t)PAGE_SIZE - 1u) & ~((uint32_t)PAGE_SIZE - 1u);
+    for (; addr < end; addr += PAGE_SIZE) {
+        uint32_t directory_index = addr >> 22;
+        uint32_t table_index     = (addr >> 12) & 0x3FF;
+        uint32_t *table = get_page_table(directory_index);
+        if (!table) return;
+        /* PWT | PCD (bits 3+4) disable caching — required for MMIO */
+        table[table_index] = (addr & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | (1u<<3) | (1u<<4);
+    }
+}
+
 void paging_init(void) {
     page_directory = (uint32_t*)pmm_alloc_page();
     if (!page_directory) {

@@ -14,12 +14,16 @@
 #include "fat16.h"
 #include "fs.h"
 #include "gfx2d.h"
+#include "gui_themes.h"
 #include "kernel.h"
 #include "keyboard.h"
 #include "math.h"
 #include "memory.h"
 #include "ports.h"
 #include "process.h"
+#include "swap.h"
+#include "usb.h"
+#include "pci.h"
 #include "terminal_app.h"
 #include "string.h"
 #include "gui.h"
@@ -613,6 +617,15 @@ static void shell_reset_cmd(const char *args);
 static void shell_asm_cmd(const char *args);
 static void shell_cupidasm_cmd(const char *args);
 static void shell_dis_cmd(const char *args);
+static void shell_theme_cmd(const char *args);
+static void shell_temple_cmd(const char *args);
+static void shell_adam_cmd(const char *args);
+static void shell_mount_cmd(const char *args);
+static void shell_umount_cmd(const char *args);
+static void shell_swapinit_cmd(const char *args);
+static void shell_swapstats_cmd(const char *args);
+static void shell_usb_cmd(const char *args);
+static void shell_pci_cmd(const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -628,6 +641,16 @@ static struct shell_command commands[] = {
     {"as", "Assemble and run .asm file", shell_asm_cmd},
     {"cupidasm", "Assemble .asm to ELF binary", shell_cupidasm_cmd},
     {"dis", "Disassemble ELF binary or .cc file", shell_dis_cmd},
+    {"theme", "Set GUI theme (win95|pastel|dark|contrast|amber|vapor|temple)", shell_theme_cmd},
+    {"temple", "Invoke TempleOS look: red/yellow/white on black", shell_temple_cmd},
+    {"adam", "TempleOS-style task tree under Adam (PID 1)", shell_adam_cmd},
+    {"holyc", "Alias for cc: interactive HolyC-style REPL", shell_cc_cmd},
+    {"mount", "Mount a filesystem: mount <src> <target> [<type>]", shell_mount_cmd},
+    {"umount", "Unmount a filesystem: umount <target>", shell_umount_cmd},
+    {"swapinit",  "swapinit [pool_kb] - init opt-in swap", shell_swapinit_cmd},
+    {"swapstats", "swapstats - print swap usage",           shell_swapstats_cmd},
+    {"usb", "List USB devices (usb | usb hubs | usb hc)", shell_usb_cmd},
+    {"pci", "List PCI devices (bus:dev.fn vid:did class irq)", shell_pci_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -1751,6 +1774,362 @@ static void shell_dis_cmd(const char *args) {
   } else {
     (void)dis_elf(rpath, shell_print);
   }
+}
+
+static void shell_theme_cmd(const char *args) {
+  const ui_theme_t *t = NULL;
+  if (!args || !args[0]) {
+    shell_print("Themes: win95 pastel dark contrast amber vapor temple\n");
+    return;
+  }
+  while (*args == ' ') args++;
+  if (strcmp(args, "win95") == 0)         t = &UI_THEME_WINDOWS95;
+  else if (strcmp(args, "pastel") == 0)   t = &UI_THEME_PASTEL_DREAM;
+  else if (strcmp(args, "dark") == 0)     t = &UI_THEME_DARK_MODE;
+  else if (strcmp(args, "contrast") == 0) t = &UI_THEME_HIGH_CONTRAST;
+  else if (strcmp(args, "amber") == 0)    t = &UI_THEME_RETRO_AMBER;
+  else if (strcmp(args, "vapor") == 0)    t = &UI_THEME_VAPORWAVE;
+  else if (strcmp(args, "temple") == 0)   t = &UI_THEME_TEMPLE;
+  if (!t) {
+    shell_print("theme: unknown name\n");
+    return;
+  }
+  ui_theme_set(t);
+  shell_print("theme set. redraw windows to see it.\n");
+}
+
+static void shell_temple_cmd(const char *args) {
+  (void)args;
+  ui_theme_set(&UI_THEME_TEMPLE);
+  shell_print("+++ In nomine Patris +++\n");
+  shell_print("TempleOS theme active. HolyC lives on.\n");
+}
+
+static void shell_adam_cmd(const char *args) {
+  (void)args;
+  process_list_adam();
+}
+
+/*
+ *  mount [<src> <target> [<type>]]
+ *
+ *  With no args: list currently mounted filesystems.
+ *  With args:    mount <src> at <target>, optionally with <type>.
+ *                If <type> is omitted and <src> ends in ".iso"
+ *                (case-insensitive), default to "iso9660".
+ */
+static void shell_mount_cmd(const char *args) {
+  /* Skip leading whitespace (treat NULL as empty). */
+  const char *p = args ? args : "";
+  while (*p == ' ' || *p == '\t')
+    p++;
+
+  /* No args: list mounts (mirrors /bin/mount.cc behaviour). */
+  if (*p == '\0') {
+    int count = vfs_mount_count();
+    if (count <= 0) {
+      shell_print("No filesystems mounted.\n");
+      return;
+    }
+    for (int i = 0; i < count; i++) {
+      const vfs_mount_t *m = vfs_get_mount(i);
+      if (!m)
+        continue;
+      const char *name = (m->ops && m->ops->name) ? m->ops->name : "?";
+      shell_print(name);
+      shell_print(" on ");
+      shell_print(m->path);
+      shell_print("\n");
+    }
+    return;
+  }
+
+  /* Parse: <src> <target> [<type>] */
+  char src[VFS_MAX_PATH];
+  char target[VFS_MAX_PATH];
+  char type_buf[32];
+  int si = 0, ti = 0, yi = 0;
+
+  while (*p && *p != ' ' && *p != '\t' && si < (int)sizeof(src) - 1) {
+    src[si++] = *p++;
+  }
+  src[si] = '\0';
+
+  while (*p == ' ' || *p == '\t')
+    p++;
+
+  while (*p && *p != ' ' && *p != '\t' && ti < (int)sizeof(target) - 1) {
+    target[ti++] = *p++;
+  }
+  target[ti] = '\0';
+
+  while (*p == ' ' || *p == '\t')
+    p++;
+
+  while (*p && *p != ' ' && *p != '\t' && yi < (int)sizeof(type_buf) - 1) {
+    type_buf[yi++] = *p++;
+  }
+  type_buf[yi] = '\0';
+
+  if (src[0] == '\0' || target[0] == '\0') {
+    shell_print("usage: mount <src> <target> [<type>]\n");
+    return;
+  }
+
+  const char *type = type_buf[0] ? type_buf : NULL;
+
+  /* Auto-detect .iso extension if fstype was not specified. */
+  if (!type || type[0] == '\0') {
+    size_t sn = strlen(src);
+    if (sn >= 4 &&
+        (src[sn - 4] == '.') &&
+        (src[sn - 3] == 'i' || src[sn - 3] == 'I') &&
+        (src[sn - 2] == 's' || src[sn - 2] == 'S') &&
+        (src[sn - 1] == 'o' || src[sn - 1] == 'O')) {
+      type = "iso9660";
+    }
+  }
+
+  if (!type || type[0] == '\0') {
+    shell_print("mount: unable to infer fstype; specify explicitly\n");
+    return;
+  }
+
+  int rc = vfs_mount(src, target, type);
+  if (rc == 0) {
+    shell_print("mount: ok\n");
+  } else {
+    shell_print("mount: failed (");
+    /* rc may be negative; shell_print_int takes uint32_t, so just print
+     * the raw unsigned representation which is sufficient for diagnostics. */
+    shell_print_int((uint32_t)rc);
+    shell_print(")\n");
+  }
+}
+
+/*
+ *  umount <target>
+ */
+static void shell_umount_cmd(const char *args) {
+  const char *p = args ? args : "";
+  while (*p == ' ' || *p == '\t')
+    p++;
+  if (!*p) {
+    shell_print("usage: umount <target>\n");
+    return;
+  }
+
+  /* Extract target (single word). */
+  char target[VFS_MAX_PATH];
+  int ti = 0;
+  while (*p && *p != ' ' && *p != '\t' && ti < (int)sizeof(target) - 1) {
+    target[ti++] = *p++;
+  }
+  target[ti] = '\0';
+
+  int rc = vfs_umount(target);
+  if (rc == 0) {
+    shell_print("umount: ok\n");
+  } else {
+    shell_print("umount: failed (");
+    shell_print_int((uint32_t)rc);
+    shell_print(")\n");
+  }
+}
+
+/*
+ *  swapinit [pool_kb]
+ */
+static uint32_t swap_shell_parse_uint_or(const char *s, uint32_t dflt) {
+  if (!s) return dflt;
+  while (*s == ' ' || *s == '\t') s++;
+  if (!*s) return dflt;
+  uint32_t v = 0;
+  while (*s >= '0' && *s <= '9') {
+    v = v * 10u + (uint32_t)(*s - '0');
+    s++;
+  }
+  return v;
+}
+
+static void shell_swapinit_cmd(const char *args) {
+  uint32_t pool_kb = swap_shell_parse_uint_or(args, 4096);   /* default 4 MB */
+  uint32_t pool_bytes = pool_kb * 1024u;
+  int rc = swap_init("/disk/swap.bin", pool_bytes);
+  if (rc == 0) {
+    shell_print("swapinit: ok\n");
+  } else {
+    shell_print("swapinit: failed rc=");
+    shell_print_int((uint32_t)(rc < 0 ? -rc : rc));
+    shell_print("\n");
+  }
+}
+
+static void shell_swapstats_cmd(const char *args) {
+    (void)args;
+    swap_stats_t s;
+    swap_stats(&s);
+    shell_print("handles in use: ");
+    shell_print_int(s.handles_in_use);
+    shell_print(" / ");
+    shell_print_int(s.handles_total);
+    shell_print("\npinned:         ");
+    shell_print_int(s.pinned_count);
+    shell_print("\nevictions:      ");
+    shell_print_int(s.evictions);
+    shell_print("\nclass 0 (1K):   disk ");
+    shell_print_int(s.disk_alloc[0]); shell_print("/"); shell_print_int(s.disk_cap[0]);
+    shell_print("  ram ");
+    shell_print_int(s.ram_alloc[0]); shell_print("/"); shell_print_int(s.ram_cap[0]);
+    shell_print("\nclass 1 (4K):   disk ");
+    shell_print_int(s.disk_alloc[1]); shell_print("/"); shell_print_int(s.disk_cap[1]);
+    shell_print("  ram ");
+    shell_print_int(s.ram_alloc[1]); shell_print("/"); shell_print_int(s.ram_cap[1]);
+    shell_print("\nclass 2 (16K):  disk ");
+    shell_print_int(s.disk_alloc[2]); shell_print("/"); shell_print_int(s.disk_cap[2]);
+    shell_print("  ram ");
+    shell_print_int(s.ram_alloc[2]); shell_print("/"); shell_print_int(s.ram_cap[2]);
+    shell_print("\nclass 3 (64K):  disk ");
+    shell_print_int(s.disk_alloc[3]); shell_print("/"); shell_print_int(s.disk_cap[3]);
+    shell_print("  ram ");
+    shell_print_int(s.ram_alloc[3]); shell_print("/"); shell_print_int(s.ram_cap[3]);
+    shell_print("\n");
+}
+
+static const char *usb_class_name(uint8_t cls, uint8_t sub, uint8_t proto) {
+    switch (cls) {
+    case 0x00: return "(per-interface)";
+    case 0x01: return "Audio";
+    case 0x02: return "CDC/Communications";
+    case 0x03:
+        if (sub == 0x01 && proto == 0x01) return "HID Keyboard";
+        if (sub == 0x01 && proto == 0x02) return "HID Mouse";
+        return "HID";
+    case 0x05: return "Physical";
+    case 0x06: return "Image";
+    case 0x07: return "Printer";
+    case 0x08: return "Mass Storage";
+    case 0x09: return "Hub";
+    case 0x0A: return "CDC Data";
+    case 0x0B: return "Smart Card";
+    case 0x0D: return "Content Security";
+    case 0x0E: return "Video";
+    case 0x0F: return "Personal Healthcare";
+    case 0x10: return "Audio/Video";
+    case 0xDC: return "Diagnostic";
+    case 0xE0: return "Wireless Controller";
+    case 0xEF: return "Miscellaneous";
+    case 0xFE: return "Application-specific";
+    case 0xFF: return "Vendor-specific";
+    default:   return "unknown";
+    }
+}
+
+static const char *usb_speed_name(uint8_t s) {
+    return (s == 1) ? "LS" : (s == 2) ? "FS" : (s == 3) ? "HS" : "?";
+}
+
+static void shell_usb_cmd(const char *args) {
+    /* Skip whitespace */
+    while (args && *args == ' ') args++;
+
+    if (!args || *args == 0) {
+        /* Default: list devices */
+        int any = 0;
+        for (int i = 0; ; i++) {
+            usb_device_t *d = usb_get_device(i);
+            if (!d) break;
+            any = 1;
+            shell_print("[");
+            shell_print_int(d->address);
+            shell_print("] ");
+            shell_print(usb_speed_name(d->speed));
+            shell_print(" vid=");
+            shell_print_int((uint32_t)d->vendor_id);
+            shell_print(" pid=");
+            shell_print_int((uint32_t)d->product_id);
+            shell_print(" ");
+            shell_print(usb_class_name(d->class_code, d->subclass, d->protocol));
+            if (d->driver && d->driver->name) {
+                shell_print(" [");
+                shell_print(d->driver->name);
+                shell_print("]");
+            }
+            if (d->parent_hub) {
+                shell_print(" parent=");
+                shell_print_int(d->parent_hub->address);
+                shell_print(":");
+                shell_print_int(d->parent_port);
+            }
+            shell_print("\n");
+        }
+        if (!any) shell_print("no USB devices\n");
+        return;
+    }
+
+    if (args[0] == 'h' && args[1] == 'u' && args[2] == 'b' && args[3] == 's') {
+        int any = 0;
+        for (int i = 0; ; i++) {
+            usb_device_t *d = usb_get_device(i);
+            if (!d) break;
+            if (d->class_code != 0x09) continue;
+            any = 1;
+            for (uint8_t p = 0; p < d->hub_depth; p++) shell_print("  ");
+            shell_print("hub addr=");
+            shell_print_int(d->address);
+            shell_print(" depth=");
+            shell_print_int(d->hub_depth);
+            shell_print("\n");
+        }
+        if (!any) shell_print("no hubs\n");
+        return;
+    }
+
+    if (args[0] == 'h' && args[1] == 'c') {
+        shell_print("(see boot log for HC init messages)\n");
+        return;
+    }
+
+    shell_print("usage: usb | usb hubs | usb hc\n");
+}
+
+static void shell_pci_cmd(const char *args) {
+    (void)args;
+    int n = pci_device_count();
+    if (n == 0) { shell_print("no PCI devices\n"); return; }
+    for (int i = 0; i < n; i++) {
+        pci_device_t *p = pci_get_device(i);
+        if (!p) break;
+        shell_print("[");
+        shell_print_int((uint32_t)i);
+        shell_print("] ");
+        shell_print_int(p->bus);
+        shell_print(":");
+        shell_print_int(p->device);
+        shell_print(".");
+        shell_print_int(p->function);
+        shell_print(" vid=");
+        shell_print_int(p->vendor_id);
+        shell_print(" did=");
+        shell_print_int(p->device_id);
+        shell_print(" class=");
+        shell_print_int(p->class_code);
+        shell_print(":");
+        shell_print_int(p->subclass);
+        shell_print(":");
+        shell_print_int(p->prog_if);
+        shell_print(" irq=");
+        shell_print_int(p->irq_line);
+        /* USB controller hint: class 0x0C subclass 0x03 */
+        if (p->class_code == 0x0C && p->subclass == 0x03) {
+            shell_print(p->prog_if == 0x00 ? " [UHCI]"
+                      : p->prog_if == 0x10 ? " [OHCI unsupported]"
+                      : p->prog_if == 0x20 ? " [EHCI]"
+                      : p->prog_if == 0x30 ? " [xHCI unsupported]"
+                      : " [USB ?]");
+        }
+        shell_print("\n");
+    }
 }
 
 void shell_execute_line(const char *line) {

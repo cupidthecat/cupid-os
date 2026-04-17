@@ -17,7 +17,6 @@
 
 #include "notepad.h"
 #include "../drivers/keyboard.h"
-#include "../drivers/mouse.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 #include "../drivers/vga.h"
@@ -615,7 +614,7 @@ static int notepad_toggle_ctxt_mode(window_t *win) {
     app.ctxt_hover_link = -1;
   } else {
     app.render_mode = true;
-    app.ctxt_theme_light = false;
+    app.ctxt_theme_light = true;
     app.ctxt_style_mask = 0;
     app.ctxt_scroll_px = 0;
     app.ctxt_scroll_x_px = 0;
@@ -720,26 +719,29 @@ static void notepad_ctxt_apply_style_overrides(ctxt_theme_t *t,
 }
 
 static int notepad_ctxt_line_height(uint8_t type) {
-  if (type == CTXT_LINE_H1 || type == CTXT_LINE_H2)
-    return FONT_H * 2 + 2;
+  if (type == CTXT_LINE_H1)
+    return FONT_H * 2 + 14;
+  if (type == CTXT_LINE_H2)
+    return FONT_H * 2 + 8;
   if (type == CTXT_LINE_H3)
-    return FONT_H + 1;
+    return FONT_H + 8;
   if (type == CTXT_LINE_RULE)
     return 8;
   if (type == CTXT_LINE_BUTTON)
     return FONT_H + 10;
   if (type == CTXT_LINE_TREE)
-    return FONT_H + 6;
-  if (type == CTXT_LINE_CODE_HEADER)
     return FONT_H + 8;
+  if (type == CTXT_LINE_CODE_HEADER)
+    return FONT_H + 10;
   if (type == CTXT_LINE_CODE)
-    return FONT_H + 3;
+    return FONT_H + 4;
   if (type == CTXT_LINE_SPRITE)
     return FONT_H + 8;
-  if (type == CTXT_LINE_BOX_START || type == CTXT_LINE_BOX_END ||
-      type == CTXT_LINE_COMMENT)
-    return 2;
-  return FONT_H + 1;
+  if (type == CTXT_LINE_BOX_START || type == CTXT_LINE_BOX_END)
+    return 5;
+  if (type == CTXT_LINE_COMMENT)
+    return 0;
+  return FONT_H + 2;
 }
 
 static int notepad_ctxt_line_scale(uint8_t type) {
@@ -893,9 +895,13 @@ static void notepad_ctxt_refresh_metrics(void) {
     if (!notepad_ctxt_line_is_visible(i))
       continue;
 
-    if (t == CTXT_LINE_COMMENT || t == CTXT_LINE_BOX_START ||
-        t == CTXT_LINE_BOX_END)
+    if (t == CTXT_LINE_COMMENT)
       continue;
+
+    if (t == CTXT_LINE_BOX_START || t == CTXT_LINE_BOX_END) {
+      app.ctxt_content_height += notepad_ctxt_line_height(t);
+      continue;
+    }
 
     if (t == CTXT_LINE_BUTTON || t == CTXT_LINE_TREE) {
       line_w = gfx_text_width(app.ctxt_lines[i].text) + 20;
@@ -1252,8 +1258,7 @@ ctxt_sprite_done:
         if (np_parse_hex6(arg, &parsed)) {
           box_bg = parsed;
         } else {
-          ctxt_theme_t theme = notepad_ctxt_theme(app.ctxt_theme_light);
-          box_bg = theme.box_bg;
+          box_bg = 0x80000000u;  /* sentinel: resolve to theme.box_bg at draw */
         }
         box_active = true;
         type = CTXT_LINE_BOX_START;
@@ -1609,6 +1614,11 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
   int code_mode = 0;
   const char *p = text;
   int char_w = FONT_W * scale;
+  int text_h = FONT_H * scale;
+  int pad_y = (line_h - text_h) / 2;
+  if (pad_y < 0) pad_y = 0;
+  int16_t ty = (int16_t)(y + pad_y);
+  int16_t ul_y = (int16_t)(ty + text_h - 1);
 
   while (*p) {
     if (!np_is_link_break(*p)) {
@@ -1630,9 +1640,9 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
           for (; i < tok_len && cx + char_w <= max_x; i++) {
             if (cx + char_w > min_x && cx < max_x) {
               if (scale == 1)
-                gfx_draw_char(cx, y, tok[i], draw_col);
+                gfx_draw_char(cx, ty, tok[i], draw_col);
               else
-                gfx_draw_char_scaled(cx, y, tok[i], draw_col, scale);
+                gfx_draw_char_scaled(cx, ty, tok[i], draw_col, scale);
             }
             cx = (int16_t)(cx + char_w);
           }
@@ -1645,8 +1655,7 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
             vis_end = max_x;
           int link_w = vis_end - vis_start;
           if (link_w > 0) {
-            gfx_draw_hline((int16_t)vis_start,
-                           (int16_t)(y + (line_h > 2 ? line_h - 2 : 0)),
+            gfx_draw_hline((int16_t)vis_start, ul_y,
                            (uint16_t)link_w, draw_col);
             if (app.ctxt_link_count < 256) {
               app.ctxt_links[app.ctxt_link_count].x = (int16_t)vis_start;
@@ -1703,9 +1712,9 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
             for (; li < label_len && cx + char_w <= max_x; li++) {
               if (cx + char_w > min_x && cx < max_x) {
                 if (scale == 1)
-                  gfx_draw_char(cx, y, p[1 + li], draw_col);
+                  gfx_draw_char(cx, ty, p[1 + li], draw_col);
                 else
-                  gfx_draw_char_scaled(cx, y, p[1 + li], draw_col, scale);
+                  gfx_draw_char_scaled(cx, ty, p[1 + li], draw_col, scale);
               }
               cx = (int16_t)(cx + char_w);
             }
@@ -1719,8 +1728,7 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
             int link_w = vis_end - vis_start;
             if (link_w > 0) {
               uint32_t ucol = is_hover ? link_hover_color : link_color;
-              gfx_draw_hline((int16_t)vis_start,
-                             (int16_t)(y + (line_h > 2 ? line_h - 2 : 0)),
+              gfx_draw_hline((int16_t)vis_start, ul_y,
                              (uint16_t)link_w, ucol);
 
               if (app.ctxt_link_count < 256) {
@@ -1829,20 +1837,19 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
       }
 
       if (scale == 1)
-        gfx_draw_char(cx, y, *p, cur_color);
+        gfx_draw_char(cx, ty, *p, cur_color);
       else
-        gfx_draw_char_scaled(cx, y, *p, cur_color, scale);
+        gfx_draw_char_scaled(cx, ty, *p, cur_color, scale);
 
       if (bold) {
         if (scale == 1)
-          gfx_draw_char((int16_t)(cx + 1), y, *p, cur_color);
+          gfx_draw_char((int16_t)(cx + 1), ty, *p, cur_color);
         else
-          gfx_draw_char_scaled((int16_t)(cx + 1), y, *p, cur_color, scale);
+          gfx_draw_char_scaled((int16_t)(cx + 1), ty, *p, cur_color, scale);
       }
 
       if (underline || code_mode) {
-        int ul_y = y + (line_h > 2 ? line_h - 2 : 0);
-        gfx_draw_hline(cx, (int16_t)ul_y, (uint16_t)char_w, cur_color);
+        gfx_draw_hline(cx, ul_y, (uint16_t)char_w, cur_color);
       }
     }
 
@@ -1932,8 +1939,6 @@ static void notepad_draw_ctxt_area(window_t *win) {
     if (t == CTXT_LINE_COMMENT) {
       continue;
     }
-    if (t == CTXT_LINE_BOX_START || t == CTXT_LINE_BOX_END)
-      continue;
 
     if (t == CTXT_LINE_H1) {
       fg = theme.h1;
@@ -1957,16 +1962,40 @@ static void notepad_draw_ctxt_area(window_t *win) {
     if (y >= edit_y + edit_h)
       break;
 
-    if (app.ctxt_lines[i].bg_color != 0 && t != CTXT_LINE_RULE) {
+    uint32_t resolved_bg = app.ctxt_lines[i].bg_color;
+    if (resolved_bg == 0x80000000u)
+      resolved_bg = theme.box_bg;
+
+    if (resolved_bg != 0 && t != CTXT_LINE_RULE &&
+        t != CTXT_LINE_BOX_START && t != CTXT_LINE_BOX_END) {
       gfx_fill_rect((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
-                    (uint16_t)line_h, app.ctxt_lines[i].bg_color);
+                    (uint16_t)line_h, resolved_bg);
       gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
                      theme.rule);
+      gfx_draw_vline((int16_t)(content_x + content_w - 1), (int16_t)y,
+                     (uint16_t)line_h, theme.rule);
+    }
+
+    if (t == CTXT_LINE_BOX_START || t == CTXT_LINE_BOX_END) {
+      uint32_t fill_bg = resolved_bg;
+      if (fill_bg == 0)
+        fill_bg = theme.box_bg;
+      gfx_fill_rect((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
+                    (uint16_t)line_h, fill_bg);
+      gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
+                     theme.rule);
+      gfx_draw_vline((int16_t)(content_x + content_w - 1), (int16_t)y,
+                     (uint16_t)line_h, theme.rule);
+      int rule_y = (t == CTXT_LINE_BOX_START) ? y : (y + line_h - 1);
+      gfx_draw_hline((int16_t)content_x, (int16_t)rule_y, (uint16_t)content_w,
+                     theme.rule);
+      y += line_h;
+      continue;
     }
 
     if (t == CTXT_LINE_RULE) {
-      gfx_draw_hline((int16_t)content_x, (int16_t)(y + 3), (uint16_t)content_w,
-                     fg);
+      gfx_draw_hline((int16_t)content_x, (int16_t)(y + line_h / 2),
+                     (uint16_t)content_w, fg);
     } else if (t == CTXT_LINE_BUTTON) {
       ui_rect_t btn = ui_rect((int16_t)content_x, (int16_t)y,
                               (uint16_t)(gfx_text_width(text) + 20),
@@ -2024,7 +2053,13 @@ static void notepad_draw_ctxt_area(window_t *win) {
                     (uint16_t)line_h, code_bg);
       gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
                      theme.rule);
-      gfx_draw_text((int16_t)(content_x + 6), (int16_t)(y + 2), text, code_fg);
+      gfx_draw_vline((int16_t)(content_x + content_w - 1), (int16_t)y,
+                     (uint16_t)line_h, theme.rule);
+      gfx_draw_hline((int16_t)content_x, (int16_t)y, (uint16_t)content_w,
+                     theme.rule);
+      gfx_draw_hline((int16_t)content_x, (int16_t)(y + line_h - 1),
+                     (uint16_t)content_w, theme.rule);
+      gfx_draw_text((int16_t)(content_x + 8), (int16_t)(y + 3), text, code_fg);
       {
         ui_rect_t btn = ui_rect((int16_t)(content_x + content_w - 66),
                                 (int16_t)(y + 1), 60,
@@ -2061,7 +2096,22 @@ static void notepad_draw_ctxt_area(window_t *win) {
                     (uint16_t)line_h, fill);
       gfx_draw_vline((int16_t)content_x, (int16_t)y, (uint16_t)line_h,
                      theme.rule);
-      gfx_draw_text((int16_t)(content_x + 6), (int16_t)(y + 1), text, code_fg);
+      gfx_draw_vline((int16_t)(content_x + content_w - 1), (int16_t)y,
+                     (uint16_t)line_h, theme.rule);
+      bool code_block_ends = true;
+      for (int k = i + 1; k < app.ctxt_line_count; k++) {
+        if (!notepad_ctxt_line_is_visible(k)) continue;
+        if (app.ctxt_lines[k].type == CTXT_LINE_CODE ||
+            app.ctxt_lines[k].type == CTXT_LINE_CODE_HEADER) {
+          code_block_ends = false;
+        }
+        break;
+      }
+      if (code_block_ends) {
+        gfx_draw_hline((int16_t)content_x, (int16_t)(y + line_h - 1),
+                       (uint16_t)content_w, theme.rule);
+      }
+      gfx_draw_text((int16_t)(content_x + 8), (int16_t)(y + 2), text, code_fg);
       if (app.ctxt_lines[i].ref >= 0 && app.ctxt_link_count < 256) {
         app.ctxt_links[app.ctxt_link_count].x = (int16_t)content_x;
         app.ctxt_links[app.ctxt_link_count].y = (int16_t)y;
@@ -2116,14 +2166,16 @@ static void notepad_draw_ctxt_area(window_t *win) {
       }
     } else {
       int16_t tx = (int16_t)content_x;
+      bool is_centered = (t == CTXT_LINE_CENTER);
       if (app.ctxt_lines[i].bg_color != 0)
-        tx = (int16_t)(tx + 4);
-      if (t == CTXT_LINE_CENTER) {
+        tx = (int16_t)(tx + 8);
+      if (is_centered) {
         int tw = notepad_ctxt_text_width(text, scale);
         if (tw < content_w)
           tx = (int16_t)(content_x + (content_w - tw) / 2);
+      } else {
+        tx = (int16_t)(tx - app.ctxt_scroll_x_px);
       }
-      tx = (int16_t)(tx - app.ctxt_scroll_x_px);
       notepad_ctxt_draw_text(tx, (int16_t)y, text, fg, scale,
                  (int16_t)content_x,
                  (int16_t)(content_x + content_w), line_h,
@@ -2705,7 +2757,7 @@ static void notepad_do_new(void) {
   notepad_clear_selection();
   app.is_ctxt_file = false;
   app.render_mode = false;
-  app.ctxt_theme_light = false;
+  app.ctxt_theme_light = true;
   app.ctxt_scroll_px = 0;
   app.ctxt_scroll_x_px = 0;
   app.ctxt_line_count = 0;
@@ -2868,7 +2920,7 @@ static void notepad_open_file(const char *name) {
   app.is_ctxt_file =
       (notepad_filename_is_ctxt(vpath) != 0) || (notepad_buffer_looks_ctxt() != 0);
   app.render_mode = app.is_ctxt_file;
-  app.ctxt_theme_light = false;
+  app.ctxt_theme_light = true;
   app.ctxt_scroll_px = 0;
   app.ctxt_scroll_x_px = 0;
   app.ctxt_line_count = 0;
@@ -3872,21 +3924,21 @@ static dlg_layout_t notepad_dialog_get_layout(window_t *win) {
     L.items_visible = 1;
 
   /* Input row: "File:" label + text field */
-    int16_t row_y = (int16_t)(dy + 40 + DLG_LIST_H + 14);
-    L.input_label = ui_rect((int16_t)(dx + 10), row_y, 40, 20);
+  int16_t row_y = (int16_t)(dy + 40 + DLG_LIST_H + 14);
+  L.input_label = ui_rect((int16_t)(dx + 10), row_y, 40, 20);
   L.input_field =
       ui_rect((int16_t)(dx + 50), row_y, (uint16_t)(DLG_W - 60 - 140), 20);
 
-    /* OK / Cancel buttons (bottom-right) */
-    int16_t btn_y = row_y;
-    L.ok_btn = ui_rect((int16_t)(dx + DLG_W - 140), btn_y, DLG_BTN_W, DLG_BTN_H);
-    L.cancel_btn =
+  /* OK / Cancel buttons (bottom-right) */
+  int16_t btn_y = row_y;
+  L.ok_btn = ui_rect((int16_t)(dx + DLG_W - 140), btn_y, DLG_BTN_W, DLG_BTN_H);
+  L.cancel_btn =
       ui_rect((int16_t)(dx + DLG_W - 70), btn_y, DLG_BTN_W, DLG_BTN_H);
 
-    /* File count status text (own line under controls; no overlap) */
-    int16_t status_x = (int16_t)(dx + 10);
-    int16_t status_y = (int16_t)(dy + DLG_H - 14);
-    L.status = ui_rect(status_x, status_y, (uint16_t)(DLG_W - 20), 10);
+  /* File count status text (own line under controls; no overlap) */
+  int16_t status_x = (int16_t)(dx + 10);
+  int16_t status_y = (int16_t)(dy + DLG_H - 14);
+  L.status = ui_rect(status_x, status_y, (uint16_t)(DLG_W - 20), 10);
 
   return L;
 }
@@ -4127,7 +4179,7 @@ void notepad_launch(void) {
   app.font_scale = 1;
   app.is_ctxt_file = false;
   app.render_mode = false;
-  app.ctxt_theme_light = false;
+  app.ctxt_theme_light = true;
   app.ctxt_scroll_px = 0;
   app.ctxt_scroll_x_px = 0;
   app.ctxt_line_count = 0;

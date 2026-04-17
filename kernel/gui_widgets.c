@@ -18,15 +18,6 @@
 #include "math.h"
 #include "../drivers/vga.h"
 
-static const uint32_t COL_CHECK_BG   = 0x00FFFFFF;
-static const uint32_t COL_CHECK_MARK = 0x00282830;
-static const uint32_t COL_DISABLED   = 0x009898A0;
-static const uint32_t COL_SLIDER_TRACK = 0x00C0C0C8;
-static const uint32_t COL_SLIDER_THUMB = 0x00B8DDFF;
-static const uint32_t COL_PROGRESS_BG  = 0x00C0C0C8;
-static const uint32_t COL_PROGRESS_BAR = 0x0080C0FF;
-static const uint32_t COL_TOGGLE_ON    = 0x0080D080;
-static const uint32_t COL_TOGGLE_OFF   = 0x00C0C0C0;
 
 #define DROPDOWN_ITEM_H (FONT_H + 4)
 
@@ -74,16 +65,16 @@ bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
 
     /* Box background */
     gfx2d_rect_fill(bx, by, box_size, box_size,
-                    enabled ? COL_CHECK_BG : 0x00E0E0E0);
+                    enabled ? theme->input_bg : theme->button_face);
     gfx2d_rect(bx, by, box_size, box_size, theme->window_border);
 
     /* Check mark */
     if (checked) {
         /* Simple 'X' or checkmark using lines */
-        gfx2d_line(bx + 2, by + 5, bx + 4, by + 9, COL_CHECK_MARK);
-        gfx2d_line(bx + 4, by + 9, bx + 9, by + 2, COL_CHECK_MARK);
-        gfx2d_line(bx + 2, by + 6, bx + 4, by + 10, COL_CHECK_MARK);
-        gfx2d_line(bx + 4, by + 10, bx + 9, by + 3, COL_CHECK_MARK);
+        gfx2d_line(bx + 2, by + 5, bx + 4, by + 9, theme->button_text);
+        gfx2d_line(bx + 4, by + 9, bx + 9, by + 2, theme->button_text);
+        gfx2d_line(bx + 2, by + 6, bx + 4, by + 10, theme->button_text);
+        gfx2d_line(bx + 4, by + 10, bx + 9, by + 3, theme->button_text);
     }
 
     /* Label */
@@ -113,12 +104,12 @@ bool ui_draw_radio(ui_rect_t r, const char *label, bool selected,
 
     /* Outer circle */
     gfx2d_circle_fill(cx, cy, radius,
-                      enabled ? COL_CHECK_BG : 0x00E0E0E0);
+                      enabled ? theme->input_bg : theme->button_face);
     gfx2d_circle(cx, cy, radius, theme->window_border);
 
     /* Inner filled circle when selected */
     if (selected) {
-        gfx2d_circle_fill(cx, cy, 3, COL_CHECK_MARK);
+        gfx2d_circle_fill(cx, cy, 3, theme->button_text);
     }
 
     /* Label */
@@ -165,7 +156,7 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
     uint32_t sel_text_color = theme->button_text;
 
     /* Draw the closed dropdown button */
-    ui_draw_panel(r, COL_CHECK_BG, true, true);
+    ui_draw_panel(r, theme->input_bg, true, true);
 
     /* Selected item text */
     if (state->selected >= 0 && state->selected < count) {
@@ -203,7 +194,7 @@ bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
 
         /* Background */
         gfx2d_rect_fill(list_r.x, list_r.y, (int)list_r.w, list_h,
-                        COL_CHECK_BG);
+                        theme->input_bg);
         gfx2d_rect(list_r.x, list_r.y, (int)list_r.w, list_h,
                    theme->window_border);
 
@@ -262,6 +253,7 @@ int ui_listbox_hit(ui_rect_t r, int offset, int item_height, int count,
 bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
                      ui_listbox_state_t *state, int16_t mx, int16_t my,
                      bool clicked, int scroll_delta) {
+    ui_theme_t *theme = ui_theme_get();
     int item_h = FONT_H + 4;
     int visible;
     int i;
@@ -273,7 +265,7 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
     if (visible < 1) visible = 1;
 
     /* Sunken background */
-    ui_draw_panel(r, COL_CHECK_BG, true, false);
+    ui_draw_panel(r, theme->input_bg, true, false);
 
     /* Handle scroll */
     if (scroll_delta != 0 && ui_contains(r, mx, my)) {
@@ -305,13 +297,13 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
 
         /* Highlight */
         if (idx == state->selected) {
-            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, ui_theme_get()->menu_selected);
-            ui_draw_label(ir, items[idx], ui_theme_get()->titlebar_text, UI_ALIGN_LEFT);
+            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, theme->menu_selected);
+            ui_draw_label(ir, items[idx], theme->titlebar_text, UI_ALIGN_LEFT);
         } else if (idx == state->hover_item) {
-            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, ui_theme_get()->menu_hover);
-            ui_draw_label(ir, items[idx], ui_theme_get()->button_text, UI_ALIGN_LEFT);
+            gfx2d_rect_fill(ir.x, ir.y, (int)ir.w, item_h, theme->menu_hover);
+            ui_draw_label(ir, items[idx], theme->button_text, UI_ALIGN_LEFT);
         } else {
-            ui_draw_label(ir, items[idx], ui_theme_get()->button_text, UI_ALIGN_LEFT);
+            ui_draw_label(ir, items[idx], theme->button_text, UI_ALIGN_LEFT);
         }
     }
 
@@ -337,6 +329,7 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
 
 int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
                      int16_t mx, int16_t my) {
+    ui_theme_t *theme = ui_theme_get();
     int track_h = 4;
     int thumb_w = 12;
     int thumb_h;
@@ -356,13 +349,13 @@ int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
     track_w = (int)r.w - thumb_w;
 
     /* Track */
-    gfx2d_rect_fill(r.x, track_y, (int)r.w, track_h, COL_SLIDER_TRACK);
-    gfx2d_rect(r.x, track_y, (int)r.w, track_h, ui_theme_get()->window_border);
+    gfx2d_rect_fill(r.x, track_y, (int)r.w, track_h, theme->button_shadow);
+    gfx2d_rect(r.x, track_y, (int)r.w, track_h, theme->window_border);
 
     /* Filled portion */
     {
         int fill_w = (track_w > 0) ? (value * track_w) / max : 0;
-        gfx2d_rect_fill(r.x, track_y, fill_w, track_h, COL_SLIDER_THUMB);
+        gfx2d_rect_fill(r.x, track_y, fill_w, track_h, theme->accent_primary);
     }
 
     /* Thumb */
@@ -388,6 +381,7 @@ int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
 
 int ui_draw_slider_v(ui_rect_t r, int value, int max, bool dragging,
                      int16_t mx, int16_t my) {
+    ui_theme_t *theme = ui_theme_get();
     int track_w = 4;
     int thumb_h = 12;
     int track_x;
@@ -405,8 +399,8 @@ int ui_draw_slider_v(ui_rect_t r, int value, int max, bool dragging,
     track_h = (int)r.h - thumb_h;
 
     /* Track */
-    gfx2d_rect_fill(track_x, r.y, track_w, (int)r.h, COL_SLIDER_TRACK);
-    gfx2d_rect(track_x, r.y, track_w, (int)r.h, COLOR_BORDER);
+    gfx2d_rect_fill(track_x, r.y, track_w, (int)r.h, theme->button_shadow);
+    gfx2d_rect(track_x, r.y, track_w, (int)r.h, theme->window_border);
 
     /* Thumb */
     thumb_y = r.y + (int)r.h - thumb_h -
@@ -458,7 +452,8 @@ int ui_draw_slider_labeled(ui_rect_t r, const char *label, int value,
 /* Progress Bar */
 
 void ui_draw_progressbar(ui_rect_t r, int value, int max, bool show_text) {
-    ui_draw_progressbar_styled(r, value, max, COL_PROGRESS_BAR, COL_PROGRESS_BG);
+    ui_theme_t *theme = ui_theme_get();
+    ui_draw_progressbar_styled(r, value, max, theme->accent_primary, theme->button_shadow);
 
     if (show_text && max > 0) {
         char buf[8];
@@ -477,6 +472,7 @@ void ui_draw_progressbar(ui_rect_t r, int value, int max, bool show_text) {
 }
 
 void ui_draw_progressbar_indeterminate(ui_rect_t r, uint32_t tick) {
+    ui_theme_t *theme = ui_theme_get();
     int bar_w = (int)r.w / 4;
     int cycle = (int)r.w + bar_w;
     int pos;
@@ -485,7 +481,7 @@ void ui_draw_progressbar_indeterminate(ui_rect_t r, uint32_t tick) {
     pos = (int)(tick % (uint32_t)cycle) - bar_w;
 
     /* Background */
-    ui_draw_panel(r, COL_PROGRESS_BG, true, false);
+    ui_draw_panel(r, theme->button_shadow, true, false);
 
     /* Moving bar */
     {
@@ -494,7 +490,7 @@ void ui_draw_progressbar_indeterminate(ui_rect_t r, uint32_t tick) {
         if (bx < r.x) { bw -= (r.x - bx); bx = r.x; }
         if (bx + bw > r.x + (int)r.w) bw = r.x + (int)r.w - bx;
         if (bw > 0) {
-            gfx2d_rect_fill(bx, r.y + 1, bw, (int)r.h - 2, COL_PROGRESS_BAR);
+            gfx2d_rect_fill(bx, r.y + 1, bw, (int)r.h - 2, theme->accent_primary);
         }
     }
 }
@@ -584,6 +580,7 @@ bool ui_draw_spinner(ui_rect_t r, ui_spinner_state_t *state,
 
 bool ui_draw_toggle(ui_rect_t r, bool on, bool enabled,
                     int16_t mx, int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     int track_w = 36;
     int track_h = 18;
     int knob_r = 7;
@@ -596,8 +593,8 @@ bool ui_draw_toggle(ui_rect_t r, bool on, bool enabled,
     ty = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)track_h) / 2));
 
     /* Track */
-    track_color = on ? COL_TOGGLE_ON : COL_TOGGLE_OFF;
-    if (!enabled) track_color = COL_DISABLED;
+    track_color = on ? theme->success : theme->button_face;
+    if (!enabled) track_color = theme->button_disabled_text;
 
     gfx2d_rect_round_fill(tx, ty, track_w, track_h, track_h / 2,
                           track_color);

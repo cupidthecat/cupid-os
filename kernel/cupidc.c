@@ -33,6 +33,7 @@
 #include "graphics.h"
 #include "gui.h"
 #include "kernel.h"
+#include "libm.h"
 #include "math.h"
 #include "memory.h"
 #include "panic.h"
@@ -42,6 +43,8 @@
 #include "string.h"
 #include "vfs.h"
 #include "vfs_helpers.h"
+#include "swap.h"
+#include "usb.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -127,6 +130,17 @@ static void cc_print_builtin(const char *fmt, ...) {
     if (*fmt == '\0')
       break;
 
+    /* Phase D: optional ".N" precision for %f. */
+    int prec = -1;
+    if (*fmt == '.') {
+      fmt++;
+      prec = 0;
+      while (*fmt >= '0' && *fmt <= '9') {
+        prec = prec * 10 + (*fmt - '0');
+        fmt++;
+      }
+    }
+
     switch (*fmt) {
     case 'd': {
       int32_t v = cc_va_arg(ap, int32_t);
@@ -160,6 +174,30 @@ static void cc_print_builtin(const char *fmt, ...) {
     case 'p': {
       uint32_t v = (uint32_t)cc_va_arg(ap, const void *);
       print_hex(v);
+      break;
+    }
+    case 'f': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_f(buf, (int)sizeof(buf), v, prec);
+      buf[w] = '\0';
+      print(buf);
+      break;
+    }
+    case 'e': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_e(buf, (int)sizeof(buf), v, prec);
+      buf[w] = '\0';
+      print(buf);
+      break;
+    }
+    case 'g': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
+      buf[w] = '\0';
+      print(buf);
       break;
     }
     case '%':
@@ -199,6 +237,17 @@ static void cc_printline_builtin(const char *fmt, ...) {
     if (*fmt == '\0')
       break;
 
+    /* Phase D: optional ".N" precision for %f. */
+    int prec = -1;
+    if (*fmt == '.') {
+      fmt++;
+      prec = 0;
+      while (*fmt >= '0' && *fmt <= '9') {
+        prec = prec * 10 + (*fmt - '0');
+        fmt++;
+      }
+    }
+
     switch (*fmt) {
     case 'd': {
       int32_t v = cc_va_arg(ap, int32_t);
@@ -232,6 +281,30 @@ static void cc_printline_builtin(const char *fmt, ...) {
     case 'p': {
       uint32_t v = (uint32_t)cc_va_arg(ap, const void *);
       print_hex(v);
+      break;
+    }
+    case 'f': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_f(buf, (int)sizeof(buf), v, prec);
+      buf[w] = '\0';
+      print(buf);
+      break;
+    }
+    case 'e': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_e(buf, (int)sizeof(buf), v, prec);
+      buf[w] = '\0';
+      print(buf);
+      break;
+    }
+    case 'g': {
+      double v = cc_va_arg(ap, double);
+      char buf[48];
+      int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
+      buf[w] = '\0';
+      print(buf);
       break;
     }
     case '%':
@@ -805,10 +878,18 @@ static uint32_t cc_ansi_color(int idx) {
 /* Kernel Bindings Registration */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
-/* Helper macro to add a kernel function binding */
-#define BIND(name_str, func_ptr, nparams)                                      \
+/* Helper macro to add a kernel function binding.
+ *
+ * BIND()   — return type defaults to TYPE_VOID (fine for most bindings;
+ *            CupidC's Task-18 codegen coerces callers that expect an
+ *            int result from a VOID-returning symbol).
+ * BIND_T() — explicit return type.  Use this for float/double-returning
+ *            kernel functions (Phase E libm) so that CupidC's caller-
+ *            side wiring (call_ret_type → cc_last_expr_type, cc_last_xmm)
+ *            fires correctly after the CALL. */
+#define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
   do {                                                                         \
-    cc_symbol_t *s = cc_sym_add(cc, name_str, SYM_KERNEL, TYPE_VOID);          \
+    cc_symbol_t *s = cc_sym_add(cc, name_str, SYM_KERNEL, (ret_type));         \
     if (s) {                                                                   \
       uint32_t addr;                                                           \
       memcpy(&addr, &(func_ptr), sizeof(addr));                                \
@@ -817,6 +898,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       s->is_defined = 1;                                                       \
     }                                                                          \
   } while (0)
+#define BIND(name_str, func_ptr, nparams)                                      \
+  BIND_T((name_str), (func_ptr), (nparams), TYPE_VOID)
 
   /* Console output */
   void (*p_print)(const char *) = cc_print;
@@ -916,6 +999,29 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_vfs_rename)(const char *, const char *) = vfs_rename;
   BIND("vfs_rename", p_vfs_rename, 2);
+
+  /* Swap API bindings (opt-in disk-backed swap via handles) */
+  int (*p_swap_init)(const char *, uint32_t) = swap_init;
+  BIND("swap_init", p_swap_init, 2);
+
+  swap_handle_t (*p_swap_kmalloc)(uint32_t) = swap_kmalloc;
+  BIND("swap_kmalloc", p_swap_kmalloc, 1);
+
+  void *(*p_swap_pin)(swap_handle_t) = swap_pin;
+  BIND("swap_pin", p_swap_pin, 1);
+
+  void (*p_swap_unpin)(swap_handle_t) = swap_unpin;
+  BIND("swap_unpin", p_swap_unpin, 1);
+
+  void (*p_swap_free)(swap_handle_t) = swap_free;
+  BIND("swap_free", p_swap_free, 1);
+
+  /* USB API bindings (read-only introspection for feature19_usb.cc) */
+  int (*p_usb_device_count)(void) = usb_device_count;
+  BIND("usb_device_count", p_usb_device_count, 0);
+
+  uint8_t (*p_usb_device_class)(int) = usb_device_class;
+  BIND("usb_device_class", p_usb_device_class, 1);
 
   /* Process management */
   void (*p_yield)(void) = cc_yield;
@@ -1825,7 +1931,153 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_nop_get_path)(void) = (void (*)(void))cc_notepad_get_open_path;
   BIND("notepad_get_open_path", p_nop_get_path, 2);
 
+  /* Phase E Task 23: libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2,
+   * plus f-suffixed float variants).  These functions follow the CupidC
+   * kernel-binding ABI (stack args, XMM0 return) — see libm.c. */
+  double (*p_sqrt)(double)  = sqrt;
+  BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
+  float  (*p_sqrtf)(float)  = sqrtf;
+  BIND_T("sqrtf",   p_sqrtf,  1, TYPE_FLOAT);
+
+  double (*p_sin)(double)   = sin;
+  BIND_T("sin",     p_sin,    1, TYPE_DOUBLE);
+  float  (*p_sinf)(float)   = sinf;
+  BIND_T("sinf",    p_sinf,   1, TYPE_FLOAT);
+
+  double (*p_cos)(double)   = cos;
+  BIND_T("cos",     p_cos,    1, TYPE_DOUBLE);
+  float  (*p_cosf)(float)   = cosf;
+  BIND_T("cosf",    p_cosf,   1, TYPE_FLOAT);
+
+  double (*p_tan)(double)   = tan;
+  BIND_T("tan",     p_tan,    1, TYPE_DOUBLE);
+  float  (*p_tanf)(float)   = tanf;
+  BIND_T("tanf",    p_tanf,   1, TYPE_FLOAT);
+
+  double (*p_atan)(double)  = atan;
+  BIND_T("atan",    p_atan,   1, TYPE_DOUBLE);
+  float  (*p_atanf)(float)  = atanf;
+  BIND_T("atanf",   p_atanf,  1, TYPE_FLOAT);
+
+  double (*p_atan2)(double, double) = atan2;
+  BIND_T("atan2",   p_atan2,  2, TYPE_DOUBLE);
+  float  (*p_atan2f)(float, float)  = atan2f;
+  BIND_T("atan2f",  p_atan2f, 2, TYPE_FLOAT);
+
+  /* Phase E Task 24: fabs/floor/ceil/round/trunc/fmod + f-variants. */
+  double (*p_fabs)(double)   = fabs;
+  BIND_T("fabs",    p_fabs,   1, TYPE_DOUBLE);
+  float  (*p_fabsf)(float)   = fabsf;
+  BIND_T("fabsf",   p_fabsf,  1, TYPE_FLOAT);
+
+  double (*p_floor)(double)  = floor;
+  BIND_T("floor",   p_floor,  1, TYPE_DOUBLE);
+  float  (*p_floorf)(float)  = floorf;
+  BIND_T("floorf",  p_floorf, 1, TYPE_FLOAT);
+
+  double (*p_ceil)(double)   = ceil;
+  BIND_T("ceil",    p_ceil,   1, TYPE_DOUBLE);
+  float  (*p_ceilf)(float)   = ceilf;
+  BIND_T("ceilf",   p_ceilf,  1, TYPE_FLOAT);
+
+  double (*p_round)(double)  = round;
+  BIND_T("round",   p_round,  1, TYPE_DOUBLE);
+  float  (*p_roundf)(float)  = roundf;
+  BIND_T("roundf",  p_roundf, 1, TYPE_FLOAT);
+
+  double (*p_trunc)(double)  = trunc;
+  BIND_T("trunc",   p_trunc,  1, TYPE_DOUBLE);
+  float  (*p_truncf)(float)  = truncf;
+  BIND_T("truncf",  p_truncf, 1, TYPE_FLOAT);
+
+  double (*p_fmod)(double, double) = fmod;
+  BIND_T("fmod",    p_fmod,   2, TYPE_DOUBLE);
+  float  (*p_fmodf)(float, float)  = fmodf;
+  BIND_T("fmodf",   p_fmodf,  2, TYPE_FLOAT);
+
+  /* Phase E Task 25: exp/exp2/log/log2/pow + f-variants.
+   *   exp2  — F2XM1 + FSCALE with FRNDINT range reduction
+   *   exp   — exp2(x * log2(e))
+   *   log2  — FYL2X with y=1
+   *   log   — FYL2X with y=ln(2)
+   *   pow   — C dispatch (y=0 -> 1; x<=0 + y!=0 -> domain error) then
+   *           x87 exp/log pipeline, ST(0)->XMM0 bridged in asm wrapper. */
+  double (*p_exp)(double)    = exp;
+  BIND_T("exp",     p_exp,    1, TYPE_DOUBLE);
+  float  (*p_expf)(float)    = expf;
+  BIND_T("expf",    p_expf,   1, TYPE_FLOAT);
+
+  double (*p_exp2)(double)   = exp2;
+  BIND_T("exp2",    p_exp2,   1, TYPE_DOUBLE);
+  float  (*p_exp2f)(float)   = exp2f;
+  BIND_T("exp2f",   p_exp2f,  1, TYPE_FLOAT);
+
+  double (*p_log)(double)    = log;
+  BIND_T("log",     p_log,    1, TYPE_DOUBLE);
+  float  (*p_logf)(float)    = logf;
+  BIND_T("logf",    p_logf,   1, TYPE_FLOAT);
+
+  double (*p_log2)(double)   = log2;
+  BIND_T("log2",    p_log2,   1, TYPE_DOUBLE);
+  float  (*p_log2f)(float)   = log2f;
+  BIND_T("log2f",   p_log2f,  1, TYPE_FLOAT);
+
+  double (*p_pow)(double, double) = pow;
+  BIND_T("pow",     p_pow,    2, TYPE_DOUBLE);
+  float  (*p_powf)(float, float)  = powf;
+  BIND_T("powf",    p_powf,   2, TYPE_FLOAT);
+
+  /* Phase E Task 26: asin/acos/sinh/cosh/tanh + f-variants.
+   *   asin/acos — atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
+   *   sinh/cosh — (exp(x) +/- exp(-x)) / 2.
+   *   tanh      — (e1 - e2) / (e1 + e2). */
+  double (*p_asin)(double)   = asin;
+  BIND_T("asin",    p_asin,   1, TYPE_DOUBLE);
+  float  (*p_asinf)(float)   = asinf;
+  BIND_T("asinf",   p_asinf,  1, TYPE_FLOAT);
+
+  double (*p_acos)(double)   = acos;
+  BIND_T("acos",    p_acos,   1, TYPE_DOUBLE);
+  float  (*p_acosf)(float)   = acosf;
+  BIND_T("acosf",   p_acosf,  1, TYPE_FLOAT);
+
+  double (*p_sinh)(double)   = sinh;
+  BIND_T("sinh",    p_sinh,   1, TYPE_DOUBLE);
+  float  (*p_sinhf)(float)   = sinhf;
+  BIND_T("sinhf",   p_sinhf,  1, TYPE_FLOAT);
+
+  double (*p_cosh)(double)   = cosh;
+  BIND_T("cosh",    p_cosh,   1, TYPE_DOUBLE);
+  float  (*p_coshf)(float)   = coshf;
+  BIND_T("coshf",   p_coshf,  1, TYPE_FLOAT);
+
+  double (*p_tanh)(double)   = tanh;
+  BIND_T("tanh",    p_tanh,   1, TYPE_DOUBLE);
+  float  (*p_tanhf)(float)   = tanhf;
+  BIND_T("tanhf",   p_tanhf,  1, TYPE_FLOAT);
+
+  /* Phase E Task 27: cbrt/hypot/nextafter + f-variants.
+   *   cbrt      — bit-trick initial estimate + 3 Newton iterations of
+   *               y = (2y + x/y^2)/3.
+   *   hypot     — scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
+   *   nextafter — IEEE bit-level step toward y (++/-- the integer repr). */
+  double (*p_cbrt)(double)   = cbrt;
+  BIND_T("cbrt",    p_cbrt,   1, TYPE_DOUBLE);
+  float  (*p_cbrtf)(float)   = cbrtf;
+  BIND_T("cbrtf",   p_cbrtf,  1, TYPE_FLOAT);
+
+  double (*p_hypot)(double, double) = hypot;
+  BIND_T("hypot",   p_hypot,  2, TYPE_DOUBLE);
+  float  (*p_hypotf)(float, float)  = hypotf;
+  BIND_T("hypotf",  p_hypotf, 2, TYPE_FLOAT);
+
+  double (*p_nextafter)(double, double) = nextafter;
+  BIND_T("nextafter",  p_nextafter,  2, TYPE_DOUBLE);
+  float  (*p_nextafterf)(float, float)  = nextafterf;
+  BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
+
 #undef BIND
+#undef BIND_T
 }
 
 /* Source File / Preprocessor Helpers */

@@ -46,6 +46,11 @@ const char* exception_messages[] = {
 // External assembly function
 extern void load_idt(struct idt_ptr* ptr);
 
+// FPU exception stubs (defined in isr.asm)
+extern void isr_fpu_nm(void);
+extern void isr_fpu_mf(void);
+extern void isr_fpu_xf(void);
+
 // Set an IDT gate
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].base_low = base & 0xFFFF;
@@ -78,6 +83,14 @@ void idt_init(void) {
     idt_set_gate(8, (uint32_t)isr8, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(13, (uint32_t)isr13, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(14, (uint32_t)isr14, 0x08, IDT_INTERRUPT_GATE);
+
+    // FPU exception vectors — override generic #NM (7) and install
+    // dedicated handlers for #MF (16) and #XF (19). These are wired
+    // to panic_fpu via fpu_{nm,mf,xf}_handler; they should stay dormant
+    // under eager context switch + masked MXCSR.
+    idt_set_gate(7,  (uint32_t)isr_fpu_nm, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(16, (uint32_t)isr_fpu_mf, 0x08, IDT_INTERRUPT_GATE);
+    idt_set_gate(19, (uint32_t)isr_fpu_xf, 0x08, IDT_INTERRUPT_GATE);
 
     // Install IRQ handlers
     idt_set_gate(32, (uint32_t)irq0, 0x08, IDT_INTERRUPT_GATE);

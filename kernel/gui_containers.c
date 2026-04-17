@@ -19,11 +19,6 @@
 #define TREE_INDENT 16
 #define TREE_ITEM_H (FONT_H + 4)
 
-static const uint32_t COL_TAB_ACTIVE   = 0x00FFFFFF;
-static const uint32_t COL_TAB_INACTIVE = 0x00D8D8E0;
-static const uint32_t COL_SPLITTER     = 0x00C0C0C8;
-static const uint32_t COL_SPLITTER_ACT = 0x00A0B0D0;
-static const uint32_t COL_TREE_SEL     = 0x00B8DDFF;
 
 void gui_containers_init(void) {
     /* Nothing to initialize */
@@ -55,13 +50,13 @@ int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
 
         /* Tab background */
         if (active) {
-            gfx2d_rect_fill(tab_r.x, tab_r.y, tw, th, COL_TAB_ACTIVE);
+            gfx2d_rect_fill(tab_r.x, tab_r.y, tw, th, theme->window_bg);
             /* Remove bottom border for active tab */
             gfx2d_hline(tab_r.x + 1, (int)(tab_r.y + (int16_t)th - 1),
-                        tw - 2, COL_TAB_ACTIVE);
+                        tw - 2, theme->window_bg);
         } else {
             gfx2d_rect_fill(tab_r.x, tab_r.y + 2, tw, th - 2,
-                            hover ? 0x00E8E8F0 : COL_TAB_INACTIVE);
+                            hover ? theme->menu_hover : theme->button_face);
         }
 
         /* Tab border (top, left, right) */
@@ -109,6 +104,7 @@ void ui_tabs_init(ui_tabs_t *tabs, ui_rect_t r, int tab_height) {
 
 int ui_tabs_handle_input(ui_tabs_t *tabs, const char **labels, int count,
                          int16_t mx, int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     ui_tabbar_state_t state;
     int result;
 
@@ -125,11 +121,11 @@ int ui_tabs_handle_input(ui_tabs_t *tabs, const char **labels, int count,
     /* Draw content border */
     gfx2d_rect(tabs->content_rect.x, tabs->content_rect.y,
                (int)tabs->content_rect.w, (int)tabs->content_rect.h,
-               ui_theme_get()->window_border);
+               theme->window_border);
     gfx2d_rect_fill(tabs->content_rect.x + 1, tabs->content_rect.y,
                     (int)tabs->content_rect.w - 2,
                     (int)tabs->content_rect.h - 1,
-                    COL_TAB_ACTIVE);
+                    theme->window_bg);
 
     return result;
 }
@@ -226,8 +222,10 @@ void ui_split_v(ui_rect_t r, ui_split_state_t *state,
 }
 
 void ui_draw_splitter_h(ui_rect_t r, int x, bool hover, bool dragging) {
-    uint32_t col = dragging ? COL_SPLITTER_ACT :
-                   (hover ? 0x00B0B0C0 : COL_SPLITTER);
+    ui_theme_t *theme = ui_theme_get();
+    /* 0x00B0B0C0: splitter-hover has no dedicated theme field; blended gray */
+    uint32_t col = dragging ? theme->accent_primary :
+                   (hover ? 0x00B0B0C0 : theme->button_shadow);
     (void)r;
     gfx2d_rect_fill(x, r.y, SPLITTER_W, (int)r.h, col);
     /* Grip dots */
@@ -241,8 +239,10 @@ void ui_draw_splitter_h(ui_rect_t r, int x, bool hover, bool dragging) {
 }
 
 void ui_draw_splitter_v(ui_rect_t r, int y, bool hover, bool dragging) {
-    uint32_t col = dragging ? COL_SPLITTER_ACT :
-                   (hover ? 0x00B0B0C0 : COL_SPLITTER);
+    ui_theme_t *theme = ui_theme_get();
+    /* 0x00B0B0C0: splitter-hover has no dedicated theme field; blended gray */
+    uint32_t col = dragging ? theme->accent_primary :
+                   (hover ? 0x00B0B0C0 : theme->button_shadow);
     (void)r;
     gfx2d_rect_fill(r.x, y, (int)r.w, SPLITTER_W, col);
     /* Grip dots */
@@ -399,6 +399,7 @@ int ui_tree_flatten(ui_tree_node_t *root, ui_tree_node_t **out, int max) {
 ui_tree_node_t *ui_draw_treeview(ui_rect_t r, ui_tree_node_t *root,
                                   ui_tree_state_t *state, int16_t mx,
                                   int16_t my, bool clicked) {
+    ui_theme_t *theme = ui_theme_get();
     ui_tree_node_t *flat[128];
     int count, i;
     int visible;
@@ -410,7 +411,7 @@ ui_tree_node_t *ui_draw_treeview(ui_rect_t r, ui_tree_node_t *root,
     visible = (int)r.h / TREE_ITEM_H;
 
     /* Background */
-    ui_draw_panel(r, 0x00FFFFFF, true, false);
+    ui_draw_panel(r, theme->input_bg, true, false);
 
     /* Clamp scroll */
     if (state->scroll_offset < 0) state->scroll_offset = 0;
@@ -438,7 +439,7 @@ ui_tree_node_t *ui_draw_treeview(ui_rect_t r, ui_tree_node_t *root,
         /* Selection highlight */
         if (node->selected || node == state->selected_node) {
             gfx2d_rect_fill(r.x + 1, iy, (int)r.w - 2, TREE_ITEM_H,
-                            COL_TREE_SEL);
+                            theme->menu_selected);
         } else if (hover) {
             gfx2d_rect_fill(r.x + 1, iy, (int)r.w - 2, TREE_ITEM_H,
                             COLOR_HIGHLIGHT);

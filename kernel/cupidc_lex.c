@@ -50,6 +50,70 @@ static char cc_peek_char2(cc_state_t *cc) {
   return cc->source[cc->pos + 1];
 }
 
+/*
+ * parse_double - naive decimal-string-to-double converter.
+ *
+ * Handles optional sign, integer part, fractional part, and 'e'/'E'
+ * exponent. Precision is lost on very long mantissas because each
+ * fractional digit multiplies a 0.1 running scale factor rather than
+ * using correctly-rounded arbitrary-precision arithmetic. Acceptable
+ * for CupidOS hobby-scope; matching glibc's strtod is out of scope.
+ */
+static double parse_double(const char *s) {
+  double v = 0.0;
+  int i = 0;
+  int neg = 0;
+  if (s[i] == '-') {
+    neg = 1;
+    i++;
+  } else if (s[i] == '+') {
+    i++;
+  }
+
+  /* Integer part */
+  while (s[i] >= '0' && s[i] <= '9') {
+    v = v * 10.0 + (double)(s[i] - '0');
+    i++;
+  }
+
+  /* Fractional part */
+  if (s[i] == '.') {
+    i++;
+    double scale = 0.1;
+    while (s[i] >= '0' && s[i] <= '9') {
+      v += (double)(s[i] - '0') * scale;
+      scale *= 0.1;
+      i++;
+    }
+  }
+
+  /* Exponent */
+  if (s[i] == 'e' || s[i] == 'E') {
+    i++;
+    int exp_neg = 0;
+    if (s[i] == '-') {
+      exp_neg = 1;
+      i++;
+    } else if (s[i] == '+') {
+      i++;
+    }
+    int exp_val = 0;
+    while (s[i] >= '0' && s[i] <= '9') {
+      exp_val = exp_val * 10 + (s[i] - '0');
+      i++;
+    }
+    double p = 1.0;
+    while (exp_val-- > 0)
+      p *= 10.0;
+    if (exp_neg)
+      v /= p;
+    else
+      v *= p;
+  }
+
+  return neg ? -v : v;
+}
+
 static void cc_skip_whitespace(cc_state_t *cc) {
   for (;;) {
     char c = cc_peek_char(cc);
@@ -110,6 +174,14 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_I16;
   if (strcmp(text, "I32") == 0)
     return CC_TOK_I32;
+  if (strcmp(text, "float") == 0)
+    return CC_TOK_FLOAT;
+  if (strcmp(text, "double") == 0)
+    return CC_TOK_DOUBLE;
+  if (strcmp(text, "float4") == 0)
+    return CC_TOK_FLOAT4;
+  if (strcmp(text, "double2") == 0)
+    return CC_TOK_DOUBLE2;
   if (strcmp(text, "bool") == 0)
     return CC_TOK_BOOL;
   if (strcmp(text, "Bool") == 0)
@@ -263,12 +335,15 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     return tok;
   }
 
-  /* Number literal */
-  if (cc_is_digit(c)) {
+  /* Number literal (integer or float) */
+  /* Also handle leading-dot floats like .5 — '.' followed by a digit. */
+  if (cc_is_digit(c) || (c == '.' && cc_is_digit(cc_peek_char2(cc)))) {
     int i = 0;
     int32_t val = 0;
+    int is_float = 0;
+    int f_suffix = 0;
 
-    /* Check for hex: 0x... or 0X... */
+    /* Check for hex: 0x... or 0X... (integer only — no hex floats) */
     if (c == '0' && (cc_peek_char2(cc) == 'x' || cc_peek_char2(cc) == 'X')) {
       tok.text[i++] = cc_next_char(cc); /* '0' */
       tok.text[i++] = cc_next_char(cc); /* 'x'/'X' */
@@ -283,16 +358,67 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
         else if (h >= 'A' && h <= 'F')
           val += h - 'A' + 10;
       }
-    } else {
-      /* Decimal */
+
+      /* Accept optional unsigned suffix: 0xFFU */
+      if ((cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') &&
+          i < CC_MAX_IDENT - 1) {
+        tok.text[i++] = cc_next_char(cc);
+      }
+
+      tok.text[i] = '\0';
+      tok.type = CC_TOK_NUMBER;
+      tok.int_value = val;
+      cc->cur = tok;
+      return tok;
+    }
+
+    /* Decimal integer part (may be empty for ".5") */
+    while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
+      char d = cc_next_char(cc);
+      tok.text[i++] = d;
+      val = val * 10 + (d - '0');
+    }
+
+    /* Fractional part */
+    if (cc_peek_char(cc) == '.' && i < CC_MAX_IDENT - 1) {
+      is_float = 1;
+      tok.text[i++] = cc_next_char(cc); /* '.' */
       while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
-        char d = cc_next_char(cc);
-        tok.text[i++] = d;
-        val = val * 10 + (d - '0');
+        tok.text[i++] = cc_next_char(cc);
       }
     }
 
-    /* Accept optional unsigned suffix: 123u, 0xFFU */
+    /* Exponent */
+    if ((cc_peek_char(cc) == 'e' || cc_peek_char(cc) == 'E') &&
+        i < CC_MAX_IDENT - 1) {
+      is_float = 1;
+      tok.text[i++] = cc_next_char(cc); /* 'e'/'E' */
+      if ((cc_peek_char(cc) == '+' || cc_peek_char(cc) == '-') &&
+          i < CC_MAX_IDENT - 1) {
+        tok.text[i++] = cc_next_char(cc);
+      }
+      while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
+        tok.text[i++] = cc_next_char(cc);
+      }
+    }
+
+    /* 'f'/'F' suffix forces 32-bit; consume but don't add to text */
+    if (cc_peek_char(cc) == 'f' || cc_peek_char(cc) == 'F') {
+      is_float = 1;
+      f_suffix = 1;
+      cc_next_char(cc);
+    }
+
+    if (is_float) {
+      tok.text[i] = '\0';
+      tok.type = CC_TOK_FLIT;
+      tok.fval = parse_double(tok.text);
+      tok.flit_bits = f_suffix ? 32 : 64;
+      cc->cur = tok;
+      return tok;
+    }
+
+    /* Integer: accept optional unsigned suffix: 123u */
     if ((cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') &&
         i < CC_MAX_IDENT - 1) {
       tok.text[i++] = cc_next_char(cc);

@@ -46,6 +46,7 @@ void pmm_reserve_region(uint32_t start, uint32_t size);
 void pmm_release_region(uint32_t start, uint32_t size);
 
 void paging_init(void);
+void paging_map_mmio(uint32_t phys_addr, uint32_t size);
 
 void heap_init(uint32_t initial_pages);
 void *kmalloc_debug(size_t size, const char *file, uint32_t line);

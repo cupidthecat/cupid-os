@@ -100,6 +100,10 @@ int vfs_register_fs(vfs_fs_ops_t *ops);
 int vfs_mount(const char *source, const char *target,
               const char *fs_type);
 
+/* Unmount a filesystem at `target`. Returns 0 or negative errno.
+ * Calls the fs-specific `unmount` callback before clearing the slot. */
+int vfs_umount(const char *target);
+
 /* File operations - return fd (>= 0) or negative error */
 int vfs_open(const char *path, uint32_t flags);
 int vfs_close(int fd);
