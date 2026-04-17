@@ -91,4 +91,9 @@ void pic_clear_mask(uint8_t irq) {
     }
     value = (uint8_t)(inb(port) & ~(1U << irq));
     outb(port, value);
-} 
+}
+
+void pic_mask_all(void) {
+    outb(0x21, 0xFFu);   /* mask all master IRQs */
+    outb(0xA1, 0xFFu);   /* mask all slave IRQs */
+}

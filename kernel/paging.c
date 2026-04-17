@@ -34,7 +34,9 @@ static void map_page_identity(uint32_t address) {
         return;
     }
 
-    table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | PAGE_USER;
+    /* Kernel mapping: no USER bit. Ring-0 code accesses freely; any future
+     * ring-3 code faults on kernel memory instead of silently succeeding. */
+    table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW;
 }
 
 /* Map an MMIO region (physical == virtual, no-cache) so ring-0 drivers

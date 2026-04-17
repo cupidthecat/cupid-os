@@ -56,6 +56,9 @@ typedef struct {
     uint32_t         image_size;              /* ELF image total size */
     process_domain_t domain;                  /* Execution domain     */
     char             name[PROCESS_NAME_LEN];  /* Human-readable name  */
+    uint8_t          on_cpu;   /* 0..31 = CPU currently running this process;
+                                * 0xFFu = not running on any CPU            */
+    uint8_t          last_cpu; /* last CPU that ran this process             */
 } process_t;
 
 

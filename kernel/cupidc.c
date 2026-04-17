@@ -45,6 +45,10 @@
 #include "vfs_helpers.h"
 #include "swap.h"
 #include "usb.h"
+#include "smp.h"
+#include "percpu.h"
+#include "socket.h"
+#include "dns.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -1022,6 +1026,44 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   uint8_t (*p_usb_device_class)(int) = usb_device_class;
   BIND("usb_device_class", p_usb_device_class, 1);
+
+  /* SMP API bindings (P5) */
+  int (*p_smp_cpu_count)(void) = smp_cpu_count;
+  BIND("smp_cpu_count", p_smp_cpu_count, 0);
+
+  int (*p_smp_current_cpu)(void) = smp_current_cpu;
+  BIND("smp_current_cpu", p_smp_current_cpu, 0);
+
+  void (*p_smp_atomic_inc)(uint32_t*) = smp_atomic_inc;
+  BIND("smp_atomic_inc", p_smp_atomic_inc, 1);
+
+  /* Networking (P6) */
+  int (*p_socket)(int) = socket_create;
+  BIND("socket", p_socket, 1);
+  int (*p_bind)(int, uint32_t, uint16_t) = socket_bind;
+  BIND("bind", p_bind, 3);
+  int (*p_listen)(int, int) = socket_listen;
+  BIND("listen", p_listen, 2);
+  int (*p_accept)(int, uint32_t *, uint16_t *) = socket_accept;
+  BIND("accept", p_accept, 3);
+  int (*p_connect)(int, uint32_t, uint16_t) = socket_connect;
+  BIND("connect", p_connect, 3);
+  int (*p_send)(int, const void *, uint32_t) = socket_send;
+  BIND("send", p_send, 3);
+  int (*p_recv)(int, void *, uint32_t) = socket_recv;
+  BIND("recv", p_recv, 3);
+  int (*p_close)(int) = socket_close;
+  BIND("close", p_close, 1);
+  int (*p_sendto)(int, const void *, uint32_t, uint32_t, uint16_t) = socket_sendto;
+  BIND("sendto", p_sendto, 5);
+  int (*p_recvfrom)(int, void *, uint32_t, uint32_t *, uint16_t *) = socket_recvfrom;
+  BIND("recvfrom", p_recvfrom, 5);
+  int (*p_dns_resolve)(const char *, uint32_t *) = dns_resolve;
+  BIND("dns_resolve", p_dns_resolve, 2);
+  uint16_t (*p_htons)(uint16_t) = htons;
+  BIND("htons", p_htons, 1);
+  uint32_t (*p_htonl)(uint32_t) = htonl;
+  BIND("htonl", p_htonl, 1);
 
   /* Process management */
   void (*p_yield)(void) = cc_yield;

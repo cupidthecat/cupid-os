@@ -24,6 +24,9 @@
 #include "swap.h"
 #include "usb.h"
 #include "pci.h"
+#include "smp.h"
+#include "percpu.h"
+#include "bkl.h"
 #include "terminal_app.h"
 #include "string.h"
 #include "gui.h"
@@ -31,6 +34,12 @@
 #include "timer.h"
 #include "types.h"
 #include "vfs.h"
+#include "net_if.h"
+#include "arp.h"
+#include "dns.h"
+#include "icmp.h"
+#include "ip.h"
+#include "socket.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -626,6 +635,12 @@ static void shell_swapinit_cmd(const char *args);
 static void shell_swapstats_cmd(const char *args);
 static void shell_usb_cmd(const char *args);
 static void shell_pci_cmd(const char *args);
+static void shell_smp_cmd(const char *args);
+static void shell_ifconfig_cmd(const char *args);
+static void shell_ping_cmd    (const char *args);
+static void shell_netstat_cmd (const char *args);
+static void shell_arp_cmd     (const char *args);
+static void shell_resolve_cmd (const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -651,6 +666,12 @@ static struct shell_command commands[] = {
     {"swapstats", "swapstats - print swap usage",           shell_swapstats_cmd},
     {"usb", "List USB devices (usb | usb hubs | usb hc)", shell_usb_cmd},
     {"pci", "List PCI devices (bus:dev.fn vid:did class irq)", shell_pci_cmd},
+    {"smp", "List CPUs (smp | smp info)", shell_smp_cmd},
+    {"ifconfig", "Show or set network interface", shell_ifconfig_cmd},
+    {"ping",     "Send ICMP echo (ping <host> [count])", shell_ping_cmd},
+    {"netstat",  "List sockets", shell_netstat_cmd},
+    {"arp",      "Dump ARP cache", shell_arp_cmd},
+    {"resolve",  "DNS resolve (resolve <host>)", shell_resolve_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -2132,6 +2153,169 @@ static void shell_pci_cmd(const char *args) {
     }
 }
 
+static void shell_smp_cmd(const char *args) {
+    while (args && *args == ' ') args++;
+
+    if (args && args[0] == 'i' && args[1] == 'n' && args[2] == 'f' && args[3] == 'o') {
+        shell_print("bkl: ");
+        shell_print(bkl_held_by_this_cpu() ? "held\n" : "free\n");
+        shell_print("cpus: ");
+        shell_print_int((uint32_t)smp_cpu_count());
+        shell_print("\nme: ");
+        shell_print_int((uint32_t)smp_current_cpu());
+        shell_print("\n");
+        return;
+    }
+
+    int n = smp_cpu_count();
+    for (int i = 0; i < n; i++) {
+        shell_print("[");
+        shell_print_int((uint32_t)i);
+        shell_print("] apic=");
+        shell_print_int(cpus[i].apic_id);
+        shell_print(" online=");
+        shell_print_int(cpus[i].online);
+        shell_print(" preempts=");
+        shell_print_int((uint32_t)cpus[i].preempt_count);
+        shell_print(" current_pid=");
+        shell_print_int(cpus[i].current_pid);
+        shell_print("\n");
+    }
+}
+
+static void shell_ifconfig_cmd(const char *args) {
+    (void)args;
+    net_if_t *nif = net_if_primary();
+    if (!nif) { shell_print("no NIC\n"); return; }
+    shell_print(nif->name);
+    shell_print(" mac=");
+    for (int i = 0; i < 6; i++) {
+        shell_print_int(nif->mac[i]);
+        if (i < 5) shell_print(":");
+    }
+    shell_print("\n ip=");
+    uint8_t *p = (uint8_t*)&nif->ipv4_addr;
+    shell_print_int(p[0]); shell_print(".");
+    shell_print_int(p[1]); shell_print(".");
+    shell_print_int(p[2]); shell_print(".");
+    shell_print_int(p[3]);
+    shell_print(" rx="); shell_print_int((uint32_t)nif->rx_packets);
+    shell_print(" tx="); shell_print_int((uint32_t)nif->tx_packets);
+    shell_print("\n");
+}
+
+static void shell_ping_cmd(const char *args) {
+    char host[64];
+    int hi = 0;
+    int count = 4;
+    uint32_t ip = 0;
+    uint16_t id;
+    int sent = 0, recvd = 0;
+    int i;
+
+    while (args && *args == ' ') args++;
+    if (!args || !*args) { shell_print("usage: ping <host> [count]\n"); return; }
+
+    while (*args && *args != ' ' && hi < 63) host[hi++] = *args++;
+    host[hi] = 0;
+    while (*args == ' ') args++;
+    if (*args) {
+        int v = 0;
+        while (*args >= '0' && *args <= '9') { v = v * 10 + (*args - '0'); args++; }
+        if (v > 0 && v <= 64) count = v;
+    }
+
+    if (ip_parse(host, &ip) != 0 && dns_resolve(host, &ip) != 0) {
+        shell_print("resolve failed\n"); return;
+    }
+    {
+        uint8_t *p = (uint8_t*)&ip;
+        shell_print("PING "); shell_print(host); shell_print(" (");
+        shell_print_int(p[0]); shell_print(".");
+        shell_print_int(p[1]); shell_print(".");
+        shell_print_int(p[2]); shell_print(".");
+        shell_print_int(p[3]); shell_print(")\n");
+    }
+
+    id = (uint16_t)(timer_get_uptime_ms() & 0xFFFFu);
+    for (i = 0; i < count; i++) {
+        uint16_t seq = (uint16_t)(i + 1);
+        int rtt;
+        if (icmp_send_echo(ip, id, seq, 32u) < 0) {
+            shell_print("send failed\n"); continue;
+        }
+        sent++;
+        rtt = icmp_wait_reply(ip, id, seq, 3000u);
+        if (rtt >= 0) {
+            recvd++;
+            shell_print("seq="); shell_print_int((uint32_t)seq);
+            shell_print(" rtt_ms="); shell_print_int((uint32_t)rtt);
+            shell_print("\n");
+        } else {
+            shell_print("seq="); shell_print_int((uint32_t)seq);
+            shell_print(" timeout\n");
+        }
+        if (i < count - 1) {
+            /* 1 second between pings, via TSC (works with IF=0). */
+            int k;
+            for (k = 0; k < 1000; k++) timer_delay_us(1000u);
+        }
+    }
+    shell_print("sent="); shell_print_int((uint32_t)sent);
+    shell_print(" recv="); shell_print_int((uint32_t)recvd);
+    shell_print("\n");
+}
+
+static void shell_netstat_cmd(const char *args) {
+    (void)args;
+    for (int i = 0; i < SOCKET_MAX; i++) {
+        if (!sockets[i].in_use) continue;
+        shell_print("["); shell_print_int((uint32_t)i); shell_print("] ");
+        shell_print(sockets[i].type == SOCK_TYPE_UDP ? "UDP" :
+                    sockets[i].type == SOCK_TYPE_TCP ? "TCP" : "UNK");
+        shell_print(" state="); shell_print_int((uint32_t)sockets[i].tcp_state);
+        shell_print(" lport="); shell_print_int(sockets[i].local_port);
+        shell_print(" rport="); shell_print_int(sockets[i].remote_port);
+        shell_print("\n");
+    }
+}
+
+static void shell_arp_cmd(const char *args) {
+    uint32_t ips[16];
+    uint8_t macs[16][6];
+    int n, i, j;
+    (void)args;
+    n = arp_get_entries(ips, macs, 16);
+    if (n == 0) { shell_print("(empty)\n"); return; }
+    for (i = 0; i < n; i++) {
+        uint8_t *p = (uint8_t*)&ips[i];
+        shell_print_int(p[0]); shell_print(".");
+        shell_print_int(p[1]); shell_print(".");
+        shell_print_int(p[2]); shell_print(".");
+        shell_print_int(p[3]);
+        shell_print(" -> ");
+        for (j = 0; j < 6; j++) {
+            shell_print_int((uint32_t)macs[i][j]);
+            if (j < 5) shell_print(":");
+        }
+        shell_print("\n");
+    }
+}
+
+static void shell_resolve_cmd(const char *args) {
+    while (args && *args == ' ') args++;
+    if (!args || !*args) { shell_print("usage: resolve <host>\n"); return; }
+    uint32_t ip = 0;
+    if (ip_parse(args, &ip) != 0 && dns_resolve(args, &ip) != 0) {
+        shell_print("resolve failed\n"); return;
+    }
+    uint8_t *p = (uint8_t*)&ip;
+    shell_print_int(p[0]); shell_print(".");
+    shell_print_int(p[1]); shell_print(".");
+    shell_print_int(p[2]); shell_print(".");
+    shell_print_int(p[3]); shell_print("\n");
+}
+
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
     return;
@@ -2511,7 +2695,10 @@ void shell_run(void) {
 
   while (1) {
     key_event_t event;
-    keyboard_read_event(&event);
+    if (!keyboard_read_event(&event)) {
+      process_yield();
+      continue;
+    }
     char c = event.character;
 
     // History navigation with up/down arrows

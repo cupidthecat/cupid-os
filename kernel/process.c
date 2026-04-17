@@ -27,6 +27,8 @@
 #include "shell.h"
 #include "gui.h"
 #include "simd.h"
+#include "percpu.h"
+#include "bkl.h"
 #include "../drivers/serial.h"
 
 extern void context_switch(process_t *old_proc, process_t *new_proc);
@@ -52,7 +54,6 @@ _Static_assert(__builtin_offsetof(process_t, fp_state) == 80,
                "(PCB_FP_STATE_OFFSET=80)");
 
 static process_t  process_table[MAX_PROCESSES];
-static uint32_t   current_pid          = 0;
 static uint32_t   next_schedule_index  = 0;
 static uint32_t   process_count        = 0;
 static bool       scheduler_active     = false;
@@ -73,6 +74,12 @@ static const char *domain_names[] = {
 static void idle_process(void);
 static uint32_t find_free_slot(void);
 static void process_reap_terminated(void);
+static uint32_t process_create_common_locked(void (*entry_point)(void),
+                                             const char *name,
+                                             uint32_t stack_size,
+                                             bool with_arg,
+                                             uint32_t arg,
+                                             process_domain_t domain);
 static uint32_t process_create_common(void (*entry_point)(void),
                                       const char *name,
                                       uint32_t stack_size,
@@ -151,7 +158,7 @@ static void process_reap_terminated(void) {
  * ══════════════════════════════════════════════════════════════════════ */
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
-    current_pid         = 0;
+    this_cpu()->current_pid = 0;
     next_schedule_index = 0;
     process_count       = 0;
     scheduler_active    = false;
@@ -167,12 +174,12 @@ void process_init(void) {
 /* ══════════════════════════════════════════════════════════════════════
  *  process_create
  * ══════════════════════════════════════════════════════════════════════ */
-static uint32_t process_create_common(void (*entry_point)(void),
-                                      const char *name,
-                                      uint32_t stack_size,
-                                      bool with_arg,
-                                      uint32_t arg,
-                                      process_domain_t domain) {
+static uint32_t process_create_common_locked(void (*entry_point)(void),
+                                             const char *name,
+                                             uint32_t stack_size,
+                                             bool with_arg,
+                                             uint32_t arg,
+                                             process_domain_t domain) {
     process_reap_terminated();
 
     if (!entry_point) {
@@ -206,6 +213,8 @@ static uint32_t process_create_common(void (*entry_point)(void),
     process_t *p = &process_table[slot];
     memset(p, 0, sizeof(process_t));
 
+    p->on_cpu     = 0xFFu;   /* not running on any CPU yet */
+    p->last_cpu   = 0u;
     p->pid        = slot + 1;
     p->state      = PROCESS_READY;
     p->stack_base = stack;
@@ -272,6 +281,19 @@ static uint32_t process_create_common(void (*entry_point)(void),
     return p->pid;
 }
 
+static uint32_t process_create_common(void (*entry_point)(void),
+                                      const char *name,
+                                      uint32_t stack_size,
+                                      bool with_arg,
+                                      uint32_t arg,
+                                      process_domain_t domain) {
+    bkl_lock();
+    uint32_t pid = process_create_common_locked(entry_point, name, stack_size,
+                                                with_arg, arg, domain);
+    bkl_unlock();
+    return pid;
+}
+
 uint32_t process_create(void (*entry_point)(void),
                         const char *name,
                         uint32_t stack_size) {
@@ -312,9 +334,9 @@ uint32_t process_create_with_arg_ex(void (*entry_point)(void),
  *  process_exit
  * ══════════════════════════════════════════════════════════════════════ */
 void process_exit(void) {
-    __asm__ volatile("cli");
+    bkl_lock();
 
-    uint32_t exit_pid = current_pid;
+    uint32_t exit_pid = this_cpu()->current_pid;
     if (exit_pid == 0) {
         for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
             if (process_table[i].pid != 0 &&
@@ -326,7 +348,7 @@ void process_exit(void) {
     }
 
     if (exit_pid == 0 || exit_pid == 1) {
-        __asm__ volatile("sti");
+        bkl_unlock();
         return;
     }
 
@@ -336,12 +358,14 @@ void process_exit(void) {
     /* Mark terminated but DON'T free the stack yet - we're still
      * running on it.  The stack will be freed lazily when the slot
      * is reused by process_create or after schedule switches away. */
-    p->state = PROCESS_TERMINATED;
-    current_pid = 0;
+    p->state        = PROCESS_TERMINATED;
+    p->on_cpu       = 0xFFu;
+    this_cpu()->current_pid = 0;
 
     /* Reschedule - never returns.
-     * schedule() will use dummy_esp path since current_pid == 0. */
-    __asm__ volatile("sti");
+     * schedule() will use dummy_esp path since current_pid == 0.
+     * Release BKL before schedule() so schedule() can re-acquire it. */
+    bkl_unlock();
     schedule();
     serial_printf("[EXIT] BUG: schedule returned in process_exit\n");
 
@@ -353,7 +377,7 @@ void process_exit(void) {
  *  process_yield
  * ══════════════════════════════════════════════════════════════════════ */
 void process_yield(void) {
-    if (!scheduler_active || current_pid == 0) return;
+    if (!scheduler_active || this_cpu()->current_pid == 0) return;
     extern void kernel_clear_reschedule(void);
     kernel_clear_reschedule();   /* consume the deferred flag */
     schedule();
@@ -363,7 +387,7 @@ void process_yield(void) {
  *  process_get_current_pid
  * ══════════════════════════════════════════════════════════════════════ */
 uint32_t process_get_current_pid(void) {
-    return current_pid;
+    return this_cpu()->current_pid;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -399,27 +423,29 @@ void process_kill(uint32_t pid) {
         return;
     }
 
-    __asm__ volatile("cli");
+    bkl_lock();
 
     process_t *p = &process_table[pid - 1];
     if (p->pid == 0) {
-        __asm__ volatile("sti");
+        bkl_unlock();
         KWARN("PID %u does not exist", pid);
         return;
     }
 
     serial_printf("[PROCESS] Killing PID %u \"%s\"\n", p->pid, p->name);
 
-    if (pid == current_pid) {
+    if (pid == this_cpu()->current_pid) {
         /* Killing self - mark terminated and reschedule.
          * Stack freed later by reaper in find_free_slot. */
-        p->state = PROCESS_TERMINATED;
-        current_pid = 0;
-        __asm__ volatile("sti");
+        p->state  = PROCESS_TERMINATED;
+        p->on_cpu = 0xFFu;
+        this_cpu()->current_pid = 0;
+        bkl_unlock();
         schedule();
     } else {
         /* Killing another process - safe to free stack now */
-        p->state = PROCESS_TERMINATED;
+        p->state  = PROCESS_TERMINATED;
+        p->on_cpu = 0xFFu;
         shell_jit_discard_by_owner(pid);
         gui_destroy_windows_by_owner(pid);
         if (p->stack_base) {
@@ -434,7 +460,7 @@ void process_kill(uint32_t pid) {
         p->pid = 0;
         memset(p, 0, sizeof(process_t));
         process_count--;
-        __asm__ volatile("sti");
+        bkl_unlock();
     }
 }
 
@@ -595,16 +621,20 @@ void process_list_adam(void) {
  *  returns normally - so schedule() returns to its caller as if
  *  nothing happened.
  * ══════════════════════════════════════════════════════════════════════ */
-void schedule(void) {
+/* schedule_locked - called with BKL held (or from context before BKL exists).
+ * Does the actual round-robin pick and context switch. */
+static void schedule_locked(void) {
     if (process_count == 0 || !scheduler_active) return;
 
-    __asm__ volatile("cli");
+    uint32_t cpu_id = this_cpu()->cpu_id;
 
     /* Mark current process as READY (if it's still running) */
-    if (current_pid != 0 && current_pid <= MAX_PROCESSES) {
-        process_t *current = &process_table[current_pid - 1];
+    uint32_t cur_pid = this_cpu()->current_pid;
+    if (cur_pid != 0 && cur_pid <= MAX_PROCESSES) {
+        process_t *current = &process_table[cur_pid - 1];
         if (current->pid != 0 && current->state == PROCESS_RUNNING) {
             current->state = PROCESS_READY;
+            current->on_cpu = 0xFFu;
         }
 
         /* Stack canary check */
@@ -613,12 +643,14 @@ void schedule(void) {
             serial_printf("[PROCESS] Stack overflow PID %u \"%s\"\n",
                           current->pid, current->name);
             current->state = PROCESS_TERMINATED;
+            current->on_cpu = 0xFFu;
             kfree(current->stack_base);
             current->stack_base = NULL;
             current->pid = 0;
             memset(current, 0, sizeof(process_t));
             process_count--;
-            current_pid = 0;
+            this_cpu()->current_pid = 0;
+            cur_pid = 0;
         }
     }
 
@@ -632,7 +664,7 @@ void schedule(void) {
 
         /* Skip the current process - we want a DIFFERENT one */
         if (candidate->pid != 0 &&
-            candidate->pid != current_pid &&
+            candidate->pid != cur_pid &&
             candidate->state == PROCESS_READY) {
             next = candidate;
             break;
@@ -644,26 +676,27 @@ void schedule(void) {
     if (!next) {
         next = &process_table[0];
         if (next->pid == 0) {
-            /* No processes at all - just re-enable interrupts */
-            if (current_pid != 0 && current_pid <= MAX_PROCESSES) {
-                process_table[current_pid - 1].state = PROCESS_RUNNING;
+            /* No processes at all - just restore current as running */
+            if (cur_pid != 0 && cur_pid <= MAX_PROCESSES) {
+                process_table[cur_pid - 1].state = PROCESS_RUNNING;
             }
-            __asm__ volatile("sti");
             return;
         }
     }
 
     /* Same process - just mark running and return */
-    if (next->pid == current_pid && current_pid != 0) {
+    if (next->pid == cur_pid && cur_pid != 0) {
         next->state = PROCESS_RUNNING;
-        __asm__ volatile("sti");
+        next->on_cpu = (uint8_t)cpu_id;
         return;
     }
 
     /* ── Perform context switch ───────────────────────────────────── */
-    uint32_t old_pid = current_pid;
-    current_pid = next->pid;
-    next->state = PROCESS_RUNNING;
+    uint32_t old_pid = cur_pid;
+    this_cpu()->current_pid = next->pid;
+    next->state    = PROCESS_RUNNING;
+    next->last_cpu = (uint8_t)cpu_id;
+    next->on_cpu   = (uint8_t)cpu_id;
 
     /* context_switch(old_proc, new_proc):
      *   - pushes callee-saved regs on current stack
@@ -677,7 +710,7 @@ void schedule(void) {
      * context_switch_resume (we seed it below before switching).
      * For a brand-new process, new_proc->context.eip = entry_point;
      * its stack already has process_exit_trampoline as the return
-     * address (set up by process_create_common).
+     * address (set up by process_create_common_locked).
      *
      * context_switch never returns normally - when THIS process is
      * later resumed, context_switch_resume pops the saved regs and
@@ -690,7 +723,9 @@ void schedule(void) {
         old->context.eip = (uint32_t)context_switch_resume;
         __asm__ volatile("sti");
         context_switch(old, next);
-        /* We resume here when rescheduled */
+        /* We resume here when rescheduled.
+         * Re-disable interrupts: BKL's unlock will restore IF. */
+        __asm__ volatile("cli");
     } else {
         /* No valid old process (e.g. entering after process_exit).
          * Use a throw-away PCB scratch area so context_switch has
@@ -700,7 +735,15 @@ void schedule(void) {
         static process_t dummy __attribute__((aligned(16)));
         __asm__ volatile("sti");
         context_switch(&dummy, next);
+        /* We resume here when rescheduled (dummy path). */
+        __asm__ volatile("cli");
     }
+}
+
+void schedule(void) {
+    bkl_lock();
+    schedule_locked();
+    bkl_unlock();
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -769,8 +812,10 @@ uint32_t process_register_current(const char *name) {
         p->name[i] = '\0';
     }
 
+    p->on_cpu     = (uint8_t)this_cpu()->cpu_id;
+    p->last_cpu   = (uint8_t)this_cpu()->cpu_id;
     process_count++;
-    current_pid = p->pid;
+    this_cpu()->current_pid = p->pid;
 
     /* Seed fp_state with current FPU snapshot so the first context
      * switch away from this thread has a valid image to restore. */
@@ -798,22 +843,22 @@ const char *process_domain_name(process_domain_t domain) {
  * ══════════════════════════════════════════════════════════════════════ */
 void process_block(uint32_t pid) {
     if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;
-    __asm__ volatile("cli");
+    bkl_lock();
     process_t *p = &process_table[pid - 1];
     if (p->pid == pid && p->state == PROCESS_READY) {
         p->state = PROCESS_BLOCKED;
     }
-    __asm__ volatile("sti");
+    bkl_unlock();
 }
 
 void process_unblock(uint32_t pid) {
     if (pid == 0 || pid > MAX_PROCESSES) return;
-    __asm__ volatile("cli");
+    bkl_lock();
     process_t *p = &process_table[pid - 1];
     if (p->pid == pid && p->state == PROCESS_BLOCKED) {
         p->state = PROCESS_READY;
     }
-    __asm__ volatile("sti");
+    bkl_unlock();
 }
 
 /* ══════════════════════════════════════════════════════════════════════

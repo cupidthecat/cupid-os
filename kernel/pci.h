@@ -29,6 +29,7 @@ int  pci_device_count(void);
 pci_device_t *pci_get_device(int index);
 pci_device_t *pci_find_by_class(uint8_t class_code, uint8_t subclass,
                                 uint8_t prog_if, int start_index);
+pci_device_t *pci_find_by_vendor_device(uint16_t vendor_id, uint16_t device_id);
 
 uint32_t pci_config_read_dword(uint8_t bus, uint8_t dev, uint8_t func, uint8_t off);
 void     pci_config_write_dword(uint8_t bus, uint8_t dev, uint8_t func, uint8_t off, uint32_t v);

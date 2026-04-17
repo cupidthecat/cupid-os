@@ -36,7 +36,13 @@
 #include "memory.h"
 #include "panic.h"
 #include "pci.h"
+#include "percpu.h"
+#include "lapic.h"
+#include "ioapic.h"
+#include "bkl.h"
+#include "smp.h"
 #include "usb.h"
+#include "net_if.h"
 #include "simd.h"
 #include "string.h"
 #include "graphics.h"
@@ -169,12 +175,12 @@ extern void uhci_poll_ports(void);
 extern void uhci_poll_interrupts(void);
 
 void kernel_check_reschedule(void) {
-    /* USB idle-loop polls — run every wake so the HC and work queue
-     * are serviced even when no keyboard/timer interrupt fires. */
+    /* USB idle-loop polls */
     ehci_poll_interrupts();
     uhci_poll_ports();
     uhci_poll_interrupts();
     usb_process_pending();
+    net_process_pending();
 
     if (need_reschedule && process_is_active()) {
         need_reschedule = false;
@@ -285,6 +291,13 @@ void putchar(char c) {
         shell_gui_putchar_ext(c);
         return;
     }
+
+#ifdef HEADLESS
+    /* Headless only: mirror text-mode output to COM1. Avoid UART TX spin
+     * (~90µs/char @115200) on every putchar in normal VGA boots — would
+     * inflate IRQ-context KINFO latency. */
+    serial_write_char(c);
+#endif
 
     volatile unsigned char* vidmem = (unsigned char*)VGA_MEMORY;
     
@@ -585,13 +598,32 @@ void kmain(void) {
     // Initialize interrupts and drivers
     idt_init();
     pic_init();
-    keyboard_init();
     calibrate_timer();
     KINFO("Interrupts and timers initialized");
 
+    // Initialize per-CPU data infrastructure (P5 SMP: GS-base + extended GDT)
+    percpu_init_bsp();
+
+    // Initialize Local APIC: software-enable, calibrate timer via PIT ch2
+    lapic_init_bsp();
+
+    // Mask 8259 PIC completely; route all IRQs through IOAPIC
+    pic_mask_all();
+    ioapic_init_all(lapic_get_id());
+
+    // Install IRQ handlers AFTER IOAPIC is up so irq_install_handler's
+    // ioapic_unmask_gsi actually lands on a real IOAPIC redirection entry.
+    keyboard_init();
+    bkl_init();
+    smp_init();
+    smp_init_ipi();
     // Initialize PCI bus enumeration
     pci_init();
     KINFO("PCI bus enumeration complete");
+
+    /* net_init() moved to after sti below so NIC IRQs can actually fire
+     * during DHCP negotiation. Before sti, IRQs are masked → DHCP OFFER
+     * reply never reaches us → static fallback triggers every boot. */
 
     // Initialize USB core, EHCI then UHCI host controllers
     // EHCI MUST run first: it sets CONFIGFLAG=1 and releases LS/FS ports
@@ -822,9 +854,13 @@ void kmain(void) {
     desktop_init();
     KINFO("GUI and desktop initialized");
 
-    // Enable keyboard interrupt
-    pic_clear_mask(1);
+    // Keyboard IRQ1 is unmasked on IOAPIC by keyboard_init via
+    // irq_install_handler; 8259 stays fully masked under P5.
     __asm__ volatile("sti");
+
+    /* Bring up the network stack now that interrupts can fire.
+     * DHCP needs NIC RX IRQs to receive OFFER/ACK. */
+    net_init();
 
     // Start the process scheduler
     process_register_current("desktop");   // Register main thread as PID 2
@@ -837,8 +873,14 @@ void kmain(void) {
     KINFO("FPU stress passed");
 #endif
 
+#ifdef HEADLESS
+    KINFO("Entering headless text shell");
+    shell_run();
+    for (;;) { __asm__ volatile("hlt"); }
+#else
     KINFO("Entering desktop environment");
 
     // Launch desktop (never returns)
     desktop_run();
+#endif
 }
