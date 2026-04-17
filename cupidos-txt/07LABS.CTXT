@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Playground Recipes
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -33,7 +33,7 @@ Goal:
 >endtree
 
 >h2 LAB 2: Basic File Flow
->tree Lab
+>tree open Lab
 Create a note, inspect it, then compare temp vs persistent storage.
 
 >button cat /tmp/note.txt | shell:cat /tmp/note.txt
@@ -45,7 +45,7 @@ Goal:
 >endtree
 
 >h2 LAB 3: Redirection
->tree Lab
+>tree open Lab
 Practice shell output redirection.
 
 >button ls /bin | shell:ls /bin
@@ -56,7 +56,7 @@ Goal:
 >endtree
 
 >h2 LAB 4: CupidScript Hello
->tree Lab
+>tree open Lab
 Create and run a CupidScript file.
 
 >button ls /home | shell:ls /home
@@ -75,7 +75,7 @@ Then run:
 >endtree
 
 >h2 LAB 5: CupidScript Control Flow
->tree Lab
+>tree open Lab
 Validate while loop and arithmetic expansion.
 
 Example script contents (create with ed /home/loop.cup):
@@ -118,7 +118,7 @@ Goal:
 >endtree
 
 >h2 LAB 7: Process Commands
->tree Lab
+>tree open Lab
 Observe scheduler and process list changes.
 
 >button ps | shell:ps
@@ -129,7 +129,7 @@ Goal:
 >endtree
 
 >h2 LAB 8: Memory/Debug Tools
->tree Lab
+>tree open Lab
 Explore built-in diagnostics.
 
 >button memstats | shell:memstats
@@ -140,7 +140,7 @@ Goal:
 >endtree
 
 >h2 LAB 9: FAT16 Cache/Flush
->tree Lab
+>tree open Lab
 Understand block cache reporting and flush control.
 
 >button cachestats | shell:cachestats
@@ -151,7 +151,7 @@ Goal:
 >endtree
 
 >h2 LAB 10: GUI Apps
->tree Lab
+>tree open Lab
 Explore in-OS GUI app stack and CupidC graphics-heavy programs.
 
 >button paint | shell:paint
@@ -163,7 +163,7 @@ Goal:
 >endtree
 
 >h2 Safety Notes
->tree Safety Notes
+>tree open Safety Notes
 1) Use crashtest only if you intentionally want to test panic paths.
 2) rm and rmdir are destructive for files/dirs.
 3) This OS intentionally has no privilege isolation; everything is powerful.

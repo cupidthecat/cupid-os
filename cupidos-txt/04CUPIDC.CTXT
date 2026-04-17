@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -39,7 +39,7 @@ x * 7;
 >endtree
 
 >h2 Entry Point
->tree Entry Point
+>tree open Entry Point
 Use:
   void main() { ... }
 or:
@@ -53,7 +53,7 @@ void main() {
 >endtree
 
 >h2 Command-Line Arguments
->tree Command-Line Arguments
+>tree open Command-Line Arguments
 CupidC programs read args via:
   char *args = get_args();
 
@@ -79,7 +79,7 @@ if (args && args[0]) {
 >endtree
 
 >h2 Hello Example
->tree Hello Example
+>tree open Hello Example
 void main() {
   println("Hello from CupidC");
   print("cwd: ");
@@ -96,7 +96,7 @@ println(get_cwd());
 >endtree
 
 >h2 Language Features (Current)
->tree Language Features (Current)
+>tree open Language Features (Current)
 Supported core features include:
 - int, char, void, pointers
 - structs (including field access)
@@ -125,8 +125,52 @@ sum;
 >endcode
 >endtree
 
+>h2 Floating Point (2026-04-16)
+>tree open Floating Point (2026-04-16)
+CupidC now supports hardware floating point and SSE/SSE2 SIMD.
+
+Scalar types:
+- float   (4 bytes, SSE scalar)
+- double  (8 bytes, SSE scalar)
+
+SIMD types:
+- float4  (16 bytes, 4 packed floats)
+- double2 (16 bytes, 2 packed doubles)
+
+Operators +, -, *, / work on scalar float/double with implicit
+promotion (int -> float -> double). SIMD types need matching types
+for +/-/*//; mixing scalar and SIMD is a compile error.
+
+Casts use CVTSI2SS/CVTTSS2SI/CVTSS2SD form:
+  (int)3.7      -> 3 (truncating)
+  (float)5      -> 5.0
+  (double)1.5f  -> widens
+
+Element access on SIMD:
+  float4 v;  v.x, v.y, v.z, v.w
+  double2 w; w.x, w.y
+
+Intrinsics: _mm_*_ps (17) and _mm_*_pd (11) are recognized by
+name and inlined as SSE opcodes. See kernel/simd_intrin.h.
+
+libm is available via the BIND_T table (25 operations, 50 symbols
+with f-variants): sqrt, sin, cos, tan, atan, atan2, exp, exp2, log,
+log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter,
+fabs, floor, ceil, round, trunc, fmod.
+
+printf now supports %f, %e, %g, and precision forms like %.3f.
+
+>code Float Arithmetic
+float a = 1.5f;
+float b = 2.25f;
+a + b;
+>endcode
+
+See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
+>endtree
+
 >h2 Preprocessor Update (2026-02-17)
->tree Preprocessor Update (2026-02-17)
+>tree open Preprocessor Update (2026-02-17)
 CupidC now supports:
 - #pragma once
 
@@ -141,7 +185,7 @@ val + 0;
 >endtree
 
 >h2 Useful Bindings (Partial List)
->tree Useful Bindings (Partial List)
+>tree open Useful Bindings (Partial List)
 Console:
   print, println, putchar, print_int, print_hex, clear_screen
 
@@ -185,12 +229,12 @@ Rendering backend note (2026-02-17):
 - This speeds up framebuffer flip, clear, rect fill, and alpha blit loops.
 - CupidC gfx2d APIs are unchanged; programs do not need source changes.
 
->button Show Uptime | shell:uptime
+>button Show Uptime | shell:time
 >button List /bin | shell:ls /bin
 >endtree
 
 >h2 New Graphics/Desktop Bindings (2026-02-14)
->tree New Graphics/Desktop Bindings (2026-02-14)
+>tree open New Graphics/Desktop Bindings (2026-02-14)
 Recently added for GUI app and desktop-oriented workflows:
 
 - gfx2d_text_wrap(x, y, w, str, color, font)
@@ -226,7 +270,7 @@ This registers launchable desktop icons when /bin .cc files are scanned.
 >endtree
 
 >h2 New Windowed App + Terminal Bindings (2026-02-17)
->tree New Windowed App + Terminal Bindings (2026-02-17)
+>tree open New Windowed App + Terminal Bindings (2026-02-17)
 These were added for true windowed CupidC apps (for example the rewritten
 BG Studio and terminal.cc window process):
 
@@ -254,7 +298,7 @@ gui_win_is_open(wid);
 >endtree
 
 >h2 Windowed Graphics Update (2026-04-09)
->tree Windowed Graphics Update (2026-04-09)
+>tree open Windowed Graphics Update (2026-04-09)
 Hosted/windowed CupidC apps now render through retained per-window surfaces.
 This removes the old "focused window owns the screen" behavior and lets the
 desktop compositor present hosted windows without fighting app-local flips.
@@ -328,7 +372,7 @@ Desktop background control bindings used by BG Studio:
 >endtree
 
 >h2 Fast Workflow
->tree Fast Workflow
+>tree open Fast Workflow
 1) Create source:
    ed /home/bin/mycmd.cc
 
@@ -350,7 +394,7 @@ Desktop background control bindings used by BG Studio:
 >endtree
 
 >h2 Error Handling Tips
->tree Error Handling Tips
+>tree open Error Handling Tips
 - CupidC fails fast and reports line-oriented compiler errors.
 - If behavior is odd, reduce code to a tiny repro and re-add features.
 - Keep stack usage modest.
@@ -364,7 +408,7 @@ big - small;
 >endtree
 
 >h2 When To Use CupidC Vs ELF C
->tree When To Use CupidC Vs ELF C
+>tree open When To Use CupidC Vs ELF C
 Use CupidC when:
 - You want fastest edit/run loop inside CupidOS shell.
 - You want direct access to many kernel helper bindings.

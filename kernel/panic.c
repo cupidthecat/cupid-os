@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include "string.h"
 #include "math.h"
+#include "fpu.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 #include "memory.h"
@@ -139,6 +140,17 @@ static void print_system_state(void) {
                   free_pg * 4, total_pg * 4);
     panic_print("  Memory: "); print_int(free_pg * 4); print(" KB free / ");
     print_int(total_pg * 4); print(" KB total\n");
+}
+
+void panic_fpu(const char *msg, uint32_t eip) {
+    uint16_t fsw = 0, fcw = 0;
+    uint32_t mxcsr = 0;
+    __asm__ volatile("fnstsw %0" : "=m"(fsw));
+    __asm__ volatile("fnstcw %0" : "=m"(fcw));
+    __asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
+    serial_printf("[panic_fpu] %s at eip=0x%x FSW=0x%x FCW=0x%x MXCSR=0x%x\n",
+                  msg, eip, fsw, fcw, mxcsr);
+    kernel_panic(msg);
 }
 
 void kernel_panic(const char *fmt, ...) {

@@ -23,6 +23,16 @@ static inline void outw(uint16_t port, uint16_t data) {
     __asm__ volatile("out %%ax, %%dx" : : "a" (data), "d" (port));
 }
 
+static inline uint32_t inl(uint16_t port) {
+    uint32_t result;
+    __asm__ volatile("in %%dx, %%eax" : "=a" (result) : "d" (port));
+    return result;
+}
+
+static inline void outl(uint16_t port, uint32_t data) {
+    __asm__ volatile("out %%eax, %%dx" : : "a" (data), "d" (port));
+}
+
 // Read multiple 16-bit words from port
 static inline void insw(uint16_t port, void* buffer, uint32_t count) {
     __asm__ volatile("cld; rep insw"

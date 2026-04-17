@@ -29,17 +29,33 @@
 #include "simd.h"
 #include "../drivers/serial.h"
 
-extern void context_switch(uint32_t *old_esp, uint32_t new_esp, uint32_t new_eip);
+extern void context_switch(process_t *old_proc, process_t *new_proc);
 extern void context_switch_resume(void);  /* resume label address */
+
+_Static_assert(__alignof__(((process_t *)0)->fp_state) >= 16,
+               "fp_state must be 16-byte aligned for FXSAVE/FXRSTOR");
+_Static_assert(sizeof(((process_t *)0)->fp_state) == 512,
+               "fp_state must be 512 bytes");
+
+/* PCB field offsets baked into kernel/context_switch.asm.  If any of
+ * these asserts fire, update the matching %define in that file. */
+_Static_assert(__builtin_offsetof(process_t, context) +
+               __builtin_offsetof(cpu_context_t, esp) == 32,
+               "PCB ESP offset baked into context_switch.asm "
+               "(PCB_ESP_OFFSET=32)");
+_Static_assert(__builtin_offsetof(process_t, context) +
+               __builtin_offsetof(cpu_context_t, eip) == 40,
+               "PCB EIP offset baked into context_switch.asm "
+               "(PCB_EIP_OFFSET=40)");
+_Static_assert(__builtin_offsetof(process_t, fp_state) == 80,
+               "PCB fp_state offset baked into context_switch.asm "
+               "(PCB_FP_STATE_OFFSET=80)");
 
 static process_t  process_table[MAX_PROCESSES];
 static uint32_t   current_pid          = 0;
 static uint32_t   next_schedule_index  = 0;
 static uint32_t   process_count        = 0;
 static bool       scheduler_active     = false;
-static uint8_t    proc_fxsave[MAX_PROCESSES][512]
-                    __attribute__((aligned(16)));
-static bool       proc_fxsave_valid[MAX_PROCESSES];
 
 static const char *state_names[] = {
     "READY",
@@ -123,7 +139,6 @@ static void process_reap_terminated(void) {
         }
 
         process_table[i].pid = 0;
-        proc_fxsave_valid[i] = false;
         memset(&process_table[i], 0, sizeof(process_t));
         if (process_count > 0) {
             process_count--;
@@ -136,7 +151,6 @@ static void process_reap_terminated(void) {
  * ══════════════════════════════════════════════════════════════════════ */
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
-    memset(proc_fxsave_valid, 0, sizeof(proc_fxsave_valid));
     current_pid         = 0;
     next_schedule_index = 0;
     process_count       = 0;
@@ -215,12 +229,12 @@ static uint32_t process_create_common(void (*entry_point)(void),
      * Set up initial stack for first context switch.
      *
      * When schedule() picks this process for the first time, it calls:
-     *   context_switch(&old_esp, new_esp, new_eip)
-     *
-     * For a BRAND NEW process, new_eip = entry_point.  The entry_point
-     * function will eventually return, hitting process_exit_trampoline.
-     * We set up the stack so that a `ret` from entry_point goes to
-     * process_exit_trampoline.
+     *   context_switch(old_proc, new_proc)
+     * which loads ESP from new_proc->context.esp and jumps to
+     * new_proc->context.eip.  For a brand-new process we set
+     * context.eip = entry_point and pre-place process_exit_trampoline
+     * as a fake return address on its stack, so when entry_point
+     * returns, `ret` lands in the trampoline.
      */
     uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
     uint32_t *sp = (uint32_t *)top;
@@ -233,10 +247,13 @@ static uint32_t process_create_common(void (*entry_point)(void),
 
     p->context.esp    = (uint32_t)sp;
     p->context.eip    = (uint32_t)entry_point;
-    if (simd_enabled()) {
-        simd_context_save(proc_fxsave[slot]);
-        proc_fxsave_valid[slot] = true;
-    }
+
+    /* Seed fp_state with a fresh FXSAVE from the currently-init'd FPU
+     * so the first FXRSTOR into this process loads a valid image.  The
+     * PCB was just memset to zero above; a zeroed 512-byte region is
+     * technically an acceptable FXRSTOR source (MXCSR reserved bits =
+     * 0), but grabbing a real snapshot is free and cleaner. */
+    __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
 
     process_count++;
 
@@ -415,7 +432,6 @@ void process_kill(uint32_t pid) {
             p->image_size = 0;
         }
         p->pid = 0;
-        proc_fxsave_valid[pid - 1] = false;
         memset(p, 0, sizeof(process_t));
         process_count--;
         __asm__ volatile("sti");
@@ -494,6 +510,79 @@ void process_list(void) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  process_list_adam - TempleOS-style task tree
+ *
+ *  Adam is the root task. Every process is a descendant. Group by
+ *  domain (kernel/hosted/external). No parent tracking, so the tree
+ *  is two levels deep: Adam > domain > process.
+ * ══════════════════════════════════════════════════════════════════════ */
+void process_list_adam(void) {
+    process_reap_terminated();
+
+    print("+ Adam (pid 1, cupid-os ring 0)\n");
+
+    static const process_domain_t domains[] = {
+        PROCESS_DOMAIN_KERNEL,
+        PROCESS_DOMAIN_HOSTED,
+        PROCESS_DOMAIN_EXTERNAL
+    };
+
+    for (int d = 0; d < 3; d++) {
+        process_domain_t dom = domains[d];
+        const char *dname = process_domain_name(dom);
+
+        uint32_t count = 0;
+        for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+            process_t *p = &process_table[i];
+            if (p->pid == 0 || p->pid == 1) continue;
+            if (p->domain == dom) count++;
+        }
+        if (count == 0) continue;
+
+        print("|-- ");
+        print(dname);
+        print(" (");
+        print_int(count);
+        print(")\n");
+
+        for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
+            process_t *p = &process_table[i];
+            if (p->pid == 0 || p->pid == 1) continue;
+            if (p->domain != dom) continue;
+
+            print("|   `-- [");
+            print_int(p->pid);
+            print("] ");
+            print(p->name);
+
+            const char *sname = "?";
+            if (p->state <= PROCESS_TERMINATED) {
+                sname = state_names[p->state];
+            }
+            print(" <");
+            print(sname);
+            print(">\n");
+        }
+    }
+
+    int jit_count = shell_jit_suspended_count();
+    if (jit_count > 0) {
+        print("|-- suspended JIT (");
+        print_int((uint32_t)jit_count);
+        print(")\n");
+        for (int j = 0; j < jit_count; j++) {
+            print("|   `-- ");
+            print(shell_jit_suspended_get_name(j));
+            print("\n");
+        }
+    }
+
+    print("`-- total: ");
+    print_int(process_count);
+    print(" task(s) under Adam\n");
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  schedule - Round-robin context switch
  *
  *  1. Find the next READY process (round-robin, fallback to idle)
@@ -527,7 +616,6 @@ void schedule(void) {
             kfree(current->stack_base);
             current->stack_base = NULL;
             current->pid = 0;
-            proc_fxsave_valid[current_pid - 1] = false;
             memset(current, 0, sizeof(process_t));
             process_count--;
             current_pid = 0;
@@ -577,44 +665,41 @@ void schedule(void) {
     current_pid = next->pid;
     next->state = PROCESS_RUNNING;
 
-    uint32_t new_esp = next->context.esp;
-    uint32_t new_eip = next->context.eip;
-
-    /* For a previously-saved process, new_eip = context_switch_resume
-     * (set by context_switch() when it saved the process).
-     * For a brand-new process, new_eip = entry_point function.
+    /* context_switch(old_proc, new_proc):
+     *   - pushes callee-saved regs on current stack
+     *   - fxsaves SSE/x87 state into old_proc->fp_state
+     *   - stores current ESP into old_proc->context.esp
+     *   - loads ESP from new_proc->context.esp
+     *   - fxrstors new_proc->fp_state
+     *   - jumps to new_proc->context.eip
      *
-     * context_switch() saves callee-saved regs + ESP, then does:
-     *   mov esp, new_esp
-     *   jmp new_eip
+     * For a previously-saved process, new_proc->context.eip =
+     * context_switch_resume (we seed it below before switching).
+     * For a brand-new process, new_proc->context.eip = entry_point;
+     * its stack already has process_exit_trampoline as the return
+     * address (set up by process_create_common).
      *
-     * It never returns to us - when THIS process is later resumed,
-     * context_switch_resume pops the saved regs and does `ret`,
-     * returning us right here. */
+     * context_switch never returns normally - when THIS process is
+     * later resumed, context_switch_resume pops the saved regs and
+     * does `ret`, returning us right here. */
 
     if (old_pid != 0 && old_pid <= MAX_PROCESSES) {
         process_t *old = &process_table[old_pid - 1];
-        /* context_switch saves ESP into old->context.esp,
-         * and sets the resume EIP to context_switch_resume */
+        /* Seed the old PCB's resume EIP so its next FXRSTOR+jmp
+         * lands in context_switch_resume. */
         old->context.eip = (uint32_t)context_switch_resume;
-        if (simd_enabled()) {
-            simd_context_save(proc_fxsave[old_pid - 1]);
-            proc_fxsave_valid[old_pid - 1] = true;
-            if (proc_fxsave_valid[next->pid - 1]) {
-                simd_context_restore(proc_fxsave[next->pid - 1]);
-            }
-        }
         __asm__ volatile("sti");
-        context_switch(&old->context.esp, new_esp, new_eip);
+        context_switch(old, next);
         /* We resume here when rescheduled */
     } else {
-        /* No valid old process - just switch (e.g. during exit) */
-        uint32_t dummy_esp;
-        if (simd_enabled() && proc_fxsave_valid[next->pid - 1]) {
-            simd_context_restore(proc_fxsave[next->pid - 1]);
-        }
+        /* No valid old process (e.g. entering after process_exit).
+         * Use a throw-away PCB scratch area so context_switch has
+         * somewhere to stash its garbage save.  We never read any
+         * of its fields again.  Must be 16-byte aligned (fp_state
+         * constraint inherited from the containing struct). */
+        static process_t dummy __attribute__((aligned(16)));
         __asm__ volatile("sti");
-        context_switch(&dummy_esp, new_esp, new_eip);
+        context_switch(&dummy, next);
     }
 }
 
@@ -686,10 +771,10 @@ uint32_t process_register_current(const char *name) {
 
     process_count++;
     current_pid = p->pid;
-    if (simd_enabled()) {
-        simd_context_save(proc_fxsave[slot]);
-        proc_fxsave_valid[slot] = true;
-    }
+
+    /* Seed fp_state with current FPU snapshot so the first context
+     * switch away from this thread has a valid image to restore. */
+    __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
 
     serial_printf("[PROCESS] Registered current thread as PID %u \"%s\"\n",
                   p->pid, p->name);

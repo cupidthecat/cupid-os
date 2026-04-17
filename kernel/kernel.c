@@ -31,8 +31,12 @@
 #include "blockdev.h"
 #include "blockcache.h"
 #include "fat16.h"
+#include "fpu.h"
 #include "fs.h"
 #include "memory.h"
+#include "panic.h"
+#include "pci.h"
+#include "usb.h"
 #include "simd.h"
 #include "string.h"
 #include "graphics.h"
@@ -51,6 +55,7 @@
 #include "devfs.h"
 #include "fat16_vfs.h"
 #include "homefs.h"
+#include "iso9660_vfs.h"
 #include "exec.h"
 #include "syscall.h"
 #include "../drivers/pit.h"
@@ -103,6 +108,8 @@ extern void install_docs_programs(void *fs_private);
 extern void install_demo_programs(void *fs_private);
 extern const char _binary_god_Vocab_DD_start[];
 extern const char _binary_god_Vocab_DD_end[];
+extern const char _binary_god_Psalms_DD_start[];
+extern const char _binary_god_Psalms_DD_end[];
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
@@ -156,7 +163,19 @@ void timer_callback_channel1(struct registers* r, uint32_t channel) {
  * Called from safe voluntary points (desktop event loop, process_yield)
  * where ESP/EBP manipulation won't corrupt an IRQ stack frame.
  */
+/* Forward declarations for USB idle-loop polls (ehci.c, uhci.c, usb.c) */
+extern void ehci_poll_interrupts(void);
+extern void uhci_poll_ports(void);
+extern void uhci_poll_interrupts(void);
+
 void kernel_check_reschedule(void) {
+    /* USB idle-loop polls — run every wake so the HC and work queue
+     * are serviced even when no keyboard/timer interrupt fires. */
+    ehci_poll_interrupts();
+    uhci_poll_ports();
+    uhci_poll_interrupts();
+    usb_process_pending();
+
     if (need_reschedule && process_is_active()) {
         need_reschedule = false;
         schedule();
@@ -545,9 +564,17 @@ uint32_t get_pit_ticks_per_ms(void) {
  * interrupt events to conserve power.
  */
 void kmain(void) {
+    /* Enable x87/SSE2 FIRST, before any C code that GCC may have
+     * auto-vectorized (serial_printf -> serial_print_hex contains
+     * movdqa and #UDs without CR4.OSFXSR). Pure CR0/CR4 writes are
+     * safe pre-init; the serial_printf at the end of fpu_init() is
+     * only reachable once OSFXSR is set. */
+    fpu_init();
+
     // Initialize serial port first for debug output
     serial_init();
     KINFO("cupid-os booting...");
+    KINFO("FPU/SSE2 initialized");
 
     // Initialize memory management
     pmm_init((uint32_t)&_kernel_end);
@@ -561,6 +588,27 @@ void kmain(void) {
     keyboard_init();
     calibrate_timer();
     KINFO("Interrupts and timers initialized");
+
+    // Initialize PCI bus enumeration
+    pci_init();
+    KINFO("PCI bus enumeration complete");
+
+    // Initialize USB core, EHCI then UHCI host controllers
+    // EHCI MUST run first: it sets CONFIGFLAG=1 and releases LS/FS ports
+    // to companion UHCI via PORT_OWNER. Reversed order causes races.
+    extern void ehci_init_all(void);
+    extern void ehci_poll_interrupts(void);
+    extern void uhci_init_all(void);
+    extern void usb_hid_init(void);
+    extern void usb_hub_init(void);
+    extern void usb_msc_init(void);
+
+    usb_init();
+    usb_hid_init();
+    usb_hub_init();
+    usb_msc_init();
+    ehci_init_all();   /* MUST be before UHCI: EHCI hands LS/FS ports to companion via PORT_OWNER */
+    uhci_init_all();
 
     // Initialize filesystem
     fs_init();
@@ -605,6 +653,7 @@ void kmain(void) {
     vfs_register_fs(devfs_get_ops());
     vfs_register_fs(fat16_vfs_get_ops());
     vfs_register_fs(homefs_get_ops());
+    vfs_register_fs(iso9660_vfs_get_ops());
 
     /* Mount root filesystem (ramfs) */
     if (vfs_mount(NULL, "/", "ramfs") == VFS_OK) {
@@ -716,6 +765,14 @@ void kmain(void) {
                                _binary_god_Vocab_DD_start,
                                vocab_sz);
                 KINFO("Installed /god/Vocab.DD (%u bytes)", vocab_sz);
+
+                uint32_t psalms_sz =
+                    (uint32_t)(_binary_god_Psalms_DD_end - _binary_god_Psalms_DD_start);
+                ramfs_add_file(root_mnt->fs_private,
+                               "god/Psalms.DD",
+                               _binary_god_Psalms_DD_start,
+                               psalms_sz);
+                KINFO("Installed /god/Psalms.DD (%u bytes)", psalms_sz);
             }
         }
     }
@@ -772,6 +829,13 @@ void kmain(void) {
     // Start the process scheduler
     process_register_current("desktop");   // Register main thread as PID 2
     process_start_scheduler();
+    fpu_boot_smoke();
+    KINFO("FPU boot smoke passed");
+
+#ifdef FPU_STRESS
+    fpu_context_stress();
+    KINFO("FPU stress passed");
+#endif
 
     KINFO("Entering desktop environment");
 

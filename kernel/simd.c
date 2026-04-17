@@ -97,30 +97,6 @@ bool simd_enabled(void) {
     return simd_use_sse2;
 }
 
-void simd_context_save(uint8_t *area) {
-#ifdef __SSE2__
-    if (!simd_use_sse2) {
-        (void)area;
-        return;
-    }
-    __asm__ volatile("fxsave (%0)" : : "r"(area) : "memory");
-#else
-    (void)area;
-#endif
-}
-
-void simd_context_restore(const uint8_t *area) {
-#ifdef __SSE2__
-    if (!simd_use_sse2) {
-        (void)area;
-        return;
-    }
-    __asm__ volatile("fxrstor (%0)" : : "r"(area) : "memory");
-#else
-    (void)area;
-#endif
-}
-
 static void simd_sfence(void) {
 #ifdef __SSE2__
     if (!simd_use_sse2) {

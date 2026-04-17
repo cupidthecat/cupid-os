@@ -39,4 +39,8 @@ void mouse_mark_cursor_dirty(void); /* mark dirty rect covering old+new cursor *
  * displayed LFB page - no memcpy/flip needed. */
 void mouse_update_cursor_direct(void);
 
+/* Inject a 3-byte HID-boot-style mouse event. Updates global mouse state
+ * the same way IRQ12 would. */
+void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy);
+
 #endif

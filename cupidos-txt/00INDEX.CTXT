@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS User Documentation
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -37,7 +37,7 @@ In rendered view, links, trees, buttons, code blocks, and sprites are live.
 >button List Docs | shell:ls /docs
 >button List Programs | shell:ls /bin
 >button List Home | shell:ls /home
->button Show Jobs | shell:jobs
+>button Show Processes | shell:ps
 >button Show Help | shell:help
 >endtree
 
@@ -68,9 +68,13 @@ docs + 2;
 [10ASM.CTXT](open:10ASM.CTXT)          CupidASM and disassembly workflow
 [11CTXT.CTXT](open:11CTXT.CTXT)        executable `.CTXT` / DolDoc manual
 [12HOLYC-CUPIDC.CTXT](open:12HOLYC-CUPIDC.CTXT)  HolyC-style CupidC features
+[13USB.CTXT](open:13USB.CTXT)       USB stack (UHCI+EHCI, HID, hub, mass storage)
+[14FPU-SSE.CTXT](open:14FPU-SSE.CTXT)  FPU + SSE2 + CupidC floats
+[15ISO9660.CTXT](open:15ISO9660.CTXT)   ISO9660 read-only mount
+[16SWAP.CTXT](open:16SWAP.CTXT)        Opt-in disk-backed swap
 >endtree
 
->tree Implementation Notes
+>tree open Implementation Notes
 1) The shell is command-dispatch driven:
    built-ins handle compiler/scripting/app launch paths and most day-to-day
    commands come from `/bin/*.cc`.

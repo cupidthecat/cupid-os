@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -86,7 +86,7 @@ The shell prints the started PID when loading succeeds.
 >endtree
 
 >h2 Syscall Wrapper Surface
->tree Syscall Wrapper Surface
+>tree open Syscall Wrapper Surface
 `user/cupid.h` exposes wrappers around the syscall table for:
 - console I/O
 - memory allocation
@@ -102,7 +102,7 @@ pre-registered bindings.
 >endtree
 
 >h2 Process Model
->tree Process Model
+>tree open Process Model
 ELF programs are created through `process_create_with_arg_ex(...)` with:
   `PROCESS_DOMAIN_EXTERNAL`
 
@@ -113,7 +113,7 @@ That is classification, not isolation:
 >endtree
 
 >h2 Manual Compile Reference
->tree Manual Compile Reference
+>tree open Manual Compile Reference
 Example object build:
   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 -Iuser \
       -c user/examples/hello.c -o hello.o
@@ -127,7 +127,7 @@ addresses.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC
->tree When To Use ELF Instead Of CupidC
+>tree open When To Use ELF Instead Of CupidC
 Choose ELF when you want:
 - explicit external toolchain control
 - direct syscall-table style programming

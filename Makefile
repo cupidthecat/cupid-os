@@ -5,7 +5,7 @@ CC=gcc
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
-	-mno-mmx -mno-sse -mno-sse2 -msoft-float \
+	-mfpmath=sse -msse -msse2 -mstackrealign \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
@@ -59,13 +59,14 @@ FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
-            drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o \
+            drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o kernel/pci.o kernel/usb.o kernel/uhci.o kernel/ehci.o kernel/usb_hid.o kernel/usb_hub.o kernel/usb_msc.o \
             kernel/paging.o drivers/ata.o kernel/blockdev.o kernel/blockcache.o kernel/fat16.o \
             drivers/serial.o kernel/panic.o kernel/ed.o \
             drivers/vga.o drivers/mouse.o kernel/font_8x8.o kernel/graphics.o \
 			kernel/gui.o kernel/desktop.o kernel/app_launch.o kernel/process.o kernel/context_switch.o \
 			kernel/clipboard.o kernel/ui.o \
 			kernel/godspeak.o \
+			kernel/fpu.o kernel/libm.o \
             kernel/cupidscript_lex.o kernel/cupidscript_parse.o \
             kernel/cupidscript_exec.o kernel/cupidscript_runtime.o \
             kernel/cupidscript_streams.o kernel/cupidscript_strings.o \
@@ -73,7 +74,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/ansi.o \
 			kernel/terminal_app.o \
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
-            kernel/homefs.o \
+            kernel/homefs.o kernel/loopdev.o kernel/iso9660.o kernel/iso9660_vfs.o \
+            kernel/swap_disk.o kernel/swap.o \
             kernel/syscall.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
@@ -175,6 +177,34 @@ kernel/fs.o: kernel/fs.c kernel/fs.h
 kernel/memory.o: kernel/memory.c kernel/memory.h
 	$(CC) $(CFLAGS) kernel/memory.c -o kernel/memory.o
 
+# PCI configuration space layer
+kernel/pci.o: kernel/pci.c kernel/pci.h kernel/ports.h
+	$(CC) $(CFLAGS) kernel/pci.c -o kernel/pci.o
+
+# USB core scaffold
+kernel/usb.o: kernel/usb.c kernel/usb.h kernel/usb_hc.h
+	$(CC) $(CFLAGS) kernel/usb.c -o kernel/usb.o
+
+# UHCI host controller init + port ops
+kernel/uhci.o: kernel/uhci.c kernel/usb.h kernel/usb_hc.h kernel/pci.h kernel/ports.h kernel/irq.h kernel/isr.h
+	$(CC) $(CFLAGS) kernel/uhci.c -o kernel/uhci.o
+
+# EHCI host controller init + BIOS handoff + port ops
+kernel/ehci.o: kernel/ehci.c kernel/usb.h kernel/usb_hc.h kernel/pci.h kernel/ports.h kernel/irq.h kernel/isr.h
+	$(CC) $(CFLAGS) kernel/ehci.c -o kernel/ehci.o
+
+# USB HID boot-protocol keyboard driver
+kernel/usb_hid.o: kernel/usb_hid.c kernel/usb.h kernel/usb_hc.h drivers/keyboard.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/usb_hid.c -o kernel/usb_hid.o
+
+# USB hub class driver (recursive enumeration + TT routing)
+kernel/usb_hub.o: kernel/usb_hub.c kernel/usb.h kernel/usb_hc.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/usb_hub.c -o kernel/usb_hub.o
+
+# USB mass storage class driver (BBB + SCSI)
+kernel/usb_msc.o: kernel/usb_msc.c kernel/usb.h kernel/usb_hc.h kernel/blockdev.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/usb_msc.c -o kernel/usb_msc.o
+
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
 	$(CC) $(CFLAGS) kernel/paging.c -o kernel/paging.o
@@ -268,6 +298,12 @@ kernel/ui.o: kernel/ui.c kernel/ui.h
 kernel/godspeak.o: kernel/godspeak.c kernel/godspeak.h
 	$(CC) $(CFLAGS) $(OPT) kernel/godspeak.c -o kernel/godspeak.o
 
+kernel/fpu.o: kernel/fpu.c kernel/fpu.h kernel/panic.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/fpu.c -o kernel/fpu.o
+
+kernel/libm.o: kernel/libm.c kernel/libm.h
+	$(CC) $(CFLAGS) $(OPT) kernel/libm.c -o kernel/libm.o
+
 kernel/cupidscript_lex.o: kernel/cupidscript_lex.c kernel/cupidscript.h
 	$(CC) $(CFLAGS) kernel/cupidscript_lex.c -o kernel/cupidscript_lex.o
 
@@ -310,6 +346,23 @@ kernel/fat16_vfs.o: kernel/fat16_vfs.c kernel/fat16_vfs.h kernel/vfs.h kernel/fa
 
 kernel/homefs.o: kernel/homefs.c kernel/homefs.h kernel/fat16.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/homefs.c -o kernel/homefs.o
+
+# File-backed loop block device (for ISO9660 mounting)
+kernel/loopdev.o: kernel/loopdev.c kernel/loopdev.h kernel/blockdev.h kernel/vfs.h kernel/memory.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/loopdev.c -o kernel/loopdev.o
+
+# ISO9660 / ECMA-119 + Rock Ridge parser
+kernel/iso9660.o: kernel/iso9660.c kernel/iso9660.h kernel/blockdev.h kernel/vfs.h kernel/string.h drivers/serial.h
+	$(CC) $(CFLAGS) $(OPT) kernel/iso9660.c -o kernel/iso9660.o
+
+kernel/iso9660_vfs.o: kernel/iso9660_vfs.c kernel/iso9660_vfs.h kernel/iso9660.h kernel/loopdev.h kernel/vfs.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/iso9660_vfs.c -o kernel/iso9660_vfs.o
+
+kernel/swap_disk.o: kernel/swap_disk.c kernel/swap_disk.h kernel/vfs.h drivers/serial.h
+	$(CC) $(CFLAGS) $(OPT) kernel/swap_disk.c -o kernel/swap_disk.o
+
+kernel/swap.o: kernel/swap.c kernel/swap.h kernel/swap_disk.h kernel/memory.h kernel/vfs.h drivers/serial.h
+	$(CC) $(CFLAGS) $(OPT) kernel/swap.c -o kernel/swap.o
 
 # Program loader (ELF + CUPD)
 kernel/exec.o: kernel/exec.c kernel/exec.h kernel/vfs.h kernel/process.h kernel/syscall.h
@@ -408,8 +461,8 @@ kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
 	@echo 'void install_bin_programs(void *fs_private);' >> $@
 	@echo 'void install_bin_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\\n", sz); }' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
@@ -428,8 +481,8 @@ kernel/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) Makefile
 	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
 	@echo 'void install_docs_programs(void *fs_private);' >> $@
 	@echo 'void install_docs_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\\n", sz); }' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/docs_programs_gen.o: kernel/docs_programs_gen.c
@@ -446,7 +499,7 @@ kernel/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
 	@$(foreach n,$(DEMO_ASM_NAMES),echo 'extern const char _binary_demos_$(n)_asm_end[];' >> $@;)
 	@echo 'void install_demo_programs(void *fs_private);' >> $@
 	@echo 'void install_demo_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DEMO_ASM_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\\n", sz); }' >> $@;)
+	@$(foreach n,$(DEMO_ASM_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/demos_programs_gen.o: kernel/demos_programs_gen.c
@@ -493,11 +546,41 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
 
+# Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
+# let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
+# for mass-storage testing (see run-usb target).
+QEMU_COMMON = -m 128M -boot c \
+	-drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk \
+	-rtc base=localtime \
+	-audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker \
+	-device piix3-usb-uhci -device usb-ehci \
+	-device usb-kbd -device usb-mouse
+
 run: $(OS_IMAGE)
-	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker -serial stdio
+	qemu-system-i386 $(QEMU_COMMON) -serial stdio
 
 run-log: $(OS_IMAGE)
-	qemu-system-i386 -m 128M -boot c -drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk -rtc base=localtime -audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker -serial file:debug.log
+	qemu-system-i386 $(QEMU_COMMON) -serial file:debug.log
+
+# Full P4 test: UHCI + EHCI + kbd + mouse + 32MB USB stick with FAT16 MBR.
+# Creates test_usb_partitioned.img on first use.
+run-usb: $(OS_IMAGE) test_usb_partitioned.img
+	qemu-system-i386 $(QEMU_COMMON) \
+		-drive if=none,id=ustick,file=test_usb_partitioned.img,format=raw \
+		-device usb-storage,drive=ustick \
+		-serial stdio
+
+test_usb_partitioned.img:
+	dd if=/dev/zero of=$@ bs=1M count=32 status=none
+	python3 -c "\
+import sys;\
+f=open('$@','r+b');\
+f.seek(0x1BE); f.write(bytes([0x80,0,1,0,0x06,0,1,0]));\
+f.write((2048).to_bytes(4,'little'));\
+f.write((63488).to_bytes(4,'little'));\
+f.seek(0x1FE); f.write(bytes([0x55,0xAA]));\
+f.close()"
+	@echo "Built $@ (32MB, MBR with one FAT16 partition at LBA 2048)"
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
 sync-demos: $(OS_IMAGE)
@@ -505,6 +588,23 @@ sync-demos: $(OS_IMAGE)
 	-@mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/home/demos
 	mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) demos/*.asm ::/home/demos/
 	@echo "Synced demos/*.asm -> $(OS_IMAGE):/home/demos/"
+
+# Test-only ISO - built from test_iso/fixtures/, mounted via
+# `mount /disk/hello.iso /iso` in the shell for feature17.
+TEST_ISO_FIXTURES := $(shell find test_iso/fixtures -type f 2>/dev/null)
+
+test_iso/fixtures/big.bin:
+	@test_iso/fixtures/gen_big.sh
+
+test_iso/hello.iso: $(TEST_ISO_FIXTURES) test_iso/fixtures/big.bin
+	@which mkisofs >/dev/null 2>&1 || which genisoimage >/dev/null 2>&1 || which xorrisofs >/dev/null 2>&1 || \
+	  (echo "ERROR: need mkisofs, genisoimage, or xorrisofs (apt install genisoimage)"; false)
+	@ISO_TOOL=$$(which mkisofs 2>/dev/null || which genisoimage 2>/dev/null || which xorrisofs); \
+	  $$ISO_TOOL -R -quiet -o test_iso/hello.iso test_iso/fixtures
+
+sync-iso: $(OS_IMAGE) test_iso/hello.iso
+	@mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso
+	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
@@ -515,4 +615,4 @@ clean-image:
 
 distclean: clean clean-image
 
-.PHONY: all run run-log sync-demos clean clean-image distclean
+.PHONY: all run run-log sync-demos sync-iso clean clean-image distclean

@@ -1,7 +1,7 @@
 /**
  * gui_themes.c - Theming System for cupid-os
  *
- * Active theme management, 6 built-in theme presets,
+ * Active theme management, 7 built-in theme presets,
  * style properties, and .theme file I/O.
  */
 
@@ -51,7 +51,10 @@ const ui_theme_t UI_THEME_WINDOWS95 = {
     /* desktop */
     .desktop_bg              = 0x00008080,
     .taskbar_bg              = 0x00C0C0C0,
-    .taskbar_text            = 0x00000000
+    .taskbar_text            = 0x00000000,
+    .terminal_bg             = 0x00000000,
+    .terminal_text           = 0x00C0C0C0,
+    .shadow_color            = 0x00808080
 };
 
 const ui_theme_t UI_THEME_PASTEL_DREAM = {
@@ -93,7 +96,10 @@ const ui_theme_t UI_THEME_PASTEL_DREAM = {
     /* desktop */
     .desktop_bg              = 0x00E8F0FF,
     .taskbar_bg              = 0x00D8D8E8,
-    .taskbar_text            = 0x00282830
+    .taskbar_text            = 0x00282830,
+    .terminal_bg             = 0x002A2238,
+    .terminal_text           = 0x00F0E0FF,
+    .shadow_color            = 0x00B0A0C0
 };
 
 const ui_theme_t UI_THEME_DARK_MODE = {
@@ -135,7 +141,10 @@ const ui_theme_t UI_THEME_DARK_MODE = {
     /* desktop */
     .desktop_bg              = 0x00181820,
     .taskbar_bg              = 0x00202028,
-    .taskbar_text            = 0x00E0E0E8
+    .taskbar_text            = 0x00E0E0E8,
+    .terminal_bg             = 0x001A1A1A,
+    .terminal_text           = 0x00E0E0E0,
+    .shadow_color            = 0x00000000
 };
 
 const ui_theme_t UI_THEME_HIGH_CONTRAST = {
@@ -177,7 +186,10 @@ const ui_theme_t UI_THEME_HIGH_CONTRAST = {
     /* desktop */
     .desktop_bg              = 0x00000000,
     .taskbar_bg              = 0x00000000,
-    .taskbar_text            = 0x00FFFFFF
+    .taskbar_text            = 0x00FFFFFF,
+    .terminal_bg             = 0x00000000,
+    .terminal_text           = 0x00FFFFFF,
+    .shadow_color            = 0x00FFFFFF
 };
 
 const ui_theme_t UI_THEME_RETRO_AMBER = {
@@ -219,7 +231,56 @@ const ui_theme_t UI_THEME_RETRO_AMBER = {
     /* desktop */
     .desktop_bg              = 0x00100800,
     .taskbar_bg              = 0x00201000,
-    .taskbar_text            = 0x00FFB840
+    .taskbar_text            = 0x00FFB840,
+    .terminal_bg             = 0x00201000,
+    .terminal_text           = 0x00FFB000,
+    .shadow_color            = 0x00603000
+};
+
+const ui_theme_t UI_THEME_TEMPLE = {
+    /* TempleOS palette: 16-color VGA vibe - red/yellow/white/cyan on black. */
+    /* window */
+    .window_bg               = 0x00000000,
+    .window_border           = 0x00FFFFFF,
+    .titlebar_active_start   = 0x000000AA,
+    .titlebar_active_end     = 0x000000AA,
+    .titlebar_inactive_start = 0x00555555,
+    .titlebar_inactive_end   = 0x00555555,
+    .titlebar_text           = 0x00FFFFFF,
+    /* controls */
+    .button_face             = 0x00AAAAAA,
+    .button_highlight        = 0x00FFFFFF,
+    .button_shadow           = 0x00555555,
+    .button_text             = 0x00000000,
+    .button_disabled_text    = 0x00555555,
+    /* input */
+    .input_bg                = 0x00000000,
+    .input_border            = 0x00FFFFFF,
+    .input_text              = 0x00FFFF55,
+    .input_selection         = 0x00AA0000,
+    /* menu */
+    .menu_bg                 = 0x00000000,
+    .menu_hover              = 0x00AA0000,
+    .menu_selected           = 0x00AA0000,
+    .menu_text               = 0x00FFFFFF,
+    .menu_disabled_text      = 0x00555555,
+    .menu_separator          = 0x00FFFFFF,
+    /* accent */
+    .accent_primary          = 0x00FF5555,
+    .accent_secondary        = 0x0055FFFF,
+    .link_color              = 0x0055FFFF,
+    /* status */
+    .success                 = 0x0055FF55,
+    .warning                 = 0x00FFFF55,
+    .error                   = 0x00FF5555,
+    .info                    = 0x0055FFFF,
+    /* desktop */
+    .desktop_bg              = 0x00000000,
+    .taskbar_bg              = 0x00AA0000,
+    .taskbar_text            = 0x00FFFFFF,
+    .terminal_bg             = 0x00000080,
+    .terminal_text           = 0x00FFFFFF,
+    .shadow_color            = 0x00000000
 };
 
 const ui_theme_t UI_THEME_VAPORWAVE = {
@@ -261,7 +322,10 @@ const ui_theme_t UI_THEME_VAPORWAVE = {
     /* desktop */
     .desktop_bg              = 0x000D0018,
     .taskbar_bg              = 0x001A0028,
-    .taskbar_text            = 0x0001CDFE
+    .taskbar_text            = 0x0001CDFE,
+    .terminal_bg             = 0x00200838,
+    .terminal_text           = 0x00FF71CE,
+    .shadow_color            = 0x00FF00AA
 };
 
 /* Active State */
@@ -385,6 +449,9 @@ static const theme_field_t theme_fields[] = {
     FIELD(desktop_bg),
     FIELD(taskbar_bg),
     FIELD(taskbar_text),
+    FIELD(terminal_bg),
+    FIELD(terminal_text),
+    FIELD(shadow_color),
     { NULL, 0 }
 };
 

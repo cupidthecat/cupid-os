@@ -24,6 +24,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Disk Setup](Disk-Setup) | Creating and formatting FAT16 disk images for QEMU |
 | [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
+| [USB](USB) | UHCI + EHCI host controllers, HID keyboard/mouse, hub class, mass storage (BBB + SCSI) |
 
 ---
 

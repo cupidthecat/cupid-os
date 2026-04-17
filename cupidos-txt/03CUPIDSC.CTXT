@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidScript Guide (.cup)
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -94,7 +94,7 @@ Functions:
 >endtree
 
 >h2 Tests
->tree Tests
+>tree open Tests
 Source-verified test operators in the executor:
 
 Unary:
@@ -155,7 +155,7 @@ not just interactive shell features.
 >endtree
 
 >h2 Runtime Model
->tree Runtime Model
+>tree open Runtime Model
 CupidScript execution path:
 1) tokenize source
 2) parse into AST
@@ -172,7 +172,7 @@ both work.
 >endtree
 
 >h2 Practical Workflow
->tree Practical Workflow
+>tree open Practical Workflow
 Common workflow:
 1) create `/home/hello.cup`
 2) run `cupid /home/hello.cup`
@@ -184,11 +184,11 @@ Useful companion commands:
 - `date` and `echo` inside scripts
 - `jobs` for background work
 >button Open Labs | open:07LABS.CTXT
->button Show Jobs | shell:jobs
+>button Show Processes | shell:ps
 >endtree
 
 >h2 Notes
->tree Notes
+>tree open Notes
 CupidScript is intentionally shell-like, not POSIX-complete bash.
 
 Current limits visible in the headers/runtime:

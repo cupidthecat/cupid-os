@@ -112,6 +112,46 @@ static const char *as_mnemonics[] = {
   "leave",
   "xchg",
   "movzx", "movsx",
+  /* FPU state-control (Task 8): 0F AE /N + mem, or fixed byte sequences */
+  "fxsave", "fxrstor",
+  "finit",  "fninit",
+  "fwait",
+  "ldmxcsr", "stmxcsr",
+  /* SSE scalar (Task 9): <prefix> 0F <op> /r
+   * movsd overlaps the string-op already in this table; the parser
+   * disambiguates by peeking for operands after the mnemonic. */
+  "movss",                     /* movsd already listed above */
+  "addss",  "addsd",
+  "subss",  "subsd",
+  "mulss",  "mulsd",
+  "divss",  "divsd",
+  "sqrtss", "sqrtsd",
+  "minss",  "maxss",
+  "cvtsi2ss",  "cvtsi2sd",
+  "cvtss2si",  "cvtsd2si",
+  "cvttss2si", "cvttsd2si",
+  "cvtss2sd",  "cvtsd2ss",
+  "ucomiss",   "ucomisd",
+  /* SSE packed (Task 10): <prefix> 0F <op> /r, full 128-bit XMM. */
+  "movaps", "movups", "movapd", "movupd",
+  "addps",  "addpd",
+  "subps",  "subpd",
+  "mulps",  "mulpd",
+  "divps",  "divpd",
+  "sqrtps", "sqrtpd",
+  "minps",  "maxps",
+  "shufps", "cmpps",
+  "movmskps",
+  "andps",  "orps",   "xorps",
+  "cvtps2dq", "cvtdq2ps",
+  /* x87 FPU (Task 11): classic 8087 mnemonics. */
+  "fld", "fst", "fstp",
+  "fadd", "faddp", "fsub", "fsubp",
+  "fmul", "fmulp", "fdiv", "fdivp",
+  "fabs", "fchs", "fsqrt",
+  "fsin", "fcos", "fptan", "fpatan",
+  "f2xm1", "fyl2x", "fscale", "fprem",
+  "fstsw", "fldcw", "fstcw",
   NULL
 };
 
@@ -140,6 +180,16 @@ static const as_reg_info_t as_registers[] = {
   /* 8-bit */
   {"al",  0, 1}, {"cl",  1, 1}, {"dl",  2, 1}, {"bl",  3, 1},
   {"ah",  4, 1}, {"ch",  5, 1}, {"dh",  6, 1}, {"bh",  7, 1},
+  /* SSE XMM (128-bit) - size tag AS_REGSIZE_XMM = 16 */
+  {"xmm0", 0, AS_REGSIZE_XMM}, {"xmm1", 1, AS_REGSIZE_XMM},
+  {"xmm2", 2, AS_REGSIZE_XMM}, {"xmm3", 3, AS_REGSIZE_XMM},
+  {"xmm4", 4, AS_REGSIZE_XMM}, {"xmm5", 5, AS_REGSIZE_XMM},
+  {"xmm6", 6, AS_REGSIZE_XMM}, {"xmm7", 7, AS_REGSIZE_XMM},
+  /* x87 ST(i) (80-bit extended) - size tag AS_REGSIZE_ST = 10 */
+  {"st0",  0, AS_REGSIZE_ST},  {"st1",  1, AS_REGSIZE_ST},
+  {"st2",  2, AS_REGSIZE_ST},  {"st3",  3, AS_REGSIZE_ST},
+  {"st4",  4, AS_REGSIZE_ST},  {"st5",  5, AS_REGSIZE_ST},
+  {"st6",  6, AS_REGSIZE_ST},  {"st7",  7, AS_REGSIZE_ST},
   {NULL, 0, 0}
 };
 

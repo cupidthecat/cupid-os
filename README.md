@@ -10,16 +10,28 @@
 
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
+- Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
+- CupidC float/double scalars and float4/double2 SIMD types with SSE intrinsics
+- libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
+- printf %f, %e, %g, %.Nf with x87-backed int/fractional split
+- #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump
 - CupidASM, an Intel-syntax x86-32 assembler with JIT and ELF32 AOT output
 - CupidScript, a shell scripting language with pipes, redirects, and job control
 - 73 built-in shell programs with history, tab completion, pipes, and redirects
 - VFS with RamFS (/), DevFS (/dev), FAT16 (/disk), and persistent homefs (/home)
+- Opt-in swap: handle-based disk-backed memory extension with 4 size
+  classes (1K/4K/16K/64K), true LRU eviction, up to 1024 handles over
+  a 16 MB FAT16 swap file.
+- ISO9660 readonly mount with Rock Ridge (SUSP/RRIP) long filenames,
+  multi-mount (up to 4), case-insensitive lookup; mount .iso files
+  from the VFS via `mount foo.iso /iso`
 - Preemptive round-robin scheduler, up to 32 kernel threads
 - Process domains in scheduler and `ps` output (kernel/hosted/external)
 - Two-stage bootloader that loads the kernel above 1MB via unreal mode
 - GUI apps: Notepad, Terminal with ANSI colors, Paint, Calendar, File Manager
 - 64-entry LRU disk block cache with write-back policy
 - 6 GUI themes: Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, Vaporwave
+- **USB 1.1 + 2.0**: UHCI + EHCI host controllers with HID keyboard/mouse, hub class (depth ≤ 5), and mass storage (BBB + SCSI)
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP image codec
 

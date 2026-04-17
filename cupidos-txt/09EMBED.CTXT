@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-04-10
+Verified against source on: 2026-04-16
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -84,7 +84,7 @@ embed_answer;
 >endtree
 
 >h2 Method B: RAMFS Memory Docs (/)
->tree Method B: RAMFS Memory Docs
+>tree open Method B: RAMFS Memory Docs
 Goal:
 - Bundle small docs directly in kernel boot memory files.
 
@@ -98,7 +98,7 @@ Tradeoff:
 >endtree
 
 >h2 Method C: Auto-Install Doc Files To RAMFS At Boot (Advanced)
->tree Method C: Auto-Install Doc Files To RAMFS At Boot
+>tree open Method C: Auto-Install Doc Files To RAMFS At Boot
 Pattern is already implemented for:
 - /bin programs (bin/*.cc)
 - /docs pages (cupidos-txt/*.CTXT)
@@ -119,7 +119,7 @@ Tradeoff:
 >endtree
 
 >h2 Practical Recommendation
->tree Practical Recommendation
+>tree open Practical Recommendation
 For shipped system manuals:
 1) Keep canonical docs in `cupidos-txt/`
 2) Rebuild so they install to `/docs/*.ctxt`

@@ -173,37 +173,68 @@ int vfs_mount(const char *source, const char *target,
     return VFS_OK;
 }
 
+int vfs_umount(const char *target) {
+    if (!target) return VFS_EINVAL;
+
+    /* Find a mount whose path exactly matches target. */
+    for (int i = 0; i < VFS_MAX_MOUNTS; i++) {
+        vfs_mount_t *m = &mounts[i];
+        if (!m->mounted) continue;
+        if (strcmp(m->path, target) != 0) continue;
+
+        /* Close any open files rooted at this mount. */
+        for (int fd = 0; fd < VFS_MAX_OPEN_FILES; fd++) {
+            if (fd_table[fd].in_use && fd_table[fd].mount == m) {
+                vfs_close(fd);
+            }
+        }
+
+        int rc = 0;
+        if (m->ops && m->ops->unmount) {
+            rc = m->ops->unmount(m->fs_private);
+        }
+        m->mounted    = 0;
+        m->fs_private = NULL;
+        m->path[0]    = '\0';
+        m->ops        = NULL;
+
+        KINFO("VFS: unmounted '%s'", target);
+        return rc;
+    }
+    return VFS_ENOENT;
+}
+
 /* File operations */
 
 int vfs_open(const char *path, uint32_t flags) {
-    serial_printf("[vfs_open] path='%s' flags=0x%x\n", path ? path : "(null)", flags);
+    KDEBUG("vfs_open path='%s' flags=0x%x", path ? path : "(null)", flags);
 
     if (!path || path[0] != '/') {
-        serial_printf("[vfs_open] EINVAL: bad path\n");
+        KDEBUG("vfs_open EINVAL: bad path");
         return VFS_EINVAL;
     }
 
     const char *rel_path = NULL;
     vfs_mount_t *m = find_mount(path, &rel_path);
     if (!m) {
-        serial_printf("[vfs_open] ENOENT: no mount for '%s'\n", path);
+        KDEBUG("vfs_open ENOENT: no mount for '%s'", path);
         return VFS_ENOENT;
     }
     if (!m->ops->open) {
-        serial_printf("[vfs_open] ENOSYS: no open op\n");
+        KDEBUG("vfs_open ENOSYS: no open op");
         return VFS_ENOSYS;
     }
 
     int fd = alloc_fd();
     if (fd < 0) {
-        serial_printf("[vfs_open] EMFILE: no free fd\n");
+        KDEBUG("vfs_open EMFILE: no free fd");
         return VFS_EMFILE;
     }
 
     void *handle = NULL;
     int rc = m->ops->open(m->fs_private, rel_path, flags, &handle);
     if (rc < 0) {
-        serial_printf("[vfs_open] open failed: rc=%d\n", rc);
+        KDEBUG("vfs_open open failed: rc=%d", rc);
         fd_table[fd].in_use = 0;
         return rc;
     }
@@ -213,7 +244,7 @@ int vfs_open(const char *path, uint32_t flags) {
     fd_table[fd].fs_data = handle;
     fd_table[fd].mount = m;
 
-    serial_printf("[vfs_open] success: fd=%d\n", fd);
+    KDEBUG("vfs_open success: fd=%d", fd);
     return fd;
 }
 
@@ -249,28 +280,28 @@ int vfs_read(int fd, void *buffer, uint32_t count) {
 
 int vfs_write(int fd, const void *buffer, uint32_t count) {
     if (fd < 0 || fd >= VFS_MAX_OPEN_FILES) {
-        serial_printf("[vfs_write] EINVAL: bad fd=%d\n", fd);
+        KDEBUG("vfs_write EINVAL: bad fd=%d", fd);
         return VFS_EINVAL;
     }
     if (!fd_table[fd].in_use) {
-        serial_printf("[vfs_write] EINVAL: fd=%d not in use\n", fd);
+        KDEBUG("vfs_write EINVAL: fd=%d not in use", fd);
         return VFS_EINVAL;
     }
     if (!buffer) {
-        serial_printf("[vfs_write] EINVAL: null buffer\n");
+        KDEBUG("vfs_write EINVAL: null buffer");
         return VFS_EINVAL;
     }
 
-    serial_printf("[vfs_write] fd=%d count=%u buffer=%p\n", fd, count, buffer);
+    KDEBUG("vfs_write fd=%d count=%u buffer=%p", fd, count, buffer);
 
     vfs_file_t *f = &fd_table[fd];
     if (!f->mount || !f->mount->ops->write) {
-        serial_printf("[vfs_write] ENOSYS: no write op\n");
+        KDEBUG("vfs_write ENOSYS: no write op");
         return VFS_ENOSYS;
     }
 
     int rc = f->mount->ops->write(f->fs_data, buffer, count);
-    serial_printf("[vfs_write] write returned rc=%d\n", rc);
+    KDEBUG("vfs_write returned rc=%d", rc);
     if (rc > 0) {
         f->position += (uint32_t)rc;
     }

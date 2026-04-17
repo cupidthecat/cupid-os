@@ -17,6 +17,9 @@ void print_stack_trace(uint32_t ebp, uint32_t eip);
 /* Set output functions for panic/debug output (for GUI mode support) */
 void panic_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char));
 
+/* FP-specialized panic: dumps FSW/FCW/MXCSR alongside general registers. */
+void panic_fpu(const char *msg, uint32_t eip) __attribute__((noreturn));
+
 /* Capture current registers and panic (for use in macros). */
 #define PANIC(msg, ...) do { \
         uint32_t _ebp, _eip; \

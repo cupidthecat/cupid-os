@@ -58,6 +58,10 @@ typedef enum {
   CC_TOK_I8,
   CC_TOK_I16,
   CC_TOK_I32,
+  CC_TOK_FLOAT,
+  CC_TOK_DOUBLE,
+  CC_TOK_FLOAT4,
+  CC_TOK_DOUBLE2,
   CC_TOK_IF,
   CC_TOK_ELSE,
   CC_TOK_WHILE,
@@ -88,6 +92,7 @@ typedef enum {
   /* Identifiers and literals */
   CC_TOK_IDENT,    /* variable/function names               */
   CC_TOK_NUMBER,   /* integer literals                      */
+  CC_TOK_FLIT,     /* float/double literals (1.5, .5, 1e10) */
   CC_TOK_STRING,   /* "string literals"                     */
   CC_TOK_CHAR_LIT, /* 'A'                                   */
 
@@ -149,6 +154,8 @@ typedef struct {
   cc_token_type_t type;
   char text[CC_MAX_STRING]; /* holds idents & string content */
   int32_t int_value;
+  double fval;     /* filled when type == CC_TOK_FLIT        */
+  int flit_bits;   /* 32 ('f'/'F' suffix) or 64 (no suffix)  */
   int line;
 } cc_token_t;
 
@@ -173,7 +180,11 @@ typedef enum {
   TYPE_CHAR_PTR,   /* char*                                 */
   TYPE_STRUCT,     /* struct value (stack-allocated)         */
   TYPE_STRUCT_PTR, /* pointer to struct                     */
-  TYPE_FUNC_PTR    /* int (*fn)(...) - function pointer     */
+  TYPE_FUNC_PTR,   /* int (*fn)(...) - function pointer     */
+  TYPE_FLOAT,      /* 32-bit IEEE-754 single (SSE scalar)   */
+  TYPE_DOUBLE,     /* 64-bit IEEE-754 double (SSE scalar)   */
+  TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes)       */
+  TYPE_DOUBLE2     /* 2x double SIMD vector (16 bytes)      */
 } cc_type_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)

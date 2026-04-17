@@ -3,6 +3,9 @@
 ; Declare external C functions
 extern isr_handler
 extern irq_handler
+extern fpu_nm_handler
+extern fpu_mf_handler
+extern fpu_xf_handler
 
 ; Export symbols
 global isr0
@@ -17,6 +20,9 @@ global isr7
 global isr8
 global isr13
 global isr14
+global isr_fpu_nm
+global isr_fpu_mf
+global isr_fpu_xf
 
 ; Export IRQ symbols
 global irq0
@@ -258,6 +264,39 @@ irq15:
     push byte 0
     push byte 47
     jmp irq_common_stub
+
+; FPU exception stubs (vectors 7 #NM, 16 #MF, 19 #XF).
+; The CPU does NOT push an error code for any of these, so at entry
+; the stack top is the saved EIP. After pusha (8 regs * 4 = 32 bytes),
+; [esp + 32] addresses that saved EIP, which is passed to the C handler.
+; All three C handlers call panic_fpu which is noreturn (halts), but we
+; still restore state and iret for defensiveness in case panic returns.
+isr_fpu_nm:
+    pusha
+    mov eax, [esp + 32]
+    push eax
+    call fpu_nm_handler
+    add esp, 4
+    popa
+    iret
+
+isr_fpu_mf:
+    pusha
+    mov eax, [esp + 32]
+    push eax
+    call fpu_mf_handler
+    add esp, 4
+    popa
+    iret
+
+isr_fpu_xf:
+    pusha
+    mov eax, [esp + 32]
+    push eax
+    call fpu_xf_handler
+    add esp, 4
+    popa
+    iret
 
 ; Load IDT
 load_idt:

@@ -48,6 +48,8 @@ typedef struct {
     uint32_t         pid;                     /* 1–32, 0 = unused     */
     process_state_t  state;                   /* Current state        */
     cpu_context_t    context;                 /* Saved CPU registers  */
+    uint8_t          fp_state[512] __attribute__((aligned(16)));
+                                              /* FXSAVE/FXRSTOR area  */
     void            *stack_base;              /* Bottom of stack mem  */
     uint32_t         stack_size;              /* Stack size in bytes  */
     uint32_t         image_base;              /* ELF image load addr  */
@@ -150,6 +152,14 @@ int process_get_state(uint32_t pid);
  * process_list - Print all processes (used by `ps` shell command)
  */
 void process_list(void);
+
+/**
+ * process_list_adam - Print TempleOS-style Adam task tree
+ *
+ * Root = Adam (idle, PID 1). Children grouped by domain
+ * (kernel/hosted/external). Used by `adam` shell command.
+ */
+void process_list_adam(void);
 
 /**
  * schedule - Select and switch to the next READY process

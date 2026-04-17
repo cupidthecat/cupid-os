@@ -64,9 +64,32 @@ typedef struct {
   char text[AS_MAX_IDENT]; /* holds idents, mnemonics, strings */
   int32_t int_value;       /* for AS_TOK_NUMBER                */
   int reg_index;           /* for AS_TOK_REGISTER (0=eax..7)   */
-  int reg_size;            /* 1=8-bit, 2=16-bit, 4=32-bit      */
+  int reg_size;            /* 1=8-bit, 2=16-bit, 4=32-bit,     */
+                           /* 10=x87 ST (80-bit), 16=XMM (128) */
   int line;
 } as_token_t;
+
+/* Register IDs
+ *
+ * Legacy GP registers are still tokenized with the (reg_index, reg_size)
+ * pair carried in as_token_t (see as_registers[] in as_lex.c).  The enum
+ * below is additional plumbing for the SSE/x87 opcode tasks (Tasks 8-11)
+ * and currently only enumerates XMM and ST registers; GP registers are
+ * left out deliberately to avoid duplicating the existing name table.
+ */
+typedef enum {
+  AS_REG_XMM0 = 0, AS_REG_XMM1, AS_REG_XMM2, AS_REG_XMM3,
+  AS_REG_XMM4,     AS_REG_XMM5, AS_REG_XMM6, AS_REG_XMM7,
+  AS_REG_ST0,      AS_REG_ST1,  AS_REG_ST2,  AS_REG_ST3,
+  AS_REG_ST4,      AS_REG_ST5,  AS_REG_ST6,  AS_REG_ST7,
+  AS_REG_COUNT
+} as_reg_t;
+
+/* Distinctive reg_size tags used by as_lex.c for XMM/ST register tokens.
+ * Chosen to match the underlying hardware register width in bytes so they
+ * do not collide with the 1/2/4 values used by GP registers. */
+#define AS_REGSIZE_ST   10   /* x87 ST(i) - 80-bit extended precision  */
+#define AS_REGSIZE_XMM  16   /* XMM0..7   - 128-bit SSE                */
 
 /* Instruction Encoding */
 
@@ -186,5 +209,21 @@ as_token_t as_lex_peek(as_state_t *as);
 void as_parse_program(as_state_t *as);
 
 int as_write_elf(as_state_t *as, const char *path);
+
+/* Register classification helpers for the SSE/x87 opcode path.
+ * All inputs are the as_reg_t enum above (NOT the GP reg_index).
+ */
+static inline int as_is_xmm_reg(as_reg_t r) {
+  return r >= AS_REG_XMM0 && r <= AS_REG_XMM7;
+}
+static inline int as_is_st_reg(as_reg_t r) {
+  return r >= AS_REG_ST0 && r <= AS_REG_ST7;
+}
+static inline uint8_t as_xmm_index(as_reg_t r) {
+  return (uint8_t)((int)r - (int)AS_REG_XMM0);
+}
+static inline uint8_t as_st_index(as_reg_t r) {
+  return (uint8_t)((int)r - (int)AS_REG_ST0);
+}
 
 #endif /* AS_H */

@@ -11,7 +11,7 @@
 #define SERIAL_MODEM_CTRL(base)  ((uint16_t)(base + 4))
 #define SERIAL_LINE_STATUS(base) ((uint16_t)(base + 5))
 
-static log_level_t current_log_level = LOG_DEBUG;
+static log_level_t current_log_level = LOG_INFO;
 
 /* In-memory circular log buffer */
 static char   log_buffer[LOG_BUFFER_LINES][LOG_LINE_MAX];
@@ -81,6 +81,19 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     while (*fmt) {
         if (*fmt != '%') { serial_write_char(*fmt); fmt++; continue; }
         fmt++;
+
+        /* Phase D: parse optional ".N" precision before the conversion
+         * specifier so that %.Nf works.  -1 = "not specified". */
+        int prec = -1;
+        if (*fmt == '.') {
+            fmt++;
+            prec = 0;
+            while (*fmt >= '0' && *fmt <= '9') {
+                prec = prec * 10 + (*fmt - '0');
+                fmt++;
+            }
+        }
+
         switch (*fmt) {
         case 's': {
             const char *s = __builtin_va_arg(ap, const char *);
@@ -97,9 +110,53 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         case 'x': serial_print_hex(__builtin_va_arg(ap, uint32_t)); break;
         case 'p': serial_print_hex((uint32_t)__builtin_va_arg(ap, void *)); break;
         case 'c': serial_write_char((char)__builtin_va_arg(ap, int));       break;
+        case 'f': {
+            /* Phase D: %f and %.Nf via shared fmt_f in kernel/string.c.
+             * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39. */
+            double v = __builtin_va_arg(ap, double);
+            char buf[48];
+            int w = fmt_f(buf, (int)sizeof(buf), v, prec);
+            for (int i = 0; i < w; i++) {
+                serial_write_char(buf[i]);
+            }
+            break;
+        }
+        case 'e': {
+            /* Phase D: %e / %.Ne via shared fmt_e in kernel/string.c.
+             * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail. */
+            double v = __builtin_va_arg(ap, double);
+            char buf[48];
+            int w = fmt_e(buf, (int)sizeof(buf), v, prec);
+            for (int i = 0; i < w; i++) {
+                serial_write_char(buf[i]);
+            }
+            break;
+        }
+        case 'g': {
+            /* Phase D: %g / %.Ng via shared fmt_g in kernel/string.c.
+             * Picks the shorter of %f and %e for this value. */
+            double v = __builtin_va_arg(ap, double);
+            char buf[48];
+            int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);
+            for (int i = 0; i < w; i++) {
+                serial_write_char(buf[i]);
+            }
+            break;
+        }
         case '%': serial_write_char('%'); break;
         default:
             serial_write_char('%');
+            if (prec >= 0) {
+                /* Replay "." and digits we consumed so the output isn't lossy. */
+                serial_write_char('.');
+                char tmp[12]; int tl = 0;
+                int pp = prec;
+                if (pp == 0) tmp[tl++] = '0';
+                else {
+                    while (pp > 0) { tmp[tl++] = (char)('0' + (pp % 10)); pp /= 10; }
+                }
+                while (tl > 0) { serial_write_char(tmp[--tl]); }
+            }
             serial_write_char(*fmt);
             break;
         }

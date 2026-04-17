@@ -10,8 +10,6 @@
 
 void simd_init(void);
 bool simd_enabled(void);
-void simd_context_save(uint8_t *area);
-void simd_context_restore(const uint8_t *area);
 
 void simd_memcpy(void *dst, const void *src, uint32_t bytes);
 void simd_memset32(uint32_t *dst, uint32_t color, uint32_t count);

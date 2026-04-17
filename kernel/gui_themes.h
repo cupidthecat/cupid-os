@@ -55,6 +55,13 @@ typedef struct {
     uint32_t desktop_bg;
     uint32_t taskbar_bg;
     uint32_t taskbar_text;
+
+    /* Terminal colors */
+    uint32_t terminal_bg;
+    uint32_t terminal_text;
+
+    /* Misc colors */
+    uint32_t shadow_color;
 } ui_theme_t;
 
 typedef struct {
@@ -85,6 +92,7 @@ extern const ui_theme_t UI_THEME_PASTEL_DREAM;
 extern const ui_theme_t UI_THEME_DARK_MODE;
 extern const ui_theme_t UI_THEME_HIGH_CONTRAST;
 extern const ui_theme_t UI_THEME_RETRO_AMBER;
+extern const ui_theme_t UI_THEME_TEMPLE;
 extern const ui_theme_t UI_THEME_VAPORWAVE;
 
 /* Init */
