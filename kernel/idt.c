@@ -117,6 +117,10 @@ void idt_init(void) {
     print("IDT initialized.\n");
 }
 
+void idt_load_ap(void) {
+    load_idt(&idtp);
+}
+
 // Interrupt handler
 void isr_handler(struct registers* r) {
     /* Page Fault (INT 14) - enhanced diagnostics */

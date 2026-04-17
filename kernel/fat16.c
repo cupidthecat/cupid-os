@@ -176,6 +176,38 @@ int fat16_init(void) {
     fs.sectors_per_fat = boot->sectors_per_fat;
     fs.total_sectors = boot->total_sectors_16 ? (uint32_t)boot->total_sectors_16 : boot->total_sectors_32;
 
+    /* Validate BPB against our hard-coded assumptions. Many scanners use
+     * fixed 512-byte sector buffers and loop `i < 16` dir entries per
+     * sector; non-conforming values would cause div-by-zero or OOB reads
+     * from a corrupt or hostile disk image. */
+    if (fs.bytes_per_sector != 512u) {
+        print("FAT16: unsupported bytes_per_sector (only 512 handled)\n");
+        return -1;
+    }
+    if (fs.sectors_per_cluster == 0u ||
+        (fs.sectors_per_cluster & (fs.sectors_per_cluster - 1u)) != 0u) {
+        print("FAT16: invalid sectors_per_cluster (must be power of 2)\n");
+        return -1;
+    }
+    if (fs.num_fats == 0u || fs.num_fats > 2u) {
+        print("FAT16: invalid num_fats\n");
+        return -1;
+    }
+    if (fs.sectors_per_fat == 0u) {
+        print("FAT16: invalid sectors_per_fat\n");
+        return -1;
+    }
+    /* root_dir_entries is uint16 in BPB, max 65535 → (*32) never wraps 32-bit.
+     * Just reject zero so root-dir scans have something to walk. */
+    if (fs.root_dir_entries == 0u) {
+        print("FAT16: invalid root_dir_entries\n");
+        return -1;
+    }
+    if (fs.total_sectors == 0u) {
+        print("FAT16: invalid total_sectors\n");
+        return -1;
+    }
+
     // Calculate layout
     fs.fat_start = fs.partition_lba + fs.reserved_sectors;
     fs.root_dir_start = fs.fat_start + ((uint32_t)fs.num_fats * fs.sectors_per_fat);

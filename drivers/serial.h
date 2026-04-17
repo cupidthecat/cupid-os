@@ -25,6 +25,12 @@ void serial_init(void);
 /* Write single character to serial */
 void serial_write_char(char c);
 
+/* Non-blocking COM1 RX. 1 if a byte waits, 0 otherwise. */
+int serial_has_rx(void);
+
+/* Read one byte from COM1. Returns -1 if nothing waiting. */
+int serial_read_char(void);
+
 /* Write null-terminated string to serial */
 void serial_write_string(const char *str);
 

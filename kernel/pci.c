@@ -96,6 +96,14 @@ pci_device_t *pci_find_by_class(uint8_t class_code, uint8_t subclass,
     return NULL;
 }
 
+pci_device_t *pci_find_by_vendor_device(uint16_t vendor_id, uint16_t device_id) {
+    for (int i = 0; i < device_count; i++) {
+        pci_device_t *p = &devices[i];
+        if (p->vendor_id == vendor_id && p->device_id == device_id) return p;
+    }
+    return NULL;
+}
+
 void pci_enable_bus_master(pci_device_t *d) {
     uint32_t cmd = pci_config_read_dword(d->bus, d->device, d->function, 0x04);
     cmd &= 0x0000FFFFu;  /* preserve only Command; writing 0 to R/WC Status bits is a no-op */

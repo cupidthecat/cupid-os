@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 .CTXT DolDoc Manual
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,14 +14,13 @@ Verified against source on: 2026-04-16
 >rule
 
 >h2 What This Is
-.CTXT is still plain text, but Notepad render mode now treats it as a bounded
-TempleOS-inspired DolDoc surface. Documents can contain executable CupidC,
-clickable actions, sprites, and collapsible widgets without leaving the manual.
+.CTXT is still plain text, but Notepad render mode (kernel/notepad.c) treats
+it as a bounded TempleOS-inspired DolDoc surface. Documents can contain
+executable CupidC, clickable actions, sprites, and collapsible widgets without
+leaving the manual.
 
-This is not full TempleOS `$...$` syntax. It is a source-readable subset built
-on top of CupidOS's existing `.CTXT` pipeline, with TempleOS
-DolDocOverview.DD, Widget.DD, ClickCallBack.HC, and MenuSprite.HC used as the
-north star.
+This is not full TempleOS $...$ syntax. It is a source-readable subset built
+on top of CupidOS's existing .CTXT pipeline.
 
 >box
 Press F2 in Notepad to switch between source and rendered view.
@@ -35,61 +34,60 @@ Use markdown-style links for inline actions:
 - [Run a shell command](shell:ls /docs)
 - [Evaluate CupidC](repl:3 + 4;)
 
-Standalone button widgets are still supported:
+Standalone button widgets:
 >button Open CupidC Guide | open:04CUPIDC.CTXT
 >button Show Processes | shell:ps
 >button Evaluate 40 + 2 | repl:40 + 2;
 >endtree
 
 >tree open Executable Code Blocks
-TempleOS documents blur the line between docs and code. CupidOS now does the
-same for `.CTXT` with runnable CupidC blocks rendered directly inside Notepad.
+TempleOS documents blur the line between docs and code. CupidOS .CTXT
+supports runnable CupidC blocks rendered directly inside Notepad.
 
-You can click the {b}Run{/b} button in the header or click directly on the code
-block body itself.
+Clicking the Run button in the code block header executes the snippet through
+the persistent CupidC REPL. Globals, structs, functions, and ans behave the
+same way they do at the shell prompt.
 
->code Run In REPL
-U32 x = 7;
-x * 6;
->endcode
+To write a runnable snippet, use >code ... >endcode. Note that every >code
+block registers itself as a REPL action, so only include runnable CupidC
+inside code blocks — not shell commands, pseudocode, or non-runnable text.
 
-The snippet executes through the persistent CupidC REPL, so globals, structs,
-functions, and `ans` behave the same way they do at the shell prompt.
+For shell command examples or pseudocode, indent them 2 spaces as plain prose
+text instead of wrapping them in >code...>endcode.
 >endtree
 
 >tree open Sprites And Assets
-TempleOS's `MenuSprite.HC` demonstrates that a sprite can be UI, not just art.
-CupidOS `.CTXT` now supports both static and clickable BMP widgets inline.
+CupidOS .CTXT supports both static and clickable BMP widgets inline.
 
 >sprite /docs/image.bmp 96 96
 >sprite /docs/image.bmp 96 96 | open:04CUPIDC.CTXT
 >sprite /docs/image.bmp 96 96 | repl:6 * 7;
 
 Syntax:
-   >sprite /docs/image.bmp
-   >sprite /docs/image.bmp 160 120
-   >sprite /docs/image.bmp 96 96 | open:04CUPIDC.CTXT
-   >sprite /docs/image.bmp 96 96 | repl:6 * 7;
+  >sprite /docs/image.bmp
+  >sprite /docs/image.bmp 160 120
+  >sprite /docs/image.bmp 96 96 | open:04CUPIDC.CTXT
+  >sprite /docs/image.bmp 96 96 | repl:6 * 7;
 
-For this manual set, `image.bmp` is embedded into ramfs at `/docs/image.bmp`
+For this manual set, image.bmp is embedded into ramfs at /docs/image.bmp
 so examples work out of the box after boot.
 >endtree
 
 >tree open Collapsible Tree Widgets
-TempleOS DolDoc uses tree widgets for browseable manuals. `.CTXT` now supports
-the same idea with a simple source form:
+.CTXT supports collapsible sections:
 
-   >tree open My Section
-   Visible lines go here.
-   >endtree
+  >tree open My Section
+  Visible lines go here.
+  >endtree
 
-If you omit `open`, the section starts collapsed, matching TempleOS's default
-tree behavior more closely.
+Always use >tree open Name (not just >tree Name) so the section is visible
+on file open. Closed trees require the user to click to expand them.
 >endtree
 
 >h2 Syntax Reference
+>tree open Syntax Reference
 Supported block tags:
-- >h1 / >h2 / >h3        headings
+- >h1 / >h2 / >h3        headings (use these, not markdown #### syntax)
 - >rule                  horizontal separator
 - >center Text           centered line
 - >comment ...           source-only comment
@@ -101,13 +99,19 @@ Supported block tags:
 - >theme dark|light      base palette preset
 - >style <key> #RRGGBB   palette override
 - >style reset           clear palette overrides
-- >tree [open] Label     collapsible widget
+- >tree open Label       collapsible widget (always use open)
 - >endtree               tree close
 - >button Label | action clickable button widget
-- >code [Label]          runnable CupidC block
+- >code [Label]          runnable CupidC block (clicking fires REPL)
 - >endcode               code block end
 - >sprite path [w h]     inline BMP sprite
 - >sprite ... | action   clickable BMP widget
+
+>box
+Important: every >code...>endcode block registers itself as a clickable REPL
+action. Only use >code for actual runnable CupidC snippets, not for shell
+command examples or pseudocode — those should be indented as prose text.
+>endbox
 
 Inline styling:
 - {c:#RRGGBB}text{}
@@ -116,8 +120,10 @@ Inline styling:
 - {u}underlined{/u}
 - {code}inline code{/code}
 - {} reset inline state
+>endtree
 
 >h2 Action Prefixes
+>tree open Action Prefixes
 Inline action links, buttons, and code blocks use these prefixes:
 - open:path      open another file in Notepad
 - shell:command  execute a shell command
@@ -127,8 +133,10 @@ Examples:
 - [Open docs index](open:00INDEX.CTXT)
 - [List /docs](shell:ls /docs)
 - [Set ans](repl:ans = 99;)
+>endtree
 
 >h2 Link Forms
+>tree open Link Forms
 Two link forms are supported:
 1) Action-aware markdown links:
    [Run demo](repl:12 * 12;)
@@ -137,10 +145,11 @@ Two link forms are supported:
    /docs/04CUPIDC.ctxt
 
 Bare path tokens open files. Markdown links can open files or run actions.
+>endtree
 
 >h2 Manuals Using DolDoc
 >tree open Every Shipped Manual
-Every manual under `/docs/*.ctxt` now uses the DolDoc-lite engine.
+Every manual under /docs/*.ctxt now uses the DolDoc-lite engine.
 
 [00INDEX.CTXT - index](open:00INDEX.CTXT)
 [01SHELL.CTXT - shell](open:01SHELL.CTXT)
@@ -154,31 +163,44 @@ Every manual under `/docs/*.ctxt` now uses the DolDoc-lite engine.
 [09EMBED.CTXT - embedding](open:09EMBED.CTXT)
 [10ASM.CTXT - assembler](open:10ASM.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)
+[13USB.CTXT - USB stack](open:13USB.CTXT)
+[14FPU-SSE.CTXT - FPU/SSE](open:14FPU-SSE.CTXT)
+[15ISO9660.CTXT - ISO9660](open:15ISO9660.CTXT)
+[16SWAP.CTXT - swap](open:16SWAP.CTXT)
+[17SMP.CTXT - SMP](open:17SMP.CTXT)
 >endtree
 
 >h2 Template
-Use this as a starter page:
+>tree open Starter Template
+Use this as a starter page (copy and edit):
 
->comment CupidMark converted document
->h1 My Live Manual
-Verified against source on: YYYY-MM-DD
->style bg #F7F4EC
->style body #1A1A1A
->style h1 #B03060
->style h2 #2B4FA8
->rule
+  >comment CupidMark converted document
+  >h1 My Live Manual
+  Verified against source on: YYYY-MM-DD
+  >style bg #F7F4EC
+  >style body #1A1A1A
+  >style h1 #B03060
+  >style h2 #2B4FA8
+  >style h3 #9A5A00
+  >style rule #B8B1A3
+  >style box #EEE7D8
+  >style boxtext #223355
+  >style link #1D4ED8
+  >style linkhover #0B3AA8
+  >rule
 
->h2 Overview
-One short paragraph.
+  >h2 Overview
+  One short paragraph.
 
->button Open Shell Guide | open:01SHELL.CTXT
-[Run quick math](repl:6 * 7;)
+  >button Open Shell Guide | open:01SHELL.CTXT
+  [Run quick math](repl:6 * 7;)
 
->tree open Example Block
->code Run In REPL
-U32 demo = 40;
-demo + 2;
->endcode
+  >tree open Example Block
+  Content goes here. For code examples, indent them 2 spaces:
 
->sprite /docs/image.bmp 96 96
+    U32 demo = 40;
+    demo + 2;
+
+  >sprite /docs/image.bmp 96 96
+  >endtree
 >endtree

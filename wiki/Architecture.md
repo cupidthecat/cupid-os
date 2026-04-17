@@ -50,7 +50,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 
 ```
 0x00000000 ┌──────────────────────────┐
-           │ Interrupt Vector Table   │ (not used - we use IDT)
+           │ Interrupt Vector Table    │ (not used - we use IDT)
 0x00000500 ├──────────────────────────┤
            │ VBE LFB address          │ ← Written by bootloader
 0x00001000 ├──────────────────────────┤
@@ -174,7 +174,7 @@ This avoids the complexity and stack corruption risks of switching inside interr
       │
       ▼
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│    Lexer     │───▶│    Parser    │───▶│  Interpreter │
+│    Lexer     │────▶│    Parser    │────▶│  Interpreter │
 │ (tokenize)   │     │ (build AST)  │     │ (execute AST)│
 └──────────────┘     └──────────────┘     └──────┬───────┘
                                                   │

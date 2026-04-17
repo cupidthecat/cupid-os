@@ -123,9 +123,10 @@ void timer_init(uint32_t hz) {
 // Get the current tick count
 uint64_t timer_get_ticks(void) {
     uint64_t ticks;
-    __asm__ volatile("cli");  // Disable interrupts
+    uint32_t ef;
+    __asm__ volatile("pushf; pop %0; cli" : "=r"(ef));
     ticks = timer_state.ticks;
-    __asm__ volatile("sti");  // Enable interrupts
+    if (ef & (1u << 9)) __asm__ volatile("sti");
     return ticks;
 }
 
@@ -136,10 +137,11 @@ uint32_t timer_get_frequency(void) {
 
 // Get system uptime in milliseconds
 uint32_t timer_get_uptime_ms(void) {
-    // Safely get current tick count
-    __asm__ volatile("cli");
+    /* Safely get current tick count without clobbering caller's IF state. */
+    uint32_t ef;
+    __asm__ volatile("pushf; pop %0; cli" : "=r"(ef));
     uint64_t current_ticks = timer_get_ticks();
-    __asm__ volatile("sti");
+    if (ef & (1u << 9)) __asm__ volatile("sti");
 
     if (timer_state.frequency == 0) {
         return 0;

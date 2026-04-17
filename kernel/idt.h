@@ -30,6 +30,7 @@ struct idt_ptr {
 
 // Function declarations
 void idt_init(void);
+void idt_load_ap(void);
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
 
 #endif 

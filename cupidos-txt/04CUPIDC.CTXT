@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -18,24 +18,22 @@ Verified against source on: 2026-04-16
 >tree open What Is CupidC
 CupidC is the in-OS C-like compiler used for most shell programs in /bin.
 
-Two modes:
+Source files: kernel/cupidc.c, cupidc_lex.c, cupidc_parse.c,
+              cupidc_string.c, cupidc_elf.c
+
+Three modes:
 1) JIT run:
    cupidc file.cc
 2) AOT to ELF:
    ccc file.cc -o output
 3) Compile + disassemble (no run):
-  cc -d file.cc
+   cc -d file.cc
 
 Shell also auto-discovers and runs:
 - /bin/<name>.cc
 - /home/bin/<name>.cc
 So if a file exists there, you can often just type:
   <name>
-
->code Quick JIT Expression
-U32 x = 6;
-x * 7;
->endcode
 >endtree
 
 >h2 Entry Point
@@ -45,11 +43,8 @@ Use:
 or:
   int main() { ... return 0; }
 
->code Entry Point Example
-void main() {
-  println("Entry point works.");
-}
->endcode
+Top-level statements (HolyC feature) also work without a main function.
+If both exist, top-level statements run first, then main() is called.
 >endtree
 
 >h2 Command-Line Arguments
@@ -67,67 +62,51 @@ Example:
       println("no args");
     }
   }
-
->code Read Args
-char *args = get_args();
-if (args && args[0]) {
-  println(args);
-} else {
-  println("no args");
-}
->endcode
 >endtree
 
 >h2 Hello Example
 >tree open Hello Example
-void main() {
-  println("Hello from CupidC");
-  print("cwd: ");
-  println(get_cwd());
-}
+  void main() {
+    println("Hello from CupidC");
+    print("cwd: ");
+    println(get_cwd());
+  }
 
 Save as /home/bin/hello.cc, then run:
   hello
-
->code Hello CupidC
-println("Hello from CupidC");
-println(get_cwd());
->endcode
 >endtree
 
 >h2 Language Features (Current)
 >tree open Language Features (Current)
 Supported core features include:
 - int, char, void, pointers
+- sized types: U0, U8, U16, U32, I8, I16, I32, Bool
 - structs (including field access)
+- class keyword with methods (HolyC-style)
 - arrays
 - if / else
 - ternary conditional operator (cond ? a : b)
 - while / for / do-while
 - switch / case / default
 - break / continue / return
-- function definitions and calls
+- function definitions and calls (including forward calls via two-pass)
+- new / del (kmalloc+zero-init / kfree+null)
+- reg / noreg storage class hints (accepted, semantic no-op)
 - typedef and enum support
 - basic inline asm blocks
 - arithmetic and logical operators
+- #pragma once
 
 Known practical constraints:
 - It is not full GCC C.
 - Keep code simple and direct.
 - Preprocessor/macros are not a normal workflow.
 - One-file program style is the easiest path.
-
->code Arithmetic And Control Flow
-U32 a = 10;
-U32 b = 20;
-U32 sum = a + b;
-sum;
->endcode
 >endtree
 
->h2 Floating Point (2026-04-16)
->tree open Floating Point (2026-04-16)
-CupidC now supports hardware floating point and SSE/SSE2 SIMD.
+>h2 Floating Point
+>tree open Floating Point
+CupidC supports hardware floating point and SSE/SSE2 SIMD.
 
 Scalar types:
 - float   (4 bytes, SSE scalar)
@@ -160,28 +139,19 @@ fabs, floor, ceil, round, trunc, fmod.
 
 printf now supports %f, %e, %g, and precision forms like %.3f.
 
->code Float Arithmetic
-float a = 1.5f;
-float b = 2.25f;
-a + b;
->endcode
-
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
+See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
+[Open FPU/SSE guide](open:14FPU-SSE.CTXT)
 >endtree
 
->h2 Preprocessor Update (2026-02-17)
->tree open Preprocessor Update (2026-02-17)
-CupidC now supports:
+>h2 Preprocessor
+>tree open Preprocessor
+CupidC supports:
 - #pragma once
 
 Use this at the top of reusable include-style .cc files (for example
 bin/ctxt.cc) to prevent duplicate-definition errors when a file is
 included multiple times.
-
->code Pragma Once Pattern
-U32 val = 42;
-val + 0;
->endcode
 >endtree
 
 >h2 Useful Bindings (Partial List)
@@ -217,63 +187,42 @@ Debug:
 Disk/cache:
   blockcache_sync, blockcache_stats
 
+Swap (opt-in):
+  swap_init, swap_kmalloc, swap_pin, swap_unpin, swap_free
+
 GUI/graphics:
   Large gfx2d and desktop UI binding set is available in GUI mode.
+  See the windowed graphics sections below.
 
-Notepad integration (CupidC app handoff):
+Notepad integration:
   notepad_get_open_path(out_path, out_save_path)
-  (used by bin/notepad.cc to receive desktop/calendar launch paths)
-
-Rendering backend note (2026-02-17):
-- CupidOS now uses an internal SSE2 SIMD acceleration layer for hot paths.
-- This speeds up framebuffer flip, clear, rect fill, and alpha blit loops.
-- CupidC gfx2d APIs are unchanged; programs do not need source changes.
 
 >button Show Uptime | shell:time
 >button List /bin | shell:ls /bin
 >endtree
 
->h2 New Graphics/Desktop Bindings (2026-02-14)
->tree open New Graphics/Desktop Bindings (2026-02-14)
-Recently added for GUI app and desktop-oriented workflows:
+>h2 Graphics/Desktop Bindings
+>tree open Graphics/Desktop Bindings
+Available for GUI app and desktop-oriented workflows:
 
 - gfx2d_text_wrap(x, y, w, str, color, font)
-  Draw wrapped text inside a fixed pixel width.
-
 - gfx2d_surface_blit_scaled(handle, x, y, w, h)
-  Draw an offscreen surface scaled to destination size.
-
 - gfx2d_icon_draw_named(label, x, y, color)
-  Draw a registered desktop icon by label name.
-
 - gfx2d_glow_circle(cx, cy, radius, color, alpha)
-  Draw radial glow accents (useful for hover/highlight FX).
-
 - gfx2d_light_sweep(x, y, w, h, tick, color, alpha)
-  Draw animated diagonal light sweep over a rectangular UI region.
-
 - gfx2d_popup_menu(x, y, items, count)
-  Show a modal context menu and return selected index.
-
 - gfx2d_tooltip(x, y, text)
-  Draw non-modal tooltip text near the cursor.
-
 - gfx2d_message_dialog(message)
-  Show modal message dialog (supports wrapped text and scrolling for long
-  content).
 
-Desktop app source metadata now also supports:
+Desktop app source metadata:
 - //app: Simple Name
 - //app: label="Name"; desc="Description"; icon=app; x=120; y=80;
 
 This registers launchable desktop icons when /bin .cc files are scanned.
 >endtree
 
->h2 New Windowed App + Terminal Bindings (2026-02-17)
->tree open New Windowed App + Terminal Bindings (2026-02-17)
-These were added for true windowed CupidC apps (for example the rewritten
-BG Studio and terminal.cc window process):
-
+>h2 Windowed App Bindings
+>tree open Windowed App Bindings
 Window lifecycle:
 - gui_win_create(title, x, y, w, h) -> int window_id (or -1)
 - gui_win_is_open(window_id) -> int
@@ -288,22 +237,9 @@ Window content geometry:
 Window input + present:
 - gui_win_poll_key(window_id) -> packed key or -1
   packed format: (scancode << 8) | char
-- gui_win_flip(window_id)
-  compatibility wrapper; older apps can keep using this
+- gui_win_flip(window_id)  (compatibility wrapper)
 
->code Open A Window
-I32 wid = gui_win_create("Test", 100, 80, 320, 240);
-gui_win_is_open(wid);
->endcode
->endtree
-
->h2 Windowed Graphics Update (2026-04-09)
->tree open Windowed Graphics Update (2026-04-09)
-Hosted/windowed CupidC apps now render through retained per-window surfaces.
-This removes the old "focused window owns the screen" behavior and lets the
-desktop compositor present hosted windows without fighting app-local flips.
-
-Recommended paint/present flow for windowed CupidC apps:
+Retained-surface paint/present flow (preferred):
 - gui_win_begin_paint(window_id) -> int
   binds the window's retained content surface as the active gfx2d target
 - gui_win_end_paint(window_id) -> int
@@ -315,32 +251,6 @@ Explicit invalidation helpers:
 - gui_win_invalidate(window_id) -> int
 - gui_win_invalidate_rect(window_id, x, y, w, h) -> int
 
-Compatibility notes:
-- gui_win_flip(window_id) still exists for older code paths
-- gui_win_flip(window_id) now routes through the retained-window compositor
-  path instead of directly owning screen presentation
-- older code should still run, but new code should prefer:
-  gui_win_begin_paint -> draw -> gui_win_end_paint -> gui_win_present
-
-Rendering model notes:
-- gfx2d surface rendering is now the canonical hosted-window path
-- shared UI helpers that use gfx_* and ui_* drawing now respect the active
-  gfx2d target, so they work correctly inside retained window surfaces
-- unfocused hosted windows keep their last composited content instead of
-  depending on focused redraw timing
-- window titlebars now choose a readable foreground color from the titlebar
-  brightness so hosted windows do not end up with dark text on dark chrome
-
-Dialog behavior:
-- file_dialog_open(start_path, out_path, filter_ext)
-- file_dialog_save(start_path, default_name, out_path, filter_ext)
-- when called from a focused hosted GUI window such as Notepad, file dialogs
-  now render as modal overlays inside that window's retained content surface
-- if no hosted window target is available, dialogs fall back to the older
-  screen-modal path
-- this change was made to remove flashing and z-order conflicts between modal
-  dialogs and the desktop compositor
-
 Terminal/shell buffer surface:
 - shell_buf_rows() / shell_buf_cols()
 - shell_buf_char(row, col)
@@ -348,16 +258,10 @@ Terminal/shell buffer surface:
 - shell_cursor_x() / shell_cursor_y()
 - shell_send_key(scancode, ch)
 
-Terminal rendering helpers:
-- ansi_color(vga_idx) -> 24-bit RGB
-- gfx2d_char(x, y, ch, color)
-- gfx2d_char_scaled(x, y, ch, color, scale)
-- gfx2d_text_simple(x, y, str, color)
-
-Input helper added with windowed terminal controls:
+Input helper:
 - keyboard_ctrl_held() -> int
 
-Desktop background control bindings used by BG Studio:
+Desktop background control:
 - desktop_bg_set_mode_anim(theme)
 - desktop_bg_set_mode_solid(color)
 - desktop_bg_set_mode_gradient(top, bottom)
@@ -386,11 +290,10 @@ Desktop background control bindings used by BG Studio:
    ccc /home/bin/mycmd.cc -o /home/mycmd
 
 5) Inspect generated instructions:
-  cc -d /home/bin/mycmd.cc
-  dis /home/mycmd
+   cc -d /home/bin/mycmd.cc
+   dis /home/mycmd
 
 >button Edit A File | shell:ed /home/bin/hello.cc
->button Run Hello | shell:cupidc /bin/hello.cc
 >endtree
 
 >h2 Error Handling Tips
@@ -399,12 +302,6 @@ Desktop background control bindings used by BG Studio:
 - If behavior is odd, reduce code to a tiny repro and re-add features.
 - Keep stack usage modest.
 - Prefer kmalloc for large buffers.
-
->code Safe Arithmetic Check
-U32 big = 1000;
-U32 small = 7;
-big - small;
->endcode
 >endtree
 
 >h2 When To Use CupidC Vs ELF C
@@ -413,7 +310,7 @@ Use CupidC when:
 - You want fastest edit/run loop inside CupidOS shell.
 - You want direct access to many kernel helper bindings.
 
-Use ELF C (see 05ELFPROG.TXT) when:
+Use ELF C (see 05ELFPROG.CTXT) when:
 - You want external GCC-based build flow.
 - You want a stable syscall-table ABI style entrypoint.
 >endtree
@@ -423,3 +320,4 @@ Use ELF C (see 05ELFPROG.TXT) when:
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)
 [09EMBED.CTXT - embedding](open:09EMBED.CTXT)
 [11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)
+[14FPU-SSE.CTXT - FPU/SSE](open:14FPU-SSE.CTXT)

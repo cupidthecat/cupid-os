@@ -181,9 +181,11 @@ void mouse_init(void) {
 
     mouse_cmd(0xF4);           /* Enable data reporting */
 
-    /* 4. Install IRQ12 handler and unmask */
+    /* 4. Install IRQ12 handler; irq_install_handler unmasks the IOAPIC GSI.
+     * DO NOT unmask 8259 — P5 disables the 8259 fully; if re-enabled it
+     * duplicate-delivers IRQ12 and then wedges because EOI now goes to
+     * LAPIC (not 8259). */
     irq_install_handler(12, mouse_irq_handler);
-    pic_clear_mask(12);
 
     KINFO("PS/2 mouse initialized");
 }

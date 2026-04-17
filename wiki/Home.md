@@ -9,6 +9,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | Page | Description |
 |------|-------------|
 | [Getting Started](Getting-Started) | Build requirements, compiling, booting in QEMU |
+| [Real Hardware](Real-Hardware) | Flashing to USB/disk, BIOS/CSM setup, booting on physical PCs |
 | [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
 | [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
 | [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
@@ -25,6 +26,8 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [ELF Programs](ELF-Programs) | Compiling, loading, and running ELF32 executables, syscall table API |
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
 | [USB](USB) | UHCI + EHCI host controllers, HID keyboard/mouse, hub class, mass storage (BBB + SCSI) |
+| [SMP](SMP) | SMP Tier 2: ACPI/MP discovery, per-CPU LAPIC timer, big kernel lock, IPI reschedule and cross-CPU call |
+| [Networking](Networking) | RTL8139 + E1000 drivers, TCP/UDP/ICMP/ARP/DHCP/DNS, BSD sockets |
 
 ---
 

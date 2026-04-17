@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Shell Guide
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -20,13 +20,13 @@ Verified against source on: 2026-04-16
 CupidOS uses one shell core in both text mode and the GUI Terminal app.
 
 Source-verified behavior:
-- current working directory prompt (`/home>`)
+- current working directory prompt (/home>)
 - TempleOS-style CupidC REPL at the normal prompt
-- prompt prints elapsed time and `ans` after successful REPL expressions
-- command history size: 16 entries
+- prompt prints elapsed time and ans after successful REPL expressions
+- command history size: 16 entries (HISTORY_SIZE in kernel/shell.c)
 - command/file tab completion
 - GUI output mode backed by the shell text/color buffers
-- direct shell built-ins plus TempleOS-style auto-discovery from `/bin` and `/home/bin`
+- direct shell built-ins plus TempleOS-style auto-discovery from /bin and /home/bin
 
 >button Show Help | shell:help
 >button Show Processes | shell:ps
@@ -40,22 +40,16 @@ Normal prompt:
   / >
   /home >
 
-If a CupidC expression returns a value, the next prompt first prints timing and
-`ans`:
+If a CupidC expression returns a value, the next prompt first prints timing and ans:
   0.003s ans=0x0000002A=42
   /home>
 
 If braces are still open, the shell switches to the continuation prompt:
   ..>
 
-This comes directly from the live REPL plumbing in `kernel/shell.c` and
-`kernel/cupidc.c`: the shell stages multi-line input until brace depth returns
-to zero, then calls `repl_eval()`.
-
->code Quick REPL Math
-U32 shell = 10;
-shell * 4 + 2;
->endcode
+This comes directly from the live REPL plumbing in kernel/shell.c and
+kernel/cupidc.c: the shell stages multi-line input until brace depth returns
+to zero, then calls repl_eval().
 
 >button Reset REPL State | shell:reset
 >endtree
@@ -67,50 +61,62 @@ When you type a command, the shell resolves it in this order:
 1) CupidC REPL compile/execute
    successful snippets stay in persistent REPL state
 
-2) Shell built-ins
-   `cupid`, `exec`, `notepad`, `terminal`, `ps`, `cc`, `cupidc`,
-   `ccc`, `reset`, `as`, `cupidasm`, `dis`, `theme`, `temple`, `adam`,
-   `holyc`
+2) Shell built-ins (see Built-Ins section below)
 
-3) Direct `/bin/<app>` dispatch for core app stubs and binaries
+3) Direct /bin/<app> dispatch for core app stubs and binaries
 
 4) TempleOS-style auto-discovery:
-   `/bin/<cmd>`
-   `/bin/<cmd>.cc`
-   `/home/bin/<cmd>`
-   `/home/bin/<cmd>.cc`
+   /bin/<cmd>
+   /bin/<cmd>.cc
+   /home/bin/<cmd>
+   /home/bin/<cmd>.cc
 
-5) `./...` execution by extension:
-   `./file.cup` -> CupidScript
-   `./file.cc`  -> CupidC JIT
-   `./file.asm` -> CupidASM JIT
-   `./binary`   -> exec loader
+5) ./... execution by extension:
+   ./file.cup -> CupidScript
+   ./file.cc  -> CupidC JIT
+   ./file.asm -> CupidASM JIT
+   ./binary   -> exec loader
 
 6) Bare extension convenience:
-   `file.cup` -> cupid
-   `file.cc`  -> cupidc
-   `file.asm` -> as
+   file.cup -> cupid
+   file.cc  -> cupidc
+   file.asm -> as
 >endtree
 
 >h2 Built-Ins
 >tree open Built-Ins
-Source-verified built-ins in `kernel/shell.c`:
-- `cupid`      run a `.cup` script
-- `exec`       run an ELF/CUPD binary by path
-- `notepad`    launch GUI Notepad
-- `terminal`   launch GUI Terminal
-- `ps`         list processes
-- `cc`         interactive CupidC REPL or `cc file.cc`
-- `cupidc`     JIT-run a `.cc` file
-- `ccc`        compile `.cc` to ELF
-- `reset`      clear persistent REPL state
-- `as`         JIT-run `.asm`, or `as -o`
-- `cupidasm`   assemble `.asm` to ELF
-- `dis`        disassemble ELF binary or `.cc` file
-- `theme`      switch GUI theme preset
-- `temple`     apply TempleOS red/yellow/white-on-black look
-- `adam`       show TempleOS-style task tree under PID 1 (Adam)
-- `holyc`      alias for `cc` (HolyC-style REPL)
+Source-verified built-ins in kernel/shell.c (commands[] table):
+
+Language / compiler:
+- cupid      run a .cup script
+- exec       run an ELF/CUPD binary by path
+- cc         interactive CupidC REPL or cc file.cc
+- cupidc     JIT-run a .cc file
+- ccc        compile .cc to ELF
+- reset      clear persistent REPL state
+- as         JIT-run .asm, or as -o
+- cupidasm   assemble .asm to ELF
+- dis        disassemble ELF binary or .cc file
+- holyc      alias for cc (HolyC-style REPL)
+
+Applications:
+- notepad    launch GUI Notepad
+- terminal   launch GUI Terminal
+- ps         list processes
+
+Filesystems:
+- mount      mount <src> <target> [<type>]
+- umount     unmount <target>
+
+System:
+- theme      switch GUI theme preset
+- temple     apply TempleOS red/yellow/white-on-black look
+- adam       show TempleOS-style task tree under PID 1 (Adam)
+- swapinit   init opt-in swap: swapinit [pool_kb]
+- swapstats  print swap usage
+- usb        list USB devices (usb | usb hubs | usb hc)
+- pci        list PCI devices
+- smp        list CPUs (smp | smp info)
 
 >button List /bin | shell:ls /bin
 >button List /home/bin | shell:ls /home/bin
@@ -127,9 +133,9 @@ Programs and scripts can query the current working directory with:
   get_cwd()
 
 Path resolution rules:
-- absolute paths start with `/`
+- absolute paths start with /
 - relative paths resolve from the current shell CWD
-- `.` and `..` are normalized by `shell_resolve_path()`
+- . and .. are normalized by shell_resolve_path()
 
 Common navigation commands:
   cd /path
@@ -141,25 +147,25 @@ Common navigation commands:
 >h2 Redirection, Pipes, and Background
 >tree open Redirection, Pipes, and Background
 Interactive shell and CupidScript both support:
-- `>` overwrite stdout
-- `>>` append stdout
-- `<` stdin redirect
-- `2>` stderr redirect
-- `2>&1` stderr to stdout
-- `|` pipelines
-- `&` background execution
+- > overwrite stdout
+- >> append stdout
+- < stdin redirect
+- 2> stderr redirect
+- 2>&1 stderr to stdout
+- | pipelines
+- & background execution
 
-CupidScript also tracks the last background PID as `$!`.
+CupidScript also tracks the last background PID as $!.
 
-`jobs` is a CupidScript-only builtin: it inspects the script runtime's job
-table from inside a running `.cup` script, not from the interactive shell
-prompt. Use `ps` from the shell to see live processes instead.
+jobs is a CupidScript-only builtin: it inspects the script runtime's job
+table from inside a running .cup script, not from the interactive shell
+prompt. Use ps from the shell to see live processes instead.
 >button Show Processes | shell:ps
 >endtree
 
 >h2 History and Completion
 >tree open History and Completion
-History size is fixed at 16 entries in the live shell.
+History size is fixed at 16 entries (HISTORY_SIZE).
 
 Interactive features:
 - arrow-key history navigation
@@ -191,13 +197,13 @@ F7 in Terminal or the text-mode shell runs:
 
 >h2 Alternate CupidC REPL
 >tree open Alternate CupidC REPL
-`cc` with no filename opens a dedicated line-oriented REPL:
+cc with no filename opens a dedicated line-oriented REPL:
   cc
 
-Behavior verified from `kernel/shell.c`:
-- prompt is `cc>` or `..>` while braces are open
+Behavior verified from kernel/shell.c:
+- prompt is cc> or ..> while braces are open
 - Ctrl+D exits when the current line is empty
-- `.exit` or `exit` leaves the session
+- .exit or exit leaves the session
 - successful snippets are appended to an in-memory session source file
 >endtree
 

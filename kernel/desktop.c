@@ -2923,7 +2923,11 @@ void desktop_run(void) {
     /* Check for deferred reschedule (preemptive time slice) */
     kernel_check_reschedule();
 
-    /* Yield CPU until next interrupt */
-    __asm__ volatile("hlt");
+    /* Yield CPU until next interrupt. Force sti so the hlt is never
+     * reached with IRQs disabled — some of our USB-polling paths leak
+     * IF=0 back through bkl_unlock when the scheduler did a context
+     * switch earlier in this iteration. Without sti, hlt would wedge
+     * forever. */
+    __asm__ volatile("sti; hlt");
   }
 }

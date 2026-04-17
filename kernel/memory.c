@@ -1,6 +1,7 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
+#include "bkl.h"
 #include "kernel.h"
 #include "panic.h"
 #include "string.h"
@@ -107,7 +108,7 @@ void *pmm_alloc_contiguous(uint32_t page_count) {
   return 0;
 }
 
-void *pmm_alloc_page(void) {
+static void *pmm_alloc_page_locked(void) {
   for (uint32_t i = 0; i < total_pages; i++) {
     if (!bitmap_test(i)) {
       bitmap_set(i);
@@ -117,11 +118,26 @@ void *pmm_alloc_page(void) {
   return 0;
 }
 
-void pmm_free_page(void *address) {
+void *pmm_alloc_page(void) {
+  bool take = bkl_is_initialized();
+  if (take) bkl_lock();
+  void *r = pmm_alloc_page_locked();
+  if (take) bkl_unlock();
+  return r;
+}
+
+static void pmm_free_page_locked(void *address) {
   uint32_t page = (uint32_t)address / PAGE_SIZE;
   if (page < total_pages) {
     bitmap_clear(page);
   }
+}
+
+void pmm_free_page(void *address) {
+  bool take = bkl_is_initialized();
+  if (take) bkl_lock();
+  pmm_free_page_locked(address);
+  if (take) bkl_unlock();
 }
 
 uint32_t pmm_free_pages(void) {
@@ -220,7 +236,7 @@ static void track_free(void *ptr) {
   }
 }
 
-void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
+static void *kmalloc_debug_locked(size_t size, const char *file, uint32_t line) {
   if (size == 0)
     return 0;
   if (!heap_head)
@@ -274,7 +290,15 @@ void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
   return 0;
 }
 
-void kfree(void *ptr) {
+void *kmalloc_debug(size_t size, const char *file, uint32_t line) {
+  bool take = bkl_is_initialized();
+  if (take) bkl_lock();
+  void *r = kmalloc_debug_locked(size, file, line);
+  if (take) bkl_unlock();
+  return r;
+}
+
+static void kfree_locked(void *ptr) {
   if (!ptr)
     return;
 
@@ -313,6 +337,13 @@ void kfree(void *ptr) {
       current = current->next;
     }
   }
+}
+
+void kfree(void *ptr) {
+  bool take = bkl_is_initialized();
+  if (take) bkl_lock();
+  kfree_locked(ptr);
+  if (take) bkl_unlock();
 }
 
 void heap_check_integrity(void) {

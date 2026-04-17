@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,20 +15,21 @@ Verified against source on: 2026-04-16
 
 >h2 Mount Layout
 >tree open Mount Layout
-Source-verified mount flow from `kernel/kernel.c`:
+Source-verified mount flow from kernel/kernel.c:
 
-/      -> ramfs
-/dev   -> devfs
-/disk  -> raw fat16
-/home  -> homefs
+  /      -> ramfs
+  /dev   -> devfs
+  /disk  -> fat16 (raw view, always mounted if block device present)
+  /home  -> homefs (FAT16-backed; falls back to raw fat16 if homefs fails)
 
-If `homefs` mount fails, the kernel falls back to mounting raw FAT16 at
-`/home`.
+If homefs mount fails, the kernel falls back to mounting raw FAT16 at /home.
+If no block device is available, /home is a non-persistent ramfs directory.
 
-This is the biggest storage change compared to older CupidOS docs:
-`/home` is no longer just the FAT16 namespace. The current kernel treats FAT16
-as the persistence backend and exposes a higher-level `homefs` filesystem at
-`/home`.
+This is the current storage architecture:
+- /disk = raw FAT16 compatibility namespace
+- /home = homefs higher-level namespace over the same FAT16 backing store
+
+Older docs that described /home as direct FAT16 are stale.
 
 >button mount | shell:mount
 >button ls / | shell:ls /
@@ -38,14 +39,13 @@ as the persistence backend and exposes a higher-level `homefs` filesystem at
 
 >h2 RAMFS
 >tree open RAMFS
-`/` is ramfs.
+/ is ramfs.
 
 Current boot-installed content includes:
-- `/bin/*.cc` embedded command sources and stubs
-- `/docs/*.ctxt` manuals
-- `/docs/image.bmp`
-- `/demos/*.asm`
-- `/docs/demos/*.asm`
+- /bin/*.cc embedded command sources and stubs
+- /docs/*.ctxt manuals
+- /docs/image.bmp
+- /demos/*.asm
 
 Ramfs is session-local and rebuilt from source at boot.
 It is the canonical location for shipped manuals and demos.
@@ -56,7 +56,7 @@ It is the canonical location for shipped manuals and demos.
 
 >h2 DEVFS
 >tree open DEVFS
-`/dev` is a device mount managed by the VFS.
+/dev is a device mount managed by the VFS.
 
 It exists to separate device-facing paths from ordinary files and manuals.
 For day-to-day use you mostly notice it through:
@@ -67,38 +67,33 @@ For day-to-day use you mostly notice it through:
 
 >h2 Raw FAT16 Layer
 >tree open FAT16 Layer
-The kernel still initializes and mounts a raw FAT16 filesystem on `/disk`.
+The kernel mounts a raw FAT16 filesystem on /disk.
 
 What the source supports today:
 - partition detection from the HDD image
 - open/read/write/delete
 - directory enumeration
-- persistence across boots through `cupidos.img`
+- persistence across boots through cupidos.img
 
-The important architectural point is that FAT16 is now the storage substrate,
-not the preferred user-facing namespace.
+The architectural point: FAT16 is the storage substrate for /home via homefs,
+and the compatibility/diagnostics view at /disk.
 
-Older docs that described `/home` as direct FAT16 are stale.
-The current truth is:
-- `/disk` = raw FAT16 view
-- `/home` = `homefs`, with FAT16 fallback only if needed
 >endtree
 
 >h2 HomeFS
 >tree open HomeFS
-`homefs` is implemented in `kernel/homefs.c`.
+homefs is implemented in kernel/homefs.c.
 
 Source-verified behavior:
 - tree-based filesystem
 - nested directories
 - long names up to VFS limits
 - files and directories stored as nodes
-- persisted into one FAT16-hosted container file:
-  `HOMEFS.SYS`
+- persisted into one FAT16-hosted container file: HOMEFS.SYS
 
 Design goal:
 - keep FAT16 as a compatibility/storage backend
-- avoid exposing FAT16 naming/layout limitations directly at `/home`
+- avoid exposing FAT16 naming/layout limitations directly at /home
 
 So user workflows should prefer:
   /home
@@ -109,52 +104,71 @@ not:
 >button ls /home/bin | shell:ls /home/bin
 >endtree
 
+>h2 ISO9660 Loop-Mount
+>tree open ISO9660 Loop-Mount
+ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
+via the loop device adapter (kernel/loopdev.c + kernel/iso9660_vfs.c).
+
+Example:
+  mount /disk/hello.iso /iso
+  ls /iso
+  umount /iso
+
+Up to 4 ISOs can be mounted concurrently.
+See 15ISO9660.CTXT for full details.
+
+>button Open ISO guide | open:15ISO9660.CTXT
+>endtree
+
 >h2 Standard Directories
 >tree open Standard Directories
 Directories visible in the current shipped image/manual workflow:
-- `/bin`
-- `/docs`
-- `/docs/demos`
-- `/demos`
-- `/tmp`
-- `/home`
+- /bin
+- /docs
+- /demos
+- /tmp
+- /home
+- /disk
+- /dev
 
 Typical usage:
-- `/bin`   shipped command sources and app stubs
-- `/docs`  shipped live manuals
-- `/demos` shipped asm demos
-- `/tmp`   transient scratch data
-- `/home`  persistent user files and user programs
+- /bin   shipped command sources and app stubs
+- /docs  shipped live manuals
+- /demos shipped asm demos
+- /tmp   transient scratch data
+- /home  persistent user files and user programs
+- /disk  raw FAT16 diagnostics view
+- /dev   device nodes
 >endtree
 
 >h2 Persistent Program Workflow
 >tree open Persistent Program Workflow
-Shell auto-discovery checks `/home/bin` directly.
+Shell auto-discovery checks /home/bin directly.
 
 Recommended persistent workflow:
-1) create a file in `/home/bin/<name>.cc`
-2) run `<name>`
-3) the shell JIT-compiles it from `/home/bin`
+1) create a file in /home/bin/<name>.cc
+2) run <name>
+3) the shell JIT-compiles it from /home/bin
 
-This is source-verified in `kernel/shell.c`, where `/home/bin/<cmd>` and
-`/home/bin/<cmd>.cc` are part of the command search order.
+This is source-verified in kernel/shell.c, where /home/bin/<cmd> and
+/home/bin/<cmd>.cc are part of the command search order.
 >button ls /home/bin | shell:ls /home/bin
 >endtree
 
 >h2 Copying Data Into The Image
 >tree open Copying Data Into The Image
-Host-side FAT helpers still target the raw FAT partition inside `cupidos.img`.
+Host-side FAT helpers still target the raw FAT partition inside cupidos.img.
 
 Mapping reminder:
-- FAT root `::/` corresponds to the persistent storage area inside the image
-- the running OS normally exposes that through `/home` via `homefs`
+- FAT root ::/ corresponds to the persistent storage area inside the image
+- the running OS normally exposes that through /home via homefs
 
 Example host commands:
   mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
   mdir  -i cupidos.img@@2097152 ::/
 
 Use this for bulk host-to-image transfer.
-Use in-OS editing under `/home` for normal runtime work.
+Use in-OS editing under /home for normal runtime work.
 >endtree
 
 >h2 Cache and Sync
@@ -162,10 +176,10 @@ Use in-OS editing under `/home` for normal runtime work.
 Disk writes go through the block cache.
 
 Useful commands:
-- `sync`       flush dirty data
-- `cachestats` print cache hit/miss statistics
+- sync       flush dirty data
+- cachestats print cache hit/miss statistics
 
-If you are doing persistent edits or demo sync work, use `sync` before reboot.
+If you are doing persistent edits or demo sync work, use sync before reboot.
 >button sync | shell:sync
 >button cachestats | shell:cachestats
 >endtree
@@ -173,13 +187,13 @@ If you are doing persistent edits or demo sync work, use `sync` before reboot.
 >h2 Manual and Demo Embedding
 >tree open Manual and Demo Embedding
 The shipped docs path is source-generated at build time:
-- `cupidos-txt/*.CTXT` -> `/docs/*.ctxt`
-- `image.bmp` -> `/docs/image.bmp`
-- `demos/*.asm` -> `/demos/*.asm` and `/docs/demos/*.asm`
+- cupidos-txt/*.CTXT -> /docs/*.ctxt
+- image.bmp -> /docs/image.bmp
+- demos/*.asm -> /demos/*.asm
 
 So:
-- `/docs` is the canonical in-OS manual set
-- `/home` is where user-edited persistent copies belong
+- /docs is the canonical in-OS manual set
+- /home is where user-edited persistent copies belong
 >button Open Docs Index | open:00INDEX.CTXT
 >button Open Embed Guide | open:09EMBED.CTXT
 >endtree
@@ -189,3 +203,5 @@ So:
 [05ELFPROG.CTXT - ELF programs](open:05ELFPROG.CTXT)
 [08CMDS.CTXT - command reference](open:08CMDS.CTXT)
 [09EMBED.CTXT - doc embedding](open:09EMBED.CTXT)
+[15ISO9660.CTXT - ISO9660 mount](open:15ISO9660.CTXT)
+[16SWAP.CTXT - opt-in swap](open:16SWAP.CTXT)
