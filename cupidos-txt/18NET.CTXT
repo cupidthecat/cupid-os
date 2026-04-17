@@ -478,11 +478,14 @@ Close -- passive:
 
 >h3 Implementation Details
 
-  ISS            : timer_get_uptime_ms() * 250000 + fd_index
+  ISS            : two rdtsc() reads XOR'd with a scrambled salt
+                   (tcp_gen_iss) -- unguessable off-path
   MSS            : fixed 1460 bytes (no negotiation)
   RTO            : 500 ms fixed; tcp_tick retransmits SYN if overdue
   TIME_WAIT      : 60 s (TCP_TIME_WAIT_MS)
-  Receive window : 8192 (full SOCK_RX_BUF)
+  Receive window : 8192 (full SOCK_RX_BUF); overflow on a slow reader
+                   triggers a dup-ACK (rcv_nxt unchanged) so the peer
+                   retransmits when space frees up
   Delayed ACK    : none -- every segment ACKed immediately
   Nagle          : none -- tcp_send flushes immediately
   Fast retransmit: not implemented (3 dup-ACK rule absent)
@@ -495,11 +498,15 @@ Close -- passive:
       uint16_t port;      // peer port
       uint32_t iss;       // our ISS for this connection
       uint32_t rcv_nxt;   // expected next byte from peer (seq + 1 after SYN)
-      uint8_t  completed; // set to 1 when ACK of our SYN+ACK arrives
+      uint8_t  completed; // 1 when ACK of our SYN+ACK arrives
+      uint8_t  in_use;    // slot occupied by active half-open conn
   } lq[LQ_SIZE];          // LQ_SIZE = 8
 
-tcp_accept uses strict-FIFO dequeue: only the lq_tail slot is dequeued,
-and only when completed == 1. Out-of-order completions do not create gaps.
+tcp_accept scans all slots and dequeues any slot with in_use == 1 and
+completed == 1. Earlier builds enforced strict FIFO from a single
+lq_tail, but a slow client at the head would stall every handshake
+behind it. Any-slot dequeue returns whichever connection finishes
+first. Duplicate SYNs from a peer already in the queue are dropped.
 
 >h3 tcp_tick (called from net_process_pending)
 

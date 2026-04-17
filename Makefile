@@ -4,10 +4,11 @@ ASM=nasm
 CC=gcc
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
+EXTRA_CFLAGS ?=
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
 	-mfpmath=sse -msse -msse2 -mstackrealign \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
-       -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings
+       -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS)
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
@@ -76,6 +77,25 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/vfs.o kernel/ramfs.o kernel/devfs.o kernel/fat16_vfs.o kernel/exec.o \
             kernel/homefs.o kernel/loopdev.o kernel/iso9660.o kernel/iso9660_vfs.o \
             kernel/swap_disk.o kernel/swap.o \
+            kernel/percpu.o \
+            kernel/smp_trampoline.o \
+            kernel/lapic.o \
+            kernel/ioapic.o \
+            kernel/bkl.o \
+            kernel/mp_tables.o \
+            kernel/acpi.o \
+            kernel/smp.o \
+            kernel/net_if.o \
+            kernel/arp.o \
+            kernel/ip.o \
+            kernel/icmp.o \
+            kernel/udp.o \
+            kernel/socket.o \
+            kernel/tcp.o \
+            kernel/dhcp.o \
+            kernel/dns.o \
+            kernel/rtl8139.o \
+            kernel/e1000.o \
             kernel/syscall.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
@@ -180,6 +200,91 @@ kernel/memory.o: kernel/memory.c kernel/memory.h
 # PCI configuration space layer
 kernel/pci.o: kernel/pci.c kernel/pci.h kernel/ports.h
 	$(CC) $(CFLAGS) kernel/pci.c -o kernel/pci.o
+
+# AP trampoline raw binary blob (P5 SMP T8)
+kernel/smp_trampoline.bin: kernel/smp_trampoline.S
+	$(ASM) -f bin -o $@ $<
+
+kernel/smp_trampoline.o: kernel/smp_trampoline.bin
+	objcopy -I binary -O elf32-i386 -B i386 \
+	  --redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \
+	  --redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \
+	  --redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \
+	  --rename-section .data=.rodata,alloc,load,readonly,data,contents \
+	  $< $@
+
+# Per-CPU data infrastructure (P5 SMP)
+kernel/percpu.o: kernel/percpu.c kernel/percpu.h kernel/process.h
+	$(CC) $(CFLAGS) kernel/percpu.c -o kernel/percpu.o
+
+# Local APIC BSP init + timer calibration (P5 SMP)
+kernel/lapic.o: kernel/lapic.c kernel/lapic.h kernel/ports.h kernel/memory.h
+	$(CC) $(CFLAGS) kernel/lapic.c -o kernel/lapic.o
+
+# IOAPIC redirection table + 8259 mask (P5 SMP)
+kernel/ioapic.o: kernel/ioapic.c kernel/ioapic.h kernel/memory.h
+	$(CC) $(CFLAGS) kernel/ioapic.c -o kernel/ioapic.o
+
+# Big Kernel Lock: recursive ticket spinlock, IRQ-save (P5 T7)
+kernel/bkl.o: kernel/bkl.c kernel/bkl.h kernel/percpu.h
+	$(CC) $(CFLAGS) kernel/bkl.c -o kernel/bkl.o
+
+# MP tables discovery (P5 SMP)
+kernel/mp_tables.o: kernel/mp_tables.c kernel/mp_tables.h kernel/ioapic.h kernel/percpu.h
+	$(CC) $(CFLAGS) kernel/mp_tables.c -o kernel/mp_tables.o
+
+# ACPI MADT fallback discovery (P5 SMP)
+kernel/acpi.o: kernel/acpi.c kernel/acpi.h kernel/mp_tables.h kernel/ioapic.h
+	$(CC) $(CFLAGS) kernel/acpi.c -o kernel/acpi.o
+
+# SMP discovery orchestration + AP bringup (P5 T9)
+kernel/smp.o: kernel/smp.c kernel/smp.h kernel/mp_tables.h kernel/acpi.h \
+              kernel/lapic.h kernel/ioapic.h kernel/bkl.h kernel/percpu.h kernel/memory.h
+	$(CC) $(CFLAGS) kernel/smp.c -o kernel/smp.o
+
+# NIC interface scaffold + 64-slot lockless RX ring (P6 T1)
+kernel/net_if.o: kernel/net_if.c kernel/net_if.h kernel/arp.h kernel/ip.h kernel/tcp.h kernel/dhcp.h kernel/memory.h
+	$(CC) $(CFLAGS) kernel/net_if.c -o kernel/net_if.o
+
+# ARP: 16-entry cache + blocking resolve + Ethernet dispatch (P6 T6)
+kernel/arp.o: kernel/arp.c kernel/arp.h kernel/net_if.h
+	$(CC) $(CFLAGS) kernel/arp.c -o kernel/arp.o
+
+# IPv4: parse + build + dispatch to ICMP/UDP/TCP (P6 T7)
+kernel/ip.o: kernel/ip.c kernel/ip.h kernel/tcp.h kernel/net_if.h kernel/arp.h
+	$(CC) $(CFLAGS) kernel/ip.c -o kernel/ip.o
+
+# ICMP: echo reply (P6 T8)
+kernel/icmp.o: kernel/icmp.c kernel/icmp.h kernel/ip.h
+	$(CC) $(CFLAGS) kernel/icmp.c -o kernel/icmp.o
+
+# UDP: send + recv + pseudo-header checksum (P6 T9)
+kernel/udp.o: kernel/udp.c kernel/udp.h kernel/ip.h kernel/net_if.h kernel/dhcp.h
+	$(CC) $(CFLAGS) kernel/udp.c -o kernel/udp.o
+
+# Socket table + BSD UDP API (P6 T10)
+kernel/socket.o: kernel/socket.c kernel/socket.h kernel/tcp.h kernel/udp.h kernel/bkl.h kernel/process.h
+	$(CC) $(CFLAGS) kernel/socket.c -o kernel/socket.o
+
+# TCP client state machine (P6 T13)
+kernel/tcp.o: kernel/tcp.c kernel/tcp.h kernel/ip.h kernel/socket.h kernel/bkl.h kernel/process.h
+	$(CC) $(CFLAGS) kernel/tcp.c -o kernel/tcp.o
+
+# DHCP client with static fallback (P6 T11)
+kernel/dhcp.o: kernel/dhcp.c kernel/dhcp.h kernel/net_if.h kernel/ip.h
+	$(CC) $(CFLAGS) kernel/dhcp.c -o kernel/dhcp.o
+
+# DNS A-record resolver + 16-entry cache (P6 T12)
+kernel/dns.o: kernel/dns.c kernel/dns.h kernel/socket.h kernel/net_if.h
+	$(CC) $(CFLAGS) kernel/dns.c -o kernel/dns.o
+
+# RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
+kernel/rtl8139.o: kernel/rtl8139.c kernel/net_if.h kernel/pci.h kernel/memory.h kernel/ports.h
+	$(CC) $(CFLAGS) kernel/rtl8139.c -o kernel/rtl8139.o
+
+# E1000 (Intel 82540EM) NIC driver: MMIO probe, RX/TX rings, MAC read (P6 T15)
+kernel/e1000.o: kernel/e1000.c kernel/net_if.h kernel/pci.h kernel/memory.h kernel/irq.h kernel/isr.h
+	$(CC) $(CFLAGS) kernel/e1000.c -o kernel/e1000.o
 
 # USB core scaffold
 kernel/usb.o: kernel/usb.c kernel/usb.h kernel/usb_hc.h
@@ -562,12 +667,43 @@ run: $(OS_IMAGE)
 run-log: $(OS_IMAGE)
 	qemu-system-i386 $(QEMU_COMMON) -serial file:debug.log
 
+# Headless build: kernel routes to shell_run() over COM1 instead of desktop.
+# Rebuilds kernel with -DHEADLESS, leaves FAT16 /home intact.
+headless-image:
+	$(MAKE) clean
+	$(MAKE) EXTRA_CFLAGS=-DHEADLESS
+
+# Boot headless shell over stdio (no GUI, no VBE). Use for scripted testing.
+run-headless: headless-image
+	qemu-system-i386 $(QEMU_COMMON) -display none -serial stdio
+
 # Full P4 test: UHCI + EHCI + kbd + mouse + 32MB USB stick with FAT16 MBR.
 # Creates test_usb_partitioned.img on first use.
 run-usb: $(OS_IMAGE) test_usb_partitioned.img
 	qemu-system-i386 $(QEMU_COMMON) \
 		-drive if=none,id=ustick,file=test_usb_partitioned.img,format=raw \
 		-device usb-storage,drive=ustick \
+		-serial stdio
+
+run-smp: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) -smp cpus=4 -serial stdio
+
+run-net: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) \
+		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
+		-device rtl8139,netdev=n0 \
+		-serial stdio
+
+run-smp-net: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) -smp cpus=4 \
+		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
+		-device rtl8139,netdev=n0 \
+		-serial stdio
+
+run-net-e1000: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) \
+		-netdev user,id=n0 \
+		-device e1000,netdev=n0 \
 		-serial stdio
 
 test_usb_partitioned.img:

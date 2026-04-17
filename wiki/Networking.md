@@ -543,11 +543,17 @@ LAST_ACK + ACK → CLOSED; socket freed
 
 ### Implementation details
 
-- ISS (initial send sequence): `timer_get_uptime_ms() * 250000 + fd_index`
+- ISS (initial send sequence): derived from two `rdtsc()` reads XOR'd with a
+  golden-ratio scrambled salt (`tcp_gen_iss()`). Off-path observers can't
+  guess the sequence, so blind TCP session hijack is infeasible.
 - Fixed MSS = 1460 bytes (no MSS option negotiation)
 - Fixed RTO = 500 ms; `tcp_tick` re-sends SYN if `now - last_rexmit_tick > TCP_RTO_MS`
 - TIME_WAIT duration = 60 seconds (`TCP_TIME_WAIT_MS`)
 - Receive window advertised = 8192 (full `SOCK_RX_BUF`)
+- Receive ring applies a capacity check before writing; if `dlen` would
+  overrun `SOCK_RX_BUF`, the segment is not consumed, `rcv_nxt` is not
+  advanced, and a duplicate ACK is sent so the peer retransmits once the
+  application drains the buffer.
 - No delayed ACK: every segment ACKed immediately
 - No Nagle: `tcp_send` flushes immediately on every call
 - No fast retransmit (3 duplicate ACK rule not implemented)
@@ -564,12 +570,16 @@ struct {
     uint32_t iss;      // our ISS for this connection
     uint32_t rcv_nxt;  // expected next byte from peer (seq + 1 after SYN)
     uint8_t  completed;// set to 1 when ACK of our SYN+ACK arrives
+    uint8_t  in_use;   // slot occupied by an active half-open connection
 } lq[LQ_SIZE];
 ```
 
-`tcp_accept` uses strict-FIFO dequeue: only the `lq_tail` slot is dequeued,
-and only if `completed == 1`. This prevents out-of-order completions from
-creating gaps in the ring.
+`tcp_accept` scans the table and dequeues any slot with `in_use == 1` and
+`completed == 1`. Earlier builds enforced strict-FIFO dequeue from a
+single `lq_tail`, but a slow client at the head would stall every
+completed connection behind it. The any-slot policy lets accept return
+whichever handshake finishes first. A duplicate SYN from a peer already
+in the table is ignored so half-open entries can't be doubled up.
 
 ### `tcp_tick` (called from `net_process_pending`)
 
@@ -711,8 +721,8 @@ typedef struct socket_t {
 
     // Listen queue (LISTEN state only)
     struct { uint32_t ip; uint16_t port; uint32_t iss;
-             uint32_t rcv_nxt; uint8_t completed; } lq[LQ_SIZE]; // LQ_SIZE=8
-    int lq_head, lq_tail;
+             uint32_t rcv_nxt; uint8_t completed; uint8_t in_use;
+           } lq[LQ_SIZE]; // LQ_SIZE=8
 } socket_t;
 
 #define SOCKET_MAX 32

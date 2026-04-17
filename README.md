@@ -32,8 +32,24 @@
 - 64-entry LRU disk block cache with write-back policy
 - 6 GUI themes: Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, Vaporwave
 - **USB 1.1 + 2.0**: UHCI + EHCI host controllers with HID keyboard/mouse, hub class (depth ≤ 5), and mass storage (BBB + SCSI)
+- **SMP up to 32 CPUs**: ACPI/MP discovery, per-CPU LAPIC timer, big kernel lock, IPI-based reschedule and cross-CPU call
+- **Networking**: RTL8139 + E1000 drivers, ARP / IPv4 / ICMP / UDP / TCP (client + server), DHCP with static fallback, DNS resolver, BSD-style sockets
+- Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE — scriptable with `run-tests.sh`
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP image codec
+
+## Recent additions
+
+Six feature tracks landed on top of the GUI/compiler/shell base, each with a design spec, implementation plan, and subagent-driven tasks with per-task code review. Specs and plans live under `docs/superpowers/specs/` and `docs/superpowers/plans/`; each track also ships a `wiki/*.md` page and an embedded `cupidos-txt/*.CTXT` doc rendered live by notepad.
+
+- **FPU + SSE + float in CupidC** — x87 init, FXSAVE/FXRSTOR on context switch, MXCSR defaults, `#NM`/`#MF`/`#XF` exception handlers with register dump. CupidC gains `float`, `double`, `float4`, and `double2` with SSE intrinsics; 25-operation libm; printf `%f %e %g %.Nf` with x87-backed int/fractional split.
+- **ISO9660 read-only mount** — `mount foo.iso /iso` from any file on the VFS; Rock Ridge (SUSP/RRIP) long filenames; case-insensitive lookup; up to 4 simultaneous mounts.
+- **Opt-in handle-based swap** — 4 size classes (1K/4K/16K/64K), true LRU eviction, 1024 handles over a 16 MB FAT-backed swap file; explicit `swap_alloc` / `pin` / `unpin` rather than VM page faults.
+- **USB 1.1 + 2.0 stack** — UHCI + EHCI controllers sharing an IRQ dispatcher, device enumeration, HID keyboard and mouse, hub class (depth ≤ 5), and mass storage (BBB + SCSI) layered under FAT16.
+- **SMP up to 32 CPUs** — ACPI/MP discovery, INIT-SIPI-SIPI AP bringup, per-CPU LAPIC timers, IOAPIC routing with the 8259 fully masked, ticket-based big kernel lock, shared runqueue, IPI reschedule / cross-CPU call / panic broadcast.
+- **Full TCP/IP networking** — RTL8139 and E1000 drivers, ARP + IPv4 + ICMP + UDP + TCP (RFC 793 subset, client and server), DHCP client with static fallback, DNS resolver with 16-entry TTL cache, and a 32-slot BSD socket table exposed to both the shell and CupidC.
+
+Built-in CupidC smoke tests exercise each track: `feature12_float`, `feature13_double`, `feature14_simd`, `feature15_libm`, `feature16_asm_fpu` (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap), `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client — DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept + echo).
 
 ## Feature demo quickstart
 
@@ -66,6 +82,8 @@ feature11_ternary
 # 5) CupidASM demo execution
 as /demos/hello.asm
 as /demos/syscall_vfs_extended_demo.asm
+as /demos/simd_blur.asm        # SSE + SIMD
+as /demos/fpu_kernel.asm       # x87 + SSE assembly
 
 # 6) GUI apps and graphics
 terminal
@@ -85,6 +103,38 @@ logdump
 # 8) Audio/speaker demos
 godsong
 godspeak
+
+# 9) FPU + SSE float, libm, SIMD
+feature12_float
+feature13_double
+feature14_simd
+feature15_libm
+feature16_asm_fpu
+
+# 10) ISO9660 read-only mount
+mount disk.iso /iso
+ls /iso
+feature17_iso
+
+# 11) Opt-in handle-based swap
+feature18_swap
+
+# 12) USB (run under make run-usb for a populated stick)
+feature19_usb
+
+# 13) SMP introspection
+smp
+feature20_smp
+
+# 14) Networking
+ifconfig
+arp
+ping 10.0.2.2
+resolve example.com
+netstat
+feature21_net           # TCP client: DNS + connect + HTTP GET
+feature22_net_server    # TCP server: listen + accept + echo
+cupidfetch              # one-shot HTTP GET
 ```
 
 ## Philosophy
@@ -102,9 +152,12 @@ sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
 ```
 
 ```bash
-make          # builds cupidos.img
-make run      # boots in QEMU
-make run-log  # boots and writes serial output to debug.log
+make               # builds cupidos.img
+make run           # boots in QEMU with SDL graphics
+make run-log       # boots and writes serial output to debug.log
+make run-headless  # boots straight into shell over stdio (scriptable tests)
+make run-usb       # UHCI + EHCI + kbd/mouse + FAT16 USB stick
+make run-net-debug # dumps every TX/RX frame over serial
 ```
 
 Default image size is 200MB. To change it:
@@ -120,10 +173,15 @@ make HDD_MB=100
 | `make` | Build the full disk image |
 | `make run` | Boot in QEMU with SDL graphics |
 | `make run-log` | Boot in QEMU, write serial to debug.log |
+| `make run-headless` | Boot headless shell over stdio (no VBE) — scriptable |
+| `make run-usb` | Boot with UHCI + EHCI + a 32 MB FAT16 USB stick |
+| `make run-net-debug` | Dump every TX/RX frame over serial |
 | `make sync-demos` | Copy demos/*.asm into the FAT16 partition |
 | `make clean` | Remove object files, keep cupidos.img |
 | `make clean-image` | Remove cupidos.img only |
 | `make distclean` | Remove everything including cupidos.img |
+
+A `run-tests.sh` harness wraps `make run-headless`, feeds a batch of commands over COM1, and parses PASS/FAIL sentinels — used for CupidC/CupidASM regression checks in CI or local sanity runs.
 
 ### Copying files into /home
 
@@ -162,12 +220,12 @@ QEMU monitor is at Ctrl+Alt+2. Serial output comes through stdout on `make run`.
 ```
 cupid-os/
   boot/           two-stage BIOS bootloader
-  kernel/         kernel source (68 C files + headers/asm)
+  kernel/         kernel source (104 C files + headers/asm)
   drivers/        hardware drivers (9 C files)
-  bin/            built-in CupidC programs (73 .cc files)
-  demos/          CupidASM demo programs (19 .asm files)
+  bin/            built-in CupidC programs (88 .cc files)
+  demos/          CupidASM demo programs (21 .asm files)
   user/           example ELF user programs and cupid.h header
-  wiki/           documentation (20 Markdown files)
+  wiki/           documentation (28 Markdown files)
   docs/superpowers/  additional project docs
   cupidos-txt/    embedded rich-text docs (.CTXT format)
   img/            screenshots
@@ -366,7 +424,7 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-73 CupidC programs embedded in RamFS at boot, all directly runnable from the shell:
+88 CupidC programs embedded in RamFS at boot, all directly runnable from the shell:
 
 | Category | Programs |
 |----------|---------|
@@ -377,19 +435,22 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 | Memory tools | memcheck, memdump, memleak, memstats |
 | GUI/graphics apps | bgstudio, bmptest, fm, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
 | Audio/speech | godsong, godspeak |
-| Compiler/language demos | cupidc_test1, cupidc_test2, cupidc_test3, cupidc_test4, cupidc_test5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
+| CupidC language tests | cupidc_test1-5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
+| FPU/SSE/libm tests | feature12_float, feature13_double, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |
+| Subsystem smoke tests | feature17_iso (ISO9660), feature18_swap (swap), feature19_usb (USB), feature20_smp (SMP), feature21_net (TCP client), feature22_net_server (TCP server) |
+| Networking utilities | cupidfetch |
 | Legacy compiler experiments | old_cc2, old_cc2_single |
+| Text/documentation viewers | auto, bible, oracle |
 | Test programs | test, test_print |
-| Networking | cupidfetch |
 | Misc utility | ctxt |
 
 ---
 
 ## Assembly demos (demos/)
 
-19 CupidASM programs embedded in RamFS. Run with `as <name>.asm` from the shell:
+21 CupidASM programs embedded in RamFS. Run with `as <name>.asm` from the shell:
 
-hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_feature, include_helper, jcc_aliases, asm_compat_reserve, reserve_directives, fs_syscalls, syscall_table_demo, syscall_vfs_extended_demo, parity_core, parity_diag, parity_gfx2d
+hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_feature, include_helper, jcc_aliases, asm_compat_reserve, reserve_directives, fs_syscalls, syscall_table_demo, syscall_vfs_extended_demo, parity_core, parity_diag, parity_gfx2d, fpu_kernel, simd_blur
 
 ---
 
