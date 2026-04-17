@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS User Documentation
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,12 +14,12 @@ Verified against source on: 2026-04-16
 >rule
 
 This manual set ships inside CupidOS at `/docs/*.ctxt`. It is source-checked
-against the current tree and now uses the executable `.CTXT` DolDoc layer
+against the current tree and uses the executable `.CTXT` DolDoc layer
 directly, so the manual is also a live workspace.
 
 >box
 Notepad tip: press F2 to switch between raw source and rendered manual view.
-In rendered view, links, trees, buttons, code blocks, and sprites are live.
+In rendered view, links, trees, buttons, and sprites are live.
 >endbox
 
 >h2 Quick Start
@@ -41,48 +41,49 @@ In rendered view, links, trees, buttons, code blocks, and sprites are live.
 >button Show Help | shell:help
 >endtree
 
->h2 Live Example
-Click the code block itself or the header button:
-
->code Build ans
-U32 docs = 40;
-docs + 2;
->endcode
-
->sprite /docs/image.bmp 64 64
->sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
-
 >h2 Reading Order
 >tree open Core System Guides
 [01SHELL.CTXT](open:01SHELL.CTXT)   interactive shell usage and command flow
-[02FILESYS.CTXT](open:02FILESYS.CTXT)  VFS layout and FAT16 behavior
+[02FILESYS.CTXT](open:02FILESYS.CTXT)  VFS layout and FAT16/homefs behavior
 [03CUPIDSC.CTXT](open:03CUPIDSC.CTXT)  CupidScript language guide
 [04CUPIDC.CTXT](open:04CUPIDC.CTXT)    CupidC language and workflow
-[05ELFPROG.CTXT](open:05ELFPROG.CTXT)  ELF user C programs with `user/cupid.h`
+[05ELFPROG.CTXT](open:05ELFPROG.CTXT)  ELF user C programs with user/cupid.h
 >endtree
 
 >tree open Tools And Environment
 [06GUITERM.CTXT](open:06GUITERM.CTXT)  embedded terminal window behavior
 [07LABS.CTXT](open:07LABS.CTXT)        safe experiments and workflows
 [08CMDS.CTXT](open:08CMDS.CTXT)        command quick reference
+[09EMBED.CTXT](open:09EMBED.CTXT)       doc/program embedding and Makefile layout
 [10ASM.CTXT](open:10ASM.CTXT)          CupidASM and disassembly workflow
-[11CTXT.CTXT](open:11CTXT.CTXT)        executable `.CTXT` / DolDoc manual
+[11CTXT.CTXT](open:11CTXT.CTXT)        executable .CTXT / DolDoc manual
 [12HOLYC-CUPIDC.CTXT](open:12HOLYC-CUPIDC.CTXT)  HolyC-style CupidC features
-[13USB.CTXT](open:13USB.CTXT)       USB stack (UHCI+EHCI, HID, hub, mass storage)
-[14FPU-SSE.CTXT](open:14FPU-SSE.CTXT)  FPU + SSE2 + CupidC floats
-[15ISO9660.CTXT](open:15ISO9660.CTXT)   ISO9660 read-only mount
-[16SWAP.CTXT](open:16SWAP.CTXT)        Opt-in disk-backed swap
 >endtree
 
+>tree open Sub-Project References
+[13USB.CTXT](open:13USB.CTXT)       USB stack (UHCI+EHCI, HID, hub, mass storage)
+[14FPU-SSE.CTXT](open:14FPU-SSE.CTXT)  FPU + SSE2 + CupidC floats (P1)
+[15ISO9660.CTXT](open:15ISO9660.CTXT)   ISO9660 read-only mount (P2)
+[16SWAP.CTXT](open:16SWAP.CTXT)        opt-in disk-backed swap (P3)
+[17SMP.CTXT](open:17SMP.CTXT)          SMP Tier 2 — ACPI/MP, LAPIC, IOAPIC, BKL (P5)
+[18NET.CTXT](open:18NET.CTXT)          Networking Tier 4 (TCP/IP, DHCP, DNS) (P6)
+>endtree
+
+>h2 Implementation Notes
 >tree open Implementation Notes
 1) The shell is command-dispatch driven:
-   built-ins handle compiler/scripting/app launch paths and most day-to-day
-   commands come from `/bin/*.cc`.
+   built-ins handle compiler/scripting/app launch paths; most day-to-day
+   commands come from /bin/*.cc (auto-discovered at boot).
 
-2) Filesystems are split:
-   `/` is ramfs, `/dev` is devfs, `/home` is FAT16, and `/docs` lives in ramfs.
+2) Filesystems are layered:
+   / is ramfs, /dev is devfs, /disk is raw FAT16, /home is homefs
+   (with FAT16 fallback if homefs mount fails).
 
-3) `.CTXT` is now executable:
-   inline action links, clickable sprites, code blocks, buttons, and tree widgets all
+3) .CTXT is executable:
+   inline action links, clickable sprites, buttons, and tree widgets all
    run inside Notepad render mode.
+
+4) New in P1-P5:
+   FPU/SSE2 + libm, ISO9660 loop-mount, opt-in swap, USB 1.1/2.0 stack,
+   SMP up to 32 CPUs under BKL.
 >endtree

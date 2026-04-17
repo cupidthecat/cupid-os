@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-04-16
 
 >h2 Help System
 >tree open Help System
-`help` reads `//help:` lines directly from `/bin/*.cc` and `/home/bin/*.cc`.
+help reads //help: lines directly from /bin/*.cc and /home/bin/*.cc.
 
 That means command source is also command documentation.
 
@@ -29,48 +29,63 @@ Use:
 
 >h2 Shell Built-Ins
 >tree open Shell Built-Ins
-Built-ins verified in `kernel/shell.c`:
-- `cupid`
-- `exec`
-- `notepad`
-- `terminal`
-- `ps`
-- `cc`
-- `cupidc`
-- `ccc`
-- `reset`
-- `as`
-- `cupidasm`
-- `dis`
-- `theme`
-- `temple`
-- `adam`
-- `holyc`
+Built-ins verified in kernel/shell.c (commands[] table):
 
-Note: `jobs` is a CupidScript-only builtin (runs inside `.cup` scripts),
+Language / compiler:
+- cupid        run a .cup script
+- exec         run an ELF/CUPD binary by path
+- cc           interactive CupidC REPL or run a .cc file
+- cupidc       JIT compile and run .cc file
+- ccc          compile .cc to ELF binary
+- reset        reset the CupidC REPL state
+- as           assemble and run .asm file
+- cupidasm     assemble .asm to ELF binary
+- dis          disassemble ELF binary or .cc file
+- holyc        alias for cc: HolyC-style REPL
+
+Applications:
+- notepad      open Notepad
+- terminal     open a Terminal window
+- ps           list running processes
+
+Filesystems:
+- mount        mount <src> <target> [<type>]
+- umount       unmount <target>
+
+System:
+- theme        set GUI theme (win95|pastel|dark|contrast|amber|vapor|temple)
+- temple       invoke TempleOS look: red/yellow/white on black
+- adam         TempleOS-style task tree under Adam (PID 1)
+- swapinit     swapinit [pool_kb] - init opt-in swap
+- swapstats    swapstats - print swap usage
+- usb          list USB devices (usb | usb hubs | usb hc)
+- pci          list PCI devices (bus:dev.fn vid:did class irq)
+- smp          list CPUs (smp | smp info)
+
+Note: jobs is a CupidScript-only builtin (runs inside .cup scripts),
 not a shell built-in.
 >endtree
 
 >h2 Execution Shortcuts
 >tree open Execution Shortcuts
 The shell also treats extensions specially:
-- `file.cup`  -> `cupid file.cup`
-- `file.cc`   -> `cupidc file.cc`
-- `file.asm`  -> `as file.asm`
-- `./path`    -> execute by extension or binary loader
+- file.cup  -> cupid file.cup
+- file.cc   -> cupidc file.cc
+- file.asm  -> as file.asm
+- ./path    -> execute by extension or binary loader
 
 Disassembly shortcuts:
-- `cc -d file.cc`
-- `exec -d file`
+- cc -d file.cc
+- exec -d file
 >endtree
 
 >h2 Auto-Discovery Order
 >tree open Auto-Discovery Order
 Command lookup order after built-ins:
-1) `/bin/<cmd>`
-2) `/bin/<cmd>.cc`
-3) `/home/bin/<cmd>`
-4) `/home/bin/<cmd>.cc`
+1) /bin/<cmd>
+2) /bin/<cmd>.cc
+3) /home/bin/<cmd>
+4) /home/bin/<cmd>.cc
 
 This is the TempleOS-style source-first workflow for shipped and user programs.
 >button ls /bin | shell:ls /bin
@@ -79,21 +94,21 @@ This is the TempleOS-style source-first workflow for shipped and user programs.
 
 >h2 File and Directory Commands
 >tree open File and Directory Commands
-Source-backed command set from shipped `/bin/*.cc`:
-- `ls [path]`
-- `pwd`
-- `cd [path]`
-- `cat <file>`
-- `cp <source> <dest>`
-- `mv <source> <dest>`
-- `rm <file...>`
-- `mkdir <dir...>`
-- `rmdir <dir...>`
-- `touch <file...>`
-- `find [path] [name]`
-- `grep <pattern> <path> [path] ...`
-- `mount`
-- `ed [file]`
+Source-backed command set from shipped /bin/*.cc:
+- ls [path]
+- pwd
+- cd [path]
+- cat <file>
+- cp <source> <dest>
+- mv <source> <dest>
+- rm <file...>
+- mkdir <dir...>
+- rmdir <dir...>
+- touch <file...>
+- find [path] [name]
+- grep <pattern> <path> [path] ...
+- mount
+- ed [file]
 
 >button ls /docs | shell:ls /docs
 >button pwd | shell:pwd
@@ -105,20 +120,20 @@ Source-backed command set from shipped `/bin/*.cc`:
 >h2 Shell and Info Commands
 >tree open Shell and Info Commands
 Core shipped commands:
-- `help`
-- `clear`
-- `echo`
-- `time`
-- `date`
-- `history`
-- `reboot`
-- `sysinfo`
-- `cupidfetch`
-- `godspeak`
-- `godsong`
-- `setcolor`
-- `resetcolor`
-- `printc`
+- help
+- clear
+- echo
+- time
+- date
+- history
+- reboot
+- sysinfo
+- cupidfetch
+- godspeak
+- godsong
+- setcolor
+- resetcolor
+- printc
 
 >button date | shell:date
 >button sysinfo | shell:sysinfo
@@ -130,21 +145,21 @@ Core shipped commands:
 >h2 Process and Debug Commands
 >tree open Process and Debug Commands
 Process/debug tools currently shipped:
-- `ps`
-- `kill`
-- `spawn`
-- `yield`
-- `memstats`
-- `memcheck`
-- `memleak`
-- `memdump`
-- `stacktrace`
-- `registers`
-- `loglevel`
-- `logdump`
-- `crashtest`
-- `sync`
-- `cachestats`
+- ps
+- kill
+- spawn
+- yield
+- memstats
+- memcheck
+- memleak
+- memdump
+- stacktrace
+- registers
+- loglevel
+- logdump
+- crashtest
+- sync
+- cachestats
 
 >button ps | shell:ps
 >button memstats | shell:memstats
@@ -155,15 +170,16 @@ Process/debug tools currently shipped:
 >h2 GUI and Graphics Commands
 >tree open GUI and Graphics Commands
 Shipped GUI/app-side commands and demos:
-- `terminal`
-- `notepad`
-- `fm`
-- `paint`
-- `gfxdemo`
-- `gfxtest`
-- `gfxgui_test`
-- `bmptest`
-- `bgstudio`
+- terminal
+- notepad
+- fm
+- paint
+- gfxdemo
+- gfxtest
+- gfxgui_test
+- bmptest
+- bgstudio
+- ctxt
 
 >button Terminal | shell:terminal
 >button Notepad | shell:notepad
@@ -171,61 +187,66 @@ Shipped GUI/app-side commands and demos:
 >button Paint | shell:paint
 >endtree
 
+>h2 TempleOS / God Commands
+>tree open TempleOS / God Commands
+TempleOS-inspired commands:
+- godspeak    random 7-word sentence from /god/Vocab.DD
+- oracle      TempleOS-style 7-word GodSpeak oracle (same as godspeak)
+- bible       random KJV verse from /god/Psalms.DD
+- auto        AutoComplete over /god/Vocab.DD: auto <prefix>
+- godsong     play a PC-speaker melody
+- temple      apply TempleOS red/yellow/white-on-black look
+- adam        show TempleOS-style task tree under PID 1
+>endtree
+
 >h2 Compiler and Feature Demos
 >tree open Compiler and Feature Demos
-Compiler/language test programs currently embedded in `/bin`:
-- `cupidc_test1` .. `cupidc_test5`
-- `feature1_types`
-- `feature2_top_level`
-- `feature3_class`
-- `feature4_forward_calls`
-- `feature5_print_builtin`
-- `feature6_exe`
-- `feature7_new_del`
-- `feature8_reg_noreg`
-- `feature9_abs_addr`
-- `feature10_repl`
-- `feature11_ternary`
-- `feature12_float`
-- `feature13_double`
-- `feature14_simd`
-- `feature15_libm`
-- `feature16_asm_fpu`
-- `fp_drill`
-- `old_cc2`
-- `old_cc2_single`
+Compiler/language test programs currently embedded in /bin:
+- cupidc_test1 .. cupidc_test5
+- feature1_types
+- feature2_top_level
+- feature3_class
+- feature4_forward_calls
+- feature5_print_builtin
+- feature6_exe
+- feature7_new_del
+- feature8_reg_noreg
+- feature9_abs_addr
+- feature10_repl
+- feature11_ternary
+- feature12_float          (P1 FPU/SSE)
+- feature13_double         (P1 FPU/SSE)
+- feature14_simd           (P1 FPU/SSE)
+- feature15_libm           (P1 FPU/SSE)
+- feature16_asm_fpu        (P1 FPU/SSE)
+- feature17_iso            (P2 ISO9660)
+- feature18_swap           (P3 swap)
+- feature19_usb            (P4 USB)
+- feature20_smp            (P5 SMP)
+- fp_drill                 (FPU exception drill — reboots kernel!)
+- old_cc2
+- old_cc2_single
 >endtree
 
 >h2 Assembler and Loader Commands
 >tree open Assembler and Loader Commands
 Command forms verified in the shell:
-- `as file.asm`
-- `as -o output file.asm`
-- `cupidasm file.asm`
-- `cupidasm file.asm -o output`
-- `cupidasm -o output file.asm`
-- `exec /path/to/binary`
-- `exec -d /path/to/binary`
+- as file.asm
+- as -o output file.asm
+- cupidasm file.asm
+- cupidasm file.asm -o output
+- cupidasm -o output file.asm
+- exec /path/to/binary
+- exec -d /path/to/binary
 
 >button ls /demos | shell:ls /demos
 >button as /demos/hello.asm | shell:as /demos/hello.asm
 >endtree
 
->h2 Script Files
->tree open Script Files
-Shipped `.cup` scripts can be run through `cupid` or by direct shell shortcut.
-
-Example:
-  cupid /bin/build.cup
-  /bin/build.cup
-
->button Show build.cup | shell:cat /bin/build.cup
->endtree
-
 >h2 Hotkeys
 >tree open Hotkeys
 Source-backed shell hotkey:
-- F7 in shell/Terminal -> `godspeak`
+- F7 in shell/Terminal -> godspeak
 
 Desktop/global app hotkeys are documented in the desktop docs; this page keeps
 the shell-facing command behavior only.

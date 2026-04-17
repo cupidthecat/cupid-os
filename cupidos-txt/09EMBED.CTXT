@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,7 +14,7 @@ Verified against source on: 2026-04-16
 >rule
 
 This repo folder is the source of truth for the shipped manual set.
-CupidOS embeds every `cupidos-txt/*.CTXT` file into ramfs as `/docs/*.ctxt`,
+CupidOS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt,
 then renders them inside Notepad as live DolDoc-style manuals.
 
 >sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
@@ -25,19 +25,44 @@ then renders them inside Notepad as live DolDoc-style manuals.
 >h2 Canonical Path
 >tree open Canonical Path
 Canonical authoring path:
-- repo source: `cupidos-txt/*.CTXT`
-- boot-time install: `/docs/*.ctxt`
+- repo source: cupidos-txt/*.CTXT
+- boot-time install: /docs/*.ctxt
 - renderer host: Notepad render mode
 
 Workflow:
-1) Edit the source file in `cupidos-txt/`
+1) Edit the source file in cupidos-txt/
 2) Build CupidOS so the file is embedded into ramfs
-3) Open `/docs/00INDEX.ctxt` or any `/docs/*.ctxt` page in Notepad
+3) Open /docs/00INDEX.ctxt or any /docs/*.ctxt page in Notepad
 4) Press F2 to switch between source and rendered DolDoc view
 
 This is the TempleOS-style path. The document source stays readable as text,
 but rendered view gains live buttons, runnable CupidC, action links, trees,
 and inline BMP widgets.
+>endtree
+
+>h2 Makefile Auto-Discovery
+>tree open Makefile Auto-Discovery
+The Makefile auto-discovers and embeds files from four source trees:
+
+  bin/*.cc     -> kernel/bin_programs_gen.c  -> /bin/*.cc in ramfs
+  bin/*.h      -> (as header stubs)          -> /bin/*.h in ramfs
+  cupidos-txt/*.CTXT -> kernel/docs_programs_gen.c -> /docs/*.ctxt in ramfs
+  demos/*.asm  -> kernel/demos_programs_gen.c -> /demos/*.asm in ramfs
+  god/*.DD     -> embedded via objcopy        -> /god/*.DD in image
+
+Makefile variable definitions:
+  BIN_CC_SRCS  := $(wildcard bin/*.cc)
+  DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
+  DEMO_ASM_SRCS := $(wildcard demos/*.asm)
+  GOD_DD_SRCS   := $(wildcard god/*.DD)
+
+Adding a new .CTXT file to cupidos-txt/ is enough: the next build will pick
+it up automatically through docs_programs_gen.c.
+
+Adding a new .cc to bin/ is enough: bin_programs_gen.c handles it.
+
+The god/*.DD files are embedded via objcopy pattern rules; they are available
+at runtime under /god/ for godspeak, oracle, and bible commands.
 >endtree
 
 >h2 Method A: FAT16 Persistent Docs (/home)
@@ -47,7 +72,7 @@ Goal:
 
 Current image model:
 - cupidos.img is a single HDD image.
-- /home is the persistent writable filesystem inside cupidos.img.
+- /home is the persistent writable filesystem inside cupidos.img (homefs).
 
 Recommended target layout:
   /home/docs/00INDEX.CTXT
@@ -55,9 +80,9 @@ Recommended target layout:
   ...
 
 Notes:
-- `/docs/*.ctxt` is still the shipped canonical manual set.
-- `/home/docs` is best treated as a user copy or scratch area.
-- Keeping the `.CTXT` extension preserves Notepad render-mode detection.
+- /docs/*.ctxt is still the shipped canonical manual set.
+- /home/docs is best treated as a user copy or scratch area.
+- Keeping the .CTXT extension preserves Notepad render-mode detection.
 
 Simple in-OS approach:
 1) Make directory:
@@ -74,13 +99,8 @@ Mapping reminder:
 - FAT ::/ is CupidOS /home.
 - Copy to ::/ (not ::/home).
 
-If you open a copied `.CTXT` file in Notepad, the same DolDoc-lite renderer
-still applies as long as the filename keeps the `.ctxt` or `.CTXT` suffix.
-
->code Embed Basics
-U32 embed_answer = 40 + 2;
-embed_answer;
->endcode
+If you open a copied .CTXT file in Notepad, the same DolDoc-lite renderer
+still applies as long as the filename keeps the .ctxt or .CTXT suffix.
 >endtree
 
 >h2 Method B: RAMFS Memory Docs (/)
@@ -89,8 +109,8 @@ Goal:
 - Bundle small docs directly in kernel boot memory files.
 
 This is now mostly the legacy/manual approach.
-For shipped manuals, prefer the generated `/docs/*.ctxt` install path instead
-of hardcoding text blobs into `kernel/fs.c`.
+For shipped manuals, prefer the generated /docs/*.ctxt install path instead
+of hardcoding text blobs into kernel/fs.c.
 
 Tradeoff:
 - Always available at boot
@@ -104,6 +124,7 @@ Pattern is already implemented for:
 - /docs pages (cupidos-txt/*.CTXT)
 - /demos asm sources (demos/*.asm)
 - /docs/image.bmp sprite assets
+- /god/*.DD word lists (via objcopy)
 
 Build-time generators:
 - kernel/bin_programs_gen.c
@@ -121,14 +142,14 @@ Tradeoff:
 >h2 Practical Recommendation
 >tree open Practical Recommendation
 For shipped system manuals:
-1) Keep canonical docs in `cupidos-txt/`
-2) Rebuild so they install to `/docs/*.ctxt`
+1) Keep canonical docs in cupidos-txt/
+2) Rebuild so they install to /docs/*.ctxt
 3) Browse them in Notepad render mode
 
 For user-customized copies:
-1) Copy selected `.CTXT` files into `/home/docs`
+1) Copy selected .CTXT files into /home/docs
 2) Edit them there
-3) Keep the `.CTXT` extension so render mode still works
+3) Keep the .CTXT extension so render mode still works
 
 For asm demos used in docs:
 - Use make sync-demos to refresh /home/demos in cupidos.img

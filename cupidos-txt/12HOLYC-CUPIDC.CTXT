@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,12 +16,10 @@ Verified against source on: 2026-04-16
 >h2 Purpose
 >tree open Purpose
 This page documents HolyC-inspired language features currently implemented in
-CupidC, plus important behavior notes.
+CupidC (kernel/cupidc.c and related files), plus important behavior notes.
 
->code CupidC Identity
-U32 answer = 42;
-answer;
->endcode
+Try a quick REPL expression:
+[Evaluate 42](repl:U32 answer = 42; answer;)
 >endtree
 
 >h2 Feature 1: Sized Type Keywords
@@ -33,12 +31,14 @@ Compatibility:
 - Legacy int/char/void code continues to work.
 - Bool is accepted as a language type token.
 
->code Sized Types
-U8 small = 255;
-U16 medium = 1000;
-U32 large = 100000;
-large + medium + small;
->endcode
+Example:
+  U8 small = 255;
+  U16 medium = 1000;
+  U32 large = 100000;
+  large + medium + small;
+
+Demo: bin/feature1_types.cc
+[Run feature1_types](shell:feature1_types)
 >endtree
 
 >h2 Feature 2: Top-Level Execution
@@ -54,10 +54,8 @@ and:
 
 If both exist, top-level statements run and then main() is called.
 
->code CupidC Top-Level
-U32 answer = 42;
-answer;
->endcode
+Demo: bin/feature2_top_level.cc
+[Run feature2_top_level](shell:feature2_top_level)
 >endtree
 
 >h2 Feature 3: class Syntax + Methods
@@ -70,18 +68,20 @@ Method call forms supported:
 
 Methods compile with implicit self parameter lowering.
 
->code Define And Use A Class
-class Point {
-  I32 x;
-  I32 y;
-  I32 Sum() { return x + y; }
-};
+Example:
+  class Point {
+    I32 x;
+    I32 y;
+    I32 Sum() { return x + y; }
+  };
 
-Point p;
-p.x = 3;
-p.y = 4;
-p.Sum();
->endcode
+  Point p;
+  p.x = 3;
+  p.y = 4;
+  p.Sum();
+
+Demo: bin/feature3_class.cc
+[Run feature3_class](shell:feature3_class)
 >endtree
 
 >h2 Feature 4: Forward Function Calls
@@ -93,11 +93,8 @@ Example style:
   U32 A() { return B(); }
   U32 B() { return 42; }
 
->code Forward Call
-U32 First() { return Second(); }
-U32 Second() { return 99; }
-First();
->endcode
+Demo: bin/feature4_forward_calls.cc
+[Run feature4_forward_calls](shell:feature4_forward_calls)
 >endtree
 
 >h2 Feature 5: Print Builtin
@@ -109,10 +106,10 @@ Language-level builtins:
 Format support includes practical console cases used by CupidC demos:
   %d %u %x %X %s %c %p %%
 
->code Print Builtin
-U32 val = 7;
-Print("val=%u\n", val);
->endcode
+With P1 FPU support, printf also handles %f, %e, %g.
+
+Demo: bin/feature5_print_builtin.cc
+[Run feature5_print_builtin](shell:feature5_print_builtin)
 >endtree
 
 >h2 Feature 6: #exe Blocks
@@ -124,10 +121,8 @@ Behavior:
   before normal entry.
 - AOT mode: #exe blocks are skipped with warning.
 
->code Top-Level Statement As Exe
-U32 init_val = 10;
-init_val * 2;
->endcode
+Demo: bin/feature6_exe.cc
+[Run feature6_exe](shell:feature6_exe)
 >endtree
 
 >h2 Feature 7: new / del
@@ -141,13 +136,8 @@ Lowering behavior:
 - new: kmalloc + zero-init
 - del: kfree + pointer reset to null
 
->code new And del
-U32 *p = new U32;
-*p = 55;
-U32 result = *p;
-del p;
-result;
->endcode
+Demo: bin/feature7_new_del.cc
+[Run feature7_new_del](shell:feature7_new_del)
 >endtree
 
 >h2 Feature 8: reg / noreg
@@ -158,10 +148,8 @@ Current behavior:
 - Parsed and accepted.
 - Treated as semantic no-op hints in current compiler backend.
 
->code reg Hint Accepted
-reg U32 fast = 12;
-fast * 3;
->endcode
+Demo: bin/feature8_reg_noreg.cc
+[Run feature8_reg_noreg](shell:feature8_reg_noreg)
 >endtree
 
 >h2 Feature 9: Absolute Addressing Sugar
@@ -171,10 +159,8 @@ Literal-to-pointer style is supported for systems-style memory access.
 Typical pattern:
   U8 *v = (U8*)0xB8000;
 
->code Absolute Address Cast
-U8 *vga = (U8*)0xB8000;
-vga[0];
->endcode
+Demo: bin/feature9_abs_addr.cc
+[Run feature9_abs_addr](shell:feature9_abs_addr)
 >endtree
 
 >h2 Feature 10: TempleOS-Style Shell REPL
@@ -185,13 +171,8 @@ Primary entry point:
 TempleOS-style behavior:
 - Shell input is treated as CupidC first, then falls back to normal command dispatch.
 - Statements and expressions persist in one long-lived REPL compiler state.
-- The last result is available as:
-    ans
+- The last result is available as: ans
 - Successful evaluations are reported by the next prompt, like TempleOS.
-- Prompt/result behavior follows the TempleOS command-line path:
-    ExeCmdLine
-    LexStmt2Bin
-    CmdLinePmt
 - Multi-line blocks are supported with brace balancing:
     /home> U32 Add(U32 a, U32 b) {
     ..>   return a + b;
@@ -199,50 +180,66 @@ TempleOS-style behavior:
 - Failed snippets are rolled back and do not corrupt prior REPL state.
 - Forward-call fixups remain in the persistent REPL compiler state until a later
   definition resolves them.
-- Shell command fallback still works for non-C inputs like:
-    help
-    ls /home
+- Shell command fallback still works for non-C inputs like: help, ls /home
 
 HolyC-style note:
 - End statements and expressions with semicolons.
-- Zero-argument REPL-defined functions can be called as:
-    Foo;
+- Zero-argument REPL-defined functions can be called as: Foo;
 
 Compatibility commands:
   cc /path/to/file.cc
   cupidc /path/to/file.cc
 
->code REPL Session Example
-U32 x = 10;
-U32 y = 32;
-x + y;
->endcode
+Demo: bin/feature10_repl.cc
+[Run feature10_repl](shell:feature10_repl)
 >endtree
 
->h2 Related Demo Programs
->tree open Related Demo Programs
-Feature demos are in /bin:
-  feature1_types.cc
-  feature2_top_level.cc
-  feature3_class.cc
-  feature4_forward_calls.cc
-  feature5_print_builtin.cc
-  feature6_exe.cc
-  feature7_new_del.cc
-  feature8_reg_noreg.cc
-  feature9_abs_addr.cc
-  feature10_repl.cc
-  feature11_ternary.cc
-  feature12_float.cc
-  feature13_double.cc
-  feature14_simd.cc
-  feature15_libm.cc
-  feature16_asm_fpu.cc
+>h2 Feature 11: Ternary Operator
+>tree open Feature 11: Ternary Operator
+The ternary conditional operator is supported:
+  condition ? true_expr : false_expr
 
-Float/double/SIMD/libm/inline-asm coverage lives in features 12-16.
-See 04CUPIDC.CTXT for the full language reference.
+Example:
+  U32 x = 5;
+  U32 result = (x > 3) ? 100 : 0;
 
->button List Feature Demos | shell:ls /bin
+Demo: bin/feature11_ternary.cc
+[Run feature11_ternary](shell:feature11_ternary)
+>endtree
+
+>h2 Features 12-16: Float / Double / SIMD / libm / FPU ASM
+>tree open Features 12-16: FPU and SSE
+These features were added in P1. See 14FPU-SSE.CTXT for full reference.
+
+Summary:
+- Feature 12: scalar float arithmetic, casts, element access
+- Feature 13: double + transcendentals
+- Feature 14: float4 / double2 SIMD + intrinsics
+- Feature 15: libm (25 operations, 50 symbols with f-variants)
+- Feature 16: CupidC inline asm using SSE + x87
+
+Types added: float, double, float4, double2
+Intrinsics: _mm_*_ps (17 variants), _mm_*_pd (11 variants)
+
+[Run feature12_float](shell:feature12_float)
+[Run feature13_double](shell:feature13_double)
+[Run feature14_simd](shell:feature14_simd)
+[Run feature15_libm](shell:feature15_libm)
+[Run feature16_asm_fpu](shell:feature16_asm_fpu)
+[Open FPU/SSE guide](open:14FPU-SSE.CTXT)
+>endtree
+
+>h2 Features 17-20: P2-P5 Integration Tests
+>tree open Features 17-20: P2-P5 Integration Tests
+- Feature 17: ISO9660 end-to-end smoke test (requires make sync-iso on host)
+- Feature 18: swap round-trip (requires swapinit first)
+- Feature 19: USB enumeration smoke test
+- Feature 20: SMP atomic stress (requires boot with make run-smp, 4 CPUs)
+
+[Run feature17_iso](shell:feature17_iso)
+[Run feature18_swap](shell:feature18_swap)
+[Run feature19_usb](shell:feature19_usb)
+[Run feature20_smp](shell:feature20_smp)
 >endtree
 
 >h2 Practical Notes
@@ -250,9 +247,11 @@ See 04CUPIDC.CTXT for the full language reference.
 1) CupidC is intentionally small and kernel-integrated, not full GCC C.
 2) Keep programs simple, direct, and one-file where possible.
 3) For large programs, prefer incremental testing with small compile units.
+4) #pragma once is supported for include-guard patterns.
 >endtree
 
 >h2 See Also
 [04CUPIDC.CTXT - CupidC language](open:04CUPIDC.CTXT)
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)
+[14FPU-SSE.CTXT - FPU/SSE reference](open:14FPU-SSE.CTXT)

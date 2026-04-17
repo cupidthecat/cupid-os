@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Playground Recipes
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,8 +14,8 @@ Verified against source on: 2026-04-16
 >rule
 >sprite /docs/image.bmp 64 64 | open:04CUPIDC.CTXT
 
-This file is a practical set of safe experiments to help you "mess around"
-with shell, filesystems, scripting, and programs.
+This file is a practical set of safe experiments to help you explore
+the shell, filesystems, scripting, and programs.
 
 >h2 LAB 1: Orientation
 >tree open Lab
@@ -41,7 +41,7 @@ Create a note, inspect it, then compare temp vs persistent storage.
 >button ls /home | shell:ls /home
 
 Goal:
-- Understand temp (ramfs) vs persistent (fat16) writes.
+- Understand temp (ramfs) vs persistent (homefs/fat16) writes.
 >endtree
 
 >h2 LAB 3: Redirection
@@ -97,11 +97,6 @@ Goal:
 >tree open Lab
 Learn command auto-discovery from /home/bin.
 
->code Lab Step 1
-U32 result = 6 * 7;
-result;
->endcode
-
 Create a command file (ed /home/bin/hi.cc):
   void main() {
     println("hi from CupidC");
@@ -115,6 +110,9 @@ Then run:
 
 Goal:
 - Learn command auto-discovery from /home/bin.
+
+Quick REPL math:
+[Evaluate 6*7](repl:6*7;)
 >endtree
 
 >h2 LAB 7: Process Commands
@@ -162,11 +160,73 @@ Goal:
 - Explore in-OS GUI app stack and CupidC graphics-heavy programs.
 >endtree
 
+>h2 LAB 11: Float and SIMD
+>tree open Lab
+Exercise floating-point and SIMD features (P1).
+
+>button feature12_float | shell:feature12_float
+>button feature13_double | shell:feature13_double
+>button feature14_simd | shell:feature14_simd
+>button feature15_libm | shell:feature15_libm
+
+Expected output: each prints PASS.
+
+Goal:
+- Verify hardware FPU, SSE scalar, SIMD, and libm all work.
+>endtree
+
+>h2 LAB 12: ISO9660 Mount
+>tree open Lab
+Mount a read-only ISO image (P2).
+
+  make sync-iso  (host side, builds test_iso/hello.iso and copies to /disk)
+
+Then in the shell:
+  mount /disk/hello.iso /iso
+  ls /iso
+  cat /iso/HELLO.TXT
+  umount /iso
+
+Or run the smoke test:
+>button feature17_iso | shell:feature17_iso
+
+Goal:
+- Verify loop-device ISO9660 read-only mount.
+>endtree
+
+>h2 LAB 13: Swap
+>tree open Lab
+Exercise opt-in disk-backed swap (P3).
+
+>button swapinit | shell:swapinit
+>button feature18_swap | shell:feature18_swap
+
+Expected output: PASS feature18_swap.
+
+Goal:
+- Verify swap init, pin/unpin, and per-class round-trip.
+>endtree
+
+>h2 LAB 14: SMP
+>tree open Lab
+Verify multi-CPU startup (P5). Boot with: make run-smp (4 CPUs).
+
+>button smp | shell:smp
+>button smp info | shell:smp info
+>button feature20_smp | shell:feature20_smp
+
+Expected: all CPUs listed as online; feature20_smp final counter = 40000.
+
+Goal:
+- Verify AP bringup, BKL, and per-CPU scheduling.
+>endtree
+
 >h2 Safety Notes
 >tree open Safety Notes
 1) Use crashtest only if you intentionally want to test panic paths.
 2) rm and rmdir are destructive for files/dirs.
-3) This OS intentionally has no privilege isolation; everything is powerful.
+3) fp_drill unmasks FPU exceptions and will reboot the kernel.
+4) This OS intentionally has no privilege isolation; everything is powerful.
 >endtree
 
 >h2 See Also
@@ -174,3 +234,7 @@ Goal:
 [01SHELL.CTXT - shell](open:01SHELL.CTXT)
 [08CMDS.CTXT - commands](open:08CMDS.CTXT)
 [11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)
+[14FPU-SSE.CTXT - FPU/SSE](open:14FPU-SSE.CTXT)
+[15ISO9660.CTXT - ISO9660](open:15ISO9660.CTXT)
+[16SWAP.CTXT - swap](open:16SWAP.CTXT)
+[17SMP.CTXT - SMP](open:17SMP.CTXT)

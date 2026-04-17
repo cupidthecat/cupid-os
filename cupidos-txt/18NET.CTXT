@@ -1,0 +1,834 @@
+>comment CupidMark converted document
+>h1 Networking Tier 4
+Verified against source on: 2026-04-17
+>style bg #F7F4EC
+>style body #1A1A1A
+>style h1 #B03060
+>style h2 #2B4FA8
+>style h3 #9A5A00
+>style rule #B8B1A3
+>style box #EEE7D8
+>style boxtext #223355
+>style link #1D4ED8
+>style linkhover #0B3AA8
+>rule
+
+>h2 Overview
+>tree open Overview
+CupidOS P6 Networking Tier 4 adds a full TCP/IP stack to the kernel.
+
+  NIC drivers   : RTL8139 (Realtek RTL8139), E1000 (Intel 82540EM)
+  Protocols     : Ethernet, ARP, IPv4, ICMP echo reply, UDP, TCP
+  TCP model     : RFC 793 subset, 10 states, 500 ms RTO, MSS 1460
+  DHCP          : DISCOVER/OFFER/REQUEST/ACK + static fallback 10.0.2.15/24
+  DNS           : UDP/53 A-record resolver, 16-entry TTL cache
+  Socket API    : BSD-style, 32-slot dedicated table
+  RX model      : NIC IRQ top-half -> 64-slot lockless ring -> idle bottom-half
+  New files     : 22 (11 kernel + 2 bin + 2 doc + headers)
+
+New kernel files:
+  kernel/net_if.h / net_if.c      NIC vtable, RX ring, registration, net_init
+  kernel/arp.h    / arp.c         16-entry LRU ARP cache, blocking resolve
+  kernel/ip.h     / ip.c          IPv4 parse, route, send, protocol dispatch
+  kernel/icmp.h   / icmp.c        ICMP echo reply
+  kernel/udp.h    / udp.c         UDP send/recv, pseudo-header checksum
+  kernel/tcp.h    / tcp.c         RFC 793 subset state machine (~1200 LOC)
+  kernel/socket.h / socket.c      32-slot BSD socket table + API
+  kernel/dhcp.h   / dhcp.c        DHCP four-way handshake + static fallback
+  kernel/dns.h    / dns.c         UDP/53 A-record resolver + 16-entry cache
+  kernel/rtl8139.h / rtl8139.c    Realtek 8139 PCI NIC driver (~300 LOC)
+  kernel/e1000.h   / e1000.c      Intel 82540EM PCI NIC driver (~500 LOC)
+  bin/feature21_net.cc            TCP client smoke test (DNS + connect + HTTP GET)
+  bin/feature22_net_server.cc     TCP server smoke test (listen/accept/echo)
+>endtree
+
+>h2 Architecture
+>tree open Architecture
+
+Layer diagram (app at top, silicon at bottom):
+
+  user / kernel code
+    socket() bind() listen() accept() connect() send() recv() close()
+    dns_resolve(name) -> ipv4
+  kernel/socket.c -- 32-slot socket_t table
+    type, state, tx_buf/rx_buf, TCP state machine
+  kernel/{tcp,udp,icmp}.c
+    TCP state machine     UDP datagram     ICMP echo reply
+  kernel/ip.c -- IPv4 send + dispatch
+    ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send
+    ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)
+  kernel/arp.c -- 16-entry LRU cache
+    who-has / is-at    blocking resolve on cache miss (500 ms)
+  kernel/net_if.c -- unified NIC interface
+    net_if_t vtable    lockless SPSC RX ring (64 slots)
+  kernel/rtl8139.c          kernel/e1000.c
+    PCI probe + init + register    IRQ top-half (enqueue frame)
+
+>h3 Key Size Constants
+
+  SOCKET_MAX      32     total socket table slots
+  NET_RX_RING_SIZE 64    lockless SPSC RX ring slots
+  NET_IF_MTU      1500   max IP payload bytes
+  SOCK_RX_BUF     8192   per-socket receive ring buffer
+  SOCK_TX_BUF     8192   per-socket transmit ring buffer
+  LQ_SIZE         8      listen queue slots per LISTEN socket
+  TCP_MSS         1460   fixed maximum segment size
+  TCP_RTO_MS      500    retransmit timeout (milliseconds)
+  ARP cache       16     LRU entries
+  DNS cache       16     TTL-limited entries
+>endtree
+
+>h2 Boot Flow
+>tree open Boot Flow
+>box
+net_init() is called from kmain after sti and PCI enumeration.
+Same call site as USB in P4.
+>endbox
+
+  void net_init(void) {
+      rtl8139_probe();                    // try RTL8139 first
+      if (!registered_nif) e1000_probe(); // fall back to E1000
+      if (!registered_nif) { KWARN("net: no supported NIC"); return; }
+      (void)dhcp_start(registered_nif);   // populate IP or use static fallback
+      KINFO("net: if=%s ip=%u.%u.%u.%u", ...);
+  }
+
+Startup order:
+
+  1. PCI bus scan (already done by existing pci_init)
+  2. rtl8139_probe() -- searches vid/did 10EC:8139;
+     if found: reset, init, register NIC, install IRQ handler
+  3. If no RTL8139: e1000_probe() -- searches 8086:100E; same sequence
+  4. dhcp_start() -- DISCOVER -> OFFER -> REQUEST -> ACK, up to ~3 s
+  5. Static fallback if no DHCP response:
+     ipv4_addr = 10.0.2.15, mask /24, gw 10.0.2.2, dns 10.0.2.3
+  6. net_process_pending wired into kernel_check_reschedule as bottom-half
+     (same pattern as P4 USB polls)
+>endtree
+
+>h2 NIC Layer
+>tree open NIC Layer
+
+>h3 net_if_t Structure (kernel/net_if.h)
+
+  #define NET_IF_MTU       1500
+  #define NET_IF_MAC_LEN   6
+  #define NET_RX_RING_SIZE 64
+
+  typedef struct net_if {
+      const char *name;
+      uint8_t     mac[NET_IF_MAC_LEN];
+      uint32_t    ipv4_addr;      // network byte order
+      uint32_t    ipv4_mask;
+      uint32_t    ipv4_gateway;
+      uint32_t    ipv4_dns;
+      bool        link_up;
+      void       *driver_data;
+      int       (*send)(struct net_if *, const uint8_t *frame, uint32_t len);
+      uint64_t    rx_packets, tx_packets, rx_drops, tx_errors;
+  } net_if_t;
+
+  int       net_if_register(net_if_t *nif);  // first NIC wins; second is warned + rejected
+  net_if_t *net_if_primary(void);            // returns registered NIC or NULL
+
+>h3 RX Ring (Lockless SPSC)
+
+  typedef struct {
+      net_if_t *nif;
+      uint32_t  len;
+      uint8_t   frame[NET_IF_MTU + 14];   // full Ethernet frame
+  } net_rx_slot_t;
+
+  static net_rx_slot_t rx_ring[NET_RX_RING_SIZE] __attribute__((aligned(64)));
+  static volatile uint32_t rx_head;    // producer advances (IRQ context)
+  static volatile uint32_t rx_tail;    // consumer advances (bottom-half)
+
+net_rx_enqueue (called from NIC IRQ, top-half):
+  - compute next = (rx_head + 1) % NET_RX_RING_SIZE
+  - if next == rx_tail: ring full, increment nif->rx_drops, return
+  - else: copy frame, advance rx_head
+
+net_process_pending (called from idle bottom-half):
+  - while rx_tail != rx_head: pop slot, dispatch by ethertype
+    0x0806 (ARP) -> arp_input
+    0x0800 (IPv4) -> ipv4_input
+  - advance rx_tail, increment nif->rx_packets
+  - call tcp_tick() at end of each drain pass
+
+>box
+Single-producer single-consumer invariant holds because the NIC IRQ
+runs with IF=0, and net_process_pending runs only on the BSP in the
+kernel_check_reschedule idle/reschedule path.
+>endbox
+>endtree
+
+>h2 RTL8139 Driver
+>tree open RTL8139 Driver
+
+>h3 PCI Identification
+
+  Vendor ID  : 0x10EC (Realtek)
+  Device ID  : 0x8139
+  Class code : 0x020000 (Ethernet)
+  BAR        : BAR0 -- 32-bit I/O space
+
+>h3 Key I/O Registers (offset from IO base)
+
+  0x00-0x05   IDR0-IDR5    6-byte MAC address
+  0x10-0x1C   TSAD0-TSAD3  TX buffer physical addresses (4 descriptors)
+  0x20-0x2C   TSD0-TSD3    TX status/control (length + OWN bit)
+  0x30        RBSTART      RX ring buffer physical address
+  0x37        CMD          bit4=RST, bit3=RE, bit2=TE, bit0=BUFE
+  0x38        CAPR         RX read pointer (CAPR quirk: write offset minus 16)
+  0x3C        IMR          interrupt mask register
+  0x3E        ISR          interrupt status (W1C)
+  0x40        TCR          transmit configuration
+  0x44        RCR          receive configuration
+  0x50        CONFIG1      power management / wake
+
+>h3 Initialisation Sequence
+
+  1. Enable PCI bus master and I/O decoding via PCI command register
+  2. Read BAR0 lower bits to obtain IO base; verify not MMIO
+  3. outb(CONFIG1, 0)   -- power on, clear LWAKE/PMEn
+  4. outb(CMD, 0x10)    -- software reset; poll CMD bit 4 clear (~1 ms)
+  5. Allocate RX buffer: 8192 + 16 + 1500 = 9708 bytes via kmalloc;
+     align to 16 bytes (raw ptr saved for kfree, same as UHCI pattern)
+  6. Write RBSTART = physical address of aligned buffer
+  7. Write RCR = 0x0000000F  (AAP + APM + AM + AB)
+  8. Write TCR = 0x03000700  (default IFG, MXDMA=1024, retry=8)
+  9. outb(CMD, 0x0C)    -- enable RE and TE
+  10. outw(IMR, 0x0005)  -- mask ROK (bit 0) + TOK (bit 2)
+  11. Read MAC from IDR0-IDR5 into net_if_t.mac
+  12. irq_install_handler(irq_line, rtl8139_irq)
+  13. net_if_register(&nif)
+
+>box
+The common IRQ dispatcher calls lapic_eoi() after every handler returns.
+Do NOT call lapic_eoi() inside rtl8139_irq -- only clear the NIC ISR (W1C).
+>endbox
+
+>h3 RX Drain Loop
+
+  static void rtl8139_rx_drain(void) {
+      while ((inb(io + 0x37) & 0x01) == 0) {  // BUFE==0: data available
+          uint8_t  *p      = rx_buf + capr_offset;
+          uint16_t  status = *(uint16_t *)p;
+          uint16_t  len    = *(uint16_t *)(p + 2);  // includes 4-byte CRC
+          if ((status & 1) && len >= 18 && len <= 1518)
+              net_rx_enqueue(&nif, p + 4, len - 4);
+          capr_offset = (capr_offset + len + 4 + 3) & ~3u;  // dword-align
+          if (capr_offset >= 8192) capr_offset -= 8192;
+          outw(io + 0x38, capr_offset - 16);  // CAPR quirk: minus 16
+      }
+  }
+
+>h3 TX Path (4-Descriptor Round-Robin)
+
+  static int rtl8139_send(...) {
+      static int td = 0;
+      while (inl(io + 0x20 + td * 4) & (1 << 13)) __asm__("pause"); // wait OWN
+      memcpy(tx_buf[td], frame, len);
+      outl(io + 0x10 + td * 4, (uint32_t)tx_buf[td]);   // TSAD: phys addr
+      outl(io + 0x20 + td * 4, len & 0x1FFF);            // TSD: length, clears OWN
+      td = (td + 1) & 3;
+      nif->tx_packets++;
+      return (int)len;
+  }
+>endtree
+
+>h2 E1000 Driver
+>tree open E1000 Driver
+
+>h3 PCI Identification
+
+  Vendor ID  : 0x8086 (Intel)
+  Device ID  : 0x100E (82540EM)
+  Class code : 0x020000 (Ethernet)
+  BAR        : BAR0 -- 32-bit MMIO, 128 KB
+
+>box
+MMIO mapping required. BAR0 is above the kernel identity-mapped region.
+Call paging_map_mmio(bar0_phys, 128 * 1024) before any register access.
+Without this, the first read page-faults. See feedback_mmio_mapping.md.
+>endbox
+
+>h3 Key MMIO Registers
+
+  0x00000   CTRL        general control; bit 26 = software reset
+  0x00008   STATUS      bit 1 = LU (link up)
+  0x00014   EERD        EEPROM read (addr/data/done/start)
+  0x000C0   ICR         interrupt cause (W1C)
+  0x000D0   IMS         interrupt mask set
+  0x000D8   IMC         interrupt mask clear
+  0x00100   RCTL        RX control
+  0x02800   RDBAL/RDBAH RX descriptor ring base (low / high 32 bits)
+  0x02808   RDLEN       RX ring size in bytes
+  0x02810   RDH         RX descriptor head
+  0x02818   RDT         RX descriptor tail
+  0x00400   TCTL        TX control
+  0x03800   TDBAL/TDBAH TX descriptor ring base
+  0x03808   TDLEN       TX ring size in bytes
+  0x03810   TDH         TX descriptor head
+  0x03818   TDT         TX descriptor tail
+  0x05400   RAL0        receive address low (MAC bytes 0-3)
+  0x05404   RAH0        receive address high (MAC bytes 4-5; bit31=valid)
+
+>h3 RX Descriptor (16 bytes, packed)
+
+  typedef struct __attribute__((packed)) {
+      uint64_t addr;     // DMA buffer physical address
+      uint16_t len;      // bytes written by hardware
+      uint16_t checksum;
+      uint8_t  status;   // bit0=DD (descriptor done), bit1=EOP
+      uint8_t  err;
+      uint16_t special;
+  } e1000_rx_desc_t;
+
+TX descriptor: similar, with cmd byte (EOP=1, RS=1, IFCS=1).
+
+>h3 Initialisation Sequence
+
+  1. Enable PCI bus master; read BAR0 MMIO base;
+     paging_map_mmio(bar0, 128 * 1024)
+  2. Software reset: CTRL |= (1 << 26); wait ~10 ms; bit self-clears
+  3. Read MAC: RAL0/RAH0 read unconditionally
+     (QEMU 82540EM provides the MAC via RAL0/RAH0; no EEPROM fallback implemented)
+  4. Allocate RX ring: 64 x 16 B = 1024 B, 4KB-aligned via pmm_alloc_page;
+     each descriptor addr = 2KB-aligned DMA buffer
+  5. RDBAL/RDBAH = ring phys base; RDLEN = 1024; RDH = 0; RDT = 63
+  6. RCTL = 0x0400804  (EN | BAM | BSIZE_2048)
+  7. TX ring: 16 descriptors, zero-init; TDBAL/TDBAH; TDLEN=256; TDH=TDT=0
+  8. TCTL = 0x01030002  (EN | PSP | CT=16 | COLD=64)
+  9. IMS = 0x80 | 0x40  (RXT0 | RXDMT0)
+  10. irq_install_handler; net_if_register(&nif)
+>endtree
+
+>h2 ARP
+>tree open ARP
+
+>h3 Cache Structure
+
+  typedef struct {
+      uint32_t ip;              // network byte order
+      uint8_t  mac[6];
+      uint32_t last_used_tick;
+      bool     valid;
+  } arp_entry_t;
+
+  static arp_entry_t arp_cache[16];
+
+16-entry LRU cache. IPv4 + Ethernet only. On cache miss, the oldest entry
+is evicted.
+
+>h3 arp_resolve (blocking, 500 ms timeout)
+
+  int arp_resolve(uint32_t ip, uint8_t *mac_out);
+
+  Hit  -- copy cached MAC to mac_out, update last_used_tick, return 0
+  Miss -- send ARP who-has request (Ethernet broadcast, ARP opcode 1)
+         spin: poll cache every 1 ms for up to 500 ms
+         reply arrives: update cache, return 0
+         timeout: return -1; caller drops outbound frame
+
+>h3 ARP Input
+
+On receiving an ARP frame (arp_input):
+  - Opcode 2 (reply): update or insert cache entry
+  - Opcode 1 (request): if target IP == our ipv4_addr,
+    build and unicast ARP reply (opcode 2) back to requester
+>endtree
+
+>h2 IPv4
+>tree open IPv4
+
+>h3 Header Structure
+
+  typedef struct __attribute__((packed)) {
+      uint8_t  vhl;          // 0x45 (version=4, IHL=5)
+      uint8_t  tos;
+      uint16_t total_len;
+      uint16_t id;
+      uint16_t flags_frag;   // 0x4000 = DF set
+      uint8_t  ttl;          // 64
+      uint8_t  proto;
+      uint16_t hdr_csum;
+      uint32_t src_ip;
+      uint32_t dst_ip;
+  } ipv4_hdr_t;
+
+Checksum: ones-complement sum over all 16-bit header words.
+
+>h3 Send Path
+
+  int ipv4_send(uint32_t dst_ip, uint8_t proto,
+                const uint8_t *payload, uint32_t len);
+
+  1. Increment monotonic 16-bit ID counter
+  2. Routing: if (dst & mask) == (our_ip & mask) -> ARP for dst
+                              else                -> ARP for ipv4_gateway
+  3. Build frame: Ethernet hdr (14 B) + IPv4 hdr (20 B) + payload
+  4. nif->send(nif, frame, total_len)
+
+>h3 Receive Path
+
+  void ipv4_input(const uint8_t *frame, uint32_t len);
+
+  - Verify ethertype == 0x0800
+  - Validate IPv4 version=4, IHL=5, checksum
+  - Accept dst_ip == nif->ipv4_addr OR 255.255.255.255
+  - Drop fragmented packets (MF=1 or frag_offset != 0); log KWARN
+  - Dispatch by proto: 1=ICMP, 6=TCP, 17=UDP
+>endtree
+
+>h2 ICMP
+>tree open ICMP
+
+Only echo request -> echo reply is implemented. No outbound ICMP on our
+initiative (no destination unreachable, no time exceeded).
+
+  icmp_input:
+    1. Verify type=8 (echo request), code=0
+    2. Verify ICMP checksum
+    3. Build reply: swap src/dst IP, set type=0 (echo reply),
+       preserve identifier + sequence + payload
+    4. Recompute ICMP checksum (ones-complement over entire ICMP packet)
+    5. ipv4_send(original_src_ip, IPPROTO_ICMP, reply, reply_len)
+>endtree
+
+>h2 UDP
+>tree open UDP
+
+>h3 Header
+
+  typedef struct __attribute__((packed)) {
+      uint16_t src_port, dst_port;
+      uint16_t length;    // UDP header + data (8 + data bytes)
+      uint16_t checksum;  // pseudo-header + UDP hdr + data; 0 = disabled
+  } udp_hdr_t;
+
+>h3 Send
+
+  int udp_send_raw(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
+                   const uint8_t *buf, uint32_t len);
+
+Builds UDP header with pseudo-header checksum:
+  pseudo = src_ip(4) + dst_ip(4) + 0x00(1) + 17(1) + udp_length(2)
+Then calls ipv4_send.
+
+>h3 Receive (udp_input)
+
+  1. Parse UDP header from IPv4 payload
+  2. Search sockets[] for type==SOCK_TYPE_UDP && local_port==udp.dst_port
+  3. If found: socket_udp_deliver(src_ip, src_port, dst_port, data, dlen)
+  4. No match: silently drop
+>endtree
+
+>h2 TCP
+>tree open TCP
+
+>h3 Header
+
+  typedef struct __attribute__((packed)) {
+      uint16_t src_port, dst_port;
+      uint32_t seq, ack;
+      uint8_t  data_off;   // high 4 bits = header length / 4
+      uint8_t  flags;      // FIN=0x01, SYN=0x02, RST=0x04, PSH=0x08, ACK=0x10
+      uint16_t window;
+      uint16_t checksum;
+      uint16_t urgent;
+  } tcp_hdr_t;
+
+>h3 TCP States
+
+  TCPS_CLOSED       Initial; no connection
+  TCPS_LISTEN       Passive open; awaiting inbound SYN
+  TCPS_SYN_SENT     Active open; SYN sent, awaiting SYN+ACK
+  TCPS_SYN_RCVD     SYN received (listen queue entry), SYN+ACK sent
+  TCPS_ESTABLISHED  Connection open; data exchange
+  TCPS_FIN_WAIT_1   FIN sent; awaiting ACK
+  TCPS_FIN_WAIT_2   ACK of FIN received; awaiting peer FIN
+  TCPS_TIME_WAIT    Both FINs exchanged; 60 s wait before CLOSED
+  TCPS_CLOSE_WAIT   Peer sent FIN; user has not yet called close()
+  TCPS_LAST_ACK     FIN sent in response to peer FIN; awaiting ACK
+
+>h3 State Machine Transitions
+
+Active open (connect):
+  CLOSED -> [send SYN] -> SYN_SENT
+  SYN_SENT + SYN+ACK -> [send ACK] -> ESTABLISHED
+  SYN_SENT + RST -> CLOSED (ECONNREFUSED)
+  SYN_SENT + 30 s timeout -> CLOSED (ETIMEDOUT_SOCK)
+
+Passive open (listen + accept):
+  CLOSED -> [listen()] -> LISTEN
+  LISTEN + inbound SYN -> [send SYN+ACK; push to lq[]] -> (half-open entry)
+  lq entry + ACK -> lq[].completed = true
+  accept() -> dequeue completed lq entry -> new socket in ESTABLISHED
+
+Close -- active:
+  ESTABLISHED -> [send FIN+ACK] -> FIN_WAIT_1
+  FIN_WAIT_1 + ACK -> FIN_WAIT_2
+  FIN_WAIT_2 + FIN -> [send ACK] -> TIME_WAIT (60 s) -> CLOSED
+
+Close -- passive:
+  ESTABLISHED + FIN received -> [send ACK] -> CLOSE_WAIT
+  CLOSE_WAIT + close() -> [send FIN+ACK] -> LAST_ACK
+  LAST_ACK + ACK -> CLOSED; socket freed
+
+>h3 Implementation Details
+
+  ISS            : timer_get_uptime_ms() * 250000 + fd_index
+  MSS            : fixed 1460 bytes (no negotiation)
+  RTO            : 500 ms fixed; tcp_tick retransmits SYN if overdue
+  TIME_WAIT      : 60 s (TCP_TIME_WAIT_MS)
+  Receive window : 8192 (full SOCK_RX_BUF)
+  Delayed ACK    : none -- every segment ACKed immediately
+  Nagle          : none -- tcp_send flushes immediately
+  Fast retransmit: not implemented (3 dup-ACK rule absent)
+  SACK           : not implemented
+
+>h3 Listen Queue (per LISTEN socket)
+
+  struct {
+      uint32_t ip;        // peer IP
+      uint16_t port;      // peer port
+      uint32_t iss;       // our ISS for this connection
+      uint32_t rcv_nxt;   // expected next byte from peer (seq + 1 after SYN)
+      uint8_t  completed; // set to 1 when ACK of our SYN+ACK arrives
+  } lq[LQ_SIZE];          // LQ_SIZE = 8
+
+tcp_accept uses strict-FIFO dequeue: only the lq_tail slot is dequeued,
+and only when completed == 1. Out-of-order completions do not create gaps.
+
+>h3 tcp_tick (called from net_process_pending)
+
+  void tcp_tick(void) {
+      uint32_t now = timer_get_uptime_ms();
+      for each socket s:
+          if TCPS_SYN_SENT and now - last_rexmit_tick > TCP_RTO_MS:
+              rewind snd_nxt to snd_iss
+              tcp_send_seg(s, TCP_SYN, NULL, 0)
+              last_rexmit_tick = now
+          if TCPS_TIME_WAIT and now - time_wait_start > TCP_TIME_WAIT_MS:
+              tcp_state = TCPS_CLOSED
+              in_use = 0
+  }
+>endtree
+
+>h2 DHCP
+>tree open DHCP
+
+  bool dhcp_start(net_if_t *nif);  // blocks up to ~3 s; true on success
+
+Classic UDP four-way handshake. All frames use broadcast Ethernet MAC
+(ff:ff:ff:ff:ff:ff) and broadcast IP (255.255.255.255) -- no IP yet,
+so ARP is bypassed entirely.
+
+>h3 Protocol Flow
+
+  1. DISCOVER -- op=1, XID from timer_get_uptime_ms(), chaddr=our MAC,
+     options: DHCP type=DISCOVER + param-request (mask, router, dns)
+  2. OFFER    -- wait for op=2 matching XID;
+     extract yiaddr + options (1=mask, 3=gw, 6=dns, 51=lease)
+  3. REQUEST  -- op=1, DHCP type=REQUEST, opt50=requested-IP, opt54=server-id
+  4. ACK      -- populate nif->ipv4_addr/mask/gateway/dns
+
+>h3 Failure Handling
+
+  No OFFER in 1 s  -> retry DISCOVER; up to 3 attempts
+  NAK received     -> retry from DISCOVER
+  Timeout (3 s)    -> static fallback:
+    nif->ipv4_addr    = 10.0.2.15
+    nif->ipv4_mask    = 255.255.255.0
+    nif->ipv4_gateway = 10.0.2.2
+    nif->ipv4_dns     = 10.0.2.3
+    KWARN("dhcp: fallback to static 10.0.2.15/24 gw 10.0.2.2 dns 10.0.2.3")
+
+These values match QEMU user-net defaults and work without any host config.
+Lease renewal is not implemented -- hobby OS reboots before lease expires.
+>endtree
+
+>h2 DNS
+>tree open DNS
+
+  int dns_resolve(const char *name, uint32_t *ipv4_out);
+  // Returns 0 on success, negative errno on failure. Timeout = 3 s.
+
+Queries UDP/53 at nif->ipv4_dns. Single A-record query only.
+
+>h3 Query Format
+
+  12-byte header: ID (random from tick), flags=0x0100 (RD=1), QDCOUNT=1
+  QNAME: length-prefixed labels
+    "example.com" -> \x07 e x a m p l e \x03 c o m \x00
+  QTYPE=1 (A), QCLASS=1 (IN)
+
+>h3 Response Parsing
+
+  1. Skip 12-byte header and question section (re-parse QNAME + 4 bytes)
+  2. Iterate answer RRs; find first RR with TYPE=1 (A), RDLENGTH=4
+  3. Read 4 RDATA bytes as IPv4 address
+  4. Handle DNS compression pointers (0xC0 high two bits in NAME field)
+
+>h3 Cache
+
+  16 entries keyed on lowercased hostname.
+  TTL = min(DNS-provided TTL, 300 s).
+  Cache hit skips the UDP/53 query entirely.
+>endtree
+
+>h2 Socket API
+>tree open Socket API
+
+>h3 Error Codes (kernel/socket.h)
+
+  ENETDOWN       -1   No NIC registered
+  EBADF          -2   Invalid or closed file descriptor
+  EINVAL_SOCK    -3   Invalid argument
+  EADDRINUSE     -4   Port already bound
+  ECONNREFUSED   -5   RST received during connect
+  ETIMEDOUT_SOCK -6   Operation timed out (30 s)
+  ECONNRESET     -7   Connection reset by peer
+  ENOBUFS_SOCK   -8   No free socket slots
+
+>h3 Socket Types
+
+  SOCK_TYPE_UDP  1
+  SOCK_TYPE_TCP  2
+
+>h3 BSD API (kernel/socket.h)
+
+  int socket_create  (int type);
+  int socket_bind    (int fd, uint32_t ip, uint16_t port);
+  int socket_listen  (int fd, int backlog);
+  int socket_accept  (int fd, uint32_t *peer_ip, uint16_t *peer_port);
+  int socket_connect (int fd, uint32_t ip, uint16_t port);
+  int socket_send    (int fd, const void *buf, uint32_t len);
+  int socket_recv    (int fd, void *buf, uint32_t len);
+  int socket_close   (int fd);
+  int socket_sendto  (int fd, const void *buf, uint32_t len,
+                      uint32_t ip, uint16_t port);
+  int socket_recvfrom(int fd, void *buf, uint32_t len,
+                      uint32_t *ip, uint16_t *port);
+
+  uint16_t htons(uint16_t v);
+  uint32_t htonl(uint32_t v);
+
+>h3 Blocking Model
+
+socket_accept, socket_connect, socket_recv, socket_recvfrom:
+  - spin: every 1000 pause-loops call schedule() to yield
+  - 30-second timeout -> ETIMEDOUT_SOCK
+  - BKL acquired before state checks, released around schedule()
+
+socket_send and socket_sendto do not block:
+  - return bytes written (may be less than len if TX buffer full)
+
+>h3 Ephemeral Port Allocation
+
+  Linear scan from rotating index in range 49152..65535.
+  Each candidate checked against in-use port set before assignment.
+
+>h3 BKL Protection
+
+All socket_t mutations and all tcp_*/udp_* calls are made under the BKL
+(bkl_lock / bkl_unlock). net_process_pending also runs under BKL via
+kernel_check_reschedule. This serialises TCP state machine transitions
+with RX-driven state changes. No fine-grained per-socket locks at Tier 4.
+>endtree
+
+>h2 Shell Commands
+>tree open Shell Commands
+
+New commands in kernel/shell.c, following the usb/pci/smp command pattern:
+
+  [ifconfig](shell:ifconfig)
+    Prints MAC, IP/prefix, gateway, DNS, link state, rx/tx counts.
+    ifconfig <ip>/<prefix> [gw <ip>] [dns <ip>]  overrides addressing.
+
+  [ping <host>](shell:ping)
+    DNS-resolves host if not dotted-quad.
+    Sends ICMP echo requests, prints RTT per reply.
+    Default count=4, per-reply timeout=2 s.
+
+  [netstat](shell:netstat)
+    Lists in-use socket slots: fd, type, state, local, remote.
+
+  [arp](shell:arp)
+    Dumps 16-entry ARP cache: ip -> mac (age ticks).
+
+  [resolve <hostname>](shell:resolve)
+    Calls dns_resolve, prints IPv4 address or error code.
+
+Example ifconfig output:
+  rtl8139  mac=52:54:00:12:34:56  ip=10.0.2.15/24  gw=10.0.2.2  dns=10.0.2.3
+           link=up  rx=42  tx=38  drops=0
+>endtree
+
+>h2 CupidC Bindings
+>tree open CupidC Bindings
+
+All networking functions are registered in kernel/cupidc.c:
+
+  socket       -> socket_create    (1 arg)
+  bind         -> socket_bind      (3 args)
+  listen       -> socket_listen    (2 args)
+  accept       -> socket_accept    (3 args)
+  connect      -> socket_connect   (3 args)
+  send         -> socket_send      (3 args)
+  recv         -> socket_recv      (3 args)
+  close        -> socket_close     (1 arg)
+  sendto       -> socket_sendto    (5 args)
+  recvfrom     -> socket_recvfrom  (5 args)
+  dns_resolve  -> dns_resolve      (2 args)
+  htons        -> htons            (1 arg)
+  htonl        -> htonl            (1 arg)
+
+>h3 feature21_net (TCP client)
+
+  [Run feature21_net](shell:feature21_net)
+
+  U0 Main() {
+      U32 ip = 0;
+      if (dns_resolve("example.com", &ip) != 0) {
+          serial_printf("[feature21] SKIP dns failed\n"); return;
+      }
+      I32 fd = socket(2);   // TCP
+      if (connect(fd, ip, htons(80)) != 0) {
+          serial_printf("[feature21] SKIP connect failed\n"); close(fd); return;
+      }
+      const char *req = "GET / HTTP/1.0\r\nHost: example.com\r\n\r\n";
+      send(fd, req, 36);
+      U8 buf[2048];
+      I32 n = recv(fd, buf, 2048);
+      close(fd);
+      if (n > 100 && buf[0] == 'H' && buf[1] == 'T' && buf[2] == 'T')
+          serial_printf("[feature21] PASS (%d bytes)\n", n);
+      else
+          serial_printf("[feature21] FAIL recv n=%d\n", n);
+  }
+  Main();
+
+>h3 feature22_net_server (TCP server)
+
+  [Run feature22_net_server](shell:feature22_net_server)
+
+  U0 Main() {
+      I32 fd = socket(2);
+      bind(fd, 0, htons(80));
+      listen(fd, 1);
+      serial_printf("[feature22] listening on port 80\n");
+      U32 peer_ip = 0;  U16 peer_port = 0;
+      I32 cfd = accept(fd, &peer_ip, &peer_port);
+      U8 buf[512];
+      I32 n = recv(cfd, buf, 512);
+      const char *resp = "HTTP/1.0 200 OK\r\nContent-Length: 13\r\n\r\nHello CupidOS";
+      send(cfd, resp, 49);
+      close(cfd);  close(fd);
+      serial_printf("[feature22] PASS served %d bytes in\n", n);
+  }
+  Main();
+
+Host-side: curl http://localhost:8080/  (with -hostfwd=tcp::8080-:80)
+>endtree
+
+>h2 Testing
+>tree open Testing
+
+>h3 make run-net
+
+  [Run with RTL8139](shell:make run-net)
+
+  make run-net
+
+Boots with RTL8139 NIC + hostfwd tcp::8080->:80.
+Equivalent QEMU flags:
+  qemu-system-i386 $(QEMU_COMMON)
+      -netdev user,id=n0,hostfwd=tcp::8080-:80
+      -device rtl8139,netdev=n0
+      -serial stdio
+
+>h3 make run-smp-net
+
+  make run-smp-net
+
+Same as run-net but with 4 CPUs (-smp cpus=4).
+
+>h3 make run-net-e1000
+
+  make run-net-e1000
+
+Boots with Intel E1000 NIC (no port forward).
+  qemu-system-i386 $(QEMU_COMMON)
+      -netdev user,id=n0
+      -device e1000,netdev=n0
+      -serial stdio
+
+>h3 Live Test Procedure
+
+  1. make run-net
+  2. Wait for: net: if=rtl8139 ip=10.0.2.15
+  3. In guest shell: ifconfig    -- verify IP/gw/dns
+  4. In guest shell: feature21_net  -- expect [feature21] PASS (N bytes)
+  5. In guest shell: feature22_net_server  -- prints "listening on port 80"
+  6. On host: curl http://localhost:8080/  -- expect "Hello CupidOS"
+  7. Guest prints: [feature22] PASS served N bytes in
+
+>h3 E1000 Path
+
+  make run-net-e1000
+
+net_init will not find RTL8139, falls through to e1000_probe.
+Serial: net: registered e1000 mac=...
+Run same feature tests.
+>endtree
+
+>h2 Known Limits
+>tree open Known Limits
+>box
+These are Tier 4 design constraints. Future work can address them.
+>endbox
+
+  IPv4 only           No IPv6
+  No IP fragmentation DF=1 on every send; fragmented receives dropped
+  No PMTUD            MSS fixed at 1460
+  No TCP SACK         No congestion control, no Nagle, no fast retransmit
+  Fixed RTO           500 ms; no RTT estimator (Karn/Jacobson)
+  Single primary NIC  No multi-homing, no routing table
+  32 socket slots     No dynamic expansion
+  No TLS / HTTPS      No crypto primitives in CupidOS
+  No DHCP renewal     Reboots before lease expires in practice
+  DNS A-record only   No AAAA, limited CNAME chasing, no PTR
+  No raw sockets      No PROMISC, no packet filter
+  Blocking spin+yield accept/connect/recv hold BKL while waiting
+  No IPv6 multicast   Unicast + broadcast IPv4 only
+>endtree
+
+>h2 Source File Index
+>tree open Source File Index
+  kernel/net_if.h    net_if_t struct, RX ring constants, API declarations
+  kernel/net_if.c    NIC registration, RX ring, net_init, net_process_pending
+  kernel/arp.h       ARP cache struct, arp_resolve / arp_input declarations
+  kernel/arp.c       16-entry LRU cache, ARP request/reply, blocking resolve
+  kernel/ip.h        ipv4_hdr_t, protocol constants, API
+  kernel/ip.c        IPv4 send + receive + checksum + routing
+  kernel/icmp.h      ICMP header struct, icmp_input declaration
+  kernel/icmp.c      Echo request -> echo reply
+  kernel/udp.h       UDP header struct, udp_send_raw, udp_input
+  kernel/udp.c       UDP send + receive + pseudo-header checksum
+  kernel/tcp.h       tcp_hdr_t, flag macros, TCP_MSS, TCP_RTO_MS, API
+  kernel/tcp.c       RFC 793 state machine, tcp_tick, ~1200 LOC
+  kernel/socket.h    socket_t, error codes, tcp_state_t, BSD API declarations
+  kernel/socket.c    32-slot table, socket_create/bind/listen/accept/...
+  kernel/dhcp.h      dhcp_start declaration
+  kernel/dhcp.c      DISCOVER/OFFER/REQUEST/ACK, static fallback
+  kernel/dns.h       dns_resolve declaration, cache constants
+  kernel/dns.c       UDP/53 query, response parse, compression pointer, cache
+  kernel/rtl8139.h   RTL8139 register offsets, rtl8139_probe declaration
+  kernel/rtl8139.c   PCI probe, init, RX drain, send, IRQ handler, ~300 LOC
+  kernel/e1000.h     E1000 register offsets, e1000_probe declaration
+  kernel/e1000.c     PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC
+  bin/feature21_net.cc          TCP client smoke test
+  bin/feature22_net_server.cc   TCP server smoke test
+>endtree

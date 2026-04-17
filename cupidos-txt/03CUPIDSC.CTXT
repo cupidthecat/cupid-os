@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidScript Guide (.cup)
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,17 +17,20 @@ Verified against source on: 2026-04-16
 >tree open What It Is
 CupidScript is CupidOS's shell-style scripting language.
 
-Source-verified from `kernel/cupidscript.h`, `cupidscript_parse.c`,
-`cupidscript_runtime.c`, and `cupidscript_exec.c`:
+Source-verified from kernel/cupidscript.h, cupidscript_parse.c,
+cupidscript_runtime.c, and cupidscript_exec.c:
 - variables and assignments
-- `if / then / elif / else / fi`
-- `while / do / done`
-- `for / in / do / done`
+- if / then / elif / else / fi
+- while / do / done
+- for / in / do / done
 - shell-style functions
-- `return`
-- `[ ... ]` test expressions
+- return
+- [ ... ] test expressions
 - pipes, redirections, and background jobs
 - variable expansion and arithmetic expansion
+- string manipulation via ${...} forms
+- arrays (kernel/cupidscript_arrays.c)
+- job control (kernel/cupidscript_jobs.c)
 >endtree
 
 >h2 How To Run
@@ -40,21 +43,20 @@ Also accepted by shell dispatch:
   script.cup
 
 The shell splits the first token as the script filename and passes the rest as
-the script argument string into `cupidscript_run_file()`.
+the script argument string into cupidscript_run_file().
 
 >button List /bin Scripts | shell:ls /bin
->button Show build.cup | shell:cat /bin/build.cup
 >endtree
 
 >h2 Positional and Special Variables
 >tree open Positional and Special Variables
-Runtime special variables implemented in `cupidscript_runtime.c`:
-- `$?`  last exit status
-- `$#`  argument count
-- `$0`  script name
-- `$1` .. positional arguments
-- `$!`  last background PID
-- `$EPOCHSECONDS` current RTC epoch seconds
+Runtime special variables implemented in cupidscript_runtime.c:
+- $?  last exit status
+- $#  argument count
+- $0  script name
+- $1 .. positional arguments
+- $!  last background PID
+- $EPOCHSECONDS current RTC epoch seconds
 
 Undefined variables expand to an empty string.
 >endtree
@@ -98,15 +100,15 @@ Functions:
 Source-verified test operators in the executor:
 
 Unary:
-- `-z STRING`
-- `-n STRING`
+- -z STRING
+- -n STRING
 
 Numeric:
-- `-eq -ne -lt -gt -le -ge`
+- -eq -ne -lt -gt -le -ge
 
 String:
-- `=`
-- `!=`
+- =
+- !=
 
 Single-value form is also supported:
   [ "$X" ]
@@ -123,35 +125,35 @@ Arithmetic:
   $((A + 1))
   $((COUNT * 2))
 
-Advanced `${...}` forms implemented in the runtime/string helpers:
-- `${#var}`           length
-- `${var:start:len}`  substring
-- `${var%pat}`        remove shortest suffix
-- `${var%%pat}`       remove longest suffix
-- `${var#pat}`        remove shortest prefix
-- `${var##pat}`       remove longest prefix
-- `${var/old/new}`    replace first
-- `${var//old/new}`   replace all
-- `${var^^}`          uppercase
-- `${var,,}`          lowercase
-- `${var^}`           capitalize first
+Advanced ${...} forms implemented in the runtime/string helpers:
+- ${#var}           length
+- ${var:start:len}  substring
+- ${var%pat}        remove shortest suffix
+- ${var%%pat}       remove longest suffix
+- ${var#pat}        remove shortest prefix
+- ${var##pat}       remove longest prefix
+- ${var/old/new}    replace first
+- ${var//old/new}   replace all
+- ${var^^}          uppercase
+- ${var,,}          lowercase
+- ${var^}           capitalize first
 >endtree
 
 >h2 Pipes, Redirection, and Jobs
 >tree open Pipes, Redirection, and Jobs
 The token set and executor support:
-- `|`
-- `>`
-- `>>`
-- `<`
-- `2>`
-- `2>&1`
-- `&`
+- |
+- >
+- >>
+- <
+- 2>
+- 2>&1
+- &
 
 That means shell-style pipelines and redirected scripts are first-class,
 not just interactive shell features.
 
-`$!` exposes the last background PID tracked by the script job table.
+$! exposes the last background PID tracked by the script job table.
 >endtree
 
 >h2 Runtime Model
@@ -167,22 +169,22 @@ Loader search order for script files:
 2) VFS path
 3) direct FAT16 fallback
 
-That is why shipped scripts in `/bin` and persistent scripts under `/home`
+That is why shipped scripts in /bin and persistent scripts under /home
 both work.
 >endtree
 
 >h2 Practical Workflow
 >tree open Practical Workflow
 Common workflow:
-1) create `/home/hello.cup`
-2) run `cupid /home/hello.cup`
-3) or run `/home/hello.cup` directly from shell
+1) create /home/hello.cup
+2) run cupid /home/hello.cup
+3) or run /home/hello.cup directly from shell
 
 Useful companion commands:
-- `ed` for editing
-- `cat` for inspection
-- `date` and `echo` inside scripts
-- `jobs` for background work
+- ed for editing
+- cat for inspection
+- date and echo inside scripts
+- jobs for background work
 >button Open Labs | open:07LABS.CTXT
 >button Show Processes | shell:ps
 >endtree
@@ -191,11 +193,11 @@ Useful companion commands:
 >tree open Notes
 CupidScript is intentionally shell-like, not POSIX-complete bash.
 
-Current limits visible in the headers/runtime:
-- 32 variables
-- 16 functions
-- 16 argv entries per parsed command
-- 8 stored script arguments in the runtime context
+Current limits from kernel/cupidscript.h:
+- MAX_VARIABLES = 32
+- MAX_FUNCTIONS = 16
+- MAX_ARGS = 16 (argv entries per parsed command)
+- MAX_SCRIPT_ARGS = 8 (stored script arguments in the runtime context)
 
 That is enough for practical in-OS automation, but the language remains small
 and direct by design.

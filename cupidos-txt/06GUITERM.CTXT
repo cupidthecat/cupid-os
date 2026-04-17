@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 GUI Terminal and Embedded Shell
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -20,6 +20,8 @@ Verified against source on: 2026-04-16
 CupidOS Terminal is a GUI window over the normal shell, not a second shell
 implementation.
 
+Source: kernel/terminal_app.c, kernel/gui.c, kernel/desktop.c
+
 Source-verified structure:
 - shell owns the text and color buffers
 - terminal app reads those buffers for redraw
@@ -29,11 +31,11 @@ Source-verified structure:
 
 >h2 Launch Model
 >tree open Launch Model
-`terminal` launches the GUI terminal app.
+terminal launches the GUI terminal app.
 
-Current behavior from `kernel/terminal_app.c`:
+Current behavior from kernel/terminal_app.c:
 - only one terminal window instance is kept at a time
-- the window title is `Terminal`
+- the window title is Terminal
 - launch switches shell output to GUI mode
 - the terminal owns its own process table entry while open
 
@@ -62,8 +64,8 @@ mode and GUI mode.
 Source-verified terminal controls:
 - mouse wheel scrolls history
 - Page Up / Page Down scroll by chunks
-- Ctrl + `+` increases font scale
-- Ctrl + `-` decreases font scale
+- Ctrl + + increases font scale
+- Ctrl + - decreases font scale
 - scale is clamped to 1..3
 - cursor blink period is 500 ms
 
@@ -97,9 +99,9 @@ feature.
 >h2 Related GUI Apps
 >tree open Related GUI Apps
 Core GUI app names used by the launcher:
-- `terminal`
-- `notepad`
-- `fm`
+- terminal
+- notepad
+- fm
 
 These are registry-backed app names, so the shell and desktop can launch them
 through the shared app-launch path instead of ad hoc special cases.
@@ -111,9 +113,9 @@ through the shared app-launch path instead of ad hoc special cases.
 
 >h2 Notes
 >tree open Notes
-There is also a hosted `/bin/terminal.cc` program in the tree, but the main
+There is also a hosted /bin/terminal.cc program in the tree, but the main
 GUI terminal path used by the OS desktop/shell launcher is the kernel-side
-terminal app.
+terminal app (kernel/terminal_app.c).
 
 For users, the practical command remains:
   terminal

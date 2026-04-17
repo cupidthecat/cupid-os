@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,6 +17,9 @@ Verified against source on: 2026-04-16
 >tree open Overview
 CupidASM is CupidOS's in-kernel x86-32 assembler.
 
+Source files: kernel/as.c, kernel/as_lex.c, kernel/as_parse.c,
+              kernel/as_elf.c (AOT ELF output), kernel/dis.c (disassembly).
+
 Main command forms:
   as file.asm
   as -o output file.asm
@@ -24,25 +27,25 @@ Main command forms:
   cupidasm file.asm -o output
   cupidasm -o output file.asm
 
-`as` is the JIT-first path.
-`cupidasm` is the explicit assemble-to-ELF path with a default derived output
-name when `-o` is omitted.
+as is the JIT-first path.
+cupidasm is the explicit assemble-to-ELF path with a default derived output
+name when -o is omitted.
 >endtree
 
 >h2 Entry Points and Calling Convention
 >tree open Entry Points and Calling Convention
 Accepted entry labels:
-- `main:`
-- `_start:`
+- main:
+- _start:
 
 Calling convention:
 - cdecl
 - caller cleans the stack after calls
 
-This is the most common source of broken demos: forgetting `add esp, N*4` after
-a call with pushed arguments.
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
+Forgetting add esp, N*4 after a call with pushed arguments is the most common
+cause.
 >endbox
 >endtree
 
@@ -51,21 +54,21 @@ If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
 Source-backed syntax from the assembler/parser:
 - Intel-style mnemonics
 - case-insensitive registers, mnemonics, and directives
-- `;` line comments
+- ; line comments
 - decimal, hex, and binary integers
-- labels with `name:`
-- `equ` constants
-- `.text`, `.data`, `.bss`
-- `db`, `dw`, `dd`
-- `resb`, `resw`, `resd`
-- `rb`, `rw`, `rd`
-- `reserve` alias
-- `times`
-- `global`
-- `extern`
+- labels with name:
+- equ constants
+- .text, .data, .bss
+- db, dw, dd
+- resb, resw, resd
+- rb, rw, rd
+- reserve alias
+- times
+- global
+- extern
 
 Known limitation:
-- `%include` is tokenized but include expansion is not implemented
+- %include is tokenized but include expansion is not implemented
 >endtree
 
 >h2 Instruction Coverage
@@ -74,29 +77,35 @@ CupidASM is practical, not NASM-complete.
 
 The current assembler handles the core integer/control-flow set used by the
 shipped demos, including:
-- `mov`, `lea`, `xchg`
-- `push`, `pop`, `call`, `ret`
-- `jmp` and common conditional jumps
-- `add`, `sub`, `cmp`, `test`
-- `and`, `or`, `xor`, `not`, `neg`
-- `mul`, `imul`, `div`, `idiv`
+- mov, lea, xchg
+- push, pop, call, ret
+- jmp and common conditional jumps
+- add, sub, cmp, test
+- and, or, xor, not, neg
+- mul, imul, div, idiv
 - shifts and rotates
-- `nop`, `hlt`, `cli`, `sti`, `iret`, `leave`
+- nop, hlt, cli, sti, iret, leave
 
-Use the shipped demos under `/demos` as the real compatibility baseline.
+FPU/SSE opcodes added in P1 (~80 new opcodes):
+- FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
+- SSE scalar (23): MOVSS/SD, ADDSS/SD, and more
+- SSE packed (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more
+- x87 (25): FLD, FSIN, FPATAN, F2XM1, FYL2X, and more
+- Register tokens: XMM0-7 and ST0-7
+
+Use the shipped demos under /demos as the real compatibility baseline.
 >endtree
 
 >h2 JIT Mode
 >tree open JIT Mode
-`as file.asm` reads the source through VFS, assembles it in memory, and runs it
+as file.asm reads the source through VFS, assembles it in memory, and runs it
 immediately.
 
 JIT mode pre-registers kernel symbols as labels so asm programs can call into
-the OS directly.
-
-Examples of the kinds of helpers bound in `kernel/as.c`:
-- console output
-- VFS helpers
+the OS directly. Examples from kernel/as.c:
+- print, println (console output)
+- vfs_open, vfs_read, vfs_write, vfs_close, vfs_seek, vfs_stat, vfs_readdir
+- vfs_mkdir, vfs_unlink, vfs_rename, vfs_copy_file, vfs_read_all, vfs_write_all
 - date/time helpers
 - mouse and keyboard helpers
 - graphics helpers
@@ -109,24 +118,24 @@ Examples of the kinds of helpers bound in `kernel/as.c`:
 
 >h2 AOT ELF Output
 >tree open AOT ELF Output
-`as -o` and `cupidasm` both produce ELF32 output on disk.
+as -o and cupidasm both produce ELF32 output on disk.
 
 Common patterns:
   as -o /home/hello /demos/hello.asm
   cupidasm /demos/hello.asm -o /home/hello
   cupidasm /demos/hello.asm
 
-If `cupidasm` is called without `-o`, the output name is derived from the
-source path by stripping `.asm`.
+If cupidasm is called without -o, the output name is derived from the
+source path by stripping .asm.
 >endtree
 
 >h2 Disassembly Workflow
 >tree open Disassembly Workflow
 Useful inspection commands:
-- `exec -d /home/hello`
-- `dis file.elf`
-- `dis file.cc`
-- `cc -d file.cc`
+- exec -d /home/hello
+- dis file.elf
+- dis file.cc
+- cc -d file.cc
 
 This makes CupidASM fit naturally into the same inspectable source/binary flow
 as CupidC.
@@ -135,13 +144,13 @@ as CupidC.
 >h2 Demo Sources
 >tree open Demo Sources
 The source tree and boot image ship asm demos under:
-- `/demos/*.asm`
-- `/docs/demos/*.asm`
+- /demos/*.asm
 
-That second mirror exists so manuals can open demo files through docs-relative
-paths.
+FPU/SIMD demo files added in P1:
+- demos/fpu_kernel.asm    CupidASM FPU state + scalar + packed + x87
+- demos/simd_blur.asm     SIMD box blur via MOVUPS/ADDPS/MULPS
 
-If you are using persistent copies under the HDD image, `make sync-demos`
+If you are using persistent copies under the HDD image, make sync-demos
 refreshes the demo set there.
 
 >button ls /demos | shell:ls /demos
@@ -152,11 +161,11 @@ refreshes the demo set there.
 >h2 Practical Workflow
 >tree open Practical Workflow
 Recommended loop:
-1) inspect a shipped demo under `/demos`
-2) run it with `as`
-3) copy or create your own version under `/home`
-4) assemble to ELF with `as -o` or `cupidasm`
-5) run the result with `exec`
+1) inspect a shipped demo under /demos
+2) run it with as
+3) copy or create your own version under /home
+4) assemble to ELF with as -o or cupidasm
+5) run the result with exec
 
 This keeps asm aligned with the same source-first workflow as the rest of
 CupidOS.
@@ -167,3 +176,4 @@ CupidOS.
 [05ELFPROG.CTXT - ELF programs](open:05ELFPROG.CTXT)
 [04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
 [09EMBED.CTXT - embedding docs and demos](open:09EMBED.CTXT)
+[14FPU-SSE.CTXT - FPU/SSE opcodes](open:14FPU-SSE.CTXT)

@@ -2,6 +2,7 @@
 #include "../kernel/ports.h"
 #include "../kernel/kernel.h"
 #include "../kernel/string.h"
+#include "../kernel/bkl.h"
 #include "timer.h"
 
 #define SERIAL_DATA(base)        (base)
@@ -39,6 +40,15 @@ void serial_init(void) {
 
 static int serial_transmit_ready(void) {
     return inb(SERIAL_LINE_STATUS(SERIAL_COM1)) & 0x20;
+}
+
+int serial_has_rx(void) {
+    return inb(SERIAL_LINE_STATUS(SERIAL_COM1)) & 0x01;
+}
+
+int serial_read_char(void) {
+    if (!serial_has_rx()) return -1;
+    return (int)inb(SERIAL_DATA(SERIAL_COM1));
 }
 
 void serial_write_char(char c) {
@@ -167,6 +177,8 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
 static int esp_misalign_reported = 0;
 
 void serial_printf(const char *fmt, ...) {
+    bool take = bkl_is_initialized();
+    if (take) bkl_lock();
     if (!esp_misalign_reported) {
         uint32_t esp_val;
         __asm__ volatile("mov %%esp, %0" : "=r"(esp_val));
@@ -210,6 +222,7 @@ void serial_printf(const char *fmt, ...) {
     __builtin_va_start(ap, fmt);
     vserial_printf(fmt, ap);
     __builtin_va_end(ap);
+    if (take) bkl_unlock();
 }
 
 /* Append a line to the circular log buffer.  line should NOT contain '\n'. */
@@ -257,6 +270,9 @@ const char *get_log_level_name(void) {
 
 void klog(log_level_t level, const char *fmt, ...) {
     if (level < current_log_level) return;
+
+    bool take = bkl_is_initialized();
+    if (take) bkl_lock();
 
     /* Build line into a local buffer for the in-memory log */
     char line[LOG_LINE_MAX];
@@ -393,4 +409,5 @@ void klog(log_level_t level, const char *fmt, ...) {
     serial_write_char('\n');
     line[pos] = '\0';
     log_buffer_append(line);
+    if (take) bkl_unlock();
 }

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-04-16
+Verified against source on: 2026-04-17
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,14 +17,14 @@ Verified against source on: 2026-04-16
 >tree open Overview
 This is the GCC/ELF path, separate from CupidC source JIT.
 
-`kernel/exec.c` currently supports:
+kernel/exec.c currently supports:
 - ELF32 executables
 - i386 machine type
-- `ET_EXEC`
+- ET_EXEC
 - PT_LOAD segment loading
 
 ELF programs are started as external processes and receive the syscall table
-pointer as the first argument to `_start`.
+pointer as the first argument to _start.
 >endtree
 
 >h2 Entry Point
@@ -39,36 +39,36 @@ Canonical entry:
       exit();
   }
 
-`cupid_init(sys)` stores the syscall table so wrapper functions can forward to
+cupid_init(sys) stores the syscall table so wrapper functions can forward to
 the kernel.
 >endtree
 
 >h2 Loader Constraints
 >tree open Loader Constraints
-Source-verified loader checks from `kernel/exec.c`:
-- ELF32 only
+Source-verified loader checks from kernel/exec.c:
+- ELF32 only (EXEC_MAX_SIZE = 256 KB)
 - little-endian
 - executable type required
 - i386 only
-- at least one PT_LOAD segment
+- at least one PT_LOAD segment (max ELF_MAX_PHDRS = 16)
 - image size must be <= 256 KB
-- load address must be >= `0x00400000`
+- load address must be >= 0x00400000
 - image must fit inside the identity-mapped range
 
-If the binary violates those rules, `exec` rejects it.
+If the binary violates those rules, exec rejects it.
 >endtree
 
 >h2 Build Flow
 >tree open Build Flow
 The user-space examples live under:
-- `user/examples/hello.c`
-- `user/examples/ls.c`
-- `user/examples/cat.c`
+- user/examples/hello.c
+- user/examples/ls.c
+- user/examples/cat.c
 
 Build them with:
   make -C user
 
-The current `user/Makefile` writes outputs to:
+The current user/Makefile writes outputs to:
   user/build/
 >endtree
 
@@ -87,7 +87,7 @@ The shell prints the started PID when loading succeeds.
 
 >h2 Syscall Wrapper Surface
 >tree open Syscall Wrapper Surface
-`user/cupid.h` exposes wrappers around the syscall table for:
+user/cupid.h exposes wrappers around the syscall table for:
 - console I/O
 - memory allocation
 - string helpers
@@ -103,8 +103,8 @@ pre-registered bindings.
 
 >h2 Process Model
 >tree open Process Model
-ELF programs are created through `process_create_with_arg_ex(...)` with:
-  `PROCESS_DOMAIN_EXTERNAL`
+ELF programs are created through process_create_with_arg_ex(...) with:
+  PROCESS_DOMAIN_EXTERNAL
 
 That is classification, not isolation:
 - ELF programs are distinct in the process table
@@ -122,7 +122,7 @@ Example link:
   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
      -o hello hello.o
 
-The `-Ttext=0x00400000` choice matters because the loader rejects low load
+The -Ttext=0x00400000 choice matters because the loader rejects low load
 addresses.
 >endtree
 
@@ -132,7 +132,7 @@ Choose ELF when you want:
 - explicit external toolchain control
 - direct syscall-table style programming
 - fixed binary artifacts on disk
-- loader/disassembly testing through `exec` and `exec -d`
+- loader/disassembly testing through exec and exec -d
 
 Choose CupidC when you want:
 - zero-build source execution

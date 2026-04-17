@@ -474,6 +474,18 @@ bool keyboard_read_event(key_event_t* event) {
         keyboard_state.buffer.count--;
         return true;
     }
+
+    /* Headless console: pull from COM1 RX so host can drive the shell. */
+    int rx = serial_read_char();
+    if (rx >= 0) {
+        char c = (char)rx;
+        if (c == '\r') c = '\n';
+        event->scancode  = 0;
+        event->character = c;
+        event->pressed   = true;
+        event->timestamp = 0;
+        return true;
+    }
     return false;
 }
 
