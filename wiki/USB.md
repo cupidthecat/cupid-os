@@ -43,14 +43,14 @@ shell sees a unified input stream. Mass storage registers as a block device (`us
 
 ```
                   ┌─────────────────────────────────┐
-                  │           USB Core               │
-                  │  usb_device_t[], work queue,     │
-                  │  enumeration FSM, usb_control()  │
+                  │           USB Core              │
+                  │  usb_device_t[], work queue,    │
+                  │  enumeration FSM, usb_control() │
                   └──────────┬──────────────────────┘
                              │  usb_hc_t vtable
               ┌──────────────┼──────────────┐
               ▼              ▼              │
-         ┌────────┐    ┌────────┐          │
+         ┌────────┐    ┌────────┐           │
          │  UHCI  │    │  EHCI  │  (companion routing)
          │ (1.1)  │    │ (2.0)  │
          └────────┘    └────────┘
@@ -332,15 +332,15 @@ to create a 4KB kernel-virtual mapping before any register access.
 
 ```
 BAR0 + 0x00  ┌──────────────────────────────┐
-             │  Capability Registers (RO)    │  length = CAPLENGTH
-             │  CAPLENGTH, HCIVERSION,       │
-             │  HCSPARAMS, HCCPARAMS         │
+             │  Capability Registers (RO)   │  length = CAPLENGTH
+             │  CAPLENGTH, HCIVERSION,      │
+             │  HCSPARAMS, HCCPARAMS        │
 BAR0 + CAPLENGTH
              ├──────────────────────────────┤
              │  Operational Registers (R/W) │
              │  USBCMD, USBSTS, USBINTR,    │
              │  FRINDEX, CTRLDSSEGMENT,     │
-             │  PERIODICLISTBASE,            │
+             │  PERIODICLISTBASE,           │
              │  ASYNCLISTADDR, CONFIGFLAG,  │
              │  PORTSC[0..N]                │
              └──────────────────────────────┘
