@@ -1241,3 +1241,355 @@ data files now open by double-click in My Computer.
     `ping 8.8.8.8` from inside CupidOS reports zero replies but TCP
     works, that's the cause — `sysctl -w
     net.ipv4.ping_group_range="0 2147483647"` on the host fixes it.
+
+---
+
+## Phase 7 — Browser source split (Plan 1 of WebKit-lite redesign)
+
+Foundation for the browser redesign spec
+(`docs/superpowers/specs/2026-05-05-browser-redesign.md`). The current
+`bin/browser.cc` was a single ~2070-line file that the redesign needs
+to split before touching pipeline structure. CupidC's preprocessor
+already supports `#include "rel/path"` resolved relative to the
+including file (in `kernel/cupidc.c`); only the build system needed
+extension. Plan source-of-truth:
+`docs/superpowers/plans/2026-05-05-browser-build-split.md`.
+
+**Invariant:** zero behavior change. Every commit verified against a
+pre-split visual reference of `http://example.com/` rendered in QEMU.
+
+### 7.1 Build system extension
+
+**Files:** `Makefile` (~24 lines added)
+
+- New wildcard `BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)` plus
+  derived `BROWSER_SUB_OBJS` / `BROWSER_SUB_NAMES`.
+- Pattern rule `bin/browser/%.o: bin/browser/%.cc` — same `objcopy
+  -I binary -O elf32-i386 -B i386` recipe as the existing `bin/%.o`
+  rule, embedding each sub-file as `_binary_bin_browser_<n>_cc_*`
+  symbols.
+- `kernel/bin_programs_gen.c` generator extended to iterate
+  `BROWSER_SUB_NAMES`: emits the `extern` decls before
+  `install_bin_programs`, then `ramfs_add_file(fs_private,
+  "bin/browser/<n>.cc", _binary_bin_browser_<n>_cc_start, sz)` calls
+  inside the body. Output line per file:
+  `[kernel] Installed /bin/browser/<n>.cc (NNNN bytes)`.
+- Sub-files NOT added to `BIN_CC_NAMES` — they are CupidC `#include`
+  targets, not runnable programs. Convention reserved: `bin/browser/`
+  is the browser library namespace.
+- Generator dependency line picks up `BROWSER_SUB_SRCS` so changes to
+  any sub-file re-run the embed step.
+- `clean` rule appended `bin/browser/*.o` to its rm wildcard.
+
+At boot, ramfs has `/bin/browser.cc` (runnable, 19 lines — pure
+trampoline) plus `/bin/browser/*.cc` (library). When the user runs
+`browser`, JIT preprocesses the trampoline, follows each `#include
+"browser/*.cc"` via the existing path resolver (relative to `/bin/`),
+and compiles the concatenated TU.
+
+### 7.2 File extraction (10 commits, verbatim moves)
+
+Each commit moves one cohesive section out of `bin/browser.cc` into
+`bin/browser/<name>.cc`, preserving call order in include directives.
+CupidC has no forward declarations across `#include` boundaries; the
+preprocessor concatenates expanded source into one buffer for a
+single-pass compiler, so order matters bottom-up.
+
+| Commit | New file | LOC | Contents |
+|---|---|---|---|
+| `fc7e5b5` | `bin/browser/_smoke.cc` | ~5 | `browser_smoke_token()` stub proving `#include` + ramfs-embed pipeline (deleted at end of plan in `8a1afdc`) |
+| `53864fc` | `bin/browser/util.cc` | 85 | `b_strlen`, `b_streq`, `b_lc`, `b_strieq`, `b_streq_n`, `b_strieq_n`, `b_strcpy_n`, `b_strchr`, `b_append`, `b_append_n`, `b_append_int` |
+| `c2ee640` | `bin/browser/url.cc` | 73 | `parse_url`, `resolve_redirect` |
+| `69701fe` | (relocate) | — | `hex_digit` moved url.cc → util.cc (review-driven; consumers all live in dom.cc) |
+| `b2a155c` | `bin/browser/net.cc` | 176 | `build_request`, `fetch_url` (HTTP/HTTPS + redirects). References to globals (`cur_host`, `page_buf`, …) resolve at trampoline-link time |
+| `bb9c3ea` | `bin/browser/dom.cc` | 199 | `parse_color_named`, `parse_color`, `apply_style`, `alloc_node`, `attr_intern`, `decode_entities` |
+| `23651e2` | `bin/browser/parser.cc` | 311 | `tag_id`, `is_void_tag`, `skip_to_close`, `parse_html` |
+| `7480ea9` | (cleanup) | — | drop stranded `/* DOM helpers in dom.cc */` marker from parser.cc |
+| `983dcc1` | `bin/browser/layout.cc` | 302 | `viewport_w`, `parent_color/bg/bold/link`, `L_*` state, `emit_box`, `last_box`, `register_link`, `newline`, `layout_text`, `layout_children`, `layout_node`, `run_layout` |
+| `75d48dc` | `bin/browser/paint.cc` | 220 | `viewport_x/y/h`, `draw_text/input/button/image_box`, `draw_address_bar`, `draw_status_bar`, `draw_scrollbar`, `render`, `error_page` |
+| `8820f2d` | `bin/browser/nav.cc` | 172 | `compute_url_relative`, `navigate`, `go_back`, `submit_form` |
+| `83e2598` | `bin/browser/input.cc` | 246 | `hit_box`, `find_node_for_input`, `find_form_node`, `clamp_scroll`, `handle_address_key`, `handle_input_key`, `handle_page_key`, `handle_keys`, `handle_left_click`, `handle_hover`, `handle_mouse` |
+| `8a1afdc` | `bin/browser/main.cc` | 266 | All globals (`cur_url`, `page_buf`, `n_*`/`b_*` arrays, focus state, history ring), all `enum` constants (`T_*`, `BK_*`, `FOCUS_*`, sizing caps), `browser_main()` (renamed from `main()`); deletes `_smoke.cc` |
+| `5a79371` | (cleanup) | — | drop stale `/* moved to X */` markers left behind in main.cc |
+
+The trampoline `bin/browser.cc` ends at 19 lines:
+
+```c
+//help: Web browser. Renders HTTP and HTTPS pages in a window.
+//help: Usage: browser [url]
+//help:   Address bar: Ctrl-L to focus, Enter to go.
+//help:   Backspace (page focus): back history.
+//help:   Arrow keys / mouse wheel: scroll.
+//help:   Click link to navigate.
+
+#include "browser/main.cc"
+#include "browser/util.cc"
+#include "browser/url.cc"
+#include "browser/net.cc"
+#include "browser/dom.cc"
+#include "browser/parser.cc"
+#include "browser/layout.cc"
+#include "browser/paint.cc"
+#include "browser/nav.cc"
+#include "browser/input.cc"
+
+void main() { browser_main(); }
+```
+
+`main.cc` is included FIRST so its globals/enums are visible to all
+subsequent includes. CupidC accepts forward references to functions
+within the concatenated TU (the existing single-file browser already
+relied on this between `main()` and earlier-defined helpers), so
+`browser_main()`'s body — which calls into every later include — works.
+
+### Phase 7 verification
+
+- Build log per commit shows `[kernel] Installed /bin/browser/<n>.cc
+  (NNNN bytes)` lines for every sub-file.
+- Manual visual smoke after every commit: `make run-net`, in shell
+  `browser http://example.com/`, compare against pre-split reference.
+  Expected: title "Example Domain", one underlined link, identical
+  layout.
+- Final acceptance covers HTTP, HTTPS, multi-page nav (Backspace
+  history), and form submit (GET only). No regressions vs pre-split.
+
+---
+
+## Phase 8 — Networking, TLS, and filesystem hardening
+
+Discovered while exercising the freshly-split browser against real
+sites. Each fix has a specific failure-mode reproduction; none are
+speculative cleanup. Listed in order of root-cause depth.
+
+### 8.1 RTL8139 receiver: WRAP=1 in RCR
+
+**File:** `kernel/rtl8139.c`
+
+**Problem:** the driver's `rtl_rx_drain` reads each received packet
+linearly from `p+4` for `pkt_len` bytes, relying on the chip's
+1500-byte buffer extension after offset 8192 (`RTL_RX_BUF_SIZE = 8192
++ 16 + 1500`) to make boundary-straddling packets contiguous in
+memory. That extension is only used when **WRAP=1** in RCR.
+
+RCR was being programmed as `0x0F` (`AB | AM | APM | AAP`, WRAP=0).
+With WRAP=0 the chip wraps any packet that doesn't fit before offset
+8192 back to offset 0 in the visible 8192-byte ring; only the first
+part of such a packet appears at `p+4`. The driver's linear read then
+walks past offset 8192 into the zero-initialised extension region,
+silently producing frames whose tails are zero-padded.
+
+Invisible for short connections that never wrapped and for short
+packets that fit before the boundary. Symptom: TCP streams larger
+than the 8K chip ring consistently delivered some zero-padded
+segments. AEAD-protected payloads (TLS records) decrypt-failed on the
+silently-corrupted bytes; plain HTTP browsers got garbage in long
+responses.
+
+Concrete impact: TLS handshakes against servers with deep RSA-4096
+cert chains (e.g. `iana.org`, ~10 KB Certificate handshake message)
+AEAD-failed on the Certificate record because the source ciphertext
+bytes for one segment were partially zeros. Decoding the all-zero
+Poly1305 tag was the giveaway in the trace.
+
+**Fix:** RCR `0x0F` → `0x8F` (WRAP | AB | AM | APM | AAP).
+
+### 8.2 TCP receive buffer + dynamic advertised window
+
+**Files:** `kernel/socket.h`, `kernel/tcp.c`
+
+**Problem:** two issues with the same root cause — peer-side data
+piling up faster than we drained, segments dropped, peer eventually
+closing the connection mid-handshake (surfaced as
+`TLS_ERR_TRANSPORT = -1`):
+
+1. `SOCK_RX_BUF` was 8 KB. Servers with deep RSA-4096 cert chains
+   send a Certificate handshake message ~10 KB; after
+   ChaCha20-Poly1305 framing it lands as one or two TLS records and
+   easily exceeds 8 KB of TCP-buffered data. The buffer couldn't
+   hold a single record's TCP segments long enough for the TLS layer
+   to drain.
+2. Advertised window was hard-coded `8192`. With a fixed window the
+   peer always thought it had 8 KB of room even when our buffer was
+   full — leading to drops + retransmit storms.
+
+**Fix:**
+- Bump `SOCK_RX_BUF` 8 KB → 64 KB. Cost: 32 sockets × 56 KB extra =
+  1.75 MB. Plenty of room in our 16 MB CupidC data base.
+- Compute actual free rx-buffer space at every send and put that in
+  the TCP header, capped at `0xFFFF` (no window scaling).
+
+### 8.3 TLS handshake reader carry buffer
+
+**File:** `kernel/tls/tls_handshake.c`
+
+**Problem:** the handshake-message reassembler held only 4 KB of
+in-flight bytes between TLS-record arrivals. A single TLS record's
+plaintext can be up to 16 KB (RFC 8446 §5.1), and large handshake
+messages — notably `Certificate` when the server's chain contains
+4096-bit RSA certs — land in records of 6-7 KB. `hs_reader_fill`
+rejected those with `TLS_ERR_PROTOCOL`.
+
+**Fix:** size the carry buffer to `TLS_REC_MAX_PLAINTEXT` (16 KB).
+`hs_reader` is a stack local in `tls_handshake_client`; +12 KB on a
+1 MB user stack is fine.
+
+### 8.4 TLS app-data plaintext spillover buffer
+
+**Files:** `kernel/tls/tls_ctx.h`, `kernel/tls/tls_handshake.c`
+
+**Problem:** a single TLS 1.3 record's plaintext can be up to 16 KB
+but callers typically pass a small recv buffer (curl/browser use
+4 KB). The old `tls_app_recv` handed the caller's buffer straight
+to `tls_record_recv`, which rejected oversized records with
+`TLS_ERR_PARSE` (returned to caller as `-2`) — losing the response
+body for any single-record HTTP response > ~4 KB.
+
+**Fix:** add `app_buf[TLS_REC_MAX_PLAINTEXT]` + `app_off` / `app_len`
+to `tls_ctx_t`. `tls_app_recv` decrypts a whole record into
+`app_buf`, returns up to `buf_max` bytes to the caller, and drains
+leftovers across subsequent recv calls.
+
+Verified: `www.iana.org`'s 6142-byte HTML body now flows through curl
+and browser without truncation.
+
+### 8.5 RSA-PSS verifier: drop strict DB top-bit check
+
+**File:** `kernel/tls/rsa.c`
+
+**Problem:** RFC 3447 §9.1.2 step 6 says "Set the leftmost
+(8·emLen − emBits) bits of the leftmost octet in DB to zero." That's
+a directive to **mask** those bits, not check them.
+
+The signer (per §9.1.1 step 11) only zeroes the top bits of
+*maskedDB*, not DB. After the verifier MGF1-unmasks (`db = maskedDB ^
+mask`), DB's top bits equal `mask`'s top bits, which are essentially
+uniform-random SHA-256 output. The verifier is supposed to mask them
+off and proceed.
+
+The previous code added a strict pre-mask check:
+```c
+if ((db[0] & ~topmask) != 0u) return 0;
+```
+For RSA-4096 (`modbits=4096, emBits=4095, top_zero_bits=1`), this
+rejected any signature where MGF1's high bit happened to be 1 —
+i.e., ~50% of all valid signatures. For RSA-3072 (`top_zero_bits=0`)
+the bit-clearing branch was skipped entirely, so the check never
+fired. That's why example.com (ECDSA) and most Cloudflare-fronted
+sites worked, but iana.org's RSA-4096 leaf cert produced a flaky
+~60% verify success rate.
+
+Symptom: TLS handshake with iana.org fails with
+`TLS_ERR_BAD_SIGNATURE = -8` on roughly half of all attempts.
+Reproduced offline by computing `sig^e mod n` with our exact byte
+inputs — Python's PSS verify accepts both successful and "failing"
+cases identically; only our extra check diverged.
+
+**Fix:** drop the check, just mask the bits per RFC.
+
+### 8.6 HomeFS flush re-entrance — leaked clusters → stack overflow
+
+**File:** `kernel/homefs.c`
+
+**Problem:** `fat16_write_file` calls `blockcache_sync()` internally,
+which calls `homefs_sync()`, which calls back into `homefs_flush()`.
+Because `dirty` was cleared **after** `fat16_write_file` returned, the
+inner call saw `dirty=true` and re-entered the flush, allocating a
+fresh FAT cluster each time. Each iteration leaked one cluster; the
+unbounded recursion eventually overflowed the kernel stack and
+rebooted the machine.
+
+Symptom (e.g. `curl -o /home/X.html https://...`): the boot log shows
+many `[fat16_write_file] HOMEFS.SYS` allocations of fresh sequential
+clusters (3927, 3928, 3929, …) followed by an immediate kernel reboot.
+
+**Fix:** clear `fs->dirty` up front. If the write fails, restore it so
+data isn't silently lost. Inner re-entrant calls now see `dirty=false`
+and bail with `VFS_OK` without recursing.
+
+### Phase 8 verification
+
+- HTTP path: `browser http://example.com/` renders unchanged.
+- HTTPS path on small response: `browser https://example.com/`
+  completes (was already passing).
+- HTTPS path on RSA-4096 chain + large body:
+  `browser https://www.iana.org/` now completes the handshake
+  reliably (was ~60%) and renders the 6142-byte body fully (was
+  truncated at ~4 KB).
+- Disk write path: `curl -o /home/test.html http://example.com/` no
+  longer crashes the kernel.
+
+### Phase 7 + 8 file summary
+
+**Browser split (Plan 1):**
+- `bin/browser.cc` — reduced from ~2075 lines to 19 (pure trampoline)
+- `bin/browser/util.cc`, `url.cc`, `net.cc`, `dom.cc`, `parser.cc`,
+  `layout.cc`, `paint.cc`, `nav.cc`, `input.cc`, `main.cc` — new,
+  total ~2050 lines (verbatim moves + banner comments)
+- `Makefile` — wildcard discovery, pattern rule, generator extension,
+  clean rule (~24 lines)
+- `docs/superpowers/plans/2026-05-05-browser-build-split.md` — minor
+  edits during execution
+
+**Networking / TLS / filesystem (Phase 8):**
+- `kernel/rtl8139.c` — RCR WRAP bit
+- `kernel/tcp.c`, `kernel/socket.h` — rx buffer + dynamic window
+- `kernel/tls/tls_handshake.c` — hs_reader carry → 16 KB
+- `kernel/tls/tls_ctx.h`, `kernel/tls/tls_handshake.c` — app-data
+  spillover buffer
+- `kernel/tls/rsa.c` — drop non-RFC PSS strict check
+- `kernel/homefs.c` — clear dirty before flush
+
+**Total commits on branch:** 22 (Plan 1: 13 incl. cleanups; Phase 8: 6
+fixes + 1 reverted debug commit + 1 revert + 1 placeholder).
+
+### Suggested commit-message style for downstream PRs
+
+The existing commits already follow this — listed here for reference
+when squashing or backporting:
+
+```
+browser: extract <area> to bin/browser/<file>.cc
+
+Moves <listed functions> verbatim. No behavior change.
+```
+
+```
+<subsystem>: <one-line root cause and fix>
+
+<why-it-mattered paragraph: failure mode, reproduction site>
+
+<fix paragraph: what changed, why this is the right scope>
+```
+
+### Things to call out for reviewers (Phases 7-8)
+
+1. **CupidC forward-reference behaviour** is the load-bearing
+   assumption of the trampoline ordering. `main.cc` (containing
+   globals) is included first; later includes reference those globals.
+   This works because the JIT compiles one concatenated TU. If a
+   future CupidC change tightens forward-reference rules, the fallback
+   already documented in the plan (split `globals.cc` first, `main.cc`
+   last) applies.
+
+2. **`bin/browser/` is now a reserved path** in the ramfs convention.
+   Future runnable programs go in `bin/<name>.cc` (flat); browser
+   library files go in `bin/browser/<name>.cc`. Documented in spec
+   §12.
+
+3. **TLS reliability on large chains**: the 8.1+8.2+8.3+8.4+8.5 stack
+   moves us from "TLS works on Cloudflare, flaky on RSA-4096
+   originals" to "TLS works reliably on the public Internet sites we
+   test against." It does not yet implement window scaling, congestion
+   control, or session resumption — out of scope for this PR.
+
+4. **`SOCK_RX_BUF` 8 KB → 64 KB** grows static BSS by 1.75 MB across
+   32 socket slots. Kernel data base is 16 MB; comfortable. If memory
+   pressure ever shows up, the right move is dynamic per-socket
+   buffers (each scaled to negotiated window), not reverting this
+   bump.
+
+5. **HomeFS re-entrance fix** is conservative — restores the dirty
+   flag on write failure so data isn't silently lost. The deeper
+   architectural fix (decouple `blockcache_sync` from VFS callbacks)
+   is out of scope; flag-based gate is sufficient for current
+   call-sites.
