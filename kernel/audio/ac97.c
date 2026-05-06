@@ -204,7 +204,84 @@ void ac97_set_master_volume(uint8_t pct) {
     outw((uint16_t)(s_ac97.bar_nam + NAM_MASTER_VOL), v);
 }
 
-/* ── Smoke-test kernel helper ──────────────────────────────────────────── */
+/* ── Smoke-test kernel helpers ─────────────────────────────────────────── */
+
+/* forward declaration — defined below */
+static void ac97_tsc_sleep_ms(uint32_t ms);
+
+/* Generate a triangle-wave mono PCM into a freshly kmalloc'd buffer.
+ * Caller frees. Returns NULL on alloc failure. */
+static int16_t *gen_triangle_mono(uint32_t hz, uint32_t ms, uint32_t *out_frames) {
+    const uint32_t SR = 22050u;
+    uint32_t frames = (SR * ms) / 1000u;
+    int16_t *p = (int16_t *)kmalloc(frames * 2u);
+    if (!p) { return (int16_t *)0; }
+    int32_t inc = (int32_t)((65536u * hz) / SR);
+    int32_t phase = 0;
+    for (uint32_t i = 0; i < frames; i++) {
+        int32_t t = phase & 0xFFFF;
+        int32_t s = (t < 0x8000) ? (t - 0x4000) : (0xC000 - t);
+        p[i] = (int16_t)(s * 2);
+        phase += inc;
+    }
+    *out_frames = frames;
+    return p;
+}
+
+void ac97_smoke_sweep(void) {
+    if (!s_ac97.present) {
+        serial_write_string("[SKIP] audiotest sweep: no AC97\n");
+        return;
+    }
+
+    extern int  mixer_play(int, const int16_t *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
+    extern void mixer_stop(int);
+
+    static const uint32_t F[8] = { 50u, 100u, 200u, 400u, 800u, 1600u, 3200u, 8000u };
+    for (int i = 0; i < 8; i++) {
+        uint32_t frames = 0u;
+        int16_t *t = gen_triangle_mono(F[(uint32_t)i], 500u, &frames);
+        if (!t) { continue; }
+        mixer_play(9, t, frames, (uint8_t)1, (uint8_t)0, (uint8_t)100, (uint8_t)100);
+        ac97_tsc_sleep_ms(500u);
+        mixer_stop(9);
+        kfree(t);
+    }
+    serial_write_string("[PASS] audiotest sweep\n");
+}
+
+void ac97_smoke_pan(void) {
+    if (!s_ac97.present) {
+        serial_write_string("[SKIP] audiotest pan: no AC97\n");
+        return;
+    }
+
+    extern int  mixer_play(int, const int16_t *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
+    extern void mixer_stop(int);
+    extern void mixer_set_volume(int, uint8_t, uint8_t);
+
+    uint32_t frames = 0u;
+    int16_t *t = gen_triangle_mono(1000u, 4000u, &frames);   /* 4s @ 1kHz */
+    if (!t) {
+        serial_write_string("[FAIL] audiotest pan: kmalloc\n");
+        return;
+    }
+    mixer_play(9, t, frames, (uint8_t)1, (uint8_t)0, (uint8_t)100, (uint8_t)0);
+    /* 8 ramp segments over 4 s — each segment is 500 ms = 10 × 50 ms steps */
+    for (int seg = 0; seg < 8; seg++) {
+        for (int j = 0; j <= 100; j += 10) {
+            uint8_t l = (uint8_t)((seg & 1) ? j : 100 - j);
+            uint8_t r = (uint8_t)((seg & 1) ? 100 - j : j);
+            mixer_set_volume(9, l, r);
+            ac97_tsc_sleep_ms(50u);
+        }
+    }
+    mixer_stop(9);
+    kfree(t);
+    serial_write_string("[PASS] audiotest pan\n");
+}
+
+
 
 /* TSC-based busy-wait for ms milliseconds.
  * Uses RDTSC — advances regardless of IF/IRQ state.

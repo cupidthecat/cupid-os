@@ -28,12 +28,12 @@ void main() {
     }
 
     if (strcmp(args, "pan") == 0) {
-        serial_write_string("[SKIP] audiotest pan: not implemented (Task 6)\n");
+        ac97_smoke_pan();
         return;
     }
 
     if (strcmp(args, "sweep") == 0) {
-        serial_write_string("[SKIP] audiotest sweep: not implemented (Task 6)\n");
+        ac97_smoke_sweep();
         return;
     }
 

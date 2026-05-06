@@ -2387,6 +2387,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("ac97_is_present_int", p_ac97_present, 0, TYPE_INT);
   int  (*p_ac97_smoke)(void)           = ac97_smoke_sine;
   BIND_T("ac97_smoke_sine", p_ac97_smoke, 0, TYPE_INT);
+  void (*p_ac97_sweep)(void)           = ac97_smoke_sweep;
+  BIND("ac97_smoke_sweep", p_ac97_sweep, 0);
+  void (*p_ac97_pan)(void)             = ac97_smoke_pan;
+  BIND("ac97_smoke_pan", p_ac97_pan, 0);
 
 #undef BIND
 #undef BIND_T
