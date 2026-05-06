@@ -159,6 +159,10 @@ $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 # Keep tracked binary artifacts intact if a later build step fails.
 .PRECIOUS: $(BOOTLOADER) $(KERNEL)
 
+check-mtools:
+	@command -v mcopy >/dev/null 2>&1 || { \
+	  echo "ERROR: mtools not installed. Run: pacman -S mtools"; exit 1; }
+
 all: $(OS_IMAGE)
 
 # Compile bootloader
@@ -933,4 +937,4 @@ clean-image:
 
 distclean: clean clean-image
 
-.PHONY: all run run-log sync-demos sync-iso clean clean-image distclean
+.PHONY: all check-mtools run run-log sync-demos sync-iso clean clean-image distclean
