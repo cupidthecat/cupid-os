@@ -381,10 +381,12 @@ static char get_ascii_from_scancode(uint8_t scancode) {
 }
 /* Fire the raw-scancode subscriber (if registered) before any filtering. */
 static void fire_subscriber(uint8_t raw_scancode) {
-    if (s_kbd_sub_cb != NULL) {
+    kbd_event_cb cb = s_kbd_sub_cb;
+    void *ctx = s_kbd_sub_ctx;
+    if (cb != NULL) {
         bool pressed = (raw_scancode & 0x80U) == 0;
         uint8_t cooked = (uint8_t)(raw_scancode & 0x7FU);
-        s_kbd_sub_cb(cooked, pressed, s_kbd_sub_ctx);
+        cb(cooked, pressed, ctx);
     }
 }
 
