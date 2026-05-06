@@ -36,68 +36,118 @@ void ua_default_style(int tag, int cs) {
     cs_list_style[cs] = LS_DISC;
     cs_vertical_align[cs] = VA_BASELINE;
 
-    /* Per-tag overrides matching spec §2 UA stylesheet */
-    if (tag == T_H1) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-                       cs_font_size_tier[cs] = 4;
-                       cs_margin[cs][0] = 16; cs_margin[cs][2] = 16; }
-    else if (tag == T_H2) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-                       cs_font_size_tier[cs] = 3;
-                       cs_margin[cs][0] = 12; cs_margin[cs][2] = 12; }
-    else if (tag == T_H3) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-                       cs_font_size_tier[cs] = 3;
-                       cs_margin[cs][0] = 10; cs_margin[cs][2] = 10; }
-    else if (tag == T_H4) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-                       cs_font_size_tier[cs] = 2;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8; }
-    else if (tag == T_H5 || tag == T_H6) {
-                       cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-                       cs_font_size_tier[cs] = 1;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8; }
-    else if (tag == T_P) { cs_display[cs] = DISP_BLOCK;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8; }
-    else if (tag == T_A) { cs_color[cs] = 0x0000EE; cs_text_dec[cs] = TD_UNDERLINE; }
-    else if (tag == T_PRE) { cs_display[cs] = DISP_BLOCK;
-                       cs_white_space[cs] = WS_PRE; }
-    else if (tag == T_CODE) { /* inline; monospace approximated by leaving 8x8 */ }
-    else if (tag == T_B || tag == T_STRONG) { cs_font_w[cs] = 700; }
-    else if (tag == T_I || tag == T_EM) { cs_font_i[cs] = 1; cs_text_dec[cs] = TD_UNDERLINE; }
-    else if (tag == T_UL || tag == T_OL || tag == T_DL) {
-                       cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 24;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
-                       if (tag == T_OL) cs_list_style[cs] = LS_DECIMAL; }
-    else if (tag == T_LI) { cs_display[cs] = DISP_LIST_ITEM; }
-    else if (tag == T_TABLE) { cs_display[cs] = DISP_TABLE; }
-    else if (tag == T_THEAD || tag == T_TBODY || tag == T_TFOOT) {
-                       cs_display[cs] = DISP_TABLE_ROW_GROUP; }
-    else if (tag == T_TR) { cs_display[cs] = DISP_TABLE_ROW; }
-    else if (tag == T_TD) { cs_display[cs] = DISP_TABLE_CELL; cs_padding[cs][0] = 2;
-                       cs_padding[cs][1] = 2; cs_padding[cs][2] = 2; cs_padding[cs][3] = 2; }
-    else if (tag == T_TH) { cs_display[cs] = DISP_TABLE_CELL; cs_font_w[cs] = 700;
-                       cs_text_align[cs] = TA_CENTER;
-                       cs_padding[cs][0] = 2; cs_padding[cs][1] = 2;
-                       cs_padding[cs][2] = 2; cs_padding[cs][3] = 2; }
-    else if (tag == T_HR) { cs_display[cs] = DISP_BLOCK; cs_height[cs] = 1;
-                       cs_bg[cs] = 0x808080;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8; }
-    else if (tag == T_BLOCKQUOTE) { cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 16;
-                       cs_margin[cs][0] = 8; cs_margin[cs][2] = 8; }
-    else if (tag == T_DIV) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_HEADER || tag == T_FOOTER || tag == T_NAV ||
-             tag == T_SECTION || tag == T_ARTICLE || tag == T_ASIDE ||
-             tag == T_MAIN) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_FORM) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_INPUT || tag == T_BUTTON) { cs_display[cs] = DISP_INLINE_BLOCK; }
-    else if (tag == T_IMG) { cs_display[cs] = DISP_INLINE_BLOCK; }
-    else if (tag == T_BODY) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_HTML) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_ROOT) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_HEAD || tag == T_SCRIPT || tag == T_STYLE ||
-             tag == T_NOSCRIPT) { cs_display[cs] = DISP_NONE; }
-    else if (tag == T_DT) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700; }
-    else if (tag == T_DD) { cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 24; }
-    else if (tag == T_TEXTAREA) { cs_display[cs] = DISP_INLINE_BLOCK; }
-    else if (tag == T_OPTION) { cs_display[cs] = DISP_BLOCK; }
-    else if (tag == T_CAPTION) { cs_display[cs] = DISP_TABLE_CAPTION; }
+    /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
+     * (CupidC parser recurses into nested else; long else-if chains overflow
+     * its stack). */
+    if (tag == T_H1) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_tier[cs] = 4;
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;
+        return;
+    }
+    if (tag == T_H2) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_tier[cs] = 3;
+        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
+        return;
+    }
+    if (tag == T_H3) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_tier[cs] = 3;
+        cs_margin[cs][0] = 10; cs_margin[cs][2] = 10;
+        return;
+    }
+    if (tag == T_H4) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_tier[cs] = 2;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_H5 || tag == T_H6) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_tier[cs] = 1;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_P) {
+        cs_display[cs] = DISP_BLOCK;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_A) {
+        cs_color[cs] = 0x0000EE; cs_text_dec[cs] = TD_UNDERLINE;
+        return;
+    }
+    if (tag == T_PRE) {
+        cs_display[cs] = DISP_BLOCK; cs_white_space[cs] = WS_PRE;
+        return;
+    }
+    if (tag == T_CODE) { return; }
+    if (tag == T_B || tag == T_STRONG) { cs_font_w[cs] = 700; return; }
+    if (tag == T_I || tag == T_EM) {
+        cs_font_i[cs] = 1; cs_text_dec[cs] = TD_UNDERLINE;
+        return;
+    }
+    if (tag == T_UL || tag == T_OL || tag == T_DL) {
+        cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 24;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        if (tag == T_OL) cs_list_style[cs] = LS_DECIMAL;
+        return;
+    }
+    if (tag == T_LI) { cs_display[cs] = DISP_LIST_ITEM; return; }
+    if (tag == T_TABLE) { cs_display[cs] = DISP_TABLE; return; }
+    if (tag == T_THEAD || tag == T_TBODY || tag == T_TFOOT) {
+        cs_display[cs] = DISP_TABLE_ROW_GROUP;
+        return;
+    }
+    if (tag == T_TR) { cs_display[cs] = DISP_TABLE_ROW; return; }
+    if (tag == T_TD) {
+        cs_display[cs] = DISP_TABLE_CELL;
+        cs_padding[cs][0] = 2; cs_padding[cs][1] = 2;
+        cs_padding[cs][2] = 2; cs_padding[cs][3] = 2;
+        return;
+    }
+    if (tag == T_TH) {
+        cs_display[cs] = DISP_TABLE_CELL; cs_font_w[cs] = 700;
+        cs_text_align[cs] = TA_CENTER;
+        cs_padding[cs][0] = 2; cs_padding[cs][1] = 2;
+        cs_padding[cs][2] = 2; cs_padding[cs][3] = 2;
+        return;
+    }
+    if (tag == T_HR) {
+        cs_display[cs] = DISP_BLOCK; cs_height[cs] = 1;
+        cs_bg[cs] = 0x808080;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_BLOCKQUOTE) {
+        cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 16;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_DIV) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_HEADER || tag == T_FOOTER || tag == T_NAV ||
+        tag == T_SECTION || tag == T_ARTICLE || tag == T_ASIDE ||
+        tag == T_MAIN) {
+        cs_display[cs] = DISP_BLOCK;
+        return;
+    }
+    if (tag == T_FORM) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_INPUT || tag == T_BUTTON) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
+    if (tag == T_IMG) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
+    if (tag == T_BODY) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_HTML) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_ROOT) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_HEAD || tag == T_SCRIPT || tag == T_STYLE ||
+        tag == T_NOSCRIPT) {
+        cs_display[cs] = DISP_NONE;
+        return;
+    }
+    if (tag == T_DT) { cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700; return; }
+    if (tag == T_DD) { cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 24; return; }
+    if (tag == T_TEXTAREA) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
+    if (tag == T_OPTION) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_CAPTION) { cs_display[cs] = DISP_TABLE_CAPTION; return; }
 }
 
 /* ---------- Step 5.1: value parsers ---------- */
@@ -143,53 +193,60 @@ int css_value_keyword(int off, int len, char *kw) {
 /* ---------- Step 5.2: single-property apply ---------- */
 
 void cs_apply_property(int cs, int prop, int val_off, int val_len) {
+    /* Flat if/return chain: CupidC parser overflows on long else-if chains. */
     if (prop == CP_COLOR) {
         int c;
         if (css_value_color(val_off, val_len, &c)) cs_color[cs] = c;
+        return;
     }
-    else if (prop == CP_BG_COLOR || prop == CP_BG) {
+    if (prop == CP_BG_COLOR || prop == CP_BG) {
         int c;
         if (css_value_color(val_off, val_len, &c)) cs_bg[cs] = c;
+        return;
     }
-    else if (prop == CP_FONT_WEIGHT) {
-        if (css_value_keyword(val_off, val_len, "bold")) cs_font_w[cs] = 700;
-        else if (css_value_keyword(val_off, val_len, "normal")) cs_font_w[cs] = 400;
-        else cs_font_w[cs] = css_value_int(val_off, val_len);
+    if (prop == CP_FONT_WEIGHT) {
+        if (css_value_keyword(val_off, val_len, "bold")) { cs_font_w[cs] = 700; return; }
+        if (css_value_keyword(val_off, val_len, "normal")) { cs_font_w[cs] = 400; return; }
+        cs_font_w[cs] = css_value_int(val_off, val_len);
+        return;
     }
-    else if (prop == CP_FONT_STYLE) {
+    if (prop == CP_FONT_STYLE) {
         cs_font_i[cs] = css_value_keyword(val_off, val_len, "italic") ? 1 : 0;
+        return;
     }
-    else if (prop == CP_FONT_SIZE) {
+    if (prop == CP_FONT_SIZE) {
         int px = css_value_int(val_off, val_len);
-        if (px <= 9)        cs_font_size_tier[cs] = 0;
-        else if (px <= 11)  cs_font_size_tier[cs] = 1;
-        else if (px <= 14)  cs_font_size_tier[cs] = 2;
-        else if (px <= 20)  cs_font_size_tier[cs] = 3;
-        else                cs_font_size_tier[cs] = 4;
+        if (px <= 9) { cs_font_size_tier[cs] = 0; return; }
+        if (px <= 11) { cs_font_size_tier[cs] = 1; return; }
+        if (px <= 14) { cs_font_size_tier[cs] = 2; return; }
+        if (px <= 20) { cs_font_size_tier[cs] = 3; return; }
+        cs_font_size_tier[cs] = 4;
+        return;
     }
-    else if (prop == CP_TEXT_ALIGN) {
-        if (css_value_keyword(val_off, val_len, "center"))      cs_text_align[cs] = TA_CENTER;
-        else if (css_value_keyword(val_off, val_len, "right"))  cs_text_align[cs] = TA_RIGHT;
-        else                                                    cs_text_align[cs] = TA_LEFT;
+    if (prop == CP_TEXT_ALIGN) {
+        if (css_value_keyword(val_off, val_len, "center")) { cs_text_align[cs] = TA_CENTER; return; }
+        if (css_value_keyword(val_off, val_len, "right")) { cs_text_align[cs] = TA_RIGHT; return; }
+        cs_text_align[cs] = TA_LEFT;
+        return;
     }
-    else if (prop == CP_TEXT_DEC) {
+    if (prop == CP_TEXT_DEC) {
         cs_text_dec[cs] = 0;
-        if (css_value_keyword(val_off, val_len, "underline"))     cs_text_dec[cs] = cs_text_dec[cs] | TD_UNDERLINE;
-        if (css_value_keyword(val_off, val_len, "line-through"))  cs_text_dec[cs] = cs_text_dec[cs] | TD_LINE_THROUGH;
+        if (css_value_keyword(val_off, val_len, "underline"))    cs_text_dec[cs] = cs_text_dec[cs] | TD_UNDERLINE;
+        if (css_value_keyword(val_off, val_len, "line-through")) cs_text_dec[cs] = cs_text_dec[cs] | TD_LINE_THROUGH;
+        return;
     }
-    else if (prop == CP_DISPLAY) {
-        if      (css_value_keyword(val_off, val_len, "none"))         cs_display[cs] = DISP_NONE;
-        else if (css_value_keyword(val_off, val_len, "block"))        cs_display[cs] = DISP_BLOCK;
-        else if (css_value_keyword(val_off, val_len, "inline-block")) cs_display[cs] = DISP_INLINE_BLOCK;
-        else if (css_value_keyword(val_off, val_len, "inline"))       cs_display[cs] = DISP_INLINE;
-        else if (css_value_keyword(val_off, val_len, "list-item"))    cs_display[cs] = DISP_LIST_ITEM;
-        else if (css_value_keyword(val_off, val_len, "table"))        cs_display[cs] = DISP_TABLE;
-        else if (css_value_keyword(val_off, val_len, "table-row"))    cs_display[cs] = DISP_TABLE_ROW;
-        else if (css_value_keyword(val_off, val_len, "table-cell"))   cs_display[cs] = DISP_TABLE_CELL;
-        /* unsupported display values fall through, keeping existing default */
+    if (prop == CP_DISPLAY) {
+        if (css_value_keyword(val_off, val_len, "none"))         { cs_display[cs] = DISP_NONE; return; }
+        if (css_value_keyword(val_off, val_len, "block"))        { cs_display[cs] = DISP_BLOCK; return; }
+        if (css_value_keyword(val_off, val_len, "inline-block")) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
+        if (css_value_keyword(val_off, val_len, "inline"))       { cs_display[cs] = DISP_INLINE; return; }
+        if (css_value_keyword(val_off, val_len, "list-item"))    { cs_display[cs] = DISP_LIST_ITEM; return; }
+        if (css_value_keyword(val_off, val_len, "table"))        { cs_display[cs] = DISP_TABLE; return; }
+        if (css_value_keyword(val_off, val_len, "table-row"))    { cs_display[cs] = DISP_TABLE_ROW; return; }
+        if (css_value_keyword(val_off, val_len, "table-cell"))   { cs_display[cs] = DISP_TABLE_CELL; return; }
+        return;
     }
-    else if (prop == CP_MARGIN || prop == CP_PADDING) {
-        /* Parse up to 4 ints */
+    if (prop == CP_MARGIN || prop == CP_PADDING) {
         int vals[4];
         vals[0] = 0; vals[1] = 0; vals[2] = 0; vals[3] = 0;
         int nvals = 0;
@@ -213,45 +270,50 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         } else {
             cs_padding[cs][0] = t; cs_padding[cs][1] = r; cs_padding[cs][2] = b; cs_padding[cs][3] = l;
         }
+        return;
     }
-    else if (prop == CP_MARGIN_T) cs_margin[cs][0] = css_value_int(val_off, val_len);
-    else if (prop == CP_MARGIN_R) cs_margin[cs][1] = css_value_int(val_off, val_len);
-    else if (prop == CP_MARGIN_B) cs_margin[cs][2] = css_value_int(val_off, val_len);
-    else if (prop == CP_MARGIN_L) cs_margin[cs][3] = css_value_int(val_off, val_len);
-    else if (prop == CP_PADDING_T) cs_padding[cs][0] = css_value_int(val_off, val_len);
-    else if (prop == CP_PADDING_R) cs_padding[cs][1] = css_value_int(val_off, val_len);
-    else if (prop == CP_PADDING_B) cs_padding[cs][2] = css_value_int(val_off, val_len);
-    else if (prop == CP_PADDING_L) cs_padding[cs][3] = css_value_int(val_off, val_len);
-    else if (prop == CP_BORDER) {
-        /* "1px solid #ccc" — width keyword color. Default to 1px on each side. */
+    if (prop == CP_MARGIN_T)  { cs_margin[cs][0]  = css_value_int(val_off, val_len); return; }
+    if (prop == CP_MARGIN_R)  { cs_margin[cs][1]  = css_value_int(val_off, val_len); return; }
+    if (prop == CP_MARGIN_B)  { cs_margin[cs][2]  = css_value_int(val_off, val_len); return; }
+    if (prop == CP_MARGIN_L)  { cs_margin[cs][3]  = css_value_int(val_off, val_len); return; }
+    if (prop == CP_PADDING_T) { cs_padding[cs][0] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_PADDING_R) { cs_padding[cs][1] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_PADDING_B) { cs_padding[cs][2] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_PADDING_L) { cs_padding[cs][3] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_BORDER) {
         cs_border[cs][0] = 1; cs_border[cs][1] = 1;
         cs_border[cs][2] = 1; cs_border[cs][3] = 1;
         int c;
         if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
+        return;
     }
-    else if (prop == CP_BORDER_COLOR) {
+    if (prop == CP_BORDER_COLOR) {
         int c;
         if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
+        return;
     }
-    else if (prop == CP_WIDTH)  cs_width[cs]  = css_value_int(val_off, val_len);
-    else if (prop == CP_HEIGHT) cs_height[cs] = css_value_int(val_off, val_len);
-    else if (prop == CP_WHITE_SPACE) {
-        if (css_value_keyword(val_off, val_len, "pre"))         cs_white_space[cs] = WS_PRE;
-        else if (css_value_keyword(val_off, val_len, "nowrap")) cs_white_space[cs] = WS_NOWRAP;
-        else                                                    cs_white_space[cs] = WS_NORMAL;
+    if (prop == CP_WIDTH)  { cs_width[cs]  = css_value_int(val_off, val_len); return; }
+    if (prop == CP_HEIGHT) { cs_height[cs] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_WHITE_SPACE) {
+        if (css_value_keyword(val_off, val_len, "pre"))    { cs_white_space[cs] = WS_PRE; return; }
+        if (css_value_keyword(val_off, val_len, "nowrap")) { cs_white_space[cs] = WS_NOWRAP; return; }
+        cs_white_space[cs] = WS_NORMAL;
+        return;
     }
-    else if (prop == CP_LIST_STYLE_TYPE) {
-        if (css_value_keyword(val_off, val_len, "decimal"))     cs_list_style[cs] = LS_DECIMAL;
-        else if (css_value_keyword(val_off, val_len, "circle")) cs_list_style[cs] = LS_CIRCLE;
-        else if (css_value_keyword(val_off, val_len, "square")) cs_list_style[cs] = LS_SQUARE;
-        else if (css_value_keyword(val_off, val_len, "none"))   cs_list_style[cs] = LS_NONE;
-        else                                                    cs_list_style[cs] = LS_DISC;
+    if (prop == CP_LIST_STYLE_TYPE) {
+        if (css_value_keyword(val_off, val_len, "decimal")) { cs_list_style[cs] = LS_DECIMAL; return; }
+        if (css_value_keyword(val_off, val_len, "circle"))  { cs_list_style[cs] = LS_CIRCLE; return; }
+        if (css_value_keyword(val_off, val_len, "square"))  { cs_list_style[cs] = LS_SQUARE; return; }
+        if (css_value_keyword(val_off, val_len, "none"))    { cs_list_style[cs] = LS_NONE; return; }
+        cs_list_style[cs] = LS_DISC;
+        return;
     }
-    else if (prop == CP_VERTICAL_ALIGN) {
-        if (css_value_keyword(val_off, val_len, "top"))         cs_vertical_align[cs] = VA_TOP;
-        else if (css_value_keyword(val_off, val_len, "middle")) cs_vertical_align[cs] = VA_MIDDLE;
-        else if (css_value_keyword(val_off, val_len, "bottom")) cs_vertical_align[cs] = VA_BOTTOM;
-        else                                                    cs_vertical_align[cs] = VA_BASELINE;
+    if (prop == CP_VERTICAL_ALIGN) {
+        if (css_value_keyword(val_off, val_len, "top"))    { cs_vertical_align[cs] = VA_TOP; return; }
+        if (css_value_keyword(val_off, val_len, "middle")) { cs_vertical_align[cs] = VA_MIDDLE; return; }
+        if (css_value_keyword(val_off, val_len, "bottom")) { cs_vertical_align[cs] = VA_BOTTOM; return; }
+        cs_vertical_align[cs] = VA_BASELINE;
+        return;
     }
 }
 
