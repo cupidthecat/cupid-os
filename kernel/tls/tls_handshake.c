@@ -15,6 +15,7 @@
 #include "tls_ctx.h"
 #include "tls_record.h"
 #include "tls_kdf.h"
+#include "../../drivers/serial.h"  /* DEBUG: temporary instrumentation */
 #include "ct.h"
 #include "csprng.h"
 #include "sha256.h"
@@ -256,7 +257,11 @@ static int hs_reader_fill(tls_ctx_t *ctx, hs_reader_t *h, uint32_t need) {
     while (h->carry_len < need) {
         int rc;
         rc = tls_record_recv(&ctx->rec, &rt, rec, sizeof(rec), &rl);
-        if (rc < 0) return TLS_ERR_TRANSPORT;
+        if (rc < 0) {
+            serial_printf("[tls-dbg] hs_reader_fill: rec_recv rc=%d carry=%u need=%u\n",
+                          rc, (unsigned)h->carry_len, (unsigned)need);
+            return TLS_ERR_TRANSPORT;
+        }
         if (rt == TLS_RT_CHANGE_CIPHER_SPEC) {
             /* Middlebox-compat dummy — ignore (RFC 8446 §5). */
             continue;
@@ -326,7 +331,11 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
             uint32_t take;
             int      pc;
             pc = tls_record_recv(&ctx->rec, &rt, rec, sizeof(rec), &rl);
-            if (pc < 0) return TLS_ERR_TRANSPORT;
+            if (pc < 0) {
+                serial_printf("[tls-dbg] hs_read_msg.body: rec_recv pc=%d copied=%u mlen=%u\n",
+                              pc, (unsigned)copied, (unsigned)mlen);
+                return TLS_ERR_TRANSPORT;
+            }
             if (rt == TLS_RT_CHANGE_CIPHER_SPEC) continue;
             if (rt != TLS_RT_HANDSHAKE) return TLS_ERR_PROTOCOL;
             take = mlen - copied;
@@ -734,8 +743,12 @@ int tls_handshake_client(tls_ctx_t *ctx) {
     ch_len = build_client_hello(ctx, ch, sizeof(ch));
     if (ch_len < 0) return TLS_ERR_OOM;
     th_update(ctx, ch, (uint32_t)ch_len);
+    serial_printf("[tls-dbg] sending ClientHello (%d bytes)\n", ch_len);
     rc = tls_record_send(&ctx->rec, TLS_RT_HANDSHAKE, ch, (uint32_t)ch_len);
-    if (rc != 0) return TLS_ERR_TRANSPORT;
+    if (rc != 0) {
+        serial_printf("[tls-dbg] ClientHello send failed rc=%d\n", rc);
+        return TLS_ERR_TRANSPORT;
+    }
 
     /* Optional: send a dummy ChangeCipherSpec for middlebox compat. */
     {
@@ -751,16 +764,28 @@ int tls_handshake_client(tls_ctx_t *ctx) {
         uint8_t  hs_type;
         uint32_t hs_body_len;
         rc = tls_record_recv(&ctx->rec, &rt, rec_body, sizeof(rec_body), &rl);
-        if (rc < 0) return TLS_ERR_TRANSPORT;
+        if (rc < 0) {
+            serial_printf("[tls-dbg] ServerHello recv failed rc=%d\n", rc);
+            return TLS_ERR_TRANSPORT;
+        }
+        serial_printf("[tls-dbg] got record type=%u rl=%u\n", (unsigned)rt, (unsigned)rl);
         if (rt != TLS_RT_HANDSHAKE) return TLS_ERR_PROTOCOL;
         if (rl < 4u) return TLS_ERR_PROTOCOL;
         hs_type = rec_body[0];
         hs_body_len = rbe24(&rec_body[1]);
+        serial_printf("[tls-dbg] hs msg type=%u body_len=%u\n", (unsigned)hs_type, (unsigned)hs_body_len);
         if (hs_type != HS_TYPE_SERVER_HELLO) return TLS_ERR_PROTOCOL;
         if (hs_body_len + 4u != rl) return TLS_ERR_PROTOCOL;
         rc = parse_server_hello(ctx, rec_body + 4, hs_body_len,
                                 server_pub, &server_pub_len);
-        if (rc != TLS_ERR_OK) return rc;
+        if (rc != TLS_ERR_OK) {
+            serial_printf("[tls-dbg] parse_server_hello failed rc=%d\n", rc);
+            return rc;
+        }
+        serial_printf("[tls-dbg] selected_cipher=0x%x selected_group=0x%x server_pub_len=%u\n",
+                      (unsigned)ctx->selected_cipher,
+                      (unsigned)ctx->selected_group,
+                      (unsigned)server_pub_len);
         /* Update transcript with full ServerHello (header + body)
          * regardless of which protocol version we end up running. */
         th_update(ctx, rec_body, rl);
@@ -771,8 +796,10 @@ int tls_handshake_client(tls_ctx_t *ctx) {
             ctx->selected_cipher == CS12_ECDHE_ECDSA_AES128_GCM ||
             ctx->selected_cipher == CS12_ECDHE_RSA_CHACHA20     ||
             ctx->selected_cipher == CS12_ECDHE_ECDSA_CHACHA20) {
+            serial_printf("[tls-dbg] dispatching to TLS 1.2 path\n");
             return tls12_handshake_client(ctx);
         }
+        serial_printf("[tls-dbg] continuing on TLS 1.3 path\n");
 
         /* TLS 1.3 path. Pick AEAD now. */
         if (ctx->selected_cipher == CIPHER_TLS13_AES_128_GCM_SHA256) {

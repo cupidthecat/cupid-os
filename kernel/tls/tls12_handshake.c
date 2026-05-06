@@ -26,6 +26,7 @@
 #include "tls12_handshake.h"
 #include "tls_record.h"
 #include "tls_kdf.h"
+#include "../../drivers/serial.h"  /* DEBUG: temporary instrumentation */
 #include "sha256.h"
 #include "ct.h"
 #include "x25519.h"
@@ -98,7 +99,12 @@ static int hs12_pull(tls_ctx_t *ctx, hs12_reader_t *r, uint32_t need) {
     uint8_t  rt;
     while (r->len < need) {
         int rc = tls_record_recv(&ctx->rec, &rt, rec, sizeof(rec), &rl);
-        if (rc < 0) return TLS_ERR_TRANSPORT;
+        if (rc < 0) {
+            serial_printf("[tls-dbg] tls12.hs12_pull: rec_recv rc=%d r->len=%u need=%u\n",
+                          rc, (unsigned)r->len, (unsigned)need);
+            return TLS_ERR_TRANSPORT;
+        }
+        serial_printf("[tls-dbg] tls12.hs12_pull: rec rt=%u rl=%u\n", (unsigned)rt, (unsigned)rl);
         if (rt == TLS_RT_ALERT) return TLS_ERR_PROTOCOL;
         if (rt != TLS_RT_HANDSHAKE) return TLS_ERR_PROTOCOL;
         if (rl > sizeof(r->buf) - r->len) return TLS_ERR_PROTOCOL;
@@ -378,8 +384,14 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     hs12_init(&reader);
 
     /* 1. Certificate. */
+    serial_printf("[tls-dbg] tls12: reading Certificate msg\n");
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 1);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls-dbg] tls12: Certificate read rc=%d\n", rc);
+        return rc;
+    }
+    serial_printf("[tls-dbg] tls12: Certificate mtype=%u mlen=%u\n",
+                  (unsigned)mtype, (unsigned)mlen);
     if (mtype != HS_T_CERTIFICATE) return TLS_ERR_PROTOCOL;
     rc = ingest_certificates(ctx, msg_buf, mlen);
     if (rc != TLS_ERR_OK) return rc;
