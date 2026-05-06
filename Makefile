@@ -9,6 +9,14 @@ CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c 
 	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS)
+# Relaxed flags for vendored / DOOM-tree code that won't pass our strict gates
+CFLAGS_DOOM := -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
+               -ffreestanding -c -I./kernel -I./drivers \
+               -I./kernel/doom -I./kernel/doom/src -I./kernel/audio \
+               -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
+               -O2 -Wno-unused -Wno-unused-result \
+               -Wno-implicit-function-declaration \
+               -Wno-sign-compare -Wno-strict-prototypes
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
@@ -146,6 +154,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/ksyms.o \
 			kernel/audio/ac97.o \
 			kernel/audio/mixer.o \
+			kernel/audio/nuked_opl3.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -449,6 +458,10 @@ kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h \
 kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/types.h \
 	drivers/serial.h
 	$(CC) $(CFLAGS) kernel/audio/mixer.c -o kernel/audio/mixer.o
+
+# Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
+kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
