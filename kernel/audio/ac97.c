@@ -5,7 +5,6 @@
 #include "../memory.h"
 #include "../kernel.h"
 #include "../../drivers/serial.h"
-#include "../../drivers/timer.h"
 
 /* Known AC97 PCI device IDs (Intel ICH family) */
 static const uint16_t AC97_VENDOR = 0x8086u;
