@@ -317,8 +317,8 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
 }
 
 /* ---------- Step 5.5: inline style="..." parser ----------
- * Defined before sel_*/style_resolve_all so the latter can call it without
- * forward declarations. */
+ * Defined before sel_X and style_resolve_all so the latter can call it
+ * without forward declarations. */
 
 void apply_inline_style(int cs, char *s) {
     int n = b_strlen(s);
