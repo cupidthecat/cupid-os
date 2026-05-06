@@ -201,13 +201,13 @@ void error_page(char *msg) {
     boxes_count = 0;
     L_x = 8; L_y = 20;
     L_line_h = line_h;
-    L_max_w = viewport_w();
+    L_max_w = legacy_viewport_w();
     L_left_margin = 8;
     page_bg = 0xFFE8E8;
     page_fg = 0x000000;
     /* Lay out the message manually */
-    emit_box(BK_TEXT);
-    int bi = last_box();
+    legacy_emit_box(BK_TEXT);
+    int bi = legacy_last_box();
     int off = attr_intern(msg, b_strlen(msg));
     b_x[bi] = 8; b_y[bi] = 16;
     b_w[bi] = b_strlen(msg) * char_w;
