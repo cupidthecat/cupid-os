@@ -179,27 +179,7 @@ int  hover_link;     /* -1 or link idx */
 int  cur_cw;
 int  cur_ch;
 
-/* utility helpers in browser/util.cc */
-
-/* URL parsing in browser/url.cc */
-
-/* HTTP fetch in browser/net.cc */
-
-/* color + style helpers in browser/dom.cc */
-
-/* HTML lex / parse in browser/parser.cc */
-
-/* layout in browser/layout.cc */
-
-/* render in browser/paint.cc */
-
-/* navigation + form submit in browser/nav.cc */
-
-/* hit testing + input in browser/input.cc */
-
 /* ---------- Main ---------- */
-
-/* error_page in browser/paint.cc */
 
 void browser_main() {
     char *raw = (char*)get_args();
