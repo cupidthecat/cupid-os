@@ -17,19 +17,37 @@ enum {
     HOST_MAX   = 256,
     PATH_MAX_  = 1024,
 
-    PAGE_BUF_SIZE   = 96000,
+    PAGE_BUF_SIZE   = 524288,
     HEADER_LINE_MAX = 1024,
     REQ_MAX         = 4096,
     RECV_BUF_SIZE   = 4096,
 
-    MAX_NODES = 1024,
+    MAX_NODES = 4096,
     MAX_BOXES = 2048,
-    MAX_LINKS = 256,
-    MAX_INPUTS = 16,
-    MAX_FORMS  = 8,
-    HIST_MAX   = 8,
+    MAX_LINKS = 1024,
+    MAX_INPUTS = 64,
+    MAX_FORMS  = 32,
+    HIST_MAX   = 16,
 
-    ATTR_POOL_SIZE = 16384,
+    ATTR_POOL_SIZE = 131072,
+
+    /* §1 tokenizer scratch */
+    MAX_TOKENS = 16384,
+    MAX_ATTR_PAIRS = 8192,
+
+    /* §3 render tree pool */
+    MAX_RT_NODES = 6144,
+
+    /* §2 style/CSS */
+    MAX_CSS_RULES = 256,
+    MAX_COMPUTED_STYLES = 4096,
+    CSS_VALUE_POOL_SIZE = 32768,
+
+    /* §1 entity table */
+    MAX_ENTITY_NAMES = 64,
+
+    /* §4 layout scratch — pending inline atoms before line-box flush */
+    MAX_PENDING_INLINE = 1024,
 
     /* tags */
     T_TEXT   = 0,
@@ -102,30 +120,30 @@ int  addr_cursor;
 char title_buf[256];
 char status_msg[256];
 
-char page_buf[96000];
+char page_buf[524288];
 int  page_len;
 
 char ctype_buf[128];
 
 /* DOM nodes (parallel arrays) */
 int nodes_count;
-int n_tag       [1024];
-int n_parent    [1024];
-int n_first_child[1024];
-int n_next      [1024];
-int n_text_off  [1024];   /* into page_buf for TEXT nodes */
-int n_text_len  [1024];
-int n_href      [1024];   /* attr_pool offset, -1 = none */
-int n_src       [1024];
-int n_color     [1024];   /* 0xAARRGGBB or -1 */
-int n_bgcolor   [1024];
-int n_action    [1024];
-int n_name      [1024];
-int n_value     [1024];
-int n_type      [1024];
-int n_form_idx  [1024];   /* for input/button: parent form idx */
+int n_tag       [4096];
+int n_parent    [4096];
+int n_first_child[4096];
+int n_next      [4096];
+int n_text_off  [4096];   /* into page_buf for TEXT nodes */
+int n_text_len  [4096];
+int n_href      [4096];   /* attr_pool offset, -1 = none */
+int n_src       [4096];
+int n_color     [4096];   /* 0xAARRGGBB or -1 */
+int n_bgcolor   [4096];
+int n_action    [4096];
+int n_name      [4096];
+int n_value     [4096];
+int n_type      [4096];
+int n_form_idx  [4096];   /* for input/button: parent form idx */
 
-char attr_pool[16384];
+char attr_pool[131072];
 int  attr_pool_pos;
 
 /* layout boxes */
@@ -147,17 +165,17 @@ int b_underline [2048];
 
 /* link table */
 int  links_count;
-int  link_url_off[256];   /* into attr_pool */
+int  link_url_off[1024];   /* into attr_pool */
 
 /* form inputs */
 int  inputs_count;
-char input_value[2048];   /* parallel: 128 bytes per input */
-int  input_name_off[16];
-int  input_form[16];
+char input_value[8192];   /* parallel: 128 bytes per input */
+int  input_name_off[64];
+int  input_form[64];
 
 /* form info */
 int  forms_count;
-int  form_action[8];     /* attr_pool offset of action url */
+int  form_action[32];     /* attr_pool offset of action url */
 
 /* doc */
 int  doc_h;
@@ -166,7 +184,7 @@ int  page_bg;
 int  page_fg;
 
 /* history */
-char hist_url_pool[8192];
+char hist_url_pool[16384];
 int  hist_count;
 
 /* state */
