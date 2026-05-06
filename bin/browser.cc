@@ -371,7 +371,7 @@ int fetch_url(char *url, char *content_type_out) {
 
 /* ---------- Color parser ---------- */
 
-/* hex_digit in browser/url.cc */
+/* hex_digit in browser/util.cc */
 
 int parse_color_named(char *s, int *out) {
     if (b_strieq(s, "black"))   { *out = 0x00000000; return 1; }

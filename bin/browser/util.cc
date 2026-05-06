@@ -76,3 +76,10 @@ int b_append_int(char *dst, int p, int v) {
     while (n > 0) { n = n - 1; dst[p] = buf[n]; p = p + 1; }
     return p;
 }
+
+int hex_digit(int c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}

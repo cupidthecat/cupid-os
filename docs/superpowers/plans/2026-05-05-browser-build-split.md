@@ -30,7 +30,7 @@ After this plan completes:
 ```
 bin/browser.cc                — entry; #includes sub-files; main() trampoline (≈30 LOC)
 bin/browser/util.cc           — string helpers (b_strlen, b_streq, b_lc, ...)
-bin/browser/url.cc            — parse_url, resolve_redirect, compute_url_relative, hex_digit
+bin/browser/url.cc            — parse_url, resolve_redirect, compute_url_relative
 bin/browser/net.cc            — fetch_url, build_request, HTTP/HTTPS+redirects
 bin/browser/dom.cc            — DOM arrays, attr_pool, alloc_node, attr_intern, decode_entities
 bin/browser/parser.cc         — tag_id, is_void_tag, skip_to_close, apply_style, parse_html
@@ -302,6 +302,7 @@ Copy verbatim from `bin/browser.cc` lines 187-264 (the block from `/* ----------
 - `b_append(char *dst, int p, char *src)` (lines 244-248)
 - `b_append_n(char *dst, int p, char *src, int n)` (lines 250-254)
 - `b_append_int(char *dst, int p, int v)` (lines 256-264)
+- `hex_digit(int c)` (relocated post-Task-3 review; was originally moved to url.cc)
 
 Keep the `/* ---------- Utility ---------- */` banner as a comment at the top of `util.cc`.
 
@@ -356,7 +357,7 @@ EOF
 
 ## Task 3: Extract `url.cc`
 
-Move URL parsing, redirect resolution, color helpers (`hex_digit`).
+Move URL parsing and redirect resolution.
 
 **Files:**
 - Create: `bin/browser/url.cc`
@@ -368,17 +369,18 @@ Move verbatim from `bin/browser.cc` (line numbers from pre-split file):
 
 - `parse_url(char *url, char *host, int *port_out, char *path, int *is_https_out)` (lines 268-307)
 - `resolve_redirect(char *location, char *cur_h, int cur_p, int cur_is_h, char *out_url, int max)` (lines 309-338)
-- `hex_digit(int c)` (lines 519-524) — small helper used by both URL escaping and color parsing
 
 Keep banner `/* ---------- URL parsing ---------- */` at top of file.
 
 `compute_url_relative` stays in `nav.cc` (Task 9) because it pulls in globals (`cur_host`, `cur_is_https`, `cur_port`, `cur_path`).
 
+**Note:** Earlier draft of this plan grouped `hex_digit` with `url.cc`. Code review for the actual extraction (commit `c2ee640`) found that `hex_digit` has no callers in `url.cc` (its consumers are `parse_color` and `decode_entities`, both heading to `dom.cc` in Task 5). A follow-up fixup commit relocates `hex_digit` to `util.cc` where it belongs alongside other pure ASCII helpers.
+
 - [ ] **Step 3.2: Delete moved lines from `bin/browser.cc`**
 
 Delete the original ranges (lines 268-338 and lines 519-524). Replace each with a comment:
 - After line 267 (where the banner used to be): `/* URL parsing in browser/url.cc */`
-- Where `hex_digit` was: `/* hex_digit in browser/url.cc */`
+- Where `hex_digit` was: `/* hex_digit in browser/util.cc */`
 
 - [ ] **Step 3.3: Update trampoline `#include` order**
 
