@@ -30,6 +30,15 @@ $(info BIN_HDR_SRCS=$(BIN_HDR_SRCS))
 BIN_HDR_OBJS := $(BIN_HDR_SRCS:.h=.h.o)
 BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
 
+# Auto-discover browser library sub-files (bin/browser/*.cc).
+# These are #include'd by bin/browser.cc and embedded in ramfs at
+# /bin/browser/<n>.cc so the CupidC preprocessor can resolve them
+# at JIT time. They are NOT runnable programs (not added to BIN_CC_NAMES).
+BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
+$(info BROWSER_SUB_SRCS=$(BROWSER_SUB_SRCS))
+BROWSER_SUB_OBJS := $(BROWSER_SUB_SRCS:.cc=.o)
+BROWSER_SUB_NAMES := $(notdir $(basename $(BROWSER_SUB_SRCS)))
+
 # Auto-discover CupidDoc files to embed at boot (/docs/*.ctxt in ramfs)
 DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
 $(info DOC_CTXT_SRCS=$(DOC_CTXT_SRCS))
@@ -135,7 +144,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
 			kernel/ksyms.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -675,7 +684,7 @@ kernel/dis.o: kernel/dis.c kernel/dis.h kernel/types.h kernel/exec.h kernel/vfs.
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
-kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
+kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) $(BROWSER_SUB_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@
 	@echo '#include "ramfs.h"' >> $@
@@ -685,10 +694,13 @@ kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
 	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
 	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_end[];' >> $@;)
 	@echo 'void install_bin_programs(void *fs_private);' >> $@
 	@echo 'void install_bin_programs(void *fs_private) {' >> $@
 	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
 	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_browser_$(n)_cc_end - _binary_bin_browser_$(n)_cc_start); ramfs_add_file(fs_private, "bin/browser/$(n).cc", _binary_bin_browser_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/$(n).cc (%u bytes)\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
@@ -733,6 +745,12 @@ kernel/demos_programs_gen.o: kernel/demos_programs_gen.c
 
 # Pattern rule: embed any bin/*.cc file via objcopy
 bin/%.o: bin/%.cc
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any bin/browser/*.cc library file via objcopy.
+# These live in ramfs at /bin/browser/<n>.cc and are #include'd by
+# bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
+bin/browser/%.o: bin/browser/%.cc
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
@@ -907,7 +925,7 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o cupidos-txt/*.o demos/*.o \
 	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c debug.log
 
 clean-image:

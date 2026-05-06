@@ -5,6 +5,8 @@
 //help:   Arrow keys / mouse wheel: scroll.
 //help:   Click link to navigate.
 
+#include "browser/_smoke.cc"
+
 enum {
     SOCK_TCP   = 2,
     SOL_TLS    = 1,
@@ -1986,6 +1988,10 @@ void error_page(char *msg) {
 }
 
 void main() {
+    if (browser_smoke_token() != 0xCAFE) {
+        println("browser: smoke token mismatch — include broken");
+        return;
+    }
     char *raw = (char*)get_args();
 
     font_id = 0;
