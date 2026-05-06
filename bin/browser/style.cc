@@ -320,27 +320,27 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
  * Defined before sel_*/style_resolve_all so the latter can call it without
  * forward declarations. */
 
-void apply_inline_style(int cs, char *style) {
-    int n = b_strlen(style);
+void apply_inline_style(int cs, char *s) {
+    int n = b_strlen(s);
     int i = 0;
     while (i < n) {
-        while (i < n && (style[i] == ' ' || style[i] == '\t')) i = i + 1;
+        while (i < n && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
         if (i >= n) break;
         int p_start = i;
-        while (i < n && style[i] != ':' && style[i] != ';') i = i + 1;
+        while (i < n && s[i] != ':' && s[i] != ';') i = i + 1;
         int p_end = i;
-        while (p_end > p_start && (style[p_end-1] == ' ' || style[p_end-1] == '\t')) p_end = p_end - 1;
-        if (i >= n || style[i] != ':') break;
+        while (p_end > p_start && (s[p_end-1] == ' ' || s[p_end-1] == '\t')) p_end = p_end - 1;
+        if (i >= n || s[i] != ':') break;
         i = i + 1;
-        while (i < n && (style[i] == ' ' || style[i] == '\t')) i = i + 1;
+        while (i < n && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
         int v_start = i;
-        while (i < n && style[i] != ';') i = i + 1;
+        while (i < n && s[i] != ';') i = i + 1;
         int v_end = i;
-        while (v_end > v_start && (style[v_end-1] == ' ' || style[v_end-1] == '\t')) v_end = v_end - 1;
-        if (i < n && style[i] == ';') i = i + 1;
-        int prop = css_match_property(style + p_start, p_end - p_start);
+        while (v_end > v_start && (s[v_end-1] == ' ' || s[v_end-1] == '\t')) v_end = v_end - 1;
+        if (i < n && s[i] == ';') i = i + 1;
+        int prop = css_match_property(s + p_start, p_end - p_start);
         if (prop) {
-            int voff = css_intern_value(style + v_start, v_end - v_start);
+            int voff = css_intern_value(s + v_start, v_end - v_start);
             if (voff >= 0) cs_apply_property(cs, prop, voff, v_end - v_start);
         }
     }
