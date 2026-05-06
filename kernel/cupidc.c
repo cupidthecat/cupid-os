@@ -63,6 +63,7 @@
 #include "../drivers/pit.h"
 #include "audio/ac97.h"
 #include "audio/opl_smoke.h"
+#include "doom/dglibc.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -2394,6 +2395,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("ac97_smoke_pan", p_ac97_pan, 0);
   void (*p_opl_smoke)(void)           = opl_smoke;
   BIND("opl_smoke", p_opl_smoke, 0);
+
+  /* ── dglibc smoke test ───────────────────────────────────────────── */
+  int  (*p_dglibc_test)(void)         = dglibc_test_main;
+  BIND_T("dglibc_test_main", p_dglibc_test, 0, TYPE_INT);
 
 #undef BIND
 #undef BIND_T

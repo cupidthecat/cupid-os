@@ -487,6 +487,14 @@ kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c kernel/audio/opl_smoke.h \
 	kernel/types.h drivers/serial.h
 	$(CC) $(CFLAGS) -o $@ $<
 
+# dglibc — DOOM libc shim (heap/string/stdio/fmt/setjmp) built with relaxed CFLAGS_DOOM
+kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/types.h \
+                      kernel/memory.h kernel/vfs.h kernel/string.h \
+                      drivers/serial.h drivers/timer.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/dglibc.o
+
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
 	$(CC) $(CFLAGS) kernel/paging.c -o kernel/paging.o
