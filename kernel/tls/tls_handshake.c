@@ -240,8 +240,12 @@ static int build_client_hello(const tls_ctx_t *ctx,
  * carried over between records. */
 
 typedef struct {
-    /* Bytes that came in but haven't been parsed into a complete msg. */
-    uint8_t  carry[4096];
+    /* Bytes that came in but haven't been parsed into a complete msg.
+     * Sized for one full TLS-record plaintext (16 KB) — large handshake
+     * messages such as Certificate carrying RSA-4096 chains can fill
+     * nearly the whole record. The previous 4 KB carry rejected such
+     * records in hs_reader_fill with TLS_ERR_PROTOCOL. */
+    uint8_t  carry[TLS_REC_MAX_PLAINTEXT];
     uint32_t carry_len;
 } hs_reader_t;
 
