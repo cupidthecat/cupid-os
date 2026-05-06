@@ -33,4 +33,24 @@ bool keyboard_read_event(key_event_t* event);
  * from the IRQ1 ISR. Used by USB HID driver to unify input paths. */
 void keyboard_inject_scancode(uint8_t raw_scancode);
 
+/* Raw scancode subscriber.
+ * Callback fires from the keyboard IRQ tail with the cooked
+ * (high bit cleared) scancode and a `pressed` flag (true on
+ * make, false on break). Single subscriber slot — second
+ * subscribe attempt returns -1.
+ *
+ * Subscriber callback runs under the BKL with IRQs disabled;
+ * keep it short — push to a ring and process out of IRQ.
+ */
+typedef void (*kbd_event_cb)(uint8_t scancode, bool pressed, void *ctx);
+int  keyboard_subscribe(kbd_event_cb cb, void *ctx);   /* returns 0 on success, -1 if slot taken */
+void keyboard_unsubscribe(void);
+
+/* Test-shim accessors — used by bin/kbdsub_test.cc smoke test via CupidC. */
+int  keyboard_test_sub_start(void);
+void keyboard_test_sub_stop(void);
+int  keyboard_test_sub_calls(void);
+int  keyboard_test_sub_last_sc(void);
+int  keyboard_test_sub_last_pressed(void);
+
 #endif

@@ -139,7 +139,23 @@ static const char scancode_to_ascii_shift[] = {
 #define EXT_KEY_END   0x4F
 #define EXT_KEY_INS   0x52
 
-// Add to keyboard_state_t in types.h or here
+/* ── Raw-scancode subscriber ─────────────────────────────────────────── */
+static kbd_event_cb s_kbd_sub_cb  = NULL;
+static void        *s_kbd_sub_ctx = NULL;
+
+int keyboard_subscribe(kbd_event_cb cb, void *ctx) {
+    if (s_kbd_sub_cb != NULL) return -1;
+    s_kbd_sub_cb  = cb;
+    s_kbd_sub_ctx = ctx;
+    return 0;
+}
+
+void keyboard_unsubscribe(void) {
+    s_kbd_sub_cb  = NULL;
+    s_kbd_sub_ctx = NULL;
+}
+
+/* Add to keyboard_state_t in types.h or here */
 typedef struct {
     uint32_t last_keypress_time;  // Time of last keypress
     uint32_t last_repeat_time;    // Time of last repeat
@@ -363,10 +379,21 @@ static char get_ascii_from_scancode(uint8_t scancode) {
         return scancode_to_ascii[scancode];
     }
 }
+/* Fire the raw-scancode subscriber (if registered) before any filtering. */
+static void fire_subscriber(uint8_t raw_scancode) {
+    if (s_kbd_sub_cb != NULL) {
+        bool pressed = (raw_scancode & 0x80U) == 0;
+        uint8_t cooked = (uint8_t)(raw_scancode & 0x7FU);
+        s_kbd_sub_cb(cooked, pressed, s_kbd_sub_ctx);
+    }
+}
+
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
     (void)r; /* Unused parameter */
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
+
+    fire_subscriber(scancode);
 
     // Handle extended key sequences
     if (scancode == KEY_EXTENDED) {
@@ -504,6 +531,8 @@ void keyboard_inject_scancode(uint8_t raw_scancode) {
      * scancode prefix so injected PgUp/PgDn/Home/End/Insert/Delete (sent
      * by USB HID's hid_to_ps2 translator below) reach handle_extended_key
      * and arrive in the keyboard buffer with character=0. */
+    fire_subscriber(raw_scancode);
+
     if (raw_scancode == KEY_EXTENDED) {
         handling_extended = true;
         return;
@@ -515,3 +544,31 @@ void keyboard_inject_scancode(uint8_t raw_scancode) {
     }
     process_keypress(raw_scancode);
 }
+
+/* ── Test-shim: built-in subscriber for CupidC smoke tests ───────────── *
+ * CupidC cannot pass function pointers as callbacks, so we provide a     *
+ * fixed kernel-side subscriber that records the last event and exposes   *
+ * the results via plain getter functions that CupidC CAN call.           */
+static int      s_test_calls    = 0;
+static uint8_t  s_test_last_sc  = 0;
+static bool     s_test_last_pressed = false;
+
+static void test_subscriber_cb(uint8_t sc, bool pressed, void *ctx) {
+    (void)ctx;
+    s_test_calls++;
+    s_test_last_sc      = sc;
+    s_test_last_pressed = pressed;
+}
+
+/* Returns 0 on success, -1 if subscriber slot already taken. */
+int  keyboard_test_sub_start(void) {
+    s_test_calls       = 0;
+    s_test_last_sc     = 0;
+    s_test_last_pressed = false;
+    return keyboard_subscribe(test_subscriber_cb, NULL);
+}
+
+void keyboard_test_sub_stop(void)  { keyboard_unsubscribe(); }
+int  keyboard_test_sub_calls(void) { return s_test_calls; }
+int  keyboard_test_sub_last_sc(void)      { return (int)s_test_last_sc; }
+int  keyboard_test_sub_last_pressed(void) { return s_test_last_pressed ? 1 : 0; }

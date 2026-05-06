@@ -2315,6 +2315,17 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("keyboard_get_alt", p_kbd_alt, 0);
   bool (*p_kbd_caps)(void)              = keyboard_get_caps_lock;
   BIND("keyboard_get_caps_lock", p_kbd_caps, 0);
+  /* keyboard subscriber test-shim */
+  int  (*p_kbd_ts_start)(void)          = keyboard_test_sub_start;
+  BIND_T("keyboard_test_sub_start", p_kbd_ts_start, 0, TYPE_INT);
+  void (*p_kbd_ts_stop)(void)           = keyboard_test_sub_stop;
+  BIND("keyboard_test_sub_stop", p_kbd_ts_stop, 0);
+  int  (*p_kbd_ts_calls)(void)          = keyboard_test_sub_calls;
+  BIND_T("keyboard_test_sub_calls", p_kbd_ts_calls, 0, TYPE_INT);
+  int  (*p_kbd_ts_sc)(void)             = keyboard_test_sub_last_sc;
+  BIND_T("keyboard_test_sub_last_sc", p_kbd_ts_sc, 0, TYPE_INT);
+  int  (*p_kbd_ts_pr)(void)             = keyboard_test_sub_last_pressed;
+  BIND_T("keyboard_test_sub_last_pressed", p_kbd_ts_pr, 0, TYPE_INT);
 
   /* ── Phase 4: serial direct ─────────────────────────────────────── */
   int  (*p_serial_rx)(void)             = serial_read_char;

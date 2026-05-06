@@ -908,6 +908,11 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "keyboard_get_ctrl",   keyboard_get_ctrl);
   AS_BIND(as, "keyboard_get_alt",    keyboard_get_alt);
   AS_BIND(as, "keyboard_get_caps_lock", keyboard_get_caps_lock);
+  AS_BIND(as, "keyboard_test_sub_start",   keyboard_test_sub_start);
+  AS_BIND(as, "keyboard_test_sub_stop",    keyboard_test_sub_stop);
+  AS_BIND(as, "keyboard_test_sub_calls",   keyboard_test_sub_calls);
+  AS_BIND(as, "keyboard_test_sub_last_sc", keyboard_test_sub_last_sc);
+  AS_BIND(as, "keyboard_test_sub_last_pressed", keyboard_test_sub_last_pressed);
 
   /* ── Phase 4: speaker / PIT ──────────────────────────────────────── */
   AS_BIND(as, "pc_speaker_on",       pc_speaker_on);
