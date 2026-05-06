@@ -640,4 +640,7 @@ void parse_html(int html_len) {
 
     serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
                   css_rule_count, css_sel_count, css_value_pool_pos);
+
+    style_resolve_all();
+    serial_printf("[browser] style: %d computed entries\n", cs_count);
 }
