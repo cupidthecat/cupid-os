@@ -194,22 +194,22 @@ int n_text_len  [4096];
  * ap_*[] (which is reused across pages) into the permanent dom_ap_*[] pool so
  * layout/paint can re-query during repaint. Strings (the offsets refer to)
  * stay in attr_pool which is also persistent across the page lifetime. */
-int dom_attrs_first[MAX_NODES];
-int dom_attrs_count[MAX_NODES];
+int dom_attrs_first[4096];
+int dom_attrs_count[4096];
 int dom_ap_count;
-int dom_ap_name_off [MAX_ATTR_PAIRS];
-int dom_ap_value_off[MAX_ATTR_PAIRS];
+int dom_ap_name_off [8192];
+int dom_ap_value_off[8192];
 
 /* §1 selector cache: id and class strings extracted at DOM-build time.
  * Used by §2 selector matching. -1 if absent. */
-int dom_class_off[MAX_NODES];
-int dom_id_off   [MAX_NODES];
+int dom_class_off[4096];
+int dom_id_off   [4096];
 
 /* node-back-reference for forms/inputs registered by the tree builder.
  * inputs[] / forms[] index → DOM node index. Lets handlers look up DOM
  * attrs (action, name, value, type) of the originating element. */
-int input_node[MAX_INPUTS];
-int form_node [MAX_FORMS];
+int input_node[64];
+int form_node [32];
 
 char attr_pool[131072];
 int  attr_pool_pos;
@@ -219,87 +219,87 @@ int  attr_pool_pos;
  * declarations in a single CSS rule produce multiple entries here
  * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
 int css_rule_count;
-int css_rule_sel_first[MAX_CSS_RULES];
-int css_rule_sel_count[MAX_CSS_RULES];
-int css_rule_prop_id  [MAX_CSS_RULES];
-int css_rule_value_off[MAX_CSS_RULES];
-int css_rule_value_len[MAX_CSS_RULES];
-int css_rule_specificity[MAX_CSS_RULES];
-int css_rule_doc_order [MAX_CSS_RULES];
+int css_rule_sel_first[256];
+int css_rule_sel_count[256];
+int css_rule_prop_id  [256];
+int css_rule_value_off[256];
+int css_rule_value_len[256];
+int css_rule_specificity[256];
+int css_rule_doc_order [256];
 
 /* Each selector is a chain of "compound selectors". A compound is a
  * (tag, class_off, id_off) triple. Descendant combinators are implicit. */
 int css_sel_count;
-int css_sel_tag      [MAX_CSS_SELECTORS];
-int css_sel_class_off[MAX_CSS_SELECTORS];
-int css_sel_id_off   [MAX_CSS_SELECTORS];
+int css_sel_tag      [1024];
+int css_sel_class_off[1024];
+int css_sel_id_off   [1024];
 
 /* CSS value pool — separate from attr_pool. */
-char css_value_pool[CSS_VALUE_POOL_SIZE];
+char css_value_pool[32768];
 int  css_value_pool_pos;
 
 /* §2 ComputedStyle pool — one entry per render node. */
 int cs_count;
-int cs_color    [MAX_COMPUTED_STYLES];
-int cs_bg       [MAX_COMPUTED_STYLES];
-int cs_font_w   [MAX_COMPUTED_STYLES];
-int cs_font_i   [MAX_COMPUTED_STYLES];
-int cs_font_size_tier[MAX_COMPUTED_STYLES];
-int cs_text_align[MAX_COMPUTED_STYLES];
-int cs_text_dec [MAX_COMPUTED_STYLES];
-int cs_display  [MAX_COMPUTED_STYLES];
-int cs_margin   [MAX_COMPUTED_STYLES][4];
-int cs_padding  [MAX_COMPUTED_STYLES][4];
-int cs_border   [MAX_COMPUTED_STYLES][4];
-int cs_border_color[MAX_COMPUTED_STYLES];
-int cs_width    [MAX_COMPUTED_STYLES];
-int cs_height   [MAX_COMPUTED_STYLES];
-int cs_white_space[MAX_COMPUTED_STYLES];
-int cs_list_style[MAX_COMPUTED_STYLES];
-int cs_vertical_align[MAX_COMPUTED_STYLES];
+int cs_color    [4096];
+int cs_bg       [4096];
+int cs_font_w   [4096];
+int cs_font_i   [4096];
+int cs_font_size_tier[4096];
+int cs_text_align[4096];
+int cs_text_dec [4096];
+int cs_display  [4096];
+int cs_margin   [4096][4];
+int cs_padding  [4096][4];
+int cs_border   [4096][4];
+int cs_border_color[4096];
+int cs_width    [4096];
+int cs_height   [4096];
+int cs_white_space[4096];
+int cs_list_style[4096];
+int cs_vertical_align[4096];
 
 /* §3 Render tree pool — sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;
-int rt_dom         [MAX_RT_NODES];   /* back-pointer to DOM node, -1 for anonymous */
-int rt_parent      [MAX_RT_NODES];
-int rt_first_child [MAX_RT_NODES];
-int rt_next        [MAX_RT_NODES];
-int rt_kind        [MAX_RT_NODES];   /* RT_* */
-int rt_style       [MAX_RT_NODES];   /* index into cs_*[] */
-int rt_text_off    [MAX_RT_NODES];
-int rt_text_len    [MAX_RT_NODES];
-int rt_intrinsic_w [MAX_RT_NODES];
-int rt_intrinsic_h [MAX_RT_NODES];
-int rt_link_idx    [MAX_RT_NODES];   /* link[] index for clickable, -1 otherwise */
-int rt_input_idx   [MAX_RT_NODES];   /* input[] index, -1 otherwise */
+int rt_dom         [6144];   /* back-pointer to DOM node, -1 for anonymous */
+int rt_parent      [6144];
+int rt_first_child [6144];
+int rt_next        [6144];
+int rt_kind        [6144];   /* RT_* */
+int rt_style       [6144];   /* index into cs_*[] */
+int rt_text_off    [6144];
+int rt_text_len    [6144];
+int rt_intrinsic_w [6144];
+int rt_intrinsic_h [6144];
+int rt_link_idx    [6144];   /* link[] index for clickable, -1 otherwise */
+int rt_input_idx   [6144];   /* input[] index, -1 otherwise */
 
 /* Geometry filled by §4 layout */
-int rt_x[MAX_RT_NODES];
-int rt_y[MAX_RT_NODES];
-int rt_w[MAX_RT_NODES];
-int rt_h[MAX_RT_NODES];
-int rt_content_x[MAX_RT_NODES];
-int rt_content_y[MAX_RT_NODES];
-int rt_baseline[MAX_RT_NODES];
+int rt_x[6144];
+int rt_y[6144];
+int rt_w[6144];
+int rt_h[6144];
+int rt_content_x[6144];
+int rt_content_y[6144];
+int rt_baseline[6144];
 
 /* Line-box atom storage — one entry per word/glyph in an inline run.
  * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
  * the atom pool via a separate atom_first/count pair. */
 int la_count;
-int la_x        [MAX_LINE_ATOMS];   /* x within line box (cumulative) */
-int la_w        [MAX_LINE_ATOMS];
-int la_text_off [MAX_LINE_ATOMS];   /* into attr_pool */
-int la_text_len [MAX_LINE_ATOMS];
-int la_font_tier[MAX_LINE_ATOMS];
-int la_fg       [MAX_LINE_ATOMS];
-int la_bg       [MAX_LINE_ATOMS];
-int la_bold     [MAX_LINE_ATOMS];
-int la_underline[MAX_LINE_ATOMS];
-int la_link_idx [MAX_LINE_ATOMS];
+int la_x        [8192];   /* x within line box (cumulative) */
+int la_w        [8192];
+int la_text_off [8192];   /* into attr_pool */
+int la_text_len [8192];
+int la_font_tier[8192];
+int la_fg       [8192];
+int la_bg       [8192];
+int la_bold     [8192];
+int la_underline[8192];
+int la_link_idx [8192];
 
 /* Each LINE_BOX render node references a contiguous atom slice */
-int rt_line_atom_first[MAX_RT_NODES];
-int rt_line_atom_count[MAX_RT_NODES];
+int rt_line_atom_first[6144];
+int rt_line_atom_count[6144];
 
 /* §1 tokenizer scratch — populated by tokenize(), consumed by tree builder in Task 3.
  * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an
@@ -309,18 +309,18 @@ int rt_line_atom_count[MAX_RT_NODES];
  *   int from_attr = (tok_text_len[ti] >> 30) & 1;
  */
 int  tok_count;
-int  tok_kind     [MAX_TOKENS];   /* TK_START, TK_END, TK_TEXT, TK_EOF */
-int  tok_tag      [MAX_TOKENS];   /* T_* enum, only meaningful for START/END */
-int  tok_attr_first[MAX_TOKENS];  /* index into ap_* arrays */
-int  tok_attr_count[MAX_TOKENS];
-int  tok_text_off [MAX_TOKENS];   /* offset into page_buf or attr_pool (see flag above) */
-int  tok_text_len [MAX_TOKENS];
-int  tok_self_close[MAX_TOKENS];
+int  tok_kind     [16384];   /* TK_START, TK_END, TK_TEXT, TK_EOF */
+int  tok_tag      [16384];   /* T_* enum, only meaningful for START/END */
+int  tok_attr_first[16384];  /* index into ap_* arrays */
+int  tok_attr_count[16384];
+int  tok_text_off [16384];   /* offset into page_buf or attr_pool (see flag above) */
+int  tok_text_len [16384];
+int  tok_self_close[16384];
 
 /* attr-pair pool: name and value byte-offsets into attr_pool */
 int  ap_count;
-int  ap_name_off  [MAX_ATTR_PAIRS];
-int  ap_value_off [MAX_ATTR_PAIRS];
+int  ap_name_off  [8192];
+int  ap_value_off [8192];
 
 /* link table */
 int  links_count;
