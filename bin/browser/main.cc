@@ -85,6 +85,13 @@ enum {
     T_STYLE  = 32,
     T_OTHER  = 33,
     T_ROOT   = 34,
+    T_TEXTAREA = 35,
+
+    /* §1 tokenizer token kinds */
+    TK_START = 1,
+    TK_END   = 2,
+    TK_TEXT  = 3,
+    TK_EOF   = 4,
 
     /* box kinds */
     BK_TEXT  = 0,
@@ -123,7 +130,7 @@ char status_msg[256];
 char page_buf[524288];
 int  page_len;
 
-char ctype_buf[128];
+char ctype_buf[4096];
 
 /* DOM nodes (parallel arrays) */
 int nodes_count;
@@ -145,6 +152,27 @@ int n_form_idx  [4096];   /* for input/button: parent form idx */
 
 char attr_pool[131072];
 int  attr_pool_pos;
+
+/* §1 tokenizer scratch — populated by tokenize(), consumed by tree builder in Task 3.
+ * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an
+ * attr_pool offset (decoded RCDATA text); otherwise it is a page_buf offset.
+ * The tree builder reads this as:
+ *   int real_len = tok_text_len[ti] & 0x3FFFFFFF;
+ *   int from_attr = (tok_text_len[ti] >> 30) & 1;
+ */
+int  tok_count;
+int  tok_kind     [MAX_TOKENS];   /* TK_START, TK_END, TK_TEXT, TK_EOF */
+int  tok_tag      [MAX_TOKENS];   /* T_* enum, only meaningful for START/END */
+int  tok_attr_first[MAX_TOKENS];  /* index into ap_* arrays */
+int  tok_attr_count[MAX_TOKENS];
+int  tok_text_off [MAX_TOKENS];   /* offset into page_buf or attr_pool (see flag above) */
+int  tok_text_len [MAX_TOKENS];
+int  tok_self_close[MAX_TOKENS];
+
+/* attr-pair pool: name and value byte-offsets into attr_pool */
+int  ap_count;
+int  ap_name_off  [MAX_ATTR_PAIRS];
+int  ap_value_off [MAX_ATTR_PAIRS];
 
 /* layout boxes */
 int boxes_count;

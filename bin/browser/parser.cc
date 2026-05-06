@@ -1,5 +1,319 @@
 /* ---------- HTML lex / parse ---------- */
 
+/* §1 tokenizer states */
+enum {
+    ST_DATA = 0,
+    ST_TAG_OPEN,
+    ST_END_TAG_OPEN,
+    ST_TAG_NAME,
+    ST_BEFORE_ATTR,
+    ST_ATTR_NAME,
+    ST_AFTER_ATTR_NAME,
+    ST_BEFORE_VALUE,
+    ST_VALUE_DQ,
+    ST_VALUE_SQ,
+    ST_VALUE_UQ,
+    ST_SELF_CLOSE,
+    ST_MARKUP_DECL,    /* sees "<!" -- decide between Comment and Doctype */
+    ST_COMMENT,        /* skip to "-->" */
+    ST_DOCTYPE,        /* skip to ">" */
+    ST_RAWTEXT,        /* used inside <script>/<style> */
+    ST_RCDATA          /* used inside <title>/<textarea> */
+};
+
+int emit_token(int kind, int tag, int text_off, int text_len,
+               int attr_first, int attr_count, int self_close) {
+    if (tok_count >= MAX_TOKENS) return -1;
+    tok_kind[tok_count]       = kind;
+    tok_tag[tok_count]        = tag;
+    tok_text_off[tok_count]   = text_off;
+    tok_text_len[tok_count]   = text_len;
+    tok_attr_first[tok_count] = attr_first;
+    tok_attr_count[tok_count] = attr_count;
+    tok_self_close[tok_count] = self_close;
+    return tok_count++;
+}
+
+void tokenize(int html_len) {
+    tok_count = 0;
+    ap_count  = 0;
+    int state = ST_DATA;
+    int i = 0;
+    int text_start = 0;
+    int tag_start = 0;
+    int tag_is_end = 0;
+    int cur_tag = 0;            /* T_* during ST_TAG_NAME */
+    int cur_attr_first = 0;
+    int cur_attr_count = 0;
+    int cur_self_close = 0;
+
+    while (i <= html_len) {
+        int c = (i < html_len) ? (page_buf[i] & 0xFF) : -1;
+
+        if (state == ST_DATA) {
+            if (c == '<') {
+                if (i > text_start) {
+                    emit_token(TK_TEXT, 0, text_start, i - text_start, 0, 0, 0);
+                }
+                state = ST_TAG_OPEN;
+                tag_is_end = 0;
+                cur_tag = 0;
+                cur_attr_first = ap_count;
+                cur_attr_count = 0;
+                cur_self_close = 0;
+                i++;
+                continue;
+            }
+            if (c < 0) {
+                if (i > text_start) {
+                    emit_token(TK_TEXT, 0, text_start, i - text_start, 0, 0, 0);
+                }
+                emit_token(TK_EOF, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            i++;
+            continue;
+        }
+
+        if (state == ST_TAG_OPEN) {
+            if (c == '/') { state = ST_END_TAG_OPEN; i++; continue; }
+            if (c == '!') { state = ST_MARKUP_DECL; i++; continue; }
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                state = ST_TAG_NAME;
+                tag_start = i;
+                continue;            /* re-process this byte in TAG_NAME */
+            }
+            /* anything else: treat '<' as text, fall back */
+            text_start = i - 1;
+            state = ST_DATA;
+            continue;
+        }
+
+        if (state == ST_END_TAG_OPEN) {
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                state = ST_TAG_NAME;
+                tag_is_end = 1;
+                tag_start = i;
+                continue;
+            }
+            /* malformed; skip to '>' */
+            while (i < html_len && page_buf[i] != '>') i++;
+            if (i < html_len) i++;
+            state = ST_DATA;
+            text_start = i;
+            continue;
+        }
+
+        if (state == ST_TAG_NAME) {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '/' || c == '>') {
+                cur_tag = tag_id(page_buf + tag_start, i - tag_start);
+                state = ST_BEFORE_ATTR;
+                continue;          /* let BEFORE_ATTR re-handle byte */
+            }
+            i++;
+            continue;
+        }
+
+        if (state == ST_BEFORE_ATTR) {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; continue; }
+            if (c == '/') { cur_self_close = 1; i++; continue; }
+            if (c == '>') {
+                emit_token(tag_is_end ? TK_END : TK_START, cur_tag,
+                           0, 0, cur_attr_first, cur_attr_count, cur_self_close);
+                if (!tag_is_end) {
+                    if (cur_tag == T_SCRIPT || cur_tag == T_STYLE) {
+                        state = ST_RAWTEXT;
+                    } else if (cur_tag == T_TITLE || cur_tag == T_TEXTAREA) {
+                        state = ST_RCDATA;
+                    } else {
+                        state = ST_DATA;
+                    }
+                } else {
+                    state = ST_DATA;
+                }
+                i++;
+                text_start = i;
+                continue;
+            }
+            /* attribute name starts here */
+            state = ST_ATTR_NAME;
+            tag_start = i;
+            continue;
+        }
+
+        if (state == ST_ATTR_NAME) {
+            if (c == '=') {
+                int name_off = attr_intern(page_buf + tag_start, i - tag_start);
+                if (ap_count < MAX_ATTR_PAIRS) {
+                    ap_name_off[ap_count]  = name_off;
+                    ap_value_off[ap_count] = -1;       /* filled at value end */
+                    ap_count++;
+                    cur_attr_count++;
+                }
+                state = ST_BEFORE_VALUE;
+                i++; continue;
+            }
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+                c == '/' || c == '>') {
+                /* boolean attribute (no '=') */
+                int name_off = attr_intern(page_buf + tag_start, i - tag_start);
+                if (ap_count < MAX_ATTR_PAIRS) {
+                    ap_name_off[ap_count]  = name_off;
+                    ap_value_off[ap_count] = attr_intern("", 0);
+                    ap_count++;
+                    cur_attr_count++;
+                }
+                state = ST_BEFORE_ATTR;
+                continue;
+            }
+            i++;
+            continue;
+        }
+
+        if (state == ST_BEFORE_VALUE) {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; continue; }
+            if (c == '"')  { state = ST_VALUE_DQ; i++; tag_start = i; continue; }
+            if (c == '\'') { state = ST_VALUE_SQ; i++; tag_start = i; continue; }
+            state = ST_VALUE_UQ; tag_start = i; continue;
+        }
+
+        if (state == ST_VALUE_DQ || state == ST_VALUE_SQ) {
+            int term = (state == ST_VALUE_DQ) ? '"' : '\'';
+            if (c == term) {
+                int dec_max = (i - tag_start) + 1;
+                /* fast path: no '&' → intern directly */
+                int has_amp = 0;
+                for (int k = tag_start; k < i; k++) {
+                    if (page_buf[k] == '&') { has_amp = 1; break; }
+                }
+                int voff;
+                if (!has_amp) {
+                    voff = attr_intern(page_buf + tag_start, i - tag_start);
+                } else {
+                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start,
+                                                  ctype_buf, dec_max < 4096 ? dec_max : 4096);
+                    voff = attr_intern(ctype_buf, dec_len);
+                }
+                if (ap_count > 0) ap_value_off[ap_count - 1] = voff;
+                state = ST_BEFORE_ATTR;
+                i++; continue;
+            }
+            i++; continue;
+        }
+
+        if (state == ST_VALUE_UQ) {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+                c == '>' || c < 0) {
+                int has_amp = 0;
+                for (int k = tag_start; k < i; k++) {
+                    if (page_buf[k] == '&') { has_amp = 1; break; }
+                }
+                int voff;
+                if (!has_amp) {
+                    voff = attr_intern(page_buf + tag_start, i - tag_start);
+                } else {
+                    int dec_max = (i - tag_start) + 1;
+                    int dec_len = decode_entities(page_buf + tag_start, i - tag_start,
+                                                  ctype_buf, dec_max < 4096 ? dec_max : 4096);
+                    voff = attr_intern(ctype_buf, dec_len);
+                }
+                if (ap_count > 0) ap_value_off[ap_count - 1] = voff;
+                state = ST_BEFORE_ATTR;
+                continue;
+            }
+            i++; continue;
+        }
+
+        if (state == ST_MARKUP_DECL) {
+            /* If next two bytes are "--", it's a comment; otherwise treat as DOCTYPE-like */
+            if (i + 1 < html_len && page_buf[i] == '-' && page_buf[i+1] == '-') {
+                state = ST_COMMENT;
+                i += 2;
+                continue;
+            }
+            state = ST_DOCTYPE;
+            continue;
+        }
+
+        if (state == ST_COMMENT) {
+            /* skip until '-->' */
+            while (i + 2 < html_len &&
+                   !(page_buf[i] == '-' && page_buf[i+1] == '-' && page_buf[i+2] == '>')) {
+                i++;
+            }
+            if (i + 2 < html_len) i += 3; else i = html_len;
+            state = ST_DATA;
+            text_start = i;
+            continue;
+        }
+
+        if (state == ST_DOCTYPE) {
+            while (i < html_len && page_buf[i] != '>') i++;
+            if (i < html_len) i++;
+            state = ST_DATA;
+            text_start = i;
+            continue;
+        }
+
+        if (state == ST_RAWTEXT || state == ST_RCDATA) {
+            /* find matching </tag> for the most recently emitted START. */
+            int last_start = tok_count - 1;
+            while (last_start >= 0 && tok_kind[last_start] != TK_START) last_start--;
+            int close_tag = (last_start >= 0) ? tok_tag[last_start] : 0;
+            char *close_name = 0;
+            int close_name_len = 0;
+            if (close_tag == T_SCRIPT)        { close_name = "script";   close_name_len = 6; }
+            else if (close_tag == T_STYLE)    { close_name = "style";    close_name_len = 5; }
+            else if (close_tag == T_TITLE)    { close_name = "title";    close_name_len = 5; }
+            else if (close_tag == T_TEXTAREA) { close_name = "textarea"; close_name_len = 8; }
+            else { state = ST_DATA; continue; }
+
+            int t_start = i;
+            while (i < html_len) {
+                if (page_buf[i] == '<' && i + 1 + close_name_len < html_len &&
+                    page_buf[i+1] == '/' &&
+                    b_strieq_n(page_buf + i + 2, close_name, close_name_len) &&
+                    (page_buf[i + 2 + close_name_len] == '>' ||
+                     page_buf[i + 2 + close_name_len] == ' ' ||
+                     page_buf[i + 2 + close_name_len] == '\t' ||
+                     page_buf[i + 2 + close_name_len] == '\n')) break;
+                i++;
+            }
+            int t_end = i;
+
+            if (t_end > t_start) {
+                if (state == ST_RCDATA) {
+                    int dec_len = decode_entities(page_buf + t_start, t_end - t_start,
+                                                  ctype_buf, 4096);
+                    int off = attr_intern(ctype_buf, dec_len);
+                    /* Sentinel bit 0x40000000 on tok_text_len marks attr_pool-backed text. */
+                    emit_token(TK_TEXT, 0, off,
+                               dec_len | 0x40000000, 0, 0, 0);
+                } else {
+                    emit_token(TK_TEXT, 0, t_start, t_end - t_start, 0, 0, 0);
+                }
+            }
+
+            /* skip past "</closename" and any whitespace/'>' */
+            if (i < html_len) {
+                emit_token(TK_END, close_tag, 0, 0, 0, 0, 0);
+                i += 2 + close_name_len;
+                while (i < html_len && page_buf[i] != '>') i++;
+                if (i < html_len) i++;
+            }
+            state = ST_DATA;
+            text_start = i;
+            continue;
+        }
+
+        /* catch-all fallback: skip to '>' and resume in DATA */
+        while (i < html_len && page_buf[i] != '>') i++;
+        if (i < html_len) i++;
+        state = ST_DATA;
+        text_start = i;
+    }
+}
+
 int tag_id(char *name, int len) {
     if (len == 0) return T_OTHER;
     char b[16]; int i = 0;
@@ -37,6 +351,7 @@ int tag_id(char *name, int len) {
     if (b_streq(b, "font"))   return T_FONT;
     if (b_streq(b, "script")) return T_SCRIPT;
     if (b_streq(b, "style"))  return T_STYLE;
+    if (b_streq(b, "textarea")) return T_TEXTAREA;
     return T_OTHER;
 }
 
@@ -64,6 +379,9 @@ int skip_to_close(char *html, int n, int i, char *closetag) {
 
 /* Build DOM from page_buf into nodes. */
 void parse_html(int html_len) {
+    tokenize(html_len);
+    serial_printf("[browser] tokenize: %d tokens, %d attr-pairs\n", tok_count, ap_count);
+
     nodes_count = 0;
     attr_pool_pos = 1;  /* offset 0 reserved as "none" */
     forms_count = 0;
