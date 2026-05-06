@@ -145,6 +145,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/demos_programs_gen.o \
 			kernel/ksyms.o \
 			kernel/audio/ac97.o \
+			kernel/audio/mixer.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -443,6 +444,11 @@ kernel/usb_msc.o: kernel/usb_msc.c kernel/usb.h kernel/usb_hc.h kernel/blockdev.
 kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h \
 	kernel/ports.h kernel/irq.h kernel/memory.h kernel/kernel.h drivers/serial.h drivers/timer.h
 	$(CC) $(CFLAGS) kernel/audio/ac97.c -o kernel/audio/ac97.o
+
+# Mixer — 16-slot s16 stereo software mixer
+kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/types.h \
+	drivers/serial.h
+	$(CC) $(CFLAGS) kernel/audio/mixer.c -o kernel/audio/mixer.o
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h

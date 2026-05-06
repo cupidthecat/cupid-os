@@ -206,33 +206,6 @@ void ac97_set_master_volume(uint8_t pct) {
 
 /* ── Smoke-test kernel helper ──────────────────────────────────────────── */
 
-/* 440 Hz triangle wave fill callback (kernel-side, no function-pointer from CupidC) */
-static uint32_t s_sine_phase = 0u;
-
-static void sine_fill(int16_t *buf, uint32_t frames) {
-    /* 440 Hz triangle wave at 22050 Hz sample rate.
-     * period = 22050 / 440 ≈ 50 samples */
-    static const uint32_t PERIOD = 50u;
-    static const int16_t  AMP    = 8000;
-    uint32_t ph = s_sine_phase;
-    for (uint32_t f = 0; f < frames; f++) {
-        /* Triangle: ramp up first half, ramp down second half */
-        int32_t val;
-        if (ph < PERIOD / 2u) {
-            val = ((int32_t)ph * (int32_t)AMP * 2) / (int32_t)(PERIOD / 2u) - (int32_t)AMP;
-        } else {
-            uint32_t half_off = ph - (PERIOD / 2u);
-            val = (int32_t)AMP - (int32_t)((int32_t)half_off * (int32_t)AMP * 2) / (int32_t)(PERIOD / 2u);
-        }
-        int16_t s = (int16_t)val;
-        buf[f * 2u]       = s;  /* L */
-        buf[f * 2u + 1u]  = s;  /* R */
-        ph++;
-        if (ph >= PERIOD) { ph = 0u; }
-    }
-    s_sine_phase = ph;
-}
-
 /* TSC-based busy-wait for ms milliseconds.
  * Uses RDTSC — advances regardless of IF/IRQ state.
  * Suitable for smoke tests where hlt/timer may be unreliable from JIT context. */
@@ -250,17 +223,53 @@ static void ac97_tsc_sleep_ms(uint32_t ms) {
     } while (elapsed < cycles);
 }
 
+/* Generate a 1-second 440 Hz triangle-wave PCM buffer (mono, 22050 frames) */
+static int16_t *make_triangle_pcm(uint32_t *out_frames) {
+    static const uint32_t RATE   = 22050u;
+    static const uint32_t PERIOD = 50u;   /* 22050 / 440 ≈ 50 */
+    static const int16_t  AMP    = 8000;
+
+    uint32_t frames = RATE;   /* 1 second */
+    int16_t *pcm = (int16_t *)kmalloc(frames * sizeof(int16_t));
+    if (!pcm) { *out_frames = 0; return (int16_t *)0; }
+
+    for (uint32_t i = 0; i < frames; i++) {
+        uint32_t ph = i % PERIOD;
+        int32_t val;
+        if (ph < PERIOD / 2u) {
+            val = ((int32_t)ph * (int32_t)AMP * 2) / (int32_t)(PERIOD / 2u) - (int32_t)AMP;
+        } else {
+            uint32_t half_off = ph - (PERIOD / 2u);
+            val = (int32_t)AMP - ((int32_t)half_off * (int32_t)AMP * 2) / (int32_t)(PERIOD / 2u);
+        }
+        pcm[i] = (int16_t)val;
+    }
+    *out_frames = frames;
+    return pcm;
+}
+
 int ac97_smoke_sine(void) {
     if (!s_ac97.present) {
         serial_write_string("[SKIP] audiotest sine: no AC97 device\n");
         return 0;
     }
-    s_sine_phase = 0u;
-    ac97_set_fill_callback(sine_fill);
-    ac97_start();
+
+    extern int  mixer_play(int, const int16_t *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
+    extern void mixer_stop(int);
+
+    uint32_t frames = 0u;
+    int16_t *pcm = make_triangle_pcm(&frames);
+    if (!pcm) {
+        serial_write_string("[FAIL] audiotest sine: OOM\n");
+        return -1;
+    }
+
+    /* Play via mixer slot 9, looping, half-scale volume */
+    mixer_play(9, pcm, frames, (uint8_t)1, (uint8_t)1, (uint8_t)100, (uint8_t)100);
     ac97_tsc_sleep_ms(2000u);
-    ac97_stop();
-    ac97_set_fill_callback((void (*)(int16_t *, uint32_t))0);
+    mixer_stop(9);
+
+    kfree(pcm);
     serial_write_string("[PASS] audiotest sine\n");
     return 0;
 }

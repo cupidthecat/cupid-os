@@ -635,6 +635,14 @@ void kmain(void) {
     extern int ac97_init(void);
     ac97_init();
 
+    /* Mixer: 16-slot s16 stereo software mixer, always the AC97 fill source.
+     * ac97_start() is deferred to after sti so IRQs can actually fire. */
+    extern int  mixer_init(void);
+    extern void mixer_fill(int16_t *, uint32_t);
+    extern void ac97_set_fill_callback(void (*)(int16_t *, uint32_t));
+    mixer_init();
+    ac97_set_fill_callback(mixer_fill);
+
     /* net_init() moved to after sti below so NIC IRQs can actually fire
      * during DHCP negotiation. Before sti, IRQs are masked → DHCP OFFER
      * reply never reaches us → static fallback triggers every boot. */
@@ -871,6 +879,13 @@ void kmain(void) {
     // Keyboard IRQ1 is unmasked on IOAPIC by keyboard_init via
     // irq_install_handler; 8259 stays fully masked under P5.
     __asm__ volatile("sti");
+
+    /* Arm AC97 DMA now that interrupts are live. IRQs must be enabled
+     * before ac97_start() so the IOC interrupt can fire on each buffer. */
+    {
+        extern void ac97_start(void);
+        ac97_start();
+    }
 
     /* Bring up the network stack now that interrupts can fire.
      * DHCP needs NIC RX IRQs to receive OFFER/ACK. */
