@@ -156,6 +156,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/audio/mixer.o \
 			kernel/audio/nuked_opl3.o \
 			kernel/audio/opl_smoke.o \
+			kernel/audio/memio.o \
+			kernel/audio/mus2midi.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -462,6 +464,15 @@ kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/types.h \
 
 # Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
 kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+# mus2midi + memio — vendored GPL-2, built with relaxed CFLAGS_DOOM
+kernel/audio/memio.o: kernel/audio/memio.c kernel/audio/memio.h \
+	kernel/types.h kernel/string.h kernel/memory.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+kernel/audio/mus2midi.o: kernel/audio/mus2midi.c kernel/audio/mus2midi.h \
+	kernel/audio/memio.h kernel/types.h kernel/string.h kernel/memory.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 # OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
