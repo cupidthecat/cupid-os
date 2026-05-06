@@ -44,8 +44,6 @@ int is_void_tag(int tag) {
     return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT;
 }
 
-/* DOM helpers in browser/dom.cc */
-
 /* Skip until matching close tag like </script> (case-insensitive).
  * Returns new index past close tag. */
 int skip_to_close(char *html, int n, int i, char *closetag) {
