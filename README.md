@@ -524,8 +524,7 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 - GCC with 32-bit support (gcc-multilib on 64-bit hosts)
 - GNU Make
 - QEMU (qemu-system-i386)
-- mtools (mcopy, mdir) for FAT16 image work
-- mtools (mcopy) — required for staging WAD files into the FAT16 partition
+- mtools (mcopy, mdir) for FAT16 image work and WAD staging
 - Linux or similar Unix environment
 
 ---
