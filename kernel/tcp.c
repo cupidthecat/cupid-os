@@ -78,7 +78,17 @@ static int tcp_emit(socket_t *s, uint32_t seq, uint8_t flags,
     h->ack       = be32(s->rcv_nxt);
     h->data_off  = (uint8_t)(5u << 4);
     h->flags     = flags;
-    h->window    = be16(8192u);
+    /* Advertise actual free rx-buffer space, capped at 65535 since we
+     * don't implement TCP window scaling. Reserve 1 byte so head==tail
+     * always means empty (matches the rx_buf invariant in tcp_input). */
+    {
+        uint32_t used;
+        uint32_t freeb;
+        if (s->rx_tail >= s->rx_head) used = s->rx_tail - s->rx_head;
+        else used = SOCK_RX_BUF - s->rx_head + s->rx_tail;
+        freeb = (used + 1u < SOCK_RX_BUF) ? (SOCK_RX_BUF - 1u - used) : 0u;
+        h->window = be16((uint16_t)((freeb > 65535u) ? 65535u : freeb));
+    }
     h->checksum  = 0;
     h->urgent    = 0;
     for (i = 0; i < dlen; i++) pkt[20u + i] = data[i];

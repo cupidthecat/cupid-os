@@ -6,7 +6,13 @@
 #define SOCK_TYPE_UDP 1
 #define SOCK_TYPE_TCP 2
 
-#define SOCK_RX_BUF 8192
+/* RX buffer must hold a TLS record plus a few in-flight TCP segments.
+ * 8 KB was too tight for handshakes from servers with deep RSA-4096 cert
+ * chains (e.g. iana.org → ~10 KB Certificate message); peer-side data
+ * piled up faster than we drained, segments past the buffer were dropped,
+ * and the server eventually closed the connection. 64 KB gives headroom
+ * for a full encrypted handshake flight without dropping. */
+#define SOCK_RX_BUF 65536
 #define SOCK_TX_BUF 8192
 #define SOCKET_MAX  32
 #define LQ_SIZE     8
