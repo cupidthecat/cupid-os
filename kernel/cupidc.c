@@ -61,6 +61,7 @@
 #include "bkl.h"
 #include "../drivers/ata.h"
 #include "../drivers/pit.h"
+#include "audio/ac97.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -2380,6 +2381,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("pmm_alloc_page", p_pmm_alloc_p, 0);
   void  (*p_pmm_free_p)(void *)        = pmm_free_page;
   BIND("pmm_free_page", p_pmm_free_p, 1);
+
+  /* ── AC97 audio smoke-test helpers ───────────────────────────────── */
+  int  (*p_ac97_present)(void)         = ac97_is_present_int;
+  BIND_T("ac97_is_present_int", p_ac97_present, 0, TYPE_INT);
+  int  (*p_ac97_smoke)(void)           = ac97_smoke_sine;
+  BIND_T("ac97_smoke_sine", p_ac97_smoke, 0, TYPE_INT);
 
 #undef BIND
 #undef BIND_T

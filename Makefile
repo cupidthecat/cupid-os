@@ -439,8 +439,9 @@ kernel/usb_hub.o: kernel/usb_hub.c kernel/usb.h kernel/usb_hc.h drivers/serial.h
 kernel/usb_msc.o: kernel/usb_msc.c kernel/usb.h kernel/usb_hc.h kernel/blockdev.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/usb_msc.c -o kernel/usb_msc.o
 
-# AC97 audio probe scaffold
-kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h drivers/serial.h
+# AC97 audio — BDL DMA + IRQ + smoke helper
+kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h \
+	kernel/ports.h kernel/irq.h kernel/memory.h kernel/kernel.h drivers/serial.h drivers/timer.h
 	$(CC) $(CFLAGS) kernel/audio/ac97.c -o kernel/audio/ac97.o
 
 # Add new rule for paging.o
@@ -832,6 +833,7 @@ QEMU_COMMON = -m 512M -boot c \
 	-drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk \
 	-rtc base=localtime \
 	-audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker \
+	-device AC97,audiodev=speaker \
 	-device piix3-usb-uhci -device usb-ehci \
 	-device usb-kbd -device usb-mouse
 
