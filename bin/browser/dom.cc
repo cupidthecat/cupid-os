@@ -136,28 +136,70 @@ int alloc_node(int tag, int parent, int tok_idx) {
     return idx;
 }
 
-/* Decode &amp; / &lt; / &gt; / &quot; / &nbsp; / &#NNN; / &#xHH; and the
- * extended §1 named-entity set into out; returns new length. The mapping is
- * lossy by design (no Unicode in the 8x8 ASCII font) but predictable. */
-int decode_entities(char *src, int slen, char *out, int omax) {
-    static char *ent_names[] = {
-        "amp",   "lt",    "gt",    "quot",  "apos",  "nbsp",
-        "mdash", "ndash", "hellip","lsquo", "rsquo", "ldquo", "rdquo",
-        "middot","bull",  "copy",  "reg",   "trade", "sect",  "para",
-        "deg",   "times", "divide","plusmn","frac12","frac14","frac34",
-        "larr",  "rarr",  "uarr",  "darr",  "laquo", "raquo",
-        "iexcl", "iquest","cent",  "pound", "yen",   "euro",
-        0
-    };
-    static int ent_chars[] = {
-        '&',     '<',     '>',     '"',     '\'',    ' ',
-        '-',     '-',     '.',     '\'',    '\'',    '"',     '"',
-        '*',     '*',     'C',     'R',     'T',     'S',     'P',
-        'd',     'x',     '/',     '+',     'h',     'q',     'Q',
-        '<',     '>',     '^',     'v',     '<',     '>',
-        '!',     '?',     'c',     'L',     'Y',     'E'
-    };
+/* Look up a named HTML entity by (name, nlen). On match, writes the ASCII
+ * approximation to *out_ch and returns 1. The mapping is lossy (no Unicode
+ * in the 8x8 ASCII font) but predictable. */
+int match_named_entity(char *name, int nlen, int *out_ch) {
+    if (nlen == 2) {
+        if (b_strieq_n(name, "lt", 2)) { *out_ch = '<'; return 1; }
+        if (b_strieq_n(name, "gt", 2)) { *out_ch = '>'; return 1; }
+        return 0;
+    }
+    if (nlen == 3) {
+        if (b_strieq_n(name, "amp", 3)) { *out_ch = '&'; return 1; }
+        if (b_strieq_n(name, "deg", 3)) { *out_ch = 'd'; return 1; }
+        if (b_strieq_n(name, "reg", 3)) { *out_ch = 'R'; return 1; }
+        if (b_strieq_n(name, "yen", 3)) { *out_ch = 'Y'; return 1; }
+        return 0;
+    }
+    if (nlen == 4) {
+        if (b_strieq_n(name, "quot", 4)) { *out_ch = '"';  return 1; }
+        if (b_strieq_n(name, "apos", 4)) { *out_ch = '\''; return 1; }
+        if (b_strieq_n(name, "nbsp", 4)) { *out_ch = ' ';  return 1; }
+        if (b_strieq_n(name, "bull", 4)) { *out_ch = '*';  return 1; }
+        if (b_strieq_n(name, "copy", 4)) { *out_ch = 'C';  return 1; }
+        if (b_strieq_n(name, "sect", 4)) { *out_ch = 'S';  return 1; }
+        if (b_strieq_n(name, "para", 4)) { *out_ch = 'P';  return 1; }
+        if (b_strieq_n(name, "larr", 4)) { *out_ch = '<';  return 1; }
+        if (b_strieq_n(name, "rarr", 4)) { *out_ch = '>';  return 1; }
+        if (b_strieq_n(name, "uarr", 4)) { *out_ch = '^';  return 1; }
+        if (b_strieq_n(name, "darr", 4)) { *out_ch = 'v';  return 1; }
+        if (b_strieq_n(name, "cent", 4)) { *out_ch = 'c';  return 1; }
+        if (b_strieq_n(name, "euro", 4)) { *out_ch = 'E';  return 1; }
+        return 0;
+    }
+    if (nlen == 5) {
+        if (b_strieq_n(name, "mdash", 5)) { *out_ch = '-'; return 1; }
+        if (b_strieq_n(name, "ndash", 5)) { *out_ch = '-'; return 1; }
+        if (b_strieq_n(name, "lsquo", 5)) { *out_ch = '\''; return 1; }
+        if (b_strieq_n(name, "rsquo", 5)) { *out_ch = '\''; return 1; }
+        if (b_strieq_n(name, "ldquo", 5)) { *out_ch = '"'; return 1; }
+        if (b_strieq_n(name, "rdquo", 5)) { *out_ch = '"'; return 1; }
+        if (b_strieq_n(name, "times", 5)) { *out_ch = 'x'; return 1; }
+        if (b_strieq_n(name, "trade", 5)) { *out_ch = 'T'; return 1; }
+        if (b_strieq_n(name, "laquo", 5)) { *out_ch = '<'; return 1; }
+        if (b_strieq_n(name, "raquo", 5)) { *out_ch = '>'; return 1; }
+        if (b_strieq_n(name, "iexcl", 5)) { *out_ch = '!'; return 1; }
+        if (b_strieq_n(name, "pound", 5)) { *out_ch = 'L'; return 1; }
+        return 0;
+    }
+    if (nlen == 6) {
+        if (b_strieq_n(name, "hellip", 6)) { *out_ch = '.'; return 1; }
+        if (b_strieq_n(name, "middot", 6)) { *out_ch = '*'; return 1; }
+        if (b_strieq_n(name, "divide", 6)) { *out_ch = '/'; return 1; }
+        if (b_strieq_n(name, "plusmn", 6)) { *out_ch = '+'; return 1; }
+        if (b_strieq_n(name, "frac12", 6)) { *out_ch = 'h'; return 1; }
+        if (b_strieq_n(name, "frac14", 6)) { *out_ch = 'q'; return 1; }
+        if (b_strieq_n(name, "frac34", 6)) { *out_ch = 'Q'; return 1; }
+        if (b_strieq_n(name, "iquest", 6)) { *out_ch = '?'; return 1; }
+        return 0;
+    }
+    return 0;
+}
 
+/* Decode &amp; / &lt; / &gt; / &quot; / &nbsp; / &#NNN; / &#xHH; and the
+ * extended §1 named-entity set into out; returns new length. */
+int decode_entities(char *src, int slen, char *out, int omax) {
     int i = 0;
     int o = 0;
     while (i < slen && o < omax - 1) {
@@ -199,22 +241,11 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     out[o] = '?'; o = o + 1; i = end + 1; continue;
                 }
                 /* named */
-                int matched = 0;
-                int idx = 0;
-                while (ent_names[idx]) {
-                    char *en = ent_names[idx];
-                    int enl = b_strlen(en);
-                    if (enl == el && b_strieq_n(src + j, en, enl)) {
-                        int ch = ent_chars[idx];
-                        if (o < omax - 1) {
-                            out[o] = (char)ch; o = o + 1;
-                        }
-                        matched = 1;
-                        break;
-                    }
-                    idx = idx + 1;
+                int ch;
+                if (match_named_entity(src + j, el, &ch)) {
+                    if (o < omax - 1) { out[o] = (char)ch; o = o + 1; }
+                    i = end + 1; continue;
                 }
-                if (matched) { i = end + 1; continue; }
             }
             /* unrecognized entity: emit literal & */
             out[o] = '&'; o = o + 1; i = i + 1;
