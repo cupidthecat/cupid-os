@@ -318,6 +318,15 @@ void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy) {
     mouse.updated = true;
 }
 
+void mouse_inject_wheel(int8_t dz) {
+    if (dz == 0) return;
+    /* USB HID Intellimouse: positive Z = scroll DOWN, negative = UP.
+     * Our scroll convention (matches PS/2 Intellimouse): positive = UP.
+     * So invert sign on the way in. */
+    mouse.scroll_z += (int)(-dz);
+    mouse.updated = true;
+}
+
 void mouse_update_cursor_direct(void) {
     /* Skip if no cursor was ever saved (before first full render) */
     if (saved_x < 0) return;

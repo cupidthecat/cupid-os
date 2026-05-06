@@ -37,10 +37,10 @@
 #define VFS_TYPE_DIR    1
 #define VFS_TYPE_DEV    2
 
-#define VFS_MAX_OPEN_FILES 64
-#define VFS_MAX_MOUNTS     16
-#define VFS_MAX_PATH       128
-#define VFS_MAX_NAME       64
+#define VFS_MAX_OPEN_FILES 256
+#define VFS_MAX_MOUNTS     32
+#define VFS_MAX_PATH       512
+#define VFS_MAX_NAME       128
 
 struct vfs_mount;
 

@@ -476,10 +476,19 @@ static void shell_gui_putchar(char c) {
     }
     gui_cursor_x = 0;
     gui_cursor_y++;
+  } else if (c == '\r') {
+    /* Carriage return: cursor to col 0. Standard CRLF handling so HTTP
+     * bodies (e.g. from /bin/curl.cc) don't render \r as a CP437 glyph
+     * (♪ at byte 0x0D) on each header line. */
+    gui_cursor_x = 0;
   } else if (c == '\b') {
     if (gui_cursor_x > 0) {
       gui_cursor_x--;
     }
+  } else if ((unsigned char)c < 32 && c != '\t') {
+    /* Drop other control bytes — never render as glyphs.
+     * (Order matters: \b/\n/\r/\t are handled above.) */
+    return;
   } else if (c == '\t') {
     /* Tab = 4 spaces */
     for (int t = 0; t < 4 && gui_cursor_x < gui_visible_cols; t++) {

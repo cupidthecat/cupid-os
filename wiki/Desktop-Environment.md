@@ -147,12 +147,38 @@ The terminal application runs the shell inside a graphical window:
 | Property | Value |
 |----------|-------|
 | Default size | 560 × 320 pixels |
-| Character buffer | 80 columns × 50 rows |
+| Character buffer | 80 columns × 500 rows (scrollback) |
 | Background | Dark (`#141418`) |
 | Default text | Light gray on dark background |
 | Color support | 16 foreground + 8 background colors via ANSI codes |
 | Cursor | Blinking vertical bar, 500ms toggle |
 | Font zoom | Ctrl+`+` / Ctrl+`-` to scale 1×, 2×, 3× |
+| Scrollback | PgUp/PgDn (10 rows), Home/End (top/bottom), mouse wheel (3 rows/notch) |
+
+### Scrollback
+
+The shell character buffer is 500 rows tall — long-running output
+(e.g. `curl http://example.com/`) stays in the buffer and you can
+review it after the fact:
+
+| Input | Action |
+|---|---|
+| **PgUp** / **PgDn** | scroll up / down 10 rows |
+| **Home** | jump to top of buffer |
+| **End** | jump to bottom (most recent output) |
+| **Mouse wheel** | 3 rows per notch, sign matches host wheel |
+| Typing characters | preserves scroll position |
+| **Enter** | resets scroll to bottom (so you see the new prompt + output) |
+
+When the buffer fills (cursor reaches row 499), the oldest row is
+discarded — there's no infinite history.
+
+Mouse wheel routing lives in `kernel/desktop.c`: when the focused
+window's title is `"Terminal"`, `mouse.scroll_z` is forwarded to
+`terminal_handle_scroll()` instead of being silently consumed.
+PgUp / PgDn / Home / End scancodes arrive via the extended-scancode
+PS/2 path (or, for USB HID keyboards, via the `0xE0` prefix injected
+by `usb_hid.c`'s `hid_is_extended[]` table — see [USB](USB)).
 
 ### How It Works
 

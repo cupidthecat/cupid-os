@@ -34,6 +34,8 @@
 #include "fpu.h"
 #include "fs.h"
 #include "memory.h"
+#include "tls/csprng.h"
+#include "tls/tls_selftest.h"
 #include "panic.h"
 #include "pci.h"
 #include "percpu.h"
@@ -427,7 +429,7 @@ void _start(void) {
     // We're already in protected mode with segments set up.
     // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
-        "mov $0x880000, %%esp\n"
+        "mov $0xA00000, %%esp\n"
         "mov %%esp, %%ebp\n"
         /* Zero BSS region (_bss_start to _kernel_end) */
         "mov $_bss_start, %%edi\n"
@@ -594,6 +596,14 @@ void kmain(void) {
     heap_init(HEAP_INITIAL_PAGES);
     paging_init();
     KINFO("Memory management initialized");
+
+    // Initialize CSPRNG before any consumer (devfs /dev/random, TCP ISS,
+    // TLS handshakes). Seeds from RDRAND if present, else rdtsc jitter.
+    csprng_init();
+    KINFO("CSPRNG initialized");
+
+    // Run TLS crypto self-tests (panic on RFC test vector mismatch).
+    tls_selftest_run();
 
     // Initialize interrupts and drivers
     idt_init();

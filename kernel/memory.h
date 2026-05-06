@@ -18,14 +18,14 @@ typedef struct heap_block {
 } heap_block_t;
 
 #define PAGE_SIZE 4096
-#define TOTAL_MEMORY_BYTES (128 * 1024 * 1024)
+#define TOTAL_MEMORY_BYTES (512 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
 #define HEAP_INITIAL_PAGES                                                     \
-  8192 /* 32MB initial heap */
+  32768 /* 128MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 #define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */
-#define STACK_TOP 0x880000u    /* Top of kernel stack            */
+#define STACK_TOP 0xA00000u    /* Top of kernel stack (2MB tall) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex                 */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes)   */

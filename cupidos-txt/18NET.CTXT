@@ -676,10 +676,13 @@ Example ifconfig output:
 >h2 CupidC Bindings
 >tree open CupidC Bindings
 
-All networking functions are registered in kernel/cupidc.c:
+All networking functions are registered in kernel/cupidc.c, mirrored
+into CupidASM (kernel/as.c) and the ELF syscall table v3
+(kernel/syscall.h) so any of the three runtimes can use them.
 
-  socket       -> socket_create    (1 arg)
-  bind         -> socket_bind      (3 args)
+BSD socket API:
+  socket       -> socket_create    (1 arg)   2=TCP, 1=UDP
+  bind         -> socket_bind      (3 args)  ip=0 for INADDR_ANY
   listen       -> socket_listen    (2 args)
   accept       -> socket_accept    (3 args)
   connect      -> socket_connect   (3 args)
@@ -688,9 +691,39 @@ All networking functions are registered in kernel/cupidc.c:
   close        -> socket_close     (1 arg)
   sendto       -> socket_sendto    (5 args)
   recvfrom     -> socket_recvfrom  (5 args)
+
+Resolver and byte-order:
   dns_resolve  -> dns_resolve      (2 args)
-  htons        -> htons            (1 arg)
-  htonl        -> htonl            (1 arg)
+  htons / ntohs                    (1 arg)   16-bit byte swap
+  htonl / ntohl                    (1 arg)   32-bit byte swap
+  IP_PROTO_ICMP / IP_PROTO_UDP / IP_PROTO_TCP    constants (0-arg)
+
+Network interface info (primary NIC):
+  net_get_ip / net_get_gateway / net_get_dns / net_get_mask
+  net_get_mac(out)                fills 6-byte MAC into out
+  net_link_up                     1 if link up, 0 otherwise
+  net_rx_packets / net_tx_packets counters
+  net_rx_drops   / net_tx_errors  error counters
+
+Raw protocol access:
+  ip_parse(s, out)                "a.b.c.d" -> uint32
+  ipv4_send(dst, proto, payload, plen)    auto-fragments > MTU
+  arp_resolve(ip, mac_out)        blocking 500 ms ARP
+  arp_dump / arp_get_entries      cache inspection
+  icmp_send_echo(dst, id, seq, paylen)
+  icmp_wait_reply(src, id, seq, timeout_ms)   returns RTT ms
+  udp_send_raw(dst, sport, dport, data, len)
+
+Block devices, drivers, PCI, SMP, paging:
+  blkdev_count / blkdev_read / blkdev_write
+  ata_read_sectors / ata_write_sectors
+  serial_read_char / serial_write_char / serial_write_string
+  keyboard_read_event / keyboard_inject_scancode
+  pci_device_count / pci_get_vendor / pci_get_device_id /
+    pci_get_class / pci_get_irq / pci_get_bar
+  lapic_get_id / lapic_eoi / bkl_lock / bkl_unlock
+  paging_map_mmio / pmm_alloc_page / pmm_free_page
+  pit_set_frequency / timer_delay_us
 
 >h3 feature21_net (TCP client)
 
@@ -738,6 +771,24 @@ All networking functions are registered in kernel/cupidc.c:
   Main();
 
 Host-side: curl http://localhost:8080/  (with -hostfwd=tcp::8080-:80)
+
+>h3 curl + wget (in-OS)
+
+  [Run curl example.com](shell:curl http://example.com/)
+
+/bin/curl.cc and /bin/wget.cc are full HTTP/1.0 clients written
+in CupidC.  Plain HTTP only -- no TLS in the kernel.
+
+  curl [-o file] [-i] [-s] [-X METHOD] [-d data] [-H "Hdr: V"] <url>
+  wget [-O file] [-q] <url>
+
+curl follows http -> http redirects automatically (max 5 hops):
+  3xx + Location: http://other         -> reconnect, force GET
+  3xx + Location: /relative/path       -> reuse current host
+  3xx + Location: https://...          -> print clear "not supported"
+                                          message and exit (instead
+                                          of dumping the redirect
+                                          page HTML at the user)
 >endtree
 
 >h2 Testing
@@ -789,6 +840,28 @@ Boots with Intel E1000 NIC (no port forward).
 net_init will not find RTL8139, falls through to e1000_probe.
 Serial: net: registered e1000 mac=...
 Run same feature tests.
+
+>h3 Automated test harness (make test-net)
+
+  make test-net          # rtl8139 + e1000, ~30s
+  make test-net-quick    # rtl8139 only
+
+tools/net_test.py spawns headless QEMU with -display none -serial
+stdio + filter-dump pcap, drives the shell over COM1 (existing
+keyboard.c serial-RX path), runs ifconfig / ping / arp / feature21
+/ feature22, and host-curls the forwarded port to verify the
+in-guest TCP server. tools/net_pcap.py then re-validates the
+captured frames at wire level (ARP req/reply pairing, full DHCP
+4-message exchange, ICMP echo, TCP handshake, IP checksums).
+
+Per-NIC checks:
+  dhcp        ifconfig reports SLIRP-issued IP (10.0.2.15)
+  ping_gw     ping 10.0.2.2 2 returns recv=2
+  arp         gateway entry in cache after ping
+  tcp_client  feature21_net.cc prints [feature21] PASS
+  tcp_server  curl from host returns "Hello CupidOS"
+
+Pcaps land in tests/<nic>.pcap for Wireshark inspection.
 >endtree
 
 >h2 Known Limits
@@ -798,10 +871,10 @@ These are Tier 4 design constraints. Future work can address them.
 >endbox
 
   IPv4 only           No IPv6
-  No IP fragmentation DF=1 on every send; fragmented receives dropped
-  No PMTUD            MSS fixed at 1460
+  No PMTUD            MSS fixed at 1460; > MTU outbound auto-fragments
   No TCP SACK         No congestion control, no Nagle, no fast retransmit
-  Fixed RTO           500 ms; no RTT estimator (Karn/Jacobson)
+  Stop-and-wait TX    Data retransmit is one-segment-in-flight, exp backoff
+                      (5 attempts) -- correct, but throughput is poor
   Single primary NIC  No multi-homing, no routing table
   32 socket slots     No dynamic expansion
   No TLS / HTTPS      No crypto primitives in CupidOS
@@ -810,6 +883,8 @@ These are Tier 4 design constraints. Future work can address them.
   No raw sockets      No PROMISC, no packet filter
   Blocking spin+yield accept/connect/recv hold BKL while waiting
   No IPv6 multicast   Unicast + broadcast IPv4 only
+  IP reasm slots      4 x 64 KB; concurrent fragmented flows beyond that
+                      get evicted by oldest-wins
 >endtree
 
 >h2 Source File Index
@@ -838,4 +913,9 @@ These are Tier 4 design constraints. Future work can address them.
   kernel/e1000.c     PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC
   bin/feature21_net.cc          TCP client smoke test
   bin/feature22_net_server.cc   TCP server smoke test
+  bin/feature23_full_access.cc  Phase 5 binding sanity (net info,
+                                ARP/ICMP/UDP, PCI, blkdev, BKL)
+  tools/net_test.py             pexpect harness, headless QEMU,
+                                host curl, captures tests/<nic>.pcap
+  tools/net_pcap.py             scapy wire-format verifier
 >endtree

@@ -6,15 +6,20 @@ CC=gcc
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
-	-mfpmath=sse -msse -msse2 -mstackrealign \
+	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS)
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
+# ELF link variant — used for the pass-1 kernel.elf so mksyms.sh can read symbols.
+LDFLAGS_ELF=-m elf_i386 -T link.ld
 
-# Auto-discover all CupidC programs in bin/
-BIN_CC_SRCS := $(wildcard bin/*.cc)
+# Auto-discover all CupidC programs in bin/.
+# Exclude legacy cc2-bootstrap fixtures (old_cc2*) — they're superseded
+# by the production CupidC compiler and embed ~265 KB of fixture text
+# into the kernel binary, eating the bootloader's reserved kernel-area.
+BIN_CC_SRCS := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
 $(info BIN_CC_SRCS=$(BIN_CC_SRCS))
 BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
 BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
@@ -97,6 +102,19 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/rtl8139.o \
             kernel/e1000.o \
             kernel/syscall.o \
+            kernel/tls/chacha20.o kernel/tls/csprng.o \
+            kernel/tls/sha256.o kernel/tls/sha512.o kernel/tls/hmac.o kernel/tls/hkdf.o \
+            kernel/tls/ct.o kernel/tls/poly1305.o \
+            kernel/tls/chacha20poly1305.o \
+            kernel/tls/aes.o kernel/tls/aes_gcm.o \
+            kernel/tls/bigint.o kernel/tls/rsa.o \
+            kernel/tls/x25519.o kernel/tls/p256.o kernel/tls/ecdsa.o \
+            kernel/tls/asn1.o kernel/tls/x509.o \
+            kernel/tls/x509_chain.o kernel/tls/tls_ca_bundle.o \
+            kernel/tls/tls_record.o kernel/tls/tls_kdf.o \
+            kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
+            kernel/tls/tls12_handshake.o \
+            kernel/tls/tls_selftest.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
             kernel/cupidc_elf.o \
@@ -104,6 +122,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/dis.o \
             kernel/gfx2d.o \
             kernel/bmp.o \
+            kernel/png.o \
+            kernel/jpeg.o \
             kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
             kernel/gfx2d_assets.o kernel/gfx2d_transform.o kernel/gfx2d_effects.o \
@@ -114,6 +134,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/bin_programs_gen.o \
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
+			kernel/ksyms.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -156,6 +177,11 @@ kernel/pic.o: kernel/pic.c kernel/pic.h
 
 kernel/irq.o: kernel/irq.c kernel/isr.h kernel/pic.h
 	$(CC) $(CFLAGS) kernel/irq.c -o kernel/irq.o
+
+# Symbol-table runtime + (weak) blob fallback. The strong blob lives in
+# the auto-generated kernel/ksyms_data.o; see the kernel link rule.
+kernel/ksyms.o: kernel/ksyms.c kernel/ksyms.h
+	$(CC) $(CFLAGS) kernel/ksyms.c -o kernel/ksyms.o
 
 # Add new rule for keyboard.o
 drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
@@ -285,6 +311,95 @@ kernel/rtl8139.o: kernel/rtl8139.c kernel/net_if.h kernel/pci.h kernel/memory.h 
 # E1000 (Intel 82540EM) NIC driver: MMIO probe, RX/TX rings, MAC read (P6 T15)
 kernel/e1000.o: kernel/e1000.c kernel/net_if.h kernel/pci.h kernel/memory.h kernel/irq.h kernel/isr.h
 	$(CC) $(CFLAGS) kernel/e1000.c -o kernel/e1000.o
+
+# TLS subsystem: crypto primitives, X.509, handshake state machine.
+# Built phase by phase under kernel/tls/. See plan in
+# /home/frank/.claude/plans/implementy-tls-into-the-breezy-biscuit.md.
+kernel/tls/chacha20.o: kernel/tls/chacha20.c kernel/tls/chacha20.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/chacha20.c -o kernel/tls/chacha20.o
+
+kernel/tls/csprng.o: kernel/tls/csprng.c kernel/tls/csprng.h kernel/tls/chacha20.h kernel/types.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/tls/csprng.c -o kernel/tls/csprng.o
+
+kernel/tls/sha256.o: kernel/tls/sha256.c kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/sha256.c -o kernel/tls/sha256.o
+
+kernel/tls/sha512.o: kernel/tls/sha512.c kernel/tls/sha512.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/sha512.c -o kernel/tls/sha512.o
+
+kernel/tls/hmac.o: kernel/tls/hmac.c kernel/tls/hmac.h kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/hmac.c -o kernel/tls/hmac.o
+
+kernel/tls/hkdf.o: kernel/tls/hkdf.c kernel/tls/hkdf.h kernel/tls/hmac.h kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/hkdf.c -o kernel/tls/hkdf.o
+
+kernel/tls/ct.o: kernel/tls/ct.c kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/ct.c -o kernel/tls/ct.o
+
+kernel/tls/poly1305.o: kernel/tls/poly1305.c kernel/tls/poly1305.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/poly1305.c -o kernel/tls/poly1305.o
+
+kernel/tls/chacha20poly1305.o: kernel/tls/chacha20poly1305.c kernel/tls/chacha20poly1305.h kernel/tls/chacha20.h kernel/tls/poly1305.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/chacha20poly1305.c -o kernel/tls/chacha20poly1305.o
+
+kernel/tls/aes.o: kernel/tls/aes.c kernel/tls/aes.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/aes.c -o kernel/tls/aes.o
+
+kernel/tls/aes_gcm.o: kernel/tls/aes_gcm.c kernel/tls/aes_gcm.h kernel/tls/aes.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/aes_gcm.c -o kernel/tls/aes_gcm.o
+
+kernel/tls/bigint.o: kernel/tls/bigint.c kernel/tls/bigint.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/bigint.c -o kernel/tls/bigint.o
+
+kernel/tls/rsa.o: kernel/tls/rsa.c kernel/tls/rsa.h kernel/tls/bigint.h kernel/tls/sha256.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/rsa.c -o kernel/tls/rsa.o
+
+kernel/tls/x25519.o: kernel/tls/x25519.c kernel/tls/x25519.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x25519.c -o kernel/tls/x25519.o
+
+kernel/tls/p256.o: kernel/tls/p256.c kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/p256.c -o kernel/tls/p256.o
+
+kernel/tls/ecdsa.o: kernel/tls/ecdsa.c kernel/tls/ecdsa.h kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/ecdsa.c -o kernel/tls/ecdsa.o
+
+kernel/tls/asn1.o: kernel/tls/asn1.c kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/asn1.c -o kernel/tls/asn1.o
+
+kernel/tls/x509.o: kernel/tls/x509.c kernel/tls/x509.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x509.c -o kernel/tls/x509.o
+
+kernel/tls/x509_chain.o: kernel/tls/x509_chain.c kernel/tls/x509_chain.h kernel/tls/x509.h kernel/tls/sha256.h kernel/tls/rsa.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x509_chain.c -o kernel/tls/x509_chain.o
+
+kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.c kernel/tls/x509_chain.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle.c -o kernel/tls/tls_ca_bundle.o
+
+kernel/tls/tls_record.o: kernel/tls/tls_record.c kernel/tls/tls_record.h kernel/tls/chacha20poly1305.h kernel/tls/aes_gcm.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_record.c -o kernel/tls/tls_record.o
+
+kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.c kernel/tls/tls_kdf.h kernel/tls/hkdf.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_kdf.c -o kernel/tls/tls_kdf.o
+
+kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/x509_chain.h kernel/tls/sha256.h kernel/tls/ct.h kernel/tls/csprng.h kernel/tls/x25519.h kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ctx.c -o kernel/tls/tls_ctx.o
+
+kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/tls/sha256.h kernel/tls/hmac.h kernel/tls/hkdf.h kernel/tls/ct.h kernel/tls/csprng.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/x509.h kernel/tls/x509_chain.h kernel/tls/rsa.h kernel/tls/asn1.h kernel/tls/tls12_handshake.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_handshake.c -o kernel/tls/tls_handshake.o
+
+kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.c kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/tls/sha256.h kernel/tls/ct.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/x509.h kernel/tls/x509_chain.h kernel/tls/rsa.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls12_handshake.c -o kernel/tls/tls12_handshake.o
+
+# Optional auto-generated bundle blob; only built if the file exists
+# (run tools/fetch_ca_bundle.sh to populate it).
+ifneq (,$(wildcard kernel/tls/tls_ca_bundle_data.c))
+KERNEL_OBJS += kernel/tls/tls_ca_bundle_data.o
+kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/tls/x509_chain.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o
+endif
+
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/tls/sha256.h kernel/tls/hmac.h kernel/tls/hkdf.h kernel/tls/chacha20poly1305.h kernel/tls/aes.h kernel/tls/aes_gcm.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/asn1.h kernel/panic.h drivers/serial.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
 
 # USB core scaffold
 kernel/usb.o: kernel/usb.c kernel/usb.h kernel/usb_hc.h
@@ -481,6 +596,12 @@ kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.
 kernel/bmp.o: kernel/bmp.c kernel/bmp.h kernel/vfs.h kernel/memory.h drivers/vga.h
 	$(CC) $(CFLAGS) $(OPT) kernel/bmp.c -o kernel/bmp.o
 
+kernel/png.o: kernel/png.c kernel/png.h kernel/memory.h
+	$(CC) $(CFLAGS) $(OPT) kernel/png.c -o kernel/png.o
+
+kernel/jpeg.o: kernel/jpeg.c kernel/jpeg.h kernel/memory.h kernel/libm.h
+	$(CC) $(CFLAGS) $(OPT) kernel/jpeg.c -o kernel/jpeg.o
+
 # VFS helpers (read_all, write_all, read_text, write_text)
 kernel/vfs_helpers.o: kernel/vfs_helpers.c kernel/vfs_helpers.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/vfs_helpers.c -o kernel/vfs_helpers.o
@@ -490,7 +611,7 @@ kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h ke
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d.c -o kernel/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx2d_assets.o: kernel/gfx2d_assets.c kernel/gfx2d_assets.h kernel/gfx2d.h kernel/bmp.h kernel/vfs.h kernel/memory.h kernel/font_8x8.h
+kernel/gfx2d_assets.o: kernel/gfx2d_assets.c kernel/gfx2d_assets.h kernel/gfx2d.h kernel/bmp.h kernel/png.h kernel/jpeg.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/font_8x8.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_assets.c -o kernel/gfx2d_assets.o
 
 kernel/gfx2d_transform.o: kernel/gfx2d_transform.c kernel/gfx2d_transform.h kernel/gfx2d.h kernel/gfx2d_assets.h
@@ -633,9 +754,35 @@ demos/%.o: demos/%.asm
 god/%.o: god/%.DD
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
-# Link kernel objects
-$(KERNEL): $(KERNEL_OBJS)
-	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
+# Link kernel objects.
+#
+# Two-pass link so the panic backtrace can decode addresses to function
+# names:
+#   Pass 1: link all KERNEL_OBJS into kernel.elf.pass1.  ksyms.o ships a
+#           weak empty .ksyms blob, so this link succeeds with no symbol
+#           data.
+#   mksyms: read kernel.elf.pass1's symbol table, generate
+#           kernel/ksyms_data.c with the populated blob.
+#   Pass 2: link kernel.elf again with ksyms_data.o added — the strong
+#           ksym_blob symbol overrides the weak one from ksyms.o.  The
+#           .ksyms section is placed after .data in link.ld so code
+#           addresses don't shift between passes; only .bss start
+#           moves, which is fine.
+#   objcopy kernel.elf -> kernel.bin (raw binary the bootloader expects).
+kernel/kernel.elf.pass1: $(KERNEL_OBJS)
+	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
+
+kernel/ksyms_data.c: kernel/kernel.elf.pass1 tools/mksyms.sh
+	bash tools/mksyms.sh $< $@
+
+kernel/ksyms_data.o: kernel/ksyms_data.c kernel/ksyms.h
+	$(CC) $(CFLAGS) kernel/ksyms_data.c -o kernel/ksyms_data.o
+
+kernel/kernel.elf: $(KERNEL_OBJS) kernel/ksyms_data.o
+	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/ksyms_data.o
+
+$(KERNEL): kernel/kernel.elf
+	objcopy -O binary $< $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
@@ -654,7 +801,7 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
 # for mass-storage testing (see run-usb target).
-QEMU_COMMON = -m 128M -boot c \
+QEMU_COMMON = -m 512M -boot c \
 	-drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk \
 	-rtc base=localtime \
 	-audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker \
@@ -706,6 +853,23 @@ run-net-e1000: $(OS_IMAGE)
 		-device e1000,netdev=n0 \
 		-serial stdio
 
+# Headless image specifically for the net-test harness. Same as headless-image
+# but kept as a separate target so callers can re-build deliberately.
+headless-net-image: headless-image
+
+# Network integration test on rtl8139 (default) and e1000.
+# net_test.py drives the headless shell, runs feature21/22, host-curls the
+# forwarded port. net_pcap.py then re-validates the captured frames at the
+# protocol level (ARP, DHCP, ICMP, TCP handshake, IP checksums).
+test-net-quick: headless-image
+	python3 tools/net_test.py --nic rtl8139
+	python3 tools/net_pcap.py tests/rtl8139.pcap
+
+test-net: headless-image
+	python3 tools/net_test.py --nic rtl8139
+	python3 tools/net_test.py --nic e1000
+	python3 tools/net_pcap.py tests/rtl8139.pcap tests/e1000.pcap
+
 test_usb_partitioned.img:
 	dd if=/dev/zero of=$@ bs=1M count=32 status=none
 	python3 -c "\
@@ -743,7 +907,7 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
 	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c debug.log
 
 clean-image:

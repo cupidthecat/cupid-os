@@ -190,7 +190,9 @@ bool e1000_init(pci_device_t *d) {
     reg_write(c, E1000_RDLEN, (uint32_t)E1000_RX_RING_LEN * 16u);
     reg_write(c, E1000_RDH,   0u);
     reg_write(c, E1000_RDT,   (uint32_t)(E1000_RX_RING_LEN - 1));
-    reg_write(c, E1000_RCTL,  0x0400804u);  /* EN | BAM | BSIZE_2048 */
+    /* EN(1) | BAM(15) | BSIZE_2048 (16:17 = 00 default) | SECRC(26).
+     * Previous literal 0x0400804 omitted EN (RX stayed off, DHCP failed). */
+    reg_write(c, E1000_RCTL,  0x04008002u);
 
     /* TX ring */
     tx_page = pmm_alloc_page();
@@ -208,7 +210,10 @@ bool e1000_init(pci_device_t *d) {
     reg_write(c, E1000_TDH,   0u);
     reg_write(c, E1000_TDT,   0u);
     c->tx_next = 0;
-    reg_write(c, E1000_TCTL,  0x01030002u);
+    /* EN(1) | PSP(3) | CT=0x10(4:11) | COLD=0x40(12:21).
+     * Added PSP so short Ethernet frames (e.g. 42-byte ARP) get padded
+     * to 60 bytes — without PSP the MAC would silently drop them. */
+    reg_write(c, E1000_TCTL,  0x0004010Au);
 
     reg_write(c, E1000_IMS, 0x80u | 0x40u);
 

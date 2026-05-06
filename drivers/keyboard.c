@@ -133,6 +133,11 @@ static const char scancode_to_ascii_shift[] = {
 #define EXT_KEY_DOWN  0x50
 #define EXT_KEY_LEFT  0x4B
 #define EXT_KEY_RIGHT 0x4D
+#define EXT_KEY_PGUP  0x49
+#define EXT_KEY_PGDN  0x51
+#define EXT_KEY_HOME  0x47
+#define EXT_KEY_END   0x4F
+#define EXT_KEY_INS   0x52
 
 // Add to keyboard_state_t in types.h or here
 typedef struct {
@@ -237,7 +242,12 @@ static void handle_extended_key(uint8_t key) {
         case EXT_KEY_DOWN:
         case EXT_KEY_LEFT:
         case EXT_KEY_RIGHT:
-        case 0x53:  // Delete key
+        case EXT_KEY_PGUP:    /* terminal/notepad scroll-up    */
+        case EXT_KEY_PGDN:    /* terminal/notepad scroll-down  */
+        case EXT_KEY_HOME:
+        case EXT_KEY_END:
+        case EXT_KEY_INS:
+        case 0x53:            /* Delete                        */
             enqueue_event(key, 0);
             break;
         default:
@@ -490,7 +500,18 @@ bool keyboard_read_event(key_event_t* event) {
 }
 
 void keyboard_inject_scancode(uint8_t raw_scancode) {
-    /* Route through same path as IRQ1: process_keypress already handles
-     * make/break via the 0x80 high bit. */
+    /* Route through same path as IRQ1: also recognise the 0xE0 extended-
+     * scancode prefix so injected PgUp/PgDn/Home/End/Insert/Delete (sent
+     * by USB HID's hid_to_ps2 translator below) reach handle_extended_key
+     * and arrive in the keyboard buffer with character=0. */
+    if (raw_scancode == KEY_EXTENDED) {
+        handling_extended = true;
+        return;
+    }
+    if (handling_extended) {
+        handling_extended = false;
+        handle_extended_key(raw_scancode);
+        return;
+    }
     process_keypress(raw_scancode);
 }

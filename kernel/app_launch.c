@@ -47,6 +47,20 @@ static const app_descriptor_t g_apps[] = {
         .icon_type = 1,
         .icon_color = 0xFFFF00u,
         .icon_style = APP_ICON_STYLE_DEFAULT
+    },
+    {
+        .name = "browser",
+        .path = "/bin/browser.cc",
+        .label = "Browser",
+        .description = "Web Browser",
+        .runtime = APP_RUNTIME_HOSTED_CUPIDC,
+        .domain = PROCESS_DOMAIN_HOSTED,
+        .desktop_visible = 1,
+        .icon_x = 140,
+        .icon_y = 130,
+        .icon_type = 0,
+        .icon_color = 0x00C8FFu,
+        .icon_style = APP_ICON_STYLE_DEFAULT
     }
 };
 
@@ -121,7 +135,7 @@ bool app_launch_cupidc_process(const char *path,
 
   shell_set_output_mode(SHELL_OUTPUT_GUI);
   return process_create_with_arg_ex((void (*)(void))app_cupidc_process_entry,
-                                    process_name, 262144u, (uint32_t)path,
+                                    process_name, 1048576u, (uint32_t)path,
                                     domain) != 0;
 }
 

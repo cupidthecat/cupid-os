@@ -866,8 +866,13 @@ void process_unblock(uint32_t pid) {
  * ══════════════════════════════════════════════════════════════════════ */
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
     if (pid == 0 || pid > MAX_PROCESSES) return;
+    bkl_lock();
     process_t *p = &process_table[pid - 1];
-    if (p->pid != pid) return;
+    if (p->pid != pid) { bkl_unlock(); return; }
+    /* Publish size = 0 first so any concurrent reader that observes the
+     * new base before size sees an empty region rather than a stale pair. */
+    p->image_size = 0;
     p->image_base = base;
     p->image_size = size;
+    bkl_unlock();
 }

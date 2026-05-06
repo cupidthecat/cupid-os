@@ -277,6 +277,137 @@ After calling `cupid_init(sys)`, you can use these wrapper functions directly (n
 |----------|-----------|-------------|
 | `exec_program` | `int exec_program(const char *path, const char *name)` | Load and run another program |
 
+### Phase 4 / 5 — Networking + drivers (syscall table v3)
+
+Bumped to **`CUPID_SYSCALL_VERSION = 3`** in
+`kernel/syscall.h`. Layout is append-only — programs built against v2
+still work; new programs should check `sys->version >= 3` and
+`sys->table_size >= sizeof(<largest field they touch>)` before calling
+the new fields.
+
+The kernel ships `_Static_assert` checks on the offsets of key fields
+(`memstats`, `net_get_ip`, `ipv4_send`, `sock_socket`, `blkdev_count`,
+`pci_device_count`, `inb_io`) so a future field reorder fails to
+compile rather than silently shipping a layout mismatch with the AOT
+`SYS_*` constants in CupidASM.
+
+#### Network interface info (primary NIC)
+
+| Field | Signature |
+|---|---|
+| `net_get_ip` | `uint32_t (*net_get_ip)(void)` |
+| `net_get_gateway` | `uint32_t (*net_get_gateway)(void)` |
+| `net_get_dns` | `uint32_t (*net_get_dns)(void)` |
+| `net_get_mask` | `uint32_t (*net_get_mask)(void)` |
+| `net_get_mac` | `void (*net_get_mac)(uint8_t *out)` — fills 6 bytes |
+| `net_link_up` | `uint32_t (*net_link_up)(void)` — 1=up, 0=down |
+| `net_rx_packets` / `net_tx_packets` | counters |
+| `net_rx_drops` / `net_tx_errors` | error counters |
+
+#### IP / ARP / ICMP / UDP raw
+
+| Field | Signature |
+|---|---|
+| `ip_parse` | `int (*ip_parse)(const char *s, uint32_t *out)` |
+| `ipv4_send` | `int (*ipv4_send)(uint32_t dst, uint8_t proto, const uint8_t *payload, uint32_t plen)` |
+| `arp_resolve` | `int (*arp_resolve)(uint32_t ip, uint8_t mac_out[6])` |
+| `arp_dump` / `arp_get_entries` | cache inspection |
+| `icmp_send_echo` | `int (*icmp_send_echo)(uint32_t dst, uint16_t id, uint16_t seq, uint32_t paylen)` |
+| `icmp_wait_reply` | `int (*icmp_wait_reply)(uint32_t src, uint16_t id, uint16_t seq, uint32_t timeout_ms)` — returns RTT ms |
+| `udp_send_raw` | `int (*udp_send_raw)(uint32_t dst, uint16_t sport, uint16_t dport, const uint8_t *data, uint32_t len)` |
+
+#### DNS + byte-order
+
+| Field | Signature |
+|---|---|
+| `dns_resolve` | `int (*dns_resolve)(const char *name, uint32_t *ip_out)` |
+| `htons` / `ntohs` | 16-bit byte-swap |
+| `htonl` / `ntohl` | 32-bit byte-swap |
+
+#### BSD sockets
+
+Ports are network byte order — wrap literals in `htons()`.
+
+| Field | Signature |
+|---|---|
+| `sock_socket` | `int (*sock_socket)(int type)` — `2`=TCP, `1`=UDP |
+| `sock_bind` | `int (*sock_bind)(int fd, uint32_t ip, uint16_t port)` |
+| `sock_listen` | `int (*sock_listen)(int fd, int backlog)` |
+| `sock_accept` | `int (*sock_accept)(int fd, uint32_t *peer_ip, uint16_t *peer_port)` |
+| `sock_connect` | `int (*sock_connect)(int fd, uint32_t ip, uint16_t port)` |
+| `sock_send` / `sock_recv` | TCP stream I/O |
+| `sock_sendto` / `sock_recvfrom` | UDP datagram I/O |
+| `sock_close` | tear down |
+
+#### Block devices
+
+| Field | Signature |
+|---|---|
+| `blkdev_count` | `int (*blkdev_count)(void)` |
+| `blkdev_read` | `int (*blkdev_read)(int idx, uint32_t lba, uint32_t count, void *buf)` |
+| `blkdev_write` | `int (*blkdev_write)(int idx, uint32_t lba, uint32_t count, const void *buf)` |
+| `ata_read_sectors` / `ata_write_sectors` | direct ATA I/O |
+
+#### Drivers — serial, speaker, PIT
+
+| Field | Signature |
+|---|---|
+| `serial_read_char` | `int (*)(void)` — non-blocking, -1 if empty |
+| `serial_write_char` | `void (*)(char)` |
+| `serial_write_string` | `void (*)(const char *)` |
+| `serial_has_rx` | `int (*)(void)` |
+| `pc_speaker_on` / `pc_speaker_off` | square wave on PC speaker |
+| `pit_set_frequency` | `void (*)(uint32_t channel, uint32_t hz)` |
+| `timer_delay_us` | `void (*)(uint32_t us)` — TSC busy delay |
+
+#### PCI introspection (by index)
+
+| Field | Returns |
+|---|---|
+| `pci_device_count()` | Number of devices |
+| `pci_get_vendor(idx)` | 16-bit vendor ID |
+| `pci_get_device_id(idx)` | 16-bit device ID |
+| `pci_get_class(idx)` | Packed `class<<16 | sub<<8 | prog_if` |
+| `pci_get_irq(idx)` | IRQ line |
+| `pci_get_bar(idx, bar)` | BAR value, `bar` = 0..5 |
+
+#### SMP / paging / PMM / port I/O
+
+> ⚠ Powerful — these can deadlock or corrupt the kernel if misused.
+
+| Field | Signature |
+|---|---|
+| `lapic_get_id` | `uint8_t (*)(void)` |
+| `lapic_eoi` | `void (*)(void)` |
+| `bkl_lock` / `bkl_unlock` | recursive ticket spinlock |
+| `paging_map_mmio` | `void (*)(uint32_t phys, uint32_t size)` |
+| `pmm_alloc_page` | `void *(*)(void)` — one 4 KB page |
+| `pmm_free_page` | `void (*)(void *page)` |
+| `outb_io` / `inb_io` | raw 8-bit port I/O |
+
+Example — query the network interface and ping the gateway from an
+ELF program:
+
+```c
+void _start(cupid_syscall_table_t *sys) {
+    uint8_t mac[6];
+    sys->net_get_mac(mac);
+    sys->print("My MAC: ");
+    sys->print_hex(mac[0]); sys->putchar(':');
+    sys->print_hex(mac[5]); sys->putchar('\n');
+
+    uint32_t gw = sys->net_get_gateway();
+    sys->icmp_send_echo(gw, 0xCAFE, 1, 32);
+    int rtt = sys->icmp_wait_reply(gw, 0xCAFE, 1, 3000);
+    if (rtt >= 0) {
+        sys->print("Gateway reply: ");
+        sys->print_int((uint32_t)rtt);
+        sys->print(" ms\n");
+    }
+    sys->exit();
+}
+```
+
 ---
 
 ## VFS Structures

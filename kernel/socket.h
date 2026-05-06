@@ -29,6 +29,10 @@ typedef enum {
 
 #define UDP_MAX_QUEUED 8
 
+/* setsockopt levels and options. */
+#define SOL_TLS    1
+#define TLS_ENABLE 1
+
 typedef struct {
     uint32_t ip;
     uint16_t port;
@@ -58,12 +62,25 @@ typedef struct socket_t {
     uint32_t last_rexmit_tick;
     uint32_t time_wait_start;
 
+    /* TCP data retransmission (stop-and-wait, one segment in flight). */
+    uint8_t  rt_buf[1460];      /* TCP_MSS — last unACKed PSH segment */
+    uint32_t rt_len;            /* 0 = nothing in flight */
+    uint32_t rt_seq;            /* seq number of rt_buf[0] */
+    uint32_t rt_send_tick;      /* timer_get_uptime_ms() at last send */
+    uint8_t  rt_attempts;       /* exponential backoff counter */
+
     struct {
         uint32_t ip; uint16_t port;
         uint32_t iss; uint32_t rcv_nxt;
+        uint32_t inserted_ms;
         uint8_t completed;
         uint8_t in_use;
     } lq[LQ_SIZE];
+
+    /* Opaque TLS context — non-NULL means socket_send/recv route
+     * through the TLS record layer instead of raw TCP. Allocated by
+     * socket_setsockopt(SOL_TLS, TLS_ENABLE), freed by socket_close. */
+    void *tls_ctx;
 } socket_t;
 
 extern socket_t sockets[SOCKET_MAX];
@@ -77,6 +94,8 @@ int socket_connect (int fd, uint32_t ip, uint16_t port);
 int socket_send    (int fd, const void *buf, uint32_t len);
 int socket_recv    (int fd, void *buf, uint32_t len);
 int socket_close   (int fd);
+int socket_setsockopt(int fd, int level, int optname,
+                      const void *val, uint32_t vlen);
 int socket_sendto  (int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t port);
 int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port);
 

@@ -212,11 +212,9 @@ void terminal_redraw(window_t *win) {
 
 
 void terminal_handle_key(uint8_t scancode, char character) {
-    /* Only process if terminal window exists and is focused */
     if (terminal_wid < 0) return;
     window_t *win = gui_get_window(terminal_wid);
     if (!win) return;
-    if (!(win->flags & WINDOW_FLAG_FOCUSED)) return;
 
     /* Ctrl+Plus / Ctrl+Minus: zoom text */
     bool ctrl_held = keyboard_get_key_state(SC_LCTRL) || keyboard_get_ctrl();
@@ -249,18 +247,26 @@ void terminal_handle_key(uint8_t scancode, char character) {
     #define SCANCODE_PAGE_DOWN 0x51
 
     if (character == 0 && scancode == SCANCODE_PAGE_UP) {
-        terminal_scroll_offset += 5;  /* Scroll up 5 lines */
-        {
-            int max_scroll = shell_get_cursor_y();
-            if (terminal_scroll_offset > max_scroll) {
-                terminal_scroll_offset = max_scroll;
-            }
+        terminal_scroll_offset += 10;  /* Scroll up 10 lines per PgUp */
+        if (terminal_scroll_offset > SHELL_ROWS) {
+            terminal_scroll_offset = SHELL_ROWS;
         }
         win->flags |= WINDOW_FLAG_DIRTY;
         return;
     }
+    if (character == 0 && scancode == 0x47) {       /* Home: scroll to top */
+        terminal_scroll_offset = SHELL_ROWS;
+        win->flags |= WINDOW_FLAG_DIRTY;
+        return;
+    }
+    if (character == 0 && scancode == 0x4F) {       /* End: scroll to bottom */
+        terminal_scroll_offset = 0;
+        win->flags |= WINDOW_FLAG_DIRTY;
+        return;
+    }
     if (character == 0 && scancode == SCANCODE_PAGE_DOWN) {
-        terminal_scroll_offset -= 5;  /* Scroll down 5 lines */
+        terminal_scroll_offset -= 10;
+
         if (terminal_scroll_offset < 0) {
             terminal_scroll_offset = 0;
         }
@@ -268,8 +274,10 @@ void terminal_handle_key(uint8_t scancode, char character) {
         return;
     }
 
-    /* Any other key resets scroll to bottom */
-    if (character != 0 || (scancode != SCANCODE_PAGE_UP && scancode != SCANCODE_PAGE_DOWN)) {
+    /* Reset scroll to bottom only on Enter/Return — typing characters
+     * elsewhere doesn't kick the user out of their scrolled-back view.
+     * (Hitting return commits a command and we want to see its output.) */
+    if (character == '\n' || character == '\r') {
         terminal_scroll_offset = 0;
     }
 
@@ -309,8 +317,10 @@ void terminal_handle_scroll(int delta) {
     if (terminal_wid < 0) return;
     window_t *win = gui_get_window(terminal_wid);
     if (!win) return;
-    if (!(win->flags & WINDOW_FLAG_FOCUSED)) return;
-
+    /* No focus check — caller (desktop wheel routing) already verified
+     * Terminal is focused. Removing the gate so scroll never silently
+     * vanishes if the FOCUSED flag is briefly cleared between mouse
+     * events and our handler running. */
     terminal_scroll_offset += delta;
 
     /* Clamp to valid range */

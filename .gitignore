@@ -1,0 +1,24 @@
+# Build artifacts
+*.o
+*.elf
+*.elf.pass1
+*.bin
+*.img
+*.pcap
+debug.log
+
+# Generated sources (Makefile-built from BIN/DOC/DEMO inputs)
+kernel/bin_programs_gen.c
+kernel/docs_programs_gen.c
+kernel/demos_programs_gen.c
+kernel/ksyms_data.c
+
+# Allow boot/boot.bin to be ignored — it's a build artifact too
+boot/boot.bin
+kernel/kernel.bin
+kernel/kernel.elf
+kernel/kernel.elf.pass1
+kernel/smp_trampoline.bin
+
+# Test/build output dirs
+test_iso/fixtures/big.bin

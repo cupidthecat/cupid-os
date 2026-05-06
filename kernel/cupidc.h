@@ -21,29 +21,34 @@
 #include "types.h"
 #include "dis.h"
 
-/* Limits */
-#define CC_MAX_CODE (128u * 1024u) /* 128KB code buffer          */
-#define CC_MAX_DATA (512u * 1024u) /* 512KB data/string buffer   */
-#define CC_MAX_SYMBOLS 2048        /* max symbols in scope        */
-#define CC_MAX_LOCALS 128          /* max locals per function     */
-#define CC_MAX_PARAMS 16           /* max function parameters     */
-#define CC_MAX_PATCHES 2048        /* max forward-ref patches     */
-#define CC_MAX_BREAKS 64           /* max nested loop depth        */
-#define CC_MAX_BREAKS_PER_LOOP 32  /* max break statements per loop */
-#define CC_MAX_IDENT 64            /* max identifier length       */
-#define CC_MAX_STRING 128          /* max string literal length   */
-#define CC_MAX_ERRORS 1            /* fail-fast: stop at first    */
-#define CC_MAX_FUNCS 256           /* max functions               */
-#define CC_MAX_STRUCTS 32          /* max struct definitions       */
-#define CC_MAX_FIELDS 16           /* max fields per struct        */
+/* Limits — meaningfully bigger than the legacy values, but kept tight
+ * enough that sizeof(cc_state_t) stays around 1 MB.  A bigger struct
+ * means a single huge kmalloc on every JIT invocation, which has hit
+ * heap-canary panics in practice.                                   */
+#define CC_MAX_CODE (1024u * 1024u)  /* 1 MB code buffer            */
+#define CC_MAX_DATA (4096u * 1024u)  /* 4 MB data/string buffer     */
+#define CC_MAX_SYMBOLS 4096          /* max symbols in scope         */
+#define CC_MAX_LOCALS 256            /* max locals per function      */
+#define CC_MAX_PARAMS 32             /* max function parameters      */
+#define CC_MAX_PATCHES 4096          /* max forward-ref patches      */
+#define CC_MAX_BREAKS 128            /* max nested loop depth         */
+#define CC_MAX_BREAKS_PER_LOOP 64    /* max break statements per loop */
+#define CC_MAX_IDENT 96              /* max identifier length        */
+#define CC_MAX_STRING 1024           /* max string literal length    */
+#define CC_MAX_ERRORS 1              /* fail-fast: stop at first     */
+#define CC_MAX_FUNCS 1024            /* max functions                */
+#define CC_MAX_STRUCTS 64            /* max struct definitions        */
+#define CC_MAX_FIELDS 32             /* max fields per struct         */
 
-/* Memory region for JIT code (128KB code + 512KB data) */
-#define CC_JIT_CODE_BASE 0x00400000u
-#define CC_JIT_DATA_BASE 0x00420000u /* 128KB after code */
+/* JIT/AOT regions live well above kernel BSS and kernel stack.
+ * Old layout (0x600000) bumped against the 0x800000 stack and limited
+ * CupidC programs to ~310 KB of data. New layout puts the JIT image at
+ * 16 MB, leaving ~9 MB of code+data headroom before CupidASM at 26 MB. */
+#define CC_JIT_CODE_BASE 0x01000000u
+#define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code             */
 
-/* Memory region for AOT-compiled ELF output - must be >= 0x400000 */
-#define CC_AOT_CODE_BASE 0x00400000u
-#define CC_AOT_DATA_BASE 0x00420000u /* 128KB after code */
+#define CC_AOT_CODE_BASE 0x01000000u
+#define CC_AOT_DATA_BASE 0x01100000u /* 1 MB after code             */
 
 /* Token Types */
 typedef enum {

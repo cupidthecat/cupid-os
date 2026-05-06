@@ -4,11 +4,13 @@
 #include "../drivers/timer.h"
 
 #define ARP_CACHE_SIZE 16
+#define ARP_TTL_MS     300000u   /* 5 min per RFC 1122 minimum */
 
 typedef struct {
     uint32_t ip;           /* network byte order */
     uint8_t  mac[6];
     uint32_t last_used_ms;
+    uint32_t inserted_ms;
     bool     valid;
 } arp_entry_t;
 
@@ -36,11 +38,24 @@ static arp_entry_t *cache_slot_for(uint32_t ip) {
 
 static void cache_put(uint32_t ip, const uint8_t mac[6]) {
     arp_entry_t *e = cache_slot_for(ip);
+    uint32_t now = timer_get_uptime_ms();
     int i;
     e->ip = ip;
     for (i = 0; i < 6; i++) e->mac[i] = mac[i];
-    e->last_used_ms = timer_get_uptime_ms();
+    e->last_used_ms = now;
+    e->inserted_ms  = now;
     e->valid = true;
+}
+
+void arp_tick(void) {
+    uint32_t now = timer_get_uptime_ms();
+    int i;
+    for (i = 0; i < ARP_CACHE_SIZE; i++) {
+        if (cache[i].valid &&
+            (now - cache[i].inserted_ms) > ARP_TTL_MS) {
+            cache[i].valid = false;
+        }
+    }
 }
 
 static void build_frame(uint8_t *out, const uint8_t *dst_mac, const uint8_t *src_mac,

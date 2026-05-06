@@ -255,7 +255,7 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0x880000           ; Boot stack at 8MB
+    mov esp, 0xA00000           ; Boot stack top (2 MB stack from 0x800000)
     mov ebp, esp
 
     ; Quick sanity: write 'P' to VGA text buffer (visible briefly)

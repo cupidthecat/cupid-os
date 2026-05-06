@@ -49,6 +49,18 @@
 #include "percpu.h"
 #include "socket.h"
 #include "dns.h"
+#include "net_if.h"
+#include "arp.h"
+#include "ip.h"
+#include "icmp.h"
+#include "udp.h"
+#include "dhcp.h"
+#include "blockdev.h"
+#include "pci.h"
+#include "lapic.h"
+#include "bkl.h"
+#include "../drivers/ata.h"
+#include "../drivers/pit.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -879,6 +891,109 @@ static uint32_t cc_ansi_color(int idx) {
   return ansi_vga_to_palette((uint8_t)idx);
 }
 
+/* ── Phase 4 wrappers: networking + drivers + low-level access ─────── */
+
+/* Network interface info — primary NIC only (covers the common case). */
+static uint32_t cc_net_get_ip(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_addr : 0u;
+}
+static uint32_t cc_net_get_gateway(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_gateway : 0u;
+}
+static uint32_t cc_net_get_dns(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_dns : 0u;
+}
+static uint32_t cc_net_get_mask(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_mask : 0u;
+}
+static void cc_net_get_mac(uint8_t *out) {
+  net_if_t *n = net_if_primary();
+  int i;
+  if (!out) return;
+  if (!n) { for (i = 0; i < 6; i++) out[i] = 0u; return; }
+  for (i = 0; i < 6; i++) out[i] = n->mac[i];
+}
+static uint32_t cc_net_link_up(void) {
+  net_if_t *n = net_if_primary();
+  return (n && n->link_up) ? 1u : 0u;
+}
+static uint32_t cc_net_rx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->rx_packets : 0u;
+}
+static uint32_t cc_net_tx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->tx_packets : 0u;
+}
+static uint32_t cc_net_rx_drops(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->rx_drops : 0u;
+}
+static uint32_t cc_net_tx_errors(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->tx_errors : 0u;
+}
+
+/* IP_PROTO_* constants exposed as 0-arg getters (CupidC has no const-bind). */
+static uint32_t cc_proto_icmp(void) { return (uint32_t)IP_PROTO_ICMP; }
+static uint32_t cc_proto_udp(void)  { return (uint32_t)IP_PROTO_UDP;  }
+static uint32_t cc_proto_tcp(void)  { return (uint32_t)IP_PROTO_TCP;  }
+
+/* Block device by index — wraps blkdev_get + blkdev_read/write. */
+static int cc_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
+  block_device_t *d = blkdev_get(idx);
+  if (!d) return -1;
+  return blkdev_read(d, lba, count, buf);
+}
+static int cc_blkdev_write(int idx, uint32_t lba, uint32_t count, const void *buf) {
+  block_device_t *d = blkdev_get(idx);
+  if (!d) return -1;
+  return blkdev_write(d, lba, count, buf);
+}
+
+/* PCI introspection by index (avoids exposing pci_device_t* to user code). */
+static uint32_t cc_pci_vendor(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? d->vendor_id : 0u;
+}
+static uint32_t cc_pci_device_id(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? d->device_id : 0u;
+}
+static uint32_t cc_pci_class(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d) return 0u;
+  /* pack: class<<16 | subclass<<8 | prog_if */
+  return ((uint32_t)d->class_code << 16) |
+         ((uint32_t)d->subclass   <<  8) |
+          (uint32_t)d->prog_if;
+}
+static uint32_t cc_pci_irq(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? (uint32_t)d->irq_line : 0u;
+}
+static uint32_t cc_pci_bar(int idx, int bar) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d || bar < 0 || bar >= 6) return 0u;
+  return d->bars[bar];
+}
+static uint32_t cc_pci_bar_is_mmio(int idx, int bar) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d || bar < 0 || bar >= 6) return 0u;
+  return d->bar_is_mmio[bar] ? 1u : 0u;
+}
+static void cc_pci_enable_bus_master(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  if (d) pci_enable_bus_master(d);
+}
+
+/* LAPIC ID returned as uint32 (driver returns uint8_t). */
+static uint32_t cc_lapic_get_id(void) { return (uint32_t)lapic_get_id(); }
+
 /* Kernel Bindings Registration */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
@@ -1054,6 +1169,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("recv", p_recv, 3);
   int (*p_close)(int) = socket_close;
   BIND("close", p_close, 1);
+  int (*p_setsockopt)(int, int, int, const void *, uint32_t) = socket_setsockopt;
+  BIND("setsockopt", p_setsockopt, 5);
   int (*p_sendto)(int, const void *, uint32_t, uint32_t, uint16_t) = socket_sendto;
   BIND("sendto", p_sendto, 5);
   int (*p_recvfrom)(int, void *, uint32_t, uint32_t *, uint16_t *) = socket_recvfrom;
@@ -1538,6 +1655,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_gfx2d_image_load)(const char *) = gfx2d_image_load;
   BIND("gfx2d_image_load", p_gfx2d_image_load, 1);
+
+  int (*p_gfx2d_image_load_mem)(const uint8_t *, uint32_t) =
+      gfx2d_image_load_mem;
+  BIND("gfx2d_image_load_mem", p_gfx2d_image_load_mem, 2);
 
   void (*p_gfx2d_image_free)(int) = gfx2d_image_free;
   BIND("gfx2d_image_free", p_gfx2d_image_free, 1);
@@ -2117,6 +2238,137 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("nextafter",  p_nextafter,  2, TYPE_DOUBLE);
   float  (*p_nextafterf)(float, float)  = nextafterf;
   BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
+
+  /* ── Phase 4: full networking stack ──────────────────────────────── */
+  uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
+  BIND("net_get_ip", p_net_ip, 0);
+  uint32_t (*p_net_gw)(void)        = cc_net_get_gateway;
+  BIND("net_get_gateway", p_net_gw, 0);
+  uint32_t (*p_net_dns)(void)       = cc_net_get_dns;
+  BIND("net_get_dns", p_net_dns, 0);
+  uint32_t (*p_net_mask)(void)      = cc_net_get_mask;
+  BIND("net_get_mask", p_net_mask, 0);
+  void     (*p_net_mac)(uint8_t *)  = cc_net_get_mac;
+  BIND("net_get_mac", p_net_mac, 1);
+  uint32_t (*p_net_link)(void)      = cc_net_link_up;
+  BIND("net_link_up", p_net_link, 0);
+  uint32_t (*p_net_rxp)(void)       = cc_net_rx_packets;
+  BIND("net_rx_packets", p_net_rxp, 0);
+  uint32_t (*p_net_txp)(void)       = cc_net_tx_packets;
+  BIND("net_tx_packets", p_net_txp, 0);
+  uint32_t (*p_net_rxd)(void)       = cc_net_rx_drops;
+  BIND("net_rx_drops", p_net_rxd, 0);
+  uint32_t (*p_net_txe)(void)       = cc_net_tx_errors;
+  BIND("net_tx_errors", p_net_txe, 0);
+
+  int  (*p_ip_parse)(const char *, uint32_t *)                           = ip_parse;
+  BIND("ip_parse", p_ip_parse, 2);
+  int  (*p_ipv4_send)(uint32_t, uint8_t, const uint8_t *, uint32_t)      = ipv4_send;
+  BIND("ipv4_send", p_ipv4_send, 4);
+  int  (*p_arp_resolve)(uint32_t, uint8_t *)                             = (int (*)(uint32_t, uint8_t *))arp_resolve;
+  BIND("arp_resolve", p_arp_resolve, 2);
+  void (*p_arp_dump)(void)                                               = arp_dump;
+  BIND("arp_dump", p_arp_dump, 0);
+  int  (*p_arp_get_entries)(uint32_t *, uint8_t (*)[6], int)             = arp_get_entries;
+  BIND("arp_get_entries", p_arp_get_entries, 3);
+  int  (*p_icmp_send_echo)(uint32_t, uint16_t, uint16_t, uint32_t)       = icmp_send_echo;
+  BIND("icmp_send_echo", p_icmp_send_echo, 4);
+  int  (*p_icmp_wait)(uint32_t, uint16_t, uint16_t, uint32_t)            = icmp_wait_reply;
+  BIND("icmp_wait_reply", p_icmp_wait, 4);
+  int  (*p_udp_send_raw)(uint32_t, uint16_t, uint16_t, const uint8_t *, uint32_t) = udp_send_raw;
+  BIND("udp_send_raw", p_udp_send_raw, 5);
+
+  uint16_t (*p_ntohs)(uint16_t) = htons;   /* htons == ntohs on LE */
+  BIND("ntohs", p_ntohs, 1);
+  uint32_t (*p_ntohl)(uint32_t) = htonl;
+  BIND("ntohl", p_ntohl, 1);
+
+  uint32_t (*p_proto_icmp)(void) = cc_proto_icmp;
+  BIND("IP_PROTO_ICMP", p_proto_icmp, 0);
+  uint32_t (*p_proto_udp)(void)  = cc_proto_udp;
+  BIND("IP_PROTO_UDP",  p_proto_udp,  0);
+  uint32_t (*p_proto_tcp)(void)  = cc_proto_tcp;
+  BIND("IP_PROTO_TCP",  p_proto_tcp,  0);
+
+  /* ── Phase 4: block devices (ATA + loopdev + USB-MSC, by blkdev index) */
+  int (*p_blkdev_count)(void)                                           = blkdev_count;
+  BIND("blkdev_count", p_blkdev_count, 0);
+  int (*p_blkdev_read)(int, uint32_t, uint32_t, void *)                 = cc_blkdev_read;
+  BIND("blkdev_read", p_blkdev_read, 4);
+  int (*p_blkdev_write)(int, uint32_t, uint32_t, const void *)          = cc_blkdev_write;
+  BIND("blkdev_write", p_blkdev_write, 4);
+  int (*p_ata_read)(uint8_t, uint32_t, uint8_t, void *)                 = ata_read_sectors;
+  BIND("ata_read_sectors", p_ata_read, 4);
+  int (*p_ata_write)(uint8_t, uint32_t, uint8_t, const void *)          = ata_write_sectors;
+  BIND("ata_write_sectors", p_ata_write, 4);
+
+  /* ── Phase 4: keyboard direct ────────────────────────────────────── */
+  bool (*p_kbd_event)(key_event_t *)    = keyboard_read_event;
+  BIND("keyboard_read_event", p_kbd_event, 1);
+  void (*p_kbd_inject)(uint8_t)         = keyboard_inject_scancode;
+  BIND("keyboard_inject_scancode", p_kbd_inject, 1);
+  bool (*p_kbd_shift)(void)             = keyboard_get_shift;
+  BIND("keyboard_get_shift", p_kbd_shift, 0);
+  bool (*p_kbd_ctrl)(void)              = keyboard_get_ctrl;
+  BIND("keyboard_get_ctrl", p_kbd_ctrl, 0);
+  bool (*p_kbd_alt)(void)               = keyboard_get_alt;
+  BIND("keyboard_get_alt", p_kbd_alt, 0);
+  bool (*p_kbd_caps)(void)              = keyboard_get_caps_lock;
+  BIND("keyboard_get_caps_lock", p_kbd_caps, 0);
+
+  /* ── Phase 4: serial direct ─────────────────────────────────────── */
+  int  (*p_serial_rx)(void)             = serial_read_char;
+  BIND("serial_read_char", p_serial_rx, 0);
+  void (*p_serial_tx)(char)             = serial_write_char;
+  BIND("serial_write_char", p_serial_tx, 1);
+  void (*p_serial_str)(const char *)    = serial_write_string;
+  BIND("serial_write_string", p_serial_str, 1);
+  int  (*p_serial_has)(void)            = serial_has_rx;
+  BIND("serial_has_rx", p_serial_has, 0);
+
+  /* ── Phase 4: PIT ───────────────────────────────────────────────── */
+  void (*p_pit_freq)(uint32_t, uint32_t) = pit_set_frequency;
+  BIND("pit_set_frequency", p_pit_freq, 2);
+  void (*p_timer_delay)(uint32_t)        = timer_delay_us;
+  BIND("timer_delay_us", p_timer_delay, 1);
+
+  /* ── Phase 4: PCI introspection (by index) ───────────────────────── */
+  int      (*p_pci_count)(void)        = pci_device_count;
+  BIND("pci_device_count", p_pci_count, 0);
+  uint32_t (*p_pci_v)(int)             = cc_pci_vendor;
+  BIND("pci_get_vendor", p_pci_v, 1);
+  uint32_t (*p_pci_d)(int)             = cc_pci_device_id;
+  BIND("pci_get_device_id", p_pci_d, 1);
+  uint32_t (*p_pci_cl)(int)            = cc_pci_class;
+  BIND("pci_get_class", p_pci_cl, 1);
+  uint32_t (*p_pci_irq)(int)           = cc_pci_irq;
+  BIND("pci_get_irq", p_pci_irq, 1);
+  uint32_t (*p_pci_bar)(int, int)      = cc_pci_bar;
+  BIND("pci_get_bar", p_pci_bar, 2);
+  uint32_t (*p_pci_mmio)(int, int)     = cc_pci_bar_is_mmio;
+  BIND("pci_bar_is_mmio", p_pci_mmio, 2);
+  void     (*p_pci_bm)(int)            = cc_pci_enable_bus_master;
+  BIND("pci_enable_bus_master", p_pci_bm, 1);
+
+  /* ── Phase 4: SMP / LAPIC ────────────────────────────────────────── */
+  uint32_t (*p_lapic_id)(void)         = cc_lapic_get_id;
+  BIND("lapic_get_id", p_lapic_id, 0);
+  void     (*p_lapic_eoi)(void)        = lapic_eoi;
+  BIND("lapic_eoi", p_lapic_eoi, 0);
+
+  /* ── Phase 4: BKL (use with care — disables IRQs) ───────────────── */
+  void (*p_bkl_lock)(void)             = bkl_lock;
+  BIND("bkl_lock", p_bkl_lock, 0);
+  void (*p_bkl_unlock)(void)           = bkl_unlock;
+  BIND("bkl_unlock", p_bkl_unlock, 0);
+
+  /* ── Phase 4: paging / PMM low-level ─────────────────────────────── */
+  void  (*p_paging_mmio)(uint32_t, uint32_t) = paging_map_mmio;
+  BIND("paging_map_mmio", p_paging_mmio, 2);
+  void *(*p_pmm_alloc_p)(void)         = pmm_alloc_page;
+  BIND("pmm_alloc_page", p_pmm_alloc_p, 0);
+  void  (*p_pmm_free_p)(void *)        = pmm_free_page;
+  BIND("pmm_free_page", p_pmm_free_p, 1);
 
 #undef BIND
 #undef BIND_T

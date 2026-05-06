@@ -3083,37 +3083,98 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
 
   cc_parse_expression(cc, 1);
 
-  /* SIMD assignment path — MOVUPS xmm0 to the 16-byte local.  Only plain
-   * '=' is supported; compound ops on float4/double2 are not a thing.
+  /* SIMD assignment path — MOVUPS xmm0 to the 16-byte destination.
+   * Plain '=' and the four arithmetic compound ops (+=, -=, *=, /=) are
+   * supported via the packed-vector instructions ADDPS/ADDPD etc.
    * RHS must be the same SIMD type — no implicit conversions across
-   * float4/double2.  This enables patterns like:
+   * float4/double2.  Locals, params, and globals are all valid targets;
+   * struct fields are not (would need l-value address computation).
    *    float4 s;
-   *    s = _mm_add_ps(a, b);
-   * where the intrinsic leaves its result in XMM0. */
+   *    s = _mm_add_ps(a, b);     // plain assign
+   *    s += other_v4;            // compound, packed-add
+   */
   if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
-    if (op.type != CC_TOK_EQ) {
-      cc_error(cc, "SIMD compound assignment not supported");
+    int simd_compound = (op.type == CC_TOK_PLUSEQ ||
+                         op.type == CC_TOK_MINUSEQ ||
+                         op.type == CC_TOK_STAREQ ||
+                         op.type == CC_TOK_SLASHEQ);
+    if (op.type != CC_TOK_EQ && !simd_compound) {
+      cc_error(cc, "SIMD compound op must be +=, -=, *=, or /=");
       return;
     }
     if (cc_last_expr_type != sym->type) {
       cc_error(cc, "SIMD assignment type mismatch");
       return;
     }
+
+    int is_pd = (sym->type == TYPE_DOUBLE2);
+
+    /* Compound: combine current value with RHS using packed op. */
+    if (simd_compound) {
+      /* Spill RHS (XMM0) into a 16-byte stack slot. */
+      emit8(cc, 0x83); emit8(cc, 0xEC); emit8(cc, 0x10); /* sub esp, 16 */
+      /* MOVUPS [esp], xmm0 : 0F 11 04 24 */
+      emit8(cc, 0x0F); emit8(cc, 0x11); emit8(cc, 0x04); emit8(cc, 0x24);
+
+      /* Load current LHS into XMM0. */
+      if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        emit_movups_xmm_local(cc, 0, sym->offset);
+      } else if (sym->kind == SYM_GLOBAL) {
+        /* MOVUPS xmm0, [disp32] : 0F 10 05 dd dd dd dd */
+        emit8(cc, 0x0F); emit8(cc, 0x10); emit8(cc, 0x05);
+        emit32(cc, sym->address);
+      } else {
+        cc_error(cc, "SIMD compound on unsupported symbol kind");
+        return;
+      }
+
+      /* Reload spilled RHS into XMM1 and free slot. */
+      /* MOVUPS xmm1, [esp] : 0F 10 0C 24 */
+      emit8(cc, 0x0F); emit8(cc, 0x10); emit8(cc, 0x0C); emit8(cc, 0x24);
+      emit8(cc, 0x83); emit8(cc, 0xC4); emit8(cc, 0x10); /* add esp, 16 */
+
+      /* Packed op: XMM0 = XMM0 OP XMM1.
+       * ADDPS/SUBPS/MULPS/DIVPS: 0F (58|5C|59|5E) /r
+       * ADDPD/SUBPD/MULPD/DIVPD: 66 0F same opcode /r */
+      uint8_t op_byte = 0;
+      switch (op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break;
+      }
+      if (is_pd) emit8(cc, 0x66);
+      emit8(cc, 0x0F);
+      emit8(cc, op_byte);
+      emit8(cc, 0xC1); /* mod=11, reg=0(xmm0), r/m=1(xmm1) */
+      cc_last_xmm = 0;
+    }
+
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_movups_local_xmm(cc, 0, sym->offset);
+    } else if (sym->kind == SYM_GLOBAL) {
+      /* MOVUPS [disp32], xmm0 : 0F 11 05 dd dd dd dd */
+      emit8(cc, 0x0F); emit8(cc, 0x11); emit8(cc, 0x05);
+      emit32(cc, sym->address);
     } else {
-      cc_error(cc, "SIMD assignment to non-local not supported");
+      cc_error(cc, "SIMD assignment to unsupported symbol kind");
     }
     return;
   }
 
-  /* FP assignment path — store XMM0 directly.  Only plain '=' is
-   * supported for FP; compound FP assignment (+=, -=, *=, /=) is still
-   * deferred to Task 18.  Task 17 allows implicit promotion of the RHS
-   * when it differs from the target's FP type. */
+  /* FP assignment path — store XMM0 to the destination.  Plain '=' and
+   * the four arithmetic compound ops (+=, -=, *=, /=) are supported.
+   * Bitwise/shift compound ops are rejected on FP types.  Task 17
+   * allows implicit promotion of the RHS when it differs from the
+   * target's FP type. */
   if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
-    if (op.type != CC_TOK_EQ) {
-      cc_error(cc, "FP compound assignment not yet supported (Task 18)");
+    int is_compound_fp = (op.type == CC_TOK_PLUSEQ ||
+                          op.type == CC_TOK_MINUSEQ ||
+                          op.type == CC_TOK_STAREQ ||
+                          op.type == CC_TOK_SLASHEQ);
+    if (op.type != CC_TOK_EQ && !is_compound_fp) {
+      cc_error(cc, "bitwise/shift compound assignment not valid on FP types");
       return;
     }
     /* Coerce RHS into the destination's FP type when possible. */
@@ -3140,14 +3201,59 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
         return;
       }
     }
+
+    int is_double = (sym->type == TYPE_DOUBLE);
+
+    /* Compound FP: combine current value of sym with the RHS already in
+     * XMM0.  Sequence: spill RHS, load LHS into XMM0, reload RHS into
+     * XMM1, op XMM0,XMM1, store.  All four ops use XMM0 as accumulator
+     * (XMM0 := XMM0 op XMM1) which matches the natural read direction
+     * for both commutative (+,*) and non-commutative (-,/) cases. */
+    if (is_compound_fp) {
+      /* Spill RHS (currently in XMM0). 8-byte slot keeps ESP aligned. */
+      emit8(cc, 0x83);
+      emit8(cc, 0xEC);
+      emit8(cc, 0x08); /* sub esp, 8 */
+      if (is_double) emit_movsd_esp_xmm(cc, 0);
+      else           emit_movss_esp_xmm(cc, 0);
+
+      /* Load current value of sym into XMM0. */
+      if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        if (is_double) emit_movsd_xmm_local(cc, 0, sym->offset);
+        else           emit_movss_xmm_local(cc, 0, sym->offset);
+      } else if (sym->kind == SYM_GLOBAL) {
+        if (is_double) emit_movsd_xmm_disp32(cc, 0, sym->address);
+        else           emit_movss_xmm_disp32(cc, 0, sym->address);
+      } else {
+        cc_error(cc, "FP compound on unsupported symbol kind");
+        return;
+      }
+
+      /* Reload spilled RHS into XMM1, drop spill slot. */
+      if (is_double) emit_movsd_xmm_esp(cc, 1);
+      else           emit_movss_xmm_esp(cc, 1);
+      emit8(cc, 0x83);
+      emit8(cc, 0xC4);
+      emit8(cc, 0x08); /* add esp, 8 */
+
+      uint8_t op_byte = 0;
+      switch (op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break; /* unreachable */
+      }
+      emit_sse_scalar_op(cc, is_double, op_byte, 0, 1);
+      cc_last_xmm = 0;
+    }
+
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
-      if (sym->type == TYPE_DOUBLE)
-        emit_movsd_local_xmm(cc, 0, sym->offset);
-      else
-        emit_movss_local_xmm(cc, 0, sym->offset);
+      if (is_double) emit_movsd_local_xmm(cc, 0, sym->offset);
+      else           emit_movss_local_xmm(cc, 0, sym->offset);
     } else if (sym->kind == SYM_GLOBAL) {
       /* MOVSS/MOVSD [disp32], xmm0: prefix + 0F 11 /0 + mod=00,r/m=101 */
-      emit8(cc, sym->type == TYPE_DOUBLE ? 0xF2 : 0xF3);
+      emit8(cc, is_double ? 0xF2 : 0xF3);
       emit8(cc, 0x0F);
       emit8(cc, 0x11);
       emit8(cc, 0x05); /* mod=00, reg=0, r/m=101 (disp32) */

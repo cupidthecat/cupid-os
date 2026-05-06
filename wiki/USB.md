@@ -449,18 +449,40 @@ injected via `keyboard_inject_scancode()`.
 **Covered keycodes:** printable ASCII, modifier keys (Shift/Ctrl/Alt), F1–F10, cursor arrows,
 Backspace, Enter, Escape, Tab, Delete, Insert, Home, End, Page Up/Down.
 
+#### Extended-scancode handling
+
+PgUp / PgDn / Home / End / Insert / Delete and the cursor arrows are
+**extended** scancodes on PS/2 — they require a `0xE0` prefix byte before
+the make/break code. The driver tracks which HID keycodes need the
+prefix in `hid_is_extended[]` and injects two scancodes for them
+(`0xE0` then the scancode). `keyboard_inject_scancode()` in
+`drivers/keyboard.c` recognises the `0xE0` prefix and routes the next
+byte through `handle_extended_key()`, the same path a real PS/2 IRQ
+takes — so the kernel's keyboard buffer ends up with `scancode = 0x49`,
+`character = 0` for PgUp (rather than the ASCII `9` it would otherwise
+produce as the non-extended Numpad-9 mapping).
+
 ### Mouse report
 
-The HID boot mouse sends a 3-byte report:
+The HID boot mouse sends a 4-byte report (Intellimouse-style):
 
 ```
 Byte 0: Button bitmap  (bit0=left, bit1=right, bit2=middle)
 Byte 1: X displacement (signed, relative)
 Byte 2: Y displacement (signed, relative)
+Byte 3: Wheel delta    (signed; positive = scroll DOWN per HID spec)
 ```
 
-Injected via `mouse_inject_event(dx, dy, buttons)`, which feeds the existing PS/2 mouse handler.
-The shell and GUI window manager receive USB mouse events identically to PS/2 mouse events.
+The first three bytes are injected via `mouse_inject_event(buttons, dx, dy)`;
+byte 3 goes through `mouse_inject_wheel(int8_t dz)` which inverts the sign
+(USB HID +Z = down; CupidOS convention +Z = up, matching PS/2
+Intellimouse) and accumulates into `mouse.scroll_z` for the desktop's
+wheel router to consume.
+
+The official HID boot-protocol report is 3 bytes, but virtually every
+real USB mouse returns 4 bytes even in boot mode. Pure 3-byte devices
+leave `r[3] = 0`, so `mouse_inject_wheel(0)` is a no-op — no spurious
+scroll events.
 
 ---
 

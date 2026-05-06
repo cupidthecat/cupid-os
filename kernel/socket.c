@@ -3,13 +3,18 @@
 #include "udp.h"
 #include "bkl.h"
 #include "process.h"
+#include "memory.h"
+#include "tls/tls_ctx.h"
 #include "../drivers/timer.h"
+#include "../drivers/rtc.h"
 #include "../drivers/serial.h"
 
 socket_t sockets[SOCKET_MAX];
 static uint16_t ephemeral_next = 49152u;
 
 uint16_t htons(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
+/* ntohs is the same byte-swap as htons on this little-endian target. */
+static uint16_t ntohs(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
 
 uint32_t htonl(uint32_t v) {
     return ((v >> 24) & 0xFFu) | ((v >> 8) & 0xFF00u)
@@ -66,14 +71,18 @@ int socket_create(int type) {
 int socket_bind(int fd, uint32_t ip, uint16_t port) {
     int r = 0;
     socket_t *s;
+    /* BSD convention: callers pass ports in network byte order (htons'd).
+     * Internally we store host order so it can be compared against the
+     * host-order dst_port produced by tcp/udp input parsers. */
+    uint16_t host_port = (port != 0u) ? ntohs(port) : 0u;
     if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
     bkl_lock();
     s = &sockets[fd];
     if (!s->in_use) r = EBADF;
-    else if (port != 0u && port_in_use(port)) r = EADDRINUSE;
+    else if (host_port != 0u && port_in_use(host_port)) r = EADDRINUSE;
     else {
         s->local_ip = ip;
-        s->local_port = (port != 0u) ? port : alloc_ephemeral();
+        s->local_port = (host_port != 0u) ? host_port : alloc_ephemeral();
     }
     bkl_unlock();
     return r;
@@ -94,7 +103,7 @@ int socket_sendto(int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t p
     bkl_unlock();
     /* udp_send_raw calls ipv4_send→arp_resolve which busy-waits; must NOT
      * run under BKL (BKL disables IRQs → timer freeze + no NIC RX). */
-    return udp_send_raw(ip, local_port, port, (const uint8_t*)buf, len);
+    return udp_send_raw(ip, local_port, ntohs(port), (const uint8_t*)buf, len);
 }
 
 int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port) {
@@ -117,7 +126,8 @@ int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *por
             s->rx_head = (s->rx_head + m.len) % SOCK_RX_BUF;
             s->udp_meta_tail = (uint8_t)((s->udp_meta_tail + 1u) % UDP_MAX_QUEUED);
             if (ip)   *ip   = m.ip;
-            if (port) *port = m.port;
+            /* Caller will ntohs() — return network byte order. */
+            if (port) *port = htons(m.port);
             bkl_unlock();
             return (int)dlen;
         }
@@ -141,14 +151,24 @@ int socket_close(int fd) {
         r = EBADF;
         bkl_unlock();
         return r;
-    } else if (s->type == SOCK_TYPE_TCP) {
+    }
+    if (s->tls_ctx != NULL) {
+        tls_ctx_t *t = (tls_ctx_t *)s->tls_ctx;
+        s->tls_ctx = NULL;
+        bkl_unlock();
+        tls_close_notify(t);
+        tls_ctx_destroy(t);
+        kfree(t);
+        bkl_lock();
+        s = &sockets[fd];
+    }
+    if (s->type == SOCK_TYPE_TCP) {
         bkl_unlock();
         tcp_close(fd);
         return 0;
-    } else {
-        s->in_use = 0;
-        s->type   = 0;
     }
+    s->in_use = 0;
+    s->type   = 0;
     bkl_unlock();
     return r;
 }
@@ -187,9 +207,103 @@ void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,
     }
 }
 
-/* TCP wrappers — wired in T13/T14 */
+/* TCP wrappers — wired in T13/T14. Caller passes ports in network byte
+ * order; tcp_* functions store in host order so we translate at the
+ * boundary (BSD convention). */
 int socket_listen (int fd, int backlog)                            { return tcp_listen(fd, backlog); }
-int socket_accept (int fd, uint32_t *peer_ip, uint16_t *peer_port) { return tcp_accept(fd, peer_ip, peer_port); }
-int socket_connect(int fd, uint32_t ip, uint16_t port)             { return tcp_connect(fd, ip, port); }
-int socket_send   (int fd, const void *buf, uint32_t len)          { return tcp_send(fd, (const uint8_t*)buf, len); }
-int socket_recv   (int fd, void *buf, uint32_t len)                { return tcp_recv(fd, (uint8_t*)buf, len); }
+int socket_accept (int fd, uint32_t *peer_ip, uint16_t *peer_port) {
+    int r = tcp_accept(fd, peer_ip, peer_port);
+    if (r >= 0 && peer_port) *peer_port = htons(*peer_port);
+    return r;
+}
+int socket_connect(int fd, uint32_t ip, uint16_t port)             { return tcp_connect(fd, ip, ntohs(port)); }
+
+/* TLS-aware send/recv: when the socket has a tls_ctx attached, route
+ * application bytes through the TLS record layer; otherwise plain TCP. */
+int socket_send(int fd, const void *buf, uint32_t len) {
+    socket_t *s;
+    if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
+    s = &sockets[fd];
+    if (!s->in_use) return EBADF;
+    if (s->tls_ctx != NULL) {
+        int rc = tls_app_send((tls_ctx_t *)s->tls_ctx,
+                              (const uint8_t *)buf, len);
+        if (rc != TLS_ERR_OK) return ECONNRESET;
+        return (int)len;
+    }
+    return tcp_send(fd, (const uint8_t *)buf, len);
+}
+
+int socket_recv(int fd, void *buf, uint32_t len) {
+    socket_t *s;
+    if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
+    s = &sockets[fd];
+    if (!s->in_use) return EBADF;
+    if (s->tls_ctx != NULL) {
+        return tls_app_recv((tls_ctx_t *)s->tls_ctx,
+                            (uint8_t *)buf, len);
+    }
+    return tcp_recv(fd, (uint8_t *)buf, len);
+}
+
+/* --- TLS setsockopt ----------------------------------------------- */
+
+/* Transport callbacks for the TLS record layer. user is a socket_t*; we
+ * derive the fd from its index in `sockets`. */
+static int sock_tls_xp_send(void *user, const uint8_t *buf, uint32_t len) {
+    socket_t *s = (socket_t *)user;
+    int fd = (int)(s - sockets);
+    return tcp_send(fd, buf, len);
+}
+static int sock_tls_xp_recv(void *user, uint8_t *buf, uint32_t len) {
+    socket_t *s = (socket_t *)user;
+    int fd = (int)(s - sockets);
+    return tcp_recv(fd, buf, len);
+}
+
+int socket_setsockopt(int fd, int level, int optname,
+                      const void *val, uint32_t vlen) {
+    socket_t *s;
+    char hostname[256];
+    tls_ctx_t *tls;
+    int rc;
+    uint32_t i;
+    uint64_t now;
+
+    if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
+    s = &sockets[fd];
+    if (!s->in_use || s->type != SOCK_TYPE_TCP) return EBADF;
+
+    if (level != SOL_TLS || optname != TLS_ENABLE) return EINVAL_SOCK;
+    if (s->tls_ctx != NULL) return EINVAL_SOCK;
+    if (val == NULL || vlen == 0u || vlen >= sizeof(hostname))
+        return EINVAL_SOCK;
+
+    /* Copy hostname; strip a trailing NUL if the caller included one. */
+    for (i = 0; i < vlen; i++) hostname[i] = ((const char *)val)[i];
+    if (hostname[i - 1u] == '\0') i--;
+    hostname[i] = '\0';
+    if (i == 0u) return EINVAL_SOCK;
+
+    tls = (tls_ctx_t *)kmalloc(sizeof(tls_ctx_t));
+    if (tls == NULL) return ENOBUFS_SOCK;
+    now = (uint64_t)rtc_get_epoch_seconds();
+    rc = tls_ctx_init(tls, s, sock_tls_xp_send, sock_tls_xp_recv,
+                      hostname, now);
+    if (rc != TLS_ERR_OK) {
+        tls_ctx_destroy(tls);
+        kfree(tls);
+        return EINVAL_SOCK;
+    }
+    serial_printf("[tls] handshake start: host=%s\n", hostname);
+    rc = tls_handshake_client(tls);
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] handshake failed: %d\n", rc);
+        tls_ctx_destroy(tls);
+        kfree(tls);
+        return rc;
+    }
+    serial_printf("[tls] handshake ok\n");
+    s->tls_ctx = tls;
+    return 0;
+}

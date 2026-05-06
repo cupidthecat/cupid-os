@@ -6,6 +6,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 #include "memory.h"
+#include "ksyms.h"
 
 /* Output function pointers (can be overridden for GUI mode) */
 static void (*panic_print)(const char*) = print;
@@ -78,31 +79,36 @@ static void print_registers(struct registers *regs) {
     panic_print("\n");
 }
 
+/* Print a single backtrace frame with optional symbol decoding. Used as
+ * the print_line callback for ksym_backtrace().  Output is mirrored to
+ * VGA and serial.  Note: serial_print_hex (the %x backend) already
+ * emits its own "0x" prefix, so format strings here use bare "%x". */
+static void panic_print_frame(int frame, uint32_t addr,
+                              const char *name, uint32_t off) {
+    if (name) {
+        serial_printf("  #%d: %x  %s+%x\n", frame, addr, name, off);
+        panic_print("  #");
+        print_int((uint32_t)frame);
+        panic_print(": ");
+        print_hex(addr);
+        panic_print("  ");
+        panic_print(name);
+        panic_print("+");
+        print_hex(off);
+        panic_print("\n");
+    } else {
+        serial_printf("  #%d: %x\n", frame, addr);
+        panic_print("  #");
+        print_int((uint32_t)frame);
+        panic_print(": ");
+        print_hex(addr);
+        panic_print("\n");
+    }
+}
+
 void print_stack_trace(uint32_t ebp, uint32_t eip) {
     dual_print("\nSTACK TRACE:\n");
-
-    serial_printf("  #0: 0x%x\n", eip);
-    panic_print("  #0: "); print_hex(eip); print("\n");
-
-    for (int i = 1; i < 10 && ebp != 0; i++) {
-        if (ebp < 0x1000 || ebp > 0x190000) {
-            dual_print("  (invalid stack frame)\n");
-            break;
-        }
-
-        uint32_t ret_addr = *((uint32_t *)(ebp + 4));
-
-        serial_printf("  #%d: 0x%x\n", i, ret_addr);
-        panic_print("  #");
-        print_int((uint32_t)i);
-        panic_print(": ");
-        print_hex(ret_addr);
-        panic_print("\n");
-
-        uint32_t prev_ebp = *((uint32_t *)ebp);
-        if (prev_ebp <= ebp) break;
-        ebp = prev_ebp;
-    }
+    ksym_backtrace(ebp, eip, 16, panic_print_frame);
 }
 
 static void print_stack_dump(uint32_t esp) {

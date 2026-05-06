@@ -31,6 +31,21 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
+#include "../drivers/ata.h"
+#include "../drivers/pit.h"
+#include "../drivers/speaker.h"
+#include "net_if.h"
+#include "arp.h"
+#include "ip.h"
+#include "icmp.h"
+#include "udp.h"
+#include "dhcp.h"
+#include "dns.h"
+#include "socket.h"
+#include "blockdev.h"
+#include "pci.h"
+#include "lapic.h"
+#include "bkl.h"
 
 /* Read source file from VFS */
 
@@ -478,6 +493,77 @@ static int as_fp_to_int(int a) { return a >> 16; }
 static int as_fp_frac(int a) { return a & 0xFFFF; }
 static int as_fp_one(void) { return 65536; }
 
+/* ── Phase 4 net/HW wrappers for CupidASM ───────────────────────────── */
+static uint32_t as_net_get_ip(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_addr : 0u;
+}
+static uint32_t as_net_get_gateway(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_gateway : 0u;
+}
+static uint32_t as_net_get_dns(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_dns : 0u;
+}
+static uint32_t as_net_get_mask(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_mask : 0u;
+}
+static void as_net_get_mac(uint8_t *out) {
+  net_if_t *n = net_if_primary();
+  int i;
+  if (!out) return;
+  if (!n) { for (i = 0; i < 6; i++) out[i] = 0u; return; }
+  for (i = 0; i < 6; i++) out[i] = n->mac[i];
+}
+static uint32_t as_net_link_up(void) {
+  net_if_t *n = net_if_primary();
+  return (n && n->link_up) ? 1u : 0u;
+}
+static uint32_t as_net_rx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->rx_packets : 0u;
+}
+static uint32_t as_net_tx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->tx_packets : 0u;
+}
+static int as_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
+  block_device_t *d = blkdev_get(idx);
+  if (!d) return -1;
+  return blkdev_read(d, lba, count, buf);
+}
+static int as_blkdev_write(int idx, uint32_t lba, uint32_t count, const void *buf) {
+  block_device_t *d = blkdev_get(idx);
+  if (!d) return -1;
+  return blkdev_write(d, lba, count, buf);
+}
+static uint32_t as_pci_vendor_idx(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? d->vendor_id : 0u;
+}
+static uint32_t as_pci_device_id_idx(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? d->device_id : 0u;
+}
+static uint32_t as_pci_class_idx(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d) return 0u;
+  return ((uint32_t)d->class_code << 16) |
+         ((uint32_t)d->subclass   <<  8) |
+          (uint32_t)d->prog_if;
+}
+static uint32_t as_pci_irq_idx(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  return d ? (uint32_t)d->irq_line : 0u;
+}
+static uint32_t as_pci_bar_idx(int idx, int bar) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d || bar < 0 || bar >= 6) return 0u;
+  return d->bars[bar];
+}
+
 /* Register kernel functions as pre-defined labels so asm programs can call
  * them directly (e.g. `call print`).  JIT and AOT share most bindings, but
  * `exit` differs: JIT returns to as_jit(), AOT must terminate its process. */
@@ -764,6 +850,91 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "desktop_bg_get_anim_theme", desktop_bg_get_anim_theme);
   AS_BIND(as, "desktop_bg_get_tiled_pattern", desktop_bg_get_tiled_pattern);
   AS_BIND(as, "desktop_bg_get_tiled_use_bmp", desktop_bg_get_tiled_use_bmp);
+
+  /* ── Phase 4: full networking stack (parity with CupidC) ─────────── */
+  AS_BIND(as, "net_get_ip",          as_net_get_ip);
+  AS_BIND(as, "net_get_gateway",     as_net_get_gateway);
+  AS_BIND(as, "net_get_dns",         as_net_get_dns);
+  AS_BIND(as, "net_get_mask",        as_net_get_mask);
+  AS_BIND(as, "net_get_mac",         as_net_get_mac);
+  AS_BIND(as, "net_link_up",         as_net_link_up);
+  AS_BIND(as, "net_rx_packets",      as_net_rx_packets);
+  AS_BIND(as, "net_tx_packets",      as_net_tx_packets);
+  AS_BIND(as, "ip_parse",            ip_parse);
+  AS_BIND(as, "ipv4_send",           ipv4_send);
+  AS_BIND(as, "arp_resolve",         arp_resolve);
+  AS_BIND(as, "arp_dump",            arp_dump);
+  AS_BIND(as, "arp_get_entries",     arp_get_entries);
+  AS_BIND(as, "icmp_send_echo",      icmp_send_echo);
+  AS_BIND(as, "icmp_wait_reply",     icmp_wait_reply);
+  AS_BIND(as, "udp_send_raw",        udp_send_raw);
+  AS_BIND(as, "dns_resolve",         dns_resolve);
+  AS_BIND(as, "htons",               htons);
+  AS_BIND(as, "htonl",               htonl);
+  AS_BIND(as, "ntohs",               htons);   /* same byte-swap on LE */
+  AS_BIND(as, "ntohl",               htonl);
+  AS_BIND(as, "socket",              socket_create);
+  AS_BIND(as, "bind",                socket_bind);
+  AS_BIND(as, "listen",              socket_listen);
+  AS_BIND(as, "accept",              socket_accept);
+  AS_BIND(as, "connect",             socket_connect);
+  AS_BIND(as, "send",                socket_send);
+  AS_BIND(as, "recv",                socket_recv);
+  AS_BIND(as, "sendto",              socket_sendto);
+  AS_BIND(as, "recvfrom",            socket_recvfrom);
+  AS_BIND(as, "close",               socket_close);
+
+  as_bind_equ(as, "IP_PROTO_ICMP",   IP_PROTO_ICMP);
+  as_bind_equ(as, "IP_PROTO_UDP",    IP_PROTO_UDP);
+  as_bind_equ(as, "IP_PROTO_TCP",    IP_PROTO_TCP);
+  as_bind_equ(as, "SOCK_TYPE_UDP",   SOCK_TYPE_UDP);
+  as_bind_equ(as, "SOCK_TYPE_TCP",   SOCK_TYPE_TCP);
+
+  /* ── Phase 4: block devices ──────────────────────────────────────── */
+  AS_BIND(as, "blkdev_count",        blkdev_count);
+  AS_BIND(as, "blkdev_read",         as_blkdev_read);
+  AS_BIND(as, "blkdev_write",        as_blkdev_write);
+  AS_BIND(as, "ata_read_sectors",    ata_read_sectors);
+  AS_BIND(as, "ata_write_sectors",   ata_write_sectors);
+
+  /* ── Phase 4: serial / keyboard direct ───────────────────────────── */
+  AS_BIND(as, "serial_read_char",    serial_read_char);
+  AS_BIND(as, "serial_write_char",   serial_write_char);
+  AS_BIND(as, "serial_write_string", serial_write_string);
+  AS_BIND(as, "serial_has_rx",       serial_has_rx);
+  AS_BIND(as, "keyboard_read_event", keyboard_read_event);
+  AS_BIND(as, "keyboard_inject_scancode", keyboard_inject_scancode);
+  AS_BIND(as, "keyboard_get_shift",  keyboard_get_shift);
+  AS_BIND(as, "keyboard_get_ctrl",   keyboard_get_ctrl);
+  AS_BIND(as, "keyboard_get_alt",    keyboard_get_alt);
+  AS_BIND(as, "keyboard_get_caps_lock", keyboard_get_caps_lock);
+
+  /* ── Phase 4: speaker / PIT ──────────────────────────────────────── */
+  AS_BIND(as, "pc_speaker_on",       pc_speaker_on);
+  AS_BIND(as, "pc_speaker_off",      pc_speaker_off);
+  AS_BIND(as, "pit_set_frequency",   pit_set_frequency);
+  AS_BIND(as, "timer_delay_us",      timer_delay_us);
+
+  /* ── Phase 4: PCI introspection ─────────────────────────────────── */
+  AS_BIND(as, "pci_device_count",    pci_device_count);
+  AS_BIND(as, "pci_get_vendor",      as_pci_vendor_idx);
+  AS_BIND(as, "pci_get_device_id",   as_pci_device_id_idx);
+  AS_BIND(as, "pci_get_class",       as_pci_class_idx);
+  AS_BIND(as, "pci_get_irq",         as_pci_irq_idx);
+  AS_BIND(as, "pci_get_bar",         as_pci_bar_idx);
+
+  /* ── Phase 4: SMP / LAPIC / BKL / paging ─────────────────────────── */
+  AS_BIND(as, "lapic_get_id",        lapic_get_id);
+  AS_BIND(as, "lapic_eoi",           lapic_eoi);
+  AS_BIND(as, "bkl_lock",            bkl_lock);
+  AS_BIND(as, "bkl_unlock",          bkl_unlock);
+  AS_BIND(as, "paging_map_mmio",     paging_map_mmio);
+  AS_BIND(as, "pmm_alloc_page",      pmm_alloc_page);
+  AS_BIND(as, "pmm_free_page",       pmm_free_page);
+
+  /* ── Phase 4: low-level I/O for drivers ──────────────────────────── */
+  AS_BIND(as, "outb",                outb);
+  AS_BIND(as, "inb",                 inb);
 }
 
 static int as_init_state(as_state_t *as, int jit_mode) {
@@ -853,6 +1024,76 @@ static int as_init_state(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SYS_VFS_READ_TEXT",144);
   as_bind_equ(as, "SYS_VFS_WRITE_TEXT",148);
   as_bind_equ(as, "SYS_MEMSTATS",     152);
+
+  /* ── Phase 4 syscall table offsets (v3) ──────────────────────────── */
+  as_bind_equ(as, "SYS_NET_GET_IP",        156);
+  as_bind_equ(as, "SYS_NET_GET_GATEWAY",   160);
+  as_bind_equ(as, "SYS_NET_GET_DNS",       164);
+  as_bind_equ(as, "SYS_NET_GET_MASK",      168);
+  as_bind_equ(as, "SYS_NET_GET_MAC",       172);
+  as_bind_equ(as, "SYS_NET_LINK_UP",       176);
+  as_bind_equ(as, "SYS_NET_RX_PACKETS",    180);
+  as_bind_equ(as, "SYS_NET_TX_PACKETS",    184);
+  as_bind_equ(as, "SYS_NET_RX_DROPS",      188);
+  as_bind_equ(as, "SYS_NET_TX_ERRORS",     192);
+  as_bind_equ(as, "SYS_IP_PARSE",          196);
+  as_bind_equ(as, "SYS_IPV4_SEND",         200);
+  as_bind_equ(as, "SYS_ARP_RESOLVE",       204);
+  as_bind_equ(as, "SYS_ARP_DUMP",          208);
+  as_bind_equ(as, "SYS_ARP_GET_ENTRIES",   212);
+  as_bind_equ(as, "SYS_ICMP_SEND_ECHO",    216);
+  as_bind_equ(as, "SYS_ICMP_WAIT_REPLY",   220);
+  as_bind_equ(as, "SYS_UDP_SEND_RAW",      224);
+  as_bind_equ(as, "SYS_DNS_RESOLVE",       228);
+  as_bind_equ(as, "SYS_HTONS",             232);
+  as_bind_equ(as, "SYS_HTONL",             236);
+  as_bind_equ(as, "SYS_NTOHS",             240);
+  as_bind_equ(as, "SYS_NTOHL",             244);
+  as_bind_equ(as, "SYS_SOCKET",            248);
+  as_bind_equ(as, "SYS_BIND",              252);
+  as_bind_equ(as, "SYS_LISTEN",            256);
+  as_bind_equ(as, "SYS_ACCEPT",            260);
+  as_bind_equ(as, "SYS_CONNECT",           264);
+  as_bind_equ(as, "SYS_SEND",              268);
+  as_bind_equ(as, "SYS_RECV",              272);
+  as_bind_equ(as, "SYS_SENDTO",            276);
+  as_bind_equ(as, "SYS_RECVFROM",          280);
+  as_bind_equ(as, "SYS_CLOSE",             284);
+  as_bind_equ(as, "SYS_BLKDEV_COUNT",      288);
+  as_bind_equ(as, "SYS_BLKDEV_READ",       292);
+  as_bind_equ(as, "SYS_BLKDEV_WRITE",      296);
+  as_bind_equ(as, "SYS_ATA_READ_SECTORS",  300);
+  as_bind_equ(as, "SYS_ATA_WRITE_SECTORS", 304);
+  as_bind_equ(as, "SYS_SERIAL_READ_CHAR",  308);
+  as_bind_equ(as, "SYS_SERIAL_WRITE_CHAR", 312);
+  as_bind_equ(as, "SYS_SERIAL_WRITE_STRING", 316);
+  as_bind_equ(as, "SYS_SERIAL_HAS_RX",     320);
+  as_bind_equ(as, "SYS_PC_SPEAKER_ON",     324);
+  as_bind_equ(as, "SYS_PC_SPEAKER_OFF",    328);
+  as_bind_equ(as, "SYS_PIT_SET_FREQUENCY", 332);
+  as_bind_equ(as, "SYS_TIMER_DELAY_US",    336);
+  as_bind_equ(as, "SYS_PCI_DEVICE_COUNT",  340);
+  as_bind_equ(as, "SYS_PCI_GET_VENDOR",    344);
+  as_bind_equ(as, "SYS_PCI_GET_DEVICE_ID", 348);
+  as_bind_equ(as, "SYS_PCI_GET_CLASS",     352);
+  as_bind_equ(as, "SYS_PCI_GET_IRQ",       356);
+  as_bind_equ(as, "SYS_PCI_GET_BAR",       360);
+  as_bind_equ(as, "SYS_LAPIC_GET_ID",      364);
+  as_bind_equ(as, "SYS_LAPIC_EOI",         368);
+  as_bind_equ(as, "SYS_BKL_LOCK",          372);
+  as_bind_equ(as, "SYS_BKL_UNLOCK",        376);
+  as_bind_equ(as, "SYS_PAGING_MAP_MMIO",   380);
+  as_bind_equ(as, "SYS_PMM_ALLOC_PAGE",    384);
+  as_bind_equ(as, "SYS_PMM_FREE_PAGE",     388);
+  as_bind_equ(as, "SYS_OUTB",              392);
+  as_bind_equ(as, "SYS_INB",               396);
+
+  /* Protocol / socket-type constants for AOT programs */
+  as_bind_equ(as, "IP_PROTO_ICMP",   IP_PROTO_ICMP);
+  as_bind_equ(as, "IP_PROTO_UDP",    IP_PROTO_UDP);
+  as_bind_equ(as, "IP_PROTO_TCP",    IP_PROTO_TCP);
+  as_bind_equ(as, "SOCK_TYPE_UDP",   SOCK_TYPE_UDP);
+  as_bind_equ(as, "SOCK_TYPE_TCP",   SOCK_TYPE_TCP);
 
   /* Useful VFS/open constants for asm programs */
   as_bind_equ(as, "O_RDONLY",         O_RDONLY);

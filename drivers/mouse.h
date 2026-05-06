@@ -43,4 +43,8 @@ void mouse_update_cursor_direct(void);
  * the same way IRQ12 would. */
 void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy);
 
+/* Inject a scroll-wheel delta (positive = scroll up). Used by USB HID
+ * mouse driver when reading 4-byte (Intellimouse-style) reports. */
+void mouse_inject_wheel(int8_t dz);
+
 #endif

@@ -272,12 +272,14 @@ void gfx2d_flip(void) {
   if (gfx2d_fullscreen_active()) {
     uint32_t now = timer_get_uptime_ms();
     if (g2d_last_flip_ms != 0) {
-      /* Sleep (hlt) until ~16ms have elapsed since the last flip.
-       * Using hlt instead of process_yield() lets the CPU go truly idle
-       * between PIT ticks, freeing the host CPU for QEMU's display
-       * scaling pass - especially important in QEMU fullscreen mode. */
+      /* Yield until ~16ms have elapsed.  Was hlt — but if the calling
+       * process happens to be running with IF=0 (e.g. if a kernel call
+       * earlier disabled interrupts and never re-enabled), hlt waits
+       * for an IRQ that never arrives and the app freezes.  Yielding to
+       * the scheduler is safer and lets other processes run while we
+       * wait for the next frame. */
       while ((uint32_t)(now - g2d_last_flip_ms) < 16u) {
-        __asm__ volatile("hlt");
+        process_yield();
         now = timer_get_uptime_ms();
       }
     }

@@ -57,6 +57,7 @@ void net_process_pending(void) {
         rx_tail = (rx_tail + 1u) % NET_RX_RING_SIZE;
     }
     tcp_tick();
+    arp_tick();
 }
 
 extern void rtl8139_probe(void);

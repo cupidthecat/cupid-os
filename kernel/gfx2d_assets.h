@@ -30,8 +30,14 @@ typedef struct {
     uint32_t flags;        /* Reserved flags          */
 } gfx2d_fnt_header_t;
 
-/** Load a BMP image from VFS path. Returns handle (>= 0) or -1. */
+/** Load an image from VFS path.  Format auto-detected from signature:
+ *  BMP, PNG, or baseline JPEG.  Returns handle (>= 0) or -1. */
 int  gfx2d_image_load(const char *path);
+
+/** Decode a PNG or JPEG byte buffer directly (no VFS round-trip).
+ *  Returns image handle (>= 0) or -1.  Used by the browser to render
+ *  network-fetched images without writing them to disk. */
+int  gfx2d_image_load_mem(const uint8_t *buf, uint32_t len);
 
 /** Free a loaded image. */
 void gfx2d_image_free(int handle);

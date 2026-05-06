@@ -698,10 +698,20 @@ void gfx2d_icons_scan_bin(void) {
             ent.name[len - 1] != 'c')
             continue;
 
-        /* Build full path */
+        /* Build full path with bounded copy — defends against any readdir
+         * backend that might return a name longer than VFS_MAX_NAME-1. */
         char path[GFX2D_ICON_PATH_MAX];
-        strcpy(path, "/bin/");
-        strcat(path, ent.name);
+        int pi = 0;
+        const char *prefix = "/bin/";
+        while (prefix[pi] && pi < GFX2D_ICON_PATH_MAX - 1) {
+            path[pi] = prefix[pi];
+            pi++;
+        }
+        int ni = 0;
+        while (ent.name[ni] && pi < GFX2D_ICON_PATH_MAX - 1) {
+            path[pi++] = ent.name[ni++];
+        }
+        path[pi] = '\0';
 
         scanned++;
 

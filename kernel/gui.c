@@ -16,6 +16,7 @@
 #include "gui_themes.h"
 #include "graphics.h"
 #include "memory.h"
+#include "bkl.h"
 #include "process.h"
 #include "string.h"
 
@@ -472,10 +473,10 @@ int gui_end_window_paint(int wid) {
   if (idx < 0)
     return GUI_ERR_INVALID_ID;
   gfx2d_surface_unset_active();
-  if (!window_content_metrics(&windows[idx], NULL, NULL, &cw, &ch))
-    return GUI_ERR_INVALID_ARGS;
-  invalidate_window_rect_internal(&windows[idx], 1, TITLEBAR_H,
-                                  cw, ch);
+  if (window_content_metrics(&windows[idx], NULL, NULL, &cw, &ch)) {
+    invalidate_window_rect_internal(&windows[idx], 1, TITLEBAR_H,
+                                    cw, ch);
+  }
   return GUI_OK;
 }
 

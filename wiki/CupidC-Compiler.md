@@ -506,6 +506,20 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 
 All BMP functions return `0` on success. Error codes: `-1` (invalid), `-2` (unsupported format), `-3` (I/O error), `-4` (buffer too small).
 
+### gfx2d Image Pool (BMP / PNG / JPEG)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `gfx2d_image_load` | `int gfx2d_image_load(char* path)` | Load image from VFS path. Format auto-detected by signature: BMP, PNG, JPEG. Returns image handle (>= 0) or -1. |
+| `gfx2d_image_load_mem` | `int gfx2d_image_load_mem(char* buf, int len)` | Decode a PNG or JPEG byte buffer directly (no VFS round-trip). Used by the browser to display network-fetched images. Returns handle or -1. |
+| `gfx2d_image_free` | `void gfx2d_image_free(int handle)` | Release an image handle. |
+| `gfx2d_image_draw` | `void gfx2d_image_draw(int handle, int x, int y)` | Blit image at (x, y), unscaled. |
+| `gfx2d_image_draw_scaled` | `void gfx2d_image_draw_scaled(int handle, int x, int y, int w, int h)` | Blit scaled to (w, h). |
+| `gfx2d_image_width` | `int gfx2d_image_width(int handle)` | Image width in pixels. |
+| `gfx2d_image_height` | `int gfx2d_image_height(int handle)` | Image height in pixels. |
+
+PNG decoder handles 8-bit color types 0/2/3/6 (gray, RGB, palette, RGBA), filters None/Sub/Up/Average/Paeth, non-interlaced.  JPEG decoder handles SOF0/SOF1 baseline at 8-bit precision, 1- or 3-component images, sub-samplings 1x1/2x1/1x2/2x2, restart markers.  Progressive JPEG, arithmetic coding, 12-bit, and CMYK are rejected.
+
 ### File Dialogs
 
 | Function | Signature | Description |
@@ -548,6 +562,102 @@ The `result` buffer must be 128 bytes. Pass `0` for `ext` to show all files.
 | `crashtest_divzero` | `void crashtest_divzero()` | Divide by zero |
 | `crashtest_overflow` | `void crashtest_overflow()` | Overflow heap buffer (canary detection) |
 | `crashtest_stackoverflow` | `void crashtest_stackoverflow()` | Allocate 64 KB on stack (page fault) |
+
+### Networking — BSD sockets
+
+Ports passed to / returned from these calls are network byte order — wrap
+literals in `htons()`. See [Networking](Networking) for full protocol
+details.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `socket` | `int socket(int type)` | `2`=TCP, `1`=UDP. Returns fd or negative error |
+| `bind` | `int bind(int fd, U32 ip, U16 port)` | `ip=0` for INADDR_ANY |
+| `listen` | `int listen(int fd, int backlog)` | Mark TCP socket passive |
+| `accept` | `int accept(int fd, U32 *peer_ip, U16 *peer_port)` | Block until incoming SYN completes 3-way handshake |
+| `connect` | `int connect(int fd, U32 ip, U16 port)` | Block until ESTABLISHED, refused, or 30 s timeout |
+| `send` / `recv` | `int send(int fd, void *buf, U32 len)` / `recv(...)` | Stream I/O on TCP socket |
+| `sendto` / `recvfrom` | `int sendto(int fd, void *buf, U32 len, U32 ip, U16 port)` / `recvfrom(...)` | UDP datagram I/O |
+| `close` | `int close(int fd)` | Tear down socket (FIN handshake for TCP) |
+| `dns_resolve` | `int dns_resolve(char *name, U32 *ip_out)` | UDP/53 A-record lookup, 16-entry cache |
+| `htons` / `ntohs` | `U16 htons(U16)` / `U16 ntohs(U16)` | 16-bit byte swap |
+| `htonl` / `ntohl` | `U32 htonl(U32)` / `U32 ntohl(U32)` | 32-bit byte swap |
+| `IP_PROTO_ICMP` / `IP_PROTO_UDP` / `IP_PROTO_TCP` | `U32 IP_PROTO_TCP()` | Constants exposed as 0-arg getters |
+
+### Networking — interface info & raw protocol
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `net_get_ip` | `U32 net_get_ip()` | Local IPv4 of the primary NIC |
+| `net_get_gateway` | `U32 net_get_gateway()` | Default gateway IPv4 |
+| `net_get_dns` | `U32 net_get_dns()` | DNS server IPv4 |
+| `net_get_mask` | `U32 net_get_mask()` | Subnet mask |
+| `net_get_mac` | `void net_get_mac(U8 *out)` | Fills 6-byte MAC |
+| `net_link_up` | `U32 net_link_up()` | 1 if link up, else 0 |
+| `net_rx_packets` / `net_tx_packets` | `U32` | Counters since boot |
+| `net_rx_drops` / `net_tx_errors` | `U32` | Error counters |
+| `ip_parse` | `int ip_parse(char *s, U32 *out)` | `"a.b.c.d"` → uint32 |
+| `ipv4_send` | `int ipv4_send(U32 dst, U8 proto, U8 *payload, U32 plen)` | Build + send raw IPv4 (auto-fragments) |
+| `arp_resolve` | `int arp_resolve(U32 ip, U8 *mac_out)` | Blocking resolve, 500 ms timeout |
+| `arp_dump` | `void arp_dump()` | Print cache to serial |
+| `arp_get_entries` | `int arp_get_entries(U32 *ips, U8 macs[][6], int max)` | Bulk read |
+| `icmp_send_echo` | `int icmp_send_echo(U32 dst, U16 id, U16 seq, U32 paylen)` | Send echo request |
+| `icmp_wait_reply` | `int icmp_wait_reply(U32 src, U16 id, U16 seq, U32 timeout_ms)` | Block for matching reply |
+| `udp_send_raw` | `int udp_send_raw(U32 dst, U16 sport, U16 dport, U8 *data, U32 len)` | One-shot UDP datagram |
+
+### Block devices (ATA / loopdev / USB-MSC)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `blkdev_count` | `int blkdev_count()` | Number of registered block devices |
+| `blkdev_read` | `int blkdev_read(int idx, U32 lba, U32 count, void *buf)` | Read N sectors from blkdev[idx] |
+| `blkdev_write` | `int blkdev_write(int idx, U32 lba, U32 count, void *buf)` | Write N sectors |
+| `ata_read_sectors` | `int ata_read_sectors(U8 drive, U32 lba, U8 count, void *buf)` | Direct ATA read (drive 0 = master) |
+| `ata_write_sectors` | `int ata_write_sectors(U8 drive, U32 lba, U8 count, void *buf)` | Direct ATA write |
+
+### Keyboard, serial, PIT — direct driver access
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `keyboard_read_event` | `bool keyboard_read_event(key_event_t *out)` | Pop one event (returns false if queue empty) |
+| `keyboard_inject_scancode` | `void keyboard_inject_scancode(U8 sc)` | Synthesize a make/break scancode |
+| `keyboard_get_shift` / `_ctrl` / `_alt` / `_caps_lock` | `bool` | Modifier-key state |
+| `serial_read_char` | `int serial_read_char()` | Non-blocking COM1 RX, returns -1 if empty |
+| `serial_write_char` | `void serial_write_char(char c)` | One byte to COM1 |
+| `serial_write_string` | `void serial_write_string(char *s)` | NUL-terminated string |
+| `serial_has_rx` | `int serial_has_rx()` | 1 if a byte is pending |
+| `pit_set_frequency` | `void pit_set_frequency(U32 channel, U32 hz)` | Reprogram PIT channel |
+| `timer_delay_us` | `void timer_delay_us(U32 us)` | TSC-based busy delay |
+
+### PCI introspection (by index)
+
+`idx` ranges from 0 to `pci_device_count()-1`. The kernel hides the
+opaque `pci_device_t *` behind these index-based getters.
+
+| Function | Returns |
+|---|---|
+| `pci_device_count()` | Number of PCI devices found at boot |
+| `pci_get_vendor(idx)` | 16-bit vendor ID |
+| `pci_get_device_id(idx)` | 16-bit device ID |
+| `pci_get_class(idx)` | Packed `class<<16 | sub<<8 | prog_if` |
+| `pci_get_irq(idx)` | IRQ line from PCI config space |
+| `pci_get_bar(idx, bar)` | BAR value, `bar` = 0..5 |
+| `pci_bar_is_mmio(idx, bar)` | 1 if MMIO, 0 if I/O port |
+| `pci_enable_bus_master(idx)` | Set bus-master bit in command register |
+
+### SMP / LAPIC / paging / PMM
+
+> ⚠ Powerful — these can deadlock or corrupt the kernel if misused. Wrap
+> in `bkl_lock`/`bkl_unlock` if you need atomicity vs. other CPUs.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `lapic_get_id` | `U32 lapic_get_id()` | Local APIC ID of the calling CPU |
+| `lapic_eoi` | `void lapic_eoi()` | End-of-interrupt (only call from a real ISR) |
+| `bkl_lock` / `bkl_unlock` | `void bkl_lock()` / `bkl_unlock()` | Big kernel lock — recursive ticket spinlock, IRQ-save |
+| `paging_map_mmio` | `void paging_map_mmio(U32 phys, U32 size)` | Identity-map a physical region with PWT|PCD bits |
+| `pmm_alloc_page` | `void *pmm_alloc_page()` | Allocate one 4 KB physical page |
+| `pmm_free_page` | `void pmm_free_page(void *page)` | Return a page to the PMM |
 
 ---
 

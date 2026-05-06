@@ -22,6 +22,11 @@ Related pages: [USB](USB), [SMP](SMP)
 | Socket API | BSD-style, 32-slot dedicated table |
 | RX model | NIC IRQ top-half → 64-slot lockless ring → idle bottom-half |
 | New source files | 22 (11 kernel + 2 bin + 2 doc + headers) |
+| TCP retransmit | Stop-and-wait, exponential backoff (5 attempts), per-socket `rt_buf` |
+| ARP cache TTL | 5 min per entry (`arp_tick()` from `net_process_pending`) |
+| IP fragmentation | Send-side splitter + 4-slot reassembly table, 64KB / 30s timeout |
+| Listen-queue GC | 30 s timeout on half-open SYN-RCVD slots |
+| Test harness | `make test-net` — pexpect + scapy, both NICs, `tests/*.pcap` capture |
 
 New kernel files:
 
@@ -824,7 +829,13 @@ $ resolve example.com
 ## CupidC Bindings
 
 All networking functions are registered in `kernel/cupidc.c` so they can be
-called from CupidC programs and scripts with no additional setup.
+called from CupidC programs and scripts with no additional setup. The same
+list is mirrored into CupidASM (`kernel/as.c`) and the ELF syscall table
+(`kernel/syscall.h`, version 3) so any of the three runtimes can use them.
+
+### BSD socket API
+
+Ports are network byte order — pass `htons(80)` to `bind`/`connect`.
 
 | CupidC name | C function | Arg count |
 |---|---|---|
@@ -838,9 +849,41 @@ called from CupidC programs and scripts with no additional setup.
 | `close` | `socket_close` | 1 |
 | `sendto` | `socket_sendto` | 5 |
 | `recvfrom` | `socket_recvfrom` | 5 |
-| `dns_resolve` | `dns_resolve` | 2 |
-| `htons` | `htons` | 1 |
-| `htonl` | `htonl` | 1 |
+
+### Resolver, byte-order, and protocol constants
+
+| CupidC name | Returns / does | Arg count |
+|---|---|---|
+| `dns_resolve(name, ip_out)` | A-record query, populates `*ip_out` | 2 |
+| `htons` / `ntohs` | 16-bit byte-swap | 1 |
+| `htonl` / `ntohl` | 32-bit byte-swap | 1 |
+| `IP_PROTO_ICMP` / `IP_PROTO_UDP` / `IP_PROTO_TCP` | Protocol constants (called as 0-arg getters) | 0 |
+
+### Network interface info (primary NIC)
+
+| CupidC name | Returns |
+|---|---|
+| `net_get_ip()` | Local IPv4, network byte order |
+| `net_get_gateway()` | Default gateway IPv4 |
+| `net_get_dns()` | DNS server IPv4 |
+| `net_get_mask()` | Subnet mask |
+| `net_get_mac(out)` | Fills 6-byte MAC into `out` |
+| `net_link_up()` | 1 if link is up, 0 otherwise |
+| `net_rx_packets()` / `net_tx_packets()` | Counters |
+| `net_rx_drops()` / `net_tx_errors()` | Error counters |
+
+### Raw protocol access
+
+| CupidC name | C function | Arg count |
+|---|---|---|
+| `ip_parse(s, out)` | Parse `"a.b.c.d"` into uint32 | 2 |
+| `ipv4_send(dst_ip, proto, payload, plen)` | Build + send arbitrary IPv4 packet (fragments if > MTU) | 4 |
+| `arp_resolve(ip, mac_out)` | Blocking ARP resolve | 2 |
+| `arp_dump()` | Print cache to serial | 0 |
+| `arp_get_entries(ips, macs, max)` | Bulk-read cache | 3 |
+| `icmp_send_echo(dst, id, seq, paylen)` | Send echo request | 4 |
+| `icmp_wait_reply(src, id, seq, timeout_ms)` | Block for matching reply, returns RTT ms | 4 |
+| `udp_send_raw(dst, sport, dport, data, len)` | One-shot UDP datagram | 5 |
 
 ### Feature test: `feature21_net` (TCP client)
 
@@ -893,6 +936,59 @@ Main();
 ```
 
 Host-side test: `curl http://localhost:8080/` (with `-hostfwd=tcp::8080-:80`).
+
+### `curl` and `wget` (in-OS)
+
+`/bin/curl.cc` and `/bin/wget.cc` are real HTTP/1.0 clients written
+entirely in CupidC against the bindings above. No new kernel hooks
+are involved — they exercise the public socket / VFS surface and
+prove it's complete enough for everyday networking work.
+
+```
+/> /bin/curl.cc http://example.com/
+<!doctype html><html lang="en"><head><title>Example Domain ...
+
+/> /bin/curl.cc -i -o /tmp/page.html -s http://example.com/
+/> /bin/curl.cc -d "k=v" -X POST http://httpbin.org/post
+
+/> /bin/wget.cc http://example.com/
+wget: example.com -> index.html
+wget: HTTP 200, 528 bytes saved to index.html
+
+/> /bin/wget.cc -O /home/page.html -q http://example.com/
+```
+
+Supported flags:
+
+| Tool | Flags |
+|---|---|
+| `curl` | `-o file`, `-i` (include headers), `-s` (silent), `-X METHOD`, `-d DATA` (sets POST), `-H "Hdr: val"` |
+| `wget` | `-O file` (else auto-derived from URL path), `-q` (quiet) |
+
+`https://` URLs are explicitly rejected — there is no TLS / crypto
+in the kernel. URL parser handles `http://host[:port][/path]`.
+Quoted-string args (e.g. `-H "Cookie: foo=bar"`) are honoured via a
+custom tokeniser since the shell passes the args list as one raw
+string.
+
+#### Redirect handling
+
+`curl` follows `Location:` headers automatically (up to 5 hops):
+
+| Status | Location | Behaviour |
+|---|---|---|
+| 3xx | `http://other-host/path` | reconnect, force GET, retry |
+| 3xx | `/relative/path` | reuse current host, force GET, retry |
+| 3xx | `https://...` | print `curl: redirect to https:// not supported (URL)` and exit |
+
+```
+/> /bin/curl.cc http://frankhagan.online/
+curl: redirect to https:// not supported (https://frankhagan.online/)
+```
+
+The HTTP body of the redirect response is suppressed when a follow
+fires, so you only see the final page (or the explicit https-not-
+supported message), not 200 bytes of "<html>301 Moved Permanently…".
 
 ---
 
@@ -952,9 +1048,49 @@ Serial output: `net: registered e1000 mac=...`. Run the same feature tests.
 ### Packet capture (debug)
 
 ```bash
+# In-band: any QEMU run can be amended with a filter-dump:
+qemu-system-i386 ... \
+    -object filter-dump,id=f0,netdev=n0,file=/tmp/cupid.pcap
+
+# `make test-net` does this automatically — pcaps land in tests/<nic>.pcap.
 # If using -netdev tap (not user-net):
 sudo tcpdump -i tap0 -n -vv
 ```
+
+### Automated integration test (`make test-net`)
+
+Headless QEMU, scripted shell, host curl, scapy wire-format check —
+all in one command. ~30 s for both NICs.
+
+```bash
+make test-net          # rtl8139 + e1000
+make test-net-quick    # rtl8139 only
+```
+
+What it verifies, per NIC:
+
+| Check | How |
+|---|---|
+| `dhcp` | `ifconfig` post-boot reports the SLIRP-issued IP (10.0.2.15) |
+| `ping_gw` | `ping 10.0.2.2 2` returns `recv=2` |
+| `arp` | After ping, gateway entry is in the cache |
+| `tcp_client` | `/bin/feature21_net.cc` prints `[feature21] PASS` |
+| `tcp_server` | `/bin/feature22_net_server.cc` accepts a `127.0.0.1:18080` curl from the host and returns `Hello CupidOS` |
+
+After the live tests, `tools/net_pcap.py` re-validates the captured
+frames at the wire level: ARP req/reply pairing, full DHCP 4-message
+exchange, ICMP echo-request → echo-reply, TCP `SYN` / `SYN-ACK` /
+`FIN`, at least one SYN to a public (non-RFC1918) destination, and
+recomputes every IP header checksum.
+
+Dependencies (host-side, `pip install --user`):
+
+- `pexpect` — drives the QEMU serial REPL
+- `scapy` — pcap parser; if missing, the wire-level step is skipped
+  but the live test still runs
+
+Pcap files persist between runs so you can open them in Wireshark for
+manual inspection if anything looks odd.
 
 ---
 
@@ -963,9 +1099,8 @@ sudo tcpdump -i tap0 -n -vv
 | Limitation | Notes |
 |---|---|
 | IPv4 only | No IPv6 |
-| No IP fragmentation | DF=1 on every send; fragmented receives dropped |
-| No Path MTU Discovery | MSS fixed at 1460 |
-| No TCP SACK / congestion / Nagle | Plain RFC 793 subset with fixed 500 ms RTO |
+| No Path MTU Discovery | MSS fixed at 1460; outgoing payloads > MTU are fragmented at IP layer |
+| No TCP SACK / congestion / Nagle | RFC 793 subset; data retransmit is stop-and-wait with exponential backoff (5 attempts) |
 | Single primary NIC | No multi-homing, no routing table |
 | 32 socket slots | No dynamic expansion |
 | No TLS / HTTPS | No crypto primitives in CupidOS |
@@ -974,6 +1109,7 @@ sudo tcpdump -i tap0 -n -vv
 | No raw sockets / packet filter | No PROMISC, no promiscuous mode |
 | Blocking via spin + yield | `accept`/`connect`/`recv` hold BKL while waiting; not efficient under contention |
 | No IPv6 multicast / mDNS | Only unicast and broadcast IPv4 |
+| IP reassembly buffer | 4 slots × 64 KB; concurrent fragmented flows beyond that get evicted by oldest-wins |
 
 ---
 
@@ -1005,3 +1141,6 @@ sudo tcpdump -i tap0 -n -vv
 | `kernel/e1000.c` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
 | `bin/feature21_net.cc` | TCP client smoke test: DNS + connect + HTTP GET |
 | `bin/feature22_net_server.cc` | TCP server smoke test: listen + accept + echo |
+| `bin/feature23_full_access.cc` | Phase 5 binding sanity (net info, ARP/ICMP/UDP, PCI, blkdev, BKL) |
+| `bin/curl.cc` | HTTP/1.0 client (GET/POST, -o/-i/-s/-X/-d/-H), CupidC |
+| `bin/wget.cc` | HTTP/1.0 downloader (auto-named or -O, status report), CupidC |

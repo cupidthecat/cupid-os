@@ -40,8 +40,18 @@ static const uint8_t hid_to_ps2[256] = {
     [0x3E] = 0x3F, [0x3F] = 0x40,
     [0x40] = 0x41, [0x41] = 0x42,
     [0x42] = 0x43, [0x43] = 0x44,
-    [0x4F] = 0x4D, [0x50] = 0x4B,
-    [0x51] = 0x50, [0x52] = 0x48,
+    [0x49] = 0x52, [0x4A] = 0x47, [0x4B] = 0x49, /* Insert, Home, PgUp */
+    [0x4C] = 0x53, [0x4D] = 0x4F, [0x4E] = 0x51, /* Delete, End, PgDn  */
+    [0x4F] = 0x4D, [0x50] = 0x4B,                /* RArrow, LArrow     */
+    [0x51] = 0x50, [0x52] = 0x48,                /* DArrow, UArrow     */
+};
+
+/* HID codes that need a 0xE0 prefix when translated to PS/2 set 1
+ * (extended scancodes — arrows, Insert/Delete/Home/End/PgUp/PgDn). */
+static const uint8_t hid_is_extended[256] = {
+    [0x49] = 1, [0x4A] = 1, [0x4B] = 1,
+    [0x4C] = 1, [0x4D] = 1, [0x4E] = 1,
+    [0x4F] = 1, [0x50] = 1, [0x51] = 1, [0x52] = 1,
 };
 
 typedef struct {
@@ -76,19 +86,27 @@ static void hid_kbd_cb(int status, usb_transfer_t *t) {
         }
     }
 
+    /* Releases */
     for (int i = 2; i < 8; i++) {
         uint8_t k = prev[i];
         if (k == 0) continue;
         bool still = false;
         for (int j = 2; j < 8; j++) if (cur[j] == k) { still = true; break; }
-        if (!still && hid_to_ps2[k]) keyboard_inject_scancode((uint8_t)(hid_to_ps2[k] | 0x80u));
+        if (!still && hid_to_ps2[k]) {
+            if (hid_is_extended[k]) keyboard_inject_scancode(0xE0u);
+            keyboard_inject_scancode((uint8_t)(hid_to_ps2[k] | 0x80u));
+        }
     }
+    /* Presses */
     for (int i = 2; i < 8; i++) {
         uint8_t k = cur[i];
         if (k == 0) continue;
         bool was = false;
         for (int j = 2; j < 8; j++) if (prev[j] == k) { was = true; break; }
-        if (!was && hid_to_ps2[k]) keyboard_inject_scancode(hid_to_ps2[k]);
+        if (!was && hid_to_ps2[k]) {
+            if (hid_is_extended[k]) keyboard_inject_scancode(0xE0u);
+            keyboard_inject_scancode(hid_to_ps2[k]);
+        }
     }
 
     for (int i = 0; i < 8; i++) prev[i] = cur[i];
@@ -132,7 +150,7 @@ static usb_driver_t hid_kbd_driver = {
 };
 
 typedef struct {
-    uint8_t report[3];
+    uint8_t report[4];   /* Intellimouse-style: [buttons, dx, dy, wheel] */
     usb_device_t *dev;
 } hid_mouse_state_t;
 
@@ -140,6 +158,11 @@ static void hid_mouse_cb(int status, usb_transfer_t *t) {
     if (status < 0) return;
     uint8_t *r = t->buffer;
     mouse_inject_event(r[0], (int8_t)r[1], (int8_t)r[2]);
+    /* Byte 3 is the wheel delta on most modern HID mice (boot protocol
+     * is officially 3 bytes; 4-byte devices place wheel here). For pure
+     * 3-byte devices our 4-byte buffer leaves r[3]=0 → no spurious
+     * scroll. */
+    mouse_inject_wheel((int8_t)r[3]);
 }
 
 static int hid_mouse_probe(usb_device_t *dev) {
@@ -151,14 +174,14 @@ static int hid_mouse_probe(usb_device_t *dev) {
 
     hid_mouse_state_t *st = (hid_mouse_state_t*)kmalloc(sizeof(hid_mouse_state_t));
     if (!st) return -1;
-    for (int i = 0; i < 3; i++) st->report[i] = 0;
+    for (int i = 0; i < 4; i++) st->report[i] = 0;
     st->dev = dev;
     dev->driver_data = st;
 
     usb_transfer_t t;
     t.dir = USB_DIR_IN; t.endpoint = 1; t.device_addr = dev->address;
-    t.max_packet = 3; t.speed = dev->speed; t.data_toggle = 0;
-    t.buffer = st->report; t.length = 3;
+    t.max_packet = 4; t.speed = dev->speed; t.data_toggle = 0;
+    t.buffer = st->report; t.length = 4;
     t.tt_hub_addr = dev->tt_hub_addr; t.tt_port = dev->tt_port;
     dev->hc->submit_interrupt(dev->hc, &t, hid_mouse_cb);
 
