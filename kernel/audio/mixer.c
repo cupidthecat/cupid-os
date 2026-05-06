@@ -1,5 +1,4 @@
 #include "mixer.h"
-#include "../../drivers/serial.h"
 
 typedef struct {
     const int16_t *pcm;
