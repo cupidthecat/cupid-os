@@ -158,6 +158,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/audio/opl_smoke.o \
 			kernel/audio/memio.o \
 			kernel/audio/mus2midi.o \
+			kernel/audio/midiopl.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -474,6 +475,11 @@ kernel/audio/memio.o: kernel/audio/memio.c kernel/audio/memio.h \
 kernel/audio/mus2midi.o: kernel/audio/mus2midi.c kernel/audio/mus2midi.h \
 	kernel/audio/memio.h kernel/types.h kernel/string.h kernel/memory.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+# midiopl — MIDI → OPL3 synth (our code; built with strict CFLAGS)
+kernel/audio/midiopl.o: kernel/audio/midiopl.c kernel/audio/midiopl.h \
+	kernel/audio/nuked_opl3.h kernel/types.h kernel/string.h drivers/serial.h
+	$(CC) $(CFLAGS) -o $@ $<
 
 # OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
 kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c kernel/audio/opl_smoke.h \
