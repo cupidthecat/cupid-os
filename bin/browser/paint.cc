@@ -207,97 +207,6 @@ void paint_rt_marker(int n, int sx, int sy) {
     gfx2d_text(sx - 12, sy + 2, glyph, fg, 0);
 }
 
-void draw_text_box(int bi, int sx, int sy) {
-    int bx = b_x[bi];
-    int by = b_y[bi] - scroll_y;
-    int bw = b_w[bi];
-    int bh = b_h[bi];
-    if (by + bh < 0 || by >= viewport_h()) return;
-
-    if (b_bg[bi] >= 0) {
-        gfx2d_rect_fill(sx + bx, sy + by, bw, bh, b_bg[bi]);
-    }
-    if (b_text_off[bi] == -2) {
-        /* bullet */
-        gfx2d_circle_fill(sx + bx + 3, sy + by + line_h / 2, 2, b_fg[bi]);
-        return;
-    }
-    if (b_text_off[bi] >= 0 && b_text_len[bi] > 0) {
-        char tmp[256];
-        int ml = b_text_len[bi];
-        if (ml > 255) ml = 255;
-        int k = 0;
-        char *src = attr_pool + b_text_off[bi];
-        while (k < ml) { tmp[k] = src[k]; k = k + 1; }
-        tmp[ml] = 0;
-        gfx2d_text(sx + bx, sy + by, tmp, b_fg[bi], 0);
-        if (b_bold[bi]) {
-            gfx2d_text(sx + bx + 1, sy + by, tmp, b_fg[bi], 0);
-        }
-        if (b_underline[bi]) {
-            gfx2d_hline(sx + bx, sy + by + line_h - 1, bw, b_fg[bi]);
-        }
-    }
-}
-
-void draw_input_box(int bi, int sx, int sy) {
-    int bx = b_x[bi]; int by = b_y[bi] - scroll_y;
-    int bw = b_w[bi]; int bh = b_h[bi];
-    if (by + bh < 0 || by >= viewport_h()) return;
-    gfx2d_rect_fill(sx + bx, sy + by, bw, bh, b_bg[bi]);
-    gfx2d_rect(sx + bx, sy + by, bw, bh, 0x808080);
-    int ii = b_input_idx[bi];
-    if (ii >= 0 && ii < MAX_INPUTS) {
-        char *v = input_value + ii * 128;
-        int max_chars = (bw - 4) / char_w;
-        char tmp[128];
-        int kl = 0;
-        while (v[kl] && kl < max_chars && kl < 127) {
-            tmp[kl] = v[kl]; kl = kl + 1;
-        }
-        tmp[kl] = 0;
-        gfx2d_text(sx + bx + 2, sy + by + 2, tmp, b_fg[bi], 0);
-        if (focus_mode == FOCUS_INPUT && focused_input == ii) {
-            int cx = sx + bx + 2 + kl * char_w;
-            gfx2d_vline(cx, sy + by + 2, line_h, b_fg[bi]);
-        }
-    }
-}
-
-void draw_button_box(int bi, int sx, int sy) {
-    int bx = b_x[bi]; int by = b_y[bi] - scroll_y;
-    int bw = b_w[bi]; int bh = b_h[bi];
-    if (by + bh < 0 || by >= viewport_h()) return;
-    gfx2d_rect_fill(sx + bx, sy + by, bw, bh, b_bg[bi]);
-    gfx2d_rect(sx + bx, sy + by, bw, bh, 0x404040);
-    if (b_text_off[bi] >= 0 && b_text_len[bi] > 0) {
-        char tmp[64];
-        int ml = b_text_len[bi];
-        if (ml > 63) ml = 63;
-        int k = 0;
-        char *src = attr_pool + b_text_off[bi];
-        while (k < ml) { tmp[k] = src[k]; k = k + 1; }
-        tmp[ml] = 0;
-        int tx = sx + bx + (bw - ml * char_w) / 2;
-        gfx2d_text(tx, sy + by + 3, tmp, b_fg[bi], 0);
-    } else {
-        gfx2d_text(sx + bx + 4, sy + by + 3, "Submit", b_fg[bi], 0);
-    }
-}
-
-void draw_image_box(int bi, int sx, int sy) {
-    int bx = b_x[bi]; int by = b_y[bi] - scroll_y;
-    int bw = b_w[bi]; int bh = b_h[bi];
-    if (by + bh < 0 || by >= viewport_h()) return;
-    if (b_img_handle[bi] >= 0) {
-        gfx2d_image_draw_scaled(b_img_handle[bi], sx + bx, sy + by, bw, bh);
-    } else {
-        gfx2d_rect_fill(sx + bx, sy + by, bw, bh, b_bg[bi]);
-        gfx2d_rect(sx + bx, sy + by, bw, bh, b_fg[bi]);
-        gfx2d_text(sx + bx + 4, sy + by + 4, "[img]", b_fg[bi], 0);
-    }
-}
-
 void draw_address_bar(int sx, int sy, int sw) {
     int bg = (focus_mode == FOCUS_ADDR) ? 0xFFFFE0 : 0xF0F0F0;
     gfx2d_rect_fill(sx, sy, sw, ADDR_H, bg);
@@ -379,11 +288,9 @@ void render() {
 }
 
 void error_page(char *msg) {
-    /* Reset all pipeline state and draw the error inline; the legacy boxes[]
-     * pipeline that error_page used to populate is being retired (Task 11). */
+    /* Reset all pipeline state and draw the error inline. */
     nodes_count = 0;
     attr_pool_pos = 1;
-    boxes_count = 0;
     rt_count = 0;
     cs_count = 0;
     la_count = 0;

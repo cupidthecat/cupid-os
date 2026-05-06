@@ -50,7 +50,6 @@ void navigate(char *u) {
     char ct[128]; ct[0] = 0;
     if (fetch_url(u, ct) != 0) {
         nodes_count = 0;
-        boxes_count = 0;
         doc_h = 0;
         scroll_y = 0;
         return;

@@ -23,7 +23,6 @@ enum {
     RECV_BUF_SIZE   = 4096,
 
     MAX_NODES = 4096,
-    MAX_BOXES = 2048,
     MAX_LINKS = 1024,
     MAX_INPUTS = 64,
     MAX_FORMS  = 32,
@@ -148,14 +147,6 @@ enum {
     RT_TEXT,
     RT_REPLACED,        /* <img>, <input>, <button>, <textarea> */
     RT_LINE_BOX,
-
-    /* box kinds */
-    BK_TEXT  = 0,
-    BK_RECT  = 1,
-    BK_IMG   = 2,
-    BK_INPUT = 3,
-    BK_HRULE = 4,
-    BK_BUTTON = 5,
 
     /* focus */
     FOCUS_PAGE = 0,
@@ -331,23 +322,6 @@ int  ap_count;
 int  ap_name_off  [MAX_ATTR_PAIRS];
 int  ap_value_off [MAX_ATTR_PAIRS];
 
-/* layout boxes */
-int boxes_count;
-int b_kind      [2048];
-int b_x         [2048];
-int b_y         [2048];
-int b_w         [2048];
-int b_h         [2048];
-int b_fg        [2048];
-int b_bg        [2048];
-int b_text_off  [2048];
-int b_text_len  [2048];
-int b_link_idx  [2048];   /* -1 if none */
-int b_input_idx [2048];
-int b_img_handle[2048];
-int b_bold      [2048];
-int b_underline [2048];
-
 /* link table */
 int  links_count;
 int  link_url_off[1024];   /* into attr_pool */
@@ -396,7 +370,6 @@ void browser_main() {
     cur_url[0] = 0;
     nodes_count = 0;
     attr_pool_pos = 1;
-    boxes_count = 0;
     inputs_count = 0;
     forms_count = 0;
     hist_count = 0;
