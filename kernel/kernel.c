@@ -631,6 +631,10 @@ void kmain(void) {
     pci_init();
     KINFO("PCI bus enumeration complete");
 
+    /* AC97 audio probe — best-effort; logs and returns -1 if absent */
+    extern int ac97_init(void);
+    ac97_init();
+
     /* net_init() moved to after sti below so NIC IRQs can actually fire
      * during DHCP negotiation. Before sti, IRQs are masked → DHCP OFFER
      * reply never reaches us → static fallback triggers every boot. */

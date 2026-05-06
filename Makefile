@@ -144,6 +144,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
 			kernel/ksyms.o \
+			kernel/audio/ac97.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -437,6 +438,10 @@ kernel/usb_hub.o: kernel/usb_hub.c kernel/usb.h kernel/usb_hc.h drivers/serial.h
 # USB mass storage class driver (BBB + SCSI)
 kernel/usb_msc.o: kernel/usb_msc.c kernel/usb.h kernel/usb_hc.h kernel/blockdev.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/usb_msc.c -o kernel/usb_msc.o
+
+# AC97 audio probe scaffold
+kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/audio/ac97.c -o kernel/audio/ac97.o
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
