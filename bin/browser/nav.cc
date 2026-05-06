@@ -96,81 +96,115 @@ void go_back() {
     navigate(prev);
 }
 
+/* GET-only form submit (per spec §10).
+ *
+ * Takes a DOM node index pointing at the <form> element. Walks the form's
+ * descendant subtree via n_first_child/n_next, collects every <input> with
+ * a name attribute, URL-encodes name=value pairs, and navigates to
+ * action?query (action defaults to the current URL when absent). */
 void submit_form(int form_node_idx) {
-    int form_idx = -1;
-    int i = 0;
-    /* find form_idx */
-    int seen = 0;
-    int n = 0;
-    while (n < nodes_count) {
-        if (n_tag[n] == T_FORM) {
-            if (n == form_node_idx) { form_idx = seen; break; }
-            seen = seen + 1;
-        }
-        n = n + 1;
-    }
-    if (form_idx < 0 || form_idx >= forms_count) return;
+    if (form_node_idx < 0 || form_node_idx >= nodes_count) return;
+    if (n_tag[form_node_idx] != T_FORM) return;
 
-    char base_url[1024];
-    if (form_action[form_idx] >= 0) {
-        char *act = attr_pool + form_action[form_idx];
-        compute_url_relative(act, base_url, URL_MAX);
-    } else {
-        b_strcpy_n(base_url, cur_url, URL_MAX);
-    }
+    char *action = dom_attr_str(form_node_idx, "action");
 
-    char query[1024]; int qp = 0;
-    int has = 0;
-    int ii = 0;
-    while (ii < inputs_count) {
-        if (input_form[ii] == form_idx && input_name_off[ii] >= 0) {
-            char *nm = attr_pool + input_name_off[ii];
-            char *vl = input_value + ii * 128;
-            if (qp < 1023) {
-                query[qp] = has ? '&' : '?'; qp = qp + 1;
+    /* Build query string by depth-first walk of the form subtree. */
+    char query[1024];
+    int qlen = 0;
+    int first_pair = 1;
+    int stack[64];
+    int sp = 0;
+    int kid = n_first_child[form_node_idx];
+    while (kid >= 0 && sp < 64) { stack[sp] = kid; sp = sp + 1; kid = n_next[kid]; }
+
+    while (sp > 0) {
+        sp = sp - 1;
+        int node = stack[sp];
+
+        if (n_tag[node] == T_INPUT) {
+            char *name = dom_attr_str(node, "name");
+            /* Locate this input's runtime entry to read its current value. */
+            int ii = -1;
+            for (int k = 0; k < inputs_count; k++) {
+                if (input_node[k] == node) { ii = k; break; }
             }
-            int j = 0;
-            while (nm[j] && qp < 1023) {
-                query[qp] = nm[j]; qp = qp + 1; j = j + 1;
+            char *value;
+            if (ii >= 0) {
+                value = input_value + ii * 128;
+            } else {
+                char *dv = dom_attr_str(node, "value");
+                value = dv ? dv : "";
             }
-            if (qp < 1023) { query[qp] = '='; qp = qp + 1; }
-            j = 0;
-            while (vl[j] && qp < 1023) {
-                char c = vl[j];
-                if (c == ' ') { query[qp] = '+'; qp = qp + 1; }
-                else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                         (c >= '0' && c <= '9') || c == '-' || c == '_' ||
-                         c == '.' || c == '~') {
-                    query[qp] = c; qp = qp + 1;
-                } else if (qp + 3 <= 1023) {
-                    char hex[16];
-                    hex[0] = '0'; hex[1] = '1'; hex[2] = '2'; hex[3] = '3';
-                    hex[4] = '4'; hex[5] = '5'; hex[6] = '6'; hex[7] = '7';
-                    hex[8] = '8'; hex[9] = '9'; hex[10] = 'A'; hex[11] = 'B';
-                    hex[12] = 'C'; hex[13] = 'D'; hex[14] = 'E'; hex[15] = 'F';
-                    int u = (int)c & 0xFF;
-                    query[qp] = '%'; qp = qp + 1;
-                    query[qp] = hex[(u >> 4) & 0xF]; qp = qp + 1;
-                    query[qp] = hex[u & 0xF]; qp = qp + 1;
+            /* Skip submit/image inputs — they are activators, not data. */
+            char *typ = dom_attr_str(node, "type");
+            int is_submit = (typ != 0 &&
+                             (b_strieq(typ, "submit") || b_strieq(typ, "image")));
+
+            if (name != 0 && !is_submit && qlen + 200 < 1024) {
+                if (!first_pair) {
+                    query[qlen] = '&'; qlen = qlen + 1;
                 }
-                j = j + 1;
+                first_pair = 0;
+                int nl = b_strlen(name);
+                for (int k = 0; k < nl && qlen < 1023; k++) {
+                    query[qlen] = name[k]; qlen = qlen + 1;
+                }
+                if (qlen < 1023) { query[qlen] = '='; qlen = qlen + 1; }
+                int vl = b_strlen(value);
+                for (int k = 0; k < vl && qlen < 1023; k++) {
+                    char ch = value[k];
+                    if (ch == ' ') {
+                        query[qlen] = '+'; qlen = qlen + 1;
+                    } else if ((ch >= 'a' && ch <= 'z') ||
+                               (ch >= 'A' && ch <= 'Z') ||
+                               (ch >= '0' && ch <= '9') ||
+                               ch == '-' || ch == '_' || ch == '.' || ch == '~') {
+                        query[qlen] = ch; qlen = qlen + 1;
+                    } else if (qlen + 3 < 1024) {
+                        char hex[16];
+                        hex[0] = '0'; hex[1] = '1'; hex[2] = '2'; hex[3] = '3';
+                        hex[4] = '4'; hex[5] = '5'; hex[6] = '6'; hex[7] = '7';
+                        hex[8] = '8'; hex[9] = '9'; hex[10] = 'A'; hex[11] = 'B';
+                        hex[12] = 'C'; hex[13] = 'D'; hex[14] = 'E'; hex[15] = 'F';
+                        int u = (int)ch & 0xFF;
+                        query[qlen] = '%';                       qlen = qlen + 1;
+                        query[qlen] = hex[(u >> 4) & 0xF];       qlen = qlen + 1;
+                        query[qlen] = hex[u & 0xF];              qlen = qlen + 1;
+                    }
+                }
             }
-            has = 1;
         }
-        ii = ii + 1;
-    }
-    query[qp] = 0;
 
-    char full[1024];
-    int p = 0;
-    int j = 0;
-    while (base_url[j] && p < URL_MAX - 1 && base_url[j] != '?') {
-        full[p] = base_url[j]; p = p + 1; j = j + 1;
+        /* Push children of this node so the walk descends. */
+        int cc = n_first_child[node];
+        while (cc >= 0 && sp < 64) { stack[sp] = cc; sp = sp + 1; cc = n_next[cc]; }
     }
-    j = 0;
-    while (query[j] && p < URL_MAX - 1) {
-        full[p] = query[j]; p = p + 1; j = j + 1;
+    query[qlen] = 0;
+
+    /* Build target URL: action (default = cur_path) + '?' + query. */
+    char target[URL_MAX];
+    int tp = 0;
+    if (action != 0) {
+        int al = b_strlen(action);
+        for (int k = 0; k < al && tp < URL_MAX - 1; k++) {
+            target[tp] = action[k]; tp = tp + 1;
+        }
+    } else {
+        /* Empty action means submit to current document URL. */
+        int pl = b_strlen(cur_path);
+        for (int k = 0; k < pl && tp < URL_MAX - 1; k++) {
+            target[tp] = cur_path[k]; tp = tp + 1;
+        }
     }
-    full[p] = 0;
-    navigate(full);
+    if (qlen > 0 && tp < URL_MAX - 1) {
+        target[tp] = '?'; tp = tp + 1;
+        for (int k = 0; k < qlen && tp < URL_MAX - 1; k++) {
+            target[tp] = query[k]; tp = tp + 1;
+        }
+    }
+    target[tp] = 0;
+
+    char absu[URL_MAX];
+    compute_url_relative(target, absu, URL_MAX);
+    navigate(absu);
 }

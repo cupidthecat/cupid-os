@@ -1,19 +1,28 @@
 /* ---------- Hit testing + Input ---------- */
 
-int hit_box(int mx, int my) {
-    /* mx, my relative to viewport */
-    int i = 0;
-    int doc_y = my + scroll_y;
-    while (i < boxes_count) {
-        int by = b_y[i];
-        int bx = b_x[i];
-        if (mx >= bx && mx < bx + b_w[i] &&
-            doc_y >= by && doc_y < by + b_h[i]) {
-            return i;
-        }
-        i = i + 1;
+/* Reverse-depth render-tree hit test: returns the deepest render node whose
+ * paint rectangle contains (mx, my). Inputs are window-content-relative
+ * coordinates (the same frame rt_screen_x/y produces, i.e. they already
+ * account for viewport_y() and scroll_y). */
+int rt_hit(int n, int mx, int my) {
+    int sx = rt_screen_x(n);
+    int sy = rt_screen_y(n);
+    if (mx < sx || mx >= sx + rt_w[n] || my < sy || my >= sy + rt_h[n]) return -1;
+    /* Walk children deepest/last-first so later painters win on overlap. */
+    int sibs[256];
+    int nsib = 0;
+    int c = rt_first_child[n];
+    while (c >= 0 && nsib < 256) { sibs[nsib] = c; nsib = nsib + 1; c = rt_next[c]; }
+    for (int k = nsib - 1; k >= 0; k--) {
+        int h = rt_hit(sibs[k], mx, my);
+        if (h >= 0) return h;
     }
-    return -1;
+    return n;
+}
+
+int hit_box(int mx, int my) {
+    if (rt_count == 0) return -1;
+    return rt_hit(0, mx, my);
 }
 
 /* find the input/button form parent node */
@@ -150,34 +159,54 @@ void handle_left_click(int mx, int my) {
     /* viewport */
     if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
         rel_x >= 0 && rel_x < cur_cw - 12) {
-        int vmx = rel_x;
-        int vmy = rel_y - viewport_y();
-        int bi = hit_box(vmx, vmy);
-        if (bi >= 0) {
-            int kind = b_kind[bi];
-            if (kind == BK_TEXT && b_link_idx[bi] >= 0) {
-                int li = b_link_idx[bi];
-                char *u = attr_pool + link_url_off[li];
+        int hit = hit_box(rel_x, rel_y);
+        if (hit >= 0) {
+            /* Walk parent chain looking for the nearest interactive node:
+             * a link, a focusable input, or a submit-capable button/input. */
+            int link = -1;
+            int input_idx = -1;
+            int submit_form_node = -1;
+            int cur = hit;
+            while (cur >= 0) {
+                if (rt_link_idx[cur] >= 0) { link = rt_link_idx[cur]; break; }
+                if (rt_input_idx[cur] >= 0) { input_idx = rt_input_idx[cur]; break; }
+                int dom = rt_dom[cur];
+                if (dom >= 0) {
+                    int tag = n_tag[dom];
+                    if (tag == T_BUTTON) {
+                        char *btyp = dom_attr_str(dom, "type");
+                        /* default <button> behavior is submit */
+                        if (btyp == 0 || b_strieq(btyp, "submit")) {
+                            int fn = find_form_node(dom);
+                            if (fn >= 0) { submit_form_node = fn; break; }
+                        }
+                    } else if (tag == T_INPUT) {
+                        char *typ = dom_attr_str(dom, "type");
+                        if (typ != 0 &&
+                            (b_strieq(typ, "submit") || b_strieq(typ, "image"))) {
+                            int fn = find_form_node(dom);
+                            if (fn >= 0) { submit_form_node = fn; break; }
+                        }
+                    }
+                }
+                cur = rt_parent[cur];
+            }
+            if (link >= 0) {
+                char *u = attr_pool + link_url_off[link];
                 char full[1024];
                 compute_url_relative(u, full, URL_MAX);
                 focus_mode = FOCUS_PAGE;
                 navigate(full);
                 return;
             }
-            if (kind == BK_INPUT) {
+            if (input_idx >= 0) {
                 focus_mode = FOCUS_INPUT;
-                focused_input = b_input_idx[bi];
+                focused_input = input_idx;
                 return;
             }
-            if (kind == BK_BUTTON && b_input_idx[bi] == -2) {
-                /* TODO Task 10: rebind via render tree.
-                 * Old code located the originating <input type=submit> via the
-                 * removed n_form_idx==-2 marker. With per-attr fields gone, we
-                 * have no back-reference from the box to the DOM node. Task 10
-                 * rewrites click handling to walk the render tree, restoring
-                 * submit-button click. For Task 3 we deliberately leave this
-                 * as a no-op: the entire boxes[] pipeline goes away in Task 11
-                 * regardless. */
+            if (submit_form_node >= 0) {
+                focus_mode = FOCUS_PAGE;
+                submit_form(submit_form_node);
                 return;
             }
         }
@@ -203,11 +232,13 @@ void handle_hover(int mx, int my) {
     hover_link = -1;
     if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
         rel_x >= 0 && rel_x < cur_cw - 12) {
-        int vmx = rel_x;
-        int vmy = rel_y - viewport_y();
-        int bi = hit_box(vmx, vmy);
-        if (bi >= 0 && b_kind[bi] == BK_TEXT && b_link_idx[bi] >= 0) {
-            hover_link = b_link_idx[bi];
+        int hit = hit_box(rel_x, rel_y);
+        if (hit >= 0) {
+            int cur = hit;
+            while (cur >= 0) {
+                if (rt_link_idx[cur] >= 0) { hover_link = rt_link_idx[cur]; break; }
+                cur = rt_parent[cur];
+            }
         }
     }
 }
