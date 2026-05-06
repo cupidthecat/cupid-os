@@ -90,6 +90,7 @@ FAT_START_LBA ?= 8192
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
+WAD_SRCS := $(wildcard /usr/share/games/doom/freedoom*.wad)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o kernel/pci.o kernel/usb.o kernel/uhci.o kernel/ehci.o kernel/usb_hid.o kernel/usb_hub.o kernel/usb_msc.o \
@@ -917,6 +918,7 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+	@$(MAKE) stage-wads
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
@@ -1027,6 +1029,20 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	@mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso
 	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
+# Stage DOOM WADs into FAT16 partition at /wads/.
+# No-op (warning only) if no freedoom*.wad present on host.
+stage-wads: check-mtools
+	@if [ -n "$(WAD_SRCS)" ]; then \
+	  echo "Staging WADs into FAT16 partition..."; \
+	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads 2>/dev/null || true; \
+	  for w in $(WAD_SRCS); do \
+	    echo "  mcopy $$w -> /wads/"; \
+	    mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/; \
+	  done; \
+	else \
+	  echo "WARNING: no WADs found at /usr/share/games/doom/ -- skipping stage-wads"; \
+	fi
+
 clean:
 	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o cupidos-txt/*.o demos/*.o \
 	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c debug.log
@@ -1036,4 +1052,4 @@ clean-image:
 
 distclean: clean clean-image
 
-.PHONY: all check-mtools run run-log sync-demos sync-iso clean clean-image distclean
+.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image distclean

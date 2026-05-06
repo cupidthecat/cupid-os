@@ -525,6 +525,10 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 - GNU Make
 - QEMU (qemu-system-i386)
 - mtools (mcopy, mdir) for FAT16 image work and WAD staging
+- DOOM WADs (optional): drop `freedoom1.wad` / `freedoom2.wad` (or any
+  DOOM-format IWAD) into `/usr/share/games/doom/` on the build host
+  before running `make`. The Makefile auto-copies them into `/disk/wads/`
+  inside the image.
 - Linux or similar Unix environment
 
 ---
