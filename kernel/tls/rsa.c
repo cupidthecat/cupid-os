@@ -191,13 +191,17 @@ int rsa_pss_verify_sha256(const uint8_t *n_be, uint32_t n_len,
         db[i] = (uint8_t)(em[(n_len - emlen) + i] ^ mask[i]);
     }
 
-    /* Clear top (8*emlen - embits) bits of db[0]. */
+    /* Clear top (8*emlen - embits) bits of db[0] per RFC 3447 §9.1.2 step 6
+     * ("Set the leftmost 8emLen-emBits bits of the leftmost octet in DB to
+     * zero"). Do NOT reject if those bits are already non-zero — the signer
+     * only zeroes the top bits of *maskedDB* (RFC §9.1.1 step 11), so after
+     * MGF1 unmasking the top bits of DB equal MGF1's leading bits, which
+     * are essentially random. The verifier's job is just to mask them off
+     * before checking PS. The previous strict check rejected ~50% of valid
+     * RSA-4096 signatures (any case where MGF1 output's high bit was set). */
     top_zero_bits = (uint32_t)(8u * emlen) - embits;
-    if (top_zero_bits == 0u) {
-        /* nothing */
-    } else {
+    if (top_zero_bits != 0u) {
         uint8_t topmask = (uint8_t)(0xFFu >> top_zero_bits);
-        if ((db[0] & ~topmask) != 0u) return 0;
         db[0] = (uint8_t)(db[0] & topmask);
     }
 
