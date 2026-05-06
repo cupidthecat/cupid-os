@@ -378,14 +378,254 @@ void layout_block(int n, int avail_w);
 void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
                   int cx, int *cy, int max_w);
 
-/* Stubs filled in by Task 8. While stubbed, inline content is silently
- * dropped from the new pipeline — but legacy paint still drives rendering,
- * so visible output is unchanged. */
-void collect_inline_atoms(int n) { (void)n; }
+/* §4 IFC — line-box layout. Walks an inline subtree depth-first, splits text
+ * into atoms by whitespace (or by \n / per-char per `white-space`), tracks
+ * (x, line_top, line_h), and emits LINE_BOX render nodes whose
+ * rt_line_atom_first/count reference the atom slice. */
+
+int tier_char_w(int tier) {
+    if (tier == 0 || tier == 1) return 8;
+    if (tier == 2) return 12;
+    if (tier == 3) return 16;
+    return 24;     /* tier 4 */
+}
+int tier_line_h(int tier) {
+    if (tier == 0 || tier == 1) return 12;
+    if (tier == 2) return 16;
+    if (tier == 3) return 20;
+    return 28;
+}
+
+int text_atom_w(int len, int tier) { return len * tier_char_w(tier); }
+
+/* Walks the inline subtree rooted at `n` (which is RT_INLINE / RT_TEXT /
+ * RT_INLINE_BLOCK / RT_REPLACED). Appends one or more entries to la_*[].
+ * White-space behaviour from cs_white_space[rt_style[n]]: NORMAL collapses
+ * runs of \s to single space, breaks anywhere; PRE preserves all whitespace,
+ * splits on \n; NOWRAP collapses but never breaks. */
+void emit_text_atoms(int rt_text_n, int parent_rt) {
+    (void)parent_rt;
+    int cs = rt_style[rt_text_n];
+    int ws = cs_white_space[cs];
+    int tier = cs_font_size_tier[cs];
+    int fg = cs_color[cs];
+    int bg = cs_bg[cs];
+    int bold = cs_font_w[cs] >= 700;
+    int underline = (cs_text_dec[cs] & TD_UNDERLINE) ? 1 : 0;
+    int link_idx = -1;
+    /* Walk up looking for a parent with rt_link_idx >= 0 */
+    int p = rt_text_n;
+    while (p >= 0) {
+        if (rt_link_idx[p] >= 0) { link_idx = rt_link_idx[p]; break; }
+        p = rt_parent[p];
+    }
+
+    int off = rt_text_off[rt_text_n];
+    int len = rt_text_len[rt_text_n];
+    int i = 0;
+
+    if (ws == WS_PRE) {
+        /* Split on \n; each line is one atom. */
+        int s = 0;
+        while (s < len) {
+            int e = s;
+            while (e < len && attr_pool[off + e] != '\n') e++;
+            int run_len = e - s;
+            if (la_count < MAX_LINE_ATOMS) {
+                la_text_off[la_count] = off + s;
+                la_text_len[la_count] = run_len;
+                la_w[la_count] = text_atom_w(run_len, tier);
+                la_font_tier[la_count] = tier;
+                la_fg[la_count] = fg; la_bg[la_count] = bg;
+                la_bold[la_count] = bold; la_underline[la_count] = underline;
+                la_link_idx[la_count] = link_idx;
+                la_x[la_count] = -1;     /* filled at flush time */
+                la_count++;
+            }
+            if (e < len) {
+                /* Sentinel \n atom: text_len = 0 means hard break */
+                if (la_count < MAX_LINE_ATOMS) {
+                    la_text_off[la_count] = off + e;
+                    la_text_len[la_count] = 0;
+                    la_w[la_count] = 0;
+                    la_font_tier[la_count] = tier;
+                    la_fg[la_count] = fg; la_bg[la_count] = bg;
+                    la_bold[la_count] = bold; la_underline[la_count] = underline;
+                    la_link_idx[la_count] = link_idx;
+                    la_x[la_count] = -2;    /* hard break sentinel */
+                    la_count++;
+                }
+                s = e + 1;
+            } else {
+                s = e;
+            }
+        }
+        return;
+    }
+
+    /* WS_NORMAL or WS_NOWRAP: collapse whitespace to single spaces, split into
+     * word atoms. */
+    while (i < len) {
+        /* skip leading whitespace, emit a single space atom if any (only between
+         * word atoms — leading at start of run handled by line layout). */
+        int saw_ws = 0;
+        while (i < len) {
+            char c = attr_pool[off + i];
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; saw_ws = 1; }
+            else break;
+        }
+        if (i >= len) break;
+        if (saw_ws && la_count > 0 && la_count < MAX_LINE_ATOMS) {
+            /* Inter-word space atom: text_len=1, text_off pointing at a literal " ". */
+            la_text_off[la_count] = attr_intern(" ", 1);
+            la_text_len[la_count] = 1;
+            la_w[la_count] = tier_char_w(tier);
+            la_font_tier[la_count] = tier;
+            la_fg[la_count] = fg; la_bg[la_count] = bg;
+            la_bold[la_count] = bold; la_underline[la_count] = underline;
+            la_link_idx[la_count] = link_idx;
+            la_x[la_count] = (ws == WS_NOWRAP) ? -1 : -3;  /* -3 = soft break point */
+            la_count++;
+        }
+        /* word atom */
+        int s = i;
+        while (i < len) {
+            char c = attr_pool[off + i];
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') break;
+            i++;
+        }
+        int wlen = i - s;
+        if (wlen > 0 && la_count < MAX_LINE_ATOMS) {
+            la_text_off[la_count] = off + s;
+            la_text_len[la_count] = wlen;
+            la_w[la_count] = text_atom_w(wlen, tier);
+            la_font_tier[la_count] = tier;
+            la_fg[la_count] = fg; la_bg[la_count] = bg;
+            la_bold[la_count] = bold; la_underline[la_count] = underline;
+            la_link_idx[la_count] = link_idx;
+            la_x[la_count] = -1;
+            la_count++;
+        }
+    }
+}
+
+void collect_inline_atoms(int n) {
+    int kind = rt_kind[n];
+    if (kind == RT_TEXT) {
+        emit_text_atoms(n, rt_parent[n]);
+        return;
+    }
+    if (kind == RT_INLINE) {
+        int c = rt_first_child[n];
+        while (c >= 0) {
+            collect_inline_atoms(c);
+            c = rt_next[c];
+        }
+        return;
+    }
+    if (kind == RT_INLINE_BLOCK || kind == RT_REPLACED) {
+        /* For replaced/inline-block: lay out as a mini block, then atom carries
+         * the resulting w/h. */
+        int avail = viewport_content_w();
+        if (kind == RT_INLINE_BLOCK) layout_block(n, avail);
+        int w = (rt_intrinsic_w[n] > 0) ? rt_intrinsic_w[n] : rt_w[n];
+        int h = (rt_intrinsic_h[n] > 0) ? rt_intrinsic_h[n] : rt_h[n];
+        (void)h;
+        if (la_count < MAX_LINE_ATOMS) {
+            la_text_off[la_count] = -n - 1;     /* negative encodes "RT node ref"; -n-1 reverses to n */
+            la_text_len[la_count] = 0;
+            la_w[la_count] = w;
+            la_font_tier[la_count] = 0;
+            la_fg[la_count] = 0; la_bg[la_count] = 0;
+            la_bold[la_count] = 0; la_underline[la_count] = 0;
+            la_link_idx[la_count] = rt_link_idx[n];
+            la_x[la_count] = -1;
+            la_count++;
+        }
+        return;
+    }
+}
+
 void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
                   int cx, int *cy, int max_w) {
-    (void)parent; (void)atom_pile_first; (void)atom_pile_count;
-    (void)cx; (void)cy; (void)max_w;
+    int first = *atom_pile_first;
+    int total = *atom_pile_count;
+    if (total == 0) return;
+
+    int line_start_atom = first;
+    int x = cx;
+    int line_h = 0;
+    int line_top = *cy;
+
+    for (int k = first; k < first + total; k++) {
+        int aw = la_w[k];
+        int tier = la_font_tier[k];
+        int sentinel = la_x[k];
+
+        if (sentinel == -2) {
+            /* Hard break (PRE) */
+            la_x[k] = x;
+            int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
+            if (lb >= 0) {
+                rt_line_atom_first[lb] = line_start_atom;
+                rt_line_atom_count[lb] = (k + 1) - line_start_atom;
+                rt_x[lb] = cx;
+                rt_y[lb] = line_top;
+                rt_w[lb] = max_w;
+                int lh = line_h ? line_h : tier_line_h(tier);
+                rt_h[lb] = lh;
+            }
+            line_top += line_h ? line_h : tier_line_h(tier);
+            x = cx;
+            line_h = 0;
+            line_start_atom = k + 1;
+            continue;
+        }
+
+        /* Wrap if this atom doesn't fit and we have something on the line */
+        if (sentinel == -3 && x + aw > cx + max_w && x > cx) {
+            int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
+            if (lb >= 0) {
+                rt_line_atom_first[lb] = line_start_atom;
+                rt_line_atom_count[lb] = k - line_start_atom;
+                rt_x[lb] = cx;
+                rt_y[lb] = line_top;
+                rt_w[lb] = max_w;
+                rt_h[lb] = line_h;
+            }
+            line_top += line_h;
+            x = cx;
+            line_h = 0;
+            line_start_atom = k + 1;        /* drop the trailing space atom */
+            continue;
+        }
+        if (x + aw > cx + max_w && x > cx && sentinel != -3) {
+            /* Mid-word wrap not allowed in v1 — but we accept overflow rather
+             * than truncate */
+        }
+        la_x[k] = x;
+        x += aw;
+        int lh = tier_line_h(tier);
+        if (lh > line_h) line_h = lh;
+    }
+
+    /* Flush remaining */
+    if (line_start_atom < first + total) {
+        int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
+        if (lb >= 0) {
+            rt_line_atom_first[lb] = line_start_atom;
+            rt_line_atom_count[lb] = (first + total) - line_start_atom;
+            rt_x[lb] = cx;
+            rt_y[lb] = line_top;
+            rt_w[lb] = max_w;
+            rt_h[lb] = line_h ? line_h : 12;
+        }
+        line_top += line_h ? line_h : 12;
+    }
+
+    *cy = line_top;
+    *atom_pile_first = la_count;
+    *atom_pile_count = 0;
 }
 
 void layout_block(int n, int avail_w) {
