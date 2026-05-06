@@ -106,12 +106,32 @@ enum {
     T_TD       = 53,
     T_TH       = 54,
     T_BLOCKQUOTE = 55,
+    T_NOSCRIPT   = 56,
 
     /* §1 tokenizer token kinds */
     TK_START = 1,
     TK_END   = 2,
     TK_TEXT  = 3,
     TK_EOF   = 4,
+
+    /* §2 CSS property IDs — internal */
+    CP_COLOR = 1, CP_BG_COLOR, CP_BG, CP_FONT_WEIGHT, CP_FONT_STYLE,
+    CP_FONT_SIZE, CP_TEXT_ALIGN, CP_TEXT_DEC, CP_DISPLAY,
+    CP_MARGIN, CP_MARGIN_T, CP_MARGIN_R, CP_MARGIN_B, CP_MARGIN_L,
+    CP_PADDING, CP_PADDING_T, CP_PADDING_R, CP_PADDING_B, CP_PADDING_L,
+    CP_BORDER, CP_BORDER_COLOR, CP_BORDER_T, CP_BORDER_R, CP_BORDER_B, CP_BORDER_L,
+    CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
+
+    /* §2 enumerated value tags */
+    TA_LEFT = 0, TA_CENTER, TA_RIGHT,
+    TD_UNDERLINE = 1, TD_LINE_THROUGH = 2,
+    DISP_BLOCK = 1, DISP_INLINE, DISP_INLINE_BLOCK, DISP_LIST_ITEM,
+    DISP_TABLE, DISP_TABLE_ROW_GROUP, DISP_TABLE_ROW, DISP_TABLE_CELL,
+    DISP_TABLE_CAPTION, DISP_NONE,
+    WS_NORMAL = 0, WS_PRE, WS_NOWRAP,
+    LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
+    VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
+    MAX_CSS_SELECTORS = 1024,
 
     /* box kinds */
     BK_TEXT  = 0,
@@ -186,6 +206,50 @@ int form_node [MAX_FORMS];
 
 char attr_pool[131072];
 int  attr_pool_pos;
+
+/* §2 CSS rule table — populated by css.cc, consumed by style.cc resolver.
+ * One rule = one selector chain + one declaration block. Multiple
+ * declarations in a single CSS rule produce multiple entries here
+ * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
+int css_rule_count;
+int css_rule_sel_first[MAX_CSS_RULES];
+int css_rule_sel_count[MAX_CSS_RULES];
+int css_rule_prop_id  [MAX_CSS_RULES];
+int css_rule_value_off[MAX_CSS_RULES];
+int css_rule_value_len[MAX_CSS_RULES];
+int css_rule_specificity[MAX_CSS_RULES];
+int css_rule_doc_order [MAX_CSS_RULES];
+
+/* Each selector is a chain of "compound selectors". A compound is a
+ * (tag, class_off, id_off) triple. Descendant combinators are implicit. */
+int css_sel_count;
+int css_sel_tag      [MAX_CSS_SELECTORS];
+int css_sel_class_off[MAX_CSS_SELECTORS];
+int css_sel_id_off   [MAX_CSS_SELECTORS];
+
+/* CSS value pool — separate from attr_pool. */
+char css_value_pool[CSS_VALUE_POOL_SIZE];
+int  css_value_pool_pos;
+
+/* §2 ComputedStyle pool — one entry per render node. */
+int cs_count;
+int cs_color    [MAX_COMPUTED_STYLES];
+int cs_bg       [MAX_COMPUTED_STYLES];
+int cs_font_w   [MAX_COMPUTED_STYLES];
+int cs_font_i   [MAX_COMPUTED_STYLES];
+int cs_font_size_tier[MAX_COMPUTED_STYLES];
+int cs_text_align[MAX_COMPUTED_STYLES];
+int cs_text_dec [MAX_COMPUTED_STYLES];
+int cs_display  [MAX_COMPUTED_STYLES];
+int cs_margin   [MAX_COMPUTED_STYLES][4];
+int cs_padding  [MAX_COMPUTED_STYLES][4];
+int cs_border   [MAX_COMPUTED_STYLES][4];
+int cs_border_color[MAX_COMPUTED_STYLES];
+int cs_width    [MAX_COMPUTED_STYLES];
+int cs_height   [MAX_COMPUTED_STYLES];
+int cs_white_space[MAX_COMPUTED_STYLES];
+int cs_list_style[MAX_COMPUTED_STYLES];
+int cs_vertical_align[MAX_COMPUTED_STYLES];
 
 /* §1 tokenizer scratch — populated by tokenize(), consumed by tree builder in Task 3.
  * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an

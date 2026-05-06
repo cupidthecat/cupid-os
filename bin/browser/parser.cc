@@ -351,6 +351,7 @@ int tag_id(char *name, int len) {
     if (b_streq(b, "font"))   return T_FONT;
     if (b_streq(b, "script")) return T_SCRIPT;
     if (b_streq(b, "style"))  return T_STYLE;
+    if (b_streq(b, "noscript")) return T_NOSCRIPT;
     if (b_streq(b, "textarea")) return T_TEXTAREA;
     if (b_streq(b, "dt"))       return T_DT;
     if (b_streq(b, "dd"))       return T_DD;
@@ -411,6 +412,11 @@ void parse_html(int html_len) {
     forms_count = 0;
     inputs_count = 0;
     title_buf[0] = 0;
+
+    /* §2 reset CSS state — author rules accumulate per page */
+    css_rule_count = 0;
+    css_sel_count = 0;
+    css_value_pool_pos = 0;
 
     /* synthetic root */
     int root = alloc_node(T_ROOT, -1, -1);
@@ -479,6 +485,12 @@ void parse_html(int html_len) {
                     title_buf[k] = attr_pool[text_off + k];
                 }
                 title_buf[copy] = 0;
+            }
+            /* §2 author CSS: feed text inside <style> into the rule table
+             * and drop the text node — CSS does not render. */
+            if (parent_tag == T_STYLE) {
+                css_parse_block(attr_pool + text_off, text_len);
+                continue;
             }
             int n = alloc_node(T_TEXT, parent, -1);
             if (n < 0) continue;
@@ -625,4 +637,7 @@ void parse_html(int html_len) {
             continue;
         }
     }
+
+    serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
+                  css_rule_count, css_sel_count, css_value_pool_pos);
 }

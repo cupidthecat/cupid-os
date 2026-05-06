@@ -11,6 +11,8 @@
 #include "browser/net.cc"
 #include "browser/dom.cc"
 #include "browser/parser.cc"
+#include "browser/css.cc"
+#include "browser/style.cc"
 #include "browser/layout.cc"
 #include "browser/paint.cc"
 #include "browser/nav.cc"
