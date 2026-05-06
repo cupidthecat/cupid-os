@@ -277,11 +277,10 @@ unsigned long long __umoddi3(unsigned long long a, unsigned long long b)
 }
 
 /* ------------------------------------------------------------------ */
-/* i_sound.h stubs — replaced in Task 16                              */
-/* These satisfy the linker until i_sound_cupidos.c lands.            */
-/* ------------------------------------------------------------------ */
+/* i_sound.h globals — SFX functions moved to i_sound_cupidos.c (Task 16) */
+/* Music functions remain here until Task 17.                             */
+/* ----------------------------------------------------------------------- */
 
-/* snd_musicdevice is a global variable declared in i_sound.h */
 int snd_musicdevice = 0;
 int snd_sfxdevice   = 0;
 int snd_sbport       = 0;
@@ -294,23 +293,7 @@ int snd_maxslicetime_ms = 28;
 char *snd_musiccmd   = (char*)"";
 int snd_pitchshift   = 0;
 
-void I_InitSound(int use_sfx_prefix)   { (void)use_sfx_prefix; }
-void I_ShutdownSound(void)             {}
 void I_BindSoundVariables(void)        {}
-int  I_GetSfxLumpNum(void *sfxinfo)   { (void)sfxinfo; return -1; }
-void I_UpdateSound(void)              {}
-int  I_SoundIsPlaying(int handle)     { (void)handle; return 0; }
-int  I_StartSound(void *sfxinfo, int channel, int vol, int sep)
-{
-    (void)sfxinfo; (void)channel; (void)vol; (void)sep;
-    return -1;
-}
-void I_StopSound(int handle)          { (void)handle; }
-void I_UpdateSoundParams(int handle, int vol, int sep)
-{
-    (void)handle; (void)vol; (void)sep;
-}
-void I_PrecacheSounds(void *sounds, int num) { (void)sounds; (void)num; }
 
 void I_InitMusic(void)                {}
 void I_ShutdownMusic(void)            {}

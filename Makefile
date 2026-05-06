@@ -520,13 +520,24 @@ kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
 
 KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
 
-# doom_libc_stubs — atoi/sscanf/puts/etc. + i_sound/i_music stubs for Task 16
+# doom_libc_stubs — atoi/sscanf/puts/etc. + i_music stubs (SFX moved to Task 16)
 kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.c \
                                 kernel/types.h kernel/string.h kernel/doom/dglibc.h \
                                 drivers/serial.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 KERNEL_OBJS += kernel/doom/doom_libc_stubs.o
+
+# i_sound_cupidos — SFX path: lump cache + mixer bridge (Task 16)
+kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.c \
+                                kernel/types.h kernel/memory.h \
+                                drivers/serial.h \
+                                kernel/audio/mixer.h \
+                                kernel/doom/src/i_sound.h \
+                                kernel/doom/src/w_wad.h
+	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/i_sound_cupidos.o
 
 # DOOM source tree — all .c files under kernel/doom/src/
 DOOM_SRC := $(wildcard kernel/doom/src/*.c)
