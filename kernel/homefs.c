@@ -439,19 +439,30 @@ static int homefs_flush(homefs_t *fs) {
     if (!fs || !fs->root) return VFS_EINVAL;
     if (!fs->dirty) return VFS_OK;
 
+    /* Clear dirty BEFORE the write to break re-entrancy. fat16_write_file
+     * calls blockcache_sync() internally, which calls homefs_sync(), which
+     * calls back into homefs_flush(). If dirty were still set the inner
+     * call would re-flush, allocating a fresh FAT cluster each time and
+     * eventually overflowing the kernel stack via unbounded recursion.
+     * Restore the flag if the write fails so the data isn't lost. */
+    fs->dirty = false;
+
     uint8_t *buf = NULL;
     uint32_t size = 0;
     int rc = homefs_serialize(fs, &buf, &size);
-    if (rc < 0) return rc;
+    if (rc < 0) {
+        fs->dirty = true;
+        return rc;
+    }
 
     rc = fat16_write_file(HOMEFS_CONTAINER_NAME, buf, size);
     kfree(buf);
     if (rc < 0 || (uint32_t)rc != size) {
+        fs->dirty = true;
         serial_printf("[homefs] flush failed rc=%d size=%u\n", rc, size);
         return VFS_EIO;
     }
 
-    fs->dirty = false;
     blockcache_flush_all();
     serial_printf("[homefs] flushed %u bytes to %s\n", size,
                   HOMEFS_CONTAINER_NAME);
