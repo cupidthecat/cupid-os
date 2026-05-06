@@ -505,12 +505,19 @@ kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/types.h \
 
 KERNEL_OBJS += kernel/doom/dglibc.o
 
-# doomgeneric cupidos platform stub (temporary — replaced in Task 13)
-kernel/doom/doomgeneric_cupidos_stub.o: kernel/doom/doomgeneric_cupidos_stub.c \
-                                         kernel/types.h drivers/serial.h drivers/timer.h
+# doomgeneric cupidos platform shim (Task 13)
+kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
+                                    kernel/doom/doomgeneric_cupidos.h \
+                                    kernel/doom/dglibc.h \
+                                    kernel/types.h \
+                                    drivers/vga.h \
+                                    drivers/keyboard.h \
+                                    drivers/serial.h \
+                                    drivers/timer.h \
+                                    kernel/vfs.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
-KERNEL_OBJS += kernel/doom/doomgeneric_cupidos_stub.o
+KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
 
 # doom_libc_stubs — atoi/sscanf/puts/etc. + i_sound/i_music stubs for Task 16
 kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.c \

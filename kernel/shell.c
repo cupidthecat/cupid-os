@@ -650,6 +650,7 @@ static void shell_ping_cmd    (const char *args);
 static void shell_netstat_cmd (const char *args);
 static void shell_arp_cmd     (const char *args);
 static void shell_resolve_cmd (const char *args);
+static void shell_doom_cmd    (const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -681,6 +682,7 @@ static struct shell_command commands[] = {
     {"netstat",  "List sockets", shell_netstat_cmd},
     {"arp",      "Dump ARP cache", shell_arp_cmd},
     {"resolve",  "DNS resolve (resolve <host>)", shell_resolve_cmd},
+    {"doom",     "Run DOOM (doom [-iwad <path>])", shell_doom_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -2323,6 +2325,47 @@ static void shell_resolve_cmd(const char *args) {
     shell_print_int(p[1]); shell_print(".");
     shell_print_int(p[2]); shell_print(".");
     shell_print_int(p[3]); shell_print("\n");
+}
+
+/* doom shell builtin — calls into the platform shim's doom_main(). */
+extern int doom_main(int argc, char **argv);
+
+#define DOOM_ARGV_MAX 16
+#define DOOM_ARG_BUF  256
+
+static void shell_doom_cmd(const char *args) {
+    static char doom_arg_buf[DOOM_ARG_BUF];
+    static char doom_argv0[] = "doom";
+    static char *doom_argv[DOOM_ARGV_MAX];
+    int doom_argc = 0;
+    char *p;
+
+    /* argv[0] = "doom" */
+    doom_argv[doom_argc++] = doom_argv0;
+
+    /* Tokenise the args string */
+    if (args && *args) {
+        /* Copy into mutable buffer so we can place NUL terminators */
+        int i = 0;
+        while (args[i] && i < DOOM_ARG_BUF - 1) {
+            doom_arg_buf[i] = args[i];
+            i++;
+        }
+        doom_arg_buf[i] = '\0';
+
+        p = doom_arg_buf;
+        while (*p && doom_argc < DOOM_ARGV_MAX - 1) {
+            /* Skip whitespace */
+            while (*p == ' ' || *p == '\t') { p++; }
+            if (!*p) { break; }
+            doom_argv[doom_argc++] = p;
+            /* Advance to end of token */
+            while (*p && *p != ' ' && *p != '\t') { p++; }
+            if (*p) { *p++ = '\0'; }
+        }
+    }
+
+    doom_main(doom_argc, doom_argv);
 }
 
 void shell_execute_line(const char *line) {
