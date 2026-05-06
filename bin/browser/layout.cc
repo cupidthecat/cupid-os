@@ -36,11 +36,6 @@ int viewport_content_w() {
     return cur_cw - 12;
 }
 
-/* Forward */
-void layout_block(int n, int avail_w);
-void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
-                  int cx, int *cy, int max_w);
-
 /* §4 IFC — line-box layout. Walks an inline subtree depth-first, splits text
  * into atoms by whitespace (or by \n / per-char per `white-space`), tracks
  * (x, line_top, line_h), and emits LINE_BOX render nodes whose

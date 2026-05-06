@@ -54,9 +54,6 @@ int rt_kind_is_block_level(int kind) {
            kind == RT_TABLE_CAPTION;
 }
 
-/* Forward */
-int build_rt_subtree(int dom, int rt_parent_n);
-
 /* Helper: build children of `dom` under render parent `rt_parent_n`, inserting
  * anonymous block wrappers around contiguous inline runs whenever this parent
  * has at least one block-level child. */

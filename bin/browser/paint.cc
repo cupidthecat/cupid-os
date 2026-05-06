@@ -10,12 +10,6 @@ int viewport_h() {
 
 /* §6 Render-tree paint — single traversal, bg -> border -> content order */
 
-void paint_rt_node(int n);
-void paint_rt_text(int n, int sx, int sy);
-void paint_rt_replaced(int n, int sx, int sy);
-void paint_rt_marker(int n, int sx, int sy);
-void paint_rt_line_box(int n, int sx, int sy);
-
 int rt_screen_x(int n) {
     /* Walk parent chain summing x offsets; viewport_x() is the page origin. */
     int x = 0;
