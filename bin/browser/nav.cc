@@ -181,7 +181,7 @@ void submit_form(int form_node_idx) {
     query[qlen] = 0;
 
     /* Build target URL: action (default = cur_path) + '?' + query. */
-    char target[URL_MAX];
+    char target[1024];
     int tp = 0;
     if (action != 0) {
         int al = b_strlen(action);
@@ -203,7 +203,7 @@ void submit_form(int form_node_idx) {
     }
     target[tp] = 0;
 
-    char absu[URL_MAX];
+    char absu[1024];
     compute_url_relative(target, absu, URL_MAX);
     navigate(absu);
 }
