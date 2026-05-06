@@ -643,4 +643,7 @@ void parse_html(int html_len) {
 
     style_resolve_all();
     serial_printf("[browser] style: %d computed entries\n", cs_count);
+
+    build_render_tree();
+    serial_printf("[browser] rt: %d nodes\n", rt_count);
 }

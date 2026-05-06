@@ -13,6 +13,7 @@
 #include "browser/parser.cc"
 #include "browser/css.cc"
 #include "browser/style.cc"
+#include "browser/render_tree.cc"
 #include "browser/layout.cc"
 #include "browser/paint.cc"
 #include "browser/nav.cc"

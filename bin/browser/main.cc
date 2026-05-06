@@ -37,6 +37,7 @@ enum {
 
     /* §3 render tree pool */
     MAX_RT_NODES = 6144,
+    MAX_LINE_ATOMS = 8192,
 
     /* §2 style/CSS */
     MAX_CSS_RULES = 256,
@@ -132,6 +133,21 @@ enum {
     LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
     MAX_CSS_SELECTORS = 1024,
+
+    /* §3 render-tree kinds */
+    RT_BLOCK = 1,
+    RT_INLINE,
+    RT_INLINE_BLOCK,
+    RT_LIST_ITEM,
+    RT_LIST_MARKER,
+    RT_TABLE,
+    RT_TABLE_ROW_GROUP,
+    RT_TABLE_ROW,
+    RT_TABLE_CELL,
+    RT_TABLE_CAPTION,
+    RT_TEXT,
+    RT_REPLACED,        /* <img>, <input>, <button>, <textarea> */
+    RT_LINE_BOX,
 
     /* box kinds */
     BK_TEXT  = 0,
@@ -250,6 +266,49 @@ int cs_height   [MAX_COMPUTED_STYLES];
 int cs_white_space[MAX_COMPUTED_STYLES];
 int cs_list_style[MAX_COMPUTED_STYLES];
 int cs_vertical_align[MAX_COMPUTED_STYLES];
+
+/* §3 Render tree pool — sized at MAX_RT_NODES (6144 per spec) */
+int rt_count;
+int rt_dom         [MAX_RT_NODES];   /* back-pointer to DOM node, -1 for anonymous */
+int rt_parent      [MAX_RT_NODES];
+int rt_first_child [MAX_RT_NODES];
+int rt_next        [MAX_RT_NODES];
+int rt_kind        [MAX_RT_NODES];   /* RT_* */
+int rt_style       [MAX_RT_NODES];   /* index into cs_*[] */
+int rt_text_off    [MAX_RT_NODES];
+int rt_text_len    [MAX_RT_NODES];
+int rt_intrinsic_w [MAX_RT_NODES];
+int rt_intrinsic_h [MAX_RT_NODES];
+int rt_link_idx    [MAX_RT_NODES];   /* link[] index for clickable, -1 otherwise */
+int rt_input_idx   [MAX_RT_NODES];   /* input[] index, -1 otherwise */
+
+/* Geometry filled by §4 layout */
+int rt_x[MAX_RT_NODES];
+int rt_y[MAX_RT_NODES];
+int rt_w[MAX_RT_NODES];
+int rt_h[MAX_RT_NODES];
+int rt_content_x[MAX_RT_NODES];
+int rt_content_y[MAX_RT_NODES];
+int rt_baseline[MAX_RT_NODES];
+
+/* Line-box atom storage — one entry per word/glyph in an inline run.
+ * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
+ * the atom pool via a separate atom_first/count pair. */
+int la_count;
+int la_x        [MAX_LINE_ATOMS];   /* x within line box (cumulative) */
+int la_w        [MAX_LINE_ATOMS];
+int la_text_off [MAX_LINE_ATOMS];   /* into attr_pool */
+int la_text_len [MAX_LINE_ATOMS];
+int la_font_tier[MAX_LINE_ATOMS];
+int la_fg       [MAX_LINE_ATOMS];
+int la_bg       [MAX_LINE_ATOMS];
+int la_bold     [MAX_LINE_ATOMS];
+int la_underline[MAX_LINE_ATOMS];
+int la_link_idx [MAX_LINE_ATOMS];
+
+/* Each LINE_BOX render node references a contiguous atom slice */
+int rt_line_atom_first[MAX_RT_NODES];
+int rt_line_atom_count[MAX_RT_NODES];
 
 /* §1 tokenizer scratch — populated by tokenize(), consumed by tree builder in Task 3.
  * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an
