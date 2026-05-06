@@ -99,8 +99,16 @@ bool rtl8139_init(pci_device_t *d) {
     /* Program RX buffer base */
     outl((uint16_t)(c->io_base + RTL_RBSTART), (uint32_t)c->rx_buf);
 
-    /* RCR: AB | AM | APM | AAP | WRAP=0. 0x0F sets low 4 flags. */
-    outl((uint16_t)(c->io_base + RTL_RCR), 0x0000000Fu);
+    /* RCR: WRAP | AB | AM | APM | AAP. WRAP (bit 7) is REQUIRED — the rx
+     * drain code reads packets linearly from p+4 for pkt_len bytes and
+     * relies on the 1500-byte buffer extension after offset 8192 to make
+     * boundary-straddling packets contiguous in memory. Without WRAP,
+     * packets that wrap the 8192 ring get only their first part written
+     * into the visible buffer; the linear read then walks into the
+     * zero-initialized extension region, silently producing frames with
+     * zero-padded tails. (Symptom: TLS handshakes with cert chains > a
+     * few KB fail with AEAD tag mismatch on the Certificate record.) */
+    outl((uint16_t)(c->io_base + RTL_RCR), 0x0000008Fu);
 
     /* TCR: default IFG + MXDMA */
     outl((uint16_t)(c->io_base + RTL_TCR), 0x03000700u);
