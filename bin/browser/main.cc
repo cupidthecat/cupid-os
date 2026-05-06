@@ -458,7 +458,6 @@ void browser_main() {
         if (new_cw != cur_cw || new_ch != cur_ch) {
             cur_cw = new_cw;
             cur_ch = new_ch;
-            legacy_run_layout();
             run_layout();
             clamp_scroll();
         }

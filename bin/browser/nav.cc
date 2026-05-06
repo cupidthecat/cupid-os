@@ -76,8 +76,7 @@ void navigate(char *u) {
      * attr_pool, so we must reset before tokenize starts. */
     attr_pool_pos = 1;
     parse_html(page_len);
-    legacy_run_layout();
-    run_layout();           /* new render-tree layout, runs alongside */
+    run_layout();           /* render-tree layout drives the visible pipeline */
     scroll_y = 0;
     if (title_buf[0]) b_strcpy_n(status_msg, title_buf, 256);
     else              b_strcpy_n(status_msg, cur_url, 256);
