@@ -900,16 +900,35 @@ int tls_app_recv(tls_ctx_t *ctx, uint8_t *buf, uint32_t buf_max) {
     uint8_t  type = 0;
     uint32_t len = 0;
     int      rc;
+    uint32_t take;
+    uint32_t i;
+
+    /* Drain any leftover plaintext from a previous record before pulling
+     * a new one off the wire. */
+    if (ctx->app_buf_len > 0u) {
+        take = ctx->app_buf_len;
+        if (take > buf_max) take = buf_max;
+        for (i = 0; i < take; i++) buf[i] = ctx->app_buf[ctx->app_buf_off + i];
+        ctx->app_buf_off += take;
+        ctx->app_buf_len -= take;
+        return (int)take;
+    }
 
     for (;;) {
-        rc = tls_record_recv(&ctx->rec, &type, buf, buf_max, &len);
+        rc = tls_record_recv(&ctx->rec, &type,
+                             ctx->app_buf, sizeof(ctx->app_buf), &len);
         if (rc < 0) return TLS_ERR_TRANSPORT;
         if (type == TLS_RT_APPLICATION_DATA) {
-            return (int)len;
+            take = len;
+            if (take > buf_max) take = buf_max;
+            for (i = 0; i < take; i++) buf[i] = ctx->app_buf[i];
+            ctx->app_buf_off = take;
+            ctx->app_buf_len = len - take;
+            return (int)take;
         }
         if (type == TLS_RT_ALERT) {
             /* close_notify (level=warning desc=0 OR fatal close_notify). */
-            if (len >= 2u && buf[1] == ALERT_DESC_CLOSE_NOTIFY) return 0;
+            if (len >= 2u && ctx->app_buf[1] == ALERT_DESC_CLOSE_NOTIFY) return 0;
             return TLS_ERR_PROTOCOL;
         }
         if (type == TLS_RT_HANDSHAKE) {

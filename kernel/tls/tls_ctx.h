@@ -82,6 +82,14 @@ typedef struct {
 
     /* RTC epoch for cert validity. */
     uint64_t now_epoch;
+
+    /* App-data spillover. A single TLS 1.3 record can carry up to 16 KB
+     * of plaintext but callers typically pass small recv buffers (4 KB).
+     * tls_app_recv decrypts into app_buf, returns up to buf_max bytes,
+     * and stashes the rest here for the next call. */
+    uint8_t  app_buf[TLS_REC_MAX_PLAINTEXT];
+    uint32_t app_buf_off;
+    uint32_t app_buf_len;
 } tls_ctx_t;
 
 /* Initialize an already-allocated context. xport callbacks send/recv
