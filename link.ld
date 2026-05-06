@@ -47,8 +47,8 @@ SECTIONS
 
     /*
      * Safety check: kernel text+data must fit in bootloader kernel area
-     * (LBA 5..4095 = 4091 sectors = 0x1FF600 bytes) loaded at 0x100000.
+     * (LBA 5..8191 = 8187 sectors = 0x3FF600 bytes) loaded at 0x100000.
      */
-    ASSERT(_loaded_end <= 0x2FF600,
+    ASSERT(_loaded_end <= 0x4FF600,
            "Kernel binary (text+data) exceeds reserved HDD kernel area")
 }

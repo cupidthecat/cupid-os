@@ -23,6 +23,9 @@ void ac97_stop(void);             /* mute + halt DMA */
 void ac97_set_master_volume(uint8_t pct);  /* 0-100 */
 bool ac97_is_present(void);
 
+/* TSC-based busy-wait for ms milliseconds. IRQ-state independent. */
+void ac97_tsc_sleep_ms(uint32_t ms);
+
 /* CupidC-friendly wrappers (bool and function pointers not usable from CupidC) */
 int  ac97_is_present_int(void);   /* returns 0 or 1 */
 int  ac97_smoke_sine(void);       /* sets fill CB, plays 440 Hz triangle 2 s, logs [PASS] */

@@ -46,12 +46,13 @@ BOOT_DRIVE db 0
 ; MBR partition table at byte offset 446
 times 446-($-$$) db 0
 
-; Partition entry 1: FAT16, bootable, LBA 4096, 98304 sectors
+; Partition entry 1: FAT16, bootable, LBA 8192, 98304 sectors
+; (Kernel area expanded to LBA 5..8191 = 8187 sectors = ~4 MB)
 db 0x80
 db 0xFE, 0xFF, 0xFF
 db 0x06
 db 0xFE, 0xFF, 0xFF
-dd 4096
+dd 8192
 dd 98304
 
 ; Partition entries 2-4: empty
@@ -105,7 +106,7 @@ stage2_entry:
 
     ; Load kernel above 1MB (chunked LBA reads)
     mov dword [dest_high], KERNEL_OFFSET
-    mov word [sectors_left], 4091    ; LBA 5 through 4095
+    mov word [sectors_left], 8187    ; LBA 5 through 8191
 
 .read_loop:
     cmp word [sectors_left], 0

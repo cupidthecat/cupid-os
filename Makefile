@@ -76,7 +76,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
-FAT_START_LBA ?= 4096
+FAT_START_LBA ?= 8192
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
@@ -155,6 +155,7 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/audio/ac97.o \
 			kernel/audio/mixer.o \
 			kernel/audio/nuked_opl3.o \
+			kernel/audio/opl_smoke.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
@@ -462,6 +463,12 @@ kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/types.h \
 # Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
 kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+# OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
+kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c kernel/audio/opl_smoke.h \
+	kernel/audio/nuked_opl3.h kernel/audio/mixer.h kernel/audio/ac97.h \
+	kernel/types.h drivers/serial.h
+	$(CC) $(CFLAGS) -o $@ $<
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h

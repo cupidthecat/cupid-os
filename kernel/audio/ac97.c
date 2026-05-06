@@ -207,7 +207,7 @@ void ac97_set_master_volume(uint8_t pct) {
 /* ── Smoke-test kernel helpers ─────────────────────────────────────────── */
 
 /* forward declaration — defined below */
-static void ac97_tsc_sleep_ms(uint32_t ms);
+void ac97_tsc_sleep_ms(uint32_t ms);
 
 /* Generate a triangle-wave mono PCM into a freshly kmalloc'd buffer.
  * Caller frees. Returns NULL on alloc failure. */
@@ -286,7 +286,7 @@ void ac97_smoke_pan(void) {
 /* TSC-based busy-wait for ms milliseconds.
  * Uses RDTSC — advances regardless of IF/IRQ state.
  * Suitable for smoke tests where hlt/timer may be unreliable from JIT context. */
-static void ac97_tsc_sleep_ms(uint32_t ms) {
+void ac97_tsc_sleep_ms(uint32_t ms) {
     uint64_t freq = get_cpu_freq();          /* Hz */
     uint64_t cycles = (freq / 1000u) * (uint64_t)ms;
     uint32_t lo0, hi0, lo1, hi1;

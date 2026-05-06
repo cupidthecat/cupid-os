@@ -62,6 +62,7 @@
 #include "../drivers/ata.h"
 #include "../drivers/pit.h"
 #include "audio/ac97.h"
+#include "audio/opl_smoke.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -2391,6 +2392,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("ac97_smoke_sweep", p_ac97_sweep, 0);
   void (*p_ac97_pan)(void)             = ac97_smoke_pan;
   BIND("ac97_smoke_pan", p_ac97_pan, 0);
+  void (*p_opl_smoke)(void)           = opl_smoke;
+  BIND("opl_smoke", p_opl_smoke, 0);
 
 #undef BIND
 #undef BIND_T

@@ -23,7 +23,7 @@ void main() {
     }
 
     if (strcmp(args, "opl") == 0) {
-        serial_write_string("[SKIP] audiotest opl: not implemented (Task 8)\n");
+        opl_smoke();
         return;
     }
 
