@@ -426,9 +426,13 @@ void parse_html(int html_len) {
     stack[sp] = root;
     sp = sp + 1;
 
-    int IM_INITIAL = 0, IM_IN_HEAD = 1, IM_IN_BODY = 2,
-        IM_IN_TABLE = 3, IM_IN_ROW = 4, IM_IN_CELL = 5,
-        IM_IN_CAPTION = 6;
+    int IM_INITIAL = 0;
+    int IM_IN_HEAD = 1;
+    int IM_IN_BODY = 2;
+    int IM_IN_TABLE = 3;
+    int IM_IN_ROW = 4;
+    int IM_IN_CELL = 5;
+    int IM_IN_CAPTION = 6;
     int mode = IM_INITIAL;
 
     for (int ti = 0; ti < tok_count; ti = ti + 1) {
@@ -442,7 +446,8 @@ void parse_html(int html_len) {
             int len_field = tok_text_len[ti];
             int from_attr = (len_field >> 30) & 1;
             int real_len  = len_field & 0x3FFFFFFF;
-            int text_off, text_len;
+            int text_off;
+            int text_len;
             if (from_attr) {
                 /* RCDATA: bytes already in attr_pool, decoded by tokenizer */
                 text_off = tok_text_off[ti];

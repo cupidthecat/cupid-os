@@ -98,7 +98,10 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
         if (i >= n) break;
         char c = s[i];
         if (c == ',' || c == '{') break;
-        int t, c_off, id_off, unsupp;
+        int t;
+        int c_off;
+        int id_off;
+        int unsupp;
         int j = css_parse_compound(s, n, i, &t, &c_off, &id_off, &unsupp);
         if (unsupp) *unsupported = 1;
         if (j == i) break;            /* no progress */
@@ -120,7 +123,9 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
 }
 
 int css_compute_specificity(int sel_first, int sel_count) {
-    int id_c = 0, cls_c = 0, tag_c = 0;
+    int id_c = 0;
+    int cls_c = 0;
+    int tag_c = 0;
     for (int k = 0; k < sel_count; k++) {
         if (css_sel_id_off   [sel_first + k] >= 0) id_c++;
         if (css_sel_class_off[sel_first + k] >= 0) cls_c++;
