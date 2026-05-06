@@ -193,14 +193,15 @@ int css_value_keyword(int off, int len, char *kw) {
 /* ---------- Step 5.2: single-property apply ---------- */
 
 void cs_apply_property(int cs, int prop, int val_off, int val_len) {
-    /* Flat if/return chain: CupidC parser overflows on long else-if chains. */
+    /* Flat if/return chain: CupidC parser overflows on long else-if chains.
+     * Hoist `c` to function scope: CupidC keeps locals in a flat table, so
+     * re-declaring `int c;` in multiple sibling branches conflicts. */
+    int c;
     if (prop == CP_COLOR) {
-        int c;
         if (css_value_color(val_off, val_len, &c)) cs_color[cs] = c;
         return;
     }
     if (prop == CP_BG_COLOR || prop == CP_BG) {
-        int c;
         if (css_value_color(val_off, val_len, &c)) cs_bg[cs] = c;
         return;
     }
@@ -283,12 +284,10 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     if (prop == CP_BORDER) {
         cs_border[cs][0] = 1; cs_border[cs][1] = 1;
         cs_border[cs][2] = 1; cs_border[cs][3] = 1;
-        int c;
         if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
         return;
     }
     if (prop == CP_BORDER_COLOR) {
-        int c;
         if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
         return;
     }
