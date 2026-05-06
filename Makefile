@@ -13,10 +13,20 @@ CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c 
 CFLAGS_DOOM := -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
                -ffreestanding -c -I./kernel -I./drivers \
                -I./kernel/doom -I./kernel/doom/src -I./kernel/audio \
+               -I./kernel/doom/src/include_stubs \
                -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
                -O2 -Wno-unused -Wno-unused-result \
                -Wno-implicit-function-declaration \
-               -Wno-sign-compare -Wno-strict-prototypes
+               -Wno-sign-compare -Wno-strict-prototypes \
+               -Wno-unused-parameter
+# DOOM source tree flags — extends CFLAGS_DOOM with the dglibc_compat.h alias
+# header and extra suppressions needed for the DOOM upstream source files.
+CFLAGS_DOOM_TREE := $(CFLAGS_DOOM) \
+               -include kernel/doom/dglibc_compat.h \
+               -Wno-unused-variable -Wno-type-limits \
+               -Wno-missing-field-initializers \
+               -DDEFAULT_SAVEGAMEDIR=\"/home/doom/\" \
+               -DDOOM_PORT_CUPIDOS=1
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
@@ -494,6 +504,30 @@ kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/types.h \
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 KERNEL_OBJS += kernel/doom/dglibc.o
+
+# doomgeneric cupidos platform stub (temporary — replaced in Task 13)
+kernel/doom/doomgeneric_cupidos_stub.o: kernel/doom/doomgeneric_cupidos_stub.c \
+                                         kernel/types.h drivers/serial.h drivers/timer.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/doomgeneric_cupidos_stub.o
+
+# doom_libc_stubs — atoi/sscanf/puts/etc. + i_sound/i_music stubs for Task 16
+kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.c \
+                                kernel/types.h kernel/string.h kernel/doom/dglibc.h \
+                                drivers/serial.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/doom_libc_stubs.o
+
+# DOOM source tree — all .c files under kernel/doom/src/
+DOOM_SRC := $(wildcard kernel/doom/src/*.c)
+DOOM_SRC_OBJS := $(DOOM_SRC:.c=.o)
+
+kernel/doom/src/%.o: kernel/doom/src/%.c
+	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+
+KERNEL_OBJS += $(DOOM_SRC_OBJS)
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
