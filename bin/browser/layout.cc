@@ -8,7 +8,11 @@ int viewport_w() {
 
 int parent_color(int idx, int default_c) {
     while (idx >= 0) {
-        if (n_color[idx] >= 0) return n_color[idx];
+        int off = dom_attr_get(idx, "color");
+        if (off >= 0) {
+            int c;
+            if (parse_color(attr_pool + off, &c)) return c;
+        }
         idx = n_parent[idx];
     }
     return default_c;
@@ -16,7 +20,11 @@ int parent_color(int idx, int default_c) {
 
 int parent_bg(int idx, int default_c) {
     while (idx >= 0) {
-        if (n_bgcolor[idx] >= 0) return n_bgcolor[idx];
+        int off = dom_attr_get(idx, "bgcolor");
+        if (off >= 0) {
+            int c;
+            if (parse_color(attr_pool + off, &c)) return c;
+        }
         idx = n_parent[idx];
     }
     return default_c;
@@ -34,8 +42,21 @@ int parent_bold(int idx) {
 
 int parent_link(int idx) {
     while (idx >= 0) {
-        if (n_tag[idx] == T_A && n_href[idx] >= 0) return n_href[idx];
+        if (n_tag[idx] == T_A) {
+            int off = dom_attr_get(idx, "href");
+            if (off >= 0) return off;
+        }
         idx = n_parent[idx];
+    }
+    return -1;
+}
+
+/* Linear scan: which inputs[] index, if any, was registered for this
+ * DOM node? -1 if this <input> is not in the editable inputs[] table
+ * (e.g., submit/button/hidden — those render as a submit button instead). */
+int find_input_for_node(int idx) {
+    for (int k = 0; k < inputs_count; k = k + 1) {
+        if (input_node[k] == idx) return k;
     }
     return -1;
 }
@@ -208,13 +229,14 @@ void layout_node(int idx) {
         b_y[bi] = L_y;
         b_w[bi] = 80;
         b_h[bi] = 30;
-        b_text_off[bi] = (n_src[idx] >= 0) ? n_src[idx] : -1;
+        int src_off = dom_attr_get(idx, "src");
+        b_text_off[bi] = src_off;
         b_fg[bi] = 0x444444;
         b_bg[bi] = 0xE0E0E0;
         L_x = L_x + 80 + char_w;
     } else if (t == T_INPUT) {
-        if (n_form_idx[idx] >= 0) {
-            int ii = n_form_idx[idx];
+        int ii = find_input_for_node(idx);
+        if (ii >= 0) {
             if (L_x + 200 > L_max_w) newline();
             emit_box(BK_INPUT);
             int bi = last_box();
@@ -228,9 +250,9 @@ void layout_node(int idx) {
             if (L_line_h < b_h[bi]) L_line_h = b_h[bi];
             L_x = L_x + 200 + char_w;
         } else {
-            /* submit button */
-            char *label = (n_value[idx] >= 0)
-                ? attr_pool + n_value[idx] : "Submit";
+            /* submit / button / etc. — render as a submit button */
+            int v_off = dom_attr_get(idx, "value");
+            char *label = (v_off >= 0) ? attr_pool + v_off : "Submit";
             int ll = b_strlen(label);
             int bw = ll * char_w + 16;
             if (L_x + bw > L_max_w) newline();
@@ -240,7 +262,7 @@ void layout_node(int idx) {
             b_y[bi] = L_y;
             b_w[bi] = bw;
             b_h[bi] = line_h + 4;
-            b_text_off[bi] = (n_value[idx] >= 0) ? n_value[idx] : -3;
+            b_text_off[bi] = (v_off >= 0) ? v_off : -3;
             b_text_len[bi] = ll;
             b_fg[bi] = 0x000000;
             b_bg[bi] = 0xC0C0C0;
@@ -288,8 +310,18 @@ void run_layout() {
         if (n_tag[i] == T_BODY) { body = i; break; }
         i = i + 1;
     }
-    if (body >= 0 && n_bgcolor[body] >= 0) page_bg = n_bgcolor[body];
-    if (body >= 0 && n_color[body] >= 0)   page_fg = n_color[body];
+    if (body >= 0) {
+        int bg_off = dom_attr_get(body, "bgcolor");
+        if (bg_off >= 0) {
+            int c;
+            if (parse_color(attr_pool + bg_off, &c)) page_bg = c;
+        }
+        int fg_off = dom_attr_get(body, "color");
+        if (fg_off >= 0) {
+            int c;
+            if (parse_color(attr_pool + fg_off, &c)) page_fg = c;
+        }
+    }
 
     if (body >= 0) {
         layout_children(body);

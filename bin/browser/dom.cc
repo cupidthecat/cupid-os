@@ -45,50 +45,47 @@ int parse_color(char *s, int *out) {
     return parse_color_named(s, out);
 }
 
-/* parse style="color: X; background-color: Y; font-weight: Z" */
-void apply_style(char *style, int node_idx) {
+/* Copy a string into attr_pool. Returns offset, -1 if pool exhausted. */
+int attr_intern(char *s, int len) {
+    if (attr_pool_pos + len + 1 >= ATTR_POOL_SIZE) return -1;
+    int off = attr_pool_pos;
     int i = 0;
-    char prop[64];
-    char val[128];
-    while (style[i]) {
-        while (style[i] == ' ' || style[i] == ';' || style[i] == '\t') i = i + 1;
-        if (!style[i]) break;
-        int p = 0;
-        while (style[i] && style[i] != ':' && p < 63) {
-            prop[p] = style[i]; p = p + 1; i = i + 1;
-        }
-        prop[p] = 0;
-        if (style[i] != ':') break;
-        i = i + 1;
-        while (style[i] == ' ' || style[i] == '\t') i = i + 1;
-        int v = 0;
-        while (style[i] && style[i] != ';' && v < 127) {
-            val[v] = style[i]; v = v + 1; i = i + 1;
-        }
-        val[v] = 0;
-        /* trim trailing spaces */
-        while (v > 0 && (val[v-1] == ' ' || val[v-1] == '\t')) {
-            v = v - 1; val[v] = 0;
-        }
-        if (b_strieq(prop, "color")) {
-            int c;
-            if (parse_color(val, &c)) n_color[node_idx] = c;
-        } else if (b_strieq(prop, "background-color") ||
-                   b_strieq(prop, "background")) {
-            int c;
-            if (parse_color(val, &c)) n_bgcolor[node_idx] = c;
-        } else if (b_strieq(prop, "font-weight")) {
-            if (b_strieq(val, "bold") || b_strieq(val, "bolder") ||
-                b_strieq(val, "700") || b_strieq(val, "800") ||
-                b_strieq(val, "900")) {
-                /* will be inherited via styling pass */
-                n_type[node_idx] = 1; /* repurpose: 1=bold marker for non-input nodes */
-            }
-        }
-    }
+    while (i < len) { attr_pool[off + i] = s[i]; i = i + 1; }
+    attr_pool[off + len] = 0;
+    attr_pool_pos = off + len + 1;
+    return off;
 }
 
-int alloc_node(int tag, int parent) {
+/* Returns offset into attr_pool (where strings live) or -1 if attribute absent.
+ * `name` is a NUL-terminated literal like "href"; comparison is case-insensitive. */
+int dom_attr_get(int node, char *name) {
+    if (node < 0 || node >= nodes_count) return -1;
+    int first = dom_attrs_first[node];
+    int count = dom_attrs_count[node];
+    int name_len = b_strlen(name);
+    for (int k = 0; k < count; k++) {
+        int n_off = dom_ap_name_off[first + k];
+        if (n_off < 0) continue;
+        char *aname = attr_pool + n_off;
+        if (b_strieq_n(aname, name, name_len) && aname[name_len] == 0) {
+            return dom_ap_value_off[first + k];
+        }
+    }
+    return -1;
+}
+
+/* Like dom_attr_get but returns the string pointer, or NULL if absent. */
+char *dom_attr_str(int node, char *name) {
+    int off = dom_attr_get(node, name);
+    if (off < 0) return 0;
+    return attr_pool + off;
+}
+
+/* alloc_node: allocate a DOM node of `tag`, attach as last child of `parent`,
+ * and copy any attrs from the tokenizer's scratch (ap_*[]) into the permanent
+ * dom_ap_*[] pool. tok_idx == -1 means "no attrs" (used for synthetic root and
+ * for text nodes which pass attrs separately via n_text_off/n_text_len). */
+int alloc_node(int tag, int parent, int tok_idx) {
     if (nodes_count >= MAX_NODES) return -1;
     int idx = nodes_count;
     nodes_count = nodes_count + 1;
@@ -98,15 +95,35 @@ int alloc_node(int tag, int parent) {
     n_next[idx]        = -1;
     n_text_off[idx]    = -1;
     n_text_len[idx]    = 0;
-    n_href[idx]        = -1;
-    n_src[idx]         = -1;
-    n_color[idx]       = -1;
-    n_bgcolor[idx]     = -1;
-    n_action[idx]      = -1;
-    n_name[idx]        = -1;
-    n_value[idx]       = -1;
-    n_type[idx]        = -1;
-    n_form_idx[idx]    = -1;
+    dom_attrs_first[idx] = 0;
+    dom_attrs_count[idx] = 0;
+    dom_class_off[idx] = -1;
+    dom_id_off[idx]    = -1;
+
+    if (tok_idx >= 0) {
+        int t_first = tok_attr_first[tok_idx];
+        int t_count = tok_attr_count[tok_idx];
+        if (t_count > 0 && dom_ap_count + t_count <= MAX_ATTR_PAIRS) {
+            dom_attrs_first[idx] = dom_ap_count;
+            dom_attrs_count[idx] = t_count;
+            for (int k = 0; k < t_count; k++) {
+                int n_off = ap_name_off[t_first + k];
+                int v_off = ap_value_off[t_first + k];
+                dom_ap_name_off[dom_ap_count]  = n_off;
+                dom_ap_value_off[dom_ap_count] = v_off;
+                dom_ap_count = dom_ap_count + 1;
+                if (n_off >= 0) {
+                    char *aname = attr_pool + n_off;
+                    if (b_strieq(aname, "class")) {
+                        dom_class_off[idx] = v_off;
+                    } else if (b_strieq(aname, "id")) {
+                        dom_id_off[idx] = v_off;
+                    }
+                }
+            }
+        }
+    }
+
     if (parent >= 0) {
         if (n_first_child[parent] == -1) {
             n_first_child[parent] = idx;
@@ -119,20 +136,28 @@ int alloc_node(int tag, int parent) {
     return idx;
 }
 
-/* Copy a string into attr_pool. Returns offset, -1 if pool exhausted. */
-int attr_intern(char *s, int len) {
-    if (attr_pool_pos + len + 1 >= ATTR_POOL_SIZE) return -1;
-    int off = attr_pool_pos;
-    int i = 0;
-    while (i < len) { attr_pool[off + i] = s[i]; i = i + 1; }
-    attr_pool[off + len] = 0;
-    attr_pool_pos = off + len + 1;
-    return off;
-}
-
-/* Decode &amp; / &lt; / &gt; / &quot; / &nbsp; / &#NNN; in-place into out;
- * returns new length. */
+/* Decode &amp; / &lt; / &gt; / &quot; / &nbsp; / &#NNN; / &#xHH; and the
+ * extended §1 named-entity set into out; returns new length. The mapping is
+ * lossy by design (no Unicode in the 8x8 ASCII font) but predictable. */
 int decode_entities(char *src, int slen, char *out, int omax) {
+    static char *ent_names[] = {
+        "amp",   "lt",    "gt",    "quot",  "apos",  "nbsp",
+        "mdash", "ndash", "hellip","lsquo", "rsquo", "ldquo", "rdquo",
+        "middot","bull",  "copy",  "reg",   "trade", "sect",  "para",
+        "deg",   "times", "divide","plusmn","frac12","frac14","frac34",
+        "larr",  "rarr",  "uarr",  "darr",  "laquo", "raquo",
+        "iexcl", "iquest","cent",  "pound", "yen",   "euro",
+        0
+    };
+    static int ent_chars[] = {
+        '&',     '<',     '>',     '"',     '\'',    ' ',
+        '-',     '-',     '.',     '\'',    '\'',    '"',     '"',
+        '*',     '*',     'C',     'R',     'T',     'S',     'P',
+        'd',     'x',     '/',     '+',     'h',     'q',     'Q',
+        '<',     '>',     '^',     'v',     '<',     '>',
+        '!',     '?',     'c',     'L',     'Y',     'E'
+    };
+
     int i = 0;
     int o = 0;
     while (i < slen && o < omax - 1) {
@@ -142,24 +167,7 @@ int decode_entities(char *src, int slen, char *out, int omax) {
             while (end < slen && src[end] != ';' && end - j < 8) end = end + 1;
             if (end < slen && src[end] == ';') {
                 int el = end - j;
-                if (el == 3 && b_strieq_n(src + j, "amp", 3)) {
-                    out[o] = '&'; o = o + 1; i = end + 1; continue;
-                }
-                if (el == 2 && b_strieq_n(src + j, "lt", 2)) {
-                    out[o] = '<'; o = o + 1; i = end + 1; continue;
-                }
-                if (el == 2 && b_strieq_n(src + j, "gt", 2)) {
-                    out[o] = '>'; o = o + 1; i = end + 1; continue;
-                }
-                if (el == 4 && b_strieq_n(src + j, "quot", 4)) {
-                    out[o] = '"'; o = o + 1; i = end + 1; continue;
-                }
-                if (el == 4 && b_strieq_n(src + j, "nbsp", 4)) {
-                    out[o] = ' '; o = o + 1; i = end + 1; continue;
-                }
-                if (el == 4 && b_strieq_n(src + j, "apos", 4)) {
-                    out[o] = '\''; o = o + 1; i = end + 1; continue;
-                }
+                /* numeric */
                 if (el >= 2 && src[j] == '#') {
                     int v = 0;
                     int k = j + 1;
@@ -181,12 +189,32 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     if (v >= 32 && v < 127) {
                         out[o] = (char)v; o = o + 1; i = end + 1; continue;
                     }
-                    if (v == 0xA0) {
+                    if (v == 0xA0) {            /* nbsp */
                         out[o] = ' '; o = o + 1; i = end + 1; continue;
                     }
-                    /* unsupported codepoint: skip */
-                    i = end + 1; continue;
+                    if (v == 0xAD) {            /* soft hyphen — drop */
+                        i = end + 1; continue;
+                    }
+                    /* unsupported codepoint: ASCII placeholder */
+                    out[o] = '?'; o = o + 1; i = end + 1; continue;
                 }
+                /* named */
+                int matched = 0;
+                int idx = 0;
+                while (ent_names[idx]) {
+                    char *en = ent_names[idx];
+                    int enl = b_strlen(en);
+                    if (enl == el && b_strieq_n(src + j, en, enl)) {
+                        int ch = ent_chars[idx];
+                        if (o < omax - 1) {
+                            out[o] = (char)ch; o = o + 1;
+                        }
+                        matched = 1;
+                        break;
+                    }
+                    idx = idx + 1;
+                }
+                if (matched) { i = end + 1; continue; }
             }
             /* unrecognized entity: emit literal & */
             out[o] = '&'; o = o + 1; i = i + 1;

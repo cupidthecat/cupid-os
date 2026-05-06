@@ -18,12 +18,8 @@ int hit_box(int mx, int my) {
 
 /* find the input/button form parent node */
 int find_node_for_input(int ii) {
-    int n = 0;
-    while (n < nodes_count) {
-        if (n_tag[n] == T_INPUT && n_form_idx[n] == ii) return n;
-        n = n + 1;
-    }
-    return -1;
+    if (ii < 0 || ii >= inputs_count) return -1;
+    return input_node[ii];
 }
 
 int find_form_node(int input_node) {
@@ -93,19 +89,8 @@ void handle_input_key(int sc, int ch) {
     if (ch == 13 || ch == 10) {
         /* submit form */
         int fi = input_form[ii];
-        /* find the form node */
-        int n = 0;
-        int seen = 0;
-        int form_node = -1;
-        while (n < nodes_count) {
-            if (n_tag[n] == T_FORM) {
-                if (seen == fi) { form_node = n; break; }
-                seen = seen + 1;
-            }
-            n = n + 1;
-        }
         focus_mode = FOCUS_PAGE;
-        if (form_node >= 0) submit_form(form_node);
+        if (fi >= 0 && fi < forms_count) submit_form(form_node[fi]);
         return;
     }
     if (ch == 27) { focus_mode = FOCUS_PAGE; return; }
@@ -185,16 +170,14 @@ void handle_left_click(int mx, int my) {
                 return;
             }
             if (kind == BK_BUTTON && b_input_idx[bi] == -2) {
-                /* submit-style button: find form node */
-                int n = 0;
-                while (n < nodes_count) {
-                    if (n_tag[n] == T_INPUT && n_form_idx[n] == -2) {
-                        int fn = find_form_node(n);
-                        if (fn >= 0) submit_form(fn);
-                        return;
-                    }
-                    n = n + 1;
-                }
+                /* TODO Task 10: rebind via render tree.
+                 * Old code located the originating <input type=submit> via the
+                 * removed n_form_idx==-2 marker. With per-attr fields gone, we
+                 * have no back-reference from the box to the DOM node. Task 10
+                 * rewrites click handling to walk the render tree, restoring
+                 * submit-button click. For Task 3 we deliberately leave this
+                 * as a no-op: the entire boxes[] pipeline goes away in Task 11
+                 * regardless. */
                 return;
             }
         }

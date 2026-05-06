@@ -71,6 +71,10 @@ void navigate(char *u) {
         }
         b_strcpy_n(hist_url_pool + (HIST_MAX - 1) * URL_MAX, cur_url, URL_MAX);
     }
+    /* Reset persistent string pool BEFORE parse_html runs. The tree
+     * builder used to do this internally, but now tokenize() interns into
+     * attr_pool, so we must reset before tokenize starts. */
+    attr_pool_pos = 1;
     parse_html(page_len);
     run_layout();
     scroll_y = 0;

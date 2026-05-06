@@ -86,6 +86,26 @@ enum {
     T_OTHER  = 33,
     T_ROOT   = 34,
     T_TEXTAREA = 35,
+    T_DT       = 36,
+    T_DD       = 37,
+    T_DL       = 38,
+    T_THEAD    = 39,
+    T_TBODY    = 40,
+    T_TFOOT    = 41,
+    T_CAPTION  = 42,
+    T_OPTION   = 43,
+    T_HEADER   = 44,
+    T_FOOTER   = 45,
+    T_NAV      = 46,
+    T_SECTION  = 47,
+    T_ARTICLE  = 48,
+    T_ASIDE    = 49,
+    T_MAIN     = 50,
+    T_TABLE    = 51,
+    T_TR       = 52,
+    T_TD       = 53,
+    T_TH       = 54,
+    T_BLOCKQUOTE = 55,
 
     /* §1 tokenizer token kinds */
     TK_START = 1,
@@ -140,15 +160,29 @@ int n_first_child[4096];
 int n_next      [4096];
 int n_text_off  [4096];   /* into page_buf for TEXT nodes */
 int n_text_len  [4096];
-int n_href      [4096];   /* attr_pool offset, -1 = none */
-int n_src       [4096];
-int n_color     [4096];   /* 0xAARRGGBB or -1 */
-int n_bgcolor   [4096];
-int n_action    [4096];
-int n_name      [4096];
-int n_value     [4096];
-int n_type      [4096];
-int n_form_idx  [4096];   /* for input/button: parent form idx */
+
+/* §1 DOM attribute pool — each node has a contiguous slice of (name_off, value_off)
+ * pairs in dom_ap_*[]. Slice begins at dom_attrs_first[i] and runs
+ * dom_attrs_count[i] pairs. The slice is COPIED out of the tokenizer's scratch
+ * ap_*[] (which is reused across pages) into the permanent dom_ap_*[] pool so
+ * layout/paint can re-query during repaint. Strings (the offsets refer to)
+ * stay in attr_pool which is also persistent across the page lifetime. */
+int dom_attrs_first[MAX_NODES];
+int dom_attrs_count[MAX_NODES];
+int dom_ap_count;
+int dom_ap_name_off [MAX_ATTR_PAIRS];
+int dom_ap_value_off[MAX_ATTR_PAIRS];
+
+/* §1 selector cache: id and class strings extracted at DOM-build time.
+ * Used by §2 selector matching. -1 if absent. */
+int dom_class_off[MAX_NODES];
+int dom_id_off   [MAX_NODES];
+
+/* node-back-reference for forms/inputs registered by the tree builder.
+ * inputs[] / forms[] index → DOM node index. Lets handlers look up DOM
+ * attrs (action, name, value, type) of the originating element. */
+int input_node[MAX_INPUTS];
+int form_node [MAX_FORMS];
 
 char attr_pool[131072];
 int  attr_pool_pos;
