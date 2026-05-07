@@ -571,6 +571,10 @@ static int homefs_import_root_entry(const char *name, uint32_t size,
     homefs_import_ctx_t *ictx = (homefs_import_ctx_t *)ctx;
     if (!ictx || !ictx->fs || !name || name[0] == '\0') return 0;
     if (homefs_strieq(name, HOMEFS_CONTAINER_NAME)) return 0;
+    /* /wads/ holds DOOM IWAD/PWAD files. They stay on FAT16 and are
+     * read directly via /disk/wads/<file>. Importing them into the
+     * homefs container would inflate HOMEFS.SYS by ~57 MB. */
+    if (homefs_strieq(name, "WADS")) return 0;
 
     if (attr & FAT_ATTR_DIRECTORY) {
         homefs_node_t *dir = homefs_alloc_node(name, VFS_TYPE_DIR);
