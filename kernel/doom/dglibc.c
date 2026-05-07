@@ -100,16 +100,37 @@ __asm__(
  * Heap
  * ========================================================================= */
 
+/* dg_malloc'd blocks carry an 8-byte size prefix so dg_realloc
+ * can copy exactly the old payload without over-reading past the
+ * allocation boundary (which would risk heap corruption). The
+ * prefix is invisible to callers — dg_malloc returns the pointer
+ * AFTER the header, dg_free walks back to the header.
+ *
+ * IMPORTANT: pointers passed to dg_free / dg_realloc must have
+ * come from dg_malloc / dg_calloc / dg_strdup — not raw kmalloc.
+ */
+typedef struct {
+    uint32_t size;
+    uint32_t magic;   /* DG_ALLOC_MAGIC — sanity check on free/realloc */
+} dg_alloc_hdr_t;
+
+#define DG_ALLOC_MAGIC 0xDA110CADu
+
 void *dg_malloc(uint32_t n) {
+    dg_alloc_hdr_t *h;
     if (n == 0) { n = 1; }
-    return kmalloc((size_t)n);
+    h = (dg_alloc_hdr_t *)kmalloc(sizeof(dg_alloc_hdr_t) + (size_t)n);
+    if (!h) { return NULL; }
+    h->size = n;
+    h->magic = DG_ALLOC_MAGIC;
+    return (void *)(h + 1);
 }
 
 void *dg_calloc(uint32_t n, uint32_t sz) {
     uint32_t total = n * sz;
     void *p;
     if (total == 0) { total = 1; }
-    p = kmalloc((size_t)total);
+    p = dg_malloc(total);
     if (p) {
         memset(p, 0, (size_t)total);
     }
@@ -117,20 +138,41 @@ void *dg_calloc(uint32_t n, uint32_t sz) {
 }
 
 void *dg_realloc(void *p, uint32_t newsz) {
+    dg_alloc_hdr_t *h;
     void *newp;
+    uint32_t oldsz, copy;
     if (!p) { return dg_malloc(newsz); }
-    if (newsz == 0) { kfree(p); return NULL; }
-    newp = kmalloc((size_t)newsz);
-    if (newp) {
-        /* We don't know old size — copy newsz bytes (may over/under-copy) */
-        memcpy(newp, p, (size_t)newsz);
-        kfree(p);
+    if (newsz == 0) { dg_free(p); return NULL; }
+    h = ((dg_alloc_hdr_t *)p) - 1;
+    if (h->magic != DG_ALLOC_MAGIC) {
+        /* Pointer wasn't from dg_malloc — fall back to old behaviour
+         * but warn loudly. Should never happen in well-behaved DOOM. */
+        serial_write_string("[dglibc] realloc on foreign pointer!\n");
+        newp = kmalloc((size_t)newsz);
+        if (newp) { memcpy(newp, p, (size_t)newsz); kfree(p); }
+        return newp;
     }
+    oldsz = h->size;
+    newp = dg_malloc(newsz);
+    if (!newp) { return NULL; }
+    copy = (oldsz < newsz) ? oldsz : newsz;
+    memcpy(newp, p, (size_t)copy);
+    dg_free(p);
     return newp;
 }
 
 void dg_free(void *p) {
-    if (p) { kfree(p); }
+    dg_alloc_hdr_t *h;
+    if (!p) { return; }
+    h = ((dg_alloc_hdr_t *)p) - 1;
+    if (h->magic != DG_ALLOC_MAGIC) {
+        /* Foreign pointer — kfree direct. Diagnostic. */
+        serial_write_string("[dglibc] free on foreign pointer!\n");
+        kfree(p);
+        return;
+    }
+    h->magic = 0;   /* poison so double-free is caught */
+    kfree(h);
 }
 
 char *dg_strdup(const char *s) {
