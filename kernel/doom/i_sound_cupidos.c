@@ -58,9 +58,18 @@ static int cache_sfx(sfxinfo_t *sfx)
                      | ((uint32_t)raw[6] << 16)
                      | ((uint32_t)raw[7] << 24);
 
-    /* Clamp to actual lump data */
+    /* DMX SFX lumps include 16 bytes of padding both before and after
+     * the audible samples (typically replicating the first / last
+     * sample to mask DAC clicks on real DOOM hardware). Skip them so
+     * SFX start cleanly without a flat 16-byte step that resamples to
+     * a faint pop. Chocolate-doom does the same. */
+    uint32_t pcm_off = 8u;
     if (samples + 8u > (uint32_t)len) {
         samples = (uint32_t)len - 8u;
+    }
+    if (samples >= 32u) {
+        pcm_off  = 8u + 16u;       /* skip leading pad */
+        samples -= 32u;            /* drop both pads from the sample count */
     }
     if (samples == 0) { return -1; }
 
@@ -83,8 +92,8 @@ static int cache_sfx(sfxinfo_t *sfx)
         }
 
         /* u8 -> s16: centre at 128, scale to s16 range */
-        int32_t s0 = ((int32_t)raw[8u + si]      - 128) * 256;
-        int32_t s1 = ((int32_t)raw[8u + si + 1u] - 128) * 256;
+        int32_t s0 = ((int32_t)raw[pcm_off + si]      - 128) * 256;
+        int32_t s1 = ((int32_t)raw[pcm_off + si + 1u] - 128) * 256;
         int32_t v  = s0 + (((s1 - s0) * (int32_t)fr) >> 16);
 
         /* Clamp to s16 */
@@ -468,45 +477,71 @@ static int smf_track_fire(smf_track_t *t) {
     return 0;
 }
 
-/* Streaming-source pull: advances the SMF clock by the audio duration
- * of this buffer, fires every event whose delta has elapsed, then
- * renders that many frames of OPL audio. */
+/* Advance the SMF clock by `pull_us` microseconds, firing every event
+ * whose delta has elapsed. Returns with all live tracks' wait_us
+ * decremented by exactly `pull_us` (or zero if the song ended). */
+static void smf_advance(uint32_t pull_us)
+{
+    while (pull_us > 0u) {
+        uint32_t min_wait = 0xFFFFFFFFu;
+        int min_idx = -1;
+        for (int i = 0; i < s_smf.n_tracks; i++) {
+            smf_track_t *t = &s_smf.tracks[i];
+            if (t->ended) continue;
+            if (t->wait_us < min_wait) { min_wait = t->wait_us; min_idx = i; }
+        }
+        if (min_idx < 0) { s_smf.all_ended = 1; return; }
+        if (min_wait > pull_us) {
+            for (int i = 0; i < s_smf.n_tracks; i++) {
+                if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= pull_us;
+            }
+            return;
+        }
+        for (int i = 0; i < s_smf.n_tracks; i++) {
+            if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= min_wait;
+        }
+        pull_us -= min_wait;
+        smf_track_t *t = &s_smf.tracks[min_idx];
+        if (smf_track_fire(t) != 0) continue;
+        if (!t->ended) {
+            uint32_t delta = smf_vlq(s_midi_buf, &t->pos, t->end);
+            t->wait_us = delta * s_smf.us_per_tick;
+        }
+    }
+}
+
+/* Streaming-source pull. Renders in sub-chunks so MIDI events fire at
+ * the right sample position inside the buffer instead of all collapsing
+ * to t=0 of the buffer. The previous "fire everything for 23 ms then
+ * render 23 ms" pass made short notes degenerate (note-on + note-off in
+ * the same buffer landed 2 OPL ticks apart and got swallowed by the
+ * envelope), which is what made drum hits and staccato lines sound
+ * mushy / not crisp. SUBCHUNK = 64 frames at 22050 Hz ≈ 2.9 ms grain. */
+#define MUSIC_SUBCHUNK 64u
+
 static void music_pull(int16_t *out, uint32_t frames, void *ctx)
 {
     (void)ctx;
     if (s_midi_buf && !s_smf.all_ended) {
-        uint32_t pull_us = (frames * 1000000u) / 22050u;
-        while (pull_us > 0u) {
-            /* Find the live track with the smallest wait_us. */
-            uint32_t min_wait = 0xFFFFFFFFu;
-            int min_idx = -1;
-            for (int i = 0; i < s_smf.n_tracks; i++) {
-                smf_track_t *t = &s_smf.tracks[i];
-                if (t->ended) continue;
-                if (t->wait_us < min_wait) { min_wait = t->wait_us; min_idx = i; }
-            }
-            if (min_idx < 0) { s_smf.all_ended = 1; break; }
-            if (min_wait > pull_us) {
-                for (int i = 0; i < s_smf.n_tracks; i++) {
-                    if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= pull_us;
-                }
-                pull_us = 0u;
-                break;
-            }
-            for (int i = 0; i < s_smf.n_tracks; i++) {
-                if (!s_smf.tracks[i].ended) s_smf.tracks[i].wait_us -= min_wait;
-            }
-            pull_us -= min_wait;
-            smf_track_t *t = &s_smf.tracks[min_idx];
-            if (smf_track_fire(t) != 0) continue;
-            if (!t->ended) {
-                uint32_t delta = smf_vlq(s_midi_buf, &t->pos, t->end);
-                t->wait_us = delta * s_smf.us_per_tick;
-            }
+        uint32_t pos = 0u;
+        while (pos < frames) {
+            uint32_t chunk = (frames - pos < MUSIC_SUBCHUNK)
+                           ? (frames - pos) : MUSIC_SUBCHUNK;
+            uint32_t pull_us = (chunk * 1000000u) / 22050u;
+            smf_advance(pull_us);
+            midiopl_render(&out[pos * 2u], chunk);
+            pos += chunk;
+            if (s_smf.all_ended) break;
+        }
+        /* Tail: if the song ended mid-buffer, fill the rest with chip
+         * tail (release ringing notes) so we don't leave a silence step. */
+        if (pos < frames) {
+            midiopl_render(&out[pos * 2u], frames - pos);
         }
         if (s_smf.all_ended && s_music_loop) smf_reset();
+    } else {
+        midiopl_render(out, frames);
     }
-    midiopl_render(out, frames);
 }
 
 /* Lazy GENMIDI loader — called on first I_InitMusic */

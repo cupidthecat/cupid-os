@@ -43,10 +43,19 @@ static const uint16_t AC97_DEVICES[] = {
 #define POCR_FEIE  (1u << 3)
 #define POCR_IOCE  (1u << 4)
 
-/* BDL configuration */
+/* BDL configuration.
+ *
+ * Latency is `AC97_LOOKAHEAD * AC97_FRAMES_PER_BUF / 22050` worst-case.
+ * 3 × 512 / 22050 ≈ 70 ms — fine for game audio. The previous
+ * configuration pre-queued all 32 buffers at startup (LVI=31), which
+ * meant freshly mixed audio sat behind ~31 buffers of stale data and
+ * arrived 1.4 s late. Each IRQ now refills the buffer just past LVI
+ * and bumps LVI by one, so only AC97_LOOKAHEAD buffers are queued
+ * ahead of CIV at any time. */
 #define AC97_BDL_ENTRIES        32
-#define AC97_FRAMES_PER_BUF     1024u
+#define AC97_FRAMES_PER_BUF     512u
 #define AC97_BYTES_PER_BUF      (AC97_FRAMES_PER_BUF * 2u * 2u)  /* stereo s16 */
+#define AC97_LOOKAHEAD          3u
 
 typedef struct __attribute__((packed)) {
     uint32_t buf_phys;
@@ -56,6 +65,7 @@ typedef struct __attribute__((packed)) {
 
 static bdl_entry_t *s_bdl;
 static int16_t     *s_dma_pool;
+static volatile uint8_t s_next_fill;   /* BDL index to refill on next IOC */
 
 static struct {
     bool         present;
@@ -87,18 +97,40 @@ void ac97_set_fill_callback(void (*fill)(int16_t *, uint32_t)) {
     s_ac97.fill = fill;
 }
 
-/* AC97 IRQ handler — refills the buffer that just completed */
+/* AC97 IRQ handler.
+ *
+ * On each buffer-completion interrupt (BCIS), refill EVERY completed
+ * buffer (not just one) so the queue stays AC97_LOOKAHEAD ahead of CIV
+ * even when IRQs coalesce. Refilling once per IRQ used to leak queue
+ * depth: if two buffers drained between IRQs we'd refill one and
+ * silently shrink the lookahead by one — repeat a few times and the
+ * engine catches LVI, halts, and we hear a chop. This was inaudible
+ * on SFX-only loads but obvious once OPL music piled CPU into the ISR.
+ *
+ * We cap the refill loop at AC97_LOOKAHEAD iterations so a heavily
+ * delayed ISR can't try to "catch up" 30 buffers at once and lock
+ * the CPU out of every other IRQ. */
 static void ac97_isr(struct registers *r) {
     (void)r;
     uint16_t sr = inw((uint16_t)(s_ac97.bar_nabm + NABM_PO_SR));
-    if (sr & (uint16_t)POSR_BCIS) {
-        uint8_t civ  = inb((uint16_t)(s_ac97.bar_nabm + NABM_PO_CIV));
-        uint8_t done = (uint8_t)((civ - 1u) & (uint8_t)(AC97_BDL_ENTRIES - 1u));
-        if (s_ac97.fill) {
-            int16_t *buf = &s_dma_pool[(uint32_t)done * AC97_FRAMES_PER_BUF * 2u];
-            s_ac97.fill(buf, AC97_FRAMES_PER_BUF);
+    /* React to BCIS (normal completion) AND LVBCI (engine halted because
+     * CIV caught LVI). LVBCI means we already underran once — refill and
+     * bump LVI past CIV so DMA resumes. Without this branch a single bad
+     * jitter spike permanently silences the channel. */
+    if (sr & (uint16_t)(POSR_BCIS | POSR_LVBCI)) {
+        uint8_t civ    = inb((uint16_t)(s_ac97.bar_nabm + NABM_PO_CIV));
+        /* Target LVI: keep AC97_LOOKAHEAD buffers queued ahead of CIV. */
+        uint8_t target = (uint8_t)((civ + AC97_LOOKAHEAD) & (uint8_t)(AC97_BDL_ENTRIES - 1u));
+        unsigned guard = AC97_LOOKAHEAD + 1u;   /* never refill more than the ring depth */
+        while (s_next_fill != target && guard--) {
+            uint8_t buf = s_next_fill;
+            if (s_ac97.fill) {
+                int16_t *p = &s_dma_pool[(uint32_t)buf * AC97_FRAMES_PER_BUF * 2u];
+                s_ac97.fill(p, AC97_FRAMES_PER_BUF);
+            }
+            outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI), buf);
+            s_next_fill = (uint8_t)((buf + 1u) & (uint8_t)(AC97_BDL_ENTRIES - 1u));
         }
-        outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI), done);
     }
     /* ack all status bits */
     outw((uint16_t)(s_ac97.bar_nabm + NABM_PO_SR), sr);
@@ -175,10 +207,13 @@ int ac97_init(void) {
     outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_CR), (uint8_t)POCR_RR);
     while (inb((uint16_t)(s_ac97.bar_nabm + NABM_PO_CR)) & (uint8_t)POCR_RR) { /* spin */ }
 
-    /* Program BDL */
+    /* Program BDL. LVI starts at LOOKAHEAD-1 so only that many silence
+     * buffers are queued; ISR fills the remaining ring as buffers drain
+     * (see ac97_isr). */
     outl((uint16_t)(s_ac97.bar_nabm + NABM_PO_BDBAR), (uint32_t)s_bdl);
     outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI),
-         (uint8_t)(AC97_BDL_ENTRIES - 1));
+         (uint8_t)(AC97_LOOKAHEAD - 1u));
+    s_next_fill = (uint8_t)AC97_LOOKAHEAD;
 
     /* Install IRQ handler */
     irq_install_handler((int)s_ac97.irq_line, ac97_isr);
