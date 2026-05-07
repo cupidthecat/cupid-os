@@ -26,9 +26,12 @@ extern void process_yield(void);
 /* doomgeneric global framebuffer — 640*400 ARGB.
  * Defined inside kernel/doom/src/doomgeneric.c. */
 extern uint32_t *DG_ScreenBuffer;
+extern void doomgeneric_Tick(void);
 
 #define DG_RESX      640
 #define DG_RESY      400
+#define DOOMGENERIC_RESX DG_RESX
+#define DOOMGENERIC_RESY DG_RESY
 #define INPUT_RING   256
 
 /* ------------------------------------------------------------------ *
@@ -167,11 +170,35 @@ void DG_DrawFrame(void) {
  * DG_SleepMs / DG_GetTicksMs                                          *
  * ------------------------------------------------------------------ */
 
+/* USB host controllers expose interrupt URBs only via cooperative polling
+ * from kernel_check_reschedule().  DOOM owns the kernel main thread and
+ * never yields, so we drain pending USB events ourselves on each timer
+ * query / sleep call. Without this, USB-attached keyboards never reach
+ * DOOM. */
+extern void ehci_poll_interrupts(void);
+extern void uhci_poll_interrupts(void);
+extern void uhci_poll_ports(void);
+extern void usb_process_pending(void);
+
+static void cup_pump_usb(void) {
+    ehci_poll_interrupts();
+    uhci_poll_ports();
+    uhci_poll_interrupts();
+    usb_process_pending();
+}
+
 void DG_SleepMs(uint32_t ms) {
+    /* Force IF=1 — DOOM busy-waits on this in TryRunTics, and the shell
+     * command path can leave us with IF=0 (BKL save/restore cycle).
+     * Without IF=1 the PIT IRQ never fires and the loop spins forever. */
+    __asm__ volatile("sti");
+    cup_pump_usb();
     timer_sleep_ms(ms);
 }
 
 uint32_t DG_GetTicksMs(void) {
+    __asm__ volatile("sti");
+    cup_pump_usb();
     return timer_get_uptime_ms();
 }
 
@@ -300,12 +327,50 @@ int doom_main(int argc, char **argv) {
     /* Arm the exit trap so dg_exit will longjmp here */
     dg_arm_exit(s_doom_env);
 
+    /* Force IF=1.  Shell command path can leave us with interrupts disabled
+     * (BKL save/restore in process_yield).  DOOM busy-waits on PIT-driven
+     * timer in TryRunTics, so without IF=1 the wait spins forever. */
+    __asm__ volatile("sti");
+
+    /* Wipe the framebuffer so leftover terminal/desktop pixels don't
+     * leak through during DOOM frames where some columns (border, sky,
+     * etc.) skip writes. */
+    {
+        uint32_t *fb = vga_get_framebuffer();
+        if (fb) {
+            uint32_t i;
+            for (i = 0; i < (uint32_t)(VGA_GFX_WIDTH * VGA_GFX_HEIGHT); i++) {
+                fb[i] = 0u;
+            }
+            vga_mark_dirty_full();
+            vga_flip();
+        }
+    }
+
+    /* doomgeneric expects DG_ScreenBuffer pre-allocated and the host to
+     * drive the game loop with repeated calls to doomgeneric_Tick.
+     * D_DoomLoop() in this port runs ONE tick then returns, by design. */
+    if (!DG_ScreenBuffer) {
+        DG_ScreenBuffer = (uint32_t *)dg_malloc(
+            DOOMGENERIC_RESX * DOOMGENERIC_RESY * 4u);
+        if (!DG_ScreenBuffer) {
+            serial_write_string("[doom] out of memory: DG_ScreenBuffer\n");
+            return 1;
+        }
+    }
+
     DG_Init();
     M_FindResponseFile();
     D_DoomMain();
 
-    /* D_DoomMain normally never returns (enters game loop).
-     * If it does return (no WAD, etc.) clean up gracefully. */
+    /* D_DoomMain returns after one tic in this port; drive the game loop
+     * here. sti each iteration in case BKL save/restore left IF=0. */
+    for (;;) {
+        __asm__ volatile("sti");
+        doomgeneric_Tick();
+    }
+
+    /* Unreachable, but keep cleanup in case the loop ever exits. */
     keyboard_unsubscribe();
     serial_write_string("[doom] D_DoomMain returned\n");
     return 0;

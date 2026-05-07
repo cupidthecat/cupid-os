@@ -395,11 +395,19 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
                 lo++; hi--;
             }
 
-            int total = blen + (neg ? 1 : 0);
+            /* Precision for integers = minimum digit count, zero-padded
+             * on the left.  Suppresses ' ' / '0' width-flag padding when
+             * precision is specified (printf semantics). */
+            int prec_pad = 0;
+            if (prec >= 0 && prec > blen) {
+                prec_pad = prec - blen;
+            }
+
+            int total = blen + prec_pad + (neg ? 1 : 0);
             int pad = (width > total) ? (width - total) : 0;
 
             if (!left_align) {
-                if (zero_pad) {
+                if (zero_pad && prec < 0) {
                     if (neg) { EMIT('-'); }
                     int p; for (p = 0; p < pad; p++) { EMIT('0'); }
                 } else {
@@ -410,6 +418,7 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
                 if (neg) { EMIT('-'); }
             }
 
+            { int p; for (p = 0; p < prec_pad; p++) { EMIT('0'); } }
             int k; for (k = 0; k < blen; k++) { EMIT(buf[k]); }
 
             if (left_align) {
@@ -439,9 +448,11 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
  * ========================================================================= */
 
 int dg_vsnprintf(char *s, uint32_t n, const char *fmt, void *va) {
-    va_list *ap = (va_list *)va;
     if (!s || n == 0) { return 0; }
-    return format_into(s, n, fmt, *ap);
+    /* On x86-32 sysv ABI, va_list is char* — same size as void*. The
+     * caller passes the va_list value directly via a void* parameter,
+     * so cast it back rather than dereferencing. */
+    return format_into(s, n, fmt, (va_list)va);
 }
 
 int dg_snprintf(char *s, uint32_t n, const char *fmt, ...) {

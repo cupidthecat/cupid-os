@@ -150,8 +150,13 @@ int puts(const char *s)
 
 int vfprintf(DG_FILE *f, const char *fmt, __builtin_va_list va)
 {
+    extern void serial_write_string(const char *s);
+    char buf[1024];
+    int n;
     (void)f;
-    return dg_vsnprintf((void*)0, 0, fmt, va);
+    n = dg_vsnprintf(buf, (uint32_t)sizeof(buf), fmt, va);
+    serial_write_string(buf);
+    return n;
 }
 
 /* sscanf — minimal implementation for DOOM's config parsing */
