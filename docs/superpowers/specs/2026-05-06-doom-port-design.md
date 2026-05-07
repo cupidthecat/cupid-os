@@ -655,3 +655,52 @@ Total new code (excluding vendored): ~3.5 KLOC. Vendored: ~30 KLOC doomgeneric +
 8. i_sound bridge — SFX working.
 9. Music wiring — full audio.
 10. Savegames + cfg + polish.
+
+## Post-implementation notes (2026-05-06)
+
+The implementation landed in 20 commits across 11 stages. The original architecture sections above remain accurate; this section captures meaningful drifts that affect future maintenance.
+
+### Audio
+
+- AC97 smoke helpers use **TSC busy-wait** (`rdtsc`) for sub-second sleep, not PIT ticks. Reason: PIT/LAPIC IRQs don't deliver reliably during CupidC JIT spin context. TSC is IRQ-state-independent. (Task 4)
+- `ac97_start` runs **after** `sti` in boot sequence, not immediately after `ac97_init`. Pre-sti placement caused QEMU stdin to be silently dropped on headless boot. (Task 5)
+- Music synthesis runs synchronously from the AC97 fill ISR via the mixer's streaming source, **not** a separate kernel thread. 256 MIDI bytes are fed per buffer fill (~46 ms). (Task 17)
+
+### Toolchain
+
+- `<stdarg.h>` is unavailable under `-nostdinc`. dglibc uses `__builtin_va_list` / `__builtin_va_start` / `__builtin_va_arg` / `__builtin_va_end` directly. (Task 11)
+- doomgeneric tree compiles via:
+  - `kernel/doom/dglibc_compat.h` `-include`'d into every DOOM source.
+  - `kernel/doom/src/include_stubs/` empty headers so `#include <stdio.h>` etc. resolve to nothing.
+  - `kernel/doom/doom_libc_stubs.c` for atoi/sscanf/vfprintf and other runtime stubs not in dglibc.
+- doomgeneric upstream pinned: commit `dcb7a8dbc7a16ce3dda29382ac9aae9d77d21284`.
+- Vendored `i_sound.c` from doomgeneric was deleted; replaced by `kernel/doom/i_sound_cupidos.c`.
+- Zero modifications to vendored `.c` files — all adaptation via the alias header + include stubs. (Task 12)
+- Kernel area expanded from LBA 5..4095 to LBA 5..8191 (~4 MB) to fit DOOM growth. Bootloader, link.ld ASSERT, and FAT_START_LBA updated in step. (Task 8)
+
+### Platform shim
+
+- Graphics: uses `vga_get_framebuffer()` + `vga_mark_dirty_full()` + `vga_flip()` from `drivers/vga.h`. The planned `gfx_get_backbuffer`/`gfx_present` API doesn't exist in this kernel.
+- Timer: uses `timer_sleep_ms()` + `timer_get_uptime_ms()` from `drivers/timer.h`.
+- Shell builtin signature is `void (*)(const char *)`; `shell_doom_cmd` adapter tokenises args before calling `doom_main(argc, argv)`. (Task 13)
+
+### File system
+
+- FAT16 VFS exposes 8.3 short names; `freedoom1.wad` shows up as `freedo~1.wad`. The IWAD candidate list probes both long and short forms. Long-filename support in fat16_vfs is a future improvement. (Task 15)
+- DOOM's hardcoded relative paths (`./.savegame/doomsav?.dsg`, `./default.cfg`) translate to `/home/doom/<basename>` via a substring match in `dg_fopen`. The `-DDEFAULT_SAVEGAMEDIR="/home/doom/"` flag is unused by this DOOM tree (compile macro present but no source consumes it). (Task 18)
+
+### i_sound bridge
+
+- `sound_module_t.StartSound` is 4-arg (no `pitch`) in this tree — chocolate-doom variants have 5-arg.
+- `sfxinfo_t.name` is `char[9]`.
+- SFX cache sized to 4096 lumps (not 256) — modern WADs go large.
+- Top-level `sound_module` / `music_module` globals do not exist in this tree; `I_*Sound` / `I_*Music` wrappers dispatch directly to the cupidos modules.
+- `mus2midi.h` is not directly included from `i_sound_cupidos.c` (its `typedef int boolean` conflicts with doomtype.h's `typedef unsigned int boolean`). `mus2midi_convert` is forward-declared inline. (Tasks 16, 17)
+- Music volume accepts 0-127 directly per i_sound.h header comment, not the 0-15 scale the spec sketched. (Task 17)
+
+### Smoke matrix verified
+
+9 PASS lines under `make run-headless`:
+- `[PASS] audiotest sine|sweep|pan|opl|all`
+- `[PASS] dglibc snprintf|malloc/free|setjmp/longjmp`
+- `[PASS] kbdsub: subscribe/unsubscribe round-trip`
