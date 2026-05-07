@@ -261,3 +261,171 @@ void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
 {
     cup_precache_sounds(sounds, num_sounds);
 }
+
+/* ── Music path: MUS → MIDI → OPL3 → mixer slot 8 ─────────────────────── */
+#include "../audio/midiopl.h"
+/* Forward-declare mus2midi_convert directly to avoid the boolean typedef
+ * conflict between mus2midi.h (boolean=int) and doomtype.h (boolean=uint). */
+int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
+                     uint8_t **out_midi, uint32_t *out_len);
+
+static int      s_music_inited = 0;
+static uint8_t *s_midi_buf     = 0;
+static uint32_t s_midi_len     = 0;
+static uint32_t s_midi_pos     = 0;
+static int      s_music_loop   = 0;
+
+/* Streaming-source pull: feeds MIDI bytes into the synth, then renders. */
+static void music_pull(int16_t *out, uint32_t frames, void *ctx)
+{
+    (void)ctx;
+    if (s_midi_buf && s_midi_pos < s_midi_len) {
+        uint32_t chunk = s_midi_len - s_midi_pos;
+        if (chunk > 256u) { chunk = 256u; }
+        midiopl_feed(s_midi_buf + s_midi_pos, chunk);
+        s_midi_pos += chunk;
+        if (s_midi_pos >= s_midi_len && s_music_loop) {
+            midiopl_reset();
+            s_midi_pos = 0u;
+        }
+    }
+    midiopl_render(out, frames);
+}
+
+/* Lazy GENMIDI loader — called on first I_InitMusic */
+static int load_genmidi_from_wad(void)
+{
+    int gn = W_GetNumForName("GENMIDI");
+    if (gn < 0) {
+        serial_write_string("[i_sound] no GENMIDI in WAD\n");
+        return -1;
+    }
+    int len = W_LumpLength((unsigned int)gn);
+    uint8_t *gm = (uint8_t *)W_CacheLumpNum(gn, 1); /* PU_STATIC = 1 */
+    if (!gm || len <= 0) { return -1; }
+    midiopl_init(gm, (uint32_t)len);
+    return 0;
+}
+
+/* music_module_t implementations */
+static boolean cup_music_init(void)
+{
+    if (load_genmidi_from_wad() == 0) {
+        s_music_inited = 1;
+        serial_write_string("[i_music] init: GENMIDI loaded\n");
+        return true;
+    }
+    serial_write_string("[i_music] init: NO GENMIDI; music disabled\n");
+    return false;
+}
+
+static void cup_music_shutdown(void) { mixer_stop(8); }
+
+static void cup_music_set_volume(int volume)
+{
+    /* DOOM passes 0..127 per music_module_t comment; clamp defensively */
+    if (volume < 0)   { volume = 0; }
+    if (volume > 127) { volume = 127; }
+    midiopl_set_volume((uint8_t)volume);
+}
+
+static void cup_music_pause(void)   { mixer_stop(8); }
+
+static void cup_music_resume(void)
+{
+    mixer_play_stream(8, music_pull, 0, 100, 100);
+}
+
+static void *cup_music_register(void *data, int len)
+{
+    if (!s_music_inited) {
+        if (load_genmidi_from_wad() != 0) { return 0; }
+        s_music_inited = 1;
+    }
+    if (s_midi_buf) {
+        kfree(s_midi_buf);
+        s_midi_buf = 0;
+        s_midi_len = 0;
+    }
+    int rc = mus2midi_convert((const uint8_t *)data, (uint32_t)len,
+                              &s_midi_buf, &s_midi_len);
+    if (rc != 0) {
+        serial_write_string("[i_music] mus2midi failed\n");
+        return 0;
+    }
+    s_midi_pos = 0u;
+    return s_midi_buf;
+}
+
+static void cup_music_unregister(void *handle)
+{
+    (void)handle;
+    if (s_midi_buf) {
+        kfree(s_midi_buf);
+        s_midi_buf = 0;
+        s_midi_len = 0;
+    }
+    mixer_stop(8);
+}
+
+static void cup_music_play(void *handle, boolean looping)
+{
+    (void)handle;
+    s_music_loop = looping ? 1 : 0;
+    s_midi_pos   = 0u;
+    midiopl_reset();
+    mixer_play_stream(8, music_pull, 0, 100, 100);
+}
+
+static void cup_music_stop(void) { mixer_stop(8); }
+
+static boolean cup_music_is_playing(void)
+{
+    return mixer_active(8) ? true : false;
+}
+
+static void cup_music_poll(void) {}
+
+music_module_t cupidos_music_module = {
+    .sound_devices    = cup_devices,
+    .num_sound_devices = 1,
+    .Init             = cup_music_init,
+    .Shutdown         = cup_music_shutdown,
+    .SetMusicVolume   = cup_music_set_volume,
+    .PauseMusic       = cup_music_pause,
+    .ResumeMusic      = cup_music_resume,
+    .RegisterSong     = cup_music_register,
+    .UnRegisterSong   = cup_music_unregister,
+    .PlaySong         = cup_music_play,
+    .StopSong         = cup_music_stop,
+    .MusicIsPlaying   = cup_music_is_playing,
+    .Poll             = cup_music_poll,
+};
+
+/* Top-level I_*Music — DOOM calls these directly. */
+void I_InitMusic(void)    { cupidos_music_module.Init(); }
+void I_ShutdownMusic(void) { cupidos_music_module.Shutdown(); }
+
+void I_SetMusicVolume(int volume)
+{
+    cup_music_set_volume(volume);
+}
+
+void I_PauseSong(void)    { cup_music_pause(); }
+void I_ResumeSong(void)   { cup_music_resume(); }
+
+void *I_RegisterSong(void *data, int len)
+{
+    return cup_music_register(data, len);
+}
+
+void I_UnRegisterSong(void *handle) { cup_music_unregister(handle); }
+
+void I_PlaySong(void *handle, boolean looping)
+{
+    cup_music_play(handle, looping);
+}
+
+void I_StopSong(void)             { cup_music_stop(); }
+boolean I_MusicIsPlaying(void)    { return cup_music_is_playing(); }
+void I_UpdateMusic(void)          { cup_music_poll(); }

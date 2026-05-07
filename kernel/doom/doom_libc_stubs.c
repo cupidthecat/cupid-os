@@ -295,13 +295,4 @@ int snd_pitchshift   = 0;
 
 void I_BindSoundVariables(void)        {}
 
-void I_InitMusic(void)                {}
-void I_ShutdownMusic(void)            {}
-void I_SetMusicVolume(int volume)     { (void)volume; }
-void I_PauseSong(void)                {}
-void I_ResumeSong(void)               {}
-void *I_RegisterSong(void *data, int len) { (void)data; (void)len; return (void*)0; }
-void I_PlaySong(void *handle, int looping) { (void)handle; (void)looping; }
-void I_StopSong(void)                 {}
-void I_UnRegisterSong(void *handle)   { (void)handle; }
-int  I_MusicIsPlaying(void)           { return 0; }
+/* I_*Music stubs removed — implemented in i_sound_cupidos.c (Task 17) */
