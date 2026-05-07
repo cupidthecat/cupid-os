@@ -58,7 +58,8 @@ typedef struct {
 typedef struct {
     uint16_t    flags;
     int8_t      finetune;
-    uint8_t     note_offset;
+    uint8_t     fixed_note;        /* used for fixed-pitch percussion only */
+    int16_t     base_note_offset;  /* per-instrument tuning (LE16, signed) */
     opl_voice_t v0;
     opl_voice_t v1;
 } genmidi_patch_t;
@@ -139,12 +140,104 @@ static const uint8_t OP_OFFSET[9][2] = {
     {0x10u, 0x13u}, {0x11u, 0x14u}, {0x12u, 0x15u}
 };
 
-/* F-number table for 12 chromatic semitones (octave 0 reference).
- * Source: OPL3 datasheet, Table 1 — octave/block applied separately. */
-static const uint16_t FNUM[12] = {
-    0x158u, 0x16Du, 0x183u, 0x19Au, 0x1B2u, 0x1CCu,
-    0x1E7u, 0x204u, 0x223u, 0x244u, 0x267u, 0x28Du
+/* Frequency table from chocolate-doom's i_oplmusic.c (GPL-2).
+ *
+ * Indexed by `freq_index = 64 + 32 * note + pitch_bend`. The first
+ * 284 entries are used directly; beyond 284 the table loops in 384-
+ * entry chunks (one per octave) and the octave is OR'd into bit 10+
+ * of the result (block field for OPL3 register 0xB0). This gives a
+ * smooth pitch-bend-aware mapping from MIDI note to OPL FNUM/block,
+ * which the previous 12-entry chromatic table couldn't do — and is
+ * the reason real DOOM/Freedoom music plays as recognisable melodies
+ * here instead of buzzy beeps.
+ */
+static const uint16_t s_freq_curve[] = {
+    0x133, 0x133, 0x134, 0x134, 0x135, 0x136, 0x136, 0x137,
+    0x137, 0x138, 0x138, 0x139, 0x139, 0x13a, 0x13b, 0x13b,
+    0x13c, 0x13c, 0x13d, 0x13d, 0x13e, 0x13f, 0x13f, 0x140,
+    0x140, 0x141, 0x142, 0x142, 0x143, 0x143, 0x144, 0x144,
+    0x145, 0x146, 0x146, 0x147, 0x147, 0x148, 0x149, 0x149,
+    0x14a, 0x14a, 0x14b, 0x14c, 0x14c, 0x14d, 0x14d, 0x14e,
+    0x14f, 0x14f, 0x150, 0x150, 0x151, 0x152, 0x152, 0x153,
+    0x153, 0x154, 0x155, 0x155, 0x156, 0x157, 0x157, 0x158,
+    0x158, 0x159, 0x15a, 0x15a, 0x15b, 0x15b, 0x15c, 0x15d,
+    0x15d, 0x15e, 0x15f, 0x15f, 0x160, 0x161, 0x161, 0x162,
+    0x162, 0x163, 0x164, 0x164, 0x165, 0x166, 0x166, 0x167,
+    0x168, 0x168, 0x169, 0x16a, 0x16a, 0x16b, 0x16c, 0x16c,
+    0x16d, 0x16e, 0x16e, 0x16f, 0x170, 0x170, 0x171, 0x172,
+    0x172, 0x173, 0x174, 0x174, 0x175, 0x176, 0x176, 0x177,
+    0x178, 0x178, 0x179, 0x17a, 0x17a, 0x17b, 0x17c, 0x17c,
+    0x17d, 0x17e, 0x17e, 0x17f, 0x180, 0x181, 0x181, 0x182,
+    0x183, 0x183, 0x184, 0x185, 0x185, 0x186, 0x187, 0x188,
+    0x188, 0x189, 0x18a, 0x18a, 0x18b, 0x18c, 0x18d, 0x18d,
+    0x18e, 0x18f, 0x18f, 0x190, 0x191, 0x192, 0x192, 0x193,
+    0x194, 0x194, 0x195, 0x196, 0x197, 0x197, 0x198, 0x199,
+    0x19a, 0x19a, 0x19b, 0x19c, 0x19d, 0x19d, 0x19e, 0x19f,
+    0x1a0, 0x1a0, 0x1a1, 0x1a2, 0x1a3, 0x1a3, 0x1a4, 0x1a5,
+    0x1a6, 0x1a6, 0x1a7, 0x1a8, 0x1a9, 0x1a9, 0x1aa, 0x1ab,
+    0x1ac, 0x1ad, 0x1ad, 0x1ae, 0x1af, 0x1b0, 0x1b0, 0x1b1,
+    0x1b2, 0x1b3, 0x1b4, 0x1b4, 0x1b5, 0x1b6, 0x1b7, 0x1b8,
+    0x1b8, 0x1b9, 0x1ba, 0x1bb, 0x1bc, 0x1bc, 0x1bd, 0x1be,
+    0x1bf, 0x1c0, 0x1c0, 0x1c1, 0x1c2, 0x1c3, 0x1c4, 0x1c4,
+    0x1c5, 0x1c6, 0x1c7, 0x1c8, 0x1c9, 0x1c9, 0x1ca, 0x1cb,
+    0x1cc, 0x1cd, 0x1ce, 0x1ce, 0x1cf, 0x1d0, 0x1d1, 0x1d2,
+    0x1d3, 0x1d3, 0x1d4, 0x1d5, 0x1d6, 0x1d7, 0x1d8, 0x1d8,
+    0x1d9, 0x1da, 0x1db, 0x1dc, 0x1dd, 0x1de, 0x1de, 0x1df,
+    0x1e0, 0x1e1, 0x1e2, 0x1e3, 0x1e4, 0x1e5, 0x1e5, 0x1e6,
+    0x1e7, 0x1e8, 0x1e9, 0x1ea, 0x1eb, 0x1ec, 0x1ed, 0x1ed,
+    0x1ee, 0x1ef, 0x1f0, 0x1f1, 0x1f2, 0x1f3, 0x1f4, 0x1f5,
+    0x1f6, 0x1f6, 0x1f7, 0x1f8, 0x1f9, 0x1fa, 0x1fb, 0x1fc,
+    0x1fd, 0x1fe, 0x1ff, 0x200, 0x201, 0x201, 0x202, 0x203,
+    0x204, 0x205, 0x206, 0x207, 0x208, 0x209, 0x20a, 0x20b,
+    0x20c, 0x20d, 0x20e, 0x20f, 0x210, 0x210, 0x211, 0x212,
+    0x213, 0x214, 0x215, 0x216, 0x217, 0x218, 0x219, 0x21a,
+    0x21b, 0x21c, 0x21d, 0x21e, 0x21f, 0x220, 0x221, 0x222,
+    0x223, 0x224, 0x225, 0x226, 0x227, 0x228, 0x229, 0x22a,
+    0x22b, 0x22c, 0x22d, 0x22e, 0x22f, 0x230, 0x231, 0x232,
+    0x233, 0x234, 0x235, 0x236, 0x237, 0x238, 0x239, 0x23a,
+    0x23b, 0x23c, 0x23d, 0x23e, 0x23f, 0x240, 0x241, 0x242,
+    0x244, 0x245, 0x246, 0x247, 0x248, 0x249, 0x24a, 0x24b,
+    0x24c, 0x24d, 0x24e, 0x24f, 0x250, 0x251, 0x252, 0x253,
+    0x254, 0x256, 0x257, 0x258, 0x259, 0x25a, 0x25b, 0x25c,
+    0x25d, 0x25e, 0x25f, 0x260, 0x262, 0x263, 0x264, 0x265,
+    0x266, 0x267, 0x268, 0x269, 0x26a, 0x26c, 0x26d, 0x26e,
+    0x26f, 0x270, 0x271, 0x272, 0x273, 0x275, 0x276, 0x277,
+    0x278, 0x279, 0x27a, 0x27b, 0x27d, 0x27e, 0x27f, 0x280,
+    0x281, 0x282, 0x284, 0x285, 0x286, 0x287, 0x288, 0x289,
+    0x28b, 0x28c, 0x28d, 0x28e, 0x28f, 0x290, 0x292, 0x293,
+    0x294, 0x295, 0x296, 0x298, 0x299, 0x29a, 0x29b, 0x29c,
+    0x29e, 0x29f, 0x2a0, 0x2a1, 0x2a2, 0x2a4, 0x2a5, 0x2a6,
+    0x2a7, 0x2a9, 0x2aa, 0x2ab, 0x2ac, 0x2ae, 0x2af, 0x2b0,
+    0x2b1, 0x2b2, 0x2b4, 0x2b5, 0x2b6, 0x2b7, 0x2b9, 0x2ba,
+    0x2bb, 0x2bd, 0x2be, 0x2bf, 0x2c0, 0x2c2, 0x2c3, 0x2c4,
+    0x2c5, 0x2c7, 0x2c8, 0x2c9, 0x2cb, 0x2cc, 0x2cd, 0x2ce,
+    0x2d0, 0x2d1, 0x2d2, 0x2d4, 0x2d5, 0x2d6, 0x2d8, 0x2d9,
+    0x2da, 0x2dc, 0x2dd, 0x2de, 0x2e0, 0x2e1, 0x2e2, 0x2e4,
+    0x2e5, 0x2e6, 0x2e8, 0x2e9, 0x2ea, 0x2ec, 0x2ed, 0x2ee,
+    0x2f0, 0x2f1, 0x2f2, 0x2f4, 0x2f5, 0x2f6, 0x2f8, 0x2f9,
+    0x2fb, 0x2fc, 0x2fd, 0x2ff, 0x300, 0x302, 0x303, 0x304,
+    0x306, 0x307, 0x309, 0x30a, 0x30b, 0x30d, 0x30e, 0x310,
+    0x311, 0x312, 0x314, 0x315, 0x317, 0x318, 0x31a, 0x31b,
+    0x31c, 0x31e, 0x31f, 0x321, 0x322, 0x324, 0x325, 0x327,
+    0x328, 0x329, 0x32b, 0x32c, 0x32e, 0x32f, 0x331, 0x332,
+    0x334, 0x335, 0x337, 0x338, 0x33a, 0x33b, 0x33d, 0x33e,
+    0x340, 0x341, 0x343, 0x344, 0x346, 0x347, 0x349, 0x34a,
+    0x34c, 0x34d, 0x34f, 0x350, 0x352, 0x353, 0x355, 0x357,
+    0x358, 0x35a, 0x35b, 0x35d, 0x35e, 0x360, 0x361, 0x363,
+    0x365, 0x366, 0x368, 0x369, 0x36b, 0x36c, 0x36e, 0x370,
+    0x371, 0x373, 0x374, 0x376, 0x378, 0x379, 0x37b, 0x37c,
+    0x37e, 0x380, 0x381, 0x383, 0x384, 0x386, 0x388, 0x389,
+    0x38b, 0x38d, 0x38e, 0x390, 0x392, 0x393, 0x395, 0x397,
+    0x398, 0x39a, 0x39c, 0x39d, 0x39f, 0x3a1, 0x3a2, 0x3a4,
+    0x3a6, 0x3a7, 0x3a9, 0x3ab, 0x3ac, 0x3ae, 0x3b0, 0x3b1,
+    0x3b3, 0x3b5, 0x3b7, 0x3b8, 0x3ba, 0x3bc, 0x3bd, 0x3bf,
+    0x3c1, 0x3c3, 0x3c4, 0x3c6, 0x3c8, 0x3ca, 0x3cb, 0x3cd,
+    0x3cf, 0x3d1, 0x3d2, 0x3d4, 0x3d6, 0x3d8, 0x3da, 0x3db,
+    0x3dd, 0x3df, 0x3e1, 0x3e3, 0x3e4, 0x3e6, 0x3e8, 0x3ea,
+    0x3ec, 0x3ed, 0x3ef, 0x3f1, 0x3f3, 0x3f5, 0x3f6, 0x3f8,
+    0x3fa, 0x3fc, 0x3fe, 0x36c
 };
+#define FREQ_CURVE_LEN ((int)(sizeof(s_freq_curve) / sizeof(s_freq_curve[0])))
 
 /* =========================================================================
  * Forward declarations (strict -Wmissing-prototypes compliance)
@@ -160,8 +253,9 @@ static void pitch_bend_change(uint8_t ch, uint16_t bend);
 static int  alloc_opl_ch(uint8_t midi_ch, uint8_t note);
 static void free_opl_ch(int oplc);
 static void program_patch(int oplc, const genmidi_patch_t *p);
-static void key_on(int oplc, uint16_t fnum, uint8_t block);
+static void key_on_freq(int oplc, uint32_t freq);
 static void key_off(int oplc);
+static uint32_t freq_for_note(int note, int bend, int finetune_voice2);
 
 /* =========================================================================
  * Public API
@@ -272,9 +366,19 @@ static int midiopl_load_genmidi(const uint8_t *lump, uint32_t len)
 
         s_patches[i].flags       = (uint16_t)((uint16_t)p[0] | (uint16_t)((uint16_t)p[1] << 8));
         s_patches[i].finetune    = (int8_t)p[2];
-        s_patches[i].note_offset = p[3];
+        s_patches[i].fixed_note  = p[3];
 
-        /* voice0 starts at p+4 */
+        /* DOOM GENMIDI voice layout (16 bytes):
+         *   [0..5]  modulator op (tremolo, attack, sustain, waveform, scale, level)
+         *   [6]     feedback / connection
+         *   [7..12] carrier op (same six fields)
+         *   [13]    unused
+         *   [14..15] base_note_offset (LE16, signed)
+         *
+         * Earlier code put the carrier at [8..13], shifted one byte
+         * forward, so every carrier register saw the wrong field
+         * (attack-byte programmed as tremolo, etc). That made every
+         * patch sound like a buzzy beep. */
         v0 = p + 4u;
         s_patches[i].v0.mod.mult           = v0[0];
         s_patches[i].v0.mod.atk_dec        = v0[1];
@@ -283,14 +387,16 @@ static int midiopl_load_genmidi(const uint8_t *lump, uint32_t len)
         s_patches[i].v0.mod.ksl_lvl        = v0[4];
         s_patches[i].v0.mod.ksr_eg_vib_am  = v0[5];
         s_patches[i].v0.feedback_conn      = v0[6];
-        /* v0[7] is padding/unused */
-        s_patches[i].v0.car.mult           = v0[8];
-        s_patches[i].v0.car.atk_dec        = v0[9];
-        s_patches[i].v0.car.sus_rel        = v0[10];
-        s_patches[i].v0.car.waveform       = v0[11];
-        s_patches[i].v0.car.ksl_lvl        = v0[12];
-        s_patches[i].v0.car.ksr_eg_vib_am  = v0[13];
-        /* v0[14..15] padding; voice1 [20..35] ignored in v1 */
+        s_patches[i].v0.car.mult           = v0[7];
+        s_patches[i].v0.car.atk_dec        = v0[8];
+        s_patches[i].v0.car.sus_rel        = v0[9];
+        s_patches[i].v0.car.waveform       = v0[10];
+        s_patches[i].v0.car.ksl_lvl        = v0[11];
+        s_patches[i].v0.car.ksr_eg_vib_am  = v0[12];
+        /* v0[13] unused */
+        s_patches[i].base_note_offset = (int16_t)((uint16_t)v0[14]
+                                       | (uint16_t)((uint16_t)v0[15] << 8));
+        /* voice1 (p+20..p+35) ignored in v1 — single voice per patch. */
 
         p += 36u;
     }
@@ -431,51 +537,135 @@ static void midiopl_handle_event(const uint8_t *msg, uint8_t msglen)
  *     0xC0+oplc  feedback / connection / L+R output enable
  * =========================================================================
  */
+/* MIDI 0..127 → DOOM volume_mapping_table (chocolate-doom). Used for
+ * scaling carrier output level by note velocity * channel volume. */
+static const uint8_t s_vmt[128] = {
+      0,  1,  3,  5,  6,  8, 10, 11,
+     13, 14, 16, 17, 19, 20, 22, 23,
+     25, 26, 27, 29, 30, 32, 33, 34,
+     36, 37, 39, 41, 43, 45, 47, 49,
+     50, 52, 54, 55, 57, 59, 60, 61,
+     63, 64, 66, 67, 68, 69, 71, 72,
+     73, 74, 75, 76, 77, 79, 80, 81,
+     82, 83, 84, 84, 85, 86, 87, 88,
+     89, 90, 91, 92, 92, 93, 94, 95,
+     96, 96, 97, 98, 99, 99,100,101,
+    101,102,103,103,104,105,105,106,
+    107,107,108,109,109,110,110,111,
+    112,112,113,113,114,114,115,115,
+    116,117,117,118,118,119,119,120,
+    120,121,121,122,122,123,123,123,
+    124,124,125,125,126,126,127,127
+};
+
+/* Program a voice for an instrument. Modulator gets its real level
+ * applied if the patch uses modulating feedback (bit 0 of feedback
+ * byte = 0); the carrier is silenced (level=0x3F) and the real
+ * volume is applied per-note in note_on via velocity + channel vol.
+ * This matches chocolate-doom's LoadOperatorData semantics. */
 static void program_patch(int oplc, const genmidi_patch_t *p)
 {
     uint8_t mod_off = OP_OFFSET[oplc][0];
     uint8_t car_off = OP_OFFSET[oplc][1];
+    uint8_t fb      = p->v0.feedback_conn;
+    int     modulating = ((fb & 0x01u) == 0u);
+    uint8_t mod_lvl;
+
+    /* In modulating mode the modulator's own level shapes the FM index;
+     * in additive mode the modulator output is summed and we want it
+     * silent at first. */
+    mod_lvl = (uint8_t)(p->v0.mod.ksl_lvl
+              | (modulating ? p->v0.mod.ksr_eg_vib_am : 0x3Fu));
 
     /* Modulator */
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x20u + (uint16_t)mod_off), p->v0.mod.mult);
-    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x40u + (uint16_t)mod_off), p->v0.mod.ksl_lvl);
+    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x40u + (uint16_t)mod_off), mod_lvl);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x60u + (uint16_t)mod_off), p->v0.mod.atk_dec);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x80u + (uint16_t)mod_off), p->v0.mod.sus_rel);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xE0u + (uint16_t)mod_off), p->v0.mod.waveform);
 
-    /* Carrier */
+    /* Carrier — silence first; note_on applies velocity-scaled volume. */
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x20u + (uint16_t)car_off), p->v0.car.mult);
-    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x40u + (uint16_t)car_off), p->v0.car.ksl_lvl);
+    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x40u + (uint16_t)car_off),
+                          (uint8_t)(p->v0.car.ksl_lvl | 0x3Fu));
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x60u + (uint16_t)car_off), p->v0.car.atk_dec);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x80u + (uint16_t)car_off), p->v0.car.sus_rel);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xE0u + (uint16_t)car_off), p->v0.car.waveform);
 
-    /* Channel: feedback/connection — OR in 0x30 to enable both L+R outputs */
+    /* Feedback / connection. OR 0x30 enables both L+R outputs (OPL3). */
     OPL3_WriteRegBuffered(&g_chip,
                           (uint16_t)(0xC0u + (uint16_t)oplc),
-                          (uint8_t)(p->v0.feedback_conn | 0x30u));
+                          (uint8_t)(fb | 0x30u));
+}
+
+/* Apply the real carrier output level after program_patch silenced
+ * it. Mirrors chocolate-doom SetVoiceVolume: combines note velocity
+ * and channel volume CC#7 into a 0..63 attenuation for the carrier
+ * TL bits, preserving the patch's KSL bits in the upper two. */
+static void set_voice_volume(int oplc, const genmidi_patch_t *p,
+                             uint8_t channel_volume, uint8_t velocity)
+{
+    uint8_t car_off = OP_OFFSET[oplc][1];
+    if (channel_volume > 127u) channel_volume = 127u;
+    if (velocity > 127u)       velocity       = 127u;
+    unsigned midi_volume = 2u * (unsigned)(s_vmt[channel_volume] + 1u);
+    unsigned full_volume = ((unsigned)s_vmt[velocity] * midi_volume) >> 9u;
+    unsigned car_vol     = 0x3Fu - full_volume;
+    uint8_t  reg = (uint8_t)((p->v0.car.ksl_lvl & 0xC0u) | (car_vol & 0x3Fu));
+    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0x40u + (uint16_t)car_off), reg);
 }
 
 /* =========================================================================
  * Key-on / Key-off helpers
  * =========================================================================
  */
-static void key_on(int oplc, uint16_t fnum, uint8_t block)
+/* Take a packed (block << 10 | fnum) frequency from s_freq_curve and
+ * write the OPL3 0xA0 / 0xB0 registers, asserting the key-on bit. */
+static void key_on_freq(int oplc, uint32_t freq)
 {
-    /* A0: F-number low 8 bits */
-    uint8_t fl = (uint8_t)(fnum & 0xFFu);
-    /* B0: Key-On bit | block[2:0]<<2 | F-num[9:8] */
-    uint8_t fh = (uint8_t)((fnum >> 8u) & 0x03u);
-    uint8_t b_kon_fh = (uint8_t)(0x20u | (uint8_t)((uint8_t)(block & 0x07u) << 2u) | fh);
-
-    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xA0u + (uint16_t)oplc), fl);
-    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xB0u + (uint16_t)oplc), b_kon_fh);
+    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xA0u + (uint16_t)oplc),
+                          (uint8_t)(freq & 0xFFu));
+    /* High register: 0x20 = key-on, then bits 5..2 = block, bits 1..0 =
+     * fnum upper. The packed freq already places block at >>10, which
+     * is exactly the layout we need after the >>8 below. */
+    OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xB0u + (uint16_t)oplc),
+                          (uint8_t)(((freq >> 8) & 0x1Fu) | 0x20u));
 }
 
 static void key_off(int oplc)
 {
     /* Clear key-on bit, preserve block/fnum (write 0 — channel silenced) */
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(0xB0u + (uint16_t)oplc), (uint8_t)0x00u);
+}
+
+/* Frequency lookup matching chocolate-doom FrequencyForVoice. Returns
+ * a packed value with FNUM in low 10 bits and OPL block in bits 10+
+ * (so the high byte after >>8 already has block in bits 5..2 + fnum
+ * upper in 1..0, ready for register 0xB0 OR'd with the key-on bit). */
+static uint32_t freq_for_note(int note, int bend, int finetune_voice2)
+{
+    int freq_index;
+    int sub_index;
+    int octave;
+
+    if (note < 0)  note = 0;
+    if (note > 95) note = 95;
+    while (note < 0)  note += 12;
+    while (note > 95) note -= 12;
+
+    freq_index = 64 + 32 * note + bend;
+    if (finetune_voice2) {
+        freq_index += (finetune_voice2 / 2) - 64;
+    }
+    if (freq_index < 0) freq_index = 0;
+
+    if (freq_index < 284) return s_freq_curve[freq_index];
+
+    sub_index = (freq_index - 284) % (12 * 32);
+    octave    = (freq_index - 284) / (12 * 32);
+    if (octave > 7) octave = 7;
+    return (uint32_t)s_freq_curve[sub_index + 284]
+         | ((uint32_t)octave << 10);
 }
 
 /* =========================================================================
@@ -525,10 +715,11 @@ static void free_opl_ch(int oplc)
  */
 static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
 {
-    uint8_t prog;
-    int oplc;
-    int oct;
-    uint16_t fnum;
+    uint8_t  prog;
+    int      oplc;
+    int      eff_note;
+    int      bend;
+    uint32_t freq;
 
     if (!s_patches_loaded) return;
 
@@ -538,17 +729,25 @@ static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
     oplc = alloc_opl_ch(ch, note);
     program_patch(oplc, &s_patches[prog]);
 
-    /* Map MIDI note to F-num / block (octave).
-     * Middle C = MIDI note 60 = C4.
-     * OPL3 block 0..7 ~ octaves 0..7. */
-    oct = (int)note / 12;
-    if (oct < 0) oct = 0;
-    if (oct > 7) oct = 7;
+    /* Apply per-instrument note offset (signed). For percussion in DOOM
+     * the GENMIDI flags include a fixed-note bit; that's not handled
+     * here yet, so percussion may sound wrong. */
+    eff_note = (int)note + (int)s_patches[prog].base_note_offset;
 
-    fnum = FNUM[(int)note % 12];
-    key_on(oplc, fnum, (uint8_t)oct);
+    /* Pitch-bend: 14-bit unsigned with 0x2000 = neutral. The frequency
+     * table indexes in 1/32-semitone units, so divide bend delta by
+     * 64 to get a ±~2-semitone bend at full deflection. */
+    bend = (int)s_midi[ch].pitch_bend - 0x2000;
+    bend /= 64;
 
-    (void)vel; /* TODO v2: scale carrier TL by velocity */
+    freq = freq_for_note(eff_note, bend, (int)s_patches[prog].finetune);
+
+    /* Apply velocity-scaled carrier level then key-on. Order matters:
+     * the level register write must precede key-on so the envelope
+     * starts at the right amplitude rather than ramping from full
+     * attenuation. */
+    set_voice_volume(oplc, &s_patches[prog], s_midi[ch].volume, vel);
+    key_on_freq(oplc, freq);
 }
 
 static void note_off(uint8_t ch, uint8_t note)

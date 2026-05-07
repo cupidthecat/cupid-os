@@ -140,11 +140,18 @@ int ac97_init(void) {
             s_dma_pool[j] = 0;
         }
     }
-    /* Populate BDL entries */
+    /* Populate BDL entries.
+     *
+     * The flags word is the high 16 bits of dword 1 in each BDL entry.
+     * In the full 32-bit dword: bit 31 = IOC, bit 30 = BUP. So in the
+     * 16-bit flags field that's bit 15 = IOC, bit 14 = BUP. We were
+     * setting bit 14 (BUP) by mistake — IOC never fired, BCIS never
+     * latched, the ISR never refilled, and DMA halted after draining
+     * the initial silent ring once. */
     for (int j = 0; j < AC97_BDL_ENTRIES; j++) {
         s_bdl[j].buf_phys = (uint32_t)&s_dma_pool[(uint32_t)j * AC97_FRAMES_PER_BUF * 2u];
         s_bdl[j].samples  = (uint16_t)(AC97_FRAMES_PER_BUF * 2u);
-        s_bdl[j].flags    = (uint16_t)(1u << 14);  /* IOC */
+        s_bdl[j].flags    = (uint16_t)(1u << 15);  /* IOC = bit 15 of flags word */
     }
 
     /* Cold reset codec via NABM GLOB_CNT bit 1 */
