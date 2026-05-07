@@ -929,7 +929,16 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
-	@$(MAKE) stage-wads
+	@if [ -n "$(WAD_SRCS)" ]; then \
+	  echo "Staging WADs into FAT16 partition..."; \
+	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
+	  for w in $(WAD_SRCS); do \
+	    echo "  mcopy $$w -> /wads/"; \
+	    mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
+	  done; \
+	else \
+	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
+	fi
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
@@ -1042,16 +1051,16 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 
 # Stage DOOM WADs into FAT16 partition at /wads/.
 # No-op (warning only) if no freedoom*.wad present on host.
-stage-wads: check-mtools
+stage-wads: $(OS_IMAGE) check-mtools
 	@if [ -n "$(WAD_SRCS)" ]; then \
 	  echo "Staging WADs into FAT16 partition..."; \
-	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads 2>/dev/null || true; \
+	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
 	  for w in $(WAD_SRCS); do \
 	    echo "  mcopy $$w -> /wads/"; \
-	    mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/; \
+	    mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
 	  done; \
 	else \
-	  echo "WARNING: no WADs found at /usr/share/games/doom/ -- skipping stage-wads"; \
+	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
 	fi
 
 clean:
