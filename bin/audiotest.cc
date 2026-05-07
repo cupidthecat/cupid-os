@@ -1,5 +1,5 @@
 //help: AC97 audio smoke tests
-//help: Usage: audiotest <sine|opl|pan|sweep>
+//help: Usage: audiotest <sine|opl|pan|sweep|all>
 
 void main() {
     char *args;
@@ -8,7 +8,7 @@ void main() {
     args = (char*)get_args();
 
     if (strlen(args) == 0) {
-        serial_write_string("Usage: audiotest <sine|opl|pan|sweep>\n");
+        serial_write_string("Usage: audiotest <sine|opl|pan|sweep|all>\n");
         return;
     }
 
@@ -34,6 +34,11 @@ void main() {
 
     if (strcmp(args, "sweep") == 0) {
         ac97_smoke_sweep();
+        return;
+    }
+
+    if (strcmp(args, "all") == 0) {
+        audiotest_all();
         return;
     }
 

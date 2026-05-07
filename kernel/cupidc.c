@@ -2395,6 +2395,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("ac97_smoke_pan", p_ac97_pan, 0);
   void (*p_opl_smoke)(void)           = opl_smoke;
   BIND("opl_smoke", p_opl_smoke, 0);
+  void (*p_audiotest_all)(void)       = audiotest_all;
+  BIND("audiotest_all", p_audiotest_all, 0);
 
   /* ── dglibc smoke test ───────────────────────────────────────────── */
   int  (*p_dglibc_test)(void)         = dglibc_test_main;

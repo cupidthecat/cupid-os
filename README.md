@@ -37,6 +37,7 @@
 - Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE — scriptable with `run-tests.sh`
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP image codec
+- DOOM port: Freedoom1/2 WADs auto-discovered from /disk/wads/, AC97 + OPL3 audio, kbd controls, savegames in /home/doom/
 
 ## Recent additions
 
@@ -48,6 +49,10 @@ Six feature tracks landed on top of the GUI/compiler/shell base, each with a des
 - **USB 1.1 + 2.0 stack** — UHCI + EHCI controllers sharing an IRQ dispatcher, device enumeration, HID keyboard and mouse, hub class (depth ≤ 5), and mass storage (BBB + SCSI) layered under FAT16.
 - **SMP up to 32 CPUs** — ACPI/MP discovery, INIT-SIPI-SIPI AP bringup, per-CPU LAPIC timers, IOAPIC routing with the 8259 fully masked, ticket-based big kernel lock, shared runqueue, IPI reschedule / cross-CPU call / panic broadcast.
 - **Full TCP/IP networking** — RTL8139 and E1000 drivers, ARP + IPv4 + ICMP + UDP + TCP (RFC 793 subset, client and server), DHCP client with static fallback, DNS resolver with 16-entry TTL cache, and a 32-slot BSD socket table exposed to both the shell and CupidC.
+- **DOOM** — id Software's DOOM (Freedoom WADs) running as a shell
+  command. AC97 + 16-channel software mixer + Nuked-OPL3 FM synth
+  fed via MUS→MIDI conversion produce full SFX + music. Saves
+  persist to `/home/doom/`. Run: `doom` (or `doom -iwad <path>`).
 
 Built-in CupidC smoke tests exercise each track: `feature12_float`, `feature13_double`, `feature14_simd`, `feature15_libm`, `feature16_asm_fpu` (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap), `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client — DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept + echo).
 

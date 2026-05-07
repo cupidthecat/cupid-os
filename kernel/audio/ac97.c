@@ -325,6 +325,15 @@ static int16_t *make_triangle_pcm(uint32_t *out_frames) {
     return pcm;
 }
 
+void audiotest_all(void) {
+    ac97_smoke_sine();
+    ac97_smoke_sweep();
+    ac97_smoke_pan();
+    extern void opl_smoke(void);
+    opl_smoke();
+    serial_write_string("[PASS] audiotest all\n");
+}
+
 int ac97_smoke_sine(void) {
     if (!s_ac97.present) {
         serial_write_string("[SKIP] audiotest sine: no AC97 device\n");
