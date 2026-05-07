@@ -457,8 +457,39 @@ DG_FILE *dg_fopen(const char *path, const char *mode) {
     uint32_t flags = O_RDONLY;
     DG_FILE *f;
     int fd;
+    char fixed[128];
 
     if (!path || !mode) { return NULL; }
+
+    /*
+     * Translate relative DOOM save/cfg paths to /home/doom/.
+     * Fires when the path has no leading '/' (relative) and contains
+     * "doomsav" (e.g. "./.savegame/doomsav0.dsg") or "default.cfg"
+     * (e.g. ".default.cfg").  We extract the basename (component after
+     * the last '/') and prepend "/home/doom/".
+     * Absolute paths are passed through unchanged.
+     */
+    if (path[0] != '/' &&
+        (strstr(path, "doomsav") || strstr(path, "default.cfg"))) {
+        /* Find last '/' to get basename */
+        const char *base = path;
+        const char *p = path;
+        while (*p) {
+            if (*p == '/') { base = p + 1; }
+            p++;
+        }
+        /* Build "/home/doom/" + base into fixed[] */
+        const char *prefix = "/home/doom/";
+        char *q = fixed;
+        const char *r = prefix;
+        while (*r) { *q++ = *r++; }
+        r = base;
+        while (*r && (uint32_t)(q - fixed) < sizeof(fixed) - 1u) {
+            *q++ = *r++;
+        }
+        *q = '\0';
+        path = fixed;
+    }
 
     /* Decode mode string */
     if (mode[0] == 'r') {
