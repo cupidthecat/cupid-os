@@ -938,15 +938,24 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
-	@if [ -n "$(WAD_SRCS)" ]; then \
-	  echo "Staging WADs into FAT16 partition..."; \
-	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
-	  for w in $(WAD_SRCS); do \
-	    echo "  mcopy $$w -> /wads/"; \
-	    mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
-	  done; \
-	else \
+	@if [ -z "$(WAD_SRCS)" ]; then \
 	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
+	else \
+	  need_stage=0; \
+	  for w in $(WAD_SRCS); do \
+	    base=$$(basename "$$w"); \
+	    MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads/$$base >/dev/null 2>&1 || need_stage=1; \
+	  done; \
+	  if [ $$need_stage -eq 0 ]; then \
+	    echo "WADs already staged in image (use 'make stage-wads' to force re-copy)"; \
+	  else \
+	    echo "Staging WADs into FAT16 partition..."; \
+	    MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
+	    for w in $(WAD_SRCS); do \
+	      echo "  mcopy $$w -> /wads/"; \
+	      MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
+	    done; \
+	  fi; \
 	fi
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
@@ -1062,11 +1071,11 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 # No-op (warning only) if no freedoom*.wad present on host.
 stage-wads: $(OS_IMAGE) check-mtools
 	@if [ -n "$(WAD_SRCS)" ]; then \
-	  echo "Staging WADs into FAT16 partition..."; \
-	  mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
+	  echo "Staging WADs into FAT16 partition (forced)..."; \
+	  MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
 	  for w in $(WAD_SRCS); do \
 	    echo "  mcopy $$w -> /wads/"; \
-	    mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
+	    MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
 	  done; \
 	else \
 	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
