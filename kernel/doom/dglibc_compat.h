@@ -210,9 +210,25 @@ extern double cos(double x);
 extern double atan2(double y, double x);
 extern double pow(double x, double y);
 extern double log(double x);
-/* Integer abs */
+/* Integer abs.
+ *
+ * Cast to (int) first so callers passing an unsigned value (notably
+ * angle_t in r_segs.c / r_main.c) get the same "shortest angle"
+ * behaviour as the real libc int abs(int): for unsigned x>INT_MAX,
+ * (int)x is negative, abs returns its positive equivalent (i.e.
+ * 2^32 - x). Without the cast, (x)<0 is always false on unsigned and
+ * the macro is a no-op, which makes
+ *
+ *     abs(rw_normalangle - rw_angle1)
+ *
+ * mis-clamp to ANG90 whenever the true offset angle is small but the
+ * unsigned subtraction wraps — that produced rw_distance ≈ 0 and
+ * forced R_ScaleFromGlobalAngle into its 64*FRACUNIT clamp, which in
+ * turn made R_RenderSegLoop sample the same texture column for every
+ * screen X (a uniform vertical stripe = "gray slab" walls).
+ */
 #ifndef abs
-#define abs(x)  ((x) < 0 ? -(x) : (x))
+#define abs(x) (((int)(x)) < 0 ? -((int)(x)) : ((int)(x)))
 #endif
 
 /* ------------------------------------------------------------------ */
