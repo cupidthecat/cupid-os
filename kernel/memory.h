@@ -21,7 +21,7 @@ typedef struct heap_block {
 #define TOTAL_MEMORY_BYTES (512 * 1024 * 1024)
 #define IDENTITY_MAP_SIZE TOTAL_MEMORY_BYTES
 #define HEAP_INITIAL_PAGES                                                     \
-  32768 /* 128MB initial heap */
+  65536 /* 256MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
 #define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */
