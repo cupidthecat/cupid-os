@@ -924,7 +924,16 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
 		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
 	else \
-		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+		actual_lba=$$(sfdisk -d $(OS_IMAGE) 2>/dev/null | sed -n 's/.*start=[[:space:]]*\([0-9]*\),.*/\1/p' | head -1); \
+		if [ -n "$$actual_lba" ] && [ "$$actual_lba" != "$(FAT_START_LBA)" ]; then \
+			echo "[make] Stale image (FAT at LBA $$actual_lba, expected $(FAT_START_LBA)) — recreating"; \
+			rm -f $(OS_IMAGE); \
+			dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
+			printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
+			mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
+		else \
+			echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+		fi; \
 	fi
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
