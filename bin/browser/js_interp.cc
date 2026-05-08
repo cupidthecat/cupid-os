@@ -317,8 +317,9 @@ void js_console_log_top_n(int argc) {
 }
 
 /* ----- expression eval ----- */
-void js_eval_expr(int node);
-void js_eval_stmt(int node);
+/* CupidC forward decls take empty parens, not parameter lists. */
+void js_eval_expr();
+void js_eval_stmt();
 
 int js_alloc_object(int kind) {
     if (jobj_count >= MAX_JS_OBJS) { js_set_err("js: object pool full"); return -1; }
