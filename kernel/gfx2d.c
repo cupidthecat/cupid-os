@@ -272,7 +272,7 @@ void gfx2d_flip(void) {
   if (gfx2d_fullscreen_active()) {
     uint32_t now = timer_get_uptime_ms();
     if (g2d_last_flip_ms != 0) {
-      /* Yield until ~16ms have elapsed.  Was hlt — but if the calling
+      /* Yield until ~16ms have elapsed.  Was hlt - but if the calling
        * process happens to be running with IF=0 (e.g. if a kernel call
        * earlier disabled interrupts and never re-enabled), hlt waits
        * for an IRQ that never arrives and the app freezes.  Yielding to
@@ -1395,6 +1395,88 @@ int gfx2d_text_width(const char *str, int font) {
 }
 
 int gfx2d_text_height(int font) { return (font == GFX2D_FONT_LARGE) ? 16 : 8; }
+
+/* Per-glyph proportional advance, lazily cached. Computed from the
+ * rightmost set pixel column of the 8x8 bitmap + 1 (inter-char spacing).
+ * Empty glyphs (space) get a fixed 4-px advance. Clamped to keep the
+ * page from running too tight or too loose. */
+static uint8_t g2d_glyph_adv_cache[128];
+static uint8_t g2d_glyph_adv_cached[128];
+
+static int g2d_glyph_advance_8x8(uint8_t idx) {
+  if (g2d_glyph_adv_cached[idx])
+    return (int)g2d_glyph_adv_cache[idx];
+  const uint8_t *glyph = font_8x8[idx];
+  int max_col = -1;
+  int row;
+  for (row = 0; row < 8; row++) {
+    uint8_t bits = glyph[row];
+    if (!bits)
+      continue;
+    int col;
+    for (col = 7; col >= 0; col--) {
+      if (bits & (uint8_t)(0x80u >> (unsigned)col)) {
+        if (col > max_col)
+          max_col = col;
+        break;
+      }
+    }
+  }
+  int adv;
+  if (max_col < 0) {
+    adv = 4; /* blank glyph (space) */
+  } else {
+    adv = max_col + 2; /* +1 col for inter-char gap */
+    if (adv < 4)
+      adv = 4;
+    if (adv > 8)
+      adv = 8;
+  }
+  g2d_glyph_adv_cache[idx] = (uint8_t)adv;
+  g2d_glyph_adv_cached[idx] = 1u;
+  return adv;
+}
+
+int gfx2d_glyph_advance(char c, int font) {
+  uint8_t idx = (uint8_t)c;
+  if (idx >= 128u)
+    idx = 0u;
+  int base = g2d_glyph_advance_8x8(idx);
+  if (font == GFX2D_FONT_LARGE)
+    return base * 2;
+  if (font == GFX2D_FONT_SMALL) {
+    /* SMALL clips to the left 6 columns; pixels beyond are dropped. */
+    if (base > 6)
+      base = 6;
+    if (base < 3)
+      base = 3;
+    return base;
+  }
+  return base;
+}
+
+int gfx2d_text_width_n(const char *str, int len, int font) {
+  if (!str || len <= 0)
+    return 0;
+  int total = 0;
+  int i;
+  for (i = 0; i < len; i++) {
+    total += gfx2d_glyph_advance(str[i], font);
+  }
+  return total;
+}
+
+void gfx2d_text_n(int x, int y, const char *str, int len, uint32_t color,
+                  int font) {
+  if (!str || len <= 0)
+    return;
+  int cx = x;
+  int i;
+  for (i = 0; i < len; i++) {
+    g2d_draw_char(cx, y, str[i], color, font);
+    cx += gfx2d_glyph_advance(str[i], font);
+  }
+}
 
 void gfx2d_vignette(int strength) {
   int x, y;

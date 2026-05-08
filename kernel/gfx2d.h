@@ -108,6 +108,15 @@ void gfx2d_text_wrap(int x, int y, int w, const char *str, uint32_t color,
 int gfx2d_text_width(const char *str, int font);
 int gfx2d_text_height(int font);
 
+/* Proportional-advance variants: per-glyph horizontal advance derived from
+ * the rightmost set pixel in the 8x8 bitmap, so 'i' / '.' don't reserve a
+ * full 8px slot. Existing fixed-width gfx2d_text / gfx2d_text_width are
+ * unchanged so GUI titlebars continue to centre as before. */
+int  gfx2d_glyph_advance(char c, int font);
+int  gfx2d_text_width_n(const char *str, int len, int font);
+void gfx2d_text_n(int x, int y, const char *str, int len,
+                  uint32_t color, int font);
+
 void gfx2d_vignette(int strength);
 void gfx2d_pixelate(int x, int y, int w, int h, int block_size);
 void gfx2d_invert(int x, int y, int w, int h);
