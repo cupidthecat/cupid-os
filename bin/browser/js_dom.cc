@@ -151,6 +151,13 @@ void jsd_dom_member_get(int dom_idx, int koff, int klen) {
         js_push_str(o, cl);
         return;
     }
+    if (klen == 5 && b_strieq_n(name, "style", 5)) {
+        js_push_undef();
+        int t = jvs_top - 1;
+        jvs_tag[t] = JS_VAL_STYLE;
+        jvs_dom_idx[t] = dom_idx;
+        return;
+    }
     if (klen == 10 && b_strieq_n(name, "parentNode", 10)) {
         int p = n_parent[dom_idx];
         if (p < 0) js_push_null(); else js_push_domnode(p);
@@ -232,6 +239,126 @@ void jsd_dom_member_set(int dom_idx, int koff, int klen) {
         return;
     }
     /* Unknown property - silently ignored for now. */
+}
+
+/* Set or update an attribute on a DOM node. The attribute table is
+ * append-only; if the name already exists, we update the value
+ * offset in place. The class= / id= fast-path slots are also
+ * refreshed so selector matching sees the new value. */
+void jsd_dom_set_attr(int dom_idx, char *name, int nlen, char *value, int vlen) {
+    int first = dom_attrs_first[dom_idx];
+    int count = dom_attrs_count[dom_idx];
+    int found = -1;
+    for (int i = 0; i < count; i++) {
+        int k = first + i;
+        char *aname = attr_pool + dom_ap_name_off[k];
+        if (b_strieq_n(aname, name, nlen) && aname[nlen] == 0) {
+            found = k; break;
+        }
+    }
+    int v_off = attr_intern(value, vlen);
+    if (v_off < 0) return;
+    if (found >= 0) {
+        dom_ap_value_off[found] = v_off;
+    } else {
+        if (dom_ap_count >= MAX_ATTR_PAIRS) return;
+        int k = dom_ap_count;
+        dom_ap_name_off[k]  = attr_intern(name, nlen);
+        dom_ap_value_off[k] = v_off;
+        dom_ap_count = k + 1;
+        if (count == 0) dom_attrs_first[dom_idx] = k;
+        dom_attrs_count[dom_idx] = count + 1;
+    }
+    /* Refresh fast-path slots. */
+    if (nlen == 5 && b_strieq_n(name, "class", 5)) dom_class_off[dom_idx] = v_off;
+    if (nlen == 2 && b_strieq_n(name, "id", 2))    dom_id_off[dom_idx]    = v_off;
+}
+
+/* Read a style declaration from an element's inline style="..."
+ * attribute. Returns value as a fresh interned string or pushes
+ * empty string if absent. */
+void jsd_style_get(int dom_idx, int koff, int klen) {
+    int sty = dom_attr_get(dom_idx, "style");
+    if (sty < 0) { js_push_str(js_str_intern("", 0), 0); return; }
+    char *src = attr_pool + sty;
+    int n = b_strlen(src);
+    char *want = js_str_pool + koff;
+    int i = 0;
+    while (i < n) {
+        while (i < n && (src[i] == ' ' || src[i] == '\t' || src[i] == ';')) i = i + 1;
+        int p_start = i;
+        while (i < n && src[i] != ':' && src[i] != ';') i = i + 1;
+        int p_end = i;
+        while (p_end > p_start && (src[p_end-1] == ' ' || src[p_end-1] == '\t')) p_end = p_end - 1;
+        if (i >= n || src[i] != ':') break;
+        i = i + 1;
+        while (i < n && (src[i] == ' ' || src[i] == '\t')) i = i + 1;
+        int v_start = i;
+        while (i < n && src[i] != ';') i = i + 1;
+        int v_end = i;
+        while (v_end > v_start && (src[v_end-1] == ' ' || src[v_end-1] == '\t')) v_end = v_end - 1;
+        if (i < n) i = i + 1;
+        if (p_end - p_start == klen && b_strieq_n(src + p_start, want, klen)) {
+            int off = js_str_intern(src + v_start, v_end - v_start);
+            js_push_str(off, v_end - v_start);
+            return;
+        }
+    }
+    js_push_str(js_str_intern("", 0), 0);
+}
+
+/* Append (or update) a single declaration in an element's inline
+ * style attribute. */
+void jsd_style_set(int dom_idx, int koff, int klen, char *value, int vlen) {
+    char buf[1024];
+    int p = 0;
+    int sty = dom_attr_get(dom_idx, "style");
+    char *want = js_str_pool + koff;
+    int wrote_existing = 0;
+    if (sty >= 0) {
+        char *src = attr_pool + sty;
+        int n = b_strlen(src);
+        int i = 0;
+        while (i < n) {
+            while (i < n && (src[i] == ' ' || src[i] == '\t' || src[i] == ';')) i = i + 1;
+            int p_start = i;
+            while (i < n && src[i] != ':' && src[i] != ';') i = i + 1;
+            int p_end = i;
+            int trimmed_p_end = p_end;
+            while (trimmed_p_end > p_start && (src[trimmed_p_end-1] == ' ' || src[trimmed_p_end-1] == '\t')) trimmed_p_end = trimmed_p_end - 1;
+            int decl_start = p_start;
+            if (i >= n || src[i] != ':') break;
+            i = i + 1;
+            while (i < n && src[i] != ';') i = i + 1;
+            int decl_end = i;
+            if (i < n) i = i + 1;
+            int is_target = (trimmed_p_end - p_start == klen) &&
+                            b_strieq_n(src + p_start, want, klen);
+            if (is_target) {
+                /* replace this declaration with new value */
+                if (p > 0 && p < 1023) { buf[p] = ';'; p = p + 1; buf[p] = ' '; p = p + 1; }
+                for (int k = 0; k < klen && p < 1023; k++) { buf[p] = want[k]; p = p + 1; }
+                if (p < 1023) { buf[p] = ':'; p = p + 1; buf[p] = ' '; p = p + 1; }
+                for (int k = 0; k < vlen && p < 1023; k++) { buf[p] = value[k]; p = p + 1; }
+                wrote_existing = 1;
+                continue;
+            }
+            /* keep this declaration */
+            if (p > 0 && p < 1023) { buf[p] = ';'; p = p + 1; buf[p] = ' '; p = p + 1; }
+            for (int k = decl_start; k < decl_end && p < 1023; k++) {
+                buf[p] = src[k]; p = p + 1;
+            }
+        }
+    }
+    if (!wrote_existing) {
+        if (p > 0 && p < 1023) { buf[p] = ';'; p = p + 1; buf[p] = ' '; p = p + 1; }
+        for (int k = 0; k < klen && p < 1023; k++) { buf[p] = want[k]; p = p + 1; }
+        if (p < 1023) { buf[p] = ':'; p = p + 1; buf[p] = ' '; p = p + 1; }
+        for (int k = 0; k < vlen && p < 1023; k++) { buf[p] = value[k]; p = p + 1; }
+    }
+    buf[p] = 0;
+    jsd_dom_set_attr(dom_idx, "style", 5, buf, p);
+    dom_dirty = 1;
 }
 
 /* Detach a DOM node from its current parent. No-op if node is
@@ -347,6 +474,35 @@ void js_native_call(int native_id, int argc) {
         dom_dirty = 1;
         jvs_top = saved;
         js_push_domnode(child);
+        return;
+    }
+    if (native_id == JS_NATIVE_EL_GET_ATTRIBUTE) {
+        if (receiver_tag != JS_VAL_DOMNODE || argc < 1) {
+            jvs_top = saved; js_push_null(); return;
+        }
+        char nbuf[64];
+        int nlen = js_to_string_at(jvs_top - argc, nbuf, 64);
+        nbuf[nlen] = 0;
+        int off = dom_attr_get(receiver_dom, nbuf);
+        jvs_top = saved;
+        if (off < 0) { js_push_null(); return; }
+        char *v = attr_pool + off;
+        int vl = b_strlen(v);
+        int interned = js_str_intern(v, vl);
+        js_push_str(interned, vl);
+        return;
+    }
+    if (native_id == JS_NATIVE_EL_SET_ATTRIBUTE) {
+        if (receiver_tag != JS_VAL_DOMNODE || argc < 2) {
+            jvs_top = saved; js_push_undef(); return;
+        }
+        char nbuf[64]; char vbuf[256];
+        int nlen = js_to_string_at(jvs_top - argc, nbuf, 64);
+        int vlen = js_to_string_at(jvs_top - argc + 1, vbuf, 256);
+        jsd_dom_set_attr(receiver_dom, nbuf, nlen, vbuf, vlen);
+        dom_dirty = 1;
+        jvs_top = saved;
+        js_push_undef();
         return;
     }
     if (native_id == JS_NATIVE_EL_REMOVE) {

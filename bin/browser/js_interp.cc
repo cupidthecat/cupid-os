@@ -568,6 +568,14 @@ void js_assign_to_target(int target_node) {
         int tag = jvs_tag[obj_top];
         int dom = jvs_dom_idx[obj_top];
         int oi  = jvs_obj_idx[obj_top];
+        if (tag == JS_VAL_STYLE) {
+            /* el.style.X = "..."; serialise into inline style attribute. */
+            char vbuf[256];
+            int vlen = js_to_string_at(rv_pos, vbuf, 256);
+            jsd_style_set(dom, koff, klen, vbuf, vlen);
+            jvs_top = rv_pos + 1;
+            return;
+        }
         if (tag == JS_VAL_DOMNODE) {
             /* Write rvalue back to top so jsd_dom_member_set reads it. */
             int srct = jvs_tag[rv_pos];
@@ -893,6 +901,12 @@ void js_eval_expr(int node) {
             int dom_idx = jvs_dom_idx[t];
             jvs_top = t;
             jsd_dom_member_get(dom_idx, koff, klen);
+            return;
+        }
+        if (tag == JS_VAL_STYLE) {
+            int dom_idx = jvs_dom_idx[t];
+            jvs_top = t;
+            jsd_style_get(dom_idx, koff, klen);
             return;
         }
         if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {

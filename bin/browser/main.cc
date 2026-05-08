@@ -179,6 +179,7 @@ enum {
     JS_VAL_FUNC,
     JS_VAL_NATIVE,
     JS_VAL_DOMNODE,
+    JS_VAL_STYLE,        /* element.style proxy; dom_idx = element */
 
     /* JS token kinds */
     JS_TOK_EOF = 0,
