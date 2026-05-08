@@ -671,8 +671,9 @@ void style_resolve_all() {
 
         /* 2. Author rules in (specificity, doc-order) winning order. Track the
          *    highest-scoring matching rule per property, then apply once. */
-        int winner_rule[MAX_CP_ID];
-        int winner_score[MAX_CP_ID];
+        /* Size matches MAX_CP_ID; CupidC requires a literal here. */
+        int winner_rule[40];
+        int winner_score[40];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             int p = css_rule_prop_id[r];
