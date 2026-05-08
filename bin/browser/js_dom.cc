@@ -410,6 +410,42 @@ void jsd_doc_create_element(int argc) {
     js_push_domnode(n);
 }
 
+/* document.querySelector(sel) - very small subset:
+ *   "#id"  -> first element with matching id
+ *   "tag"  -> first element of that tag
+ * Anything more complex returns null. */
+void jsd_doc_query_selector(int argc) {
+    if (argc < 1) { js_push_null(); return; }
+    int t = jvs_top - argc;
+    char sel[128];
+    int n = js_to_string_at(t, sel, 128);
+    int i = 0;
+    while (i < n && (sel[i] == ' ' || sel[i] == '\t')) i = i + 1;
+    if (i >= n) { js_push_null(); return; }
+    if (sel[i] == '#') {
+        i = i + 1;
+        char *want = sel + i;
+        int wn = n - i;
+        for (int k = 0; k < nodes_count; k++) {
+            int idoff = dom_id_off[k];
+            if (idoff < 0) continue;
+            char *idv = attr_pool + idoff;
+            if (b_strieq_n(idv, want, wn) && idv[wn] == 0) {
+                js_push_domnode(k); return;
+            }
+        }
+        js_push_null();
+        return;
+    }
+    /* bare tag */
+    int tag = tag_id(sel + i, n - i);
+    if (tag <= 0) { js_push_null(); return; }
+    for (int k = 0; k < nodes_count; k++) {
+        if (n_tag[k] == tag) { js_push_domnode(k); return; }
+    }
+    js_push_null();
+}
+
 /* document.getElementById(s) - walks DOM, matches dom_id_off entries. */
 void jsd_doc_get_element_by_id(int argc) {
     if (argc < 1) { js_push_null(); return; }
@@ -461,6 +497,11 @@ void js_native_call(int native_id, int argc) {
     }
     if (native_id == JS_NATIVE_DOC_CREATE_ELEMENT) {
         jsd_doc_create_element(argc);
+        js_native_return(saved, jvs_top - 1);
+        return;
+    }
+    if (native_id == JS_NATIVE_DOC_QUERY_SELECTOR) {
+        jsd_doc_query_selector(argc);
         js_native_return(saved, jvs_top - 1);
         return;
     }
@@ -545,6 +586,10 @@ void js_install_globals() {
         int koff2 = js_str_intern("createElement", 13);
         js_obj_set_prop_from_top(doc, koff2, 13);
         js_pop();
+        js_push_native(JS_NATIVE_DOC_QUERY_SELECTOR);
+        int koff3 = js_str_intern("querySelector", 13);
+        js_obj_set_prop_from_top(doc, koff3, 13);
+        js_pop();
 
         int b = js_lookup_binding(0, js_str_intern("document", 8), 8);
         if (b < 0) b = js_binding_alloc(0, js_str_intern("document", 8), 8);
@@ -562,6 +607,27 @@ void js_install_globals() {
         if (b >= 0) {
             jb_tag[b]     = JS_VAL_OBJ;
             jb_obj_idx[b] = win_obj;
+        }
+    }
+
+    /* location: { href: <current URL> }. Reads work; writes update
+     * the property but do NOT navigate (a real navigation would
+     * recursively re-enter parse_html). Scripts can navigate via
+     * `window.location.href = url; ` once an explicit navigation
+     * helper is added in a follow-up. */
+    int loc = js_alloc_object(0);
+    if (loc >= 0) {
+        int url_len = b_strlen(cur_url);
+        int url_off = js_str_intern(cur_url, url_len);
+        js_push_str(url_off, url_len);
+        int koff = js_str_intern("href", 4);
+        js_obj_set_prop_from_top(loc, koff, 4);
+        js_pop();
+        int b = js_lookup_binding(0, js_str_intern("location", 8), 8);
+        if (b < 0) b = js_binding_alloc(0, js_str_intern("location", 8), 8);
+        if (b >= 0) {
+            jb_tag[b]     = JS_VAL_OBJ;
+            jb_obj_idx[b] = loc;
         }
     }
 }
