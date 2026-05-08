@@ -107,9 +107,10 @@ void paint_rt_text(int n, int sx, int sy) {
     if (len > 255) len = 255;
     for (int k = 0; k < len; k++) buf[k] = attr_pool[rt_text_off[n] + k];
     buf[len] = 0;
-    gfx2d_text(sx, sy, buf, fg, font);
+    gfx2d_text_n(sx, sy, buf, len, fg, font);
     if (cs_text_dec[cs] & TD_UNDERLINE) {
-        gfx2d_rect_fill(sx, sy + tier_line_h(tier) - 2, len * tier_char_w(tier), 1, fg);
+        int uw = gfx2d_text_width_n(buf, len, font);
+        gfx2d_rect_fill(sx, sy + tier_line_h(tier) - 2, uw, 1, fg);
     }
 }
 
@@ -144,15 +145,15 @@ void paint_rt_line_box(int n, int sx, int sy) {
         for (int kk = 0; kk < len; kk++) buf[kk] = attr_pool[la_text_off[k] + kk];
         buf[len] = 0;
         int font = tier_to_font(tier);
-        gfx2d_text(ax, ay, buf, fg, font);
+        gfx2d_text_n(ax, ay, buf, len, fg, font);
         if (la_bold[k]) {
             /* Bold: re-draw shifted to thicken strokes. LARGE-tier headings
              * also strike vertically so h1/h2 read as visibly heavier than
              * body bold. */
-            gfx2d_text(ax + 1, ay, buf, fg, font);
+            gfx2d_text_n(ax + 1, ay, buf, len, fg, font);
             if (tier >= 3) {
-                gfx2d_text(ax, ay + 1, buf, fg, font);
-                gfx2d_text(ax + 1, ay + 1, buf, fg, font);
+                gfx2d_text_n(ax, ay + 1, buf, len, fg, font);
+                gfx2d_text_n(ax + 1, ay + 1, buf, len, fg, font);
             }
         }
         if (la_underline[k]) {

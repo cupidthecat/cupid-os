@@ -45,14 +45,18 @@ int viewport_content_w() {
  *   GFX2D_FONT_SMALL  (0) = 6x8,
  *   GFX2D_FONT_NORMAL (1) = 8x8,
  *   GFX2D_FONT_LARGE  (2) = 16x16 (font_8x8 scaled 2x).
- * tier_char_w / tier_line_h MUST match the advance of the selected font or
- * paint will leave gaps between glyphs (the original bug). */
+ * tier_line_h is the line-box height (independent of glyph advance);
+ * actual horizontal widths come from gfx2d_text_width_n which sums real
+ * per-glyph advances. */
 int tier_to_font(int tier) {
     if (tier == 0) return 0;             /* SMALL */
     if (tier <= 2) return 1;             /* NORMAL */
     return 2;                            /* LARGE */
 }
 int tier_char_w(int tier) {
+    /* Fallback fixed advance for callers that don't have the bytes (e.g.
+     * estimating "word" widths in tests). Real layout & paint use
+     * gfx2d_text_width_n / gfx2d_glyph_advance directly. */
     if (tier == 0) return 6;
     if (tier <= 2) return 8;
     return 16;
@@ -66,7 +70,9 @@ int tier_line_h(int tier) {
     return 32;                         /* tier 4 (h1) gets extra room */
 }
 
-int text_atom_w(int len, int tier) { return len * tier_char_w(tier); }
+int text_slice_w(int off, int len, int tier) {
+    return gfx2d_text_width_n(attr_pool + off, len, tier_to_font(tier));
+}
 
 /* Walks the inline subtree rooted at `n` (which is RT_INLINE / RT_TEXT /
  * RT_INLINE_BLOCK / RT_REPLACED). Appends one or more entries to la_*[].
@@ -104,7 +110,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             if (la_count < MAX_LINE_ATOMS) {
                 la_text_off[la_count] = off + s;
                 la_text_len[la_count] = run_len;
-                la_w[la_count] = text_atom_w(run_len, tier);
+                la_w[la_count] = text_slice_w(off + s, run_len, tier);
                 la_font_tier[la_count] = tier;
                 la_fg[la_count] = fg; la_bg[la_count] = bg;
                 la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -149,7 +155,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             /* Inter-word space atom: text_len=1, text_off pointing at a literal " ". */
             la_text_off[la_count] = attr_intern(" ", 1);
             la_text_len[la_count] = 1;
-            la_w[la_count] = tier_char_w(tier);
+            la_w[la_count] = gfx2d_glyph_advance(' ', tier_to_font(tier));
             la_font_tier[la_count] = tier;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -168,7 +174,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
         if (wlen > 0 && la_count < MAX_LINE_ATOMS) {
             la_text_off[la_count] = off + s;
             la_text_len[la_count] = wlen;
-            la_w[la_count] = text_atom_w(wlen, tier);
+            la_w[la_count] = text_slice_w(off + s, wlen, tier);
             la_font_tier[la_count] = tier;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
