@@ -3,6 +3,7 @@
 32-bit x86 hobby OS written in C and NASM. Has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. Runs on real hardware or QEMU. Inspired by TempleOS, OsakaOS, and Unix.
 
 ![Desktop](img/background.png)
+![Freedoom](img/freedoom.png)
 ![File manager](img/fm.png)
 ![Paint](img/paint.png)
 
