@@ -182,7 +182,7 @@ void mouse_init(void) {
     mouse_cmd(0xF4);           /* Enable data reporting */
 
     /* 4. Install IRQ12 handler; irq_install_handler unmasks the IOAPIC GSI.
-     * DO NOT unmask 8259 — P5 disables the 8259 fully; if re-enabled it
+     * DO NOT unmask 8259 - P5 disables the 8259 fully; if re-enabled it
      * duplicate-delivers IRQ12 and then wedges because EOI now goes to
      * LAPIC (not 8259). */
     irq_install_handler(12, mouse_irq_handler);
@@ -315,6 +315,15 @@ void mouse_inject_event(uint8_t buttons, int8_t dx, int8_t dy) {
     int ny = (int)mouse.y + (int)dy;
     mouse.x = (int16_t)CLAMP(nx, 0, VGA_GFX_WIDTH - 1);
     mouse.y = (int16_t)CLAMP(ny, 0, VGA_GFX_HEIGHT - 1);
+    mouse.updated = true;
+}
+
+void mouse_inject_wheel(int8_t dz) {
+    if (dz == 0) return;
+    /* USB HID Intellimouse: positive Z = scroll DOWN, negative = UP.
+     * Our scroll convention (matches PS/2 Intellimouse): positive = UP.
+     * So invert sign on the way in. */
+    mouse.scroll_z += (int)(-dz);
     mouse.updated = true;
 }
 

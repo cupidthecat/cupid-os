@@ -23,7 +23,7 @@ void serial_init(void) {
     /* Disable interrupts */
     outb(SERIAL_INT_EN(SERIAL_COM1), 0x00);
 
-    /* Enable DLAB – set baud rate divisor */
+    /* Enable DLAB - set baud rate divisor */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x80);
     outb(SERIAL_DATA(SERIAL_COM1),      0x01);     /* divisor low  = 1 (115200) */
     outb(SERIAL_INT_EN(SERIAL_COM1),    0x00);     /* divisor high = 0          */
