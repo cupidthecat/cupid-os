@@ -72,7 +72,7 @@ static repl_state_t repl_state = {0};
 /* Port I/O wrappers for CupidC kernel bindings
  * The compiler binds calls to outb()/inb() to these wrappers which
  * match cdecl calling convention with 32-bit args on the stack.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
@@ -894,9 +894,9 @@ static uint32_t cc_ansi_color(int idx) {
   return ansi_vga_to_palette((uint8_t)idx);
 }
 
-/* ── Phase 4 wrappers: networking + drivers + low-level access ─────── */
+/*  Phase 4 wrappers: networking + drivers + low-level access  */
 
-/* Network interface info — primary NIC only (covers the common case). */
+/* Network interface info - primary NIC only (covers the common case). */
 static uint32_t cc_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -946,7 +946,7 @@ static uint32_t cc_proto_icmp(void) { return (uint32_t)IP_PROTO_ICMP; }
 static uint32_t cc_proto_udp(void)  { return (uint32_t)IP_PROTO_UDP;  }
 static uint32_t cc_proto_tcp(void)  { return (uint32_t)IP_PROTO_TCP;  }
 
-/* Block device by index — wraps blkdev_get + blkdev_read/write. */
+/* Block device by index - wraps blkdev_get + blkdev_read/write. */
 static int cc_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
@@ -1002,12 +1002,12 @@ static uint32_t cc_lapic_get_id(void) { return (uint32_t)lapic_get_id(); }
 static void cc_register_kernel_bindings(cc_state_t *cc) {
 /* Helper macro to add a kernel function binding.
  *
- * BIND()   — return type defaults to TYPE_VOID (fine for most bindings;
+ * BIND()   - return type defaults to TYPE_VOID (fine for most bindings;
  *            CupidC's Task-18 codegen coerces callers that expect an
  *            int result from a VOID-returning symbol).
- * BIND_T() — explicit return type.  Use this for float/double-returning
+ * BIND_T() - explicit return type.  Use this for float/double-returning
  *            kernel functions (Phase E libm) so that CupidC's caller-
- *            side wiring (call_ret_type → cc_last_expr_type, cc_last_xmm)
+ *            side wiring (call_ret_type -> cc_last_expr_type, cc_last_xmm)
  *            fires correctly after the CALL. */
 #define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
   do {                                                                         \
@@ -1733,6 +1733,16 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_text_height)(int) = gfx2d_text_height;
   BIND("gfx2d_text_height", p_gfx2d_text_height, 1);
 
+  int (*p_gfx2d_glyph_advance)(char, int) = gfx2d_glyph_advance;
+  BIND("gfx2d_glyph_advance", p_gfx2d_glyph_advance, 2);
+
+  int (*p_gfx2d_text_width_n)(const char *, int, int) = gfx2d_text_width_n;
+  BIND("gfx2d_text_width_n", p_gfx2d_text_width_n, 3);
+
+  void (*p_gfx2d_text_n)(int, int, const char *, int, uint32_t, int) =
+      gfx2d_text_n;
+  BIND("gfx2d_text_n", p_gfx2d_text_n, 6);
+
   void (*p_gfx2d_vignette)(int) = gfx2d_vignette;
   BIND("gfx2d_vignette", p_gfx2d_vignette, 1);
 
@@ -2099,7 +2109,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* Phase E Task 23: libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2,
    * plus f-suffixed float variants).  These functions follow the CupidC
-   * kernel-binding ABI (stack args, XMM0 return) — see libm.c. */
+   * kernel-binding ABI (stack args, XMM0 return) - see libm.c. */
   double (*p_sqrt)(double)  = sqrt;
   BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
   float  (*p_sqrtf)(float)  = sqrtf;
@@ -2162,11 +2172,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("fmodf",   p_fmodf,  2, TYPE_FLOAT);
 
   /* Phase E Task 25: exp/exp2/log/log2/pow + f-variants.
-   *   exp2  — F2XM1 + FSCALE with FRNDINT range reduction
-   *   exp   — exp2(x * log2(e))
-   *   log2  — FYL2X with y=1
-   *   log   — FYL2X with y=ln(2)
-   *   pow   — C dispatch (y=0 -> 1; x<=0 + y!=0 -> domain error) then
+   *   exp2  - F2XM1 + FSCALE with FRNDINT range reduction
+   *   exp   - exp2(x * log2(e))
+   *   log2  - FYL2X with y=1
+   *   log   - FYL2X with y=ln(2)
+   *   pow   - C dispatch (y=0 -> 1; x<=0 + y!=0 -> domain error) then
    *           x87 exp/log pipeline, ST(0)->XMM0 bridged in asm wrapper. */
   double (*p_exp)(double)    = exp;
   BIND_T("exp",     p_exp,    1, TYPE_DOUBLE);
@@ -2194,9 +2204,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("powf",    p_powf,   2, TYPE_FLOAT);
 
   /* Phase E Task 26: asin/acos/sinh/cosh/tanh + f-variants.
-   *   asin/acos — atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
-   *   sinh/cosh — (exp(x) +/- exp(-x)) / 2.
-   *   tanh      — (e1 - e2) / (e1 + e2). */
+   *   asin/acos - atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
+   *   sinh/cosh - (exp(x) +/- exp(-x)) / 2.
+   *   tanh      - (e1 - e2) / (e1 + e2). */
   double (*p_asin)(double)   = asin;
   BIND_T("asin",    p_asin,   1, TYPE_DOUBLE);
   float  (*p_asinf)(float)   = asinf;
@@ -2223,10 +2233,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("tanhf",   p_tanhf,  1, TYPE_FLOAT);
 
   /* Phase E Task 27: cbrt/hypot/nextafter + f-variants.
-   *   cbrt      — bit-trick initial estimate + 3 Newton iterations of
+   *   cbrt      - bit-trick initial estimate + 3 Newton iterations of
    *               y = (2y + x/y^2)/3.
-   *   hypot     — scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
-   *   nextafter — IEEE bit-level step toward y (++/-- the integer repr). */
+   *   hypot     - scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
+   *   nextafter - IEEE bit-level step toward y (++/-- the integer repr). */
   double (*p_cbrt)(double)   = cbrt;
   BIND_T("cbrt",    p_cbrt,   1, TYPE_DOUBLE);
   float  (*p_cbrtf)(float)   = cbrtf;
@@ -2242,7 +2252,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_nextafterf)(float, float)  = nextafterf;
   BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
 
-  /* ── Phase 4: full networking stack ──────────────────────────────── */
+  /*  Phase 4: full networking stack  */
   uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
   BIND("net_get_ip", p_net_ip, 0);
   uint32_t (*p_net_gw)(void)        = cc_net_get_gateway;
@@ -2293,7 +2303,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_proto_tcp)(void)  = cc_proto_tcp;
   BIND("IP_PROTO_TCP",  p_proto_tcp,  0);
 
-  /* ── Phase 4: block devices (ATA + loopdev + USB-MSC, by blkdev index) */
+  /*  Phase 4: block devices (ATA + loopdev + USB-MSC, by blkdev index) */
   int (*p_blkdev_count)(void)                                           = blkdev_count;
   BIND("blkdev_count", p_blkdev_count, 0);
   int (*p_blkdev_read)(int, uint32_t, uint32_t, void *)                 = cc_blkdev_read;
@@ -2305,7 +2315,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_ata_write)(uint8_t, uint32_t, uint8_t, const void *)          = ata_write_sectors;
   BIND("ata_write_sectors", p_ata_write, 4);
 
-  /* ── Phase 4: keyboard direct ────────────────────────────────────── */
+  /*  Phase 4: keyboard direct  */
   bool (*p_kbd_event)(key_event_t *)    = keyboard_read_event;
   BIND("keyboard_read_event", p_kbd_event, 1);
   void (*p_kbd_inject)(uint8_t)         = keyboard_inject_scancode;
@@ -2330,7 +2340,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_kbd_ts_pr)(void)             = keyboard_test_sub_last_pressed;
   BIND_T("keyboard_test_sub_last_pressed", p_kbd_ts_pr, 0, TYPE_INT);
 
-  /* ── Phase 4: serial direct ─────────────────────────────────────── */
+  /*  Phase 4: serial direct  */
   int  (*p_serial_rx)(void)             = serial_read_char;
   BIND("serial_read_char", p_serial_rx, 0);
   void (*p_serial_tx)(char)             = serial_write_char;
@@ -2340,13 +2350,13 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_serial_has)(void)            = serial_has_rx;
   BIND("serial_has_rx", p_serial_has, 0);
 
-  /* ── Phase 4: PIT ───────────────────────────────────────────────── */
+  /*  Phase 4: PIT  */
   void (*p_pit_freq)(uint32_t, uint32_t) = pit_set_frequency;
   BIND("pit_set_frequency", p_pit_freq, 2);
   void (*p_timer_delay)(uint32_t)        = timer_delay_us;
   BIND("timer_delay_us", p_timer_delay, 1);
 
-  /* ── Phase 4: PCI introspection (by index) ───────────────────────── */
+  /*  Phase 4: PCI introspection (by index)  */
   int      (*p_pci_count)(void)        = pci_device_count;
   BIND("pci_device_count", p_pci_count, 0);
   uint32_t (*p_pci_v)(int)             = cc_pci_vendor;
@@ -2364,19 +2374,19 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void     (*p_pci_bm)(int)            = cc_pci_enable_bus_master;
   BIND("pci_enable_bus_master", p_pci_bm, 1);
 
-  /* ── Phase 4: SMP / LAPIC ────────────────────────────────────────── */
+  /*  Phase 4: SMP / LAPIC  */
   uint32_t (*p_lapic_id)(void)         = cc_lapic_get_id;
   BIND("lapic_get_id", p_lapic_id, 0);
   void     (*p_lapic_eoi)(void)        = lapic_eoi;
   BIND("lapic_eoi", p_lapic_eoi, 0);
 
-  /* ── Phase 4: BKL (use with care — disables IRQs) ───────────────── */
+  /*  Phase 4: BKL (use with care - disables IRQs)  */
   void (*p_bkl_lock)(void)             = bkl_lock;
   BIND("bkl_lock", p_bkl_lock, 0);
   void (*p_bkl_unlock)(void)           = bkl_unlock;
   BIND("bkl_unlock", p_bkl_unlock, 0);
 
-  /* ── Phase 4: paging / PMM low-level ─────────────────────────────── */
+  /*  Phase 4: paging / PMM low-level  */
   void  (*p_paging_mmio)(uint32_t, uint32_t) = paging_map_mmio;
   BIND("paging_map_mmio", p_paging_mmio, 2);
   void *(*p_pmm_alloc_p)(void)         = pmm_alloc_page;
@@ -2384,7 +2394,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void  (*p_pmm_free_p)(void *)        = pmm_free_page;
   BIND("pmm_free_page", p_pmm_free_p, 1);
 
-  /* ── AC97 audio smoke-test helpers ───────────────────────────────── */
+  /*  AC97 audio smoke-test helpers  */
   int  (*p_ac97_present)(void)         = ac97_is_present_int;
   BIND_T("ac97_is_present_int", p_ac97_present, 0, TYPE_INT);
   int  (*p_ac97_smoke)(void)           = ac97_smoke_sine;
@@ -2398,7 +2408,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_audiotest_all)(void)       = audiotest_all;
   BIND("audiotest_all", p_audiotest_all, 0);
 
-  /* ── dglibc smoke test ───────────────────────────────────────────── */
+  /*  dglibc smoke test  */
   int  (*p_dglibc_test)(void)         = dglibc_test_main;
   BIND_T("dglibc_test_main", p_dglibc_test, 0, TYPE_INT);
 
