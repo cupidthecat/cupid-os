@@ -110,57 +110,63 @@ int js_to_bool_at(int idx) {
     return 1;       /* objects/funcs always truthy */
 }
 
-/* Format a double into buf without %f. CupidC limitation: `<` / `>`
- * on doubles is invalid (only `==` / `!=` are). Detect sign and
- * fractional presence by casting to scaled int and comparing ints. */
-int js_format_num(double v, char *buf, int max) {
+/* Format an int into buf. Returns count. Caller's buf must be >=12 bytes. */
+int js_format_int(int v, char *buf) {
+    int b = 0;
+    if (v < 0) { buf[b] = '-'; b = b + 1; v = 0 - v; }
+    char tmp[16];
+    int tn = 0;
+    if (v == 0) { tmp[tn] = '0'; tn = tn + 1; }
+    while (v > 0 && tn < 15) {
+        tmp[tn] = '0' + (v % 10);
+        v = v / 10;
+        tn = tn + 1;
+    }
+    while (tn > 0) {
+        tn = tn - 1;
+        buf[b] = tmp[tn];
+        b = b + 1;
+    }
+    buf[b] = 0;
+    return b;
+}
+
+/* Format a double into buf without %f. CupidC can't mix int and
+ * double args in one call, so the signature is (double, char*) and
+ * the buffer is assumed to be at least 64 bytes. Sign and fractional
+ * presence are detected through int-scaled comparisons because the
+ * parser also rejects '<' '>' on doubles. */
+int js_format_num(double v, char *buf) {
     int b = 0;
     int sign_probe = (int)(v * 1000000.0);
     if (sign_probe < 0) {
-        if (b < max - 1) { buf[b] = '-'; b = b + 1; }
+        buf[b] = '-'; b = b + 1;
         v = 0.0 - v;
     }
     int int_part = (int)v;
-    /* Fractional part as integer micros (rounded toward zero). */
     int micros = (int)((v - (double)int_part) * 1000000.0);
     if (micros < 0) micros = 0;
-    /* Render integer part. */
-    char tmp[32];
-    int tn = 0;
-    if (int_part == 0) { tmp[tn] = '0'; tn = tn + 1; }
-    while (int_part > 0 && tn < 31) {
-        tmp[tn] = '0' + (int_part % 10);
-        int_part = int_part / 10;
-        tn = tn + 1;
-    }
-    while (tn > 0 && b < max - 1) { tn = tn - 1; buf[b] = tmp[tn]; b = b + 1; }
-    /* Fractional digits - skip if no remainder, strip trailing zeros. */
+    /* integer part */
+    char ibuf[16];
+    int ilen = js_format_int(int_part, ibuf);
+    int k = 0;
+    while (k < ilen) { buf[b] = ibuf[k]; b = b + 1; k = k + 1; }
+    /* fractional - skip if no remainder, strip trailing zeros */
     if (micros > 0) {
-        if (b < max - 1) { buf[b] = '.'; b = b + 1; }
-        /* Trim trailing zeros from micros. */
+        buf[b] = '.'; b = b + 1;
         int trimmed = micros;
         while (trimmed > 0 && (trimmed % 10) == 0) trimmed = trimmed / 10;
-        /* Determine how many digits trimmed has (1..6). */
-        int digits = 0;
-        int probe = trimmed;
-        while (probe > 0) { probe = probe / 10; digits = digits + 1; }
-        /* Compute leading-zero count. */
         int leading = 6;
         int ml = micros;
         while (ml > 0) { ml = ml / 10; leading = leading - 1; }
-        /* Skip trailing zeros: total useful = digits + leading. */
-        for (int i = 0; i < leading && b < max - 1; i++) {
-            buf[b] = '0'; b = b + 1;
-        }
-        char dbuf[8]; int dn = 0;
-        while (trimmed > 0 && dn < 7) {
-            dbuf[dn] = '0' + (trimmed % 10);
-            trimmed = trimmed / 10;
-            dn = dn + 1;
-        }
-        while (dn > 0 && b < max - 1) { dn = dn - 1; buf[b] = dbuf[dn]; b = b + 1; }
+        int z = 0;
+        while (z < leading) { buf[b] = '0'; b = b + 1; z = z + 1; }
+        char dbuf[16];
+        int dlen = js_format_int(trimmed, dbuf);
+        int kk = 0;
+        while (kk < dlen) { buf[b] = dbuf[kk]; b = b + 1; kk = kk + 1; }
     }
-    if (b < max) buf[b] = 0; else buf[max - 1] = 0;
+    buf[b] = 0;
     return b;
 }
 
@@ -182,7 +188,15 @@ int js_to_string_at(int idx, char *buf, int max) {
         while (s[i] && i < max - 1) { buf[i] = s[i]; i = i + 1; }
         buf[i] = 0; return i;
     }
-    if (t == JS_VAL_NUM) return js_format_num(jvs_num[idx], buf, max);
+    if (t == JS_VAL_NUM) {
+        char fbuf[64];
+        int fl = js_format_num(jvs_num[idx], fbuf);
+        if (fl > max - 1) fl = max - 1;
+        int fk = 0;
+        while (fk < fl) { buf[fk] = fbuf[fk]; fk = fk + 1; }
+        buf[fl] = 0;
+        return fl;
+    }
     if (t == JS_VAL_STR) {
         int i = 0;
         int n = jvs_str_len[idx];
@@ -896,7 +910,7 @@ void js_eval_expr(int node) {
         char keybuf[16];
         while (e >= 0) {
             js_eval_expr(e);
-            int kn = js_format_num((double)i, keybuf, 16);
+            int kn = js_format_int(i, keybuf);
             int koff = js_str_intern(keybuf, kn);
             js_obj_set_prop_from_top(o, koff, kn);
             js_pop();
