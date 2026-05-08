@@ -234,6 +234,55 @@ void jsd_dom_member_set(int dom_idx, int koff, int klen) {
     /* Unknown property - silently ignored for now. */
 }
 
+/* Detach a DOM node from its current parent. No-op if node is
+ * unlinked already. */
+void jsd_dom_detach(int dom_idx) {
+    int p = n_parent[dom_idx];
+    if (p < 0) return;
+    int prev = -1;
+    int c = n_first_child[p];
+    while (c >= 0 && c != dom_idx) { prev = c; c = n_next[c]; }
+    if (c == dom_idx) {
+        if (prev < 0) n_first_child[p] = n_next[c];
+        else n_next[prev] = n_next[c];
+    }
+    n_parent[dom_idx] = -1;
+    n_next[dom_idx] = -1;
+}
+
+/* Append `child` as the last child of `parent`. Detaches first. */
+void jsd_dom_append(int parent, int child) {
+    if (parent < 0 || child < 0) return;
+    jsd_dom_detach(child);
+    n_parent[child] = parent;
+    n_next[child] = -1;
+    int c = n_first_child[parent];
+    if (c < 0) {
+        n_first_child[parent] = child;
+    } else {
+        while (n_next[c] >= 0) c = n_next[c];
+        n_next[c] = child;
+    }
+}
+
+/* document.createElement(tagname): allocate a new DOM node with the
+ * matching T_* enum, no parent. */
+void jsd_doc_create_element(int argc) {
+    if (argc < 1) { js_push_null(); return; }
+    int t = jvs_top - argc;
+    char name[64];
+    int nlen = js_to_string_at(t, name, 64);
+    int tag = tag_id(name, nlen);
+    int n = alloc_node(tag, -1, -1);
+    if (n < 0) { js_push_null(); return; }
+    /* alloc_node already initialised parent/child/next; ensure it
+     * is fully detached. */
+    n_parent[n] = -1;
+    n_next[n] = -1;
+    n_first_child[n] = -1;
+    js_push_domnode(n);
+}
+
 /* document.getElementById(s) - walks DOM, matches dom_id_off entries. */
 void jsd_doc_get_element_by_id(int argc) {
     if (argc < 1) { js_push_null(); return; }
@@ -250,6 +299,28 @@ void jsd_doc_get_element_by_id(int argc) {
     if (found < 0) js_push_null(); else js_push_domnode(found);
 }
 
+/* Drop args + push the value at idx (which is above args). Used to
+ * carry a native result back to the caller's stack frame. */
+void js_native_return(int saved, int result_top) {
+    int new_tag = jvs_tag[result_top];
+    int new_dom = jvs_dom_idx[result_top];
+    int new_off = jvs_str_off[result_top];
+    int new_len = jvs_str_len[result_top];
+    double new_num = jvs_num[result_top];
+    int new_obj = jvs_obj_idx[result_top];
+    int new_native = jvs_native_id[result_top];
+    jvs_top = saved;
+    js_push_undef();
+    int t = jvs_top - 1;
+    jvs_tag[t]      = new_tag;
+    jvs_dom_idx[t]  = new_dom;
+    jvs_num[t]      = new_num;
+    jvs_str_off[t]  = new_off;
+    jvs_str_len[t]  = new_len;
+    jvs_obj_idx[t]  = new_obj;
+    jvs_native_id[t]= new_native;
+}
+
 /* Native dispatch entry point invoked by eval_call. The native
  * function id is known; argc args sit at [jvs_top-argc .. jvs_top-1]. */
 void js_native_call(int native_id, int argc) {
@@ -258,27 +329,37 @@ void js_native_call(int native_id, int argc) {
     int receiver_dom = jsd_this_dom_idx;
     if (native_id == JS_NATIVE_DOC_GET_ELEMENT_BY_ID) {
         jsd_doc_get_element_by_id(argc);
-        /* Result on top; drop args. */
-        int rt = jvs_top - 1;
-        int new_tag = jvs_tag[rt];
-        int new_dom = jvs_dom_idx[rt];
-        int new_off = jvs_str_off[rt];
-        int new_len = jvs_str_len[rt];
-        double new_num = jvs_num[rt];
-        int new_obj = jvs_obj_idx[rt];
+        js_native_return(saved, jvs_top - 1);
+        return;
+    }
+    if (native_id == JS_NATIVE_DOC_CREATE_ELEMENT) {
+        jsd_doc_create_element(argc);
+        js_native_return(saved, jvs_top - 1);
+        return;
+    }
+    if (native_id == JS_NATIVE_EL_APPEND_CHILD) {
+        if (receiver_tag != JS_VAL_DOMNODE || argc < 1 ||
+            jvs_tag[jvs_top - argc] != JS_VAL_DOMNODE) {
+            jvs_top = saved; js_push_undef(); return;
+        }
+        int child = jvs_dom_idx[jvs_top - argc];
+        jsd_dom_append(receiver_dom, child);
+        dom_dirty = 1;
+        jvs_top = saved;
+        js_push_domnode(child);
+        return;
+    }
+    if (native_id == JS_NATIVE_EL_REMOVE) {
+        if (receiver_tag == JS_VAL_DOMNODE && receiver_dom >= 0) {
+            jsd_dom_detach(receiver_dom);
+            dom_dirty = 1;
+        }
         jvs_top = saved;
         js_push_undef();
-        int t = jvs_top - 1;
-        jvs_tag[t]     = new_tag;
-        jvs_dom_idx[t] = new_dom;
-        jvs_num[t]     = new_num;
-        jvs_str_off[t] = new_off;
-        jvs_str_len[t] = new_len;
-        jvs_obj_idx[t] = new_obj;
         return;
     }
     /* unknown native - drop args, push undefined */
-    (void)receiver_tag; (void)receiver_dom;
+    (void)receiver_tag;
     jvs_top = saved;
     js_push_undef();
 }
@@ -303,6 +384,10 @@ void js_install_globals() {
         js_push_native(JS_NATIVE_DOC_GET_ELEMENT_BY_ID);
         int koff = js_str_intern("getElementById", 14);
         js_obj_set_prop_from_top(doc, koff, 14);
+        js_pop();
+        js_push_native(JS_NATIVE_DOC_CREATE_ELEMENT);
+        int koff2 = js_str_intern("createElement", 13);
+        js_obj_set_prop_from_top(doc, koff2, 13);
         js_pop();
 
         int b = js_lookup_binding(0, js_str_intern("document", 8), 8);
