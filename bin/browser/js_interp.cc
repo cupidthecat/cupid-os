@@ -82,7 +82,8 @@ double js_to_number_at(int idx) {
             }
         }
         if (!saw) return 0.0;
-        return sign * v;
+        if (sign < 0) return 0.0 - v;
+        return v;
     }
     return 0.0;
 }
@@ -100,7 +101,7 @@ int js_to_bool_at(int idx) {
  * whole numbers (most arithmetic results). */
 int js_format_num(double v, char *buf, int max) {
     int b = 0;
-    if (v < 0.0) { if (b < max - 1) buf[b] = '-'; b = b + 1; v = -v; }
+    if (v < 0.0) { if (b < max - 1) buf[b] = '-'; b = b + 1; v = 0.0 - v; }
     /* integer part */
     int int_part = (int)v;
     double frac = v - (double)int_part;
@@ -693,7 +694,9 @@ void js_eval_assign(int node) {
     if (op == JS_TOK_PLUS_EQ) r = na + nb;
     else if (op == JS_TOK_MINUS_EQ) r = na - nb;
     else if (op == JS_TOK_STAR_EQ)  r = na * nb;
-    else if (op == JS_TOK_SLASH_EQ) r = (nb != 0.0) ? (na / nb) : 0.0;
+    else if (op == JS_TOK_SLASH_EQ) {
+        if (nb != 0.0) r = na / nb; else r = 0.0;
+    }
     jvs_top = a;
     js_push_num(r);
     js_copy_top_from(jvs_top - 1);
@@ -754,8 +757,15 @@ void js_eval_bin(int node) {
     if (op == JS_TOK_PLUS)        v = na + nb;
     else if (op == JS_TOK_MINUS)  v = na - nb;
     else if (op == JS_TOK_STAR)   v = na * nb;
-    else if (op == JS_TOK_SLASH)  v = (nb != 0.0) ? (na / nb) : 0.0;
-    else if (op == JS_TOK_PERCENT) v = (nb != 0.0) ? (na - ((double)((int)(na / nb))) * nb) : 0.0;
+    else if (op == JS_TOK_SLASH)  {
+        if (nb != 0.0) v = na / nb; else v = 0.0;
+    }
+    else if (op == JS_TOK_PERCENT) {
+        if (nb != 0.0) {
+            int q = (int)(na / nb);
+            v = na - (double)q * nb;
+        } else v = 0.0;
+    }
     else if (op == JS_TOK_LT) { as_bool = 1; bv = na <  nb; }
     else if (op == JS_TOK_GT) { as_bool = 1; bv = na >  nb; }
     else if (op == JS_TOK_LE) { as_bool = 1; bv = na <= nb; }
@@ -774,7 +784,7 @@ void js_eval_unary(int node) {
         jvs_top = t; js_push_bool(b); return;
     }
     if (op == JS_TOK_MINUS) {
-        double v = -js_to_number_at(t);
+        double v = 0.0 - js_to_number_at(t);
         jvs_top = t; js_push_num(v); return;
     }
     if (op == JS_TOK_PLUS) {
