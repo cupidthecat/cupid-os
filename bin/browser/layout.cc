@@ -159,14 +159,17 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
      * word atoms. */
     while (i < len) {
         /* skip leading whitespace, emit a single space atom if any (only between
-         * word atoms - leading at start of run handled by line layout). */
+         * word atoms - leading at start of run handled by line layout). The
+         * space atom is emitted BEFORE checking for end-of-text so trailing
+         * whitespace is preserved and connects to the next inline atom run
+         * (e.g. "Visit " followed by <a>More...</a> keeps its inter-element
+         * space). */
         int saw_ws = 0;
         while (i < len) {
             char c = attr_pool[off + i];
             if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { i++; saw_ws = 1; }
             else break;
         }
-        if (i >= len) break;
         if (saw_ws && la_count > 0 && la_count < MAX_LINE_ATOMS) {
             /* Inter-word space atom: text_len=1, text_off pointing at a literal " ". */
             la_text_off[la_count] = attr_intern(" ", 1);
@@ -179,6 +182,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_x[la_count] = (ws == WS_NOWRAP) ? -1 : -3;  /* -3 = soft break point */
             la_count++;
         }
+        if (i >= len) break;
         /* word atom */
         int s = i;
         while (i < len) {

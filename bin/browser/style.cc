@@ -48,48 +48,48 @@ void ua_default_style(int tag, int cs) {
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
      * its stack). */
-    /* Heading + paragraph margins follow CSS2 UA suggestion (~0.67-1em).
-     * Values pulled in once real px font-size lands (Stage A2); for now
-     * tightened so the top-of-page gap matches a real browser. */
+    /* Headings + paragraph margins follow CSS2.1 UA suggestion. The em-
+     * derived px values (h1 0.67em -> 0.67*32 = ~21) match Firefox/Chrome
+     * defaults closely. */
     if (tag == T_H1) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 32;       /* 2em on 16px body */
-        cs_margin[cs][0] = 14; cs_margin[cs][2] = 14;
+        cs_margin[cs][0] = 21; cs_margin[cs][2] = 21;   /* 0.67em */
         return;
     }
     if (tag == T_H2) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 24;       /* 1.5em */
-        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
+        cs_margin[cs][0] = 20; cs_margin[cs][2] = 20;   /* 0.83em */
         return;
     }
     if (tag == T_H3) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 19;       /* 1.17em */
-        cs_margin[cs][0] = 11; cs_margin[cs][2] = 11;
+        cs_margin[cs][0] = 19; cs_margin[cs][2] = 19;   /* 1em */
         return;
     }
     if (tag == T_H4) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 16;       /* 1em */
-        cs_margin[cs][0] = 10; cs_margin[cs][2] = 10;
+        cs_margin[cs][0] = 21; cs_margin[cs][2] = 21;   /* 1.33em */
         return;
     }
     if (tag == T_H5) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 13;       /* 0.83em */
-        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        cs_margin[cs][0] = 22; cs_margin[cs][2] = 22;   /* 1.67em */
         return;
     }
     if (tag == T_H6) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 11;       /* 0.67em */
-        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        cs_margin[cs][0] = 26; cs_margin[cs][2] = 26;   /* 2.33em */
         return;
     }
     if (tag == T_P) {
         cs_display[cs] = DISP_BLOCK;
-        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;   /* 1em */
         return;
     }
     if (tag == T_A) {
@@ -98,6 +98,7 @@ void ua_default_style(int tag, int cs) {
     }
     if (tag == T_PRE) {
         cs_display[cs] = DISP_BLOCK; cs_white_space[cs] = WS_PRE;
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;
         return;
     }
     if (tag == T_CODE) { return; }
@@ -107,8 +108,8 @@ void ua_default_style(int tag, int cs) {
         return;
     }
     if (tag == T_UL || tag == T_OL || tag == T_DL) {
-        cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 24;
-        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 40;     /* CSS2 default */
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;            /* 1em */
         if (tag == T_OL) cs_list_style[cs] = LS_DECIMAL;
         return;
     }
