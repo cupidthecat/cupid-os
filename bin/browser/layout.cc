@@ -1,4 +1,4 @@
-/* ---------- Layout ----------
+/* Layout.
  *
  * Render-tree BFC + IFC layout. Walks the rt_* arrays filled in Task 6 and
  * resolves rt_x/y/w/h plus rt_content_x/y per node. Inline content goes
@@ -8,7 +8,7 @@
 
 /* Linear scan: which inputs[] index, if any, was registered for this
  * DOM node? -1 if this <input> is not in the editable inputs[] table
- * (e.g., submit/button/hidden — those render as a submit button instead). */
+ * (e.g., submit/button/hidden - those render as a submit button instead). */
 int find_input_for_node(int idx) {
     for (int k = 0; k < inputs_count; k = k + 1) {
         if (input_node[k] == idx) return k;
@@ -16,7 +16,7 @@ int find_input_for_node(int idx) {
     return -1;
 }
 
-/* ---------- §4 BFC + IFC layout — fills rt_x/y/w/h/content_x/y for every render node. ---------- */
+/* §4 BFC + IFC layout: fills rt_x/y/w/h/content_x/y for every render node. */
 
 int rt_padding_l(int n) { return cs_padding[rt_style[n]][3]; }
 int rt_padding_r(int n) { return cs_padding[rt_style[n]][1]; }
@@ -36,22 +36,34 @@ int viewport_content_w() {
     return cur_cw - 12;
 }
 
-/* §4 IFC — line-box layout. Walks an inline subtree depth-first, splits text
+/* §4 IFC - line-box layout. Walks an inline subtree depth-first, splits text
  * into atoms by whitespace (or by \n / per-char per `white-space`), tracks
  * (x, line_top, line_h), and emits LINE_BOX render nodes whose
  * rt_line_atom_first/count reference the atom slice. */
 
+/* Tier -> real on-screen font selection. The kernel exposes three sizes:
+ *   GFX2D_FONT_SMALL  (0) = 6x8,
+ *   GFX2D_FONT_NORMAL (1) = 8x8,
+ *   GFX2D_FONT_LARGE  (2) = 16x16 (font_8x8 scaled 2x).
+ * tier_char_w / tier_line_h MUST match the advance of the selected font or
+ * paint will leave gaps between glyphs (the original bug). */
+int tier_to_font(int tier) {
+    if (tier == 0) return 0;             /* SMALL */
+    if (tier <= 2) return 1;             /* NORMAL */
+    return 2;                            /* LARGE */
+}
 int tier_char_w(int tier) {
-    if (tier == 0 || tier == 1) return 8;
-    if (tier == 2) return 12;
-    if (tier == 3) return 16;
-    return 24;     /* tier 4 */
+    if (tier == 0) return 6;
+    if (tier <= 2) return 8;
+    return 16;
 }
 int tier_line_h(int tier) {
-    if (tier == 0 || tier == 1) return 12;
-    if (tier == 2) return 16;
-    if (tier == 3) return 20;
-    return 28;
+    /* ~1.5x glyph height for readable line spacing. */
+    if (tier == 0) return 12;
+    if (tier == 1) return 18;          /* body 8x8 with airy spacing */
+    if (tier == 2) return 20;
+    if (tier == 3) return 26;
+    return 32;                         /* tier 4 (h1) gets extra room */
 }
 
 int text_atom_w(int len, int tier) { return len * tier_char_w(tier); }
@@ -125,7 +137,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
      * word atoms. */
     while (i < len) {
         /* skip leading whitespace, emit a single space atom if any (only between
-         * word atoms — leading at start of run handled by line layout). */
+         * word atoms - leading at start of run handled by line layout). */
         int saw_ws = 0;
         while (i < len) {
             char c = attr_pool[off + i];
@@ -258,7 +270,7 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
             continue;
         }
         if (x + aw > cx + max_w && x > cx && sentinel != -3) {
-            /* Mid-word wrap not allowed in v1 — but we accept overflow rather
+            /* Mid-word wrap not allowed in v1 - but we accept overflow rather
              * than truncate */
         }
         la_x[k] = x;
@@ -326,7 +338,25 @@ void layout_block(int n, int avail_w) {
             /* Lay out block child */
             int child_avail = content_w;
             layout_block(c, child_avail);
-            int child_x = cx + rt_margin_l(c);
+            int ml = rt_margin_l(c);
+            int mr = rt_margin_r(c);
+            int auto_l = cs_margin_auto[rt_style[c]][3];
+            int auto_r = cs_margin_auto[rt_style[c]][1];
+            int leftover = content_w - rt_w[c];
+            if (leftover > 0 && (auto_l || auto_r)) {
+                if (auto_l && auto_r) {
+                    ml = leftover / 2;
+                    mr = leftover - ml;
+                } else if (auto_l) {
+                    int rem = leftover - mr;
+                    ml = rem > 0 ? rem : 0;
+                } else {
+                    int rem = leftover - ml;
+                    mr = rem > 0 ? rem : 0;
+                }
+            }
+            (void)mr;
+            int child_x = cx + ml;
             int child_y = cy + rt_margin_t(c);
             rt_x[c] = child_x;
             rt_y[c] = child_y;

@@ -1,4 +1,4 @@
-/* ---------- Render ---------- */
+/* Render */
 
 int viewport_x() { return 0; }
 int viewport_y() { return ADDR_H + 1; }
@@ -8,7 +8,7 @@ int viewport_h() {
     return h;
 }
 
-/* §6 Render-tree paint — single traversal, bg -> border -> content order */
+/* §6 Render-tree paint - single traversal, bg -> border -> content order */
 
 int rt_screen_x(int n) {
     /* Walk parent chain summing x offsets; viewport_x() is the page origin. */
@@ -37,12 +37,12 @@ void paint_rt_node(int n) {
     int w  = rt_w[n];
     int h  = rt_h[n];
 
+    int kind = rt_kind[n];
+    int cs = rt_style[n];
+
     /* Off-screen cull */
     if (sy + h < viewport_y()) return;
     if (sy > viewport_y() + viewport_h()) return;
-
-    int kind = rt_kind[n];
-    int cs = rt_style[n];
 
     /* 1. Background */
     int bg = cs_bg[cs];
@@ -71,18 +71,28 @@ void paint_rt_node(int n) {
         paint_rt_line_box(n, sx, sy);
     }
 
-    /* 4. Children */
+    /* 4. Children. Inline subtrees (RT_INLINE/RT_TEXT/RT_INLINE_BLOCK/
+     * RT_REPLACED) were absorbed into RT_LINE_BOX siblings during
+     * flush_inline; LINE_BOX paint walks the atom slice and re-enters
+     * replaced/inline-block via la_text_off < 0. Skip them here to avoid
+     * double-paint. */
     int c = rt_first_child[n];
     while (c >= 0) {
+        int ck = rt_kind[c];
+        if (ck == RT_INLINE || ck == RT_TEXT ||
+            ck == RT_INLINE_BLOCK || ck == RT_REPLACED) {
+            c = rt_next[c]; continue;
+        }
         paint_rt_node(c);
         c = rt_next[c];
     }
 }
 
 void paint_rt_text(int n, int sx, int sy) {
-    /* RT_TEXT outside a LINE_BOX (rare — orphan text node not flushed): just draw. */
+    /* RT_TEXT outside a LINE_BOX (rare - orphan text node not flushed): just draw. */
     int cs = rt_style[n];
     int tier = cs_font_size_tier[cs];
+    int font = tier_to_font(tier);
     int fg = cs_color[cs];
     if (fg < 0) fg = 0x000000;
     char buf[256];
@@ -90,8 +100,7 @@ void paint_rt_text(int n, int sx, int sy) {
     if (len > 255) len = 255;
     for (int k = 0; k < len; k++) buf[k] = attr_pool[rt_text_off[n] + k];
     buf[len] = 0;
-    /* Only the 8x8 font is available; tier drives layout spacing, not glyph size. */
-    gfx2d_text(sx, sy, buf, fg, 0);
+    gfx2d_text(sx, sy, buf, fg, font);
     if (cs_text_dec[cs] & TD_UNDERLINE) {
         gfx2d_rect_fill(sx, sy + tier_line_h(tier) - 2, len * tier_char_w(tier), 1, fg);
     }
@@ -101,10 +110,15 @@ void paint_rt_line_box(int n, int sx, int sy) {
     int first = rt_line_atom_first[n];
     int count = rt_line_atom_count[n];
     for (int k = first; k < first + count; k++) {
-        if (la_x[k] < 0) continue;       /* sentinel atom — break point not painted */
+        if (la_x[k] < 0) continue;       /* sentinel atom - break point not painted */
         int ax = sx + la_x[k];
         int tier = la_font_tier[k];
-        int ay = sy + (rt_h[n] - tier_line_h(tier));    /* baseline-ish */
+        /* Center glyph vertically in the line box: line_h is taller than the
+         * glyph (1.5x), so put the glyph on the visual midline rather than
+         * jammed against the top. Bias one px upward so the cap height feels
+         * baseline-anchored. */
+        int glyph_h = (tier >= 3) ? 16 : 8;
+        int ay = sy + (rt_h[n] - glyph_h) / 2;
         if (la_text_off[k] < 0) {
             /* Replaced/inline-block reference */
             int rt_n = -la_text_off[k] - 1;
@@ -122,10 +136,23 @@ void paint_rt_line_box(int n, int sx, int sy) {
         if (len > 255) len = 255;
         for (int kk = 0; kk < len; kk++) buf[kk] = attr_pool[la_text_off[k] + kk];
         buf[len] = 0;
-        gfx2d_text(ax, ay, buf, fg, 0);
-        if (la_bold[k]) gfx2d_text(ax + 1, ay, buf, fg, 0);
+        int font = tier_to_font(tier);
+        gfx2d_text(ax, ay, buf, fg, font);
+        if (la_bold[k]) {
+            /* Bold: re-draw shifted to thicken strokes. LARGE-tier headings
+             * also strike vertically so h1/h2 read as visibly heavier than
+             * body bold. */
+            gfx2d_text(ax + 1, ay, buf, fg, font);
+            if (tier >= 3) {
+                gfx2d_text(ax, ay + 1, buf, fg, font);
+                gfx2d_text(ax + 1, ay + 1, buf, fg, font);
+            }
+        }
         if (la_underline[k]) {
-            gfx2d_rect_fill(ax, ay + tier_line_h(tier) - 2, la_w[k], 1, fg);
+            /* Place underline just below the glyph rather than at the bottom
+             * of the line box, so it tracks the text instead of floating in
+             * the inter-line gap. */
+            gfx2d_rect_fill(ax, ay + glyph_h, la_w[k], 1, fg);
         }
     }
 }
@@ -246,6 +273,23 @@ void draw_scrollbar(int sx, int sy) {
     gfx2d_rect_fill(sb_x + 2, thumb_y, 8, thumb_h, 0x808080);
 }
 
+/* Document background per CSS painting model: the canvas takes the html
+ * background-color; if html has no background, body's background-color
+ * propagates up. Falls back to page_bg (white). cs index == DOM node
+ * index, so we scan for T_HTML / T_BODY by tag. */
+int document_bg() {
+    int html_bg = -1;
+    int body_bg = -1;
+    for (int n = 0; n < nodes_count; n++) {
+        int tag = n_tag[n];
+        if (tag == T_HTML && html_bg < 0) html_bg = cs_bg[n];
+        else if (tag == T_BODY && body_bg < 0) body_bg = cs_bg[n];
+    }
+    if (html_bg >= 0) return html_bg;
+    if (body_bg >= 0) return body_bg;
+    return page_bg;
+}
+
 void render() {
     if (gui_win_begin_paint(win) != 0) return;
     /* Drawing inside begin_paint targets the window's offscreen surface
@@ -256,13 +300,19 @@ void render() {
     int cy = 0;
 
     /* Surface background (covers everything before chrome paints over) */
-    int rbg = (cs_count > 0 && cs_bg[0] >= 0) ? cs_bg[0] : page_bg;
-    gfx2d_rect_fill(cx, cy, cur_cw, cur_ch, rbg);
+    gfx2d_rect_fill(cx, cy, cur_cw, cur_ch, page_bg);
+
+    /* Document background: html bg, then body bg, then white. Filled across
+     * the full web viewport so a centered body still sits over its
+     * propagated page color (CSS canvas-painting rule). */
+    int doc_color = document_bg();
+    gfx2d_rect_fill(cx + viewport_x(), cy + viewport_y(),
+                    cur_cw, viewport_h(), doc_color);
 
     /* address bar */
     draw_address_bar(cx, cy, cur_cw);
 
-    /* viewport (clipped) — paint the render tree into the content area */
+    /* viewport (clipped) - paint the render tree into the content area */
     int vx = cx + viewport_x();
     int vy = cy + viewport_y();
     gfx2d_clip_set(vx, vy, cur_cw - 12, viewport_h());

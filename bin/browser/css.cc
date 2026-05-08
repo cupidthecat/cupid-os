@@ -1,12 +1,12 @@
-/* ---------- §2 CSS lexer + selector parser + rule extractor ----------
+/* §2 CSS lexer + selector parser + rule extractor.
  * css_parse_block(text, len) appends to css_rule_*[] every rule it sees.
  * Selectors supported: tag, .class, #id, comma list, descendant (whitespace).
  * Unsupported (>, +, ~, [attr=...], :pseudo, *) parse-skip silently.
  *
  * Pools (declared in main.cc):
- *   css_rule_*    — flattened (selector-chain, property, value) tuples
- *   css_sel_*     — compound-selector chain storage
- *   css_value_pool — raw CSS value bytes, NUL-terminated
+ *   css_rule_*    - flattened (selector-chain, property, value) tuples
+ *   css_sel_*     - compound-selector chain storage
+ *   css_value_pool - raw CSS value bytes, NUL-terminated
  *
  * Caps from main.cc enums:
  *   MAX_CSS_RULES, MAX_CSS_SELECTORS, CSS_VALUE_POOL_SIZE.
@@ -49,7 +49,7 @@ int css_parse_compound(char *s, int n, int i,
     while (i < n) {
         char c = s[i];
         if (c == '*') {
-            /* universal selector — supported by leaving tag=0 (any). */
+            /* universal selector - supported by leaving tag=0 (any). */
             i++; started = 1; continue;
         }
         if (c == '#') {
@@ -191,7 +191,7 @@ int css_parse_decls(char *s, int n, int i,
         while (i < n && s[i] != ':' && s[i] != ';' && s[i] != '}') i++;
         int p_end = i;
         if (i >= n || s[i] != ':') {
-            /* malformed — skip to ';' or '}' */
+            /* malformed - skip to ';' or '}' */
             while (i < n && s[i] != ';' && s[i] != '}') i++;
             if (i < n && s[i] == ';') i++;
             continue;
@@ -208,7 +208,7 @@ int css_parse_decls(char *s, int n, int i,
         /* trim trailing whitespace from prop name */
         while (p_end > p_start && (s[p_end-1] == ' ' || s[p_end-1] == '\t')) p_end--;
         int prop_id = css_match_property(s + p_start, p_end - p_start);
-        if (prop_id == 0) continue;        /* unknown property — drop */
+        if (prop_id == 0) continue;        /* unknown property - drop */
         int v_off = css_intern_value(s + v_start, v_end - v_start);
         if (v_off < 0) continue;
         css_emit_rule(sel_first, sel_count, prop_id, v_off, v_end - v_start);
@@ -242,7 +242,7 @@ void css_parse_block(char *text, int len) {
         i = css_skip_ws(text, len, i);
         if (i >= len) break;
         if (text[i] != '{') {
-            /* malformed @-rule or unsupported — skip to next ';' or '}' */
+            /* malformed @-rule or unsupported - skip to next ';' or '}' */
             while (i < len && text[i] != '{' && text[i] != '}') i++;
             if (i < len && text[i] == '{') {
                 /* skip block */

@@ -1,4 +1,4 @@
-/* ---------- §3 Render tree builder ---------- */
+/* §3 Render tree builder */
 
 int rt_alloc(int kind, int dom, int parent, int style_cs) {
     if (rt_count >= MAX_RT_NODES) return -1;
@@ -138,11 +138,23 @@ int build_rt_subtree(int dom, int rt_parent_n) {
     int n = rt_alloc(kind, dom, rt_parent_n, cs_d);
     if (n < 0) return -1;
 
-    /* For <a>: bind the link index */
+    /* For <a>: bind the link index, registering a new entry if this href
+     * hasn't been seen yet. (Earlier code relied on layout to register
+     * links, but no such pass existed - so links_count stayed 0 and every
+     * <a> ended up with rt_link_idx == -1, breaking hover and click.) */
     if (tag == T_A) {
         int href_off = dom_attr_get(dom, "href");
-        for (int k = 0; k < links_count; k++) {
-            if (link_url_off[k] == href_off) { rt_link_idx[n] = k; break; }
+        if (href_off >= 0) {
+            int found = -1;
+            for (int k = 0; k < links_count; k++) {
+                if (link_url_off[k] == href_off) { found = k; break; }
+            }
+            if (found < 0 && links_count < 1024) {
+                found = links_count;
+                link_url_off[links_count] = href_off;
+                links_count = links_count + 1;
+            }
+            rt_link_idx[n] = found;
         }
     }
 
@@ -194,7 +206,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
 
 /* Anonymous-table-ancestor wrapping. For Plan 2, table layout is the same as
  * block fallback (no real grid), so anon-table wrappers cosmetically don't
- * matter — they're just additional block boxes. Skip the wrap for Plan 2;
+ * matter - they're just additional block boxes. Skip the wrap for Plan 2;
  * Plan 3 implements proper anon-table-ancestor logic alongside table layout. */
 void rt_anon_table_fixup() {
     (void)0;
@@ -203,6 +215,7 @@ void rt_anon_table_fixup() {
 void build_render_tree() {
     rt_count = 0;
     la_count = 0;
+    links_count = 0;     /* rebuilt as <a> nodes are walked below */
     /* Synthetic RT root mirrors DOM root (DOM index 0 = T_ROOT) */
     int root = rt_alloc(RT_BLOCK, 0, -1, 0);
     if (root < 0) return;
@@ -210,7 +223,7 @@ void build_render_tree() {
     rt_anon_table_fixup();
 }
 
-/* ---------- Dormant debug helper (kept for future use, not called) ---------- */
+/* Dormant debug helper (kept for future use, not called) */
 void dump_rt(int n, int depth) {
     char *kn = "?";
     if (rt_kind[n] == RT_BLOCK)             kn = "BLOCK";

@@ -1,4 +1,4 @@
-/* ---------- Globals + entry point ---------- */
+/* Globals + entry point */
 
 enum {
     SOCK_TCP   = 2,
@@ -46,7 +46,7 @@ enum {
     /* §1 entity table */
     MAX_ENTITY_NAMES = 64,
 
-    /* §4 layout scratch — pending inline atoms before line-box flush */
+    /* §4 layout scratch - pending inline atoms before line-box flush */
     MAX_PENDING_INLINE = 1024,
 
     /* tags */
@@ -114,7 +114,7 @@ enum {
     TK_TEXT  = 3,
     TK_EOF   = 4,
 
-    /* §2 CSS property IDs — internal */
+    /* §2 CSS property IDs - internal */
     CP_COLOR = 1, CP_BG_COLOR, CP_BG, CP_FONT_WEIGHT, CP_FONT_STYLE,
     CP_FONT_SIZE, CP_TEXT_ALIGN, CP_TEXT_DEC, CP_DISPLAY,
     CP_MARGIN, CP_MARGIN_T, CP_MARGIN_R, CP_MARGIN_B, CP_MARGIN_L,
@@ -154,7 +154,7 @@ enum {
     FOCUS_INPUT = 2
 };
 
-/* ---------- Global state ---------- */
+/* Global state */
 
 int  win;
 int  font_id;          /* 0=NORMAL 8x8 */
@@ -188,7 +188,7 @@ int n_next      [4096];
 int n_text_off  [4096];   /* into page_buf for TEXT nodes */
 int n_text_len  [4096];
 
-/* §1 DOM attribute pool — each node has a contiguous slice of (name_off, value_off)
+/* §1 DOM attribute pool - each node has a contiguous slice of (name_off, value_off)
  * pairs in dom_ap_*[]. Slice begins at dom_attrs_first[i] and runs
  * dom_attrs_count[i] pairs. The slice is COPIED out of the tokenizer's scratch
  * ap_*[] (which is reused across pages) into the permanent dom_ap_*[] pool so
@@ -206,7 +206,7 @@ int dom_class_off[4096];
 int dom_id_off   [4096];
 
 /* node-back-reference for forms/inputs registered by the tree builder.
- * inputs[] / forms[] index → DOM node index. Lets handlers look up DOM
+ * inputs[] / forms[] index -> DOM node index. Lets handlers look up DOM
  * attrs (action, name, value, type) of the originating element. */
 int input_node[64];
 int form_node [32];
@@ -214,7 +214,7 @@ int form_node [32];
 char attr_pool[131072];
 int  attr_pool_pos;
 
-/* §2 CSS rule table — populated by css.cc, consumed by style.cc resolver.
+/* §2 CSS rule table - populated by css.cc, consumed by style.cc resolver.
  * One rule = one selector chain + one declaration block. Multiple
  * declarations in a single CSS rule produce multiple entries here
  * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
@@ -234,11 +234,11 @@ int css_sel_tag      [1024];
 int css_sel_class_off[1024];
 int css_sel_id_off   [1024];
 
-/* CSS value pool — separate from attr_pool. */
+/* CSS value pool - separate from attr_pool. */
 char css_value_pool[32768];
 int  css_value_pool_pos;
 
-/* §2 ComputedStyle pool — one entry per render node. */
+/* §2 ComputedStyle pool - one entry per render node. */
 int cs_count;
 int cs_color    [4096];
 int cs_bg       [4096];
@@ -249,6 +249,7 @@ int cs_text_align[4096];
 int cs_text_dec [4096];
 int cs_display  [4096];
 int cs_margin   [4096][4];
+int cs_margin_auto[4096][4];   /* 1 if that margin side was set to "auto" */
 int cs_padding  [4096][4];
 int cs_border   [4096][4];
 int cs_border_color[4096];
@@ -258,7 +259,7 @@ int cs_white_space[4096];
 int cs_list_style[4096];
 int cs_vertical_align[4096];
 
-/* §3 Render tree pool — sized at MAX_RT_NODES (6144 per spec) */
+/* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;
 int rt_dom         [6144];   /* back-pointer to DOM node, -1 for anonymous */
 int rt_parent      [6144];
@@ -282,7 +283,7 @@ int rt_content_x[6144];
 int rt_content_y[6144];
 int rt_baseline[6144];
 
-/* Line-box atom storage — one entry per word/glyph in an inline run.
+/* Line-box atom storage - one entry per word/glyph in an inline run.
  * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
  * the atom pool via a separate atom_first/count pair. */
 int la_count;
@@ -301,7 +302,7 @@ int la_link_idx [8192];
 int rt_line_atom_first[6144];
 int rt_line_atom_count[6144];
 
-/* §1 tokenizer scratch — populated by tokenize(), consumed by tree builder in Task 3.
+/* §1 tokenizer scratch - populated by tokenize(), consumed by tree builder in Task 3.
  * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an
  * attr_pool offset (decoded RCDATA text); otherwise it is a page_buf offset.
  * The tree builder reads this as:
@@ -356,7 +357,7 @@ int  hover_link;     /* -1 or link idx */
 int  cur_cw;
 int  cur_ch;
 
-/* ---------- Main ---------- */
+/* Main */
 
 void browser_main() {
     char *raw = (char*)get_args();

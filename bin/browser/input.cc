@@ -1,4 +1,4 @@
-/* ---------- Hit testing + Input ---------- */
+/* Hit testing + Input */
 
 /* Reverse-depth render-tree hit test: returns the deepest render node whose
  * paint rectangle contains (mx, my). Inputs are window-content-relative
@@ -23,6 +23,22 @@ int rt_hit(int n, int mx, int my) {
 int hit_box(int mx, int my) {
     if (rt_count == 0) return -1;
     return rt_hit(0, mx, my);
+}
+
+/* Inline content is absorbed into RT_LINE_BOX siblings, so the original
+ * <a> RT_INLINE node has no rt_w/h and the hit walk never visits it. Atoms
+ * carry la_link_idx, so when a click lands on a LINE_BOX, look up which
+ * atom column the click falls in. */
+int line_box_link_at(int n, int rel_ax) {
+    int first = rt_line_atom_first[n];
+    int count = rt_line_atom_count[n];
+    for (int k = first; k < first + count; k++) {
+        if (la_x[k] < 0) continue;
+        if (rel_ax >= la_x[k] && rel_ax < la_x[k] + la_w[k]) {
+            return la_link_idx[k];
+        }
+    }
+    return -1;
 }
 
 /* find the input/button form parent node */
@@ -128,7 +144,7 @@ void handle_page_key(int sc, int ch) {
     if (sc == 71) { scroll_y = 0; return; }
     if (sc == 79) { scroll_y = doc_h; clamp_scroll(); return; }
     if (ch == 27) {
-        /* Esc — close the window */
+        /* Esc - close the window */
         gui_win_close(win);
     }
 }
@@ -166,7 +182,13 @@ void handle_left_click(int mx, int my) {
             int link = -1;
             int input_idx = -1;
             int submit_form_node = -1;
-            int cur = hit;
+            /* If hit landed on a LINE_BOX, the click may be on an atom that
+             * came from an <a>; consult per-atom link index first. */
+            if (rt_kind[hit] == RT_LINE_BOX) {
+                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
+                if (li >= 0) link = li;
+            }
+            int cur = (link >= 0) ? -1 : hit;
             while (cur >= 0) {
                 if (rt_link_idx[cur] >= 0) { link = rt_link_idx[cur]; break; }
                 if (rt_input_idx[cur] >= 0) { input_idx = rt_input_idx[cur]; break; }
@@ -234,6 +256,10 @@ void handle_hover(int mx, int my) {
         rel_x >= 0 && rel_x < cur_cw - 12) {
         int hit = hit_box(rel_x, rel_y);
         if (hit >= 0) {
+            if (rt_kind[hit] == RT_LINE_BOX) {
+                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
+                if (li >= 0) { hover_link = li; return; }
+            }
             int cur = hit;
             while (cur >= 0) {
                 if (rt_link_idx[cur] >= 0) { hover_link = rt_link_idx[cur]; break; }
