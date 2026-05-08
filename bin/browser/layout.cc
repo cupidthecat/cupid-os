@@ -323,9 +323,18 @@ void layout_block(int n, int avail_w) {
     rt_content_y[n] = cy;
 
     /* Walk children. Inline runs get accumulated and flushed when a block
-     * sibling appears or end of children. */
+     * sibling appears or end of children.
+     *
+     * Vertical margin collapsing between block siblings: the gap between
+     * two adjacent in-flow blocks is max(prev.margin_b, next.margin_t),
+     * not the additive sum. We track pending_bottom as the unspent
+     * bottom margin from the previous block; the next block's effective
+     * top margin is max(pending_bottom, margin_t). Inline content
+     * between blocks (an inline pile flush) breaks the collapse chain
+     * by resetting pending_bottom. */
     int pile_first = la_count;
     int pile_count = 0;
+    int pending_bottom = 0;
 
     int c = rt_first_child[n];
     while (c >= 0) {
@@ -337,9 +346,11 @@ void layout_block(int n, int avail_w) {
         }
         if (rt_kind_is_block_level(kind) ||
             (kind == RT_BLOCK)) {
-            /* Flush pending inline run */
+            /* Flush pending inline run; inline content breaks the
+             * margin-collapse chain. */
             if (pile_count > 0) {
                 flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
+                pending_bottom = 0;
             }
             /* Lay out block child */
             int child_avail = content_w;
@@ -362,11 +373,14 @@ void layout_block(int n, int avail_w) {
                 }
             }
             (void)mr;
+            int top = rt_margin_t(c);
+            int collapsed = (top > pending_bottom) ? top : pending_bottom;
+            cy = cy + collapsed;
             int child_x = cx + ml;
-            int child_y = cy + rt_margin_t(c);
             rt_x[c] = child_x;
-            rt_y[c] = child_y;
-            cy = child_y + rt_h[c] + rt_margin_b(c);
+            rt_y[c] = cy;
+            cy = cy + rt_h[c];
+            pending_bottom = rt_margin_b(c);
         } else {
             /* Inline / text / inline-block / replaced: accumulate as atoms */
             collect_inline_atoms(c);
@@ -376,7 +390,11 @@ void layout_block(int n, int avail_w) {
     }
     if (pile_count > 0) {
         flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
+        pending_bottom = 0;
     }
+    /* Trailing block child's bottom margin counts toward parent height
+     * (parent-last-child collapsing is deferred). */
+    cy = cy + pending_bottom;
 
     /* Resolve own height */
     int style_h = cs_height[rt_style[n]];
