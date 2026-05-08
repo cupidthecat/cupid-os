@@ -46,10 +46,14 @@ void main() {
         scale = clamp(scale + 1, 1, 3);
       } else if (ctrl && (ch == 45 || ch == 95)) {
         scale = clamp(scale - 1, 1, 3);
-      } else if (sc == 73) {
-        scroll = clamp(scroll + 5, 0, shell_cursor_y());
-      } else if (sc == 81) {
-        scroll = clamp(scroll - 5, 0, shell_cursor_y());
+      } else if (sc == 73) {                  /* PageUp */
+        scroll = clamp(scroll + 10, 0, shell_cursor_y());
+      } else if (sc == 81) {                  /* PageDown */
+        scroll = clamp(scroll - 10, 0, shell_cursor_y());
+      } else if (sc == 71) {                  /* Home: scroll to top */
+        scroll = shell_cursor_y();
+      } else if (sc == 79) {                  /* End: scroll to bottom */
+        scroll = 0;
       } else {
         scroll = 0;
         cursor_on = 1;

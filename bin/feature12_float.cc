@@ -74,7 +74,7 @@ void main() {
 
     /* Phase D: printf(string, FP) mixes int ptr with FP args which Task 18's
      * calling convention doesn't yet handle. Verify instead by casting
-     * the FP values to int (truncating) — for exact whole-number results
+     * the FP values to int (truncating) - for exact whole-number results
      * this round-trips losslessly. 1234.5 truncates to 1234. */
     float big = 1234.5;
     int big_as_int = (int)big;
@@ -83,7 +83,7 @@ void main() {
         ok = 0;
     }
 
-    /* 42.5 as double — truncate via (int) cast. */
+    /* 42.5 as double - truncate via (int) cast. */
     double normal = 42.5;
     int normal_as_int = (int)normal;
     if (normal_as_int != 42) {
@@ -102,7 +102,7 @@ void main() {
     }
 
     /* Phase E Task 23: libm hardware fast-paths.
-     * sin(0)=0, cos(0)=1, sqrt(4)=2 — exact results, truncate to int. */
+     * sin(0)=0, cos(0)=1, sqrt(4)=2 - exact results, truncate to int. */
     double s0 = sin(0.0);
     double c0 = cos(0.0);
     double sq = sqrt(4.0);
@@ -165,7 +165,7 @@ void main() {
     }
 
     /* Phase F Task 31: double2 element access (.x/.y).
-     * 7.5, 12.25 — scale by 4 to test fractional bits without FP compare.
+     * 7.5, 12.25 - scale by 4 to test fractional bits without FP compare.
      * 7.5*4=30, 12.25*4=49. */
     double2 d2 = {7.5, 12.25};
     double d2x = d2.x;

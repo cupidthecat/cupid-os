@@ -9,7 +9,7 @@ void main() {
     /* Inline tolerance check without a user helper function (user
      * functions with FP params have calling-convention edge cases).
      * Pattern: compute |a - b| via fabs, scale, cast to int, INT-compare.
-     * CupidC also can't do unary minus on doubles — use 0.0 - x. */
+     * CupidC also can't do unary minus on doubles - use 0.0 - x. */
 
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
@@ -45,7 +45,7 @@ void main() {
         ok = 0;
     }
 
-    /* exp(1) = e = 2.71828... — CupidC's exp has a known bug that
+    /* exp(1) = e = 2.71828... - CupidC's exp has a known bug that
      * returns ~1.47 for exp(1); skip this check.  exp(0)=1 still works. */
 
     /* log(e) = 1 */

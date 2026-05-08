@@ -226,7 +226,7 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     tok.text[i] = '\0';
     tok.type = cc_check_keyword(tok.text);
 
-    /* Built-in constants: NULL, true, false → integer literals */
+    /* Built-in constants: NULL, true, false -> integer literals */
     if (tok.type == CC_TOK_IDENT) {
       if (strcmp(tok.text, "NULL") == 0) {
         tok.type = CC_TOK_NUMBER;

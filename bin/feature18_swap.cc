@@ -2,7 +2,7 @@
 //help: Usage: swapinit && feature18_swap
 
 /* CupidC doesn't have memset/memcmp; inline trivial helpers.
- * CupidC also doesn't natively recognize uint32_t — use int (32-bit) for
+ * CupidC also doesn't natively recognize uint32_t - use int (32-bit) for
  * swap handles. The BIND entries in kernel/cupidc.c bind swap_kmalloc to
  * return a 32-bit handle in EAX, which lands in an int just fine. */
 
@@ -41,7 +41,7 @@ void main() {
     char *p4 = (char *)swap_pin(h4); fill_byte(p4, 65536, 0x44); swap_unpin(h4);
 
     /* Re-pin and verify patterns survived the unpin (disk or RAM doesn't
-     * matter — the slot-backed invariant is address-independent of where
+     * matter - the slot-backed invariant is address-independent of where
      * the bytes live). */
     p1 = (char *)swap_pin(h1);
     if (!verify_byte(p1, 1024, 0x11)) {
@@ -59,7 +59,7 @@ void main() {
 
     swap_free(h1); swap_free(h2); swap_free(h3); swap_free(h4);
 
-    /* 2. Class 3 (64K) disk cap — allocate until full.
+    /* 2. Class 3 (64K) disk cap - allocate until full.
      *    Default disk cap for class 3 is 64 slots; 65th should fail. */
     int hs3[65];
     int i = 0;

@@ -153,6 +153,32 @@ int fm_ends_with_cc(char *name) {
          fm_tolower(name[n - 1]) == 'c';
 }
 
+int fm_ends_with_dd(char *name) {
+  /* TempleOS-style .DD vocabulary / data files (e.g. /god/Vocab.DD) */
+  int n = fm_strlen(name);
+  if (n < 3) return 0;
+  return fm_tolower(name[n - 3]) == '.' &&
+         fm_tolower(name[n - 2]) == 'd' &&
+         fm_tolower(name[n - 1]) == 'd';
+}
+
+int fm_ends_with_md(char *name) {
+  int n = fm_strlen(name);
+  if (n < 3) return 0;
+  return fm_tolower(name[n - 3]) == '.' &&
+         fm_tolower(name[n - 2]) == 'm' &&
+         fm_tolower(name[n - 1]) == 'd';
+}
+
+int fm_ends_with_asm(char *name) {
+  int n = fm_strlen(name);
+  if (n < 4) return 0;
+  return fm_tolower(name[n - 4]) == '.' &&
+         fm_tolower(name[n - 3]) == 'a' &&
+         fm_tolower(name[n - 2]) == 's' &&
+         fm_tolower(name[n - 1]) == 'm';
+}
+
 void fm_itoa(int val, char *buf) {
   if (val == 0) {
     buf[0] = '0';
@@ -378,7 +404,10 @@ void fm_open_selected() {
   } else {
     if (fm_ends_with_txt(files[cursor_idx].name) ||
         fm_ends_with_ctxt(files[cursor_idx].name) ||
-        fm_ends_with_cc(files[cursor_idx].name)) {
+        fm_ends_with_cc(files[cursor_idx].name) ||
+        fm_ends_with_dd(files[cursor_idx].name) ||
+        fm_ends_with_md(files[cursor_idx].name) ||
+        fm_ends_with_asm(files[cursor_idx].name)) {
       notepad_open_file(path);
       return;
     }

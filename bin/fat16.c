@@ -203,7 +203,7 @@ int fat16_is_initialized(void) {
     return fat16_initialized;
 }
 
-/* ── Subdirectory path helpers ────────────────────────────────────── */
+/*  Subdirectory path helpers  */
 
 /* Split "dir/file" into dir_out and name_out.
  * Returns 1 if a slash was found, 0 if flat name.
@@ -429,7 +429,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         /* Log each cluster we read from */
         if (current_cluster != last_logged_cluster) {
             if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] reading cluster[%u]=%u → LBA %u-%u (offset_in_cluster=%u)\n",
+                serial_printf("[READ] reading cluster[%u]=%u -> LBA %u-%u (offset_in_cluster=%u)\n",
                              clusters_read, current_cluster, cluster_lba,
                              cluster_lba + fs.sectors_per_cluster - 1, offset_in_cluster);
             }
@@ -466,7 +466,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         if ((offset_in_cluster + bytes_to_copy) >= cluster_size && bytes_read < count) {
             uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
             if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] cluster %u → next %u (EOC if >= 0x%04X)\n",
+                serial_printf("[READ] cluster %u -> next %u (EOC if >= 0x%04X)\n",
                              current_cluster, next_cluster, FAT16_EOC_MIN);
             }
             current_cluster = next_cluster;
@@ -497,9 +497,8 @@ int fat16_close(fat16_file_t* file) {
     return 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  FAT16 Write Support
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  FAT16 Write Support
+ *  */
 
 /**
  * fat16_write_fat_entry - Write a FAT table entry
@@ -620,7 +619,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
                  name83[0], name83[1], name83[2], name83[3], name83[4], name83[5], name83[6], name83[7],
                  name83[8], name83[9], name83[10]);
 
-    /* ── Allocate cluster chain for the new data ── */
+    /*  Allocate cluster chain for the new data  */
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
     uint32_t clusters_needed = 0;
     if (size > 0) {
@@ -648,7 +647,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         } else {
             /* Link previous cluster to this one */
             if (i < 5 || i % 50 == 0 || i >= clusters_needed - 5) {
-                serial_printf("[ALLOC] cluster[%u]=%u, linking [%u]=%u → %u\n",
+                serial_printf("[ALLOC] cluster[%u]=%u, linking [%u]=%u -> %u\n",
                              i, c, i-1, prev_cluster, c);
             }
             int link_rc = fat16_write_fat_entry(prev_cluster, c);
@@ -687,7 +686,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         while (verify_cluster >= 2 && verify_cluster < FAT16_EOC_MIN && chain_len < clusters_needed + 10) {
             uint16_t next = fat16_read_fat_entry(verify_cluster);
             if (chain_len < 5 || chain_len % 50 == 0) {
-                serial_printf("[VERIFY] chain[%u] = %u → %u (EOC if >= 0x%04X)\n",
+                serial_printf("[VERIFY] chain[%u] = %u -> %u (EOC if >= 0x%04X)\n",
                              chain_len, verify_cluster, next, FAT16_EOC_MIN);
             }
             verify_cluster = next;
@@ -700,7 +699,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         }
     }
 
-    /* ── Write file data to the allocated clusters ── */
+    /*  Write file data to the allocated clusters  */
     {
         uint16_t cur_cluster = first_cluster;
         uint32_t bytes_written = 0;
@@ -713,7 +712,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
 
             /* Log first few and some later clusters */
             if (clusters_written < 5 || clusters_written % 50 == 0) {
-                serial_printf("[WRITE] cluster[%u]=%u → LBA %u-%u\n",
+                serial_printf("[WRITE] cluster[%u]=%u -> LBA %u-%u\n",
                              clusters_written, cur_cluster, cluster_lba,
                              cluster_lba + fs.sectors_per_cluster - 1);
             }
@@ -751,7 +750,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
 
             uint16_t next_cluster = fat16_read_fat_entry(cur_cluster);
             if (clusters_written < 5 || clusters_written % 50 == 0) {
-                serial_printf("[WRITE] cluster %u → next %u (EOC if >= 0x%04X)\n",
+                serial_printf("[WRITE] cluster %u -> next %u (EOC if >= 0x%04X)\n",
                              cur_cluster, next_cluster, FAT16_EOC_MIN);
             }
             cur_cluster = next_cluster;
@@ -775,7 +774,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         blockcache_sync();
     }
 
-    /* ── Find or create directory entry ── */
+    /*  Find or create directory entry  */
 
     /* Handle subdirectory path (e.g. "asm/hello.txt") */
     {

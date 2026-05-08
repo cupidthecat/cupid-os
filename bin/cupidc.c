@@ -34,12 +34,11 @@
 #include "vfs.h"
 #include "vfs_helpers.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Port I/O wrappers for CupidC kernel bindings
+/*  *  Port I/O wrappers for CupidC kernel bindings
  *
  *  The compiler binds calls to outb()/inb() to these wrappers which
  *  match cdecl calling convention with 32-bit args on the stack.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
@@ -270,9 +269,8 @@ static void cc_crashtest_stackoverflow(void) {
 /* Print a byte as 2 hex digits - wrapper with uint32_t arg for CupidC */
 static void cc_print_hex_byte(uint32_t val) { print_hex_byte((uint8_t)val); }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  16.16 Fixed-Point Math Helpers for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  16.16 Fixed-Point Math Helpers for CupidC
+ *  */
 
 static int cc_fp_mul(int a, int b) {
   /* Use 64-bit multiply (no libgcc needed for multiply, only divide) */
@@ -320,9 +318,8 @@ static int cc_fp_to_int(int a) { return a >> 16; }
 static int cc_fp_frac(int a) { return a & 0xFFFF; }
 static int cc_fp_one(void) { return 65536; } /* FP_ONE = 1.0 in 16.16 */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mouse Input Accessors for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Mouse Input Accessors for CupidC
+ *  */
 
 static int cc_mouse_x(void) { return (int)mouse.x; }
 static int cc_mouse_y(void) { return (int)mouse.y; }
@@ -334,9 +331,8 @@ static int cc_mouse_scroll(void) {
 }
 static int cc_key_shift_held(void) { return keyboard_get_shift() ? 1 : 0; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Kernel Bindings Registration
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Kernel Bindings Registration
+ *  */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
 /* Helper macro to add a kernel function binding */
@@ -670,7 +666,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_memcmp)(const void *, const void *, size_t) = memcmp;
   BIND("memcmp", p_memcmp, 3);
 
-  /* ── gfx2d - 2D graphics library ────────────────────────────── */
+  /*  gfx2d - 2D graphics library  */
   void (*p_gfx2d_init)(void) = gfx2d_init;
   BIND("gfx2d_init", p_gfx2d_init, 0);
 
@@ -830,11 +826,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_checkerboard;
   BIND("gfx2d_checkerboard", p_gfx2d_checkerboard, 7);
 
-  /* ── gfx2d - blend modes ─────────────────────────────────────────── */
+  /*  gfx2d - blend modes  */
   void (*p_gfx2d_blend_mode)(int) = gfx2d_blend_mode;
   BIND("gfx2d_blend_mode", p_gfx2d_blend_mode, 1);
 
-  /* ── gfx2d - surfaces ────────────────────────────────────────────── */
+  /*  gfx2d - surfaces  */
   int (*p_gfx2d_surface_alloc)(int, int) = gfx2d_surface_alloc;
   BIND("gfx2d_surface_alloc", p_gfx2d_surface_alloc, 2);
 
@@ -857,7 +853,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_surface_blit_alpha;
   BIND("gfx2d_surface_blit_alpha", p_gfx2d_surface_blit_alpha, 4);
 
-  /* ── gfx2d - tweening ────────────────────────────────────────────── */
+  /*  gfx2d - tweening  */
   int (*p_gfx2d_tween_linear)(int, int, int, int) = gfx2d_tween_linear;
   BIND("gfx2d_tween_linear", p_gfx2d_tween_linear, 4);
 
@@ -871,7 +867,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_tween_elastic)(int, int, int, int) = gfx2d_tween_elastic;
   BIND("gfx2d_tween_elastic", p_gfx2d_tween_elastic, 4);
 
-  /* ── gfx2d - particles ───────────────────────────────────────────── */
+  /*  gfx2d - particles  */
   int (*p_gfx2d_particles_create)(void) = gfx2d_particles_create;
   BIND("gfx2d_particles_create", p_gfx2d_particles_create, 0);
 
@@ -891,7 +887,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_particles_alive)(int) = gfx2d_particles_alive;
   BIND("gfx2d_particles_alive", p_gfx2d_particles_alive, 1);
 
-  /* ── gfx2d - drawing tools ───────────────────────────────────────── */
+  /*  gfx2d - drawing tools  */
   void (*p_gfx2d_bezier)(int, int, int, int, int, int, uint32_t) = gfx2d_bezier;
   BIND("gfx2d_bezier", p_gfx2d_bezier, 7);
 
@@ -905,7 +901,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_flood_fill)(int, int, uint32_t) = gfx2d_flood_fill;
   BIND("gfx2d_flood_fill", p_gfx2d_flood_fill, 3);
 
-  /* ── gfx2d - fullscreen mode ─────────────────────────────────────── */
+  /*  gfx2d - fullscreen mode  */
   void (*p_gfx2d_fullscreen_enter)(void) = gfx2d_fullscreen_enter;
   BIND("gfx2d_fullscreen_enter", p_gfx2d_fullscreen_enter, 0);
 
@@ -927,7 +923,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_cursor_hide)(void) = gfx2d_cursor_hide;
   BIND("gfx2d_cursor_hide", p_gfx2d_cursor_hide, 0);
 
-  /* ── Fixed-point math (16.16) ──────────────────────────────────────── */
+  /*  Fixed-point math (16.16)  */
 
   int (*p_fp_mul)(int, int) = cc_fp_mul;
   BIND("fp_mul", p_fp_mul, 2);
@@ -947,7 +943,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fp_one)(void) = cc_fp_one;
   BIND("FP_ONE", p_fp_one, 0);
 
-  /* ── BMP image encoding/decoding ────────────────────────────── */
+  /*  BMP image encoding/decoding  */
 
   int (*p_bmp_get_info)(const char *, bmp_info_t *) = bmp_get_info;
   BIND("bmp_get_info", p_bmp_get_info, 2);
@@ -962,7 +958,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_bmp_decode_to_fb)(const char *, int, int) = bmp_decode_to_fb;
   BIND("bmp_decode_to_fb", p_bmp_decode_to_fb, 3);
 
-  /* ── File dialogs ───────────────────────────────────────────── */
+  /*  File dialogs  */
 
   int (*p_file_dlg_open)(const char *, char *, const char *) =
       gfx2d_file_dialog_open;
@@ -972,7 +968,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_file_dialog_save;
   BIND("file_dialog_save", p_file_dlg_save, 4);
 
-  /* ── VFS helpers ────────────────────────────────────────────── */
+  /*  VFS helpers  */
 
   int (*p_vfs_read_all)(const char *, void *, uint32_t) = vfs_read_all;
   BIND("vfs_read_all", p_vfs_read_all, 3);
@@ -989,12 +985,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_vfs_copy_file)(const char *, const char *) = vfs_copy_file;
   BIND("vfs_copy_file", p_vfs_copy_file, 2);
 
-  /* ── String extras ──────────────────────────────────────────── */
+  /*  String extras  */
 
   char *(*p_strrchr)(const char *, int) = strrchr;
   BIND("strrchr", p_strrchr, 2);
 
-  /* ── Dialog helpers ─────────────────────────────────────────── */
+  /*  Dialog helpers  */
 
   int (*p_confirm_dlg)(const char *) = gfx2d_confirm_dialog;
   BIND("confirm_dialog", p_confirm_dlg, 1);
@@ -1008,7 +1004,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_popup_menu)(int, int, const char **, int) = gfx2d_popup_menu;
   BIND("popup_menu", p_popup_menu, 4);
 
-  /* ── Desktop icon system ──────────────────────────────────────────── */
+  /*  Desktop icon system  */
   int (*p_icon_register)(const char *, const char *, int, int) =
       gfx2d_icon_register;
   BIND("register_desktop_icon", p_icon_register, 4);
@@ -1050,9 +1046,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 #undef BIND
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Source File / Preprocessor Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Source File / Preprocessor Helpers
+ *  */
 
 #define CC_PP_MAX_OUTPUT (512u * 1024u)
 #define CC_PP_MAX_MACROS 128
@@ -1513,9 +1508,8 @@ static char *cc_preprocess_source(const char *path) {
   return pp.out;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Compiler State Initialization
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Compiler State Initialization
+ *  */
 
 static int cc_init_state(cc_state_t *cc, int jit_mode) {
   memset(cc, 0, sizeof(*cc));
@@ -1575,9 +1569,8 @@ static void cc_cleanup_state(cc_state_t *cc) {
   cc->data = NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  JIT Mode - Compile and Execute
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  JIT Mode - Compile and Execute
+ *  */
 
 void cupidc_jit(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
@@ -1692,9 +1685,8 @@ void cupidc_jit(const char *path) {
   kfree(cc);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  AOT Mode - Compile to ELF Binary
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  AOT Mode - Compile to ELF Binary
+ *  */
 
 void cupidc_aot(const char *src_path, const char *out_path) {
   serial_printf("[cupidc] AOT compile: %s -> %s\n", src_path, out_path);

@@ -64,7 +64,11 @@ int hb_drag_off;
 
 int NOTEPAD_CONSOLE_H;
 
-char file_buf[32768];
+/* Heap-allocated so notepad can open files up to FILE_BUF_SIZE bytes
+ * without bloating the JIT data section (e.g. /god/Psalms.DD ≈ 322 KB).
+ * file_buf is kmalloc'd at startup, freed on exit. */
+char *file_buf = 0;
+int FILE_BUF_SIZE = 524288;     /* 512 KB cap */
 char clip_buf[4096];
 
 char gs_vocab[65536];
@@ -1396,7 +1400,11 @@ void parse_ctxt_if_needed() {
 }
 
 void load_file(char *path) {
-  int n = vfs_read_text(path, file_buf, 32767);
+  if (file_buf == 0) {
+    file_buf = (char*)kmalloc(FILE_BUF_SIZE);
+    if (file_buf == 0) return;
+  }
+  int n = vfs_read_text(path, file_buf, FILE_BUF_SIZE - 1);
   if (n < 0) return;
   file_buf[n] = 0;
 
@@ -2252,6 +2260,17 @@ void main() {
   init_colors();
   ctxt_reset();
 
+  /* Heap-alloc file_buf so we can load files up to FILE_BUF_SIZE bytes
+   * (e.g. /god/Psalms.DD ≈ 322 KB). */
+  if (file_buf == 0) {
+    file_buf = (char*)kmalloc(FILE_BUF_SIZE);
+    if (file_buf == 0) {
+      serial_printf("[notepad.cc] kmalloc file_buf failed\n");
+      message_dialog("Notepad: out of memory");
+      return;
+    }
+  }
+
   win = gui_win_create("Notepad", 100, 50, 540, 350);
   if (win == -1) {
     serial_printf("[notepad.cc] gui_win_create failed\n");
@@ -2308,6 +2327,11 @@ void main() {
     }
   }
 
+  /* Force first paint so menu/text/status appear immediately on launch.
+   * Without this, dirty=0 on first iter and the window stays blank until
+   * the user types or moves the mouse. */
+  int first_paint = 1;
+
   while (gui_win_is_open(win)) {
     if (should_close) {
       gui_win_close(win);
@@ -2327,19 +2351,26 @@ void main() {
     int cw = gui_win_content_w(win);
     int ch_h = gui_win_content_h(win);
 
-    int dirty = 0;
+    int dirty = first_paint;
 
     int rows = get_rows(ch_h);
     int cols = get_cols(cw - 12);
 
     int key = gui_win_poll_key(win);
+    int key_handled = 0;
     while (key != -1) {
       int sc = (key >> 8) & 255;
       int ch = key & 255;
       handle_key(sc, ch);
+      key_handled = 1;
       dirty = 1;
       key = gui_win_poll_key(win);
     }
+    /* Only follow cursor when the user moved it (typed/arrowed). Without
+     * this gate every paint frame ran ensure_cursor_visible(), which
+     * snapped scroll_y back to wherever the cursor was - making both the
+     * scroll wheel and scrollbar drag look broken. */
+    if (key_handled) ensure_cursor_visible(rows, cols);
 
     {
       int delta = mouse_scroll();
@@ -2406,7 +2437,6 @@ void main() {
       continue;
     }
 
-    ensure_cursor_visible(rows, cols);
     clamp_scroll_state(ch_h, cw);
     draw_text_area(cx, cy, cw, ch_h);
     draw_scrollbars(cx, cy, cw, ch_h);
@@ -2416,10 +2446,15 @@ void main() {
 
     gui_win_end_paint(win);
     gui_win_present(win);
+    first_paint = 0;
     yield();
   }
 
   free_buffer();
   free_undo();
+  if (file_buf != 0) {
+    kfree(file_buf);
+    file_buf = 0;
+  }
   if (win != -1) gui_win_close(win);
 }

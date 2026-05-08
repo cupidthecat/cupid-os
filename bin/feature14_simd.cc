@@ -11,7 +11,7 @@ void main() {
      *
      * CupidC doesn't support intrinsic calls as initializer rvalues
      * (initializer path only accepts '{...}' brace form).  Declare the
-     * SIMD local zero-initialized, then assign via '=' — the assignment
+     * SIMD local zero-initialized, then assign via '=' - the assignment
      * path emits MOVUPS xmm0 -> [ebp+disp]. */
     float4 a = {1.0, 2.0, 3.0, 4.0};
     float4 b = {5.0, 6.0, 7.0, 8.0};
@@ -28,7 +28,7 @@ void main() {
         ok = 0;
     }
 
-    /* _mm_sub_ps: non-commutative — verify a-b, not b-a. */
+    /* _mm_sub_ps: non-commutative - verify a-b, not b-a. */
     float4 d;
     d = _mm_sub_ps(a, b);
     float dx = d.x;  /* 1-5 = -4.0 -> 0xC0800000 */
@@ -47,7 +47,7 @@ void main() {
         ok = 0;
     }
 
-    /* _mm_div_ps: non-commutative — 4.0/8.0 = 0.5 -> 0x3F000000 */
+    /* _mm_div_ps: non-commutative - 4.0/8.0 = 0.5 -> 0x3F000000 */
     float4 q;
     q = _mm_div_ps(a, b);
     float qw = q.w;
@@ -103,7 +103,7 @@ void main() {
         ok = 0;
     }
 
-    /* _mm_cmpgt_ps(b, a) — every lane b>a -> all-ones in each lane.
+    /* _mm_cmpgt_ps(b, a) - every lane b>a -> all-ones in each lane.
      * Tests the operand-swap path. */
     float4 gt;
     gt = _mm_cmpgt_ps(b, a);

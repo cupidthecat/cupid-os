@@ -590,7 +590,7 @@ void kmain(void) {
         KERROR("No block device available; /home FAT16 mount skipped");
     }
 
-    /* ── VFS initialization ──────────────────────────────────── */
+    /*  VFS initialization  */
     vfs_init();
     vfs_register_fs(ramfs_get_ops());
     vfs_register_fs(devfs_get_ops());
@@ -662,8 +662,7 @@ void kmain(void) {
             }
             KINFO("Populated /bin with built-in stubs");
 
-            /* ── Embedded CupidC programs ─────────────────────────
-             * Auto-installed from all bin/ .cc files via generated code.
+            /*  Embedded CupidC programs              * Auto-installed from all bin/ .cc files via generated code.
              * To add a new program: just create bin/<name>.cc */
             install_bin_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidC programs");
