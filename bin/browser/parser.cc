@@ -471,9 +471,25 @@ void parse_html(int html_len) {
                     ws_only = 0; break;
                 }
             }
-            /* in <table> outside cells, drop non-whitespace text (foster
-             * parenting simplified: just discard) */
-            if (mode == IM_IN_TABLE && !ws_only) continue;
+            /* In <table> outside cells, foster-parent non-whitespace text:
+             * insert as the previous sibling of the table. Per HTML5 spec
+             * §13.2.6.5, stray inline content inside a table doesn't belong
+             * inside any cell; it belongs *before* the table in its parent. */
+            if (mode == IM_IN_TABLE && !ws_only) {
+                int table_idx = -1;
+                for (int k = sp - 1; k >= 1; k = k - 1) {
+                    if (n_tag[stack[k]] == T_TABLE) { table_idx = stack[k]; break; }
+                }
+                if (table_idx < 0) continue;
+                int table_parent = n_parent[table_idx];
+                if (table_parent < 0) continue;
+                int fn = alloc_node(T_TEXT, table_parent, -1);
+                if (fn < 0) continue;
+                n_text_off[fn] = text_off;
+                n_text_len[fn] = text_len;
+                dom_insert_before(fn, table_idx);
+                continue;
+            }
             /* skip whitespace-only text nodes outside <pre>/<title> */
             if (ws_only) {
                 int parent_tag = (parent >= 0) ? n_tag[parent] : -1;

@@ -165,6 +165,38 @@ int alloc_node(int tag, int parent, int tok_idx) {
     return idx;
 }
 
+/* Move `new_node` to become the immediate previous sibling of `before` in
+ * the DOM tree. Detaches new_node from its current parent's child list (if
+ * any) and splices it in in front of `before`. Used for foster-parenting:
+ * stray text inside <table> outside cells must be inserted before the
+ * table per HTML spec §13.2.6.5. */
+void dom_insert_before(int new_node, int before) {
+    if (new_node < 0 || before < 0) return;
+    int new_parent = n_parent[before];
+    if (new_parent < 0) return;
+    /* Detach new_node from its current parent. */
+    int op = n_parent[new_node];
+    if (op >= 0) {
+        if (n_first_child[op] == new_node) {
+            n_first_child[op] = n_next[new_node];
+        } else {
+            int p = n_first_child[op];
+            while (p >= 0 && n_next[p] != new_node) p = n_next[p];
+            if (p >= 0) n_next[p] = n_next[new_node];
+        }
+    }
+    /* Splice in before `before`. */
+    n_parent[new_node] = new_parent;
+    n_next[new_node] = before;
+    if (n_first_child[new_parent] == before) {
+        n_first_child[new_parent] = new_node;
+    } else {
+        int p = n_first_child[new_parent];
+        while (p >= 0 && n_next[p] != before) p = n_next[p];
+        if (p >= 0) n_next[p] = new_node;
+    }
+}
+
 /* Look up a named HTML entity by (name, nlen). On match, writes the ASCII
  * approximation to *out_ch and returns 1. The mapping is lossy (no Unicode
  * in the 8x8 ASCII font) but predictable. */
