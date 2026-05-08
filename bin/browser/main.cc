@@ -114,13 +114,16 @@ enum {
     TK_TEXT  = 3,
     TK_EOF   = 4,
 
-    /* §2 CSS property IDs - internal */
+    /* §2 CSS property IDs - internal. Keep <= MAX_CP_ID; the cascade loop in
+     * style_resolve_all uses winner_rule[MAX_CP_ID]. */
     CP_COLOR = 1, CP_BG_COLOR, CP_BG, CP_FONT_WEIGHT, CP_FONT_STYLE,
     CP_FONT_SIZE, CP_TEXT_ALIGN, CP_TEXT_DEC, CP_DISPLAY,
     CP_MARGIN, CP_MARGIN_T, CP_MARGIN_R, CP_MARGIN_B, CP_MARGIN_L,
     CP_PADDING, CP_PADDING_T, CP_PADDING_R, CP_PADDING_B, CP_PADDING_L,
     CP_BORDER, CP_BORDER_COLOR, CP_BORDER_T, CP_BORDER_R, CP_BORDER_B, CP_BORDER_L,
+    CP_BORDER_WIDTH, CP_BORDER_STYLE, CP_FONT,
     CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
+    MAX_CP_ID = 40,
 
     /* §2 enumerated value tags */
     TA_LEFT = 0, TA_CENTER, TA_RIGHT,

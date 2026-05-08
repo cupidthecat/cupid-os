@@ -244,6 +244,13 @@ int css_match_property(char *s, int len) {
     if (len == 12 && b_strieq_n(s, "padding-left", 12))           return CP_PADDING_L;
     if (len == 6  && b_strieq_n(s, "border", 6))                  return CP_BORDER;
     if (len == 12 && b_strieq_n(s, "border-color", 12))           return CP_BORDER_COLOR;
+    if (len == 12 && b_strieq_n(s, "border-width", 12))           return CP_BORDER_WIDTH;
+    if (len == 12 && b_strieq_n(s, "border-style", 12))           return CP_BORDER_STYLE;
+    if (len == 10 && b_strieq_n(s, "border-top", 10))             return CP_BORDER_T;
+    if (len == 12 && b_strieq_n(s, "border-right", 12))           return CP_BORDER_R;
+    if (len == 13 && b_strieq_n(s, "border-bottom", 13))          return CP_BORDER_B;
+    if (len == 11 && b_strieq_n(s, "border-left", 11))            return CP_BORDER_L;
+    if (len == 4  && b_strieq_n(s, "font", 4))                    return CP_FONT;
     if (len == 5  && b_strieq_n(s, "width", 5))                   return CP_WIDTH;
     if (len == 6  && b_strieq_n(s, "height", 6))                  return CP_HEIGHT;
     if (len == 11 && b_strieq_n(s, "white-space", 11))            return CP_WHITE_SPACE;

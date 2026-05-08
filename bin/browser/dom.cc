@@ -1,4 +1,4 @@
-/* ---------- DOM nodes + attribute pool + color + entities ---------- */
+/* DOM nodes + attribute pool + color + entities */
 
 int parse_color_named(char *s, int *out) {
     if (b_strieq(s, "black"))   { *out = 0x00000000; return 1; }
@@ -41,6 +41,35 @@ int parse_color(char *s, int *out) {
             return 1;
         }
         return 0;
+    }
+    /* rgb(r,g,b) and rgba(r,g,b,a). Alpha component is parsed-and-dropped. */
+    if ((s[0] == 'r' || s[0] == 'R') &&
+        (s[1] == 'g' || s[1] == 'G') &&
+        (s[2] == 'b' || s[2] == 'B')) {
+        int i = 3;
+        if (s[i] == 'a' || s[i] == 'A') i = i + 1;
+        while (s[i] == ' ' || s[i] == '\t') i = i + 1;
+        if (s[i] != '(') return 0;
+        i = i + 1;
+        int rgb[3];
+        rgb[0] = 0; rgb[1] = 0; rgb[2] = 0;
+        for (int k = 0; k < 3; k++) {
+            while (s[i] == ' ' || s[i] == '\t' || s[i] == ',') i = i + 1;
+            int v = 0;
+            int saw_digit = 0;
+            while (s[i] >= '0' && s[i] <= '9') {
+                v = v * 10 + (s[i] - '0');
+                i = i + 1;
+                saw_digit = 1;
+            }
+            if (!saw_digit) return 0;
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            rgb[k] = v;
+            while (s[i] == ' ' || s[i] == '\t') i = i + 1;
+        }
+        *out = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+        return 1;
     }
     return parse_color_named(s, out);
 }
@@ -234,7 +263,7 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     if (v == 0xA0) {            /* nbsp */
                         out[o] = ' '; o = o + 1; i = end + 1; continue;
                     }
-                    if (v == 0xAD) {            /* soft hyphen — drop */
+                    if (v == 0xAD) {            /* soft hyphen - drop */
                         i = end + 1; continue;
                     }
                     /* unsupported codepoint: ASCII placeholder */

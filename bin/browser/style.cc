@@ -196,7 +196,9 @@ int css_value_int(int off, int len) {
     if (i < end) {
         int a = css_value_pool[i];
         int b = (i + 1 < end) ? css_value_pool[i+1] : 0;
-        if (a == 'p' && b == 't') { milli = (milli * 4) / 3; }
+        int c2 = (i + 2 < end) ? css_value_pool[i+2] : 0;
+        if (a == 'r' && b == 'e' && c2 == 'm') { milli = milli * 16; } /* root em */
+        else if (a == 'p' && b == 't') { milli = (milli * 4) / 3; }
         else if (a == 'e' && b == 'm') { milli = milli * 16; }   /* 1em = 16px */
         else if (a == 'v' && b == 'w') {
             int vw_base = cur_cw - 12;
@@ -380,14 +382,102 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     if (prop == CP_PADDING_R) { cs_padding[cs][1] = css_value_int(val_off, val_len); return; }
     if (prop == CP_PADDING_B) { cs_padding[cs][2] = css_value_int(val_off, val_len); return; }
     if (prop == CP_PADDING_L) { cs_padding[cs][3] = css_value_int(val_off, val_len); return; }
-    if (prop == CP_BORDER) {
-        cs_border[cs][0] = 1; cs_border[cs][1] = 1;
-        cs_border[cs][2] = 1; cs_border[cs][3] = 1;
-        if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
+    if (prop == CP_BORDER || prop == CP_BORDER_T || prop == CP_BORDER_R ||
+        prop == CP_BORDER_B || prop == CP_BORDER_L) {
+        /* Parse `<width> <style> <color>` shorthand. Width default 1px,
+         * style ignored (treat any style as solid), color default keeps
+         * existing cs_border_color. Sides: BORDER = all four,
+         * BORDER_T/R/B/L = single side. */
+        int width = 1;
+        int sides[4];
+        sides[0] = (prop == CP_BORDER || prop == CP_BORDER_T) ? 1 : 0;
+        sides[1] = (prop == CP_BORDER || prop == CP_BORDER_R) ? 1 : 0;
+        sides[2] = (prop == CP_BORDER || prop == CP_BORDER_B) ? 1 : 0;
+        sides[3] = (prop == CP_BORDER || prop == CP_BORDER_L) ? 1 : 0;
+        int i = val_off;
+        int end = val_off + val_len;
+        int got_width = 0;
+        int got_color = 0;
+        while (i < end) {
+            while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+            if (i >= end) break;
+            int t_start = i;
+            while (i < end && css_value_pool[i] != ' ' && css_value_pool[i] != '\t') i = i + 1;
+            int t_len = i - t_start;
+            /* numeric? */
+            if (!got_width && css_value_pool[t_start] >= '0' &&
+                css_value_pool[t_start] <= '9') {
+                width = css_value_int(t_start, t_len);
+                got_width = 1;
+                continue;
+            }
+            /* keyword styles - parsed but ignored */
+            if (css_value_keyword(t_start, t_len, "solid") ||
+                css_value_keyword(t_start, t_len, "dotted") ||
+                css_value_keyword(t_start, t_len, "dashed") ||
+                css_value_keyword(t_start, t_len, "double") ||
+                css_value_keyword(t_start, t_len, "none") ||
+                css_value_keyword(t_start, t_len, "groove") ||
+                css_value_keyword(t_start, t_len, "ridge")) continue;
+            /* color */
+            if (!got_color && css_value_color(t_start, t_len, &c)) {
+                cs_border_color[cs] = c;
+                got_color = 1;
+                continue;
+            }
+        }
+        if (sides[0]) cs_border[cs][0] = width;
+        if (sides[1]) cs_border[cs][1] = width;
+        if (sides[2]) cs_border[cs][2] = width;
+        if (sides[3]) cs_border[cs][3] = width;
         return;
     }
     if (prop == CP_BORDER_COLOR) {
         if (css_value_color(val_off, val_len, &c)) cs_border_color[cs] = c;
+        return;
+    }
+    if (prop == CP_BORDER_WIDTH) {
+        int w = css_value_int(val_off, val_len);
+        cs_border[cs][0] = w; cs_border[cs][1] = w;
+        cs_border[cs][2] = w; cs_border[cs][3] = w;
+        return;
+    }
+    if (prop == CP_BORDER_STYLE) {
+        /* parsed-and-ignored; presence implies solid 1px if no width set */
+        if (cs_border[cs][0] == 0 && cs_border[cs][1] == 0 &&
+            cs_border[cs][2] == 0 && cs_border[cs][3] == 0 &&
+            !css_value_keyword(val_off, val_len, "none")) {
+            cs_border[cs][0] = 1; cs_border[cs][1] = 1;
+            cs_border[cs][2] = 1; cs_border[cs][3] = 1;
+        }
+        return;
+    }
+    if (prop == CP_FONT) {
+        /* `font` shorthand: pick out italic/bold keywords and a numeric size.
+         * Other components (font-family etc.) are ignored. */
+        int i = val_off;
+        int end = val_off + val_len;
+        while (i < end) {
+            while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+            if (i >= end) break;
+            int t_start = i;
+            while (i < end && css_value_pool[i] != ' ' && css_value_pool[i] != '\t') i = i + 1;
+            int t_len = i - t_start;
+            if (css_value_keyword(t_start, t_len, "italic")) cs_font_i[cs] = 1;
+            else if (css_value_keyword(t_start, t_len, "bold")) cs_font_w[cs] = 700;
+            else if (css_value_keyword(t_start, t_len, "normal")) {
+                /* leave defaults; could clear italic/bold */
+            }
+            else if (css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9') {
+                int px = css_value_int(t_start, t_len);
+                if (px <= 7)       cs_font_size_tier[cs] = 0;
+                else if (px <= 11) cs_font_size_tier[cs] = 1;
+                else if (px <= 15) cs_font_size_tier[cs] = 2;
+                else if (px <= 22) cs_font_size_tier[cs] = 3;
+                else               cs_font_size_tier[cs] = 4;
+            }
+            /* unknown tokens (font-family etc) ignored */
+        }
         return;
     }
     if (prop == CP_WIDTH)  { cs_width[cs]  = css_value_int(val_off, val_len); return; }
@@ -581,12 +671,12 @@ void style_resolve_all() {
 
         /* 2. Author rules in (specificity, doc-order) winning order. Track the
          *    highest-scoring matching rule per property, then apply once. */
-        int winner_rule[32];
-        int winner_score[32];
-        for (int p = 0; p < 32; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
+        int winner_rule[MAX_CP_ID];
+        int winner_score[MAX_CP_ID];
+        for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             int p = css_rule_prop_id[r];
-            if (p < 1 || p >= 32) continue;
+            if (p < 1 || p >= MAX_CP_ID) continue;
             int sf = css_rule_sel_first[r];
             int sc = css_rule_sel_count[r];
             if (!sel_chain_matches(sf, sc, n)) continue;
@@ -596,7 +686,7 @@ void style_resolve_all() {
                 winner_rule[p] = r;
             }
         }
-        for (int p = 1; p < 32; p = p + 1) {
+        for (int p = 1; p < MAX_CP_ID; p = p + 1) {
             int r = winner_rule[p];
             if (r >= 0) {
                 cs_apply_property(cs, p,
