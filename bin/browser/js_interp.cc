@@ -9,6 +9,19 @@
  *     status_msg
  * Functions, objects, arrays land in F1c / F1d. */
 
+/* CupidC limitation: comparison operators on double operands (< > <= >=
+ * and even == / !=) emit "invalid operator for floating-point operands".
+ * js_dcmp scales the difference into an int range so all double
+ * comparisons go through int compare. The 1e6 scale loses precision
+ * past ~2^31 / 1e6 ≈ 2147 magnitude; sufficient for typical browser-
+ * script arithmetic. Returns a sign-int: <0 a<b, 0 equal, >0 a>b. */
+int js_dcmp(double a, double b) {
+    return (int)((a - b) * 1000000.0);
+}
+int js_dnz(double v) {
+    return (int)(v * 1000000.0);
+}
+
 /* ----- value stack helpers ----- */
 void js_push_undef() {
     if (jvs_top >= MAX_JS_VS) return;
@@ -91,21 +104,27 @@ double js_to_number_at(int idx) {
 int js_to_bool_at(int idx) {
     int t = jvs_tag[idx];
     if (t == JS_VAL_UNDEF || t == JS_VAL_NULL) return 0;
-    if (t == JS_VAL_BOOL) return jvs_num[idx] != 0.0;
-    if (t == JS_VAL_NUM) return jvs_num[idx] != 0.0;
+    if (t == JS_VAL_BOOL) return js_dnz(jvs_num[idx]) != 0;
+    if (t == JS_VAL_NUM)  return js_dnz(jvs_num[idx]) != 0;
     if (t == JS_VAL_STR) return jvs_str_len[idx] > 0;
     return 1;       /* objects/funcs always truthy */
 }
 
-/* Format a double into buf without %f. Integer fast-path for "small"
- * whole numbers (most arithmetic results). */
+/* Format a double into buf without %f. CupidC limitation: `<` / `>`
+ * on doubles is invalid (only `==` / `!=` are). Detect sign and
+ * fractional presence by casting to scaled int and comparing ints. */
 int js_format_num(double v, char *buf, int max) {
     int b = 0;
-    if (v < 0.0) { if (b < max - 1) buf[b] = '-'; b = b + 1; v = 0.0 - v; }
-    /* integer part */
+    int sign_probe = (int)(v * 1000000.0);
+    if (sign_probe < 0) {
+        if (b < max - 1) { buf[b] = '-'; b = b + 1; }
+        v = 0.0 - v;
+    }
     int int_part = (int)v;
-    double frac = v - (double)int_part;
-    /* digits */
+    /* Fractional part as integer micros (rounded toward zero). */
+    int micros = (int)((v - (double)int_part) * 1000000.0);
+    if (micros < 0) micros = 0;
+    /* Render integer part. */
     char tmp[32];
     int tn = 0;
     if (int_part == 0) { tmp[tn] = '0'; tn = tn + 1; }
@@ -115,19 +134,31 @@ int js_format_num(double v, char *buf, int max) {
         tn = tn + 1;
     }
     while (tn > 0 && b < max - 1) { tn = tn - 1; buf[b] = tmp[tn]; b = b + 1; }
-    /* fractional - up to 6 digits, trimmed */
-    if (frac > 0.0000001) {
+    /* Fractional digits - skip if no remainder, strip trailing zeros. */
+    if (micros > 0) {
         if (b < max - 1) { buf[b] = '.'; b = b + 1; }
+        /* Trim trailing zeros from micros. */
+        int trimmed = micros;
+        while (trimmed > 0 && (trimmed % 10) == 0) trimmed = trimmed / 10;
+        /* Determine how many digits trimmed has (1..6). */
         int digits = 0;
-        while (digits < 6 && frac > 0.0000001 && b < max - 1) {
-            frac = frac * 10.0;
-            int d = (int)frac;
-            if (d > 9) d = 9;
-            frac = frac - (double)d;
-            buf[b] = '0' + d;
-            b = b + 1;
-            digits = digits + 1;
+        int probe = trimmed;
+        while (probe > 0) { probe = probe / 10; digits = digits + 1; }
+        /* Compute leading-zero count. */
+        int leading = 6;
+        int ml = micros;
+        while (ml > 0) { ml = ml / 10; leading = leading - 1; }
+        /* Skip trailing zeros: total useful = digits + leading. */
+        for (int i = 0; i < leading && b < max - 1; i++) {
+            buf[b] = '0'; b = b + 1;
         }
+        char dbuf[8]; int dn = 0;
+        while (trimmed > 0 && dn < 7) {
+            dbuf[dn] = '0' + (trimmed % 10);
+            trimmed = trimmed / 10;
+            dn = dn + 1;
+        }
+        while (dn > 0 && b < max - 1) { dn = dn - 1; buf[b] = dbuf[dn]; b = b + 1; }
     }
     if (b < max) buf[b] = 0; else buf[max - 1] = 0;
     return b;
@@ -146,7 +177,7 @@ int js_to_string_at(int idx, char *buf, int max) {
         buf[i] = 0; return i;
     }
     if (t == JS_VAL_BOOL) {
-        char *s = (jvs_num[idx] != 0.0) ? "true" : "false";
+        char *s = (js_dnz(jvs_num[idx]) != 0) ? "true" : "false";
         int i = 0;
         while (s[i] && i < max - 1) { buf[i] = s[i]; i = i + 1; }
         buf[i] = 0; return i;
@@ -171,7 +202,7 @@ int js_eq_at(int a, int b) {
     if (ta == JS_VAL_NULL && tb == JS_VAL_UNDEF) return 1;
     if (ta == JS_VAL_UNDEF && tb == JS_VAL_NULL) return 1;
     if (ta == JS_VAL_NUM || tb == JS_VAL_NUM) {
-        return js_to_number_at(a) == js_to_number_at(b);
+        return js_dcmp(js_to_number_at(a), js_to_number_at(b)) == 0;
     }
     if (ta == JS_VAL_STR && tb == JS_VAL_STR) {
         if (jvs_str_len[a] != jvs_str_len[b]) return 0;
@@ -181,7 +212,7 @@ int js_eq_at(int a, int b) {
         for (int i = 0; i < n; i++) if (sa[i] != sb[i]) return 0;
         return 1;
     }
-    if (ta == JS_VAL_BOOL && tb == JS_VAL_BOOL) return jvs_num[a] == jvs_num[b];
+    if (ta == JS_VAL_BOOL && tb == JS_VAL_BOOL) return js_dcmp(jvs_num[a], jvs_num[b]) == 0;
     return ta == tb;
 }
 
@@ -695,7 +726,7 @@ void js_eval_assign(int node) {
     else if (op == JS_TOK_MINUS_EQ) r = na - nb;
     else if (op == JS_TOK_STAR_EQ)  r = na * nb;
     else if (op == JS_TOK_SLASH_EQ) {
-        if (nb != 0.0) r = na / nb; else r = 0.0;
+        if (js_dnz(nb) != 0) r = na / nb; else r = 0.0;
     }
     jvs_top = a;
     js_push_num(r);
@@ -758,18 +789,18 @@ void js_eval_bin(int node) {
     else if (op == JS_TOK_MINUS)  v = na - nb;
     else if (op == JS_TOK_STAR)   v = na * nb;
     else if (op == JS_TOK_SLASH)  {
-        if (nb != 0.0) v = na / nb; else v = 0.0;
+        if (js_dnz(nb) != 0) v = na / nb; else v = 0.0;
     }
     else if (op == JS_TOK_PERCENT) {
-        if (nb != 0.0) {
+        if (js_dnz(nb) != 0) {
             int q = (int)(na / nb);
             v = na - (double)q * nb;
         } else v = 0.0;
     }
-    else if (op == JS_TOK_LT) { as_bool = 1; bv = na <  nb; }
-    else if (op == JS_TOK_GT) { as_bool = 1; bv = na >  nb; }
-    else if (op == JS_TOK_LE) { as_bool = 1; bv = na <= nb; }
-    else if (op == JS_TOK_GE) { as_bool = 1; bv = na >= nb; }
+    else if (op == JS_TOK_LT) { as_bool = 1; bv = js_dcmp(na, nb) <  0; }
+    else if (op == JS_TOK_GT) { as_bool = 1; bv = js_dcmp(na, nb) >  0; }
+    else if (op == JS_TOK_LE) { as_bool = 1; bv = js_dcmp(na, nb) <= 0; }
+    else if (op == JS_TOK_GE) { as_bool = 1; bv = js_dcmp(na, nb) >= 0; }
     jvs_top = a;
     if (as_bool) js_push_bool(bv); else js_push_num(v);
 }
