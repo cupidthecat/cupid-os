@@ -137,6 +137,12 @@ void handle_page_key(int sc, int ch) {
         addr_cursor = addr_len;
         return;
     }
+    /* Ctrl-D = dump render tree + computed style to serial (debug). */
+    if (ch == 4) {
+        about_dump();
+        b_strcpy_n(status_msg, "Dumped render tree to serial", 256);
+        return;
+    }
     if (sc == 72) { scroll_y = scroll_y - line_h * 2; clamp_scroll(); return; }
     if (sc == 80) { scroll_y = scroll_y + line_h * 2; clamp_scroll(); return; }
     if (sc == 73) { scroll_y = scroll_y - viewport_h() + line_h; clamp_scroll(); return; }

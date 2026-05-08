@@ -1,4 +1,4 @@
-/* ---------- Navigation ---------- */
+/* Navigation */
 
 void compute_url_relative(char *rel, char *out, int max) {
     if (b_strieq_n(rel, "http://", 7) || b_strieq_n(rel, "https://", 8)) {
@@ -41,7 +41,28 @@ void compute_url_relative(char *rel, char *out, int max) {
     out[p] = 0;
 }
 
+void about_dump() {
+    /* Stream the current render tree and per-node computed-style summary
+     * to the serial port. Useful for `about:dump` and the Ctrl-D shortcut.
+     * The output appears in the host's serial log; the visible page is
+     * not affected. */
+    serial_printf("[browser] === about:dump ===\n");
+    serial_printf("[browser] %d DOM nodes, %d RT nodes, %d CSS rules\n",
+                  nodes_count, rt_count, css_rule_count);
+    if (rt_count > 0) dump_rt(0, 0);
+    for (int n = 0; n < nodes_count; n = n + 1) dump_style(n);
+    serial_printf("[browser] === end about:dump ===\n");
+}
+
 void navigate(char *u) {
+    /* about:dump - dump the previous page's render tree and per-node
+     * computed style to serial; do not actually fetch anything. The
+     * status bar reports completion. */
+    if (b_strieq_n(u, "about:dump", 10)) {
+        about_dump();
+        b_strcpy_n(status_msg, "about:dump - serial log written", 256);
+        return;
+    }
     b_strcpy_n(status_msg, "Loading: ", 256);
     int sl = b_strlen(status_msg);
     b_strcpy_n(status_msg + sl, u, 256 - sl);
@@ -134,7 +155,7 @@ void submit_form(int form_node_idx) {
                 char *dv = dom_attr_str(node, "value");
                 value = dv ? dv : "";
             }
-            /* Skip submit/image inputs — they are activators, not data. */
+            /* Skip submit/image inputs - they are activators, not data. */
             char *typ = dom_attr_str(node, "type");
             int is_submit = (typ != 0 &&
                              (b_strieq(typ, "submit") || b_strieq(typ, "image")));
