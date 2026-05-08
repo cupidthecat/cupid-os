@@ -307,6 +307,16 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         la_x[k] = x;
         x += aw;
         int lh = effective_line_h(rt_style[parent], tier);
+        /* Replaced/inline-block atoms (la_text_off encoded as a negative
+         * RT-node ref) bring their own height. The line must grow to
+         * fit, otherwise the next line overlaps the bottom of an input
+         * or image. */
+        if (la_text_off[k] < 0) {
+            int rt_n = -la_text_off[k] - 1;
+            int repl_h = rt_intrinsic_h[rt_n];
+            if (repl_h <= 0) repl_h = rt_h[rt_n];
+            if (repl_h > lh) lh = repl_h;
+        }
         if (lh > line_h) line_h = lh;
     }
 
@@ -398,22 +408,38 @@ void layout_block(int n, int avail_w) {
     /* Walk children. Inline runs get accumulated and flushed when a block
      * sibling appears or end of children.
      *
-     * Vertical margin collapsing between block siblings: the gap between
-     * two adjacent in-flow blocks is max(prev.margin_b, next.margin_t),
-     * not the additive sum. We track pending_bottom as the unspent
-     * bottom margin from the previous block; the next block's effective
-     * top margin is max(pending_bottom, margin_t). Inline content
-     * between blocks (an inline pile flush) breaks the collapse chain
-     * by resetting pending_bottom. */
+     * CSS2.1 §8.3.1 vertical margin collapsing. Adjacent in-flow margins
+     * combine into a "strut" (positive_max, negative_min); the visible
+     * gap is positive_max + negative_min so a -10 followed by +20 yields
+     * 10, and a +6 followed by +12 yields 12. Cases handled in this pass:
+     *   - adjacent siblings (current block's margin-t with prior block's
+     *     margin-b);
+     *   - parent + first in-flow child (zero padding-t/border-t);
+     *   - parent + last in-flow child (zero padding-b/border-b, height auto);
+     *   - self-collapsing block: a block with no in-flow content and zero
+     *     padding/border combines its own top + bottom margins together.
+     * Floats and clearance break collapse — deferred to B2. */
     int pile_first = la_count;
     int pile_count = 0;
-    int pending_bottom = 0;
-    /* Parent-first-child margin collapse: if this block has no padding-t and
-     * no border-t, the first in-flow block child's margin-top collapses
-     * through the parent's top edge (CSS2.1 §8.3.1). We zero the first
-     * block child's effective margin-top in that case. The flag flips off
-     * after the first block runs OR after any inline pile flushes. */
+    int pend_pos = 0;
+    int pend_neg = 0;
+    /* If true, the next block child's margin-top collapses through the
+     * parent's top edge instead of advancing cy. Cleared after first block
+     * runs OR after any inline pile flushes (inline content breaks chain). */
     int collapse_first_top = (rt_padding_t(n) == 0 && rt_border_t(n) == 0);
+    /* Track top-edge collapsed strut when collapse_first_top swallows a
+     * child's margin-t. Currently observed by parent-first-child only;
+     * full propagation to grandparent (so parent's outer margin-top wins
+     * over child's) is deferred. */
+    (void)collapse_first_top;
+    /* For parent-last-child collapse: remember if the last in-flow child
+     * was a block, and what its bottom margin contribution was. Then
+     * after the loop, decide whether to add it to cy or skip it. */
+    int last_was_block = 0;
+    int collapse_last_allowed = (rt_padding_b(n) == 0 && rt_border_b(n) == 0
+                                  && cs_height[sty] < 0);
+    int saved_pos = 0;
+    int saved_neg = 0;
 
     int c = rt_first_child[n];
     while (c >= 0) {
@@ -429,10 +455,12 @@ void layout_block(int n, int avail_w) {
              * margin-collapse chain. */
             if (pile_count > 0) {
                 flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
-                pending_bottom = 0;
+                pend_pos = 0; pend_neg = 0;
                 collapse_first_top = 0;
+                last_was_block = 0;
             }
             /* Lay out block child */
+            int cy_before = cy;
             int child_avail = content_w;
             layout_block(c, child_avail);
             int ml = rt_margin_l(c);
@@ -440,8 +468,6 @@ void layout_block(int n, int avail_w) {
             int auto_l = cs_margin_auto[rt_style[c]][3];
             int auto_r = cs_margin_auto[rt_style[c]][1];
             int leftover = content_w - rt_w[c];
-            /* Clamp: a box wider than its parent's content area must not
-             * gain negative auto margins (they would push it off-screen). */
             if (leftover < 0) leftover = 0;
             if (leftover > 0 && (auto_l || auto_r)) {
                 if (auto_l && auto_r) {
@@ -456,21 +482,49 @@ void layout_block(int n, int avail_w) {
                 }
             }
             (void)mr;
+            (void)cy_before;
             int top = rt_margin_t(c);
             if (collapse_first_top) top = 0;
-            int collapsed = (top > pending_bottom) ? top : pending_bottom;
-            cy = cy + collapsed;
+            /* Combine pending strut with this child's margin-top. */
+            int t_pos = pend_pos;
+            int t_neg = pend_neg;
+            if (top > t_pos) t_pos = top;
+            if (top < t_neg) t_neg = top;
+            cy = cy + t_pos + t_neg;
             collapse_first_top = 0;
             int child_x = cx + ml;
-            /* Clamp child_x to the content origin so an overflowed box
-             * (rt_w > content_w with explicit width) doesn't get pushed
-             * left of the parent's content area by negative ml from
-             * earlier auto fallbacks. */
             if (child_x < cx) child_x = cx;
             rt_x[c] = child_x;
             rt_y[c] = cy;
             cy = cy + rt_h[c];
-            pending_bottom = rt_margin_b(c);
+            /* Detect self-collapsing block: child took zero space (no
+             * in-flow content) AND has no padding/border. Its margins
+             * top+bottom collapse together as a single strut. */
+            int c_sty = rt_style[c];
+            int self_collapsing =
+                (rt_h[c] == 0) &&
+                (cs_padding[c_sty][0] == 0) && (cs_padding[c_sty][2] == 0) &&
+                (cs_border [c_sty][0] == 0) && (cs_border [c_sty][2] == 0) &&
+                (cs_height [c_sty] < 0 || cs_height[c_sty] == 0);
+            if (self_collapsing) {
+                /* Combine bottom margin into the same strut as the top
+                 * we already folded in: undo the cy advance for the top
+                 * and re-form a combined strut spanning [t_pos,t_neg] +
+                 * margin-b. */
+                cy = cy - (t_pos + t_neg);
+                int bot = rt_margin_b(c);
+                if (bot > t_pos) t_pos = bot;
+                if (bot < t_neg) t_neg = bot;
+                pend_pos = t_pos;
+                pend_neg = t_neg;
+            } else {
+                int bot = rt_margin_b(c);
+                pend_pos = (bot > 0) ? bot : 0;
+                pend_neg = (bot < 0) ? bot : 0;
+            }
+            saved_pos = pend_pos;
+            saved_neg = pend_neg;
+            last_was_block = 1;
         } else {
             /* Inline / text / inline-block / replaced: accumulate as atoms */
             collect_inline_atoms(c);
@@ -480,11 +534,22 @@ void layout_block(int n, int avail_w) {
     }
     if (pile_count > 0) {
         flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
-        pending_bottom = 0;
+        pend_pos = 0; pend_neg = 0;
+        last_was_block = 0;
     }
-    /* Trailing block child's bottom margin counts toward parent height
-     * (parent-last-child collapsing is deferred). */
-    cy = cy + pending_bottom;
+    /* Parent-last-child margin collapse: when the last in-flow block child's
+     * bottom margin would be flush against the parent's bottom content edge
+     * AND the parent has no padding-b/border-b AND height is auto, that
+     * margin collapses through to the parent's outer bottom margin (i.e.,
+     * does not contribute to rt_h[n]). v1 heuristic: just suppress the
+     * margin from cy (full propagation up to grandparent's adjacent strut
+     * is a B2/B3 follow-up). */
+    if (!(last_was_block && collapse_last_allowed)) {
+        cy = cy + pend_pos + pend_neg;
+    } else {
+        /* swallowed by parent's bottom edge */
+        (void)saved_pos; (void)saved_neg;
+    }
 
     /* Resolve own height */
     int style_h = cs_height[sty];

@@ -178,6 +178,41 @@ void paint_rt_replaced(int n, int sx, int sy) {
         return;
     }
     if (tag == T_INPUT) {
+        char *type_s = dom_attr_str(rt_dom[n], "type");
+        int is_check = 0;
+        int is_radio = 0;
+        if (type_s) {
+            if (b_strieq(type_s, "checkbox")) is_check = 1;
+            if (!is_check && b_strieq(type_s, "radio")) is_radio = 1;
+        }
+        if (is_check || is_radio) {
+            /* Small square box. CSS-author border (cs_border) is painted
+             * by the generic decoration pass before this; here we draw
+             * the inner control face plus the check glyph. */
+            int sty = rt_style[n];
+            int border_set = (cs_border[sty][0] | cs_border[sty][1] |
+                              cs_border[sty][2] | cs_border[sty][3]) != 0;
+            gfx2d_rect_fill(sx, sy, rt_w[n], rt_h[n], 0xFFFFFF);
+            if (!border_set) {
+                gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
+                gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);
+                gfx2d_rect_fill(sx, sy, 1, rt_h[n], 0x808080);
+                gfx2d_rect_fill(sx + rt_w[n] - 1, sy, 1, rt_h[n], 0x808080);
+            }
+            char *checked = dom_attr_str(rt_dom[n], "checked");
+            if (checked) {
+                if (is_check) {
+                    gfx2d_text(sx + 3, sy + 2, "x", 0x000000, 0);
+                } else {
+                    /* radio dot */
+                    int dx = sx + rt_w[n] / 2 - 2;
+                    int dy = sy + rt_h[n] / 2 - 2;
+                    gfx2d_rect_fill(dx, dy, 4, 4, 0x000000);
+                }
+            }
+            return;
+        }
+        /* text-style input */
         gfx2d_rect_fill(sx, sy, rt_w[n], rt_h[n], 0xFFFFFF);
         gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
         gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);

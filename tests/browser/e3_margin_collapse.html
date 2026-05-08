@@ -1,0 +1,31 @@
+<!doctype html>
+<title>e3: margin-collapse v2 — strut + negatives + self-collapsing</title>
+<style>
+body { margin: 16px; font: 14px sans-serif; }
+.box { background: #eef; padding: 0; border: 0; }
+.box > div { background: #cdf; }
+.a { margin-top: 30px; margin-bottom: 12px; }
+.b { margin-top: 18px; margin-bottom: 24px; }
+.neg { margin-top: -10px; margin-bottom: 8px; background: #fcc; }
+.empty { margin-top: 8px; margin-bottom: 16px; height: 0; padding: 0; border: 0; }
+.after-empty { margin-top: 4px; background: #cfd; }
+hr { margin: 24px 0; border: 0; height: 1px; background: #888; }
+</style>
+<h2>adjacent siblings — gap should be max(30, 18) = 30</h2>
+<div class="box">
+  <div class="a">A: margin-top 30, margin-bottom 12</div>
+  <div class="b">B: margin-top 18 — gap above = 30 (max), not 48 (sum)</div>
+</div>
+<hr>
+<h2>negative + positive — gap should be 18 - 10 = 8</h2>
+<div class="box">
+  <div class="b">B above (margin-bottom 24)</div>
+  <div class="neg">NEG: margin-top -10 → gap = 24 + (-10) = 14, not 24</div>
+</div>
+<hr>
+<h2>self-collapsing empty block — empty's top+bottom collapse together</h2>
+<div class="box">
+  <div class="a">A: margin-bottom 12</div>
+  <div class="empty"></div>
+  <div class="after-empty">after-empty: margin-top 4 — gap = max(12, 16, 4) = 16</div>
+</div>

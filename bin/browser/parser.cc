@@ -412,6 +412,16 @@ void parse_html(int html_len) {
     forms_count = 0;
     inputs_count = 0;
     title_buf[0] = 0;
+    css_not_count = 0;
+    /* Reset pseudo-element generated-content slots for every potential
+     * DOM index. Cheaper than resetting only the entries actually used
+     * (which would require a separate "first N" counter). */
+    for (int k = 0; k < 4096; k = k + 1) {
+        n_pseudo_before_off[k] = -1;
+        n_pseudo_before_len[k] = 0;
+        n_pseudo_after_off [k] = -1;
+        n_pseudo_after_len [k] = 0;
+    }
 
     /* §2 reset CSS state - author rules accumulate per page */
     css_rule_count = 0;
@@ -426,6 +436,12 @@ void parse_html(int html_len) {
     int sp = 0;
     stack[sp] = root;
     sp = sp + 1;
+
+    /* Implicit <body> tracking. Tag-soup pages frequently omit
+     * <html>/<head>/<body>; when body-flow content arrives at the
+     * document root with no <body> in scope, we auto-create one so
+     * author `body { ... }` rules can match. */
+    int body_implicit = -1;
 
     int IM_INITIAL = 0;
     int IM_IN_HEAD = 1;
@@ -490,12 +506,20 @@ void parse_html(int html_len) {
                 dom_insert_before(fn, table_idx);
                 continue;
             }
-            /* skip whitespace-only text nodes outside <pre>/<title> */
+            /* Compress whitespace-only runs outside pre/code/title to a single
+             * space text node. Real browsers preserve a single visible space
+             * between adjacent inline elements (e.g. `<a>x</a> <a>y</a>` must
+             * render as "x y"), and render_tree.cc drops these synthetic
+             * spaces when the parent has block-level siblings. */
             if (ws_only) {
                 int parent_tag = (parent >= 0) ? n_tag[parent] : -1;
                 if (parent_tag != T_PRE && parent_tag != T_CODE &&
                     parent_tag != T_TITLE) {
-                    continue;
+                    ctype_buf[0] = ' '; ctype_buf[1] = 0;
+                    int sp_off = attr_intern(ctype_buf, 1);
+                    if (sp_off < 0) continue;
+                    text_off = sp_off;
+                    text_len = 1;
                 }
             }
             /* preserve title-buf capture: first text inside <title> */
@@ -531,6 +555,31 @@ void parse_html(int html_len) {
         }
 
         if (kind == TK_START) {
+            /* Auto-create <body> at root if body-flow content appears
+             * without an explicit <body>. Head-only tags (title, style,
+             * script, etc.) and html/head/body themselves don't trigger;
+             * they keep the existing structure. Once body_implicit is set,
+             * subsequent body content nests inside it via the regular
+             * stack mechanism. */
+            if (body_implicit < 0 &&
+                tag != T_HTML && tag != T_HEAD && tag != T_TITLE &&
+                tag != T_STYLE && tag != T_SCRIPT && tag != T_NOSCRIPT &&
+                tag != T_BODY) {
+                int has_body = 0;
+                for (int k = 0; k < sp; k = k + 1) {
+                    int kt = n_tag[stack[k]];
+                    if (kt == T_BODY || kt == T_HEAD) { has_body = 1; break; }
+                }
+                if (!has_body) {
+                    body_implicit = alloc_node(T_BODY, root, -1);
+                    if (body_implicit >= 0 && sp < 64) {
+                        stack[sp] = body_implicit;
+                        sp = sp + 1;
+                        mode = IM_IN_BODY;
+                    }
+                }
+            }
+
             /* implicit-close rules */
             if (tag == T_P) {
                 /* close any currently-open <p> */
@@ -698,6 +747,7 @@ void parse_html(int html_len) {
     serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
                   css_rule_count, css_sel_count, css_value_pool_pos);
 
+    populate_sibling_caches();
     style_resolve_all();
     serial_printf("[browser] style: %d computed entries\n", cs_count);
 
@@ -714,6 +764,7 @@ void parse_html(int html_len) {
         js_install_globals();
         js_run_queued_scripts();
         if (dom_dirty) {
+            populate_sibling_caches();
             style_resolve_all();
             build_render_tree();
             run_layout();

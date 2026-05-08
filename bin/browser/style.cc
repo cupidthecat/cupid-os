@@ -95,7 +95,13 @@ void ua_default_style(int tag, int cs) {
         return;
     }
     if (tag == T_A) {
-        cs_color[cs] = 0x0000EE; cs_text_dec[cs] = TD_UNDERLINE;
+        /* Per HTML/CSS UA spec, only `:link` (an <a> with href) gets the
+         * default blue/underline. Bare anchors used as targets (`<a>foo</a>`
+         * without href) inherit color and have no decoration. cs index ==
+         * DOM node index for element entries, so dom_attr_get is valid. */
+        if (dom_attr_get(cs, "href") >= 0) {
+            cs_color[cs] = 0x0000EE; cs_text_dec[cs] = TD_UNDERLINE;
+        }
         return;
     }
     if (tag == T_PRE) {
@@ -187,7 +193,11 @@ void ua_default_style(int tag, int cs) {
         return;
     }
     if (tag == T_HEAD || tag == T_SCRIPT || tag == T_STYLE ||
-        tag == T_NOSCRIPT) {
+        tag == T_NOSCRIPT || tag == T_TITLE) {
+        /* <title> never renders as visible body content: even when the
+         * parser fails to wrap it in an implicit <head> (e.g. `<!doctype
+         * html><title>x</title><body>...`), display:none keeps it out of
+         * the layout tree. Title text remains accessible via title_buf. */
         cs_display[cs] = DISP_NONE;
         return;
     }
@@ -797,121 +807,433 @@ void apply_inline_style(int cs, char *s) {
 
 /* Step 5.3: selector matching */
 
-int sel_compound_matches(int sel_idx, int node) {
-    int t = css_sel_tag[sel_idx];
-    if (t != 0 && n_tag[node] != t) return 0;
-    int c_off = css_sel_class_off[sel_idx];
-    if (c_off >= 0) {
-        int node_class = dom_class_off[node];
-        if (node_class < 0) return 0;
-        /* class= can have multiple space-separated values; check each */
-        char *tgt = attr_pool + c_off;
-        int tgt_len = b_strlen(tgt);
-        char *cls = attr_pool + node_class;
-        int cls_len = b_strlen(cls);
-        int i = 0;
-        int matched = 0;
-        while (i < cls_len && !matched) {
-            while (i < cls_len && (cls[i] == ' ' || cls[i] == '\t')) i = i + 1;
-            int s = i;
-            while (i < cls_len && cls[i] != ' ' && cls[i] != '\t') i = i + 1;
-            if (i - s == tgt_len && b_strieq_n(cls + s, tgt, tgt_len)) { matched = 1; }
-        }
-        if (!matched) return 0;
+/* Match an attribute against (op, name_off, val_off). Returns 1 on hit.
+ * Shared between css_sel_* and css_not_* compound matchers. */
+int attr_op_matches(int node, int a_off, int a_val_off, int a_op) {
+    if (a_op == ATTR_OP_NONE) return 1;
+    if (a_off < 0) return 0;
+    char *aname = attr_pool + a_off;
+    int node_attr = dom_attr_get(node, aname);
+    if (node_attr < 0) return 0;
+    if (a_op == ATTR_OP_PRESENCE) return 1;
+    if (a_val_off < 0) return 0;
+    char *want = attr_pool + a_val_off;
+    int want_len = b_strlen(want);
+    char *have = attr_pool + node_attr;
+    int have_len = b_strlen(have);
+    int i;
+    int ws;
+    if (a_op == ATTR_OP_EXACT) {
+        if (have_len != want_len) return 0;
+        return b_strieq_n(have, want, want_len) ? 1 : 0;
     }
-    int id_off = css_sel_id_off[sel_idx];
+    if (a_op == ATTR_OP_WORD) {
+        i = 0;
+        while (i < have_len) {
+            while (i < have_len && (have[i] == ' ' || have[i] == '\t')) i = i + 1;
+            ws = i;
+            while (i < have_len && have[i] != ' ' && have[i] != '\t') i = i + 1;
+            if (i - ws == want_len && b_strieq_n(have + ws, want, want_len)) return 1;
+        }
+        return 0;
+    }
+    if (a_op == ATTR_OP_PREFIX) {
+        if (want_len == 0 || want_len > have_len) return 0;
+        return b_strieq_n(have, want, want_len) ? 1 : 0;
+    }
+    if (a_op == ATTR_OP_SUFFIX) {
+        if (want_len == 0 || want_len > have_len) return 0;
+        return b_strieq_n(have + have_len - want_len, want, want_len) ? 1 : 0;
+    }
+    if (a_op == ATTR_OP_CONTAINS) {
+        if (want_len == 0 || want_len > have_len) return 0;
+        i = 0;
+        while (i + want_len <= have_len) {
+            if (b_strieq_n(have + i, want, want_len)) return 1;
+            i = i + 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+/* Class-token membership against a stored class= attribute. */
+int class_token_match(int node, int c_off) {
+    int node_class = dom_class_off[node];
+    if (node_class < 0) return 0;
+    char *tgt = attr_pool + c_off;
+    int tgt_len = b_strlen(tgt);
+    if (tgt_len == 0) return 0;
+    char *cls = attr_pool + node_class;
+    int cls_len = b_strlen(cls);
+    int i = 0;
+    while (i < cls_len) {
+        while (i < cls_len && (cls[i] == ' ' || cls[i] == '\t')) i = i + 1;
+        int s = i;
+        while (i < cls_len && cls[i] != ' ' && cls[i] != '\t') i = i + 1;
+        if (i - s == tgt_len && b_strieq_n(cls + s, tgt, tgt_len)) return 1;
+    }
+    return 0;
+}
+
+/* Match a simple pseudo-class (ones that depend only on the node and
+ * tree-position caches). Returns 1 on hit. PSEUDO_NTH_CHILD reads
+ * `pseudo_arg` packed as (a<<16)|(b&0xFFFF) with signed semantics. */
+int simple_pseudo_matches(int node, int pseudo, int pseudo_arg) {
+    int p;
+    int idx;
+    int a_raw;
+    int b_raw;
+    int a;
+    int b;
+    int diff;
+    int t;
+    int c;
+    int last_match;
+    if (pseudo == PSEUDO_NONE) return 1;
+    if (pseudo == PSEUDO_HOVER) {
+        if (hover_dom_node < 0) return 0;
+        p = hover_dom_node;
+        while (p >= 0) { if (p == node) return 1; p = n_parent[p]; }
+        return 0;
+    }
+    if (pseudo == PSEUDO_FOCUS) {
+        if (focused_input < 0 || focused_input >= inputs_count) return 0;
+        return (input_node[focused_input] == node) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_LINK) {
+        if (n_tag[node] != T_A) return 0;
+        return (dom_attr_get(node, "href") >= 0) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_VISITED) return 0;
+    if (pseudo == PSEUDO_FIRST_CHILD) {
+        return (n_sibling_idx[node] == 1) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_LAST_CHILD) {
+        if (n_sibling_idx[node] == 0) return 0;
+        return (n_sibling_idx[node] == n_sibling_count[node]) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_NTH_CHILD) {
+        idx = n_sibling_idx[node];
+        if (idx <= 0) return 0;
+        /* Sign-extend the 16-bit packed halves. */
+        a_raw = (pseudo_arg >> 16) & 0xFFFF;
+        b_raw = pseudo_arg & 0xFFFF;
+        a = (a_raw & 0x8000) ? (a_raw | -0x10000) : a_raw;
+        b = (b_raw & 0x8000) ? (b_raw | -0x10000) : b_raw;
+        if (a == 0) return (idx == b) ? 1 : 0;
+        diff = idx - b;
+        if (a > 0) {
+            if (diff < 0) return 0;
+            return (diff % a == 0) ? 1 : 0;
+        }
+        /* a < 0 */
+        if (diff > 0) return 0;
+        return ((-diff) % (-a) == 0) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_ROOT) {
+        return (n_tag[node] == T_HTML || n_parent[node] < 0) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_FIRST_OF_TYPE) {
+        t = n_tag[node];
+        p = n_parent[node];
+        if (p < 0) return 1;
+        c = n_first_child[p];
+        while (c >= 0) {
+            if (n_tag[c] == t) return (c == node) ? 1 : 0;
+            c = n_next[c];
+        }
+        return 0;
+    }
+    if (pseudo == PSEUDO_LAST_OF_TYPE) {
+        t = n_tag[node];
+        p = n_parent[node];
+        if (p < 0) return 1;
+        last_match = -1;
+        c = n_first_child[p];
+        while (c >= 0) {
+            if (n_tag[c] == t) last_match = c;
+            c = n_next[c];
+        }
+        return (last_match == node) ? 1 : 0;
+    }
+    if (pseudo == PSEUDO_EMPTY) {
+        return (n_first_child[node] < 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+/* Match a single :not(<simple>) inner compound at `not_idx`. */
+int not_simple_matches(int not_idx, int node) {
+    if (not_idx < 0) return 0;
+    int t = css_not_tag[not_idx];
+    if (t != 0 && n_tag[node] != t) return 0;
+    int c_off = css_not_class_off[not_idx];
+    if (c_off >= 0 && !class_token_match(node, c_off)) return 0;
+    int id_off = css_not_id_off[not_idx];
     if (id_off >= 0) {
         int node_id = dom_id_off[node];
         if (node_id < 0) return 0;
         if (!b_strieq(attr_pool + node_id, attr_pool + id_off)) return 0;
     }
-    int pseudo = css_sel_pseudo[sel_idx];
-    if (pseudo == 1) {
-        /* :hover - matches the hovered DOM node and any of its ancestors */
-        if (hover_dom_node < 0) return 0;
-        int p = hover_dom_node;
-        int matched = 0;
-        while (p >= 0) { if (p == node) { matched = 1; break; } p = n_parent[p]; }
-        if (!matched) return 0;
+    if (!attr_op_matches(node,
+                         css_not_attr_off[not_idx],
+                         css_not_attr_val_off[not_idx],
+                         css_not_attr_op[not_idx])) return 0;
+    int p = css_not_pseudo[not_idx];
+    if (p != 0 && !simple_pseudo_matches(node, p, css_not_pseudo_arg[not_idx])) return 0;
+    return 1;
+}
+
+int sel_compound_matches(int sel_idx, int node) {
+    int t = css_sel_tag[sel_idx];
+    if (t != 0 && n_tag[node] != t) return 0;
+    int c_off = css_sel_class_off[sel_idx];
+    if (c_off >= 0 && !class_token_match(node, c_off)) return 0;
+    int id_off = css_sel_id_off[sel_idx];
+    int node_id;
+    int pseudo;
+    int ni;
+    int a_op;
+    if (id_off >= 0) {
+        node_id = dom_id_off[node];
+        if (node_id < 0) return 0;
+        if (!b_strieq(attr_pool + node_id, attr_pool + id_off)) return 0;
     }
-    if (pseudo == 2) {
-        /* :focus - the focused input's DOM node */
-        if (focused_input < 0 || focused_input >= inputs_count) return 0;
-        if (input_node[focused_input] != node) return 0;
+    pseudo = css_sel_pseudo[sel_idx];
+    if (pseudo == PSEUDO_NOT) {
+        /* :not(X) — succeed iff inner does NOT match */
+        ni = css_sel_not_idx[sel_idx];
+        if (not_simple_matches(ni, node)) return 0;
     }
-    if (pseudo == 3) {
-        /* :link - <a href> not yet visited (we don't track visited) */
-        if (n_tag[node] != T_A) return 0;
-        if (dom_attr_get(node, "href") < 0) return 0;
+    if (pseudo != PSEUDO_NONE && pseudo != PSEUDO_NOT) {
+        if (!simple_pseudo_matches(node, pseudo, css_sel_pseudo_arg[sel_idx])) return 0;
     }
-    if (pseudo == 4) {
-        /* :visited - no history set, never matches */
-        return 0;
-    }
-    int a_op = css_sel_attr_op[sel_idx];
-    if (a_op != 0) {
-        int a_off = css_sel_attr_off[sel_idx];
-        if (a_off < 0) return 0;
-        char *aname = attr_pool + a_off;
-        int node_attr = dom_attr_get(node, aname);
-        if (node_attr < 0) return 0;
-        if (a_op == 1) return 1;       /* presence */
-        int v_off = css_sel_attr_val_off[sel_idx];
-        if (v_off < 0) return 0;
-        char *want = attr_pool + v_off;
-        int want_len = b_strlen(want);
-        char *have = attr_pool + node_attr;
-        int have_len = b_strlen(have);
-        if (a_op == 2) {
-            if (have_len != want_len) return 0;
-            if (!b_strieq_n(have, want, want_len)) return 0;
-            return 1;
-        }
-        if (a_op == 3) {
-            /* word match: any space-separated token equals want */
-            int i = 0;
-            while (i < have_len) {
-                while (i < have_len && (have[i] == ' ' || have[i] == '\t')) i++;
-                int ws = i;
-                while (i < have_len && have[i] != ' ' && have[i] != '\t') i++;
-                if (i - ws == want_len && b_strieq_n(have + ws, want, want_len)) return 1;
-            }
-            return 0;
-        }
+    a_op = css_sel_attr_op[sel_idx];
+    if (a_op != ATTR_OP_NONE) {
+        if (!attr_op_matches(node,
+                             css_sel_attr_off[sel_idx],
+                             css_sel_attr_val_off[sel_idx],
+                             a_op)) return 0;
     }
     return 1;
 }
 
-/* Match a selector chain against a node by walking up parents. Last selector
- * matches `node`; earlier selectors must match according to the combinator
- * stored on the next-younger compound: 0 = descendant (skip non-matching
- * ancestors), 1 = child (must match the immediate parent). */
+/* Inner combinator-walk. Caller has already verified the tail compound;
+ * this walks left-to-right combinators from `last-1` down to `sel_first`.
+ * CupidC keeps locals in a flat table, so all branch-scoped ints are
+ * hoisted to function scope. */
+int sel_chain_walk(int sel_first, int last, int node) {
+    int cur = node;
+    int s = last - 1;
+    int comb;
+    int p;
+    int prev;
+    while (s >= sel_first) {
+        comb = css_sel_combinator[s + 1];
+        if (comb == COMB_SUBSELECTOR) {
+            if (!sel_compound_matches(s, cur)) return 0;
+            s = s - 1;
+            continue;
+        }
+        if (comb == COMB_CHILD) {
+            p = n_parent[cur];
+            if (p < 0) return 0;
+            if (!sel_compound_matches(s, p)) return 0;
+            cur = p;
+            s = s - 1;
+            continue;
+        }
+        if (comb == COMB_DESCENDANT) {
+            p = n_parent[cur];
+            while (p >= 0 && !sel_compound_matches(s, p)) p = n_parent[p];
+            if (p < 0) return 0;
+            cur = p;
+            s = s - 1;
+            continue;
+        }
+        if (comb == COMB_ADJACENT) {
+            prev = n_prev_sibling_elt[cur];
+            if (prev < 0) return 0;
+            if (!sel_compound_matches(s, prev)) return 0;
+            cur = prev;
+            s = s - 1;
+            continue;
+        }
+        if (comb == COMB_GEN_SIBLING) {
+            prev = n_prev_sibling_elt[cur];
+            while (prev >= 0 && !sel_compound_matches(s, prev)) prev = n_prev_sibling_elt[prev];
+            if (prev < 0) return 0;
+            cur = prev;
+            s = s - 1;
+            continue;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+/* Match a selector chain against a node. Right-to-left walk modeled on
+ * Blink's SelectorChecker::match. Rules with a tail pseudo-element are
+ * treated as non-matching against the originating element so they don't
+ * pollute its own ComputedStyle (those rules feed the pseudo cascade
+ * via sel_chain_matches_pseudo). */
 int sel_chain_matches(int sel_first, int sel_count, int node) {
     if (sel_count == 0) return 0;
     int last = sel_first + sel_count - 1;
+    if (css_sel_pseudo_elt[last] != PSELT_NONE) return 0;
     if (!sel_compound_matches(last, node)) return 0;
-    int cur = n_parent[node];
-    int s = last - 1;
-    /* combinator on css_sel_combinator[s+1] tells how s relates to s+1 */
-    while (s >= sel_first) {
-        if (cur < 0) return 0;
-        int comb = css_sel_combinator[s + 1];
-        if (comb == 1) {
-            /* child: s must match the immediate parent */
-            if (!sel_compound_matches(s, cur)) return 0;
-            s = s - 1;
-            cur = n_parent[cur];
-        } else {
-            /* descendant: skip non-matching ancestors */
-            if (sel_compound_matches(s, cur)) {
-                s = s - 1;
-                cur = n_parent[cur];
-            } else {
-                cur = n_parent[cur];
+    return sel_chain_walk(sel_first, last, node);
+}
+
+/* Pseudo-element variant: the chain MUST end with the requested
+ * pseudo-element flag. The originating element is `node`; combinators are
+ * still resolved against the real DOM. Used by ::before/::after content
+ * cascade and any future pseudo-element styling. */
+int sel_chain_matches_pseudo(int sel_first, int sel_count, int node, int wanted_pe) {
+    if (sel_count == 0) return 0;
+    int last = sel_first + sel_count - 1;
+    if (css_sel_pseudo_elt[last] != wanted_pe) return 0;
+    if (!sel_compound_matches(last, node)) return 0;
+    return sel_chain_walk(sel_first, last, node);
+}
+
+/* Decode a CSS string value into out[]. Handles `\HHHHHH` codepoint
+ * escapes (1..6 hex digits, optional terminating space) and UTF-8
+ * multi-byte sequences in raw text. Codepoints above 127 are folded
+ * through map_high_codepoint() to ASCII fallbacks (the bitmap font
+ * doesn't carry real Unicode). Returns the decoded byte length, or 0 if
+ * the value isn't a quoted string. */
+int css_value_string(int off, int len, char *out, int omax) {
+    int i = off;
+    int end = off + len;
+    int o = 0;
+    int v;
+    int d;
+    int hd;
+    int hi;
+    int b0;
+    int cp;
+    int adv;
+    char c;
+    char quote;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i >= end) return 0;
+    quote = css_value_pool[i];
+    if (quote != '"' && quote != '\'') return 0;
+    i = i + 1;
+    while (i < end && o < omax - 1) {
+        c = css_value_pool[i];
+        if (c == quote) { i = i + 1; break; }
+        if (c == '\\' && i + 1 < end) {
+            i = i + 1;
+            v = 0;
+            d = 0;
+            while (i < end && d < 6) {
+                hd = hex_digit(css_value_pool[i]);
+                if (hd < 0) break;
+                v = v * 16 + hd;
+                d = d + 1;
+                i = i + 1;
+            }
+            if (d == 0) {
+                /* `\x` literal escape (drop the backslash, keep the char) */
+                out[o] = css_value_pool[i]; o = o + 1;
+                i = i + 1;
+                continue;
+            }
+            if (i < end && css_value_pool[i] == ' ') i = i + 1;
+            if (v >= 32 && v < 127) {
+                out[o] = (char)v; o = o + 1; continue;
+            }
+            if (v == 0xA0) { out[o] = ' '; o = o + 1; continue; }
+            if (map_high_codepoint(v, &hi)) { out[o] = (char)hi; o = o + 1; continue; }
+            out[o] = '?'; o = o + 1; continue;
+        }
+        b0 = c & 0xFF;
+        if (b0 >= 0x80) {
+            cp = -1;
+            adv = 1;
+            if ((b0 & 0xE0) == 0xC0 && i + 1 < end) {
+                cp = ((b0 & 0x1F) << 6) | (css_value_pool[i+1] & 0x3F);
+                adv = 2;
+            }
+            if (cp < 0 && (b0 & 0xF0) == 0xE0 && i + 2 < end) {
+                cp = ((b0 & 0x0F) << 12) |
+                     ((css_value_pool[i+1] & 0x3F) << 6) |
+                     (css_value_pool[i+2] & 0x3F);
+                adv = 3;
+            }
+            if (cp >= 0) {
+                if (cp == 0xA0) { out[o] = ' '; o = o + 1; }
+                else if (map_high_codepoint(cp, &hi)) { out[o] = (char)hi; o = o + 1; }
+                else { out[o] = '?'; o = o + 1; }
+                i = i + adv;
+                continue;
+            }
+        }
+        out[o] = c; o = o + 1; i = i + 1;
+    }
+    out[o] = 0;
+    return o;
+}
+
+/* Subroutine of style_resolve_all: resolve ::before / ::after generated
+ * content for `node`. Matches every rule with a pseudo-element tail
+ * compound, picks the highest-specificity (then doc-order) winner per
+ * pseudo-element side, decodes the `content:` string, and saves the
+ * result to n_pseudo_before/after_off. Other pseudo-element properties
+ * (color, font, etc.) are not yet honored — only `content`. */
+void resolve_pseudo_content(int node) {
+    int win_b = -1;
+    int score_b = -1;
+    int win_a = -1;
+    int score_a = -1;
+    int sf;
+    int sc;
+    int tail;
+    int pe;
+    int score;
+    int len;
+    int ao;
+    char buf[256];
+    for (int r = 0; r < css_rule_count; r = r + 1) {
+        if (css_rule_prop_id[r] != CP_CONTENT) continue;
+        sf = css_rule_sel_first[r];
+        sc = css_rule_sel_count[r];
+        tail = sf + sc - 1;
+        pe = css_sel_pseudo_elt[tail];
+        if (pe == PSELT_NONE) continue;
+        if (!sel_chain_matches_pseudo(sf, sc, node, pe)) continue;
+        score = (css_rule_specificity[r] << 12) | (css_rule_doc_order[r] & 0xFFF);
+        if (pe == PSELT_BEFORE) {
+            if (score > score_b) { score_b = score; win_b = r; }
+            continue;
+        }
+        if (pe == PSELT_AFTER) {
+            if (score > score_a) { score_a = score; win_a = r; }
+        }
+    }
+    if (win_b >= 0) {
+        len = css_value_string(css_rule_value_off[win_b], css_rule_value_len[win_b], buf, 256);
+        if (len > 0) {
+            ao = attr_intern(buf, len);
+            if (ao >= 0) {
+                n_pseudo_before_off[node] = ao;
+                n_pseudo_before_len[node] = len;
             }
         }
     }
-    return 1;
+    if (win_a >= 0) {
+        len = css_value_string(css_rule_value_off[win_a], css_rule_value_len[win_a], buf, 256);
+        if (len > 0) {
+            ao = attr_intern(buf, len);
+            if (ao >= 0) {
+                n_pseudo_after_off[node] = ao;
+                n_pseudo_after_len[node] = len;
+            }
+        }
+    }
 }
 
 /* Step 5.4: style_resolve_all */
@@ -935,8 +1257,8 @@ void style_resolve_all() {
          *    packs (specificity << 12) | doc_order so a higher specificity
          *    or later rule wins at equal level.
          *    Size matches MAX_CP_ID; CupidC requires a literal here. */
-        int winner_rule[40];
-        int winner_score[40];
+        int winner_rule[48];
+        int winner_score[48];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (css_rule_important[r]) continue;
@@ -968,8 +1290,8 @@ void style_resolve_all() {
         /* 4. Important author rules — applied last so they override pass 1
          *    and inline style. Specificity + doc-order still resolves ties
          *    among important rules themselves. */
-        int imp_rule[40];
-        int imp_score[40];
+        int imp_rule[48];
+        int imp_score[48];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { imp_rule[p] = -1; imp_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (!css_rule_important[r]) continue;
@@ -1015,6 +1337,12 @@ void style_resolve_all() {
              * because cascade ran before this inheritance pass. */
             if (cs_font_w[cs] == 400 && cs_font_w[pcs] != 400) cs_font_w[cs] = cs_font_w[pcs];
             if (cs_font_i[cs] == 0   && cs_font_i[pcs] != 0)   cs_font_i[cs] = cs_font_i[pcs];
+            /* text-decoration in CSS2.1 doesn't strictly inherit, but its
+             * paint effect (underline/strike) propagates from ancestor to
+             * all descendants. Treating it as inherit-when-unset is
+             * visually equivalent and avoids walking the rt parent chain
+             * in emit_text_atoms. */
+            if (cs_text_dec[cs] == 0 && cs_text_dec[pcs] != 0) cs_text_dec[cs] = cs_text_dec[pcs];
         } else {
             /* root: ensure color is concrete and font-size has a baseline */
             if (cs_color[cs] < 0) cs_color[cs] = 0x000000;
@@ -1024,6 +1352,11 @@ void style_resolve_all() {
          * still consume cs_font_size_tier; cs_font_size_px is the source
          * of truth and what em/rem/% length resolution reads. */
         cs_font_size_tier[cs] = px_to_tier(cs_font_size_px[cs]);
+
+        /* Pseudo-element generated content (::before / ::after). Stored on
+         * the originating node; render_tree.cc injects synthetic RT_TEXT
+         * children at build time. */
+        resolve_pseudo_content(n);
     }
 }
 

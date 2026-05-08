@@ -178,13 +178,24 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         }
     }
 
-    /* For <input>: bind input index, set intrinsic size */
+    /* For <input>: bind input index, set intrinsic size. Checkbox/radio
+     * are small square boxes (paint draws their own chrome); text-style
+     * inputs are wider and shorter. The DOM `type` attr drives both the
+     * input-table eligibility (in parser.cc) and intrinsic dimensions. */
     if (tag == T_INPUT) {
         for (int k = 0; k < inputs_count; k++) {
             if (input_node[k] == dom) { rt_input_idx[n] = k; break; }
         }
-        rt_intrinsic_w[n] = 120;
-        rt_intrinsic_h[n] = 16;
+        char *type_s = dom_attr_str(dom, "type");
+        int is_check = 0;
+        if (type_s && (b_strieq(type_s, "checkbox") || b_strieq(type_s, "radio"))) is_check = 1;
+        if (is_check) {
+            rt_intrinsic_w[n] = 14;
+            rt_intrinsic_h[n] = 14;
+        } else {
+            rt_intrinsic_w[n] = 120;
+            rt_intrinsic_h[n] = 16;
+        }
     }
     if (tag == T_BUTTON) {
         rt_intrinsic_w[n] = 64;
@@ -199,7 +210,26 @@ int build_rt_subtree(int dom, int rt_parent_n) {
 
     /* Replaced elements have no children rendered */
     if (!is_replaced) {
+        /* ::before generated content: synthetic RT_TEXT prepended ahead
+         * of the element's real children. Inherits the element's cs slot
+         * for color/font; spec requires a separate inline box per pseudo
+         * but for v1 a flat text node is visually correct for simple
+         * `content: "..."` strings. */
+        if (n_pseudo_before_off[dom] >= 0) {
+            int rt_pe = rt_alloc(RT_TEXT, dom, n, cs_d);
+            if (rt_pe >= 0) {
+                rt_text_off[rt_pe] = n_pseudo_before_off[dom];
+                rt_text_len[rt_pe] = n_pseudo_before_len[dom];
+            }
+        }
         build_rt_children(dom, n);
+        if (n_pseudo_after_off[dom] >= 0) {
+            int rt_pe = rt_alloc(RT_TEXT, dom, n, cs_d);
+            if (rt_pe >= 0) {
+                rt_text_off[rt_pe] = n_pseudo_after_off[dom];
+                rt_text_len[rt_pe] = n_pseudo_after_len[dom];
+            }
+        }
     }
     return n;
 }

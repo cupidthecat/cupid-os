@@ -1,0 +1,86 @@
+<!doctype html>
+<title>d1: selectors v2 — combinators, attr ops, structural pseudos</title>
+<style>
+body { font: 14px sans-serif; padding: 12px; color: #222; }
+h2 { color: #084; margin: 16px 0 6px; }
+
+/* child > */
+nav > a       { color: #06c; font-weight: bold; }
+nav span > a  { color: #c40; }      /* nested a inside span: NOT direct child of nav */
+
+/* adjacent + */
+h2 + p        { margin-top: 0; color: #555; font-style: italic; }
+
+/* general sibling ~ */
+h2 ~ p.note   { background: #ffe; padding: 4px; }
+
+/* attribute ops */
+a[href]               { text-decoration: underline; }
+a[href^="https://"]   { color: #060; }
+a[href$=".pdf"]       { font-weight: bold; }
+a[href*="example"]    { background: #eef; }
+input[type="checkbox"]{ border: 2px solid #c00; }
+
+/* structural pseudos */
+ul li:first-child { color: #c00; }
+ul li:last-child  { color: #06c; }
+ul li:nth-child(odd) { background: #f7f7f7; }
+ul li:nth-child(2n+0) { background: #eee; }   /* even rows tinted darker */
+ul li:nth-child(3)    { font-weight: bold; }
+
+/* :not() */
+.menu li:not(.disabled) { color: #060; }
+.menu li.disabled       { color: #aaa; text-decoration: line-through; }
+
+/* compound + subselector */
+button.primary:first-child { background: #06c; color: #fff; padding: 4px 8px; }
+
+/* pseudo-element basic — A2 will fully render; matcher must not crash */
+q::before { content: "\201C"; }
+q::after  { content: "\201D"; }
+</style>
+
+<h2>combinators</h2>
+<nav>
+  <a href="/a">child A</a>
+  <a href="/b">child B</a>
+  <span><a href="/c">grandchild C</a></span>
+</nav>
+
+<h2>adjacent and sibling</h2>
+<p>This paragraph is directly adjacent to h2 — italic, gray.</p>
+<p class="note">This paragraph is a general sibling of h2 — light yellow.</p>
+<p>Plain paragraph.</p>
+
+<h2>attribute ops</h2>
+<p>
+  <a href="/relative">relative link</a> ·
+  <a href="https://example.com/">https example</a> ·
+  <a href="https://docs.example/foo.pdf">PDF doc</a> ·
+  <a>no-href anchor</a>
+</p>
+<p>
+  <input type="text" value="text"> ·
+  <input type="checkbox">
+</p>
+
+<h2>structural</h2>
+<ul>
+  <li>first</li>
+  <li>two</li>
+  <li>three (bold)</li>
+  <li>four</li>
+  <li>five</li>
+  <li>last</li>
+</ul>
+
+<h2>:not()</h2>
+<ul class="menu">
+  <li>open</li>
+  <li class="disabled">save</li>
+  <li>reload</li>
+  <li class="disabled">quit</li>
+</ul>
+
+<h2>quotes</h2>
+<p>He said <q>hello world</q> and left.</p>

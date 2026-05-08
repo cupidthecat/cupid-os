@@ -197,6 +197,43 @@ void dom_insert_before(int new_node, int before) {
     }
 }
 
+/* Populate per-DOM-node sibling caches consumed by the §2 selector matcher.
+ * Called once after parse_html finishes building the DOM and before
+ * style_resolve_all runs. Element-only: text nodes (T_TEXT) are skipped so
+ * that ":first-child", ":nth-child", "+", "~" behave per CSS spec. */
+void populate_sibling_caches() {
+    /* Defaults: no parent / no element siblings. */
+    for (int i = 0; i < nodes_count; i = i + 1) {
+        n_sibling_idx     [i] = 0;
+        n_sibling_count   [i] = 0;
+        n_prev_sibling_elt[i] = -1;
+        n_next_sibling_elt[i] = -1;
+    }
+    /* For each node that has children, walk once to assign 1-based element
+     * indices and prev/next element-sibling links. */
+    for (int p = 0; p < nodes_count; p = p + 1) {
+        int prev_elt = -1;
+        int idx = 0;
+        int c = n_first_child[p];
+        while (c >= 0) {
+            if (n_tag[c] != T_TEXT) {
+                idx = idx + 1;
+                n_sibling_idx[c] = idx;
+                n_prev_sibling_elt[c] = prev_elt;
+                if (prev_elt >= 0) n_next_sibling_elt[prev_elt] = c;
+                prev_elt = c;
+            }
+            c = n_next[c];
+        }
+        /* Stamp total element-sibling count on every element child of p. */
+        c = n_first_child[p];
+        while (c >= 0) {
+            if (n_tag[c] != T_TEXT) n_sibling_count[c] = idx;
+            c = n_next[c];
+        }
+    }
+}
+
 /* Look up a named HTML entity by (name, nlen). On match, writes the ASCII
  * approximation to *out_ch and returns 1. The mapping is lossy (no Unicode
  * in the 8x8 ASCII font) but predictable. */
@@ -286,7 +323,7 @@ int map_high_codepoint(int v, int *out_ch) {
     if (v == 0x00A9) { *out_ch = 'C'; return 1; }   /* © */
     if (v == 0x00AE) { *out_ch = 'R'; return 1; }   /* ® */
     if (v == 0x00B0) { *out_ch = 'd'; return 1; }   /* ° */
-    if (v == 0x00B7) { *out_ch = '*'; return 1; }   /* · */
+    if (v == 0x00B7) { *out_ch = '.'; return 1; }   /* · -> period (closer to middle dot than '*') */
     if (v == 0x2013) { *out_ch = '-'; return 1; }   /* – */
     if (v == 0x2014) { *out_ch = '-'; return 1; }   /* — */
     if (v == 0x2018) { *out_ch = '\''; return 1; }  /* ‘ */
@@ -364,6 +401,40 @@ int decode_entities(char *src, int slen, char *out, int omax) {
             /* unrecognized entity: emit literal & */
             out[o] = '&'; o = o + 1; i = i + 1;
         } else {
+            /* Decode UTF-8 multi-byte sequences in the source so that
+             * characters typed directly (e.g. `·` `—` `"` `…`) get folded to
+             * the bitmap-font ASCII fallback through map_high_codepoint
+             * instead of bleeding into the framebuffer as garbage glyph
+             * bytes. ASCII (0..0x7F) passes through unchanged. */
+            int b0 = src[i] & 0xFF;
+            if (b0 >= 0x80) {
+                int cp = -1;
+                int adv = 1;
+                if ((b0 & 0xE0) == 0xC0 && i + 1 < slen) {
+                    cp = ((b0 & 0x1F) << 6) | (src[i+1] & 0x3F);
+                    adv = 2;
+                } else if ((b0 & 0xF0) == 0xE0 && i + 2 < slen) {
+                    cp = ((b0 & 0x0F) << 12) |
+                         ((src[i+1] & 0x3F) << 6) |
+                         (src[i+2] & 0x3F);
+                    adv = 3;
+                } else if ((b0 & 0xF8) == 0xF0 && i + 3 < slen) {
+                    cp = ((b0 & 0x07) << 18) |
+                         ((src[i+1] & 0x3F) << 12) |
+                         ((src[i+2] & 0x3F) << 6) |
+                         (src[i+3] & 0x3F);
+                    adv = 4;
+                }
+                if (cp >= 0) {
+                    int hi;
+                    if (cp == 0xA0) { out[o] = ' '; o = o + 1; }
+                    else if (cp == 0xAD) { /* soft hyphen drops */ }
+                    else if (map_high_codepoint(cp, &hi)) { out[o] = (char)hi; o = o + 1; }
+                    else { out[o] = '?'; o = o + 1; }
+                    i = i + adv;
+                    continue;
+                }
+            }
             out[o] = src[i]; o = o + 1; i = i + 1;
         }
     }

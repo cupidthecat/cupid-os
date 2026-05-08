@@ -39,9 +39,10 @@ enum {
     MAX_LINE_ATOMS = 8192,
 
     /* §2 style/CSS */
-    MAX_CSS_RULES = 256,
+    MAX_CSS_RULES = 512,
     MAX_COMPUTED_STYLES = 4096,
     CSS_VALUE_POOL_SIZE = 32768,
+    MAX_CSS_NOT_SELS = 256,
 
     /* §1 entity table */
     MAX_ENTITY_NAMES = 64,
@@ -125,7 +126,8 @@ enum {
     CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
     CP_LINE_HEIGHT,
     CP_MAX_WIDTH, CP_MIN_WIDTH, CP_MAX_HEIGHT, CP_MIN_HEIGHT,
-    MAX_CP_ID = 40,
+    CP_CONTENT,
+    MAX_CP_ID = 48,
 
     /* §2 enumerated value tags */
     TA_LEFT = 0, TA_CENTER, TA_RIGHT,
@@ -136,7 +138,43 @@ enum {
     WS_NORMAL = 0, WS_PRE, WS_NOWRAP,
     LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
-    MAX_CSS_SELECTORS = 1024,
+    MAX_CSS_SELECTORS = 2048,
+
+    /* §2 selector pseudo-class IDs (stored in css_sel_pseudo[]) */
+    PSEUDO_NONE = 0,
+    PSEUDO_HOVER = 1,
+    PSEUDO_FOCUS = 2,
+    PSEUDO_LINK = 3,
+    PSEUDO_VISITED = 4,
+    PSEUDO_FIRST_CHILD = 5,
+    PSEUDO_LAST_CHILD = 6,
+    PSEUDO_NTH_CHILD = 7,    /* css_sel_pseudo_arg packs (a<<16)|b for an+b */
+    PSEUDO_NOT = 8,           /* css_sel_not_idx points into css_not_* pool */
+    PSEUDO_ROOT = 9,
+    PSEUDO_FIRST_OF_TYPE = 10,
+    PSEUDO_LAST_OF_TYPE = 11,
+    PSEUDO_EMPTY = 12,
+
+    /* §2 selector pseudo-element IDs (stored in css_sel_pseudo_elt[]) */
+    PSELT_NONE = 0,
+    PSELT_BEFORE = 1,
+    PSELT_AFTER = 2,
+
+    /* §2 selector combinators */
+    COMB_DESCENDANT = 0,
+    COMB_CHILD = 1,
+    COMB_ADJACENT = 2,        /* + */
+    COMB_GEN_SIBLING = 3,     /* ~ */
+    COMB_SUBSELECTOR = 4,     /* same-element AND (.a.b, a:hover) */
+
+    /* §2 attribute-selector ops */
+    ATTR_OP_NONE = 0,
+    ATTR_OP_PRESENCE = 1,     /* [attr] */
+    ATTR_OP_EXACT = 2,        /* [attr=v] */
+    ATTR_OP_WORD = 3,         /* [attr~=v] */
+    ATTR_OP_PREFIX = 4,       /* [attr^=v] */
+    ATTR_OP_SUFFIX = 5,       /* [attr$=v] */
+    ATTR_OP_CONTAINS = 6,     /* [attr*=v] */
 
     /* §3 render-tree kinds */
     RT_BLOCK = 1,
@@ -278,6 +316,23 @@ int dom_ap_value_off[8192];
 int dom_class_off[4096];
 int dom_id_off   [4096];
 
+/* §1 sibling caches populated after DOM build (see populate_sibling_caches
+ * in dom.cc). Element-only counts (text nodes ignored), used by selector
+ * matcher for :first-child / :last-child / :nth-child / + / ~. */
+int n_sibling_idx     [4096];   /* 1-based index among element siblings */
+int n_sibling_count   [4096];   /* total element-sibling count of n_parent[i] */
+int n_prev_sibling_elt[4096];   /* prev element sibling, -1 if none */
+int n_next_sibling_elt[4096];   /* next element sibling, -1 if none */
+
+/* §2 generated content for ::before / ::after. Per element, the cascade
+ * resolves a single string (decoded from CSS `content:`). render_tree.cc
+ * injects a synthetic RT_TEXT child as first/last child of the
+ * originating element when these are set. -1 = no generated content. */
+int n_pseudo_before_off[4096];
+int n_pseudo_before_len[4096];
+int n_pseudo_after_off [4096];
+int n_pseudo_after_len [4096];
+
 /* node-back-reference for forms/inputs registered by the tree builder.
  * inputs[] / forms[] index -> DOM node index. Lets handlers look up DOM
  * attrs (action, name, value, type) of the originating element. */
@@ -292,34 +347,53 @@ int  attr_pool_pos;
  * declarations in a single CSS rule produce multiple entries here
  * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
 int css_rule_count;
-int css_rule_sel_first[256];
-int css_rule_sel_count[256];
-int css_rule_prop_id  [256];
-int css_rule_value_off[256];
-int css_rule_value_len[256];
-int css_rule_specificity[256];
-int css_rule_doc_order [256];
-int css_rule_important [256];           /* 1 if value ended in !important */
+int css_rule_sel_first[512];
+int css_rule_sel_count[512];
+int css_rule_prop_id  [512];
+int css_rule_value_off[512];
+int css_rule_value_len[512];
+int css_rule_specificity[512];
+int css_rule_doc_order [512];
+int css_rule_important [512];           /* 1 if value ended in !important */
 
 /* Each selector is a chain of "compound selectors". A compound is a
- * (tag, class_off, id_off) triple. Descendant combinators are implicit. */
+ * (tag, class_off, id_off) triple. Combinators see COMB_* enum. */
 int css_sel_count;
-int css_sel_tag      [1024];
-int css_sel_class_off[1024];
-int css_sel_id_off   [1024];
+int css_sel_tag      [2048];
+int css_sel_class_off[2048];
+int css_sel_id_off   [2048];
 /* Combinator joining this compound to the previous one in a chain.
- * 0 = descendant (default; whitespace separator).
- * 1 = child (>). The first compound in a chain is always 0. */
-int css_sel_combinator[1024];
-/* Optional attribute selector on this compound. -1 if none.
- * css_sel_attr_op: 0=none, 1=presence ([attr]), 2=exact ([attr=v]),
- *                  3=word match ([attr~=v]). */
-int css_sel_attr_off    [1024];
-int css_sel_attr_val_off[1024];
-int css_sel_attr_op     [1024];
-/* Pseudo-class on this compound. 0=none, 1=:hover, 2=:focus,
- * 3=:link, 4=:visited. */
-int css_sel_pseudo      [1024];
+ * COMB_DESCENDANT (0) is default (whitespace), COMB_CHILD (>),
+ * COMB_ADJACENT (+), COMB_GEN_SIBLING (~), COMB_SUBSELECTOR (same element,
+ * for chained simple selectors like ".a.b" or "a:hover"). */
+int css_sel_combinator[2048];
+/* Optional attribute selector on this compound. -1 if absent.
+ * css_sel_attr_op uses ATTR_OP_* enum. */
+int css_sel_attr_off    [2048];
+int css_sel_attr_val_off[2048];
+int css_sel_attr_op     [2048];
+/* Pseudo-class on this compound (PSEUDO_* enum). */
+int css_sel_pseudo      [2048];
+/* Pseudo-class argument: for PSEUDO_NTH_CHILD, packed (a<<16)|(b&0xFFFF)
+ * with signed semantics; otherwise 0. */
+int css_sel_pseudo_arg  [2048];
+/* Pseudo-element flag: PSELT_NONE/BEFORE/AFTER. Tail of a compound only. */
+int css_sel_pseudo_elt  [2048];
+/* For PSEUDO_NOT, index into css_not_* pool of the inner simple compound;
+ * -1 if no :not. */
+int css_sel_not_idx     [2048];
+
+/* §2 :not(<simple>) inner-compound pool. v1 supports one-deep, single
+ * simple compound only (no combinators, no nested :not). */
+int css_not_count;
+int css_not_tag        [256];
+int css_not_class_off  [256];
+int css_not_id_off     [256];
+int css_not_attr_off   [256];
+int css_not_attr_val_off[256];
+int css_not_attr_op    [256];
+int css_not_pseudo     [256];   /* simple pseudos (:first-child etc.); no :not */
+int css_not_pseudo_arg [256];
 /* Set true at parse time if any rule references :hover or :focus.
  * Cheap gate: when false, the hover-driven restyle path is skipped. */
 int css_has_dynamic_pseudo;
@@ -605,6 +679,7 @@ void browser_main() {
     hover_dom_node = -1;
     prev_hover_dom_node = -1;
     css_has_dynamic_pseudo = 0;
+    css_not_count = 0;
     jtk_count = 0;
     jn_count = 0;
     js_str_pool_pos = 0;
