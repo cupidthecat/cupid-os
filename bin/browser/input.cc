@@ -1,0 +1,260 @@
+/* Hit testing + Input */
+
+/* Reverse-depth render-tree hit test: returns the deepest render node whose
+ * paint rectangle contains (mx, my). Inputs are window-content-relative
+ * coordinates (the same frame rt_screen_x/y produces, i.e. they already
+ * account for viewport_y() and scroll_y). */
+int rt_hit(int n, int mx, int my) {
+    int sx = rt_screen_x(n);
+    int sy = rt_screen_y(n);
+    if (mx < sx || mx >= sx + rt_w[n] || my < sy || my >= sy + rt_h[n]) return -1;
+    /* Walk children deepest/last-first so later painters win on overlap. */
+    int sibs[256];
+    int nsib = 0;
+    int c = rt_first_child[n];
+    while (c >= 0 && nsib < 256) { sibs[nsib] = c; nsib = nsib + 1; c = rt_next[c]; }
+    for (int k = nsib - 1; k >= 0; k--) {
+        int h = rt_hit(sibs[k], mx, my);
+        if (h >= 0) return h;
+    }
+    return n;
+}
+
+int hit_box(int mx, int my) {
+    if (rt_count == 0) return -1;
+    return rt_hit(0, mx, my);
+}
+
+/* find the input/button form parent node */
+int find_node_for_input(int ii) {
+    if (ii < 0 || ii >= inputs_count) return -1;
+    return input_node[ii];
+}
+
+int find_form_node(int input_node) {
+    int p = n_parent[input_node];
+    while (p >= 0) {
+        if (n_tag[p] == T_FORM) return p;
+        p = n_parent[p];
+    }
+    return -1;
+}
+
+void clamp_scroll() {
+    int max = doc_h - viewport_h();
+    if (max < 0) max = 0;
+    if (scroll_y > max) scroll_y = max;
+    if (scroll_y < 0) scroll_y = 0;
+}
+
+void handle_address_key(int sc, int ch) {
+    if (ch == 13 || ch == 10) {
+        focus_mode = FOCUS_PAGE;
+        navigate(addr_buf);
+        return;
+    }
+    if (ch == 27) { focus_mode = FOCUS_PAGE; return; }
+    if (ch == 8) {
+        if (addr_cursor > 0) {
+            int k = addr_cursor;
+            while (k < addr_len) {
+                addr_buf[k - 1] = addr_buf[k];
+                k = k + 1;
+            }
+            addr_len = addr_len - 1;
+            addr_cursor = addr_cursor - 1;
+            addr_buf[addr_len] = 0;
+        }
+        return;
+    }
+    if (sc == 75) {  /* left */
+        if (addr_cursor > 0) addr_cursor = addr_cursor - 1;
+        return;
+    }
+    if (sc == 77) {  /* right */
+        if (addr_cursor < addr_len) addr_cursor = addr_cursor + 1;
+        return;
+    }
+    if (sc == 71) { addr_cursor = 0; return; }       /* home */
+    if (sc == 79) { addr_cursor = addr_len; return; }/* end */
+    if (ch >= 32 && ch < 127 && addr_len < URL_MAX - 1) {
+        int k = addr_len;
+        while (k > addr_cursor) {
+            addr_buf[k] = addr_buf[k - 1];
+            k = k - 1;
+        }
+        addr_buf[addr_cursor] = (char)ch;
+        addr_len = addr_len + 1;
+        addr_cursor = addr_cursor + 1;
+        addr_buf[addr_len] = 0;
+    }
+}
+
+void handle_input_key(int sc, int ch) {
+    int ii = focused_input;
+    if (ii < 0 || ii >= inputs_count) return;
+    char *v = input_value + ii * 128;
+    int vl = b_strlen(v);
+    if (ch == 13 || ch == 10) {
+        /* submit form */
+        int fi = input_form[ii];
+        focus_mode = FOCUS_PAGE;
+        if (fi >= 0 && fi < forms_count) submit_form(form_node[fi]);
+        return;
+    }
+    if (ch == 27) { focus_mode = FOCUS_PAGE; return; }
+    if (ch == 8) {
+        if (vl > 0) v[vl - 1] = 0;
+        return;
+    }
+    if (ch >= 32 && ch < 127 && vl < 126) {
+        v[vl] = (char)ch;
+        v[vl + 1] = 0;
+    }
+}
+
+void handle_page_key(int sc, int ch) {
+    if (ch == 8) { go_back(); return; }
+    /* Ctrl-L = focus address bar (ASCII 12 = ^L) */
+    if (ch == 12) {
+        focus_mode = FOCUS_ADDR;
+        addr_cursor = addr_len;
+        return;
+    }
+    if (sc == 72) { scroll_y = scroll_y - line_h * 2; clamp_scroll(); return; }
+    if (sc == 80) { scroll_y = scroll_y + line_h * 2; clamp_scroll(); return; }
+    if (sc == 73) { scroll_y = scroll_y - viewport_h() + line_h; clamp_scroll(); return; }
+    if (sc == 81) { scroll_y = scroll_y + viewport_h() - line_h; clamp_scroll(); return; }
+    if (sc == 71) { scroll_y = 0; return; }
+    if (sc == 79) { scroll_y = doc_h; clamp_scroll(); return; }
+    if (ch == 27) {
+        /* Esc - close the window */
+        gui_win_close(win);
+    }
+}
+
+void handle_keys() {
+    int key = gui_win_poll_key(win);
+    while (key != -1) {
+        int sc = (key >> 8) & 255;
+        int ch = key & 255;
+        if (focus_mode == FOCUS_ADDR) handle_address_key(sc, ch);
+        else if (focus_mode == FOCUS_INPUT) handle_input_key(sc, ch);
+        else handle_page_key(sc, ch);
+        key = gui_win_poll_key(win);
+    }
+}
+
+void handle_left_click(int mx, int my) {
+    int cx = gui_win_content_x(win);
+    int cy = gui_win_content_y(win);
+    int rel_x = mx - cx;
+    int rel_y = my - cy;
+    /* address bar? */
+    if (rel_y >= 0 && rel_y < ADDR_H) {
+        focus_mode = FOCUS_ADDR;
+        addr_cursor = addr_len;
+        return;
+    }
+    /* viewport */
+    if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
+        rel_x >= 0 && rel_x < cur_cw - 12) {
+        int hit = hit_box(rel_x, rel_y);
+        if (hit >= 0) {
+            /* Walk parent chain looking for the nearest interactive node:
+             * a link, a focusable input, or a submit-capable button/input. */
+            int link = -1;
+            int input_idx = -1;
+            int submit_form_node = -1;
+            int cur = hit;
+            while (cur >= 0) {
+                if (rt_link_idx[cur] >= 0) { link = rt_link_idx[cur]; break; }
+                if (rt_input_idx[cur] >= 0) { input_idx = rt_input_idx[cur]; break; }
+                int dom = rt_dom[cur];
+                if (dom >= 0) {
+                    int tag = n_tag[dom];
+                    if (tag == T_BUTTON) {
+                        char *btyp = dom_attr_str(dom, "type");
+                        /* default <button> behavior is submit */
+                        if (btyp == 0 || b_strieq(btyp, "submit")) {
+                            int fn = find_form_node(dom);
+                            if (fn >= 0) { submit_form_node = fn; break; }
+                        }
+                    } else if (tag == T_INPUT) {
+                        char *typ = dom_attr_str(dom, "type");
+                        if (typ != 0 &&
+                            (b_strieq(typ, "submit") || b_strieq(typ, "image"))) {
+                            int fn = find_form_node(dom);
+                            if (fn >= 0) { submit_form_node = fn; break; }
+                        }
+                    }
+                }
+                cur = rt_parent[cur];
+            }
+            if (link >= 0) {
+                char *u = attr_pool + link_url_off[link];
+                char full[1024];
+                compute_url_relative(u, full, URL_MAX);
+                focus_mode = FOCUS_PAGE;
+                navigate(full);
+                return;
+            }
+            if (input_idx >= 0) {
+                focus_mode = FOCUS_INPUT;
+                focused_input = input_idx;
+                return;
+            }
+            if (submit_form_node >= 0) {
+                focus_mode = FOCUS_PAGE;
+                submit_form(submit_form_node);
+                return;
+            }
+        }
+        focus_mode = FOCUS_PAGE;
+        return;
+    }
+    /* scrollbar? */
+    if (rel_x >= cur_cw - 12 && rel_x < cur_cw &&
+        rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h()) {
+        int rel = rel_y - viewport_y();
+        int frac = (rel * 100) / viewport_h();
+        scroll_y = (doc_h - viewport_h()) * frac / 100;
+        clamp_scroll();
+        return;
+    }
+}
+
+void handle_hover(int mx, int my) {
+    int cx = gui_win_content_x(win);
+    int cy = gui_win_content_y(win);
+    int rel_x = mx - cx;
+    int rel_y = my - cy;
+    hover_link = -1;
+    if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
+        rel_x >= 0 && rel_x < cur_cw - 12) {
+        int hit = hit_box(rel_x, rel_y);
+        if (hit >= 0) {
+            int cur = hit;
+            while (cur >= 0) {
+                if (rt_link_idx[cur] >= 0) { hover_link = rt_link_idx[cur]; break; }
+                cur = rt_parent[cur];
+            }
+        }
+    }
+}
+
+void handle_mouse() {
+    int mx = mouse_x();
+    int my = mouse_y();
+    int btns = mouse_buttons();
+    int left_click = (btns & 1) && !(prev_buttons & 1);
+    if (left_click) handle_left_click(mx, my);
+    handle_hover(mx, my);
+
+    int dz = mouse_scroll();
+    if (dz != 0) {
+        scroll_y = scroll_y + dz * line_h * 3;
+        clamp_scroll();
+    }
+    prev_buttons = btns;
+}
