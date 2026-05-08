@@ -642,7 +642,33 @@ void parse_html(int html_len) {
             for (int k = sp - 1; k >= 1; k = k - 1) {
                 if (n_tag[stack[k]] == tag) { found = k; break; }
             }
-            if (found >= 0) sp = found;
+            if (found < 0) continue;
+
+            /* Simplified adoption-agency: any formatting elements (b/i/em/
+             * strong/font/u/s) on the stack ABOVE the matched end tag are
+             * still active per spec - the misnest <b><i>x</b> closes b but
+             * keeps i open, with subsequent content wrapped in a fresh i.
+             * We capture the tags above the match, pop to it, then re-open
+             * each captured tag as a new sibling under the new top. Limited
+             * to 8 saved tags - deeper formatting nests fall through. */
+            int saved[8];
+            int n_saved = 0;
+            for (int k = found + 1; k < sp && n_saved < 8; k = k + 1) {
+                int t = n_tag[stack[k]];
+                if (t == T_B || t == T_I || t == T_EM || t == T_STRONG ||
+                    t == T_FONT) {
+                    saved[n_saved] = t;
+                    n_saved = n_saved + 1;
+                }
+            }
+            sp = found;
+            for (int k = 0; k < n_saved && sp < 64; k = k + 1) {
+                int new_parent = stack[sp - 1];
+                int nn = alloc_node(saved[k], new_parent, -1);
+                if (nn < 0) break;
+                stack[sp] = nn;
+                sp = sp + 1;
+            }
 
             /* mode transitions on close */
             if (tag == T_TABLE)        mode = IM_IN_BODY;

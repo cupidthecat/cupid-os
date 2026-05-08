@@ -969,6 +969,13 @@ void style_resolve_all() {
                 cs_line_height_mult[cs] = cs_line_height_mult[pcs];
             }
             if (cs_font_size_px[cs] < 0) cs_font_size_px[cs] = cs_font_size_px[pcs];
+            /* font-weight / font-style are inherited per CSS spec. Element
+             * UA defaults set 400 / 0 explicitly, so we promote to parent's
+             * value only when the child still carries the default — child
+             * elements that explicitly set normal still override correctly
+             * because cascade ran before this inheritance pass. */
+            if (cs_font_w[cs] == 400 && cs_font_w[pcs] != 400) cs_font_w[cs] = cs_font_w[pcs];
+            if (cs_font_i[cs] == 0   && cs_font_i[pcs] != 0)   cs_font_i[cs] = cs_font_i[pcs];
         } else {
             /* root: ensure color is concrete and font-size has a baseline */
             if (cs_color[cs] < 0) cs_color[cs] = 0x000000;
