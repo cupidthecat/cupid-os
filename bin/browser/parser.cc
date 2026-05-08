@@ -498,6 +498,15 @@ void parse_html(int html_len) {
                 css_parse_block(attr_pool + text_off, text_len);
                 continue;
             }
+            /* §7 inline <script>: queue the source for execution after
+             * the DOM and render tree are built (DOMContentLoaded-ish
+             * semantics). The text node itself is dropped from the DOM
+             * via display:none on T_SCRIPT, but we must not emit it as
+             * visible text either. */
+            if (parent_tag == T_SCRIPT) {
+                js_queue_script(text_off, text_len);
+                continue;
+            }
             int n = alloc_node(T_TEXT, parent, -1);
             if (n < 0) continue;
             n_text_off[n] = text_off;
@@ -652,4 +661,12 @@ void parse_html(int html_len) {
 
     build_render_tree();
     serial_printf("[browser] rt: %d nodes\n", rt_count);
+
+    /* §7 run queued <script> blocks now that the DOM, computed styles,
+     * and render tree exist. F1a: lex/parse/dump only. Subsequent
+     * phases will route DOM mutations back through style+layout. */
+    if (js_script_count > 0) {
+        serial_printf("[browser] js: running %d queued scripts\n", js_script_count);
+        js_run_queued_scripts();
+    }
 }

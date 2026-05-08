@@ -154,7 +154,47 @@ enum {
     /* focus */
     FOCUS_PAGE = 0,
     FOCUS_ADDR = 1,
-    FOCUS_INPUT = 2
+    FOCUS_INPUT = 2,
+
+    /* §7 JavaScript engine pools */
+    MAX_JS_TOKENS = 8192,
+    MAX_JS_NODES  = 8192,
+    JS_STR_POOL   = 65536,
+    MAX_JS_SCRIPTS = 32,
+
+    /* JS token kinds */
+    JS_TOK_EOF = 0,
+    JS_TOK_NUMBER, JS_TOK_STRING, JS_TOK_IDENT,
+    JS_TOK_LBRACE, JS_TOK_RBRACE, JS_TOK_LPAREN, JS_TOK_RPAREN,
+    JS_TOK_LBRACK, JS_TOK_RBRACK,
+    JS_TOK_SEMI, JS_TOK_COMMA, JS_TOK_DOT, JS_TOK_COLON, JS_TOK_QUESTION,
+    JS_TOK_ASSIGN, JS_TOK_PLUS, JS_TOK_MINUS, JS_TOK_STAR, JS_TOK_SLASH,
+    JS_TOK_PERCENT,
+    JS_TOK_PLUS_EQ, JS_TOK_MINUS_EQ, JS_TOK_STAR_EQ, JS_TOK_SLASH_EQ,
+    JS_TOK_PLUS_PLUS, JS_TOK_MINUS_MINUS,
+    JS_TOK_EQ, JS_TOK_NEQ, JS_TOK_EQ_EQ, JS_TOK_NEQ_EQ,
+    JS_TOK_LT, JS_TOK_GT, JS_TOK_LE, JS_TOK_GE,
+    JS_TOK_AND_AND, JS_TOK_OR_OR, JS_TOK_NOT,
+    JS_TOK_KW_VAR, JS_TOK_KW_LET, JS_TOK_KW_CONST,
+    JS_TOK_KW_FUNCTION, JS_TOK_KW_RETURN,
+    JS_TOK_KW_IF, JS_TOK_KW_ELSE,
+    JS_TOK_KW_WHILE, JS_TOK_KW_FOR,
+    JS_TOK_KW_BREAK, JS_TOK_KW_CONTINUE,
+    JS_TOK_KW_TRUE, JS_TOK_KW_FALSE,
+    JS_TOK_KW_NULL, JS_TOK_KW_UNDEFINED,
+    JS_TOK_KW_NEW, JS_TOK_KW_TYPEOF,
+
+    /* JS AST node kinds */
+    JS_NODE_NONE = 0,
+    JS_NODE_NUM, JS_NODE_STR, JS_NODE_BOOL, JS_NODE_NULL, JS_NODE_UNDEF,
+    JS_NODE_IDENT, JS_NODE_ARR_LIT, JS_NODE_OBJ_LIT, JS_NODE_OBJ_PROP,
+    JS_NODE_BIN, JS_NODE_UNARY, JS_NODE_ASSIGN,
+    JS_NODE_MEMBER, JS_NODE_INDEX, JS_NODE_CALL,
+    JS_NODE_COND, JS_NODE_PRE_INC, JS_NODE_POST_INC,
+    JS_NODE_EXPR_STMT, JS_NODE_VAR_DECL, JS_NODE_VAR_DECLARATOR,
+    JS_NODE_BLOCK, JS_NODE_IF, JS_NODE_WHILE, JS_NODE_FOR,
+    JS_NODE_RETURN, JS_NODE_BREAK, JS_NODE_CONTINUE,
+    JS_NODE_FUNC_DECL, JS_NODE_FUNC_EXPR, JS_NODE_PROGRAM
 };
 
 /* Global state */
@@ -371,6 +411,41 @@ int  page_fg;
  * margin-inset double-paint. */
 int  doc_bg_suppress_body;
 
+/* §7 JS engine pools. Reset per page from navigate() (mirrors the
+ * attr_pool per-page reset pattern). All sizes are conservative for
+ * the small scripts the browser is expected to encounter. */
+int  jtk_kind   [8192];     /* MAX_JS_TOKENS */
+int  jtk_num    [8192];
+int  jtk_str_off[8192];
+int  jtk_str_len[8192];
+int  jtk_line   [8192];
+int  jtk_count;
+
+/* JS AST nodes — parallel arrays. Each node carries up to four int
+ * slots; per-kind layout is documented in js_parse.cc / js_interp.cc. */
+int  jn_kind   [8192];
+int  jn_a      [8192];
+int  jn_b      [8192];
+int  jn_c      [8192];
+int  jn_d      [8192];
+int  jn_next   [8192];      /* sibling link inside a list (block stmts, args, params) */
+int  jn_count;
+
+/* JS string pool — interns identifiers, string literals, AST string
+ * fields. Reset per page. */
+char js_str_pool[65536];
+int  js_str_pool_pos;
+
+/* Queue of <script> source ranges to run after parse + render-tree
+ * build; entries are (attr_pool offset, length). */
+int  js_script_off[32];
+int  js_script_len[32];
+int  js_script_count;
+
+/* Last error message produced by the JS engine; non-empty if a parse
+ * or eval error occurred. */
+char js_last_error[256];
+
 /* history */
 char hist_url_pool[16384];
 int  hist_count;
@@ -414,6 +489,11 @@ void browser_main() {
     hover_dom_node = -1;
     prev_hover_dom_node = -1;
     css_has_dynamic_pseudo = 0;
+    jtk_count = 0;
+    jn_count = 0;
+    js_str_pool_pos = 0;
+    js_script_count = 0;
+    js_last_error[0] = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

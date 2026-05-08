@@ -95,6 +95,7 @@ void navigate(char *u) {
      * builder used to do this internally, but now tokenize() interns into
      * attr_pool, so we must reset before tokenize starts. */
     attr_pool_pos = 1;
+    js_reset_per_page();
     parse_html(page_len);
     run_layout();           /* render-tree layout drives the visible pipeline */
     scroll_y = 0;

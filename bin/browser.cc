@@ -10,6 +10,8 @@
 #include "browser/url.cc"
 #include "browser/net.cc"
 #include "browser/dom.cc"
+#include "browser/js_lex.cc"
+#include "browser/js_parse.cc"
 #include "browser/parser.cc"
 #include "browser/css.cc"
 #include "browser/style.cc"
