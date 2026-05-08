@@ -39,6 +39,7 @@ void ua_default_style(int tag, int cs) {
     cs_vertical_align[cs] = VA_BASELINE;
     cs_line_height[cs] = -1;        /* unset; falls back to tier_line_h */
     cs_line_height_mult[cs] = 0;
+    cs_font_size_px[cs] = -1;       /* unset; inherits from parent */
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -48,31 +49,37 @@ void ua_default_style(int tag, int cs) {
      * tightened so the top-of-page gap matches a real browser. */
     if (tag == T_H1) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_tier[cs] = 4;
+        cs_font_size_px[cs] = 32;       /* 2em on 16px body */
         cs_margin[cs][0] = 14; cs_margin[cs][2] = 14;
         return;
     }
     if (tag == T_H2) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_tier[cs] = 3;
+        cs_font_size_px[cs] = 24;       /* 1.5em */
         cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
         return;
     }
     if (tag == T_H3) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_tier[cs] = 3;
+        cs_font_size_px[cs] = 19;       /* 1.17em */
         cs_margin[cs][0] = 11; cs_margin[cs][2] = 11;
         return;
     }
     if (tag == T_H4) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_tier[cs] = 2;
+        cs_font_size_px[cs] = 16;       /* 1em */
         cs_margin[cs][0] = 10; cs_margin[cs][2] = 10;
         return;
     }
-    if (tag == T_H5 || tag == T_H6) {
+    if (tag == T_H5) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_tier[cs] = 1;
+        cs_font_size_px[cs] = 13;       /* 0.83em */
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        return;
+    }
+    if (tag == T_H6) {
+        cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
+        cs_font_size_px[cs] = 11;       /* 0.67em */
         cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
         return;
     }
@@ -156,8 +163,16 @@ void ua_default_style(int tag, int cs) {
         cs_margin[cs][2] = 8; cs_margin[cs][3] = 8;
         return;
     }
-    if (tag == T_HTML) { cs_display[cs] = DISP_BLOCK; return; }
-    if (tag == T_ROOT) { cs_display[cs] = DISP_BLOCK; return; }
+    if (tag == T_HTML) {
+        cs_display[cs] = DISP_BLOCK;
+        cs_font_size_px[cs] = 16;       /* root font-size baseline (rem unit) */
+        return;
+    }
+    if (tag == T_ROOT) {
+        cs_display[cs] = DISP_BLOCK;
+        cs_font_size_px[cs] = 16;
+        return;
+    }
     if (tag == T_HEAD || tag == T_SCRIPT || tag == T_STYLE ||
         tag == T_NOSCRIPT) {
         cs_display[cs] = DISP_NONE;
@@ -252,6 +267,80 @@ int css_value_keyword(int off, int len, char *kw) {
     return b_strieq_n(css_value_pool + off, kw, kl);
 }
 
+/* Map computed font-size in px to the kernel's three-tier glyph render set.
+ *   tier 0 = SMALL  6x8
+ *   tier 1/2 = NORMAL 8x8
+ *   tier 3/4 = LARGE  16x16  (8x8 doubled)
+ * Buckets:
+ *   <= 14 px  -> SMALL    (h5, h6, small/x-small body)
+ *   15-18 px  -> NORMAL   (body, h4, medium)
+ *   19-26 px  -> LARGE-3  (h2, h3, large/x-large)
+ *   >= 27 px  -> LARGE-4  (h1, xx-large) — same glyph, taller line box. */
+int px_to_tier(int px) {
+    if (px <= 0)  return 1;
+    if (px <= 14) return 0;
+    if (px <= 18) return 1;
+    if (px <= 26) return 3;
+    return 4;
+}
+
+/* Parse a CSS length / size value into px. Handles:
+ *   <int>         -> int (treated as px)
+ *   <num>px       -> num
+ *   <num>em       -> num * parent_px
+ *   <num>rem      -> num * root_px
+ *   <num>%        -> num/100 * parent_px
+ *   keyword font-size set: xx-small/x-small/small/medium/large/x-large/xx-large
+ * Returns -1 on parse failure. */
+int parse_length_px(int off, int len, int parent_px, int root_px) {
+    int i = off;
+    int end = off + len;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i >= end) return -1;
+    int klen = end - i;
+    if (klen >= 8  && css_value_keyword(i, klen, "xx-small")) return 9;
+    if (klen >= 7  && css_value_keyword(i, klen, "x-small"))  return 11;
+    if (klen >= 6  && css_value_keyword(i, klen, "medium"))   return 16;
+    if (klen >= 7  && css_value_keyword(i, klen, "x-large"))  return 24;
+    if (klen >= 8  && css_value_keyword(i, klen, "xx-large")) return 32;
+    if (klen >= 5  && css_value_keyword(i, klen, "small"))    return 13;
+    if (klen >= 5  && css_value_keyword(i, klen, "large"))    return 19;
+    if (css_value_pool[i] < '0' || css_value_pool[i] > '9') return -1;
+    int int_part = 0;
+    while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+        int_part = int_part * 10 + (css_value_pool[i] - '0');
+        i = i + 1;
+    }
+    int frac = 0;
+    if (i < end && css_value_pool[i] == '.') {
+        i = i + 1;
+        int digits = 0;
+        while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+            if (digits < 2) frac = frac * 10 + (css_value_pool[i] - '0');
+            digits = digits + 1;
+            i = i + 1;
+        }
+        if (digits == 1) frac = frac * 10;
+    }
+    int v_x100 = int_part * 100 + frac;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i >= end) return v_x100 / 100;
+    if (i + 1 < end && css_value_pool[i] == 'p' && css_value_pool[i+1] == 'x') {
+        return v_x100 / 100;
+    }
+    if (i + 2 < end &&
+        css_value_pool[i] == 'r' && css_value_pool[i+1] == 'e' && css_value_pool[i+2] == 'm') {
+        return (v_x100 * root_px) / 100;
+    }
+    if (i + 1 < end && css_value_pool[i] == 'e' && css_value_pool[i+1] == 'm') {
+        return (v_x100 * parent_px) / 100;
+    }
+    if (css_value_pool[i] == '%') {
+        return (v_x100 * parent_px) / 10000;
+    }
+    return v_x100 / 100;
+}
+
 /* Parse a `line-height` value into (px_or_mult, is_mult). Returns 1 on success.
  *   "30px" -> value=30,  is_mult=0
  *   "1.8"  -> value=180, is_mult=1     (multiplier x100)
@@ -316,15 +405,18 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         return;
     }
     if (prop == CP_FONT_SIZE) {
-        /* Tier maps to a real font size: 0=SMALL 6x8, 1-2=NORMAL 8x8,
-         * 3-4=LARGE 16x16. Anything ~16px+ promotes to LARGE so h1/h2
-         * actually render bigger. */
-        int px = css_value_int(val_off, val_len);
-        if (px <= 7)  { cs_font_size_tier[cs] = 0; return; }
-        if (px <= 11) { cs_font_size_tier[cs] = 1; return; }
-        if (px <= 15) { cs_font_size_tier[cs] = 2; return; }
-        if (px <= 22) { cs_font_size_tier[cs] = 3; return; }
-        cs_font_size_tier[cs] = 4;
+        /* Resolve to px against parent (em/%) and root (rem). cs index ==
+         * DOM node index, so parent_cs == n_parent[cs] and the parent has
+         * already been cascaded earlier in DOM order. */
+        int parent_px = 16;
+        int root_px = 16;
+        int parent = n_parent[cs];
+        if (parent >= 0 && parent < cs && cs_font_size_px[parent] > 0) {
+            parent_px = cs_font_size_px[parent];
+        }
+        if (cs >= 1 && cs_font_size_px[1] > 0) root_px = cs_font_size_px[1];
+        int px = parse_length_px(val_off, val_len, parent_px, root_px);
+        if (px > 0) cs_font_size_px[cs] = px;
         return;
     }
     if (prop == CP_TEXT_ALIGN) {
@@ -512,12 +604,15 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 /* leave defaults; could clear italic/bold */
             }
             else if (css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9') {
-                int px = css_value_int(t_start, t_len);
-                if (px <= 7)       cs_font_size_tier[cs] = 0;
-                else if (px <= 11) cs_font_size_tier[cs] = 1;
-                else if (px <= 15) cs_font_size_tier[cs] = 2;
-                else if (px <= 22) cs_font_size_tier[cs] = 3;
-                else               cs_font_size_tier[cs] = 4;
+                int parent_px = 16;
+                int root_px = 16;
+                int parent = n_parent[cs];
+                if (parent >= 0 && parent < cs && cs_font_size_px[parent] > 0) {
+                    parent_px = cs_font_size_px[parent];
+                }
+                if (cs >= 1 && cs_font_size_px[1] > 0) root_px = cs_font_size_px[1];
+                int px = parse_length_px(t_start, t_len, parent_px, root_px);
+                if (px > 0) cs_font_size_px[cs] = px;
             }
             /* unknown tokens (font-family etc) ignored */
         }
@@ -773,10 +868,16 @@ void style_resolve_all() {
                 cs_line_height[cs] = cs_line_height[pcs];
                 cs_line_height_mult[cs] = cs_line_height_mult[pcs];
             }
+            if (cs_font_size_px[cs] < 0) cs_font_size_px[cs] = cs_font_size_px[pcs];
         } else {
-            /* root: ensure color is concrete */
+            /* root: ensure color is concrete and font-size has a baseline */
             if (cs_color[cs] < 0) cs_color[cs] = 0x000000;
+            if (cs_font_size_px[cs] < 0) cs_font_size_px[cs] = 16;
         }
+        /* Derive the kernel-tier from the px-resolved size. layout/paint
+         * still consume cs_font_size_tier; cs_font_size_px is the source
+         * of truth and what em/rem/% length resolution reads. */
+        cs_font_size_tier[cs] = px_to_tier(cs_font_size_px[cs]);
     }
 }
 

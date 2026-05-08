@@ -356,6 +356,9 @@ int cs_vertical_align[4096];
  * when 0, the value is a px length. */
 int cs_line_height[4096];
 int cs_line_height_mult[4096];
+/* font-size in px. -1 = unset (inherit from parent during cascade fill).
+ * cs_font_size_tier is derived from this via px_to_tier(px). */
+int cs_font_size_px[4096];
 
 /* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;

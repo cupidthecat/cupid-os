@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><title>A2 font-size</title></head>
+<body>
+<h1>h1 default (UA 32px = 2em)</h1>
+<h2>h2 default (UA 24px = 1.5em)</h2>
+<h3>h3 default (UA 19px = 1.17em)</h3>
+<h4>h4 default (UA 16px = 1em)</h4>
+<p>body paragraph default (16px). Body text wraps over multiple lines. One. Two. Three. Four. Five. Six. Seven. Eight. Nine. Ten. Eleven. Twelve.</p>
+
+<p style="font-size:8px">[8px] very small body text.</p>
+<p style="font-size:12px">[12px] small body text. Wraps. One. Two. Three. Four. Five. Six. Seven. Eight. Nine. Ten. Eleven. Twelve. Thirteen.</p>
+<p style="font-size:16px">[16px] base body text size.</p>
+<p style="font-size:20px">[20px] larger body text. Wraps. One. Two. Three. Four. Five. Six. Seven. Eight.</p>
+<p style="font-size:24px">[24px] heading-sized inline text.</p>
+
+<p style="font-size:1.5em">[1.5em over 16px parent = 24px]</p>
+<p style="font-size:0.875em">[0.875em over 16px parent = 14px]</p>
+<p style="font-size:1rem">[1rem = root html font-size = 16px]</p>
+<p style="font-size:150%">[150% of parent = 24px]</p>
+
+<p style="font-size:xx-small">[xx-small keyword = 9px]</p>
+<p style="font-size:small">[small keyword = 13px]</p>
+<p style="font-size:medium">[medium keyword = 16px]</p>
+<p style="font-size:large">[large keyword = 19px]</p>
+<p style="font-size:xx-large">[xx-large keyword = 32px]</p>
+
+<div style="font-size:20px">
+  <p>[nested p inside div(20px), inherits 20px]</p>
+  <p style="font-size:1.2em">[nested em compounds: 1.2 x 20 = 24px]</p>
+</div>
+</body>
+</html>
