@@ -81,7 +81,7 @@ static void compose_nonce(const uint8_t iv[12], uint64_t seq,
     }
 }
 
-/* --- Read full from transport -------------------------------------- */
+/* Read full from transport */
 
 static int xport_full_recv(tls_record_state_t *r,
                            uint8_t *buf, uint32_t want) {
@@ -105,7 +105,7 @@ static int xport_full_send(tls_record_state_t *r,
     return 0;
 }
 
-/* --- Send -------------------------------------------------------- */
+/* Send */
 
 /* TLS 1.2 encrypted send path. Different from 1.3 in three ways:
  *   - outer header type carries the real content type;
@@ -250,7 +250,7 @@ int tls_record_send(tls_record_state_t *r,
     return 0;
 }
 
-/* --- Recv -------------------------------------------------------- */
+/* Recv */
 
 /* TLS 1.2 encrypted recv. Outer type is the real content type; AAD
  * shape and explicit-nonce handling per the comment above the send
@@ -334,7 +334,7 @@ int tls_record_recv(tls_record_state_t *r,
 
     if (r->rcv.active && r->tls12) {
         if (type == TLS_RT_CHANGE_CIPHER_SPEC) {
-            /* CCS arrives in cleartext even after switch — return as-is. */
+            /* CCS arrives in cleartext even after switch - return as-is. */
             if (body_len > buf_max) return -2;
             if (body_len > 0u) {
                 if (xport_full_recv(r, buf, body_len) != 0) return -1;

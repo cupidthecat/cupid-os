@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS_KDF_H
 #define CUPID_TLS_KDF_H
 
-#include "../types.h"
+#include "types.h"
 
 /* TLS 1.3 key schedule helpers (RFC 8446 §7).
  *

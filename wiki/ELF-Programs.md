@@ -80,13 +80,13 @@ Hello from an ELF program!
          ▼
 ┌────────────────────────────────────────────────┐
 │  1. Format Detection                           │
-│     Read first 4 bytes → 0x7F 'E' 'L' 'F'     │
+│     Read first 4 bytes -> 0x7F 'E' 'L' 'F'     │
 ├────────────────────────────────────────────────┤
 │  2. Header Validation                          │
 │     ELF32, little-endian, i386, ET_EXEC        │
 ├────────────────────────────────────────────────┤
 │  3. Scan PT_LOAD Segments                      │
-│     Calculate vaddr range (min → max)          │
+│     Calculate vaddr range (min -> max)         │
 ├────────────────────────────────────────────────┤
 │  4. Reserve Physical Pages                     │
 │     pmm_reserve_region(page_base, page_size)   │
@@ -97,10 +97,10 @@ Hello from an ELF program!
 ├────────────────────────────────────────────────┤
 │  6. Create Process                             │
 │     process_create_with_arg(entry, name,       │
-│         stack_size, &syscall_table)             │
+│         stack_size, &syscall_table)            │
 ├────────────────────────────────────────────────┤
 │  7. Schedule                                   │
-│     process_yield() → new process runs         │
+│     process_yield() -> new process runs        │
 └────────────────────────────────────────────────┘
 ```
 
@@ -116,7 +116,7 @@ Physical / Virtual Memory (32 MB identity-mapped):
 │ 0x00040000 - 0x00200000 │ Heap + Stacks        │
 │ 0x00400000 - ...        │ ELF Program Memory   │
 │ ...                     │ ...                  │
-│ 0x02000000              │ End of identity map   │
+│ 0x02000000              │ End of identity map  │
 └─────────────────────────┴──────────────────────┘
 ```
 
@@ -277,10 +277,10 @@ After calling `cupid_init(sys)`, you can use these wrapper functions directly (n
 |----------|-----------|-------------|
 | `exec_program` | `int exec_program(const char *path, const char *name)` | Load and run another program |
 
-### Phase 4 / 5 — Networking + drivers (syscall table v3)
+### Phase 4 / 5 - Networking + drivers (syscall table v3)
 
 Bumped to **`CUPID_SYSCALL_VERSION = 3`** in
-`kernel/syscall.h`. Layout is append-only — programs built against v2
+`kernel/core/syscall.h`. Layout is append-only - programs built against v2
 still work; new programs should check `sys->version >= 3` and
 `sys->table_size >= sizeof(<largest field they touch>)` before calling
 the new fields.
@@ -299,8 +299,8 @@ compile rather than silently shipping a layout mismatch with the AOT
 | `net_get_gateway` | `uint32_t (*net_get_gateway)(void)` |
 | `net_get_dns` | `uint32_t (*net_get_dns)(void)` |
 | `net_get_mask` | `uint32_t (*net_get_mask)(void)` |
-| `net_get_mac` | `void (*net_get_mac)(uint8_t *out)` — fills 6 bytes |
-| `net_link_up` | `uint32_t (*net_link_up)(void)` — 1=up, 0=down |
+| `net_get_mac` | `void (*net_get_mac)(uint8_t *out)` - fills 6 bytes |
+| `net_link_up` | `uint32_t (*net_link_up)(void)` - 1=up, 0=down |
 | `net_rx_packets` / `net_tx_packets` | counters |
 | `net_rx_drops` / `net_tx_errors` | error counters |
 
@@ -313,7 +313,7 @@ compile rather than silently shipping a layout mismatch with the AOT
 | `arp_resolve` | `int (*arp_resolve)(uint32_t ip, uint8_t mac_out[6])` |
 | `arp_dump` / `arp_get_entries` | cache inspection |
 | `icmp_send_echo` | `int (*icmp_send_echo)(uint32_t dst, uint16_t id, uint16_t seq, uint32_t paylen)` |
-| `icmp_wait_reply` | `int (*icmp_wait_reply)(uint32_t src, uint16_t id, uint16_t seq, uint32_t timeout_ms)` — returns RTT ms |
+| `icmp_wait_reply` | `int (*icmp_wait_reply)(uint32_t src, uint16_t id, uint16_t seq, uint32_t timeout_ms)` - returns RTT ms |
 | `udp_send_raw` | `int (*udp_send_raw)(uint32_t dst, uint16_t sport, uint16_t dport, const uint8_t *data, uint32_t len)` |
 
 #### DNS + byte-order
@@ -326,11 +326,11 @@ compile rather than silently shipping a layout mismatch with the AOT
 
 #### BSD sockets
 
-Ports are network byte order — wrap literals in `htons()`.
+Ports are network byte order - wrap literals in `htons()`.
 
 | Field | Signature |
 |---|---|
-| `sock_socket` | `int (*sock_socket)(int type)` — `2`=TCP, `1`=UDP |
+| `sock_socket` | `int (*sock_socket)(int type)` - `2`=TCP, `1`=UDP |
 | `sock_bind` | `int (*sock_bind)(int fd, uint32_t ip, uint16_t port)` |
 | `sock_listen` | `int (*sock_listen)(int fd, int backlog)` |
 | `sock_accept` | `int (*sock_accept)(int fd, uint32_t *peer_ip, uint16_t *peer_port)` |
@@ -348,17 +348,17 @@ Ports are network byte order — wrap literals in `htons()`.
 | `blkdev_write` | `int (*blkdev_write)(int idx, uint32_t lba, uint32_t count, const void *buf)` |
 | `ata_read_sectors` / `ata_write_sectors` | direct ATA I/O |
 
-#### Drivers — serial, speaker, PIT
+#### Drivers - serial, speaker, PIT
 
 | Field | Signature |
 |---|---|
-| `serial_read_char` | `int (*)(void)` — non-blocking, -1 if empty |
+| `serial_read_char` | `int (*)(void)` - non-blocking, -1 if empty |
 | `serial_write_char` | `void (*)(char)` |
 | `serial_write_string` | `void (*)(const char *)` |
 | `serial_has_rx` | `int (*)(void)` |
 | `pc_speaker_on` / `pc_speaker_off` | square wave on PC speaker |
 | `pit_set_frequency` | `void (*)(uint32_t channel, uint32_t hz)` |
-| `timer_delay_us` | `void (*)(uint32_t us)` — TSC busy delay |
+| `timer_delay_us` | `void (*)(uint32_t us)` - TSC busy delay |
 
 #### PCI introspection (by index)
 
@@ -373,7 +373,7 @@ Ports are network byte order — wrap literals in `htons()`.
 
 #### SMP / paging / PMM / port I/O
 
-> ⚠ Powerful — these can deadlock or corrupt the kernel if misused.
+> ⚠ These can deadlock or corrupt the kernel if misused.
 
 | Field | Signature |
 |---|---|
@@ -381,11 +381,11 @@ Ports are network byte order — wrap literals in `htons()`.
 | `lapic_eoi` | `void (*)(void)` |
 | `bkl_lock` / `bkl_unlock` | recursive ticket spinlock |
 | `paging_map_mmio` | `void (*)(uint32_t phys, uint32_t size)` |
-| `pmm_alloc_page` | `void *(*)(void)` — one 4 KB page |
+| `pmm_alloc_page` | `void *(*)(void)` - one 4 KB page |
 | `pmm_free_page` | `void (*)(void *page)` |
 | `outb_io` / `inb_io` | raw 8-bit port I/O |
 
-Example — query the network interface and ping the gateway from an
+Example - query the network interface and ping the gateway from an
 ELF program:
 
 ```c
@@ -592,7 +592,7 @@ exec("/home/HELLO")
   │
   │  ... program runs ...
   │
-  └─ exit()  →  process_exit()
+  └─ exit()  ->  process_exit()
                  │
                  └─ find_free_slot() reaps terminated process
                     └─ pmm_release_region(image_base, image_size)  ← pages freed

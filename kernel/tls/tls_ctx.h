@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS_CTX_H
 #define CUPID_TLS_CTX_H
 
-#include "../types.h"
+#include "types.h"
 #include "sha256.h"
 #include "tls_record.h"
 #include "x509_chain.h"
@@ -9,7 +9,7 @@
 #define TLS_CTX_MAX_HOSTNAME 256u
 #define TLS_CTX_CERT_BUF     16384u
 
-/* TLS context — one per active connection. Allocated by socket_setsockopt
+/* TLS context - one per active connection. Allocated by socket_setsockopt
  * via kmalloc; zero-initialized; carries everything the handshake and
  * the application data path need. */
 
@@ -44,7 +44,7 @@ typedef struct {
     uint8_t ecdhe_shared[32];
 
     /* P-256 ephemeral keypair (only the 32-byte X coordinate of the
-     * shared secret is used as the input to HKDF — same as X25519). */
+     * shared secret is used as the input to HKDF - same as X25519). */
     uint8_t  p256_priv[32];
     uint8_t  p256_pub[65];        /* 0x04 || X || Y, SEC1 uncompressed */
 

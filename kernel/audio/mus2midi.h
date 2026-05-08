@@ -31,7 +31,7 @@
 #ifndef MUS2MIDI_H
 #define MUS2MIDI_H
 
-#include "../types.h"
+#include "types.h"
 #include "memio.h"
 
 /* Local replacements for doomtype.h types not present in kernel/types.h */

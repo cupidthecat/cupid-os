@@ -35,7 +35,7 @@
 #include "x509_chain.h"
 #include "rsa.h"
 #include "asn1.h"
-#include "../../drivers/serial.h"
+#include "serial.h"
 
 /* Wire helpers (matches tls_handshake.c) */
 

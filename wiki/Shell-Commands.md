@@ -78,7 +78,7 @@ Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=Lig
 |---------|-------|-------------|
 | `ps` | `ps` | List all processes with PID, state, and name _(CupidC)_ |
 | `kill` | `kill <pid>` | Terminate a process by PID (cannot kill PID 1) _(CupidC)_ |
-| `spawn` | `spawn [n]` | Create 1–16 test counting processes _(CupidC)_ |
+| `spawn` | `spawn [n]` | Create 1-16 test counting processes _(CupidC)_ |
 | `yield` | `yield` | Voluntarily yield CPU to the next process _(CupidC)_ |
 
 ### Debug Commands
@@ -178,9 +178,9 @@ jobs -l                 # List with PIDs
 ```
 
 ### Tab Completion
-- Type partial command name + Tab → completes command
-- `cat ` + Tab → completes filenames from current directory
-- Multiple matches → lists all possibilities
+- Type partial command name + Tab -> completes command
+- `cat ` + Tab -> completes filenames from current directory
+- Multiple matches -> lists all possibilities
 
 ### Command History
 - **Up arrow** - Previous command

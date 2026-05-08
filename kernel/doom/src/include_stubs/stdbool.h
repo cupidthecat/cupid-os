@@ -1,4 +1,4 @@
-/* stdbool.h shim — tells doomtype.h that bool is already defined */
+/* stdbool.h shim - tells doomtype.h that bool is already defined */
 #ifndef _STDBOOL_H
 #define _STDBOOL_H
 #define __bool_true_false_are_defined 1

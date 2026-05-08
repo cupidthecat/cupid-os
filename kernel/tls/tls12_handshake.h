@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS12_HANDSHAKE_H
 #define CUPID_TLS12_HANDSHAKE_H
 
-#include "../types.h"
+#include "types.h"
 #include "tls_ctx.h"
 
 /* TLS 1.2 handshake driver.

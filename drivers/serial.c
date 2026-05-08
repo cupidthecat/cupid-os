@@ -1,8 +1,8 @@
 #include "serial.h"
-#include "../kernel/ports.h"
-#include "../kernel/kernel.h"
-#include "../kernel/string.h"
-#include "../kernel/bkl.h"
+#include "ports.h"
+#include "kernel.h"
+#include "string.h"
+#include "bkl.h"
 #include "timer.h"
 
 #define SERIAL_DATA(base)        (base)

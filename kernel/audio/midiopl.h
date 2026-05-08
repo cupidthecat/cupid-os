@@ -1,7 +1,7 @@
 #ifndef KERNEL_AUDIO_MIDIOPL_H
 #define KERNEL_AUDIO_MIDIOPL_H
 
-#include "../types.h"
+#include "types.h"
 
 /* Parse GENMIDI lump and configure synth. Returns 0 on success. */
 int  midiopl_init(const uint8_t *genmidi_lump, uint32_t lump_len);

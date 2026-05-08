@@ -26,7 +26,7 @@
 #ifndef MEMIO_H
 #define MEMIO_H
 
-#include "../types.h"
+#include "types.h"
 
 typedef struct _MEMFILE MEMFILE;
 

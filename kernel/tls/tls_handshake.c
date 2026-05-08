@@ -28,7 +28,7 @@
 #include "rsa.h"
 #include "asn1.h"
 #include "tls12_handshake.h"
-#include "../../drivers/serial.h"
+#include "serial.h"
 
 /* Wire encoding helpers */
 

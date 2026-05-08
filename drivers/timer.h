@@ -1,9 +1,9 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "../kernel/types.h"
-#include "../kernel/isr.h"
-#include "../kernel/kernel.h"
+#include "types.h"
+#include "isr.h"
+#include "kernel.h"
 
 // Initialize system timer
 void timer_init(uint32_t hz);

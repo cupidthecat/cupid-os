@@ -29,9 +29,9 @@
 // memory.
 //
 
-#include "../types.h"
-#include "../string.h"
-#include "../memory.h"
+#include "types.h"
+#include "string.h"
+#include "memory.h"
 
 #include "memio.h"
 

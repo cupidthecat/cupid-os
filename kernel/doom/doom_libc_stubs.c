@@ -2,18 +2,16 @@
  * Minimal libc-like stubs needed by the DOOM source tree that aren't
  * provided by dglibc or the kernel's string.c.
  *
- * Task 12 — CupidOS DOOM port.
+ * Task 12 - CupidOS DOOM port.
  * These are NOT built with -include dglibc_compat.h to avoid macro conflicts.
  */
 
-#include "../types.h"
-#include "../string.h"
+#include "types.h"
+#include "string.h"
 #include "dglibc.h"
-#include "../../drivers/serial.h"
+#include "serial.h"
 
-/* ------------------------------------------------------------------ */
 /* atoi / atol / atof / strtol / strtoul / strtod                     */
-/* ------------------------------------------------------------------ */
 
 int atoi(const char *s)
 {
@@ -108,9 +106,7 @@ double strtod(const char *s, char **endp)
     return sign * val;
 }
 
-/* ------------------------------------------------------------------ */
-/* memmove — kernel may only have memcpy                               */
-/* ------------------------------------------------------------------ */
+/* memmove - kernel may only have memcpy                               */
 
 void *memmove(void *dst, const void *src, size_t n)
 {
@@ -125,9 +121,7 @@ void *memmove(void *dst, const void *src, size_t n)
     return dst;
 }
 
-/* ------------------------------------------------------------------ */
 /* strncat / strdup (in case kernel doesn't export them)              */
-/* ------------------------------------------------------------------ */
 
 char *strncat(char *dst, const char *src, size_t n)
 {
@@ -138,9 +132,7 @@ char *strncat(char *dst, const char *src, size_t n)
     return dst;
 }
 
-/* ------------------------------------------------------------------ */
 /* puts / vfprintf / sscanf stubs                                     */
-/* ------------------------------------------------------------------ */
 
 int puts(const char *s)
 {
@@ -159,7 +151,7 @@ int vfprintf(DG_FILE *f, const char *fmt, __builtin_va_list va)
     return n;
 }
 
-/* sscanf — minimal implementation for DOOM's config parsing */
+/* sscanf - minimal implementation for DOOM's config parsing */
 /* DOOM uses sscanf(s, "%i", &v) and sscanf(s, "%s", buf) and "%f" */
 int sscanf(const char *s, const char *fmt, ...)
 {
@@ -221,13 +213,11 @@ int sscanf(const char *s, const char *fmt, ...)
     return matched;
 }
 
-/* ------------------------------------------------------------------ */
 /* POSIX file ops stubs (DOOM uses these for savegames)               */
-/* ------------------------------------------------------------------ */
 
 int remove(const char *path)
 {
-    /* stub — filesystem removal not needed for boot smoke */
+    /* stub - filesystem removal not needed for boot smoke */
     (void)path;
     return 0;
 }
@@ -250,10 +240,8 @@ int system(const char *cmd)
     return -1;
 }
 
-/* ------------------------------------------------------------------ */
-/* 64-bit division helpers — GCC emits these for 64-bit ops on 32-bit */
+/* 64-bit division helpers - GCC emits these for 64-bit ops on 32-bit */
 /* __udivdi3 already lives in kernel/math.c.                          */
-/* ------------------------------------------------------------------ */
 
 /* Forward-declare kernel's __udivdi3 */
 extern unsigned long long __udivdi3(unsigned long long a, unsigned long long b);
@@ -281,10 +269,8 @@ unsigned long long __umoddi3(unsigned long long a, unsigned long long b)
     return a - q * b;
 }
 
-/* ------------------------------------------------------------------ */
-/* i_sound.h globals — SFX functions moved to i_sound_cupidos.c (Task 16) */
+/* i_sound.h globals - SFX functions moved to i_sound_cupidos.c (Task 16) */
 /* Music functions remain here until Task 17.                             */
-/* ----------------------------------------------------------------------- */
 
 int snd_musicdevice = 0;
 int snd_sfxdevice   = 0;
@@ -300,4 +286,4 @@ int snd_pitchshift   = 0;
 
 void I_BindSoundVariables(void)        {}
 
-/* I_*Music stubs removed — implemented in i_sound_cupidos.c (Task 17) */
+/* I_*Music stubs removed - implemented in i_sound_cupidos.c (Task 17) */

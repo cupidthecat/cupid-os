@@ -1,18 +1,18 @@
 # USB Host Controller Stack
 
-**CupidOS P4 — USB 1.1 + 2.0**
+**CupidOS P4 - USB 1.1 + 2.0**
 
 CupidOS implements a full USB host controller stack supporting UHCI (USB 1.1) and EHCI (USB 2.0)
 host controllers. Three class drivers are provided: HID boot protocol (keyboard + mouse), Hub,
 and Mass Storage (BBB + SCSI). HID events are merged into the existing PS/2 event queue so the
-shell sees a unified input stream. Mass storage registers as a block device (`usb0`, `usb1`, …).
+shell sees a unified input stream. Mass storage registers as a block device (`usb0`, `usb1`, ...).
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Boot Order — Critical](#boot-order--critical)
+2. [Boot Order - Critical](#boot-order--critical)
 3. [PCI Layer](#pci-layer)
 4. [USB Core](#usb-core)
 5. [UHCI Driver](#uhci-driver)
@@ -30,27 +30,27 @@ shell sees a unified input stream. Mass storage registers as a block device (`us
 
 | Subsystem | File | Notes |
 |-----------|------|-------|
-| PCI enumeration | `kernel/pci.c` | Bus 0, dev 0-31, multi-function via header type bit 7 |
-| USB core | `kernel/usb.c` | Device model, enumeration FSM, work queue |
-| HC vtable | `kernel/usb_hc.h` | `usb_hc_t` interface |
-| UHCI driver | `kernel/uhci.c` | IO-port MMIO, USB 1.1 |
-| EHCI driver | `kernel/ehci.c` | MMIO, USB 2.0, companion routing |
-| HID class | `kernel/usb_hid.c` | Boot protocol keyboard + mouse |
-| Hub class | `kernel/usb_hub.c` | Hub descriptor, per-port power + reset |
-| Mass storage | `kernel/usb_msc.c` | BBB + SCSI, block device registration |
+| PCI enumeration | `drivers/pci.c` | Bus 0, dev 0-31, multi-function via header type bit 7 |
+| USB core | `kernel/usb/usb.c` | Device model, enumeration FSM, work queue |
+| HC vtable | `kernel/usb/usb_hc.h` | `usb_hc_t` interface |
+| UHCI driver | `kernel/usb/uhci.c` | IO-port MMIO, USB 1.1 |
+| EHCI driver | `kernel/usb/ehci.c` | MMIO, USB 2.0, companion routing |
+| HID class | `kernel/usb/usb_hid.c` | Boot protocol keyboard + mouse |
+| Hub class | `kernel/usb/usb_hub.c` | Hub descriptor, per-port power + reset |
+| Mass storage | `kernel/usb/usb_msc.c` | BBB + SCSI, block device registration |
 
 ### Subsystem relationships
 
 ```
                   ┌─────────────────────────────────┐
-                  │           USB Core               │
-                  │  usb_device_t[], work queue,     │
-                  │  enumeration FSM, usb_control()  │
+                  │           USB Core              │
+                  │  usb_device_t[], work queue,    │
+                  │  enumeration FSM, usb_control() │
                   └──────────┬──────────────────────┘
                              │  usb_hc_t vtable
               ┌──────────────┼──────────────┐
               ▼              ▼              │
-         ┌────────┐    ┌────────┐          │
+         ┌────────┐    ┌────────┐           │
          │  UHCI  │    │  EHCI  │  (companion routing)
          │ (1.1)  │    │ (2.0)  │
          └────────┘    └────────┘
@@ -71,13 +71,13 @@ PS/2 event queue          block_device_t
 
 ### Related documentation
 
-- [Filesystem.md](Filesystem.md) — FAT16 block device layer that MSC devices will eventually mount into
-- [Swap.md](Swap.md) — another block-device consumer; shows how CupidOS handles disk-backed storage
-- [Architecture.md](Architecture.md) — ring-0 memory layout, PCI I/O space, MMIO mapping
+- [Filesystem.md](Filesystem.md) - FAT16 block device layer that MSC devices will eventually mount into
+- [Swap.md](Swap.md) - another block-device consumer; shows how CupidOS handles disk-backed storage
+- [Architecture.md](Architecture.md) - ring-0 memory layout, PCI I/O space, MMIO mapping
 
 ---
 
-## Boot Order — Critical
+## Boot Order - Critical
 
 ```
 usb_init()
@@ -93,22 +93,22 @@ a low-speed or full-speed device (LS/FS detected by `D+`/`D−` line state) have
 If UHCI initialises first, it starts driving its ports before EHCI has a chance to claim them.
 This creates a port-ownership race: a high-speed device may be reset in full-speed mode,
 permanently capping it at USB 1.1 speeds for that boot session. The reversed init order
-(EHCI → UHCI) is **not optional** — changing it breaks companion handoff.
+(EHCI -> UHCI) is **not optional** - changing it breaks companion handoff.
 
 ---
 
 ## PCI Layer
 
-Source: `kernel/pci.c`, `kernel/pci.h`
+Source: `drivers/pci.c`, `drivers/pci.h`
 
 ### Enumeration
 
-`pci_init()` performs a flat scan of PCI bus 0, devices 0–31. For each device:
+`pci_init()` performs a flat scan of PCI bus 0, devices 0-31. For each device:
 
 1. Read vendor/device ID at `(0, dev, 0, 0x00)`.
 2. Skip if vendor is `0xFFFF` (no device).
 3. Read header type at offset `0x0E`.
-4. If bit 7 of header type is set → multi-function device; probe all 8 functions.
+4. If bit 7 of header type is set -> multi-function device; probe all 8 functions.
 5. Otherwise probe function 0 only.
 
 ```c
@@ -128,7 +128,7 @@ Source: `kernel/pci.c`, `kernel/pci.h`
 | `pci_write32(bus, dev, fn, offset, val)` | Config-space 32-bit write |
 | `pci_enable_bus_master(dev)` | Set bit 2 of Command register |
 
-### Bus master enable — Status bit preservation
+### Bus master enable - Status bit preservation
 
 The PCI Status register has R/WC (read/write-1-to-clear) bits. A naive read-modify-write that
 ORs Status as well as Command will inadvertently clear error flags. The correct pattern:
@@ -141,7 +141,7 @@ pci_write32(dev->bus, dev->dev, dev->fn, 0x04, cmd_status);
 ```
 
 Masking with `0x0000FFFF` before OR ensures the upper 16 bits (Status) are written as zero,
-which is the safe value for R/WC bits — zeros do not clear anything.
+which is the safe value for R/WC bits - zeros do not clear anything.
 
 ### USB PCI class codes
 
@@ -156,7 +156,7 @@ which is the safe value for R/WC bits — zeros do not clear anything.
 
 ## USB Core
 
-Source: `kernel/usb.c`, `kernel/usb_hc.h`, `kernel/usb.h`
+Source: `kernel/usb/usb.c`, `kernel/usb/usb_hc.h`, `kernel/usb/usb.h`
 
 ### Host controller vtable (`usb_hc_t`)
 
@@ -234,7 +234,7 @@ SET_CONFIGURATION(bConfigurationValue)
 driver probe match                   ← iterate class drivers, first match wins
 ```
 
-### `usb_control()` — control transfers
+### `usb_control()` - control transfers
 
 ```c
 int usb_control(usb_device_t *dev,
@@ -243,14 +243,14 @@ int usb_control(usb_device_t *dev,
                 void *data);
 ```
 
-Builds an 8-byte SETUP packet and submits a 3-phase transfer (SETUP → optional DATA → STATUS)
+Builds an 8-byte SETUP packet and submits a 3-phase transfer (SETUP -> optional DATA -> STATUS)
 via `hc->submit_sync`.
 
 ---
 
 ## UHCI Driver
 
-Source: `kernel/uhci.c`
+Source: `kernel/usb/uhci.c`
 
 ### Register access
 
@@ -314,12 +314,12 @@ any port whose `CONNECT_STATUS_CHANGE` bit is set.
 
 ## EHCI Driver
 
-Source: `kernel/ehci.c`
+Source: `kernel/usb/ehci.c`
 
 ### MMIO mapping
 
 EHCI registers live at BAR0, a **memory BAR** (bit 0 clear). On typical PC hardware BAR0 is
-above `0xFEB00000` — well beyond the 128 MB identity-map that CupidOS sets up at boot.
+above `0xFEB00000` - well beyond the 128 MB identity-map that CupidOS sets up at boot.
 The driver calls:
 
 ```c
@@ -332,15 +332,15 @@ to create a 4KB kernel-virtual mapping before any register access.
 
 ```
 BAR0 + 0x00  ┌──────────────────────────────┐
-             │  Capability Registers (RO)    │  length = CAPLENGTH
-             │  CAPLENGTH, HCIVERSION,       │
-             │  HCSPARAMS, HCCPARAMS         │
+             │  Capability Registers (RO)   │  length = CAPLENGTH
+             │  CAPLENGTH, HCIVERSION,      │
+             │  HCSPARAMS, HCCPARAMS        │
 BAR0 + CAPLENGTH
              ├──────────────────────────────┤
              │  Operational Registers (R/W) │
              │  USBCMD, USBSTS, USBINTR,    │
              │  FRINDEX, CTRLDSSEGMENT,     │
-             │  PERIODICLISTBASE,            │
+             │  PERIODICLISTBASE,           │
              │  ASYNCLISTADDR, CONFIGFLAG,  │
              │  PORTSC[0..N]                │
              └──────────────────────────────┘
@@ -378,10 +378,10 @@ qh     = (ehci_qh_t*)(((uintptr_t)qh_raw + 31) & ~31);
 ### CONFIGFLAG and companion routing
 
 ```c
-// 1. Set CONFIGFLAG=1 — EHCI claims all ports
+// 1. Set CONFIGFLAG=1 - EHCI claims all ports
 op_base->CONFIGFLAG = 1;
 
-// 2. For each port: if LINE_STATUS indicates LS or FS device → release to UHCI
+// 2. For each port: if LINE_STATUS indicates LS or FS device -> release to UHCI
 for (int p = 0; p < port_count; p++) {
     uint32_t ps = op_base->PORTSC[p];
     if (LINE_STATUS(ps) != K_HISPEED) {
@@ -412,7 +412,7 @@ Interrupt transfers use the **periodic schedule**:
 
 ## HID Driver
 
-Source: `kernel/usb_hid.c`
+Source: `kernel/usb/usb_hid.c`
 
 ### Probe and setup
 
@@ -423,7 +423,7 @@ The HID driver claims any device with `bInterfaceClass = 0x03` (HID) and
 // 1. Switch to boot protocol
 usb_control(dev, 0x21, SET_PROTOCOL, 0, interface, 0, NULL);
 
-// 2. Disable idle report — only send on change
+// 2. Disable idle report - only send on change
 usb_control(dev, 0x21, SET_IDLE, 0, interface, 0, NULL);
 ```
 
@@ -443,22 +443,22 @@ Byte 7: Keycode 5
 ```
 
 The driver diffs each new report against the previous to detect key-down and key-up events.
-Each new keycode is translated through a ~100-entry HID-usage → PS/2-scancode table and
+Each new keycode is translated through a ~100-entry HID-usage -> PS/2-scancode table and
 injected via `keyboard_inject_scancode()`.
 
-**Covered keycodes:** printable ASCII, modifier keys (Shift/Ctrl/Alt), F1–F10, cursor arrows,
+**Covered keycodes:** printable ASCII, modifier keys (Shift/Ctrl/Alt), F1-F10, cursor arrows,
 Backspace, Enter, Escape, Tab, Delete, Insert, Home, End, Page Up/Down.
 
 #### Extended-scancode handling
 
 PgUp / PgDn / Home / End / Insert / Delete and the cursor arrows are
-**extended** scancodes on PS/2 — they require a `0xE0` prefix byte before
+**extended** scancodes on PS/2 - they require a `0xE0` prefix byte before
 the make/break code. The driver tracks which HID keycodes need the
 prefix in `hid_is_extended[]` and injects two scancodes for them
 (`0xE0` then the scancode). `keyboard_inject_scancode()` in
 `drivers/keyboard.c` recognises the `0xE0` prefix and routes the next
 byte through `handle_extended_key()`, the same path a real PS/2 IRQ
-takes — so the kernel's keyboard buffer ends up with `scancode = 0x49`,
+takes - so the kernel's keyboard buffer ends up with `scancode = 0x49`,
 `character = 0` for PgUp (rather than the ASCII `9` it would otherwise
 produce as the non-extended Numpad-9 mapping).
 
@@ -481,20 +481,20 @@ wheel router to consume.
 
 The official HID boot-protocol report is 3 bytes, but virtually every
 real USB mouse returns 4 bytes even in boot mode. Pure 3-byte devices
-leave `r[3] = 0`, so `mouse_inject_wheel(0)` is a no-op — no spurious
+leave `r[3] = 0`, so `mouse_inject_wheel(0)` is a no-op - no spurious
 scroll events.
 
 ---
 
 ## Hub Driver
 
-Source: `kernel/usb_hub.c`
+Source: `kernel/usb/usb_hub.c`
 
 ### Probe and descriptor fetch
 
 Claimed when `bDeviceClass = 0x09` (Hub). On probe:
 
-1. `GET_DESCRIPTOR(HUB)` → 7+ byte hub descriptor.
+1. `GET_DESCRIPTOR(HUB)` -> 7+ byte hub descriptor.
 2. Read `bNbrPorts` (number of downstream ports) and `bPwrOn2PwrGood` (power-on delay in 2ms units).
 3. Call `SET_FEATURE(PORT_POWER)` for each port, then wait `bPwrOn2PwrGood * 2` ms.
 
@@ -540,16 +540,16 @@ EHCI uses these fields to set the `PORTSC.SPLIT_EN` and `TT*` fields in the QH f
 
 ## Mass Storage Driver
 
-Source: `kernel/usb_msc.c`
+Source: `kernel/usb/usb_msc.c`
 
 ### Bulk-Only Transport (BBB)
 
 Every MSC operation consists of three phases:
 
 ```
-Host → Device:  CBW  (31 bytes, OUT bulk endpoint)
+Host -> Device:  CBW  (31 bytes, OUT bulk endpoint)
 Host ↔ Device:  DATA (optional, direction from CBW flags)
-Device → Host:  CSW  (13 bytes, IN bulk endpoint)
+Device -> Host:  CSW  (13 bytes, IN bulk endpoint)
 ```
 
 CBW fields used by CupidOS:
@@ -559,7 +559,7 @@ CBW fields used by CupidOS:
 | dCBWSignature | `0x43425355` (`"USBC"`) |
 | dCBWTag | monotonically increasing tag |
 | dCBWDataTransferLength | byte count for DATA phase |
-| bmCBWFlags | `0x80` = device→host, `0x00` = host→device |
+| bmCBWFlags | `0x80` = device->host, `0x00` = host->device |
 | bCBWLUN | 0 (single-LUN assumption) |
 | bCBWCBLength | length of embedded SCSI command |
 | CBWCB | SCSI Command Descriptor Block (CDB) |
@@ -570,11 +570,11 @@ CSW `bCSWStatus`: `0x00` = success, `0x01` = command failed, `0x02` = phase erro
 
 | Command | Opcode | Direction | Use |
 |---------|--------|-----------|-----|
-| INQUIRY | `0x12` | D→H | Device identification |
+| INQUIRY | `0x12` | D->H | Device identification |
 | TEST_UNIT_READY | `0x00` | none | Check ready |
-| READ_CAPACITY(10) | `0x25` | D→H | Get LBA count + block size |
-| READ(10) | `0x28` | D→H | Read sectors |
-| WRITE(10) | `0x2A` | H→D | Write sectors |
+| READ_CAPACITY(10) | `0x25` | D->H | Get LBA count + block size |
+| READ(10) | `0x28` | D->H | Read sectors |
+| WRITE(10) | `0x2A` | H->D | Write sectors |
 
 ### Block device registration
 
@@ -595,8 +595,8 @@ block_register(&bd);
 ### MBR parsing
 
 Immediately after registration, the driver reads sector 0 and checks for the MBR signature
-`0x55AA` at bytes 510–511. If found, the four 16-byte partition entries at offsets
-`0x01BE`–`0x01FD` are parsed:
+`0x55AA` at bytes 510-511. If found, the four 16-byte partition entries at offsets
+`0x01BE`-`0x01FD` are parsed:
 
 | Offset | Field | Size |
 |--------|-------|------|
@@ -609,7 +609,7 @@ FAT16 partition types detected: `0x04`, `0x06`, `0x0E`.
 
 ### Auto-mount status
 
-> **Not yet wired.** The FAT16 VFS implementation (`kernel/fat16.c`) is currently a
+> **Not yet wired.** The FAT16 VFS implementation (`kernel/fs/fat16.c`) is currently a
 > single-instance driver hardcoded to the ATA block device. Mounting a second FAT16 volume
 > would require per-instance state throughout the driver.
 >
@@ -626,7 +626,7 @@ See [Filesystem.md](Filesystem.md) for the current FAT16 architecture.
 
 ## Shell Commands
 
-### `usb` — list all devices
+### `usb` - list all devices
 
 ```
 CupidOS> usb
@@ -639,7 +639,7 @@ CupidOS> usb
 Fields: device index, assigned USB address, speed (LOW/FULL/HIGH), vendor ID, product ID,
 class code, parent device (root = root hub, number = hub device index).
 
-### `usb hubs` — hub tree view
+### `usb hubs` - hub tree view
 
 ```
 CupidOS> usb hubs
@@ -649,7 +649,7 @@ depth=0  addr=1  ports=4  (root hub via EHCI)
   depth=1  addr=4  port=3  speed=FULL  (mass storage)
 ```
 
-### `usb hc` — host controller boot log
+### `usb hc` - host controller boot log
 
 ```
 CupidOS> usb hc
@@ -734,14 +734,14 @@ qemu-system-i386 \
 
 ```
 kernel/
-├── pci.h          — PCI device struct, BAR helpers, class codes
-├── pci.c          — pci_init, pci_find_by_class, pci_enable_bus_master
-├── usb_hc.h       — usb_hc_t vtable, usb_transfer_t
-├── usb.h          — usb_device_t, speed/class constants, work queue API
-├── usb.c          — USB core: register_hc, enumeration FSM, usb_control
-├── uhci.c         — UHCI 1.1 host controller driver
-├── ehci.c         — EHCI 2.0 host controller driver
-├── usb_hid.c      — HID boot protocol: keyboard + mouse class driver
-├── usb_hub.c      — Hub class driver
-└── usb_msc.c      — Mass storage BBB + SCSI + block_device registration
+├── pci.h          - PCI device struct, BAR helpers, class codes
+├── pci.c          - pci_init, pci_find_by_class, pci_enable_bus_master
+├── usb_hc.h       - usb_hc_t vtable, usb_transfer_t
+├── usb.h          - usb_device_t, speed/class constants, work queue API
+├── usb.c          - USB core: register_hc, enumeration FSM, usb_control
+├── uhci.c         - UHCI 1.1 host controller driver
+├── ehci.c         - EHCI 2.0 host controller driver
+├── usb_hid.c      - HID boot protocol: keyboard + mouse class driver
+├── usb_hub.c      - Hub class driver
+└── usb_msc.c      - Mass storage BBB + SCSI + block_device registration
 ```

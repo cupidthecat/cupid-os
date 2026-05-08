@@ -9,21 +9,19 @@
  */
 
 #include "dglibc.h"
-#include "../memory.h"
-#include "../string.h"
-#include "../vfs.h"
-#include "../../drivers/serial.h"
-#include "../../drivers/timer.h"
+#include "memory.h"
+#include "string.h"
+#include "vfs.h"
+#include "serial.h"
+#include "timer.h"
 
-/* Use GCC built-in va_list — stdarg.h not available under -nostdinc */
+/* Use GCC built-in va_list - stdarg.h not available under -nostdinc */
 typedef __builtin_va_list va_list;
 #define va_start(ap, last) __builtin_va_start(ap, last)
 #define va_arg(ap, type)   __builtin_va_arg(ap, type)
 #define va_end(ap)         __builtin_va_end(ap)
 
-/* =========================================================================
- * Internal DG_FILE struct
- * ========================================================================= */
+/* Internal DG_FILE struct */
 
 #define DG_FILE_MAGIC 0xD600F11E
 
@@ -44,9 +42,7 @@ DG_FILE *dg_stdin  = &s_stdin_obj;
 DG_FILE *dg_stdout = &s_stdout_obj;
 DG_FILE *dg_stderr = &s_stderr_obj;
 
-/* =========================================================================
- * Exit envelope
- * ========================================================================= */
+/* Exit envelope */
 
 static dg_jmp_buf s_exit_env;
 static int        s_exit_armed = 0;
@@ -59,10 +55,8 @@ void dg_arm_exit(dg_jmp_buf env) {
     s_exit_armed = 1;
 }
 
-/* =========================================================================
- * setjmp / longjmp — x86-32, AT&T inline asm
- * Saves/restores: ebx esi edi ebp esp eip (6 dwords at indices 0-5)
- * ========================================================================= */
+/*setjmp / longjmp - x86-32, AT&T inline asm
+ * Saves/restores: ebx esi edi ebp esp eip (6 dwords at indices 0-5) */
 
 __asm__(
     ".global dg_setjmp\n"
@@ -96,22 +90,20 @@ __asm__(
     "    jmp  *%edx\n"
 );
 
-/* =========================================================================
- * Heap
- * ========================================================================= */
+/* Heap */
 
 /* dg_malloc'd blocks carry an 8-byte size prefix so dg_realloc
  * can copy exactly the old payload without over-reading past the
  * allocation boundary (which would risk heap corruption). The
- * prefix is invisible to callers — dg_malloc returns the pointer
+ * prefix is invisible to callers - dg_malloc returns the pointer
  * AFTER the header, dg_free walks back to the header.
  *
  * IMPORTANT: pointers passed to dg_free / dg_realloc must have
- * come from dg_malloc / dg_calloc / dg_strdup — not raw kmalloc.
+ * come from dg_malloc / dg_calloc / dg_strdup - not raw kmalloc.
  */
 typedef struct {
     uint32_t size;
-    uint32_t magic;   /* DG_ALLOC_MAGIC — sanity check on free/realloc */
+    uint32_t magic;   /* DG_ALLOC_MAGIC - sanity check on free/realloc */
 } dg_alloc_hdr_t;
 
 #define DG_ALLOC_MAGIC 0xDA110CADu
@@ -145,7 +137,7 @@ void *dg_realloc(void *p, uint32_t newsz) {
     if (newsz == 0) { dg_free(p); return NULL; }
     h = ((dg_alloc_hdr_t *)p) - 1;
     if (h->magic != DG_ALLOC_MAGIC) {
-        /* Pointer wasn't from dg_malloc — fall back to old behaviour
+        /* Pointer wasn't from dg_malloc - fall back to old behaviour
          * but warn loudly. Should never happen in well-behaved DOOM. */
         serial_write_string("[dglibc] realloc on foreign pointer!\n");
         newp = kmalloc((size_t)newsz);
@@ -166,7 +158,7 @@ void dg_free(void *p) {
     if (!p) { return; }
     h = ((dg_alloc_hdr_t *)p) - 1;
     if (h->magic != DG_ALLOC_MAGIC) {
-        /* Foreign pointer — kfree direct. Diagnostic. */
+        /* Foreign pointer - kfree direct. Diagnostic. */
         serial_write_string("[dglibc] free on foreign pointer!\n");
         kfree(p);
         return;
@@ -187,9 +179,7 @@ char *dg_strdup(const char *s) {
     return d;
 }
 
-/* =========================================================================
- * ctype
- * ========================================================================= */
+/*ctype */
 
 int dg_isspace(int c) {
     return (c == ' ' || c == '\t' || c == '\n' ||
@@ -218,9 +208,7 @@ int dg_toupper(int c) {
     return c;
 }
 
-/* =========================================================================
- * String helpers
- * ========================================================================= */
+/* String helpers */
 
 int dg_strcasecmp(const char *a, const char *b) {
     while (*a && *b) {
@@ -244,9 +232,7 @@ int dg_strncasecmp(const char *a, const char *b, uint32_t n) {
     return dg_tolower((unsigned char)*a) - dg_tolower((unsigned char)*b);
 }
 
-/* =========================================================================
- * env / time
- * ========================================================================= */
+/*env / time */
 
 char *dg_getenv(const char *name) {
     (void)name;
@@ -261,11 +247,9 @@ uint32_t dg_time(void *t) {
     return secs;
 }
 
-/* =========================================================================
- * printf core — format_into
+/*printf core - format_into
  * Subset: %d %i %u %x %X %p %c %s %%
- * Width + zero-pad. No floats.
- * ========================================================================= */
+ * Width + zero-pad. No floats. */
 
 static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
     uint32_t pos = 0;
@@ -427,7 +411,7 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
             continue;
         }
 
-        /* Unknown specifier — emit as-is */
+        /* Unknown specifier - emit as-is */
         EMIT('%');
         EMIT(spec);
     }
@@ -443,13 +427,11 @@ static int format_into(char *out, uint32_t cap, const char *fmt, va_list ap) {
 #undef EMIT
 }
 
-/* =========================================================================
- * printf family
- * ========================================================================= */
+/*printf family */
 
 int dg_vsnprintf(char *s, uint32_t n, const char *fmt, void *va) {
     if (!s || n == 0) { return 0; }
-    /* On x86-32 sysv ABI, va_list is char* — same size as void*. The
+    /* On x86-32 sysv ABI, va_list is char* - same size as void*. The
      * caller passes the va_list value directly via a void* parameter,
      * so cast it back rather than dereferencing. */
     return format_into(s, n, fmt, (va_list)va);
@@ -468,7 +450,7 @@ int dg_sprintf(char *s, const char *fmt, ...) {
     int ret;
     va_list ap;
     va_start(ap, fmt);
-    /* Use large cap — caller must ensure buffer is big enough */
+    /* Use large cap - caller must ensure buffer is big enough */
     ret = format_into(s, 65536u, fmt, ap);
     va_end(ap);
     return ret;
@@ -502,9 +484,7 @@ int dg_fprintf(DG_FILE *f, const char *fmt, ...) {
     return ret;
 }
 
-/* =========================================================================
- * stdio — file ops
- * ========================================================================= */
+/*stdio - file ops */
 
 DG_FILE *dg_fopen(const char *path, const char *mode) {
     uint32_t flags = O_RDONLY;
@@ -678,9 +658,7 @@ int dg_fputc(int c, DG_FILE *f) {
     return c;
 }
 
-/* =========================================================================
- * exit / abort
- * ========================================================================= */
+/*exit / abort */
 
 void dg_exit(int code) {
     (void)code;
@@ -698,9 +676,7 @@ void dg_abort(void) {
     dg_exit(1);
 }
 
-/* =========================================================================
- * qsort — iterative quicksort with insertion sort fallback
- * ========================================================================= */
+/*qsort - iterative quicksort with insertion sort fallback */
 
 #define QS_INSERTION_THRESHOLD 16
 #define QS_STACK_DEPTH 64
@@ -794,9 +770,7 @@ void dg_qsort(void *base, uint32_t n, uint32_t sz,
     }
 }
 
-/* =========================================================================
- * Smoke test
- * ========================================================================= */
+/* Smoke test */
 
 int dglibc_test_main(void) {
     /* snprintf */

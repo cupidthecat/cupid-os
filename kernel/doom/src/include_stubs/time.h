@@ -1,1 +1,1 @@
-/* shim — see kernel/doom/dglibc_compat.h */
+/* shim - see kernel/doom/dglibc_compat.h */

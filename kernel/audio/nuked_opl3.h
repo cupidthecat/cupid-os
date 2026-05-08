@@ -46,7 +46,7 @@
 extern "C" {
 #endif
 
-#include "../types.h"
+#include "types.h"
 
 #ifndef OPL_ENABLE_STEREOEXT
 #define OPL_ENABLE_STEREOEXT 0

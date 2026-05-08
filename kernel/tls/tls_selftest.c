@@ -13,8 +13,8 @@
 #include "p256.h"
 #include "ecdsa.h"
 #include "asn1.h"
-#include "../panic.h"
-#include "../../drivers/serial.h"
+#include "panic.h"
+#include "serial.h"
 
 static int eq_bytes(const uint8_t *a, const uint8_t *b, uint32_t n) {
     uint32_t i;
@@ -30,7 +30,7 @@ static void must(int ok, const char *name) {
     serial_printf("[tls-selftest] ok: %s\n", name);
 }
 
-/* --- SHA-256 vectors (FIPS 180-2) ------------------------------------ */
+/* SHA-256 vectors (FIPS 180-2) */
 
 static void test_sha256(void) {
     /* Empty input. */
@@ -55,7 +55,7 @@ static void test_sha256(void) {
     must(eq_bytes(out, want_abc, 32u), "sha256(\"abc\")");
 }
 
-/* --- HMAC-SHA256 RFC 4231 TC1 ---------------------------------------- */
+/* HMAC-SHA256 RFC 4231 TC1 */
 
 static void test_hmac_sha256(void) {
     static const uint8_t key[20] = {
@@ -74,7 +74,7 @@ static void test_hmac_sha256(void) {
     must(eq_bytes(out, want, 32u), "hmac-sha256 RFC 4231 TC1");
 }
 
-/* --- HKDF-SHA256 RFC 5869 TC1 ---------------------------------------- */
+/* HKDF-SHA256 RFC 5869 TC1 */
 
 static void test_hkdf(void) {
     static const uint8_t ikm[22] = {
@@ -114,7 +114,7 @@ static void test_hkdf(void) {
     must(eq_bytes(okm, want_okm, 42u), "hkdf-expand RFC 5869 TC1");
 }
 
-/* --- ChaCha20-Poly1305 AEAD RFC 8439 §2.8.2 -------------------------- */
+/* ChaCha20-Poly1305 AEAD RFC 8439 §2.8.2 */
 
 static void test_chacha20poly1305(void) {
     static const uint8_t key[32] = {
@@ -184,7 +184,7 @@ static void test_chacha20poly1305(void) {
     }
 }
 
-/* --- X25519 RFC 7748 §6.1 (Alice key derivation) --------------------- */
+/* X25519 RFC 7748 §6.1 (Alice key derivation) */
 
 static void test_x25519(void) {
     static const uint8_t alice_priv[32] = {
@@ -204,7 +204,7 @@ static void test_x25519(void) {
     must(eq_bytes(out, alice_pub, 32u), "x25519 RFC 7748 §6.1 Alice pubkey");
 }
 
-/* --- ASN.1 / DER walker -------------------------------------------- */
+/* ASN.1 / DER walker */
 
 static void test_asn1(void) {
     /* SEQUENCE { INTEGER 0x010203, OCTET STRING 0xAA 0xBB }
@@ -249,7 +249,7 @@ static void test_asn1(void) {
         must(asn1_read_uint(&c, &bp, &bn) != 0, "asn1 reject negative INTEGER");
     }
 
-    /* UTCTime "260101000000Z" → epoch for 2026-01-01T00:00:00Z. */
+    /* UTCTime "260101000000Z" -> epoch for 2026-01-01T00:00:00Z. */
     {
         static const uint8_t enc_utc[] = {
             0x17, 0x0D, '2','6','0','1','0','1','0','0','0','0','0','0','Z'
@@ -263,7 +263,7 @@ static void test_asn1(void) {
     }
 }
 
-/* --- AES-128 + AES-128-GCM vectors ----------------------------------- */
+/* AES-128 + AES-128-GCM vectors */
 
 static void test_aes128(void) {
     /* FIPS 197 Appendix B / NIST AES-128 test vector. */
@@ -362,7 +362,7 @@ static void test_aes128_gcm(void) {
     }
 }
 
-/* --- P-256 vectors ---------------------------------------------------- */
+/* P-256 vectors */
 
 static void test_p256(void) {
     /* Generator on-curve. */
@@ -441,7 +441,7 @@ static void test_p256(void) {
     }
 }
 
-/* --- ECDSA-P256 vectors (RFC 6979 Appendix A.2.5) -------------------- */
+/* ECDSA-P256 vectors (RFC 6979 Appendix A.2.5) */
 
 static void test_ecdsa_p256(void) {
     /* Public key Q: */

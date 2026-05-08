@@ -4,12 +4,12 @@
  * needs curl + openssl) to generate `kernel/tls/tls_ca_bundle_data.c`,
  * which provides the actual DER blobs and a populated TLS_CA_BUNDLE
  * array. Without that file, the bundle is empty and chain verification
- * always returns X509_ERR_UNKNOWN_ROOT — which is the correct, safe
+ * always returns X509_ERR_UNKNOWN_ROOT - which is the correct, safe
  * behavior for an unconfigured trust store.
  *
  * The generator emits two roots by default:
- *   - ISRG Root X1   (RSA-4096) — Let's Encrypt
- *   - DigiCert Global Root G2 (RSA-2048) — most CDNs
+ *   - ISRG Root X1   (RSA-4096) - Let's Encrypt
+ *   - DigiCert Global Root G2 (RSA-2048) - most CDNs
  */
 
 #include "x509_chain.h"

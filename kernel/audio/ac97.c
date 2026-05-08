@@ -1,10 +1,10 @@
 #include "ac97.h"
-#include "../pci.h"
-#include "../ports.h"
-#include "../irq.h"
-#include "../memory.h"
-#include "../kernel.h"
-#include "../../drivers/serial.h"
+#include "pci.h"
+#include "ports.h"
+#include "irq.h"
+#include "memory.h"
+#include "kernel.h"
+#include "serial.h"
 
 /* Known AC97 PCI device IDs (Intel ICH family) */
 static const uint16_t AC97_VENDOR = 0x8086u;
@@ -21,13 +21,13 @@ static const uint16_t AC97_DEVICES[] = {
 #define NAM_EXT_AUDIO_CTRL  0x2Au
 #define NAM_PCM_FRONT_RATE  0x2Cu
 
-/* NABM PCM-out (PO) — offset from bar_nabm */
+/* NABM PCM-out (PO) - offset from bar_nabm */
 #define NABM_PO_BDBAR       0x10u  /* dword */
-#define NABM_PO_CIV         0x14u  /* byte  — current index value */
-#define NABM_PO_LVI         0x15u  /* byte  — last valid index */
-#define NABM_PO_SR          0x16u  /* word  — status */
-#define NABM_PO_PICB        0x18u  /* word  — position in current buffer */
-#define NABM_PO_CR          0x1Bu  /* byte  — control */
+#define NABM_PO_CIV         0x14u  /* byte  - current index value */
+#define NABM_PO_LVI         0x15u  /* byte  - last valid index */
+#define NABM_PO_SR          0x16u  /* word  - status */
+#define NABM_PO_PICB        0x18u  /* word  - position in current buffer */
+#define NABM_PO_CR          0x1Bu  /* byte  - control */
 
 #define NABM_GLOB_CNT       0x2Cu
 #define NABM_GLOB_STA       0x30u
@@ -46,7 +46,7 @@ static const uint16_t AC97_DEVICES[] = {
 /* BDL configuration.
  *
  * Latency is `AC97_LOOKAHEAD * AC97_FRAMES_PER_BUF / 22050` worst-case.
- * 3 × 512 / 22050 ≈ 70 ms — fine for game audio. The previous
+ * 3 x 512 / 22050 ~= 70 ms - fine for game audio. The previous
  * configuration pre-queued all 32 buffers at startup (LVI=31), which
  * meant freshly mixed audio sat behind ~31 buffers of stale data and
  * arrived 1.4 s late. Each IRQ now refills the buffer just past LVI
@@ -103,7 +103,7 @@ void ac97_set_fill_callback(void (*fill)(int16_t *, uint32_t)) {
  * buffer (not just one) so the queue stays AC97_LOOKAHEAD ahead of CIV
  * even when IRQs coalesce. Refilling once per IRQ used to leak queue
  * depth: if two buffers drained between IRQs we'd refill one and
- * silently shrink the lookahead by one — repeat a few times and the
+ * silently shrink the lookahead by one - repeat a few times and the
  * engine catches LVI, halts, and we hear a chop. This was inaudible
  * on SFX-only loads but obvious once OPL music piled CPU into the ISR.
  *
@@ -114,7 +114,7 @@ static void ac97_isr(struct registers *r) {
     (void)r;
     uint16_t sr = inw((uint16_t)(s_ac97.bar_nabm + NABM_PO_SR));
     /* React to BCIS (normal completion) AND LVBCI (engine halted because
-     * CIV caught LVI). LVBCI means we already underran once — refill and
+     * CIV caught LVI). LVBCI means we already underran once - refill and
      * bump LVI past CIV so DMA resumes. Without this branch a single bad
      * jitter spike permanently silences the channel. */
     if (sr & (uint16_t)(POSR_BCIS | POSR_LVBCI)) {
@@ -177,7 +177,7 @@ int ac97_init(void) {
      * The flags word is the high 16 bits of dword 1 in each BDL entry.
      * In the full 32-bit dword: bit 31 = IOC, bit 30 = BUP. So in the
      * 16-bit flags field that's bit 15 = IOC, bit 14 = BUP. We were
-     * setting bit 14 (BUP) by mistake — IOC never fired, BCIS never
+     * setting bit 14 (BUP) by mistake - IOC never fired, BCIS never
      * latched, the ISR never refilled, and DMA halted after draining
      * the initial silent ring once. */
     for (int j = 0; j < AC97_BDL_ENTRIES; j++) {
@@ -246,9 +246,9 @@ void ac97_set_master_volume(uint8_t pct) {
     outw((uint16_t)(s_ac97.bar_nam + NAM_MASTER_VOL), v);
 }
 
-/* ── Smoke-test kernel helpers ─────────────────────────────────────────── */
+/*  Smoke-test kernel helpers  */
 
-/* forward declaration — defined below */
+/* forward declaration - defined below */
 void ac97_tsc_sleep_ms(uint32_t ms);
 
 /* Generate a triangle-wave mono PCM into a freshly kmalloc'd buffer.
@@ -309,7 +309,7 @@ void ac97_smoke_pan(void) {
         return;
     }
     mixer_play(9, t, frames, (uint8_t)1, (uint8_t)0, (uint8_t)100, (uint8_t)0);
-    /* 8 ramp segments over 4 s — each segment is 500 ms = 10 × 50 ms steps */
+    /* 8 ramp segments over 4 s - each segment is 500 ms = 10 x 50 ms steps */
     for (int seg = 0; seg < 8; seg++) {
         for (int j = 0; j <= 100; j += 10) {
             uint8_t l = (uint8_t)((seg & 1) ? j : 100 - j);
@@ -326,7 +326,7 @@ void ac97_smoke_pan(void) {
 
 
 /* TSC-based busy-wait for ms milliseconds.
- * Uses RDTSC — advances regardless of IF/IRQ state.
+ * Uses RDTSC - advances regardless of IF/IRQ state.
  * Suitable for smoke tests where hlt/timer may be unreliable from JIT context. */
 void ac97_tsc_sleep_ms(uint32_t ms) {
     uint64_t freq = get_cpu_freq();          /* Hz */
@@ -345,7 +345,7 @@ void ac97_tsc_sleep_ms(uint32_t ms) {
 /* Generate a 1-second 440 Hz triangle-wave PCM buffer (mono, 22050 frames) */
 static int16_t *make_triangle_pcm(uint32_t *out_frames) {
     static const uint32_t RATE   = 22050u;
-    static const uint32_t PERIOD = 50u;   /* 22050 / 440 ≈ 50 */
+    static const uint32_t PERIOD = 50u;   /* 22050 / 440 ~= 50 */
     static const int16_t  AMP    = 8000;
 
     uint32_t frames = RATE;   /* 1 second */

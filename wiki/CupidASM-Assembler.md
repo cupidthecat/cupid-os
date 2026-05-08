@@ -572,7 +572,7 @@ main:
 
 > Syscall table version: **3** (since Phase 5 of Networking). The layout is
 > append-only - programs built against v2 still work and observe the new
-> larger `SYS_TABLE_SIZE`. `kernel/syscall.c` has `_Static_assert` guards
+> larger `SYS_TABLE_SIZE`. `kernel/core/syscall.c` has `_Static_assert` guards
 > on the offsets below so a future field reorder fails to compile.
 
 AOT-compiled programs receive a pointer to the syscall table at `[esp+4]` when executed. Use `SYS_*` constants (pre-defined as `equ` values) to call kernel functions indirectly:

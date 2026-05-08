@@ -1,11 +1,11 @@
 #ifndef CUPID_TLS_RECORD_H
 #define CUPID_TLS_RECORD_H
 
-#include "../types.h"
+#include "types.h"
 
 /* TLS 1.3 record layer (RFC 8446 §5).
  *
- * Cipher suite is hardcoded: TLS_CHACHA20_POLY1305_SHA256 — 32-byte
+ * Cipher suite is hardcoded: TLS_CHACHA20_POLY1305_SHA256 - 32-byte
  * key, 12-byte static IV, 16-byte AEAD tag, sequence-number XOR'd
  * into the last 8 bytes of the IV per RFC 8446 §5.3.
  *

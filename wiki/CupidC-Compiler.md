@@ -42,7 +42,7 @@ Compiles the source to memory and executes immediately. No binary is saved to di
 
 Compiles the source to a persistent ELF32 binary on the FAT16 disk. The binary can be re-executed without recompilation.
 
-If `-o` is omitted, the output name is derived from the source file (e.g., `program.cc` → `program`).
+If `-o` is omitted, the output name is derived from the source file (e.g., `program.cc` -> `program`).
 
 ---
 
@@ -563,9 +563,9 @@ The `result` buffer must be 128 bytes. Pass `0` for `ext` to show all files.
 | `crashtest_overflow` | `void crashtest_overflow()` | Overflow heap buffer (canary detection) |
 | `crashtest_stackoverflow` | `void crashtest_stackoverflow()` | Allocate 64 KB on stack (page fault) |
 
-### Networking — BSD sockets
+### Networking - BSD sockets
 
-Ports passed to / returned from these calls are network byte order — wrap
+Ports passed to / returned from these calls are network byte order - wrap
 literals in `htons()`. See [Networking](Networking) for full protocol
 details.
 
@@ -584,7 +584,7 @@ details.
 | `htonl` / `ntohl` | `U32 htonl(U32)` / `U32 ntohl(U32)` | 32-bit byte swap |
 | `IP_PROTO_ICMP` / `IP_PROTO_UDP` / `IP_PROTO_TCP` | `U32 IP_PROTO_TCP()` | Constants exposed as 0-arg getters |
 
-### Networking — interface info & raw protocol
+### Networking - interface info & raw protocol
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -596,7 +596,7 @@ details.
 | `net_link_up` | `U32 net_link_up()` | 1 if link up, else 0 |
 | `net_rx_packets` / `net_tx_packets` | `U32` | Counters since boot |
 | `net_rx_drops` / `net_tx_errors` | `U32` | Error counters |
-| `ip_parse` | `int ip_parse(char *s, U32 *out)` | `"a.b.c.d"` → uint32 |
+| `ip_parse` | `int ip_parse(char *s, U32 *out)` | `"a.b.c.d"` -> uint32 |
 | `ipv4_send` | `int ipv4_send(U32 dst, U8 proto, U8 *payload, U32 plen)` | Build + send raw IPv4 (auto-fragments) |
 | `arp_resolve` | `int arp_resolve(U32 ip, U8 *mac_out)` | Blocking resolve, 500 ms timeout |
 | `arp_dump` | `void arp_dump()` | Print cache to serial |
@@ -615,7 +615,7 @@ details.
 | `ata_read_sectors` | `int ata_read_sectors(U8 drive, U32 lba, U8 count, void *buf)` | Direct ATA read (drive 0 = master) |
 | `ata_write_sectors` | `int ata_write_sectors(U8 drive, U32 lba, U8 count, void *buf)` | Direct ATA write |
 
-### Keyboard, serial, PIT — direct driver access
+### Keyboard, serial, PIT - direct driver access
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -647,14 +647,14 @@ opaque `pci_device_t *` behind these index-based getters.
 
 ### SMP / LAPIC / paging / PMM
 
-> ⚠ Powerful — these can deadlock or corrupt the kernel if misused. Wrap
+> ⚠ These can deadlock or corrupt the kernel if misused. Wrap
 > in `bkl_lock`/`bkl_unlock` if you need atomicity vs. other CPUs.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `lapic_get_id` | `U32 lapic_get_id()` | Local APIC ID of the calling CPU |
 | `lapic_eoi` | `void lapic_eoi()` | End-of-interrupt (only call from a real ISR) |
-| `bkl_lock` / `bkl_unlock` | `void bkl_lock()` / `bkl_unlock()` | Big kernel lock — recursive ticket spinlock, IRQ-save |
+| `bkl_lock` / `bkl_unlock` | `void bkl_lock()` / `bkl_unlock()` | Big kernel lock - recursive ticket spinlock, IRQ-save |
 | `paging_map_mmio` | `void paging_map_mmio(U32 phys, U32 size)` | Identity-map a physical region with PWT|PCD bits |
 | `pmm_alloc_page` | `void *pmm_alloc_page()` | Allocate one 4 KB physical page |
 | `pmm_free_page` | `void pmm_free_page(void *page)` | Return a page to the PMM |
@@ -929,7 +929,7 @@ Source (.cc)
          ▼
 ┌─────────────────┐
 │  Parser +        │  cupidc_parse.c
-│  Code Generator  │  Recursive descent → x86 machine code
+│  Code Generator  │  Recursive descent -> x86 machine code
 └────────┬────────┘
          │ raw bytes
          ▼

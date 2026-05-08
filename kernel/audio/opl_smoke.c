@@ -1,10 +1,10 @@
-/* opl_smoke — verify Nuked-OPL3 → mixer → AC97 path.
+/* opl_smoke - verify Nuked-OPL3 -> mixer -> AC97 path.
  * Plays a single sustained FM note for ~2 seconds via slot 8
  * using a streaming-source pull callback that resamples
- * 49716 → 22050 Hz with linear interpolation.
+ * 49716 -> 22050 Hz with linear interpolation.
  */
-#include "../types.h"
-#include "../../drivers/serial.h"
+#include "types.h"
+#include "serial.h"
 #include "nuked_opl3.h"
 #include "mixer.h"
 #include "ac97.h"
@@ -60,7 +60,7 @@ void opl_smoke(void) {
     /* Enable OPL3 mode */
     OPL3_WriteRegBuffered(&g_chip, 0x105u, 0x01u);
 
-    /* Patch — channel 0, op0 (mod) and op3 (car). 2-op FM connection. */
+    /* Patch - channel 0, op0 (mod) and op3 (car). 2-op FM connection. */
     /* Modulator (register slot offset 0x00) */
     OPL3_WriteRegBuffered(&g_chip, 0x20u, 0x01u);   /* mult */
     OPL3_WriteRegBuffered(&g_chip, 0x40u, 0x10u);   /* level */

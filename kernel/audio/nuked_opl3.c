@@ -48,7 +48,7 @@
  */
 
 /* <stdio.h> and <stdlib.h> omitted: no printf/malloc/free/abs usage in this file. */
-#include "../string.h"
+#include "string.h"
 #include "nuked_opl3.h"
 
 /* uint_fast32_t is from <stdint.h>; map to uint32_t under kernel -nostdinc. */

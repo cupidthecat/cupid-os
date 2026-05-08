@@ -425,7 +425,7 @@ Lists files and directories in the given path (or CWD if no argument). Directori
        ...
 ```
 
-**How it works:** Uses `resolve_path()` to handle relative paths, then calls `vfs_readdir()` with a raw 69-byte buffer matching the `vfs_dirent_t` layout. Reads the type byte at offset 68 and reconstructs the 32-bit size from bytes at offset 64–67.
+**How it works:** Uses `resolve_path()` to handle relative paths, then calls `vfs_readdir()` with a raw 69-byte buffer matching the `vfs_dirent_t` layout. Reads the type byte at offset 68 and reconstructs the 32-bit size from bytes at offset 64-67.
 
 **Bindings used:** `get_args`, `resolve_path`, `vfs_open`, `vfs_readdir`, `vfs_close`, `print`, `println`, `print_int`
 
@@ -556,7 +556,7 @@ Killing PID 3...
 
 **Location:** `/bin/spawn.cc`
 
-Creates 1–16 test counting processes for scheduler testing. Each test process counts to 10 on the serial log with yields between counts.
+Creates 1-16 test counting processes for scheduler testing. Each test process counts to 10 on the serial log with yields between counts.
 
 ```
 > spawn 3
@@ -932,7 +932,7 @@ A full POSIX-like `ed(1)` line editor, written entirely in CupidC (~900 lines). 
 | Addresses | numbers, `.`, `$`, `'x` marks, `/RE/`, `?RE?`, `+/-` offsets, `%`, ranges |
 | Substitution | `s/pat/repl/flags` with g, p, n, count, `&` backreference |
 | Undo | Single-level (full buffer snapshot) |
-| Marks | 26 (a–z) |
+| Marks | 26 (a-z) |
 | Max lines | 1024 |
 | Max line length | 256 chars |
 

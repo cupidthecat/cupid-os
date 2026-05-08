@@ -13,9 +13,9 @@
  */
 
 #include "rtc.h"
-#include "../kernel/ports.h"
-#include "../kernel/kernel.h"
-#include "../drivers/serial.h"
+#include "ports.h"
+#include "kernel.h"
+#include "serial.h"
 
 #define CMOS_INDEX  0x70
 #define CMOS_DATA   0x71
@@ -49,7 +49,7 @@ static uint8_t cmos_read(uint8_t reg) {
  * bcd_to_bin - Convert BCD-encoded value to binary
  *
  * BCD format: upper nibble = tens digit, lower nibble = ones digit.
- * Example: 0x59 → 59
+ * Example: 0x59 -> 59
  *
  * @param bcd: BCD-encoded value
  * @return: Binary value

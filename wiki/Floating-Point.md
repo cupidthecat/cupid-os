@@ -43,7 +43,7 @@ Casts lower to CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
 ### Intrinsics
 
 `_mm_*_ps` (17 variants) and `_mm_*_pd` (11 variants) are recognized by name
-and inlined as SSE opcodes. See `kernel/simd_intrin.h` for the full list.
+and inlined as SSE opcodes. See `kernel/cpu/simd_intrin.h` for the full list.
 
 ## libm
 
@@ -79,7 +79,7 @@ Interactive: boot QEMU graphical, type the command in the shell.
 
 ## Stress test
 
-`fpu_context_stress()` in `kernel/fpu.c` spawns 8 threads each running 100k
+`fpu_context_stress()` in `kernel/cpu/fpu.c` spawns 8 threads each running 100k
 sin() loops, compares against a serial reference. Gated by `-DFPU_STRESS`.
 To run: add `-DFPU_STRESS` to `CFLAGS`, rebuild, boot. Panics on corruption.
 

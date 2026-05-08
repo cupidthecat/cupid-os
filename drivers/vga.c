@@ -8,12 +8,12 @@
  */
 
 #include "vga.h"
-#include "../kernel/memory.h"
-#include "../kernel/ports.h"
-#include "../kernel/simd.h"
-#include "../kernel/string.h"
-#include "../kernel/types.h"
-#include "../drivers/timer.h"
+#include "memory.h"
+#include "ports.h"
+#include "simd.h"
+#include "string.h"
+#include "types.h"
+#include "timer.h"
 
 /* Bochs VBE I/O */
 #define VBE_PORT_INDEX 0x01CE
@@ -156,7 +156,7 @@ void vga_flip(void) {
   if (!back_buffer)
     return;
 
-  /* Single-buffer present: copy back_buffer → page 0 (always displayed).
+  /* Single-buffer present: copy back_buffer -> page 0 (always displayed).
    * No Y_OFFSET flip - eliminates the port I/O that triggers a full QEMU
    * display re-render on every frame, including expensive software scaling
    * in QEMU fullscreen mode. */

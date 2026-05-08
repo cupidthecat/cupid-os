@@ -14,7 +14,7 @@
  */
 
 #include "pit.h"
-#include "../kernel/ports.h"
+#include "ports.h"
 
 /**
  * Initialize a PIT channel with the specified frequency

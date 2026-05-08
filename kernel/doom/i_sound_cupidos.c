@@ -1,15 +1,15 @@
-/* i_sound_cupidos.c — SFX path for DOOM via the CupidOS mixer.
+/* i_sound_cupidos.c: SFX path for DOOM via the CupidOS mixer.
  * Music path lands in Task 17.
  *
  * Built with CFLAGS_DOOM (no dglibc_compat.h alias), so we pull
  * kernel symbols explicitly.
  */
 
-#include "../types.h"
-#include "../string.h"
-#include "../memory.h"
-#include "../../drivers/serial.h"
-#include "../audio/mixer.h"
+#include "types.h"
+#include "string.h"
+#include "memory.h"
+#include "serial.h"
+#include "mixer.h"
 #include "src/i_sound.h"
 #include "src/w_wad.h"
 
@@ -28,9 +28,7 @@ typedef struct {
 
 static sfx_cache_entry_t s_cache[MAX_CACHED_SFX];
 
-/* ------------------------------------------------------------------ */
 /* Resample a DOOM SFX lump into the cache                            */
-/* ------------------------------------------------------------------ */
 
 static int cache_sfx(sfxinfo_t *sfx)
 {
@@ -108,9 +106,7 @@ static int cache_sfx(sfxinfo_t *sfx)
     return 0;
 }
 
-/* ------------------------------------------------------------------ */
 /* sound_module_t implementations                                      */
-/* ------------------------------------------------------------------ */
 
 static boolean cup_init(boolean use_sfx_prefix)
 {
@@ -162,7 +158,7 @@ static void cup_update_sound_params(int channel, int vol, int sep)
     mixer_set_volume(slot, (uint8_t)l, (uint8_t)r);
 }
 
-/* StartSound — 4 parameters per the actual i_sound.h (no pitch arg) */
+/* StartSound: 4 parameters per the actual i_sound.h (no pitch arg) */
 static int cup_start_sound(sfxinfo_t *sfx, int channel, int vol, int sep)
 {
     if (cache_sfx(sfx) != 0) { return -1; }
@@ -201,9 +197,7 @@ static void cup_precache_sounds(sfxinfo_t *sounds, int num_sounds)
     }
 }
 
-/* ------------------------------------------------------------------ */
 /* Module descriptor                                                   */
-/* ------------------------------------------------------------------ */
 
 /* sound_devices must be non-const snddevice_t* per the struct def */
 static snddevice_t cup_devices[] = { SNDDEVICE_SB };
@@ -222,9 +216,7 @@ sound_module_t cupidos_sound_module = {
     .CacheSounds        = cup_precache_sounds,
 };
 
-/* ------------------------------------------------------------------ */
-/* Top-level I_ wrappers — these are what the DOOM source calls       */
-/* ------------------------------------------------------------------ */
+/* Top-level I_ wrappers: these are what the DOOM source calls       */
 
 void I_InitSound(boolean use_sfx_prefix)
 {
@@ -272,7 +264,7 @@ void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
     cup_precache_sounds(sounds, num_sounds);
 }
 
-/* ── Music path: MUS → MIDI → OPL3 → mixer slot 8 ──────────────────────
+/* Music path: MUS -> MIDI -> OPL3 -> mixer slot 8
  *
  * Status: SMF (format 0/1) parser + multi-track timeline merge work,
  * tempo + delta-time + meta events handled, midiopl gets correctly
@@ -282,7 +274,7 @@ void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
  * volume scale carrier TL.
  *
  * Known gaps that keep music from sounding right (vs vanilla DOOM):
- *   - Percussion (MIDI ch 9) not handled — drum hits play as wrong-
+ *   - Percussion (MIDI ch 9) not handled. Drum hits play as wrong-
  *     pitched melody notes. Need GENMIDI percussion bank (slots
  *     175..302) and per-note fixed_note byte from each patch.
  *   - 2-voice instruments (GENMIDI flag 0x04) only program voice 0;
@@ -292,11 +284,11 @@ void I_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
  *   - OPL3 stereo / second 9-voice bank not used (we only allocate 9).
  *   - Channel pan, modulation wheel, sustain pedal CCs ignored.
  *
- * TODO: full port of chocolate-doom's i_oplmusic.c (≈1900 lines) to
+ * TODO: full port of chocolate-doom's i_oplmusic.c (~1900 lines) to
  * close these. Until then DOOM music will play but won't sound like
- * the original. SFX is unaffected — that path is 100% of vanilla.
+ * the original. SFX is unaffected: that path is 100% of vanilla.
  */
-#include "../audio/midiopl.h"
+#include "midiopl.h"
 /* Forward-declare mus2midi_convert directly to avoid the boolean typedef
  * conflict between mus2midi.h (boolean=int) and doomtype.h (boolean=uint). */
 int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
@@ -307,17 +299,17 @@ static uint8_t *s_midi_buf     = 0;
 static uint32_t s_midi_len     = 0;
 static int      s_music_loop   = 0;
 
-/* ── Standard MIDI File (SMF) player ─────────────────────────────────────
+/* Standard MIDI File (SMF) player
  *
  * The original code streamed raw bytes from s_midi_buf through
  * midiopl_feed at audio-buffer cadence. That works only for a paced
- * raw MIDI stream — but both the mus2midi output and the lumps
+ * raw MIDI stream. Both the mus2midi output and the lumps
  * Freedoom ships are full SMF files: MThd + (one per track) MTrk
  * chunks, delta-time VLQs, and meta events. midiopl_feed silently
  * discards orphan data bytes, so SMF input either plays nothing or
  * plays garbled events with no tempo control.
  *
- * Freedoom in particular uses SMF format 1 — a "conductor" track
+ * Freedoom in particular uses SMF format 1: a "conductor" track
  * (track 0) carrying tempo/meta events and N parallel music tracks
  * that all play simultaneously. D_E1M1 has 18 such tracks. A single-
  * track parser only sees the conductor, which is the symptom we hit:
@@ -454,7 +446,7 @@ static int smf_track_fire(smf_track_t *t) {
         return 0;
     }
 
-    /* Channel voice / mode message — running status applies. */
+    /* Channel voice / mode message; running status applies. */
     uint8_t status;
     uint32_t p;
     if (b & 0x80u) { status = b; p = t->pos + 1; t->running_status = status; }
@@ -510,41 +502,129 @@ static void smf_advance(uint32_t pull_us)
     }
 }
 
-/* Streaming-source pull. Renders in sub-chunks so MIDI events fire at
- * the right sample position inside the buffer instead of all collapsing
- * to t=0 of the buffer. The previous "fire everything for 23 ms then
- * render 23 ms" pass made short notes degenerate (note-on + note-off in
- * the same buffer landed 2 OPL ticks apart and got swallowed by the
- * envelope), which is what made drum hits and staccato lines sound
- * mushy / not crisp. SUBCHUNK = 64 frames at 22050 Hz ≈ 2.9 ms grain. */
-#define MUSIC_SUBCHUNK 64u
+/* Music producer/consumer ring buffer
+ *
+ * The OPL3 emulator (cycle-accurate Nuked) burns real CPU per output
+ * sample. Running it in the AC97 IRQ used to mean each interrupt
+ * blocked while we synthesised 23 ms of stereo. Any spike on the main
+ * thread (a fat DG_DrawFrame, a USB poll, a heap kmalloc walk) that
+ * delayed the IRQ ate into that 23 ms budget and we underran. Heard
+ * as music chopping under load. SFX was unaffected because SFX is just
+ * a memcpy.
+ *
+ * Producer: cup_music_pump() runs on the main thread (called from
+ * DG_GetTicksMs / DG_SleepMs in doomgeneric_cupidos.c). It synthesises
+ * one MUS_BUF_FRAMES chunk into the ring whenever there's room, until
+ * the ring is full.
+ *
+ * Consumer: music_pull (the AC97 stream callback) runs in IRQ context
+ * and just memcpy's the next chunk out of the ring. No OPL render in
+ * IRQ. If the ring is empty (cold start, or producer fell behind) we
+ * emit silence for that chunk: a much better failure mode than
+ * stalling the AC97 DMA and chopping ALL audio.
+ *
+ * Ring sizing: 8 buffers x 512 frames = 4096 frames = ~186 ms of
+ * headroom. That comfortably absorbs a frame's worth of CPU spike on
+ * QEMU + emulated host. Memory cost: 4096 x 4 = 16 KB.
+ *
+ * The producer also uses a 64-frame sub-chunk inside each buffer so
+ * MIDI events fire at the right sample position instead of all
+ * collapsing to t=0 of a 23 ms buffer; that's what makes short notes
+ * (drum hits, hi-hat, staccato) crisp. */
+#define MUS_BUF_FRAMES   512u
+#define MUS_RING_BUFS    8u
+#define MUS_RING_FRAMES  (MUS_RING_BUFS * MUS_BUF_FRAMES)
+#define MUSIC_SUBCHUNK   64u
 
-static void music_pull(int16_t *out, uint32_t frames, void *ctx)
+static int16_t           s_mus_ring[MUS_RING_FRAMES * 2u];
+static volatile uint32_t s_mus_w;   /* monotonic frame write counter */
+static volatile uint32_t s_mus_r;   /* monotonic frame read  counter */
+
+/* Render one MUS_BUF_FRAMES chunk through the SMF -> OPL pipeline,
+ * sub-chunked so event timing is precise. Writes to `dst` (interleaved
+ * stereo s16, MUS_BUF_FRAMES frames). */
+static void render_one_buffer(int16_t *dst)
 {
-    (void)ctx;
     if (s_midi_buf && !s_smf.all_ended) {
         uint32_t pos = 0u;
-        while (pos < frames) {
-            uint32_t chunk = (frames - pos < MUSIC_SUBCHUNK)
-                           ? (frames - pos) : MUSIC_SUBCHUNK;
+        while (pos < MUS_BUF_FRAMES) {
+            uint32_t chunk = (MUS_BUF_FRAMES - pos < MUSIC_SUBCHUNK)
+                           ? (MUS_BUF_FRAMES - pos) : MUSIC_SUBCHUNK;
             uint32_t pull_us = (chunk * 1000000u) / 22050u;
             smf_advance(pull_us);
-            midiopl_render(&out[pos * 2u], chunk);
+            midiopl_render(&dst[pos * 2u], chunk);
             pos += chunk;
             if (s_smf.all_ended) break;
         }
-        /* Tail: if the song ended mid-buffer, fill the rest with chip
-         * tail (release ringing notes) so we don't leave a silence step. */
-        if (pos < frames) {
-            midiopl_render(&out[pos * 2u], frames - pos);
+        if (pos < MUS_BUF_FRAMES) {
+            midiopl_render(&dst[pos * 2u], MUS_BUF_FRAMES - pos);
         }
         if (s_smf.all_ended && s_music_loop) smf_reset();
     } else {
-        midiopl_render(out, frames);
+        midiopl_render(dst, MUS_BUF_FRAMES);
     }
 }
 
-/* Lazy GENMIDI loader — called on first I_InitMusic */
+/* Producer: runs on main thread. Idempotent: when the ring is full it
+ * returns immediately. When the consumer (mixer slot 8) is stopped,
+ * the ring fills once and stays full, which naturally throttles SMF
+ * playback to a halt; no explicit pause flag needed. */
+void cup_music_pump(void)
+{
+    if (!s_music_inited) return;
+    for (;;) {
+        uint32_t r = s_mus_r;
+        uint32_t w = s_mus_w;
+        uint32_t used = w - r;
+        if (used + MUS_BUF_FRAMES > MUS_RING_FRAMES) return;   /* ring full */
+        uint32_t base = (w % MUS_RING_FRAMES) * 2u;
+        render_one_buffer(&s_mus_ring[base]);
+        /* x86 has strong store ordering; a compiler barrier is enough
+         * to ensure the ring writes are visible before s_mus_w bumps. */
+        __asm__ volatile("" ::: "memory");
+        s_mus_w = w + MUS_BUF_FRAMES;
+    }
+}
+
+/* Consumer: runs in AC97 IRQ context. Pure memcpy from ring; no
+ * synthesis, no allocation, bounded fast path. If the producer fell
+ * behind, output silence for this chunk; the consumer never blocks
+ * the DMA engine waiting for samples. */
+static void music_pull(int16_t *out, uint32_t frames, void *ctx)
+{
+    (void)ctx;
+    uint32_t r = s_mus_r;
+    uint32_t w = s_mus_w;
+    uint32_t avail = w - r;
+    if (avail < frames) {
+        /* Underrun: emit silence and wait for producer to catch up. */
+        for (uint32_t i = 0; i < frames * 2u; i++) out[i] = 0;
+        return;
+    }
+    /* Two-segment copy in case the read window straddles ring wrap. */
+    uint32_t r_idx  = r % MUS_RING_FRAMES;
+    uint32_t first  = MUS_RING_FRAMES - r_idx;
+    if (first > frames) first = frames;
+    for (uint32_t f = 0; f < first; f++) {
+        out[f * 2u + 0u] = s_mus_ring[(r_idx + f) * 2u + 0u];
+        out[f * 2u + 1u] = s_mus_ring[(r_idx + f) * 2u + 1u];
+    }
+    for (uint32_t f = first; f < frames; f++) {
+        uint32_t k = f - first;
+        out[f * 2u + 0u] = s_mus_ring[k * 2u + 0u];
+        out[f * 2u + 1u] = s_mus_ring[k * 2u + 1u];
+    }
+    s_mus_r = r + frames;
+}
+
+static void mus_ring_reset(void)
+{
+    s_mus_w = 0u;
+    s_mus_r = 0u;
+    for (uint32_t i = 0; i < MUS_RING_FRAMES * 2u; i++) s_mus_ring[i] = 0;
+}
+
+/* Lazy GENMIDI loader: called on first I_InitMusic */
 static int load_genmidi_from_wad(void)
 {
     int gn = W_GetNumForName("GENMIDI");
@@ -651,6 +731,13 @@ static void cup_music_play(void *handle, boolean looping)
     (void)handle;
     s_music_loop = looping ? 1 : 0;
     smf_reset();
+    /* Reset the producer/consumer ring and prefill it before arming the
+     * AC97 stream callback. Without prefill the very first IRQ would
+     * underrun (producer hasn't run yet) and we'd hear ~23 ms of
+     * silence before music starts. cup_music_pump runs synthesis until
+     * the ring is full or the song ends. */
+    mus_ring_reset();
+    cup_music_pump();
     mixer_play_stream(8, music_pull, 0, 100, 100);
 }
 
@@ -679,7 +766,7 @@ music_module_t cupidos_music_module = {
     .Poll             = cup_music_poll,
 };
 
-/* Top-level I_*Music — DOOM calls these directly. */
+/* Top-level I_*Music: DOOM calls these directly. */
 void I_InitMusic(void)    { cupidos_music_module.Init(); }
 void I_ShutdownMusic(void) { cupidos_music_module.Shutdown(); }
 

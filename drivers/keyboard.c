@@ -51,13 +51,13 @@
  */
 
 #include "keyboard.h"
-#include "../kernel/ports.h"
-#include "../kernel/irq.h"
-#include "../kernel/kernel.h"
-#include "../kernel/shell.h"
-#include "../kernel/desktop.h"
-#include "../kernel/gui.h"
-#include "../kernel/process.h"
+#include "ports.h"
+#include "irq.h"
+#include "kernel.h"
+#include "shell.h"
+#include "desktop.h"
+#include "gui.h"
+#include "process.h"
 #include "serial.h"
 
 // Global keyboard state
@@ -139,7 +139,7 @@ static const char scancode_to_ascii_shift[] = {
 #define EXT_KEY_END   0x4F
 #define EXT_KEY_INS   0x52
 
-/* ── Raw-scancode subscriber ─────────────────────────────────────────── */
+/*  Raw-scancode subscriber  */
 static kbd_event_cb s_kbd_sub_cb  = NULL;
 static void        *s_kbd_sub_ctx = NULL;
 
@@ -547,7 +547,7 @@ void keyboard_inject_scancode(uint8_t raw_scancode) {
     process_keypress(raw_scancode);
 }
 
-/* ── Test-shim: built-in subscriber for CupidC smoke tests ───────────── *
+/*  Test-shim: built-in subscriber for CupidC smoke tests  *
  * CupidC cannot pass function pointers as callbacks, so we provide a     *
  * fixed kernel-side subscriber that records the last event and exposes   *
  * the results via plain getter functions that CupidC CAN call.           */

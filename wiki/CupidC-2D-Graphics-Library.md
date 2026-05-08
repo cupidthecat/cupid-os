@@ -6,9 +6,9 @@ A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel b
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
+The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
 
-**Target display:** 640×480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
+**Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
 **Color format:** `0xAARRGGBB` (unsigned int, alpha byte enables transparency)
 
@@ -93,9 +93,9 @@ void gfx2d_pixel_alpha(int x, int y, unsigned int argb);
 
 ```c
 void gfx2d_gradient_h(int x, int y, int w, int h,
-                       unsigned int c1, unsigned int c2);  // left→right
+                       unsigned int c1, unsigned int c2);  // left->right
 void gfx2d_gradient_v(int x, int y, int w, int h,
-                       unsigned int c1, unsigned int c2);  // top→bottom
+                       unsigned int c1, unsigned int c2);  // top->bottom
 ```
 
 ### Drop Shadow
@@ -146,7 +146,7 @@ int  gfx2d_sprite_height(int handle);
 
 ### Text & Fonts
 
-Three built-in bitmap fonts: `FONT_SMALL`=0 (6×8), `FONT_NORMAL`=1 (8×8), `FONT_LARGE`=2 (8×16 doubled).
+Three built-in bitmap fonts: `FONT_SMALL`=0 (6x8), `FONT_NORMAL`=1 (8x8), `FONT_LARGE`=2 (8x16 doubled).
 
 ```c
 void gfx2d_text(int x, int y, char *str, unsigned int color, int font);
@@ -373,7 +373,7 @@ int bmp_decode_to_fb(char *path, int x, int y);  // decode BMP directly to frame
 | `-3` | `BMP_EIO` | File I/O error |
 | `-4` | `BMP_ENOMEM` | Buffer too small |
 
-**Supported format:** BITMAPINFOHEADER (Windows 3.x+), 24-bit uncompressed only. Max dimension: 8192×8192.
+**Supported format:** BITMAPINFOHEADER (Windows 3.x+), 24-bit uncompressed only. Max dimension: 8192x8192.
 
 **Example - Screenshot:**
 ```c
@@ -427,12 +427,12 @@ void draw_window(int x, int y, int w, int h, char *title) {
 
 | File | Purpose |
 |------|---------|
-| `kernel/gfx2d.h` | Public API header (including file dialogs) |
-| `kernel/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
-| `kernel/bmp.h` | BMP encoding/decoding API header |
-| `kernel/bmp.c` | BMP format implementation |
-| `kernel/vfs_helpers.h` | High-level VFS convenience functions |
-| `kernel/vfs_helpers.c` | VFS helpers implementation |
+| `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
+| `kernel/gfx/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
+| `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
+| `kernel/gfx/bmp.c` | BMP format implementation |
+| `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
+| `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
 | `cupidc.c` | Binding registration (~100 entries) |
 | `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
 | `cupidc_parse.c` | Type parsing for new keywords |
@@ -447,9 +447,9 @@ void draw_window(int x, int y, int w, int h, char *title) {
 - **Plasma:** precomputed 256-entry sine LUT, two-frequency interference pattern
 - **Sprite pool:** max 32 handles, stored in kernel heap
 - **Surface pool:** max 8 handles, each consumes w*h*4 bytes heap
-- **Particle systems:** max 4 systems × 64 particles each, 8.8 fixed-point positions
+- **Particle systems:** max 4 systems x 64 particles each, 8.8 fixed-point positions
 - **Clipping:** global clip rect checked in every pixel-write path
-- **Font LARGE:** same 8×8 glyphs as FONT_NORMAL, scaled 2× at draw time
+- **Font LARGE:** same 8x8 glyphs as FONT_NORMAL, scaled 2x at draw time
 - **Blend modes:** applied in g2d_put() helper for all drawing operations
 - **Tweening:** pure integer math, no floating point
 

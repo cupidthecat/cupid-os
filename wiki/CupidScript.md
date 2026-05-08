@@ -65,7 +65,7 @@ echo $UNDEFINED               # (prints nothing)
 | `$?` | Exit status of the last command (0 = success) |
 | `$#` | Number of arguments passed to the script |
 | `$0` | Name of the script file |
-| `$1` – `$9` | Positional arguments |
+| `$1` - `$9` | Positional arguments |
 | `$!` | PID of the last background process |
 | `$EPOCHSECONDS` | Seconds since Unix epoch (Jan 1, 1970) from the RTC |
 
@@ -371,9 +371,9 @@ CupidScript also processes raw ANSI escape sequences in output:
 |----------|--------|
 | `\e[0m` | Reset to defaults |
 | `\e[1m` | Bold (bright foreground) |
-| `\e[30m` – `\e[37m` | Foreground color |
-| `\e[40m` – `\e[47m` | Background color |
-| `\e[90m` – `\e[97m` | Bright foreground |
+| `\e[30m` - `\e[37m` | Foreground color |
+| `\e[40m` - `\e[47m` | Background color |
+| `\e[90m` - `\e[97m` | Bright foreground |
 | `\e[2J` | Clear screen |
 | `\e[H` | Move cursor to home |
 
@@ -790,11 +790,11 @@ echo "First 5: ${NAME:0:5}"
 
 The following features were previously listed as limitations and have since been implemented:
 
-- ~~No pipes (`|`)~~ → Full pipeline support with `|` operator
-- ~~No I/O redirection (`>`, `<`, `>>`)~~ → Output, input, append, and error redirection
-- ~~No command substitution~~ → Both `$(cmd)` and `` `cmd` `` syntax
-- ~~No arrays or associative arrays~~ → Regular arrays and `declare -A` associative arrays
-- ~~No background jobs (`&`)~~ → Background execution with job table tracking
+- ~~No pipes (`|`)~~ -> Full pipeline support with `|` operator
+- ~~No I/O redirection (`>`, `<`, `>>`)~~ -> Output, input, append, and error redirection
+- ~~No command substitution~~ -> Both `$(cmd)` and `` `cmd` `` syntax
+- ~~No arrays or associative arrays~~ -> Regular arrays and `declare -A` associative arrays
+- ~~No background jobs (`&`)~~ -> Background execution with job table tracking
 
 ---
 

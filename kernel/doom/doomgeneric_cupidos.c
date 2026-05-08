@@ -2,28 +2,28 @@
  * Task 13: Real CupidOS platform shim for doomgeneric.
  *
  * Replaces the Task 12 stubs with:
- *   DG_DrawFrame  — blits 640x400 ARGB into VBE backbuffer (y=40 letterbox)
- *   DG_GetKey     — drains ring buffer fed by keyboard_subscribe callback
- *   DG_SleepMs    — timer_sleep_ms wrapper
- *   DG_GetTicksMs — timer_get_uptime_ms wrapper
- *   DG_Init       — registers kbd subscriber, ensures /home/doom exists
- *   doom_main     — entry with dg_setjmp envelope so dg_exit returns to shell
+ *   DG_DrawFrame  - blits 640x400 ARGB into VBE backbuffer (y=40 letterbox)
+ *   DG_GetKey     - drains ring buffer fed by keyboard_subscribe callback
+ *   DG_SleepMs    - timer_sleep_ms wrapper
+ *   DG_GetTicksMs - timer_get_uptime_ms wrapper
+ *   DG_Init       - registers kbd subscriber, ensures /home/doom exists
+ *   doom_main     - entry with dg_setjmp envelope so dg_exit returns to shell
  *
  * Built with CFLAGS_DOOM (no -include dglibc_compat.h).
  */
 
 #include "doomgeneric_cupidos.h"
 #include "dglibc.h"
-#include "../../drivers/vga.h"
-#include "../../drivers/keyboard.h"
-#include "../../drivers/serial.h"
-#include "../../drivers/timer.h"
-#include "../vfs.h"
-#include "../types.h"
+#include "vga.h"
+#include "keyboard.h"
+#include "serial.h"
+#include "timer.h"
+#include "vfs.h"
+#include "types.h"
 
 extern void process_yield(void);
 
-/* doomgeneric global framebuffer — 640*400 ARGB.
+/* doomgeneric global framebuffer: 640*400 ARGB.
  * Defined inside kernel/doom/src/doomgeneric.c. */
 extern uint32_t *DG_ScreenBuffer;
 extern void doomgeneric_Tick(void);
@@ -34,16 +34,14 @@ extern void doomgeneric_Tick(void);
 #define DOOMGENERIC_RESY DG_RESY
 #define INPUT_RING   256
 
-/* ------------------------------------------------------------------ *
- * Keyboard ring buffer                                                 *
- * ------------------------------------------------------------------ */
+/* Keyboard ring buffer */
 
 typedef struct { uint8_t scancode; uint8_t pressed; } kbd_evt_t;
 static kbd_evt_t s_kbd_ring[INPUT_RING];
 static volatile uint32_t s_kbd_head = 0;
 static volatile uint32_t s_kbd_tail = 0;
 
-/* DOOM key codes — match chocolate-doom doomkeys.h */
+/* DOOM key codes match chocolate-doom doomkeys.h */
 #define DOOM_KEY_RIGHTARROW  0xAE
 #define DOOM_KEY_LEFTARROW   0xAC
 #define DOOM_KEY_UPARROW     0xAD
@@ -91,7 +89,7 @@ static unsigned char s_scan_to_doom[128] = {
     [0x31] = 'n',
 };
 
-/* Keyboard IRQ callback — runs with IRQs disabled; push only, no process */
+/* Keyboard IRQ callback runs with IRQs disabled; push only, no process */
 static void on_kbd(uint8_t sc, bool pressed, void *ctx) {
     (void)ctx;
     /* Ignore scancodes we don't map */
@@ -103,9 +101,7 @@ static void on_kbd(uint8_t sc, bool pressed, void *ctx) {
     s_kbd_head = next;
 }
 
-/* ------------------------------------------------------------------ *
- * DG_Init                                                             *
- * ------------------------------------------------------------------ */
+/* DG_Init */
 
 void DG_Init(void) {
     s_kbd_head = 0;
@@ -116,59 +112,23 @@ void DG_Init(void) {
     serial_write_string("[doom] DG_Init: platform shim ready\n");
 }
 
-/* ------------------------------------------------------------------ *
- * DG_DrawFrame                                                         *
- * ------------------------------------------------------------------ */
+/* DG_DrawFrame */
 
+/* DG_ScreenBuffer aliases the 640x400 body slice of the VGA back buffer
+ * (set up at startup in doom_main). doomgeneric writes its frame
+ * directly into back_buffer at y_off, so DG_DrawFrame does not need to
+ * memcpy. vga_flip's existing back->LFB copy is the only blit per frame.
+ * That removes a full 1 MB cached-RAM copy from every game frame, which
+ * is the biggest single CPU win for sustained framerate (and the
+ * stability win for music: less time in the main thread blocked on
+ * memory bandwidth = more headroom for the AC97 IRQ + cup_music_pump). */
 void DG_DrawFrame(void) {
-    uint32_t *fb;
-    int y_off;
-    int x;
-    int y;
-
     if (!DG_ScreenBuffer) { return; }
-
-    fb = vga_get_framebuffer();
-    if (!fb) { return; }
-
-    /* VBE is 640x480; DOOM renders 640x400.
-     * Centre vertically: y_off = (480 - 400) / 2 = 40. */
-    y_off = (VGA_GFX_HEIGHT - DG_RESY) / 2;
-    if (y_off < 0) { y_off = 0; }
-
-    /* Clear top letterbox bar */
-    for (y = 0; y < y_off; y++) {
-        for (x = 0; x < VGA_GFX_WIDTH; x++) {
-            fb[y * VGA_GFX_WIDTH + x] = 0u;
-        }
-    }
-
-    /* Blit DG_ScreenBuffer (ARGB) into back buffer.
-     * doomgeneric writes 0xAARRGGBB; VBE 32bpp is XRGB (0x00RRGGBB).
-     * The alpha byte is already ignored by the display so a direct copy
-     * works without channel-swapping. */
-    for (y = 0; y < DG_RESY; y++) {
-        uint32_t *src = &DG_ScreenBuffer[y * DG_RESX];
-        uint32_t *dst = &fb[(y + y_off) * VGA_GFX_WIDTH];
-        for (x = 0; x < DG_RESX; x++) {
-            dst[x] = src[x];
-        }
-    }
-
-    /* Clear bottom letterbox bar */
-    for (y = y_off + DG_RESY; y < VGA_GFX_HEIGHT; y++) {
-        for (x = 0; x < VGA_GFX_WIDTH; x++) {
-            fb[y * VGA_GFX_WIDTH + x] = 0u;
-        }
-    }
-
     vga_mark_dirty_full();
     vga_flip();
 }
 
-/* ------------------------------------------------------------------ *
- * DG_SleepMs / DG_GetTicksMs                                          *
- * ------------------------------------------------------------------ */
+/* DG_SleepMs / DG_GetTicksMs */
 
 /* USB host controllers expose interrupt URBs only via cooperative polling
  * from kernel_check_reschedule().  DOOM owns the kernel main thread and
@@ -180,31 +140,97 @@ extern void uhci_poll_interrupts(void);
 extern void uhci_poll_ports(void);
 extern void usb_process_pending(void);
 
-static void cup_pump_usb(void) {
+/* Producer for the music ring buffer (defined in i_sound_cupidos.c).
+ * Synthesises OPL3 audio ahead of the AC97 IRQ on the main thread so
+ * the IRQ becomes a pure memcpy. */
+extern void cup_music_pump(void);
+
+extern uint64_t get_cpu_freq(void);
+
+static inline uint64_t cup_rdtsc(void) {
+    uint32_t lo, hi;
+    __asm__ volatile("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+/* DOOM's TryRunTics busy-loops on DG_GetTicksMs at thousands of Hz.
+ * Polling the USB host stack on every call burns CPU we'd rather give
+ * to OPL synthesis (cup_music_pump) and the renderer. USB device
+ * interrupts only need ~1 ms granularity for input. Sub-ms polling
+ * provides no user-visible benefit. */
+static uint32_t s_last_usb_pump_ms = 0u;
+
+static void cup_pump_usb_throttled(uint32_t now_ms) {
+    if (now_ms - s_last_usb_pump_ms < 1u) return;
+    s_last_usb_pump_ms = now_ms;
     ehci_poll_interrupts();
     uhci_poll_ports();
     uhci_poll_interrupts();
     usb_process_pending();
 }
 
+/* TSC-based clock for DOOM. The kernel PIT runs at 100 Hz, so
+ * timer_get_uptime_ms() only advances in 10 ms steps. DOOM's I_GetTime
+ * computes `ms * 35 / 1000` from this. At 10 ms granularity the
+ * derived game tic advances in big jumps and jitters by up to one
+ * full tic (28 ms) relative to wall-clock. TryRunTics then either
+ * runs no tic (waiting for the timer to step) or runs a backlog all
+ * at once. Input feels laggy because a key press at t=15 ms isn't
+ * processed until the timer steps to 20 ms and then DOOM thinks we're
+ * still at game tic 0. RDTSC gives cycle-level precision so
+ * DG_GetTicksMs increments smoothly per call. */
+static uint64_t s_tsc_origin    = 0;
+static uint64_t s_tsc_per_ms    = 0;
+
+static void cup_clock_init(void) {
+    if (s_tsc_per_ms != 0) return;
+    s_tsc_per_ms = get_cpu_freq() / 1000u;
+    if (s_tsc_per_ms == 0) s_tsc_per_ms = 1;
+    s_tsc_origin = cup_rdtsc();
+}
+
+static uint32_t cup_get_ticks_ms(void) {
+    cup_clock_init();
+    uint64_t now = cup_rdtsc() - s_tsc_origin;
+    return (uint32_t)(now / s_tsc_per_ms);
+}
+
 void DG_SleepMs(uint32_t ms) {
-    /* Force IF=1 — DOOM busy-waits on this in TryRunTics, and the shell
+    /* Force IF=1. DOOM busy-waits on this in TryRunTics, and the shell
      * command path can leave us with IF=0 (BKL save/restore cycle).
      * Without IF=1 the PIT IRQ never fires and the loop spins forever. */
     __asm__ volatile("sti");
-    cup_pump_usb();
-    timer_sleep_ms(ms);
+
+    /* Busy-wait against the TSC clock instead of timer_sleep_ms()'s
+     * HLT loop. timer_sleep_ms quantises to 10 ms PIT ticks and the
+     * `hlt` parks the CPU until the next IRQ. Fine for power but it
+     * means I_Sleep(1) actually sleeps 0 or 10 ms (never 1 ms). DOOM
+     * calls I_Sleep(1) inside TryRunTics specifically to give the next
+     * tic time to become ready; we want that wait short and accurate.
+     *
+     * While spinning we keep the music ring topped up and drain any
+     * USB events. The CPU stays warm. Fine, we're a game, not a
+     * mail server. */
+    cup_clock_init();
+    uint64_t target = cup_rdtsc() + (uint64_t)ms * s_tsc_per_ms;
+    cup_pump_usb_throttled(cup_get_ticks_ms());
+    cup_music_pump();
+    while (cup_rdtsc() < target) {
+        cup_music_pump();
+        cup_pump_usb_throttled(cup_get_ticks_ms());
+        __asm__ volatile("pause");
+    }
 }
 
 uint32_t DG_GetTicksMs(void) {
     __asm__ volatile("sti");
-    cup_pump_usb();
-    return timer_get_uptime_ms();
+    uint32_t now = cup_get_ticks_ms();
+    cup_pump_usb_throttled(now);
+    cup_music_pump();
+    return now;
 }
 
-/* ------------------------------------------------------------------ *
- * DG_GetKey                                                           *
- * ------------------------------------------------------------------ */
+/* DG_GetKey */
 
 int DG_GetKey(int *pressed, unsigned char *doomkey) {
     kbd_evt_t e;
@@ -223,16 +249,12 @@ int DG_GetKey(int *pressed, unsigned char *doomkey) {
     return 1;
 }
 
-/* ------------------------------------------------------------------ *
- * DG_SetWindowTitle                                                    *
- * ------------------------------------------------------------------ */
+/* DG_SetWindowTitle */
 
 void DG_SetWindowTitle(const char *t) { (void)t; }
 
-/* ------------------------------------------------------------------ *
- * doom_main entry — wraps D_DoomMain in a dg_setjmp envelope so      *
- * dg_exit / dg_abort can longjmp back to the shell cleanly.          *
- * ------------------------------------------------------------------ */
+/* doom_main entry: wraps D_DoomMain in a dg_setjmp envelope so
+ * dg_exit / dg_abort can longjmp back to the shell cleanly. */
 
 extern void  D_DoomMain(void);
 extern void  M_FindResponseFile(void);
@@ -347,16 +369,24 @@ int doom_main(int argc, char **argv) {
         }
     }
 
-    /* doomgeneric expects DG_ScreenBuffer pre-allocated and the host to
-     * drive the game loop with repeated calls to doomgeneric_Tick.
-     * D_DoomLoop() in this port runs ONE tick then returns, by design. */
+    /* doomgeneric expects DG_ScreenBuffer pre-allocated. We point it at
+     * the 640x400 body slice of the VGA back buffer (centred vertically
+     * with a 40-row letterbox top + bottom). This means doomgeneric's
+     * frame writes land directly in cached back-buffer RAM at the
+     * displayed offset, so DG_DrawFrame is just a vga_flip. The
+     * previous heap-alloc + per-frame ARGB copy is gone. The 80 rows
+     * of black letterbox bars are written once here and never touched
+     * again, since DG_ScreenBuffer never points outside its 400-row
+     * window. */
     if (!DG_ScreenBuffer) {
-        DG_ScreenBuffer = (uint32_t *)dg_malloc(
-            DOOMGENERIC_RESX * DOOMGENERIC_RESY * 4u);
-        if (!DG_ScreenBuffer) {
-            serial_write_string("[doom] out of memory: DG_ScreenBuffer\n");
+        uint32_t *fb = vga_get_framebuffer();
+        if (!fb) {
+            serial_write_string("[doom] no back buffer for DG_ScreenBuffer\n");
             return 1;
         }
+        int y_off = (VGA_GFX_HEIGHT - DG_RESY) / 2;
+        if (y_off < 0) { y_off = 0; }
+        DG_ScreenBuffer = &fb[(uint32_t)y_off * (uint32_t)VGA_GFX_WIDTH];
     }
 
     DG_Init();

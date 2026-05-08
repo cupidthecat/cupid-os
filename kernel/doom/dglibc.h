@@ -1,7 +1,7 @@
 #ifndef KERNEL_DOOM_DGLIBC_H
 #define KERNEL_DOOM_DGLIBC_H
 
-#include "../types.h"
+#include "types.h"
 
 /* Opaque file handle */
 typedef struct DG_FILE DG_FILE;
