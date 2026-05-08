@@ -240,6 +240,83 @@ int css_value_int(int off, int len) {
     return (milli / 1000) * sign;
 }
 
+/* Resolve a CSS length value to px in the context of computed-style index
+ * `cs`. Differs from css_value_int by:
+ *   - em uses cs's own font-size (walking up if still unset),
+ *   - rem uses html (cs index 1) font-size,
+ *   - % uses viewport content width as a stable proxy for the containing
+ *     block width (true containing-block-relative resolution would need
+ *     layout-time deferral; the proxy is accurate at the body level).
+ * Negative values supported. Returns 0 on parse failure. */
+int css_value_len(int cs, int off, int len) {
+    int sign = 1;
+    int i = off;
+    int end = off + len;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i < end && css_value_pool[i] == '-') { sign = -1; i = i + 1; }
+    if (i >= end) return 0;
+    if (css_value_pool[i] < '0' || css_value_pool[i] > '9') return 0;
+    int int_part = 0;
+    while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+        int_part = int_part * 10 + (css_value_pool[i] - '0');
+        i = i + 1;
+    }
+    int frac = 0;
+    if (i < end && css_value_pool[i] == '.') {
+        i = i + 1;
+        int digits = 0;
+        while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+            if (digits < 2) frac = frac * 10 + (css_value_pool[i] - '0');
+            digits = digits + 1;
+            i = i + 1;
+        }
+        if (digits == 1) frac = frac * 10;
+    }
+    int v_x100 = int_part * 100 + frac;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+
+    int base_px = (cs >= 0 && cs < cs_count) ? cs_font_size_px[cs] : 16;
+    if (base_px <= 0) {
+        int p = (cs >= 0) ? n_parent[cs] : -1;
+        while (p >= 0 && cs_font_size_px[p] <= 0) p = n_parent[p];
+        base_px = (p >= 0 && cs_font_size_px[p] > 0) ? cs_font_size_px[p] : 16;
+    }
+    int root_px = (cs_count >= 2 && cs_font_size_px[1] > 0) ? cs_font_size_px[1] : 16;
+
+    int result;
+    if (i >= end) {
+        result = v_x100 / 100;
+    } else {
+        int a = css_value_pool[i];
+        int b = (i + 1 < end) ? css_value_pool[i+1] : 0;
+        int c2 = (i + 2 < end) ? css_value_pool[i+2] : 0;
+        if (a == 'p' && b == 'x') {
+            result = v_x100 / 100;
+        } else if (a == 'p' && b == 't') {
+            result = (v_x100 * 4) / (3 * 100);
+        } else if (a == 'r' && b == 'e' && c2 == 'm') {
+            result = (v_x100 * root_px) / 100;
+        } else if (a == 'e' && b == 'm') {
+            result = (v_x100 * base_px) / 100;
+        } else if (a == 'v' && b == 'w') {
+            int vw = cur_cw - 12;
+            if (vw < 0) vw = 0;
+            result = (v_x100 * vw) / 10000;
+        } else if (a == 'v' && b == 'h') {
+            int vh = cur_ch - ADDR_H - STATUS_H - 2;
+            if (vh < 0) vh = 0;
+            result = (v_x100 * vh) / 10000;
+        } else if (a == '%') {
+            int vw = cur_cw - 12;
+            if (vw < 0) vw = 0;
+            result = (v_x100 * vw) / 10000;
+        } else {
+            result = v_x100 / 100;
+        }
+    }
+    return result * sign;
+}
+
 int css_value_is_auto(int off, int len) {
     int i = off;
     int end = off + len;
@@ -460,7 +537,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 vals[nvals] = 0;
                 autos[nvals] = 1;
             } else {
-                vals[nvals] = css_value_int(v_start, sub_len);
+                vals[nvals] = css_value_len(cs, v_start, sub_len);
                 autos[nvals] = 0;
             }
             nvals = nvals + 1;
@@ -495,28 +572,28 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     }
     if (prop == CP_MARGIN_T)  {
         if (css_value_is_auto(val_off, val_len)) { cs_margin[cs][0] = 0; cs_margin_auto[cs][0] = 1; }
-        else { cs_margin[cs][0] = css_value_int(val_off, val_len); cs_margin_auto[cs][0] = 0; }
+        else { cs_margin[cs][0] = css_value_len(cs, val_off, val_len); cs_margin_auto[cs][0] = 0; }
         return;
     }
     if (prop == CP_MARGIN_R)  {
         if (css_value_is_auto(val_off, val_len)) { cs_margin[cs][1] = 0; cs_margin_auto[cs][1] = 1; }
-        else { cs_margin[cs][1] = css_value_int(val_off, val_len); cs_margin_auto[cs][1] = 0; }
+        else { cs_margin[cs][1] = css_value_len(cs, val_off, val_len); cs_margin_auto[cs][1] = 0; }
         return;
     }
     if (prop == CP_MARGIN_B)  {
         if (css_value_is_auto(val_off, val_len)) { cs_margin[cs][2] = 0; cs_margin_auto[cs][2] = 1; }
-        else { cs_margin[cs][2] = css_value_int(val_off, val_len); cs_margin_auto[cs][2] = 0; }
+        else { cs_margin[cs][2] = css_value_len(cs, val_off, val_len); cs_margin_auto[cs][2] = 0; }
         return;
     }
     if (prop == CP_MARGIN_L)  {
         if (css_value_is_auto(val_off, val_len)) { cs_margin[cs][3] = 0; cs_margin_auto[cs][3] = 1; }
-        else { cs_margin[cs][3] = css_value_int(val_off, val_len); cs_margin_auto[cs][3] = 0; }
+        else { cs_margin[cs][3] = css_value_len(cs, val_off, val_len); cs_margin_auto[cs][3] = 0; }
         return;
     }
-    if (prop == CP_PADDING_T) { cs_padding[cs][0] = css_value_int(val_off, val_len); return; }
-    if (prop == CP_PADDING_R) { cs_padding[cs][1] = css_value_int(val_off, val_len); return; }
-    if (prop == CP_PADDING_B) { cs_padding[cs][2] = css_value_int(val_off, val_len); return; }
-    if (prop == CP_PADDING_L) { cs_padding[cs][3] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_PADDING_T) { cs_padding[cs][0] = css_value_len(cs, val_off, val_len); return; }
+    if (prop == CP_PADDING_R) { cs_padding[cs][1] = css_value_len(cs, val_off, val_len); return; }
+    if (prop == CP_PADDING_B) { cs_padding[cs][2] = css_value_len(cs, val_off, val_len); return; }
+    if (prop == CP_PADDING_L) { cs_padding[cs][3] = css_value_len(cs, val_off, val_len); return; }
     if (prop == CP_BORDER || prop == CP_BORDER_T || prop == CP_BORDER_R ||
         prop == CP_BORDER_B || prop == CP_BORDER_L) {
         /* Parse `<width> <style> <color>` shorthand. Width default 1px,
@@ -542,7 +619,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             /* numeric? */
             if (!got_width && css_value_pool[t_start] >= '0' &&
                 css_value_pool[t_start] <= '9') {
-                width = css_value_int(t_start, t_len);
+                width = css_value_len(cs, t_start, t_len);
                 got_width = 1;
                 continue;
             }
@@ -572,7 +649,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         return;
     }
     if (prop == CP_BORDER_WIDTH) {
-        int w = css_value_int(val_off, val_len);
+        int w = css_value_len(cs, val_off, val_len);
         cs_border[cs][0] = w; cs_border[cs][1] = w;
         cs_border[cs][2] = w; cs_border[cs][3] = w;
         return;
@@ -618,8 +695,8 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         }
         return;
     }
-    if (prop == CP_WIDTH)  { cs_width[cs]  = css_value_int(val_off, val_len); return; }
-    if (prop == CP_HEIGHT) { cs_height[cs] = css_value_int(val_off, val_len); return; }
+    if (prop == CP_WIDTH)  { cs_width[cs]  = css_value_len(cs, val_off, val_len); return; }
+    if (prop == CP_HEIGHT) { cs_height[cs] = css_value_len(cs, val_off, val_len); return; }
     if (prop == CP_WHITE_SPACE) {
         if (css_value_keyword(val_off, val_len, "pre"))    { cs_white_space[cs] = WS_PRE; return; }
         if (css_value_keyword(val_off, val_len, "nowrap")) { cs_white_space[cs] = WS_NOWRAP; return; }
