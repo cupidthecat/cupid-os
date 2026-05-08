@@ -566,7 +566,32 @@ void js_assign_to_target(int target_node) {
         int obj_top = jvs_top - 1;
         int koff = jn_b[target_node]; int klen = jn_c[target_node];
         int tag = jvs_tag[obj_top];
+        int dom = jvs_dom_idx[obj_top];
         int oi  = jvs_obj_idx[obj_top];
+        if (tag == JS_VAL_DOMNODE) {
+            /* Write rvalue back to top so jsd_dom_member_set reads it. */
+            int srct = jvs_tag[rv_pos];
+            double srcn = jvs_num[rv_pos];
+            int srcs_o = jvs_str_off[rv_pos];
+            int srcs_l = jvs_str_len[rv_pos];
+            int srco   = jvs_obj_idx[rv_pos];
+            int srcd   = jvs_dom_idx[rv_pos];
+            jvs_tag[obj_top]     = srct;
+            jvs_num[obj_top]     = srcn;
+            jvs_str_off[obj_top] = srcs_o;
+            jvs_str_len[obj_top] = srcs_l;
+            jvs_obj_idx[obj_top] = srco;
+            jvs_dom_idx[obj_top] = srcd;
+            jsd_dom_member_set(dom, koff, klen);
+            jvs_top = rv_pos + 1;
+            jvs_tag[rv_pos]     = srct;
+            jvs_num[rv_pos]     = srcn;
+            jvs_str_off[rv_pos] = srcs_o;
+            jvs_str_len[rv_pos] = srcs_l;
+            jvs_obj_idx[rv_pos] = srco;
+            jvs_dom_idx[rv_pos] = srcd;
+            return;
+        }
         if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {
             /* Move rvalue to top of stack (it's at rv_pos, currently
              * shadowed by the object). Swap so the rvalue sits at top. */

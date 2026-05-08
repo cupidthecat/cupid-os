@@ -182,6 +182,58 @@ void jsd_dom_member_get(int dom_idx, int koff, int klen) {
     js_push_undef();
 }
 
+/* Mark all of dom_idx's text-node children as inert (T_OTHER + no
+ * text) so a subsequent textContent set / appendChild starts clean.
+ * Pool slots are never freed; we just unlink from the parent's child
+ * list. Used by jsd_dom_set_text_content. */
+void jsd_clear_children(int dom_idx) {
+    n_first_child[dom_idx] = -1;
+}
+
+/* Allocate a fresh T_TEXT node, intern the string into attr_pool,
+ * attach as the only child of parent. Returns the new node index or
+ * -1 on failure. */
+int jsd_make_text_child(int parent, char *s, int len) {
+    int n = alloc_node(T_TEXT, parent, -1);
+    if (n < 0) return -1;
+    int off = attr_intern(s, len);
+    if (off < 0) return -1;
+    n_text_off[n] = off;
+    n_text_len[n] = len;
+    return n;
+}
+
+/* Write a property on a DOMNODE; reads top-of-stack as the rvalue.
+ * F2b implements textContent / innerText. F2d adds attribute / style. */
+void jsd_dom_member_set(int dom_idx, int koff, int klen) {
+    if (dom_idx < 0) return;
+    char *name = js_str_pool + koff;
+    int t = jvs_top - 1;
+    if ((klen == 11 && b_strieq_n(name, "textContent", 11)) ||
+        (klen == 9  && b_strieq_n(name, "innerText", 9))) {
+        char buf[1024];
+        int n = js_to_string_at(t, buf, 1024);
+        jsd_clear_children(dom_idx);
+        jsd_make_text_child(dom_idx, buf, n);
+        dom_dirty = 1;
+        return;
+    }
+    if (klen == 9 && b_strieq_n(name, "innerHTML", 9)) {
+        /* F2b minimal: treat innerHTML like textContent (no tag
+         * parsing). A real innerHTML re-enters the HTML tokenizer/
+         * tree-builder against a sub-tree; the existing parser uses
+         * file-scope globals so a recursive entry would corrupt the
+         * outer parse. Deferred until the parser is refactored. */
+        char buf[1024];
+        int n = js_to_string_at(t, buf, 1024);
+        jsd_clear_children(dom_idx);
+        jsd_make_text_child(dom_idx, buf, n);
+        dom_dirty = 1;
+        return;
+    }
+    /* Unknown property - silently ignored for now. */
+}
+
 /* document.getElementById(s) - walks DOM, matches dom_id_off entries. */
 void jsd_doc_get_element_by_id(int argc) {
     if (argc < 1) { js_push_null(); return; }
