@@ -40,6 +40,10 @@ void ua_default_style(int tag, int cs) {
     cs_line_height[cs] = -1;        /* unset; falls back to tier_line_h */
     cs_line_height_mult[cs] = 0;
     cs_font_size_px[cs] = -1;       /* unset; inherits from parent */
+    cs_max_width[cs]  = -1;
+    cs_min_width[cs]  = -1;
+    cs_max_height[cs] = -1;
+    cs_min_height[cs] = -1;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -697,6 +701,24 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     }
     if (prop == CP_WIDTH)  { cs_width[cs]  = css_value_len(cs, val_off, val_len); return; }
     if (prop == CP_HEIGHT) { cs_height[cs] = css_value_len(cs, val_off, val_len); return; }
+    if (prop == CP_MAX_WIDTH) {
+        if (css_value_keyword(val_off, val_len, "none")) { cs_max_width[cs] = -1; return; }
+        cs_max_width[cs]  = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_MIN_WIDTH) {
+        cs_min_width[cs]  = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_MAX_HEIGHT) {
+        if (css_value_keyword(val_off, val_len, "none")) { cs_max_height[cs] = -1; return; }
+        cs_max_height[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_MIN_HEIGHT) {
+        cs_min_height[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
     if (prop == CP_WHITE_SPACE) {
         if (css_value_keyword(val_off, val_len, "pre"))    { cs_white_space[cs] = WS_PRE; return; }
         if (css_value_keyword(val_off, val_len, "nowrap")) { cs_white_space[cs] = WS_NOWRAP; return; }

@@ -257,6 +257,10 @@ int css_match_property(char *s, int len) {
     if (len == 16 && b_strieq_n(s, "list-style-type", 16))        return CP_LIST_STYLE_TYPE;
     if (len == 14 && b_strieq_n(s, "vertical-align", 14))         return CP_VERTICAL_ALIGN;
     if (len == 11 && b_strieq_n(s, "line-height", 11))            return CP_LINE_HEIGHT;
+    if (len == 9  && b_strieq_n(s, "max-width", 9))               return CP_MAX_WIDTH;
+    if (len == 9  && b_strieq_n(s, "min-width", 9))               return CP_MIN_WIDTH;
+    if (len == 10 && b_strieq_n(s, "max-height", 10))             return CP_MAX_HEIGHT;
+    if (len == 10 && b_strieq_n(s, "min-height", 10))             return CP_MIN_HEIGHT;
     return 0;
 }
 

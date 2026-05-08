@@ -124,6 +124,7 @@ enum {
     CP_BORDER_WIDTH, CP_BORDER_STYLE, CP_FONT,
     CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
     CP_LINE_HEIGHT,
+    CP_MAX_WIDTH, CP_MIN_WIDTH, CP_MAX_HEIGHT, CP_MIN_HEIGHT,
     MAX_CP_ID = 40,
 
     /* §2 enumerated value tags */
@@ -359,6 +360,11 @@ int cs_line_height_mult[4096];
 /* font-size in px. -1 = unset (inherit from parent during cascade fill).
  * cs_font_size_tier is derived from this via px_to_tier(px). */
 int cs_font_size_px[4096];
+/* Sizing clamps. -1 = unset (no clamp). */
+int cs_max_width [4096];
+int cs_min_width [4096];
+int cs_max_height[4096];
+int cs_min_height[4096];
 
 /* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;

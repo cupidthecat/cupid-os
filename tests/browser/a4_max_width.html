@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><title>A4 max/min sizing</title></head>
+<body>
+<h2>A4 max-width / min-width / max-height / min-height</h2>
+
+<p style="background:#eef">[no clamp] paragraph fills viewport content width as usual. Wraps. One. Two. Three. Four. Five.</p>
+
+<div style="max-width:400px;background:#fed">[max-width:400px] this div is capped at 400px wide regardless of viewport size. It must be visibly narrower than the no-clamp paragraph.</div>
+
+<div style="max-width:600px;margin:0 auto;background:#dfd">[max-width:600px; margin:0 auto] capped at 600px and centered horizontally with auto margins. Should be a centered block.</div>
+
+<div style="min-width:500px;background:#fee">[min-width:500px] forced to at least 500px wide even if content is short.</div>
+
+<p style="width:200px;max-width:100px;background:#fed">[width:200px max-width:100px] max wins, paragraph is 100px wide.</p>
+
+<p style="width:200px;min-width:300px;background:#fed">[width:200px min-width:300px] min wins, paragraph is 300px wide.</p>
+
+<div style="height:50px;max-height:30px;background:#dfd">[height:50px max-height:30px] capped to 30px tall.</div>
+
+<div style="min-height:80px;background:#fee">[min-height:80px] short content, but block is at least 80px tall.</div>
+
+<div style="max-width:50%;background:#dfd">[max-width:50%] never wider than half the viewport.</div>
+
+<div style="max-width:20em;background:#fed">[max-width:20em] capped at 20em (= 320px on 16px body).</div>
+</body>
+</html>

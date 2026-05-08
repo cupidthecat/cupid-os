@@ -327,11 +327,17 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
 
 void layout_block(int n, int avail_w) {
     /* Resolve width */
-    int style_w = cs_width[rt_style[n]];
+    int sty = rt_style[n];
+    int style_w = cs_width[sty];
     int w;
     if (style_w >= 0) w = style_w;
     else w = avail_w - rt_margin_l(n) - rt_margin_r(n);
     if (w < 0) w = 0;
+    /* min/max-width clamps. min-width wins over max-width per CSS spec. */
+    int max_w_clamp = cs_max_width[sty];
+    int min_w_clamp = cs_min_width[sty];
+    if (max_w_clamp >= 0 && w > max_w_clamp) w = max_w_clamp;
+    if (min_w_clamp >= 0 && w < min_w_clamp) w = min_w_clamp;
     rt_w[n] = w;
 
     int content_w = w - rt_padding_l(n) - rt_padding_r(n)
@@ -426,12 +432,17 @@ void layout_block(int n, int avail_w) {
     cy = cy + pending_bottom;
 
     /* Resolve own height */
-    int style_h = cs_height[rt_style[n]];
+    int style_h = cs_height[sty];
     if (style_h >= 0) {
         rt_h[n] = style_h;
     } else {
         rt_h[n] = cy + rt_padding_b(n) + rt_border_b(n);
     }
+    /* min/max-height clamps */
+    int max_h_clamp = cs_max_height[sty];
+    int min_h_clamp = cs_min_height[sty];
+    if (max_h_clamp >= 0 && rt_h[n] > max_h_clamp) rt_h[n] = max_h_clamp;
+    if (min_h_clamp >= 0 && rt_h[n] < min_h_clamp) rt_h[n] = min_h_clamp;
 }
 
 void run_layout() {
