@@ -46,12 +46,13 @@ BOOT_DRIVE db 0
 ; MBR partition table at byte offset 446
 times 446-($-$$) db 0
 
-; Partition entry 1: FAT16, bootable, LBA 4096, 98304 sectors
+; Partition entry 1: FAT16, bootable, LBA 8192, 98304 sectors
+; (Kernel area expanded to LBA 5..8191 = 8187 sectors = ~4 MB)
 db 0x80
 db 0xFE, 0xFF, 0xFF
 db 0x06
 db 0xFE, 0xFF, 0xFF
-dd 4096
+dd 8192
 dd 98304
 
 ; Partition entries 2-4: empty
@@ -61,7 +62,7 @@ dw 0xAA55
 
 
 ; STAGE 2 - Loaded at 0x7E00 (= 0x7C00 + 512)
-; A20 → unreal mode → load kernel to 1MB → VBE → protected mode → go
+; A20 -> unreal mode -> load kernel to 1MB -> VBE -> protected mode -> go
 
 KERNEL_OFFSET      equ 0x100000  ; Kernel destination (1MB)
 TEMP_SEGMENT       equ 0x1000    ; Temp buffer segment
@@ -105,7 +106,7 @@ stage2_entry:
 
     ; Load kernel above 1MB (chunked LBA reads)
     mov dword [dest_high], KERNEL_OFFSET
-    mov word [sectors_left], 4091    ; LBA 5 through 4095
+    mov word [sectors_left], 8187    ; LBA 5 through 8191
 
 .read_loop:
     cmp word [sectors_left], 0
@@ -142,7 +143,7 @@ stage2_entry:
     ; Copy chunk from temp buffer to dest_high (32-bit unreal addressing)
     push cx
     movzx ecx, cx
-    shl ecx, 7                  ; dword count = sectors × 128
+    shl ecx, 7                  ; dword count = sectors x 128
     mov esi, TEMP_LINEAR
     mov edi, [dest_high]
 
@@ -158,7 +159,7 @@ stage2_entry:
 
     ; Advance bookkeeping
     movzx eax, cx
-    shl eax, 9                  ; bytes = sectors × 512
+    shl eax, 9                  ; bytes = sectors x 512
     add [dest_high], eax
     sub [sectors_left], cx
 
@@ -172,7 +173,7 @@ stage2_entry:
     xor ax, ax
     mov es, ax
 
-    ; VBE 640×480 32bpp via Bochs/QEMU I/O ports
+    ; VBE 640x480 32bpp via Bochs/QEMU I/O ports
     mov dx, 0x01CE
     mov ax, 4               ; INDEX_ENABLE - disable first
     out dx, ax
@@ -255,7 +256,7 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0x880000           ; Boot stack at 8MB
+    mov esp, 0xA00000           ; Boot stack top (2 MB stack from 0x800000)
     mov ebp, esp
 
     ; Quick sanity: write 'P' to VGA text buffer (visible briefly)
@@ -292,5 +293,5 @@ gdt_descriptor:
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
-; Pad stage 2 to exactly STAGE2_SECTORS × 512 bytes
+; Pad stage 2 to exactly STAGE2_SECTORS x 512 bytes
 times (512 + STAGE2_SECTORS * 512) - ($-$$) db 0

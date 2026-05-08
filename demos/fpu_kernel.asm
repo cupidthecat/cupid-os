@@ -55,12 +55,10 @@ section .data
 section .text
 
 main:
-    ; ========================================================================
     ; Block 1: FPU state control - FXSAVE/FXRSTOR + MXCSR round-trip.
     ; If any of these faulted, we'd be in a panic handler, not here. Pass
     ; is implicit: reaching the next block means all seven opcodes decoded
     ; and executed cleanly.
-    ; ========================================================================
     fninit
     fwait
     finit
@@ -69,11 +67,9 @@ main:
     stmxcsr [mxcsr_tmp]
     ldmxcsr [mxcsr_tmp]
 
-    ; ========================================================================
     ; Block 2: SSE scalar arithmetic.
     ;   1.5 + 2.5 = 4.0  (bit pattern 0x40800000)
     ;   sqrt(16.0) = 4.0 (bit pattern 0x40800000)
-    ; ========================================================================
     movss   xmm0, [c_one_five]
     movss   xmm1, [c_two_five]
     addss   xmm0, xmm1
@@ -89,11 +85,9 @@ main:
     cmp     eax, 0x40800000
     jne     fail_scalar_sqrt
 
-    ; ========================================================================
     ; Block 3: SSE packed arithmetic.
     ;   [1,2,3,4] + [5,6,7,8] = [6,8,10,12]
     ; Bit-compare lane 0 only: 1.0 + 5.0 = 6.0 = 0x40C00000.
-    ; ========================================================================
     movups  xmm0, [vec_a]
     movups  xmm1, [vec_b]
     addps   xmm0, xmm1
@@ -102,11 +96,9 @@ main:
     cmp     eax, 0x40C00000
     jne     fail_packed_add
 
-    ; ========================================================================
     ; Block 4: x87 FPU.
     ;   sin(0.0) = +0.0 (bit pattern 0x00000000)
     ; FINIT after the store keeps the x87 stack clean for subsequent code.
-    ; ========================================================================
     fld     [fx_zero]
     fsin
     fstp    [result_x87_sin]
