@@ -1,0 +1,165 @@
+CupidOS — Quick-Start Guide
+===========================
+
+CupidOS is a from-scratch x86 hobby OS that runs everything in ring 0
+(TempleOS-style). Two scripting languages are exposed at the shell:
+
+  * CupidC  — C-like, JIT-compiled. Files end in .cc.
+  * CupidASM — x86 assembler with kernel-binding labels. Files end in .s.
+
+Both languages share a kernel-binding registry. Calling a kernel
+function from a script is equivalent to calling its C entry point
+directly.
+
+
+-------------------------------------------------------------------
+1. Hello world
+-------------------------------------------------------------------
+
+CupidC (hello.cc):
+
+  void main() {
+      print("Hello, CupidOS!\n");
+  }
+
+  Run:  cupidc hello.cc
+
+CupidASM (hello.s):
+
+  section .data
+  msg db "Hello, CupidOS!", 10, 0
+
+  section .text
+  main:
+      push msg
+      call print
+      add  esp, 4
+      ret
+
+  Run:  as hello.s
+
+
+-------------------------------------------------------------------
+2. New bindings cheat-sheet (this branch)
+-------------------------------------------------------------------
+
+NETWORK STACK (CupidC + CupidASM, full parity)
+----------------------------------------------
+NIC info:
+  net_get_ip            net_get_gateway       net_get_dns
+  net_get_mask          net_get_mac           net_link_up
+  net_rx_packets        net_tx_packets        net_rx_drops
+  net_tx_errors
+
+Layer 2/3 raw:
+  ip_parse              ipv4_send             arp_resolve
+  arp_dump              arp_get_entries       icmp_send_echo
+  icmp_wait_reply       udp_send_raw
+
+DNS + byte order:
+  dns_resolve           htons   htonl   ntohs   ntohl
+
+BSD sockets:
+  socket   bind   listen   accept   connect
+  send     recv   sendto   recvfrom close
+  setsockopt   (use level=SOL_TLS=1, optname=TLS_ENABLE=1
+                with hostname for TLS 1.3 upgrade)
+
+Constants (CupidASM only):
+  IP_PROTO_ICMP=1   IP_PROTO_TCP=6   IP_PROTO_UDP=17
+  SOCK_TYPE_TCP=1   SOCK_TYPE_UDP=2
+
+AUDIO (CupidC + CupidASM, full parity)
+--------------------------------------
+AC97 driver:
+  ac97_init             ac97_start            ac97_stop
+  ac97_set_master_volume(pct)
+  ac97_tsc_sleep_ms(ms)
+  ac97_is_present_int
+  ac97_smoke_sine       ac97_smoke_sweep      ac97_smoke_pan
+  audiotest_all
+
+OPL3 / MIDI synth:
+  opl_smoke
+  midiopl_init(genmidi, len)
+  midiopl_reset
+  midiopl_feed(bytes, len)
+  midiopl_render(out_s16, frames)
+  midiopl_set_volume(0..127)
+
+PCM mixer (16 slots, s16 stereo @ 22050 Hz):
+  mixer_init
+  mixer_play(slot, pcm, frames, channels, loop, vol_l, vol_r)
+  mixer_stop(slot)
+  mixer_active(slot)
+  mixer_set_volume(slot, l, r)
+  mixer_fill(out, frames)
+
+WEB ENGINE (planned — see branch notes)
+---------------------------------------
+The bin/browser/* engine is currently a single in-tree app.
+A separate branch ports it to kernel/browser/*.c so its 75
+bweb_* entry points (URL/HTTP/DOM/CSS/layout/paint/JS) can be
+bound to CupidC and CupidASM. Until that lands, scripts can
+already drive HTTP-over-TLS via the BSD socket bindings above.
+
+
+-------------------------------------------------------------------
+3. Recipes
+-------------------------------------------------------------------
+
+DNS lookup + ping (CupidC):
+
+  void main() {
+      uint32_t ip;
+      if (dns_resolve("example.com", &ip) != 0) {
+          print("dns failed\n"); return;
+      }
+      icmp_send_echo(ip, 1, 1, 32);
+      if (icmp_wait_reply(ip, 1, 1, 1000) == 0) print("pong\n");
+      else                                       print("timeout\n");
+  }
+
+HTTPS GET (CupidC):
+
+  void main() {
+      uint32_t ip;
+      if (dns_resolve("example.com", &ip) != 0) return;
+      int fd = socket(1);                       // SOCK_TYPE_TCP
+      if (connect(fd, ip, 443) != 0) return;
+      setsockopt(fd, 1, 1, "example.com", 11);  // SOL_TLS, TLS_ENABLE
+      char *req = "GET / HTTP/1.0\r\nHost: example.com\r\n\r\n";
+      send(fd, req, strlen(req));
+      char buf[2048];
+      int n = recv(fd, buf, 2047);
+      if (n > 0) { buf[n] = 0; print(buf); }
+      close(fd);
+  }
+
+AC97 sine (CupidC):
+
+  void main() { ac97_init(); ac97_smoke_sine(); }
+
+AC97 sine (CupidASM):
+
+  main:
+      call ac97_init
+      test eax, eax
+      jnz  .done
+      call ac97_smoke_sine
+  .done:
+      ret
+
+
+-------------------------------------------------------------------
+4. Where to read more
+-------------------------------------------------------------------
+
+  wiki/CupidC-Language-Reference.md   Full CupidC binding catalogue
+  wiki/CupidASM-Assembler.md          Full CupidASM mnemonics + bindings
+  wiki/Networking.md                  Kernel TCP/IP stack architecture
+  wiki/CupidC-2D-Graphics-Library.md  gfx2d API
+  wiki/Getting-Started.md             First-time setup
+  wiki/Filesystem.md                  VFS layout
+  wiki/SMP.md                         Multi-CPU notes
+  wiki/Real-Hardware.md               Booting on real metal

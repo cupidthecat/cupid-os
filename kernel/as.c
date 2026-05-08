@@ -46,6 +46,11 @@
 #include "pci.h"
 #include "lapic.h"
 #include "bkl.h"
+#include "audio/ac97.h"
+#include "audio/midiopl.h"
+#include "audio/mixer.h"
+#include "audio/opl_smoke.h"
+#include "notepad.h"
 
 /* Read source file from VFS */
 
@@ -493,7 +498,7 @@ static int as_fp_to_int(int a) { return a >> 16; }
 static int as_fp_frac(int a) { return a & 0xFFFF; }
 static int as_fp_one(void) { return 65536; }
 
-/* ── Phase 4 net/HW wrappers for CupidASM ───────────────────────────── */
+/*  Phase 4 net/HW wrappers for CupidASM  */
 static uint32_t as_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -851,7 +856,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "desktop_bg_get_tiled_pattern", desktop_bg_get_tiled_pattern);
   AS_BIND(as, "desktop_bg_get_tiled_use_bmp", desktop_bg_get_tiled_use_bmp);
 
-  /* ── Phase 4: full networking stack (parity with CupidC) ─────────── */
+  /*  Phase 4: full networking stack (parity with CupidC)  */
   AS_BIND(as, "net_get_ip",          as_net_get_ip);
   AS_BIND(as, "net_get_gateway",     as_net_get_gateway);
   AS_BIND(as, "net_get_dns",         as_net_get_dns);
@@ -890,14 +895,14 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SOCK_TYPE_UDP",   SOCK_TYPE_UDP);
   as_bind_equ(as, "SOCK_TYPE_TCP",   SOCK_TYPE_TCP);
 
-  /* ── Phase 4: block devices ──────────────────────────────────────── */
+  /*  Phase 4: block devices  */
   AS_BIND(as, "blkdev_count",        blkdev_count);
   AS_BIND(as, "blkdev_read",         as_blkdev_read);
   AS_BIND(as, "blkdev_write",        as_blkdev_write);
   AS_BIND(as, "ata_read_sectors",    ata_read_sectors);
   AS_BIND(as, "ata_write_sectors",   ata_write_sectors);
 
-  /* ── Phase 4: serial / keyboard direct ───────────────────────────── */
+  /*  Phase 4: serial / keyboard direct  */
   AS_BIND(as, "serial_read_char",    serial_read_char);
   AS_BIND(as, "serial_write_char",   serial_write_char);
   AS_BIND(as, "serial_write_string", serial_write_string);
@@ -914,13 +919,13 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "keyboard_test_sub_last_sc", keyboard_test_sub_last_sc);
   AS_BIND(as, "keyboard_test_sub_last_pressed", keyboard_test_sub_last_pressed);
 
-  /* ── Phase 4: speaker / PIT ──────────────────────────────────────── */
+  /*  Phase 4: speaker / PIT  */
   AS_BIND(as, "pc_speaker_on",       pc_speaker_on);
   AS_BIND(as, "pc_speaker_off",      pc_speaker_off);
   AS_BIND(as, "pit_set_frequency",   pit_set_frequency);
   AS_BIND(as, "timer_delay_us",      timer_delay_us);
 
-  /* ── Phase 4: PCI introspection ─────────────────────────────────── */
+  /*  Phase 4: PCI introspection  */
   AS_BIND(as, "pci_device_count",    pci_device_count);
   AS_BIND(as, "pci_get_vendor",      as_pci_vendor_idx);
   AS_BIND(as, "pci_get_device_id",   as_pci_device_id_idx);
@@ -928,7 +933,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "pci_get_irq",         as_pci_irq_idx);
   AS_BIND(as, "pci_get_bar",         as_pci_bar_idx);
 
-  /* ── Phase 4: SMP / LAPIC / BKL / paging ─────────────────────────── */
+  /*  Phase 4: SMP / LAPIC / BKL / paging  */
   AS_BIND(as, "lapic_get_id",        lapic_get_id);
   AS_BIND(as, "lapic_eoi",           lapic_eoi);
   AS_BIND(as, "bkl_lock",            bkl_lock);
@@ -937,7 +942,31 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "pmm_alloc_page",      pmm_alloc_page);
   AS_BIND(as, "pmm_free_page",       pmm_free_page);
 
-  /* ── Phase 4: low-level I/O for drivers ──────────────────────────── */
+  /*  Audio: AC97 driver, MIDI/OPL3 synth, PCM mixer  */
+  AS_BIND(as, "ac97_init",                ac97_init);
+  AS_BIND(as, "ac97_start",               ac97_start);
+  AS_BIND(as, "ac97_stop",                ac97_stop);
+  AS_BIND(as, "ac97_set_master_volume",   ac97_set_master_volume);
+  AS_BIND(as, "ac97_tsc_sleep_ms",        ac97_tsc_sleep_ms);
+  AS_BIND(as, "ac97_is_present_int",      ac97_is_present_int);
+  AS_BIND(as, "ac97_smoke_sine",          ac97_smoke_sine);
+  AS_BIND(as, "ac97_smoke_sweep",         ac97_smoke_sweep);
+  AS_BIND(as, "ac97_smoke_pan",           ac97_smoke_pan);
+  AS_BIND(as, "audiotest_all",            audiotest_all);
+  AS_BIND(as, "opl_smoke",                opl_smoke);
+  AS_BIND(as, "midiopl_init",             midiopl_init);
+  AS_BIND(as, "midiopl_reset",            midiopl_reset);
+  AS_BIND(as, "midiopl_feed",             midiopl_feed);
+  AS_BIND(as, "midiopl_render",           midiopl_render);
+  AS_BIND(as, "midiopl_set_volume",       midiopl_set_volume);
+  AS_BIND(as, "mixer_init",               mixer_init);
+  AS_BIND(as, "mixer_play",               mixer_play);
+  AS_BIND(as, "mixer_stop",               mixer_stop);
+  AS_BIND(as, "mixer_active",             mixer_active);
+  AS_BIND(as, "mixer_set_volume",         mixer_set_volume);
+  AS_BIND(as, "mixer_fill",               mixer_fill);
+
+  /*  Phase 4: low-level I/O for drivers  */
   AS_BIND(as, "outb",                outb);
   AS_BIND(as, "inb",                 inb);
 }
@@ -1030,7 +1059,7 @@ static int as_init_state(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SYS_VFS_WRITE_TEXT",148);
   as_bind_equ(as, "SYS_MEMSTATS",     152);
 
-  /* ── Phase 4 syscall table offsets (v3) ──────────────────────────── */
+  /*  Phase 4 syscall table offsets (v3)  */
   as_bind_equ(as, "SYS_NET_GET_IP",        156);
   as_bind_equ(as, "SYS_NET_GET_GATEWAY",   160);
   as_bind_equ(as, "SYS_NET_GET_DNS",       164);

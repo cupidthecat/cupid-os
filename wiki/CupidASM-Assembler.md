@@ -58,7 +58,7 @@ Or using the dedicated `cupidasm` command:
 > exec hello
 ```
 
-If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` → `hello`).
+If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` -> `hello`).
 
 ---
 
@@ -151,11 +151,11 @@ main:
 
 ```
          ┌─────────────┐  (high addresses)
-         │   arg 2      │  [ebp+12]
-         │   arg 1      │  [ebp+8]
-         │   return addr│  [ebp+4]
-         │   saved ebp  │  [ebp]     ← ebp points here
-         │   locals...  │  [ebp-4], [ebp-8], ...
+         │  arg 2      │  [ebp+12]
+         │  arg 1      │  [ebp+8]
+         │  return addr│  [ebp+4]
+         │  saved ebp  │  [ebp]     ← ebp points here
+         │  locals...  │  [ebp-4], [ebp-8], ...
          └─────────────┘  (low addresses, esp grows down)
 ```
 
@@ -305,8 +305,8 @@ section .data
 | Instruction | Description |
 |-------------|-------------|
 | `rep` | Repeat prefix for string ops |
-| `movsb` | Move byte (ESI → EDI) |
-| `movsd` | Move dword (ESI → EDI) |
+| `movsb` | Move byte (ESI -> EDI) |
+| `movsd` | Move dword (ESI -> EDI) |
 | `stosb` | Store AL at EDI |
 | `stosd` | Store EAX at EDI |
 
@@ -402,7 +402,7 @@ In JIT mode, the assembler pre-registers kernel functions as labels. Programs ca
 | `uptime_ms` | `uint32_t uptime_ms()` | Get system uptime in ms |
 | `memstats` | `memstats()` | Print memory statistics |
 
-### Networking — BSD sockets
+### Networking - BSD sockets
 
 Ports passed to / returned from these calls are network byte order
 (`htons(80)` for HTTP). See [Networking](Networking) for protocol
@@ -410,7 +410,7 @@ details.
 
 | Function | Signature |
 |---|---|
-| `socket` | `int socket(int type)` — `2`=TCP, `1`=UDP |
+| `socket` | `int socket(int type)` - `2`=TCP, `1`=UDP |
 | `bind` | `int bind(int fd, U32 ip, U16 port)` |
 | `listen` | `int listen(int fd, int backlog)` |
 | `accept` | `int accept(int fd, U32 *peer_ip, U16 *peer_port)` |
@@ -424,7 +424,7 @@ details.
 Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 `IP_PROTO_TCP`, `SOCK_TYPE_UDP`, `SOCK_TYPE_TCP`.
 
-### Networking — interface info & raw protocol
+### Networking - interface info & raw protocol
 
 | Function | Description |
 |---|---|
@@ -432,7 +432,7 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `net_get_mac(out)` | Fills 6-byte MAC into `out` |
 | `net_link_up` | 1 if link up |
 | `net_rx_packets` / `net_tx_packets` | Counters |
-| `ip_parse(s, out)` | `"a.b.c.d"` → uint32 |
+| `ip_parse(s, out)` | `"a.b.c.d"` -> uint32 |
 | `ipv4_send(dst, proto, payload, plen)` | Raw IPv4 (auto-fragments > MTU) |
 | `arp_resolve(ip, mac_out)` | Blocking 500 ms ARP |
 | `arp_dump`, `arp_get_entries` | Cache inspection |
@@ -450,7 +450,7 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `ata_read_sectors(drive, lba, count, buf)` | Direct ATA read |
 | `ata_write_sectors(drive, lba, count, buf)` | Direct ATA write |
 
-### Keyboard, serial, speaker, PIT — direct driver access
+### Keyboard, serial, speaker, PIT - direct driver access
 
 | Function | Description |
 |---|---|
@@ -476,15 +476,66 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 
 ### SMP / LAPIC / paging / PMM
 
-> ⚠ Powerful — wrap shared-state work in `bkl_lock`/`bkl_unlock`.
+> ⚠ Wrap shared-state work in `bkl_lock`/`bkl_unlock`.
 
 | Function | Description |
 |---|---|
 | `lapic_get_id` | This CPU's local APIC ID |
 | `lapic_eoi` | End-of-interrupt (only from a real ISR) |
-| `bkl_lock` / `bkl_unlock` | Big kernel lock — recursive ticket spinlock |
+| `bkl_lock` / `bkl_unlock` | Big kernel lock - recursive ticket spinlock |
 | `paging_map_mmio(phys, size)` | Identity-map an MMIO region |
 | `pmm_alloc_page` / `pmm_free_page(page)` | 4 KB physical page allocator |
+
+### Audio - AC97 driver
+
+| Function | Description |
+|---|---|
+| `ac97_init` | Probe + init AC97. Returns 0 on success in eax |
+| `ac97_start` | Arm DMA |
+| `ac97_stop` | Halt + mute |
+| `ac97_set_master_volume(pct)` | 0-100 master volume |
+| `ac97_tsc_sleep_ms(ms)` | TSC busy-wait |
+| `ac97_is_present_int` | 0 / 1 |
+| `ac97_smoke_sine` | 440 Hz triangle 2s |
+| `ac97_smoke_sweep` | 50→8000 Hz sweep |
+| `ac97_smoke_pan` | 1 kHz with L↔R pan |
+| `audiotest_all` | sine + sweep + pan + opl |
+
+### Audio - MIDI / OPL3 synth
+
+| Function | Description |
+|---|---|
+| `midiopl_init(genmidi_lump, lump_len)` | Parse Doom GENMIDI patches |
+| `midiopl_reset` | Silence channels, keep patches |
+| `midiopl_feed(bytes, len)` | Stream MIDI bytes into synth |
+| `midiopl_render(out_stereo, frames)` | Pull s16-stereo @ 22050 Hz |
+| `midiopl_set_volume(0..127)` | Master synth volume |
+| `opl_smoke` | OPL3 smoke test |
+
+### Audio - PCM mixer
+
+s16 stereo @ 22050 Hz, 16 slots.
+
+| Function | Description |
+|---|---|
+| `mixer_init` | One-time init |
+| `mixer_play(slot, pcm, frames, ch, loop, vol_l, vol_r)` | Start playback (returns 0 in eax on success) |
+| `mixer_stop(slot)` | Stop slot |
+| `mixer_active(slot)` | 1 if playing |
+| `mixer_set_volume(slot, vol_l, vol_r)` | Per-slot volume |
+| `mixer_fill(out, frames)` | Mix all active slots into `out` |
+
+### Example: Audio smoke test
+
+```asm
+main:
+    call ac97_init       ; init AC97 codec
+    test eax, eax
+    jnz  .done
+    call ac97_smoke_sine ; 2s 440 Hz triangle
+.done:
+    ret
+```
 
 ### Example: Using Kernel Bindings
 
@@ -520,7 +571,7 @@ main:
 ## AOT Syscall Table (ELF Programs)
 
 > Syscall table version: **3** (since Phase 5 of Networking). The layout is
-> append-only — programs built against v2 still work and observe the new
+> append-only - programs built against v2 still work and observe the new
 > larger `SYS_TABLE_SIZE`. `kernel/syscall.c` has `_Static_assert` guards
 > on the offsets below so a future field reorder fails to compile.
 
@@ -659,7 +710,7 @@ Equ constants registered alongside (compile-time literals, no syscall):
 `IP_PROTO_ICMP`, `IP_PROTO_UDP`, `IP_PROTO_TCP`, `SOCK_TYPE_UDP`,
 `SOCK_TYPE_TCP`.
 
-Example — outbound TCP from AOT asm:
+Example - outbound TCP from AOT asm:
 
 ```asm
 section .text
@@ -677,7 +728,7 @@ main:
     add  esp, 4
 
     push eax                           ; port (network order)
-    push 0x08080808                    ; 8.8.8.8 — replace w/ real IP
+    push 0x08080808                    ; 8.8.8.8 - replace w/ real IP
     push edi
     call [ebx + SYS_CONNECT]
     add  esp, 12

@@ -62,6 +62,8 @@
 #include "../drivers/ata.h"
 #include "../drivers/pit.h"
 #include "audio/ac97.h"
+#include "audio/midiopl.h"
+#include "audio/mixer.h"
 #include "audio/opl_smoke.h"
 #include "doom/dglibc.h"
 
@@ -2407,6 +2409,45 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("opl_smoke", p_opl_smoke, 0);
   void (*p_audiotest_all)(void)       = audiotest_all;
   BIND("audiotest_all", p_audiotest_all, 0);
+
+  /*  AC97 driver control (init / DMA arm / stop / volume / sleep)  */
+  int  (*p_ac97_init)(void)             = ac97_init;
+  BIND_T("ac97_init", p_ac97_init, 0, TYPE_INT);
+  void (*p_ac97_start)(void)            = ac97_start;
+  BIND("ac97_start", p_ac97_start, 0);
+  void (*p_ac97_stop)(void)             = ac97_stop;
+  BIND("ac97_stop", p_ac97_stop, 0);
+  void (*p_ac97_setvol)(uint8_t)        = ac97_set_master_volume;
+  BIND("ac97_set_master_volume", p_ac97_setvol, 1);
+  void (*p_ac97_sleep)(uint32_t)        = ac97_tsc_sleep_ms;
+  BIND("ac97_tsc_sleep_ms", p_ac97_sleep, 1);
+
+  /*  MIDI / OPL3 synth (Doom MUS-style)  */
+  int  (*p_midiopl_init)(const uint8_t *, uint32_t) = midiopl_init;
+  BIND_T("midiopl_init", p_midiopl_init, 2, TYPE_INT);
+  void (*p_midiopl_reset)(void)         = midiopl_reset;
+  BIND("midiopl_reset", p_midiopl_reset, 0);
+  void (*p_midiopl_feed)(const uint8_t *, uint32_t) = midiopl_feed;
+  BIND("midiopl_feed", p_midiopl_feed, 2);
+  void (*p_midiopl_render)(int16_t *, uint32_t) = midiopl_render;
+  BIND("midiopl_render", p_midiopl_render, 2);
+  void (*p_midiopl_setvol)(uint8_t)     = midiopl_set_volume;
+  BIND("midiopl_set_volume", p_midiopl_setvol, 1);
+
+  /*  PCM mixer (16 slots, s16 stereo @ 22050 Hz)  */
+  int  (*p_mixer_init)(void)            = mixer_init;
+  BIND_T("mixer_init", p_mixer_init, 0, TYPE_INT);
+  int  (*p_mixer_play)(int, const int16_t *, uint32_t,
+                       uint8_t, uint8_t, uint8_t, uint8_t) = mixer_play;
+  BIND_T("mixer_play", p_mixer_play, 7, TYPE_INT);
+  void (*p_mixer_stop)(int)             = mixer_stop;
+  BIND("mixer_stop", p_mixer_stop, 1);
+  int  (*p_mixer_active)(int)           = mixer_active;
+  BIND_T("mixer_active", p_mixer_active, 1, TYPE_INT);
+  void (*p_mixer_setvol)(int, uint8_t, uint8_t) = mixer_set_volume;
+  BIND("mixer_set_volume", p_mixer_setvol, 3);
+  void (*p_mixer_fill)(int16_t *, uint32_t) = mixer_fill;
+  BIND("mixer_fill", p_mixer_fill, 2);
 
   /*  dglibc smoke test  */
   int  (*p_dglibc_test)(void)         = dglibc_test_main;

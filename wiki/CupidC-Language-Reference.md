@@ -82,6 +82,90 @@ them all when the loop ends.
 - `get_args()` - Get command-line arguments as string
 - `exit(int code)` - Exit program with code
 
+#### Networking - NIC info
+- `net_get_ip()` - Primary NIC IPv4 address (host byte order)
+- `net_get_gateway()` - Default gateway IPv4
+- `net_get_dns()` - DHCP-assigned DNS server IPv4
+- `net_get_mask()` - Subnet mask
+- `net_get_mac(uint8_t *out)` - Fills 6-byte MAC into `out`
+- `net_link_up()` - 1 if link up, 0 if down
+- `net_rx_packets()` / `net_tx_packets()` - Packet counters
+- `net_rx_drops()` / `net_tx_errors()` - Error counters
+
+#### Networking - Layer 2/3
+- `ip_parse(char *s, uint32_t *out)` - Parse `"A.B.C.D"` into uint32_t
+- `ipv4_send(uint32_t dst, uint8_t proto, uint8_t *payload, uint32_t len)` - Raw IPv4 send
+- `arp_resolve(uint32_t ip, uint8_t *mac_out)` - 500ms blocking resolve, 0 ok / -1 timeout
+- `arp_dump()` - Print ARP cache to serial
+- `arp_get_entries(uint32_t *ips, uint8_t (*macs)[6], int max)` - Iterate cache
+- `icmp_send_echo(uint32_t dst, uint16_t id, uint16_t seq, uint32_t paylen)` - Send ping
+- `icmp_wait_reply(uint32_t src, uint16_t id, uint16_t seq, uint32_t timeout_ms)` - Wait for echo reply
+- `udp_send_raw(uint32_t dst, uint16_t src_port, uint16_t dst_port, uint8_t *data, uint32_t len)` - Raw UDP send
+- `dns_resolve(char *name, uint32_t *ip_out)` - A-record lookup
+- `htons` / `htonl` / `ntohs` / `ntohl` - Byte-order helpers
+
+#### Networking - BSD sockets
+- `socket(int type)` - `SOCK_TYPE_TCP=1`, `SOCK_TYPE_UDP=2`. Returns fd.
+- `bind(int fd, uint32_t ip, uint16_t port)` - Bind to address:port
+- `listen(int fd, int backlog)` - TCP passive listen
+- `accept(int fd, uint32_t *peer_ip, uint16_t *peer_port)` - Accept TCP
+- `connect(int fd, uint32_t ip, uint16_t port)` - TCP connect / UDP set-default-peer
+- `send(int fd, void *buf, uint32_t len)` - Send (routes through TLS if enabled)
+- `recv(int fd, void *buf, uint32_t len)` - Receive
+- `sendto(int fd, void *buf, uint32_t len, uint32_t ip, uint16_t port)` - UDP sendto
+- `recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port)` - UDP recvfrom
+- `setsockopt(int fd, int level, int optname, void *val, uint32_t vlen)` - Use `level=SOL_TLS=1`, `optname=TLS_ENABLE=1`, `val=hostname`, `vlen=strlen(hostname)` to upgrade a connected TCP socket to TLS 1.3
+- `close(int fd)` - Close socket
+
+```c
+// HTTP-over-TLS minimal client
+void main() {
+    uint32_t ip;
+    if (dns_resolve("example.com", &ip) != 0) { print("dns fail\n"); return; }
+    int fd = socket(1);                          // SOCK_TYPE_TCP
+    if (connect(fd, ip, 443) != 0) { print("connect fail\n"); return; }
+    setsockopt(fd, 1, 1, "example.com", 11);     // SOL_TLS, TLS_ENABLE
+    char *req = "GET / HTTP/1.0\r\nHost: example.com\r\n\r\n";
+    send(fd, req, strlen(req));
+    char buf[2048];
+    int n = recv(fd, buf, 2047);
+    if (n > 0) { buf[n] = 0; print(buf); }
+    close(fd);
+}
+```
+
+#### Audio - AC97 driver
+- `ac97_init()` - Probe + init AC97 card, returns 0 on success
+- `ac97_start()` - Arm DMA
+- `ac97_stop()` - Halt + mute
+- `ac97_set_master_volume(uint8_t pct)` - 0-100
+- `ac97_tsc_sleep_ms(uint32_t ms)` - TSC busy-wait (IRQ-state independent)
+- `ac97_is_present_int()` - Returns 0 or 1
+- `ac97_smoke_sine()` - 440 Hz triangle for 2s
+- `ac97_smoke_sweep()` - 50-8000 Hz sweep
+- `ac97_smoke_pan()` - L↔R panning
+- `audiotest_all()` - Sine + sweep + pan + opl in sequence
+
+```c
+void main() { ac97_init(); ac97_smoke_sine(); }
+```
+
+#### Audio - MIDI / OPL3 synth
+- `midiopl_init(uint8_t *genmidi_lump, uint32_t lump_len)` - Parse Doom GENMIDI patches
+- `midiopl_reset()` - Silence all channels, keep patches
+- `midiopl_feed(uint8_t *bytes, uint32_t len)` - Stream MIDI bytes
+- `midiopl_render(int16_t *out_stereo, uint32_t frames)` - Pull synth output @ 22050 Hz
+- `midiopl_set_volume(uint8_t v)` - 0-127
+- `opl_smoke()` - OPL3 smoke test
+
+#### Audio - PCM mixer (16 slots, s16 stereo @ 22050 Hz)
+- `mixer_init()` - One-time init
+- `mixer_play(int slot, int16_t *pcm, uint32_t frames, uint8_t channels, uint8_t loop, uint8_t vol_l, uint8_t vol_r)` - Start playback
+- `mixer_stop(int slot)` - Stop
+- `mixer_active(int slot)` - 1 if playing
+- `mixer_set_volume(int slot, uint8_t l, uint8_t r)`
+- `mixer_fill(int16_t *out, uint32_t frames)` - Fill output buffer (called by AC97 IRQ)
+
 ## Limitations
 
 - Maximum 32 `break` statements per loop
