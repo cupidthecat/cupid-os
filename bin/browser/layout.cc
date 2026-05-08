@@ -360,6 +360,9 @@ void layout_block(int n, int avail_w) {
             int auto_l = cs_margin_auto[rt_style[c]][3];
             int auto_r = cs_margin_auto[rt_style[c]][1];
             int leftover = content_w - rt_w[c];
+            /* Clamp: a box wider than its parent's content area must not
+             * gain negative auto margins (they would push it off-screen). */
+            if (leftover < 0) leftover = 0;
             if (leftover > 0 && (auto_l || auto_r)) {
                 if (auto_l && auto_r) {
                     ml = leftover / 2;
@@ -377,6 +380,11 @@ void layout_block(int n, int avail_w) {
             int collapsed = (top > pending_bottom) ? top : pending_bottom;
             cy = cy + collapsed;
             int child_x = cx + ml;
+            /* Clamp child_x to the content origin so an overflowed box
+             * (rt_w > content_w with explicit width) doesn't get pushed
+             * left of the parent's content area by negative ml from
+             * earlier auto fallbacks. */
+            if (child_x < cx) child_x = cx;
             rt_x[c] = child_x;
             rt_y[c] = cy;
             cy = cy + rt_h[c];
