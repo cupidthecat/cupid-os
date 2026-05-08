@@ -316,13 +316,7 @@ void js_console_log_top_n(int argc) {
     status_msg[s] = 0;
 }
 
-/* ----- expression eval -----
- * CupidC rejects function prototypes outright; rely on its deferred
- * cross-resolve for the recursive js_eval_expr / js_eval_stmt /
- * js_call_user_function references below. The interpreter's mutual
- * recursion shows up as "Unresolved symbol" notes during parse
- * which then bind during JIT link, same as the existing forward
- * refs to navigate / run_layout / etc from main.cc. */
+/* expression eval - CupidC defers cross-resolve for recursive calls. */
 
 int js_alloc_object(int kind) {
     if (jobj_count >= MAX_JS_OBJS) { js_set_err("js: object pool full"); return -1; }

@@ -610,11 +610,8 @@ void js_install_globals() {
         }
     }
 
-    /* location: { href: <current URL> }. Reads work; writes update
-     * the property but do NOT navigate (a real navigation would
-     * recursively re-enter parse_html). Scripts can navigate via
-     * `window.location.href = url; ` once an explicit navigation
-     * helper is added in a follow-up. */
+    /* location object holds href as a string property. Read works,
+     * write updates the property but does not trigger navigate. */
     int loc = js_alloc_object(0);
     if (loc >= 0) {
         int url_len = b_strlen(cur_url);
