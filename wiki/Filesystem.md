@@ -107,9 +107,9 @@ The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file
 When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 1. **Longest prefix match** - scan mount table for best match
-   - `/home` matches → FAT16 filesystem
+   - `/home` matches -> FAT16 filesystem
 2. **Calculate relative path** - strip mount prefix
-   - `/home/README.TXT` → `README.TXT`
+   - `/home/README.TXT` -> `README.TXT`
 3. **Call filesystem driver** - `fat16_vfs_open(fs_data, "README.TXT", ...)`
 4. **Allocate file descriptor** - wrap in VFS fd and return to caller
 
@@ -278,11 +278,11 @@ exec("/home/hello", "hello")
 │ Read first 4 bytes  │
 └────┬────────────────┘
      │
-     ├─ 0x7F 'E' 'L' 'F'  → elf_exec()   (ELF32 loader)
+     ├─ 0x7F 'E' 'L' 'F'  -> elf_exec()   (ELF32 loader)
      │
-     ├─ 0x43555044 (CUPD)  → cupd_exec()  (CUPD loader)
+     ├─ 0x43555044 (CUPD)  -> cupd_exec()  (CUPD loader)
      │
-     └─ anything else      → VFS_EINVAL
+     └─ anything else      -> VFS_EINVAL
 ```
 
 ### ELF32 Programs (Primary Format)
@@ -306,7 +306,7 @@ void _start(cupid_syscall_table_t *sys) {
 1. Open file via `vfs_open(path, O_RDONLY)`
 2. Read and validate 52-byte ELF header (architecture, class, endianness)
 3. Read program headers, find all `PT_LOAD` segments
-4. Compute virtual address range (`min_vaddr` → `max_vaddr`)
+4. Compute virtual address range (`min_vaddr` -> `max_vaddr`)
 5. Reserve physical pages via `pmm_reserve_region()` (identity-mapped)
 6. Zero the entire region, then load each segment to its `p_vaddr`
 7. Create a process with `process_create_with_arg()`, passing the syscall table
@@ -320,7 +320,7 @@ CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 ┌──────────────────────────┐  Offset 0
 │  Header (20 bytes)       │
 │  ├─ magic: 0x43555044    │  "CUPD"
-│  ├─ entry_offset         │  Entry point offset from code start
+│  ├─ entry_offset         │  Entry point offset from code start                      
 │  ├─ code_size            │  Size of code section
 │  ├─ data_size            │  Size of initialized data
 │  └─ bss_size             │  Size of uninitialized data

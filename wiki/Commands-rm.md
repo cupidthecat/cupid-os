@@ -93,7 +93,7 @@ if (result == 0) {
 
 ### Error Handling
 
-Comprehensive error reporting with human-readable messages for common POSIX error codes.
+Reports human-readable messages for common POSIX error codes.
 
 ## Source Code Location
 

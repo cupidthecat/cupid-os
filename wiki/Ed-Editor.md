@@ -41,7 +41,7 @@ q                       # Quit
 ```
 > ed myfile.txt
 3                       # Print line count (shows "3")
-1,3p                    # Print lines 1–3
+1,3p                    # Print lines 1-3
 Hello, CupidOS!
 This is my first file.
 Line three.
@@ -152,7 +152,7 @@ Files are read and written through the VFS layer, supporting both the in-memory 
 
 | Command | Description |
 |---------|-------------|
-| `k<x>` | Mark current line with letter x (a–z) |
+| `k<x>` | Mark current line with letter x (a-z) |
 | `H` | Toggle verbose error messages |
 | `h` | Show last error message |
 | `q` | Quit (warns if unsaved) |
@@ -229,7 +229,7 @@ Done!
 | Maximum lines | 1024 |
 | Maximum line length | 256 characters |
 | Undo levels | 1 (single undo) |
-| Marks | 26 (a–z) |
+| Marks | 26 (a-z) |
 
 ---
 

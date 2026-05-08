@@ -58,7 +58,7 @@ Or using the dedicated `cupidasm` command:
 > exec hello
 ```
 
-If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` → `hello`).
+If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` -> `hello`).
 
 ---
 
@@ -151,11 +151,11 @@ main:
 
 ```
          ┌─────────────┐  (high addresses)
-         │   arg 2      │  [ebp+12]
-         │   arg 1      │  [ebp+8]
-         │   return addr│  [ebp+4]
-         │   saved ebp  │  [ebp]     ← ebp points here
-         │   locals...  │  [ebp-4], [ebp-8], ...
+         │  arg 2      │  [ebp+12]
+         │  arg 1      │  [ebp+8]
+         │  return addr│  [ebp+4]
+         │  saved ebp  │  [ebp]     ← ebp points here
+         │  locals...  │  [ebp-4], [ebp-8], ...
          └─────────────┘  (low addresses, esp grows down)
 ```
 
@@ -305,8 +305,8 @@ section .data
 | Instruction | Description |
 |-------------|-------------|
 | `rep` | Repeat prefix for string ops |
-| `movsb` | Move byte (ESI → EDI) |
-| `movsd` | Move dword (ESI → EDI) |
+| `movsb` | Move byte (ESI -> EDI) |
+| `movsd` | Move dword (ESI -> EDI) |
 | `stosb` | Store AL at EDI |
 | `stosd` | Store EAX at EDI |
 
@@ -402,6 +402,90 @@ In JIT mode, the assembler pre-registers kernel functions as labels. Programs ca
 | `uptime_ms` | `uint32_t uptime_ms()` | Get system uptime in ms |
 | `memstats` | `memstats()` | Print memory statistics |
 
+### Networking - BSD sockets
+
+Ports passed to / returned from these calls are network byte order
+(`htons(80)` for HTTP). See [Networking](Networking) for protocol
+details.
+
+| Function | Signature |
+|---|---|
+| `socket` | `int socket(int type)` - `2`=TCP, `1`=UDP |
+| `bind` | `int bind(int fd, U32 ip, U16 port)` |
+| `listen` | `int listen(int fd, int backlog)` |
+| `accept` | `int accept(int fd, U32 *peer_ip, U16 *peer_port)` |
+| `connect` | `int connect(int fd, U32 ip, U16 port)` |
+| `send` / `recv` | stream I/O on TCP socket |
+| `sendto` / `recvfrom` | UDP datagram I/O |
+| `close` | `int close(int fd)` |
+| `dns_resolve` | `int dns_resolve(char *name, U32 *out)` |
+| `htons` / `ntohs` / `htonl` / `ntohl` | byte-swap helpers |
+
+Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
+`IP_PROTO_TCP`, `SOCK_TYPE_UDP`, `SOCK_TYPE_TCP`.
+
+### Networking - interface info & raw protocol
+
+| Function | Description |
+|---|---|
+| `net_get_ip` / `_gateway` / `_dns` / `_mask` | Primary NIC info, returns `U32` |
+| `net_get_mac(out)` | Fills 6-byte MAC into `out` |
+| `net_link_up` | 1 if link up |
+| `net_rx_packets` / `net_tx_packets` | Counters |
+| `ip_parse(s, out)` | `"a.b.c.d"` -> uint32 |
+| `ipv4_send(dst, proto, payload, plen)` | Raw IPv4 (auto-fragments > MTU) |
+| `arp_resolve(ip, mac_out)` | Blocking 500 ms ARP |
+| `arp_dump`, `arp_get_entries` | Cache inspection |
+| `icmp_send_echo(dst, id, seq, paylen)` | Ping request |
+| `icmp_wait_reply(src, id, seq, timeout_ms)` | Block for matching reply |
+| `udp_send_raw(dst, sport, dport, data, len)` | One-shot UDP |
+
+### Block devices
+
+| Function | Description |
+|---|---|
+| `blkdev_count` | Number of block devices |
+| `blkdev_read(idx, lba, count, buf)` | Read N sectors from blkdev[idx] |
+| `blkdev_write(idx, lba, count, buf)` | Write N sectors |
+| `ata_read_sectors(drive, lba, count, buf)` | Direct ATA read |
+| `ata_write_sectors(drive, lba, count, buf)` | Direct ATA write |
+
+### Keyboard, serial, speaker, PIT - direct driver access
+
+| Function | Description |
+|---|---|
+| `keyboard_read_event(out)` | Pop one event |
+| `keyboard_inject_scancode(sc)` | Synthesize scancode |
+| `keyboard_get_shift` / `_ctrl` / `_alt` / `_caps_lock` | Modifier state |
+| `serial_read_char` / `serial_write_char` / `serial_write_string` / `serial_has_rx` | Direct COM1 |
+| `pc_speaker_on(freq)` / `pc_speaker_off()` | PC speaker square wave |
+| `pit_set_frequency(channel, hz)` | Reprogram PIT |
+| `timer_delay_us(us)` | TSC busy delay |
+| `outb` / `inb` | Raw 8-bit port I/O for new drivers |
+
+### PCI introspection (by index)
+
+| Function | Description |
+|---|---|
+| `pci_device_count` | Number of PCI devices found at boot |
+| `pci_get_vendor(idx)` | 16-bit vendor ID |
+| `pci_get_device_id(idx)` | 16-bit device ID |
+| `pci_get_class(idx)` | Packed `class<<16 | sub<<8 | prog_if` |
+| `pci_get_irq(idx)` | IRQ line |
+| `pci_get_bar(idx, bar)` | BAR value (0..5) |
+
+### SMP / LAPIC / paging / PMM
+
+> ⚠ Wrap shared-state work in `bkl_lock`/`bkl_unlock`.
+
+| Function | Description |
+|---|---|
+| `lapic_get_id` | This CPU's local APIC ID |
+| `lapic_eoi` | End-of-interrupt (only from a real ISR) |
+| `bkl_lock` / `bkl_unlock` | Big kernel lock - recursive ticket spinlock |
+| `paging_map_mmio(phys, size)` | Identity-map an MMIO region |
+| `pmm_alloc_page` / `pmm_free_page(page)` | 4 KB physical page allocator |
+
 ### Example: Using Kernel Bindings
 
 ```asm
@@ -434,6 +518,11 @@ main:
 ---
 
 ## AOT Syscall Table (ELF Programs)
+
+> Syscall table version: **3** (since Phase 5 of Networking). The layout is
+> append-only - programs built against v2 still work and observe the new
+> larger `SYS_TABLE_SIZE`. `kernel/syscall.c` has `_Static_assert` guards
+> on the offsets below so a future field reorder fails to compile.
 
 AOT-compiled programs receive a pointer to the syscall table at `[esp+4]` when executed. Use `SYS_*` constants (pre-defined as `equ` values) to call kernel functions indirectly:
 
@@ -499,6 +588,101 @@ section .data
 | `SYS_VFS_READ_TEXT` | 144 | vfs_read_text() |
 | `SYS_VFS_WRITE_TEXT` | 148 | vfs_write_text() |
 | `SYS_MEMSTATS` | 152 | memstats() |
+
+### Phase 4/5 syscall table extensions (v3)
+
+| Constant | Offset | Function |
+|----------|--------|----------|
+| `SYS_NET_GET_IP` | 156 | net_get_ip() |
+| `SYS_NET_GET_GATEWAY` | 160 | net_get_gateway() |
+| `SYS_NET_GET_DNS` | 164 | net_get_dns() |
+| `SYS_NET_GET_MASK` | 168 | net_get_mask() |
+| `SYS_NET_GET_MAC` | 172 | net_get_mac(out) |
+| `SYS_NET_LINK_UP` | 176 | net_link_up() |
+| `SYS_NET_RX_PACKETS` | 180 | net_rx_packets() |
+| `SYS_NET_TX_PACKETS` | 184 | net_tx_packets() |
+| `SYS_NET_RX_DROPS` | 188 | net_rx_drops() |
+| `SYS_NET_TX_ERRORS` | 192 | net_tx_errors() |
+| `SYS_IP_PARSE` | 196 | ip_parse(s, out) |
+| `SYS_IPV4_SEND` | 200 | ipv4_send(dst, proto, payload, plen) |
+| `SYS_ARP_RESOLVE` | 204 | arp_resolve(ip, mac_out) |
+| `SYS_ARP_DUMP` | 208 | arp_dump() |
+| `SYS_ARP_GET_ENTRIES` | 212 | arp_get_entries(ips, macs, max) |
+| `SYS_ICMP_SEND_ECHO` | 216 | icmp_send_echo(dst, id, seq, paylen) |
+| `SYS_ICMP_WAIT_REPLY` | 220 | icmp_wait_reply(src, id, seq, timeout_ms) |
+| `SYS_UDP_SEND_RAW` | 224 | udp_send_raw(dst, sport, dport, data, len) |
+| `SYS_DNS_RESOLVE` | 228 | dns_resolve(name, ip_out) |
+| `SYS_HTONS` | 232 | htons(v) |
+| `SYS_HTONL` | 236 | htonl(v) |
+| `SYS_NTOHS` | 240 | ntohs(v) |
+| `SYS_NTOHL` | 244 | ntohl(v) |
+| `SYS_SOCKET` | 248 | socket(type) |
+| `SYS_BIND` | 252 | bind(fd, ip, port) |
+| `SYS_LISTEN` | 256 | listen(fd, backlog) |
+| `SYS_ACCEPT` | 260 | accept(fd, peer_ip, peer_port) |
+| `SYS_CONNECT` | 264 | connect(fd, ip, port) |
+| `SYS_SEND` | 268 | send(fd, buf, len) |
+| `SYS_RECV` | 272 | recv(fd, buf, len) |
+| `SYS_SENDTO` | 276 | sendto(fd, buf, len, ip, port) |
+| `SYS_RECVFROM` | 280 | recvfrom(fd, buf, len, ip, port) |
+| `SYS_CLOSE` | 284 | close(fd) |
+| `SYS_BLKDEV_COUNT` | 288 | blkdev_count() |
+| `SYS_BLKDEV_READ` | 292 | blkdev_read(idx, lba, count, buf) |
+| `SYS_BLKDEV_WRITE` | 296 | blkdev_write(idx, lba, count, buf) |
+| `SYS_ATA_READ_SECTORS` | 300 | ata_read_sectors(drive, lba, count, buf) |
+| `SYS_ATA_WRITE_SECTORS` | 304 | ata_write_sectors(drive, lba, count, buf) |
+| `SYS_SERIAL_READ_CHAR` | 308 | serial_read_char() |
+| `SYS_SERIAL_WRITE_CHAR` | 312 | serial_write_char(c) |
+| `SYS_SERIAL_WRITE_STRING` | 316 | serial_write_string(s) |
+| `SYS_SERIAL_HAS_RX` | 320 | serial_has_rx() |
+| `SYS_PC_SPEAKER_ON` | 324 | pc_speaker_on(freq) |
+| `SYS_PC_SPEAKER_OFF` | 328 | pc_speaker_off() |
+| `SYS_PIT_SET_FREQUENCY` | 332 | pit_set_frequency(channel, hz) |
+| `SYS_TIMER_DELAY_US` | 336 | timer_delay_us(us) |
+| `SYS_PCI_DEVICE_COUNT` | 340 | pci_device_count() |
+| `SYS_PCI_GET_VENDOR` | 344 | pci_get_vendor(idx) |
+| `SYS_PCI_GET_DEVICE_ID` | 348 | pci_get_device_id(idx) |
+| `SYS_PCI_GET_CLASS` | 352 | pci_get_class(idx) |
+| `SYS_PCI_GET_IRQ` | 356 | pci_get_irq(idx) |
+| `SYS_PCI_GET_BAR` | 360 | pci_get_bar(idx, bar) |
+| `SYS_LAPIC_GET_ID` | 364 | lapic_get_id() |
+| `SYS_LAPIC_EOI` | 368 | lapic_eoi() |
+| `SYS_BKL_LOCK` | 372 | bkl_lock() |
+| `SYS_BKL_UNLOCK` | 376 | bkl_unlock() |
+| `SYS_PAGING_MAP_MMIO` | 380 | paging_map_mmio(phys, size) |
+| `SYS_PMM_ALLOC_PAGE` | 384 | pmm_alloc_page() |
+| `SYS_PMM_FREE_PAGE` | 388 | pmm_free_page(page) |
+| `SYS_OUTB` | 392 | outb(port, val) |
+| `SYS_INB` | 396 | inb(port) |
+
+Equ constants registered alongside (compile-time literals, no syscall):
+`IP_PROTO_ICMP`, `IP_PROTO_UDP`, `IP_PROTO_TCP`, `SOCK_TYPE_UDP`,
+`SOCK_TYPE_TCP`.
+
+Example - outbound TCP from AOT asm:
+
+```asm
+section .text
+
+main:
+    mov  ebx, [esp+4]                  ; syscall table
+
+    push 2                             ; SOCK_TYPE_TCP
+    call [ebx + SYS_SOCKET]
+    add  esp, 4
+    mov  edi, eax                      ; fd
+
+    push 80
+    call [ebx + SYS_HTONS]             ; htons(80)
+    add  esp, 4
+
+    push eax                           ; port (network order)
+    push 0x08080808                    ; 8.8.8.8 - replace w/ real IP
+    push edi
+    call [ebx + SYS_CONNECT]
+    add  esp, 12
+    ret
+```
 
 ---
 

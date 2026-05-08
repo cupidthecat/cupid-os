@@ -1,7 +1,7 @@
 # Opt-in Swap in CupidOS
 
 CupidOS has a handle-based swap system for callers that want more
-logical memory than physical RAM holds. Swap is explicit — standard
+logical memory than physical RAM holds. Swap is explicit - standard
 `kmalloc` stays untouched.
 
 ## Quick start
@@ -31,21 +31,21 @@ swap_free(h);
 | `swap_init(path, pool_bytes)` | 0 / -errno | Create/open 16 MB backing file. Pool split evenly across 4 size classes. Call once. |
 | `swap_kmalloc(size)` | `swap_handle_t` or `SWAP_INVALID` | Rounded up to smallest class: 1K / 4K / 16K / 64K. Allocates disk slot; no RAM yet. |
 | `swap_pin(h)` | `void *` or `NULL` | Loads handle into RAM. May evict LRU-unpinned handles of the same class to make room. NULL if class is fully pinned. |
-| `swap_unpin(h)` | — | Decrement pin count. When count hits 0, handle becomes LRU-eligible for eviction. |
-| `swap_free(h)` | — | Release disk + RAM. Panics if currently pinned. Invalid handles are silent no-op. |
-| `swap_stats(&out)` | — | Dump per-class usage + eviction counter. |
+| `swap_unpin(h)` | - | Decrement pin count. When count hits 0, handle becomes LRU-eligible for eviction. |
+| `swap_free(h)` | - | Release disk + RAM. Panics if currently pinned. Invalid handles are silent no-op. |
+| `swap_stats(&out)` | - | Dump per-class usage + eviction counter. |
 
 ## Size classes
 
-- Class 0: **1 KB** — 4096 disk slots (4 MB region).
-- Class 1: **4 KB** — 1024 disk slots.
-- Class 2: **16 KB** — 256 disk slots.
-- Class 3: **64 KB** — 64 disk slots.
+- Class 0: **1 KB** - 4096 disk slots (4 MB region).
+- Class 1: **4 KB** - 1024 disk slots.
+- Class 2: **16 KB** - 256 disk slots.
+- Class 3: **64 KB** - 64 disk slots.
 
 ## Shell commands
 
-- `swapinit [pool_kb]` — default 4096 KB. Uses `/disk/swap.bin`.
-- `swapstats` — dump current stats.
+- `swapinit [pool_kb]` - default 4096 KB. Uses `/disk/swap.bin`.
+- `swapstats` - dump current stats.
 
 ## CupidC bindings
 
@@ -83,14 +83,14 @@ void main() {
 ## Why opt-in?
 
 Classic page-fault swap is architecturally hostile on a ring-0
-identity-mapped kernel — every C dereference would need to be
+identity-mapped kernel - every C dereference would need to be
 page-fault-safe, including IRQ handlers. Opt-in handles deliver the
 same user-facing capability (logical > physical memory) while leaving
 the rest of the kernel untouched.
 
 ## Testing
 
-- `bin/feature18_swap.cc` — end-to-end smoke test covering per-class
+- `bin/feature18_swap.cc` - end-to-end smoke test covering per-class
   round-trip, disk-cap exhaustion, nested-pin refcount, invalid-handle
   benign ops. Run after init:
   ```

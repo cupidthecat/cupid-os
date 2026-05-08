@@ -11,14 +11,14 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
     │
     ├── Set up stack at 0x7C00
     ├── Load kernel from disk (sectors 1+) to 0x10000
-    ├── Set 640×480×32bpp via Bochs VBE I/O ports (0x01CE/0x01CF)
-    ├── Read VBE LFB address from PCI BAR0 → store at 0x0500
+    ├── Set 640x480x32bpp via Bochs VBE I/O ports (0x01CE/0x01CF)
+    ├── Read VBE LFB address from PCI BAR0 -> store at 0x0500
     ├── Set up GDT (flat model: code + data segments)
     ├── Switch to protected mode (CR0 bit 0)
     └── Far jump to kernel entry at 0x10000
             │
             ├── idt_init()          - Interrupt Descriptor Table
-            ├── pic_init()          - PIC remapping (IRQ0→32, IRQ8→40)
+            ├── pic_init()          - PIC remapping (IRQ0->32, IRQ8->40)
             ├── irq_init()          - IRQ handler registration
             ├── pmm_init()          - Physical memory manager
             ├── paging_init()       - Identity-mapped 4KB pages (32MB)
@@ -39,7 +39,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
             │   └── Pre-populate /LICENSE.txt, /MOTD.txt
             ├── process_init()      - Process table, idle process (PID 1)
             ├── Register desktop as PID 2
-            ├── vga_init_vbe()      - Init 640×480 32bpp framebuffer
+            ├── vga_init_vbe()      - Init 640x480 32bpp framebuffer
             ├── mouse_init()        - PS/2 mouse (IRQ12)
             └── desktop_run()       - Main event loop
 ```
@@ -50,7 +50,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 
 ```
 0x00000000 ┌──────────────────────────┐
-           │ Interrupt Vector Table    │ (not used - we use IDT)
+           │ Interrupt Vector Table   │ (not used - we use IDT)
 0x00000500 ├──────────────────────────┤
            │ VBE LFB address          │ ← Written by bootloader
 0x00001000 ├──────────────────────────┤
@@ -78,7 +78,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
            · (unmapped gap)
            ·
 0xFD000000 ┌──────────────────────────┐
-           │ VBE Linear Framebuffer   │ ← 640×480×4 = 1.2MB
+           │ VBE Linear Framebuffer   │ ← 640x480x4 = 1.2MB
            │ (identity-mapped by      │   PCI BAR0, QEMU default
            │  paging_init)            │
 0xFD140000 └──────────────────────────┘
@@ -107,7 +107,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 | Keyboard | `keyboard.c/h` | IRQ1 | PS/2 input with modifiers |
 | Mouse | `mouse.c/h` | IRQ12 | PS/2 mouse with cursor |
 | Timer | `timer.c/h`, `pit.c/h` | IRQ0 | 100Hz PIT, uptime, sleep |
-| VGA | `vga.c/h` | - | VBE 640×480 32bpp, double buffering |
+| VGA | `vga.c/h` | - | VBE 640x480 32bpp, double buffering |
 | ATA | `ata.c/h` | - | PIO disk read/write |
 | Serial | `serial.c/h` | - | COM1 logging |
 | Speaker | `speaker.c/h` | - | PC speaker tones |
@@ -153,7 +153,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 
 cupid-os uses **deferred preemptive multitasking**:
 
-1. **PIT IRQ0** fires every 10ms → sets `need_reschedule` flag
+1. **PIT IRQ0** fires every 10ms -> sets `need_reschedule` flag
 2. Flag is checked at **safe voluntary points** only:
    - Desktop main loop (before `HLT`)
    - `process_yield()` calls
@@ -174,12 +174,12 @@ This avoids the complexity and stack corruption risks of switching inside interr
       │
       ▼
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│    Lexer     │────▶│    Parser    │────▶│  Interpreter │
+│    Lexer     │ ──▶│    Parser    │ ──▶│  Interpreter │
 │ (tokenize)   │     │ (build AST)  │     │ (execute AST)│
 └──────────────┘     └──────────────┘     └──────┬───────┘
-                                                  │
-                           ┌──────────────────────┤
-                           ▼                      ▼
+                                                 │
+                           ┌─────────────────────┤
+                           ▼                     ▼
                     ┌──────────────┐     ┌──────────────┐
                     │   Runtime    │     │    Shell     │
                     │ (variables,  │     │ (execute_    │

@@ -1,6 +1,6 @@
 # Desktop Environment
 
-cupid-os features a complete graphical desktop environment built on VBE 640×480 32-bit true color. It includes a window manager, desktop shell with taskbar and icons, a mouse-driven GUI terminal, and a notepad application.
+cupid-os features a complete graphical desktop environment built on VBE 640x480 32-bit true color. It includes a window manager, desktop shell with taskbar and icons, a mouse-driven GUI terminal, and a notepad application.
 
 ---
 
@@ -18,11 +18,11 @@ The desktop is the default interface after boot. It provides:
 
 ## VBE Graphics
 
-### VBE 640×480 32bpp
+### VBE 640x480 32bpp
 
 | Property | Value |
 |----------|-------|
-| Resolution | 640 × 480 pixels |
+| Resolution | 640 x 480 pixels |
 | Color depth | 32bpp true color (XRGB 0x00RRGGBB) |
 | Framebuffer | Linear at 0xFD000000 (QEMU PCI BAR0) |
 | Buffering | Double-buffered (1.2MB heap-allocated back buffer) |
@@ -49,7 +49,7 @@ The UI uses a soft pastel color scheme (`drivers/vga.h`):
 - **Line** - Bresenham's algorithm for arbitrary angles; per-pixel loop for horizontal/vertical
 - **Rectangle** - Filled and outlined
 - **3D rect** - Windows-95-style raised/sunken edges
-- **Text** - 8×8 monospaced bitmap font (ASCII 0–127), scalable 1×/2×/3×
+- **Text** - 8x8 monospaced bitmap font (ASCII 0-127), scalable 1x/2x/3x
 
 ---
 
@@ -100,7 +100,7 @@ The clock reads from the CMOS Real-Time Clock (RTC) hardware:
 
 ### Calendar Popup
 
-Click the taskbar clock to open a 440×320 pixel calendar popup centered on screen:
+Click the taskbar clock to open a 440x320 pixel calendar popup centered on screen:
 
 ```
 ┌────────────────────────────────────┐
@@ -146,17 +146,43 @@ The terminal application runs the shell inside a graphical window:
 
 | Property | Value |
 |----------|-------|
-| Default size | 560 × 320 pixels |
-| Character buffer | 80 columns × 50 rows |
+| Default size | 560 x 320 pixels |
+| Character buffer | 80 columns x 500 rows (scrollback) |
 | Background | Dark (`#141418`) |
 | Default text | Light gray on dark background |
 | Color support | 16 foreground + 8 background colors via ANSI codes |
 | Cursor | Blinking vertical bar, 500ms toggle |
-| Font zoom | Ctrl+`+` / Ctrl+`-` to scale 1×, 2×, 3× |
+| Font zoom | Ctrl+`+` / Ctrl+`-` to scale 1x, 2x, 3x |
+| Scrollback | PgUp/PgDn (10 rows), Home/End (top/bottom), mouse wheel (3 rows/notch) |
+
+### Scrollback
+
+The shell character buffer is 500 rows tall - long-running output
+(e.g. `curl http://example.com/`) stays in the buffer and you can
+review it after the fact:
+
+| Input | Action |
+|---|---|
+| **PgUp** / **PgDn** | scroll up / down 10 rows |
+| **Home** | jump to top of buffer |
+| **End** | jump to bottom (most recent output) |
+| **Mouse wheel** | 3 rows per notch, sign matches host wheel |
+| Typing characters | preserves scroll position |
+| **Enter** | resets scroll to bottom (so you see the new prompt + output) |
+
+When the buffer fills (cursor reaches row 499), the oldest row is
+discarded - there's no infinite history.
+
+Mouse wheel routing lives in `kernel/desktop.c`: when the focused
+window's title is `"Terminal"`, `mouse.scroll_z` is forwarded to
+`terminal_handle_scroll()` instead of being silently consumed.
+PgUp / PgDn / Home / End scancodes arrive via the extended-scancode
+PS/2 path (or, for USB HID keyboards, via the `0xE0` prefix injected
+by `usb_hid.c`'s `hid_is_extended[]` table - see [USB](USB)).
 
 ### How It Works
 
-1. Shell writes to a **character buffer** (80×50) instead of VGA text memory
+1. Shell writes to a **character buffer** (80x50) instead of VGA text memory
 2. **ANSI escape sequences** are parsed and stripped from the output stream
 3. A **parallel color buffer** stores per-character foreground/background VGA color indices
 4. Terminal app **renders** each character using its individual color, mapped to the Mode 13h palette
@@ -167,13 +193,13 @@ The terminal application runs the shell inside a graphical window:
 
 Each character cell in the terminal has:
 - **Character** - The ASCII character to display
-- **Foreground color** - VGA color index (0–15), mapped to 32bpp XRGB via `ansi_vga_to_palette()`
-- **Background color** - VGA color index (0–7), rendered as a colored rectangle behind the character
+- **Foreground color** - VGA color index (0-15), mapped to 32bpp XRGB via `ansi_vga_to_palette()`
+- **Background color** - VGA color index (0-7), rendered as a colored rectangle behind the character
 
 The ANSI parser handles:
-- `\e[30m` – `\e[37m` - Standard foreground colors
-- `\e[40m` – `\e[47m` - Background colors
-- `\e[90m` – `\e[97m` - Bright foreground colors
+- `\e[30m` - `\e[37m` - Standard foreground colors
+- `\e[40m` - `\e[47m` - Background colors
+- `\e[90m` - `\e[97m` - Bright foreground colors
 - `\e[0m` - Reset to defaults
 - `\e[1m` - Bold (bright foreground)
 - `\e[2J` - Clear screen
@@ -198,9 +224,9 @@ The ANSI parser handles:
 
 ### Cursor
 
-- 8×10 pixel arrow bitmap with outline for visibility
+- 8x10 pixel arrow bitmap with outline for visibility
 - **Save-under buffer** - saves the pixels beneath the cursor for non-destructive rendering
-- Position clamped to screen bounds (0–639 horizontal, 0–479 vertical)
+- Position clamped to screen bounds (0-639 horizontal, 0-479 vertical)
 
 ### Mouse Interactions
 

@@ -18,7 +18,7 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 | Max CPUs | 32 |
 | Scheduler | shared runqueue, round-robin, BKL-protected |
 | Timer source | per-CPU LAPIC periodic timer, vector 0x20 |
-| External IRQs | all on BSP (keyboard, mouse, disk, …) |
+| External IRQs | all on BSP (keyboard, mouse, disk, ...) |
 | IPI vectors | 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic |
 | New source files | 13 |
 
@@ -45,12 +45,12 @@ must be fully masked so that its IRQ lines do not collide with LAPIC vectors.
 percpu_init_bsp()       // allocate BSP per_cpu_t, load GS, set cpu_id=0
 lapic_init_bsp()        // map LAPIC MMIO, software-enable, calibrate PIT-ch2
 ioapic_init_all()       // discover IOAPICs via MADT, build GSI table
-pic_mask_all()          // OCW1=0xFF on both 8259s — all legacy IRQ lines masked
+pic_mask_all()          // OCW1=0xFF on both 8259s - all legacy IRQ lines masked
 bkl_init()              // initialise ticket spinlock, per-CPU recursion counters
 smp_init()              // parse MP/MADT, populate cpu_table[], write trampoline
 smp_init_ipi()          // wire IPI vectors 0xF0/0xF1/0xFE in IDT
                         // --- uniprocessor regression gate ---
-                        // if cpu_count == 1 → skip AP bringup entirely
+                        // if cpu_count == 1 -> skip AP bringup entirely
                         // --- AP bringup ---
 for each AP:
     lapic_send_init_ipi(apic_id)
@@ -58,7 +58,7 @@ for each AP:
     wait up to 10 ms for AP to set ap_ready flag
 ```
 
-> **Warning** — reversing `lapic_init_bsp` and `ioapic_init_all` causes
+> **Warning** - reversing `lapic_init_bsp` and `ioapic_init_all` causes
 > spurious LAPIC vectors during the IOAPIC redirection table write and
 > locks the BSP before APs are released. Do not reorder.
 
@@ -70,19 +70,19 @@ for each AP:
 
 ```c
 typedef struct {
-    uint32_t  self;          // GS:0  — pointer to this struct (cheap self-ref)
-    uint32_t  cpu_id;        // GS:4  — logical CPU index 0..31
-    uint32_t  apic_id;       // GS:8  — APIC hardware ID
-    uint32_t  current_pid;   // GS:12 — PID running on this CPU
-    uint32_t  bkl_depth;     // GS:16 — BKL recursion depth
-    uint32_t  bkl_irqflags;  // GS:20 — EFLAGS saved on outermost lock
+    uint32_t  self;          // GS:0  - pointer to this struct (cheap self-ref)
+    uint32_t  cpu_id;        // GS:4  - logical CPU index 0..31
+    uint32_t  apic_id;       // GS:8  - APIC hardware ID
+    uint32_t  current_pid;   // GS:12 - PID running on this CPU
+    uint32_t  bkl_depth;     // GS:16 - BKL recursion depth
+    uint32_t  bkl_irqflags;  // GS:20 - EFLAGS saved on outermost lock
     uint8_t   pad[104];      // pad to 128 bytes
 } per_cpu_t;
 
 _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
 ```
 
-`this_cpu()` compiles to a single `mov eax, gs:[0]` — the struct starts
+`this_cpu()` compiles to a single `mov eax, gs:[0]` - the struct starts
 with a self-pointer so callers never need to know the linear address.
 
 ### GDT layout
@@ -94,7 +94,7 @@ with a self-pointer so callers never need to know the linear address.
 | 2 | 0x10 | flat data segment (ring 0) |
 | 3 | 0x18 | TSS |
 | 4 | 0x20 | (reserved) |
-| 5–36 | 0x28–0x128 | 32 per-CPU data descriptors (one per logical CPU) |
+| 5-36 | 0x28-0x128 | 32 per-CPU data descriptors (one per logical CPU) |
 
 BSP uses slot 5 (selector 0x28). AP n uses slot 5+n. The descriptor base
 points to the `per_cpu_t` allocated for that CPU; limit = 127; DPL = 0;
@@ -125,12 +125,12 @@ falls through to ACPI rather than assuming the system is uniprocessor.
 
 ```
 RSDP scan (0xE0000..0xFFFFF, then EBDA)
-  → RSDT (32-bit physical pointers) or XSDT (64-bit)
-    → find table signature "APIC" (MADT)
-      → walk variable-length entries:
-          type 0  Processor Local APIC     → add to cpu_table[]
-          type 1  I/O APIC                 → add to ioapic_table[]
-          type 2  Interrupt Source Override → build isa_to_gsi[] remap
+  -> RSDT (32-bit physical pointers) or XSDT (64-bit)
+    -> find table signature "APIC" (MADT)
+      -> walk variable-length entries:
+          type 0  Processor Local APIC     -> add to cpu_table[]
+          type 1  I/O APIC                 -> add to ioapic_table[]
+          type 2  Interrupt Source Override -> build isa_to_gsi[] remap
 ```
 
 The MADT `flags` field on type-0 entries: bit 0 (Enabled) must be set, or
@@ -180,7 +180,7 @@ the timer ISR and all IPI handlers.
 ```c
 // 1. Write destination APIC ID to ICR high (offset 0x310)
 lapic_write(0x310, apic_id << 24);
-// 2. Write vector + delivery mode to ICR low (offset 0x300) — this fires
+// 2. Write vector + delivery mode to ICR low (offset 0x300) - this fires
 lapic_write(0x300, vector | (delivery_mode << 8));
 // 3. Spin until delivery status bit (bit 12) clears
 while (lapic_read(0x300) & (1 << 12)) {}
@@ -216,7 +216,7 @@ low[7:0]     vector
 At init, all entries are masked. `ioapic_route(gsi, vector)` unmasks the
 entry, sets delivery mode fixed, destination = BSP APIC ID.
 
-### ISA → GSI remap
+### ISA -> GSI remap
 
 ACPI MADT type-2 (Interrupt Source Override) records map legacy ISA IRQ
 numbers to GSIs. For example, ISA IRQ 0 (PIT) typically remaps to GSI 2.
@@ -228,13 +228,13 @@ vector)` looks up `isa_to_gsi[irq]` before routing.
 
 ```c
 void pic_mask_all(void) {
-    outb(0x21, 0xFF);   // master OCW1 — mask all 8 lines
-    outb(0xA1, 0xFF);   // slave  OCW1 — mask all 8 lines
+    outb(0x21, 0xFF);   // master OCW1 - mask all 8 lines
+    outb(0xA1, 0xFF);   // slave  OCW1 - mask all 8 lines
 }
 ```
 
 Called once after `ioapic_init_all`. The 8259 is never unmasked again;
-all IRQ routing goes through the IOAPIC→LAPIC path. EOI no longer goes to
+all IRQ routing goes through the IOAPIC->LAPIC path. EOI no longer goes to
 the 8259.
 
 ---
@@ -248,7 +248,7 @@ transitions each AP to 32-bit protected mode.
 ### Trampoline stages
 
 ```nasm
-; Stage 1 – real mode entry at 0x8000
+; Stage 1 - real mode entry at 0x8000
     cli
     xor  ax, ax
     mov  ds, ax
@@ -256,9 +256,9 @@ transitions each AP to 32-bit protected mode.
     mov  eax, cr0
     or   al, 1
     mov  cr0, eax
-    jmp  0x08:tramp32          ; far jump → protected mode
+    jmp  0x08:tramp32          ; far jump -> protected mode
 
-; Stage 2 – 32-bit flat mode
+; Stage 2 - 32-bit flat mode
 tramp32:
     mov  ax, 0x10
     mov  ds, ax
@@ -279,7 +279,7 @@ tramp32:
     mov  ax, 0x10
     mov  gs, ax
 
-    call ap_main_c             ; → loads real kernel GDT + per-CPU GS
+    call ap_main_c             ; -> loads real kernel GDT + per-CPU GS
 ```
 
 ### `ap_main_c` (C side)
@@ -314,7 +314,7 @@ typedef struct {
 ```c
 void bkl_acquire(void) {
     uint32_t cpu = this_cpu()->cpu_id;
-    if (this_cpu()->bkl_depth > 0) {   // recursive — just increment depth
+    if (this_cpu()->bkl_depth > 0) {   // recursive - just increment depth
         this_cpu()->bkl_depth++;
         return;
     }
@@ -380,9 +380,9 @@ void scheduler_ap_idle(void) {
 
 | Vector | Purpose |
 |---|---|
-| 0xF0 | Reschedule — target CPU calls `schedule()` on next tick |
-| 0xF1 | Cross-CPU function call — target runs `fn(arg)` atomically |
-| 0xFE | Panic — target halts and prints its CPU id |
+| 0xF0 | Reschedule - target CPU calls `schedule()` on next tick |
+| 0xF1 | Cross-CPU function call - target runs `fn(arg)` atomically |
+| 0xFE | Panic - target halts and prints its CPU id |
 
 ### Handler skeleton
 

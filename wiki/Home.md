@@ -19,7 +19,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
-| [Desktop Environment](Desktop-Environment) | VBE 640×480 32bpp graphics, window manager, mouse, terminal app |
+| [Desktop Environment](Desktop-Environment) | VBE 640x480 32bpp graphics, window manager, mouse, terminal app |
 | [Process Management](Process-Management) | Scheduler, context switching, process API |
 | [Filesystem](Filesystem) | VFS, RamFS, DevFS, FAT16, disk I/O, program loader |
 | [Disk Setup](Disk-Setup) | Creating and formatting FAT16 disk images for QEMU |
@@ -41,11 +41,11 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
 ├──────────┴──────────┴───────────┴───────────────────┤
 │              Shell + CupidScript + CupidC           │
-│   40+ commands │ bash-like scripting │ C compiler  │
-│   colors │ pipes │ redirects │ jobs │ JIT + AOT   │
+│   40+ commands │ bash-like scripting │ C compiler   │
+│   colors │ pipes │ redirects │ jobs │ JIT + AOT     │
 ├─────────────────────────────────────────────────────┤
-│       Virtual File System (VFS)                      │
-│   RamFS (/) │ DevFS (/dev) │ FAT16 (/home)         │
+│       Virtual File System (VFS)                     │
+│   RamFS (/) │ DevFS (/dev) │ FAT16 (/home)          │
 ├─────────────────────────────────────────────────────┤
 │              Process Scheduler                      │
 │   Round-robin │ 10ms slices │ 32 kernel threads     │
@@ -54,9 +54,9 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │   16 windows │ z-order │ drag │ focus │ taskbar     │
 ├──────────┬──────────┬───────────┬───────────────────┤
 │ Keyboard │  Mouse   │   VBE     │    Serial         │
-│  (IRQ1)  │ (IRQ12)  │640×480    │   (COM1)          │
+│  (IRQ1)  │ (IRQ12)  │640x480    │   (COM1)          │
 ├──────────┴──────────┴───────────┴───────────────────┤
-│              FAT16 + Block Cache + ATA               │
+│              FAT16 + Block Cache + ATA              │
 │   Block cache │ ATA/IDE PIO │ MBR partitions        │
 ├─────────────────────────────────────────────────────┤
 │              Memory Management                      │
@@ -66,7 +66,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │   Interrupts │ Exceptions │ Timer (100Hz)           │
 ├─────────────────────────────────────────────────────┤
 │              Bootloader (boot.asm)                  │
-│   Real mode → Protected mode │ GDT │ Load kernel   │
+│   Real mode -> Protected mode │ GDT │ Load kernel   │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -105,7 +105,7 @@ make run
 ```
 cupid-os/
 ├── boot/
-│   └── boot.asm              # Bootloader (real → protected mode)
+│   └── boot.asm              # Bootloader (real -> protected mode)
 ├── kernel/
 │   ├── kernel.c/h             # Main kernel, VGA init, entry point
 │   ├── shell.c/h              # Shell with 38 commands + CWD
@@ -138,7 +138,7 @@ cupid-os/
 ├── drivers/
 │   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
 │   ├── mouse.c/h              # PS/2 mouse (IRQ12)
-│   ├── vga.c/h                # VBE 640×480 32bpp
+│   ├── vga.c/h                # VBE 640x480 32bpp
 │   ├── ata.c/h                # ATA/IDE disk
 │   ├── serial.c/h             # COM1 serial port
 │   ├── timer.c/h + pit.c/h    # PIT timer

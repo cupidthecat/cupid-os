@@ -90,7 +90,7 @@ Every allocation from `kmalloc()` is wrapped with canary values:
 - **Head canary**: `0xDEADBEEF` - placed before user data
 - **Tail canary**: `0xBEEFDEAD` - placed after user data
 - Checked on every `kfree()` call
-- Buffer overflows and underflows corrupt canaries → detected and reported
+- Buffer overflows and underflows corrupt canaries -> detected and reported
 
 ### Free-Memory Poisoning
 
@@ -179,7 +179,7 @@ Every process stack has a canary at the bottom:
 |-------|----------|---------|
 | `0xDEADC0DE` | Bottom of stack | Detect stack overflow |
 
-Checked on every context switch. If the canary is corrupted → **kernel panic** identifying the process.
+Checked on every context switch. If the canary is corrupted -> **kernel panic** identifying the process.
 
 ---
 
@@ -217,7 +217,7 @@ System halted.
 | `registers` | Dump CPU register state |
 | `sysinfo` | Show OS version, uptime, memory |
 | `logdump` | Print log buffer contents |
-| `loglevel <n>` | Set log verbosity (0–3) |
+| `loglevel <n>` | Set log verbosity (0-3) |
 
 ### registers
 
@@ -266,7 +266,7 @@ KASSERT(condition, "message");
 KASSERT(ptr != NULL, "Null pointer in process_create");
 ```
 
-If the condition is false → kernel panic with file, line, and message.
+If the condition is false -> kernel panic with file, line, and message.
 
 ---
 

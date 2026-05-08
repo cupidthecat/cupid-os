@@ -6,15 +6,38 @@ CC=gcc
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
 CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./drivers \
-	-mfpmath=sse -msse -msse2 -mstackrealign \
+	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS)
+# Relaxed flags for vendored / DOOM-tree code that won't pass our strict gates
+CFLAGS_DOOM := -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
+               -ffreestanding -c -I./kernel -I./drivers \
+               -I./kernel/doom -I./kernel/doom/src -I./kernel/audio \
+               -I./kernel/doom/src/include_stubs \
+               -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
+               -O2 -Wno-unused -Wno-unused-result \
+               -Wno-implicit-function-declaration \
+               -Wno-sign-compare -Wno-strict-prototypes \
+               -Wno-unused-parameter
+# DOOM source tree flags — extends CFLAGS_DOOM with the dglibc_compat.h alias
+# header and extra suppressions needed for the DOOM upstream source files.
+CFLAGS_DOOM_TREE := $(CFLAGS_DOOM) \
+               -include kernel/doom/dglibc_compat.h \
+               -Wno-unused-variable -Wno-type-limits \
+               -Wno-missing-field-initializers \
+               -DDEFAULT_SAVEGAMEDIR=\"/home/doom/\" \
+               -DDOOM_PORT_CUPIDOS=1
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
 LDFLAGS=-m elf_i386 -T link.ld --oformat binary
+# ELF link variant — used for the pass-1 kernel.elf so mksyms.sh can read symbols.
+LDFLAGS_ELF=-m elf_i386 -T link.ld
 
-# Auto-discover all CupidC programs in bin/
-BIN_CC_SRCS := $(wildcard bin/*.cc)
+# Auto-discover all CupidC programs in bin/.
+# Exclude legacy cc2-bootstrap fixtures (old_cc2*) — they're superseded
+# by the production CupidC compiler and embed ~265 KB of fixture text
+# into the kernel binary, eating the bootloader's reserved kernel-area.
+BIN_CC_SRCS := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
 $(info BIN_CC_SRCS=$(BIN_CC_SRCS))
 BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
 BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
@@ -24,6 +47,15 @@ BIN_HDR_SRCS := $(wildcard bin/*.h)
 $(info BIN_HDR_SRCS=$(BIN_HDR_SRCS))
 BIN_HDR_OBJS := $(BIN_HDR_SRCS:.h=.h.o)
 BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
+
+# Auto-discover browser library sub-files (bin/browser/*.cc).
+# These are #include'd by bin/browser.cc and embedded in ramfs at
+# /bin/browser/<n>.cc so the CupidC preprocessor can resolve them
+# at JIT time. They are NOT runnable programs (not added to BIN_CC_NAMES).
+BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
+$(info BROWSER_SUB_SRCS=$(BROWSER_SUB_SRCS))
+BROWSER_SUB_OBJS := $(BROWSER_SUB_SRCS:.cc=.o)
+BROWSER_SUB_NAMES := $(notdir $(basename $(BROWSER_SUB_SRCS)))
 
 # Auto-discover CupidDoc files to embed at boot (/docs/*.ctxt in ramfs)
 DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
@@ -54,10 +86,11 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
-FAT_START_LBA ?= 4096
+FAT_START_LBA ?= 8192
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
+WAD_SRCS := $(wildcard /usr/share/games/doom/freedoom*.wad)
 KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o \
             kernel/fs.o drivers/keyboard.o drivers/timer.o kernel/math.o drivers/pit.o \
             drivers/speaker.o kernel/shell.o kernel/string.o kernel/memory.o kernel/pci.o kernel/usb.o kernel/uhci.o kernel/ehci.o kernel/usb_hid.o kernel/usb_hub.o kernel/usb_msc.o \
@@ -97,6 +130,19 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/rtl8139.o \
             kernel/e1000.o \
             kernel/syscall.o \
+            kernel/tls/chacha20.o kernel/tls/csprng.o \
+            kernel/tls/sha256.o kernel/tls/sha512.o kernel/tls/hmac.o kernel/tls/hkdf.o \
+            kernel/tls/ct.o kernel/tls/poly1305.o \
+            kernel/tls/chacha20poly1305.o \
+            kernel/tls/aes.o kernel/tls/aes_gcm.o \
+            kernel/tls/bigint.o kernel/tls/rsa.o \
+            kernel/tls/x25519.o kernel/tls/p256.o kernel/tls/ecdsa.o \
+            kernel/tls/asn1.o kernel/tls/x509.o \
+            kernel/tls/x509_chain.o kernel/tls/tls_ca_bundle.o \
+            kernel/tls/tls_record.o kernel/tls/tls_kdf.o \
+            kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
+            kernel/tls/tls12_handshake.o \
+            kernel/tls/tls_selftest.o \
 			kernel/cupidc.o kernel/cupidc_lex.o kernel/cupidc_parse.o \
 			kernel/cupidc_string.o \
             kernel/cupidc_elf.o \
@@ -104,6 +150,8 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
 			kernel/dis.o \
             kernel/gfx2d.o \
             kernel/bmp.o \
+            kernel/png.o \
+            kernel/jpeg.o \
             kernel/vfs_helpers.o \
             drivers/rtc.o kernel/calendar.o \
             kernel/gfx2d_assets.o kernel/gfx2d_transform.o kernel/gfx2d_effects.o \
@@ -114,7 +162,15 @@ KERNEL_OBJS=kernel/kernel.o kernel/idt.o kernel/isr.o kernel/irq.o kernel/pic.o 
             kernel/bin_programs_gen.o \
 			kernel/docs_programs_gen.o \
 			kernel/demos_programs_gen.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
+			kernel/ksyms.o \
+			kernel/audio/ac97.o \
+			kernel/audio/mixer.o \
+			kernel/audio/nuked_opl3.o \
+			kernel/audio/opl_smoke.o \
+			kernel/audio/memio.o \
+			kernel/audio/mus2midi.o \
+			kernel/audio/midiopl.o \
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -128,6 +184,10 @@ $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 
 # Keep tracked binary artifacts intact if a later build step fails.
 .PRECIOUS: $(BOOTLOADER) $(KERNEL)
+
+check-mtools:
+	@command -v mcopy >/dev/null 2>&1 || { \
+	  echo "ERROR: mtools not installed. Run: pacman -S mtools"; exit 1; }
 
 all: $(OS_IMAGE)
 
@@ -156,6 +216,11 @@ kernel/pic.o: kernel/pic.c kernel/pic.h
 
 kernel/irq.o: kernel/irq.c kernel/isr.h kernel/pic.h
 	$(CC) $(CFLAGS) kernel/irq.c -o kernel/irq.o
+
+# Symbol-table runtime + (weak) blob fallback. The strong blob lives in
+# the auto-generated kernel/ksyms_data.o; see the kernel link rule.
+kernel/ksyms.o: kernel/ksyms.c kernel/ksyms.h
+	$(CC) $(CFLAGS) kernel/ksyms.c -o kernel/ksyms.o
 
 # Add new rule for keyboard.o
 drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
@@ -286,6 +351,95 @@ kernel/rtl8139.o: kernel/rtl8139.c kernel/net_if.h kernel/pci.h kernel/memory.h 
 kernel/e1000.o: kernel/e1000.c kernel/net_if.h kernel/pci.h kernel/memory.h kernel/irq.h kernel/isr.h
 	$(CC) $(CFLAGS) kernel/e1000.c -o kernel/e1000.o
 
+# TLS subsystem: crypto primitives, X.509, handshake state machine.
+# Built phase by phase under kernel/tls/. See plan in
+# /home/frank/.claude/plans/implementy-tls-into-the-breezy-biscuit.md.
+kernel/tls/chacha20.o: kernel/tls/chacha20.c kernel/tls/chacha20.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/chacha20.c -o kernel/tls/chacha20.o
+
+kernel/tls/csprng.o: kernel/tls/csprng.c kernel/tls/csprng.h kernel/tls/chacha20.h kernel/types.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/tls/csprng.c -o kernel/tls/csprng.o
+
+kernel/tls/sha256.o: kernel/tls/sha256.c kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/sha256.c -o kernel/tls/sha256.o
+
+kernel/tls/sha512.o: kernel/tls/sha512.c kernel/tls/sha512.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/sha512.c -o kernel/tls/sha512.o
+
+kernel/tls/hmac.o: kernel/tls/hmac.c kernel/tls/hmac.h kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/hmac.c -o kernel/tls/hmac.o
+
+kernel/tls/hkdf.o: kernel/tls/hkdf.c kernel/tls/hkdf.h kernel/tls/hmac.h kernel/tls/sha256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/hkdf.c -o kernel/tls/hkdf.o
+
+kernel/tls/ct.o: kernel/tls/ct.c kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/ct.c -o kernel/tls/ct.o
+
+kernel/tls/poly1305.o: kernel/tls/poly1305.c kernel/tls/poly1305.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/poly1305.c -o kernel/tls/poly1305.o
+
+kernel/tls/chacha20poly1305.o: kernel/tls/chacha20poly1305.c kernel/tls/chacha20poly1305.h kernel/tls/chacha20.h kernel/tls/poly1305.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/chacha20poly1305.c -o kernel/tls/chacha20poly1305.o
+
+kernel/tls/aes.o: kernel/tls/aes.c kernel/tls/aes.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/aes.c -o kernel/tls/aes.o
+
+kernel/tls/aes_gcm.o: kernel/tls/aes_gcm.c kernel/tls/aes_gcm.h kernel/tls/aes.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/aes_gcm.c -o kernel/tls/aes_gcm.o
+
+kernel/tls/bigint.o: kernel/tls/bigint.c kernel/tls/bigint.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/bigint.c -o kernel/tls/bigint.o
+
+kernel/tls/rsa.o: kernel/tls/rsa.c kernel/tls/rsa.h kernel/tls/bigint.h kernel/tls/sha256.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/rsa.c -o kernel/tls/rsa.o
+
+kernel/tls/x25519.o: kernel/tls/x25519.c kernel/tls/x25519.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x25519.c -o kernel/tls/x25519.o
+
+kernel/tls/p256.o: kernel/tls/p256.c kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/p256.c -o kernel/tls/p256.o
+
+kernel/tls/ecdsa.o: kernel/tls/ecdsa.c kernel/tls/ecdsa.h kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/ecdsa.c -o kernel/tls/ecdsa.o
+
+kernel/tls/asn1.o: kernel/tls/asn1.c kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/asn1.c -o kernel/tls/asn1.o
+
+kernel/tls/x509.o: kernel/tls/x509.c kernel/tls/x509.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x509.c -o kernel/tls/x509.o
+
+kernel/tls/x509_chain.o: kernel/tls/x509_chain.c kernel/tls/x509_chain.h kernel/tls/x509.h kernel/tls/sha256.h kernel/tls/rsa.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/x509_chain.c -o kernel/tls/x509_chain.o
+
+kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.c kernel/tls/x509_chain.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle.c -o kernel/tls/tls_ca_bundle.o
+
+kernel/tls/tls_record.o: kernel/tls/tls_record.c kernel/tls/tls_record.h kernel/tls/chacha20poly1305.h kernel/tls/aes_gcm.h kernel/tls/ct.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_record.c -o kernel/tls/tls_record.o
+
+kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.c kernel/tls/tls_kdf.h kernel/tls/hkdf.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_kdf.c -o kernel/tls/tls_kdf.o
+
+kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/x509_chain.h kernel/tls/sha256.h kernel/tls/ct.h kernel/tls/csprng.h kernel/tls/x25519.h kernel/tls/p256.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ctx.c -o kernel/tls/tls_ctx.o
+
+kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/tls/sha256.h kernel/tls/hmac.h kernel/tls/hkdf.h kernel/tls/ct.h kernel/tls/csprng.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/x509.h kernel/tls/x509_chain.h kernel/tls/rsa.h kernel/tls/asn1.h kernel/tls/tls12_handshake.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_handshake.c -o kernel/tls/tls_handshake.o
+
+kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.c kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/tls/sha256.h kernel/tls/ct.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/x509.h kernel/tls/x509_chain.h kernel/tls/rsa.h kernel/tls/asn1.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls12_handshake.c -o kernel/tls/tls12_handshake.o
+
+# Optional auto-generated bundle blob; only built if the file exists
+# (run tools/fetch_ca_bundle.sh to populate it).
+ifneq (,$(wildcard kernel/tls/tls_ca_bundle_data.c))
+KERNEL_OBJS += kernel/tls/tls_ca_bundle_data.o
+kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/tls/x509_chain.h kernel/types.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o
+endif
+
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/tls/sha256.h kernel/tls/hmac.h kernel/tls/hkdf.h kernel/tls/chacha20poly1305.h kernel/tls/aes.h kernel/tls/aes_gcm.h kernel/tls/x25519.h kernel/tls/p256.h kernel/tls/ecdsa.h kernel/tls/asn1.h kernel/panic.h drivers/serial.h
+	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
+
 # USB core scaffold
 kernel/usb.o: kernel/usb.c kernel/usb.h kernel/usb_hc.h
 	$(CC) $(CFLAGS) kernel/usb.c -o kernel/usb.o
@@ -309,6 +463,90 @@ kernel/usb_hub.o: kernel/usb_hub.c kernel/usb.h kernel/usb_hc.h drivers/serial.h
 # USB mass storage class driver (BBB + SCSI)
 kernel/usb_msc.o: kernel/usb_msc.c kernel/usb.h kernel/usb_hc.h kernel/blockdev.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/usb_msc.c -o kernel/usb_msc.o
+
+# AC97 audio — BDL DMA + IRQ + smoke helper
+kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h kernel/pci.h \
+	kernel/ports.h kernel/irq.h kernel/memory.h kernel/kernel.h drivers/serial.h drivers/timer.h
+	$(CC) $(CFLAGS) kernel/audio/ac97.c -o kernel/audio/ac97.o
+
+# Mixer — 16-slot s16 stereo software mixer
+kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/types.h \
+	drivers/serial.h
+	$(CC) $(CFLAGS) kernel/audio/mixer.c -o kernel/audio/mixer.o
+
+# Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
+kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+# mus2midi + memio — vendored GPL-2, built with relaxed CFLAGS_DOOM
+kernel/audio/memio.o: kernel/audio/memio.c kernel/audio/memio.h \
+	kernel/types.h kernel/string.h kernel/memory.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+kernel/audio/mus2midi.o: kernel/audio/mus2midi.c kernel/audio/mus2midi.h \
+	kernel/audio/memio.h kernel/types.h kernel/string.h kernel/memory.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+# midiopl — MIDI → OPL3 synth (our code; built with strict CFLAGS)
+kernel/audio/midiopl.o: kernel/audio/midiopl.c kernel/audio/midiopl.h \
+	kernel/audio/nuked_opl3.h kernel/types.h kernel/string.h drivers/serial.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+# OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
+kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c kernel/audio/opl_smoke.h \
+	kernel/audio/nuked_opl3.h kernel/audio/mixer.h kernel/audio/ac97.h \
+	kernel/types.h drivers/serial.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+# dglibc — DOOM libc shim (heap/string/stdio/fmt/setjmp) built with relaxed CFLAGS_DOOM
+kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/types.h \
+                      kernel/memory.h kernel/vfs.h kernel/string.h \
+                      drivers/serial.h drivers/timer.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/dglibc.o
+
+# doomgeneric cupidos platform shim (Task 13)
+kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
+                                    kernel/doom/doomgeneric_cupidos.h \
+                                    kernel/doom/dglibc.h \
+                                    kernel/types.h \
+                                    drivers/vga.h \
+                                    drivers/keyboard.h \
+                                    drivers/serial.h \
+                                    drivers/timer.h \
+                                    kernel/vfs.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
+
+# doom_libc_stubs — atoi/sscanf/puts/etc. + i_music stubs (SFX moved to Task 16)
+kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.c \
+                                kernel/types.h kernel/string.h kernel/doom/dglibc.h \
+                                drivers/serial.h
+	$(CC) $(CFLAGS_DOOM) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/doom_libc_stubs.o
+
+# i_sound_cupidos — SFX path: lump cache + mixer bridge (Task 16)
+kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.c \
+                                kernel/types.h kernel/memory.h \
+                                drivers/serial.h \
+                                kernel/audio/mixer.h \
+                                kernel/doom/src/i_sound.h \
+                                kernel/doom/src/w_wad.h
+	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+
+KERNEL_OBJS += kernel/doom/i_sound_cupidos.o
+
+# DOOM source tree — all .c files under kernel/doom/src/
+DOOM_SRC := $(wildcard kernel/doom/src/*.c)
+DOOM_SRC_OBJS := $(DOOM_SRC:.c=.o)
+
+kernel/doom/src/%.o: kernel/doom/src/%.c
+	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+
+KERNEL_OBJS += $(DOOM_SRC_OBJS)
 
 # Add new rule for paging.o
 kernel/paging.o: kernel/paging.c kernel/memory.h
@@ -481,6 +719,12 @@ kernel/syscall.o: kernel/syscall.c kernel/syscall.h kernel/vfs.h kernel/process.
 kernel/bmp.o: kernel/bmp.c kernel/bmp.h kernel/vfs.h kernel/memory.h drivers/vga.h
 	$(CC) $(CFLAGS) $(OPT) kernel/bmp.c -o kernel/bmp.o
 
+kernel/png.o: kernel/png.c kernel/png.h kernel/memory.h
+	$(CC) $(CFLAGS) $(OPT) kernel/png.c -o kernel/png.o
+
+kernel/jpeg.o: kernel/jpeg.c kernel/jpeg.h kernel/memory.h kernel/libm.h
+	$(CC) $(CFLAGS) $(OPT) kernel/jpeg.c -o kernel/jpeg.o
+
 # VFS helpers (read_all, write_all, read_text, write_text)
 kernel/vfs_helpers.o: kernel/vfs_helpers.c kernel/vfs_helpers.h kernel/vfs.h
 	$(CC) $(CFLAGS) kernel/vfs_helpers.c -o kernel/vfs_helpers.o
@@ -490,7 +734,7 @@ kernel/gfx2d.o: kernel/gfx2d.c kernel/gfx2d.h kernel/font_8x8.h drivers/vga.h ke
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d.c -o kernel/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx2d_assets.o: kernel/gfx2d_assets.c kernel/gfx2d_assets.h kernel/gfx2d.h kernel/bmp.h kernel/vfs.h kernel/memory.h kernel/font_8x8.h
+kernel/gfx2d_assets.o: kernel/gfx2d_assets.c kernel/gfx2d_assets.h kernel/gfx2d.h kernel/bmp.h kernel/png.h kernel/jpeg.h kernel/vfs.h kernel/vfs_helpers.h kernel/memory.h kernel/font_8x8.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx2d_assets.c -o kernel/gfx2d_assets.o
 
 kernel/gfx2d_transform.o: kernel/gfx2d_transform.c kernel/gfx2d_transform.h kernel/gfx2d.h kernel/gfx2d_assets.h
@@ -554,7 +798,7 @@ kernel/dis.o: kernel/dis.c kernel/dis.h kernel/types.h kernel/exec.h kernel/vfs.
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
-kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
+kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) $(BROWSER_SUB_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@
 	@echo '#include "ramfs.h"' >> $@
@@ -564,10 +808,13 @@ kernel/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) Makefile
 	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
 	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
 	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_end[];' >> $@;)
 	@echo 'void install_bin_programs(void *fs_private);' >> $@
 	@echo 'void install_bin_programs(void *fs_private) {' >> $@
 	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
 	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_browser_$(n)_cc_end - _binary_bin_browser_$(n)_cc_start); ramfs_add_file(fs_private, "bin/browser/$(n).cc", _binary_bin_browser_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/$(n).cc (%u bytes)\n", sz); }' >> $@;)
 	@echo '}' >> $@
 
 kernel/bin_programs_gen.o: kernel/bin_programs_gen.c
@@ -614,6 +861,12 @@ kernel/demos_programs_gen.o: kernel/demos_programs_gen.c
 bin/%.o: bin/%.cc
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
+# Pattern rule: embed any bin/browser/*.cc library file via objcopy.
+# These live in ramfs at /bin/browser/<n>.cc and are #include'd by
+# bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
+bin/browser/%.o: bin/browser/%.cc
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
 # Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
 bin/%.h.o: bin/%.h
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
@@ -633,9 +886,35 @@ demos/%.o: demos/%.asm
 god/%.o: god/%.DD
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
-# Link kernel objects
-$(KERNEL): $(KERNEL_OBJS)
-	ld $(LDFLAGS) -o $(KERNEL) $(KERNEL_OBJS)
+# Link kernel objects.
+#
+# Two-pass link so the panic backtrace can decode addresses to function
+# names:
+#   Pass 1: link all KERNEL_OBJS into kernel.elf.pass1.  ksyms.o ships a
+#           weak empty .ksyms blob, so this link succeeds with no symbol
+#           data.
+#   mksyms: read kernel.elf.pass1's symbol table, generate
+#           kernel/ksyms_data.c with the populated blob.
+#   Pass 2: link kernel.elf again with ksyms_data.o added — the strong
+#           ksym_blob symbol overrides the weak one from ksyms.o.  The
+#           .ksyms section is placed after .data in link.ld so code
+#           addresses don't shift between passes; only .bss start
+#           moves, which is fine.
+#   objcopy kernel.elf -> kernel.bin (raw binary the bootloader expects).
+kernel/kernel.elf.pass1: $(KERNEL_OBJS)
+	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
+
+kernel/ksyms_data.c: kernel/kernel.elf.pass1 tools/mksyms.sh
+	bash tools/mksyms.sh $< $@
+
+kernel/ksyms_data.o: kernel/ksyms_data.c kernel/ksyms.h
+	$(CC) $(CFLAGS) kernel/ksyms_data.c -o kernel/ksyms_data.o
+
+kernel/kernel.elf: $(KERNEL_OBJS) kernel/ksyms_data.o
+	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/ksyms_data.o
+
+$(KERNEL): kernel/kernel.elf
+	objcopy -O binary $< $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
@@ -645,19 +924,48 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
 		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
 	else \
-		echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+		actual_lba=$$(sfdisk -d $(OS_IMAGE) 2>/dev/null | sed -n 's/.*start=[[:space:]]*\([0-9]*\),.*/\1/p' | head -1); \
+		if [ -n "$$actual_lba" ] && [ "$$actual_lba" != "$(FAT_START_LBA)" ]; then \
+			echo "[make] Stale image (FAT at LBA $$actual_lba, expected $(FAT_START_LBA)) — recreating"; \
+			rm -f $(OS_IMAGE); \
+			dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
+			printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
+			mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
+		else \
+			echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
+		fi; \
 	fi
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+	@if [ -z "$(WAD_SRCS)" ]; then \
+	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
+	else \
+	  need_stage=0; \
+	  for w in $(WAD_SRCS); do \
+	    base=$$(basename "$$w"); \
+	    MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads/$$base >/dev/null 2>&1 || need_stage=1; \
+	  done; \
+	  if [ $$need_stage -eq 0 ]; then \
+	    echo "WADs already staged in image (use 'make stage-wads' to force re-copy)"; \
+	  else \
+	    echo "Staging WADs into FAT16 partition..."; \
+	    MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
+	    for w in $(WAD_SRCS); do \
+	      echo "  mcopy $$w -> /wads/"; \
+	      MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
+	    done; \
+	  fi; \
+	fi
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
 # for mass-storage testing (see run-usb target).
-QEMU_COMMON = -m 128M -boot c \
+QEMU_COMMON = -m 512M -boot c \
 	-drive file=$(OS_IMAGE),format=raw,if=ide,index=0,media=disk \
 	-rtc base=localtime \
 	-audiodev $(QEMU_AUDIODEV) -machine pcspk-audiodev=speaker \
+	-device AC97,audiodev=speaker \
 	-device piix3-usb-uhci -device usb-ehci \
 	-device usb-kbd -device usb-mouse
 
@@ -706,6 +1014,23 @@ run-net-e1000: $(OS_IMAGE)
 		-device e1000,netdev=n0 \
 		-serial stdio
 
+# Headless image specifically for the net-test harness. Same as headless-image
+# but kept as a separate target so callers can re-build deliberately.
+headless-net-image: headless-image
+
+# Network integration test on rtl8139 (default) and e1000.
+# net_test.py drives the headless shell, runs feature21/22, host-curls the
+# forwarded port. net_pcap.py then re-validates the captured frames at the
+# protocol level (ARP, DHCP, ICMP, TCP handshake, IP checksums).
+test-net-quick: headless-image
+	python3 tools/net_test.py --nic rtl8139
+	python3 tools/net_pcap.py tests/rtl8139.pcap
+
+test-net: headless-image
+	python3 tools/net_test.py --nic rtl8139
+	python3 tools/net_test.py --nic e1000
+	python3 tools/net_pcap.py tests/rtl8139.pcap tests/e1000.pcap
+
 test_usb_partitioned.img:
 	dd if=/dev/zero of=$@ bs=1M count=32 status=none
 	python3 -c "\
@@ -742,8 +1067,22 @@ sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	@mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso
 	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
+# Stage DOOM WADs into FAT16 partition at /wads/.
+# No-op (warning only) if no freedoom*.wad present on host.
+stage-wads: $(OS_IMAGE) check-mtools
+	@if [ -n "$(WAD_SRCS)" ]; then \
+	  echo "Staging WADs into FAT16 partition (forced)..."; \
+	  MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
+	  for w in $(WAD_SRCS); do \
+	    echo "  mcopy $$w -> /wads/"; \
+	    MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
+	  done; \
+	else \
+	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
+	fi
+
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o drivers/*.o filesystem/*.o bin/*.o cupidos-txt/*.o demos/*.o \
+	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o cupidos-txt/*.o demos/*.o \
 	      kernel/bin_programs_gen.c kernel/docs_programs_gen.c kernel/demos_programs_gen.c debug.log
 
 clean-image:
@@ -751,4 +1090,4 @@ clean-image:
 
 distclean: clean clean-image
 
-.PHONY: all run run-log sync-demos sync-iso clean clean-image distclean
+.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image distclean

@@ -214,7 +214,7 @@ vwrite /home/NOTES.TXT "My notes here"
 rm /home/OLD.TXT
 
 # Open in Notepad (GUI)
-# Click File → Open, navigate to /home, double-click a file
+# Click File -> Open, navigate to /home, double-click a file
 ```
 
 ### Running Scripts from Disk

@@ -12,9 +12,9 @@ CupidOS is a 32-bit x86 BIOS-boot OS. It boots on real hardware, but the hardwar
 |-----------|-------------|-------|
 | CPU | 32-bit x86 with FPU + SSE/SSE2 | Any Pentium 4 or newer. Long-mode CPUs also work (CupidOS stays in 32-bit protected mode). |
 | Firmware | **Legacy BIOS** or **UEFI with CSM** | No pure-UEFI boot. CSM / "Legacy Boot" / "Other OS" must be enabled. |
-| RAM | 32 MB minimum, 128 MB+ recommended | Kernel identity-maps 0 – 32 MB; heap and JIT regions live below that. |
+| RAM | 32 MB minimum, 128 MB+ recommended | Kernel identity-maps 0 - 32 MB; heap and JIT regions live below that. |
 | Storage | IDE / SATA / USB-attached disk ≥ 200 MB | Kernel uses ATA PIO (primary channel) or USB Mass Storage. NVMe is not supported. |
-| GPU | VBE 3.0 with mode 0x118 (640×480×32bpp linear framebuffer) | Most pre-2015 Intel, AMD, and NVIDIA GPUs work in CSM mode. Some newer GPUs lose VBE when CSM is off. |
+| GPU | VBE 3.0 with mode 0x118 (640x480x32bpp linear framebuffer) | Most pre-2015 Intel, AMD, and NVIDIA GPUs work in CSM mode. Some newer GPUs lose VBE when CSM is off. |
 | Keyboard | PS/2 or USB HID | USB 1.1 / 2.0 keyboards work via the built-in UHCI + EHCI HID driver. |
 | Mouse | PS/2 or USB HID | Same as keyboard. |
 | NIC (optional) | Realtek RTL8139 or Intel E1000 | Anything else will not get networking. |
@@ -41,7 +41,7 @@ cd cupid-os
 make HDD_MB=200
 ```
 
-Result: `cupidos.img` — a full 200 MB MBR disk image containing:
+Result: `cupidos.img` - a full 200 MB MBR disk image containing:
 
 ```
 LBA 0        MBR + Stage 1 bootloader
@@ -65,8 +65,8 @@ mdir  -i cupidos.img@@2097152 ::/
 
 Two common paths:
 
-1. **USB stick** (recommended for first boot) — boot the machine off the stick, leave internal storage alone.
-2. **Dedicated internal disk** — permanent install. Make sure nothing else on the machine needs it.
+1. **USB stick** (recommended for first boot) - boot the machine off the stick, leave internal storage alone.
+2. **Dedicated internal disk** - permanent install. Make sure nothing else on the machine needs it.
 
 Both use the same procedure: `dd` the image to the whole device (not a partition).
 
@@ -125,7 +125,7 @@ Save and exit.
 Power on. You should see, in order:
 
 1. A brief `CupidOS Stage 1` / `Stage 2` banner from the bootloader (serial only if a null-modem cable is attached; otherwise silent until VBE).
-2. VBE mode switch to 640×480×32bpp — screen goes black then shows the pastel desktop.
+2. VBE mode switch to 640x480x32bpp - screen goes black then shows the pastel desktop.
 3. The taskbar with clock, desktop icons, and mouse cursor.
 
 If the GPU refuses VBE mode 0x118 the screen stays black. See *Troubleshooting* below.
@@ -162,7 +162,7 @@ The kernel logs every subsystem init and any panic to COM1 at 115200 8N1. On rea
 
 3. Power on the target. You should see boot messages, driver probes, ATA IDENTIFY output, and so on.
 
-If you ever get a silent boot, attach serial first and reboot — panics are printed there before the machine halts.
+If you ever get a silent boot, attach serial first and reboot - panics are printed there before the machine halts.
 
 ---
 
@@ -173,9 +173,9 @@ CupidOS only drives two NICs:
 | Chip | PCI IDs | Notes |
 |------|---------|-------|
 | Realtek RTL8139 | `10ec:8139` | Cheapest option; common on PCI add-in cards. |
-| Intel E1000 / 82540-series | `8086:100e`, `8086:100f`, `8086:1004` | Common on Intel desktop boards 2000 – 2008. |
+| Intel E1000 / 82540-series | `8086:100e`, `8086:100f`, `8086:1004` | Common on Intel desktop boards 2000 - 2008. |
 
-Check with `lspci -nn` on any live Linux on the same machine. If the NIC is anything else (Realtek RTL8169, Intel I210/I219/I225, Broadcom, etc.) there is no driver — networking will not come up.
+Check with `lspci -nn` on any live Linux on the same machine. If the NIC is anything else (Realtek RTL8169, Intel I210/I219/I225, Broadcom, etc.) there is no driver - networking will not come up.
 
 At runtime:
 
@@ -192,10 +192,10 @@ DHCP has a static fallback configured at build time if your network has no DHCP 
 
 ## 9. SMP notes
 
-CupidOS discovers additional cores through the ACPI MADT (preferred) or the Intel MP table. On modern BIOSes ACPI is always present. No configuration is needed — boot, then run `ps` or `sysinfo` and you should see more than one CPU listed.
+CupidOS discovers additional cores through the ACPI MADT (preferred) or the Intel MP table. On modern BIOSes ACPI is always present. No configuration is needed - boot, then run `ps` or `sysinfo` and you should see more than one CPU listed.
 
 If only one CPU shows:
-- ACPI might be disabled in firmware — re-enable it.
+- ACPI might be disabled in firmware - re-enable it.
 - The machine may have > 32 logical CPUs; CupidOS caps at 32 and ignores the rest.
 
 ---
@@ -213,11 +213,11 @@ Serial will show `VBE: mode 0x118 not supported` in this case.
 ### `Disk error!` / machine reboots after the MBR
 The BIOS booted the device but the kernel load failed. Causes:
 - Image was written to a partition (`/dev/sdb1`) instead of the whole device (`/dev/sdb`).
-- The target disk is smaller than the image — `dd` silently truncated.
+- The target disk is smaller than the image - `dd` silently truncated.
 - SATA controller is in a mode the ATA driver doesn't understand. Switch to IDE/legacy in firmware.
 
 ### Keyboard / mouse dead on the desktop
-- Enable "USB Legacy Support" in firmware. Without it, USB HID is only alive after CupidOS's USB stack initializes, which takes ~1 s after boot — any input before then is dropped.
+- Enable "USB Legacy Support" in firmware. Without it, USB HID is only alive after CupidOS's USB stack initializes, which takes ~1 s after boot - any input before then is dropped.
 - If the keyboard is Bluetooth or has a proprietary dongle, it will not work; use a wired PS/2 or standard USB HID device.
 
 ### `ATA: no drive on primary channel`
@@ -228,7 +228,7 @@ The BIOS booted the device but the kernel load failed. Causes:
 The RTC driver reads CMOS in BCD. If firmware stores time in binary, the clock will look garbled. Set the firmware clock to BCD mode, or ignore the taskbar clock and use `date` manually.
 
 ### Power off
-Always run `sync` in the shell, then hold the power button. CupidOS has no ACPI shutdown path — the `reboot` command triggers a keyboard-controller reset, and pulling power is otherwise safe once `sync` has returned.
+Always run `sync` in the shell, then hold the power button. CupidOS has no ACPI shutdown path - the `reboot` command triggers a keyboard-controller reset, and pulling power is otherwise safe once `sync` has returned.
 
 ---
 
@@ -247,8 +247,8 @@ Then repartition normally.
 
 ## See also
 
-- [Getting Started](Getting-Started) — build and QEMU workflow
-- [Disk Setup](Disk-Setup) — FAT16 layout and mtools recipes
-- [Networking](Networking) — NIC drivers, sockets, DHCP/DNS
-- [SMP](SMP) — multi-CPU discovery and scheduling
-- [USB](USB) — UHCI/EHCI, HID, MSC, hubs
+- [Getting Started](Getting-Started) - build and QEMU workflow
+- [Disk Setup](Disk-Setup) - FAT16 layout and mtools recipes
+- [Networking](Networking) - NIC drivers, sockets, DHCP/DNS
+- [SMP](SMP) - multi-CPU discovery and scheduling
+- [USB](USB) - UHCI/EHCI, HID, MSC, hubs

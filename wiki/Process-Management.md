@@ -31,7 +31,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
               │ exit() / kill()
               ▼
          ┌──────────┐
-         │TERMINATED│ → stack freed lazily on slot reuse
+         │TERMINATED│ -> stack freed lazily on slot reuse
          └──────────┘
 ```
 
@@ -48,7 +48,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 
 cupid-os does **not** context switch inside interrupt handlers. Instead:
 
-1. **PIT IRQ0** fires every 10ms → sets `need_reschedule = 1`
+1. **PIT IRQ0** fires every 10ms -> sets `need_reschedule = 1`
 2. The flag is checked only at **safe voluntary points**:
    - Desktop main loop (before `HLT` instruction)
    - `process_yield()` calls
@@ -127,7 +127,7 @@ Processes are indexed by `PID - 1`.
 ### Stack Canary
 - A canary value (`0xDEADC0DE`) is placed at the bottom of every stack
 - Checked on **every context switch**
-- If corrupted → kernel panic with process identification
+- If corrupted -> kernel panic with process identification
 
 ### Deferred Stack Freeing
 - When a process is terminated, its stack is **not freed immediately** (because we may still be using it)
@@ -195,7 +195,7 @@ Prints all processes with PID, state, and name. Used by the `ps` shell command.
 |---------|-------------|
 | `ps` | List all processes with PID, state, and name |
 | `kill <pid>` | Terminate a process (cannot kill PID 1) |
-| `spawn [n]` | Create 1–16 test counting processes |
+| `spawn [n]` | Create 1-16 test counting processes |
 | `yield` | Voluntarily yield CPU to next process |
 
 ### Example

@@ -20,8 +20,13 @@ Related pages: [USB](USB), [SMP](SMP)
 | DHCP | DISCOVER/OFFER/REQUEST/ACK + static fallback 10.0.2.15/24 |
 | DNS | UDP/53 A-record resolver, 16-entry TTL cache |
 | Socket API | BSD-style, 32-slot dedicated table |
-| RX model | NIC IRQ top-half → 64-slot lockless ring → idle bottom-half |
+| RX model | NIC IRQ top-half -> 64-slot lockless ring -> idle bottom-half |
 | New source files | 22 (11 kernel + 2 bin + 2 doc + headers) |
+| TCP retransmit | Stop-and-wait, exponential backoff (5 attempts), per-socket `rt_buf` |
+| ARP cache TTL | 5 min per entry (`arp_tick()` from `net_process_pending`) |
+| IP fragmentation | Send-side splitter + 4-slot reassembly table, 64KB / 30s timeout |
+| Listen-queue GC | 30 s timeout on half-open SYN-RCVD slots |
+| Test harness | `make test-net` - pexpect + scapy, both NICs, `tests/*.pcap` capture |
 
 New kernel files:
 
@@ -51,28 +56,28 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 ┌─────── user / kernel code ────────────────────────────────────┐
 │  socket()  bind()  listen()  accept()                         │
 │  connect() send()  recv()    close()                          │
-│  dns_resolve(name) → ipv4                                     │
+│  dns_resolve(name) -> ipv4                                    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/socket.c — 32-slot table ─────────────────┐
+┌──────────▼── kernel/socket.c - 32-slot table ─────────────────┐
 │  socket_t { type, state, tx_buf/rx_buf, TCP state machine }   │
 └──────────┬────────────────────────────────────────────────────┘
 ┌──────────▼── kernel/{tcp,udp,icmp}.c ─────────────────────────┐
 │  TCP state machine      UDP datagram       ICMP echo reply    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/ip.c — IPv4 send + dispatch ──────────────┐
-│  ipv4_send(dst, proto, buf, len) → arp resolve → NIC send     │
-│  ipv4_input(frame) → proto dispatch (ICMP/UDP/TCP)            │
+┌──────────▼── kernel/ip.c - IPv4 send + dispatch ──────────────┐
+│  ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send   │
+│  ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)           │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/arp.c — 16-entry LRU cache ───────────────┐
+┌──────────▼── kernel/arp.c - 16-entry LRU cache ───────────────┐
 │  who-has / is-at    blocking resolve on cache miss (500 ms)   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/net_if.c — unified NIC interface ─────────┐
+┌──────────▼── kernel/net_if.c - unified NIC interface ─────────┐
 │  net_if_t vtable    lockless SPSC RX ring (64 slots)          │
 └──────────┬────────────────────────────────────────────────────┘
            ▼
 ┌── kernel/rtl8139.c ──────── kernel/e1000.c ───────────────────┐
-│  PCI probe + init + register      IRQ top-half (enqueue frame) │
-└────────────────────────────────────────────────────────────────┘
+│  PCI probe + init + register      IRQ top-half (enqueue frame)│
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Key size constants
@@ -110,10 +115,10 @@ void net_init(void) {
 Startup order:
 
 1. PCI bus scan (already done by existing `pci_init`)
-2. `rtl8139_probe()` — searches for PCI vid/did 10EC:8139; if found, resets, initialises, registers NIC via `net_if_register`, installs IRQ handler
-3. If no RTL8139, `e1000_probe()` — searches for 8086:100E; same sequence
-4. `dhcp_start()` — DISCOVER → OFFER → REQUEST → ACK, up to ~3 seconds
-5. Static fallback — if no DHCP response: `ipv4_addr = 10.0.2.15`, mask `/24`, gateway `10.0.2.2`, DNS `10.0.2.3` (QEMU user-net defaults)
+2. `rtl8139_probe()` - searches for PCI vid/did 10EC:8139; if found, resets, initialises, registers NIC via `net_if_register`, installs IRQ handler
+3. If no RTL8139, `e1000_probe()` - searches for 8086:100E; same sequence
+4. `dhcp_start()` - DISCOVER -> OFFER -> REQUEST -> ACK, up to ~3 seconds
+5. Static fallback - if no DHCP response: `ipv4_addr = 10.0.2.15`, mask `/24`, gateway `10.0.2.2`, DNS `10.0.2.3` (QEMU user-net defaults)
 6. `net_process_pending` is wired into `kernel_check_reschedule` as a bottom-half, matching the P4 USB poll pattern
 
 ---
@@ -169,13 +174,13 @@ static volatile uint32_t rx_tail;   // consumer advances (bottom-half)
 Producer (`net_rx_enqueue`, called from NIC IRQ):
 
 - Computes `next = (rx_head + 1) % NET_RX_RING_SIZE`
-- If `next == rx_tail`: ring full — increment `nif->rx_drops`, return without copy
+- If `next == rx_tail`: ring full - increment `nif->rx_drops`, return without copy
 - Otherwise: copy frame bytes, advance `rx_head`
 
 Consumer (`net_process_pending`, called from idle bottom-half):
 
 - While `rx_tail != rx_head`: pop slot, dispatch by ethertype
-- `0x0806` (ARP) → `arp_input`; `0x0800` (IPv4) → `ipv4_input`
+- `0x0806` (ARP) -> `arp_input`; `0x0800` (IPv4) -> `ipv4_input`
 - Advance `rx_tail`; increment `nif->rx_packets`
 - Calls `tcp_tick()` at end of each drain pass (retransmit + TIME_WAIT expiry)
 
@@ -194,15 +199,15 @@ the idle/reschedule path.
 | Vendor ID | 0x10EC (Realtek) |
 | Device ID | 0x8139 |
 | Class code | 0x020000 (Ethernet) |
-| BAR | BAR0 — 32-bit I/O space |
+| BAR | BAR0 - 32-bit I/O space |
 
 ### Key I/O registers (offset from IO base)
 
 | Offset | Name | Purpose |
 |---|---|---|
-| 0x00–0x05 | IDR0–IDR5 | 6-byte MAC address |
-| 0x10–0x1C | TSAD0–TSAD3 | TX buffer physical addresses (4 descriptors) |
-| 0x20–0x2C | TSD0–TSD3 | TX status/control (length + OWN bit) |
+| 0x00-0x05 | IDR0-IDR5 | 6-byte MAC address |
+| 0x10-0x1C | TSAD0-TSAD3 | TX buffer physical addresses (4 descriptors) |
+| 0x20-0x2C | TSD0-TSD3 | TX status/control (length + OWN bit) |
 | 0x30 | RBSTART | RX ring buffer physical address |
 | 0x37 | CMD | bit 4 = RST, bit 3 = RE, bit 2 = TE, bit 0 = BUFE |
 | 0x38 | CAPR | RX read pointer (current address of packet read) |
@@ -216,19 +221,19 @@ the idle/reschedule path.
 
 1. Enable PCI bus master and I/O decoding via PCI command register
 2. Read BAR0 lower bits to obtain IO base; verify not MMIO
-3. `outb(CONFIG1, 0)` — power on, clear LWAKE/PMEn
-4. `outb(CMD, 0x10)` — software reset; poll CMD bit 4 clear (~1 ms)
+3. `outb(CONFIG1, 0)` - power on, clear LWAKE/PMEn
+4. `outb(CMD, 0x10)` - software reset; poll CMD bit 4 clear (~1 ms)
 5. Allocate RX buffer: 8192 + 16 + 1500 = 9708 bytes via `kmalloc`; align to 16 bytes (raw pointer saved for `kfree`)
 6. Write RBSTART = physical address of aligned buffer
 7. Write RCR = 0x0000000F (AAP + APM + AM + AB: accept physical, multicast, broadcast; WRAP=0)
 8. Write TCR = 0x03000700 (default IFG, MXDMA=1024, retry-max=8)
-9. `outb(CMD, 0x0C)` — enable RE and TE
-10. `outw(IMR, 0x0005)` — mask ROK (bit 0) + TOK (bit 2)
-11. Read MAC from IDR0–IDR5 into `net_if_t.mac`
+9. `outb(CMD, 0x0C)` - enable RE and TE
+10. `outw(IMR, 0x0005)` - mask ROK (bit 0) + TOK (bit 2)
+11. Read MAC from IDR0-IDR5 into `net_if_t.mac`
 12. Install IRQ handler via `irq_install_handler(irq_line, rtl8139_irq)`
 13. Call `net_if_register(&nif)`
 
-> **Note** — The common IRQ dispatcher in CupidOS calls `lapic_eoi()` after
+> **Note** - The common IRQ dispatcher in CupidOS calls `lapic_eoi()` after
 > every handler returns. The RTL8139 IRQ handler must NOT call it directly;
 > only the NIC-side ISR (W1C) needs clearing inside the handler.
 
@@ -279,9 +284,9 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 | Vendor ID | 0x8086 (Intel) |
 | Device ID | 0x100E (82540EM) |
 | Class code | 0x020000 (Ethernet) |
-| BAR | BAR0 — 32-bit MMIO, 128 KB |
+| BAR | BAR0 - 32-bit MMIO, 128 KB |
 
-> **MMIO mapping required** — BAR0 is above the kernel's identity-mapped
+> **MMIO mapping required** - BAR0 is above the kernel's identity-mapped
 > region. Call `paging_map_mmio(bar0_phys, 128 * 1024)` before accessing any
 > register. Without this mapping, the first register read page-faults.
 
@@ -305,8 +310,8 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 | 0x03808 | TDLEN | TX ring size in bytes |
 | 0x03810 | TDH | TX descriptor head |
 | 0x03818 | TDT | TX descriptor tail |
-| 0x05400 | RAL0 | Receive address low (MAC bytes 0–3) |
-| 0x05404 | RAH0 | Receive address high (MAC bytes 4–5, bit 31 = valid) |
+| 0x05400 | RAL0 | Receive address low (MAC bytes 0-3) |
+| 0x05404 | RAH0 | Receive address high (MAC bytes 4-5, bit 31 = valid) |
 
 ### RX descriptor (16 bytes, packed)
 
@@ -329,10 +334,10 @@ IFCS=1 insert FCS / CRC).
 1. Enable PCI bus master; read BAR0 MMIO base; `paging_map_mmio(bar0, 128 * 1024)`
 2. Software reset: `CTRL |= (1 << 26)`; wait ~10 ms; reset bit self-clears
 3. Read MAC: RAL0/RAH0 read unconditionally (QEMU 82540EM provides the MAC via RAL0/RAH0; no EEPROM fallback implemented)
-4. Allocate RX ring: 64 × 16 bytes = 1024 bytes, 4KB-aligned via `pmm_alloc_page`; each descriptor's `addr` = 2KB-aligned DMA buffer
+4. Allocate RX ring: 64 x 16 bytes = 1024 bytes, 4KB-aligned via `pmm_alloc_page`; each descriptor's `addr` = 2KB-aligned DMA buffer
 5. Write RDBAL/RDBAH = ring physical base; RDLEN = 1024; RDH = 0; RDT = 63
 6. Write RCTL = `0x0400804` (EN | BAM | BSIZE_2048)
-7. Allocate TX ring: 16 × 16 bytes = 256 bytes; zero-init; write TDBAL/TDBAH; TDLEN = 256; TDH = TDT = 0
+7. Allocate TX ring: 16 x 16 bytes = 256 bytes; zero-init; write TDBAL/TDBAH; TDLEN = 256; TDH = TDT = 0
 8. Write TCTL = `0x01030002` (EN | PSP | CT=16 | COLD=64)
 9. Write IMS = `0x80 | 0x40` to enable RXT0 | RXDMT0
 10. Install IRQ handler; call `net_if_register(&nif)`
@@ -364,8 +369,8 @@ int arp_resolve(uint32_t ip, uint8_t *mac_out);
 ```
 
 1. Search cache for matching IP
-2. Hit — copy MAC bytes to `mac_out`, update `last_used_tick`, return 0
-3. Miss — build and broadcast ARP who-has request (Ethernet broadcast, ARP opcode 1)
+2. Hit - copy MAC bytes to `mac_out`, update `last_used_tick`, return 0
+3. Miss - build and broadcast ARP who-has request (Ethernet broadcast, ARP opcode 1)
 4. Spin: poll cache every 1 ms for up to 500 ms
 5. If reply arrives (ARP opcode 2): update cache, `arp_resolve` returns 0
 6. Timeout: return -1; caller drops the outbound frame
@@ -407,7 +412,7 @@ int ipv4_send(uint32_t dst_ip, uint8_t proto, const uint8_t *payload, uint32_t l
 ```
 
 1. Increment monotonic 16-bit ID counter
-2. Routing decision: if `(dst_ip & mask) == (our_ip & mask)` — ARP for `dst_ip` directly; else ARP for `ipv4_gateway`
+2. Routing decision: if `(dst_ip & mask) == (our_ip & mask)` - ARP for `dst_ip` directly; else ARP for `ipv4_gateway`
 3. Build frame: Ethernet header (14 bytes) + IPv4 header (20 bytes) + payload
 4. Call `nif->send(nif, frame, total_len)`
 
@@ -421,13 +426,13 @@ void ipv4_input(const uint8_t *frame, uint32_t len);
 - Validate IPv4 version=4, IHL=5, checksum
 - Accept only frames where `dst_ip == nif->ipv4_addr` or `dst_ip == 255.255.255.255`
 - Drop fragmented packets (MF=1 or fragment offset != 0); log warning
-- Dispatch by `proto`: 1=ICMP → `icmp_input`; 6=TCP → `tcp_input`; 17=UDP → `udp_input`
+- Dispatch by `proto`: 1=ICMP -> `icmp_input`; 6=TCP -> `tcp_input`; 17=UDP -> `udp_input`
 
 ---
 
 ## ICMP (kernel/icmp.c)
 
-Only echo request → echo reply is implemented.
+Only echo request -> echo reply is implemented.
 
 **Input (`icmp_input`):**
 
@@ -510,35 +515,35 @@ typedef struct __attribute__((packed)) {
 **Active open (`connect`):**
 
 ```
-CLOSED → [send SYN] → SYN_SENT
-SYN_SENT + SYN+ACK received → [send ACK] → ESTABLISHED
-SYN_SENT + RST received → CLOSED (ECONNREFUSED)
-SYN_SENT + timeout (30 s) → CLOSED (ETIMEDOUT_SOCK)
+CLOSED -> [send SYN] -> SYN_SENT
+SYN_SENT + SYN+ACK received -> [send ACK] -> ESTABLISHED
+SYN_SENT + RST received -> CLOSED (ECONNREFUSED)
+SYN_SENT + timeout (30 s) -> CLOSED (ETIMEDOUT_SOCK)
 ```
 
 **Passive open (`listen` + `accept`):**
 
 ```
-CLOSED → [listen()] → LISTEN
-LISTEN + inbound SYN → [send SYN+ACK; push to lq[]] → (lq entry, SYN_RCVD-like)
-lq entry + ACK → lq[].completed = true
-accept() → dequeue completed lq entry → new socket in ESTABLISHED
+CLOSED -> [listen()] -> LISTEN
+LISTEN + inbound SYN -> [send SYN+ACK; push to lq[]] -> (lq entry, SYN_RCVD-like)
+lq entry + ACK -> lq[].completed = true
+accept() -> dequeue completed lq entry -> new socket in ESTABLISHED
 ```
 
-**Close — active:**
+**Close - active:**
 
 ```
-ESTABLISHED → [send FIN+ACK] → FIN_WAIT_1
-FIN_WAIT_1 + ACK → FIN_WAIT_2
-FIN_WAIT_2 + FIN → [send ACK] → TIME_WAIT (60 s) → CLOSED
+ESTABLISHED -> [send FIN+ACK] -> FIN_WAIT_1
+FIN_WAIT_1 + ACK -> FIN_WAIT_2
+FIN_WAIT_2 + FIN -> [send ACK] -> TIME_WAIT (60 s) -> CLOSED
 ```
 
-**Close — passive:**
+**Close - passive:**
 
 ```
-ESTABLISHED + FIN received → [send ACK] → CLOSE_WAIT
-CLOSE_WAIT + user close() → [send FIN+ACK] → LAST_ACK
-LAST_ACK + ACK → CLOSED; socket freed
+ESTABLISHED + FIN received -> [send ACK] -> CLOSE_WAIT
+CLOSE_WAIT + user close() -> [send FIN+ACK] -> LAST_ACK
+LAST_ACK + ACK -> CLOSED; socket freed
 ```
 
 ### Implementation details
@@ -613,18 +618,18 @@ void tcp_tick(void) {
 bool dhcp_start(net_if_t *nif);  // blocks up to ~3 s; returns true on success
 ```
 
-Classic UDP four-way handshake: DISCOVER (port 68 → broadcast:67) →
-OFFER → REQUEST → ACK. All frames use broadcast Ethernet MAC
+Classic UDP four-way handshake: DISCOVER (port 68 -> broadcast:67) ->
+OFFER -> REQUEST -> ACK. All frames use broadcast Ethernet MAC
 (`ff:ff:ff:ff:ff:ff`) and broadcast IP (`255.255.255.255`) because no IP
 address is available before DHCP completes. This bypasses the ARP layer
 entirely.
 
 ### Protocol flow
 
-1. **DISCOVER** — op=1, XID from `timer_get_uptime_ms()`, chaddr = our MAC, options: DHCP message type = DISCOVER, parameter-request-list (subnet-mask, router, dns)
-2. **OFFER** — wait for op=2 matching XID; extract yiaddr, options (1=mask, 3=gateway, 6=dns, 51=lease-time)
-3. **REQUEST** — op=1, DHCP type = REQUEST, option 50 = requested-IP, option 54 = server-id
-4. **ACK** — populate `nif->ipv4_addr`, `nif->ipv4_mask`, `nif->ipv4_gateway`, `nif->ipv4_dns`
+1. **DISCOVER** - op=1, XID from `timer_get_uptime_ms()`, chaddr = our MAC, options: DHCP message type = DISCOVER, parameter-request-list (subnet-mask, router, dns)
+2. **OFFER** - wait for op=2 matching XID; extract yiaddr, options (1=mask, 3=gateway, 6=dns, 51=lease-time)
+3. **REQUEST** - op=1, DHCP type = REQUEST, option 50 = requested-IP, option 54 = server-id
+4. **ACK** - populate `nif->ipv4_addr`, `nif->ipv4_mask`, `nif->ipv4_gateway`, `nif->ipv4_dns`
 
 ### Failure handling
 
@@ -654,7 +659,7 @@ int dns_resolve(const char *name, uint32_t *ipv4_out);
 Standard DNS wire format over UDP/53 to `nif->ipv4_dns`:
 
 - 12-byte header: ID (random from tick), flags=0x0100 (RD=1), QDCOUNT=1
-- QNAME: length-prefixed labels (`"example.com"` → `\x07example\x03com\x00`)
+- QNAME: length-prefixed labels (`"example.com"` -> `\x07example\x03com\x00`)
 - QTYPE=1 (A), QCLASS=1 (IN)
 
 ### Response parsing
@@ -751,14 +756,14 @@ uint32_t htonl(uint32_t v);
 
 `socket_accept`, `socket_connect`, `socket_recv`, and `socket_recvfrom` block
 by spinning: every 1000 `pause` iterations they call `schedule()` to yield,
-matching the BKL-yield design from P5. Timeout = 30 seconds → `ETIMEDOUT_SOCK`.
+matching the BKL-yield design from P5. Timeout = 30 seconds -> `ETIMEDOUT_SOCK`.
 
-`socket_send` and `socket_sendto` do not block — they return the bytes written
+`socket_send` and `socket_sendto` do not block - they return the bytes written
 (which may be less than `len` if the TX buffer is full).
 
 ### Ephemeral port allocation
 
-Linear scan from a rotating index in the range 49152–65535. Each candidate is
+Linear scan from a rotating index in the range 49152-65535. Each candidate is
 checked against the in-use port set before assignment.
 
 ### BKL protection
@@ -798,8 +803,8 @@ Lists all 32 socket slots that are in use:
 
 ```
 [fd]  type  state        local               remote
-  0   TCP   ESTABLISHED  10.0.2.15:49152  →  93.184.216.34:80
-  1   UDP   –            0.0.0.0:5353     →  –
+  0   TCP   ESTABLISHED  10.0.2.15:49152  ->  93.184.216.34:80
+  1   UDP   -            0.0.0.0:5353     ->  -
 ```
 
 ### `arp`
@@ -807,7 +812,7 @@ Lists all 32 socket slots that are in use:
 Dumps the 16-entry ARP cache:
 
 ```
-10.0.2.2  →  52:55:0a:00:02:02  (age 123 ticks)
+10.0.2.2  ->  52:55:0a:00:02:02  (age 123 ticks)
 ```
 
 ### `resolve <hostname>`
@@ -824,7 +829,13 @@ $ resolve example.com
 ## CupidC Bindings
 
 All networking functions are registered in `kernel/cupidc.c` so they can be
-called from CupidC programs and scripts with no additional setup.
+called from CupidC programs and scripts with no additional setup. The same
+list is mirrored into CupidASM (`kernel/as.c`) and the ELF syscall table
+(`kernel/syscall.h`, version 3) so any of the three runtimes can use them.
+
+### BSD socket API
+
+Ports are network byte order - pass `htons(80)` to `bind`/`connect`.
 
 | CupidC name | C function | Arg count |
 |---|---|---|
@@ -838,14 +849,46 @@ called from CupidC programs and scripts with no additional setup.
 | `close` | `socket_close` | 1 |
 | `sendto` | `socket_sendto` | 5 |
 | `recvfrom` | `socket_recvfrom` | 5 |
-| `dns_resolve` | `dns_resolve` | 2 |
-| `htons` | `htons` | 1 |
-| `htonl` | `htonl` | 1 |
+
+### Resolver, byte-order, and protocol constants
+
+| CupidC name | Returns / does | Arg count |
+|---|---|---|
+| `dns_resolve(name, ip_out)` | A-record query, populates `*ip_out` | 2 |
+| `htons` / `ntohs` | 16-bit byte-swap | 1 |
+| `htonl` / `ntohl` | 32-bit byte-swap | 1 |
+| `IP_PROTO_ICMP` / `IP_PROTO_UDP` / `IP_PROTO_TCP` | Protocol constants (called as 0-arg getters) | 0 |
+
+### Network interface info (primary NIC)
+
+| CupidC name | Returns |
+|---|---|
+| `net_get_ip()` | Local IPv4, network byte order |
+| `net_get_gateway()` | Default gateway IPv4 |
+| `net_get_dns()` | DNS server IPv4 |
+| `net_get_mask()` | Subnet mask |
+| `net_get_mac(out)` | Fills 6-byte MAC into `out` |
+| `net_link_up()` | 1 if link is up, 0 otherwise |
+| `net_rx_packets()` / `net_tx_packets()` | Counters |
+| `net_rx_drops()` / `net_tx_errors()` | Error counters |
+
+### Raw protocol access
+
+| CupidC name | C function | Arg count |
+|---|---|---|
+| `ip_parse(s, out)` | Parse `"a.b.c.d"` into uint32 | 2 |
+| `ipv4_send(dst_ip, proto, payload, plen)` | Build + send arbitrary IPv4 packet (fragments if > MTU) | 4 |
+| `arp_resolve(ip, mac_out)` | Blocking ARP resolve | 2 |
+| `arp_dump()` | Print cache to serial | 0 |
+| `arp_get_entries(ips, macs, max)` | Bulk-read cache | 3 |
+| `icmp_send_echo(dst, id, seq, paylen)` | Send echo request | 4 |
+| `icmp_wait_reply(src, id, seq, timeout_ms)` | Block for matching reply, returns RTT ms | 4 |
+| `udp_send_raw(dst, sport, dport, data, len)` | One-shot UDP datagram | 5 |
 
 ### Feature test: `feature21_net` (TCP client)
 
 ```c
-// bin/feature21_net.cc — DNS resolve + TCP connect + HTTP GET
+// bin/feature21_net.cc - DNS resolve + TCP connect + HTTP GET
 U0 Main() {
     U32 ip = 0;
     if (dns_resolve("example.com", &ip) != 0) {
@@ -872,7 +915,7 @@ Main();
 ### Feature test: `feature22_net_server` (TCP server)
 
 ```c
-// bin/feature22_net_server.cc — listen on port 80, serve one request
+// bin/feature22_net_server.cc - listen on port 80, serve one request
 U0 Main() {
     I32 fd = socket(2);
     bind(fd, 0, htons(80));
@@ -894,6 +937,59 @@ Main();
 
 Host-side test: `curl http://localhost:8080/` (with `-hostfwd=tcp::8080-:80`).
 
+### `curl` and `wget` (in-OS)
+
+`/bin/curl.cc` and `/bin/wget.cc` are real HTTP/1.0 clients written
+entirely in CupidC against the bindings above. No new kernel hooks
+are involved - they exercise the public socket / VFS surface and
+prove it's complete enough for everyday networking work.
+
+```
+/> /bin/curl.cc http://example.com/
+<!doctype html><html lang="en"><head><title>Example Domain ...
+
+/> /bin/curl.cc -i -o /tmp/page.html -s http://example.com/
+/> /bin/curl.cc -d "k=v" -X POST http://httpbin.org/post
+
+/> /bin/wget.cc http://example.com/
+wget: example.com -> index.html
+wget: HTTP 200, 528 bytes saved to index.html
+
+/> /bin/wget.cc -O /home/page.html -q http://example.com/
+```
+
+Supported flags:
+
+| Tool | Flags |
+|---|---|
+| `curl` | `-o file`, `-i` (include headers), `-s` (silent), `-X METHOD`, `-d DATA` (sets POST), `-H "Hdr: val"` |
+| `wget` | `-O file` (else auto-derived from URL path), `-q` (quiet) |
+
+`https://` URLs are explicitly rejected - there is no TLS / crypto
+in the kernel. URL parser handles `http://host[:port][/path]`.
+Quoted-string args (e.g. `-H "Cookie: foo=bar"`) are honoured via a
+custom tokeniser since the shell passes the args list as one raw
+string.
+
+#### Redirect handling
+
+`curl` follows `Location:` headers automatically (up to 5 hops):
+
+| Status | Location | Behaviour |
+|---|---|---|
+| 3xx | `http://other-host/path` | reconnect, force GET, retry |
+| 3xx | `/relative/path` | reuse current host, force GET, retry |
+| 3xx | `https://...` | print `curl: redirect to https:// not supported (URL)` and exit |
+
+```
+/> /bin/curl.cc http://frankhagan.online/
+curl: redirect to https:// not supported (https://frankhagan.online/)
+```
+
+The HTTP body of the redirect response is suppressed when a follow
+fires, so you only see the final page (or the explicit https-not-
+supported message), not 200 bytes of "<html>301 Moved Permanently...".
+
 ---
 
 ## Testing
@@ -904,8 +1000,8 @@ Three `make` targets boot CupidOS under QEMU with networking enabled:
 
 | Target | NIC | Port forward | SMP |
 |---|---|---|---|
-| `make run-net` | RTL8139 | host:8080 → guest:80 | 1 CPU |
-| `make run-smp-net` | RTL8139 | host:8080 → guest:80 | 4 CPUs |
+| `make run-net` | RTL8139 | host:8080 -> guest:80 | 1 CPU |
+| `make run-smp-net` | RTL8139 | host:8080 -> guest:80 | 4 CPUs |
 | `make run-net-e1000` | E1000 | none | 1 CPU |
 
 Equivalent QEMU invocations:
@@ -932,12 +1028,12 @@ qemu-system-i386 $(QEMU_COMMON) \
 
 ### Live test procedure
 
-1. `make run-net` — boots with RTL8139 + port forward
+1. `make run-net` - boots with RTL8139 + port forward
 2. Wait for serial to show `net: if=rtl8139 ip=10.0.2.15` (DHCP or fallback)
-3. In guest shell: `ifconfig` — verify IP, gateway, DNS
-4. In guest shell: `feature21_net` — expected output: `[feature21] PASS (N bytes)`
-5. In guest shell: `feature22_net_server` — guest prints `[feature22] listening on port 80`
-6. On host: `curl http://localhost:8080/` — expected response: `Hello CupidOS`
+3. In guest shell: `ifconfig` - verify IP, gateway, DNS
+4. In guest shell: `feature21_net` - expected output: `[feature21] PASS (N bytes)`
+5. In guest shell: `feature22_net_server` - guest prints `[feature22] listening on port 80`
+6. On host: `curl http://localhost:8080/` - expected response: `Hello CupidOS`
 7. Guest prints: `[feature22] PASS served N bytes in`
 
 ### E1000 path
@@ -952,9 +1048,49 @@ Serial output: `net: registered e1000 mac=...`. Run the same feature tests.
 ### Packet capture (debug)
 
 ```bash
+# In-band: any QEMU run can be amended with a filter-dump:
+qemu-system-i386 ... \
+    -object filter-dump,id=f0,netdev=n0,file=/tmp/cupid.pcap
+
+# `make test-net` does this automatically - pcaps land in tests/<nic>.pcap.
 # If using -netdev tap (not user-net):
 sudo tcpdump -i tap0 -n -vv
 ```
+
+### Automated integration test (`make test-net`)
+
+Headless QEMU, scripted shell, host curl, scapy wire-format check -
+all in one command. ~30 s for both NICs.
+
+```bash
+make test-net          # rtl8139 + e1000
+make test-net-quick    # rtl8139 only
+```
+
+What it verifies, per NIC:
+
+| Check | How |
+|---|---|
+| `dhcp` | `ifconfig` post-boot reports the SLIRP-issued IP (10.0.2.15) |
+| `ping_gw` | `ping 10.0.2.2 2` returns `recv=2` |
+| `arp` | After ping, gateway entry is in the cache |
+| `tcp_client` | `/bin/feature21_net.cc` prints `[feature21] PASS` |
+| `tcp_server` | `/bin/feature22_net_server.cc` accepts a `127.0.0.1:18080` curl from the host and returns `Hello CupidOS` |
+
+After the live tests, `tools/net_pcap.py` re-validates the captured
+frames at the wire level: ARP req/reply pairing, full DHCP 4-message
+exchange, ICMP echo-request -> echo-reply, TCP `SYN` / `SYN-ACK` /
+`FIN`, at least one SYN to a public (non-RFC1918) destination, and
+recomputes every IP header checksum.
+
+Dependencies (host-side, `pip install --user`):
+
+- `pexpect` - drives the QEMU serial REPL
+- `scapy` - pcap parser; if missing, the wire-level step is skipped
+  but the live test still runs
+
+Pcap files persist between runs so you can open them in Wireshark for
+manual inspection if anything looks odd.
 
 ---
 
@@ -963,9 +1099,8 @@ sudo tcpdump -i tap0 -n -vv
 | Limitation | Notes |
 |---|---|
 | IPv4 only | No IPv6 |
-| No IP fragmentation | DF=1 on every send; fragmented receives dropped |
-| No Path MTU Discovery | MSS fixed at 1460 |
-| No TCP SACK / congestion / Nagle | Plain RFC 793 subset with fixed 500 ms RTO |
+| No Path MTU Discovery | MSS fixed at 1460; outgoing payloads > MTU are fragmented at IP layer |
+| No TCP SACK / congestion / Nagle | RFC 793 subset; data retransmit is stop-and-wait with exponential backoff (5 attempts) |
 | Single primary NIC | No multi-homing, no routing table |
 | 32 socket slots | No dynamic expansion |
 | No TLS / HTTPS | No crypto primitives in CupidOS |
@@ -974,6 +1109,7 @@ sudo tcpdump -i tap0 -n -vv
 | No raw sockets / packet filter | No PROMISC, no promiscuous mode |
 | Blocking via spin + yield | `accept`/`connect`/`recv` hold BKL while waiting; not efficient under contention |
 | No IPv6 multicast / mDNS | Only unicast and broadcast IPv4 |
+| IP reassembly buffer | 4 slots x 64 KB; concurrent fragmented flows beyond that get evicted by oldest-wins |
 
 ---
 
@@ -988,13 +1124,13 @@ sudo tcpdump -i tap0 -n -vv
 | `kernel/ip.h` | `ipv4_hdr_t`, protocol constants, API |
 | `kernel/ip.c` | IPv4 send + receive + checksum + routing |
 | `kernel/icmp.h` | ICMP header struct, `icmp_input` declaration |
-| `kernel/icmp.c` | Echo request → echo reply |
+| `kernel/icmp.c` | Echo request -> echo reply |
 | `kernel/udp.h` | UDP header struct, `udp_send_raw`, `udp_input` |
 | `kernel/udp.c` | UDP send + receive + pseudo-header checksum |
 | `kernel/tcp.h` | `tcp_hdr_t`, flag macros, `TCP_MSS`, `TCP_RTO_MS`, API |
 | `kernel/tcp.c` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
 | `kernel/socket.h` | `socket_t`, error codes, `tcp_state_t`, BSD API declarations |
-| `kernel/socket.c` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/… |
+| `kernel/socket.c` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/... |
 | `kernel/dhcp.h` | `dhcp_start` declaration |
 | `kernel/dhcp.c` | DISCOVER/OFFER/REQUEST/ACK, static fallback |
 | `kernel/dns.h` | `dns_resolve` declaration, cache constants |
@@ -1005,3 +1141,6 @@ sudo tcpdump -i tap0 -n -vv
 | `kernel/e1000.c` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
 | `bin/feature21_net.cc` | TCP client smoke test: DNS + connect + HTTP GET |
 | `bin/feature22_net_server.cc` | TCP server smoke test: listen + accept + echo |
+| `bin/feature23_full_access.cc` | Phase 5 binding sanity (net info, ARP/ICMP/UDP, PCI, blkdev, BKL) |
+| `bin/curl.cc` | HTTP/1.0 client (GET/POST, -o/-i/-s/-X/-d/-H), CupidC |
+| `bin/wget.cc` | HTTP/1.0 downloader (auto-named or -O, status report), CupidC |
