@@ -48,48 +48,50 @@ void ua_default_style(int tag, int cs) {
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
      * its stack). */
-    /* Headings + paragraph margins follow CSS2.1 UA suggestion. The em-
-     * derived px values (h1 0.67em -> 0.67*32 = ~21) match Firefox/Chrome
-     * defaults closely. */
+    /* Heading + paragraph margins. Top is full spec (0.67-1em); bottom is
+     * trimmed so headings sit closer to their following content. After the
+     * parent-first-child collapse rule, the visible gap above an h2 that
+     * leads a page is 0; the gap below the h2 down to the first paragraph
+     * = max(h2.margin_b, p.margin_t) = max(8, 10) = 10. */
     if (tag == T_H1) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 32;       /* 2em on 16px body */
-        cs_margin[cs][0] = 21; cs_margin[cs][2] = 21;   /* 0.67em */
+        cs_font_size_px[cs] = 32;
+        cs_margin[cs][0] = 21; cs_margin[cs][2] = 10;
         return;
     }
     if (tag == T_H2) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 24;       /* 1.5em */
-        cs_margin[cs][0] = 20; cs_margin[cs][2] = 20;   /* 0.83em */
+        cs_font_size_px[cs] = 24;
+        cs_margin[cs][0] = 20; cs_margin[cs][2] = 8;
         return;
     }
     if (tag == T_H3) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 19;       /* 1.17em */
-        cs_margin[cs][0] = 19; cs_margin[cs][2] = 19;   /* 1em */
+        cs_font_size_px[cs] = 19;
+        cs_margin[cs][0] = 19; cs_margin[cs][2] = 8;
         return;
     }
     if (tag == T_H4) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 16;       /* 1em */
-        cs_margin[cs][0] = 21; cs_margin[cs][2] = 21;   /* 1.33em */
+        cs_font_size_px[cs] = 16;
+        cs_margin[cs][0] = 18; cs_margin[cs][2] = 8;
         return;
     }
     if (tag == T_H5) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 13;       /* 0.83em */
-        cs_margin[cs][0] = 22; cs_margin[cs][2] = 22;   /* 1.67em */
+        cs_font_size_px[cs] = 13;
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 6;
         return;
     }
     if (tag == T_H6) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
-        cs_font_size_px[cs] = 11;       /* 0.67em */
-        cs_margin[cs][0] = 26; cs_margin[cs][2] = 26;   /* 2.33em */
+        cs_font_size_px[cs] = 11;
+        cs_margin[cs][0] = 16; cs_margin[cs][2] = 6;
         return;
     }
     if (tag == T_P) {
         cs_display[cs] = DISP_BLOCK;
-        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;   /* 1em */
+        cs_margin[cs][0] = 10; cs_margin[cs][2] = 10;
         return;
     }
     if (tag == T_A) {
@@ -164,7 +166,13 @@ void ua_default_style(int tag, int cs) {
     if (tag == T_IMG) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
     if (tag == T_BODY) {
         cs_display[cs] = DISP_BLOCK;
-        cs_margin[cs][0] = 8; cs_margin[cs][1] = 8;
+        /* Real browsers collapse body's top margin with the first child's
+         * top margin (spec margin-collapsing through a zero-padding parent).
+         * We don't implement parent/first-child collapse yet, so set the
+         * top to 0 — the visible gap above the first heading is then the
+         * heading's own UA margin-top (e.g. h1 21px, h2 20px), matching
+         * the post-collapse result a real browser shows. */
+        cs_margin[cs][0] = 0; cs_margin[cs][1] = 8;
         cs_margin[cs][2] = 8; cs_margin[cs][3] = 8;
         return;
     }
@@ -921,13 +929,17 @@ void style_resolve_all() {
         /* 1. UA defaults */
         ua_default_style(n_tag[n], cs);
 
-        /* 2. Author rules in (specificity, doc-order) winning order. Track the
-         *    highest-scoring matching rule per property, then apply once. */
-        /* Size matches MAX_CP_ID; CupidC requires a literal here. */
+        /* 2. Author rules in two passes: pass 1 (non-important) feeds the
+         *    normal specificity+doc-order cascade; pass 2 (important) wins
+         *    over everything from pass 1 and inline style. The `score`
+         *    packs (specificity << 12) | doc_order so a higher specificity
+         *    or later rule wins at equal level.
+         *    Size matches MAX_CP_ID; CupidC requires a literal here. */
         int winner_rule[40];
         int winner_score[40];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
+            if (css_rule_important[r]) continue;
             int p = css_rule_prop_id[r];
             if (p < 1 || p >= MAX_CP_ID) continue;
             int sf = css_rule_sel_first[r];
@@ -947,10 +959,37 @@ void style_resolve_all() {
             }
         }
 
-        /* 3. Inline style="..." attribute (always wins over author rules) */
+        /* 3. Inline style="..." attribute (wins over non-important author rules) */
         int sty_off = dom_attr_get(n, "style");
         if (sty_off >= 0) {
             apply_inline_style(cs, attr_pool + sty_off);
+        }
+
+        /* 4. Important author rules — applied last so they override pass 1
+         *    and inline style. Specificity + doc-order still resolves ties
+         *    among important rules themselves. */
+        int imp_rule[40];
+        int imp_score[40];
+        for (int p = 0; p < MAX_CP_ID; p = p + 1) { imp_rule[p] = -1; imp_score[p] = -1; }
+        for (int r = 0; r < css_rule_count; r = r + 1) {
+            if (!css_rule_important[r]) continue;
+            int p = css_rule_prop_id[r];
+            if (p < 1 || p >= MAX_CP_ID) continue;
+            int sf = css_rule_sel_first[r];
+            int sc = css_rule_sel_count[r];
+            if (!sel_chain_matches(sf, sc, n)) continue;
+            int score = (css_rule_specificity[r] << 12) | (css_rule_doc_order[r] & 0xFFF);
+            if (score > imp_score[p]) {
+                imp_score[p] = score;
+                imp_rule[p] = r;
+            }
+        }
+        for (int p = 1; p < MAX_CP_ID; p = p + 1) {
+            int r = imp_rule[p];
+            if (r >= 0) {
+                cs_apply_property(cs, p,
+                                  css_rule_value_off[r], css_rule_value_len[r]);
+            }
         }
 
         /* 4. Inheritance from parent ComputedStyle for unset inheritable props.

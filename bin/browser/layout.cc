@@ -408,6 +408,12 @@ void layout_block(int n, int avail_w) {
     int pile_first = la_count;
     int pile_count = 0;
     int pending_bottom = 0;
+    /* Parent-first-child margin collapse: if this block has no padding-t and
+     * no border-t, the first in-flow block child's margin-top collapses
+     * through the parent's top edge (CSS2.1 §8.3.1). We zero the first
+     * block child's effective margin-top in that case. The flag flips off
+     * after the first block runs OR after any inline pile flushes. */
+    int collapse_first_top = (rt_padding_t(n) == 0 && rt_border_t(n) == 0);
 
     int c = rt_first_child[n];
     while (c >= 0) {
@@ -424,6 +430,7 @@ void layout_block(int n, int avail_w) {
             if (pile_count > 0) {
                 flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
                 pending_bottom = 0;
+                collapse_first_top = 0;
             }
             /* Lay out block child */
             int child_avail = content_w;
@@ -450,8 +457,10 @@ void layout_block(int n, int avail_w) {
             }
             (void)mr;
             int top = rt_margin_t(c);
+            if (collapse_first_top) top = 0;
             int collapsed = (top > pending_bottom) ? top : pending_bottom;
             cy = cy + collapsed;
+            collapse_first_top = 0;
             int child_x = cx + ml;
             /* Clamp child_x to the content origin so an overflowed box
              * (rt_w > content_w with explicit width) doesn't get pushed

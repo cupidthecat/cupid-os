@@ -264,7 +264,7 @@ int css_match_property(char *s, int len) {
     return 0;
 }
 
-void css_emit_rule(int sel_first, int sel_count, int prop_id, int val_off, int val_len) {
+void css_emit_rule(int sel_first, int sel_count, int prop_id, int val_off, int val_len, int important) {
     if (css_rule_count >= MAX_CSS_RULES) return;
     int r = css_rule_count++;
     css_rule_sel_first[r] = sel_first;
@@ -274,6 +274,7 @@ void css_emit_rule(int sel_first, int sel_count, int prop_id, int val_off, int v
     css_rule_value_len[r] = val_len;
     css_rule_specificity[r] = css_compute_specificity(sel_first, sel_count);
     css_rule_doc_order[r] = r;
+    css_rule_important[r] = important;
 }
 
 /* Walk a declaration block { prop: value; prop: value; ... }. Caller has positioned
@@ -303,13 +304,31 @@ int css_parse_decls(char *s, int n, int i,
         while (v_end > v_start && (s[v_end-1] == ' ' || s[v_end-1] == '\t')) v_end--;
         if (i < n && s[i] == ';') i++;
 
+        /* Detect and strip a trailing `!important` (case-insensitive) from
+         * the value bytes. Pattern: optional ws, '!', optional ws, "important". */
+        int important = 0;
+        int v_scan = v_end;
+        while (v_scan > v_start && (s[v_scan-1] == ' ' || s[v_scan-1] == '\t')) v_scan--;
+        if (v_scan - v_start >= 9) {
+            int kstart = v_scan - 9;
+            if (b_strieq_n(s + kstart, "important", 9)) {
+                int bang = kstart;
+                while (bang > v_start && (s[bang-1] == ' ' || s[bang-1] == '\t')) bang--;
+                if (bang > v_start && s[bang-1] == '!') {
+                    important = 1;
+                    v_end = bang - 1;
+                    while (v_end > v_start && (s[v_end-1] == ' ' || s[v_end-1] == '\t')) v_end--;
+                }
+            }
+        }
+
         /* trim trailing whitespace from prop name */
         while (p_end > p_start && (s[p_end-1] == ' ' || s[p_end-1] == '\t')) p_end--;
         int prop_id = css_match_property(s + p_start, p_end - p_start);
         if (prop_id == 0) continue;        /* unknown property - drop */
         int v_off = css_intern_value(s + v_start, v_end - v_start);
         if (v_off < 0) continue;
-        css_emit_rule(sel_first, sel_count, prop_id, v_off, v_end - v_start);
+        css_emit_rule(sel_first, sel_count, prop_id, v_off, v_end - v_start, important);
     }
     return i;
 }

@@ -299,6 +299,7 @@ int css_rule_value_off[256];
 int css_rule_value_len[256];
 int css_rule_specificity[256];
 int css_rule_doc_order [256];
+int css_rule_important [256];           /* 1 if value ended in !important */
 
 /* Each selector is a chain of "compound selectors". A compound is a
  * (tag, class_off, id_off) triple. Descendant combinators are implicit. */
