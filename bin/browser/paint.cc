@@ -44,10 +44,17 @@ void paint_rt_node(int n) {
     if (sy + h < viewport_y()) return;
     if (sy > viewport_y() + viewport_h()) return;
 
-    /* 1. Background */
+    /* 1. Background. CSS canvas-painting rule: if body's bg propagated up
+     * to the document canvas (because html has no bg), the body element
+     * itself must NOT paint bg again. Anonymous blocks share the parent's
+     * cs but have rt_dom == -1, so the suppression key is the dom tag. */
     int bg = cs_bg[cs];
-    if (bg >= 0 && (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
-                    kind == RT_LIST_ITEM || kind == RT_TABLE_CELL)) {
+    int suppress_bg = 0;
+    if (doc_bg_suppress_body && rt_dom[n] >= 0 &&
+        n_tag[rt_dom[n]] == T_BODY) suppress_bg = 1;
+    if (bg >= 0 && !suppress_bg &&
+        (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
+         kind == RT_LIST_ITEM || kind == RT_TABLE_CELL)) {
         gfx2d_rect_fill(sx, sy, w, h, bg);
     }
 
@@ -276,7 +283,13 @@ void draw_scrollbar(int sx, int sy) {
 /* Document background per CSS painting model: the canvas takes the html
  * background-color; if html has no background, body's background-color
  * propagates up. Falls back to page_bg (white). cs index == DOM node
- * index, so we scan for T_HTML / T_BODY by tag. */
+ * index, so we scan for T_HTML / T_BODY by tag.
+ *
+ * Side effect: when body's bg is consumed by the canvas (html had none),
+ * set doc_bg_suppress_body so paint_rt_node skips body's own bg paint -
+ * otherwise body would paint a second, smaller (margin-inset) rect of
+ * the same color, which is wrong if html bg is later set or if the body
+ * has a non-default border. */
 int document_bg() {
     int html_bg = -1;
     int body_bg = -1;
@@ -285,8 +298,9 @@ int document_bg() {
         if (tag == T_HTML && html_bg < 0) html_bg = cs_bg[n];
         else if (tag == T_BODY && body_bg < 0) body_bg = cs_bg[n];
     }
+    doc_bg_suppress_body = 0;
     if (html_bg >= 0) return html_bg;
-    if (body_bg >= 0) return body_bg;
+    if (body_bg >= 0) { doc_bg_suppress_body = 1; return body_bg; }
     return page_bg;
 }
 

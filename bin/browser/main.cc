@@ -342,6 +342,10 @@ int  doc_h;
 int  scroll_y;
 int  page_bg;
 int  page_fg;
+/* Set by document_bg() when body's bg propagates up to the canvas;
+ * paint_rt_node uses it to skip body's own bg paint and avoid the
+ * margin-inset double-paint. */
+int  doc_bg_suppress_body;
 
 /* history */
 char hist_url_pool[16384];
@@ -378,6 +382,7 @@ void browser_main() {
     doc_h = 0;
     page_bg = 0xFFFFFF;
     page_fg = 0x000000;
+    doc_bg_suppress_body = 0;
     focus_mode = FOCUS_PAGE;
     focused_input = -1;
     prev_buttons = 0;

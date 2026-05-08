@@ -87,7 +87,7 @@ void ua_default_style(int tag, int cs) {
     if (tag == T_CODE) { return; }
     if (tag == T_B || tag == T_STRONG) { cs_font_w[cs] = 700; return; }
     if (tag == T_I || tag == T_EM) {
-        cs_font_i[cs] = 1; cs_text_dec[cs] = TD_UNDERLINE;
+        cs_font_i[cs] = 1;
         return;
     }
     if (tag == T_UL || tag == T_OL || tag == T_DL) {
@@ -107,6 +107,9 @@ void ua_default_style(int tag, int cs) {
         cs_display[cs] = DISP_TABLE_CELL;
         cs_padding[cs][0] = 2; cs_padding[cs][1] = 2;
         cs_padding[cs][2] = 2; cs_padding[cs][3] = 2;
+        cs_border[cs][0] = 1; cs_border[cs][1] = 1;
+        cs_border[cs][2] = 1; cs_border[cs][3] = 1;
+        cs_border_color[cs] = 0xC0C0C0;
         return;
     }
     if (tag == T_TH) {
@@ -114,6 +117,9 @@ void ua_default_style(int tag, int cs) {
         cs_text_align[cs] = TA_CENTER;
         cs_padding[cs][0] = 2; cs_padding[cs][1] = 2;
         cs_padding[cs][2] = 2; cs_padding[cs][3] = 2;
+        cs_border[cs][0] = 1; cs_border[cs][1] = 1;
+        cs_border[cs][2] = 1; cs_border[cs][3] = 1;
+        cs_border_color[cs] = 0xC0C0C0;
         return;
     }
     if (tag == T_HR) {
@@ -125,6 +131,8 @@ void ua_default_style(int tag, int cs) {
     if (tag == T_BLOCKQUOTE) {
         cs_display[cs] = DISP_BLOCK; cs_padding[cs][3] = 16;
         cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
+        cs_border[cs][3] = 4;
+        cs_border_color[cs] = 0xCCCCCC;
         return;
     }
     if (tag == T_DIV) { cs_display[cs] = DISP_BLOCK; return; }
