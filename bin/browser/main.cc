@@ -161,6 +161,21 @@ enum {
     MAX_JS_NODES  = 8192,
     JS_STR_POOL   = 65536,
     MAX_JS_SCRIPTS = 32,
+    MAX_JS_VS     = 1024,   /* value stack depth */
+    MAX_JS_BINDINGS = 1024,
+    MAX_JS_SCOPES = 256,
+
+    /* JS value tags */
+    JS_VAL_UNDEF = 0,
+    JS_VAL_NULL,
+    JS_VAL_BOOL,
+    JS_VAL_NUM,
+    JS_VAL_STR,
+    JS_VAL_OBJ,
+    JS_VAL_ARR,
+    JS_VAL_FUNC,
+    JS_VAL_NATIVE,
+    JS_VAL_DOMNODE,
 
     /* JS token kinds */
     JS_TOK_EOF = 0,
@@ -446,6 +461,38 @@ int  js_script_count;
  * or eval error occurred. */
 char js_last_error[256];
 
+/* §7 JS interpreter state. The value stack holds intermediate
+ * expression results in parallel arrays so each eval pushes a fully
+ * tagged value without struct return.  Scope frames + bindings form
+ * the lexical environment; lookups walk the parent chain. */
+int    jvs_tag    [1024];
+double jvs_num    [1024];
+int    jvs_str_off[1024];
+int    jvs_str_len[1024];
+int    jvs_obj_idx[1024];
+int    jvs_dom_idx[1024];
+int    jvs_native_id[1024];
+int    jvs_top;
+
+int    jb_name_off[1024];
+int    jb_name_len[1024];
+int    jb_tag     [1024];
+double jb_num     [1024];
+int    jb_str_off [1024];
+int    jb_str_len [1024];
+int    jb_obj_idx [1024];
+int    jb_dom_idx [1024];
+int    jb_count;
+
+int    jsc_parent[256];
+int    jsc_first [256];     /* first binding index covered by this frame */
+int    jsc_count [256];
+int    jsc_top;             /* number of allocated frames */
+int    jsc_cur;             /* index of the active frame */
+
+/* Statement result codes propagated up the eval tree. */
+int    js_ctrl_signal;      /* 0 normal, 1 break, 2 continue, 3 return */
+
 /* history */
 char hist_url_pool[16384];
 int  hist_count;
@@ -494,6 +541,11 @@ void browser_main() {
     js_str_pool_pos = 0;
     js_script_count = 0;
     js_last_error[0] = 0;
+    jvs_top = 0;
+    jb_count = 0;
+    jsc_top = 0;
+    jsc_cur = -1;
+    js_ctrl_signal = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

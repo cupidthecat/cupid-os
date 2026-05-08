@@ -623,17 +623,20 @@ int js_run(char *src, int len) {
     jtk_count = 0;
     int saved_jn = jn_count;
     js_last_error[0] = 0;
+    js_ctrl_signal = 0;
     js_tokenize(src, len);
     int root = js_parse();
     if (js_last_error[0] != 0) {
         serial_printf("[js] parse error: %s\n", js_last_error);
         return -1;
     }
-    /* F1a: dump only. F1b will switch this to interpretation. */
-    serial_printf("[js] === script AST (%d tokens, %d nodes) ===\n",
+    serial_printf("[js] === script (%d tokens, %d nodes) ===\n",
                   jtk_count, jn_count - saved_jn);
-    js_dump_ast(root);
-    serial_printf("[js] === end ===\n");
+    js_exec_program(root);
+    if (js_last_error[0] != 0) {
+        serial_printf("[js] runtime error: %s\n", js_last_error);
+        return -1;
+    }
     return 0;
 }
 
