@@ -353,6 +353,48 @@ void layout_block(int n, int avail_w) {
     rt_content_x[n] = cx;
     rt_content_y[n] = cy;
 
+    /* Table-row: lay out cells horizontally, equal-share width, equalize
+     * cell heights to the row's max so borders line up. Anonymous table
+     * row groups (tbody) flow normally and let each tr handle its own
+     * cells. Real table layout (col widths from intrinsic sizing) is a
+     * future stage; this is a "good enough" pass for hand-written tables. */
+    if (rt_kind[n] == RT_TABLE_ROW) {
+        int ncells = 0;
+        int c0 = rt_first_child[n];
+        while (c0 >= 0) {
+            if (rt_kind[c0] == RT_TABLE_CELL) ncells = ncells + 1;
+            c0 = rt_next[c0];
+        }
+        if (ncells > 0) {
+            int cell_w = content_w / ncells;
+            if (cell_w < 1) cell_w = 1;
+            int x = cx;
+            int max_h = 0;
+            int c = rt_first_child[n];
+            while (c >= 0) {
+                if (rt_kind[c] == RT_TABLE_CELL) {
+                    layout_block(c, cell_w);
+                    rt_x[c] = x;
+                    rt_y[c] = cy;
+                    if (rt_h[c] > max_h) max_h = rt_h[c];
+                    x = x + rt_w[c];
+                }
+                c = rt_next[c];
+            }
+            /* Equalize cell heights to row height */
+            c = rt_first_child[n];
+            while (c >= 0) {
+                if (rt_kind[c] == RT_TABLE_CELL) rt_h[c] = max_h;
+                c = rt_next[c];
+            }
+            cy = cy + max_h;
+            int style_h = cs_height[sty];
+            rt_h[n] = (style_h >= 0) ? style_h
+                                     : (cy + rt_padding_b(n) + rt_border_b(n));
+            return;
+        }
+    }
+
     /* Walk children. Inline runs get accumulated and flushed when a block
      * sibling appears or end of children.
      *
