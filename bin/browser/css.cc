@@ -37,13 +37,19 @@ int css_skip_ws(char *s, int n, int i) {
 }
 
 /* parse one compound selector; returns end index. Fills out_tag, out_class_off,
- * out_id_off. If the compound is unsupported, sets *unsupp = 1. */
+ * out_id_off, and the optional attribute selector triple
+ * (out_attr_off, out_attr_val_off, out_attr_op). If the compound is
+ * unsupported, sets *unsupp = 1. */
 int css_parse_compound(char *s, int n, int i,
                        int *out_tag, int *out_class_off, int *out_id_off,
+                       int *out_attr_off, int *out_attr_val_off, int *out_attr_op,
                        int *unsupp) {
     *out_tag = 0;
     *out_class_off = -1;
     *out_id_off = -1;
+    *out_attr_off = -1;
+    *out_attr_val_off = -1;
+    *out_attr_op = 0;
     *unsupp = 0;
     int started = 0;
     while (i < n) {
@@ -75,7 +81,41 @@ int css_parse_compound(char *s, int n, int i,
             *out_tag = tag_id(s + s_start, i - s_start);
             started = 1; continue;
         }
-        if (c == '[' || c == ':' || c == '+' || c == '~') {
+        if (c == '[') {
+            /* [attr], [attr=value], [attr~=value], [attr="value"] */
+            i++;
+            while (i < n && (s[i] == ' ' || s[i] == '\t')) i++;
+            int n_start = i;
+            while (i < n &&
+                   ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z') ||
+                    (s[i] >= '0' && s[i] <= '9') || s[i] == '-' || s[i] == '_')) i++;
+            int n_end = i;
+            if (n_end == n_start) { *unsupp = 1; return i; }
+            *out_attr_off = attr_intern(s + n_start, n_end - n_start);
+            while (i < n && (s[i] == ' ' || s[i] == '\t')) i++;
+            int op = 1;        /* presence by default */
+            if (i < n && s[i] == '~' && i + 1 < n && s[i+1] == '=') { op = 3; i += 2; }
+            else if (i < n && s[i] == '=') { op = 2; i++; }
+            if (op != 1) {
+                while (i < n && (s[i] == ' ' || s[i] == '\t')) i++;
+                int quote = 0;
+                if (i < n && (s[i] == '"' || s[i] == '\'')) { quote = s[i]; i++; }
+                int v_start = i;
+                if (quote) {
+                    while (i < n && s[i] != quote) i++;
+                } else {
+                    while (i < n && s[i] != ']' && s[i] != ' ' && s[i] != '\t') i++;
+                }
+                int v_end = i;
+                *out_attr_val_off = attr_intern(s + v_start, v_end - v_start);
+                if (quote && i < n && s[i] == quote) i++;
+            }
+            *out_attr_op = op;
+            while (i < n && s[i] != ']') i++;
+            if (i < n && s[i] == ']') i++;
+            started = 1; continue;
+        }
+        if (c == ':' || c == '+' || c == '~') {
             *unsupp = 1;
             /* skip to next whitespace, comma, or { */
             while (i < n && s[i] != ' ' && s[i] != '\t' && s[i] != ',' && s[i] != '{') i++;
@@ -109,8 +149,12 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
         int t;
         int c_off;
         int id_off;
+        int a_off;
+        int a_val_off;
+        int a_op;
         int unsupp;
-        int j = css_parse_compound(s, n, i, &t, &c_off, &id_off, &unsupp);
+        int j = css_parse_compound(s, n, i, &t, &c_off, &id_off,
+                                   &a_off, &a_val_off, &a_op, &unsupp);
         if (unsupp) *unsupported = 1;
         if (j == i) break;            /* no progress */
         if (css_sel_count < MAX_CSS_SELECTORS) {
@@ -118,6 +162,9 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
             css_sel_class_off[css_sel_count] = c_off;
             css_sel_id_off[css_sel_count] = id_off;
             css_sel_combinator[css_sel_count] = next_comb;
+            css_sel_attr_off[css_sel_count] = a_off;
+            css_sel_attr_val_off[css_sel_count] = a_val_off;
+            css_sel_attr_op[css_sel_count] = a_op;
             css_sel_count++;
             count++;
         }
@@ -139,6 +186,7 @@ int css_compute_specificity(int sel_first, int sel_count) {
     for (int k = 0; k < sel_count; k++) {
         if (css_sel_id_off   [sel_first + k] >= 0) id_c++;
         if (css_sel_class_off[sel_first + k] >= 0) cls_c++;
+        if (css_sel_attr_op  [sel_first + k] != 0) cls_c++;  /* attr counts as class */
         if (css_sel_tag      [sel_first + k] != 0) tag_c++;
     }
     int s = (id_c << 16) | (cls_c << 8) | tag_c;

@@ -475,6 +475,37 @@ int sel_compound_matches(int sel_idx, int node) {
         if (node_id < 0) return 0;
         if (!b_strieq(attr_pool + node_id, attr_pool + id_off)) return 0;
     }
+    int a_op = css_sel_attr_op[sel_idx];
+    if (a_op != 0) {
+        int a_off = css_sel_attr_off[sel_idx];
+        if (a_off < 0) return 0;
+        char *aname = attr_pool + a_off;
+        int node_attr = dom_attr_get(node, aname);
+        if (node_attr < 0) return 0;
+        if (a_op == 1) return 1;       /* presence */
+        int v_off = css_sel_attr_val_off[sel_idx];
+        if (v_off < 0) return 0;
+        char *want = attr_pool + v_off;
+        int want_len = b_strlen(want);
+        char *have = attr_pool + node_attr;
+        int have_len = b_strlen(have);
+        if (a_op == 2) {
+            if (have_len != want_len) return 0;
+            if (!b_strieq_n(have, want, want_len)) return 0;
+            return 1;
+        }
+        if (a_op == 3) {
+            /* word match: any space-separated token equals want */
+            int i = 0;
+            while (i < have_len) {
+                while (i < have_len && (have[i] == ' ' || have[i] == '\t')) i++;
+                int ws = i;
+                while (i < have_len && have[i] != ' ' && have[i] != '\t') i++;
+                if (i - ws == want_len && b_strieq_n(have + ws, want, want_len)) return 1;
+            }
+            return 0;
+        }
+    }
     return 1;
 }
 

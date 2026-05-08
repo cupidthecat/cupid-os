@@ -237,6 +237,12 @@ int css_sel_id_off   [1024];
  * 0 = descendant (default; whitespace separator).
  * 1 = child (>). The first compound in a chain is always 0. */
 int css_sel_combinator[1024];
+/* Optional attribute selector on this compound. -1 if none.
+ * css_sel_attr_op: 0=none, 1=presence ([attr]), 2=exact ([attr=v]),
+ *                  3=word match ([attr~=v]). */
+int css_sel_attr_off    [1024];
+int css_sel_attr_val_off[1024];
+int css_sel_attr_op     [1024];
 
 /* CSS value pool - separate from attr_pool. */
 char css_value_pool[32768];
