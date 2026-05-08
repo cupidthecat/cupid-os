@@ -66,13 +66,8 @@ int js_alloc_node(int kind, int a, int b, int c, int d) {
     return n;
 }
 
-/* Forward declarations (CupidC: function-level forward calls work
- * within the same TU at JIT time). */
-int js_p_expr();
-int js_p_assign();
-int js_p_stmt();
-int js_p_block();
-
+/* Mutually-recursive js_p_* calls below resolve via CupidC's deferred
+ * cross-resolve pass; explicit prototypes upset the parser. */
 int js_p_primary() {
     int k = js_peek_kind();
     if (k == JS_TOK_NUMBER) {
