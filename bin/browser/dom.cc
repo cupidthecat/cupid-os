@@ -195,6 +195,14 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
         if (b_strieq_n(name, "darr", 4)) { *out_ch = 'v';  return 1; }
         if (b_strieq_n(name, "cent", 4)) { *out_ch = 'c';  return 1; }
         if (b_strieq_n(name, "euro", 4)) { *out_ch = 'E';  return 1; }
+        if (b_strieq_n(name, "Auml", 4)) { *out_ch = 'A';  return 1; }
+        if (b_strieq_n(name, "auml", 4)) { *out_ch = 'a';  return 1; }
+        if (b_strieq_n(name, "Ouml", 4)) { *out_ch = 'O';  return 1; }
+        if (b_strieq_n(name, "ouml", 4)) { *out_ch = 'o';  return 1; }
+        if (b_strieq_n(name, "Uuml", 4)) { *out_ch = 'U';  return 1; }
+        if (b_strieq_n(name, "uuml", 4)) { *out_ch = 'u';  return 1; }
+        if (b_strieq_n(name, "circ", 4)) { *out_ch = '^';  return 1; }
+        if (b_strieq_n(name, "tilde",4)) { *out_ch = '~';  return 1; }
         return 0;
     }
     if (nlen == 5) {
@@ -210,6 +218,12 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
         if (b_strieq_n(name, "raquo", 5)) { *out_ch = '>'; return 1; }
         if (b_strieq_n(name, "iexcl", 5)) { *out_ch = '!'; return 1; }
         if (b_strieq_n(name, "pound", 5)) { *out_ch = 'L'; return 1; }
+        if (b_strieq_n(name, "radic", 5)) { *out_ch = 'v'; return 1; }
+        if (b_strieq_n(name, "infin", 5)) { *out_ch = '8'; return 1; }
+        if (b_strieq_n(name, "alpha", 5)) { *out_ch = 'a'; return 1; }
+        if (b_strieq_n(name, "Alpha", 5)) { *out_ch = 'A'; return 1; }
+        if (b_strieq_n(name, "Sigma", 5)) { *out_ch = 'E'; return 1; }
+        if (b_strieq_n(name, "Omega", 5)) { *out_ch = 'O'; return 1; }
         return 0;
     }
     if (nlen == 6) {
@@ -221,8 +235,43 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
         if (b_strieq_n(name, "frac14", 6)) { *out_ch = 'q'; return 1; }
         if (b_strieq_n(name, "frac34", 6)) { *out_ch = 'Q'; return 1; }
         if (b_strieq_n(name, "iquest", 6)) { *out_ch = '?'; return 1; }
+        if (b_strieq_n(name, "lambda", 6)) { *out_ch = 'L'; return 1; }
+        if (b_strieq_n(name, "permil", 6)) { *out_ch = '%'; return 1; }
+        if (b_strieq_n(name, "dagger", 6)) { *out_ch = '+'; return 1; }
+        if (b_strieq_n(name, "Dagger", 6)) { *out_ch = '+'; return 1; }
+        if (b_strieq_n(name, "lsaquo", 6)) { *out_ch = '<'; return 1; }
+        if (b_strieq_n(name, "rsaquo", 6)) { *out_ch = '>'; return 1; }
+        if (b_strieq_n(name, "exist",  5)) { *out_ch = 'E'; return 1; }
+        if (b_strieq_n(name, "forall", 6)) { *out_ch = 'A'; return 1; }
         return 0;
     }
+    return 0;
+}
+
+/* Map a high-codepoint numeric entity to a reasonable ASCII fallback so
+ * common Unicode text doesn't render as '?'. Returns 1 if mapped. */
+int map_high_codepoint(int v, int *out_ch) {
+    if (v == 0x00A9) { *out_ch = 'C'; return 1; }   /* © */
+    if (v == 0x00AE) { *out_ch = 'R'; return 1; }   /* ® */
+    if (v == 0x00B0) { *out_ch = 'd'; return 1; }   /* ° */
+    if (v == 0x00B7) { *out_ch = '*'; return 1; }   /* · */
+    if (v == 0x2013) { *out_ch = '-'; return 1; }   /* – */
+    if (v == 0x2014) { *out_ch = '-'; return 1; }   /* — */
+    if (v == 0x2018) { *out_ch = '\''; return 1; }  /* ‘ */
+    if (v == 0x2019) { *out_ch = '\''; return 1; }  /* ’ */
+    if (v == 0x201C) { *out_ch = '"'; return 1; }   /* “ */
+    if (v == 0x201D) { *out_ch = '"'; return 1; }   /* ” */
+    if (v == 0x2022) { *out_ch = '*'; return 1; }   /* • */
+    if (v == 0x2026) { *out_ch = '.'; return 1; }   /* … */
+    if (v == 0x2122) { *out_ch = 'T'; return 1; }   /* ™ */
+    if (v == 0x2190) { *out_ch = '<'; return 1; }   /* ← */
+    if (v == 0x2192) { *out_ch = '>'; return 1; }   /* → */
+    if (v == 0x2194) { *out_ch = '-'; return 1; }   /* ↔ */
+    if (v == 0x21D2) { *out_ch = '>'; return 1; }   /* ⇒ */
+    if (v == 0x221E) { *out_ch = '8'; return 1; }   /* ∞ */
+    if (v == 0x2264) { *out_ch = '<'; return 1; }   /* ≤ */
+    if (v == 0x2265) { *out_ch = '>'; return 1; }   /* ≥ */
+    if (v == 0x2260) { *out_ch = '#'; return 1; }   /* ≠ */
     return 0;
 }
 
@@ -265,6 +314,10 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     }
                     if (v == 0xAD) {            /* soft hyphen - drop */
                         i = end + 1; continue;
+                    }
+                    int hi;
+                    if (map_high_codepoint(v, &hi)) {
+                        out[o] = (char)hi; o = o + 1; i = end + 1; continue;
                     }
                     /* unsupported codepoint: ASCII placeholder */
                     out[o] = '?'; o = o + 1; i = end + 1; continue;
