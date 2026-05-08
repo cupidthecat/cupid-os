@@ -75,7 +75,7 @@ int css_parse_compound(char *s, int n, int i,
             *out_tag = tag_id(s + s_start, i - s_start);
             started = 1; continue;
         }
-        if (c == '[' || c == ':' || c == '>' || c == '+' || c == '~') {
+        if (c == '[' || c == ':' || c == '+' || c == '~') {
             *unsupp = 1;
             /* skip to next whitespace, comma, or { */
             while (i < n && s[i] != ' ' && s[i] != '\t' && s[i] != ',' && s[i] != '{') i++;
@@ -88,16 +88,24 @@ int css_parse_compound(char *s, int n, int i,
 }
 
 /* Parse one selector-chain, append compounds to css_sel_*. Returns chain start
- * (and writes count). Sets *unsupported=1 if any compound unsupported. */
+ * (and writes count). Sets *unsupported=1 if any compound unsupported.
+ * Tracks combinator between compounds: descendant (0) by default; '>' bumps
+ * the next compound to child combinator (1). */
 int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsupported) {
     int first = css_sel_count;
     int count = 0;
+    int next_comb = 0;            /* combinator for the NEXT compound */
     *unsupported = 0;
     while (i < n) {
         i = css_skip_ws(s, n, i);
         if (i >= n) break;
         char c = s[i];
         if (c == ',' || c == '{') break;
+        if (c == '>') {
+            next_comb = 1;
+            i++;
+            continue;
+        }
         int t;
         int c_off;
         int id_off;
@@ -109,9 +117,11 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
             css_sel_tag[css_sel_count] = t;
             css_sel_class_off[css_sel_count] = c_off;
             css_sel_id_off[css_sel_count] = id_off;
+            css_sel_combinator[css_sel_count] = next_comb;
             css_sel_count++;
             count++;
         }
+        next_comb = 0;
         i = j;
     }
     *chain_count = count;

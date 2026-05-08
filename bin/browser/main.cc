@@ -233,6 +233,10 @@ int css_sel_count;
 int css_sel_tag      [1024];
 int css_sel_class_off[1024];
 int css_sel_id_off   [1024];
+/* Combinator joining this compound to the previous one in a chain.
+ * 0 = descendant (default; whitespace separator).
+ * 1 = child (>). The first compound in a chain is always 0. */
+int css_sel_combinator[1024];
 
 /* CSS value pool - separate from attr_pool. */
 char css_value_pool[32768];

@@ -479,21 +479,32 @@ int sel_compound_matches(int sel_idx, int node) {
 }
 
 /* Match a selector chain against a node by walking up parents. Last selector
- * matches `node`; earlier selectors must match an ancestor at any depth
- * (descendant combinator). */
+ * matches `node`; earlier selectors must match according to the combinator
+ * stored on the next-younger compound: 0 = descendant (skip non-matching
+ * ancestors), 1 = child (must match the immediate parent). */
 int sel_chain_matches(int sel_first, int sel_count, int node) {
     if (sel_count == 0) return 0;
     int last = sel_first + sel_count - 1;
     if (!sel_compound_matches(last, node)) return 0;
     int cur = n_parent[node];
     int s = last - 1;
+    /* combinator on css_sel_combinator[s+1] tells how s relates to s+1 */
     while (s >= sel_first) {
         if (cur < 0) return 0;
-        if (sel_compound_matches(s, cur)) {
+        int comb = css_sel_combinator[s + 1];
+        if (comb == 1) {
+            /* child: s must match the immediate parent */
+            if (!sel_compound_matches(s, cur)) return 0;
             s = s - 1;
             cur = n_parent[cur];
         } else {
-            cur = n_parent[cur];     /* descendant: skip non-matching ancestors */
+            /* descendant: skip non-matching ancestors */
+            if (sel_compound_matches(s, cur)) {
+                s = s - 1;
+                cur = n_parent[cur];
+            } else {
+                cur = n_parent[cur];
+            }
         }
     }
     return 1;
