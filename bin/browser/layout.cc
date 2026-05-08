@@ -274,8 +274,14 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
             continue;
         }
 
-        /* Wrap if this atom doesn't fit and we have something on the line */
-        if (sentinel == -3 && x + aw > cx + max_w && x > cx) {
+        /* Wrap-on-overflow: if this atom would push the line past max_w and
+         * the line has something on it, close the line. For a -3 (soft break
+         * point / space) atom we drop it; for a word atom we place it as the
+         * first atom of the new line. We never wrap mid-word, so a single
+         * word longer than max_w still overflows on its own line. */
+        int overflow = (x + aw > cx + max_w && x > cx);
+        if (overflow) {
+            int lh_wrap = line_h ? line_h : effective_line_h(rt_style[parent], tier);
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
@@ -283,17 +289,16 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
                 rt_x[lb] = cx;
                 rt_y[lb] = line_top;
                 rt_w[lb] = max_w;
-                rt_h[lb] = line_h;
+                rt_h[lb] = lh_wrap;
             }
-            line_top += line_h;
+            line_top += lh_wrap;
             x = cx;
             line_h = 0;
-            line_start_atom = k + 1;        /* drop the trailing space atom */
-            continue;
-        }
-        if (x + aw > cx + max_w && x > cx && sentinel != -3) {
-            /* Mid-word wrap not allowed in v1 - but we accept overflow rather
-             * than truncate */
+            if (sentinel == -3) {
+                line_start_atom = k + 1;    /* drop the trailing space atom */
+                continue;
+            }
+            line_start_atom = k;            /* word starts the new line */
         }
         la_x[k] = x;
         x += aw;

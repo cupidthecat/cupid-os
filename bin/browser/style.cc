@@ -43,39 +43,42 @@ void ua_default_style(int tag, int cs) {
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
      * its stack). */
+    /* Heading + paragraph margins follow CSS2 UA suggestion (~0.67-1em).
+     * Values pulled in once real px font-size lands (Stage A2); for now
+     * tightened so the top-of-page gap matches a real browser. */
     if (tag == T_H1) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_tier[cs] = 4;
-        cs_margin[cs][0] = 21; cs_margin[cs][2] = 21;
+        cs_margin[cs][0] = 14; cs_margin[cs][2] = 14;
         return;
     }
     if (tag == T_H2) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_tier[cs] = 3;
-        cs_margin[cs][0] = 18; cs_margin[cs][2] = 18;
+        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
         return;
     }
     if (tag == T_H3) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_tier[cs] = 3;
-        cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;
+        cs_margin[cs][0] = 11; cs_margin[cs][2] = 11;
         return;
     }
     if (tag == T_H4) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_tier[cs] = 2;
-        cs_margin[cs][0] = 14; cs_margin[cs][2] = 14;
+        cs_margin[cs][0] = 10; cs_margin[cs][2] = 10;
         return;
     }
     if (tag == T_H5 || tag == T_H6) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_tier[cs] = 1;
-        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
+        cs_margin[cs][0] = 8; cs_margin[cs][2] = 8;
         return;
     }
     if (tag == T_P) {
         cs_display[cs] = DISP_BLOCK;
-        cs_margin[cs][0] = 14; cs_margin[cs][2] = 14;
+        cs_margin[cs][0] = 12; cs_margin[cs][2] = 12;
         return;
     }
     if (tag == T_A) {
