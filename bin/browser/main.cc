@@ -243,6 +243,17 @@ int css_sel_combinator[1024];
 int css_sel_attr_off    [1024];
 int css_sel_attr_val_off[1024];
 int css_sel_attr_op     [1024];
+/* Pseudo-class on this compound. 0=none, 1=:hover, 2=:focus,
+ * 3=:link, 4=:visited. */
+int css_sel_pseudo      [1024];
+/* Set true at parse time if any rule references :hover or :focus.
+ * Cheap gate: when false, the hover-driven restyle path is skipped. */
+int css_has_dynamic_pseudo;
+/* DOM node currently hovered (deepest rt_dom hit), -1 if none.
+ * prev_hover_dom_node is the previous frame's value used to detect
+ * change and trigger restyle. */
+int hover_dom_node;
+int prev_hover_dom_node;
 
 /* CSS value pool - separate from attr_pool. */
 char css_value_pool[32768];
@@ -397,6 +408,9 @@ void browser_main() {
     focused_input = -1;
     prev_buttons = 0;
     hover_link = -1;
+    hover_dom_node = -1;
+    prev_hover_dom_node = -1;
+    css_has_dynamic_pseudo = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

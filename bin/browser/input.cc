@@ -252,18 +252,26 @@ void handle_hover(int mx, int my) {
     int rel_x = mx - cx;
     int rel_y = my - cy;
     hover_link = -1;
+    hover_dom_node = -1;
     if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
         rel_x >= 0 && rel_x < cur_cw - 12) {
         int hit = hit_box(rel_x, rel_y);
         if (hit >= 0) {
-            if (rt_kind[hit] == RT_LINE_BOX) {
-                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
-                if (li >= 0) { hover_link = li; return; }
-            }
+            /* Walk to find the deepest DOM-backed rt node and the nearest
+             * link ancestor. */
             int cur = hit;
             while (cur >= 0) {
-                if (rt_link_idx[cur] >= 0) { hover_link = rt_link_idx[cur]; break; }
+                if (hover_dom_node < 0 && rt_dom[cur] >= 0) {
+                    hover_dom_node = rt_dom[cur];
+                }
+                if (hover_link < 0 && rt_link_idx[cur] >= 0) {
+                    hover_link = rt_link_idx[cur];
+                }
                 cur = rt_parent[cur];
+            }
+            if (rt_kind[hit] == RT_LINE_BOX) {
+                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
+                if (li >= 0) hover_link = li;
             }
         }
     }
@@ -276,6 +284,15 @@ void handle_mouse() {
     int left_click = (btns & 1) && !(prev_buttons & 1);
     if (left_click) handle_left_click(mx, my);
     handle_hover(mx, my);
+
+    /* If a rule actually references :hover/:focus, restyle and re-layout
+     * when the hovered DOM node changes. Skipped when no dynamic pseudo
+     * rule is active to avoid pointless work on every pixel of motion. */
+    if (css_has_dynamic_pseudo && hover_dom_node != prev_hover_dom_node) {
+        prev_hover_dom_node = hover_dom_node;
+        style_resolve_all();
+        run_layout();
+    }
 
     int dz = mouse_scroll();
     if (dz != 0) {

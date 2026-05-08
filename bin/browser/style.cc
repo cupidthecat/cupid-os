@@ -475,6 +475,29 @@ int sel_compound_matches(int sel_idx, int node) {
         if (node_id < 0) return 0;
         if (!b_strieq(attr_pool + node_id, attr_pool + id_off)) return 0;
     }
+    int pseudo = css_sel_pseudo[sel_idx];
+    if (pseudo == 1) {
+        /* :hover - matches the hovered DOM node and any of its ancestors */
+        if (hover_dom_node < 0) return 0;
+        int p = hover_dom_node;
+        int matched = 0;
+        while (p >= 0) { if (p == node) { matched = 1; break; } p = n_parent[p]; }
+        if (!matched) return 0;
+    }
+    if (pseudo == 2) {
+        /* :focus - the focused input's DOM node */
+        if (focused_input < 0 || focused_input >= inputs_count) return 0;
+        if (input_node[focused_input] != node) return 0;
+    }
+    if (pseudo == 3) {
+        /* :link - <a href> not yet visited (we don't track visited) */
+        if (n_tag[node] != T_A) return 0;
+        if (dom_attr_get(node, "href") < 0) return 0;
+    }
+    if (pseudo == 4) {
+        /* :visited - no history set, never matches */
+        return 0;
+    }
     int a_op = css_sel_attr_op[sel_idx];
     if (a_op != 0) {
         int a_off = css_sel_attr_off[sel_idx];

@@ -1,4 +1,4 @@
-/* ---------- HTML lex / parse ---------- */
+/* HTML lex / parse */
 
 /* §1 tokenizer states */
 enum {
@@ -181,7 +181,7 @@ void tokenize(int html_len) {
             int term = (state == ST_VALUE_DQ) ? '"' : '\'';
             if (c == term) {
                 int dec_max = (i - tag_start) + 1;
-                /* fast path: no '&' → intern directly */
+                /* fast path: no '&' -> intern directly */
                 int has_amp = 0;
                 for (int k = tag_start; k < i; k++) {
                     if (page_buf[k] == '&') { has_amp = 1; break; }
@@ -413,10 +413,11 @@ void parse_html(int html_len) {
     inputs_count = 0;
     title_buf[0] = 0;
 
-    /* §2 reset CSS state — author rules accumulate per page */
+    /* §2 reset CSS state - author rules accumulate per page */
     css_rule_count = 0;
     css_sel_count = 0;
     css_value_pool_pos = 0;
+    css_has_dynamic_pseudo = 0;
 
     /* synthetic root */
     int root = alloc_node(T_ROOT, -1, -1);
@@ -492,7 +493,7 @@ void parse_html(int html_len) {
                 title_buf[copy] = 0;
             }
             /* §2 author CSS: feed text inside <style> into the rule table
-             * and drop the text node — CSS does not render. */
+             * and drop the text node - CSS does not render. */
             if (parent_tag == T_STYLE) {
                 css_parse_block(attr_pool + text_off, text_len);
                 continue;
@@ -573,7 +574,7 @@ void parse_html(int html_len) {
                 }
             }
 
-            /* (link registration is layout's job — see register_link in
+            /* (link registration is layout's job - see register_link in
              * layout.cc; layout resets links_count and rebuilds during
              * each pass.) */
 
@@ -585,7 +586,7 @@ void parse_html(int html_len) {
                 forms_count = forms_count + 1;
             }
 
-            /* register inputs (text-like only — submit/button/hidden are not
+            /* register inputs (text-like only - submit/button/hidden are not
              * part of the editable inputs[] table, but their DOM node is
              * still kept so layout can render them). */
             if (tag == T_INPUT) {

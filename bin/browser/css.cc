@@ -43,13 +43,14 @@ int css_skip_ws(char *s, int n, int i) {
 int css_parse_compound(char *s, int n, int i,
                        int *out_tag, int *out_class_off, int *out_id_off,
                        int *out_attr_off, int *out_attr_val_off, int *out_attr_op,
-                       int *unsupp) {
+                       int *out_pseudo, int *unsupp) {
     *out_tag = 0;
     *out_class_off = -1;
     *out_id_off = -1;
     *out_attr_off = -1;
     *out_attr_val_off = -1;
     *out_attr_op = 0;
+    *out_pseudo = 0;
     *unsupp = 0;
     int started = 0;
     while (i < n) {
@@ -115,7 +116,31 @@ int css_parse_compound(char *s, int n, int i,
             if (i < n && s[i] == ']') i++;
             started = 1; continue;
         }
-        if (c == ':' || c == '+' || c == '~') {
+        if (c == ':') {
+            /* :hover, :focus, :link, :visited - others unsupported */
+            i++;
+            int p_start = i;
+            while (i < n &&
+                   ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z') ||
+                    s[i] == '-')) i++;
+            int p_len = i - p_start;
+            int pseudo = 0;
+            if (p_len == 5 && b_strieq_n(s + p_start, "hover", 5)) pseudo = 1;
+            else if (p_len == 5 && b_strieq_n(s + p_start, "focus", 5)) pseudo = 2;
+            else if (p_len == 4 && b_strieq_n(s + p_start, "link", 4)) pseudo = 3;
+            else if (p_len == 7 && b_strieq_n(s + p_start, "visited", 7)) pseudo = 4;
+            if (pseudo == 0) {
+                *unsupp = 1;
+                while (i < n && s[i] != ' ' && s[i] != '\t' &&
+                       s[i] != ',' && s[i] != '{') i++;
+                return i;
+            }
+            *out_pseudo = pseudo;
+            if (pseudo == 1 || pseudo == 2) css_has_dynamic_pseudo = 1;
+            started = 1;
+            continue;
+        }
+        if (c == '+' || c == '~') {
             *unsupp = 1;
             /* skip to next whitespace, comma, or { */
             while (i < n && s[i] != ' ' && s[i] != '\t' && s[i] != ',' && s[i] != '{') i++;
@@ -152,9 +177,10 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
         int a_off;
         int a_val_off;
         int a_op;
+        int pseudo;
         int unsupp;
         int j = css_parse_compound(s, n, i, &t, &c_off, &id_off,
-                                   &a_off, &a_val_off, &a_op, &unsupp);
+                                   &a_off, &a_val_off, &a_op, &pseudo, &unsupp);
         if (unsupp) *unsupported = 1;
         if (j == i) break;            /* no progress */
         if (css_sel_count < MAX_CSS_SELECTORS) {
@@ -165,6 +191,7 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
             css_sel_attr_off[css_sel_count] = a_off;
             css_sel_attr_val_off[css_sel_count] = a_val_off;
             css_sel_attr_op[css_sel_count] = a_op;
+            css_sel_pseudo[css_sel_count] = pseudo;
             css_sel_count++;
             count++;
         }
@@ -187,6 +214,7 @@ int css_compute_specificity(int sel_first, int sel_count) {
         if (css_sel_id_off   [sel_first + k] >= 0) id_c++;
         if (css_sel_class_off[sel_first + k] >= 0) cls_c++;
         if (css_sel_attr_op  [sel_first + k] != 0) cls_c++;  /* attr counts as class */
+        if (css_sel_pseudo   [sel_first + k] != 0) cls_c++;  /* pseudo counts as class */
         if (css_sel_tag      [sel_first + k] != 0) tag_c++;
     }
     int s = (id_c << 16) | (cls_c << 8) | tag_c;
