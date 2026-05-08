@@ -32,7 +32,7 @@ typedef void (*usb_complete_cb_t)(int status, usb_transfer_t *);
 struct usb_hc {
     const char *name;
     void       *driver_data;
-    uint8_t     root_speed;   /* USB_SPEED_LOW/FULL/HIGH — speed of this HC's root ports */
+    uint8_t     root_speed;   /* USB_SPEED_LOW/FULL/HIGH - speed of this HC's root ports */
     int  (*submit_sync)     (usb_hc_t *, usb_transfer_t *, uint32_t timeout_ms);
     int  (*submit_interrupt)(usb_hc_t *, usb_transfer_t *, usb_complete_cb_t cb);
     int  (*port_count)      (usb_hc_t *);

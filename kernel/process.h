@@ -45,7 +45,7 @@ typedef struct {
 } cpu_context_t;
 
 typedef struct {
-    uint32_t         pid;                     /* 1–32, 0 = unused     */
+    uint32_t         pid;                     /* 1-32, 0 = unused     */
     process_state_t  state;                   /* Current state        */
     cpu_context_t    context;                 /* Saved CPU registers  */
     uint8_t          fp_state[512] __attribute__((aligned(16)));
@@ -77,7 +77,7 @@ void process_init(void);
  * @name:        human-readable name (shown by `ps`)
  * @stack_size:  stack allocation in bytes (use DEFAULT_STACK_SIZE)
  *
- * Returns the new PID (2–32) on success, or 0 on failure.
+ * Returns the new PID (2-32) on success, or 0 on failure.
  */
 uint32_t process_create(void (*entry_point)(void),
                         const char *name,
@@ -101,7 +101,7 @@ uint32_t process_create_ex(void (*entry_point)(void),
  * @stack_size:  stack allocation in bytes
  * @arg:         32-bit argument pushed onto the stack
  *
- * Returns the new PID (2–32) on success, or 0 on failure.
+ * Returns the new PID (2-32) on success, or 0 on failure.
  */
 uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,

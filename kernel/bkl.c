@@ -51,7 +51,7 @@ void bkl_lock(void) {
 
 void bkl_unlock(void) {
     per_cpu_t *c = this_cpu();
-    if (klock.depth == 0) return;   /* programming error — ignore */
+    if (klock.depth == 0) return;   /* programming error - ignore */
     uint32_t eflags = c->bkl_eflags_saved;
     klock.depth--;
     c->bkl_depth = klock.depth;

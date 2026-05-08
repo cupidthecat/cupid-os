@@ -317,7 +317,7 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     tok.text[i] = '\0';
     tok.type = cc_check_keyword(tok.text);
 
-    /* Built-in constants: NULL, true, false → integer literals */
+    /* Built-in constants: NULL, true, false -> integer literals */
     if (tok.type == CC_TOK_IDENT) {
       if (strcmp(tok.text, "NULL") == 0) {
         tok.type = CC_TOK_NUMBER;
@@ -336,14 +336,14 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
   }
 
   /* Number literal (integer or float) */
-  /* Also handle leading-dot floats like .5 — '.' followed by a digit. */
+  /* Also handle leading-dot floats like .5 - '.' followed by a digit. */
   if (cc_is_digit(c) || (c == '.' && cc_is_digit(cc_peek_char2(cc)))) {
     int i = 0;
     int32_t val = 0;
     int is_float = 0;
     int f_suffix = 0;
 
-    /* Check for hex: 0x... or 0X... (integer only — no hex floats) */
+    /* Check for hex: 0x... or 0X... (integer only - no hex floats) */
     if (c == '0' && (cc_peek_char2(cc) == 'x' || cc_peek_char2(cc) == 'X')) {
       tok.text[i++] = cc_next_char(cc); /* '0' */
       tok.text[i++] = cc_next_char(cc); /* 'x'/'X' */

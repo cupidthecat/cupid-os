@@ -8,10 +8,13 @@
 #include "gfx2d_assets.h"
 #include "gfx2d.h"
 #include "bmp.h"
+#include "png.h"
+#include "jpeg.h"
 #include "font_8x8.h"
 #include "memory.h"
 #include "string.h"
 #include "vfs.h"
+#include "vfs_helpers.h"
 #include "../drivers/serial.h"
 
 /* Image pool */
@@ -50,64 +53,131 @@ void gfx2d_assets_init(void) {
     g2d_default_font = -1;
 }
 
-/* Image loading (BMP) */
+/* Image loading: dispatches by file/buffer signature */
+
+static int g2d_alloc_slot(void) {
+    int i;
+    for (i = 0; i < GFX2D_MAX_IMAGES; i++) {
+        if (!g2d_img_used[i]) return i;
+    }
+    return -1;
+}
+
+static int g2d_load_bmp_path(int slot, const char *path) {
+    bmp_info_t info;
+    int rc = bmp_get_info(path, &info);
+    if (rc != BMP_OK) {
+        serial_printf("[gfx2d_assets] bmp info fail %s (%d)\n", path, rc);
+        return -1;
+    }
+    if (info.width == 0 || info.height == 0 ||
+        info.width > 8192 || info.height > 8192) {
+        serial_printf("[gfx2d_assets] bad bmp dims %ux%u\n",
+                      info.width, info.height);
+        return -1;
+    }
+    uint32_t *data = (uint32_t *)kmalloc(info.data_size);
+    if (!data) return -1;
+    rc = bmp_decode(path, data, info.data_size);
+    if (rc != BMP_OK) { kfree(data); return -1; }
+    g2d_img_data[slot] = data;
+    g2d_img_w[slot]    = (int)info.width;
+    g2d_img_h[slot]    = (int)info.height;
+    g2d_img_used[slot] = 1;
+    return slot;
+}
+
+static int g2d_load_png_mem(int slot, const uint8_t *buf, uint32_t len) {
+    uint32_t *pix = NULL;
+    int w = 0, h = 0;
+    int rc = png_decode_mem(buf, len, &pix, &w, &h);
+    if (rc != PNG_OK || !pix) {
+        serial_printf("[gfx2d_assets] png decode fail (%d)\n", rc);
+        return -1;
+    }
+    g2d_img_data[slot] = pix;
+    g2d_img_w[slot]    = w;
+    g2d_img_h[slot]    = h;
+    g2d_img_used[slot] = 1;
+    return slot;
+}
+
+static int g2d_load_jpeg_mem(int slot, const uint8_t *buf, uint32_t len) {
+    uint32_t *pix = NULL;
+    int w = 0, h = 0;
+    int rc = jpeg_decode_mem(buf, len, &pix, &w, &h);
+    if (rc != JPEG_OK || !pix) {
+        serial_printf("[gfx2d_assets] jpeg decode fail (%d)\n", rc);
+        return -1;
+    }
+    g2d_img_data[slot] = pix;
+    g2d_img_w[slot]    = w;
+    g2d_img_h[slot]    = h;
+    g2d_img_used[slot] = 1;
+    return slot;
+}
 
 int gfx2d_image_load(const char *path) {
-    int i;
-    bmp_info_t info;
-    uint32_t *data;
-    int rc;
-
-    /* Find free slot */
-    for (i = 0; i < GFX2D_MAX_IMAGES; i++) {
-        if (!g2d_img_used[i])
-            break;
-    }
-    if (i >= GFX2D_MAX_IMAGES) {
+    int slot = g2d_alloc_slot();
+    if (slot < 0) {
         serial_printf("[gfx2d_assets] image pool full\n");
         return -1;
     }
 
-    /* Get image dimensions */
-    rc = bmp_get_info(path, &info);
-    if (rc != BMP_OK) {
-        serial_printf("[gfx2d_assets] image_load: cannot read info %s (%d)\n",
-                      path, rc);
+    /* Peek 8 bytes to identify format */
+    uint8_t sig[8];
+    int fd = vfs_open(path, 0 /* O_RDONLY */);
+    if (fd < 0) {
+        serial_printf("[gfx2d_assets] cannot open %s\n", path);
+        return -1;
+    }
+    int sn = vfs_read(fd, sig, 8);
+    vfs_close(fd);
+    if (sn < 2) return -1;
+
+    if (sig[0] == 0x42 && sig[1] == 0x4D) {
+        /* "BM" - BMP, use existing path-based decoder */
+        return g2d_load_bmp_path(slot, path);
+    }
+
+    /* For PNG/JPEG load whole file into memory then dispatch */
+    vfs_stat_t st;
+    if (vfs_stat(path, &st) < 0) return -1;
+    if (st.size == 0 || st.size > 16u * 1024u * 1024u) {
+        serial_printf("[gfx2d_assets] bad image size %u\n", st.size);
+        return -1;
+    }
+    uint8_t *buf = (uint8_t *)kmalloc(st.size);
+    if (!buf) return -1;
+    if ((uint32_t)vfs_read_all(path, buf, st.size) != st.size) {
+        kfree(buf);
         return -1;
     }
 
-    if (info.width == 0 || info.height == 0 ||
-        info.width > 8192 || info.height > 8192) {
-        serial_printf("[gfx2d_assets] image_load: bad dimensions %ux%u\n",
-                      info.width, info.height);
-        return -1;
+    int rc;
+    if (sig[0] == 0x89 && sig[1] == 0x50 && sig[2] == 0x4E && sig[3] == 0x47) {
+        rc = g2d_load_png_mem(slot, buf, st.size);
+    } else if (sig[0] == 0xFF && sig[1] == 0xD8) {
+        rc = g2d_load_jpeg_mem(slot, buf, st.size);
+    } else {
+        serial_printf("[gfx2d_assets] unknown image format %s\n", path);
+        rc = -1;
     }
+    kfree(buf);
+    return rc;
+}
 
-    /* Allocate pixel buffer */
-    data = (uint32_t *)kmalloc(info.data_size);
-    if (!data) {
-        serial_printf("[gfx2d_assets] image_load: out of memory (%u bytes)\n",
-                      info.data_size);
-        return -1;
+int gfx2d_image_load_mem(const uint8_t *buf, uint32_t len) {
+    if (!buf || len < 4) return -1;
+    int slot = g2d_alloc_slot();
+    if (slot < 0) return -1;
+    if (buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4E && buf[3] == 0x47) {
+        return g2d_load_png_mem(slot, buf, len);
     }
-
-    /* Decode BMP */
-    rc = bmp_decode(path, data, info.data_size);
-    if (rc != BMP_OK) {
-        kfree(data);
-        serial_printf("[gfx2d_assets] image_load: decode failed %s (%d)\n",
-                      path, rc);
-        return -1;
+    if (buf[0] == 0xFF && buf[1] == 0xD8) {
+        return g2d_load_jpeg_mem(slot, buf, len);
     }
-
-    g2d_img_data[i] = data;
-    g2d_img_w[i] = (int)info.width;
-    g2d_img_h[i] = (int)info.height;
-    g2d_img_used[i] = 1;
-
-    serial_printf("[gfx2d_assets] image %d loaded: %dx%d from %s\n",
-                  i, (int)info.width, (int)info.height, path);
-    return i;
+    return -1;
 }
 
 void gfx2d_image_free(int handle) {

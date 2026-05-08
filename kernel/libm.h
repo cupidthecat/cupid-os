@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-/* libm error flag — set to non-zero on domain or range errors.
+/* libm error flag - set to non-zero on domain or range errors.
  * 0 = ok, 1 = DOMAIN, 2 = RANGE. Not thread-local. */
 extern int libm_errno;
 
@@ -54,10 +54,10 @@ float  fmodf (float x, float y);
  * CupidC-internal ABI as Tasks 23/24 (stack args, XMM0 return).
  *
  *   exp2   via x87 F2XM1 + FSCALE with FRNDINT range-reduce.
- *   exp    = exp2(x * log2(e))  — inlines the exp2 body after a multiply.
+ *   exp    = exp2(x * log2(e))  - inlines the exp2 body after a multiply.
  *   log2   via x87 FYL2X with y=1.
  *   log    via x87 FYL2X with y=ln(2).
- *   pow(x,y) — domain-dispatched: y=0 -> 1; x<=0 with y!=0 sets
+ *   pow(x,y) - domain-dispatched: y=0 -> 1; x<=0 with y!=0 sets
  *              libm_errno=1 and returns 0; otherwise exp(y*log(x)).
  *              (Integer-exponent negative-base special case is not
  *              implemented for this hobby kernel.) */
@@ -96,14 +96,14 @@ float  tanhf (float x);
 /* Phase E Task 27: cbrt / hypot / nextafter + f-variants.  Same
  * CupidC-internal ABI as Tasks 23-26 (stack args, XMM0 return).
  *
- *   cbrt(x)       — bit-trick initial estimate (divide biased exponent
+ *   cbrt(x)       - bit-trick initial estimate (divide biased exponent
  *                   field by 3) followed by 3 Newton-Raphson iterations
  *                   of y = (2y + x/(y*y)) / 3.  Handles negative x by
  *                   sign factoring; handles 0 and denormals explicitly.
- *   hypot(x, y)   — scale-safe |x|,|y| → max * sqrt(1 + (min/max)^2),
+ *   hypot(x, y)   - scale-safe |x|,|y| -> max * sqrt(1 + (min/max)^2),
  *                   avoiding intermediate overflow when x^2 would exceed
  *                   DBL_MAX even if sqrt(x^2+y^2) is representable.
- *   nextafter(x,y)— IEEE-754 bit-level increment/decrement of x toward y.
+ *   nextafter(x,y)- IEEE-754 bit-level increment/decrement of x toward y.
  *                   Walks the integer representation by ±1 ULP; handles
  *                   zero crossings and NaN (via x != y failing for NaN). */
 double cbrt     (double x);

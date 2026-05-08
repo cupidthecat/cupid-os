@@ -1,4 +1,4 @@
-/* kernel/iso9660.c — ISO9660 / ECMA-119 + Rock Ridge parser. */
+/* kernel/iso9660.c - ISO9660 / ECMA-119 + Rock Ridge parser. */
 
 #include "iso9660.h"
 #include "vfs.h"   /* for VFS_E* errno values */
@@ -244,7 +244,7 @@ static int next_dir_record(block_device_t *bdev,
         }
         uint8_t len = sec[in_sec];
         if (len == 0) {
-            /* Sector padding — skip to next sector */
+            /* Sector padding - skip to next sector */
             *off = (sec_idx + 1) * ISO9660_LOGICAL_BLOCK_SIZE;
             continue;
         }

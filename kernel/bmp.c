@@ -90,7 +90,7 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
         return BMP_EIO;
     }
 
-    /* --- File header (14 bytes) --- */
+    /* File header (14 bytes) */
 
     uint16_t sig = read_le16(hdr + 0);
     if (sig != BMP_SIGNATURE) {
@@ -100,7 +100,7 @@ static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
 
     *data_offset = read_le32(hdr + 10);
 
-    /* --- DIB header (BITMAPINFOHEADER, 40 bytes at offset 14) --- */
+    /* DIB header (BITMAPINFOHEADER, 40 bytes at offset 14) */
 
     uint32_t dib_size = read_le32(hdr + 14);
     if (dib_size < BMP_DIB_HDR_SIZE) {
@@ -225,7 +225,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
      */
     uint32_t y;
     for (y = 0; y < height; y++) {
-        /* BMP row index: bottom-up → read row for (height - 1 - y) */
+        /* BMP row index: bottom-up -> read row for (height - 1 - y) */
         uint32_t dest_row = y;  /* top-down in output */
 
         rc = bmp_read_exact(fd, row_buf, row_bytes);
@@ -236,7 +236,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
             return BMP_EIO;
         }
 
-        /* Convert BGR triplets → XRGB uint32_t */
+        /* Convert BGR triplets -> XRGB uint32_t */
         uint32_t out_row = top_down ? dest_row : (height - 1 - dest_row);
         uint32_t *dest = buffer + out_row * width;
         uint32_t x;
@@ -328,7 +328,7 @@ int bmp_encode(const char *path, const uint32_t *buffer,
         /* BMP is bottom-up: first written row = bottom of image */
         const uint32_t *src = buffer + (height - 1 - y) * width;
 
-        /* Convert XRGB → BGR triplets */
+        /* Convert XRGB -> BGR triplets */
         uint32_t x;
         for (x = 0; x < width; x++) {
             uint32_t px = src[x];
@@ -407,7 +407,7 @@ int bmp_decode_to_fb(const char *path, int dest_x, int dest_y)
             return BMP_EIO;
         }
 
-        /* BMP bottom-up → framebuffer row */
+        /* BMP bottom-up -> framebuffer row */
         int fb_y = top_down ? (dest_y + (int)y)
                             : (dest_y + (int)(height - 1 - y));
         if (fb_y < 0 || fb_y >= VGA_GFX_HEIGHT)

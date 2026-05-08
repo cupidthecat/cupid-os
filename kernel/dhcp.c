@@ -24,7 +24,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  options[312];
 } bootp_t;
 
-/* 0x63538263 — the four magic-cookie bytes 0x63,0x82,0x53,0x63 in
+/* 0x63538263 - the four magic-cookie bytes 0x63,0x82,0x53,0x63 in
  * little-endian memory order as a uint32_t. */
 #define DHCP_MAGIC       0x63538263u
 
@@ -45,7 +45,7 @@ typedef struct __attribute__((packed)) {
 
 static uint16_t dhcp_be16(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
 
-/* DHCP RX intercept state — populated by dhcp_rx_intercept. */
+/* DHCP RX intercept state - populated by dhcp_rx_intercept. */
 static volatile bool     dhcp_got_reply   = false;
 static bootp_t           dhcp_reply_buf;
 static volatile uint32_t dhcp_reply_len   = 0;
@@ -80,12 +80,12 @@ static void send_dhcp_raw(net_if_t *nif, const bootp_t *b) {
     uint8_t pkt[14u + 20u + 8u + sizeof(bootp_t)];
     uint32_t i;
 
-    /* --- Ethernet header --- */
+    /* Ethernet header */
     for (i = 0u; i < 6u; i++) pkt[i] = 0xFFu;           /* dst: broadcast */
     for (i = 0u; i < 6u; i++) pkt[6u + i] = nif->mac[i]; /* src: our MAC */
     pkt[12] = 0x08u; pkt[13] = 0x00u;                    /* EtherType IPv4 */
 
-    /* --- IPv4 header --- */
+    /* IPv4 header */
     uint8_t *ip = pkt + 14u;
     ip[0]  = 0x45u; ip[1] = 0u;
     uint16_t tl = (uint16_t)(20u + 8u + sizeof(bootp_t));
@@ -99,7 +99,7 @@ static void send_dhcp_raw(net_if_t *nif, const bootp_t *b) {
     uint16_t c = ip_csum_helper(ip, 20u);
     ip[10] = (uint8_t)(c >> 8); ip[11] = (uint8_t)(c & 0xFFu);
 
-    /* --- UDP header --- */
+    /* UDP header */
     uint8_t *u = pkt + 14u + 20u;
     u[0] = 0u;   u[1] = 68u;  /* src port 68 */
     u[2] = 0u;   u[3] = 67u;  /* dst port 67 */
@@ -107,7 +107,7 @@ static void send_dhcp_raw(net_if_t *nif, const bootp_t *b) {
     u[4] = (uint8_t)(ulen >> 8); u[5] = (uint8_t)(ulen & 0xFFu);
     u[6] = 0u;   u[7] = 0u;   /* checksum 0 = omitted */
 
-    /* --- BOOTP payload --- */
+    /* BOOTP payload */
     const uint8_t *bsrc = (const uint8_t *)b;
     uint8_t *bdst = pkt + 14u + 20u + 8u;
     for (i = 0u; i < sizeof(bootp_t); i++) bdst[i] = bsrc[i];
@@ -232,7 +232,7 @@ bool dhcp_start(net_if_t *nif) {
 
     int attempt;
     for (attempt = 0; attempt < 3; attempt++) {
-        /* --- DISCOVER --- */
+        /* DISCOVER */
         bootp_t disc;
         build_bootp(&disc, nif, xid, (uint8_t)DHCP_DISCOVER, 0u, 0u);
         dhcp_got_reply = false;
@@ -250,7 +250,7 @@ bool dhcp_start(net_if_t *nif) {
 
         uint32_t offered_ip = dhcp_reply_buf.yiaddr;
 
-        /* --- REQUEST --- */
+        /* REQUEST */
         bootp_t req;
         build_bootp(&req, nif, xid, (uint8_t)DHCP_REQUEST, offered_ip, server_id);
         dhcp_got_reply = false;

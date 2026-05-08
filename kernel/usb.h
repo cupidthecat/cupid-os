@@ -56,7 +56,7 @@ int usb_control(usb_device_t *dev, uint8_t bmRequestType, uint8_t bRequest,
 void usb_device_remove(usb_device_t *dev);
 
 /* Register a shared USB IRQ dispatcher for the given IRQ line.
- * Safe to call multiple times with the same irq — installs only once.
+ * Safe to call multiple times with the same irq - installs only once.
  * HCs sharing an IRQ line must use this instead of irq_install_handler
  * directly so all HC irq_handler callbacks are invoked on each firing. */
 void usb_register_irq(uint8_t irq);

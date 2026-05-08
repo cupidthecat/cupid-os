@@ -22,7 +22,7 @@ extern void idt_load_ap(void);
 void ap_main_c(void);
 
 static void pit_udelay(uint32_t microseconds) {
-    /* Rough calibrated delay — 100 loop ops ~= 1us on QEMU. */
+    /* Rough calibrated delay - 100 loop ops ~= 1us on QEMU. */
     for (volatile uint32_t i = 0; i < microseconds * 100u; i++) { }
 }
 
@@ -37,7 +37,7 @@ static void start_ap(int cpu_id) {
     lapic_send_ipi(c->apic_id, 0, LAPIC_DELIVER_INIT);
     pit_udelay(10000);
 
-    /* SIPI 1 — vector = physical page of trampoline / 0x1000 = 0x08 */
+    /* SIPI 1 - vector = physical page of trampoline / 0x1000 = 0x08 */
     lapic_send_ipi(c->apic_id, 0x08, LAPIC_DELIVER_STARTUP);
     pit_udelay(200);
 
@@ -57,10 +57,10 @@ void smp_init(void) {
     if (!mp_ok || mp_cpu_discovered_count < 2) {
         if (!acpi_discover()) {
             if (!mp_ok) {
-                KWARN("smp: no MP/ACPI — uniprocessor");
+                KWARN("smp: no MP/ACPI - uniprocessor");
                 return;
             }
-            /* mp_ok but only 1 CPU — genuine uniprocessor, continue. */
+            /* mp_ok but only 1 CPU - genuine uniprocessor, continue. */
         }
     }
 
@@ -105,7 +105,7 @@ void smp_init(void) {
         stk_top = stk_base + 16 * 1024;
         stk_tbl[i] = (uint32_t)stk_top;
         cpus[i].idle_stack_top = stk_top;
-        /* Use trampoline data segment (0x10) as a placeholder GS — the
+        /* Use trampoline data segment (0x10) as a placeholder GS - the
          * trampoline GDT has only 3 entries so per-CPU selectors (index 5+)
          * would #GP.  percpu_load_kernel_gdt() fixes GS once the kernel
          * GDT is loaded. */
@@ -129,7 +129,7 @@ void smp_init(void) {
 #define IPI_CALL       0xF1
 #define IPI_PANIC      0xFE
 
-/* Naked ISR wrappers — minimal save/restore for IPI vectors. */
+/* Naked ISR wrappers - minimal save/restore for IPI vectors. */
 __attribute__((naked))
 static void ipi_reschedule_stub(void) {
     __asm__ volatile(
@@ -166,7 +166,7 @@ void ipi_reschedule_c(void) {
      * calling schedule() from within an ISR path where BKL reentry
      * + context switch is complex. */
     per_cpu_t *c = this_cpu();
-    /* Force quantum expiry — existing scheduler honors this. */
+    /* Force quantum expiry - existing scheduler honors this. */
     /* Don't hold BKL here; scheduler.c will acquire it on next tick. */
     (void)c;
 }

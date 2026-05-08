@@ -37,9 +37,8 @@ typedef struct {
     ramfs_node_t *readdir_cur;  /* For directory enumeration */
 } ramfs_handle_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Internal helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Internal helpers
+ *  */
 
 static ramfs_node_t *ramfs_alloc_node(const char *name, uint8_t type) {
     ramfs_node_t *n = kmalloc(sizeof(ramfs_node_t));
@@ -171,9 +170,8 @@ static ramfs_node_t *ramfs_mkdirs(ramfs_node_t *root, const char *path,
     return cur;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations implementation
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  VFS operations implementation
+ *  */
 
 static int ramfs_mount(const char *source, void **fs_private) {
     (void)source;
@@ -417,9 +415,8 @@ static int ramfs_unlink(void *fs_private, const char *path) {
     return VFS_OK;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VFS operations struct
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  VFS operations struct
+ *  */
 
 static vfs_fs_ops_t ramfs_ops = {
     .name     = "ramfs",
@@ -440,9 +437,8 @@ vfs_fs_ops_t *ramfs_get_ops(void) {
     return &ramfs_ops;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public helper: add pre-populated file
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Public helper: add pre-populated file
+ *  */
 
 int ramfs_add_file(void *fs_private, const char *path,
                    const void *data, uint32_t size) {

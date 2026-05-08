@@ -4,12 +4,11 @@
 #include "types.h"
 #include "vfs.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  ramfs.h - In-memory filesystem for CupidOS
+/*  *  ramfs.h - In-memory filesystem for CupidOS
  *
  *  Provides a simple RAM-based filesystem with directory tree support.
  *  Used for /, /bin, /tmp mount points.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 #define RAMFS_MAX_FILES   128
 #define RAMFS_MAX_DATA    (64 * 1024)  /* 64KB max per file */

@@ -7,7 +7,7 @@
 #include "cpu.h"
 #include "../drivers/timer.h"
 
-/* Pseudo-random 32-bit ISS from TSC. Off-path cannot observe → not spoofable.
+/* Pseudo-random 32-bit ISS from TSC. Off-path cannot observe -> not spoofable.
  * Mixes low TSC bits, a shifted copy, and a per-slot golden-ratio scramble. */
 static uint32_t tcp_gen_iss(uint32_t salt) {
     uint64_t t1 = rdtsc();
@@ -60,8 +60,10 @@ static uint16_t tcp_csum(uint32_t src_ip, uint32_t dst_ip,
     return (uint16_t)(~sum & 0xFFFFu);
 }
 
-/* Build + send a TCP segment. Caller holds BKL or is in net_process_pending. */
-static int tcp_send_seg(socket_t *s, uint8_t flags, const uint8_t *data, uint32_t dlen) {
+/* Low-level emit at an explicit seq. Does NOT advance snd_nxt or buffer for
+ * retransmit. Used for retransmission and pure-ACK packets. */
+static int tcp_emit(socket_t *s, uint32_t seq, uint8_t flags,
+                    const uint8_t *data, uint32_t dlen) {
     net_if_t *nif = net_if_primary();
     uint8_t pkt[20u + TCP_MSS];
     tcp_hdr_t *h;
@@ -72,11 +74,21 @@ static int tcp_send_seg(socket_t *s, uint8_t flags, const uint8_t *data, uint32_
     h = (tcp_hdr_t*)pkt;
     h->src_port  = be16(s->local_port);
     h->dst_port  = be16(s->remote_port);
-    h->seq       = be32(s->snd_nxt);
+    h->seq       = be32(seq);
     h->ack       = be32(s->rcv_nxt);
     h->data_off  = (uint8_t)(5u << 4);
     h->flags     = flags;
-    h->window    = be16(8192u);
+    /* Advertise actual free rx-buffer space, capped at 65535 since we
+     * don't implement TCP window scaling. Reserve 1 byte so head==tail
+     * always means empty (matches the rx_buf invariant in tcp_input). */
+    {
+        uint32_t used;
+        uint32_t freeb;
+        if (s->rx_tail >= s->rx_head) used = s->rx_tail - s->rx_head;
+        else used = SOCK_RX_BUF - s->rx_head + s->rx_tail;
+        freeb = (used + 1u < SOCK_RX_BUF) ? (SOCK_RX_BUF - 1u - used) : 0u;
+        h->window = be16((uint16_t)((freeb > 65535u) ? 65535u : freeb));
+    }
     h->checksum  = 0;
     h->urgent    = 0;
     for (i = 0; i < dlen; i++) pkt[20u + i] = data[i];
@@ -85,11 +97,29 @@ static int tcp_send_seg(socket_t *s, uint8_t flags, const uint8_t *data, uint32_
                   s->remote_ip, pkt, 20u + dlen);
     h->checksum = be16(cs);
 
+    return ipv4_send(s->remote_ip, IP_PROTO_TCP, pkt, 20u + dlen);
+}
+
+/* Build + send a TCP segment. Caller holds BKL or is in net_process_pending.
+ * Advances snd_nxt and, for PSH+data segments, buffers payload for
+ * stop-and-wait retransmission via tcp_tick. */
+static int tcp_send_seg(socket_t *s, uint8_t flags, const uint8_t *data, uint32_t dlen) {
+    uint32_t seq = s->snd_nxt;
+    int r;
+    if (dlen > TCP_MSS) dlen = TCP_MSS;
+    if (dlen > 0u && (flags & TCP_PSH)) {
+        uint32_t k;
+        for (k = 0; k < dlen; k++) s->rt_buf[k] = data[k];
+        s->rt_len = dlen;
+        s->rt_seq = seq;
+        s->rt_send_tick = timer_get_uptime_ms();
+        s->rt_attempts = 0;
+    }
+    r = tcp_emit(s, seq, flags, data, dlen);
     if (flags & TCP_SYN) s->snd_nxt++;
     if (flags & TCP_FIN) s->snd_nxt++;
     s->snd_nxt += dlen;
-
-    return ipv4_send(s->remote_ip, IP_PROTO_TCP, pkt, 20u + dlen);
+    return r;
 }
 
 int tcp_connect(int fd, uint32_t ip, uint16_t port) {
@@ -132,22 +162,35 @@ int tcp_connect(int fd, uint32_t ip, uint16_t port) {
 
 int tcp_send(int fd, const uint8_t *buf, uint32_t len) {
     uint32_t sent;
+    uint32_t start;
     if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
-    bkl_lock();
-    {
-        socket_t *s = &sockets[fd];
-        if (!s->in_use || s->type != SOCK_TYPE_TCP || s->tcp_state != TCPS_ESTABLISHED) {
-            bkl_unlock(); return EBADF;
+    sent = 0;
+    start = timer_get_uptime_ms();
+    while (sent < len) {
+        socket_t *s;
+        uint32_t chunk;
+        uint32_t pi;
+        bkl_lock();
+        s = &sockets[fd];
+        if (!s->in_use || s->type != SOCK_TYPE_TCP) { bkl_unlock(); return EBADF; }
+        if (s->tcp_state != TCPS_ESTABLISHED) {
+            bkl_unlock();
+            return (sent > 0u) ? (int)sent : ECONNRESET;
         }
-        sent = 0;
-        while (sent < len) {
-            uint32_t chunk = len - sent;
+        /* Stop-and-wait: only one PSH segment may be in flight at a time. */
+        if (s->rt_len == 0u) {
+            chunk = len - sent;
             if (chunk > TCP_MSS) chunk = TCP_MSS;
             tcp_send_seg(s, (uint8_t)(TCP_ACK | TCP_PSH), buf + sent, chunk);
             sent += chunk;
+            bkl_unlock();
+            continue;
         }
+        bkl_unlock();
+        if (timer_get_uptime_ms() - start > 30000u) return ETIMEDOUT_SOCK;
+        for (pi = 0; pi < 1000u; pi++) __asm__ volatile("pause");
+        schedule();
     }
-    bkl_unlock();
     return (int)sent;
 }
 
@@ -343,12 +386,13 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
                 if (!l->lq[si].in_use) { slot = si; break; }
             }
             if (slot < 0) return;
-            l->lq[slot].ip        = src_ip;
-            l->lq[slot].port      = src_port;
-            l->lq[slot].iss       = tcp_gen_iss((uint32_t)slot);
-            l->lq[slot].rcv_nxt   = seq + 1u;
-            l->lq[slot].completed = 0;
-            l->lq[slot].in_use    = 1;
+            l->lq[slot].ip          = src_ip;
+            l->lq[slot].port        = src_port;
+            l->lq[slot].iss         = tcp_gen_iss((uint32_t)slot);
+            l->lq[slot].rcv_nxt     = seq + 1u;
+            l->lq[slot].inserted_ms = timer_get_uptime_ms();
+            l->lq[slot].completed   = 0;
+            l->lq[slot].in_use      = 1;
             {
                 socket_t tmp;
                 uint32_t k;
@@ -403,10 +447,16 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
 
     if (s->tcp_state == TCPS_ESTABLISHED) {
         uint32_t dlen = len - hlen;
+        /* Clear in-flight retransmit buffer once peer ACKs it. */
+        if ((flags & TCP_ACK) && s->rt_len > 0u
+            && (int32_t)(ack - (s->rt_seq + s->rt_len)) >= 0) {
+            s->rt_len = 0u;
+            s->rt_attempts = 0u;
+        }
         if (seq == s->rcv_nxt && dlen > 0u) {
             uint32_t used, free_bytes;
             /* Capacity check: reserve 1 byte so head==tail always means empty.
-             * If no room, don't advance rcv_nxt and don't consume — ACK
+             * If no room, don't advance rcv_nxt and don't consume - ACK
              * carrying unchanged rcv_nxt triggers peer retransmit. */
             if (s->rx_tail >= s->rx_head) used = s->rx_tail - s->rx_head;
             else used = SOCK_RX_BUF - s->rx_head + s->rx_tail;
@@ -448,6 +498,9 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
     }
 }
 
+#define TCP_RT_MAX_ATTEMPTS 5u
+#define TCP_LQ_HALF_OPEN_TIMEOUT_MS 30000u
+
 void tcp_tick(void) {
     uint32_t now = timer_get_uptime_ms();
     int i;
@@ -460,6 +513,32 @@ void tcp_tick(void) {
             s->snd_nxt = s->snd_iss;
             tcp_send_seg(s, TCP_SYN, NULL, 0);
             s->last_rexmit_tick = now;
+        }
+        /* Data retransmit: stop-and-wait, exponential backoff. */
+        if (s->tcp_state == TCPS_ESTABLISHED && s->rt_len > 0u) {
+            uint32_t rto = (uint32_t)TCP_RTO_MS << s->rt_attempts;
+            if (now - s->rt_send_tick > rto) {
+                if (s->rt_attempts >= TCP_RT_MAX_ATTEMPTS) {
+                    s->tcp_state = TCPS_CLOSED;
+                    s->rt_len = 0u;
+                } else {
+                    tcp_emit(s, s->rt_seq, (uint8_t)(TCP_ACK | TCP_PSH),
+                             s->rt_buf, s->rt_len);
+                    s->rt_send_tick = now;
+                    s->rt_attempts++;
+                }
+            }
+        }
+        /* Listen-queue half-open eviction: drop SYN-RCVD slots that never
+         * completed the 3-way handshake within timeout. */
+        if (s->tcp_state == TCPS_LISTEN) {
+            int j;
+            for (j = 0; j < LQ_SIZE; j++) {
+                if (s->lq[j].in_use && !s->lq[j].completed &&
+                    now - s->lq[j].inserted_ms > TCP_LQ_HALF_OPEN_TIMEOUT_MS) {
+                    s->lq[j].in_use = 0;
+                }
+            }
         }
         if (s->tcp_state == TCPS_TIME_WAIT &&
             now - s->time_wait_start > TCP_TIME_WAIT_MS) {

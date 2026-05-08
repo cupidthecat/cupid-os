@@ -115,8 +115,7 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     return 0;
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Phase D: printf %f support.
+/*  * Phase D: printf %f support.
  *
  * str_floor: truncate toward -infinity via x87 FRNDINT with a
  * rounding-mode swap (RC=01, round down). Kept `static` so Phase E's
@@ -126,8 +125,8 @@ int memcmp(const void* s1, const void* s2, size_t n) {
  * Exposed to the kernel's printf-like functions (serial_printf,
  * cc_print_builtin, klog, cc_printline_builtin) so that %f / %.Nf
  * behave identically everywhere.  Handles NaN, ±Inf, negative, zero,
- * and rollover (0.999 → 1.000).
- * ────────────────────────────────────────────────────────────────── */
+ * and rollover (0.999 -> 1.000).
+ *  */
 
 static double str_floor(double x) {
     double r;
@@ -197,7 +196,7 @@ int fmt_f(char *out, int out_max, double v, int prec) {
     }
     uint64_t frac_int = (uint64_t)str_floor(frac_part * scale + 0.5);
 
-    /* Handle rollover (0.9999 with prec=3 → 1.000). */
+    /* Handle rollover (0.9999 with prec=3 -> 1.000). */
     uint64_t scale_i = (uint64_t)scale;
     if (frac_int >= scale_i) {
         int_part++;
@@ -238,15 +237,14 @@ int fmt_f(char *out, int out_max, double v, int prec) {
     return n;
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Phase D: printf %e support.
+/*  * Phase D: printf %e support.
  *
  * fmt_e: write `v` to `out` in scientific notation with `prec`
  * fractional digits.  Mantissa is normalized to [1, 10) by repeated
  * /10 or *10 while tracking the exponent, then emitted via fmt_f.  The
  * exponent is written as 'e' + sign + two digits.
  * Handles NaN, ±Inf, negative, and zero (special-cased as 0.<zeros>e+00).
- * ────────────────────────────────────────────────────────────────── */
+ *  */
 
 int fmt_e(char *out, int out_max, double v, int prec) {
     int n = 0;
@@ -306,14 +304,13 @@ int fmt_e(char *out, int out_max, double v, int prec) {
     return n;
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Phase D: printf %g support.
+/*  * Phase D: printf %g support.
  *
  * fmt_g: format `v` both as %f and %e at the same precision, copy the
  * shorter result into `out`.  On a tie we prefer the %f rendering.
  * Shares fmt_f / fmt_e so NaN / ±Inf / sign / zero handling stays
  * consistent with the individual converters.
- * ────────────────────────────────────────────────────────────────── */
+ *  */
 
 /* Format double in '%g' style: shorter of %f vs %e.
  * If equal length, prefer %f. */

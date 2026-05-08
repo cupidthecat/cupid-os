@@ -4,7 +4,7 @@
 #include "types.h"
 #include "isr.h"
 
-/* Panic – never returns.  Prints message to VGA + serial, halts CPU. */
+/* Panic - never returns.  Prints message to VGA + serial, halts CPU. */
 void kernel_panic(const char *fmt, ...) __attribute__((noreturn));
 
 /* Panic with register context (called from ISR / exception paths). */

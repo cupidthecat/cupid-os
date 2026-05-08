@@ -49,7 +49,7 @@ void paging_map_mmio(uint32_t phys_addr, uint32_t size) {
         uint32_t table_index     = (addr >> 12) & 0x3FF;
         uint32_t *table = get_page_table(directory_index);
         if (!table) return;
-        /* PWT | PCD (bits 3+4) disable caching — required for MMIO */
+        /* PWT | PCD (bits 3+4) disable caching - required for MMIO */
         table[table_index] = (addr & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW | (1u<<3) | (1u<<4);
     }
 }

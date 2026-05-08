@@ -11,7 +11,7 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;
 } udp_hdr_t;
 
-/* Socket dispatch hook — filled in T10 by socket.c. */
+/* Socket dispatch hook - filled in T10 by socket.c. */
 void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,
                         uint16_t dst_port, const uint8_t *data, uint32_t dlen);
 __attribute__((weak)) void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,

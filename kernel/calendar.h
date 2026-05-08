@@ -15,7 +15,7 @@
 /* Maximum number of date notes tracked at once */
 #define CALENDAR_MAX_NOTES  32
 
-/* A single date note: year/month/day → VFS paths */
+/* A single date note: year/month/day -> VFS paths */
 typedef struct {
     int  year;
     int  month;  /* 1-12 */

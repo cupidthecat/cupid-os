@@ -189,7 +189,7 @@ job_t *job_find_by_pid(job_table_t *table, uint32_t pid) {
     return NULL;
 }
 
-/* Parse job spec: %1 → 1, %2 → 2, etc. */
+/* Parse job spec: %1 -> 1, %2 -> 2, etc. */
 int job_parse_spec(const char *spec) {
     if (!spec || spec[0] != '%') return -1;
 

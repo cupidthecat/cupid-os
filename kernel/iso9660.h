@@ -1,4 +1,4 @@
-/* kernel/iso9660.h — ECMA-119 + Rock Ridge (SUSP/RRIP) parser.
+/* kernel/iso9660.h - ECMA-119 + Rock Ridge (SUSP/RRIP) parser.
  * Pure functions over block_device_t. No VFS coupling.
  * All strings are null-terminated ASCII. Rock Ridge NM records
  * may contain arbitrary bytes; non-ASCII is preserved but lookups
@@ -29,7 +29,7 @@ typedef struct {
     bool     is_dir;
     /* For directory iteration (readdir): */
     uint32_t dir_walk_offset;  /* byte offset within the directory's extent */
-    void    *owner;   /* opaque — iso9660_vfs stores slot* here */
+    void    *owner;   /* opaque - iso9660_vfs stores slot* here */
 } iso9660_file_t;
 
 /* Parse the PVD at LBA 16 and populate `m`. Returns 0 on success,
