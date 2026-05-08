@@ -288,6 +288,87 @@ void js_console_log_top_n(int argc) {
 void js_eval_expr(int node);
 void js_eval_stmt(int node);
 
+int js_alloc_object(int kind) {
+    if (jobj_count >= MAX_JS_OBJS) { js_set_err("js: object pool full"); return -1; }
+    int o = jobj_count;
+    jobj_kind[o] = kind;
+    jobj_first_prop[o] = -1;
+    jobj_arr_len[o] = 0;
+    jobj_count = o + 1;
+    return o;
+}
+
+void js_push_obj(int obj_idx) {
+    js_push_undef();
+    int t = jvs_top - 1;
+    jvs_tag[t] = JS_VAL_OBJ;
+    jvs_obj_idx[t] = obj_idx;
+}
+void js_push_arr(int obj_idx) {
+    js_push_undef();
+    int t = jvs_top - 1;
+    jvs_tag[t] = JS_VAL_ARR;
+    jvs_obj_idx[t] = obj_idx;
+}
+
+/* Find property `key` on object `obj`. Returns property index or -1. */
+int js_obj_find_prop(int obj, int key_off, int key_len) {
+    int p = jobj_first_prop[obj];
+    while (p >= 0) {
+        if (js_str_eq(jp_key_off[p], jp_key_len[p], key_off, key_len)) return p;
+        p = jp_next[p];
+    }
+    return -1;
+}
+
+int js_obj_set_prop_from_top(int obj, int key_off, int key_len) {
+    int p = js_obj_find_prop(obj, key_off, key_len);
+    if (p < 0) {
+        if (jp_count >= MAX_JS_PROPS) { js_set_err("js: prop pool full"); return -1; }
+        p = jp_count;
+        jp_key_off[p] = key_off;
+        jp_key_len[p] = key_len;
+        jp_next[p] = jobj_first_prop[obj];
+        jobj_first_prop[obj] = p;
+        jp_count = p + 1;
+    }
+    int t = jvs_top - 1;
+    jp_tag    [p] = jvs_tag[t];
+    jp_num    [p] = jvs_num[t];
+    jp_str_off[p] = jvs_str_off[t];
+    jp_str_len[p] = jvs_str_len[t];
+    jp_obj_idx[p] = jvs_obj_idx[t];
+    jp_dom_idx[p] = jvs_dom_idx[t];
+    return p;
+}
+
+void js_push_from_prop(int p) {
+    js_push_undef();
+    int t = jvs_top - 1;
+    jvs_tag[t]     = jp_tag[p];
+    jvs_num[t]     = jp_num[p];
+    jvs_str_off[t] = jp_str_off[p];
+    jvs_str_len[t] = jp_str_len[p];
+    jvs_obj_idx[t] = jp_obj_idx[p];
+    jvs_dom_idx[t] = jp_dom_idx[p];
+}
+
+/* For [obj][index]: convert TOS to a string key; returns interned offset. */
+int js_index_top_to_key(int *out_off, int *out_len) {
+    int t = jvs_top - 1;
+    if (jvs_tag[t] == JS_VAL_STR) {
+        *out_off = jvs_str_off[t];
+        *out_len = jvs_str_len[t];
+        return 0;
+    }
+    char buf[64];
+    int n = js_to_string_at(t, buf, 64);
+    int off = js_str_intern(buf, n);
+    *out_off = off;
+    *out_len = n;
+    return 0;
+}
+
 int js_alloc_function(int param_first, int body, int captured_scope) {
     if (jfn_count >= MAX_JS_FUNCS) { js_set_err("js: function pool full"); return -1; }
     int f = jfn_count;
@@ -414,18 +495,93 @@ void js_eval_call(int node) {
 }
 
 void js_assign_to_target(int target_node) {
-    /* Top of stack holds the rvalue. Look up / create binding for
-     * IDENT targets; member/index targets are deferred to F1d. */
+    /* Top of stack holds the rvalue. */
     if (target_node < 0) { js_pop(); return; }
     int kind = jn_kind[target_node];
     if (kind == JS_NODE_IDENT) {
         int o = jn_a[target_node]; int l = jn_b[target_node];
         int b = js_lookup_binding(jsc_cur, o, l);
         if (b < 0) {
-            /* Implicit global - create at root scope (jsc 0). */
+            /* Implicit global - create at root scope. */
             b = js_binding_alloc(0, o, l);
         }
         if (b >= 0) js_binding_set_from_top(b);
+        return;
+    }
+    if (kind == JS_NODE_MEMBER) {
+        /* Save rvalue, evaluate object, restore rvalue on top. */
+        int rv_pos = jvs_top - 1;
+        js_eval_expr(jn_a[target_node]);
+        int obj_top = jvs_top - 1;
+        int koff = jn_b[target_node]; int klen = jn_c[target_node];
+        int tag = jvs_tag[obj_top];
+        int oi  = jvs_obj_idx[obj_top];
+        if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {
+            /* Move rvalue to top of stack (it's at rv_pos, currently
+             * shadowed by the object). Swap so the rvalue sits at top. */
+            int srct = jvs_tag[rv_pos];
+            double srcn = jvs_num[rv_pos];
+            int srcs_o = jvs_str_off[rv_pos];
+            int srcs_l = jvs_str_len[rv_pos];
+            int srco   = jvs_obj_idx[rv_pos];
+            int srcd   = jvs_dom_idx[rv_pos];
+            /* Top now is obj; we want rvalue on top so set_prop_from_top sees it. */
+            jvs_tag[obj_top]     = srct;
+            jvs_num[obj_top]     = srcn;
+            jvs_str_off[obj_top] = srcs_o;
+            jvs_str_len[obj_top] = srcs_l;
+            jvs_obj_idx[obj_top] = srco;
+            jvs_dom_idx[obj_top] = srcd;
+            js_obj_set_prop_from_top(oi, koff, klen);
+            jvs_top = rv_pos;        /* leave rvalue at original slot */
+            jvs_tag[rv_pos]     = srct;
+            jvs_num[rv_pos]     = srcn;
+            jvs_str_off[rv_pos] = srcs_o;
+            jvs_str_len[rv_pos] = srcs_l;
+            jvs_obj_idx[rv_pos] = srco;
+            jvs_dom_idx[rv_pos] = srcd;
+            jvs_top = rv_pos + 1;
+            return;
+        }
+        jvs_top = rv_pos + 1;
+        js_pop();
+        return;
+    }
+    if (kind == JS_NODE_INDEX) {
+        int rv_pos = jvs_top - 1;
+        js_eval_expr(jn_a[target_node]);
+        int obj_top = jvs_top - 1;
+        int otag = jvs_tag[obj_top];
+        int oi   = jvs_obj_idx[obj_top];
+        js_eval_expr(jn_b[target_node]);
+        int koff; int klen;
+        js_index_top_to_key(&koff, &klen);
+        jvs_top = obj_top + 1;       /* drop key, leave object on top */
+        if (otag == JS_VAL_OBJ || otag == JS_VAL_ARR) {
+            int srct = jvs_tag[rv_pos];
+            double srcn = jvs_num[rv_pos];
+            int srcs_o = jvs_str_off[rv_pos];
+            int srcs_l = jvs_str_len[rv_pos];
+            int srco   = jvs_obj_idx[rv_pos];
+            int srcd   = jvs_dom_idx[rv_pos];
+            jvs_tag[obj_top]     = srct;
+            jvs_num[obj_top]     = srcn;
+            jvs_str_off[obj_top] = srcs_o;
+            jvs_str_len[obj_top] = srcs_l;
+            jvs_obj_idx[obj_top] = srco;
+            jvs_dom_idx[obj_top] = srcd;
+            js_obj_set_prop_from_top(oi, koff, klen);
+            jvs_top = rv_pos + 1;
+            jvs_tag[rv_pos]     = srct;
+            jvs_num[rv_pos]     = srcn;
+            jvs_str_off[rv_pos] = srcs_o;
+            jvs_str_len[rv_pos] = srcs_l;
+            jvs_obj_idx[rv_pos] = srco;
+            jvs_dom_idx[rv_pos] = srcd;
+            return;
+        }
+        jvs_top = rv_pos + 1;
+        js_pop();
         return;
     }
     js_set_err("js: assignment target unsupported");
@@ -609,7 +765,86 @@ void js_eval_expr(int node) {
         js_push_func(fn);
         return;
     }
-    /* MEMBER/INDEX/ARR/OBJ: F1d */
+    if (k == JS_NODE_ARR_LIT) {
+        int o = js_alloc_object(1);
+        if (o < 0) { js_push_undef(); return; }
+        int e = jn_a[node];
+        int i = 0;
+        char keybuf[16];
+        while (e >= 0) {
+            js_eval_expr(e);
+            int kn = js_format_num((double)i, keybuf, 16);
+            int koff = js_str_intern(keybuf, kn);
+            js_obj_set_prop_from_top(o, koff, kn);
+            js_pop();
+            i = i + 1;
+            e = jn_next[e];
+        }
+        jobj_arr_len[o] = i;
+        js_push_arr(o);
+        return;
+    }
+    if (k == JS_NODE_OBJ_LIT) {
+        int o = js_alloc_object(0);
+        if (o < 0) { js_push_undef(); return; }
+        int prop = jn_a[node];
+        while (prop >= 0) {
+            int koff = jn_a[prop];
+            int klen = jn_b[prop];
+            int val = jn_c[prop];
+            js_eval_expr(val);
+            js_obj_set_prop_from_top(o, koff, klen);
+            js_pop();
+            prop = jn_next[prop];
+        }
+        js_push_obj(o);
+        return;
+    }
+    if (k == JS_NODE_MEMBER) {
+        js_eval_expr(jn_a[node]);
+        int t = jvs_top - 1;
+        int koff = jn_b[node]; int klen = jn_c[node];
+        int tag = jvs_tag[t];
+        /* arrays expose .length */
+        if (tag == JS_VAL_ARR && klen == 6 &&
+            js_str_eq(koff, klen, js_str_intern("length", 6), 6)) {
+            double n = (double)jobj_arr_len[jvs_obj_idx[t]];
+            jvs_top = t;
+            js_push_num(n);
+            return;
+        }
+        if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {
+            int p = js_obj_find_prop(jvs_obj_idx[t], koff, klen);
+            jvs_top = t;
+            if (p >= 0) js_push_from_prop(p); else js_push_undef();
+            return;
+        }
+        jvs_top = t;
+        js_push_undef();
+        return;
+    }
+    if (k == JS_NODE_INDEX) {
+        js_eval_expr(jn_a[node]);
+        int obj_top = jvs_top - 1;
+        js_eval_expr(jn_b[node]);
+        int koff; int klen;
+        js_index_top_to_key(&koff, &klen);
+        int tag = jvs_tag[obj_top];
+        int oi = jvs_obj_idx[obj_top];
+        jvs_top = obj_top;
+        if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {
+            if (tag == JS_VAL_ARR && klen == 6 &&
+                js_str_eq(koff, klen, js_str_intern("length", 6), 6)) {
+                js_push_num((double)jobj_arr_len[oi]);
+                return;
+            }
+            int p = js_obj_find_prop(oi, koff, klen);
+            if (p >= 0) js_push_from_prop(p); else js_push_undef();
+            return;
+        }
+        js_push_undef();
+        return;
+    }
     js_set_err("js: unsupported expression");
     js_push_undef();
 }

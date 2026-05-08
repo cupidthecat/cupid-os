@@ -165,6 +165,8 @@ enum {
     MAX_JS_BINDINGS = 1024,
     MAX_JS_SCOPES = 256,
     MAX_JS_FUNCS  = 256,
+    MAX_JS_OBJS   = 512,
+    MAX_JS_PROPS  = 4096,
 
     /* JS value tags */
     JS_VAL_UNDEF = 0,
@@ -503,6 +505,25 @@ int    jfn_captured_scope [256];
 int    jfn_native_id      [256];   /* -1 for user functions, >=0 native */
 int    jfn_count;
 
+/* §7 JS object pool. Plain objects and arrays share storage; arrays
+ * carry an extra arr_len. Properties hang off jobj_first_prop[] as a
+ * singly-linked list through jp_next[]. */
+int    jobj_kind     [512];        /* 0=plain, 1=array */
+int    jobj_first_prop[512];
+int    jobj_arr_len  [512];
+int    jobj_count;
+
+int    jp_key_off [4096];
+int    jp_key_len [4096];
+int    jp_tag     [4096];
+double jp_num     [4096];
+int    jp_str_off [4096];
+int    jp_str_len [4096];
+int    jp_obj_idx [4096];
+int    jp_dom_idx [4096];
+int    jp_next    [4096];
+int    jp_count;
+
 /* history */
 char hist_url_pool[16384];
 int  hist_count;
@@ -557,6 +578,8 @@ void browser_main() {
     jsc_cur = -1;
     js_ctrl_signal = 0;
     jfn_count = 0;
+    jobj_count = 0;
+    jp_count = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {
