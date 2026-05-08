@@ -202,6 +202,15 @@ enum {
     JS_TOK_KW_NULL, JS_TOK_KW_UNDEFINED,
     JS_TOK_KW_NEW, JS_TOK_KW_TYPEOF,
 
+    /* JS native function IDs */
+    JS_NATIVE_DOC_GET_ELEMENT_BY_ID = 1,
+    JS_NATIVE_DOC_CREATE_ELEMENT,
+    JS_NATIVE_DOC_QUERY_SELECTOR,
+    JS_NATIVE_EL_GET_ATTRIBUTE,
+    JS_NATIVE_EL_SET_ATTRIBUTE,
+    JS_NATIVE_EL_APPEND_CHILD,
+    JS_NATIVE_EL_REMOVE,
+
     /* JS AST node kinds */
     JS_NODE_NONE = 0,
     JS_NODE_NUM, JS_NODE_STR, JS_NODE_BOOL, JS_NODE_NULL, JS_NODE_UNDEF,
@@ -496,6 +505,18 @@ int    jsc_cur;             /* index of the active frame */
 /* Statement result codes propagated up the eval tree. */
 int    js_ctrl_signal;      /* 0 normal, 1 break, 2 continue, 3 return */
 
+/* Implicit `this` for the currently-being-prepared method call. Set by
+ * js_eval_call when the callee comes from MEMBER on a DOMNODE/object.
+ * Native function bodies read these instead of an explicit receiver
+ * argument. */
+int    jsd_this_tag;
+int    jsd_this_dom_idx;
+int    jsd_this_obj_idx;
+
+/* Set true once dom_dirty becomes 1 in this page; parser.cc reflows
+ * the document after queued scripts run. */
+int    dom_dirty;
+
 /* §7 JS function records. A function value carries an int handle
  * into these parallel arrays. captured_scope is the scope frame
  * active when the function was defined (closure). */
@@ -580,6 +601,10 @@ void browser_main() {
     jfn_count = 0;
     jobj_count = 0;
     jp_count = 0;
+    jsd_this_tag = JS_VAL_UNDEF;
+    jsd_this_dom_idx = -1;
+    jsd_this_obj_idx = -1;
+    dom_dirty = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

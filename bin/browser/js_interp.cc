@@ -435,8 +435,8 @@ void js_call_user_function(int fn_idx, int argc) {
 
 void js_eval_call(int node) {
     int callee = jn_a[node];
-    /* Special-case console.log syntactically (F1b legacy) until a
-     * proper object/property infra exists in F1d. */
+    /* Special-case console.log syntactically: there is no console
+     * global at runtime, so the regular MEMBER path can't find it. */
     int handled_console_log = 0;
     if (callee >= 0 && jn_kind[callee] == JS_NODE_MEMBER) {
         int obj = jn_a[callee];
@@ -453,10 +453,37 @@ void js_eval_call(int node) {
             }
         }
     }
-    /* Evaluate callee (unless console.log shortcut) and args. */
-    int saved = jvs_top;
-    if (!handled_console_log) js_eval_expr(callee);
+    /* If the callee is a MEMBER expression on a value, capture the
+     * receiver before evaluating - the property lookup eats the
+     * object off the stack. */
+    int has_this = 0;
+    int this_tag = JS_VAL_UNDEF;
+    int this_dom_idx = -1;
+    int this_obj_idx = -1;
+    if (!handled_console_log && callee >= 0 && jn_kind[callee] == JS_NODE_MEMBER) {
+        js_eval_expr(jn_a[callee]);
+        int rt = jvs_top - 1;
+        this_tag     = jvs_tag[rt];
+        this_dom_idx = jvs_dom_idx[rt];
+        this_obj_idx = jvs_obj_idx[rt];
+        has_this = 1;
+        int koff = jn_b[callee]; int klen = jn_c[callee];
+        if (this_tag == JS_VAL_DOMNODE) {
+            jvs_top = rt;
+            jsd_dom_member_get(this_dom_idx, koff, klen);
+        } else if (this_tag == JS_VAL_OBJ || this_tag == JS_VAL_ARR) {
+            int p = js_obj_find_prop(this_obj_idx, koff, klen);
+            jvs_top = rt;
+            if (p >= 0) js_push_from_prop(p); else js_push_undef();
+        } else {
+            jvs_top = rt;
+            js_push_undef();
+        }
+    } else if (!handled_console_log) {
+        js_eval_expr(callee);
+    }
     int callee_top = jvs_top - 1;
+    int saved_before_args = jvs_top;
     int argc = 0;
     int arg = jn_b[node];
     while (arg >= 0) {
@@ -466,15 +493,13 @@ void js_eval_call(int node) {
     }
     if (handled_console_log) {
         js_console_log_top_n(argc);
-        jvs_top = saved;
+        jvs_top = saved_before_args - argc;       /* drop args + (no callee) */
         js_push_undef();
         return;
     }
-    /* Inspect callee value */
     int ctag = jvs_tag[callee_top];
     if (ctag == JS_VAL_FUNC) {
         int fn_idx = jvs_obj_idx[callee_top];
-        /* Drop callee from the stack so args become contiguous at top. */
         for (int k = 0; k < argc; k++) {
             int dst = callee_top + k;
             int src = callee_top + 1 + k;
@@ -489,7 +514,33 @@ void js_eval_call(int node) {
         js_call_user_function(fn_idx, argc);
         return;
     }
-    jvs_top = saved;
+    if (ctag == JS_VAL_NATIVE) {
+        int native_id = jvs_native_id[callee_top];
+        /* Make args contiguous at top. */
+        for (int k = 0; k < argc; k++) {
+            int dst = callee_top + k;
+            int src = callee_top + 1 + k;
+            jvs_tag[dst]     = jvs_tag[src];
+            jvs_num[dst]     = jvs_num[src];
+            jvs_str_off[dst] = jvs_str_off[src];
+            jvs_str_len[dst] = jvs_str_len[src];
+            jvs_obj_idx[dst] = jvs_obj_idx[src];
+            jvs_dom_idx[dst] = jvs_dom_idx[src];
+        }
+        jvs_top = callee_top + argc;
+        if (has_this) {
+            jsd_this_tag = this_tag;
+            jsd_this_dom_idx = this_dom_idx;
+            jsd_this_obj_idx = this_obj_idx;
+        } else {
+            jsd_this_tag = JS_VAL_UNDEF;
+            jsd_this_dom_idx = -1;
+            jsd_this_obj_idx = -1;
+        }
+        js_native_call(native_id, argc);
+        return;
+    }
+    jvs_top = callee_top;
     js_set_err("js: callee is not a function");
     js_push_undef();
 }
@@ -811,6 +862,12 @@ void js_eval_expr(int node) {
             double n = (double)jobj_arr_len[jvs_obj_idx[t]];
             jvs_top = t;
             js_push_num(n);
+            return;
+        }
+        if (tag == JS_VAL_DOMNODE) {
+            int dom_idx = jvs_dom_idx[t];
+            jvs_top = t;
+            jsd_dom_member_get(dom_idx, koff, klen);
             return;
         }
         if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {

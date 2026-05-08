@@ -663,10 +663,19 @@ void parse_html(int html_len) {
     serial_printf("[browser] rt: %d nodes\n", rt_count);
 
     /* §7 run queued <script> blocks now that the DOM, computed styles,
-     * and render tree exist. F1a: lex/parse/dump only. Subsequent
-     * phases will route DOM mutations back through style+layout. */
+     * and render tree exist. js_install_globals() exposes window /
+     * document / document.body / document.getElementById. After all
+     * scripts run, if any of them set dom_dirty, re-run style + layout
+     * once so visible state reflects the mutation (one reflow per task). */
     if (js_script_count > 0) {
         serial_printf("[browser] js: running %d queued scripts\n", js_script_count);
+        js_install_globals();
         js_run_queued_scripts();
+        if (dom_dirty) {
+            style_resolve_all();
+            build_render_tree();
+            run_layout();
+            dom_dirty = 0;
+        }
     }
 }
