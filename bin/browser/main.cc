@@ -164,6 +164,7 @@ enum {
     MAX_JS_VS     = 1024,   /* value stack depth */
     MAX_JS_BINDINGS = 1024,
     MAX_JS_SCOPES = 256,
+    MAX_JS_FUNCS  = 256,
 
     /* JS value tags */
     JS_VAL_UNDEF = 0,
@@ -493,6 +494,15 @@ int    jsc_cur;             /* index of the active frame */
 /* Statement result codes propagated up the eval tree. */
 int    js_ctrl_signal;      /* 0 normal, 1 break, 2 continue, 3 return */
 
+/* §7 JS function records. A function value carries an int handle
+ * into these parallel arrays. captured_scope is the scope frame
+ * active when the function was defined (closure). */
+int    jfn_param_first    [256];
+int    jfn_body           [256];
+int    jfn_captured_scope [256];
+int    jfn_native_id      [256];   /* -1 for user functions, >=0 native */
+int    jfn_count;
+
 /* history */
 char hist_url_pool[16384];
 int  hist_count;
@@ -546,6 +556,7 @@ void browser_main() {
     jsc_top = 0;
     jsc_cur = -1;
     js_ctrl_signal = 0;
+    jfn_count = 0;
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

@@ -288,11 +288,74 @@ void js_console_log_top_n(int argc) {
 void js_eval_expr(int node);
 void js_eval_stmt(int node);
 
+int js_alloc_function(int param_first, int body, int captured_scope) {
+    if (jfn_count >= MAX_JS_FUNCS) { js_set_err("js: function pool full"); return -1; }
+    int f = jfn_count;
+    jfn_param_first[f]    = param_first;
+    jfn_body[f]           = body;
+    jfn_captured_scope[f] = captured_scope;
+    jfn_native_id[f]      = -1;
+    jfn_count = f + 1;
+    return f;
+}
+
+void js_push_func(int fn_idx) {
+    js_push_undef();
+    int t = jvs_top - 1;
+    jvs_tag[t] = JS_VAL_FUNC;
+    jvs_obj_idx[t] = fn_idx;
+}
+
+void js_call_user_function(int fn_idx, int argc) {
+    /* args sit at [jvs_top-argc .. jvs_top-1]. Build a fresh scope
+     * frame parented to the function's captured scope (closure), bind
+     * each param, run the body, restore caller scope. */
+    int saved_scope = jsc_cur;
+    int new_scope = js_scope_enter(jfn_captured_scope[fn_idx]);
+    if (new_scope < 0) { jvs_top = jvs_top - argc; js_push_undef(); return; }
+    jsc_cur = new_scope;
+    /* bind params */
+    int p = jfn_param_first[fn_idx];
+    int i = 0;
+    while (p >= 0) {
+        int o = jn_a[p]; int l = jn_b[p];
+        int b = js_binding_alloc(new_scope, o, l);
+        if (i < argc && b >= 0) {
+            int src = jvs_top - argc + i;
+            jb_tag[b]      = jvs_tag[src];
+            jb_num[b]      = jvs_num[src];
+            jb_str_off[b]  = jvs_str_off[src];
+            jb_str_len[b]  = jvs_str_len[src];
+            jb_obj_idx[b]  = jvs_obj_idx[src];
+            jb_dom_idx[b]  = jvs_dom_idx[src];
+        }
+        p = jn_next[p];
+        i = i + 1;
+    }
+    /* drop args */
+    jvs_top = jvs_top - argc;
+    /* execute body */
+    int saved_signal = js_ctrl_signal;
+    js_ctrl_signal = 0;
+    int saved_vs_top = jvs_top;
+    js_eval_stmt(jfn_body[fn_idx]);
+    /* if RETURN signaled, top of stack already holds the return value. */
+    if (js_ctrl_signal != 3) {
+        /* fell off end - push undefined */
+        if (jvs_top == saved_vs_top) js_push_undef();
+        else {
+            /* stray values on stack from expr stmts - drop them */
+            while (jvs_top > saved_vs_top + 1) js_pop();
+        }
+    }
+    js_ctrl_signal = saved_signal;
+    jsc_cur = saved_scope;
+}
+
 void js_eval_call(int node) {
-    /* F1b only supports console.log. Detect callee = MEMBER on
-     * IDENT("console") with key "log". Other calls evaluate args
-     * (for side effects) and push undefined. */
     int callee = jn_a[node];
+    /* Special-case console.log syntactically (F1b legacy) until a
+     * proper object/property infra exists in F1d. */
     int handled_console_log = 0;
     if (callee >= 0 && jn_kind[callee] == JS_NODE_MEMBER) {
         int obj = jn_a[callee];
@@ -309,10 +372,12 @@ void js_eval_call(int node) {
             }
         }
     }
-    /* Evaluate args (left-to-right). */
+    /* Evaluate callee (unless console.log shortcut) and args. */
+    int saved = jvs_top;
+    if (!handled_console_log) js_eval_expr(callee);
+    int callee_top = jvs_top - 1;
     int argc = 0;
     int arg = jn_b[node];
-    int saved = jvs_top;
     while (arg >= 0) {
         js_eval_expr(arg);
         arg = jn_next[arg];
@@ -324,8 +389,27 @@ void js_eval_call(int node) {
         js_push_undef();
         return;
     }
+    /* Inspect callee value */
+    int ctag = jvs_tag[callee_top];
+    if (ctag == JS_VAL_FUNC) {
+        int fn_idx = jvs_obj_idx[callee_top];
+        /* Drop callee from the stack so args become contiguous at top. */
+        for (int k = 0; k < argc; k++) {
+            int dst = callee_top + k;
+            int src = callee_top + 1 + k;
+            jvs_tag[dst]     = jvs_tag[src];
+            jvs_num[dst]     = jvs_num[src];
+            jvs_str_off[dst] = jvs_str_off[src];
+            jvs_str_len[dst] = jvs_str_len[src];
+            jvs_obj_idx[dst] = jvs_obj_idx[src];
+            jvs_dom_idx[dst] = jvs_dom_idx[src];
+        }
+        jvs_top = callee_top + argc;
+        js_call_user_function(fn_idx, argc);
+        return;
+    }
     jvs_top = saved;
-    js_set_err("js: only console.log() is supported in F1b");
+    js_set_err("js: callee is not a function");
     js_push_undef();
 }
 
@@ -519,8 +603,14 @@ void js_eval_expr(int node) {
         return;
     }
     if (k == JS_NODE_CALL) { js_eval_call(node); return; }
-    /* MEMBER/INDEX/ARR/OBJ/FUNC: F1c+ */
-    js_set_err("js: unsupported expression in F1b");
+    if (k == JS_NODE_FUNC_EXPR) {
+        int fn = js_alloc_function(jn_c[node], jn_d[node], jsc_cur);
+        if (fn < 0) { js_push_undef(); return; }
+        js_push_func(fn);
+        return;
+    }
+    /* MEMBER/INDEX/ARR/OBJ: F1d */
+    js_set_err("js: unsupported expression");
     js_push_undef();
 }
 
@@ -616,8 +706,21 @@ void js_eval_stmt(int node) {
         js_ctrl_signal = 3;
         return;
     }
-    /* function decl / func expr / etc: F1c */
-    if (k == JS_NODE_FUNC_DECL) { js_set_err("js: functions land in F1c"); return; }
+    if (k == JS_NODE_FUNC_DECL) {
+        int fn = js_alloc_function(jn_c[node], jn_d[node], jsc_cur);
+        if (fn < 0) return;
+        int o = jn_a[node]; int l = jn_b[node];
+        if (o >= 0 && l > 0) {
+            int b = js_lookup_binding(jsc_cur, o, l);
+            if (b < 0) b = js_binding_alloc(jsc_cur, o, l);
+            if (b >= 0) {
+                jb_tag[b]      = JS_VAL_FUNC;
+                jb_num[b]      = 0.0;
+                jb_obj_idx[b]  = fn;
+            }
+        }
+        return;
+    }
 }
 
 void js_exec_program(int root) {
