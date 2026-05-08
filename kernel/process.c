@@ -87,18 +87,16 @@ static uint32_t process_create_common(void (*entry_point)(void),
                                       uint32_t arg,
                                       process_domain_t domain);
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Trampoline: if a process entry function returns, we land here
+/* Trampoline: if a process entry function returns, we land here
  *  and call process_exit() to clean up.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 static void process_exit_trampoline(void) {
     process_exit();
     while (1) { __asm__ volatile("hlt"); }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Idle process - PID 1, always present
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Idle process - PID 1, always present
+ *  */
 static void idle_process(void) {
     while (1) {
         /* Check if a reschedule was requested by the timer IRQ.
@@ -111,9 +109,8 @@ static void idle_process(void) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  find_free_slot
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  find_free_slot
+ *  */
 static uint32_t find_free_slot(void) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].pid == 0) {
@@ -153,9 +150,8 @@ static void process_reap_terminated(void) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_init
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_init
+ *  */
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
     this_cpu()->current_pid = 0;
@@ -171,9 +167,8 @@ void process_init(void) {
     KINFO("Process subsystem initialized (idle PID 1)");
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_create
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_create
+ *  */
 static uint32_t process_create_common_locked(void (*entry_point)(void),
                                              const char *name,
                                              uint32_t stack_size,
@@ -309,10 +304,9 @@ uint32_t process_create_ex(void (*entry_point)(void),
                                  domain);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_create_with_arg - like process_create but pushes one
+/*  *  process_create_with_arg - like process_create but pushes one
  *  uint32_t argument onto the stack so the entry function receives it.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,
                                  uint32_t stack_size,
@@ -330,9 +324,8 @@ uint32_t process_create_with_arg_ex(void (*entry_point)(void),
                                  domain);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_exit
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_exit
+ *  */
 void process_exit(void) {
     bkl_lock();
 
@@ -373,9 +366,8 @@ void process_exit(void) {
     while (1) { __asm__ volatile("hlt"); }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_yield
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_yield
+ *  */
 void process_yield(void) {
     if (!scheduler_active || this_cpu()->current_pid == 0) return;
     extern void kernel_clear_reschedule(void);
@@ -383,16 +375,14 @@ void process_yield(void) {
     schedule();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_get_current_pid
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_get_current_pid
+ *  */
 uint32_t process_get_current_pid(void) {
     return this_cpu()->current_pid;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_kill
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_kill
+ *  */
 void process_kill(uint32_t pid) {
     if (pid == 0 || pid == 1) {
         KWARN("Cannot kill PID %u", pid);
@@ -464,9 +454,8 @@ void process_kill(uint32_t pid) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_get_state - return state of a process by PID
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_get_state - return state of a process by PID
+ *  */
 int process_get_state(uint32_t pid) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].pid == pid && pid != 0) {
@@ -476,9 +465,8 @@ int process_get_state(uint32_t pid) {
     return -1; /* Not found */
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_list - `ps` shell command
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_list - `ps` shell command
+ *  */
 void process_list(void) {
     process_reap_terminated();
 
@@ -535,13 +523,12 @@ void process_list(void) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_list_adam - TempleOS-style task tree
+/*  *  process_list_adam - TempleOS-style task tree
  *
  *  Adam is the root task. Every process is a descendant. Group by
  *  domain (kernel/hosted/external). No parent tracking, so the tree
  *  is two levels deep: Adam > domain > process.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 void process_list_adam(void) {
     process_reap_terminated();
 
@@ -608,8 +595,7 @@ void process_list_adam(void) {
     print(" task(s) under Adam\n");
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  schedule - Round-robin context switch
+/*  *  schedule - Round-robin context switch
  *
  *  1. Find the next READY process (round-robin, fallback to idle)
  *  2. If different from current, call the assembly context_switch()
@@ -620,7 +606,7 @@ void process_list_adam(void) {
  *  jumps to context_switch_resume which pops the saved regs and
  *  returns normally - so schedule() returns to its caller as if
  *  nothing happened.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 /* schedule_locked - called with BKL held (or from context before BKL exists).
  * Does the actual round-robin pick and context switch. */
 static void schedule_locked(void) {
@@ -654,7 +640,7 @@ static void schedule_locked(void) {
         }
     }
 
-    /* ── Find next READY process (round-robin) ────────────────────── */
+    /*  Find next READY process (round-robin)  */
     process_t *next = NULL;
     uint32_t searches = 0;
 
@@ -691,7 +677,7 @@ static void schedule_locked(void) {
         return;
     }
 
-    /* ── Perform context switch ───────────────────────────────────── */
+    /*  Perform context switch  */
     uint32_t old_pid = cur_pid;
     this_cpu()->current_pid = next->pid;
     next->state    = PROCESS_RUNNING;
@@ -746,9 +732,8 @@ void schedule(void) {
     bkl_unlock();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Utility queries
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Utility queries
+ *  */
 bool process_is_active(void) {
     return scheduler_active;
 }
@@ -773,13 +758,12 @@ void process_start_scheduler(void) {
     KINFO("Scheduler started (%u processes)", process_count);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_register_current - Register the already-running thread
+/*  *  process_register_current - Register the already-running thread
  *
  *  Used to add the kernel main thread (desktop loop) to the process
  *  table so the scheduler can properly save and restore its context.
  *  Does NOT allocate a stack - the kernel stack is managed externally.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 uint32_t process_register_current(const char *name) {
     process_reap_terminated();
 
@@ -834,13 +818,12 @@ const char *process_domain_name(process_domain_t domain) {
     return domain_names[domain];
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_block / process_unblock - Suspend/resume a READY process
+/*  *  process_block / process_unblock - Suspend/resume a READY process
  *
  *  Used by the JIT region manager (shell.c) to prevent a process from
  *  being scheduled while the shared JIT code region contains code that
  *  belongs to a different process.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 void process_block(uint32_t pid) {
     if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;
     bkl_lock();
@@ -861,13 +844,17 @@ void process_unblock(uint32_t pid) {
     bkl_unlock();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  process_set_image - Associate an ELF image region with a process
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  process_set_image - Associate an ELF image region with a process
+ *  */
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
     if (pid == 0 || pid > MAX_PROCESSES) return;
+    bkl_lock();
     process_t *p = &process_table[pid - 1];
-    if (p->pid != pid) return;
+    if (p->pid != pid) { bkl_unlock(); return; }
+    /* Publish size = 0 first so any concurrent reader that observes the
+     * new base before size sees an empty region rather than a stale pair. */
+    p->image_size = 0;
     p->image_base = base;
     p->image_size = size;
+    bkl_unlock();
 }

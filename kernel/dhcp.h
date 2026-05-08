@@ -5,7 +5,7 @@
 #include "net_if.h"
 
 /* Blocks up to ~3s. Returns true on success (net_if populated),
- * false on timeout — caller has already had static fallback applied. */
+ * false on timeout - caller has already had static fallback applied. */
 bool dhcp_start(net_if_t *nif);
 
 /* Called from udp_input when dst_port == 68. Returns true if consumed. */

@@ -146,7 +146,8 @@ int dns_resolve(const char *name, uint32_t *ipv4_out) {
     query[o++] = 0x00u; query[o++] = 0x01u;   /* QTYPE = A */
     query[o++] = 0x00u; query[o++] = 0x01u;   /* QCLASS = IN */
 
-    if (socket_sendto(fd, query, (uint32_t)o, nif->ipv4_dns, 53u) < 0) {
+    /* socket_sendto expects port in network byte order (BSD convention). */
+    if (socket_sendto(fd, query, (uint32_t)o, nif->ipv4_dns, htons(53u)) < 0) {
         socket_close(fd);
         return -1;
     }

@@ -133,6 +133,16 @@ int elf_exec(const char *path, const char *proc_name) {
         if (phdrs[i].p_type != ELF_PT_LOAD) continue;
         if (phdrs[i].p_memsz == 0) continue;
 
+        /* Guard against crafted phdr where p_vaddr + p_memsz wraps u32 and
+         * bypasses the max_vaddr range check below. */
+        if (phdrs[i].p_memsz > IDENTITY_MAP_SIZE ||
+            phdrs[i].p_vaddr > IDENTITY_MAP_SIZE - phdrs[i].p_memsz) {
+            vfs_close(fd);
+            serial_printf("[elf] phdr %u out of range (vaddr=0x%x memsz=0x%x) in %s\n",
+                          (uint32_t)i, phdrs[i].p_vaddr, phdrs[i].p_memsz, path);
+            return VFS_EINVAL;
+        }
+
         load_count++;
 
         if (phdrs[i].p_vaddr < min_vaddr) {
@@ -162,14 +172,14 @@ int elf_exec(const char *path, const char *proc_name) {
                   path, load_count, min_vaddr, max_vaddr, total_size);
 
     /* Sanity check: the vaddr range must be within identity-mapped memory
-     * and must not overlap with the kernel or critical regions.
-     * We require vaddr >= 0x00400000 (4MB) to stay above kernel+heap+bss,
-     * and the entire range must fit within the 32MB identity map.
-     * (Kernel occupies 0x10000-~0x37000; user programs must be above that.) */
-    if (min_vaddr < 0x00400000) {
+     * and must not overlap with the kernel BSS.  Kernel _end now lives
+     * past 0x00474000 (with embedded ramfs assets), so user programs must
+     * load >= 0x00500000 to avoid clobbering kernel state.  The CupidC
+     * JIT region sits at 0x00600000+ for the same reason. */
+    if (min_vaddr < 0x00500000) {
         vfs_close(fd);
         serial_printf("[elf] Load address too low (0x%x) in %s - "
-                      "relink with -Ttext=0x00400000\n",
+                      "relink with -Ttext=0x00600000\n",
                       min_vaddr, path);
         return VFS_EINVAL;
     }
@@ -284,7 +294,14 @@ int cupd_exec(const char *path, const char *proc_name) {
         return VFS_EINVAL;
     }
 
-    /* Validate sizes */
+    /* Validate sizes - bound each field first so the sum below cannot wrap u32. */
+    if (hdr.code_size > EXEC_MAX_SIZE ||
+        hdr.data_size > EXEC_MAX_SIZE ||
+        hdr.bss_size  > EXEC_MAX_SIZE) {
+        vfs_close(fd);
+        serial_printf("[cupd] Section size out of range in %s\n", path);
+        return VFS_EINVAL;
+    }
     uint32_t total = hdr.code_size + hdr.data_size + hdr.bss_size;
     if (total == 0 || total > EXEC_MAX_SIZE) {
         vfs_close(fd);

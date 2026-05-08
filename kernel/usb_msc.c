@@ -51,7 +51,7 @@ static int msc_bulk_transfer(msc_state_t *st, uint8_t dir, uint8_t ep,
     t.dir = dir; t.endpoint = (uint8_t)(ep & 0x0Fu); t.device_addr = st->dev->address;
     t.max_packet = maxpkt; t.speed = st->dev->speed;
     t.data_toggle = *toggle;
-    /* HC buffer is uint8_t*; safe cast — HC does not modify OUT data */
+    /* HC buffer is uint8_t*; safe cast - HC does not modify OUT data */
     t.buffer = (uint8_t *)(uint32_t)buf; t.length = len;
     t.tt_hub_addr = st->dev->tt_hub_addr; t.tt_port = st->dev->tt_port;
     int r = st->dev->hc->submit_sync(st->dev->hc, &t, 2000);

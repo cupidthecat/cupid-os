@@ -156,7 +156,7 @@ void vga_flip(void) {
   if (!back_buffer)
     return;
 
-  /* Single-buffer present: copy back_buffer → page 0 (always displayed).
+  /* Single-buffer present: copy back_buffer -> page 0 (always displayed).
    * No Y_OFFSET flip - eliminates the port I/O that triggers a full QEMU
    * display re-render on every frame, including expensive software scaling
    * in QEMU fullscreen mode. */

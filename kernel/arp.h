@@ -20,4 +20,8 @@ void arp_dump(void);
  * ips[], macs[] for up to max entries. macs[i][0..5] = 6-byte MAC. */
 int arp_get_entries(uint32_t *ips, uint8_t macs[][6], int max);
 
+/* Periodic GC: evict entries older than ARP_TTL_MS. Called from
+ * net_process_pending(). */
+void arp_tick(void);
+
 #endif

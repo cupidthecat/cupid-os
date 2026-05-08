@@ -18,7 +18,7 @@ static volatile uint32_t rx_head = 0;
 static volatile uint32_t rx_tail = 0;
 
 int net_if_register(net_if_t *nif) {
-    if (registered_nif) { KWARN("net: multiple NICs — only primary used"); return -1; }
+    if (registered_nif) { KWARN("net: multiple NICs - only primary used"); return -1; }
     registered_nif = nif;
     KINFO("net: registered %s mac=%x:%x:%x:%x:%x:%x",
           nif->name, nif->mac[0], nif->mac[1], nif->mac[2],
@@ -57,6 +57,7 @@ void net_process_pending(void) {
         rx_tail = (rx_tail + 1u) % NET_RX_RING_SIZE;
     }
     tcp_tick();
+    arp_tick();
 }
 
 extern void rtl8139_probe(void);

@@ -261,7 +261,7 @@ static uint8_t cc_xmm_modrm_disp32(int xmm) {
   return (uint8_t)(0x05 | ((xmm & 7) << 3));
 }
 
-/* MOVSS/MOVSD xmm, [disp32] — load from absolute data-segment address. */
+/* MOVSS/MOVSD xmm, [disp32] - load from absolute data-segment address. */
 static void emit_movss_xmm_disp32(cc_state_t *cc, int xmm, uint32_t addr) {
   emit8(cc, 0xF3); /* SS prefix */
   emit8(cc, 0x0F);
@@ -277,7 +277,7 @@ static void emit_movsd_xmm_disp32(cc_state_t *cc, int xmm, uint32_t addr) {
   emit32(cc, addr);
 }
 
-/* MOVSS/MOVSD xmm, [ebp + disp32] — load FP local/param into XMM reg. */
+/* MOVSS/MOVSD xmm, [ebp + disp32] - load FP local/param into XMM reg. */
 static void emit_movss_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -293,7 +293,7 @@ static void emit_movsd_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
   emit32(cc, (uint32_t)offset);
 }
 
-/* MOVSS/MOVSD [ebp + disp32], xmm — store XMM reg into FP local/param. */
+/* MOVSS/MOVSD [ebp + disp32], xmm - store XMM reg into FP local/param. */
 static void emit_movss_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -377,11 +377,11 @@ static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
   emit8(cc, (uint8_t)(0xC0 | ((dst & 7) << 3) | (src & 7)));
 }
 
-/* MOVUPS xmm, [ebp + disp32] — unaligned 16-byte load of SIMD local/param.
+/* MOVUPS xmm, [ebp + disp32] - unaligned 16-byte load of SIMD local/param.
  * Encoding: 0F 10 /r with ModR/M mod=10, reg=xmm, r/m=101 (EBP) + disp32.
  * Task 30: materializes a float4/double2 local into XMM0.
  * Task 31: switched from MOVAPS (0F 28) to MOVUPS (0F 10) because
- * [ebp + disp] alignment isn't guaranteed — Task 18's prologue does
+ * [ebp + disp] alignment isn't guaranteed - Task 18's prologue does
  * `push ebp; mov ebp, esp; and esp, -16`, which aligns ESP but leaves
  * EBP holding the pre-AND value (which is off by 4 from the aligned
  * boundary because of the PUSH EBP). MOVUPS tolerates unaligned
@@ -393,7 +393,7 @@ static void emit_movups_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
   emit32(cc, (uint32_t)offset);
 }
 
-/* MOVUPS [ebp + disp32], xmm — unaligned 16-byte store of SIMD XMM reg.
+/* MOVUPS [ebp + disp32], xmm - unaligned 16-byte store of SIMD XMM reg.
  * Encoding: 0F 11 /r with ModR/M mod=10, reg=xmm, r/m=101 (EBP) + disp32.
  * Task 30: reserved for full-vector stores; init-list codegen currently
  * stores element-by-element via MOVSS/MOVSD.
@@ -456,7 +456,7 @@ static uint32_t cc_emit_data_bytes(cc_state_t *cc, const uint8_t *bytes,
  * `(int)3.7` must yield 3, not the current-rounding-mode result.
  */
 
-/* CVTSI2SS xmm, EAX — int in EAX to float in xmm. */
+/* CVTSI2SS xmm, EAX - int in EAX to float in xmm. */
 static void emit_cvtsi2ss(cc_state_t *cc, int xmm) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -465,7 +465,7 @@ static void emit_cvtsi2ss(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)(0xC0 | ((xmm & 7) << 3) | 0));
 }
 
-/* CVTSI2SD xmm, EAX — int in EAX to double in xmm. */
+/* CVTSI2SD xmm, EAX - int in EAX to double in xmm. */
 static void emit_cvtsi2sd(cc_state_t *cc, int xmm) {
   emit8(cc, 0xF2);
   emit8(cc, 0x0F);
@@ -473,7 +473,7 @@ static void emit_cvtsi2sd(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)(0xC0 | ((xmm & 7) << 3) | 0));
 }
 
-/* CVTTSS2SI EAX, xmm — truncating float to int (EAX). */
+/* CVTTSS2SI EAX, xmm - truncating float to int (EAX). */
 static void emit_cvttss2si(cc_state_t *cc, int xmm) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -482,7 +482,7 @@ static void emit_cvttss2si(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)(0xC0 | (0 << 3) | (xmm & 7)));
 }
 
-/* CVTTSD2SI EAX, xmm — truncating double to int (EAX). */
+/* CVTTSD2SI EAX, xmm - truncating double to int (EAX). */
 static void emit_cvttsd2si(cc_state_t *cc, int xmm) {
   emit8(cc, 0xF2);
   emit8(cc, 0x0F);
@@ -490,7 +490,7 @@ static void emit_cvttsd2si(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)(0xC0 | (0 << 3) | (xmm & 7)));
 }
 
-/* CVTSS2SD xmm_dst, xmm_src — float to double (scalar, in XMM). */
+/* CVTSS2SD xmm_dst, xmm_src - float to double (scalar, in XMM). */
 static void emit_cvtss2sd(cc_state_t *cc, int xmm_dst, int xmm_src) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -498,7 +498,7 @@ static void emit_cvtss2sd(cc_state_t *cc, int xmm_dst, int xmm_src) {
   emit8(cc, (uint8_t)(0xC0 | ((xmm_dst & 7) << 3) | (xmm_src & 7)));
 }
 
-/* CVTSD2SS xmm_dst, xmm_src — double to float (scalar, in XMM). */
+/* CVTSD2SS xmm_dst, xmm_src - double to float (scalar, in XMM). */
 static void emit_cvtsd2ss(cc_state_t *cc, int xmm_dst, int xmm_src) {
   emit8(cc, 0xF2);
   emit8(cc, 0x0F);
@@ -631,7 +631,7 @@ static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
 /* XMM register allocator for floating-point expression evaluation.
  * Reset at the start of each function. XMM0-7 available. Spilling (when
- * all 8 are in use) is not implemented — any expression too complex for
+ * all 8 are in use) is not implemented - any expression too complex for
  * 8 XMMs will cc_error.  In the current Task-16 scheme only XMM0/XMM1
  * are actually used, but we keep the general allocator ready for later
  * phases (SIMD, libm). */
@@ -1212,7 +1212,7 @@ static int cc_is_binary_op(cc_token_type_t t) { return cc_precedence(t) > 0; }
 
 /* Expression Parsing */
 
-/* Emit binary operation: EBX = left, EAX = right → result in EAX */
+/* Emit binary operation: EBX = left, EAX = right -> result in EAX */
 static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   /* Pop left operand into EBX */
   emit_pop_ebx(cc);
@@ -1240,7 +1240,7 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
     emit8(cc, 0xC1); /* mov ecx, eax */
     emit8(cc, 0x89);
     emit8(cc, 0xD8); /* mov eax, ebx */
-    emit8(cc, 0x99); /* cdq (sign-extend eax→edx:eax) */
+    emit8(cc, 0x99); /* cdq (sign-extend eax->edx:eax) */
     emit8(cc, 0xF7);
     emit8(cc, 0xF9); /* idiv ecx */
     break;
@@ -1375,13 +1375,12 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Task 32: SSE packed intrinsics (_mm_*_ps)
+/*  *  Task 32: SSE packed intrinsics (_mm_*_ps)
  *
  *  Recognized by identifier at call-expression parse time and inlined
  *  as a single SSE instruction (no function-call overhead). See
  *  kernel/simd_intrin.h for the user-facing declarations.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 /* Flag bits for cc_intrin_t.flags */
 #define CC_INTR_COMMUT    0x01  /* op is commutative: xmm0 <op>= xmm1      */
@@ -1401,7 +1400,7 @@ typedef struct {
 } cc_intrin_t;
 
 static const cc_intrin_t cc_intrin_table[] = {
-    /* Arithmetic (ADDPS/SUBPS/MULPS/DIVPS/MINPS/MAXPS) — all 0x0F xx.
+    /* Arithmetic (ADDPS/SUBPS/MULPS/DIVPS/MINPS/MAXPS) - all 0x0F xx.
      * ADDPS/MULPS/MINPS/MAXPS are commutative; SUBPS/DIVPS are not. */
     { "_mm_add_ps",    0x00, 0x58, 2, -1, CC_INTR_COMMUT },
     { "_mm_sub_ps",    0x00, 0x5C, 2, -1, 0 },
@@ -1411,7 +1410,7 @@ static const cc_intrin_t cc_intrin_table[] = {
     { "_mm_max_ps",    0x00, 0x5F, 2, -1, CC_INTR_COMMUT },
     { "_mm_sqrt_ps",   0x00, 0x51, 1, -1, 0 },
 
-    /* Bitwise (ANDPS/ORPS/XORPS) — all commutative. */
+    /* Bitwise (ANDPS/ORPS/XORPS) - all commutative. */
     { "_mm_and_ps",    0x00, 0x54, 2, -1, CC_INTR_COMMUT },
     { "_mm_or_ps",     0x00, 0x56, 2, -1, CC_INTR_COMMUT },
     { "_mm_xor_ps",    0x00, 0x57, 2, -1, CC_INTR_COMMUT },
@@ -1517,7 +1516,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
    * everything else takes a vector (float4/double2) first argument. */
   if (intr->flags & CC_INTR_SET1) {
     if (is_pd) {
-      /* _mm_set1_pd — broadcast a scalar double into both 64-bit lanes. */
+      /* _mm_set1_pd - broadcast a scalar double into both 64-bit lanes. */
       if (cc_last_expr_type == TYPE_INT) {
         /* Promote int to double via CVTSI2SD xmm0, eax. */
         emit_cvtsi2sd(cc, 0);
@@ -1532,7 +1531,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
         cc_error(cc, "_mm_set1_pd requires a double/float/int scalar argument");
         return;
       }
-      /* SHUFPD xmm0, xmm0, 0x00 : 66 0F C6 C0 00 — imm8=0 replicates the
+      /* SHUFPD xmm0, xmm0, 0x00 : 66 0F C6 C0 00 - imm8=0 replicates the
        * low 64-bit lane into both slots. */
       emit8(cc, 0x66);
       emit8(cc, 0x0F);
@@ -1582,7 +1581,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
     /* Unary: XMM0 = OP(XMM0).  Covers sqrt_ps/pd and movemask_ps. */
     if (intr->flags & CC_INTR_MOVEMASK) {
       /* MOVMSKPS eax, xmm0 : 0F 50 /r, reg=EAX=0, r/m=xmm0=0 -> 0xC0.
-       * Result is a 4-bit sign mask in EAX — type becomes int. */
+       * Result is a 4-bit sign mask in EAX - type becomes int. */
       emit8(cc, 0x0F);
       emit8(cc, 0x50);
       emit8(cc, 0xC0);
@@ -1613,7 +1612,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
 
   int dst, src;
   if (intr->flags & CC_INTR_COMMUT) {
-    /* Commutative: xmm0 <op>= xmm1 — result directly in XMM0. */
+    /* Commutative: xmm0 <op>= xmm1 - result directly in XMM0. */
     dst = 0;
     src = 1;
   } else if (intr->flags & CC_INTR_SWAP) {
@@ -1932,7 +1931,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     } else if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
       /* Task 30/31: load 16-byte SIMD local into XMM0 via MOVUPS.
        * (MOVUPS instead of MOVAPS because EBP-relative offsets aren't
-       * guaranteed 16-aligned under Task 18's prologue — see
+       * guaranteed 16-aligned under Task 18's prologue - see
        * emit_movups_xmm_local comment.)
        *
        * Task 31: if the next token is '.', extract a scalar element
@@ -1971,7 +1970,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
             return;
           }
           if (lane != 0) {
-            /* SHUFPS xmm0, xmm0, imm8 — broadcast lane `lane` to all four
+            /* SHUFPS xmm0, xmm0, imm8 - broadcast lane `lane` to all four
              * 32-bit slots of XMM0 so the scalar result sits in the low
              * lane. */
             uint8_t imm = (uint8_t)(lane | (lane << 2) |
@@ -1987,9 +1986,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           cc_last_xmm = 0;
         } else { /* TYPE_DOUBLE2 */
           if (field == 'x') {
-            /* lane 0 already in the low 8 bytes of XMM0 — no-op. */
+            /* lane 0 already in the low 8 bytes of XMM0 - no-op. */
           } else if (field == 'y') {
-            /* SHUFPD xmm0, xmm0, 0x01 — imm8 bit 0 selects src high
+            /* SHUFPD xmm0, xmm0, 0x01 - imm8 bit 0 selects src high
              * lane for dst low lane, so lane 1 ends up in the low
              * 8 bytes of XMM0 where scalar double math reads it. */
             emit8(cc, 0x66);
@@ -2213,7 +2212,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         }
         /* Any other type transition (int<->ptr, float<->ptr, etc.) is
          * a pure retag; the bit pattern in EAX is reused as-is.  FP
-         * to/from pointer via a cast is NOT supported — intermediate
+         * to/from pointer via a cast is NOT supported - intermediate
          * (int) cast is required. */
       }
       cc_last_expr_type = cast_type;
@@ -2530,7 +2529,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_expect(cc, CC_TOK_RPAREN);
 
         /* Reverse pushed args (same convention as normal calls).
-         * Task 18: size-aware swap — see cc_parse_ident_expr call-site
+         * Task 18: size-aware swap - see cc_parse_ident_expr call-site
          * for identical logic and rationale. */
         if (argc > 1) {
           int src_off[CC_MAX_PARAMS];
@@ -2856,7 +2855,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
       int need_default_reload = 1;
       if (ok && left_type != right_type) {
-        /* Mismatched types — need at least one conversion. */
+        /* Mismatched types - need at least one conversion. */
         if (!left_is_fp) {
           /* Case A/B: LHS int on stack (4 bytes via push eax),
            * RHS FP in XMM0.  Pop LHS, convert to promoted FP into XMM1.
@@ -3083,37 +3082,98 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
 
   cc_parse_expression(cc, 1);
 
-  /* SIMD assignment path — MOVUPS xmm0 to the 16-byte local.  Only plain
-   * '=' is supported; compound ops on float4/double2 are not a thing.
-   * RHS must be the same SIMD type — no implicit conversions across
-   * float4/double2.  This enables patterns like:
+  /* SIMD assignment path - MOVUPS xmm0 to the 16-byte destination.
+   * Plain '=' and the four arithmetic compound ops (+=, -=, *=, /=) are
+   * supported via the packed-vector instructions ADDPS/ADDPD etc.
+   * RHS must be the same SIMD type - no implicit conversions across
+   * float4/double2.  Locals, params, and globals are all valid targets;
+   * struct fields are not (would need l-value address computation).
    *    float4 s;
-   *    s = _mm_add_ps(a, b);
-   * where the intrinsic leaves its result in XMM0. */
+   *    s = _mm_add_ps(a, b);     // plain assign
+   *    s += other_v4;            // compound, packed-add
+   */
   if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
-    if (op.type != CC_TOK_EQ) {
-      cc_error(cc, "SIMD compound assignment not supported");
+    int simd_compound = (op.type == CC_TOK_PLUSEQ ||
+                         op.type == CC_TOK_MINUSEQ ||
+                         op.type == CC_TOK_STAREQ ||
+                         op.type == CC_TOK_SLASHEQ);
+    if (op.type != CC_TOK_EQ && !simd_compound) {
+      cc_error(cc, "SIMD compound op must be +=, -=, *=, or /=");
       return;
     }
     if (cc_last_expr_type != sym->type) {
       cc_error(cc, "SIMD assignment type mismatch");
       return;
     }
+
+    int is_pd = (sym->type == TYPE_DOUBLE2);
+
+    /* Compound: combine current value with RHS using packed op. */
+    if (simd_compound) {
+      /* Spill RHS (XMM0) into a 16-byte stack slot. */
+      emit8(cc, 0x83); emit8(cc, 0xEC); emit8(cc, 0x10); /* sub esp, 16 */
+      /* MOVUPS [esp], xmm0 : 0F 11 04 24 */
+      emit8(cc, 0x0F); emit8(cc, 0x11); emit8(cc, 0x04); emit8(cc, 0x24);
+
+      /* Load current LHS into XMM0. */
+      if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        emit_movups_xmm_local(cc, 0, sym->offset);
+      } else if (sym->kind == SYM_GLOBAL) {
+        /* MOVUPS xmm0, [disp32] : 0F 10 05 dd dd dd dd */
+        emit8(cc, 0x0F); emit8(cc, 0x10); emit8(cc, 0x05);
+        emit32(cc, sym->address);
+      } else {
+        cc_error(cc, "SIMD compound on unsupported symbol kind");
+        return;
+      }
+
+      /* Reload spilled RHS into XMM1 and free slot. */
+      /* MOVUPS xmm1, [esp] : 0F 10 0C 24 */
+      emit8(cc, 0x0F); emit8(cc, 0x10); emit8(cc, 0x0C); emit8(cc, 0x24);
+      emit8(cc, 0x83); emit8(cc, 0xC4); emit8(cc, 0x10); /* add esp, 16 */
+
+      /* Packed op: XMM0 = XMM0 OP XMM1.
+       * ADDPS/SUBPS/MULPS/DIVPS: 0F (58|5C|59|5E) /r
+       * ADDPD/SUBPD/MULPD/DIVPD: 66 0F same opcode /r */
+      uint8_t op_byte = 0;
+      switch (op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break;
+      }
+      if (is_pd) emit8(cc, 0x66);
+      emit8(cc, 0x0F);
+      emit8(cc, op_byte);
+      emit8(cc, 0xC1); /* mod=11, reg=0(xmm0), r/m=1(xmm1) */
+      cc_last_xmm = 0;
+    }
+
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_movups_local_xmm(cc, 0, sym->offset);
+    } else if (sym->kind == SYM_GLOBAL) {
+      /* MOVUPS [disp32], xmm0 : 0F 11 05 dd dd dd dd */
+      emit8(cc, 0x0F); emit8(cc, 0x11); emit8(cc, 0x05);
+      emit32(cc, sym->address);
     } else {
-      cc_error(cc, "SIMD assignment to non-local not supported");
+      cc_error(cc, "SIMD assignment to unsupported symbol kind");
     }
     return;
   }
 
-  /* FP assignment path — store XMM0 directly.  Only plain '=' is
-   * supported for FP; compound FP assignment (+=, -=, *=, /=) is still
-   * deferred to Task 18.  Task 17 allows implicit promotion of the RHS
-   * when it differs from the target's FP type. */
+  /* FP assignment path - store XMM0 to the destination.  Plain '=' and
+   * the four arithmetic compound ops (+=, -=, *=, /=) are supported.
+   * Bitwise/shift compound ops are rejected on FP types.  Task 17
+   * allows implicit promotion of the RHS when it differs from the
+   * target's FP type. */
   if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
-    if (op.type != CC_TOK_EQ) {
-      cc_error(cc, "FP compound assignment not yet supported (Task 18)");
+    int is_compound_fp = (op.type == CC_TOK_PLUSEQ ||
+                          op.type == CC_TOK_MINUSEQ ||
+                          op.type == CC_TOK_STAREQ ||
+                          op.type == CC_TOK_SLASHEQ);
+    if (op.type != CC_TOK_EQ && !is_compound_fp) {
+      cc_error(cc, "bitwise/shift compound assignment not valid on FP types");
       return;
     }
     /* Coerce RHS into the destination's FP type when possible. */
@@ -3140,14 +3200,59 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
         return;
       }
     }
+
+    int is_double = (sym->type == TYPE_DOUBLE);
+
+    /* Compound FP: combine current value of sym with the RHS already in
+     * XMM0.  Sequence: spill RHS, load LHS into XMM0, reload RHS into
+     * XMM1, op XMM0,XMM1, store.  All four ops use XMM0 as accumulator
+     * (XMM0 := XMM0 op XMM1) which matches the natural read direction
+     * for both commutative (+,*) and non-commutative (-,/) cases. */
+    if (is_compound_fp) {
+      /* Spill RHS (currently in XMM0). 8-byte slot keeps ESP aligned. */
+      emit8(cc, 0x83);
+      emit8(cc, 0xEC);
+      emit8(cc, 0x08); /* sub esp, 8 */
+      if (is_double) emit_movsd_esp_xmm(cc, 0);
+      else           emit_movss_esp_xmm(cc, 0);
+
+      /* Load current value of sym into XMM0. */
+      if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+        if (is_double) emit_movsd_xmm_local(cc, 0, sym->offset);
+        else           emit_movss_xmm_local(cc, 0, sym->offset);
+      } else if (sym->kind == SYM_GLOBAL) {
+        if (is_double) emit_movsd_xmm_disp32(cc, 0, sym->address);
+        else           emit_movss_xmm_disp32(cc, 0, sym->address);
+      } else {
+        cc_error(cc, "FP compound on unsupported symbol kind");
+        return;
+      }
+
+      /* Reload spilled RHS into XMM1, drop spill slot. */
+      if (is_double) emit_movsd_xmm_esp(cc, 1);
+      else           emit_movss_xmm_esp(cc, 1);
+      emit8(cc, 0x83);
+      emit8(cc, 0xC4);
+      emit8(cc, 0x08); /* add esp, 8 */
+
+      uint8_t op_byte = 0;
+      switch (op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break; /* unreachable */
+      }
+      emit_sse_scalar_op(cc, is_double, op_byte, 0, 1);
+      cc_last_xmm = 0;
+    }
+
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
-      if (sym->type == TYPE_DOUBLE)
-        emit_movsd_local_xmm(cc, 0, sym->offset);
-      else
-        emit_movss_local_xmm(cc, 0, sym->offset);
+      if (is_double) emit_movsd_local_xmm(cc, 0, sym->offset);
+      else           emit_movss_local_xmm(cc, 0, sym->offset);
     } else if (sym->kind == SYM_GLOBAL) {
       /* MOVSS/MOVSD [disp32], xmm0: prefix + 0F 11 /0 + mod=00,r/m=101 */
-      emit8(cc, sym->type == TYPE_DOUBLE ? 0xF2 : 0xF3);
+      emit8(cc, is_double ? 0xF2 : 0xF3);
       emit8(cc, 0x0F);
       emit8(cc, 0x11);
       emit8(cc, 0x05); /* mod=00, reg=0, r/m=101 (disp32) */
@@ -3549,7 +3654,7 @@ static void cc_asm_emit_sse_mem(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
  * encoded or errored), 0 if the mnemonic wasn't one we handle here so the
  * caller can fall through to the integer dispatcher. */
 static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
-  /* ───────── No-operand x87 / FPU state-control ───────── */
+  /* No-operand x87 / FPU state-control */
   if (strcmp(mn, "fsin") == 0)   { emit8(cc, 0xD9); emit8(cc, 0xFE); return 1; }
   if (strcmp(mn, "fcos") == 0)   { emit8(cc, 0xD9); emit8(cc, 0xFF); return 1; }
   if (strcmp(mn, "fsqrt") == 0)  { emit8(cc, 0xD9); emit8(cc, 0xFA); return 1; }
@@ -3563,7 +3668,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
     emit8(cc, 0xDB); emit8(cc, 0xE3); return 1;
   }
 
-  /* ───────── x87 memory-operand opcodes (m32fp only) ─────────
+  /* x87 memory-operand opcodes (m32fp only).
    * Matches standalone CupidASM Task 11 behavior: no size-prefix keyword
    * support, so FLD/FST/FSTP always emit the D9 base (m32fp single-precision).
    */
@@ -3577,7 +3682,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
     return 1;
   }
 
-  /* ───────── MXCSR save/restore (mem32) ─────────
+  /* MXCSR save/restore (mem32).
    * STMXCSR m32 = 0F AE /3   |   LDMXCSR m32 = 0F AE /2
    * Required by the Task 38 #XF provocation drill so user-space CupidC
    * can unmask SIMD FP exceptions before deliberately dividing by zero.
@@ -3592,7 +3697,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
     return 1;
   }
 
-  /* ───────── SSE scalar "xmm, xmm" opcodes ───────── */
+  /* SSE scalar "xmm, xmm" opcodes */
   struct { const char *mn; uint8_t prefix; uint8_t op; } sse_rr[] = {
       {"addss", 0xF3, 0x58}, {"addsd", 0xF2, 0x58},
       {"subss", 0xF3, 0x5C}, {"subsd", 0xF2, 0x5C},
@@ -3622,7 +3727,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
     }
   }
 
-  /* ───────── MOVSS / MOVSD / MOVUPS / MOVAPS: bidirectional mem<->xmm ─────
+  /* MOVSS / MOVSD / MOVUPS / MOVAPS: bidirectional mem<->xmm.
    * Shape: peek first operand; if it's an XMM reg the direction is load
    * (xmm <- [mem]) with opcode 0x10; if it's '[' or a size-prefix keyword
    * the direction is store ([mem] <- xmm) with opcode 0x11. */
@@ -4210,7 +4315,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     return;
   }
 
-  /* Regular variable — allocate stack slot sized to the type. */
+  /* Regular variable - allocate stack slot sized to the type. */
   int local_size = 4;
   if (type == TYPE_DOUBLE)
     local_size = 8;
@@ -5719,7 +5824,7 @@ void cc_parse_program(cc_state_t *cc) {
 
     /* Struct definition: struct Name { fields... }; */
     if (tok.type == CC_TOK_STRUCT) {
-      /* Peek further: struct Name { → definition, struct Name var → decl */
+      /* Peek further: struct Name { -> definition, struct Name var -> decl */
       int saved_pos = cc->pos;
       int saved_line = cc->line;
       int saved_has_peek = cc->has_peek;
@@ -5851,7 +5956,7 @@ void cc_parse_program(cc_state_t *cc) {
 
     if (cc_is_type_or_typedef(cc, tok)) {
       /* Could be function or global variable */
-      /* Look ahead: type name ( → function, type name ; → global */
+      /* Look ahead: type name ( -> function, type name ; -> global */
       /* Save lexer state */
       int saved_pos = cc->pos;
       int saved_line = cc->line;
@@ -6154,9 +6259,8 @@ void cc_parse_program(cc_state_t *cc) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  REPL Line Parsing — TempleOS-style direct statement compilation
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  REPL Line Parsing - TempleOS-style direct statement compilation
+ *  */
 
 static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
   int saved_pos = cc->pos;
@@ -6229,13 +6333,13 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
 
   cc_token_t tok = cc_peek(cc);
 
-  /* ── Static qualifier ─────────────────────────────────────────── */
+  /* Static qualifier */
   if (tok.type == CC_TOK_STATIC) {
     cc_next(cc);
     tok = cc_peek(cc);
   }
 
-  /* ── Enum definition: enum { A, B = 5, C }; ─────────────────── */
+  /* Enum definition: enum { A, B = 5, C }; */
   if (tok.type == CC_TOK_ENUM) {
     cc_next(cc);
     if (cc_peek(cc).type == CC_TOK_IDENT)
@@ -6283,7 +6387,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     return;
   }
 
-  /* ── Typedef: typedef <type> <alias>; ──────────────────────────── */
+  /* Typedef: typedef <type> <alias>; */
   if (tok.type == CC_TOK_TYPEDEF) {
     cc_next(cc);
     cc_type_t td_type = cc_parse_type(cc);
@@ -6307,7 +6411,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     return;
   }
 
-  /* ── Struct definition: struct Name { fields... }; ──────────────── */
+  /* Struct definition: struct Name { fields... }; */
   if (tok.type == CC_TOK_STRUCT) {
     int saved_pos = cc->pos;
     int saved_line = cc->line;
@@ -6417,10 +6521,10 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       cc_get_or_add_struct_tag(cc, name_tok.text);
       return;
     }
-    /* Fall through — struct used as type for variable or function */
+    /* Fall through - struct used as type for variable or function */
   }
 
-  /* ── Check if line starts with a type (function def or global var) ── */
+  /*  Check if line starts with a type (function def or global var)  */
   if (cc_is_type_or_typedef(cc, tok)) {
     int saved_pos = cc->pos;
     int saved_line = cc->line;
@@ -6568,7 +6672,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     }
   }
 
-  /* ── Statement / Expression — emit executable code ─────────────── */
+  /* Statement / Expression: emit executable code */
   {
     cc->entry_offset = cc->code_pos;
     cc->has_entry = 1;

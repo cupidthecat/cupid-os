@@ -9,6 +9,7 @@
 #include "vfs.h"
 #include "string.h"
 #include "memory.h"
+#include "tls/csprng.h"
 #include "../drivers/serial.h"
 
 typedef struct {
@@ -53,24 +54,15 @@ static int dev_zero_write(const void *buf, uint32_t count) {
     return (int)count;  /* Discard */
 }
 
-/* Simple pseudo-random based on linear congruential generator */
-static uint32_t random_seed = 12345;
-
+/* /dev/random is backed by the ChaCha20-DRBG in kernel/tls/csprng.c.
+ * Writes feed entropy into the pool. */
 static int dev_random_read(void *buf, uint32_t count) {
-    uint8_t *p = (uint8_t *)buf;
-    for (uint32_t i = 0; i < count; i++) {
-        random_seed = random_seed * 1103515245u + 12345u;
-        p[i] = (uint8_t)((random_seed >> 16) & 0xFF);
-    }
+    crypto_random_bytes((uint8_t *)buf, count);
     return (int)count;
 }
 
 static int dev_random_write(const void *buf, uint32_t count) {
-    /* Seed the generator from written bytes */
-    const uint8_t *p = (const uint8_t *)buf;
-    for (uint32_t i = 0; i < count; i++) {
-        random_seed ^= ((uint32_t)p[i] << (uint32_t)((i % 4) * 8));
-    }
+    crypto_random_add_entropy((const uint8_t *)buf, count);
     return (int)count;
 }
 

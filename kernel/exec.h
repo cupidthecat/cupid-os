@@ -3,8 +3,8 @@
  *
  * Loads and runs CUPD flat binaries and ELF32 executables from the VFS.
  * Format detection is automatic based on magic bytes:
- *   - 0x7F 'E' 'L' 'F'  →  ELF32 loader
- *   - 0x43555044 (CUPD)  →  CUPD flat binary loader
+ *   - 0x7F 'E' 'L' 'F'  ->  ELF32 loader
+ *   - 0x43555044 (CUPD)  ->  CUPD flat binary loader
  */
 
 #ifndef EXEC_H

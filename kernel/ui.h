@@ -3,14 +3,13 @@
 
 #include "types.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  ui.h - Lightweight UI widget toolkit for cupid-os
+/*  *  ui.h - Lightweight UI widget toolkit for cupid-os
  *
  *  Provides a ui_rect_t layout primitive and composite widget drawing
  *  functions (buttons, labels, panels, text fields, scrollbars) so
  *  that draw code and hit-test code share the same geometry, and text
  *  is automatically centered/padded without manual pixel math.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 
 typedef struct {
@@ -35,7 +34,7 @@ ui_rect_t ui_pad(ui_rect_t r, int16_t pad);
 /* Inset with separate horizontal / vertical padding */
 ui_rect_t ui_pad_xy(ui_rect_t r, int16_t px, int16_t py);
 
-/* Center a (cw × ch) rect inside `outer` */
+/* Center a (cw x ch) rect inside `outer` */
 ui_rect_t ui_center(ui_rect_t outer, uint16_t cw, uint16_t ch);
 
 /* Slice `height` pixels from the top; returns the slice, modifies *r */

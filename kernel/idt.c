@@ -84,7 +84,7 @@ void idt_init(void) {
     idt_set_gate(13, (uint32_t)isr13, 0x08, IDT_INTERRUPT_GATE);
     idt_set_gate(14, (uint32_t)isr14, 0x08, IDT_INTERRUPT_GATE);
 
-    // FPU exception vectors — override generic #NM (7) and install
+    // FPU exception vectors - override generic #NM (7) and install
     // dedicated handlers for #MF (16) and #XF (19). These are wired
     // to panic_fpu via fpu_{nm,mf,xf}_handler; they should stay dormant
     // under eager context switch + masked MXCSR.

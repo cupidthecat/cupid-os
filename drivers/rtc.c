@@ -49,7 +49,7 @@ static uint8_t cmos_read(uint8_t reg) {
  * bcd_to_bin - Convert BCD-encoded value to binary
  *
  * BCD format: upper nibble = tens digit, lower nibble = ones digit.
- * Example: 0x59 → 59
+ * Example: 0x59 -> 59
  *
  * @param bcd: BCD-encoded value
  * @return: Binary value

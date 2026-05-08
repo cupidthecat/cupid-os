@@ -712,7 +712,7 @@ static void as_encode_jmp(as_state_t *as, const char *mn) {
     as_advance(as);
 
     if (strcmp(mn, "jmp") == 0 && is_short) {
-      /* jmp short label → EB rel8 */
+      /* jmp short label -> EB rel8 */
       emit8(as, 0xEB);
       as_label_t *lbl = as_find_label(as, tok.text);
       if (lbl && lbl->defined) {
@@ -727,10 +727,10 @@ static void as_encode_jmp(as_state_t *as, const char *mn) {
     }
 
     if (strcmp(mn, "jmp") == 0) {
-      /* jmp label → E9 rel32 */
+      /* jmp label -> E9 rel32 */
       emit8(as, 0xE9);
     } else if (jcc_code >= 0) {
-      /* Jcc label → 0F 8x rel32 */
+      /* Jcc label -> 0F 8x rel32 */
       emit8(as, 0x0F);
       emit8(as, (uint8_t)jcc_code);
     } else {
@@ -1725,7 +1725,7 @@ static int as_tok_is_st(const as_token_t *t) {
 /* Consume one ST(i) register and return its 0-7 index.  Accepts optional
  * ", ST(j)" trailer.  For FADDP-style ("ST(i), ST(0)") the first ST index
  * is the i we want; for FADD-style ("ST(0), ST(i)") the *second* one is.
- * We extract a non-zero index when present — otherwise the caller's default
+ * We extract a non-zero index when present - otherwise the caller's default
  * behaviour is the ST(0) form. */
 static int as_parse_one_st_index(as_state_t *as, uint8_t *out_i) {
   as_token_t tok = as_advance(as);
@@ -1786,7 +1786,7 @@ static int as_encode_x87(as_state_t *as, const char *mn) {
   if (strcmp(mn, "fprem")  == 0) return as_encode_x87_const(as, 0xD9, 0xF8);
 
   /* (2) Memory-operand opcodes (m32fp only).  FLD / FST / FSTP also accept
-   *     an ST(i) register form — peek to disambiguate. */
+   *     an ST(i) register form - peek to disambiguate. */
   if (strcmp(mn, "fld") == 0) {
     as_token_t f = as_lex_peek(as);
     if (as_tok_is_st(&f)) {
@@ -2449,7 +2449,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* x87 FPU (Task 11): ~25 classic mnemonics — FLD/FST/FSTP, FADD/
+      /* x87 FPU (Task 11): ~25 classic mnemonics - FLD/FST/FSTP, FADD/
        * FSUB/FMUL/FDIV (m32fp) and their P-variants (ST(i)), transcendentals
        * (FSIN/FCOS/FSQRT/...), and control word FLDCW/FSTCW/FSTSW.
        * Gate on the 'f' prefix to skip the dispatcher for non-x87 mnemonics. */

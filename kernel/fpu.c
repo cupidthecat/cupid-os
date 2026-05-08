@@ -39,7 +39,7 @@ void fpu_xf_handler(uint32_t eip) {
 }
 
 void fpu_boot_smoke(void) {
-    /* 1) xmm0 round-trip — hardware SSE sanity */
+    /* 1) xmm0 round-trip - hardware SSE sanity */
     {
         float probe = 1.5f;
         float readback = 0.0f;
@@ -73,8 +73,7 @@ void fpu_boot_smoke(void) {
     serial_printf("[fpu] boot smoke ok\n");
 }
 
-/* ----------------------------------------------------------------------
- * fpu_context_stress — 8-thread sin-loop cross-thread corruption probe.
+/* fpu_context_stress - 8-thread sin-loop cross-thread corruption probe.
  *
  * Gated by the -DFPU_STRESS build flag: not wired into kmain unless the
  * caller enables it.  Spawns 8 kernel workers, each running a 100k-iter
@@ -90,11 +89,10 @@ void fpu_boot_smoke(void) {
  * loops give the PIT a few dozen opportunities per second to catch it.
  *
  * Note on sin() ABI: the libm.c `sin` is exported with the CupidC-tailored
- * kernel-internal ABI (result in XMM0, not ST(0) — see libm.h).  Calling
+ * kernel-internal ABI (result in XMM0, not ST(0) - see libm.h).  Calling
  * it from plain C here would not interoperate with the System-V i386
  * return convention GCC expects, so we inline the FSIN via `fldl/fsin/fstpl`.
- * This keeps the stress test self-contained and ABI-independent.
- * -------------------------------------------------------------------- */
+ * This keeps the stress test self-contained and ABI-independent. */
 
 static inline double stress_sin(double x) {
     double r;
@@ -134,7 +132,7 @@ static void (*const stress_workers[8])(void) = {
 void fpu_context_stress(void) {
     double ref[8];
 
-    /* Compute reference values in this context first — serial, no
+    /* Compute reference values in this context first - serial, no
      * cross-thread switches to muddy the picture.  Uses the same
      * inline-FSIN path as the workers for bit-identical comparison. */
     for (int id = 0; id < 8; id++) {

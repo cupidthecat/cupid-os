@@ -59,7 +59,7 @@ job_t *job_find_by_id(job_table_t *table, int job_id);
 /* Find job by PID */
 job_t *job_find_by_pid(job_table_t *table, uint32_t pid);
 
-/* Parse job spec (%1 → 1) */
+/* Parse job spec (%1 -> 1) */
 int job_parse_spec(const char *spec);
 
 #endif /* CUPIDSCRIPT_JOBS_H */

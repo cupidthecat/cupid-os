@@ -9,9 +9,8 @@
 
 #include "types.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  VGA color constants (0-15)
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  VGA color constants (0-15)
+ *  */
 #define ANSI_COLOR_BLACK        0
 #define ANSI_COLOR_BLUE         1
 #define ANSI_COLOR_GREEN        2
@@ -33,9 +32,8 @@
 #define ANSI_DEFAULT_FG  ANSI_COLOR_LIGHT_GRAY
 #define ANSI_DEFAULT_BG  ANSI_COLOR_BLACK
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Terminal color state
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Terminal color state
+ *  */
 
 #define ANSI_ESC_BUF_SIZE 32
 
@@ -49,9 +47,8 @@ typedef struct {
     bool    in_csi;                 /* Past '[', collecting CSI params */
 } terminal_color_state_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Parser result - what to do with each character
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Parser result - what to do with each character
+ *  */
 typedef enum {
     ANSI_RESULT_PRINT,    /* Render this character normally */
     ANSI_RESULT_SKIP,     /* Part of escape sequence - don't render */
@@ -59,9 +56,8 @@ typedef enum {
     ANSI_RESULT_HOME      /* Move cursor to home position */
 } ansi_result_t;
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Public API
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Public API
+ *  */
 
 /* Initialize color state to defaults */
 void ansi_init(terminal_color_state_t *state);

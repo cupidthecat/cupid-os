@@ -56,24 +56,24 @@ uint8_t ansi_get_bg(const terminal_color_state_t *state) {
  *  ANSI-to-VGA color mapping
  *
  *  ANSI 30-37 maps to VGA colors in a specific order:
- *    ANSI 0 (black)   → VGA 0
- *    ANSI 1 (red)     → VGA 4
- *    ANSI 2 (green)   → VGA 2
- *    ANSI 3 (yellow)  → VGA 6 (brown/yellow)
- *    ANSI 4 (blue)    → VGA 1
- *    ANSI 5 (magenta) → VGA 5
- *    ANSI 6 (cyan)    → VGA 3
- *    ANSI 7 (white)   → VGA 7
+ *    ANSI 0 (black)   -> VGA 0
+ *    ANSI 1 (red)     -> VGA 4
+ *    ANSI 2 (green)   -> VGA 2
+ *    ANSI 3 (yellow)  -> VGA 6 (brown/yellow)
+ *    ANSI 4 (blue)    -> VGA 1
+ *    ANSI 5 (magenta) -> VGA 5
+ *    ANSI 6 (cyan)    -> VGA 3
+ *    ANSI 7 (white)   -> VGA 7
  */
 static const uint8_t ansi_to_vga[8] = {
-    0,  /* ANSI black   → VGA black */
-    4,  /* ANSI red     → VGA red */
-    2,  /* ANSI green   → VGA green */
-    6,  /* ANSI yellow  → VGA brown */
-    1,  /* ANSI blue    → VGA blue */
-    5,  /* ANSI magenta → VGA magenta */
-    3,  /* ANSI cyan    → VGA cyan */
-    7   /* ANSI white   → VGA light gray */
+    0,  /* ANSI black   -> VGA black */
+    4,  /* ANSI red     -> VGA red */
+    2,  /* ANSI green   -> VGA green */
+    6,  /* ANSI yellow  -> VGA brown */
+    1,  /* ANSI blue    -> VGA blue */
+    5,  /* ANSI magenta -> VGA magenta */
+    3,  /* ANSI cyan    -> VGA cyan */
+    7   /* ANSI white   -> VGA light gray */
 };
 
 /* 

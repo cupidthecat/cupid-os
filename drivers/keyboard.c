@@ -133,8 +133,29 @@ static const char scancode_to_ascii_shift[] = {
 #define EXT_KEY_DOWN  0x50
 #define EXT_KEY_LEFT  0x4B
 #define EXT_KEY_RIGHT 0x4D
+#define EXT_KEY_PGUP  0x49
+#define EXT_KEY_PGDN  0x51
+#define EXT_KEY_HOME  0x47
+#define EXT_KEY_END   0x4F
+#define EXT_KEY_INS   0x52
 
-// Add to keyboard_state_t in types.h or here
+/*  Raw-scancode subscriber  */
+static kbd_event_cb s_kbd_sub_cb  = NULL;
+static void        *s_kbd_sub_ctx = NULL;
+
+int keyboard_subscribe(kbd_event_cb cb, void *ctx) {
+    if (s_kbd_sub_cb != NULL) return -1;
+    s_kbd_sub_cb  = cb;
+    s_kbd_sub_ctx = ctx;
+    return 0;
+}
+
+void keyboard_unsubscribe(void) {
+    s_kbd_sub_cb  = NULL;
+    s_kbd_sub_ctx = NULL;
+}
+
+/* Add to keyboard_state_t in types.h or here */
 typedef struct {
     uint32_t last_keypress_time;  // Time of last keypress
     uint32_t last_repeat_time;    // Time of last repeat
@@ -237,7 +258,12 @@ static void handle_extended_key(uint8_t key) {
         case EXT_KEY_DOWN:
         case EXT_KEY_LEFT:
         case EXT_KEY_RIGHT:
-        case 0x53:  // Delete key
+        case EXT_KEY_PGUP:    /* terminal/notepad scroll-up    */
+        case EXT_KEY_PGDN:    /* terminal/notepad scroll-down  */
+        case EXT_KEY_HOME:
+        case EXT_KEY_END:
+        case EXT_KEY_INS:
+        case 0x53:            /* Delete                        */
             enqueue_event(key, 0);
             break;
         default:
@@ -353,10 +379,23 @@ static char get_ascii_from_scancode(uint8_t scancode) {
         return scancode_to_ascii[scancode];
     }
 }
+/* Fire the raw-scancode subscriber (if registered) before any filtering. */
+static void fire_subscriber(uint8_t raw_scancode) {
+    kbd_event_cb cb = s_kbd_sub_cb;
+    void *ctx = s_kbd_sub_ctx;
+    if (cb != NULL) {
+        bool pressed = (raw_scancode & 0x80U) == 0;
+        uint8_t cooked = (uint8_t)(raw_scancode & 0x7FU);
+        cb(cooked, pressed, ctx);
+    }
+}
+
 // Keyboard interrupt handler
 void keyboard_handler(struct registers* r) {
     (void)r; /* Unused parameter */
     uint8_t scancode = inb(KEYBOARD_DATA_PORT);
+
+    fire_subscriber(scancode);
 
     // Handle extended key sequences
     if (scancode == KEY_EXTENDED) {
@@ -490,7 +529,48 @@ bool keyboard_read_event(key_event_t* event) {
 }
 
 void keyboard_inject_scancode(uint8_t raw_scancode) {
-    /* Route through same path as IRQ1: process_keypress already handles
-     * make/break via the 0x80 high bit. */
+    /* Route through same path as IRQ1: also recognise the 0xE0 extended-
+     * scancode prefix so injected PgUp/PgDn/Home/End/Insert/Delete (sent
+     * by USB HID's hid_to_ps2 translator below) reach handle_extended_key
+     * and arrive in the keyboard buffer with character=0. */
+    fire_subscriber(raw_scancode);
+
+    if (raw_scancode == KEY_EXTENDED) {
+        handling_extended = true;
+        return;
+    }
+    if (handling_extended) {
+        handling_extended = false;
+        handle_extended_key(raw_scancode);
+        return;
+    }
     process_keypress(raw_scancode);
 }
+
+/*  Test-shim: built-in subscriber for CupidC smoke tests  *
+ * CupidC cannot pass function pointers as callbacks, so we provide a     *
+ * fixed kernel-side subscriber that records the last event and exposes   *
+ * the results via plain getter functions that CupidC CAN call.           */
+static int      s_test_calls    = 0;
+static uint8_t  s_test_last_sc  = 0;
+static bool     s_test_last_pressed = false;
+
+static void test_subscriber_cb(uint8_t sc, bool pressed, void *ctx) {
+    (void)ctx;
+    s_test_calls++;
+    s_test_last_sc      = sc;
+    s_test_last_pressed = pressed;
+}
+
+/* Returns 0 on success, -1 if subscriber slot already taken. */
+int  keyboard_test_sub_start(void) {
+    s_test_calls       = 0;
+    s_test_last_sc     = 0;
+    s_test_last_pressed = false;
+    return keyboard_subscribe(test_subscriber_cb, NULL);
+}
+
+void keyboard_test_sub_stop(void)  { keyboard_unsubscribe(); }
+int  keyboard_test_sub_calls(void) { return s_test_calls; }
+int  keyboard_test_sub_last_sc(void)      { return (int)s_test_last_sc; }
+int  keyboard_test_sub_last_pressed(void) { return s_test_last_pressed ? 1 : 0; }

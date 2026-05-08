@@ -476,10 +476,19 @@ static void shell_gui_putchar(char c) {
     }
     gui_cursor_x = 0;
     gui_cursor_y++;
+  } else if (c == '\r') {
+    /* Carriage return: cursor to col 0. Standard CRLF handling so HTTP
+     * bodies (e.g. from /bin/curl.cc) don't render \r as a CP437 glyph
+     * (♪ at byte 0x0D) on each header line. */
+    gui_cursor_x = 0;
   } else if (c == '\b') {
     if (gui_cursor_x > 0) {
       gui_cursor_x--;
     }
+  } else if ((unsigned char)c < 32 && c != '\t') {
+    /* Drop other control bytes - never render as glyphs.
+     * (Order matters: \b/\n/\r/\t are handled above.) */
+    return;
   } else if (c == '\t') {
     /* Tab = 4 spaces */
     for (int t = 0; t < 4 && gui_cursor_x < gui_visible_cols; t++) {
@@ -641,6 +650,7 @@ static void shell_ping_cmd    (const char *args);
 static void shell_netstat_cmd (const char *args);
 static void shell_arp_cmd     (const char *args);
 static void shell_resolve_cmd (const char *args);
+static void shell_doom_cmd    (const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -672,6 +682,7 @@ static struct shell_command commands[] = {
     {"netstat",  "List sockets", shell_netstat_cmd},
     {"arp",      "Dump ARP cache", shell_arp_cmd},
     {"resolve",  "DNS resolve (resolve <host>)", shell_resolve_cmd},
+    {"doom",     "Run DOOM (doom [-iwad <path>])", shell_doom_cmd},
     {0, 0, 0} // Null terminator
 };
 
@@ -813,9 +824,9 @@ static void tab_complete(char *input, int *pos) {
     arg_prefix[arg_len] = '\0';
 
     /* Split arg_prefix into directory part and name prefix.
-     * E.g. "/home/HEL" → dir="/home", name_prefix="HEL"
-     * E.g. "HEL"       → dir=CWD,     name_prefix="HEL"
-     * E.g. "/dev/"      → dir="/dev",  name_prefix=""
+     * E.g. "/home/HEL" -> dir="/home", name_prefix="HEL"
+     * E.g. "HEL"       -> dir=CWD,     name_prefix="HEL"
+     * E.g. "/dev/"      -> dir="/dev",  name_prefix=""
      */
     char dir_path[VFS_MAX_PATH];
     char name_prefix[VFS_MAX_NAME];
@@ -1123,8 +1134,7 @@ static void shell_cupid(const char *args) {
   cupidscript_run_file(filename, script_args);
 }
 
-/* ── try_bin_dispatch: check if a resolved path is /bin/<app> and run it ──
- * Returns true if handled, false if not a /bin path. */
+/* ── try_bin_dispatch: check if a resolved path is /bin/<app> and run it ─ * Returns true if handled, false if not a /bin path. */
 static bool try_bin_dispatch(const char *resolved, const char *extra_args) {
   if (resolved[0] != '/' || resolved[1] != 'b' || resolved[2] != 'i' ||
       resolved[3] != 'n' || resolved[4] != '/') {
@@ -1505,9 +1515,8 @@ static void shell_cc_repl(void) {
   kfree(candidate_src);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  CupidC Compiler Commands
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  CupidC Compiler Commands
+ *  */
 
 /* cupidc <file.cc> - JIT compile and run */
 static void shell_cupidc_cmd(const char *args) {
@@ -2316,6 +2325,47 @@ static void shell_resolve_cmd(const char *args) {
     shell_print_int(p[3]); shell_print("\n");
 }
 
+/* doom shell builtin - calls into the platform shim's doom_main(). */
+extern int doom_main(int argc, char **argv);
+
+#define DOOM_ARGV_MAX 16
+#define DOOM_ARG_BUF  256
+
+static void shell_doom_cmd(const char *args) {
+    static char doom_arg_buf[DOOM_ARG_BUF];
+    static char doom_argv0[] = "doom";
+    static char *doom_argv[DOOM_ARGV_MAX];
+    int doom_argc = 0;
+    char *p;
+
+    /* argv[0] = "doom" */
+    doom_argv[doom_argc++] = doom_argv0;
+
+    /* Tokenise the args string */
+    if (args && *args) {
+        /* Copy into mutable buffer so we can place NUL terminators */
+        int i = 0;
+        while (args[i] && i < DOOM_ARG_BUF - 1) {
+            doom_arg_buf[i] = args[i];
+            i++;
+        }
+        doom_arg_buf[i] = '\0';
+
+        p = doom_arg_buf;
+        while (*p && doom_argc < DOOM_ARGV_MAX - 1) {
+            /* Skip whitespace */
+            while (*p == ' ' || *p == '\t') { p++; }
+            if (!*p) { break; }
+            doom_argv[doom_argc++] = p;
+            /* Advance to end of token */
+            while (*p && *p != ' ' && *p != '\t') { p++; }
+            if (*p) { *p++ = '\0'; }
+        }
+    }
+
+    doom_main(doom_argc, doom_argv);
+}
+
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
     return;
@@ -2481,7 +2531,7 @@ static void execute_command(const char *input) {
     char bin_path[VFS_MAX_PATH];
     vfs_stat_t bin_st;
 
-    /* --- 1. /bin/<cmd> (ELF binary in ramfs) --- */
+    /* 1. /bin/<cmd> (ELF binary in ramfs) */
     {
       int bp = 0;
       const char *pfx = "/bin/";
@@ -2617,13 +2667,13 @@ static void execute_command(const char *input) {
     goto redir_done;
   }
 
-  /* Handle bare .cup files: script.cup → cupid script.cup */
+  /* Handle bare .cup files: script.cup -> cupid script.cup */
   if (shell_ends_with(cmd, ".cup")) {
     shell_cupid(input);
     goto redir_done;
   }
 
-  /* Handle bare .cc files: program.cc → cupidc program.cc */
+  /* Handle bare .cc files: program.cc -> cupidc program.cc */
   if (shell_ends_with(cmd, ".cc")) {
     char cc_path[VFS_MAX_PATH];
     shell_resolve_path(cmd, cc_path);
@@ -2631,7 +2681,7 @@ static void execute_command(const char *input) {
     goto redir_done;
   }
 
-  /* Handle bare .asm files: program.asm → as program.asm */
+  /* Handle bare .asm files: program.asm -> as program.asm */
   if (shell_ends_with(cmd, ".asm")) {
     char asm_path[VFS_MAX_PATH];
     shell_resolve_path(cmd, asm_path);

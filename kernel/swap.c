@@ -40,7 +40,7 @@ static uint32_t       g_pinned_count = 0;
 static uint32_t       g_evictions = 0;
 static uint8_t        g_initialized = 0;
 
-/* --- bitmap helpers (1 bit per slot; 1 = allocated) ---------------- */
+/* bitmap helpers (1 bit per slot; 1 = allocated) */
 static int32_t bitmap_alloc(uint8_t *bm, uint32_t count) {
     for (uint32_t i = 0; i < count; i++) {
         if (!(bm[i >> 3] & (uint8_t)(1u << (i & 7u)))) {
@@ -70,7 +70,7 @@ static swap_slot_t *validate_handle(swap_handle_t h) {
     return s;
 }
 
-/* --- RAM slot bitmap + address math per class --- */
+/* RAM slot bitmap + address math per class */
 static int32_t ram_slot_alloc(swap_class_t *cls) {
     if (!cls->ram_free_bitmap || cls->ram_alloc >= cls->ram_cap) return -1;
     int32_t slot = bitmap_alloc(cls->ram_free_bitmap, cls->ram_cap);
@@ -92,7 +92,7 @@ static uint32_t ram_slot_from_ptr(const swap_class_t *cls, const void *ptr) {
     return diff / cls->slot_bytes;
 }
 
-/* --- LRU doubly-linked list of unpinned resident handles ---------- */
+/* LRU doubly-linked list of unpinned resident handles */
 static void lru_insert_head(swap_handle_t h) {
     swap_slot_t *s = &g_slots[h - 1];
     s->lru_prev = SWAP_INVALID;

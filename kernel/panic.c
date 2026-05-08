@@ -6,6 +6,7 @@
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
 #include "memory.h"
+#include "ksyms.h"
 
 /* Output function pointers (can be overridden for GUI mode) */
 static void (*panic_print)(const char*) = print;
@@ -26,7 +27,7 @@ static void print_separator(void) {
         "================================================================================\n");
 }
 
-/* print_hex_word – print a 16-bit value like 0x001F */
+/* print_hex_word - print a 16-bit value like 0x001F */
 static void vga_hex_word(uint16_t num) {
     const char hex[] = "0123456789ABCDEF";
     panic_putchar('0'); panic_putchar('x');
@@ -36,7 +37,7 @@ static void vga_hex_word(uint16_t num) {
     panic_putchar(hex[ num        & 0xF]);
 }
 
-/* print_hex_byte – print one byte as 2 hex digits */
+/* print_hex_byte - print one byte as 2 hex digits */
 static void vga_hex_byte(uint8_t num) {
     const char hex[] = "0123456789ABCDEF";
     panic_putchar(hex[(num >> 4) & 0xF]);
@@ -46,7 +47,7 @@ static void vga_hex_byte(uint8_t num) {
 static void print_registers(struct registers *regs) {
     dual_print("\nREGISTERS:\n");
 
-    /* EAX–EDX */
+    /* EAX-EDX */
     serial_printf("  EAX: 0x%x  EBX: 0x%x  ECX: 0x%x  EDX: 0x%x\n",
                   regs->eax, regs->ebx, regs->ecx, regs->edx);
     panic_print("  EAX: "); print_hex(regs->eax);
@@ -55,7 +56,7 @@ static void print_registers(struct registers *regs) {
     panic_print("  EDX: "); print_hex(regs->edx);
     panic_print("\n");
 
-    /* ESI–ESP */
+    /* ESI-ESP */
     serial_printf("  ESI: 0x%x  EDI: 0x%x  EBP: 0x%x  ESP: 0x%x\n",
                   regs->esi, regs->edi, regs->ebp, regs->esp);
     panic_print("  ESI: "); print_hex(regs->esi);
@@ -78,31 +79,36 @@ static void print_registers(struct registers *regs) {
     panic_print("\n");
 }
 
+/* Print a single backtrace frame with optional symbol decoding. Used as
+ * the print_line callback for ksym_backtrace().  Output is mirrored to
+ * VGA and serial.  Note: serial_print_hex (the %x backend) already
+ * emits its own "0x" prefix, so format strings here use bare "%x". */
+static void panic_print_frame(int frame, uint32_t addr,
+                              const char *name, uint32_t off) {
+    if (name) {
+        serial_printf("  #%d: %x  %s+%x\n", frame, addr, name, off);
+        panic_print("  #");
+        print_int((uint32_t)frame);
+        panic_print(": ");
+        print_hex(addr);
+        panic_print("  ");
+        panic_print(name);
+        panic_print("+");
+        print_hex(off);
+        panic_print("\n");
+    } else {
+        serial_printf("  #%d: %x\n", frame, addr);
+        panic_print("  #");
+        print_int((uint32_t)frame);
+        panic_print(": ");
+        print_hex(addr);
+        panic_print("\n");
+    }
+}
+
 void print_stack_trace(uint32_t ebp, uint32_t eip) {
     dual_print("\nSTACK TRACE:\n");
-
-    serial_printf("  #0: 0x%x\n", eip);
-    panic_print("  #0: "); print_hex(eip); print("\n");
-
-    for (int i = 1; i < 10 && ebp != 0; i++) {
-        if (ebp < 0x1000 || ebp > 0x190000) {
-            dual_print("  (invalid stack frame)\n");
-            break;
-        }
-
-        uint32_t ret_addr = *((uint32_t *)(ebp + 4));
-
-        serial_printf("  #%d: 0x%x\n", i, ret_addr);
-        panic_print("  #");
-        print_int((uint32_t)i);
-        panic_print(": ");
-        print_hex(ret_addr);
-        panic_print("\n");
-
-        uint32_t prev_ebp = *((uint32_t *)ebp);
-        if (prev_ebp <= ebp) break;
-        ebp = prev_ebp;
-    }
+    ksym_backtrace(ebp, eip, 16, panic_print_frame);
 }
 
 static void print_stack_dump(uint32_t esp) {
@@ -164,13 +170,13 @@ void kernel_panic(const char *fmt, ...) {
     __builtin_va_list ap;
     __builtin_va_start(ap, fmt);
 
-    /* VGA – simplified (just print the raw format for reliability) */
+    /* VGA - simplified (just print the raw format for reliability) */
     panic_print(fmt);
     panic_print("\n");
 
     __builtin_va_end(ap);
 
-    /* Serial – formatted */
+    /* Serial - formatted */
     __builtin_va_start(ap, fmt);
     serial_write_string("[PANIC] ");
     /* We re-do the format expansion via serial_printf

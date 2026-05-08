@@ -1,4 +1,4 @@
-/* kernel/iso9660_vfs.h — VFS adapter for ISO9660. */
+/* kernel/iso9660_vfs.h - VFS adapter for ISO9660. */
 #ifndef ISO9660_VFS_H
 #define ISO9660_VFS_H
 

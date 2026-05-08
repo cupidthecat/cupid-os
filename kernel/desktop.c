@@ -1801,14 +1801,14 @@ bool desktop_calendar_visible(void) { return cal_state.visible; }
  * desktop_draw_calendar - Draw the calendar popup centered on screen
  *
  * Layout:
- *   ┌─────────────────────────────────────┐
+ *   ┌┐
  *   │  <  February 2026  >    2:35:47 PM  │
- *   ├─────────────────────────────────────┤
+ *   ├┤
  *   │  Su Mo Tu We Th Fr Sa               │
  *   │                     1               │
  *   │   2  3  4  5 [6] 7  8               │
  *   │   ...                               │
- *   └─────────────────────────────────────┘
+ *   └┘
  */
 static void desktop_draw_calendar(void) {
   if (!cal_state.visible)
@@ -2135,7 +2135,14 @@ void desktop_redraw_cycle(void) {
     mouse_only = true; /* assume cursor-only until we see scroll/key */
 
     if (mouse.scroll_z != 0) {
-      if (!shell_jit_program_is_running()) {
+      window_t *focused_for_wheel = gui_get_focused_window();
+      if (focused_for_wheel &&
+          strcmp(focused_for_wheel->title, "Terminal") == 0) {
+        terminal_handle_scroll((int)mouse.scroll_z * 3);
+        mouse.scroll_z = 0;
+      } else if (focused_for_wheel) {
+        /* Leave scroll_z for the focused window's app to consume. */
+      } else if (!shell_jit_program_is_running()) {
         mouse.scroll_z = 0;
       }
       needs_redraw = true;
@@ -2503,6 +2510,7 @@ void desktop_run(void) {
   bool needs_redraw = true;
   bool force_full_repaint = false;
   static int last_hover_icon = -2;
+
   bool mouse_buttons_changed = false;
   bool mouse_scroll_activity = false;
   enum {
@@ -2534,9 +2542,12 @@ void desktop_run(void) {
     mouse_buttons_changed = false;
     mouse_scroll_activity = false;
 
-    /* Skip ALL desktop processing if a fullscreen app is running */
+    /* Skip ALL desktop processing if a fullscreen app is running.
+     * Yield (not hlt) so the fullscreen app's process actually gets
+     * scheduled - without yielding, desktop spins on hlt and the app
+     * never gets CPU time, freezing its render loop / cursor. */
     if (gfx2d_fullscreen_active()) {
-      __asm__ volatile("hlt");
+      process_yield();
       continue;
     }
 
@@ -2547,12 +2558,20 @@ void desktop_run(void) {
       mouse_buttons_changed = (mouse.buttons != mouse.prev_buttons);
       mouse_scroll_activity = (mouse.scroll_z != 0);
 
-      /* Handle scroll wheel – consume accumulated delta */
+      /* Handle scroll wheel - consume accumulated delta */
       if (mouse.scroll_z != 0) {
         /* Each scroll notch is ±1 in scroll_z.
-         * Multiply by 5 lines per notch for snappy scrolling.
          * Positive scroll_z = scroll up (show older content). */
-        if (!shell_jit_program_is_running()) {
+        window_t *focused_for_wheel = gui_get_focused_window();
+        if (focused_for_wheel &&
+            strcmp(focused_for_wheel->title, "Terminal") == 0) {
+          terminal_handle_scroll((int)mouse.scroll_z * 3);
+          mouse.scroll_z = 0;
+        } else if (focused_for_wheel) {
+          /* Any other focused window - leave scroll_z intact so the
+           * window's owning process (notepad, paint, fm, etc.) can
+           * read it via mouse_scroll() in its main loop. */
+        } else if (!shell_jit_program_is_running()) {
           mouse.scroll_z = 0;
         }
       }
@@ -2721,11 +2740,10 @@ void desktop_run(void) {
     }
 
     /* Redraw */
-    /* Redraw */
-    /* Skip desktop rendering if a fullscreen gfx2d app is running */
+    /* Skip desktop rendering if a fullscreen gfx2d app is running.
+     * Yield instead of hlt so fullscreen apps get CPU. */
     if (gfx2d_fullscreen_active()) {
-      /* Also skip input processing so we don't steal clicks/keys */
-      __asm__ volatile("hlt");
+      process_yield();
       continue;
     }
 
@@ -2885,7 +2903,7 @@ void desktop_run(void) {
         /* Always redraw the taskbar after windows so it is never obscured.
          * Windows whose bodies extend below TASKBAR_Y would otherwise paint
          * over it on frames where draw_taskbar_now is false (e.g. when only
-         * window content is dirty).  The taskbar strip is 640×24 px and
+         * window content is dirty).  The taskbar strip is 640x24 px and
          * cheap to render. */
         {
           uint32_t now_ms = timer_get_uptime_ms();
@@ -2924,7 +2942,7 @@ void desktop_run(void) {
     kernel_check_reschedule();
 
     /* Yield CPU until next interrupt. Force sti so the hlt is never
-     * reached with IRQs disabled — some of our USB-polling paths leak
+     * reached with IRQs disabled - some of our USB-polling paths leak
      * IF=0 back through bkl_unlock when the scheduler did a context
      * switch earlier in this iteration. Without sti, hlt would wedge
      * forever. */

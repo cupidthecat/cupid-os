@@ -20,23 +20,23 @@
 
 #include "types.h"
 
-/* Limits */
-#define AS_MAX_CODE    (128u * 1024u) /* 128KB code buffer           */
-#define AS_MAX_DATA    (32u * 1024u)  /* 32KB data buffer            */
-#define AS_MAX_LABELS  512            /* max labels                  */
-#define AS_MAX_PATCHES 512            /* max forward-ref patches     */
-#define AS_MAX_IDENT   64             /* max identifier length       */
-#define AS_MAX_STRING  256            /* max string literal length    */
-#define AS_MAX_INCLUDE_DEPTH 4        /* max nested %include depth   */
-#define AS_MAX_LINE    256            /* max source line length       */
+/* Limits - generous, to give programs plenty of room.            */
+#define AS_MAX_CODE    (1024u * 1024u)  /* 1 MB code buffer          */
+#define AS_MAX_DATA    (1024u * 1024u)  /* 1 MB data buffer          */
+#define AS_MAX_LABELS  8192             /* max labels                */
+#define AS_MAX_PATCHES 8192             /* max forward-ref patches   */
+#define AS_MAX_IDENT   96               /* max identifier length     */
+#define AS_MAX_STRING  1024             /* max string literal length */
+#define AS_MAX_INCLUDE_DEPTH 16         /* max nested %include depth */
+#define AS_MAX_LINE    1024             /* max source line length    */
 
-/* Memory region for assembler JIT (separate from CupidC's 0x400000) */
-#define AS_JIT_CODE_BASE  0x00500000u
-#define AS_JIT_DATA_BASE  0x00520000u  /* 128KB after code */
+/* Memory region for assembler JIT, well above CupidC's region at 16 MB. */
+#define AS_JIT_CODE_BASE  0x01A00000u
+#define AS_JIT_DATA_BASE  0x01B00000u  /* 1 MB after code            */
 
 /* Memory region for AOT output (uses same addresses as JIT) */
-#define AS_AOT_CODE_BASE  0x00500000u
-#define AS_AOT_DATA_BASE  0x00520000u
+#define AS_AOT_CODE_BASE  0x01A00000u
+#define AS_AOT_DATA_BASE  0x01B00000u
 
 /* Token Types */
 typedef enum {

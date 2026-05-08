@@ -144,7 +144,7 @@ __asm__(
 );
 
 /* atan via x87 FPATAN.  FPATAN computes atan2(ST(1), ST(0)).
- * For atan(x), call atan2(x, 1) → push y=x then x=1.0. */
+ * For atan(x), call atan2(x, 1) -> push y=x then x=1.0. */
 __asm__(
     ".text\n\t"
     ".globl atan\n\t"
@@ -217,9 +217,9 @@ __asm__(
  *
  * Same CupidC-internal ABI as Task 23 (stack args, XMM0 return).
  *
- *   fabs/fabsf     — sign-bit mask via SSE ANDPD/ANDPS.
+ *   fabs/fabsf     - sign-bit mask via SSE ANDPD/ANDPS.
  *   floor/ceil/
- *   round/trunc    — x87 FRNDINT with a transient RC (rounding-control)
+ *   round/trunc    - x87 FRNDINT with a transient RC (rounding-control)
  *                    swap in the x87 control word.  RC encoding:
  *                      00 = round-to-nearest-even (used for `round`)
  *                      01 = round toward -inf     (used for `floor`)
@@ -229,7 +229,7 @@ __asm__(
  *                    FRNDINT, then restore.  Both single- and
  *                    double-precision variants take the same x87 path;
  *                    the FSTP/FLDS width differs at load/store.
- *   fmod/fmodf     — x87 FPREM loop until C2 clears in the status word
+ *   fmod/fmodf     - x87 FPREM loop until C2 clears in the status word
  *                    (indicating full reduction, not just a partial step).
  *
  * NOTE on `round`: C99 `round()` is round-half-away-from-zero.  FRNDINT
@@ -458,7 +458,7 @@ __asm__(
 );
 
 /* fmod(x, y) via x87 FPREM.  FPREM only does one reduction step of up to
- * 2**63 bits — we loop until C2 (status word bit 10) clears, signalling
+ * 2**63 bits - we loop until C2 (status word bit 10) clears, signalling
  * the full IEEE remainder has been computed.  Layout: ST(0)=x, ST(1)=y
  * on entry to the loop.  After convergence we pop y with FSTP ST(1),
  * leaving the result in ST(0). */
@@ -523,7 +523,7 @@ __asm__(
  * temporarily swap RC as we do for floor/ceil/trunc.
  *
  * exp(x) = exp2(x * log2(e)).  We inline the exp2 body after a single
- * multiply by log2(e) rather than call exp2 — saves an ABI bridge and
+ * multiply by log2(e) rather than call exp2 - saves an ABI bridge and
  * keeps the function self-contained.
  *
  * log2 and log both use FYL2X; the only difference is the initial
@@ -717,7 +717,7 @@ __asm__(
     ".size  logf, .-logf\n"
 );
 
-/* pow(x, y) — C dispatch for special cases + x87 pipeline for the
+/* pow(x, y) - C dispatch for special cases + x87 pipeline for the
  * common case.  Returns result in ST(0) per System-V i386 ABI.  An
  * asm wrapper (`pow`) below bridges ST(0) -> XMM0.  Static visibility
  * keeps the symbol out of the CupidC bind namespace.
@@ -731,7 +731,7 @@ static const double k_ln2   = 0.6931471805599453; /* ln(2)  */
 
 /* Non-static + noinline so the linker keeps the exact cdecl ABI we
  * target from the asm wrappers below.  `used` prevents removal under
- * aggressive LTO.  No prototype in the header — these are internal. */
+ * aggressive LTO.  No prototype in the header - these are internal. */
 double libm_pow_impl(double x, double y)
     __attribute__((used, noinline));
 float  libm_powf_impl(float x, float y)
@@ -833,7 +833,7 @@ float libm_powf_impl(float x, float y)
 /* pow/powf asm wrappers: bridge System-V i386 ST(0) return of the
  * impls into CupidC's XMM0-return ABI.  We must re-push the stack
  * args before `call` because the call itself consumes a slot for the
- * return address — simply jumping to the impl would leave the args
+ * return address - simply jumping to the impl would leave the args
  * off-by-4 (pow) / off-by-4 (powf) from where cdecl expects them.
  *
  * Layout on entry to pow:
@@ -905,7 +905,7 @@ __asm__(
  * Domain handling: asin/acos set libm_errno = 1 (DOMAIN) and return
  * 0.0 when |x| > 1, matching Task 25's pow convention. */
 
-/* --- C-ABI building blocks ---------------------------------------- */
+/* C-ABI building blocks */
 
 /* libm_sqrt_impl: SQRTSD in XMM, GCC bridges XMM -> ST(0) at return. */
 static double libm_sqrt_impl(double x)
@@ -958,7 +958,7 @@ static double libm_exp_impl(double x)
     return r;
 }
 
-/* --- Task 26 _impl functions (standard C ABI, ST(0) return) ------- */
+/* Task 26 _impl functions (standard C ABI, ST(0) return) */
 
 double libm_asin_impl(double x)  __attribute__((used, noinline));
 float  libm_asinf_impl(float x)  __attribute__((used, noinline));
@@ -1051,7 +1051,7 @@ float libm_tanhf_impl(float x)
     return (float)((e1 - e2) / (e1 + e2));
 }
 
-/* --- Task 26 asm wrappers: ST(0) -> XMM0 bridge -------------------- */
+/* Task 26 asm wrappers: ST(0) -> XMM0 bridge */
 
 /* asin: arg is a single double at [esp+4..+11].  Re-push the 8 B arg,
  * call the impl (which returns in ST(0)), then convert to XMM0. */
@@ -1261,7 +1261,7 @@ __asm__(
  *                  since x != x for NaN.
  */
 
-/* --- Task 27 _impl functions (standard C ABI, ST(0) return) ------- */
+/* Task 27 _impl functions (standard C ABI, ST(0) return) */
 
 double libm_cbrt_impl(double x)          __attribute__((used, noinline));
 float  libm_cbrtf_impl(float x)          __attribute__((used, noinline));
@@ -1387,7 +1387,7 @@ float libm_nextafterf_impl(float x, float y)
     return b.f;
 }
 
-/* --- Task 27 asm wrappers: ST(0) -> XMM0 bridge -------------------- */
+/* Task 27 asm wrappers: ST(0) -> XMM0 bridge */
 
 /* cbrt: single double arg at [esp+4..+11].  Re-push 8 B, call, bridge. */
 __asm__(
