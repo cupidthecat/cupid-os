@@ -23,7 +23,7 @@ void serial_init(void) {
     /* Disable interrupts */
     outb(SERIAL_INT_EN(SERIAL_COM1), 0x00);
 
-    /* Enable DLAB – set baud rate divisor */
+    /* Enable DLAB - set baud rate divisor */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x80);
     outb(SERIAL_DATA(SERIAL_COM1),      0x01);     /* divisor low  = 1 (115200) */
     outb(SERIAL_INT_EN(SERIAL_COM1),    0x00);     /* divisor high = 0          */
@@ -67,14 +67,6 @@ void serial_write_string(const char *str) {
     }
 }
 
-static void serial_print_dec(uint32_t num) {
-    char buf[12];
-    int i = 0;
-    if (num == 0) { serial_write_char('0'); return; }
-    while (num > 0) { buf[i++] = (char)('0' + (num % 10)); num /= 10; }
-    while (i > 0) { serial_write_char(buf[--i]); }
-}
-
 static void serial_print_hex(uint32_t num) {
     const char hex[] = "0123456789abcdef";
     char buf[11];
@@ -91,6 +83,18 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
     while (*fmt) {
         if (*fmt != '%') { serial_write_char(*fmt); fmt++; continue; }
         fmt++;
+
+        /* Optional '0' pad flag + decimal width; width applies to d/u/x.
+         * For x: presence of width emits exactly `width` hex digits with
+         * NO "0x" prefix (e.g. %04x of 0x13 -> "0013"); bare %x keeps
+         * legacy "0x" + 8-digit format. */
+        char pad_ch = ' ';
+        int  width  = 0;
+        if (*fmt == '0') { pad_ch = '0'; fmt++; }
+        while (*fmt >= '0' && *fmt <= '9') {
+            width = width * 10 + (*fmt - '0');
+            fmt++;
+        }
 
         /* Phase D: parse optional ".N" precision before the conversion
          * specifier so that %.Nf works.  -1 = "not specified". */
@@ -112,12 +116,47 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         }
         case 'd': {
             int v = __builtin_va_arg(ap, int);
-            if (v < 0) { serial_write_char('-'); v = -v; }
-            serial_print_dec((uint32_t)v);
+            int neg = (v < 0);
+            uint32_t uv = neg ? (uint32_t)(-v) : (uint32_t)v;
+            char tmp[12]; int t = 0;
+            if (uv == 0) tmp[t++] = '0';
+            else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
+            int total = t + (neg ? 1 : 0);
+            if (pad_ch == '0' && neg) {
+                serial_write_char('-');
+                while (total < width) { serial_write_char('0'); total++; }
+            } else {
+                while (total < width) { serial_write_char(pad_ch); total++; }
+                if (neg) serial_write_char('-');
+            }
+            while (t > 0) serial_write_char(tmp[--t]);
             break;
         }
-        case 'u': serial_print_dec(__builtin_va_arg(ap, uint32_t)); break;
-        case 'x': serial_print_hex(__builtin_va_arg(ap, uint32_t)); break;
+        case 'u': {
+            uint32_t uv = __builtin_va_arg(ap, uint32_t);
+            char tmp[12]; int t = 0;
+            if (uv == 0) tmp[t++] = '0';
+            else while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; }
+            int total = t;
+            while (total < width) { serial_write_char(pad_ch); total++; }
+            while (t > 0) serial_write_char(tmp[--t]);
+            break;
+        }
+        case 'x': {
+            uint32_t xv = __builtin_va_arg(ap, uint32_t);
+            if (width > 0) {
+                const char hex[] = "0123456789abcdef";
+                char tmp[16]; int t = 0;
+                if (xv == 0) tmp[t++] = '0';
+                else while (xv > 0) { tmp[t++] = hex[xv & 0xF]; xv >>= 4; }
+                int total = t;
+                while (total < width) { serial_write_char(pad_ch); total++; }
+                while (t > 0) serial_write_char(tmp[--t]);
+            } else {
+                serial_print_hex(xv);
+            }
+            break;
+        }
         case 'p': serial_print_hex((uint32_t)__builtin_va_arg(ap, void *)); break;
         case 'c': serial_write_char((char)__builtin_va_arg(ap, int));       break;
         case 'f': {
@@ -156,6 +195,13 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         case '%': serial_write_char('%'); break;
         default:
             serial_write_char('%');
+            if (pad_ch == '0') serial_write_char('0');
+            if (width > 0) {
+                char tmp[12]; int tl = 0;
+                int ww = width;
+                while (ww > 0) { tmp[tl++] = (char)('0' + (ww % 10)); ww /= 10; }
+                while (tl > 0) { serial_write_char(tmp[--tl]); }
+            }
             if (prec >= 0) {
                 /* Replay "." and digits we consumed so the output isn't lossy. */
                 serial_write_char('.');

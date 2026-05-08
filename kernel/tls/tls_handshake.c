@@ -324,7 +324,11 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
     hdr[2] = h->carry[2];
     hdr[3] = h->carry[3];
     mlen = rbe24(&hdr[1]);
-    if (mlen > out_max) return TLS_ERR_PROTOCOL;
+    if (mlen > out_max) {
+        serial_printf("[tls] hs_read_msg mlen=%u > out_max=%u (mtype=%u)\n",
+                      (unsigned)mlen, (unsigned)out_max, (unsigned)hdr[0]);
+        return TLS_ERR_PROTOCOL;
+    }
 
     /* Need 4 (header) + mlen total. Grow carry as needed - but because
      * h->carry is small we may have to pull body straight into `out`. */
@@ -354,9 +358,16 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
             uint32_t take;
             int      pc;
             pc = tls_record_recv(&ctx->rec, &rt, rec, sizeof(rec), &rl);
-            if (pc < 0) return TLS_ERR_TRANSPORT;
+            if (pc < 0) {
+                serial_printf("[tls] hs_read_msg body recv rc=%d\n", pc);
+                return TLS_ERR_TRANSPORT;
+            }
             if (rt == TLS_RT_CHANGE_CIPHER_SPEC) continue;
-            if (rt != TLS_RT_HANDSHAKE) return TLS_ERR_PROTOCOL;
+            if (rt != TLS_RT_HANDSHAKE) {
+                serial_printf("[tls] hs_read_msg body rt=%u expected=%u\n",
+                              (unsigned)rt, (unsigned)TLS_RT_HANDSHAKE);
+                return TLS_ERR_PROTOCOL;
+            }
             take = mlen - copied;
             if (take > rl) take = rl;
             for (i = 0; i < take; i++) out[copied + i] = rec[i];
@@ -364,7 +375,11 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
             if (take < rl) {
                 /* Stash leftover for next message. */
                 uint32_t left = rl - take;
-                if (left > sizeof(h->carry)) return TLS_ERR_PROTOCOL;
+                if (left > sizeof(h->carry)) {
+                    serial_printf("[tls] hs_read_msg leftover=%u > carry\n",
+                                  (unsigned)left);
+                    return TLS_ERR_PROTOCOL;
+                }
                 for (i = 0; i < left; i++) h->carry[i] = rec[take + i];
                 h->carry_len = left;
             }
@@ -546,9 +561,17 @@ static int parse_cert_verify(tls_ctx_t *ctx,
     if (blen < 4u) return TLS_ERR_PARSE;
     scheme  = rbe16(body);
     sig_len = rbe16(body + 2);
-    if (blen != 4u + sig_len) return TLS_ERR_PARSE;
+    if (blen != 4u + sig_len) {
+        serial_printf("[tls] cv-parse blen=%u sig_len=%u mismatch\n",
+                      (unsigned)blen, (unsigned)sig_len);
+        return TLS_ERR_PARSE;
+    }
     if (scheme != SIGSCHEME_RSA_PSS_SHA256 &&
-        scheme != SIGSCHEME_ECDSA_P256_SHA256) return TLS_ERR_BAD_SIGNATURE;
+        scheme != SIGSCHEME_ECDSA_P256_SHA256) {
+        serial_printf("[tls] cv-parse unsupported scheme=%04x\n",
+                      (unsigned)scheme);
+        return TLS_ERR_BAD_SIGNATURE;
+    }
     ctx->selected_sigalg = scheme;
 
     /* Build "signed content": 64 spaces + label + 0x00 + transcript_hash. */
@@ -832,7 +855,11 @@ int tls_handshake_client(tls_ctx_t *ctx) {
             ctx->selected_cipher == CS12_ECDHE_ECDSA_AES128_GCM ||
             ctx->selected_cipher == CS12_ECDHE_RSA_CHACHA20     ||
             ctx->selected_cipher == CS12_ECDHE_ECDSA_CHACHA20) {
-            return tls12_handshake_client(ctx);
+            int t12rc = tls12_handshake_client(ctx);
+            if (t12rc != TLS_ERR_OK) {
+                serial_printf("[tls] tls12 dispatch rc=%d\n", t12rc);
+            }
+            return t12rc;
         }
 
         /* TLS 1.3 path. Pick AEAD now. */
@@ -845,24 +872,42 @@ int tls_handshake_client(tls_ctx_t *ctx) {
 
     /* 3. Compute ECDHE shared secret based on selected group. */
     if (ctx->selected_group == NAMED_GROUP_X25519) {
-        if (server_pub_len != 32u) return TLS_ERR_PROTOCOL;
+        if (server_pub_len != 32u) {
+            serial_printf("[tls] ecdhe x25519 bad pub_len=%u\n",
+                          (unsigned)server_pub_len);
+            return TLS_ERR_PROTOCOL;
+        }
         x25519(ctx->ecdhe_shared, ctx->client_priv, server_pub);
     } else if (ctx->selected_group == NAMED_GROUP_SECP256R1) {
         p256_aff_t S;
         p256_jac_t Z_jac;
         p256_aff_t Z_aff;
         p256_scalar_t s;
-        if (server_pub_len != 65u) return TLS_ERR_PROTOCOL;
-        if (p256_pub_from_uncompressed(&S, server_pub, 65u) != 0)
+        if (server_pub_len != 65u) {
+            serial_printf("[tls] ecdhe p256 bad pub_len=%u\n",
+                          (unsigned)server_pub_len);
             return TLS_ERR_PROTOCOL;
+        }
+        if (p256_pub_from_uncompressed(&S, server_pub, 65u) != 0) {
+            serial_printf("[tls] ecdhe p256 decompress fail\n");
+            return TLS_ERR_PROTOCOL;
+        }
         if (p256_scalar_from_be(s, ctx->p256_priv) != 0
-            || p256_scalar_iszero(s)) return TLS_ERR_PROTOCOL;
+            || p256_scalar_iszero(s)) {
+            serial_printf("[tls] ecdhe p256 scalar invalid\n");
+            return TLS_ERR_PROTOCOL;
+        }
         p256_scalar_mul_point(&Z_jac, s, &S);
-        if (p256_jac_is_infinity(&Z_jac)) return TLS_ERR_PROTOCOL;
+        if (p256_jac_is_infinity(&Z_jac)) {
+            serial_printf("[tls] ecdhe p256 infinity\n");
+            return TLS_ERR_PROTOCOL;
+        }
         p256_jac_to_affine(&Z_aff, &Z_jac);
         /* RFC 8446 §7.4.2: ECDHE shared = X coordinate (32 bytes). */
         p256_fe_to_be(ctx->ecdhe_shared, Z_aff.x);
     } else {
+        serial_printf("[tls] ecdhe unknown group=%04x\n",
+                      (unsigned)ctx->selected_group);
         return TLS_ERR_PROTOCOL;
     }
     /* Reject all-zero output (contributory check). */
@@ -870,7 +915,10 @@ int tls_handshake_client(tls_ctx_t *ctx) {
         uint32_t i;
         uint8_t any = 0;
         for (i = 0; i < 32u; i++) any |= ctx->ecdhe_shared[i];
-        if (any == 0u) return TLS_ERR_PROTOCOL;
+        if (any == 0u) {
+            serial_printf("[tls] ecdhe zero shared\n");
+            return TLS_ERR_PROTOCOL;
+        }
     }
 
     /* 4. Derive handshake traffic secrets, install recv key. */
@@ -882,8 +930,15 @@ int tls_handshake_client(tls_ctx_t *ctx) {
 
     /* EncryptedExtensions (ignore content; just consume). */
     rc = hs_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_TYPE_ENCRYPTED_EXTS) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] ee-read fail rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_TYPE_ENCRYPTED_EXTS) {
+        serial_printf("[tls] ee-type unexpected mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_TYPE_ENCRYPTED_EXTS);
+        return TLS_ERR_PROTOCOL;
+    }
 
     /* CertificateRequest is OPTIONAL - we don't support client certs;
      * if it appears we must send empty Certificate later. Detect by
@@ -893,34 +948,70 @@ int tls_handshake_client(tls_ctx_t *ctx) {
 
     /* Certificate. */
     rc = hs_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_TYPE_CERTIFICATE) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] cert-read fail rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_TYPE_CERTIFICATE) {
+        serial_printf("[tls] cert-type unexpected mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_TYPE_CERTIFICATE);
+        return TLS_ERR_PROTOCOL;
+    }
     rc = parse_certificate(ctx, msg_buf, mlen);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] cert-parse fail rc=%d mlen=%u\n",
+                      rc, (unsigned)mlen);
+        return rc;
+    }
 
     /* Snapshot transcript hash now - it's the input to CertificateVerify. */
     th_snapshot(ctx, ctx->th_before_cert_verify);
 
     /* CertificateVerify. */
     rc = hs_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_TYPE_CERT_VERIFY) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] cv-read fail rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_TYPE_CERT_VERIFY) {
+        serial_printf("[tls] cv-type unexpected mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_TYPE_CERT_VERIFY);
+        return TLS_ERR_PROTOCOL;
+    }
     rc = parse_cert_verify(ctx, msg_buf, mlen);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] cv-parse fail rc=%d mlen=%u\n",
+                      rc, (unsigned)mlen);
+        return rc;
+    }
 
     /* Verify cert chain against trust anchors + hostname + clock. */
     rc = x509_chain_verify(&ctx->chain, ctx->hostname, ctx->now_epoch);
-    if (rc != X509_OK) return rc;  /* X509_ERR_* are negative */
+    if (rc != X509_OK) {
+        serial_printf("[tls] chain-verify fail rc=%d\n", rc);
+        return rc;  /* X509_ERR_* are negative */
+    }
 
     /* Snapshot transcript hash - input to server Finished MAC. */
     th_snapshot(ctx, ctx->th_before_server_finished);
 
     /* server Finished. */
     rc = hs_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_TYPE_FINISHED) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] fin-read fail rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_TYPE_FINISHED) {
+        serial_printf("[tls] fin-type unexpected mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_TYPE_FINISHED);
+        return TLS_ERR_PROTOCOL;
+    }
     rc = verify_server_finished(ctx, msg_buf, mlen);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] fin-verify fail rc=%d mlen=%u\n",
+                      rc, (unsigned)mlen);
+        return rc;
+    }
 
     /* Snapshot transcript hash - input for application traffic secrets. */
     th_snapshot(ctx, ctx->th_after_server_finished);
@@ -929,7 +1020,10 @@ int tls_handshake_client(tls_ctx_t *ctx) {
      *    client Finished only) and send Finished. */
     install_client_handshake_send_key(ctx);
     rc = send_client_finished(ctx, ctx->th_after_server_finished);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls] client-fin-send fail rc=%d\n", rc);
+        return rc;
+    }
 
     /* 7. Switch both directions to application traffic keys. */
     compute_application_secrets(ctx);

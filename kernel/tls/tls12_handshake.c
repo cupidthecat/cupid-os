@@ -1,4 +1,4 @@
-/* TLS 1.2 handshake driver — ECDHE_{RSA,ECDSA}_{AES_128_GCM,CHACHA20_POLY1305}_SHA256.
+/* TLS 1.2 handshake driver - ECDHE_{RSA,ECDSA}_{AES_128_GCM,CHACHA20_POLY1305}_SHA256.
  *
  * Flow (RFC 5246 §7.3 + RFC 4492 + RFC 5288 / RFC 7905):
  *
@@ -19,7 +19,7 @@
  *   install server read key + iv
  *   recv Finished              (verify_data = PRF(master, "server finished", SHA256(handshake_msgs_inc_client_finished), 12))
  *
- * Conservative: rejects everything we don't expect — unknown sig algs,
+ * Conservative: rejects everything we don't expect - unknown sig algs,
  * unsupported curves, malformed messages.
  */
 
@@ -35,8 +35,9 @@
 #include "x509_chain.h"
 #include "rsa.h"
 #include "asn1.h"
+#include "../../drivers/serial.h"
 
-/* --- Wire helpers (matches tls_handshake.c) ----------------------- */
+/* Wire helpers (matches tls_handshake.c) */
 
 static uint16_t rbe16_t(const uint8_t *p) {
     return (uint16_t)((((uint32_t)p[0]) << 8) | (uint32_t)p[1]);
@@ -50,7 +51,7 @@ static void wbe24_t(uint8_t *p, uint32_t v) {
     p[2] = (uint8_t)(v & 0xFFu);
 }
 
-/* --- Cipher suites we accept in 1.2 ------------------------------- */
+/* Cipher suites we accept in 1.2 */
 
 #define CS12_ECDHE_RSA_AES128_GCM    0xC02F
 #define CS12_ECDHE_ECDSA_AES128_GCM  0xC02B
@@ -70,7 +71,7 @@ static void wbe24_t(uint8_t *p, uint32_t v) {
 #define HS_T_CLIENT_KEY_EXCHANGE     16
 #define HS_T_FINISHED                20
 
-/* --- Transcript convenience --------------------------------------- */
+/* Transcript convenience */
 
 static void th_update(tls_ctx_t *ctx, const uint8_t *p, uint32_t n) {
     sha256_update(&ctx->transcript, p, n);
@@ -80,7 +81,7 @@ static void th_snap(const tls_ctx_t *ctx, uint8_t out[32]) {
     sha256_final(&copy, out);
 }
 
-/* --- Cleartext handshake reader ----------------------------------- */
+/* Cleartext handshake reader */
 /* TLS 1.2 sends handshake messages as cleartext records (until CCS).
  * We pull records and concatenate them, then peel off one HS message
  * per call.  This is a simplified version of the 1.3 hs_reader. */
@@ -113,7 +114,7 @@ static int hs12_pull(tls_ctx_t *ctx, hs12_reader_t *r, uint32_t need) {
 
 /* Read one handshake message into `out`. Caller is responsible for
  * folding the message (header + body) into the transcript hash via
- * th_update — passing `do_fold = 1` does that automatically; `0` lets
+ * th_update - passing `do_fold = 1` does that automatically; `0` lets
  * the caller take a transcript snapshot before folding (needed for
  * Finished verification). */
 static int hs12_read_msg(tls_ctx_t *ctx, hs12_reader_t *r,
@@ -140,7 +141,7 @@ static int hs12_read_msg(tls_ctx_t *ctx, hs12_reader_t *r,
     return TLS_ERR_OK;
 }
 
-/* --- Certificate parser (1.2: list with no req_ctx prefix) -------- */
+/* Certificate parser (1.2: list with no req_ctx prefix) */
 
 static int ingest_certificates(tls_ctx_t *ctx,
                                const uint8_t *body, uint32_t blen) {
@@ -175,7 +176,7 @@ static int ingest_certificates(tls_ctx_t *ctx,
     return TLS_ERR_OK;
 }
 
-/* --- ServerKeyExchange parsing + sig verify ----------------------- */
+/* ServerKeyExchange parsing + sig verify */
 
 /* Returns 0 on OK, sets *server_pub / *server_pub_len from the ECPoint
  * blob (raw bytes, no length prefix), and verifies the signature against
@@ -278,7 +279,7 @@ static int parse_server_kex(tls_ctx_t *ctx,
     return TLS_ERR_OK;
 }
 
-/* --- ECDHE ------------------------------------------------------- */
+/* ECDHE */
 
 static int compute_ecdhe(tls_ctx_t *ctx,
                          const uint8_t *server_pub, uint32_t server_pub_len) {
@@ -311,7 +312,7 @@ static int compute_ecdhe(tls_ctx_t *ctx,
     return TLS_ERR_OK;
 }
 
-/* --- Build ClientKeyExchange ------------------------------------- */
+/* Build ClientKeyExchange */
 
 static int send_client_kex(tls_ctx_t *ctx) {
     uint8_t  msg[4 + 1 + 65];
@@ -340,7 +341,7 @@ static int send_client_kex(tls_ctx_t *ctx) {
     return TLS_ERR_OK;
 }
 
-/* --- Cipher-specific layout --------------------------------------- */
+/* Cipher-specific layout */
 
 static uint32_t cs12_key_len(uint16_t cs) {
     return (cs == CS12_ECDHE_RSA_AES128_GCM ||
@@ -358,7 +359,7 @@ static uint8_t cs12_aead_alg(uint16_t cs) {
             ? TLS_AEAD_AES_128_GCM : TLS_AEAD_CHACHA20_POLY1305;
 }
 
-/* --- Main driver ------------------------------------------------- */
+/* Main driver */
 
 int tls12_handshake_client(tls_ctx_t *ctx) {
     uint8_t  msg_buf[20480];
@@ -379,34 +380,71 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
 
     /* 1. Certificate. */
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 1);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_T_CERTIFICATE) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] cert-read rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_T_CERTIFICATE) {
+        serial_printf("[tls12] cert-type mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_T_CERTIFICATE);
+        return TLS_ERR_PROTOCOL;
+    }
     rc = ingest_certificates(ctx, msg_buf, mlen);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] cert-ingest rc=%d mlen=%u\n", rc, (unsigned)mlen);
+        return rc;
+    }
 
     /* 2. ServerKeyExchange. */
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 1);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_T_SERVER_KEY_EXCHANGE) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] skex-read rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_T_SERVER_KEY_EXCHANGE) {
+        serial_printf("[tls12] skex-type mtype=%u expected=%u\n",
+                      (unsigned)mtype, (unsigned)HS_T_SERVER_KEY_EXCHANGE);
+        return TLS_ERR_PROTOCOL;
+    }
     rc = parse_server_kex(ctx, msg_buf, mlen, server_pub, &server_pub_len);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] skex-parse rc=%d mlen=%u\n", rc, (unsigned)mlen);
+        return rc;
+    }
 
     /* 3. Verify cert chain. */
     rc = x509_chain_verify(&ctx->chain, ctx->hostname, ctx->now_epoch);
-    if (rc != X509_OK) return rc;
+    if (rc != X509_OK) {
+        serial_printf("[tls12] chain-verify rc=%d\n", rc);
+        return rc;
+    }
 
     /* 4. ServerHelloDone. */
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 1);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_T_SERVER_HELLO_DONE || mlen != 0u) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] shd-read rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_T_SERVER_HELLO_DONE || mlen != 0u) {
+        serial_printf("[tls12] shd-type mtype=%u mlen=%u\n",
+                      (unsigned)mtype, (unsigned)mlen);
+        return TLS_ERR_PROTOCOL;
+    }
 
     /* 5. Compute pre_master_secret = ECDHE shared. */
     rc = compute_ecdhe(ctx, server_pub, server_pub_len);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] ecdhe rc=%d pub_len=%u\n",
+                      rc, (unsigned)server_pub_len);
+        return rc;
+    }
 
     /* 6. Send ClientKeyExchange (folds itself into transcript). */
     rc = send_client_kex(ctx);
-    if (rc != TLS_ERR_OK) return rc;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] ckex-send rc=%d\n", rc);
+        return rc;
+    }
 
     /* 7. master_secret = PRF(pre_master, "extended master secret",
      *                        SHA256(handshake_msgs_through_CKE), 48).
@@ -414,7 +452,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
      * server (Mozilla MIN policy) is fine; if the server didn't echo
      * EMS we fall back to the standard label.
      *
-     * We don't currently track whether the server confirmed EMS — the
+     * We don't currently track whether the server confirmed EMS - the
      * extension was offered and a 1.2 server that omits it is permitted
      * to use the legacy schedule.  Use legacy for maximum compat. */
     {
@@ -442,7 +480,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
                   key_block, kb_len);
     }
 
-    /* 9. Configure AEAD + 1.2 wire format. Keys NOT yet installed —
+    /* 9. Configure AEAD + 1.2 wire format. Keys NOT yet installed -
      *    CCS must go out cleartext first. */
     tls_record_set_aead(&ctx->rec, cs12_aead_alg(cs));
     tls_record_set_tls12(&ctx->rec);
@@ -450,8 +488,10 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     /* 10. Send ChangeCipherSpec cleartext. */
     {
         uint8_t ccs = 0x01u;
-        if (tls_record_send(&ctx->rec, TLS_RT_CHANGE_CIPHER_SPEC, &ccs, 1u) != 0)
+        if (tls_record_send(&ctx->rec, TLS_RT_CHANGE_CIPHER_SPEC, &ccs, 1u) != 0) {
+            serial_printf("[tls12] ccs-send fail\n");
             return TLS_ERR_TRANSPORT;
+        }
     }
 
     /* 11. Install client send key + IV (key_block layout:
@@ -480,18 +520,27 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
         for (i = 0; i < 12u; i++) fin_msg[4 + i] = verify[i];
         th_update(ctx, fin_msg, sizeof(fin_msg));
         if (tls_record_send(&ctx->rec, TLS_RT_HANDSHAKE,
-                            fin_msg, sizeof(fin_msg)) != 0)
+                            fin_msg, sizeof(fin_msg)) != 0) {
+            serial_printf("[tls12] client-fin-send fail\n");
             return TLS_ERR_TRANSPORT;
+        }
     }
 
-    /* 13. Recv ChangeCipherSpec (cleartext — recv side not yet keyed). */
+    /* 13. Recv ChangeCipherSpec (cleartext - recv side not yet keyed). */
     {
         uint8_t  rec_body[16];
         uint32_t rl;
         uint8_t  rt;
         rc = tls_record_recv(&ctx->rec, &rt, rec_body, sizeof(rec_body), &rl);
-        if (rc < 0) return TLS_ERR_TRANSPORT;
-        if (rt != TLS_RT_CHANGE_CIPHER_SPEC) return TLS_ERR_PROTOCOL;
+        if (rc < 0) {
+            serial_printf("[tls12] ccs-recv rc=%d\n", rc);
+            return TLS_ERR_TRANSPORT;
+        }
+        if (rt != TLS_RT_CHANGE_CIPHER_SPEC) {
+            serial_printf("[tls12] ccs-recv rt=%u expected=%u\n",
+                          (unsigned)rt, (unsigned)TLS_RT_CHANGE_CIPHER_SPEC);
+            return TLS_ERR_PROTOCOL;
+        }
     }
 
     /* 14. Install server recv key + IV. */
@@ -506,8 +555,15 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     /* 15. Recv Finished and verify. Snapshot transcript BEFORE folding
      *     this Finished message in. */
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 0);
-    if (rc != TLS_ERR_OK) return rc;
-    if (mtype != HS_T_FINISHED || mlen != 12u) return TLS_ERR_PROTOCOL;
+    if (rc != TLS_ERR_OK) {
+        serial_printf("[tls12] fin-read rc=%d\n", rc);
+        return rc;
+    }
+    if (mtype != HS_T_FINISHED || mlen != 12u) {
+        serial_printf("[tls12] fin-type mtype=%u mlen=%u\n",
+                      (unsigned)mtype, (unsigned)mlen);
+        return TLS_ERR_PROTOCOL;
+    }
     {
         uint8_t snap_pre[32];
         uint8_t expected[12];
