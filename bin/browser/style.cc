@@ -37,6 +37,8 @@ void ua_default_style(int tag, int cs) {
     cs_white_space[cs] = WS_NORMAL;
     cs_list_style[cs] = LS_DISC;
     cs_vertical_align[cs] = VA_BASELINE;
+    cs_line_height[cs] = -1;        /* unset; falls back to tier_line_h */
+    cs_line_height_mult[cs] = 0;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -245,6 +247,44 @@ int css_value_keyword(int off, int len, char *kw) {
     int kl = b_strlen(kw);
     if (len < kl) return 0;
     return b_strieq_n(css_value_pool + off, kw, kl);
+}
+
+/* Parse a `line-height` value into (px_or_mult, is_mult). Returns 1 on success.
+ *   "30px" -> value=30,  is_mult=0
+ *   "1.8"  -> value=180, is_mult=1     (multiplier x100)
+ *   "2"    -> value=200, is_mult=1
+ *   "normal"/anything else -> returns 0 (caller leaves sentinel) */
+int parse_line_height(int off, int len, int *out_value, int *out_is_mult) {
+    int i = off;
+    int end = off + len;
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i >= end) return 0;
+    if (css_value_pool[i] < '0' || css_value_pool[i] > '9') return 0;
+    int int_part = 0;
+    while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+        int_part = int_part * 10 + (css_value_pool[i] - '0');
+        i = i + 1;
+    }
+    int frac = 0;
+    if (i < end && css_value_pool[i] == '.') {
+        i = i + 1;
+        int digits = 0;
+        while (i < end && css_value_pool[i] >= '0' && css_value_pool[i] <= '9') {
+            if (digits < 2) frac = frac * 10 + (css_value_pool[i] - '0');
+            digits = digits + 1;
+            i = i + 1;
+        }
+        if (digits == 1) frac = frac * 10;     /* "1.8" -> 80 */
+    }
+    while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+    if (i + 1 < end && css_value_pool[i] == 'p' && css_value_pool[i+1] == 'x') {
+        *out_value = int_part;
+        *out_is_mult = 0;
+        return 1;
+    }
+    *out_value = int_part * 100 + frac;
+    *out_is_mult = 1;
+    return 1;
 }
 
 /* Step 5.2: single-property apply */
@@ -503,6 +543,20 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         cs_vertical_align[cs] = VA_BASELINE;
         return;
     }
+    if (prop == CP_LINE_HEIGHT) {
+        if (css_value_keyword(val_off, val_len, "normal")) {
+            cs_line_height[cs] = -1;
+            cs_line_height_mult[cs] = 0;
+            return;
+        }
+        int v;
+        int m;
+        if (parse_line_height(val_off, val_len, &v, &m)) {
+            cs_line_height[cs] = v;
+            cs_line_height_mult[cs] = m;
+        }
+        return;
+    }
 }
 
 /* Step 5.5: inline style="..." parser.
@@ -712,6 +766,10 @@ void style_resolve_all() {
             if (cs_white_space[cs] == WS_NORMAL) cs_white_space[cs] = cs_white_space[pcs];
             if (cs_list_style[cs] == LS_DISC && cs_list_style[pcs] != LS_DISC)
                 cs_list_style[cs] = cs_list_style[pcs];
+            if (cs_line_height[cs] < 0) {
+                cs_line_height[cs] = cs_line_height[pcs];
+                cs_line_height_mult[cs] = cs_line_height_mult[pcs];
+            }
         } else {
             /* root: ensure color is concrete */
             if (cs_color[cs] < 0) cs_color[cs] = 0x000000;

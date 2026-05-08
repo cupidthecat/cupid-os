@@ -110,7 +110,7 @@ void paint_rt_text(int n, int sx, int sy) {
     gfx2d_text_n(sx, sy, buf, len, fg, font);
     if (cs_text_dec[cs] & TD_UNDERLINE) {
         int uw = gfx2d_text_width_n(buf, len, font);
-        gfx2d_rect_fill(sx, sy + tier_line_h(tier) - 2, uw, 1, fg);
+        gfx2d_rect_fill(sx, sy + effective_line_h(cs, tier) - 2, uw, 1, fg);
     }
 }
 
@@ -138,7 +138,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int fg = la_fg[k];
         if (fg < 0) fg = 0x000000;
         int bg = la_bg[k];
-        if (bg >= 0) gfx2d_rect_fill(ax, ay, la_w[k], tier_line_h(tier), bg);
+        if (bg >= 0) gfx2d_rect_fill(ax, ay, la_w[k], effective_line_h(rt_style[n], tier), bg);
         char buf[256];
         int len = la_text_len[k];
         if (len > 255) len = 255;

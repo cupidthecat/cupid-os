@@ -256,6 +256,7 @@ int css_match_property(char *s, int len) {
     if (len == 11 && b_strieq_n(s, "white-space", 11))            return CP_WHITE_SPACE;
     if (len == 16 && b_strieq_n(s, "list-style-type", 16))        return CP_LIST_STYLE_TYPE;
     if (len == 14 && b_strieq_n(s, "vertical-align", 14))         return CP_VERTICAL_ALIGN;
+    if (len == 11 && b_strieq_n(s, "line-height", 11))            return CP_LINE_HEIGHT;
     return 0;
 }
 

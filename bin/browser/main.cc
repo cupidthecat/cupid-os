@@ -123,6 +123,7 @@ enum {
     CP_BORDER, CP_BORDER_COLOR, CP_BORDER_T, CP_BORDER_R, CP_BORDER_B, CP_BORDER_L,
     CP_BORDER_WIDTH, CP_BORDER_STYLE, CP_FONT,
     CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
+    CP_LINE_HEIGHT,
     MAX_CP_ID = 40,
 
     /* §2 enumerated value tags */
@@ -350,6 +351,11 @@ int cs_height   [4096];
 int cs_white_space[4096];
 int cs_list_style[4096];
 int cs_vertical_align[4096];
+/* line-height: -1 = unset (use tier_line_h fallback). When cs_line_height_mult
+ * is 1, the value is a unitless multiplier scaled by 100 (e.g. "1.8" -> 180);
+ * when 0, the value is a px length. */
+int cs_line_height[4096];
+int cs_line_height_mult[4096];
 
 /* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;

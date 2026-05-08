@@ -70,6 +70,22 @@ int tier_line_h(int tier) {
     return 32;                         /* tier 4 (h1) gets extra room */
 }
 
+/* Resolve effective line height for a node given its computed style and the
+ * tier in play (atoms can carry different tiers from the parent block). When
+ * no `line-height` was specified, fall back to tier_line_h. */
+int effective_line_h(int cs, int tier) {
+    if (cs < 0 || cs >= cs_count) return tier_line_h(tier);
+    int lh = cs_line_height[cs];
+    if (lh < 0) return tier_line_h(tier);
+    if (cs_line_height_mult[cs]) {
+        int base = tier_line_h(tier);
+        int v = (base * lh) / 100;
+        if (v < 1) v = 1;
+        return v;
+    }
+    return lh;
+}
+
 int text_slice_w(int off, int len, int tier) {
     return gfx2d_text_width_n(attr_pool + off, len, tier_to_font(tier));
 }
@@ -248,10 +264,10 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
                 rt_x[lb] = cx;
                 rt_y[lb] = line_top;
                 rt_w[lb] = max_w;
-                int lh = line_h ? line_h : tier_line_h(tier);
+                int lh = line_h ? line_h : effective_line_h(rt_style[parent], tier);
                 rt_h[lb] = lh;
             }
-            line_top += line_h ? line_h : tier_line_h(tier);
+            line_top += line_h ? line_h : effective_line_h(rt_style[parent], tier);
             x = cx;
             line_h = 0;
             line_start_atom = k + 1;
@@ -281,7 +297,7 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         }
         la_x[k] = x;
         x += aw;
-        int lh = tier_line_h(tier);
+        int lh = effective_line_h(rt_style[parent], tier);
         if (lh > line_h) line_h = lh;
     }
 
