@@ -14,6 +14,7 @@
 #include "vga.h"
 #include "desktop.h"
 #include "font_8x8.h"
+#include "fontsys.h"
 #include "graphics.h"
 #include "gui.h"
 #include "memory.h"
@@ -1269,7 +1270,53 @@ uint32_t gfx2d_sprite_get_pixel(int handle, int x, int y) {
   return g2d_sprite_data[handle][(uint32_t)y * (uint32_t)w + (uint32_t)x];
 }
 
+/* TTF-active size for the current logical font slot; 0 if bitmap path. */
+static int g2d_ttf_size_for(int font) {
+  int face = fontsys_get_os_default_face();
+  if (face < 0) return 0;
+  int sz = fontsys_get_os_default_size();
+  if (font == GFX2D_FONT_LARGE) sz *= 2;
+  else if (font == GFX2D_FONT_SMALL) sz = (sz * 3) / 4;
+  if (sz < 6) sz = 6;
+  return sz;
+}
+
+/* Blit an alpha bitmap with the active foreground color. */
+static void g2d_blit_alpha(const uint8_t *a, int w, int h,
+                           int dx, int dy, uint32_t color) {
+  if (!a || w <= 0 || h <= 0) return;
+  uint32_t rgb = color & 0x00FFFFFFu;
+  for (int yy = 0; yy < h; yy++) {
+    for (int xx = 0; xx < w; xx++) {
+      uint8_t cov = a[yy * w + xx];
+      if (!cov) continue;
+      gfx2d_pixel_alpha(dx + xx, dy + yy, ((uint32_t)cov << 24) | rgb);
+    }
+  }
+}
+
+/* TTF glyph blit that mimics bitmap behavior: caller passes the bbox
+ * top-left (x, y); we offset by ascent so the baseline lands sensibly
+ * inside that cell. Returns the pen advance, or 0 on miss/empty glyph. */
+static int g2d_draw_char_ttf(int x, int y, char c, uint32_t color,
+                             int face, int sz) {
+  const uint8_t *a; int w, h, bx, by, adv;
+  if (fontsys_glyph(face, (int)(uint8_t)c, sz, &a, &w, &h, &bx, &by, &adv) != 0) {
+    return 0;
+  }
+  int asc = fontsys_ascent(face, sz);
+  int dst_x = x + bx;
+  int dst_y = y + asc - by;
+  g2d_blit_alpha(a, w, h, dst_x, dst_y, color);
+  return adv;
+}
+
 static void g2d_draw_char(int x, int y, char c, uint32_t color, int font) {
+  int ttf_sz = g2d_ttf_size_for(font);
+  if (ttf_sz > 0) {
+    g2d_draw_char_ttf(x, y, c, color, fontsys_get_os_default_face(), ttf_sz);
+    return;
+  }
   uint8_t idx = (uint8_t)c;
   int row, col;
   if (idx >= 128u)
@@ -1312,6 +1359,22 @@ static void g2d_draw_char(int x, int y, char c, uint32_t color, int font) {
 }
 
 void gfx2d_text(int x, int y, const char *str, uint32_t color, int font) {
+  int ttf_sz = g2d_ttf_size_for(font);
+  if (ttf_sz > 0) {
+    int face = fontsys_get_os_default_face();
+    int cx = x;
+    int asc = fontsys_ascent(face, ttf_sz);
+    while (*str) {
+      const uint8_t *a; int w, h, bx, by, adv;
+      if (fontsys_glyph(face, (int)(uint8_t)*str, ttf_sz,
+                        &a, &w, &h, &bx, &by, &adv) == 0) {
+        g2d_blit_alpha(a, w, h, cx + bx, y + asc - by, color);
+        cx += adv;
+      }
+      str++;
+    }
+    return;
+  }
   int cw = (font == GFX2D_FONT_SMALL) ? 6 : (font == GFX2D_FONT_LARGE) ? 16 : 8;
   int cx = x;
   while (*str) {
@@ -1385,6 +1448,16 @@ void gfx2d_text_wrap(int x, int y, int w, const char *str, uint32_t color,
 }
 
 int gfx2d_text_width(const char *str, int font) {
+  int ttf_sz = g2d_ttf_size_for(font);
+  if (ttf_sz > 0 && str) {
+    int face = fontsys_get_os_default_face();
+    int total = 0;
+    while (*str) {
+      total += fontsys_advance(face, (int)(uint8_t)*str, ttf_sz);
+      str++;
+    }
+    return total;
+  }
   int cw = (font == GFX2D_FONT_SMALL) ? 6 : (font == GFX2D_FONT_LARGE) ? 16 : 8;
   int n = 0;
   while (*str) {
@@ -1394,7 +1467,14 @@ int gfx2d_text_width(const char *str, int font) {
   return n * cw;
 }
 
-int gfx2d_text_height(int font) { return (font == GFX2D_FONT_LARGE) ? 16 : 8; }
+int gfx2d_text_height(int font) {
+  int ttf_sz = g2d_ttf_size_for(font);
+  if (ttf_sz > 0) {
+    int face = fontsys_get_os_default_face();
+    return fontsys_line_height(face, ttf_sz);
+  }
+  return (font == GFX2D_FONT_LARGE) ? 16 : 8;
+}
 
 /* Per-glyph proportional advance, lazily cached. Computed from the
  * rightmost set pixel column of the 8x8 bitmap + 1 (inter-char spacing).
@@ -1438,6 +1518,11 @@ static int g2d_glyph_advance_8x8(uint8_t idx) {
 }
 
 int gfx2d_glyph_advance(char c, int font) {
+  int ttf_sz = g2d_ttf_size_for(font);
+  if (ttf_sz > 0) {
+    int face = fontsys_get_os_default_face();
+    return fontsys_advance(face, (int)(uint8_t)c, ttf_sz);
+  }
   uint8_t idx = (uint8_t)c;
   if (idx >= 128u)
     idx = 0u;

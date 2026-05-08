@@ -15,31 +15,38 @@
 #include "../drivers/rtc.h"
 #include "../drivers/serial.h"
 #include "../drivers/timer.h"
+#include "arp.h"
 #include "blockcache.h"
 #include "bmp.h"
 #include "calendar.h"
+#include "dns.h"
 #include "ed.h"
 #include "exec.h"
+#include "fontsys.h"
 #include "gfx2d.h"
 #include "gfx2d_icons.h"
+#include "icmp.h"
+#include "ip.h"
 #include "kernel.h"
 #include "math.h"
 #include "memory.h"
+#include "net_if.h"
 #include "notepad.h"
 #include "panic.h"
 #include "ports.h"
 #include "process.h"
 #include "shell.h"
+#include "socket.h"
 #include "string.h"
+#include "udp.h"
 #include "vfs.h"
 #include "vfs_helpers.h"
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Port I/O wrappers for CupidC kernel bindings
+/*  *  Port I/O wrappers for CupidC kernel bindings
  *
  *  The compiler binds calls to outb()/inb() to these wrappers which
  *  match cdecl calling convention with 32-bit args on the stack.
- * ══════════════════════════════════════════════════════════════════════ */
+ *  */
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
@@ -270,9 +277,8 @@ static void cc_crashtest_stackoverflow(void) {
 /* Print a byte as 2 hex digits - wrapper with uint32_t arg for CupidC */
 static void cc_print_hex_byte(uint32_t val) { print_hex_byte((uint8_t)val); }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  16.16 Fixed-Point Math Helpers for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  16.16 Fixed-Point Math Helpers for CupidC
+ *  */
 
 static int cc_fp_mul(int a, int b) {
   /* Use 64-bit multiply (no libgcc needed for multiply, only divide) */
@@ -320,9 +326,8 @@ static int cc_fp_to_int(int a) { return a >> 16; }
 static int cc_fp_frac(int a) { return a & 0xFFFF; }
 static int cc_fp_one(void) { return 65536; } /* FP_ONE = 1.0 in 16.16 */
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Mouse Input Accessors for CupidC
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Mouse Input Accessors for CupidC
+ *  */
 
 static int cc_mouse_x(void) { return (int)mouse.x; }
 static int cc_mouse_y(void) { return (int)mouse.y; }
@@ -334,9 +339,45 @@ static int cc_mouse_scroll(void) {
 }
 static int cc_key_shift_held(void) { return keyboard_get_shift() ? 1 : 0; }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Kernel Bindings Registration
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Net wrappers for CupidC  */
+static uint32_t cc_net_get_ip(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_addr : 0u;
+}
+static uint32_t cc_net_get_gateway(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_gateway : 0u;
+}
+static uint32_t cc_net_get_dns(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_dns : 0u;
+}
+static uint32_t cc_net_get_mask(void) {
+  net_if_t *n = net_if_primary();
+  return n ? n->ipv4_mask : 0u;
+}
+static void cc_net_get_mac(uint8_t *out) {
+  net_if_t *n = net_if_primary();
+  int i;
+  if (!out) return;
+  if (!n) { for (i = 0; i < 6; i++) out[i] = 0u; return; }
+  for (i = 0; i < 6; i++) out[i] = n->mac[i];
+}
+static uint32_t cc_net_link_up(void) {
+  net_if_t *n = net_if_primary();
+  return (n && n->link_up) ? 1u : 0u;
+}
+static uint32_t cc_net_rx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->rx_packets : 0u;
+}
+static uint32_t cc_net_tx_packets(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->tx_packets : 0u;
+}
+
+/*  *  Kernel Bindings Registration
+ *  */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
 /* Helper macro to add a kernel function binding */
@@ -670,7 +711,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_memcmp)(const void *, const void *, size_t) = memcmp;
   BIND("memcmp", p_memcmp, 3);
 
-  /* ── gfx2d - 2D graphics library ────────────────────────────── */
+  /*  gfx2d - 2D graphics library  */
   void (*p_gfx2d_init)(void) = gfx2d_init;
   BIND("gfx2d_init", p_gfx2d_init, 0);
 
@@ -798,6 +839,47 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_text_height)(int) = gfx2d_text_height;
   BIND("gfx2d_text_height", p_gfx2d_text_height, 1);
 
+  /* fontsys: TTF font system bindings. */
+  int (*p_fontsys_match)(const char *, int, int, int) = fontsys_match;
+  BIND("fontsys_match", p_fontsys_match, 4);
+
+  void (*p_fontsys_set_os_default)(int, int) = fontsys_set_os_default;
+  BIND("fontsys_set_os_default", p_fontsys_set_os_default, 2);
+
+  int (*p_fontsys_get_os_default_face)(void) = fontsys_get_os_default_face;
+  BIND("fontsys_get_os_default_face", p_fontsys_get_os_default_face, 0);
+
+  int (*p_fontsys_get_os_default_size)(void) = fontsys_get_os_default_size;
+  BIND("fontsys_get_os_default_size", p_fontsys_get_os_default_size, 0);
+
+  int (*p_fontsys_face_count)(void) = fontsys_face_count;
+  BIND("fontsys_face_count", p_fontsys_face_count, 0);
+
+  const char *(*p_fontsys_face_family)(int) = fontsys_face_family;
+  BIND("fontsys_face_family", p_fontsys_face_family, 1);
+
+  int (*p_fontsys_face_weight)(int) = fontsys_face_weight;
+  BIND("fontsys_face_weight", p_fontsys_face_weight, 1);
+
+  int (*p_fontsys_face_italic)(int) = fontsys_face_italic;
+  BIND("fontsys_face_italic", p_fontsys_face_italic, 1);
+
+  int (*p_fontsys_register_file)(const char *) = fontsys_register_file;
+  BIND("fontsys_register_file", p_fontsys_register_file, 1);
+
+  int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
+  BIND("fontsys_run_width", p_fontsys_run_width, 4);
+
+  void (*p_fontsys_draw_run_styled)(int, int, int, int, const char *, int,
+                                    uint32_t, int, int) = fontsys_draw_run_styled;
+  BIND("fontsys_draw_run_styled", p_fontsys_draw_run_styled, 9);
+
+  int (*p_fontsys_ascent)(int, int) = fontsys_ascent;
+  BIND("fontsys_ascent", p_fontsys_ascent, 2);
+
+  int (*p_fontsys_line_height)(int, int) = fontsys_line_height;
+  BIND("fontsys_line_height", p_fontsys_line_height, 2);
+
   void (*p_gfx2d_vignette)(int) = gfx2d_vignette;
   BIND("gfx2d_vignette", p_gfx2d_vignette, 1);
 
@@ -830,11 +912,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_checkerboard;
   BIND("gfx2d_checkerboard", p_gfx2d_checkerboard, 7);
 
-  /* ── gfx2d - blend modes ─────────────────────────────────────────── */
+  /*  gfx2d - blend modes  */
   void (*p_gfx2d_blend_mode)(int) = gfx2d_blend_mode;
   BIND("gfx2d_blend_mode", p_gfx2d_blend_mode, 1);
 
-  /* ── gfx2d - surfaces ────────────────────────────────────────────── */
+  /*  gfx2d - surfaces  */
   int (*p_gfx2d_surface_alloc)(int, int) = gfx2d_surface_alloc;
   BIND("gfx2d_surface_alloc", p_gfx2d_surface_alloc, 2);
 
@@ -857,7 +939,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_surface_blit_alpha;
   BIND("gfx2d_surface_blit_alpha", p_gfx2d_surface_blit_alpha, 4);
 
-  /* ── gfx2d - tweening ────────────────────────────────────────────── */
+  /*  gfx2d - tweening  */
   int (*p_gfx2d_tween_linear)(int, int, int, int) = gfx2d_tween_linear;
   BIND("gfx2d_tween_linear", p_gfx2d_tween_linear, 4);
 
@@ -871,7 +953,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_tween_elastic)(int, int, int, int) = gfx2d_tween_elastic;
   BIND("gfx2d_tween_elastic", p_gfx2d_tween_elastic, 4);
 
-  /* ── gfx2d - particles ───────────────────────────────────────────── */
+  /*  gfx2d - particles  */
   int (*p_gfx2d_particles_create)(void) = gfx2d_particles_create;
   BIND("gfx2d_particles_create", p_gfx2d_particles_create, 0);
 
@@ -891,7 +973,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_particles_alive)(int) = gfx2d_particles_alive;
   BIND("gfx2d_particles_alive", p_gfx2d_particles_alive, 1);
 
-  /* ── gfx2d - drawing tools ───────────────────────────────────────── */
+  /*  gfx2d - drawing tools  */
   void (*p_gfx2d_bezier)(int, int, int, int, int, int, uint32_t) = gfx2d_bezier;
   BIND("gfx2d_bezier", p_gfx2d_bezier, 7);
 
@@ -905,7 +987,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_flood_fill)(int, int, uint32_t) = gfx2d_flood_fill;
   BIND("gfx2d_flood_fill", p_gfx2d_flood_fill, 3);
 
-  /* ── gfx2d - fullscreen mode ─────────────────────────────────────── */
+  /*  gfx2d - fullscreen mode  */
   void (*p_gfx2d_fullscreen_enter)(void) = gfx2d_fullscreen_enter;
   BIND("gfx2d_fullscreen_enter", p_gfx2d_fullscreen_enter, 0);
 
@@ -927,7 +1009,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_gfx2d_cursor_hide)(void) = gfx2d_cursor_hide;
   BIND("gfx2d_cursor_hide", p_gfx2d_cursor_hide, 0);
 
-  /* ── Fixed-point math (16.16) ──────────────────────────────────────── */
+  /*  Fixed-point math (16.16)  */
 
   int (*p_fp_mul)(int, int) = cc_fp_mul;
   BIND("fp_mul", p_fp_mul, 2);
@@ -947,7 +1029,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fp_one)(void) = cc_fp_one;
   BIND("FP_ONE", p_fp_one, 0);
 
-  /* ── BMP image encoding/decoding ────────────────────────────── */
+  /*  BMP image encoding/decoding  */
 
   int (*p_bmp_get_info)(const char *, bmp_info_t *) = bmp_get_info;
   BIND("bmp_get_info", p_bmp_get_info, 2);
@@ -962,7 +1044,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_bmp_decode_to_fb)(const char *, int, int) = bmp_decode_to_fb;
   BIND("bmp_decode_to_fb", p_bmp_decode_to_fb, 3);
 
-  /* ── File dialogs ───────────────────────────────────────────── */
+  /*  File dialogs  */
 
   int (*p_file_dlg_open)(const char *, char *, const char *) =
       gfx2d_file_dialog_open;
@@ -972,7 +1054,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_file_dialog_save;
   BIND("file_dialog_save", p_file_dlg_save, 4);
 
-  /* ── VFS helpers ────────────────────────────────────────────── */
+  /*  VFS helpers  */
 
   int (*p_vfs_read_all)(const char *, void *, uint32_t) = vfs_read_all;
   BIND("vfs_read_all", p_vfs_read_all, 3);
@@ -989,12 +1071,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_vfs_copy_file)(const char *, const char *) = vfs_copy_file;
   BIND("vfs_copy_file", p_vfs_copy_file, 2);
 
-  /* ── String extras ──────────────────────────────────────────── */
+  /*  String extras  */
 
   char *(*p_strrchr)(const char *, int) = strrchr;
   BIND("strrchr", p_strrchr, 2);
 
-  /* ── Dialog helpers ─────────────────────────────────────────── */
+  /*  Dialog helpers  */
 
   int (*p_confirm_dlg)(const char *) = gfx2d_confirm_dialog;
   BIND("confirm_dialog", p_confirm_dlg, 1);
@@ -1008,7 +1090,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_popup_menu)(int, int, const char **, int) = gfx2d_popup_menu;
   BIND("popup_menu", p_popup_menu, 4);
 
-  /* ── Desktop icon system ──────────────────────────────────────────── */
+  /*  Desktop icon system  */
   int (*p_icon_register)(const char *, const char *, int, int) =
       gfx2d_icon_register;
   BIND("register_desktop_icon", p_icon_register, 4);
@@ -1047,12 +1129,129 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_icons_save)(void) = gfx2d_icons_save;
   BIND("icons_save", p_icons_save, 0);
 
+  /*  *  Networking - NIC info + ARP/ICMP/UDP/DNS + BSD sockets  */
+
+  /* Primary NIC info */
+  uint32_t (*p_net_get_ip)(void) = cc_net_get_ip;
+  BIND("net_get_ip", p_net_get_ip, 0);
+
+  uint32_t (*p_net_get_gateway)(void) = cc_net_get_gateway;
+  BIND("net_get_gateway", p_net_get_gateway, 0);
+
+  uint32_t (*p_net_get_dns)(void) = cc_net_get_dns;
+  BIND("net_get_dns", p_net_get_dns, 0);
+
+  uint32_t (*p_net_get_mask)(void) = cc_net_get_mask;
+  BIND("net_get_mask", p_net_get_mask, 0);
+
+  void (*p_net_get_mac)(uint8_t *) = cc_net_get_mac;
+  BIND("net_get_mac", p_net_get_mac, 1);
+
+  uint32_t (*p_net_link_up)(void) = cc_net_link_up;
+  BIND("net_link_up", p_net_link_up, 0);
+
+  uint32_t (*p_net_rx_packets)(void) = cc_net_rx_packets;
+  BIND("net_rx_packets", p_net_rx_packets, 0);
+
+  uint32_t (*p_net_tx_packets)(void) = cc_net_tx_packets;
+  BIND("net_tx_packets", p_net_tx_packets, 0);
+
+  /* IP / ARP / ICMP / UDP raw access */
+  int (*p_ip_parse)(const char *, uint32_t *) = ip_parse;
+  BIND("ip_parse", p_ip_parse, 2);
+
+  int (*p_ipv4_send)(uint32_t, uint8_t, const uint8_t *, uint32_t) = ipv4_send;
+  BIND("ipv4_send", p_ipv4_send, 4);
+
+  int (*p_arp_resolve)(uint32_t, uint8_t *) =
+      (int (*)(uint32_t, uint8_t *))arp_resolve;
+  BIND("arp_resolve", p_arp_resolve, 2);
+
+  void (*p_arp_dump)(void) = arp_dump;
+  BIND("arp_dump", p_arp_dump, 0);
+
+  int (*p_arp_get_entries)(uint32_t *, uint8_t (*)[6], int) = arp_get_entries;
+  BIND("arp_get_entries", p_arp_get_entries, 3);
+
+  int (*p_icmp_send_echo)(uint32_t, uint16_t, uint16_t, uint32_t) =
+      icmp_send_echo;
+  BIND("icmp_send_echo", p_icmp_send_echo, 4);
+
+  int (*p_icmp_wait_reply)(uint32_t, uint16_t, uint16_t, uint32_t) =
+      icmp_wait_reply;
+  BIND("icmp_wait_reply", p_icmp_wait_reply, 4);
+
+  int (*p_udp_send_raw)(uint32_t, uint16_t, uint16_t, const uint8_t *,
+                        uint32_t) = udp_send_raw;
+  BIND("udp_send_raw", p_udp_send_raw, 5);
+
+  /* DNS + byte order */
+  int (*p_dns_resolve)(const char *, uint32_t *) = dns_resolve;
+  BIND("dns_resolve", p_dns_resolve, 2);
+
+  uint16_t (*p_htons)(uint16_t) = htons;
+  BIND("htons", p_htons, 1);
+
+  uint32_t (*p_htonl)(uint32_t) = htonl;
+  BIND("htonl", p_htonl, 1);
+
+  /* ntohs/ntohl are identical byte-swaps to htons/htonl on LE x86 */
+  BIND("ntohs", p_htons, 1);
+  BIND("ntohl", p_htonl, 1);
+
+  /* BSD sockets */
+  int (*p_sock_socket)(int) = socket_create;
+  BIND("sock_socket", p_sock_socket, 1);
+  BIND("socket", p_sock_socket, 1);
+
+  int (*p_sock_bind)(int, uint32_t, uint16_t) = socket_bind;
+  BIND("sock_bind", p_sock_bind, 3);
+  BIND("bind", p_sock_bind, 3);
+
+  int (*p_sock_listen)(int, int) = socket_listen;
+  BIND("sock_listen", p_sock_listen, 2);
+  BIND("listen", p_sock_listen, 2);
+
+  int (*p_sock_accept)(int, uint32_t *, uint16_t *) = socket_accept;
+  BIND("sock_accept", p_sock_accept, 3);
+  BIND("accept", p_sock_accept, 3);
+
+  int (*p_sock_connect)(int, uint32_t, uint16_t) = socket_connect;
+  BIND("sock_connect", p_sock_connect, 3);
+  BIND("connect", p_sock_connect, 3);
+
+  int (*p_sock_send)(int, const void *, uint32_t) = socket_send;
+  BIND("sock_send", p_sock_send, 3);
+  BIND("send", p_sock_send, 3);
+
+  int (*p_sock_recv)(int, void *, uint32_t) = socket_recv;
+  BIND("sock_recv", p_sock_recv, 3);
+  BIND("recv", p_sock_recv, 3);
+
+  int (*p_sock_sendto)(int, const void *, uint32_t, uint32_t, uint16_t) =
+      socket_sendto;
+  BIND("sock_sendto", p_sock_sendto, 5);
+  BIND("sendto", p_sock_sendto, 5);
+
+  int (*p_sock_recvfrom)(int, void *, uint32_t, uint32_t *, uint16_t *) =
+      socket_recvfrom;
+  BIND("sock_recvfrom", p_sock_recvfrom, 5);
+  BIND("recvfrom", p_sock_recvfrom, 5);
+
+  int (*p_sock_close)(int) = socket_close;
+  BIND("sock_close", p_sock_close, 1);
+  BIND("close", p_sock_close, 1);
+
+  int (*p_sock_setsockopt)(int, int, int, const void *, uint32_t) =
+      socket_setsockopt;
+  BIND("sock_setsockopt", p_sock_setsockopt, 5);
+  BIND("setsockopt", p_sock_setsockopt, 5);
+
 #undef BIND
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Source File / Preprocessor Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Source File / Preprocessor Helpers
+ *  */
 
 #define CC_PP_MAX_OUTPUT (512u * 1024u)
 #define CC_PP_MAX_MACROS 128
@@ -1513,9 +1712,8 @@ static char *cc_preprocess_source(const char *path) {
   return pp.out;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  Compiler State Initialization
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  Compiler State Initialization
+ *  */
 
 static int cc_init_state(cc_state_t *cc, int jit_mode) {
   memset(cc, 0, sizeof(*cc));
@@ -1575,9 +1773,8 @@ static void cc_cleanup_state(cc_state_t *cc) {
   cc->data = NULL;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  JIT Mode - Compile and Execute
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  JIT Mode - Compile and Execute
+ *  */
 
 void cupidc_jit(const char *path) {
   serial_printf("[cupidc] JIT compile: %s\n", path);
@@ -1692,9 +1889,8 @@ void cupidc_jit(const char *path) {
   kfree(cc);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
- *  AOT Mode - Compile to ELF Binary
- * ══════════════════════════════════════════════════════════════════════ */
+/*  *  AOT Mode - Compile to ELF Binary
+ *  */
 
 void cupidc_aot(const char *src_path, const char *out_path) {
   serial_printf("[cupidc] AOT compile: %s -> %s\n", src_path, out_path);

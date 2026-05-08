@@ -7,6 +7,7 @@
 
 #include "graphics.h"
 #include "font_8x8.h"
+#include "fontsys.h"
 #include "gfx2d.h"
 #include "simd.h"
 #include "string.h"
@@ -145,6 +146,12 @@ void gfx_fill_rect(int16_t x, int16_t y, uint16_t w, uint16_t h,
 }
 
 void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
+    /* TTF default active? Forward through gfx2d's TTF-aware char path. */
+    if (fontsys_get_os_default_face() >= 0) {
+        char buf[2] = { c, 0 };
+        gfx2d_text((int)x, (int)y, buf, color, GFX2D_FONT_NORMAL);
+        return;
+    }
     uint32_t *dst = gfx_current_fb();
     int width = gfx_current_w();
     int height = gfx_current_h();
@@ -184,6 +191,10 @@ void gfx_draw_char(int16_t x, int16_t y, char c, uint32_t color) {
 }
 
 void gfx_draw_text(int16_t x, int16_t y, const char *text, uint32_t color) {
+    if (fontsys_get_os_default_face() >= 0) {
+        gfx2d_text((int)x, (int)y, text, color, GFX2D_FONT_NORMAL);
+        return;
+    }
     int16_t cx = x;
     while (*text) {
         gfx_draw_char(cx, y, *text, color);
@@ -193,6 +204,9 @@ void gfx_draw_text(int16_t x, int16_t y, const char *text, uint32_t color) {
 }
 
 uint16_t gfx_text_width(const char *text) {
+    if (fontsys_get_os_default_face() >= 0) {
+        return (uint16_t)gfx2d_text_width(text, GFX2D_FONT_NORMAL);
+    }
     uint16_t len = 0;
     while (*text) { len++; text++; }
     return (uint16_t)(len * (uint16_t)FONT_W);

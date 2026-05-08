@@ -26,6 +26,7 @@
 #include "exec.h"
 #include "fat16.h"
 #include "ansi.h"
+#include "fontsys.h"
 #include "gfx2d.h"
 #include "gfx2d_assets.h"
 #include "gfx2d_icons.h"
@@ -151,7 +152,7 @@ static void cc_print_builtin(const char *fmt, ...) {
     if (*fmt == '\0')
       break;
 
-    /* Phase D: optional ".N" precision for %f. */
+    /* Optional ".N" precision for %f. */
     int prec = -1;
     if (*fmt == '.') {
       fmt++;
@@ -258,7 +259,7 @@ static void cc_printline_builtin(const char *fmt, ...) {
     if (*fmt == '\0')
       break;
 
-    /* Phase D: optional ".N" precision for %f. */
+    /* Optional ".N" precision for %f. */
     int prec = -1;
     if (*fmt == '.') {
       fmt++;
@@ -896,7 +897,7 @@ static uint32_t cc_ansi_color(int idx) {
   return ansi_vga_to_palette((uint8_t)idx);
 }
 
-/*  Phase 4 wrappers: networking + drivers + low-level access  */
+/*  Wrappers: networking + drivers + low-level access  */
 
 /* Network interface info - primary NIC only (covers the common case). */
 static uint32_t cc_net_get_ip(void) {
@@ -1005,10 +1006,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 /* Helper macro to add a kernel function binding.
  *
  * BIND()   - return type defaults to TYPE_VOID (fine for most bindings;
- *            CupidC's Task-18 codegen coerces callers that expect an
+ *            CupidC codegen coerces callers that expect an
  *            int result from a VOID-returning symbol).
  * BIND_T() - explicit return type.  Use this for float/double-returning
- *            kernel functions (Phase E libm) so that CupidC's caller-
+ *            kernel functions (libm) so that CupidC's caller-
  *            side wiring (call_ret_type -> cc_last_expr_type, cc_last_xmm)
  *            fires correctly after the CALL. */
 #define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
@@ -1735,6 +1736,47 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_text_height)(int) = gfx2d_text_height;
   BIND("gfx2d_text_height", p_gfx2d_text_height, 1);
 
+  /* fontsys: TTF font system bindings (kernel-side JIT). */
+  int (*p_fontsys_match)(const char *, int, int, int) = fontsys_match;
+  BIND_T("fontsys_match", p_fontsys_match, 4, TYPE_INT);
+
+  void (*p_fontsys_set_os_default)(int, int) = fontsys_set_os_default;
+  BIND("fontsys_set_os_default", p_fontsys_set_os_default, 2);
+
+  int (*p_fontsys_get_os_default_face)(void) = fontsys_get_os_default_face;
+  BIND_T("fontsys_get_os_default_face", p_fontsys_get_os_default_face, 0, TYPE_INT);
+
+  int (*p_fontsys_get_os_default_size)(void) = fontsys_get_os_default_size;
+  BIND_T("fontsys_get_os_default_size", p_fontsys_get_os_default_size, 0, TYPE_INT);
+
+  int (*p_fontsys_face_count)(void) = fontsys_face_count;
+  BIND_T("fontsys_face_count", p_fontsys_face_count, 0, TYPE_INT);
+
+  const char *(*p_fontsys_face_family)(int) = fontsys_face_family;
+  BIND_T("fontsys_face_family", p_fontsys_face_family, 1, TYPE_INT);
+
+  int (*p_fontsys_face_weight)(int) = fontsys_face_weight;
+  BIND_T("fontsys_face_weight", p_fontsys_face_weight, 1, TYPE_INT);
+
+  int (*p_fontsys_face_italic)(int) = fontsys_face_italic;
+  BIND_T("fontsys_face_italic", p_fontsys_face_italic, 1, TYPE_INT);
+
+  int (*p_fontsys_register_file)(const char *) = fontsys_register_file;
+  BIND_T("fontsys_register_file", p_fontsys_register_file, 1, TYPE_INT);
+
+  int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
+  BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);
+
+  void (*p_fontsys_draw_run_styled)(int, int, int, int, const char *, int,
+                                    uint32_t, int, int) = fontsys_draw_run_styled;
+  BIND("fontsys_draw_run_styled", p_fontsys_draw_run_styled, 9);
+
+  int (*p_fontsys_ascent)(int, int) = fontsys_ascent;
+  BIND_T("fontsys_ascent", p_fontsys_ascent, 2, TYPE_INT);
+
+  int (*p_fontsys_line_height)(int, int) = fontsys_line_height;
+  BIND_T("fontsys_line_height", p_fontsys_line_height, 2, TYPE_INT);
+
   int (*p_gfx2d_glyph_advance)(char, int) = gfx2d_glyph_advance;
   BIND("gfx2d_glyph_advance", p_gfx2d_glyph_advance, 2);
 
@@ -2109,8 +2151,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_nop_get_path)(void) = (void (*)(void))cc_notepad_get_open_path;
   BIND("notepad_get_open_path", p_nop_get_path, 2);
 
-  /* Phase E Task 23: libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2,
-   * plus f-suffixed float variants).  These functions follow the CupidC
+  /* libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2, plus
+   * f-suffixed float variants).  These functions follow the CupidC
    * kernel-binding ABI (stack args, XMM0 return) - see libm.c. */
   double (*p_sqrt)(double)  = sqrt;
   BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
@@ -2142,7 +2184,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_atan2f)(float, float)  = atan2f;
   BIND_T("atan2f",  p_atan2f, 2, TYPE_FLOAT);
 
-  /* Phase E Task 24: fabs/floor/ceil/round/trunc/fmod + f-variants. */
+  /* fabs/floor/ceil/round/trunc/fmod + f-variants. */
   double (*p_fabs)(double)   = fabs;
   BIND_T("fabs",    p_fabs,   1, TYPE_DOUBLE);
   float  (*p_fabsf)(float)   = fabsf;
@@ -2173,7 +2215,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_fmodf)(float, float)  = fmodf;
   BIND_T("fmodf",   p_fmodf,  2, TYPE_FLOAT);
 
-  /* Phase E Task 25: exp/exp2/log/log2/pow + f-variants.
+  /* exp/exp2/log/log2/pow + f-variants.
    *   exp2  - F2XM1 + FSCALE with FRNDINT range reduction
    *   exp   - exp2(x * log2(e))
    *   log2  - FYL2X with y=1
@@ -2205,7 +2247,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_powf)(float, float)  = powf;
   BIND_T("powf",    p_powf,   2, TYPE_FLOAT);
 
-  /* Phase E Task 26: asin/acos/sinh/cosh/tanh + f-variants.
+  /* asin/acos/sinh/cosh/tanh + f-variants.
    *   asin/acos - atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
    *   sinh/cosh - (exp(x) +/- exp(-x)) / 2.
    *   tanh      - (e1 - e2) / (e1 + e2). */
@@ -2234,7 +2276,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_tanhf)(float)   = tanhf;
   BIND_T("tanhf",   p_tanhf,  1, TYPE_FLOAT);
 
-  /* Phase E Task 27: cbrt/hypot/nextafter + f-variants.
+  /* cbrt/hypot/nextafter + f-variants.
    *   cbrt      - bit-trick initial estimate + 3 Newton iterations of
    *               y = (2y + x/y^2)/3.
    *   hypot     - scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
@@ -2254,7 +2296,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_nextafterf)(float, float)  = nextafterf;
   BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
 
-  /*  Phase 4: full networking stack  */
+  /*  Full networking stack  */
   uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
   BIND("net_get_ip", p_net_ip, 0);
   uint32_t (*p_net_gw)(void)        = cc_net_get_gateway;
@@ -2305,7 +2347,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_proto_tcp)(void)  = cc_proto_tcp;
   BIND("IP_PROTO_TCP",  p_proto_tcp,  0);
 
-  /*  Phase 4: block devices (ATA + loopdev + USB-MSC, by blkdev index) */
+  /*  Block devices (ATA + loopdev + USB-MSC, by blkdev index) */
   int (*p_blkdev_count)(void)                                           = blkdev_count;
   BIND("blkdev_count", p_blkdev_count, 0);
   int (*p_blkdev_read)(int, uint32_t, uint32_t, void *)                 = cc_blkdev_read;
@@ -2317,7 +2359,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_ata_write)(uint8_t, uint32_t, uint8_t, const void *)          = ata_write_sectors;
   BIND("ata_write_sectors", p_ata_write, 4);
 
-  /*  Phase 4: keyboard direct  */
+  /*  Keyboard direct  */
   bool (*p_kbd_event)(key_event_t *)    = keyboard_read_event;
   BIND("keyboard_read_event", p_kbd_event, 1);
   void (*p_kbd_inject)(uint8_t)         = keyboard_inject_scancode;
@@ -2342,7 +2384,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_kbd_ts_pr)(void)             = keyboard_test_sub_last_pressed;
   BIND_T("keyboard_test_sub_last_pressed", p_kbd_ts_pr, 0, TYPE_INT);
 
-  /*  Phase 4: serial direct  */
+  /*  Serial direct  */
   int  (*p_serial_rx)(void)             = serial_read_char;
   BIND("serial_read_char", p_serial_rx, 0);
   void (*p_serial_tx)(char)             = serial_write_char;
@@ -2352,13 +2394,13 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_serial_has)(void)            = serial_has_rx;
   BIND("serial_has_rx", p_serial_has, 0);
 
-  /*  Phase 4: PIT  */
+  /*  PIT  */
   void (*p_pit_freq)(uint32_t, uint32_t) = pit_set_frequency;
   BIND("pit_set_frequency", p_pit_freq, 2);
   void (*p_timer_delay)(uint32_t)        = timer_delay_us;
   BIND("timer_delay_us", p_timer_delay, 1);
 
-  /*  Phase 4: PCI introspection (by index)  */
+  /*  PCI introspection (by index)  */
   int      (*p_pci_count)(void)        = pci_device_count;
   BIND("pci_device_count", p_pci_count, 0);
   uint32_t (*p_pci_v)(int)             = cc_pci_vendor;
@@ -2376,19 +2418,19 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void     (*p_pci_bm)(int)            = cc_pci_enable_bus_master;
   BIND("pci_enable_bus_master", p_pci_bm, 1);
 
-  /*  Phase 4: SMP / LAPIC  */
+  /*  SMP / LAPIC  */
   uint32_t (*p_lapic_id)(void)         = cc_lapic_get_id;
   BIND("lapic_get_id", p_lapic_id, 0);
   void     (*p_lapic_eoi)(void)        = lapic_eoi;
   BIND("lapic_eoi", p_lapic_eoi, 0);
 
-  /*  Phase 4: BKL (use with care - disables IRQs)  */
+  /*  BKL (use with care - disables IRQs)  */
   void (*p_bkl_lock)(void)             = bkl_lock;
   BIND("bkl_lock", p_bkl_lock, 0);
   void (*p_bkl_unlock)(void)           = bkl_unlock;
   BIND("bkl_unlock", p_bkl_unlock, 0);
 
-  /*  Phase 4: paging / PMM low-level  */
+  /*  Paging / PMM low-level  */
   void  (*p_paging_mmio)(uint32_t, uint32_t) = paging_map_mmio;
   BIND("paging_map_mmio", p_paging_mmio, 2);
   void *(*p_pmm_alloc_p)(void)         = pmm_alloc_page;

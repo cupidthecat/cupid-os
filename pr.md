@@ -349,3 +349,239 @@ not built by the Makefile (`grep -n cupidc.c Makefile` only finds
 modifications and a few additions made during this pass before
 the duplication was caught — none of which affect the build.
 Cleaning up the duplicate is out of scope for this PR.
+
+---
+
+## OS-wide TTF font system + `fontswitch` picker
+
+Adds a TrueType rasterizer wired into every text-drawing primitive in
+the kernel, plus a CupidC GUI program (`fontswitch`) that picks the
+active face/size and persists the choice to `/etc/font.conf`.
+
+### Layout
+
+```
+kernel/gfx/
+├── ttf.{c,h}            TrueType parser (head, hhea, maxp, OS/2,
+│                        name, cmap fmt 4 + 12, loca, glyf, hmtx;
+│                        composite glyph recursion w/ depth cap 4)
+├── glyph_raster.{c,h}   Outline → 8-bit alpha bitmap (4x4
+│                        supersampled, non-zero winding fill,
+│                        quadratic Bézier midpoint subdivision)
+└── fontsys.{c,h}        Face registry + LRU glyph cache (4 MB) +
+                         CSS-shaped match (family list, weight,
+                         italic, generics) + alpha-blend draw with
+                         synthetic bold/italic
+system/fonts/
+├── LiberationSans-Regular.ttf   (bundled)
+├── LiberationSerif-Regular.ttf  (bundled)
+├── LiberationMono-Regular.ttf   (bundled)
+└── LICENSE.liberation
+bin/fontswitch.cc        GUI picker (list + preview + size ± + Apply)
+```
+
+Bundled TTFs are embedded into the kernel ELF via
+`objcopy -I binary` (Makefile pattern at `system/fonts/%.ttf.o`),
+exposing `_binary_system_fonts_<face>_ttf_{start,end}` symbols that
+`fontsys_init()` registers at boot. No filesystem dependency for the
+default fonts.
+
+### Engine, modeled on Lexbor + stb_truetype
+
+`fontsys`'s public surface mirrors the Lexbor CSS property layer
+(`LXB_CSS_FONT_FAMILY_*` enum ordering, generic family fallback
+table, comma-separated family lists, alias resolution for
+Arial / Times / Courier → metric-compatible Liberation faces). The
+parser/rasterizer follow stb_truetype's structure: integer outline
+points + per-contour endpoints, recursive flatten on quadratic
+Béziers, scanline non-zero-winding sweep with subpixel coverage. No
+hinting interpreter, no kerning, no GPOS — out of scope for v1.
+
+### OS-wide gating in gfx2d / graphics
+
+`fontsys_set_os_default(face_id, size_px)` flips an OS-wide pair.
+`face_id == -1` keeps the existing 8x8 bitmap path. The five primitive
+seams that 339 callsites flow through were patched to consult the
+default before rendering:
+
+- `kernel/gfx/gfx2d.c::g2d_draw_char` — TTF glyph + alpha blit when
+  active, else the original 8x8 path.
+- `kernel/gfx/gfx2d.c::gfx2d_text` — proportional pen advance when
+  TTF active (fixed-grid stepping was wrong for proportional faces).
+- `kernel/gfx/gfx2d.c::gfx2d_text_width` — `fontsys_run_width`.
+- `kernel/gfx/gfx2d.c::gfx2d_glyph_advance` — `fontsys_advance`
+  (fast hmtx-only path; no rasterization).
+- `kernel/gfx/gfx2d.c::gfx2d_text_height` — `fontsys_line_height`.
+- `kernel/gfx/graphics.c::gfx_draw_char` / `gfx_draw_text` /
+  `gfx_text_width` — forward to the gfx2d-side gates.
+
+Bitmap fallback is preserved verbatim for `face_id == -1` and for
+glyphs the rasterizer can't produce (kept as a safety net under
+memory pressure).
+
+### Persistence
+
+`/etc/font.conf` (two lines: `family=<name|__bitmap__>` +
+`size=<px>`) is read once at boot from `kernel/core/kernel.c`
+immediately after `fontsys_init()`. First boot has no conf, so the
+default stays bitmap (opt-in policy).
+
+`fontsys_register_file()` (previously a stub) now loads a TTF blob
+from VFS via `vfs_stat` + `vfs_read_all`, takes ownership, and
+registers it — opens the door to user-supplied fonts.
+
+### CupidC bindings
+
+13 new BIND() rows in both `kernel/lang/cupidc.c` (JIT path used by
+`fontswitch`) and `bin/cupidc.c` (ELF path):
+
+```
+fontsys_match              fontsys_face_count
+fontsys_set_os_default     fontsys_face_family
+fontsys_get_os_default_face fontsys_face_weight
+fontsys_get_os_default_size fontsys_face_italic
+fontsys_register_file      fontsys_run_width
+fontsys_draw_run_styled    fontsys_ascent
+fontsys_line_height
+```
+
+### `fontswitch` GUI
+
+Modeled on `bin/paint.cc` (mouse-poll loop, `gfx2d_app_toolbar` close
+button). Lists the registered TTF faces plus an "8x8 bitmap (revert)"
+sentinel row, draws a live preview at the chosen size by temp-flipping
+the OS default through `gfx2d_text`, and on Apply commits both
+`fontsys_set_os_default` (live flip) and `vfs_write_text("/etc/font.conf",
+…)` (next-boot persistence). Clicking the bitmap row + Apply reverts
+the system to the 8x8 path.
+
+### libm-ABI bug fix
+
+`kernel/cpu/libm.h` documents that `floor` / `ceil` (and the rest)
+use a CupidC-internal calling convention — return value in `xmm0`,
+not `ST(0)` as the i386 SysV ABI dictates. Plain kernel C callers
+get garbage. `glyph_rasterize` was a plain-C caller, so its bbox
+math (`int ix0 = (int)floor(pxmin); …`) produced w=0/h=0 and every
+TTF glyph came back as an empty bitmap.
+
+Replaced with two local helpers in `kernel/gfx/glyph_raster.c`:
+
+```c
+static inline int float_floor_int(float v) {
+    int i = (int)v;
+    if (v < 0.0f && (float)i != v) i--;
+    return i;
+}
+static inline int float_ceil_int(float v) {
+    int i = (int)v;
+    if (v > 0.0f && (float)i != v) i++;
+    return i;
+}
+```
+
+Used at all four call sites in the rasterizer (bbox + per-row
+crossing-edge clamps). No libm dependency anymore.
+
+### Verification
+
+- `make clean && make` builds clean (only pre-existing linker
+  warnings about RWX permissions).
+- All new symbols present in `kernel.elf`: `fontsys_match`,
+  `fontsys_set_os_default`, `fontsys_advance`,
+  `fontsys_load_os_default_from_conf`, `fontsys_register_file`.
+- Boot path: `fontsys_init()` registers the three bundled
+  Liberation TTFs and logs `[fontsys] init done, 3 faces`. With no
+  `/etc/font.conf` the kernel logs `fontsys: no /etc/font.conf,
+  bitmap default`.
+- `fontswitch`: clicking Liberation Sans + size 14 + Apply renders
+  the preview line in anti-aliased TTF and writes
+  `family=Liberation Sans\nsize=14\n` to `/etc/font.conf`. Clicking
+  the bitmap sentinel + Apply restores the 8x8 path.
+- Browser (`bin/browser/paint.cc`) was already a `fontsys` consumer
+  before this PR; its rendering path is unchanged.
+
+---
+
+## Source-tree refactor: kernel/ split into per-subsystem subdirs
+
+After the bindings work above, the formerly-flat `kernel/` (~200
+files) was reorganised by responsibility. The build is verified
+clean (`make clean && make` produces the kernel ELF and
+`cupidos.img`).
+
+### New layout
+
+```
+kernel/
+├── audio/      (existing)
+├── core/       kmain, panic, process, scheduler, syscall,
+│               app_launch, types, debug, ports, string,
+│               context_switch.asm
+├── cpu/        IDT, IRQ, PIC, FPU, libm, math, simd, ksyms,
+│               isr.asm
+├── crypto/     AES, ChaCha20, SHA, HMAC, HKDF, RSA, x25519,
+│               P-256, ECDSA, ASN.1, X.509, csprng, ct, bigint
+├── doom/       (existing)
+├── fs/         VFS, FAT16, ISO9660, ramfs, devfs, homefs,
+│               loopdev, blockcache, blockdev, fs.c
+├── gfx/        gfx2d, BMP/PNG/JPEG, font_8x8, graphics
+├── gui/        gui_*, desktop, ui, clipboard, notepad, ed,
+│               terminal_app, ansi, terminal_ansi
+├── lang/       cupidc*, as*, cupidscript*, dis, shell, exec,
+│               godspeak
+├── mm/         memory, paging, swap, swap_disk
+├── network/    arp, dhcp, dns, icmp, ip, net_if, socket, tcp,
+│               udp
+├── smp/        smp, mp_tables, lapic, ioapic, percpu, bkl,
+│               acpi, smp_trampoline.S
+├── tls/        tls_record, tls_kdf, tls_ctx, tls_handshake,
+│               tls12_handshake, tls_selftest, tls_ca_bundle
+├── usb/        usb, uhci, ehci, usb_hid, usb_hub, usb_msc
+└── util/       calendar, generated *_programs_gen.c
+
+drivers/        ata, keyboard, mouse, pit, rtc, serial, speaker,
+                timer, vga, pci (moved from kernel/),
+                rtl8139 (moved), e1000 (moved)
+```
+
+The crypto primitives (AES, ChaCha20, SHA, HMAC, HKDF, RSA,
+x25519, P-256, ECDSA, ASN.1, X.509, etc.) split out of
+`kernel/tls/` into the new `kernel/crypto/`. The TLS protocol
+files (record, KDF, ctx, handshake, 1.2 handshake, selftest, CA
+bundle) stay in `kernel/tls/`. The PCI enumerator and the two
+NIC chipset drivers (`rtl8139`, `e1000`) move from `kernel/` to
+`drivers/` next to ATA / keyboard / mouse / serial / VGA, since
+they are hardware drivers rather than protocol code.
+
+### Mechanics
+
+- Files moved with `git mv` so blame and history follow the new
+  paths.
+- All `#include "../X"` and `#include "../../X"` forms in
+  `kernel/` and `drivers/` rewritten to bare `#include "X"`. A
+  new `$(KERNEL_INCLUDES)` Makefile variable adds `-I` for every
+  kernel subdir plus `drivers/`, so bare includes resolve from
+  any source-file location and cross-subsystem header references
+  don't need a path prefix.
+- ~340 path references in `Makefile` rewritten via a generated
+  sed mapping (each stem → its new subdir): `KERNEL_OBJS`, every
+  per-file build rule, the `mksyms` invocation, the linker
+  command line, and the `CFLAGS_DOOM` include list.
+- `clean` target updated to remove `.o` files from every kernel
+  subdir, plus the new generated-source paths
+  (`kernel/util/*_programs_gen.c`, `kernel/cpu/ksyms_data.c`,
+  `kernel/smp/smp_trampoline.bin`).
+- `.gitignore` repointed for the same generated paths.
+
+### Documentation
+
+- `README.md` — "Project layout" section now shows the subdir
+  tree with one-line responsibilities per subdir.
+- `wiki/Architecture.md` — new "Source-tree layout" section with
+  the same tree plus a module dependency diagram (top depends on
+  bottom, no cycles): `gui → gfx, lang, fs, mm, core` /
+  `lang → fs, mm, core, cpu` / `network → core, drivers` /
+  `tls → network, crypto, core` / `core → (nothing)`.
+- All other wiki pages had their `kernel/foo.c` references
+  bulk-rewritten to `kernel/<subdir>/foo.c` so navigation still
+  works after the move.

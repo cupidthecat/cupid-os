@@ -85,6 +85,13 @@ GOD_DD_SRCS := $(wildcard god/*.DD)
 $(info GOD_DD_SRCS=$(GOD_DD_SRCS))
 GOD_DD_OBJS := $(GOD_DD_SRCS:.DD=.o)
 
+# System fonts. Bundled TTFs are embedded directly into the kernel
+# binary so fontsys can register them at boot without depending on the
+# filesystem coming up first.
+FONT_TTF_SRCS := $(wildcard system/fonts/*.ttf)
+$(info FONT_TTF_SRCS=$(FONT_TTF_SRCS))
+FONT_TTF_OBJS := $(FONT_TTF_SRCS:.ttf=.ttf.o)
+
 # Files
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
@@ -157,6 +164,9 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/gfx/bmp.o \
             kernel/gfx/png.o \
             kernel/gfx/jpeg.o \
+            kernel/gfx/ttf.o \
+            kernel/gfx/glyph_raster.o \
+            kernel/gfx/fontsys.o \
             kernel/fs/vfs_helpers.o \
             drivers/rtc.o kernel/util/calendar.o \
             kernel/gfx/gfx2d_assets.o kernel/gfx/gfx2d_transform.o kernel/gfx/gfx2d_effects.o \
@@ -175,7 +185,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/audio/memio.o \
 			kernel/audio/mus2midi.o \
 			kernel/audio/midiopl.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS) $(FONT_TTF_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -730,6 +740,16 @@ kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/mm/memory.h
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
 
+# TrueType font system: parser, rasterizer, registry/cache.
+kernel/gfx/ttf.o: kernel/gfx/ttf.c kernel/gfx/ttf.h drivers/serial.h kernel/core/string.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/ttf.c -o kernel/gfx/ttf.o
+
+kernel/gfx/glyph_raster.o: kernel/gfx/glyph_raster.c kernel/gfx/glyph_raster.h kernel/mm/memory.h kernel/core/string.h kernel/cpu/libm.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/glyph_raster.c -o kernel/gfx/glyph_raster.o
+
+kernel/gfx/fontsys.o: kernel/gfx/fontsys.c kernel/gfx/fontsys.h kernel/gfx/ttf.h kernel/gfx/glyph_raster.h kernel/gfx/gfx2d.h kernel/mm/memory.h kernel/core/string.h drivers/serial.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/fontsys.c -o kernel/gfx/fontsys.o
+
 # VFS helpers (read_all, write_all, read_text, write_text)
 kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.c kernel/fs/vfs_helpers.h kernel/fs/vfs.h
 	$(CC) $(CFLAGS) kernel/fs/vfs_helpers.c -o kernel/fs/vfs_helpers.o
@@ -881,6 +901,12 @@ cupidos-txt/%.o: cupidos-txt/%.CTXT
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 %.bmp.o: %.bmp
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+# Pattern rule: embed any system/fonts/*.ttf file via objcopy.
+# Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
+# (dashes in the filename get translated to underscores by objcopy).
+system/fonts/%.ttf.o: system/fonts/%.ttf
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any demos/*.asm file via objcopy
@@ -1087,8 +1113,19 @@ stage-wads: $(OS_IMAGE) check-mtools
 	fi
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) kernel/*.o kernel/tls/*.o drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o cupidos-txt/*.o demos/*.o \
-	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c kernel/util/demos_programs_gen.c debug.log
+	rm -f $(BOOTLOADER) $(KERNEL) \
+	      kernel/*.o kernel/audio/*.o kernel/core/*.o kernel/cpu/*.o \
+	      kernel/crypto/*.o kernel/doom/*.o kernel/doom/src/*.o \
+	      kernel/fs/*.o kernel/gfx/*.o kernel/gui/*.o kernel/lang/*.o \
+	      kernel/mm/*.o kernel/network/*.o kernel/smp/*.o kernel/tls/*.o \
+	      kernel/usb/*.o kernel/util/*.o \
+	      drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o \
+	      cupidos-txt/*.o demos/*.o god/*.o image.bmp.o \
+	      kernel/kernel.elf kernel/kernel.elf.pass1 kernel/kernel.bin \
+	      kernel/smp/smp_trampoline.bin \
+	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c \
+	      kernel/util/demos_programs_gen.c kernel/cpu/ksyms_data.c \
+	      debug.log
 
 clean-image:
 	rm -f $(OS_IMAGE)
