@@ -11,6 +11,17 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_style[n] = style_cs;
     rt_text_off[n] = 0;
     rt_text_len[n] = 0;
+    /* rt_x/y/w/h must be zeroed even though layout_block writes them
+     * for every block child — RT_LIST_MARKER is skipped by the layout
+     * walk (markers live in the parent's padding-left and aren't laid
+     * out in flow), so without this init the first marker on a fresh
+     * page reuses whatever stale offset was at this slot from the
+     * previous render. Visible symptom: first li's bullet jumps to
+     * the right of its text while the rest of the list looks correct. */
+    rt_x[n] = 0;
+    rt_y[n] = 0;
+    rt_w[n] = 0;
+    rt_h[n] = 0;
     rt_intrinsic_w[n] = 0;
     rt_intrinsic_h[n] = 0;
     rt_link_idx[n] = -1;
@@ -190,11 +201,15 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         int is_check = 0;
         if (type_s && (b_strieq(type_s, "checkbox") || b_strieq(type_s, "radio"))) is_check = 1;
         if (is_check) {
-            rt_intrinsic_w[n] = 14;
-            rt_intrinsic_h[n] = 14;
-        } else {
-            rt_intrinsic_w[n] = 120;
+            /* 16x16 reads as a normal checkbox at 14px body text and
+             * lines up close to Chrome's intrinsic (13-16). At the old
+             * 14x14 the 1px border on each side left a 12x12 fill that
+             * could read as a faint mark. */
+            rt_intrinsic_w[n] = 16;
             rt_intrinsic_h[n] = 16;
+        } else {
+            rt_intrinsic_w[n] = 140;
+            rt_intrinsic_h[n] = 18;
         }
     }
     if (tag == T_BUTTON) {

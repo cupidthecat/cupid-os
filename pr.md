@@ -784,3 +784,250 @@ BIND_T("fontsys_register_blob", p_fontsys_register_blob, 3, TYPE_INT);
 9. `about:dump` on any loaded page emits the render tree with the
    new `cs_*` properties (border-radius, overflow, shadow) on the
    serial console.
+
+---
+
+## Render correctness pass — d1_selectors_v2 polish
+
+A debug-driven cleanup pass against `tests/browser/d1_selectors_v2.html`
+side-by-side with Chrome. Every fix is anchored in a misbehaviour the
+test page exposed; the page now renders close to Chrome on selectors,
+combinators, list markers, generated content, form controls, and inline
+spacing.
+
+### Parser — implicit-close walks no longer pop `<body>`
+
+`bin/browser/parser.cc::is_block_tag`. The walks for `<p>`, `<li>`,
+`<dt>` / `<dd>`, `<tr>`, `<td>` / `<th>` pop ancestors until they hit
+their own tag or `is_block_tag`. `T_BODY` / `T_HTML` / `T_ROOT` were
+not classified as block, so opening a `<p>` with body on the stack
+walked PAST body, popped it, and reparented every later element under
+root. `prev_sibling_elt` then placed each `<p>` as a sibling of body
+instead of a child, and `h2 + p` / `h2 ~ p.note` silently failed to
+match. Adding the three scope-anchor tags to `is_block_tag` makes them
+hard stops for every implicit-close walk. Single highest-impact fix in
+the pass.
+
+### Layout / paint — viewport y double-count
+
+`bin/browser/layout.cc::run_layout`. Root was seeded with
+`rt_y[root] = viewport_y()`, but `rt_screen_y` already adds
+`viewport_y()` at the end of its parent-chain sum, so the document
+shifted ~25 px below where Chrome paints it (the "huge gap before the
+first h2"). Root now sits at document origin `(0, 0)`; chrome offset
+is added once at screen-conversion time.
+
+### Paint — replaced atom y/w/h plumbing
+
+`bin/browser/paint.cc::paint_rt_line_box` and
+`bin/browser/layout.cc::collect_inline_atoms`. Two bugs that both
+made `<input>` controls invisible/clickless:
+
+1. `rt_y[child] = sy - rt_screen_y(parent) + viewport_y - scroll_y`
+   double-counted the chrome offset for replaced-element y, pushing
+   the `<input>` ~25 px below its line. Replaced atom y is now
+   `sy - rt_screen_y(parent)` exactly (chrome added by
+   `rt_screen_y` of the child later).
+2. `rt_w[n]` / `rt_h[n]` for replaced atoms were never written by
+   layout — only by paint, after `paint_rt_box_decoration` had
+   already returned with `w = h = 0`. `collect_inline_atoms` now
+   stamps `rt_w/rt_h` from `rt_intrinsic_w/h`; `paint_rt_line_box`
+   keeps the same write so a click between paints sees a real hit
+   box.
+
+### Paint — `RT_REPLACED` in box-decoration
+
+`bin/browser/paint.cc::paint_rt_box_decoration`. The function returned
+early for any kind not in `{BLOCK, INLINE_BLOCK, LIST_ITEM,
+TABLE_CELL}` — so author CSS borders / backgrounds on `<input>`,
+`<img>`, `<button>`, `<textarea>` never painted. With
+`input[type="checkbox"] { border: 2px solid #c00 }` from the test, the
+red stroke was missing and `paint_rt_replaced` then filled white over
+the whole box, producing an invisible white-on-white control. Added
+`RT_REPLACED` to the `paints_box` set; the white interior fill in
+`paint_rt_replaced` insets by 1 px when an author border is present so
+the stroke survives.
+
+### Paint — list markers via fontsys
+
+`bin/browser/paint.cc::paint_rt_marker`. `gfx2d_text` is the bitmap
+path and treats each byte as a glyph index; passing the multi-byte
+UTF-8 bullet "\xE2\x80\xA2" produced three garbage cells (often
+invisible). Marker rendering routes through
+`fontsys_draw_run_styled` with the parent `<li>`'s
+`cs_face_id_for(cs)` and `cs_font_size_px`, so the TTF cmap looks up
+the real `•` / `◦` / `■`. Baseline aligned to first-line baseline via
+`fontsys_ascent` (matches the formula in `paint_rt_line_box`).
+
+### Render-tree — initialise geometry on alloc
+
+`bin/browser/render_tree.cc::rt_alloc`. `rt_x`, `rt_y`, `rt_w`, `rt_h`,
+`rt_intrinsic_w`, `rt_intrinsic_h` were left uninitialised; layout
+writes them for blocks but skips RT_LIST_MARKER (`layout_block:567-569`),
+so the first marker on a fresh page reused stale memory from the
+previous render. Symptom on the directory-listing screenshot: the
+first list bullet jumped right of the text while the rest looked
+correct. `rt_alloc` now zeroes all six geometry fields; intrinsic dims
+are set immediately afterward by callers that need them.
+
+### Inline backgrounds inherited through `<a>`
+
+`bin/browser/layout.cc::emit_text_atoms`. CSS `background-color` is
+non-inherited, so `a[href*="example"] { background:#eef }` set
+`cs_bg` on the `<a>` but the text-node child kept `cs_bg = -1`. Atom
+emission now walks RT_INLINE ancestors (stopping at the first
+non-inline kind) and adopts the closest inline ancestor's `cs_bg`,
+matching Blink's per-line-fragment background paint. Block ancestors
+keep their own `paint_rt_box_decoration` path (no double-paint).
+
+### Default line-height proportional to px
+
+`bin/browser/layout.cc::effective_line_h`. The bitmap-tier fallback
+returned 12 px for tier 0 (`px ≤ 14`), so 14 px TTF text in
+consecutive `<li>` items overlapped. When CSS doesn't set
+`line-height` but the cs has a px-resolved font size, we now use
+`cs_font_size_px * 1.2` (clamped to at least the tier value).
+
+### text-decoration line-through
+
+`bin/browser/layout.cc::emit_text_atoms` and
+`bin/browser/paint.cc::paint_rt_line_box`. `la_underline` was a bool;
+expanded to carry the full `cs_text_dec` bitmask. Paint draws underline
+at `baseline + 2` and line-through at `baseline - asc/2` (or the
+bitmap-path equivalents). `.menu li.disabled { text-decoration:
+line-through }` now strikes through correctly.
+
+### UTF-8 end-to-end
+
+`bin/browser/dom.cc`, `bin/browser/style.cc`,
+`kernel/gfx/fontsys.c`. Three places previously folded high
+codepoints to ASCII placeholders, defeating the TTF cmap:
+
+- `decode_entities` (HTML body text) emitted ASCII via
+  `map_high_codepoint`; now emits raw UTF-8 via the new
+  `emit_utf8_codepoint` helper. `·`, `—`, `…` etc. flow through to
+  `attr_pool` as bytes.
+- `css_value_string` (CSS string-value escapes) decoded
+  `\HHHHHH` to one ASCII char; now emits UTF-8. `q::before {
+  content: "\201C" }` produces a real left double-quotation mark.
+- `kernel/gfx/fontsys.c::fontsys_run_width` and
+  `fontsys_draw_run_styled` decoded one byte per iteration. Now
+  call a `fontsys_utf8_decode` helper (1–4 byte lead-byte classes,
+  malformed → Latin-1 fallback) so multi-byte input maps to the
+  right cmap glyph.
+
+Side effect: list bullet, curly quotes, en/em dashes, ellipsis all
+render via TTF instead of an ASCII approximation.
+
+### Status-string null termination
+
+`bin/browser/net.cc`. `b_append_int(status_msg, sl, status)` returned
+the new length, but the caller hardcoded `status_msg[sl + 4] = 0;` —
+correct for "404" only when `sl + 3` was the digit count, leaving a
+leftover `c` after `404` (the visible "HTTP error: 404c" in the bottom
+bar). Now uses the helper's return value for the null position.
+
+### Italic — synthesised obliques
+
+`kernel/gfx/fontsys.c::fontsys_draw_run_styled` and `blit_glyph`. No
+`LiberationSans-Italic.ttf` is bundled, so fontsys synthesises italic
+via row-shear. Two bugs:
+
+1. The 12 % slope was visually flat at body sizes — a 14 px glyph
+   leaned barely 1 px and read as upright. Bumped to 17 %.
+2. The shear shifted every row right of the glyph axis, drifting the
+   whole glyph right and clipping into the next cell while ALSO
+   reading as letter-spaced. Glyph is now pre-shifted left by half
+   the max shear so the slant straddles the axis. Per-glyph advance
+   stays the regular hmtx value (matches Chrome's synthesis behaviour
+   for fonts without an Italic face). To replace with a real italic
+   face, drop a `LiberationSans-Italic.ttf` into `system/fonts/`;
+   `fontsys_match` will pick it via the existing weight/italic table.
+
+`fontsys_italic_extra(size_px)` is exported (with a CupidC binding) for
+callers that need the shear width for ink-bounds clipping; layout
+itself doesn't use it.
+
+### Form controls — checkbox + text-input interactivity
+
+`bin/browser/main.cc`, `bin/browser/parser.cc`,
+`bin/browser/paint.cc`, `bin/browser/input.cc`,
+`bin/browser/render_tree.cc`. The DOM has no attr-set helper, so
+toggle state lives in a parallel `n_checkbox_state[4096]` array seeded
+from the initial `checked` HTML attribute and mutated on click.
+`paint_rt_replaced` reads it instead of re-querying `dom_attr_str`.
+Click routing:
+
+- `hit_box` returns the `RT_LINE_BOX` covering the row, not the
+  replaced atom underneath. New `line_box_replaced_at(line_box,
+  rel_ax)` walks the line's atoms; if the click column falls on an
+  atom whose `la_text_off < 0` (encoded RT-node ref), the click
+  redirects to that node before the parent walk. Without this, every
+  input/checkbox click stopped at the line_box and walked straight
+  up through the block parent.
+- The parent walk now recognises `<input type="checkbox|radio">`
+  and toggles `n_checkbox_state[dom]`. Radio clears every other
+  radio with the same `name` attribute. Text inputs still hit the
+  existing `rt_input_idx` / `FOCUS_INPUT` path, with a 1 px blue
+  inner ring + a vertical caret rendered at the end of the value
+  when focused.
+
+Intrinsic dimensions tightened so controls read at body text height:
+checkbox 14×14 → 16×16; text input 120×16 → 140×18.
+
+### Diagnostic tooling
+
+Two temporary `serial_printf` traces were added to localise the
+selector/sibling bug without a debugger and removed once the parser
+fix landed. Documented here so the same pattern can be reused next
+time:
+
+- `css_emit_rule` logged any rule whose tail compound was
+  `COMB_ADJACENT` or `COMB_GEN_SIBLING`, dumping
+  `(rule#, prop, sel range, tail tag/class, comb, head tag)`.
+- `sel_chain_matches` logged every match attempt against `<p>` for
+  sibling rules, dumping `(node, tag, class_off, sel range, tail
+  tag/cls/comb, tail_ok, prev sibling, walk result)`. Read out as
+  `prev=7(tag=4)` — i.e. the previous element sibling of a `<p>`
+  was body itself — pinpointed the parser bug to within five
+  minutes.
+
+### Files
+
+| File | Purpose |
+|---|---|
+| `bin/browser/parser.cc` | scope anchors in `is_block_tag`; `n_checkbox_state` reset + seed |
+| `bin/browser/layout.cc` | root y=0; replaced atom rt_w/h; inline-bg walk; px-based default line-height; line-through bitmask |
+| `bin/browser/paint.cc` | `RT_REPLACED` in box decoration; replaced atom y/w/h plumbing; bullet via fontsys; inset white fill; focus ring + caret; line-through |
+| `bin/browser/render_tree.cc` | zero geometry in `rt_alloc`; checkbox 16×16, text input 140×18 |
+| `bin/browser/dom.cc` | `emit_utf8_codepoint`; UTF-8 emit in `decode_entities` |
+| `bin/browser/style.cc` | UTF-8 emit for `\HHHHHH` escapes in `css_value_string` |
+| `bin/browser/main.cc` | `n_checkbox_state[4096]` |
+| `bin/browser/input.cc` | `line_box_replaced_at`; checkbox/radio toggle on click |
+| `bin/browser/net.cc` | `status_msg` null-term off-by-one |
+| `kernel/gfx/fontsys.c` | UTF-8 decode in run_width / draw_run_styled; italic shear half-axis pre-shift; `fontsys_italic_extra` |
+| `kernel/gfx/fontsys.h` | export `fontsys_italic_extra` |
+| `kernel/lang/cupidc.c` | bind `fontsys_italic_extra` |
+
+### Verification
+
+1. `make` — clean build.
+2. `make run` — boot, click Browser, navigate
+   `http://10.0.2.2:<port>/d1_selectors_v2.html` (HTTP server cwd in
+   the repo root, so `/system/fonts/...` resolves).
+3. `h2 + p` paragraph after "adjacent and sibling" renders gray and
+   visibly italic; `h2 ~ p.note` paints the pale-yellow background +
+   4 px padding.
+4. `nav > a` is blue/bold; `nav span > a` is orange — child vs
+   descendant combinator.
+5. Attribute selectors apply: `https example` green, `PDF doc` bold,
+   `https example` has the light-blue `#eef` inline background under
+   the link text.
+6. `<input type="text">` and `<input type="checkbox">` render on the
+   same line with a `·` separator. Clicking the checkbox toggles the
+   `x`. Clicking the text input draws a blue inner ring + caret;
+   typing appends.
+7. List bullets (`•`) render in TTF, baseline-aligned to first line.
+8. `:not()` menu — disabled items gray with line-through.
+9. `<q>hello world</q>` renders as `"hello world"` with real curly
+   quotes (U+201C / U+201D) from Liberation Sans.

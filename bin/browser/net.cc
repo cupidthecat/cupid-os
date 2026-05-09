@@ -196,8 +196,8 @@ int fetch_url(char *url, char *content_type_out) {
         if (status < 200 || status >= 300) {
             b_strcpy_n(status_msg, "HTTP error: ", 256);
             int sl = b_strlen(status_msg);
-            b_append_int(status_msg, sl, status);
-            status_msg[sl + 4] = 0;
+            int el = b_append_int(status_msg, sl, status);
+            status_msg[el] = 0;
             return -1;
         }
         b_strcpy_n(cur_url, work_url, URL_MAX);

@@ -76,7 +76,20 @@ int tier_line_h(int tier) {
 int effective_line_h(int cs, int tier) {
     if (cs < 0 || cs >= cs_count) return tier_line_h(tier);
     int lh = cs_line_height[cs];
-    if (lh < 0) return tier_line_h(tier);
+    if (lh < 0) {
+        /* No CSS line-height — pick a default proportional to the
+         * resolved px font size when available. tier_line_h is geared
+         * to the 6x8/8x8/16x16 bitmap glyphs and is too tight for the
+         * TTF path: at 14px (tier 0) the bitmap line-height was 12px,
+         * so 14px TTF glyphs in successive list items overlapped. */
+        int px = cs_font_size_px[cs];
+        if (px > 0) {
+            int v = (px * 12) / 10;        /* ~1.2 line-height */
+            if (v < tier_line_h(tier)) v = tier_line_h(tier);
+            return v;
+        }
+        return tier_line_h(tier);
+    }
     if (cs_line_height_mult[cs]) {
         int base = tier_line_h(tier);
         int v = (base * lh) / 100;
@@ -172,12 +185,29 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
     int italic = cs_font_i[cs];
     int size_px = cs_font_size_px[cs];
     int face_id = cs_face_id_for(cs);
-    int underline = (cs_text_dec[cs] & TD_UNDERLINE) ? 1 : 0;
+    /* Pass the full text-dec bitmask (TD_UNDERLINE | TD_LINE_THROUGH) so
+     * paint_rt_line_box can stroke both. la_underline was historically a
+     * bool but bit 0 = underline / bit 1 = line-through line up cleanly
+     * with the cs_text_dec flag layout. */
+    int underline = cs_text_dec[cs] & (TD_UNDERLINE | TD_LINE_THROUGH);
     int link_idx = -1;
-    /* Walk up looking for a parent with rt_link_idx >= 0 */
+    /* Walk up looking for a parent with rt_link_idx >= 0. While walking,
+     * also pick up the closest INLINE ancestor's background-color so rules
+     * like `a[href*="example"] { background: #eef }` paint a per-word fill
+     * behind the inline link text (background-color is non-inherited, so
+     * the text node's own cs_bg stays -1). Block ancestors paint their
+     * own background through paint_rt_box_decoration; stop the walk there
+     * to avoid double-painting a block fill behind every word. */
     int p = rt_text_n;
     while (p >= 0) {
-        if (rt_link_idx[p] >= 0) { link_idx = rt_link_idx[p]; break; }
+        if (rt_link_idx[p] >= 0 && link_idx < 0) link_idx = rt_link_idx[p];
+        if (bg < 0 && p != rt_text_n) {
+            int kp = rt_kind[p];
+            if (kp != RT_INLINE && kp != RT_TEXT) break;
+            int cs_p = rt_style[p];
+            if (cs_bg[cs_p] >= 0) bg = cs_bg[cs_p];
+        }
+        if (link_idx >= 0 && bg >= 0) break;
         p = rt_parent[p];
     }
 
@@ -342,6 +372,12 @@ void collect_inline_atoms(int n) {
         if (kind == RT_INLINE_BLOCK) layout_block(n, avail);
         int w = (rt_intrinsic_w[n] > 0) ? rt_intrinsic_w[n] : rt_w[n];
         int h = (rt_intrinsic_h[n] > 0) ? rt_intrinsic_h[n] : rt_h[n];
+        /* Stamp the resolved size on the node now so hit_test (which
+         * runs outside the paint pipeline) can match a click against
+         * the checkbox/text input — paint_rt_line_box also sets these,
+         * but only at paint time, and clicks happen between paints. */
+        if (rt_intrinsic_w[n] > 0) rt_w[n] = w;
+        if (rt_intrinsic_h[n] > 0) rt_h[n] = h;
         (void)h;
         if (la_count < MAX_LINE_ATOMS) {
             la_text_off[la_count] = -n - 1;     /* negative encodes "RT node ref"; -n-1 reverses to n */
@@ -687,11 +723,13 @@ void layout_block(int n, int avail_w) {
 void run_layout() {
     if (rt_count == 0) return;
     int root = 0;
-    /* Root: width = viewport content width minus chrome (address bar,
-     * status, scrollbar). viewport_x/viewport_y are defined in paint.cc;
-     * cross-TU forward refs are resolved at JIT pass. */
-    rt_x[root] = viewport_x();
-    rt_y[root] = viewport_y();
+    /* Root sits at document origin (0,0). rt_screen_x/y in paint.cc add
+     * viewport_x()/viewport_y() at paint time, so seeding root with the
+     * viewport origin double-counts the chrome and shoves the first h2
+     * ~viewport_y px below where Chrome would draw it (the "huge gap"
+     * bug on d1_selectors_v2.html). */
+    rt_x[root] = 0;
+    rt_y[root] = 0;
     int avail = viewport_content_w();
     layout_block(root, avail);
     doc_h = rt_y[root] + rt_h[root];

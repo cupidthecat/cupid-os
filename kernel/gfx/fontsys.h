@@ -82,10 +82,17 @@ int fontsys_glyph(int face_id, int codepoint, int size_px,
                   int *out_w, int *out_h,
                   int *out_bx, int *out_by, int *out_advance);
 
-/* Sum advance widths of a Latin-1 byte run. Stops at len bytes or NUL,
+/* Sum advance widths of a UTF-8 byte run. Stops at len bytes or NUL,
  * whichever comes first. Returns 0 on bad face. */
 int fontsys_run_width(int face_id, int size_px,
                       const char *bytes, int len);
+
+/* Per-glyph extra horizontal advance applied when synthesising italic
+ * via row-shear, so glyph N+1 doesn't collide with the slanted top of
+ * glyph N. Layout multiplies this by the codepoint count of an italic
+ * run before reserving line space. Mirrors the slope baked into
+ * blit_glyph (fontsys.c). */
+int fontsys_italic_extra(int size_px);
 
 /* Draw a Latin-1 run anchored at (x, baseline_y). Rendered into the
  * currently-active gfx2d framebuffer using alpha-blended writes

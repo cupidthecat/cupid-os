@@ -339,6 +339,13 @@ int n_sibling_count   [4096];   /* total element-sibling count of n_parent[i] */
 int n_prev_sibling_elt[4096];   /* prev element sibling, -1 if none */
 int n_next_sibling_elt[4096];   /* next element sibling, -1 if none */
 
+/* Mutable checkbox/radio state per DOM node. Parser seeds from the initial
+ * `checked` HTML attribute; click handling toggles this in place since the
+ * DOM has no attr-set helper. paint_rt_replaced reads this instead of
+ * re-querying `checked` so a click can be reflected without rebuilding
+ * the DOM. */
+int n_checkbox_state[4096];
+
 /* §2 generated content for ::before / ::after. Per element, the cascade
  * resolves a single string (decoded from CSS `content:`). render_tree.cc
  * injects a synthetic RT_TEXT child as first/last child of the

@@ -41,6 +41,22 @@ int line_box_link_at(int n, int rel_ax) {
     return -1;
 }
 
+/* If a click on a LINE_BOX lands on a replaced atom (la_text_off encodes
+ * a negative RT-node ref), return that node so input/checkbox hits route
+ * to the input element instead of stopping at the line_box. -1 if the
+ * column is plain text. */
+int line_box_replaced_at(int n, int rel_ax) {
+    int first = rt_line_atom_first[n];
+    int count = rt_line_atom_count[n];
+    for (int k = first; k < first + count; k++) {
+        if (la_x[k] < 0) continue;
+        if (rel_ax < la_x[k] || rel_ax >= la_x[k] + la_w[k]) continue;
+        if (la_text_off[k] < 0) return -la_text_off[k] - 1;
+        return -1;
+    }
+    return -1;
+}
+
 /* find the input/button form parent node */
 int find_node_for_input(int ii) {
     if (ii < 0 || ii >= inputs_count) return -1;
@@ -189,11 +205,22 @@ void handle_left_click(int mx, int my) {
             int input_idx = -1;
             int submit_form_node = -1;
             /* If hit landed on a LINE_BOX, the click may be on an atom that
-             * came from an <a>; consult per-atom link index first. */
+             * came from an <a> or a replaced control. line_box covers the
+             * full row even though the original RT_INLINE/RT_REPLACED
+             * children sit at the same y, so without this redirect a
+             * checkbox/input click would stop at the line_box and walk
+             * up through the block parent without finding the form
+             * control. */
             if (rt_kind[hit] == RT_LINE_BOX) {
-                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
+                int rel_ax = rel_x - rt_screen_x(hit);
+                int li = line_box_link_at(hit, rel_ax);
                 if (li >= 0) link = li;
+                if (link < 0) {
+                    int repl = line_box_replaced_at(hit, rel_ax);
+                    if (repl >= 0) hit = repl;
+                }
             }
+            int toggle_dom = -1;
             int cur = (link >= 0) ? -1 : hit;
             while (cur >= 0) {
                 if (rt_link_idx[cur] >= 0) { link = rt_link_idx[cur]; break; }
@@ -215,9 +242,37 @@ void handle_left_click(int mx, int my) {
                             int fn = find_form_node(dom);
                             if (fn >= 0) { submit_form_node = fn; break; }
                         }
+                        if (typ != 0 &&
+                            (b_strieq(typ, "checkbox") || b_strieq(typ, "radio"))) {
+                            toggle_dom = dom;
+                            break;
+                        }
                     }
                 }
                 cur = rt_parent[cur];
+            }
+            if (toggle_dom >= 0) {
+                /* Checkbox toggles in place; radio sets self and clears
+                 * other radios sharing the same `name`. */
+                char *typ = dom_attr_str(toggle_dom, "type");
+                if (typ && b_strieq(typ, "radio")) {
+                    int my_name = dom_attr_get(toggle_dom, "name");
+                    if (my_name >= 0) {
+                        for (int k = 0; k < nodes_count; k = k + 1) {
+                            if (n_tag[k] != T_INPUT) continue;
+                            char *t2 = dom_attr_str(k, "type");
+                            if (!t2 || !b_strieq(t2, "radio")) continue;
+                            int kn = dom_attr_get(k, "name");
+                            if (kn == my_name) n_checkbox_state[k] = 0;
+                        }
+                    }
+                    n_checkbox_state[toggle_dom] = 1;
+                } else {
+                    n_checkbox_state[toggle_dom] =
+                        n_checkbox_state[toggle_dom] ? 0 : 1;
+                }
+                focus_mode = FOCUS_PAGE;
+                return;
             }
             if (link >= 0) {
                 char *u = attr_pool + link_url_off[link];

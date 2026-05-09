@@ -383,13 +383,21 @@ int is_void_tag(int tag) {
 }
 
 int is_block_tag(int tag) {
+    /* T_BODY, T_HTML, T_ROOT: scope-anchor stops for the implicit-close
+     * walks below (T_P / T_LI / T_DT&DD / T_TR / T_TD&TH). Without these,
+     * opening a <p> with body on top of the stack would walk past body
+     * (it's not == T_P and wasn't classified as a block before this
+     * fix), pop body, and reparent every following element under root.
+     * Sibling combinators (h2 + p, h2 ~ p.note) silently fail because
+     * the p ends up as a sibling of body, not a child of body. */
     return tag == T_P || tag == T_DIV || tag == T_H1 || tag == T_H2 ||
            tag == T_H3 || tag == T_H4 || tag == T_H5 || tag == T_H6 ||
            tag == T_UL || tag == T_OL || tag == T_LI || tag == T_PRE ||
            tag == T_BLOCKQUOTE || tag == T_HR || tag == T_TABLE ||
            tag == T_FORM || tag == T_HEADER || tag == T_FOOTER ||
            tag == T_NAV || tag == T_SECTION || tag == T_ARTICLE ||
-           tag == T_ASIDE || tag == T_MAIN;
+           tag == T_ASIDE || tag == T_MAIN ||
+           tag == T_BODY || tag == T_HTML || tag == T_ROOT;
 }
 
 int is_list_container(int tag) {
@@ -423,6 +431,7 @@ void parse_html(int html_len) {
         n_pseudo_before_len[k] = 0;
         n_pseudo_after_off [k] = -1;
         n_pseudo_after_len [k] = 0;
+        n_checkbox_state   [k] = 0;
     }
 
     /* §2 reset CSS state - author rules accumulate per page */
@@ -668,6 +677,7 @@ void parse_html(int html_len) {
             if (tag == T_INPUT) {
                 char *type_s = dom_attr_str(n, "type");
                 int is_text = 1;
+                int is_toggle = 0;
                 if (type_s) {
                     if (b_strieq(type_s, "submit") ||
                         b_strieq(type_s, "button") ||
@@ -677,6 +687,11 @@ void parse_html(int html_len) {
                         b_strieq(type_s, "file")  ||
                         b_strieq(type_s, "checkbox") ||
                         b_strieq(type_s, "radio")) is_text = 0;
+                    if (b_strieq(type_s, "checkbox") ||
+                        b_strieq(type_s, "radio")) is_toggle = 1;
+                }
+                if (is_toggle && dom_attr_get(n, "checked") >= 0) {
+                    n_checkbox_state[n] = 1;
                 }
                 if (is_text && inputs_count < MAX_INPUTS) {
                     int ii = inputs_count;

@@ -1780,6 +1780,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fontsys_ascent)(int, int) = fontsys_ascent;
   BIND_T("fontsys_ascent", p_fontsys_ascent, 2, TYPE_INT);
 
+  int (*p_fontsys_italic_extra)(int) = fontsys_italic_extra;
+  BIND_T("fontsys_italic_extra", p_fontsys_italic_extra, 1, TYPE_INT);
+
   int (*p_fontsys_line_height)(int, int) = fontsys_line_height;
   BIND_T("fontsys_line_height", p_fontsys_line_height, 2, TYPE_INT);
 

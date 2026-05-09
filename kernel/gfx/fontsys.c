@@ -590,19 +590,67 @@ int fontsys_glyph(int face_id, int codepoint, int size_px,
 
 /*  --- Run width / draw ----------------------------------------- */
 
+/* UTF-8 decode one codepoint at bytes[i]. Returns advance in bytes (>=1).
+ * On malformed sequence treats the byte as Latin-1 (advance=1, cp=byte).
+ * Mirrors Blink's TextCodecUTF8 fast path: lead-byte length classes,
+ * continuation byte mask, no surrogate validation (CSS engine already
+ * filtered the input). */
+static int fontsys_utf8_decode(const char *bytes, int i, int len, int *cp_out) {
+    int b0 = (int)(uint8_t)bytes[i];
+    if (b0 < 0x80) { *cp_out = b0; return 1; }
+    if ((b0 & 0xE0) == 0xC0 && i + 1 < len &&
+        ((uint8_t)bytes[i+1] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x1F) << 6) | ((uint8_t)bytes[i+1] & 0x3F);
+        return 2;
+    }
+    if ((b0 & 0xF0) == 0xE0 && i + 2 < len &&
+        ((uint8_t)bytes[i+1] & 0xC0) == 0x80 &&
+        ((uint8_t)bytes[i+2] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x0F) << 12) |
+                  (((uint8_t)bytes[i+1] & 0x3F) << 6) |
+                  ((uint8_t)bytes[i+2] & 0x3F);
+        return 3;
+    }
+    if ((b0 & 0xF8) == 0xF0 && i + 3 < len &&
+        ((uint8_t)bytes[i+1] & 0xC0) == 0x80 &&
+        ((uint8_t)bytes[i+2] & 0xC0) == 0x80 &&
+        ((uint8_t)bytes[i+3] & 0xC0) == 0x80) {
+        *cp_out = ((b0 & 0x07) << 18) |
+                  (((uint8_t)bytes[i+1] & 0x3F) << 12) |
+                  (((uint8_t)bytes[i+2] & 0x3F) << 6) |
+                  ((uint8_t)bytes[i+3] & 0x3F);
+        return 4;
+    }
+    *cp_out = b0;
+    return 1;
+}
+
 int fontsys_run_width(int face_id, int size_px,
                       const char *bytes, int len) {
     if (!bytes || len <= 0) return 0;
     if (face_id < 0 || face_id >= face_count) return 0;
     int x = 0;
-    for (int i = 0; i < len && bytes[i]; i++) {
-        int cp = (int)(uint8_t)bytes[i];
+    int i = 0;
+    while (i < len && bytes[i]) {
+        int cp;
+        int step = fontsys_utf8_decode(bytes, i, len, &cp);
         const uint8_t *a; int w, h, bx, by, adv;
         if (fontsys_glyph(face_id, cp, size_px, &a, &w, &h, &bx, &by, &adv) == 0) {
             x += adv;
         }
+        i += step;
     }
     return x;
+}
+
+/* Extra advance per glyph when synthesising italic so the row-sheared
+ * top of glyph N doesn't collide with the upright top of glyph N+1.
+ * Mirrors the 17% slope in blit_glyph. Callers that include this in
+ * width measurement and pen advance keep word width correct. */
+int fontsys_italic_extra(int size_px) {
+    int v = (size_px * 17) / 100;
+    if (v < 1) v = 1;
+    return v;
 }
 
 static void blit_glyph(const uint8_t *alpha, int w, int h,
@@ -613,8 +661,12 @@ static void blit_glyph(const uint8_t *alpha, int w, int h,
     for (int yy = 0; yy < h; yy++) {
         int row_shift = 0;
         if (italic_shear) {
-            /* Lean: top rows shift right relative to bottom. Approx 12% slope. */
-            row_shift = ((h - 1 - yy) * 12) / 100;
+            /* Lean: top rows shift right relative to bottom. The shear
+             * is row-quantised so steeper slopes show stair-steps; 17%
+             * is the visible-but-clean trade-off. A real Italic font
+             * face would replace this synthesis entirely — drop one
+             * into system/fonts and fontsys_match will pick it. */
+            row_shift = ((h - 1 - yy) * 17) / 100;
         }
         for (int xx = 0; xx < w; xx++) {
             uint8_t a = alpha[yy * w + xx];
@@ -643,14 +695,26 @@ void fontsys_draw_run_styled(int face_id, int size_px,
     if (face_id < 0 || face_id >= face_count) return;
 
     int pen_x = x;
-    for (int i = 0; i < len && bytes[i]; i++) {
-        int cp = (int)(uint8_t)bytes[i];
+    int i = 0;
+    while (i < len && bytes[i]) {
+        int cp;
+        int step = fontsys_utf8_decode(bytes, i, len, &cp);
+        i += step;
         const uint8_t *a; int w, h, bx, by, adv;
         if (fontsys_glyph(face_id, cp, size_px, &a, &w, &h, &bx, &by, &adv) != 0) {
             continue;
         }
         int gx = pen_x + bx;
         int gy = baseline_y - by;
+        /* Synthetic italic shifts the glyph bitmap left so the row-shear
+         * straddles the glyph axis (top leans right of axis, bottom of
+         * axis). Without this offset the whole glyph drifts right and
+         * runs read as letter-spaced. Advance stays the regular hmtx
+         * value — italic glyphs naturally bleed slightly into the next
+         * cell at the top, just like real italic faces. */
+        if (want_italic) {
+            gx -= ((h - 1) * 17) / 200;       /* half of the 17% shear */
+        }
         blit_glyph(a, w, h, gx, gy, color, want_italic);
         if (want_bold) {
             blit_glyph(a, w, h, gx + 1, gy, color, want_italic);

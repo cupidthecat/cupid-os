@@ -317,6 +317,42 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
     return 0;
 }
 
+/* Emit `cp` as 1..4 UTF-8 bytes into out (up to omax bytes). Returns byte
+ * count written, or 0 if cp is outside U+0000..U+10FFFF. The CSS value
+ * decoder and entity decoder both feed this so text in attr_pool stays
+ * UTF-8 end-to-end and fontsys.c can look up real cmap glyphs (e.g.
+ * U+2022 bullet, U+201C/D curly quotes) instead of folding to ASCII. */
+int emit_utf8_codepoint(int cp, char *out, int omax) {
+    if (cp < 0) return 0;
+    if (cp < 0x80) {
+        if (omax < 1) return 0;
+        out[0] = (char)cp;
+        return 1;
+    }
+    if (cp < 0x800) {
+        if (omax < 2) return 0;
+        out[0] = (char)(0xC0 | (cp >> 6));
+        out[1] = (char)(0x80 | (cp & 0x3F));
+        return 2;
+    }
+    if (cp < 0x10000) {
+        if (omax < 3) return 0;
+        out[0] = (char)(0xE0 | (cp >> 12));
+        out[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        out[2] = (char)(0x80 | (cp & 0x3F));
+        return 3;
+    }
+    if (cp < 0x110000) {
+        if (omax < 4) return 0;
+        out[0] = (char)(0xF0 | (cp >> 18));
+        out[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+        out[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        out[3] = (char)(0x80 | (cp & 0x3F));
+        return 4;
+    }
+    return 0;
+}
+
 /* Map a high-codepoint numeric entity to a reasonable ASCII fallback so
  * common Unicode text doesn't render as '?'. Returns 1 if mapped. */
 int map_high_codepoint(int v, int *out_ch) {
@@ -384,11 +420,10 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     if (v == 0xAD) {            /* soft hyphen - drop */
                         i = end + 1; continue;
                     }
-                    int hi;
-                    if (map_high_codepoint(v, &hi)) {
-                        out[o] = (char)hi; o = o + 1; i = end + 1; continue;
-                    }
-                    /* unsupported codepoint: ASCII placeholder */
+                    /* Emit raw UTF-8 so TTF cmap can look up the real glyph.
+                     * fontsys.c decodes UTF-8 in run_width / draw_run_styled. */
+                    int wn = emit_utf8_codepoint(v, out + o, omax - 1 - o);
+                    if (wn > 0) { o = o + wn; i = end + 1; continue; }
                     out[o] = '?'; o = o + 1; i = end + 1; continue;
                 }
                 /* named */
@@ -426,11 +461,13 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                     adv = 4;
                 }
                 if (cp >= 0) {
-                    int hi;
                     if (cp == 0xA0) { out[o] = ' '; o = o + 1; }
                     else if (cp == 0xAD) { /* soft hyphen drops */ }
-                    else if (map_high_codepoint(cp, &hi)) { out[o] = (char)hi; o = o + 1; }
-                    else { out[o] = '?'; o = o + 1; }
+                    else {
+                        int wn = emit_utf8_codepoint(cp, out + o, omax - 1 - o);
+                        if (wn > 0) o = o + wn;
+                        else { out[o] = '?'; o = o + 1; }
+                    }
                     i = i + adv;
                     continue;
                 }

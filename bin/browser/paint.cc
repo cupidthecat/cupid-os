@@ -2,8 +2,13 @@
 
 int viewport_x() { return 0; }
 int viewport_y() { return ADDR_H + 1; }
+/* Carve out chrome rows: address bar (top, ADDR_H + 1px hairline) and
+ * status bar (bottom, STATUS_H + 1px hairline). The extra 1px on each
+ * side keeps glyph descenders from the last visible line bleeding
+ * across the status-bar fill, which the user reported as the quote
+ * line overlapping the bottom chrome on d1_selectors_v2. */
 int viewport_h() {
-    int h = cur_ch - ADDR_H - STATUS_H - 2;
+    int h = cur_ch - (ADDR_H + 1) - (STATUS_H + 1);
     if (h < 60) h = 60;
     return h;
 }
@@ -91,7 +96,8 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     int cs = rt_style[n];
 
     int paints_box = (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
-                      kind == RT_LIST_ITEM || kind == RT_TABLE_CELL);
+                      kind == RT_LIST_ITEM || kind == RT_TABLE_CELL ||
+                      kind == RT_REPLACED);
     if (!paints_box) return;
 
     int radius = cs_border_radius[cs];
@@ -251,10 +257,20 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int glyph_h = (tier >= 3) ? 16 : 8;
         int ay = sy + (rt_h[n] - glyph_h) / 2;
         if (la_text_off[k] < 0) {
-            /* Replaced/inline-block reference */
+            /* Replaced/inline-block reference. Stash document-space x/y on
+             * the rt node so paint_rt_node's rt_screen_x/y land it at the
+             * line origin: rt_screen_y sums ancestor rt_y values then adds
+             * viewport_y-scroll_y, so rt_y[child] = sy - rt_screen_y(parent)
+             * makes rt_screen_y(child) == sy exactly. Width/height come
+             * from the intrinsic stash; render_tree.cc sets these for
+             * <input>, <img>, <button> and rt_alloc zeroes rt_w/h for
+             * everything else, so paint_rt_replaced was drawing 0x0
+             * invisible boxes (input row "missing or clipped" bug). */
             int rt_n = -la_text_off[k] - 1;
-            rt_x[rt_n] = la_x[k];
-            rt_y[rt_n] = sy - rt_screen_y(rt_parent[rt_n]) + viewport_y() - scroll_y;
+            rt_x[rt_n] = sx + la_x[k] - rt_screen_x(rt_parent[rt_n]);
+            rt_y[rt_n] = sy - rt_screen_y(rt_parent[rt_n]);
+            if (rt_intrinsic_w[rt_n] > 0) rt_w[rt_n] = rt_intrinsic_w[rt_n];
+            if (rt_intrinsic_h[rt_n] > 0) rt_h[rt_n] = rt_intrinsic_h[rt_n];
             paint_rt_node(rt_n);
             continue;
         }
@@ -283,8 +299,12 @@ void paint_rt_line_box(int n, int sx, int sy) {
             fontsys_draw_run_styled(face, size_px, ax, baseline,
                                     buf, len, fg,
                                     la_bold[k], la_italic[k]);
-            if (la_underline[k]) {
+            if (la_underline[k] & TD_UNDERLINE) {
                 gfx2d_rect_fill(ax, baseline + 2, la_w[k], 1, fg);
+            }
+            if (la_underline[k] & TD_LINE_THROUGH) {
+                /* Stroke at ~mid-cap height so it crosses lowercase x-line. */
+                gfx2d_rect_fill(ax, baseline - asc / 2, la_w[k], 1, fg);
             }
         } else {
             int font = tier_to_font(tier);
@@ -296,8 +316,11 @@ void paint_rt_line_box(int n, int sx, int sy) {
                     gfx2d_text_n(ax + 1, ay + 1, buf, len, fg, font);
                 }
             }
-            if (la_underline[k]) {
+            if (la_underline[k] & TD_UNDERLINE) {
                 gfx2d_rect_fill(ax, ay + glyph_h, la_w[k], 1, fg);
+            }
+            if (la_underline[k] & TD_LINE_THROUGH) {
+                gfx2d_rect_fill(ax, ay + glyph_h / 2, la_w[k], 1, fg);
             }
         }
     }
@@ -323,26 +346,33 @@ void paint_rt_replaced(int n, int sx, int sy) {
             if (b_strieq(type_s, "checkbox")) is_check = 1;
             if (!is_check && b_strieq(type_s, "radio")) is_radio = 1;
         }
+        int sty = rt_style[n];
+        int border_set = (cs_border[sty][0] | cs_border[sty][1] |
+                          cs_border[sty][2] | cs_border[sty][3]) != 0;
+        /* paint_rt_box_decoration already painted the author border (if
+         * any) outside this call. Inset the white fill by 1px on each
+         * side that has a border so we don't paint over the stroke and
+         * black-hole the control. Without this, `input[type="checkbox"]
+         * { border: 2px solid #c00 }` came back invisible — the white
+         * fill covered the red stroke. */
+        int inset = border_set ? 1 : 0;
         if (is_check || is_radio) {
-            /* Small square box. CSS-author border (cs_border) is painted
-             * by the generic decoration pass before this; here we draw
-             * the inner control face plus the check glyph. */
-            int sty = rt_style[n];
-            int border_set = (cs_border[sty][0] | cs_border[sty][1] |
-                              cs_border[sty][2] | cs_border[sty][3]) != 0;
-            gfx2d_rect_fill(sx, sy, rt_w[n], rt_h[n], 0xFFFFFF);
+            int iw = rt_w[n] - 2 * inset;
+            int ih = rt_h[n] - 2 * inset;
+            if (iw < 0) iw = 0;
+            if (ih < 0) ih = 0;
+            gfx2d_rect_fill(sx + inset, sy + inset, iw, ih, 0xFFFFFF);
             if (!border_set) {
                 gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
                 gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);
                 gfx2d_rect_fill(sx, sy, 1, rt_h[n], 0x808080);
                 gfx2d_rect_fill(sx + rt_w[n] - 1, sy, 1, rt_h[n], 0x808080);
             }
-            char *checked = dom_attr_str(rt_dom[n], "checked");
+            int checked = (rt_dom[n] >= 0) ? n_checkbox_state[rt_dom[n]] : 0;
             if (checked) {
                 if (is_check) {
                     gfx2d_text(sx + 3, sy + 2, "x", 0x000000, 0);
                 } else {
-                    /* radio dot */
                     int dx = sx + rt_w[n] / 2 - 2;
                     int dy = sy + rt_h[n] / 2 - 2;
                     gfx2d_rect_fill(dx, dy, 4, 4, 0x000000);
@@ -351,15 +381,40 @@ void paint_rt_replaced(int n, int sx, int sy) {
             return;
         }
         /* text-style input */
-        gfx2d_rect_fill(sx, sy, rt_w[n], rt_h[n], 0xFFFFFF);
-        gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
-        gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);
-        gfx2d_rect_fill(sx, sy, 1, rt_h[n], 0x808080);
-        gfx2d_rect_fill(sx + rt_w[n] - 1, sy, 1, rt_h[n], 0x808080);
+        int iw = rt_w[n] - 2 * inset;
+        int ih = rt_h[n] - 2 * inset;
+        if (iw < 0) iw = 0;
+        if (ih < 0) ih = 0;
+        gfx2d_rect_fill(sx + inset, sy + inset, iw, ih, 0xFFFFFF);
+        if (!border_set) {
+            gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
+            gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);
+            gfx2d_rect_fill(sx, sy, 1, rt_h[n], 0x808080);
+            gfx2d_rect_fill(sx + rt_w[n] - 1, sy, 1, rt_h[n], 0x808080);
+        }
         int ii = rt_input_idx[n];
+        int is_focused = (focus_mode == FOCUS_INPUT && ii >= 0 &&
+                          ii == focused_input);
+        if (is_focused) {
+            /* Focus ring outside the existing border so it doesn't fight
+             * the author's red border. Single-pixel inset blue. */
+            gfx2d_rect_fill(sx + 1, sy + 1, rt_w[n] - 2, 1, 0x0066CC);
+            gfx2d_rect_fill(sx + 1, sy + rt_h[n] - 2, rt_w[n] - 2, 1, 0x0066CC);
+            gfx2d_rect_fill(sx + 1, sy + 1, 1, rt_h[n] - 2, 0x0066CC);
+            gfx2d_rect_fill(sx + rt_w[n] - 2, sy + 1, 1, rt_h[n] - 2, 0x0066CC);
+        }
         if (ii >= 0) {
             char *iv = input_value + ii * 128;
-            gfx2d_text(sx + 2, sy + 2, iv, 0x000000, 0);
+            int tx = sx + 3 + inset;
+            int ty = sy + 2 + inset;
+            gfx2d_text(tx, ty, iv, 0x000000, 0);
+            if (is_focused) {
+                /* Caret at end of text. Width measured via gfx2d so it
+                 * tracks bitmap-font advance. */
+                int tw = gfx2d_text_width(iv, 0);
+                int cx = tx + tw;
+                gfx2d_rect_fill(cx, ty, 1, 10, 0x000000);
+            }
         }
         return;
     }
@@ -387,26 +442,52 @@ void paint_rt_marker(int n, int sx, int sy) {
     int cs = rt_style[parent];
     int ls = cs_list_style[cs];
     int fg = cs_color[cs] >= 0 ? cs_color[cs] : 0x000000;
-    char *glyph = "*";
-    if (ls == LS_DISC)        glyph = "*";
-    else if (ls == LS_CIRCLE) glyph = "o";
-    else if (ls == LS_SQUARE) glyph = "#";
-    else if (ls == LS_NONE)   return;
-    else if (ls == LS_DECIMAL) {
-        /* Compute index among LIST_ITEM siblings */
+    if (ls == LS_NONE) return;
+    /* `list-style-position: outside` (default) — marker sits in the
+     * padding-left of the parent <ul>, vertically aligned to the first
+     * line box's baseline. paint_rt_marker is called with sx = li
+     * border-box left, sy = li border-box top; the first line box is
+     * laid out at li padding-top, which is 0 in our UA defaults, so
+     * sy IS the first line top. Baseline = sy + ascent (matching the
+     * formula in paint_rt_line_box). */
+    char *glyph = "\xE2\x80\xA2";
+    int glyph_len = 3;
+    if (ls == LS_DISC)        glyph = "\xE2\x80\xA2";  /* • */
+    else if (ls == LS_CIRCLE) glyph = "\xE2\x97\xA6";  /* ◦ */
+    else if (ls == LS_SQUARE) glyph = "\xE2\x96\xA0";  /* ■ */
+    char dec_buf[16];
+    if (ls == LS_DECIMAL) {
         int idx = 1;
         int sib = rt_first_child[rt_parent[parent]];
         while (sib >= 0 && sib != parent) {
             if (rt_kind[sib] == RT_LIST_ITEM) idx++;
             sib = rt_next[sib];
         }
-        char buf[16];
-        int p = b_append_int(buf, 0, idx);
-        buf[p] = '.'; buf[p + 1] = 0;
-        gfx2d_text(sx - 16, sy + 2, buf, fg, 0);
-        return;
+        int p = b_append_int(dec_buf, 0, idx);
+        dec_buf[p] = '.'; dec_buf[p + 1] = 0;
+        glyph = dec_buf;
+        glyph_len = p + 1;
     }
-    gfx2d_text(sx - 12, sy + 2, glyph, fg, 0);
+    int face = cs_face_id_for(cs);
+    int size_px = cs_font_size_px[cs] > 0 ? cs_font_size_px[cs] : 14;
+    if (face >= 0) {
+        int gw = fontsys_run_width(face, size_px, glyph, glyph_len);
+        if (gw <= 0) gw = size_px / 2;
+        int asc = fontsys_ascent(face, size_px);
+        if (asc <= 0) asc = size_px - 2;
+        /* Right-align the marker into the gap left of the content edge.
+         * The 6px gutter mirrors what real browsers leave between
+         * marker glyph and text (Blink: ListMarkerPainter.cpp uses an
+         * em-relative offset; 6px is a fixed-pixel approximation that
+         * looks right for body-sized fonts). */
+        fontsys_draw_run_styled(face, size_px,
+                                sx - gw - 6, sy + asc,
+                                glyph, glyph_len,
+                                (unsigned int)fg, 0, 0);
+    } else {
+        /* No TTF face — fall back to the 8x8 bitmap '*'. */
+        gfx2d_text(sx - 12, sy + 2, "*", fg, 0);
+    }
 }
 
 void draw_address_bar(int sx, int sy, int sw) {
