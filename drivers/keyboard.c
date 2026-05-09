@@ -51,13 +51,13 @@
  */
 
 #include "keyboard.h"
-#include "../kernel/ports.h"
-#include "../kernel/irq.h"
-#include "../kernel/kernel.h"
-#include "../kernel/shell.h"
-#include "../kernel/desktop.h"
-#include "../kernel/gui.h"
-#include "../kernel/process.h"
+#include "ports.h"
+#include "irq.h"
+#include "kernel.h"
+#include "shell.h"
+#include "desktop.h"
+#include "gui.h"
+#include "process.h"
 #include "serial.h"
 
 // Global keyboard state

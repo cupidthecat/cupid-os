@@ -13,9 +13,9 @@
  */
 
 #include "rtc.h"
-#include "../kernel/ports.h"
-#include "../kernel/kernel.h"
-#include "../drivers/serial.h"
+#include "ports.h"
+#include "kernel.h"
+#include "serial.h"
 
 #define CMOS_INDEX  0x70
 #define CMOS_DATA   0x71

@@ -1,8 +1,8 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include "../kernel/types.h"
-#include "../kernel/isr.h"
+#include "types.h"
+#include "isr.h"
 
 /* Mouse button masks */
 #define MOUSE_LEFT   0x01

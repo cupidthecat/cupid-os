@@ -9,7 +9,7 @@
 #ifndef RTC_H
 #define RTC_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 typedef struct {
     uint8_t second;  /* 0-59 */

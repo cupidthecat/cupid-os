@@ -1,8 +1,8 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#include "../kernel/types.h"
-#include "../kernel/irq.h"
+#include "types.h"
+#include "irq.h"
 
 // Keyboard ports
 #define KEYBOARD_DATA_PORT    0x60

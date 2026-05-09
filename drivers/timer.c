@@ -37,12 +37,12 @@
  * - kernel.h: System functions
  */
 
-#include "../kernel/ports.h"
-#include "../kernel/irq.h"
-#include "../kernel/types.h"
-#include "../kernel/kernel.h"
-#include "../drivers/keyboard.h"
-#include "../kernel/math.h"
+#include "ports.h"
+#include "irq.h"
+#include "types.h"
+#include "kernel.h"
+#include "keyboard.h"
+#include "math.h"
 #include "timer.h"
 
 // PIT hardware ports and constants

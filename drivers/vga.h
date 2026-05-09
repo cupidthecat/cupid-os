@@ -1,7 +1,7 @@
 #ifndef VGA_GFX_H
 #define VGA_GFX_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 /* VBE 640x480, 32bpp true color */
 #define VGA_GFX_WIDTH   640

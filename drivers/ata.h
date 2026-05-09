@@ -1,7 +1,7 @@
 #ifndef ATA_H
 #define ATA_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 // ATA ports for primary bus
 #define ATA_PRIMARY_DATA       0x1F0

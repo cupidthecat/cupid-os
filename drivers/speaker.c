@@ -9,7 +9,7 @@
  */
 
 #include "speaker.h"
-#include "../kernel/ports.h"
+#include "ports.h"
 #include "timer.h"
 #include "pit.h"
 

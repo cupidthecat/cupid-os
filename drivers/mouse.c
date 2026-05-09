@@ -8,13 +8,13 @@
  */
 
 #include "mouse.h"
-#include "../kernel/ports.h"
-#include "../kernel/isr.h"
-#include "../kernel/pic.h"
-#include "../drivers/vga.h"
-#include "../kernel/graphics.h"
-#include "../drivers/serial.h"
-#include "../kernel/string.h"
+#include "ports.h"
+#include "isr.h"
+#include "pic.h"
+#include "vga.h"
+#include "graphics.h"
+#include "serial.h"
+#include "string.h"
 
 mouse_state_t mouse = { 320, 240, 0, 0, 0, false };
 static bool has_scroll_wheel = false;

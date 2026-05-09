@@ -13,10 +13,10 @@
  */
 
 #include "ata.h"
-#include "../kernel/ports.h"
-#include "../kernel/kernel.h"
-#include "../kernel/debug.h"
-#include "../kernel/blockdev.h"
+#include "ports.h"
+#include "kernel.h"
+#include "debug.h"
+#include "blockdev.h"
 
 // Driver state
 static ata_drive_t drives[4];  // Primary master/slave, secondary master/slave (only primary implemented)
