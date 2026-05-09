@@ -486,6 +486,57 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `paging_map_mmio(phys, size)` | Identity-map an MMIO region |
 | `pmm_alloc_page` / `pmm_free_page(page)` | 4 KB physical page allocator |
 
+### Audio - AC97 driver
+
+| Function | Description |
+|---|---|
+| `ac97_init` | Probe + init AC97. Returns 0 on success in eax |
+| `ac97_start` | Arm DMA |
+| `ac97_stop` | Halt + mute |
+| `ac97_set_master_volume(pct)` | 0-100 master volume |
+| `ac97_tsc_sleep_ms(ms)` | TSC busy-wait |
+| `ac97_is_present_int` | 0 / 1 |
+| `ac97_smoke_sine` | 440 Hz triangle 2s |
+| `ac97_smoke_sweep` | 50→8000 Hz sweep |
+| `ac97_smoke_pan` | 1 kHz with L↔R pan |
+| `audiotest_all` | sine + sweep + pan + opl |
+
+### Audio - MIDI / OPL3 synth
+
+| Function | Description |
+|---|---|
+| `midiopl_init(genmidi_lump, lump_len)` | Parse Doom GENMIDI patches |
+| `midiopl_reset` | Silence channels, keep patches |
+| `midiopl_feed(bytes, len)` | Stream MIDI bytes into synth |
+| `midiopl_render(out_stereo, frames)` | Pull s16-stereo @ 22050 Hz |
+| `midiopl_set_volume(0..127)` | Master synth volume |
+| `opl_smoke` | OPL3 smoke test |
+
+### Audio - PCM mixer
+
+s16 stereo @ 22050 Hz, 16 slots.
+
+| Function | Description |
+|---|---|
+| `mixer_init` | One-time init |
+| `mixer_play(slot, pcm, frames, ch, loop, vol_l, vol_r)` | Start playback (returns 0 in eax on success) |
+| `mixer_stop(slot)` | Stop slot |
+| `mixer_active(slot)` | 1 if playing |
+| `mixer_set_volume(slot, vol_l, vol_r)` | Per-slot volume |
+| `mixer_fill(out, frames)` | Mix all active slots into `out` |
+
+### Example: Audio smoke test
+
+```asm
+main:
+    call ac97_init       ; init AC97 codec
+    test eax, eax
+    jnz  .done
+    call ac97_smoke_sine ; 2s 440 Hz triangle
+.done:
+    ret
+```
+
 ### Example: Using Kernel Bindings
 
 ```asm
@@ -521,7 +572,7 @@ main:
 
 > Syscall table version: **3** (since Phase 5 of Networking). The layout is
 > append-only - programs built against v2 still work and observe the new
-> larger `SYS_TABLE_SIZE`. `kernel/syscall.c` has `_Static_assert` guards
+> larger `SYS_TABLE_SIZE`. `kernel/core/syscall.c` has `_Static_assert` guards
 > on the offsets below so a future field reorder fails to compile.
 
 AOT-compiled programs receive a pointer to the syscall table at `[esp+4]` when executed. Use `SYS_*` constants (pre-defined as `equ` values) to call kernel functions indirectly:

@@ -3,7 +3,6 @@
 32-bit x86 hobby OS written in C and NASM. Has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. Runs on real hardware or QEMU. Inspired by TempleOS, OsakaOS, and Unix.
 
 ![Desktop](img/background.png)
-![Freedoom](img/freedoom.png)
 ![File manager](img/fm.png)
 ![Paint](img/paint.png)
 
@@ -250,19 +249,47 @@ QEMU monitor is at Ctrl+Alt+2. Serial output comes through stdout on `make run`.
 
 ```
 cupid-os/
-  boot/           two-stage BIOS bootloader
-  kernel/         kernel source (104 C files + headers/asm)
-  drivers/        hardware drivers (9 C files)
-  bin/            built-in CupidC programs (88 .cc files)
-  demos/          CupidASM demo programs (21 .asm files)
-  user/           example ELF user programs and cupid.h header
-  wiki/           documentation (28 Markdown files)
-  docs/superpowers/  additional project docs
-  cupidos-txt/    embedded rich-text docs (.CTXT format)
-  img/            screenshots
-  link.ld         linker script
+  boot/                  two-stage BIOS bootloader
+  kernel/                kernel source, organised by subsystem:
+    audio/                 AC97 driver, mixer, OPL3 synth, MIDI/MUS
+    core/                  kmain, panic, process, scheduler,
+                           syscall, app_launch, types, string
+    cpu/                   IDT/IRQ/PIC, FPU, libm, math, simd, ksyms
+    crypto/                AES, ChaCha20, SHA, HMAC, HKDF, RSA,
+                           x25519, P-256, ECDSA, ASN.1, X.509
+    doom/                  vendored doomgeneric + dglibc shim
+    fs/                    VFS, FAT16, ISO9660, ramfs, devfs,
+                           homefs, loopdev, blockcache, blockdev
+    gfx/                   gfx2d, BMP/PNG/JPEG, font, graphics
+    gui/                   gui widgets, desktop, ed, notepad,
+                           terminal app, ANSI
+    lang/                  CupidC compiler, CupidASM, CupidScript,
+                           shell, exec, godspeak, dis
+    mm/                    memory, paging, swap, swap_disk
+    network/               ARP, IP, ICMP, UDP, TCP, DHCP, DNS,
+                           sockets, net_if
+    smp/                   SMP, MP tables, LAPIC/IOAPIC, BKL,
+                           per-CPU, ACPI, AP trampoline
+    tls/                   TLS 1.2/1.3 record + handshake + CA
+    usb/                   USB core, UHCI, EHCI, HID, hub, MSC
+    util/                  calendar, generated *_programs_gen.c
+  drivers/               hardware drivers: ATA, keyboard, mouse,
+                         PIT, RTC, serial, speaker, timer, VGA,
+                         PCI, RTL8139, E1000
+  bin/                   built-in CupidC programs (88 .cc files)
+  demos/                 CupidASM demo programs (21 .asm files)
+  user/                  example ELF user programs + cupid.h
+  wiki/                  documentation (28 Markdown files)
+  docs/superpowers/      additional project docs
+  cupidos-txt/           embedded rich-text docs (.CTXT format)
+  img/                   screenshots
+  link.ld                linker script
   Makefile
 ```
+
+All `kernel/<subdir>/` and `drivers/` are on the include path, so
+sources use bare `#include "foo.h"` regardless of the file's
+location.
 
 ---
 

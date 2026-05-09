@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>B3 entities + foster parenting</title></head>
+<body>
+<h2>B3 entity decoding</h2>
+
+<p>amp:&amp; lt:&lt; gt:&gt; quot:&quot; apos:&apos;</p>
+<p>numeric: &#65;&#66;&#67; (ABC) &#48;&#49;&#50; (012) &#33;&#39;&#42; (!'*)</p>
+<p>hex: &#x41;&#x42;&#x43; (ABC) &#x21;&#x27;&#x2A; (!'*)</p>
+<p>nbsp:[&nbsp;&nbsp;&nbsp;] copy:&copy; reg:&reg; mdash:&mdash;</p>
+<p>Tom&apos;s &amp; Jerry &lt;3 &#65;&#x41; should render: Tom's &amp; Jerry &lt;3 AA</p>
+
+<h2>Foster parenting (stray text in table)</h2>
+<table border="1">
+stray text 1
+<tr><td>cell 1<td>cell 2</tr>
+stray text 2
+<tr><td>cell 3<td>cell 4</tr>
+stray text 3
+</table>
+<p>Spec says stray text inside &lt;table&gt; outside cells should be foster-parented
+before the table. Current parser drops it. With either behavior the rows
+themselves should still render correctly.</p>
+</body>
+</html>

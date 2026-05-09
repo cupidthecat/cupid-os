@@ -1,0 +1,11 @@
+<!doctype html>
+<title>@font-face skip woff2 -> ttf</title>
+<style>
+@font-face {
+  font-family: 'TestSans';
+  src: url('/fake.woff2') format('woff2'),
+       url('/system/fonts/LiberationSans-Regular.ttf') format('truetype');
+}
+p { font-family: 'TestSans'; font-size: 22px; }
+</style>
+<p>WOFF2 skipped, TTF used.</p>

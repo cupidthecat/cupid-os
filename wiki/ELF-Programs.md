@@ -280,7 +280,7 @@ After calling `cupid_init(sys)`, you can use these wrapper functions directly (n
 ### Phase 4 / 5 - Networking + drivers (syscall table v3)
 
 Bumped to **`CUPID_SYSCALL_VERSION = 3`** in
-`kernel/syscall.h`. Layout is append-only - programs built against v2
+`kernel/core/syscall.h`. Layout is append-only - programs built against v2
 still work; new programs should check `sys->version >= 3` and
 `sys->table_size >= sizeof(<largest field they touch>)` before calling
 the new fields.

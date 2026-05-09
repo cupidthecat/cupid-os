@@ -6,7 +6,7 @@ A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel b
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
+The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
 
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -427,12 +427,12 @@ void draw_window(int x, int y, int w, int h, char *title) {
 
 | File | Purpose |
 |------|---------|
-| `kernel/gfx2d.h` | Public API header (including file dialogs) |
-| `kernel/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
-| `kernel/bmp.h` | BMP encoding/decoding API header |
-| `kernel/bmp.c` | BMP format implementation |
-| `kernel/vfs_helpers.h` | High-level VFS convenience functions |
-| `kernel/vfs_helpers.c` | VFS helpers implementation |
+| `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
+| `kernel/gfx/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
+| `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
+| `kernel/gfx/bmp.c` | BMP format implementation |
+| `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
+| `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
 | `cupidc.c` | Binding registration (~100 entries) |
 | `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
 | `cupidc_parse.c` | Type parsing for new keywords |

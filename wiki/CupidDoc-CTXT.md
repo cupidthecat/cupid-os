@@ -118,7 +118,7 @@ from any manual.
 | `12HOLYC-CUPIDC.CTXT`   |   *   |      *      |         |         |      *       |
 
 The sprite asset is `/docs/image.bmp`, installed at boot from the top-level
-`image.bmp` file via the Makefile and `kernel/docs_programs_gen.c`. The
+`image.bmp` file via the Makefile and `kernel/util/docs_programs_gen.c`. The
 filesystem and embedding manuals now use that same asset too, so the examples
 exercise both live document rendering and the boot-time doc asset pipeline.
 

@@ -173,7 +173,7 @@ review it after the fact:
 When the buffer fills (cursor reaches row 499), the oldest row is
 discarded - there's no infinite history.
 
-Mouse wheel routing lives in `kernel/desktop.c`: when the focused
+Mouse wheel routing lives in `kernel/gui/desktop.c`: when the focused
 window's title is `"Terminal"`, `mouse.scroll_z` is forwarded to
 `terminal_handle_scroll()` instead of being silently consumed.
 PgUp / PgDn / Home / End scancodes arrive via the extended-scancode

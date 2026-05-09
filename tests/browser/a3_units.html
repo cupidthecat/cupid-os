@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>A3 units</title></head>
+<body>
+<h2>A3 unit resolution</h2>
+
+<p style="margin:0;background:#eef">[baseline] no margin, light-blue background. Wraps to fill content area.</p>
+
+<p style="margin-left:1em;background:#fee">[margin-left:1em] over 16px parent = 16px indent.</p>
+
+<p style="margin-left:2em;background:#fee">[margin-left:2em] over 16px parent = 32px indent.</p>
+
+<p style="margin-left:1rem;background:#efe">[margin-left:1rem] = 16px indent (root html font-size).</p>
+
+<p style="padding:1em;background:#ffe">[padding:1em] all sides = 16px padding.</p>
+
+<p style="padding-left:50px;background:#fee">[padding-left:50px] = 50px indent inside the box.</p>
+
+<p style="width:50%;background:#eef">[width:50%] half viewport width.</p>
+
+<p style="width:200px;background:#eef">[width:200px] fixed pixel width.</p>
+
+<div style="font-size:24px">
+  <p style="margin-left:1em;background:#fed">[em on 24px ancestor] margin-left:1em should be 24px since element's font-size inherits 24.</p>
+  <p style="margin-left:0.5em;background:#fed">[0.5em over 24px] = 12px indent.</p>
+</div>
+
+<div style="font-size:12px">
+  <p style="margin-left:1em;background:#fed">[em on 12px ancestor] margin-left:1em should be 12px (smaller indent).</p>
+</div>
+
+<p style="margin:0.5em 4em;padding:0.5em 1em;background:#dfd">[margin:0.5em 4em + padding:0.5em 1em] mixed em on shorthand. 0.5em=8, 4em=64, 1em=16 vs 16px parent.</p>
+</body>
+</html>

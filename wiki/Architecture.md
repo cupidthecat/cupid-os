@@ -86,6 +86,60 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 
 ---
 
+## Source-tree layout
+
+The kernel source is organised into subsystem subdirectories. Every
+subdir is on the include path (`-I./kernel/<subdir>`), so sources
+use bare `#include "foo.h"` regardless of where the header lives.
+
+```
+kernel/
+├── audio/      AC97 driver, mixer, OPL3, MIDI/MUS
+├── core/       kmain, panic, process, scheduler, syscall,
+│               app_launch, types, debug, ports, string
+├── cpu/        IDT, IRQ, PIC, FPU, libm, math, simd, ksyms
+├── crypto/     AES, ChaCha20, SHA, HMAC, HKDF, RSA, x25519,
+│               P-256, ECDSA, ASN.1, X.509, csprng
+├── doom/       vendored doomgeneric + dglibc shim
+├── fs/         VFS, FAT16, ISO9660, ramfs, devfs, homefs,
+│               loopdev, blockcache, blockdev
+├── gfx/        gfx2d, BMP/PNG/JPEG, font, graphics
+├── gui/        gui widgets, desktop, ed, notepad, terminal_app,
+│               ANSI, clipboard, ui
+├── lang/       CupidC compiler, CupidASM, CupidScript, shell,
+│               exec, godspeak, dis
+├── mm/         memory, paging, swap, swap_disk
+├── network/    ARP, IP, ICMP, UDP, TCP, DHCP, DNS, sockets,
+│               net_if
+├── smp/        SMP, MP tables, LAPIC, IOAPIC, BKL, per-CPU,
+│               ACPI, AP trampoline
+├── tls/        TLS 1.2 / 1.3 record + handshake + CA bundle
+├── usb/        USB core, UHCI, EHCI, HID, hub, MSC
+└── util/       calendar, generated *_programs_gen.c
+
+drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
+                timer, VGA, PCI, RTL8139, E1000
+```
+
+Module dependency direction (top depends on bottom, no cycles):
+
+```
+gui      → gfx, lang, fs, mm, core
+lang     → fs, mm, core, cpu
+fs       → mm, core, drivers (ATA), crypto (csprng for /dev/random)
+network  → core, drivers (NICs)
+tls      → network, crypto, core
+audio    → drivers (PCI), core
+crypto   → core (types, string only)
+smp      → core, cpu, mm, drivers (PIC, PIT)
+mm       → core, cpu
+cpu      → core
+drivers  → core
+core     → (nothing)
+```
+
+---
+
 ## Component Architecture
 
 ### Kernel Core

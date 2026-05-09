@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>B2 misnested</title></head>
+<body>
+<h2>B2 misnested formatting tags</h2>
+
+<p>[case 1] Plain. <b>Bold. <i>Both.</b> ItalicOnly.</i> Plain.</p>
+
+<p>[case 2] Plain. <i>Italic. <b>Both.</i> BoldOnly.</b> Plain.</p>
+
+<p>Spec: in case 2, "BoldOnly." should still be bold even though &lt;/i&gt; came first
+(adoption-agency keeps &lt;b&gt; open across &lt;/i&gt;). With the current parser, both
+&lt;i&gt; and &lt;b&gt; get popped at &lt;/i&gt;, so "BoldOnly." may render as plain instead.</p>
+</body>
+</html>
