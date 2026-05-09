@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>C2 textContent + innerHTML</title></head>
+<body>
+<h2>C2 DOM mutation setters</h2>
+
+<p id="t1">old text 1</p>
+<p id="t2">old text 2</p>
+<p id="t3">old text 3</p>
+
+<script>
+  /* textContent setter: should replace text */
+  document.getElementById("t1").textContent = "new text via textContent";
+
+  /* innerHTML: currently falls through to text-only (no parsing); the
+   * tags below should appear literal until a real fragment parse lands. */
+  document.getElementById("t2").innerHTML = "<b>bold</b> + plain via innerHTML";
+
+  /* textContent on a node with existing children: should detach old kids
+   * and replace with the new string */
+  var t3 = document.getElementById("t3");
+  t3.textContent = "kids replaced";
+</script>
+</body>
+</html>

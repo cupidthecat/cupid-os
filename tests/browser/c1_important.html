@@ -5,13 +5,13 @@
 <style>
   /* author rule, no !important */
   p.x { color: green; }
-  /* author rule with !important — should beat inline */
+  /* author rule with !important: should beat inline */
   p.y { color: red !important; }
   /* author higher specificity but no !important */
   p.z { color: green; }
   p.z { color: orange !important; }       /* later & important wins */
   p.w { color: blue !important; }
-  p.w { color: red; }                     /* later but not important — loses */
+  p.w { color: red; }                     /* later but not important, loses */
 </style>
 </head>
 <body>

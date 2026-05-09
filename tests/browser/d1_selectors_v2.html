@@ -1,5 +1,5 @@
 <!doctype html>
-<title>d1: selectors v2 — combinators, attr ops, structural pseudos</title>
+<title>d1: selectors v2 - combinators, attr ops, structural pseudos</title>
 <style>
 body { font: 14px sans-serif; padding: 12px; color: #222; }
 h2 { color: #084; margin: 16px 0 6px; }
@@ -35,7 +35,7 @@ ul li:nth-child(3)    { font-weight: bold; }
 /* compound + subselector */
 button.primary:first-child { background: #06c; color: #fff; padding: 4px 8px; }
 
-/* pseudo-element basic — A2 will fully render; matcher must not crash */
+/* pseudo-element basic: A2 will fully render; matcher must not crash */
 q::before { content: "\201C"; }
 q::after  { content: "\201D"; }
 </style>
@@ -48,8 +48,8 @@ q::after  { content: "\201D"; }
 </nav>
 
 <h2>adjacent and sibling</h2>
-<p>This paragraph is directly adjacent to h2 — italic, gray.</p>
-<p class="note">This paragraph is a general sibling of h2 — light yellow.</p>
+<p>This paragraph is directly adjacent to h2: italic, gray.</p>
+<p class="note">This paragraph is a general sibling of h2: light yellow.</p>
 <p>Plain paragraph.</p>
 
 <h2>attribute ops</h2>
