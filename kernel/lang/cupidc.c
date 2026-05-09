@@ -2951,7 +2951,7 @@ static void cc_pp_handle_directive(cc_pp_state_t *pp, const char *cur_path,
     name[ni] = '\0';
 
     if (p < line_end && *p == '(') {
-      /* Function-like macros are not part of this phase. */
+      /* Function-like macros are not yet supported. */
       return;
     }
 

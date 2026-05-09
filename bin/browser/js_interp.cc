@@ -22,7 +22,7 @@ int js_dnz(double v) {
     return (int)(v * 1000000.0);
 }
 
-/* ----- value stack helpers ----- */
+/* value stack helpers */
 void js_push_undef() {
     if (jvs_top >= MAX_JS_VS) return;
     int t = jvs_top;
@@ -66,7 +66,7 @@ void js_copy_top_from(int src) {
     jvs_top = t + 1;
 }
 
-/* ----- coercion ----- */
+/* coercion */
 double js_to_number_at(int idx) {
     int t = jvs_tag[idx];
     if (t == JS_VAL_NUM)  return jvs_num[idx];
@@ -235,7 +235,7 @@ int js_strict_eq_at(int a, int b) {
     return js_eq_at(a, b);
 }
 
-/* ----- scope / bindings ----- */
+/* scope / bindings */
 int js_scope_enter(int parent) {
     if (jsc_top >= MAX_JS_SCOPES) { js_set_err("js: scope overflow"); return -1; }
     int s = jsc_top;
@@ -307,7 +307,7 @@ void js_push_from_binding(int b) {
     jvs_dom_idx[t] = jb_dom_idx[b];
 }
 
-/* ----- console builtin ----- */
+/* console builtin */
 void js_console_log_top_n(int argc) {
     /* args sit on the value stack at [top-argc .. top-1]. */
     char line[512];
@@ -612,6 +612,7 @@ void js_assign_to_target(int target_node) {
         int tag = jvs_tag[obj_top];
         int dom = jvs_dom_idx[obj_top];
         int oi  = jvs_obj_idx[obj_top];
+        serial_printf("[c2] member-set: tag=%d dom=%d klen=%d\n", tag, dom, klen);
         if (tag == JS_VAL_STYLE) {
             /* el.style.X = "..."; serialise into inline style attribute. */
             char vbuf[256];
@@ -998,7 +999,7 @@ void js_eval_expr(int node) {
     js_push_undef();
 }
 
-/* ----- statements ----- */
+/* statements */
 void js_exec_block(int block_node) {
     if (block_node < 0) return;
     int s = jn_a[block_node];

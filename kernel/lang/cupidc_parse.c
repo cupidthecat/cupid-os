@@ -128,7 +128,7 @@ static void patch_jump(cc_state_t *cc, uint32_t patch_pos) {
 }
 
 /* add esp, imm (clean up stack args).  Uses imm8 form when possible, else
- * imm32.  Task 18: callers may pass >127 when args include doubles. */
+ * imm32.  Callers may pass >127 when args include doubles. */
 static void emit_add_esp(cc_state_t *cc, int32_t val) {
   if (val == 0)
     return;
@@ -154,7 +154,7 @@ static void emit_sub_esp(cc_state_t *cc, uint32_t val) {
 
 /* Function prologue: push ebp; mov ebp, esp; and esp, -16.
  *
- * Task 18: unconditionally 16-byte align ESP so subsequent MOVAPS/MOVDQA
+ * Unconditionally 16-byte align ESP so subsequent MOVAPS/MOVDQA
  * (used for SIMD, and potentially also for libm) is safe.  Cost is 3
  * extra bytes per function; in exchange we don't need to track whether
  * a given function touches SSE.  Local-frame size is rounded up to a
@@ -231,7 +231,7 @@ static void emit_lea_local(cc_state_t *cc, int32_t offset) {
 
 /* SSE Scalar FP Codegen Helpers
  *
- * Task 16: scalar float/double arithmetic. Strategy:
+ * Scalar float/double arithmetic. Strategy:
  *  - XMM0 is the FP "accumulator" mirroring EAX in the integer code path.
  *  - For binops, the left operand is spilled to the stack as 8 bytes
  *    (sub esp,8; movsd [esp], xmm0), the right operand is evaluated into
@@ -342,7 +342,7 @@ static void emit_movsd_xmm_esp(cc_state_t *cc, int xmm) {
 }
 
 /* Push an XMM float onto the stack: SUB ESP,4 + MOVSS [ESP], xmm.
- * Task 18: used by function-call arg-push loop when arg is TYPE_FLOAT. */
+ * Used by function-call arg-push loop when arg is TYPE_FLOAT. */
 static void emit_push_xmm_float(cc_state_t *cc, int xmm) {
   emit8(cc, 0x83); /* sub esp, 4 */
   emit8(cc, 0xEC);
@@ -355,7 +355,7 @@ static void emit_push_xmm_float(cc_state_t *cc, int xmm) {
 }
 
 /* Push an XMM double onto the stack: SUB ESP,8 + MOVSD [ESP], xmm.
- * Task 18: used by function-call arg-push loop when arg is TYPE_DOUBLE. */
+ * Used by function-call arg-push loop when arg is TYPE_DOUBLE. */
 static void emit_push_xmm_double(cc_state_t *cc, int xmm) {
   emit8(cc, 0x83); /* sub esp, 8 */
   emit8(cc, 0xEC);
@@ -367,7 +367,7 @@ static void emit_push_xmm_double(cc_state_t *cc, int xmm) {
   emit8(cc, 0x24);
 }
 
-/* MOVAPS xmm_dst, xmm_src: 0F 28 /r (mod=11).  Task 18: used to move an
+/* MOVAPS xmm_dst, xmm_src: 0F 28 /r (mod=11).  Used to move an
  * FP return value into XMM0 before emitting the epilogue. */
 static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
   if (dst == src)
@@ -379,9 +379,9 @@ static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
 
 /* MOVUPS xmm, [ebp + disp32] - unaligned 16-byte load of SIMD local/param.
  * Encoding: 0F 10 /r with ModR/M mod=10, reg=xmm, r/m=101 (EBP) + disp32.
- * Task 30: materializes a float4/double2 local into XMM0.
- * Task 31: switched from MOVAPS (0F 28) to MOVUPS (0F 10) because
- * [ebp + disp] alignment isn't guaranteed - Task 18's prologue does
+ * Materializes a float4/double2 local into XMM0.
+ * Uses MOVUPS (0F 10) rather than MOVAPS (0F 28) because
+ * [ebp + disp] alignment isn't guaranteed - the prologue does
  * `push ebp; mov ebp, esp; and esp, -16`, which aligns ESP but leaves
  * EBP holding the pre-AND value (which is off by 4 from the aligned
  * boundary because of the PUSH EBP). MOVUPS tolerates unaligned
@@ -395,9 +395,9 @@ static void emit_movups_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
 
 /* MOVUPS [ebp + disp32], xmm - unaligned 16-byte store of SIMD XMM reg.
  * Encoding: 0F 11 /r with ModR/M mod=10, reg=xmm, r/m=101 (EBP) + disp32.
- * Task 30: reserved for full-vector stores; init-list codegen currently
+ * Reserved for full-vector stores; init-list codegen currently
  * stores element-by-element via MOVSS/MOVSD.
- * Task 31: see emit_movups_xmm_local for why we use MOVUPS, not MOVAPS. */
+ * See emit_movups_xmm_local for why we use MOVUPS, not MOVAPS. */
 __attribute__((unused))
 static void emit_movups_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0x0F);
@@ -437,7 +437,7 @@ static uint32_t cc_emit_data_bytes(cc_state_t *cc, const uint8_t *bytes,
   return addr;
 }
 
-/* Task 17: int <-> float <-> double conversion helpers.
+/* int <-> float <-> double conversion helpers.
  *
  * All six conversion opcodes share a common layout:
  *   <prefix> 0F <op> <ModR/M>
@@ -634,15 +634,15 @@ static int cc_last_expr_elem_size;    /* element size for array subscripts */
  * all 8 are in use) is not implemented - any expression too complex for
  * 8 XMMs will cc_error.  In the current Task-16 scheme only XMM0/XMM1
  * are actually used, but we keep the general allocator ready for later
- * phases (SIMD, libm). */
+ * callers (SIMD, libm). */
 static uint8_t cc_xmm_inuse = 0;
 /* Which XMM register holds the current FP expression result (mirrors EAX).
- * Generally XMM0 in this Task-16 implementation. Kept for Phase F. */
+ * Generally XMM0 in scalar codegen. Kept for SIMD. */
 __attribute__((unused))
 static int cc_last_xmm = 0;
 
-/* These are currently unused in Task 16 (all FP ops run through XMM0/XMM1
- * with spill-to-stack) but exist for Phase F SIMD codegen. */
+/* Currently unused in scalar codegen (all FP ops run through XMM0/XMM1
+ * with spill-to-stack) but exist for SIMD codegen. */
 __attribute__((unused))
 static int cc_xmm_alloc(cc_state_t *cc) {
   for (int i = 0; i < 8; i++) {
@@ -1375,7 +1375,7 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   }
 }
 
-/*  *  Task 32: SSE packed intrinsics (_mm_*_ps)
+/*  *  SSE packed intrinsics (_mm_*_ps)
  *
  *  Recognized by identifier at call-expression parse time and inlined
  *  as a single SSE instruction (no function-call overhead). See
@@ -1388,7 +1388,7 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
 #define CC_INTR_RET_INT   0x04  /* result type is int (movemask)           */
 #define CC_INTR_SET1      0x08  /* _mm_set1_{ps,pd}: scalar broadcast       */
 #define CC_INTR_MOVEMASK  0x10  /* _mm_movemask_ps: MOVMSKPS xmm->EAX        */
-#define CC_INTR_PD        0x20  /* Task 33: double-precision packed (double2) */
+#define CC_INTR_PD        0x20  /* double-precision packed (double2)            */
 
 typedef struct {
   const char *name;
@@ -1431,7 +1431,7 @@ static const cc_intrin_t cc_intrin_table[] = {
     { "_mm_set1_ps",     0x00, 0x00, 1, -1, CC_INTR_SET1 },
     { "_mm_movemask_ps", 0x00, 0x50, 1, -1, CC_INTR_MOVEMASK | CC_INTR_RET_INT },
 
-    /* Task 33: double-precision packed counterparts.
+    /* Double-precision packed counterparts.
      * Same opcodes as the _ps ops but with a 0x66 operand-size prefix.
      * Arg and result type is double2 (two 64-bit lanes). */
     { "_mm_add_pd",    0x66, 0x58, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
@@ -1507,8 +1507,8 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
   cc_parse_expression(cc, 1);
   if (cc->error) return;
 
-  /* Task 33: pd intrinsics carry CC_INTR_PD and return double2; _ps
-   * intrinsics return float4. Movemask is handled explicitly below. */
+  /* pd intrinsics carry CC_INTR_PD and return double2; _ps intrinsics
+   * return float4. Movemask is handled explicitly below. */
   int is_pd = (intr->flags & CC_INTR_PD) != 0;
   cc_type_t vec_type = is_pd ? TYPE_DOUBLE2 : TYPE_FLOAT4;
 
@@ -1545,7 +1545,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
     }
     /* _mm_set1_ps */
     if (cc_last_expr_type == TYPE_INT) {
-      /* Promote int to float via CVTSI2SS xmm0, eax (Task 16 helper). */
+      /* Promote int to float via CVTSI2SS xmm0, eax. */
       emit_cvtsi2ss(cc, 0);
       cc_last_expr_type = TYPE_FLOAT;
     }
@@ -1658,7 +1658,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
 
   /* Function call? */
   if (cc_peek(cc).type == CC_TOK_LPAREN) {
-    /* Task 32: short-circuit recognised SSE intrinsics (`_mm_*_ps`).
+    /* Short-circuit recognised SSE intrinsics (`_mm_*_ps`).
      * These inline as a single SSE opcode instead of a call.  Keep this
      * check before any argument parsing so we don't push-then-discard. */
     const cc_intrin_t *intr = cc_intrin_lookup(name);
@@ -1672,7 +1672,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     /* Count and push arguments (right to left by collecting first) */
     uint32_t arg_addrs[CC_MAX_PARAMS];
     int argc = 0;
-    /* Task 18: track size (4 or 8 bytes) of each pushed arg so we can do
+    /* Track size (4 or 8 bytes) of each pushed arg so we can do
      * a size-aware reversal and emit the correct cleanup ADD ESP. */
     int arg_sizes[CC_MAX_PARAMS];
     int total_arg_bytes = 0;
@@ -1727,7 +1727,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
      *
      * For each pair (a, b) where a < b = argc-1-a, we swap the bytes
      * belonging to arg_a and arg_b.  The 4-byte same-size fast path
-     * handles both int-only and float-only calls (Task 19 uses floats).
+     * handles both int-only and float-only calls.
      * Doubles and mixed sizes are handled by a size-aware swap. */
     if (argc > 1) {
       /* Compute byte-offset (from current ESP) where arg_i lives after
@@ -1754,7 +1754,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         int off_b = src_off[b];
 
         if (sa == 4 && sb == 4) {
-          /* 4-byte swap via ECX/EDX (original Task 1-era fast path). */
+          /* 4-byte swap via ECX/EDX (original int-only fast path). */
           /* mov ecx, [esp+off_a] */
           emit8(cc, 0x8B);
           emit8(cc, 0x8C);
@@ -1793,7 +1793,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           }
         } else {
           /* Mixed-size pair (e.g. f(double, int)).  A correct swap
-           * requires a variable-width block reverse.  Task 18 punts
+           * requires a variable-width block reverse.  Punted
            * on this rare case until a clear use case appears. */
           cc_error(cc,
                    "mixed int/double args in same call not yet supported");
@@ -1827,7 +1827,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
 
     /* Look up function */
     cc_symbol_t *sym = cc_sym_find(cc, name);
-    /* Task 18: remember callee's return type so we can set cc_last_expr_type
+    /* Remember callee's return type so we can set cc_last_expr_type
      * correctly after cleanup (default is TYPE_INT for unknown/forward refs). */
     cc_type_t call_ret_type = TYPE_INT;
     if (sym && (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL)) {
@@ -1891,7 +1891,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     }
 
-    /* Clean up arguments.  Task 18: use total_arg_bytes instead of
+    /* Clean up arguments.  Use total_arg_bytes instead of
      * argc*4 so that doubles (8 bytes) are correctly cleaned up. */
     if (total_arg_bytes > 0) {
       emit_add_esp(cc, (int32_t)total_arg_bytes);
@@ -1900,7 +1900,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (strcmp(name, "print") == 0 || strcmp(name, "println") == 0) {
       cc_last_expr_type = TYPE_VOID;
     } else {
-      /* Task 18: if callee returns float/double, result lives in XMM0;
+      /* If callee returns float/double, result lives in XMM0;
        * otherwise it's in EAX. */
       cc_last_expr_type = call_ret_type;
       if (call_ret_type == TYPE_FLOAT || call_ret_type == TYPE_DOUBLE) {
@@ -1922,19 +1922,19 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       /* Arrays and structs: load the base address via LEA, not the value */
       emit_lea_local(cc, sym->offset);
     } else if (sym->type == TYPE_FLOAT) {
-      /* Task 16: load float local into XMM0. */
+      /* Load float local into XMM0. */
       emit_movss_xmm_local(cc, 0, sym->offset);
       cc_last_xmm = 0;
     } else if (sym->type == TYPE_DOUBLE) {
       emit_movsd_xmm_local(cc, 0, sym->offset);
       cc_last_xmm = 0;
     } else if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
-      /* Task 30/31: load 16-byte SIMD local into XMM0 via MOVUPS.
+      /* Load 16-byte SIMD local into XMM0 via MOVUPS.
        * (MOVUPS instead of MOVAPS because EBP-relative offsets aren't
-       * guaranteed 16-aligned under Task 18's prologue - see
+       * guaranteed 16-aligned under the prologue - see
        * emit_movups_xmm_local comment.)
        *
-       * Task 31: if the next token is '.', extract a scalar element
+       * If the next token is '.', extract a scalar element
        * (.x/.y/.z/.w for float4, .x/.y for double2) and leave that
        * scalar in XMM0's low lane.  SHUFPS imm8 = lane*0x55 broadcasts
        * a given 32-bit lane into position 0 (and the other three, but
@@ -2076,7 +2076,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     break;
 
   case CC_TOK_FLIT: {
-    /* Task 16: emit the raw bits into the data segment and load them
+    /* Emit the raw bits into the data segment and load them
      * into XMM0 via MOVSS (float) or MOVSD (double).  XMM0 is the
      * "FP accumulator" mirroring EAX for the integer path. */
     if (tok.flit_bits == 32) {
@@ -2186,7 +2186,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_expect(cc, CC_TOK_RPAREN);
       cc_parse_primary(cc);
       cc_type_t src_type = cc_last_expr_type;
-      /* Task 17: int <-> float <-> double explicit casts.
+      /* int <-> float <-> double explicit casts.
        * The six combinations among {TYPE_INT, TYPE_FLOAT, TYPE_DOUBLE}
        * each lower to a single CVT* opcode.  Casts to/from pointer,
        * char, struct, or SIMD types remain pure retagging (no code). */
@@ -2481,7 +2481,7 @@ static void cc_parse_primary(cc_state_t *cc) {
 
         /* First implicit argument is self pointer in eax. */
         int argc = 0;
-        /* Task 18: track per-arg sizes for size-aware reversal. */
+        /* Track per-arg sizes for size-aware reversal. */
         int arg_sizes[CC_MAX_PARAMS];
         int total_arg_bytes = 0;
         emit_push_eax(cc);
@@ -2529,7 +2529,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_expect(cc, CC_TOK_RPAREN);
 
         /* Reverse pushed args (same convention as normal calls).
-         * Task 18: size-aware swap - see cc_parse_ident_expr call-site
+         * Size-aware swap - see cc_parse_ident_expr call-site
          * for identical logic and rationale. */
         if (argc > 1) {
           int src_off[CC_MAX_PARAMS];
@@ -2628,7 +2628,7 @@ static void cc_parse_primary(cc_state_t *cc) {
           emit_add_esp(cc, (int32_t)total_arg_bytes);
         }
 
-        /* Task 18: propagate FP return type so callers can spill via XMM0. */
+        /* Propagate FP return type so callers can spill via XMM0. */
         {
           cc_symbol_t *msym2 = cc_sym_find(cc, method_sym_name);
           cc_type_t mret = TYPE_INT;
@@ -2824,17 +2824,17 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     int right_is_fp = (right_type == TYPE_FLOAT || right_type == TYPE_DOUBLE);
 
     if (left_is_fp || right_is_fp) {
-      /* Scalar SSE binary op. Only + - * / supported in Task 16/17.
+      /* Scalar SSE binary op. Only + - * / supported.
        *
-       * Task 17 adds implicit promotion for mixed int/FP and mixed
-       * float/double.  The promoted type is determined by cc_promote().
+       * Implicit promotion for mixed int/FP and mixed float/double.
+       * The promoted type is determined by cc_promote().
        * Each mismatched case arranges for:
        *    - LHS loaded into XMM1 in the promoted type
        *    - RHS loaded into XMM0 in the promoted type
        *    - ESP restored (spill slot discarded)
        * after which the common SSE-op emit below applies unchanged.
        *
-       * Spill-slot layout from Task 16:
+       * Spill-slot layout:
        *    left_is_fp  -> sub esp,8; movs{s,d} [esp], xmm0  (8 bytes)
        *    !left_is_fp -> push eax                         (4 bytes)
        */
@@ -2946,7 +2946,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
     /* Track the promoted FP/int type for arithmetic ops only.
      * Comparison/logical/bitwise results stay int (0/1 or bit pattern).
-     * Task 16 will use this type to select SSE vs. integer opcodes. */
+     * Used to select SSE vs. integer opcodes. */
     if (op.type == CC_TOK_PLUS || op.type == CC_TOK_MINUS ||
         op.type == CC_TOK_STAR || op.type == CC_TOK_SLASH ||
         op.type == CC_TOK_PERCENT) {
@@ -3164,9 +3164,8 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
 
   /* FP assignment path - store XMM0 to the destination.  Plain '=' and
    * the four arithmetic compound ops (+=, -=, *=, /=) are supported.
-   * Bitwise/shift compound ops are rejected on FP types.  Task 17
-   * allows implicit promotion of the RHS when it differs from the
-   * target's FP type. */
+   * Bitwise/shift compound ops are rejected on FP types.  Implicit
+   * promotion of the RHS when it differs from the target's FP type. */
   if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
     int is_compound_fp = (op.type == CC_TOK_PLUSEQ ||
                           op.type == CC_TOK_MINUSEQ ||
@@ -3650,7 +3649,7 @@ static void cc_asm_emit_sse_mem(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
   cc_asm_emit_mem_modrm(cc, xmm, mem);
 }
 
-/* Try to encode a Phase B FPU/SSE opcode. Returns 1 if matched (and either
+/* Try to encode a FPU/SSE opcode. Returns 1 if matched (and either
  * encoded or errored), 0 if the mnemonic wasn't one we handle here so the
  * caller can fall through to the integer dispatcher. */
 static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
@@ -3669,7 +3668,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
   }
 
   /* x87 memory-operand opcodes (m32fp only).
-   * Matches standalone CupidASM Task 11 behavior: no size-prefix keyword
+   * Matches standalone CupidASM behavior: no size-prefix keyword
    * support, so FLD/FST/FSTP always emit the D9 base (m32fp single-precision).
    */
   if (strcmp(mn, "fld") == 0 || strcmp(mn, "fst") == 0 ||
@@ -3684,7 +3683,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
 
   /* MXCSR save/restore (mem32).
    * STMXCSR m32 = 0F AE /3   |   LDMXCSR m32 = 0F AE /2
-   * Required by the Task 38 #XF provocation drill so user-space CupidC
+   * Required by the #XF provocation drill so user-space CupidC
    * can unmask SIMD FP exceptions before deliberately dividing by zero.
    */
   if (strcmp(mn, "stmxcsr") == 0 || strcmp(mn, "ldmxcsr") == 0) {
@@ -3949,7 +3948,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
       emit8(cc, 0xEC);
 
     } else if (cc_parse_asm_fpu_opcode(cc, instr.text)) {
-      /* Phase B FPU/SSE opcode handled (x87 + SSE scalar + SSE packed). */
+      /* FPU/SSE opcode handled (x87 + SSE scalar + SSE packed). */
     } else {
       /* Unknown instruction - skip to semicolon */
       cc_error(cc, "unknown assembly instruction");
@@ -4243,7 +4242,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   }
 
   /* SIMD variables (float4/double2): 16-byte aligned 16-byte slot.
-   * Task 30: the prologue guarantees ESP is 16-byte aligned on entry
+   * The prologue guarantees ESP is 16-byte aligned on entry
    * (AND ESP,-16), so rounding the frame offset DOWN to a multiple of
    * 16 keeps [ebp + offset] aligned for MOVAPS. */
   if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
@@ -4334,7 +4333,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_next(cc); /* consume '=' */
     cc_parse_expression(cc, 1);
     if (type == TYPE_FLOAT) {
-      /* Coerce initializer into float if needed (Task 17). */
+      /* Coerce initializer into float if needed. */
       if (cc_last_expr_type == TYPE_INT) {
         emit_cvtsi2ss(cc, 0);
         cc_last_xmm = 0;
@@ -4575,10 +4574,10 @@ static void cc_parse_for(cc_state_t *cc) {
 static void cc_parse_return(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
     cc_parse_expression(cc, 1);
-    /* Task 18: float/double return values live in XMM0.  Task 16's
-     * expression codegen places FP results in XMM0 (cc_last_xmm=0),
-     * but if a future pass routes them to a different XMM reg we
-     * MOVAPS the value into XMM0 before the epilogue. */
+    /* Float/double return values live in XMM0.  Expression codegen
+     * places FP results in XMM0 (cc_last_xmm=0), but if a future
+     * pass routes them to a different XMM reg we MOVAPS the value
+     * into XMM0 before the epilogue. */
     if ((cc_last_expr_type == TYPE_FLOAT ||
          cc_last_expr_type == TYPE_DOUBLE) &&
         cc_last_xmm != 0) {
@@ -4977,7 +4976,7 @@ static void cc_parse_statement(cc_state_t *cc) {
 
           {
             int argc = 0;
-            /* Task 18: track per-arg sizes for size-aware reversal. */
+            /* Track per-arg sizes for size-aware reversal. */
             int arg_sizes[CC_MAX_PARAMS];
             int total_arg_bytes = 0;
 

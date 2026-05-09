@@ -150,7 +150,7 @@ void navigate(char *u) {
     /* push history. Back/forward set nav_no_push so they don't grow
      * the trail when revisiting old entries.  A normal navigation
      * truncates any forward history past hist_pos before adding the
-     * new entry — same as Chrome / Firefox behaviour. */
+     * new entry. Same as Chrome / Firefox behaviour. */
     if (!nav_no_push) {
         if (hist_pos < hist_count) hist_count = hist_pos;
         if (hist_count < HIST_MAX) {

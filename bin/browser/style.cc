@@ -185,7 +185,7 @@ void ua_default_style(int tag, int cs) {
         /* Real browsers collapse body's top margin with the first child's
          * top margin (spec margin-collapsing through a zero-padding parent).
          * We don't implement parent/first-child collapse yet, so set the
-         * top to 0 — the visible gap above the first heading is then the
+         * top to 0; the visible gap above the first heading is then the
          * heading's own UA margin-top (e.g. h1 21px, h2 20px), matching
          * the post-collapse result a real browser shows. */
         cs_margin[cs][0] = 0; cs_margin[cs][1] = 8;
@@ -385,7 +385,7 @@ int css_value_keyword(int off, int len, char *kw) {
  *   <= 14 px  -> SMALL    (h5, h6, small/x-small body)
  *   15-18 px  -> NORMAL   (body, h4, medium)
  *   19-26 px  -> LARGE-3  (h2, h3, large/x-large)
- *   >= 27 px  -> LARGE-4  (h1, xx-large) — same glyph, taller line box. */
+ *   >= 27 px  -> LARGE-4  (h1, xx-large): same glyph, taller line box. */
 int px_to_tier(int px) {
     if (px <= 0)  return 1;
     if (px <= 14) return 0;
@@ -671,7 +671,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 got_width = 1;
                 continue;
             }
-            /* keyword styles — recognise dashed/dotted/none; everything
+            /* keyword styles: recognise dashed/dotted/none; everything
              * else (groove/ridge/double/inset/outset/hidden) collapses
              * to solid which is what we paint by default. */
             if (css_value_keyword(t_start, t_len, "dashed")) {
@@ -740,7 +740,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          *   [<style>||<variant>||<weight>] <size>[/<line-height>] <family>+
          * Pick up italic/bold/normal, the numeric size, and treat
          * everything after the size as the font-family list (verbatim
-         * — same convention as CP_FONT_FAMILY).  Within the family
+         * (same convention as CP_FONT_FAMILY).  Within the family
          * tokens we additionally watch for the generic keywords
          * (serif/sans-serif/monospace/...) and stash that into
          * cs_font_generic so fontsys_match can fall back without
@@ -803,7 +803,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                     if (b != ' ' && b != '\t') break;
                     family_len = family_len - 1;
                 }
-                /* Don't `continue;` — let the outer loop end naturally
+                /* Don't `continue;` here. Let the outer loop end naturally
                  * since we've already consumed all remaining bytes via
                  * the family slice. */
             }
@@ -1169,7 +1169,7 @@ int sel_compound_matches(int sel_idx, int node) {
     }
     pseudo = css_sel_pseudo[sel_idx];
     if (pseudo == PSEUDO_NOT) {
-        /* :not(X) — succeed iff inner does NOT match */
+        /* :not(X): succeed iff inner does NOT match */
         ni = css_sel_not_idx[sel_idx];
         if (not_simple_matches(ni, node)) return 0;
     }
@@ -1354,7 +1354,7 @@ int css_value_string(int off, int len, char *out, int omax) {
  * compound, picks the highest-specificity (then doc-order) winner per
  * pseudo-element side, decodes the `content:` string, and saves the
  * result to n_pseudo_before/after_off. Other pseudo-element properties
- * (color, font, etc.) are not yet honored — only `content`. */
+ * (color, font, etc.) are not yet honored. Only `content`. */
 void resolve_pseudo_content(int node) {
     int win_b = -1;
     int score_b = -1;
@@ -1458,7 +1458,7 @@ void style_resolve_all() {
             apply_inline_style(cs, attr_pool + sty_off);
         }
 
-        /* 4. Important author rules — applied last so they override pass 1
+        /* 4. Important author rules: applied last so they override pass 1
          *    and inline style. Specificity + doc-order still resolves ties
          *    among important rules themselves. */
         int imp_rule[48];
@@ -1513,7 +1513,7 @@ void style_resolve_all() {
             }
             /* font-weight / font-style are inherited per CSS spec. Element
              * UA defaults set 400 / 0 explicitly, so we promote to parent's
-             * value only when the child still carries the default — child
+             * value only when the child still carries the default; child
              * elements that explicitly set normal still override correctly
              * because cascade ran before this inheritance pass. */
             if (cs_font_w[cs] == 400 && cs_font_w[pcs] != 400) cs_font_w[cs] = cs_font_w[pcs];

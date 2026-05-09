@@ -77,7 +77,7 @@ int effective_line_h(int cs, int tier) {
     if (cs < 0 || cs >= cs_count) return tier_line_h(tier);
     int lh = cs_line_height[cs];
     if (lh < 0) {
-        /* No CSS line-height — pick a default proportional to the
+        /* No CSS line-height; pick a default proportional to the
          * resolved px font size when available. tier_line_h is geared
          * to the 6x8/8x8/16x16 bitmap glyphs and is too tight for the
          * TTF path: at 14px (tier 0) the bitmap line-height was 12px,
@@ -396,7 +396,7 @@ void collect_inline_atoms(int n) {
         int h = (rt_intrinsic_h[n] > 0) ? rt_intrinsic_h[n] : rt_h[n];
         /* Stamp the resolved size on the node now so hit_test (which
          * runs outside the paint pipeline) can match a click against
-         * the checkbox/text input — paint_rt_line_box also sets these,
+         * the checkbox/text input. paint_rt_line_box also sets these,
          * but only at paint time, and clicks happen between paints. */
         if (rt_intrinsic_w[n] > 0) rt_w[n] = w;
         if (rt_intrinsic_h[n] > 0) rt_h[n] = h;
@@ -606,7 +606,7 @@ void layout_block(int n, int avail_w) {
      *   - parent + last in-flow child (zero padding-b/border-b, height auto);
      *   - self-collapsing block: a block with no in-flow content and zero
      *     padding/border combines its own top + bottom margins together.
-     * Floats and clearance break collapse — deferred to B2. */
+     * Floats and clearance break collapse: deferred to B2. */
     int pile_first = la_count;
     int pile_count = 0;
     int pend_pos = 0;

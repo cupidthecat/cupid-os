@@ -582,7 +582,7 @@ int  jtk_str_len[8192];
 int  jtk_line   [8192];
 int  jtk_count;
 
-/* JS AST nodes — parallel arrays. Each node carries up to four int
+/* JS AST nodes - parallel arrays. Each node carries up to four int
  * slots; per-kind layout is documented in js_parse.cc / js_interp.cc. */
 int  jn_kind   [8192];
 int  jn_a      [8192];
@@ -592,7 +592,7 @@ int  jn_d      [8192];
 int  jn_next   [8192];      /* sibling link inside a list (block stmts, args, params) */
 int  jn_count;
 
-/* JS string pool — interns identifiers, string literals, AST string
+/* JS string pool - interns identifiers, string literals, AST string
  * fields. Reset per page. */
 char js_str_pool[65536];
 int  js_str_pool_pos;

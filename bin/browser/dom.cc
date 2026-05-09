@@ -361,7 +361,7 @@ int map_high_codepoint(int v, int *out_ch) {
     if (v == 0x00B0) { *out_ch = 'd'; return 1; }   /* ° */
     if (v == 0x00B7) { *out_ch = '.'; return 1; }   /* · -> period (closer to middle dot than '*') */
     if (v == 0x2013) { *out_ch = '-'; return 1; }   /* – */
-    if (v == 0x2014) { *out_ch = '-'; return 1; }   /* — */
+    if (v == 0x2014) { *out_ch = '-'; return 1; }   /* U+2014 em dash */
     if (v == 0x2018) { *out_ch = '\''; return 1; }  /* ‘ */
     if (v == 0x2019) { *out_ch = '\''; return 1; }  /* ’ */
     if (v == 0x201C) { *out_ch = '"'; return 1; }   /* “ */
@@ -437,7 +437,8 @@ int decode_entities(char *src, int slen, char *out, int omax) {
             out[o] = '&'; o = o + 1; i = i + 1;
         } else {
             /* Decode UTF-8 multi-byte sequences in the source so that
-             * characters typed directly (e.g. `·` `—` `"` `…`) get folded to
+             * characters typed directly (e.g. middle-dot, en-dash, smart
+             * quotes, ellipsis) get folded to
              * the bitmap-font ASCII fallback through map_high_codepoint
              * instead of bleeding into the framebuffer as garbage glyph
              * bytes. ASCII (0..0x7F) passes through unchanged. */

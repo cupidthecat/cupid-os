@@ -12,7 +12,7 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_text_off[n] = 0;
     rt_text_len[n] = 0;
     /* rt_x/y/w/h must be zeroed even though layout_block writes them
-     * for every block child — RT_LIST_MARKER is skipped by the layout
+     * for every block child. RT_LIST_MARKER is skipped by the layout
      * walk (markers live in the parent's padding-left and aren't laid
      * out in flow), so without this init the first marker on a fresh
      * page reuses whatever stale offset was at this slot from the

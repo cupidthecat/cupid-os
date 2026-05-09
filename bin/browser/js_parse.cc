@@ -481,7 +481,7 @@ int js_parse() {
     return js_alloc_node(JS_NODE_PROGRAM, first, 0, 0, 0);
 }
 
-/* AST debug dump (serial). Used by F1a tests; later phases route
+/* AST debug dump (serial). Used by F1a tests; later code routes
  * through about:dump. */
 char *js_kind_name(int k) {
     if (k == JS_NODE_NUM)        return "NUM";

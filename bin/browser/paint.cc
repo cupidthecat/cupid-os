@@ -144,7 +144,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
         int bc = cs_border_color[cs];
         int style = cs_border_style[cs];
         if (radius > 0) {
-            /* Rounded outline always solid for now — dashed/dotted on
+            /* Rounded outline always solid for now. Dashed/dotted on
              * curved corners would need bresenham + dash-state which
              * is more than v1 needs. */
             gfx2d_rect_round(sx, sy, w, h, radius, bc);
@@ -195,7 +195,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
 }
 
 /* Foreground content (text / replaced / marker / line box). Matches the
- * Blink Foreground paint phase. */
+ * Blink foreground paint pass. */
 void paint_rt_content(int n, int sx, int sy) {
     int kind = rt_kind[n];
     if (kind == RT_TEXT) {
@@ -394,7 +394,7 @@ void paint_rt_replaced(int n, int sx, int sy) {
          * any) outside this call. Inset the white fill by 1px on each
          * side that has a border so we don't paint over the stroke and
          * black-hole the control. Without this, `input[type="checkbox"]
-         * { border: 2px solid #c00 }` came back invisible — the white
+         * { border: 2px solid #c00 }` came back invisible since the white
          * fill covered the red stroke. */
         int inset = border_set ? 1 : 0;
         if (is_check || is_radio) {
@@ -484,7 +484,7 @@ void paint_rt_marker(int n, int sx, int sy) {
     int ls = cs_list_style[cs];
     int fg = cs_color[cs] >= 0 ? cs_color[cs] : 0x000000;
     if (ls == LS_NONE) return;
-    /* `list-style-position: outside` (default) — marker sits in the
+    /* `list-style-position: outside` (default): marker sits in the
      * padding-left of the parent <ul>, vertically aligned to the first
      * line box's baseline. paint_rt_marker is called with sx = li
      * border-box left, sy = li border-box top; the first line box is
@@ -526,7 +526,7 @@ void paint_rt_marker(int n, int sx, int sy) {
                                 glyph, glyph_len,
                                 (unsigned int)fg, 0, 0);
     } else {
-        /* No TTF face — fall back to the 8x8 bitmap '*'. */
+        /* No TTF face: fall back to the 8x8 bitmap '*'. */
         gfx2d_text(sx - 12, sy + 2, "*", fg, 0);
     }
 }
@@ -549,7 +549,7 @@ void draw_address_bar(int sx, int sy, int sw) {
     int fwd_enabled  = (hist_pos < hist_count);
     /* Active fill is darker, disabled fill matches toolbar bg so the
      * button reads as flat.  Stroke contrast keeps disabled arrows
-     * readable but muted (was 0xC0C0C0 — invisible against 0xF0F0F0). */
+     * readable but muted (was 0xC0C0C0, invisible against 0xF0F0F0). */
     int back_fill = back_enabled ? 0xFFFFFF : 0xE8E8E8;
     int fwd_fill  = fwd_enabled  ? 0xFFFFFF : 0xE8E8E8;
     int back_stroke = back_enabled ? 0x202020 : 0x808080;
