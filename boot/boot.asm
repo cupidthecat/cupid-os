@@ -62,7 +62,7 @@ dw 0xAA55
 
 
 ; STAGE 2 - Loaded at 0x7E00 (= 0x7C00 + 512)
-; A20 -> unreal mode -> load kernel to 1MB -> VBE -> protected mode -> go
+; A20 → unreal mode → load kernel to 1MB → VBE → protected mode → go
 
 KERNEL_OFFSET      equ 0x100000  ; Kernel destination (1MB)
 TEMP_SEGMENT       equ 0x1000    ; Temp buffer segment
@@ -143,7 +143,7 @@ stage2_entry:
     ; Copy chunk from temp buffer to dest_high (32-bit unreal addressing)
     push cx
     movzx ecx, cx
-    shl ecx, 7                  ; dword count = sectors x 128
+    shl ecx, 7                  ; dword count = sectors × 128
     mov esi, TEMP_LINEAR
     mov edi, [dest_high]
 
@@ -159,7 +159,7 @@ stage2_entry:
 
     ; Advance bookkeeping
     movzx eax, cx
-    shl eax, 9                  ; bytes = sectors x 512
+    shl eax, 9                  ; bytes = sectors × 512
     add [dest_high], eax
     sub [sectors_left], cx
 
@@ -173,7 +173,7 @@ stage2_entry:
     xor ax, ax
     mov es, ax
 
-    ; VBE 640x480 32bpp via Bochs/QEMU I/O ports
+    ; VBE 640×480 32bpp via Bochs/QEMU I/O ports
     mov dx, 0x01CE
     mov ax, 4               ; INDEX_ENABLE - disable first
     out dx, ax
@@ -256,7 +256,10 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0xA00000           ; Boot stack top (2 MB stack from 0x800000)
+    mov esp, 0xD00000           ; Boot stack top (2 MB stack from 0xB00000).
+                                ; Moved from 0xA00000 because kernel BSS now
+                                ; extends through 0x800000 (cc_pp_seen_files_storage
+                                ; sat at 0x7fc820..0x800820 spanning the guard).
     mov ebp, esp
 
     ; Quick sanity: write 'P' to VGA text buffer (visible briefly)
@@ -293,5 +296,5 @@ gdt_descriptor:
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
-; Pad stage 2 to exactly STAGE2_SECTORS x 512 bytes
+; Pad stage 2 to exactly STAGE2_SECTORS × 512 bytes
 times (512 + STAGE2_SECTORS * 512) - ($-$$) db 0

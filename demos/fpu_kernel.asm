@@ -1,16 +1,16 @@
-; demos/fpu_kernel.asm - exercise new CupidASM FPU/SSE/x87 opcodes (Task 12)
+; demos/fpu_kernel.asm - exercise CupidASM FPU/SSE/x87 opcodes
 ;
-; Self-verifying end-to-end demo for Phase B of the FPU plan.  Each of the
-; four exercise blocks computes a result with known IEEE-754 bit pattern,
-; bit-compares it with `cmp eax, <expected>`, and branches to a per-block
-; failure handler that prints "FAIL fpu_kernel: <reason>" and returns.  If
+; Self-verifying end-to-end demo.  Each of the four exercise blocks
+; computes a result with known IEEE-754 bit pattern, bit-compares it
+; with `cmp eax, <expected>`, and branches to a per-block failure
+; handler that prints "FAIL fpu_kernel: <reason>" and returns.  If
 ; all four blocks pass, prints "PASS fpu_kernel".
 ;
-; Covers opcodes added in Tasks 8-11:
-;   - Task  8: FNINIT / FWAIT / FINIT / FXSAVE / FXRSTOR / STMXCSR / LDMXCSR
-;   - Task  9: MOVSS / ADDSS / SQRTSS (SSE scalar single-precision)
-;   - Task 10: MOVUPS / ADDPS         (SSE packed single-precision)
-;   - Task 11: FLD m32fp / FSIN / FSTP m32fp (x87 single-precision)
+; Covers:
+;   - FNINIT / FWAIT / FINIT / FXSAVE / FXRSTOR / STMXCSR / LDMXCSR
+;   - MOVSS / ADDSS / SQRTSS (SSE scalar single-precision)
+;   - MOVUPS / ADDPS         (SSE packed single-precision)
+;   - FLD m32fp / FSIN / FSTP m32fp (x87 single-precision)
 ;
 ; CupidASM has no `align` directive, so all SSE loads/stores go through
 ; MOVUPS (unaligned) and the FXSAVE buffer is placed at the start of the
