@@ -1031,3 +1031,61 @@ time:
 8. `:not()` menu — disabled items gray with line-through.
 9. `<q>hello world</q>` renders as `"hello world"` with real curly
    quotes (U+201C / U+201D) from Liberation Sans.
+
+---
+
+## CSS box model — content-box width/height resolution
+
+`bin/browser/layout.cc:layout_block`. `cs_width` / `cs_height` were
+treated as the BORDER box size: `.card { width:240px; padding:16px;
+border:1px }` painted at 240 px outer and squeezed content to 206 px,
+instead of Chrome's 274 px outer with the requested 240 px content.
+The CSS 2.1 default is `box-sizing: content-box`, so `width` describes
+the CONTENT box and the painted border box adds left+right (or
+top+bottom) padding+border.
+
+`layout_block` now resolves both axes that way: when `style_w >= 0` the
+outer width is `style_w + padding-l + padding-r + border-l + border-r`,
+and similarly for `style_h`. d5_border_radius's blue card now paints
+at the expected 274×114 with rounded corners.
+
+`box-sizing: border-box` is not honoured yet — pages that rely on it
+will need to subtract padding/border from their declared `width` until
+a `cs_box_sizing` field exists.
+
+### Inline-block shrink-to-fit — deferred (CupidC JIT bug)
+
+Pills declared `display: inline-block; width: auto` paint as
+full-width bars stacked vertically because `layout_block` stretches
+auto-width boxes to `avail`. The intended fix is shrink-to-fit:
+pre-set `cs_width` to the measured max-content of the inline-block's
+children before calling `layout_block`. Implementation attempts so far
+all stack-overflow at JIT execute time:
+
+- A separate `shrink_to_fit_inner` recursive function: blew the stack
+  on first call.
+- Folding the recursion into a single self-recursive function: same.
+- Inlining the measurement loop into `collect_inline_atoms`'s
+  inline-block branch: same.
+- Reducing the loop to a single-text-child special case calling
+  `text_slice_w_cs`: same.
+- Replacing the call with an arithmetic estimate (`len * (size/2+1)`):
+  same.
+- A constant `cs_width = avail/4` (fresh local + divide): same.
+- A literal `cs_width = 96` (no new computation): boots on
+  example.com (no inline-block hit) but crashes on d5 (inline-block
+  hit, identical 308721-byte JIT output).
+
+The CupidC JIT appears to corrupt ESP when the inline-block branch of
+`collect_inline_atoms` does anything beyond the original
+`if (kind == RT_INLINE_BLOCK) layout_block(n, avail);` call. Same
+source compiled to identical byte counts on consecutive runs produces
+divergent crashes. Likely a JIT register-allocation or frame-setup
+quirk specific to that branch's code shape — needs investigation in
+`kernel/lang/cupidc.c` rather than another patch attempt here.
+
+Workarounds available for authors hitting this limitation:
+- Set `width` on the inline-block explicitly (avoids the auto-width
+  branch entirely).
+- Use `display: inline` with padding for chip-like UI (loses
+  block-level box decoration).

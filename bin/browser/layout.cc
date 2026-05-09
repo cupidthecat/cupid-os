@@ -495,12 +495,23 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
 }
 
 void layout_block(int n, int avail_w) {
-    /* Resolve width */
+    /* Resolve width. Default `box-sizing: content-box` per CSS 2.1:
+     * `width` describes the CONTENT box, so the painted (border)
+     * box is `width + padding-l/r + border-l/r`. Without this, a
+     * `.card { width:240px; padding:16px; border:1px }` painted at
+     * 240 px outer (content squeezed to 206) instead of Chrome's
+     * 274 px outer. We don't yet honour `box-sizing: border-box`;
+     * authors who set it will have to drop padding from their width
+     * until cs_box_sizing exists. */
     int sty = rt_style[n];
     int style_w = cs_width[sty];
     int w;
-    if (style_w >= 0) w = style_w;
-    else w = avail_w - rt_margin_l(n) - rt_margin_r(n);
+    if (style_w >= 0) {
+        w = style_w + rt_padding_l(n) + rt_padding_r(n)
+                    + rt_border_l(n)  + rt_border_r(n);
+    } else {
+        w = avail_w - rt_margin_l(n) - rt_margin_r(n);
+    }
     if (w < 0) w = 0;
     /* min/max-width clamps. min-width wins over max-width per CSS spec. */
     int max_w_clamp = cs_max_width[sty];
@@ -706,10 +717,13 @@ void layout_block(int n, int avail_w) {
         (void)saved_pos; (void)saved_neg;
     }
 
-    /* Resolve own height */
+    /* Resolve own height. Same content-box convention as width: the
+     * `height` property describes the content box, so the painted
+     * border-box height adds top+bottom padding+border. */
     int style_h = cs_height[sty];
     if (style_h >= 0) {
-        rt_h[n] = style_h;
+        rt_h[n] = style_h + rt_padding_t(n) + rt_padding_b(n)
+                          + rt_border_t(n)  + rt_border_b(n);
     } else {
         rt_h[n] = cy + rt_padding_b(n) + rt_border_b(n);
     }
