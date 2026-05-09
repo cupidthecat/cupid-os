@@ -1,4 +1,4 @@
-//help: P1 Phase E feature test: double precision + transcendentals
+//help: Feature test: double precision + transcendentals
 //help: Usage: feature13_double
 //help: Verifies sin/cos/sqrt/exp/log/pow/tanh/cbrt within tight tolerances.
 

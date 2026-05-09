@@ -1,4 +1,4 @@
-//help: P1 Phase E: cycle all libm operations vs glibc reference table
+//help: Cycle all libm operations vs glibc reference table
 //help: Usage: feature15_libm
 
 /* Inline tolerance helper - avoid user function with FP params

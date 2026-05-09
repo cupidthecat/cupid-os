@@ -25,6 +25,38 @@ int hit_box(int mx, int my) {
     return rt_hit(0, mx, my);
 }
 
+/* Inline content is absorbed into RT_LINE_BOX siblings, so the original
+ * <a> RT_INLINE node has no rt_w/h and the hit walk never visits it. Atoms
+ * carry la_link_idx, so when a click lands on a LINE_BOX, look up which
+ * atom column the click falls in. */
+int line_box_link_at(int n, int rel_ax) {
+    int first = rt_line_atom_first[n];
+    int count = rt_line_atom_count[n];
+    for (int k = first; k < first + count; k++) {
+        if (la_x[k] < 0) continue;
+        if (rel_ax >= la_x[k] && rel_ax < la_x[k] + la_w[k]) {
+            return la_link_idx[k];
+        }
+    }
+    return -1;
+}
+
+/* If a click on a LINE_BOX lands on a replaced atom (la_text_off encodes
+ * a negative RT-node ref), return that node so input/checkbox hits route
+ * to the input element instead of stopping at the line_box. -1 if the
+ * column is plain text. */
+int line_box_replaced_at(int n, int rel_ax) {
+    int first = rt_line_atom_first[n];
+    int count = rt_line_atom_count[n];
+    for (int k = first; k < first + count; k++) {
+        if (la_x[k] < 0) continue;
+        if (rel_ax < la_x[k] || rel_ax >= la_x[k] + la_w[k]) continue;
+        if (la_text_off[k] < 0) return -la_text_off[k] - 1;
+        return -1;
+    }
+    return -1;
+}
+
 /* find the input/button form parent node */
 int find_node_for_input(int ii) {
     if (ii < 0 || ii >= inputs_count) return -1;
@@ -121,6 +153,12 @@ void handle_page_key(int sc, int ch) {
         addr_cursor = addr_len;
         return;
     }
+    /* Ctrl-D = dump render tree + computed style to serial (debug). */
+    if (ch == 4) {
+        about_dump();
+        b_strcpy_n(status_msg, "Dumped render tree to serial", 256);
+        return;
+    }
     if (sc == 72) { scroll_y = scroll_y - line_h * 2; clamp_scroll(); return; }
     if (sc == 80) { scroll_y = scroll_y + line_h * 2; clamp_scroll(); return; }
     if (sc == 73) { scroll_y = scroll_y - viewport_h() + line_h; clamp_scroll(); return; }
@@ -152,6 +190,16 @@ void handle_left_click(int mx, int my) {
     int rel_y = my - cy;
     /* address bar? */
     if (rel_y >= 0 && rel_y < ADDR_H) {
+        /* Back / forward buttons: 22x20 rects starting at x=6 with a
+         * 4 px gap.  Layout matches paint.cc:draw_address_bar. */
+        if (rel_x >= 6 && rel_x < 28) {
+            if (hist_pos > 1) go_back();
+            return;
+        }
+        if (rel_x >= 32 && rel_x < 54) {
+            if (hist_pos < hist_count) go_forward();
+            return;
+        }
         focus_mode = FOCUS_ADDR;
         addr_cursor = addr_len;
         return;
@@ -166,7 +214,24 @@ void handle_left_click(int mx, int my) {
             int link = -1;
             int input_idx = -1;
             int submit_form_node = -1;
-            int cur = hit;
+            /* If hit landed on a LINE_BOX, the click may be on an atom that
+             * came from an <a> or a replaced control. line_box covers the
+             * full row even though the original RT_INLINE/RT_REPLACED
+             * children sit at the same y, so without this redirect a
+             * checkbox/input click would stop at the line_box and walk
+             * up through the block parent without finding the form
+             * control. */
+            if (rt_kind[hit] == RT_LINE_BOX) {
+                int rel_ax = rel_x - rt_screen_x(hit);
+                int li = line_box_link_at(hit, rel_ax);
+                if (li >= 0) link = li;
+                if (link < 0) {
+                    int repl = line_box_replaced_at(hit, rel_ax);
+                    if (repl >= 0) hit = repl;
+                }
+            }
+            int toggle_dom = -1;
+            int cur = (link >= 0) ? -1 : hit;
             while (cur >= 0) {
                 if (rt_link_idx[cur] >= 0) { link = rt_link_idx[cur]; break; }
                 if (rt_input_idx[cur] >= 0) { input_idx = rt_input_idx[cur]; break; }
@@ -187,9 +252,37 @@ void handle_left_click(int mx, int my) {
                             int fn = find_form_node(dom);
                             if (fn >= 0) { submit_form_node = fn; break; }
                         }
+                        if (typ != 0 &&
+                            (b_strieq(typ, "checkbox") || b_strieq(typ, "radio"))) {
+                            toggle_dom = dom;
+                            break;
+                        }
                     }
                 }
                 cur = rt_parent[cur];
+            }
+            if (toggle_dom >= 0) {
+                /* Checkbox toggles in place; radio sets self and clears
+                 * other radios sharing the same `name`. */
+                char *typ = dom_attr_str(toggle_dom, "type");
+                if (typ && b_strieq(typ, "radio")) {
+                    int my_name = dom_attr_get(toggle_dom, "name");
+                    if (my_name >= 0) {
+                        for (int k = 0; k < nodes_count; k = k + 1) {
+                            if (n_tag[k] != T_INPUT) continue;
+                            char *t2 = dom_attr_str(k, "type");
+                            if (!t2 || !b_strieq(t2, "radio")) continue;
+                            int kn = dom_attr_get(k, "name");
+                            if (kn == my_name) n_checkbox_state[k] = 0;
+                        }
+                    }
+                    n_checkbox_state[toggle_dom] = 1;
+                } else {
+                    n_checkbox_state[toggle_dom] =
+                        n_checkbox_state[toggle_dom] ? 0 : 1;
+                }
+                focus_mode = FOCUS_PAGE;
+                return;
             }
             if (link >= 0) {
                 char *u = attr_pool + link_url_off[link];
@@ -230,14 +323,26 @@ void handle_hover(int mx, int my) {
     int rel_x = mx - cx;
     int rel_y = my - cy;
     hover_link = -1;
+    hover_dom_node = -1;
     if (rel_y >= viewport_y() && rel_y < viewport_y() + viewport_h() &&
         rel_x >= 0 && rel_x < cur_cw - 12) {
         int hit = hit_box(rel_x, rel_y);
         if (hit >= 0) {
+            /* Walk to find the deepest DOM-backed rt node and the nearest
+             * link ancestor. */
             int cur = hit;
             while (cur >= 0) {
-                if (rt_link_idx[cur] >= 0) { hover_link = rt_link_idx[cur]; break; }
+                if (hover_dom_node < 0 && rt_dom[cur] >= 0) {
+                    hover_dom_node = rt_dom[cur];
+                }
+                if (hover_link < 0 && rt_link_idx[cur] >= 0) {
+                    hover_link = rt_link_idx[cur];
+                }
                 cur = rt_parent[cur];
+            }
+            if (rt_kind[hit] == RT_LINE_BOX) {
+                int li = line_box_link_at(hit, rel_x - rt_screen_x(hit));
+                if (li >= 0) hover_link = li;
             }
         }
     }
@@ -250,6 +355,15 @@ void handle_mouse() {
     int left_click = (btns & 1) && !(prev_buttons & 1);
     if (left_click) handle_left_click(mx, my);
     handle_hover(mx, my);
+
+    /* If a rule actually references :hover/:focus, restyle and re-layout
+     * when the hovered DOM node changes. Skipped when no dynamic pseudo
+     * rule is active to avoid pointless work on every pixel of motion. */
+    if (css_has_dynamic_pseudo && hover_dom_node != prev_hover_dom_node) {
+        prev_hover_dom_node = hover_dom_node;
+        style_resolve_all();
+        run_layout();
+    }
 
     int dz = mouse_scroll();
     if (dz != 0) {

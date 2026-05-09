@@ -373,21 +373,31 @@ int tag_id(char *name, int len) {
     if (b_streq(b, "td"))       return T_TD;
     if (b_streq(b, "th"))       return T_TH;
     if (b_streq(b, "blockquote")) return T_BLOCKQUOTE;
+    if (b_streq(b, "link"))     return T_LINK;
     return T_OTHER;
 }
 
 int is_void_tag(int tag) {
-    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT;
+    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT ||
+           tag == T_LINK;
 }
 
 int is_block_tag(int tag) {
+    /* T_BODY, T_HTML, T_ROOT: scope-anchor stops for the implicit-close
+     * walks below (T_P / T_LI / T_DT&DD / T_TR / T_TD&TH). Without these,
+     * opening a <p> with body on top of the stack would walk past body
+     * (it's not == T_P and wasn't classified as a block before this
+     * fix), pop body, and reparent every following element under root.
+     * Sibling combinators (h2 + p, h2 ~ p.note) silently fail because
+     * the p ends up as a sibling of body, not a child of body. */
     return tag == T_P || tag == T_DIV || tag == T_H1 || tag == T_H2 ||
            tag == T_H3 || tag == T_H4 || tag == T_H5 || tag == T_H6 ||
            tag == T_UL || tag == T_OL || tag == T_LI || tag == T_PRE ||
            tag == T_BLOCKQUOTE || tag == T_HR || tag == T_TABLE ||
            tag == T_FORM || tag == T_HEADER || tag == T_FOOTER ||
            tag == T_NAV || tag == T_SECTION || tag == T_ARTICLE ||
-           tag == T_ASIDE || tag == T_MAIN;
+           tag == T_ASIDE || tag == T_MAIN ||
+           tag == T_BODY || tag == T_HTML || tag == T_ROOT;
 }
 
 int is_list_container(int tag) {
@@ -412,11 +422,23 @@ void parse_html(int html_len) {
     forms_count = 0;
     inputs_count = 0;
     title_buf[0] = 0;
+    css_not_count = 0;
+    /* Reset pseudo-element generated-content slots for every potential
+     * DOM index. Cheaper than resetting only the entries actually used
+     * (which would require a separate "first N" counter). */
+    for (int k = 0; k < 4096; k = k + 1) {
+        n_pseudo_before_off[k] = -1;
+        n_pseudo_before_len[k] = 0;
+        n_pseudo_after_off [k] = -1;
+        n_pseudo_after_len [k] = 0;
+        n_checkbox_state   [k] = 0;
+    }
 
     /* §2 reset CSS state - author rules accumulate per page */
     css_rule_count = 0;
     css_sel_count = 0;
     css_value_pool_pos = 0;
+    css_has_dynamic_pseudo = 0;
 
     /* synthetic root */
     int root = alloc_node(T_ROOT, -1, -1);
@@ -425,6 +447,12 @@ void parse_html(int html_len) {
     int sp = 0;
     stack[sp] = root;
     sp = sp + 1;
+
+    /* Implicit <body> tracking. Tag-soup pages frequently omit
+     * <html>/<head>/<body>; when body-flow content arrives at the
+     * document root with no <body> in scope, we auto-create one so
+     * author `body { ... }` rules can match. */
+    int body_implicit = -1;
 
     int IM_INITIAL = 0;
     int IM_IN_HEAD = 1;
@@ -470,15 +498,39 @@ void parse_html(int html_len) {
                     ws_only = 0; break;
                 }
             }
-            /* in <table> outside cells, drop non-whitespace text (foster
-             * parenting simplified: just discard) */
-            if (mode == IM_IN_TABLE && !ws_only) continue;
-            /* skip whitespace-only text nodes outside <pre>/<title> */
+            /* In <table> outside cells, foster-parent non-whitespace text:
+             * insert as the previous sibling of the table. Per HTML5 spec
+             * §13.2.6.5, stray inline content inside a table doesn't belong
+             * inside any cell; it belongs *before* the table in its parent. */
+            if (mode == IM_IN_TABLE && !ws_only) {
+                int table_idx = -1;
+                for (int k = sp - 1; k >= 1; k = k - 1) {
+                    if (n_tag[stack[k]] == T_TABLE) { table_idx = stack[k]; break; }
+                }
+                if (table_idx < 0) continue;
+                int table_parent = n_parent[table_idx];
+                if (table_parent < 0) continue;
+                int fn = alloc_node(T_TEXT, table_parent, -1);
+                if (fn < 0) continue;
+                n_text_off[fn] = text_off;
+                n_text_len[fn] = text_len;
+                dom_insert_before(fn, table_idx);
+                continue;
+            }
+            /* Compress whitespace-only runs outside pre/code/title to a single
+             * space text node. Real browsers preserve a single visible space
+             * between adjacent inline elements (e.g. `<a>x</a> <a>y</a>` must
+             * render as "x y"), and render_tree.cc drops these synthetic
+             * spaces when the parent has block-level siblings. */
             if (ws_only) {
                 int parent_tag = (parent >= 0) ? n_tag[parent] : -1;
                 if (parent_tag != T_PRE && parent_tag != T_CODE &&
                     parent_tag != T_TITLE) {
-                    continue;
+                    ctype_buf[0] = ' '; ctype_buf[1] = 0;
+                    int sp_off = attr_intern(ctype_buf, 1);
+                    if (sp_off < 0) continue;
+                    text_off = sp_off;
+                    text_len = 1;
                 }
             }
             /* preserve title-buf capture: first text inside <title> */
@@ -497,6 +549,15 @@ void parse_html(int html_len) {
                 css_parse_block(attr_pool + text_off, text_len);
                 continue;
             }
+            /* §7 inline <script>: queue the source for execution after
+             * the DOM and render tree are built (DOMContentLoaded-ish
+             * semantics). The text node itself is dropped from the DOM
+             * via display:none on T_SCRIPT, but we must not emit it as
+             * visible text either. */
+            if (parent_tag == T_SCRIPT) {
+                js_queue_script(text_off, text_len);
+                continue;
+            }
             int n = alloc_node(T_TEXT, parent, -1);
             if (n < 0) continue;
             n_text_off[n] = text_off;
@@ -505,6 +566,31 @@ void parse_html(int html_len) {
         }
 
         if (kind == TK_START) {
+            /* Auto-create <body> at root if body-flow content appears
+             * without an explicit <body>. Head-only tags (title, style,
+             * script, etc.) and html/head/body themselves don't trigger;
+             * they keep the existing structure. Once body_implicit is set,
+             * subsequent body content nests inside it via the regular
+             * stack mechanism. */
+            if (body_implicit < 0 &&
+                tag != T_HTML && tag != T_HEAD && tag != T_TITLE &&
+                tag != T_STYLE && tag != T_SCRIPT && tag != T_NOSCRIPT &&
+                tag != T_BODY) {
+                int has_body = 0;
+                for (int k = 0; k < sp; k = k + 1) {
+                    int kt = n_tag[stack[k]];
+                    if (kt == T_BODY || kt == T_HEAD) { has_body = 1; break; }
+                }
+                if (!has_body) {
+                    body_implicit = alloc_node(T_BODY, root, -1);
+                    if (body_implicit >= 0 && sp < 64) {
+                        stack[sp] = body_implicit;
+                        sp = sp + 1;
+                        mode = IM_IN_BODY;
+                    }
+                }
+            }
+
             /* implicit-close rules */
             if (tag == T_P) {
                 /* close any currently-open <p> */
@@ -591,6 +677,7 @@ void parse_html(int html_len) {
             if (tag == T_INPUT) {
                 char *type_s = dom_attr_str(n, "type");
                 int is_text = 1;
+                int is_toggle = 0;
                 if (type_s) {
                     if (b_strieq(type_s, "submit") ||
                         b_strieq(type_s, "button") ||
@@ -600,6 +687,11 @@ void parse_html(int html_len) {
                         b_strieq(type_s, "file")  ||
                         b_strieq(type_s, "checkbox") ||
                         b_strieq(type_s, "radio")) is_text = 0;
+                    if (b_strieq(type_s, "checkbox") ||
+                        b_strieq(type_s, "radio")) is_toggle = 1;
+                }
+                if (is_toggle && dom_attr_get(n, "checked") >= 0) {
+                    n_checkbox_state[n] = 1;
                 }
                 if (is_text && inputs_count < MAX_INPUTS) {
                     int ii = inputs_count;
@@ -632,7 +724,33 @@ void parse_html(int html_len) {
             for (int k = sp - 1; k >= 1; k = k - 1) {
                 if (n_tag[stack[k]] == tag) { found = k; break; }
             }
-            if (found >= 0) sp = found;
+            if (found < 0) continue;
+
+            /* Simplified adoption-agency: any formatting elements (b/i/em/
+             * strong/font/u/s) on the stack ABOVE the matched end tag are
+             * still active per spec - the misnest <b><i>x</b> closes b but
+             * keeps i open, with subsequent content wrapped in a fresh i.
+             * We capture the tags above the match, pop to it, then re-open
+             * each captured tag as a new sibling under the new top. Limited
+             * to 8 saved tags - deeper formatting nests fall through. */
+            int saved[8];
+            int n_saved = 0;
+            for (int k = found + 1; k < sp && n_saved < 8; k = k + 1) {
+                int t = n_tag[stack[k]];
+                if (t == T_B || t == T_I || t == T_EM || t == T_STRONG ||
+                    t == T_FONT) {
+                    saved[n_saved] = t;
+                    n_saved = n_saved + 1;
+                }
+            }
+            sp = found;
+            for (int k = 0; k < n_saved && sp < 64; k = k + 1) {
+                int new_parent = stack[sp - 1];
+                int nn = alloc_node(saved[k], new_parent, -1);
+                if (nn < 0) break;
+                stack[sp] = nn;
+                sp = sp + 1;
+            }
 
             /* mode transitions on close */
             if (tag == T_TABLE)        mode = IM_IN_BODY;
@@ -646,9 +764,33 @@ void parse_html(int html_len) {
     serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
                   css_rule_count, css_sel_count, css_value_pool_pos);
 
+    /* §2.x Fetch external <link rel=stylesheet> sheets BEFORE the cascade
+     * runs so their rules participate in style resolution. Defined in
+     * nav.cc; CupidC resolves the forward reference at JIT time. */
+    fetch_external_stylesheets();
+
+    populate_sibling_caches();
     style_resolve_all();
     serial_printf("[browser] style: %d computed entries\n", cs_count);
 
     build_render_tree();
     serial_printf("[browser] rt: %d nodes\n", rt_count);
+
+    /* §7 run queued <script> blocks now that the DOM, computed styles,
+     * and render tree exist. js_install_globals() exposes window /
+     * document / document.body / document.getElementById. After all
+     * scripts run, if any of them set dom_dirty, re-run style + layout
+     * once so visible state reflects the mutation (one reflow per task). */
+    if (js_script_count > 0) {
+        serial_printf("[browser] js: running %d queued scripts\n", js_script_count);
+        js_install_globals();
+        js_run_queued_scripts();
+        if (dom_dirty) {
+            populate_sibling_caches();
+            style_resolve_all();
+            build_render_tree();
+            run_layout();
+            dom_dirty = 0;
+        }
+    }
 }

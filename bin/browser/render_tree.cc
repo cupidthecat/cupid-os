@@ -11,6 +11,17 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_style[n] = style_cs;
     rt_text_off[n] = 0;
     rt_text_len[n] = 0;
+    /* rt_x/y/w/h must be zeroed even though layout_block writes them
+     * for every block child. RT_LIST_MARKER is skipped by the layout
+     * walk (markers live in the parent's padding-left and aren't laid
+     * out in flow), so without this init the first marker on a fresh
+     * page reuses whatever stale offset was at this slot from the
+     * previous render. Visible symptom: first li's bullet jumps to
+     * the right of its text while the rest of the list looks correct. */
+    rt_x[n] = 0;
+    rt_y[n] = 0;
+    rt_w[n] = 0;
+    rt_h[n] = 0;
     rt_intrinsic_w[n] = 0;
     rt_intrinsic_h[n] = 0;
     rt_link_idx[n] = -1;
@@ -138,11 +149,23 @@ int build_rt_subtree(int dom, int rt_parent_n) {
     int n = rt_alloc(kind, dom, rt_parent_n, cs_d);
     if (n < 0) return -1;
 
-    /* For <a>: bind the link index */
+    /* For <a>: bind the link index, registering a new entry if this href
+     * hasn't been seen yet. (Earlier code relied on layout to register
+     * links, but no such pass existed - so links_count stayed 0 and every
+     * <a> ended up with rt_link_idx == -1, breaking hover and click.) */
     if (tag == T_A) {
         int href_off = dom_attr_get(dom, "href");
-        for (int k = 0; k < links_count; k++) {
-            if (link_url_off[k] == href_off) { rt_link_idx[n] = k; break; }
+        if (href_off >= 0) {
+            int found = -1;
+            for (int k = 0; k < links_count; k++) {
+                if (link_url_off[k] == href_off) { found = k; break; }
+            }
+            if (found < 0 && links_count < 1024) {
+                found = links_count;
+                link_url_off[links_count] = href_off;
+                links_count = links_count + 1;
+            }
+            rt_link_idx[n] = found;
         }
     }
 
@@ -166,13 +189,28 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         }
     }
 
-    /* For <input>: bind input index, set intrinsic size */
+    /* For <input>: bind input index, set intrinsic size. Checkbox/radio
+     * are small square boxes (paint draws their own chrome); text-style
+     * inputs are wider and shorter. The DOM `type` attr drives both the
+     * input-table eligibility (in parser.cc) and intrinsic dimensions. */
     if (tag == T_INPUT) {
         for (int k = 0; k < inputs_count; k++) {
             if (input_node[k] == dom) { rt_input_idx[n] = k; break; }
         }
-        rt_intrinsic_w[n] = 120;
-        rt_intrinsic_h[n] = 16;
+        char *type_s = dom_attr_str(dom, "type");
+        int is_check = 0;
+        if (type_s && (b_strieq(type_s, "checkbox") || b_strieq(type_s, "radio"))) is_check = 1;
+        if (is_check) {
+            /* 16x16 reads as a normal checkbox at 14px body text and
+             * lines up close to Chrome's intrinsic (13-16). At the old
+             * 14x14 the 1px border on each side left a 12x12 fill that
+             * could read as a faint mark. */
+            rt_intrinsic_w[n] = 16;
+            rt_intrinsic_h[n] = 16;
+        } else {
+            rt_intrinsic_w[n] = 140;
+            rt_intrinsic_h[n] = 18;
+        }
     }
     if (tag == T_BUTTON) {
         rt_intrinsic_w[n] = 64;
@@ -187,7 +225,26 @@ int build_rt_subtree(int dom, int rt_parent_n) {
 
     /* Replaced elements have no children rendered */
     if (!is_replaced) {
+        /* ::before generated content: synthetic RT_TEXT prepended ahead
+         * of the element's real children. Inherits the element's cs slot
+         * for color/font; spec requires a separate inline box per pseudo
+         * but for v1 a flat text node is visually correct for simple
+         * `content: "..."` strings. */
+        if (n_pseudo_before_off[dom] >= 0) {
+            int rt_pe = rt_alloc(RT_TEXT, dom, n, cs_d);
+            if (rt_pe >= 0) {
+                rt_text_off[rt_pe] = n_pseudo_before_off[dom];
+                rt_text_len[rt_pe] = n_pseudo_before_len[dom];
+            }
+        }
         build_rt_children(dom, n);
+        if (n_pseudo_after_off[dom] >= 0) {
+            int rt_pe = rt_alloc(RT_TEXT, dom, n, cs_d);
+            if (rt_pe >= 0) {
+                rt_text_off[rt_pe] = n_pseudo_after_off[dom];
+                rt_text_len[rt_pe] = n_pseudo_after_len[dom];
+            }
+        }
     }
     return n;
 }
@@ -203,6 +260,7 @@ void rt_anon_table_fixup() {
 void build_render_tree() {
     rt_count = 0;
     la_count = 0;
+    links_count = 0;     /* rebuilt as <a> nodes are walked below */
     /* Synthetic RT root mirrors DOM root (DOM index 0 = T_ROOT) */
     int root = rt_alloc(RT_BLOCK, 0, -1, 0);
     if (root < 0) return;

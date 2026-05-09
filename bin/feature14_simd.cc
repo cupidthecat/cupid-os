@@ -1,4 +1,4 @@
-//help: P1 Phase F Tasks 32+33: SSE packed intrinsics (_mm_*_ps, _mm_*_pd)
+//help: SSE packed intrinsics (_mm_*_ps, _mm_*_pd)
 //help: Usage: feature14_simd
 //help: Verifies CupidC recognises _mm_*_ps / _mm_*_pd names and inlines
 //help: them to SSE opcodes with bit-exact arithmetic. Prints PASS/FAIL.
@@ -133,7 +133,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase F Task 33: double-precision (_mm_*_pd) intrinsics.
+    /* Double-precision (_mm_*_pd) intrinsics.
      * Since CupidC doesn't support FP == / != scalars and doesn't emit
      * scaled pointer arithmetic for (int*)&d + 1, we verify results by
      * truncating to int via (int) casts. */

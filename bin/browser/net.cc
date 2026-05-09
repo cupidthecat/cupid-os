@@ -12,6 +12,35 @@ int build_request(char *buf, char *method, char *p, char *h) {
     return q;
 }
 
+/* Parse a dotted-quad "a.b.c.d" into a network-byte-order u32 IP.
+ * Returns 1 on success, 0 if the host is not a literal IPv4 address. */
+int parse_ipv4_dotted(char *h, U32 *ip_out) {
+    int i = 0;
+    int parts[4];
+    for (int p = 0; p < 4; p = p + 1) {
+        if (h[i] < '0' || h[i] > '9') return 0;
+        int v = 0;
+        int digits = 0;
+        while (h[i] >= '0' && h[i] <= '9') {
+            v = v * 10 + (h[i] - '0');
+            digits = digits + 1;
+            if (digits > 3 || v > 255) return 0;
+            i = i + 1;
+        }
+        parts[p] = v;
+        if (p < 3) {
+            if (h[i] != '.') return 0;
+            i = i + 1;
+        }
+    }
+    if (h[i] != 0) return 0;
+    *ip_out = (U32)(parts[0]) |
+             ((U32)(parts[1]) << 8) |
+             ((U32)(parts[2]) << 16) |
+             ((U32)(parts[3]) << 24);
+    return 1;
+}
+
 /* Fetch into page_buf. Sets page_len. Returns 0 on success, -1 on fail. */
 int fetch_url(char *url, char *content_type_out) {
     int redirects = 0;
@@ -28,11 +57,13 @@ int fetch_url(char *url, char *content_type_out) {
         }
 
         U32 ip = 0;
-        if (dns_resolve(cur_host, &ip) != 0) {
-            b_strcpy_n(status_msg, "DNS lookup failed: ", 256);
-            int sl = b_strlen(status_msg);
-            b_strcpy_n(status_msg + sl, cur_host, 256 - sl);
-            return -1;
+        if (!parse_ipv4_dotted(cur_host, &ip)) {
+            if (dns_resolve(cur_host, &ip) != 0) {
+                b_strcpy_n(status_msg, "DNS lookup failed: ", 256);
+                int sl = b_strlen(status_msg);
+                b_strcpy_n(status_msg + sl, cur_host, 256 - sl);
+                return -1;
+            }
         }
 
         int fd = socket(SOCK_TCP);
@@ -165,8 +196,8 @@ int fetch_url(char *url, char *content_type_out) {
         if (status < 200 || status >= 300) {
             b_strcpy_n(status_msg, "HTTP error: ", 256);
             int sl = b_strlen(status_msg);
-            b_append_int(status_msg, sl, status);
-            status_msg[sl + 4] = 0;
+            int el = b_append_int(status_msg, sl, status);
+            status_msg[el] = 0;
             return -1;
         }
         b_strcpy_n(cur_url, work_url, URL_MAX);

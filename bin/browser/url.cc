@@ -71,3 +71,4 @@ int resolve_redirect(char *location, char *cur_h, int cur_p, int cur_is_h,
     }
     return -1;
 }
+

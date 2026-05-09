@@ -1,6 +1,6 @@
-//help: P1 Phase G feature test: inline CupidASM using SSE + x87 from CupidC
+//help: Feature test: inline CupidASM using SSE + x87 from CupidC
 //help: Usage: feature16_asm_fpu
-//help: Verifies asm { } blocks accept SSE scalar and x87 opcodes from Phase B.
+//help: Verifies asm { } blocks accept SSE scalar and x87 opcodes.
 
 void main() {
     int ok = 1;

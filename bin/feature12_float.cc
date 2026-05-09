@@ -1,4 +1,4 @@
-//help: P1 Phase C feature test: basic float arithmetic
+//help: Feature test: basic float arithmetic
 //help: Usage: feature12_float
 //help: Verifies float add/sub/mul/div and int<->float casts. Prints PASS/FAIL.
 
@@ -72,7 +72,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase D: printf(string, FP) mixes int ptr with FP args which Task 18's
+    /* printf(string, FP) mixes int ptr with FP args which the
      * calling convention doesn't yet handle. Verify instead by casting
      * the FP values to int (truncating) - for exact whole-number results
      * this round-trips losslessly. 1234.5 truncates to 1234. */
@@ -101,7 +101,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase E Task 23: libm hardware fast-paths.
+    /* libm hardware fast-paths.
      * sin(0)=0, cos(0)=1, sqrt(4)=2 - exact results, truncate to int. */
     double s0 = sin(0.0);
     double c0 = cos(0.0);
@@ -115,7 +115,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase E Task 24: fabs / floor / ceil / fmod.
+    /* fabs / floor / ceil / fmod.
      * fabs(3.5)=3.5 (scale by 2 -> 7), floor(3.7)=3, ceil(3.2)=4, fmod(10,3)=1.
      * CupidC's unary minus is broken for doubles, so build the negative
      * argument via 0.0 - 3.5. */
@@ -151,7 +151,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase F Task 31: float4 element access (.x/.y/.z/.w). */
+    /* float4 element access (.x/.y/.z/.w). */
     float4 vec = {1.0, 2.0, 3.0, 4.0};
     float vx = vec.x;
     float vy = vec.y;
@@ -164,7 +164,7 @@ void main() {
         ok = 0;
     }
 
-    /* Phase F Task 31: double2 element access (.x/.y).
+    /* double2 element access (.x/.y).
      * 7.5, 12.25 - scale by 4 to test fractional bits without FP compare.
      * 7.5*4=30, 12.25*4=49. */
     double2 d2 = {7.5, 12.25};
