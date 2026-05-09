@@ -195,7 +195,9 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             if (la_count < MAX_LINE_ATOMS) {
                 la_text_off[la_count] = off + s;
                 la_text_len[la_count] = run_len;
-                la_w[la_count] = text_slice_w_cs(cs, off + s, run_len);
+                int rw = text_slice_w_cs(cs, off + s, run_len);
+                if (bold && face_id >= 0 && size_px > 0) rw += run_len;
+                la_w[la_count] = rw;
                 la_font_tier[la_count] = tier;
                 la_size_px[la_count] = size_px;
                 la_face_id[la_count] = face_id;
@@ -252,13 +254,22 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             /* Inter-word space atom: text_len=1, text_off pointing at a literal " ". */
             la_text_off[la_count] = attr_intern(" ", 1);
             la_text_len[la_count] = 1;
-            /* Space advance: prefer the proportional bitmap-font advance
-             * which is robust for the single-byte " " input. fontsys_run_width
-             * with len=1 has been observed to return 0 in some kernel builds,
-             * so even when face_id is real we keep the bitmap advance for
-             * inter-word spaces. The text_slice_w_cs path still uses fontsys
-             * for the longer word atoms where shaping matters. */
-            la_w[la_count] = gfx2d_glyph_advance(' ', tier_to_font(tier));
+            /* Space advance: must match the surrounding word atoms' face/size
+             * exactly, otherwise the visible gap between words drifts off the
+             * font's natural inter-word width and pages like example.com
+             * collapse to "ExampleDomain". Use fontsys_advance directly (no
+             * raster path - hmtx lookup) on the same face_id/size_px as the
+             * word atoms. Fallbacks: gfx2d_glyph_advance on bitmap path, then
+             * a 1/4-em estimate so the space is never zero. */
+            int sp_w = 0;
+            if (face_id >= 0 && size_px > 0) {
+                sp_w = fontsys_advance(face_id, ' ', size_px);
+            }
+            if (sp_w <= 0) sp_w = gfx2d_glyph_advance(' ', tier_to_font(tier));
+            if (sp_w <= 0) sp_w = (size_px > 0) ? (size_px / 4 + 1) : 4;
+            /* Bold pen advances +1 for the space too, match it. */
+            if (bold && face_id >= 0 && size_px > 0) sp_w += 1;
+            la_w[la_count] = sp_w;
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;
@@ -288,7 +299,15 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
         if (wlen > 0 && la_count < MAX_LINE_ATOMS) {
             la_text_off[la_count] = off + s;
             la_text_len[la_count] = wlen;
-            la_w[la_count] = text_slice_w_cs(cs, off + s, wlen);
+            int ww = text_slice_w_cs(cs, off + s, wlen);
+            /* Synthetic bold paints each glyph twice with a +1 horizontal
+             * smear and advances the pen by +1 per char (fontsys.c
+             * fontsys_draw_run_styled). The measured width must include
+             * that extra or the bold run overflows into the trailing
+             * space atom and "Example Domain" collapses to "ExampleDomain"
+             * for h1/strong/b. */
+            if (bold && face_id >= 0 && size_px > 0) ww += wlen;
+            la_w[la_count] = ww;
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;

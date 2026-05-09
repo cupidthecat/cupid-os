@@ -1770,6 +1770,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
   BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);
 
+  int (*p_fontsys_advance)(int, int, int) = fontsys_advance;
+  BIND_T("fontsys_advance", p_fontsys_advance, 3, TYPE_INT);
+
   void (*p_fontsys_draw_run_styled)(int, int, int, int, const char *, int,
                                     uint32_t, int, int) = fontsys_draw_run_styled;
   BIND("fontsys_draw_run_styled", p_fontsys_draw_run_styled, 9);
