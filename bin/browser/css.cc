@@ -477,6 +477,7 @@ int css_match_property(char *s, int len) {
     if (len == 5  && b_strieq_n(s, "color", 5))                   return CP_COLOR;
     if (len == 16 && b_strieq_n(s, "background-color", 16))       return CP_BG_COLOR;
     if (len == 10 && b_strieq_n(s, "background", 10))             return CP_BG;
+    if (len == 11 && b_strieq_n(s, "font-family", 11))            return CP_FONT_FAMILY;
     if (len == 11 && b_strieq_n(s, "font-weight", 11))            return CP_FONT_WEIGHT;
     if (len == 10 && b_strieq_n(s, "font-style", 10))             return CP_FONT_STYLE;
     if (len == 9  && b_strieq_n(s, "font-size", 9))               return CP_FONT_SIZE;
@@ -513,6 +514,9 @@ int css_match_property(char *s, int len) {
     if (len == 10 && b_strieq_n(s, "max-height", 10))             return CP_MAX_HEIGHT;
     if (len == 10 && b_strieq_n(s, "min-height", 10))             return CP_MIN_HEIGHT;
     if (len == 7  && b_strieq_n(s, "content",   7))               return CP_CONTENT;
+    if (len == 13 && b_strieq_n(s, "border-radius", 13))          return CP_BORDER_RADIUS;
+    if (len == 10 && b_strieq_n(s, "box-shadow",    10))          return CP_BOX_SHADOW;
+    if (len == 8  && b_strieq_n(s, "overflow",       8))          return CP_OVERFLOW;
     return 0;
 }
 
@@ -585,11 +589,212 @@ int css_parse_decls(char *s, int n, int i,
     return i;
 }
 
+/* §2.x At-rule dispatcher. Fires when a top-level token begins with '@'.
+ * Handles @font-face by parsing its descriptors and registering a
+ * webfont rule with the font_face module (font_face.cc). Other at-rules
+ * (@media, @import, @keyframes, ...) skip to the matching '}' so
+ * following selectors keep parsing.
+ *
+ * Reference: Blink core/css/parser/CSSAtRuleID.cpp dispatch table and
+ * core/css/parser/AtRuleDescriptorParser.cpp for @font-face descriptor
+ * extraction. */
+int css_at_skip_block(char *text, int len, int i) {
+    /* Position is just past '@'. Walk to '{' or ';' (some at-rules end on ';',
+     * e.g. @import, @charset). On ';' we're done; on '{' skip the balanced
+     * block. */
+    while (i < len && text[i] != '{' && text[i] != ';') i++;
+    if (i >= len) return i;
+    if (text[i] == ';') return i + 1;
+    int depth = 1;
+    i++;
+    while (i < len && depth > 0) {
+        if (text[i] == '{') depth++;
+        else if (text[i] == '}') depth--;
+        i++;
+    }
+    return i;
+}
+
+/* Extract one CSS url("..."), url('...') or url(...). Returns 1 on success
+ * with (out_off, out_len) set to the URL text bytes and `*after` advanced
+ * past the closing ')'. */
+int css_at_parse_url(char *s, int len, int i, int *out_off, int *out_len, int *after) {
+    while (i < len && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
+    if (i + 4 > len) return 0;
+    if (!(s[i] == 'u' || s[i] == 'U')) return 0;
+    if (!b_strieq_n(s + i, "url", 3)) return 0;
+    i = i + 3;
+    while (i < len && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
+    if (i >= len || s[i] != '(') return 0;
+    i = i + 1;
+    while (i < len && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
+    char quote = 0;
+    if (i < len && (s[i] == '"' || s[i] == '\'')) { quote = s[i]; i = i + 1; }
+    int u_start = i;
+    if (quote) {
+        while (i < len && s[i] != quote) i = i + 1;
+    } else {
+        while (i < len && s[i] != ')' && s[i] != ' ' && s[i] != '\t') i = i + 1;
+    }
+    int u_end = i;
+    if (quote && i < len) i = i + 1;
+    while (i < len && s[i] != ')') i = i + 1;
+    if (i < len) i = i + 1;
+    *out_off = u_start;
+    *out_len = u_end - u_start;
+    *after = i;
+    return 1;
+}
+
+/* Parse `@font-face { ... }` and register a webfont with font_face.cc.
+ * `i` points just past "@font-face". Returns the position after the
+ * closing '}'. Recognised descriptors:
+ *   font-family: <ident-or-string>
+ *   src: url("...") [format("truetype"|"opentype")] [, ...]
+ *   font-weight: <int>|normal|bold (default 400)
+ *   font-style:  italic|normal     (default normal)
+ *
+ * WOFF/WOFF2 sources are skipped with a serial warning - we lack a
+ * Brotli/zlib decompressor. Only the first acceptable URL in the src
+ * list is fetched; Blink iterates with fallback, but for v1 a single
+ * source is enough for the common Liberation/Roboto stylesheet shape. */
+int css_at_font_face(char *text, int len, int i) {
+    while (i < len && (text[i] == ' ' || text[i] == '\t' ||
+                       text[i] == '\n' || text[i] == '\r')) i = i + 1;
+    if (i >= len || text[i] != '{') return css_at_skip_block(text, len, i);
+    i = i + 1;
+
+    int family_off = -1; int family_len = 0;
+    int src_off    = -1; int src_len    = 0;
+    int weight = 400;
+    int italic = 0;
+
+    while (i < len) {
+        i = css_skip_ws(text, len, i);
+        if (i < len && text[i] == '}') { i = i + 1; break; }
+        int p_start = i;
+        while (i < len && text[i] != ':' && text[i] != ';' && text[i] != '}') i = i + 1;
+        int p_end = i;
+        if (i >= len || text[i] != ':') {
+            while (i < len && text[i] != ';' && text[i] != '}') i = i + 1;
+            if (i < len && text[i] == ';') i = i + 1;
+            continue;
+        }
+        i = i + 1;
+        i = css_skip_ws(text, len, i);
+        int v_start = i;
+        while (i < len && text[i] != ';' && text[i] != '}') i = i + 1;
+        int v_end = i;
+        while (v_end > v_start && (text[v_end-1] == ' ' || text[v_end-1] == '\t')) v_end = v_end - 1;
+        while (p_end > p_start && (text[p_end-1] == ' ' || text[p_end-1] == '\t')) p_end = p_end - 1;
+        if (i < len && text[i] == ';') i = i + 1;
+
+        int p_l = p_end - p_start;
+        int v_l = v_end - v_start;
+        if (p_l == 11 && b_strieq_n(text + p_start, "font-family", 11)) {
+            family_off = v_start; family_len = v_l;
+        } else if (p_l == 3 && b_strieq_n(text + p_start, "src", 3)) {
+            src_off = v_start; src_len = v_l;
+        } else if (p_l == 11 && b_strieq_n(text + p_start, "font-weight", 11)) {
+            if (b_strieq_n(text + v_start, "bold",   v_l < 4 ? v_l : 4) && v_l == 4)   weight = 700;
+            else if (b_strieq_n(text + v_start, "normal", v_l < 6 ? v_l : 6) && v_l == 6) weight = 400;
+            else {
+                int w = 0;
+                int has = 0;
+                int k = v_start;
+                while (k < v_end && text[k] >= '0' && text[k] <= '9') {
+                    w = w * 10 + (text[k] - '0'); has = 1; k = k + 1;
+                }
+                if (has) weight = w;
+            }
+        } else if (p_l == 10 && b_strieq_n(text + p_start, "font-style", 10)) {
+            if (v_l >= 6 && b_strieq_n(text + v_start, "italic", 6)) italic = 1;
+            else italic = 0;
+        }
+    }
+
+    if (family_off < 0 || src_off < 0) return i;
+
+    /* Walk the src list. Each entry: url(...) [format("...")]. */
+    int s = src_off;
+    int s_end = src_off + src_len;
+    while (s < s_end) {
+        while (s < s_end && (text[s] == ' ' || text[s] == '\t' ||
+                              text[s] == ',' || text[s] == '\n' || text[s] == '\r')) s = s + 1;
+        if (s >= s_end) break;
+        int u_off; int u_len; int u_after;
+        if (!css_at_parse_url(text, s_end, s, &u_off, &u_len, &u_after)) {
+            /* Skip to next comma. */
+            while (s < s_end && text[s] != ',') s = s + 1;
+            continue;
+        }
+        s = u_after;
+        /* Optional format("..."). */
+        int s_save = s;
+        while (s < s_end && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
+        int format_ok = 1;     /* default: bare url() means TTF/OTF */
+        int format_known = 0;
+        if (s + 7 <= s_end && b_strieq_n(text + s, "format(", 7)) {
+            s = s + 7;
+            while (s < s_end && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
+            char fq = 0;
+            if (s < s_end && (text[s] == '"' || text[s] == '\'')) { fq = text[s]; s = s + 1; }
+            int f_start = s;
+            if (fq) {
+                while (s < s_end && text[s] != fq) s = s + 1;
+            } else {
+                while (s < s_end && text[s] != ')' && text[s] != ' ') s = s + 1;
+            }
+            int f_len = s - f_start;
+            if (fq && s < s_end) s = s + 1;
+            while (s < s_end && text[s] != ')') s = s + 1;
+            if (s < s_end) s = s + 1;
+            format_known = 1;
+            format_ok = 0;
+            if (b_strieq_n(text + f_start, "truetype", f_len < 8 ? f_len : 8) && f_len == 8) format_ok = 1;
+            else if (b_strieq_n(text + f_start, "opentype", f_len < 8 ? f_len : 8) && f_len == 8) format_ok = 1;
+            else if (b_strieq_n(text + f_start, "ttf", f_len < 3 ? f_len : 3) && f_len == 3) format_ok = 1;
+            else if (b_strieq_n(text + f_start, "otf", f_len < 3 ? f_len : 3) && f_len == 3) format_ok = 1;
+            if (!format_ok) {
+                serial_printf("[browser] @font-face: skip non-TTF format\n");
+            }
+        } else {
+            s = s_save;     /* no format token */
+        }
+        if (format_ok && u_len > 0) {
+            font_face_add_rule(text + family_off, family_len,
+                               text + u_off, u_len,
+                               weight, italic);
+            return i;       /* take first acceptable source */
+        }
+        /* Skip past current entry to comma. */
+        while (s < s_end && text[s] != ',') s = s + 1;
+    }
+    return i;
+}
+
 void css_parse_block(char *text, int len) {
     int i = 0;
     while (i < len) {
         i = css_skip_ws(text, len, i);
         if (i >= len) break;
+        /* §2.x At-rule? Branch out before normal selector-rule path. */
+        if (text[i] == '@') {
+            int at_start = i + 1;
+            /* Recognise "@font-face" by case-insensitive prefix; commit 3
+             * will fill in css_at_font_face. For now: skip, so any inline
+             * @media wrappers etc. don't poison subsequent selectors. */
+            if (at_start + 10 <= len &&
+                b_strieq_n(text + at_start, "font-face", 9) &&
+                (text[at_start + 9] == ' ' || text[at_start + 9] == '\t' ||
+                 text[at_start + 9] == '{' || text[at_start + 9] == '\n' ||
+                 text[at_start + 9] == '\r')) {
+                i = css_at_font_face(text, len, at_start + 9);
+                continue;
+            }
+            i = css_at_skip_block(text, len, at_start);
+            continue;
+        }
         /* Possibly multiple selectors separated by ',' */
         int chain_starts[16];
         int chain_counts[16];

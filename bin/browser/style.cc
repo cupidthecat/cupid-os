@@ -1,5 +1,4 @@
 /* §2 Style resolver + UA stylesheet.
- * Plan-2 Task 5:
  *   - ua_default_style fills cs_*[cs] with UA defaults for a tag.
  *   - css_value_int / css_value_color / css_value_keyword decode a
  *     (val_off, val_len) slice of css_value_pool into a typed value.
@@ -40,10 +39,19 @@ void ua_default_style(int tag, int cs) {
     cs_line_height[cs] = -1;        /* unset; falls back to tier_line_h */
     cs_line_height_mult[cs] = 0;
     cs_font_size_px[cs] = -1;       /* unset; inherits from parent */
+    cs_font_family_off[cs] = -1;    /* unset; inherits from parent */
+    cs_font_family_len[cs] = 0;
+    cs_font_generic[cs] = FONTSYS_FAMILY_DEFAULT;
     cs_max_width[cs]  = -1;
     cs_min_width[cs]  = -1;
     cs_max_height[cs] = -1;
     cs_min_height[cs] = -1;
+    cs_border_radius[cs] = 0;
+    cs_overflow[cs]      = OVERFLOW_VISIBLE;
+    cs_shadow_has[cs]    = 0;
+    cs_shadow_dx[cs]     = 0;
+    cs_shadow_dy[cs]     = 0;
+    cs_shadow_color[cs]  = 0x000000;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -107,9 +115,10 @@ void ua_default_style(int tag, int cs) {
     if (tag == T_PRE) {
         cs_display[cs] = DISP_BLOCK; cs_white_space[cs] = WS_PRE;
         cs_margin[cs][0] = 16; cs_margin[cs][2] = 16;
+        cs_font_generic[cs] = FONTSYS_FAMILY_MONOSPACE;
         return;
     }
-    if (tag == T_CODE) { return; }
+    if (tag == T_CODE) { cs_font_generic[cs] = FONTSYS_FAMILY_MONOSPACE; return; }
     if (tag == T_B || tag == T_STRONG) { cs_font_w[cs] = 700; return; }
     if (tag == T_I || tag == T_EM) {
         cs_font_i[cs] = 1;
@@ -504,6 +513,21 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         cs_font_i[cs] = css_value_keyword(val_off, val_len, "italic") ? 1 : 0;
         return;
     }
+    if (prop == CP_FONT_FAMILY) {
+        /* Stash the verbatim CSS value so the comma list / quotes are
+         * passed to fontsys_match unchanged at paint time. Also pull the
+         * first generic keyword we recognise so the cascade has a fast
+         * fallback when no named face matches. */
+        cs_font_family_off[cs] = val_off;
+        cs_font_family_len[cs] = val_len;
+        if (css_value_keyword(val_off, val_len, "serif"))      cs_font_generic[cs] = FONTSYS_FAMILY_SERIF;
+        else if (css_value_keyword(val_off, val_len, "sans-serif")) cs_font_generic[cs] = FONTSYS_FAMILY_SANS_SERIF;
+        else if (css_value_keyword(val_off, val_len, "monospace"))  cs_font_generic[cs] = FONTSYS_FAMILY_MONOSPACE;
+        else if (css_value_keyword(val_off, val_len, "cursive"))    cs_font_generic[cs] = FONTSYS_FAMILY_CURSIVE;
+        else if (css_value_keyword(val_off, val_len, "fantasy"))    cs_font_generic[cs] = FONTSYS_FAMILY_FANTASY;
+        else if (css_value_keyword(val_off, val_len, "system-ui"))  cs_font_generic[cs] = FONTSYS_FAMILY_SYSTEM_UI;
+        return;
+    }
     if (prop == CP_FONT_SIZE) {
         /* Resolve to px against parent (em/%) and root (rem). cs index ==
          * DOM node index, so parent_cs == n_parent[cs] and the parent has
@@ -770,6 +794,77 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         if (parse_line_height(val_off, val_len, &v, &m)) {
             cs_line_height[cs] = v;
             cs_line_height_mult[cs] = m;
+        }
+        return;
+    }
+    if (prop == CP_BORDER_RADIUS) {
+        /* Single value only (uniform corners). Future: 1-4 value parsing
+         * matching margin/padding shorthand. Reference Blink
+         * core/css/parser/CSSPropertyBorderRadiusUtils.cpp. */
+        int r = css_value_len(cs, val_off, val_len);
+        if (r < 0) r = 0;
+        if (r > 64) r = 64;     /* clamp; gfx2d_rect_round_fill caps too */
+        cs_border_radius[cs] = r;
+        return;
+    }
+    if (prop == CP_OVERFLOW) {
+        if (css_value_keyword(val_off, val_len, "hidden") ||
+            css_value_keyword(val_off, val_len, "clip") ||
+            css_value_keyword(val_off, val_len, "scroll") ||
+            css_value_keyword(val_off, val_len, "auto")) {
+            cs_overflow[cs] = OVERFLOW_HIDDEN;
+            return;
+        }
+        cs_overflow[cs] = OVERFLOW_VISIBLE;
+        return;
+    }
+    if (prop == CP_BOX_SHADOW) {
+        /* Minimal v1: parse first <offset-x> <offset-y> [<color>?]. Skip
+         * blur and spread radii (Blink supports them via CSSShadowValue;
+         * we don't yet have a Gaussian blur path in gfx2d). "none" clears.
+         * Reference: blink/Source/core/css/parser/CSSPropertyParser.cpp
+         * (parseShadow). */
+        if (css_value_keyword(val_off, val_len, "none")) {
+            cs_shadow_has[cs] = 0;
+            return;
+        }
+        int i = val_off;
+        int end = val_off + val_len;
+        int dx = 0;
+        int dy = 0;
+        int col = 0x000000;
+        int got_dx = 0;
+        int got_dy = 0;
+        while (i < end) {
+            while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+            if (i >= end) break;
+            int t_start = i;
+            while (i < end && css_value_pool[i] != ' ' && css_value_pool[i] != '\t') i = i + 1;
+            int t_len = i - t_start;
+            if (!got_dx && (css_value_pool[t_start] == '-' || css_value_pool[t_start] == '+' ||
+                            (css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9'))) {
+                dx = css_value_len(cs, t_start, t_len);
+                got_dx = 1;
+                continue;
+            }
+            if (got_dx && !got_dy && (css_value_pool[t_start] == '-' || css_value_pool[t_start] == '+' ||
+                                       (css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9'))) {
+                dy = css_value_len(cs, t_start, t_len);
+                got_dy = 1;
+                continue;
+            }
+            int c2;
+            if (css_value_color(t_start, t_len, &c2)) {
+                col = c2;
+                continue;
+            }
+            /* Unknown token (blur radius / spread / inset) - ignore. */
+        }
+        if (got_dx && got_dy) {
+            cs_shadow_has[cs]   = 1;
+            cs_shadow_dx[cs]    = dx;
+            cs_shadow_dy[cs]    = dy;
+            cs_shadow_color[cs] = col;
         }
         return;
     }
@@ -1330,6 +1425,16 @@ void style_resolve_all() {
                 cs_line_height_mult[cs] = cs_line_height_mult[pcs];
             }
             if (cs_font_size_px[cs] < 0) cs_font_size_px[cs] = cs_font_size_px[pcs];
+            /* Font-family inherits as a unit. cs_font_family_off == -1
+             * means "unset on this element" - copy the parent's stash. */
+            if (cs_font_family_off[cs] < 0) {
+                cs_font_family_off[cs] = cs_font_family_off[pcs];
+                cs_font_family_len[cs] = cs_font_family_len[pcs];
+            }
+            if (cs_font_generic[cs] == FONTSYS_FAMILY_DEFAULT
+                && cs_font_generic[pcs] != FONTSYS_FAMILY_DEFAULT) {
+                cs_font_generic[cs] = cs_font_generic[pcs];
+            }
             /* font-weight / font-style are inherited per CSS spec. Element
              * UA defaults set 400 / 0 explicitly, so we promote to parent's
              * value only when the child still carries the default — child

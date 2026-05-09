@@ -373,11 +373,13 @@ int tag_id(char *name, int len) {
     if (b_streq(b, "td"))       return T_TD;
     if (b_streq(b, "th"))       return T_TH;
     if (b_streq(b, "blockquote")) return T_BLOCKQUOTE;
+    if (b_streq(b, "link"))     return T_LINK;
     return T_OTHER;
 }
 
 int is_void_tag(int tag) {
-    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT;
+    return tag == T_BR || tag == T_HR || tag == T_IMG || tag == T_INPUT ||
+           tag == T_LINK;
 }
 
 int is_block_tag(int tag) {
@@ -746,6 +748,11 @@ void parse_html(int html_len) {
 
     serial_printf("[browser] css: %d rules, %d sels, %d val-bytes\n",
                   css_rule_count, css_sel_count, css_value_pool_pos);
+
+    /* §2.x Fetch external <link rel=stylesheet> sheets BEFORE the cascade
+     * runs so their rules participate in style resolution. Defined in
+     * nav.cc; CupidC resolves the forward reference at JIT time. */
+    fetch_external_stylesheets();
 
     populate_sibling_caches();
     style_resolve_all();

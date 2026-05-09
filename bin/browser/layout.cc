@@ -1,7 +1,7 @@
 /* Layout.
  *
- * Render-tree BFC + IFC layout. Walks the rt_* arrays filled in Task 6 and
- * resolves rt_x/y/w/h plus rt_content_x/y per node. Inline content goes
+ * Render-tree BFC + IFC layout. Walks the rt_* arrays and resolves
+ * rt_x/y/w/h plus rt_content_x/y per node. Inline content goes
  * through line-box layout (atoms + flush_inline + LINE_BOX nodes). Paint
  * and hit-test consume rt_* directly (no intermediate flat box list).
  */
@@ -86,8 +86,74 @@ int effective_line_h(int cs, int tier) {
     return lh;
 }
 
+/* §4.x Line-break punctuation rules adapted from
+ * blink/Source/core/rendering/break_lines.cpp. Returns 1 if it is OK to
+ * break the line BEFORE the given character (i.e. the char can sit at the
+ * start of a fresh line). Most ASCII letters/digits are breakable; the
+ * NO_BREAK_BEFORE set is the closing punctuation that should hug the end
+ * of the previous line. */
+int can_break_before(char c) {
+    if (c == '.' || c == ',' || c == ';' || c == ':' ||
+        c == '!' || c == '?' ||
+        c == ')' || c == ']' || c == '}' ||
+        c == '\'' || c == '"') return 0;
+    return 1;
+}
+
+/* Returns 1 if it is OK to break AFTER `c`. Opening punctuation never gets
+ * stranded at end-of-line. */
+int can_break_after(char c) {
+    if (c == '(' || c == '[' || c == '{' ||
+        c == '$' || c == '#' || c == '@') return 0;
+    return 1;
+}
+
+/* Resolve the CSS font shorthand on `cs` to a fontsys face_id. Copies
+ * the verbatim font-family value out of css_value_pool into a local
+ * buffer (NUL-terminated) so it can be passed to fontsys_match.   */
+int cs_face_id_for(int cs) {
+    char fam[200];
+    int  fam_len = 0;
+    int  off = cs_font_family_off[cs];
+    int  len = cs_font_family_len[cs];
+    if (off >= 0 && len > 0) {
+        if (len > 199) len = 199;
+        for (int i = 0; i < len; i = i + 1) fam[i] = css_value_pool[off + i];
+        fam[len] = 0;
+        fam_len = len;
+    } else {
+        fam[0] = 0;
+    }
+    int gen = cs_font_generic[cs];
+    int weight = cs_font_w[cs];
+    int italic = cs_font_i[cs];
+    /* §2.x Webfonts (font_face.cc) take priority over the kernel's
+     * preinstalled faces. font_face_match scans every comma-separated
+     * family name; bare fallback path goes through fontsys_match. */
+    if (fam_len > 0) {
+        int wf = font_face_match(fam, fam_len, weight, italic);
+        if (wf >= 0) return wf;
+    }
+    return fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+}
+
 int text_slice_w(int off, int len, int tier) {
     return gfx2d_text_width_n(attr_pool + off, len, tier_to_font(tier));
+}
+
+/* fontsys-aware width: picks the real face/size for `cs` and asks
+ * fontsys for the run width. Falls back to the tier path when size_px
+ * is unavailable (e.g. bootstrap atoms with no resolved cs). */
+int text_slice_w_cs(int cs, int off, int len) {
+    if (cs >= 0 && cs < cs_count && cs_font_size_px[cs] > 0) {
+        int face = cs_face_id_for(cs);
+        if (face >= 0) {
+            return fontsys_run_width(face, cs_font_size_px[cs],
+                                     attr_pool + off, len);
+        }
+    }
+    return gfx2d_text_width_n(attr_pool + off, len,
+                              tier_to_font(cs_font_size_tier[cs]));
 }
 
 /* Walks the inline subtree rooted at `n` (which is RT_INLINE / RT_TEXT /
@@ -103,6 +169,9 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
     int fg = cs_color[cs];
     int bg = cs_bg[cs];
     int bold = cs_font_w[cs] >= 700;
+    int italic = cs_font_i[cs];
+    int size_px = cs_font_size_px[cs];
+    int face_id = cs_face_id_for(cs);
     int underline = (cs_text_dec[cs] & TD_UNDERLINE) ? 1 : 0;
     int link_idx = -1;
     /* Walk up looking for a parent with rt_link_idx >= 0 */
@@ -126,8 +195,11 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             if (la_count < MAX_LINE_ATOMS) {
                 la_text_off[la_count] = off + s;
                 la_text_len[la_count] = run_len;
-                la_w[la_count] = text_slice_w(off + s, run_len, tier);
+                la_w[la_count] = text_slice_w_cs(cs, off + s, run_len);
                 la_font_tier[la_count] = tier;
+                la_size_px[la_count] = size_px;
+                la_face_id[la_count] = face_id;
+                la_italic[la_count] = italic;
                 la_fg[la_count] = fg; la_bg[la_count] = bg;
                 la_bold[la_count] = bold; la_underline[la_count] = underline;
                 la_link_idx[la_count] = link_idx;
@@ -141,6 +213,9 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
                     la_text_len[la_count] = 0;
                     la_w[la_count] = 0;
                     la_font_tier[la_count] = tier;
+                    la_size_px[la_count] = size_px;
+                    la_face_id[la_count] = face_id;
+                    la_italic[la_count] = italic;
                     la_fg[la_count] = fg; la_bg[la_count] = bg;
                     la_bold[la_count] = bold; la_underline[la_count] = underline;
                     la_link_idx[la_count] = link_idx;
@@ -156,7 +231,10 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
     }
 
     /* WS_NORMAL or WS_NOWRAP: collapse whitespace to single spaces, split into
-     * word atoms. */
+     * word atoms. Soft-break sentinels respect Blink's break_lines.cpp
+     * punctuation rules so commas and closing brackets don't get stranded
+     * at the start of a wrapped line. */
+    char prev_last_char = 0;
     while (i < len) {
         /* skip leading whitespace, emit a single space atom if any (only between
          * word atoms - leading at start of run handled by line layout). The
@@ -174,12 +252,27 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             /* Inter-word space atom: text_len=1, text_off pointing at a literal " ". */
             la_text_off[la_count] = attr_intern(" ", 1);
             la_text_len[la_count] = 1;
+            /* Space advance: prefer the proportional bitmap-font advance
+             * which is robust for the single-byte " " input. fontsys_run_width
+             * with len=1 has been observed to return 0 in some kernel builds,
+             * so even when face_id is real we keep the bitmap advance for
+             * inter-word spaces. The text_slice_w_cs path still uses fontsys
+             * for the longer word atoms where shaping matters. */
             la_w[la_count] = gfx2d_glyph_advance(' ', tier_to_font(tier));
             la_font_tier[la_count] = tier;
+            la_size_px[la_count] = size_px;
+            la_face_id[la_count] = face_id;
+            la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
             la_link_idx[la_count] = link_idx;
-            la_x[la_count] = (ws == WS_NOWRAP) ? -1 : -3;  /* -3 = soft break point */
+            /* Soft-break point unless surrounding punctuation forbids it. */
+            int breakable = (ws != WS_NOWRAP);
+            if (breakable && prev_last_char != 0 && !can_break_after(prev_last_char))
+                breakable = 0;
+            if (breakable && i < len && !can_break_before(attr_pool[off + i]))
+                breakable = 0;
+            la_x[la_count] = breakable ? -3 : -1;
             la_count++;
         }
         if (i >= len) break;
@@ -191,11 +284,15 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             i++;
         }
         int wlen = i - s;
+        if (wlen > 0) prev_last_char = attr_pool[off + i - 1];
         if (wlen > 0 && la_count < MAX_LINE_ATOMS) {
             la_text_off[la_count] = off + s;
             la_text_len[la_count] = wlen;
-            la_w[la_count] = text_slice_w(off + s, wlen, tier);
+            la_w[la_count] = text_slice_w_cs(cs, off + s, wlen);
             la_font_tier[la_count] = tier;
+            la_size_px[la_count] = size_px;
+            la_face_id[la_count] = face_id;
+            la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
             la_link_idx[la_count] = link_idx;
@@ -232,6 +329,9 @@ void collect_inline_atoms(int n) {
             la_text_len[la_count] = 0;
             la_w[la_count] = w;
             la_font_tier[la_count] = 0;
+            la_size_px[la_count] = 0;
+            la_face_id[la_count] = -1;
+            la_italic[la_count] = 0;
             la_fg[la_count] = 0; la_bg[la_count] = 0;
             la_bold[la_count] = 0; la_underline[la_count] = 0;
             la_link_idx[la_count] = rt_link_idx[n];

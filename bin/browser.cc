@@ -16,6 +16,7 @@
 #include "browser/js_parse.cc"
 #include "browser/parser.cc"
 #include "browser/css.cc"
+#include "browser/font_face.cc"
 #include "browser/style.cc"
 #include "browser/render_tree.cc"
 #include "browser/layout.cc"

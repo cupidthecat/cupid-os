@@ -1764,6 +1764,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fontsys_register_file)(const char *) = fontsys_register_file;
   BIND_T("fontsys_register_file", p_fontsys_register_file, 1, TYPE_INT);
 
+  int (*p_fontsys_register_blob)(const char *, int, int) = fontsys_register_blob;
+  BIND_T("fontsys_register_blob", p_fontsys_register_blob, 3, TYPE_INT);
+
   int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
   BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);
 

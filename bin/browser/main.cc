@@ -108,6 +108,7 @@ enum {
     T_TH       = 54,
     T_BLOCKQUOTE = 55,
     T_NOSCRIPT   = 56,
+    T_LINK       = 57,
 
     /* §1 tokenizer token kinds */
     TK_START = 1,
@@ -123,11 +124,24 @@ enum {
     CP_PADDING, CP_PADDING_T, CP_PADDING_R, CP_PADDING_B, CP_PADDING_L,
     CP_BORDER, CP_BORDER_COLOR, CP_BORDER_T, CP_BORDER_R, CP_BORDER_B, CP_BORDER_L,
     CP_BORDER_WIDTH, CP_BORDER_STYLE, CP_FONT,
+    CP_FONT_FAMILY,
     CP_WIDTH, CP_HEIGHT, CP_WHITE_SPACE, CP_LIST_STYLE_TYPE, CP_VERTICAL_ALIGN,
     CP_LINE_HEIGHT,
     CP_MAX_WIDTH, CP_MIN_WIDTH, CP_MAX_HEIGHT, CP_MIN_HEIGHT,
     CP_CONTENT,
+    CP_BORDER_RADIUS, CP_BOX_SHADOW, CP_OVERFLOW,
     MAX_CP_ID = 48,
+
+    /* Generic-family keywords. Numeric values mirror the kernel's
+     * FONTSYS_FAMILY_* (kernel/gfx/fontsys.h) so cs_font_generic[cs]
+     * can be passed straight to fontsys_match. */
+    FONTSYS_FAMILY_DEFAULT    = 0,
+    FONTSYS_FAMILY_SERIF      = 1,
+    FONTSYS_FAMILY_SANS_SERIF = 2,
+    FONTSYS_FAMILY_MONOSPACE  = 3,
+    FONTSYS_FAMILY_CURSIVE    = 4,
+    FONTSYS_FAMILY_FANTASY    = 5,
+    FONTSYS_FAMILY_SYSTEM_UI  = 6,
 
     /* §2 enumerated value tags */
     TA_LEFT = 0, TA_CENTER, TA_RIGHT,
@@ -138,6 +152,7 @@ enum {
     WS_NORMAL = 0, WS_PRE, WS_NOWRAP,
     LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
+    OVERFLOW_VISIBLE = 0, OVERFLOW_HIDDEN,
     MAX_CSS_SELECTORS = 2048,
 
     /* §2 selector pseudo-class IDs (stored in css_sel_pseudo[]) */
@@ -435,11 +450,25 @@ int cs_line_height_mult[4096];
 /* font-size in px. -1 = unset (inherit from parent during cascade fill).
  * cs_font_size_tier is derived from this via px_to_tier(px). */
 int cs_font_size_px[4096];
+/* font-family: stashed in css_value_pool. -1 off = unset (inherit). The
+ * string is the verbatim CSS value (comma list, with quotes/spaces).
+ * cs_font_generic mirrors a FONTSYS_FAMILY_* keyword. */
+int cs_font_family_off[4096];
+int cs_font_family_len[4096];
+int cs_font_generic   [4096];
 /* Sizing clamps. -1 = unset (no clamp). */
 int cs_max_width [4096];
 int cs_min_width [4096];
 int cs_max_height[4096];
 int cs_min_height[4096];
+
+/* §2.x Visual-quality additions (Blink BoxPainter.cpp). All default 0/-1. */
+int cs_border_radius[4096];   /* px; 0 = sharp corners */
+int cs_overflow     [4096];   /* OVERFLOW_VISIBLE | OVERFLOW_HIDDEN */
+int cs_shadow_has   [4096];   /* 1 if box-shadow declared, else 0 */
+int cs_shadow_dx    [4096];   /* px offset, signed */
+int cs_shadow_dy    [4096];   /* px offset, signed */
+int cs_shadow_color [4096];   /* RGB; black if unspecified */
 
 /* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;
@@ -479,12 +508,17 @@ int la_bg       [8192];
 int la_bold     [8192];
 int la_underline[8192];
 int la_link_idx [8192];
+/* fontsys-resolved per-atom face/size/italic. la_size_px <= 0 falls
+ * back to the tier-based path in paint. */
+int la_size_px  [8192];
+int la_face_id  [8192];
+int la_italic   [8192];
 
 /* Each LINE_BOX render node references a contiguous atom slice */
 int rt_line_atom_first[6144];
 int rt_line_atom_count[6144];
 
-/* §1 tokenizer scratch - populated by tokenize(), consumed by tree builder in Task 3.
+/* §1 tokenizer scratch - populated by tokenize(), consumed by tree builder.
  * tok_text_len uses bit 0x40000000 as a sentinel: if set, tok_text_off is an
  * attr_pool offset (decoded RCDATA text); otherwise it is a page_buf offset.
  * The tree builder reads this as:
@@ -753,6 +787,22 @@ void browser_main() {
         handle_keys();
         handle_mouse();
         render();
+
+        /* §2.x Webfont async pump (FOUT). After each frame pump one
+         * pending @font-face slot; if any slot transitioned to LOADED,
+         * line widths shift so re-cascade + rebuild RT + relayout, then
+         * the next iteration paints with the new face. Reference:
+         * blink/Source/core/css/CSSFontSelector.cpp::fontFaceInvalidated. */
+        font_face_pump();
+        if (font_face_any_state_changed()) {
+            populate_sibling_caches();
+            style_resolve_all();
+            build_render_tree();
+            run_layout();
+            clamp_scroll();
+            font_face_state_clear();
+        }
+
         yield();
     }
 }

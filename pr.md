@@ -585,3 +585,202 @@ they are hardware drivers rather than protocol code.
 - All other wiki pages had their `kernel/foo.c` references
   bulk-rewritten to `kernel/<subdir>/foo.c` so navigation still
   works after the move.
+
+---
+
+## Render pipeline upgrades + `@font-face` web fonts
+
+Builds on the Browser stack above. Adds the missing pieces that turn
+"renders most pages OK" into "renders pages with the right
+typography": webfonts downloaded over HTTPS at runtime, external
+stylesheets, rounded corners / drop shadows / overflow clipping, and
+Blink-style line-break punctuation rules.
+
+References the three vendored upstream trees as design sources:
+`lexbor/`, `blink/Source/`, `mozjs-45.0.2/`.
+
+### `bin/browser/font_face.cc` — webfont registry
+
+New 310-LOC module. Public API:
+
+```c
+void font_face_init(void);
+int  font_face_add_rule(const char *family, int family_len,
+                        const char *src_url, int src_url_len,
+                        int weight, int italic);
+int  font_face_match(const char *family, int family_len,
+                     int weight, int italic);
+void font_face_pump(void);
+int  font_face_any_state_changed(void);
+void font_face_state_clear(void);
+int  font_face_count(void);
+```
+
+Modeled on `blink/Source/core/css/RemoteFontFaceSource.cpp`,
+`CSSFontFace.cpp`, `CSSFontSelector.cpp`. State machine per slot:
+`PENDING → LOADED | FAILED | SKIPPED`. 4-slot registry, URL-dedup
+cache. Webfont blobs are `kmalloc`-allocated when the font arrives
+(NOT static — CupidC's data section is capped at 4 MiB and the
+existing browser globals already use most of it). 1 MiB hard cap per
+font. fontsys keeps the pointer (`take_ownership=0`); blobs leak
+across page navigations by design (`fontsys_unregister` doesn't
+exist yet).
+
+### Async fetch + FOUT reflow
+
+Per user choice between sync (page hangs while font downloads) and
+async (FOUT). Implementation:
+
+- `font_face_add_rule` from CSS parser just records the slot with
+  state `PENDING`. No fetch.
+- `font_face_pump()` is called once per main-loop iteration (after
+  `render()` in `browser_main`'s loop). It advances at most one
+  PENDING slot per tick: saves cur_host/cur_port/cur_path/page_buf
+  globals, calls `fetch_url`, copies bytes into a fresh kmalloc
+  buffer, calls `fontsys_register_blob`, restores globals. State
+  transitions to LOADED, sets `ff_state_dirty=1`.
+- Main loop checks `font_face_any_state_changed()`. On dirty:
+  re-runs `style_resolve_all → build_render_tree → run_layout`, then
+  clears the flag. Next paint picks up the new face. Reference:
+  `blink/Source/core/css/CSSFontSelector.cpp::fontFaceInvalidated`.
+
+### `@font-face` CSS parser
+
+`bin/browser/css.cc` gets:
+
+1. **At-rule dispatcher**: top-level `@`-token branch in
+   `css_parse_block` (modeled on
+   `blink/Source/core/css/parser/CSSAtRuleID.cpp`). Unknown at-rules
+   skip to the matching `}` so following selectors keep parsing.
+   `@font-face` routes to a real handler; `@media` / `@import` /
+   `@keyframes` skip silently.
+2. **`css_at_font_face` handler**: parses `font-family`, `src`,
+   `font-weight`, `font-style` descriptors. The `src` list is walked
+   left-to-right; the first `format("truetype")` /
+   `format("opentype")` / bare `url()` entry wins. WOFF/WOFF2 are
+   skipped with a serial warning (no Brotli/zlib decompressor in the
+   browser yet). On success, `font_face_add_rule` records a PENDING
+   slot.
+3. **Resolution hook**: `bin/browser/layout.cc::cs_face_id_for`
+   consults `font_face_match` BEFORE falling back to the kernel's
+   `fontsys_match`. `font_face_match` walks comma-separated family
+   lists, applies a simplified CSS weight-matching algorithm
+   (exact → 400 below 500, 700 above; italic exact preferred).
+
+### External stylesheets — `<link rel="stylesheet">`
+
+Most real sites declare `@font-face` in external CSS. Without
+`<link>` support the entire pipeline is dead.
+
+- `parser.cc`: `T_LINK` added to the tag enum and `is_void_tag` list.
+- `parser.cc::parse_html`: just before `populate_sibling_caches()` /
+  `style_resolve_all()`, calls `fetch_external_stylesheets()`. The
+  injection point matters — DOM is fully built and all text is
+  interned in `attr_pool` (text tokens no longer reference
+  `page_buf`), so reusing `page_buf` for stylesheet fetches is safe.
+- `nav.cc::fetch_external_stylesheets`: walks the DOM, finds every
+  `<link rel="stylesheet" href="…">`, resolves relative URLs via
+  the existing `compute_url_relative`, fetches, feeds the body
+  straight into `css_parse_block`. Cap of 16 sheets per page.
+  Cur-state globals are saved/restored around each fetch.
+
+Cascade caveat (documented inline): external rules are appended
+AFTER any inline `<style>` rules emitted during tree-build, so a
+`<style>` preceding a `<link>` in the source out-ranks it on
+doc-order ties. Real-world pages put `<link>` first; acceptable v1
+limitation.
+
+### Visual-quality CSS additions
+
+| Property | Status |
+|---|---|
+| `border-radius: <px>` | uniform corners; clamps to `min(w,h)/2`; uses `gfx2d_rect_round_fill` for bg, `gfx2d_rect_round` for border outline |
+| `box-shadow: <dx> <dy> [<color>]` | offset rect blits, no blur, no spread (Blink supports both via `CSSShadowValue` — out of scope here, no Gaussian blur path in `gfx2d`) |
+| `overflow: hidden` | userland clip stack in `paint.cc` (`paint_clip_push` / `paint_clip_pop`); intersects with parent clip and pushes to `gfx2d_clip_set` |
+
+`paint_rt_node` was split into `paint_rt_box_decoration` (shadow →
+background → border, in Blink BoxPainter order) and
+`paint_rt_content` (text / replaced / marker / line-box). When a
+`border-radius` is set, the rect-fill paths transparently switch to
+the rounded variants.
+
+### Blink line-break punctuation rules
+
+Adopted from `blink/Source/core/rendering/break_lines.cpp`. Two
+helpers in `layout.cc`:
+
+```c
+int can_break_before(char c) {  /* no break before . , ; : ! ? ) ] } ' " */
+int can_break_after (char c) {  /* no break after  ( [ { $ # @ */
+```
+
+Inside `emit_text_atoms`, the inter-word soft-break sentinel
+(`la_x = -3`) flips to non-break (`la_x = -1`) when surrounding
+characters forbid wrapping. `prev_last_char` tracks the last char of
+the previous word for the after-check; the next char is read from
+`attr_pool` for the before-check. Pre/nowrap semantics unchanged.
+
+### Kernel-side: CupidC binding for `fontsys_register_blob`
+
+`kernel/lang/cupidc.c`. The browser is JIT-compiled at runtime;
+new kernel symbols only become callable after an explicit `BIND`.
+`fontsys_register_blob` was already declared in `fontsys.h` and
+implemented in `fontsys.c` (used by the kernel internally to register
+the bundled Liberation TTFs at boot) but had no userland binding.
+
+```c
+int (*p_fontsys_register_blob)(const char *, int, int) = fontsys_register_blob;
+BIND_T("fontsys_register_blob", p_fontsys_register_blob, 3, TYPE_INT);
+```
+
+### CupidC dialect notes (new ones found)
+
+| Limitation | Workaround |
+|---|---|
+| C-comment lexer does NOT recognise nested `*/` inside strings of asterisks/slashes — `/* … cs_*/rt_* */` ends the comment after `cs_*` | Avoid `*/` patterns inside comment prose; rewrite `cs_*/rt_*/la_*` as `cs/rt/la` |
+| Static array data counts against `CC_MAX_DATA = 4 MiB`; uninitialized globals included | Use `(char*)kmalloc(N)` for big buffers; CupidC supports pointer indexing on `char *` heap allocations |
+| Forward references to functions defined later in the unity-include order produce `Unresolved symbol` warnings during parse but resolve at JIT-link time — only `undefined variable` (variable, not function) is fatal | Ignore the warnings unless they fire on a name you actually misspelt |
+
+### Files
+
+| File | Δ | Purpose |
+|---|---|---|
+| `bin/browser/font_face.cc` | new (310) | webfont registry + async pump |
+| `bin/browser/css.cc` | +205 | at-rule dispatcher, `@font-face` parser, three new property recognizers |
+| `bin/browser/style.cc` | +109 | appliers + UA defaults for new properties |
+| `bin/browser/paint.cc` | +145 net | clip stack, decoration/content split, rounded rect, shadow |
+| `bin/browser/layout.cc` | +115 | `font_face_match` hook, break-rule helpers |
+| `bin/browser/main.cc` | +52 | enum tags, SoA arrays, async pump in main loop |
+| `bin/browser/nav.cc` | +77 | external-link fetcher, per-page `font_face_init` |
+| `bin/browser/parser.cc` | +9 | `T_LINK`, void-tag list, fetch trigger |
+| `bin/browser.cc` | +1 | include `font_face.cc` |
+| `kernel/lang/cupidc.c` | +3 | bind `fontsys_register_blob` |
+| `tests/browser/d1..d8` | 9 new pages | test fixtures (basic webfont, weights, woff2 skip, external link, border-radius, box-shadow, overflow:hidden, line-break punctuation) |
+
+### Deferred (require deeper layout refactor)
+
+- Inline-block shrink-to-fit (CSS 2.1 §10.3.9) — needs a
+  min-content / max-content two-pass measurement.
+- Grandparent margin propagation — needs Blink's `MarginInfo`
+  bubble-up out-param threaded through `layout_block`.
+- WOFF / WOFF2 — needs Brotli + zlib decompressors.
+- `font-display: swap | fallback | optional` — always FOUT for now.
+- Persistent `/tmp/fontcache/<sha1>.ttf` cache.
+
+### Verification
+
+1. `make` builds clean.
+2. `make run` boots; click Browser. With a host HTTP server
+   (`python3 -m http.server 80` from `tests/browser/`), navigate
+   to e.g. `http://10.0.2.2/d1_font_face_basic.html`.
+3. `d1`: paragraph rendered in Liberation Sans served as a
+   "remote" webfont; fallback paragraph uses the OS default.
+4. `d2`: 400 vs 700 weight match against two `@font-face` rules.
+5. `d3`: WOFF2 entry skipped with serial warning, TTF entry used.
+6. `d4`: external `<link>` rules apply (red bold text).
+7. `d5`–`d7`: border-radius / box-shadow / overflow:hidden render.
+8. `d8`: long paragraph with parentheses and commas — no
+   wrap-before-`)` / wrap-before-`,` events.
+9. `about:dump` on any loaded page emits the render tree with the
+   new `cs_*` properties (border-radius, overflow, shadow) on the
+   serial console.

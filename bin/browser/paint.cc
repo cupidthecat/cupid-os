@@ -8,7 +8,59 @@ int viewport_h() {
     return h;
 }
 
-/* §6 Render-tree paint - single traversal, bg -> border -> content order */
+/* §6 Render-tree paint - single traversal, decoration -> content -> children.
+ * Decoration order matches Blink BoxPainter::paintBoxDecorationBackground:
+ *   shadow (offset blits) -> background (rounded if border-radius) ->
+ *   border (mitered to corners). Reference:
+ *   blink/Source/core/paint/BoxPainter.cpp. */
+
+/* Clip stack for `overflow: hidden`. gfx2d_clip_set replaces (no native
+ * push/pop), so we mirror the rect history in userland. The viewport-wide
+ * clip from render() lives at index 0 and never pops; nested clips push on
+ * entry to an OVERFLOW_HIDDEN node and pop on exit. */
+int paint_clip_x[16];
+int paint_clip_y[16];
+int paint_clip_w[16];
+int paint_clip_h[16];
+int paint_clip_top;
+
+void paint_clip_init(int x, int y, int w, int h) {
+    paint_clip_top = 0;
+    paint_clip_x[0] = x; paint_clip_y[0] = y;
+    paint_clip_w[0] = w; paint_clip_h[0] = h;
+    gfx2d_clip_set(x, y, w, h);
+}
+
+/* Intersect (x,y,w,h) with the current top of stack and push the result.
+ * gfx2d_clip_set is replaced with the intersection. */
+void paint_clip_push(int x, int y, int w, int h) {
+    if (paint_clip_top + 1 >= 16) return;
+    int px = paint_clip_x[paint_clip_top];
+    int py = paint_clip_y[paint_clip_top];
+    int pw = paint_clip_w[paint_clip_top];
+    int ph = paint_clip_h[paint_clip_top];
+    int x0 = (x > px) ? x : px;
+    int y0 = (y > py) ? y : py;
+    int x1 = ((x + w) < (px + pw)) ? (x + w) : (px + pw);
+    int y1 = ((y + h) < (py + ph)) ? (y + h) : (py + ph);
+    int nw = x1 - x0; if (nw < 0) nw = 0;
+    int nh = y1 - y0; if (nh < 0) nh = 0;
+    paint_clip_top++;
+    paint_clip_x[paint_clip_top] = x0;
+    paint_clip_y[paint_clip_top] = y0;
+    paint_clip_w[paint_clip_top] = nw;
+    paint_clip_h[paint_clip_top] = nh;
+    gfx2d_clip_set(x0, y0, nw, nh);
+}
+
+void paint_clip_pop(void) {
+    if (paint_clip_top <= 0) return;
+    paint_clip_top--;
+    gfx2d_clip_set(paint_clip_x[paint_clip_top],
+                   paint_clip_y[paint_clip_top],
+                   paint_clip_w[paint_clip_top],
+                   paint_clip_h[paint_clip_top]);
+}
 
 int rt_screen_x(int n) {
     /* Walk parent chain summing x offsets; viewport_x() is the page origin. */
@@ -31,20 +83,36 @@ int rt_screen_y(int n) {
     return y + viewport_y() - scroll_y;
 }
 
-void paint_rt_node(int n) {
-    int sx = rt_screen_x(n);
-    int sy = rt_screen_y(n);
-    int w  = rt_w[n];
-    int h  = rt_h[n];
-
+/* Box decoration (shadow + bg + border). Split out from paint_rt_node so
+ * border-radius and box-shadow live in one place; matches the structure of
+ * Blink's BoxPainter::paintBoxDecorationBackground. */
+void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     int kind = rt_kind[n];
     int cs = rt_style[n];
 
-    /* Off-screen cull */
-    if (sy + h < viewport_y()) return;
-    if (sy > viewport_y() + viewport_h()) return;
+    int paints_box = (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
+                      kind == RT_LIST_ITEM || kind == RT_TABLE_CELL);
+    if (!paints_box) return;
 
-    /* 1. Background. CSS canvas-painting rule: if body's bg propagated up
+    int radius = cs_border_radius[cs];
+    if (radius * 2 > w) radius = w / 2;
+    if (radius * 2 > h) radius = h / 2;
+    if (radius < 0) radius = 0;
+
+    /* 1. Box-shadow (no blur, no spread). One offset rect underneath the
+     * box, rounded to match if a radius is set. */
+    if (cs_shadow_has[cs]) {
+        int dx = cs_shadow_dx[cs];
+        int dy = cs_shadow_dy[cs];
+        int sc = cs_shadow_color[cs];
+        if (radius > 0) {
+            gfx2d_rect_round_fill(sx + dx, sy + dy, w, h, radius, sc);
+        } else {
+            gfx2d_rect_fill(sx + dx, sy + dy, w, h, sc);
+        }
+    }
+
+    /* 2. Background. CSS canvas-painting rule: if body's bg propagated up
      * to the document canvas (because html has no bg), the body element
      * itself must NOT paint bg again. Anonymous blocks share the parent's
      * cs but have rt_dom == -1, so the suppression key is the dom tag. */
@@ -52,22 +120,37 @@ void paint_rt_node(int n) {
     int suppress_bg = 0;
     if (doc_bg_suppress_body && rt_dom[n] >= 0 &&
         n_tag[rt_dom[n]] == T_BODY) suppress_bg = 1;
-    if (bg >= 0 && !suppress_bg &&
-        (kind == RT_BLOCK || kind == RT_INLINE_BLOCK ||
-         kind == RT_LIST_ITEM || kind == RT_TABLE_CELL)) {
-        gfx2d_rect_fill(sx, sy, w, h, bg);
+    if (bg >= 0 && !suppress_bg) {
+        if (radius > 0) {
+            gfx2d_rect_round_fill(sx, sy, w, h, radius, bg);
+        } else {
+            gfx2d_rect_fill(sx, sy, w, h, bg);
+        }
     }
 
-    /* 2. Border (1px) */
-    if (cs_border[cs][0] || cs_border[cs][1] || cs_border[cs][2] || cs_border[cs][3]) {
+    /* 3. Border (1px). With a non-zero radius the rounded outline replaces
+     * the four-sided rect-fill. gfx2d_rect_round draws a single-pixel
+     * stroke; we omit per-side gating in the rounded case (uniform radius
+     * implies uniform border in v1). */
+    int has_border = cs_border[cs][0] || cs_border[cs][1] ||
+                     cs_border[cs][2] || cs_border[cs][3];
+    if (has_border) {
         int bc = cs_border_color[cs];
-        if (cs_border[cs][0]) gfx2d_rect_fill(sx, sy, w, 1, bc);
-        if (cs_border[cs][2]) gfx2d_rect_fill(sx, sy + h - 1, w, 1, bc);
-        if (cs_border[cs][3]) gfx2d_rect_fill(sx, sy, 1, h, bc);
-        if (cs_border[cs][1]) gfx2d_rect_fill(sx + w - 1, sy, 1, h, bc);
+        if (radius > 0) {
+            gfx2d_rect_round(sx, sy, w, h, radius, bc);
+        } else {
+            if (cs_border[cs][0]) gfx2d_rect_fill(sx, sy, w, 1, bc);
+            if (cs_border[cs][2]) gfx2d_rect_fill(sx, sy + h - 1, w, 1, bc);
+            if (cs_border[cs][3]) gfx2d_rect_fill(sx, sy, 1, h, bc);
+            if (cs_border[cs][1]) gfx2d_rect_fill(sx + w - 1, sy, 1, h, bc);
+        }
     }
+}
 
-    /* 3. Content */
+/* Foreground content (text / replaced / marker / line box). Matches the
+ * Blink Foreground paint phase. */
+void paint_rt_content(int n, int sx, int sy) {
+    int kind = rt_kind[n];
     if (kind == RT_TEXT) {
         paint_rt_text(n, sx, sy);
     } else if (kind == RT_REPLACED) {
@@ -77,8 +160,34 @@ void paint_rt_node(int n) {
     } else if (kind == RT_LINE_BOX) {
         paint_rt_line_box(n, sx, sy);
     }
+}
 
-    /* 4. Children. Inline subtrees (RT_INLINE/RT_TEXT/RT_INLINE_BLOCK/
+void paint_rt_node(int n) {
+    int sx = rt_screen_x(n);
+    int sy = rt_screen_y(n);
+    int w  = rt_w[n];
+    int h  = rt_h[n];
+
+    int cs = rt_style[n];
+
+    /* Off-screen cull */
+    if (sy + h < viewport_y()) return;
+    if (sy > viewport_y() + viewport_h()) return;
+
+    paint_rt_box_decoration(n, sx, sy, w, h);
+    paint_rt_content(n, sx, sy);
+
+    /* Push a clip rect for overflow:hidden so descendant paints are
+     * trimmed to the content area. Match Blink's RenderLayer clip-rect
+     * behaviour for non-stacking-context overflow clip: clip to the
+     * border box (we don't yet inset by border width). */
+    int clip_pushed = 0;
+    if (cs_overflow[cs] == OVERFLOW_HIDDEN) {
+        paint_clip_push(sx, sy, w, h);
+        clip_pushed = 1;
+    }
+
+    /* Children. Inline subtrees (RT_INLINE/RT_TEXT/RT_INLINE_BLOCK/
      * RT_REPLACED) were absorbed into RT_LINE_BOX siblings during
      * flush_inline; LINE_BOX paint walks the atom slice and re-enters
      * replaced/inline-block via la_text_off < 0. Skip them here to avoid
@@ -93,6 +202,8 @@ void paint_rt_node(int n) {
         paint_rt_node(c);
         c = rt_next[c];
     }
+
+    if (clip_pushed) paint_clip_pop();
 }
 
 void paint_rt_text(int n, int sx, int sy) {
@@ -107,9 +218,21 @@ void paint_rt_text(int n, int sx, int sy) {
     if (len > 255) len = 255;
     for (int k = 0; k < len; k++) buf[k] = attr_pool[rt_text_off[n] + k];
     buf[len] = 0;
-    gfx2d_text_n(sx, sy, buf, len, fg, font);
+    int size_px = cs_font_size_px[cs];
+    int face = cs_face_id_for(cs);
+    int bold = cs_font_w[cs] >= 700;
+    int italic = cs_font_i[cs];
+    if (face >= 0 && size_px > 0) {
+        int baseline = sy + fontsys_ascent(face, size_px);
+        fontsys_draw_run_styled(face, size_px, sx, baseline, buf, len, fg,
+                                bold, italic);
+    } else {
+        gfx2d_text_n(sx, sy, buf, len, fg, font);
+    }
     if (cs_text_dec[cs] & TD_UNDERLINE) {
-        int uw = gfx2d_text_width_n(buf, len, font);
+        int uw = (face >= 0 && size_px > 0)
+                 ? fontsys_run_width(face, size_px, buf, len)
+                 : gfx2d_text_width_n(buf, len, font);
         gfx2d_rect_fill(sx, sy + effective_line_h(cs, tier) - 2, uw, 1, fg);
     }
 }
@@ -138,29 +261,44 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int fg = la_fg[k];
         if (fg < 0) fg = 0x000000;
         int bg = la_bg[k];
-        if (bg >= 0) gfx2d_rect_fill(ax, ay, la_w[k], effective_line_h(rt_style[n], tier), bg);
+        int line_h = effective_line_h(rt_style[n], tier);
+        if (bg >= 0) gfx2d_rect_fill(ax, ay, la_w[k], line_h, bg);
         char buf[256];
         int len = la_text_len[k];
         if (len > 255) len = 255;
         for (int kk = 0; kk < len; kk++) buf[kk] = attr_pool[la_text_off[k] + kk];
         buf[len] = 0;
-        int font = tier_to_font(tier);
-        gfx2d_text_n(ax, ay, buf, len, fg, font);
-        if (la_bold[k]) {
-            /* Bold: re-draw shifted to thicken strokes. LARGE-tier headings
-             * also strike vertically so h1/h2 read as visibly heavier than
-             * body bold. */
-            gfx2d_text_n(ax + 1, ay, buf, len, fg, font);
-            if (tier >= 3) {
-                gfx2d_text_n(ax, ay + 1, buf, len, fg, font);
-                gfx2d_text_n(ax + 1, ay + 1, buf, len, fg, font);
+        int face = la_face_id[k];
+        int size_px = la_size_px[k];
+        if (face >= 0 && size_px > 0) {
+            /* Place baseline so the glyph sits inside the line box with
+             * roughly correct ascent above and descent below. The
+             * fontsys metrics are the source of truth here - tier_*
+             * fallbacks only cover bootstrap atoms with no real face. */
+            int asc = fontsys_ascent(face, size_px);
+            int line_full = fontsys_line_height(face, size_px);
+            int extra = line_h - line_full;
+            if (extra < 0) extra = 0;
+            int baseline = sy + extra / 2 + asc;
+            fontsys_draw_run_styled(face, size_px, ax, baseline,
+                                    buf, len, fg,
+                                    la_bold[k], la_italic[k]);
+            if (la_underline[k]) {
+                gfx2d_rect_fill(ax, baseline + 2, la_w[k], 1, fg);
             }
-        }
-        if (la_underline[k]) {
-            /* Place underline just below the glyph rather than at the bottom
-             * of the line box, so it tracks the text instead of floating in
-             * the inter-line gap. */
-            gfx2d_rect_fill(ax, ay + glyph_h, la_w[k], 1, fg);
+        } else {
+            int font = tier_to_font(tier);
+            gfx2d_text_n(ax, ay, buf, len, fg, font);
+            if (la_bold[k]) {
+                gfx2d_text_n(ax + 1, ay, buf, len, fg, font);
+                if (tier >= 3) {
+                    gfx2d_text_n(ax, ay + 1, buf, len, fg, font);
+                    gfx2d_text_n(ax + 1, ay + 1, buf, len, fg, font);
+                }
+            }
+            if (la_underline[k]) {
+                gfx2d_rect_fill(ax, ay + glyph_h, la_w[k], 1, fg);
+            }
         }
     }
 }
@@ -362,10 +500,12 @@ void render() {
     /* address bar */
     draw_address_bar(cx, cy, cur_cw);
 
-    /* viewport (clipped) - paint the render tree into the content area */
+    /* viewport (clipped) - paint the render tree into the content area.
+     * paint_clip_init seeds the userland clip stack so OVERFLOW_HIDDEN
+     * pushes intersect with the viewport rect. */
     int vx = cx + viewport_x();
     int vy = cy + viewport_y();
-    gfx2d_clip_set(vx, vy, cur_cw - 12, viewport_h());
+    paint_clip_init(vx, vy, cur_cw - 12, viewport_h());
 
     if (rt_count > 0) paint_rt_node(0);
 
