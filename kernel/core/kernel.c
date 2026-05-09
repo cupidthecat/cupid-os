@@ -430,7 +430,9 @@ void _start(void) {
     // We're already in protected mode with segments set up.
     // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
-        "mov $0xA00000, %%esp\n"
+        /* Stack moved 0xA00000 -> 0xD00000 so it sits above kernel
+         * BSS (_kernel_end ~= 0x8A4000).  See memory.h. */
+        "mov $0xD00000, %%esp\n"
         "mov %%esp, %%ebp\n"
         /* Zero BSS region (_bss_start to _kernel_end) */
         "mov $_bss_start, %%edi\n"

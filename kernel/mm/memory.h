@@ -24,8 +24,15 @@ typedef struct heap_block {
   65536 /* 256MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
-#define STACK_BOTTOM 0x800000u /* Bottom of kernel stack (8MB)   */
-#define STACK_TOP 0xA00000u    /* Top of kernel stack (2MB tall) */
+/* Kernel stack moved from 0x800000-0xA00000 to 0xB00000-0xD00000
+ * because the linker placed kernel BSS through the old range:
+ * _bss_start (~0x4CE000) to _kernel_end (~0x8A4000) straddles
+ * 0x800000.  A 16 KB BSS array (cc_pp_seen_files_storage at
+ * 0x7fc820 .. 0x800820) sat right on top of the guard zone, so
+ * any write into its tail cleared the magic and the next
+ * stack_guard_check panicked.  0xB00000 is above _kernel_end. */
+#define STACK_BOTTOM 0xB00000u /* Bottom of kernel stack (11 MB) */
+#define STACK_TOP 0xD00000u    /* Top of kernel stack (2 MB tall) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex                 */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes)   */

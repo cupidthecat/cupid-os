@@ -72,7 +72,10 @@ void pmm_init(uint32_t kernel_end) {
   pmm_mark_region(0, reserved_end, 1);
 
   pmm_mark_region(0xA0000, 0x100000, 1);  /* BIOS/VGA hole  */
-  pmm_mark_region(0x800000, 0xA00000, 1); /* kernel stack (2MB) */
+  pmm_mark_region(0xB00000, 0xD00000, 1); /* kernel stack (2MB) — moved
+                                              from 0x800000 to dodge
+                                              kernel-BSS overlap that
+                                              clobbered the guard zone */
 
   /* Reserve CupidC and CupidASM JIT/AOT execution regions so the heap
    * never allocates into them.  Layout (well above kernel BSS + stack):

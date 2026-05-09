@@ -351,6 +351,25 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
     }
 }
 
+
+/* Shrink-to-fit width for `display: inline-block` with `width: auto`.
+ * CSS 2.1 §10.3.9.  Single-direct-text-child case (covers the chip
+ * pattern `<span class=pill>pill</span>`); for nested/mixed inline
+ * content we leave cs_width = -1 and let layout_block stretch to
+ * avail.  Estimate width from text length × half font size. */
+void shrink_to_fit_inline_block(int n) {
+    int sty = rt_style[n];
+    if (cs_width[sty] >= 0) return;
+    int fc = rt_first_child[n];
+    if (fc < 0) return;
+    if (rt_kind[fc] != RT_TEXT) return;
+    if (rt_next[fc] >= 0) return;
+    int csz = cs_font_size_px[sty];
+    int chw = 8;
+    if (csz > 0) chw = csz / 2 + 1;
+    cs_width[sty] = rt_text_len[fc] * chw;
+}
+
 void collect_inline_atoms(int n) {
     int kind = rt_kind[n];
     if (kind == RT_TEXT) {
@@ -369,7 +388,10 @@ void collect_inline_atoms(int n) {
         /* For replaced/inline-block: lay out as a mini block, then atom carries
          * the resulting w/h. */
         int avail = viewport_content_w();
-        if (kind == RT_INLINE_BLOCK) layout_block(n, avail);
+        if (kind == RT_INLINE_BLOCK) {
+            shrink_to_fit_inline_block(n);
+            layout_block(n, avail);
+        }
         int w = (rt_intrinsic_w[n] > 0) ? rt_intrinsic_w[n] : rt_w[n];
         int h = (rt_intrinsic_h[n] > 0) ? rt_intrinsic_h[n] : rt_h[n];
         /* Stamp the resolved size on the node now so hit_test (which
