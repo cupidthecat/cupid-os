@@ -53,6 +53,11 @@ void ua_default_style(int tag, int cs) {
     cs_shadow_dx[cs]     = 0;
     cs_shadow_dy[cs]     = 0;
     cs_shadow_color[cs]  = 0x000000;
+    cs_position[cs] = POS_STATIC;
+    cs_top[cs] = -1; cs_right[cs] = -1; cs_bottom[cs] = -1; cs_left[cs] = -1;
+    cs_z_index[cs] = 0;
+    cs_float[cs] = FLOAT_NONE;
+    cs_clear[cs] = CLEAR_NONE;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -834,6 +839,60 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         cs_min_height[cs] = css_value_len(cs, val_off, val_len);
         return;
     }
+    if (prop == CP_POSITION) {
+        if (css_value_keyword(val_off, val_len, "relative")) { cs_position[cs] = POS_RELATIVE; return; }
+        if (css_value_keyword(val_off, val_len, "absolute")) { cs_position[cs] = POS_ABSOLUTE; return; }
+        if (css_value_keyword(val_off, val_len, "fixed"))    { cs_position[cs] = POS_FIXED; return; }
+        cs_position[cs] = POS_STATIC;
+        return;
+    }
+    if (prop == CP_TOP) {
+        if (css_value_keyword(val_off, val_len, "auto")) { cs_top[cs] = -1; return; }
+        cs_top[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_RIGHT) {
+        if (css_value_keyword(val_off, val_len, "auto")) { cs_right[cs] = -1; return; }
+        cs_right[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_BOTTOM) {
+        if (css_value_keyword(val_off, val_len, "auto")) { cs_bottom[cs] = -1; return; }
+        cs_bottom[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_LEFT) {
+        if (css_value_keyword(val_off, val_len, "auto")) { cs_left[cs] = -1; return; }
+        cs_left[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_Z_INDEX) {
+        if (css_value_keyword(val_off, val_len, "auto")) { cs_z_index[cs] = 0; return; }
+        int v = 0;
+        int neg = 0;
+        int k = val_off;
+        if (k < val_off + val_len && css_value_pool[k] == '-') { neg = 1; k = k + 1; }
+        while (k < val_off + val_len &&
+               css_value_pool[k] >= '0' && css_value_pool[k] <= '9') {
+            v = v * 10 + (css_value_pool[k] - '0');
+            k = k + 1;
+        }
+        cs_z_index[cs] = neg ? -v : v;
+        return;
+    }
+    if (prop == CP_FLOAT) {
+        if (css_value_keyword(val_off, val_len, "left"))  { cs_float[cs] = FLOAT_LEFT;  return; }
+        if (css_value_keyword(val_off, val_len, "right")) { cs_float[cs] = FLOAT_RIGHT; return; }
+        cs_float[cs] = FLOAT_NONE;
+        return;
+    }
+    if (prop == CP_CLEAR) {
+        if (css_value_keyword(val_off, val_len, "left"))  { cs_clear[cs] = CLEAR_LEFT;  return; }
+        if (css_value_keyword(val_off, val_len, "right")) { cs_clear[cs] = CLEAR_RIGHT; return; }
+        if (css_value_keyword(val_off, val_len, "both"))  { cs_clear[cs] = CLEAR_BOTH;  return; }
+        cs_clear[cs] = CLEAR_NONE;
+        return;
+    }
     if (prop == CP_WHITE_SPACE) {
         if (css_value_keyword(val_off, val_len, "pre"))    { cs_white_space[cs] = WS_PRE; return; }
         if (css_value_keyword(val_off, val_len, "nowrap")) { cs_white_space[cs] = WS_NOWRAP; return; }
@@ -1428,8 +1487,8 @@ void style_resolve_all() {
          *    packs (specificity << 12) | doc_order so a higher specificity
          *    or later rule wins at equal level.
          *    Size matches MAX_CP_ID; CupidC requires a literal here. */
-        int winner_rule[48];
-        int winner_score[48];
+        int winner_rule[80];
+        int winner_score[80];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (css_rule_important[r]) continue;
@@ -1461,8 +1520,8 @@ void style_resolve_all() {
         /* 4. Important author rules: applied last so they override pass 1
          *    and inline style. Specificity + doc-order still resolves ties
          *    among important rules themselves. */
-        int imp_rule[48];
-        int imp_score[48];
+        int imp_rule[64];
+        int imp_score[64];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { imp_rule[p] = -1; imp_score[p] = -1; }
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (!css_rule_important[r]) continue;

@@ -72,27 +72,27 @@ int tier_line_h(int tier) {
 
 /* Resolve effective line height for a node given its computed style and the
  * tier in play (atoms can carry different tiers from the parent block). When
- * no `line-height` was specified, fall back to tier_line_h. */
+ * no `line-height` was specified, fall back to fontsys_line_height so real
+ * TTF metrics drive vertical rhythm at non-tier sizes; tier_line_h survives
+ * only for the bitmap-only path (no resolved face/size). */
 int effective_line_h(int cs, int tier) {
     if (cs < 0 || cs >= cs_count) return tier_line_h(tier);
     int lh = cs_line_height[cs];
-    if (lh < 0) {
-        /* No CSS line-height; pick a default proportional to the
-         * resolved px font size when available. tier_line_h is geared
-         * to the 6x8/8x8/16x16 bitmap glyphs and is too tight for the
-         * TTF path: at 14px (tier 0) the bitmap line-height was 12px,
-         * so 14px TTF glyphs in successive list items overlapped. */
-        int px = cs_font_size_px[cs];
-        if (px > 0) {
-            int v = (px * 12) / 10;        /* ~1.2 line-height */
-            if (v < tier_line_h(tier)) v = tier_line_h(tier);
-            return v;
+    int px = cs_font_size_px[cs];
+    int natural = tier_line_h(tier);
+    if (px > 0) {
+        int face = cs_face_id_for(cs);
+        if (face >= 0) {
+            int n = fontsys_line_height(face, px);
+            if (n > 0) natural = n;
+        } else {
+            natural = (px * 12) / 10;
         }
-        return tier_line_h(tier);
+        if (natural < tier_line_h(tier)) natural = tier_line_h(tier);
     }
+    if (lh < 0) return natural;
     if (cs_line_height_mult[cs]) {
-        int base = tier_line_h(tier);
-        int v = (base * lh) / 100;
+        int v = (natural * lh) / 100;
         if (v < 1) v = 1;
         return v;
     }
@@ -124,7 +124,47 @@ int can_break_after(char c) {
 /* Resolve the CSS font shorthand on `cs` to a fontsys face_id. Copies
  * the verbatim font-family value out of css_value_pool into a local
  * buffer (NUL-terminated) so it can be passed to fontsys_match.   */
-int cs_face_id_for(int cs) {
+/* Decode one UTF-8 codepoint from `p[0..len-1]`. Returns the byte
+ * advance (1..4) and stores the codepoint in *cp. On a malformed lead
+ * byte returns 1 with *cp = U+FFFD so callers can keep walking. Returns
+ * 0 only when len <= 0. */
+int utf8_decode_one(char *p, int len, int *cp) {
+    if (len <= 0) { *cp = 0; return 0; }
+    unsigned char b0 = (unsigned char)p[0];
+    if (b0 < 0x80) { *cp = (int)b0; return 1; }
+    if ((b0 & 0xE0) == 0xC0 && len >= 2) {
+        unsigned char b1 = (unsigned char)p[1];
+        if ((b1 & 0xC0) != 0x80) { *cp = 0xFFFD; return 1; }
+        *cp = ((int)(b0 & 0x1F) << 6) | (int)(b1 & 0x3F);
+        return 2;
+    }
+    if ((b0 & 0xF0) == 0xE0 && len >= 3) {
+        unsigned char b1 = (unsigned char)p[1];
+        unsigned char b2 = (unsigned char)p[2];
+        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80) { *cp = 0xFFFD; return 1; }
+        *cp = ((int)(b0 & 0x0F) << 12) | ((int)(b1 & 0x3F) << 6) | (int)(b2 & 0x3F);
+        return 3;
+    }
+    if ((b0 & 0xF8) == 0xF0 && len >= 4) {
+        unsigned char b1 = (unsigned char)p[1];
+        unsigned char b2 = (unsigned char)p[2];
+        unsigned char b3 = (unsigned char)p[3];
+        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80) {
+            *cp = 0xFFFD; return 1;
+        }
+        *cp = ((int)(b0 & 0x07) << 18) | ((int)(b1 & 0x3F) << 12) |
+              ((int)(b2 & 0x3F) << 6)  | (int)(b3 & 0x3F);
+        return 4;
+    }
+    *cp = 0xFFFD;
+    return 1;
+}
+
+/* Resolve the CSS font shorthand on `cs` to a fontsys face_id, optionally
+ * filtered by a unicode-range that must cover `cp`. Pass cp == -1 to
+ * skip range filtering (back-compat for callers without a codepoint).
+ * Webfonts (font_face.cc) take priority over kernel preinstalled faces. */
+int cs_face_id_for_cp(int cs, int cp) {
     char fam[200];
     int  fam_len = 0;
     int  off = cs_font_family_off[cs];
@@ -140,30 +180,55 @@ int cs_face_id_for(int cs) {
     int gen = cs_font_generic[cs];
     int weight = cs_font_w[cs];
     int italic = cs_font_i[cs];
-    /* §2.x Webfonts (font_face.cc) take priority over the kernel's
-     * preinstalled faces. font_face_match scans every comma-separated
-     * family name; bare fallback path goes through fontsys_match. */
     if (fam_len > 0) {
-        int wf = font_face_match(fam, fam_len, weight, italic);
+        int wf = font_face_match_cp(fam, fam_len, weight, italic, cp);
         if (wf >= 0) return wf;
     }
     return fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+}
+
+/* Range-blind variant for callers that pick one face per atom (line
+ * height, list markers, generic measurement). */
+int cs_face_id_for(int cs) {
+    return cs_face_id_for_cp(cs, -1);
 }
 
 int text_slice_w(int off, int len, int tier) {
     return gfx2d_text_width_n(attr_pool + off, len, tier_to_font(tier));
 }
 
-/* fontsys-aware width: picks the real face/size for `cs` and asks
- * fontsys for the run width. Falls back to the tier path when size_px
- * is unavailable (e.g. bootstrap atoms with no resolved cs). */
+/* fontsys-aware width with unicode-range awareness: walk the UTF-8 byte
+ * run codepoint by codepoint, resolve the face per cp (so Google Fonts
+ * subsets route correctly), and sum hmtx advances. Falls back to the
+ * tier path when size_px is unavailable (e.g. bootstrap atoms with no
+ * resolved cs). */
 int text_slice_w_cs(int cs, int off, int len) {
     if (cs >= 0 && cs < cs_count && cs_font_size_px[cs] > 0) {
-        int face = cs_face_id_for(cs);
-        if (face >= 0) {
-            return fontsys_run_width(face, cs_font_size_px[cs],
-                                     attr_pool + off, len);
+        int total = 0;
+        int i = 0;
+        int got_any = 0;
+        while (i < len) {
+            int cp;
+            int adv = utf8_decode_one(attr_pool + off + i, len - i, &cp);
+            if (adv <= 0) break;
+            int face = cs_face_id_for_cp(cs, cp);
+            if (face >= 0) {
+                int aw = fontsys_advance(face, cp, cs_font_size_px[cs]);
+                if (aw <= 0) {
+                    /* Glyph missing in this face's cmap; fall through to
+                     * the tier-bitmap advance so we never return 0 width
+                     * (which would collapse adjacent words). */
+                    aw = gfx2d_glyph_advance(' ', tier_to_font(cs_font_size_tier[cs]));
+                    if (aw <= 0) aw = cs_font_size_px[cs] / 2 + 1;
+                }
+                total = total + aw;
+                got_any = 1;
+            } else {
+                total = total + tier_char_w(cs_font_size_tier[cs]);
+            }
+            i = i + adv;
         }
+        if (got_any) return total;
     }
     return gfx2d_text_width_n(attr_pool + off, len,
                               tier_to_font(cs_font_size_tier[cs]));
@@ -231,6 +296,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
                 la_font_tier[la_count] = tier;
                 la_size_px[la_count] = size_px;
                 la_face_id[la_count] = face_id;
+                la_cs[la_count] = cs;
                 la_italic[la_count] = italic;
                 la_fg[la_count] = fg; la_bg[la_count] = bg;
                 la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -247,6 +313,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
                     la_font_tier[la_count] = tier;
                     la_size_px[la_count] = size_px;
                     la_face_id[la_count] = face_id;
+                    la_cs[la_count] = cs;
                     la_italic[la_count] = italic;
                     la_fg[la_count] = fg; la_bg[la_count] = bg;
                     la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -303,6 +370,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;
+            la_cs[la_count] = cs;
             la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -341,6 +409,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;
+            la_cs[la_count] = cs;
             la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -408,6 +477,7 @@ void collect_inline_atoms(int n) {
             la_font_tier[la_count] = 0;
             la_size_px[la_count] = 0;
             la_face_id[la_count] = -1;
+            la_cs[la_count] = -1;
             la_italic[la_count] = 0;
             la_fg[la_count] = 0; la_bg[la_count] = 0;
             la_bold[la_count] = 0; la_underline[la_count] = 0;
@@ -527,24 +597,23 @@ void layout_block(int n, int avail_w) {
      * until cs_box_sizing exists. */
     int sty = rt_style[n];
     int style_w = cs_width[sty];
-    int w;
+    int extra_w = rt_padding_l(n) + rt_padding_r(n)
+                + rt_border_l(n)  + rt_border_r(n);
+    int content_w;
     if (style_w >= 0) {
-        w = style_w + rt_padding_l(n) + rt_padding_r(n)
-                    + rt_border_l(n)  + rt_border_r(n);
+        content_w = style_w;
     } else {
-        w = avail_w - rt_margin_l(n) - rt_margin_r(n);
+        content_w = avail_w - rt_margin_l(n) - rt_margin_r(n) - extra_w;
     }
-    if (w < 0) w = 0;
-    /* min/max-width clamps. min-width wins over max-width per CSS spec. */
+    /* min/max-width clamps apply to the content box per CSS 2.1 §10.4
+     * (content-box sizing). min-width wins on conflict per spec. */
     int max_w_clamp = cs_max_width[sty];
     int min_w_clamp = cs_min_width[sty];
-    if (max_w_clamp >= 0 && w > max_w_clamp) w = max_w_clamp;
-    if (min_w_clamp >= 0 && w < min_w_clamp) w = min_w_clamp;
-    rt_w[n] = w;
-
-    int content_w = w - rt_padding_l(n) - rt_padding_r(n)
-                    - rt_border_l(n) - rt_border_r(n);
+    if (max_w_clamp >= 0 && content_w > max_w_clamp) content_w = max_w_clamp;
+    if (min_w_clamp >= 0 && content_w < min_w_clamp) content_w = min_w_clamp;
     if (content_w < 0) content_w = 0;
+    int w = content_w + extra_w;
+    rt_w[n] = w;
 
     int cx = rt_padding_l(n) + rt_border_l(n);
     int cy = rt_padding_t(n) + rt_border_t(n);
@@ -740,20 +809,153 @@ void layout_block(int n, int avail_w) {
     }
 
     /* Resolve own height. Same content-box convention as width: the
-     * `height` property describes the content box, so the painted
-     * border-box height adds top+bottom padding+border. */
+     * `height` property describes the content box, and min/max-height
+     * also apply to the content box per CSS 2.1 §10.7. */
     int style_h = cs_height[sty];
+    int extra_h = rt_padding_t(n) + rt_padding_b(n)
+                + rt_border_t(n)  + rt_border_b(n);
+    int content_h;
     if (style_h >= 0) {
-        rt_h[n] = style_h + rt_padding_t(n) + rt_padding_b(n)
-                          + rt_border_t(n)  + rt_border_b(n);
+        content_h = style_h;
     } else {
-        rt_h[n] = cy + rt_padding_b(n) + rt_border_b(n);
+        content_h = cy - rt_padding_t(n) - rt_border_t(n);
     }
-    /* min/max-height clamps */
     int max_h_clamp = cs_max_height[sty];
     int min_h_clamp = cs_min_height[sty];
-    if (max_h_clamp >= 0 && rt_h[n] > max_h_clamp) rt_h[n] = max_h_clamp;
-    if (min_h_clamp >= 0 && rt_h[n] < min_h_clamp) rt_h[n] = min_h_clamp;
+    if (max_h_clamp >= 0 && content_h > max_h_clamp) content_h = max_h_clamp;
+    if (min_h_clamp >= 0 && content_h < min_h_clamp) content_h = min_h_clamp;
+    if (content_h < 0) content_h = 0;
+    rt_h[n] = content_h + extra_h;
+}
+
+/* Find the document-space x of node n by summing rt_x along its parent
+ * chain. Used by layout_oof to anchor an absolute box against a
+ * positioned ancestor whose final rt_x is already filled in. Stops at
+ * any oof ancestor (its rt_x is already absolute). */
+int rt_doc_x_of(int n) {
+    int x = 0;
+    int cur = n;
+    while (cur >= 0) {
+        x = x + rt_x[cur];
+        if (rt_is_oof[cur]) break;
+        cur = rt_parent[cur];
+    }
+    return x;
+}
+int rt_doc_y_of(int n) {
+    int y = 0;
+    int cur = n;
+    while (cur >= 0) {
+        y = y + rt_y[cur];
+        if (rt_is_oof[cur]) break;
+        cur = rt_parent[cur];
+    }
+    return y;
+}
+
+/* Walk parent chain looking for nearest positioned ancestor. If none,
+ * the containing block is the initial CB (the document root, RT 0).
+ * Returns the RT index. */
+int rt_containing_block(int n) {
+    int p = rt_parent[n];
+    while (p >= 0) {
+        int sty = rt_style[p];
+        if (cs_position[sty] != POS_STATIC) return p;
+        p = rt_parent[p];
+    }
+    return 0;
+}
+
+/* Resolve an `position: absolute | fixed` node against its containing
+ * block. Containing block for absolute is the nearest positioned
+ * ancestor (or document root); for fixed it is the viewport, anchored
+ * at (0,0) with width = viewport content width. Sets rt_x/rt_y to
+ * absolute document-space coords and marks rt_is_oof so paint walks
+ * the value directly instead of summing the ancestor chain. */
+void layout_oof_one(int oof) {
+    int sty = rt_style[oof];
+    int pos = cs_position[sty];
+    if (pos != POS_ABSOLUTE && pos != POS_FIXED) return;
+
+    int cb_x = 0;
+    int cb_y = 0;
+    int cb_w = 0;
+    int cb_h = 0;
+    if (pos == POS_FIXED) {
+        cb_x = 0; cb_y = 0;
+        cb_w = viewport_content_w();
+        cb_h = (cur_ch > (ADDR_H + 1) + (STATUS_H + 1))
+               ? cur_ch - (ADDR_H + 1) - (STATUS_H + 1) : 0;
+    } else {
+        int cb = rt_containing_block(oof);
+        cb_x = rt_doc_x_of(cb) + rt_padding_l(cb) + rt_border_l(cb);
+        cb_y = rt_doc_y_of(cb) + rt_padding_t(cb) + rt_border_t(cb);
+        cb_w = rt_w[cb] - rt_padding_l(cb) - rt_padding_r(cb)
+                       - rt_border_l(cb)  - rt_border_r(cb);
+        cb_h = rt_h[cb] - rt_padding_t(cb) - rt_padding_b(cb)
+                       - rt_border_t(cb)  - rt_border_b(cb);
+    }
+    if (cb_w < 0) cb_w = 0;
+    if (cb_h < 0) cb_h = 0;
+
+    /* Determine width: explicit cs_width first, otherwise derive from
+     * left+right against the containing block, otherwise inherit from
+     * children (run intrinsic block layout). */
+    int has_w = (cs_width[sty] >= 0);
+    int has_h = (cs_height[sty] >= 0);
+    int leftv = cs_left[sty];
+    int rightv = cs_right[sty];
+    int topv = cs_top[sty];
+    int botv = cs_bottom[sty];
+    int w_resolved = -1;
+    if (has_w) {
+        w_resolved = cs_width[sty];
+    } else if (leftv >= 0 && rightv >= 0) {
+        w_resolved = cb_w - leftv - rightv;
+        if (w_resolved < 0) w_resolved = 0;
+    }
+
+    /* Lay out the subtree. Pass either the resolved width or the CB
+     * width as the cap so block flow inside has a max. */
+    int avail = (w_resolved >= 0) ? w_resolved : cb_w;
+    layout_block(oof, avail);
+    if (w_resolved >= 0) rt_w[oof] = w_resolved
+                                   + rt_padding_l(oof) + rt_padding_r(oof)
+                                   + rt_border_l(oof)  + rt_border_r(oof);
+
+    int x = 0;
+    int y = 0;
+    if (leftv >= 0) {
+        x = cb_x + leftv;
+    } else if (rightv >= 0) {
+        x = cb_x + cb_w - rightv - rt_w[oof];
+    } else {
+        /* Static-position fallback: use the in-flow rt_x assigned during
+         * the first pass. */
+        x = rt_doc_x_of(oof);
+    }
+    if (topv >= 0) {
+        y = cb_y + topv;
+    } else if (botv >= 0) {
+        y = cb_y + cb_h - botv - rt_h[oof];
+    } else {
+        y = rt_doc_y_of(oof);
+    }
+    if (has_h && cs_height[sty] >= 0) {
+        rt_h[oof] = cs_height[sty]
+                  + rt_padding_t(oof) + rt_padding_b(oof)
+                  + rt_border_t(oof)  + rt_border_b(oof);
+    }
+    rt_x[oof] = x;
+    rt_y[oof] = y;
+    rt_is_oof[oof] = 1;
+    rt_is_fixed[oof] = (pos == POS_FIXED) ? 1 : 0;
+}
+
+void layout_oof(void) {
+    for (int i = 0; i < rt_oof_count; i = i + 1) {
+        layout_oof_one(rt_oof_list[i]);
+    }
 }
 
 void run_layout() {
@@ -762,11 +964,11 @@ void run_layout() {
     /* Root sits at document origin (0,0). rt_screen_x/y in paint.cc add
      * viewport_x()/viewport_y() at paint time, so seeding root with the
      * viewport origin double-counts the chrome and shoves the first h2
-     * ~viewport_y px below where Chrome would draw it (the "huge gap"
-     * bug on d1_selectors_v2.html). */
+     * ~viewport_y px below where Chrome would draw it. */
     rt_x[root] = 0;
     rt_y[root] = 0;
     int avail = viewport_content_w();
     layout_block(root, avail);
+    layout_oof();
     doc_h = rt_y[root] + rt_h[root];
 }

@@ -21,7 +21,13 @@
 #include "../fs/vfs.h"
 #include "../fs/vfs_helpers.h"
 
-#define FONTSYS_MAX_FACES   32
+/* Cap absorbs @font-face fonts downloaded per-site. Modern Google Fonts
+ * stylesheets declare 12+ unicode-subsetted faces per family; the browser
+ * holds up to 128 webfont slots and registers each here, so 160 covers
+ * those plus the 3 bundled Liberation faces with margin. ~250 B per slot
+ * of parallel-array metadata = ~40 KiB. fontsys_unregister now frees
+ * slots on per-page navigation, so this cap is rarely a wall. */
+#define FONTSYS_MAX_FACES   160
 #define FONTSYS_GCACHE_CAP  2048
 
 #define FAMILY_NAME_CAP     48
@@ -726,6 +732,53 @@ void fontsys_draw_run_styled(int face_id, int size_px,
         pen_x += adv;
         if (want_bold) pen_x += 1;
     }
+}
+
+/* Drop a previously-registered face. Frees the blob if we own it,
+ * clears the slot so fontsys_match skips it, and evicts every cached
+ * glyph that referenced it (otherwise stale gc_alpha pointers would
+ * survive an unregister/free pair). Safe to call on already-cleared
+ * slots: returns 0. Returns -1 if face_id is out of range. */
+int fontsys_unregister(int face_id) {
+    if (face_id < 0 || face_id >= face_count) return -1;
+    if (!face_used[face_id]) return 0;
+    if (face_owns_blob[face_id] && face_blob[face_id]) {
+        /* face_blob is `const uint8_t *` because most slots point at
+         * read-only bundled assets. take_ownership=1 slots came from
+         * kmalloc, so casting away const here is safe — we own the
+         * memory we're freeing. */
+        kfree((void *)(size_t)face_blob[face_id]);
+    }
+    face_blob[face_id] = (const uint8_t*)0;
+    face_blob_len[face_id] = 0;
+    face_owns_blob[face_id] = 0;
+    face_used[face_id] = 0;
+    face_family[face_id][0] = 0;
+    face_family_lower[face_id][0] = 0;
+    face_path[face_id][0] = 0;
+    face_weight[face_id] = 0;
+    face_italic[face_id] = 0;
+    /* If this face was wired in as a generic-family fallback, clear it
+     * so future lookups don't dereference a freed slot. */
+    for (int g = 0; g < 8; g++) {
+        if (generic_face[g] == face_id) generic_face[g] = -1;
+    }
+    if (g_os_face == face_id) g_os_face = -1;
+    /* Evict matching glyph-cache entries. */
+    for (int i = 0; i < FONTSYS_GCACHE_CAP; i++) {
+        if (!gc_used[i]) continue;
+        if (gc_face_id[i] != face_id) continue;
+        if (gc_alpha[i]) {
+            kfree(gc_alpha[i]);
+            if (gc_bytes_total >= (size_t)(gc_w[i] * gc_h[i])) {
+                gc_bytes_total -= (size_t)(gc_w[i] * gc_h[i]);
+            }
+        }
+        gc_alpha[i] = (uint8_t*)0;
+        gc_used[i] = 0;
+        gc_n_used--;
+    }
+    return 0;
 }
 
 /* Diagnostics. */

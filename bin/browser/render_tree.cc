@@ -24,6 +24,8 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_h[n] = 0;
     rt_intrinsic_w[n] = 0;
     rt_intrinsic_h[n] = 0;
+    rt_is_oof[n] = 0;
+    rt_is_fixed[n] = 0;
     rt_link_idx[n] = -1;
     rt_input_idx[n] = -1;
     rt_line_atom_first[n] = 0;
@@ -169,24 +171,39 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         }
     }
 
-    /* For <img>: intrinsic dims from width/height attrs (placeholder default 80x60) */
+    /* For <img>: intrinsic dims from HTML width/height attrs first, then
+     * decoded pixel dimensions (n_img_intrinsic_*) once image.cc has
+     * fetched the bytes, then 80x60 placeholder if neither is known. */
     if (tag == T_IMG) {
         int w_off = dom_attr_get(dom, "width");
         int h_off = dom_attr_get(dom, "height");
-        rt_intrinsic_w[n] = 80;     /* default */
-        rt_intrinsic_h[n] = 60;
+        int dw = -1, dh = -1;
         if (w_off >= 0) {
             int v = 0;
             char *s = attr_pool + w_off;
             for (int k = 0; s[k] >= '0' && s[k] <= '9'; k++) v = v*10 + (s[k]-'0');
-            if (v > 0) rt_intrinsic_w[n] = v;
+            if (v > 0) dw = v;
         }
         if (h_off >= 0) {
             int v = 0;
             char *s = attr_pool + h_off;
             for (int k = 0; s[k] >= '0' && s[k] <= '9'; k++) v = v*10 + (s[k]-'0');
-            if (v > 0) rt_intrinsic_h[n] = v;
+            if (v > 0) dh = v;
         }
+        int decoded_w = n_img_intrinsic_w[dom];
+        int decoded_h = n_img_intrinsic_h[dom];
+        if (dw < 0 && decoded_w > 0) dw = decoded_w;
+        if (dh < 0 && decoded_h > 0) dh = decoded_h;
+        /* If only one axis specified, scale the other to preserve aspect
+         * ratio when we have decoded pixels. */
+        if (dw > 0 && dh < 0 && decoded_w > 0 && decoded_h > 0) {
+            dh = (decoded_h * dw) / decoded_w;
+        }
+        if (dh > 0 && dw < 0 && decoded_w > 0 && decoded_h > 0) {
+            dw = (decoded_w * dh) / decoded_h;
+        }
+        rt_intrinsic_w[n] = (dw > 0) ? dw : 80;
+        rt_intrinsic_h[n] = (dh > 0) ? dh : 60;
     }
 
     /* For <input>: bind input index, set intrinsic size. Checkbox/radio
@@ -257,8 +274,25 @@ void rt_anon_table_fixup() {
     (void)0;
 }
 
+/* Walk freshly-built render tree, append every node whose computed
+ * style is positioned (absolute / fixed) to rt_oof_list so layout's
+ * second pass can resolve it against its containing block. Relative
+ * stays in flow — only its paint offset shifts. */
+void rt_collect_oof(int n) {
+    if (n < 0) return;
+    int sty = rt_style[n];
+    int pos = cs_position[sty];
+    if ((pos == POS_ABSOLUTE || pos == POS_FIXED) && rt_oof_count < 1024) {
+        rt_oof_list[rt_oof_count] = n;
+        rt_oof_count = rt_oof_count + 1;
+    }
+    int c = rt_first_child[n];
+    while (c >= 0) { rt_collect_oof(c); c = rt_next[c]; }
+}
+
 void build_render_tree() {
     rt_count = 0;
+    rt_oof_count = 0;
     la_count = 0;
     links_count = 0;     /* rebuilt as <a> nodes are walked below */
     /* Synthetic RT root mirrors DOM root (DOM index 0 = T_ROOT) */
@@ -266,6 +300,7 @@ void build_render_tree() {
     if (root < 0) return;
     build_rt_children(0, root);
     rt_anon_table_fixup();
+    rt_collect_oof(root);
 }
 
 /* Dormant debug helper (kept for future use, not called) */

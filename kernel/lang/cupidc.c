@@ -27,6 +27,7 @@
 #include "fat16.h"
 #include "ansi.h"
 #include "fontsys.h"
+#include "deflate.h"
 #include "gfx2d.h"
 #include "gfx2d_assets.h"
 #include "gfx2d_icons.h"
@@ -1666,6 +1667,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_image_load_mem;
   BIND("gfx2d_image_load_mem", p_gfx2d_image_load_mem, 2);
 
+  int (*p_kdeflate_raw)(const uint8_t *, uint32_t, uint8_t *, uint32_t) =
+      kdeflate_raw;
+  BIND_T("kdeflate_raw", p_kdeflate_raw, 4, TYPE_INT);
+
   void (*p_gfx2d_image_free)(int) = gfx2d_image_free;
   BIND("gfx2d_image_free", p_gfx2d_image_free, 1);
 
@@ -1766,6 +1771,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_fontsys_register_blob)(const char *, int, int) = fontsys_register_blob;
   BIND_T("fontsys_register_blob", p_fontsys_register_blob, 3, TYPE_INT);
+
+  int (*p_fontsys_unregister)(int) = fontsys_unregister;
+  BIND_T("fontsys_unregister", p_fontsys_unregister, 1, TYPE_INT);
 
   int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
   BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);

@@ -517,6 +517,28 @@ int css_match_property(char *s, int len) {
     if (len == 13 && b_strieq_n(s, "border-radius", 13))          return CP_BORDER_RADIUS;
     if (len == 10 && b_strieq_n(s, "box-shadow",    10))          return CP_BOX_SHADOW;
     if (len == 8  && b_strieq_n(s, "overflow",       8))          return CP_OVERFLOW;
+    if (len == 6  && b_strieq_n(s, "cursor",         6))          return CP_CURSOR;
+    if (len == 7  && b_strieq_n(s, "opacity",        7))          return CP_OPACITY;
+    if (len == 16 && b_strieq_n(s, "border-collapse",16))         return CP_BORDER_COLLAPSE;
+    if (len == 10 && b_strieq_n(s, "box-sizing",    10))          return CP_BOX_SIZING;
+    if (len == 14 && b_strieq_n(s, "text-transform",14))          return CP_TEXT_TRANSFORM;
+    if (len == 11 && b_strieq_n(s, "text-indent",   11))          return CP_TEXT_INDENT;
+    if (len == 14 && b_strieq_n(s, "letter-spacing",14))          return CP_LETTER_SPACING;
+    if (len == 12 && b_strieq_n(s, "word-spacing", 12))           return CP_WORD_SPACING;
+    if (len == 9  && b_strieq_n(s, "word-wrap",     9))           return CP_WORD_WRAP;
+    if (len == 13 && b_strieq_n(s, "overflow-wrap",13))           return CP_WORD_WRAP;  /* alias */
+    if (len == 7  && b_strieq_n(s, "outline",       7))           return CP_OUTLINE;
+    if (len == 13 && b_strieq_n(s, "outline-color",13))           return CP_OUTLINE_COLOR;
+    if (len == 13 && b_strieq_n(s, "outline-width",13))           return CP_OUTLINE_WIDTH;
+    if (len == 13 && b_strieq_n(s, "outline-style",13))           return CP_OUTLINE_STYLE;
+    if (len == 8  && b_strieq_n(s, "position",       8))          return CP_POSITION;
+    if (len == 3  && b_strieq_n(s, "top",            3))          return CP_TOP;
+    if (len == 5  && b_strieq_n(s, "right",          5))          return CP_RIGHT;
+    if (len == 6  && b_strieq_n(s, "bottom",         6))          return CP_BOTTOM;
+    if (len == 4  && b_strieq_n(s, "left",           4))          return CP_LEFT;
+    if (len == 7  && b_strieq_n(s, "z-index",        7))          return CP_Z_INDEX;
+    if (len == 5  && b_strieq_n(s, "float",          5))          return CP_FLOAT;
+    if (len == 5  && b_strieq_n(s, "clear",          5))          return CP_CLEAR;
     return 0;
 }
 
@@ -646,18 +668,122 @@ int css_at_parse_url(char *s, int len, int i, int *out_off, int *out_len, int *a
     return 1;
 }
 
+/* Parse one hex token of the unicode-range descriptor at `s..e` and emit
+ * its (lo, hi) pair via *out_lo/*out_hi. Grammar (W3C css-fonts §4.5):
+ *   U+XXXX            (single)
+ *   U+XXXX-YYYY       (range)
+ *   U+XX??            (wildcard; ? expands to 0 for lo, F for hi)
+ * Returns 1 on success, 0 if the token is malformed. */
+int ff_parse_ur_token(char *text, int s, int e, int *out_lo, int *out_hi) {
+    while (s < e && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
+    if (s + 2 > e) return 0;
+    if (text[s] != 'U' && text[s] != 'u') return 0;
+    if (text[s+1] != '+') return 0;
+    s = s + 2;
+    int lo = 0;
+    int hi = 0;
+    int seen = 0;
+    int has_q = 0;
+    while (s < e) {
+        char c = text[s];
+        int dig = -1;
+        if (c >= '0' && c <= '9') dig = c - '0';
+        else if (c >= 'a' && c <= 'f') dig = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F') dig = c - 'A' + 10;
+        else if (c == '?') { dig = 0 - 2; has_q = 1; }
+        else break;
+        if (dig == 0 - 2) {
+            lo = (lo << 4);
+            hi = (hi << 4) | 0xF;
+        } else {
+            lo = (lo << 4) | dig;
+            hi = (hi << 4) | dig;
+        }
+        seen = seen + 1;
+        s = s + 1;
+    }
+    if (seen == 0) return 0;
+    if (s < e && text[s] == '-' && !has_q) {
+        s = s + 1;
+        hi = 0;
+        int seen2 = 0;
+        while (s < e) {
+            char c = text[s];
+            int dig = -1;
+            if (c >= '0' && c <= '9') dig = c - '0';
+            else if (c >= 'a' && c <= 'f') dig = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') dig = c - 'A' + 10;
+            else break;
+            hi = (hi << 4) | dig;
+            seen2 = seen2 + 1;
+            s = s + 1;
+        }
+        if (seen2 == 0) return 0;
+    }
+    *out_lo = lo;
+    *out_hi = hi;
+    return 1;
+}
+
+/* Parse the unicode-range descriptor value into up to `cap` (lo,hi)
+ * pairs, stored in r_lo[]/r_hi[]. Returns the number of ranges parsed
+ * (0..cap). On overflow returns cap and silently drops further tokens. */
+int ff_parse_unicode_range(char *text, int v_start, int v_end,
+                           int *r_lo, int *r_hi, int cap) {
+    int n = 0;
+    int i = v_start;
+    while (i < v_end && n < cap) {
+        while (i < v_end && (text[i] == ' ' || text[i] == '\t' ||
+                             text[i] == ',' || text[i] == '\n' ||
+                             text[i] == '\r')) i = i + 1;
+        if (i >= v_end) break;
+        int t_start = i;
+        while (i < v_end && text[i] != ',') i = i + 1;
+        int lo = 0;
+        int hi = 0;
+        if (ff_parse_ur_token(text, t_start, i, &lo, &hi)) {
+            r_lo[n] = lo;
+            r_hi[n] = hi;
+            n = n + 1;
+        }
+    }
+    return n;
+}
+
+/* Score a `format(...)` token. Higher is better. Unknown returns 0
+ * (we'd skip it). Bare-url (no format token) is scored 1 by the caller.
+ * truetype/otf/ttf/opentype = 4, woff2 = 3, woff = 2. WOFF2 outranks
+ * WOFF in modern stylesheets (smaller payload), but WOFF1 is more
+ * likely to decode without our brotli dep so we bias slightly toward
+ * woff2 anyway and let woff1_unwrap fallback handle the rest. */
+int ff_format_score(char *text, int f_start, int f_len) {
+    if (f_len == 8 && b_strieq_n(text + f_start, "truetype", 8)) return 4;
+    if (f_len == 8 && b_strieq_n(text + f_start, "opentype", 8)) return 4;
+    if (f_len == 3 && b_strieq_n(text + f_start, "ttf", 3)) return 4;
+    if (f_len == 3 && b_strieq_n(text + f_start, "otf", 3)) return 4;
+    if (f_len == 5 && b_strieq_n(text + f_start, "woff2", 5)) return 3;
+    if (f_len == 4 && b_strieq_n(text + f_start, "woff", 4)) return 2;
+    return 0;
+}
+
 /* Parse `@font-face { ... }` and register a webfont with font_face.cc.
  * `i` points just past "@font-face". Returns the position after the
  * closing '}'. Recognised descriptors:
- *   font-family: <ident-or-string>
- *   src: url("...") [format("truetype"|"opentype")] [, ...]
- *   font-weight: <int>|normal|bold (default 400)
- *   font-style:  italic|normal     (default normal)
+ *   font-family:    <ident-or-string>
+ *   src:            url("...") [format("...")] [, ...]
+ *   font-weight:    <int>|normal|bold (default 400)
+ *   font-style:     italic|normal     (default normal)
+ *   unicode-range:  U+XXXX[-YYYY] [, U+...]   (default: covers all CPs)
  *
- * WOFF/WOFF2 sources are skipped with a serial warning - we lack a
- * Brotli/zlib decompressor. Only the first acceptable URL in the src
- * list is fetched; Blink iterates with fallback, but for v1 a single
- * source is enough for the common Liberation/Roboto stylesheet shape. */
+ * The src list is walked end-to-end. Each url(...) entry is scored by
+ * its format token (truetype/otf=4, woff2=3, woff=2, bare=1). The top
+ * 3 by score (ties broken by source order) become the slot's fallback
+ * chain; the pump tries them in order until one decodes.
+ *
+ * WOFF1 is decompressed via woff.cc + kdeflate_raw. WOFF2 is currently
+ * stubbed (woff2.cc returns NULL); the pump falls through to the next
+ * URL. local() tokens are silently skipped (no system-font lookup
+ * surface). */
 int css_at_font_face(char *text, int len, int i) {
     while (i < len && (text[i] == ' ' || text[i] == '\t' ||
                        text[i] == '\n' || text[i] == '\r')) i = i + 1;
@@ -666,6 +792,7 @@ int css_at_font_face(char *text, int len, int i) {
 
     int family_off = -1; int family_len = 0;
     int src_off    = -1; int src_len    = 0;
+    int ur_off     = -1; int ur_len     = 0;
     int weight = 400;
     int italic = 0;
 
@@ -695,6 +822,8 @@ int css_at_font_face(char *text, int len, int i) {
             family_off = v_start; family_len = v_l;
         } else if (p_l == 3 && b_strieq_n(text + p_start, "src", 3)) {
             src_off = v_start; src_len = v_l;
+        } else if (p_l == 13 && b_strieq_n(text + p_start, "unicode-range", 13)) {
+            ur_off = v_start; ur_len = v_l;
         } else if (p_l == 11 && b_strieq_n(text + p_start, "font-weight", 11)) {
             if (b_strieq_n(text + v_start, "bold",   v_l < 4 ? v_l : 4) && v_l == 4)   weight = 700;
             else if (b_strieq_n(text + v_start, "normal", v_l < 6 ? v_l : 6) && v_l == 6) weight = 400;
@@ -715,16 +844,35 @@ int css_at_font_face(char *text, int len, int i) {
 
     if (family_off < 0 || src_off < 0) return i;
 
-    /* Walk the src list. Each entry: url(...) [format("...")]. */
+    /* Walk the src list, collecting up to 3 candidates ranked by format
+     * score. Each url(...) entry may be followed by an optional
+     * format("...") token; bare url() scores 1. */
+    int cand_score[3]; cand_score[0] = -1; cand_score[1] = -1; cand_score[2] = -1;
+    int cand_off  [3];
+    int cand_len  [3];
+    int cand_order[3]; cand_order[0] = 0; cand_order[1] = 0; cand_order[2] = 0;
+    int order_seq = 0;
+
     int s = src_off;
     int s_end = src_off + src_len;
     while (s < s_end) {
         while (s < s_end && (text[s] == ' ' || text[s] == '\t' ||
                               text[s] == ',' || text[s] == '\n' || text[s] == '\r')) s = s + 1;
         if (s >= s_end) break;
+        /* Skip local(...) tokens entirely. */
+        if (s + 6 <= s_end && b_strieq_n(text + s, "local(", 6)) {
+            int depth = 1;
+            s = s + 6;
+            while (s < s_end && depth > 0) {
+                if (text[s] == '(') depth = depth + 1;
+                else if (text[s] == ')') depth = depth - 1;
+                s = s + 1;
+            }
+            while (s < s_end && text[s] != ',') s = s + 1;
+            continue;
+        }
         int u_off; int u_len; int u_after;
         if (!css_at_parse_url(text, s_end, s, &u_off, &u_len, &u_after)) {
-            /* Skip to next comma. */
             while (s < s_end && text[s] != ',') s = s + 1;
             continue;
         }
@@ -732,8 +880,7 @@ int css_at_font_face(char *text, int len, int i) {
         /* Optional format("..."). */
         int s_save = s;
         while (s < s_end && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
-        int format_ok = 1;     /* default: bare url() means TTF/OTF */
-        int format_known = 0;
+        int score = 1;     /* bare url() */
         if (s + 7 <= s_end && b_strieq_n(text + s, "format(", 7)) {
             s = s + 7;
             while (s < s_end && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
@@ -749,27 +896,77 @@ int css_at_font_face(char *text, int len, int i) {
             if (fq && s < s_end) s = s + 1;
             while (s < s_end && text[s] != ')') s = s + 1;
             if (s < s_end) s = s + 1;
-            format_known = 1;
-            format_ok = 0;
-            if (b_strieq_n(text + f_start, "truetype", f_len < 8 ? f_len : 8) && f_len == 8) format_ok = 1;
-            else if (b_strieq_n(text + f_start, "opentype", f_len < 8 ? f_len : 8) && f_len == 8) format_ok = 1;
-            else if (b_strieq_n(text + f_start, "ttf", f_len < 3 ? f_len : 3) && f_len == 3) format_ok = 1;
-            else if (b_strieq_n(text + f_start, "otf", f_len < 3 ? f_len : 3) && f_len == 3) format_ok = 1;
-            if (!format_ok) {
-                serial_printf("[browser] @font-face: skip non-TTF format\n");
+            score = ff_format_score(text, f_start, f_len);
+            if (score == 0) {
+                /* Unknown format token (eg. svg, eot) — skip. */
+                while (s < s_end && text[s] != ',') s = s + 1;
+                continue;
             }
         } else {
-            s = s_save;     /* no format token */
+            s = s_save;
         }
-        if (format_ok && u_len > 0) {
-            font_face_add_rule(text + family_off, family_len,
-                               text + u_off, u_len,
-                               weight, italic);
-            return i;       /* take first acceptable source */
+        if (u_len <= 0) {
+            while (s < s_end && text[s] != ',') s = s + 1;
+            continue;
         }
-        /* Skip past current entry to comma. */
+        /* Insert into candidate table by score (higher wins; ties keep
+         * source order via order_seq). Only the worst slot is replaced. */
+        order_seq = order_seq + 1;
+        int worst = 0;
+        for (int j = 1; j < 3; j = j + 1) {
+            if (cand_score[j] < cand_score[worst]) worst = j;
+            else if (cand_score[j] == cand_score[worst] &&
+                     cand_order[j] > cand_order[worst]) worst = j;
+        }
+        if (score > cand_score[worst] ||
+            (score == cand_score[worst] && order_seq < cand_order[worst])) {
+            cand_score[worst] = score;
+            cand_off  [worst] = u_off;
+            cand_len  [worst] = u_len;
+            cand_order[worst] = order_seq;
+        }
         while (s < s_end && text[s] != ',') s = s + 1;
     }
+
+    /* Sort candidates by score desc, then source order asc. n is small,
+     * so a 3-way insertion sort works fine. */
+    for (int a = 0; a < 3; a = a + 1) {
+        for (int b = a + 1; b < 3; b = b + 1) {
+            int swap = 0;
+            if (cand_score[b] > cand_score[a]) swap = 1;
+            else if (cand_score[b] == cand_score[a] &&
+                     cand_order[b] < cand_order[a] && cand_score[b] > 0) swap = 1;
+            if (swap) {
+                int ts = cand_score[a]; cand_score[a] = cand_score[b]; cand_score[b] = ts;
+                int to = cand_off  [a]; cand_off  [a] = cand_off  [b]; cand_off  [b] = to;
+                int tl = cand_len  [a]; cand_len  [a] = cand_len  [b]; cand_len  [b] = tl;
+                int tr = cand_order[a]; cand_order[a] = cand_order[b]; cand_order[b] = tr;
+            }
+        }
+    }
+
+    /* Parse unicode-range descriptor (if any). */
+    int r_lo[8];
+    int r_hi[8];
+    int r_n = 0;
+    if (ur_off >= 0 && ur_len > 0) {
+        r_n = ff_parse_unicode_range(text, ur_off, ur_off + ur_len, r_lo, r_hi, 8);
+    }
+
+    /* Need at least one valid candidate. */
+    if (cand_score[0] <= 0) return i;
+
+    char *u0 = (cand_score[0] > 0) ? (text + cand_off[0]) : (char*)0;
+    int   l0 = (cand_score[0] > 0) ? cand_len[0] : 0;
+    char *u1 = (cand_score[1] > 0) ? (text + cand_off[1]) : (char*)0;
+    int   l1 = (cand_score[1] > 0) ? cand_len[1] : 0;
+    char *u2 = (cand_score[2] > 0) ? (text + cand_off[2]) : (char*)0;
+    int   l2 = (cand_score[2] > 0) ? cand_len[2] : 0;
+
+    font_face_add_rule_n(text + family_off, family_len,
+                         u0, l0, u1, l1, u2, l2,
+                         weight, italic,
+                         r_lo, r_hi, r_n);
     return i;
 }
 

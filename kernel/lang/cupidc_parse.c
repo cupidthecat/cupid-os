@@ -509,8 +509,15 @@ static void emit_cvtsd2ss(cc_state_t *cc, int xmm_dst, int xmm_src) {
 /* Error Handling */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
+  /* Always log every error to serial so a chain of failures all show up
+   * even though parser only retains the first as cc->error_msg. The
+   * first call sets cc->error and populates cc->error_msg; subsequent
+   * calls log to serial only. */
+  int line = cc->cur.line;
+  if (line == 0) line = cc->line;
+  serial_printf("[cupidc] error (line %d): %s\n", line, msg);
   if (cc->error)
-    return; /* already errored */
+    return; /* already errored - keep first message intact */
   cc->error = 1;
 
   /* Build error message */
@@ -521,10 +528,7 @@ static void cc_error(cc_state_t *cc, const char *msg) {
     i++;
   }
 
-  /* line number */
-  int line = cc->cur.line;
-  if (line == 0)
-    line = cc->line;
+  /* line number (already computed above) */
   char num[12];
   int ni = 0;
   if (line == 0) {
@@ -578,7 +582,40 @@ static cc_token_t cc_peek(cc_state_t *cc) { return cc_lex_peek(cc); }
 static int cc_expect(cc_state_t *cc, cc_token_type_t type) {
   cc_token_t tok = cc_next(cc);
   if (tok.type != type) {
-    cc_error(cc, "unexpected token");
+    /* Include the bad token's text and a numeric type tag so callers
+     * can diagnose which token cupidc choked on. The previous bare
+     * "unexpected token" was not actionable. */
+    char buf[96];
+    int p = 0;
+    const char *prefix = "unexpected token: '";
+    while (prefix[p] && p < 19) { buf[p] = prefix[p]; p++; }
+    int t = 0;
+    while (tok.text[t] && p < 90 && t < 64) { buf[p++] = tok.text[t++]; }
+    buf[p++] = '\'';
+    buf[p++] = ' ';
+    buf[p++] = '(';
+    buf[p++] = 't';
+    buf[p++] = 'y';
+    buf[p++] = 'p';
+    buf[p++] = 'e';
+    buf[p++] = '=';
+    /* Append type as decimal */
+    int tt = (int)tok.type;
+    char num[12];
+    int n = 0;
+    if (tt == 0) { num[n++] = '0'; }
+    else {
+        int neg = 0;
+        if (tt < 0) { neg = 1; tt = -tt; }
+        char rev[12]; int r = 0;
+        while (tt > 0 && r < 11) { rev[r++] = (char)('0' + (tt % 10)); tt /= 10; }
+        if (neg) num[n++] = '-';
+        while (r > 0) num[n++] = rev[--r];
+    }
+    for (int k = 0; k < n && p < 94; k++) buf[p++] = num[k];
+    buf[p++] = ')';
+    buf[p] = 0;
+    cc_error(cc, buf);
     return 0;
   }
   return 1;
@@ -626,6 +663,13 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 /* Track what kind of value the last expression produced */
 static cc_type_t cc_last_expr_type;
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
+/* Inner-dimension stride for 3D-array expressions. When > 0, the
+ * current expression still has another dimension to index into and
+ * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
+ * is the SECOND stride (middle). After a single [i] subscript on a 3D
+ * array the parser propagates dim2 -> elem_size and zeroes dim2 so the
+ * next [j] takes the right stride. */
+static int cc_last_expr_dim2;
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
@@ -2012,6 +2056,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2038,6 +2083,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2267,6 +2313,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     else
       cc_last_expr_type = TYPE_PTR;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR) &&
@@ -2683,6 +2730,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_next(cc);
       cc_type_t base_type = cc_last_expr_type;
       int base_elem_size = cc_last_expr_elem_size;
+      int base_dim2 = cc_last_expr_dim2;
       int base_si = cc_last_expr_struct_index;
       emit_push_eax(cc); /* push base address */
 
@@ -2716,22 +2764,29 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_type = TYPE_STRUCT;
         cc_last_expr_struct_index = base_si;
         cc_last_expr_elem_size = 4;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_CHAR_PTR && base_elem_size > 1) {
-        /* 2D char array first subscript: pointer to row */
+        /* Multi-D char first subscript: pointer to row. For 3D arrays
+         * the second-stride (dim2) becomes the new elem_size so the
+         * NEXT [j] scales correctly. */
         cc_last_expr_type = TYPE_CHAR_PTR;
-        cc_last_expr_elem_size = 1;
+        cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 1;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_CHAR_PTR) {
         emit_deref_byte(cc);
         cc_last_expr_type = TYPE_CHAR;
         cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_INT_PTR && base_elem_size > 4) {
-        /* 2D int array first subscript: pointer to row */
+        /* Multi-D int first subscript: pointer to row. */
         cc_last_expr_type = TYPE_INT_PTR;
-        cc_last_expr_elem_size = 4;
+        cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 4;
+        cc_last_expr_dim2 = 0;
       } else {
         emit_deref_dword(cc);
         cc_last_expr_type = TYPE_INT;
         cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
       }
 
       cc_expect(cc, CC_TOK_RBRACK);
@@ -3438,33 +3493,77 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
       is_char = (ftype == TYPE_CHAR || ftype == TYPE_CHAR_PTR);
     }
   }
-  /* Handle 2D char array second subscript: arr[i][j] = val */
+  /* Handle 2D/3D char array second subscript: arr[i][j] = val */
   else if (is_char && elem_size > 1 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    /* Inner elements are char (1 byte) - no scaling */
+    /* For 3D char arrays, the middle stride (dim2) scales the second
+     * subscript. For pure 2D, inner is char (1 byte) and no scale. */
+    if (sym->array_dim2 > 0) {
+      int j_stride = sym->array_dim2;
+      if (j_stride == 1) {
+        /* no scaling */
+      } else if (j_stride == 2) {
+        emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x01);
+      } else if (j_stride == 4) {
+        emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02);
+      } else {
+        emit8(cc, 0x69); emit8(cc, 0xC0); emit32(cc, (uint32_t)j_stride);
+      }
+    }
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
     cc_expect(cc, CC_TOK_RBRACK);
     is_char = 1;
+    /* Optional third subscript for 3D char arrays. */
+    if (sym->array_dim2 > 0 && cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc);
+      emit_push_eax(cc);
+      cc_parse_expression(cc, 1);
+      /* Innermost is char (1 byte) - no scaling. */
+      emit_pop_ebx(cc);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8);
+      cc_expect(cc, CC_TOK_RBRACK);
+    }
   }
-  /* Handle 2D int array second subscript */
+  /* Handle 2D/3D int array second subscript */
   else if (!is_char && elem_size > 4 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    emit8(cc, 0xC1);
-    emit8(cc, 0xE0);
-    emit8(cc, 0x02); /* shl eax, 2 */
+    /* For 3D int arrays, scale by dim2 (middle stride). Pure 2D scales
+     * by 4 (a row of 32-bit ints). */
+    int j_stride = (sym->array_dim2 > 0) ? sym->array_dim2 : 4;
+    if (j_stride == 4) {
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
+    } else if (j_stride == 1) {
+      /* no scaling */
+    } else if (j_stride == 2) {
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x01);
+    } else {
+      emit8(cc, 0x69); emit8(cc, 0xC0); emit32(cc, (uint32_t)j_stride);
+    }
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
     cc_expect(cc, CC_TOK_RBRACK);
     is_char = 0;
+    /* Optional third subscript for 3D int arrays. Innermost stride = 4. */
+    if (sym->array_dim2 > 0 && cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc);
+      emit_push_eax(cc);
+      cc_parse_expression(cc, 1);
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
+      emit_pop_ebx(cc);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8);
+      cc_expect(cc, CC_TOK_RBRACK);
+    }
   }
 
   emit_push_eax(cc); /* save computed address */
@@ -4373,6 +4472,40 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       emit8(cc, 0x57);
       emit8(cc, 0xC0); /* XORPS xmm0, xmm0 */
       emit_movsd_local_xmm(cc, 0, cc->local_offset);
+    } else {
+      emit_mov_eax_imm(cc, 0);
+      emit_store_local(cc, cc->local_offset);
+    }
+  }
+
+  /* Multi-declarator support: `int a = 0, b = 0, c;` parses each
+   * comma-separated declarator with the same base type. Float/double
+   * multi-decl is intentionally not supported here (rare); fall back to
+   * separate statements for those. */
+  while (cc_peek(cc).type == CC_TOK_COMMA) {
+    if (type == TYPE_FLOAT || type == TYPE_DOUBLE ||
+        type == TYPE_FLOAT4 || type == TYPE_DOUBLE2 ||
+        type == TYPE_STRUCT) {
+      break;     /* fall through to SEMICOLON expect (will likely error) */
+    }
+    cc_next(cc);     /* consume ',' */
+    cc_token_t next_name = cc_next(cc);
+    if (next_name.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected variable name after ','");
+      return;
+    }
+    cc->local_offset -= 4;
+    if (cc->local_offset < cc->max_local_offset)
+      cc->max_local_offset = cc->local_offset;
+    cc_symbol_t *sym2 = cc_sym_add(cc, next_name.text, SYM_LOCAL, type);
+    if (sym2) {
+      sym2->offset = cc->local_offset;
+      sym2->struct_index = type_struct_index;
+    }
+    if (cc_peek(cc).type == CC_TOK_EQ) {
+      cc_next(cc);
+      cc_parse_expression(cc, 1);
+      emit_store_local(cc, cc->local_offset);
     } else {
       emit_mov_eax_imm(cc, 0);
       emit_store_local(cc, cc->local_offset);
@@ -5581,8 +5714,52 @@ void cc_parse_program(cc_state_t *cc) {
   uint32_t top_level_offset = 0;
   uint32_t top_level_sub_esp_pos = 0;
   uint32_t parse_iter = 0;
+  /* Buffer of additional error messages so parser can keep reporting
+   * after the first failure. Top-level recovery skips past the failing
+   * declaration and resumes; cc->error gets cleared so subsequent
+   * errors are not muted by the early-return in cc_error. */
+  int extra_errors = 0;
 
-  while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+  while (cc_peek(cc).type != CC_TOK_EOF) {
+    /* Top-level error recovery: skip the rest of the offending
+     * declaration (until next ';' or matching '}') and resume parsing
+     * so a single bad line doesn't hide the rest of the program. */
+    if (cc->error) {
+      extra_errors = extra_errors + 1;
+      int brace_depth = 0;
+      while (cc_peek(cc).type != CC_TOK_EOF) {
+        cc_token_t st = cc_peek(cc);
+        if (st.type == CC_TOK_LBRACE) {
+          brace_depth = brace_depth + 1;
+          cc_next(cc);
+          continue;
+        }
+        if (st.type == CC_TOK_RBRACE) {
+          if (brace_depth > 0) {
+            brace_depth = brace_depth - 1;
+            cc_next(cc);
+            if (brace_depth == 0) break;
+            continue;
+          }
+          cc_next(cc);
+          break;
+        }
+        if (st.type == CC_TOK_SEMICOLON && brace_depth == 0) {
+          cc_next(cc);
+          break;
+        }
+        cc_next(cc);
+      }
+      cc->error = 0;
+      /* Bound recovery to a reasonable count so a corrupt file can't
+       * hold the kernel parser hostage. After ~16 errors we stop and
+       * surface the diagnostic; cc->error stays 1 so the caller bails. */
+      if (extra_errors > 16) {
+        cc->error = 1;
+        break;
+      }
+      continue;
+    }
     parse_iter++;
     if ((parse_iter & 2047u) == 0u) {
       cc_token_t pt = cc_peek(cc);
@@ -6013,6 +6190,7 @@ void cc_parse_program(cc_state_t *cc) {
           cc_expect(cc, CC_TOK_RBRACK);
           int32_t arr_elems = size_tok.int_value;
           int32_t inner_dim = 0;
+          int32_t inner_dim2 = 0;
           /* Check for 2D array */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
@@ -6023,9 +6201,21 @@ void cc_parse_program(cc_state_t *cc) {
             }
             cc_expect(cc, CC_TOK_RBRACK);
             inner_dim = inner_tok.int_value;
+            /* Check for 3D array: type name[A][B][C]; */
+            if (cc_peek(cc).type == CC_TOK_LBRACK) {
+              cc_next(cc); /* consume '[' */
+              cc_token_t inner2_tok = cc_next(cc);
+              if (inner2_tok.type != CC_TOK_NUMBER) {
+                cc_error(cc, "expected array size");
+                break;
+              }
+              cc_expect(cc, CC_TOK_RBRACK);
+              inner_dim2 = inner2_tok.int_value;
+            }
           }
           int32_t total_bytes;
           int aes;
+          int dim2 = 0;
           cc_type_t arr_type;
           if (gtype == TYPE_STRUCT && gtype_si >= 0 &&
               gtype_si < cc->struct_count) {
@@ -6038,6 +6228,15 @@ void cc_parse_program(cc_state_t *cc) {
             total_bytes = arr_elems * ssize;
             aes = ssize;
             arr_type = TYPE_STRUCT_PTR;
+          } else if (inner_dim2 > 0) {
+            /* 3D array name[A][B][C]: outer stride = B*C*base; middle
+             * stride = C*base; innermost element = base. */
+            int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
+            int32_t row_size = inner_dim * inner_dim2 * base_elem;
+            total_bytes = arr_elems * row_size;
+            aes = row_size;
+            dim2 = inner_dim2 * base_elem;
+            arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
           } else if (inner_dim > 0) {
             /* 2D array */
             int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
@@ -6061,6 +6260,7 @@ void cc_parse_program(cc_state_t *cc) {
             gsym->is_array = 1;
             gsym->struct_index = gtype_si;
             gsym->array_elem_size = aes;
+            gsym->array_dim2 = dim2;
             memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
             cc->data_pos += (uint32_t)total_bytes;
           }
@@ -6177,6 +6377,13 @@ void cc_parse_program(cc_state_t *cc) {
       has_top_level_statements = 1;
       cc_parse_statement(cc);
     }
+  }
+
+  /* If recovery accumulated errors, surface that to the caller. */
+  if (extra_errors > 0) {
+    cc->error = 1;
+    serial_printf("[cupidc] %d additional error(s) suppressed during recovery\n",
+                  extra_errors);
   }
 
   if (!cc->error && top_level_started) {

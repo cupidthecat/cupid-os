@@ -68,11 +68,20 @@ void paint_clip_pop(void) {
 }
 
 int rt_screen_x(int n) {
-    /* Walk parent chain summing x offsets; viewport_x() is the page origin. */
+    /* Walk parent chain summing x offsets; viewport_x() is the page
+     * origin. rt_is_oof nodes hold absolute document-space coords (set
+     * by layout_oof_one); paint stops summing the moment it crosses
+     * one. `position: relative` adds cs_left as a paint-time offset
+     * without reflowing, matching CSS 2.1 §9.4.3. */
     int x = 0;
     int cur = n;
     while (cur >= 0) {
         x += rt_x[cur];
+        if (rt_is_oof[cur]) break;
+        int sty = rt_style[cur];
+        if (cs_position[sty] == POS_RELATIVE && cs_left[sty] >= 0) {
+            x += cs_left[sty];
+        }
         cur = rt_parent[cur];
     }
     return x + viewport_x();
@@ -81,11 +90,21 @@ int rt_screen_x(int n) {
 int rt_screen_y(int n) {
     int y = 0;
     int cur = n;
+    /* Track whether the chain passes through a fixed ancestor; if so,
+     * paint ignores scroll_y so a top:0 fixed nav bar sticks. */
+    int fixed_anchor = 0;
     while (cur >= 0) {
         y += rt_y[cur];
+        if (rt_is_fixed[cur]) { fixed_anchor = 1; break; }
+        if (rt_is_oof[cur]) break;
+        int sty = rt_style[cur];
+        if (cs_position[sty] == POS_RELATIVE && cs_top[sty] >= 0) {
+            y += cs_top[sty];
+        }
         cur = rt_parent[cur];
     }
-    return y + viewport_y() - scroll_y;
+    int sub = fixed_anchor ? 0 : scroll_y;
+    return y + viewport_y() - sub;
 }
 
 /* Box decoration (shadow + bg + border). Split out from paint_rt_node so
@@ -329,22 +348,58 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int size_px = la_size_px[k];
         if (face >= 0 && size_px > 0) {
             /* Place baseline so the glyph sits inside the line box with
-             * roughly correct ascent above and descent below. The
-             * fontsys metrics are the source of truth here - tier_*
-             * fallbacks only cover bootstrap atoms with no real face. */
+             * roughly correct ascent above and descent below. */
             int asc = fontsys_ascent(face, size_px);
             int line_full = fontsys_line_height(face, size_px);
             int extra = line_h - line_full;
             if (extra < 0) extra = 0;
             int baseline = sy + extra / 2 + asc;
-            fontsys_draw_run_styled(face, size_px, ax, baseline,
-                                    buf, len, fg,
-                                    la_bold[k], la_italic[k]);
+            /* Walk UTF-8 codepoints, grouping consecutive same-face runs.
+             * Without this, Google Fonts' Latin-only subset would draw
+             * Cyrillic / Greek text from the wrong face (or .notdef
+             * boxes). The sub-run grouping keeps the draw call count
+             * low for ASCII-only runs. */
+            int x_cur = ax;
+            int p = 0;
+            int cs_atom = la_cs[k];
+            while (p < len) {
+                int cp;
+                int adv = utf8_decode_one(buf + p, len - p, &cp);
+                if (adv <= 0) break;
+                int sub_face = (cs_atom >= 0)
+                    ? cs_face_id_for_cp(cs_atom, cp)
+                    : face;
+                if (sub_face < 0) sub_face = face;
+                int run_start = p;
+                int run_end = p + adv;
+                int cp_count = 1;
+                while (run_end < len) {
+                    int cp2;
+                    int adv2 = utf8_decode_one(buf + run_end, len - run_end, &cp2);
+                    if (adv2 <= 0) break;
+                    int f2 = (cs_atom >= 0)
+                        ? cs_face_id_for_cp(cs_atom, cp2)
+                        : face;
+                    if (f2 < 0) f2 = face;
+                    if (f2 != sub_face) break;
+                    run_end = run_end + adv2;
+                    cp_count = cp_count + 1;
+                }
+                int sub_len = run_end - run_start;
+                fontsys_draw_run_styled(sub_face, size_px,
+                                        x_cur, baseline,
+                                        buf + run_start, sub_len, fg,
+                                        la_bold[k], la_italic[k]);
+                int sub_w = fontsys_run_width(sub_face, size_px,
+                                              buf + run_start, sub_len);
+                if (la_bold[k]) sub_w = sub_w + cp_count;
+                x_cur = x_cur + sub_w;
+                p = run_end;
+            }
             if (la_underline[k] & TD_UNDERLINE) {
                 gfx2d_rect_fill(ax, baseline + 2, la_w[k], 1, fg);
             }
             if (la_underline[k] & TD_LINE_THROUGH) {
-                /* Stroke at ~mid-cap height so it crosses lowercase x-line. */
                 gfx2d_rect_fill(ax, baseline - asc / 2, la_w[k], 1, fg);
             }
         } else {
@@ -370,7 +425,13 @@ void paint_rt_line_box(int n, int sx, int sy) {
 void paint_rt_replaced(int n, int sx, int sy) {
     int tag = (rt_dom[n] >= 0) ? n_tag[rt_dom[n]] : 0;
     if (tag == T_IMG) {
-        /* Plan-2: placeholder. Plan 3 fetches and decodes. */
+        int dom = rt_dom[n];
+        int handle = (dom >= 0) ? n_img_handle[dom] : -1;
+        if (handle >= 0) {
+            gfx2d_image_draw_scaled(handle, sx, sy, rt_w[n], rt_h[n]);
+            return;
+        }
+        /* Pending / failed: dimmed placeholder rectangle. */
         gfx2d_rect_fill(sx, sy, rt_w[n], rt_h[n], 0xE0E0E0);
         gfx2d_rect_fill(sx, sy, rt_w[n], 1, 0x808080);
         gfx2d_rect_fill(sx, sy + rt_h[n] - 1, rt_w[n], 1, 0x808080);

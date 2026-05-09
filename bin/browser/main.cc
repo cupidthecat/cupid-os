@@ -38,10 +38,13 @@ enum {
     MAX_RT_NODES = 6144,
     MAX_LINE_ATOMS = 8192,
 
-    /* §2 style/CSS */
-    MAX_CSS_RULES = 512,
+    /* §2 style/CSS - css rule + value-pool caps doubled for real-world
+     * stylesheets which routinely exceed the original 256/32K caps.
+     * MAX_COMPUTED_STYLES tracks MAX_NODES (one entry per styled DOM
+     * node); not bumped here. */
+    MAX_CSS_RULES = 1024,
     MAX_COMPUTED_STYLES = 4096,
-    CSS_VALUE_POOL_SIZE = 32768,
+    CSS_VALUE_POOL_SIZE = 65536,
     MAX_CSS_NOT_SELS = 256,
 
     /* §1 entity table */
@@ -130,7 +133,13 @@ enum {
     CP_MAX_WIDTH, CP_MIN_WIDTH, CP_MAX_HEIGHT, CP_MIN_HEIGHT,
     CP_CONTENT,
     CP_BORDER_RADIUS, CP_BOX_SHADOW, CP_OVERFLOW,
-    MAX_CP_ID = 48,
+    CP_CURSOR, CP_OPACITY, CP_BORDER_COLLAPSE, CP_BOX_SIZING,
+    CP_TEXT_TRANSFORM, CP_TEXT_INDENT,
+    CP_LETTER_SPACING, CP_WORD_SPACING, CP_WORD_WRAP,
+    CP_OUTLINE, CP_OUTLINE_COLOR, CP_OUTLINE_WIDTH, CP_OUTLINE_STYLE,
+    CP_POSITION, CP_TOP, CP_RIGHT, CP_BOTTOM, CP_LEFT, CP_Z_INDEX,
+    CP_FLOAT, CP_CLEAR,
+    MAX_CP_ID = 80,
 
     /* Generic-family keywords. Numeric values mirror the kernel's
      * FONTSYS_FAMILY_* (kernel/gfx/fontsys.h) so cs_font_generic[cs]
@@ -154,6 +163,25 @@ enum {
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
     OVERFLOW_VISIBLE = 0, OVERFLOW_HIDDEN,
     BS_SOLID = 0, BS_DASHED = 1, BS_DOTTED = 2, BS_NONE = 3,
+
+    POS_STATIC = 0,
+    POS_RELATIVE = 1,
+    POS_ABSOLUTE = 2,
+    POS_FIXED = 3,
+
+    FLOAT_NONE = 0,
+    FLOAT_LEFT = 1,
+    FLOAT_RIGHT = 2,
+
+    CLEAR_NONE = 0,
+    CLEAR_LEFT = 1,
+    CLEAR_RIGHT = 2,
+    CLEAR_BOTH = 3,
+
+    /* z-index defaults to 0 (auto behaves equivalent to 0 for non-stacking
+     * contexts). Document order acts as the tiebreaker so out-of-flow
+     * elements paint in source order when z-index is unset. */
+
     MAX_CSS_SELECTORS = 2048,
 
     /* §2 selector pseudo-class IDs (stored in css_sel_pseudo[]) */
@@ -370,14 +398,14 @@ int  attr_pool_pos;
  * declarations in a single CSS rule produce multiple entries here
  * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
 int css_rule_count;
-int css_rule_sel_first[512];
-int css_rule_sel_count[512];
-int css_rule_prop_id  [512];
-int css_rule_value_off[512];
-int css_rule_value_len[512];
-int css_rule_specificity[512];
-int css_rule_doc_order [512];
-int css_rule_important [512];           /* 1 if value ended in !important */
+int css_rule_sel_first[1024];
+int css_rule_sel_count[1024];
+int css_rule_prop_id  [1024];
+int css_rule_value_off[1024];
+int css_rule_value_len[1024];
+int css_rule_specificity[1024];
+int css_rule_doc_order [1024];
+int css_rule_important [1024];           /* 1 if value ended in !important */
 
 /* Each selector is a chain of "compound selectors". A compound is a
  * (tag, class_off, id_off) triple. Combinators see COMB_* enum. */
@@ -427,7 +455,7 @@ int hover_dom_node;
 int prev_hover_dom_node;
 
 /* CSS value pool - separate from attr_pool. */
-char css_value_pool[32768];
+char css_value_pool[65536];
 int  css_value_pool_pos;
 
 /* §2 ComputedStyle pool - one entry per render node. */
@@ -479,6 +507,27 @@ int cs_shadow_dx    [4096];   /* px offset, signed */
 int cs_shadow_dy    [4096];   /* px offset, signed */
 int cs_shadow_color [4096];   /* RGB; black if unspecified */
 
+/* CSS positioning. cs_position is POS_STATIC (default), POS_RELATIVE,
+ * POS_ABSOLUTE, or POS_FIXED. cs_top/right/bottom/left are -1 when
+ * unset (auto); cs_z_index uses INT_MIN-ish sentinel for auto. */
+int cs_position    [4096];
+int cs_top         [4096];
+int cs_right       [4096];
+int cs_bottom      [4096];
+int cs_left        [4096];
+int cs_z_index     [4096];
+
+/* CSS custom properties storage deferred. Earlier prototype reserved
+ * 4 * 4096 * 8 ints = 512 KiB; CC_MAX_DATA is 4 MiB so the browser
+ * compile overflowed. Re-add when var()/calc() resolver lands. */
+
+/* CSS float / clear. cs_float = FLOAT_NONE/LEFT/RIGHT,
+ * cs_clear = CLEAR_NONE/LEFT/RIGHT/BOTH. Layout exclusion logic still
+ * deferred; storage and CSS parse + cascade are wired so a future PR
+ * can drop in the IFC integration without revisiting style. */
+int cs_float        [4096];
+int cs_clear        [4096];
+
 /* §3 Render tree pool - sized at MAX_RT_NODES (6144 per spec) */
 int rt_count;
 int rt_dom         [6144];   /* back-pointer to DOM node, -1 for anonymous */
@@ -503,6 +552,23 @@ int rt_content_x[6144];
 int rt_content_y[6144];
 int rt_baseline[6144];
 
+/* Out-of-flow node list for `position: absolute` and `position: fixed`.
+ * Collected during render-tree build, walked after the in-flow layout
+ * pass to resolve x/y from cs_top/left/right/bottom against each node's
+ * containing block (nearest positioned ancestor for absolute, viewport
+ * for fixed). Capped at 1024; further oof nodes silently fall back to
+ * static positioning. */
+int rt_oof_count;
+int rt_oof_list[1024];
+
+/* When 1 the node's rt_x/rt_y store an absolute screen-space position
+ * relative to the document root rather than its rt_parent: paint and
+ * hit-test skip the parent-chain sum so absolute/fixed boxes land where
+ * their containing block expects. rt_is_fixed adds the "ignore scroll"
+ * behaviour. */
+int rt_is_oof   [6144];
+int rt_is_fixed [6144];
+
 /* Line-box atom storage - one entry per word/glyph in an inline run.
  * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
  * the atom pool via a separate atom_first/count pair. */
@@ -522,6 +588,18 @@ int la_link_idx [8192];
 int la_size_px  [8192];
 int la_face_id  [8192];
 int la_italic   [8192];
+int la_cs       [8192];   /* source cs index, for per-codepoint face
+                           * resolution at paint time so unicode-range
+                           * subsets route correctly through Cyrillic /
+                           * Greek / etc. without splitting atoms */
+
+/* <img> per-DOM-node decoded handles. -1 until image.cc has fetched and
+ * decoded the bytes, then a gfx2d_image handle. n_img_intrinsic_w/h
+ * receive the decoded width/height so layout can re-resolve from real
+ * dimensions when the HTML width/height attrs were absent. */
+int n_img_handle      [4096];
+int n_img_intrinsic_w [4096];
+int n_img_intrinsic_h [4096];
 
 /* Each LINE_BOX render node references a contiguous atom slice */
 int rt_line_atom_first[6144];
@@ -628,6 +706,7 @@ int    jb_str_off [1024];
 int    jb_str_len [1024];
 int    jb_obj_idx [1024];
 int    jb_dom_idx [1024];
+int    jb_native_id[1024];     /* JS_NATIVE_* when jb_tag == NATIVE */
 int    jb_count;
 
 int    jsc_parent[256];
@@ -676,6 +755,7 @@ int    jp_str_off [4096];
 int    jp_str_len [4096];
 int    jp_obj_idx [4096];
 int    jp_dom_idx [4096];
+int    jp_native_id[4096];     /* JS_NATIVE_* when jp_tag == NATIVE */
 int    jp_next    [4096];
 int    jp_count;
 
@@ -710,6 +790,10 @@ void browser_main() {
     nodes_count = 0;
     attr_pool_pos = 1;
     inputs_count = 0;
+    /* Per-DOM image handle table starts -1 so the very first paint
+     * (before any navigate) can't dereference a stale handle. */
+    image_queue_init();
+    font_face_init();
     forms_count = 0;
     hist_count = 0;
     hist_pos = 0;
@@ -814,6 +898,22 @@ void browser_main() {
             run_layout();
             clamp_scroll();
             font_face_state_clear();
+        }
+
+        /* <img> async pump (mirrors the webfont path). After first
+         * paint we collect every <img src=...> in the DOM into the
+         * queue, then decode one per tick. When a decode lands, we
+         * relayout so the intrinsic dimensions can size the box; this
+         * is the same FOUT-style retry loop ImageLoader uses in Blink. */
+        image_queue_collect();
+        image_pump();
+        if (image_any_state_changed()) {
+            populate_sibling_caches();
+            style_resolve_all();
+            build_render_tree();
+            run_layout();
+            clamp_scroll();
+            image_state_clear();
         }
 
         yield();

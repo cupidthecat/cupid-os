@@ -251,12 +251,13 @@ int js_binding_alloc(int scope, int name_off, int name_len) {
     int b = jb_count;
     jb_name_off[b] = name_off;
     jb_name_len[b] = name_len;
-    jb_tag[b]      = JS_VAL_UNDEF;
-    jb_num[b]      = 0.0;
-    jb_str_off[b]  = -1;
-    jb_str_len[b]  = 0;
-    jb_obj_idx[b]  = -1;
-    jb_dom_idx[b]  = -1;
+    jb_tag[b]       = JS_VAL_UNDEF;
+    jb_num[b]       = 0.0;
+    jb_str_off[b]   = -1;
+    jb_str_len[b]   = 0;
+    jb_obj_idx[b]   = -1;
+    jb_dom_idx[b]   = -1;
+    jb_native_id[b] = 0;
     jb_count = b + 1;
     jsc_count[scope] = jsc_count[scope] + 1;
     return b;
@@ -288,23 +289,25 @@ int js_lookup_binding(int scope, int name_off, int name_len) {
 
 void js_binding_set_from_top(int b) {
     int t = jvs_top - 1;
-    jb_tag[b]      = jvs_tag[t];
-    jb_num[b]      = jvs_num[t];
-    jb_str_off[b]  = jvs_str_off[t];
-    jb_str_len[b]  = jvs_str_len[t];
-    jb_obj_idx[b]  = jvs_obj_idx[t];
-    jb_dom_idx[b]  = jvs_dom_idx[t];
+    jb_tag[b]       = jvs_tag[t];
+    jb_num[b]       = jvs_num[t];
+    jb_str_off[b]   = jvs_str_off[t];
+    jb_str_len[b]   = jvs_str_len[t];
+    jb_obj_idx[b]   = jvs_obj_idx[t];
+    jb_dom_idx[b]   = jvs_dom_idx[t];
+    jb_native_id[b] = jvs_native_id[t];
 }
 
 void js_push_from_binding(int b) {
     js_push_undef();
     int t = jvs_top - 1;
-    jvs_tag[t]     = jb_tag[b];
-    jvs_num[t]     = jb_num[b];
-    jvs_str_off[t] = jb_str_off[b];
-    jvs_str_len[t] = jb_str_len[b];
-    jvs_obj_idx[t] = jb_obj_idx[b];
-    jvs_dom_idx[t] = jb_dom_idx[b];
+    jvs_tag[t]       = jb_tag[b];
+    jvs_num[t]       = jb_num[b];
+    jvs_str_off[t]   = jb_str_off[b];
+    jvs_str_len[t]   = jb_str_len[b];
+    jvs_obj_idx[t]   = jb_obj_idx[b];
+    jvs_dom_idx[t]   = jb_dom_idx[b];
+    jvs_native_id[t] = jb_native_id[b];
 }
 
 /* console builtin */
@@ -383,18 +386,20 @@ int js_obj_set_prop_from_top(int obj, int key_off, int key_len) {
     jp_str_len[p] = jvs_str_len[t];
     jp_obj_idx[p] = jvs_obj_idx[t];
     jp_dom_idx[p] = jvs_dom_idx[t];
+    jp_native_id[p] = jvs_native_id[t];
     return p;
 }
 
 void js_push_from_prop(int p) {
     js_push_undef();
     int t = jvs_top - 1;
-    jvs_tag[t]     = jp_tag[p];
-    jvs_num[t]     = jp_num[p];
-    jvs_str_off[t] = jp_str_off[p];
-    jvs_str_len[t] = jp_str_len[p];
-    jvs_obj_idx[t] = jp_obj_idx[p];
-    jvs_dom_idx[t] = jp_dom_idx[p];
+    jvs_tag[t]      = jp_tag[p];
+    jvs_num[t]      = jp_num[p];
+    jvs_str_off[t]  = jp_str_off[p];
+    jvs_str_len[t]  = jp_str_len[p];
+    jvs_obj_idx[t]  = jp_obj_idx[p];
+    jvs_dom_idx[t]  = jp_dom_idx[p];
+    jvs_native_id[t]= jp_native_id[p];
 }
 
 /* For [obj][index]: convert TOS to a string key; returns interned offset. */
