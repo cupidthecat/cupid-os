@@ -48,6 +48,7 @@ void ua_default_style(int tag, int cs) {
     cs_min_height[cs] = -1;
     cs_border_radius[cs] = 0;
     cs_overflow[cs]      = OVERFLOW_VISIBLE;
+    cs_border_style[cs]  = BS_SOLID;
     cs_shadow_has[cs]    = 0;
     cs_shadow_dx[cs]     = 0;
     cs_shadow_dy[cs]     = 0;
@@ -670,14 +671,27 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 got_width = 1;
                 continue;
             }
-            /* keyword styles - parsed but ignored */
+            /* keyword styles — recognise dashed/dotted/none; everything
+             * else (groove/ridge/double/inset/outset/hidden) collapses
+             * to solid which is what we paint by default. */
+            if (css_value_keyword(t_start, t_len, "dashed")) {
+                cs_border_style[cs] = BS_DASHED; continue;
+            }
+            if (css_value_keyword(t_start, t_len, "dotted")) {
+                cs_border_style[cs] = BS_DOTTED; continue;
+            }
+            if (css_value_keyword(t_start, t_len, "none") ||
+                css_value_keyword(t_start, t_len, "hidden")) {
+                cs_border_style[cs] = BS_NONE; continue;
+            }
             if (css_value_keyword(t_start, t_len, "solid") ||
-                css_value_keyword(t_start, t_len, "dotted") ||
-                css_value_keyword(t_start, t_len, "dashed") ||
                 css_value_keyword(t_start, t_len, "double") ||
-                css_value_keyword(t_start, t_len, "none") ||
                 css_value_keyword(t_start, t_len, "groove") ||
-                css_value_keyword(t_start, t_len, "ridge")) continue;
+                css_value_keyword(t_start, t_len, "ridge") ||
+                css_value_keyword(t_start, t_len, "inset") ||
+                css_value_keyword(t_start, t_len, "outset")) {
+                cs_border_style[cs] = BS_SOLID; continue;
+            }
             /* color */
             if (!got_color && css_value_color(t_start, t_len, &c)) {
                 cs_border_color[cs] = c;
@@ -702,32 +716,56 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         return;
     }
     if (prop == CP_BORDER_STYLE) {
-        /* parsed-and-ignored; presence implies solid 1px if no width set */
+        if (css_value_keyword(val_off, val_len, "dashed")) {
+            cs_border_style[cs] = BS_DASHED;
+        } else if (css_value_keyword(val_off, val_len, "dotted")) {
+            cs_border_style[cs] = BS_DOTTED;
+        } else if (css_value_keyword(val_off, val_len, "none") ||
+                   css_value_keyword(val_off, val_len, "hidden")) {
+            cs_border_style[cs] = BS_NONE;
+        } else {
+            cs_border_style[cs] = BS_SOLID;
+        }
+        /* Presence of any non-none style implies 1px border if no width set. */
         if (cs_border[cs][0] == 0 && cs_border[cs][1] == 0 &&
             cs_border[cs][2] == 0 && cs_border[cs][3] == 0 &&
-            !css_value_keyword(val_off, val_len, "none")) {
+            cs_border_style[cs] != BS_NONE) {
             cs_border[cs][0] = 1; cs_border[cs][1] = 1;
             cs_border[cs][2] = 1; cs_border[cs][3] = 1;
         }
         return;
     }
     if (prop == CP_FONT) {
-        /* `font` shorthand: pick out italic/bold keywords and a numeric size.
-         * Other components (font-family etc.) are ignored. */
+        /* `font` shorthand per CSS 2.1 §15.8:
+         *   [<style>||<variant>||<weight>] <size>[/<line-height>] <family>+
+         * Pick up italic/bold/normal, the numeric size, and treat
+         * everything after the size as the font-family list (verbatim
+         * — same convention as CP_FONT_FAMILY).  Within the family
+         * tokens we additionally watch for the generic keywords
+         * (serif/sans-serif/monospace/...) and stash that into
+         * cs_font_generic so fontsys_match can fall back without
+         * needing to re-parse the family list. */
         int i = val_off;
         int end = val_off + val_len;
+        int saw_size = 0;
+        int family_off = -1;
+        int family_len = 0;
         while (i < end) {
             while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
             if (i >= end) break;
             int t_start = i;
             while (i < end && css_value_pool[i] != ' ' && css_value_pool[i] != '\t') i = i + 1;
             int t_len = i - t_start;
-            if (css_value_keyword(t_start, t_len, "italic")) cs_font_i[cs] = 1;
-            else if (css_value_keyword(t_start, t_len, "bold")) cs_font_w[cs] = 700;
-            else if (css_value_keyword(t_start, t_len, "normal")) {
-                /* leave defaults; could clear italic/bold */
+            if (!saw_size && css_value_keyword(t_start, t_len, "italic")) {
+                cs_font_i[cs] = 1; continue;
             }
-            else if (css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9') {
+            if (!saw_size && css_value_keyword(t_start, t_len, "bold")) {
+                cs_font_w[cs] = 700; continue;
+            }
+            if (!saw_size && css_value_keyword(t_start, t_len, "normal")) {
+                continue;
+            }
+            if (!saw_size && css_value_pool[t_start] >= '0' && css_value_pool[t_start] <= '9') {
                 int parent_px = 16;
                 int root_px = 16;
                 int parent = n_parent[cs];
@@ -737,8 +775,42 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 if (cs >= 1 && cs_font_size_px[1] > 0) root_px = cs_font_size_px[1];
                 int px = parse_length_px(t_start, t_len, parent_px, root_px);
                 if (px > 0) cs_font_size_px[cs] = px;
+                saw_size = 1;
+                continue;
             }
-            /* unknown tokens (font-family etc) ignored */
+            /* After the size, every remaining token belongs to the
+             * font-family list.  Capture the verbatim slice from the
+             * first family token to the end of the value. */
+            if (saw_size) {
+                if (family_off < 0) family_off = t_start;
+                family_len = (val_off + val_len) - family_off;
+                /* Pick up the generic keyword if this token is one. */
+                if (css_value_keyword(t_start, t_len, "serif"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_SERIF;
+                else if (css_value_keyword(t_start, t_len, "sans-serif"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_SANS_SERIF;
+                else if (css_value_keyword(t_start, t_len, "monospace"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_MONOSPACE;
+                else if (css_value_keyword(t_start, t_len, "cursive"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_CURSIVE;
+                else if (css_value_keyword(t_start, t_len, "fantasy"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_FANTASY;
+                else if (css_value_keyword(t_start, t_len, "system-ui"))
+                    cs_font_generic[cs] = FONTSYS_FAMILY_SYSTEM_UI;
+                /* Trim trailing trailing whitespace once at end of loop. */
+                while (family_len > 0) {
+                    char b = css_value_pool[family_off + family_len - 1];
+                    if (b != ' ' && b != '\t') break;
+                    family_len = family_len - 1;
+                }
+                /* Don't `continue;` — let the outer loop end naturally
+                 * since we've already consumed all remaining bytes via
+                 * the family slice. */
+            }
+        }
+        if (family_off >= 0) {
+            cs_font_family_off[cs] = family_off;
+            cs_font_family_len[cs] = family_len;
         }
         return;
     }

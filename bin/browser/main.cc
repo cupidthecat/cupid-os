@@ -10,7 +10,7 @@ enum {
     WIN_X      = 20,
     WIN_Y      = 30,
 
-    ADDR_H     = 24,
+    ADDR_H     = 28,
     STATUS_H   = 18,
 
     URL_MAX    = 1024,
@@ -153,6 +153,7 @@ enum {
     LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
     OVERFLOW_VISIBLE = 0, OVERFLOW_HIDDEN,
+    BS_SOLID = 0, BS_DASHED = 1, BS_DOTTED = 2, BS_NONE = 3,
     MAX_CSS_SELECTORS = 2048,
 
     /* §2 selector pseudo-class IDs (stored in css_sel_pseudo[]) */
@@ -472,6 +473,7 @@ int cs_min_height[4096];
 /* §2.x Visual-quality additions (Blink BoxPainter.cpp). All default 0/-1. */
 int cs_border_radius[4096];   /* px; 0 = sharp corners */
 int cs_overflow     [4096];   /* OVERFLOW_VISIBLE | OVERFLOW_HIDDEN */
+int cs_border_style [4096];   /* BS_SOLID | BS_DASHED | BS_DOTTED | BS_NONE */
 int cs_shadow_has   [4096];   /* 1 if box-shadow declared, else 0 */
 int cs_shadow_dx    [4096];   /* px offset, signed */
 int cs_shadow_dy    [4096];   /* px offset, signed */
@@ -680,6 +682,8 @@ int    jp_count;
 /* history */
 char hist_url_pool[16384];
 int  hist_count;
+int  hist_pos;        /* 1-based index of current entry; 0 = empty */
+int  nav_no_push;     /* when 1, navigate() skips the push (used by back/fwd) */
 
 /* state */
 int  focus_mode;     /* 0=page, 1=addr, 2=input */
@@ -708,6 +712,8 @@ void browser_main() {
     inputs_count = 0;
     forms_count = 0;
     hist_count = 0;
+    hist_pos = 0;
+    nav_no_push = 0;
     scroll_y = 0;
     doc_h = 0;
     page_bg = 0xFFFFFF;

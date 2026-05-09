@@ -190,6 +190,16 @@ void handle_left_click(int mx, int my) {
     int rel_y = my - cy;
     /* address bar? */
     if (rel_y >= 0 && rel_y < ADDR_H) {
+        /* Back / forward buttons: 22x20 rects starting at x=6 with a
+         * 4 px gap.  Layout matches paint.cc:draw_address_bar. */
+        if (rel_x >= 6 && rel_x < 28) {
+            if (hist_pos > 1) go_back();
+            return;
+        }
+        if (rel_x >= 32 && rel_x < 54) {
+            if (hist_pos < hist_count) go_forward();
+            return;
+        }
         focus_mode = FOCUS_ADDR;
         addr_cursor = addr_len;
         return;

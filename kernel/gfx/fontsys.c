@@ -180,7 +180,11 @@ void fontsys_init(void) {
     fontsys_set_generic(FONTSYS_FAMILY_CURSIVE,    serif_id);
     fontsys_set_generic(FONTSYS_FAMILY_FANTASY,    sans_id);
     fontsys_set_generic(FONTSYS_FAMILY_SYSTEM_UI,  sans_id);
-    fontsys_set_generic(FONTSYS_FAMILY_DEFAULT,    sans_id);
+    /* Chrome's UA stylesheet uses Times-style serif for unstyled
+     * body text; matching that here so pages without an explicit
+     * font-family read the same as Chrome. UI surfaces (terminal,
+     * toolbars, inputs) override to sans via SYSTEM_UI. */
+    fontsys_set_generic(FONTSYS_FAMILY_DEFAULT,    serif_id);
 
     serial_printf("[fontsys] init done, %d faces\n", face_count);
 }

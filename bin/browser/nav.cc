@@ -147,22 +147,30 @@ void navigate(char *u) {
         scroll_y = 0;
         return;
     }
-    /* push history */
-    if (hist_count < HIST_MAX) {
-        b_strcpy_n(hist_url_pool + hist_count * URL_MAX, cur_url, URL_MAX);
-        hist_count = hist_count + 1;
-    } else {
-        int k = 0;
-        while (k < HIST_MAX - 1) {
-            int j = 0;
-            while (j < URL_MAX) {
-                hist_url_pool[k * URL_MAX + j] = hist_url_pool[(k + 1) * URL_MAX + j];
-                j = j + 1;
+    /* push history. Back/forward set nav_no_push so they don't grow
+     * the trail when revisiting old entries.  A normal navigation
+     * truncates any forward history past hist_pos before adding the
+     * new entry — same as Chrome / Firefox behaviour. */
+    if (!nav_no_push) {
+        if (hist_pos < hist_count) hist_count = hist_pos;
+        if (hist_count < HIST_MAX) {
+            b_strcpy_n(hist_url_pool + hist_count * URL_MAX, cur_url, URL_MAX);
+            hist_count = hist_count + 1;
+        } else {
+            int k = 0;
+            while (k < HIST_MAX - 1) {
+                int j = 0;
+                while (j < URL_MAX) {
+                    hist_url_pool[k * URL_MAX + j] = hist_url_pool[(k + 1) * URL_MAX + j];
+                    j = j + 1;
+                }
+                k = k + 1;
             }
-            k = k + 1;
+            b_strcpy_n(hist_url_pool + (HIST_MAX - 1) * URL_MAX, cur_url, URL_MAX);
         }
-        b_strcpy_n(hist_url_pool + (HIST_MAX - 1) * URL_MAX, cur_url, URL_MAX);
+        hist_pos = hist_count;
     }
+    nav_no_push = 0;
     /* Reset persistent string pool BEFORE parse_html runs. The tree
      * builder used to do this internally, but now tokenize() interns into
      * attr_pool, so we must reset before tokenize starts. */
@@ -185,13 +193,21 @@ void navigate(char *u) {
 }
 
 void go_back() {
-    if (hist_count <= 1) return;
-    hist_count = hist_count - 1;
+    if (hist_pos <= 1) return;
+    hist_pos = hist_pos - 1;
     char prev[1024];
-    b_strcpy_n(prev, hist_url_pool + (hist_count - 1) * URL_MAX, URL_MAX);
-    /* re-fetch (don't double-push) */
-    hist_count = hist_count - 1;
+    b_strcpy_n(prev, hist_url_pool + (hist_pos - 1) * URL_MAX, URL_MAX);
+    nav_no_push = 1;
     navigate(prev);
+}
+
+void go_forward() {
+    if (hist_pos >= hist_count) return;
+    hist_pos = hist_pos + 1;
+    char nxt[1024];
+    b_strcpy_n(nxt, hist_url_pool + (hist_pos - 1) * URL_MAX, URL_MAX);
+    nav_no_push = 1;
+    navigate(nxt);
 }
 
 /* GET-only form submit (per spec §10).

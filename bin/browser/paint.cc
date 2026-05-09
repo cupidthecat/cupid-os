@@ -140,10 +140,51 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
      * implies uniform border in v1). */
     int has_border = cs_border[cs][0] || cs_border[cs][1] ||
                      cs_border[cs][2] || cs_border[cs][3];
-    if (has_border) {
+    if (has_border && cs_border_style[cs] != BS_NONE) {
         int bc = cs_border_color[cs];
+        int style = cs_border_style[cs];
         if (radius > 0) {
+            /* Rounded outline always solid for now — dashed/dotted on
+             * curved corners would need bresenham + dash-state which
+             * is more than v1 needs. */
             gfx2d_rect_round(sx, sy, w, h, radius, bc);
+        } else if (style == BS_DASHED || style == BS_DOTTED) {
+            /* Dashed/dotted: stroke 1px segments along each side.
+             * Spec leaves dash length implementation-defined; Chrome
+             * uses ~3*width for dashed, 1*width for dotted. We stroke
+             * single-pixel rectangles since border width is already
+             * clamped to 1px in our paint. */
+            int dash = (style == BS_DASHED) ? 4 : 1;
+            int gap  = (style == BS_DASHED) ? 4 : 2;
+            int step = dash + gap;
+            /* top + bottom */
+            int xx;
+            if (cs_border[cs][0] || cs_border[cs][2]) {
+                xx = 0;
+                while (xx < w) {
+                    int seg = dash;
+                    if (xx + seg > w) seg = w - xx;
+                    if (cs_border[cs][0])
+                        gfx2d_rect_fill(sx + xx, sy, seg, 1, bc);
+                    if (cs_border[cs][2])
+                        gfx2d_rect_fill(sx + xx, sy + h - 1, seg, 1, bc);
+                    xx = xx + step;
+                }
+            }
+            /* left + right */
+            int yy;
+            if (cs_border[cs][3] || cs_border[cs][1]) {
+                yy = 0;
+                while (yy < h) {
+                    int seg = dash;
+                    if (yy + seg > h) seg = h - yy;
+                    if (cs_border[cs][3])
+                        gfx2d_rect_fill(sx, sy + yy, 1, seg, bc);
+                    if (cs_border[cs][1])
+                        gfx2d_rect_fill(sx + w - 1, sy + yy, 1, seg, bc);
+                    yy = yy + step;
+                }
+            }
         } else {
             if (cs_border[cs][0]) gfx2d_rect_fill(sx, sy, w, 1, bc);
             if (cs_border[cs][2]) gfx2d_rect_fill(sx, sy + h - 1, w, 1, bc);
@@ -494,16 +535,60 @@ void draw_address_bar(int sx, int sy, int sw) {
     int bg = (focus_mode == FOCUS_ADDR) ? 0xFFFFE0 : 0xF0F0F0;
     gfx2d_rect_fill(sx, sy, sw, ADDR_H, bg);
     gfx2d_hline(sx, sy + ADDR_H - 1, sw, 0x808080);
-    gfx2d_text(sx + 4, sy + 6, "URL:", 0x404040, 0);
+
+    /* Back/forward buttons. 22x20 each, vertically centered in the
+     * 28-tall toolbar with 4 px clear top and bottom; left edge
+     * starts at x+6 with a 4 px gap between them.  Click hit-test in
+     * input.cc:handle_left_click matches these coordinates. */
+    int btn_w = 22;
+    int btn_h = 20;
+    int btn_y = sy + (ADDR_H - btn_h) / 2;        /* 4 */
+    int back_x = sx + 6;
+    int fwd_x  = back_x + btn_w + 4;              /* 32 */
+    int back_enabled = (hist_pos > 1);
+    int fwd_enabled  = (hist_pos < hist_count);
+    /* Active fill is darker, disabled fill matches toolbar bg so the
+     * button reads as flat.  Stroke contrast keeps disabled arrows
+     * readable but muted (was 0xC0C0C0 — invisible against 0xF0F0F0). */
+    int back_fill = back_enabled ? 0xFFFFFF : 0xE8E8E8;
+    int fwd_fill  = fwd_enabled  ? 0xFFFFFF : 0xE8E8E8;
+    int back_stroke = back_enabled ? 0x202020 : 0x808080;
+    int fwd_stroke  = fwd_enabled  ? 0x202020 : 0x808080;
+    int border_color = 0x808080;
+    gfx2d_rect_fill(back_x, btn_y, btn_w, btn_h, back_fill);
+    gfx2d_rect_fill(fwd_x,  btn_y, btn_w, btn_h, fwd_fill);
+    /* Centered glyph: "<" / ">" at NORMAL (8x8). Inset to put the
+     * baseline visually centered inside a 20-tall button. */
+    int glyph_x_back = back_x + (btn_w - 8) / 2;
+    int glyph_x_fwd  = fwd_x  + (btn_w - 8) / 2;
+    int glyph_y      = btn_y + (btn_h - 8) / 2;
+    gfx2d_text(glyph_x_back, glyph_y, "<", back_stroke, 0);
+    gfx2d_text(glyph_x_fwd,  glyph_y, ">", fwd_stroke, 0);
+    /* 1 px outlines */
+    gfx2d_rect_fill(back_x, btn_y, btn_w, 1, border_color);
+    gfx2d_rect_fill(back_x, btn_y + btn_h - 1, btn_w, 1, border_color);
+    gfx2d_rect_fill(back_x, btn_y, 1, btn_h, border_color);
+    gfx2d_rect_fill(back_x + btn_w - 1, btn_y, 1, btn_h, border_color);
+    gfx2d_rect_fill(fwd_x,  btn_y, btn_w, 1, border_color);
+    gfx2d_rect_fill(fwd_x,  btn_y + btn_h - 1, btn_w, 1, border_color);
+    gfx2d_rect_fill(fwd_x,  btn_y, 1, btn_h, border_color);
+    gfx2d_rect_fill(fwd_x + btn_w - 1, btn_y, 1, btn_h, border_color);
+
+    /* URL label + value baseline-aligned with the button text:
+     *   text height 8 → top = sy + (ADDR_H - 8)/2 = 10. */
+    int label_x = fwd_x + btn_w + 8;              /* 64 */
+    int text_y  = sy + (ADDR_H - 8) / 2;
+    gfx2d_text(label_x, text_y, "URL:", 0x404040, 0);
     char tmp[128];
     int ml = addr_len;
     if (ml > 127) ml = 127;
     int k = 0;
     while (k < ml) { tmp[k] = addr_buf[k]; k = k + 1; }
     tmp[ml] = 0;
-    gfx2d_text(sx + 4 + 4 * char_w + 4, sy + 6, tmp, 0x000000, 0);
+    int field_x = label_x + 4 * char_w + 4;
+    gfx2d_text(field_x, text_y, tmp, 0x000000, 0);
     if (focus_mode == FOCUS_ADDR) {
-        int cx = sx + 4 + 4 * char_w + 4 + addr_cursor * char_w;
+        int cx = field_x + addr_cursor * char_w;
         gfx2d_vline(cx, sy + 4, ADDR_H - 8, 0x000000);
     }
 }
