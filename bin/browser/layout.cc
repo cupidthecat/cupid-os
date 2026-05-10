@@ -31,6 +31,10 @@ int rt_margin_r (int n) { return cs_margin [rt_style[n]][1]; }
 int rt_margin_t (int n) { return cs_margin [rt_style[n]][0]; }
 int rt_margin_b (int n) { return cs_margin [rt_style[n]][2]; }
 
+/* Forward decl: flex layout reuses layout_block to size each item, and
+ * layout_block dispatches into it for `display: flex` containers. */
+void layout_flex(int n, int content_w, int cx, int cy);
+
 int viewport_content_w() {
     /* Window inner width minus 12px scrollbar */
     return cur_cw - 12;
@@ -774,6 +778,16 @@ void layout_block(int n, int avail_w) {
         }
     }
 
+    /* Flex container: dispatch to specialised layout. The container's
+     * own width was already resolved above; layout_flex sizes its
+     * children along the main axis (row -> width, column -> height) and
+     * aligns the cross axis, then writes back rt_h[n]. Reference:
+     * blink/Source/core/layout/LayoutFlexibleBox.cpp. */
+    if (cs_display[sty] == DISP_FLEX || cs_display[sty] == DISP_INLINE_FLEX) {
+        layout_flex(n, content_w, cx, cy);
+        return;
+    }
+
     /* Walk children. Inline runs get accumulated and flushed when a block
      * sibling appears or end of children.
      *
@@ -1329,4 +1343,250 @@ void run_layout() {
     layout_block(root, avail);
     layout_oof();
     doc_h = rt_y[root] + rt_h[root];
+}
+
+/* CSS Flexible Box Layout Module (single-line, no wrap).
+ *
+ * Reference: blink/Source/core/layout/LayoutFlexibleBox.cpp
+ * (computeNextFlexLine + resolveFlexibleLengths + layoutAndPlaceChildren).
+ *
+ * Algorithm:
+ *   1. Walk children. Skip out-of-flow positioned items. For each
+ *      flex item, compute its FLEX BASE SIZE in the main axis from
+ *      flex-basis (else cs_width/cs_height, else intrinsic).
+ *   2. Compute free_space = container_main - sum(base) - gap_total.
+ *   3. If free_space > 0 and any item has flex-grow > 0, distribute
+ *      the surplus proportionally to grow factors.
+ *      If free_space < 0 and any item has flex-shrink > 0, distribute
+ *      the deficit proportionally to shrink * base (per spec).
+ *   4. Lay out each item at its final main size to compute its cross
+ *      size. Apply align-items: stretch (default) sets cross to the
+ *      container's cross-axis size; flex-start/end/center positions
+ *      the item without resizing.
+ *   5. Resolve container's cross size (cs_height/width if set, else
+ *      tallest item).
+ *   6. Pack along the main axis per justify-content, with `gap`
+ *      between items as a base separator. */
+void layout_flex(int n, int content_w, int cx, int cy) {
+    int sty = rt_style[n];
+    int gap = cs_gap[sty];
+    int justify = cs_justify[sty];
+    int align = cs_align_items[sty];
+    int is_col = (cs_flex_dir[sty] == FLEX_DIR_COLUMN);
+
+    int content_h = 0;
+    {
+        int sh = cs_height[sty];
+        if (sh >= 0) {
+            int extra_h = rt_padding_t(n) + rt_padding_b(n)
+                        + rt_border_t(n)  + rt_border_b(n);
+            if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+                content_h = sh - extra_h;
+                if (content_h < 0) content_h = 0;
+            } else {
+                content_h = sh;
+            }
+        }
+    }
+    int main_size = is_col ? content_h : content_w;
+    int cross_avail = is_col ? content_w : content_h;
+
+    int items[64];
+    int base[64];
+    int min_size[64];
+    int grow[64];
+    int shrink[64];
+    int final_main[64];
+    int cnt = 0;
+
+    int c = rt_first_child[n];
+    while (c >= 0 && cnt < 64) {
+        int ck = rt_kind[c];
+        int c_dom = rt_dom[c];
+        if (ck == RT_LINE_BOX || c_dom < 0) { c = rt_next[c]; continue; }
+        int c_sty = rt_style[c];
+        int c_pos = cs_position[c_sty];
+        if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) {
+            c = rt_next[c]; continue;
+        }
+        items[cnt] = c;
+        int extra_main = is_col
+            ? (rt_padding_t(c) + rt_padding_b(c) + rt_border_t(c) + rt_border_b(c))
+            : (rt_padding_l(c) + rt_padding_r(c) + rt_border_l(c) + rt_border_r(c));
+        int basis = cs_flex_basis[c_sty];
+        int b = 0;
+        if (basis >= 0) {
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? basis : (basis + extra_main);
+        } else if (!is_col && cs_width[c_sty] >= 0) {
+            int cw = cs_width[c_sty];
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? cw : (cw + extra_main);
+        } else if (is_col && cs_height[c_sty] >= 0) {
+            int chv = cs_height[c_sty];
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? chv : (chv + extra_main);
+        } else {
+            /* auto: shrink-to-fit (rough estimate via inline content). For
+             * column containers we don't have a real intrinsic-h estimator,
+             * so fall back to 0 and let flex-grow stretch later. */
+            int intr = is_col ? 0 : oof_intrinsic_text_w(c);
+            b = (intr > 0) ? (intr + extra_main) : extra_main;
+        }
+        if (b < extra_main) b = extra_main;
+        base[cnt] = b;
+        min_size[cnt] = extra_main;
+        grow[cnt] = cs_flex_grow[c_sty];
+        shrink[cnt] = cs_flex_shrink[c_sty];
+        final_main[cnt] = b;
+        cnt = cnt + 1;
+        c = rt_next[c];
+    }
+
+    int gap_total = (cnt > 1) ? (cnt - 1) * gap : 0;
+    int total_base = 0;
+    int i;
+    for (i = 0; i < cnt; i = i + 1) total_base = total_base + base[i];
+    /* Indefinite main size: a column flex container with no `height` set
+     * (or a row container that already has a definite content_w from
+     * block layout - so this only matters for column) sizes its main
+     * axis to the sum of item base sizes. Without this fix the
+     * free_space calculation goes deeply negative and the shrink pass
+     * crushes every item to its padding+border only. CSS Flexbox §9.7.3
+     * "If the available main size is infinite, this is the flex line's
+     * main size." Reference: blink/Source/core/layout/LayoutFlexibleBox.cpp
+     * computeMainSizeFromAspectRatioUsing + indefiniteMainSize handling. */
+    if (main_size <= 0) {
+        main_size = total_base + gap_total;
+    }
+    int free_space = main_size - total_base - gap_total;
+
+    if (free_space > 0) {
+        int total_grow = 0;
+        for (i = 0; i < cnt; i = i + 1) total_grow = total_grow + grow[i];
+        if (total_grow > 0) {
+            int distributed = 0;
+            for (i = 0; i < cnt; i = i + 1) {
+                int add = (free_space * grow[i]) / total_grow;
+                final_main[i] = base[i] + add;
+                distributed = distributed + add;
+            }
+            int rem = free_space - distributed;
+            for (i = cnt - 1; i >= 0 && rem > 0; i = i - 1) {
+                if (grow[i] > 0) { final_main[i] = final_main[i] + rem; break; }
+            }
+        }
+    } else if (free_space < 0) {
+        int total_weight = 0;
+        for (i = 0; i < cnt; i = i + 1)
+            total_weight = total_weight + (shrink[i] * base[i]) / 100;
+        if (total_weight > 0) {
+            int deficit = -free_space;
+            for (i = 0; i < cnt; i = i + 1) {
+                int weight = (shrink[i] * base[i]) / 100;
+                int reduce = (deficit * weight) / total_weight;
+                final_main[i] = base[i] - reduce;
+                if (final_main[i] < min_size[i]) final_main[i] = min_size[i];
+            }
+        }
+    }
+
+    /* Pass 2: lay out each item at its final main size. For column
+     * direction the main size is the height; layout_block writes rt_h
+     * from content + cs_height, so we set cs_height-equivalent via the
+     * abspos helper isn't applicable - instead we layout_block with the
+     * cross-axis width and then OVERRIDE rt_h. */
+    int max_cross = 0;
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        if (is_col) {
+            /* Cross-axis is width: stretch to content_w if align-stretch,
+             * else lay out at item's own width. */
+            int item_w = (cs_width[rt_style[it]] >= 0)
+                       ? cs_width[rt_style[it]]
+                       : ((align == ALIGN_STRETCH) ? content_w : 0);
+            if (item_w == 0) {
+                /* Auto width: shrink-to-fit by intrinsic text estimate. */
+                int intr = oof_intrinsic_text_w(it);
+                item_w = (intr > 0) ? intr : content_w;
+            }
+            layout_block(it, item_w);
+            rt_h[it] = final_main[i];      /* override with flex-resolved h */
+            if (rt_w[it] > max_cross) max_cross = rt_w[it];
+        } else {
+            layout_block(it, final_main[i]);
+            rt_w[it] = final_main[i];
+            if (rt_h[it] > max_cross) max_cross = rt_h[it];
+        }
+    }
+
+    int container_cross;
+    if (cross_avail > 0) {
+        container_cross = cross_avail;
+    } else {
+        container_cross = max_cross;
+    }
+    if (container_cross < 0) container_cross = 0;
+
+    /* Cross-axis alignment per item. Stretch enlarges items that have no
+     * explicit cross size to the container's cross size. */
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        int it_cross = is_col ? rt_w[it] : rt_h[it];
+        int has_cross_size = is_col
+            ? (cs_width [rt_style[it]] >= 0)
+            : (cs_height[rt_style[it]] >= 0);
+        if (align == ALIGN_STRETCH && !has_cross_size && it_cross < container_cross) {
+            if (is_col) rt_w[it] = container_cross;
+            else        rt_h[it] = container_cross;
+            it_cross = container_cross;
+        }
+        int cross_off = 0;
+        if (align == ALIGN_FLEX_END) {
+            cross_off = container_cross - it_cross;
+        } else if (align == ALIGN_CENTER) {
+            cross_off = (container_cross - it_cross) / 2;
+        }
+        if (cross_off < 0) cross_off = 0;
+        if (is_col) rt_x[it] = cx + cross_off;
+        else        rt_y[it] = cy + cross_off;
+    }
+
+    /* Main-axis packing. */
+    int total_main_used = 0;
+    for (i = 0; i < cnt; i = i + 1) total_main_used = total_main_used + final_main[i];
+    int extra_main = main_size - total_main_used - gap_total;
+    if (extra_main < 0) extra_main = 0;
+
+    int leading = 0;
+    int between = gap;
+    if (justify == JUSTIFY_FLEX_END) {
+        leading = extra_main;
+    } else if (justify == JUSTIFY_CENTER) {
+        leading = extra_main / 2;
+    } else if (justify == JUSTIFY_SPACE_BETWEEN && cnt > 1) {
+        between = gap + extra_main / (cnt - 1);
+    } else if (justify == JUSTIFY_SPACE_AROUND && cnt > 0) {
+        leading = extra_main / (2 * cnt);
+        between = gap + extra_main / cnt;
+    } else if (justify == JUSTIFY_SPACE_EVENLY && cnt > 0) {
+        leading = extra_main / (cnt + 1);
+        between = gap + extra_main / (cnt + 1);
+    }
+
+    int pos = (is_col ? cy : cx) + leading;
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        if (is_col) rt_y[it] = pos;
+        else        rt_x[it] = pos;
+        pos = pos + final_main[i];
+        if (i < cnt - 1) pos = pos + between;
+    }
+
+    /* Container's own height. For row, cy advances by container_cross.
+     * For column, cy advances by main_size if explicit, else by total_main_used. */
+    int used_height;
+    if (is_col) {
+        used_height = (main_size > 0) ? main_size : (total_main_used + gap_total);
+    } else {
+        used_height = container_cross;
+    }
+    rt_h[n] = cy + used_height + rt_padding_b(n) + rt_border_b(n);
 }

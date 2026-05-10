@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<title>i4 flex grow</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 4px 0; font-size: 13px; }
+.row {
+  display: flex;
+  gap: 8px;
+  background: #eef;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.box {
+  background: #36c;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.g0 { flex: 0 0 80px; }
+.g1 { flex: 1; background: #393; }
+.g2 { flex: 2; background: #c33; }
+.g3 { flex: 3; background: #63c; }
+.fixed { width: 90px; flex: 0 0 auto; }
+.nav-spacer { flex: 1; }
+</style>
+</head>
+<body>
+<div class="lbl">flex: 0 0 80 + flex: 1 + flex: 1 (two equal growers)</div>
+<div class="row">
+  <div class="box g0">fixed 80</div>
+  <div class="box g1">grow 1</div>
+  <div class="box g1">grow 1</div>
+</div>
+
+<div class="lbl">flex: 1 + flex: 2 + flex: 3 (1:2:3 split of free space)</div>
+<div class="row">
+  <div class="box g1">1</div>
+  <div class="box g2">2</div>
+  <div class="box g3">3</div>
+</div>
+
+<div class="lbl">nav layout: brand + spacer + buttons</div>
+<div class="row">
+  <div class="box fixed">brand</div>
+  <div class="nav-spacer"></div>
+  <div class="box fixed">login</div>
+  <div class="box fixed">signup</div>
+</div>
+</body>
+</html>

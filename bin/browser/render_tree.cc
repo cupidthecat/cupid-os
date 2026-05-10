@@ -47,6 +47,8 @@ int rt_kind_for_display(int disp) {
     if (disp == DISP_BLOCK)              return RT_BLOCK;
     if (disp == DISP_INLINE)             return RT_INLINE;
     if (disp == DISP_INLINE_BLOCK)       return RT_INLINE_BLOCK;
+    if (disp == DISP_INLINE_FLEX)        return RT_INLINE_BLOCK;
+    if (disp == DISP_FLEX)               return RT_BLOCK;
     if (disp == DISP_LIST_ITEM)          return RT_LIST_ITEM;
     if (disp == DISP_TABLE)              return RT_TABLE;
     if (disp == DISP_TABLE_ROW_GROUP)    return RT_TABLE_ROW_GROUP;

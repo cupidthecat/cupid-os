@@ -64,6 +64,13 @@ void ua_default_style(int tag, int cs) {
     cs_bg_grad[cs] = BG_GRAD_NONE;
     cs_bg_grad_c1[cs] = 0;
     cs_bg_grad_c2[cs] = 0;
+    cs_flex_dir[cs] = FLEX_DIR_ROW;
+    cs_justify[cs] = JUSTIFY_FLEX_START;
+    cs_align_items[cs] = ALIGN_STRETCH;
+    cs_flex_grow[cs] = 0;
+    cs_flex_shrink[cs] = 100;
+    cs_flex_basis[cs] = -1;
+    cs_gap[cs] = 0;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -1119,11 +1126,185 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         if (css_value_keyword(val_off, val_len, "none"))         { cs_display[cs] = DISP_NONE; return; }
         if (css_value_keyword(val_off, val_len, "block"))        { cs_display[cs] = DISP_BLOCK; return; }
         if (css_value_keyword(val_off, val_len, "inline-block")) { cs_display[cs] = DISP_INLINE_BLOCK; return; }
+        if (css_value_keyword(val_off, val_len, "inline-flex"))  { cs_display[cs] = DISP_INLINE_FLEX; return; }
         if (css_value_keyword(val_off, val_len, "inline"))       { cs_display[cs] = DISP_INLINE; return; }
         if (css_value_keyword(val_off, val_len, "list-item"))    { cs_display[cs] = DISP_LIST_ITEM; return; }
+        if (css_value_keyword(val_off, val_len, "flex"))         { cs_display[cs] = DISP_FLEX; return; }
         if (css_value_keyword(val_off, val_len, "table"))        { cs_display[cs] = DISP_TABLE; return; }
         if (css_value_keyword(val_off, val_len, "table-row"))    { cs_display[cs] = DISP_TABLE_ROW; return; }
         if (css_value_keyword(val_off, val_len, "table-cell"))   { cs_display[cs] = DISP_TABLE_CELL; return; }
+        return;
+    }
+    if (prop == CP_FLEX_DIR) {
+        if (css_value_keyword(val_off, val_len, "column"))
+            cs_flex_dir[cs] = FLEX_DIR_COLUMN;
+        else
+            cs_flex_dir[cs] = FLEX_DIR_ROW;
+        return;
+    }
+    if (prop == CP_JUSTIFY) {
+        if (css_value_keyword(val_off, val_len, "flex-end"))      cs_justify[cs] = JUSTIFY_FLEX_END;
+        else if (css_value_keyword(val_off, val_len, "center"))   cs_justify[cs] = JUSTIFY_CENTER;
+        else if (css_value_keyword(val_off, val_len, "space-between")) cs_justify[cs] = JUSTIFY_SPACE_BETWEEN;
+        else if (css_value_keyword(val_off, val_len, "space-around"))  cs_justify[cs] = JUSTIFY_SPACE_AROUND;
+        else if (css_value_keyword(val_off, val_len, "space-evenly"))  cs_justify[cs] = JUSTIFY_SPACE_EVENLY;
+        else                                                       cs_justify[cs] = JUSTIFY_FLEX_START;
+        return;
+    }
+    if (prop == CP_ALIGN_ITEMS) {
+        if (css_value_keyword(val_off, val_len, "flex-start"))    cs_align_items[cs] = ALIGN_FLEX_START;
+        else if (css_value_keyword(val_off, val_len, "flex-end")) cs_align_items[cs] = ALIGN_FLEX_END;
+        else if (css_value_keyword(val_off, val_len, "center"))   cs_align_items[cs] = ALIGN_CENTER;
+        else if (css_value_keyword(val_off, val_len, "baseline")) cs_align_items[cs] = ALIGN_BASELINE;
+        else                                                       cs_align_items[cs] = ALIGN_STRETCH;
+        return;
+    }
+    if (prop == CP_FLEX_GROW) {
+        /* Parse number with up to 2 decimal places into hundredths so
+         * `flex-grow: 1.5` stores 150. Plain integers come through as
+         * 100 * value. */
+        int v = 0;
+        int frac = 0;
+        int frac_digits = 0;
+        int seen_dot = 0;
+        int i = val_off;
+        int end = val_off + val_len;
+        while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+        while (i < end) {
+            char c = css_value_pool[i];
+            if (c >= '0' && c <= '9') {
+                if (seen_dot) {
+                    if (frac_digits < 2) { frac = frac * 10 + (c - '0'); frac_digits = frac_digits + 1; }
+                } else {
+                    v = v * 10 + (c - '0');
+                }
+            } else if (c == '.') {
+                seen_dot = 1;
+            } else {
+                break;
+            }
+            i = i + 1;
+        }
+        while (frac_digits < 2) { frac = frac * 10; frac_digits = frac_digits + 1; }
+        cs_flex_grow[cs] = v * 100 + frac;
+        return;
+    }
+    if (prop == CP_FLEX_SHRINK) {
+        int v = css_value_int(val_off, val_len);
+        cs_flex_shrink[cs] = v * 100;
+        return;
+    }
+    if (prop == CP_FLEX_BASIS) {
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_flex_basis[cs] = -1;
+            return;
+        }
+        cs_flex_basis[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_FLEX) {
+        /* Shorthand. Common forms:
+         *   flex: <number>            -> grow=N shrink=1 basis=0
+         *   flex: <number> <number>   -> grow=A shrink=B basis=0
+         *   flex: <number> <length>   -> grow=A shrink=1 basis=L
+         *   flex: <a> <b> <length>    -> grow=A shrink=B basis=L
+         *   flex: auto                -> grow=1 shrink=1 basis=auto
+         *   flex: none                -> grow=0 shrink=0 basis=auto
+         * Reference: blink/Source/core/css/parser/CSSPropertyParser.cpp
+         * (consumeFlex). */
+        if (css_value_keyword(val_off, val_len, "none")) {
+            cs_flex_grow[cs] = 0;
+            cs_flex_shrink[cs] = 0;
+            cs_flex_basis[cs] = -1;
+            return;
+        }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_flex_grow[cs] = 100;
+            cs_flex_shrink[cs] = 100;
+            cs_flex_basis[cs] = -1;
+            return;
+        }
+        /* Token walk. Numbers become grow then shrink; a length or `0`
+         * with a px-style suffix becomes basis. */
+        int tok_off[3];
+        int tok_len[3];
+        int tn = 0;
+        int i = val_off;
+        int end = val_off + val_len;
+        while (i < end && tn < 3) {
+            while (i < end && (css_value_pool[i] == ' ' || css_value_pool[i] == '\t')) i = i + 1;
+            if (i >= end) break;
+            int s = i;
+            while (i < end && css_value_pool[i] != ' ' && css_value_pool[i] != '\t') i = i + 1;
+            tok_off[tn] = s;
+            tok_len[tn] = i - s;
+            tn = tn + 1;
+        }
+        int g = 100;       /* default grow if first number missing */
+        int sh = 100;
+        int basis = 0;     /* `flex: 1` => basis: 0 per spec */
+        int got_g = 0;
+        int got_sh = 0;
+        int got_basis = 0;
+        int t;
+        for (t = 0; t < tn; t = t + 1) {
+            char *s = css_value_pool + tok_off[t];
+            int sl = tok_len[t];
+            int has_unit = 0;
+            int k;
+            for (k = 0; k < sl; k = k + 1) {
+                char c = s[k];
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '%') {
+                    has_unit = 1; break;
+                }
+            }
+            if (has_unit && !got_basis) {
+                if (b_strieq_n(s, "auto", 4)) basis = -1;
+                else                          basis = css_value_len(cs, tok_off[t], sl);
+                got_basis = 1;
+            } else if (!got_g) {
+                int v = 0;
+                int frac = 0;
+                int seen_dot = 0;
+                int frac_d = 0;
+                int kk;
+                for (kk = 0; kk < sl; kk = kk + 1) {
+                    char c = s[kk];
+                    if (c >= '0' && c <= '9') {
+                        if (seen_dot) { if (frac_d < 2) { frac = frac * 10 + (c - '0'); frac_d = frac_d + 1; } }
+                        else          v = v * 10 + (c - '0');
+                    } else if (c == '.') seen_dot = 1;
+                    else break;
+                }
+                while (frac_d < 2) { frac = frac * 10; frac_d = frac_d + 1; }
+                g = v * 100 + frac;
+                got_g = 1;
+            } else if (!got_sh) {
+                int v = 0;
+                int frac = 0;
+                int seen_dot = 0;
+                int frac_d = 0;
+                int kk;
+                for (kk = 0; kk < sl; kk = kk + 1) {
+                    char c = s[kk];
+                    if (c >= '0' && c <= '9') {
+                        if (seen_dot) { if (frac_d < 2) { frac = frac * 10 + (c - '0'); frac_d = frac_d + 1; } }
+                        else          v = v * 10 + (c - '0');
+                    } else if (c == '.') seen_dot = 1;
+                    else break;
+                }
+                while (frac_d < 2) { frac = frac * 10; frac_d = frac_d + 1; }
+                sh = v * 100 + frac;
+                got_sh = 1;
+            }
+        }
+        cs_flex_grow[cs] = g;
+        cs_flex_shrink[cs] = sh;
+        cs_flex_basis[cs] = basis;
+        return;
+    }
+    if (prop == CP_GAP) {
+        cs_gap[cs] = css_value_len(cs, val_off, val_len);
         return;
     }
     if (prop == CP_MARGIN || prop == CP_PADDING) {

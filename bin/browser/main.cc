@@ -139,6 +139,8 @@ enum {
     CP_OUTLINE, CP_OUTLINE_COLOR, CP_OUTLINE_WIDTH, CP_OUTLINE_STYLE,
     CP_POSITION, CP_TOP, CP_RIGHT, CP_BOTTOM, CP_LEFT, CP_Z_INDEX,
     CP_FLOAT, CP_CLEAR,
+    CP_FLEX_DIR, CP_JUSTIFY, CP_ALIGN_ITEMS,
+    CP_FLEX, CP_FLEX_GROW, CP_FLEX_SHRINK, CP_FLEX_BASIS, CP_GAP,
     /* Sentinel for custom-property declarations (`--name: value`).
      * cs_apply_property dispatches on prop_id; a CP_CUSTOM_VAR rule
      * carries its name via css_rule_var_name_off/len rather than
@@ -163,6 +165,7 @@ enum {
     DISP_BLOCK = 1, DISP_INLINE, DISP_INLINE_BLOCK, DISP_LIST_ITEM,
     DISP_TABLE, DISP_TABLE_ROW_GROUP, DISP_TABLE_ROW, DISP_TABLE_CELL,
     DISP_TABLE_CAPTION, DISP_NONE,
+    DISP_FLEX, DISP_INLINE_FLEX,
     WS_NORMAL = 0, WS_PRE, WS_NOWRAP,
     LS_DISC = 0, LS_CIRCLE, LS_SQUARE, LS_DECIMAL, LS_NONE,
     VA_BASELINE = 0, VA_TOP, VA_MIDDLE, VA_BOTTOM,
@@ -189,6 +192,22 @@ enum {
     BG_GRAD_NONE = 0,
     BG_GRAD_HORIZONTAL = 1,
     BG_GRAD_VERTICAL = 2,
+
+    FLEX_DIR_ROW = 0,
+    FLEX_DIR_COLUMN = 1,
+
+    JUSTIFY_FLEX_START = 0,
+    JUSTIFY_FLEX_END = 1,
+    JUSTIFY_CENTER = 2,
+    JUSTIFY_SPACE_BETWEEN = 3,
+    JUSTIFY_SPACE_AROUND = 4,
+    JUSTIFY_SPACE_EVENLY = 5,
+
+    ALIGN_STRETCH = 0,
+    ALIGN_FLEX_START = 1,
+    ALIGN_FLEX_END = 2,
+    ALIGN_CENTER = 3,
+    ALIGN_BASELINE = 4,
 
     /* z-index defaults to 0 (auto behaves equivalent to 0 for non-stacking
      * contexts). Document order acts as the tiebreaker so out-of-flow
@@ -525,6 +544,16 @@ int cs_box_sizing   [4096];   /* BOX_SIZING_CONTENT (default) | BORDER */
 int cs_bg_grad      [4096];   /* BG_GRAD_NONE | HORIZONTAL | VERTICAL */
 int cs_bg_grad_c1   [4096];
 int cs_bg_grad_c2   [4096];
+
+/* §2.x display:flex storage. Reference: blink/Source/core/css/
+ * StyleFlexibleBoxData.h + LayoutFlexibleBox.cpp. */
+int cs_flex_dir    [4096];   /* FLEX_DIR_ROW (default) | COLUMN */
+int cs_justify     [4096];   /* JUSTIFY_FLEX_START | END | CENTER | SPACE_*  */
+int cs_align_items [4096];   /* ALIGN_STRETCH (default) | FLEX_START | END | CENTER */
+int cs_flex_grow   [4096];   /* per-item; default 0; in 1/100ths so 1.5 = 150 */
+int cs_flex_shrink [4096];   /* per-item; default 100 (= 1) */
+int cs_flex_basis  [4096];   /* per-item px; -1 = auto */
+int cs_gap         [4096];   /* px; default 0 */
 int cs_shadow_has   [4096];   /* 1 if box-shadow declared, else 0 */
 int cs_shadow_dx    [4096];   /* px offset, signed */
 int cs_shadow_dy    [4096];   /* px offset, signed */

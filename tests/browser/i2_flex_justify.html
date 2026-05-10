@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<title>i2 justify-content</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 4px 0; font-size: 13px; }
+.row {
+  display: flex;
+  background: #eef;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.box {
+  background: #36c;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  width: 70px;
+  text-align: center;
+}
+.s  { justify-content: flex-start; }
+.e  { justify-content: flex-end; }
+.c  { justify-content: center; }
+.sb { justify-content: space-between; }
+.sa { justify-content: space-around; }
+.se { justify-content: space-evenly; }
+</style>
+</head>
+<body>
+<div class="lbl">flex-start (default)</div>
+<div class="row s"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+<div class="lbl">flex-end</div>
+<div class="row e"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+<div class="lbl">center</div>
+<div class="row c"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+<div class="lbl">space-between</div>
+<div class="row sb"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+<div class="lbl">space-around</div>
+<div class="row sa"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+<div class="lbl">space-evenly</div>
+<div class="row se"><div class="box">1</div><div class="box">2</div><div class="box">3</div></div>
+</body>
+</html>

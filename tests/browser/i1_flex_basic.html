@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<title>i1 flex basic</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 6px 0; }
+.row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  background: #eef;
+  padding: 8px;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #efe;
+  padding: 8px;
+  width: 200px;
+}
+.box {
+  background: #36c;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+.tall { height: 60px; }
+</style>
+</head>
+<body>
+<div class="lbl">flex-direction: row, gap: 8</div>
+<div class="row">
+  <div class="box">A</div>
+  <div class="box">B</div>
+  <div class="box">C</div>
+  <div class="box">D</div>
+</div>
+<div class="lbl">flex-direction: column, gap: 8, width: 200</div>
+<div class="col">
+  <div class="box tall">first</div>
+  <div class="box tall">second</div>
+  <div class="box tall">third</div>
+</div>
+</body>
+</html>

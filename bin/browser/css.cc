@@ -539,6 +539,14 @@ int css_match_property(char *s, int len) {
     if (len == 7  && b_strieq_n(s, "z-index",        7))          return CP_Z_INDEX;
     if (len == 5  && b_strieq_n(s, "float",          5))          return CP_FLOAT;
     if (len == 5  && b_strieq_n(s, "clear",          5))          return CP_CLEAR;
+    if (len == 14 && b_strieq_n(s, "flex-direction", 14))         return CP_FLEX_DIR;
+    if (len == 15 && b_strieq_n(s, "justify-content", 15))        return CP_JUSTIFY;
+    if (len == 11 && b_strieq_n(s, "align-items",    11))         return CP_ALIGN_ITEMS;
+    if (len == 9  && b_strieq_n(s, "flex-grow",      9))          return CP_FLEX_GROW;
+    if (len == 11 && b_strieq_n(s, "flex-shrink",    11))         return CP_FLEX_SHRINK;
+    if (len == 10 && b_strieq_n(s, "flex-basis",     10))         return CP_FLEX_BASIS;
+    if (len == 4  && b_strieq_n(s, "flex",           4))          return CP_FLEX;
+    if (len == 3  && b_strieq_n(s, "gap",            3))          return CP_GAP;
     return 0;
 }
 

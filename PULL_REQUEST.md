@@ -609,7 +609,110 @@ browser.
   `text-align: center` inside a `.badge` + `position: relative;
   z-index` mid-stack to validate the full stacking pipeline.
 
+## Phase 5: display: flex (single-line)
+
+CSS Flexible Box Layout Module Level 1, single-line subset (no
+`flex-wrap`, no `order`, no `align-self`). Modern web layouts depend
+on flex; without it Bootstrap / Tailwind / utility-CSS pages render
+as a single column. Reference:
+`blink/Source/core/layout/LayoutFlexibleBox.cpp`
+(computeNextFlexLine + resolveFlexibleLengths +
+layoutAndPlaceChildren).
+
+**Storage (`bin/browser/main.cc`).**
+
+```c
+int cs_flex_dir   [4096];   /* FLEX_DIR_ROW (default) | COLUMN */
+int cs_justify    [4096];   /* JUSTIFY_FLEX_START | END | CENTER | SPACE_BETWEEN | SPACE_AROUND | SPACE_EVENLY */
+int cs_align_items[4096];   /* ALIGN_STRETCH (default) | FLEX_START | END | CENTER | BASELINE */
+int cs_flex_grow  [4096];   /* hundredths so 1.5 = 150 (avoids float in cupidc) */
+int cs_flex_shrink[4096];   /* hundredths; default 100 */
+int cs_flex_basis [4096];   /* px; -1 = auto */
+int cs_gap        [4096];
+```
+
+UA defaults: row, flex-start, stretch, grow=0, shrink=1, basis=auto,
+gap=0.
+
+**CSS parse (`bin/browser/css.cc` + `bin/browser/style.cc`).**
+
+- `display: flex | inline-flex` adds two new `DISP_*` enum values.
+- `flex-direction`, `justify-content`, `align-items` parse keyword
+  values with the obvious defaults on unknown.
+- `flex-grow`, `flex-shrink`, `flex-basis` parse individually.
+- `flex` shorthand handles the canonical forms:
+  `auto | none | <number> | <a> <b> | <a> <length> | <a> <b> <length>`.
+  Numbers go to grow then shrink; the first token with a unit becomes
+  basis. Keywords map per spec (`auto` -> 1 1 auto, `none` -> 0 0 auto).
+- `gap` parses a single length (row + column gap shorthand, no
+  per-axis split yet).
+- `rt_kind_for_display` maps `DISP_FLEX` to `RT_BLOCK` and
+  `DISP_INLINE_FLEX` to `RT_INLINE_BLOCK` so the parent's child walk
+  treats a flex container as a block-level child.
+
+**Layout (`bin/browser/layout.cc:layout_flex`).**
+
+`layout_block` dispatches to `layout_flex(n, content_w, cx, cy)` when
+the container's `cs_display` is `DISP_FLEX` or `DISP_INLINE_FLEX`.
+The algorithm:
+
+1. **Walk + base sizes.** Skip out-of-flow children (POS_ABSOLUTE /
+   POS_FIXED) and anonymous nodes. For each flex item compute the
+   FLEX BASE SIZE in the main axis from `flex-basis` first, else
+   `cs_width` (row) or `cs_height` (column), else an intrinsic-text
+   estimate. Box-sizing: border-box uses the declared value as-is;
+   content-box adds padding+border on the main axis. Floor at the
+   item's padding+border so a `flex: 1 0 0` item never shrinks below
+   its own chrome.
+2. **Free-space distribution.**
+   `free_space = main_size - sum(base) - gap_total`.
+   - `> 0`: distribute proportionally to `cs_flex_grow`. Rounding
+     remainder lands on the last grower so totals match exactly.
+   - `< 0`: distribute proportionally to
+     `cs_flex_shrink * base / 100`, clamped to each item's
+     padding+border floor.
+   - `== 0`: items keep their base sizes.
+3. **Indefinite main size.** A column flex container with no
+   declared `height` sizes its main axis to `sum(base) + gaps`; if
+   we left `main_size = 0`, free_space went deeply negative and the
+   shrink pass crushed every item to padding+border only. CSS
+   Flexbox §9.7.3 "if the available main size is infinite, this is
+   the flex line's main size." (Reproduced by
+   `tests/browser/i1_flex_basic.html` `.col` block before this fix.)
+4. **Per-item layout.** Recurse `layout_block(item, item_w_or_h)` to
+   compute the cross size from content. For column direction we then
+   override `rt_h[item]` to the flex-resolved main size so a fixed
+   `height: 60` survives the cross-axis re-layout.
+5. **Container cross size.** Use `cs_height`/`cs_width` (per
+   direction) if set, else the tallest item's cross size.
+6. **align-items.** `flex-start` / `flex-end` / `center` shift the
+   cross axis by `cross - item_cross` (or its half). `stretch`
+   (default) extends the item's cross size to the container's when
+   the item has no explicit cross size.
+7. **justify-content packing.** `flex-start` is the no-shift default;
+   `flex-end` shifts by full slack; `center` by half; `space-between`
+   spreads slack into `n-1` gaps; `space-around` gives each item a
+   half-margin on both sides; `space-evenly` distributes slack
+   equally including before/after the run. `gap` is added between
+   items as a base separator before extra `space-*` distribution.
+
+**Tests.**
+
+- `tests/browser/i1_flex_basic.html` - row + column with `gap`,
+  exercises the indefinite-main-size fix and content-box height +
+  padding.
+- `tests/browser/i2_flex_justify.html` - all six justify-content
+  values on the same `.row`.
+- `tests/browser/i3_flex_align.html` - flex-start / flex-end / center
+  / stretch with three items of different declared heights.
+- `tests/browser/i4_flex_grow.html` - `flex: 1` even split, `flex: 1
+  / 2 / 3` proportional split, and a nav-bar pattern with a
+  `flex: 1` spacer between fixed-size buttons.
+
 ## Not in this PR (still deferred)
 
+- **`flex-wrap`, `order`, `align-self`, `align-content`** - the
+  multi-line / per-item override pieces of the spec. Not in real-
+  world use yet on the test pages we run.
 - **WOFF2 + Brotli.** `woff2_unwrap` is a stub that returns NULL. Full implementation needs a kernel-side Brotli decoder (~1500 LoC port from `google/brotli c/dec/`), the 122 KiB static dictionary, base-128 directory entries, and the WOFF2 §5.1 `glyf`/`loca` transform inverse (~600 LoC). Tracked for the next PR.
 - **Wikipedia thumbnail URL with `.svg.png` extension.** Returns 404 from Wikimedia even in real browsers — not a decoder issue. Tests use stable `Wiki.png` + `PNG_transparency_demonstration_1.png` instead.
