@@ -823,6 +823,121 @@ gradient bg fill:
 - `tests/browser/j4_bg_position.html` - the 9-keyword grid (corners
   / edges / center) + explicit `24px 40px`.
 
+## Phase 7: scripting bindings parity + AC97 volume tool
+
+The browser pulled most of its weight onto the kernel-binding registry,
+but the registry was lopsided: CupidC had 403 bindings, CupidASM 337,
+and the AC97 driver only exposed master volume with no read-back. This
+phase closes the parity gap and adds a small user-facing tool.
+
+### AC97 driver — PCM channel + getters
+
+`kernel/audio/ac97.{c,h}` gained `ac97_set_pcm_volume(pct)`,
+`ac97_get_master_volume()`, and `ac97_get_pcm_volume()`. The setter
+mirrors the existing master path (pct → 6-bit attenuation → write to
+`NAM_PCM_OUT_VOL`); the getters return cached percentages from a new
+`master_pct` / `pcm_pct` pair on `s_ac97`. `ac97_init` now routes its
+unmute writes through the setters so the cache stays in sync with the
+codec from boot.
+
+### CupidC bindings (kernel/lang/cupidc.c)
+
+- `sock_avail(fd)` / `sock_state(fd)` — non-blocking polling primitives
+  already in `kernel/network/socket.c` v5; bound as `BIND_T(..., 1, TYPE_INT)`.
+- `ac97_set_pcm_volume`, `ac97_get_master_volume`, `ac97_get_pcm_volume`.
+- `png_decode_mem`, `jpeg_decode_mem` — the in-memory PNG/JPEG decoders
+  that already power `gfx2d_image_load_mem`. Caller passes
+  `(data, len, &out_pixels, &out_w, &out_h)` and `kfree`s the buffer.
+
+### CupidASM full parity (kernel/lang/as.c)
+
+Closed the 84-symbol gap between cupidc.c and as.c, plus added the 8
+new bindings above. New `as_*` wrappers were written for the cases
+where the cupidc side uses static helpers (`gui_win_*` 16, shell buffer
+inspection 7, clipboard 3, notepad path, ANSI palette, PCI bus-master,
+keyboard ctrl, network drop / error stat). Direct binds for the rest:
+all `gfx2d_image_*`, thick-stroke shapes, rounded gradients, glyph
+helpers, swap, SMP, USB, fontsys, REPL, image codecs, `kdeflate_raw`,
+`dglibc_test_main`, and the full libm surface (54 functions —
+sin/cos/tan, exp/log/pow, trig inverses, hyperbolics, rounding —
+documented with the float-ABI caveat that callers `fstp` the FPU
+result).
+
+After this phase a parity diff (`comm -23` of the two binding name
+sets) leaves only `IP_PROTO_ICMP` / `_TCP` / `_UDP` in the cupidc-only
+set; those are int constants registered via `as_bind_equ` on the asm
+side, not function bindings.
+
+### CupidC compiler — stdint type aliases
+
+The lexer (`kernel/lang/cupidc_lex.c::cc_check_keyword`) now accepts
+`uint8_t`/`uint16_t`/`uint32_t`/`int8_t`/`int16_t`/`int32_t` as
+synonyms for `U8`/`U16`/`U32`/`I8`/`I16`/`I32`. Programs ported from
+kernel C no longer fail with `undefined variable` cascades on
+`(uint8_t)n` casts. The parser is token-keyed, so this is a
+lexer-only change — no parser table touched.
+
+### CupidC compiler — auto-main no longer fires twice
+
+Files with top-level statements that *also* call `main();` explicitly
+(the canonical pattern in `bin/audiotest.cc`, `bin/volume.cc`, etc.)
+were running `main` twice: once from the user's top-level call, once
+from the post-parse "if main() exists, call it for compatibility"
+emission. Two flags were added to `cc_state_t`: `in_top_level` (on
+during the top-level statement loop) and `main_called_top_level` (set
+when a call expression resolves to a `SYM_FUNC` named `main` while
+`in_top_level` is true). The post-parse auto-call now skips when the
+user has already invoked main themselves. Legacy programs that define
+`main()` without calling it still get the implicit invocation.
+
+### `bin/volume.cc`
+
+Small CupidC tool exercising the new AC97 surface:
+
+```
+volume          # prints current master volume
+volume 60       # sets master volume to 60% and confirms
+volume 150      # rejects out-of-range with an error message
+```
+
+Uses only existing bindings (`get_args`, `ac97_is_present_int`,
+`ac97_set_master_volume`, `print_int`, `println`) plus the new
+`ac97_get_master_volume` getter. Pattern follows
+`bin/audiotest.cc` — `void main()` + a trailing `main();`, which the
+post-parse fix makes safe again.
+
+### Documentation
+
+- `CUPIDOS.txt` — appended `sock_avail` / `sock_state` to the BSD
+  socket cheat-sheet, AC97 PCM + getters to the audio block, a new
+  IMAGING section for the codec bindings, a new 2D GFX parity section
+  listing the asm-newly-bound names, a new GUI WINDOW API section,
+  and a `volume 50` quick-start line.
+- `wiki/CupidC-Language-Reference.md` — same additions in the binding
+  catalogue, plus a PNG-decode-and-blit example.
+- `wiki/CupidASM-Assembler.md` — appended TLS/poll bindings to BSD
+  sockets, `net_rx_drops` / `net_tx_errors`, AC97 PCM + getters, a new
+  Imaging block, a 2D Graphics parity table, a GUI window table, and
+  a libm section with the float-ABI note.
+- `wiki/Networking.md` — new subsections on non-blocking polling
+  (`sock_avail` + `sock_state`) and TLS upgrade via `setsockopt`.
+- `wiki/CupidC-2D-Graphics-Library.md` — appended PNG / JPEG codec
+  block and a CupidASM parity note.
+
+### Files changed in phase 7
+
+- `kernel/audio/ac97.h`, `kernel/audio/ac97.c`
+- `kernel/lang/cupidc.h` — new `in_top_level` / `main_called_top_level` fields
+- `kernel/lang/cupidc.c` — 9 new bindings, png/jpeg.h includes
+- `kernel/lang/cupidc_lex.c` — stdint keyword aliases
+- `kernel/lang/cupidc_parse.c` — auto-main suppression
+- `kernel/lang/as.c` — ~92 new bindings + ~36 wrapper helpers + new
+  includes (gui, swap, smp, percpu, usb, clipboard, fontsys, ansi,
+  png, jpeg, fat16, deflate, dglibc, graphics, gfx2d_assets,
+  gfx2d_transform, libm, cupidc)
+- `bin/volume.cc` — new
+- `CUPIDOS.txt` + four `wiki/*.md` pages
+
 ## Not in this PR (still deferred)
 
 - **`background:` shorthand composition.** Composing

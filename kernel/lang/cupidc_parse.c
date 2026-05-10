@@ -1970,6 +1970,14 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       call_ret_type = sym->type;
     }
     if (sym) {
+      /* HolyC-style auto-main: if the user explicitly calls main() at the
+       * top level, suppress the post-parse auto-call so main doesn't run
+       * twice. Only flag for SYM_FUNC (a kernel binding called "main"
+       * would be unusual and shouldn't toggle this). */
+      if (cc->in_top_level && sym->kind == SYM_FUNC &&
+          strcmp(name, "main") == 0) {
+        cc->main_called_top_level = 1;
+      }
       if (sym->kind == SYM_KERNEL) {
         emit_call_abs(cc, sym->address);
       } else if (sym->kind == SYM_FUNC) {
@@ -2009,6 +2017,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     } else {
       /* Unknown function - create forward ref */
+      if (cc->in_top_level && strcmp(name, "main") == 0) {
+        cc->main_called_top_level = 1;
+      }
       cc_symbol_t *fsym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
       if (fsym) {
         fsym->param_count = argc;
@@ -6493,7 +6504,9 @@ void cc_parse_program(cc_state_t *cc) {
       }
 
       has_top_level_statements = 1;
+      cc->in_top_level = 1;
       cc_parse_statement(cc);
+      cc->in_top_level = 0;
     }
   }
 
@@ -6505,9 +6518,13 @@ void cc_parse_program(cc_state_t *cc) {
   }
 
   if (!cc->error && top_level_started) {
-    /* If main() exists, run it after top-level statements for compatibility. */
+    /* If main() exists and the user did NOT already invoke it from a
+     * top-level statement, run it after top-level for legacy programs that
+     * defined main but didn't call it. Skipping when the user *did* call
+     * main themselves prevents the body from running twice. */
     cc_symbol_t *main_sym = cc_sym_find(cc, "main");
-    if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined) {
+    if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined &&
+        !cc->main_called_top_level) {
       uint32_t target = cc->code_base + (uint32_t)main_sym->offset;
       emit_call_abs(cc, target);
     }

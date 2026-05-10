@@ -307,6 +307,14 @@ typedef struct {
   char typedef_names[16][CC_MAX_IDENT];
   cc_type_t typedef_types[16];
   int typedef_count;
+
+  /* HolyC-style top-level / auto-main handling.
+   * The parser auto-emits a trailing `call main` when a file has top-level
+   * statements AND defines main() — so legacy programs can omit the
+   * explicit `main();` call. These flags suppress the auto-call when the
+   * top-level code already calls main itself (otherwise main runs twice). */
+  int in_top_level;            /* 1 while parsing top-level stmts */
+  int main_called_top_level;   /* 1 if user called main() at top level */
 } cc_state_t;
 
 /* Public API */

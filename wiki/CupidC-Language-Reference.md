@@ -115,6 +115,8 @@ them all when the loop ends.
 - `sendto(int fd, void *buf, uint32_t len, uint32_t ip, uint16_t port)` - UDP sendto
 - `recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port)` - UDP recvfrom
 - `setsockopt(int fd, int level, int optname, void *val, uint32_t vlen)` - Use `level=SOL_TLS=1`, `optname=TLS_ENABLE=1`, `val=hostname`, `vlen=strlen(hostname)` to upgrade a connected TCP socket to TLS 1.3
+- `sock_avail(int fd)` - Bytes currently buffered (0 means a `recv` would block); `EBADF` on bad fd
+- `sock_state(int fd)` - Returns `tcp_state_t` enum value (`TCPS_*`); `EBADF` on bad fd
 - `close(int fd)` - Close socket
 
 ```c
@@ -139,6 +141,9 @@ void main() {
 - `ac97_start()` - Arm DMA
 - `ac97_stop()` - Halt + mute
 - `ac97_set_master_volume(uint8_t pct)` - 0-100
+- `ac97_set_pcm_volume(uint8_t pct)` - 0-100, sets the PCM-out channel attenuation
+- `ac97_get_master_volume()` - Returns last-set master percentage (0 if device absent)
+- `ac97_get_pcm_volume()` - Returns last-set PCM percentage
 - `ac97_tsc_sleep_ms(uint32_t ms)` - TSC busy-wait (IRQ-state independent)
 - `ac97_is_present_int()` - Returns 0 or 1
 - `ac97_smoke_sine()` - 440 Hz triangle for 2s
@@ -148,6 +153,29 @@ void main() {
 
 ```c
 void main() { ac97_init(); ac97_smoke_sine(); }
+```
+
+```c
+// Set master volume to 50% (or read current with ac97_get_master_volume).
+// Full source: bin/volume.cc.  Run:  volume 50
+```
+
+#### Imaging - in-memory codecs
+- `png_decode_mem(uint8_t *data, uint32_t len, uint32_t **out_pixels, int *out_w, int *out_h)` - Decode PNG to a fresh XRGB buffer (caller `kfree`s `*out_pixels`); returns 0 on success, negative `PNG_E*` on failure. Non-interlaced 8-bit PNGs only.
+- `jpeg_decode_mem(uint8_t *data, uint32_t len, uint32_t **out_pixels, int *out_w, int *out_h)` - Baseline JPEG (SOF0/SOF1, 8-bit, 1- or 3-channel); same buffer convention.
+- `kdeflate_raw(uint8_t *src, uint32_t src_len, uint8_t *out, uint32_t out_len)` - RFC 1951 raw DEFLATE; returns produced bytes or negative on error.
+
+```c
+// Load a PNG from disk and blit it to the screen.
+uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
+uint32_t *px; int w, h;
+if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) gfx2d_pixel(x, y, px[y*w + x]);
+    gfx2d_flip();
+    kfree(px);
+}
+kfree(bytes);
 ```
 
 #### Audio - MIDI / OPL3 synth

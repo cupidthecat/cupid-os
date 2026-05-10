@@ -21,6 +21,9 @@ void ac97_set_fill_callback(void (*fill)(int16_t *buf, uint32_t frames));
 void ac97_start(void);            /* arm DMA */
 void ac97_stop(void);             /* mute + halt DMA */
 void ac97_set_master_volume(uint8_t pct);  /* 0-100 */
+void ac97_set_pcm_volume(uint8_t pct);     /* 0-100 */
+uint8_t ac97_get_master_volume(void);      /* 0-100, 0 if absent */
+uint8_t ac97_get_pcm_volume(void);         /* 0-100, 0 if absent */
 bool ac97_is_present(void);
 
 /* TSC-based busy-wait for ms milliseconds. IRQ-state independent. */

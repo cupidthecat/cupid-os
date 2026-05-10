@@ -64,6 +64,8 @@ BSD sockets:
   send     recv   sendto   recvfrom close
   setsockopt   (use level=SOL_TLS=1, optname=TLS_ENABLE=1
                 with hostname for TLS 1.3 upgrade)
+  sock_avail(fd)  -> bytes buffered (0 = would block on recv)
+  sock_state(fd)  -> tcp_state_t enum (TCPS_*)
 
 Constants (CupidASM only):
   IP_PROTO_ICMP=1   IP_PROTO_TCP=6   IP_PROTO_UDP=17
@@ -73,7 +75,10 @@ AUDIO (CupidC + CupidASM, full parity)
 --------------------------------------
 AC97 driver:
   ac97_init             ac97_start            ac97_stop
-  ac97_set_master_volume(pct)
+  ac97_set_master_volume(pct)        0..100
+  ac97_set_pcm_volume(pct)           0..100  (PCM channel)
+  ac97_get_master_volume() -> 0..100 (0 if absent)
+  ac97_get_pcm_volume()    -> 0..100
   ac97_tsc_sleep_ms(ms)
   ac97_is_present_int
   ac97_smoke_sine       ac97_smoke_sweep      ac97_smoke_pan
@@ -94,6 +99,38 @@ PCM mixer (16 slots, s16 stereo @ 22050 Hz):
   mixer_active(slot)
   mixer_set_volume(slot, l, r)
   mixer_fill(out, frames)
+
+IMAGING (CupidC + CupidASM)
+---------------------------
+In-memory codecs (decode to fresh XRGB heap buffer; caller kfree's):
+  png_decode_mem(data, len, &pixels, &w, &h)   -> 0 / negative
+  jpeg_decode_mem(data, len, &pixels, &w, &h)  -> 0 / negative
+  bmp_decode(path, buf, buf_size)              -> 0 / negative
+  bmp_decode_to_fb(path, x, y)                 -> 0 / negative
+  bmp_decode_to_surface_fit(path, sid, w, h)   -> 0 / negative
+  kdeflate_raw(src, src_len, out, out_len)     -> bytes / negative
+
+2D GFX (CupidC + CupidASM, full parity)
+---------------------------------------
+Now bound from CupidASM in addition to CupidC:
+  gfx2d_image_load / load_mem / free / draw / draw_region
+  gfx2d_image_draw_scaled / draw_transformed
+  gfx2d_image_get_pixel / width / height
+  gfx2d_char / char_scaled / text_n / text_simple / text_width_n
+  gfx2d_glyph_advance
+  gfx2d_circle_thick   gfx2d_line_thick
+  gfx2d_tri            gfx2d_tri_fill_gradient
+  gfx2d_gradient_h_round  gfx2d_gradient_v_round  gfx2d_gradient_radial
+  gfx2d_capture_screen_to_surface
+
+GUI WINDOW API (CupidC + CupidASM, full parity)
+-----------------------------------------------
+  gui_win_create(title, x, y, w, h) -> wid
+  gui_win_close / is_open / focus / draw_frame / can_draw
+  gui_win_content_x / y / w / h
+  gui_win_begin_paint / end_paint
+  gui_win_invalidate / invalidate_rect / present / flip
+  gui_win_poll_key
 
 WEB ENGINE (planned — see branch notes)
 ---------------------------------------
@@ -139,6 +176,25 @@ HTTPS GET (CupidC):
 AC97 sine (CupidC):
 
   void main() { ac97_init(); ac97_smoke_sine(); }
+
+Set / read master volume (CupidC):
+
+  // bin/volume.cc — volume 0..100, no arg prints current.
+  // Run:  volume 50
+  // See bin/volume.cc for the full source.
+
+PNG decode + blit (CupidC):
+
+  uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
+  uint32_t *px; int w, h;
+  if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
+      for (int y = 0; y < h; y++)
+          for (int x = 0; x < w; x++)
+              gfx2d_pixel(x, y, px[y*w + x]);
+      gfx2d_flip();
+      kfree(px);
+  }
+  kfree(bytes);
 
 AC97 sine (CupidASM):
 

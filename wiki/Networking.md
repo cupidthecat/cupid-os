@@ -754,9 +754,46 @@ int socket_close   (int fd);
 int socket_sendto  (int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t port);
 int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port); // blocking
 
+int socket_setsockopt(int fd, int level, int optname,
+                      const void *val, uint32_t vlen);
+int socket_avail   (int fd);   // bytes buffered (0 = recv would block); EBADF on bad fd
+int socket_state   (int fd);   // tcp_state_t enum (TCPS_*); EBADF on bad fd
+
 uint16_t htons(uint16_t v);
 uint32_t htonl(uint32_t v);
 ```
+
+### Non-blocking polling
+
+Both CupidC and CupidASM expose `sock_avail` and `sock_state` (the wire
+names of the kernel functions above). Combine them with `recv` to drain
+a socket without blocking:
+
+```c
+while (sock_state(fd) == TCPS_ESTABLISHED) {
+    int n = sock_avail(fd);
+    if (n > 0) {
+        int got = recv(fd, buf, n);
+        // ...handle got bytes...
+    } else {
+        yield();   // give other tasks a slice
+    }
+}
+```
+
+### TLS upgrade (`setsockopt`)
+
+A connected TCP socket can be upgraded to TLS 1.3 by passing the SNI
+hostname through `setsockopt`. After the call succeeds, all subsequent
+`send` / `recv` traffic on the fd is encrypted:
+
+```c
+setsockopt(fd, SOL_TLS /*=1*/, TLS_ENABLE /*=1*/,
+           "example.com", strlen("example.com"));
+```
+
+The opaque TLS context attached to the socket is freed automatically by
+`socket_close`.
 
 ### Blocking model
 

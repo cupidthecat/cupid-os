@@ -20,6 +20,7 @@
 #include "calendar.h"
 #include "desktop.h"
 #include "math.h"
+#include "libm.h"
 #include "panic.h"
 #include "blockcache.h"
 #include "bmp.h"
@@ -51,6 +52,23 @@
 #include "audio/mixer.h"
 #include "audio/opl_smoke.h"
 #include "notepad.h"
+#include "gui.h"
+#include "swap.h"
+#include "smp.h"
+#include "percpu.h"
+#include "usb.h"
+#include "clipboard.h"
+#include "fontsys.h"
+#include "ansi.h"
+#include "png.h"
+#include "jpeg.h"
+#include "fat16.h"
+#include "deflate.h"
+#include "doom/dglibc.h"
+#include "graphics.h"
+#include "gfx2d_assets.h"
+#include "gfx2d_transform.h"
+#include "cupidc.h"
 
 /* Read source file from VFS */
 
@@ -498,7 +516,7 @@ static int as_fp_to_int(int a) { return a >> 16; }
 static int as_fp_frac(int a) { return a & 0xFFFF; }
 static int as_fp_one(void) { return 65536; }
 
-/*  Phase 4 net/HW wrappers for CupidASM  */
+/*  Net/HW wrappers for CupidASM  */
 static uint32_t as_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -534,6 +552,157 @@ static uint32_t as_net_tx_packets(void) {
   net_if_t *n = net_if_primary();
   return n ? (uint32_t)n->tx_packets : 0u;
 }
+static uint32_t as_net_rx_drops(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->rx_drops : 0u;
+}
+static uint32_t as_net_tx_errors(void) {
+  net_if_t *n = net_if_primary();
+  return n ? (uint32_t)n->tx_errors : 0u;
+}
+
+/*  Clipboard / notepad / keyboard / ansi / pci wrappers (mirror cupidc)  */
+extern char cc_notepad_open_path[256];
+extern char cc_notepad_save_path[256];
+
+static void as_clipboard_set(int ptr, int len) {
+  clipboard_copy((const char *)(uint32_t)ptr, len);
+}
+static int as_clipboard_get(void) {
+  const char *d = clipboard_get_data();
+  return (int)(uint32_t)d;
+}
+static int as_clipboard_len(void) { return clipboard_get_length(); }
+
+static void as_notepad_get_open_path(int out_ptr, int out_save_ptr) {
+  char *out      = (char *)(uint32_t)out_ptr;
+  char *out_save = (char *)(uint32_t)out_save_ptr;
+  int i;
+  if (out) {
+    for (i = 0; i < 255 && cc_notepad_open_path[i]; i++) out[i] = cc_notepad_open_path[i];
+    out[i] = '\0';
+  }
+  if (out_save) {
+    for (i = 0; i < 255 && cc_notepad_save_path[i]; i++) out_save[i] = cc_notepad_save_path[i];
+    out_save[i] = '\0';
+  }
+}
+
+static int as_keyboard_ctrl_held(void) { return keyboard_get_ctrl() ? 1 : 0; }
+
+static uint32_t as_ansi_color(int idx) {
+  if (idx < 0 || idx > 15) idx = ANSI_DEFAULT_FG;
+  return ansi_vga_to_palette((uint8_t)idx);
+}
+
+static uint32_t as_pci_bar_is_mmio(int idx, int bar) {
+  pci_device_t *d = pci_get_device(idx);
+  if (!d || bar < 0 || bar >= 6) return 0u;
+  return (d->bars[bar] & 0x1u) ? 0u : 1u;
+}
+static void as_pci_enable_bus_master_idx(int idx) {
+  pci_device_t *d = pci_get_device(idx);
+  if (d) pci_enable_bus_master(d);
+}
+
+/*  GUI window wrappers  */
+static int as_gui_win_create(const char *title, int x, int y, int w, int h) {
+  return gui_create_window((int16_t)x, (int16_t)y, (uint16_t)w, (uint16_t)h, title);
+}
+static void as_gui_win_close(int win_id) { (void)gui_destroy_window(win_id); }
+static int as_gui_win_is_open(int win_id) {
+  return gui_get_window(win_id) ? 1 : 0;
+}
+static int as_gui_win_content_x(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  return win ? (int)win->x + 1 : 0;
+}
+static int as_gui_win_content_y(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  return win ? (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD : 0;
+}
+static int as_gui_win_content_w(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  return win ? (int)win->width - 2 : 0;
+}
+static int as_gui_win_content_h(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  return win ? (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER : 0;
+}
+static int as_gui_win_poll_key(int win_id) {
+  window_t *win = gui_get_window(win_id);
+  if (!win) return -1;
+  if (win->key_head == win->key_tail) return -1;
+  int key = win->key_queue[win->key_head];
+  win->key_head = (win->key_head + 1) % GUI_KEY_QUEUE_SIZE;
+  return key;
+}
+static int  as_gui_win_begin_paint(int wid) { return gui_begin_window_paint(wid); }
+static int  as_gui_win_end_paint(int wid)   { return gui_end_window_paint(wid); }
+static int  as_gui_win_invalidate(int wid)  { return gui_invalidate_window(wid); }
+static int  as_gui_win_invalidate_rect(int wid, int x, int y, int w, int h) {
+  return gui_invalidate_window_rect(wid, x, y, w, h);
+}
+static int  as_gui_win_present(int wid) {
+  if (!gui_get_window(wid)) return GUI_ERR_INVALID_ID;
+  if (gui_is_minimized(wid)) return GUI_OK;
+  return gui_present_windows();
+}
+static void as_gui_win_flip(int wid) {
+  if (!gui_get_window(wid)) return;
+  (void)gui_cache_window_content(wid);
+  (void)gui_invalidate_window(wid);
+  (void)gui_present_windows();
+}
+static int as_gui_win_can_draw(int wid) {
+  window_t *focused = gui_get_focused_window();
+  window_t *win = gui_get_window(wid);
+  if (!win || gui_is_minimized(wid)) return 0;
+  if (focused && (int)focused->id == wid) return 1;
+  return (win->flags & WINDOW_FLAG_DIRTY) ? 1 : 0;
+}
+static int as_gui_win_focus(int wid) { return gui_set_focus(wid); }
+static int as_gui_win_draw_frame(int wid) {
+  window_t *focused = gui_get_focused_window();
+  if (!focused) return -1;
+  if ((int)focused->id != wid) return 0;
+  mouse_restore_under_cursor();
+  return gui_draw_window(wid);
+}
+
+/*  Shell buffer wrappers  */
+static int as_shell_buf_rows(void) { return SHELL_ROWS; }
+static int as_shell_buf_cols(void) { return SHELL_COLS; }
+static int as_shell_buf_char(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS) return 0;
+  const char *buf = shell_get_buffer();
+  return (int)(unsigned char)buf[row * SHELL_COLS + col];
+}
+static int as_shell_buf_color(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS) return 0x07;
+  const shell_color_t *colors = shell_get_color_buffer();
+  const shell_color_t cell = colors[row * SHELL_COLS + col];
+  return (int)(cell.fg | (uint8_t)(cell.bg << 4));
+}
+static int  as_shell_cursor_x(void) { return shell_get_cursor_x(); }
+static int  as_shell_cursor_y(void) { return shell_get_cursor_y(); }
+static void as_shell_send_key(int scancode, int ch) {
+  shell_gui_handle_key((uint8_t)scancode, (char)ch);
+}
+
+/*  gfx2d text helper wrappers (1bpp glyph routes via graphics.h)  */
+static void as_gfx2d_char(int x, int y, int ch, int color) {
+  gfx_draw_char((int16_t)x, (int16_t)y, (char)ch, (uint32_t)color);
+}
+static void as_gfx2d_char_scaled(int x, int y, int ch, int color, int scale) {
+  if (scale < 1) scale = 1;
+  if (scale > 3) scale = 3;
+  gfx_draw_char_scaled((int16_t)x, (int16_t)y, (char)ch, (uint32_t)color, scale);
+}
+static void as_gfx2d_text_simple(int x, int y, const char *str, int color) {
+  gfx_draw_text((int16_t)x, (int16_t)y, str, (uint32_t)color);
+}
+
 static int as_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
@@ -856,7 +1025,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "desktop_bg_get_tiled_pattern", desktop_bg_get_tiled_pattern);
   AS_BIND(as, "desktop_bg_get_tiled_use_bmp", desktop_bg_get_tiled_use_bmp);
 
-  /*  Phase 4: full networking stack (parity with CupidC)  */
+  /*  Full networking stack (parity with CupidC)  */
   AS_BIND(as, "net_get_ip",          as_net_get_ip);
   AS_BIND(as, "net_get_gateway",     as_net_get_gateway);
   AS_BIND(as, "net_get_dns",         as_net_get_dns);
@@ -895,14 +1064,14 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SOCK_TYPE_UDP",   SOCK_TYPE_UDP);
   as_bind_equ(as, "SOCK_TYPE_TCP",   SOCK_TYPE_TCP);
 
-  /*  Phase 4: block devices  */
+  /*  Block devices  */
   AS_BIND(as, "blkdev_count",        blkdev_count);
   AS_BIND(as, "blkdev_read",         as_blkdev_read);
   AS_BIND(as, "blkdev_write",        as_blkdev_write);
   AS_BIND(as, "ata_read_sectors",    ata_read_sectors);
   AS_BIND(as, "ata_write_sectors",   ata_write_sectors);
 
-  /*  Phase 4: serial / keyboard direct  */
+  /*  Serial / keyboard direct  */
   AS_BIND(as, "serial_read_char",    serial_read_char);
   AS_BIND(as, "serial_write_char",   serial_write_char);
   AS_BIND(as, "serial_write_string", serial_write_string);
@@ -919,13 +1088,13 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "keyboard_test_sub_last_sc", keyboard_test_sub_last_sc);
   AS_BIND(as, "keyboard_test_sub_last_pressed", keyboard_test_sub_last_pressed);
 
-  /*  Phase 4: speaker / PIT  */
+  /*  Speaker / PIT  */
   AS_BIND(as, "pc_speaker_on",       pc_speaker_on);
   AS_BIND(as, "pc_speaker_off",      pc_speaker_off);
   AS_BIND(as, "pit_set_frequency",   pit_set_frequency);
   AS_BIND(as, "timer_delay_us",      timer_delay_us);
 
-  /*  Phase 4: PCI introspection  */
+  /*  PCI introspection  */
   AS_BIND(as, "pci_device_count",    pci_device_count);
   AS_BIND(as, "pci_get_vendor",      as_pci_vendor_idx);
   AS_BIND(as, "pci_get_device_id",   as_pci_device_id_idx);
@@ -933,7 +1102,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "pci_get_irq",         as_pci_irq_idx);
   AS_BIND(as, "pci_get_bar",         as_pci_bar_idx);
 
-  /*  Phase 4: SMP / LAPIC / BKL / paging  */
+  /*  SMP / LAPIC / BKL / paging  */
   AS_BIND(as, "lapic_get_id",        lapic_get_id);
   AS_BIND(as, "lapic_eoi",           lapic_eoi);
   AS_BIND(as, "bkl_lock",            bkl_lock);
@@ -966,7 +1135,170 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "mixer_set_volume",         mixer_set_volume);
   AS_BIND(as, "mixer_fill",               mixer_fill);
 
-  /*  Phase 4: low-level I/O for drivers  */
+  /*  AC97 PCM channel + getters (parity additions)  */
+  AS_BIND(as, "ac97_set_pcm_volume",     ac97_set_pcm_volume);
+  AS_BIND(as, "ac97_get_master_volume",  ac97_get_master_volume);
+  AS_BIND(as, "ac97_get_pcm_volume",     ac97_get_pcm_volume);
+
+  /*  Socket polling + TLS upgrade (parity additions)  */
+  AS_BIND(as, "sock_avail",          socket_avail);
+  AS_BIND(as, "sock_state",          socket_state);
+  AS_BIND(as, "setsockopt",          socket_setsockopt);
+
+  /*  Net interface stats (parity)  */
+  AS_BIND(as, "net_rx_drops",        as_net_rx_drops);
+  AS_BIND(as, "net_tx_errors",       as_net_tx_errors);
+
+  /*  Image codecs (parity)  */
+  AS_BIND(as, "png_decode_mem",            png_decode_mem);
+  AS_BIND(as, "jpeg_decode_mem",           jpeg_decode_mem);
+  AS_BIND(as, "bmp_decode_to_surface_fit", bmp_decode_to_surface_fit);
+
+  /*  Storage / FS  */
+  AS_BIND(as, "storage_total_bytes", fat16_total_bytes);
+  AS_BIND(as, "storage_free_bytes",  fat16_free_bytes);
+
+  /*  Swap / SMP / USB  */
+  AS_BIND(as, "swap_init",           swap_init);
+  AS_BIND(as, "swap_kmalloc",        swap_kmalloc);
+  AS_BIND(as, "swap_pin",            swap_pin);
+  AS_BIND(as, "swap_unpin",          swap_unpin);
+  AS_BIND(as, "swap_free",           swap_free);
+  AS_BIND(as, "smp_cpu_count",       smp_cpu_count);
+  AS_BIND(as, "smp_current_cpu",     smp_current_cpu);
+  AS_BIND(as, "smp_atomic_inc",      smp_atomic_inc);
+  AS_BIND(as, "usb_device_count",    usb_device_count);
+  AS_BIND(as, "usb_device_class",    usb_device_class);
+
+  /*  Clipboard / notepad / ansi / keyboard ctrl  */
+  AS_BIND(as, "clipboard_set",       as_clipboard_set);
+  AS_BIND(as, "clipboard_get",       as_clipboard_get);
+  AS_BIND(as, "clipboard_len",       as_clipboard_len);
+  AS_BIND(as, "notepad_get_open_path", as_notepad_get_open_path);
+  AS_BIND(as, "ansi_color",          as_ansi_color);
+  AS_BIND(as, "keyboard_ctrl_held",  as_keyboard_ctrl_held);
+
+  /*  PCI extra  */
+  AS_BIND(as, "pci_bar_is_mmio",       as_pci_bar_is_mmio);
+  AS_BIND(as, "pci_enable_bus_master", as_pci_enable_bus_master_idx);
+
+  /*  Fontsys + REPL  */
+  AS_BIND(as, "fontsys_draw_run_styled", fontsys_draw_run_styled);
+  AS_BIND(as, "fontsys_set_os_default",  fontsys_set_os_default);
+  AS_BIND(as, "repl_eval",                  repl_eval);
+  AS_BIND(as, "repl_consume_prompt_result", repl_consume_prompt_result);
+
+  /*  Shell extra  */
+  AS_BIND(as, "shell_buf_rows",        as_shell_buf_rows);
+  AS_BIND(as, "shell_buf_cols",        as_shell_buf_cols);
+  AS_BIND(as, "shell_buf_char",        as_shell_buf_char);
+  AS_BIND(as, "shell_buf_color",       as_shell_buf_color);
+  AS_BIND(as, "shell_cursor_x",        as_shell_cursor_x);
+  AS_BIND(as, "shell_cursor_y",        as_shell_cursor_y);
+  AS_BIND(as, "shell_send_key",        as_shell_send_key);
+  AS_BIND(as, "shell_execute_line",    shell_execute_line);
+  AS_BIND(as, "shell_gui_execute_line",shell_gui_execute_line);
+  AS_BIND(as, "shell_gui_reset_input", shell_gui_reset_input);
+  AS_BIND(as, "shell_jit_program_resume",  shell_jit_program_resume);
+  AS_BIND(as, "shell_jit_program_suspend", shell_jit_program_suspend);
+  AS_BIND(as, "shell_set_output_mode", shell_set_output_mode);
+
+  /*  GUI window API  */
+  AS_BIND(as, "gui_win_create",          as_gui_win_create);
+  AS_BIND(as, "gui_win_close",           as_gui_win_close);
+  AS_BIND(as, "gui_win_is_open",         as_gui_win_is_open);
+  AS_BIND(as, "gui_win_content_x",       as_gui_win_content_x);
+  AS_BIND(as, "gui_win_content_y",       as_gui_win_content_y);
+  AS_BIND(as, "gui_win_content_w",       as_gui_win_content_w);
+  AS_BIND(as, "gui_win_content_h",       as_gui_win_content_h);
+  AS_BIND(as, "gui_win_poll_key",        as_gui_win_poll_key);
+  AS_BIND(as, "gui_win_begin_paint",     as_gui_win_begin_paint);
+  AS_BIND(as, "gui_win_end_paint",       as_gui_win_end_paint);
+  AS_BIND(as, "gui_win_invalidate",      as_gui_win_invalidate);
+  AS_BIND(as, "gui_win_invalidate_rect", as_gui_win_invalidate_rect);
+  AS_BIND(as, "gui_win_present",         as_gui_win_present);
+  AS_BIND(as, "gui_win_flip",            as_gui_win_flip);
+  AS_BIND(as, "gui_win_can_draw",        as_gui_win_can_draw);
+  AS_BIND(as, "gui_win_focus",           as_gui_win_focus);
+  AS_BIND(as, "gui_win_draw_frame",      as_gui_win_draw_frame);
+
+  /*  libm parity (callers marshal float / double args & FPU return).
+   *  Float ABI: float on stack (4 B) returns in st0; double on stack (8 B)
+   *  returns in st0. Caller must fstp result. */
+  AS_BIND(as, "sqrt",      sqrt);   AS_BIND(as, "sqrtf",      sqrtf);
+  AS_BIND(as, "sin",       sin);    AS_BIND(as, "sinf",       sinf);
+  AS_BIND(as, "cos",       cos);    AS_BIND(as, "cosf",       cosf);
+  AS_BIND(as, "tan",       tan);    AS_BIND(as, "tanf",       tanf);
+  AS_BIND(as, "asin",      asin);   AS_BIND(as, "asinf",      asinf);
+  AS_BIND(as, "acos",      acos);   AS_BIND(as, "acosf",      acosf);
+  AS_BIND(as, "atan",      atan);   AS_BIND(as, "atanf",      atanf);
+  AS_BIND(as, "atan2",     atan2);  AS_BIND(as, "atan2f",     atan2f);
+  AS_BIND(as, "sinh",      sinh);   AS_BIND(as, "sinhf",      sinhf);
+  AS_BIND(as, "cosh",      cosh);   AS_BIND(as, "coshf",      coshf);
+  AS_BIND(as, "tanh",      tanh);   AS_BIND(as, "tanhf",      tanhf);
+  AS_BIND(as, "exp",       exp);    AS_BIND(as, "expf",       expf);
+  AS_BIND(as, "exp2",      exp2);   AS_BIND(as, "exp2f",      exp2f);
+  AS_BIND(as, "log",       log);    AS_BIND(as, "logf",       logf);
+  AS_BIND(as, "log2",      log2);   AS_BIND(as, "log2f",      log2f);
+  AS_BIND(as, "pow",       pow);    AS_BIND(as, "powf",       powf);
+  AS_BIND(as, "fabs",      fabs);   AS_BIND(as, "fabsf",      fabsf);
+  AS_BIND(as, "ceil",      ceil);   AS_BIND(as, "ceilf",      ceilf);
+  AS_BIND(as, "floor",     floor);  AS_BIND(as, "floorf",     floorf);
+  AS_BIND(as, "round",     round);  AS_BIND(as, "roundf",     roundf);
+  AS_BIND(as, "trunc",     trunc);  AS_BIND(as, "truncf",     truncf);
+  AS_BIND(as, "fmod",      fmod);   AS_BIND(as, "fmodf",      fmodf);
+  AS_BIND(as, "cbrt",      cbrt);   AS_BIND(as, "cbrtf",      cbrtf);
+  AS_BIND(as, "hypot",     hypot);  AS_BIND(as, "hypotf",     hypotf);
+  AS_BIND(as, "nextafter", nextafter); AS_BIND(as, "nextafterf", nextafterf);
+
+  /*  Compression / fontsys / doom-test (integer-ABI parity)  */
+  AS_BIND(as, "kdeflate_raw",            kdeflate_raw);
+  AS_BIND(as, "dglibc_test_main",        dglibc_test_main);
+  AS_BIND(as, "fontsys_advance",         fontsys_advance);
+  AS_BIND(as, "fontsys_ascent",          fontsys_ascent);
+  AS_BIND(as, "fontsys_face_count",      fontsys_face_count);
+  AS_BIND(as, "fontsys_face_family",     fontsys_face_family);
+  AS_BIND(as, "fontsys_face_has_cp",     fontsys_face_has_cp);
+  AS_BIND(as, "fontsys_face_italic",     fontsys_face_italic);
+  AS_BIND(as, "fontsys_face_weight",     fontsys_face_weight);
+  AS_BIND(as, "fontsys_find_face_with_cp", fontsys_find_face_with_cp);
+  AS_BIND(as, "fontsys_get_os_default_face", fontsys_get_os_default_face);
+  AS_BIND(as, "fontsys_get_os_default_size", fontsys_get_os_default_size);
+  AS_BIND(as, "fontsys_italic_extra",    fontsys_italic_extra);
+  AS_BIND(as, "fontsys_line_height",     fontsys_line_height);
+  AS_BIND(as, "fontsys_match",           fontsys_match);
+  AS_BIND(as, "fontsys_register_blob",   fontsys_register_blob);
+  AS_BIND(as, "fontsys_register_file",   fontsys_register_file);
+  AS_BIND(as, "fontsys_run_width",       fontsys_run_width);
+  AS_BIND(as, "fontsys_unregister",      fontsys_unregister);
+
+  /*  gfx2d additions (parity)  */
+  AS_BIND(as, "gfx2d_image_load",          gfx2d_image_load);
+  AS_BIND(as, "gfx2d_image_load_mem",      gfx2d_image_load_mem);
+  AS_BIND(as, "gfx2d_image_free",          gfx2d_image_free);
+  AS_BIND(as, "gfx2d_image_draw",          gfx2d_image_draw);
+  AS_BIND(as, "gfx2d_image_draw_region",   gfx2d_image_draw_region);
+  AS_BIND(as, "gfx2d_image_draw_scaled",   gfx2d_image_draw_scaled);
+  AS_BIND(as, "gfx2d_image_draw_transformed", gfx2d_image_draw_transformed);
+  AS_BIND(as, "gfx2d_image_get_pixel",     gfx2d_image_get_pixel);
+  AS_BIND(as, "gfx2d_image_width",         gfx2d_image_width);
+  AS_BIND(as, "gfx2d_image_height",        gfx2d_image_height);
+  AS_BIND(as, "gfx2d_char",                as_gfx2d_char);
+  AS_BIND(as, "gfx2d_char_scaled",         as_gfx2d_char_scaled);
+  AS_BIND(as, "gfx2d_text_n",              gfx2d_text_n);
+  AS_BIND(as, "gfx2d_text_simple",         as_gfx2d_text_simple);
+  AS_BIND(as, "gfx2d_text_width_n",        gfx2d_text_width_n);
+  AS_BIND(as, "gfx2d_circle_thick",        gfx2d_circle_thick);
+  AS_BIND(as, "gfx2d_line_thick",          gfx2d_line_thick);
+  AS_BIND(as, "gfx2d_tri",                 gfx2d_tri);
+  AS_BIND(as, "gfx2d_tri_fill_gradient",   gfx2d_tri_fill_gradient);
+  AS_BIND(as, "gfx2d_gradient_h_round",    gfx2d_gradient_h_round);
+  AS_BIND(as, "gfx2d_gradient_v_round",    gfx2d_gradient_v_round);
+  AS_BIND(as, "gfx2d_gradient_radial",     gfx2d_gradient_radial);
+  AS_BIND(as, "gfx2d_glyph_advance",       gfx2d_glyph_advance);
+  AS_BIND(as, "gfx2d_capture_screen_to_surface", gfx2d_capture_screen_to_surface);
+
+  /*  Low-level I/O for drivers  */
   AS_BIND(as, "outb",                outb);
   AS_BIND(as, "inb",                 inb);
 }
@@ -1059,7 +1391,7 @@ static int as_init_state(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SYS_VFS_WRITE_TEXT",148);
   as_bind_equ(as, "SYS_MEMSTATS",     152);
 
-  /*  Phase 4 syscall table offsets (v3)  */
+  /*  Syscall table offsets (v3)  */
   as_bind_equ(as, "SYS_NET_GET_IP",        156);
   as_bind_equ(as, "SYS_NET_GET_GATEWAY",   160);
   as_bind_equ(as, "SYS_NET_GET_DNS",       164);

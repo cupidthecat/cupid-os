@@ -418,6 +418,9 @@ details.
 | `send` / `recv` | stream I/O on TCP socket |
 | `sendto` / `recvfrom` | UDP datagram I/O |
 | `close` | `int close(int fd)` |
+| `setsockopt` | `int setsockopt(int fd, int level, int opt, void *val, U32 vlen)` - level=`SOL_TLS`(1), opt=`TLS_ENABLE`(1), val=hostname for TLS 1.3 upgrade |
+| `sock_avail` | `int sock_avail(int fd)` - bytes buffered (0 = recv would block) |
+| `sock_state` | `int sock_state(int fd)` - returns `tcp_state_t` enum |
 | `dns_resolve` | `int dns_resolve(char *name, U32 *out)` |
 | `htons` / `ntohs` / `htonl` / `ntohl` | byte-swap helpers |
 
@@ -432,6 +435,7 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `net_get_mac(out)` | Fills 6-byte MAC into `out` |
 | `net_link_up` | 1 if link up |
 | `net_rx_packets` / `net_tx_packets` | Counters |
+| `net_rx_drops` / `net_tx_errors` | Drop / error counters |
 | `ip_parse(s, out)` | `"a.b.c.d"` -> uint32 |
 | `ipv4_send(dst, proto, payload, plen)` | Raw IPv4 (auto-fragments > MTU) |
 | `arp_resolve(ip, mac_out)` | Blocking 500 ms ARP |
@@ -494,6 +498,9 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `ac97_start` | Arm DMA |
 | `ac97_stop` | Halt + mute |
 | `ac97_set_master_volume(pct)` | 0-100 master volume |
+| `ac97_set_pcm_volume(pct)` | 0-100 PCM channel volume |
+| `ac97_get_master_volume` | Returns last-set master pct (0 if absent) |
+| `ac97_get_pcm_volume` | Returns last-set PCM pct |
 | `ac97_tsc_sleep_ms(ms)` | TSC busy-wait |
 | `ac97_is_present_int` | 0 / 1 |
 | `ac97_smoke_sine` | 440 Hz triangle 2s |
@@ -524,6 +531,59 @@ s16 stereo @ 22050 Hz, 16 slots.
 | `mixer_active(slot)` | 1 if playing |
 | `mixer_set_volume(slot, vol_l, vol_r)` | Per-slot volume |
 | `mixer_fill(out, frames)` | Mix all active slots into `out` |
+
+### Imaging - in-memory codecs
+
+| Function | Description |
+|---|---|
+| `png_decode_mem(data, len, &out_pixels, &out_w, &out_h)` | PNG → fresh XRGB heap buffer (caller `kfree`s) |
+| `jpeg_decode_mem(data, len, &out_pixels, &out_w, &out_h)` | Baseline JPEG, same convention |
+| `bmp_decode_to_surface_fit(path, sid, w, h)` | Decode BMP into `gfx2d_surface[sid]`, fit to w×h |
+| `kdeflate_raw(src, src_len, out, out_len)` | RFC 1951 raw DEFLATE; returns produced bytes / negative |
+
+### 2D Graphics (full parity with CupidC)
+
+CupidASM now exposes the complete `gfx2d_*` surface. New since the
+previous parity pass:
+
+| Group | Functions |
+|---|---|
+| Image slots | `gfx2d_image_load` / `_load_mem` / `_free` / `_draw` / `_draw_region` / `_draw_scaled` / `_draw_transformed` / `_get_pixel` / `_width` / `_height` |
+| Glyphs / text | `gfx2d_char` / `_char_scaled` / `_text_n` / `_text_simple` / `_text_width_n` / `_glyph_advance` |
+| Shapes | `gfx2d_circle_thick` / `_line_thick` / `_tri` / `_tri_fill_gradient` |
+| Gradients | `gfx2d_gradient_h_round` / `_v_round` / `_radial` |
+| Capture | `gfx2d_capture_screen_to_surface` |
+
+### GUI window API (full parity with CupidC)
+
+| Function | Description |
+|---|---|
+| `gui_win_create(title, x, y, w, h)` | Create a window, returns wid in eax |
+| `gui_win_close(wid)` | Destroy window |
+| `gui_win_is_open(wid)` | 1 if still alive |
+| `gui_win_focus(wid)` | Bring to focus |
+| `gui_win_can_draw(wid)` | 1 if app may draw this frame |
+| `gui_win_draw_frame(wid)` | Draw chrome, hide cursor for repaint |
+| `gui_win_content_x` / `_y` / `_w` / `_h(wid)` | Inner content rect |
+| `gui_win_begin_paint` / `_end_paint(wid)` | Compositor paint scope |
+| `gui_win_invalidate(wid)` / `_invalidate_rect(wid, x, y, w, h)` | Mark dirty |
+| `gui_win_present(wid)` / `_flip(wid)` | Present back-buffer |
+| `gui_win_poll_key(wid)` | Pop next key from this window's queue, -1 if empty |
+
+### libm
+
+Float / double libm functions are bound directly. Caller is responsible
+for the float ABI: push the argument(s) on the stack (4 bytes for
+`float`, 8 for `double`), call, then `fstp` the result from the FPU
+top-of-stack.
+
+| Group | Functions |
+|---|---|
+| Trig | `sin` / `sinf`, `cos` / `cosf`, `tan` / `tanf`, `asin` / `asinf`, `acos` / `acosf`, `atan` / `atanf`, `atan2` / `atan2f` |
+| Hyperbolic | `sinh` / `sinhf`, `cosh` / `coshf`, `tanh` / `tanhf` |
+| Power / log | `exp` / `expf`, `exp2` / `exp2f`, `log` / `logf`, `log2` / `log2f`, `pow` / `powf`, `sqrt` / `sqrtf`, `cbrt` / `cbrtf` |
+| Round / abs | `fabs` / `fabsf`, `ceil` / `ceilf`, `floor` / `floorf`, `round` / `roundf`, `trunc` / `truncf`, `fmod` / `fmodf` |
+| Misc | `hypot` / `hypotf`, `nextafter` / `nextafterf` |
 
 ### Example: Audio smoke test
 
