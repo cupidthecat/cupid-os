@@ -183,6 +183,13 @@ enum {
     CLEAR_RIGHT = 2,
     CLEAR_BOTH = 3,
 
+    BOX_SIZING_CONTENT = 0,
+    BOX_SIZING_BORDER = 1,
+
+    BG_GRAD_NONE = 0,
+    BG_GRAD_HORIZONTAL = 1,
+    BG_GRAD_VERTICAL = 2,
+
     /* z-index defaults to 0 (auto behaves equivalent to 0 for non-stacking
      * contexts). Document order acts as the tiebreaker so out-of-flow
      * elements paint in source order when z-index is unset. */
@@ -514,6 +521,10 @@ int cs_min_height[4096];
 int cs_border_radius[4096];   /* px; 0 = sharp corners */
 int cs_overflow     [4096];   /* OVERFLOW_VISIBLE | OVERFLOW_HIDDEN */
 int cs_border_style [4096];   /* BS_SOLID | BS_DASHED | BS_DOTTED | BS_NONE */
+int cs_box_sizing   [4096];   /* BOX_SIZING_CONTENT (default) | BORDER */
+int cs_bg_grad      [4096];   /* BG_GRAD_NONE | HORIZONTAL | VERTICAL */
+int cs_bg_grad_c1   [4096];
+int cs_bg_grad_c2   [4096];
 int cs_shadow_has   [4096];   /* 1 if box-shadow declared, else 0 */
 int cs_shadow_dx    [4096];   /* px offset, signed */
 int cs_shadow_dy    [4096];   /* px offset, signed */
@@ -527,6 +538,10 @@ int cs_top         [4096];
 int cs_right       [4096];
 int cs_bottom      [4096];
 int cs_left        [4096];
+/* Bit field: bit 0 = top set, 1 = right set, 2 = bottom set, 3 = left set.
+ * Negative offsets (e.g. `top: -8px`) are valid CSS and must not collide
+ * with the "auto" sentinel; presence is tracked separately. */
+int cs_pos_set     [4096];
 int cs_z_index     [4096];
 
 /* CSS custom properties (B3). Up to 8 --vars per node. Inheritance
@@ -590,6 +605,10 @@ int rt_oof_list[1024];
  * behaviour. */
 int rt_is_oof   [6144];
 int rt_is_fixed [6144];
+/* Stacking-context participant: paint walk skips this node, render()'s
+ * z-index pass paints it. Set for abspos/fixed (rt_is_oof) and for
+ * position:relative with an explicit z-index. CSS 2.1 §9.9.1. */
+int rt_is_stack [6144];
 
 /* Floats. Module-level storage so flush_inline / layout_block share
  * one list across the document; line-box exclusion and cs_clear

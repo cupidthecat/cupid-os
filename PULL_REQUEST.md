@@ -501,8 +501,115 @@ concatenates into a single buffer (capped at `CC_MAX_STRING - 1`),
 and writes one record into the data section. Same byte-for-byte
 output as the single-literal path; only the parse step is new.
 
+## Phase 4: modern CSS visual polish
+
+A cluster of features that show up on every modern page. References
+stay in `blink/Source/core/`.
+
+**`box-sizing: border-box` (CSS box-sizing module).** New
+`cs_box_sizing[4096]` storage and `BOX_SIZING_BORDER` enum. Width
+and height resolution in `layout_block` now subtract padding +
+border from `cs_width`/`cs_height` when border-box is set, so the
+declared value describes the painted box edge (matching every
+modern reset CSS). Same fix in the abspos height path. Reference:
+`blink/Source/core/rendering/RenderBox.cpp`
+`computeLogicalWidthInRegion` + `boxSizing()`.
+
+**`linear-gradient` backgrounds.** `css_value_linear_gradient`
+parses `linear-gradient([dir,] c1, c2)` with cardinal directions
+(`to top` / `to right` / `to bottom` / `to left`) and angle keywords
+(`0deg` / `90deg` / `180deg` / `270deg`). Stops past two are dropped;
+non-cardinal angles snap to the nearest cardinal. Storage:
+`cs_bg_grad / cs_bg_grad_c1 / cs_bg_grad_c2`. Paint replaces the
+solid `cs_bg` with `gfx2d_gradient_h` / `gfx2d_gradient_v` for sharp
+corners and the new `gfx2d_gradient_h_round` / `gfx2d_gradient_v_round`
+when `border-radius > 0`. The rounded variants reuse
+`gfx2d_rect_round_fill`'s per-row `g2d_isqrt(r*r - dy*dy)` corner
+mask and stride the gradient color along x or y. Bound to CupidC
+via the BIND table. Reference:
+`blink/Source/core/css/CSSGradientValue.cpp`
+(`CSSGradientValue::parseLengthsAndPercents`) +
+`BoxPainterBase::paintFillLayer` rounded clip.
+
+**Z-index stacking sort.** `rt_collect_oof` (in `render_tree.cc`)
+now appends every stacking-context participant to `rt_oof_list`:
+absolute / fixed positioned boxes AND `position: relative` boxes
+with an explicit `z-index` (CSS 2.1 §9.9.1). New `rt_is_stack[6144]`
+flag marks all collected nodes; the in-flow paint walk skips them so
+they only paint in `render()`'s post-walk z-sorted pass. Insertion
+sort runs in-place on `rt_oof_list` (rebuilt every render-tree pass,
+so the mutation never leaks across frames). `layout_oof_one` early-
+returns for non-abs/fixed entries so relative-with-z stays in flow.
+Reference: `blink/Source/core/paint/PaintLayerStackingNode.cpp`
+`PaintLayerStackingNode::dirtyZOrderLists`.
+
+**Negative absolute offsets (`top: -8px`).** The previous sentinel
+`-1` for "auto" collided with literal negative offsets. Storage now
+splits presence into `cs_pos_set[4096]` bits 0..3 (top / right /
+bottom / left) and bit 16 (z-index explicit). Layout's
+`layout_oof_one` and the relative-position walks in `rt_screen_x` /
+`rt_screen_y` check the bit, not `>= 0`. CSS author's
+`top: -8 right: -8` on a `.badge` now hangs 8 px past the
+positioned ancestor's padding edge. Reference:
+`blink/Source/core/rendering/RenderBox.cpp::computePositionedLogicalWidth`
+allows any sign on `left`/`right`.
+
+**Containing block = padding edge of positioned ancestor.**
+`layout_oof_one` previously computed cb against the content box
+(subtracting both padding AND border). CSS 2.1 §10.1 says the
+containing block for absolutely positioned descendants is the
+padding edge of the nearest positioned ancestor — between its
+borders, INCLUDING its padding. Now `cb_x = doc_x + border_l`,
+`cb_w = rt_w - border_l - border_r`. Reference:
+`blink/Source/core/rendering/RenderBox.cpp::containingBlock`.
+
+**`text-align: center | right`.** Parsed and cascaded already, but
+never consumed. `paint_rt_line_box` now computes the rightmost
+atom's edge in line-box-local coords, derives slack against
+`rt_w[line_box]`, and shifts every atom (replaced refs included)
+by `slack/2` for center or full `slack` for right. Reference:
+`blink/Source/core/rendering/RenderBlockLineLayout.cpp`
+`computeInlineDirectionPositionsForLine` +
+`setInlineBoxesAlignment`.
+
+**Per-side border width painted, not 1-px clamped.** Layout always
+read the declared px width via `rt_border_l/r/t/b`, but
+`paint_rt_box_decoration`'s side strips called `gfx2d_rect_fill(..., 1, ...)`.
+Now each side strokes its own `cs_border[cs][i]` height/width,
+so `border: 4px solid` paints the full 4px ring. Same fix on the
+dashed/dotted path.
+
+### Kernel additions
+
+- `gfx2d_gradient_h_round(x, y, w, h, r, c1, c2)` and
+  `gfx2d_gradient_v_round` in `kernel/gfx/gfx2d.c`. Per-row gradient
+  color combined with `gfx2d_rect_round_fill`'s `g2d_isqrt` corner
+  mask. Bound to CupidC.
+
+### CupidC
+
+`CC_PP_MAX_OUTPUT` 512 KiB → 1 MiB. The browser tree concatenated
+with `#include` reach ~525 KiB after this PR, so the preprocessor's
+output buffer was overflowing on JIT compile. Symptom was the boot
+loop `[cupidc] preprocess failed` immediately after launching the
+browser.
+
+### Tests (h-series)
+
+- `tests/browser/h1_box_sizing.html` — content-box vs border-box
+  side by side; declared width 200 + padding 12 + border 4 should
+  paint 232 px outer in content-box and 200 px outer in border-box.
+- `tests/browser/h2_z_index.html` — four overlapping abspos boxes
+  with z-indices 0..3 in a different order from doc order.
+- `tests/browser/h3_linear_gradient.html` — eight tiles covering
+  every supported direction (default / `to <side>` / `<n>deg`) with
+  `border-radius: 6` to exercise the rounded-gradient path.
+- `tests/browser/h4_card_combo.html` — gradient + border-radius +
+  box-sizing + box-shadow + abspos children with negative offsets +
+  `text-align: center` inside a `.badge` + `position: relative;
+  z-index` mid-stack to validate the full stacking pipeline.
+
 ## Not in this PR (still deferred)
 
 - **WOFF2 + Brotli.** `woff2_unwrap` is a stub that returns NULL. Full implementation needs a kernel-side Brotli decoder (~1500 LoC port from `google/brotli c/dec/`), the 122 KiB static dictionary, base-128 directory entries, and the WOFF2 §5.1 `glyf`/`loca` transform inverse (~600 LoC). Tracked for the next PR.
-- **z-index stacking sort.** Out-of-flow nodes paint in document order; explicit z-index sorting is a follow-up.
 - **Wikipedia thumbnail URL with `.svg.png` extension.** Returns 404 from Wikimedia even in real browsers — not a decoder issue. Tests use stable `Wiki.png` + `PNG_transparency_demonstration_1.png` instead.

@@ -26,6 +26,7 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_intrinsic_h[n] = 0;
     rt_is_oof[n] = 0;
     rt_is_fixed[n] = 0;
+    rt_is_stack[n] = 0;
     rt_link_idx[n] = -1;
     rt_input_idx[n] = -1;
     rt_line_atom_first[n] = 0;
@@ -274,17 +275,27 @@ void rt_anon_table_fixup() {
     (void)0;
 }
 
-/* Walk freshly-built render tree, append every node whose computed
- * style is positioned (absolute / fixed) to rt_oof_list so layout's
- * second pass can resolve it against its containing block. Relative
- * stays in flow — only its paint offset shifts. */
+/* Walk freshly-built render tree, append every stacking-context
+ * participant to rt_oof_list. Two participant kinds:
+ *   - position: absolute | fixed - layout's second pass resolves x/y;
+ *     paint draws in z-index order with rt_is_oof set.
+ *   - position: relative WITH explicit z-index - stays in flow
+ *     (no second layout pass), but z-sorts in paint with siblings.
+ * CSS 2.1 §9.9.1: "An element forms a stacking context if it has a
+ * position value other than static and a z-index value other than
+ * auto." Both kinds get rt_is_stack so the in-flow paint walk skips
+ * them. */
 void rt_collect_oof(int n) {
     if (n < 0) return;
     int sty = rt_style[n];
     int pos = cs_position[sty];
-    if ((pos == POS_ABSOLUTE || pos == POS_FIXED) && rt_oof_count < 1024) {
+    int has_z = (cs_pos_set[sty] & 16) != 0;
+    int is_oof = (pos == POS_ABSOLUTE || pos == POS_FIXED);
+    int is_rel_z = (pos == POS_RELATIVE && has_z);
+    if ((is_oof || is_rel_z) && rt_oof_count < 1024) {
         rt_oof_list[rt_oof_count] = n;
         rt_oof_count = rt_oof_count + 1;
+        rt_is_stack[n] = 1;
     }
     int c = rt_first_child[n];
     while (c >= 0) { rt_collect_oof(c); c = rt_next[c]; }

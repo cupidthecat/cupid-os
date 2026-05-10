@@ -82,8 +82,13 @@ int rt_screen_x(int n) {
         if (rt_is_oof[cur]) break;
         if (rt_dom[cur] >= 0) {
             int sty = rt_style[cur];
-            if (cs_position[sty] == POS_RELATIVE && cs_left[sty] >= 0) {
-                x += cs_left[sty];
+            if (cs_position[sty] == POS_RELATIVE) {
+                int pset_r = cs_pos_set[sty];
+                if (pset_r & 8) {
+                    x += cs_left[sty];
+                } else if (pset_r & 2) {
+                    x -= cs_right[sty];
+                }
             }
         }
         cur = rt_parent[cur];
@@ -103,8 +108,13 @@ int rt_screen_y(int n) {
         if (rt_is_oof[cur]) break;
         if (rt_dom[cur] >= 0) {
             int sty = rt_style[cur];
-            if (cs_position[sty] == POS_RELATIVE && cs_top[sty] >= 0) {
-                y += cs_top[sty];
+            if (cs_position[sty] == POS_RELATIVE) {
+                int pset_r = cs_pos_set[sty];
+                if (pset_r & 1) {
+                    y += cs_top[sty];
+                } else if (pset_r & 4) {
+                    y -= cs_bottom[sty];
+                }
             }
         }
         cur = rt_parent[cur];
@@ -146,75 +156,94 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     /* 2. Background. CSS canvas-painting rule: if body's bg propagated up
      * to the document canvas (because html has no bg), the body element
      * itself must NOT paint bg again. Anonymous blocks share the parent's
-     * cs but have rt_dom == -1, so the suppression key is the dom tag. */
+     * cs but have rt_dom == -1, so the suppression key is the dom tag.
+     *
+     * Linear-gradient (cardinal-direction, 2-stop) takes priority over the
+     * solid bg color. Reference: blink/Source/core/css/CSSGradientValue.cpp
+     * + RoundedRect clip in BoxPainterBase::paintFillLayer. */
     int bg = cs_bg[cs];
     int suppress_bg = 0;
     if (doc_bg_suppress_body && rt_dom[n] >= 0 &&
         n_tag[rt_dom[n]] == T_BODY) suppress_bg = 1;
-    if (bg >= 0 && !suppress_bg) {
-        if (radius > 0) {
-            gfx2d_rect_round_fill(sx, sy, w, h, radius, bg);
-        } else {
-            gfx2d_rect_fill(sx, sy, w, h, bg);
+    if (!suppress_bg) {
+        int gtype = cs_bg_grad[cs];
+        if (gtype != BG_GRAD_NONE) {
+            int gc1 = cs_bg_grad_c1[cs];
+            int gc2 = cs_bg_grad_c2[cs];
+            if (gtype == BG_GRAD_HORIZONTAL) {
+                if (radius > 0) {
+                    gfx2d_gradient_h_round(sx, sy, w, h, radius, gc1, gc2);
+                } else {
+                    gfx2d_gradient_h(sx, sy, w, h, gc1, gc2);
+                }
+            } else {
+                if (radius > 0) {
+                    gfx2d_gradient_v_round(sx, sy, w, h, radius, gc1, gc2);
+                } else {
+                    gfx2d_gradient_v(sx, sy, w, h, gc1, gc2);
+                }
+            }
+        } else if (bg >= 0) {
+            if (radius > 0) {
+                gfx2d_rect_round_fill(sx, sy, w, h, radius, bg);
+            } else {
+                gfx2d_rect_fill(sx, sy, w, h, bg);
+            }
         }
     }
 
-    /* 3. Border (1px). With a non-zero radius the rounded outline replaces
-     * the four-sided rect-fill. gfx2d_rect_round draws a single-pixel
-     * stroke; we omit per-side gating in the rounded case (uniform radius
-     * implies uniform border in v1). */
-    int has_border = cs_border[cs][0] || cs_border[cs][1] ||
-                     cs_border[cs][2] || cs_border[cs][3];
+    /* 3. Border. Each side stores its declared pixel width in
+     * cs_border[cs][0..3] (top/right/bottom/left). With a non-zero
+     * radius the rounded outline replaces the four-sided rect-fill.
+     * Reference: blink/Source/core/paint/BoxPainterBase.cpp
+     * (paintBorderForRect) sums per-side widths into the rect strip. */
+    int bw_t = cs_border[cs][0];
+    int bw_r = cs_border[cs][1];
+    int bw_b = cs_border[cs][2];
+    int bw_l = cs_border[cs][3];
+    int has_border = bw_t || bw_r || bw_b || bw_l;
     if (has_border && cs_border_style[cs] != BS_NONE) {
         int bc = cs_border_color[cs];
         int style = cs_border_style[cs];
         if (radius > 0) {
-            /* Rounded outline always solid for now. Dashed/dotted on
-             * curved corners would need bresenham + dash-state which
-             * is more than v1 needs. */
+            /* Rounded outline always solid 1px for now. Wider rounded
+             * borders need a thickness sweep along the rounded path. */
             gfx2d_rect_round(sx, sy, w, h, radius, bc);
         } else if (style == BS_DASHED || style == BS_DOTTED) {
-            /* Dashed/dotted: stroke 1px segments along each side.
-             * Spec leaves dash length implementation-defined; Chrome
-             * uses ~3*width for dashed, 1*width for dotted. We stroke
-             * single-pixel rectangles since border width is already
-             * clamped to 1px in our paint. */
             int dash = (style == BS_DASHED) ? 4 : 1;
             int gap  = (style == BS_DASHED) ? 4 : 2;
             int step = dash + gap;
-            /* top + bottom */
             int xx;
-            if (cs_border[cs][0] || cs_border[cs][2]) {
+            if (bw_t || bw_b) {
                 xx = 0;
                 while (xx < w) {
                     int seg = dash;
                     if (xx + seg > w) seg = w - xx;
-                    if (cs_border[cs][0])
-                        gfx2d_rect_fill(sx + xx, sy, seg, 1, bc);
-                    if (cs_border[cs][2])
-                        gfx2d_rect_fill(sx + xx, sy + h - 1, seg, 1, bc);
+                    if (bw_t)
+                        gfx2d_rect_fill(sx + xx, sy, seg, bw_t, bc);
+                    if (bw_b)
+                        gfx2d_rect_fill(sx + xx, sy + h - bw_b, seg, bw_b, bc);
                     xx = xx + step;
                 }
             }
-            /* left + right */
             int yy;
-            if (cs_border[cs][3] || cs_border[cs][1]) {
+            if (bw_l || bw_r) {
                 yy = 0;
                 while (yy < h) {
                     int seg = dash;
                     if (yy + seg > h) seg = h - yy;
-                    if (cs_border[cs][3])
-                        gfx2d_rect_fill(sx, sy + yy, 1, seg, bc);
-                    if (cs_border[cs][1])
-                        gfx2d_rect_fill(sx + w - 1, sy + yy, 1, seg, bc);
+                    if (bw_l)
+                        gfx2d_rect_fill(sx, sy + yy, bw_l, seg, bc);
+                    if (bw_r)
+                        gfx2d_rect_fill(sx + w - bw_r, sy + yy, bw_r, seg, bc);
                     yy = yy + step;
                 }
             }
         } else {
-            if (cs_border[cs][0]) gfx2d_rect_fill(sx, sy, w, 1, bc);
-            if (cs_border[cs][2]) gfx2d_rect_fill(sx, sy + h - 1, w, 1, bc);
-            if (cs_border[cs][3]) gfx2d_rect_fill(sx, sy, 1, h, bc);
-            if (cs_border[cs][1]) gfx2d_rect_fill(sx + w - 1, sy, 1, h, bc);
+            if (bw_t) gfx2d_rect_fill(sx, sy, w, bw_t, bc);
+            if (bw_b) gfx2d_rect_fill(sx, sy + h - bw_b, w, bw_b, bc);
+            if (bw_l) gfx2d_rect_fill(sx, sy, bw_l, h, bc);
+            if (bw_r) gfx2d_rect_fill(sx + w - bw_r, sy, bw_r, h, bc);
         }
     }
 }
@@ -290,6 +319,13 @@ void paint_rt_node(int n) {
         if (is_inline_atom_kind) {
             c = rt_next[c]; continue;
         }
+        /* Out-of-flow positioned children paint in a separate z-index-
+         * ordered pass at the document root after the in-flow walk; skip
+         * them here. Reference: blink/Source/core/paint/PaintLayerPainter
+         * paintLayerWithEffects + sortByZOrder. */
+        if (rt_is_stack[c]) {
+            c = rt_next[c]; continue;
+        }
         int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
         if (is_float_child) {
             c = rt_next[c]; continue;
@@ -306,6 +342,9 @@ void paint_rt_node(int n) {
                                    (ck == RT_REPLACED &&
                                     cs_display[c_cs] != DISP_BLOCK));
         if (is_inline_atom_kind) {
+            c = rt_next[c]; continue;
+        }
+        if (rt_is_stack[c]) {
             c = rt_next[c]; continue;
         }
         int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
@@ -353,9 +392,31 @@ void paint_rt_text(int n, int sx, int sy) {
 void paint_rt_line_box(int n, int sx, int sy) {
     int first = rt_line_atom_first[n];
     int count = rt_line_atom_count[n];
+    /* Per-line text-align: la_x is stored line-cx relative and atoms
+     * pack from the left. To center / right-align, compute the visible
+     * content width (rightmost atom's la_x + width) and shift every
+     * atom by (line_w - content_w) or its half. CSS 2.1 §16.2.
+     * Reference: blink/Source/core/rendering/RenderBlockLineLayout.cpp
+     * (computeInlineDirectionPositionsForLine + setInlineBoxesAlignment). */
+    int line_cs = rt_style[n];
+    int align = cs_text_align[line_cs];
+    int align_shift = 0;
+    if (align != TA_LEFT) {
+        int content_w = 0;
+        int kk;
+        for (kk = first; kk < first + count; kk = kk + 1) {
+            if (la_x[kk] < 0) continue;
+            int rightmost = la_x[kk] + la_w[kk];
+            if (rightmost > content_w) content_w = rightmost;
+        }
+        int slack = rt_w[n] - content_w;
+        if (slack < 0) slack = 0;
+        if (align == TA_CENTER) align_shift = slack / 2;
+        else if (align == TA_RIGHT) align_shift = slack;
+    }
     for (int k = first; k < first + count; k++) {
         if (la_x[k] < 0) continue;       /* sentinel atom - break point not painted */
-        int ax = sx + la_x[k];
+        int ax = sx + la_x[k] + align_shift;
         int tier = la_font_tier[k];
         /* Center glyph vertically in the line box: line_h is taller than the
          * glyph (1.5x), so put the glyph on the visual midline rather than
@@ -374,7 +435,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
              * everything else, so paint_rt_replaced was drawing 0x0
              * invisible boxes (input row "missing or clipped" bug). */
             int rt_n = -la_text_off[k] - 1;
-            rt_x[rt_n] = sx + la_x[k] - rt_screen_x(rt_parent[rt_n]);
+            rt_x[rt_n] = sx + la_x[k] + align_shift - rt_screen_x(rt_parent[rt_n]);
             rt_y[rt_n] = sy - rt_screen_y(rt_parent[rt_n]);
             if (rt_intrinsic_w[rt_n] > 0) rt_w[rt_n] = rt_intrinsic_w[rt_n];
             if (rt_intrinsic_h[rt_n] > 0) rt_h[rt_n] = rt_intrinsic_h[rt_n];
@@ -836,6 +897,27 @@ void render() {
     paint_clip_init(vx, vy, cur_cw - 12, viewport_h());
 
     if (rt_count > 0) paint_rt_node(0);
+
+    /* Out-of-flow positioned subtrees paint AFTER the in-flow walk, in
+     * z-index ascending order (document order as the stable tiebreaker).
+     * Insertion sort runs in-place on rt_oof_list; layout rebuilds the
+     * list each render-tree pass so the mutation never leaks across
+     * frames. Reference:
+     * blink/Source/core/paint/PaintLayerStackingNode.cpp
+     * PaintLayerStackingNode::dirtyZOrderLists + sort by z-index. */
+    int oof_n = rt_oof_count;
+    int oi;
+    for (oi = 1; oi < oof_n; oi = oi + 1) {
+        int key_n = rt_oof_list[oi];
+        int key_z = cs_z_index[rt_style[key_n]];
+        int oj = oi - 1;
+        while (oj >= 0 && cs_z_index[rt_style[rt_oof_list[oj]]] > key_z) {
+            rt_oof_list[oj + 1] = rt_oof_list[oj];
+            oj = oj - 1;
+        }
+        rt_oof_list[oj + 1] = key_n;
+    }
+    for (oi = 0; oi < oof_n; oi = oi + 1) paint_rt_node(rt_oof_list[oi]);
 
     gfx2d_clip_clear();
 

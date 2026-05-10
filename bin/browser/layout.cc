@@ -696,21 +696,24 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
 }
 
 void layout_block(int n, int avail_w) {
-    /* Resolve width. Default `box-sizing: content-box` per CSS 2.1:
-     * `width` describes the CONTENT box, so the painted (border)
-     * box is `width + padding-l/r + border-l/r`. Without this, a
-     * `.card { width:240px; padding:16px; border:1px }` painted at
-     * 240 px outer (content squeezed to 206) instead of Chrome's
-     * 274 px outer. We don't yet honour `box-sizing: border-box`;
-     * authors who set it will have to drop padding from their width
-     * until cs_box_sizing exists. */
+    /* Resolve width. CSS box-sizing module:
+     *   content-box (default): cs_width describes the CONTENT box.
+     *   border-box:            cs_width describes the BORDER box, so
+     *                          content_w = width - padding - border.
+     * Reference: blink/Source/core/rendering/RenderBox.cpp
+     * computeLogicalWidthInRegion + boxSizing(). */
     int sty = rt_style[n];
     int style_w = cs_width[sty];
     int extra_w = rt_padding_l(n) + rt_padding_r(n)
                 + rt_border_l(n)  + rt_border_r(n);
     int content_w;
     if (style_w >= 0) {
-        content_w = style_w;
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            content_w = style_w - extra_w;
+            if (content_w < 0) content_w = 0;
+        } else {
+            content_w = style_w;
+        }
     } else {
         content_w = avail_w - rt_margin_l(n) - rt_margin_r(n) - extra_w;
     }
@@ -1092,15 +1095,20 @@ void layout_block(int n, int avail_w) {
         (void)saved_pos; (void)saved_neg;
     }
 
-    /* Resolve own height. Same content-box convention as width: the
-     * `height` property describes the content box, and min/max-height
-     * also apply to the content box per CSS 2.1 §10.7. */
+    /* Resolve own height. CSS 2.1 §10.7 + box-sizing: content-box reads
+     * cs_height as the content box, border-box reads it as the border
+     * box (subtract padding+border to get content). */
     int style_h = cs_height[sty];
     int extra_h = rt_padding_t(n) + rt_padding_b(n)
                 + rt_border_t(n)  + rt_border_b(n);
     int content_h;
     if (style_h >= 0) {
-        content_h = style_h;
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            content_h = style_h - extra_h;
+            if (content_h < 0) content_h = 0;
+        } else {
+            content_h = style_h;
+        }
     } else {
         content_h = cy - rt_padding_t(n) - rt_border_t(n);
     }
@@ -1203,13 +1211,15 @@ void layout_oof_one(int oof) {
         cb_h = (cur_ch > (ADDR_H + 1) + (STATUS_H + 1))
                ? cur_ch - (ADDR_H + 1) - (STATUS_H + 1) : 0;
     } else {
+        /* CSS 2.1 §10.1: containing block for an absolutely positioned
+         * box is the nearest positioned ancestor's PADDING edge (between
+         * its borders, including its padding). Reference:
+         * blink/Source/core/rendering/RenderBox.cpp::containingBlock(). */
         int cb = rt_containing_block(oof);
-        cb_x = rt_doc_x_of(cb) + rt_padding_l(cb) + rt_border_l(cb);
-        cb_y = rt_doc_y_of(cb) + rt_padding_t(cb) + rt_border_t(cb);
-        cb_w = rt_w[cb] - rt_padding_l(cb) - rt_padding_r(cb)
-                       - rt_border_l(cb)  - rt_border_r(cb);
-        cb_h = rt_h[cb] - rt_padding_t(cb) - rt_padding_b(cb)
-                       - rt_border_t(cb)  - rt_border_b(cb);
+        cb_x = rt_doc_x_of(cb) + rt_border_l(cb);
+        cb_y = rt_doc_y_of(cb) + rt_border_t(cb);
+        cb_w = rt_w[cb] - rt_border_l(cb) - rt_border_r(cb);
+        cb_h = rt_h[cb] - rt_border_t(cb) - rt_border_b(cb);
     }
     if (cb_w < 0) cb_w = 0;
     if (cb_h < 0) cb_h = 0;
@@ -1225,6 +1235,11 @@ void layout_oof_one(int oof) {
      */
     int has_w = (cs_width[sty] >= 0);
     int has_h = (cs_height[sty] >= 0);
+    int pset = cs_pos_set[sty];
+    int has_top    = (pset & 1) != 0;
+    int has_right  = (pset & 2) != 0;
+    int has_bottom = (pset & 4) != 0;
+    int has_left   = (pset & 8) != 0;
     int leftv = cs_left[sty];
     int rightv = cs_right[sty];
     int topv = cs_top[sty];
@@ -1232,7 +1247,7 @@ void layout_oof_one(int oof) {
     int w_resolved = -1;
     if (has_w) {
         w_resolved = cs_width[sty];
-    } else if (leftv >= 0 && rightv >= 0) {
+    } else if (has_left && has_right) {
         w_resolved = cb_w - leftv - rightv;
         if (w_resolved < 0) w_resolved = 0;
     }
@@ -1262,26 +1277,30 @@ void layout_oof_one(int oof) {
 
     int x = 0;
     int y = 0;
-    if (leftv >= 0) {
+    if (has_left) {
         x = cb_x + leftv;
-    } else if (rightv >= 0) {
+    } else if (has_right) {
         x = cb_x + cb_w - rightv - rt_w[oof];
     } else {
         /* Static-position fallback: use the in-flow rt_x assigned during
          * the first pass. */
         x = rt_doc_x_of(oof);
     }
-    if (topv >= 0) {
+    if (has_top) {
         y = cb_y + topv;
-    } else if (botv >= 0) {
+    } else if (has_bottom) {
         y = cb_y + cb_h - botv - rt_h[oof];
     } else {
         y = rt_doc_y_of(oof);
     }
     if (has_h && cs_height[sty] >= 0) {
-        rt_h[oof] = cs_height[sty]
-                  + rt_padding_t(oof) + rt_padding_b(oof)
-                  + rt_border_t(oof)  + rt_border_b(oof);
+        int extra_h_oof = rt_padding_t(oof) + rt_padding_b(oof)
+                        + rt_border_t(oof)  + rt_border_b(oof);
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            rt_h[oof] = cs_height[sty];
+        } else {
+            rt_h[oof] = cs_height[sty] + extra_h_oof;
+        }
     }
     rt_x[oof] = x;
     rt_y[oof] = y;

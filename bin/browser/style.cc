@@ -54,11 +54,16 @@ void ua_default_style(int tag, int cs) {
     cs_shadow_dy[cs]     = 0;
     cs_shadow_color[cs]  = 0x000000;
     cs_position[cs] = POS_STATIC;
-    cs_top[cs] = -1; cs_right[cs] = -1; cs_bottom[cs] = -1; cs_left[cs] = -1;
+    cs_top[cs] = 0; cs_right[cs] = 0; cs_bottom[cs] = 0; cs_left[cs] = 0;
+    cs_pos_set[cs] = 0;
     cs_z_index[cs] = 0;
     cs_float[cs] = FLOAT_NONE;
     cs_clear[cs] = CLEAR_NONE;
     cs_var_count[cs] = 0;
+    cs_box_sizing[cs] = BOX_SIZING_CONTENT;
+    cs_bg_grad[cs] = BG_GRAD_NONE;
+    cs_bg_grad_c1[cs] = 0;
+    cs_bg_grad_c2[cs] = 0;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -428,6 +433,131 @@ int css_value_keyword(int off, int len, char *kw) {
     int kl = b_strlen(kw);
     if (len < kl) return 0;
     return b_strieq_n(css_value_pool + off, kw, kl);
+}
+
+/* Parse linear-gradient(<dir>?, <color>, <color>) into a 2-stop cardinal
+ * gradient. Returns 1 on success and writes type (BG_GRAD_HORIZONTAL or
+ * BG_GRAD_VERTICAL) plus c1/c2. Direction tokens accepted: "to top",
+ * "to right", "to bottom", "to left", "0deg" / "90deg" / "180deg" / "270deg".
+ * Default (no direction) is "to bottom" per CSS Images Module §3.1.
+ * Reference: blink/Source/core/css/CSSGradientValue.cpp
+ * (CSSGradientValue::parseLengthsAndPercents + applyAndScaleStops). */
+int css_value_linear_gradient(int off, int len,
+                              int *out_type, int *out_c1, int *out_c2) {
+    char *s = css_value_pool;
+    int p = off;
+    int e = off + len;
+    while (p < e && (s[p] == ' ' || s[p] == '\t')) p = p + 1;
+    int kw_len = 15;       /* "linear-gradient" */
+    if (p + kw_len + 1 >= e) return 0;
+    if (!b_strieq_n(s + p, "linear-gradient", kw_len)) return 0;
+    p = p + kw_len;
+    while (p < e && (s[p] == ' ' || s[p] == '\t')) p = p + 1;
+    if (p >= e || s[p] != '(') return 0;
+    p = p + 1;
+    int args_open = p;
+    int depth = 1;
+    int q = p;
+    while (q < e && depth > 0) {
+        if (s[q] == '(') depth = depth + 1;
+        else if (s[q] == ')') depth = depth - 1;
+        if (depth > 0) q = q + 1;
+    }
+    if (depth != 0) return 0;
+    int args_end = q;
+    /* Split args on top-level commas. Cap at 8 args. */
+    int args_off[8];
+    int args_len[8];
+    int arg_count = 0;
+    int seg_start = args_open;
+    int dep = 0;
+    int r;
+    for (r = args_open; r < args_end; r = r + 1) {
+        char ch = s[r];
+        if (ch == '(') dep = dep + 1;
+        else if (ch == ')') dep = dep - 1;
+        if (dep == 0 && ch == ',') {
+            if (arg_count < 8) {
+                args_off[arg_count] = seg_start;
+                args_len[arg_count] = r - seg_start;
+                arg_count = arg_count + 1;
+            }
+            seg_start = r + 1;
+        }
+    }
+    if (arg_count < 8) {
+        args_off[arg_count] = seg_start;
+        args_len[arg_count] = args_end - seg_start;
+        arg_count = arg_count + 1;
+    }
+    if (arg_count < 2) return 0;
+    /* Trim arg 0 for direction detection. */
+    int a0_off = args_off[0];
+    int a0_len = args_len[0];
+    while (a0_len > 0 && (s[a0_off] == ' ' || s[a0_off] == '\t')) {
+        a0_off = a0_off + 1; a0_len = a0_len - 1;
+    }
+    while (a0_len > 0 && (s[a0_off + a0_len - 1] == ' ' ||
+                          s[a0_off + a0_len - 1] == '\t')) {
+        a0_len = a0_len - 1;
+    }
+    int direction_idx = -1;        /* 0=top, 1=right, 2=bottom, 3=left */
+    int c1_arg = 0;
+    int c2_arg = 1;
+    if (a0_len >= 5 &&
+        (s[a0_off] == 't' || s[a0_off] == 'T') &&
+        (s[a0_off + 1] == 'o' || s[a0_off + 1] == 'O') &&
+        (s[a0_off + 2] == ' ' || s[a0_off + 2] == '\t')) {
+        int o = a0_off + 3;
+        int last = a0_off + a0_len;
+        while (o < last && (s[o] == ' ' || s[o] == '\t')) o = o + 1;
+        int dlen = last - o;
+        if (dlen >= 6 && b_strieq_n(s + o, "bottom", 6)) direction_idx = 2;
+        else if (dlen >= 5 && b_strieq_n(s + o, "right",  5)) direction_idx = 1;
+        else if (dlen >= 4 && b_strieq_n(s + o, "left",   4)) direction_idx = 3;
+        else if (dlen >= 3 && b_strieq_n(s + o, "top",    3)) direction_idx = 0;
+        if (direction_idx < 0) return 0;
+        c1_arg = 1; c2_arg = 2;
+    } else {
+        /* "<N>deg" form. */
+        int v = 0;
+        int q2 = 0;
+        while (q2 < a0_len && s[a0_off + q2] >= '0' && s[a0_off + q2] <= '9') {
+            v = v * 10 + (s[a0_off + q2] - '0');
+            q2 = q2 + 1;
+        }
+        if (q2 > 0 && q2 + 2 < a0_len &&
+            b_strieq_n(s + a0_off + q2, "deg", 3)) {
+            int deg = v % 360;
+            if (deg < 0) deg = deg + 360;
+            if      (deg ==   0) direction_idx = 0;
+            else if (deg ==  90) direction_idx = 1;
+            else if (deg == 180) direction_idx = 2;
+            else if (deg == 270) direction_idx = 3;
+            else                 direction_idx = 2;     /* nearest cardinal */
+            c1_arg = 1; c2_arg = 2;
+        } else {
+            direction_idx = 2;       /* default "to bottom" */
+            c1_arg = 0; c2_arg = 1;
+        }
+    }
+    if (c2_arg >= arg_count) return 0;
+    int c1 = 0;
+    int c2 = 0;
+    if (!css_value_color(args_off[c1_arg], args_len[c1_arg], &c1)) return 0;
+    if (!css_value_color(args_off[c2_arg], args_len[c2_arg], &c2)) return 0;
+    int type = BG_GRAD_VERTICAL;
+    if (direction_idx == 1 || direction_idx == 3) type = BG_GRAD_HORIZONTAL;
+    /* gfx2d_gradient_v paints c1 at top -> c2 at bottom; gfx2d_gradient_h
+     * paints c1 at left -> c2 at right. "to top" / "to left" reverse the
+     * stop order so the named edge ends up holding the second color. */
+    if (direction_idx == 0 || direction_idx == 3) {
+        int tmp = c1; c1 = c2; c2 = tmp;
+    }
+    *out_type = type;
+    *out_c1 = c1;
+    *out_c2 = c2;
+    return 1;
 }
 
 /* Map computed font-size in px to the kernel's three-tier glyph render set.
@@ -880,7 +1010,26 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         return;
     }
     if (prop == CP_BG_COLOR || prop == CP_BG) {
-        if (css_value_color(val_off, val_len, &c)) cs_bg[cs] = c;
+        int gtype = 0; int gc1 = 0; int gc2 = 0;
+        if (css_value_linear_gradient(val_off, val_len,
+                                      &gtype, &gc1, &gc2)) {
+            cs_bg_grad[cs]    = gtype;
+            cs_bg_grad_c1[cs] = gc1;
+            cs_bg_grad_c2[cs] = gc2;
+            cs_bg[cs]         = gc1;
+            return;
+        }
+        if (css_value_color(val_off, val_len, &c)) {
+            cs_bg[cs] = c;
+            cs_bg_grad[cs] = BG_GRAD_NONE;
+        }
+        return;
+    }
+    if (prop == CP_BOX_SIZING) {
+        if (css_value_keyword(val_off, val_len, "border-box"))
+            cs_box_sizing[cs] = BOX_SIZING_BORDER;
+        else
+            cs_box_sizing[cs] = BOX_SIZING_CONTENT;
         return;
     }
     if (prop == CP_FONT_WEIGHT) {
@@ -1252,27 +1401,52 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         return;
     }
     if (prop == CP_TOP) {
-        if (css_value_keyword(val_off, val_len, "auto")) { cs_top[cs] = -1; return; }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_top[cs] = 0;
+            cs_pos_set[cs] = cs_pos_set[cs] & ~1;
+            return;
+        }
         cs_top[cs] = css_value_len(cs, val_off, val_len);
+        cs_pos_set[cs] = cs_pos_set[cs] | 1;
         return;
     }
     if (prop == CP_RIGHT) {
-        if (css_value_keyword(val_off, val_len, "auto")) { cs_right[cs] = -1; return; }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_right[cs] = 0;
+            cs_pos_set[cs] = cs_pos_set[cs] & ~2;
+            return;
+        }
         cs_right[cs] = css_value_len(cs, val_off, val_len);
+        cs_pos_set[cs] = cs_pos_set[cs] | 2;
         return;
     }
     if (prop == CP_BOTTOM) {
-        if (css_value_keyword(val_off, val_len, "auto")) { cs_bottom[cs] = -1; return; }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_bottom[cs] = 0;
+            cs_pos_set[cs] = cs_pos_set[cs] & ~4;
+            return;
+        }
         cs_bottom[cs] = css_value_len(cs, val_off, val_len);
+        cs_pos_set[cs] = cs_pos_set[cs] | 4;
         return;
     }
     if (prop == CP_LEFT) {
-        if (css_value_keyword(val_off, val_len, "auto")) { cs_left[cs] = -1; return; }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_left[cs] = 0;
+            cs_pos_set[cs] = cs_pos_set[cs] & ~8;
+            return;
+        }
         cs_left[cs] = css_value_len(cs, val_off, val_len);
+        cs_pos_set[cs] = cs_pos_set[cs] | 8;
         return;
     }
     if (prop == CP_Z_INDEX) {
-        if (css_value_keyword(val_off, val_len, "auto")) { cs_z_index[cs] = 0; return; }
+        if (css_value_keyword(val_off, val_len, "auto")) {
+            cs_z_index[cs] = 0;
+            cs_pos_set[cs] = cs_pos_set[cs] & ~16;
+            return;
+        }
+        cs_pos_set[cs] = cs_pos_set[cs] | 16;
         int v = 0;
         int neg = 0;
         int k = val_off;

@@ -1617,6 +1617,14 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_gradient_v;
   BIND("gfx2d_gradient_v", p_gfx2d_gradient_v, 6);
 
+  void (*p_gfx2d_gradient_h_round)(int, int, int, int, int, uint32_t, uint32_t) =
+      gfx2d_gradient_h_round;
+  BIND("gfx2d_gradient_h_round", p_gfx2d_gradient_h_round, 7);
+
+  void (*p_gfx2d_gradient_v_round)(int, int, int, int, int, uint32_t, uint32_t) =
+      gfx2d_gradient_v_round;
+  BIND("gfx2d_gradient_v_round", p_gfx2d_gradient_v_round, 7);
+
     void (*p_gfx2d_gradient_radial)(int, int, int, int, uint32_t, uint32_t) =
       gfx2d_gradient_radial;
     BIND("gfx2d_gradient_radial", p_gfx2d_gradient_radial, 6);
@@ -2524,7 +2532,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
 /* Source File / Preprocessor Helpers */
 
-#define CC_PP_MAX_OUTPUT (512u * 1024u)
+#define CC_PP_MAX_OUTPUT (1024u * 1024u)
 #define CC_PP_MAX_MACROS 128
 #define CC_PP_MAX_MACRO_VALUE 256
 #define CC_PP_MAX_INCLUDE_DEPTH 8
