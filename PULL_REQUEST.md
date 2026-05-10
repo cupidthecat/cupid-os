@@ -369,9 +369,140 @@ Reference: `blink/Source/core/css/resolver/StyleCascade.cpp::resolve` does the e
 
 `tests/browser/f4_img_intrinsic.html` swapped its four `/local/test.png` references for the stable `https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png` URL so the test exercises actual decoded intrinsic dimensions (135×155) against width/height attribute combinations instead of producing four 404 placeholders.
 
+## Phase 3: float / clear layout
+
+CSS 2.1 §9.5 (floats) + §9.5.2 (clear) + §9.4.1 (BFC scoping). The
+storage and CSS parse landed in phase 1 with the rest of the
+positioning work; phase 3 wires up the IFC + BFC integration so
+float boxes actually exclude line content and `clear` advances past
+the relevant float bottoms.
+
+**Float placement (`bin/browser/layout.cc`).** Inside `layout_block`,
+when a child has `cs_float == LEFT` or `cs_float == RIGHT`:
+
+1. Flush any pending inline atoms before placing the float so
+   subsequent lines see the new exclusion.
+2. Resolve the float's content width: `cs_width` if set; otherwise
+   shrink-to-fit via `oof_intrinsic_text_w` clamped to the
+   container's content width minus padding/border.
+3. Save and reset `float_visible_first` / `float_count`. This
+   establishes a new BFC for the float subtree (CSS 2.1 §9.4.1):
+   inner floats are invisible to outer line-box exclusion, and
+   outer floats stay invisible to the float's own descendants. Pre-
+   set `rt_x[c]` / `rt_y[c]` so descendants' `rt_doc_x_of` /
+   `rt_doc_y_of` walks return correct ancestry during the float's
+   layout pass.
+4. Recurse `layout_block(c, f_w)`. Restore the saved
+   `float_visible_first` / `float_count` afterwards.
+5. Compute the final document-space `(x, y)` against existing
+   floats: `line_left_edge_at` / `line_right_edge_at` walk the
+   visible floats and clip the available band, the float anchors at
+   the resulting edge minus its own margin.
+6. Store the float's MARGIN box (not border box) in
+   `floats[float_count]`: `float_y = parent_doc_y`,
+   `float_h = margin_t + rt_h + margin_b`, `float_x` and
+   `float_w` similarly include left/right margins. CSS 2.1 line-box
+   exclusion is against the outer margin edge. Reference:
+   `blink/Source/core/rendering/FloatingObject::frameRect` (border
+   box) plus `marginAfter`/`marginBefore` applied at line-exclusion
+   time in `RenderBlockFlow::logicalRightOffsetForFloat`.
+
+**Line-box exclusion (`flush_inline`).** Each line queries
+`line_left_edge_at(line_doc_y, line_h, parent_doc_x)` and
+`line_right_edge_at(...)` against the visible-float window
+(`float_visible_first .. float_count`). The line's `cx` and
+`max_w` shrink to the post-exclusion band, so lines that overlap a
+float's vertical extent wrap inside the remaining horizontal slot.
+Reference: `blink/Source/core/rendering/RenderBlockFlow.cpp`
+`logicalLeftOffsetForLine` / `logicalRightOffsetForLine`.
+
+**Clear (`cs_clear`).** Before placing a non-float in-flow child,
+if `cs_clear != NONE`, compute `floats_lowest_bottom(mask)` over the
+visible-float window (left-only, right-only, or both per the
+`clear` value), and advance `cy` past the lowest matching margin-box
+bottom. CSS 2.1 §9.5.2 says the cleared box's top border edge sits
+at-or-below the relevant float's bottom margin edge — including the
+float's own `margin-bottom` because `float_h` already accumulates
+it. Reference: `RenderBlockFlow::clearFloats`.
+
+**Critical fix: pre-set `rt_y[c]` for in-flow blocks.** Before
+recursing `layout_block(c, ...)` for a non-float in-flow block
+child, `rt_y[c]` is now set to its final `cy` BEFORE the recursion
+(after margin collapse resolution). Otherwise descendants' calls to
+`rt_doc_y_of(ancestor)` see a stale `rt_y` and float exclusion math
+in document-space sees ancestors at the wrong y, which made lines
+run through floats. Same fix for `rt_x[c]` with the static
+margin-left.
+
+**Critical fix: skip out-of-flow children in the in-flow advance.**
+The block-child loop now early-continues when
+`cs_position[c] == ABSOLUTE || FIXED`, so absolute and fixed boxes
+no longer push subsequent siblings down. They're laid out by the
+post-pass `layout_oof`. Reference:
+`RenderBlockFlow::layoutBlockChildren` skips
+`isOutOfFlowPositioned()` children.
+
+**Two-pass paint for stacking order (`paint_rt_node`).** CSS 2.1
+§E.2: in-flow non-positioned block backgrounds paint at level 3,
+floats at level 4. Without paint-time ordering a wide in-flow block
+that comes after a float in document order (e.g. `<div class="cl">`
+after `<div class="r">`) covers the float's painted box. The block
+paint loop now does two passes over block-level children: pass 1
+paints in-flow non-floats, pass 2 paints floats on top. Float
+deferral is gated on `rt_dom[c] >= 0` so anonymous `RT_LINE_BOX`
+children of a float parent (which inherit the parent's style index,
+including `cs_float`) still paint in pass 1 alongside the parent's
+own content. Reference: `blink/Source/core/paint/PaintLayerPainter`
+ordering of `paintBackgroundForFragments` / `paintFloats` /
+`paintForeground`.
+
+**Float branch flushes pending margin.** A floated child placed
+right after an in-flow block child (e.g. `.cr` followed by
+`<div class="l">L2</div>`) must apply the previous block's pending
+bottom margin before computing its static `parent_doc_y`. CSS 2.1
+§8.3.1: float margins never collapse with adjacent boxes, so the
+preceding block's `margin-bottom` flushes in full and the float
+sits below it instead of touching its bottom edge. The flush now
+happens in the float branch itself (mirroring the `pile_count > 0`
+flush already present for inline atoms).
+
+**Block-level replaced elements.** `.thumb img { display: block }`
+on a real `<img>` produced wrong placement before this PR: the
+render-tree forces `kind = RT_REPLACED` for replaced elements
+regardless of display, and the in-flow block child loop only
+matched `rt_kind_is_block_level()` (which excludes RT_REPLACED), so
+the image fell through to `collect_inline_atoms` and got absorbed
+into a line box even when the author asked for block layout. The
+loop now also matches `RT_REPLACED && cs_display == DISP_BLOCK` and
+sizes the box from explicit `width`/`height` CSS or
+`rt_intrinsic_w/h` (HTML attrs captured by `render_tree.cc`)
+without recursing. Paint side: the inline-atom skip in
+`paint_rt_node`'s child loop now lets a block-level RT_REPLACED
+through so it paints via the normal block path. Reference:
+`blink/Source/core/rendering/RenderImage.cpp` distinguishing
+`isBlockLevelReplaced()` from inline replaced layout. Visible bug
+fix: `tests/browser/g5_float_image.html` thumbnail now puts the
+Wikipedia logo at the top of the box with the caption below,
+matching Chrome.
+
+**Tests.** Five new `tests/browser/g{1..5}_*.html` pages exercise
+basic floats, infobox-style figures, two-column layouts, clear
+semantics, and a floated thumbnail with caption.
+
+### CupidC compiler: adjacent string literal concatenation
+
+ISO C §6.4.5p5 requires adjacent string literal tokens to splice into
+a single literal: `"foo" "bar"` is one literal `"foobar"`. CupidC
+treated each literal as a separate token, so multi-line `printf`
+format strings written in the standard wrapped style failed at
+parse. `cc_parse_primary`'s `CC_TOK_STRING` case now loops
+`cc_peek` while the next token is also `CC_TOK_STRING`,
+concatenates into a single buffer (capped at `CC_MAX_STRING - 1`),
+and writes one record into the data section. Same byte-for-byte
+output as the single-literal path; only the parse step is new.
+
 ## Not in this PR (still deferred)
 
 - **WOFF2 + Brotli.** `woff2_unwrap` is a stub that returns NULL. Full implementation needs a kernel-side Brotli decoder (~1500 LoC port from `google/brotli c/dec/`), the 122 KiB static dictionary, base-128 directory entries, and the WOFF2 §5.1 `glyf`/`loca` transform inverse (~600 LoC). Tracked for the next PR.
-- **`float: left | right` layout.** `cs_float`/`cs_clear` parse and cascade are wired in; `place_float` / `line_x_after_floats` IFC integration is the missing piece.
 - **z-index stacking sort.** Out-of-flow nodes paint in document order; explicit z-index sorting is a follow-up.
 - **Wikipedia thumbnail URL with `.svg.png` extension.** Returns 404 from Wikimedia even in real browsers — not a decoder issue. Tests use stable `Wiki.png` + `PNG_transparency_demonstration_1.png` instead.

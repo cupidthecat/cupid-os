@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<title>g5 floating image with caption text</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.thumb {
+  float: left;
+  margin: 4px 12px 8px 0;
+  border: 1px solid #888;
+  padding: 4px;
+  background: #fafafa;
+  width: 135px;
+}
+.thumb img { display: block; }
+.thumb .cap { font-size: 12px; color: #555; margin-top: 4px; }
+p { margin: 0 0 12px 0; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div class="thumb">
+  <img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png" width="135" height="155">
+  <div class="cap">Wikipedia logo, floated left.</div>
+</div>
+<p>News-article style: a small thumbnail floats to the left and the article body wraps along its right edge. Once enough prose has flowed past the float bottom, subsequent paragraphs widen back to the full content width.</p>
+<p>The float pump fetches the image after first paint, decodes via gfx2d_image_load_mem, and the next layout pass sizes the thumbnail box to the decoded intrinsic dimensions. Line-box exclusion in flush_inline shrinks each line by the float's horizontal extent for as long as line_top falls within [float_y, float_y+float_h].</p>
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+</body>
+</html>

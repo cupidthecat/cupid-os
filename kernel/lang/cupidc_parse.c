@@ -2242,17 +2242,27 @@ static void cc_parse_primary(cc_state_t *cc) {
     break;
 
   case CC_TOK_STRING: {
-    /* Store string in data section, load address */
-    int slen = 0;
-    while (tok.text[slen])
-      slen++;
-    if (!cc_data_reserve(cc, (uint32_t)(slen + 1))) {
+    /* ISO C §6.4.5p5 adjacent string literal concatenation:
+     * "foo" "bar" parses as a single literal "foobar". */
+    char combined[CC_MAX_STRING];
+    int j = 0;
+    int k = 0;
+    while (tok.text[k] && j < CC_MAX_STRING - 1)
+      combined[j++] = tok.text[k++];
+    while (cc_peek(cc).type == CC_TOK_STRING) {
+      cc_token_t adj = cc_next(cc);
+      int m = 0;
+      while (adj.text[m] && j < CC_MAX_STRING - 1)
+        combined[j++] = adj.text[m++];
+    }
+    combined[j] = '\0';
+    if (!cc_data_reserve(cc, (uint32_t)(j + 1))) {
       return;
     }
     uint32_t str_addr = cc->data_base + cc->data_pos;
     int si = 0;
-    while (tok.text[si]) {
-      cc->data[cc->data_pos++] = (uint8_t)tok.text[si++];
+    while (combined[si]) {
+      cc->data[cc->data_pos++] = (uint8_t)combined[si++];
     }
     cc->data[cc->data_pos++] = 0; /* null terminator */
     emit_mov_eax_imm(cc, str_addr);

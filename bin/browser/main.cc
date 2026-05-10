@@ -591,6 +591,27 @@ int rt_oof_list[1024];
 int rt_is_oof   [6144];
 int rt_is_fixed [6144];
 
+/* Floats. Module-level storage so flush_inline / layout_block share
+ * one list across the document; line-box exclusion and cs_clear
+ * resolution both query it. Each entry is in DOCUMENT-relative
+ * coordinates (sum of ancestor rt_x/rt_y at place time). Cap 64 keeps
+ * Wikipedia infobox + news-figure pages comfortably under the limit
+ * while staying inside cupidc's literal-array sizing. Reference:
+ * blink/Source/core/rendering/FloatingObjects.cpp. */
+int float_count;
+int float_x   [64];
+int float_y   [64];
+int float_w   [64];
+int float_h   [64];
+int float_side[64];   /* FLOAT_LEFT or FLOAT_RIGHT */
+/* Index of the first float visible to the current BFC. Outer floats
+ * stored at [0..float_visible_first) are hidden from line-exclusion
+ * queries while we lay out a child that establishes its own BFC
+ * (CSS 2.1 §9.4.1 — floats, abspos, inline-block, table-cell,
+ * overflow!=visible). place_float at a BFC root saves/restores both
+ * this and float_count so outer floats stay intact. */
+int float_visible_first;
+
 /* Line-box atom storage - one entry per word/glyph in an inline run.
  * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
  * the atom pool via a separate atom_first/count pair. */

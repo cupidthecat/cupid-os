@@ -263,12 +263,53 @@ void paint_rt_node(int n) {
      * RT_REPLACED) were absorbed into RT_LINE_BOX siblings during
      * flush_inline; LINE_BOX paint walks the atom slice and re-enters
      * replaced/inline-block via la_text_off < 0. Skip them here to avoid
-     * double-paint. */
+     * double-paint.
+     *
+     * Two-pass to honour CSS 2.1 §E.2 stacking order: in-flow block
+     * backgrounds + line content paint first, then floats paint over
+     * them (floats sit at stacking level 4, in-flow non-positioned
+     * blocks at level 3). Without this, a wide block's background
+     * (e.g. clear:left div) would cover an earlier sibling float in
+     * source-order paint. Reference:
+     * blink/Source/core/paint/PaintLayerPainter.cpp ordering of
+     * paintBackgroundForFragments / paintFloats / paintForeground. */
     int c = rt_first_child[n];
     while (c >= 0) {
         int ck = rt_kind[c];
-        if (ck == RT_INLINE || ck == RT_TEXT ||
-            ck == RT_INLINE_BLOCK || ck == RT_REPLACED) {
+        int c_cs = rt_style[c];
+        /* Inline-level children (RT_INLINE/TEXT/INLINE_BLOCK and inline
+         * RT_REPLACED) were absorbed into RT_LINE_BOX siblings; skip
+         * them here and let LINE_BOX paint walk the atom slice. But a
+         * BLOCK-level RT_REPLACED (e.g. <img display:block>) lays out
+         * as its own block child rather than going into a line box, so
+         * paint it directly. */
+        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT ||
+                                   ck == RT_INLINE_BLOCK ||
+                                   (ck == RT_REPLACED &&
+                                    cs_display[c_cs] != DISP_BLOCK));
+        if (is_inline_atom_kind) {
+            c = rt_next[c]; continue;
+        }
+        int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
+        if (is_float_child) {
+            c = rt_next[c]; continue;
+        }
+        paint_rt_node(c);
+        c = rt_next[c];
+    }
+    c = rt_first_child[n];
+    while (c >= 0) {
+        int ck = rt_kind[c];
+        int c_cs = rt_style[c];
+        int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT ||
+                                   ck == RT_INLINE_BLOCK ||
+                                   (ck == RT_REPLACED &&
+                                    cs_display[c_cs] != DISP_BLOCK));
+        if (is_inline_atom_kind) {
+            c = rt_next[c]; continue;
+        }
+        int is_float_child = (rt_dom[c] >= 0) && (cs_float[c_cs] != FLOAT_NONE);
+        if (!is_float_child) {
             c = rt_next[c]; continue;
         }
         paint_rt_node(c);

@@ -36,6 +36,59 @@ int viewport_content_w() {
     return cur_cw - 12;
 }
 
+/* Float helpers (CSS 2.1 §9.5).  All float coords are stored in
+ * document-relative space (rt_y_doc / rt_x_doc). Line-box exclusion
+ * works by intersecting the line-box vertical band [y .. y+line_h]
+ * against each float's [float_y .. float_y+float_h] and shrinking the
+ * available [cx .. cx+max_w] band by the floats' x extents.
+ *
+ * Reference: blink/Source/core/rendering/FloatingObjects.cpp +
+ * RenderBlockFlow::layoutFloatingChildren. */
+
+int line_left_edge_at(int y_doc, int line_h, int cx_doc) {
+    int x = cx_doc;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        if (float_side[i] != FLOAT_LEFT) continue;
+        int fy0 = float_y[i];
+        int fy1 = fy0 + float_h[i];
+        if (y_doc + line_h <= fy0) continue;
+        if (y_doc >= fy1) continue;
+        int right = float_x[i] + float_w[i];
+        if (right > x) x = right;
+    }
+    return x;
+}
+
+int line_right_edge_at(int y_doc, int line_h, int cx_doc, int max_w) {
+    int x = cx_doc + max_w;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        if (float_side[i] != FLOAT_RIGHT) continue;
+        int fy0 = float_y[i];
+        int fy1 = fy0 + float_h[i];
+        if (y_doc + line_h <= fy0) continue;
+        if (y_doc >= fy1) continue;
+        if (float_x[i] < x) x = float_x[i];
+    }
+    return x;
+}
+
+/* Lowest bottom (exclusive) among placed floats matching `side_mask`,
+ * which is FLOAT_LEFT, FLOAT_RIGHT, or both (CLEAR_BOTH = 3). Used by
+ * cs_clear to push subsequent in-flow blocks below the relevant floats. */
+int floats_lowest_bottom(int side_mask) {
+    int max_b = 0;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        int side = float_side[i];
+        int match = 0;
+        if ((side_mask & 1) && side == FLOAT_LEFT) match = 1;
+        if ((side_mask & 2) && side == FLOAT_RIGHT) match = 1;
+        if (!match) continue;
+        int b = float_y[i] + float_h[i];
+        if (b > max_b) max_b = b;
+    }
+    return max_b;
+}
+
 /* §4 IFC - line-box layout. Walks an inline subtree depth-first, splits text
  * into atoms by whitespace (or by \n / per-char per `white-space`), tracks
  * (x, line_top, line_h), and emits LINE_BOX render nodes whose
@@ -509,9 +562,31 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
     if (total == 0) return;
 
     int line_start_atom = first;
-    int x = cx;
     int line_h = 0;
     int line_top = *cy;
+
+    /* Per-line float-aware metrics. line_cx is the line's left edge in
+     * parent-local coordinates; line_max_w is the available width
+     * after subtracting any left/right float exclusions overlapping
+     * the line's vertical band. Recomputed on each new line via
+     * relayout_line(). Reference: blink/Source/core/rendering/
+     * RenderBlockFlow::layoutLineBoxes. */
+    int parent_doc_x = rt_doc_x_of(parent);
+    int parent_doc_y = rt_doc_y_of(parent);
+    int line_cx = cx;
+    int line_max_w = max_w;
+    int line_h_estimate = effective_line_h(rt_style[parent], 1);
+    {
+        int doc_x_base = parent_doc_x + cx;
+        int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                         line_h_estimate, doc_x_base);
+        int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                           line_h_estimate, doc_x_base, max_w);
+        line_cx = cx + (eff_left - doc_x_base);
+        line_max_w = eff_right - eff_left;
+        if (line_max_w < 0) line_max_w = 0;
+    }
+    int x = line_cx;
 
     for (int k = first; k < first + total; k++) {
         int aw = la_w[k];
@@ -519,63 +594,79 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         int sentinel = la_x[k];
 
         if (sentinel == -2) {
-            /* Hard break (PRE). la_x stores the atom's x relative to the
-             * line box's left edge (the line box itself sits at cx in
-             * the parent block), so the running cursor `x` -- which is
-             * absolute-within-parent and starts at cx -- is normalised
-             * by subtracting cx before stashing. paint_rt_line_box then
-             * does sx_lb + la_x[k] without double-counting padding. */
-            la_x[k] = x - cx;
+            /* Hard break (PRE). la_x stores the atom's x relative to
+             * the line box's left edge so paint_rt_line_box doesn't
+             * double-count padding. */
+            la_x[k] = x - line_cx;
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
                 rt_line_atom_count[lb] = (k + 1) - line_start_atom;
-                rt_x[lb] = cx;
+                rt_x[lb] = line_cx;
                 rt_y[lb] = line_top;
-                rt_w[lb] = max_w;
+                rt_w[lb] = line_max_w;
                 int lh = line_h ? line_h : effective_line_h(rt_style[parent], tier);
                 rt_h[lb] = lh;
             }
             line_top += line_h ? line_h : effective_line_h(rt_style[parent], tier);
-            x = cx;
             line_h = 0;
             line_start_atom = k + 1;
+            /* Recompute line metrics for the next line. */
+            {
+                int doc_x_base = parent_doc_x + cx;
+                int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                                 line_h_estimate, doc_x_base);
+                int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                                   line_h_estimate, doc_x_base, max_w);
+                line_cx = cx + (eff_left - doc_x_base);
+                line_max_w = eff_right - eff_left;
+                if (line_max_w < 0) line_max_w = 0;
+            }
+            x = line_cx;
             continue;
         }
 
-        /* Wrap-on-overflow: if this atom would push the line past max_w and
-         * the line has something on it, close the line. For a -3 (soft break
-         * point / space) atom we drop it; for a word atom we place it as the
-         * first atom of the new line. We never wrap mid-word, so a single
-         * word longer than max_w still overflows on its own line. */
-        int overflow = (x + aw > cx + max_w && x > cx);
+        /* Wrap-on-overflow: if this atom would push the line past
+         * line_max_w and the line has something on it, close the line.
+         * For a -3 (soft break / space) atom we drop it; for a word
+         * atom we place it as the first atom of the new line. */
+        int overflow = (x + aw > line_cx + line_max_w && x > line_cx);
         if (overflow) {
             int lh_wrap = line_h ? line_h : effective_line_h(rt_style[parent], tier);
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
                 rt_line_atom_count[lb] = k - line_start_atom;
-                rt_x[lb] = cx;
+                rt_x[lb] = line_cx;
                 rt_y[lb] = line_top;
-                rt_w[lb] = max_w;
+                rt_w[lb] = line_max_w;
                 rt_h[lb] = lh_wrap;
             }
             line_top += lh_wrap;
-            x = cx;
             line_h = 0;
+            /* Recompute next line's metrics. */
+            {
+                int doc_x_base = parent_doc_x + cx;
+                int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                                 line_h_estimate, doc_x_base);
+                int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                                   line_h_estimate, doc_x_base, max_w);
+                line_cx = cx + (eff_left - doc_x_base);
+                line_max_w = eff_right - eff_left;
+                if (line_max_w < 0) line_max_w = 0;
+            }
+            x = line_cx;
             if (sentinel == -3) {
                 line_start_atom = k + 1;    /* drop the trailing space atom */
                 continue;
             }
             line_start_atom = k;            /* word starts the new line */
         }
-        la_x[k] = x - cx;
+        la_x[k] = x - line_cx;
         x += aw;
         int lh = effective_line_h(rt_style[parent], tier);
-        /* Replaced/inline-block atoms (la_text_off encoded as a negative
-         * RT-node ref) bring their own height. The line must grow to
-         * fit, otherwise the next line overlaps the bottom of an input
-         * or image. */
+        /* Replaced/inline-block atoms (la_text_off encoded as a
+         * negative RT-node ref) bring their own height. */
         if (la_text_off[k] < 0) {
             int rt_n = -la_text_off[k] - 1;
             int repl_h = rt_intrinsic_h[rt_n];
@@ -591,9 +682,9 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         if (lb >= 0) {
             rt_line_atom_first[lb] = line_start_atom;
             rt_line_atom_count[lb] = (first + total) - line_start_atom;
-            rt_x[lb] = cx;
+            rt_x[lb] = line_cx;
             rt_y[lb] = line_top;
-            rt_w[lb] = max_w;
+            rt_w[lb] = line_max_w;
             rt_h[lb] = line_h ? line_h : 12;
         }
         line_top += line_h ? line_h : 12;
@@ -738,8 +829,139 @@ void layout_block(int n, int avail_w) {
                 c = rt_next[c]; continue;
             }
         }
+        /* CSS 2.1 §9.5.1 — float placement. A floated block is taken
+         * out of in-flow vertical advancement: lay it out at its own
+         * intrinsic / declared width, anchor to the left or right of
+         * the BFC content area at a y >= cy that has room past
+         * existing floats, and append to the floats list. The current
+         * cy does NOT advance, so subsequent in-flow content flows
+         * around it. Reference: RenderBlockFlow::layoutFloatingChildren
+         * + FloatingObjects::add. */
+        {
+            int c_sty = rt_style[c];
+            int c_float = cs_float[c_sty];
+            if (c_float == FLOAT_LEFT || c_float == FLOAT_RIGHT) {
+                /* Flush any pending inline atoms before placing the
+                 * float so their lines see the new exclusion. */
+                if (pile_count > 0) {
+                    flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
+                    pend_pos = 0; pend_neg = 0;
+                    collapse_first_top = 0;
+                    last_was_block = 0;
+                } else if (pend_pos != 0 || pend_neg != 0) {
+                    /* Apply pending bottom margin from the preceding
+                     * in-flow block before placing the float at its
+                     * static position. CSS 2.1 §8.3.1: float margins
+                     * never collapse with adjacent boxes, so the
+                     * previous block's margin-bottom flushes in full
+                     * and is not absorbed by the float. */
+                    cy = cy + pend_pos + pend_neg;
+                    pend_pos = 0; pend_neg = 0;
+                    collapse_first_top = 0;
+                    last_was_block = 0;
+                }
+                /* Float gets its declared width (or shrink-to-fit on
+                 * auto). Use the same intrinsic-text estimator we use
+                 * for absolute boxes when no width is set. */
+                int f_extra = rt_padding_l(c) + rt_padding_r(c)
+                            + rt_border_l(c)  + rt_border_r(c);
+                int f_w = cs_width[c_sty];
+                if (f_w < 0) {
+                    int intr = oof_intrinsic_text_w(c);
+                    if (intr <= 0) intr = content_w / 4;
+                    f_w = intr;
+                    if (f_w + f_extra > content_w) f_w = content_w - f_extra;
+                    if (f_w < 0) f_w = 0;
+                }
+                /* CSS 2.1 §9.4.1 — a float establishes a new BFC. Hide
+                 * outer floats from the inner subtree so its line-box
+                 * exclusion math doesn't see siblings (e.g. .col-right
+                 * shouldn't have its first line indented past .col's
+                 * right edge). Save/restore both float_visible_first
+                 * (so descendants only see floats internal to this
+                 * subtree) and float_count (so any internal floats are
+                 * dropped from the outer list when we return — they
+                 * can't escape the BFC anyway). */
+                int saved_visible = float_visible_first;
+                int saved_count   = float_count;
+                float_visible_first = float_count;
+                /* Pre-set rt_x / rt_y so descendants' rt_doc_x_of /
+                 * rt_doc_y_of return correct ancestry while laying
+                 * out the float subtree. The actual placement is
+                 * recomputed below; this is just a positional hint
+                 * good enough for the doc-coord helpers. */
+                int pre_doc_x = rt_doc_x_of(n) + cx;
+                int pre_doc_y = rt_doc_y_of(n) + cy + rt_margin_t(c);
+                rt_x[c] = pre_doc_x - rt_doc_x_of(n);
+                rt_y[c] = cy + rt_margin_t(c);
+                layout_block(c, f_w);
+                float_visible_first = saved_visible;
+                float_count         = saved_count;
+                rt_w[c] = f_w + f_extra;
+                /* Place at current cy in document coords. The block's
+                 * own (rt_x, rt_y) are local to its parent; floats
+                 * store document-space coords so flush_inline can do
+                 * exclusion math without parent walks each query. */
+                int parent_doc_x = rt_doc_x_of(n) + cx;
+                int parent_doc_y = rt_doc_y_of(n) + cy;
+                int margin_l_f = rt_margin_l(c);
+                int margin_r_f = rt_margin_r(c);
+                int float_x_doc;
+                if (c_float == FLOAT_LEFT) {
+                    int left_avail = line_left_edge_at(parent_doc_y, rt_h[c],
+                                                       parent_doc_x);
+                    float_x_doc = left_avail + margin_l_f;
+                } else {
+                    int right_avail = line_right_edge_at(parent_doc_y, rt_h[c],
+                                                         parent_doc_x, content_w);
+                    float_x_doc = right_avail - rt_w[c] - margin_r_f;
+                }
+                rt_x[c] = float_x_doc - rt_doc_x_of(n);
+                rt_y[c] = cy + rt_margin_t(c);
+                /* Store the MARGIN box, not the border box. CSS 2.1 §9.5
+                 * line-box exclusion is against the float's outer margin
+                 * edge, so the float's left/right margin keeps text
+                 * away (e.g. `margin: 4px 0 4px 12px` on a right float
+                 * leaves a 12px gutter between the wrapped paragraph
+                 * and the float's painted box). Reference:
+                 * blink/Source/core/rendering/FloatingObject::frameRect
+                 * which is the border-box, with marginAfter/marginBefore
+                 * applied on top during line exclusion in
+                 * RenderBlockFlow::logicalRightOffsetForFloat. */
+                int margin_b_f = rt_margin_b(c);
+                if (float_count < 64) {
+                    float_x[float_count] = float_x_doc - margin_l_f;
+                    float_y[float_count] = parent_doc_y;
+                    float_w[float_count] = margin_l_f + rt_w[c] + margin_r_f;
+                    float_h[float_count] = rt_margin_t(c) + rt_h[c] + margin_b_f;
+                    float_side[float_count] = c_float;
+                    float_count = float_count + 1;
+                }
+                c = rt_next[c]; continue;
+            }
+        }
+        /* CSS 2.1 §9.5.2 — `clear` advances past the bottom of the
+         * relevant floats before placing this child. */
+        {
+            int c_sty = rt_style[c];
+            int c_clear = cs_clear[c_sty];
+            if (c_clear != CLEAR_NONE) {
+                int mask = 0;
+                if (c_clear == CLEAR_LEFT)  mask = 1;
+                if (c_clear == CLEAR_RIGHT) mask = 2;
+                if (c_clear == CLEAR_BOTH)  mask = 3;
+                int parent_doc_y = rt_doc_y_of(n) + cy;
+                int lowest = floats_lowest_bottom(mask);
+                if (lowest > parent_doc_y) {
+                    cy = cy + (lowest - parent_doc_y);
+                }
+            }
+        }
+        int is_block_replaced = (kind == RT_REPLACED &&
+                                 cs_display[rt_style[c]] == DISP_BLOCK);
         if (rt_kind_is_block_level(kind) ||
-            (kind == RT_BLOCK)) {
+            (kind == RT_BLOCK) ||
+            is_block_replaced) {
             /* Flush pending inline run; inline content breaks the
              * margin-collapse chain. */
             if (pile_count > 0) {
@@ -748,11 +970,52 @@ void layout_block(int n, int avail_w) {
                 collapse_first_top = 0;
                 last_was_block = 0;
             }
-            /* Lay out block child */
-            int cy_before = cy;
+            /* Lay out block child. Compute margin-top first so we know
+             * the child's final cy BEFORE recursing - descendants that
+             * call rt_doc_y_of need our rt_y[c] to be set, otherwise
+             * float exclusion math (which lives in document-space) sees
+             * stale ancestor coordinates and lines run through floats.
+             * Auto-margin centring still happens after the child's
+             * width is known. */
+            int top = rt_margin_t(c);
+            if (collapse_first_top) top = 0;
+            int t_pos = pend_pos;
+            int t_neg = pend_neg;
+            if (top > t_pos) t_pos = top;
+            if (top < t_neg) t_neg = top;
+            cy = cy + t_pos + t_neg;
+            collapse_first_top = 0;
+            /* Pre-set rt_x/rt_y with the static margin-l so
+             * rt_doc_y_of / rt_doc_x_of return correct values during
+             * the child's layout (and any descendant flush_inline). */
+            int pre_ml = rt_margin_l(c);
+            int pre_child_x = cx + pre_ml;
+            if (pre_child_x < cx) pre_child_x = cx;
+            rt_x[c] = pre_child_x;
+            rt_y[c] = cy;
+
             int child_avail = content_w;
-            layout_block(c, child_avail);
-            int ml = rt_margin_l(c);
+            if (is_block_replaced) {
+                /* Block-level replaced element (e.g. <img display:block>):
+                 * size from explicit width/height CSS, else HTML attrs
+                 * captured into rt_intrinsic_w/h, else 80x60 fallback.
+                 * No subtree to recurse into. CSS 2.1 §10.3.6 + §10.6.5. */
+                int rw = (cs_width [rt_style[c]] >= 0) ? cs_width [rt_style[c]]
+                       : ((rt_intrinsic_w[c] > 0) ? rt_intrinsic_w[c] : 80);
+                int rh = (cs_height[rt_style[c]] >= 0) ? cs_height[rt_style[c]]
+                       : ((rt_intrinsic_h[c] > 0) ? rt_intrinsic_h[c] : 60);
+                rt_w[c] = rw;
+                rt_h[c] = rh;
+            } else {
+                layout_block(c, child_avail);
+            }
+
+            /* Re-resolve margin-l for auto-centering now that rt_w[c]
+             * is known. If the auto path widens or narrows ml, update
+             * rt_x[c] in place; the child's already-computed inner
+             * positions are relative to its own rt_x so they shift
+             * correctly with it. */
+            int ml = pre_ml;
             int mr = rt_margin_r(c);
             int auto_l = cs_margin_auto[rt_style[c]][3];
             int auto_r = cs_margin_auto[rt_style[c]][1];
@@ -771,20 +1034,9 @@ void layout_block(int n, int avail_w) {
                 }
             }
             (void)mr;
-            (void)cy_before;
-            int top = rt_margin_t(c);
-            if (collapse_first_top) top = 0;
-            /* Combine pending strut with this child's margin-top. */
-            int t_pos = pend_pos;
-            int t_neg = pend_neg;
-            if (top > t_pos) t_pos = top;
-            if (top < t_neg) t_neg = top;
-            cy = cy + t_pos + t_neg;
-            collapse_first_top = 0;
             int child_x = cx + ml;
             if (child_x < cx) child_x = cx;
             rt_x[c] = child_x;
-            rt_y[c] = cy;
             cy = cy + rt_h[c];
             /* Detect self-collapsing block: child took zero space (no
              * in-flow content) AND has no padding/border. Its margins
@@ -1047,11 +1299,13 @@ void run_layout() {
     if (rt_count == 0) return;
     int root = 0;
     /* Root sits at document origin (0,0). rt_screen_x/y in paint.cc add
-     * viewport_x()/viewport_y() at paint time, so seeding root with the
-     * viewport origin double-counts the chrome and shoves the first h2
-     * ~viewport_y px below where Chrome would draw it. */
+     * viewport_x()/viewport_y() at paint time. Float list resets per
+     * layout pass; placement happens in document-relative coordinates
+     * during the in-flow walk. */
     rt_x[root] = 0;
     rt_y[root] = 0;
+    float_count = 0;
+    float_visible_first = 0;
     int avail = viewport_content_w();
     layout_block(root, avail);
     layout_oof();
