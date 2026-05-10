@@ -349,6 +349,26 @@ mismatch on first run and recreates `cupidos.img` automatically.
 
 **Tests:** 13 new HTML files under `tests/browser/`.
 
+### Cascade order fix: inline `--vars` resolved before regular rules
+
+`<p style="--c: blue">` set inline ended up resolving `color: var(--c, red)` to red because the cascade ordered `apply_inline_style` (step 3) AFTER the regular author-rule pass (step 2). When `cs_apply_property` ran for the regular `color: var(--c, red)` rule, the inline `--c` hadn't been recorded yet, so `cs_var_substitute` fell through to the fallback.
+
+Restructured `style_resolve_all` cascade to match Blink's two-phase resolution:
+
+- **2a.** Author-rule `CP_CUSTOM_VAR` cascade into `cs_var_*[]` (was previously after the regular pass).
+- **2b. NEW.** `apply_inline_vars` extracts ONLY `--name:` declarations from `style="..."` into `cs_var_*[]`. Sits before the regular property pass so inline-declared vars are visible during `var()` substitution. Appended order means inline beats matching author-rule customs (cs_var_lookup returns first match).
+- **2c.** Regular author-rule cascade — `cs_apply_property` calls `cs_var_substitute` against fully-populated `cs_var_*[]`.
+- **3.** Regular `apply_inline_style` for non-custom inline declarations (still wins over author rules without `!important`).
+- **4.** `!important` author rules.
+
+Reference: `blink/Source/core/css/resolver/StyleCascade.cpp::resolve` does the equivalent — custom properties have their own cascade phase that completes before any regular property is resolved with `var()`.
+
+`tests/browser/f7_inline_var.html` is the regression case: `<p style="--c: blue">` now renders blue.
+
+### Test page asset cleanup
+
+`tests/browser/f4_img_intrinsic.html` swapped its four `/local/test.png` references for the stable `https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png` URL so the test exercises actual decoded intrinsic dimensions (135×155) against width/height attribute combinations instead of producing four 404 placeholders.
+
 ## Not in this PR (still deferred)
 
 - **WOFF2 + Brotli.** `woff2_unwrap` is a stub that returns NULL. Full implementation needs a kernel-side Brotli decoder (~1500 LoC port from `google/brotli c/dec/`), the 122 KiB static dictionary, base-128 directory entries, and the WOFF2 §5.1 `glyf`/`loca` transform inverse (~600 LoC). Tracked for the next PR.

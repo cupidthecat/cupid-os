@@ -1410,6 +1410,49 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
  * Defined before sel_X and style_resolve_all so the latter can call it
  * without forward declarations. */
 
+/* First pass over a `style="..."` attribute: only extracts the
+ * custom-property (`--name: value`) declarations into cs_var_*[]. Run
+ * BEFORE the regular property cascade so var() calls during regular-
+ * rule application see the inline-declared vars. Without this, inline
+ * `style="--c: blue"` was parsed in step 3 of style_resolve_all but
+ * `color: var(--c, red)` had already been resolved in step 2 against
+ * an empty cs_var_*, falling back to `red`. */
+void apply_inline_vars(int cs, char *s) {
+    int n = b_strlen(s);
+    int i = 0;
+    while (i < n) {
+        while (i < n && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
+        if (i >= n) break;
+        int p_start = i;
+        while (i < n && s[i] != ':' && s[i] != ';') i = i + 1;
+        int p_end = i;
+        while (p_end > p_start && (s[p_end-1] == ' ' || s[p_end-1] == '\t')) p_end = p_end - 1;
+        if (i >= n || s[i] != ':') break;
+        i = i + 1;
+        while (i < n && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
+        int v_start = i;
+        while (i < n && s[i] != ';') i = i + 1;
+        int v_end = i;
+        while (v_end > v_start && (s[v_end-1] == ' ' || s[v_end-1] == '\t')) v_end = v_end - 1;
+        if (i < n && s[i] == ';') i = i + 1;
+        int p_l = p_end - p_start;
+        if (p_l >= 2 && s[p_start] == '-' && s[p_start + 1] == '-') {
+            if (cs_var_count[cs] < 8) {
+                int name_off = css_intern_value(s + p_start, p_l);
+                int val_off  = css_intern_value(s + v_start, v_end - v_start);
+                if (name_off >= 0 && val_off >= 0) {
+                    int k = cs_var_count[cs];
+                    cs_var_name_off[cs][k] = name_off;
+                    cs_var_name_len[cs][k] = p_l;
+                    cs_var_val_off [cs][k] = val_off;
+                    cs_var_val_len [cs][k] = v_end - v_start;
+                    cs_var_count   [cs]    = k + 1;
+                }
+            }
+        }
+    }
+}
+
 void apply_inline_style(int cs, char *s) {
     int n = b_strlen(s);
     int i = 0;
@@ -1903,44 +1946,15 @@ void style_resolve_all() {
         /* 1. UA defaults */
         ua_default_style(n_tag[n], cs);
 
-        /* 2. Author rules in two passes: pass 1 (non-important) feeds the
-         *    normal specificity+doc-order cascade; pass 2 (important) wins
-         *    over everything from pass 1 and inline style. The `score`
-         *    packs (specificity << 12) | doc_order so a higher specificity
-         *    or later rule wins at equal level.
-         *    Size matches MAX_CP_ID; CupidC requires a literal here. */
-        int winner_rule[80];
-        int winner_score[80];
-        for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
-        for (int r = 0; r < css_rule_count; r = r + 1) {
-            if (css_rule_important[r]) continue;
-            int p = css_rule_prop_id[r];
-            if (p < 1 || p >= MAX_CP_ID) continue;
-            int sf = css_rule_sel_first[r];
-            int sc = css_rule_sel_count[r];
-            if (!sel_chain_matches(sf, sc, n)) continue;
-            int score = (css_rule_specificity[r] << 12) | (css_rule_doc_order[r] & 0xFFF);
-            if (score > winner_score[p]) {
-                winner_score[p] = score;
-                winner_rule[p] = r;
-            }
-        }
-        for (int p = 1; p < MAX_CP_ID; p = p + 1) {
-            int r = winner_rule[p];
-            if (r >= 0) {
-                cs_apply_property(cs, p,
-                                  css_rule_value_off[r], css_rule_value_len[r]);
-            }
-        }
-
-        /* 2b. Custom-property cascade. CP_CUSTOM_VAR rules can declare
-         * many distinct --names per node, so the winner_rule[] slot
-         * dedicated to CP_CUSTOM_VAR is insufficient — walk the rule
-         * pool again, keying on (name_off, name_len), and apply the
-         * highest-scoring winner per name. Reference: Blink resolves
-         * custom properties in the cascade with the same priority
-         * order as regular properties; we approximate by piggybacking
-         * on the same specificity+doc-order score. */
+        /* 2a. Custom-property cascade FIRST so var() resolution during
+         * regular property cascade sees inherited + locally-declared
+         * vars. CP_CUSTOM_VAR rules can declare many distinct --names
+         * per node, so the winner_rule[] slot dedicated to CP_CUSTOM_VAR
+         * is insufficient — walk the rule pool keyed on
+         * (name_off, name_len), and apply the highest-scoring winner
+         * per name. Reference: Blink resolves custom properties in the
+         * cascade with the same priority order as regular properties;
+         * we approximate via the shared specificity+doc-order score. */
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (css_rule_prop_id[r] != CP_CUSTOM_VAR) continue;
             if (css_rule_important[r]) continue;
@@ -1990,8 +2004,53 @@ void style_resolve_all() {
             }
         }
 
-        /* 3. Inline style="..." attribute (wins over non-important author rules) */
+        /* 2b. Inline custom-property pre-pass — extract any `--name:`
+         * declarations from `style="..."` into cs_var_*[] BEFORE the
+         * regular property cascade runs, so var() lookups in regular
+         * rules see inline-declared vars. Inline custom props win over
+         * matching author-rule custom props on this element because
+         * apply_inline_vars appends and our cs_var_lookup returns the
+         * first match — appending later overrides. */
         int sty_off = dom_attr_get(n, "style");
+        if (sty_off >= 0) {
+            apply_inline_vars(cs, attr_pool + sty_off);
+        }
+
+        /* 2c. Author rules in two passes: pass 1 (non-important) feeds
+         * the normal specificity+doc-order cascade; pass 2 (important)
+         * wins over everything from pass 1 and inline style. The score
+         * packs (specificity << 12) | doc_order so a higher specificity
+         * or later rule wins at equal level. Size matches MAX_CP_ID;
+         * CupidC requires a literal here. */
+        int winner_rule[80];
+        int winner_score[80];
+        for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
+        for (int r = 0; r < css_rule_count; r = r + 1) {
+            if (css_rule_important[r]) continue;
+            int p = css_rule_prop_id[r];
+            if (p < 1 || p >= MAX_CP_ID) continue;
+            int sf = css_rule_sel_first[r];
+            int sc = css_rule_sel_count[r];
+            if (!sel_chain_matches(sf, sc, n)) continue;
+            int score = (css_rule_specificity[r] << 12) | (css_rule_doc_order[r] & 0xFFF);
+            if (score > winner_score[p]) {
+                winner_score[p] = score;
+                winner_rule[p] = r;
+            }
+        }
+        for (int p = 1; p < MAX_CP_ID; p = p + 1) {
+            int r = winner_rule[p];
+            if (r >= 0) {
+                cs_apply_property(cs, p,
+                                  css_rule_value_off[r], css_rule_value_len[r]);
+            }
+        }
+
+        /* 3. Inline style="..." attribute (wins over non-important
+         * author rules). The pre-pass at 2b already captured --vars;
+         * apply_inline_style still re-applies them but that's a no-op
+         * since the values are identical. Regular properties get
+         * applied here for the first time. */
         if (sty_off >= 0) {
             apply_inline_style(cs, attr_pool + sty_off);
         }
