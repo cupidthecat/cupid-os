@@ -192,6 +192,109 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
         }
     }
 
+    /* 2b. Background-image. Drawn over the solid bg or gradient.
+     *   - Resolve tile size from cs_bg_size_w/h: AUTO uses intrinsic;
+     *     COVER scales to box, may overflow on one axis; CONTAIN scales
+     *     to fit inside the box.
+     *   - Resolve tile origin from cs_bg_pos_x/y: positive = px from
+     *     left/top; sentinel -10000 = center; -20000 = right/bottom.
+     *   - cs_bg_repeat decides whether to draw a single tile or repeat
+     *     across the box on each axis.
+     * Reference: blink/Source/core/paint/BackgroundImageGeometry.cpp
+     * (calculateFillTileSize + calculateTilePhase). */
+    int bgh = cs_bg_handle[cs];
+    int iw = cs_bg_intrinsic_w[cs];
+    int ih = cs_bg_intrinsic_h[cs];
+    if (bgh >= 0 && iw > 0 && ih > 0 && !suppress_bg) {
+        int tile_w = cs_bg_size_w[cs];
+        int tile_h = cs_bg_size_h[cs];
+        if (tile_w == BG_SIZE_COVER || tile_h == BG_SIZE_COVER) {
+            /* Scale so both axes >= box, preserve aspect ratio. */
+            int scale_x_q = (w * 1000) / iw;
+            int scale_y_q = (h * 1000) / ih;
+            int scale = (scale_x_q > scale_y_q) ? scale_x_q : scale_y_q;
+            tile_w = (iw * scale) / 1000;
+            tile_h = (ih * scale) / 1000;
+        } else if (tile_w == BG_SIZE_CONTAIN || tile_h == BG_SIZE_CONTAIN) {
+            int scale_x_q = (w * 1000) / iw;
+            int scale_y_q = (h * 1000) / ih;
+            int scale = (scale_x_q < scale_y_q) ? scale_x_q : scale_y_q;
+            tile_w = (iw * scale) / 1000;
+            tile_h = (ih * scale) / 1000;
+        } else {
+            if (tile_w == BG_SIZE_AUTO) tile_w = iw;
+            if (tile_h == BG_SIZE_AUTO) tile_h = ih;
+            if (cs_bg_size_w[cs] == BG_SIZE_AUTO &&
+                cs_bg_size_h[cs] != BG_SIZE_AUTO && tile_h > 0) {
+                tile_w = (iw * tile_h) / ih;
+            }
+            if (cs_bg_size_h[cs] == BG_SIZE_AUTO &&
+                cs_bg_size_w[cs] != BG_SIZE_AUTO && tile_w > 0) {
+                tile_h = (ih * tile_w) / iw;
+            }
+        }
+        if (tile_w < 1) tile_w = 1;
+        if (tile_h < 1) tile_h = 1;
+
+        int px = cs_bg_pos_x[cs];
+        int py = cs_bg_pos_y[cs];
+        int origin_x;
+        int origin_y;
+        if (px == -10000)      origin_x = (w - tile_w) / 2;
+        else if (px == -20000) origin_x = w - tile_w;
+        else                   origin_x = px;
+        if (py == -10000)      origin_y = (h - tile_h) / 2;
+        else if (py == -20000) origin_y = h - tile_h;
+        else                   origin_y = py;
+
+        int rep = cs_bg_repeat[cs];
+        int tile_x_count;
+        int tile_y_count;
+        int start_x;
+        int start_y;
+        if (rep == BG_REPEAT_NONE) {
+            tile_x_count = 1; tile_y_count = 1;
+            start_x = origin_x; start_y = origin_y;
+        } else {
+            /* Step start back to the first tile that intersects the box. */
+            if (rep == BG_REPEAT_X || rep == BG_REPEAT_BOTH) {
+                start_x = origin_x;
+                while (start_x > 0) start_x = start_x - tile_w;
+                tile_x_count = (w - start_x + tile_w - 1) / tile_w;
+            } else {
+                start_x = origin_x;
+                tile_x_count = 1;
+            }
+            if (rep == BG_REPEAT_Y || rep == BG_REPEAT_BOTH) {
+                start_y = origin_y;
+                while (start_y > 0) start_y = start_y - tile_h;
+                tile_y_count = (h - start_y + tile_h - 1) / tile_h;
+            } else {
+                start_y = origin_y;
+                tile_y_count = 1;
+            }
+        }
+        if (tile_x_count > 64) tile_x_count = 64;
+        if (tile_y_count > 64) tile_y_count = 64;
+        /* CSS Backgrounds & Borders §3.10: `background-clip` default is
+         * `border-box`, so the bg image must not paint outside the
+         * element's border box. Without this clip, `cover` (which scales
+         * one axis past the box on purpose) bleeds across adjacent
+         * elements. Reference: blink/Source/core/paint/BoxPainterBase.cpp
+         * (clipBox + paintFillLayer's BackgroundClip handling). */
+        paint_clip_push(sx, sy, w, h);
+        int ti;
+        int tj;
+        for (tj = 0; tj < tile_y_count; tj = tj + 1) {
+            int dy = sy + start_y + tj * tile_h;
+            for (ti = 0; ti < tile_x_count; ti = ti + 1) {
+                int dx = sx + start_x + ti * tile_w;
+                gfx2d_image_draw_scaled(bgh, dx, dy, tile_w, tile_h);
+            }
+        }
+        paint_clip_pop();
+    }
+
     /* 3. Border. Each side stores its declared pixel width in
      * cs_border[cs][0..3] (top/right/bottom/left). With a non-zero
      * radius the rounded outline replaces the four-sided rect-fill.

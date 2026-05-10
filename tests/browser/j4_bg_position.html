@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<title>j4 background-position</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 6px 0; font-size: 13px; }
+.box {
+  width: 320px;
+  height: 140px;
+  margin-bottom: 12px;
+  border: 1px solid #888;
+  background-image: url(https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png);
+  background-repeat: no-repeat;
+  background-size: 80px auto;
+}
+.tl { background-position: left top; }
+.tc { background-position: center top; }
+.tr { background-position: right top; }
+.cl { background-position: left center; }
+.cc { background-position: center center; }
+.cr { background-position: right center; }
+.bl { background-position: left bottom; }
+.bc { background-position: center bottom; }
+.br { background-position: right bottom; }
+.px { background-position: 24px 40px; }
+</style>
+</head>
+<body>
+<div class="lbl">left top</div>           <div class="box tl"></div>
+<div class="lbl">center top</div>         <div class="box tc"></div>
+<div class="lbl">right top</div>          <div class="box tr"></div>
+<div class="lbl">center center</div>      <div class="box cc"></div>
+<div class="lbl">right bottom</div>       <div class="box br"></div>
+<div class="lbl">explicit 24px 40px</div> <div class="box px"></div>
+</body>
+</html>

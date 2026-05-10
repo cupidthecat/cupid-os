@@ -709,8 +709,130 @@ The algorithm:
   / 2 / 3` proportional split, and a nav-bar pattern with a
   `flex: 1` spacer between fixed-size buttons.
 
+## Phase 6: CSS background images
+
+`background-image: url()` + `background-size` + `background-position`
++ `background-repeat`. Used on every modern landing page (hero
+sections, decorative panels, repeating patterns). References:
+`blink/Source/core/css/parser/CSSParserBackground.cpp` +
+`blink/Source/core/paint/BackgroundImageGeometry.cpp`.
+
+**Storage (`bin/browser/main.cc`).**
+
+```c
+int cs_bg_img_off    [4096];   /* URL index into css_value_pool, -1 = none */
+int cs_bg_img_len    [4096];
+int cs_bg_handle     [4096];   /* gfx2d image handle, -1 until loaded */
+int cs_bg_intrinsic_w[4096];
+int cs_bg_intrinsic_h[4096];
+int cs_bg_size_w     [4096];   /* px or BG_SIZE_AUTO/COVER/CONTAIN */
+int cs_bg_size_h     [4096];
+int cs_bg_pos_x      [4096];   /* px, or sentinel: -10000=center,
+                                  -20000=right/bottom */
+int cs_bg_pos_y      [4096];
+int cs_bg_repeat     [4096];   /* BG_REPEAT_BOTH | NONE | X | Y */
+```
+
+UA defaults: url=-1, handle=-1, size=auto/auto, position=0/0,
+repeat=both.
+
+**CSS parse (`bin/browser/css.cc` + `bin/browser/style.cc`).**
+
+- New property names: `background-image`, `background-size`,
+  `background-position`, `background-repeat`.
+- `background-image: url(<href>)` strips `url(` ... `)` and any
+  surrounding single/double quotes; the inner string remains in
+  `css_value_pool` and is referenced by `cs_bg_img_off/_len`.
+  `none` clears.
+- `background-size` accepts `cover` / `contain` / `<length> <length>`
+  / `<length>` (single value, missing axis is `auto`) / `auto`. The
+  COVER and CONTAIN sentinels survive into paint where the actual
+  scaling math runs.
+- `background-position` accepts pairwise keywords (`left top`,
+  `center bottom`, etc.) and lengths. Keywords encode at apply time
+  as sentinel positions resolved at paint: `-10000` = center,
+  `-20000` = right / bottom.
+- `background-repeat` covers all four canonical values.
+- The `background:` shorthand still falls through to the existing
+  color path (gradient or solid); composing it with `image / size /
+  position / repeat` in one declaration is a follow-up.
+
+**Image fetch (`bin/browser/image.cc`).**
+
+A parallel 16-slot queue keyed by style index (cs) instead of DOM
+node, alongside the existing 32-slot `<img>` queue:
+
+- `bg_image_queue_collect` walks `cs_count` slots, queues any
+  unique URL whose handle isn't already loaded, and re-links
+  `cs_bg_handle` from the URL cache when a previously fetched
+  image's handle would otherwise have been wiped.
+- `bg_image_advance_one_pending` drives one slot per render tick
+  through `fetch_url` + `image_decode_blob`, with the same
+  save / restore around `cur_host` / `cur_path` / `status_msg`
+  the `<img>` pump uses.
+- `image_evict_all` was extended: bg-image handles live on the
+  cache entry (`bg_url_handle[16]`) so per-page eviction is one
+  free per unique URL, not one per cs slot.
+
+**Critical fix during testing: the URL cache owns the handle.**
+Initial implementation stashed the handle on `cs_bg_handle` only;
+every reflow's `init_style_for_cs` reset that to -1, so the next
+tick re-queued the URL and re-issued the HTTPS GET. Symptom was a
+boot-loop of `[browser] bg-image load: <url> -> handle 5/6/7/8/...`
+once per second. The cache entry now owns `bg_url_handle[slot]` /
+`bg_url_w[slot]` / `bg_url_h[slot]`, and `bg_image_advance_one_pending`
+no longer sets `img_state_dirty` (layout doesn't depend on bg-image
+dimensions, so the next render() picks up the new handle without a
+reflow). Reflow + re-link path is now: reflow wipes
+`cs_bg_handle`, the next `bg_image_queue_collect` finds the URL in
+cache and re-links from the cache entry — no fetch.
+
+**Paint (`bin/browser/paint.cc`).**
+
+`paint_rt_box_decoration` paints the bg image AFTER the solid /
+gradient bg fill:
+
+1. **Tile size.** `cover` picks `scale = max(box_w/img_w,
+   box_h/img_h)` so both axes >= box. `contain` picks `scale = min`
+   so both axes <= box. Explicit lengths use the declared values;
+   when one axis is `auto` and the other is fixed, the missing axis
+   is derived from the intrinsic aspect ratio. Min tile size 1×1.
+2. **Tile origin.** Position keywords resolve to `(box-tile)/2` for
+   center, `box-tile` for right/bottom, `0` for left/top. Numeric
+   lengths pass through. Final origin in element-local coords is
+   `start_x = origin_x` (then stepped back to the first tile that
+   intersects the box for repeating axes).
+3. **Tile loop.** Repeat axes step `start_*` back to the first tile
+   that intersects the box, then walk `tile_*_count = (box - start +
+   tile - 1) / tile` tiles across. Capped at 64×64 tiles per box.
+4. **Background-clip.** The whole tile-draw loop is wrapped in
+   `paint_clip_push(sx, sy, w, h)` / `paint_clip_pop` so a `cover`
+   that intentionally overflows on the shorter axis doesn't bleed
+   into adjacent elements (CSS Backgrounds & Borders §3.10
+   `background-clip: border-box` default).
+
+**Tests.**
+
+- `tests/browser/j1_bg_image_basic.html` - default size + position,
+  explicit `Npx Mpx`, explicit `Npx auto` over a solid color.
+- `tests/browser/j2_bg_size.html` - cover, contain, explicit, auto-
+  aspect; this is the test that surfaced the missing background
+  clip.
+- `tests/browser/j3_bg_repeat.html` - all four repeat modes at a
+  small explicit tile size.
+- `tests/browser/j4_bg_position.html` - the 9-keyword grid (corners
+  / edges / center) + explicit `24px 40px`.
+
 ## Not in this PR (still deferred)
 
+- **`background:` shorthand composition.** Composing
+  `image / size / position / repeat / color` in one declaration
+  isn't parsed yet; only the longhand properties + the existing
+  color/gradient path on `background:` work.
+- **`background-clip` / `background-origin` / `background-attachment`**
+  - clip is hard-coded to border-box, origin to padding-box,
+  attachment to scroll. These pieces are unused on the test pages
+  we hit.
 - **`flex-wrap`, `order`, `align-self`, `align-content`** - the
   multi-line / per-item override pieces of the spec. Not in real-
   world use yet on the test pages we run.

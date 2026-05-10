@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<title>j1 background-image</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 6px 0; font-size: 13px; }
+.box {
+  width: 320px;
+  height: 180px;
+  margin-bottom: 16px;
+  border: 1px solid #888;
+  background-image: url(https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png);
+  background-repeat: no-repeat;
+}
+.b1 { /* default size: intrinsic 135x155 in top-left */ }
+.b2 {
+  background-size: 80px 80px;
+}
+.b3 {
+  background-color: #fee;
+  background-size: 60px auto;
+}
+</style>
+</head>
+<body>
+<div class="lbl">background-image url, default size + position (top-left, intrinsic 135x155)</div>
+<div class="box b1"></div>
+
+<div class="lbl">background-size: 80 80</div>
+<div class="box b2"></div>
+
+<div class="lbl">background-size: 60 auto (height computed from aspect ratio) over a #fee fill</div>
+<div class="box b3"></div>
+</body>
+</html>

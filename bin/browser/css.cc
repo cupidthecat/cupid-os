@@ -539,6 +539,10 @@ int css_match_property(char *s, int len) {
     if (len == 7  && b_strieq_n(s, "z-index",        7))          return CP_Z_INDEX;
     if (len == 5  && b_strieq_n(s, "float",          5))          return CP_FLOAT;
     if (len == 5  && b_strieq_n(s, "clear",          5))          return CP_CLEAR;
+    if (len == 16 && b_strieq_n(s, "background-image",   16))     return CP_BG_IMAGE;
+    if (len == 15 && b_strieq_n(s, "background-size",    15))     return CP_BG_SIZE;
+    if (len == 19 && b_strieq_n(s, "background-position",19))     return CP_BG_POSITION;
+    if (len == 17 && b_strieq_n(s, "background-repeat",  17))     return CP_BG_REPEAT;
     if (len == 14 && b_strieq_n(s, "flex-direction", 14))         return CP_FLEX_DIR;
     if (len == 15 && b_strieq_n(s, "justify-content", 15))        return CP_JUSTIFY;
     if (len == 11 && b_strieq_n(s, "align-items",    11))         return CP_ALIGN_ITEMS;

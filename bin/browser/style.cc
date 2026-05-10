@@ -71,6 +71,16 @@ void ua_default_style(int tag, int cs) {
     cs_flex_shrink[cs] = 100;
     cs_flex_basis[cs] = -1;
     cs_gap[cs] = 0;
+    cs_bg_img_off[cs] = -1;
+    cs_bg_img_len[cs] = 0;
+    cs_bg_handle[cs] = -1;
+    cs_bg_intrinsic_w[cs] = 0;
+    cs_bg_intrinsic_h[cs] = 0;
+    cs_bg_size_w[cs] = BG_SIZE_AUTO;
+    cs_bg_size_h[cs] = BG_SIZE_AUTO;
+    cs_bg_pos_x[cs] = 0;
+    cs_bg_pos_y[cs] = 0;
+    cs_bg_repeat[cs] = BG_REPEAT_BOTH;
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
@@ -1305,6 +1315,142 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     }
     if (prop == CP_GAP) {
         cs_gap[cs] = css_value_len(cs, val_off, val_len);
+        return;
+    }
+    if (prop == CP_BG_IMAGE) {
+        /* `background-image: url(href)` or `none`. The href bytes live in
+         * css_value_pool already (the parser stashes the value before
+         * apply); we record an off/len that points at the inner string,
+         * stripping `url(` ... `)` and any single/double quotes. */
+        if (css_value_keyword(val_off, val_len, "none")) {
+            cs_bg_img_off[cs] = -1;
+            cs_bg_img_len[cs] = 0;
+            return;
+        }
+        int p = val_off;
+        int e = val_off + val_len;
+        while (p < e && (css_value_pool[p] == ' ' || css_value_pool[p] == '\t')) p = p + 1;
+        if (p + 4 < e && b_strieq_n(css_value_pool + p, "url(", 4)) {
+            p = p + 4;
+            int rp = e - 1;
+            while (rp > p && (css_value_pool[rp] == ' ' || css_value_pool[rp] == '\t')) rp = rp - 1;
+            if (rp > p && css_value_pool[rp] == ')') rp = rp - 1;
+            while (p <= rp && (css_value_pool[p] == ' ' || css_value_pool[p] == '\t')) p = p + 1;
+            while (rp >= p && (css_value_pool[rp] == ' ' || css_value_pool[rp] == '\t')) rp = rp - 1;
+            if (p <= rp && (css_value_pool[p] == '"' || css_value_pool[p] == '\'')) p = p + 1;
+            if (rp >= p && (css_value_pool[rp] == '"' || css_value_pool[rp] == '\'')) rp = rp - 1;
+            if (rp >= p) {
+                cs_bg_img_off[cs] = p;
+                cs_bg_img_len[cs] = rp - p + 1;
+                return;
+            }
+        }
+        cs_bg_img_off[cs] = -1;
+        cs_bg_img_len[cs] = 0;
+        return;
+    }
+    if (prop == CP_BG_SIZE) {
+        if (css_value_keyword(val_off, val_len, "cover")) {
+            cs_bg_size_w[cs] = BG_SIZE_COVER;
+            cs_bg_size_h[cs] = BG_SIZE_COVER;
+            return;
+        }
+        if (css_value_keyword(val_off, val_len, "contain")) {
+            cs_bg_size_w[cs] = BG_SIZE_CONTAIN;
+            cs_bg_size_h[cs] = BG_SIZE_CONTAIN;
+            return;
+        }
+        /* One or two length tokens: `Npx` or `Npx Mpx`. `auto` keeps the
+         * intrinsic axis. */
+        int p = val_off;
+        int e = val_off + val_len;
+        int t1_off = -1; int t1_len = 0;
+        int t2_off = -1; int t2_len = 0;
+        while (p < e && (css_value_pool[p] == ' ' || css_value_pool[p] == '\t')) p = p + 1;
+        if (p < e) {
+            t1_off = p;
+            while (p < e && css_value_pool[p] != ' ' && css_value_pool[p] != '\t') p = p + 1;
+            t1_len = p - t1_off;
+            while (p < e && (css_value_pool[p] == ' ' || css_value_pool[p] == '\t')) p = p + 1;
+            if (p < e) {
+                t2_off = p;
+                while (p < e && css_value_pool[p] != ' ' && css_value_pool[p] != '\t') p = p + 1;
+                t2_len = p - t2_off;
+            }
+        }
+        if (t1_off >= 0) {
+            if (b_strieq_n(css_value_pool + t1_off, "auto", 4) && t1_len == 4)
+                cs_bg_size_w[cs] = BG_SIZE_AUTO;
+            else
+                cs_bg_size_w[cs] = css_value_len(cs, t1_off, t1_len);
+        }
+        if (t2_off >= 0) {
+            if (b_strieq_n(css_value_pool + t2_off, "auto", 4) && t2_len == 4)
+                cs_bg_size_h[cs] = BG_SIZE_AUTO;
+            else
+                cs_bg_size_h[cs] = css_value_len(cs, t2_off, t2_len);
+        } else if (t1_off >= 0) {
+            /* Single value: per spec, the missing axis is `auto`. */
+            cs_bg_size_h[cs] = BG_SIZE_AUTO;
+        }
+        return;
+    }
+    if (prop == CP_BG_POSITION) {
+        /* Accept keyword pairs (top/bottom/left/right/center) or
+         * length pairs. Single value applies to x; y defaults to center.
+         * Box dimensions aren't known at apply time; encode keywords as
+         * sentinel pixel positions resolved at paint time:
+         *   0       -> left / top
+         *   -10000  -> center
+         *   -20000  -> right / bottom
+         * Numeric values pass through unchanged. */
+        int p = val_off;
+        int e = val_off + val_len;
+        int tok_off[2];
+        int tok_len[2];
+        int tn = 0;
+        while (p < e && tn < 2) {
+            while (p < e && (css_value_pool[p] == ' ' || css_value_pool[p] == '\t')) p = p + 1;
+            if (p >= e) break;
+            int s = p;
+            while (p < e && css_value_pool[p] != ' ' && css_value_pool[p] != '\t') p = p + 1;
+            tok_off[tn] = s;
+            tok_len[tn] = p - s;
+            tn = tn + 1;
+        }
+        int xv = 0;
+        int yv = -10000;     /* center default for missing y */
+        int t;
+        for (t = 0; t < tn; t = t + 1) {
+            int o = tok_off[t];
+            int l = tok_len[t];
+            int is_x_kw = -1;
+            int is_y_kw = -1;
+            if (b_strieq_n(css_value_pool + o, "left",   4) && l == 4) is_x_kw = 0;
+            else if (b_strieq_n(css_value_pool + o, "right",  5) && l == 5) is_x_kw = -20000;
+            else if (b_strieq_n(css_value_pool + o, "top",    3) && l == 3) is_y_kw = 0;
+            else if (b_strieq_n(css_value_pool + o, "bottom", 6) && l == 6) is_y_kw = -20000;
+            else if (b_strieq_n(css_value_pool + o, "center", 6) && l == 6) {
+                /* Apply to whichever axis hasn't been claimed yet. */
+                if (t == 0) xv = -10000;
+                else        yv = -10000;
+                continue;
+            }
+            if (is_x_kw != -1) { xv = is_x_kw; continue; }
+            if (is_y_kw != -1) { yv = is_y_kw; continue; }
+            /* numeric */
+            if (t == 0) xv = css_value_len(cs, o, l);
+            else        yv = css_value_len(cs, o, l);
+        }
+        cs_bg_pos_x[cs] = xv;
+        cs_bg_pos_y[cs] = yv;
+        return;
+    }
+    if (prop == CP_BG_REPEAT) {
+        if (css_value_keyword(val_off, val_len, "no-repeat"))      cs_bg_repeat[cs] = BG_REPEAT_NONE;
+        else if (css_value_keyword(val_off, val_len, "repeat-x"))  cs_bg_repeat[cs] = BG_REPEAT_X;
+        else if (css_value_keyword(val_off, val_len, "repeat-y"))  cs_bg_repeat[cs] = BG_REPEAT_Y;
+        else                                                        cs_bg_repeat[cs] = BG_REPEAT_BOTH;
         return;
     }
     if (prop == CP_MARGIN || prop == CP_PADDING) {

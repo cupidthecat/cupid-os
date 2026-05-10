@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<title>j2 background-size</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 6px 0; font-size: 13px; }
+.box {
+  width: 320px;
+  height: 120px;
+  margin-bottom: 16px;
+  border: 1px solid #888;
+  background-image: url(https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.cover   { background-size: cover; }
+.contain { background-size: contain; }
+.fixed   { background-size: 200px 80px; }
+.auto-h  { background-size: 100px auto; }
+</style>
+</head>
+<body>
+<div class="lbl">background-size: cover (fills box, may overflow on shorter axis)</div>
+<div class="box cover"></div>
+
+<div class="lbl">background-size: contain (fits inside, may leave space on longer axis)</div>
+<div class="box contain"></div>
+
+<div class="lbl">background-size: 200px 80px (explicit, may distort)</div>
+<div class="box fixed"></div>
+
+<div class="lbl">background-size: 100px auto (height auto-computes from aspect)</div>
+<div class="box auto-h"></div>
+</body>
+</html>

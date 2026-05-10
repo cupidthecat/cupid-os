@@ -28,6 +28,23 @@ int  img_url_len[32];
 int  img_dom[32];          /* DOM node index of the <img> */
 int  img_state[32];
 
+/* Background-image pump. Parallel queue keyed by style index instead
+ * of DOM node, since CSS bg images attach to (selector, declaration)
+ * pairs and many DOM nodes can share a style.
+ *
+ * The handle / intrinsic dims are stashed on the cache entry itself so
+ * a per-frame style reflow (which calls init_style_for_cs and resets
+ * cs_bg_handle to -1) re-links from the URL cache without re-fetching.
+ * Without this, every reflow re-issued the HTTPS GET. */
+char bg_url[16][1024];
+int  bg_url_len[16];
+int  bg_url_handle[16];
+int  bg_url_w[16];
+int  bg_url_h[16];
+int  bg_cs[16];
+int  bg_state[16];
+int  bg_count;
+
 void image_queue_init(void) {
     img_count = 0;
     img_state_dirty = 0;
@@ -45,6 +62,21 @@ void image_queue_init(void) {
         n_img_intrinsic_w[i] = 0;
         n_img_intrinsic_h[i] = 0;
     }
+    /* Background-image queue + per-style handle cache. */
+    bg_count = 0;
+    for (int i = 0; i < 16; i = i + 1) {
+        bg_url_len[i] = 0;
+        bg_url_handle[i] = -1;
+        bg_url_w[i] = 0;
+        bg_url_h[i] = 0;
+        bg_cs[i] = -1;
+        bg_state[i] = IMG_S_PENDING;
+    }
+    for (int i = 0; i < 4096; i = i + 1) {
+        cs_bg_handle[i] = -1;
+        cs_bg_intrinsic_w[i] = 0;
+        cs_bg_intrinsic_h[i] = 0;
+    }
 }
 
 /* Free all decoded images on per-page navigation. Each handle came from
@@ -57,6 +89,20 @@ void image_evict_all(void) {
         n_img_handle[i] = -1;
         n_img_intrinsic_w[i] = 0;
         n_img_intrinsic_h[i] = 0;
+    }
+    /* Bg-image handles live on the URL cache entry. Free each unique
+     * handle once via the cache, then clear the per-style mirrors. */
+    for (int i = 0; i < 16; i = i + 1) {
+        int h = bg_url_handle[i];
+        if (h >= 0) gfx2d_image_free(h);
+        bg_url_handle[i] = -1;
+        bg_url_w[i] = 0;
+        bg_url_h[i] = 0;
+    }
+    for (int i = 0; i < 4096; i = i + 1) {
+        cs_bg_handle[i] = -1;
+        cs_bg_intrinsic_w[i] = 0;
+        cs_bg_intrinsic_h[i] = 0;
     }
 }
 
@@ -204,4 +250,139 @@ int image_advance_one_pending(void) {
 
 void image_pump(void) {
     image_advance_one_pending();
+}
+
+/* Walk styled cs slots and queue any bg-image URL we don't already have
+ * a handle for. Mirrors image_queue_collect's dedup against the in-flight
+ * queue + reuse of LOADED handles for matching URLs. */
+void bg_image_queue_collect(void) {
+    if (bg_count >= 16) return;
+    for (int s = 0; s < cs_count && bg_count < 16; s = s + 1) {
+        if (cs_bg_img_off[s] < 0) continue;
+        if (cs_bg_handle[s] >= 0) continue;
+        int slen = cs_bg_img_len[s];
+        if (slen <= 0 || slen >= 1023) continue;
+        char *src = css_value_pool + cs_bg_img_off[s];
+        /* Dedup against existing cache. The cache itself owns the handle
+         * + intrinsic dims so a style reflow that resets cs_bg_handle to
+         * -1 re-links here without re-issuing the network fetch. */
+        int reuse_slot = -1;
+        for (int j = 0; j < bg_count; j = j + 1) {
+            if (bg_url_len[j] != slen) continue;
+            int eq = 1;
+            for (int k = 0; k < slen; k = k + 1) {
+                if (bg_url[j][k] != src[k]) { eq = 0; break; }
+            }
+            if (!eq) continue;
+            reuse_slot = j;
+            break;
+        }
+        if (reuse_slot >= 0) {
+            if (bg_state[reuse_slot] == IMG_S_LOADED &&
+                bg_url_handle[reuse_slot] >= 0) {
+                cs_bg_handle[s]      = bg_url_handle[reuse_slot];
+                cs_bg_intrinsic_w[s] = bg_url_w[reuse_slot];
+                cs_bg_intrinsic_h[s] = bg_url_h[reuse_slot];
+                /* No img_state_dirty: layout doesn't depend on bg-image
+                 * dims, so the next render() picks up the handle without
+                 * a reflow. Setting dirty here was the source of the
+                 * fetch loop. */
+            }
+            /* For PENDING/FAILED reuse slots we just wait - nothing to
+             * link yet, and we don't enqueue a duplicate slot. */
+            continue;
+        }
+        int slot = bg_count;
+        bg_count = bg_count + 1;
+        for (int k = 0; k < slen; k = k + 1) bg_url[slot][k] = src[k];
+        bg_url[slot][slen] = 0;
+        bg_url_len[slot] = slen;
+        bg_url_handle[slot] = -1;
+        bg_url_w[slot] = 0;
+        bg_url_h[slot] = 0;
+        bg_cs[slot] = s;
+        bg_state[slot] = IMG_S_PENDING;
+    }
+}
+
+/* Drive ONE pending bg-image slot through fetch + decode. Same save /
+ * restore dance as image_advance_one_pending. */
+int bg_image_advance_one_pending(void) {
+    int slot = -1;
+    for (int i = 0; i < bg_count; i = i + 1) {
+        if (bg_state[i] == IMG_S_PENDING) { slot = i; break; }
+    }
+    if (slot < 0) return 0;
+
+    char saved_host[256];
+    char saved_path[1024];
+    char saved_url [1024];
+    char saved_status[256];
+    int  saved_port    = cur_port;
+    int  saved_https   = cur_is_https;
+    int  saved_page_len = page_len;
+    b_strcpy_n(saved_host, cur_host, 256);
+    b_strcpy_n(saved_path, cur_path, 1024);
+    b_strcpy_n(saved_url,  cur_url,  1024);
+    b_strcpy_n(saved_status, status_msg, 256);
+
+    char ct[128]; ct[0] = 0;
+    char absu[1024];
+    compute_url_relative(bg_url[slot], absu, 1024);
+    int rc = fetch_url(absu, ct);
+
+    int handle = -1;
+    if (rc == 0 && page_len > 0) {
+        handle = image_decode_blob(page_buf, page_len);
+    } else {
+        serial_printf("[browser] bg-image fetch failed: %s\n", bg_url[slot]);
+    }
+
+    b_strcpy_n(cur_host, saved_host, 256);
+    b_strcpy_n(cur_path, saved_path, 1024);
+    b_strcpy_n(cur_url,  saved_url,  1024);
+    b_strcpy_n(status_msg, saved_status, 256);
+    cur_port     = saved_port;
+    cur_is_https = saved_https;
+    page_len     = saved_page_len;
+
+    if (handle >= 0) {
+        int s = bg_cs[slot];
+        int decoded_w = gfx2d_image_width(handle);
+        int decoded_h = gfx2d_image_height(handle);
+        bg_url_handle[slot] = handle;
+        bg_url_w[slot]      = decoded_w;
+        bg_url_h[slot]      = decoded_h;
+        cs_bg_handle[s]      = handle;
+        cs_bg_intrinsic_w[s] = decoded_w;
+        cs_bg_intrinsic_h[s] = decoded_h;
+        /* Apply the same handle to other cs slots referencing this URL. */
+        int u_len = bg_url_len[slot];
+        for (int t = 0; t < cs_count; t = t + 1) {
+            if (t == s) continue;
+            if (cs_bg_handle[t] >= 0) continue;
+            if (cs_bg_img_off[t] < 0) continue;
+            if (cs_bg_img_len[t] != u_len) continue;
+            char *cu = css_value_pool + cs_bg_img_off[t];
+            int eq = 1;
+            for (int k = 0; k < u_len; k = k + 1) {
+                if (cu[k] != bg_url[slot][k]) { eq = 0; break; }
+            }
+            if (eq) {
+                cs_bg_handle[t]      = handle;
+                cs_bg_intrinsic_w[t] = decoded_w;
+                cs_bg_intrinsic_h[t] = decoded_h;
+            }
+        }
+        bg_state[slot] = IMG_S_LOADED;
+        /* No img_state_dirty: paint reads cs_bg_handle directly each
+         * frame so the next render() shows the image without a reflow.
+         * Triggering reflow here would wipe cs_bg_handle in
+         * init_style_for_cs and cause an infinite re-fetch loop. */
+        serial_printf("[browser] bg-image load: %s -> handle %d (%dx%d)\n",
+                      bg_url[slot], handle, decoded_w, decoded_h);
+    } else {
+        bg_state[slot] = IMG_S_FAILED;
+    }
+    return 1;
 }

@@ -141,6 +141,7 @@ enum {
     CP_FLOAT, CP_CLEAR,
     CP_FLEX_DIR, CP_JUSTIFY, CP_ALIGN_ITEMS,
     CP_FLEX, CP_FLEX_GROW, CP_FLEX_SHRINK, CP_FLEX_BASIS, CP_GAP,
+    CP_BG_IMAGE, CP_BG_SIZE, CP_BG_POSITION, CP_BG_REPEAT,
     /* Sentinel for custom-property declarations (`--name: value`).
      * cs_apply_property dispatches on prop_id; a CP_CUSTOM_VAR rule
      * carries its name via css_rule_var_name_off/len rather than
@@ -192,6 +193,15 @@ enum {
     BG_GRAD_NONE = 0,
     BG_GRAD_HORIZONTAL = 1,
     BG_GRAD_VERTICAL = 2,
+
+    BG_REPEAT_BOTH = 0,    /* default per CSS Backgrounds & Borders */
+    BG_REPEAT_NONE = 1,    /* no-repeat */
+    BG_REPEAT_X = 2,       /* repeat-x */
+    BG_REPEAT_Y = 3,       /* repeat-y */
+
+    BG_SIZE_AUTO = -1,
+    BG_SIZE_COVER = -2,
+    BG_SIZE_CONTAIN = -3,
 
     FLEX_DIR_ROW = 0,
     FLEX_DIR_COLUMN = 1,
@@ -544,6 +554,23 @@ int cs_box_sizing   [4096];   /* BOX_SIZING_CONTENT (default) | BORDER */
 int cs_bg_grad      [4096];   /* BG_GRAD_NONE | HORIZONTAL | VERTICAL */
 int cs_bg_grad_c1   [4096];
 int cs_bg_grad_c2   [4096];
+
+/* §2.x background-image: storage. The URL bytes live in css_value_pool
+ * (same pool that backs cs_font_family). cs_bg_handle is filled in by
+ * image.cc's bg-image pump after fetch+decode; cs_bg_intrinsic_* records
+ * the decoded source dimensions so paint can resolve `cover` / `contain`.
+ * Reference: blink/Source/core/css/parser/CSSParserBackground.cpp +
+ * BackgroundImageGeometry::calculateFillTileSize. */
+int cs_bg_img_off    [4096];
+int cs_bg_img_len    [4096];
+int cs_bg_handle     [4096];
+int cs_bg_intrinsic_w[4096];
+int cs_bg_intrinsic_h[4096];
+int cs_bg_size_w     [4096];   /* px or BG_SIZE_AUTO/COVER/CONTAIN */
+int cs_bg_size_h     [4096];   /* px or BG_SIZE_AUTO */
+int cs_bg_pos_x      [4096];   /* px from left; positive only in v1 */
+int cs_bg_pos_y      [4096];   /* px from top */
+int cs_bg_repeat     [4096];
 
 /* §2.x display:flex storage. Reference: blink/Source/core/css/
  * StyleFlexibleBoxData.h + LayoutFlexibleBox.cpp. */
@@ -998,6 +1025,8 @@ void browser_main() {
          * is the same FOUT-style retry loop ImageLoader uses in Blink. */
         image_queue_collect();
         image_pump();
+        bg_image_queue_collect();
+        bg_image_advance_one_pending();
         if (image_any_state_changed()) {
             populate_sibling_caches();
             style_resolve_all();
