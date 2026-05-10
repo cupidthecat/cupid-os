@@ -127,6 +127,14 @@ extern const char _binary_system_fonts_LiberationSerif_Regular_ttf_start[];
 extern const char _binary_system_fonts_LiberationSerif_Regular_ttf_end[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_start[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_end[];
+/* Noto Sans Symbols covers Misc Symbols (U+2600 incl. snowman U+2603),
+ * dingbats, arrows, and geometric shapes. ~227 KB. The kernel area was
+ * bumped from 4 MB to 8 MB (link.ld + boot/boot.asm + Makefile
+ * FAT_START_LBA) to make room. fontsys_find_face_with_cp uses this
+ * face as last-resort glyph fallback when the chosen family lacks a
+ * codepoint. */
+extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_start[];
+extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_end[];
 
 static int register_embedded(const char *start, const char *end,
                              const char *label) {
@@ -173,6 +181,9 @@ void fontsys_init(void) {
     register_embedded(_binary_system_fonts_LiberationMono_Regular_ttf_start,
                       _binary_system_fonts_LiberationMono_Regular_ttf_end,
                       "LiberationMono-Regular");
+    register_embedded(_binary_system_fonts_NotoSansSymbols_Regular_ttf_start,
+                      _binary_system_fonts_NotoSansSymbols_Regular_ttf_end,
+                      "NotoSansSymbols-Regular");
 
     /* Set generic fallbacks. fontsys_match by name is preferred; these
      * kick in only when the CSS family list yields no concrete match. */
@@ -779,6 +790,33 @@ int fontsys_unregister(int face_id) {
         gc_n_used--;
     }
     return 0;
+}
+
+/* Returns 1 if the face's cmap contains a glyph for `codepoint` (i.e.
+ * ttf_cmap_glyph maps it to something other than glyph 0 / .notdef);
+ * 0 otherwise. Cheaper than fontsys_glyph because it skips raster + cache.
+ * Used by the browser's font-fallback chain: when the chosen face lacks
+ * a codepoint, walk other registered faces to find one that has it,
+ * matching Blink's last-resort glyph-fallback in
+ * blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter. */
+int fontsys_face_has_cp(int face_id, int codepoint) {
+    if (face_id < 0 || face_id >= face_count) return 0;
+    if (!face_used[face_id]) return 0;
+    int gid = ttf_cmap_glyph(face_blob[face_id], face_off_cmap[face_id], codepoint);
+    return (gid > 0) ? 1 : 0;
+}
+
+/* Walk every registered face and return the first one whose cmap covers
+ * `codepoint`, or -1 if none does. Caller should fall back to
+ * fontsys_match's generic when this returns -1 (a missing-glyph box
+ * is better than no glyph). */
+int fontsys_find_face_with_cp(int codepoint) {
+    for (int i = 0; i < face_count; i++) {
+        if (!face_used[i]) continue;
+        int gid = ttf_cmap_glyph(face_blob[i], face_off_cmap[i], codepoint);
+        if (gid > 0) return i;
+    }
+    return -1;
 }
 
 /* Diagnostics. */

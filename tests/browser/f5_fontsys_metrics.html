@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<title>f5 fontsys real metrics drive line height</title>
+<style>
+body { font-family: sans-serif; margin: 16px; }
+.s11 { font-size: 11px; }
+.s13 { font-size: 13px; }
+.s14 { font-size: 14px; }
+.s17 { font-size: 17px; }
+.s22 { font-size: 22px; }
+.s30 { font-size: 30px; }
+ul { margin: 0; padding-left: 24px; }
+li { line-height: normal; }
+</style>
+</head>
+<body>
+<h2>Mixed-size lines should not overlap</h2>
+<ul>
+  <li class="s11">11px line: cupcakes are sweet.</li>
+  <li class="s13">13px line: 14px is the body default.</li>
+  <li class="s14">14px line: lorem ipsum dolor sit amet.</li>
+  <li class="s17">17px line: line height pulled from fontsys_line_height.</li>
+  <li class="s22">22px line: not from a 5-bucket tier table.</li>
+  <li class="s30">30px line: ascent + descent from real TTF.</li>
+</ul>
+<p>Each list item should have a baseline that respects its own font size; no clipping or overlap between lines.</p>
+</body>
+</html>

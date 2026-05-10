@@ -5,10 +5,15 @@ int build_request(char *buf, char *method, char *p, char *h) {
     q = b_append(buf, q, method);
     buf[q] = ' '; q = q + 1;
     q = b_append(buf, q, p);
-    q = b_append(buf, q, " HTTP/1.0\r\nHost: ");
+    /* HTTP/1.1 + explicit Connection: close so we get a clean
+     * close-on-eof body without chunked transfer-encoding (which our
+     * parser doesn't yet decode). Accept */ /* covers images, fonts
+     * and HTML alike — Wikimedia/Cloudflare CDNs reject the previous
+     * "text/html,*\/*" string for image paths. */
+    q = b_append(buf, q, " HTTP/1.1\r\nHost: ");
     q = b_append(buf, q, h);
     q = b_append(buf, q, "\r\nUser-Agent: cupidos-browser/1.0\r\n");
-    q = b_append(buf, q, "Accept: text/html,*/*\r\nConnection: close\r\n\r\n");
+    q = b_append(buf, q, "Accept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n");
     return q;
 }
 
@@ -103,6 +108,15 @@ int fetch_url(char *url, char *content_type_out) {
         char location[1024]; location[0] = 0;
         int loc_len = 0;
         char line[1024]; int line_len = 0;
+        int chunked = 0;
+        /* Chunked decoder state. Each chunk: hex-size CRLF data CRLF.
+         *   ch_state 0 = reading hex size
+         *   ch_state 1 = saw CR after hex, waiting for LF
+         *   ch_state 2 = copying `ch_left` body bytes
+         *   ch_state 3 = saw CR after data, waiting for LF
+         *   ch_state 4 = done (size 0 chunk seen, drain trailers) */
+        int ch_state = 0;
+        int ch_left = 0;
         page_len = 0;
 
         while (1) {
@@ -149,6 +163,15 @@ int fetch_url(char *url, char *content_type_out) {
                                 lo = lo + 1; li = li + 1;
                             }
                             content_type_out[lo] = 0;
+                        } else if (line_len > 18 &&
+                                   b_strieq_n(line, "transfer-encoding:", 18)) {
+                            int li = 18;
+                            while (li < line_len &&
+                                   (line[li] == ' ' || line[li] == '\t')) li = li + 1;
+                            if (line_len - li >= 7 &&
+                                b_strieq_n(line + li, "chunked", 7)) {
+                                chunked = 1;
+                            }
                         }
                         line_len = 0;
                     } else if (b != '\r' && line_len < HEADER_LINE_MAX - 1) {
@@ -165,16 +188,71 @@ int fetch_url(char *url, char *content_type_out) {
             int skip_body = (status >= 300 && status < 400 &&
                              loc_len > 0 && redirects < 5);
             if (in_body && j < n && !skip_body) {
-                int blen = n - j;
-                int can = PAGE_BUF_SIZE - 1 - page_len;
-                if (blen > can) blen = can;
-                if (blen > 0) {
-                    int k = 0;
-                    while (k < blen) {
-                        page_buf[page_len + k] = buf[j + k];
-                        k = k + 1;
+                if (!chunked) {
+                    int blen = n - j;
+                    int can = PAGE_BUF_SIZE - 1 - page_len;
+                    if (blen > can) blen = can;
+                    if (blen > 0) {
+                        int k = 0;
+                        while (k < blen) {
+                            page_buf[page_len + k] = buf[j + k];
+                            k = k + 1;
+                        }
+                        page_len = page_len + blen;
                     }
-                    page_len = page_len + blen;
+                } else {
+                    /* RFC 7230 §4.1 chunked decoding. Drains every
+                     * available byte each loop; servers can split a
+                     * single chunk across multiple recv() boundaries. */
+                    while (j < n && ch_state != 4) {
+                        char b = buf[j];
+                        if (ch_state == 0) {
+                            int dig = -1;
+                            if (b >= '0' && b <= '9') dig = b - '0';
+                            else if (b >= 'a' && b <= 'f') dig = 10 + (b - 'a');
+                            else if (b >= 'A' && b <= 'F') dig = 10 + (b - 'A');
+                            if (dig >= 0) {
+                                ch_left = ch_left * 16 + dig;
+                                j = j + 1;
+                            } else if (b == ';') {
+                                /* Skip chunk extensions until CR. */
+                                while (j < n && buf[j] != '\r') j = j + 1;
+                            } else if (b == '\r') {
+                                ch_state = 1;
+                                j = j + 1;
+                            } else {
+                                j = j + 1;
+                            }
+                        } else if (ch_state == 1) {
+                            if (b == '\n') {
+                                if (ch_left == 0) ch_state = 4;
+                                else ch_state = 2;
+                            }
+                            j = j + 1;
+                        } else if (ch_state == 2) {
+                            int blen = n - j;
+                            if (blen > ch_left) blen = ch_left;
+                            int can = PAGE_BUF_SIZE - 1 - page_len;
+                            if (blen > can) blen = can;
+                            if (blen > 0) {
+                                int k = 0;
+                                while (k < blen) {
+                                    page_buf[page_len + k] = buf[j + k];
+                                    k = k + 1;
+                                }
+                                page_len = page_len + blen;
+                                ch_left = ch_left - blen;
+                                j = j + blen;
+                            }
+                            if (ch_left == 0) ch_state = 3;
+                        } else if (ch_state == 3) {
+                            if (b == '\n') {
+                                ch_state = 0;
+                                ch_left = 0;
+                            }
+                            j = j + 1;
+                        }
+                    }
                 }
             }
         }
@@ -194,12 +272,16 @@ int fetch_url(char *url, char *content_type_out) {
         }
 
         if (status < 200 || status >= 300) {
+            serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d)\n",
+                          work_url, status, page_len, chunked);
             b_strcpy_n(status_msg, "HTTP error: ", 256);
             int sl = b_strlen(status_msg);
             int el = b_append_int(status_msg, sl, status);
             status_msg[el] = 0;
             return -1;
         }
+        serial_printf("[net] fetch_url: %s -> HTTP %d (page_len=%d, chunked=%d, ct=%s)\n",
+                      work_url, status, page_len, chunked, content_type_out);
         b_strcpy_n(cur_url, work_url, URL_MAX);
         return 0;
     }

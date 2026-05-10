@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<title>f2 @font-face WOFF1 + 3-deep src fallback</title>
+<style>
+@font-face {
+  font-family: 'FallbackChain';
+  src: url(/missing.woff2) format('woff2'),
+       url(/missing.woff)  format('woff'),
+       url(/missing.ttf)   format('truetype');
+}
+@font-face {
+  font-family: 'BareUrl';
+  src: url(/possibly.ttf);
+}
+@font-face {
+  font-family: 'LocalSkipped';
+  src: local('Helvetica'), url(/fallback.ttf) format('truetype');
+}
+.chain  { font-family: 'FallbackChain', sans-serif; }
+.bare   { font-family: 'BareUrl', sans-serif; }
+.local  { font-family: 'LocalSkipped', sans-serif; }
+</style>
+</head>
+<body>
+<p class="chain">FallbackChain walks woff2 -> woff -> ttf; falls through to sans-serif on miss.</p>
+<p class="bare">BareUrl with no format token: scored as 1, attempted last in any chain.</p>
+<p class="local">local() entries are skipped; only url() URLs reach the pump.</p>
+</body>
+</html>

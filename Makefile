@@ -98,7 +98,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
-FAT_START_LBA ?= 8192
+FAT_START_LBA ?= 16384
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
@@ -163,6 +163,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/gfx/gfx2d.o \
             kernel/gfx/bmp.o \
             kernel/gfx/png.o \
+            kernel/gfx/deflate.o \
             kernel/gfx/jpeg.o \
             kernel/gfx/ttf.o \
             kernel/gfx/glyph_raster.o \
@@ -734,8 +735,11 @@ kernel/core/syscall.o: kernel/core/syscall.c kernel/core/syscall.h kernel/fs/vfs
 kernel/gfx/bmp.o: kernel/gfx/bmp.c kernel/gfx/bmp.h kernel/fs/vfs.h kernel/mm/memory.h drivers/vga.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/bmp.c -o kernel/gfx/bmp.o
 
-kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/mm/memory.h
+kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/gfx/deflate.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/png.c -o kernel/gfx/png.o
+
+kernel/gfx/deflate.o: kernel/gfx/deflate.c kernel/gfx/deflate.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/deflate.c -o kernel/gfx/deflate.o
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
@@ -819,6 +823,21 @@ kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h k
 
 kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/core/types.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
 	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
+
+# Auto-generate browser CSS data tables from Blink .in files.
+# Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h
+# consumed by bin/browser parser + style code.
+BROWSER_CSS_GEN := bin/browser/gen_css_properties.h \
+                   bin/browser/gen_css_keywords.h \
+                   bin/browser/gen_media_features.h
+BLINK_CSS_INS := blink/Source/core/css/CSSProperties.in \
+                 blink/Source/core/css/CSSValueKeywords.in \
+                 blink/Source/core/css/MediaFeatureNames.in
+
+$(BROWSER_CSS_GEN): $(BLINK_CSS_INS) tools/gen_css_props.py
+	python3 tools/gen_css_props.py blink bin/browser
+
+browser_css_gen: $(BROWSER_CSS_GEN)
 
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.

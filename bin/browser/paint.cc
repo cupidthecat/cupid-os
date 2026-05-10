@@ -72,15 +72,19 @@ int rt_screen_x(int n) {
      * origin. rt_is_oof nodes hold absolute document-space coords (set
      * by layout_oof_one); paint stops summing the moment it crosses
      * one. `position: relative` adds cs_left as a paint-time offset
-     * without reflowing, matching CSS 2.1 §9.4.3. */
+     * without reflowing (CSS 2.1 §9.4.3) — restricted to nodes with
+     * a real DOM origin so anonymous wrappers and line boxes that
+     * share the relative element's cs don't double-apply the shift. */
     int x = 0;
     int cur = n;
     while (cur >= 0) {
         x += rt_x[cur];
         if (rt_is_oof[cur]) break;
-        int sty = rt_style[cur];
-        if (cs_position[sty] == POS_RELATIVE && cs_left[sty] >= 0) {
-            x += cs_left[sty];
+        if (rt_dom[cur] >= 0) {
+            int sty = rt_style[cur];
+            if (cs_position[sty] == POS_RELATIVE && cs_left[sty] >= 0) {
+                x += cs_left[sty];
+            }
         }
         cur = rt_parent[cur];
     }
@@ -97,9 +101,11 @@ int rt_screen_y(int n) {
         y += rt_y[cur];
         if (rt_is_fixed[cur]) { fixed_anchor = 1; break; }
         if (rt_is_oof[cur]) break;
-        int sty = rt_style[cur];
-        if (cs_position[sty] == POS_RELATIVE && cs_top[sty] >= 0) {
-            y += cs_top[sty];
+        if (rt_dom[cur] >= 0) {
+            int sty = rt_style[cur];
+            if (cs_position[sty] == POS_RELATIVE && cs_top[sty] >= 0) {
+                y += cs_top[sty];
+            }
         }
         cur = rt_parent[cur];
     }
@@ -362,14 +368,59 @@ void paint_rt_line_box(int n, int sx, int sy) {
             int x_cur = ax;
             int p = 0;
             int cs_atom = la_cs[k];
+            /* Lookup cache so an ASCII-only run resolves the face once
+             * instead of `cp_count * 2` times. cs_face_id_for_cp is
+             * non-trivial (font_face_match_cp walks the family list,
+             * fontsys_match scans every registered face). The cache
+             * keys on (cs, cp) since neighbouring codepoints almost
+             * always share the same face for the same atom. */
+            int last_cp_face_cp = -2;
+            int last_cp_face = -1;
             while (p < len) {
                 int cp;
                 int adv = utf8_decode_one(buf + p, len - p, &cp);
                 if (adv <= 0) break;
-                int sub_face = (cs_atom >= 0)
-                    ? cs_face_id_for_cp(cs_atom, cp)
-                    : face;
+                int sub_face;
+                if (cs_atom >= 0) {
+                    if (cp == last_cp_face_cp) {
+                        sub_face = last_cp_face;
+                    } else {
+                        sub_face = cs_face_id_for_cp(cs_atom, cp);
+                        last_cp_face_cp = cp;
+                        last_cp_face = sub_face;
+                    }
+                } else {
+                    sub_face = face;
+                }
                 if (sub_face < 0) sub_face = face;
+                /* Synthesised-glyph fallback: when no registered face
+                 * carries this codepoint, try to draw a primitive
+                 * approximation via gfx2d (snowman, etc) so the user
+                 * sees something other than a .notdef box. Only fires
+                 * for codepoints we recognise; everything else falls
+                 * through to fontsys_draw_run_styled which paints
+                 * .notdef. Match the synth set against the cp first to
+                 * avoid an extra cmap probe per ASCII char. */
+                if (cp == 0x2603) {
+                    if (!fontsys_face_has_cp(sub_face, cp)) {
+                        int s = size_px;
+                        int top_r = s / 7; if (top_r < 2) top_r = 2;
+                        int mid_r = s / 5; if (mid_r < 3) mid_r = 3;
+                        int bot_r = s / 4; if (bot_r < 4) bot_r = 4;
+                        int gap = 1;
+                        int cx_s = x_cur + s / 2;
+                        int top_y = baseline - (top_r + mid_r * 2 + bot_r * 2 + gap * 2);
+                        int top_cy = top_y + top_r;
+                        int mid_cy = top_cy + top_r + mid_r + gap;
+                        int bot_cy = mid_cy + mid_r + bot_r + gap;
+                        gfx2d_circle_fill(cx_s, top_cy, top_r, (unsigned int)fg);
+                        gfx2d_circle_fill(cx_s, mid_cy, mid_r, (unsigned int)fg);
+                        gfx2d_circle_fill(cx_s, bot_cy, bot_r, (unsigned int)fg);
+                        x_cur = x_cur + s;
+                        p = p + adv;
+                        continue;
+                    }
+                }
                 int run_start = p;
                 int run_end = p + adv;
                 int cp_count = 1;
@@ -377,9 +428,18 @@ void paint_rt_line_box(int n, int sx, int sy) {
                     int cp2;
                     int adv2 = utf8_decode_one(buf + run_end, len - run_end, &cp2);
                     if (adv2 <= 0) break;
-                    int f2 = (cs_atom >= 0)
-                        ? cs_face_id_for_cp(cs_atom, cp2)
-                        : face;
+                    int f2;
+                    if (cs_atom >= 0) {
+                        if (cp2 == last_cp_face_cp) {
+                            f2 = last_cp_face;
+                        } else {
+                            f2 = cs_face_id_for_cp(cs_atom, cp2);
+                            last_cp_face_cp = cp2;
+                            last_cp_face = f2;
+                        }
+                    } else {
+                        f2 = face;
+                    }
                     if (f2 < 0) f2 = face;
                     if (f2 != sub_face) break;
                     run_end = run_end + adv2;

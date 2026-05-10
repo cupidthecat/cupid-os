@@ -139,6 +139,11 @@ enum {
     CP_OUTLINE, CP_OUTLINE_COLOR, CP_OUTLINE_WIDTH, CP_OUTLINE_STYLE,
     CP_POSITION, CP_TOP, CP_RIGHT, CP_BOTTOM, CP_LEFT, CP_Z_INDEX,
     CP_FLOAT, CP_CLEAR,
+    /* Sentinel for custom-property declarations (`--name: value`).
+     * cs_apply_property dispatches on prop_id; a CP_CUSTOM_VAR rule
+     * carries its name via css_rule_var_name_off/len rather than
+     * resolving through the property table. */
+    CP_CUSTOM_VAR,
     MAX_CP_ID = 80,
 
     /* Generic-family keywords. Numeric values mirror the kernel's
@@ -406,6 +411,13 @@ int css_rule_value_len[1024];
 int css_rule_specificity[1024];
 int css_rule_doc_order [1024];
 int css_rule_important [1024];           /* 1 if value ended in !important */
+/* Custom-property declarations live in the same rule pool but are tagged
+ * with prop_id == CP_CUSTOM_VAR; the --name bytes live in css_value_pool
+ * referenced by these parallel arrays. Reference: Blink later versions
+ * use a CSSCustomProperty object; the value here is intentionally stored
+ * as raw text for lazy var() substitution at consume time. */
+int css_rule_var_name_off[1024];
+int css_rule_var_name_len[1024];
 
 /* Each selector is a chain of "compound selectors". A compound is a
  * (tag, class_off, id_off) triple. Combinators see COMB_* enum. */
@@ -517,9 +529,19 @@ int cs_bottom      [4096];
 int cs_left        [4096];
 int cs_z_index     [4096];
 
-/* CSS custom properties storage deferred. Earlier prototype reserved
- * 4 * 4096 * 8 ints = 512 KiB; CC_MAX_DATA is 4 MiB so the browser
- * compile overflowed. Re-add when var()/calc() resolver lands. */
+/* CSS custom properties (B3). Up to 8 --vars per node. Inheritance
+ * works dynamically via cs_var_lookup walking the DOM ancestor chain
+ * at consume time, so we don't copy values down. cs_var_count[cs] = 0
+ * if no custom-prop declarations matched on this node.
+ *
+ * Storage cost: 4096 * 8 * 4 ints * 4 bytes = 512 KiB. Reference:
+ * Blink later versions store these as a HashMap on RenderStyle; we
+ * use parallel arrays since cupidc requires literal sizes. */
+int cs_var_count    [4096];
+int cs_var_name_off [4096][8];
+int cs_var_name_len [4096][8];
+int cs_var_val_off  [4096][8];
+int cs_var_val_len  [4096][8];
 
 /* CSS float / clear. cs_float = FLOAT_NONE/LEFT/RIGHT,
  * cs_clear = CLEAR_NONE/LEFT/RIGHT/BOTH. Layout exclusion logic still

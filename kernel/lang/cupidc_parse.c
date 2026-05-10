@@ -772,6 +772,12 @@ static void cc_make_method_symbol(char *out, const char *class_name,
   out[j] = '\0';
 }
 
+/* Forward declarations needed by the anonymous-struct path inside
+ * cc_parse_type (the helpers are defined further down). */
+static int32_t cc_align_up(int32_t value, int32_t align);
+static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index);
+static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index);
+
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
@@ -850,6 +856,92 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   }
   case CC_TOK_STRUCT: {
     cc_token_t name_tok = cc_next(cc);
+    /* Anonymous struct: `struct { fields }` — typically used inside
+     * `typedef struct { ... } Name;`. Generate a synthetic tag and
+     * parse the body inline so the alias machinery sees a complete
+     * TYPE_STRUCT. Each anon struct gets a unique name via a static
+     * counter so multiple anonymous structs don't collide. */
+    if (name_tok.type == CC_TOK_LBRACE) {
+      static int anon_counter = 0;
+      char anon_name[32];
+      const char *prefix = "__anon_struct_";
+      int ai = 0;
+      while (prefix[ai] && ai < 24) { anon_name[ai] = prefix[ai]; ai++; }
+      int n_local = anon_counter++;
+      char digits[12]; int dn = 0;
+      if (n_local == 0) digits[dn++] = '0';
+      else {
+        char rev[12]; int rn = 0;
+        while (n_local > 0 && rn < 11) {
+          rev[rn++] = (char)('0' + (n_local % 10));
+          n_local /= 10;
+        }
+        while (rn > 0) digits[dn++] = rev[--rn];
+      }
+      for (int k = 0; k < dn && ai < 31; k++) anon_name[ai++] = digits[k];
+      anon_name[ai] = 0;
+      int si = cc_get_or_add_struct_tag(cc, anon_name);
+      if (si < 0) return TYPE_INT;
+      cc_struct_def_t *sd = &cc->structs[si];
+      sd->field_count = 0;
+      sd->total_size = 0;
+      sd->align = 1;
+      sd->is_complete = 0;
+      /* '{' was already returned by cc_next as name_tok above. Parse
+       * the field list until '}'. Layout matches the top-level struct
+       * definition path so the two stay in sync. */
+      int32_t field_offset = 0;
+      int32_t struct_align = 1;
+      while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+             cc_peek(cc).type != CC_TOK_EOF) {
+        if (sd->field_count >= CC_MAX_FIELDS) {
+          cc_error(cc, "too many fields in anonymous struct");
+          break;
+        }
+        cc_type_t ftype = cc_parse_type(cc);
+        int fsi = cc_last_type_struct_index;
+        cc_token_t fname = cc_next(cc);
+        if (fname.type != CC_TOK_IDENT) {
+          cc_error(cc, "expected field name");
+          break;
+        }
+        cc_field_t *f = &sd->fields[sd->field_count++];
+        int fi = 0;
+        while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
+          f->name[fi] = fname.text[fi]; fi++;
+        }
+        f->name[fi] = '\0';
+        f->type = ftype;
+        f->struct_index = fsi;
+        f->array_count = 0;
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          cc_token_t size_tok = cc_next(cc);
+          if (size_tok.type != CC_TOK_NUMBER) {
+            cc_error(cc, "expected array size");
+            break;
+          }
+          f->array_count = size_tok.int_value;
+          cc_expect(cc, CC_TOK_RBRACK);
+        }
+        int32_t elem_size = cc_type_size(cc, ftype, fsi);
+        int32_t field_align = cc_type_align(cc, ftype, fsi);
+        int32_t fsize = elem_size;
+        if (f->array_count > 0) fsize = elem_size * f->array_count;
+        field_offset = cc_align_up(field_offset, field_align);
+        f->offset = field_offset;
+        field_offset += fsize;
+        if (field_align > struct_align) struct_align = field_align;
+        cc_expect(cc, CC_TOK_SEMICOLON);
+      }
+      cc_expect(cc, CC_TOK_RBRACE);
+      sd->align = struct_align;
+      sd->total_size = cc_align_up(field_offset, struct_align);
+      sd->is_complete = 1;
+      cc_last_type_struct_index = si;
+      base = TYPE_STRUCT;
+      break;
+    }
     if (name_tok.type != CC_TOK_IDENT) {
       cc_error(cc, "expected struct name");
       return TYPE_INT;
@@ -5529,6 +5621,22 @@ static void cc_parse_function(cc_state_t *cc) {
     func_sym->param_count = cc->param_count;
   }
 
+  /* Forward function declaration: `T name(params);` with no body. The
+   * symbol is registered with is_defined=0 so a later definition fills
+   * in the offset, and use sites compile via the forward-reference
+   * patch table (cc->patches). The cupidc prescan already discovers
+   * top-level functions, but explicit forward decls let authors write
+   * mutually-recursive helpers and split sigs from bodies. */
+  if (cc_peek(cc).type == CC_TOK_SEMICOLON) {
+    cc_next(cc);
+    if (func_sym) {
+      func_sym->is_defined = 0;
+      func_sym->offset = 0;
+    }
+    cc->sym_count = saved_scope;
+    return;
+  }
+
   /* Emit function prologue */
   emit_prologue(cc);
 
@@ -6109,7 +6217,7 @@ void cc_parse_program(cc_state_t *cc) {
         sd->total_size = cc_align_up(field_offset, struct_align);
         sd->is_complete = 1;
 
-        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\\n",
+        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\n",
                       sd->name, sd->field_count, sd->total_size);
         continue;
       }

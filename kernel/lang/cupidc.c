@@ -1775,6 +1775,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_fontsys_unregister)(int) = fontsys_unregister;
   BIND_T("fontsys_unregister", p_fontsys_unregister, 1, TYPE_INT);
 
+  int (*p_fontsys_face_has_cp)(int, int) = fontsys_face_has_cp;
+  BIND_T("fontsys_face_has_cp", p_fontsys_face_has_cp, 2, TYPE_INT);
+
+  int (*p_fontsys_find_face_with_cp)(int) = fontsys_find_face_with_cp;
+  BIND_T("fontsys_find_face_with_cp", p_fontsys_find_face_with_cp, 1, TYPE_INT);
+
   int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
   BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);
 

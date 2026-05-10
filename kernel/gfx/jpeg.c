@@ -122,26 +122,26 @@ static const uint8_t jp_zigzag[64] = {
     53, 60, 61, 54, 47, 55, 62, 63
 };
 
-static float jp_cos_tbl[8][8];
-static int   jp_cos_init = 0;
-
-static void jp_init_cos(void) {
-    int u, j;
-    float pi = 3.14159265358979323846f;
-    for (u = 0; u < 8; u++) {
-        for (j = 0; j < 8; j++) {
-            float c = (u == 0) ? 0.7071067811865476f : 1.0f;
-            float ang = ((float)(2 * j + 1) * (float)u * pi) / 16.0f;
-            jp_cos_tbl[u][j] = 0.5f * c * cosf(ang);
-        }
-    }
-    jp_cos_init = 1;
-}
+/* IDCT basis-function table = 0.5 * Cu * cos((2j+1)u * pi/16). Hardcoded
+ * to avoid depending on the kernel's runtime cosf() (which uses the FPU
+ * fcos opcode and can return imprecise values from a cold boot context
+ * before SSE/FPU stabilises). Values match Python's math.cos to single
+ * precision; matches Blink's libjpeg-turbo equivalent jpeg_idct_islow
+ * scaled-cosine constants. */
+static const float jp_cos_tbl[8][8] = {
+    {  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f },
+    {  0.49039264f,  0.41573481f,  0.27778512f,  0.09754516f, -0.09754516f, -0.27778512f, -0.41573481f, -0.49039264f },
+    {  0.46193977f,  0.19134172f, -0.19134172f, -0.46193977f, -0.46193977f, -0.19134172f,  0.19134172f,  0.46193977f },
+    {  0.41573481f, -0.09754516f, -0.49039264f, -0.27778512f,  0.27778512f,  0.49039264f,  0.09754516f, -0.41573481f },
+    {  0.35355339f, -0.35355339f, -0.35355339f,  0.35355339f,  0.35355339f, -0.35355339f, -0.35355339f,  0.35355339f },
+    {  0.27778512f, -0.49039264f,  0.09754516f,  0.41573481f, -0.41573481f, -0.09754516f,  0.49039264f, -0.27778512f },
+    {  0.19134172f, -0.46193977f,  0.46193977f, -0.19134172f, -0.19134172f,  0.46193977f, -0.46193977f,  0.19134172f },
+    {  0.09754516f, -0.27778512f,  0.41573481f, -0.49039264f,  0.49039264f, -0.41573481f,  0.27778512f, -0.09754516f },
+};
 
 static void jp_idct(const int16_t in[64], uint8_t out[64]) {
     float temp[64];
     int u, v, i, j;
-    if (!jp_cos_init) jp_init_cos();
     for (u = 0; u < 8; u++) {
         for (j = 0; j < 8; j++) {
             float sum = 0.0f;
@@ -341,7 +341,10 @@ static uint32_t jp_yuv_xrgb(int Y, int Cb, int Cr) {
     if (G > 255) G = 255;
     if (B < 0)   B = 0;
     if (B > 255) B = 255;
-    return ((uint32_t)R << 16) | ((uint32_t)G << 8) | (uint32_t)B;
+    /* JPEG has no alpha channel; emit fully opaque so the alpha-aware
+     * blit path in gfx2d_image_draw_scaled doesn't treat the pixels as
+     * transparent and skip them. */
+    return 0xFF000000u | ((uint32_t)R << 16) | ((uint32_t)G << 8) | (uint32_t)B;
 }
 
 /* top-level decode */
@@ -471,7 +474,7 @@ int jpeg_decode_mem(const uint8_t *data, uint32_t len,
                     uint32_t px;
                     if (st.ncomp == 1) {
                         uint32_t g = (uint32_t)Y;
-                        px = (g << 16) | (g << 8) | g;
+                        px = 0xFF000000u | (g << 16) | (g << 8) | g;
                     } else {
                         int cb_row = (i_ * (int)st.comp[1].vsamp) / max_v;
                         int cb_col = (j_ * (int)st.comp[1].hsamp) / max_h;

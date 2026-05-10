@@ -119,6 +119,14 @@ void fontsys_draw_run_styled(int face_id, int size_px,
                              int want_bold,
                              int want_italic);
 
+/* Glyph-presence query used by browser fallback chains. Returns 1 when
+ * the face's cmap maps `codepoint` to a non-zero glyph id, else 0. */
+int fontsys_face_has_cp(int face_id, int codepoint);
+
+/* Walk every registered face and return the first whose cmap covers
+ * `codepoint`. -1 when no registered face has it. */
+int fontsys_find_face_with_cp(int codepoint);
+
 /* Diagnostics. */
 int fontsys_face_count(void);
 const char *fontsys_face_family(int face_id);

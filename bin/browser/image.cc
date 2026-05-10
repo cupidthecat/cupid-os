@@ -131,12 +131,19 @@ int image_advance_one_pending(void) {
     char saved_host[256];
     char saved_path[1024];
     char saved_url [1024];
+    char saved_status[256];
     int  saved_port    = cur_port;
     int  saved_https   = cur_is_https;
     int  saved_page_len = page_len;
     b_strcpy_n(saved_host, cur_host, 256);
     b_strcpy_n(saved_path, cur_path, 1024);
     b_strcpy_n(saved_url,  cur_url,  1024);
+    /* Preserve the page-level status message so a sub-resource fetch
+     * failure (a 404 image, a fake @font-face URL) doesn't replace
+     * the user-visible status with `HTTP error: 404`. fetch_url writes
+     * status_msg unconditionally on non-2xx — sub-resource fetches
+     * silently fail and the main page's status text stays intact. */
+    b_strcpy_n(saved_status, status_msg, 256);
 
     char ct[128]; ct[0] = 0;
     char absu[1024];
@@ -153,6 +160,7 @@ int image_advance_one_pending(void) {
     b_strcpy_n(cur_host, saved_host, 256);
     b_strcpy_n(cur_path, saved_path, 1024);
     b_strcpy_n(cur_url,  saved_url,  1024);
+    b_strcpy_n(status_msg, saved_status, 256);
     cur_port     = saved_port;
     cur_is_https = saved_https;
     page_len     = saved_page_len;

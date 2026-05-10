@@ -88,9 +88,270 @@ Run via `make run-net` (or `make run-net-e1000`). Watch the serial output for `[
 - **Synthetic page** with `<div style="position:absolute;top:80;left:200">overlay</div>` and `<div style="position:fixed;top:0;right:0">sticky</div>` — overlay paints relative to its containing block; sticky bar stays visible while scrolling.
 - **Memory regression** — navigate between three font-heavy pages while watching `serial.log`; heap usage plateaus, kernel `face_count` stays under 160.
 
-## Not in this PR (deferred)
+---
+
+## Phase 2 — CSS variables, calc, real-site polish, JPEG correctness
+
+A second pass against real sites and the e9 / f1 / f3 test pages closed
+the remaining visible gaps. Each item here came from a side-by-side
+debug session against Chrome.
+
+### CSS custom properties + `calc()`
+
+**Custom-property cascade (`--name`).** `bin/browser/css.cc` declaration
+parser now recognises any `--prefix` property, interns its name + raw
+value into the rule pool, and tags the rule with a new `CP_CUSTOM_VAR`
+prop_id. Storage `cs_var_name_off/len/val_off/val_len[4096][8]` +
+`cs_var_count[4096]` (re-added now that the kernel data section is
+8 MiB). Cascade in `style.cc:style_resolve_all` runs a second pass
+specifically for `CP_CUSTOM_VAR` rules: dedupes by name, applies the
+highest-scoring rule per name. `apply_inline_style` recognises
+`style="--foo: bar"` too. Reference: Blink later versions store custom
+properties on `RenderStyle` as a hash map; the parallel-array layout
+here gives the same lookup semantics within cupidc's literal-size
+constraints.
+
+**`var()` resolver with ancestor-walk inheritance.**
+`style.cc:cs_var_lookup(cs, name, len, ...)` walks the DOM ancestor
+chain (cs index == DOM node index), capped at 32 hops, and returns the
+narrowest defined value. `cs_var_substitute(cs, val_off, val_len, buf,
+cap)` scans value bytes for `var(--name [, fallback])`, expands
+recursively, and writes the substituted text into a scratch buffer.
+`cs_apply_property` runs this pre-resolution before dispatch when the
+raw value contains a `var(` substring, so `color: var(--brand)` and
+`width: calc(var(--gutter) - 4px)` both work without per-property
+plumbing. Reference:
+`blink/Source/core/css/CSSVariableResolver.cpp::resolveVariableReference`.
+
+**`calc()` recursive-descent evaluator.**
+`style.cc:eval_calc(text, len, base_px)` parses + evaluates the
+expression at `cs_apply_property` time. Tracks a `{px, pct}`
+accumulator (Blink `CSSCalcExpressionNode` style) so
+`calc(100% - 16px)` resolves to `containing_block * 100/100 - 16`
+without losing precision. Grammar: `expr = mul (('+'|'-') mul)*`,
+`mul = term (('*'|'/') term)*`, `term = '(' expr ')' | '-' term |
+number unit?`. Units: `px`, `pt`, `em` (treated as px in v1), `%`.
+Plugged into `css_value_len` so any length-typed property (width,
+margin, top/left, etc.) automatically picks up calc support.
+
+**Cupidc workaround:** the original `eval_calc` was a struct +
+recursive function with `struct ec_state *s` parameters. Cupidc's
+codegen for nested `s->t[s->p]` patterns and multi-init declarators
+inside hot loops misbehaved at runtime; rewrote to module-level
+globals (`ec_t`, `ec_n`, `ec_p`, `ec_err`) which keeps the same
+semantics with no struct-pointer codegen surface. The cupidc-side
+fix landed too — see "Cupidc upgrades" below.
+
+### CSS named-color table
+
+`bin/browser/dom.cc:parse_color_named` now covers the full CSS Color
+Module Level 4 keyword set (~140 colours) — previously only 16. The
+direct trigger was `--brand: tomato` in the e4 test, which fell back
+to the default colour because `tomato` wasn't in the table; the
+substituted value was correct but `parse_color` returned 0. Adds
+`transparent` and `currentcolor` (mapped to 0 for now). Reference:
+`blink/Source/core/css/CSSColorParser` keyword table.
+
+### Position layout — shrink-to-fit + double-shift fixes
+
+**`position: absolute` shrink-to-fit (Blink `RenderBox::shrinkToFitWidth`).**
+`layout.cc:layout_oof_one` now pre-measures intrinsic content width
+via `oof_intrinsic_text_w` (recursive walk over text descendants
+summing `text_slice_w_cs`), then lays out the subtree ONCE at the
+shrunk width. Without this, `right: 8px` with `width: auto` used the
+full containing block, stretching the element across the parent. The
+naive "lay out at cb_w then re-layout" approach caused duplicate
+line-box children appended to `rt_first_child[oof]` and double-painted
+text — fixed by measuring before layout instead of relayout.
+
+**Out-of-flow children skipped by in-flow pass.** `layout_block`'s
+child loop (`bin/browser/layout.cc`) now skips children whose
+`cs_position` is `ABSOLUTE` or `FIXED`. Reference:
+`blink/Source/core/rendering/RenderBlockFlow::layoutBlockChildren`
+checks `isOutOfFlowPositioned()` before placing in flow. Without this
+a `position: fixed` nav bar still consumed its in-flow vertical space,
+pushing the next block down by the bar height.
+
+**Relative paint double-shift.** `rt_screen_x/y` walked rt parent chain
+adding `cs_top`/`cs_left` for every node whose `cs_position ==
+POS_RELATIVE`. Anonymous wrappers and line boxes share the relative
+element's cs (rt_alloc passes parent's style), so the offset compounded
+once per RT level. Gated by `rt_dom[cur] >= 0` so anonymous nodes
+don't re-apply the shift.
+
+**Atom-position offset double-counting.**
+`flush_inline` stored `la_x[k] = x` where `x` started at `cx` (the
+parent block's `padding_l + border_l`), AND set `rt_x[line_box] = cx`.
+Paint then computed `sx = rt_screen_x(line_box) + la_x[k]` —
+`cx` was added twice, so text inside any block with padding was
+shifted right by an extra `padding_l`. Fixed by storing
+`la_x[k] = x - cx` (atom offset relative to its line box). Visible on
+e9 corner labels with `padding: 4` where text appeared at the right
+edge instead of centred.
+
+### Glyph-level fallback chain
+
+**`fontsys_face_has_cp` + `fontsys_find_face_with_cp`.** Two new
+kernel helpers (`kernel/gfx/fontsys.c`) exposed via cupidc binds.
+`cs_face_id_for_cp` (browser side) calls `fontsys_face_has_cp` after
+`fontsys_match` returns the generic-family face; if the face's cmap
+doesn't carry the codepoint, walks every registered face for one
+that does. Reference:
+`blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter`
+last-resort fallback chain. Same pattern.
+
+**Bundled symbol font: NotoSansSymbols.** ~227 KiB, registered next
+to the Liberation faces in `fontsys_init`. Covers the Misc Symbols
+block (U+2600 incl. snowman U+2603), arrows, geometric shapes,
+dingbats. The kernel area was bumped from 4 MiB to 8 MiB to fit it
+— `boot/boot.asm` (FAT16 partition LBA 8192 → 16384, sectors_left
+8187 → 16379), `link.ld` (`_loaded_end` cap 0x4FF600 → 0x8FF600),
+`Makefile` (`FAT_START_LBA` 8192 → 16384). Image generation re-creates
+the FAT partition at the new offset on next build.
+
+**Synthesized snowman fallback.** `paint_rt_line_box` (`bin/browser/paint.cc`)
+detects U+2603 BEFORE the per-face draw, and if no registered face
+covers it, draws three filled circles (head/body/base) via
+`gfx2d_circle_fill`. Defensive: handles the case where
+NotoSansSymbols ever fails to register. JPEGs/PNGs of the snowman
+itself are unaffected.
+
+### Generic family detection from comma list
+
+`cs_apply_property` for `CP_FONT_FAMILY` now walks the full
+comma-separated family list looking for the FIRST generic keyword
+(`serif`, `sans-serif`, `monospace`, `cursive`, `fantasy`,
+`system-ui`). Previous code used `css_value_keyword` which only
+matched the WHOLE value, so `font-family: 'X', sans-serif` left
+`cs_font_generic = DEFAULT` (which mapped to LiberationSerif). On
+f1_unicode_range.html every paragraph rendered in serif because the
+generic at the END of the list went unrecognised.
+
+### Per-codepoint face cache in paint
+
+`paint_rt_line_box`'s sub-run grouping calls `cs_face_id_for_cp` once
+per codepoint plus once per neighbour. The function does a non-trivial
+walk (font_face_match_cp + fontsys_match), so an ASCII-only run was
+roughly quadratic. Added a `last_cp_face_cp` / `last_cp_face` cache
+keyed on the codepoint — collapses to O(1) per cp for runs of the
+same character class. Brought paint fps back up after the per-cp
+fallback work.
+
+### Net stack: HTTP/1.1 + chunked + sub-resource isolation
+
+**HTTP/1.1 + `Accept: */*`.** `build_request` (`bin/browser/net.cc`)
+now sends HTTP/1.1, `Accept: */*`, `Accept-Encoding: identity`, and
+`Connection: close`. The old HTTP/1.0 + `Accept: text/html,*/*` was
+rejected by Wikimedia / Cloudflare CDNs for image paths.
+
+**Chunked Transfer-Encoding decoder (RFC 7230 §4.1).** HTTP/1.1
+servers default to chunked when `Content-Length` isn't computed up
+front. State machine (size hex line → CRLF → bytes → CRLF, repeat,
+terminator `0\r\n\r\n`) drains every available byte each `recv` so
+chunks split across `recv` boundaries decode correctly. Without it
+body bytes were the literal hex sizes interleaved with image data,
+making `image_decode_blob` reject everything as malformed.
+
+**Sub-resource fetches preserve `status_msg`.** `fetch_url` writes
+`HTTP error: 404` to the page-level status bar on any non-2xx. Sub-
+resource pumps (`font_face.cc:ff_try_one_url`,
+`image.cc:image_advance_one_pending`) now save+restore `status_msg`
+around the inner `fetch_url`, so a 404 image or a fake @font-face URL
+doesn't replace the user-visible status with a sub-resource error.
+
+### JPEG decoder correctness
+
+**Hardcoded IDCT cosine basis.** `kernel/gfx/jpeg.c:jp_cos_tbl[8][8]`
+is now a `const float[64]` initialiser instead of a runtime
+`cosf()` table built lazily on first decode. The old code's `cosf`
+calls went through the kernel's x87 `fcos`-based libm, which can
+produce imprecise results from a cold-boot context where SSE/FPU
+state isn't fully stabilised. Eliminating the runtime call removes
+the dependency entirely. Values match Python `math.cos` to single
+precision and Blink's libjpeg-turbo equivalent constants.
+
+**JPEG output now emits `alpha=255`.** `jp_yuv_xrgb` and the
+grayscale path OR in `0xFF000000` so JPEG pixels are fully opaque.
+Previously alpha was 0; combined with the new alpha-aware blit (next
+item), every JPEG would have rendered transparent.
+
+**Alpha-aware `gfx2d_image_draw_scaled`.** Switched from `gfx2d_pixel`
+(raw write) to `gfx2d_pixel_alpha` (blends per source alpha:
+`a==0` skip, `a>=255` opaque write, else blend). Reference:
+`blink/Source/platform/graphics/GraphicsContext::drawImage` honouring
+source alpha when compositing. The visible bug was the bottom of the
+Wikipedia logo — transparent regions of the source PNG had `RGB=0,
+A=0` and were being blitted as solid black. Now they composite
+correctly over the page background.
+
+### Tests
+
+11 new files under `tests/browser/` exercising each new feature:
+
+- `e4_custom_props.html` — `:root { --brand: tomato }` + `var(--brand)`
+- `e5_calc.html` — `calc(100% - 32px)`, `calc(2 * 100px)`, `calc(400px / 2)`
+- `e6_var_in_calc.html` — `calc(var(--gutter) * 2)`
+- `e7_var_inheritance.html` — DOM ancestor walk for `--c` overrides
+- `e8_var_fallback.html` — `var(--undef, fallback)` + nested fallbacks
+- `e9_position.html` — fixed bar, relative shift, 4 absolute corners in a frame
+- `f1_unicode_range.html` — unicode-range parse forms incl. wildcard + snowman
+- `f2_woff1.html` — 3-deep src fallback chain with intentional 404s
+- `f3_img_decode.html` — Wikipedia logo + PNG transparency demo + 2 cat JPEGs
+- `f4_img_intrinsic.html` — width/height attr resolution + aspect ratio
+- `f5_fontsys_metrics.html` — mixed-size lines from fontsys_line_height
+- `f6_per_cp_face.html` — Latin + Cyrillic + catch-all routing
+- `f7_inline_var.html` — `style="--c: blue"` inline custom properties
+
+### Cupidc upgrades (round 2)
+
+- **Anonymous-struct typedef.** `typedef struct { ... } Name;` now
+  parses. `cc_parse_type`'s STRUCT branch generates a synthetic
+  `__anon_struct_N` tag when the next token is `{` and parses the
+  body inline; emit forward decls for `cc_align_up` /
+  `cc_type_size` / `cc_type_align` so the inline body parser can
+  call them.
+
+- **Forward function declarations.** `T name(params);` is now
+  accepted as a forward decl: `cc_parse_function` peeks for `;`
+  after the closing `)` and registers the symbol with
+  `is_defined = 0`. Use sites compile through the existing patch
+  table. Required for mutually-recursive functions like
+  `ec_eval_expr` calling itself indirectly via `ec_eval_term`.
+
+- **Bound kernel symbols:** `fontsys_face_has_cp`,
+  `fontsys_find_face_with_cp`, `fontsys_unregister`, `kdeflate_raw`
+  in `kernel/lang/cupidc.c`'s BIND table.
+
+- **`Defined struct` printf newline.** Cosmetic — the format string
+  had `\\n` instead of `\n`, so the message printed literal `\n`
+  text in the serial log.
+
+### Kernel area expanded 4 → 8 MiB
+
+`boot/boot.asm`: partition entry LBA 8192 → 16384, sectors_left 8187
+→ 16379. `link.ld`: ASSERT cap 0x4FF600 → 0x8FF600. `Makefile`:
+FAT_START_LBA 8192 → 16384. The image creation rule detects the LBA
+mismatch on first run and recreates `cupidos.img` automatically.
+
+## Files changed in phase 2
+
+**Browser:** `bin/browser/css.cc`, `bin/browser/dom.cc`,
+`bin/browser/font_face.cc`, `bin/browser/image.cc`,
+`bin/browser/layout.cc`, `bin/browser/main.cc`,
+`bin/browser/net.cc`, `bin/browser/paint.cc`, `bin/browser/style.cc`.
+
+**Kernel:** `kernel/gfx/fontsys.c`, `kernel/gfx/fontsys.h`,
+`kernel/gfx/gfx2d_assets.c`, `kernel/gfx/jpeg.c`,
+`kernel/lang/cupidc.c`, `kernel/lang/cupidc_parse.c`.
+
+**Layout / build:** `boot/boot.asm`, `link.ld`, `Makefile`,
+`system/fonts/NotoSansSymbols-Regular.ttf` (new asset).
+
+**Tests:** 13 new HTML files under `tests/browser/`.
+
+## Not in this PR (still deferred)
 
 - **WOFF2 + Brotli.** `woff2_unwrap` is a stub that returns NULL. Full implementation needs a kernel-side Brotli decoder (~1500 LoC port from `google/brotli c/dec/`), the 122 KiB static dictionary, base-128 directory entries, and the WOFF2 §5.1 `glyf`/`loca` transform inverse (~600 LoC). Tracked for the next PR.
-- **CSS custom properties + `calc()`.** Storage was prototyped (`cs_var_*[4096][8]` = 512 KiB), removed from this PR after it pushed CupidC's data section over its (then-4 MiB) cap. Re-add when the resolver lands.
 - **`float: left | right` layout.** `cs_float`/`cs_clear` parse and cascade are wired in; `place_float` / `line_x_after_floats` IFC integration is the missing piece.
 - **z-index stacking sort.** Out-of-flow nodes paint in document order; explicit z-index sorting is a follow-up.
+- **Wikipedia thumbnail URL with `.svg.png` extension.** Returns 404 from Wikimedia even in real browsers — not a decoder issue. Tests use stable `Wiki.png` + `PNG_transparency_demonstration_1.png` instead.

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+<title>e5 calc()</title>
+<style>
+body { margin: 0; padding: 0; background: #eee; }
+.wide   { width: calc(100% - 32px); height: 24px; background: #c33; margin: 8px 16px; }
+.narrow { width: calc(50% - 8px);   height: 24px; background: #3c3; margin: 8px 16px; }
+.fixed  { width: calc(200px + 50px); height: 24px; background: #33c; margin: 8px 16px; }
+.scaled { width: calc(2 * 100px);    height: 24px; background: #c3c; margin: 8px 16px; }
+.div    { width: calc(400px / 2);    height: 24px; background: #3cc; margin: 8px 16px; }
+</style>
+</head>
+<body>
+<div class="wide">100% - 32px (full width minus margins)</div>
+<div class="narrow">50% - 8px</div>
+<div class="fixed">200px + 50px = 250px</div>
+<div class="scaled">2 * 100px = 200px</div>
+<div class="div">400px / 2 = 200px</div>
+</body>
+</html>

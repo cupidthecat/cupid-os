@@ -602,7 +602,27 @@ int css_parse_decls(char *s, int n, int i,
 
         /* trim trailing whitespace from prop name */
         while (p_end > p_start && (s[p_end-1] == ' ' || s[p_end-1] == '\t')) p_end--;
-        int prop_id = css_match_property(s + p_start, p_end - p_start);
+        int p_l = p_end - p_start;
+        /* Custom property `--name: <raw value>;`. Routed through the same
+         * rule pool but tagged CP_CUSTOM_VAR; the name is interned into
+         * css_value_pool and stashed on css_rule_var_name_off/len so the
+         * cascade can apply it to cs_var_*[]. Reference: Blink later
+         * versions store the raw token sequence on a CSSCustomProperty
+         * value; we keep the raw bytes for lazy var() expansion. */
+        if (p_l >= 2 && s[p_start] == '-' && s[p_start + 1] == '-') {
+            int name_off = css_intern_value(s + p_start, p_l);
+            int v_off2 = css_intern_value(s + v_start, v_end - v_start);
+            if (name_off < 0 || v_off2 < 0) continue;
+            int r = css_rule_count;
+            css_emit_rule(sel_first, sel_count, CP_CUSTOM_VAR,
+                          v_off2, v_end - v_start, important);
+            if (css_rule_count > r) {
+                css_rule_var_name_off[r] = name_off;
+                css_rule_var_name_len[r] = p_l;
+            }
+            continue;
+        }
+        int prop_id = css_match_property(s + p_start, p_l);
         if (prop_id == 0) continue;        /* unknown property - drop */
         int v_off = css_intern_value(s + v_start, v_end - v_start);
         if (v_off < 0) continue;

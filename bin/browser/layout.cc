@@ -184,7 +184,20 @@ int cs_face_id_for_cp(int cs, int cp) {
         int wf = font_face_match_cp(fam, fam_len, weight, italic, cp);
         if (wf >= 0) return wf;
     }
-    return fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+    int picked = fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+    /* Glyph-level fallback. The CSS family list is exhausted (or no
+     * match); fontsys_match returned the generic family's preinstalled
+     * face. If that face's cmap doesn't carry the requested codepoint,
+     * walk every registered face for one that does — matches Blink's
+     * last-resort fallback in
+     * blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter.
+     * Skipped when cp == -1 (caller has no codepoint, e.g. line-height
+     * lookup) since we have nothing to test against. */
+    if (cp >= 0 && picked >= 0 && !fontsys_face_has_cp(picked, cp)) {
+        int sub = fontsys_find_face_with_cp(cp);
+        if (sub >= 0) return sub;
+    }
+    return picked;
 }
 
 /* Range-blind variant for callers that pick one face per atom (line
@@ -506,8 +519,13 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         int sentinel = la_x[k];
 
         if (sentinel == -2) {
-            /* Hard break (PRE) */
-            la_x[k] = x;
+            /* Hard break (PRE). la_x stores the atom's x relative to the
+             * line box's left edge (the line box itself sits at cx in
+             * the parent block), so the running cursor `x` -- which is
+             * absolute-within-parent and starts at cx -- is normalised
+             * by subtracting cx before stashing. paint_rt_line_box then
+             * does sx_lb + la_x[k] without double-counting padding. */
+            la_x[k] = x - cx;
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
@@ -551,7 +569,7 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
             }
             line_start_atom = k;            /* word starts the new line */
         }
-        la_x[k] = x;
+        la_x[k] = x - cx;
         x += aw;
         int lh = effective_line_h(rt_style[parent], tier);
         /* Replaced/inline-block atoms (la_text_off encoded as a negative
@@ -705,6 +723,20 @@ void layout_block(int n, int avail_w) {
             /* Markers don't affect block layout flow; placed in padding-left
              * reservation at paint time. */
             c = rt_next[c]; continue;
+        }
+        /* Out-of-flow children are skipped by the in-flow pass;
+         * layout_oof handles them later against their containing block.
+         * Without this skip, position:fixed and position:absolute push
+         * subsequent siblings down because their box still consumes
+         * vertical space. Reference: blink/Source/core/rendering/
+         * RenderBlockFlow::layoutBlockChildren skips children where
+         * isOutOfFlowPositioned() returns true. */
+        {
+            int c_sty = rt_style[c];
+            int c_pos = cs_position[c_sty];
+            if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) {
+                c = rt_next[c]; continue;
+            }
         }
         if (rt_kind_is_block_level(kind) ||
             (kind == RT_BLOCK)) {
@@ -872,6 +904,38 @@ int rt_containing_block(int n) {
  * at (0,0) with width = viewport content width. Sets rt_x/rt_y to
  * absolute document-space coords and marks rt_is_oof so paint walks
  * the value directly instead of summing the ancestor chain. */
+/* Recursive intrinsic-text-width estimate for shrink-to-fit. Walks the
+ * subtree, summing text-slice widths within an RT_TEXT, and taking
+ * the max across siblings (since horizontal stacking inside an inline
+ * run sums; nested block siblings each get their own line). For label-
+ * sized abspos boxes (the common case) this is close to the spec
+ * shrink-to-fit which is max(min-content, min(preferred, available)).
+ * Reference: blink/Source/core/rendering/RenderBox.cpp
+ * shrinkToFitWidth + computePreferredLogicalWidths. */
+int oof_intrinsic_text_w(int n) {
+    int kind = rt_kind[n];
+    if (kind == RT_TEXT) {
+        int sty = rt_style[n];
+        return text_slice_w_cs(sty, rt_text_off[n], rt_text_len[n]);
+    }
+    int sum = 0;
+    int max_block = 0;
+    int c = rt_first_child[n];
+    while (c >= 0) {
+        int ck = rt_kind[c];
+        int w = oof_intrinsic_text_w(c);
+        if (ck == RT_INLINE || ck == RT_TEXT || ck == RT_INLINE_BLOCK ||
+            ck == RT_REPLACED) {
+            sum = sum + w;
+        } else {
+            if (w > max_block) max_block = w;
+        }
+        c = rt_next[c];
+    }
+    if (sum > max_block) return sum;
+    return max_block;
+}
+
 void layout_oof_one(int oof) {
     int sty = rt_style[oof];
     int pos = cs_position[sty];
@@ -898,9 +962,15 @@ void layout_oof_one(int oof) {
     if (cb_w < 0) cb_w = 0;
     if (cb_h < 0) cb_h = 0;
 
-    /* Determine width: explicit cs_width first, otherwise derive from
-     * left+right against the containing block, otherwise inherit from
-     * children (run intrinsic block layout). */
+    /* CSS 2.1 §10.3.7 - width / left / right resolution for absolutely
+     * positioned non-replaced elements. Reference:
+     * blink/Source/core/rendering/RenderBox.cpp::computePositionedLogicalWidth.
+     *
+     *   left set, right set, width auto  -> width = cb_w - left - right
+     *   left set, right auto, width auto -> shrink-to-fit, x = left
+     *   left auto, right set, width auto -> shrink-to-fit, x = cb_w - right - w
+     *   left auto, right auto, width auto -> shrink-to-fit at static position
+     */
     int has_w = (cs_width[sty] >= 0);
     int has_h = (cs_height[sty] >= 0);
     int leftv = cs_left[sty];
@@ -914,14 +984,29 @@ void layout_oof_one(int oof) {
         w_resolved = cb_w - leftv - rightv;
         if (w_resolved < 0) w_resolved = 0;
     }
-
-    /* Lay out the subtree. Pass either the resolved width or the CB
-     * width as the cap so block flow inside has a max. */
+    /* When width is auto AND we have at most one of left/right, do a
+     * shrink-to-fit pre-measurement: walk the subtree's text content
+     * to estimate intrinsic width, then lay out ONCE at that width.
+     * (Doing it as a re-layout would orphan the first pass's
+     * line-box children on rt_first_child[oof] alongside the new ones,
+     * since layout_block is purely additive — paint would then walk
+     * both and double-render the text.)
+     * Reference: blink/Source/core/rendering/RenderBox.cpp
+     * shrinkToFitWidth + computePreferredLogicalWidths. */
+    int extra_w_self = rt_padding_l(oof) + rt_padding_r(oof)
+                     + rt_border_l(oof)  + rt_border_r(oof);
+    if (w_resolved < 0) {
+        int intrinsic = oof_intrinsic_text_w(oof);
+        if (intrinsic > 0) {
+            int shrink_w = intrinsic + extra_w_self;
+            if (shrink_w > cb_w) shrink_w = cb_w;
+            w_resolved = shrink_w - extra_w_self;
+            if (w_resolved < 0) w_resolved = 0;
+        }
+    }
     int avail = (w_resolved >= 0) ? w_resolved : cb_w;
     layout_block(oof, avail);
-    if (w_resolved >= 0) rt_w[oof] = w_resolved
-                                   + rt_padding_l(oof) + rt_padding_r(oof)
-                                   + rt_border_l(oof)  + rt_border_r(oof);
+    if (w_resolved >= 0) rt_w[oof] = w_resolved + extra_w_self;
 
     int x = 0;
     int y = 0;

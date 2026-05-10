@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<title>f6 per-codepoint face routing through unicode-range</title>
+<style>
+@font-face {
+  font-family: 'LatinOnly';
+  src: url(/none.ttf);
+  unicode-range: U+0000-024F;
+}
+@font-face {
+  font-family: 'CyrillicOnly';
+  src: url(/none.ttf);
+  unicode-range: U+0400-04FF;
+}
+@font-face {
+  font-family: 'CatchAll';
+  src: url(/none.ttf);
+}
+body { font-family: 'LatinOnly', 'CyrillicOnly', 'CatchAll', sans-serif; }
+</style>
+</head>
+<body>
+<p>Mixed Latin + Cyrillic: Hello мир, this and Привет coexist.</p>
+<p>Range-having slot wins over range-less for codepoints inside its range; range-less catch-all takes the rest.</p>
+<p>Layout splits per codepoint at width-measure time; paint groups consecutive same-face codepoints into single draw calls.</p>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<title>e4 custom properties</title>
+<style>
+:root {
+  --brand: tomato;
+  --bg-card: #f0f0f2;
+  --gutter: 16px;
+}
+body { background: var(--bg-card); margin: 0; padding: var(--gutter); }
+h1 { color: var(--brand); }
+p { color: #333; }
+.accent { color: var(--brand); }
+.boxed { background: var(--brand); color: white; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>--brand resolves to tomato</h1>
+<p>Body text in #333. <span class="accent">Accent text in --brand.</span></p>
+<p class="boxed">Whole paragraph uses --brand background, white text.</p>
+<p>Body padding is --gutter (16px) all around.</p>
+</body>
+</html>

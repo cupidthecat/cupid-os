@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+<title>f1 @font-face unicode-range parsing</title>
+<style>
+@font-face {
+  font-family: 'TestRanges';
+  src: url(/none.ttf);
+  unicode-range: U+0000-007F, U+00A0-00FF, U+0400-04FF;
+}
+@font-face {
+  font-family: 'WildcardRange';
+  src: url(/none2.ttf);
+  unicode-range: U+04??;
+}
+@font-face {
+  font-family: 'SinglePoint';
+  src: url(/none3.ttf);
+  unicode-range: U+2603;
+}
+body { font-family: 'TestRanges', 'WildcardRange', 'SinglePoint', sans-serif; }
+</style>
+</head>
+<body>
+<p>Latin ASCII: The quick brown fox jumps over the lazy dog.</p>
+<p>Latin-1 supplement: café naïve résumé.</p>
+<p>Cyrillic (matches third range): Привет мир.</p>
+<p>Snowman literal U+2603 single-point: &#9731;</p>
+<p>Range parser also accepts wildcards (U+04??) and explicit endpoints (U+0000-007F).</p>
+</body>
+</html>
