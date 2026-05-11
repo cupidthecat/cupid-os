@@ -736,6 +736,20 @@ void layout_block(int n, int avail_w) {
     rt_content_x[n] = cx;
     rt_content_y[n] = cy;
 
+    /* BFC root containment. `overflow: hidden` (or any non-visible
+     * overflow) makes this block establish a new block formatting
+     * context per CSS 2.1 §9.4.1, which means floats inside it can't
+     * escape AND the block's own height grows to include them
+     * (§10.6.7). Save / restore float_visible_first so descendants
+     * only see floats internal to this subtree, and on exit grow
+     * rt_h to cover any internal float that overhangs the content. */
+    int bfc_saved_visible = float_visible_first;
+    int bfc_saved_count   = float_count;
+    int bfc_root = (cs_overflow[sty] == OVERFLOW_HIDDEN);
+    if (bfc_root) {
+        float_visible_first = float_count;
+    }
+
     /* Table-row: lay out cells horizontally, equal-share width, equalize
      * cell heights to the row's max so borders line up. Anonymous table
      * row groups (tbody) flow normally and let each tr handle its own
@@ -1132,6 +1146,26 @@ void layout_block(int n, int avail_w) {
     if (min_h_clamp >= 0 && content_h < min_h_clamp) content_h = min_h_clamp;
     if (content_h < 0) content_h = 0;
     rt_h[n] = content_h + extra_h;
+
+    /* BFC root: grow rt_h to cover any internal float that overhangs
+     * the in-flow content (CSS 2.1 §10.6.7). The floats added during
+     * this subtree's layout span indices [bfc_saved_count .. float_count).
+     * After growing, restore the outer visibility window and drop the
+     * internal floats from the global list (they can't escape a BFC).
+     * Reference: blink/Source/core/rendering/RenderBlockFlow::layoutBlockChildren
+     * + computeOverflow + addOverflowFromFloats. */
+    if (bfc_root) {
+        int self_doc_y = rt_doc_y_of(n);
+        int max_bot = 0;
+        int fi;
+        for (fi = bfc_saved_count; fi < float_count; fi = fi + 1) {
+            int b = float_y[fi] + float_h[fi] - self_doc_y;
+            if (b > max_bot) max_bot = b;
+        }
+        if (max_bot > rt_h[n]) rt_h[n] = max_bot;
+        float_visible_first = bfc_saved_visible;
+        float_count = bfc_saved_count;
+    }
 }
 
 /* Find the document-space x of node n by summing rt_x along its parent
@@ -1406,9 +1440,7 @@ void layout_flex(int n, int content_w, int cx, int cy) {
         if (ck == RT_LINE_BOX || c_dom < 0) { c = rt_next[c]; continue; }
         int c_sty = rt_style[c];
         int c_pos = cs_position[c_sty];
-        if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) {
-            c = rt_next[c]; continue;
-        }
+        if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) { c = rt_next[c]; continue; }
         items[cnt] = c;
         int extra_main = is_col
             ? (rt_padding_t(c) + rt_padding_b(c) + rt_border_t(c) + rt_border_b(c))
@@ -1423,11 +1455,18 @@ void layout_flex(int n, int content_w, int cx, int cy) {
         } else if (is_col && cs_height[c_sty] >= 0) {
             int chv = cs_height[c_sty];
             b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? chv : (chv + extra_main);
+        } else if (is_col) {
+            /* Column + auto: there is no intrinsic-height shortcut, so lay
+             * out the item at the cross-axis width NOW to learn its
+             * natural content height. The result becomes the base size
+             * (pass 2 may re-layout if flex-grow/shrink changes it). */
+            int item_w = (cs_width[c_sty] >= 0)
+                ? cs_width[c_sty]
+                : content_w;
+            layout_block(c, item_w);
+            b = rt_h[c];
         } else {
-            /* auto: shrink-to-fit (rough estimate via inline content). For
-             * column containers we don't have a real intrinsic-h estimator,
-             * so fall back to 0 and let flex-grow stretch later. */
-            int intr = is_col ? 0 : oof_intrinsic_text_w(c);
+            int intr = oof_intrinsic_text_w(c);
             b = (intr > 0) ? (intr + extra_main) : extra_main;
         }
         if (b < extra_main) b = extra_main;
@@ -1497,18 +1536,24 @@ void layout_flex(int n, int content_w, int cx, int cy) {
     for (i = 0; i < cnt; i = i + 1) {
         int it = items[i];
         if (is_col) {
-            /* Cross-axis is width: stretch to content_w if align-stretch,
-             * else lay out at item's own width. */
-            int item_w = (cs_width[rt_style[it]] >= 0)
-                       ? cs_width[rt_style[it]]
-                       : ((align == ALIGN_STRETCH) ? content_w : 0);
-            if (item_w == 0) {
-                /* Auto width: shrink-to-fit by intrinsic text estimate. */
-                int intr = oof_intrinsic_text_w(it);
-                item_w = (intr > 0) ? intr : content_w;
+            /* Pass 1 (auto-basis branch above) already laid out the item
+             * and recorded base[i] = rt_h. Re-running layout_block here
+             * would append a SECOND set of RT_LINE_BOX children to the
+             * same node, and paint draws both -> duplicated/overlapping
+             * text ("525" rendered as "52525"). Only re-layout when
+             * flex-grow/shrink actually changed the main size; otherwise
+             * keep the dimensions pass 1 computed. */
+            if (final_main[i] != base[i]) {
+                int item_w = (cs_width[rt_style[it]] >= 0)
+                           ? cs_width[rt_style[it]]
+                           : ((align == ALIGN_STRETCH) ? content_w : 0);
+                if (item_w == 0) {
+                    int intr = oof_intrinsic_text_w(it);
+                    item_w = (intr > 0) ? intr : content_w;
+                }
+                layout_block(it, item_w);
+                rt_h[it] = final_main[i];
             }
-            layout_block(it, item_w);
-            rt_h[it] = final_main[i];      /* override with flex-resolved h */
             if (rt_w[it] > max_cross) max_cross = rt_w[it];
         } else {
             layout_block(it, final_main[i]);

@@ -1,0 +1,356 @@
+<!doctype html>
+<html>
+<head>
+<title>cupidos browser showcase</title>
+<style>
+:root {
+  --brand:  #5644cf;
+  --accent: #f06292;
+  --ink:    #1c1c2b;
+  --muted:  #5e5e78;
+  --paper:  #ffffff;
+  --bg:     #f4f4fb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: 14px;
+}
+
+/* Top navigation bar (flex row) */
+.nav {
+  display: flex;
+  align-items: center;
+  padding: 14px 28px;
+  background: linear-gradient(to right, #2a2150, var(--brand));
+  color: white;
+}
+.brand {
+  font-weight: bold;
+  font-size: 18px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.nav-links {
+  display: flex;
+  gap: 22px;
+  flex: 1;
+  justify-content: center;
+}
+.nav-links a {
+  color: #d8d4f5;
+  text-decoration: none;
+  font-size: 13px;
+}
+.cta {
+  background: var(--accent);
+  color: white;
+  padding: 7px 14px;
+  border-radius: 16px;
+  font-weight: bold;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Hero band */
+.hero {
+  position: relative;
+  padding: 56px 32px 64px 32px;
+  background: linear-gradient(to bottom, #ece8ff, #f4f4fb);
+  text-align: center;
+}
+.hero h1 {
+  margin: 0 0 12px 0;
+  font-size: 32px;
+  color: var(--ink);
+}
+.hero .lede {
+  margin: 0 auto 24px auto;
+  max-width: 540px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.hero .actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 13px;
+}
+.btn-primary {
+  background: linear-gradient(to bottom, var(--brand), #3d2cb3);
+  color: white;
+  box-shadow: 0 3px #b6a8ff;
+}
+.btn-ghost {
+  background: white;
+  color: var(--brand);
+  border: 1px solid #ccc4ff;
+}
+.hero-badge {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  background: linear-gradient(to right, var(--accent), #ff8a5b);
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 5px 12px;
+  border-radius: 12px;
+  z-index: 3;
+}
+
+/* Font showcase strip */
+.fonts {
+  display: flex;
+  gap: 12px;
+  padding: 20px 32px 28px 32px;
+  background: var(--bg);
+  align-items: stretch;
+}
+.font-tile {
+  flex: 1;
+  background: var(--paper);
+  border: 1px solid #e0e0ee;
+  border-radius: 10px;
+  padding: 18px;
+  overflow: hidden;
+}
+.font-tile .lbl {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.font-tile .sample {
+  font-size: 18px;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.font-tile .meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.f-sans  { font-family: sans-serif; }
+.f-serif { font-family: serif; }
+.f-mono  { font-family: monospace; }
+.f-mono .sample { font-size: 16px; }
+.f-sym   .sample {
+  font-size: 26px;
+  letter-spacing: 6px;
+}
+.weights .sample b   { font-weight: bold; }
+.weights .sample em  { font-style: italic; }
+
+/* Three feature cards (flex row, grow:1) */
+.cards {
+  display: flex;
+  gap: 16px;
+  padding: 32px;
+  background: var(--bg);
+}
+.card {
+  flex: 1;
+  background: var(--paper);
+  border: 1px solid #e0e0ee;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px #ddd;
+}
+.card h3 {
+  margin: 0 0 8px 0;
+  color: var(--brand);
+  font-size: 16px;
+}
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.i-flex {  background: linear-gradient(to bottom, #ffe2b0, #ff9544); }
+.i-image { background: linear-gradient(to bottom, #b0e8ff, #4493ff); }
+.i-css {   background: linear-gradient(to bottom, #d8b0ff, var(--brand)); }
+
+/* Article + floated thumbnail */
+.article {
+  background: var(--paper);
+  margin: 0 32px 32px 32px;
+  padding: 24px;
+  border: 1px solid #e0e0ee;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.article h2 {
+  margin: 0 0 12px 0;
+  color: var(--ink);
+}
+.thumb {
+  float: left;
+  margin: 4px 16px 8px 0;
+  border: 1px solid #d0d0dc;
+  padding: 4px;
+  background: #fafafa;
+  border-radius: 4px;
+  width: 145px;
+}
+.thumb img { display: block; }
+.thumb .cap {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  text-align: center;
+}
+.article p {
+  margin: 0 0 10px 0;
+  line-height: 1.55;
+  color: #333;
+}
+
+/* Stats strip with abspos labels + space-between */
+.stats {
+  display: flex;
+  justify-content: space-between;
+  clear: both;
+  background: linear-gradient(to right, var(--brand), var(--accent));
+  color: white;
+  padding: 24px 40px;
+  margin: 0 32px 32px 32px;
+  border-radius: 10px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.stat-n {
+  display: block;
+  font-size: 26px;
+  font-weight: bold;
+}
+.stat-l {
+  display: block;
+  font-size: 12px;
+  color: #ffe5f0;
+  margin-top: 2px;
+}
+
+/* Footer */
+.foot {
+  padding: 20px 32px;
+  background: #1c1c2b;
+  color: #b8b8d0;
+  font-size: 12px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="brand">CUPIDOS</div>
+  <div class="nav-links">
+    <a href="#">Docs</a>
+    <a href="#">Roadmap</a>
+    <a href="#">Source</a>
+    <a href="#">Blog</a>
+  </div>
+  <div class="cta">Try it</div>
+</div>
+
+<div class="hero">
+  <div class="hero-badge">NEW</div>
+  <h1>A hobby OS that ships a browser.</h1>
+  <div class="lede">Custom kernel, custom C-like compiler, custom font stack, custom layout engine. Renders real pages over real TLS. No third-party runtime, no Chromium, no V8.</div>
+  <div class="actions">
+    <div class="btn btn-primary">Read the build log</div>
+    <div class="btn btn-ghost">Browse the source</div>
+  </div>
+</div>
+
+<div class="fonts">
+  <div class="font-tile f-sans">
+    <div class="lbl">SANS-SERIF</div>
+    <div class="sample">The quick brown fox</div>
+    <div class="meta">Liberation Sans &middot; bundled TTF</div>
+  </div>
+  <div class="font-tile f-serif">
+    <div class="lbl">SERIF</div>
+    <div class="sample">The quick brown fox</div>
+    <div class="meta">Liberation Serif &middot; bundled TTF</div>
+  </div>
+  <div class="font-tile f-mono">
+    <div class="lbl">MONOSPACE</div>
+    <div class="sample">main() { }</div>
+    <div class="meta">Liberation Mono &middot; bundled TTF</div>
+  </div>
+  <div class="font-tile weights">
+    <div class="lbl">WEIGHT &amp; STYLE</div>
+    <div class="sample">regular <b>bold</b> <em>italic</em></div>
+    <div class="meta">synthetic bold + italic</div>
+  </div>
+  <div class="font-tile f-sym">
+    <div class="lbl">SYMBOLS</div>
+    <div class="sample">&#9731; &#9733; &#9829; &#9742;</div>
+    <div class="meta">Noto Symbols &middot; per-codepoint fallback</div>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="icon i-flex"></div>
+    <h3>Flex layout</h3>
+    <p>Single-line flex with row + column, six justify-content modes, four align-items modes, grow / shrink / basis and gap.</p>
+  </div>
+  <div class="card">
+    <div class="icon i-image"></div>
+    <h3>Real fonts &amp; images</h3>
+    <p>WOFF1 + TTF + unicode-range subsets, decoded PNG &amp; JPEG with alpha-aware blits, cover / contain background sizing.</p>
+  </div>
+  <div class="card">
+    <div class="icon i-css"></div>
+    <h3>Modern CSS</h3>
+    <p>Custom properties, calc(), border-radius, gradients, box-shadow, position abs / fixed / rel with z-index stacking.</p>
+  </div>
+</div>
+
+<div class="article">
+  <div class="thumb">
+    <img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png" width="135" height="155">
+    <div class="cap">Wikipedia logo</div>
+  </div>
+  <h2>Floating thumbnails wrap text on the right</h2>
+  <p>The float pump anchors a thumbnail box to the left margin, then subsequent paragraphs flow alongside its right edge. Each line's exclusion band shrinks by the float's outer margin extent until the line's y passes the float bottom.</p>
+  <p>Below the floated element, lines snap back to the full content width. The article renders against real font metrics, with mixed-size inline runs sharing a baseline pulled from fontsys ascent / descent rather than a tiered fallback table.</p>
+  <p>Cyrillic, Greek and emoji codepoints route through their @font-face unicode-range subset when one is declared; everything else falls through to Liberation Sans.</p>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-n">525</div><div class="stat-l">KB BROWSER</div></div>
+  <div class="stat"><div class="stat-n">8 MB</div><div class="stat-l">JIT IMAGE</div></div>
+  <div class="stat"><div class="stat-n">128</div><div class="stat-l">WEBFONT SLOTS</div></div>
+  <div class="stat"><div class="stat-n">TLS 1.3</div><div class="stat-l">OVER 32-BIT</div></div>
+</div>
+
+<div class="foot">cupidos.local &middot; rendered by the in-tree engine &middot; no Chromium</div>
+
+</body>
+</html>

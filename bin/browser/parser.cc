@@ -290,7 +290,20 @@ void tokenize(int html_len) {
                     emit_token(TK_TEXT, 0, off,
                                dec_len | 0x40000000, 0, 0, 0);
                 } else {
-                    emit_token(TK_TEXT, 0, t_start, t_end - t_start, 0, 0, 0);
+                    /* RAWTEXT (<style>, <script>): no entity decoding per HTML
+                     * spec, so intern raw bytes directly. The downstream
+                     * token consumer's DATA path decodes via ctype_buf which
+                     * caps at 4096; large stylesheets get truncated there.
+                     * Pre-intern + sentinel bit routes through the attr-pool
+                     * path (same as RCDATA) so full length survives. */
+                    int raw_len = t_end - t_start;
+                    int off = attr_intern(page_buf + t_start, raw_len);
+                    if (off >= 0) {
+                        emit_token(TK_TEXT, 0, off,
+                                   raw_len | 0x40000000, 0, 0, 0);
+                    } else {
+                        emit_token(TK_TEXT, 0, t_start, raw_len, 0, 0, 0);
+                    }
                 }
             }
 

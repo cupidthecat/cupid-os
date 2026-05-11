@@ -74,6 +74,20 @@ int rt_kind_is_block_level(int kind) {
  * anonymous block wrappers around contiguous inline runs whenever this parent
  * has at least one block-level child. */
 void build_rt_children(int dom, int rt_parent_n) {
+    /* Flex container: per CSS Flexbox §4, every flex item is blockified
+     * (display: inline / inline-block / inline-* on a child becomes
+     * block). Pre-scan still finds at least one block, so inline children
+     * go through the block-level path and we promote their RT kind to
+     * RT_BLOCK below. Reference:
+     * blink/Source/core/layout/LayoutFlexibleBox.cpp `BlockifyDisplay`. */
+    int parent_is_flex = 0;
+    if (rt_parent_n >= 0) {
+        int p_sty = rt_style[rt_parent_n];
+        if (cs_display[p_sty] == DISP_FLEX || cs_display[p_sty] == DISP_INLINE_FLEX) {
+            parent_is_flex = 1;
+        }
+    }
+
     /* Pre-scan: do we have a mix? */
     int has_block = 0;
     int c = n_first_child[dom];
@@ -87,6 +101,10 @@ void build_rt_children(int dom, int rt_parent_n) {
         }
         c = n_next[c];
     }
+    /* In a flex container every non-text child is treated as a flex
+     * item -> blockified, so has_block holds even when source order is
+     * all-inline. */
+    if (parent_is_flex) has_block = 1;
 
     int anon_block = -1;          /* current anon block wrapper, -1 if none open */
     c = n_first_child[dom];
@@ -123,6 +141,16 @@ void build_rt_children(int dom, int rt_parent_n) {
             anon_block = -1;          /* close any open anon */
             int n = build_rt_subtree(c, rt_parent_n);
             (void)n;
+        } else if (parent_is_flex) {
+            /* Blockify the flex item: same as the block-level path but
+             * also force rt_kind so paint's "skip inline atoms" check
+             * doesn't drop the box. RT_REPLACED is preserved so <img>
+             * inside flex still uses replaced-element paint. */
+            anon_block = -1;
+            int n = build_rt_subtree(c, rt_parent_n);
+            if (n >= 0 && rt_kind[n] != RT_REPLACED) {
+                rt_kind[n] = RT_BLOCK;
+            }
         } else {
             int target = rt_parent_n;
             if (has_block) {

@@ -938,6 +938,76 @@ post-parse fix makes safe again.
 - `bin/volume.cc` — new
 - `CUPIDOS.txt` + four `wiki/*.md` pages
 
+## Polish + correctness fixes (post-phase-6)
+
+A small but high-leverage cluster of fixes surfaced while building a
+real demo page (`tests/browser/demo_showcase.html`).
+
+**`<style>` content > 4 KiB was being truncated.** The HTML tokenizer
+emits `<style>` content as RAWTEXT (no entity decoding per spec),
+but the post-tokenize DATA path still ran the bytes through
+`decode_entities` into a 4 KiB `ctype_buf`, capping any stylesheet
+above that size. Symptom: rules near the bottom of the stylesheet
+silently dropped, classes never matched, those elements rendered as
+default block-flow with no styling. Fix: pre-intern RAWTEXT bytes
+in the tokenizer and tag with the 0x40000000 sentinel like RCDATA
+does, so the consumer reads from `attr_pool` directly at full
+length. CSS stylesheets up to `ATTR_POOL_SIZE` (128 KiB) now survive
+intact.
+
+**Flex item blockification (CSS Flexbox §4).** Inline-level children
+of a flex container must be treated as block-level flex items. The
+paint walk's "skip inline atoms" check was dropping `RT_INLINE_BLOCK`
+and `RT_INLINE` children of flex containers because they were never
+absorbed into a `LINE_BOX` (the flex container doesn't produce
+line boxes). `build_rt_children` now detects a flex parent and routes
+non-text children through the block path with their `rt_kind` forced
+to `RT_BLOCK` (preserving `RT_REPLACED` so `<img>` keeps its replaced
+paint). Fixes the missing `.btn` buttons inside `.actions` and the
+inline-span stats columns.
+
+**Column flex with auto basis.** `flex-direction: column` items with
+no explicit `height` or `flex-basis` collapsed to padding+border
+only. There's no cheap intrinsic-height estimator (unlike text
+width), so the base size came back 0; free-space distribution then
+treated the deficit as a shrink target and crushed every item to
+its minimum. Fix: lay out each auto-basis column item in pass 1 to
+learn its natural height, use that as the base. Plus the matching
+"indefinite main size" rule (CSS Flexbox §9.7.3) — a column
+container with no `height` sizes its main axis to
+`sum(base) + gaps` so `free_space = 0` and items keep their
+declared dimensions.
+
+**Flex pass-2 duplicate layout.** Pass 1's new layout_block call
+(above) combined with pass 2's unconditional re-layout produced two
+sets of `RT_LINE_BOX` children per item. Paint walked both and
+rendered the text twice at slightly different offsets — "525"
+showed up as "52525". Fix: pass 2 only re-runs `layout_block` for
+column items whose flex-resolved main size differs from their
+pass-1 base (i.e. grow/shrink actually moved the size).
+
+**BFC root containment (`overflow: hidden`).** Per CSS 2.1 §9.4.1 +
+§10.6.7, a block with non-visible overflow establishes a new BFC
+that both hides outer floats from descendants AND grows its own
+`rt_h` to cover any internal float that overhangs the in-flow
+content. `layout_block` now saves `float_visible_first` /
+`float_count` on entry when `cs_overflow == HIDDEN`, scopes
+descendants to internal floats only, and on exit walks the float
+range `[saved_count .. float_count)` for the lowest margin-box
+bottom, growing `rt_h` to cover. Internal floats are then dropped
+from the global list since they can't escape. Reference:
+`blink/Source/core/rendering/RenderBlockFlow::addOverflowFromFloats`.
+
+**Negative margin-bottom on auto-margin items.** No code change for
+this; verified the existing margin path already handles it.
+
+**Demo showcase page.** `tests/browser/demo_showcase.html` exercises
+the full visual surface in one page: gradient nav, hero with
+positioned badge, five-tile font showcase (sans / serif / monospace
+/ weight+style / symbols), three-card flex row with gradient
+icons, floated thumbnail article, stats strip with
+`justify-content: space-between` over a gradient bar, dark footer.
+
 ## Not in this PR (still deferred)
 
 - **`background:` shorthand composition.** Composing
