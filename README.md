@@ -4,6 +4,7 @@
 
 ![Desktop](img/background.png)
 ![Freedoom](img/freedoom.png)
+![Web Demo](img/web_demo.png)
 ![File manager](img/fm.png)
 ![Paint](img/paint.png)
 
