@@ -21,7 +21,13 @@
 #include "../fs/vfs.h"
 #include "../fs/vfs_helpers.h"
 
-#define FONTSYS_MAX_FACES   32
+/* Cap absorbs @font-face fonts downloaded per-site. Modern Google Fonts
+ * stylesheets declare 12+ unicode-subsetted faces per family; the browser
+ * holds up to 128 webfont slots and registers each here, so 160 covers
+ * those plus the 3 bundled Liberation faces with margin. ~250 B per slot
+ * of parallel-array metadata = ~40 KiB. fontsys_unregister now frees
+ * slots on per-page navigation, so this cap is rarely a wall. */
+#define FONTSYS_MAX_FACES   160
 #define FONTSYS_GCACHE_CAP  2048
 
 #define FAMILY_NAME_CAP     48
@@ -121,6 +127,14 @@ extern const char _binary_system_fonts_LiberationSerif_Regular_ttf_start[];
 extern const char _binary_system_fonts_LiberationSerif_Regular_ttf_end[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_start[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_end[];
+/* Noto Sans Symbols covers Misc Symbols (U+2600 incl. snowman U+2603),
+ * dingbats, arrows, and geometric shapes. ~227 KB. The kernel area was
+ * bumped from 4 MB to 8 MB (link.ld + boot/boot.asm + Makefile
+ * FAT_START_LBA) to make room. fontsys_find_face_with_cp uses this
+ * face as last-resort glyph fallback when the chosen family lacks a
+ * codepoint. */
+extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_start[];
+extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_end[];
 
 static int register_embedded(const char *start, const char *end,
                              const char *label) {
@@ -167,6 +181,9 @@ void fontsys_init(void) {
     register_embedded(_binary_system_fonts_LiberationMono_Regular_ttf_start,
                       _binary_system_fonts_LiberationMono_Regular_ttf_end,
                       "LiberationMono-Regular");
+    register_embedded(_binary_system_fonts_NotoSansSymbols_Regular_ttf_start,
+                      _binary_system_fonts_NotoSansSymbols_Regular_ttf_end,
+                      "NotoSansSymbols-Regular");
 
     /* Set generic fallbacks. fontsys_match by name is preferred; these
      * kick in only when the CSS family list yields no concrete match. */
@@ -726,6 +743,80 @@ void fontsys_draw_run_styled(int face_id, int size_px,
         pen_x += adv;
         if (want_bold) pen_x += 1;
     }
+}
+
+/* Drop a previously-registered face. Frees the blob if we own it,
+ * clears the slot so fontsys_match skips it, and evicts every cached
+ * glyph that referenced it (otherwise stale gc_alpha pointers would
+ * survive an unregister/free pair). Safe to call on already-cleared
+ * slots: returns 0. Returns -1 if face_id is out of range. */
+int fontsys_unregister(int face_id) {
+    if (face_id < 0 || face_id >= face_count) return -1;
+    if (!face_used[face_id]) return 0;
+    if (face_owns_blob[face_id] && face_blob[face_id]) {
+        /* face_blob is `const uint8_t *` because most slots point at
+         * read-only bundled assets. take_ownership=1 slots came from
+         * kmalloc, so casting away const here is safe — we own the
+         * memory we're freeing. */
+        kfree((void *)(size_t)face_blob[face_id]);
+    }
+    face_blob[face_id] = (const uint8_t*)0;
+    face_blob_len[face_id] = 0;
+    face_owns_blob[face_id] = 0;
+    face_used[face_id] = 0;
+    face_family[face_id][0] = 0;
+    face_family_lower[face_id][0] = 0;
+    face_path[face_id][0] = 0;
+    face_weight[face_id] = 0;
+    face_italic[face_id] = 0;
+    /* If this face was wired in as a generic-family fallback, clear it
+     * so future lookups don't dereference a freed slot. */
+    for (int g = 0; g < 8; g++) {
+        if (generic_face[g] == face_id) generic_face[g] = -1;
+    }
+    if (g_os_face == face_id) g_os_face = -1;
+    /* Evict matching glyph-cache entries. */
+    for (int i = 0; i < FONTSYS_GCACHE_CAP; i++) {
+        if (!gc_used[i]) continue;
+        if (gc_face_id[i] != face_id) continue;
+        if (gc_alpha[i]) {
+            kfree(gc_alpha[i]);
+            if (gc_bytes_total >= (size_t)(gc_w[i] * gc_h[i])) {
+                gc_bytes_total -= (size_t)(gc_w[i] * gc_h[i]);
+            }
+        }
+        gc_alpha[i] = (uint8_t*)0;
+        gc_used[i] = 0;
+        gc_n_used--;
+    }
+    return 0;
+}
+
+/* Returns 1 if the face's cmap contains a glyph for `codepoint` (i.e.
+ * ttf_cmap_glyph maps it to something other than glyph 0 / .notdef);
+ * 0 otherwise. Cheaper than fontsys_glyph because it skips raster + cache.
+ * Used by the browser's font-fallback chain: when the chosen face lacks
+ * a codepoint, walk other registered faces to find one that has it,
+ * matching Blink's last-resort glyph-fallback in
+ * blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter. */
+int fontsys_face_has_cp(int face_id, int codepoint) {
+    if (face_id < 0 || face_id >= face_count) return 0;
+    if (!face_used[face_id]) return 0;
+    int gid = ttf_cmap_glyph(face_blob[face_id], face_off_cmap[face_id], codepoint);
+    return (gid > 0) ? 1 : 0;
+}
+
+/* Walk every registered face and return the first one whose cmap covers
+ * `codepoint`, or -1 if none does. Caller should fall back to
+ * fontsys_match's generic when this returns -1 (a missing-glyph box
+ * is better than no glyph). */
+int fontsys_find_face_with_cp(int codepoint) {
+    for (int i = 0; i < face_count; i++) {
+        if (!face_used[i]) continue;
+        int gid = ttf_cmap_glyph(face_blob[i], face_off_cmap[i], codepoint);
+        if (gid > 0) return i;
+    }
+    return -1;
 }
 
 /* Diagnostics. */

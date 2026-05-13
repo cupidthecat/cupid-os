@@ -205,7 +205,7 @@ int iso9660_mount_parse(block_device_t *bdev, iso9660_mount_t *m) {
     m->bdev              = bdev;
     m->root_extent_lba   = rd_u32le(root + DIR_OFF_EXTENT_LBA_LE);
     m->root_extent_size  = rd_u32le(root + DIR_OFF_DATA_LEN_LE);
-    m->has_rockridge     = false;  /* set below after SUSP scan */
+    m->has_rockridge     = false;  /* Task 5 sets this after SUSP scan */
 
     /* Rock Ridge detection: read root extent sector 0, look at the
      * "." record (first record) and check its SU area for SP marker. */

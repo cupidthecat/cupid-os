@@ -756,6 +756,95 @@ void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
   }
 }
 
+/* Vertical 2-stop gradient masked to a rounded rectangle. Used by the
+ * browser to paint `background: linear-gradient(...)` behind a
+ * `border-radius`. Each row interpolates color top->bottom (same fixed-
+ * point math as gfx2d_gradient_v) and clips its horizontal extent past
+ * the corner offset, mirroring gfx2d_rect_round_fill's per-row mask. */
+void gfx2d_gradient_v_round(int x, int y, int w, int h, int r,
+                            uint32_t c1, uint32_t c2) {
+  if (w <= 0 || h <= 0) return;
+  if (r <= 0) {
+    gfx2d_gradient_v(x, y, w, h, c1, c2);
+    return;
+  }
+  if (r * 2 > w) r = w / 2;
+  if (r * 2 > h) r = h / 2;
+
+  int32_t steps  = (h > 1) ? h - 1 : 1;
+  int32_t r_fp   = (int32_t)((c1 >> 16) & 0xFFu) << 16;
+  int32_t g_fp   = (int32_t)((c1 >>  8) & 0xFFu) << 16;
+  int32_t b_fp   = (int32_t)( c1        & 0xFFu) << 16;
+  int32_t r_step = (((int32_t)((c2 >> 16) & 0xFFu) - (int32_t)((c1 >> 16) & 0xFFu)) << 16) / steps;
+  int32_t g_step = (((int32_t)((c2 >>  8) & 0xFFu) - (int32_t)((c1 >>  8) & 0xFFu)) << 16) / steps;
+  int32_t b_step = (((int32_t)( c2        & 0xFFu) - (int32_t)( c1        & 0xFFu)) << 16) / steps;
+  int row;
+  for (row = 0; row < h; row++) {
+    uint32_t c = (((uint32_t)(r_fp >> 16) & 0xFFu) << 16) |
+                 (((uint32_t)(g_fp >> 16) & 0xFFu) <<  8) |
+                  ((uint32_t)(b_fp >> 16) & 0xFFu);
+    int off = 0;
+    if (row < r) {
+      int dy = r - row;
+      off = r - g2d_isqrt(r * r - dy * dy);
+    } else if (row >= h - r) {
+      int dy = row - (h - r - 1);
+      off = r - g2d_isqrt(r * r - dy * dy);
+    }
+    gfx2d_hline(x + off, y + row, w - 2 * off, c);
+    r_fp += r_step;
+    g_fp += g_step;
+    b_fp += b_step;
+  }
+}
+
+/* Horizontal 2-stop gradient masked to a rounded rectangle. The
+ * gradient runs along x so every row is the same color sequence; only
+ * the per-row clip shrinks past the corner offsets. */
+void gfx2d_gradient_h_round(int x, int y, int w, int h, int r,
+                            uint32_t c1, uint32_t c2) {
+  if (w <= 0 || h <= 0) return;
+  if (r <= 0) {
+    gfx2d_gradient_h(x, y, w, h, c1, c2);
+    return;
+  }
+  if (r * 2 > w) r = w / 2;
+  if (r * 2 > h) r = h / 2;
+
+  int32_t steps  = (w > 1) ? w - 1 : 1;
+  int row;
+  for (row = 0; row < h; row++) {
+    int off = 0;
+    if (row < r) {
+      int dy = r - row;
+      off = r - g2d_isqrt(r * r - dy * dy);
+    } else if (row >= h - r) {
+      int dy = row - (h - r - 1);
+      off = r - g2d_isqrt(r * r - dy * dy);
+    }
+    /* Per-pixel interp along the visible run [off .. w-off-1]. */
+    int32_t r_fp = (int32_t)((c1 >> 16) & 0xFFu) << 16;
+    int32_t g_fp = (int32_t)((c1 >>  8) & 0xFFu) << 16;
+    int32_t b_fp = (int32_t)( c1        & 0xFFu) << 16;
+    int32_t r_step = (((int32_t)((c2 >> 16) & 0xFFu) - (int32_t)((c1 >> 16) & 0xFFu)) << 16) / steps;
+    int32_t g_step = (((int32_t)((c2 >>  8) & 0xFFu) - (int32_t)((c1 >>  8) & 0xFFu)) << 16) / steps;
+    int32_t b_step = (((int32_t)( c2        & 0xFFu) - (int32_t)( c1        & 0xFFu)) << 16) / steps;
+    r_fp += r_step * off;
+    g_fp += g_step * off;
+    b_fp += b_step * off;
+    int col;
+    for (col = off; col < w - off; col++) {
+      uint32_t c = (((uint32_t)(r_fp >> 16) & 0xFFu) << 16) |
+                   (((uint32_t)(g_fp >> 16) & 0xFFu) <<  8) |
+                    ((uint32_t)(b_fp >> 16) & 0xFFu);
+      g2d_put(x + col, y + row, c);
+      r_fp += r_step;
+      g_fp += g_step;
+      b_fp += b_step;
+    }
+  }
+}
+
 void gfx2d_gradient_radial(int x, int y, int w, int h,
                            uint32_t inner, uint32_t outer) {
   if (w <= 0 || h <= 0)

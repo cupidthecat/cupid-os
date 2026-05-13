@@ -62,6 +62,10 @@ void gfx2d_pixel_alpha(int x, int y, uint32_t argb);
 
 void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2);
 void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2);
+void gfx2d_gradient_h_round(int x, int y, int w, int h, int r,
+                            uint32_t c1, uint32_t c2);
+void gfx2d_gradient_v_round(int x, int y, int w, int h, int r,
+                            uint32_t c1, uint32_t c2);
 void gfx2d_gradient_radial(int x, int y, int w, int h,
                            uint32_t inner, uint32_t outer);
 

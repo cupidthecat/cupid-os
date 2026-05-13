@@ -43,6 +43,13 @@ int fontsys_register_blob(const char *blob, int blob_len, int take_ownership);
  * Returns face_id or -1. */
 int fontsys_register_file(const char *path);
 
+/* Drop a previously-registered face: free the blob if we own it, clear
+ * the slot from the registry, and evict every cached glyph that pointed
+ * at it. The browser uses this on per-page navigation to reclaim heap
+ * held by site-supplied @font-face TTFs. Returns 0 on success or on
+ * already-cleared slots, -1 if face_id is out of range. */
+int fontsys_unregister(int face_id);
+
 /* Wire a generic family kw to a concrete face_id. Used by fontsys_init
  * to set defaults; safe to call later to override. */
 int fontsys_set_generic(int family_kw, int face_id);
@@ -111,6 +118,14 @@ void fontsys_draw_run_styled(int face_id, int size_px,
                              uint32_t color,
                              int want_bold,
                              int want_italic);
+
+/* Glyph-presence query used by browser fallback chains. Returns 1 when
+ * the face's cmap maps `codepoint` to a non-zero glyph id, else 0. */
+int fontsys_face_has_cp(int face_id, int codepoint);
+
+/* Walk every registered face and return the first whose cmap covers
+ * `codepoint`. -1 when no registered face has it. */
+int fontsys_find_face_with_cp(int codepoint);
 
 /* Diagnostics. */
 int fontsys_face_count(void);

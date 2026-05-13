@@ -214,12 +214,17 @@ void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
         return;
     int sw = g2d_img_w[handle], sh = g2d_img_h[handle];
     uint32_t *data = g2d_img_data[handle];
+    /* Use the alpha-aware blit so transparent PNG regions composite
+     * over the destination instead of writing raw RGB=0,A=0 (which
+     * would show up as solid black where the source was transparent —
+     * the bottom of the Wikipedia logo, for example). JPEG decode
+     * emits A=255 so the same path stays a fast opaque write. */
     for (row = 0; row < dh; row++) {
         int sy = (row * sh) / dh;
         for (col = 0; col < dw; col++) {
             int sx = (col * sw) / dw;
-            gfx2d_pixel(x + col, y + row,
-                        data[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
+            gfx2d_pixel_alpha(x + col, y + row,
+                              data[(uint32_t)sy * (uint32_t)sw + (uint32_t)sx]);
         }
     }
 }
