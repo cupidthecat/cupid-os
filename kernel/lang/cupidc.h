@@ -26,7 +26,7 @@
  * means a single huge kmalloc on every JIT invocation, which has hit
  * heap-canary panics in practice.                                   */
 #define CC_MAX_CODE (1024u * 1024u)  /* 1 MB code buffer            */
-#define CC_MAX_DATA (4096u * 1024u)  /* 4 MB data/string buffer     */
+#define CC_MAX_DATA (8192u * 1024u)  /* 8 MB data/string buffer     */
 #define CC_MAX_SYMBOLS 4096          /* max symbols in scope         */
 #define CC_MAX_LOCALS 256            /* max locals per function      */
 #define CC_MAX_PARAMS 32             /* max function parameters      */
@@ -41,9 +41,11 @@
 #define CC_MAX_FIELDS 32             /* max fields per struct         */
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
- * Old layout (0x600000) bumped against the 0x800000 stack and limited
- * CupidC programs to ~310 KB of data. New layout puts the JIT image at
- * 16 MB, leaving ~9 MB of code+data headroom before CupidASM at 26 MB. */
+ * Layout puts the JIT image at 16 MB, with 9 MB of code+data headroom
+ * (1 MB code + 8 MB data) before CupidASM at 26 MB. The browser's
+ * static globals (parallel arrays for DOM/style/RT/atom pools, plus
+ * 128 webfont slots with 3-deep URL fallbacks) are the largest user
+ * of the data section so far. */
 #define CC_JIT_CODE_BASE 0x01000000u
 #define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code             */
 
@@ -215,6 +217,11 @@ typedef struct {
   int is_array;     /* stack-allocated array?             */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
+  /* For 3D arrays: array_dim2 is the size in bytes that each element of
+   * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
+   * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2
+   * = C, so foo[i][j] adds i*B*C + j*C and foo[i][j][k] adds another k. */
+  int array_dim2;
 } cc_symbol_t;
 
 typedef struct {
@@ -300,6 +307,14 @@ typedef struct {
   char typedef_names[16][CC_MAX_IDENT];
   cc_type_t typedef_types[16];
   int typedef_count;
+
+  /* HolyC-style top-level / auto-main handling.
+   * The parser auto-emits a trailing `call main` when a file has top-level
+   * statements AND defines main() — so legacy programs can omit the
+   * explicit `main();` call. These flags suppress the auto-call when the
+   * top-level code already calls main itself (otherwise main runs twice). */
+  int in_top_level;            /* 1 while parsing top-level stmts */
+  int main_called_top_level;   /* 1 if user called main() at top level */
 } cc_state_t;
 
 /* Public API */

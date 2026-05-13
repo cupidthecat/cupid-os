@@ -1314,7 +1314,7 @@ static void as_encode_out(as_state_t *as) {
 }
 
 /*
- *  FPU State-Control Instructions
+ *  FPU State-Control Instructions (Task 8)
  *
  *  Split into two shapes:
  *    - Fixed-byte opcodes with no operands: finit, fninit, fwait
@@ -1362,7 +1362,7 @@ static void as_encode_fpu_state(as_state_t *as, const char *mn) {
 }
 
 /*
- *  SSE Scalar Instructions
+ *  SSE Scalar Instructions (Task 9)
  *
  *  All 23 mnemonics share the shape:   <prefix> 0F <opcode> /r
  *    prefix: F3 = scalar single, F2 = scalar double,
@@ -1564,7 +1564,7 @@ static void as_encode_sse_rr_imm8(as_state_t *as, uint8_t prefix,
   as_error(as, "expected XMM register or memory operand");
 }
 
-/* Top-level dispatch for the 23 SSE-scalar mnemonics.  Callers guarantee
+/* Top-level dispatch for the 23 Task 9 mnemonics.  Callers guarantee
  * that mn matches one of them. */
 static void as_encode_sse_scalar(as_state_t *as, const char *mn) {
   /* MOVSS / MOVSD have two directions.  Peek to pick. */
@@ -1604,7 +1604,7 @@ static void as_encode_sse_scalar(as_state_t *as, const char *mn) {
 }
 
 /*
- *  SSE Packed Instructions
+ *  SSE Packed Instructions (Task 10)
  *
  *  Same encoding shape as scalar: <prefix> 0F <opcode> /r, but operate on
  *  all 128 bits of an XMM register.  24 mnemonics total:
@@ -1674,7 +1674,7 @@ static void as_encode_sse_packed(as_state_t *as, const char *mn) {
 }
 
 /*
- *  x87 FPU Instructions
+ *  x87 FPU Instructions (Task 11)
  *
  *  Encodes ~25 classic x87 mnemonics in three shape buckets:
  *
@@ -1694,7 +1694,7 @@ static void as_encode_sse_packed(as_state_t *as, const char *mn) {
  *  currently has no size-prefix keyword (`dword`/`qword`), so FLD/FST/FSTP
  *  and FADD/FSUB/FMUL/FDIV all emit the m32fp single-precision encoding
  *  (base 0xD9 / 0xD8).  For double precision from assembly use MOVSD / ADDSD
- *  and friends via the SSE2 scalar pipeline.
+ *  and friends via the SSE2 scalar pipeline from Task 9.
  */
 
 /* Emit a constant 2-byte x87 opcode (no operand). */
@@ -2399,7 +2399,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* FPU state-control: fxsave / fxrstor / finit / fninit /
+      /* FPU state-control (Task 8): fxsave / fxrstor / finit / fninit /
        * fwait / ldmxcsr / stmxcsr */
       if (strcmp(mn, "fxsave") == 0 || strcmp(mn, "fxrstor") == 0 ||
           strcmp(mn, "finit") == 0  || strcmp(mn, "fninit") == 0  ||
@@ -2410,7 +2410,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* SSE scalar.  movsd is dispatched above (operand-peek).
+      /* SSE scalar (Task 9).  movsd is dispatched above (operand-peek).
        * All others are uniquely SSE mnemonics. */
       if (strcmp(mn, "movss")  == 0 ||
           strcmp(mn, "addss")  == 0 || strcmp(mn, "addsd")  == 0 ||
@@ -2429,7 +2429,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* SSE packed.  Same encoding shape as scalar but operates
+      /* SSE packed (Task 10).  Same encoding shape as scalar but operates
        * on the full 128-bit XMM register. */
       if (strcmp(mn, "movaps") == 0 || strcmp(mn, "movups") == 0 ||
           strcmp(mn, "movapd") == 0 || strcmp(mn, "movupd") == 0 ||
@@ -2449,7 +2449,7 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
-      /* x87 FPU: ~25 classic mnemonics - FLD/FST/FSTP, FADD/
+      /* x87 FPU (Task 11): ~25 classic mnemonics - FLD/FST/FSTP, FADD/
        * FSUB/FMUL/FDIV (m32fp) and their P-variants (ST(i)), transcendentals
        * (FSIN/FCOS/FSQRT/...), and control word FLDCW/FSTCW/FSTSW.
        * Gate on the 'f' prefix to skip the dispatcher for non-x87 mnemonics. */

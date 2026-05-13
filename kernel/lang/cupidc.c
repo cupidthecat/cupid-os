@@ -27,6 +27,9 @@
 #include "fat16.h"
 #include "ansi.h"
 #include "fontsys.h"
+#include "deflate.h"
+#include "png.h"
+#include "jpeg.h"
 #include "gfx2d.h"
 #include "gfx2d_assets.h"
 #include "gfx2d_icons.h"
@@ -1177,6 +1180,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("close", p_close, 1);
   int (*p_setsockopt)(int, int, int, const void *, uint32_t) = socket_setsockopt;
   BIND("setsockopt", p_setsockopt, 5);
+  int (*p_sock_avail)(int) = socket_avail;
+  BIND_T("sock_avail", p_sock_avail, 1, TYPE_INT);
+  int (*p_sock_state)(int) = socket_state;
+  BIND_T("sock_state", p_sock_state, 1, TYPE_INT);
   int (*p_sendto)(int, const void *, uint32_t, uint32_t, uint16_t) = socket_sendto;
   BIND("sendto", p_sendto, 5);
   int (*p_recvfrom)(int, void *, uint32_t, uint32_t *, uint16_t *) = socket_recvfrom;
@@ -1616,6 +1623,14 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
       gfx2d_gradient_v;
   BIND("gfx2d_gradient_v", p_gfx2d_gradient_v, 6);
 
+  void (*p_gfx2d_gradient_h_round)(int, int, int, int, int, uint32_t, uint32_t) =
+      gfx2d_gradient_h_round;
+  BIND("gfx2d_gradient_h_round", p_gfx2d_gradient_h_round, 7);
+
+  void (*p_gfx2d_gradient_v_round)(int, int, int, int, int, uint32_t, uint32_t) =
+      gfx2d_gradient_v_round;
+  BIND("gfx2d_gradient_v_round", p_gfx2d_gradient_v_round, 7);
+
     void (*p_gfx2d_gradient_radial)(int, int, int, int, uint32_t, uint32_t) =
       gfx2d_gradient_radial;
     BIND("gfx2d_gradient_radial", p_gfx2d_gradient_radial, 6);
@@ -1665,6 +1680,17 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_gfx2d_image_load_mem)(const uint8_t *, uint32_t) =
       gfx2d_image_load_mem;
   BIND("gfx2d_image_load_mem", p_gfx2d_image_load_mem, 2);
+
+  int (*p_kdeflate_raw)(const uint8_t *, uint32_t, uint8_t *, uint32_t) =
+      kdeflate_raw;
+  BIND_T("kdeflate_raw", p_kdeflate_raw, 4, TYPE_INT);
+
+  int (*p_png_decode_mem)(const uint8_t *, uint32_t,
+                          uint32_t **, int *, int *) = png_decode_mem;
+  BIND_T("png_decode_mem", p_png_decode_mem, 5, TYPE_INT);
+  int (*p_jpeg_decode_mem)(const uint8_t *, uint32_t,
+                           uint32_t **, int *, int *) = jpeg_decode_mem;
+  BIND_T("jpeg_decode_mem", p_jpeg_decode_mem, 5, TYPE_INT);
 
   void (*p_gfx2d_image_free)(int) = gfx2d_image_free;
   BIND("gfx2d_image_free", p_gfx2d_image_free, 1);
@@ -1766,6 +1792,15 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_fontsys_register_blob)(const char *, int, int) = fontsys_register_blob;
   BIND_T("fontsys_register_blob", p_fontsys_register_blob, 3, TYPE_INT);
+
+  int (*p_fontsys_unregister)(int) = fontsys_unregister;
+  BIND_T("fontsys_unregister", p_fontsys_unregister, 1, TYPE_INT);
+
+  int (*p_fontsys_face_has_cp)(int, int) = fontsys_face_has_cp;
+  BIND_T("fontsys_face_has_cp", p_fontsys_face_has_cp, 2, TYPE_INT);
+
+  int (*p_fontsys_find_face_with_cp)(int) = fontsys_find_face_with_cp;
+  BIND_T("fontsys_find_face_with_cp", p_fontsys_find_face_with_cp, 1, TYPE_INT);
 
   int (*p_fontsys_run_width)(int, int, const char *, int) = fontsys_run_width;
   BIND_T("fontsys_run_width", p_fontsys_run_width, 4, TYPE_INT);
@@ -2470,6 +2505,12 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("ac97_stop", p_ac97_stop, 0);
   void (*p_ac97_setvol)(uint8_t)        = ac97_set_master_volume;
   BIND("ac97_set_master_volume", p_ac97_setvol, 1);
+  void (*p_ac97_setpcm)(uint8_t)        = ac97_set_pcm_volume;
+  BIND("ac97_set_pcm_volume", p_ac97_setpcm, 1);
+  uint8_t (*p_ac97_getmaster)(void)     = ac97_get_master_volume;
+  BIND_T("ac97_get_master_volume", p_ac97_getmaster, 0, TYPE_INT);
+  uint8_t (*p_ac97_getpcm)(void)        = ac97_get_pcm_volume;
+  BIND_T("ac97_get_pcm_volume", p_ac97_getpcm, 0, TYPE_INT);
   void (*p_ac97_sleep)(uint32_t)        = ac97_tsc_sleep_ms;
   BIND("ac97_tsc_sleep_ms", p_ac97_sleep, 1);
 
@@ -2510,7 +2551,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
 /* Source File / Preprocessor Helpers */
 
-#define CC_PP_MAX_OUTPUT (512u * 1024u)
+#define CC_PP_MAX_OUTPUT (1024u * 1024u)
 #define CC_PP_MAX_MACROS 128
 #define CC_PP_MAX_MACRO_VALUE 256
 #define CC_PP_MAX_INCLUDE_DEPTH 8

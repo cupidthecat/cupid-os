@@ -1,4 +1,4 @@
-/* kernel/swap.c - Opt-in swap manager. */
+/* kernel/swap.c - Opt-in swap manager (Phase B core scaffolding). */
 
 #include "swap.h"
 #include "swap_disk.h"

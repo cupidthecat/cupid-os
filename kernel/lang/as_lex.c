@@ -112,12 +112,12 @@ static const char *as_mnemonics[] = {
   "leave",
   "xchg",
   "movzx", "movsx",
-  /* FPU state-control: 0F AE /N + mem, or fixed byte sequences */
+  /* FPU state-control (Task 8): 0F AE /N + mem, or fixed byte sequences */
   "fxsave", "fxrstor",
   "finit",  "fninit",
   "fwait",
   "ldmxcsr", "stmxcsr",
-  /* SSE scalar: <prefix> 0F <op> /r
+  /* SSE scalar (Task 9): <prefix> 0F <op> /r
    * movsd overlaps the string-op already in this table; the parser
    * disambiguates by peeking for operands after the mnemonic. */
   "movss",                     /* movsd already listed above */
@@ -132,7 +132,7 @@ static const char *as_mnemonics[] = {
   "cvttss2si", "cvttsd2si",
   "cvtss2sd",  "cvtsd2ss",
   "ucomiss",   "ucomisd",
-  /* SSE packed: <prefix> 0F <op> /r, full 128-bit XMM. */
+  /* SSE packed (Task 10): <prefix> 0F <op> /r, full 128-bit XMM. */
   "movaps", "movups", "movapd", "movupd",
   "addps",  "addpd",
   "subps",  "subpd",
@@ -144,7 +144,7 @@ static const char *as_mnemonics[] = {
   "movmskps",
   "andps",  "orps",   "xorps",
   "cvtps2dq", "cvtdq2ps",
-  /* x87 FPU: classic 8087 mnemonics. */
+  /* x87 FPU (Task 11): classic 8087 mnemonics. */
   "fld", "fst", "fstp",
   "fadd", "faddp", "fsub", "fsubp",
   "fmul", "fmulp", "fdiv", "fdivp",

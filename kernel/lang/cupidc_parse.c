@@ -509,8 +509,15 @@ static void emit_cvtsd2ss(cc_state_t *cc, int xmm_dst, int xmm_src) {
 /* Error Handling */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
+  /* Always log every error to serial so a chain of failures all show up
+   * even though parser only retains the first as cc->error_msg. The
+   * first call sets cc->error and populates cc->error_msg; subsequent
+   * calls log to serial only. */
+  int line = cc->cur.line;
+  if (line == 0) line = cc->line;
+  serial_printf("[cupidc] error (line %d): %s\n", line, msg);
   if (cc->error)
-    return; /* already errored */
+    return; /* already errored - keep first message intact */
   cc->error = 1;
 
   /* Build error message */
@@ -521,10 +528,7 @@ static void cc_error(cc_state_t *cc, const char *msg) {
     i++;
   }
 
-  /* line number */
-  int line = cc->cur.line;
-  if (line == 0)
-    line = cc->line;
+  /* line number (already computed above) */
   char num[12];
   int ni = 0;
   if (line == 0) {
@@ -578,7 +582,40 @@ static cc_token_t cc_peek(cc_state_t *cc) { return cc_lex_peek(cc); }
 static int cc_expect(cc_state_t *cc, cc_token_type_t type) {
   cc_token_t tok = cc_next(cc);
   if (tok.type != type) {
-    cc_error(cc, "unexpected token");
+    /* Include the bad token's text and a numeric type tag so callers
+     * can diagnose which token cupidc choked on. The previous bare
+     * "unexpected token" was not actionable. */
+    char buf[96];
+    int p = 0;
+    const char *prefix = "unexpected token: '";
+    while (prefix[p] && p < 19) { buf[p] = prefix[p]; p++; }
+    int t = 0;
+    while (tok.text[t] && p < 90 && t < 64) { buf[p++] = tok.text[t++]; }
+    buf[p++] = '\'';
+    buf[p++] = ' ';
+    buf[p++] = '(';
+    buf[p++] = 't';
+    buf[p++] = 'y';
+    buf[p++] = 'p';
+    buf[p++] = 'e';
+    buf[p++] = '=';
+    /* Append type as decimal */
+    int tt = (int)tok.type;
+    char num[12];
+    int n = 0;
+    if (tt == 0) { num[n++] = '0'; }
+    else {
+        int neg = 0;
+        if (tt < 0) { neg = 1; tt = -tt; }
+        char rev[12]; int r = 0;
+        while (tt > 0 && r < 11) { rev[r++] = (char)('0' + (tt % 10)); tt /= 10; }
+        if (neg) num[n++] = '-';
+        while (r > 0) num[n++] = rev[--r];
+    }
+    for (int k = 0; k < n && p < 94; k++) buf[p++] = num[k];
+    buf[p++] = ')';
+    buf[p] = 0;
+    cc_error(cc, buf);
     return 0;
   }
   return 1;
@@ -626,6 +663,13 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 /* Track what kind of value the last expression produced */
 static cc_type_t cc_last_expr_type;
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
+/* Inner-dimension stride for 3D-array expressions. When > 0, the
+ * current expression still has another dimension to index into and
+ * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
+ * is the SECOND stride (middle). After a single [i] subscript on a 3D
+ * array the parser propagates dim2 -> elem_size and zeroes dim2 so the
+ * next [j] takes the right stride. */
+static int cc_last_expr_dim2;
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 
@@ -728,6 +772,12 @@ static void cc_make_method_symbol(char *out, const char *class_name,
   out[j] = '\0';
 }
 
+/* Forward declarations needed by the anonymous-struct path inside
+ * cc_parse_type (the helpers are defined further down). */
+static int32_t cc_align_up(int32_t value, int32_t align);
+static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index);
+static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index);
+
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
@@ -806,6 +856,92 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   }
   case CC_TOK_STRUCT: {
     cc_token_t name_tok = cc_next(cc);
+    /* Anonymous struct: `struct { fields }` — typically used inside
+     * `typedef struct { ... } Name;`. Generate a synthetic tag and
+     * parse the body inline so the alias machinery sees a complete
+     * TYPE_STRUCT. Each anon struct gets a unique name via a static
+     * counter so multiple anonymous structs don't collide. */
+    if (name_tok.type == CC_TOK_LBRACE) {
+      static int anon_counter = 0;
+      char anon_name[32];
+      const char *prefix = "__anon_struct_";
+      int ai = 0;
+      while (prefix[ai] && ai < 24) { anon_name[ai] = prefix[ai]; ai++; }
+      int n_local = anon_counter++;
+      char digits[12]; int dn = 0;
+      if (n_local == 0) digits[dn++] = '0';
+      else {
+        char rev[12]; int rn = 0;
+        while (n_local > 0 && rn < 11) {
+          rev[rn++] = (char)('0' + (n_local % 10));
+          n_local /= 10;
+        }
+        while (rn > 0) digits[dn++] = rev[--rn];
+      }
+      for (int k = 0; k < dn && ai < 31; k++) anon_name[ai++] = digits[k];
+      anon_name[ai] = 0;
+      int si = cc_get_or_add_struct_tag(cc, anon_name);
+      if (si < 0) return TYPE_INT;
+      cc_struct_def_t *sd = &cc->structs[si];
+      sd->field_count = 0;
+      sd->total_size = 0;
+      sd->align = 1;
+      sd->is_complete = 0;
+      /* '{' was already returned by cc_next as name_tok above. Parse
+       * the field list until '}'. Layout matches the top-level struct
+       * definition path so the two stay in sync. */
+      int32_t field_offset = 0;
+      int32_t struct_align = 1;
+      while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
+             cc_peek(cc).type != CC_TOK_EOF) {
+        if (sd->field_count >= CC_MAX_FIELDS) {
+          cc_error(cc, "too many fields in anonymous struct");
+          break;
+        }
+        cc_type_t ftype = cc_parse_type(cc);
+        int fsi = cc_last_type_struct_index;
+        cc_token_t fname = cc_next(cc);
+        if (fname.type != CC_TOK_IDENT) {
+          cc_error(cc, "expected field name");
+          break;
+        }
+        cc_field_t *f = &sd->fields[sd->field_count++];
+        int fi = 0;
+        while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
+          f->name[fi] = fname.text[fi]; fi++;
+        }
+        f->name[fi] = '\0';
+        f->type = ftype;
+        f->struct_index = fsi;
+        f->array_count = 0;
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          cc_token_t size_tok = cc_next(cc);
+          if (size_tok.type != CC_TOK_NUMBER) {
+            cc_error(cc, "expected array size");
+            break;
+          }
+          f->array_count = size_tok.int_value;
+          cc_expect(cc, CC_TOK_RBRACK);
+        }
+        int32_t elem_size = cc_type_size(cc, ftype, fsi);
+        int32_t field_align = cc_type_align(cc, ftype, fsi);
+        int32_t fsize = elem_size;
+        if (f->array_count > 0) fsize = elem_size * f->array_count;
+        field_offset = cc_align_up(field_offset, field_align);
+        f->offset = field_offset;
+        field_offset += fsize;
+        if (field_align > struct_align) struct_align = field_align;
+        cc_expect(cc, CC_TOK_SEMICOLON);
+      }
+      cc_expect(cc, CC_TOK_RBRACE);
+      sd->align = struct_align;
+      sd->total_size = cc_align_up(field_offset, struct_align);
+      sd->is_complete = 1;
+      cc_last_type_struct_index = si;
+      base = TYPE_STRUCT;
+      break;
+    }
     if (name_tok.type != CC_TOK_IDENT) {
       cc_error(cc, "expected struct name");
       return TYPE_INT;
@@ -1834,6 +1970,14 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       call_ret_type = sym->type;
     }
     if (sym) {
+      /* HolyC-style auto-main: if the user explicitly calls main() at the
+       * top level, suppress the post-parse auto-call so main doesn't run
+       * twice. Only flag for SYM_FUNC (a kernel binding called "main"
+       * would be unusual and shouldn't toggle this). */
+      if (cc->in_top_level && sym->kind == SYM_FUNC &&
+          strcmp(name, "main") == 0) {
+        cc->main_called_top_level = 1;
+      }
       if (sym->kind == SYM_KERNEL) {
         emit_call_abs(cc, sym->address);
       } else if (sym->kind == SYM_FUNC) {
@@ -1873,6 +2017,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     } else {
       /* Unknown function - create forward ref */
+      if (cc->in_top_level && strcmp(name, "main") == 0) {
+        cc->main_called_top_level = 1;
+      }
       cc_symbol_t *fsym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
       if (fsym) {
         fsym->param_count = argc;
@@ -2012,6 +2159,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2038,6 +2186,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2104,17 +2253,27 @@ static void cc_parse_primary(cc_state_t *cc) {
     break;
 
   case CC_TOK_STRING: {
-    /* Store string in data section, load address */
-    int slen = 0;
-    while (tok.text[slen])
-      slen++;
-    if (!cc_data_reserve(cc, (uint32_t)(slen + 1))) {
+    /* ISO C §6.4.5p5 adjacent string literal concatenation:
+     * "foo" "bar" parses as a single literal "foobar". */
+    char combined[CC_MAX_STRING];
+    int j = 0;
+    int k = 0;
+    while (tok.text[k] && j < CC_MAX_STRING - 1)
+      combined[j++] = tok.text[k++];
+    while (cc_peek(cc).type == CC_TOK_STRING) {
+      cc_token_t adj = cc_next(cc);
+      int m = 0;
+      while (adj.text[m] && j < CC_MAX_STRING - 1)
+        combined[j++] = adj.text[m++];
+    }
+    combined[j] = '\0';
+    if (!cc_data_reserve(cc, (uint32_t)(j + 1))) {
       return;
     }
     uint32_t str_addr = cc->data_base + cc->data_pos;
     int si = 0;
-    while (tok.text[si]) {
-      cc->data[cc->data_pos++] = (uint8_t)tok.text[si++];
+    while (combined[si]) {
+      cc->data[cc->data_pos++] = (uint8_t)combined[si++];
     }
     cc->data[cc->data_pos++] = 0; /* null terminator */
     emit_mov_eax_imm(cc, str_addr);
@@ -2267,6 +2426,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     else
       cc_last_expr_type = TYPE_PTR;
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR) &&
@@ -2683,6 +2843,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_next(cc);
       cc_type_t base_type = cc_last_expr_type;
       int base_elem_size = cc_last_expr_elem_size;
+      int base_dim2 = cc_last_expr_dim2;
       int base_si = cc_last_expr_struct_index;
       emit_push_eax(cc); /* push base address */
 
@@ -2716,22 +2877,29 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_type = TYPE_STRUCT;
         cc_last_expr_struct_index = base_si;
         cc_last_expr_elem_size = 4;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_CHAR_PTR && base_elem_size > 1) {
-        /* 2D char array first subscript: pointer to row */
+        /* Multi-D char first subscript: pointer to row. For 3D arrays
+         * the second-stride (dim2) becomes the new elem_size so the
+         * NEXT [j] scales correctly. */
         cc_last_expr_type = TYPE_CHAR_PTR;
-        cc_last_expr_elem_size = 1;
+        cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 1;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_CHAR_PTR) {
         emit_deref_byte(cc);
         cc_last_expr_type = TYPE_CHAR;
         cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
       } else if (base_type == TYPE_INT_PTR && base_elem_size > 4) {
-        /* 2D int array first subscript: pointer to row */
+        /* Multi-D int first subscript: pointer to row. */
         cc_last_expr_type = TYPE_INT_PTR;
-        cc_last_expr_elem_size = 4;
+        cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 4;
+        cc_last_expr_dim2 = 0;
       } else {
         emit_deref_dword(cc);
         cc_last_expr_type = TYPE_INT;
         cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
       }
 
       cc_expect(cc, CC_TOK_RBRACK);
@@ -3438,33 +3606,77 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
       is_char = (ftype == TYPE_CHAR || ftype == TYPE_CHAR_PTR);
     }
   }
-  /* Handle 2D char array second subscript: arr[i][j] = val */
+  /* Handle 2D/3D char array second subscript: arr[i][j] = val */
   else if (is_char && elem_size > 1 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    /* Inner elements are char (1 byte) - no scaling */
+    /* For 3D char arrays, the middle stride (dim2) scales the second
+     * subscript. For pure 2D, inner is char (1 byte) and no scale. */
+    if (sym->array_dim2 > 0) {
+      int j_stride = sym->array_dim2;
+      if (j_stride == 1) {
+        /* no scaling */
+      } else if (j_stride == 2) {
+        emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x01);
+      } else if (j_stride == 4) {
+        emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02);
+      } else {
+        emit8(cc, 0x69); emit8(cc, 0xC0); emit32(cc, (uint32_t)j_stride);
+      }
+    }
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
     cc_expect(cc, CC_TOK_RBRACK);
     is_char = 1;
+    /* Optional third subscript for 3D char arrays. */
+    if (sym->array_dim2 > 0 && cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc);
+      emit_push_eax(cc);
+      cc_parse_expression(cc, 1);
+      /* Innermost is char (1 byte) - no scaling. */
+      emit_pop_ebx(cc);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8);
+      cc_expect(cc, CC_TOK_RBRACK);
+    }
   }
-  /* Handle 2D int array second subscript */
+  /* Handle 2D/3D int array second subscript */
   else if (!is_char && elem_size > 4 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
-    emit8(cc, 0xC1);
-    emit8(cc, 0xE0);
-    emit8(cc, 0x02); /* shl eax, 2 */
+    /* For 3D int arrays, scale by dim2 (middle stride). Pure 2D scales
+     * by 4 (a row of 32-bit ints). */
+    int j_stride = (sym->array_dim2 > 0) ? sym->array_dim2 : 4;
+    if (j_stride == 4) {
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
+    } else if (j_stride == 1) {
+      /* no scaling */
+    } else if (j_stride == 2) {
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x01);
+    } else {
+      emit8(cc, 0x69); emit8(cc, 0xC0); emit32(cc, (uint32_t)j_stride);
+    }
     emit_pop_ebx(cc);
     emit8(cc, 0x01);
     emit8(cc, 0xD8); /* add eax, ebx */
     cc_expect(cc, CC_TOK_RBRACK);
     is_char = 0;
+    /* Optional third subscript for 3D int arrays. Innermost stride = 4. */
+    if (sym->array_dim2 > 0 && cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_next(cc);
+      emit_push_eax(cc);
+      cc_parse_expression(cc, 1);
+      emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
+      emit_pop_ebx(cc);
+      emit8(cc, 0x01);
+      emit8(cc, 0xD8);
+      cc_expect(cc, CC_TOK_RBRACK);
+    }
   }
 
   emit_push_eax(cc); /* save computed address */
@@ -4373,6 +4585,40 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       emit8(cc, 0x57);
       emit8(cc, 0xC0); /* XORPS xmm0, xmm0 */
       emit_movsd_local_xmm(cc, 0, cc->local_offset);
+    } else {
+      emit_mov_eax_imm(cc, 0);
+      emit_store_local(cc, cc->local_offset);
+    }
+  }
+
+  /* Multi-declarator support: `int a = 0, b = 0, c;` parses each
+   * comma-separated declarator with the same base type. Float/double
+   * multi-decl is intentionally not supported here (rare); fall back to
+   * separate statements for those. */
+  while (cc_peek(cc).type == CC_TOK_COMMA) {
+    if (type == TYPE_FLOAT || type == TYPE_DOUBLE ||
+        type == TYPE_FLOAT4 || type == TYPE_DOUBLE2 ||
+        type == TYPE_STRUCT) {
+      break;     /* fall through to SEMICOLON expect (will likely error) */
+    }
+    cc_next(cc);     /* consume ',' */
+    cc_token_t next_name = cc_next(cc);
+    if (next_name.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected variable name after ','");
+      return;
+    }
+    cc->local_offset -= 4;
+    if (cc->local_offset < cc->max_local_offset)
+      cc->max_local_offset = cc->local_offset;
+    cc_symbol_t *sym2 = cc_sym_add(cc, next_name.text, SYM_LOCAL, type);
+    if (sym2) {
+      sym2->offset = cc->local_offset;
+      sym2->struct_index = type_struct_index;
+    }
+    if (cc_peek(cc).type == CC_TOK_EQ) {
+      cc_next(cc);
+      cc_parse_expression(cc, 1);
+      emit_store_local(cc, cc->local_offset);
     } else {
       emit_mov_eax_imm(cc, 0);
       emit_store_local(cc, cc->local_offset);
@@ -5396,6 +5642,22 @@ static void cc_parse_function(cc_state_t *cc) {
     func_sym->param_count = cc->param_count;
   }
 
+  /* Forward function declaration: `T name(params);` with no body. The
+   * symbol is registered with is_defined=0 so a later definition fills
+   * in the offset, and use sites compile via the forward-reference
+   * patch table (cc->patches). The cupidc prescan already discovers
+   * top-level functions, but explicit forward decls let authors write
+   * mutually-recursive helpers and split sigs from bodies. */
+  if (cc_peek(cc).type == CC_TOK_SEMICOLON) {
+    cc_next(cc);
+    if (func_sym) {
+      func_sym->is_defined = 0;
+      func_sym->offset = 0;
+    }
+    cc->sym_count = saved_scope;
+    return;
+  }
+
   /* Emit function prologue */
   emit_prologue(cc);
 
@@ -5581,8 +5843,52 @@ void cc_parse_program(cc_state_t *cc) {
   uint32_t top_level_offset = 0;
   uint32_t top_level_sub_esp_pos = 0;
   uint32_t parse_iter = 0;
+  /* Buffer of additional error messages so parser can keep reporting
+   * after the first failure. Top-level recovery skips past the failing
+   * declaration and resumes; cc->error gets cleared so subsequent
+   * errors are not muted by the early-return in cc_error. */
+  int extra_errors = 0;
 
-  while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
+  while (cc_peek(cc).type != CC_TOK_EOF) {
+    /* Top-level error recovery: skip the rest of the offending
+     * declaration (until next ';' or matching '}') and resume parsing
+     * so a single bad line doesn't hide the rest of the program. */
+    if (cc->error) {
+      extra_errors = extra_errors + 1;
+      int brace_depth = 0;
+      while (cc_peek(cc).type != CC_TOK_EOF) {
+        cc_token_t st = cc_peek(cc);
+        if (st.type == CC_TOK_LBRACE) {
+          brace_depth = brace_depth + 1;
+          cc_next(cc);
+          continue;
+        }
+        if (st.type == CC_TOK_RBRACE) {
+          if (brace_depth > 0) {
+            brace_depth = brace_depth - 1;
+            cc_next(cc);
+            if (brace_depth == 0) break;
+            continue;
+          }
+          cc_next(cc);
+          break;
+        }
+        if (st.type == CC_TOK_SEMICOLON && brace_depth == 0) {
+          cc_next(cc);
+          break;
+        }
+        cc_next(cc);
+      }
+      cc->error = 0;
+      /* Bound recovery to a reasonable count so a corrupt file can't
+       * hold the kernel parser hostage. After ~16 errors we stop and
+       * surface the diagnostic; cc->error stays 1 so the caller bails. */
+      if (extra_errors > 16) {
+        cc->error = 1;
+        break;
+      }
+      continue;
+    }
     parse_iter++;
     if ((parse_iter & 2047u) == 0u) {
       cc_token_t pt = cc_peek(cc);
@@ -5932,7 +6238,7 @@ void cc_parse_program(cc_state_t *cc) {
         sd->total_size = cc_align_up(field_offset, struct_align);
         sd->is_complete = 1;
 
-        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\\n",
+        serial_printf("[cupidc] Defined struct '%s': %d fields, %d bytes\n",
                       sd->name, sd->field_count, sd->total_size);
         continue;
       }
@@ -6013,6 +6319,7 @@ void cc_parse_program(cc_state_t *cc) {
           cc_expect(cc, CC_TOK_RBRACK);
           int32_t arr_elems = size_tok.int_value;
           int32_t inner_dim = 0;
+          int32_t inner_dim2 = 0;
           /* Check for 2D array */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
@@ -6023,9 +6330,21 @@ void cc_parse_program(cc_state_t *cc) {
             }
             cc_expect(cc, CC_TOK_RBRACK);
             inner_dim = inner_tok.int_value;
+            /* Check for 3D array: type name[A][B][C]; */
+            if (cc_peek(cc).type == CC_TOK_LBRACK) {
+              cc_next(cc); /* consume '[' */
+              cc_token_t inner2_tok = cc_next(cc);
+              if (inner2_tok.type != CC_TOK_NUMBER) {
+                cc_error(cc, "expected array size");
+                break;
+              }
+              cc_expect(cc, CC_TOK_RBRACK);
+              inner_dim2 = inner2_tok.int_value;
+            }
           }
           int32_t total_bytes;
           int aes;
+          int dim2 = 0;
           cc_type_t arr_type;
           if (gtype == TYPE_STRUCT && gtype_si >= 0 &&
               gtype_si < cc->struct_count) {
@@ -6038,6 +6357,15 @@ void cc_parse_program(cc_state_t *cc) {
             total_bytes = arr_elems * ssize;
             aes = ssize;
             arr_type = TYPE_STRUCT_PTR;
+          } else if (inner_dim2 > 0) {
+            /* 3D array name[A][B][C]: outer stride = B*C*base; middle
+             * stride = C*base; innermost element = base. */
+            int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
+            int32_t row_size = inner_dim * inner_dim2 * base_elem;
+            total_bytes = arr_elems * row_size;
+            aes = row_size;
+            dim2 = inner_dim2 * base_elem;
+            arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
           } else if (inner_dim > 0) {
             /* 2D array */
             int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
@@ -6061,6 +6389,7 @@ void cc_parse_program(cc_state_t *cc) {
             gsym->is_array = 1;
             gsym->struct_index = gtype_si;
             gsym->array_elem_size = aes;
+            gsym->array_dim2 = dim2;
             memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
             cc->data_pos += (uint32_t)total_bytes;
           }
@@ -6175,14 +6504,27 @@ void cc_parse_program(cc_state_t *cc) {
       }
 
       has_top_level_statements = 1;
+      cc->in_top_level = 1;
       cc_parse_statement(cc);
+      cc->in_top_level = 0;
     }
   }
 
+  /* If recovery accumulated errors, surface that to the caller. */
+  if (extra_errors > 0) {
+    cc->error = 1;
+    serial_printf("[cupidc] %d additional error(s) suppressed during recovery\n",
+                  extra_errors);
+  }
+
   if (!cc->error && top_level_started) {
-    /* If main() exists, run it after top-level statements for compatibility. */
+    /* If main() exists and the user did NOT already invoke it from a
+     * top-level statement, run it after top-level for legacy programs that
+     * defined main but didn't call it. Skipping when the user *did* call
+     * main themselves prevents the body from running twice. */
     cc_symbol_t *main_sym = cc_sym_find(cc, "main");
-    if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined) {
+    if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined &&
+        !cc->main_called_top_level) {
       uint32_t target = cc->code_base + (uint32_t)main_sym->offset;
       emit_call_abs(cc, target);
     }

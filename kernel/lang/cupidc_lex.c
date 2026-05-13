@@ -164,15 +164,27 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_U0;
   if (strcmp(text, "U8") == 0)
     return CC_TOK_U8;
+  if (strcmp(text, "uint8_t") == 0)
+    return CC_TOK_U8;
   if (strcmp(text, "U16") == 0)
+    return CC_TOK_U16;
+  if (strcmp(text, "uint16_t") == 0)
     return CC_TOK_U16;
   if (strcmp(text, "U32") == 0)
     return CC_TOK_U32;
+  if (strcmp(text, "uint32_t") == 0)
+    return CC_TOK_U32;
   if (strcmp(text, "I8") == 0)
+    return CC_TOK_I8;
+  if (strcmp(text, "int8_t") == 0)
     return CC_TOK_I8;
   if (strcmp(text, "I16") == 0)
     return CC_TOK_I16;
+  if (strcmp(text, "int16_t") == 0)
+    return CC_TOK_I16;
   if (strcmp(text, "I32") == 0)
+    return CC_TOK_I32;
+  if (strcmp(text, "int32_t") == 0)
     return CC_TOK_I32;
   if (strcmp(text, "float") == 0)
     return CC_TOK_FLOAT;

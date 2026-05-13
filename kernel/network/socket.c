@@ -246,6 +246,26 @@ int socket_recv(int fd, void *buf, uint32_t len) {
     return tcp_recv(fd, (uint8_t *)buf, len);
 }
 
+int socket_avail(int fd) {
+    socket_t *s;
+    uint32_t used;
+    if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
+    s = &sockets[fd];
+    if (!s->in_use) return EBADF;
+    if (s->rx_tail >= s->rx_head) used = s->rx_tail - s->rx_head;
+    else used = SOCK_RX_BUF - s->rx_head + s->rx_tail;
+    return (int)used;
+}
+
+int socket_state(int fd) {
+    socket_t *s;
+    if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
+    s = &sockets[fd];
+    if (!s->in_use) return EBADF;
+    if (s->type != SOCK_TYPE_TCP) return 0;
+    return (int)s->tcp_state;
+}
+
 /* TLS setsockopt */
 
 /* Transport callbacks for the TLS record layer. user is a socket_t*; we
