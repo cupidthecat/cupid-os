@@ -1,4 +1,5 @@
 /* i_sound_cupidos.c: SFX path for DOOM via the CupidOS mixer.
+ * Music path lands in Task 17.
  *
  * Built with CFLAGS_DOOM (no dglibc_compat.h alias), so we pull
  * kernel symbols explicitly.

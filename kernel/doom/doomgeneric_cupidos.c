@@ -1,6 +1,7 @@
 /* doomgeneric_cupidos.c
- * Real CupidOS platform shim for doomgeneric.
+ * Task 13: Real CupidOS platform shim for doomgeneric.
  *
+ * Replaces the Task 12 stubs with:
  *   DG_DrawFrame  - blits 640x400 ARGB into VBE backbuffer (y=40 letterbox)
  *   DG_GetKey     - drains ring buffer fed by keyboard_subscribe callback
  *   DG_SleepMs    - timer_sleep_ms wrapper

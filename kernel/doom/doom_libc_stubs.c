@@ -2,7 +2,7 @@
  * Minimal libc-like stubs needed by the DOOM source tree that aren't
  * provided by dglibc or the kernel's string.c.
  *
- * CupidOS DOOM port.
+ * Task 12 - CupidOS DOOM port.
  * These are NOT built with -include dglibc_compat.h to avoid macro conflicts.
  */
 
@@ -269,8 +269,8 @@ unsigned long long __umoddi3(unsigned long long a, unsigned long long b)
     return a - q * b;
 }
 
-/* i_sound.h globals - SFX functions moved to i_sound_cupidos.c.
- * Music functions remain here.                                            */
+/* i_sound.h globals - SFX functions moved to i_sound_cupidos.c (Task 16) */
+/* Music functions remain here until Task 17.                             */
 
 int snd_musicdevice = 0;
 int snd_sfxdevice   = 0;
@@ -286,4 +286,4 @@ int snd_pitchshift   = 0;
 
 void I_BindSoundVariables(void)        {}
 
-/* I_*Music stubs removed - implemented in i_sound_cupidos.c */
+/* I_*Music stubs removed - implemented in i_sound_cupidos.c (Task 17) */

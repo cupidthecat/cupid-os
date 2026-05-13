@@ -1,6 +1,6 @@
 /* dglibc_compat.h - included via -include into every DOOM source file.
  * Aliases standard libc names to dglibc shim symbols.
- * CupidOS DOOM port.
+ * Task 12: CupidOS DOOM port.
  */
 #ifndef DGLIBC_COMPAT_H
 #define DGLIBC_COMPAT_H
