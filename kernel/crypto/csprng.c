@@ -68,7 +68,7 @@ static int rdrand_sanity(void) {
  *   2. XOR a ChaCha20 keystream block (using current state) over it.
  *   3. Run ChaCha20 a second time using the diffused buffer as a
  *      fresh key; the 64-byte output supplies our new key + nonce.
- * No SHA dependency - lives below the hash module. */
+ * No SHA dependency - Phase 1 lives below the hash module. */
 static void absorb(const uint8_t *entropy, uint32_t len) {
     uint8_t  buf[64];
     uint8_t  ks[64];

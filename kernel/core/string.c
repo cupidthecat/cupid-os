@@ -115,11 +115,11 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     return 0;
 }
 
-/*  * printf %f support.
+/*  * Phase D: printf %f support.
  *
  * str_floor: truncate toward -infinity via x87 FRNDINT with a
- * rounding-mode swap (RC=01, round down). Kept `static` so libm::floor
- * can coexist without a link collision.
+ * rounding-mode swap (RC=01, round down). Kept `static` so Phase E's
+ * libm::floor can coexist without a link collision.
  *
  * fmt_f: write `v` to `out` in %f format with `prec` fractional digits.
  * Exposed to the kernel's printf-like functions (serial_printf,
@@ -237,7 +237,7 @@ int fmt_f(char *out, int out_max, double v, int prec) {
     return n;
 }
 
-/*  * printf %e support.
+/*  * Phase D: printf %e support.
  *
  * fmt_e: write `v` to `out` in scientific notation with `prec`
  * fractional digits.  Mantissa is normalized to [1, 10) by repeated
@@ -304,7 +304,7 @@ int fmt_e(char *out, int out_max, double v, int prec) {
     return n;
 }
 
-/*  * printf %g support.
+/*  * Phase D: printf %g support.
  *
  * fmt_g: format `v` both as %f and %e at the same precision, copy the
  * shorter result into `out`.  On a tie we prefer the %f rendering.

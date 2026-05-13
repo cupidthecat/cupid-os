@@ -73,6 +73,8 @@ static struct {
     uint16_t     bar_nam;
     uint16_t     bar_nabm;
     uint8_t      irq_line;
+    uint8_t      master_pct;
+    uint8_t      pcm_pct;
     void       (*fill)(int16_t *, uint32_t);
 } s_ac97;
 
@@ -194,9 +196,10 @@ int ac97_init(void) {
     /* NAM RESET */
     outw((uint16_t)(s_ac97.bar_nam + NAM_RESET), 0u);
 
-    /* Master + PCM-out volume (unmute) */
-    outw((uint16_t)(s_ac97.bar_nam + NAM_MASTER_VOL), 0x0000u);
-    outw((uint16_t)(s_ac97.bar_nam + NAM_PCM_OUT_VOL), 0x0808u);
+    /* Master + PCM-out volume (unmute) — route through setters so cached
+     * percent values stay in sync with the codec registers. */
+    ac97_set_master_volume(100u);
+    ac97_set_pcm_volume(100u);
 
     /* Variable-rate audio @ 22050 Hz */
     uint16_t ext = inw((uint16_t)(s_ac97.bar_nam + NAM_EXT_AUDIO_CTRL));
@@ -241,9 +244,27 @@ void ac97_stop(void) {
 void ac97_set_master_volume(uint8_t pct) {
     if (!s_ac97.present) { return; }
     if (pct > 100u) { pct = 100u; }
+    s_ac97.master_pct = pct;
     uint8_t att = (uint8_t)(((uint32_t)(100u - pct) * 0x3Fu) / 100u);
     uint16_t v  = (uint16_t)(((uint16_t)att << 8) | (uint16_t)att);
     outw((uint16_t)(s_ac97.bar_nam + NAM_MASTER_VOL), v);
+}
+
+void ac97_set_pcm_volume(uint8_t pct) {
+    if (!s_ac97.present) { return; }
+    if (pct > 100u) { pct = 100u; }
+    s_ac97.pcm_pct = pct;
+    uint8_t att = (uint8_t)(((uint32_t)(100u - pct) * 0x3Fu) / 100u);
+    uint16_t v  = (uint16_t)(((uint16_t)att << 8) | (uint16_t)att);
+    outw((uint16_t)(s_ac97.bar_nam + NAM_PCM_OUT_VOL), v);
+}
+
+uint8_t ac97_get_master_volume(void) {
+    return s_ac97.present ? s_ac97.master_pct : (uint8_t)0;
+}
+
+uint8_t ac97_get_pcm_volume(void) {
+    return s_ac97.present ? s_ac97.pcm_pct : (uint8_t)0;
 }
 
 /*  Smoke-test kernel helpers  */

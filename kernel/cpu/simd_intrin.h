@@ -1,5 +1,5 @@
 /**
- * simd_intrin.h - CupidC-recognized SSE packed intrinsics.
+ * simd_intrin.h - CupidC-recognized SSE packed intrinsics (Task 32).
  *
  * CupidC doesn't process #include directives, so this header is
  * documentation-only. Each name below is recognized by the CupidC code
@@ -52,8 +52,7 @@ float4 _mm_xor_ps(float4 a, float4 b);
 /* Extract sign bits of 4 lanes into int (bit 0..3) */
 int _mm_movemask_ps(float4 a);
 
-/*  Double-precision packed (double2 = 2x double).
- * Same opcodes as the _ps variants with a 0x66 operand-size prefix.
+/*  Task 33: double-precision packed (double2 = 2x double)  * Same opcodes as the _ps variants with a 0x66 operand-size prefix.
  * Result is a double2. _mm_set1_pd broadcasts its scalar double into
  * both 64-bit lanes via SHUFPD xmm0,xmm0,0.
  */

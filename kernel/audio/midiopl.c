@@ -7,7 +7,7 @@
  * Internal OPL3 rate: 49716 Hz (Nuked-OPL3 native).  midiopl_render
  * generates at 49716 then linear-resamples to 22050.
  *
- * Not wired into the audio chain yet.
+ * Not wired into the audio chain yet - Task 17 does that.
  */
 
 #include "midiopl.h"

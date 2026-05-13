@@ -89,7 +89,7 @@ static int syscall_exec(const char *path, const char *name) {
   return exec(path, name);
 }
 
-/*  Wrappers (parity with cupidc.c)  */
+/*  Phase 4 wrappers (parity with cupidc.c)  */
 static uint32_t sc_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -174,12 +174,12 @@ static cupid_syscall_table_t syscall_table;
 #define SC_OFF(field) __builtin_offsetof(cupid_syscall_table_t, field)
 _Static_assert(SC_OFF(print)               ==   8, "SYS_PRINT offset drift");
 _Static_assert(SC_OFF(memstats)            == 152, "SYS_MEMSTATS offset drift");
-_Static_assert(SC_OFF(net_get_ip)          == 156, "SYS_NET_GET_IP drift");
-_Static_assert(SC_OFF(ipv4_send)           == 200, "SYS_IPV4_SEND drift");
-_Static_assert(SC_OFF(sock_socket)         == 248, "SYS_SOCKET drift");
-_Static_assert(SC_OFF(blkdev_count)        == 288, "SYS_BLKDEV_COUNT drift");
-_Static_assert(SC_OFF(pci_device_count)    == 340, "SYS_PCI_DEVICE_COUNT drift");
-_Static_assert(SC_OFF(inb_io)              == 396, "SYS_INB drift (table size mismatch)");
+_Static_assert(SC_OFF(net_get_ip)          == 156, "Phase 4: SYS_NET_GET_IP drift");
+_Static_assert(SC_OFF(ipv4_send)           == 200, "Phase 4: SYS_IPV4_SEND drift");
+_Static_assert(SC_OFF(sock_socket)         == 248, "Phase 4: SYS_SOCKET drift");
+_Static_assert(SC_OFF(blkdev_count)        == 288, "Phase 4: SYS_BLKDEV_COUNT drift");
+_Static_assert(SC_OFF(pci_device_count)    == 340, "Phase 4: SYS_PCI_DEVICE_COUNT drift");
+_Static_assert(SC_OFF(inb_io)              == 396, "Phase 4: SYS_INB drift (table size mismatch)");
 #undef SC_OFF
 
 void syscall_init(void) {
@@ -244,7 +244,7 @@ void syscall_init(void) {
   /* Diagnostics */
   syscall_table.memstats = print_memory_stats;
 
-  /*  Networking + drivers + low-level  */
+  /*  Phase 4: networking + drivers + low-level  */
   syscall_table.net_get_ip       = sc_net_get_ip;
   syscall_table.net_get_gateway  = sc_net_get_gateway;
   syscall_table.net_get_dns      = sc_net_get_dns;

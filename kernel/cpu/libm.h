@@ -7,12 +7,14 @@
  * 0 = ok, 1 = DOMAIN, 2 = RANGE. Not thread-local. */
 extern int libm_errno;
 
-/* Hardware fast-path libm operations (one x87/SSE instruction each).
+/* Phase E Task 23: hardware fast-path libm operations (one x87/SSE
+ * instruction each).
  *
  * These functions use a kernel-internal ABI tailored for CupidC kernel
  * bindings: cdecl stack-passed args (4 B for float, 8 B for double) and
  * the result returned in XMM0 (not ST(0), as System-V i386 would
- * dictate).  This matches the code CupidC emits for float/double calls.
+ * dictate).  This matches the code CupidC emits for float/double calls
+ * (Task 18).
  *
  * Implication: calling these from plain C within the kernel will NOT
  * work with the default GCC ABI.  No kernel C code calls them today,
@@ -32,8 +34,8 @@ float  atanf(float x);
 double atan2(double y, double x);
 float  atan2f(float y, float x);
 
-/* abs / rounding / fmod.  Same CupidC-internal ABI as the fast-paths
- * above (stack args, XMM0 return).  `round` uses x87 round-to-nearest-
+/* Phase E Task 24: abs / rounding / fmod.  Same CupidC-internal ABI as
+ * Task 23 (stack args, XMM0 return).  `round` uses x87 round-to-nearest-
  * even, which differs from C99 round-half-away-from-zero; see libm.c. */
 double fabs  (double x);
 float  fabsf (float x);
@@ -48,8 +50,8 @@ float  truncf(float x);
 double fmod  (double x, double y);
 float  fmodf (float x, float y);
 
-/* exp / exp2 / log / log2 / pow + f-variants.  Same CupidC-internal
- * ABI (stack args, XMM0 return).
+/* Phase E Task 25: exp / exp2 / log / log2 / pow + f-variants.  Same
+ * CupidC-internal ABI as Tasks 23/24 (stack args, XMM0 return).
  *
  *   exp2   via x87 F2XM1 + FSCALE with FRNDINT range-reduce.
  *   exp    = exp2(x * log2(e))  - inlines the exp2 body after a multiply.
@@ -70,8 +72,8 @@ float  log2f (float x);
 double pow   (double x, double y);
 float  powf  (float x, float y);
 
-/* asin / acos / sinh / cosh / tanh + f-variants.  Same CupidC-internal
- * ABI (stack args, XMM0 return).
+/* Phase E Task 26: asin / acos / sinh / cosh / tanh + f-variants.  Same
+ * CupidC-internal ABI as Tasks 23/24/25 (stack args, XMM0 return).
  *
  *   asin(x)  = atan2(x, sqrt(1 - x*x))      domain |x| <= 1
  *   acos(x)  = atan2(sqrt(1 - x*x), x)      domain |x| <= 1
@@ -91,8 +93,8 @@ float  coshf (float x);
 double tanh  (double x);
 float  tanhf (float x);
 
-/* cbrt / hypot / nextafter + f-variants.  Same CupidC-internal
- * ABI (stack args, XMM0 return).
+/* Phase E Task 27: cbrt / hypot / nextafter + f-variants.  Same
+ * CupidC-internal ABI as Tasks 23-26 (stack args, XMM0 return).
  *
  *   cbrt(x)       - bit-trick initial estimate (divide biased exponent
  *                   field by 3) followed by 3 Newton-Raphson iterations

@@ -85,7 +85,7 @@ typedef struct cupid_syscall_table {
   /*  Diagnostics  */
   void (*memstats)(void);
 
-  /*    * Networking + drivers + low-level access.
+  /*    * Phase 4 - networking + drivers + low-level access.
    *
    * Append-only: do not reorder/remove fields above this line, so
    * older programs still find their slots at the offsets they expect.

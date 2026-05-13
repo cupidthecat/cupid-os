@@ -2,9 +2,9 @@
 
 int libm_errno = 0;
 
-/* Hardware fast-paths (single x87/SSE instruction each).
+/* Phase E Task 23: hardware fast-paths (single x87/SSE instruction each).
  *
- * ABI (kernel-internal, designed to match CupidC codegen):
+ * ABI (kernel-internal, designed to match CupidC's Task-18 codegen):
  *   - Arguments: pushed on the stack left-to-right (cdecl-ish).
  *     `float` = 4 bytes, `double` = 8 bytes.
  *   - Return value: left in XMM0 (32-bit low lane for float, 64-bit low
@@ -213,9 +213,9 @@ __asm__(
     ".size  atan2f, .-atan2f\n"
 );
 
-/* Absolute value / rounding / fmod.
+/* Phase E Task 24: absolute value / rounding / fmod.
  *
- * Same CupidC-internal ABI as the fast-paths above (stack args, XMM0 return).
+ * Same CupidC-internal ABI as Task 23 (stack args, XMM0 return).
  *
  *   fabs/fabsf     - sign-bit mask via SSE ANDPD/ANDPS.
  *   floor/ceil/
@@ -504,7 +504,7 @@ __asm__(
     ".size  fmodf, .-fmodf\n"
 );
 
-/* exp / exp2 / log / log2 / pow + f-variants.
+/* Phase E Task 25: exp / exp2 / log / log2 / pow + f-variants.
  *
  * Mathematical building blocks on x87:
  *   F2XM1 : ST(0) = 2**ST(0) - 1,   requires ST(0) in [-1, 1].
@@ -880,7 +880,7 @@ __asm__(
     ".size  powf, .-powf\n"
 );
 
-/* asin / acos / sinh / cosh / tanh + f-variants.
+/* Phase E Task 26: asin / acos / sinh / cosh / tanh + f-variants.
  *
  * All five derive from previously-implemented primitives:
  *   asin(x) = atan2(x, sqrt(1 - x*x))        for |x| <= 1
@@ -889,12 +889,12 @@ __asm__(
  *   cosh(x) = (exp(x) + exp(-x)) / 2
  *   tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
  *
- * Implementation pattern (same as pow): a C `_impl` function uses the
- * standard System-V i386 ABI (double returned in ST(0)) so the compiler
- * can naturally emit call/return code that stays on the x87 stack.  A
- * top-level GAS `__asm__` wrapper (`asin`, `sinh`, ...) re-pushes the
- * stack args, CALLs the impl, then moves ST(0) -> XMM0 per the
- * CupidC-internal ABI used throughout libm.c.
+ * Implementation pattern (same as Task 25 pow): a C `_impl` function
+ * uses the standard System-V i386 ABI (double returned in ST(0)) so
+ * the compiler can naturally emit call/return code that stays on the
+ * x87 stack.  A top-level GAS `__asm__` wrapper (`asin`, `sinh`, ...)
+ * re-pushes the stack args, CALLs the impl, then moves ST(0) -> XMM0
+ * per the CupidC-internal ABI used throughout libm.c.
  *
  * Rather than share the XMM0-ABI `sqrt`/`atan2`/`exp` kernel symbols,
  * we introduce C-ABI siblings -- libm_sqrt_impl, libm_atan2_impl,
@@ -903,7 +903,7 @@ __asm__(
  * separated and the code readable.
  *
  * Domain handling: asin/acos set libm_errno = 1 (DOMAIN) and return
- * 0.0 when |x| > 1, matching pow's convention. */
+ * 0.0 when |x| > 1, matching Task 25's pow convention. */
 
 /* C-ABI building blocks */
 
@@ -958,7 +958,7 @@ static double libm_exp_impl(double x)
     return r;
 }
 
-/* asin/acos/sinh/cosh/tanh _impl functions (standard C ABI, ST(0) return) */
+/* Task 26 _impl functions (standard C ABI, ST(0) return) */
 
 double libm_asin_impl(double x)  __attribute__((used, noinline));
 float  libm_asinf_impl(float x)  __attribute__((used, noinline));
@@ -1051,7 +1051,7 @@ float libm_tanhf_impl(float x)
     return (float)((e1 - e2) / (e1 + e2));
 }
 
-/* asin/acos/sinh/cosh/tanh asm wrappers: ST(0) -> XMM0 bridge */
+/* Task 26 asm wrappers: ST(0) -> XMM0 bridge */
 
 /* asin: arg is a single double at [esp+4..+11].  Re-push the 8 B arg,
  * call the impl (which returns in ST(0)), then convert to XMM0. */
@@ -1220,12 +1220,12 @@ __asm__(
     ".size  tanhf, .-tanhf\n"
 );
 
-/* cbrt / hypot / nextafter + f-variants.
+/* Phase E Task 27: cbrt / hypot / nextafter + f-variants.
  *
- * Same split-ABI pattern as the asin/sinh family: C `_impl` functions
- * with the standard System-V i386 ABI (double returned in ST(0)),
- * wrapped by top-level `__asm__` thunks that re-push args, CALL the
- * impl, and bridge ST(0) -> XMM0 to match the CupidC-internal ABI used
+ * Same split-ABI pattern as Task 26: C `_impl` functions with the
+ * standard System-V i386 ABI (double returned in ST(0)), wrapped by
+ * top-level `__asm__` thunks that re-push args, CALL the impl, and
+ * bridge ST(0) -> XMM0 to match the CupidC-internal ABI used
  * throughout libm.c.
  *
  * Mathematical approach:
@@ -1261,7 +1261,7 @@ __asm__(
  *                  since x != x for NaN.
  */
 
-/* cbrt/hypot/nextafter _impl functions (standard C ABI, ST(0) return) */
+/* Task 27 _impl functions (standard C ABI, ST(0) return) */
 
 double libm_cbrt_impl(double x)          __attribute__((used, noinline));
 float  libm_cbrtf_impl(float x)          __attribute__((used, noinline));
@@ -1387,7 +1387,7 @@ float libm_nextafterf_impl(float x, float y)
     return b.f;
 }
 
-/* cbrt/hypot/nextafter asm wrappers: ST(0) -> XMM0 bridge */
+/* Task 27 asm wrappers: ST(0) -> XMM0 bridge */
 
 /* cbrt: single double arg at [esp+4..+11].  Re-push 8 B, call, bridge. */
 __asm__(
@@ -1424,7 +1424,7 @@ __asm__(
 );
 
 /* hypot: two double args at [esp+4..+11] (x) and [esp+12..+19] (y).
- * Re-push 16 B, call, bridge.  Same stack arithmetic as pow. */
+ * Re-push 16 B, call, bridge.  Same stack arithmetic as pow (Task 25). */
 __asm__(
     ".text\n\t"
     ".globl hypot\n\t"

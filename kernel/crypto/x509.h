@@ -6,7 +6,13 @@
 /* Single X.509 cert parser. Stores spans into the caller's DER buffer
  * - no copies. The buffer must outlive the parsed cert. */
 
-#define X509_MAX_SAN_DNS 16
+/* Big enough for real-world wildcard certs. Wikipedia's leaf lists
+ * ~29 SANs; Cloudflare / Let's Encrypt multi-tenant and big SaaS
+ * certs routinely push 50-100. 128 covers ~99% of the public web
+ * without ballooning x509_cert_t (each slot is 8 B on 32-bit, so
+ * the array is ~1 KB; stack-allocated certs in find_root and
+ * chain_verify stay well under the 32 KB per-process stack). */
+#define X509_MAX_SAN_DNS 128
 
 typedef struct {
     /* RSA pubkey - modulus + exponent in canonical big-endian (no
