@@ -1,7 +1,7 @@
-//help: Cycle all libm operations vs glibc reference table
+//help: P1 Phase E: cycle all libm operations vs glibc reference table
 //help: Usage: feature15_libm
 
-/* Inline tolerance helper - avoid user function with FP params
+/* Inline tolerance helper — avoid user function with FP params
  * (CupidC has edge cases there).  Pattern used via a C macro that
  * expands to a block setting the ok flag. */
 
@@ -21,7 +21,7 @@ void main() {
     double scale_tight = 100000000.0;   /* 1e8  tolerance ~1e-8 */
     double scale_exp   = 1000000.0;     /* 1e6  looser for exp */
 
-    /* x=0 cases - every expected value is exact. */
+    /* x=0 cases — every expected value is exact. */
     r = sin(0.0);  n_checks++;
     diff = r - 0.0; ad = fabs(diff); scaled = (int)(ad * scale_tight);
     if (scaled > 0) { serial_printf("[f15] fail sin0 s=%d\n", scaled); failed++; ok = 0; }
@@ -71,7 +71,7 @@ void main() {
     diff = r - 1.0; ad = fabs(diff); scaled = (int)(ad * scale_tight);
     if (scaled > 0) { serial_printf("[f15] fail sqrt1 s=%d\n", scaled); failed++; ok = 0; }
 
-    /* exp(1) is known-buggy in CupidC's x87 exp pipeline - returns ~1.47
+    /* exp(1) is known-buggy in CupidC's x87 exp pipeline — returns ~1.47
      * instead of 2.72 (see feature13 report). Skip this check; known gap. */
 
     r = log(2.0);  n_checks++;
@@ -108,7 +108,7 @@ void main() {
     diff = r - 100.0; ad = fabs(diff); scaled = (int)(ad * scale_tight);
     if (scaled > 0) { serial_printf("[f15] fail pow102 s=%d\n", scaled); failed++; ok = 0; }
 
-    /* x=-1.5 - build negative via 0.0 - 1.5 (unary minus broken for FP). */
+    /* x=-1.5 — build negative via 0.0 - 1.5 (unary minus broken for FP). */
     double neg_x = 0.0 - 1.5;
     r = fabs(neg_x); n_checks++;
     diff = r - 1.5; ad = fabs(diff); scaled = (int)(ad * scale_tight);

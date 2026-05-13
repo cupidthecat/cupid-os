@@ -1,4 +1,4 @@
-/* URL parsing */
+/* ---------- URL parsing ---------- */
 
 int parse_url(char *url, char *host, int *port_out, char *path,
               int *is_https_out) {
@@ -71,4 +71,3 @@ int resolve_redirect(char *location, char *cur_h, int cur_p, int cur_is_h,
     }
     return -1;
 }
-

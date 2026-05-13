@@ -125,7 +125,7 @@ void terminal_redraw(window_t *win) {
     int char_w = FONT_W * scale;
     int char_h = FONT_H * scale;
 
-    /* Calculate grid dimensions - only count rows that fit entirely */
+    /* Calculate grid dimensions – only count rows that fit entirely */
     int chars_per_row = (int)content_w / char_w;
     int visible_rows  = (int)content_h / char_h;
     if (chars_per_row > SHELL_COLS) chars_per_row = SHELL_COLS;
@@ -150,7 +150,7 @@ void terminal_redraw(window_t *win) {
     /* Don't scroll past the cursor row */
     if (scroll_row > scy) scroll_row = scy;
 
-    /* Render characters - clip to content area */
+    /* Render characters – clip to content area */
     for (int row = 0; row < visible_rows; row++) {
         int src_row = row + scroll_row;
         if (src_row >= SHELL_ROWS) break;
@@ -187,7 +187,7 @@ void terminal_redraw(window_t *win) {
         }
     }
 
-    /* Draw blinking cursor - only when visible and fits in content area */
+    /* Draw blinking cursor – only when visible and fits in content area */
     if (cursor_visible) {
         int cursor_screen_row = scy - scroll_row;
         if (cursor_screen_row >= 0 && cursor_screen_row < visible_rows) {

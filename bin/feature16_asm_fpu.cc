@@ -1,6 +1,6 @@
-//help: Feature test: inline CupidASM using SSE + x87 from CupidC
+//help: P1 Phase G feature test: inline CupidASM using SSE + x87 from CupidC
 //help: Usage: feature16_asm_fpu
-//help: Verifies asm { } blocks accept SSE scalar and x87 opcodes.
+//help: Verifies asm { } blocks accept SSE scalar and x87 opcodes from Phase B.
 
 void main() {
     int ok = 1;
@@ -35,7 +35,7 @@ void main() {
         ok = 0;
     }
 
-    /* Test 3: x87 fsin (m32fp - CupidASM has no qword/dword size keyword, so
+    /* Test 3: x87 fsin (m32fp — CupidASM has no qword/dword size keyword, so
      * fld / fstp always emit the D9 base m32fp encoding; use float, not
      * double, for this test). */
     float zero = 0.0;
@@ -46,7 +46,7 @@ void main() {
         fstp [sinz]
         finit
     }
-    /* sin(0) == 0.0 - expect bit pattern 0x00000000. */
+    /* sin(0) == 0.0 — expect bit pattern 0x00000000. */
     if (*(int*)&sinz != 0x00000000) {
         serial_printf("[feature16] FAIL fsin(0): bits=0x%x\n", *(int*)&sinz);
         ok = 0;
@@ -64,7 +64,7 @@ void main() {
         addps xmm0, xmm1
         movups [vc], xmm0
     }
-    /* Expect {6, 8, 10, 12} - check lane 0 via vc.x.  CupidC can't yet
+    /* Expect {6, 8, 10, 12} — check lane 0 via vc.x.  CupidC can't yet
      * compare floats with !=, so bit-compare instead: 6.0 -> 0x40C00000. */
     float vc_x = vc.x;
     if (*(int*)&vc_x != 0x40C00000) {

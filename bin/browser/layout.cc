@@ -31,9 +31,66 @@ int rt_margin_r (int n) { return cs_margin [rt_style[n]][1]; }
 int rt_margin_t (int n) { return cs_margin [rt_style[n]][0]; }
 int rt_margin_b (int n) { return cs_margin [rt_style[n]][2]; }
 
+/* Forward decl: flex layout reuses layout_block to size each item, and
+ * layout_block dispatches into it for `display: flex` containers. */
+void layout_flex(int n, int content_w, int cx, int cy);
+
 int viewport_content_w() {
     /* Window inner width minus 12px scrollbar */
     return cur_cw - 12;
+}
+
+/* Float helpers (CSS 2.1 §9.5).  All float coords are stored in
+ * document-relative space (rt_y_doc / rt_x_doc). Line-box exclusion
+ * works by intersecting the line-box vertical band [y .. y+line_h]
+ * against each float's [float_y .. float_y+float_h] and shrinking the
+ * available [cx .. cx+max_w] band by the floats' x extents.
+ *
+ * Reference: blink/Source/core/rendering/FloatingObjects.cpp +
+ * RenderBlockFlow::layoutFloatingChildren. */
+
+int line_left_edge_at(int y_doc, int line_h, int cx_doc) {
+    int x = cx_doc;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        if (float_side[i] != FLOAT_LEFT) continue;
+        int fy0 = float_y[i];
+        int fy1 = fy0 + float_h[i];
+        if (y_doc + line_h <= fy0) continue;
+        if (y_doc >= fy1) continue;
+        int right = float_x[i] + float_w[i];
+        if (right > x) x = right;
+    }
+    return x;
+}
+
+int line_right_edge_at(int y_doc, int line_h, int cx_doc, int max_w) {
+    int x = cx_doc + max_w;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        if (float_side[i] != FLOAT_RIGHT) continue;
+        int fy0 = float_y[i];
+        int fy1 = fy0 + float_h[i];
+        if (y_doc + line_h <= fy0) continue;
+        if (y_doc >= fy1) continue;
+        if (float_x[i] < x) x = float_x[i];
+    }
+    return x;
+}
+
+/* Lowest bottom (exclusive) among placed floats matching `side_mask`,
+ * which is FLOAT_LEFT, FLOAT_RIGHT, or both (CLEAR_BOTH = 3). Used by
+ * cs_clear to push subsequent in-flow blocks below the relevant floats. */
+int floats_lowest_bottom(int side_mask) {
+    int max_b = 0;
+    for (int i = float_visible_first; i < float_count; i = i + 1) {
+        int side = float_side[i];
+        int match = 0;
+        if ((side_mask & 1) && side == FLOAT_LEFT) match = 1;
+        if ((side_mask & 2) && side == FLOAT_RIGHT) match = 1;
+        if (!match) continue;
+        int b = float_y[i] + float_h[i];
+        if (b > max_b) max_b = b;
+    }
+    return max_b;
 }
 
 /* §4 IFC - line-box layout. Walks an inline subtree depth-first, splits text
@@ -72,27 +129,27 @@ int tier_line_h(int tier) {
 
 /* Resolve effective line height for a node given its computed style and the
  * tier in play (atoms can carry different tiers from the parent block). When
- * no `line-height` was specified, fall back to tier_line_h. */
+ * no `line-height` was specified, fall back to fontsys_line_height so real
+ * TTF metrics drive vertical rhythm at non-tier sizes; tier_line_h survives
+ * only for the bitmap-only path (no resolved face/size). */
 int effective_line_h(int cs, int tier) {
     if (cs < 0 || cs >= cs_count) return tier_line_h(tier);
     int lh = cs_line_height[cs];
-    if (lh < 0) {
-        /* No CSS line-height; pick a default proportional to the
-         * resolved px font size when available. tier_line_h is geared
-         * to the 6x8/8x8/16x16 bitmap glyphs and is too tight for the
-         * TTF path: at 14px (tier 0) the bitmap line-height was 12px,
-         * so 14px TTF glyphs in successive list items overlapped. */
-        int px = cs_font_size_px[cs];
-        if (px > 0) {
-            int v = (px * 12) / 10;        /* ~1.2 line-height */
-            if (v < tier_line_h(tier)) v = tier_line_h(tier);
-            return v;
+    int px = cs_font_size_px[cs];
+    int natural = tier_line_h(tier);
+    if (px > 0) {
+        int face = cs_face_id_for(cs);
+        if (face >= 0) {
+            int n = fontsys_line_height(face, px);
+            if (n > 0) natural = n;
+        } else {
+            natural = (px * 12) / 10;
         }
-        return tier_line_h(tier);
+        if (natural < tier_line_h(tier)) natural = tier_line_h(tier);
     }
+    if (lh < 0) return natural;
     if (cs_line_height_mult[cs]) {
-        int base = tier_line_h(tier);
-        int v = (base * lh) / 100;
+        int v = (natural * lh) / 100;
         if (v < 1) v = 1;
         return v;
     }
@@ -124,7 +181,47 @@ int can_break_after(char c) {
 /* Resolve the CSS font shorthand on `cs` to a fontsys face_id. Copies
  * the verbatim font-family value out of css_value_pool into a local
  * buffer (NUL-terminated) so it can be passed to fontsys_match.   */
-int cs_face_id_for(int cs) {
+/* Decode one UTF-8 codepoint from `p[0..len-1]`. Returns the byte
+ * advance (1..4) and stores the codepoint in *cp. On a malformed lead
+ * byte returns 1 with *cp = U+FFFD so callers can keep walking. Returns
+ * 0 only when len <= 0. */
+int utf8_decode_one(char *p, int len, int *cp) {
+    if (len <= 0) { *cp = 0; return 0; }
+    unsigned char b0 = (unsigned char)p[0];
+    if (b0 < 0x80) { *cp = (int)b0; return 1; }
+    if ((b0 & 0xE0) == 0xC0 && len >= 2) {
+        unsigned char b1 = (unsigned char)p[1];
+        if ((b1 & 0xC0) != 0x80) { *cp = 0xFFFD; return 1; }
+        *cp = ((int)(b0 & 0x1F) << 6) | (int)(b1 & 0x3F);
+        return 2;
+    }
+    if ((b0 & 0xF0) == 0xE0 && len >= 3) {
+        unsigned char b1 = (unsigned char)p[1];
+        unsigned char b2 = (unsigned char)p[2];
+        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80) { *cp = 0xFFFD; return 1; }
+        *cp = ((int)(b0 & 0x0F) << 12) | ((int)(b1 & 0x3F) << 6) | (int)(b2 & 0x3F);
+        return 3;
+    }
+    if ((b0 & 0xF8) == 0xF0 && len >= 4) {
+        unsigned char b1 = (unsigned char)p[1];
+        unsigned char b2 = (unsigned char)p[2];
+        unsigned char b3 = (unsigned char)p[3];
+        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80) {
+            *cp = 0xFFFD; return 1;
+        }
+        *cp = ((int)(b0 & 0x07) << 18) | ((int)(b1 & 0x3F) << 12) |
+              ((int)(b2 & 0x3F) << 6)  | (int)(b3 & 0x3F);
+        return 4;
+    }
+    *cp = 0xFFFD;
+    return 1;
+}
+
+/* Resolve the CSS font shorthand on `cs` to a fontsys face_id, optionally
+ * filtered by a unicode-range that must cover `cp`. Pass cp == -1 to
+ * skip range filtering (back-compat for callers without a codepoint).
+ * Webfonts (font_face.cc) take priority over kernel preinstalled faces. */
+int cs_face_id_for_cp(int cs, int cp) {
     char fam[200];
     int  fam_len = 0;
     int  off = cs_font_family_off[cs];
@@ -140,30 +237,68 @@ int cs_face_id_for(int cs) {
     int gen = cs_font_generic[cs];
     int weight = cs_font_w[cs];
     int italic = cs_font_i[cs];
-    /* §2.x Webfonts (font_face.cc) take priority over the kernel's
-     * preinstalled faces. font_face_match scans every comma-separated
-     * family name; bare fallback path goes through fontsys_match. */
     if (fam_len > 0) {
-        int wf = font_face_match(fam, fam_len, weight, italic);
+        int wf = font_face_match_cp(fam, fam_len, weight, italic, cp);
         if (wf >= 0) return wf;
     }
-    return fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+    int picked = fontsys_match(fam_len > 0 ? fam : "", gen, weight, italic);
+    /* Glyph-level fallback. The CSS family list is exhausted (or no
+     * match); fontsys_match returned the generic family's preinstalled
+     * face. If that face's cmap doesn't carry the requested codepoint,
+     * walk every registered face for one that does — matches Blink's
+     * last-resort fallback in
+     * blink/Source/platform/fonts/FontFallbackList::fontDataForCharacter.
+     * Skipped when cp == -1 (caller has no codepoint, e.g. line-height
+     * lookup) since we have nothing to test against. */
+    if (cp >= 0 && picked >= 0 && !fontsys_face_has_cp(picked, cp)) {
+        int sub = fontsys_find_face_with_cp(cp);
+        if (sub >= 0) return sub;
+    }
+    return picked;
+}
+
+/* Range-blind variant for callers that pick one face per atom (line
+ * height, list markers, generic measurement). */
+int cs_face_id_for(int cs) {
+    return cs_face_id_for_cp(cs, -1);
 }
 
 int text_slice_w(int off, int len, int tier) {
     return gfx2d_text_width_n(attr_pool + off, len, tier_to_font(tier));
 }
 
-/* fontsys-aware width: picks the real face/size for `cs` and asks
- * fontsys for the run width. Falls back to the tier path when size_px
- * is unavailable (e.g. bootstrap atoms with no resolved cs). */
+/* fontsys-aware width with unicode-range awareness: walk the UTF-8 byte
+ * run codepoint by codepoint, resolve the face per cp (so Google Fonts
+ * subsets route correctly), and sum hmtx advances. Falls back to the
+ * tier path when size_px is unavailable (e.g. bootstrap atoms with no
+ * resolved cs). */
 int text_slice_w_cs(int cs, int off, int len) {
     if (cs >= 0 && cs < cs_count && cs_font_size_px[cs] > 0) {
-        int face = cs_face_id_for(cs);
-        if (face >= 0) {
-            return fontsys_run_width(face, cs_font_size_px[cs],
-                                     attr_pool + off, len);
+        int total = 0;
+        int i = 0;
+        int got_any = 0;
+        while (i < len) {
+            int cp;
+            int adv = utf8_decode_one(attr_pool + off + i, len - i, &cp);
+            if (adv <= 0) break;
+            int face = cs_face_id_for_cp(cs, cp);
+            if (face >= 0) {
+                int aw = fontsys_advance(face, cp, cs_font_size_px[cs]);
+                if (aw <= 0) {
+                    /* Glyph missing in this face's cmap; fall through to
+                     * the tier-bitmap advance so we never return 0 width
+                     * (which would collapse adjacent words). */
+                    aw = gfx2d_glyph_advance(' ', tier_to_font(cs_font_size_tier[cs]));
+                    if (aw <= 0) aw = cs_font_size_px[cs] / 2 + 1;
+                }
+                total = total + aw;
+                got_any = 1;
+            } else {
+                total = total + tier_char_w(cs_font_size_tier[cs]);
+            }
+            i = i + adv;
         }
+        if (got_any) return total;
     }
     return gfx2d_text_width_n(attr_pool + off, len,
                               tier_to_font(cs_font_size_tier[cs]));
@@ -231,6 +366,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
                 la_font_tier[la_count] = tier;
                 la_size_px[la_count] = size_px;
                 la_face_id[la_count] = face_id;
+                la_cs[la_count] = cs;
                 la_italic[la_count] = italic;
                 la_fg[la_count] = fg; la_bg[la_count] = bg;
                 la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -247,6 +383,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
                     la_font_tier[la_count] = tier;
                     la_size_px[la_count] = size_px;
                     la_face_id[la_count] = face_id;
+                    la_cs[la_count] = cs;
                     la_italic[la_count] = italic;
                     la_fg[la_count] = fg; la_bg[la_count] = bg;
                     la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -303,6 +440,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;
+            la_cs[la_count] = cs;
             la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -341,6 +479,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_font_tier[la_count] = tier;
             la_size_px[la_count] = size_px;
             la_face_id[la_count] = face_id;
+            la_cs[la_count] = cs;
             la_italic[la_count] = italic;
             la_fg[la_count] = fg; la_bg[la_count] = bg;
             la_bold[la_count] = bold; la_underline[la_count] = underline;
@@ -408,6 +547,7 @@ void collect_inline_atoms(int n) {
             la_font_tier[la_count] = 0;
             la_size_px[la_count] = 0;
             la_face_id[la_count] = -1;
+            la_cs[la_count] = -1;
             la_italic[la_count] = 0;
             la_fg[la_count] = 0; la_bg[la_count] = 0;
             la_bold[la_count] = 0; la_underline[la_count] = 0;
@@ -426,9 +566,31 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
     if (total == 0) return;
 
     int line_start_atom = first;
-    int x = cx;
     int line_h = 0;
     int line_top = *cy;
+
+    /* Per-line float-aware metrics. line_cx is the line's left edge in
+     * parent-local coordinates; line_max_w is the available width
+     * after subtracting any left/right float exclusions overlapping
+     * the line's vertical band. Recomputed on each new line via
+     * relayout_line(). Reference: blink/Source/core/rendering/
+     * RenderBlockFlow::layoutLineBoxes. */
+    int parent_doc_x = rt_doc_x_of(parent);
+    int parent_doc_y = rt_doc_y_of(parent);
+    int line_cx = cx;
+    int line_max_w = max_w;
+    int line_h_estimate = effective_line_h(rt_style[parent], 1);
+    {
+        int doc_x_base = parent_doc_x + cx;
+        int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                         line_h_estimate, doc_x_base);
+        int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                           line_h_estimate, doc_x_base, max_w);
+        line_cx = cx + (eff_left - doc_x_base);
+        line_max_w = eff_right - eff_left;
+        if (line_max_w < 0) line_max_w = 0;
+    }
+    int x = line_cx;
 
     for (int k = first; k < first + total; k++) {
         int aw = la_w[k];
@@ -436,58 +598,79 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         int sentinel = la_x[k];
 
         if (sentinel == -2) {
-            /* Hard break (PRE) */
-            la_x[k] = x;
+            /* Hard break (PRE). la_x stores the atom's x relative to
+             * the line box's left edge so paint_rt_line_box doesn't
+             * double-count padding. */
+            la_x[k] = x - line_cx;
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
                 rt_line_atom_count[lb] = (k + 1) - line_start_atom;
-                rt_x[lb] = cx;
+                rt_x[lb] = line_cx;
                 rt_y[lb] = line_top;
-                rt_w[lb] = max_w;
+                rt_w[lb] = line_max_w;
                 int lh = line_h ? line_h : effective_line_h(rt_style[parent], tier);
                 rt_h[lb] = lh;
             }
             line_top += line_h ? line_h : effective_line_h(rt_style[parent], tier);
-            x = cx;
             line_h = 0;
             line_start_atom = k + 1;
+            /* Recompute line metrics for the next line. */
+            {
+                int doc_x_base = parent_doc_x + cx;
+                int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                                 line_h_estimate, doc_x_base);
+                int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                                   line_h_estimate, doc_x_base, max_w);
+                line_cx = cx + (eff_left - doc_x_base);
+                line_max_w = eff_right - eff_left;
+                if (line_max_w < 0) line_max_w = 0;
+            }
+            x = line_cx;
             continue;
         }
 
-        /* Wrap-on-overflow: if this atom would push the line past max_w and
-         * the line has something on it, close the line. For a -3 (soft break
-         * point / space) atom we drop it; for a word atom we place it as the
-         * first atom of the new line. We never wrap mid-word, so a single
-         * word longer than max_w still overflows on its own line. */
-        int overflow = (x + aw > cx + max_w && x > cx);
+        /* Wrap-on-overflow: if this atom would push the line past
+         * line_max_w and the line has something on it, close the line.
+         * For a -3 (soft break / space) atom we drop it; for a word
+         * atom we place it as the first atom of the new line. */
+        int overflow = (x + aw > line_cx + line_max_w && x > line_cx);
         if (overflow) {
             int lh_wrap = line_h ? line_h : effective_line_h(rt_style[parent], tier);
             int lb = rt_alloc(RT_LINE_BOX, -1, parent, rt_style[parent]);
             if (lb >= 0) {
                 rt_line_atom_first[lb] = line_start_atom;
                 rt_line_atom_count[lb] = k - line_start_atom;
-                rt_x[lb] = cx;
+                rt_x[lb] = line_cx;
                 rt_y[lb] = line_top;
-                rt_w[lb] = max_w;
+                rt_w[lb] = line_max_w;
                 rt_h[lb] = lh_wrap;
             }
             line_top += lh_wrap;
-            x = cx;
             line_h = 0;
+            /* Recompute next line's metrics. */
+            {
+                int doc_x_base = parent_doc_x + cx;
+                int eff_left = line_left_edge_at(parent_doc_y + line_top,
+                                                 line_h_estimate, doc_x_base);
+                int eff_right = line_right_edge_at(parent_doc_y + line_top,
+                                                   line_h_estimate, doc_x_base, max_w);
+                line_cx = cx + (eff_left - doc_x_base);
+                line_max_w = eff_right - eff_left;
+                if (line_max_w < 0) line_max_w = 0;
+            }
+            x = line_cx;
             if (sentinel == -3) {
                 line_start_atom = k + 1;    /* drop the trailing space atom */
                 continue;
             }
             line_start_atom = k;            /* word starts the new line */
         }
-        la_x[k] = x;
+        la_x[k] = x - line_cx;
         x += aw;
         int lh = effective_line_h(rt_style[parent], tier);
-        /* Replaced/inline-block atoms (la_text_off encoded as a negative
-         * RT-node ref) bring their own height. The line must grow to
-         * fit, otherwise the next line overlaps the bottom of an input
-         * or image. */
+        /* Replaced/inline-block atoms (la_text_off encoded as a
+         * negative RT-node ref) bring their own height. */
         if (la_text_off[k] < 0) {
             int rt_n = -la_text_off[k] - 1;
             int repl_h = rt_intrinsic_h[rt_n];
@@ -503,9 +686,9 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
         if (lb >= 0) {
             rt_line_atom_first[lb] = line_start_atom;
             rt_line_atom_count[lb] = (first + total) - line_start_atom;
-            rt_x[lb] = cx;
+            rt_x[lb] = line_cx;
             rt_y[lb] = line_top;
-            rt_w[lb] = max_w;
+            rt_w[lb] = line_max_w;
             rt_h[lb] = line_h ? line_h : 12;
         }
         line_top += line_h ? line_h : 12;
@@ -517,39 +700,55 @@ void flush_inline(int parent, int *atom_pile_first, int *atom_pile_count,
 }
 
 void layout_block(int n, int avail_w) {
-    /* Resolve width. Default `box-sizing: content-box` per CSS 2.1:
-     * `width` describes the CONTENT box, so the painted (border)
-     * box is `width + padding-l/r + border-l/r`. Without this, a
-     * `.card { width:240px; padding:16px; border:1px }` painted at
-     * 240 px outer (content squeezed to 206) instead of Chrome's
-     * 274 px outer. We don't yet honour `box-sizing: border-box`;
-     * authors who set it will have to drop padding from their width
-     * until cs_box_sizing exists. */
+    /* Resolve width. CSS box-sizing module:
+     *   content-box (default): cs_width describes the CONTENT box.
+     *   border-box:            cs_width describes the BORDER box, so
+     *                          content_w = width - padding - border.
+     * Reference: blink/Source/core/rendering/RenderBox.cpp
+     * computeLogicalWidthInRegion + boxSizing(). */
     int sty = rt_style[n];
     int style_w = cs_width[sty];
-    int w;
+    int extra_w = rt_padding_l(n) + rt_padding_r(n)
+                + rt_border_l(n)  + rt_border_r(n);
+    int content_w;
     if (style_w >= 0) {
-        w = style_w + rt_padding_l(n) + rt_padding_r(n)
-                    + rt_border_l(n)  + rt_border_r(n);
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            content_w = style_w - extra_w;
+            if (content_w < 0) content_w = 0;
+        } else {
+            content_w = style_w;
+        }
     } else {
-        w = avail_w - rt_margin_l(n) - rt_margin_r(n);
+        content_w = avail_w - rt_margin_l(n) - rt_margin_r(n) - extra_w;
     }
-    if (w < 0) w = 0;
-    /* min/max-width clamps. min-width wins over max-width per CSS spec. */
+    /* min/max-width clamps apply to the content box per CSS 2.1 §10.4
+     * (content-box sizing). min-width wins on conflict per spec. */
     int max_w_clamp = cs_max_width[sty];
     int min_w_clamp = cs_min_width[sty];
-    if (max_w_clamp >= 0 && w > max_w_clamp) w = max_w_clamp;
-    if (min_w_clamp >= 0 && w < min_w_clamp) w = min_w_clamp;
-    rt_w[n] = w;
-
-    int content_w = w - rt_padding_l(n) - rt_padding_r(n)
-                    - rt_border_l(n) - rt_border_r(n);
+    if (max_w_clamp >= 0 && content_w > max_w_clamp) content_w = max_w_clamp;
+    if (min_w_clamp >= 0 && content_w < min_w_clamp) content_w = min_w_clamp;
     if (content_w < 0) content_w = 0;
+    int w = content_w + extra_w;
+    rt_w[n] = w;
 
     int cx = rt_padding_l(n) + rt_border_l(n);
     int cy = rt_padding_t(n) + rt_border_t(n);
     rt_content_x[n] = cx;
     rt_content_y[n] = cy;
+
+    /* BFC root containment. `overflow: hidden` (or any non-visible
+     * overflow) makes this block establish a new block formatting
+     * context per CSS 2.1 §9.4.1, which means floats inside it can't
+     * escape AND the block's own height grows to include them
+     * (§10.6.7). Save / restore float_visible_first so descendants
+     * only see floats internal to this subtree, and on exit grow
+     * rt_h to cover any internal float that overhangs the content. */
+    int bfc_saved_visible = float_visible_first;
+    int bfc_saved_count   = float_count;
+    int bfc_root = (cs_overflow[sty] == OVERFLOW_HIDDEN);
+    if (bfc_root) {
+        float_visible_first = float_count;
+    }
 
     /* Table-row: lay out cells horizontally, equal-share width, equalize
      * cell heights to the row's max so borders line up. Anonymous table
@@ -591,6 +790,16 @@ void layout_block(int n, int avail_w) {
                                      : (cy + rt_padding_b(n) + rt_border_b(n));
             return;
         }
+    }
+
+    /* Flex container: dispatch to specialised layout. The container's
+     * own width was already resolved above; layout_flex sizes its
+     * children along the main axis (row -> width, column -> height) and
+     * aligns the cross axis, then writes back rt_h[n]. Reference:
+     * blink/Source/core/layout/LayoutFlexibleBox.cpp. */
+    if (cs_display[sty] == DISP_FLEX || cs_display[sty] == DISP_INLINE_FLEX) {
+        layout_flex(n, content_w, cx, cy);
+        return;
     }
 
     /* Walk children. Inline runs get accumulated and flushed when a block
@@ -637,8 +846,153 @@ void layout_block(int n, int avail_w) {
              * reservation at paint time. */
             c = rt_next[c]; continue;
         }
+        /* Out-of-flow children are skipped by the in-flow pass;
+         * layout_oof handles them later against their containing block.
+         * Without this skip, position:fixed and position:absolute push
+         * subsequent siblings down because their box still consumes
+         * vertical space. Reference: blink/Source/core/rendering/
+         * RenderBlockFlow::layoutBlockChildren skips children where
+         * isOutOfFlowPositioned() returns true. */
+        {
+            int c_sty = rt_style[c];
+            int c_pos = cs_position[c_sty];
+            if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) {
+                c = rt_next[c]; continue;
+            }
+        }
+        /* CSS 2.1 §9.5.1 — float placement. A floated block is taken
+         * out of in-flow vertical advancement: lay it out at its own
+         * intrinsic / declared width, anchor to the left or right of
+         * the BFC content area at a y >= cy that has room past
+         * existing floats, and append to the floats list. The current
+         * cy does NOT advance, so subsequent in-flow content flows
+         * around it. Reference: RenderBlockFlow::layoutFloatingChildren
+         * + FloatingObjects::add. */
+        {
+            int c_sty = rt_style[c];
+            int c_float = cs_float[c_sty];
+            if (c_float == FLOAT_LEFT || c_float == FLOAT_RIGHT) {
+                /* Flush any pending inline atoms before placing the
+                 * float so their lines see the new exclusion. */
+                if (pile_count > 0) {
+                    flush_inline(n, &pile_first, &pile_count, cx, &cy, content_w);
+                    pend_pos = 0; pend_neg = 0;
+                    collapse_first_top = 0;
+                    last_was_block = 0;
+                } else if (pend_pos != 0 || pend_neg != 0) {
+                    /* Apply pending bottom margin from the preceding
+                     * in-flow block before placing the float at its
+                     * static position. CSS 2.1 §8.3.1: float margins
+                     * never collapse with adjacent boxes, so the
+                     * previous block's margin-bottom flushes in full
+                     * and is not absorbed by the float. */
+                    cy = cy + pend_pos + pend_neg;
+                    pend_pos = 0; pend_neg = 0;
+                    collapse_first_top = 0;
+                    last_was_block = 0;
+                }
+                /* Float gets its declared width (or shrink-to-fit on
+                 * auto). Use the same intrinsic-text estimator we use
+                 * for absolute boxes when no width is set. */
+                int f_extra = rt_padding_l(c) + rt_padding_r(c)
+                            + rt_border_l(c)  + rt_border_r(c);
+                int f_w = cs_width[c_sty];
+                if (f_w < 0) {
+                    int intr = oof_intrinsic_text_w(c);
+                    if (intr <= 0) intr = content_w / 4;
+                    f_w = intr;
+                    if (f_w + f_extra > content_w) f_w = content_w - f_extra;
+                    if (f_w < 0) f_w = 0;
+                }
+                /* CSS 2.1 §9.4.1 — a float establishes a new BFC. Hide
+                 * outer floats from the inner subtree so its line-box
+                 * exclusion math doesn't see siblings (e.g. .col-right
+                 * shouldn't have its first line indented past .col's
+                 * right edge). Save/restore both float_visible_first
+                 * (so descendants only see floats internal to this
+                 * subtree) and float_count (so any internal floats are
+                 * dropped from the outer list when we return — they
+                 * can't escape the BFC anyway). */
+                int saved_visible = float_visible_first;
+                int saved_count   = float_count;
+                float_visible_first = float_count;
+                /* Pre-set rt_x / rt_y so descendants' rt_doc_x_of /
+                 * rt_doc_y_of return correct ancestry while laying
+                 * out the float subtree. The actual placement is
+                 * recomputed below; this is just a positional hint
+                 * good enough for the doc-coord helpers. */
+                int pre_doc_x = rt_doc_x_of(n) + cx;
+                int pre_doc_y = rt_doc_y_of(n) + cy + rt_margin_t(c);
+                rt_x[c] = pre_doc_x - rt_doc_x_of(n);
+                rt_y[c] = cy + rt_margin_t(c);
+                layout_block(c, f_w);
+                float_visible_first = saved_visible;
+                float_count         = saved_count;
+                rt_w[c] = f_w + f_extra;
+                /* Place at current cy in document coords. The block's
+                 * own (rt_x, rt_y) are local to its parent; floats
+                 * store document-space coords so flush_inline can do
+                 * exclusion math without parent walks each query. */
+                int parent_doc_x = rt_doc_x_of(n) + cx;
+                int parent_doc_y = rt_doc_y_of(n) + cy;
+                int margin_l_f = rt_margin_l(c);
+                int margin_r_f = rt_margin_r(c);
+                int float_x_doc;
+                if (c_float == FLOAT_LEFT) {
+                    int left_avail = line_left_edge_at(parent_doc_y, rt_h[c],
+                                                       parent_doc_x);
+                    float_x_doc = left_avail + margin_l_f;
+                } else {
+                    int right_avail = line_right_edge_at(parent_doc_y, rt_h[c],
+                                                         parent_doc_x, content_w);
+                    float_x_doc = right_avail - rt_w[c] - margin_r_f;
+                }
+                rt_x[c] = float_x_doc - rt_doc_x_of(n);
+                rt_y[c] = cy + rt_margin_t(c);
+                /* Store the MARGIN box, not the border box. CSS 2.1 §9.5
+                 * line-box exclusion is against the float's outer margin
+                 * edge, so the float's left/right margin keeps text
+                 * away (e.g. `margin: 4px 0 4px 12px` on a right float
+                 * leaves a 12px gutter between the wrapped paragraph
+                 * and the float's painted box). Reference:
+                 * blink/Source/core/rendering/FloatingObject::frameRect
+                 * which is the border-box, with marginAfter/marginBefore
+                 * applied on top during line exclusion in
+                 * RenderBlockFlow::logicalRightOffsetForFloat. */
+                int margin_b_f = rt_margin_b(c);
+                if (float_count < 64) {
+                    float_x[float_count] = float_x_doc - margin_l_f;
+                    float_y[float_count] = parent_doc_y;
+                    float_w[float_count] = margin_l_f + rt_w[c] + margin_r_f;
+                    float_h[float_count] = rt_margin_t(c) + rt_h[c] + margin_b_f;
+                    float_side[float_count] = c_float;
+                    float_count = float_count + 1;
+                }
+                c = rt_next[c]; continue;
+            }
+        }
+        /* CSS 2.1 §9.5.2 — `clear` advances past the bottom of the
+         * relevant floats before placing this child. */
+        {
+            int c_sty = rt_style[c];
+            int c_clear = cs_clear[c_sty];
+            if (c_clear != CLEAR_NONE) {
+                int mask = 0;
+                if (c_clear == CLEAR_LEFT)  mask = 1;
+                if (c_clear == CLEAR_RIGHT) mask = 2;
+                if (c_clear == CLEAR_BOTH)  mask = 3;
+                int parent_doc_y = rt_doc_y_of(n) + cy;
+                int lowest = floats_lowest_bottom(mask);
+                if (lowest > parent_doc_y) {
+                    cy = cy + (lowest - parent_doc_y);
+                }
+            }
+        }
+        int is_block_replaced = (kind == RT_REPLACED &&
+                                 cs_display[rt_style[c]] == DISP_BLOCK);
         if (rt_kind_is_block_level(kind) ||
-            (kind == RT_BLOCK)) {
+            (kind == RT_BLOCK) ||
+            is_block_replaced) {
             /* Flush pending inline run; inline content breaks the
              * margin-collapse chain. */
             if (pile_count > 0) {
@@ -647,11 +1001,52 @@ void layout_block(int n, int avail_w) {
                 collapse_first_top = 0;
                 last_was_block = 0;
             }
-            /* Lay out block child */
-            int cy_before = cy;
+            /* Lay out block child. Compute margin-top first so we know
+             * the child's final cy BEFORE recursing - descendants that
+             * call rt_doc_y_of need our rt_y[c] to be set, otherwise
+             * float exclusion math (which lives in document-space) sees
+             * stale ancestor coordinates and lines run through floats.
+             * Auto-margin centring still happens after the child's
+             * width is known. */
+            int top = rt_margin_t(c);
+            if (collapse_first_top) top = 0;
+            int t_pos = pend_pos;
+            int t_neg = pend_neg;
+            if (top > t_pos) t_pos = top;
+            if (top < t_neg) t_neg = top;
+            cy = cy + t_pos + t_neg;
+            collapse_first_top = 0;
+            /* Pre-set rt_x/rt_y with the static margin-l so
+             * rt_doc_y_of / rt_doc_x_of return correct values during
+             * the child's layout (and any descendant flush_inline). */
+            int pre_ml = rt_margin_l(c);
+            int pre_child_x = cx + pre_ml;
+            if (pre_child_x < cx) pre_child_x = cx;
+            rt_x[c] = pre_child_x;
+            rt_y[c] = cy;
+
             int child_avail = content_w;
-            layout_block(c, child_avail);
-            int ml = rt_margin_l(c);
+            if (is_block_replaced) {
+                /* Block-level replaced element (e.g. <img display:block>):
+                 * size from explicit width/height CSS, else HTML attrs
+                 * captured into rt_intrinsic_w/h, else 80x60 fallback.
+                 * No subtree to recurse into. CSS 2.1 §10.3.6 + §10.6.5. */
+                int rw = (cs_width [rt_style[c]] >= 0) ? cs_width [rt_style[c]]
+                       : ((rt_intrinsic_w[c] > 0) ? rt_intrinsic_w[c] : 80);
+                int rh = (cs_height[rt_style[c]] >= 0) ? cs_height[rt_style[c]]
+                       : ((rt_intrinsic_h[c] > 0) ? rt_intrinsic_h[c] : 60);
+                rt_w[c] = rw;
+                rt_h[c] = rh;
+            } else {
+                layout_block(c, child_avail);
+            }
+
+            /* Re-resolve margin-l for auto-centering now that rt_w[c]
+             * is known. If the auto path widens or narrows ml, update
+             * rt_x[c] in place; the child's already-computed inner
+             * positions are relative to its own rt_x so they shift
+             * correctly with it. */
+            int ml = pre_ml;
             int mr = rt_margin_r(c);
             int auto_l = cs_margin_auto[rt_style[c]][3];
             int auto_r = cs_margin_auto[rt_style[c]][1];
@@ -670,20 +1065,9 @@ void layout_block(int n, int avail_w) {
                 }
             }
             (void)mr;
-            (void)cy_before;
-            int top = rt_margin_t(c);
-            if (collapse_first_top) top = 0;
-            /* Combine pending strut with this child's margin-top. */
-            int t_pos = pend_pos;
-            int t_neg = pend_neg;
-            if (top > t_pos) t_pos = top;
-            if (top < t_neg) t_neg = top;
-            cy = cy + t_pos + t_neg;
-            collapse_first_top = 0;
             int child_x = cx + ml;
             if (child_x < cx) child_x = cx;
             rt_x[c] = child_x;
-            rt_y[c] = cy;
             cy = cy + rt_h[c];
             /* Detect self-collapsing block: child took zero space (no
              * in-flow content) AND has no padding/border. Its margins
@@ -739,34 +1123,515 @@ void layout_block(int n, int avail_w) {
         (void)saved_pos; (void)saved_neg;
     }
 
-    /* Resolve own height. Same content-box convention as width: the
-     * `height` property describes the content box, so the painted
-     * border-box height adds top+bottom padding+border. */
+    /* Resolve own height. CSS 2.1 §10.7 + box-sizing: content-box reads
+     * cs_height as the content box, border-box reads it as the border
+     * box (subtract padding+border to get content). */
     int style_h = cs_height[sty];
+    int extra_h = rt_padding_t(n) + rt_padding_b(n)
+                + rt_border_t(n)  + rt_border_b(n);
+    int content_h;
     if (style_h >= 0) {
-        rt_h[n] = style_h + rt_padding_t(n) + rt_padding_b(n)
-                          + rt_border_t(n)  + rt_border_b(n);
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            content_h = style_h - extra_h;
+            if (content_h < 0) content_h = 0;
+        } else {
+            content_h = style_h;
+        }
     } else {
-        rt_h[n] = cy + rt_padding_b(n) + rt_border_b(n);
+        content_h = cy - rt_padding_t(n) - rt_border_t(n);
     }
-    /* min/max-height clamps */
     int max_h_clamp = cs_max_height[sty];
     int min_h_clamp = cs_min_height[sty];
-    if (max_h_clamp >= 0 && rt_h[n] > max_h_clamp) rt_h[n] = max_h_clamp;
-    if (min_h_clamp >= 0 && rt_h[n] < min_h_clamp) rt_h[n] = min_h_clamp;
+    if (max_h_clamp >= 0 && content_h > max_h_clamp) content_h = max_h_clamp;
+    if (min_h_clamp >= 0 && content_h < min_h_clamp) content_h = min_h_clamp;
+    if (content_h < 0) content_h = 0;
+    rt_h[n] = content_h + extra_h;
+
+    /* BFC root: grow rt_h to cover any internal float that overhangs
+     * the in-flow content (CSS 2.1 §10.6.7). The floats added during
+     * this subtree's layout span indices [bfc_saved_count .. float_count).
+     * After growing, restore the outer visibility window and drop the
+     * internal floats from the global list (they can't escape a BFC).
+     * Reference: blink/Source/core/rendering/RenderBlockFlow::layoutBlockChildren
+     * + computeOverflow + addOverflowFromFloats. */
+    if (bfc_root) {
+        int self_doc_y = rt_doc_y_of(n);
+        int max_bot = 0;
+        int fi;
+        for (fi = bfc_saved_count; fi < float_count; fi = fi + 1) {
+            int b = float_y[fi] + float_h[fi] - self_doc_y;
+            if (b > max_bot) max_bot = b;
+        }
+        if (max_bot > rt_h[n]) rt_h[n] = max_bot;
+        float_visible_first = bfc_saved_visible;
+        float_count = bfc_saved_count;
+    }
+}
+
+/* Find the document-space x of node n by summing rt_x along its parent
+ * chain. Used by layout_oof to anchor an absolute box against a
+ * positioned ancestor whose final rt_x is already filled in. Stops at
+ * any oof ancestor (its rt_x is already absolute). */
+int rt_doc_x_of(int n) {
+    int x = 0;
+    int cur = n;
+    while (cur >= 0) {
+        x = x + rt_x[cur];
+        if (rt_is_oof[cur]) break;
+        cur = rt_parent[cur];
+    }
+    return x;
+}
+int rt_doc_y_of(int n) {
+    int y = 0;
+    int cur = n;
+    while (cur >= 0) {
+        y = y + rt_y[cur];
+        if (rt_is_oof[cur]) break;
+        cur = rt_parent[cur];
+    }
+    return y;
+}
+
+/* Walk parent chain looking for nearest positioned ancestor. If none,
+ * the containing block is the initial CB (the document root, RT 0).
+ * Returns the RT index. */
+int rt_containing_block(int n) {
+    int p = rt_parent[n];
+    while (p >= 0) {
+        int sty = rt_style[p];
+        if (cs_position[sty] != POS_STATIC) return p;
+        p = rt_parent[p];
+    }
+    return 0;
+}
+
+/* Resolve an `position: absolute | fixed` node against its containing
+ * block. Containing block for absolute is the nearest positioned
+ * ancestor (or document root); for fixed it is the viewport, anchored
+ * at (0,0) with width = viewport content width. Sets rt_x/rt_y to
+ * absolute document-space coords and marks rt_is_oof so paint walks
+ * the value directly instead of summing the ancestor chain. */
+/* Recursive intrinsic-text-width estimate for shrink-to-fit. Walks the
+ * subtree, summing text-slice widths within an RT_TEXT, and taking
+ * the max across siblings (since horizontal stacking inside an inline
+ * run sums; nested block siblings each get their own line). For label-
+ * sized abspos boxes (the common case) this is close to the spec
+ * shrink-to-fit which is max(min-content, min(preferred, available)).
+ * Reference: blink/Source/core/rendering/RenderBox.cpp
+ * shrinkToFitWidth + computePreferredLogicalWidths. */
+int oof_intrinsic_text_w(int n) {
+    int kind = rt_kind[n];
+    if (kind == RT_TEXT) {
+        int sty = rt_style[n];
+        return text_slice_w_cs(sty, rt_text_off[n], rt_text_len[n]);
+    }
+    int sum = 0;
+    int max_block = 0;
+    int c = rt_first_child[n];
+    while (c >= 0) {
+        int ck = rt_kind[c];
+        int w = oof_intrinsic_text_w(c);
+        if (ck == RT_INLINE || ck == RT_TEXT || ck == RT_INLINE_BLOCK ||
+            ck == RT_REPLACED) {
+            sum = sum + w;
+        } else {
+            if (w > max_block) max_block = w;
+        }
+        c = rt_next[c];
+    }
+    if (sum > max_block) return sum;
+    return max_block;
+}
+
+void layout_oof_one(int oof) {
+    int sty = rt_style[oof];
+    int pos = cs_position[sty];
+    if (pos != POS_ABSOLUTE && pos != POS_FIXED) return;
+
+    int cb_x = 0;
+    int cb_y = 0;
+    int cb_w = 0;
+    int cb_h = 0;
+    if (pos == POS_FIXED) {
+        cb_x = 0; cb_y = 0;
+        cb_w = viewport_content_w();
+        cb_h = (cur_ch > (ADDR_H + 1) + (STATUS_H + 1))
+               ? cur_ch - (ADDR_H + 1) - (STATUS_H + 1) : 0;
+    } else {
+        /* CSS 2.1 §10.1: containing block for an absolutely positioned
+         * box is the nearest positioned ancestor's PADDING edge (between
+         * its borders, including its padding). Reference:
+         * blink/Source/core/rendering/RenderBox.cpp::containingBlock(). */
+        int cb = rt_containing_block(oof);
+        cb_x = rt_doc_x_of(cb) + rt_border_l(cb);
+        cb_y = rt_doc_y_of(cb) + rt_border_t(cb);
+        cb_w = rt_w[cb] - rt_border_l(cb) - rt_border_r(cb);
+        cb_h = rt_h[cb] - rt_border_t(cb) - rt_border_b(cb);
+    }
+    if (cb_w < 0) cb_w = 0;
+    if (cb_h < 0) cb_h = 0;
+
+    /* CSS 2.1 §10.3.7 - width / left / right resolution for absolutely
+     * positioned non-replaced elements. Reference:
+     * blink/Source/core/rendering/RenderBox.cpp::computePositionedLogicalWidth.
+     *
+     *   left set, right set, width auto  -> width = cb_w - left - right
+     *   left set, right auto, width auto -> shrink-to-fit, x = left
+     *   left auto, right set, width auto -> shrink-to-fit, x = cb_w - right - w
+     *   left auto, right auto, width auto -> shrink-to-fit at static position
+     */
+    int has_w = (cs_width[sty] >= 0);
+    int has_h = (cs_height[sty] >= 0);
+    int pset = cs_pos_set[sty];
+    int has_top    = (pset & 1) != 0;
+    int has_right  = (pset & 2) != 0;
+    int has_bottom = (pset & 4) != 0;
+    int has_left   = (pset & 8) != 0;
+    int leftv = cs_left[sty];
+    int rightv = cs_right[sty];
+    int topv = cs_top[sty];
+    int botv = cs_bottom[sty];
+    int w_resolved = -1;
+    if (has_w) {
+        w_resolved = cs_width[sty];
+    } else if (has_left && has_right) {
+        w_resolved = cb_w - leftv - rightv;
+        if (w_resolved < 0) w_resolved = 0;
+    }
+    /* When width is auto AND we have at most one of left/right, do a
+     * shrink-to-fit pre-measurement: walk the subtree's text content
+     * to estimate intrinsic width, then lay out ONCE at that width.
+     * (Doing it as a re-layout would orphan the first pass's
+     * line-box children on rt_first_child[oof] alongside the new ones,
+     * since layout_block is purely additive — paint would then walk
+     * both and double-render the text.)
+     * Reference: blink/Source/core/rendering/RenderBox.cpp
+     * shrinkToFitWidth + computePreferredLogicalWidths. */
+    int extra_w_self = rt_padding_l(oof) + rt_padding_r(oof)
+                     + rt_border_l(oof)  + rt_border_r(oof);
+    if (w_resolved < 0) {
+        int intrinsic = oof_intrinsic_text_w(oof);
+        if (intrinsic > 0) {
+            int shrink_w = intrinsic + extra_w_self;
+            if (shrink_w > cb_w) shrink_w = cb_w;
+            w_resolved = shrink_w - extra_w_self;
+            if (w_resolved < 0) w_resolved = 0;
+        }
+    }
+    int avail = (w_resolved >= 0) ? w_resolved : cb_w;
+    layout_block(oof, avail);
+    if (w_resolved >= 0) rt_w[oof] = w_resolved + extra_w_self;
+
+    int x = 0;
+    int y = 0;
+    if (has_left) {
+        x = cb_x + leftv;
+    } else if (has_right) {
+        x = cb_x + cb_w - rightv - rt_w[oof];
+    } else {
+        /* Static-position fallback: use the in-flow rt_x assigned during
+         * the first pass. */
+        x = rt_doc_x_of(oof);
+    }
+    if (has_top) {
+        y = cb_y + topv;
+    } else if (has_bottom) {
+        y = cb_y + cb_h - botv - rt_h[oof];
+    } else {
+        y = rt_doc_y_of(oof);
+    }
+    if (has_h && cs_height[sty] >= 0) {
+        int extra_h_oof = rt_padding_t(oof) + rt_padding_b(oof)
+                        + rt_border_t(oof)  + rt_border_b(oof);
+        if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+            rt_h[oof] = cs_height[sty];
+        } else {
+            rt_h[oof] = cs_height[sty] + extra_h_oof;
+        }
+    }
+    rt_x[oof] = x;
+    rt_y[oof] = y;
+    rt_is_oof[oof] = 1;
+    rt_is_fixed[oof] = (pos == POS_FIXED) ? 1 : 0;
+}
+
+void layout_oof(void) {
+    for (int i = 0; i < rt_oof_count; i = i + 1) {
+        layout_oof_one(rt_oof_list[i]);
+    }
 }
 
 void run_layout() {
     if (rt_count == 0) return;
     int root = 0;
     /* Root sits at document origin (0,0). rt_screen_x/y in paint.cc add
-     * viewport_x()/viewport_y() at paint time, so seeding root with the
-     * viewport origin double-counts the chrome and shoves the first h2
-     * ~viewport_y px below where Chrome would draw it (the "huge gap"
-     * bug on d1_selectors_v2.html). */
+     * viewport_x()/viewport_y() at paint time. Float list resets per
+     * layout pass; placement happens in document-relative coordinates
+     * during the in-flow walk. */
     rt_x[root] = 0;
     rt_y[root] = 0;
+    float_count = 0;
+    float_visible_first = 0;
     int avail = viewport_content_w();
     layout_block(root, avail);
+    layout_oof();
     doc_h = rt_y[root] + rt_h[root];
+}
+
+/* CSS Flexible Box Layout Module (single-line, no wrap).
+ *
+ * Reference: blink/Source/core/layout/LayoutFlexibleBox.cpp
+ * (computeNextFlexLine + resolveFlexibleLengths + layoutAndPlaceChildren).
+ *
+ * Algorithm:
+ *   1. Walk children. Skip out-of-flow positioned items. For each
+ *      flex item, compute its FLEX BASE SIZE in the main axis from
+ *      flex-basis (else cs_width/cs_height, else intrinsic).
+ *   2. Compute free_space = container_main - sum(base) - gap_total.
+ *   3. If free_space > 0 and any item has flex-grow > 0, distribute
+ *      the surplus proportionally to grow factors.
+ *      If free_space < 0 and any item has flex-shrink > 0, distribute
+ *      the deficit proportionally to shrink * base (per spec).
+ *   4. Lay out each item at its final main size to compute its cross
+ *      size. Apply align-items: stretch (default) sets cross to the
+ *      container's cross-axis size; flex-start/end/center positions
+ *      the item without resizing.
+ *   5. Resolve container's cross size (cs_height/width if set, else
+ *      tallest item).
+ *   6. Pack along the main axis per justify-content, with `gap`
+ *      between items as a base separator. */
+void layout_flex(int n, int content_w, int cx, int cy) {
+    int sty = rt_style[n];
+    int gap = cs_gap[sty];
+    int justify = cs_justify[sty];
+    int align = cs_align_items[sty];
+    int is_col = (cs_flex_dir[sty] == FLEX_DIR_COLUMN);
+
+    int content_h = 0;
+    {
+        int sh = cs_height[sty];
+        if (sh >= 0) {
+            int extra_h = rt_padding_t(n) + rt_padding_b(n)
+                        + rt_border_t(n)  + rt_border_b(n);
+            if (cs_box_sizing[sty] == BOX_SIZING_BORDER) {
+                content_h = sh - extra_h;
+                if (content_h < 0) content_h = 0;
+            } else {
+                content_h = sh;
+            }
+        }
+    }
+    int main_size = is_col ? content_h : content_w;
+    int cross_avail = is_col ? content_w : content_h;
+
+    int items[64];
+    int base[64];
+    int min_size[64];
+    int grow[64];
+    int shrink[64];
+    int final_main[64];
+    int cnt = 0;
+
+    int c = rt_first_child[n];
+    while (c >= 0 && cnt < 64) {
+        int ck = rt_kind[c];
+        int c_dom = rt_dom[c];
+        if (ck == RT_LINE_BOX || c_dom < 0) { c = rt_next[c]; continue; }
+        int c_sty = rt_style[c];
+        int c_pos = cs_position[c_sty];
+        if (c_pos == POS_ABSOLUTE || c_pos == POS_FIXED) { c = rt_next[c]; continue; }
+        items[cnt] = c;
+        int extra_main = is_col
+            ? (rt_padding_t(c) + rt_padding_b(c) + rt_border_t(c) + rt_border_b(c))
+            : (rt_padding_l(c) + rt_padding_r(c) + rt_border_l(c) + rt_border_r(c));
+        int basis = cs_flex_basis[c_sty];
+        int b = 0;
+        if (basis >= 0) {
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? basis : (basis + extra_main);
+        } else if (!is_col && cs_width[c_sty] >= 0) {
+            int cw = cs_width[c_sty];
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? cw : (cw + extra_main);
+        } else if (is_col && cs_height[c_sty] >= 0) {
+            int chv = cs_height[c_sty];
+            b = (cs_box_sizing[c_sty] == BOX_SIZING_BORDER) ? chv : (chv + extra_main);
+        } else if (is_col) {
+            /* Column + auto: there is no intrinsic-height shortcut, so lay
+             * out the item at the cross-axis width NOW to learn its
+             * natural content height. The result becomes the base size
+             * (pass 2 may re-layout if flex-grow/shrink changes it). */
+            int item_w = (cs_width[c_sty] >= 0)
+                ? cs_width[c_sty]
+                : content_w;
+            layout_block(c, item_w);
+            b = rt_h[c];
+        } else {
+            int intr = oof_intrinsic_text_w(c);
+            b = (intr > 0) ? (intr + extra_main) : extra_main;
+        }
+        if (b < extra_main) b = extra_main;
+        base[cnt] = b;
+        min_size[cnt] = extra_main;
+        grow[cnt] = cs_flex_grow[c_sty];
+        shrink[cnt] = cs_flex_shrink[c_sty];
+        final_main[cnt] = b;
+        cnt = cnt + 1;
+        c = rt_next[c];
+    }
+
+    int gap_total = (cnt > 1) ? (cnt - 1) * gap : 0;
+    int total_base = 0;
+    int i;
+    for (i = 0; i < cnt; i = i + 1) total_base = total_base + base[i];
+    /* Indefinite main size: a column flex container with no `height` set
+     * (or a row container that already has a definite content_w from
+     * block layout - so this only matters for column) sizes its main
+     * axis to the sum of item base sizes. Without this fix the
+     * free_space calculation goes deeply negative and the shrink pass
+     * crushes every item to its padding+border only. CSS Flexbox §9.7.3
+     * "If the available main size is infinite, this is the flex line's
+     * main size." Reference: blink/Source/core/layout/LayoutFlexibleBox.cpp
+     * computeMainSizeFromAspectRatioUsing + indefiniteMainSize handling. */
+    if (main_size <= 0) {
+        main_size = total_base + gap_total;
+    }
+    int free_space = main_size - total_base - gap_total;
+
+    if (free_space > 0) {
+        int total_grow = 0;
+        for (i = 0; i < cnt; i = i + 1) total_grow = total_grow + grow[i];
+        if (total_grow > 0) {
+            int distributed = 0;
+            for (i = 0; i < cnt; i = i + 1) {
+                int add = (free_space * grow[i]) / total_grow;
+                final_main[i] = base[i] + add;
+                distributed = distributed + add;
+            }
+            int rem = free_space - distributed;
+            for (i = cnt - 1; i >= 0 && rem > 0; i = i - 1) {
+                if (grow[i] > 0) { final_main[i] = final_main[i] + rem; break; }
+            }
+        }
+    } else if (free_space < 0) {
+        int total_weight = 0;
+        for (i = 0; i < cnt; i = i + 1)
+            total_weight = total_weight + (shrink[i] * base[i]) / 100;
+        if (total_weight > 0) {
+            int deficit = -free_space;
+            for (i = 0; i < cnt; i = i + 1) {
+                int weight = (shrink[i] * base[i]) / 100;
+                int reduce = (deficit * weight) / total_weight;
+                final_main[i] = base[i] - reduce;
+                if (final_main[i] < min_size[i]) final_main[i] = min_size[i];
+            }
+        }
+    }
+
+    /* Pass 2: lay out each item at its final main size. For column
+     * direction the main size is the height; layout_block writes rt_h
+     * from content + cs_height, so we set cs_height-equivalent via the
+     * abspos helper isn't applicable - instead we layout_block with the
+     * cross-axis width and then OVERRIDE rt_h. */
+    int max_cross = 0;
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        if (is_col) {
+            /* Pass 1 (auto-basis branch above) already laid out the item
+             * and recorded base[i] = rt_h. Re-running layout_block here
+             * would append a SECOND set of RT_LINE_BOX children to the
+             * same node, and paint draws both -> duplicated/overlapping
+             * text ("525" rendered as "52525"). Only re-layout when
+             * flex-grow/shrink actually changed the main size; otherwise
+             * keep the dimensions pass 1 computed. */
+            if (final_main[i] != base[i]) {
+                int item_w = (cs_width[rt_style[it]] >= 0)
+                           ? cs_width[rt_style[it]]
+                           : ((align == ALIGN_STRETCH) ? content_w : 0);
+                if (item_w == 0) {
+                    int intr = oof_intrinsic_text_w(it);
+                    item_w = (intr > 0) ? intr : content_w;
+                }
+                layout_block(it, item_w);
+                rt_h[it] = final_main[i];
+            }
+            if (rt_w[it] > max_cross) max_cross = rt_w[it];
+        } else {
+            layout_block(it, final_main[i]);
+            rt_w[it] = final_main[i];
+            if (rt_h[it] > max_cross) max_cross = rt_h[it];
+        }
+    }
+
+    int container_cross;
+    if (cross_avail > 0) {
+        container_cross = cross_avail;
+    } else {
+        container_cross = max_cross;
+    }
+    if (container_cross < 0) container_cross = 0;
+
+    /* Cross-axis alignment per item. Stretch enlarges items that have no
+     * explicit cross size to the container's cross size. */
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        int it_cross = is_col ? rt_w[it] : rt_h[it];
+        int has_cross_size = is_col
+            ? (cs_width [rt_style[it]] >= 0)
+            : (cs_height[rt_style[it]] >= 0);
+        if (align == ALIGN_STRETCH && !has_cross_size && it_cross < container_cross) {
+            if (is_col) rt_w[it] = container_cross;
+            else        rt_h[it] = container_cross;
+            it_cross = container_cross;
+        }
+        int cross_off = 0;
+        if (align == ALIGN_FLEX_END) {
+            cross_off = container_cross - it_cross;
+        } else if (align == ALIGN_CENTER) {
+            cross_off = (container_cross - it_cross) / 2;
+        }
+        if (cross_off < 0) cross_off = 0;
+        if (is_col) rt_x[it] = cx + cross_off;
+        else        rt_y[it] = cy + cross_off;
+    }
+
+    /* Main-axis packing. */
+    int total_main_used = 0;
+    for (i = 0; i < cnt; i = i + 1) total_main_used = total_main_used + final_main[i];
+    int extra_main = main_size - total_main_used - gap_total;
+    if (extra_main < 0) extra_main = 0;
+
+    int leading = 0;
+    int between = gap;
+    if (justify == JUSTIFY_FLEX_END) {
+        leading = extra_main;
+    } else if (justify == JUSTIFY_CENTER) {
+        leading = extra_main / 2;
+    } else if (justify == JUSTIFY_SPACE_BETWEEN && cnt > 1) {
+        between = gap + extra_main / (cnt - 1);
+    } else if (justify == JUSTIFY_SPACE_AROUND && cnt > 0) {
+        leading = extra_main / (2 * cnt);
+        between = gap + extra_main / cnt;
+    } else if (justify == JUSTIFY_SPACE_EVENLY && cnt > 0) {
+        leading = extra_main / (cnt + 1);
+        between = gap + extra_main / (cnt + 1);
+    }
+
+    int pos = (is_col ? cy : cx) + leading;
+    for (i = 0; i < cnt; i = i + 1) {
+        int it = items[i];
+        if (is_col) rt_y[it] = pos;
+        else        rt_x[it] = pos;
+        pos = pos + final_main[i];
+        if (i < cnt - 1) pos = pos + between;
+    }
+
+    /* Container's own height. For row, cy advances by container_cross.
+     * For column, cy advances by main_size if explicit, else by total_main_used. */
+    int used_height;
+    if (is_col) {
+        used_height = (main_size > 0) ? main_size : (total_main_used + gap_total);
+    } else {
+        used_height = container_cross;
+    }
+    rt_h[n] = cy + used_height + rt_padding_b(n) + rt_border_b(n);
 }

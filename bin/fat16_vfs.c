@@ -17,7 +17,7 @@
 #include "memory.h"
 #include "../drivers/serial.h"
 
-/*  FAT16 VFS file handle  */
+/* ── FAT16 VFS file handle ────────────────────────────────────────── */
 
 typedef struct {
     fat16_file_t *fat_file;     /* Underlying FAT16 file handle       */
@@ -31,7 +31,7 @@ typedef struct {
     bool          dirty;        /* True if writes were made            */
 } fat16_vfs_handle_t;
 
-/*  Readdir callback context  */
+/* ── Readdir callback context ─────────────────────────────────────── */
 
 #define FAT16_VFS_MAX_ENTRIES 128
 
@@ -46,8 +46,9 @@ typedef struct {
     int                 index;
 } fat16_vfs_dir_handle_t;
 
-/*  *  Internal helpers
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Internal helpers
+ * ══════════════════════════════════════════════════════════════════════ */
 
 /**
  * Callback for fat16_enumerate_root - collects entries into context.
@@ -78,8 +79,9 @@ static const char *fat16_vfs_strip(const char *path) {
     return path;
 }
 
-/*  *  VFS operations implementation
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  VFS operations implementation
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static int fat16_vfs_mount(const char *source, void **fs_private) {
     (void)source;
@@ -397,8 +399,9 @@ static int fat16_vfs_unlink(void *fs_private, const char *path) {
     return (result == 0) ? VFS_OK : VFS_EIO;
 }
 
-/*  *  VFS operations struct
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  VFS operations struct
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static vfs_fs_ops_t fat16_vfs_ops = {
     .name     = "fat16",

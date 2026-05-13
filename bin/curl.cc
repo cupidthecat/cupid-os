@@ -366,7 +366,7 @@ void main() {
 
                     /* Location header capture. */
                     if (b == '\n') {
-                        /* End of header line - check Location: */
+                        /* End of header line — check Location: */
                         if (line_len > 9 && sw_ci(line, "location:")) {
                             int li = 9;
                             while (li < line_len && (line[li] == ' ' || line[li] == '\t')) li = li + 1;

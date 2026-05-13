@@ -176,11 +176,14 @@ void navigate(char *u) {
      * attr_pool, so we must reset before tokenize starts. */
     attr_pool_pos = 1;
     js_reset_per_page();
-    /* §2.x Per-page webfont registry reset. Faces stay registered in
-     * fontsys (no fontsys_unregister exists yet), but the browser-side
-     * mapping from family -> face_id is rebuilt for each page so a stale
-     * @font-face rule can't bleed into the next document. */
+    /* Per-page eviction: free webfont blobs and decoded image buffers
+     * before parsing the new document. font_face_init now unregisters
+     * each kernel face_id and kfrees the heap blob; image_evict_all
+     * walks the previous DOM and gfx2d_image_free's every cached
+     * handle. Without this, heap usage climbs across navigations. */
+    image_evict_all();
     font_face_init();
+    image_queue_init();
     parse_html(page_len);
     run_layout();           /* render-tree layout drives the visible pipeline */
     scroll_y = 0;

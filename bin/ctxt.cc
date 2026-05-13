@@ -472,7 +472,7 @@ void ctxt_parse(int buf_ptr, int len) {
     ctxt_line_aux_a[n] = 0;
     ctxt_line_aux_b[n] = 0;
     /* Snapshot BEFORE >tree/>endtree update tree_mask. A tree's own button
-     * line must be visible regardless of its own open/closed state - otherwise
+     * line must be visible regardless of its own open/closed state — otherwise
      * a closed tree hides the toggle that would open it. */
     int line_tree_mask = tree_mask;
 

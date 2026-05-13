@@ -1,4 +1,4 @@
-//help: dglibc smoke test - snprintf / malloc-free / setjmp round-trip
+//help: dglibc smoke test — snprintf / malloc-free / setjmp round-trip
 //help: Usage: dglibc_test
 
 void main() {

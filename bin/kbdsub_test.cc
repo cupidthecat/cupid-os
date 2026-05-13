@@ -1,4 +1,4 @@
-//help: Task2 keyboard subscriber smoke - subscribe/unsubscribe + make/break
+//help: Task2 keyboard subscriber smoke — subscribe/unsubscribe + make/break
 //help: Usage: kbdsub_test
 
 void main() {

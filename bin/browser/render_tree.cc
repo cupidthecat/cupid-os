@@ -24,6 +24,9 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
     rt_h[n] = 0;
     rt_intrinsic_w[n] = 0;
     rt_intrinsic_h[n] = 0;
+    rt_is_oof[n] = 0;
+    rt_is_fixed[n] = 0;
+    rt_is_stack[n] = 0;
     rt_link_idx[n] = -1;
     rt_input_idx[n] = -1;
     rt_line_atom_first[n] = 0;
@@ -44,6 +47,8 @@ int rt_kind_for_display(int disp) {
     if (disp == DISP_BLOCK)              return RT_BLOCK;
     if (disp == DISP_INLINE)             return RT_INLINE;
     if (disp == DISP_INLINE_BLOCK)       return RT_INLINE_BLOCK;
+    if (disp == DISP_INLINE_FLEX)        return RT_INLINE_BLOCK;
+    if (disp == DISP_FLEX)               return RT_BLOCK;
     if (disp == DISP_LIST_ITEM)          return RT_LIST_ITEM;
     if (disp == DISP_TABLE)              return RT_TABLE;
     if (disp == DISP_TABLE_ROW_GROUP)    return RT_TABLE_ROW_GROUP;
@@ -69,6 +74,20 @@ int rt_kind_is_block_level(int kind) {
  * anonymous block wrappers around contiguous inline runs whenever this parent
  * has at least one block-level child. */
 void build_rt_children(int dom, int rt_parent_n) {
+    /* Flex container: per CSS Flexbox §4, every flex item is blockified
+     * (display: inline / inline-block / inline-* on a child becomes
+     * block). Pre-scan still finds at least one block, so inline children
+     * go through the block-level path and we promote their RT kind to
+     * RT_BLOCK below. Reference:
+     * blink/Source/core/layout/LayoutFlexibleBox.cpp `BlockifyDisplay`. */
+    int parent_is_flex = 0;
+    if (rt_parent_n >= 0) {
+        int p_sty = rt_style[rt_parent_n];
+        if (cs_display[p_sty] == DISP_FLEX || cs_display[p_sty] == DISP_INLINE_FLEX) {
+            parent_is_flex = 1;
+        }
+    }
+
     /* Pre-scan: do we have a mix? */
     int has_block = 0;
     int c = n_first_child[dom];
@@ -82,6 +101,10 @@ void build_rt_children(int dom, int rt_parent_n) {
         }
         c = n_next[c];
     }
+    /* In a flex container every non-text child is treated as a flex
+     * item -> blockified, so has_block holds even when source order is
+     * all-inline. */
+    if (parent_is_flex) has_block = 1;
 
     int anon_block = -1;          /* current anon block wrapper, -1 if none open */
     c = n_first_child[dom];
@@ -118,6 +141,16 @@ void build_rt_children(int dom, int rt_parent_n) {
             anon_block = -1;          /* close any open anon */
             int n = build_rt_subtree(c, rt_parent_n);
             (void)n;
+        } else if (parent_is_flex) {
+            /* Blockify the flex item: same as the block-level path but
+             * also force rt_kind so paint's "skip inline atoms" check
+             * doesn't drop the box. RT_REPLACED is preserved so <img>
+             * inside flex still uses replaced-element paint. */
+            anon_block = -1;
+            int n = build_rt_subtree(c, rt_parent_n);
+            if (n >= 0 && rt_kind[n] != RT_REPLACED) {
+                rt_kind[n] = RT_BLOCK;
+            }
         } else {
             int target = rt_parent_n;
             if (has_block) {
@@ -169,24 +202,39 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         }
     }
 
-    /* For <img>: intrinsic dims from width/height attrs (placeholder default 80x60) */
+    /* For <img>: intrinsic dims from HTML width/height attrs first, then
+     * decoded pixel dimensions (n_img_intrinsic_*) once image.cc has
+     * fetched the bytes, then 80x60 placeholder if neither is known. */
     if (tag == T_IMG) {
         int w_off = dom_attr_get(dom, "width");
         int h_off = dom_attr_get(dom, "height");
-        rt_intrinsic_w[n] = 80;     /* default */
-        rt_intrinsic_h[n] = 60;
+        int dw = -1, dh = -1;
         if (w_off >= 0) {
             int v = 0;
             char *s = attr_pool + w_off;
             for (int k = 0; s[k] >= '0' && s[k] <= '9'; k++) v = v*10 + (s[k]-'0');
-            if (v > 0) rt_intrinsic_w[n] = v;
+            if (v > 0) dw = v;
         }
         if (h_off >= 0) {
             int v = 0;
             char *s = attr_pool + h_off;
             for (int k = 0; s[k] >= '0' && s[k] <= '9'; k++) v = v*10 + (s[k]-'0');
-            if (v > 0) rt_intrinsic_h[n] = v;
+            if (v > 0) dh = v;
         }
+        int decoded_w = n_img_intrinsic_w[dom];
+        int decoded_h = n_img_intrinsic_h[dom];
+        if (dw < 0 && decoded_w > 0) dw = decoded_w;
+        if (dh < 0 && decoded_h > 0) dh = decoded_h;
+        /* If only one axis specified, scale the other to preserve aspect
+         * ratio when we have decoded pixels. */
+        if (dw > 0 && dh < 0 && decoded_w > 0 && decoded_h > 0) {
+            dh = (decoded_h * dw) / decoded_w;
+        }
+        if (dh > 0 && dw < 0 && decoded_w > 0 && decoded_h > 0) {
+            dw = (decoded_w * dh) / decoded_h;
+        }
+        rt_intrinsic_w[n] = (dw > 0) ? dw : 80;
+        rt_intrinsic_h[n] = (dh > 0) ? dh : 60;
     }
 
     /* For <input>: bind input index, set intrinsic size. Checkbox/radio
@@ -257,8 +305,35 @@ void rt_anon_table_fixup() {
     (void)0;
 }
 
+/* Walk freshly-built render tree, append every stacking-context
+ * participant to rt_oof_list. Two participant kinds:
+ *   - position: absolute | fixed - layout's second pass resolves x/y;
+ *     paint draws in z-index order with rt_is_oof set.
+ *   - position: relative WITH explicit z-index - stays in flow
+ *     (no second layout pass), but z-sorts in paint with siblings.
+ * CSS 2.1 §9.9.1: "An element forms a stacking context if it has a
+ * position value other than static and a z-index value other than
+ * auto." Both kinds get rt_is_stack so the in-flow paint walk skips
+ * them. */
+void rt_collect_oof(int n) {
+    if (n < 0) return;
+    int sty = rt_style[n];
+    int pos = cs_position[sty];
+    int has_z = (cs_pos_set[sty] & 16) != 0;
+    int is_oof = (pos == POS_ABSOLUTE || pos == POS_FIXED);
+    int is_rel_z = (pos == POS_RELATIVE && has_z);
+    if ((is_oof || is_rel_z) && rt_oof_count < 1024) {
+        rt_oof_list[rt_oof_count] = n;
+        rt_oof_count = rt_oof_count + 1;
+        rt_is_stack[n] = 1;
+    }
+    int c = rt_first_child[n];
+    while (c >= 0) { rt_collect_oof(c); c = rt_next[c]; }
+}
+
 void build_render_tree() {
     rt_count = 0;
+    rt_oof_count = 0;
     la_count = 0;
     links_count = 0;     /* rebuilt as <a> nodes are walked below */
     /* Synthetic RT root mirrors DOM root (DOM index 0 = T_ROOT) */
@@ -266,6 +341,7 @@ void build_render_tree() {
     if (root < 0) return;
     build_rt_children(0, root);
     rt_anon_table_fixup();
+    rt_collect_oof(root);
 }
 
 /* Dormant debug helper (kept for future use, not called) */

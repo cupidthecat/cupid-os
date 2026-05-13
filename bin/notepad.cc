@@ -2368,7 +2368,7 @@ void main() {
     }
     /* Only follow cursor when the user moved it (typed/arrowed). Without
      * this gate every paint frame ran ensure_cursor_visible(), which
-     * snapped scroll_y back to wherever the cursor was - making both the
+     * snapped scroll_y back to wherever the cursor was — making both the
      * scroll wheel and scrollbar drag look broken. */
     if (key_handled) ensure_cursor_visible(rows, cols);
 

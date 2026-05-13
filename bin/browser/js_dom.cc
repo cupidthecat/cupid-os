@@ -206,6 +206,93 @@ int jsd_make_text_child(int parent, char *s, int len) {
     return n;
 }
 
+/* Append text as a T_TEXT child of `parent` without replacing siblings.
+ * Empty strings are dropped to avoid littering the DOM. */
+int jsd_append_text(int parent, char *s, int len) {
+    if (len <= 0) return -1;
+    int n = alloc_node(T_TEXT, parent, -1);
+    if (n < 0) return -1;
+    int off = attr_intern(s, len);
+    if (off < 0) return -1;
+    n_text_off[n] = off;
+    n_text_len[n] = len;
+    return n;
+}
+
+/* Map an inline tag name (lowercased) to its T_* constant. Returns
+ * 0 for unknown tags so callers can surface them as literal text. */
+int jsd_inner_tag_lookup(char *s, int len) {
+    if (len == 1 && (s[0] == 'b' || s[0] == 'B')) return T_B;
+    if (len == 1 && (s[0] == 'i' || s[0] == 'I')) return T_I;
+    if (len == 1 && (s[0] == 'a' || s[0] == 'A')) return T_A;
+    if (len == 2 && b_strieq_n(s, "br", 2)) return T_BR;
+    if (len == 2 && b_strieq_n(s, "em", 2)) return T_EM;
+    if (len == 4 && b_strieq_n(s, "code", 4)) return T_CODE;
+    if (len == 4 && b_strieq_n(s, "span", 4)) return T_SPAN;
+    if (len == 4 && b_strieq_n(s, "font", 4)) return T_FONT;
+    if (len == 6 && b_strieq_n(s, "strong", 6)) return T_STRONG;
+    return 0;
+}
+
+/* Parse a small HTML fragment into DOM children of `parent`. Walks the
+ * input with a flat tag-stack: open tags push, close tags pop until the
+ * matching ancestor is found, mismatches are tolerated. Attributes are
+ * skipped (read but discarded - the inline-formatting subset doesn't
+ * need them). Self-closing void tags (<br/>) emit a node and stay on
+ * the original level. */
+void jsd_parse_inner_html(int parent, char *s, int len) {
+    int stack[16];
+    int sp = 0;
+    stack[sp] = parent; sp = sp + 1;
+    int i = 0;
+    int text_start = 0;
+    while (i < len) {
+        char c = s[i];
+        if (c != '<') { i = i + 1; continue; }
+        /* Flush pending text into the current parent. */
+        if (i > text_start) {
+            jsd_append_text(stack[sp - 1], s + text_start, i - text_start);
+        }
+        i = i + 1;                                     /* past '<' */
+        int is_close = 0;
+        if (i < len && s[i] == '/') { is_close = 1; i = i + 1; }
+        int name_start = i;
+        while (i < len && s[i] != '>' && s[i] != ' ' &&
+               s[i] != '\t' && s[i] != '/') i = i + 1;
+        int name_end = i;
+        /* Skip attributes until '>' or '/>'. */
+        int self_close = 0;
+        while (i < len && s[i] != '>') {
+            if (s[i] == '/') self_close = 1;
+            i = i + 1;
+        }
+        if (i < len && s[i] == '>') i = i + 1;        /* past '>' */
+        text_start = i;
+        int nlen = name_end - name_start;
+        if (nlen <= 0) continue;
+        int tag = jsd_inner_tag_lookup(s + name_start, nlen);
+        if (tag == 0) continue;                        /* unknown - drop */
+        if (tag == T_BR) {
+            (void)alloc_node(T_BR, stack[sp - 1], -1);
+            continue;
+        }
+        if (is_close) {
+            int k = sp - 1;
+            while (k > 0 && n_tag[stack[k]] != tag) k = k - 1;
+            if (k > 0) sp = k;                         /* pop to match */
+            continue;
+        }
+        int n = alloc_node(tag, stack[sp - 1], -1);
+        if (n < 0) continue;
+        if (!self_close && sp < 16) {
+            stack[sp] = n; sp = sp + 1;
+        }
+    }
+    if (len > text_start) {
+        jsd_append_text(stack[sp - 1], s + text_start, len - text_start);
+    }
+}
+
 /* Write a property on a DOMNODE; reads top-of-stack as the rvalue.
  * F2b implements textContent / innerText. F2d adds attribute / style. */
 void jsd_dom_member_set(int dom_idx, int koff, int klen) {
@@ -226,15 +313,16 @@ void jsd_dom_member_set(int dom_idx, int koff, int klen) {
         return;
     }
     if (klen == 9 && b_strieq_n(name, "innerHTML", 9)) {
-        /* F2b minimal: treat innerHTML like textContent (no tag
-         * parsing). A real innerHTML re-enters the HTML tokenizer/
-         * tree-builder against a sub-tree; the existing parser uses
-         * file-scope globals so a recursive entry would corrupt the
-         * outer parse. Deferred until the parser is refactored. */
+        /* Standalone fragment parser scoped to innerHTML. Re-entering the
+         * main HTML parser would clobber its file-scope globals (page_buf,
+         * tok_*[], ap_*[]); instead we walk the fragment locally and
+         * create DOM nodes directly. Supports text and a fixed set of
+         * inline formatting tags; unknown tags are surfaced as literal
+         * text so authors notice rather than silently dropping content. */
         char buf[1024];
         int n = js_to_string_at(t, buf, 1024);
         jsd_clear_children(dom_idx);
-        jsd_make_text_child(dom_idx, buf, n);
+        jsd_parse_inner_html(dom_idx, buf, n);
         dom_dirty = 1;
         return;
     }

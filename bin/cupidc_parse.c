@@ -17,8 +17,9 @@
 #include "kernel.h"
 #include "string.h"
 
-/*  *  x86 Machine Code Emission Helpers
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  x86 Machine Code Emission Helpers
+ * ══════════════════════════════════════════════════════════════════════ */
 
 /* Emit a single byte */
 static void emit8(cc_state_t *cc, uint8_t b) {
@@ -214,8 +215,9 @@ static void emit_lea_local(cc_state_t *cc, int32_t offset) {
   emit32(cc, (uint32_t)offset);
 }
 
-/*  *  Error Handling
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Error Handling
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
   if (cc->error)
@@ -270,8 +272,9 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
-/*  *  Token Helpers
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Token Helpers
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static cc_token_t cc_next(cc_state_t *cc) { return cc_lex_next(cc); }
 
@@ -572,8 +575,9 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
   return cc_type_size(cc, type, struct_index);
 }
 
-/*  *  Symbol Table
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Symbol Table
+ * ══════════════════════════════════════════════════════════════════════ */
 
 void cc_sym_init(cc_state_t *cc) { cc->sym_count = 0; }
 
@@ -606,22 +610,25 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   return sym;
 }
 
-/*  *  Forward Declarations for Parser
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Forward Declarations for Parser
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static void cc_parse_statement(cc_state_t *cc);
 static void cc_parse_block(cc_state_t *cc);
 static void cc_parse_expression(cc_state_t *cc, int min_prec);
 static void cc_parse_primary(cc_state_t *cc);
 
-/*  *  Expression Types for Tracking
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Expression Types for Tracking
+ * ══════════════════════════════════════════════════════════════════════ */
 
 /* Track what kind of value the last expression produced -
  * (primary statics declared above, before cc_parse_type) */
 
-/*  *  Operator Precedence
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Operator Precedence
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static int cc_precedence(cc_token_type_t op) {
   switch (op) {
@@ -660,10 +667,11 @@ static int cc_precedence(cc_token_type_t op) {
 
 static int cc_is_binary_op(cc_token_type_t t) { return cc_precedence(t) > 0; }
 
-/*  *  Expression Parsing
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Expression Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
 
-/* Emit binary operation: EBX = left, EAX = right -> result in EAX */
+/* Emit binary operation: EBX = left, EAX = right → result in EAX */
 static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
   /* Pop left operand into EBX */
   emit_pop_ebx(cc);
@@ -691,7 +699,7 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
     emit8(cc, 0xC1); /* mov ecx, eax */
     emit8(cc, 0x89);
     emit8(cc, 0xD8); /* mov eax, ebx */
-    emit8(cc, 0x99); /* cdq (sign-extend eax->edx:eax) */
+    emit8(cc, 0x99); /* cdq (sign-extend eax→edx:eax) */
     emit8(cc, 0xF7);
     emit8(cc, 0xF9); /* idiv ecx */
     break;
@@ -1281,7 +1289,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       return;
     cc_token_t next = cc_peek(cc);
 
-    /*  Struct member access: expr.field or expr->field  */
+    /* ── Struct member access: expr.field or expr->field ────── */
     if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
       postfix_lvalue_valid = 0;
       cc_next(cc); /* consume . or -> */
@@ -1456,7 +1464,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
   }
 
-  /*  Ternary operator ?: (lowest precedence, below || which is 1)  */
+  /* ── Ternary operator ?: (lowest precedence, below || which is 1) ── */
   if (!cc->error && min_prec <= 1) {
     cc_token_t maybe_q = cc_peek(cc);
     if (maybe_q.type == CC_TOK_QUESTION) {
@@ -1494,8 +1502,9 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
   }
 }
 
-/*  *  Assignment Parsing
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Assignment Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static int cc_is_assignment_op(cc_token_type_t t) {
   return t == CC_TOK_EQ || t == CC_TOK_PLUSEQ || t == CC_TOK_MINUSEQ ||
@@ -1831,8 +1840,9 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   }
 }
 
-/*  *  Inline Assembly Parser
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Inline Assembly Parser
+ * ══════════════════════════════════════════════════════════════════════ */
 
 /* Parse a register name, returns register number (0-7) or -1 */
 static int cc_parse_reg(const char *text) {
@@ -2051,8 +2061,9 @@ static void cc_parse_asm_block(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_RBRACE);
 }
 
-/*  *  Statement Parsing
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Statement Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static int cc_skip_brace_initializer(cc_state_t *cc) {
   if (!cc_match(cc, CC_TOK_LBRACE)) {
@@ -3010,8 +3021,9 @@ static void cc_parse_block(cc_state_t *cc) {
   cc->local_offset = saved_offset;
 }
 
-/*  *  Function Parsing
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Function Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static void cc_parse_function(cc_state_t *cc) {
   cc_type_t ret_type = cc_parse_type(cc);
@@ -3152,8 +3164,9 @@ static void cc_parse_function(cc_state_t *cc) {
   }
 }
 
-/*  *  Top-Level Program Parsing
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  Top-Level Program Parsing
+ * ══════════════════════════════════════════════════════════════════════ */
 
 void cc_parse_program(cc_state_t *cc) {
   cc->struct_count = 0;
@@ -3166,7 +3179,7 @@ void cc_parse_program(cc_state_t *cc) {
       tok = cc_peek(cc);
     }
 
-    /*  Enum definition: enum { A, B = 5, C };  */
+    /* ── Enum definition: enum { A, B = 5, C }; ─────────────── */
     if (tok.type == CC_TOK_ENUM) {
       cc_next(cc); /* consume 'enum' */
       /* Optional enum name (ignored - we just create constants) */
@@ -3219,7 +3232,7 @@ void cc_parse_program(cc_state_t *cc) {
       continue;
     }
 
-    /*  Typedef: typedef <type> <alias>;  */
+    /* ── Typedef: typedef <type> <alias>; ────────────────────── */
     if (tok.type == CC_TOK_TYPEDEF) {
       cc_next(cc); /* consume 'typedef' */
       cc_type_t td_type = cc_parse_type(cc);
@@ -3242,9 +3255,9 @@ void cc_parse_program(cc_state_t *cc) {
       continue;
     }
 
-    /*  Struct definition: struct Name { fields... };  */
+    /* ── Struct definition: struct Name { fields... }; ────────── */
     if (tok.type == CC_TOK_STRUCT) {
-      /* Peek further: struct Name { -> definition, struct Name var -> decl */
+      /* Peek further: struct Name { → definition, struct Name var → decl */
       int saved_pos = cc->pos;
       int saved_line = cc->line;
       int saved_has_peek = cc->has_peek;
@@ -3376,7 +3389,7 @@ void cc_parse_program(cc_state_t *cc) {
 
     if (cc_is_type_or_typedef(cc, tok)) {
       /* Could be function or global variable */
-      /* Look ahead: type name ( -> function, type name ; -> global */
+      /* Look ahead: type name ( → function, type name ; → global */
       /* Save lexer state */
       int saved_pos = cc->pos;
       int saved_line = cc->line;
@@ -3581,8 +3594,9 @@ void cc_parse_program(cc_state_t *cc) {
   }
 }
 
-/*  *  REPL Line Parsing - TempleOS-style direct statement compilation
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  REPL Line Parsing — TempleOS-style direct statement compilation
+ * ══════════════════════════════════════════════════════════════════════ */
 
 static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
   int saved_pos = cc->pos;
@@ -3655,13 +3669,13 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
 
   cc_token_t tok = cc_peek(cc);
 
-  /*  Static qualifier  */
+  /* ── Static qualifier ─────────────────────────────────────────── */
   if (tok.type == CC_TOK_STATIC) {
     cc_next(cc);
     tok = cc_peek(cc);
   }
 
-  /*  Enum definition: enum { A, B = 5, C };  */
+  /* ── Enum definition: enum { A, B = 5, C }; ─────────────────── */
   if (tok.type == CC_TOK_ENUM) {
     cc_next(cc);
     if (cc_peek(cc).type == CC_TOK_IDENT)
@@ -3709,7 +3723,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     return;
   }
 
-  /*  Typedef: typedef <type> <alias>;  */
+  /* ── Typedef: typedef <type> <alias>; ──────────────────────────── */
   if (tok.type == CC_TOK_TYPEDEF) {
     cc_next(cc);
     cc_type_t td_type = cc_parse_type(cc);
@@ -3733,7 +3747,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     return;
   }
 
-  /*  Struct definition: struct Name { fields... };  */
+  /* ── Struct definition: struct Name { fields... }; ──────────────── */
   if (tok.type == CC_TOK_STRUCT) {
     int saved_pos = cc->pos;
     int saved_line = cc->line;
@@ -3844,12 +3858,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       cc_get_or_add_struct_tag(cc, name_tok.text);
       return;
     }
-    /* Fall through - struct used as type for variable or function */
+    /* Fall through — struct used as type for variable or function */
   }
 
-  /*  Check if line starts with a type (function def or global var)  */
+  /* ── Check if line starts with a type (function def or global var) ── */
   if (cc_is_type_or_typedef(cc, tok)) {
-    /* Look ahead: type name ( -> function, otherwise -> global var */
+    /* Look ahead: type name ( → function, otherwise → global var */
     int saved_pos = cc->pos;
     int saved_line = cc->line;
     int saved_has_peek = cc->has_peek;
@@ -3868,7 +3882,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc->cur = saved_cur;
 
     if (after.type == CC_TOK_LPAREN) {
-      /* Function definition - parse normally, no immediate execution */
+      /* Function definition — parse normally, no immediate execution */
       cc_parse_function(cc);
 
       /* Resolve any forward references that can now be satisfied */
@@ -3890,7 +3904,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       return;
     }
 
-    /* Global variable declaration - allocate in data section */
+    /* Global variable declaration — allocate in data section */
     (void)type;
     (void)name_tok;
     cc_type_t gtype = cc_parse_type(cc);
@@ -4014,7 +4028,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     }
   }
 
-  /*  Statement / Expression - emit executable code  */
+  /* ── Statement / Expression — emit executable code ─────────────── */
   {
     cc->entry_offset = cc->code_pos;
     cc->has_entry = 1;
@@ -4054,7 +4068,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       if (cc_repl_try_zero_arg_call(cc, &last_was_expr))
         continue;
 
-      /* Expression statement - parse expression, result in EAX */
+      /* Expression statement — parse expression, result in EAX */
       cc_parse_expression(cc, 1);
       last_was_expr = 1;
       if (cc_peek(cc).type == CC_TOK_SEMICOLON)
