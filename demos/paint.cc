@@ -4,7 +4,7 @@
  * REFACTOR: Removed preprocessor macros for CupidC compatibility.
  */
 
-/*  Constants  */
+/* ── Constants ────────────────────────────────────────────────────── */
 
 /* Replaced #define with global variables */
 int TOOL_PENCIL = 0;
@@ -21,7 +21,7 @@ int CANVAS_H = 448;
 /* Palette colors (16 standard VGA/Win95 colors) */
 int palette[16];
 
-/*  Global State  */
+/* ── Global State ─────────────────────────────────────────────────── */
 
 int canvas_surf = -1;
 int current_tool = 0;         /* TOOL_PENCIL */
@@ -43,7 +43,7 @@ int row_buffer[600];
 char current_file_path[128];
 int has_current_file = 0;
 
-/*  Initialization  */
+/* ── Initialization ───────────────────────────────────────────────── */
 
 void init_palette() {
   palette[0] = 0x000000;  /* Black */
@@ -64,7 +64,7 @@ void init_palette() {
   palette[15] = 0xFF00FF; /* Fuchsia */
 }
 
-/*  Helpers  */
+/* ── Helpers ──────────────────────────────────────────────────────── */
 
 /* Simple sleep wrapper if needed, or rely on built-in if available */
 /* We will just use 'yield()' loops for now if sleep isn't guaranteed,
@@ -75,7 +75,7 @@ void my_sleep(int ms) {
   /* For safety in small-C, checking if we can just return. */
 }
 
-/*  File I/O  */
+/* ── File I/O ─────────────────────────────────────────────────────── */
 
 void show_message(char* msg, int color) {
   gfx2d_rect_fill(CANVAS_X + 10, CANVAS_Y + 10, 100, 30, color);
@@ -259,7 +259,7 @@ void load_drawing() {
   }
 }
 
-/*  UI Drawing  */
+/* ── UI Drawing ───────────────────────────────────────────────────── */
 
 void draw_toolbar() {
   /* Toolbar background */
@@ -355,7 +355,7 @@ void draw_palette() {
   }
 }
 
-/*  Tool Logic  */
+/* ── Tool Logic ───────────────────────────────────────────────────── */
 
 void use_tool(int x, int y, int dragging) {
   /* Adjust to canvas coordinates */
@@ -491,7 +491,7 @@ void commit_shape(int mx, int my) {
   gfx2d_surface_unset_active();
 }
 
-/*  Main Loop  */
+/* ── Main Loop ────────────────────────────────────────────────────── */
 
 int main() {
   init_palette();

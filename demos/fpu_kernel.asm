@@ -1,16 +1,16 @@
-; demos/fpu_kernel.asm - exercise CupidASM FPU/SSE/x87 opcodes
+; demos/fpu_kernel.asm - exercise new CupidASM FPU/SSE/x87 opcodes (Task 12)
 ;
-; Self-verifying end-to-end demo.  Each of the four exercise blocks
-; computes a result with known IEEE-754 bit pattern, bit-compares it
-; with `cmp eax, <expected>`, and branches to a per-block failure
-; handler that prints "FAIL fpu_kernel: <reason>" and returns.  If
+; Self-verifying end-to-end demo for Phase B of the FPU plan.  Each of the
+; four exercise blocks computes a result with known IEEE-754 bit pattern,
+; bit-compares it with `cmp eax, <expected>`, and branches to a per-block
+; failure handler that prints "FAIL fpu_kernel: <reason>" and returns.  If
 ; all four blocks pass, prints "PASS fpu_kernel".
 ;
-; Covers:
-;   - FNINIT / FWAIT / FINIT / FXSAVE / FXRSTOR / STMXCSR / LDMXCSR
-;   - MOVSS / ADDSS / SQRTSS (SSE scalar single-precision)
-;   - MOVUPS / ADDPS         (SSE packed single-precision)
-;   - FLD m32fp / FSIN / FSTP m32fp (x87 single-precision)
+; Covers opcodes added in Tasks 8-11:
+;   - Task  8: FNINIT / FWAIT / FINIT / FXSAVE / FXRSTOR / STMXCSR / LDMXCSR
+;   - Task  9: MOVSS / ADDSS / SQRTSS (SSE scalar single-precision)
+;   - Task 10: MOVUPS / ADDPS         (SSE packed single-precision)
+;   - Task 11: FLD m32fp / FSIN / FSTP m32fp (x87 single-precision)
 ;
 ; CupidASM has no `align` directive, so all SSE loads/stores go through
 ; MOVUPS (unaligned) and the FXSAVE buffer is placed at the start of the
@@ -55,10 +55,12 @@ section .data
 section .text
 
 main:
+    ; ========================================================================
     ; Block 1: FPU state control - FXSAVE/FXRSTOR + MXCSR round-trip.
     ; If any of these faulted, we'd be in a panic handler, not here. Pass
     ; is implicit: reaching the next block means all seven opcodes decoded
     ; and executed cleanly.
+    ; ========================================================================
     fninit
     fwait
     finit
@@ -67,9 +69,11 @@ main:
     stmxcsr [mxcsr_tmp]
     ldmxcsr [mxcsr_tmp]
 
+    ; ========================================================================
     ; Block 2: SSE scalar arithmetic.
     ;   1.5 + 2.5 = 4.0  (bit pattern 0x40800000)
     ;   sqrt(16.0) = 4.0 (bit pattern 0x40800000)
+    ; ========================================================================
     movss   xmm0, [c_one_five]
     movss   xmm1, [c_two_five]
     addss   xmm0, xmm1
@@ -85,9 +89,11 @@ main:
     cmp     eax, 0x40800000
     jne     fail_scalar_sqrt
 
+    ; ========================================================================
     ; Block 3: SSE packed arithmetic.
     ;   [1,2,3,4] + [5,6,7,8] = [6,8,10,12]
     ; Bit-compare lane 0 only: 1.0 + 5.0 = 6.0 = 0x40C00000.
+    ; ========================================================================
     movups  xmm0, [vec_a]
     movups  xmm1, [vec_b]
     addps   xmm0, xmm1
@@ -96,9 +102,11 @@ main:
     cmp     eax, 0x40C00000
     jne     fail_packed_add
 
+    ; ========================================================================
     ; Block 4: x87 FPU.
     ;   sin(0.0) = +0.0 (bit pattern 0x00000000)
     ; FINIT after the store keeps the x87 stack clean for subsequent code.
+    ; ========================================================================
     fld     [fx_zero]
     fsin
     fstp    [result_x87_sin]

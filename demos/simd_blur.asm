@@ -1,5 +1,5 @@
 ; demos/simd_blur.asm - 1D 3-tap box blur across 16 floats
-; Demonstrates MOVUPS + ADDPS + MULPS packed SSE operations.
+; Demonstrates MOVUPS + ADDPS + MULPS packed SSE operations from Phase B.
 ;   out[i] = (in[i-1] + in[i] + in[i+1]) / 3   for i = 1..16
 ; Implemented as 4 batches of 4 lanes; DIVPS is avoided by multiplying by
 ; a broadcast 1/3 constant (MULPS), which also exercises packed multiply.
