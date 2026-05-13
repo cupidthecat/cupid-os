@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<title>h4 modern card layout combo</title>
+<style>
+body { margin: 0; padding: 24px; background: #eef; font-family: sans-serif; }
+.card {
+  position: relative;
+  width: 320px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid #88a;
+  border-radius: 12px;
+  background: linear-gradient(to bottom, #fff, #dde);
+  box-sizing: border-box;
+  box-shadow: 4px 6px #aac;
+}
+.title { font-size: 18px; font-weight: bold; color: #224; margin-bottom: 8px; }
+.body  { font-size: 14px; color: #446; }
+.badge {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 56px; height: 24px;
+  border-radius: 12px;
+  background: linear-gradient(to right, #c33, #f93);
+  color: white;
+  font-size: 12px;
+  text-align: center;
+  font-weight: bold;
+  padding: 4px 0;
+  box-sizing: border-box;
+  z-index: 5;
+}
+.bg-stripe {
+  position: absolute;
+  top: 8px; left: 8px;
+  width: 60px; height: 60px;
+  background: linear-gradient(to bottom, #fc6, #f93);
+  border-radius: 30px;
+  z-index: 1;
+}
+.fg-text { position: relative; z-index: 2; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="bg-stripe"></div>
+  <div class="badge">NEW</div>
+  <div class="fg-text">
+    <div class="title">Modern card</div>
+    <div class="body">Box-sizing border-box keeps width 320 exact. Linear-gradient bg blends top-to-bottom. Border-radius rounds corners. Position absolute + z-index stacks the orange disc behind the title text and the red badge above everything.</div>
+  </div>
+</div>
+<div class="card">
+  <div class="fg-text">
+    <div class="title">Second card</div>
+    <div class="body">Plain card without the decorative absolute children. Validates that ordinary in-flow content keeps working after the z-index sort pass.</div>
+  </div>
+</div>
+</body>
+</html>

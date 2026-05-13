@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+<title>j3 background-repeat</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.lbl { font-weight: bold; margin: 12px 0 6px 0; font-size: 13px; }
+.box {
+  width: 360px;
+  height: 140px;
+  margin-bottom: 16px;
+  border: 1px solid #888;
+  background-image: url(https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png);
+  background-size: 60px 70px;
+}
+.r-both  { background-repeat: repeat; }
+.r-none  { background-repeat: no-repeat; }
+.r-x     { background-repeat: repeat-x; }
+.r-y     { background-repeat: repeat-y; }
+</style>
+</head>
+<body>
+<div class="lbl">background-repeat: repeat (default tile both axes)</div>
+<div class="box r-both"></div>
+
+<div class="lbl">background-repeat: no-repeat (single tile at top-left)</div>
+<div class="box r-none"></div>
+
+<div class="lbl">background-repeat: repeat-x (only horizontal)</div>
+<div class="box r-x"></div>
+
+<div class="lbl">background-repeat: repeat-y (only vertical)</div>
+<div class="box r-y"></div>
+</body>
+</html>

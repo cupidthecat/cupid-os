@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head>
+<title>f7 inline style="" custom property</title>
+<style>
+p { color: var(--c, red); }
+</style>
+</head>
+<body>
+<p style="--c: blue">--c declared inline; resolves to blue.</p>
+<p style="--c: green; color: var(--c)">Inline --c + inline color reading it: green.</p>
+<p>No inline --c here; falls back to red via the rule's var() default.</p>
+</body>
+</html>

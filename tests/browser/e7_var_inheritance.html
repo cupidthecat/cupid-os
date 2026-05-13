@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+<title>e7 --var inheritance via DOM ancestor walk</title>
+<style>
+:root  { --c: red;   }
+.outer { --c: blue;  }
+.inner { --c: green; }
+p { color: var(--c); }
+</style>
+</head>
+<body>
+<p>Top level paragraph: red (resolves --c on :root)</p>
+<div class="outer">
+  <p>Inside .outer: blue (--c overridden on outer)</p>
+  <div class="inner">
+    <p>Inside .inner: green (--c overridden on inner)</p>
+  </div>
+  <p>Back in .outer: blue</p>
+</div>
+<p>Back at top level: red</p>
+</body>
+</html>

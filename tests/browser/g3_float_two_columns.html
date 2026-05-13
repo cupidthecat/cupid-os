@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<title>g3 two-column float layout</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; background: #f0f0f2; }
+.col {
+  float: left;
+  width: 240px;
+  margin: 0 12px 12px 0;
+  background: white;
+  padding: 12px;
+  border: 1px solid #ccc;
+}
+.col-right {
+  float: right;
+  width: 240px;
+  margin: 0 0 12px 12px;
+  background: white;
+  padding: 12px;
+  border: 1px solid #ccc;
+}
+.clear { clear: both; }
+.footer { background: #333; color: white; padding: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="col">Left column. Two side-by-side columns built with float: left. Each box keeps its own width and stacks vertically alongside its sibling until clear:both pushes past both bottoms.</div>
+<div class="col-right">Right column. Float: right anchors to the right edge of the body content area; the left float sits to the left.</div>
+<div class="clear"></div>
+<div class="footer">footer cleared past both columns</div>
+</body>
+</html>

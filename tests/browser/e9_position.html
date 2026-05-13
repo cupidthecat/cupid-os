@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<title>e9 position relative / absolute / fixed</title>
+<style>
+body { margin: 0; padding: 0; background: #fff; }
+.fixed-bar {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 28px;
+  background: #336; color: white;
+  padding: 4px 12px;
+}
+.spacer { height: 32px; }
+.frame {
+  position: relative;
+  width: 320px; height: 200px;
+  background: #f0f0f2;
+  margin: 16px;
+  border: 1px solid #888;
+}
+.tl { position: absolute; top: 8px;  left: 8px;  background: #fcc; padding: 4px; }
+.tr { position: absolute; top: 8px;  right: 8px; background: #cfc; padding: 4px; }
+.bl { position: absolute; bottom: 8px; left: 8px; background: #ccf; padding: 4px; }
+.br { position: absolute; bottom: 8px; right: 8px; background: #fcf; padding: 4px; }
+.shifted { position: relative; top: 6px; left: 24px; background: #ffc; padding: 4px; }
+</style>
+</head>
+<body>
+<div class="fixed-bar">Fixed nav: stays visible while scrolling</div>
+<div class="spacer"></div>
+<div class="frame">
+  <div class="tl">top-left</div>
+  <div class="tr">top-right</div>
+  <div class="bl">bottom-left</div>
+  <div class="br">bottom-right</div>
+</div>
+<p class="shifted">Relative: paint shifts top:6 left:24 from in-flow position.</p>
+<p>Static paragraph for comparison.</p>
+</body>
+</html>

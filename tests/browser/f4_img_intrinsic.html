@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+<title>f4 img intrinsic dimensions + aspect ratio</title>
+<style>
+img { border: 1px solid #888; margin: 8px; vertical-align: top; }
+</style>
+</head>
+<body>
+<h2>Intrinsic dim resolution</h2>
+<p>Width-and-height in HTML attrs (forces 80x60 regardless of decoded size):</p>
+<img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png" width="80" height="60">
+
+<p>Width only (height computed from decoded aspect ratio):</p>
+<img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png" width="160">
+
+<p>Height only (width computed from decoded aspect ratio):</p>
+<img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png" height="120">
+
+<p>No attrs (uses decoded 135x155 directly when fetch lands):</p>
+<img src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png">
+
+<p>Pre-decode (pump still pending) renders the 80x60 placeholder.</p>
+</body>
+</html>
