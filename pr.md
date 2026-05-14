@@ -1,6 +1,6 @@
 # Browser stack + networking robustness
 
-Branch: `browser-render-pipeline` → `main` (110 commits ahead).
+Branch: `browser-render-pipeline` → `main` (144 commits ahead).
 
 ## Summary
 
@@ -17,6 +17,41 @@ The browser binary is JIT-compiled by CupidC at runtime, so a long tail
 of dialect workarounds were needed once the implementation started
 exercising parts of the parser nobody had used before. Those are
 captured below for future contributors.
+
+## Recent commits (May 9-11, 2026)
+
+The last nine commits move the branch from "browser stack works" to a
+more complete modern-page renderer, close a binding parity gap in the
+script front-ends, and sweep up three unrelated regressions in
+userspace tools, the file-dialog, and the DNS resolver.
+
+| Commit | Area | Change |
+|---|---|---|
+| `93022dd8` | Browser + kernel | CSS custom properties, `var()`, `calc()`, HTTP/1.1 chunked decoding, PNG alpha compositing, opaque JPEG output, per-codepoint font fallback, NotoSansSymbols, larger kernel image area, and CupidC parser/binding upgrades. |
+| `1098c887` | Cascade | Inline `--vars` now resolve before regular author rules, so `style="--c: blue"` is visible to `color: var(--c)`. `f4_img_intrinsic.html` now uses a stable Wikimedia asset. |
+| `ca3f932f` | Layout | CSS floats, line-box exclusion, `clear`, BFC scoping, float paint ordering, block-level replaced elements, and adjacent string literal concatenation in CupidC. |
+| `b2b891b6` | Visual CSS | `box-sizing: border-box`, `linear-gradient()` backgrounds, z-index stacking sort, negative absolute offsets, positioned containing-block fixes, text alignment, per-side border paint, rounded gradient primitives, and larger CupidC preprocessor output. |
+| `82b626c0` | Flexbox | Single-line `display: flex` / `inline-flex`, `flex-direction`, `justify-content`, `align-items`, `flex` shorthand, `gap`, grow/shrink distribution, and i-series flex tests. |
+| `2b917ee0` | Backgrounds | `background-image`, `background-size`, `background-position`, `background-repeat`, async background image fetch/dedup, clip-protected cover/contain paint, and j-series tests. |
+| `89ea6b6a` | Bindings + audio | CupidASM is brought to CupidC binding parity, AC97 gains PCM volume plus master/PCM getters, `bin/volume.cc` lands, `uint*_t` / `int*_t` aliases parse in CupidC, auto-main avoids double invocation, and docs are refreshed. |
+| `64fdafa2` | Correctness + demo | `<style>` RAWTEXT beyond 4 KiB survives, flex items are blockified, column flex auto-basis uses natural item height, duplicate column-flex layout is avoided, `overflow:hidden` establishes BFC containment, and `tests/browser/demo_showcase.html` exercises the full visual stack. |
+| `c5dafc60` | Userspace + kernel | Userspace dirent buffers (`help`, `ls`, `fm`, `grep`, `find`) widened to the real 136-byte `vfs_dirent_t` layout, `/home/bin` auto-created at boot, file-dialog modal key-input drains the host window's per-window queue instead of racing the desktop dispatcher, and DNS failure paths now serial-dump the wire bytes for diagnosis. |
+
+Current browser test surface added by these commits:
+
+- `tests/browser/e4..e9` and `f1..f7`: custom properties, `calc`,
+  Unicode ranges, WOFF1 fallback, decoded images, intrinsic image
+  sizing, font metrics, per-codepoint face routing, and inline vars.
+- `tests/browser/g1..g5`: floats, clear, infobox-style figures, two
+  columns, and floated images.
+- `tests/browser/h1..h4`: box sizing, z-index, gradients, rounded
+  corners, negative offsets, and card-style combinations.
+- `tests/browser/i1..i4`: row/column flex, justify packing, cross-axis
+  alignment, and flex growth.
+- `tests/browser/j1..j4`: background image sizing, repeat, position,
+  cover, contain, and clipping.
+- `tests/browser/demo_showcase.html`: integrated nav, hero, font cards,
+  flex cards, floated article, stats strip, and footer.
 
 ---
 
@@ -198,6 +233,88 @@ reason instead of a bare `-5`.
 
 ---
 
+## Userspace + file-dialog + DNS sweep (`c5dafc60`)
+
+Three unrelated regressions reported together. Grouped into one commit
+because each touch is small.
+
+### `vfs_dirent_t` layout mismatch in userspace
+
+`VFS_MAX_NAME` was bumped from 64 to 128 at some point, making the real
+`vfs_dirent_t` 136 bytes (`name@0`, `size@128`, `type@132`). Five
+userspace tools still declared `char ent[72]` and read `ent[68]` as the
+type byte:
+
+- `bin/help.cc:121,124` — the user-reported symptom: `help` did not list
+  programs in `/home/bin`.
+- `bin/ls.cc:21,24,46` — also reads size from the wrong offset.
+- `bin/fm.cc:249,260,307,319,325` — type *and* size at the wrong
+  offsets, in both the refresh loop and the recursive-delete path.
+- `bin/grep.cc:102,114,116` — type at wrong offset, name capped at 63.
+- `bin/find.cc:43,55` — same shape.
+
+`vfs_readdir` writes 136 bytes into a 72-byte stack buffer → ~60 bytes
+of stack overflow per entry. Short names appeared to "work" only
+because `ent[68]` happens to land in the zero-padded portion of the
+name field. Buffers widened to 136, type read from `ent[132]`, size
+read from `ent[128..131]`. Literal offsets (no `sizeof`) per the
+CupidC literal-array constraint.
+
+### `/home/bin` auto-created at boot
+
+`kernel/core/kernel.c` mkdir'd `/home` but not `/home/bin`, so on a
+fresh disk the user-programs directory simply did not exist and
+`help.cc`'s `vfs_open("/home/bin")` silently failed. Added a single
+unconditional `vfs_mkdir("/home/bin")` after the disk-mount block —
+runs whether `/home` resolved to homefs, the FAT16 fallback, or the
+ramfs no-disk fallback.
+
+### File-dialog modal key-input race
+
+`file_dialog_open` (notepad's `File → Open` / `Save`) drained the global
+keyboard ring directly via `keyboard_read_event`. The desktop
+dispatcher (`kernel/gui/desktop.c`) drains the same ring and routes
+events into the focused window's `key_queue` via `gui_handle_key`. Both
+are concurrent consumers of the same global queue, so any character
+the desktop won first ended up sitting in notepad's `key_queue` —
+where it stayed until the dialog returned and notepad's main loop
+drained it into the editor. User-visible symptom: typing `ls.cc` in
+the Open dialog showed `ls` (or nothing) in the dialog input, and the
+remaining characters appeared in the editor after the dialog closed.
+
+`fdlg_run_window` now reads from `win->key_queue` directly using the
+same packed `(scancode << 8) | char` format the producer writes, and
+flushes the queue on exit so chars typed during the dialog cannot
+replay into the host app. `fdlg_run_screen` (fullscreen, no host
+window) is unchanged.
+
+### DNS resolver — diagnostic logging on failure
+
+`vaultwarden.omegadc.synology.com -> 0 answers` was reported. Inspection
+of `kernel/network/dns.c` shows `encode_name`, `skip_name`, and the
+answer-section loop all handle arbitrary label counts correctly under
+manual trace, but the failure path has no visibility into the actual
+server response. Plausible real causes (NODATA, CNAME-only answer,
+SOA-only response, parser corner case) are indistinguishable without
+the bytes on the wire.
+
+Added a `dns_dump_bytes` helper and wired it into:
+
+- The outgoing query, after `encode_name`, so QNAME encoding for the
+  failing name is always visible.
+- The `rcode != 0` branch — logs `rcode` plus `qdcount/ancount/nscount/arcount`
+  and the first 96 response bytes.
+- The `ancount == 0` branch — same shape.
+- The "no A record" branch — first 96 bytes, plus each answer's
+  `atype/rdlen` printed inside the loop so CNAME-only responses are
+  obvious.
+
+Next failure on this name will produce actionable bytes on the serial
+console; the targeted fix (improved UX message, CNAME chasing, or
+parser correction) follows from what those bytes show.
+
+---
+
 ## Build / runtime glue
 
 ### `cc2ab21` — bind new gfx2d APIs in CupidC
@@ -265,12 +382,17 @@ Captured in commits `f7d1594` `c0d124b` `e9ee421` `f852e65` `02a1808`
 
 ---
 
-## Out-of-scope on this branch
+## Adjacent branch content
 
-The branch also carries the DOOM port, the AC97 / Nuked-OPL3 audio
-mixer, the FAT16/homefs build reshuffle, and a handful of kernel
-hardening fixes. Those are independent and should be reviewed under
-their own PRs — not summarised here.
+The branch also carries the DOOM port, the Nuked-OPL3 audio mixer,
+the FAT16/homefs build reshuffle, and a handful of kernel hardening
+fixes. Those are independent and should be reviewed under their own
+PRs, so this file keeps them to a mention only.
+
+The AC97 scripting-surface work is no longer just adjacent content:
+`89ea6b6a` adds PCM volume, getters, CupidC/CupidASM bindings, and
+the `volume` utility, so it is summarized in the recent-commits
+section and in the bindings section below.
 
 ---
 
