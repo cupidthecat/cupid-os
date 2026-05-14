@@ -17,11 +17,11 @@ void main() {
         return;
     }
 
-    // vfs_dirent_t is 72 bytes (with padding): name[64], size(4 bytes at offset 64), type(1 byte at offset 68), 3 pad
-    char ent[72];
+    // vfs_dirent_t: name[128], size(uint32_t at offset 128), type(uint8_t at offset 132), 3 pad = 136 bytes total
+    char ent[136];
     int count = 0;
     while (vfs_readdir(fd, ent) > 0) {
-        int type = ent[68];
+        int type = ent[132];
         if (type == 1) {
             print("[DIR]  ");
         } else if (type == 2) {
@@ -30,10 +30,10 @@ void main() {
             print("       ");
         }
 
-        // Copy name from ent[0..63]
-        char name[64];
+        // Copy name from ent[0..127]
+        char name[128];
         int i = 0;
-        while (ent[i] && i < 63) {
+        while (ent[i] && i < 127) {
             name[i] = ent[i];
             i = i + 1;
         }
@@ -42,8 +42,8 @@ void main() {
 
         // Show file size for regular files
         if (type == 0) {
-            // Read uint32_t size from offset 64 (little-endian)
-            int sz = ent[64] | (ent[65] << 8) | (ent[66] << 16) | (ent[67] << 24);
+            // Read uint32_t size from offset 128 (little-endian)
+            int sz = ent[128] | (ent[129] << 8) | (ent[130] << 16) | (ent[131] << 24);
             print("  ");
             print_int(sz);
             print(" bytes");

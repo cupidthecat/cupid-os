@@ -40,11 +40,12 @@ void find_walk(char *path, char *needle) {
     int fd = vfs_open(path, 0);
     if (fd < 0) return;
 
-    char ent[72];
+    // vfs_dirent_t: name[128], size@128, type@132. 136 bytes total.
+    char ent[136];
     while (vfs_readdir(fd, ent) > 0) {
-        char name[64];
+        char name[128];
         int ni = 0;
-        while (ent[ni] && ni < 63) { name[ni] = ent[ni]; ni = ni + 1; }
+        while (ent[ni] && ni < 127) { name[ni] = ent[ni]; ni = ni + 1; }
         name[ni] = 0;
 
         if (is_dot_name(name)) continue;
@@ -52,7 +53,7 @@ void find_walk(char *path, char *needle) {
         char child[256];
         join_path(child, path, name);
 
-        int type = ent[68];
+        int type = ent[132];
         if (str_contains(child, needle)) {
             println(child);
         }

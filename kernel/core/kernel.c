@@ -759,6 +759,10 @@ void kmain(void) {
         KERROR("/home is not persistent (FAT16 unavailable)");
     }
 
+    /* User program directory — create on whatever /home resolves to
+     * (homefs, fat16 fallback, or ramfs when no disk). Idempotent. */
+    vfs_mkdir("/home/bin");
+
     /* Pre-populate ramfs with in-memory files */
     {
         const vfs_mount_t *root_mnt = vfs_get_mount(0);

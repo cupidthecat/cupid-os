@@ -3745,13 +3745,19 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
   gfx2d_surface_unset_active();
 
   while (!dlg->done) {
-    key_event_t evt;
-    while (keyboard_read_event(&evt)) {
-      if (evt.pressed) {
-        fdlg_handle_key(dlg, evt.scancode, evt.character);
-        if (dlg->done)
-          break;
-      }
+    /* Read keys from the host window's per-window queue rather than the
+     * global keyboard ring. The desktop loop routes key events into the
+     * focused window's key_queue via gui_handle_key(); if we read the
+     * global queue directly we race with desktop dispatch, so typed
+     * chars can leak past the dialog into the underlying app. */
+    while (win->key_head != win->key_tail) {
+      uint32_t packed = (uint32_t)win->key_queue[win->key_head];
+      win->key_head = (win->key_head + 1) % GUI_KEY_QUEUE_SIZE;
+      uint8_t scancode = (uint8_t)((packed >> 8) & 0xFFu);
+      char ch = (char)(packed & 0xFFu);
+      fdlg_handle_key(dlg, scancode, ch);
+      if (dlg->done)
+        break;
     }
     if (dlg->done)
       break;
@@ -3782,6 +3788,10 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
 
     process_yield();
   }
+
+  /* Drop any keys that arrived during the dialog so they don't replay
+   * into the host app's input handler after we return. */
+  win->key_head = win->key_tail;
 
   if (gui_begin_window_paint((int)win->id) == GUI_OK) {
     surface_fb = gfx2d_get_active_fb();
