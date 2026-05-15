@@ -48,7 +48,7 @@ enum
   ML_SSECTORS,		// SubSectors, list of LineSegs
   ML_NODES,		// BSP nodes
   ML_SECTORS,		// Sectors, from editing
-  ML_REJECT,		// LUT, sector-sector visibility	
+  ML_REJECT,		// LUT, sector-sector visibility
   ML_BLOCKMAP		// LUT, motion clipping, walls/grid element
 };
 

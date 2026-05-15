@@ -40,7 +40,7 @@
 
 
 
-// ------------------------
+//
 // Command line parameters.
 //
 extern  boolean	nomonsters;	// checkparm of -nomonsters
@@ -50,7 +50,7 @@ extern  boolean	fastparm;	// checkparm of -fast
 extern  boolean	devparm;	// DEBUG: launched with -devparm
 
 
-// -----------------------------------------------------
+//
 // Game Mode - identify IWAD as shareware, retail etc.
 //
 extern GameMode_t	gamemode;
@@ -74,7 +74,7 @@ extern boolean bfgedition;
 extern  boolean	modifiedgame;
 
 
-// -------------------------------------------
+//
 // Selected skill type, map etc.
 //
 
@@ -90,7 +90,7 @@ extern  int             startloadgame;
 
 extern  boolean		autostart;
 
-// Selected by user. 
+// Selected by user.
 extern  skill_t         gameskill;
 extern  int		gameepisode;
 extern  int		gamemap;
@@ -107,7 +107,7 @@ extern  boolean	netgame;
 // 0=Cooperative; 1=Deathmatch; 2=Altdeath
 extern int deathmatch;
 
-// -------------------------
+//
 // Internal parameters for sound rendering.
 // These have been taken from the DOS version,
 //  but are not (yet) supported with Linux
@@ -131,7 +131,7 @@ extern int snd_DesiredMusicDevice;
 extern int snd_DesiredSfxDevice;
 
 
-// -------------------------
+//
 // Status flags for refresh.
 //
 
@@ -165,7 +165,7 @@ extern  int	consoleplayer;
 extern  int	displayplayer;
 
 
-// -------------------------------------
+//
 // Scores, rating.
 // Statistics on a given map, for intermission.
 //
@@ -179,7 +179,7 @@ extern  int	leveltime;	// tics in game play for par
 
 
 
-// --------------------------------------
+//
 // DEMO playback/recording related stuff.
 // No demo, there is a human player in charge?
 // Disable save/end game?
@@ -208,7 +208,7 @@ extern  gamestate_t     gamestate;
 
 
 
-//-----------------------------
+//
 // Internal parameters, fixed.
 // These are set by the engine, and not changed
 //  according to user inputs. Partly load from
@@ -241,7 +241,7 @@ extern  wbstartstruct_t		wminfo;
 
 
 
-//-----------------------------------------
+//
 // Internal parameters, used for engine.
 //
 

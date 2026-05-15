@@ -1,4 +1,4 @@
-/* config.hin.  Generated from configure.ac by autoheader.  */
+/* config.hin.  Generated from configure.ac by autoheader. */
 
 /* Define to 1 if you have the <dev/isa/spkrio.h> header file. */
 #undef HAVE_DEV_ISA_SPKRIO_H
