@@ -9,7 +9,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 | Property | Value |
 |----------|-------|
 | Scheduling algorithm | Round-robin |
-| Time slice | 10ms (PIT at 100Hz) |
+| Timer tick | 5ms (PIT channel 0 at 200Hz) |
 | Max processes | 32 |
 | Address space | Flat, shared (ring 0) |
 | Context switch | Pure assembly (`context_switch.asm`) |
@@ -48,7 +48,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 
 cupid-os does **not** context switch inside interrupt handlers. Instead:
 
-1. **PIT IRQ0** fires every 10ms -> sets `need_reschedule = 1`
+1. **PIT IRQ0** fires every 5ms -> sets `need_reschedule = 1`
 2. The flag is checked only at **safe voluntary points**:
    - Desktop main loop (before `HLT` instruction)
    - `process_yield()` calls

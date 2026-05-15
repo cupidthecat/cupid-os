@@ -15,7 +15,7 @@
 
 CC = gcc
 LD = ld
-CFLAGS = -m32 -fno-pie -nostdlib -static -ffreestanding -O2 -Wall -Wextra \
+CFLAGS = -m32 -fno-pie -fno-stack-protector -nostdlib -static -ffreestanding -O2 -Wall -Wextra \
          -Wno-unused-parameter -I.
 LDFLAGS = -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386
 

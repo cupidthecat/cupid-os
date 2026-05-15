@@ -11,7 +11,7 @@
  *       -Iuser -c user/examples/cat.c -o cat.o
  *   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
  *       -o cat cat.o
- */
+*/
 
 #include "../cupid.h"
 

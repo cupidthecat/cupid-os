@@ -12,13 +12,13 @@ CupidOS is a 32-bit x86 BIOS-boot OS. It boots on real hardware, but the hardwar
 |-----------|-------------|-------|
 | CPU | 32-bit x86 with FPU + SSE/SSE2 | Any Pentium 4 or newer. Long-mode CPUs also work (CupidOS stays in 32-bit protected mode). |
 | Firmware | **Legacy BIOS** or **UEFI with CSM** | No pure-UEFI boot. CSM / "Legacy Boot" / "Other OS" must be enabled. |
-| RAM | 32 MB minimum, 128 MB+ recommended | Kernel identity-maps 0 - 32 MB; heap and JIT regions live below that. |
+| RAM | 512 MB recommended | Kernel identity-maps 0 - 512 MB; the initial heap is 256 MB and the JIT/AOT regions live below 32 MB. |
 | Storage | IDE / SATA / USB-attached disk ≥ 200 MB | Kernel uses ATA PIO (primary channel) or USB Mass Storage. NVMe is not supported. |
 | GPU | VBE 3.0 with mode 0x118 (640x480x32bpp linear framebuffer) | Most pre-2015 Intel, AMD, and NVIDIA GPUs work in CSM mode. Some newer GPUs lose VBE when CSM is off. |
 | Keyboard | PS/2 or USB HID | USB 1.1 / 2.0 keyboards work via the built-in UHCI + EHCI HID driver. |
 | Mouse | PS/2 or USB HID | Same as keyboard. |
 | NIC (optional) | Realtek RTL8139 or Intel E1000 | Anything else will not get networking. |
-| Audio (optional) | PC speaker on port 0x61 | No HDA / AC'97 driver. |
+| Audio (optional) | AC'97 PCI or PC speaker on port 0x61 | No HDA driver. |
 | SMP (optional) | ACPI MADT / Intel MP table | Up to 32 CPUs. |
 
 What does **not** work:

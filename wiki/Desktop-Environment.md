@@ -137,6 +137,8 @@ Clickable icons on the desktop that launch applications:
 |------|-------------|
 | Terminal | Opens a GUI terminal window running the shell |
 | Notepad | Opens a text editor window |
+| Browser | Opens the graphical HTTP/HTTPS browser, when the icon registry includes it |
+| Paint / FM / Font Switch | Launches the paint app, file manager, and font picker from the app registry |
 
 ---
 
@@ -150,7 +152,7 @@ The terminal application runs the shell inside a graphical window:
 | Character buffer | 80 columns x 500 rows (scrollback) |
 | Background | Dark (`#141418`) |
 | Default text | Light gray on dark background |
-| Color support | 16 foreground + 8 background colors via ANSI codes |
+| Color support | ANSI/VT colors, 256-color fallback, truecolor fallback, reverse video |
 | Cursor | Blinking vertical bar, 500ms toggle |
 | Font zoom | Ctrl+`+` / Ctrl+`-` to scale 1x, 2x, 3x |
 | Scrollback | PgUp/PgDn (10 rows), Home/End (top/bottom), mouse wheel (3 rows/notch) |
@@ -180,6 +182,23 @@ PgUp / PgDn / Home / End scancodes arrive via the extended-scancode
 PS/2 path (or, for USB HID keyboards, via the `0xE0` prefix injected
 by `usb_hid.c`'s `hid_is_extended[]` table - see [USB](USB)).
 
+### Remote Terminal Support
+
+The GUI terminal is also the interactive frontend for `ssh` and `telnet`.
+Those clients use `kernel/lang/ssh_io.c` to route bytes, hidden password
+input, window size, and special keys through the same focused Terminal window.
+
+Supported remote-terminal behavior includes:
+
+- xterm/VT arrow, Home/End, PageUp/PageDown, Delete, and application-cursor modes
+- alternate screen buffer for full-screen tools such as `top` and `btop`
+- cursor positioning, erase, scroll regions, insert/delete line/char, save/restore cursor
+- OSC title changes, bracketed-paste private modes, ACS fallback, and UTF-8 cell fallback
+- terminal rows/cols tracking and SSH `window-change` updates after resize/zoom
+
+Command execution for blocking remote sessions runs in the terminal process,
+so the desktop event loop keeps repainting while an SSH shell is active.
+
 ### How It Works
 
 1. Shell writes to a **character buffer** (80x50) instead of VGA text memory
@@ -204,6 +223,7 @@ The ANSI parser handles:
 - `\e[1m` - Bold (bright foreground)
 - `\e[2J` - Clear screen
 - `\e[H` - Cursor home
+- cursor movement/positioning, scroll regions, alternate screen, save/restore cursor, and common xterm private modes used by full-screen terminal programs
 
 ### Interaction
 

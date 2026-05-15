@@ -409,21 +409,21 @@ The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE di
 | `pwd` | `pwd` | Print current working directory |
 | `ls` | `ls [path]` | List files in current directory (or given path) |
 | `cat` | `cat <file>` | Display file contents (supports VFS paths) |
+| `mkdir` | `mkdir <dir...>` | Create one or more directories |
+| `rm` | `rm <file...>` | Delete files |
+| `touch` | `touch <file...>` | Create empty files or update timestamps |
+| `cp` | `cp <source> <dest>` | Copy a file |
+| `mv` | `mv <source> <dest>` | Move/rename a file |
+| `find` | `find [path] [name]` | Search a directory tree |
+| `grep` | `grep <pattern> <path...>` | Search file contents |
 | `mount` | `mount` | Show all mounted filesystems |
-| `vls` | `vls [path]` | List files at an absolute VFS path |
-| `vcat` | `vcat <path>` | Display file at an absolute VFS path |
-| `vstat` | `vstat <path>` | Show file/directory info (type, size) |
-| `vmkdir` | `vmkdir <path>` | Create a directory |
-| `vrm` | `vrm <path>` | Delete a file |
-| `vwrite` | `vwrite <path> <text>` | Write text to a file |
+| `umount` | `umount <target>` | Unmount a filesystem |
 | `exec` | `exec <path>` | Load and run a CUPD executable |
 
 ### Legacy Disk Commands
 
 | Command | Description |
 |---------|-------------|
-| `lsdisk` | List files on FAT16 disk directly |
-| `catdisk <file>` | Read a file from FAT16 disk directly |
 | `sync` | Flush block cache to disk |
 | `cachestats` | Show block cache hit/miss statistics |
 
@@ -457,11 +457,12 @@ MOTD.txt
 Mounted filesystems:
   /       ramfs
   /dev    devfs
-  /home   fat16
+  /disk   fat16
+  /home   homefs
 
-/> vmkdir /tmp/test
-/> vwrite /tmp/test/hello.txt Hello World
-/> vcat /tmp/test/hello.txt
+/> mkdir /tmp/test
+/> echo Hello World > /tmp/test/hello.txt
+/> cat /tmp/test/hello.txt
 Hello World
 ```
 

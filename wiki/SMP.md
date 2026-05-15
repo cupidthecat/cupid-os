@@ -30,7 +30,7 @@ kernel/smp/lapic.h  / lapic.c        Local APIC driver
 kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
 kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
 kernel/smp/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
-kernel/mp.h     / mp.c           MP table + ACPI MADT discovery
+kernel/smp/mp.h / mp.c           MP table + ACPI MADT discovery
 bin/smp.cc                       `smp` shell command
 ```
 
@@ -510,6 +510,6 @@ Tier 3.
 | `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
 | `kernel/smp/bkl.h` | `bkl_acquire` / `bkl_release` declarations |
 | `kernel/smp/bkl.c` | Ticket spinlock implementation |
-| `kernel/mp.h` | MP table + ACPI MADT parser API |
-| `kernel/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
+| `kernel/smp/mp.h` | MP table + ACPI MADT parser API |
+| `kernel/smp/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
 | `bin/smp.cc` | `smp` and `smp info` shell commands |

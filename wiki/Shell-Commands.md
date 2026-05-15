@@ -1,6 +1,6 @@
 # Shell Commands
 
-cupid-os provides shell commands through a mix of built-in functions and auto-discovered CupidC programs in `/bin/`. The shell features command history (arrow up/down), tab completion for commands and filenames, current working directory tracking, prompt display showing the CWD, and ANSI terminal color support.
+cupid-os provides shell commands through a mix of built-in functions and auto-discovered CupidC programs in `/bin/` and `/home/bin/`. The shell features command history (arrow up/down), context-aware tab completion for commands and paths, current working directory tracking, prompt display showing the CWD, pipes, redirects, and ANSI terminal color support.
 
 Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for how to write your own.
 
@@ -24,6 +24,23 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 | `cupidfetch` | `cupidfetch` | Show system info with ASCII art (includes date/time) |
 | `godspeak` | `godspeak` | Print one random word from `/god/Vocab.DD` in GodSpeak format _(CupidC)_ |
 | `godsong` | `godsong [seed]` | Play a TempleOS-inspired randomized PC speaker melody _(CupidC)_ |
+| `fontswitch` | `fontswitch` | GUI font picker for bundled/user TTF faces and bitmap fallback _(CupidC)_ |
+
+### Networking, Remote Shells, and Browser
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| `ifconfig` | `ifconfig` | Show primary NIC address, gateway, DNS, MAC, link, and counters _(CupidC)_ |
+| `arp` | `arp` | Show ARP cache _(CupidC)_ |
+| `ping` | `ping <host-or-ip>` | ICMP echo test _(CupidC)_ |
+| `resolve` | `resolve <host>` | DNS A-record lookup _(CupidC)_ |
+| `netstat` | `netstat` | Show socket table state _(CupidC)_ |
+| `curl` | `curl [opts] <url>` | HTTP/HTTPS client with GET/POST, headers, output files, and redirects _(CupidC)_ |
+| `wget` | `wget [opts] <url>` | HTTP/HTTPS downloader with auto-named or `-O` output _(CupidC)_ |
+| `browser` | `browser [url]` | Graphical HTTP/HTTPS browser with HTML/CSS layout and forms _(CupidC)_ |
+| `ssh` | `ssh [opts] user@host [command]` | SSH-2 client with host-key verification, password auth, PTY shell, and remote exec _(CupidC)_ |
+| `telnet` | `telnet <host> [port]` | Telnet client with option negotiation, TTYPE, NAWS, and Ctrl-] local prompt _(CupidC)_ |
+| `sshd` | `sshd [start\|stop\|status\|passwd]` | Start/manage the in-kernel SSH server on guest port 22 |
 
 ### Filesystem Commands (VFS)
 
@@ -33,7 +50,18 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 | `pwd` | `pwd` | Print current working directory _(CupidC)_ |
 | `ls` | `ls [path]` | List files in the current directory or given path _(CupidC)_ |
 | `cat` | `cat <file>` | Display file contents (relative to CWD or absolute) _(CupidC)_ |
+| `head` | `head [-n N] <file>` | Print the first lines of a file _(CupidC)_ |
+| `tail` | `tail [-n N] <file>` | Print the last lines of a file _(CupidC)_ |
+| `wc` | `wc <file>` | Count lines, words, and bytes _(CupidC)_ |
+| `sort` | `sort <file>` | Sort file lines _(CupidC)_ |
+| `cp` | `cp <source> <dest>` | Copy files _(CupidC)_ |
 | `mount` | `mount` | Show all mounted filesystems _(CupidC)_ |
+| `mkdir` | `mkdir <dir...>` | Create directories _(CupidC)_ |
+| `rmdir` | `rmdir <dir...>` | Remove empty directories _(CupidC)_ |
+| `rm` | `rm <file...>` | Remove files _(CupidC)_ |
+| `touch` | `touch <file...>` | Create empty files _(CupidC)_ |
+| `find` | `find [path] [name]` | Find files/directories recursively _(CupidC)_ |
+| `grep` | `grep <pattern> <path...>` | Search file contents _(CupidC)_ |
 | `mv` | `mv <source> <dest>` | Move/rename a file _(CupidC)_ |
 | `exec` | `exec <path>` | Load and run a CUPD executable |
 
@@ -49,6 +77,7 @@ Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compil
 | Command | Usage | Description |
 |---------|-------|-------------|
 | `ed` | `ed [filename]` | Launch the ed line editor - CupidC program ([details](Ed-Editor)) |
+| `ctxt` | `ctxt <file.ctxt>` | Render/inspect CupidDoc `.ctxt` files _(CupidC)_ |
 | `cupid` | `cupid <script.cup> [args...]` | Run a CupidScript file |
 
 Scripts can also be run as:
@@ -178,9 +207,10 @@ jobs -l                 # List with PIDs
 ```
 
 ### Tab Completion
-- Type partial command name + Tab -> completes command
-- `cat ` + Tab -> completes filenames from current directory
-- Multiple matches -> lists all possibilities
+- Type a partial command name + Tab -> completes built-ins and discovered commands from `/bin` and `/home/bin`
+- Type a command followed by a path prefix + Tab -> completes files/directories relative to CWD or absolute paths
+- Directory prefixes such as `cupidasm /demos/` list matching entries and keep the editable prefix intact
+- Multiple matches -> lists all possibilities without consuming the current command line
 
 ### Command History
 - **Up arrow** - Previous command

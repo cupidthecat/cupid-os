@@ -15,13 +15,13 @@ CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It asse
 | Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
 | Privilege level | Ring 0 - full system access |
 | Source extension | `.asm` |
-| Code size limit | 128 KB |
-| Data size limit | 32 KB |
-| Max source file | 256 KB |
-| Max labels | 512 |
-| Max forward refs | 512 |
-| Include depth | 4 levels |
-| Instructions | 62 mnemonics |
+| Code size limit | 1 MB |
+| Data size limit | 1 MB |
+| Max source line/string | 1024 bytes |
+| Max labels | 8192 |
+| Max forward refs | 8192 |
+| Include depth | 16 levels |
+| Instructions | Expanded x86-32 integer, control-flow, system, FPU, SSE, and atomic set |
 | Registers | 24 (8/16/32-bit) |
 
 ---
@@ -34,7 +34,7 @@ CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It asse
 > as demos/hello.asm
 ```
 
-Assembles the source into memory at `0x500000` and executes immediately. No binary is saved.
+Assembles the source into memory at `0x01A00000` and executes immediately. No binary is saved.
 
 You can also run `.asm` files directly with `./`:
 
@@ -113,6 +113,12 @@ Use `equ` to define numeric constants:
 BUFFER_SIZE equ 1024
 MAX_ITEMS   equ 64
 ```
+
+### Includes
+
+`%include "path.asm"` expands another source file before assembly. Relative
+paths are resolved from the including file first, then through the VFS CWD.
+Include depth is capped to prevent recursive include loops.
 
 ---
 
@@ -274,6 +280,8 @@ section .data
 | `ja` | Jump if above (unsigned) | CF=0 and ZF=0 |
 | `jbe` | Jump if below or equal | CF=1 or ZF=1 |
 | `jae` | Jump if above or equal | CF=0 |
+| `jp` / `jpe` | Jump if parity / parity even | PF=1 |
+| `jnp` / `jpo` | Jump if not parity / parity odd | PF=0 |
 | `js` | Jump if sign (negative) | SF=1 |
 | `jns` | Jump if not sign | SF=0 |
 | `jo` | Jump if overflow | OF=1 |
@@ -289,8 +297,18 @@ section .data
 | `sti` | Set interrupt flag |
 | `int` | Software interrupt (`int 0x80`) |
 | `iret` | Return from interrupt |
+| `iretd` | 32-bit return from interrupt alias |
 | `in` | Read from I/O port |
 | `out` | Write to I/O port |
+| `lgdt` / `lidt` | Load descriptor tables |
+| `sgdt` / `sidt` | Store descriptor tables |
+| `ltr` / `str` / `sldt` | Task/LDT register helpers |
+| `smsw` / `lmsw` | Machine status word helpers |
+| `invlpg` | Invalidate one TLB page |
+| `cpuid` / `rdtsc` | CPU identification and timestamp counter |
+| `rdmsr` / `wrmsr` | Model-specific register I/O |
+| `sysenter` / `sysexit` / `syscall` | Fast syscall-family opcodes |
+| `clts` / `wbinvd` / `invd` | Privileged CPU control/cache ops |
 | `leave` | Destroy stack frame (`mov esp, ebp; pop ebp`) |
 | `cdq` | Sign-extend EAX into EDX:EAX |
 | `cbw` | Sign-extend AL into AX |
@@ -299,6 +317,9 @@ section .data
 | `popad` | Pop all 32-bit general registers |
 | `pushfd` | Push EFLAGS |
 | `popfd` | Pop EFLAGS |
+| `bswap` | Byte-swap a 32-bit register |
+| `xadd` / `cmpxchg` | Atomic read-modify-write primitives |
+| `lock` | Prefix for supported atomic memory operations |
 
 ### String Operations
 
@@ -418,6 +439,9 @@ details.
 | `send` / `recv` | stream I/O on TCP socket |
 | `sendto` / `recvfrom` | UDP datagram I/O |
 | `close` | `int close(int fd)` |
+| `setsockopt` | `int setsockopt(int fd, int level, int opt, void *val, U32 vlen)` - level=`SOL_TLS`(1), opt=`TLS_ENABLE`(1), val=hostname for TLS 1.3 upgrade |
+| `sock_avail` | `int sock_avail(int fd)` - bytes buffered (0 = recv would block) |
+| `sock_state` | `int sock_state(int fd)` - returns `tcp_state_t` enum |
 | `dns_resolve` | `int dns_resolve(char *name, U32 *out)` |
 | `htons` / `ntohs` / `htonl` / `ntohl` | byte-swap helpers |
 
@@ -432,6 +456,7 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `net_get_mac(out)` | Fills 6-byte MAC into `out` |
 | `net_link_up` | 1 if link up |
 | `net_rx_packets` / `net_tx_packets` | Counters |
+| `net_rx_drops` / `net_tx_errors` | Drop / error counters |
 | `ip_parse(s, out)` | `"a.b.c.d"` -> uint32 |
 | `ipv4_send(dst, proto, payload, plen)` | Raw IPv4 (auto-fragments > MTU) |
 | `arp_resolve(ip, mac_out)` | Blocking 500 ms ARP |
@@ -494,6 +519,9 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 | `ac97_start` | Arm DMA |
 | `ac97_stop` | Halt + mute |
 | `ac97_set_master_volume(pct)` | 0-100 master volume |
+| `ac97_set_pcm_volume(pct)` | 0-100 PCM channel volume |
+| `ac97_get_master_volume` | Returns last-set master pct (0 if absent) |
+| `ac97_get_pcm_volume` | Returns last-set PCM pct |
 | `ac97_tsc_sleep_ms(ms)` | TSC busy-wait |
 | `ac97_is_present_int` | 0 / 1 |
 | `ac97_smoke_sine` | 440 Hz triangle 2s |
@@ -524,6 +552,59 @@ s16 stereo @ 22050 Hz, 16 slots.
 | `mixer_active(slot)` | 1 if playing |
 | `mixer_set_volume(slot, vol_l, vol_r)` | Per-slot volume |
 | `mixer_fill(out, frames)` | Mix all active slots into `out` |
+
+### Imaging - in-memory codecs
+
+| Function | Description |
+|---|---|
+| `png_decode_mem(data, len, &out_pixels, &out_w, &out_h)` | PNG → fresh XRGB heap buffer (caller `kfree`s) |
+| `jpeg_decode_mem(data, len, &out_pixels, &out_w, &out_h)` | Baseline JPEG, same convention |
+| `bmp_decode_to_surface_fit(path, sid, w, h)` | Decode BMP into `gfx2d_surface[sid]`, fit to w×h |
+| `kdeflate_raw(src, src_len, out, out_len)` | RFC 1951 raw DEFLATE; returns produced bytes / negative |
+
+### 2D Graphics (full parity with CupidC)
+
+CupidASM now exposes the complete `gfx2d_*` surface. New since the
+previous parity pass:
+
+| Group | Functions |
+|---|---|
+| Image slots | `gfx2d_image_load` / `_load_mem` / `_free` / `_draw` / `_draw_region` / `_draw_scaled` / `_draw_transformed` / `_get_pixel` / `_width` / `_height` |
+| Glyphs / text | `gfx2d_char` / `_char_scaled` / `_text_n` / `_text_simple` / `_text_width_n` / `_glyph_advance` |
+| Shapes | `gfx2d_circle_thick` / `_line_thick` / `_tri` / `_tri_fill_gradient` |
+| Gradients | `gfx2d_gradient_h_round` / `_v_round` / `_radial` |
+| Capture | `gfx2d_capture_screen_to_surface` |
+
+### GUI window API (full parity with CupidC)
+
+| Function | Description |
+|---|---|
+| `gui_win_create(title, x, y, w, h)` | Create a window, returns wid in eax |
+| `gui_win_close(wid)` | Destroy window |
+| `gui_win_is_open(wid)` | 1 if still alive |
+| `gui_win_focus(wid)` | Bring to focus |
+| `gui_win_can_draw(wid)` | 1 if app may draw this frame |
+| `gui_win_draw_frame(wid)` | Draw chrome, hide cursor for repaint |
+| `gui_win_content_x` / `_y` / `_w` / `_h(wid)` | Inner content rect |
+| `gui_win_begin_paint` / `_end_paint(wid)` | Compositor paint scope |
+| `gui_win_invalidate(wid)` / `_invalidate_rect(wid, x, y, w, h)` | Mark dirty |
+| `gui_win_present(wid)` / `_flip(wid)` | Present back-buffer |
+| `gui_win_poll_key(wid)` | Pop next key from this window's queue, -1 if empty |
+
+### libm
+
+Float / double libm functions are bound directly. Caller is responsible
+for the float ABI: push the argument(s) on the stack (4 bytes for
+`float`, 8 for `double`), call, then `fstp` the result from the FPU
+top-of-stack.
+
+| Group | Functions |
+|---|---|
+| Trig | `sin` / `sinf`, `cos` / `cosf`, `tan` / `tanf`, `asin` / `asinf`, `acos` / `acosf`, `atan` / `atanf`, `atan2` / `atan2f` |
+| Hyperbolic | `sinh` / `sinhf`, `cosh` / `coshf`, `tanh` / `tanhf` |
+| Power / log | `exp` / `expf`, `exp2` / `exp2f`, `log` / `logf`, `log2` / `log2f`, `pow` / `powf`, `sqrt` / `sqrtf`, `cbrt` / `cbrtf` |
+| Round / abs | `fabs` / `fabsf`, `ceil` / `ceilf`, `floor` / `floorf`, `round` / `roundf`, `trunc` / `truncf`, `fmod` / `fmodf` |
+| Misc | `hypot` / `hypotf`, `nextafter` / `nextafterf` |
 
 ### Example: Audio smoke test
 
@@ -757,10 +838,10 @@ mov eax, [label]         ; absolute address (label)
 
 | Region | Address | Size |
 |--------|---------|------|
-| JIT Code | `0x500000` | 128 KB |
-| JIT Data | `0x520000` | 32 KB |
+| JIT Code | `0x01A00000` | 1 MB |
+| JIT Data | `0x01B00000` | 1 MB |
 
-JIT code and data are separate from CupidC's JIT region (`0x400000`). Both can coexist.
+JIT code and data are separate from CupidC's JIT region (`0x01000000`-`0x01900000`). Both can coexist.
 
 ---
 
@@ -948,14 +1029,14 @@ main:
 | Error | Cause |
 |-------|-------|
 | `cannot open <file>` | File not found or not readable |
-| `file too large or empty` | Source exceeds 256 KB or is 0 bytes |
+| `file too large or empty` | Source could not be read or is 0 bytes |
 | `no main: or _start: label found` | Missing entry point label |
 | `undefined label '<name>'` | Forward reference to a label that was never defined |
 | `duplicate label` | Same label name defined twice |
-| `too many labels` | More than 512 labels |
-| `too many forward references` | More than 512 unresolved references |
-| `code buffer overflow` | Code section exceeds 128 KB |
-| `data buffer overflow` | Data section exceeds 32 KB |
+| `too many labels` | More than 8192 labels |
+| `too many forward references` | More than 8192 unresolved references |
+| `code buffer overflow` | Code section exceeds 1 MB |
+| `data buffer overflow` | Data section exceeds 1 MB |
 | `expected end of line` | Extra tokens after an instruction |
 | `short jump out of range` | Branch target too far for rel8 |
 

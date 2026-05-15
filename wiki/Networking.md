@@ -1,10 +1,11 @@
 # Networking Tier 4
 
 CupidOS P6 Networking Tier 4 adds a full TCP/IP stack to the kernel. The
-implementation includes two NIC drivers (RTL8139 and Intel E1000), a complete
-protocol suite (ARP, IPv4, ICMP, UDP, TCP), DHCP with static fallback, a DNS
-A-record resolver, and a BSD-style socket API exposed to both shell commands
-and CupidC programs.
+current branch layers TLS, HTTP/HTTPS tools, a browser, SSH/Telnet clients,
+and an SSH server on top of that stack. The implementation includes two NIC
+drivers (RTL8139 and Intel E1000), ARP, IPv4, ICMP, UDP, TCP, DHCP with static
+fallback, DNS A-record resolution, and a BSD-style socket API exposed to shell
+commands, CupidC, CupidASM, and user C programs.
 
 Related pages: [USB](USB), [SMP](SMP)
 
@@ -25,9 +26,9 @@ Related pages: [USB](USB), [SMP](SMP)
 | TCP model | RFC 793 subset, 10 states, fixed 500 ms RTO, MSS 1460 |
 | DHCP | DISCOVER/OFFER/REQUEST/ACK + static fallback 10.0.2.15/24 |
 | DNS | UDP/53 A-record resolver, 16-entry TTL cache |
-| Socket API | BSD-style, 32-slot dedicated table |
+| Socket API | BSD-style, 32-slot dedicated table, `sock_avail`, `sock_state`, TLS upgrade |
 | RX model | NIC IRQ top-half -> 64-slot lockless ring -> idle bottom-half |
-| New source files | 22 (11 kernel + 2 bin + 2 doc + headers) |
+| Applications | `curl`, `wget`, `browser`, `ssh`, `telnet`, `sshd`, `feature21`-`feature23` |
 | TCP retransmit | Stop-and-wait, exponential backoff (5 attempts), per-socket `rt_buf` |
 | ARP cache TTL | 5 min per entry (`arp_tick()` from `net_process_pending`) |
 | IP fragmentation | Send-side splitter + 4-slot reassembly table, 64KB / 30s timeout |
@@ -93,7 +94,7 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 | `SOCKET_MAX` | 32 | total socket table slots |
 | `NET_RX_RING_SIZE` | 64 | lockless SPSC RX ring slots |
 | `NET_IF_MTU` | 1500 | max IP payload bytes |
-| `SOCK_RX_BUF` | 8192 | per-socket receive ring buffer |
+| `SOCK_RX_BUF` | 65536 | per-socket receive ring buffer |
 | `SOCK_TX_BUF` | 8192 | per-socket transmit ring buffer |
 | `LQ_SIZE` | 8 | listen queue slots per LISTEN socket |
 | `TCP_MSS` | 1460 | fixed maximum segment size |
@@ -231,7 +232,7 @@ the idle/reschedule path.
 4. `outb(CMD, 0x10)` - software reset; poll CMD bit 4 clear (~1 ms)
 5. Allocate RX buffer: 8192 + 16 + 1500 = 9708 bytes via `kmalloc`; align to 16 bytes (raw pointer saved for `kfree`)
 6. Write RBSTART = physical address of aligned buffer
-7. Write RCR = 0x0000000F (AAP + APM + AM + AB: accept physical, multicast, broadcast; WRAP=0)
+7. Write RCR = 0x0000008F (WRAP + AAP + APM + AM + AB: accept physical, multicast, broadcast; wrap receive ring)
 8. Write TCR = 0x03000700 (default IFG, MXDMA=1024, retry-max=8)
 9. `outb(CMD, 0x0C)` - enable RE and TE
 10. `outw(IMR, 0x0005)` - mask ROK (bit 0) + TOK (bit 2)
@@ -560,7 +561,7 @@ LAST_ACK + ACK -> CLOSED; socket freed
 - Fixed MSS = 1460 bytes (no MSS option negotiation)
 - Fixed RTO = 500 ms; `tcp_tick` re-sends SYN if `now - last_rexmit_tick > TCP_RTO_MS`
 - TIME_WAIT duration = 60 seconds (`TCP_TIME_WAIT_MS`)
-- Receive window advertised = 8192 (full `SOCK_RX_BUF`)
+- Receive window advertised from actual free space in the 64 KiB `SOCK_RX_BUF`
 - Receive ring applies a capacity check before writing; if `dlen` would
   overrun `SOCK_RX_BUF`, the segment is not consumed, `rcv_nxt` is not
   advanced, and a duplicate ACK is sent so the peer retransmits once the
@@ -718,7 +719,7 @@ typedef struct socket_t {
 
     uint8_t  tx_buf[SOCK_TX_BUF];   // 8192 bytes
     uint32_t tx_head, tx_tail;
-    uint8_t  rx_buf[SOCK_RX_BUF];   // 8192 bytes
+    uint8_t  rx_buf[SOCK_RX_BUF];   // 65536 bytes
     uint32_t rx_head, rx_tail;
 
     udp_dgram_meta_t udp_meta[UDP_MAX_QUEUED];  // 8-slot per-datagram metadata
@@ -754,9 +755,46 @@ int socket_close   (int fd);
 int socket_sendto  (int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t port);
 int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port); // blocking
 
+int socket_setsockopt(int fd, int level, int optname,
+                      const void *val, uint32_t vlen);
+int socket_avail   (int fd);   // bytes buffered (0 = recv would block); EBADF on bad fd
+int socket_state   (int fd);   // tcp_state_t enum (TCPS_*); EBADF on bad fd
+
 uint16_t htons(uint16_t v);
 uint32_t htonl(uint32_t v);
 ```
+
+### Non-blocking polling
+
+Both CupidC and CupidASM expose `sock_avail` and `sock_state` (the wire
+names of the kernel functions above). Combine them with `recv` to drain
+a socket without blocking:
+
+```c
+while (sock_state(fd) == TCPS_ESTABLISHED) {
+    int n = sock_avail(fd);
+    if (n > 0) {
+        int got = recv(fd, buf, n);
+        // ...handle got bytes...
+    } else {
+        yield();   // give other tasks a slice
+    }
+}
+```
+
+### TLS upgrade (`setsockopt`)
+
+A connected TCP socket can be upgraded to TLS 1.3 by passing the SNI
+hostname through `setsockopt`. After the call succeeds, all subsequent
+`send` / `recv` traffic on the fd is encrypted:
+
+```c
+setsockopt(fd, SOL_TLS /*=1*/, TLS_ENABLE /*=1*/,
+           "example.com", strlen("example.com"));
+```
+
+The opaque TLS context attached to the socket is freed automatically by
+`socket_close`.
 
 ### Blocking model
 
@@ -971,8 +1009,9 @@ Supported flags:
 | `curl` | `-o file`, `-i` (include headers), `-s` (silent), `-X METHOD`, `-d DATA` (sets POST), `-H "Hdr: val"` |
 | `wget` | `-O file` (else auto-derived from URL path), `-q` (quiet) |
 
-`https://` URLs are explicitly rejected - there is no TLS / crypto
-in the kernel. URL parser handles `http://host[:port][/path]`.
+`https://` URLs use the in-tree TLS stack through `setsockopt(...,
+SOL_TLS, TLS_ENABLE, hostname, strlen(hostname))`. URL parsing handles
+`http://host[:port][/path]` and `https://host[:port][/path]`.
 Quoted-string args (e.g. `-H "Cookie: foo=bar"`) are honoured via a
 custom tokeniser since the shell passes the args list as one raw
 string.
@@ -985,16 +1024,37 @@ string.
 |---|---|---|
 | 3xx | `http://other-host/path` | reconnect, force GET, retry |
 | 3xx | `/relative/path` | reuse current host, force GET, retry |
-| 3xx | `https://...` | print `curl: redirect to https:// not supported (URL)` and exit |
+| 3xx | `https://...` | reconnect on 443 and enable TLS for the new host |
 
 ```
-/> /bin/curl.cc http://frankhagan.online/
-curl: redirect to https:// not supported (https://frankhagan.online/)
+/> /bin/curl.cc -i https://www.iana.org/
+HTTP/1.1 200 OK
 ```
 
 The HTTP body of the redirect response is suppressed when a follow
-fires, so you only see the final page (or the explicit https-not-
-supported message), not 200 bytes of "<html>301 Moved Permanently...".
+fires, so you only see the final page, not 200 bytes of
+"<html>301 Moved Permanently...".
+
+### SSH, Telnet, and Browser
+
+`ssh`, `telnet`, and `browser` are CupidC network applications rather
+than special kernel modes. They share the same socket and TLS bindings
+as `curl`/`wget`, then use terminal or render-pipeline helpers on top:
+
+| Tool | Notes |
+|---|---|
+| `ssh` | SSH-2 client with Curve25519, ChaCha20-Poly1305, Ed25519/RSA-SHA2/ECDSA-P256 host-key verification, password/keyboard-interactive auth, PTY shell, remote exec |
+| `telnet` | IAC/WILL/WONT/DO/DONT/SB/SE negotiation, TTYPE=`CUPIDOS`, NAWS resize updates, Ctrl-] local prompt |
+| `sshd` | In-kernel SSH server on port 22; `make run-ssh` forwards host 2222 to guest 22 |
+| `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms |
+
+Host test for the server:
+
+```bash
+make run-ssh
+# guest: sshd
+ssh -p 2222 root@127.0.0.1
+```
 
 ---
 
@@ -1009,6 +1069,7 @@ Three `make` targets boot CupidOS under QEMU with networking enabled:
 | `make run-net` | RTL8139 | host:8080 -> guest:80 | 1 CPU |
 | `make run-smp-net` | RTL8139 | host:8080 -> guest:80 | 4 CPUs |
 | `make run-net-e1000` | E1000 | none | 1 CPU |
+| `make run-ssh` | RTL8139 | host:2222 -> guest:22 | 1 CPU |
 
 Equivalent QEMU invocations:
 
@@ -1109,7 +1170,7 @@ manual inspection if anything looks odd.
 | No TCP SACK / congestion / Nagle | RFC 793 subset; data retransmit is stop-and-wait with exponential backoff (5 attempts) |
 | Single primary NIC | No multi-homing, no routing table |
 | 32 socket slots | No dynamic expansion |
-| No TLS / HTTPS | No crypto primitives in CupidOS |
+| TLS scope | Client TLS is implemented for HTTPS tools/browser; server-side TLS is not a general socket mode |
 | No DHCP lease renewal | Reboots before lease expires in practice |
 | DNS A-record only | No AAAA, no full CNAME chasing, no PTR |
 | No raw sockets / packet filter | No PROMISC, no promiscuous mode |
@@ -1150,3 +1211,8 @@ manual inspection if anything looks odd.
 | `bin/feature23_full_access.cc` | Phase 5 binding sanity (net info, ARP/ICMP/UDP, PCI, blkdev, BKL) |
 | `bin/curl.cc` | HTTP/1.0 client (GET/POST, -o/-i/-s/-X/-d/-H), CupidC |
 | `bin/wget.cc` | HTTP/1.0 downloader (auto-named or -O, status report), CupidC |
+| `bin/browser.cc`, `bin/browser/*.cc` | Graphical HTTP/HTTPS browser stack |
+| `bin/ssh.cc` | SSH-2 client |
+| `bin/telnet.cc` | Telnet client |
+| `kernel/network/sshd.c` | SSH server |
+| `kernel/lang/ssh_io.c` | GUI terminal byte I/O, hidden input, VT/xterm key translation |

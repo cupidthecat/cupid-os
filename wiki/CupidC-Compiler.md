@@ -15,11 +15,11 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 | Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
 | Privilege level | Ring 0 - full system access |
 | Source extension | `.cc` |
-| Code size limit | 128 KB code, 32 KB data |
+| Code/data limit | 1 MB code buffer, 8 MB data/string buffer |
 | Max source file | 256 KB |
-| Max functions | 256 |
-| Max symbols | 512 |
-| Max structs | 32 (up to 16 fields each) |
+| Max functions | 1024 |
+| Max symbols | 4096 |
+| Max structs | 64 (up to 32 fields each) |
 
 ---
 
@@ -55,6 +55,14 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `int` | 32-bit | Signed integer |
 | `char` | 8-bit | Character / byte |
 | `bool` | 32-bit | Boolean (alias for int) |
+| `U0` | - | HolyC-style `void` spelling |
+| `U8`, `I8` | 8-bit | Unsigned/signed byte spellings |
+| `U16`, `I16` | 16-bit | Unsigned/signed word spellings |
+| `U32`, `I32` | 32-bit | Unsigned/signed dword spellings |
+| `U64`, `I64` | parsed | Accepted C/HolyC compatibility spellings; current codegen remains 32-bit |
+| `long`, `short`, `signed`, `unsigned` | parsed | Accepted C compatibility spellings; width is normalized by the 32-bit codegen |
+| `float`, `double` | 32/64-bit | SSE scalar floating point |
+| `float4`, `double2` | 128-bit | SSE vector types |
 | `void` | - | No value (functions only) |
 | `int*` | 32-bit | Pointer to int |
 | `char*` | 32-bit | Pointer to char |
@@ -83,6 +91,11 @@ void main() {
 Array elements are accessed with `arr[i]` and can be assigned with `arr[i] = value`.
 
 Compound assignment also works: `arr[i] += value`, `arr[i] -= value`, `arr[i] *= value`, `arr[i] /= value`.
+
+Array bounds at file scope and inside structs accept constant integer
+expressions, including enum values and simple arithmetic. That keeps
+feature-test code like `int table[BASE + EXTRA];` source-compatible
+with normal C examples without adding a full C preprocessor.
 
 ### Structs
 
@@ -116,7 +129,7 @@ void main() {
 ```
 
 **Struct features:**
-- Up to 32 named struct types, each with up to 16 fields
+- Up to 64 named struct types, each with up to 32 fields
 - Field types: `int`, `char`, `void*`, `int*`, `char*`, nested `struct`
 - Stack-allocated structs (`struct Foo s;`) are zero-initialized
 - Heap-allocated structs via `kmalloc(sizeof(struct Foo))`
@@ -161,6 +174,24 @@ void main() {
 ```
 
 Enum values are stored as global integers in the data section. Values auto-increment from 0, or can be set explicitly with `= value` (including negative values).
+
+Enum initializers also accept constant integer expressions, so later
+declarations can use enum-derived bounds or bit flags.
+
+### C Compatibility Tokens
+
+CupidC is still a small single-pass compiler, but it accepts several
+common C spellings so larger examples and demos do not fail during
+parsing:
+
+- storage/qualifier spellings: `extern`, `inline`, `register`, `restrict`, `const`, `volatile`
+- wide type spellings: `long`, `short`, `signed`, `unsigned`, `long long`
+- attributes: `__attribute__((...))` is skipped when it appears on declarations
+- labels and `goto` for simple local control-flow cases
+
+Most of these are compatibility front-end features, not a promise of
+full hosted C semantics. Generated code still targets the 32-bit flat
+kernel ABI.
 
 ### Global Variables
 
@@ -999,8 +1030,8 @@ Symbols are stored in a flat array (max 256 entries), searched linearly from the
 
 ```
 JIT Mode:
-  0x00400000 - 0x004FFFFF  Code region (up to 64KB used)
-  0x00500000 - 0x005FFFFF  Data region (strings, globals)
+  0x01000000 - 0x010FFFFF  Code region (1 MB)
+  0x01100000 - 0x018FFFFF  Data region (8 MB strings/globals)
 
 AOT Mode:
   0x00200000+               ELF load address
@@ -1015,8 +1046,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
 
 ## Limitations
 
-- **128 KB code limit** and **32 KB data limit** per program
-- **512 symbols** maximum (functions + variables + kernel bindings)
+- **1 MB code limit** and **8 MB data/string limit** per program
+- **4096 symbols** maximum (functions + variables + kernel bindings)
+- **1024 functions**, **64 structs**, and **32 fields per struct**
 - **16 parameters** maximum per function
 - **32 struct definitions** with up to 16 fields each
 - **No preprocessor** (`#include`, `#define` not supported) - use `enum` for constants
