@@ -1,12 +1,12 @@
 /*
  * PC Speaker Driver Implementation
- * 
+ *
  * This file implements basic PC speaker functionality:
  * - Initializes PIT channel 2 for speaker control
  * - Provides functions to play tones at specific frequencies
  * - Handles speaker enable/disable
  * - Implements basic beep functionality
- */
+*/
 
 #include "speaker.h"
 #include "ports.h"
@@ -55,15 +55,15 @@ void beep(void) {
      
 /**
  * test_speaker - Test PC speaker functionality
- * 
+ *
  * Plays a series of tones to demonstrate PC speaker control:
  * 1. Simple beep
  * 2. Rising tone
  * 3. Falling tone
- */
+*/
 /**
  * test_speaker - Test PC speaker functionality
- * 
+ *
  * Plays a series of tones to demonstrate PC speaker control:
  * 1. Simple beep
  * 2. Rising tone
@@ -72,16 +72,16 @@ void beep(void) {
  * Placing this test anywhere will cause the kernel to not be able to use the keyboard driver
 void test_speaker(void) {
     print("Testing PC Speaker...\n");
-    
+
     // Simple beep
     print("Simple beep...\n");
     beep();
-    
+
     // Add a delay between tests
     for(volatile int i = 0; i < 1000000; i++) {
         __asm__ volatile("nop");
     }
-    
+
     // Rising tone
     print("Rising tone...\n");
     for(uint32_t freq = 100; freq < 2000; freq += 50) {
@@ -92,12 +92,12 @@ void test_speaker(void) {
         }
     }
     pc_speaker_off();
-    
+
     // Add a delay between tests
     for(volatile int i = 0; i < 1000000; i++) {
         __asm__ volatile("nop");
     }
-    
+
     // Falling tone
     print("Falling tone...\n");
     for(uint32_t freq = 2000; freq > 100; freq -= 50) {
@@ -108,7 +108,7 @@ void test_speaker(void) {
         }
     }
     pc_speaker_off();
-    
+
     print("Speaker test complete.\n");
 }
- */
+*/

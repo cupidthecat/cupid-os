@@ -5,7 +5,7 @@
  *  - All drawing goes to a heap-allocated back buffer (cached RAM, fast)
  *  - vga_flip() memcpy's to the *hidden* LFB page, then swaps Y_OFFSET
  *    atomically - no tearing, no rendering to uncached VRAM
- */
+*/
 
 #include "vga.h"
 #include "memory.h"
@@ -31,11 +31,11 @@ static uint32_t *lfb_ptr = NULL;
 
 /* Heap back buffer - all rendering goes here (fast cached RAM).
  * raw_back_buffer keeps the original kmalloc pointer, while back_buffer is
- * 16-byte aligned for SSE2 streaming stores. */
+ * 16-byte aligned for SSE2 streaming stores.*/
 static uint32_t *raw_back_buffer = NULL;
 static uint32_t *back_buffer = NULL;
 /* VSync wait disabled - we use single-buffer rendering which avoids both
- * the Y_OFFSET flip overhead and the VSync busy-wait latency. */
+ * the Y_OFFSET flip overhead and the VSync busy-wait latency.*/
 static bool vga_wait_vsync = false;
 
 /* Frame-rate cap: timestamp of the last vga_flip() call (ms). */
@@ -43,7 +43,7 @@ static uint32_t last_flip_ms = 0;
 
 /* Returns true if at least ~16ms have passed since the last flip (≈60 fps cap).
  * Use this before expensive render work to skip frames that would overshoot
- * the display refresh budget. */
+ * the display refresh budget.*/
 bool vga_flip_ready(void) {
   uint32_t now = timer_get_uptime_ms();
   return (now - last_flip_ms) >= 16u;
@@ -117,7 +117,7 @@ void vga_init_vbe(void) {
 
   /* Single-buffer mode: use only page 0, Y_OFFSET stays at 0 forever.
    * This avoids Y_OFFSET port-I/O flips which trigger full QEMU display
-   * re-renders (including expensive software scaling in fullscreen). */
+   * re-renders (including expensive software scaling in fullscreen).*/
   vbe_write(VBE_IDX_Y_OFFSET, 0);
 
   /* Allocate heap back buffer for fast rendering */
@@ -144,7 +144,7 @@ void vga_clear_screen(uint32_t color) {
   /* NOTE: Do NOT write directly to LFB pages here!
    * That would cause the clear color to flash on screen
    * before the frame is fully drawn. The back_buffer
-   * gets copied to LFB atomically during vga_flip(). */
+   * gets copied to LFB atomically during vga_flip().*/
 }
 
 uint32_t *vga_get_display_buffer(void) {
@@ -159,7 +159,7 @@ void vga_flip(void) {
   /* Single-buffer present: copy back_buffer -> page 0 (always displayed).
    * No Y_OFFSET flip - eliminates the port I/O that triggers a full QEMU
    * display re-render on every frame, including expensive software scaling
-   * in QEMU fullscreen mode. */
+   * in QEMU fullscreen mode.*/
   uint32_t *page0 = lfb_ptr;
 
   if (dirty_full || !dirty_active) {

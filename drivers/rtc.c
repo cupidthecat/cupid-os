@@ -10,7 +10,7 @@
  *   0x0A - Status Reg A  0x0B - Status Reg B
  *
  * Handles BCD-to-binary conversion and NMI masking during reads.
- */
+*/
 
 #include "rtc.h"
 #include "ports.h"
@@ -39,7 +39,7 @@
  *
  * @param reg: CMOS register index (0x00-0x3F)
  * @return: Value read from the register
- */
+*/
 static uint8_t cmos_read(uint8_t reg) {
     outb(CMOS_INDEX, (uint8_t)(0x80 | reg));  /* Disable NMI + select register */
     return inb(CMOS_DATA);
@@ -53,7 +53,7 @@ static uint8_t cmos_read(uint8_t reg) {
  *
  * @param bcd: BCD-encoded value
  * @return: Binary value
- */
+*/
 static uint8_t bcd_to_bin(uint8_t bcd) {
     return (uint8_t)(((bcd >> 4) * 10) + (bcd & 0x0F));
 }
@@ -65,7 +65,7 @@ static uint8_t bcd_to_bin(uint8_t bcd) {
  * We should not read time/date during an update.
  *
  * @return: true if update is in progress
- */
+*/
 static bool rtc_is_update_in_progress(void) {
     return (cmos_read(RTC_REG_STATUS_A) & 0x80) != 0;
 }
@@ -79,7 +79,7 @@ static bool rtc_is_update_in_progress(void) {
  * @param month: Month (1-12)
  * @param year:  Full year (e.g. 2026)
  * @return: Day of week (0=Sunday)
- */
+*/
 static uint8_t get_weekday(uint8_t day, uint8_t month, uint16_t year) {
     int m = (int)month;
     int y = (int)year;
@@ -131,7 +131,7 @@ void rtc_read_time(rtc_time_t *time) {
     hr  = cmos_read(RTC_REG_HOURS);
 
     /* Read again until we get two consecutive identical reads
-     * to ensure we didn't read during an update boundary */
+     * to ensure we didn't read during an update boundary*/
     do {
         last_sec = sec;
         last_min = min;

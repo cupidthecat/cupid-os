@@ -30,7 +30,7 @@ char getchar(void);
 bool keyboard_read_event(key_event_t* event);
 
 /* Inject a PS/2-style scancode byte (high bit = release) as if it came
- * from the IRQ1 ISR. Used by USB HID driver to unify input paths. */
+ * from the IRQ1 ISR. Used by USB HID driver to unify input paths.*/
 void keyboard_inject_scancode(uint8_t raw_scancode);
 
 /* Raw scancode subscriber.
@@ -45,7 +45,7 @@ void keyboard_inject_scancode(uint8_t raw_scancode);
  * subscribe/unsubscribe must run under the BKL on this SMP kernel -
  * concurrent IRQ-side fire is permitted because each call caches the
  * callback pointer locally before dispatch.
- */
+*/
 typedef void (*kbd_event_cb)(uint8_t scancode, bool pressed, void *ctx);
 int  keyboard_subscribe(kbd_event_cb cb, void *ctx);   /* returns 0 on success, -1 if slot taken */
 void keyboard_unsubscribe(void);

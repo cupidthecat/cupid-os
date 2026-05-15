@@ -16,8 +16,8 @@ static log_level_t current_log_level = LOG_INFO;
 
 /* In-memory circular log buffer */
 static char   log_buffer[LOG_BUFFER_LINES][LOG_LINE_MAX];
-static uint32_t log_write_idx  = 0;   /* next slot to write              */
-static uint32_t log_stored     = 0;   /* how many lines stored (≤ MAX)   */
+static uint32_t log_write_idx  = 0;   /* next slot to write */
+static uint32_t log_stored     = 0;   /* how many lines stored (≤ MAX) */
 
 void serial_init(void) {
     /* Disable interrupts */
@@ -26,7 +26,7 @@ void serial_init(void) {
     /* Enable DLAB - set baud rate divisor */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x80);
     outb(SERIAL_DATA(SERIAL_COM1),      0x01);     /* divisor low  = 1 (115200) */
-    outb(SERIAL_INT_EN(SERIAL_COM1),    0x00);     /* divisor high = 0          */
+    outb(SERIAL_INT_EN(SERIAL_COM1),    0x00);     /* divisor high = 0 */
 
     /* 8N1, DLAB off */
     outb(SERIAL_LINE_CTRL(SERIAL_COM1), 0x03);
@@ -87,7 +87,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         /* Optional '0' pad flag + decimal width; width applies to d/u/x.
          * For x: presence of width emits exactly `width` hex digits with
          * NO "0x" prefix (e.g. %04x of 0x13 -> "0013"); bare %x keeps
-         * legacy "0x" + 8-digit format. */
+         * legacy "0x" + 8-digit format.*/
         char pad_ch = ' ';
         int  width  = 0;
         if (*fmt == '0') { pad_ch = '0'; fmt++; }
@@ -97,7 +97,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         }
 
         /* Phase D: parse optional ".N" precision before the conversion
-         * specifier so that %.Nf works.  -1 = "not specified". */
+         * specifier so that %.Nf works.  -1 = "not specified".*/
         int prec = -1;
         if (*fmt == '.') {
             fmt++;
@@ -161,7 +161,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         case 'c': serial_write_char((char)__builtin_va_arg(ap, int));       break;
         case 'f': {
             /* Phase D: %f and %.Nf via shared fmt_f in kernel/string.c.
-             * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39. */
+             * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
             int w = fmt_f(buf, (int)sizeof(buf), v, prec);
@@ -172,7 +172,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         }
         case 'e': {
             /* Phase D: %e / %.Ne via shared fmt_e in kernel/string.c.
-             * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail. */
+             * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
             int w = fmt_e(buf, (int)sizeof(buf), v, prec);
@@ -183,7 +183,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         }
         case 'g': {
             /* Phase D: %g / %.Ng via shared fmt_g in kernel/string.c.
-             * Picks the shorter of %f and %e for this value. */
+             * Picks the shorter of %f and %e for this value.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
             int w = fmt_g(buf, (int)sizeof(buf), v, prec >= 0 ? prec : 6);

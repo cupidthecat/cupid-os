@@ -1,54 +1,54 @@
 /*
  * PS/2 Keyboard Driver
- * 
+ *
  * Implements a complete PS/2 keyboard interface with the following features:
- * 
+ *
  * Input Handling:
  * - Full US keyboard layout support with scancode-to-ASCII mapping
  * - Interrupt-driven input processing via IRQ1
  * - Key state tracking and event buffering in circular buffer
  * - Configurable key repeat with initial delay and repeat rate
  * - Key debouncing via event timestamping
- * 
+ *
  * Modifier Keys:
  * - Shift (left/right), Caps Lock, Ctrl (left/right), Alt (left/right)
  * - Proper state tracking and toggle support for Caps Lock
  * - Shift state affects ASCII mapping
- * 
+ *
  * Special Keys:
  * - Function keys F1-F12 with state tracking
  * - Extended keys (arrows, insert, delete, etc)
  * - System keys (backspace, tab, enter)
- * 
+ *
  * Error Handling:
  * - Controller status monitoring
  * - Buffer overflow protection
  * - Input validation and error checking
- * 
+ *
  * Key Event Processing:
  * - Scancode translation to ASCII with shift/caps lock
  * - Key press and release detection
  * - Extended key sequence handling
  * - Event timestamping for debouncing
- * 
+ *
  * State Management:
  * - Global keyboard state tracking
  * - Per-key up/down state
  * - Modifier key states
  * - Key repeat status
- * 
+ *
  * Buffer Implementation:
  * - Circular buffer for key events
  * - Configurable buffer size
  * - Overflow protection
  * - FIFO event processing
- * 
+ *
  * Dependencies:
  * - ports.h: I/O port access functions
  * - irq.h: Interrupt registration
  * - kernel.h: System functions
  * - types.h: Data type definitions
- */
+*/
 
 #include "keyboard.h"
 #include "ports.h"
@@ -139,7 +139,7 @@ static const char scancode_to_ascii_shift[] = {
 #define EXT_KEY_END   0x4F
 #define EXT_KEY_INS   0x52
 
-/*  Raw-scancode subscriber  */
+/* Raw-scancode subscriber */
 static kbd_event_cb s_kbd_sub_cb  = NULL;
 static void        *s_kbd_sub_ctx = NULL;
 
@@ -258,12 +258,12 @@ static void handle_extended_key(uint8_t key) {
         case EXT_KEY_DOWN:
         case EXT_KEY_LEFT:
         case EXT_KEY_RIGHT:
-        case EXT_KEY_PGUP:    /* terminal/notepad scroll-up    */
-        case EXT_KEY_PGDN:    /* terminal/notepad scroll-down  */
+        case EXT_KEY_PGUP:    /* terminal/notepad scroll-up */
+        case EXT_KEY_PGDN:    /* terminal/notepad scroll-down */
         case EXT_KEY_HOME:
         case EXT_KEY_END:
         case EXT_KEY_INS:
-        case 0x53:            /* Delete                        */
+        case 0x53:            /* Delete */
             enqueue_event(key, 0);
             break;
         default:
@@ -472,7 +472,7 @@ char keyboard_get_char(void) {
 
 char getchar(void) {
     /* In GUI mode with a JIT program running, use the program input buffer
-     * instead of the global keyboard buffer (which is consumed by the shell) */
+     * instead of the global keyboard buffer (which is consumed by the shell)*/
     int gui_mode = (shell_get_output_mode() == SHELL_OUTPUT_GUI);
     int prog_running = shell_jit_program_is_running();
 
@@ -532,7 +532,7 @@ void keyboard_inject_scancode(uint8_t raw_scancode) {
     /* Route through same path as IRQ1: also recognise the 0xE0 extended-
      * scancode prefix so injected PgUp/PgDn/Home/End/Insert/Delete (sent
      * by USB HID's hid_to_ps2 translator below) reach handle_extended_key
-     * and arrive in the keyboard buffer with character=0. */
+     * and arrive in the keyboard buffer with character=0.*/
     fire_subscriber(raw_scancode);
 
     if (raw_scancode == KEY_EXTENDED) {
@@ -550,7 +550,7 @@ void keyboard_inject_scancode(uint8_t raw_scancode) {
 /*  Test-shim: built-in subscriber for CupidC smoke tests  *
  * CupidC cannot pass function pointers as callbacks, so we provide a     *
  * fixed kernel-side subscriber that records the last event and exposes   *
- * the results via plain getter functions that CupidC CAN call.           */
+ * the results via plain getter functions that CupidC CAN call.*/
 static int      s_test_calls    = 0;
 static uint8_t  s_test_last_sc  = 0;
 static bool     s_test_last_pressed = false;

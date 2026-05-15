@@ -5,7 +5,7 @@
  *  - PS/2 auxiliary device initialization
  *  - IRQ12 handler for 3-byte mouse packets
  *  - Cursor rendering on the VGA back buffer
- */
+*/
 
 #include "mouse.h"
 #include "ports.h"
@@ -113,7 +113,7 @@ void mouse_irq_handler(struct registers *r) {
 
         /* Accumulate scroll wheel delta from 4th byte (Intellimouse).
          * We add rather than overwrite so multiple scroll ticks
-         * between desktop-loop iterations are not lost. */
+         * between desktop-loop iterations are not lost.*/
         if (has_scroll_wheel && packet[3] != 0) {
             mouse.scroll_z += (int8_t)packet[3];
         }
@@ -184,7 +184,7 @@ void mouse_init(void) {
     /* 4. Install IRQ12 handler; irq_install_handler unmasks the IOAPIC GSI.
      * DO NOT unmask 8259 - P5 disables the 8259 fully; if re-enabled it
      * duplicate-delivers IRQ12 and then wedges because EOI now goes to
-     * LAPIC (not 8259). */
+     * LAPIC (not 8259).*/
     irq_install_handler(12, mouse_irq_handler);
 
     KINFO("PS/2 mouse initialized");
@@ -192,7 +192,7 @@ void mouse_init(void) {
 
 /* Mark the dirty region covering both the OLD cursor position (saved_x/y)
  * and the NEW position (mouse.x/y).  Call this BEFORE restore+save+draw
- * so the caller can skip vga_mark_dirty_full() for cursor-only updates. */
+ * so the caller can skip vga_mark_dirty_full() for cursor-only updates.*/
 void mouse_mark_cursor_dirty(void) {
     /* Compute bounding box of old and new cursor positions */
     int x0 = (saved_x >= 0) ? (int)saved_x : (int)mouse.x;
@@ -322,7 +322,7 @@ void mouse_inject_wheel(int8_t dz) {
     if (dz == 0) return;
     /* USB HID Intellimouse: positive Z = scroll DOWN, negative = UP.
      * Our scroll convention (matches PS/2 Intellimouse): positive = UP.
-     * So invert sign on the way in. */
+     * So invert sign on the way in.*/
     mouse.scroll_z += (int)(-dz);
     mouse.updated = true;
 }

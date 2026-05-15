@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-04-17
 
 >h2 Mount Layout
 >tree open Mount Layout
-Source-verified mount flow from kernel/kernel.c:
+Source-verified mount flow from kernel/core/kernel.c:
 
   /      -> ramfs
   /dev   -> devfs
@@ -82,7 +82,7 @@ and the compatibility/diagnostics view at /disk.
 
 >h2 HomeFS
 >tree open HomeFS
-homefs is implemented in kernel/homefs.c.
+homefs is implemented in kernel/fs/homefs.c.
 
 Source-verified behavior:
 - tree-based filesystem
@@ -107,7 +107,7 @@ not:
 >h2 ISO9660 Loop-Mount
 >tree open ISO9660 Loop-Mount
 ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
-via the loop device adapter (kernel/loopdev.c + kernel/iso9660_vfs.c).
+via the loop device adapter (kernel/fs/loopdev.c + kernel/fs/iso9660_vfs.c).
 
 Example:
   mount /disk/hello.iso /iso
@@ -150,7 +150,7 @@ Recommended persistent workflow:
 2) run <name>
 3) the shell JIT-compiles it from /home/bin
 
-This is source-verified in kernel/shell.c, where /home/bin/<cmd> and
+This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
 /home/bin/<cmd>.cc are part of the command search order.
 >button ls /home/bin | shell:ls /home/bin
 >endtree

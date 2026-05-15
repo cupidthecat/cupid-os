@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 GUI Terminal and Embedded Shell
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -20,24 +20,28 @@ Verified against source on: 2026-04-17
 CupidOS Terminal is a GUI window over the normal shell, not a second shell
 implementation.
 
-Source: kernel/terminal_app.c, kernel/gui.c, kernel/desktop.c
+Source: kernel/gui/terminal_app.c, kernel/gui/gui.c, kernel/gui/desktop.c
 
 Source-verified structure:
 - shell owns the text and color buffers
 - terminal app reads those buffers for redraw
 - shell switches into GUI output mode when Terminal launches
 - shell wrap width tracks terminal window width
+- SSH/Telnet clients use kernel/lang/ssh_io.c to bridge bytes, hidden
+  password input, VT/xterm keys, and terminal geometry
 >endtree
 
 >h2 Launch Model
 >tree open Launch Model
 terminal launches the GUI terminal app.
 
-Current behavior from kernel/terminal_app.c:
+Current behavior from kernel/gui/terminal_app.c:
 - only one terminal window instance is kept at a time
 - the window title is Terminal
 - launch switches shell output to GUI mode
 - the terminal owns its own process table entry while open
+- blocking remote sessions run inside the terminal process so the desktop
+  keeps repainting
 
 >button Open Terminal | shell:terminal
 >button Open Notepad | shell:notepad
@@ -51,12 +55,36 @@ The terminal redraw path uses:
 - per-cell foreground/background colors
 - ANSI VGA color to palette conversion
 - blinking cursor timer
+- alternate-screen state for full-screen remote tools
+- cursor, scroll-region, erase, save/restore, and OSC title escape handling
 
 The content area is clipped to the window interior and recalculated against the
 current font scale.
 
 This is why ANSI color commands and normal shell output behave the same in text
 mode and GUI mode.
+>endtree
+
+>h2 SSH/Telnet Mode
+>tree open SSH/Telnet Mode
+Remote clients use the same GUI Terminal instead of opening a second console.
+
+Supported behavior:
+- hidden password reads
+- byte-accurate remote output
+- arrow/Home/End/PageUp/PageDown/Delete translation
+- application cursor mode
+- alternate screen buffer
+- cursor visibility, scroll regions, insert/delete line/char
+- 256-color and truecolor fallbacks
+- UTF-8 cell fallback
+- window-change rows/cols sent to SSH servers
+
+Useful commands:
+  ssh user@host
+  ssh user@host 'uname -a'
+  telnet telehack.com
+>button Network Guide | open:18NET.CTXT
 >endtree
 
 >h2 Controls
@@ -115,7 +143,7 @@ through the shared app-launch path instead of ad hoc special cases.
 >tree open Notes
 There is also a hosted /bin/terminal.cc program in the tree, but the main
 GUI terminal path used by the OS desktop/shell launcher is the kernel-side
-terminal app (kernel/terminal_app.c).
+terminal app (kernel/gui/terminal_app.c).
 
 For users, the practical command remains:
   terminal

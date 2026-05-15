@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 .CTXT DolDoc Manual
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,7 +14,7 @@ Verified against source on: 2026-04-17
 >rule
 
 >h2 What This Is
-.CTXT is still plain text, but Notepad render mode (kernel/notepad.c) treats
+.CTXT is still plain text, but Notepad render mode (kernel/gui/notepad.c) treats
 it as a bounded TempleOS-inspired DolDoc surface. Documents can contain
 executable CupidC, clickable actions, sprites, and collapsible widgets without
 leaving the manual.

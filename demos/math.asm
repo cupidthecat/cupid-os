@@ -16,7 +16,7 @@ section .data
 section .text
 
 main:
-    ; --- add ---
+    ; add
     push msg_add
     call print
     add  esp, 4
@@ -30,7 +30,7 @@ main:
     call print
     add  esp, 4
 
-    ; --- sub ---
+    ; sub
     push msg_sub
     call print
     add  esp, 4
@@ -43,7 +43,7 @@ main:
     call print
     add  esp, 4
 
-    ; --- shl ---
+    ; shl
     push msg_shl
     call print
     add  esp, 4
@@ -56,7 +56,7 @@ main:
     call print
     add  esp, 4
 
-    ; --- div ---
+    ; div
     push msg_div
     call print
     add  esp, 4
@@ -71,7 +71,7 @@ main:
     call print
     add  esp, 4
 
-    ; --- and ---
+    ; and
     push msg_and
     call print
     add  esp, 4
@@ -84,7 +84,7 @@ main:
     call print
     add  esp, 4
 
-    ; --- or ---
+    ; or
     push msg_or
     call print
     add  esp, 4

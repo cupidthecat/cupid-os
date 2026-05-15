@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Shell Guide
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -23,8 +23,8 @@ Source-verified behavior:
 - current working directory prompt (/home>)
 - TempleOS-style CupidC REPL at the normal prompt
 - prompt prints elapsed time and ans after successful REPL expressions
-- command history size: 16 entries (HISTORY_SIZE in kernel/shell.c)
-- command/file tab completion
+- command history size: 16 entries (HISTORY_SIZE in kernel/lang/shell.c)
+- context-aware command/file tab completion
 - GUI output mode backed by the shell text/color buffers
 - direct shell built-ins plus TempleOS-style auto-discovery from /bin and /home/bin
 
@@ -47,8 +47,8 @@ If a CupidC expression returns a value, the next prompt first prints timing and 
 If braces are still open, the shell switches to the continuation prompt:
   ..>
 
-This comes directly from the live REPL plumbing in kernel/shell.c and
-kernel/cupidc.c: the shell stages multi-line input until brace depth returns
+This comes directly from the live REPL plumbing in kernel/lang/shell.c and
+kernel/lang/cupidc.c: the shell stages multi-line input until brace depth returns
 to zero, then calls repl_eval().
 
 >button Reset REPL State | shell:reset
@@ -85,7 +85,7 @@ When you type a command, the shell resolves it in this order:
 
 >h2 Built-Ins
 >tree open Built-Ins
-Source-verified built-ins in kernel/shell.c (commands[] table):
+Source-verified built-ins in kernel/lang/shell.c (commands[] table):
 
 Language / compiler:
 - cupid      run a .cup script
@@ -117,6 +117,13 @@ System:
 - usb        list USB devices (usb | usb hubs | usb hc)
 - pci        list PCI devices
 - smp        list CPUs (smp | smp info)
+- ifconfig   show/configure primary NIC state
+- ping       ICMP echo
+- netstat    socket table
+- arp        ARP cache
+- resolve    DNS lookup
+- sshd       start/stop/status/passwd for the SSH server
+- doom       run DOOM with auto-discovered Freedoom WAD
 
 >button List /bin | shell:ls /bin
 >button List /home/bin | shell:ls /home/bin
@@ -172,10 +179,34 @@ Interactive features:
 - left/right editing
 - backspace deletion
 - tab completion for commands and filenames
+- path-aware completion after command arguments, e.g. cupidasm /demos/<Tab>
+- directory-prefix listing without losing the editable command line
 
 If tab finds multiple matches, the shell prints the candidates and redraws the
 prompt with the current input.
 >button Show History | shell:history
+>endtree
+
+>h2 Network and Remote Commands
+>tree open Network and Remote Commands
+Useful shipped network programs:
+- ifconfig     show primary NIC state
+- arp          show ARP cache
+- ping         ICMP echo
+- resolve      DNS lookup
+- netstat      socket table
+- curl         HTTP/HTTPS client
+- wget         HTTP/HTTPS downloader
+- browser      graphical HTTP/HTTPS browser
+- ssh          SSH-2 client with PTY/remote exec
+- telnet       Telnet client with option negotiation
+- sshd         SSH server on port 22
+
+Host test for sshd:
+  make run-ssh
+  (guest) sshd
+  (host)  ssh -p 2222 root@127.0.0.1
+>button Network Guide | open:18NET.CTXT
 >endtree
 
 >h2 GUI Terminal Behavior
@@ -188,6 +219,8 @@ Important behavior:
 - GUI mode still runs the same shell command dispatcher
 - the terminal app reads shell character/color buffers for redraw
 - input routing switches while a JIT program is running
+- SSH/Telnet clients use the terminal byte I/O bridge for hidden password
+  input, VT/xterm keys, ANSI output, and window-size changes
 
 F7 in Terminal or the text-mode shell runs:
   godspeak
@@ -200,7 +233,7 @@ F7 in Terminal or the text-mode shell runs:
 cc with no filename opens a dedicated line-oriented REPL:
   cc
 
-Behavior verified from kernel/shell.c:
+Behavior verified from kernel/lang/shell.c:
 - prompt is cc> or ..> while braces are open
 - Ctrl+D exits when the current line is empty
 - .exit or exit leaves the session

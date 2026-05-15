@@ -107,7 +107,7 @@ bool rtl8139_init(pci_device_t *d) {
      * into the visible buffer; the linear read then walks into the
      * zero-initialized extension region, silently producing frames with
      * zero-padded tails. (Symptom: TLS handshakes with cert chains > a
-     * few KB fail with AEAD tag mismatch on the Certificate record.) */
+     * few KB fail with AEAD tag mismatch on the Certificate record.)*/
     outl((uint16_t)(c->io_base + RTL_RCR), 0x0000008Fu);
 
     /* TCR: default IFG + MXDMA */
@@ -155,7 +155,7 @@ static void rtl_rx_drain(rtl_ctrl_t *c) {
 
         if ((status & 0x0001u) && pkt_len >= 14u + 4u && pkt_len <= 1514u + 4u) {
             /* Payload begins at p+4 (skip 4-byte HW header); strip trailing
-             * 4-byte FCS from length. */
+             * 4-byte FCS from length.*/
             net_rx_enqueue(&c->nif, p + 4, (uint32_t)pkt_len - 4u);
         } else {
             c->nif.rx_drops++;
@@ -190,7 +190,7 @@ static int rtl_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
     int td = c->tx_next;
     /* Wait for this descriptor's prior TX to finish: OWN bit (13) is set
      * by HW on completion. Initial state after reset has bits 13 and 15
-     * (OWN|TOK) set, so first use passes immediately. */
+     * (OWN|TOK) set, so first use passes immediately.*/
     {
         int spin;
         uint32_t tsd = 0;
@@ -212,7 +212,7 @@ static int rtl_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
     while (pad_len < 60) { c->tx_buf[td][pad_len++] = 0; }
 
     /* Kick HW: write phys addr, then TSD with length (OWN auto-clears to 0
-     * on the TSD write, HW transmits, HW sets OWN=1 when done). */
+     * on the TSD write, HW transmits, HW sets OWN=1 when done).*/
     outl((uint16_t)(c->io_base + RTL_TSAD(td)), (uint32_t)c->tx_buf[td]);
     outl((uint16_t)(c->io_base + RTL_TSD(td)), pad_len & 0x1FFFu);
 

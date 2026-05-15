@@ -2,7 +2,7 @@
  *
  * A Win95-style paint program for CupidOS.
  * REFACTOR: Removed preprocessor macros for CupidC compatibility.
- */
+*/
 
 /* ── Constants ────────────────────────────────────────────────────── */
 
@@ -68,7 +68,7 @@ void init_palette() {
 
 /* Simple sleep wrapper if needed, or rely on built-in if available */
 /* We will just use 'yield()' loops for now if sleep isn't guaranteed,
-   but 'sleep_ms' is likely available in the symbol table. */
+   but 'sleep_ms' is likely available in the symbol table.*/
 void my_sleep(int ms) {
   /* spin or sleep */
   /* sleep_ms(ms); -- assuming implicit declaration works or built-in */
@@ -267,7 +267,7 @@ void draw_toolbar() {
 
   /* Tools */
   /* Replaced array of strings with explicit calls because array init might be
-   * limited */
+   * limited*/
   /* "P", "L", "R", "C", "F" */
 
   int i = 0;

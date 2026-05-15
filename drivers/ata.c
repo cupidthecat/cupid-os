@@ -10,7 +10,7 @@
  * - PIO mode sector read/write
  * - Error handling with timeout detection
  * - Integration with block device layer
- */
+*/
 
 #include "ata.h"
 #include "ports.h"
@@ -28,7 +28,7 @@ static block_device_t ata_block_devices[4];
  *
  * ATA spec requires 400ns delay after drive selection.
  * Reading alternate status register 4 times provides this delay.
- */
+*/
 static void ata_400ns_delay(void) {
     for (int i = 0; i < 4; i++) {
         inb(ATA_PRIMARY_ALT_STATUS);
@@ -41,7 +41,7 @@ static void ata_400ns_delay(void) {
  * Polls status register until BSY bit is clear or timeout occurs.
  *
  * @return 0 on success, -1 on timeout
- */
+*/
 static int ata_wait_bsy(void) {
     uint32_t timeout = ATA_TIMEOUT;
     while (timeout--) {
@@ -59,7 +59,7 @@ static int ata_wait_bsy(void) {
  * Polls status register until DRQ bit is set or timeout/error occurs.
  *
  * @return 0 on success, -1 on timeout/error
- */
+*/
 static int ata_wait_drq(void) {
     uint32_t timeout = ATA_TIMEOUT;
     while (timeout--) {
@@ -78,7 +78,7 @@ static int ata_wait_drq(void) {
  * ata_select_drive - Select master or slave drive
  *
  * @param is_slave: 0 for master, 1 for slave
- */
+*/
 static void ata_select_drive(uint8_t is_slave) {
     uint8_t drive_select = is_slave ? ATA_DRIVE_SLAVE : ATA_DRIVE_MASTER;
     outb(ATA_PRIMARY_DRIVE_HEAD, drive_select);
@@ -93,7 +93,7 @@ static void ata_select_drive(uint8_t is_slave) {
  * @param is_slave: 0 for master, 1 for slave
  * @param drive: Pointer to drive structure to fill
  * @return 0 on success, -1 if drive doesn't exist
- */
+*/
 static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
     ata_select_drive(is_slave);
 
@@ -163,7 +163,7 @@ static int ata_identify(uint8_t is_slave, ata_drive_t* drive) {
  *
  * Probes primary master and slave drives, detects presence,
  * and reads drive information.
- */
+*/
 void ata_init(void) {
     print("Initializing ATA driver...\n");
 
@@ -214,7 +214,7 @@ void ata_init(void) {
  * @param count: Number of sectors to read
  * @param buffer: Buffer to read data into
  * @return 0 on success, -1 on error
- */
+*/
 int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void* buffer) {
     if (drive >= 4 || !drives[drive].exists) {
         return -1;
@@ -277,7 +277,7 @@ int ata_read_sectors(uint8_t drive, uint32_t lba, uint8_t count, void* buffer) {
  * @param count: Number of sectors to write
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
- */
+*/
 int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void* buffer) {
     if (drive >= 4 || !drives[drive].exists) {
         return -1;
@@ -352,7 +352,7 @@ int ata_write_sectors(uint8_t drive, uint32_t lba, uint8_t count, const void* bu
  *
  * @param drive: Drive number (0-3)
  * @return Pointer to drive structure, or NULL if invalid
- */
+*/
 ata_drive_t* ata_get_drive(uint8_t drive) {
     if (drive >= 4) {
         return NULL;
@@ -371,7 +371,7 @@ ata_drive_t* ata_get_drive(uint8_t drive) {
  * @param count: Number of sectors to read
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
- */
+*/
 static int ata_blkdev_read(void* driver_data, uint32_t lba, uint32_t count, void* buffer) {
     uint8_t drive = (uint8_t)(uint32_t)driver_data;
     return ata_read_sectors(drive, lba, (uint8_t)count, buffer);
@@ -385,7 +385,7 @@ static int ata_blkdev_read(void* driver_data, uint32_t lba, uint32_t count, void
  * @param count: Number of sectors to write
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
- */
+*/
 static int ata_blkdev_write(void* driver_data, uint32_t lba, uint32_t count, const void* buffer) {
     uint8_t drive = (uint8_t)(uint32_t)driver_data;
     return ata_write_sectors(drive, lba, (uint8_t)count, buffer);
@@ -396,7 +396,7 @@ static int ata_blkdev_write(void* driver_data, uint32_t lba, uint32_t count, con
  *
  * Registers each detected ATA drive as a block device so they can be
  * accessed through the generic block device interface.
- */
+*/
 void ata_register_devices(void) {
     for (uint8_t i = 0; i < 4; i++) {
         if (drives[i].exists) {

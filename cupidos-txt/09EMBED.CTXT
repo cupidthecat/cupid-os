@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -44,14 +44,16 @@ and inline BMP widgets.
 >tree open Makefile Auto-Discovery
 The Makefile auto-discovers and embeds files from four source trees:
 
-  bin/*.cc     -> kernel/bin_programs_gen.c  -> /bin/*.cc in ramfs
-  bin/*.h      -> (as header stubs)          -> /bin/*.h in ramfs
-  cupidos-txt/*.CTXT -> kernel/docs_programs_gen.c -> /docs/*.ctxt in ramfs
-  demos/*.asm  -> kernel/demos_programs_gen.c -> /demos/*.asm in ramfs
+  bin/*.cc     -> kernel/util/bin_programs_gen.c  -> /bin/*.cc in ramfs
+  bin/*.h      -> kernel/util/bin_programs_gen.c  -> /bin/*.h in ramfs
+  bin/browser/*.cc -> kernel/util/bin_programs_gen.c -> /bin/browser/*.cc
+  cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.c -> /docs/*.ctxt
+  demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
   god/*.DD     -> embedded via objcopy        -> /god/*.DD in image
 
 Makefile variable definitions:
-  BIN_CC_SRCS  := $(wildcard bin/*.cc)
+  BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
+  BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
   DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
   DEMO_ASM_SRCS := $(wildcard demos/*.asm)
   GOD_DD_SRCS   := $(wildcard god/*.DD)
@@ -110,7 +112,7 @@ Goal:
 
 This is now mostly the legacy/manual approach.
 For shipped manuals, prefer the generated /docs/*.ctxt install path instead
-of hardcoding text blobs into kernel/fs.c.
+of hardcoding text blobs into kernel/fs/fs.c.
 
 Tradeoff:
 - Always available at boot
@@ -127,12 +129,12 @@ Pattern is already implemented for:
 - /god/*.DD word lists (via objcopy)
 
 Build-time generators:
-- kernel/bin_programs_gen.c
-- kernel/docs_programs_gen.c
-- kernel/demos_programs_gen.c
+- kernel/util/bin_programs_gen.c
+- kernel/util/docs_programs_gen.c
+- kernel/util/demos_programs_gen.c
 
 Tradeoff:
-- Scales better than hardcoding large strings in kernel/fs.c
+- Scales better than hardcoding large strings in kernel/fs/fs.c
 - Requires Makefile and kernel generation changes
 
 >button List /docs | shell:ls /docs

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ISO9660 Read-Only Mount
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -82,7 +82,7 @@ Stack layers (top to bottom):
 
 Source files:
   kernel/iso9660.h + iso9660.c   PVD parser, directory walker, SUSP/RR
-  kernel/loopdev.c               file-backed block device adapter
+  kernel/fs/loopdev.c            file-backed block device adapter
   kernel/iso9660_vfs.c           VFS mount/open/read/readdir adapter
 >endtree
 

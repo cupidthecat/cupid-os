@@ -1,8 +1,8 @@
-; parity_priv.asm — exercise newly-added privileged + atomic ops so
+; parity_priv.asm - exercise newly-added privileged + atomic ops so
 ; the encoder paths get exercised. Run with `as demos/parity_priv.asm`.
 ; This program returns immediately after each new mnemonic; the value
 ; of executing them in JIT mode is *not* meaningful (they touch real
-; CPU control state) — the point is that the assembler accepts them
+; CPU control state) - the point is that the assembler accepts them
 ; and emits the right opcode bytes. Use cupiddis on the JIT region to
 ; verify encodings byte-by-byte.
 
@@ -12,12 +12,13 @@ gdt_ptr: dw 0
 idt_ptr: dw 0
          dd 0
 counter: dd 0
+msg_ok: db "PASS parity_priv", 10, 0
 
 section .text
 main:
     ; Zero-operand 0F-prefixed system ops.
     ; (These would actually trap or alter state on real hardware; the
-    ;  test stops short of executing them in JIT — return before any.)
+    ; test stops short of executing them in JIT - return before any.)
     jmp .skip_dangerous
 
     ; lgdt/lidt: encoder paths only.
@@ -55,5 +56,8 @@ main:
     lock inc     dword [counter]
     lock add     [counter], 1
 .skip_dangerous:
+    push msg_ok
+    call print
+    add esp, 4
     xor eax, eax
     ret
