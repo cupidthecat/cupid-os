@@ -33,6 +33,8 @@ typedef struct __attribute__((packed)) {
 #define TCP_PSH 0x08u
 #define TCP_ACK 0x10u
 
+static socket_t synack_tmp;
+
 static uint16_t be16(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
 static uint32_t be32(uint32_t v) {
     return ((v >> 24) & 0xFFu) | ((v >> 8) & 0xFF00u)
@@ -391,19 +393,24 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
             l->lq[slot].iss         = tcp_gen_iss((uint32_t)slot);
             l->lq[slot].rcv_nxt     = seq + 1u;
             l->lq[slot].inserted_ms = timer_get_uptime_ms();
-            l->lq[slot].completed   = 0;
+            /* QEMU user-mode host forwarding may not inject the pure final
+             * ACK until the host side sends application data.  Server-first
+             * protocols such as SSH need accept() to return so they can send
+             * their banner, so treat SYN/SYN-ACK as enough to wake accept().
+             * The later ACK path still handles normal clients. */
+            l->lq[slot].completed   = 1;
             l->lq[slot].in_use      = 1;
             {
-                socket_t tmp;
+                socket_t *tmp = &synack_tmp;
                 uint32_t k;
-                for (k = 0; k < (uint32_t)sizeof(tmp); k++) ((uint8_t*)&tmp)[k] = 0;
-                tmp.local_ip    = l->local_ip ? l->local_ip : net_if_primary()->ipv4_addr;
-                tmp.local_port  = l->local_port;
-                tmp.remote_ip   = src_ip;
-                tmp.remote_port = src_port;
-                tmp.snd_nxt     = l->lq[slot].iss;
-                tmp.rcv_nxt     = seq + 1u;
-                tcp_send_seg(&tmp, (uint8_t)(TCP_SYN | TCP_ACK), NULL, 0);
+                for (k = 0; k < (uint32_t)sizeof(*tmp); k++) ((uint8_t*)tmp)[k] = 0;
+                tmp->local_ip    = l->local_ip ? l->local_ip : net_if_primary()->ipv4_addr;
+                tmp->local_port  = l->local_port;
+                tmp->remote_ip   = src_ip;
+                tmp->remote_port = src_port;
+                tmp->snd_nxt     = l->lq[slot].iss;
+                tmp->rcv_nxt     = seq + 1u;
+                tcp_send_seg(tmp, (uint8_t)(TCP_SYN | TCP_ACK), NULL, 0);
             }
             return;
         }

@@ -139,6 +139,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/network/tcp.o \
             kernel/network/dhcp.o \
             kernel/network/dns.o \
+            kernel/network/sshd.o \
             drivers/rtl8139.o \
             drivers/e1000.o \
             kernel/core/syscall.o \
@@ -359,6 +360,9 @@ kernel/network/dhcp.o: kernel/network/dhcp.c kernel/network/dhcp.h kernel/networ
 # DNS A-record resolver + 16-entry cache (P6 T12)
 kernel/network/dns.o: kernel/network/dns.c kernel/network/dns.h kernel/network/socket.h kernel/network/net_if.h
 	$(CC) $(CFLAGS) kernel/network/dns.c -o kernel/network/dns.o
+
+kernel/network/sshd.o: kernel/network/sshd.c kernel/network/sshd.h kernel/network/socket.h kernel/core/process.h kernel/lang/shell.h kernel/fs/vfs.h kernel/crypto/x25519.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/p256.h kernel/crypto/ecdsa.h
+	$(CC) $(CFLAGS) kernel/network/sshd.c -o kernel/network/sshd.o
 
 # RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
 drivers/rtl8139.o: drivers/rtl8139.c kernel/network/net_if.h drivers/pci.h kernel/mm/memory.h kernel/core/ports.h
@@ -995,6 +999,22 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+	@if [ ! -f test_iso/hello.iso ]; then \
+	  if command -v mkisofs >/dev/null 2>&1 || command -v genisoimage >/dev/null 2>&1 || command -v xorrisofs >/dev/null 2>&1; then \
+	    echo "Building test ISO fixture..."; \
+	    test_iso/fixtures/gen_big.sh; \
+	    ISO_TOOL=$$(command -v mkisofs 2>/dev/null || command -v genisoimage 2>/dev/null || command -v xorrisofs); \
+	    $$ISO_TOOL -R -quiet -o test_iso/hello.iso test_iso/fixtures; \
+	  else \
+	    echo "Skipping test ISO fixture build (need mkisofs, genisoimage, or xorrisofs)"; \
+	  fi; \
+	fi
+	@if [ -f test_iso/hello.iso ] && command -v mcopy >/dev/null 2>&1; then \
+	  echo "Staging test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"; \
+	  MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso </dev/null; \
+	elif [ -f test_iso/hello.iso ]; then \
+	  echo "Skipping test ISO staging (mcopy not installed)"; \
+	fi
 	@if [ -z "$(WAD_SRCS)" ]; then \
 	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
 	else \
@@ -1056,6 +1076,12 @@ run-smp: $(OS_IMAGE)
 run-net: $(OS_IMAGE)
 	qemu-system-i386 $(QEMU_COMMON) \
 		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
+		-device rtl8139,netdev=n0 \
+		-serial stdio
+
+run-ssh: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) \
+		-netdev user,id=n0,hostfwd=tcp::2222-:22 \
 		-device rtl8139,netdev=n0 \
 		-serial stdio
 

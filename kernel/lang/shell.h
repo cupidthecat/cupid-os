@@ -13,6 +13,8 @@ typedef struct {
     uint8_t bg;   /* VGA color index 0-15 */
 } shell_color_t;
 
+typedef void (*shell_output_sink_t)(const char *buf, uint32_t len, void *ctx);
+
 #define SHELL_COLS 80
 #define SHELL_ROWS 500
 
@@ -172,6 +174,16 @@ void shell_gui_print_int_ext(uint32_t num);
 
 /* Execute a command line string (used by CupidScript) */
 void shell_execute_line(const char *line);
+
+/* Optional output sink used by remote shells. When set for the current
+ * PID, kernel print/putchar and shell command output are routed to the
+ * sink instead of the local console. PID 0 is a scoped fallback sink. */
+void shell_set_process_output_sink(uint32_t pid,
+                                   shell_output_sink_t sink,
+                                   void *ctx);
+void shell_clear_process_output_sink(uint32_t pid);
+int shell_output_write_current(const char *buf, uint32_t len);
+int shell_output_putchar_current(char c);
 
 
 /**

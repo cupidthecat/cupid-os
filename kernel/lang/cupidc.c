@@ -97,37 +97,20 @@ static void cc_outb(uint32_t port, uint32_t value) {
 static uint32_t cc_inb(uint32_t port) { return (uint32_t)inb((uint16_t)port); }
 
 static void cc_println(const char *s) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_ext(s ? s : "");
-    shell_gui_putchar_ext('\n');
-  } else {
-    print(s ? s : "");
-    print("\n");
-  }
+  print(s ? s : "");
+  print("\n");
 }
 
 static void cc_print(const char *s) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_ext(s ? s : "");
-  } else {
-    print(s ? s : "");
-  }
+  print(s ? s : "");
 }
 
 static void cc_putchar(char c) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_putchar_ext(c);
-  } else {
-    putchar(c);
-  }
+  putchar(c);
 }
 
 static void cc_print_int(uint32_t v) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_int_ext(v);
-  } else {
-    print_int(v);
-  }
+  print_int(v);
 }
 
 typedef __builtin_va_list cc_va_list;

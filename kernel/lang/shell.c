@@ -40,6 +40,7 @@
 #include "icmp.h"
 #include "ip.h"
 #include "socket.h"
+#include "sshd.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -73,6 +74,8 @@ static int gui_origin_mode = 0;
 static int gui_utf8_remaining = 0;
 static uint32_t gui_utf8_codepoint = 0;
 static char gui_last_print_char = ' ';
+static int gui_input_origin_x = 0;
+static int gui_input_origin_y = 0;
 
 /* I/O redirection capture buffer */
 #define REDIR_BUF_SIZE 4096
@@ -116,6 +119,9 @@ static char gui_repl_pending[SHELL_REPL_PENDING_MAX];
 static uint32_t gui_repl_pending_len = 0;
 static int gui_repl_brace_depth = 0;
 
+static shell_output_sink_t process_output_sinks[MAX_PROCESSES + 1];
+static void *process_output_sink_ctx[MAX_PROCESSES + 1];
+
 static void shell_putchar(char c);
 static void shell_print(const char *s);
 static void shell_gui_putchar(char c);
@@ -133,6 +139,47 @@ static int shell_jit_input_queued(void) {
   if (jit_input_write_pos >= jit_input_read_pos)
     return jit_input_write_pos - jit_input_read_pos;
   return JIT_INPUT_BUFFER_SIZE - jit_input_read_pos + jit_input_write_pos;
+}
+
+void shell_set_process_output_sink(uint32_t pid,
+                                   shell_output_sink_t sink,
+                                   void *ctx) {
+  if (pid > MAX_PROCESSES)
+    return;
+  process_output_sinks[pid] = sink;
+  process_output_sink_ctx[pid] = ctx;
+}
+
+void shell_clear_process_output_sink(uint32_t pid) {
+  if (pid > MAX_PROCESSES)
+    return;
+  process_output_sinks[pid] = NULL;
+  process_output_sink_ctx[pid] = NULL;
+}
+
+int shell_output_write_current(const char *buf, uint32_t len) {
+  uint32_t pid;
+  if (!process_is_active()) {
+    if (!process_output_sinks[0])
+      return 0;
+    process_output_sinks[0](buf, len, process_output_sink_ctx[0]);
+    return 1;
+  }
+
+  pid = process_get_current_pid();
+  if (pid <= MAX_PROCESSES && process_output_sinks[pid]) {
+    process_output_sinks[pid](buf, len, process_output_sink_ctx[pid]);
+    return 1;
+  }
+
+  if (!process_output_sinks[0])
+    return 0;
+  process_output_sinks[0](buf, len, process_output_sink_ctx[0]);
+  return 1;
+}
+
+int shell_output_putchar_current(char c) {
+  return shell_output_write_current(&c, 1u);
 }
 
 static void shell_debug_dump_bytes(const char *tag, const char *buf, int len) {
@@ -260,6 +307,8 @@ static void shell_gui_print_prompt(void) {
     shell_gui_print(shell_cwd);
     shell_gui_print("> ");
   }
+  gui_input_origin_x = gui_cursor_x;
+  gui_input_origin_y = gui_cursor_y;
 }
 
 void shell_set_program_args(const char *args) {
@@ -398,6 +447,7 @@ void shell_resolve_path(const char *input, char *out) {
 
 /* Forward declarations */
 static void execute_command(const char *input);
+static void execute_command_inner(const char *input, int try_repl);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void shell_gui_print_int(uint32_t num);
@@ -1112,6 +1162,8 @@ static void shell_gui_print_int(uint32_t num) {
  *  Output wrappers that route to GUI or text mode
  */
 static void shell_print(const char *s) {
+  if (s && shell_output_write_current(s, (uint32_t)strlen(s)))
+    return;
   if (redir_active && redir_buf) {
     while (*s && redir_len < REDIR_BUF_SIZE - 1) {
       redir_buf[redir_len++] = *s++;
@@ -1126,6 +1178,8 @@ static void shell_print(const char *s) {
 }
 
 static void shell_putchar(char c) {
+  if (shell_output_putchar_current(c))
+    return;
   if (redir_active && redir_buf) {
     if (redir_len < REDIR_BUF_SIZE - 1) {
       redir_buf[redir_len++] = c;
@@ -1140,6 +1194,22 @@ static void shell_putchar(char c) {
 }
 
 static void shell_print_int(uint32_t num) {
+  uint32_t sink_pid = process_is_active() ? process_get_current_pid() : 0u;
+  if (sink_pid <= MAX_PROCESSES && process_output_sinks[sink_pid]) {
+    char tmp[16];
+    int i = 0;
+    if (num == 0) {
+      shell_output_putchar_current('0');
+      return;
+    }
+    while (num > 0 && i < (int)sizeof(tmp)) {
+      tmp[i++] = (char)('0' + (num % 10u));
+      num /= 10u;
+    }
+    while (i > 0)
+      shell_output_putchar_current(tmp[--i]);
+    return;
+  }
   if (redir_active && redir_buf) {
     char tmp[12];
     int i = 0;
@@ -1164,11 +1234,36 @@ static void shell_print_int(uint32_t num) {
 }
 
 /* External-linkage wrappers for kernel.c routing */
-void shell_gui_putchar_ext(char c) { shell_gui_putchar(c); }
+void shell_gui_putchar_ext(char c) {
+  if (shell_output_putchar_current(c))
+    return;
+  shell_gui_putchar(c);
+}
 
-void shell_gui_print_ext(const char *s) { shell_gui_print(s); }
+void shell_gui_print_ext(const char *s) {
+  if (s && shell_output_write_current(s, (uint32_t)strlen(s)))
+    return;
+  shell_gui_print(s);
+}
 
-void shell_gui_print_int_ext(uint32_t num) { shell_gui_print_int(num); }
+void shell_gui_print_int_ext(uint32_t num) {
+  if (shell_output_write_current("", 0u)) {
+    char tmp[16];
+    int i = 0;
+    if (num == 0) {
+      shell_output_putchar_current('0');
+      return;
+    }
+    while (num > 0 && i < (int)sizeof(tmp)) {
+      tmp[i++] = (char)('0' + (num % 10u));
+      num /= 10u;
+    }
+    while (i > 0)
+      shell_output_putchar_current(tmp[--i]);
+    return;
+  }
+  shell_gui_print_int(num);
+}
 
 // Scancodes for extended keys we care about
 #define SCANCODE_ARROW_UP 0x48
@@ -1212,6 +1307,7 @@ static void shell_netstat_cmd (const char *args);
 static void shell_arp_cmd     (const char *args);
 static void shell_resolve_cmd (const char *args);
 static void shell_doom_cmd    (const char *args);
+static void shell_sshd_cmd    (const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -1243,6 +1339,7 @@ static struct shell_command commands[] = {
     {"netstat",  "List sockets", shell_netstat_cmd},
     {"arp",      "Dump ARP cache", shell_arp_cmd},
     {"resolve",  "DNS resolve (resolve <host>)", shell_resolve_cmd},
+    {"sshd",     "SSH server (sshd [start|stop|status|passwd])", shell_sshd_cmd},
     {"doom",     "Run DOOM (doom [-iwad <path>])", shell_doom_cmd},
     {0, 0, 0} // Null terminator
 };
@@ -2886,6 +2983,77 @@ static void shell_resolve_cmd(const char *args) {
     shell_print_int(p[3]); shell_print("\n");
 }
 
+static int shell_parse_u16_arg(const char *s, uint16_t *out) {
+    uint32_t v = 0;
+    if (!s || !*s) return -1;
+    while (*s == ' ' || *s == '\t') s++;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10u + (uint32_t)(*s - '0');
+        if (v > 65535u) return -1;
+        s++;
+    }
+    while (*s == ' ' || *s == '\t') s++;
+    if (*s != '\0' || v == 0u) return -1;
+    *out = (uint16_t)v;
+    return 0;
+}
+
+static void shell_sshd_cmd(const char *args) {
+    if (!args || !*args || strcmp(args, "start") == 0) {
+        if (sshd_start(22u) == 0) {
+            shell_print("sshd: listening on port 22\n");
+        } else {
+            shell_print("sshd: start failed\n");
+        }
+        return;
+    }
+    if (strcmp(args, "stop") == 0) {
+        sshd_stop();
+        shell_print("sshd: stopped\n");
+        return;
+    }
+    if (strcmp(args, "status") == 0) {
+        shell_print("sshd: ");
+        if (sshd_is_running()) {
+            shell_print("running port ");
+            shell_print_int((uint32_t)sshd_port());
+            shell_print("\n");
+        } else {
+            shell_print("stopped\n");
+        }
+        return;
+    }
+    if (strncmp(args, "start ", 6u) == 0) {
+        uint16_t port;
+        if (shell_parse_u16_arg(args + 6, &port) != 0) {
+            shell_print("usage: sshd start [port]\n");
+            return;
+        }
+        if (sshd_start(port) == 0) {
+            shell_print("sshd: listening on port ");
+            shell_print_int((uint32_t)port);
+            shell_print("\n");
+        } else {
+            shell_print("sshd: start failed\n");
+        }
+        return;
+    }
+    if (strncmp(args, "passwd ", 7u) == 0) {
+        const char *pw = args + 7;
+        if (!*pw) {
+            shell_print("usage: sshd passwd <password>\n");
+            return;
+        }
+        if (sshd_set_password(pw) == 0) {
+            shell_print("sshd: password updated for root\n");
+        } else {
+            shell_print("sshd: password update failed\n");
+        }
+        return;
+    }
+    shell_print("usage: sshd [start [port]|stop|status|passwd <password>]\n");
+}
+
 /* doom shell builtin - calls into the platform shim's doom_main(). */
 extern int doom_main(int argc, char **argv);
 
@@ -2930,11 +3098,78 @@ static void shell_doom_cmd(const char *args) {
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
     return;
-  execute_command(line);
+  execute_command_inner(line, 0);
+}
+
+static int shell_program_path_exists(const char *path) {
+  vfs_stat_t st;
+  return (vfs_stat(path, &st) >= 0 && st.type == VFS_TYPE_FILE) ? 1 : 0;
+}
+
+static void shell_make_bin_candidate(char *out, const char *prefix,
+                                     const char *cmd, const char *suffix) {
+  int oi = 0;
+  int ci = 0;
+  int si = 0;
+
+  while (prefix[oi] && oi < VFS_MAX_PATH - 1) {
+    out[oi] = prefix[oi];
+    oi++;
+  }
+  while (cmd[ci] && oi < VFS_MAX_PATH - 1) {
+    out[oi++] = cmd[ci++];
+  }
+  while (suffix && suffix[si] && oi < VFS_MAX_PATH - 1) {
+    out[oi++] = suffix[si++];
+  }
+  out[oi] = '\0';
+}
+
+static int shell_should_try_repl(const char *input) {
+  char cmd[MAX_INPUT_LEN];
+  char path[VFS_MAX_PATH];
+  int i = 0;
+
+  while (input[i] && input[i] != ' ' && input[i] != '\t' &&
+         i < MAX_INPUT_LEN - 1) {
+    cmd[i] = input[i];
+    i++;
+  }
+  cmd[i] = '\0';
+  if (cmd[0] == '\0')
+    return 0;
+
+  for (int j = 0; commands[j].name; j++) {
+    if (strcmp(cmd, commands[j].name) == 0)
+      return 0;
+  }
+
+  shell_resolve_path(cmd, path);
+  if (shell_program_path_exists(path))
+    return 0;
+
+  shell_make_bin_candidate(path, "/bin/", cmd, "");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/bin/", cmd, ".cc");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/home/bin/", cmd, "");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/home/bin/", cmd, ".cc");
+  if (shell_program_path_exists(path))
+    return 0;
+
+  return 1;
 }
 
 // Find and execute a command
 static void execute_command(const char *input) {
+  execute_command_inner(input, 1);
+}
+
+static void execute_command_inner(const char *input, int try_repl) {
   char normalized_input[SHELL_REPL_PENDING_MAX];
   int ni = 0;
   int start = 0;
@@ -3040,7 +3275,7 @@ static void execute_command(const char *input) {
     }
   }
 
-  if (repl_eval(input) == 0)
+  if (try_repl && shell_should_try_repl(input) && repl_eval(input) == 0)
     goto redir_done;
 
   char cmd[MAX_INPUT_LEN];
@@ -3510,6 +3745,55 @@ void shell_gui_reset_input(void) {
   gui_repl_brace_depth = 0;
 }
 
+static void gui_seek_input_cursor(int offset) {
+  int cols = gui_visible_cols;
+  int x;
+  int y;
+
+  if (cols <= 0 || cols > SHELL_COLS)
+    cols = SHELL_COLS;
+  if (offset < 0)
+    offset = 0;
+
+  x = gui_input_origin_x + offset;
+  y = gui_input_origin_y;
+  while (x >= cols) {
+    x -= cols;
+    y++;
+  }
+
+  gui_cursor_x = x;
+  gui_cursor_y = y;
+  shell_clamp_cursor();
+}
+
+static void gui_clear_input_display(int len) {
+  int cols = gui_visible_cols;
+  int row = gui_input_origin_y;
+  int col = gui_input_origin_x;
+
+  if (cols <= 0 || cols > SHELL_COLS)
+    cols = SHELL_COLS;
+  if (len <= 0)
+    return;
+  while (col >= cols) {
+    col -= cols;
+    row++;
+  }
+
+  while (len > 0 && row < SHELL_ROWS) {
+    int count = cols - col;
+    if (count <= 0)
+      break;
+    if (count > len)
+      count = len;
+    shell_clear_line_range_current(row, col, col + count - 1);
+    len -= count;
+    row++;
+    col = 0;
+  }
+}
+
 void shell_gui_execute_line(const char *line) {
   char gui_full_input[SHELL_REPL_PENDING_MAX];
 
@@ -3537,21 +3821,12 @@ void shell_gui_execute_line(const char *line) {
 
 /* GUI-mode wrappers (print/putchar go to GUI buffer) */
 static void gui_replace_input(const char *new_text) {
-  // Move cursor to end first
-  while (gui_input_cursor < gui_input_pos) {
-    shell_gui_putchar(gui_input[gui_input_cursor]);
-    gui_input_cursor++;
-  }
-  // Erase all
-  while (gui_input_pos > 0) {
-    shell_gui_putchar('\b');
-    shell_gui_putchar(' ');
-    shell_gui_putchar('\b');
-    gui_input_pos--;
-  }
-  gui_input_cursor = 0;
-
+  int old_len = gui_input_pos;
   int i = 0;
+
+  gui_seek_input_cursor(0);
+  gui_clear_input_display(old_len);
+
   if (new_text) {
     while (new_text[i] && i < MAX_INPUT_LEN) {
       gui_input[i] = new_text[i];
@@ -3562,6 +3837,8 @@ static void gui_replace_input(const char *new_text) {
   gui_input[i] = '\0';
   gui_input_pos = i;
   gui_input_cursor = i;
+  gui_seek_input_cursor(gui_input_cursor);
+  shell_mark_terminal_dirty();
 }
 
 /* Temporarily redirect print/putchar to GUI buffer, execute command,

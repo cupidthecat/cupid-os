@@ -289,6 +289,10 @@ void clear_screen() {
  * - Updates hardware cursor position via VGA registers
  */
 void putchar(char c) {
+    if (shell_output_putchar_current(c)) {
+        return;
+    }
+
     /* Route to GUI buffer when in GUI mode */
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         shell_gui_putchar_ext(c);
@@ -366,6 +370,23 @@ void putchar(char c) {
  * - Prints digits in reverse order to maintain correct number representation
  */
 void print_int(uint32_t num) {
+    if (shell_output_write_current("", 0u)) {
+        char sink_buf[10];
+        int sink_i = 0;
+        if (num == 0) {
+            shell_output_putchar_current('0');
+            return;
+        }
+        while (num > 0 && sink_i < (int)sizeof(sink_buf)) {
+            sink_buf[sink_i++] = (char)((num % 10u) + (uint32_t)'0');
+            num /= 10u;
+        }
+        while (sink_i > 0) {
+            shell_output_putchar_current(sink_buf[--sink_i]);
+        }
+        return;
+    }
+
     serial_printf("[print_int] num=%u (0x%x) gui_mode=%d\n",
                   num, num, shell_get_output_mode() == SHELL_OUTPUT_GUI);
 
@@ -399,6 +420,10 @@ void print_int(uint32_t num) {
  * @str: Pointer to the null-terminated string to print
  */
 void print(const char* str) {
+    if (str && shell_output_write_current(str, (uint32_t)strlen(str))) {
+        return;
+    }
+
     /* Route to GUI buffer when in GUI mode */
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         shell_gui_print_ext(str);

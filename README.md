@@ -147,6 +147,8 @@ netstat
 feature21_net           # TCP client: DNS + connect + HTTP GET
 feature22_net_server    # TCP server: listen + accept + echo
 cupidfetch              # one-shot HTTP GET
+sshd                    # start SSH server on port 22
+# host, with make run-ssh: ssh -p 2222 root@127.0.0.1
 
 # 15) HTTP / HTTPS clients
 curl http://example.com/

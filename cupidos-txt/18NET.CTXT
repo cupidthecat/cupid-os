@@ -833,6 +833,21 @@ Boots with Intel E1000 NIC (no port forward).
   6. On host: curl http://localhost:8080/  -- expect "Hello CupidOS"
   7. Guest prints: [feature22] PASS served N bytes in
 
+>h3 SSH Server
+
+  1. make run-ssh
+  2. Wait for: net: if=rtl8139 ip=10.0.2.15
+  3. In guest shell: sshd
+  4. On host: ssh -p 2222 root@127.0.0.1
+
+Default login is root / cupid. Change it with:
+
+  sshd passwd <password>
+
+The server supports password auth, session shell, and remote exec:
+
+  ssh -p 2222 root@127.0.0.1 'echo hello'
+
 >h3 E1000 Path
 
   make run-net-e1000

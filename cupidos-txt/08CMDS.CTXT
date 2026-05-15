@@ -61,6 +61,7 @@ System:
 - usb          list USB devices (usb | usb hubs | usb hc)
 - pci          list PCI devices (bus:dev.fn vid:did class irq)
 - smp          list CPUs (smp | smp info)
+- sshd         manage the SSH server (start|stop|status|passwd)
 
 Note: jobs is a CupidScript-only builtin (runs inside .cup scripts),
 not a shell built-in.
