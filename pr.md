@@ -41,6 +41,24 @@ plumbing needed to use it interactively from the GUI Terminal.
   cursor, OSC title sequences, 256-color SGR fallbacks, bracketed-paste
   private-mode sequences, CRLF-safe line advancement, and remote special
   keys such as arrows/Home/End/PageUp/PageDown/Delete.
+- Added enough xterm/VT behavior for full-screen SSH programs such as
+  `top` and `btop`: alternate screen save/restore, cursor visibility,
+  application cursor-key mode, origin mode, scroll regions, insert/delete
+  lines, insert/delete/erase chars, repeat-character CSI, ACS line-drawing
+  fallback, UTF-8 cell fallback, reverse-video SGR, and truecolor-to-VGA
+  color fallback.
+- GUI Terminal now tracks visible rows as well as columns, resets scrollback
+  while a full-screen alternate-screen program is active, and SSH sends
+  `window-change` channel requests when the terminal geometry changes.
+- Added targeted serial diagnostics for SSH terminal debugging:
+  `[ssh-debug]` channel/window/render byte dumps, `[ssh-io]` VT key
+  translation, `[ssh-input]` GUI key routing into the JIT input queue, and
+  `[ssh-render]` ANSI parser/cursor actions.
+- Fixed a GUI input path where cursor navigation could reach SSH as raw
+  control bytes (`Ctrl-P/N/F/B`) while `top` had application-cursor mode
+  enabled. SSH now converts those fallback bytes to the expected application
+  cursor sequences (`ESC OA/OB/OC/OD`) so selection movement updates in
+  remote full-screen programs.
 - SSH PTY setup now reports the actual GUI terminal columns/rows and sends
   cooked terminal modes for echo, canonical input, CR/LF behavior,
   Ctrl-C, Backspace, and terminal speeds.

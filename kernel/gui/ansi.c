@@ -5,6 +5,8 @@ void ansi_init(terminal_color_state_t *state) {
   state->fg_color = ANSI_DEFAULT_FG;
   state->bg_color = ANSI_DEFAULT_BG;
   state->bold = false;
+  state->inverse = false;
+  state->g0_alt_charset = false;
   state->param1 = 0;
   state->param2 = 0;
   state->esc_len = 0;
@@ -12,6 +14,7 @@ void ansi_init(terminal_color_state_t *state) {
   state->in_csi = false;
   state->in_osc = false;
   state->osc_esc = false;
+  state->in_charset_select = false;
   memset(state->esc_buf, 0, ANSI_ESC_BUF_SIZE);
 }
 
@@ -19,10 +22,11 @@ void ansi_reset(terminal_color_state_t *state) {
   state->fg_color = ANSI_DEFAULT_FG;
   state->bg_color = ANSI_DEFAULT_BG;
   state->bold = false;
+  state->inverse = false;
 }
 
 uint8_t ansi_get_fg(const terminal_color_state_t *state) {
-  uint8_t fg = state->fg_color;
+  uint8_t fg = state->inverse ? state->bg_color : state->fg_color;
   if (state->bold && fg < 8) {
     fg = (uint8_t)(fg + 8);
   }
@@ -30,7 +34,7 @@ uint8_t ansi_get_fg(const terminal_color_state_t *state) {
 }
 
 uint8_t ansi_get_bg(const terminal_color_state_t *state) {
-  return state->bg_color;
+  return state->inverse ? state->fg_color : state->bg_color;
 }
 
 static const uint8_t ansi_to_vga[8] = {
@@ -47,6 +51,34 @@ static const uint32_t vga_to_rgb32[16] = {
 uint32_t ansi_vga_to_palette(uint8_t vga_color) {
   if (vga_color > 15) return vga_to_rgb32[7];
   return vga_to_rgb32[vga_color];
+}
+
+static uint8_t ansi_rgb_to_vga(int r, int g, int b) {
+  int best = 7;
+  int best_dist = 0x7fffffff;
+
+  if (r < 0) r = 0;
+  if (g < 0) g = 0;
+  if (b < 0) b = 0;
+  if (r > 255) r = 255;
+  if (g > 255) g = 255;
+  if (b > 255) b = 255;
+
+  for (int i = 0; i < 16; i++) {
+    int pr = (int)((vga_to_rgb32[i] >> 16) & 0xFFU);
+    int pg = (int)((vga_to_rgb32[i] >> 8) & 0xFFU);
+    int pb = (int)(vga_to_rgb32[i] & 0xFFU);
+    int dr = r - pr;
+    int dg = g - pg;
+    int db = b - pb;
+    int dist = dr * dr + dg * dg + db * db;
+    if (dist < best_dist) {
+      best_dist = dist;
+      best = i;
+    }
+  }
+
+  return (uint8_t)best;
 }
 
 static int parse_number(const char *buf, int start, int end) {
@@ -82,6 +114,11 @@ static int parse_csi_params(const char *buf, int len, int *params, int max_param
   return count;
 }
 
+static int csi_is_private(const char *buf, int len) {
+  return (len > 0 && (buf[0] == '?' || buf[0] == '>' ||
+                      buf[0] == '=' || buf[0] == '!')) ? 1 : 0;
+}
+
 static ansi_result_t process_csi(terminal_color_state_t *state) {
   int len = state->esc_len;
   if (len < 1) return ANSI_RESULT_SKIP;
@@ -90,6 +127,7 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
   int body_len = len - 1;
   int params[16];
   int param_count = parse_csi_params(state->esc_buf, body_len, params, 16);
+  int private_mode = csi_is_private(state->esc_buf, body_len);
 
   state->param1 = 0;
   state->param2 = 0;
@@ -108,8 +146,12 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         ansi_reset(state);
       } else if (code == 1) {
         state->bold = true;
+      } else if (code == 7) {
+        state->inverse = true;
       } else if (code == 22) {
         state->bold = false;
+      } else if (code == 27) {
+        state->inverse = false;
       } else if (code >= 30 && code <= 37) {
         state->fg_color = ansi_to_vga[code - 30];
       } else if (code == 39) {
@@ -122,6 +164,14 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
         state->fg_color = (uint8_t)(ansi_to_vga[code - 90] + 8);
       } else if (code >= 100 && code <= 107) {
         state->bg_color = (uint8_t)(ansi_to_vga[code - 100] + 8);
+      } else if ((code == 38 || code == 48) && p + 4 < param_count &&
+                 params[p + 1] == 2) {
+        uint8_t mapped = ansi_rgb_to_vga(params[p + 2],
+                                         params[p + 3],
+                                         params[p + 4]);
+        if (code == 38) state->fg_color = mapped;
+        else state->bg_color = mapped;
+        p += 4;
       } else if ((code == 38 || code == 48) && p + 2 < param_count &&
                  params[p + 1] == 5) {
         int color = params[p + 2];
@@ -167,6 +217,12 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
     return ANSI_RESULT_CURSOR_COL;
   }
 
+  if (final_char == 'd') {
+    int row = (param_count > 0 && params[0] > 0) ? params[0] : 1;
+    state->param1 = row - 1;
+    return ANSI_RESULT_CURSOR_ROW;
+  }
+
   if (final_char == 'J') {
     int param = (param_count > 0 && params[0] >= 0) ? params[0] : 0;
     state->param1 = param;
@@ -196,6 +252,37 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
     return final_char == 'S' ? ANSI_RESULT_SCROLL_UP : ANSI_RESULT_SCROLL_DOWN;
   }
 
+  if (final_char == 'h' || final_char == 'l') {
+    state->param1 = (param_count > 0 && params[0] >= 0) ? params[0] : 0;
+    state->param2 = private_mode;
+    return final_char == 'h' ? ANSI_RESULT_SET_MODE : ANSI_RESULT_RESET_MODE;
+  }
+
+  if (final_char == 'r') {
+    int top = (param_count > 0 && params[0] > 0) ? params[0] : 1;
+    int bottom = (param_count > 1 && params[1] > 0) ? params[1] : 0;
+    state->param1 = top - 1;
+    state->param2 = bottom > 0 ? bottom - 1 : -1;
+    return ANSI_RESULT_SET_SCROLL_REGION;
+  }
+
+  if (final_char == 'L' || final_char == 'M' || final_char == '@' ||
+      final_char == 'P' || final_char == 'X') {
+    int n = (param_count > 0 && params[0] > 0) ? params[0] : 1;
+    state->param1 = n;
+    if (final_char == 'L') return ANSI_RESULT_INSERT_LINE;
+    if (final_char == 'M') return ANSI_RESULT_DELETE_LINE;
+    if (final_char == '@') return ANSI_RESULT_INSERT_CHARS;
+    if (final_char == 'P') return ANSI_RESULT_DELETE_CHARS;
+    return ANSI_RESULT_ERASE_CHARS;
+  }
+
+  if (final_char == 'b') {
+    int n = (param_count > 0 && params[0] > 0) ? params[0] : 1;
+    state->param1 = n;
+    return ANSI_RESULT_REPEAT_CHAR;
+  }
+
   return ANSI_RESULT_SKIP;
 }
 
@@ -219,6 +306,7 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
     if ((unsigned char)c == 0x1B) {
       state->in_escape = true;
       state->in_csi = false;
+      state->in_charset_select = false;
       state->esc_len = 0;
       memset(state->esc_buf, 0, ANSI_ESC_BUF_SIZE);
       return ANSI_RESULT_SKIP;
@@ -227,6 +315,13 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
   }
 
   if (!state->in_csi) {
+    if (state->in_charset_select) {
+      state->g0_alt_charset = (c == '0') ? true : false;
+      state->in_escape = false;
+      state->in_charset_select = false;
+      state->esc_len = 0;
+      return ANSI_RESULT_SKIP;
+    }
     if (c == '[') {
       state->in_csi = true;
       return ANSI_RESULT_SKIP;
@@ -244,9 +339,13 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
     } else if (c == 'c') {
       state->in_escape = false;
       return ANSI_RESULT_CLEAR;
+    } else if (c == '(' || c == ')') {
+      state->in_charset_select = true;
+      return ANSI_RESULT_SKIP;
     } else {
       state->in_escape = false;
       state->in_csi = false;
+      state->in_charset_select = false;
       state->esc_len = 0;
       return ANSI_RESULT_SKIP;
     }
@@ -258,6 +357,7 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
   } else {
     state->in_escape = false;
     state->in_csi = false;
+    state->in_charset_select = false;
     state->esc_len = 0;
     memset(state->esc_buf, 0, ANSI_ESC_BUF_SIZE);
     return ANSI_RESULT_SKIP;
@@ -267,6 +367,7 @@ ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
     ansi_result_t result = process_csi(state);
     state->in_escape = false;
     state->in_csi = false;
+    state->in_charset_select = false;
     state->esc_len = 0;
     memset(state->esc_buf, 0, ANSI_ESC_BUF_SIZE);
     return result;

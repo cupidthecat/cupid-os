@@ -51,6 +51,8 @@
 static shell_output_mode_t output_mode = SHELL_OUTPUT_TEXT;
 static char gui_buffer[SHELL_ROWS * SHELL_COLS];
 static shell_color_t gui_color_buffer[SHELL_ROWS * SHELL_COLS];
+static char gui_saved_buffer[SHELL_ROWS * SHELL_COLS];
+static shell_color_t gui_saved_color_buffer[SHELL_ROWS * SHELL_COLS];
 static terminal_color_state_t shell_ansi_state;
 static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
@@ -58,6 +60,19 @@ static int gui_saved_cursor_x = 0;
 static int gui_saved_cursor_y = 0;
 static int gui_last_was_cr = 0;
 static int gui_visible_cols = SHELL_COLS; /* actual visible column width */
+static int gui_visible_rows = 25;
+static int gui_scroll_top = 0;
+static int gui_scroll_bottom = 24;
+static int gui_alt_screen = 0;
+static int gui_saved_main_cursor_x = 0;
+static int gui_saved_main_cursor_y = 0;
+static int gui_terminal_cursor_visible = 1;
+static int gui_app_cursor_keys = 0;
+static int gui_wrap_enabled = 1;
+static int gui_origin_mode = 0;
+static int gui_utf8_remaining = 0;
+static uint32_t gui_utf8_codepoint = 0;
+static char gui_last_print_char = ' ';
 
 /* I/O redirection capture buffer */
 #define REDIR_BUF_SIZE 4096
@@ -106,6 +121,44 @@ static void shell_print(const char *s);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void gui_exec_command(const char *input);
+
+static int gui_ssh_debug = 1;
+
+static int shell_ssh_debug_active(void) {
+  return gui_ssh_debug && jit_program_running &&
+         strcmp(jit_program_name, "ssh") == 0;
+}
+
+static int shell_jit_input_queued(void) {
+  if (jit_input_write_pos >= jit_input_read_pos)
+    return jit_input_write_pos - jit_input_read_pos;
+  return JIT_INPUT_BUFFER_SIZE - jit_input_read_pos + jit_input_write_pos;
+}
+
+static void shell_debug_dump_bytes(const char *tag, const char *buf, int len) {
+  if (!shell_ssh_debug_active())
+    return;
+  serial_printf("[ssh-input] %s len=%d bytes=", tag, len);
+  for (int i = 0; i < len; i++) {
+    unsigned char b = (unsigned char)buf[i];
+    if (b == 0) serial_printf("<NUL>");
+    else if (b == 7) serial_printf("<BEL>");
+    else if (b == 8) serial_printf("<BS>");
+    else if (b == 9) serial_printf("<TAB>");
+    else if (b == 10) serial_printf("<LF>");
+    else if (b == 13) serial_printf("<CR>");
+    else if (b == 27) serial_printf("<ESC>");
+    else if (b >= 32 && b <= 126) {
+      char one[2];
+      one[0] = (char)b;
+      one[1] = '\0';
+      serial_printf("%s", one);
+    } else {
+      serial_printf("<0x%x>", b);
+    }
+  }
+  serial_printf("\n");
+}
 
 static void shell_print_u32_padded(uint32_t value, int width) {
   char buf[16];
@@ -378,6 +431,19 @@ void shell_set_output_mode(shell_output_mode_t mode) {
     ansi_init(&shell_ansi_state);
     gui_cursor_x = 0;
     gui_cursor_y = 0;
+    gui_saved_cursor_x = 0;
+    gui_saved_cursor_y = 0;
+    gui_last_was_cr = 0;
+    gui_scroll_top = 0;
+    gui_scroll_bottom = gui_visible_rows - 1;
+    gui_alt_screen = 0;
+    gui_terminal_cursor_visible = 1;
+    gui_app_cursor_keys = 0;
+    gui_wrap_enabled = 1;
+    gui_origin_mode = 0;
+    gui_utf8_remaining = 0;
+    gui_utf8_codepoint = 0;
+    gui_last_print_char = ' ';
     gui_repl_pending_len = 0;
     gui_repl_pending[0] = '\0';
     gui_repl_brace_depth = 0;
@@ -402,6 +468,20 @@ shell_output_mode_t shell_get_output_mode(void) { return output_mode; }
 void shell_set_visible_cols(int cols) {
   if (cols > 0 && cols <= SHELL_COLS) {
     gui_visible_cols = cols;
+    if (gui_cursor_x >= gui_visible_cols)
+      gui_cursor_x = gui_visible_cols - 1;
+  }
+}
+
+void shell_set_visible_rows(int rows) {
+  if (rows > 0 && rows <= SHELL_ROWS) {
+    gui_visible_rows = rows;
+    if (gui_scroll_bottom < gui_scroll_top || gui_scroll_bottom >= gui_visible_rows) {
+      gui_scroll_top = 0;
+      gui_scroll_bottom = gui_visible_rows - 1;
+    }
+    if (gui_alt_screen && gui_cursor_y >= gui_visible_rows)
+      gui_cursor_y = gui_visible_rows - 1;
   }
 }
 
@@ -413,27 +493,81 @@ int shell_get_cursor_x(void) { return gui_cursor_x; }
 
 int shell_get_cursor_y(void) { return gui_cursor_y; }
 
+int shell_get_terminal_cursor_visible(void) { return gui_terminal_cursor_visible; }
+
+int shell_get_terminal_alt_screen(void) { return gui_alt_screen; }
+
+int shell_get_terminal_app_cursor_keys(void) { return gui_app_cursor_keys; }
+
 static void shell_clamp_cursor(void) {
+  int max_row = gui_alt_screen ? gui_visible_rows : SHELL_ROWS;
+  if (max_row < 1) max_row = 1;
   if (gui_cursor_x < 0) gui_cursor_x = 0;
   if (gui_cursor_y < 0) gui_cursor_y = 0;
   if (gui_cursor_x >= gui_visible_cols) gui_cursor_x = gui_visible_cols - 1;
   if (gui_cursor_x >= SHELL_COLS) gui_cursor_x = SHELL_COLS - 1;
-  if (gui_cursor_y >= SHELL_ROWS) gui_cursor_y = SHELL_ROWS - 1;
+  if (gui_cursor_y >= max_row) gui_cursor_y = max_row - 1;
+}
+
+static void shell_clear_row_raw(int row) {
+  if (row < 0 || row >= SHELL_ROWS)
+    return;
+  memset(gui_buffer + row * SHELL_COLS, 0, (size_t)SHELL_COLS);
+  for (int col = 0; col < SHELL_COLS; col++) {
+    int idx = row * SHELL_COLS + col;
+    gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+    gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+  }
+}
+
+static void shell_scroll_rows_up(int top, int bottom, int n) {
+  if (top < 0) top = 0;
+  if (bottom >= SHELL_ROWS) bottom = SHELL_ROWS - 1;
+  if (top > bottom || n <= 0) return;
+  int height = bottom - top + 1;
+  if (n > height) n = height;
+  if (n < height) {
+    int cells = (height - n) * SHELL_COLS;
+    for (int i = 0; i < cells; i++) {
+      gui_buffer[top * SHELL_COLS + i] =
+          gui_buffer[(top + n) * SHELL_COLS + i];
+      gui_color_buffer[top * SHELL_COLS + i] =
+          gui_color_buffer[(top + n) * SHELL_COLS + i];
+    }
+  }
+  for (int row = bottom - n + 1; row <= bottom; row++) {
+    shell_clear_row_raw(row);
+  }
+}
+
+static void shell_scroll_rows_down(int top, int bottom, int n) {
+  if (top < 0) top = 0;
+  if (bottom >= SHELL_ROWS) bottom = SHELL_ROWS - 1;
+  if (top > bottom || n <= 0) return;
+  int height = bottom - top + 1;
+  if (n > height) n = height;
+  if (n < height) {
+    int cells = (height - n) * SHELL_COLS;
+    for (int i = cells - 1; i >= 0; i--) {
+      gui_buffer[(top + n) * SHELL_COLS + i] =
+          gui_buffer[top * SHELL_COLS + i];
+      gui_color_buffer[(top + n) * SHELL_COLS + i] =
+          gui_color_buffer[top * SHELL_COLS + i];
+    }
+  }
+  for (int row = top; row < top + n; row++) {
+    shell_clear_row_raw(row);
+  }
 }
 
 /* Scroll both char and color buffers up one line */
 static void shell_gui_scroll(void) {
-  memcpy(gui_buffer, gui_buffer + SHELL_COLS,
-         (size_t)((SHELL_ROWS - 1) * SHELL_COLS));
-  memset(gui_buffer + (SHELL_ROWS - 1) * SHELL_COLS, 0, (size_t)SHELL_COLS);
-
-  memcpy(gui_color_buffer, gui_color_buffer + SHELL_COLS,
-         sizeof(shell_color_t) * (size_t)(SHELL_ROWS - 1) * (size_t)SHELL_COLS);
-  /* Clear last row colors to default */
-  for (int i = 0; i < SHELL_COLS; i++) {
-    gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].fg = ANSI_DEFAULT_FG;
-    gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].bg = ANSI_DEFAULT_BG;
+  if (gui_alt_screen) {
+    shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom, 1);
+    gui_cursor_y = gui_scroll_bottom;
+    return;
   }
+  shell_scroll_rows_up(0, SHELL_ROWS - 1, 1);
   gui_cursor_y = SHELL_ROWS - 1;
 }
 
@@ -443,31 +577,242 @@ static void shell_set_cell_color(int idx) {
   gui_color_buffer[idx].bg = ansi_get_bg(&shell_ansi_state);
 }
 
-static void shell_clear_cell(int row, int col) {
+static void shell_clear_cell_current(int row, int col) {
   if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS)
     return;
   int idx = row * SHELL_COLS + col;
   gui_buffer[idx] = 0;
-  gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
-  gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+  shell_set_cell_color(idx);
 }
 
-static void shell_clear_line_range(int row, int first_col, int last_col) {
+static void shell_clear_line_range_current(int row, int first_col, int last_col) {
   if (row < 0 || row >= SHELL_ROWS)
     return;
   if (first_col < 0) first_col = 0;
   if (last_col >= SHELL_COLS) last_col = SHELL_COLS - 1;
   for (int col = first_col; col <= last_col; col++) {
-    shell_clear_cell(row, col);
+    shell_clear_cell_current(row, col);
   }
 }
 
-static void shell_clear_rows(int first_row, int last_row) {
+static void shell_clear_rows_current(int first_row, int last_row) {
   if (first_row < 0) first_row = 0;
   if (last_row >= SHELL_ROWS) last_row = SHELL_ROWS - 1;
   for (int row = first_row; row <= last_row; row++) {
-    shell_clear_line_range(row, 0, SHELL_COLS - 1);
+    shell_clear_line_range_current(row, 0, SHELL_COLS - 1);
   }
+}
+
+static void shell_enter_alt_screen(void) {
+  if (gui_alt_screen)
+    return;
+
+  memcpy(gui_saved_buffer, gui_buffer, sizeof(gui_buffer));
+  memcpy(gui_saved_color_buffer, gui_color_buffer, sizeof(gui_color_buffer));
+  gui_saved_main_cursor_x = gui_cursor_x;
+  gui_saved_main_cursor_y = gui_cursor_y;
+
+  memset(gui_buffer, 0, sizeof(gui_buffer));
+  for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
+    gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
+    gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
+  }
+
+  gui_alt_screen = 1;
+  gui_cursor_x = 0;
+  gui_cursor_y = 0;
+  gui_saved_cursor_x = 0;
+  gui_saved_cursor_y = 0;
+  gui_scroll_top = 0;
+  gui_scroll_bottom = gui_visible_rows - 1;
+  gui_last_was_cr = 0;
+}
+
+static void shell_leave_alt_screen(void) {
+  if (!gui_alt_screen)
+    return;
+
+  memcpy(gui_buffer, gui_saved_buffer, sizeof(gui_buffer));
+  memcpy(gui_color_buffer, gui_saved_color_buffer, sizeof(gui_color_buffer));
+  gui_alt_screen = 0;
+  gui_cursor_x = gui_saved_main_cursor_x;
+  gui_cursor_y = gui_saved_main_cursor_y;
+  gui_scroll_top = 0;
+  gui_scroll_bottom = gui_visible_rows - 1;
+  gui_terminal_cursor_visible = 1;
+  gui_app_cursor_keys = 0;
+  gui_wrap_enabled = 1;
+  gui_origin_mode = 0;
+  gui_last_was_cr = 0;
+  shell_clamp_cursor();
+}
+
+static int shell_region_bottom(void) {
+  if (gui_alt_screen) return gui_scroll_bottom;
+  return SHELL_ROWS - 1;
+}
+
+static void shell_linefeed(void) {
+  int bottom = shell_region_bottom();
+  if (gui_cursor_y >= bottom) {
+    if (gui_alt_screen) {
+      shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom, 1);
+      gui_cursor_y = bottom;
+    } else {
+      shell_gui_scroll();
+    }
+  } else {
+    gui_cursor_y++;
+  }
+}
+
+static void shell_insert_lines(int n) {
+  if (n <= 0) return;
+  if (gui_cursor_y < gui_scroll_top || gui_cursor_y > gui_scroll_bottom)
+    return;
+  shell_scroll_rows_down(gui_cursor_y, gui_scroll_bottom, n);
+}
+
+static void shell_delete_lines(int n) {
+  if (n <= 0) return;
+  if (gui_cursor_y < gui_scroll_top || gui_cursor_y > gui_scroll_bottom)
+    return;
+  shell_scroll_rows_up(gui_cursor_y, gui_scroll_bottom, n);
+}
+
+static void shell_insert_chars(int n) {
+  if (n <= 0 || gui_cursor_y < 0 || gui_cursor_y >= SHELL_ROWS)
+    return;
+  int row = gui_cursor_y;
+  if (n > gui_visible_cols - gui_cursor_x)
+    n = gui_visible_cols - gui_cursor_x;
+  for (int col = gui_visible_cols - 1; col >= gui_cursor_x + n; col--) {
+    int dst = row * SHELL_COLS + col;
+    int src = row * SHELL_COLS + col - n;
+    gui_buffer[dst] = gui_buffer[src];
+    gui_color_buffer[dst] = gui_color_buffer[src];
+  }
+  shell_clear_line_range_current(row, gui_cursor_x, gui_cursor_x + n - 1);
+}
+
+static void shell_delete_chars(int n) {
+  if (n <= 0 || gui_cursor_y < 0 || gui_cursor_y >= SHELL_ROWS)
+    return;
+  int row = gui_cursor_y;
+  if (n > gui_visible_cols - gui_cursor_x)
+    n = gui_visible_cols - gui_cursor_x;
+  for (int col = gui_cursor_x; col + n < gui_visible_cols; col++) {
+    int dst = row * SHELL_COLS + col;
+    int src = row * SHELL_COLS + col + n;
+    gui_buffer[dst] = gui_buffer[src];
+    gui_color_buffer[dst] = gui_color_buffer[src];
+  }
+  shell_clear_line_range_current(row, gui_visible_cols - n, gui_visible_cols - 1);
+}
+
+static void shell_set_terminal_mode(int mode, int private_mode, int enabled) {
+  if (private_mode) {
+    if (mode == 25) {
+      gui_terminal_cursor_visible = enabled ? 1 : 0;
+    } else if (mode == 1) {
+      gui_app_cursor_keys = enabled ? 1 : 0;
+    } else if (mode == 7) {
+      gui_wrap_enabled = enabled ? 1 : 0;
+    } else if (mode == 6) {
+      gui_origin_mode = enabled ? 1 : 0;
+      gui_cursor_x = 0;
+      gui_cursor_y = gui_origin_mode ? gui_scroll_top : 0;
+      shell_clamp_cursor();
+    } else if (mode == 47 || mode == 1047 || mode == 1049) {
+      if (enabled) shell_enter_alt_screen();
+      else shell_leave_alt_screen();
+    }
+  }
+}
+
+static char shell_map_unicode_to_cell(uint32_t cp) {
+  if (cp >= 0x2500U && cp <= 0x257FU) return '+';
+  if (cp >= 0x2580U && cp <= 0x259FU) return '#';
+  if (cp == 0x2190U) return '<';
+  if (cp == 0x2191U) return '^';
+  if (cp == 0x2192U) return '>';
+  if (cp == 0x2193U) return 'v';
+  if (cp == 0x2022U || cp == 0x25CFU || cp == 0x25CBU) return '*';
+  if (cp == 0x2013U || cp == 0x2014U || cp == 0x2212U) return '-';
+  if (cp == 0x00B0U) return 'o';
+  if (cp == 0x2713U || cp == 0x2714U) return '*';
+  if (cp >= 32U && cp <= 126U) return (char)cp;
+  return '?';
+}
+
+static char shell_map_acs_to_cell(char c) {
+  switch (c) {
+  case 'j': case 'k': case 'l': case 'm':
+  case 'n': case 't': case 'u': case 'v': case 'w':
+    return '+';
+  case 'q':
+    return '-';
+  case 'x':
+    return '|';
+  case 'a':
+    return '#';
+  case '`':
+    return '+';
+  case 'f':
+    return '\'';
+  case 'g':
+    return '#';
+  case 'o':
+    return '~';
+  case 's':
+    return '_';
+  case '~':
+    return 'o';
+  default:
+    return c;
+  }
+}
+
+static int shell_utf8_next_cell(unsigned char byte, char *out) {
+  if (gui_utf8_remaining > 0) {
+    if ((byte & 0xC0U) != 0x80U) {
+      gui_utf8_remaining = 0;
+      gui_utf8_codepoint = 0;
+      *out = '?';
+      return 1;
+    }
+    gui_utf8_codepoint = (gui_utf8_codepoint << 6) | (uint32_t)(byte & 0x3FU);
+    gui_utf8_remaining--;
+    if (gui_utf8_remaining == 0) {
+      *out = shell_map_unicode_to_cell(gui_utf8_codepoint);
+      gui_utf8_codepoint = 0;
+      return 1;
+    }
+    return 0;
+  }
+
+  if (byte < 0x80U) {
+    *out = (char)byte;
+    return 1;
+  }
+  if ((byte & 0xE0U) == 0xC0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x1FU);
+    gui_utf8_remaining = 1;
+    return 0;
+  }
+  if ((byte & 0xF0U) == 0xE0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x0FU);
+    gui_utf8_remaining = 2;
+    return 0;
+  }
+  if ((byte & 0xF8U) == 0xF0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x07U);
+    gui_utf8_remaining = 3;
+    return 0;
+  }
+
+  *out = '?';
+  return 1;
 }
 
 /* Put a character into the GUI buffer with ANSI escape processing */
@@ -475,6 +820,14 @@ static void shell_gui_putchar(char c) {
 
   /* Feed character through ANSI parser first */
   ansi_result_t result = ansi_process_char(&shell_ansi_state, c);
+  if (shell_ssh_debug_active() && result != ANSI_RESULT_SKIP &&
+      result != ANSI_RESULT_PRINT) {
+    serial_printf("[ssh-render] ansi result=%d byte=0x%x p1=%d p2=%d cursor=%d,%d scroll=%d-%d alt=%d origin=%d wrap=%d app_cursor=%d\n",
+                  result, (unsigned char)c, shell_ansi_state.param1,
+                  shell_ansi_state.param2, gui_cursor_x, gui_cursor_y,
+                  gui_scroll_top, gui_scroll_bottom, gui_alt_screen,
+                  gui_origin_mode, gui_wrap_enabled, gui_app_cursor_keys);
+  }
 
   switch (result) {
   case ANSI_RESULT_SKIP:
@@ -500,7 +853,8 @@ static void shell_gui_putchar(char c) {
     return;
 
   case ANSI_RESULT_CURSOR_POS:
-    gui_cursor_y = shell_ansi_state.param1;
+    gui_cursor_y = shell_ansi_state.param1 +
+                   (gui_origin_mode ? gui_scroll_top : 0);
     gui_cursor_x = shell_ansi_state.param2;
     shell_clamp_cursor();
     return;
@@ -534,21 +888,21 @@ static void shell_gui_putchar(char c) {
 
   case ANSI_RESULT_ERASE_LINE:
     if (shell_ansi_state.param1 == 1) {
-      shell_clear_line_range(gui_cursor_y, 0, gui_cursor_x);
+      shell_clear_line_range_current(gui_cursor_y, 0, gui_cursor_x);
     } else if (shell_ansi_state.param1 == 2) {
-      shell_clear_line_range(gui_cursor_y, 0, SHELL_COLS - 1);
+      shell_clear_line_range_current(gui_cursor_y, 0, SHELL_COLS - 1);
     } else {
-      shell_clear_line_range(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+      shell_clear_line_range_current(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
     }
     return;
 
   case ANSI_RESULT_ERASE_DISPLAY:
     if (shell_ansi_state.param1 == 1) {
-      shell_clear_rows(0, gui_cursor_y - 1);
-      shell_clear_line_range(gui_cursor_y, 0, gui_cursor_x);
+      shell_clear_rows_current(0, gui_cursor_y - 1);
+      shell_clear_line_range_current(gui_cursor_y, 0, gui_cursor_x);
     } else {
-      shell_clear_line_range(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
-      shell_clear_rows(gui_cursor_y + 1, SHELL_ROWS - 1);
+      shell_clear_line_range_current(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+      shell_clear_rows_current(gui_cursor_y + 1, SHELL_ROWS - 1);
     }
     return;
 
@@ -564,20 +918,97 @@ static void shell_gui_putchar(char c) {
     return;
 
   case ANSI_RESULT_SCROLL_UP:
-    for (int i = 0; i < shell_ansi_state.param1; i++) {
-      shell_gui_scroll();
-    }
+    if (gui_alt_screen)
+      shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom,
+                           shell_ansi_state.param1);
+    else
+      shell_scroll_rows_up(0, SHELL_ROWS - 1, shell_ansi_state.param1);
     return;
 
   case ANSI_RESULT_SCROLL_DOWN:
+    if (gui_alt_screen)
+      shell_scroll_rows_down(gui_scroll_top, gui_scroll_bottom,
+                             shell_ansi_state.param1);
+    else
+      shell_scroll_rows_down(0, SHELL_ROWS - 1, shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_SET_MODE:
+    shell_set_terminal_mode(shell_ansi_state.param1, shell_ansi_state.param2, 1);
+    return;
+
+  case ANSI_RESULT_RESET_MODE:
+    shell_set_terminal_mode(shell_ansi_state.param1, shell_ansi_state.param2, 0);
+    return;
+
+  case ANSI_RESULT_SET_SCROLL_REGION:
+    gui_scroll_top = shell_ansi_state.param1;
+    gui_scroll_bottom = shell_ansi_state.param2 >= 0
+                            ? shell_ansi_state.param2
+                            : gui_visible_rows - 1;
+    if (gui_scroll_top < 0) gui_scroll_top = 0;
+    if (gui_scroll_bottom >= gui_visible_rows)
+      gui_scroll_bottom = gui_visible_rows - 1;
+    if (gui_scroll_top >= gui_scroll_bottom) {
+      gui_scroll_top = 0;
+      gui_scroll_bottom = gui_visible_rows - 1;
+    }
+    gui_cursor_x = 0;
+    gui_cursor_y = gui_origin_mode ? gui_scroll_top : 0;
+    return;
+
+  case ANSI_RESULT_CURSOR_ROW:
+    gui_cursor_y = shell_ansi_state.param1 +
+                   (gui_origin_mode ? gui_scroll_top : 0);
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_INSERT_LINE:
+    shell_insert_lines(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_DELETE_LINE:
+    shell_delete_lines(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_INSERT_CHARS:
+    shell_insert_chars(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_DELETE_CHARS:
+    shell_delete_chars(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_ERASE_CHARS:
+    shell_clear_line_range_current(gui_cursor_y, gui_cursor_x,
+                                   gui_cursor_x + shell_ansi_state.param1 - 1);
+    return;
+
+  case ANSI_RESULT_REPEAT_CHAR:
+    for (int i = 0; i < shell_ansi_state.param1; i++) {
+      shell_gui_putchar(gui_last_print_char);
+    }
     return;
 
   case ANSI_RESULT_PRINT:
     break; /* fall through to normal character handling */
   }
 
+  if ((unsigned char)c >= 0x80U || gui_utf8_remaining > 0) {
+    char mapped;
+    if (!shell_utf8_next_cell((unsigned char)c, &mapped))
+      return;
+    c = mapped;
+  } else if (shell_ansi_state.g0_alt_charset && c >= 32 && c <= 126) {
+    c = shell_map_acs_to_cell(c);
+  }
+
   /* Normal character handling */
   if (c == '\n') {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-render] LF cursor_before=%d,%d last_cr=%d\n",
+                    gui_cursor_x, gui_cursor_y, gui_last_was_cr);
+    }
     if (!gui_last_was_cr) {
       /* Local shell output uses bare LF as newline, so keep that behavior.
        * Remote PTYs send CRLF; in that case CR already moved to column 0 and
@@ -590,9 +1021,13 @@ static void shell_gui_putchar(char c) {
       }
       gui_cursor_x = 0;
     }
-    gui_cursor_y++;
+    shell_linefeed();
     gui_last_was_cr = 0;
   } else if (c == '\r') {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-render] CR cursor_before=%d,%d\n",
+                    gui_cursor_x, gui_cursor_y);
+    }
     /* Carriage return: cursor to col 0. Standard CRLF handling so HTTP
      * bodies (e.g. from /bin/curl.cc) don't render \r as a CP437 glyph
      * (♪ at byte 0x0D) on each header line. */
@@ -623,18 +1058,23 @@ static void shell_gui_putchar(char c) {
       gui_buffer[idx] = c;
       shell_set_cell_color(idx);
       gui_cursor_x++;
+      gui_last_print_char = c;
     }
     gui_last_was_cr = 0;
   }
 
   /* Wrap at visible column width */
   if (gui_cursor_x >= gui_visible_cols) {
-    gui_cursor_x = 0;
-    gui_cursor_y++;
+    if (!gui_wrap_enabled) {
+      gui_cursor_x = gui_visible_cols - 1;
+    } else {
+      gui_cursor_x = 0;
+      shell_linefeed();
+    }
   }
 
   /* Scroll */
-  if (gui_cursor_y >= SHELL_ROWS) {
+  if (!gui_alt_screen && gui_cursor_y >= SHELL_ROWS) {
     shell_gui_scroll();
   }
 
@@ -3198,6 +3638,11 @@ void shell_jit_program_input(char c) {
     jit_input_buffer[jit_input_write_pos] = c;
     jit_input_write_pos = next_write;
   } else {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] JIT input drop byte=0x%x queued=%d cap=%d\n",
+                    (unsigned char)c, shell_jit_input_queued(),
+                    JIT_INPUT_BUFFER_SIZE);
+    }
   }
 }
 
@@ -3206,6 +3651,19 @@ static void shell_jit_program_input_seq(const char *seq) {
     shell_jit_program_input(*seq);
     seq++;
   }
+}
+
+static void shell_jit_program_input_seq_debug(const char *name,
+                                              const char *seq) {
+  int len = 0;
+  while (seq[len])
+    len++;
+  if (shell_ssh_debug_active()) {
+    serial_printf("[ssh-input] gui special %s queued_before=%d app_cursor=%d\n",
+                  name, shell_jit_input_queued(), gui_app_cursor_keys);
+    shell_debug_dump_bytes("gui queued special", seq, len);
+  }
+  shell_jit_program_input_seq(seq);
 }
 
 char shell_jit_program_getchar(void) {
@@ -3482,28 +3940,48 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
    * instead of treating password/shell data as new shell commands. */
   if (jit_program_running && strcmp(jit_program_name, "terminal") != 0 &&
       terminal_focused) {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] gui key sc=0x%x ch=0x%x focused=%d queued=%d app_cursor=%d alt=%d origin=%d wrap=%d\n",
+                    scancode, (unsigned char)character, terminal_focused,
+                    shell_jit_input_queued(), gui_app_cursor_keys,
+                    gui_alt_screen, gui_origin_mode, gui_wrap_enabled);
+    }
     if (character != 0) {
+      if (shell_ssh_debug_active()) {
+        char one[1];
+        one[0] = character;
+        shell_debug_dump_bytes("gui queued char", one, 1);
+      }
       shell_jit_program_input(character);
       return;
     }
     if (scancode == SCANCODE_ARROW_UP) {
-      shell_jit_program_input_seq("\033[A");
+      shell_jit_program_input_seq_debug("up",
+                                        gui_app_cursor_keys ? "\033OA" : "\033[A");
     } else if (scancode == SCANCODE_ARROW_DOWN) {
-      shell_jit_program_input_seq("\033[B");
+      shell_jit_program_input_seq_debug("down",
+                                        gui_app_cursor_keys ? "\033OB" : "\033[B");
     } else if (scancode == SCANCODE_ARROW_RIGHT) {
-      shell_jit_program_input_seq("\033[C");
+      shell_jit_program_input_seq_debug("right",
+                                        gui_app_cursor_keys ? "\033OC" : "\033[C");
     } else if (scancode == SCANCODE_ARROW_LEFT) {
-      shell_jit_program_input_seq("\033[D");
+      shell_jit_program_input_seq_debug("left",
+                                        gui_app_cursor_keys ? "\033OD" : "\033[D");
     } else if (scancode == 0x47) {
-      shell_jit_program_input_seq("\033[H");
+      shell_jit_program_input_seq_debug("home",
+                                        gui_app_cursor_keys ? "\033OH" : "\033[H");
     } else if (scancode == 0x4F) {
-      shell_jit_program_input_seq("\033[F");
+      shell_jit_program_input_seq_debug("end",
+                                        gui_app_cursor_keys ? "\033OF" : "\033[F");
     } else if (scancode == 0x49) {
-      shell_jit_program_input_seq("\033[5~");
+      shell_jit_program_input_seq_debug("page-up", "\033[5~");
     } else if (scancode == 0x51) {
-      shell_jit_program_input_seq("\033[6~");
+      shell_jit_program_input_seq_debug("page-down", "\033[6~");
     } else if (scancode == 0x53) {
-      shell_jit_program_input_seq("\033[3~");
+      shell_jit_program_input_seq_debug("delete", "\033[3~");
+    } else if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] gui key unmapped sc=0x%x ch=0x%x\n",
+                    scancode, (unsigned char)character);
     }
     return;
   }

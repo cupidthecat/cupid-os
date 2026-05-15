@@ -48,6 +48,9 @@ const shell_color_t *shell_get_color_buffer(void);
 /* GUI mode: get cursor position */
 int shell_get_cursor_x(void);
 int shell_get_cursor_y(void);
+int shell_get_terminal_cursor_visible(void);
+int shell_get_terminal_alt_screen(void);
+int shell_get_terminal_app_cursor_keys(void);
 
 /* GUI mode: handle a keypress (called from terminal_app) */
 void shell_gui_handle_key(uint8_t scancode, char character);
@@ -66,6 +69,7 @@ int shell_gui_run_pending_command(void);
 
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
+void shell_set_visible_rows(int rows);
 
 
 /**

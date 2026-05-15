@@ -4,6 +4,7 @@
 #include "shell.h"
 #include "process.h"
 #include "kernel.h"
+#include "serial.h"
 #include "terminal_app.h"
 #include "p256.h"
 #include "ecdsa.h"
@@ -23,6 +24,56 @@
 #define KSC_F10     0x44
 #define KSC_F11     0x57
 #define KSC_F12     0x58
+
+static int ssh_io_debug = 1;
+
+static void ssh_io_debug_dump(const char *tag, const char *buf, int len) {
+    if (!ssh_io_debug) return;
+    serial_printf("[ssh-io] %s len=%d bytes=", tag, len);
+    for (int i = 0; i < len; i++) {
+        unsigned char b = (unsigned char)buf[i];
+        if (b == 0) serial_printf("<NUL>");
+        else if (b == 7) serial_printf("<BEL>");
+        else if (b == 8) serial_printf("<BS>");
+        else if (b == 9) serial_printf("<TAB>");
+        else if (b == 10) serial_printf("<LF>");
+        else if (b == 13) serial_printf("<CR>");
+        else if (b == 27) serial_printf("<ESC>");
+        else if (b >= 32 && b <= 126) {
+            char one[2];
+            one[0] = (char)b;
+            one[1] = '\0';
+            serial_printf("%s", one);
+        } else {
+            serial_printf("<0x%x>", b);
+        }
+    }
+    serial_printf("\n");
+}
+
+static int ssh_control_nav_to_vt(char ch, char out[8]) {
+    int app_cursor = shell_get_terminal_app_cursor_keys();
+    if (!app_cursor)
+        return 0;
+
+    /* Some GUI/USB paths can surface cursor movement as the classic
+     * terminal control-key equivalents. While a full-screen app has
+     * enabled application-cursor mode, send the cursor sequence the remote
+     * program is expecting instead of the raw control byte. */
+    if (ch == 16) {             /* Ctrl-P: previous/up */
+        out[0] = 0x1b; out[1] = 'O'; out[2] = 'A'; return 3;
+    }
+    if (ch == 14) {             /* Ctrl-N: next/down */
+        out[0] = 0x1b; out[1] = 'O'; out[2] = 'B'; return 3;
+    }
+    if (ch == 6) {              /* Ctrl-F: forward/right */
+        out[0] = 0x1b; out[1] = 'O'; out[2] = 'C'; return 3;
+    }
+    if (ch == 2) {              /* Ctrl-B: back/left */
+        out[0] = 0x1b; out[1] = 'O'; out[2] = 'D'; return 3;
+    }
+    return 0;
+}
 
 static void put_one(char c) {
     shell_gui_putchar_ext(c);
@@ -87,7 +138,14 @@ int ssh_read_password(char *buf, uint32_t cap) {
 int ssh_key_event_to_vt(const key_event_t *ev, char out[8]) {
     if (!ev || !ev->pressed) return 0;
     char ch = ev->character;
+    int app_cursor = shell_get_terminal_app_cursor_keys();
     if (ch != 0) {
+        int nav = ssh_control_nav_to_vt(ch, out);
+        if (nav > 0) {
+            serial_printf("[ssh-io] control nav fallback sc=0x%x ch=0x%x app_cursor=%d vt_len=%d\n",
+                          ev->scancode, (unsigned char)ch, app_cursor, nav);
+            return nav;
+        }
         /* A Linux PTY treats LF as the canonical line delimiter. Sending LF
          * avoids depending on the remote ICRNL mode being applied correctly. */
         if (ch == '\n') { out[0] = '\n'; return 1; }
@@ -95,12 +153,12 @@ int ssh_key_event_to_vt(const key_event_t *ev, char out[8]) {
         return 1;
     }
     switch (ev->scancode) {
-        case KSC_UP:    out[0]=0x1b; out[1]='['; out[2]='A'; return 3;
-        case KSC_DOWN:  out[0]=0x1b; out[1]='['; out[2]='B'; return 3;
-        case KSC_RIGHT: out[0]=0x1b; out[1]='['; out[2]='C'; return 3;
-        case KSC_LEFT:  out[0]=0x1b; out[1]='['; out[2]='D'; return 3;
-        case KSC_HOME:  out[0]=0x1b; out[1]='['; out[2]='H'; return 3;
-        case KSC_END:   out[0]=0x1b; out[1]='['; out[2]='F'; return 3;
+        case KSC_UP:    out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='A'; return 3;
+        case KSC_DOWN:  out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='B'; return 3;
+        case KSC_RIGHT: out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='C'; return 3;
+        case KSC_LEFT:  out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='D'; return 3;
+        case KSC_HOME:  out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='H'; return 3;
+        case KSC_END:   out[0]=0x1b; out[1]=(char)(app_cursor ? 'O' : '['); out[2]='F'; return 3;
         case KSC_PGUP:  out[0]=0x1b; out[1]='['; out[2]='5'; out[3]='~'; return 4;
         case KSC_PGDN:  out[0]=0x1b; out[1]='['; out[2]='6'; out[3]='~'; return 4;
         case KSC_INS:   out[0]=0x1b; out[1]='['; out[2]='2'; out[3]='~'; return 4;
@@ -139,14 +197,30 @@ int ssh_poll_key_vt(char out[8]) {
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         char ch = shell_jit_program_pollchar();
         if (ch == 0) return 0;
-        if (ch == '\n') { out[0] = '\n'; return 1; }
-        out[0] = ch;
-        return 1;
+        int n = ssh_control_nav_to_vt(ch, out);
+        if (n > 0) {
+            serial_printf("[ssh-io] poll gui control nav fallback ch=0x%x app_cursor=%d vt_len=%d\n",
+                          (unsigned char)ch, shell_get_terminal_app_cursor_keys(), n);
+            ssh_io_debug_dump("poll gui vt", out, n);
+            return n;
+        }
+        n = 1;
+        if (ch == '\n') out[0] = '\n';
+        else out[0] = ch;
+        serial_printf("[ssh-io] poll gui ch=0x%x app_cursor=%d\n",
+                      (unsigned char)ch, shell_get_terminal_app_cursor_keys());
+        ssh_io_debug_dump("poll gui vt", out, n);
+        return n;
     }
 
     key_event_t ev;
     if (!keyboard_read_event(&ev)) return 0;
-    return ssh_key_event_to_vt(&ev, out);
+    int n = ssh_key_event_to_vt(&ev, out);
+    serial_printf("[ssh-io] key event sc=0x%x ch=0x%x pressed=%d app_cursor=%d vt_len=%d\n",
+                  ev.scancode, (unsigned char)ev.character, ev.pressed,
+                  shell_get_terminal_app_cursor_keys(), n);
+    if (n > 0) ssh_io_debug_dump("key event vt", out, n);
+    return n;
 }
 
 int ssh_ecdsa_p256_verify_blob(const uint8_t pub65[65],

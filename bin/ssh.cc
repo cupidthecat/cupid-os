@@ -127,6 +127,39 @@ void cstrcpy_n(char *d, char *s, int max) {
 
 void print_err(char *s) { print("ssh: "); println(s); }
 
+int ssh_debug_io = 1;
+int ssh_debug_render = 1;
+int ssh_debug_dump_max = 160;
+
+void debug_dump_bytes(char *tag, char *buf, int len) {
+    if (!ssh_debug_io) return;
+    int max = len;
+    if (max > ssh_debug_dump_max) max = ssh_debug_dump_max;
+    serial_printf("[ssh-debug] %s len=%d bytes=", tag, len);
+    int i = 0;
+    while (i < max) {
+        int b = buf[i] & 0xFF;
+        if (b == 0) serial_printf("<NUL>");
+        else if (b == 7) serial_printf("<BEL>");
+        else if (b == 8) serial_printf("<BS>");
+        else if (b == 9) serial_printf("<TAB>");
+        else if (b == 10) serial_printf("<LF>");
+        else if (b == 13) serial_printf("<CR>");
+        else if (b == 27) serial_printf("<ESC>");
+        else if (b >= 32 && b <= 126) {
+            char one[2];
+            one[0] = b;
+            one[1] = 0;
+            serial_printf("%s", one);
+        } else {
+            serial_printf("<0x%x>", b);
+        }
+        i = i + 1;
+    }
+    if (len > max) serial_printf("...");
+    serial_printf("\n");
+}
+
 void seq_incr(char *seq) {
     int i = 7;
     while (i >= 0) {
@@ -1054,6 +1087,22 @@ void send_pty_req(int cols, int rows) {
     bpp_send(msg, off);
 }
 
+void send_window_change(int cols, int rows) {
+    char msg[80];
+    int off = 0;
+    serial_printf("[ssh-debug] pty window-change cols=%d rows=%d remote=%d\n",
+                  cols, rows, remote_chan);
+    msg[off] = SSH_MSG_CHANNEL_REQUEST; off = off + 1;
+    off = wb_be32(msg, off, remote_chan);
+    off = wb_cstr(msg, off, "window-change");
+    msg[off] = 0; off = off + 1;          /* want_reply */
+    off = wb_be32(msg, off, cols);
+    off = wb_be32(msg, off, rows);
+    off = wb_be32(msg, off, 0);
+    off = wb_be32(msg, off, 0);
+    bpp_send(msg, off);
+}
+
 void send_shell_req() {
     char msg[64];
     int off = 0;
@@ -1065,9 +1114,16 @@ void send_shell_req() {
 }
 
 void send_channel_data(char *data, int len) {
+    int requested = len;
+    int before_window = tx_window;
     if (len > tx_window) len = tx_window;
-    if (len <= 0) return;
     if (len > remote_max_packet - 9) len = remote_max_packet - 9;
+    if (len <= 0) {
+        serial_printf("[ssh-debug] tx channel blocked requested=%d tx_window=%d max_packet=%d\n",
+                      requested, tx_window, remote_max_packet);
+        return;
+    }
+    debug_dump_bytes("tx-channel", data, len);
     char hdr[9];
     hdr[0] = SSH_MSG_CHANNEL_DATA;
     put_be32(hdr + 1, remote_chan);
@@ -1078,10 +1134,13 @@ void send_channel_data(char *data, int len) {
     bpp_send(buf, 9 + len);
     kfree(buf);
     tx_window = tx_window - len;
+    serial_printf("[ssh-debug] tx channel sent=%d requested=%d window %d->%d\n",
+                  len, requested, before_window, tx_window);
 }
 
 void send_window_adjust(int n) {
     char msg[16];
+    serial_printf("[ssh-debug] rx window-adjust add=%d before=%d\n", n, rx_window);
     msg[0] = SSH_MSG_CHANNEL_WINDOW_ADJUST;
     put_be32(msg + 1, remote_chan);
     put_be32(msg + 5, n);
@@ -1166,6 +1225,7 @@ int wait_for_request_reply() {
 void render_bytes(char *buf, int len) {
     /* Pass through directly; print_n loops shell_gui_putchar_ext which
      * is connected to the same ANSI handler the local shell uses. */
+    if (ssh_debug_render) debug_dump_bytes("rx-render", buf, len);
     print_n(buf, len);
 }
 
@@ -1174,8 +1234,21 @@ void render_bytes(char *buf, int len) {
 int io_loop() {
     char *pl; int pllen;
     char keybuf[16];
+    int last_cols;
+    int last_rows;
+
+    get_screen_size(&last_cols, &last_rows);
 
     while (channel_open && !channel_eof) {
+        int cur_cols;
+        int cur_rows;
+        get_screen_size(&cur_cols, &cur_rows);
+        if (cur_cols != last_cols || cur_rows != last_rows) {
+            send_window_change(cur_cols, cur_rows);
+            last_cols = cur_cols;
+            last_rows = cur_rows;
+        }
+
         /* Receive whatever is available. */
         while (sock_avail(fd) > 0) {
             if (bpp_recv(&pl, &pllen) != 0) {
@@ -1186,15 +1259,23 @@ int io_loop() {
             if (t == SSH_MSG_IGNORE || t == SSH_MSG_DEBUG) continue;
             if (t == SSH_MSG_CHANNEL_DATA) {
                 int dl = get_be32(pl + 5);
+                serial_printf("[ssh-debug] rx channel-data pllen=%d data=%d rx_window_before=%d\n",
+                              pllen, dl, rx_window);
                 render_bytes(pl + 9, dl);
                 rx_window = rx_window - dl;
+                serial_printf("[ssh-debug] rx channel-data consumed=%d rx_window_after=%d\n",
+                              dl, rx_window);
                 if (rx_window < 65536) send_window_adjust(1048576);
                 continue;
             }
             if (t == SSH_MSG_CHANNEL_EXTENDED_DATA) {
                 int dl = get_be32(pl + 9);
+                serial_printf("[ssh-debug] rx extended-data pllen=%d data=%d rx_window_before=%d\n",
+                              pllen, dl, rx_window);
                 render_bytes(pl + 13, dl);
                 rx_window = rx_window - dl;
+                serial_printf("[ssh-debug] rx extended-data consumed=%d rx_window_after=%d\n",
+                              dl, rx_window);
                 if (rx_window < 65536) send_window_adjust(1048576);
                 continue;
             }
@@ -1240,7 +1321,9 @@ int io_loop() {
         while (1) {
             int n = poll_key_vt(keybuf);
             if (n <= 0) break;
+            debug_dump_bytes("tx-key", keybuf, n);
             if (tx_window > 0) send_channel_data(keybuf, n);
+            else serial_printf("[ssh-debug] tx key waiting for window len=%d\n", n);
         }
 
         yield();
