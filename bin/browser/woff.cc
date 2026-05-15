@@ -14,7 +14,7 @@
  *   https://www.w3.org/TR/WOFF/
  *   kernel/gfx/png.c (zlib-strip pattern: skip 2-byte CMF/FLG header,
  *                    drop 4-byte trailing Adler-32, kdeflate_raw rest)
- */
+*/
 
 int woff_be32(char *p, int o) {
     int b0 = (int)(unsigned char)p[o];
@@ -64,7 +64,7 @@ int woff_align4(int x) {
 /* Caller passes the raw fetched body (whole WOFF1 file). On success:
  *   - returns a kmalloc'd sfnt blob
  *   - sets *out_len to the sfnt blob size
- * On failure returns NULL with no allocation (or frees its own scratch). */
+ * On failure returns NULL with no allocation (or frees its own scratch).*/
 char *woff1_unwrap(char *src, int src_len, int *out_len) {
     if (!src || src_len < 44) return (char*)0;
     if (src[0] != 'w' || src[1] != 'O' ||
@@ -84,7 +84,7 @@ char *woff1_unwrap(char *src, int src_len, int *out_len) {
     char *out = (char*)kmalloc(total_sfnt);
     if (!out) return (char*)0;
     /* Pre-zero so 4-byte alignment padding never carries undefined bytes
-     * into the parser. */
+     * into the parser.*/
     for (int i = 0; i < total_sfnt; i = i + 1) out[i] = 0;
 
     /* sfnt 12-byte offset subtable. */
@@ -129,7 +129,7 @@ char *woff1_unwrap(char *src, int src_len, int *out_len) {
             /* zlib-wrapped DEFLATE. The 2-byte CMF/FLG header is skipped
              * before kdeflate_raw and the trailing 4-byte Adler-32 is
              * dropped from the byte length, exactly mirroring how
-             * kernel/gfx/png.c hands IDAT chunks to the same primitive. */
+             * kernel/gfx/png.c hands IDAT chunks to the same primitive.*/
             if (sd_csize < 6) { kfree(out); return (char*)0; }
             int rc = kdeflate_raw(src + sd_off + 2,
                                   sd_csize - 6,

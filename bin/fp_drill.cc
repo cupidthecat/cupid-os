@@ -27,6 +27,6 @@ void main() {
         movss [c], xmm0
     }
 
-    /* If we got here, #XF didn't fire — unexpected */
+    /* If we got here, #XF didn't fire - unexpected */
     println("fp_drill: UNEXPECTED — #XF did not fire despite unmasked DE");
 }

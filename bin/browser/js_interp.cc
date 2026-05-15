@@ -1,20 +1,20 @@
 /* §7 JavaScript tree-walking interpreter. F1b scope:
  *   - primitives: number (double), string, bool, null, undefined
- *   - operators: + - * / %, == != === !==, < <= > >=, && || !
+ *   - operators: + - * / %, == !=  !==, < <= > >=, && || !
  *               assignment + compound, prefix/postfix ++/--
  *   - control flow: if/else, while, for(init;cond;step), break/continue
  *   - var declarations (let/const treated as var; const-write check
  *     deferred until F1c gives us the binding kind tag at lookup)
  *   - console.log builtin: stringify args, route to serial_printf and
  *     status_msg
- * Functions, objects, arrays land in F1c / F1d. */
+ * Functions, objects, arrays land in F1c / F1d.*/
 
 /* CupidC limitation: comparison operators on double operands (< > <= >=
  * and even == / !=) emit "invalid operator for floating-point operands".
  * js_dcmp scales the difference into an int range so all double
  * comparisons go through int compare. The 1e6 scale loses precision
  * past ~2^31 / 1e6 ≈ 2147 magnitude; sufficient for typical browser-
- * script arithmetic. Returns a sign-int: <0 a<b, 0 equal, >0 a>b. */
+ * script arithmetic. Returns a sign-int: <0 a<b, 0 equal, >0 a>b.*/
 int js_dcmp(double a, double b) {
     return (int)((a - b) * 1000000.0);
 }
@@ -135,7 +135,7 @@ int js_format_int(int v, char *buf) {
  * double args in one call, so the signature is (double, char*) and
  * the buffer is assumed to be at least 64 bytes. Sign and fractional
  * presence are detected through int-scaled comparisons because the
- * parser also rejects '<' '>' on doubles. */
+ * parser also rejects '<' '>' on doubles.*/
 int js_format_num(double v, char *buf) {
     int b = 0;
     int sign_probe = (int)(v * 1000000.0);
@@ -211,7 +211,7 @@ int js_to_string_at(int idx, char *buf, int max) {
 
 int js_eq_at(int a, int b) {
     /* loose equality - just a thin pass for numbers, strings, bools.
-     * Object identity is deferred until F1d. */
+     * Object identity is deferred until F1d.*/
     int ta = jvs_tag[a]; int tb = jvs_tag[b];
     if (ta == JS_VAL_NULL && tb == JS_VAL_UNDEF) return 1;
     if (ta == JS_VAL_UNDEF && tb == JS_VAL_NULL) return 1;
@@ -439,7 +439,7 @@ void js_push_func(int fn_idx) {
 void js_call_user_function(int fn_idx, int argc) {
     /* args sit at [jvs_top-argc .. jvs_top-1]. Build a fresh scope
      * frame parented to the function's captured scope (closure), bind
-     * each param, run the body, restore caller scope. */
+     * each param, run the body, restore caller scope.*/
     int saved_scope = jsc_cur;
     int new_scope = js_scope_enter(jfn_captured_scope[fn_idx]);
     if (new_scope < 0) { jvs_top = jvs_top - argc; js_push_undef(); return; }
@@ -485,7 +485,7 @@ void js_call_user_function(int fn_idx, int argc) {
 void js_eval_call(int node) {
     int callee = jn_a[node];
     /* Special-case console.log syntactically: there is no console
-     * global at runtime, so the regular MEMBER path can't find it. */
+     * global at runtime, so the regular MEMBER path can't find it.*/
     int handled_console_log = 0;
     if (callee >= 0 && jn_kind[callee] == JS_NODE_MEMBER) {
         int obj = jn_a[callee];
@@ -504,7 +504,7 @@ void js_eval_call(int node) {
     }
     /* If the callee is a MEMBER expression on a value, capture the
      * receiver before evaluating - the property lookup eats the
-     * object off the stack. */
+     * object off the stack.*/
     int has_this = 0;
     int this_tag = JS_VAL_UNDEF;
     int this_dom_idx = -1;
@@ -652,7 +652,7 @@ void js_assign_to_target(int target_node) {
         }
         if (tag == JS_VAL_OBJ || tag == JS_VAL_ARR) {
             /* Move rvalue to top of stack (it's at rv_pos, currently
-             * shadowed by the object). Swap so the rvalue sits at top. */
+             * shadowed by the object). Swap so the rvalue sits at top.*/
             int srct = jvs_tag[rv_pos];
             double srcn = jvs_num[rv_pos];
             int srcs_o = jvs_str_off[rv_pos];

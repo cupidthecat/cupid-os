@@ -7,9 +7,9 @@ int build_request(char *buf, char *method, char *p, char *h) {
     q = b_append(buf, q, p);
     /* HTTP/1.1 + explicit Connection: close so we get a clean
      * close-on-eof body without chunked transfer-encoding (which our
-     * parser doesn't yet decode). Accept */ /* covers images, fonts
-     * and HTML alike — Wikimedia/Cloudflare CDNs reject the previous
-     * "text/html,*\/*" string for image paths. */
+     * parser doesn't yet decode). Accept*/ /* covers images, fonts
+     * and HTML alike - Wikimedia/Cloudflare CDNs reject the previous
+     * "text/html,*\/*" string for image paths.*/
     q = b_append(buf, q, " HTTP/1.1\r\nHost: ");
     q = b_append(buf, q, h);
     q = b_append(buf, q, "\r\nUser-Agent: cupidos-browser/1.0\r\n");
@@ -18,7 +18,7 @@ int build_request(char *buf, char *method, char *p, char *h) {
 }
 
 /* Parse a dotted-quad "a.b.c.d" into a network-byte-order u32 IP.
- * Returns 1 on success, 0 if the host is not a literal IPv4 address. */
+ * Returns 1 on success, 0 if the host is not a literal IPv4 address.*/
 int parse_ipv4_dotted(char *h, U32 *ip_out) {
     int i = 0;
     int parts[4];
@@ -114,7 +114,7 @@ int fetch_url(char *url, char *content_type_out) {
          *   ch_state 1 = saw CR after hex, waiting for LF
          *   ch_state 2 = copying `ch_left` body bytes
          *   ch_state 3 = saw CR after data, waiting for LF
-         *   ch_state 4 = done (size 0 chunk seen, drain trailers) */
+         *   ch_state 4 = done (size 0 chunk seen, drain trailers)*/
         int ch_state = 0;
         int ch_left = 0;
         page_len = 0;
@@ -203,7 +203,7 @@ int fetch_url(char *url, char *content_type_out) {
                 } else {
                     /* RFC 7230 §4.1 chunked decoding. Drains every
                      * available byte each loop; servers can split a
-                     * single chunk across multiple recv() boundaries. */
+                     * single chunk across multiple recv() boundaries.*/
                     while (j < n && ch_state != 4) {
                         char b = buf[j];
                         if (ch_state == 0) {

@@ -8,12 +8,12 @@
  *     against a DOM node + ancestor chain (descendant combinator only).
  *   - style_resolve_all walks every DOM node, allocates one ComputedStyle,
  *     and runs UA defaults -> author cascade (specificity, doc-order) ->
- *     inline style -> inheritance from parent. */
+ *     inline style -> inheritance from parent.*/
 
 void ua_default_style(int tag, int cs) {
     /* Fill cs_*[cs] with sensible UA defaults for `tag`. Inherit-friendly defaults
      * (color, font_*, white_space, text_align, list_style) start at -1 / 0 so the
-     * resolver can treat them as "unset, inherit from parent". */
+     * resolver can treat them as "unset, inherit from parent".*/
     cs_color[cs] = -1;
     cs_bg[cs] = -1;
     cs_font_w[cs] = 400;
@@ -84,12 +84,12 @@ void ua_default_style(int tag, int cs) {
 
     /* Per-tag overrides matching spec §2 UA stylesheet. Flat if/return chain
      * (CupidC parser recurses into nested else; long else-if chains overflow
-     * its stack). */
+     * its stack).*/
     /* Heading + paragraph margins. Top is full spec (0.67-1em); bottom is
      * trimmed so headings sit closer to their following content. After the
      * parent-first-child collapse rule, the visible gap above an h2 that
      * leads a page is 0; the gap below the h2 down to the first paragraph
-     * = max(h2.margin_b, p.margin_t) = max(8, 10) = 10. */
+     * = max(h2.margin_b, p.margin_t) = max(8, 10) = 10.*/
     if (tag == T_H1) {
         cs_display[cs] = DISP_BLOCK; cs_font_w[cs] = 700;
         cs_font_size_px[cs] = 32;
@@ -135,7 +135,7 @@ void ua_default_style(int tag, int cs) {
         /* Per HTML/CSS UA spec, only `:link` (an <a> with href) gets the
          * default blue/underline. Bare anchors used as targets (`<a>foo</a>`
          * without href) inherit color and have no decoration. cs index ==
-         * DOM node index for element entries, so dom_attr_get is valid. */
+         * DOM node index for element entries, so dom_attr_get is valid.*/
         if (dom_attr_get(cs, "href") >= 0) {
             cs_color[cs] = 0x0000EE; cs_text_dec[cs] = TD_UNDERLINE;
         }
@@ -215,7 +215,7 @@ void ua_default_style(int tag, int cs) {
          * We don't implement parent/first-child collapse yet, so set the
          * top to 0; the visible gap above the first heading is then the
          * heading's own UA margin-top (e.g. h1 21px, h2 20px), matching
-         * the post-collapse result a real browser shows. */
+         * the post-collapse result a real browser shows.*/
         cs_margin[cs][0] = 0; cs_margin[cs][1] = 8;
         cs_margin[cs][2] = 8; cs_margin[cs][3] = 8;
         return;
@@ -235,7 +235,7 @@ void ua_default_style(int tag, int cs) {
         /* <title> never renders as visible body content: even when the
          * parser fails to wrap it in an implicit <head> (e.g. `<!doctype
          * html><title>x</title><body>...`), display:none keeps it out of
-         * the layout tree. Title text remains accessible via title_buf. */
+         * the layout tree. Title text remains accessible via title_buf.*/
         cs_display[cs] = DISP_NONE;
         return;
     }
@@ -251,7 +251,7 @@ void ua_default_style(int tag, int cs) {
 int css_value_int(int off, int len) {
     /* Parse a length with optional 'px' / 'pt' / 'em' / 'vw' / 'vh' / '%'
      * suffix. Tracks the decimal part via fixed-point millipixels so '1.5em'
-     * rounds to 24, not 16, before unit conversion. */
+     * rounds to 24, not 16, before unit conversion.*/
     int sign = 1;
     int i = off;
     int end = off + len;
@@ -308,11 +308,11 @@ int css_value_int(int off, int len) {
  *   - % uses viewport content width as a stable proxy for the containing
  *     block width (true containing-block-relative resolution would need
  *     layout-time deferral; the proxy is accurate at the body level).
- * Negative values supported. Returns 0 on parse failure. */
+ * Negative values supported. Returns 0 on parse failure.*/
 int css_value_len(int cs, int off, int len) {
     /* Resolve var() and calc() before parsing as a length. var() goes
      * first because var() can appear inside calc() (`calc(var(--g) -
-     * 4px)`), and the calc() evaluator wants concrete numbers + units. */
+     * 4px)`), and the calc() evaluator wants concrete numbers + units.*/
     char rbuf[1024];
     int rlen = 0;
     int has_var = 0;
@@ -334,7 +334,7 @@ int css_value_len(int cs, int off, int len) {
     }
     /* calc(...) handling. Strip the outer 'calc(' / ')' and pass the
      * inner expression to eval_calc. base_px is the containing-block
-     * width proxy used by '%' leaves. */
+     * width proxy used by '%' leaves.*/
     int ci = 0;
     while (ci < src_len && (src[ci] == ' ' || src[ci] == '\t')) ci = ci + 1;
     if (ci + 5 <= src_len &&
@@ -458,7 +458,7 @@ int css_value_keyword(int off, int len, char *kw) {
  * "to right", "to bottom", "to left", "0deg" / "90deg" / "180deg" / "270deg".
  * Default (no direction) is "to bottom" per CSS Images Module §3.1.
  * Reference: blink/Source/core/css/CSSGradientValue.cpp
- * (CSSGradientValue::parseLengthsAndPercents + applyAndScaleStops). */
+ * (CSSGradientValue::parseLengthsAndPercents + applyAndScaleStops).*/
 int css_value_linear_gradient(int off, int len,
                               int *out_type, int *out_c1, int *out_c2) {
     char *s = css_value_pool;
@@ -567,7 +567,7 @@ int css_value_linear_gradient(int off, int len,
     if (direction_idx == 1 || direction_idx == 3) type = BG_GRAD_HORIZONTAL;
     /* gfx2d_gradient_v paints c1 at top -> c2 at bottom; gfx2d_gradient_h
      * paints c1 at left -> c2 at right. "to top" / "to left" reverse the
-     * stop order so the named edge ends up holding the second color. */
+     * stop order so the named edge ends up holding the second color.*/
     if (direction_idx == 0 || direction_idx == 3) {
         int tmp = c1; c1 = c2; c2 = tmp;
     }
@@ -585,7 +585,7 @@ int css_value_linear_gradient(int off, int len,
  *   <= 14 px  -> SMALL    (h5, h6, small/x-small body)
  *   15-18 px  -> NORMAL   (body, h4, medium)
  *   19-26 px  -> LARGE-3  (h2, h3, large/x-large)
- *   >= 27 px  -> LARGE-4  (h1, xx-large): same glyph, taller line box. */
+ *   >= 27 px  -> LARGE-4  (h1, xx-large): same glyph, taller line box.*/
 int px_to_tier(int px) {
     if (px <= 0)  return 1;
     if (px <= 14) return 0;
@@ -601,7 +601,7 @@ int px_to_tier(int px) {
  *   <num>rem      -> num * root_px
  *   <num>%        -> num/100 * parent_px
  *   keyword font-size set: xx-small/x-small/small/medium/large/x-large/xx-large
- * Returns -1 on parse failure. */
+ * Returns -1 on parse failure.*/
 int parse_length_px(int off, int len, int parent_px, int root_px) {
     int i = off;
     int end = off + len;
@@ -655,7 +655,7 @@ int parse_length_px(int off, int len, int parent_px, int root_px) {
  *   "30px" -> value=30,  is_mult=0
  *   "1.8"  -> value=180, is_mult=1     (multiplier x100)
  *   "2"    -> value=200, is_mult=1
- *   "normal"/anything else -> returns 0 (caller leaves sentinel) */
+ *   "normal"/anything else -> returns 0 (caller leaves sentinel)*/
 int parse_line_height(int off, int len, int *out_value, int *out_is_mult) {
     int i = off;
     int end = off + len;
@@ -699,7 +699,7 @@ int parse_line_height(int off, int len, int *out_value, int *out_is_mult) {
  *
  * Reference: Blink's CSSVariableResolver walks the inheritance chain
  * lazily at computed-style time. Same idea here, except we walk DOM
- * parents directly rather than through a separate inherited map. */
+ * parents directly rather than through a separate inherited map.*/
 int cs_var_lookup(int cs, char *name, int name_len, int *out_off, int *out_len) {
     int cur = cs;
     int hops = 0;
@@ -732,7 +732,7 @@ int cs_var_lookup(int cs, char *name, int name_len, int *out_off, int *out_len) 
  * stream too so common patterns like `width: calc(var(--gutter) - 4px)`
  * work after the substitution pass.
  *
- * Reference: Blink CSSVariableResolver::resolveVariableReference. */
+ * Reference: Blink CSSVariableResolver::resolveVariableReference.*/
 int cs_var_substitute(int cs, int val_off, int val_len, char *out, int out_cap) {
     int op = 0;
     int i = 0;
@@ -784,7 +784,7 @@ int cs_var_substitute(int cs, int val_off, int val_len, char *out, int out_cap) 
                  * contains var() references. Bound depth by checking
                  * we don't re-enter the same name; for v1 we simply
                  * cap chained var() expansion at 4 hops via this byte
-                 * limit (the resolver caps the ancestor walk too). */
+                 * limit (the resolver caps the ancestor walk too).*/
                 char tmp[1024];
                 int tn = cs_var_substitute(cs, v_off, v_len, tmp, 1024);
                 for (int k = 0; k < tn && op < out_cap - 1; k = k + 1) out[op++] = tmp[k];
@@ -796,9 +796,9 @@ int cs_var_substitute(int cs, int val_off, int val_len, char *out, int out_cap) 
                 for (int k = 0; k < tn2 && op < out_cap - 1; k = k + 1) out[op++] = tmp2[k];
             }
             /* On unresolved with no fallback the substitution emits
-             * nothing for this var() — the consumer typically falls
+             * nothing for this var() - the consumer typically falls
              * back to the property's initial value, which is what
-             * Blink's behaviour reduces to. */
+             * Blink's behaviour reduces to.*/
             i = p;
             continue;
         }
@@ -828,19 +828,19 @@ int cs_var_substitute(int cs, int val_off, int val_len, char *out, int out_cap) 
  *   - Mixed length+percent in mul/div not flagged as errors; the result
  *     keeps both buckets which may produce a meaningless value, matching
  *     the intent without enforcing CSSCalcValue's full type matrix.
- */
+*/
 
 /* calc() recursive-descent evaluator. State carried in module-level
  * globals (cupidc has limited struct-pointer codegen for nested
  * `s->t[s->p]` patterns and for multi-init declarators inside hot
  * loops, so the simpler globals approach is more reliable). The
  * recursion is bounded by parenthesis depth in source, so concurrent
- * top-level invocations would clobber state — the current call sites
+ * top-level invocations would clobber state - the current call sites
  * never recurse from within eval_calc itself.
  *
  * Reference: blink/Source/core/css/CSSCalculationValue.cpp accumulator
- * pattern — track separate `pixels` and `percent` buckets so
- * `calc(100% - 16px)` stays exact at compute time. */
+ * pattern - track separate `pixels` and `percent` buckets so
+ * `calc(100% - 16px)` stays exact at compute time.*/
 char *ec_t;
 int ec_n;
 int ec_p;
@@ -871,7 +871,7 @@ void ec_eval_term(int *px, int *pct, int *is_num) {
     /* Parse number, possibly with a leading '-' (unary minus is handled
      * here rather than as a separate term so `calc(100% - 32px)` parses
      * as 100% MINUS 32px, not 100% MINUS unary-(-32px); ec_eval_expr
-     * already swallows the binary '-' before getting here). */
+     * already swallows the binary '-' before getting here).*/
     int sign = 1;
     if (ec_t[ec_p] == '-') { sign = -1; ec_p = ec_p + 1; ec_skip_ws(); }
     int int_part = 0;
@@ -998,14 +998,14 @@ int eval_calc(char *text, int len, int base_px) {
 void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     /* Flat if/return chain: CupidC parser overflows on long else-if chains.
      * Hoist `c` to function scope: CupidC keeps locals in a flat table, so
-     * re-declaring `int c;` in multiple sibling branches conflicts. */
+     * re-declaring `int c;` in multiple sibling branches conflicts.*/
     int c;
     /* Pre-resolve var() so css_value_color / css_value_keyword don't
      * need to know about custom properties. css_value_len handles var()
      * + calc() itself (it needs `cs` for ancestor lookup). When the raw
      * value contains `var(`, substitute into a scratch buffer, intern
      * the result back into css_value_pool, and dispatch with the new
-     * offsets. Skipped when no var() so the common case stays free. */
+     * offsets. Skipped when no var() so the common case stays free.*/
     int has_var_call = 0;
     for (int sc = 0; sc + 4 <= val_len; sc = sc + 1) {
         if (css_value_pool[val_off + sc] == 'v' &&
@@ -1065,7 +1065,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          * the comma list looking for any generic keyword token so the
          * cascade has a fallback even when generic appears LAST (e.g.
          * `font-family: 'TestRanges', sans-serif`). The previous code
-         * used css_value_keyword which only matches the whole value. */
+         * used css_value_keyword which only matches the whole value.*/
         cs_font_family_off[cs] = val_off;
         cs_font_family_len[cs] = val_len;
         int gi = val_off;
@@ -1108,7 +1108,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     if (prop == CP_FONT_SIZE) {
         /* Resolve to px against parent (em/%) and root (rem). cs index ==
          * DOM node index, so parent_cs == n_parent[cs] and the parent has
-         * already been cascaded earlier in DOM order. */
+         * already been cascaded earlier in DOM order.*/
         int parent_px = 16;
         int root_px = 16;
         int parent = n_parent[cs];
@@ -1172,7 +1172,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     if (prop == CP_FLEX_GROW) {
         /* Parse number with up to 2 decimal places into hundredths so
          * `flex-grow: 1.5` stores 150. Plain integers come through as
-         * 100 * value. */
+         * 100 * value.*/
         int v = 0;
         int frac = 0;
         int frac_digits = 0;
@@ -1221,7 +1221,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          *   flex: auto                -> grow=1 shrink=1 basis=auto
          *   flex: none                -> grow=0 shrink=0 basis=auto
          * Reference: blink/Source/core/css/parser/CSSPropertyParser.cpp
-         * (consumeFlex). */
+         * (consumeFlex).*/
         if (css_value_keyword(val_off, val_len, "none")) {
             cs_flex_grow[cs] = 0;
             cs_flex_shrink[cs] = 0;
@@ -1235,7 +1235,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             return;
         }
         /* Token walk. Numbers become grow then shrink; a length or `0`
-         * with a px-style suffix becomes basis. */
+         * with a px-style suffix becomes basis.*/
         int tok_off[3];
         int tok_len[3];
         int tn = 0;
@@ -1321,7 +1321,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         /* `background-image: url(href)` or `none`. The href bytes live in
          * css_value_pool already (the parser stashes the value before
          * apply); we record an off/len that points at the inner string,
-         * stripping `url(` ... `)` and any single/double quotes. */
+         * stripping `url(` ... `)` and any single/double quotes.*/
         if (css_value_keyword(val_off, val_len, "none")) {
             cs_bg_img_off[cs] = -1;
             cs_bg_img_len[cs] = 0;
@@ -1361,7 +1361,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             return;
         }
         /* One or two length tokens: `Npx` or `Npx Mpx`. `auto` keeps the
-         * intrinsic axis. */
+         * intrinsic axis.*/
         int p = val_off;
         int e = val_off + val_len;
         int t1_off = -1; int t1_len = 0;
@@ -1403,7 +1403,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          *   0       -> left / top
          *   -10000  -> center
          *   -20000  -> right / bottom
-         * Numeric values pass through unchanged. */
+         * Numeric values pass through unchanged.*/
         int p = val_off;
         int e = val_off + val_len;
         int tok_off[2];
@@ -1477,7 +1477,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             nvals = nvals + 1;
         }
         /* Expand 1/2/3/4-value shorthand into a 4-element side array
-         * (top, right, bottom, left). */
+         * (top, right, bottom, left).*/
         int side_v[4];
         int side_a[4];
         if (nvals == 1) {
@@ -1533,7 +1533,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
         /* Parse `<width> <style> <color>` shorthand. Width default 1px,
          * style ignored (treat any style as solid), color default keeps
          * existing cs_border_color. Sides: BORDER = all four,
-         * BORDER_T/R/B/L = single side. */
+         * BORDER_T/R/B/L = single side.*/
         int width = 1;
         int sides[4];
         sides[0] = (prop == CP_BORDER || prop == CP_BORDER_T) ? 1 : 0;
@@ -1559,7 +1559,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             }
             /* keyword styles: recognise dashed/dotted/none; everything
              * else (groove/ridge/double/inset/outset/hidden) collapses
-             * to solid which is what we paint by default. */
+             * to solid which is what we paint by default.*/
             if (css_value_keyword(t_start, t_len, "dashed")) {
                 cs_border_style[cs] = BS_DASHED; continue;
             }
@@ -1630,7 +1630,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          * tokens we additionally watch for the generic keywords
          * (serif/sans-serif/monospace/...) and stash that into
          * cs_font_generic so fontsys_match can fall back without
-         * needing to re-parse the family list. */
+         * needing to re-parse the family list.*/
         int i = val_off;
         int end = val_off + val_len;
         int saw_size = 0;
@@ -1666,7 +1666,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
             }
             /* After the size, every remaining token belongs to the
              * font-family list.  Capture the verbatim slice from the
-             * first family token to the end of the value. */
+             * first family token to the end of the value.*/
             if (saw_size) {
                 if (family_off < 0) family_off = t_start;
                 family_len = (val_off + val_len) - family_off;
@@ -1691,7 +1691,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
                 }
                 /* Don't `continue;` here. Let the outer loop end naturally
                  * since we've already consumed all remaining bytes via
-                 * the family slice. */
+                 * the family slice.*/
             }
         }
         if (family_off >= 0) {
@@ -1837,7 +1837,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
     if (prop == CP_BORDER_RADIUS) {
         /* Single value only (uniform corners). Future: 1-4 value parsing
          * matching margin/padding shorthand. Reference Blink
-         * core/css/parser/CSSPropertyBorderRadiusUtils.cpp. */
+         * core/css/parser/CSSPropertyBorderRadiusUtils.cpp.*/
         int r = css_value_len(cs, val_off, val_len);
         if (r < 0) r = 0;
         if (r > 64) r = 64;     /* clamp; gfx2d_rect_round_fill caps too */
@@ -1860,7 +1860,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
          * blur and spread radii (Blink supports them via CSSShadowValue;
          * we don't yet have a Gaussian blur path in gfx2d). "none" clears.
          * Reference: blink/Source/core/css/parser/CSSPropertyParser.cpp
-         * (parseShadow). */
+         * (parseShadow).*/
         if (css_value_keyword(val_off, val_len, "none")) {
             cs_shadow_has[cs] = 0;
             return;
@@ -1909,7 +1909,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
 
 /* Step 5.5: inline style="..." parser.
  * Defined before sel_X and style_resolve_all so the latter can call it
- * without forward declarations. */
+ * without forward declarations.*/
 
 /* First pass over a `style="..."` attribute: only extracts the
  * custom-property (`--name: value`) declarations into cs_var_*[]. Run
@@ -1917,7 +1917,7 @@ void cs_apply_property(int cs, int prop, int val_off, int val_len) {
  * rule application see the inline-declared vars. Without this, inline
  * `style="--c: blue"` was parsed in step 3 of style_resolve_all but
  * `color: var(--c, red)` had already been resolved in step 2 against
- * an empty cs_var_*, falling back to `red`. */
+ * an empty cs_var_*, falling back to `red`.*/
 void apply_inline_vars(int cs, char *s) {
     int n = b_strlen(s);
     int i = 0;
@@ -2000,7 +2000,7 @@ void apply_inline_style(int cs, char *s) {
 /* Step 5.3: selector matching */
 
 /* Match an attribute against (op, name_off, val_off). Returns 1 on hit.
- * Shared between css_sel_* and css_not_* compound matchers. */
+ * Shared between css_sel_* and css_not_* compound matchers.*/
 int attr_op_matches(int node, int a_off, int a_val_off, int a_op) {
     if (a_op == ATTR_OP_NONE) return 1;
     if (a_off < 0) return 0;
@@ -2070,7 +2070,7 @@ int class_token_match(int node, int c_off) {
 
 /* Match a simple pseudo-class (ones that depend only on the node and
  * tree-position caches). Returns 1 on hit. PSEUDO_NTH_CHILD reads
- * `pseudo_arg` packed as (a<<16)|(b&0xFFFF) with signed semantics. */
+ * `pseudo_arg` packed as (a<<16)|(b&0xFFFF) with signed semantics.*/
 int simple_pseudo_matches(int node, int pseudo, int pseudo_arg) {
     int p;
     int idx;
@@ -2214,7 +2214,7 @@ int sel_compound_matches(int sel_idx, int node) {
 /* Inner combinator-walk. Caller has already verified the tail compound;
  * this walks left-to-right combinators from `last-1` down to `sel_first`.
  * CupidC keeps locals in a flat table, so all branch-scoped ints are
- * hoisted to function scope. */
+ * hoisted to function scope.*/
 int sel_chain_walk(int sel_first, int last, int node) {
     int cur = node;
     int s = last - 1;
@@ -2269,7 +2269,7 @@ int sel_chain_walk(int sel_first, int last, int node) {
  * Blink's SelectorChecker::match. Rules with a tail pseudo-element are
  * treated as non-matching against the originating element so they don't
  * pollute its own ComputedStyle (those rules feed the pseudo cascade
- * via sel_chain_matches_pseudo). */
+ * via sel_chain_matches_pseudo).*/
 int sel_chain_matches(int sel_first, int sel_count, int node) {
     if (sel_count == 0) return 0;
     int last = sel_first + sel_count - 1;
@@ -2281,7 +2281,7 @@ int sel_chain_matches(int sel_first, int sel_count, int node) {
 /* Pseudo-element variant: the chain MUST end with the requested
  * pseudo-element flag. The originating element is `node`; combinators are
  * still resolved against the real DOM. Used by ::before/::after content
- * cascade and any future pseudo-element styling. */
+ * cascade and any future pseudo-element styling.*/
 int sel_chain_matches_pseudo(int sel_first, int sel_count, int node, int wanted_pe) {
     if (sel_count == 0) return 0;
     int last = sel_first + sel_count - 1;
@@ -2295,7 +2295,7 @@ int sel_chain_matches_pseudo(int sel_first, int sel_count, int node, int wanted_
  * multi-byte sequences in raw text. Codepoints above 127 are folded
  * through map_high_codepoint() to ASCII fallbacks (the bitmap font
  * doesn't carry real Unicode). Returns the decoded byte length, or 0 if
- * the value isn't a quoted string. */
+ * the value isn't a quoted string.*/
 int css_value_string(int off, int len, char *out, int omax) {
     int i = off;
     int end = off + len;
@@ -2341,7 +2341,7 @@ int css_value_string(int off, int len, char *out, int omax) {
             if (v == 0xA0) { out[o] = ' '; o = o + 1; continue; }
             /* Emit raw UTF-8 so TTF cmap renders the real glyph
              * (e.g. \201C -> U+201C left double quote). fontsys.c
-             * UTF-8-decodes runs in run_width / draw_run_styled. */
+             * UTF-8-decodes runs in run_width / draw_run_styled.*/
             int wn = emit_utf8_codepoint(v, out + o, omax - 1 - o);
             if (wn > 0) { o = o + wn; continue; }
             out[o] = '?'; o = o + 1; continue;
@@ -2379,7 +2379,7 @@ int css_value_string(int off, int len, char *out, int omax) {
  * compound, picks the highest-specificity (then doc-order) winner per
  * pseudo-element side, decodes the `content:` string, and saves the
  * result to n_pseudo_before/after_off. Other pseudo-element properties
- * (color, font, etc.) are not yet honored. Only `content`. */
+ * (color, font, etc.) are not yet honored. Only `content`.*/
 void resolve_pseudo_content(int node) {
     int win_b = -1;
     int score_b = -1;
@@ -2438,7 +2438,7 @@ void style_resolve_all() {
     cs_count = 0;
 
     /* Allocate one ComputedStyle per DOM node, in DOM order so parent < child.
-     * Index alignment: cs[i] corresponds to node i. */
+     * Index alignment: cs[i] corresponds to node i.*/
     for (int n = 0; n < nodes_count; n = n + 1) {
         int cs = cs_count;
         cs_count = cs_count + 1;
@@ -2451,11 +2451,11 @@ void style_resolve_all() {
          * regular property cascade sees inherited + locally-declared
          * vars. CP_CUSTOM_VAR rules can declare many distinct --names
          * per node, so the winner_rule[] slot dedicated to CP_CUSTOM_VAR
-         * is insufficient — walk the rule pool keyed on
+         * is insufficient - walk the rule pool keyed on
          * (name_off, name_len), and apply the highest-scoring winner
          * per name. Reference: Blink resolves custom properties in the
          * cascade with the same priority order as regular properties;
-         * we approximate via the shared specificity+doc-order score. */
+         * we approximate via the shared specificity+doc-order score.*/
         for (int r = 0; r < css_rule_count; r = r + 1) {
             if (css_rule_prop_id[r] != CP_CUSTOM_VAR) continue;
             if (css_rule_important[r]) continue;
@@ -2488,7 +2488,7 @@ void style_resolve_all() {
                 /* Encode score in val_len's high bits? No - use separate.
                  * Re-walk to find current score from val pool would be
                  * nicer; simpler: keep score implicit by always tracking
-                 * the higher score on each visit. */
+                 * the higher score on each visit.*/
                 cs_var_name_off[cs][slot] = n_off;
                 cs_var_name_len[cs][slot] = n_len;
                 /* score implicit via slot order; we'll re-check on conflict. */
@@ -2499,19 +2499,19 @@ void style_resolve_all() {
                  * source order so later wins on ties, which matches the
                  * doc-order tiebreaker. Specificity ties handled
                  * implicitly via rule walk order; for stricter spec
-                 * compliance store an explicit score per slot. */
+                 * compliance store an explicit score per slot.*/
                 cs_var_val_off[cs][slot] = css_rule_value_off[r];
                 cs_var_val_len[cs][slot] = css_rule_value_len[r];
             }
         }
 
-        /* 2b. Inline custom-property pre-pass — extract any `--name:`
+        /* 2b. Inline custom-property pre-pass - extract any `--name:`
          * declarations from `style="..."` into cs_var_*[] BEFORE the
          * regular property cascade runs, so var() lookups in regular
          * rules see inline-declared vars. Inline custom props win over
          * matching author-rule custom props on this element because
          * apply_inline_vars appends and our cs_var_lookup returns the
-         * first match — appending later overrides. */
+         * first match - appending later overrides.*/
         int sty_off = dom_attr_get(n, "style");
         if (sty_off >= 0) {
             apply_inline_vars(cs, attr_pool + sty_off);
@@ -2522,7 +2522,7 @@ void style_resolve_all() {
          * wins over everything from pass 1 and inline style. The score
          * packs (specificity << 12) | doc_order so a higher specificity
          * or later rule wins at equal level. Size matches MAX_CP_ID;
-         * CupidC requires a literal here. */
+         * CupidC requires a literal here.*/
         int winner_rule[80];
         int winner_score[80];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { winner_rule[p] = -1; winner_score[p] = -1; }
@@ -2551,14 +2551,14 @@ void style_resolve_all() {
          * author rules). The pre-pass at 2b already captured --vars;
          * apply_inline_style still re-applies them but that's a no-op
          * since the values are identical. Regular properties get
-         * applied here for the first time. */
+         * applied here for the first time.*/
         if (sty_off >= 0) {
             apply_inline_style(cs, attr_pool + sty_off);
         }
 
         /* 4. Important author rules: applied last so they override pass 1
          *    and inline style. Specificity + doc-order still resolves ties
-         *    among important rules themselves. */
+         *    among important rules themselves.*/
         int imp_rule[80];
         int imp_score[80];
         for (int p = 0; p < MAX_CP_ID; p = p + 1) { imp_rule[p] = -1; imp_score[p] = -1; }
@@ -2584,7 +2584,7 @@ void style_resolve_all() {
         }
 
         /* 4. Inheritance from parent ComputedStyle for unset inheritable props.
-         *    cs index == node index, so parent's cs is at parent's node index. */
+         *    cs index == node index, so parent's cs is at parent's node index.*/
         int parent = n_parent[n];
         if (parent >= 0 && parent < cs_count) {
             int pcs = parent;
@@ -2600,7 +2600,7 @@ void style_resolve_all() {
             }
             if (cs_font_size_px[cs] < 0) cs_font_size_px[cs] = cs_font_size_px[pcs];
             /* Font-family inherits as a unit. cs_font_family_off == -1
-             * means "unset on this element" - copy the parent's stash. */
+             * means "unset on this element" - copy the parent's stash.*/
             if (cs_font_family_off[cs] < 0) {
                 cs_font_family_off[cs] = cs_font_family_off[pcs];
                 cs_font_family_len[cs] = cs_font_family_len[pcs];
@@ -2613,14 +2613,14 @@ void style_resolve_all() {
              * UA defaults set 400 / 0 explicitly, so we promote to parent's
              * value only when the child still carries the default; child
              * elements that explicitly set normal still override correctly
-             * because cascade ran before this inheritance pass. */
+             * because cascade ran before this inheritance pass.*/
             if (cs_font_w[cs] == 400 && cs_font_w[pcs] != 400) cs_font_w[cs] = cs_font_w[pcs];
             if (cs_font_i[cs] == 0   && cs_font_i[pcs] != 0)   cs_font_i[cs] = cs_font_i[pcs];
             /* text-decoration in CSS2.1 doesn't strictly inherit, but its
              * paint effect (underline/strike) propagates from ancestor to
              * all descendants. Treating it as inherit-when-unset is
              * visually equivalent and avoids walking the rt parent chain
-             * in emit_text_atoms. */
+             * in emit_text_atoms.*/
             if (cs_text_dec[cs] == 0 && cs_text_dec[pcs] != 0) cs_text_dec[cs] = cs_text_dec[pcs];
         } else {
             /* root: ensure color is concrete and font-size has a baseline */
@@ -2629,12 +2629,12 @@ void style_resolve_all() {
         }
         /* Derive the kernel-tier from the px-resolved size. layout/paint
          * still consume cs_font_size_tier; cs_font_size_px is the source
-         * of truth and what em/rem/% length resolution reads. */
+         * of truth and what em/rem/% length resolution reads.*/
         cs_font_size_tier[cs] = px_to_tier(cs_font_size_px[cs]);
 
         /* Pseudo-element generated content (::before / ::after). Stored on
          * the originating node; render_tree.cc injects synthetic RT_TEXT
-         * children at build time. */
+         * children at build time.*/
         resolve_pseudo_content(n);
     }
 }

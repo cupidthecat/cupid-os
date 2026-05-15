@@ -10,7 +10,7 @@
  *   - Inline assembly blocks
  *   - Kernel function bindings (print, kmalloc, etc.)
  *   - Port I/O builtins (inb, outb)
- */
+*/
 
 #include "../drivers/serial.h"
 #include "cupidc.h"
@@ -19,7 +19,7 @@
 
 /* ══════════════════════════════════════════════════════════════════════
  *  x86 Machine Code Emission Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /* Emit a single byte */
 static void emit8(cc_state_t *cc, uint8_t b) {
@@ -217,7 +217,7 @@ static void emit_lea_local(cc_state_t *cc, int32_t offset) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Error Handling
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static void cc_error(cc_state_t *cc, const char *msg) {
   if (cc->error)
@@ -274,7 +274,7 @@ static void cc_error(cc_state_t *cc, const char *msg) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Token Helpers
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static cc_token_t cc_next(cc_state_t *cc) { return cc_lex_next(cc); }
 
@@ -577,7 +577,7 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Symbol Table
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 void cc_sym_init(cc_state_t *cc) { cc->sym_count = 0; }
 
@@ -612,7 +612,7 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Forward Declarations for Parser
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static void cc_parse_statement(cc_state_t *cc);
 static void cc_parse_block(cc_state_t *cc);
@@ -621,14 +621,14 @@ static void cc_parse_primary(cc_state_t *cc);
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Expression Types for Tracking
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /* Track what kind of value the last expression produced -
- * (primary statics declared above, before cc_parse_type) */
+ * (primary statics declared above, before cc_parse_type)*/
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Operator Precedence
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static int cc_precedence(cc_token_type_t op) {
   switch (op) {
@@ -669,7 +669,7 @@ static int cc_is_binary_op(cc_token_type_t t) { return cc_precedence(t) > 0; }
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Expression Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /* Emit binary operation: EBX = left, EAX = right → result in EAX */
 static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
@@ -867,12 +867,12 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
 
     /* Reverse args on stack for cdecl (we pushed left-to-right,
      * need right-to-left). For simplicity in a single-pass compiler
-     * we just accept left-to-right push and adjust parameter access. */
+     * we just accept left-to-right push and adjust parameter access.*/
     /* Actually, cdecl pushes right-to-left, but since we parsed
-     * left-to-right, let's reverse the top `argc` stack entries */
+     * left-to-right, let's reverse the top `argc` stack entries*/
     if (argc > 1) {
       /* Use a reversal loop:
-       * for each pair (i, argc-1-i) where i < argc/2, swap */
+       * for each pair (i, argc-1-i) where i < argc/2, swap*/
       for (int a = 0; a < argc / 2; a++) {
         int b = argc - 1 - a;
         int off_a = a * 4;
@@ -1504,7 +1504,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Assignment Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static int cc_is_assignment_op(cc_token_type_t t) {
   return t == CC_TOK_EQ || t == CC_TOK_PLUSEQ || t == CC_TOK_MINUSEQ ||
@@ -1519,7 +1519,7 @@ static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op) {
    *   ebx = current LHS value
    * Output:
    *   eax = combined result
-   */
+*/
   switch (op) {
   case CC_TOK_PLUSEQ:
     emit8(cc, 0x01);
@@ -1842,7 +1842,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Inline Assembly Parser
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /* Parse a register name, returns register number (0-7) or -1 */
 static int cc_parse_reg(const char *text) {
@@ -2063,7 +2063,7 @@ static void cc_parse_asm_block(cc_state_t *cc) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Statement Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static int cc_skip_brace_initializer(cc_state_t *cc) {
   if (!cc_match(cc, CC_TOK_LBRACE)) {
@@ -2629,7 +2629,7 @@ static void cc_parse_statement(cc_state_t *cc) {
       } else {
         /* Not a function pointer, put back the '(' - actually we can't easily
            undo, so this is a parse error for now (expressions starting with
-           type are rare) */
+           type are rare)*/
         cc_error(cc, "unexpected ( after type");
         return;
       }
@@ -2991,7 +2991,7 @@ static void cc_parse_statement(cc_state_t *cc) {
     /* Expression statement (function call, etc.) */
     else {
       /* We already consumed the identifier, so set it back as
-       * current and parse as expression */
+       * current and parse as expression*/
       cc_parse_ident_expr(cc);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
@@ -3023,7 +3023,7 @@ static void cc_parse_block(cc_state_t *cc) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Function Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static void cc_parse_function(cc_state_t *cc) {
   cc_type_t ret_type = cc_parse_type(cc);
@@ -3166,7 +3166,7 @@ static void cc_parse_function(cc_state_t *cc) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  Top-Level Program Parsing
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 void cc_parse_program(cc_state_t *cc) {
   cc->struct_count = 0;
@@ -3384,7 +3384,7 @@ void cc_parse_program(cc_state_t *cc) {
         continue;
       }
       /* Otherwise fall through: struct Name used as a type for
-       * a function return or global variable - handled below */
+       * a function return or global variable - handled below*/
     }
 
     if (cc_is_type_or_typedef(cc, tok)) {
@@ -3595,8 +3595,8 @@ void cc_parse_program(cc_state_t *cc) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- *  REPL Line Parsing — TempleOS-style direct statement compilation
- * ══════════════════════════════════════════════════════════════════════ */
+ *  REPL Line Parsing - TempleOS-style direct statement compilation
+ * ══════════════════════════════════════════════════════════════════════*/
 
 static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
   int saved_pos = cc->pos;
@@ -3858,7 +3858,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       cc_get_or_add_struct_tag(cc, name_tok.text);
       return;
     }
-    /* Fall through — struct used as type for variable or function */
+    /* Fall through - struct used as type for variable or function */
   }
 
   /* ── Check if line starts with a type (function def or global var) ── */
@@ -3882,7 +3882,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc->cur = saved_cur;
 
     if (after.type == CC_TOK_LPAREN) {
-      /* Function definition — parse normally, no immediate execution */
+      /* Function definition - parse normally, no immediate execution */
       cc_parse_function(cc);
 
       /* Resolve any forward references that can now be satisfied */
@@ -3904,7 +3904,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       return;
     }
 
-    /* Global variable declaration — allocate in data section */
+    /* Global variable declaration - allocate in data section */
     (void)type;
     (void)name_tok;
     cc_type_t gtype = cc_parse_type(cc);
@@ -4028,7 +4028,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     }
   }
 
-  /* ── Statement / Expression — emit executable code ─────────────── */
+  /* ── Statement / Expression - emit executable code ─────────────── */
   {
     cc->entry_offset = cc->code_pos;
     cc->has_entry = 1;
@@ -4044,7 +4044,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc->param_count = 0;
 
     /* Parse one or more semicolon-separated statements.
-     * Track whether the LAST thing parsed was an expression. */
+     * Track whether the LAST thing parsed was an expression.*/
     int last_was_expr = 0;
 
     while (!cc->error && cc_peek(cc).type != CC_TOK_EOF) {
@@ -4068,7 +4068,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       if (cc_repl_try_zero_arg_call(cc, &last_was_expr))
         continue;
 
-      /* Expression statement — parse expression, result in EAX */
+      /* Expression statement - parse expression, result in EAX */
       cc_parse_expression(cc, 1);
       last_was_expr = 1;
       if (cc_peek(cc).type == CC_TOK_SEMICOLON)

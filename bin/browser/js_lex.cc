@@ -3,7 +3,7 @@
  * identifier; everything else is a punctuator or operator. Numbers
  * keep only the decimal integer portion in jtk_num for now (F1a) -
  * fractional parts are recognised but ignored; F1b switches the
- * runtime to doubles. */
+ * runtime to doubles.*/
 
 int js_is_digit(int c)  { return c >= '0' && c <= '9'; }
 int js_is_alpha(int c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'; }

@@ -17,7 +17,7 @@ int rt_alloc(int kind, int dom, int parent, int style_cs) {
      * out in flow), so without this init the first marker on a fresh
      * page reuses whatever stale offset was at this slot from the
      * previous render. Visible symptom: first li's bullet jumps to
-     * the right of its text while the rest of the list looks correct. */
+     * the right of its text while the rest of the list looks correct.*/
     rt_x[n] = 0;
     rt_y[n] = 0;
     rt_w[n] = 0;
@@ -72,14 +72,14 @@ int rt_kind_is_block_level(int kind) {
 
 /* Helper: build children of `dom` under render parent `rt_parent_n`, inserting
  * anonymous block wrappers around contiguous inline runs whenever this parent
- * has at least one block-level child. */
+ * has at least one block-level child.*/
 void build_rt_children(int dom, int rt_parent_n) {
     /* Flex container: per CSS Flexbox §4, every flex item is blockified
      * (display: inline / inline-block / inline-* on a child becomes
      * block). Pre-scan still finds at least one block, so inline children
      * go through the block-level path and we promote their RT kind to
      * RT_BLOCK below. Reference:
-     * blink/Source/core/layout/LayoutFlexibleBox.cpp `BlockifyDisplay`. */
+     * blink/Source/core/layout/LayoutFlexibleBox.cpp `BlockifyDisplay`.*/
     int parent_is_flex = 0;
     if (rt_parent_n >= 0) {
         int p_sty = rt_style[rt_parent_n];
@@ -103,7 +103,7 @@ void build_rt_children(int dom, int rt_parent_n) {
     }
     /* In a flex container every non-text child is treated as a flex
      * item -> blockified, so has_block holds even when source order is
-     * all-inline. */
+     * all-inline.*/
     if (parent_is_flex) has_block = 1;
 
     int anon_block = -1;          /* current anon block wrapper, -1 if none open */
@@ -145,7 +145,7 @@ void build_rt_children(int dom, int rt_parent_n) {
             /* Blockify the flex item: same as the block-level path but
              * also force rt_kind so paint's "skip inline atoms" check
              * doesn't drop the box. RT_REPLACED is preserved so <img>
-             * inside flex still uses replaced-element paint. */
+             * inside flex still uses replaced-element paint.*/
             anon_block = -1;
             int n = build_rt_subtree(c, rt_parent_n);
             if (n >= 0 && rt_kind[n] != RT_REPLACED) {
@@ -185,7 +185,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
     /* For <a>: bind the link index, registering a new entry if this href
      * hasn't been seen yet. (Earlier code relied on layout to register
      * links, but no such pass existed - so links_count stayed 0 and every
-     * <a> ended up with rt_link_idx == -1, breaking hover and click.) */
+     * <a> ended up with rt_link_idx == -1, breaking hover and click.)*/
     if (tag == T_A) {
         int href_off = dom_attr_get(dom, "href");
         if (href_off >= 0) {
@@ -204,7 +204,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
 
     /* For <img>: intrinsic dims from HTML width/height attrs first, then
      * decoded pixel dimensions (n_img_intrinsic_*) once image.cc has
-     * fetched the bytes, then 80x60 placeholder if neither is known. */
+     * fetched the bytes, then 80x60 placeholder if neither is known.*/
     if (tag == T_IMG) {
         int w_off = dom_attr_get(dom, "width");
         int h_off = dom_attr_get(dom, "height");
@@ -226,7 +226,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
         if (dw < 0 && decoded_w > 0) dw = decoded_w;
         if (dh < 0 && decoded_h > 0) dh = decoded_h;
         /* If only one axis specified, scale the other to preserve aspect
-         * ratio when we have decoded pixels. */
+         * ratio when we have decoded pixels.*/
         if (dw > 0 && dh < 0 && decoded_w > 0 && decoded_h > 0) {
             dh = (decoded_h * dw) / decoded_w;
         }
@@ -240,7 +240,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
     /* For <input>: bind input index, set intrinsic size. Checkbox/radio
      * are small square boxes (paint draws their own chrome); text-style
      * inputs are wider and shorter. The DOM `type` attr drives both the
-     * input-table eligibility (in parser.cc) and intrinsic dimensions. */
+     * input-table eligibility (in parser.cc) and intrinsic dimensions.*/
     if (tag == T_INPUT) {
         for (int k = 0; k < inputs_count; k++) {
             if (input_node[k] == dom) { rt_input_idx[n] = k; break; }
@@ -252,7 +252,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
             /* 16x16 reads as a normal checkbox at 14px body text and
              * lines up close to Chrome's intrinsic (13-16). At the old
              * 14x14 the 1px border on each side left a 12x12 fill that
-             * could read as a faint mark. */
+             * could read as a faint mark.*/
             rt_intrinsic_w[n] = 16;
             rt_intrinsic_h[n] = 16;
         } else {
@@ -277,7 +277,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
          * of the element's real children. Inherits the element's cs slot
          * for color/font; spec requires a separate inline box per pseudo
          * but for v1 a flat text node is visually correct for simple
-         * `content: "..."` strings. */
+         * `content: "..."` strings.*/
         if (n_pseudo_before_off[dom] >= 0) {
             int rt_pe = rt_alloc(RT_TEXT, dom, n, cs_d);
             if (rt_pe >= 0) {
@@ -300,7 +300,7 @@ int build_rt_subtree(int dom, int rt_parent_n) {
 /* Anonymous-table-ancestor wrapping. For Plan 2, table layout is the same as
  * block fallback (no real grid), so anon-table wrappers cosmetically don't
  * matter - they're just additional block boxes. Skip the wrap for Plan 2;
- * Plan 3 implements proper anon-table-ancestor logic alongside table layout. */
+ * Plan 3 implements proper anon-table-ancestor logic alongside table layout.*/
 void rt_anon_table_fixup() {
     (void)0;
 }
@@ -314,7 +314,7 @@ void rt_anon_table_fixup() {
  * CSS 2.1 §9.9.1: "An element forms a stacking context if it has a
  * position value other than static and a z-index value other than
  * auto." Both kinds get rt_is_stack so the in-flow paint walk skips
- * them. */
+ * them.*/
 void rt_collect_oof(int n) {
     if (n < 0) return;
     int sty = rt_style[n];

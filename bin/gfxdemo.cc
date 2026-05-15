@@ -13,7 +13,7 @@
  *   - Filled shapes (rectangles, circles, triangles)
  *   - Particle system
  *   - Text rendering with shadow
- */
+*/
 
 int main() {
   gfx2d_fullscreen_enter();

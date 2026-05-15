@@ -27,7 +27,7 @@
  *   OBJ_LIT:       a = first OBJ_PROP (jn_next)
  *   OBJ_PROP:      a/b = key off/len, c = value expr
  *   PROGRAM:       a = first stmt (jn_next)
- */
+*/
 
 int jp_pos;
 
@@ -67,7 +67,7 @@ int js_alloc_node(int kind, int a, int b, int c, int d) {
 }
 
 /* Mutually-recursive js_p_* calls below resolve via CupidC's deferred
- * cross-resolve pass; explicit prototypes upset the parser. */
+ * cross-resolve pass; explicit prototypes upset the parser.*/
 int js_p_primary() {
     int k = js_peek_kind();
     if (k == JS_TOK_NUMBER) {
@@ -482,7 +482,7 @@ int js_parse() {
 }
 
 /* AST debug dump (serial). Used by F1a tests; later code routes
- * through about:dump. */
+ * through about:dump.*/
 char *js_kind_name(int k) {
     if (k == JS_NODE_NUM)        return "NUM";
     if (k == JS_NODE_STR)        return "STR";
@@ -614,7 +614,7 @@ void js_queue_script(int off, int len) {
 int js_run(char *src, int len) {
     /* Per-script reset of token/AST pools so successive scripts don't
      * stack into a single pool. js_str_pool persists for the page so
-     * later scripts can reference earlier literals. */
+     * later scripts can reference earlier literals.*/
     jtk_count = 0;
     int saved_jn = jn_count;
     js_last_error[0] = 0;

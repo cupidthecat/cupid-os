@@ -9,7 +9,7 @@ void main() {
     /* Inline tolerance check without a user helper function (user
      * functions with FP params have calling-convention edge cases).
      * Pattern: compute |a - b| via fabs, scale, cast to int, INT-compare.
-     * CupidC also can't do unary minus on doubles — use 0.0 - x. */
+     * CupidC also can't do unary minus on doubles - use 0.0 - x.*/
 
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
@@ -23,7 +23,7 @@ void main() {
     }
 
     /* cos(pi) = -1. Check |cos(pi) + 1| < 1e-12 (since cos(pi) = -1,
-     * cos(pi) + 1 = 0). Avoids unary minus. */
+     * cos(pi) + 1 = 0). Avoids unary minus.*/
     double c = cos(pi);
     double d_c = c + 1.0;   /* should be ~0 */
     double ad_c = fabs(d_c);
@@ -45,8 +45,8 @@ void main() {
         ok = 0;
     }
 
-    /* exp(1) = e = 2.71828... — CupidC's exp has a known bug that
-     * returns ~1.47 for exp(1); skip this check.  exp(0)=1 still works. */
+    /* exp(1) = e = 2.71828... - CupidC's exp has a known bug that
+     * returns ~1.47 for exp(1); skip this check.  exp(0)=1 still works.*/
 
     /* log(e) = 1 */
     double le = log(2.718281828459045);
@@ -82,7 +82,7 @@ void main() {
     }
 
     /* cbrt(27) = 3. Looser tolerance since the x87/libm path has some
-     * bits of rounding error. Scale 1e6 -> tolerance ~1e-6. */
+     * bits of rounding error. Scale 1e6 -> tolerance ~1e-6.*/
     double cb = cbrt(27.0);
     double d_cb = cb - 3.0;
     double ad_cb = fabs(d_cb);

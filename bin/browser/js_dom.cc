@@ -9,7 +9,7 @@
  * on a DOMNODE go through jsd_dom_member_get; method calls (e.g.
  * getElementById) are surfaced as NATIVE function values so the
  * existing CALL machinery stays uniform.
- */
+*/
 
 void js_push_domnode(int dom_idx) {
     js_push_undef();
@@ -26,7 +26,7 @@ void js_push_native(int native_id) {
 }
 
 /* Find the first DOM node whose tag matches; -1 if none. Used by
- * jsd_get_body() and similar lazy lookups. */
+ * jsd_get_body() and similar lazy lookups.*/
 int jsd_find_first_by_tag(int tag) {
     for (int n = 0; n < nodes_count; n++) {
         if (n_tag[n] == tag) return n;
@@ -39,7 +39,7 @@ int jsd_get_body() { return jsd_find_first_by_tag(T_BODY); }
 /* Walk the subtree rooted at `n` and append the concatenated text of
  * all descendant text nodes into buf (max bytes). Whitespace inside
  * text nodes is preserved per the (already-tokenized) attr_pool
- * content. */
+ * content.*/
 int jsd_collect_text(int n, char *buf, int max) {
     int p = 0;
     int stack[256];
@@ -69,7 +69,7 @@ int jsd_collect_text(int n, char *buf, int max) {
 }
 
 /* Copy a tag enum back to its name (lower-case ASCII) into buf. Used
- * by element.tagName. */
+ * by element.tagName.*/
 int jsd_tag_name(int tag, char *buf, int max) {
     char *s = "?";
     if (tag == T_HTML) s = "HTML";
@@ -188,14 +188,14 @@ void jsd_dom_member_get(int dom_idx, int koff, int klen) {
 /* Mark all of dom_idx's text-node children as inert (T_OTHER + no
  * text) so a subsequent textContent set / appendChild starts clean.
  * Pool slots are never freed; we just unlink from the parent's child
- * list. Used by jsd_dom_set_text_content. */
+ * list. Used by jsd_dom_set_text_content.*/
 void jsd_clear_children(int dom_idx) {
     n_first_child[dom_idx] = -1;
 }
 
 /* Allocate a fresh T_TEXT node, intern the string into attr_pool,
  * attach as the only child of parent. Returns the new node index or
- * -1 on failure. */
+ * -1 on failure.*/
 int jsd_make_text_child(int parent, char *s, int len) {
     int n = alloc_node(T_TEXT, parent, -1);
     if (n < 0) return -1;
@@ -207,7 +207,7 @@ int jsd_make_text_child(int parent, char *s, int len) {
 }
 
 /* Append text as a T_TEXT child of `parent` without replacing siblings.
- * Empty strings are dropped to avoid littering the DOM. */
+ * Empty strings are dropped to avoid littering the DOM.*/
 int jsd_append_text(int parent, char *s, int len) {
     if (len <= 0) return -1;
     int n = alloc_node(T_TEXT, parent, -1);
@@ -220,7 +220,7 @@ int jsd_append_text(int parent, char *s, int len) {
 }
 
 /* Map an inline tag name (lowercased) to its T_* constant. Returns
- * 0 for unknown tags so callers can surface them as literal text. */
+ * 0 for unknown tags so callers can surface them as literal text.*/
 int jsd_inner_tag_lookup(char *s, int len) {
     if (len == 1 && (s[0] == 'b' || s[0] == 'B')) return T_B;
     if (len == 1 && (s[0] == 'i' || s[0] == 'I')) return T_I;
@@ -239,7 +239,7 @@ int jsd_inner_tag_lookup(char *s, int len) {
  * matching ancestor is found, mismatches are tolerated. Attributes are
  * skipped (read but discarded - the inline-formatting subset doesn't
  * need them). Self-closing void tags (<br/>) emit a node and stay on
- * the original level. */
+ * the original level.*/
 void jsd_parse_inner_html(int parent, char *s, int len) {
     int stack[16];
     int sp = 0;
@@ -294,7 +294,7 @@ void jsd_parse_inner_html(int parent, char *s, int len) {
 }
 
 /* Write a property on a DOMNODE; reads top-of-stack as the rvalue.
- * F2b implements textContent / innerText. F2d adds attribute / style. */
+ * F2b implements textContent / innerText. F2d adds attribute / style.*/
 void jsd_dom_member_set(int dom_idx, int koff, int klen) {
     if (dom_idx < 0) { serial_printf("[c2] member_set: dom_idx<0\n"); return; }
     char *name = js_str_pool + koff;
@@ -318,7 +318,7 @@ void jsd_dom_member_set(int dom_idx, int koff, int klen) {
          * tok_*[], ap_*[]); instead we walk the fragment locally and
          * create DOM nodes directly. Supports text and a fixed set of
          * inline formatting tags; unknown tags are surfaced as literal
-         * text so authors notice rather than silently dropping content. */
+         * text so authors notice rather than silently dropping content.*/
         char buf[1024];
         int n = js_to_string_at(t, buf, 1024);
         jsd_clear_children(dom_idx);
@@ -332,7 +332,7 @@ void jsd_dom_member_set(int dom_idx, int koff, int klen) {
 /* Set or update an attribute on a DOM node. The attribute table is
  * append-only; if the name already exists, we update the value
  * offset in place. The class= / id= fast-path slots are also
- * refreshed so selector matching sees the new value. */
+ * refreshed so selector matching sees the new value.*/
 void jsd_dom_set_attr(int dom_idx, char *name, int nlen, char *value, int vlen) {
     int first = dom_attrs_first[dom_idx];
     int count = dom_attrs_count[dom_idx];
@@ -364,7 +364,7 @@ void jsd_dom_set_attr(int dom_idx, char *name, int nlen, char *value, int vlen) 
 
 /* Read a style declaration from an element's inline style="..."
  * attribute. Returns value as a fresh interned string or pushes
- * empty string if absent. */
+ * empty string if absent.*/
 void jsd_style_get(int dom_idx, int koff, int klen) {
     int sty = dom_attr_get(dom_idx, "style");
     if (sty < 0) { js_push_str(js_str_intern("", 0), 0); return; }
@@ -396,7 +396,7 @@ void jsd_style_get(int dom_idx, int koff, int klen) {
 }
 
 /* Append (or update) a single declaration in an element's inline
- * style attribute. */
+ * style attribute.*/
 void jsd_style_set(int dom_idx, int koff, int klen, char *value, int vlen) {
     char buf[1024];
     int p = 0;
@@ -450,7 +450,7 @@ void jsd_style_set(int dom_idx, int koff, int klen, char *value, int vlen) {
 }
 
 /* Detach a DOM node from its current parent. No-op if node is
- * unlinked already. */
+ * unlinked already.*/
 void jsd_dom_detach(int dom_idx) {
     int p = n_parent[dom_idx];
     if (p < 0) return;
@@ -481,7 +481,7 @@ void jsd_dom_append(int parent, int child) {
 }
 
 /* document.createElement(tagname): allocate a new DOM node with the
- * matching T_* enum, no parent. */
+ * matching T_* enum, no parent.*/
 void jsd_doc_create_element(int argc) {
     if (argc < 1) { js_push_null(); return; }
     int t = jvs_top - argc;
@@ -491,7 +491,7 @@ void jsd_doc_create_element(int argc) {
     int n = alloc_node(tag, -1, -1);
     if (n < 0) { js_push_null(); return; }
     /* alloc_node already initialised parent/child/next; ensure it
-     * is fully detached. */
+     * is fully detached.*/
     n_parent[n] = -1;
     n_next[n] = -1;
     n_first_child[n] = -1;
@@ -501,7 +501,7 @@ void jsd_doc_create_element(int argc) {
 /* document.querySelector(sel) - very small subset:
  *   "#id"  -> first element with matching id
  *   "tag"  -> first element of that tag
- * Anything more complex returns null. */
+ * Anything more complex returns null.*/
 void jsd_doc_query_selector(int argc) {
     if (argc < 1) { js_push_null(); return; }
     int t = jvs_top - argc;
@@ -551,7 +551,7 @@ void jsd_doc_get_element_by_id(int argc) {
 }
 
 /* Drop args + push the value at idx (which is above args). Used to
- * carry a native result back to the caller's stack frame. */
+ * carry a native result back to the caller's stack frame.*/
 void js_native_return(int saved, int result_top) {
     int new_tag = jvs_tag[result_top];
     int new_dom = jvs_dom_idx[result_top];
@@ -573,7 +573,7 @@ void js_native_return(int saved, int result_top) {
 }
 
 /* Native dispatch entry point invoked by eval_call. The native
- * function id is known; argc args sit at [jvs_top-argc .. jvs_top-1]. */
+ * function id is known; argc args sit at [jvs_top-argc .. jvs_top-1].*/
 void js_native_call(int native_id, int argc) {
     int saved = jvs_top - argc;
     int receiver_tag = jsd_this_tag;
@@ -651,7 +651,7 @@ void js_native_call(int native_id, int argc) {
 
 /* Build the document/window globals at the start of script execution.
  * Called from parser.cc after the render tree is built and just before
- * running queued scripts so document.body has a valid DOM index. */
+ * running queued scripts so document.body has a valid DOM index.*/
 void js_install_globals() {
     /* Ensure root scope exists. */
     if (jsc_top == 0) jsc_cur = js_scope_enter(-1);
@@ -699,7 +699,7 @@ void js_install_globals() {
     }
 
     /* location object holds href as a string property. Read works,
-     * write updates the property but does not trigger navigate. */
+     * write updates the property but does not trigger navigate.*/
     int loc = js_alloc_object(0);
     if (loc >= 0) {
         int url_len = b_strlen(cur_url);

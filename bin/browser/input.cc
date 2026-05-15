@@ -3,7 +3,7 @@
 /* Reverse-depth render-tree hit test: returns the deepest render node whose
  * paint rectangle contains (mx, my). Inputs are window-content-relative
  * coordinates (the same frame rt_screen_x/y produces, i.e. they already
- * account for viewport_y() and scroll_y). */
+ * account for viewport_y() and scroll_y).*/
 int rt_hit(int n, int mx, int my) {
     int sx = rt_screen_x(n);
     int sy = rt_screen_y(n);
@@ -28,7 +28,7 @@ int hit_box(int mx, int my) {
 /* Inline content is absorbed into RT_LINE_BOX siblings, so the original
  * <a> RT_INLINE node has no rt_w/h and the hit walk never visits it. Atoms
  * carry la_link_idx, so when a click lands on a LINE_BOX, look up which
- * atom column the click falls in. */
+ * atom column the click falls in.*/
 int line_box_link_at(int n, int rel_ax) {
     int first = rt_line_atom_first[n];
     int count = rt_line_atom_count[n];
@@ -44,7 +44,7 @@ int line_box_link_at(int n, int rel_ax) {
 /* If a click on a LINE_BOX lands on a replaced atom (la_text_off encodes
  * a negative RT-node ref), return that node so input/checkbox hits route
  * to the input element instead of stopping at the line_box. -1 if the
- * column is plain text. */
+ * column is plain text.*/
 int line_box_replaced_at(int n, int rel_ax) {
     int first = rt_line_atom_first[n];
     int count = rt_line_atom_count[n];
@@ -191,7 +191,7 @@ void handle_left_click(int mx, int my) {
     /* address bar? */
     if (rel_y >= 0 && rel_y < ADDR_H) {
         /* Back / forward buttons: 22x20 rects starting at x=6 with a
-         * 4 px gap.  Layout matches paint.cc:draw_address_bar. */
+         * 4 px gap.  Layout matches paint.cc:draw_address_bar.*/
         if (rel_x >= 6 && rel_x < 28) {
             if (hist_pos > 1) go_back();
             return;
@@ -210,7 +210,7 @@ void handle_left_click(int mx, int my) {
         int hit = hit_box(rel_x, rel_y);
         if (hit >= 0) {
             /* Walk parent chain looking for the nearest interactive node:
-             * a link, a focusable input, or a submit-capable button/input. */
+             * a link, a focusable input, or a submit-capable button/input.*/
             int link = -1;
             int input_idx = -1;
             int submit_form_node = -1;
@@ -220,7 +220,7 @@ void handle_left_click(int mx, int my) {
              * children sit at the same y, so without this redirect a
              * checkbox/input click would stop at the line_box and walk
              * up through the block parent without finding the form
-             * control. */
+             * control.*/
             if (rt_kind[hit] == RT_LINE_BOX) {
                 int rel_ax = rel_x - rt_screen_x(hit);
                 int li = line_box_link_at(hit, rel_ax);
@@ -263,7 +263,7 @@ void handle_left_click(int mx, int my) {
             }
             if (toggle_dom >= 0) {
                 /* Checkbox toggles in place; radio sets self and clears
-                 * other radios sharing the same `name`. */
+                 * other radios sharing the same `name`.*/
                 char *typ = dom_attr_str(toggle_dom, "type");
                 if (typ && b_strieq(typ, "radio")) {
                     int my_name = dom_attr_get(toggle_dom, "name");
@@ -329,7 +329,7 @@ void handle_hover(int mx, int my) {
         int hit = hit_box(rel_x, rel_y);
         if (hit >= 0) {
             /* Walk to find the deepest DOM-backed rt node and the nearest
-             * link ancestor. */
+             * link ancestor.*/
             int cur = hit;
             while (cur >= 0) {
                 if (hover_dom_node < 0 && rt_dom[cur] >= 0) {
@@ -358,7 +358,7 @@ void handle_mouse() {
 
     /* If a rule actually references :hover/:focus, restyle and re-layout
      * when the hovered DOM node changes. Skipped when no dynamic pseudo
-     * rule is active to avoid pointless work on every pixel of motion. */
+     * rule is active to avoid pointless work on every pixel of motion.*/
     if (css_has_dynamic_pseudo && hover_dom_node != prev_hover_dom_node) {
         prev_hover_dom_node = hover_dom_node;
         style_resolve_all();

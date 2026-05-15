@@ -6,10 +6,10 @@
  * to the most-used subset for browser footprint; ~80 colors covers
  * every name commonly seen on real sites including web-safe palette
  * (red/blue/green), light/dark variants, and design-system favorites
- * (tomato, coral, teal, salmon, ...). */
+ * (tomato, coral, teal, salmon, ...).*/
 int parse_color_named(char *s, int *out) {
     /* Trim trailing whitespace / common terminators so the case-insensitive
-     * compare hits even when the substituted value has extra spaces. */
+     * compare hits even when the substituted value has extra spaces.*/
     if (b_strieq(s, "transparent")) { *out = 0x00000000; return 1; }
     if (b_strieq(s, "currentcolor")) { *out = 0x00000000; return 1; }
 
@@ -230,7 +230,7 @@ int attr_intern(char *s, int len) {
 }
 
 /* Returns offset into attr_pool (where strings live) or -1 if attribute absent.
- * `name` is a NUL-terminated literal like "href"; comparison is case-insensitive. */
+ * `name` is a NUL-terminated literal like "href"; comparison is case-insensitive.*/
 int dom_attr_get(int node, char *name) {
     if (node < 0 || node >= nodes_count) return -1;
     int first = dom_attrs_first[node];
@@ -257,7 +257,7 @@ char *dom_attr_str(int node, char *name) {
 /* alloc_node: allocate a DOM node of `tag`, attach as last child of `parent`,
  * and copy any attrs from the tokenizer's scratch (ap_*[]) into the permanent
  * dom_ap_*[] pool. tok_idx == -1 means "no attrs" (used for synthetic root and
- * for text nodes which pass attrs separately via n_text_off/n_text_len). */
+ * for text nodes which pass attrs separately via n_text_off/n_text_len).*/
 int alloc_node(int tag, int parent, int tok_idx) {
     if (nodes_count >= MAX_NODES) return -1;
     int idx = nodes_count;
@@ -313,7 +313,7 @@ int alloc_node(int tag, int parent, int tok_idx) {
  * the DOM tree. Detaches new_node from its current parent's child list (if
  * any) and splices it in in front of `before`. Used for foster-parenting:
  * stray text inside <table> outside cells must be inserted before the
- * table per HTML spec §13.2.6.5. */
+ * table per HTML spec §13.2.6.5.*/
 void dom_insert_before(int new_node, int before) {
     if (new_node < 0 || before < 0) return;
     int new_parent = n_parent[before];
@@ -344,7 +344,7 @@ void dom_insert_before(int new_node, int before) {
 /* Populate per-DOM-node sibling caches consumed by the §2 selector matcher.
  * Called once after parse_html finishes building the DOM and before
  * style_resolve_all runs. Element-only: text nodes (T_TEXT) are skipped so
- * that ":first-child", ":nth-child", "+", "~" behave per CSS spec. */
+ * that ":first-child", ":nth-child", "+", "~" behave per CSS spec.*/
 void populate_sibling_caches() {
     /* Defaults: no parent / no element siblings. */
     for (int i = 0; i < nodes_count; i = i + 1) {
@@ -354,7 +354,7 @@ void populate_sibling_caches() {
         n_next_sibling_elt[i] = -1;
     }
     /* For each node that has children, walk once to assign 1-based element
-     * indices and prev/next element-sibling links. */
+     * indices and prev/next element-sibling links.*/
     for (int p = 0; p < nodes_count; p = p + 1) {
         int prev_elt = -1;
         int idx = 0;
@@ -380,7 +380,7 @@ void populate_sibling_caches() {
 
 /* Look up a named HTML entity by (name, nlen). On match, writes the ASCII
  * approximation to *out_ch and returns 1. The mapping is lossy (no Unicode
- * in the 8x8 ASCII font) but predictable. */
+ * in the 8x8 ASCII font) but predictable.*/
 int match_named_entity(char *name, int nlen, int *out_ch) {
     if (nlen == 2) {
         if (b_strieq_n(name, "lt", 2)) { *out_ch = '<'; return 1; }
@@ -465,7 +465,7 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
  * count written, or 0 if cp is outside U+0000..U+10FFFF. The CSS value
  * decoder and entity decoder both feed this so text in attr_pool stays
  * UTF-8 end-to-end and fontsys.c can look up real cmap glyphs (e.g.
- * U+2022 bullet, U+201C/D curly quotes) instead of folding to ASCII. */
+ * U+2022 bullet, U+201C/D curly quotes) instead of folding to ASCII.*/
 int emit_utf8_codepoint(int cp, char *out, int omax) {
     if (cp < 0) return 0;
     if (cp < 0x80) {
@@ -498,13 +498,13 @@ int emit_utf8_codepoint(int cp, char *out, int omax) {
 }
 
 /* Map a high-codepoint numeric entity to a reasonable ASCII fallback so
- * common Unicode text doesn't render as '?'. Returns 1 if mapped. */
+ * common Unicode text doesn't render as '?'. Returns 1 if mapped.*/
 int map_high_codepoint(int v, int *out_ch) {
     if (v == 0x00A9) { *out_ch = 'C'; return 1; }   /* © */
     if (v == 0x00AE) { *out_ch = 'R'; return 1; }   /* ® */
     if (v == 0x00B0) { *out_ch = 'd'; return 1; }   /* ° */
     if (v == 0x00B7) { *out_ch = '.'; return 1; }   /* · -> period (closer to middle dot than '*') */
-    if (v == 0x2013) { *out_ch = '-'; return 1; }   /* – */
+    if (v == 0x2013) { *out_ch = '-'; return 1; }   /* - */
     if (v == 0x2014) { *out_ch = '-'; return 1; }   /* U+2014 em dash */
     if (v == 0x2018) { *out_ch = '\''; return 1; }  /* ‘ */
     if (v == 0x2019) { *out_ch = '\''; return 1; }  /* ’ */
@@ -525,7 +525,7 @@ int map_high_codepoint(int v, int *out_ch) {
 }
 
 /* Decode &amp; / &lt; / &gt; / &quot; / &nbsp; / &#NNN; / &#xHH; and the
- * extended §1 named-entity set into out; returns new length. */
+ * extended §1 named-entity set into out; returns new length.*/
 int decode_entities(char *src, int slen, char *out, int omax) {
     int i = 0;
     int o = 0;
@@ -565,7 +565,7 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                         i = end + 1; continue;
                     }
                     /* Emit raw UTF-8 so TTF cmap can look up the real glyph.
-                     * fontsys.c decodes UTF-8 in run_width / draw_run_styled. */
+                     * fontsys.c decodes UTF-8 in run_width / draw_run_styled.*/
                     int wn = emit_utf8_codepoint(v, out + o, omax - 1 - o);
                     if (wn > 0) { o = o + wn; i = end + 1; continue; }
                     out[o] = '?'; o = o + 1; i = end + 1; continue;
@@ -585,7 +585,7 @@ int decode_entities(char *src, int slen, char *out, int omax) {
              * quotes, ellipsis) get folded to
              * the bitmap-font ASCII fallback through map_high_codepoint
              * instead of bleeding into the framebuffer as garbage glyph
-             * bytes. ASCII (0..0x7F) passes through unchanged. */
+             * bytes. ASCII (0..0x7F) passes through unchanged.*/
             int b0 = src[i] & 0xFF;
             if (b0 >= 0x80) {
                 int cp = -1;

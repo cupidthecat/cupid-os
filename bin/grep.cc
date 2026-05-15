@@ -99,11 +99,12 @@ void grep_walk(char *path, char *pattern) {
     int fd = vfs_open(path, 0);
     if (fd < 0) return;
 
-    char ent[72];
+    // vfs_dirent_t: name[128], size@128, type@132. 136 bytes total.
+    char ent[136];
     while (vfs_readdir(fd, ent) > 0) {
-        char name[64];
+        char name[128];
         int ni = 0;
-        while (ent[ni] && ni < 63) { name[ni] = ent[ni]; ni = ni + 1; }
+        while (ent[ni] && ni < 127) { name[ni] = ent[ni]; ni = ni + 1; }
         name[ni] = 0;
 
         if (is_dot_name(name)) continue;
@@ -111,9 +112,9 @@ void grep_walk(char *path, char *pattern) {
         char child[256];
         join_path(child, path, name);
 
-        if (ent[68] == 1) {
+        if (ent[132] == 1) {
             grep_walk(child, pattern);
-        } else if (ent[68] == 0) {
+        } else if (ent[132] == 0) {
             grep_file(child, pattern);
         }
     }

@@ -295,7 +295,7 @@ void tokenize(int html_len) {
                      * token consumer's DATA path decodes via ctype_buf which
                      * caps at 4096; large stylesheets get truncated there.
                      * Pre-intern + sentinel bit routes through the attr-pool
-                     * path (same as RCDATA) so full length survives. */
+                     * path (same as RCDATA) so full length survives.*/
                     int raw_len = t_end - t_start;
                     int off = attr_intern(page_buf + t_start, raw_len);
                     if (off >= 0) {
@@ -402,7 +402,7 @@ int is_block_tag(int tag) {
      * (it's not == T_P and wasn't classified as a block before this
      * fix), pop body, and reparent every following element under root.
      * Sibling combinators (h2 + p, h2 ~ p.note) silently fail because
-     * the p ends up as a sibling of body, not a child of body. */
+     * the p ends up as a sibling of body, not a child of body.*/
     return tag == T_P || tag == T_DIV || tag == T_H1 || tag == T_H2 ||
            tag == T_H3 || tag == T_H4 || tag == T_H5 || tag == T_H6 ||
            tag == T_UL || tag == T_OL || tag == T_LI || tag == T_PRE ||
@@ -424,7 +424,7 @@ int is_list_container(int tag) {
  * Note: attr_pool_pos is NOT reset here because tokenize() has already
  * interned attr names/values into attr_pool; resetting would invalidate
  * those offsets. Whole-page reset of attr_pool_pos happens in error_page()
- * and per-navigation in navigate() before tokenize() starts. */
+ * and per-navigation in navigate() before tokenize() starts.*/
 void parse_html(int html_len) {
     tokenize(html_len);
     serial_printf("[browser] tokenize: %d tokens, %d attr-pairs\n",
@@ -438,7 +438,7 @@ void parse_html(int html_len) {
     css_not_count = 0;
     /* Reset pseudo-element generated-content slots for every potential
      * DOM index. Cheaper than resetting only the entries actually used
-     * (which would require a separate "first N" counter). */
+     * (which would require a separate "first N" counter).*/
     for (int k = 0; k < 4096; k = k + 1) {
         n_pseudo_before_off[k] = -1;
         n_pseudo_before_len[k] = 0;
@@ -464,7 +464,7 @@ void parse_html(int html_len) {
     /* Implicit <body> tracking. Tag-soup pages frequently omit
      * <html>/<head>/<body>; when body-flow content arrives at the
      * document root with no <body> in scope, we auto-create one so
-     * author `body { ... }` rules can match. */
+     * author `body { ... }` rules can match.*/
     int body_implicit = -1;
 
     int IM_INITIAL = 0;
@@ -514,7 +514,7 @@ void parse_html(int html_len) {
             /* In <table> outside cells, foster-parent non-whitespace text:
              * insert as the previous sibling of the table. Per HTML5 spec
              * §13.2.6.5, stray inline content inside a table doesn't belong
-             * inside any cell; it belongs *before* the table in its parent. */
+             * inside any cell; it belongs *before* the table in its parent.*/
             if (mode == IM_IN_TABLE && !ws_only) {
                 int table_idx = -1;
                 for (int k = sp - 1; k >= 1; k = k - 1) {
@@ -534,7 +534,7 @@ void parse_html(int html_len) {
              * space text node. Real browsers preserve a single visible space
              * between adjacent inline elements (e.g. `<a>x</a> <a>y</a>` must
              * render as "x y"), and render_tree.cc drops these synthetic
-             * spaces when the parent has block-level siblings. */
+             * spaces when the parent has block-level siblings.*/
             if (ws_only) {
                 int parent_tag = (parent >= 0) ? n_tag[parent] : -1;
                 if (parent_tag != T_PRE && parent_tag != T_CODE &&
@@ -557,7 +557,7 @@ void parse_html(int html_len) {
                 title_buf[copy] = 0;
             }
             /* §2 author CSS: feed text inside <style> into the rule table
-             * and drop the text node - CSS does not render. */
+             * and drop the text node - CSS does not render.*/
             if (parent_tag == T_STYLE) {
                 css_parse_block(attr_pool + text_off, text_len);
                 continue;
@@ -566,7 +566,7 @@ void parse_html(int html_len) {
              * the DOM and render tree are built (DOMContentLoaded-ish
              * semantics). The text node itself is dropped from the DOM
              * via display:none on T_SCRIPT, but we must not emit it as
-             * visible text either. */
+             * visible text either.*/
             if (parent_tag == T_SCRIPT) {
                 js_queue_script(text_off, text_len);
                 continue;
@@ -584,7 +584,7 @@ void parse_html(int html_len) {
              * script, etc.) and html/head/body themselves don't trigger;
              * they keep the existing structure. Once body_implicit is set,
              * subsequent body content nests inside it via the regular
-             * stack mechanism. */
+             * stack mechanism.*/
             if (body_implicit < 0 &&
                 tag != T_HTML && tag != T_HEAD && tag != T_TITLE &&
                 tag != T_STYLE && tag != T_SCRIPT && tag != T_NOSCRIPT &&
@@ -674,7 +674,7 @@ void parse_html(int html_len) {
 
             /* (link registration is layout's job - see register_link in
              * layout.cc; layout resets links_count and rebuilds during
-             * each pass.) */
+             * each pass.)*/
 
             /* register forms */
             if (tag == T_FORM && forms_count < MAX_FORMS) {
@@ -686,7 +686,7 @@ void parse_html(int html_len) {
 
             /* register inputs (text-like only - submit/button/hidden are not
              * part of the editable inputs[] table, but their DOM node is
-             * still kept so layout can render them). */
+             * still kept so layout can render them).*/
             if (tag == T_INPUT) {
                 char *type_s = dom_attr_str(n, "type");
                 int is_text = 1;
@@ -745,7 +745,7 @@ void parse_html(int html_len) {
              * keeps i open, with subsequent content wrapped in a fresh i.
              * We capture the tags above the match, pop to it, then re-open
              * each captured tag as a new sibling under the new top. Limited
-             * to 8 saved tags - deeper formatting nests fall through. */
+             * to 8 saved tags - deeper formatting nests fall through.*/
             int saved[8];
             int n_saved = 0;
             for (int k = found + 1; k < sp && n_saved < 8; k = k + 1) {
@@ -779,7 +779,7 @@ void parse_html(int html_len) {
 
     /* §2.x Fetch external <link rel=stylesheet> sheets BEFORE the cascade
      * runs so their rules participate in style resolution. Defined in
-     * nav.cc; CupidC resolves the forward reference at JIT time. */
+     * nav.cc; CupidC resolves the forward reference at JIT time.*/
     fetch_external_stylesheets();
 
     populate_sibling_caches();
@@ -793,7 +793,7 @@ void parse_html(int html_len) {
      * and render tree exist. js_install_globals() exposes window /
      * document / document.body / document.getElementById. After all
      * scripts run, if any of them set dom_dirty, re-run style + layout
-     * once so visible state reflects the mutation (one reflow per task). */
+     * once so visible state reflects the mutation (one reflow per task).*/
     if (js_script_count > 0) {
         serial_printf("[browser] js: running %d queued scripts\n", js_script_count);
         js_install_globals();

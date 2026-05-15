@@ -1,4 +1,4 @@
-//help: P6 Phase-4 sanity — exercises new networking + driver bindings
+//help: P6 Phase-4 sanity - exercises new networking + driver bindings
 //help: Usage: feature23_full_access
 
 U0 Main() {
@@ -55,7 +55,7 @@ U0 Main() {
     nblk = blkdev_count();
     serial_printf("[feature23] blkdev_count=%d\n", nblk);
 
-    /* Concurrency primitives — lock/unlock smoke (must not deadlock) */
+    /* Concurrency primitives - lock/unlock smoke (must not deadlock) */
     bkl_lock();
     bkl_unlock();
 

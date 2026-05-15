@@ -1,4 +1,4 @@
-/* ---------- URL parsing ---------- */
+/* URL parsing */
 
 int parse_url(char *url, char *host, int *port_out, char *path,
               int *is_https_out) {

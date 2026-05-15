@@ -54,11 +54,11 @@ void compute_url_relative(char *rel, char *out, int max) {
  *
  * Net globals (cur_host/cur_port/cur_path/cur_is_https/cur_url/page_buf/
  * page_len) are saved on entry and restored on exit so the outer
- * navigate() resumes against the original document URL. */
+ * navigate() resumes against the original document URL.*/
 void fetch_external_stylesheets(void) {
     int link_count = 0;
     /* Pre-scan: count and short-circuit if no candidates so the save/restore
-     * dance and serial spam stay off the hot path. */
+     * dance and serial spam stay off the hot path.*/
     for (int n = 0; n < nodes_count; n = n + 1) {
         if (n_tag[n] != T_LINK) continue;
         char *rel = dom_attr_str(n, "rel");
@@ -104,7 +104,7 @@ void fetch_external_stylesheets(void) {
 
     /* Restore. page_buf contents are no longer needed by anything (text was
      * interned during tree-build), so we don't bother to repopulate it -
-     * only the metadata globals matter. */
+     * only the metadata globals matter.*/
     b_strcpy_n(cur_host, saved_host, 256);
     b_strcpy_n(cur_path, saved_path, 1024);
     b_strcpy_n(cur_url,  saved_url,  1024);
@@ -117,7 +117,7 @@ void about_dump() {
     /* Stream the current render tree and per-node computed-style summary
      * to the serial port. Useful for `about:dump` and the Ctrl-D shortcut.
      * The output appears in the host's serial log; the visible page is
-     * not affected. */
+     * not affected.*/
     serial_printf("[browser] === about:dump ===\n");
     serial_printf("[browser] %d DOM nodes, %d RT nodes, %d CSS rules\n",
                   nodes_count, rt_count, css_rule_count);
@@ -129,7 +129,7 @@ void about_dump() {
 void navigate(char *u) {
     /* about:dump - dump the previous page's render tree and per-node
      * computed style to serial; do not actually fetch anything. The
-     * status bar reports completion. */
+     * status bar reports completion.*/
     if (b_strieq_n(u, "about:dump", 10)) {
         about_dump();
         b_strcpy_n(status_msg, "about:dump - serial log written", 256);
@@ -150,7 +150,7 @@ void navigate(char *u) {
     /* push history. Back/forward set nav_no_push so they don't grow
      * the trail when revisiting old entries.  A normal navigation
      * truncates any forward history past hist_pos before adding the
-     * new entry. Same as Chrome / Firefox behaviour. */
+     * new entry. Same as Chrome / Firefox behaviour.*/
     if (!nav_no_push) {
         if (hist_pos < hist_count) hist_count = hist_pos;
         if (hist_count < HIST_MAX) {
@@ -173,14 +173,14 @@ void navigate(char *u) {
     nav_no_push = 0;
     /* Reset persistent string pool BEFORE parse_html runs. The tree
      * builder used to do this internally, but now tokenize() interns into
-     * attr_pool, so we must reset before tokenize starts. */
+     * attr_pool, so we must reset before tokenize starts.*/
     attr_pool_pos = 1;
     js_reset_per_page();
     /* Per-page eviction: free webfont blobs and decoded image buffers
      * before parsing the new document. font_face_init now unregisters
      * each kernel face_id and kfrees the heap blob; image_evict_all
      * walks the previous DOM and gfx2d_image_free's every cached
-     * handle. Without this, heap usage climbs across navigations. */
+     * handle. Without this, heap usage climbs across navigations.*/
     image_evict_all();
     font_face_init();
     image_queue_init();
@@ -218,7 +218,7 @@ void go_forward() {
  * Takes a DOM node index pointing at the <form> element. Walks the form's
  * descendant subtree via n_first_child/n_next, collects every <input> with
  * a name attribute, URL-encodes name=value pairs, and navigates to
- * action?query (action defaults to the current URL when absent). */
+ * action?query (action defaults to the current URL when absent).*/
 void submit_form(int form_node_idx) {
     if (form_node_idx < 0 || form_node_idx >= nodes_count) return;
     if (n_tag[form_node_idx] != T_FORM) return;

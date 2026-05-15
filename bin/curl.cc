@@ -43,7 +43,7 @@ void cstrcpy(char *d, char *s, int max) {
 }
 
 /* Returns: 0 on success, -1 on bad URL.
- * Sets *is_https_out to 1 for https:// (default port 443) or 0 for http://. */
+ * Sets *is_https_out to 1 for https:// (default port 443) or 0 for http://.*/
 int parse_url(char *url, char *host, int *port_out, char *path,
               int *is_https_out) {
     int i = 0;
@@ -99,7 +99,7 @@ int sw_ci(char *s, char *p) {
 /* Resolve a Location header value against the current host.
  * Handles absolute URLs (http://, https://) and absolute paths (/foo)
  * by reusing the current host + port + scheme.
- * Returns 0 on success, -1 on parse error. */
+ * Returns 0 on success, -1 on parse error.*/
 int resolve_redirect(char *location, char *cur_host, int cur_port,
                      int cur_is_https, char *out_url, int max) {
     if (sw_ci(location, "http://") || sw_ci(location, "https://")) {
@@ -178,7 +178,7 @@ int build_request(char *buf, char *method, char *path, char *host,
 }
 
 /* Tokeniser that respects "quoted strings" (no escape sequences).
- * Returns next position after the token, or -1 if no token. Sets out. */
+ * Returns next position after the token, or -1 if no token. Sets out.*/
 int next_token(char *s, int pos, char *out, int max) {
     int i = pos;
     while (s[i] == ' ' || s[i] == '\t') i = i + 1;
@@ -340,7 +340,7 @@ void main() {
         char location[1024]; location[0] = 0;
         int loc_len = 0;
         /* Per-line header capture: buffer the current header line so we
-         * can match "Location:" case-insensitively at line end. */
+         * can match "Location:" case-insensitively at line end.*/
         char line[1024]; int line_len = 0;
 
         while (1) {
@@ -366,7 +366,7 @@ void main() {
 
                     /* Location header capture. */
                     if (b == '\n') {
-                        /* End of header line — check Location: */
+                        /* End of header line - check Location: */
                         if (line_len > 9 && sw_ci(line, "location:")) {
                             int li = 9;
                             while (li < line_len && (line[li] == ' ' || line[li] == '\t')) li = li + 1;

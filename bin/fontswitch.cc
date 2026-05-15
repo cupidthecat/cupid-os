@@ -6,7 +6,7 @@
  * so the choice survives reboot. ESC key (or window close) exits.
  *
  * Models on bin/paint.cc for the gfx2d_app_toolbar / mouse-click loop
- * and bin/gfxgui_test.cc for fullscreen entry. */
+ * and bin/gfxgui_test.cc for fullscreen entry.*/
 
 int g_face_count = 0;
 int g_sel_index  = 0;       /* index into the on-screen list */
@@ -43,7 +43,7 @@ int hit(int mx, int my, int x, int y, int w, int h) {
   return 1;
 }
 
-/* Number of rows shown — TTF faces + 1 bitmap sentinel. */
+/* Number of rows shown - TTF faces + 1 bitmap sentinel. */
 int total_rows() {
   return g_face_count + 1;
 }
@@ -107,7 +107,7 @@ void draw_preview(int tick) {
 
   /* Temporarily flip the OS default so gfx2d_text honors the previewed
    * face/size, then restore. Single code path: face>=0 routes through
-   * the TTF gate inside gfx2d_text, face=-1 falls to the bitmap path. */
+   * the TTF gate inside gfx2d_text, face=-1 falls to the bitmap path.*/
   int saved_face = fontsys_get_os_default_face();
   int saved_size = fontsys_get_os_default_size();
   fontsys_set_os_default(face, g_sel_size);

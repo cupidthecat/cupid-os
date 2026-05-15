@@ -6,7 +6,7 @@ int viewport_y() { return ADDR_H + 1; }
  * status bar (bottom, STATUS_H + 1px hairline). The extra 1px on each
  * side keeps glyph descenders from the last visible line bleeding
  * across the status-bar fill, which the user reported as the quote
- * line overlapping the bottom chrome on d1_selectors_v2. */
+ * line overlapping the bottom chrome on d1_selectors_v2.*/
 int viewport_h() {
     int h = cur_ch - (ADDR_H + 1) - (STATUS_H + 1);
     if (h < 60) h = 60;
@@ -17,12 +17,12 @@ int viewport_h() {
  * Decoration order matches Blink BoxPainter::paintBoxDecorationBackground:
  *   shadow (offset blits) -> background (rounded if border-radius) ->
  *   border (mitered to corners). Reference:
- *   blink/Source/core/paint/BoxPainter.cpp. */
+ *   blink/Source/core/paint/BoxPainter.cpp.*/
 
 /* Clip stack for `overflow: hidden`. gfx2d_clip_set replaces (no native
  * push/pop), so we mirror the rect history in userland. The viewport-wide
  * clip from render() lives at index 0 and never pops; nested clips push on
- * entry to an OVERFLOW_HIDDEN node and pop on exit. */
+ * entry to an OVERFLOW_HIDDEN node and pop on exit.*/
 int paint_clip_x[16];
 int paint_clip_y[16];
 int paint_clip_w[16];
@@ -37,7 +37,7 @@ void paint_clip_init(int x, int y, int w, int h) {
 }
 
 /* Intersect (x,y,w,h) with the current top of stack and push the result.
- * gfx2d_clip_set is replaced with the intersection. */
+ * gfx2d_clip_set is replaced with the intersection.*/
 void paint_clip_push(int x, int y, int w, int h) {
     if (paint_clip_top + 1 >= 16) return;
     int px = paint_clip_x[paint_clip_top];
@@ -72,9 +72,9 @@ int rt_screen_x(int n) {
      * origin. rt_is_oof nodes hold absolute document-space coords (set
      * by layout_oof_one); paint stops summing the moment it crosses
      * one. `position: relative` adds cs_left as a paint-time offset
-     * without reflowing (CSS 2.1 §9.4.3) — restricted to nodes with
+     * without reflowing (CSS 2.1 §9.4.3) - restricted to nodes with
      * a real DOM origin so anonymous wrappers and line boxes that
-     * share the relative element's cs don't double-apply the shift. */
+     * share the relative element's cs don't double-apply the shift.*/
     int x = 0;
     int cur = n;
     while (cur >= 0) {
@@ -100,7 +100,7 @@ int rt_screen_y(int n) {
     int y = 0;
     int cur = n;
     /* Track whether the chain passes through a fixed ancestor; if so,
-     * paint ignores scroll_y so a top:0 fixed nav bar sticks. */
+     * paint ignores scroll_y so a top:0 fixed nav bar sticks.*/
     int fixed_anchor = 0;
     while (cur >= 0) {
         y += rt_y[cur];
@@ -125,7 +125,7 @@ int rt_screen_y(int n) {
 
 /* Box decoration (shadow + bg + border). Split out from paint_rt_node so
  * border-radius and box-shadow live in one place; matches the structure of
- * Blink's BoxPainter::paintBoxDecorationBackground. */
+ * Blink's BoxPainter::paintBoxDecorationBackground.*/
 void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     int kind = rt_kind[n];
     int cs = rt_style[n];
@@ -141,7 +141,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
     if (radius < 0) radius = 0;
 
     /* 1. Box-shadow (no blur, no spread). One offset rect underneath the
-     * box, rounded to match if a radius is set. */
+     * box, rounded to match if a radius is set.*/
     if (cs_shadow_has[cs]) {
         int dx = cs_shadow_dx[cs];
         int dy = cs_shadow_dy[cs];
@@ -160,7 +160,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
      *
      * Linear-gradient (cardinal-direction, 2-stop) takes priority over the
      * solid bg color. Reference: blink/Source/core/css/CSSGradientValue.cpp
-     * + RoundedRect clip in BoxPainterBase::paintFillLayer. */
+     * + RoundedRect clip in BoxPainterBase::paintFillLayer.*/
     int bg = cs_bg[cs];
     int suppress_bg = 0;
     if (doc_bg_suppress_body && rt_dom[n] >= 0 &&
@@ -201,7 +201,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
      *   - cs_bg_repeat decides whether to draw a single tile or repeat
      *     across the box on each axis.
      * Reference: blink/Source/core/paint/BackgroundImageGeometry.cpp
-     * (calculateFillTileSize + calculateTilePhase). */
+     * (calculateFillTileSize + calculateTilePhase).*/
     int bgh = cs_bg_handle[cs];
     int iw = cs_bg_intrinsic_w[cs];
     int ih = cs_bg_intrinsic_h[cs];
@@ -281,7 +281,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
          * element's border box. Without this clip, `cover` (which scales
          * one axis past the box on purpose) bleeds across adjacent
          * elements. Reference: blink/Source/core/paint/BoxPainterBase.cpp
-         * (clipBox + paintFillLayer's BackgroundClip handling). */
+         * (clipBox + paintFillLayer's BackgroundClip handling).*/
         paint_clip_push(sx, sy, w, h);
         int ti;
         int tj;
@@ -299,7 +299,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
      * cs_border[cs][0..3] (top/right/bottom/left). With a non-zero
      * radius the rounded outline replaces the four-sided rect-fill.
      * Reference: blink/Source/core/paint/BoxPainterBase.cpp
-     * (paintBorderForRect) sums per-side widths into the rect strip. */
+     * (paintBorderForRect) sums per-side widths into the rect strip.*/
     int bw_t = cs_border[cs][0];
     int bw_r = cs_border[cs][1];
     int bw_b = cs_border[cs][2];
@@ -310,7 +310,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
         int style = cs_border_style[cs];
         if (radius > 0) {
             /* Rounded outline always solid 1px for now. Wider rounded
-             * borders need a thickness sweep along the rounded path. */
+             * borders need a thickness sweep along the rounded path.*/
             gfx2d_rect_round(sx, sy, w, h, radius, bc);
         } else if (style == BS_DASHED || style == BS_DOTTED) {
             int dash = (style == BS_DASHED) ? 4 : 1;
@@ -352,7 +352,7 @@ void paint_rt_box_decoration(int n, int sx, int sy, int w, int h) {
 }
 
 /* Foreground content (text / replaced / marker / line box). Matches the
- * Blink foreground paint pass. */
+ * Blink foreground paint pass.*/
 void paint_rt_content(int n, int sx, int sy) {
     int kind = rt_kind[n];
     if (kind == RT_TEXT) {
@@ -384,7 +384,7 @@ void paint_rt_node(int n) {
     /* Push a clip rect for overflow:hidden so descendant paints are
      * trimmed to the content area. Match Blink's RenderLayer clip-rect
      * behaviour for non-stacking-context overflow clip: clip to the
-     * border box (we don't yet inset by border width). */
+     * border box (we don't yet inset by border width).*/
     int clip_pushed = 0;
     if (cs_overflow[cs] == OVERFLOW_HIDDEN) {
         paint_clip_push(sx, sy, w, h);
@@ -404,7 +404,7 @@ void paint_rt_node(int n) {
      * (e.g. clear:left div) would cover an earlier sibling float in
      * source-order paint. Reference:
      * blink/Source/core/paint/PaintLayerPainter.cpp ordering of
-     * paintBackgroundForFragments / paintFloats / paintForeground. */
+     * paintBackgroundForFragments / paintFloats / paintForeground.*/
     int c = rt_first_child[n];
     while (c >= 0) {
         int ck = rt_kind[c];
@@ -414,7 +414,7 @@ void paint_rt_node(int n) {
          * them here and let LINE_BOX paint walk the atom slice. But a
          * BLOCK-level RT_REPLACED (e.g. <img display:block>) lays out
          * as its own block child rather than going into a line box, so
-         * paint it directly. */
+         * paint it directly.*/
         int is_inline_atom_kind = (ck == RT_INLINE || ck == RT_TEXT ||
                                    ck == RT_INLINE_BLOCK ||
                                    (ck == RT_REPLACED &&
@@ -425,7 +425,7 @@ void paint_rt_node(int n) {
         /* Out-of-flow positioned children paint in a separate z-index-
          * ordered pass at the document root after the in-flow walk; skip
          * them here. Reference: blink/Source/core/paint/PaintLayerPainter
-         * paintLayerWithEffects + sortByZOrder. */
+         * paintLayerWithEffects + sortByZOrder.*/
         if (rt_is_stack[c]) {
             c = rt_next[c]; continue;
         }
@@ -500,7 +500,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
      * content width (rightmost atom's la_x + width) and shift every
      * atom by (line_w - content_w) or its half. CSS 2.1 §16.2.
      * Reference: blink/Source/core/rendering/RenderBlockLineLayout.cpp
-     * (computeInlineDirectionPositionsForLine + setInlineBoxesAlignment). */
+     * (computeInlineDirectionPositionsForLine + setInlineBoxesAlignment).*/
     int line_cs = rt_style[n];
     int align = cs_text_align[line_cs];
     int align_shift = 0;
@@ -524,7 +524,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
         /* Center glyph vertically in the line box: line_h is taller than the
          * glyph (1.5x), so put the glyph on the visual midline rather than
          * jammed against the top. Bias one px upward so the cap height feels
-         * baseline-anchored. */
+         * baseline-anchored.*/
         int glyph_h = (tier >= 3) ? 16 : 8;
         int ay = sy + (rt_h[n] - glyph_h) / 2;
         if (la_text_off[k] < 0) {
@@ -536,7 +536,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
              * from the intrinsic stash; render_tree.cc sets these for
              * <input>, <img>, <button> and rt_alloc zeroes rt_w/h for
              * everything else, so paint_rt_replaced was drawing 0x0
-             * invisible boxes (input row "missing or clipped" bug). */
+             * invisible boxes (input row "missing or clipped" bug).*/
             int rt_n = -la_text_off[k] - 1;
             rt_x[rt_n] = sx + la_x[k] + align_shift - rt_screen_x(rt_parent[rt_n]);
             rt_y[rt_n] = sy - rt_screen_y(rt_parent[rt_n]);
@@ -559,7 +559,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
         int size_px = la_size_px[k];
         if (face >= 0 && size_px > 0) {
             /* Place baseline so the glyph sits inside the line box with
-             * roughly correct ascent above and descent below. */
+             * roughly correct ascent above and descent below.*/
             int asc = fontsys_ascent(face, size_px);
             int line_full = fontsys_line_height(face, size_px);
             int extra = line_h - line_full;
@@ -569,7 +569,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
              * Without this, Google Fonts' Latin-only subset would draw
              * Cyrillic / Greek text from the wrong face (or .notdef
              * boxes). The sub-run grouping keeps the draw call count
-             * low for ASCII-only runs. */
+             * low for ASCII-only runs.*/
             int x_cur = ax;
             int p = 0;
             int cs_atom = la_cs[k];
@@ -578,7 +578,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
              * non-trivial (font_face_match_cp walks the family list,
              * fontsys_match scans every registered face). The cache
              * keys on (cs, cp) since neighbouring codepoints almost
-             * always share the same face for the same atom. */
+             * always share the same face for the same atom.*/
             int last_cp_face_cp = -2;
             int last_cp_face = -1;
             while (p < len) {
@@ -605,7 +605,7 @@ void paint_rt_line_box(int n, int sx, int sy) {
                  * for codepoints we recognise; everything else falls
                  * through to fontsys_draw_run_styled which paints
                  * .notdef. Match the synth set against the cp first to
-                 * avoid an extra cmap probe per ASCII char. */
+                 * avoid an extra cmap probe per ASCII char.*/
                 if (cp == 0x2603) {
                     if (!fontsys_face_has_cp(sub_face, cp)) {
                         int s = size_px;
@@ -721,7 +721,7 @@ void paint_rt_replaced(int n, int sx, int sy) {
          * side that has a border so we don't paint over the stroke and
          * black-hole the control. Without this, `input[type="checkbox"]
          * { border: 2px solid #c00 }` came back invisible since the white
-         * fill covered the red stroke. */
+         * fill covered the red stroke.*/
         int inset = border_set ? 1 : 0;
         if (is_check || is_radio) {
             int iw = rt_w[n] - 2 * inset;
@@ -764,7 +764,7 @@ void paint_rt_replaced(int n, int sx, int sy) {
                           ii == focused_input);
         if (is_focused) {
             /* Focus ring outside the existing border so it doesn't fight
-             * the author's red border. Single-pixel inset blue. */
+             * the author's red border. Single-pixel inset blue.*/
             gfx2d_rect_fill(sx + 1, sy + 1, rt_w[n] - 2, 1, 0x0066CC);
             gfx2d_rect_fill(sx + 1, sy + rt_h[n] - 2, rt_w[n] - 2, 1, 0x0066CC);
             gfx2d_rect_fill(sx + 1, sy + 1, 1, rt_h[n] - 2, 0x0066CC);
@@ -777,7 +777,7 @@ void paint_rt_replaced(int n, int sx, int sy) {
             gfx2d_text(tx, ty, iv, 0x000000, 0);
             if (is_focused) {
                 /* Caret at end of text. Width measured via gfx2d so it
-                 * tracks bitmap-font advance. */
+                 * tracks bitmap-font advance.*/
                 int tw = gfx2d_text_width(iv, 0);
                 int cx = tx + tw;
                 gfx2d_rect_fill(cx, ty, 1, 10, 0x000000);
@@ -816,7 +816,7 @@ void paint_rt_marker(int n, int sx, int sy) {
      * border-box left, sy = li border-box top; the first line box is
      * laid out at li padding-top, which is 0 in our UA defaults, so
      * sy IS the first line top. Baseline = sy + ascent (matching the
-     * formula in paint_rt_line_box). */
+     * formula in paint_rt_line_box).*/
     char *glyph = "\xE2\x80\xA2";
     int glyph_len = 3;
     if (ls == LS_DISC)        glyph = "\xE2\x80\xA2";  /* • */
@@ -846,7 +846,7 @@ void paint_rt_marker(int n, int sx, int sy) {
          * The 6px gutter mirrors what real browsers leave between
          * marker glyph and text (Blink: ListMarkerPainter.cpp uses an
          * em-relative offset; 6px is a fixed-pixel approximation that
-         * looks right for body-sized fonts). */
+         * looks right for body-sized fonts).*/
         fontsys_draw_run_styled(face, size_px,
                                 sx - gw - 6, sy + asc,
                                 glyph, glyph_len,
@@ -865,7 +865,7 @@ void draw_address_bar(int sx, int sy, int sw) {
     /* Back/forward buttons. 22x20 each, vertically centered in the
      * 28-tall toolbar with 4 px clear top and bottom; left edge
      * starts at x+6 with a 4 px gap between them.  Click hit-test in
-     * input.cc:handle_left_click matches these coordinates. */
+     * input.cc:handle_left_click matches these coordinates.*/
     int btn_w = 22;
     int btn_h = 20;
     int btn_y = sy + (ADDR_H - btn_h) / 2;        /* 4 */
@@ -875,7 +875,7 @@ void draw_address_bar(int sx, int sy, int sw) {
     int fwd_enabled  = (hist_pos < hist_count);
     /* Active fill is darker, disabled fill matches toolbar bg so the
      * button reads as flat.  Stroke contrast keeps disabled arrows
-     * readable but muted (was 0xC0C0C0, invisible against 0xF0F0F0). */
+     * readable but muted (was 0xC0C0C0, invisible against 0xF0F0F0).*/
     int back_fill = back_enabled ? 0xFFFFFF : 0xE8E8E8;
     int fwd_fill  = fwd_enabled  ? 0xFFFFFF : 0xE8E8E8;
     int back_stroke = back_enabled ? 0x202020 : 0x808080;
@@ -884,7 +884,7 @@ void draw_address_bar(int sx, int sy, int sw) {
     gfx2d_rect_fill(back_x, btn_y, btn_w, btn_h, back_fill);
     gfx2d_rect_fill(fwd_x,  btn_y, btn_w, btn_h, fwd_fill);
     /* Centered glyph: "<" / ">" at NORMAL (8x8). Inset to put the
-     * baseline visually centered inside a 20-tall button. */
+     * baseline visually centered inside a 20-tall button.*/
     int glyph_x_back = back_x + (btn_w - 8) / 2;
     int glyph_x_fwd  = fwd_x  + (btn_w - 8) / 2;
     int glyph_y      = btn_y + (btn_h - 8) / 2;
@@ -901,7 +901,7 @@ void draw_address_bar(int sx, int sy, int sw) {
     gfx2d_rect_fill(fwd_x + btn_w - 1, btn_y, 1, btn_h, border_color);
 
     /* URL label + value baseline-aligned with the button text:
-     *   text height 8 → top = sy + (ADDR_H - 8)/2 = 10. */
+     *   text height 8 → top = sy + (ADDR_H - 8)/2 = 10.*/
     int label_x = fwd_x + btn_w + 8;              /* 64 */
     int text_y  = sy + (ADDR_H - 8) / 2;
     gfx2d_text(label_x, text_y, "URL:", 0x404040, 0);
@@ -955,7 +955,7 @@ void draw_scrollbar(int sx, int sy) {
  * set doc_bg_suppress_body so paint_rt_node skips body's own bg paint -
  * otherwise body would paint a second, smaller (margin-inset) rect of
  * the same color, which is wrong if html bg is later set or if the body
- * has a non-default border. */
+ * has a non-default border.*/
 int document_bg() {
     int html_bg = -1;
     int body_bg = -1;
@@ -975,7 +975,7 @@ void render() {
     /* Drawing inside begin_paint targets the window's offscreen surface
      * which has its own (0,0) origin; do NOT use gui_win_content_x/y
      * here.  Mouse handlers translate screen coords back to surface coords
-     * separately. */
+     * separately.*/
     int cx = 0;
     int cy = 0;
 
@@ -984,7 +984,7 @@ void render() {
 
     /* Document background: html bg, then body bg, then white. Filled across
      * the full web viewport so a centered body still sits over its
-     * propagated page color (CSS canvas-painting rule). */
+     * propagated page color (CSS canvas-painting rule).*/
     int doc_color = document_bg();
     gfx2d_rect_fill(cx + viewport_x(), cy + viewport_y(),
                     cur_cw, viewport_h(), doc_color);
@@ -994,7 +994,7 @@ void render() {
 
     /* viewport (clipped) - paint the render tree into the content area.
      * paint_clip_init seeds the userland clip stack so OVERFLOW_HIDDEN
-     * pushes intersect with the viewport rect. */
+     * pushes intersect with the viewport rect.*/
     int vx = cx + viewport_x();
     int vy = cy + viewport_y();
     paint_clip_init(vx, vy, cur_cw - 12, viewport_h());
@@ -1007,7 +1007,7 @@ void render() {
      * list each render-tree pass so the mutation never leaks across
      * frames. Reference:
      * blink/Source/core/paint/PaintLayerStackingNode.cpp
-     * PaintLayerStackingNode::dirtyZOrderLists + sort by z-index. */
+     * PaintLayerStackingNode::dirtyZOrderLists + sort by z-index.*/
     int oof_n = rt_oof_count;
     int oi;
     for (oi = 1; oi < oof_n; oi = oi + 1) {

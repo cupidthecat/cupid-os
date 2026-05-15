@@ -15,7 +15,7 @@
  * Limits: 128 slots per page (covers Google Fonts subsetted families),
  * 3 fallback URLs per slot (covers `src: url(.woff2), url(.woff),
  * url(.ttf)` style declarations), 8 unicode-range tokens per slot, 1 MiB
- * per blob. Same-origin / CORS ignored (single-user OS). */
+ * per blob. Same-origin / CORS ignored (single-user OS).*/
 
 /* State enum. */
 enum {
@@ -27,11 +27,11 @@ enum {
 
 /* Storage. Static arrays so allocator pressure stays bounded and slots
  * survive across repaints. cupidc requires literal sizes; FF_MAX_SLOTS
- * is documented as 128 / FF_MAX_URLS as 3 / FF_MAX_RANGES as 8. */
+ * is documented as 128 / FF_MAX_URLS as 3 / FF_MAX_RANGES as 8.*/
 
 int  ff_count;
 int  ff_state_dirty;     /* 1 when a slot transitioned PENDING -> LOADED
-                          * since the last font_face_state_clear */
+                          * since the last font_face_state_clear*/
 
 char ff_family[128][64];
 int  ff_family_len[128];
@@ -49,12 +49,12 @@ int  ff_state   [128];
 /* Blob storage is heap-allocated via kmalloc when a font arrives, NOT a
  * static array. CupidC data section is capped at 4 MiB and the rest of
  * the browser globals (page_buf, attr_pool, cs/rt/la pools) already eat
- * most of it. Per-page eviction frees these on navigate. */
+ * most of it. Per-page eviction frees these on navigate.*/
 char *ff_blob_ptr[128];
 int   ff_blob_len[128];
 
 /* unicode-range descriptor storage. count == 0 means "covers all
- * codepoints" (the default when no unicode-range descriptor was given). */
+ * codepoints" (the default when no unicode-range descriptor was given).*/
 int  ff_range_count[128];
 int  ff_range_lo[128][8];
 int  ff_range_hi[128][8];
@@ -66,7 +66,7 @@ int  ff_diag_skipped;
 
 void font_face_init(void) {
     /* Free per-page heap blobs and unregister kernel faces. Single-threaded
-     * and paint-quiescent at navigate time, so no refcount needed. */
+     * and paint-quiescent at navigate time, so no refcount needed.*/
     for (int i = 0; i < ff_count; i = i + 1) {
         if (ff_face_id[i] >= 0) fontsys_unregister(ff_face_id[i]);
         if (ff_blob_ptr[i]) {
@@ -116,7 +116,7 @@ int ff_ieq_n(char *a, int al, char *b, int bl) {
 
 /* Strip a single pair of '...' or "..." surrounding the family name
  * (CSS allows quoted family identifiers). Operates on (off, len) -> updates
- * out_off and out_len. */
+ * out_off and out_len.*/
 void ff_strip_quotes(char *s, int len, int *out_off, int *out_len) {
     int o = 0;
     int l = len;
@@ -144,7 +144,7 @@ void ff_slot_push_url(int slot, char *u, int ulen) {
 /* Multi-URL + unicode-range registration. Used by css.cc's @font-face
  * walker for `src: url(a.woff2), url(a.woff), url(a.ttf)` and for rules
  * with `unicode-range:` descriptors. range_lo/range_hi may be NULL when
- * n_ranges == 0; in that case the slot covers all codepoints. */
+ * n_ranges == 0; in that case the slot covers all codepoints.*/
 int font_face_add_rule_n(char *family, int family_len,
                          char *url0, int url0_len,
                          char *url1, int url1_len,
@@ -211,7 +211,7 @@ int font_face_add_rule_n(char *family, int family_len,
 }
 
 /* Single-URL convenience wrapper; preserves the old call site shape from
- * css.cc until the multi-URL walker lands. */
+ * css.cc until the multi-URL walker lands.*/
 int font_face_add_rule(char *family, int family_len,
                        char *src_url, int src_url_len,
                        int weight, int italic) {
@@ -225,7 +225,7 @@ int font_face_add_rule(char *family, int family_len,
 /* Try one URL of the slot (the one indexed by ff_url_tried). On success
  * promotes the slot to LOADED and returns 1. On failure, advances
  * ff_url_tried; if more URLs remain returns 1 (PENDING for next pump),
- * otherwise marks slot FAILED and returns 1. */
+ * otherwise marks slot FAILED and returns 1.*/
 int ff_try_one_url(int slot) {
     int idx = ff_url_tried[slot];
     if (idx >= ff_url_count[slot]) {
@@ -247,7 +247,7 @@ int ff_try_one_url(int slot) {
      * for the same pattern). fetch_url writes `HTTP error: 404` etc on
      * non-2xx responses; without this save+restore those errors would
      * end up in the page-level status bar each time a fake @font-face
-     * URL 404s. */
+     * URL 404s.*/
     b_strcpy_n(saved_status, status_msg, 256);
 
     char ct[128]; ct[0] = 0;
@@ -267,7 +267,7 @@ int ff_try_one_url(int slot) {
             /* WOFF1 / WOFF2 magic detect: unwrap to plain sfnt before
              * handing to fontsys. woff1_unwrap / woff2_unwrap return a
              * fresh kmalloc'd buffer (we kfree the wrapper) or NULL on
-             * format unsupported / decode error. */
+             * format unsupported / decode error.*/
             if (copy_len >= 4) {
                 unsigned char m0 = (unsigned char)blob[0];
                 unsigned char m1 = (unsigned char)blob[1];
@@ -343,7 +343,7 @@ int ff_try_one_url(int slot) {
 }
 
 /* Drive ONE pending slot through fetch + register. Returns 1 if any
- * slot was touched, 0 if no PENDING slots remain. */
+ * slot was touched, 0 if no PENDING slots remain.*/
 int ff_advance_one_pending(void) {
     int slot = -1;
     for (int i = 0; i < ff_count; i = i + 1) {
@@ -380,7 +380,7 @@ int ff_advance_one_pending(void) {
  *   - exact match preferred
  *   - else if requested <= 500: try 400 then closest below
  *   - else: try 700 then closest above
- *   - italic: exact preferred, else any */
+ *   - italic: exact preferred, else any*/
 int ff_score_match(int slot_w, int slot_i, int want_w, int want_i) {
     int s = 0;
     int dw = slot_w - want_w;
@@ -391,7 +391,7 @@ int ff_score_match(int slot_w, int slot_i, int want_w, int want_i) {
 }
 
 /* True if codepoint cp falls inside any of slot s's unicode-range
- * intervals. A slot with ff_range_count == 0 covers all codepoints. */
+ * intervals. A slot with ff_range_count == 0 covers all codepoints.*/
 int ff_slot_covers_cp(int s, int cp) {
     int n = ff_range_count[s];
     if (n <= 0) return 1;
@@ -405,7 +405,7 @@ int ff_slot_covers_cp(int s, int cp) {
  * (after quote/whitespace strip) against the registry. If `cp` is >= 0,
  * also require the slot's unicode-range to cover `cp` (slots with a
  * narrower range win against range-less slots when both family-match).
- * Returns the face_id of the best-scoring loaded slot, or -1. */
+ * Returns the face_id of the best-scoring loaded slot, or -1.*/
 int font_face_match_cp(char *family, int family_len,
                        int weight, int italic, int cp) {
     if (family_len <= 0 || ff_count == 0) return -1;
@@ -443,7 +443,7 @@ int font_face_match_cp(char *family, int family_len,
             int sc = ff_score_match(ff_weight[s], ff_italic[s], weight, italic);
             /* Range-having slots beat range-less slots when both match,
              * so Google Fonts' Latin subset wins over a catch-all entry
-             * for ASCII text without skipping the catch-all for Cyrillic. */
+             * for ASCII text without skipping the catch-all for Cyrillic.*/
             if (cp >= 0 && ff_range_count[s] > 0) sc = sc - 50;
             if (sc < best_score) { best_score = sc; best = s; }
         }
@@ -459,7 +459,7 @@ int font_face_match(char *family, int family_len, int weight, int italic) {
 
 /* Drive at most one PENDING slot per call so a single slow font doesn't
  * stall the main loop. Logs an end-of-pass diagnostic when no PENDING
- * slot remains. */
+ * slot remains.*/
 void font_face_pump(void) {
     int worked = ff_advance_one_pending();
     if (worked) return;

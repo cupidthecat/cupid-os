@@ -8,7 +8,7 @@
  * - Root directory only (no subdirectories)
  * - 8.3 filenames only
  * - First partition only
- */
+*/
 
 #include "fat16.h"
 #include "blockcache.h"
@@ -37,7 +37,7 @@ void fat16_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), v
  *
  * @param cluster: Cluster number
  * @return FAT entry value
- */
+*/
 static uint16_t fat16_read_fat_entry(uint16_t cluster) {
     if (cluster < 2) {
         return 0;
@@ -62,7 +62,7 @@ static uint16_t fat16_read_fat_entry(uint16_t cluster) {
  *
  * @param cluster: Cluster number
  * @return LBA sector address
- */
+*/
 static uint32_t fat16_cluster_to_lba(uint16_t cluster) {
     if (cluster < 2) {
         return 0;
@@ -77,7 +77,7 @@ static uint32_t fat16_cluster_to_lba(uint16_t cluster) {
  *
  * @param input: Input filename
  * @param output: Output buffer (11 bytes)
- */
+*/
 static void fat16_filename_to_83(const char* input, char* output) {
     int i;
 
@@ -123,7 +123,7 @@ static void fat16_filename_to_83(const char* input, char* output) {
  * fat16_init - Initialize FAT16 filesystem
  *
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_init(void) {
     // Read MBR
     uint8_t mbr_buffer[512];
@@ -207,7 +207,7 @@ int fat16_is_initialized(void) {
 
 /* Split "dir/file" into dir_out and name_out.
  * Returns 1 if a slash was found, 0 if flat name.
- * Handles only one level of subdirectory. */
+ * Handles only one level of subdirectory.*/
 static int fat16_split_path(const char *path, char *dir_out, char *name_out) {
     int slash = -1;
     int i;
@@ -229,7 +229,7 @@ static int fat16_split_path(const char *path, char *dir_out, char *name_out) {
 }
 
 /* Return the first cluster of a directory named dirname (in the root dir),
- * or 0 if not found. */
+ * or 0 if not found.*/
 static uint16_t fat16_get_dir_cluster(const char *dirname) {
     char name83[11];
     fat16_filename_to_83(dirname, name83);
@@ -259,7 +259,7 @@ static uint16_t fat16_get_dir_cluster(const char *dirname) {
  *
  * @param filename: Filename to open
  * @return File handle or NULL on error
- */
+*/
 fat16_file_t* fat16_open(const char* filename) {
     if (!fat16_initialized) {
         print("No FAT16 filesystem mounted\n");
@@ -373,7 +373,7 @@ fat16_file_t* fat16_open(const char* filename) {
  * @param buffer: Buffer to read into
  * @param count: Number of bytes to read
  * @return Bytes read, or -1 on error
- */
+*/
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
     if (!file || !file->is_open) {
         serial_printf("[fat16_read] ERROR: invalid file handle\n");
@@ -488,7 +488,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
  *
  * @param file: File handle
  * @return 0 on success
- */
+*/
 int fat16_close(fat16_file_t* file) {
     if (!file) {
         return -1;
@@ -499,7 +499,7 @@ int fat16_close(fat16_file_t* file) {
 
 /* ══════════════════════════════════════════════════════════════════════
  *  FAT16 Write Support
- * ══════════════════════════════════════════════════════════════════════ */
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /**
  * fat16_write_fat_entry - Write a FAT table entry
@@ -509,7 +509,7 @@ int fat16_close(fat16_file_t* file) {
  * @param cluster: Cluster number
  * @param value: Value to write
  * @return 0 on success, -1 on error
- */
+*/
 static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
     if (cluster < 2) {
         serial_printf("[fat16_write_fat_entry] ERROR: invalid cluster %u\n", cluster);
@@ -552,7 +552,7 @@ static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
  * and returns the cluster number.
  *
  * @return Cluster number (>= 2) on success, 0 on failure (disk full)
- */
+*/
 static uint16_t fat16_alloc_cluster(void) {
     /* Calculate total data clusters */
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
@@ -582,7 +582,7 @@ static uint16_t fat16_alloc_cluster(void) {
  * Follows the FAT chain and marks each cluster as free.
  *
  * @param cluster: Starting cluster of chain
- */
+*/
 static void fat16_free_chain(uint16_t cluster) {
     while (cluster >= 2 && cluster < FAT16_EOC_MIN &&
            cluster != FAT16_BAD_CLUSTER) {
@@ -602,7 +602,7 @@ static void fat16_free_chain(uint16_t cluster) {
  * @param data: File content buffer
  * @param size: Number of bytes to write
  * @return Bytes written on success, -1 on error
- */
+*/
 int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     serial_printf("[fat16_write_file] START: filename='%s' size=%u\n",
                  filename ? filename : "(null)", size);
@@ -947,7 +947,7 @@ dir_search_done:
         entry->file_size = size;
 
         /* If this was the end-of-directory marker, write a new end marker
-         * in the next slot (if within same sector) */
+         * in the next slot (if within same sector)*/
         if (entries[free_entry_index].filename[0] != (char)0xE5) {
             /* Was a 0x00 entry, need to put a new 0x00 terminator after */
             if (free_entry_index + 1 < 16) {
@@ -985,7 +985,7 @@ dir_search_done:
  *
  * @param filename: 8.3 filename to delete
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_delete_file(const char* filename) {
     if (!fat16_initialized) return -1;
 
@@ -1077,7 +1077,7 @@ int fat16_delete_file(const char* filename) {
  * fat16_is_dir - Check if a name refers to a directory in the root dir
  *
  * @return 1 if it's a directory, 0 if not found or not a dir
- */
+*/
 int fat16_is_dir(const char *dirname) {
     if (!fat16_initialized || !dirname || dirname[0] == '\0') return 0;
 
@@ -1116,7 +1116,7 @@ int fat16_is_dir(const char *dirname) {
  *
  * @param dirname: Directory name (8.3 style)
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_mkdir(const char *dirname) {
     if (!fat16_initialized || !dirname || dirname[0] == '\0') return -1;
 
@@ -1227,7 +1227,7 @@ scan_done:
  * fat16_list_root - List root directory
  *
  * @return Number of files listed
- */
+*/
 int fat16_list_root(void) {
     if (!fat16_initialized) {
         fat16_print("No FAT16 filesystem mounted\n");
@@ -1298,7 +1298,7 @@ int fat16_list_root(void) {
  * @param callback: Function called for each entry
  * @param ctx:      Opaque pointer forwarded to callback
  * @return Number of entries enumerated, or -1 on error
- */
+*/
 int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
     if (!fat16_initialized || !callback) {
         return -1;
@@ -1374,7 +1374,7 @@ int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
  * @param callback: Called per entry
  * @param ctx:      Passed through to callback
  * @return Number of entries enumerated, -1 on error
- */
+*/
 int fat16_enumerate_subdir(const char *dirname,
                            fat16_enum_callback_t callback, void *ctx) {
     if (!fat16_initialized || !dirname || !callback) return -1;

@@ -4,8 +4,8 @@
 /* Exercise the lexer + cc_parse_type qualifier-strip for the new
  * tokens added in M1: long, short, signed, U64/I64/uint64_t/int64_t,
  * extern/inline/register/restrict/goto storage classes, and
- * __attribute__ skipping. None of these need 64-bit codegen yet —
- * the test only confirms parsing accepts them. */
+ * __attribute__ skipping. None of these need 64-bit codegen yet -
+ * the test only confirms parsing accepts them.*/
 
 extern int unused_extern_var;
 inline int square_inline(int x) { return x * x; }
@@ -21,7 +21,7 @@ void main() {
     unsigned int  g = 7;
 
     /* 64-bit aliases: declared but only the low 32 bits are exercised
-     * until full 64-bit codegen lands. */
+     * until full 64-bit codegen lands.*/
     long long      h = 8;
     long long int  i = 9;
     int64_t        j = 10;

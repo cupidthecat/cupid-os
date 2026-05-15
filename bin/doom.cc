@@ -1,4 +1,4 @@
-//help: DOOM — use the shell builtin 'doom' command to launch
+//help: DOOM - use the shell builtin 'doom' command to launch
 //help: Usage: doom [-iwad <path>]
 //help: (This CupidC stub exists so 'ls /bin/' shows DOOM)
 

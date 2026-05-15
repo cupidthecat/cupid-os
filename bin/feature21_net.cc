@@ -1,4 +1,4 @@
-//help: P6 TCP client smoke — DNS + connect + HTTP GET
+//help: P6 TCP client smoke - DNS + connect + HTTP GET
 //help: Usage: feature21_net
 
 U0 Main() {

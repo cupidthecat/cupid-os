@@ -35,9 +35,9 @@ void main() {
         ok = 0;
     }
 
-    /* Test 3: x87 fsin (m32fp — CupidASM has no qword/dword size keyword, so
+    /* Test 3: x87 fsin (m32fp - CupidASM has no qword/dword size keyword, so
      * fld / fstp always emit the D9 base m32fp encoding; use float, not
-     * double, for this test). */
+     * double, for this test).*/
     float zero = 0.0;
     float sinz = 1.0;
     asm {
@@ -46,7 +46,7 @@ void main() {
         fstp [sinz]
         finit
     }
-    /* sin(0) == 0.0 — expect bit pattern 0x00000000. */
+    /* sin(0) == 0.0 - expect bit pattern 0x00000000. */
     if (*(int*)&sinz != 0x00000000) {
         serial_printf("[feature16] FAIL fsin(0): bits=0x%x\n", *(int*)&sinz);
         ok = 0;
@@ -54,7 +54,7 @@ void main() {
 
     /* Test 4: SSE packed addps via inline asm using float4 locals.
      * float4 stores 16 bytes at a 16-byte aligned stack slot; lane 0 lives
-     * at offset 0 so [name] in inline asm resolves to the low float. */
+     * at offset 0 so [name] in inline asm resolves to the low float.*/
     float4 va = {1.0, 2.0, 3.0, 4.0};
     float4 vb = {5.0, 6.0, 7.0, 8.0};
     float4 vc;
@@ -64,8 +64,8 @@ void main() {
         addps xmm0, xmm1
         movups [vc], xmm0
     }
-    /* Expect {6, 8, 10, 12} — check lane 0 via vc.x.  CupidC can't yet
-     * compare floats with !=, so bit-compare instead: 6.0 -> 0x40C00000. */
+    /* Expect {6, 8, 10, 12} - check lane 0 via vc.x.  CupidC can't yet
+     * compare floats with !=, so bit-compare instead: 6.0 -> 0x40C00000.*/
     float vc_x = vc.x;
     if (*(int*)&vc_x != 0x40C00000) {
         serial_printf("[feature16] FAIL addps lane0: got=0x%x expected=0x40C00000\n",

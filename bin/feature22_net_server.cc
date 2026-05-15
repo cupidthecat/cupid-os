@@ -1,4 +1,4 @@
-//help: P6 TCP server smoke — listen/accept/echo on port 80
+//help: P6 TCP server smoke - listen/accept/echo on port 80
 //help: Usage: feature22_net_server (then curl http://localhost:8080/ from host)
 
 U0 Main() {

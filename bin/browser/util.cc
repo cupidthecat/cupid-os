@@ -1,4 +1,4 @@
-/* ---------- Utility ---------- */
+/* Utility */
 
 int b_strlen(char *s) {
     int n = 0;

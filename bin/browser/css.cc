@@ -10,7 +10,7 @@
  *
  * Caps from main.cc enums:
  *   MAX_CSS_RULES, MAX_CSS_SELECTORS, CSS_VALUE_POOL_SIZE.
- * Overflow drops further rules/selectors per spec §2. */
+ * Overflow drops further rules/selectors per spec §2.*/
 
 int css_intern_value(char *src, int len) {
     if (css_value_pool_pos + len + 1 >= CSS_VALUE_POOL_SIZE) return -1;
@@ -37,7 +37,7 @@ int css_skip_ws(char *s, int n, int i) {
 }
 
 /* Identifier-character classifier. CSS identifiers admit ASCII alnum,
- * '-', '_'. Used by class, id, attr name, attr value (unquoted) parsers. */
+ * '-', '_'. Used by class, id, attr name, attr value (unquoted) parsers.*/
 int css_is_ident_ch(char c) {
     if (c >= 'a' && c <= 'z') return 1;
     if (c >= 'A' && c <= 'Z') return 1;
@@ -47,7 +47,7 @@ int css_is_ident_ch(char c) {
 }
 
 /* Parse `an+b` or `even`/`odd`/single-int into (a, b). Returns 1 on success.
- * Accepts: "2n+1", "2n", "n+3", "-n+5", "3", "even", "odd". */
+ * Accepts: "2n+1", "2n", "n+3", "-n+5", "3", "even", "odd".*/
 int css_parse_nth_arg(char *s, int n, int i, int end, int *out_a, int *out_b) {
     while (i < end && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
     if (i + 4 <= end && b_strieq_n(s + i, "even", 4)) { *out_a = 2; *out_b = 0; return 1; }
@@ -102,7 +102,7 @@ int css_parse_nth_arg(char *s, int n, int i, int end, int *out_a, int *out_b) {
 /* Intern a :not() inner simple compound into the css_not_* pool.
  * Returns the pool index, or -1 if pool full or compound unsupported.
  * We only allow tag/.class/#id/[attr]/:simple-pseudo here; nested :not
- * and combinators are rejected. */
+ * and combinators are rejected.*/
 int css_intern_not(char *s, int n, int v_start, int v_end) {
     if (css_not_count >= MAX_CSS_NOT_SELS) return -1;
     int slot = css_not_count;
@@ -198,7 +198,7 @@ int css_intern_not(char *s, int n, int v_start, int v_end) {
 
 /* parse one compound selector; returns end index. Fills out_tag, out_class_off,
  * out_id_off, and the optional attribute selector triple plus pseudo-class +
- * pseudo-element + :not index. If the compound is unsupported, sets *unsupp = 1. */
+ * pseudo-element + :not index. If the compound is unsupported, sets *unsupp = 1.*/
 int css_parse_compound(char *s, int n, int i,
                        int *out_tag, int *out_class_off, int *out_id_off,
                        int *out_attr_off, int *out_attr_val_off, int *out_attr_op,
@@ -310,7 +310,7 @@ int css_parse_compound(char *s, int n, int i,
             int pseudo = 0;
             int has_arg = 0;
             /* Flat sequential lookups instead of one big else-if chain
-             * (CupidC's parser stack overflows on long else-if). */
+             * (CupidC's parser stack overflows on long else-if).*/
             if (p_len == 5  && b_strieq_n(s + p_start, "hover",        5)) pseudo = 1;
             if (pseudo == 0 && p_len == 5  && b_strieq_n(s + p_start, "focus",        5)) pseudo = 2;
             if (pseudo == 0 && p_len == 4  && b_strieq_n(s + p_start, "link",         4)) pseudo = 3;
@@ -369,7 +369,7 @@ int css_parse_compound(char *s, int n, int i,
 /* Parse one selector-chain, append compounds to css_sel_*. Returns chain start
  * (and writes count). Sets *unsupported=1 if any compound unsupported.
  * Tracks combinator between compounds: COMB_DESCENDANT default; `>` `+` `~`
- * bump the next compound's combinator. */
+ * bump the next compound's combinator.*/
 int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsupported) {
     int first = css_sel_count;
     int count = 0;
@@ -379,7 +379,7 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
     while (i < n) {
         /* Track whitespace between tokens to decide between subselector
          * (no whitespace = same compound, AND) and descendant (whitespace =
-         * separate compound). */
+         * separate compound).*/
         int ws_start = i;
         i = css_skip_ws(s, n, i);
         if (i > ws_start) saw_ws = 1;
@@ -409,7 +409,7 @@ int css_parse_selector_chain(char *s, int n, int i, int *chain_count, int *unsup
         /* If next_comb is still descendant AND no whitespace seen since the
          * previous compound, this is a subselector chain (e.g. ".a.b" or
          * "a:hover") rather than a descendant relation. The first compound
-         * in a chain (count == 0) always uses COMB_DESCENDANT regardless. */
+         * in a chain (count == 0) always uses COMB_DESCENDANT regardless.*/
         int comb = next_comb;
         if (count > 0 && comb == COMB_DESCENDANT && !saw_ws) comb = COMB_SUBSELECTOR;
         if (count == 0) comb = COMB_DESCENDANT;
@@ -461,7 +461,7 @@ int css_compute_specificity(int sel_first, int sel_count) {
                 if (css_not_tag      [ni] != 0) tag_c++;
                 /* The :not pseudo itself does not add specificity beyond
                  * its inner; subtract the "pseudo counts as class" we
-                 * already added above for it. */
+                 * already added above for it.*/
                 cls_c--;
             }
         }
@@ -568,7 +568,7 @@ void css_emit_rule(int sel_first, int sel_count, int prop_id, int val_off, int v
 }
 
 /* Walk a declaration block { prop: value; prop: value; ... }. Caller has positioned
- * at '{'. Returns position after '}'. */
+ * at '{'. Returns position after '}'.*/
 int css_parse_decls(char *s, int n, int i,
                     int sel_first, int sel_count) {
     if (i >= n || s[i] != '{') return i;
@@ -595,7 +595,7 @@ int css_parse_decls(char *s, int n, int i,
         if (i < n && s[i] == ';') i++;
 
         /* Detect and strip a trailing `!important` (case-insensitive) from
-         * the value bytes. Pattern: optional ws, '!', optional ws, "important". */
+         * the value bytes. Pattern: optional ws, '!', optional ws, "important".*/
         int important = 0;
         int v_scan = v_end;
         while (v_scan > v_start && (s[v_scan-1] == ' ' || s[v_scan-1] == '\t')) v_scan--;
@@ -620,7 +620,7 @@ int css_parse_decls(char *s, int n, int i,
          * css_value_pool and stashed on css_rule_var_name_off/len so the
          * cascade can apply it to cs_var_*[]. Reference: Blink later
          * versions store the raw token sequence on a CSSCustomProperty
-         * value; we keep the raw bytes for lazy var() expansion. */
+         * value; we keep the raw bytes for lazy var() expansion.*/
         if (p_l >= 2 && s[p_start] == '-' && s[p_start + 1] == '-') {
             int name_off = css_intern_value(s + p_start, p_l);
             int v_off2 = css_intern_value(s + v_start, v_end - v_start);
@@ -651,11 +651,11 @@ int css_parse_decls(char *s, int n, int i,
  *
  * Reference: Blink core/css/parser/CSSAtRuleID.cpp dispatch table and
  * core/css/parser/AtRuleDescriptorParser.cpp for @font-face descriptor
- * extraction. */
+ * extraction.*/
 int css_at_skip_block(char *text, int len, int i) {
     /* Position is just past '@'. Walk to '{' or ';' (some at-rules end on ';',
      * e.g. @import, @charset). On ';' we're done; on '{' skip the balanced
-     * block. */
+     * block.*/
     while (i < len && text[i] != '{' && text[i] != ';') i++;
     if (i >= len) return i;
     if (text[i] == ';') return i + 1;
@@ -671,7 +671,7 @@ int css_at_skip_block(char *text, int len, int i) {
 
 /* Extract one CSS url("..."), url('...') or url(...). Returns 1 on success
  * with (out_off, out_len) set to the URL text bytes and `*after` advanced
- * past the closing ')'. */
+ * past the closing ')'.*/
 int css_at_parse_url(char *s, int len, int i, int *out_off, int *out_len, int *after) {
     while (i < len && (s[i] == ' ' || s[i] == '\t')) i = i + 1;
     if (i + 4 > len) return 0;
@@ -705,7 +705,7 @@ int css_at_parse_url(char *s, int len, int i, int *out_off, int *out_len, int *a
  *   U+XXXX            (single)
  *   U+XXXX-YYYY       (range)
  *   U+XX??            (wildcard; ? expands to 0 for lo, F for hi)
- * Returns 1 on success, 0 if the token is malformed. */
+ * Returns 1 on success, 0 if the token is malformed.*/
 int ff_parse_ur_token(char *text, int s, int e, int *out_lo, int *out_hi) {
     while (s < e && (text[s] == ' ' || text[s] == '\t')) s = s + 1;
     if (s + 2 > e) return 0;
@@ -759,7 +759,7 @@ int ff_parse_ur_token(char *text, int s, int e, int *out_lo, int *out_hi) {
 
 /* Parse the unicode-range descriptor value into up to `cap` (lo,hi)
  * pairs, stored in r_lo[]/r_hi[]. Returns the number of ranges parsed
- * (0..cap). On overflow returns cap and silently drops further tokens. */
+ * (0..cap). On overflow returns cap and silently drops further tokens.*/
 int ff_parse_unicode_range(char *text, int v_start, int v_end,
                            int *r_lo, int *r_hi, int cap) {
     int n = 0;
@@ -787,7 +787,7 @@ int ff_parse_unicode_range(char *text, int v_start, int v_end,
  * truetype/otf/ttf/opentype = 4, woff2 = 3, woff = 2. WOFF2 outranks
  * WOFF in modern stylesheets (smaller payload), but WOFF1 is more
  * likely to decode without our brotli dep so we bias slightly toward
- * woff2 anyway and let woff1_unwrap fallback handle the rest. */
+ * woff2 anyway and let woff1_unwrap fallback handle the rest.*/
 int ff_format_score(char *text, int f_start, int f_len) {
     if (f_len == 8 && b_strieq_n(text + f_start, "truetype", 8)) return 4;
     if (f_len == 8 && b_strieq_n(text + f_start, "opentype", 8)) return 4;
@@ -815,7 +815,7 @@ int ff_format_score(char *text, int f_start, int f_len) {
  * WOFF1 is decompressed via woff.cc + kdeflate_raw. WOFF2 is currently
  * stubbed (woff2.cc returns NULL); the pump falls through to the next
  * URL. local() tokens are silently skipped (no system-font lookup
- * surface). */
+ * surface).*/
 int css_at_font_face(char *text, int len, int i) {
     while (i < len && (text[i] == ' ' || text[i] == '\t' ||
                        text[i] == '\n' || text[i] == '\r')) i = i + 1;
@@ -878,7 +878,7 @@ int css_at_font_face(char *text, int len, int i) {
 
     /* Walk the src list, collecting up to 3 candidates ranked by format
      * score. Each url(...) entry may be followed by an optional
-     * format("...") token; bare url() scores 1. */
+     * format("...") token; bare url() scores 1.*/
     int cand_score[3]; cand_score[0] = -1; cand_score[1] = -1; cand_score[2] = -1;
     int cand_off  [3];
     int cand_len  [3];
@@ -930,7 +930,7 @@ int css_at_font_face(char *text, int len, int i) {
             if (s < s_end) s = s + 1;
             score = ff_format_score(text, f_start, f_len);
             if (score == 0) {
-                /* Unknown format token (eg. svg, eot) — skip. */
+                /* Unknown format token (eg. svg, eot) - skip. */
                 while (s < s_end && text[s] != ',') s = s + 1;
                 continue;
             }
@@ -942,7 +942,7 @@ int css_at_font_face(char *text, int len, int i) {
             continue;
         }
         /* Insert into candidate table by score (higher wins; ties keep
-         * source order via order_seq). Only the worst slot is replaced. */
+         * source order via order_seq). Only the worst slot is replaced.*/
         order_seq = order_seq + 1;
         int worst = 0;
         for (int j = 1; j < 3; j = j + 1) {
@@ -961,7 +961,7 @@ int css_at_font_face(char *text, int len, int i) {
     }
 
     /* Sort candidates by score desc, then source order asc. n is small,
-     * so a 3-way insertion sort works fine. */
+     * so a 3-way insertion sort works fine.*/
     for (int a = 0; a < 3; a = a + 1) {
         for (int b = a + 1; b < 3; b = b + 1) {
             int swap = 0;
@@ -1012,7 +1012,7 @@ void css_parse_block(char *text, int len) {
             int at_start = i + 1;
             /* Recognise "@font-face" by case-insensitive prefix; commit 3
              * will fill in css_at_font_face. For now: skip, so any inline
-             * @media wrappers etc. don't poison subsequent selectors. */
+             * @media wrappers etc. don't poison subsequent selectors.*/
             if (at_start + 10 <= len &&
                 b_strieq_n(text + at_start, "font-face", 9) &&
                 (text[at_start + 9] == ' ' || text[at_start + 9] == '\t' ||

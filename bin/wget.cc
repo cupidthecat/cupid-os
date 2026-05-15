@@ -75,7 +75,7 @@ int parse_url(char *url, char *host, int *port_out, char *path,
 
 /* Derive default filename from URL path. Last segment of path, or
  * "index.html" if the path ends with / or has no segments. Stops at
- * any '?' so we don't include query strings in the filename. */
+ * any '?' so we don't include query strings in the filename.*/
 void derive_filename(char *path, char *out, int max) {
     int last_slash = -1;
     int i = 0;

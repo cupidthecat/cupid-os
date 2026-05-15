@@ -5,7 +5,7 @@
  * Handles keywords, identifiers, integer literals (decimal & hex),
  * string literals, character literals, operators, and delimiters.
  * Skips whitespace and // line comments.
- */
+*/
 
 #include "cupidc.h"
 #include "string.h"

@@ -9,7 +9,7 @@
  *
  * Reference: blink/Source/core/loader/ImageLoader.cpp (deferred fetch +
  * once-loaded relayout); blink/Source/core/rendering/RenderImage.cpp
- * (intrinsic size from decoded data). */
+ * (intrinsic size from decoded data).*/
 
 enum {
     IMG_S_PENDING = 0,
@@ -22,7 +22,7 @@ int  img_state_dirty;     /* 1 when at least one slot transitioned to LOADED */
 
 /* Fixed-cap queue. Modern news sites stack a dozen or two thumbnails
  * per article; 32 covers the common case. Overflow is silently dropped
- * (placeholder paint stays). cupidc requires literal sizes. */
+ * (placeholder paint stays). cupidc requires literal sizes.*/
 char img_url[32][1024];
 int  img_url_len[32];
 int  img_dom[32];          /* DOM node index of the <img> */
@@ -35,7 +35,7 @@ int  img_state[32];
  * The handle / intrinsic dims are stashed on the cache entry itself so
  * a per-frame style reflow (which calls init_style_for_cs and resets
  * cs_bg_handle to -1) re-links from the URL cache without re-fetching.
- * Without this, every reflow re-issued the HTTPS GET. */
+ * Without this, every reflow re-issued the HTTPS GET.*/
 char bg_url[16][1024];
 int  bg_url_len[16];
 int  bg_url_handle[16];
@@ -56,7 +56,7 @@ void image_queue_init(void) {
     /* Per-DOM-node handle table: reset every slot, not just the ones
      * the previous page populated. Otherwise <img>s in the new document
      * inherit stale handles from previous pages and paint the wrong
-     * image (or panic on an already-freed handle). */
+     * image (or panic on an already-freed handle).*/
     for (int i = 0; i < 4096; i = i + 1) {
         n_img_handle[i] = -1;
         n_img_intrinsic_w[i] = 0;
@@ -81,7 +81,7 @@ void image_queue_init(void) {
 
 /* Free all decoded images on per-page navigation. Each handle came from
  * gfx2d_image_load_mem, which kmalloc'd both the metadata and the
- * decoded RGBA pixel buffer; gfx2d_image_free reclaims both. */
+ * decoded RGBA pixel buffer; gfx2d_image_free reclaims both.*/
 void image_evict_all(void) {
     for (int i = 0; i < nodes_count; i = i + 1) {
         int h = n_img_handle[i];
@@ -91,7 +91,7 @@ void image_evict_all(void) {
         n_img_intrinsic_h[i] = 0;
     }
     /* Bg-image handles live on the URL cache entry. Free each unique
-     * handle once via the cache, then clear the per-style mirrors. */
+     * handle once via the cache, then clear the per-style mirrors.*/
     for (int i = 0; i < 16; i = i + 1) {
         int h = bg_url_handle[i];
         if (h >= 0) gfx2d_image_free(h);
@@ -111,7 +111,7 @@ void image_state_clear(void) { img_state_dirty = 0; }
 
 /* Walk the DOM for T_IMG nodes; queue ones with a non-empty src that we
  * haven't already enqueued. Capped at 32; further <img>s render as the
- * placeholder rectangle. */
+ * placeholder rectangle.*/
 void image_queue_collect(void) {
     if (img_count >= 32) return;
     for (int n = 0; n < nodes_count && img_count < 32; n = n + 1) {
@@ -125,7 +125,7 @@ void image_queue_collect(void) {
         if (slen <= 0) continue;
         /* Dedup against in-flight queue: same URL maps to one fetch. If
          * we find a LOADED slot for the same URL, point this DOM node
-         * at its handle right away. */
+         * at its handle right away.*/
         int reuse_handle = -1;
         for (int j = 0; j < img_count; j = j + 1) {
             if (img_url_len[j] != slen) continue;
@@ -158,7 +158,7 @@ void image_queue_collect(void) {
 
 /* Branch the fetched body to the right decoder. PNG header is 8 bytes
  * starting `\x89PNG\r\n\x1a\n`; JPEG starts `\xff\xd8`. gfx2d_image_load_mem
- * itself sniffs the magic, so we just forward the bytes. */
+ * itself sniffs the magic, so we just forward the bytes.*/
 int image_decode_blob(char *buf, int len) {
     if (len < 4) return -1;
     return gfx2d_image_load_mem(buf, len);
@@ -166,7 +166,7 @@ int image_decode_blob(char *buf, int len) {
 
 /* Drive ONE pending slot through fetch + decode per call. Returns 1 if
  * a slot was advanced, 0 if no PENDING slots. Saves / restores cur_*
- * + page_buf so the outer page state survives the synchronous fetch. */
+ * + page_buf so the outer page state survives the synchronous fetch.*/
 int image_advance_one_pending(void) {
     int slot = -1;
     for (int i = 0; i < img_count; i = i + 1) {
@@ -187,8 +187,8 @@ int image_advance_one_pending(void) {
     /* Preserve the page-level status message so a sub-resource fetch
      * failure (a 404 image, a fake @font-face URL) doesn't replace
      * the user-visible status with `HTTP error: 404`. fetch_url writes
-     * status_msg unconditionally on non-2xx — sub-resource fetches
-     * silently fail and the main page's status text stays intact. */
+     * status_msg unconditionally on non-2xx - sub-resource fetches
+     * silently fail and the main page's status text stays intact.*/
     b_strcpy_n(saved_status, status_msg, 256);
 
     char ct[128]; ct[0] = 0;
@@ -217,7 +217,7 @@ int image_advance_one_pending(void) {
         n_img_intrinsic_w[dom] = gfx2d_image_width(handle);
         n_img_intrinsic_h[dom] = gfx2d_image_height(handle);
         /* Apply the same handle to any other DOM nodes with the same
-         * src URL (gfx2d image cache stays a single decode). */
+         * src URL (gfx2d image cache stays a single decode).*/
         int u_len = img_url_len[slot];
         for (int n = 0; n < nodes_count; n = n + 1) {
             if (n == dom) continue;
@@ -254,7 +254,7 @@ void image_pump(void) {
 
 /* Walk styled cs slots and queue any bg-image URL we don't already have
  * a handle for. Mirrors image_queue_collect's dedup against the in-flight
- * queue + reuse of LOADED handles for matching URLs. */
+ * queue + reuse of LOADED handles for matching URLs.*/
 void bg_image_queue_collect(void) {
     if (bg_count >= 16) return;
     for (int s = 0; s < cs_count && bg_count < 16; s = s + 1) {
@@ -265,7 +265,7 @@ void bg_image_queue_collect(void) {
         char *src = css_value_pool + cs_bg_img_off[s];
         /* Dedup against existing cache. The cache itself owns the handle
          * + intrinsic dims so a style reflow that resets cs_bg_handle to
-         * -1 re-links here without re-issuing the network fetch. */
+         * -1 re-links here without re-issuing the network fetch.*/
         int reuse_slot = -1;
         for (int j = 0; j < bg_count; j = j + 1) {
             if (bg_url_len[j] != slen) continue;
@@ -286,10 +286,10 @@ void bg_image_queue_collect(void) {
                 /* No img_state_dirty: layout doesn't depend on bg-image
                  * dims, so the next render() picks up the handle without
                  * a reflow. Setting dirty here was the source of the
-                 * fetch loop. */
+                 * fetch loop.*/
             }
             /* For PENDING/FAILED reuse slots we just wait - nothing to
-             * link yet, and we don't enqueue a duplicate slot. */
+             * link yet, and we don't enqueue a duplicate slot.*/
             continue;
         }
         int slot = bg_count;
@@ -306,7 +306,7 @@ void bg_image_queue_collect(void) {
 }
 
 /* Drive ONE pending bg-image slot through fetch + decode. Same save /
- * restore dance as image_advance_one_pending. */
+ * restore dance as image_advance_one_pending.*/
 int bg_image_advance_one_pending(void) {
     int slot = -1;
     for (int i = 0; i < bg_count; i = i + 1) {
@@ -378,7 +378,7 @@ int bg_image_advance_one_pending(void) {
         /* No img_state_dirty: paint reads cs_bg_handle directly each
          * frame so the next render() shows the image without a reflow.
          * Triggering reflow here would wipe cs_bg_handle in
-         * init_style_for_cs and cause an infinite re-fetch loop. */
+         * init_style_for_cs and cause an infinite re-fetch loop.*/
         serial_printf("[browser] bg-image load: %s -> handle %d (%dx%d)\n",
                       bg_url[slot], handle, decoded_w, decoded_h);
     } else {

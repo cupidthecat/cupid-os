@@ -66,7 +66,7 @@ int NOTEPAD_CONSOLE_H;
 
 /* Heap-allocated so notepad can open files up to FILE_BUF_SIZE bytes
  * without bloating the JIT data section (e.g. /god/Psalms.DD ≈ 322 KB).
- * file_buf is kmalloc'd at startup, freed on exit. */
+ * file_buf is kmalloc'd at startup, freed on exit.*/
 char *file_buf = 0;
 int FILE_BUF_SIZE = 524288;     /* 512 KB cap */
 char clip_buf[4096];
@@ -2261,7 +2261,7 @@ void main() {
   ctxt_reset();
 
   /* Heap-alloc file_buf so we can load files up to FILE_BUF_SIZE bytes
-   * (e.g. /god/Psalms.DD ≈ 322 KB). */
+   * (e.g. /god/Psalms.DD ≈ 322 KB).*/
   if (file_buf == 0) {
     file_buf = (char*)kmalloc(FILE_BUF_SIZE);
     if (file_buf == 0) {
@@ -2329,7 +2329,7 @@ void main() {
 
   /* Force first paint so menu/text/status appear immediately on launch.
    * Without this, dirty=0 on first iter and the window stays blank until
-   * the user types or moves the mouse. */
+   * the user types or moves the mouse.*/
   int first_paint = 1;
 
   while (gui_win_is_open(win)) {
@@ -2368,8 +2368,8 @@ void main() {
     }
     /* Only follow cursor when the user moved it (typed/arrowed). Without
      * this gate every paint frame ran ensure_cursor_visible(), which
-     * snapped scroll_y back to wherever the cursor was — making both the
-     * scroll wheel and scrollbar drag look broken. */
+     * snapped scroll_y back to wherever the cursor was - making both the
+     * scroll wheel and scrollbar drag look broken.*/
     if (key_handled) ensure_cursor_visible(rows, cols);
 
     {

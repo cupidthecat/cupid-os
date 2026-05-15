@@ -41,7 +41,7 @@ enum {
     /* §2 style/CSS - css rule + value-pool caps doubled for real-world
      * stylesheets which routinely exceed the original 256/32K caps.
      * MAX_COMPUTED_STYLES tracks MAX_NODES (one entry per styled DOM
-     * node); not bumped here. */
+     * node); not bumped here.*/
     MAX_CSS_RULES = 1024,
     MAX_COMPUTED_STYLES = 4096,
     CSS_VALUE_POOL_SIZE = 65536,
@@ -120,7 +120,7 @@ enum {
     TK_EOF   = 4,
 
     /* §2 CSS property IDs - internal. Keep <= MAX_CP_ID; the cascade loop in
-     * style_resolve_all uses winner_rule[MAX_CP_ID]. */
+     * style_resolve_all uses winner_rule[MAX_CP_ID].*/
     CP_COLOR = 1, CP_BG_COLOR, CP_BG, CP_FONT_WEIGHT, CP_FONT_STYLE,
     CP_FONT_SIZE, CP_TEXT_ALIGN, CP_TEXT_DEC, CP_DISPLAY,
     CP_MARGIN, CP_MARGIN_T, CP_MARGIN_R, CP_MARGIN_B, CP_MARGIN_L,
@@ -145,13 +145,13 @@ enum {
     /* Sentinel for custom-property declarations (`--name: value`).
      * cs_apply_property dispatches on prop_id; a CP_CUSTOM_VAR rule
      * carries its name via css_rule_var_name_off/len rather than
-     * resolving through the property table. */
+     * resolving through the property table.*/
     CP_CUSTOM_VAR,
     MAX_CP_ID = 80,
 
     /* Generic-family keywords. Numeric values mirror the kernel's
      * FONTSYS_FAMILY_* (kernel/gfx/fontsys.h) so cs_font_generic[cs]
-     * can be passed straight to fontsys_match. */
+     * can be passed straight to fontsys_match.*/
     FONTSYS_FAMILY_DEFAULT    = 0,
     FONTSYS_FAMILY_SERIF      = 1,
     FONTSYS_FAMILY_SANS_SERIF = 2,
@@ -221,7 +221,7 @@ enum {
 
     /* z-index defaults to 0 (auto behaves equivalent to 0 for non-stacking
      * contexts). Document order acts as the tiebreaker so out-of-flow
-     * elements paint in source order when z-index is unset. */
+     * elements paint in source order when z-index is unset.*/
 
     MAX_CSS_SELECTORS = 2048,
 
@@ -389,7 +389,7 @@ int n_text_len  [4096];
  * dom_attrs_count[i] pairs. The slice is COPIED out of the tokenizer's scratch
  * ap_*[] (which is reused across pages) into the permanent dom_ap_*[] pool so
  * layout/paint can re-query during repaint. Strings (the offsets refer to)
- * stay in attr_pool which is also persistent across the page lifetime. */
+ * stay in attr_pool which is also persistent across the page lifetime.*/
 int dom_attrs_first[4096];
 int dom_attrs_count[4096];
 int dom_ap_count;
@@ -397,13 +397,13 @@ int dom_ap_name_off [8192];
 int dom_ap_value_off[8192];
 
 /* §1 selector cache: id and class strings extracted at DOM-build time.
- * Used by §2 selector matching. -1 if absent. */
+ * Used by §2 selector matching. -1 if absent.*/
 int dom_class_off[4096];
 int dom_id_off   [4096];
 
 /* §1 sibling caches populated after DOM build (see populate_sibling_caches
  * in dom.cc). Element-only counts (text nodes ignored), used by selector
- * matcher for :first-child / :last-child / :nth-child / + / ~. */
+ * matcher for :first-child / :last-child / :nth-child / + / ~.*/
 int n_sibling_idx     [4096];   /* 1-based index among element siblings */
 int n_sibling_count   [4096];   /* total element-sibling count of n_parent[i] */
 int n_prev_sibling_elt[4096];   /* prev element sibling, -1 if none */
@@ -413,13 +413,13 @@ int n_next_sibling_elt[4096];   /* next element sibling, -1 if none */
  * `checked` HTML attribute; click handling toggles this in place since the
  * DOM has no attr-set helper. paint_rt_replaced reads this instead of
  * re-querying `checked` so a click can be reflected without rebuilding
- * the DOM. */
+ * the DOM.*/
 int n_checkbox_state[4096];
 
 /* §2 generated content for ::before / ::after. Per element, the cascade
  * resolves a single string (decoded from CSS `content:`). render_tree.cc
  * injects a synthetic RT_TEXT child as first/last child of the
- * originating element when these are set. -1 = no generated content. */
+ * originating element when these are set. -1 = no generated content.*/
 int n_pseudo_before_off[4096];
 int n_pseudo_before_len[4096];
 int n_pseudo_after_off [4096];
@@ -427,7 +427,7 @@ int n_pseudo_after_len [4096];
 
 /* node-back-reference for forms/inputs registered by the tree builder.
  * inputs[] / forms[] index -> DOM node index. Lets handlers look up DOM
- * attrs (action, name, value, type) of the originating element. */
+ * attrs (action, name, value, type) of the originating element.*/
 int input_node[64];
 int form_node [32];
 
@@ -437,7 +437,7 @@ int  attr_pool_pos;
 /* §2 CSS rule table - populated by css.cc, consumed by style.cc resolver.
  * One rule = one selector chain + one declaration block. Multiple
  * declarations in a single CSS rule produce multiple entries here
- * (one per property), so MAX_CSS_RULES caps property-count, not rule-count. */
+ * (one per property), so MAX_CSS_RULES caps property-count, not rule-count.*/
 int css_rule_count;
 int css_rule_sel_first[1024];
 int css_rule_sel_count[1024];
@@ -451,12 +451,12 @@ int css_rule_important [1024];           /* 1 if value ended in !important */
  * with prop_id == CP_CUSTOM_VAR; the --name bytes live in css_value_pool
  * referenced by these parallel arrays. Reference: Blink later versions
  * use a CSSCustomProperty object; the value here is intentionally stored
- * as raw text for lazy var() substitution at consume time. */
+ * as raw text for lazy var() substitution at consume time.*/
 int css_rule_var_name_off[1024];
 int css_rule_var_name_len[1024];
 
 /* Each selector is a chain of "compound selectors". A compound is a
- * (tag, class_off, id_off) triple. Combinators see COMB_* enum. */
+ * (tag, class_off, id_off) triple. Combinators see COMB_* enum.*/
 int css_sel_count;
 int css_sel_tag      [2048];
 int css_sel_class_off[2048];
@@ -464,26 +464,26 @@ int css_sel_id_off   [2048];
 /* Combinator joining this compound to the previous one in a chain.
  * COMB_DESCENDANT (0) is default (whitespace), COMB_CHILD (>),
  * COMB_ADJACENT (+), COMB_GEN_SIBLING (~), COMB_SUBSELECTOR (same element,
- * for chained simple selectors like ".a.b" or "a:hover"). */
+ * for chained simple selectors like ".a.b" or "a:hover").*/
 int css_sel_combinator[2048];
 /* Optional attribute selector on this compound. -1 if absent.
- * css_sel_attr_op uses ATTR_OP_* enum. */
+ * css_sel_attr_op uses ATTR_OP_* enum.*/
 int css_sel_attr_off    [2048];
 int css_sel_attr_val_off[2048];
 int css_sel_attr_op     [2048];
 /* Pseudo-class on this compound (PSEUDO_* enum). */
 int css_sel_pseudo      [2048];
 /* Pseudo-class argument: for PSEUDO_NTH_CHILD, packed (a<<16)|(b&0xFFFF)
- * with signed semantics; otherwise 0. */
+ * with signed semantics; otherwise 0.*/
 int css_sel_pseudo_arg  [2048];
 /* Pseudo-element flag: PSELT_NONE/BEFORE/AFTER. Tail of a compound only. */
 int css_sel_pseudo_elt  [2048];
 /* For PSEUDO_NOT, index into css_not_* pool of the inner simple compound;
- * -1 if no :not. */
+ * -1 if no :not.*/
 int css_sel_not_idx     [2048];
 
 /* §2 :not(<simple>) inner-compound pool. v1 supports one-deep, single
- * simple compound only (no combinators, no nested :not). */
+ * simple compound only (no combinators, no nested :not).*/
 int css_not_count;
 int css_not_tag        [256];
 int css_not_class_off  [256];
@@ -494,11 +494,11 @@ int css_not_attr_op    [256];
 int css_not_pseudo     [256];   /* simple pseudos (:first-child etc.); no :not */
 int css_not_pseudo_arg [256];
 /* Set true at parse time if any rule references :hover or :focus.
- * Cheap gate: when false, the hover-driven restyle path is skipped. */
+ * Cheap gate: when false, the hover-driven restyle path is skipped.*/
 int css_has_dynamic_pseudo;
 /* DOM node currently hovered (deepest rt_dom hit), -1 if none.
  * prev_hover_dom_node is the previous frame's value used to detect
- * change and trigger restyle. */
+ * change and trigger restyle.*/
 int hover_dom_node;
 int prev_hover_dom_node;
 
@@ -528,15 +528,15 @@ int cs_list_style[4096];
 int cs_vertical_align[4096];
 /* line-height: -1 = unset (use tier_line_h fallback). When cs_line_height_mult
  * is 1, the value is a unitless multiplier scaled by 100 (e.g. "1.8" -> 180);
- * when 0, the value is a px length. */
+ * when 0, the value is a px length.*/
 int cs_line_height[4096];
 int cs_line_height_mult[4096];
 /* font-size in px. -1 = unset (inherit from parent during cascade fill).
- * cs_font_size_tier is derived from this via px_to_tier(px). */
+ * cs_font_size_tier is derived from this via px_to_tier(px).*/
 int cs_font_size_px[4096];
 /* font-family: stashed in css_value_pool. -1 off = unset (inherit). The
  * string is the verbatim CSS value (comma list, with quotes/spaces).
- * cs_font_generic mirrors a FONTSYS_FAMILY_* keyword. */
+ * cs_font_generic mirrors a FONTSYS_FAMILY_* keyword.*/
 int cs_font_family_off[4096];
 int cs_font_family_len[4096];
 int cs_font_generic   [4096];
@@ -560,7 +560,7 @@ int cs_bg_grad_c2   [4096];
  * image.cc's bg-image pump after fetch+decode; cs_bg_intrinsic_* records
  * the decoded source dimensions so paint can resolve `cover` / `contain`.
  * Reference: blink/Source/core/css/parser/CSSParserBackground.cpp +
- * BackgroundImageGeometry::calculateFillTileSize. */
+ * BackgroundImageGeometry::calculateFillTileSize.*/
 int cs_bg_img_off    [4096];
 int cs_bg_img_len    [4096];
 int cs_bg_handle     [4096];
@@ -573,9 +573,9 @@ int cs_bg_pos_y      [4096];   /* px from top */
 int cs_bg_repeat     [4096];
 
 /* §2.x display:flex storage. Reference: blink/Source/core/css/
- * StyleFlexibleBoxData.h + LayoutFlexibleBox.cpp. */
+ * StyleFlexibleBoxData.h + LayoutFlexibleBox.cpp.*/
 int cs_flex_dir    [4096];   /* FLEX_DIR_ROW (default) | COLUMN */
-int cs_justify     [4096];   /* JUSTIFY_FLEX_START | END | CENTER | SPACE_*  */
+int cs_justify     [4096];   /* JUSTIFY_FLEX_START | END | CENTER | SPACE_* */
 int cs_align_items [4096];   /* ALIGN_STRETCH (default) | FLEX_START | END | CENTER */
 int cs_flex_grow   [4096];   /* per-item; default 0; in 1/100ths so 1.5 = 150 */
 int cs_flex_shrink [4096];   /* per-item; default 100 (= 1) */
@@ -588,7 +588,7 @@ int cs_shadow_color [4096];   /* RGB; black if unspecified */
 
 /* CSS positioning. cs_position is POS_STATIC (default), POS_RELATIVE,
  * POS_ABSOLUTE, or POS_FIXED. cs_top/right/bottom/left are -1 when
- * unset (auto); cs_z_index uses INT_MIN-ish sentinel for auto. */
+ * unset (auto); cs_z_index uses INT_MIN-ish sentinel for auto.*/
 int cs_position    [4096];
 int cs_top         [4096];
 int cs_right       [4096];
@@ -596,7 +596,7 @@ int cs_bottom      [4096];
 int cs_left        [4096];
 /* Bit field: bit 0 = top set, 1 = right set, 2 = bottom set, 3 = left set.
  * Negative offsets (e.g. `top: -8px`) are valid CSS and must not collide
- * with the "auto" sentinel; presence is tracked separately. */
+ * with the "auto" sentinel; presence is tracked separately.*/
 int cs_pos_set     [4096];
 int cs_z_index     [4096];
 
@@ -607,7 +607,7 @@ int cs_z_index     [4096];
  *
  * Storage cost: 4096 * 8 * 4 ints * 4 bytes = 512 KiB. Reference:
  * Blink later versions store these as a HashMap on RenderStyle; we
- * use parallel arrays since cupidc requires literal sizes. */
+ * use parallel arrays since cupidc requires literal sizes.*/
 int cs_var_count    [4096];
 int cs_var_name_off [4096][8];
 int cs_var_name_len [4096][8];
@@ -617,7 +617,7 @@ int cs_var_val_len  [4096][8];
 /* CSS float / clear. cs_float = FLOAT_NONE/LEFT/RIGHT,
  * cs_clear = CLEAR_NONE/LEFT/RIGHT/BOTH. Layout exclusion logic still
  * deferred; storage and CSS parse + cascade are wired so a future PR
- * can drop in the IFC integration without revisiting style. */
+ * can drop in the IFC integration without revisiting style.*/
 int cs_float        [4096];
 int cs_clear        [4096];
 
@@ -650,7 +650,7 @@ int rt_baseline[6144];
  * pass to resolve x/y from cs_top/left/right/bottom against each node's
  * containing block (nearest positioned ancestor for absolute, viewport
  * for fixed). Capped at 1024; further oof nodes silently fall back to
- * static positioning. */
+ * static positioning.*/
 int rt_oof_count;
 int rt_oof_list[1024];
 
@@ -658,12 +658,12 @@ int rt_oof_list[1024];
  * relative to the document root rather than its rt_parent: paint and
  * hit-test skip the parent-chain sum so absolute/fixed boxes land where
  * their containing block expects. rt_is_fixed adds the "ignore scroll"
- * behaviour. */
+ * behaviour.*/
 int rt_is_oof   [6144];
 int rt_is_fixed [6144];
 /* Stacking-context participant: paint walk skips this node, render()'s
  * z-index pass paints it. Set for abspos/fixed (rt_is_oof) and for
- * position:relative with an explicit z-index. CSS 2.1 §9.9.1. */
+ * position:relative with an explicit z-index. CSS 2.1 §9.9.1.*/
 int rt_is_stack [6144];
 
 /* Floats. Module-level storage so flush_inline / layout_block share
@@ -672,7 +672,7 @@ int rt_is_stack [6144];
  * coordinates (sum of ancestor rt_x/rt_y at place time). Cap 64 keeps
  * Wikipedia infobox + news-figure pages comfortably under the limit
  * while staying inside cupidc's literal-array sizing. Reference:
- * blink/Source/core/rendering/FloatingObjects.cpp. */
+ * blink/Source/core/rendering/FloatingObjects.cpp.*/
 int float_count;
 int float_x   [64];
 int float_y   [64];
@@ -682,14 +682,14 @@ int float_side[64];   /* FLOAT_LEFT or FLOAT_RIGHT */
 /* Index of the first float visible to the current BFC. Outer floats
  * stored at [0..float_visible_first) are hidden from line-exclusion
  * queries while we lay out a child that establishes its own BFC
- * (CSS 2.1 §9.4.1 — floats, abspos, inline-block, table-cell,
+ * (CSS 2.1 §9.4.1 - floats, abspos, inline-block, table-cell,
  * overflow!=visible). place_float at a BFC root saves/restores both
- * this and float_count so outer floats stay intact. */
+ * this and float_count so outer floats stay intact.*/
 int float_visible_first;
 
 /* Line-box atom storage - one entry per word/glyph in an inline run.
  * line_box render nodes are LINE_BOX kind with rt_first_child indexing into
- * the atom pool via a separate atom_first/count pair. */
+ * the atom pool via a separate atom_first/count pair.*/
 int la_count;
 int la_x        [8192];   /* x within line box (cumulative) */
 int la_w        [8192];
@@ -702,19 +702,19 @@ int la_bold     [8192];
 int la_underline[8192];
 int la_link_idx [8192];
 /* fontsys-resolved per-atom face/size/italic. la_size_px <= 0 falls
- * back to the tier-based path in paint. */
+ * back to the tier-based path in paint.*/
 int la_size_px  [8192];
 int la_face_id  [8192];
 int la_italic   [8192];
 int la_cs       [8192];   /* source cs index, for per-codepoint face
                            * resolution at paint time so unicode-range
                            * subsets route correctly through Cyrillic /
-                           * Greek / etc. without splitting atoms */
+                           * Greek / etc. without splitting atoms*/
 
 /* <img> per-DOM-node decoded handles. -1 until image.cc has fetched and
  * decoded the bytes, then a gfx2d_image handle. n_img_intrinsic_w/h
  * receive the decoded width/height so layout can re-resolve from real
- * dimensions when the HTML width/height attrs were absent. */
+ * dimensions when the HTML width/height attrs were absent.*/
 int n_img_handle      [4096];
 int n_img_intrinsic_w [4096];
 int n_img_intrinsic_h [4096];
@@ -729,7 +729,7 @@ int rt_line_atom_count[6144];
  * The tree builder reads this as:
  *   int real_len = tok_text_len[ti] & 0x3FFFFFFF;
  *   int from_attr = (tok_text_len[ti] >> 30) & 1;
- */
+*/
 int  tok_count;
 int  tok_kind     [16384];   /* TK_START, TK_END, TK_TEXT, TK_EOF */
 int  tok_tag      [16384];   /* T_* enum, only meaningful for START/END */
@@ -765,12 +765,12 @@ int  page_bg;
 int  page_fg;
 /* Set by document_bg() when body's bg propagates up to the canvas;
  * paint_rt_node uses it to skip body's own bg paint and avoid the
- * margin-inset double-paint. */
+ * margin-inset double-paint.*/
 int  doc_bg_suppress_body;
 
 /* §7 JS engine pools. Reset per page from navigate() (mirrors the
  * attr_pool per-page reset pattern). All sizes are conservative for
- * the small scripts the browser is expected to encounter. */
+ * the small scripts the browser is expected to encounter.*/
 int  jtk_kind   [8192];     /* MAX_JS_TOKENS */
 int  jtk_num    [8192];
 int  jtk_str_off[8192];
@@ -779,7 +779,7 @@ int  jtk_line   [8192];
 int  jtk_count;
 
 /* JS AST nodes - parallel arrays. Each node carries up to four int
- * slots; per-kind layout is documented in js_parse.cc / js_interp.cc. */
+ * slots; per-kind layout is documented in js_parse.cc / js_interp.cc.*/
 int  jn_kind   [8192];
 int  jn_a      [8192];
 int  jn_b      [8192];
@@ -789,24 +789,24 @@ int  jn_next   [8192];      /* sibling link inside a list (block stmts, args, pa
 int  jn_count;
 
 /* JS string pool - interns identifiers, string literals, AST string
- * fields. Reset per page. */
+ * fields. Reset per page.*/
 char js_str_pool[65536];
 int  js_str_pool_pos;
 
 /* Queue of <script> source ranges to run after parse + render-tree
- * build; entries are (attr_pool offset, length). */
+ * build; entries are (attr_pool offset, length).*/
 int  js_script_off[32];
 int  js_script_len[32];
 int  js_script_count;
 
 /* Last error message produced by the JS engine; non-empty if a parse
- * or eval error occurred. */
+ * or eval error occurred.*/
 char js_last_error[256];
 
 /* §7 JS interpreter state. The value stack holds intermediate
  * expression results in parallel arrays so each eval pushes a fully
  * tagged value without struct return.  Scope frames + bindings form
- * the lexical environment; lookups walk the parent chain. */
+ * the lexical environment; lookups walk the parent chain.*/
 int    jvs_tag    [1024];
 double jvs_num    [1024];
 int    jvs_str_off[1024];
@@ -839,18 +839,18 @@ int    js_ctrl_signal;      /* 0 normal, 1 break, 2 continue, 3 return */
 /* Implicit `this` for the currently-being-prepared method call. Set by
  * js_eval_call when the callee comes from MEMBER on a DOMNODE/object.
  * Native function bodies read these instead of an explicit receiver
- * argument. */
+ * argument.*/
 int    jsd_this_tag;
 int    jsd_this_dom_idx;
 int    jsd_this_obj_idx;
 
 /* Set true once dom_dirty becomes 1 in this page; parser.cc reflows
- * the document after queued scripts run. */
+ * the document after queued scripts run.*/
 int    dom_dirty;
 
 /* §7 JS function records. A function value carries an int handle
  * into these parallel arrays. captured_scope is the scope frame
- * active when the function was defined (closure). */
+ * active when the function was defined (closure).*/
 int    jfn_param_first    [256];
 int    jfn_body           [256];
 int    jfn_captured_scope [256];
@@ -859,7 +859,7 @@ int    jfn_count;
 
 /* §7 JS object pool. Plain objects and arrays share storage; arrays
  * carry an extra arr_len. Properties hang off jobj_first_prop[] as a
- * singly-linked list through jp_next[]. */
+ * singly-linked list through jp_next[].*/
 int    jobj_kind     [512];        /* 0=plain, 1=array */
 int    jobj_first_prop[512];
 int    jobj_arr_len  [512];
@@ -909,7 +909,7 @@ void browser_main() {
     attr_pool_pos = 1;
     inputs_count = 0;
     /* Per-DOM image handle table starts -1 so the very first paint
-     * (before any navigate) can't dereference a stale handle. */
+     * (before any navigate) can't dereference a stale handle.*/
     image_queue_init();
     font_face_init();
     forms_count = 0;
@@ -1007,7 +1007,7 @@ void browser_main() {
          * pending @font-face slot; if any slot transitioned to LOADED,
          * line widths shift so re-cascade + rebuild RT + relayout, then
          * the next iteration paints with the new face. Reference:
-         * blink/Source/core/css/CSSFontSelector.cpp::fontFaceInvalidated. */
+         * blink/Source/core/css/CSSFontSelector.cpp::fontFaceInvalidated.*/
         font_face_pump();
         if (font_face_any_state_changed()) {
             populate_sibling_caches();
@@ -1022,7 +1022,7 @@ void browser_main() {
          * paint we collect every <img src=...> in the DOM into the
          * queue, then decode one per tick. When a decode lands, we
          * relayout so the intrinsic dimensions can size the box; this
-         * is the same FOUT-style retry loop ImageLoader uses in Blink. */
+         * is the same FOUT-style retry loop ImageLoader uses in Blink.*/
         image_queue_collect();
         image_pump();
         bg_image_queue_collect();
