@@ -23,7 +23,7 @@ __attribute__((weak)) void socket_udp_deliver(uint32_t src_ip, uint16_t src_port
 static uint16_t be16(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
 
 /* UDP checksum: pseudo-header (src_ip 4, dst_ip 4, zero 1, proto 1, udp_len 2)
- * + UDP header + data, ones-complement. */
+ * + UDP header + data, ones-complement.*/
 static uint16_t udp_csum(uint32_t src_ip, uint32_t dst_ip,
                          const uint8_t *udp_pkt, uint32_t len) {
     uint32_t sum = 0;

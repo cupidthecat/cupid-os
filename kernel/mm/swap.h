@@ -1,5 +1,5 @@
 /* kernel/swap.h - Opt-in disk-backed swap via handles.
- * See docs/superpowers/specs/2026-04-16-swap-opt-in-handles-design.md. */
+ * See docs/superpowers/specs/2026-04-16-swap-opt-in-handles-design.md.*/
 #ifndef SWAP_H
 #define SWAP_H
 

@@ -9,7 +9,7 @@ extern void net_process_pending(void);
 
 /* Track reply acks across a ping run. Since ping can fire 1..N sends
  * before any reply arrives, we need a bitmap per-seq instead of a single
- * waiter. Reset whenever the calling id/dst changes. */
+ * waiter. Reset whenever the calling id/dst changes.*/
 static uint16_t cur_id;
 static uint32_t cur_src_ip;
 static uint8_t  seen[256];

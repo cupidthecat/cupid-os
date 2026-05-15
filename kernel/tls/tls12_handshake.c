@@ -2,7 +2,7 @@
  *
  * Flow (RFC 5246 §7.3 + RFC 4492 + RFC 5288 / RFC 7905):
  *
- *   --- (caller already sent ClientHello, parsed ServerHello) ---
+ *    (caller already sent ClientHello, parsed ServerHello)
  *   recv Certificate
  *   recv ServerKeyExchange     (curve_type | named_curve | ECPoint || sigalg | siglen | sig)
  *   recv ServerHelloDone
@@ -21,7 +21,7 @@
  *
  * Conservative: rejects everything we don't expect - unknown sig algs,
  * unsupported curves, malformed messages.
- */
+*/
 
 #include "tls12_handshake.h"
 #include "tls_record.h"
@@ -84,7 +84,7 @@ static void th_snap(const tls_ctx_t *ctx, uint8_t out[32]) {
 /* Cleartext handshake reader */
 /* TLS 1.2 sends handshake messages as cleartext records (until CCS).
  * We pull records and concatenate them, then peel off one HS message
- * per call.  This is a simplified version of the 1.3 hs_reader. */
+ * per call.  This is a simplified version of the 1.3 hs_reader.*/
 
 typedef struct {
     uint8_t  buf[8192];
@@ -116,7 +116,7 @@ static int hs12_pull(tls_ctx_t *ctx, hs12_reader_t *r, uint32_t need) {
  * folding the message (header + body) into the transcript hash via
  * th_update - passing `do_fold = 1` does that automatically; `0` lets
  * the caller take a transcript snapshot before folding (needed for
- * Finished verification). */
+ * Finished verification).*/
 static int hs12_read_msg(tls_ctx_t *ctx, hs12_reader_t *r,
                          uint8_t *out, uint32_t out_max,
                          uint8_t *type_out, uint32_t *len_out,
@@ -180,7 +180,7 @@ static int ingest_certificates(tls_ctx_t *ctx,
 
 /* Returns 0 on OK, sets *server_pub / *server_pub_len from the ECPoint
  * blob (raw bytes, no length prefix), and verifies the signature against
- * the leaf cert's pubkey. */
+ * the leaf cert's pubkey.*/
 static int parse_server_kex(tls_ctx_t *ctx,
                             const uint8_t *body, uint32_t blen,
                             uint8_t server_pub[65], uint32_t *server_pub_len) {
@@ -454,7 +454,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
      *
      * We don't currently track whether the server confirmed EMS - the
      * extension was offered and a 1.2 server that omits it is permitted
-     * to use the legacy schedule.  Use legacy for maximum compat. */
+     * to use the legacy schedule.  Use legacy for maximum compat.*/
     {
         uint8_t seed[64];
         uint32_t i;
@@ -468,7 +468,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
 
     /* 8. key_block = PRF(master, "key expansion",
      *                    server_random || client_random,
-     *                    key_block_len). */
+     *                    key_block_len).*/
     {
         uint8_t seed[64];
         uint32_t i;
@@ -481,7 +481,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     }
 
     /* 9. Configure AEAD + 1.2 wire format. Keys NOT yet installed -
-     *    CCS must go out cleartext first. */
+     *    CCS must go out cleartext first.*/
     tls_record_set_aead(&ctx->rec, cs12_aead_alg(cs));
     tls_record_set_tls12(&ctx->rec);
 
@@ -495,7 +495,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     }
 
     /* 11. Install client send key + IV (key_block layout:
-     *      client_write_key | server_write_key | client_iv | server_iv). */
+     *      client_write_key | server_write_key | client_iv | server_iv).*/
     {
         uint8_t pad_iv[12];
         uint32_t i;
@@ -506,7 +506,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
 
     /* 12. Send client Finished:
      *     verify_data = PRF(master, "client finished",
-     *                       SHA256(handshake_msgs), 12). */
+     *                       SHA256(handshake_msgs), 12).*/
     {
         uint8_t snap[32];
         uint8_t verify[12];
@@ -553,7 +553,7 @@ int tls12_handshake_client(tls_ctx_t *ctx) {
     }
 
     /* 15. Recv Finished and verify. Snapshot transcript BEFORE folding
-     *     this Finished message in. */
+     *     this Finished message in.*/
     rc = hs12_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen, 0);
     if (rc != TLS_ERR_OK) {
         serial_printf("[tls12] fin-read rc=%d\n", rc);

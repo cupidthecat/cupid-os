@@ -18,7 +18,7 @@ typedef struct net_if {
     void       *driver_data;
     int       (*send)(struct net_if *, const uint8_t *frame, uint32_t len);
     /* Optional: direct HW ring drain. Callable with IRQs disabled (BKL path).
-     * NULL means driver does not support polled RX. */
+     * NULL means driver does not support polled RX.*/
     void      (*poll_rx)(struct net_if *);
     uint64_t    rx_packets, tx_packets, rx_drops, tx_errors;
 } net_if_t;

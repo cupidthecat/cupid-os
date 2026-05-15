@@ -10,7 +10,7 @@
  *   Encrypted:  0x17|0x0303|len(BE)|aead(plaintext, type, padding)
  *               where the AEAD nonce is static_iv XOR seq (last 8 bytes)
  *               and AAD is the 5-byte record header.
- */
+*/
 
 #include "tls_record.h"
 #include "chacha20poly1305.h"
@@ -112,7 +112,7 @@ static int xport_full_send(tls_record_state_t *r,
  *   - plaintext has NO trailing inner-type byte;
  *   - AAD is seq(8) | type(1) | version(2) | pt_len(2) (RFC 5246 §6.2.3.3);
  *   - AES-GCM puts an 8-byte explicit nonce on the wire (RFC 5288 §3);
- *     ChaCha20-Poly1305 reuses the 1.3-style XOR nonce (RFC 7905 §2). */
+ *     ChaCha20-Poly1305 reuses the 1.3-style XOR nonce (RFC 7905 §2).*/
 static int tls12_send_encrypted(tls_record_state_t *r,
                                 uint8_t type,
                                 const uint8_t *data, uint32_t len) {
@@ -254,7 +254,7 @@ int tls_record_send(tls_record_state_t *r,
 
 /* TLS 1.2 encrypted recv. Outer type is the real content type; AAD
  * shape and explicit-nonce handling per the comment above the send
- * function. */
+ * function.*/
 static int tls12_recv_encrypted(tls_record_state_t *r,
                                 uint8_t type, uint32_t body_len,
                                 uint8_t *type_out,

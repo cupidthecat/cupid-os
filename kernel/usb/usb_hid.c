@@ -41,13 +41,13 @@ static const uint8_t hid_to_ps2[256] = {
     [0x40] = 0x41, [0x41] = 0x42,
     [0x42] = 0x43, [0x43] = 0x44,
     [0x49] = 0x52, [0x4A] = 0x47, [0x4B] = 0x49, /* Insert, Home, PgUp */
-    [0x4C] = 0x53, [0x4D] = 0x4F, [0x4E] = 0x51, /* Delete, End, PgDn  */
-    [0x4F] = 0x4D, [0x50] = 0x4B,                /* RArrow, LArrow     */
-    [0x51] = 0x50, [0x52] = 0x48,                /* DArrow, UArrow     */
+    [0x4C] = 0x53, [0x4D] = 0x4F, [0x4E] = 0x51, /* Delete, End, PgDn */
+    [0x4F] = 0x4D, [0x50] = 0x4B,                /* RArrow, LArrow */
+    [0x51] = 0x50, [0x52] = 0x48,                /* DArrow, UArrow */
 };
 
 /* HID codes that need a 0xE0 prefix when translated to PS/2 set 1
- * (extended scancodes - arrows, Insert/Delete/Home/End/PgUp/PgDn). */
+ * (extended scancodes - arrows, Insert/Delete/Home/End/PgUp/PgDn).*/
 static const uint8_t hid_is_extended[256] = {
     [0x49] = 1, [0x4A] = 1, [0x4B] = 1,
     [0x4C] = 1, [0x4D] = 1, [0x4E] = 1,
@@ -72,7 +72,7 @@ static void hid_kbd_cb(int status, usb_transfer_t *t) {
     /* Map both left and right HID modifier bits to the same PS/2 make code.
      * Right-side scancodes like 0x9D/0xB8 have bit 7 set and can't use the
      * simple sc|0x80 release encoding; and GUI keys don't have valid Set 1
-     * make codes. Collapse to left counterparts. See wiki/USB.md known limits. */
+     * make codes. Collapse to left counterparts. See wiki/USB.md known limits.*/
     static const uint8_t mod_ps2[8] = {
         0x1D, 0x2A, 0x38, 0x00,   /* L: Ctrl, Shift, Alt, GUI(drop) */
         0x1D, 0x36, 0x38, 0x00    /* R: same as L for Ctrl/Alt; RShift=0x36 already; GUI drop */
@@ -161,7 +161,7 @@ static void hid_mouse_cb(int status, usb_transfer_t *t) {
     /* Byte 3 is the wheel delta on most modern HID mice (boot protocol
      * is officially 3 bytes; 4-byte devices place wheel here). For pure
      * 3-byte devices our 4-byte buffer leaves r[3]=0 -> no spurious
-     * scroll. */
+     * scroll.*/
     mouse_inject_wheel((int8_t)r[3]);
 }
 

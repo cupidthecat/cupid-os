@@ -19,14 +19,14 @@ typedef struct per_cpu_t {
     uint64_t preempt_count;
     uint8_t *idle_stack_top;
     uint32_t bkl_eflags_saved;
-    uint32_t current_pid;      /* PID running on this CPU (0 = idle/hlt)   */
+    uint32_t current_pid;      /* PID running on this CPU (0 = idle/hlt) */
     void   (*call_fn)(void *arg);
     void    *call_arg;
     volatile uint8_t call_pending;
     volatile uint8_t call_done;
     /* Tail pad so the struct rounds up to a cache-line pair. The
      * aligned(64) attribute on the struct forces sizeof to a
-     * multiple of 64, so _pad only needs to avoid truncating fields. */
+     * multiple of 64, so _pad only needs to avoid truncating fields.*/
     uint8_t  _pad[76];
 } per_cpu_t __attribute__((aligned(64)));
 

@@ -11,7 +11,7 @@
  * time this is called the ClientHello is in the transcript hash and the
  * ServerHello is too (caller appends both before dispatching).
  *
- * Returns TLS_ERR_OK or a TLS_ERR_* / X509_ERR_* (negative). */
+ * Returns TLS_ERR_OK or a TLS_ERR_* / X509_ERR_* (negative).*/
 int tls12_handshake_client(tls_ctx_t *ctx);
 
 #endif

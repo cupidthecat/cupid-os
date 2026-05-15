@@ -24,7 +24,7 @@ static uint64_t make_data_seg(uint32_t base, uint32_t limit) {
 
 /* Boot.asm GDT entries -- match byte-for-byte so CS=0x08, DS=0x10 stay valid.
  * Code: limit 0xFFFFF, base 0, access 0x9A, flags 0xC (4KB, 32-bit)
- * Data: limit 0xFFFFF, base 0, access 0x92, flags 0xC, base_hi 0 */
+ * Data: limit 0xFFFFF, base 0, access 0x92, flags 0xC, base_hi 0*/
 static uint64_t make_code32_kernel(void) {
     uint64_t d = 0;
     d |= 0xFFFFull;                          /* limit low */
@@ -45,7 +45,7 @@ static uint64_t make_data32_kernel(void) {
 
 /* Called by each AP immediately upon entering C, before this_cpu().
  * Loads the kernel's extended GDT (already built by percpu_init_bsp)
- * and sets %gs to the AP's per-CPU descriptor so this_cpu() works. */
+ * and sets %gs to the AP's per-CPU descriptor so this_cpu() works.*/
 void percpu_load_kernel_gdt(int cpu_id) {
     struct __attribute__((packed)) {
         uint16_t limit;

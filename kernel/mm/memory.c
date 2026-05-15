@@ -7,7 +7,7 @@
 #include "string.h"
 
 /* Physical Memory Manager (PMM) - unchanged logic, cleaned up
-  * and integrated with the heap allocator. */
+  * and integrated with the heap allocator.*/
 #define BITMAP_SIZE (TOTAL_MEMORY_BYTES / PAGE_SIZE / 32)
 
 static uint32_t page_bitmap[BITMAP_SIZE];
@@ -71,17 +71,17 @@ void pmm_init(uint32_t kernel_end) {
   uint32_t reserved_end = align_up(kernel_end, PAGE_SIZE);
   pmm_mark_region(0, reserved_end, 1);
 
-  pmm_mark_region(0xA0000, 0x100000, 1);  /* BIOS/VGA hole  */
-  pmm_mark_region(0xB00000, 0xD00000, 1); /* kernel stack (2MB) — moved
+  pmm_mark_region(0xA0000, 0x100000, 1);  /* BIOS/VGA hole */
+  pmm_mark_region(0xB00000, 0xD00000, 1); /* kernel stack (2MB) - moved
                                               from 0x800000 to dodge
                                               kernel-BSS overlap that
-                                              clobbered the guard zone */
+                                              clobbered the guard zone*/
 
   /* Reserve CupidC and CupidASM JIT/AOT execution regions so the heap
    * never allocates into them.  Layout (well above kernel BSS + stack):
    *   16 MB - 25 MB  CupidC   (1 MB code + 8 MB data)
    *   26 MB - 28 MB  CupidASM (1 MB code + 1 MB data)
-   */
+*/
   pmm_mark_region(0x01000000, 0x01900000, 1); /* CupidC JIT region */
   pmm_mark_region(0x01A00000, 0x01C00000, 1); /* CupidASM JIT region */
 
@@ -451,14 +451,14 @@ void print_memory_stats(void) {
 }
 
 /*  *  Stack Guard Implementation
- *  */
+ **/
 
 /**
  * stack_guard_init - Initialize stack guard canaries
  *
  * Writes magic values to the bottom STACK_GUARD_SIZE bytes of the kernel
  * stack. If the stack overflows, these will be corrupted and detected.
- */
+*/
 void stack_guard_init(void) {
   uint32_t *guard_zone = (uint32_t *)STACK_BOTTOM;
 
@@ -478,7 +478,7 @@ void stack_guard_init(void) {
  *
  * Checks if the guard zone at the bottom of the stack has been corrupted.
  * If corruption is detected, triggers a panic with diagnostic information.
- */
+*/
 void stack_guard_check(void) {
   uint32_t *guard_zone = (uint32_t *)STACK_BOTTOM;
   uint32_t corrupted_count = 0;
@@ -515,7 +515,7 @@ void stack_guard_check(void) {
  *
  * Calculates how much of the kernel stack is currently in use by
  * reading ESP and comparing it to the stack top.
- */
+*/
 uint32_t stack_usage_current(void) {
   uint32_t esp;
   __asm__ volatile("movl %%esp, %0" : "=r"(esp));
@@ -539,5 +539,5 @@ uint32_t stack_usage_current(void) {
  * stack_usage_peak - Get peak stack usage in bytes
  *
  * Returns the maximum stack depth seen since boot.
- */
+*/
 uint32_t stack_usage_peak(void) { return stack_peak_usage; }

@@ -25,7 +25,7 @@ typedef struct __attribute__((packed)) {
 } bootp_t;
 
 /* 0x63538263 - the four magic-cookie bytes 0x63,0x82,0x53,0x63 in
- * little-endian memory order as a uint32_t. */
+ * little-endian memory order as a uint32_t.*/
 #define DHCP_MAGIC       0x63538263u
 
 #define DHCP_OPT_SUBNET       1
@@ -74,7 +74,7 @@ static uint16_t ip_csum_helper(const uint8_t *data, uint32_t len) {
 }
 
 /* Build + send a DHCP packet over raw Ethernet/IPv4/UDP.
- * We don't have an IP address yet so we can't use ipv4_send. */
+ * We don't have an IP address yet so we can't use ipv4_send.*/
 static void send_dhcp_raw(net_if_t *nif, const bootp_t *b) {
     /* Ethernet(14) + IPv4(20) + UDP(8) + BOOTP */
     uint8_t pkt[14u + 20u + 8u + sizeof(bootp_t)];
@@ -213,7 +213,7 @@ extern void rtl8139_poll_rx(void);
 static bool wait_reply(uint32_t timeout_ms) {
     /* timer_get_uptime_ms() returns 0 before IRQs are enabled (tick counter
      * never increments).  Use timer_delay_us (TSC-based, IRQ-free) to spin
-     * in 1 ms slices and count down manually. */
+     * in 1 ms slices and count down manually.*/
     uint32_t remaining = timeout_ms;
     while (remaining > 0u) {
         rtl8139_poll_rx();          /* drain HW ring while IRQs may be off */

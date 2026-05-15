@@ -1,4 +1,4 @@
-; kernel/smp_trampoline.S — AP real-mode -> protected-mode bootstrap at 0x8000.
+; kernel/smp_trampoline.S - AP real-mode -> protected-mode bootstrap at 0x8000.
 
 BITS 16
 ORG 0x8000

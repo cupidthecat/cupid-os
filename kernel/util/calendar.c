@@ -3,7 +3,7 @@
  *
  * Implements calendar calculations and time/date string formatting
  * for the taskbar clock and interactive calendar popup.
- */
+*/
 
 #include "calendar.h"
 #include "string.h"
@@ -11,7 +11,7 @@
 
 /* Use 2D char arrays (not pointer arrays) so the string data is stored
  * inline in .rodata as one contiguous block, avoiding linker issues
- * where pointer targets in .rodata.str1.1 subsections get dropped. */
+ * where pointer targets in .rodata.str1.1 subsections get dropped.*/
 
 static const char month_abbr[][4] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -34,7 +34,7 @@ static const char weekday_names[][10] = {
  *
  * Does NOT zero-pad. Writes at most `maxlen` digits.
  * Returns the number of characters written.
- */
+*/
 static int int_to_str(int val, char *buf, int maxlen) {
     char tmp[12];
     int len = 0;
@@ -57,7 +57,7 @@ static int int_to_str(int val, char *buf, int maxlen) {
 
 /**
  * int_to_str_pad2 - Convert integer to zero-padded 2-digit string
- */
+*/
 static int int_to_str_pad2(int val, char *buf) {
     if (val < 0) val = 0;
     if (val > 99) val = 99;
@@ -68,7 +68,7 @@ static int int_to_str_pad2(int val, char *buf) {
 
 /**
  * str_append - Append a string, return number of characters written
- */
+*/
 static int str_append(char *buf, int pos, int bufsize, const char *src) {
     int i = 0;
     while (src[i] && pos + i < bufsize - 1) {
@@ -239,7 +239,7 @@ void calendar_next_month(calendar_state_t *cal) {
 
 /**
  * calendar_build_note_path - Build "/notes/YYYY-MM-DD.txt" (ramfs temp)
- */
+*/
 void calendar_build_note_path(int year, int month, int day,
                               char *buf, int bufsize) {
     if (bufsize < 24) { buf[0] = '\0'; return; }
@@ -279,7 +279,7 @@ void calendar_build_note_path(int year, int month, int day,
  * FAT16 is root-directory-only so we use a flat naming scheme.
  * Names are lowercase to match what fat16_enumerate_root returns.
  * The full persistent VFS path is "/home/n_mmdd.txt".
- */
+*/
 void calendar_build_persist_name(int month, int day,
                                  char *buf, int bufsize) {
     if (bufsize < 12) { buf[0] = '\0'; return; }
@@ -430,7 +430,7 @@ void calendar_mark_saved(calendar_state_t *cal,
  * Called when the calendar popup is opened to discover notes that
  * were previously saved to persistent FAT16 storage.
  * FAT16 readdir returns lowercase names.
- */
+*/
 void calendar_scan_notes(calendar_state_t *cal) {
     int fd = vfs_open("/home", O_RDONLY);
     if (fd < 0) return;

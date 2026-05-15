@@ -13,7 +13,7 @@ static usb_device_t  devices[USB_MAX_DEVICES];
 
 typedef struct {
     usb_hc_t     *hc;          /* non-null for root-port change */
-    usb_device_t *hub;         /* non-null for hub-port change  */
+    usb_device_t *hub;         /* non-null for hub-port change */
     int           port;
 } usb_work_t;
 
@@ -248,7 +248,7 @@ void usb_device_remove(usb_device_t *dev) {
 
 /* Shared USB IRQ dispatcher: calls irq_handler on every registered HC.
  * Installed once per IRQ line via usb_register_irq(). Supports up to 16
- * IRQ lines tracked via bitmask. */
+ * IRQ lines tracked via bitmask.*/
 static uint16_t usb_irq_mask = 0u; /* bitmask of installed IRQ lines */
 
 static void usb_irq_dispatch(struct registers *r) {

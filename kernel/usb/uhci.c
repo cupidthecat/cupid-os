@@ -114,7 +114,7 @@ static int uhci_probe_pci(pci_device_t *d) {
 
     c->frame_list = (uint32_t*)pmm_alloc_contiguous(1);
     /* QH must be 16-byte aligned per UHCI spec. kmalloc may not guarantee
-     * this, so allocate extra room and align manually. */
+     * this, so allocate extra room and align manually.*/
     c->skel_qh_raw = kmalloc(sizeof(uhci_qh_t) + 16u);
     if (!c->frame_list || !c->skel_qh_raw) { KERROR("uhci: alloc failed"); return -1; }
     {
@@ -183,7 +183,7 @@ static uint32_t uhci_make_token(uint8_t pid, uint8_t addr, uint8_t ep,
 static inline uhci_td_t *td_align16(void *raw) {
     uint32_t a = ((uint32_t)raw + 15u) & ~15u;
     /* On 32-bit x86, uint32_t and pointer are same size.
-     * Cast via char* to satisfy strict-aliasing/pointer-arith warnings. */
+     * Cast via char* to satisfy strict-aliasing/pointer-arith warnings.*/
     return (uhci_td_t *)((char *)raw + (a - (uint32_t)raw));
 }
 

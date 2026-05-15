@@ -126,7 +126,7 @@ static int ehci_probe_pci(pci_device_t *d) {
 
     /* Map EHCI MMIO region into the page tables before any register access.
      * The BAR is typically above IDENTITY_MAP_SIZE (e.g. 0xfeb...) so the
-     * region is not covered by paging_init()'s identity map. */
+     * region is not covered by paging_init()'s identity map.*/
     paging_map_mmio(d->bars[0], 4096);
 
     uint8_t caplen = *(volatile uint8_t*)((uint8_t*)c->mmio_base + EHCI_CAP_CAPLENGTH);
@@ -145,7 +145,7 @@ static int ehci_probe_pci(pci_device_t *d) {
 
     c->periodic_list  = (uint32_t*)pmm_alloc_contiguous(1);
     /* QH must be 32-byte aligned per EHCI spec. kmalloc may not guarantee
-     * this, so allocate extra room and align manually. */
+     * this, so allocate extra room and align manually.*/
     c->async_head_raw = kmalloc(sizeof(ehci_qh_t) + 32u);
     if (!c->periodic_list || !c->async_head_raw) { KERROR("ehci: alloc failed"); return -1; }
     {
@@ -259,20 +259,20 @@ static int ehci_submit_sync(usb_hc_t *hc, usb_transfer_t *t, uint32_t timeout_ms
                    | (1u << 30);
     /* Build our QH as a self-contained one-element async ring with H=1.
      * This way we set ASYNCLISTADDR to our QH and the HC processes it
-     * without needing the existing async_head to be in the ring. */
+     * without needing the existing async_head to be in the ring.*/
     qh->horiz_link  = (uint32_t)qh | 0x2u;          /* circular: points to itself */
     qh->ep_chars    = chars | (1u << 15);            /* H-bit: head of reclamation list */
     qh->ep_caps     = caps;
     qh->current_qtd = 0;
     /* Copy the first qTD into the QH overlay so the HC sees Active=1
-     * immediately on the first traversal of this QH. */
+     * immediately on the first traversal of this QH.*/
     qh->overlay_next  = (uint32_t)q;
     qh->overlay_alt   = 1u;
     qh->overlay_token = q->token;
     for (int i = 0; i < 5; i++) qh->overlay_buf[i] = q->buf_page[i];
 
     /* Stop the async schedule, set ASYNCLISTADDR to our standalone QH ring,
-     * then restart. Restoring ASYNCLISTADDR to async_head is done after. */
+     * then restart. Restoring ASYNCLISTADDR to async_head is done after.*/
     uint32_t usbcmd_save = ehci_op_read(c, EHCI_OP_USBCMD);
     /* Disable async schedule */
     ehci_op_write(c, EHCI_OP_USBCMD, usbcmd_save & ~EHCI_CMD_ASYNC_EN);
@@ -290,7 +290,7 @@ static int ehci_submit_sync(usb_hc_t *hc, usb_transfer_t *t, uint32_t timeout_ms
     while (spins--) {
         /* HC executes from QH overlay and writes result back there;
          * also poll q->token in case HC wrote back to the qTD directly.
-         * Use volatile to prevent the compiler caching the read. */
+         * Use volatile to prevent the compiler caching the read.*/
         uint32_t tok = *(volatile uint32_t *)&qh->overlay_token;
         if (!(tok & EHCI_QTD_STATUS_ACTIVE)) { status = 0; break; }
         tok = *(volatile uint32_t *)&q->token;
@@ -351,7 +351,7 @@ static int ehci_port_reset(usb_hc_t *hc, int port) {
     uint32_t v = ehci_op_read(c, EHCI_OP_PORTSC(port));
     if ((v & EHCI_PORTSC_CONNECT) == 0) return -1;
     /* Check line status before reset. PORTSC[11:10]: 01=K-state(LS), 10=J-state(FS).
-     * If LS or FS device detected, hand off to companion immediately without reset. */
+     * If LS or FS device detected, hand off to companion immediately without reset.*/
     uint32_t ls = (v >> 10) & 0x3u;
     if (ls == 0x1u || ls == 0x2u) {
         KINFO("ehci: port %u LS/FS device (linestatus=%u portsc=%x), handing off to companion",

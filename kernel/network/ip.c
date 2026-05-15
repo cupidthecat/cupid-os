@@ -107,7 +107,7 @@ static ip_reasm_t *reasm_alloc(uint32_t src, uint32_t dst, uint16_t id, uint8_t 
 }
 
 /* Mark units [unit_start, unit_start+unit_count) in bitmap. Returns count
- * of units that were not previously set (so caller can detect dup). */
+ * of units that were not previously set (so caller can detect dup).*/
 static uint32_t reasm_mark(ip_reasm_t *r, uint32_t unit_start, uint32_t unit_count) {
     uint32_t newly = 0u;
     uint32_t u;
@@ -201,14 +201,14 @@ int ipv4_send(uint32_t dst_ip, uint8_t proto, const uint8_t *payload, uint32_t p
     uint32_t off;
 
     /* Single-fragment fast path: also retains DF semantics for small TCP
-     * (we keep DF off; DF is only useful for PMTU-D which we don't do). */
+     * (we keep DF off; DF is only useful for PMTU-D which we don't do).*/
     if (20u + plen <= NET_IF_MTU) {
         return ipv4_send_one(dst_ip, proto, payload, plen,
                              ip_id_counter++, 0u, false);
     }
 
     /* Fragment. Each fragment payload must be 8-byte aligned (offset is in
-     * 8-byte units), except the last. */
+     * 8-byte units), except the last.*/
     mtu_payload = NET_IF_MTU - 20u;
     frag_size   = mtu_payload & ~7u;
     id = ip_id_counter++;
@@ -288,7 +288,7 @@ void ipv4_input(const uint8_t *frame, uint32_t len) {
     }
 
     /* Fragment. Fragment payload bytes must be 8-byte aligned (last frag
-     * may be shorter). */
+     * may be shorter).*/
     {
         uint32_t byte_off = (uint32_t)frag_off_units * 8u;
         uint32_t end      = byte_off + plen;

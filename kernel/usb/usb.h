@@ -58,11 +58,11 @@ void usb_device_remove(usb_device_t *dev);
 /* Register a shared USB IRQ dispatcher for the given IRQ line.
  * Safe to call multiple times with the same irq - installs only once.
  * HCs sharing an IRQ line must use this instead of irq_install_handler
- * directly so all HC irq_handler callbacks are invoked on each firing. */
+ * directly so all HC irq_handler callbacks are invoked on each firing.*/
 void usb_register_irq(uint8_t irq);
 
 /* Exported for CupidC feature test. Returns class_code of device at
- * slot `index`, or 0 if slot is empty / out of range. */
+ * slot `index`, or 0 if slot is empty / out of range.*/
 uint8_t usb_device_class(int index);
 
 #endif

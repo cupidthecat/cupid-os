@@ -4,7 +4,7 @@
  *   Class 1 (4K slots): offset 0x400000
  *   Class 2 (16K slots): offset 0x800000
  *   Class 3 (64K slots): offset 0xC00000
- */
+*/
 #ifndef SWAP_DISK_H
 #define SWAP_DISK_H
 
@@ -24,12 +24,12 @@ extern const uint32_t swap_disk_region_offset[SWAP_DISK_NUM_CLASSES];
 
 /* Open (or create + zero-extend) the swap file. Returns 0 on success,
  * negative errno on failure. Leaves the fd open for the lifetime of the
- * swap system (one global fd). swap_disk_close releases it. */
+ * swap system (one global fd). swap_disk_close releases it.*/
 int swap_disk_open(const char *vfs_path);
 void swap_disk_close(void);
 
 /* Read/write `swap_disk_slot_bytes[class_idx]` bytes to/from `buf`.
- * Returns 0 on success, negative errno on I/O failure. */
+ * Returns 0 on success, negative errno on I/O failure.*/
 int swap_disk_read(uint8_t class_idx, uint32_t slot, void *buf);
 int swap_disk_write(uint8_t class_idx, uint32_t slot, const void *buf);
 

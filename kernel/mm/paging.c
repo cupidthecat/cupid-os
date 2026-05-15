@@ -35,12 +35,12 @@ static void map_page_identity(uint32_t address) {
     }
 
     /* Kernel mapping: no USER bit. Ring-0 code accesses freely; any future
-     * ring-3 code faults on kernel memory instead of silently succeeding. */
+     * ring-3 code faults on kernel memory instead of silently succeeding.*/
     table[table_index] = (address & 0xFFFFF000) | PAGE_PRESENT | PAGE_RW;
 }
 
 /* Map an MMIO region (physical == virtual, no-cache) so ring-0 drivers
- * can access BARs that live above IDENTITY_MAP_SIZE (e.g. EHCI at ~0xfeb...). */
+ * can access BARs that live above IDENTITY_MAP_SIZE (e.g. EHCI at ~0xfeb...).*/
 void paging_map_mmio(uint32_t phys_addr, uint32_t size) {
     uint32_t addr = phys_addr & ~((uint32_t)PAGE_SIZE - 1u);
     uint32_t end  = (phys_addr + size + (uint32_t)PAGE_SIZE - 1u) & ~((uint32_t)PAGE_SIZE - 1u);
@@ -69,7 +69,7 @@ void paging_init(void) {
     }
 
     /* Map VBE linear framebuffer region (address stored by bootloader at 0x0500).
-     * Map 2x screen size (0x280000 = 2*640*480*4 rounded up) for page flipping. */
+     * Map 2x screen size (0x280000 = 2*640*480*4 rounded up) for page flipping.*/
     {
         uint32_t lfb = *(volatile uint32_t *)0x0500U;
         if (lfb != 0U && lfb >= 0x100000U) {

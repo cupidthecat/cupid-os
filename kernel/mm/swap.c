@@ -114,7 +114,7 @@ static void lru_remove(swap_handle_t h) {
 
 /* Evict one unpinned handle in class `target` by writing its resident
  * bytes back to disk and releasing its RAM slot. Returns 0 on success,
- * -1 if no unpinned handle in this class exists in the LRU. */
+ * -1 if no unpinned handle in this class exists in the LRU.*/
 static int class_evict_one(uint8_t target) {
     for (swap_handle_t h = g_lru_tail; h != SWAP_INVALID;
          h = g_slots[h - 1].lru_prev) {
@@ -159,7 +159,7 @@ int swap_init(const char *backing_path, uint32_t pool_bytes) {
      * - disk_bitmap: kmalloc (slot_count + 7)/8 bytes, zeroed.
      * - ram_base: kmalloc (pool_bytes / 4) bytes.
      * - ram_cap: (pool_bytes / 4) / slot_bytes.
-     * - ram_free_bitmap: kmalloc (ram_cap + 7)/8 bytes. */
+     * - ram_free_bitmap: kmalloc (ram_cap + 7)/8 bytes.*/
     uint32_t per_class_bytes = pool_bytes / SWAP_DISK_NUM_CLASSES;
     for (uint8_t c = 0; c < SWAP_DISK_NUM_CLASSES; c++) {
         swap_class_t *cls = &g_classes[c];
@@ -262,7 +262,7 @@ void *swap_pin(swap_handle_t h) {
     if (!s) return NULL;
 
     /* Already resident -- just bump pin count and remove from LRU if
-     * this is the first pin (count was 0). */
+     * this is the first pin (count was 0).*/
     if (s->resident_ptr) {
         if (s->pin_count == 0) lru_remove(h);
         s->pin_count++;

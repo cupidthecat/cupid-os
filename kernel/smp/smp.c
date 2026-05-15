@@ -53,7 +53,7 @@ static void start_ap(int cpu_id) {
 void smp_init(void) {
     bool mp_ok = mp_tables_discover();
     /* If MP tables found only 1 CPU (or nothing), try ACPI MADT which
-     * QEMU populates with all SMP CPUs even when MP tables only list the BSP. */
+     * QEMU populates with all SMP CPUs even when MP tables only list the BSP.*/
     if (!mp_ok || mp_cpu_discovered_count < 2) {
         if (!acpi_discover()) {
             if (!mp_ok) {
@@ -108,7 +108,7 @@ void smp_init(void) {
         /* Use trampoline data segment (0x10) as a placeholder GS - the
          * trampoline GDT has only 3 entries so per-CPU selectors (index 5+)
          * would #GP.  percpu_load_kernel_gdt() fixes GS once the kernel
-         * GDT is loaded. */
+         * GDT is loaded.*/
         gs_tbl[i] = (uint16_t)0x10u;
     }
     *entry = (uint32_t)ap_main_c;
@@ -164,7 +164,7 @@ void ipi_reschedule_c(void) {
     /* Mark current as needing reschedule. The next scheduler_tick
      * or explicit schedule() call will then switch. This avoids
      * calling schedule() from within an ISR path where BKL reentry
-     * + context switch is complex. */
+     * + context switch is complex.*/
     per_cpu_t *c = this_cpu();
     /* Force quantum expiry - existing scheduler honors this. */
     /* Don't hold BKL here; scheduler.c will acquire it on next tick. */

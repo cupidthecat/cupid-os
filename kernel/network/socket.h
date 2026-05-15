@@ -11,7 +11,7 @@
  * chains (e.g. iana.org -> ~10 KB Certificate message); peer-side data
  * piled up faster than we drained, segments past the buffer were dropped,
  * and the server eventually closed the connection. 64 KB gives headroom
- * for a full encrypted handshake flight without dropping. */
+ * for a full encrypted handshake flight without dropping.*/
 #define SOCK_RX_BUF 65536
 #define SOCK_TX_BUF 8192
 #define SOCKET_MAX  32
@@ -85,7 +85,7 @@ typedef struct socket_t {
 
     /* Opaque TLS context - non-NULL means socket_send/recv route
      * through the TLS record layer instead of raw TCP. Allocated by
-     * socket_setsockopt(SOL_TLS, TLS_ENABLE), freed by socket_close. */
+     * socket_setsockopt(SOL_TLS, TLS_ENABLE), freed by socket_close.*/
     void *tls_ctx;
 } socket_t;
 
@@ -107,7 +107,7 @@ int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *por
 
 /* Non-blocking polling helpers.
  *   socket_avail: bytes pending in rx buffer (>= 0), or negative errno.
- *   socket_state: tcp_state_t for TCP sockets; 0 for UDP; negative errno on bad fd. */
+ *   socket_state: tcp_state_t for TCP sockets; 0 for UDP; negative errno on bad fd.*/
 int socket_avail   (int fd);
 int socket_state   (int fd);
 

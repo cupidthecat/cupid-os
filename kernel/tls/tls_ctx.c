@@ -1,5 +1,5 @@
 /* TLS context lifecycle. The full handshake state machine lives in
- * tls_handshake.c; this file is the public surface. */
+ * tls_handshake.c; this file is the public surface.*/
 
 #include "tls_ctx.h"
 #include "ct.h"
@@ -46,7 +46,7 @@ int tls_ctx_init(tls_ctx_t *ctx,
 
     /* Generate ephemeral P-256 keypair: random scalar, then derive
      * uncompressed pubkey via scalar * G. Re-roll if the scalar is 0
-     * or >= n (vanishingly rare; a few retries are bounded). */
+     * or >= n (vanishingly rare; a few retries are bounded).*/
     {
         p256_scalar_t kp;
         p256_jac_t pub_jac;

@@ -133,7 +133,7 @@ void arp_input(net_if_t *nif, const uint8_t *frame, uint32_t len) {
     oper = (uint16_t)(((uint16_t)arp[6] << 8) | arp[7]);
 
     /* IP addresses stored as uint32_t where byte 0 (low byte) = first octet.
-     * Wire is big-endian (first octet first), so first wire byte -> low byte. */
+     * Wire is big-endian (first octet first), so first wire byte -> low byte.*/
     spa = (uint32_t)arp[14]
         | ((uint32_t)arp[15] << 8)
         | ((uint32_t)arp[16] << 16)
@@ -172,7 +172,7 @@ int arp_resolve(uint32_t ip, uint8_t mac_out[6]) {
     extern void net_process_pending(void);
     /* Wait up to ~500ms using TSC-based delay so we work correctly when
      * BKL is held (IF=0 -> timer IRQ frozen). Poll HW RX directly for the
-     * same reason - the NIC IRQ won't fire with interrupts disabled. */
+     * same reason - the NIC IRQ won't fire with interrupts disabled.*/
     for (spins = 0; spins < 500u; spins++) {
         if (nif->poll_rx) nif->poll_rx(nif);
         net_process_pending();

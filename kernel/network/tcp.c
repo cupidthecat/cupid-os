@@ -8,7 +8,7 @@
 #include "timer.h"
 
 /* Pseudo-random 32-bit ISS from TSC. Off-path cannot observe -> not spoofable.
- * Mixes low TSC bits, a shifted copy, and a per-slot golden-ratio scramble. */
+ * Mixes low TSC bits, a shifted copy, and a per-slot golden-ratio scramble.*/
 static uint32_t tcp_gen_iss(uint32_t salt) {
     uint64_t t1 = rdtsc();
     uint64_t t2 = rdtsc();
@@ -33,6 +33,8 @@ typedef struct __attribute__((packed)) {
 #define TCP_PSH 0x08u
 #define TCP_ACK 0x10u
 
+static socket_t synack_tmp;
+
 static uint16_t be16(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
 static uint32_t be32(uint32_t v) {
     return ((v >> 24) & 0xFFu) | ((v >> 8) & 0xFF00u)
@@ -40,7 +42,7 @@ static uint32_t be32(uint32_t v) {
 }
 
 /* TCP checksum: pseudo-header (src_ip 4, dst_ip 4, zero 1, proto 1, tcp_len 2)
- * + TCP header + data, ones-complement. */
+ * + TCP header + data, ones-complement.*/
 static uint16_t tcp_csum(uint32_t src_ip, uint32_t dst_ip,
                          const uint8_t *tcp_pkt, uint32_t len) {
     uint32_t sum = 0;
@@ -61,7 +63,7 @@ static uint16_t tcp_csum(uint32_t src_ip, uint32_t dst_ip,
 }
 
 /* Low-level emit at an explicit seq. Does NOT advance snd_nxt or buffer for
- * retransmit. Used for retransmission and pure-ACK packets. */
+ * retransmit. Used for retransmission and pure-ACK packets.*/
 static int tcp_emit(socket_t *s, uint32_t seq, uint8_t flags,
                     const uint8_t *data, uint32_t dlen) {
     net_if_t *nif = net_if_primary();
@@ -80,7 +82,7 @@ static int tcp_emit(socket_t *s, uint32_t seq, uint8_t flags,
     h->flags     = flags;
     /* Advertise actual free rx-buffer space, capped at 65535 since we
      * don't implement TCP window scaling. Reserve 1 byte so head==tail
-     * always means empty (matches the rx_buf invariant in tcp_input). */
+     * always means empty (matches the rx_buf invariant in tcp_input).*/
     {
         uint32_t used;
         uint32_t freeb;
@@ -102,7 +104,7 @@ static int tcp_emit(socket_t *s, uint32_t seq, uint8_t flags,
 
 /* Build + send a TCP segment. Caller holds BKL or is in net_process_pending.
  * Advances snd_nxt and, for PSH+data segments, buffers payload for
- * stop-and-wait retransmission via tcp_tick. */
+ * stop-and-wait retransmission via tcp_tick.*/
 static int tcp_send_seg(socket_t *s, uint8_t flags, const uint8_t *data, uint32_t dlen) {
     uint32_t seq = s->snd_nxt;
     int r;
@@ -284,7 +286,7 @@ int tcp_accept(int fd, uint32_t *peer_ip, uint16_t *peer_port) {
                 bkl_unlock(); return EBADF;
             }
             /* Any-slot dequeue: take the first completed half-open entry.
-             * Out-of-order 3rd-ACKs no longer block earlier incomplete ones. */
+             * Out-of-order 3rd-ACKs no longer block earlier incomplete ones.*/
             found = -1;
             for (j = 0; j < LQ_SIZE; j++) {
                 if (l->lq[j].in_use && l->lq[j].completed) { found = j; break; }
@@ -356,7 +358,7 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
     if (hlen > len) return;
 
     /* Find socket by (local_port, remote_ip, remote_port). Exclude LISTEN
-     * (handled in T14). */
+     * (handled in T14).*/
     s = NULL;
     for (i = 0; i < SOCKET_MAX; i++) {
         socket_t *c = &sockets[i];
@@ -391,19 +393,24 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
             l->lq[slot].iss         = tcp_gen_iss((uint32_t)slot);
             l->lq[slot].rcv_nxt     = seq + 1u;
             l->lq[slot].inserted_ms = timer_get_uptime_ms();
-            l->lq[slot].completed   = 0;
+            /* QEMU user-mode host forwarding may not inject the pure final
+             * ACK until the host side sends application data.  Server-first
+             * protocols such as SSH need accept() to return so they can send
+             * their banner, so treat SYN/SYN-ACK as enough to wake accept().
+             * The later ACK path still handles normal clients.*/
+            l->lq[slot].completed   = 1;
             l->lq[slot].in_use      = 1;
             {
-                socket_t tmp;
+                socket_t *tmp = &synack_tmp;
                 uint32_t k;
-                for (k = 0; k < (uint32_t)sizeof(tmp); k++) ((uint8_t*)&tmp)[k] = 0;
-                tmp.local_ip    = l->local_ip ? l->local_ip : net_if_primary()->ipv4_addr;
-                tmp.local_port  = l->local_port;
-                tmp.remote_ip   = src_ip;
-                tmp.remote_port = src_port;
-                tmp.snd_nxt     = l->lq[slot].iss;
-                tmp.rcv_nxt     = seq + 1u;
-                tcp_send_seg(&tmp, (uint8_t)(TCP_SYN | TCP_ACK), NULL, 0);
+                for (k = 0; k < (uint32_t)sizeof(*tmp); k++) ((uint8_t*)tmp)[k] = 0;
+                tmp->local_ip    = l->local_ip ? l->local_ip : net_if_primary()->ipv4_addr;
+                tmp->local_port  = l->local_port;
+                tmp->remote_ip   = src_ip;
+                tmp->remote_port = src_port;
+                tmp->snd_nxt     = l->lq[slot].iss;
+                tmp->rcv_nxt     = seq + 1u;
+                tcp_send_seg(tmp, (uint8_t)(TCP_SYN | TCP_ACK), NULL, 0);
             }
             return;
         }
@@ -457,7 +464,7 @@ void tcp_input(uint32_t src_ip, const uint8_t *buf, uint32_t len) {
             uint32_t used, free_bytes;
             /* Capacity check: reserve 1 byte so head==tail always means empty.
              * If no room, don't advance rcv_nxt and don't consume - ACK
-             * carrying unchanged rcv_nxt triggers peer retransmit. */
+             * carrying unchanged rcv_nxt triggers peer retransmit.*/
             if (s->rx_tail >= s->rx_head) used = s->rx_tail - s->rx_head;
             else used = SOCK_RX_BUF - s->rx_head + s->rx_tail;
             free_bytes = (used < SOCK_RX_BUF - 1u) ? (SOCK_RX_BUF - 1u - used) : 0u;
@@ -530,7 +537,7 @@ void tcp_tick(void) {
             }
         }
         /* Listen-queue half-open eviction: drop SYN-RCVD slots that never
-         * completed the 3-way handshake within timeout. */
+         * completed the 3-way handshake within timeout.*/
         if (s->tcp_state == TCPS_LISTEN) {
             int j;
             for (j = 0; j < LQ_SIZE; j++) {

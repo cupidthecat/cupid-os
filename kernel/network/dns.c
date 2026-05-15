@@ -7,6 +7,17 @@
 
 extern void net_process_pending(void);
 
+/* Hex-dump up to `len` bytes (clamped to `cap`) of `buf` on one serial line. */
+static void dns_dump_bytes(const char *tag, const uint8_t *buf, int len, int cap) {
+    int n = len < cap ? len : cap;
+    if (n < 0) n = 0;
+    serial_printf("[dns] %s (%d bytes):", tag, len);
+    for (int i = 0; i < n; i++) {
+        serial_printf(" %02x", (unsigned)buf[i]);
+    }
+    serial_printf("\n");
+}
+
 /* Non-blocking UDP recv: returns bytes or -1 if queue empty. */
 static int udp_try_recv(int fd, uint8_t *buf, uint32_t len,
                         uint32_t *ip, uint16_t *port) {
@@ -101,7 +112,7 @@ static int encode_name(const char *name, uint8_t *out, int max) {
 
 /* Skip a DNS name in a response (handles compression pointers).
  * Returns byte offset just after the name, or -1 on malformed input.
- * Compression-pointer case needs 2 bytes available (tag + low byte). */
+ * Compression-pointer case needs 2 bytes available (tag + low byte).*/
 static int skip_name(const uint8_t *buf, int pos, int total) {
     while (pos < total) {
         uint8_t b = buf[pos];
@@ -118,7 +129,7 @@ static int skip_name(const uint8_t *buf, int pos, int total) {
 }
 
 /* One send + receive attempt. Returns response length on success, <0 on
- * timeout/error. resp must be >= 1500 bytes. poll_ms = how long to wait. */
+ * timeout/error. resp must be >= 1500 bytes. poll_ms = how long to wait.*/
 static int dns_query_once(uint32_t dns_ip, uint16_t qid, const uint8_t *query,
                           int qlen, uint8_t *resp, int resp_max, uint32_t poll_ms) {
     int fd = socket_create(SOCK_TYPE_UDP);
@@ -140,7 +151,7 @@ static int dns_query_once(uint32_t dns_ip, uint16_t qid, const uint8_t *query,
         if (rn >= 12) {
             uint16_t resp_id = (uint16_t)(((uint16_t)resp[0] << 8) | resp[1]);
             if (resp_id == qid) break;
-            /* stale/cross-talk reply — ignore and keep polling */
+            /* stale/cross-talk reply - ignore and keep polling */
             rn = -1;
         }
         timer_delay_us(1000u);
@@ -162,7 +173,7 @@ int dns_resolve(const char *name, uint32_t *ipv4_out) {
     }
 
     /* 1500-byte buffer fits typical Ethernet MTU. EDNS-advertised UDP size
-     * (4096) cap is rare; recursive resolvers rarely return >1500 for A. */
+     * (4096) cap is rare; recursive resolvers rarely return >1500 for A.*/
     uint8_t query[512];
     static uint16_t id_counter = 1;
     uint16_t qid = id_counter++;
@@ -179,11 +190,13 @@ int dns_resolve(const char *name, uint32_t *ipv4_out) {
     int o = 12 + n;
     query[o++] = 0x00u; query[o++] = 0x01u;   /* QTYPE = A */
     query[o++] = 0x00u; query[o++] = 0x01u;   /* QCLASS = IN */
+    serial_printf("[dns] query for %s (%d bytes wire):\n", name, o);
+    dns_dump_bytes("query", query, o, 96);
 
     /* Recursive lookup of an uncached name (root -> TLD -> auth) can take
      * several seconds end-to-end via the upstream forwarder, so try up to
      * 3 attempts: 5s, 5s, 8s. Each attempt uses a fresh ephemeral socket
-     * so duplicate replies from earlier attempts can't cross-talk. */
+     * so duplicate replies from earlier attempts can't cross-talk.*/
     uint8_t resp[1500];
     int rn = -1;
     static const uint32_t timeouts_ms[3] = { 5000u, 5000u, 8000u };
@@ -199,20 +212,28 @@ int dns_resolve(const char *name, uint32_t *ipv4_out) {
     }
 
     /* TC=1 in flags byte 2 means UDP response was truncated. Without TCP
-     * fallback we can still try parsing — the answer may already fit. */
+     * fallback we can still try parsing - the answer may already fit.*/
     if ((resp[2] & 0x02u) != 0u) {
         serial_printf("[dns] truncated response for %s (TC=1)\n", name);
     }
     /* RCODE in low nibble of byte 3. NOERROR=0, NXDOMAIN=3, SERVFAIL=2. */
     uint8_t rcode = (uint8_t)(resp[3] & 0x0Fu);
+    uint16_t qdcount = (uint16_t)(((uint16_t)resp[4] << 8) | resp[5]);
+    uint16_t ancount = (uint16_t)(((uint16_t)resp[6] << 8) | resp[7]);
+    uint16_t nscount = (uint16_t)(((uint16_t)resp[8] << 8) | resp[9]);
+    uint16_t arcount = (uint16_t)(((uint16_t)resp[10] << 8) | resp[11]);
     if (rcode != 0u) {
-        serial_printf("[dns] %s -> rcode=%u\n", name, (unsigned)rcode);
+        serial_printf("[dns] %s -> rcode=%u (qd=%u an=%u ns=%u ar=%u)\n",
+                      name, (unsigned)rcode, (unsigned)qdcount,
+                      (unsigned)ancount, (unsigned)nscount, (unsigned)arcount);
+        dns_dump_bytes("resp", resp, rn, 96);
         return -1;
     }
 
-    uint16_t ancount = (uint16_t)(((uint16_t)resp[6] << 8) | resp[7]);
     if (ancount == 0u) {
-        serial_printf("[dns] %s -> 0 answers\n", name);
+        serial_printf("[dns] %s -> 0 answers (qd=%u ns=%u ar=%u)\n",
+                      name, (unsigned)qdcount, (unsigned)nscount, (unsigned)arcount);
+        dns_dump_bytes("resp", resp, rn, 96);
         return -1;
     }
 
@@ -237,8 +258,12 @@ int dns_resolve(const char *name, uint32_t *ipv4_out) {
             cache_put(name, ip, ttl);
             return 0;
         }
+        serial_printf("[dns] %s -> answer %d: type=%u rdlen=%u (skipped)\n",
+                      name, a, (unsigned)atype, (unsigned)rdlen);
         pos += rdlen;
     }
-    serial_printf("[dns] %s -> no A record in answers\n", name);
+    serial_printf("[dns] %s -> no A record in answers (an=%u ns=%u ar=%u)\n",
+                  name, (unsigned)ancount, (unsigned)nscount, (unsigned)arcount);
+    dns_dump_bytes("resp", resp, rn, 96);
     return -1;
 }

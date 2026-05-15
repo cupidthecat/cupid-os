@@ -22,7 +22,7 @@ static void ioapic_write(ioapic_info_t *io, uint8_t reg, uint32_t val) {
 static ioapic_info_t *find_ioapic_for_gsi(uint32_t gsi) {
     int i;
     /* MADT / MP parsers set mmio_base but leave gsi_count=0. Lazy-read
-     * the VER register here so discovery-after-ioapic_init still works. */
+     * the VER register here so discovery-after-ioapic_init still works.*/
     for (i = 0; i < ioapic_count; i++) {
         ioapic_info_t *io = &ioapics_discovered[i];
         if (io->gsi_count == 0 && io->mmio_base != 0) {
@@ -84,7 +84,7 @@ void ioapic_unmask_gsi(uint32_t gsi) { set_mask(gsi, false); }
 void ioapic_init_all(uint8_t bsp_apic_id) {
     int i;
     /* Default: single IOAPIC at 0xFEC00000 with 24 GSIs.
-     * T5/T6 will overwrite if MP/ACPI discovery populates something else. */
+     * T5/T6 will overwrite if MP/ACPI discovery populates something else.*/
     if (ioapic_count == 0) {
         ioapics_discovered[0].id = 0;
         ioapics_discovered[0].mmio_base = IOAPIC_DEFAULT_BASE;

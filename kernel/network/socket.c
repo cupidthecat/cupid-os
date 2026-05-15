@@ -73,7 +73,7 @@ int socket_bind(int fd, uint32_t ip, uint16_t port) {
     socket_t *s;
     /* BSD convention: callers pass ports in network byte order (htons'd).
      * Internally we store host order so it can be compared against the
-     * host-order dst_port produced by tcp/udp input parsers. */
+     * host-order dst_port produced by tcp/udp input parsers.*/
     uint16_t host_port = (port != 0u) ? ntohs(port) : 0u;
     if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
     bkl_lock();
@@ -102,7 +102,7 @@ int socket_sendto(int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t p
     local_port = s->local_port;
     bkl_unlock();
     /* udp_send_raw calls ipv4_send->arp_resolve which busy-waits; must NOT
-     * run under BKL (BKL disables IRQs -> timer freeze + no NIC RX). */
+     * run under BKL (BKL disables IRQs -> timer freeze + no NIC RX).*/
     return udp_send_raw(ip, local_port, ntohs(port), (const uint8_t*)buf, len);
 }
 
@@ -209,7 +209,7 @@ void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,
 
 /* TCP wrappers - wired in T13/T14. Caller passes ports in network byte
  * order; tcp_* functions store in host order so we translate at the
- * boundary (BSD convention). */
+ * boundary (BSD convention).*/
 int socket_listen (int fd, int backlog)                            { return tcp_listen(fd, backlog); }
 int socket_accept (int fd, uint32_t *peer_ip, uint16_t *peer_port) {
     int r = tcp_accept(fd, peer_ip, peer_port);
@@ -219,7 +219,7 @@ int socket_accept (int fd, uint32_t *peer_ip, uint16_t *peer_port) {
 int socket_connect(int fd, uint32_t ip, uint16_t port)             { return tcp_connect(fd, ip, ntohs(port)); }
 
 /* TLS-aware send/recv: when the socket has a tls_ctx attached, route
- * application bytes through the TLS record layer; otherwise plain TCP. */
+ * application bytes through the TLS record layer; otherwise plain TCP.*/
 int socket_send(int fd, const void *buf, uint32_t len) {
     socket_t *s;
     if (fd < 0 || fd >= SOCKET_MAX) return EBADF;
@@ -269,7 +269,7 @@ int socket_state(int fd) {
 /* TLS setsockopt */
 
 /* Transport callbacks for the TLS record layer. user is a socket_t*; we
- * derive the fd from its index in `sockets`. */
+ * derive the fd from its index in `sockets`.*/
 static int sock_tls_xp_send(void *user, const uint8_t *buf, uint32_t len) {
     socket_t *s = (socket_t *)user;
     int fd = (int)(s - sockets);

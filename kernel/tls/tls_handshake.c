@@ -10,7 +10,7 @@
  * -> send client Finished -> install application traffic keys.
  *
  * Conservative on error: any unexpected message, bad length,
- * unsupported extension value etc. aborts with an error. */
+ * unsupported extension value etc. aborts with an error.*/
 
 #include "tls_ctx.h"
 #include "tls_record.h"
@@ -184,7 +184,7 @@ static int build_client_hello(const tls_ctx_t *ctx,
     /* signature_algorithms: PSS+SHA256 / ECDSA-P256-SHA256 are required
      * for the TLS 1.3 CertificateVerify path; RSA-PKCS1 with SHA-256/384/512
      * are advertised via signature_algorithms_cert below so the server
-     * picks an RSA cert chain we can validate. */
+     * picks an RSA cert chain we can validate.*/
     {
         wbe16(p, EXT_SIG_ALGS); p += 2;
         wbe16(p, 6u); p += 2;
@@ -197,11 +197,11 @@ static int build_client_hello(const tls_ctx_t *ctx,
      * common case (Let's Encrypt ECDSA chain) has leaf certs signed
      * with ecdsa_secp384r1_sha384 by a P-384 intermediate, so we must
      * advertise that even though we can't verify it natively (lenient
-     * mode in x509_chain.c accepts unknown algs as if verified). */
+     * mode in x509_chain.c accepts unknown algs as if verified).*/
     {
         wbe16(p, 0x0032u); p += 2;     /* extension type */
-        wbe16(p, 22u); p += 2;          /* ext data len   */
-        wbe16(p, 20u); p += 2;          /* list  len      */
+        wbe16(p, 22u); p += 2;          /* ext data len */
+        wbe16(p, 20u); p += 2;          /* list  len */
         wbe16(p, SIGSCHEME_RSA_PSS_SHA256);    p += 2;
         wbe16(p, SIGSCHEME_RSA_PSS_SHA384);    p += 2;
         wbe16(p, SIGSCHEME_RSA_PSS_SHA512);    p += 2;
@@ -249,14 +249,14 @@ static int build_client_hello(const tls_ctx_t *ctx,
 /* Pulls TLS records from the record layer and concatenates handshake
  * fragments. Caller passes a buffer to receive the next message body
  * along with its type. Uses a small per-call ring for buffered bytes
- * carried over between records. */
+ * carried over between records.*/
 
 typedef struct {
     /* Bytes that came in but haven't been parsed into a complete msg.
      * Sized for one full TLS-record plaintext (16 KB) - large handshake
      * messages such as Certificate carrying RSA-4096 chains can fill
      * nearly the whole record. The previous 4 KB carry rejected such
-     * records in hs_reader_fill with TLS_ERR_PROTOCOL. */
+     * records in hs_reader_fill with TLS_ERR_PROTOCOL.*/
     uint8_t  carry[TLS_REC_MAX_PLAINTEXT];
     uint32_t carry_len;
 } hs_reader_t;
@@ -308,7 +308,7 @@ static int hs_reader_fill(tls_ctx_t *ctx, hs_reader_t *h, uint32_t need) {
 /* Read one handshake message into `out` (max `out_max` bytes).
  * `*type_out` gets the handshake type, `*len_out` the body length.
  * The 4-byte handshake header bytes are also written into the
- * transcript here. */
+ * transcript here.*/
 static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
                        uint8_t *out, uint32_t out_max,
                        uint8_t *type_out, uint32_t *len_out) {
@@ -331,7 +331,7 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
     }
 
     /* Need 4 (header) + mlen total. Grow carry as needed - but because
-     * h->carry is small we may have to pull body straight into `out`. */
+     * h->carry is small we may have to pull body straight into `out`.*/
     if (4u + mlen <= sizeof(h->carry)) {
         rc = hs_reader_fill(ctx, h, 4u + mlen);
         if (rc != TLS_ERR_OK) return rc;
@@ -343,7 +343,7 @@ static int hs_read_msg(tls_ctx_t *ctx, hs_reader_t *h,
         h->carry_len -= (4u + mlen);
     } else {
         /* Body too big for carry buffer - drain carry first then pull
-         * directly from records. */
+         * directly from records.*/
         uint32_t copied = 0;
         if (h->carry_len > 4u) {
             uint32_t avail = h->carry_len - 4u;
@@ -470,7 +470,7 @@ static int parse_server_hello(tls_ctx_t *ctx,
     }
 
     /* For TLS 1.3: must see supported_versions=0x0304 + key_share.
-     * For TLS 1.2: neither is required. */
+     * For TLS 1.2: neither is required.*/
     {
         int is_13 = (ctx->selected_cipher == CIPHER_TLS13_CHACHA20_POLY1305_SHA256
                   || ctx->selected_cipher == CIPHER_TLS13_AES_128_GCM_SHA256);
@@ -493,7 +493,7 @@ static int parse_server_hello(tls_ctx_t *ctx,
  * CertificateEntry:
  *   opaque cert_data<1..2^24-1>;     // DER cert
  *   Extension extensions<0..2^16-1>; // ignored
- */
+*/
 static int parse_certificate(tls_ctx_t *ctx,
                              const uint8_t *body, uint32_t blen) {
     uint32_t i;
@@ -585,7 +585,7 @@ static int parse_cert_verify(tls_ctx_t *ctx,
     signed_buf[signed_len++] = 0x00;
     /* The transcript hash is a snapshot taken before this CertVerify
      * was added. tls_handshake_client() saved it into
-     * th_before_cert_verify. */
+     * th_before_cert_verify.*/
     for (i = 0; i < 32u; i++) signed_buf[signed_len + i] = ctx->th_before_cert_verify[i];
     signed_len += 32u;
 
@@ -846,11 +846,11 @@ int tls_handshake_client(tls_ctx_t *ctx) {
                       (unsigned)ctx->selected_cipher,
                       (unsigned)ctx->selected_group);
         /* Update transcript with full ServerHello (header + body)
-         * regardless of which protocol version we end up running. */
+         * regardless of which protocol version we end up running.*/
         th_update(ctx, rec_body, rl);
 
         /* TLS 1.2 dispatch - record layer setup happens inside the 1.2
-         * driver since CCS must precede key activation there. */
+         * driver since CCS must precede key activation there.*/
         if (ctx->selected_cipher == CS12_ECDHE_RSA_AES128_GCM   ||
             ctx->selected_cipher == CS12_ECDHE_ECDSA_AES128_GCM ||
             ctx->selected_cipher == CS12_ECDHE_RSA_CHACHA20     ||
@@ -944,7 +944,7 @@ int tls_handshake_client(tls_ctx_t *ctx) {
      * if it appears we must send empty Certificate later. Detect by
      * peeking next message type. We actually need to read it to update
      * transcript. For v1 we reject (servers don't request client certs
-     * without prior config). */
+     * without prior config).*/
 
     /* Certificate. */
     rc = hs_read_msg(ctx, &reader, msg_buf, sizeof(msg_buf), &mtype, &mlen);
@@ -1017,7 +1017,7 @@ int tls_handshake_client(tls_ctx_t *ctx) {
     th_snapshot(ctx, ctx->th_after_server_finished);
 
     /* 6. Switch our own send side to client_handshake_traffic (for the
-     *    client Finished only) and send Finished. */
+     *    client Finished only) and send Finished.*/
     install_client_handshake_send_key(ctx);
     rc = send_client_finished(ctx, ctx->th_after_server_finished);
     if (rc != TLS_ERR_OK) {
@@ -1055,7 +1055,7 @@ int tls_app_recv(tls_ctx_t *ctx, uint8_t *buf, uint32_t buf_max) {
     uint32_t i;
 
     /* Drain any leftover plaintext from a previous record before pulling
-     * a new one off the wire. */
+     * a new one off the wire.*/
     if (ctx->app_buf_len > 0u) {
         take = ctx->app_buf_len;
         if (take > buf_max) take = buf_max;
@@ -1084,7 +1084,7 @@ int tls_app_recv(tls_ctx_t *ctx, uint8_t *buf, uint32_t buf_max) {
         }
         if (type == TLS_RT_HANDSHAKE) {
             /* Post-handshake msgs (NewSessionTicket, KeyUpdate). Ignore
-             * NewSessionTicket; abort on KeyUpdate (not implemented). */
+             * NewSessionTicket; abort on KeyUpdate (not implemented).*/
             continue;
         }
         return TLS_ERR_PROTOCOL;
