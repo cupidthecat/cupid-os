@@ -63,6 +63,40 @@ plumbing needed to use it interactively from the GUI Terminal.
   cooked terminal modes for echo, canonical input, CR/LF behavior,
   Ctrl-C, Backspace, and terminal speeds.
 
+## Telnet client + CupidC network bindings (May 15, 2026)
+
+The branch now also includes an interactive CupidC Telnet client for
+plain TCP Telnet services such as Telehack.
+
+- Added `/bin/telnet.cc`, with host/port parsing, DNS/IP resolution,
+  TCP connect, Telnet option negotiation, subnegotiation handling, and
+  interactive keyboard/display bridging through the GUI terminal path.
+- Implemented Telnet `IAC`, `WILL/WONT/DO/DONT`, `SB/SE`, terminal-type
+  (`TTYPE`) and window-size (`NAWS`) support. The client reports
+  `CUPIDOS` as the terminal type and updates NAWS when the terminal
+  size changes.
+- Added a local Telnet escape prompt on `Ctrl+]` with `status`, `quit`,
+  and `send ayt/brk/ip/ao/nop` commands.
+- Fixed GUI Enter handling for Telnet: the keyboard bridge delivers
+  Enter as LF, and the Telnet client now always transmits Telnet
+  newline as `CR LF`, even if the peer negotiated transmit-binary mode.
+  This fixes Telehack commands such as `help`, `rand`, `clear`, and
+  `login` not submitting after typing.
+- Added the missing kernel syscall-table entries and user C wrappers for
+  `sock_avail` and `sock_state`, plus expanded `user/cupid.h` network
+  constants and socket/DNS helpers so user programs can monitor TCP
+  state without reaching into kernel internals.
+- Updated the CupidC compiler so array bounds at file scope and inside
+  struct/class fields accept constant integer expressions, including
+  enum constants. Enum explicit values now accept constant expressions
+  too. This lets code like `char sb_buf[SB_CAP];` compile without
+  rewriting named constants into literals.
+- Added regression coverage in `/bin/cupidc_test5.cc` for enum-sized
+  global arrays, 2D arrays, and struct field arrays.
+- `user/Makefile` now disables the host stack protector for freestanding
+  user examples, avoiding unresolved `__stack_chk_fail` during local
+  user builds.
+
 ## Recent commits (May 9-11, 2026)
 
 The last nine commits move the branch from "browser stack works" to a

@@ -20,10 +20,9 @@
 #include "types.h"
 #include "vfs.h"
 
-/* Bumped to 4 for the TLS additions: sock_setsockopt is appended at the
- * end of the table. Programs built against v3 still see the same prefix
- * and only the new field is invisible to them. */
-#define CUPID_SYSCALL_VERSION 4
+/* Bumped to 5 for socket polling additions. The table remains append-only:
+ * programs built against older versions still see the same prefix. */
+#define CUPID_SYSCALL_VERSION 5
 
 typedef struct cupid_syscall_table {
   /*  Version / identification  */
@@ -191,6 +190,8 @@ typedef struct cupid_syscall_table {
    * layer transparently. */
   int (*sock_setsockopt)(int fd, int level, int optname,
                          const void *val, uint32_t vlen);
+  int (*sock_avail)(int fd);
+  int (*sock_state)(int fd);
 
 } cupid_syscall_table_t;
 

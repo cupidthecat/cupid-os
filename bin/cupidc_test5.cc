@@ -10,12 +10,24 @@ int t5_ifdef_value = 1;
 int t5_ifdef_value = 0;
 #endif
 
+enum {
+    T5_BUF = 4,
+    T5_ROWS = 2,
+    T5_COLS = T5_BUF - 1
+};
+
 struct t5_pair {
     int a;
     int b;
 };
 
+struct t5_enum_field {
+    char name[T5_BUF + 1];
+};
+
 struct t5_pair t5_global_pair = {0};
+char t5_global_buf[T5_BUF];
+int t5_global_grid[T5_ROWS][T5_COLS];
 
 int t5_counter() {
     static int c;
@@ -60,6 +72,14 @@ void main() {
         local_pair.a != 0 || local_pair.b != 0) {
         serial_printf("[cupidc_test5] FAIL: struct init values g=(%u,%u) l=(%u,%u) expected zeros\n",
                       t5_global_pair.a, t5_global_pair.b, local_pair.a, local_pair.b);
+        ok = 0;
+    }
+
+    t5_global_buf[3] = 65;
+    t5_global_grid[1][2] = 77;
+    if (t5_global_buf[3] != 65 || t5_global_grid[1][2] != 77) {
+        serial_printf("[cupidc_test5] FAIL: enum-sized arrays buf=%u grid=%u expected 65,77\n",
+                      t5_global_buf[3], t5_global_grid[1][2]);
         ok = 0;
     }
 

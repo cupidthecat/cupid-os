@@ -318,6 +318,8 @@ void syscall_init(void) {
   syscall_table.inb_io           = inb;
 
   syscall_table.sock_setsockopt  = socket_setsockopt;
+  syscall_table.sock_avail       = socket_avail;
+  syscall_table.sock_state       = socket_state;
 
   serial_printf("[SYSCALL] Syscall table initialized (v%u, %u bytes)\n",
                 syscall_table.version, syscall_table.table_size);

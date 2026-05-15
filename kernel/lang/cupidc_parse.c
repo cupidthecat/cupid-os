@@ -6042,17 +6042,12 @@ void cc_parse_program(cc_state_t *cc) {
         }
         /* Optional explicit value: NAME = value */
         if (cc_match(cc, CC_TOK_EQ)) {
-          cc_token_t val_tok = cc_next(cc);
-          int negate = 0;
-          if (val_tok.type == CC_TOK_MINUS) {
-            negate = 1;
-            val_tok = cc_next(cc);
-          }
-          if (val_tok.type != CC_TOK_NUMBER) {
+          int32_t explicit_value;
+          if (!cc_parse_const_int_expr(cc, &explicit_value)) {
             cc_error(cc, "expected integer in enum");
             break;
           }
-          enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+          enum_val = explicit_value;
         }
         /* Register as global constant in data section */
         cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
@@ -6201,12 +6196,12 @@ void cc_parse_program(cc_state_t *cc) {
 
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
               cc_next(cc);
-              cc_token_t size_tok = cc_next(cc);
-              if (size_tok.type != CC_TOK_NUMBER) {
+              int32_t array_count;
+              if (!cc_parse_const_int_expr(cc, &array_count)) {
                 cc_error(cc, "expected array size");
                 break;
               }
-              f->array_count = size_tok.int_value;
+              f->array_count = array_count;
               cc_expect(cc, CC_TOK_RBRACK);
             }
 
@@ -6320,12 +6315,12 @@ void cc_parse_program(cc_state_t *cc) {
           /* Check for array field: name[N] */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
-            cc_token_t size_tok = cc_next(cc);
-            if (size_tok.type != CC_TOK_NUMBER) {
+            int32_t array_count;
+            if (!cc_parse_const_int_expr(cc, &array_count)) {
               cc_error(cc, "expected array size");
               break;
             }
-            f->array_count = size_tok.int_value;
+            f->array_count = array_count;
             cc_expect(cc, CC_TOK_RBRACK);
           }
 
@@ -6430,35 +6425,30 @@ void cc_parse_program(cc_state_t *cc) {
         /* Global array: type name[size]; or name[M][N]; */
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc); /* consume '[' */
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t arr_elems;
+          if (!cc_parse_const_int_expr(cc, &arr_elems)) {
             cc_error(cc, "expected array size");
             break;
           }
           cc_expect(cc, CC_TOK_RBRACK);
-          int32_t arr_elems = size_tok.int_value;
           int32_t inner_dim = 0;
           int32_t inner_dim2 = 0;
           /* Check for 2D array */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
-            cc_token_t inner_tok = cc_next(cc);
-            if (inner_tok.type != CC_TOK_NUMBER) {
+            if (!cc_parse_const_int_expr(cc, &inner_dim)) {
               cc_error(cc, "expected array size");
               break;
             }
             cc_expect(cc, CC_TOK_RBRACK);
-            inner_dim = inner_tok.int_value;
             /* Check for 3D array: type name[A][B][C]; */
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
               cc_next(cc); /* consume '[' */
-              cc_token_t inner2_tok = cc_next(cc);
-              if (inner2_tok.type != CC_TOK_NUMBER) {
+              if (!cc_parse_const_int_expr(cc, &inner_dim2)) {
                 cc_error(cc, "expected array size");
                 break;
               }
               cc_expect(cc, CC_TOK_RBRACK);
-              inner_dim2 = inner2_tok.int_value;
             }
           }
           int32_t total_bytes;
@@ -6814,17 +6804,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         return;
       }
       if (cc_match(cc, CC_TOK_EQ)) {
-        cc_token_t val_tok = cc_next(cc);
-        int negate = 0;
-        if (val_tok.type == CC_TOK_MINUS) {
-          negate = 1;
-          val_tok = cc_next(cc);
-        }
-        if (val_tok.type != CC_TOK_NUMBER) {
+        int32_t explicit_value;
+        if (!cc_parse_const_int_expr(cc, &explicit_value)) {
           cc_error(cc, "expected integer in enum");
           return;
         }
-        enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+        enum_val = explicit_value;
       }
       cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
       if (gsym) {
@@ -6940,12 +6925,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         f->array_count = 0;
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc);
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t array_count;
+          if (!cc_parse_const_int_expr(cc, &array_count)) {
             cc_error(cc, "expected array size");
             return;
           }
-          f->array_count = size_tok.int_value;
+          f->array_count = array_count;
           cc_expect(cc, CC_TOK_RBRACK);
         }
         if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
@@ -7037,13 +7022,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
 
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
       cc_next(cc);
-      cc_token_t size_tok = cc_next(cc);
-      if (size_tok.type != CC_TOK_NUMBER) {
+      int32_t arr_elems;
+      if (!cc_parse_const_int_expr(cc, &arr_elems)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      int32_t arr_elems = size_tok.int_value;
       int32_t elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
       cc_type_t arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
       if (gtype == TYPE_STRUCT && gtype_si >= 0 && gtype_si < cc->struct_count) {
