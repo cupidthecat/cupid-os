@@ -1,6 +1,6 @@
 /* RSA verify-only: PKCS#1 v1.5 (cert chain signatures) and PSS
  * (TLS 1.3 CertificateVerify). RFC 3447. Variable-time - every input
- * is public. */
+ * is public.*/
 
 #include "rsa.h"
 #include "bigint.h"
@@ -198,7 +198,7 @@ int rsa_pss_verify_sha256(const uint8_t *n_be, uint32_t n_len,
      * MGF1 unmasking the top bits of DB equal MGF1's leading bits, which
      * are essentially random. The verifier's job is just to mask them off
      * before checking PS. The previous strict check rejected ~50% of valid
-     * RSA-4096 signatures (any case where MGF1 output's high bit was set). */
+     * RSA-4096 signatures (any case where MGF1 output's high bit was set).*/
     top_zero_bits = (uint32_t)(8u * emlen) - embits;
     if (top_zero_bits != 0u) {
         uint8_t topmask = (uint8_t)(0xFFu >> top_zero_bits);

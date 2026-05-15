@@ -8,15 +8,15 @@ void fpu_init(void) {
     uint32_t cr0, cr4, mxcsr;
 
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
-    cr0 &= ~(1u << 2);   /* CR0.EM = 0 (hw x87)          */
-    cr0 |=  (1u << 1);   /* CR0.MP = 1                   */
-    cr0 |=  (1u << 5);   /* CR0.NE = 1                   */
-    cr0 &= ~(1u << 3);   /* CR0.TS = 0 (eager switch)    */
+    cr0 &= ~(1u << 2);   /* CR0.EM = 0 (hw x87) */
+    cr0 |=  (1u << 1);   /* CR0.MP = 1 */
+    cr0 |=  (1u << 5);   /* CR0.NE = 1 */
+    cr0 &= ~(1u << 3);   /* CR0.TS = 0 (eager switch) */
     __asm__ volatile("mov %0, %%cr0" :: "r"(cr0));
 
     __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
-    cr4 |= (1u << 9);    /* CR4.OSFXSR                   */
-    cr4 |= (1u << 10);   /* CR4.OSXMMEXCPT               */
+    cr4 |= (1u << 9);    /* CR4.OSFXSR */
+    cr4 |= (1u << 10);   /* CR4.OSXMMEXCPT */
     __asm__ volatile("mov %0, %%cr4" :: "r"(cr4));
 
     __asm__ volatile("fninit");
@@ -92,7 +92,7 @@ void fpu_boot_smoke(void) {
  * kernel-internal ABI (result in XMM0, not ST(0) - see libm.h).  Calling
  * it from plain C here would not interoperate with the System-V i386
  * return convention GCC expects, so we inline the FSIN via `fldl/fsin/fstpl`.
- * This keeps the stress test self-contained and ABI-independent. */
+ * This keeps the stress test self-contained and ABI-independent.*/
 
 static inline double stress_sin(double x) {
     double r;
@@ -134,7 +134,7 @@ void fpu_context_stress(void) {
 
     /* Compute reference values in this context first - serial, no
      * cross-thread switches to muddy the picture.  Uses the same
-     * inline-FSIN path as the workers for bit-identical comparison. */
+     * inline-FSIN path as the workers for bit-identical comparison.*/
     for (int id = 0; id < 8; id++) {
         double s = 0.0;
         double base = (double)((uint32_t)id + 1u) * 0.0001;

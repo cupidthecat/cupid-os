@@ -9,7 +9,7 @@ int ct_memcmp(const uint8_t *a, const uint8_t *b, uint32_t n) {
 
 uint8_t ct_eq_u8(uint8_t a, uint8_t b) {
     /* x == 0 iff (~x & (x-1)) MSB is 1; for u8 that means propagate via
-     * arithmetic over u32 to avoid promotion surprises. */
+     * arithmetic over u32 to avoid promotion surprises.*/
     uint32_t x = (uint32_t)(a ^ b);
     /* x == 0 -> return 0xFFu, else 0x00u. */
     x = (x - 1u) & ~x;

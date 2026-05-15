@@ -7,7 +7,7 @@
  *   - certs[1..n-1] are intermediates as supplied by the server.
  *   - The top intermediate must be issued by a root in our embedded
  *     bundle (matched by subject DN equality).
- */
+*/
 
 #include "x509_chain.h"
 #include "sha256.h"
@@ -44,7 +44,7 @@ int x509_chain_add(x509_chain_t *chain,
  * connection then provides confidentiality but not full authentication
  * of the server identity - sufficient for casual browsing on a hobby
  * OS, not for anything that handles credentials or money.  The proper
- * fix is to implement the missing curves (P-384) and hashes (SHA-384). */
+ * fix is to implement the missing curves (P-384) and hashes (SHA-384).*/
 static int verify_sig(const x509_cert_t *cert,
                       const x509_pubkey_t *pk) {
     int ok;
@@ -157,7 +157,7 @@ int x509_chain_verify(const x509_chain_t *chain,
     /* Adjacent-pair sig verification: certs[i] signed by certs[i+1]'s pubkey.
      * verify_sig accepts cases where we don't implement the algorithm
      * (returns OK in lenient mode) so the chain still validates as far
-     * as we can. */
+     * as we can.*/
     for (i = 0; i + 1u < chain->n; i++) {
         const x509_cert_t *child  = &chain->certs[i];
         const x509_cert_t *parent = &chain->certs[i + 1];
@@ -174,7 +174,7 @@ int x509_chain_verify(const x509_chain_t *chain,
     /* Top intermediate signed by some embedded root.  Lenient: if the
      * root isn't in our bundle, we accept the chain anyway - the
      * connection is still encrypted, just not authenticated end-to-end.
-     * The hobby-OS browser is opt-in for casual browsing only. */
+     * The hobby-OS browser is opt-in for casual browsing only.*/
     if (TLS_CA_BUNDLE_COUNT > 0u) {
         const x509_cert_t *top = &chain->certs[chain->n - 1u];
         root = find_root(&root_buf, top->issuer, top->issuer_len);

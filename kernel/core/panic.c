@@ -82,7 +82,7 @@ static void print_registers(struct registers *regs) {
 /* Print a single backtrace frame with optional symbol decoding. Used as
  * the print_line callback for ksym_backtrace().  Output is mirrored to
  * VGA and serial.  Note: serial_print_hex (the %x backend) already
- * emits its own "0x" prefix, so format strings here use bare "%x". */
+ * emits its own "0x" prefix, so format strings here use bare "%x".*/
 static void panic_print_frame(int frame, uint32_t addr,
                               const char *name, uint32_t off) {
     if (name) {
@@ -182,7 +182,7 @@ void kernel_panic(const char *fmt, ...) {
     /* We re-do the format expansion via serial_printf
        but va_list forwarding across vfuncs is tricky in
        freestanding C.  Print the fmt string literally for
-       reliability, then add a stack trace. */
+       reliability, then add a stack trace.*/
     serial_write_string(fmt);
     serial_write_char('\n');
     __builtin_va_end(ap);

@@ -18,7 +18,7 @@
  * conditional limb-swap moves bits between R0 and R1 without branching.
  * Double-scalar (verify) uses a simple per-bit doubling with two
  * conditional adds - variable-time but acceptable for verify-only paths.
- */
+*/
 
 #include "p256.h"
 
@@ -146,7 +146,7 @@ static void mul_wide(uint32_t out[16], const p256_fe_t a, const p256_fe_t b) {
 
 /* Reduce a 16-limb wide value mod m (8-limb), placing remainder in r.
  * Uses iterative shift-subtract: for each shift from 256 down to 0,
- * subtract (m << shift) if the result remains non-negative. */
+ * subtract (m << shift) if the result remains non-negative.*/
 static void reduce_wide_mod(p256_fe_t r, uint32_t a[16], const p256_fe_t m) {
     int32_t shift;
     int32_t i;
@@ -219,7 +219,7 @@ void p256_fe_sqr(p256_fe_t r, const p256_fe_t a) {
 
 /* a^(p-2) mod p via square-and-multiply on the 256-bit big-endian
  * exponent. Uses a static buffer for the exponent - p-2 has all bits
- * set in the top 32 bits (matches p's structure). */
+ * set in the top 32 bits (matches p's structure).*/
 void p256_fe_inv(p256_fe_t r, const p256_fe_t a) {
     static const uint8_t P_MINUS_2_BE[32] = {
         0xffu,0xffu,0xffu,0xffu, 0x00u,0x00u,0x00u,0x01u,
@@ -299,14 +299,14 @@ void p256_scalar_to_be(uint8_t out[32], const p256_scalar_t a) {
 }
 
 /* Reduce an arbitrary big-endian byte string mod n. Used by ECDSA verify
- * to convert hash(msg) into a scalar in [0, n). */
+ * to convert hash(msg) into a scalar in [0, n).*/
 void p256_scalar_mod_n_from_be(p256_scalar_t r, const uint8_t *bytes, uint32_t len) {
     uint32_t buf[16];
     uint32_t i;
     /* Right-align bytes into a 16-limb little-endian buffer; treat as the
      * value to reduce. Inputs longer than 64 bytes get truncated to the
      * top 64 bytes per ECDSA convention (FIPS 186-4 §6.4) - but for our
-     * cipher suites the hash is always SHA-256 so len = 32 in practice. */
+     * cipher suites the hash is always SHA-256 so len = 32 in practice.*/
     for (i = 0; i < 16u; i++) buf[i] = 0u;
     if (len > 64u) len = 64u;
     {
@@ -402,17 +402,17 @@ void p256_jac_to_affine(p256_aff_t *out, const p256_jac_t *in) {
 }
 
 /* Doubling on Jacobian for short Weierstrass with a = -3.
- * Writes through a local `out` so the caller can pass r == a. */
+ * Writes through a local `out` so the caller can pass r == a.*/
 void p256_jac_double(p256_jac_t *r, const p256_jac_t *a) {
     p256_fe_t XX, YY, YYYY, ZZ, S, M, t1, t2;
     p256_jac_t out;
 
     if (p256_jac_is_infinity(a)) { p256_jac_set_infinity(r); return; }
 
-    p256_fe_sqr(XX,   a->X);                /* X^2          */
-    p256_fe_sqr(YY,   a->Y);                /* Y^2          */
-    p256_fe_sqr(YYYY, YY);                  /* Y^4          */
-    p256_fe_sqr(ZZ,   a->Z);                /* Z^2          */
+    p256_fe_sqr(XX,   a->X);                /* X^2 */
+    p256_fe_sqr(YY,   a->Y);                /* Y^2 */
+    p256_fe_sqr(YYYY, YY);                  /* Y^4 */
+    p256_fe_sqr(ZZ,   a->Z);                /* Z^2 */
 
     /* S = 4*X*YY  =  2*((X+YY)^2 - XX - YYYY) */
     p256_fe_add(t1, a->X, YY);
@@ -429,7 +429,7 @@ void p256_jac_double(p256_jac_t *r, const p256_jac_t *a) {
     p256_fe_add(M, M,  t1);
 
     /* Z' = (Y+Z)^2 - YY - ZZ.  Compute first, while a->Y / a->Z still
-     * hold their input values. */
+     * hold their input values.*/
     p256_fe_add(t1, a->Y, a->Z);
     p256_fe_sqr(t1, t1);
     p256_fe_sub(t1, t1, YY);
@@ -453,7 +453,7 @@ void p256_jac_double(p256_jac_t *r, const p256_jac_t *a) {
 }
 
 /* Generic Jacobian + Jacobian point addition (Cohen §13.2.1.c). Handles
- * the doubling-when-equal and identity edge cases by checking r,s,t. */
+ * the doubling-when-equal and identity edge cases by checking r,s,t.*/
 void p256_jac_add(p256_jac_t *r, const p256_jac_t *a, const p256_jac_t *b) {
     p256_fe_t Z1Z1, Z2Z2, U1, U2, S1, S2, H, R, HH, HHH, V, t1;
     p256_jac_t out;
@@ -574,7 +574,7 @@ void p256_double_scalar_mul(p256_jac_t *r,
                             const p256_scalar_t u2,
                             const p256_aff_t *Q) {
     /* Shamir's trick: scan u1 and u2 simultaneously bit-by-bit.
-     * Pre-compute G, Q, G+Q. */
+     * Pre-compute G, Q, G+Q.*/
     p256_jac_t G_jac, Q_jac, GQ_jac, acc;
     p256_aff_t G_aff;
     int32_t i;

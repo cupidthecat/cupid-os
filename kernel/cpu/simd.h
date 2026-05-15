@@ -2,7 +2,7 @@
  * simd.h - SSE2 accelerated rendering primitives for cupid-os
  *
  * Public APIs use plain C types only. SIMD internals stay in simd.c.
- */
+*/
 #ifndef KERNEL_SIMD_H
 #define KERNEL_SIMD_H
 

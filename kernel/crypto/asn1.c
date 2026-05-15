@@ -1,7 +1,7 @@
 /* DER reader for X.509. Strict bounds checks + canonical-form
  * enforcement. Bug class to remember: BERserk (lax length parsing) and
  * goto-fail (skipped check). Every length is verified to fit in the
- * parent before we advance the cursor. */
+ * parent before we advance the cursor.*/
 
 #include "asn1.h"
 
@@ -22,7 +22,7 @@ int asn1_peek_tag(const asn1_cur_t *c) {
 /* Read a DER length field. Returns 0 on success and writes *len_out;
  * advances *pp past the length bytes. Returns -1 on truncation,
  * non-canonical encoding, or length > 0xFFFFFF (we cap at 16 MB which
- * is far more than any cert). */
+ * is far more than any cert).*/
 static int read_len(const uint8_t **pp, const uint8_t *end, uint32_t *len_out) {
     const uint8_t *p = *pp;
     uint32_t len;
@@ -186,7 +186,7 @@ static int dig4(const uint8_t *p, uint32_t *out) {
 
 /* Days from civil date (Howard Hinnant's algorithm - works for any
  * year past 0000-03-01; we only ever see >= 1970). Output is the
- * count of days since 1970-01-01. */
+ * count of days since 1970-01-01.*/
 static int32_t days_from_civil(int32_t y, uint32_t m, uint32_t d) {
     int32_t y2 = y - (m <= 2u ? 1 : 0);
     int32_t era = (y2 >= 0 ? y2 : y2 - 399) / 400;

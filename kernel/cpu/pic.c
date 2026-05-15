@@ -1,6 +1,6 @@
 /*
  * PIC (Programmable Interrupt Controller) Driver Implementation
- * 
+ *
  * This file implements the PIC driver functionality:
  * - Initializes both master (PIC1) and slave (PIC2) controllers
  * - Remaps PIC interrupts to avoid conflicts with CPU exceptions
@@ -8,10 +8,10 @@
  * - Handles interrupt masking/unmasking
  * - Supports cascaded PICs with master/slave configuration
  * - Maps IRQs 0-15 to interrupts 32-47
- * 
+ *
  * The PIC allows the kernel to handle hardware interrupts from
  * devices like the keyboard, timer, etc in a controlled way.
- */
+*/
 
 #include "pic.h"
 #include "kernel.h"

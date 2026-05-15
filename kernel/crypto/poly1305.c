@@ -1,6 +1,6 @@
 /* Poly1305 (RFC 8439). 32-bit limbs in radix 2^26, mostly following the
  * poly1305-donna 32-bit reference. Used for the ChaCha20-Poly1305 AEAD
- * MAC. */
+ * MAC.*/
 
 #include "poly1305.h"
 #include "ct.h"
@@ -40,7 +40,7 @@ void poly1305_init(poly1305_ctx_t *ctx, const uint8_t key[32]) {
 }
 
 /* Process one 16-byte block. If `last_partial` is nonzero, do not OR in
- * the high "1" bit (caller has already padded with explicit 1 byte). */
+ * the high "1" bit (caller has already padded with explicit 1 byte).*/
 static void poly1305_block(poly1305_ctx_t *ctx,
                            const uint8_t m[16], int last_partial) {
     uint32_t r0 = ctx->r[0], r1 = ctx->r[1], r2 = ctx->r[2],

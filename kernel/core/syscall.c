@@ -5,7 +5,7 @@
  * programs at launch.  Each slot in the table points to the real
  * kernel function so user programs can call kernel services without
  * linking against the kernel binary.
- */
+*/
 
 #include "syscall.h"
 #include "serial.h"
@@ -40,34 +40,34 @@
 /**
  * Wrapper for kmalloc - strips the debug file/line tracking since
  * user programs don't have kernel source paths.
- */
+*/
 static void *syscall_malloc(size_t size) {
   return kmalloc_debug(size, "elf_user", 0);
 }
 
 /**
  * Wrapper for process_exit - matches the void(*)(void) signature.
- */
+*/
 static void syscall_exit(void) { process_exit(); }
 
 /**
  * Wrapper for process_yield.
- */
+*/
 static void syscall_yield(void) { process_yield(); }
 
 /**
  * Wrapper for process_get_current_pid.
- */
+*/
 static uint32_t syscall_getpid(void) { return process_get_current_pid(); }
 
 /**
  * Wrapper for process_kill.
- */
+*/
 static void syscall_kill(uint32_t pid) { process_kill(pid); }
 
 /**
  * Simple busy-wait sleep using uptime.
- */
+*/
 static void syscall_sleep_ms(uint32_t ms) {
   uint32_t start = timer_get_uptime_ms();
   while ((timer_get_uptime_ms() - start) < ms) {
@@ -77,19 +77,19 @@ static void syscall_sleep_ms(uint32_t ms) {
 
 /**
  * Wrapper for shell_execute_line.
- */
+*/
 static void syscall_shell_execute(const char *line) {
   shell_execute_line(line);
 }
 
 /**
  * Wrapper for exec.
- */
+*/
 static int syscall_exec(const char *path, const char *name) {
   return exec(path, name);
 }
 
-/*  Phase 4 wrappers (parity with cupidc.c)  */
+/* Phase 4 wrappers (parity with cupidc.c) */
 static uint32_t sc_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -170,9 +170,13 @@ static cupid_syscall_table_t syscall_table;
 
 /* Static asserts: AOT asm programs hard-code these offsets via SYS_*
  * equ constants in as.c. If anyone reorders cupid_syscall_table_t these
- * fail at compile time so we never silently ship a mismatched layout. */
+ * fail at compile time so we never silently ship a mismatched layout.*/
 #define SC_OFF(field) __builtin_offsetof(cupid_syscall_table_t, field)
 _Static_assert(SC_OFF(print)               ==   8, "SYS_PRINT offset drift");
+_Static_assert(SC_OFF(vfs_unlink)          ==  88, "SYS_VFS_UNLINK offset drift");
+_Static_assert(SC_OFF(vfs_write_text)      == 112, "SYS_VFS_WRITE_TEXT offset drift");
+_Static_assert(SC_OFF(exit)                == 116, "SYS_EXIT offset drift");
+_Static_assert(SC_OFF(exec)                == 148, "SYS_EXEC offset drift");
 _Static_assert(SC_OFF(memstats)            == 152, "SYS_MEMSTATS offset drift");
 _Static_assert(SC_OFF(net_get_ip)          == 156, "Phase 4: SYS_NET_GET_IP drift");
 _Static_assert(SC_OFF(ipv4_send)           == 200, "Phase 4: SYS_IPV4_SEND drift");
@@ -244,7 +248,7 @@ void syscall_init(void) {
   /* Diagnostics */
   syscall_table.memstats = print_memory_stats;
 
-  /*  Phase 4: networking + drivers + low-level  */
+  /* Phase 4: networking + drivers + low-level */
   syscall_table.net_get_ip       = sc_net_get_ip;
   syscall_table.net_get_gateway  = sc_net_get_gateway;
   syscall_table.net_get_dns      = sc_net_get_dns;
@@ -318,6 +322,8 @@ void syscall_init(void) {
   syscall_table.inb_io           = inb;
 
   syscall_table.sock_setsockopt  = socket_setsockopt;
+  syscall_table.sock_avail       = socket_avail;
+  syscall_table.sock_state       = socket_state;
 
   serial_printf("[SYSCALL] Syscall table initialized (v%u, %u bytes)\n",
                 syscall_table.version, syscall_table.table_size);

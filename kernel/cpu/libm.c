@@ -19,7 +19,7 @@ int libm_errno = 0;
  * which is not what CupidC expects after a `call`.
  *
  * No domain-error handling in this batch: hardware instructions return
- * NaN / raise FP exceptions on their own; libm_errno is not touched. */
+ * NaN / raise FP exceptions on their own; libm_errno is not touched.*/
 
 /* sqrt via SSE SQRTSD (scalar double) */
 __asm__(
@@ -110,7 +110,7 @@ __asm__(
 
 /* tan via x87 FPTAN.  FPTAN computes ST(0) = tan(ST(0)) AND pushes 1.0
  * onto the FPU stack (for historical reasons).  Drop the 1.0 with an
- * FSTP of ST(0). */
+ * FSTP of ST(0).*/
 __asm__(
     ".text\n\t"
     ".globl tan\n\t"
@@ -144,7 +144,7 @@ __asm__(
 );
 
 /* atan via x87 FPATAN.  FPATAN computes atan2(ST(1), ST(0)).
- * For atan(x), call atan2(x, 1) -> push y=x then x=1.0. */
+ * For atan(x), call atan2(x, 1) -> push y=x then x=1.0.*/
 __asm__(
     ".text\n\t"
     ".globl atan\n\t"
@@ -180,7 +180,7 @@ __asm__(
 /* atan2(y, x) via x87 FPATAN directly.
  * CupidC pushes args left-to-right then reverses for cdecl, so the
  * caller-visible layout at [esp+4..+19] is: y (first 8 B), x (next 8 B).
- * FPATAN wants ST(1) = y, ST(0) = x. */
+ * FPATAN wants ST(1) = y, ST(0) = x.*/
 __asm__(
     ".text\n\t"
     ".globl atan2\n\t"
@@ -235,10 +235,10 @@ __asm__(
  * NOTE on `round`: C99 `round()` is round-half-away-from-zero.  FRNDINT
  * with RC=00 rounds half-to-even (banker's rounding).  For a hobby
  * kernel this delta is acceptable; callers needing exact C99 semantics
- * should branch on fractional part explicitly. */
+ * should branch on fractional part explicitly.*/
 
 /* Sign-bit masks for fabs/fabsf.  Placed in .rodata so ANDPD/ANDPS can
- * reference them directly by absolute address. */
+ * reference them directly by absolute address.*/
 __asm__(
     ".section .rodata\n\t"
     ".align 16\n"
@@ -369,7 +369,7 @@ __asm__(
 );
 
 /* round: FRNDINT with RC=00 (round-to-nearest-even).  See header note re
- * C99 semantics. */
+ * C99 semantics.*/
 __asm__(
     ".text\n\t"
     ".globl round\n\t"
@@ -461,7 +461,7 @@ __asm__(
  * 2**63 bits - we loop until C2 (status word bit 10) clears, signalling
  * the full IEEE remainder has been computed.  Layout: ST(0)=x, ST(1)=y
  * on entry to the loop.  After convergence we pop y with FSTP ST(1),
- * leaving the result in ST(0). */
+ * leaving the result in ST(0).*/
 __asm__(
     ".text\n\t"
     ".globl fmod\n\t"
@@ -539,35 +539,35 @@ __asm__(
  *   - x <  0      -> libm_errno = 1, return 0.0  (integer-y special
  *                    case NOT implemented; documented limitation).
  *   - otherwise   -> exp(y * log(x)).
- */
+*/
 
 __asm__(
     ".section .rodata\n\t"
     ".align 8\n"
     "libm_log2e_const:\n\t"
-    ".quad 0x3FF71547652B82FE\n"     /* 1.4426950408889634 = log2(e)  */
+    ".quad 0x3FF71547652B82FE\n"     /* 1.4426950408889634 = log2(e) */
     "libm_ln2_const:\n\t"
-    ".quad 0x3FE62E42FEFA39EF\n"     /* 0.6931471805599453 = ln(2)    */
+    ".quad 0x3FE62E42FEFA39EF\n"     /* 0.6931471805599453 = ln(2) */
     ".text\n"
 );
 
 /* exp2(x) via F2XM1 + FSCALE.  Round-to-nearest split keeps frac in
- * [-0.5, 0.5] which is safely inside F2XM1's [-1, 1] domain. */
+ * [-0.5, 0.5] which is safely inside F2XM1's [-1, 1] domain.*/
 __asm__(
     ".text\n\t"
     ".globl exp2\n\t"
     ".type  exp2, @function\n"
     "exp2:\n\t"
-    "fldl   4(%esp)\n\t"        /* ST(0) = x                         */
-    "fld    %st(0)\n\t"         /* ST(0) = x,     ST(1) = x          */
-    "frndint\n\t"                /* ST(0) = int(x), ST(1) = x         */
-    "fsub   %st, %st(1)\n\t"    /* ST(1) = x - int(x) = frac         */
-    "fxch\n\t"                   /* ST(0) = frac,  ST(1) = int(x)     */
-    "f2xm1\n\t"                  /* ST(0) = 2^frac - 1                */
+    "fldl   4(%esp)\n\t"        /* ST(0) = x */
+    "fld    %st(0)\n\t"         /* ST(0) = x,     ST(1) = x */
+    "frndint\n\t"                /* ST(0) = int(x), ST(1) = x */
+    "fsub   %st, %st(1)\n\t"    /* ST(1) = x - int(x) = frac */
+    "fxch\n\t"                   /* ST(0) = frac,  ST(1) = int(x) */
+    "f2xm1\n\t"                  /* ST(0) = 2^frac - 1 */
     "fld1\n\t"                   /* ST(0) = 1, ST(1)=2^frac-1, ST(2)=int */
-    "faddp\n\t"                  /* ST(0) = 2^frac, ST(1)=int(x)      */
-    "fscale\n\t"                 /* ST(0) = 2^frac * 2^int(x) = 2^x   */
-    "fstp   %st(1)\n\t"          /* drop int(x), ST(0) = 2^x          */
+    "faddp\n\t"                  /* ST(0) = 2^frac, ST(1)=int(x) */
+    "fscale\n\t"                 /* ST(0) = 2^frac * 2^int(x) = 2^x */
+    "fstp   %st(1)\n\t"          /* drop int(x), ST(0) = 2^x */
     "sub    $8, %esp\n\t"
     "fstpl  (%esp)\n\t"
     "movsd  (%esp), %xmm0\n\t"
@@ -605,9 +605,9 @@ __asm__(
     ".globl exp\n\t"
     ".type  exp, @function\n"
     "exp:\n\t"
-    "fldl   4(%esp)\n\t"                /* ST(0) = x                 */
-    "fldl   libm_log2e_const\n\t"        /* ST(0) = log2e, ST(1) = x  */
-    "fmulp\n\t"                          /* ST(0) = x * log2(e)       */
+    "fldl   4(%esp)\n\t"                /* ST(0) = x */
+    "fldl   libm_log2e_const\n\t"        /* ST(0) = log2e, ST(1) = x */
+    "fmulp\n\t"                          /* ST(0) = x * log2(e) */
     "fld    %st(0)\n\t"
     "frndint\n\t"
     "fsub   %st, %st(1)\n\t"
@@ -651,15 +651,15 @@ __asm__(
 );
 
 /* log2(x) via FYL2X with y = 1.0 in ST(1).  FYL2X computes
- * ST(1) = ST(1) * log2(ST(0)) then pops, so result = log2(x). */
+ * ST(1) = ST(1) * log2(ST(0)) then pops, so result = log2(x).*/
 __asm__(
     ".text\n\t"
     ".globl log2\n\t"
     ".type  log2, @function\n"
     "log2:\n\t"
-    "fld1\n\t"                   /* ST(0) = 1.0                       */
-    "fldl   4(%esp)\n\t"         /* ST(0) = x,   ST(1) = 1.0          */
-    "fyl2x\n\t"                  /* ST(0) = 1.0 * log2(x)             */
+    "fld1\n\t"                   /* ST(0) = 1.0 */
+    "fldl   4(%esp)\n\t"         /* ST(0) = x,   ST(1) = 1.0 */
+    "fyl2x\n\t"                  /* ST(0) = 1.0 * log2(x) */
     "sub    $8, %esp\n\t"
     "fstpl  (%esp)\n\t"
     "movsd  (%esp), %xmm0\n\t"
@@ -690,9 +690,9 @@ __asm__(
     ".globl log\n\t"
     ".type  log, @function\n"
     "log:\n\t"
-    "fldl   libm_ln2_const\n\t"  /* ST(0) = ln(2)                     */
-    "fldl   4(%esp)\n\t"         /* ST(0) = x,   ST(1) = ln(2)        */
-    "fyl2x\n\t"                  /* ST(0) = ln(2) * log2(x) = ln(x)   */
+    "fldl   libm_ln2_const\n\t"  /* ST(0) = ln(2) */
+    "fldl   4(%esp)\n\t"         /* ST(0) = x,   ST(1) = ln(2) */
+    "fyl2x\n\t"                  /* ST(0) = ln(2) * log2(x) = ln(x) */
     "sub    $8, %esp\n\t"
     "fstpl  (%esp)\n\t"
     "movsd  (%esp), %xmm0\n\t"
@@ -725,13 +725,13 @@ __asm__(
  * These C-local constants live in .rodata separate from the symbols
  * named in the libm_{log2e,ln2}_const .rodata block above; the inline
  * asm uses "m" operand-address substitution so the assembler need not
- * resolve the top-level labels. */
+ * resolve the top-level labels.*/
 static const double k_log2e = 1.4426950408889634; /* log2(e) */
-static const double k_ln2   = 0.6931471805599453; /* ln(2)  */
+static const double k_ln2   = 0.6931471805599453; /* ln(2) */
 
 /* Non-static + noinline so the linker keeps the exact cdecl ABI we
  * target from the asm wrappers below.  `used` prevents removal under
- * aggressive LTO.  No prototype in the header - these are internal. */
+ * aggressive LTO.  No prototype in the header - these are internal.*/
 double libm_pow_impl(double x, double y)
     __attribute__((used, noinline));
 float  libm_powf_impl(float x, float y)
@@ -752,23 +752,23 @@ double libm_pow_impl(double x, double y)
         return 0.0;
     }
     /* Negative base: integer-exponent special case NOT implemented.
-     * Flag a domain error and return 0. */
+     * Flag a domain error and return 0.*/
     if (x < 0.0) {
         libm_errno = 1;
         return 0.0;
     }
     /* Common path: exp(y * log(x)) computed purely on the x87 stack.
      * Direct inline asm here lets us bypass the XMM0-ABI detour we
-     * would otherwise take if we called `exp`/`log` as kernel symbols. */
+     * would otherwise take if we called `exp`/`log` as kernel symbols.*/
     double result;
     __asm__ __volatile__(
-        "fldl   %[ln2]\n\t"           /* ST(0) = ln(2)                */
-        "fldl   %[x]\n\t"             /* ST(0) = x, ST(1) = ln(2)     */
-        "fyl2x\n\t"                   /* ST(0) = ln(x)                */
-        "fldl   %[y]\n\t"             /* ST(0) = y, ST(1) = ln(x)     */
-        "fmulp\n\t"                   /* ST(0) = y * ln(x)            */
-        "fldl   %[log2e]\n\t"         /* ST(0) = log2(e), ST(1)=arg   */
-        "fmulp\n\t"                   /* ST(0) = arg * log2(e)        */
+        "fldl   %[ln2]\n\t"           /* ST(0) = ln(2) */
+        "fldl   %[x]\n\t"             /* ST(0) = x, ST(1) = ln(2) */
+        "fyl2x\n\t"                   /* ST(0) = ln(x) */
+        "fldl   %[y]\n\t"             /* ST(0) = y, ST(1) = ln(x) */
+        "fmulp\n\t"                   /* ST(0) = y * ln(x) */
+        "fldl   %[log2e]\n\t"         /* ST(0) = log2(e), ST(1)=arg */
+        "fmulp\n\t"                   /* ST(0) = arg * log2(e) */
         "fld    %%st(0)\n\t"
         "frndint\n\t"
         "fsub   %%st, %%st(1)\n\t"
@@ -842,18 +842,18 @@ float libm_powf_impl(float x, float y)
  *   [esp+12..+19] y (double, 8 B)
  * We push 16 bytes (y then x, in that order so x ends up at the lower
  * address post-push), then call libm_pow_impl which sees args at its
- * own [esp+4..+11] (x) and [esp+12..+19] (y). */
+ * own [esp+4..+11] (x) and [esp+12..+19] (y).*/
 __asm__(
     ".text\n\t"
     ".globl pow\n\t"
     ".type  pow, @function\n"
     "pow:\n\t"
-    "pushl  16(%esp)\n\t"        /* y high: reads orig [esp+16]           */
-    "pushl  16(%esp)\n\t"        /* y low : reads orig [esp+12]           */
-    "pushl  16(%esp)\n\t"        /* x high: reads orig [esp+ 8]           */
-    "pushl  16(%esp)\n\t"        /* x low : reads orig [esp+ 4]           */
-    "call   libm_pow_impl\n\t"   /* ST(0) = result                        */
-    "add    $16, %esp\n\t"       /* discard pushed args                    */
+    "pushl  16(%esp)\n\t"        /* y high: reads orig [esp+16] */
+    "pushl  16(%esp)\n\t"        /* y low : reads orig [esp+12] */
+    "pushl  16(%esp)\n\t"        /* x high: reads orig [esp+ 8] */
+    "pushl  16(%esp)\n\t"        /* x low : reads orig [esp+ 4] */
+    "call   libm_pow_impl\n\t"   /* ST(0) = result */
+    "add    $16, %esp\n\t"       /* discard pushed args */
     "sub    $8, %esp\n\t"
     "fstpl  (%esp)\n\t"
     "movsd  (%esp), %xmm0\n\t"
@@ -868,8 +868,8 @@ __asm__(
     ".globl powf\n\t"
     ".type  powf, @function\n"
     "powf:\n\t"
-    "pushl  8(%esp)\n\t"         /* y: reads orig [esp+8]                 */
-    "pushl  8(%esp)\n\t"         /* x: reads orig [esp+4]                 */
+    "pushl  8(%esp)\n\t"         /* y: reads orig [esp+8] */
+    "pushl  8(%esp)\n\t"         /* x: reads orig [esp+4] */
     "call   libm_powf_impl\n\t"
     "add    $8, %esp\n\t"
     "sub    $4, %esp\n\t"
@@ -903,7 +903,7 @@ __asm__(
  * separated and the code readable.
  *
  * Domain handling: asin/acos set libm_errno = 1 (DOMAIN) and return
- * 0.0 when |x| > 1, matching Task 25's pow convention. */
+ * 0.0 when |x| > 1, matching Task 25's pow convention.*/
 
 /* C-ABI building blocks */
 
@@ -920,9 +920,9 @@ static double libm_atan2_impl(double y, double x)
 {
     double r;
     __asm__ __volatile__(
-        "fldl  %[y]\n\t"           /* ST(0) = y                       */
-        "fldl  %[x]\n\t"           /* ST(0) = x, ST(1) = y            */
-        "fpatan\n\t"               /* ST(0) = atan2(y, x)             */
+        "fldl  %[y]\n\t"           /* ST(0) = y */
+        "fldl  %[x]\n\t"           /* ST(0) = x, ST(1) = y */
+        "fpatan\n\t"               /* ST(0) = atan2(y, x) */
         "fstpl %[out]\n\t"
         : [out] "=m"(r)
         : [y] "m"(y), [x] "m"(x)
@@ -933,14 +933,14 @@ static double libm_atan2_impl(double y, double x)
 
 /* libm_exp_impl: exp(x) = exp2(x * log2(e)) via x87 pipeline, result
  * written to a memory slot and returned as a normal C double (GCC
- * bridges the memory-load into ST(0) at return). */
+ * bridges the memory-load into ST(0) at return).*/
 static double libm_exp_impl(double x)
 {
     double r;
     __asm__ __volatile__(
-        "fldl   %[x]\n\t"          /* ST(0) = x                        */
-        "fldl   %[log2e]\n\t"      /* ST(0) = log2(e), ST(1) = x       */
-        "fmulp\n\t"                /* ST(0) = x * log2(e)              */
+        "fldl   %[x]\n\t"          /* ST(0) = x */
+        "fldl   %[log2e]\n\t"      /* ST(0) = log2(e), ST(1) = x */
+        "fmulp\n\t"                /* ST(0) = x * log2(e) */
         "fld    %%st(0)\n\t"
         "frndint\n\t"
         "fsub   %%st, %%st(1)\n\t"
@@ -1054,14 +1054,14 @@ float libm_tanhf_impl(float x)
 /* Task 26 asm wrappers: ST(0) -> XMM0 bridge */
 
 /* asin: arg is a single double at [esp+4..+11].  Re-push the 8 B arg,
- * call the impl (which returns in ST(0)), then convert to XMM0. */
+ * call the impl (which returns in ST(0)), then convert to XMM0.*/
 __asm__(
     ".text\n\t"
     ".globl asin\n\t"
     ".type  asin, @function\n"
     "asin:\n\t"
-    "pushl  8(%esp)\n\t"            /* x high: reads orig [esp+8]   */
-    "pushl  8(%esp)\n\t"            /* x low : reads orig [esp+4]   */
+    "pushl  8(%esp)\n\t"            /* x high: reads orig [esp+8] */
+    "pushl  8(%esp)\n\t"            /* x low : reads orig [esp+4] */
     "call   libm_asin_impl\n\t"
     "add    $8, %esp\n\t"
     "sub    $8, %esp\n\t"
@@ -1077,7 +1077,7 @@ __asm__(
     ".globl asinf\n\t"
     ".type  asinf, @function\n"
     "asinf:\n\t"
-    "pushl  4(%esp)\n\t"            /* x: reads orig [esp+4]        */
+    "pushl  4(%esp)\n\t"            /* x: reads orig [esp+4] */
     "call   libm_asinf_impl\n\t"
     "add    $4, %esp\n\t"
     "sub    $4, %esp\n\t"
@@ -1259,7 +1259,7 @@ __asm__(
  *                  produce the smallest subnormal with y's sign.  NaN
  *                  inputs propagate through the `x == y` early-out,
  *                  since x != x for NaN.
- */
+*/
 
 /* Task 27 _impl functions (standard C ABI, ST(0) return) */
 
@@ -1272,7 +1272,7 @@ float  libm_nextafterf_impl(float x, float y)    __attribute__((used, noinline))
 
 /* Bit-punning helpers.  A union is the -pedantic-clean way to convert
  * between float/double and their integer representations; GCC emits no
- * code for this under -O2 (just a register/stack alias). */
+ * code for this under -O2 (just a register/stack alias).*/
 typedef union { double d; uint64_t u; } libm_bits64_t;
 typedef union { float  f; uint32_t u; } libm_bits32_t;
 
@@ -1289,7 +1289,7 @@ double libm_cbrt_impl(double x)
     /* Initial estimate via bit-fiddle divide-exponent-by-3.  Double layout:
      * sign [63], biased exponent [62..52], mantissa [51..0].  We keep the
      * mantissa bits but rewrite the exponent field so the estimate has
-     * roughly the correct order of magnitude. */
+     * roughly the correct order of magnitude.*/
     libm_bits64_t b;
     b.d = x;
     uint32_t exp_bits = (uint32_t)((b.u >> 52) & 0x7FFu);
@@ -1298,12 +1298,12 @@ double libm_cbrt_impl(double x)
     if (exp_bits == 0u) {
         /* Denormal or +0 (already handled): skip the bit trick, Newton
          * will still converge from y = x in a few iterations since x
-         * itself is tiny. */
+         * itself is tiny.*/
         y = x;
     } else {
         int32_t unbiased = (int32_t)exp_bits - 1023;
         /* Integer division rounds toward zero in C99; that's what we want
-         * here -- the Newton pass repairs any small exponent imprecision. */
+         * here -- the Newton pass repairs any small exponent imprecision.*/
         int32_t new_unbiased = unbiased / 3;
         uint32_t new_exp = (uint32_t)(new_unbiased + 1023) & 0x7FFu;
         b.u = (b.u & ~((uint64_t)0x7FFu << 52))
@@ -1312,7 +1312,7 @@ double libm_cbrt_impl(double x)
     }
 
     /* Newton-Raphson: y_{n+1} = (2 y_n + x / y_n^2) / 3.  Three iterations
-     * take the ~4-bit exponent-divided estimate to double precision. */
+     * take the ~4-bit exponent-divided estimate to double precision.*/
     for (int i = 0; i < 3; i++) {
         y = (2.0 * y + x / (y * y)) / 3.0;
     }
@@ -1330,7 +1330,7 @@ double libm_hypot_impl(double x, double y)
     if (y < 0.0) { y = -y; }
     if (x < y) { double t = x; x = y; y = t; }
     /* Post-swap: x = max(|x|,|y|), y = min(|x|,|y|).  If the larger is
-     * zero then both are zero and the result is zero. */
+     * zero then both are zero and the result is zero.*/
     if (x == 0.0) {
         return 0.0;
     }
@@ -1349,7 +1349,7 @@ double libm_nextafter_impl(double x, double y)
      * via y, since any NaN comparison including equality is false and we
      * fall through -- except that a NaN on either side must propagate a
      * NaN result.  We cover that by loading the bit pattern blindly and
-     * ++/-- it; the IEEE integer neighbours of a NaN are still NaNs. */
+     * ++/-- it; the IEEE integer neighbours of a NaN are still NaNs.*/
     if (x == y) {
         return y;
     }
@@ -1357,12 +1357,12 @@ double libm_nextafter_impl(double x, double y)
     b.d = x;
     if (x == 0.0) {
         /* Smallest positive/negative subnormal in the direction of y.
-         * Bit pattern 0x0000000000000001 = 4.9e-324, bit 63 = sign. */
+         * Bit pattern 0x0000000000000001 = 4.9e-324, bit 63 = sign.*/
         b.u = 1ull | (y < 0.0 ? ((uint64_t)1 << 63) : 0ull);
     } else if ((x > 0.0 && y > x) || (x < 0.0 && y < x)) {
         /* Moving away from zero -> magnitude increases -> ++bits (since
          * sign bit dominates and within same sign, magnitude monotone
-         * in the low 63 bits). */
+         * in the low 63 bits).*/
         b.u++;
     } else {
         b.u--;
@@ -1424,16 +1424,16 @@ __asm__(
 );
 
 /* hypot: two double args at [esp+4..+11] (x) and [esp+12..+19] (y).
- * Re-push 16 B, call, bridge.  Same stack arithmetic as pow (Task 25). */
+ * Re-push 16 B, call, bridge.  Same stack arithmetic as pow (Task 25).*/
 __asm__(
     ".text\n\t"
     ".globl hypot\n\t"
     ".type  hypot, @function\n"
     "hypot:\n\t"
-    "pushl  16(%esp)\n\t"         /* y high: reads orig [esp+16]       */
-    "pushl  16(%esp)\n\t"         /* y low : reads orig [esp+12]       */
-    "pushl  16(%esp)\n\t"         /* x high: reads orig [esp+ 8]       */
-    "pushl  16(%esp)\n\t"         /* x low : reads orig [esp+ 4]       */
+    "pushl  16(%esp)\n\t"         /* y high: reads orig [esp+16] */
+    "pushl  16(%esp)\n\t"         /* y low : reads orig [esp+12] */
+    "pushl  16(%esp)\n\t"         /* x high: reads orig [esp+ 8] */
+    "pushl  16(%esp)\n\t"         /* x low : reads orig [esp+ 4] */
     "call   libm_hypot_impl\n\t"
     "add    $16, %esp\n\t"
     "sub    $8, %esp\n\t"
@@ -1450,8 +1450,8 @@ __asm__(
     ".globl hypotf\n\t"
     ".type  hypotf, @function\n"
     "hypotf:\n\t"
-    "pushl  8(%esp)\n\t"          /* y: reads orig [esp+8]             */
-    "pushl  8(%esp)\n\t"          /* x: reads orig [esp+4]             */
+    "pushl  8(%esp)\n\t"          /* y: reads orig [esp+8] */
+    "pushl  8(%esp)\n\t"          /* x: reads orig [esp+4] */
     "call   libm_hypotf_impl\n\t"
     "add    $8, %esp\n\t"
     "sub    $4, %esp\n\t"

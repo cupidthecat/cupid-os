@@ -10,7 +10,7 @@
  * All operations are constant-shape with respect to nlimbs (no early
  * exits on data); they are NOT constant-time with respect to secret
  * inputs and are therefore appropriate for verify-only RSA where every
- * input is public (signature, modulus, message). */
+ * input is public (signature, modulus, message).*/
 
 #define BN_MAX_BITS    4096u
 #define BN_MAX_LIMBS   (BN_MAX_BITS / 32u)         /* = 128 */
@@ -33,7 +33,7 @@ int  bn_cmp(const bn_t *a, const bn_t *b);   /* -1 / 0 / +1 */
 
 /* Decode/encode in big-endian byte order. `len` may be up to BN_MAX_BITS/8.
  * Excess high bits are zero-padded. Returns 0 on success, -1 if the input
- * is too large. */
+ * is too large.*/
 int  bn_from_be(bn_t *out, const uint8_t *bytes, uint32_t len);
 void bn_to_be(uint8_t *out, uint32_t len, const bn_t *a);
 
@@ -48,7 +48,7 @@ void bn_mul(bn_wide_t *dst, const bn_t *a, const bn_t *b);
 void bn_mod_wide(bn_t *r, const bn_wide_t *a, const bn_t *n);
 
 /* Modular exponentiation: r = base^exp mod n.
- * `exp` is supplied as a big-endian byte array (typical RSA "e" or "d"). */
+ * `exp` is supplied as a big-endian byte array (typical RSA "e" or "d").*/
 void bn_modexp(bn_t *r, const bn_t *base,
                const uint8_t *exp_be, uint32_t exp_len,
                const bn_t *n);

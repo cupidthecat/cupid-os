@@ -3,7 +3,7 @@
  * One-time key (otk) is the first 32 bytes of ChaCha20 keystream at
  * counter=0. Payload is encrypted with ChaCha20 starting at counter=1.
  * The MAC covers AAD || pad16(AAD) || CT || pad16(CT) || aad_len_le64
- * || ct_len_le64. */
+ * || ct_len_le64.*/
 
 #include "chacha20poly1305.h"
 #include "chacha20.h"

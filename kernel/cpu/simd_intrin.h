@@ -19,7 +19,7 @@
  *   - _mm_set1_ps broadcasts its scalar argument to all four lanes
  *     via SHUFPS xmm0, xmm0, 0.
  *   - _mm_movemask_ps returns an int in EAX (not float4).
- */
+*/
 
 #ifndef SIMD_INTRIN_H
 #define SIMD_INTRIN_H
@@ -55,7 +55,7 @@ int _mm_movemask_ps(float4 a);
 /*  Task 33: double-precision packed (double2 = 2x double)  * Same opcodes as the _ps variants with a 0x66 operand-size prefix.
  * Result is a double2. _mm_set1_pd broadcasts its scalar double into
  * both 64-bit lanes via SHUFPD xmm0,xmm0,0.
- */
+*/
 double2 _mm_add_pd(double2 a, double2 b);
 double2 _mm_sub_pd(double2 a, double2 b);
 double2 _mm_mul_pd(double2 a, double2 b);

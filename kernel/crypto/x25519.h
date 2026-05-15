@@ -7,7 +7,7 @@
  * canonical encodings of u-coordinates / scalars. The function is the
  * Diffie-Hellman primitive - call once with the peer's u as `peer_u` to
  * derive a shared secret, and once with the standard base point u=9
- * (X25519_BASE_POINT) to produce a public key. */
+ * (X25519_BASE_POINT) to produce a public key.*/
 
 extern const uint8_t X25519_BASE_POINT[32];
 

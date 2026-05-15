@@ -1,6 +1,6 @@
 /**
  * simd.c - SSE2 accelerated rendering primitives
- */
+*/
 
 #include "simd.h"
 

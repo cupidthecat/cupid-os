@@ -6,13 +6,13 @@
  *   TBSCertificate         ::= SEQUENCE { ver,serial,sigAlg,issuer,
  *                                         validity,subject,SPKI,
  *                                         (uniqueIDs)?, exts? }
- */
+*/
 
 #include "x509.h"
 #include "asn1.h"
 
 /* Known OIDs (raw DER bytes, including the 0x06+len header is NOT
- * stored here; these are the OID *body* bytes only). */
+ * stored here; these are the OID *body* bytes only).*/
 
 /* 1.2.840.113549.1.1.1  rsaEncryption */
 static const uint8_t OID_RSA_ENCRYPTION[] = {
@@ -195,7 +195,7 @@ static int parse_spki(asn1_cur_t *parent, x509_pubkey_t *out) {
         }
         /* Other named curves (P-384, P-521, etc.) - record as opaque
          * so the cert can be parsed; chain validation will treat it
-         * as "unverifiable". */
+         * as "unverifiable".*/
         out->type = X509_PK_NONE;
         out->ec.point = bit;
         out->ec.point_len = bit_len;
@@ -203,7 +203,7 @@ static int parse_spki(asn1_cur_t *parent, x509_pubkey_t *out) {
     }
 
     /* Unknown pubkey alg - accept as opaque so the rest of the chain
-     * still parses; verification is skipped at chain_verify time. */
+     * still parses; verification is skipped at chain_verify time.*/
     while (asn1_remaining(&alg) > 0u) {
         if (asn1_skip_any(&alg) != 0) return -1;
     }
@@ -213,7 +213,7 @@ static int parse_spki(asn1_cur_t *parent, x509_pubkey_t *out) {
 }
 
 /* AttributeTypeAndValue: SEQUENCE { type OID, value ANY }. We only
- * pull the commonName when we encounter it. */
+ * pull the commonName when we encounter it.*/
 static void scan_dn_for_cn(const uint8_t *dn, uint32_t dn_len,
                            const uint8_t **cn_out, uint32_t *cn_len_out) {
     asn1_cur_t name;
@@ -247,7 +247,7 @@ static void scan_dn_for_cn(const uint8_t *dn, uint32_t dn_len,
 }
 
 /* Extensions handling: pull SAN dnsName list + basicConstraints. We
- * walk every extension; reject any unknown critical one. */
+ * walk every extension; reject any unknown critical one.*/
 static int parse_extensions(asn1_cur_t *cur, x509_cert_t *out) {
     asn1_cur_t exts_outer;
     asn1_cur_t exts;
@@ -320,7 +320,7 @@ static int parse_extensions(asn1_cur_t *cur, x509_cert_t *out) {
             /* Recognised but unenforced.  We don't validate keyUsage,
              * extKeyUsage, or revocation; we accept them with the
              * (small) risk that follows.  This matters because most
-             * real-world leaves mark keyUsage critical. */
+             * real-world leaves mark keyUsage critical.*/
             (void)critical;
         } else if (critical) {
             /* Unknown critical extension - RFC 5280 §4.2 says reject. */
@@ -353,7 +353,7 @@ int x509_parse(const uint8_t *der, uint32_t der_len, x509_cert_t *out) {
     if (asn1_open(&top, ASN1_TAG_SEQUENCE, &cert) != 0) return -1;
 
     /* Capture TBS span before opening, since the bytes-being-signed
-     * include the TLV header. */
+     * include the TLV header.*/
     {
         const uint8_t *tbs_tlv_start = cert.p;
         const uint8_t *tbs_body_p = NULL;
@@ -401,7 +401,7 @@ int x509_parse(const uint8_t *der, uint32_t der_len, x509_cert_t *out) {
      * We accept X509_SIG_NONE (an unsupported alg like ECDSA-P384) so
      * the chain can be parsed and the handshake can continue; the
      * caller in x509_chain.c will treat that as "unverifiable" and
-     * fall through to "encrypted but not authenticated" behaviour. */
+     * fall through to "encrypted but not authenticated" behaviour.*/
     if (parse_alg(&tbs, &tbs_sig_alg) != 0) return -1;
     if (tbs_sig_alg != outer_sig_alg) return -1;
     out->sig_alg = tbs_sig_alg;
@@ -463,7 +463,7 @@ static int match_dns_name(const uint8_t *pat, uint32_t patlen,
                           const char *host) {
     /* host is NUL-terminated. Compare ASCII-case-insensitive. Wildcard
      * support: "*.x" matches exactly one label that doesn't contain '.'.
-     * Wildcard must be the leftmost label. RFC 6125 §6.4.3. */
+     * Wildcard must be the leftmost label. RFC 6125 §6.4.3.*/
     uint32_t hlen = 0;
     const char *h = host;
     while (h[hlen]) hlen++;

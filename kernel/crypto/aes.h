@@ -10,7 +10,7 @@
  * hobby OS without AES-NI / SMP-attacker model this is acceptable; for
  * hardened deployments either add AES-NI fast path or switch to a
  * bitsliced implementation.
- */
+*/
 
 #define AES128_KEY_SIZE  16u
 #define AES128_BLOCK     16u

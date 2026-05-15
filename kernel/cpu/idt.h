@@ -1,8 +1,8 @@
 /**
  * idt.h
- * 
+ *
  * Interrupt Descriptor Table (IDT) header file.
- */
+*/
 
 #ifndef IDT_H
 #define IDT_H

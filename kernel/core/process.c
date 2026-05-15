@@ -16,7 +16,7 @@
  *
  *   New processes have their initial EIP set to their entry function
  *   with a return address of process_exit_trampoline on the stack.
- */
+*/
 
 #include "process.h"
 #include "kernel.h"
@@ -40,7 +40,7 @@ _Static_assert(sizeof(((process_t *)0)->fp_state) == 512,
                "fp_state must be 512 bytes");
 
 /* PCB field offsets baked into kernel/context_switch.asm.  If any of
- * these asserts fire, update the matching %define in that file. */
+ * these asserts fire, update the matching %define in that file.*/
 _Static_assert(__builtin_offsetof(process_t, context) +
                __builtin_offsetof(cpu_context_t, esp) == 32,
                "PCB ESP offset baked into context_switch.asm "
@@ -89,20 +89,20 @@ static uint32_t process_create_common(void (*entry_point)(void),
 
 /* Trampoline: if a process entry function returns, we land here
  *  and call process_exit() to clean up.
- *  */
+ **/
 static void process_exit_trampoline(void) {
     process_exit();
     while (1) { __asm__ volatile("hlt"); }
 }
 
 /*  *  Idle process - PID 1, always present
- *  */
+ **/
 static void idle_process(void) {
     while (1) {
         /* Check if a reschedule was requested by the timer IRQ.
          * Without this, once the scheduler picks idle, no other
          * process would ever get CPU time back (since preemptive
-         * scheduling is deferred, not done inside the IRQ). */
+         * scheduling is deferred, not done inside the IRQ).*/
         extern void kernel_check_reschedule(void);
         kernel_check_reschedule();
         __asm__ volatile("sti; hlt");
@@ -110,7 +110,7 @@ static void idle_process(void) {
 }
 
 /*  *  find_free_slot
- *  */
+ **/
 static uint32_t find_free_slot(void) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].pid == 0) {
@@ -151,7 +151,7 @@ static void process_reap_terminated(void) {
 }
 
 /*  *  process_init
- *  */
+ **/
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
     this_cpu()->current_pid = 0;
@@ -168,7 +168,7 @@ void process_init(void) {
 }
 
 /*  *  process_create
- *  */
+ **/
 static uint32_t process_create_common_locked(void (*entry_point)(void),
                                              const char *name,
                                              uint32_t stack_size,
@@ -239,7 +239,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
      * context.eip = entry_point and pre-place process_exit_trampoline
      * as a fake return address on its stack, so when entry_point
      * returns, `ret` lands in the trampoline.
-     */
+*/
     uint32_t top = ((uint32_t)stack + stack_size) & ~0xFu;
     uint32_t *sp = (uint32_t *)top;
     if (with_arg) {
@@ -256,7 +256,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
      * so the first FXRSTOR into this process loads a valid image.  The
      * PCB was just memset to zero above; a zeroed 512-byte region is
      * technically an acceptable FXRSTOR source (MXCSR reserved bits =
-     * 0), but grabbing a real snapshot is free and cleaner. */
+     * 0), but grabbing a real snapshot is free and cleaner.*/
     __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
 
     process_count++;
@@ -306,7 +306,7 @@ uint32_t process_create_ex(void (*entry_point)(void),
 
 /*  *  process_create_with_arg - like process_create but pushes one
  *  uint32_t argument onto the stack so the entry function receives it.
- *  */
+ **/
 uint32_t process_create_with_arg(void (*entry_point)(void),
                                  const char *name,
                                  uint32_t stack_size,
@@ -325,7 +325,7 @@ uint32_t process_create_with_arg_ex(void (*entry_point)(void),
 }
 
 /*  *  process_exit
- *  */
+ **/
 void process_exit(void) {
     bkl_lock();
 
@@ -350,14 +350,14 @@ void process_exit(void) {
 
     /* Mark terminated but DON'T free the stack yet - we're still
      * running on it.  The stack will be freed lazily when the slot
-     * is reused by process_create or after schedule switches away. */
+     * is reused by process_create or after schedule switches away.*/
     p->state        = PROCESS_TERMINATED;
     p->on_cpu       = 0xFFu;
     this_cpu()->current_pid = 0;
 
     /* Reschedule - never returns.
      * schedule() will use dummy_esp path since current_pid == 0.
-     * Release BKL before schedule() so schedule() can re-acquire it. */
+     * Release BKL before schedule() so schedule() can re-acquire it.*/
     bkl_unlock();
     schedule();
     serial_printf("[EXIT] BUG: schedule returned in process_exit\n");
@@ -367,7 +367,7 @@ void process_exit(void) {
 }
 
 /*  *  process_yield
- *  */
+ **/
 void process_yield(void) {
     if (!scheduler_active || this_cpu()->current_pid == 0) return;
     extern void kernel_clear_reschedule(void);
@@ -376,13 +376,13 @@ void process_yield(void) {
 }
 
 /*  *  process_get_current_pid
- *  */
+ **/
 uint32_t process_get_current_pid(void) {
     return this_cpu()->current_pid;
 }
 
 /*  *  process_kill
- *  */
+ **/
 void process_kill(uint32_t pid) {
     if (pid == 0 || pid == 1) {
         KWARN("Cannot kill PID %u", pid);
@@ -426,7 +426,7 @@ void process_kill(uint32_t pid) {
 
     if (pid == this_cpu()->current_pid) {
         /* Killing self - mark terminated and reschedule.
-         * Stack freed later by reaper in find_free_slot. */
+         * Stack freed later by reaper in find_free_slot.*/
         p->state  = PROCESS_TERMINATED;
         p->on_cpu = 0xFFu;
         this_cpu()->current_pid = 0;
@@ -455,7 +455,7 @@ void process_kill(uint32_t pid) {
 }
 
 /*  *  process_get_state - return state of a process by PID
- *  */
+ **/
 int process_get_state(uint32_t pid) {
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].pid == pid && pid != 0) {
@@ -466,7 +466,7 @@ int process_get_state(uint32_t pid) {
 }
 
 /*  *  process_list - `ps` shell command
- *  */
+ **/
 void process_list(void) {
     process_reap_terminated();
 
@@ -528,7 +528,7 @@ void process_list(void) {
  *  Adam is the root task. Every process is a descendant. Group by
  *  domain (kernel/hosted/external). No parent tracking, so the tree
  *  is two levels deep: Adam > domain > process.
- *  */
+ **/
 void process_list_adam(void) {
     process_reap_terminated();
 
@@ -606,9 +606,9 @@ void process_list_adam(void) {
  *  jumps to context_switch_resume which pops the saved regs and
  *  returns normally - so schedule() returns to its caller as if
  *  nothing happened.
- *  */
+ **/
 /* schedule_locked - called with BKL held (or from context before BKL exists).
- * Does the actual round-robin pick and context switch. */
+ * Does the actual round-robin pick and context switch.*/
 static void schedule_locked(void) {
     if (process_count == 0 || !scheduler_active) return;
 
@@ -640,7 +640,7 @@ static void schedule_locked(void) {
         }
     }
 
-    /*  Find next READY process (round-robin)  */
+    /* Find next READY process (round-robin) */
     process_t *next = NULL;
     uint32_t searches = 0;
 
@@ -677,7 +677,7 @@ static void schedule_locked(void) {
         return;
     }
 
-    /*  Perform context switch  */
+    /* Perform context switch */
     uint32_t old_pid = cur_pid;
     this_cpu()->current_pid = next->pid;
     next->state    = PROCESS_RUNNING;
@@ -700,24 +700,24 @@ static void schedule_locked(void) {
      *
      * context_switch never returns normally - when THIS process is
      * later resumed, context_switch_resume pops the saved regs and
-     * does `ret`, returning us right here. */
+     * does `ret`, returning us right here.*/
 
     if (old_pid != 0 && old_pid <= MAX_PROCESSES) {
         process_t *old = &process_table[old_pid - 1];
         /* Seed the old PCB's resume EIP so its next FXRSTOR+jmp
-         * lands in context_switch_resume. */
+         * lands in context_switch_resume.*/
         old->context.eip = (uint32_t)context_switch_resume;
         __asm__ volatile("sti");
         context_switch(old, next);
         /* We resume here when rescheduled.
-         * Re-disable interrupts: BKL's unlock will restore IF. */
+         * Re-disable interrupts: BKL's unlock will restore IF.*/
         __asm__ volatile("cli");
     } else {
         /* No valid old process (e.g. entering after process_exit).
          * Use a throw-away PCB scratch area so context_switch has
          * somewhere to stash its garbage save.  We never read any
          * of its fields again.  Must be 16-byte aligned (fp_state
-         * constraint inherited from the containing struct). */
+         * constraint inherited from the containing struct).*/
         static process_t dummy __attribute__((aligned(16)));
         __asm__ volatile("sti");
         context_switch(&dummy, next);
@@ -733,7 +733,7 @@ void schedule(void) {
 }
 
 /*  *  Utility queries
- *  */
+ **/
 bool process_is_active(void) {
     return scheduler_active;
 }
@@ -763,7 +763,7 @@ void process_start_scheduler(void) {
  *  Used to add the kernel main thread (desktop loop) to the process
  *  table so the scheduler can properly save and restore its context.
  *  Does NOT allocate a stack - the kernel stack is managed externally.
- *  */
+ **/
 uint32_t process_register_current(const char *name) {
     process_reap_terminated();
 
@@ -802,7 +802,7 @@ uint32_t process_register_current(const char *name) {
     this_cpu()->current_pid = p->pid;
 
     /* Seed fp_state with current FPU snapshot so the first context
-     * switch away from this thread has a valid image to restore. */
+     * switch away from this thread has a valid image to restore.*/
     __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
 
     serial_printf("[PROCESS] Registered current thread as PID %u \"%s\"\n",
@@ -823,7 +823,7 @@ const char *process_domain_name(process_domain_t domain) {
  *  Used by the JIT region manager (shell.c) to prevent a process from
  *  being scheduled while the shared JIT code region contains code that
  *  belongs to a different process.
- *  */
+ **/
 void process_block(uint32_t pid) {
     if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;
     bkl_lock();
@@ -845,14 +845,14 @@ void process_unblock(uint32_t pid) {
 }
 
 /*  *  process_set_image - Associate an ELF image region with a process
- *  */
+ **/
 void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
     if (pid == 0 || pid > MAX_PROCESSES) return;
     bkl_lock();
     process_t *p = &process_table[pid - 1];
     if (p->pid != pid) { bkl_unlock(); return; }
     /* Publish size = 0 first so any concurrent reader that observes the
-     * new base before size sees an empty region rather than a stale pair. */
+     * new base before size sees an empty region rather than a stale pair.*/
     p->image_size = 0;
     p->image_base = base;
     p->image_size = size;

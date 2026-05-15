@@ -4,7 +4,7 @@
 #include "types.h"
 
 /* libm error flag - set to non-zero on domain or range errors.
- * 0 = ok, 1 = DOMAIN, 2 = RANGE. Not thread-local. */
+ * 0 = ok, 1 = DOMAIN, 2 = RANGE. Not thread-local.*/
 extern int libm_errno;
 
 /* Phase E Task 23: hardware fast-path libm operations (one x87/SSE
@@ -20,7 +20,7 @@ extern int libm_errno;
  * work with the default GCC ABI.  No kernel C code calls them today,
  * and CupidC consumers see them via the BIND table.  If a C caller
  * becomes necessary later, wrap with a tiny trampoline that moves
- * XMM0 into ST(0) for the return. */
+ * XMM0 into ST(0) for the return.*/
 double sqrt (double x);
 float  sqrtf(float x);
 double sin  (double x);
@@ -36,7 +36,7 @@ float  atan2f(float y, float x);
 
 /* Phase E Task 24: abs / rounding / fmod.  Same CupidC-internal ABI as
  * Task 23 (stack args, XMM0 return).  `round` uses x87 round-to-nearest-
- * even, which differs from C99 round-half-away-from-zero; see libm.c. */
+ * even, which differs from C99 round-half-away-from-zero; see libm.c.*/
 double fabs  (double x);
 float  fabsf (float x);
 double floor (double x);
@@ -60,7 +60,7 @@ float  fmodf (float x, float y);
  *   pow(x,y) - domain-dispatched: y=0 -> 1; x<=0 with y!=0 sets
  *              libm_errno=1 and returns 0; otherwise exp(y*log(x)).
  *              (Integer-exponent negative-base special case is not
- *              implemented for this hobby kernel.) */
+ *              implemented for this hobby kernel.)*/
 double exp   (double x);
 float  expf  (float x);
 double exp2  (double x);
@@ -81,7 +81,7 @@ float  powf  (float x, float y);
  *   cosh(x)  = (exp(x) + exp(-x)) / 2
  *   tanh(x)  = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
  *
- * asin/acos set libm_errno = 1 (DOMAIN) and return 0.0 when |x| > 1. */
+ * asin/acos set libm_errno = 1 (DOMAIN) and return 0.0 when |x| > 1.*/
 double asin  (double x);
 float  asinf (float x);
 double acos  (double x);
@@ -105,7 +105,7 @@ float  tanhf (float x);
  *                   DBL_MAX even if sqrt(x^2+y^2) is representable.
  *   nextafter(x,y)- IEEE-754 bit-level increment/decrement of x toward y.
  *                   Walks the integer representation by ±1 ULP; handles
- *                   zero crossings and NaN (via x != y failing for NaN). */
+ *                   zero crossings and NaN (via x != y failing for NaN).*/
 double cbrt     (double x);
 float  cbrtf    (float x);
 double hypot    (double x, double y);

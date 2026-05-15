@@ -56,13 +56,13 @@ isr_common_stub:
     mov es, ax
     mov fs, ax
     mov gs, ax
-    
+
     push esp    ; Push pointer to registers struct as parameter
-    
+
     call isr_handler
-    
+
     add esp, 4  ; Remove pushed parameter
-    
+
     pop gs
     pop fs
     pop es
@@ -74,33 +74,33 @@ isr_common_stub:
 ; Common IRQ stub that saves processor state
 irq_common_stub:
     pusha                   ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
-    
+
     push ds
     push es
     push fs
     push gs
-    
+
     mov ax, 0x10           ; Load kernel data segment
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    
+
     push esp               ; Push pointer to stack structure as argument
-    
+
     call irq_handler       ; Call C handler
-    
+
     add esp, 4             ; Remove pushed stack pointer
-    
+
     pop gs                 ; Restore segment registers
     pop fs
     pop es
     pop ds
-    
+
     popa                   ; Restore registers
     add esp, 8             ; Clean up pushed error code and IRQ number
     iret                   ; Return from interrupt
-    
+
 ; Add all ISR handlers
 isr0:
     cli

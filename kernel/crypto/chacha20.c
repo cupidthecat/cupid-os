@@ -2,7 +2,7 @@
  *
  * Used by the CSPRNG (kernel/tls/csprng.c) and by the AEAD construction
  * (kernel/tls/chacha20poly1305.c, added in a later phase). Pure portable
- * 32-bit C - no assembly, no SIMD. */
+ * 32-bit C - no assembly, no SIMD.*/
 
 #include "chacha20.h"
 

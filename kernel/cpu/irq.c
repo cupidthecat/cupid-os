@@ -14,13 +14,13 @@
  * volatile so the dispatcher in irq_handler() always re-reads the slot
  * rather than caching across the chain walk. Writers publish a slot
  * with a single store of the function pointer (after any setup), so a
- * torn read sees either NULL or a fully valid handler. */
+ * torn read sees either NULL or a fully valid handler.*/
 static volatile irq_handler_t irq_handlers[16][IRQ_MAX_HANDLERS];
 
 /* Take BKL when available so SMP install-vs-dispatch can't race. Falls
  * back to a no-op during very-early boot before bkl_init(): at that
  * point only the BSP is running and the IOAPIC has not yet been
- * unmasked, so no IRQ can observe a half-built slot. */
+ * unmasked, so no IRQ can observe a half-built slot.*/
 static inline bool irq_lock(void) {
     if (bkl_is_initialized()) { bkl_lock(); return true; }
     return false;
@@ -37,7 +37,7 @@ void irq_install_handler(int irq, irq_handler_t handler) {
     bool locked = irq_lock();
 
     /* Append into first free slot. Silently refuse dup registrations
-     * of the same fn pointer. */
+     * of the same fn pointer.*/
     for (slot = 0; slot < IRQ_MAX_HANDLERS; slot++) {
         if (irq_handlers[irq][slot] == handler) { irq_unlock(locked); return; }
     }

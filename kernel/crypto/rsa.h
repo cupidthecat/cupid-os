@@ -5,7 +5,7 @@
 
 /* Both functions: 1 on valid signature, 0 otherwise. Verify-only -
  * no decryption / signing API. Inputs are public, so variable-time
- * implementation is acceptable. */
+ * implementation is acceptable.*/
 
 int rsa_pkcs1v15_verify_sha256(const uint8_t *n_be, uint32_t n_len,
                                const uint8_t *e_be, uint32_t e_len,
@@ -23,7 +23,7 @@ int rsa_pkcs1v15_verify_sha512(const uint8_t *n_be, uint32_t n_len,
                                const uint8_t msg_hash[64]);
 
 /* RFC 8446 mandates PSS for TLS 1.3 CertificateVerify. `salt_len` is
- * 32 for TLS 1.3 (= hash length, hLen). */
+ * 32 for TLS 1.3 (= hash length, hLen).*/
 int rsa_pss_verify_sha256(const uint8_t *n_be, uint32_t n_len,
                           const uint8_t *e_be, uint32_t e_len,
                           const uint8_t *sig, uint32_t sig_len,

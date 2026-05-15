@@ -26,7 +26,7 @@ typedef struct {
 void x509_chain_init(x509_chain_t *chain);
 
 /* Append a cert from a DER buffer. Buffer must outlive the chain.
- * Returns 0 or X509_ERR_*. */
+ * Returns 0 or X509_ERR_*.*/
 int x509_chain_add(x509_chain_t *chain,
                    const uint8_t *der, uint32_t der_len);
 
@@ -37,7 +37,7 @@ int x509_chain_add(x509_chain_t *chain,
  *   - validity window includes now_epoch (or skip if now_epoch == 0).
  *   - leaf hostname matches `host`.
  *
- * Returns X509_OK on success. */
+ * Returns X509_OK on success.*/
 int x509_chain_verify(const x509_chain_t *chain,
                       const char *host,
                       uint64_t now_epoch);

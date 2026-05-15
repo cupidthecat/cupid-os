@@ -5,7 +5,7 @@
 
 /**
  * rdtsc - Read Time-Stamp Counter
- * 
+ *
  * Reads the processor's time-stamp counter using the RDTSC instruction.
  * This counter increments with each CPU clock cycle and provides
  * high-precision timing capabilities.
@@ -17,7 +17,7 @@
  *
  * Note: The actual time duration of a tick depends on the CPU frequency.
  * For accurate timing, the CPU frequency should be calibrated first.
- */
+*/
 static inline uint64_t rdtsc(void) {
     uint32_t low, high;
     __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
@@ -31,6 +31,6 @@ static inline uint64_t rdtsc(void) {
  * - Cache control
  * - CPU identification
  * etc.
- */
+*/
 
 #endif 

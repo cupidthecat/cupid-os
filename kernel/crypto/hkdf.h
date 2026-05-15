@@ -17,7 +17,7 @@ void hkdf_expand(const uint8_t *prk, uint32_t prk_len,
 
 /* RFC 8446 §7.1 HKDF-Expand-Label.
  * `label` is a NUL-terminated ASCII string; "tls13 " is prepended internally.
- * `context` may be NULL when ctx_len == 0. */
+ * `context` may be NULL when ctx_len == 0.*/
 void hkdf_expand_label(const uint8_t *secret, uint32_t secret_len,
                        const char *label,
                        const uint8_t *context, uint32_t ctx_len,

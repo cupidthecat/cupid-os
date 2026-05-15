@@ -101,7 +101,7 @@ void print_hex_byte(uint8_t num) {
  *
  * Returns:
  *   The 64-bit quotient.
- */
+*/
 uint64_t __udivdi3(uint64_t dividend, uint64_t divisor) {
     uint64_t quotient = 0;
     uint64_t remainder = 0;

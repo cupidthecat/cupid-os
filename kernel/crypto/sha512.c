@@ -1,6 +1,6 @@
 /* SHA-384 / SHA-512 (FIPS 180-4).  Plain C reference implementation,
  * no SIMD, no assembly.  64-bit arithmetic via uint64_t.  Intended for
- * X.509 cert chain validation; not perf-critical. */
+ * X.509 cert chain validation; not perf-critical.*/
 
 #include "sha512.h"
 

@@ -12,7 +12,7 @@
  *       sys->print("Hello from ELF!\n");
  *       sys->exit();
  *   }
- */
+*/
 
 #ifndef SYSCALL_H
 #define SYSCALL_H
@@ -20,35 +20,34 @@
 #include "types.h"
 #include "vfs.h"
 
-/* Bumped to 4 for the TLS additions: sock_setsockopt is appended at the
- * end of the table. Programs built against v3 still see the same prefix
- * and only the new field is invisible to them. */
-#define CUPID_SYSCALL_VERSION 4
+/* Bumped to 5 for socket polling additions. The table remains append-only:
+ * programs built against older versions still see the same prefix.*/
+#define CUPID_SYSCALL_VERSION 5
 
 typedef struct cupid_syscall_table {
-  /*  Version / identification  */
-  uint32_t version;    /* CUPID_SYSCALL_VERSION             */
-  uint32_t table_size; /* sizeof(cupid_syscall_table_t)     */
+  /* Version / identification */
+  uint32_t version;    /* CUPID_SYSCALL_VERSION */
+  uint32_t table_size; /* sizeof(cupid_syscall_table_t) */
 
-  /*  Console output  */
+  /* Console output */
   void (*print)(const char *str);
   void (*putchar)(char c);
   void (*print_int)(uint32_t num);
   void (*print_hex)(uint32_t num);
   void (*clear_screen)(void);
 
-  /*  Memory management  */
+  /* Memory management */
   void *(*malloc)(size_t size);
   void (*free)(void *ptr);
 
-  /*  String operations  */
+  /* String operations */
   size_t (*strlen)(const char *s);
   int (*strcmp)(const char *a, const char *b);
   int (*strncmp)(const char *a, const char *b, size_t n);
   void *(*memset)(void *ptr, int value, size_t num);
   void *(*memcpy)(void *dest, const void *src, size_t n);
 
-  /*  VFS file operations  */
+  /* VFS file operations */
   int (*vfs_open)(const char *path, uint32_t flags);
   int (*vfs_close)(int fd);
   int (*vfs_read)(int fd, void *buffer, uint32_t count);
@@ -65,24 +64,24 @@ typedef struct cupid_syscall_table {
   int (*vfs_read_text)(const char *path, char *buffer, uint32_t max_size);
   int (*vfs_write_text)(const char *path, const char *text);
 
-  /*  Process management  */
+  /* Process management */
   void (*exit)(void);
   void (*yield)(void);
   uint32_t (*getpid)(void);
   void (*kill)(uint32_t pid);
   void (*sleep_ms)(uint32_t ms);
 
-  /*  Shell integration  */
+  /* Shell integration */
   void (*shell_execute)(const char *line);
   const char *(*shell_get_cwd)(void);
 
-  /*  Time  */
+  /* Time */
   uint32_t (*uptime_ms)(void);
 
-  /*  Program execution  */
+  /* Program execution */
   int (*exec)(const char *path, const char *name);
 
-  /*  Diagnostics  */
+  /* Diagnostics */
   void (*memstats)(void);
 
   /*    * Phase 4 - networking + drivers + low-level access.
@@ -92,7 +91,7 @@ typedef struct cupid_syscall_table {
    * Pointer types match the kernel APIs they wrap; opaque structs
    * (block_device_t, pci_device_t, net_if_t) are exposed as `void *`
    * here so consumers don't need the matching headers.
-   *  */
+   **/
 
   /* Network interface info (primary NIC) */
   uint32_t (*net_get_ip)(void);
@@ -100,7 +99,7 @@ typedef struct cupid_syscall_table {
   uint32_t (*net_get_dns)(void);
   uint32_t (*net_get_mask)(void);
   void     (*net_get_mac)(uint8_t *out);          /* fills 6 bytes */
-  uint32_t (*net_link_up)(void);                  /* 1=up, 0=down  */
+  uint32_t (*net_link_up)(void);                  /* 1=up, 0=down */
   uint32_t (*net_rx_packets)(void);
   uint32_t (*net_tx_packets)(void);
   uint32_t (*net_rx_drops)(void);
@@ -188,9 +187,11 @@ typedef struct cupid_syscall_table {
   /* TLS - setsockopt(SOL_TLS, TLS_ENABLE, hostname, hostname_len) drives
    * a synchronous TLS 1.3 handshake over an already-connected TCP socket.
    * After it returns 0, sock_send/sock_recv route through the record
-   * layer transparently. */
+   * layer transparently.*/
   int (*sock_setsockopt)(int fd, int level, int optname,
                          const void *val, uint32_t vlen);
+  int (*sock_avail)(int fd);
+  int (*sock_state)(int fd);
 
 } cupid_syscall_table_t;
 
@@ -198,13 +199,13 @@ typedef struct cupid_syscall_table {
 /**
  * syscall_init - Initialize the global syscall table.
  * Must be called during kernel boot after all subsystems are ready.
- */
+*/
 void syscall_init(void);
 
 /**
  * syscall_get_table - Get a pointer to the global syscall table.
  * The ELF loader passes this to user programs.
- */
+*/
 cupid_syscall_table_t *syscall_get_table(void);
 
 #endif /* SYSCALL_H */

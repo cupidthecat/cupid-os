@@ -1,5 +1,5 @@
 /* HKDF-SHA256 (RFC 5869) plus the HKDF-Expand-Label construction from
- * RFC 8446 §7.1, used throughout the TLS 1.3 key schedule. */
+ * RFC 8446 §7.1, used throughout the TLS 1.3 key schedule.*/
 
 #include "hkdf.h"
 #include "hmac.h"
@@ -27,7 +27,7 @@ void hkdf_expand(const uint8_t *prk, uint32_t prk_len,
     uint8_t  buf[SHA256_DIGEST_SIZE + 512u + 1u];  /* T(prev) || info || ctr */
     /* If info_len > 512 the build-time array bound trips; in TLS 1.3 it
      * never does (HkdfLabel maxes ~ 514 bytes including length prefix
-     * but realistic labels stay under 100). Static assert below guards. */
+     * but realistic labels stay under 100). Static assert below guards.*/
 
     if (info_len > 512u) {
         /* Caller bug - caller must supply info_len ≤ 512. */
@@ -65,7 +65,7 @@ void hkdf_expand(const uint8_t *prk, uint32_t prk_len,
  *       opaque label<7..255> = "tls13 " + Label;
  *       opaque context<0..255> = Context;
  *   } HkdfLabel;
- */
+*/
 void hkdf_expand_label(const uint8_t *secret, uint32_t secret_len,
                        const char *label,
                        const uint8_t *context, uint32_t ctx_len,

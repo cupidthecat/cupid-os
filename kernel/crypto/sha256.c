@@ -2,7 +2,7 @@
  *
  * Streaming API (init/update/final) plus a one-shot helper. Used as the
  * transcript hash, the HMAC hash, and the HKDF hash for TLS 1.3 with
- * SHA-256 cipher suites. */
+ * SHA-256 cipher suites.*/
 
 #include "sha256.h"
 

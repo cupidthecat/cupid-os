@@ -126,7 +126,7 @@ int memcmp(const void* s1, const void* s2, size_t n) {
  * cc_print_builtin, klog, cc_printline_builtin) so that %f / %.Nf
  * behave identically everywhere.  Handles NaN, ±Inf, negative, zero,
  * and rollover (0.999 -> 1.000).
- *  */
+ **/
 
 static double str_floor(double x) {
     double r;
@@ -244,7 +244,7 @@ int fmt_f(char *out, int out_max, double v, int prec) {
  * /10 or *10 while tracking the exponent, then emitted via fmt_f.  The
  * exponent is written as 'e' + sign + two digits.
  * Handles NaN, ±Inf, negative, and zero (special-cased as 0.<zeros>e+00).
- *  */
+ **/
 
 int fmt_e(char *out, int out_max, double v, int prec) {
     int n = 0;
@@ -310,10 +310,10 @@ int fmt_e(char *out, int out_max, double v, int prec) {
  * shorter result into `out`.  On a tie we prefer the %f rendering.
  * Shares fmt_f / fmt_e so NaN / ±Inf / sign / zero handling stays
  * consistent with the individual converters.
- *  */
+ **/
 
 /* Format double in '%g' style: shorter of %f vs %e.
- * If equal length, prefer %f. */
+ * If equal length, prefer %f.*/
 int fmt_g(char *out, int out_max, double v, int prec) {
     char buf_f[64];
     char buf_e[64];

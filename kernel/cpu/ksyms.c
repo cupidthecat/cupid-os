@@ -8,21 +8,21 @@
  * If the blob is absent or has bad magic, all lookups return NULL and
  * callers fall back to printing raw addresses.  This keeps panics
  * functional even before the symbol pipeline has run.
- */
+*/
 
 #include "ksyms.h"
 
 #define KSYM_MAGIC 0x4D59534BU /* 'KSYM' little-endian */
 
 /* Defined either by the generated ksyms_data.c (real blob) or below as
- * a weak fallback so an un-extracted build still links. */
+ * a weak fallback so an un-extracted build still links.*/
 extern const unsigned char ksym_blob[];
 extern const unsigned int  ksym_blob_size;
 
 /* Weak fallbacks: a 16-byte zero header so the blob is "present but
  * empty".  ksym_lookup() detects bad magic and returns NULL.  These
  * symbols are overridden by ksyms_data.o once the second-pass link
- * runs. */
+ * runs.*/
 const unsigned char ksym_blob[16] __attribute__((weak,
     section(".ksyms"), aligned(4))) = {0};
 const unsigned int ksym_blob_size __attribute__((weak)) = 0;
@@ -70,7 +70,7 @@ const char *ksym_lookup(uint32_t addr, uint32_t *off_out) {
 
     /* Sanity-bound the offset against the next entry (or 0x10000 cap if
      * this is the last symbol - function bodies > 64K are rejected so a
-     * stray PC doesn't get mis-attributed to the final symbol). */
+     * stray PC doesn't get mis-attributed to the final symbol).*/
     uint32_t func_end;
     if (lo < h->count) func_end = ents[lo].addr;
     else               func_end = e->addr + 0x10000U;
@@ -95,7 +95,7 @@ void ksym_backtrace(uint32_t start_ebp, uint32_t start_eip, int max_frames,
     for (int i = 1; i < max_frames; i++) {
         /* Stop if EBP looks bogus.  The kernel stack window per
          * docs/code is roughly 0x1000..0x900000; outside that, refuse
-         * to deref to avoid faulting inside the panic path. */
+         * to deref to avoid faulting inside the panic path.*/
         if (ebp < 0x1000U || ebp > 0x900000U) break;
 
         uint32_t ret_addr = *(const uint32_t *)(ebp + 4);
@@ -106,7 +106,7 @@ void ksym_backtrace(uint32_t start_ebp, uint32_t start_eip, int max_frames,
          * happens to end the parent's body, the literal ret_addr can
          * land at the start of the next function's symbol.  Look up
          * (ret_addr - 1) so we resolve to the function the CALL was
-         * actually inside. */
+         * actually inside.*/
         uint32_t lookup_addr = (ret_addr > 0) ? (ret_addr - 1) : 0;
         off = 0;
         name = ksym_lookup(lookup_addr, &off);

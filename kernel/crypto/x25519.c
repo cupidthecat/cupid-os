@@ -10,7 +10,7 @@
  * Limitations: this is a careful but unaudited port. Side-channel
  * resistance against power/EM attacks is out of scope for QEMU. For
  * hostile-physical-attacker threat models, replace with a verified
- * implementation (e.g. fiat-crypto). */
+ * implementation (e.g. fiat-crypto).*/
 
 #include "x25519.h"
 
@@ -49,14 +49,14 @@ static void fe_from_bytes(fe r, const uint8_t b[32]) {
 }
 
 /* Conditionally subtract p from a in canonical form. Output a value
- * < p, encode as 32 LE bytes. */
+ * < p, encode as 32 LE bytes.*/
 static void fe_to_bytes(uint8_t out[32], const fe a) {
     fe       t;
     uint64_t carry;
     uint32_t i, mask;
 
     /* Compute t = a + 19. If t fits in 256 bits AND has top bit set,
-     * then a >= p: real reduced value is t & (2^255-1). Else use a. */
+     * then a >= p: real reduced value is t & (2^255-1). Else use a.*/
     fe_copy(t, a);
     carry = (uint64_t)t[0] + 19u;
     t[0] = (uint32_t)carry; carry >>= 32;
@@ -139,7 +139,7 @@ static void fe_add(fe r, const fe a, const fe b) {
 static void fe_sub(fe r, const fe a, const fe b) {
     /* Two-pass subtract: subtract b with borrow chain, then if final
      * borrow is set, add p back (constant-time via mask). p = 2^255 - 19
-     * has limbs [0xFFFFFFED, 0xFFFFFFFFx6, 0x7FFFFFFF]. */
+     * has limbs [0xFFFFFFED, 0xFFFFFFFFx6, 0x7FFFFFFF].*/
     static const uint32_t P_LIMBS[8] = {
         0xFFFFFFEDu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu,
         0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0x7FFFFFFFu
@@ -206,7 +206,7 @@ static void fe_mul_u32(fe r, const fe a, uint32_t n) {
 }
 
 /* a^(p-2) mod p - Fermat inversion. Uses the standard short addition
- * chain for X25519 (e.g. djb's curve25519-donna). */
+ * chain for X25519 (e.g. djb's curve25519-donna).*/
 static void fe_invert(fe r, const fe a) {
     fe t0, t1, t2, t3;
     int i;

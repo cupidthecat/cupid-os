@@ -8,9 +8,9 @@
 ;
 ; Bakes the following PCB offsets (C-side _Static_asserts in process.c
 ; lock these):
-;   PCB_ESP_OFFSET      = 32   (offsetof(process_t, context.esp))
-;   PCB_EIP_OFFSET      = 40   (offsetof(process_t, context.eip))
-;   PCB_FP_STATE_OFFSET = 80   (offsetof(process_t, fp_state))
+; PCB_ESP_OFFSET      = 32   (offsetof(process_t, context.esp))
+; PCB_EIP_OFFSET      = 40   (offsetof(process_t, context.eip))
+; PCB_FP_STATE_OFFSET = 80   (offsetof(process_t, fp_state))
 ;
 ; The fp_state field is __attribute__((aligned(16))), which FXSAVE /
 ; FXRSTOR require for their memory operand.
@@ -26,9 +26,9 @@ global context_switch_resume
 %define PCB_FP_STATE_OFFSET 80
 
 ; void context_switch(process_t *old_proc, process_t *new_proc);
-;   [esp+4] = old_proc
-;   [esp+8] = new_proc
-;   [esp+0] = return address
+; [esp+4] = old_proc
+; [esp+8] = new_proc
+; [esp+0] = return address
 context_switch:
     ; Grab arguments BEFORE we push anything
     mov eax, [esp + 4]        ; eax = old_proc

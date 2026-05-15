@@ -1,18 +1,18 @@
 /**
  * kernel.c - Core kernel functionality for cupid-os
- * 
+ *
  * This file implements the main kernel functionality including:
  * - Core kernel initialization and entry point (_start and kmain)
  * - VGA text mode driver with 80x25 character display
  * - Screen output functions (print, putchar)
- * - Screen manipulation (clear_screen, cursor movement) 
+ * - Screen manipulation (clear_screen, cursor movement)
  * - Port I/O functions (inb/outb) for hardware interaction
  * - Interrupt handling setup (PIC, IDT initialization)
  * - PS/2 keyboard driver initialization and interrupt handling
  * - Timer calibration and frequency measurement
  * - System timing services via PIT channels
  * - Main kernel loop with interrupt handling and power management
- */
+*/
 
 #include "idt.h"
 #include "pic.h"
@@ -110,8 +110,8 @@ extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
  * install_bin_programs() function.  To add a new CupidC program:
  *   1. Create bin/<name>.cc
  *   2. Run make
- * That's it - everything else is automatic. 
- */
+ * That's it - everything else is automatic.
+*/
 extern void install_bin_programs(void *fs_private);
 extern void install_docs_programs(void *fs_private);
 extern void install_demo_programs(void *fs_private);
@@ -122,12 +122,12 @@ extern const char _binary_god_Psalms_DD_end[];
 
 /**
  * timer_callback_channel0 - Timer callback for channel 0
- * 
+ *
  * Increments the ticks_channel0 counter when called with channel 0.
- * 
+ *
  * @param r: Pointer to the registers structure
  * @param channel: The timer channel (0 in this case)
- */
+*/
 void timer_callback_channel0(struct registers* r, uint32_t channel) {
     (void)r; /* Unused parameter */
     if (channel == 0) {
@@ -135,7 +135,7 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
 
         /* Mark that a reschedule is needed - the actual context switch
          * happens at a safe voluntary point (desktop_run loop / yield),
-         * NOT inside the IRQ handler where stack manipulation is unsafe. */
+         * NOT inside the IRQ handler where stack manipulation is unsafe.*/
         if (process_is_active()) {
             need_reschedule = true;
         }
@@ -143,12 +143,12 @@ void timer_callback_channel0(struct registers* r, uint32_t channel) {
 }
 /**
  * timer_callback_channel1 - Timer callback for channel 1
- * 
+ *
  * Increments the ticks_channel1 counter when called with channel 1.
- * 
+ *
  * @param r: Pointer to the registers structure
  * @param channel: The timer channel (1 in this case)
- */
+*/
 void timer_callback_channel1(struct registers* r, uint32_t channel) {
     (void)r; /* Unused parameter */
     if (channel == 1) {
@@ -158,20 +158,20 @@ void timer_callback_channel1(struct registers* r, uint32_t channel) {
 
 /**
  * timer_get_ticks_channel - Get the tick count for a specific timer channel
- * 
+ *
  * Returns the current tick count for the specified timer channel.
  * - Channel 0: System tick counter
  * - Channel 1: Reserved for future use (currently unused)
- * 
+ *
  * @param channel: The timer channel to get ticks for (0 or 1)
  * @return: The current tick count for the specified channel
- */
+*/
 /**
  * kernel_check_reschedule - Check and perform deferred context switch
  *
  * Called from safe voluntary points (desktop event loop, process_yield)
  * where ESP/EBP manipulation won't corrupt an IRQ stack frame.
- */
+*/
 /* Forward declarations for USB idle-loop polls (ehci.c, uhci.c, usb.c) */
 extern void ehci_poll_interrupts(void);
 extern void uhci_poll_ports(void);
@@ -216,13 +216,13 @@ void init_vga(void);
 
 /**
  * init_vga - Initialize the VGA text mode display
- * 
+ *
  * This function initializes the VGA text mode display by:
  * - Resetting the hardware cursor position to (0,0)
  * - Clearing the screen with light grey text on black background
  * - Resetting the software cursor position variables
  * - Printing an initialization message
- */
+*/
 void init_vga(void) {
     // Reset the cursor position
     outb(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
@@ -246,19 +246,19 @@ void init_vga(void) {
 
 /**
  * clear_screen - Clears the entire VGA text buffer and resets cursor position
- * 
+ *
  * This function:
  * - Fills the entire VGA text buffer with space characters
  * - Sets each character's attribute to light grey on black (0x07)
  * - Resets both X and Y cursor coordinates to 0
- * 
+ *
  * Implementation details:
  * - VGA text buffer is accessed directly at VGA_MEMORY
  * - Each character cell takes 2 bytes:
  *   - First byte: ASCII character (space in this case)
  *   - Second byte: Attribute byte (0x07 = light grey on black)
  * - Buffer size is VGA_WIDTH * VGA_HEIGHT characters
- */
+*/
 void clear_screen() {
     volatile char* vidmem = (char*)VGA_MEMORY;
     for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
@@ -271,7 +271,7 @@ void clear_screen() {
 
 /**
  * putchar - Outputs a single character to the VGA text buffer
- * 
+ *
  * Displays a character at the current cursor position and advances the cursor.
  * Handles special characters like newline, screen wrapping, and scrolling.
  * Updates both the software cursor position and hardware cursor.
@@ -287,8 +287,12 @@ void clear_screen() {
  *   - Wraps to next line when reaching end of line
  *   - Scrolls screen up when reaching bottom
  * - Updates hardware cursor position via VGA registers
- */
+*/
 void putchar(char c) {
+    if (shell_output_putchar_current(c)) {
+        return;
+    }
+
     /* Route to GUI buffer when in GUI mode */
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         shell_gui_putchar_ext(c);
@@ -298,7 +302,7 @@ void putchar(char c) {
 #ifdef HEADLESS
     /* Headless only: mirror text-mode output to COM1. Avoid UART TX spin
      * (~90µs/char @115200) on every putchar in normal VGA boots - would
-     * inflate IRQ-context KINFO latency. */
+     * inflate IRQ-context KINFO latency.*/
     serial_write_char(c);
 #endif
 
@@ -352,7 +356,7 @@ void putchar(char c) {
 
 /**
  * print_int - Prints an unsigned 32-bit integer to the screen
- * 
+ *
  * Converts the number to a string by repeatedly dividing by 10 and storing
  * the digits in a buffer. Since division gives digits in reverse order,
  * stores them in a buffer first then prints in reverse to display correctly.
@@ -364,8 +368,25 @@ void putchar(char c) {
  * - Uses a fixed 10-byte buffer which is sufficient for 32-bit integers
  * - Converts digits to ASCII by adding '0' (0x30)
  * - Prints digits in reverse order to maintain correct number representation
- */
+*/
 void print_int(uint32_t num) {
+    if (shell_output_write_current("", 0u)) {
+        char sink_buf[10];
+        int sink_i = 0;
+        if (num == 0) {
+            shell_output_putchar_current('0');
+            return;
+        }
+        while (num > 0 && sink_i < (int)sizeof(sink_buf)) {
+            sink_buf[sink_i++] = (char)((num % 10u) + (uint32_t)'0');
+            num /= 10u;
+        }
+        while (sink_i > 0) {
+            shell_output_putchar_current(sink_buf[--sink_i]);
+        }
+        return;
+    }
+
     serial_printf("[print_int] num=%u (0x%x) gui_mode=%d\n",
                   num, num, shell_get_output_mode() == SHELL_OUTPUT_GUI);
 
@@ -391,14 +412,18 @@ void print_int(uint32_t num) {
 
 /**
  * print - Outputs a null-terminated string to the VGA text buffer
- * 
+ *
  * Iterates through each character in the provided string and displays it
  * on screen using putchar(). Handles special characters like newlines and
  * automatically wraps text and scrolls when reaching screen boundaries.
- * 
+ *
  * @str: Pointer to the null-terminated string to print
- */
+*/
 void print(const char* str) {
+    if (str && shell_output_write_current(str, (uint32_t)strlen(str))) {
+        return;
+    }
+
     /* Route to GUI buffer when in GUI mode */
     if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
         shell_gui_print_ext(str);
@@ -410,7 +435,7 @@ void print(const char* str) {
 }
 /**
  * _start - Entry point for the kernel
- * 
+ *
  * This is the first function called after the bootloader hands control to the kernel.
  * It sets up the initial execution environment by:
  *
@@ -425,13 +450,13 @@ void print(const char* str) {
  *
  * Note: When this function runs, we are already in 32-bit protected mode
  * with basic segment registers configured by the bootloader.
- */
+*/
 void _start(void) {
     // We're already in protected mode with segments set up.
     // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
         /* Stack moved 0xA00000 -> 0xD00000 so it sits above kernel
-         * BSS (_kernel_end ~= 0x8A4000).  See memory.h. */
+         * BSS (_kernel_end ~= 0x8A4000).  See memory.h.*/
         "mov $0xD00000, %%esp\n"
         "mov %%esp, %%ebp\n"
         /* Zero BSS region (_bss_start to _kernel_end) */
@@ -451,15 +476,15 @@ void _start(void) {
 
 /**
  * rdtsc - Read the CPU's Time Stamp Counter
- * 
+ *
  * Uses the RDTSC instruction to read the CPU's internal timestamp counter,
  * which increments at the CPU's frequency. The counter value is returned
  * as a 64-bit number combining the high and low 32-bit parts.
- * 
+ *
  * Used for high-precision timing and CPU frequency calibration.
- * 
+ *
  * @return: 64-bit TSC value
- */
+*/
 static inline uint64_t rdtsc(void) {
     uint32_t low, high;
     __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
@@ -468,24 +493,24 @@ static inline uint64_t rdtsc(void) {
 
 /**
  * calibrate_timer - Calibrate system timer using CPU timestamp counter
- * 
+ *
  * This function calibrates the system timer by:
  * 1. Configuring PIT channel 0 in one-shot mode
  * 2. Using the CPU's timestamp counter (TSC) to measure elapsed time
  * 3. Calculating the CPU frequency based on TSC measurements
  * 4. Computing PIT ticks per millisecond for timing calculations
- * 
+ *
  * The calibration process:
  * - Sets PIT to maximum count and waits for CALIBRATION_MS milliseconds
  * - Measures TSC values before and after to determine CPU frequency
  * - Handles both high and low frequency CPUs by adjusting calculation method
  * - Resets PIT to normal operation when complete
  * - Prints calibration results showing CPU frequency in MHz
- * 
+ *
  * Results are stored in global variables:
  * - tsc_freq: CPU frequency in Hz
  * - pit_ticks_per_ms: PIT ticks per millisecond for timing
- */
+*/
 void calibrate_timer(void) {
     // Configure PIT channel 0 for one-shot mode
     outb(0x43, 0x30);    // Channel 0, one-shot mode, binary
@@ -541,33 +566,33 @@ void calibrate_timer(void) {
 
 /**
  * get_cpu_freq - Get the calibrated CPU frequency
- * 
+ *
  * Returns the CPU frequency in Hz that was measured during timer calibration.
  * This value represents the number of CPU cycles per second and is used for
  * precise timing calculations.
  *
  * @return: The CPU frequency in Hz as measured by the TSC during calibration
- */
+*/
 uint64_t get_cpu_freq(void) {
     return tsc_freq;
 }
 
 /**
  * get_pit_ticks_per_ms - Get the number of PIT ticks per millisecond
- * 
+ *
  * Returns the calibrated number of PIT (Programmable Interval Timer) ticks
  * that occur in one millisecond. This value is determined during timer
  * calibration and is used for accurate timing calculations.
  *
  * @return: The number of PIT ticks per millisecond
- */
+*/
 uint32_t get_pit_ticks_per_ms(void) {
     return pit_ticks_per_ms;
 }
 
 /**
  * kmain - Main kernel entry point
- * 
+ *
  * This function initializes core kernel subsystems and drivers:
  * - VGA text mode display initialization for console output
  * - PIC (Programmable Interrupt Controller) setup for hardware interrupts
@@ -580,13 +605,13 @@ uint32_t get_pit_ticks_per_ms(void) {
  * drive system activity through keyboard input processing and timer events.
  * The system remains in this state indefinitely, with the CPU halted between
  * interrupt events to conserve power.
- */
+*/
 void kmain(void) {
     /* Enable x87/SSE2 FIRST, before any C code that GCC may have
      * auto-vectorized (serial_printf -> serial_print_hex contains
      * movdqa and #UDs without CR4.OSFXSR). Pure CR0/CR4 writes are
      * safe pre-init; the serial_printf at the end of fpu_init() is
-     * only reachable once OSFXSR is set. */
+     * only reachable once OSFXSR is set.*/
     fpu_init();
 
     // Initialize serial port first for debug output
@@ -639,7 +664,7 @@ void kmain(void) {
     ac97_init();
 
     /* Mixer: 16-slot s16 stereo software mixer, always the AC97 fill source.
-     * ac97_start() is deferred to after sti so IRQs can actually fire. */
+     * ac97_start() is deferred to after sti so IRQs can actually fire.*/
     extern int  mixer_init(void);
     extern void mixer_fill(int16_t *, uint32_t);
     extern void ac97_set_fill_callback(void (*)(int16_t *, uint32_t));
@@ -648,7 +673,7 @@ void kmain(void) {
 
     /* net_init() moved to after sti below so NIC IRQs can actually fire
      * during DHCP negotiation. Before sti, IRQs are masked -> DHCP OFFER
-     * reply never reaches us -> static fallback triggers every boot. */
+     * reply never reaches us -> static fallback triggers every boot.*/
 
     // Initialize USB core, EHCI then UHCI host controllers
     // EHCI MUST run first: it sets CONFIGFLAG=1 and releases LS/FS ports
@@ -759,6 +784,10 @@ void kmain(void) {
         KERROR("/home is not persistent (FAT16 unavailable)");
     }
 
+    /* User program directory - create on whatever /home resolves to
+     * (homefs, fat16 fallback, or ramfs when no disk). Idempotent.*/
+    vfs_mkdir("/home/bin");
+
     /* Pre-populate ramfs with in-memory files */
     {
         const vfs_mount_t *root_mnt = vfs_get_mount(0);
@@ -773,7 +802,7 @@ void kmain(void) {
             }
 
             /* Populate /bin with built-in application stubs.
-             * Each stub contains a description so ls shows distinct sizes. */
+             * Each stub contains a description so ls shows distinct sizes.*/
             static const struct { const char *name; const char *desc; } bin_apps[] = {
                 {"terminal", "CupidOS GUI terminal emulator"},
                 {"notepad",  "CupidOS GUI text editor (Notepad)"},
@@ -796,21 +825,21 @@ void kmain(void) {
             }
             KINFO("Populated /bin with built-in stubs");
 
-            /* Embedded CupidC programs 
+            /* Embedded CupidC programs
              * Auto-installed from all bin/ .cc files via generated code.
-             * To add a new program: just create bin/<name>.cc 
-             */
+             * To add a new program: just create bin/<name>.cc
+*/
             install_bin_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidC programs");
 
             /* Embedded CupidDoc files
-            * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt 
-            */
+            * Auto-installed from cupidos-txt .CTXT files into /docs .ctxt
+*/
             install_docs_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidDoc files");
 
             /* Embedded CupidASM demo files
-            * Auto-installed from demos .asm files into /demos .asm */
+            * Auto-installed from demos .asm files into /demos .asm*/
             install_demo_programs(root_mnt->fs_private);
             KINFO("Installed embedded CupidASM demos");
 
@@ -890,14 +919,14 @@ void kmain(void) {
     __asm__ volatile("sti");
 
     /* Arm AC97 DMA now that interrupts are live. IRQs must be enabled
-     * before ac97_start() so the IOC interrupt can fire on each buffer. */
+     * before ac97_start() so the IOC interrupt can fire on each buffer.*/
     {
         extern void ac97_start(void);
         ac97_start();
     }
 
     /* Bring up the network stack now that interrupts can fire.
-     * DHCP needs NIC RX IRQs to receive OFFER/ACK. */
+     * DHCP needs NIC RX IRQs to receive OFFER/ACK.*/
     net_init();
 
     // Start the process scheduler

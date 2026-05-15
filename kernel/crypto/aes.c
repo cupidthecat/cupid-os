@@ -6,7 +6,7 @@
  *
  * Public surface: aes128_set_key + aes128_encrypt_block. Decryption is
  * not implemented - TLS GCM uses encrypt-only.
- */
+*/
 
 #include "aes.h"
 

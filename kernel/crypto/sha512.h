@@ -4,7 +4,7 @@
 #include "types.h"
 
 /* SHA-512 produces 64-byte output; SHA-384 is the same algorithm with
- * different IV constants and a 48-byte truncation. */
+ * different IV constants and a 48-byte truncation.*/
 
 #define SHA512_BLOCK_SIZE  128u
 #define SHA512_DIGEST_SIZE 64u

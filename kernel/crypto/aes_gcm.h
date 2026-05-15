@@ -8,7 +8,7 @@
  *
  * GCM = AES-CTR for confidentiality + GHASH for authentication.
  * Tag size hardcoded to 16 bytes (full tag). Only 12-byte nonces are
- * supported (the canonical TLS shape; matches RFC 5116 §5.1). */
+ * supported (the canonical TLS shape; matches RFC 5116 §5.1).*/
 
 #define AES128_GCM_KEY_SIZE   16u
 #define AES128_GCM_NONCE_SIZE 12u

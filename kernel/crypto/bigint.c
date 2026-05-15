@@ -2,7 +2,7 @@
  *
  * Schoolbook multiply, bit-by-bit reduction. Slow (tens of ms per 4096-
  * bit modexp in QEMU) but compact and correct. Variable-time - fine
- * because RSA verify operates only on public inputs. */
+ * because RSA verify operates only on public inputs.*/
 
 #include "bigint.h"
 

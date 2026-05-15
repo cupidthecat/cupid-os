@@ -10,7 +10,7 @@
  *   p(x) = x^128 + x^7 + x^2 + x + 1
  * using the bit-by-bit shift-and-xor algorithm - slow but constant-time
  * and small.
- */
+*/
 
 #include "aes_gcm.h"
 #include "ct.h"
@@ -22,7 +22,7 @@ static void xor_block(uint8_t *dst, const uint8_t *a, const uint8_t *b) {
 
 /* GF(2^128) multiplication: x = x * y under the GCM polynomial.
  * Both inputs are 16-byte big-endian; the bit ordering follows NIST: the
- * MSB of byte 0 is the highest-degree coefficient. */
+ * MSB of byte 0 is the highest-degree coefficient.*/
 static void ghash_mul(uint8_t x[16], const uint8_t y[16]) {
     uint8_t z[16];
     uint8_t v[16];
@@ -59,7 +59,7 @@ static void ghash_mul(uint8_t x[16], const uint8_t y[16]) {
 
 /* Absorb `len` bytes into the running GHASH state. Caller is responsible
  * for any zero-padding semantics (we just iterate full 16-byte blocks
- * after copying short tails into a zero-filled scratch). */
+ * after copying short tails into a zero-filled scratch).*/
 static void ghash_update(uint8_t y[16], const uint8_t h[16],
                          const uint8_t *data, uint32_t len) {
     uint32_t off = 0;
@@ -87,7 +87,7 @@ static void inc32(uint8_t ctr[16]) {
 }
 
 /* AES-CTR encrypt-or-decrypt (symmetric). `j0_inc` is the *first* counter
- * value used for the data (i.e., already incremented from J0). */
+ * value used for the data (i.e., already incremented from J0).*/
 static void aes_ctr_xor(const aes128_ctx_t *ks,
                         uint8_t ctr[16],
                         const uint8_t *in, uint32_t len,

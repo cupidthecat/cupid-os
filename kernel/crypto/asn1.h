@@ -7,7 +7,7 @@
  * is bounds-checked against the parent; non-canonical lengths and
  * negative INTEGERs are rejected. The full input must lie in memory -
  * we never copy, we walk. All "body" pointers returned alias the
- * caller's buffer. */
+ * caller's buffer.*/
 
 #define ASN1_TAG_BOOLEAN       0x01
 #define ASN1_TAG_INTEGER       0x02
@@ -42,7 +42,7 @@ int asn1_peek_tag(const asn1_cur_t *c);
 
 /* Read a TLV with the expected tag; sets *body and *body_len to the
  * value range, advances *c past the value. Returns 0 on success, -1
- * on tag mismatch / truncation / non-canonical length. */
+ * on tag mismatch / truncation / non-canonical length.*/
 int asn1_read_tlv(asn1_cur_t *c, uint8_t expected_tag,
                   const uint8_t **body, uint32_t *body_len);
 
@@ -50,7 +50,7 @@ int asn1_read_tlv(asn1_cur_t *c, uint8_t expected_tag,
 int asn1_open(asn1_cur_t *c, uint8_t expected_tag, asn1_cur_t *sub);
 
 /* Read whatever TLV is next (any tag). Sets *tag, *body, *body_len.
- * Returns 0 on success, -1 on truncation. */
+ * Returns 0 on success, -1 on truncation.*/
 int asn1_read_any(asn1_cur_t *c, uint8_t *tag,
                   const uint8_t **body, uint32_t *body_len);
 
@@ -59,7 +59,7 @@ int asn1_skip_any(asn1_cur_t *c);
 
 /* Read INTEGER as canonical unsigned big-endian. Strips a single
  * leading 0x00 if it's there only to keep the high bit clear; rejects
- * sign-extension, multi-byte zero pads, and negative values. */
+ * sign-extension, multi-byte zero pads, and negative values.*/
 int asn1_read_uint(asn1_cur_t *c,
                    const uint8_t **bytes, uint32_t *len);
 
@@ -69,7 +69,7 @@ int asn1_read_oid(asn1_cur_t *c,
 
 /* Read BIT STRING. Rejects nonzero unused-bits byte (we only deal
  * with byte-aligned strings: signatures + SPKI). Returns the body
- * AFTER the unused-bits byte. */
+ * AFTER the unused-bits byte.*/
 int asn1_read_bit_string(asn1_cur_t *c,
                          const uint8_t **data, uint32_t *data_len);
 
@@ -78,7 +78,7 @@ int asn1_read_octet_string(asn1_cur_t *c,
                            const uint8_t **data, uint32_t *data_len);
 
 /* Read either UTCTime (YYMMDDHHMMSSZ) or GeneralizedTime
- * (YYYYMMDDHHMMSSZ) and convert to seconds-since-Unix-epoch. */
+ * (YYYYMMDDHHMMSSZ) and convert to seconds-since-Unix-epoch.*/
 int asn1_read_time(asn1_cur_t *c, uint64_t *epoch_seconds);
 
 /* Helper: byte-equal compare against a known OID. */

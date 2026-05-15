@@ -1,6 +1,6 @@
 /*
  * Interrupt Descriptor Table (IDT) Implementation
- * 
+ *
  * This file implements the IDT setup and management for the kernel:
  * - Defines the IDT structure and pointer
  * - Sets up exception handlers with descriptive messages
@@ -8,11 +8,11 @@
  * - Initializes the IDT with default handlers
  * - Maps CPU exceptions to custom handlers
  * - Loads the IDT into the processor
- * 
+ *
  * The IDT is a crucial part of the interrupt handling system,
  * allowing the kernel to properly handle CPU exceptions and
  * hardware interrupts in protected mode.
- */
+*/
 
 #include "idt.h"
 #include "isr.h"

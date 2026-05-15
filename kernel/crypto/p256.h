@@ -16,7 +16,7 @@
  * constant-time with respect to the field-element values, which is fine
  * for verify-only paths and for ECDHE where the secret is the scalar
  * (not the field elements that flow through arithmetic).
- */
+*/
 
 #define P256_LIMBS 8u
 #define P256_BYTES 32u
@@ -55,7 +55,7 @@ void p256_fe_sqr(p256_fe_t r, const p256_fe_t a);
 void p256_fe_inv(p256_fe_t r, const p256_fe_t a);   /* a != 0 */
 
 /* Big-endian byte I/O for field elements (32 bytes). Returns 0 on
- * success, -1 if input >= p. */
+ * success, -1 if input >= p.*/
 int  p256_fe_from_be(p256_fe_t r, const uint8_t in[32]);
 void p256_fe_to_be(uint8_t out[32], const p256_fe_t a);
 
@@ -76,7 +76,7 @@ void p256_jac_to_affine(p256_aff_t *out, const p256_jac_t *in);
 void p256_jac_from_affine(p256_jac_t *out, const p256_aff_t *in);
 
 /* Validate that (x,y) lies on the curve. Returns 1 if on-curve and not
- * the identity, 0 otherwise. */
+ * the identity, 0 otherwise.*/
 int  p256_aff_is_on_curve(const p256_aff_t *p);
 
 /* Constant-time scalar multiplication: r = k * P. */
@@ -90,7 +90,7 @@ void p256_double_scalar_mul(p256_jac_t *r,
                             const p256_aff_t *Q);
 
 /* Public-key import: parse uncompressed SEC1 point (0x04 || X || Y),
- * verify on-curve. Returns 0 on success. */
+ * verify on-curve. Returns 0 on success.*/
 int  p256_pub_from_uncompressed(p256_aff_t *out,
                                 const uint8_t *enc, uint32_t enc_len);
 
