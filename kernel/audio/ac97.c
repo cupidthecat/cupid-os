@@ -51,7 +51,7 @@ static const uint16_t AC97_DEVICES[] = {
  * meant freshly mixed audio sat behind ~31 buffers of stale data and
  * arrived 1.4 s late. Each IRQ now refills the buffer just past LVI
  * and bumps LVI by one, so only AC97_LOOKAHEAD buffers are queued
- * ahead of CIV at any time. */
+ * ahead of CIV at any time.*/
 #define AC97_BDL_ENTRIES        32
 #define AC97_FRAMES_PER_BUF     512u
 #define AC97_BYTES_PER_BUF      (AC97_FRAMES_PER_BUF * 2u * 2u)  /* stereo s16 */
@@ -111,14 +111,14 @@ void ac97_set_fill_callback(void (*fill)(int16_t *, uint32_t)) {
  *
  * We cap the refill loop at AC97_LOOKAHEAD iterations so a heavily
  * delayed ISR can't try to "catch up" 30 buffers at once and lock
- * the CPU out of every other IRQ. */
+ * the CPU out of every other IRQ.*/
 static void ac97_isr(struct registers *r) {
     (void)r;
     uint16_t sr = inw((uint16_t)(s_ac97.bar_nabm + NABM_PO_SR));
     /* React to BCIS (normal completion) AND LVBCI (engine halted because
      * CIV caught LVI). LVBCI means we already underran once - refill and
      * bump LVI past CIV so DMA resumes. Without this branch a single bad
-     * jitter spike permanently silences the channel. */
+     * jitter spike permanently silences the channel.*/
     if (sr & (uint16_t)(POSR_BCIS | POSR_LVBCI)) {
         uint8_t civ    = inb((uint16_t)(s_ac97.bar_nabm + NABM_PO_CIV));
         /* Target LVI: keep AC97_LOOKAHEAD buffers queued ahead of CIV. */
@@ -181,7 +181,7 @@ int ac97_init(void) {
      * 16-bit flags field that's bit 15 = IOC, bit 14 = BUP. We were
      * setting bit 14 (BUP) by mistake - IOC never fired, BCIS never
      * latched, the ISR never refilled, and DMA halted after draining
-     * the initial silent ring once. */
+     * the initial silent ring once.*/
     for (int j = 0; j < AC97_BDL_ENTRIES; j++) {
         s_bdl[j].buf_phys = (uint32_t)&s_dma_pool[(uint32_t)j * AC97_FRAMES_PER_BUF * 2u];
         s_bdl[j].samples  = (uint16_t)(AC97_FRAMES_PER_BUF * 2u);
@@ -196,8 +196,8 @@ int ac97_init(void) {
     /* NAM RESET */
     outw((uint16_t)(s_ac97.bar_nam + NAM_RESET), 0u);
 
-    /* Master + PCM-out volume (unmute) — route through setters so cached
-     * percent values stay in sync with the codec registers. */
+    /* Master + PCM-out volume (unmute) - route through setters so cached
+     * percent values stay in sync with the codec registers.*/
     ac97_set_master_volume(100u);
     ac97_set_pcm_volume(100u);
 
@@ -212,7 +212,7 @@ int ac97_init(void) {
 
     /* Program BDL. LVI starts at LOOKAHEAD-1 so only that many silence
      * buffers are queued; ISR fills the remaining ring as buffers drain
-     * (see ac97_isr). */
+     * (see ac97_isr).*/
     outl((uint16_t)(s_ac97.bar_nabm + NABM_PO_BDBAR), (uint32_t)s_bdl);
     outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI),
          (uint8_t)(AC97_LOOKAHEAD - 1u));
@@ -267,13 +267,13 @@ uint8_t ac97_get_pcm_volume(void) {
     return s_ac97.present ? s_ac97.pcm_pct : (uint8_t)0;
 }
 
-/*  Smoke-test kernel helpers  */
+/* Smoke-test kernel helpers */
 
 /* forward declaration - defined below */
 void ac97_tsc_sleep_ms(uint32_t ms);
 
 /* Generate a triangle-wave mono PCM into a freshly kmalloc'd buffer.
- * Caller frees. Returns NULL on alloc failure. */
+ * Caller frees. Returns NULL on alloc failure.*/
 static int16_t *gen_triangle_mono(uint32_t hz, uint32_t ms, uint32_t *out_frames) {
     const uint32_t SR = 22050u;
     uint32_t frames = (SR * ms) / 1000u;
@@ -348,7 +348,7 @@ void ac97_smoke_pan(void) {
 
 /* TSC-based busy-wait for ms milliseconds.
  * Uses RDTSC - advances regardless of IF/IRQ state.
- * Suitable for smoke tests where hlt/timer may be unreliable from JIT context. */
+ * Suitable for smoke tests where hlt/timer may be unreliable from JIT context.*/
 void ac97_tsc_sleep_ms(uint32_t ms) {
     uint64_t freq = get_cpu_freq();          /* Hz */
     uint64_t cycles = (freq / 1000u) * (uint64_t)ms;

@@ -7,7 +7,7 @@
  * install IRQ handler. Returns 0 on success, negative on failure
  * (no device / unsupported codec). Audio runs silent on failure;
  * caller does not have to abort.
- */
+*/
 int  ac97_init(void);
 
 /* Set fill callback. Called from the AC97 IRQ tail to refill
@@ -15,7 +15,7 @@ int  ac97_init(void);
  * `frames` is the per-buffer frame count (1024 frames).
  *
  * Callback runs under BKL with IRQs disabled. Keep it bounded.
- */
+*/
 void ac97_set_fill_callback(void (*fill)(int16_t *buf, uint32_t frames));
 
 void ac97_start(void);            /* arm DMA */

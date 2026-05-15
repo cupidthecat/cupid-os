@@ -13,7 +13,7 @@ void midiopl_reset(void);
 void midiopl_feed(const uint8_t *bytes, uint32_t len);
 
 /* Pull synth output: frames * 2 s16 stereo samples @ 22050 Hz.
- * Drives Nuked-OPL3 native @ 49716 Hz internally and resamples. */
+ * Drives Nuked-OPL3 native @ 49716 Hz internally and resamples.*/
 void midiopl_render(int16_t *out_stereo, uint32_t frames);
 
 void midiopl_set_volume(uint8_t vol_0_127);

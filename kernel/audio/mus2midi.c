@@ -9,9 +9,9 @@
  *  - Dropped #include "i_swap.h": SHORT() defined locally as identity cast
  *    (x86 is always little-endian; MUS headers are LE).
  *  - Removed #ifdef STANDALONE main() block (depends on M_ReadFile, Z_Init,
- *    fprintf, printf, exit — none available in kernel).
+ *    fprintf, printf, exit - none available in kernel).
  *  - Added mus2midi_convert() wrapper at the bottom using kmalloc/kfree.
- */
+*/
 
 //
 // Copyright(C) 1993-1996 Id Software, Inc.
@@ -704,9 +704,9 @@ boolean mus2mid(MEMFILE *musinput, MEMFILE *midioutput)
     return false;
 }
 
-/* =========================================================================
- * mus2midi_convert — kernel wrapper
- * ========================================================================= */
+/*
+ * mus2midi_convert - kernel wrapper
+ **/
 
 int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
                      uint8_t **out_midi, uint32_t *out_len)

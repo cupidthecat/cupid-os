@@ -6,7 +6,7 @@
  *  - Replaced <stdio.h>/<stdlib.h>/<string.h> with kernel headers.
  *  - size_t comes from ../types.h via the including translation unit;
  *    no stdlib.h needed here since the .h only uses size_t in prototypes.
- */
+*/
 
 //
 // Copyright(C) 1993-1996 Id Software, Inc.

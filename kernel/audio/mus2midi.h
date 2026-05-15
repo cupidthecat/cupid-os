@@ -7,7 +7,7 @@
  *    PACKED_STRUCT) compatible with kernel/types.h.
  *  - Replaced #include "memio.h" with the local vendored path.
  *  - Added mus2midi_convert() wrapper declaration.
- */
+*/
 
 //
 // Copyright(C) 1993-1996 Id Software, Inc.
@@ -49,7 +49,7 @@ boolean mus2mid(MEMFILE *musinput, MEMFILE *midioutput);
 /* Convert MUS lump to MIDI bytes in a kmalloc'd buffer.
  * Caller must kfree(*out_midi). Returns 0 on success, negative on
  * malformed input or OOM.
- */
+*/
 int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
                      uint8_t **out_midi, uint32_t *out_len);
 
