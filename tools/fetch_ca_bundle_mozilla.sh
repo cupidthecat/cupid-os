@@ -7,7 +7,7 @@
 # picks roots whose human-readable name matches a curated regex of
 # the most-used issuers (DigiCert, ISRG / Let's Encrypt, GTS, Sectigo,
 # USERTrust, GlobalSign, Amazon, IdenTrust, Entrust, Baltimore,
-# Starfield/GoDaddy, Microsoft).  That fits in roughly 80-90 KB of
+# Starfield/GoDaddy, Microsoft).  That fits in roughly 80–90 KB of
 # .data and covers the chains for almost every site you'll visit.
 #
 #   bash tools/fetch_ca_bundle_mozilla.sh                  # default

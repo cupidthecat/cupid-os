@@ -124,7 +124,7 @@ class QemuNet:
                 pass
 
 
-# tests
+# ---------------- tests ----------------
 
 class TestResult:
     def __init__(self, name: str, ok: bool, detail: str = ""):
@@ -196,7 +196,7 @@ def test_tcp_server(q: QemuNet) -> TestResult:
     # Curl from host on the forwarded port.
     body = ""
     try:
-        # Manual HTTP with a socket - avoids relying on system curl.
+        # Manual HTTP with a socket — avoids relying on system curl.
         s = socket.create_connection(("127.0.0.1", HOST_FWD_PORT), timeout=15)
         s.sendall(b"GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
         chunks = []
@@ -234,7 +234,7 @@ def run(nic: str, image: Path, keep: bool, loss: int) -> bool:
     results: list[TestResult] = []
     try:
         boot_log = q.boot(timeout=60)
-        # Tests: order matters - ping populates ARP, then we check arp.
+        # Tests: order matters — ping populates ARP, then we check arp.
         results.append(test_dhcp(q, boot_log))
         results.append(test_ping_gw(q))
         results.append(test_arp(q))
