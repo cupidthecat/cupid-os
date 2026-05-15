@@ -105,6 +105,12 @@ int socket_setsockopt(int fd, int level, int optname,
 int socket_sendto  (int fd, const void *buf, uint32_t len, uint32_t ip, uint16_t port);
 int socket_recvfrom(int fd, void *buf, uint32_t len, uint32_t *ip, uint16_t *port);
 
+/* Non-blocking polling helpers.
+ *   socket_avail: bytes pending in rx buffer (>= 0), or negative errno.
+ *   socket_state: tcp_state_t for TCP sockets; 0 for UDP; negative errno on bad fd. */
+int socket_avail   (int fd);
+int socket_state   (int fd);
+
 /* UDP ingress dispatch - called from udp.c */
 void socket_udp_deliver(uint32_t src_ip, uint16_t src_port,
                         uint16_t dst_port, const uint8_t *data, uint32_t dlen);

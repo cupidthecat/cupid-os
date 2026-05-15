@@ -70,6 +70,16 @@
 #include "audio/mixer.h"
 #include "audio/opl_smoke.h"
 #include "doom/dglibc.h"
+#include "sha256.h"
+#include "sha512.h"
+#include "hmac.h"
+#include "chacha20.h"
+#include "poly1305.h"
+#include "x25519.h"
+#include "ed25519.h"
+#include "rsa.h"
+#include "csprng.h"
+#include "ssh_io.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -1194,6 +1204,57 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("htons", p_htons, 1);
   uint32_t (*p_htonl)(uint32_t) = htonl;
   BIND("htonl", p_htonl, 1);
+
+  /* SSH crypto primitives */
+  void (*p_sha256)(const uint8_t *, uint32_t, uint8_t *) = sha256;
+  BIND("sha256", p_sha256, 3);
+  void (*p_sha256_init)(sha256_ctx_t *) = sha256_init;
+  BIND("sha256_init", p_sha256_init, 1);
+  void (*p_sha256_update)(sha256_ctx_t *, const uint8_t *, uint32_t) = sha256_update;
+  BIND("sha256_update", p_sha256_update, 3);
+  void (*p_sha256_final)(sha256_ctx_t *, uint8_t *) = sha256_final;
+  BIND("sha256_final", p_sha256_final, 2);
+  void (*p_sha512)(const uint8_t *, uint32_t, uint8_t *) = sha512;
+  BIND("sha512", p_sha512, 3);
+  void (*p_hmac_sha256)(const uint8_t *, uint32_t, const uint8_t *, uint32_t, uint8_t *) = hmac_sha256;
+  BIND("hmac_sha256", p_hmac_sha256, 5);
+
+  void (*p_x25519)(uint8_t *, const uint8_t *, const uint8_t *) = x25519;
+  BIND("x25519", p_x25519, 3);
+  int (*p_ed25519_verify)(const uint8_t *, const uint8_t *, uint32_t, const uint8_t *) = ed25519_verify;
+  BIND_T("ed25519_verify", p_ed25519_verify, 4, TYPE_INT);
+
+  void (*p_chacha20)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *, uint8_t *, uint32_t) = chacha20_xor;
+  BIND("chacha20_xor", p_chacha20, 6);
+  void (*p_poly1305_auth)(uint8_t *, const uint8_t *, uint32_t, const uint8_t *) = poly1305_auth;
+  BIND("poly1305_auth", p_poly1305_auth, 4);
+
+  void (*p_rand)(uint8_t *, uint32_t) = crypto_random_bytes;
+  BIND("crypto_random_bytes", p_rand, 2);
+
+  int (*p_rsa_v256)(const uint8_t *, uint32_t, const uint8_t *, uint32_t,
+                    const uint8_t *, uint32_t, const uint8_t *) = rsa_pkcs1v15_verify_sha256;
+  BIND_T("rsa_pkcs1v15_verify_sha256", p_rsa_v256, 7, TYPE_INT);
+  int (*p_rsa_v512)(const uint8_t *, uint32_t, const uint8_t *, uint32_t,
+                    const uint8_t *, uint32_t, const uint8_t *) = rsa_pkcs1v15_verify_sha512;
+  BIND_T("rsa_pkcs1v15_verify_sha512", p_rsa_v512, 7, TYPE_INT);
+
+  int (*p_ecdsa_blob)(const uint8_t *, const uint8_t *, uint32_t,
+                      const uint8_t *, uint32_t, const uint8_t *, uint32_t)
+      = ssh_ecdsa_p256_verify_blob;
+  BIND_T("ssh_ecdsa_p256_verify_blob", p_ecdsa_blob, 7, TYPE_INT);
+
+  /* SSH terminal I/O helpers */
+  int (*p_read_line)(char *, uint32_t) = ssh_read_line;
+  BIND_T("read_line", p_read_line, 2, TYPE_INT);
+  int (*p_read_password)(char *, uint32_t) = ssh_read_password;
+  BIND_T("read_password", p_read_password, 2, TYPE_INT);
+  int (*p_poll_key_vt)(char *) = ssh_poll_key_vt;
+  BIND_T("poll_key_vt", p_poll_key_vt, 1, TYPE_INT);
+  void (*p_print_n)(const char *, uint32_t) = ssh_print_n;
+  BIND("print_n", p_print_n, 2);
+  void (*p_screen_size)(int *, int *) = ssh_get_screen_size;
+  BIND("get_screen_size", p_screen_size, 2);
 
   /* Process management */
   void (*p_yield)(void) = cc_yield;

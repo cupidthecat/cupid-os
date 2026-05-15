@@ -149,6 +149,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/crypto/aes.o kernel/crypto/aes_gcm.o \
             kernel/crypto/bigint.o kernel/crypto/rsa.o \
             kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o \
+            kernel/crypto/ed25519.o \
             kernel/crypto/asn1.o kernel/crypto/x509.o \
             kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o \
             kernel/tls/tls_record.o kernel/tls/tls_kdf.o \
@@ -157,7 +158,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_selftest.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
-            kernel/lang/cupidc_elf.o \
+            kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
 			kernel/lang/as.o kernel/lang/as_lex.o kernel/lang/as_parse.o kernel/lang/as_elf.o \
 			kernel/lang/dis.o \
             kernel/gfx/gfx2d.o \
@@ -417,6 +418,9 @@ kernel/crypto/p256.o: kernel/crypto/p256.c kernel/crypto/p256.h kernel/core/type
 
 kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/crypto/ecdsa.c -o kernel/crypto/ecdsa.o
+
+kernel/crypto/ed25519.o: kernel/crypto/ed25519.c kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h
+	$(CC) $(CFLAGS) -Os kernel/crypto/ed25519.c -o kernel/crypto/ed25519.o
 
 kernel/crypto/asn1.o: kernel/crypto/asn1.c kernel/crypto/asn1.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/crypto/asn1.c -o kernel/crypto/asn1.o
@@ -807,6 +811,9 @@ kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.c kernel/lang/cupidc.h
 
 kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.c kernel/lang/cupidc.h kernel/lang/exec.h kernel/fs/vfs.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc_elf.c -o kernel/lang/cupidc_elf.o
+
+kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shell.h drivers/keyboard.h kernel/core/process.h kernel/core/kernel.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/core/types.h
+	$(CC) $(CFLAGS) kernel/lang/ssh_io.c -o kernel/lang/ssh_io.o
 
 # CupidASM assembler
 kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h

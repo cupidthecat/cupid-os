@@ -54,6 +54,9 @@ static shell_color_t gui_color_buffer[SHELL_ROWS * SHELL_COLS];
 static terminal_color_state_t shell_ansi_state;
 static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
+static int gui_saved_cursor_x = 0;
+static int gui_saved_cursor_y = 0;
+static int gui_last_was_cr = 0;
 static int gui_visible_cols = SHELL_COLS; /* actual visible column width */
 
 /* I/O redirection capture buffer */
@@ -410,6 +413,14 @@ int shell_get_cursor_x(void) { return gui_cursor_x; }
 
 int shell_get_cursor_y(void) { return gui_cursor_y; }
 
+static void shell_clamp_cursor(void) {
+  if (gui_cursor_x < 0) gui_cursor_x = 0;
+  if (gui_cursor_y < 0) gui_cursor_y = 0;
+  if (gui_cursor_x >= gui_visible_cols) gui_cursor_x = gui_visible_cols - 1;
+  if (gui_cursor_x >= SHELL_COLS) gui_cursor_x = SHELL_COLS - 1;
+  if (gui_cursor_y >= SHELL_ROWS) gui_cursor_y = SHELL_ROWS - 1;
+}
+
 /* Scroll both char and color buffers up one line */
 static void shell_gui_scroll(void) {
   memcpy(gui_buffer, gui_buffer + SHELL_COLS,
@@ -430,6 +441,33 @@ static void shell_gui_scroll(void) {
 static void shell_set_cell_color(int idx) {
   gui_color_buffer[idx].fg = ansi_get_fg(&shell_ansi_state);
   gui_color_buffer[idx].bg = ansi_get_bg(&shell_ansi_state);
+}
+
+static void shell_clear_cell(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS)
+    return;
+  int idx = row * SHELL_COLS + col;
+  gui_buffer[idx] = 0;
+  gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+  gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+}
+
+static void shell_clear_line_range(int row, int first_col, int last_col) {
+  if (row < 0 || row >= SHELL_ROWS)
+    return;
+  if (first_col < 0) first_col = 0;
+  if (last_col >= SHELL_COLS) last_col = SHELL_COLS - 1;
+  for (int col = first_col; col <= last_col; col++) {
+    shell_clear_cell(row, col);
+  }
+}
+
+static void shell_clear_rows(int first_row, int last_row) {
+  if (first_row < 0) first_row = 0;
+  if (last_row >= SHELL_ROWS) last_row = SHELL_ROWS - 1;
+  for (int row = first_row; row <= last_row; row++) {
+    shell_clear_line_range(row, 0, SHELL_COLS - 1);
+  }
 }
 
 /* Put a character into the GUI buffer with ANSI escape processing */
@@ -461,33 +499,114 @@ static void shell_gui_putchar(char c) {
     gui_cursor_y = 0;
     return;
 
+  case ANSI_RESULT_CURSOR_POS:
+    gui_cursor_y = shell_ansi_state.param1;
+    gui_cursor_x = shell_ansi_state.param2;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_UP:
+    gui_cursor_y -= shell_ansi_state.param1;
+    if (shell_ansi_state.param2 == 1) gui_cursor_x = 0;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_DOWN:
+    gui_cursor_y += shell_ansi_state.param1;
+    if (shell_ansi_state.param2 == 1) gui_cursor_x = 0;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_FORWARD:
+    gui_cursor_x += shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_BACK:
+    gui_cursor_x -= shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_COL:
+    gui_cursor_x = shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_ERASE_LINE:
+    if (shell_ansi_state.param1 == 1) {
+      shell_clear_line_range(gui_cursor_y, 0, gui_cursor_x);
+    } else if (shell_ansi_state.param1 == 2) {
+      shell_clear_line_range(gui_cursor_y, 0, SHELL_COLS - 1);
+    } else {
+      shell_clear_line_range(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+    }
+    return;
+
+  case ANSI_RESULT_ERASE_DISPLAY:
+    if (shell_ansi_state.param1 == 1) {
+      shell_clear_rows(0, gui_cursor_y - 1);
+      shell_clear_line_range(gui_cursor_y, 0, gui_cursor_x);
+    } else {
+      shell_clear_line_range(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+      shell_clear_rows(gui_cursor_y + 1, SHELL_ROWS - 1);
+    }
+    return;
+
+  case ANSI_RESULT_SAVE_CURSOR:
+    gui_saved_cursor_x = gui_cursor_x;
+    gui_saved_cursor_y = gui_cursor_y;
+    return;
+
+  case ANSI_RESULT_RESTORE_CURSOR:
+    gui_cursor_x = gui_saved_cursor_x;
+    gui_cursor_y = gui_saved_cursor_y;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_SCROLL_UP:
+    for (int i = 0; i < shell_ansi_state.param1; i++) {
+      shell_gui_scroll();
+    }
+    return;
+
+  case ANSI_RESULT_SCROLL_DOWN:
+    return;
+
   case ANSI_RESULT_PRINT:
     break; /* fall through to normal character handling */
   }
 
   /* Normal character handling */
   if (c == '\n') {
-    /* Clear remainder of current line */
-    for (int i = gui_cursor_x; i < SHELL_COLS; i++) {
-      int idx = gui_cursor_y * SHELL_COLS + i;
-      gui_buffer[idx] = 0;
-      gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
-      gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+    if (!gui_last_was_cr) {
+      /* Local shell output uses bare LF as newline, so keep that behavior.
+       * Remote PTYs send CRLF; in that case CR already moved to column 0 and
+       * clearing here would erase the line that was just printed. */
+      for (int i = gui_cursor_x; i < SHELL_COLS; i++) {
+        int idx = gui_cursor_y * SHELL_COLS + i;
+        gui_buffer[idx] = 0;
+        gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+        gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+      }
+      gui_cursor_x = 0;
     }
-    gui_cursor_x = 0;
     gui_cursor_y++;
+    gui_last_was_cr = 0;
   } else if (c == '\r') {
     /* Carriage return: cursor to col 0. Standard CRLF handling so HTTP
      * bodies (e.g. from /bin/curl.cc) don't render \r as a CP437 glyph
      * (♪ at byte 0x0D) on each header line. */
     gui_cursor_x = 0;
+    gui_last_was_cr = 1;
   } else if (c == '\b') {
     if (gui_cursor_x > 0) {
       gui_cursor_x--;
     }
+    gui_last_was_cr = 0;
   } else if ((unsigned char)c < 32 && c != '\t') {
     /* Drop other control bytes - never render as glyphs.
      * (Order matters: \b/\n/\r/\t are handled above.) */
+    gui_last_was_cr = 0;
     return;
   } else if (c == '\t') {
     /* Tab = 4 spaces */
@@ -497,6 +616,7 @@ static void shell_gui_putchar(char c) {
       shell_set_cell_color(idx);
       gui_cursor_x++;
     }
+    gui_last_was_cr = 0;
   } else {
     if (gui_cursor_x < gui_visible_cols) {
       int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
@@ -504,6 +624,7 @@ static void shell_gui_putchar(char c) {
       shell_set_cell_color(idx);
       gui_cursor_x++;
     }
+    gui_last_was_cr = 0;
   }
 
   /* Wrap at visible column width */
@@ -2909,6 +3030,26 @@ static char gui_input[MAX_INPUT_LEN + 1];
 static int gui_input_pos = 0;    // length of input
 static int gui_input_cursor = 0; // cursor position within input
 static int gui_history_view = -1;
+static char gui_pending_command[SHELL_REPL_PENDING_MAX];
+static int gui_pending_command_state = 0; /* 0 idle, 1 queued, 2 running */
+
+static void shell_gui_queue_command(const char *input) {
+  int i = 0;
+
+  if (!input)
+    return;
+  if (gui_pending_command_state != 0) {
+    shell_gui_print("terminal: command already running\n");
+    return;
+  }
+
+  while (input[i] && i < SHELL_REPL_PENDING_MAX - 1) {
+    gui_pending_command[i] = input[i];
+    i++;
+  }
+  gui_pending_command[i] = '\0';
+  gui_pending_command_state = 1;
+}
 
 void shell_gui_insert_text(const char *text) {
   if (!text || output_mode != SHELL_OUTPUT_GUI)
@@ -2945,12 +3086,13 @@ void shell_gui_execute_line(const char *line) {
                               sizeof(gui_full_input));
     if (repl_ready > 0) {
       history_record(gui_full_input);
-      gui_exec_command(gui_full_input);
+      shell_gui_queue_command(gui_full_input);
     }
   }
 
   shell_gui_reset_input();
-  shell_gui_print_prompt();
+  if (gui_pending_command_state == 0)
+    shell_gui_print_prompt();
 }
 
 /* GUI-mode wrappers (print/putchar go to GUI buffer) */
@@ -3024,6 +3166,20 @@ static void gui_exec_command(const char *input) {
   execute_command(input);
 }
 
+int shell_gui_run_pending_command(void) {
+  if (gui_pending_command_state != 1)
+    return 0;
+
+  gui_pending_command_state = 2;
+
+  gui_exec_command(gui_pending_command);
+
+  gui_pending_command[0] = '\0';
+  gui_pending_command_state = 0;
+  shell_gui_print_prompt();
+  return 1;
+}
+
 /*
  *  JIT Program Input Routing (GUI Mode)
  */
@@ -3042,6 +3198,13 @@ void shell_jit_program_input(char c) {
     jit_input_buffer[jit_input_write_pos] = c;
     jit_input_write_pos = next_write;
   } else {
+  }
+}
+
+static void shell_jit_program_input_seq(const char *seq) {
+  while (*seq) {
+    shell_jit_program_input(*seq);
+    seq++;
   }
 }
 
@@ -3315,17 +3478,32 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
   int terminal_focused =
       (focused && strcmp(focused->title, "Terminal") == 0) ? 1 : 0;
 
-  /* If a JIT program is running, route input to it instead of shell */
+  /* If a JIT program is running in the focused terminal, route input to it
+   * instead of treating password/shell data as new shell commands. */
   if (jit_program_running && strcmp(jit_program_name, "terminal") != 0 &&
-      !terminal_focused) {
-    /* Only route actual characters, not key releases or non-character keys */
+      terminal_focused) {
     if (character != 0) {
       shell_jit_program_input(character);
+      return;
     }
-    /* Also route arrow left/right scancodes for JIT programs that need them */
-    if (character == 0 && (scancode == SCANCODE_ARROW_LEFT ||
-                           scancode == SCANCODE_ARROW_RIGHT)) {
-      /* JIT programs currently don't handle raw scancodes, skip */
+    if (scancode == SCANCODE_ARROW_UP) {
+      shell_jit_program_input_seq("\033[A");
+    } else if (scancode == SCANCODE_ARROW_DOWN) {
+      shell_jit_program_input_seq("\033[B");
+    } else if (scancode == SCANCODE_ARROW_RIGHT) {
+      shell_jit_program_input_seq("\033[C");
+    } else if (scancode == SCANCODE_ARROW_LEFT) {
+      shell_jit_program_input_seq("\033[D");
+    } else if (scancode == 0x47) {
+      shell_jit_program_input_seq("\033[H");
+    } else if (scancode == 0x4F) {
+      shell_jit_program_input_seq("\033[F");
+    } else if (scancode == 0x49) {
+      shell_jit_program_input_seq("\033[5~");
+    } else if (scancode == 0x51) {
+      shell_jit_program_input_seq("\033[6~");
+    } else if (scancode == 0x53) {
+      shell_jit_program_input_seq("\033[3~");
     }
     return;
   }
@@ -3410,6 +3588,7 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
   }
 
   if (character == '\n') {
+    int queued_command = 0;
     gui_input[gui_input_pos] = '\0';
     shell_gui_putchar('\n');
 
@@ -3420,7 +3599,8 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
                                 sizeof(gui_full_input));
       if (repl_ready > 0) {
         history_record(gui_full_input);
-        gui_exec_command(gui_full_input);
+        shell_gui_queue_command(gui_full_input);
+        queued_command = 1;
       }
     }
 
@@ -3428,7 +3608,8 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
-    shell_gui_print_prompt();
+    if (!queued_command)
+      shell_gui_print_prompt();
   } else if (character == '\b') {
     if (gui_input_cursor > 0) {
       gui_input_cursor--;

@@ -18,6 +18,33 @@ of dialect workarounds were needed once the implementation started
 exercising parts of the parser nobody had used before. Those are
 captured below for future contributors.
 
+## SSH client + GUI terminal updates (May 15, 2026)
+
+The branch now includes a CupidC SSH client and the kernel/terminal
+plumbing needed to use it interactively from the GUI Terminal.
+
+- Added `/bin/ssh.cc`, a CupidC SSH-2 client that negotiates
+  `curve25519-sha256` with `chacha20-poly1305@openssh.com`, verifies
+  `ssh-ed25519`, `rsa-sha2-512`, and `ecdsa-sha2-nistp256` host keys,
+  performs password / keyboard-interactive auth, opens a session channel,
+  requests a PTY, and runs an interactive remote shell.
+- Added `kernel/lang/ssh_io.c` / `.h` bridge helpers for CupidC programs:
+  hidden password input, GUI-safe byte output, VT/xterm key translation,
+  GUI terminal geometry, and P-256 host-key signature verification.
+- Moved GUI Terminal command execution out of the desktop key handler and
+  into the terminal process. This keeps the desktop repaint/input loop
+  alive while SSH blocks on password input or remote I/O.
+- Increased the terminal process stack to 512 KiB so CupidC JIT compile
+  of larger programs like `/bin/ssh.cc` does not smash heap metadata.
+- Expanded GUI ANSI/terminal handling for real Linux PTY output:
+  cursor movement, cursor positioning, erase-line/display, save/restore
+  cursor, OSC title sequences, 256-color SGR fallbacks, bracketed-paste
+  private-mode sequences, CRLF-safe line advancement, and remote special
+  keys such as arrows/Home/End/PageUp/PageDown/Delete.
+- SSH PTY setup now reports the actual GUI terminal columns/rows and sends
+  cooked terminal modes for echo, canonical input, CR/LF behavior,
+  Ctrl-C, Backspace, and terminal speeds.
+
 ## Recent commits (May 9-11, 2026)
 
 The last nine commits move the branch from "browser stack works" to a

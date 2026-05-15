@@ -222,6 +222,12 @@ typedef struct {
    * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2
    * = C, so foo[i][j] adds i*B*C + j*C and foo[i][j][k] adds another k. */
   int array_dim2;
+  /* Compile-time integer constant value. Set for enum entries so they
+   * can be used in array-size const-expressions and other contexts that
+   * need a literal int. is_const_int=0 means "not a compile-time
+   * constant" — fall back to a runtime load. */
+  int     is_const_int;
+  int32_t const_int_value;
 } cc_symbol_t;
 
 typedef struct {

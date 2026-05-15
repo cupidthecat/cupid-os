@@ -32,17 +32,33 @@ typedef struct {
   uint8_t fg_color;
   uint8_t bg_color;
   bool bold;
+  int param1;
+  int param2;
   char esc_buf[ANSI_ESC_BUF_SIZE];
   int esc_len;
   bool in_escape;
   bool in_csi;
+  bool in_osc;
+  bool osc_esc;
 } terminal_color_state_t;
 
 typedef enum {
   ANSI_RESULT_PRINT,
   ANSI_RESULT_SKIP,
   ANSI_RESULT_CLEAR,
-  ANSI_RESULT_HOME
+  ANSI_RESULT_HOME,
+  ANSI_RESULT_CURSOR_POS,
+  ANSI_RESULT_CURSOR_UP,
+  ANSI_RESULT_CURSOR_DOWN,
+  ANSI_RESULT_CURSOR_FORWARD,
+  ANSI_RESULT_CURSOR_BACK,
+  ANSI_RESULT_CURSOR_COL,
+  ANSI_RESULT_ERASE_DISPLAY,
+  ANSI_RESULT_ERASE_LINE,
+  ANSI_RESULT_SAVE_CURSOR,
+  ANSI_RESULT_RESTORE_CURSOR,
+  ANSI_RESULT_SCROLL_UP,
+  ANSI_RESULT_SCROLL_DOWN
 } ansi_result_t;
 
 void ansi_init(terminal_color_state_t *state);

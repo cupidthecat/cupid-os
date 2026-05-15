@@ -61,6 +61,9 @@ void shell_gui_reset_input(void);
 /* GUI mode: submit a line, execute it, and print the next prompt. */
 void shell_gui_execute_line(const char *line);
 
+/* GUI mode: run one queued command from the terminal process. */
+int shell_gui_run_pending_command(void);
+
 /* GUI mode: set the visible column width (called from terminal_app) */
 void shell_set_visible_cols(int cols);
 

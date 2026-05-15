@@ -22,6 +22,7 @@
 
 #define TERM_WIN_W 560
 #define TERM_WIN_H 320
+#define TERMINAL_STACK_SIZE (512u * 1024u)
 
 #define CURSOR_BLINK_MS 500   /* Toggle cursor every 500 ms */
 
@@ -54,6 +55,10 @@ static void terminal_process_entry(void) {
 
         /* Perform deferred reschedule check */
         kernel_check_reschedule();
+
+        if (shell_gui_run_pending_command()) {
+            continue;
+        }
 
         /* Yield until next time slice */
         process_yield();
@@ -103,12 +108,41 @@ void terminal_launch(void) {
 
     /* Spawn the terminal as its own process */
     terminal_pid = process_create(terminal_process_entry, "terminal",
-                                  DEFAULT_STACK_SIZE);
+                                  TERMINAL_STACK_SIZE);
     if (terminal_pid == 0) {
         KWARN("terminal_launch: failed to create terminal process");
     }
 
     KINFO("Terminal launched (wid=%d, pid=%u)", terminal_wid, terminal_pid);
+}
+
+void terminal_get_size(int *cols, int *rows) {
+    int out_cols = 80;
+    int out_rows = 25;
+    window_t *win = NULL;
+
+    if (terminal_wid >= 0) {
+        win = gui_get_window(terminal_wid);
+    }
+
+    if (win) {
+        int scale = terminal_font_scale;
+        int char_w = FONT_W * scale;
+        int char_h = FONT_H * scale;
+        uint16_t content_w = (uint16_t)(win->width - 4);
+        uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
+                                        WINDOW_CONTENT_BORDER);
+
+        out_cols = (int)content_w / char_w;
+        out_rows = (int)content_h / char_h;
+        if (out_cols > SHELL_COLS) out_cols = SHELL_COLS;
+        if (out_rows > SHELL_ROWS) out_rows = SHELL_ROWS;
+        if (out_cols < 1) out_cols = 1;
+        if (out_rows < 1) out_rows = 1;
+    }
+
+    if (cols) *cols = out_cols;
+    if (rows) *rows = out_rows;
 }
 
 
@@ -239,6 +273,15 @@ void terminal_handle_key(uint8_t scancode, char character) {
             shell_set_visible_cols(vis_cols);
             win->flags |= WINDOW_FLAG_DIRTY;
         }
+        return;
+    }
+
+    if (shell_jit_program_is_running()) {
+        terminal_scroll_offset = 0;
+        cursor_visible = true;
+        last_blink_ms = timer_get_uptime_ms();
+        shell_gui_handle_key(scancode, character);
+        win->flags |= WINDOW_FLAG_DIRTY;
         return;
     }
 

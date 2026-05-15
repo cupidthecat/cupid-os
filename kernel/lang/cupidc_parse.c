@@ -778,6 +778,70 @@ static int32_t cc_align_up(int32_t value, int32_t align);
 static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index);
 static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index);
 
+/* Parse a compile-time integer constant expression. Accepts numeric
+ * literals combined with + - * / and parentheses. Used for array sizes
+ * so `char buf[4 + 32768]` and friends parse cleanly. Returns 1 on
+ * success and stores result via *out; 0 on parse error. */
+static int cc_parse_const_int_expr(cc_state_t *cc, int32_t *out);
+
+static int cc_parse_const_int_primary(cc_state_t *cc, int32_t *out) {
+  if (cc_peek(cc).type == CC_TOK_LPAREN) {
+    cc_next(cc);
+    if (!cc_parse_const_int_expr(cc, out)) return 0;
+    if (!cc_expect(cc, CC_TOK_RPAREN)) return 0;
+    return 1;
+  }
+  if (cc_peek(cc).type == CC_TOK_MINUS) {
+    cc_next(cc);
+    int32_t v;
+    if (!cc_parse_const_int_primary(cc, &v)) return 0;
+    *out = -v;
+    return 1;
+  }
+  cc_token_t t = cc_next(cc);
+  if (t.type == CC_TOK_NUMBER) {
+    *out = t.int_value;
+    return 1;
+  }
+  if (t.type == CC_TOK_IDENT) {
+    cc_symbol_t *s = cc_sym_find(cc, t.text);
+    if (s && s->is_const_int) {
+      *out = s->const_int_value;
+      return 1;
+    }
+  }
+  cc_error(cc, "expected constant integer");
+  return 0;
+}
+
+static int cc_parse_const_int_mul(cc_state_t *cc, int32_t *out) {
+  int32_t lhs;
+  if (!cc_parse_const_int_primary(cc, &lhs)) return 0;
+  while (cc_peek(cc).type == CC_TOK_STAR || cc_peek(cc).type == CC_TOK_SLASH) {
+    cc_token_t op = cc_next(cc);
+    int32_t rhs;
+    if (!cc_parse_const_int_primary(cc, &rhs)) return 0;
+    if (op.type == CC_TOK_STAR) lhs = lhs * rhs;
+    else if (rhs != 0)          lhs = lhs / rhs;
+  }
+  *out = lhs;
+  return 1;
+}
+
+static int cc_parse_const_int_expr(cc_state_t *cc, int32_t *out) {
+  int32_t lhs;
+  if (!cc_parse_const_int_mul(cc, &lhs)) return 0;
+  while (cc_peek(cc).type == CC_TOK_PLUS || cc_peek(cc).type == CC_TOK_MINUS) {
+    cc_token_t op = cc_next(cc);
+    int32_t rhs;
+    if (!cc_parse_const_int_mul(cc, &rhs)) return 0;
+    if (op.type == CC_TOK_PLUS) lhs = lhs + rhs;
+    else                        lhs = lhs - rhs;
+  }
+  *out = lhs;
+  return 1;
+}
+
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
@@ -916,12 +980,12 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
         f->array_count = 0;
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc);
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t fsz;
+          if (!cc_parse_const_int_expr(cc, &fsz)) {
             cc_error(cc, "expected array size");
             break;
           }
-          f->array_count = size_tok.int_value;
+          f->array_count = fsz;
           cc_expect(cc, CC_TOK_RBRACK);
         }
         int32_t elem_size = cc_type_size(cc, ftype, fsi);
@@ -4206,23 +4270,20 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 
   if (cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* '[' */
-    cc_token_t size_tok = cc_next(cc);
-    if (size_tok.type != CC_TOK_NUMBER) {
+    int32_t arr_elems;
+    if (!cc_parse_const_int_expr(cc, &arr_elems)) {
       cc_error(cc, "expected array size");
       return;
     }
     cc_expect(cc, CC_TOK_RBRACK);
-    int32_t arr_elems = size_tok.int_value;
     int32_t inner_dim = 0;
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
       cc_next(cc); /* '[' */
-      cc_token_t inner_tok = cc_next(cc);
-      if (inner_tok.type != CC_TOK_NUMBER) {
+      if (!cc_parse_const_int_expr(cc, &inner_dim)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      inner_dim = inner_tok.int_value;
     }
 
     int32_t total_bytes;
@@ -4332,72 +4393,81 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     return;
   }
 
-  /* Check for array declaration: type name[size] or name[M][N] */
+  /* Check for array declaration: type name[size] or name[M][N].
+   * Also supports comma-separated array decls of the same base type, e.g.
+   *   char keyC[64], keyD[64];
+   * Mixing array and scalar in one statement is not supported. */
   if (cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
-    cc_token_t size_tok = cc_next(cc);
-    if (size_tok.type != CC_TOK_NUMBER) {
-      cc_error(cc, "expected array size");
-      return;
-    }
-    cc_expect(cc, CC_TOK_RBRACK);
-
-    int32_t arr_size = size_tok.int_value;
-    int32_t inner_dim = 0;
-    /* Check for 2D array: type name[M][N] */
-    if (cc_peek(cc).type == CC_TOK_LBRACK) {
-      cc_next(cc); /* consume '[' */
-      cc_token_t inner_tok = cc_next(cc);
-      if (inner_tok.type != CC_TOK_NUMBER) {
+    while (1) {
+      int32_t arr_size;
+      if (!cc_parse_const_int_expr(cc, &arr_size)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      inner_dim = inner_tok.int_value;
-    }
 
-    int32_t total_bytes;
-    int aes; /* array_elem_size for subscript scaling */
-    cc_type_t arr_type;
+      int32_t inner_dim = 0;
+      /* Check for 2D array: type name[M][N] */
+      if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        cc_next(cc); /* consume '[' */
+        if (!cc_parse_const_int_expr(cc, &inner_dim)) {
+          cc_error(cc, "expected array size");
+          return;
+        }
+        cc_expect(cc, CC_TOK_RBRACK);
+      }
 
-    if (type == TYPE_STRUCT && type_struct_index >= 0 &&
-        type_struct_index < cc->struct_count) {
-      if (!cc_struct_is_complete(cc, type_struct_index)) {
-        cc_error(cc, "array of incomplete struct type");
+      int32_t total_bytes;
+      int aes; /* array_elem_size for subscript scaling */
+      cc_type_t arr_type;
+
+      if (type == TYPE_STRUCT && type_struct_index >= 0 &&
+          type_struct_index < cc->struct_count) {
+        if (!cc_struct_is_complete(cc, type_struct_index)) {
+          cc_error(cc, "array of incomplete struct type");
+          return;
+        }
+        int32_t ssize = cc->structs[type_struct_index].total_size;
+        total_bytes = arr_size * ssize;
+        aes = ssize;
+        arr_type = TYPE_STRUCT_PTR;
+      } else if (inner_dim > 0) {
+        int base_elem = (type == TYPE_CHAR) ? 1 : 4;
+        int32_t row_size = inner_dim * base_elem;
+        total_bytes = arr_size * row_size;
+        aes = row_size;
+        arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      } else {
+        int elem_size = (type == TYPE_CHAR) ? 1 : 4;
+        total_bytes = arr_size * elem_size;
+        aes = elem_size;
+        arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      }
+
+      total_bytes = (total_bytes + 3) & ~3;
+
+      cc->local_offset -= total_bytes;
+      if (cc->local_offset < cc->max_local_offset)
+        cc->max_local_offset = cc->local_offset;
+      cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, arr_type);
+      if (sym) {
+        sym->offset = cc->local_offset;
+        sym->is_array = 1;
+        sym->struct_index = type_struct_index;
+        sym->array_elem_size = aes;
+      }
+
+      if (!cc_match(cc, CC_TOK_COMMA)) break;
+      name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected variable name");
         return;
       }
-      /* Array of structs */
-      int32_t ssize = cc->structs[type_struct_index].total_size;
-      total_bytes = arr_size * ssize;
-      aes = ssize;
-      arr_type = TYPE_STRUCT_PTR;
-    } else if (inner_dim > 0) {
-      /* 2D array */
-      int base_elem = (type == TYPE_CHAR) ? 1 : 4;
-      int32_t row_size = inner_dim * base_elem;
-      total_bytes = arr_size * row_size;
-      aes = row_size;
-      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
-    } else {
-      /* 1D array */
-      int elem_size = (type == TYPE_CHAR) ? 1 : 4;
-      total_bytes = arr_size * elem_size;
-      aes = elem_size;
-      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
-    }
-
-    /* Align to 4 bytes */
-    total_bytes = (total_bytes + 3) & ~3;
-
-    cc->local_offset -= total_bytes;
-    if (cc->local_offset < cc->max_local_offset)
-      cc->max_local_offset = cc->local_offset;
-    cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, arr_type);
-    if (sym) {
-      sym->offset = cc->local_offset;
-      sym->is_array = 1;
-      sym->struct_index = type_struct_index;
-      sym->array_elem_size = aes;
+      if (!cc_match(cc, CC_TOK_LBRACK)) {
+        cc_error(cc, "expected array size for additional declarator");
+        return;
+      }
     }
 
     cc_expect(cc, CC_TOK_SEMICOLON);
@@ -5604,6 +5674,20 @@ static void cc_parse_function(cc_state_t *cc) {
           cc_error(cc, "expected parameter name");
           return;
         }
+        /* `T name[N]` decays to a pointer per C99 §6.7.5.3p7. Consume
+         * the dimension (its value is irrelevant — we only track the
+         * pointer type). */
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
+        }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
           psym->offset = param_offset;
@@ -5624,6 +5708,17 @@ static void cc_parse_function(cc_state_t *cc) {
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
           return;
+        }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
         }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
@@ -5753,6 +5848,17 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           cc_error(cc, "expected parameter name");
           return;
         }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
+        }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
           psym->offset = param_offset;
@@ -5773,6 +5879,17 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
           return;
+        }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
         }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
@@ -5943,6 +6060,8 @@ void cc_parse_program(cc_state_t *cc) {
           if (!cc_data_reserve(cc, 4))
             break;
           gsym->address = cc->data_base + cc->data_pos;
+          gsym->is_const_int = 1;
+          gsym->const_int_value = enum_val;
           memset(cc->data + cc->data_pos, 0, 4);
           uint32_t v = (uint32_t)enum_val;
           cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
@@ -6710,6 +6829,8 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
       if (gsym) {
         gsym->address = cc->data_base + cc->data_pos;
+        gsym->is_const_int = 1;
+        gsym->const_int_value = enum_val;
         memset(cc->data + cc->data_pos, 0, 4);
         uint32_t v = (uint32_t)enum_val;
         cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
