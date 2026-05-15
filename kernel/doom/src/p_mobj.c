@@ -79,7 +79,7 @@ P_SetMobjState
 
 
 //
-// P_ExplodeMissile  
+// P_ExplodeMissile
 //
 void P_ExplodeMissile (mobj_t* mo)
 {
@@ -100,7 +100,7 @@ void P_ExplodeMissile (mobj_t* mo)
 
 
 //
-// P_XYMovement  
+// P_XYMovement
 //
 #define STOPSPEED		0x1000
 #define FRICTION		0xe800
@@ -291,7 +291,7 @@ void P_ZMovement (mobj_t* mo)
 	//  Final Doom and Ultimate Doom.  So we test demo_compatibility *and*
 	//  gamemission. (Note we assume that Doom1 is always Ult Doom, which
 	//  seems to hold for most published demos.)
-        //  
+        //
         //  fraggle - cph got the logic here slightly wrong.  There are three
         //  versions of Doom 1.9:
         //
@@ -615,7 +615,7 @@ void P_RespawnSpecials (void)
 
     // only respawn items in deathmatch
     if (deathmatch != 2)
-	return;	// 
+	return;	//
 
     // nothing left to respawn?
     if (iquehead == iquetail)
@@ -758,7 +758,7 @@ void P_SpawnMapThing (mapthing_t* mthing)
 
     if (mthing->type <= 0)
     {
-        // Thing type 0 is actually "player -1 start".  
+        // Thing type 0 is actually "player -1 start".
         // For some reason, Vanilla Doom accepts/ignores this.
 
         return;
@@ -873,7 +873,7 @@ P_SpawnPuff
 
 //
 // P_SpawnBlood
-// 
+//
 void
 P_SpawnBlood
 ( fixed_t	x,
@@ -922,7 +922,7 @@ void P_CheckMissileSpawn (mobj_t* th)
 
 // Certain functions assume that a mobj_t pointer is non-NULL,
 // causing a crash in some situations where it is NULL.  Vanilla
-// Doom did not crash because of the lack of proper memory 
+// Doom did not crash because of the lack of proper memory
 // protection. This function substitutes NULL pointers for
 // pointers to a dummy mobj, to avoid a crash.
 

@@ -15,7 +15,7 @@
 //
 // DESCRIPTION:
 //	Movement/collision utility functions,
-//	as used by function in p_map.c. 
+//	as used by function in p_map.c.
 //	BLOCKMAP Iterator functions,
 //	and some PIT_* functions to use for iteration.
 //
@@ -419,7 +419,7 @@ P_SetThingPosition (mobj_t* thing)
     // link into blockmap
     if ( ! (thing->flags & MF_NOBLOCKMAP) )
     {
-	// inert things don't need to be in blockmap		
+	// inert things don't need to be in blockmap
 	blockx = (thing->x - bmaporgx)>>MAPBLOCKSHIFT;
 	blocky = (thing->y - bmaporgy)>>MAPBLOCKSHIFT;
 
@@ -677,7 +677,7 @@ boolean PIT_AddThingIntercepts (mobj_t* thing)
 // P_TraverseIntercepts
 // Returns true if the traverser function returns true
 // for all lines.
-// 
+//
 boolean
 P_TraverseIntercepts
 ( traverser_t	func,
@@ -705,7 +705,7 @@ P_TraverseIntercepts
 	}
 	
 	if (dist > maxfrac)
-	    return true;	// checked everything in range		
+	    return true;	// checked everything in range
 
 #if 0  // UNUSED
     {
@@ -731,7 +731,7 @@ P_TraverseIntercepts
 extern fixed_t bulletslope;
 
 // Intercepts Overrun emulation, from PrBoom-plus.
-// Thanks to Andrey Budko (entryway) for researching this and his 
+// Thanks to Andrey Budko (entryway) for researching this and his
 // implementation of Intercepts Overrun emulation in PrBoom-plus
 // which this is based on.
 
@@ -841,7 +841,7 @@ static void InterceptsOverrun(int num_intercepts, intercept_t *intercept)
     // the values from the intercept structure.
     //
     // Note: the ->d.{thing,line} member should really have its
-    // address translated into the correct address value for 
+    // address translated into the correct address value for
     // Vanilla Doom.
 
     InterceptsMemoryOverrun(location, intercept->frac);

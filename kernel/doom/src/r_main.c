@@ -89,7 +89,7 @@ angle_t			clipangle;
 // The viewangletox[viewangle + FINEANGLES/4] lookup
 // maps the visible view angles to screen X coordinates,
 // flattening the arc to a flat projection plane.
-// There will be many angles mapped to the same X. 
+// There will be many angles mapped to the same X.
 int			viewangletox[FINEANGLES/2];
 
 // The xtoviewangleangle[] table maps a screen pixel
@@ -574,7 +574,7 @@ void R_InitTextureMapping (void)
     
     // Scan viewangletox[] to generate xtoviewangle[]:
     //  xtoviewangle will give the smallest view angle
-    //  that maps to x.	
+    //  that maps to x.
     for (x=0;x<=viewwidth;x++)
     {
 	i = 0;

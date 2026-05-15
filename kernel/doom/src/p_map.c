@@ -41,7 +41,7 @@
 
 // Spechit overrun magic value.
 //
-// This is the value used by PrBoom-plus.  I think the value below is 
+// This is the value used by PrBoom-plus.  I think the value below is
 // actually better and works with more demos.  However, I think
 // it's better for the spechits emulation to be compatible with
 // PrBoom-plus, at least so that the big spechits emulation list
@@ -49,12 +49,12 @@
 
 #define DEFAULT_SPECHIT_MAGIC 0x01C09C98
 
-// This is from a post by myk on the Doomworld forums, 
+// This is from a post by myk on the Doomworld forums,
 // outputted from entryway's spechit_magic generator for
 // s205n546.lmp.  The _exact_ value of this isn't too
 // important; as long as it is in the right general
 // range, it will usually work.  Otherwise, we can use
-// the generator (hacked doom2.exe) and provide it 
+// the generator (hacked doom2.exe) and provide it
 // with -spechit.
 
 //#define DEFAULT_SPECHIT_MAGIC 0x84f968e8
@@ -89,7 +89,7 @@ int		numspechit;
 
 //
 // TELEPORT MOVE
-// 
+//
 
 //
 // PIT_StompThing
@@ -378,7 +378,7 @@ boolean PIT_CheckThing (mobj_t* thing)
 // P_CheckPosition
 // This is purely informative, nothing is modified
 // (except things picked up).
-// 
+//
 // in:
 //  a mobj_t (can be valid or invalid)
 //  a position to be checked
@@ -1355,7 +1355,7 @@ boolean PIT_ChangeSector (mobj_t*	thing)
 	mo->momy = (P_Random() - P_Random ())<<12;
     }
 
-    // keep checking (crush other things)	
+    // keep checking (crush other things)
     return true;	
 }
 

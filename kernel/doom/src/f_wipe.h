@@ -14,7 +14,7 @@
 //
 // DESCRIPTION:
 //	Mission start screen wipe/melt, special effects.
-//	
+//
 
 
 #ifndef __F_WIPE_H__

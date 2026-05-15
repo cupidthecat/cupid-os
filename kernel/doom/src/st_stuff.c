@@ -250,7 +250,7 @@
 
 // Width, in characters again.
 #define ST_OUTWIDTH			52 
- // Height, in lines. 
+ // Height, in lines.
 #define ST_OUTHEIGHT		1
 
 #define ST_MAPTITLEX \
@@ -277,7 +277,7 @@ static unsigned int	st_clock;
 // used for making messages go away
 static int		st_msgcounter=0;
 
-// used when in chat 
+// used when in chat
 static st_chatstateenum_t	st_chatstate;
 
 // whether in automap or first-person
@@ -771,7 +771,7 @@ void ST_updateFaceWidget(void)
 		
 		if (diffang < ANG45)
 		{
-		    // head-on    
+		    // head-on
 		    st_faceindex += ST_RAMPAGEOFFSET;
 		}
 		else if (i)

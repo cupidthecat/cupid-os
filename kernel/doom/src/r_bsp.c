@@ -92,7 +92,7 @@ cliprange_t	solidsegs[MAXSEGS];
 // Does handle solid walls,
 //  e.g. single sided LineDefs (middle texture)
 //  that entirely block the view.
-// 
+//
 void
 R_ClipSolidWallSegment
 ( int			first,

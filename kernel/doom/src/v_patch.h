@@ -28,12 +28,12 @@
 
 typedef struct 
 { 
-    short		width;		// bounding box size 
+    short		width;		// bounding box size
     short		height; 
-    short		leftoffset;	// pixels to the left of origin 
-    short		topoffset;	// pixels below the origin 
+    short		leftoffset;	// pixels to the left of origin
+    short		topoffset;	// pixels below the origin
     int			columnofs[8];	// only [width] used
-    // the [0] is &columnofs[width] 
+    // the [0] is &columnofs[width]
 } PACKEDATTR patch_t;
 
 // posts are runs of non masked source pixels

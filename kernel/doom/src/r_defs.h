@@ -146,7 +146,7 @@ typedef struct
     fixed_t	rowoffset;
 
     // Texture indices.
-    // We do not maintain names here. 
+    // We do not maintain names here.
     short	toptexture;
     short	bottomtexture;
     short	midtexture;
@@ -372,7 +372,7 @@ typedef struct vissprite_s
 } vissprite_t;
 
 
-//	
+//
 // Sprites are patches with a special naming convention
 //  so they can be recognized by R_InitSprites.
 // The base name is NNNNFx or NNNNFxFx, with
@@ -419,7 +419,7 @@ typedef struct
 
 //
 // Now what is a visplane, anyway?
-// 
+//
 typedef struct
 {
   fixed_t		height;

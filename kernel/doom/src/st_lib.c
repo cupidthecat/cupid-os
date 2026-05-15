@@ -75,7 +75,7 @@ STlib_initNum
 }
 
 
-// 
+//
 // A fairly efficient way to draw a number
 //  based on differences from the old number.
 // Note: worth the trouble?

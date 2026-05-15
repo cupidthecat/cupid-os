@@ -201,7 +201,7 @@ void I_PrintStartupBanner(char *gamedescription)
     I_PrintDivider();
 }
 
-// 
+//
 // I_ConsoleStdout
 //
 // Returns true if stdout is a real console, false if it is a file

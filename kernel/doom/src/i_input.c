@@ -231,7 +231,7 @@ static unsigned char TranslateKey(unsigned char key)
         return at_to_doom[key];
     else
         return 0x0;
-	*/
+*/
 
     //default:
     //  return tolower(key);
@@ -332,7 +332,7 @@ void I_GetEvent(void)
                 event.data3 = -AccelerateMouse(sdlevent.motion.yrel);
                 D_PostEvent(&event);
                 break;
-                */
+*/
 }
 
 void I_InitInput(void)

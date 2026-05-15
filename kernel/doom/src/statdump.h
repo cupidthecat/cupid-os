@@ -12,7 +12,7 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
 
- */
+*/
 
 #ifndef DOOM_STATDUMP_H
 #define DOOM_STATDUMP_H
