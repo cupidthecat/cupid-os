@@ -98,7 +98,7 @@ KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
 QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
-FAT_START_LBA ?= 8192
+FAT_START_LBA ?= 16384
 OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
 FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
 FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
@@ -139,6 +139,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/network/tcp.o \
             kernel/network/dhcp.o \
             kernel/network/dns.o \
+            kernel/network/sshd.o \
             drivers/rtl8139.o \
             drivers/e1000.o \
             kernel/core/syscall.o \
@@ -149,6 +150,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/crypto/aes.o kernel/crypto/aes_gcm.o \
             kernel/crypto/bigint.o kernel/crypto/rsa.o \
             kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o \
+            kernel/crypto/ed25519.o \
             kernel/crypto/asn1.o kernel/crypto/x509.o \
             kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o \
             kernel/tls/tls_record.o kernel/tls/tls_kdf.o \
@@ -157,12 +159,13 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_selftest.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
-            kernel/lang/cupidc_elf.o \
+            kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
 			kernel/lang/as.o kernel/lang/as_lex.o kernel/lang/as_parse.o kernel/lang/as_elf.o \
 			kernel/lang/dis.o \
             kernel/gfx/gfx2d.o \
             kernel/gfx/bmp.o \
             kernel/gfx/png.o \
+            kernel/gfx/deflate.o \
             kernel/gfx/jpeg.o \
             kernel/gfx/ttf.o \
             kernel/gfx/glyph_raster.o \
@@ -358,6 +361,9 @@ kernel/network/dhcp.o: kernel/network/dhcp.c kernel/network/dhcp.h kernel/networ
 kernel/network/dns.o: kernel/network/dns.c kernel/network/dns.h kernel/network/socket.h kernel/network/net_if.h
 	$(CC) $(CFLAGS) kernel/network/dns.c -o kernel/network/dns.o
 
+kernel/network/sshd.o: kernel/network/sshd.c kernel/network/sshd.h kernel/network/socket.h kernel/core/process.h kernel/lang/shell.h kernel/fs/vfs.h kernel/crypto/x25519.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/p256.h kernel/crypto/ecdsa.h
+	$(CC) $(CFLAGS) kernel/network/sshd.c -o kernel/network/sshd.o
+
 # RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
 drivers/rtl8139.o: drivers/rtl8139.c kernel/network/net_if.h drivers/pci.h kernel/mm/memory.h kernel/core/ports.h
 	$(CC) $(CFLAGS) drivers/rtl8139.c -o drivers/rtl8139.o
@@ -416,6 +422,9 @@ kernel/crypto/p256.o: kernel/crypto/p256.c kernel/crypto/p256.h kernel/core/type
 
 kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/crypto/ecdsa.c -o kernel/crypto/ecdsa.o
+
+kernel/crypto/ed25519.o: kernel/crypto/ed25519.c kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h
+	$(CC) $(CFLAGS) -Os kernel/crypto/ed25519.c -o kernel/crypto/ed25519.o
 
 kernel/crypto/asn1.o: kernel/crypto/asn1.c kernel/crypto/asn1.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/crypto/asn1.c -o kernel/crypto/asn1.o
@@ -734,8 +743,11 @@ kernel/core/syscall.o: kernel/core/syscall.c kernel/core/syscall.h kernel/fs/vfs
 kernel/gfx/bmp.o: kernel/gfx/bmp.c kernel/gfx/bmp.h kernel/fs/vfs.h kernel/mm/memory.h drivers/vga.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/bmp.c -o kernel/gfx/bmp.o
 
-kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/mm/memory.h
+kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/gfx/deflate.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/png.c -o kernel/gfx/png.o
+
+kernel/gfx/deflate.o: kernel/gfx/deflate.c kernel/gfx/deflate.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/deflate.c -o kernel/gfx/deflate.o
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
@@ -804,6 +816,9 @@ kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.c kernel/lang/cupidc.h
 kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.c kernel/lang/cupidc.h kernel/lang/exec.h kernel/fs/vfs.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc_elf.c -o kernel/lang/cupidc_elf.o
 
+kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shell.h drivers/keyboard.h kernel/core/process.h kernel/core/kernel.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/core/types.h
+	$(CC) $(CFLAGS) kernel/lang/ssh_io.c -o kernel/lang/ssh_io.o
+
 # CupidASM assembler
 kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h
 	$(CC) $(CFLAGS) kernel/lang/as.c -o kernel/lang/as.o
@@ -819,6 +834,21 @@ kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h k
 
 kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/core/types.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
 	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
+
+# Auto-generate browser CSS data tables from Blink .in files.
+# Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h
+# consumed by bin/browser parser + style code.
+BROWSER_CSS_GEN := bin/browser/gen_css_properties.h \
+                   bin/browser/gen_css_keywords.h \
+                   bin/browser/gen_media_features.h
+BLINK_CSS_INS := blink/Source/core/css/CSSProperties.in \
+                 blink/Source/core/css/CSSValueKeywords.in \
+                 blink/Source/core/css/MediaFeatureNames.in
+
+$(BROWSER_CSS_GEN): $(BLINK_CSS_INS) tools/gen_css_props.py
+	python3 tools/gen_css_props.py blink bin/browser
+
+browser_css_gen: $(BROWSER_CSS_GEN)
 
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
@@ -969,6 +999,22 @@ $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
 	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
 	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
+	@if [ ! -f test_iso/hello.iso ]; then \
+	  if command -v mkisofs >/dev/null 2>&1 || command -v genisoimage >/dev/null 2>&1 || command -v xorrisofs >/dev/null 2>&1; then \
+	    echo "Building test ISO fixture..."; \
+	    test_iso/fixtures/gen_big.sh; \
+	    ISO_TOOL=$$(command -v mkisofs 2>/dev/null || command -v genisoimage 2>/dev/null || command -v xorrisofs); \
+	    $$ISO_TOOL -R -quiet -o test_iso/hello.iso test_iso/fixtures; \
+	  else \
+	    echo "Skipping test ISO fixture build (need mkisofs, genisoimage, or xorrisofs)"; \
+	  fi; \
+	fi
+	@if [ -f test_iso/hello.iso ] && command -v mcopy >/dev/null 2>&1; then \
+	  echo "Staging test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"; \
+	  MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso </dev/null; \
+	elif [ -f test_iso/hello.iso ]; then \
+	  echo "Skipping test ISO staging (mcopy not installed)"; \
+	fi
 	@if [ -z "$(WAD_SRCS)" ]; then \
 	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
 	else \
@@ -1030,6 +1076,12 @@ run-smp: $(OS_IMAGE)
 run-net: $(OS_IMAGE)
 	qemu-system-i386 $(QEMU_COMMON) \
 		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
+		-device rtl8139,netdev=n0 \
+		-serial stdio
+
+run-ssh: $(OS_IMAGE)
+	qemu-system-i386 $(QEMU_COMMON) \
+		-netdev user,id=n0,hostfwd=tcp::2222-:22 \
 		-device rtl8139,netdev=n0 \
 		-serial stdio
 
