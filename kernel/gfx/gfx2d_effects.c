@@ -4,7 +4,7 @@
  * All filters operate on the current framebuffer (screen or active surface).
  * They read pixels with gfx2d_getpixel and write with gfx2d_pixel, so all
  * operations respect the current clipping rect.
- */
+*/
 
 #include "gfx2d_effects.h"
 #include "gfx2d.h"
@@ -233,7 +233,7 @@ void gfx2d_hue_shift(int x, int y, int w, int h, int degrees) {
     /* Simplified hue rotation using matrix approximation:
      *   R' = R*cos + (1-cos)/3 + sqrt(1/3)*sin * (G-B-related)
      * We use a lookup and fixed-point. For simplicity we do channel rotation
-     * at 120-degree intervals and blend between. */
+     * at 120-degree intervals and blend between.*/
 
     /* Normalize */
     degrees = ((degrees % 360) + 360) % 360;

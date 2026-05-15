@@ -7,7 +7,7 @@
  *
  * Encoding is table-driven: each instruction variant maps to opcode
  * bytes, ModRM /digit, and immediate size.
- */
+*/
 
 #include "as.h"
 #include "string.h"
@@ -120,7 +120,7 @@ static uint8_t modrm(int mod, int reg, int rm) {
 
 /*
  *  Label Table Helpers
- */
+*/
 
 /* Case-insensitive comparison */
 static int as_label_strcmp(const char *a, const char *b) {
@@ -198,7 +198,7 @@ static void as_add_patch(as_state_t *as, uint32_t code_offset,
 
 /*
  *  Token Consumption Helpers
- */
+*/
 
 static as_token_t as_advance(as_state_t *as) {
   return as_lex_next(as);
@@ -282,12 +282,12 @@ static void as_skip_newlines(as_state_t *as) {
   }
 }
 
-/* 
+/*
  *  Memory Operand Parser
  *
  *  Parses: [reg], [reg+disp], [reg-disp], [reg+reg], [addr]
  *  Returns base register index, displacement, and flags.
- */
+*/
 
 typedef struct {
   int has_base;      /* 1 if base register present */
@@ -365,23 +365,50 @@ static as_mem_operand_t as_parse_mem(as_state_t *as) {
   return mem;
 }
 
+static int as_token_is_size_prefix(as_token_t tok) {
+  return tok.type == AS_TOK_IDENT &&
+         (strcmp(tok.text, "byte") == 0 ||
+          strcmp(tok.text, "word") == 0 ||
+          strcmp(tok.text, "dword") == 0);
+}
+
+static int as_parse_mem_with_optional_size(as_state_t *as,
+                                           as_mem_operand_t *mem) {
+  as_token_t tok = as_lex_peek(as);
+  if (as_token_is_size_prefix(tok)) {
+    as_advance(as);
+    tok = as_lex_peek(as);
+  }
+  if (tok.type != AS_TOK_LBRACK) {
+    as_error(as, "expected memory operand");
+    return 0;
+  }
+  as_advance(as);
+  *mem = as_parse_mem(as);
+  return !as->error;
+}
+
+static void as_emit_mem_disp32(as_state_t *as, as_mem_operand_t *mem) {
+  if (mem->disp_is_label) {
+    as_label_t *lbl = as_find_label(as, mem->label_name);
+    if (lbl && lbl->defined) {
+      emit32(as, lbl->address);
+    } else {
+      as_add_patch(as, as->code_pos, mem->label_name, 0, 4);
+      emit32(as, 0);
+    }
+  } else {
+    emit32(as, (uint32_t)mem->disp);
+  }
+}
+
 /* Emit ModRM + optional SIB + displacement for a memory operand */
 static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
                                as_mem_operand_t *mem) {
   if (!mem->has_base && mem->has_disp) {
     /* [disp32] - mod=00, rm=5 (direct addressing) */
     emit8(as, modrm(0, reg_or_digit, 5));
-    if (mem->disp_is_label) {
-      as_label_t *lbl = as_find_label(as, mem->label_name);
-      if (lbl && lbl->defined) {
-        emit32(as, lbl->address);
-      } else {
-        as_add_patch(as, as->code_pos, mem->label_name, 0, 4);
-        emit32(as, 0);
-      }
-    } else {
-      emit32(as, (uint32_t)mem->disp);
-    }
+    as_emit_mem_disp32(as, mem);
     return;
   }
 
@@ -390,11 +417,11 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
 
     /* ESP (4) requires SIB byte */
     if (base == 4) {
-      if (!mem->has_disp || mem->disp == 0) {
+      if (!mem->has_disp || (mem->disp == 0 && !mem->disp_is_label)) {
         /* [esp] - mod=00, rm=4 (SIB), SIB = 0x24 */
         emit8(as, modrm(0, reg_or_digit, 4));
         emit8(as, 0x24);
-      } else if (mem->disp >= -128 && mem->disp <= 127) {
+      } else if (mem->disp >= -128 && mem->disp <= 127 && !mem->disp_is_label) {
         /* [esp+disp8] */
         emit8(as, modrm(1, reg_or_digit, 4));
         emit8(as, 0x24);
@@ -403,19 +430,19 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
         /* [esp+disp32] */
         emit8(as, modrm(2, reg_or_digit, 4));
         emit8(as, 0x24);
-        emit32(as, (uint32_t)mem->disp);
+        as_emit_mem_disp32(as, mem);
       }
       return;
     }
 
     /* EBP (5) with no displacement encodes as [ebp+disp8(0)] */
-    if (base == 5 && (!mem->has_disp || mem->disp == 0)) {
+    if (base == 5 && (!mem->has_disp || (mem->disp == 0 && !mem->disp_is_label))) {
       emit8(as, modrm(1, reg_or_digit, 5));
       emit8(as, 0x00);
       return;
     }
 
-    if (!mem->has_disp || mem->disp == 0) {
+    if (!mem->has_disp || (mem->disp == 0 && !mem->disp_is_label)) {
       /* [reg] - mod=00 */
       emit8(as, modrm(0, reg_or_digit, base));
     } else if (mem->disp >= -128 && mem->disp <= 127 && !mem->disp_is_label) {
@@ -425,17 +452,7 @@ static void as_emit_modrm_mem(as_state_t *as, int reg_or_digit,
     } else {
       /* [reg+disp32] - mod=10 */
       emit8(as, modrm(2, reg_or_digit, base));
-      if (mem->disp_is_label) {
-        as_label_t *lbl = as_find_label(as, mem->label_name);
-        if (lbl && lbl->defined) {
-          emit32(as, lbl->address);
-        } else {
-          as_add_patch(as, as->code_pos, mem->label_name, 0, 4);
-          emit32(as, 0);
-        }
-      } else {
-        emit32(as, (uint32_t)mem->disp);
-      }
+      as_emit_mem_disp32(as, mem);
     }
   }
 }
@@ -497,6 +514,18 @@ static void as_encode_noops(as_state_t *as, const char *mn) {
   if (strcmp(mn, "popf") == 0)   { emit8(as, 0x9D); return; }
   if (strcmp(mn, "pusha") == 0)  { emit8(as, 0x60); return; }
   if (strcmp(mn, "popa") == 0)   { emit8(as, 0x61); return; }
+  if (strcmp(mn, "iretd") == 0)  { emit8(as, 0xCF); return; }
+  if (strcmp(mn, "retf") == 0)   { emit8(as, 0xCB); return; }
+  if (strcmp(mn, "cpuid") == 0)  { emit8(as, 0x0F); emit8(as, 0xA2); return; }
+  if (strcmp(mn, "rdtsc") == 0)  { emit8(as, 0x0F); emit8(as, 0x31); return; }
+  if (strcmp(mn, "rdmsr") == 0)  { emit8(as, 0x0F); emit8(as, 0x32); return; }
+  if (strcmp(mn, "wrmsr") == 0)  { emit8(as, 0x0F); emit8(as, 0x30); return; }
+  if (strcmp(mn, "wbinvd") == 0) { emit8(as, 0x0F); emit8(as, 0x09); return; }
+  if (strcmp(mn, "invd") == 0)   { emit8(as, 0x0F); emit8(as, 0x08); return; }
+  if (strcmp(mn, "clts") == 0)   { emit8(as, 0x0F); emit8(as, 0x06); return; }
+  if (strcmp(mn, "sysenter") == 0) { emit8(as, 0x0F); emit8(as, 0x34); return; }
+  if (strcmp(mn, "sysexit") == 0)  { emit8(as, 0x0F); emit8(as, 0x35); return; }
+  if (strcmp(mn, "syscall") == 0)  { emit8(as, 0x0F); emit8(as, 0x05); return; }
   as_error(as, "unknown no-operand instruction");
 }
 
@@ -587,6 +616,18 @@ static void as_encode_incdec(as_state_t *as, const char *mn) {
       emit8(as, 0xFE);
       emit8(as, modrm(3, 1, tok.reg_index));
     }
+    return;
+  }
+  if (tok.type == AS_TOK_LBRACK || as_token_is_size_prefix(tok)) {
+    as_mem_operand_t mem;
+    if (tok.type == AS_TOK_LBRACK) {
+      as_mem_operand_t parsed = as_parse_mem(as);
+      mem = parsed;
+    } else if (!as_parse_mem_with_optional_size(as, &mem)) {
+      return;
+    }
+    emit8(as, 0xFF);
+    as_emit_modrm_mem(as, (strcmp(mn, "inc") == 0) ? 0 : 1, &mem);
     return;
   }
   as_error(as, "invalid operand for inc/dec");
@@ -1313,6 +1354,137 @@ static void as_encode_out(as_state_t *as) {
   }
 }
 
+static void as_encode_system_mem(as_state_t *as, const char *mn) {
+  int digit = -1;
+  if (strcmp(mn, "sgdt") == 0) digit = 0;
+  else if (strcmp(mn, "sidt") == 0) digit = 1;
+  else if (strcmp(mn, "lgdt") == 0) digit = 2;
+  else if (strcmp(mn, "lidt") == 0) digit = 3;
+  else if (strcmp(mn, "invlpg") == 0) digit = 7;
+
+  as_mem_operand_t mem;
+  if (digit < 0 || !as_parse_mem_with_optional_size(as, &mem)) {
+    if (!as->error) as_error(as, "invalid system memory operand");
+    return;
+  }
+
+  emit8(as, 0x0F);
+  emit8(as, 0x01);
+  as_emit_modrm_mem(as, digit, &mem);
+}
+
+static void as_encode_system_rm(as_state_t *as, const char *mn) {
+  int digit = -1;
+  uint8_t op2 = 0x00;
+  if (strcmp(mn, "sldt") == 0) { op2 = 0x00; digit = 0; }
+  else if (strcmp(mn, "str") == 0) { op2 = 0x00; digit = 1; }
+  else if (strcmp(mn, "ltr") == 0) { op2 = 0x00; digit = 3; }
+  else if (strcmp(mn, "smsw") == 0) { op2 = 0x01; digit = 4; }
+  else if (strcmp(mn, "lmsw") == 0) { op2 = 0x01; digit = 6; }
+
+  if (digit < 0) {
+    as_error(as, "invalid system register operand");
+    return;
+  }
+
+  as_token_t tok = as_lex_peek(as);
+  if (tok.type == AS_TOK_REGISTER) {
+    as_advance(as);
+    emit8(as, 0x0F);
+    emit8(as, op2);
+    emit8(as, modrm(3, digit, tok.reg_index));
+    return;
+  }
+  if (tok.type == AS_TOK_LBRACK || as_token_is_size_prefix(tok)) {
+    as_mem_operand_t mem;
+    if (!as_parse_mem_with_optional_size(as, &mem)) return;
+    emit8(as, 0x0F);
+    emit8(as, op2);
+    as_emit_modrm_mem(as, digit, &mem);
+    return;
+  }
+
+  as_error(as, "expected register or memory operand");
+}
+
+static void as_encode_bswap(as_state_t *as) {
+  as_token_t tok = as_advance(as);
+  if (tok.type != AS_TOK_REGISTER || tok.reg_size != 4) {
+    as_error(as, "bswap requires 32-bit register");
+    return;
+  }
+  emit8(as, 0x0F);
+  emit8(as, (uint8_t)(0xC8 + tok.reg_index));
+}
+
+static void as_encode_atomic_rm_reg(as_state_t *as, const char *mn) {
+  uint8_t op2 = (strcmp(mn, "xadd") == 0) ? 0xC1 : 0xB1;
+  as_token_t dst = as_lex_peek(as);
+
+  if (dst.type == AS_TOK_REGISTER) {
+    as_advance(as);
+    if (dst.reg_size != 4) {
+      as_error(as, "atomic instruction requires 32-bit destination");
+      return;
+    }
+    as_token_t comma = as_advance(as);
+    if (comma.type != AS_TOK_COMMA) { as_error(as, "expected comma"); return; }
+    as_token_t src = as_advance(as);
+    if (src.type != AS_TOK_REGISTER || src.reg_size != 4) {
+      as_error(as, "atomic instruction requires 32-bit register source");
+      return;
+    }
+    emit8(as, 0x0F);
+    emit8(as, op2);
+    emit8(as, modrm(3, src.reg_index, dst.reg_index));
+    return;
+  }
+
+  if (dst.type == AS_TOK_LBRACK || as_token_is_size_prefix(dst)) {
+    as_mem_operand_t mem;
+    if (!as_parse_mem_with_optional_size(as, &mem)) return;
+    as_token_t comma = as_advance(as);
+    if (comma.type != AS_TOK_COMMA) { as_error(as, "expected comma"); return; }
+    as_token_t src = as_advance(as);
+    if (src.type != AS_TOK_REGISTER || src.reg_size != 4) {
+      as_error(as, "atomic instruction requires 32-bit register source");
+      return;
+    }
+    emit8(as, 0x0F);
+    emit8(as, op2);
+    as_emit_modrm_mem(as, src.reg_index, &mem);
+    return;
+  }
+
+  as_error(as, "invalid atomic destination");
+}
+
+static void as_encode_lock(as_state_t *as) {
+  as_token_t mn = as_advance(as);
+  if (mn.type != AS_TOK_MNEMONIC) {
+    as_error(as, "lock requires an instruction");
+    return;
+  }
+
+  emit8(as, 0xF0);
+  if (strcmp(mn.text, "xadd") == 0 || strcmp(mn.text, "cmpxchg") == 0) {
+    as_encode_atomic_rm_reg(as, mn.text);
+    return;
+  }
+  if (strcmp(mn.text, "inc") == 0 || strcmp(mn.text, "dec") == 0) {
+    as_encode_incdec(as, mn.text);
+    return;
+  }
+  if (strcmp(mn.text, "add") == 0 || strcmp(mn.text, "sub") == 0 ||
+      strcmp(mn.text, "and") == 0 || strcmp(mn.text, "or") == 0 ||
+      strcmp(mn.text, "xor") == 0) {
+    as_encode_alu(as, mn.text);
+    return;
+  }
+
+  as_error(as, "unsupported lock instruction");
+}
+
 /*
  *  FPU State-Control Instructions (Task 8)
  *
@@ -1325,7 +1497,7 @@ static void as_encode_out(as_state_t *as) {
  *        stmxcsr m32   -> 0F AE /3
  *
  *  finit = fwait ; fninit (3 bytes: 9B DB E3); fninit alone is 2 bytes.
- */
+*/
 static void as_encode_fpu_mem(as_state_t *as, int digit) {
   as_token_t tok = as_advance(as);
   if (tok.type != AS_TOK_LBRACK) {
@@ -1376,7 +1548,7 @@ static void as_encode_fpu_state(as_state_t *as, const char *mn) {
  *
  *  Mnemonics routed through these helpers detect xmm vs mem via the token
  *  type + reg_size == AS_REGSIZE_XMM check.
- */
+*/
 
 /* Small token-shape predicates modeled on how as_encode_mov() peeks. */
 static int as_tok_is_xmm(const as_token_t *t) {
@@ -1407,7 +1579,7 @@ static void as_emit_sse_prefix_op(as_state_t *as, uint8_t prefix,
 /* (A) Two-XMM / XMM+mem form.
  *   op  xmm, xmm      -> <pfx> 0F <op> <11 reg_dst reg_src>
  *   op  xmm, [mem]    -> <pfx> 0F <op> <modrm reg_dst + mem>
- */
+*/
 static void as_encode_sse_rr(as_state_t *as, uint8_t prefix, uint8_t opcode) {
   as_token_t dst = as_advance(as);
   if (!as_tok_is_xmm(&dst)) {
@@ -1488,7 +1660,7 @@ static void as_encode_sse_gpr_xmm(as_state_t *as, uint8_t prefix,
 }
 
 /* Generic XMM store form: [mem], xmm.  Used by MOVSS/MOVSD store (op=0x11),
- * MOVAPS/MOVAPD store (op=0x29), MOVUPS/MOVUPD store (op=0x11). */
+ * MOVAPS/MOVAPD store (op=0x29), MOVUPS/MOVUPD store (op=0x11).*/
 static void as_encode_xmm_store(as_state_t *as, uint8_t prefix,
                                 uint8_t opcode) {
   /* Already at the '[' token. */
@@ -1515,7 +1687,7 @@ static void as_encode_movss_to_mem(as_state_t *as, uint8_t prefix) {
 
 /* (D) xmm, xmm/mem, imm8 -- for SHUFPS, CMPPS.  Emits:
  *   <pfx> 0F <op> <modrm> <imm8>
- */
+*/
 static void as_encode_sse_rr_imm8(as_state_t *as, uint8_t prefix,
                                   uint8_t opcode) {
   as_token_t dst = as_advance(as);
@@ -1565,7 +1737,7 @@ static void as_encode_sse_rr_imm8(as_state_t *as, uint8_t prefix,
 }
 
 /* Top-level dispatch for the 23 Task 9 mnemonics.  Callers guarantee
- * that mn matches one of them. */
+ * that mn matches one of them.*/
 static void as_encode_sse_scalar(as_state_t *as, const char *mn) {
   /* MOVSS / MOVSD have two directions.  Peek to pick. */
   if (strcmp(mn, "movss") == 0 || strcmp(mn, "movsd") == 0) {
@@ -1617,7 +1789,7 @@ static void as_encode_sse_scalar(as_state_t *as, const char *mn) {
  *
  *  MOVUPS/UPD share opcode 0x10/0x11 with MOVSS/MOVSD; disambiguation is
  *  by prefix (none for PS, 66 for PD, F3 for SS, F2 for SD).
- */
+*/
 static void as_encode_sse_packed(as_state_t *as, const char *mn) {
   /* MOV{A,U}P{S,D}: direction peek like MOVSS/MOVSD. */
   if (strcmp(mn, "movaps") == 0) {
@@ -1695,7 +1867,7 @@ static void as_encode_sse_packed(as_state_t *as, const char *mn) {
  *  and FADD/FSUB/FMUL/FDIV all emit the m32fp single-precision encoding
  *  (base 0xD9 / 0xD8).  For double precision from assembly use MOVSD / ADDSD
  *  and friends via the SSE2 scalar pipeline from Task 9.
- */
+*/
 
 /* Emit a constant 2-byte x87 opcode (no operand). */
 static int as_encode_x87_const(as_state_t *as, uint8_t b1, uint8_t b2) {
@@ -1726,7 +1898,7 @@ static int as_tok_is_st(const as_token_t *t) {
  * ", ST(j)" trailer.  For FADDP-style ("ST(i), ST(0)") the first ST index
  * is the i we want; for FADD-style ("ST(0), ST(i)") the *second* one is.
  * We extract a non-zero index when present - otherwise the caller's default
- * behaviour is the ST(0) form. */
+ * behaviour is the ST(0) form.*/
 static int as_parse_one_st_index(as_state_t *as, uint8_t *out_i) {
   as_token_t tok = as_advance(as);
   if (!as_tok_is_st(&tok)) {
@@ -1745,7 +1917,7 @@ static int as_parse_one_st_index(as_state_t *as, uint8_t *out_i) {
       return 0;
     }
     /* Pick the non-zero index (the "variable" operand). If both are zero,
-     * falling back to first is fine (encodes i=0). */
+     * falling back to first is fine (encodes i=0).*/
     if (first != 0) {
       *out_i = first;
     } else {
@@ -1759,7 +1931,7 @@ static int as_parse_one_st_index(as_state_t *as, uint8_t *out_i) {
 }
 
 /* Emit an x87 ST(i) register-encoded opcode: <b1> <second_base + i>.
- * Works for FADD/FSUB/FMUL/FDIV/FADDP/FSUBP/FMULP/FDIVP/FLD ST(i). */
+ * Works for FADD/FSUB/FMUL/FDIV/FADDP/FSUBP/FMULP/FDIVP/FLD ST(i).*/
 static int as_encode_x87_st(as_state_t *as, uint8_t b1, uint8_t second_base) {
   uint8_t i = 0;
   if (!as_parse_one_st_index(as, &i)) return 0;
@@ -1770,7 +1942,7 @@ static int as_encode_x87_st(as_state_t *as, uint8_t b1, uint8_t second_base) {
 }
 
 /* Dispatch gate for x87 mnemonics.  Returns 1 if mn matched and was
- * encoded, 0 otherwise (caller falls through to the next bucket). */
+ * encoded, 0 otherwise (caller falls through to the next bucket).*/
 static int as_encode_x87(as_state_t *as, const char *mn) {
   /* (1) Constant 2-byte opcodes. */
   if (strcmp(mn, "fabs")   == 0) return as_encode_x87_const(as, 0xD9, 0xE1);
@@ -1786,7 +1958,7 @@ static int as_encode_x87(as_state_t *as, const char *mn) {
   if (strcmp(mn, "fprem")  == 0) return as_encode_x87_const(as, 0xD9, 0xF8);
 
   /* (2) Memory-operand opcodes (m32fp only).  FLD / FST / FSTP also accept
-   *     an ST(i) register form - peek to disambiguate. */
+   *     an ST(i) register form - peek to disambiguate.*/
   if (strcmp(mn, "fld") == 0) {
     as_token_t f = as_lex_peek(as);
     if (as_tok_is_st(&f)) {
@@ -1909,11 +2081,11 @@ static void as_handle_dd(as_state_t *as) {
       int needs_patch = 0;
       uint32_t val = as_resolve_ident(as, tok.text, &needs_patch);
       /* Data section patches: we use code_offset here but the data
-       * is in the data buffer.  Mark as absolute. */
+       * is in the data buffer.  Mark as absolute.*/
       if (needs_patch) {
         /* Store data_pos offset with a flag so patcher knows it's data */
         /* For simplicity, store the absolute offset in data buffer
-         * and handle in patch resolution by checking range */
+         * and handle in patch resolution by checking range*/
         as_add_patch(as, 0x80000000u | (as->data_pos), tok.text, 0, 4);
       }
       emit_data32(as, val);
@@ -1983,7 +2155,7 @@ static void as_handle_times(as_state_t *as) {
 
 /*
  *  Forward-Reference Patch Resolution (second pass)
- */
+*/
 
 static void as_resolve_patches(as_state_t *as) {
   for (int i = 0; i < as->patch_count; i++) {
@@ -2046,7 +2218,7 @@ static void as_resolve_patches(as_state_t *as) {
 
 void as_parse_program(as_state_t *as) {
   /* NOTE: do NOT reset label_count here - kernel bindings and equ
-   * constants were registered during as_init_state() and must survive. */
+   * constants were registered during as_init_state() and must survive.*/
   if (as->include_depth == 0) {
     as->patch_count = 0;
     as->current_section = 0; /* start in .text */
@@ -2141,7 +2313,7 @@ void as_parse_program(as_state_t *as) {
         /* NASM-style inline data declaration after label:
          *   name: db ...
          *   buf:  resb 64
-         */
+*/
         as_token_t after_colon = as_lex_peek(as);
         if (after_colon.type == AS_TOK_DIRECTIVE) {
           as_advance(as);
@@ -2262,7 +2434,7 @@ void as_parse_program(as_state_t *as) {
       /* SSE scalar MOVSD has operands; string-op MOVSD has none.
        * If the token immediately after the mnemonic is a newline/EOF we
        * let it fall through to the no-op dispatch below.  Otherwise the
-       * SSE branch below claims it. */
+       * SSE branch below claims it.*/
       if (strcmp(mn, "movsd") == 0) {
         as_token_t la = as_lex_peek(as);
         if (la.type != AS_TOK_NEWLINE && la.type != AS_TOK_EOF) {
@@ -2287,7 +2459,13 @@ void as_parse_program(as_state_t *as) {
           strcmp(mn, "clc") == 0 || strcmp(mn, "stc") == 0 ||
           strcmp(mn, "cmc") == 0 || strcmp(mn, "int3") == 0 ||
           strcmp(mn, "pushf") == 0 || strcmp(mn, "popf") == 0 ||
-          strcmp(mn, "pusha") == 0 || strcmp(mn, "popa") == 0) {
+          strcmp(mn, "pusha") == 0 || strcmp(mn, "popa") == 0 ||
+          strcmp(mn, "iretd") == 0 || strcmp(mn, "retf") == 0 ||
+          strcmp(mn, "cpuid") == 0 || strcmp(mn, "rdtsc") == 0 ||
+          strcmp(mn, "rdmsr") == 0 || strcmp(mn, "wrmsr") == 0 ||
+          strcmp(mn, "wbinvd") == 0 || strcmp(mn, "invd") == 0 ||
+          strcmp(mn, "clts") == 0 || strcmp(mn, "sysenter") == 0 ||
+          strcmp(mn, "sysexit") == 0 || strcmp(mn, "syscall") == 0) {
         as_encode_noops(as, mn);
         as_expect_newline_or_eof(as);
         continue;
@@ -2399,8 +2577,42 @@ void as_parse_program(as_state_t *as) {
         continue;
       }
 
+      if (strcmp(mn, "lgdt") == 0 || strcmp(mn, "lidt") == 0 ||
+          strcmp(mn, "sgdt") == 0 || strcmp(mn, "sidt") == 0 ||
+          strcmp(mn, "invlpg") == 0) {
+        as_encode_system_mem(as, mn);
+        as_expect_newline_or_eof(as);
+        continue;
+      }
+
+      if (strcmp(mn, "ltr") == 0 || strcmp(mn, "str") == 0 ||
+          strcmp(mn, "sldt") == 0 || strcmp(mn, "smsw") == 0 ||
+          strcmp(mn, "lmsw") == 0) {
+        as_encode_system_rm(as, mn);
+        as_expect_newline_or_eof(as);
+        continue;
+      }
+
+      if (strcmp(mn, "bswap") == 0) {
+        as_encode_bswap(as);
+        as_expect_newline_or_eof(as);
+        continue;
+      }
+
+      if (strcmp(mn, "xadd") == 0 || strcmp(mn, "cmpxchg") == 0) {
+        as_encode_atomic_rm_reg(as, mn);
+        as_expect_newline_or_eof(as);
+        continue;
+      }
+
+      if (strcmp(mn, "lock") == 0) {
+        as_encode_lock(as);
+        as_expect_newline_or_eof(as);
+        continue;
+      }
+
       /* FPU state-control (Task 8): fxsave / fxrstor / finit / fninit /
-       * fwait / ldmxcsr / stmxcsr */
+       * fwait / ldmxcsr / stmxcsr*/
       if (strcmp(mn, "fxsave") == 0 || strcmp(mn, "fxrstor") == 0 ||
           strcmp(mn, "finit") == 0  || strcmp(mn, "fninit") == 0  ||
           strcmp(mn, "fwait") == 0  ||
@@ -2411,7 +2623,7 @@ void as_parse_program(as_state_t *as) {
       }
 
       /* SSE scalar (Task 9).  movsd is dispatched above (operand-peek).
-       * All others are uniquely SSE mnemonics. */
+       * All others are uniquely SSE mnemonics.*/
       if (strcmp(mn, "movss")  == 0 ||
           strcmp(mn, "addss")  == 0 || strcmp(mn, "addsd")  == 0 ||
           strcmp(mn, "subss")  == 0 || strcmp(mn, "subsd")  == 0 ||
@@ -2430,7 +2642,7 @@ void as_parse_program(as_state_t *as) {
       }
 
       /* SSE packed (Task 10).  Same encoding shape as scalar but operates
-       * on the full 128-bit XMM register. */
+       * on the full 128-bit XMM register.*/
       if (strcmp(mn, "movaps") == 0 || strcmp(mn, "movups") == 0 ||
           strcmp(mn, "movapd") == 0 || strcmp(mn, "movupd") == 0 ||
           strcmp(mn, "addps")  == 0 || strcmp(mn, "addpd")  == 0 ||
@@ -2452,7 +2664,7 @@ void as_parse_program(as_state_t *as) {
       /* x87 FPU (Task 11): ~25 classic mnemonics - FLD/FST/FSTP, FADD/
        * FSUB/FMUL/FDIV (m32fp) and their P-variants (ST(i)), transcendentals
        * (FSIN/FCOS/FSQRT/...), and control word FLDCW/FSTCW/FSTSW.
-       * Gate on the 'f' prefix to skip the dispatcher for non-x87 mnemonics. */
+       * Gate on the 'f' prefix to skip the dispatcher for non-x87 mnemonics.*/
       if (mn[0] == 'f' && as_encode_x87(as, mn)) {
         as_expect_newline_or_eof(as);
         continue;

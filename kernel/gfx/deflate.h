@@ -4,7 +4,7 @@
  * bytes (caller skips zlib CMF/FLG and Adler-32 if present). Used by:
  *   - png.c   (zlib-wrapped IDAT, header skipped at call site)
  *   - woff1.c (per-table zlib, header skipped at call site)
- */
+*/
 
 #ifndef DEFLATE_H
 #define DEFLATE_H
@@ -19,7 +19,7 @@
  * over-runs are reported as KDEFLATE_ERR.
  *
  * Returns KDEFLATE_OK on success, KDEFLATE_ERR on any malformed input
- * or buffer mismatch. */
+ * or buffer mismatch.*/
 int kdeflate_raw(const uint8_t *src, uint32_t src_len,
                  uint8_t *out, uint32_t out_len);
 

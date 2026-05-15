@@ -3,7 +3,7 @@
  *
  * Supports 24-bit uncompressed BMP (BITMAPINFOHEADER) files.
  * Uses VFS for file I/O and outputs 32bpp XRGB pixel data.
- */
+*/
 
 #include "bmp.h"
 #include "gfx2d.h"
@@ -76,7 +76,7 @@ static int bmp_write_exact(int fd, const void *buffer, uint32_t count)
  * Read and validate BMP file header + DIB header.
  * On success, fills *info and leaves fd positioned at pixel data.
  * Returns BMP_OK or negative error.
- */
+*/
 static int bmp_read_headers(int fd, bmp_info_t *info, uint32_t *data_offset,
                             int *top_down)
 {
@@ -222,7 +222,7 @@ int bmp_decode(const char *path, uint32_t *buffer, uint32_t buffer_size)
     /*
      * BMP stores scanlines bottom-to-top by default.
      * We decode so that buffer[0] = top-left pixel.
-     */
+*/
     uint32_t y;
     for (y = 0; y < height; y++) {
         /* BMP row index: bottom-up -> read row for (height - 1 - y) */
@@ -299,10 +299,10 @@ int bmp_encode(const char *path, const uint32_t *buffer,
     memset(dib, 0, BMP_DIB_HDR_SIZE);
 
     write_le32(dib + 0,  BMP_DIB_HDR_SIZE);   /* header size: 40 */
-    write_le32(dib + 4,  width);               /* width           */
+    write_le32(dib + 4,  width);               /* width */
     write_le32(dib + 8,  height);              /* height (positive = bottom-up) */
-    write_le16(dib + 12, 1);                   /* planes          */
-    write_le16(dib + 14, 24);                  /* bpp             */
+    write_le16(dib + 12, 1);                   /* planes */
+    write_le16(dib + 14, 24);                  /* bpp */
     write_le32(dib + 16, 0);                   /* compression: BI_RGB */
     write_le32(dib + 20, pixel_data_size);     /* image data size */
     /* x/y pixels per meter, colors used/important: all 0 */

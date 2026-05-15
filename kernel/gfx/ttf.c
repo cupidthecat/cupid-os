@@ -4,13 +4,13 @@
  * flat blob. Every read is bounds-checked against the blob length the
  * caller passed once at table-discovery time and then trusted within
  * each table. Malformed fonts return errors rather than crashing.
- */
+*/
 
 #include "ttf.h"
 #include "../drivers/serial.h"
 #include "string.h"
 
-/*  --- BE primitive readers --------------------------------------- */
+/* BE primitive readers */
 
 uint16_t ttf_u16(const uint8_t *blob, int off) {
     return (uint16_t)((((uint32_t)blob[off]) << 8) | (uint32_t)blob[off + 1]);
@@ -25,14 +25,14 @@ int16_t ttf_i16(const uint8_t *blob, int off) {
     return (int16_t)ttf_u16(blob, off);
 }
 
-/*  --- table directory walk -------------------------------------- */
+/* table directory walk */
 
 int ttf_find_table(const uint8_t *blob, int blob_len,
                    uint32_t tag,
                    int *out_off, int *out_len) {
     if (blob_len < 12) return -1;
     /* sfnt version: 0x00010000 (TrueType) or 'OTTO' / 'true' / 'typ1'.
-     * We accept TrueType only; OTTO indicates CFF outlines we don't decode. */
+     * We accept TrueType only; OTTO indicates CFF outlines we don't decode.*/
     uint32_t scaler = ttf_u32(blob, 0);
     if (scaler != 0x00010000u && scaler != 0x74727565u /* 'true' */) {
         return -1;
@@ -55,24 +55,24 @@ int ttf_find_table(const uint8_t *blob, int blob_len,
     return -1;
 }
 
-/*  --- head ------------------------------------------------------- */
+/* head */
 
 int ttf_parse_head(const uint8_t *blob, int off,
                    int *units_per_em, int *index_to_loc_fmt) {
     /* head.unitsPerEm at offset 18, head.indexToLocFormat at 50.
-     * Total size 54. */
+     * Total size 54.*/
     *units_per_em = (int)ttf_u16(blob, off + 18);
     *index_to_loc_fmt = (int)ttf_i16(blob, off + 50);
     return 0;
 }
 
-/*  --- hhea ------------------------------------------------------- */
+/* hhea */
 
 int ttf_parse_hhea(const uint8_t *blob, int off,
                    int *ascent, int *descent, int *line_gap,
                    int *num_h_metrics) {
     /* hhea: version(4) ascent(2) descent(2) lineGap(2) ...
-     * numberOfHMetrics at +34. */
+     * numberOfHMetrics at +34.*/
     *ascent  = (int)ttf_i16(blob, off + 4);
     *descent = (int)ttf_i16(blob, off + 6);
     *line_gap = (int)ttf_i16(blob, off + 8);
@@ -80,14 +80,14 @@ int ttf_parse_hhea(const uint8_t *blob, int off,
     return 0;
 }
 
-/*  --- maxp ------------------------------------------------------- */
+/* maxp */
 
 int ttf_parse_maxp(const uint8_t *blob, int off, int *num_glyphs) {
     *num_glyphs = (int)ttf_u16(blob, off + 4);
     return 0;
 }
 
-/*  --- OS/2 ------------------------------------------------------- */
+/* OS/2 */
 
 int ttf_parse_os2(const uint8_t *blob, int off,
                   int *weight, int *italic) {
@@ -98,10 +98,10 @@ int ttf_parse_os2(const uint8_t *blob, int off,
     return 0;
 }
 
-/*  --- name ------------------------------------------------------- */
+/* name */
 
 /* Decode UTF-16BE bytes [src..src+src_len) into Latin-1 best effort.
- * Codepoints > 0xFF become '?'. Writes <= cap-1 bytes plus NUL. */
+ * Codepoints > 0xFF become '?'. Writes <= cap-1 bytes plus NUL.*/
 static int decode_utf16be_latin1(const uint8_t *src, int src_len,
                                  char *dst, int cap) {
     int o = 0;
@@ -127,7 +127,7 @@ int ttf_parse_name(const uint8_t *blob, int off,
 
     /* Prefer (platform=3, encoding=1, language=0x0409) - Windows English.
      * Fall back to (platform=1, encoding=0) - Macintosh Roman.
-     * Fall back to anything that matches the name_id. */
+     * Fall back to anything that matches the name_id.*/
     int best = -1;
     int best_score = -1;
     for (int i = 0; i < count; i++) {
@@ -167,7 +167,7 @@ int ttf_parse_name(const uint8_t *blob, int off,
     return o;
 }
 
-/*  --- cmap ------------------------------------------------------- */
+/* cmap */
 
 /* Format 4: segmented BMP (codepoints 0..0xFFFF). */
 static int cmap4_lookup(const uint8_t *blob, int sub, int cp) {
@@ -221,7 +221,7 @@ int ttf_cmap_glyph(const uint8_t *blob, int cmap_off, int codepoint) {
     int n_subtables = (int)ttf_u16(blob, cmap_off + 2);
     /* First pass: prefer (plat=3, enc=10) - Win Unicode UCS-4 (format 12).
      * Second pass: (plat=3, enc=1) - Win Unicode BMP (format 4).
-     * Third  pass: (plat=0, enc=*) - Unicode (any). */
+     * Third  pass: (plat=0, enc=*) - Unicode (any).*/
     int best = -1;
     int best_score = -1;
     for (int i = 0; i < n_subtables; i++) {
@@ -255,7 +255,7 @@ int ttf_cmap_glyph(const uint8_t *blob, int cmap_off, int codepoint) {
     return 0;
 }
 
-/*  --- hmtx ------------------------------------------------------- */
+/* hmtx */
 
 int ttf_glyph_advance(const uint8_t *blob, int hmtx_off,
                       int num_h_metrics, int num_glyphs,
@@ -268,7 +268,7 @@ int ttf_glyph_advance(const uint8_t *blob, int hmtx_off,
     return (int)ttf_u16(blob, hmtx_off + (num_h_metrics - 1) * 4);
 }
 
-/*  --- loca ------------------------------------------------------- */
+/* loca */
 
 int ttf_glyph_offset(const uint8_t *blob, int loca_off,
                      int idx, int index_to_loc_fmt) {
@@ -284,7 +284,7 @@ int ttf_glyph_offset(const uint8_t *blob, int loca_off,
     return a;
 }
 
-/*  --- glyf ------------------------------------------------------- */
+/* glyf */
 
 /* Simple-glyph flag bits */
 #define TTF_FLAG_ON_CURVE       0x01
@@ -369,7 +369,7 @@ static int ttf_decode_simple(const uint8_t *blob, int g_off,
         /* The flag was in xs[] but we just overwrote it. Re-read from
          * blob via a second pass over the flag stream. Cheaper: stash
          * flags in on_curve high bits before x decode. We've already
-         * lost xs - so reparse flags. */
+         * lost xs - so reparse flags.*/
         (void)idx;
     }
     /* Reparse flags for Y deltas. (Simple loop again.) */
@@ -456,7 +456,7 @@ static int ttf_outline_recurse(const uint8_t *blob,
         }
         if (!(flags & TTF_COMP_ARGS_ARE_XY_VALUES)) {
             /* Match-points form: not supported, skip the component but
-             * keep parsing siblings so we don't bail on the whole glyph. */
+             * keep parsing siblings so we don't bail on the whole glyph.*/
             dx = 0; dy = 0;
         }
         /* Skip transform matrix - we don't apply scale/rotation in v1. */

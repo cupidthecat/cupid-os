@@ -4,7 +4,7 @@
  * Manages desktop icons: registration, drawing, hit-testing,
  * selection, drag & drop, persistence, and auto-discovery from
  * //icon: directives in CupidC source files.
- */
+*/
 
 #include "gfx2d_icons.h"
 #include "app_launch.h"
@@ -655,7 +655,7 @@ int gfx2d_icons_parse_directives(const char *path, icon_info_t *info) {
             }
 
             /* Stop scanning after first non-comment, non-blank line
-             * once we've passed the header area */
+             * once we've passed the header area*/
             if (found_icon && line[0] != '/' && line[0] != ' ' &&
                 line[0] != '\t' && line[0] != '\n' &&
                 line[0] != '\r' && line[0] != '\0' &&
@@ -699,7 +699,7 @@ void gfx2d_icons_scan_bin(void) {
             continue;
 
         /* Build full path with bounded copy - defends against any readdir
-         * backend that might return a name longer than VFS_MAX_NAME-1. */
+         * backend that might return a name longer than VFS_MAX_NAME-1.*/
         char path[GFX2D_ICON_PATH_MAX];
         int pi = 0;
         const char *prefix = "/bin/";

@@ -4,7 +4,7 @@
  * Software-rendered 2D graphics exposed as CupidC kernel bindings.
  * Supports alpha blending, gradients, shadows, retro effects, sprites,
  * and Win95/demo-scene aesthetics.
- */
+*/
 
 #ifndef GFX2D_H
 #define GFX2D_H
@@ -12,7 +12,7 @@
 #include "types.h"
 
 /* Font size constants (also registered as CupidC bindings) */
-#define GFX2D_FONT_SMALL 0  /* 6x8 clipped  */
+#define GFX2D_FONT_SMALL 0  /* 6x8 clipped */
 #define GFX2D_FONT_NORMAL 1 /* 8x8 standard */
 #define GFX2D_FONT_LARGE 2  /* 8x8 scaled 2x */
 
@@ -115,7 +115,7 @@ int gfx2d_text_height(int font);
 /* Proportional-advance variants: per-glyph horizontal advance derived from
  * the rightmost set pixel in the 8x8 bitmap, so 'i' / '.' don't reserve a
  * full 8px slot. Existing fixed-width gfx2d_text / gfx2d_text_width are
- * unchanged so GUI titlebars continue to centre as before. */
+ * unchanged so GUI titlebars continue to centre as before.*/
 int  gfx2d_glyph_advance(char c, int font);
 int  gfx2d_text_width_n(const char *str, int len, int font);
 void gfx2d_text_n(int x, int y, const char *str, int len,
@@ -216,7 +216,7 @@ int gfx2d_window_content_h(void);
  * @param my      Current mouse Y position
  * @param clicked 1 if left mouse button was just pressed, 0 otherwise
  * @return GFX2D_TOOLBAR_NONE, GFX2D_TOOLBAR_CLOSE, or GFX2D_TOOLBAR_MINIMIZE
- */
+*/
 int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked);
 
 /**
@@ -226,7 +226,7 @@ int gfx2d_app_toolbar(const char *title, int mx, int my, int clicked);
  * Then re-enters fullscreen and returns.
  *
  * @param app_name  Name shown on the taskbar button
- */
+*/
 void gfx2d_minimize(const char *app_name);
 
 void gfx2d_draw_cursor(void); /* draw cursor at current mouse position */
@@ -240,7 +240,7 @@ void gfx2d_cursor_hide(
  * @param result_path  Output buffer (must be VFS_MAX_PATH bytes)
  * @param filter_ext   Optional extension filter (e.g., ".txt") or NULL
  * @return 1 if file selected, 0 if cancelled, negative on error
- */
+*/
 int gfx2d_file_dialog_open(const char *start_path, char *result_path,
                             const char *filter_ext);
 
@@ -252,7 +252,7 @@ int gfx2d_file_dialog_open(const char *start_path, char *result_path,
  * @param result_path   Output buffer (must be VFS_MAX_PATH bytes)
  * @param filter_ext    Optional extension filter or NULL
  * @return 1 if path entered, 0 if cancelled, negative on error
- */
+*/
 int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
                             char *result_path, const char *filter_ext);
 
@@ -261,7 +261,7 @@ int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
  *
  * @param message  The message to display
  * @return 1 if Yes, 0 if No
- */
+*/
 int gfx2d_confirm_dialog(const char *message);
 
 /**
@@ -271,14 +271,14 @@ int gfx2d_confirm_dialog(const char *message);
  * @param result   Output buffer for the entered text
  * @param maxlen   Maximum length of result buffer
  * @return 1 if text entered, 0 if cancelled
- */
+*/
 int gfx2d_input_dialog(const char *prompt, char *result, int maxlen);
 
 /**
  * Shows a modal message dialog with OK button.
  *
  * @param message  The message to display
- */
+*/
 void gfx2d_message_dialog(const char *message);
 
 /**
@@ -289,13 +289,13 @@ void gfx2d_message_dialog(const char *message);
  * @param items  Array of string pointers (menu item labels)
  * @param count  Number of menu items (max 16)
  * @return selected index (0-based) or -1 if cancelled
- */
+*/
 int gfx2d_popup_menu(int x, int y, const char **items, int count);
 
 /**
  * Draws a non-modal tooltip near (x,y), clamped to screen bounds.
  * Text is rendered in normal font with a bordered translucent box.
- */
+*/
 void gfx2d_tooltip(int x, int y, const char *text);
 
 #endif /* GFX2D_H */

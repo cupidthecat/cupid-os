@@ -2,7 +2,7 @@
  * cupidscript_parse.c - Parser for CupidScript
  *
  * Transforms a flat token array into an Abstract Syntax Tree (AST).
- */
+*/
 #include "cupidscript.h"
 #include "string.h"
 #include "memory.h"
@@ -232,7 +232,7 @@ static ast_node_t *parse_if(void) {
     if (!n) return NULL;
 
     /* Parse condition: everything up to 'then'
-     * Typically: [ test expression ] */
+     * Typically: [ test expression ]*/
     skip_newlines();
 
     if (peek()->type == TOK_LBRACKET) {
@@ -427,11 +427,11 @@ static ast_node_t *parse_command_or_assignment(void) {
         /* Value: could be a word, string, variable, arith, or empty.
          * The lexer may emit an empty TOK_WORD before $var or $((expr))
          * because $ is not a word char.  Skip empty words and grab the
-         * real value token that follows. */
+         * real value token that follows.*/
         if (is_word_token(peek()->type)) {
             token_t *val = advance();
             /* If the word is empty and the next token is a variable or
-             * arithmetic expression, that is the real value. */
+             * arithmetic expression, that is the real value.*/
             if (val->value[0] == '\0' && is_word_token(peek()->type)) {
                 val = advance();
             }
@@ -581,7 +581,7 @@ static ast_node_t *parse_block(token_type_t end1, token_type_t end2) {
 
 /* cupidscript_parse
  * Parses `tokens` (token_count entries) and returns an AST root.
- */
+*/
 ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
     toks = tokens;
     tok_count = token_count;
@@ -609,7 +609,7 @@ ast_node_t *cupidscript_parse(token_t *tokens, int token_count) {
 
 /* cupidscript_free_ast
  * Recursively frees an AST node and all its children.
- */
+*/
 void cupidscript_free_ast(ast_node_t *node) {
     if (!node) return;
 

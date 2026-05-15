@@ -13,7 +13,7 @@
  *   ${var^^}         - Uppercase all
  *   ${var,,}         - Lowercase all
  *   ${var^}          - Capitalize first
- */
+*/
 
 #include "cupidscript.h"
 #include "string.h"
@@ -133,7 +133,7 @@ char *cs_string_remove_suffix(const char *value, const char *pattern,
     }
 
     /* Try suffixes: for shortest, start from longest suffix;
-     * for longest, start from shortest suffix (entire string) */
+     * for longest, start from shortest suffix (entire string)*/
     int best_end = vlen;  /* How many chars to keep */
 
     if (longest) {
@@ -315,7 +315,7 @@ char *cs_string_capitalize(const char *value) {
 /* Main advanced variable expansion entry point
  * Called from cupidscript_runtime.c when ${...} is detected.
  * `expr` points to the content after "${" (before closing "}").
- */
+*/
 char *cs_expand_advanced_var(const char *expr, script_context_t *ctx) {
     int elen = 0;
     while (expr[elen] && expr[elen] != '}') elen++;

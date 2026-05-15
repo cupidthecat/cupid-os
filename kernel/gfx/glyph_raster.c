@@ -15,7 +15,7 @@
  * Floating-point work is kept inside this file. Public API takes/returns
  * ints only - matches the warning in bin/feature15_libm.cc:3 about
  * CupidC FP-in-user-function edge cases (kernel side is plain C and
- * doesn't hit that, but we keep the rule for symmetry). */
+ * doesn't hit that, but we keep the rule for symmetry).*/
 
 #include "glyph_raster.h"
 #include "../mm/memory.h"
@@ -23,7 +23,7 @@
 
 /* libm's floor/ceil use a CupidC-internal ABI (return in xmm0, not ST(0)),
  * so plain kernel C cannot call them - see kernel/cpu/libm.h:17. We do all
- * the rounding work locally with these inline helpers. */
+ * the rounding work locally with these inline helpers.*/
 static inline int float_floor_int(float v) {
     int i = (int)v;                     /* truncation toward zero */
     if (v < 0.0f && (float)i != v) i--; /* adjust for negative non-integer */
@@ -40,7 +40,7 @@ static inline int float_ceil_int(float v) {
 #define SUBPIX         4
 
 /* Per-call scratch. Glyphs are processed serially in the cache; one
- * static arena is enough and avoids heap churn on every glyph miss. */
+ * static arena is enough and avoids heap churn on every glyph miss.*/
 static float seg_x0[MAX_SEGS];
 static float seg_y0[MAX_SEGS];
 static float seg_x1[MAX_SEGS];
@@ -94,7 +94,7 @@ static void emit_contour(const int *xs, const int *ys, const int *on_curve,
 
     /* Pre-resolve "starting" point. If first point is off-curve we walk
      * back to find an on-curve start; if every point is off-curve, the
-     * synthetic start is the midpoint of the first and last. */
+     * synthetic start is the midpoint of the first and last.*/
     int start_idx = first;
     int end_idx   = last;
     float start_x, start_y;
@@ -183,7 +183,7 @@ int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
 
     /* Pixel-space bbox: Y is flipped (font Y up -> bitmap Y down). The
      * glyph's font-space ymax sits at the smallest pixel-space y. We
-     * translate so the bbox starts at pixel-space (0, 0). */
+     * translate so the bbox starts at pixel-space (0, 0).*/
     float pxmin = (float)xmin * scale;
     float pxmax = (float)xmax * scale;
     float pymin = -(float)ymax * scale;       /* top */
@@ -199,7 +199,7 @@ int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
 
     /* pen_y_offset translates "outline at font-space Y" into bitmap row.
      * In bitmap row coords, baseline sits at (0 - iy0). For a point at
-     * font-space Y yF, the bitmap row is (-yF * scale) - iy0. */
+     * font-space Y yF, the bitmap row is (-yF * scale) - iy0.*/
     float pen_y_off = -(float)iy0;
     /* x_off so leftmost pixel-space coord lands at column 0. */
     float pen_x_off = -(float)ix0;
@@ -212,7 +212,7 @@ int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
         /* Translate + scale all points by emit_contour, but x_off is
          * applied here by passing pre-shifted scale results - simpler
          * to subtract ix0 inside emit by passing scale and then shifting
-         * the segs. Doing it in a tight post-loop instead. */
+         * the segs. Doing it in a tight post-loop instead.*/
         emit_contour(xs, ys, on_curve, prev, last, scale, pen_y_off);
         prev = last + 1;
     }
@@ -282,7 +282,7 @@ int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
                     if (ia < 0) ia = 0;
                     if (ib > w * SUBPIX) ib = w * SUBPIX;
                     /* Each lit subpixel column lights one slot of the
-                     * containing output pixel. */
+                     * containing output pixel.*/
                     for (int sx = ia; sx < ib; sx++) {
                         cov[sx / SUBPIX]++;
                     }
@@ -312,7 +312,7 @@ int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
      * placed baseline at the origin of "pixel space" by negating font
      * Y). So pixels above baseline = -iy0 (the bitmap top row sits
      * iy0 below baseline if iy0>=0, or above if iy0<0). by reports
-     * "pixels above baseline" as out_by = -iy0. */
+     * "pixels above baseline" as out_by = -iy0.*/
     *out_by = -iy0;
     return 0;
 }

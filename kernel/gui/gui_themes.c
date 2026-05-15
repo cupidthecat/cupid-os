@@ -3,7 +3,7 @@
  *
  * Active theme management, 7 built-in theme presets,
  * style properties, and .theme file I/O.
- */
+*/
 
 #include "gui_themes.h"
 #include "string.h"

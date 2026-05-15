@@ -1,6 +1,6 @@
 /*
  * ansi.h - ANSI escape sequence parser for cupid-os
- */
+*/
 #ifndef ANSI_H
 #define ANSI_H
 
@@ -26,23 +26,52 @@
 #define ANSI_DEFAULT_FG ANSI_COLOR_LIGHT_GRAY
 #define ANSI_DEFAULT_BG ANSI_COLOR_BLACK
 
-#define ANSI_ESC_BUF_SIZE 32
+#define ANSI_ESC_BUF_SIZE 96
 
 typedef struct {
   uint8_t fg_color;
   uint8_t bg_color;
   bool bold;
+  bool inverse;
+  bool g0_alt_charset;
+  int param1;
+  int param2;
   char esc_buf[ANSI_ESC_BUF_SIZE];
   int esc_len;
   bool in_escape;
   bool in_csi;
+  bool in_osc;
+  bool osc_esc;
+  bool in_charset_select;
 } terminal_color_state_t;
 
 typedef enum {
   ANSI_RESULT_PRINT,
   ANSI_RESULT_SKIP,
   ANSI_RESULT_CLEAR,
-  ANSI_RESULT_HOME
+  ANSI_RESULT_HOME,
+  ANSI_RESULT_CURSOR_POS,
+  ANSI_RESULT_CURSOR_UP,
+  ANSI_RESULT_CURSOR_DOWN,
+  ANSI_RESULT_CURSOR_FORWARD,
+  ANSI_RESULT_CURSOR_BACK,
+  ANSI_RESULT_CURSOR_COL,
+  ANSI_RESULT_ERASE_DISPLAY,
+  ANSI_RESULT_ERASE_LINE,
+  ANSI_RESULT_SAVE_CURSOR,
+  ANSI_RESULT_RESTORE_CURSOR,
+  ANSI_RESULT_SCROLL_UP,
+  ANSI_RESULT_SCROLL_DOWN,
+  ANSI_RESULT_SET_MODE,
+  ANSI_RESULT_RESET_MODE,
+  ANSI_RESULT_SET_SCROLL_REGION,
+  ANSI_RESULT_CURSOR_ROW,
+  ANSI_RESULT_INSERT_LINE,
+  ANSI_RESULT_DELETE_LINE,
+  ANSI_RESULT_INSERT_CHARS,
+  ANSI_RESULT_DELETE_CHARS,
+  ANSI_RESULT_ERASE_CHARS,
+  ANSI_RESULT_REPEAT_CHAR
 } ansi_result_t;
 
 void ansi_init(terminal_color_state_t *state);

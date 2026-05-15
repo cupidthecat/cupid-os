@@ -3,7 +3,7 @@
  *
  * Menu bars, context menus, toolbars, status bars,
  * tooltips, and keyboard shortcut handling.
- */
+*/
 #ifndef GUI_MENUS_H
 #define GUI_MENUS_H
 
@@ -14,12 +14,12 @@
 
 typedef struct {
     const char *label;
-    int         id;          /* unique ID for this item   */
+    int         id;          /* unique ID for this item */
     bool        enabled;
-    bool        checked;     /* for checkable items       */
-    bool        separator;   /* draw as separator line    */
-    const char *shortcut;    /* display text e.g. "Ctrl+S"*/
-    int         shortcut_key;/* scancode (0=none)         */
+    bool        checked;     /* for checkable items */
+    bool        separator;   /* draw as separator line */
+    const char *shortcut;    /* display text e.g. "Ctrl+S" */
+    int         shortcut_key;/* scancode (0=none) */
 } ui_menu_item_t;
 
 typedef struct {
@@ -30,7 +30,7 @@ typedef struct {
 
 typedef struct {
     int  open_menu;     /* index of open dropdown (-1 = none) */
-    int  hover_item;    /* hovered item inside open menu      */
+    int  hover_item;    /* hovered item inside open menu */
     bool mouse_in_bar;
 } ui_menubar_state_t;
 

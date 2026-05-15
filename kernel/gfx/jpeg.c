@@ -6,7 +6,7 @@
  * at boot).  Handles 1-component grayscale and 3-component YCbCr
  * with sub-samplings 1x1, 2x1, 1x2, 2x2.  Restart markers are
  * honoured; progressive, arithmetic, 12-bit, and CMYK are rejected.
- */
+*/
 
 #include "jpeg.h"
 #include "memory.h"
@@ -127,7 +127,7 @@ static const uint8_t jp_zigzag[64] = {
  * fcos opcode and can return imprecise values from a cold boot context
  * before SSE/FPU stabilises). Values match Python's math.cos to single
  * precision; matches Blink's libjpeg-turbo equivalent jpeg_idct_islow
- * scaled-cosine constants. */
+ * scaled-cosine constants.*/
 static const float jp_cos_tbl[8][8] = {
     {  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f,  0.35355339f },
     {  0.49039264f,  0.41573481f,  0.27778512f,  0.09754516f, -0.09754516f, -0.27778512f, -0.41573481f, -0.49039264f },
@@ -343,7 +343,7 @@ static uint32_t jp_yuv_xrgb(int Y, int Cb, int Cr) {
     if (B > 255) B = 255;
     /* JPEG has no alpha channel; emit fully opaque so the alpha-aware
      * blit path in gfx2d_image_draw_scaled doesn't treat the pixels as
-     * transparent and skip them. */
+     * transparent and skip them.*/
     return 0xFF000000u | ((uint32_t)R << 16) | ((uint32_t)G << 8) | (uint32_t)B;
 }
 

@@ -13,7 +13,7 @@
  *   - Inline assembly (asm { ... })
  *   - Direct port I/O via inb()/outb() builtins
  *   - Full kernel API access via predefined bindings
- */
+*/
 
 #ifndef CUPIDC_H
 #define CUPIDC_H
@@ -24,33 +24,35 @@
 /* Limits - meaningfully bigger than the legacy values, but kept tight
  * enough that sizeof(cc_state_t) stays around 1 MB.  A bigger struct
  * means a single huge kmalloc on every JIT invocation, which has hit
- * heap-canary panics in practice.                                   */
-#define CC_MAX_CODE (1024u * 1024u)  /* 1 MB code buffer            */
-#define CC_MAX_DATA (8192u * 1024u)  /* 8 MB data/string buffer     */
-#define CC_MAX_SYMBOLS 4096          /* max symbols in scope         */
-#define CC_MAX_LOCALS 256            /* max locals per function      */
-#define CC_MAX_PARAMS 32             /* max function parameters      */
-#define CC_MAX_PATCHES 4096          /* max forward-ref patches      */
-#define CC_MAX_BREAKS 128            /* max nested loop depth         */
+ * heap-canary panics in practice.*/
+#define CC_MAX_CODE (1024u * 1024u)  /* 1 MB code buffer */
+#define CC_MAX_DATA (8192u * 1024u)  /* 8 MB data/string buffer */
+#define CC_MAX_SYMBOLS 4096          /* max symbols in scope */
+#define CC_MAX_LOCALS 256            /* max locals per function */
+#define CC_MAX_PARAMS 32             /* max function parameters */
+#define CC_MAX_PATCHES 4096          /* max forward-ref patches */
+#define CC_MAX_BREAKS 128            /* max nested loop depth */
 #define CC_MAX_BREAKS_PER_LOOP 64    /* max break statements per loop */
-#define CC_MAX_IDENT 96              /* max identifier length        */
-#define CC_MAX_STRING 1024           /* max string literal length    */
-#define CC_MAX_ERRORS 1              /* fail-fast: stop at first     */
-#define CC_MAX_FUNCS 1024            /* max functions                */
-#define CC_MAX_STRUCTS 64            /* max struct definitions        */
-#define CC_MAX_FIELDS 32             /* max fields per struct         */
+#define CC_MAX_IDENT 96              /* max identifier length */
+#define CC_MAX_STRING 1024           /* max string literal length */
+#define CC_MAX_ERRORS 1              /* fail-fast: stop at first */
+#define CC_MAX_FUNCS 1024            /* max functions */
+#define CC_MAX_STRUCTS 64            /* max struct definitions */
+#define CC_MAX_FIELDS 32             /* max fields per struct */
+#define CC_MAX_LABELS 128            /* local labels per function/top */
+#define CC_MAX_LABEL_PATCHES 128     /* pending goto patches/label */
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
  * Layout puts the JIT image at 16 MB, with 9 MB of code+data headroom
  * (1 MB code + 8 MB data) before CupidASM at 26 MB. The browser's
  * static globals (parallel arrays for DOM/style/RT/atom pools, plus
  * 128 webfont slots with 3-deep URL fallbacks) are the largest user
- * of the data section so far. */
+ * of the data section so far.*/
 #define CC_JIT_CODE_BASE 0x01000000u
-#define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code             */
+#define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code */
 
 #define CC_AOT_CODE_BASE 0x01000000u
-#define CC_AOT_DATA_BASE 0x01100000u /* 1 MB after code             */
+#define CC_AOT_DATA_BASE 0x01100000u /* 1 MB after code */
 
 /* Token Types */
 typedef enum {
@@ -95,13 +97,24 @@ typedef enum {
   CC_TOK_VOLATILE,
   CC_TOK_REG,
   CC_TOK_NOREG,
+  CC_TOK_LONG,
+  CC_TOK_SHORT,
+  CC_TOK_SIGNED,
+  CC_TOK_U64,
+  CC_TOK_I64,
+  CC_TOK_EXTERN,
+  CC_TOK_INLINE,
+  CC_TOK_REGISTER,
+  CC_TOK_RESTRICT,
+  CC_TOK_GOTO,
+  CC_TOK_ATTRIBUTE,
 
   /* Identifiers and literals */
-  CC_TOK_IDENT,    /* variable/function names               */
-  CC_TOK_NUMBER,   /* integer literals                      */
+  CC_TOK_IDENT,    /* variable/function names */
+  CC_TOK_NUMBER,   /* integer literals */
   CC_TOK_FLIT,     /* float/double literals (1.5, .5, 1e10) */
-  CC_TOK_STRING,   /* "string literals"                     */
-  CC_TOK_CHAR_LIT, /* 'A'                                   */
+  CC_TOK_STRING,   /* "string literals" */
+  CC_TOK_CHAR_LIT, /* 'A' */
 
   /* Operators */
   CC_TOK_PLUS,
@@ -136,7 +149,7 @@ typedef enum {
   CC_TOK_SHREQ,
   CC_TOK_PLUSPLUS,
   CC_TOK_MINUSMINUS,
-  CC_TOK_AMP, /* & (address-of, also bitwise AND)      */
+  CC_TOK_AMP, /* & (address-of, also bitwise AND) */
 
   /* Delimiters */
   CC_TOK_LPAREN,
@@ -161,8 +174,8 @@ typedef struct {
   cc_token_type_t type;
   char text[CC_MAX_STRING]; /* holds idents & string content */
   int32_t int_value;
-  double fval;     /* filled when type == CC_TOK_FLIT        */
-  int flit_bits;   /* 32 ('f'/'F' suffix) or 64 (no suffix)  */
+  double fval;     /* filled when type == CC_TOK_FLIT */
+  int flit_bits;   /* 32 ('f'/'F' suffix) or 64 (no suffix) */
   int line;
 } cc_token_t;
 
@@ -170,32 +183,32 @@ typedef struct {
 
 /* Symbol kind */
 typedef enum {
-  SYM_LOCAL,  /* local variable (EBP-relative)         */
-  SYM_PARAM,  /* function parameter (EBP+relative)     */
-  SYM_FUNC,   /* user-defined function                 */
-  SYM_KERNEL, /* kernel binding (absolute address)     */
-  SYM_GLOBAL  /* global variable in data section       */
+  SYM_LOCAL,  /* local variable (EBP-relative) */
+  SYM_PARAM,  /* function parameter (EBP+relative) */
+  SYM_FUNC,   /* user-defined function */
+  SYM_KERNEL, /* kernel binding (absolute address) */
+  SYM_GLOBAL  /* global variable in data section */
 } cc_sym_kind_t;
 
 /* Type representation */
 typedef enum {
-  TYPE_INT,        /* 32-bit int                            */
-  TYPE_CHAR,       /* 8-bit char                            */
-  TYPE_VOID,       /* void (functions only)                 */
-  TYPE_PTR,        /* pointer (any)                         */
-  TYPE_INT_PTR,    /* int*                                  */
-  TYPE_CHAR_PTR,   /* char*                                 */
-  TYPE_STRUCT,     /* struct value (stack-allocated)         */
-  TYPE_STRUCT_PTR, /* pointer to struct                     */
-  TYPE_FUNC_PTR,   /* int (*fn)(...) - function pointer     */
-  TYPE_FLOAT,      /* 32-bit IEEE-754 single (SSE scalar)   */
-  TYPE_DOUBLE,     /* 64-bit IEEE-754 double (SSE scalar)   */
-  TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes)       */
-  TYPE_DOUBLE2     /* 2x double SIMD vector (16 bytes)      */
+  TYPE_INT,        /* 32-bit int */
+  TYPE_CHAR,       /* 8-bit char */
+  TYPE_VOID,       /* void (functions only) */
+  TYPE_PTR,        /* pointer (any) */
+  TYPE_INT_PTR,    /* int* */
+  TYPE_CHAR_PTR,   /* char* */
+  TYPE_STRUCT,     /* struct value (stack-allocated) */
+  TYPE_STRUCT_PTR, /* pointer to struct */
+  TYPE_FUNC_PTR,   /* int (*fn)(...) - function pointer */
+  TYPE_FLOAT,      /* 32-bit IEEE-754 single (SSE scalar) */
+  TYPE_DOUBLE,     /* 64-bit IEEE-754 double (SSE scalar) */
+  TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes) */
+  TYPE_DOUBLE2     /* 2x double SIMD vector (16 bytes) */
 } cc_type_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)
- */
+*/
 #define TYPE_U0 TYPE_VOID
 #define TYPE_U8 TYPE_CHAR
 #define TYPE_U16 TYPE_INT
@@ -210,26 +223,32 @@ typedef struct {
   char name[CC_MAX_IDENT];
   cc_sym_kind_t kind;
   cc_type_t type;
-  int32_t offset;   /* stack offset or code offset       */
-  uint32_t address; /* absolute address (kernel/func)    */
-  int param_count;  /* for functions                     */
-  int is_defined;   /* has function body been emitted?   */
-  int is_array;     /* stack-allocated array?             */
+  int32_t offset;   /* stack offset or code offset */
+  uint32_t address; /* absolute address (kernel/func) */
+  int param_count;  /* for functions */
+  int is_defined;   /* has function body been emitted? */
+  int is_array;     /* stack-allocated array? */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
   /* For 3D arrays: array_dim2 is the size in bytes that each element of
    * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
    * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2
-   * = C, so foo[i][j] adds i*B*C + j*C and foo[i][j][k] adds another k. */
+   * = C, so foo[i][j] adds i*B*C + j*C and foo[i][j][k] adds another k.*/
   int array_dim2;
+  /* Compile-time integer constant value. Set for enum entries so they
+   * can be used in array-size const-expressions and other contexts that
+   * need a literal int. is_const_int=0 means "not a compile-time
+   * constant" - fall back to a runtime load.*/
+  int     is_const_int;
+  int32_t const_int_value;
 } cc_symbol_t;
 
 typedef struct {
   char name[CC_MAX_IDENT];
   cc_type_t type;
-  int32_t offset;   /* byte offset within struct         */
-  int struct_index; /* if type is struct, which struct    */
-  int array_count;  /* >0 if this field is a fixed array  */
+  int32_t offset;   /* byte offset within struct */
+  int struct_index; /* if type is struct, which struct */
+  int array_count;  /* >0 if this field is a fixed array */
 } cc_field_t;
 
 typedef struct {
@@ -242,9 +261,17 @@ typedef struct {
 } cc_struct_def_t;
 
 typedef struct {
-  uint32_t code_offset;    /* where in code buffer to patch     */
-  char name[CC_MAX_IDENT]; /* target symbol name                */
+  uint32_t code_offset;    /* where in code buffer to patch */
+  char name[CC_MAX_IDENT]; /* target symbol name */
 } cc_patch_t;
+
+typedef struct {
+  char name[CC_MAX_IDENT];
+  uint32_t code_offset;
+  int is_defined;
+  uint32_t patches[CC_MAX_LABEL_PATCHES];
+  int patch_count;
+} cc_label_t;
 
 /* Compiler State */
 typedef struct {
@@ -259,14 +286,14 @@ typedef struct {
   int has_peek;
 
   /* Code generation */
-  uint8_t *code;      /* code output buffer                */
-  uint32_t code_pos;  /* current write position in code    */
-  uint32_t code_base; /* base address of code in memory    */
+  uint8_t *code;      /* code output buffer */
+  uint32_t code_pos;  /* current write position in code */
+  uint32_t code_base; /* base address of code in memory */
 
   /* Data section (string literals, globals) */
-  uint8_t *data;      /* data output buffer                */
-  uint32_t data_pos;  /* current write position in data    */
-  uint32_t data_base; /* base address of data in memory    */
+  uint8_t *data;      /* data output buffer */
+  uint32_t data_pos;  /* current write position in data */
+  uint32_t data_base; /* base address of data in memory */
 
   /* Symbol table */
   cc_symbol_t symbols[CC_MAX_SYMBOLS];
@@ -277,14 +304,18 @@ typedef struct {
   int struct_count;
 
   /* Local scope tracking */
-  int local_offset;     /* current stack offset for locals   */
+  int local_offset;     /* current stack offset for locals */
   int max_local_offset; /* deepest stack offset seen (most negative) */
-  int scope_start;      /* symbol index at function start    */
-  int param_count;      /* params in current function        */
+  int scope_start;      /* symbol index at function start */
+  int param_count;      /* params in current function */
 
   /* Forward reference patches */
   cc_patch_t patches[CC_MAX_PATCHES];
   int patch_count;
+
+  /* Function/top-level labels for goto */
+  cc_label_t labels[CC_MAX_LABELS];
+  int label_count;
 
   /* Break/continue stack for loops */
   uint32_t break_patches[CC_MAX_BREAKS][CC_MAX_BREAKS_PER_LOOP];
@@ -297,11 +328,11 @@ typedef struct {
   char error_msg[128];
 
   /* Entry point */
-  uint32_t entry_offset; /* offset of main() in code          */
+  uint32_t entry_offset; /* offset of main() in code */
   int has_entry;
 
   /* Mode */
-  int jit_mode; /* 1 = JIT (execute), 0 = AOT (save)*/
+  int jit_mode; /* 1 = JIT (execute), 0 = AOT (save) */
 
   /* Typedef aliases (global scope only) */
   char typedef_names[16][CC_MAX_IDENT];
@@ -310,9 +341,9 @@ typedef struct {
 
   /* HolyC-style top-level / auto-main handling.
    * The parser auto-emits a trailing `call main` when a file has top-level
-   * statements AND defines main() — so legacy programs can omit the
+   * statements AND defines main() - so legacy programs can omit the
    * explicit `main();` call. These flags suppress the auto-call when the
-   * top-level code already calls main itself (otherwise main runs twice). */
+   * top-level code already calls main itself (otherwise main runs twice).*/
   int in_top_level;            /* 1 while parsing top-level stmts */
   int main_called_top_level;   /* 1 if user called main() at top level */
 } cc_state_t;
@@ -323,7 +354,7 @@ typedef struct {
  * cupidc_jit - Compile and immediately execute a .cc source file.
  *
  * @param path  VFS path to the .cc source file
- */
+*/
 void cupidc_jit(const char *path);
 
 /**
@@ -331,7 +362,7 @@ void cupidc_jit(const char *path);
  *
  * @param path  VFS path to the .cc source file
  * @return 0 on success, -1 on compile/load/run setup failure
- */
+*/
 int cupidc_jit_status(const char *path);
 
 /**
@@ -339,7 +370,7 @@ int cupidc_jit_status(const char *path);
  *
  * @param src_path   VFS path to the .cc source file
  * @param out_path   VFS path for the output ELF binary
- */
+*/
 void cupidc_aot(const char *src_path, const char *out_path);
 
 /**
@@ -347,7 +378,7 @@ void cupidc_aot(const char *src_path, const char *out_path);
  *
  * @param src_path  VFS path to .cc source file
  * @param out_fn    Output callback (NULL uses kernel print)
- */
+*/
 void cupidc_dis(const char *src_path, dis_output_fn out_fn);
 
 void cc_lex_init(cc_state_t *cc, const char *source);
@@ -364,7 +395,7 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
                         cc_type_t type);
 
 /*  *  REPL (HolyC-style interactive shell)
- *  */
+ **/
 
 /* Persistent REPL state - lives until reboot or explicit reset */
 typedef struct {
@@ -387,7 +418,7 @@ typedef struct {
 /**
  * repl_init - Initialize the persistent REPL state.
  * Called once at shell startup. Allocates cc_state_t, registers kernel bindings.
- */
+*/
 void repl_init(void);
 
 /**
@@ -395,7 +426,7 @@ void repl_init(void);
  *
  * @param line  The input line (will be copied internally)
  * @return 0 on success, -1 on compilation failure (caller should fall back)
- */
+*/
 int repl_eval(const char *line);
 
 /**
@@ -405,14 +436,14 @@ int repl_eval(const char *line);
  * @param has_value  Receives 1 if answer should be printed, 0 for void/no value
  * @param elapsed_ms Receives elapsed execution time in milliseconds
  * @return 1 if a prompt result was pending, 0 otherwise
- */
+*/
 int repl_consume_prompt_result(int32_t *value, int *has_value,
                                uint32_t *elapsed_ms);
 
 /**
  * repl_reset - Wipe REPL state and reinitialize.
  * Frees the old compiler state, allocates fresh, re-registers bindings.
- */
+*/
 void repl_reset(void);
 
 /**
@@ -422,7 +453,7 @@ void repl_reset(void);
  *
  * @param cc      Compiler state
  * @param is_expr Output: set to 1 if the line is an expression-statement
- */
+*/
 void cc_parse_repl_line(cc_state_t *cc, int *is_expr);
 
 #endif /* CUPIDC_H */

@@ -5,7 +5,7 @@
  * Handles keywords, identifiers, integer literals (decimal & hex),
  * string literals, character literals, operators, and delimiters.
  * Skips whitespace and // line comments.
- */
+*/
 
 #include "cupidc.h"
 #include "string.h"
@@ -58,7 +58,7 @@ static char cc_peek_char2(cc_state_t *cc) {
  * fractional digit multiplies a 0.1 running scale factor rather than
  * using correctly-rounded arbitrary-precision arithmetic. Acceptable
  * for CupidOS hobby-scope; matching glibc's strtod is out of scope.
- */
+*/
 static double parse_double(const char *s) {
   double v = 0.0;
   int i = 0;
@@ -236,12 +236,42 @@ static cc_token_type_t cc_check_keyword(const char *text) {
     return CC_TOK_ENUM;
   if (strcmp(text, "unsigned") == 0)
     return CC_TOK_UNSIGNED;
+  if (strcmp(text, "signed") == 0)
+    return CC_TOK_SIGNED;
+  if (strcmp(text, "long") == 0)
+    return CC_TOK_LONG;
+  if (strcmp(text, "short") == 0)
+    return CC_TOK_SHORT;
+  if (strcmp(text, "U64") == 0)
+    return CC_TOK_U64;
+  if (strcmp(text, "uint64_t") == 0)
+    return CC_TOK_U64;
+  if (strcmp(text, "I64") == 0)
+    return CC_TOK_I64;
+  if (strcmp(text, "int64_t") == 0)
+    return CC_TOK_I64;
   if (strcmp(text, "typedef") == 0)
     return CC_TOK_TYPEDEF;
   if (strcmp(text, "const") == 0)
     return CC_TOK_CONST;
   if (strcmp(text, "static") == 0)
     return CC_TOK_STATIC;
+  if (strcmp(text, "extern") == 0)
+    return CC_TOK_EXTERN;
+  if (strcmp(text, "inline") == 0)
+    return CC_TOK_INLINE;
+  if (strcmp(text, "register") == 0)
+    return CC_TOK_REGISTER;
+  if (strcmp(text, "restrict") == 0)
+    return CC_TOK_RESTRICT;
+  if (strcmp(text, "__restrict") == 0)
+    return CC_TOK_RESTRICT;
+  if (strcmp(text, "__restrict__") == 0)
+    return CC_TOK_RESTRICT;
+  if (strcmp(text, "goto") == 0)
+    return CC_TOK_GOTO;
+  if (strcmp(text, "__attribute__") == 0)
+    return CC_TOK_ATTRIBUTE;
   if (strcmp(text, "volatile") == 0)
     return CC_TOK_VOLATILE;
   if (strcmp(text, "reg") == 0)

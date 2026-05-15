@@ -1,6 +1,6 @@
 /*
  * cupidscript_arrays.h - Array and associative array support for CupidScript
- */
+*/
 #ifndef CUPIDSCRIPT_ARRAYS_H
 #define CUPIDSCRIPT_ARRAYS_H
 

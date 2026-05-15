@@ -4,7 +4,7 @@
  * A bash-like scripting language supporting variables, conditionals,
  * loops, and functions. Scripts use .cup extension and can be run
  * via "cupid script.cup" or "./script.cup".
- */
+*/
 #ifndef CUPIDSCRIPT_H
 #define CUPIDSCRIPT_H
 

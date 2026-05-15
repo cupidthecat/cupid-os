@@ -21,4 +21,7 @@ void terminal_mark_dirty(void);
 /* Scroll the terminal by delta lines (negative=up, positive=down) */
 void terminal_handle_scroll(int delta);
 
+/* Return the active GUI terminal's PTY geometry. */
+void terminal_get_size(int *cols, int *rows);
+
 #endif

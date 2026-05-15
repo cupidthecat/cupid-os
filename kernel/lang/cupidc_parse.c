@@ -10,7 +10,7 @@
  *   - Inline assembly blocks
  *   - Kernel function bindings (print, kmalloc, etc.)
  *   - Port I/O builtins (inb, outb)
- */
+*/
 
 #include "serial.h"
 #include "cupidc.h"
@@ -128,7 +128,7 @@ static void patch_jump(cc_state_t *cc, uint32_t patch_pos) {
 }
 
 /* add esp, imm (clean up stack args).  Uses imm8 form when possible, else
- * imm32.  Callers may pass >127 when args include doubles. */
+ * imm32.  Callers may pass >127 when args include doubles.*/
 static void emit_add_esp(cc_state_t *cc, int32_t val) {
   if (val == 0)
     return;
@@ -159,7 +159,7 @@ static void emit_sub_esp(cc_state_t *cc, uint32_t val) {
  * extra bytes per function; in exchange we don't need to track whether
  * a given function touches SSE.  Local-frame size is rounded up to a
  * multiple of 16 (see emit_sub_esp patching) so ESP stays 16-aligned
- * after the SUB ESP, <local_frame>. */
+ * after the SUB ESP, <local_frame>.*/
 static void emit_prologue(cc_state_t *cc) {
   emit8(cc, 0x55); /* push ebp */
   emit8(cc, 0x89); /* mov ebp, esp */
@@ -245,18 +245,18 @@ static void emit_lea_local(cc_state_t *cc, int32_t offset) {
  * guaranteed to be more than 4-byte aligned.  MOVSD is fine with 8-byte
  * aligned addresses; 4-byte alignment may generate #GP on some models,
  * but QEMU (and all x86 we target) tolerates misaligned MOVSD.
- */
+*/
 
 /* Emit a ModR/M byte for [ebp + disp32] form:
  *   mod=10 (disp32), reg=xmm, r/m=101 (EBP) -> 0x85 | (xmm<<3)
- */
+*/
 static uint8_t cc_xmm_modrm_ebp(int xmm) {
   return (uint8_t)(0x85 | ((xmm & 7) << 3));
 }
 
 /* Emit a ModR/M byte for [disp32] form (mod=00, r/m=101):
  *   0x05 | (xmm<<3)
- */
+*/
 static uint8_t cc_xmm_modrm_disp32(int xmm) {
   return (uint8_t)(0x05 | ((xmm & 7) << 3));
 }
@@ -311,7 +311,7 @@ static void emit_movsd_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
 
 /* MOVSS/MOVSD [esp], xmm  and  MOVSS/MOVSD xmm, [esp].
  * ModR/M: mod=00, reg=xmm, r/m=100 (SIB) + SIB byte 0x24 ([esp]).
- */
+*/
 static void emit_movss_esp_xmm(cc_state_t *cc, int xmm) {
   emit8(cc, 0xF3);
   emit8(cc, 0x0F);
@@ -342,7 +342,7 @@ static void emit_movsd_xmm_esp(cc_state_t *cc, int xmm) {
 }
 
 /* Push an XMM float onto the stack: SUB ESP,4 + MOVSS [ESP], xmm.
- * Used by function-call arg-push loop when arg is TYPE_FLOAT. */
+ * Used by function-call arg-push loop when arg is TYPE_FLOAT.*/
 static void emit_push_xmm_float(cc_state_t *cc, int xmm) {
   emit8(cc, 0x83); /* sub esp, 4 */
   emit8(cc, 0xEC);
@@ -355,7 +355,7 @@ static void emit_push_xmm_float(cc_state_t *cc, int xmm) {
 }
 
 /* Push an XMM double onto the stack: SUB ESP,8 + MOVSD [ESP], xmm.
- * Used by function-call arg-push loop when arg is TYPE_DOUBLE. */
+ * Used by function-call arg-push loop when arg is TYPE_DOUBLE.*/
 static void emit_push_xmm_double(cc_state_t *cc, int xmm) {
   emit8(cc, 0x83); /* sub esp, 8 */
   emit8(cc, 0xEC);
@@ -368,7 +368,7 @@ static void emit_push_xmm_double(cc_state_t *cc, int xmm) {
 }
 
 /* MOVAPS xmm_dst, xmm_src: 0F 28 /r (mod=11).  Used to move an
- * FP return value into XMM0 before emitting the epilogue. */
+ * FP return value into XMM0 before emitting the epilogue.*/
 static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
   if (dst == src)
     return;
@@ -385,7 +385,7 @@ static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
  * `push ebp; mov ebp, esp; and esp, -16`, which aligns ESP but leaves
  * EBP holding the pre-AND value (which is off by 4 from the aligned
  * boundary because of the PUSH EBP). MOVUPS tolerates unaligned
- * addresses and is cheap on modern x86, so it's the safer choice. */
+ * addresses and is cheap on modern x86, so it's the safer choice.*/
 static void emit_movups_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0x0F);
   emit8(cc, 0x10);
@@ -397,7 +397,7 @@ static void emit_movups_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
  * Encoding: 0F 11 /r with ModR/M mod=10, reg=xmm, r/m=101 (EBP) + disp32.
  * Reserved for full-vector stores; init-list codegen currently
  * stores element-by-element via MOVSS/MOVSD.
- * See emit_movups_xmm_local for why we use MOVUPS, not MOVAPS. */
+ * See emit_movups_xmm_local for why we use MOVUPS, not MOVAPS.*/
 __attribute__((unused))
 static void emit_movups_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0x0F);
@@ -409,7 +409,7 @@ static void emit_movups_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
 /* ADDSS/SUBSS/MULSS/DIVSS  and  SD variants: xmm_dst OP= xmm_src.
  * Prefix 0xF3 (SS) or 0xF2 (SD), then 0x0F + op_byte + ModR/M.
  * ModR/M: mod=11, reg=dst, r/m=src -> 0xC0 | (dst<<3) | src.
- */
+*/
 static void emit_sse_scalar_op(cc_state_t *cc, int is_double, uint8_t op_byte,
                                int xmm_dst, int xmm_src) {
   emit8(cc, is_double ? 0xF2 : 0xF3);
@@ -422,11 +422,11 @@ static void emit_sse_scalar_op(cc_state_t *cc, int is_double, uint8_t op_byte,
 static int cc_data_reserve(cc_state_t *cc, uint32_t bytes);
 
 /* Emit raw bytes into the data segment and return the absolute address.
- * Returns 0 and sets error on overflow. */
+ * Returns 0 and sets error on overflow.*/
 static uint32_t cc_emit_data_bytes(cc_state_t *cc, const uint8_t *bytes,
                                    uint32_t n) {
   /* 4-byte align the data position so float/double live on natural
-   * alignment where possible. */
+   * alignment where possible.*/
   cc->data_pos = (cc->data_pos + 3u) & ~3u;
   if (!cc_data_reserve(cc, n))
     return 0;
@@ -454,7 +454,7 @@ static uint32_t cc_emit_data_bytes(cc_state_t *cc, const uint8_t *bytes,
  * The truncating SI variants (CVTTSS2SI / CVTTSD2SI) are used rather
  * than the rounding ones (CVTSS2SI / CVTSD2SI) to match C semantics:
  * `(int)3.7` must yield 3, not the current-rounding-mode result.
- */
+*/
 
 /* CVTSI2SS xmm, EAX - int in EAX to float in xmm. */
 static void emit_cvtsi2ss(cc_state_t *cc, int xmm) {
@@ -512,7 +512,7 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   /* Always log every error to serial so a chain of failures all show up
    * even though parser only retains the first as cc->error_msg. The
    * first call sets cc->error and populates cc->error_msg; subsequent
-   * calls log to serial only. */
+   * calls log to serial only.*/
   int line = cc->cur.line;
   if (line == 0) line = cc->line;
   serial_printf("[cupidc] error (line %d): %s\n", line, msg);
@@ -584,7 +584,7 @@ static int cc_expect(cc_state_t *cc, cc_token_type_t type) {
   if (tok.type != type) {
     /* Include the bad token's text and a numeric type tag so callers
      * can diagnose which token cupidc choked on. The previous bare
-     * "unexpected token" was not actionable. */
+     * "unexpected token" was not actionable.*/
     char buf[96];
     int p = 0;
     const char *prefix = "unexpected token: '";
@@ -629,16 +629,49 @@ static int cc_match(cc_state_t *cc, cc_token_type_t type) {
   return 0;
 }
 
-static int cc_is_type(cc_token_type_t t) {
+static void cc_skip_attributes(cc_state_t *cc) {
+  while (cc_peek(cc).type == CC_TOK_ATTRIBUTE) {
+    cc_next(cc);
+    if (cc_peek(cc).type == CC_TOK_LPAREN) {
+      int depth = 0;
+      do {
+        cc_token_t t = cc_next(cc);
+        if (t.type == CC_TOK_LPAREN)
+          depth++;
+        else if (t.type == CC_TOK_RPAREN)
+          depth--;
+        else if (t.type == CC_TOK_EOF) {
+          cc_error(cc, "unterminated attribute");
+          return;
+        }
+      } while (depth > 0 && !cc->error);
+    }
+  }
+}
+
+static int cc_is_type_prefix(cc_token_type_t t) {
+  return t == CC_TOK_CONST || t == CC_TOK_UNSIGNED ||
+         t == CC_TOK_SIGNED || t == CC_TOK_LONG || t == CC_TOK_SHORT ||
+         t == CC_TOK_VOLATILE || t == CC_TOK_REG ||
+         t == CC_TOK_NOREG || t == CC_TOK_EXTERN ||
+         t == CC_TOK_INLINE || t == CC_TOK_REGISTER ||
+         t == CC_TOK_RESTRICT || t == CC_TOK_STATIC ||
+         t == CC_TOK_ATTRIBUTE;
+}
+
+static int cc_is_concrete_type(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
          t == CC_TOK_U0 || t == CC_TOK_U8 || t == CC_TOK_U16 ||
-         t == CC_TOK_U32 || t == CC_TOK_I8 || t == CC_TOK_I16 ||
-         t == CC_TOK_I32 ||
+         t == CC_TOK_U32 || t == CC_TOK_U64 ||
+         t == CC_TOK_I8 || t == CC_TOK_I16 ||
+         t == CC_TOK_I32 || t == CC_TOK_I64 ||
          t == CC_TOK_FLOAT || t == CC_TOK_DOUBLE ||
          t == CC_TOK_FLOAT4 || t == CC_TOK_DOUBLE2 ||
-         t == CC_TOK_STRUCT || t == CC_TOK_BOOL || t == CC_TOK_UNSIGNED ||
-         t == CC_TOK_CONST || t == CC_TOK_VOLATILE || t == CC_TOK_REG ||
-         t == CC_TOK_NOREG;
+         t == CC_TOK_STRUCT || t == CC_TOK_BOOL;
+}
+
+static int cc_is_type(cc_token_type_t t) {
+  return cc_is_concrete_type(t) || cc_is_type_prefix(t);
 }
 
 static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
@@ -668,7 +701,7 @@ static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
  * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
  * is the SECOND stride (middle). After a single [i] subscript on a 3D
  * array the parser propagates dim2 -> elem_size and zeroes dim2 so the
- * next [j] takes the right stride. */
+ * next [j] takes the right stride.*/
 static int cc_last_expr_dim2;
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
@@ -678,15 +711,15 @@ static int cc_last_expr_elem_size;    /* element size for array subscripts */
  * all 8 are in use) is not implemented - any expression too complex for
  * 8 XMMs will cc_error.  In the current Task-16 scheme only XMM0/XMM1
  * are actually used, but we keep the general allocator ready for later
- * callers (SIMD, libm). */
+ * callers (SIMD, libm).*/
 static uint8_t cc_xmm_inuse = 0;
 /* Which XMM register holds the current FP expression result (mirrors EAX).
- * Generally XMM0 in scalar codegen. Kept for SIMD. */
+ * Generally XMM0 in scalar codegen. Kept for SIMD.*/
 __attribute__((unused))
 static int cc_last_xmm = 0;
 
 /* Currently unused in scalar codegen (all FP ops run through XMM0/XMM1
- * with spill-to-stack) but exist for SIMD codegen. */
+ * with spill-to-stack) but exist for SIMD codegen.*/
 __attribute__((unused))
 static int cc_xmm_alloc(cc_state_t *cc) {
   for (int i = 0; i < 8; i++) {
@@ -773,20 +806,99 @@ static void cc_make_method_symbol(char *out, const char *class_name,
 }
 
 /* Forward declarations needed by the anonymous-struct path inside
- * cc_parse_type (the helpers are defined further down). */
+ * cc_parse_type (the helpers are defined further down).*/
 static int32_t cc_align_up(int32_t value, int32_t align);
 static int32_t cc_type_align(cc_state_t *cc, cc_type_t type, int struct_index);
 static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index);
+
+/* Parse a compile-time integer constant expression. Accepts numeric
+ * literals combined with + - * / and parentheses. Used for array sizes
+ * so `char buf[4 + 32768]` and friends parse cleanly. Returns 1 on
+ * success and stores result via *out; 0 on parse error.*/
+static int cc_parse_const_int_expr(cc_state_t *cc, int32_t *out);
+
+static int cc_parse_const_int_primary(cc_state_t *cc, int32_t *out) {
+  if (cc_peek(cc).type == CC_TOK_LPAREN) {
+    cc_next(cc);
+    if (!cc_parse_const_int_expr(cc, out)) return 0;
+    if (!cc_expect(cc, CC_TOK_RPAREN)) return 0;
+    return 1;
+  }
+  if (cc_peek(cc).type == CC_TOK_MINUS) {
+    cc_next(cc);
+    int32_t v;
+    if (!cc_parse_const_int_primary(cc, &v)) return 0;
+    *out = -v;
+    return 1;
+  }
+  cc_token_t t = cc_next(cc);
+  if (t.type == CC_TOK_NUMBER) {
+    *out = t.int_value;
+    return 1;
+  }
+  if (t.type == CC_TOK_IDENT) {
+    cc_symbol_t *s = cc_sym_find(cc, t.text);
+    if (s && s->is_const_int) {
+      *out = s->const_int_value;
+      return 1;
+    }
+  }
+  cc_error(cc, "expected constant integer");
+  return 0;
+}
+
+static int cc_parse_const_int_mul(cc_state_t *cc, int32_t *out) {
+  int32_t lhs;
+  if (!cc_parse_const_int_primary(cc, &lhs)) return 0;
+  while (cc_peek(cc).type == CC_TOK_STAR || cc_peek(cc).type == CC_TOK_SLASH) {
+    cc_token_t op = cc_next(cc);
+    int32_t rhs;
+    if (!cc_parse_const_int_primary(cc, &rhs)) return 0;
+    if (op.type == CC_TOK_STAR) lhs = lhs * rhs;
+    else if (rhs != 0)          lhs = lhs / rhs;
+  }
+  *out = lhs;
+  return 1;
+}
+
+static int cc_parse_const_int_expr(cc_state_t *cc, int32_t *out) {
+  int32_t lhs;
+  if (!cc_parse_const_int_mul(cc, &lhs)) return 0;
+  while (cc_peek(cc).type == CC_TOK_PLUS || cc_peek(cc).type == CC_TOK_MINUS) {
+    cc_token_t op = cc_next(cc);
+    int32_t rhs;
+    if (!cc_parse_const_int_mul(cc, &rhs)) return 0;
+    if (op.type == CC_TOK_PLUS) lhs = lhs + rhs;
+    else                        lhs = lhs - rhs;
+  }
+  *out = lhs;
+  return 1;
+}
 
 static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_token_t tok = cc_next(cc);
   cc_type_t base;
   cc_last_type_struct_index = -1;
 
-  /* Strip qualifiers: const, unsigned, volatile (order-agnostic). */
-    while (tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
-      tok.type == CC_TOK_VOLATILE || tok.type == CC_TOK_REG ||
-      tok.type == CC_TOK_NOREG) {
+  /* Strip storage classes, qualifiers, and width modifiers. CupidC still
+   * lowers long/short/signed/U64/I64 to its 32-bit integer backend, but
+   * accepting the spelling keeps C-ish smoke tests and headers parseable.*/
+  while (cc_is_type_prefix(tok.type)) {
+    if (tok.type == CC_TOK_ATTRIBUTE) {
+      cc->has_peek = 1;
+      cc->peek_buf = tok;
+      cc_skip_attributes(cc);
+      tok = cc_next(cc);
+      continue;
+    }
+    if (tok.type == CC_TOK_LONG || tok.type == CC_TOK_SHORT ||
+        tok.type == CC_TOK_SIGNED || tok.type == CC_TOK_UNSIGNED) {
+      cc_token_type_t nt = cc_peek(cc).type;
+      if (!cc_is_concrete_type(nt) && !cc_is_type_prefix(nt)) {
+        base = TYPE_INT;
+        goto have_base;
+      }
+    }
     tok = cc_next(cc);
   }
 
@@ -812,6 +924,9 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   case CC_TOK_U32:
     base = TYPE_U32;
     break;
+  case CC_TOK_U64:
+    base = TYPE_INT;
+    break;
   case CC_TOK_I8:
     base = TYPE_I8;
     break;
@@ -820,6 +935,9 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     break;
   case CC_TOK_I32:
     base = TYPE_I32;
+    break;
+  case CC_TOK_I64:
+    base = TYPE_INT;
     break;
   case CC_TOK_BOOL:
     base = TYPE_BOOL;
@@ -856,11 +974,11 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   }
   case CC_TOK_STRUCT: {
     cc_token_t name_tok = cc_next(cc);
-    /* Anonymous struct: `struct { fields }` — typically used inside
+    /* Anonymous struct: `struct { fields }` - typically used inside
      * `typedef struct { ... } Name;`. Generate a synthetic tag and
      * parse the body inline so the alias machinery sees a complete
      * TYPE_STRUCT. Each anon struct gets a unique name via a static
-     * counter so multiple anonymous structs don't collide. */
+     * counter so multiple anonymous structs don't collide.*/
     if (name_tok.type == CC_TOK_LBRACE) {
       static int anon_counter = 0;
       char anon_name[32];
@@ -889,7 +1007,7 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
       sd->is_complete = 0;
       /* '{' was already returned by cc_next as name_tok above. Parse
        * the field list until '}'. Layout matches the top-level struct
-       * definition path so the two stay in sync. */
+       * definition path so the two stay in sync.*/
       int32_t field_offset = 0;
       int32_t struct_align = 1;
       while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
@@ -916,12 +1034,12 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
         f->array_count = 0;
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc);
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t fsz;
+          if (!cc_parse_const_int_expr(cc, &fsz)) {
             cc_error(cc, "expected array size");
             break;
           }
-          f->array_count = size_tok.int_value;
+          f->array_count = fsz;
           cc_expect(cc, CC_TOK_RBRACK);
         }
         int32_t elem_size = cc_type_size(cc, ftype, fsi);
@@ -958,13 +1076,14 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     return TYPE_INT;
   }
 
+have_base:
   /* Allow trailing qualifiers after base type (e.g. char const *). */
-    while (cc_peek(cc).type == CC_TOK_CONST ||
-      cc_peek(cc).type == CC_TOK_UNSIGNED ||
-      cc_peek(cc).type == CC_TOK_VOLATILE ||
-      cc_peek(cc).type == CC_TOK_REG ||
-      cc_peek(cc).type == CC_TOK_NOREG)
-    cc_next(cc);
+  while (cc_is_type_prefix(cc_peek(cc).type)) {
+    if (cc_peek(cc).type == CC_TOK_ATTRIBUTE)
+      cc_skip_attributes(cc);
+    else
+      cc_next(cc);
+  }
 
   /* Pointer depth support: T*, T**, ... */
   int pointer_depth = 0;
@@ -972,12 +1091,11 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     cc_next(cc);
     pointer_depth++;
     /* Ignore pointer qualifiers: char *const, char *const * ... */
-        while (cc_peek(cc).type == CC_TOK_CONST ||
-          cc_peek(cc).type == CC_TOK_UNSIGNED ||
-          cc_peek(cc).type == CC_TOK_VOLATILE ||
-          cc_peek(cc).type == CC_TOK_REG ||
-          cc_peek(cc).type == CC_TOK_NOREG) {
-      cc_next(cc);
+    while (cc_is_type_prefix(cc_peek(cc).type)) {
+      if (cc_peek(cc).type == CC_TOK_ATTRIBUTE)
+        cc_skip_attributes(cc);
+      else
+        cc_next(cc);
     }
   }
 
@@ -1047,7 +1165,7 @@ static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
  *  - int + float -> float (int promoted via CVTSI2SS).
  *  - float + double -> double.
  *  - pointer arithmetic stays int-only.
- */
+*/
 static cc_type_t cc_promote(cc_state_t *cc, cc_type_t a, cc_type_t b) {
   /* Reject scalar-with-SIMD mixing */
   if (a == TYPE_FLOAT4 || b == TYPE_FLOAT4) {
@@ -1181,6 +1299,79 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   return sym;
 }
 
+static void cc_labels_reset(cc_state_t *cc) { cc->label_count = 0; }
+
+static cc_label_t *cc_label_find(cc_state_t *cc, const char *name) {
+  for (int i = 0; i < cc->label_count; i++) {
+    if (strcmp(cc->labels[i].name, name) == 0)
+      return &cc->labels[i];
+  }
+  return NULL;
+}
+
+static cc_label_t *cc_label_get(cc_state_t *cc, const char *name) {
+  cc_label_t *lbl = cc_label_find(cc, name);
+  if (lbl)
+    return lbl;
+  if (cc->label_count >= CC_MAX_LABELS) {
+    cc_error(cc, "too many labels");
+    return NULL;
+  }
+  lbl = &cc->labels[cc->label_count++];
+  memset(lbl, 0, sizeof(*lbl));
+  int i = 0;
+  while (name[i] && i < CC_MAX_IDENT - 1) {
+    lbl->name[i] = name[i];
+    i++;
+  }
+  lbl->name[i] = '\0';
+  return lbl;
+}
+
+static void cc_patch_goto_to(cc_state_t *cc, uint32_t patch_pos,
+                             uint32_t target_pos) {
+  int32_t rel = (int32_t)(target_pos - (patch_pos + 4));
+  patch32(cc, patch_pos, (uint32_t)rel);
+}
+
+static void cc_define_label(cc_state_t *cc, const char *name) {
+  cc_label_t *lbl = cc_label_get(cc, name);
+  if (!lbl)
+    return;
+  if (lbl->is_defined) {
+    cc_error(cc, "duplicate label");
+    return;
+  }
+  lbl->is_defined = 1;
+  lbl->code_offset = cc->code_pos;
+  for (int i = 0; i < lbl->patch_count; i++) {
+    cc_patch_goto_to(cc, lbl->patches[i], lbl->code_offset);
+  }
+}
+
+static void cc_emit_goto(cc_state_t *cc, const char *name) {
+  cc_label_t *lbl = cc_label_get(cc, name);
+  uint32_t patch_pos = emit_jmp_placeholder(cc);
+  if (!lbl)
+    return;
+  if (lbl->is_defined) {
+    cc_patch_goto_to(cc, patch_pos, lbl->code_offset);
+  } else if (lbl->patch_count < CC_MAX_LABEL_PATCHES) {
+    lbl->patches[lbl->patch_count++] = patch_pos;
+  } else {
+    cc_error(cc, "too many gotos to label");
+  }
+}
+
+static void cc_resolve_labels(cc_state_t *cc) {
+  for (int i = 0; i < cc->label_count; i++) {
+    if (!cc->labels[i].is_defined) {
+      cc_error(cc, "unresolved goto label");
+      return;
+    }
+  }
+}
+
 /* Forward Declarations for Parser */
 
 static void cc_parse_statement(cc_state_t *cc);
@@ -1191,10 +1382,14 @@ static void cc_parse_primary(cc_state_t *cc);
 static int cc_is_prescan_type_token(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
          t == CC_TOK_U0 || t == CC_TOK_U8 || t == CC_TOK_U16 ||
-         t == CC_TOK_U32 || t == CC_TOK_I8 || t == CC_TOK_I16 ||
-         t == CC_TOK_I32 || t == CC_TOK_FLOAT || t == CC_TOK_DOUBLE ||
+         t == CC_TOK_U32 || t == CC_TOK_U64 ||
+         t == CC_TOK_I8 || t == CC_TOK_I16 ||
+         t == CC_TOK_I32 || t == CC_TOK_I64 ||
+         t == CC_TOK_FLOAT || t == CC_TOK_DOUBLE ||
          t == CC_TOK_FLOAT4 || t == CC_TOK_DOUBLE2 ||
-         t == CC_TOK_BOOL || t == CC_TOK_STRUCT;
+         t == CC_TOK_BOOL || t == CC_TOK_STRUCT ||
+         t == CC_TOK_LONG || t == CC_TOK_SHORT ||
+         t == CC_TOK_SIGNED || t == CC_TOK_UNSIGNED;
 }
 
 static void cc_prescan_add_function(cc_state_t *cc, const char *name) {
@@ -1242,12 +1437,18 @@ static void cc_prescan_functions(cc_state_t *cc) {
     if (brace_depth != 0)
       continue;
 
-    if (tok.type == CC_TOK_STATIC || tok.type == CC_TOK_CONST ||
-        tok.type == CC_TOK_UNSIGNED || tok.type == CC_TOK_VOLATILE) {
+    if (tok.type == CC_TOK_STATIC || tok.type == CC_TOK_EXTERN ||
+        tok.type == CC_TOK_INLINE || tok.type == CC_TOK_REGISTER ||
+        tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
+        tok.type == CC_TOK_SIGNED || tok.type == CC_TOK_VOLATILE ||
+        tok.type == CC_TOK_RESTRICT) {
       tok = cc_lex_next(cc);
     }
     while (tok.type == CC_TOK_CONST || tok.type == CC_TOK_UNSIGNED ||
-           tok.type == CC_TOK_VOLATILE) {
+           tok.type == CC_TOK_SIGNED || tok.type == CC_TOK_LONG ||
+           tok.type == CC_TOK_SHORT || tok.type == CC_TOK_VOLATILE ||
+           tok.type == CC_TOK_EXTERN || tok.type == CC_TOK_INLINE ||
+           tok.type == CC_TOK_REGISTER || tok.type == CC_TOK_RESTRICT) {
       tok = cc_lex_next(cc);
     }
 
@@ -1305,7 +1506,7 @@ static void cc_prescan_functions(cc_state_t *cc) {
 /* Expression Types for Tracking */
 
 /* Track what kind of value the last expression produced -
- * (primary statics declared above, before cc_parse_type) */
+ * (primary statics declared above, before cc_parse_type)*/
 
 /* Operator Precedence */
 
@@ -1516,28 +1717,28 @@ static void cc_emit_binop(cc_state_t *cc, cc_token_type_t op) {
  *  Recognized by identifier at call-expression parse time and inlined
  *  as a single SSE instruction (no function-call overhead). See
  *  kernel/simd_intrin.h for the user-facing declarations.
- *  */
+ **/
 
 /* Flag bits for cc_intrin_t.flags */
-#define CC_INTR_COMMUT    0x01  /* op is commutative: xmm0 <op>= xmm1      */
-#define CC_INTR_SWAP      0x02  /* swap operands before emitting (gt/ge)    */
-#define CC_INTR_RET_INT   0x04  /* result type is int (movemask)           */
-#define CC_INTR_SET1      0x08  /* _mm_set1_{ps,pd}: scalar broadcast       */
-#define CC_INTR_MOVEMASK  0x10  /* _mm_movemask_ps: MOVMSKPS xmm->EAX        */
-#define CC_INTR_PD        0x20  /* double-precision packed (double2)            */
+#define CC_INTR_COMMUT    0x01  /* op is commutative: xmm0 <op>= xmm1 */
+#define CC_INTR_SWAP      0x02  /* swap operands before emitting (gt/ge) */
+#define CC_INTR_RET_INT   0x04  /* result type is int (movemask) */
+#define CC_INTR_SET1      0x08  /* _mm_set1_{ps,pd}: scalar broadcast */
+#define CC_INTR_MOVEMASK  0x10  /* _mm_movemask_ps: MOVMSKPS xmm->EAX */
+#define CC_INTR_PD        0x20  /* double-precision packed (double2) */
 
 typedef struct {
   const char *name;
   uint8_t prefix;   /* 0x66, 0xF3, 0xF2, or 0x00 (none) */
-  uint8_t opcode;   /* primary SSE opcode after 0x0F    */
+  uint8_t opcode;   /* primary SSE opcode after 0x0F */
   uint8_t arity;    /* 1 = unary (sqrt/set1/movemask), 2 = binary */
   int8_t  imm8;     /* -1 = no imm; 0..7 = CMPPS predicate to append */
-  uint8_t flags;    /* CC_INTR_* bitmask                */
+  uint8_t flags;    /* CC_INTR_* bitmask */
 } cc_intrin_t;
 
 static const cc_intrin_t cc_intrin_table[] = {
     /* Arithmetic (ADDPS/SUBPS/MULPS/DIVPS/MINPS/MAXPS) - all 0x0F xx.
-     * ADDPS/MULPS/MINPS/MAXPS are commutative; SUBPS/DIVPS are not. */
+     * ADDPS/MULPS/MINPS/MAXPS are commutative; SUBPS/DIVPS are not.*/
     { "_mm_add_ps",    0x00, 0x58, 2, -1, CC_INTR_COMMUT },
     { "_mm_sub_ps",    0x00, 0x5C, 2, -1, 0 },
     { "_mm_mul_ps",    0x00, 0x59, 2, -1, CC_INTR_COMMUT },
@@ -1555,7 +1756,7 @@ static const cc_intrin_t cc_intrin_table[] = {
      *   0=eq, 1=lt, 2=le, 3=unord, 4=neq, 5=nlt, 6=nle, 7=ord.
      * Commutative in the sense that operand ordering doesn't change the
      * lane-wise result for eq/neq.  cmpgt/cmpge are synthesised by
-     * swapping operands and reusing cmplt/cmple. */
+     * swapping operands and reusing cmplt/cmple.*/
     { "_mm_cmpeq_ps",  0x00, 0xC2, 2, 0, CC_INTR_COMMUT },
     { "_mm_cmplt_ps",  0x00, 0xC2, 2, 1, 0 },
     { "_mm_cmple_ps",  0x00, 0xC2, 2, 2, 0 },
@@ -1569,7 +1770,7 @@ static const cc_intrin_t cc_intrin_table[] = {
 
     /* Double-precision packed counterparts.
      * Same opcodes as the _ps ops but with a 0x66 operand-size prefix.
-     * Arg and result type is double2 (two 64-bit lanes). */
+     * Arg and result type is double2 (two 64-bit lanes).*/
     { "_mm_add_pd",    0x66, 0x58, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
     { "_mm_sub_pd",    0x66, 0x5C, 2, -1, CC_INTR_PD },
     { "_mm_mul_pd",    0x66, 0x59, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
@@ -1578,7 +1779,7 @@ static const cc_intrin_t cc_intrin_table[] = {
     { "_mm_min_pd",    0x66, 0x5D, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
     { "_mm_max_pd",    0x66, 0x5F, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
     /* Bitwise double-precision (ANDPD/ORPD/XORPD share opcodes with _ps
-     * variants; the 0x66 prefix selects the pd form). */
+     * variants; the 0x66 prefix selects the pd form).*/
     { "_mm_and_pd",    0x66, 0x54, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
     { "_mm_or_pd",     0x66, 0x56, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
     { "_mm_xor_pd",    0x66, 0x57, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
@@ -1589,7 +1790,7 @@ static const cc_intrin_t cc_intrin_table[] = {
 };
 
 /* Look up name in the intrinsic table.  Returns NULL if not an intrinsic.
- * Requires the name to start with "_mm_" to keep the hot path cheap. */
+ * Requires the name to start with "_mm_" to keep the hot path cheap.*/
 static const cc_intrin_t *cc_intrin_lookup(const char *name) {
   if (name[0] != '_' || name[1] != 'm' || name[2] != 'm' || name[3] != '_')
     return NULL;
@@ -1637,19 +1838,19 @@ static void cc_intr_emit_op_rr(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
  *     float4 result in XMM0 (see cc_parse_ident_expr / variable load).
  *   - Two-arg intrinsics spill arg0 onto 16 bytes of stack, evaluate
  *     arg1 into XMM0, and reload arg0 into XMM1. Result lands in XMM0.
- */
+*/
 static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
   /* Parse arg 0. */
   cc_parse_expression(cc, 1);
   if (cc->error) return;
 
   /* pd intrinsics carry CC_INTR_PD and return double2; _ps intrinsics
-   * return float4. Movemask is handled explicitly below. */
+   * return float4. Movemask is handled explicitly below.*/
   int is_pd = (intr->flags & CC_INTR_PD) != 0;
   cc_type_t vec_type = is_pd ? TYPE_DOUBLE2 : TYPE_FLOAT4;
 
   /* _mm_set1_{ps,pd} takes a scalar float/int/double and broadcasts;
-   * everything else takes a vector (float4/double2) first argument. */
+   * everything else takes a vector (float4/double2) first argument.*/
   if (intr->flags & CC_INTR_SET1) {
     if (is_pd) {
       /* _mm_set1_pd - broadcast a scalar double into both 64-bit lanes. */
@@ -1668,7 +1869,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
         return;
       }
       /* SHUFPD xmm0, xmm0, 0x00 : 66 0F C6 C0 00 - imm8=0 replicates the
-       * low 64-bit lane into both slots. */
+       * low 64-bit lane into both slots.*/
       emit8(cc, 0x66);
       emit8(cc, 0x0F);
       emit8(cc, 0xC6); /* SHUFPD */
@@ -1694,7 +1895,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
       emit_cvtsd2ss(cc, 0, 0);
     }
     /* Broadcast lane 0 to all four lanes: SHUFPS xmm0, xmm0, 0x00
-     * (imm=0 replicates lane 0 into all four 32-bit slots). */
+     * (imm=0 replicates lane 0 into all four 32-bit slots).*/
     emit8(cc, 0x0F);
     emit8(cc, 0xC6); /* SHUFPS */
     emit8(cc, 0xC0); /* mod=11, reg=xmm0, r/m=xmm0 */
@@ -1706,7 +1907,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
   }
 
   /* All other intrinsics expect a SIMD vector first argument matching
-   * their precision (float4 for _ps, double2 for _pd). */
+   * their precision (float4 for _ps, double2 for _pd).*/
   if (cc_last_expr_type != vec_type) {
     cc_error(cc, is_pd ? "_mm_*_pd intrinsic expects a double2 argument"
                        : "_mm_*_ps intrinsic expects a float4 argument");
@@ -1717,7 +1918,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
     /* Unary: XMM0 = OP(XMM0).  Covers sqrt_ps/pd and movemask_ps. */
     if (intr->flags & CC_INTR_MOVEMASK) {
       /* MOVMSKPS eax, xmm0 : 0F 50 /r, reg=EAX=0, r/m=xmm0=0 -> 0xC0.
-       * Result is a 4-bit sign mask in EAX - type becomes int. */
+       * Result is a 4-bit sign mask in EAX - type becomes int.*/
       emit8(cc, 0x0F);
       emit8(cc, 0x50);
       emit8(cc, 0xC0);
@@ -1755,7 +1956,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
     /* cmpgt(a,b) == cmplt(b,a): XMM1 (old arg0=a) vs XMM0 (arg1=b).
      * After swap we want the "a vs b" semantics mapped onto cmplt of
      * b and a, so compute (XMM0 op XMM1) directly and leave result
-     * in XMM0.  That is: XMM0 op= XMM1 using the base opcode. */
+     * in XMM0.  That is: XMM0 op= XMM1 using the base opcode.*/
     dst = 0;
     src = 1;
   } else {
@@ -1763,7 +1964,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
      * _mm_sub_ps(a, b) = a - b.  XMM1 holds a, XMM0 holds b. So
      * we compute XMM1 <op>= XMM0 (writing into XMM1), then move
      * XMM1 into XMM0 via MOVAPS so callers see the usual
-     * XMM0-accumulator convention. */
+     * XMM0-accumulator convention.*/
     dst = 1;
     src = 0;
   }
@@ -1796,7 +1997,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
   if (cc_peek(cc).type == CC_TOK_LPAREN) {
     /* Short-circuit recognised SSE intrinsics (`_mm_*_ps`).
      * These inline as a single SSE opcode instead of a call.  Keep this
-     * check before any argument parsing so we don't push-then-discard. */
+     * check before any argument parsing so we don't push-then-discard.*/
     const cc_intrin_t *intr = cc_intrin_lookup(name);
     if (intr) {
       cc_next(cc); /* consume '(' */
@@ -1809,7 +2010,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     uint32_t arg_addrs[CC_MAX_PARAMS];
     int argc = 0;
     /* Track size (4 or 8 bytes) of each pushed arg so we can do
-     * a size-aware reversal and emit the correct cleanup ADD ESP. */
+     * a size-aware reversal and emit the correct cleanup ADD ESP.*/
     int arg_sizes[CC_MAX_PARAMS];
     int total_arg_bytes = 0;
 
@@ -1864,7 +2065,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
      * For each pair (a, b) where a < b = argc-1-a, we swap the bytes
      * belonging to arg_a and arg_b.  The 4-byte same-size fast path
      * handles both int-only and float-only calls.
-     * Doubles and mixed sizes are handled by a size-aware swap. */
+     * Doubles and mixed sizes are handled by a size-aware swap.*/
     if (argc > 1) {
       /* Compute byte-offset (from current ESP) where arg_i lives after
        * left-to-right push.  arg at index i is pushed i-th, so its
@@ -1872,7 +2073,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
        * (high addr).  From ESP (low addr), arg_i's low byte is at:
        *    src_off[i] = total - sum(sizes[0..i]) - sizes[i]
        * Equivalently: src_off[i] = sum(sizes[i+1..argc-1]).
-       * The target layout has arg_i at dst_off[i] = sum(sizes[0..i-1]). */
+       * The target layout has arg_i at dst_off[i] = sum(sizes[0..i-1]).*/
       int src_off[CC_MAX_PARAMS];
       {
         int running = 0;
@@ -1914,7 +2115,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         } else if (sa == 8 && sb == 8) {
           /* 8-byte swap: two 4-byte swaps of adjacent dwords.
            * Slot a occupies [off_a, off_a+4), slot b occupies
-           * [off_b, off_b+4) in the same pattern. */
+           * [off_b, off_b+4) in the same pattern.*/
           for (int d = 0; d < 2; d++) {
             int oa = off_a + d * 4;
             int ob = off_b + d * 4;
@@ -1930,7 +2131,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         } else {
           /* Mixed-size pair (e.g. f(double, int)).  A correct swap
            * requires a variable-width block reverse.  Punted
-           * on this rare case until a clear use case appears. */
+           * on this rare case until a clear use case appears.*/
           cc_error(cc,
                    "mixed int/double args in same call not yet supported");
           break;
@@ -1964,7 +2165,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     /* Look up function */
     cc_symbol_t *sym = cc_sym_find(cc, name);
     /* Remember callee's return type so we can set cc_last_expr_type
-     * correctly after cleanup (default is TYPE_INT for unknown/forward refs). */
+     * correctly after cleanup (default is TYPE_INT for unknown/forward refs).*/
     cc_type_t call_ret_type = TYPE_INT;
     if (sym && (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL)) {
       call_ret_type = sym->type;
@@ -1973,7 +2174,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       /* HolyC-style auto-main: if the user explicitly calls main() at the
        * top level, suppress the post-parse auto-call so main doesn't run
        * twice. Only flag for SYM_FUNC (a kernel binding called "main"
-       * would be unusual and shouldn't toggle this). */
+       * would be unusual and shouldn't toggle this).*/
       if (cc->in_top_level && sym->kind == SYM_FUNC &&
           strcmp(name, "main") == 0) {
         cc->main_called_top_level = 1;
@@ -2039,7 +2240,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
 
     /* Clean up arguments.  Use total_arg_bytes instead of
-     * argc*4 so that doubles (8 bytes) are correctly cleaned up. */
+     * argc*4 so that doubles (8 bytes) are correctly cleaned up.*/
     if (total_arg_bytes > 0) {
       emit_add_esp(cc, (int32_t)total_arg_bytes);
     }
@@ -2048,7 +2249,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_last_expr_type = TYPE_VOID;
     } else {
       /* If callee returns float/double, result lives in XMM0;
-       * otherwise it's in EAX. */
+       * otherwise it's in EAX.*/
       cc_last_expr_type = call_ret_type;
       if (call_ret_type == TYPE_FLOAT || call_ret_type == TYPE_DOUBLE) {
         cc_last_xmm = 0;
@@ -2086,7 +2287,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
        * scalar in XMM0's low lane.  SHUFPS imm8 = lane*0x55 broadcasts
        * a given 32-bit lane into position 0 (and the other three, but
        * scalar math only reads the low lane).  SHUFPD imm8 = 0x01
-       * swaps the two 64-bit lanes of double2. */
+       * swaps the two 64-bit lanes of double2.*/
       emit_movups_xmm_local(cc, 0, sym->offset);
       cc_last_xmm = 0;
       cc_last_expr_type = sym->type;
@@ -2119,7 +2320,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           if (lane != 0) {
             /* SHUFPS xmm0, xmm0, imm8 - broadcast lane `lane` to all four
              * 32-bit slots of XMM0 so the scalar result sits in the low
-             * lane. */
+             * lane.*/
             uint8_t imm = (uint8_t)(lane | (lane << 2) |
                                     (lane << 4) | (lane << 6));
             emit8(cc, 0x0F);
@@ -2137,7 +2338,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           } else if (field == 'y') {
             /* SHUFPD xmm0, xmm0, 0x01 - imm8 bit 0 selects src high
              * lane for dst low lane, so lane 1 ends up in the low
-             * 8 bytes of XMM0 where scalar double math reads it. */
+             * 8 bytes of XMM0 where scalar double math reads it.*/
             emit8(cc, 0x66);
             emit8(cc, 0x0F);
             emit8(cc, 0xC6); /* SHUFPD */
@@ -2227,7 +2428,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_FLIT: {
     /* Emit the raw bits into the data segment and load them
      * into XMM0 via MOVSS (float) or MOVSD (double).  XMM0 is the
-     * "FP accumulator" mirroring EAX for the integer path. */
+     * "FP accumulator" mirroring EAX for the integer path.*/
     if (tok.flit_bits == 32) {
       float f = (float)tok.fval;
       uint8_t bytes[4];
@@ -2254,7 +2455,7 @@ static void cc_parse_primary(cc_state_t *cc) {
 
   case CC_TOK_STRING: {
     /* ISO C §6.4.5p5 adjacent string literal concatenation:
-     * "foo" "bar" parses as a single literal "foobar". */
+     * "foo" "bar" parses as a single literal "foobar".*/
     char combined[CC_MAX_STRING];
     int j = 0;
     int k = 0;
@@ -2348,7 +2549,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       /* int <-> float <-> double explicit casts.
        * The six combinations among {TYPE_INT, TYPE_FLOAT, TYPE_DOUBLE}
        * each lower to a single CVT* opcode.  Casts to/from pointer,
-       * char, struct, or SIMD types remain pure retagging (no code). */
+       * char, struct, or SIMD types remain pure retagging (no code).*/
       if (src_type != cast_type) {
         if (src_type == TYPE_INT && cast_type == TYPE_FLOAT) {
           /* int in EAX -> float in XMM0 */
@@ -2372,7 +2573,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         /* Any other type transition (int<->ptr, float<->ptr, etc.) is
          * a pure retag; the bit pattern in EAX is reused as-is.  FP
          * to/from pointer via a cast is NOT supported - intermediate
-         * (int) cast is required. */
+         * (int) cast is required.*/
       }
       cc_last_expr_type = cast_type;
       cc_last_expr_struct_index = cast_si;
@@ -2628,7 +2829,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       int si = cc_last_expr_struct_index;
 
       /* Method call sugar: obj.Method(args) -> Class_Method(&obj, args)
-       * or ptr->Method(args) -> Class_Method(ptr, args). */
+       * or ptr->Method(args) -> Class_Method(ptr, args).*/
       if ((cc_last_expr_type == TYPE_STRUCT ||
            cc_last_expr_type == TYPE_STRUCT_PTR) &&
           cc_peek(cc).type == CC_TOK_LPAREN && si >= 0 &&
@@ -2690,7 +2891,7 @@ static void cc_parse_primary(cc_state_t *cc) {
 
         /* Reverse pushed args (same convention as normal calls).
          * Size-aware swap - see cc_parse_ident_expr call-site
-         * for identical logic and rationale. */
+         * for identical logic and rationale.*/
         if (argc > 1) {
           int src_off[CC_MAX_PARAMS];
           {
@@ -2881,7 +3082,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       } else if (base_type == TYPE_CHAR_PTR && base_elem_size > 1) {
         /* Multi-D char first subscript: pointer to row. For 3D arrays
          * the second-stride (dim2) becomes the new elem_size so the
-         * NEXT [j] scales correctly. */
+         * NEXT [j] scales correctly.*/
         cc_last_expr_type = TYPE_CHAR_PTR;
         cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 1;
         cc_last_expr_dim2 = 0;
@@ -2975,7 +3176,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     int left_is_fp = (left_type == TYPE_FLOAT || left_type == TYPE_DOUBLE);
     if (left_is_fp) {
       /* Spill XMM0 (the FP accumulator) onto the stack.  Reserve 8 bytes
-       * regardless of type so ESP stays 4-byte aligned in both cases. */
+       * regardless of type so ESP stays 4-byte aligned in both cases.*/
       emit8(cc, 0x83);
       emit8(cc, 0xEC);
       emit8(cc, 0x08); /* sub esp, 8 */
@@ -3005,7 +3206,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
        * Spill-slot layout:
        *    left_is_fp  -> sub esp,8; movs{s,d} [esp], xmm0  (8 bytes)
        *    !left_is_fp -> push eax                         (4 bytes)
-       */
+*/
       cc_type_t fp_result_type = cc_promote(cc, left_type, right_type);
       int is_double = (fp_result_type == TYPE_DOUBLE);
       uint8_t op_byte = 0;
@@ -3028,7 +3229,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
           /* Case A/B: LHS int on stack (4 bytes via push eax),
            * RHS FP in XMM0.  Pop LHS, convert to promoted FP into XMM1.
            * Promoted type == RHS type here (int + float -> float,
-           * int + double -> double). */
+           * int + double -> double).*/
           emit_pop_eax(cc);
           if (is_double) {
             emit_cvtsi2sd(cc, 1);
@@ -3044,7 +3245,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
            * but the promoted type is double (can't occur: result is
            * driven by LHS being float with int RHS -> float), we'd
            * need to widen.  In practice LHS-FP + RHS-int always
-           * promotes to LHS's FP type. */
+           * promotes to LHS's FP type.*/
           if (is_double) {
             emit_cvtsi2sd(cc, 0);
             emit_movsd_xmm_esp(cc, 1);
@@ -3063,7 +3264,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
            *      Load as float into XMM1, widen to double.
            *   F: LHS double, RHS float -> promote to double.
            *      Stack has 8 bytes of double. Load as double into XMM1.
-           *      Widen RHS (XMM0) from float to double. */
+           *      Widen RHS (XMM0) from float to double.*/
           if (left_type == TYPE_FLOAT && right_type == TYPE_DOUBLE) {
             emit_movss_xmm_esp(cc, 1);
             emit_cvtss2sd(cc, 1, 1);
@@ -3080,7 +3281,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
       if (ok && need_default_reload) {
         /* Same-type fast path: XMM0 holds RHS; [esp] holds LHS.
-         * Reload LHS into XMM1 and discard spill slot. */
+         * Reload LHS into XMM1 and discard spill slot.*/
         if (is_double) {
           emit_movsd_xmm_esp(cc, 1);
         } else {
@@ -3095,7 +3296,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
         /* Result = LHS OP RHS must land in XMM0.
          *   For + and *: commutative, XMM0 := XMM0 OP XMM1.
          *   For - and /: non-commutative, compute XMM1 OP= XMM0 then
-         *                MOVAPS XMM0, XMM1. */
+         *                MOVAPS XMM0, XMM1.*/
         if (op.type == CC_TOK_PLUS || op.type == CC_TOK_STAR) {
           emit_sse_scalar_op(cc, is_double, op_byte, 0, 1);
         } else {
@@ -3114,7 +3315,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_emit_binop(cc, op.type);
     /* Track the promoted FP/int type for arithmetic ops only.
      * Comparison/logical/bitwise results stay int (0/1 or bit pattern).
-     * Used to select SSE vs. integer opcodes. */
+     * Used to select SSE vs. integer opcodes.*/
     if (op.type == CC_TOK_PLUS || op.type == CC_TOK_MINUS ||
         op.type == CC_TOK_STAR || op.type == CC_TOK_SLASH ||
         op.type == CC_TOK_PERCENT) {
@@ -3126,7 +3327,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
   /* Ternary operator ?: (lowest precedence; right-associative).
    * We keep this outside binary-op precedence handling and only allow
-   * it when caller accepts lowest-precedence expressions (min_prec <= 1). */
+   * it when caller accepts lowest-precedence expressions (min_prec <= 1).*/
   while (!cc->error && min_prec <= 1 && cc_peek(cc).type == CC_TOK_QUESTION) {
     cc_next(cc); /* consume ? */
 
@@ -3156,7 +3357,7 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     }
 
     /* Parse false arm. Using min_prec=1 keeps right-associative chaining:
-     * a ? b : c ? d : e  => a ? b : (c ? d : e). */
+     * a ? b : c ? d : e  => a ? b : (c ? d : e).*/
     cc_parse_expression(cc, 1);
 
     /* End of ternary expression. */
@@ -3179,7 +3380,7 @@ static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op) {
    *   ebx = current LHS value
    * Output:
    *   eax = combined result
-   */
+*/
   switch (op) {
   case CC_TOK_PLUSEQ:
     emit8(cc, 0x01);
@@ -3259,7 +3460,7 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
    *    float4 s;
    *    s = _mm_add_ps(a, b);     // plain assign
    *    s += other_v4;            // compound, packed-add
-   */
+*/
   if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
     int simd_compound = (op.type == CC_TOK_PLUSEQ ||
                          op.type == CC_TOK_MINUSEQ ||
@@ -3302,7 +3503,7 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
 
       /* Packed op: XMM0 = XMM0 OP XMM1.
        * ADDPS/SUBPS/MULPS/DIVPS: 0F (58|5C|59|5E) /r
-       * ADDPD/SUBPD/MULPD/DIVPD: 66 0F same opcode /r */
+       * ADDPD/SUBPD/MULPD/DIVPD: 66 0F same opcode /r*/
       uint8_t op_byte = 0;
       switch (op.type) {
       case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
@@ -3333,7 +3534,7 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   /* FP assignment path - store XMM0 to the destination.  Plain '=' and
    * the four arithmetic compound ops (+=, -=, *=, /=) are supported.
    * Bitwise/shift compound ops are rejected on FP types.  Implicit
-   * promotion of the RHS when it differs from the target's FP type. */
+   * promotion of the RHS when it differs from the target's FP type.*/
   if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
     int is_compound_fp = (op.type == CC_TOK_PLUSEQ ||
                           op.type == CC_TOK_MINUSEQ ||
@@ -3374,7 +3575,7 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
      * XMM0.  Sequence: spill RHS, load LHS into XMM0, reload RHS into
      * XMM1, op XMM0,XMM1, store.  All four ops use XMM0 as accumulator
      * (XMM0 := XMM0 op XMM1) which matches the natural read direction
-     * for both commutative (+,*) and non-commutative (-,/) cases. */
+     * for both commutative (+,*) and non-commutative (-,/) cases.*/
     if (is_compound_fp) {
       /* Spill RHS (currently in XMM0). 8-byte slot keeps ESP aligned. */
       emit8(cc, 0x83);
@@ -3613,7 +3814,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
     /* For 3D char arrays, the middle stride (dim2) scales the second
-     * subscript. For pure 2D, inner is char (1 byte) and no scale. */
+     * subscript. For pure 2D, inner is char (1 byte) and no scale.*/
     if (sym->array_dim2 > 0) {
       int j_stride = sym->array_dim2;
       if (j_stride == 1) {
@@ -3650,7 +3851,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     emit_push_eax(cc);
     cc_parse_expression(cc, 1);
     /* For 3D int arrays, scale by dim2 (middle stride). Pure 2D scales
-     * by 4 (a row of 32-bit ints). */
+     * by 4 (a row of 32-bit ints).*/
     int j_stride = (sym->array_dim2 > 0) ? sym->array_dim2 : 4;
     if (j_stride == 4) {
       emit8(cc, 0xC1); emit8(cc, 0xE0); emit8(cc, 0x02); /* shl eax, 2 */
@@ -3766,11 +3967,11 @@ static int cc_parse_xmm_reg(const char *text) {
 /* Memory operand resolved from [ident] syntax in inline asm.
  *   is_local=1 : [ebp + offset] addressing (local/param)
  *   is_local=0 : absolute [disp32] addressing (global/kernel)
- */
+*/
 typedef struct {
   int is_local;
   int32_t offset;   /* ebp-relative offset when is_local=1 */
-  uint32_t address; /* absolute address when is_local=0   */
+  uint32_t address; /* absolute address when is_local=0 */
   int ok;
 } cc_asm_mem_t;
 
@@ -3778,7 +3979,7 @@ typedef struct {
  * addressing via the symbol table. Size-prefix keywords `dword`/`qword`/
  * `word` are accepted (and ignored) before the '[', e.g. `fld qword [x]`,
  * to remain source-compatible with code written for the standalone CupidASM.
- */
+*/
 static cc_asm_mem_t cc_parse_asm_mem(cc_state_t *cc) {
   cc_asm_mem_t mem;
   mem.is_local = 0;
@@ -3824,7 +4025,7 @@ static cc_asm_mem_t cc_parse_asm_mem(cc_state_t *cc) {
 
 /* Emit a ModR/M byte + displacement for `[ebp + disp32]` or `[disp32]`
  * addressing, parameterized by the ModR/M reg field (XMM index for SSE,
- * opcode-extension digit for x87). */
+ * opcode-extension digit for x87).*/
 static void cc_asm_emit_mem_modrm(cc_state_t *cc, int reg_field,
                                   const cc_asm_mem_t *mem) {
   if (mem->is_local) {
@@ -3839,7 +4040,7 @@ static void cc_asm_emit_mem_modrm(cc_state_t *cc, int reg_field,
 }
 
 /* Emit the SSE "xmm, xmm" form: <prefix> 0F <opcode> modrm(11, dst, src).
- * prefix=0x00 means no legacy prefix (PS variant). */
+ * prefix=0x00 means no legacy prefix (PS variant).*/
 static void cc_asm_emit_sse_rr(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
                                int xmm_dst, int xmm_src) {
   if (prefix)
@@ -3851,7 +4052,7 @@ static void cc_asm_emit_sse_rr(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
 
 /* Emit an SSE "xmm, [mem]" or "[mem], xmm" form.
  *   <prefix> 0F <opcode> <modrm+disp>
- */
+*/
 static void cc_asm_emit_sse_mem(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
                                 int xmm, const cc_asm_mem_t *mem) {
   if (prefix)
@@ -3863,7 +4064,7 @@ static void cc_asm_emit_sse_mem(cc_state_t *cc, uint8_t prefix, uint8_t opcode,
 
 /* Try to encode a FPU/SSE opcode. Returns 1 if matched (and either
  * encoded or errored), 0 if the mnemonic wasn't one we handle here so the
- * caller can fall through to the integer dispatcher. */
+ * caller can fall through to the integer dispatcher.*/
 static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
   /* No-operand x87 / FPU state-control */
   if (strcmp(mn, "fsin") == 0)   { emit8(cc, 0xD9); emit8(cc, 0xFE); return 1; }
@@ -3882,7 +4083,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
   /* x87 memory-operand opcodes (m32fp only).
    * Matches standalone CupidASM behavior: no size-prefix keyword
    * support, so FLD/FST/FSTP always emit the D9 base (m32fp single-precision).
-   */
+*/
   if (strcmp(mn, "fld") == 0 || strcmp(mn, "fst") == 0 ||
       strcmp(mn, "fstp") == 0) {
     cc_asm_mem_t mem = cc_parse_asm_mem(cc);
@@ -3897,7 +4098,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
    * STMXCSR m32 = 0F AE /3   |   LDMXCSR m32 = 0F AE /2
    * Required by the #XF provocation drill so user-space CupidC
    * can unmask SIMD FP exceptions before deliberately dividing by zero.
-   */
+*/
   if (strcmp(mn, "stmxcsr") == 0 || strcmp(mn, "ldmxcsr") == 0) {
     cc_asm_mem_t mem = cc_parse_asm_mem(cc);
     if (!mem.ok) return 1;
@@ -3941,7 +4142,7 @@ static int cc_parse_asm_fpu_opcode(cc_state_t *cc, const char *mn) {
   /* MOVSS / MOVSD / MOVUPS / MOVAPS: bidirectional mem<->xmm.
    * Shape: peek first operand; if it's an XMM reg the direction is load
    * (xmm <- [mem]) with opcode 0x10; if it's '[' or a size-prefix keyword
-   * the direction is store ([mem] <- xmm) with opcode 0x11. */
+   * the direction is store ([mem] <- xmm) with opcode 0x11.*/
   struct { const char *mn; uint8_t prefix; } mov_variants[] = {
       {"movss", 0xF3}, {"movsd", 0xF2},
       {"movups", 0x00}, {"movupd", 0x66},
@@ -4198,6 +4399,7 @@ static int cc_skip_brace_initializer(cc_state_t *cc) {
 /* static local vars are lowered to data-backed globals with local scope. */
 static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
+  cc_skip_attributes(cc);
   cc_token_t name_tok = cc_next(cc);
   if (name_tok.type != CC_TOK_IDENT) {
     cc_error(cc, "expected variable name");
@@ -4206,23 +4408,20 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 
   if (cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* '[' */
-    cc_token_t size_tok = cc_next(cc);
-    if (size_tok.type != CC_TOK_NUMBER) {
+    int32_t arr_elems;
+    if (!cc_parse_const_int_expr(cc, &arr_elems)) {
       cc_error(cc, "expected array size");
       return;
     }
     cc_expect(cc, CC_TOK_RBRACK);
-    int32_t arr_elems = size_tok.int_value;
     int32_t inner_dim = 0;
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
       cc_next(cc); /* '[' */
-      cc_token_t inner_tok = cc_next(cc);
-      if (inner_tok.type != CC_TOK_NUMBER) {
+      if (!cc_parse_const_int_expr(cc, &inner_dim)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      inner_dim = inner_tok.int_value;
     }
 
     int32_t total_bytes;
@@ -4326,78 +4525,88 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 
 static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
+  cc_skip_attributes(cc);
   cc_token_t name_tok = cc_next(cc);
   if (name_tok.type != CC_TOK_IDENT) {
     cc_error(cc, "expected variable name");
     return;
   }
 
-  /* Check for array declaration: type name[size] or name[M][N] */
+  /* Check for array declaration: type name[size] or name[M][N].
+   * Also supports comma-separated array decls of the same base type, e.g.
+   *   char keyC[64], keyD[64];
+   * Mixing array and scalar in one statement is not supported.*/
   if (cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
-    cc_token_t size_tok = cc_next(cc);
-    if (size_tok.type != CC_TOK_NUMBER) {
-      cc_error(cc, "expected array size");
-      return;
-    }
-    cc_expect(cc, CC_TOK_RBRACK);
-
-    int32_t arr_size = size_tok.int_value;
-    int32_t inner_dim = 0;
-    /* Check for 2D array: type name[M][N] */
-    if (cc_peek(cc).type == CC_TOK_LBRACK) {
-      cc_next(cc); /* consume '[' */
-      cc_token_t inner_tok = cc_next(cc);
-      if (inner_tok.type != CC_TOK_NUMBER) {
+    while (1) {
+      int32_t arr_size;
+      if (!cc_parse_const_int_expr(cc, &arr_size)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      inner_dim = inner_tok.int_value;
-    }
 
-    int32_t total_bytes;
-    int aes; /* array_elem_size for subscript scaling */
-    cc_type_t arr_type;
+      int32_t inner_dim = 0;
+      /* Check for 2D array: type name[M][N] */
+      if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        cc_next(cc); /* consume '[' */
+        if (!cc_parse_const_int_expr(cc, &inner_dim)) {
+          cc_error(cc, "expected array size");
+          return;
+        }
+        cc_expect(cc, CC_TOK_RBRACK);
+      }
 
-    if (type == TYPE_STRUCT && type_struct_index >= 0 &&
-        type_struct_index < cc->struct_count) {
-      if (!cc_struct_is_complete(cc, type_struct_index)) {
-        cc_error(cc, "array of incomplete struct type");
+      int32_t total_bytes;
+      int aes; /* array_elem_size for subscript scaling */
+      cc_type_t arr_type;
+
+      if (type == TYPE_STRUCT && type_struct_index >= 0 &&
+          type_struct_index < cc->struct_count) {
+        if (!cc_struct_is_complete(cc, type_struct_index)) {
+          cc_error(cc, "array of incomplete struct type");
+          return;
+        }
+        int32_t ssize = cc->structs[type_struct_index].total_size;
+        total_bytes = arr_size * ssize;
+        aes = ssize;
+        arr_type = TYPE_STRUCT_PTR;
+      } else if (inner_dim > 0) {
+        int base_elem = (type == TYPE_CHAR) ? 1 : 4;
+        int32_t row_size = inner_dim * base_elem;
+        total_bytes = arr_size * row_size;
+        aes = row_size;
+        arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      } else {
+        int elem_size = (type == TYPE_CHAR) ? 1 : 4;
+        total_bytes = arr_size * elem_size;
+        aes = elem_size;
+        arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      }
+
+      total_bytes = (total_bytes + 3) & ~3;
+
+      cc->local_offset -= total_bytes;
+      if (cc->local_offset < cc->max_local_offset)
+        cc->max_local_offset = cc->local_offset;
+      cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, arr_type);
+      if (sym) {
+        sym->offset = cc->local_offset;
+        sym->is_array = 1;
+        sym->struct_index = type_struct_index;
+        sym->array_elem_size = aes;
+      }
+
+      if (!cc_match(cc, CC_TOK_COMMA)) break;
+      name_tok = cc_next(cc);
+      if (name_tok.type != CC_TOK_IDENT) {
+        cc_error(cc, "expected variable name");
         return;
       }
-      /* Array of structs */
-      int32_t ssize = cc->structs[type_struct_index].total_size;
-      total_bytes = arr_size * ssize;
-      aes = ssize;
-      arr_type = TYPE_STRUCT_PTR;
-    } else if (inner_dim > 0) {
-      /* 2D array */
-      int base_elem = (type == TYPE_CHAR) ? 1 : 4;
-      int32_t row_size = inner_dim * base_elem;
-      total_bytes = arr_size * row_size;
-      aes = row_size;
-      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
-    } else {
-      /* 1D array */
-      int elem_size = (type == TYPE_CHAR) ? 1 : 4;
-      total_bytes = arr_size * elem_size;
-      aes = elem_size;
-      arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
-    }
-
-    /* Align to 4 bytes */
-    total_bytes = (total_bytes + 3) & ~3;
-
-    cc->local_offset -= total_bytes;
-    if (cc->local_offset < cc->max_local_offset)
-      cc->max_local_offset = cc->local_offset;
-    cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, arr_type);
-    if (sym) {
-      sym->offset = cc->local_offset;
-      sym->is_array = 1;
-      sym->struct_index = type_struct_index;
-      sym->array_elem_size = aes;
+      if (!cc_match(cc, CC_TOK_LBRACK)) {
+        cc_error(cc, "expected array size for additional declarator");
+        return;
+      }
     }
 
     cc_expect(cc, CC_TOK_SEMICOLON);
@@ -4456,10 +4665,10 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   /* SIMD variables (float4/double2): 16-byte aligned 16-byte slot.
    * The prologue guarantees ESP is 16-byte aligned on entry
    * (AND ESP,-16), so rounding the frame offset DOWN to a multiple of
-   * 16 keeps [ebp + offset] aligned for MOVAPS. */
+   * 16 keeps [ebp + offset] aligned for MOVAPS.*/
   if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
     /* Round DOWN (i.e. make more negative) to the next multiple of 16.
-     * local_offset is negative and decreasing. */
+     * local_offset is negative and decreasing.*/
     int32_t aligned = -((-cc->local_offset + 15) & ~15);
     cc->local_offset = aligned - 16;
     if (cc->local_offset < cc->max_local_offset)
@@ -4594,7 +4803,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   /* Multi-declarator support: `int a = 0, b = 0, c;` parses each
    * comma-separated declarator with the same base type. Float/double
    * multi-decl is intentionally not supported here (rare); fall back to
-   * separate statements for those. */
+   * separate statements for those.*/
   while (cc_peek(cc).type == CC_TOK_COMMA) {
     if (type == TYPE_FLOAT || type == TYPE_DOUBLE ||
         type == TYPE_FLOAT4 || type == TYPE_DOUBLE2 ||
@@ -4823,7 +5032,7 @@ static void cc_parse_return(cc_state_t *cc) {
     /* Float/double return values live in XMM0.  Expression codegen
      * places FP results in XMM0 (cc_last_xmm=0), but if a future
      * pass routes them to a different XMM reg we MOVAPS the value
-     * into XMM0 before the epilogue. */
+     * into XMM0 before the epilogue.*/
     if ((cc_last_expr_type == TYPE_FLOAT ||
          cc_last_expr_type == TYPE_DOUBLE) &&
         cc_last_xmm != 0) {
@@ -4858,6 +5067,7 @@ static void cc_parse_statement(cc_state_t *cc) {
   /* Variable declaration (including typedef aliases) */
   if (cc_is_type_or_typedef(cc, tok)) {
     cc_type_t type = cc_parse_type(cc);
+    cc_skip_attributes(cc);
 
     /* Check for function pointer: type (*name)(params) */
     if (cc_peek(cc).type == CC_TOK_LPAREN) {
@@ -4906,7 +5116,7 @@ static void cc_parse_statement(cc_state_t *cc) {
       } else {
         /* Not a function pointer, put back the '(' - actually we can't easily
            undo, so this is a parse error for now (expressions starting with
-           type are rare) */
+           type are rare)*/
         cc_error(cc, "unexpected ( after type");
         return;
       }
@@ -5086,6 +5296,18 @@ static void cc_parse_statement(cc_state_t *cc) {
     cc_expect(cc, CC_TOK_SEMICOLON);
     break;
 
+  case CC_TOK_GOTO: {
+    cc_next(cc);
+    cc_token_t label_tok = cc_next(cc);
+    if (label_tok.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected label after goto");
+      break;
+    }
+    cc_emit_goto(cc, label_tok.text);
+    cc_expect(cc, CC_TOK_SEMICOLON);
+    break;
+  }
+
   case CC_TOK_DEL: {
     cc_next(cc); /* consume del */
     cc_token_t id = cc_next(cc);
@@ -5159,8 +5381,13 @@ static void cc_parse_statement(cc_state_t *cc) {
     cc_token_t id = cc_next(cc);
     cc_token_t next = cc_peek(cc);
 
+    /* Local label: name: */
+    if (next.type == CC_TOK_COLON) {
+      cc_next(cc);
+      cc_define_label(cc, id.text);
+    }
     /* Assignment */
-    if (cc_is_assignment_op(next.type)) {
+    else if (cc_is_assignment_op(next.type)) {
       cc_parse_assignment(cc, id.text);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
@@ -5515,7 +5742,7 @@ static void cc_parse_statement(cc_state_t *cc) {
     /* Expression statement (function call, etc.) */
     else {
       /* We already consumed the identifier, so set it back as
-       * current and parse as expression */
+       * current and parse as expression*/
       cc_parse_ident_expr(cc);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
@@ -5553,6 +5780,7 @@ static void cc_parse_function(cc_state_t *cc) {
     cc_error(cc, "struct return unsupported; use pointer-out parameter");
     return;
   }
+  cc_skip_attributes(cc);
 
   cc_token_t name_tok = cc_next(cc);
   if (name_tok.type != CC_TOK_IDENT) {
@@ -5604,6 +5832,20 @@ static void cc_parse_function(cc_state_t *cc) {
           cc_error(cc, "expected parameter name");
           return;
         }
+        /* `T name[N]` decays to a pointer per C99 §6.7.5.3p7. Consume
+         * the dimension (its value is irrelevant - we only track the
+         * pointer type).*/
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
+        }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
           psym->offset = param_offset;
@@ -5624,6 +5866,17 @@ static void cc_parse_function(cc_state_t *cc) {
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
           return;
+        }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
         }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
@@ -5647,7 +5900,7 @@ static void cc_parse_function(cc_state_t *cc) {
    * in the offset, and use sites compile via the forward-reference
    * patch table (cc->patches). The cupidc prescan already discovers
    * top-level functions, but explicit forward decls let authors write
-   * mutually-recursive helpers and split sigs from bodies. */
+   * mutually-recursive helpers and split sigs from bodies.*/
   if (cc_peek(cc).type == CC_TOK_SEMICOLON) {
     cc_next(cc);
     if (func_sym) {
@@ -5657,6 +5910,8 @@ static void cc_parse_function(cc_state_t *cc) {
     cc->sym_count = saved_scope;
     return;
   }
+
+  cc_labels_reset(cc);
 
   /* Emit function prologue */
   emit_prologue(cc);
@@ -5673,6 +5928,7 @@ static void cc_parse_function(cc_state_t *cc) {
     cc_parse_statement(cc);
   }
   cc_expect(cc, CC_TOK_RBRACE);
+  cc_resolve_labels(cc);
 
   /* Patch the sub esp with actual local space used */
   int32_t locals_size = -cc->max_local_offset;
@@ -5753,6 +6009,17 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           cc_error(cc, "expected parameter name");
           return;
         }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
+        }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
           psym->offset = param_offset;
@@ -5773,6 +6040,17 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
           return;
+        }
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          cc_next(cc);
+          if (cc_peek(cc).type != CC_TOK_RBRACK) {
+            int32_t dummy;
+            cc_parse_const_int_expr(cc, &dummy);
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+          if      (ptype == TYPE_CHAR) ptype = TYPE_CHAR_PTR;
+          else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
+          else                          ptype = TYPE_PTR;
         }
         cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
         if (psym) {
@@ -5846,13 +6124,13 @@ void cc_parse_program(cc_state_t *cc) {
   /* Buffer of additional error messages so parser can keep reporting
    * after the first failure. Top-level recovery skips past the failing
    * declaration and resumes; cc->error gets cleared so subsequent
-   * errors are not muted by the early-return in cc_error. */
+   * errors are not muted by the early-return in cc_error.*/
   int extra_errors = 0;
 
   while (cc_peek(cc).type != CC_TOK_EOF) {
     /* Top-level error recovery: skip the rest of the offending
      * declaration (until next ';' or matching '}') and resume parsing
-     * so a single bad line doesn't hide the rest of the program. */
+     * so a single bad line doesn't hide the rest of the program.*/
     if (cc->error) {
       extra_errors = extra_errors + 1;
       int brace_depth = 0;
@@ -5882,7 +6160,7 @@ void cc_parse_program(cc_state_t *cc) {
       cc->error = 0;
       /* Bound recovery to a reasonable count so a corrupt file can't
        * hold the kernel parser hostage. After ~16 errors we stop and
-       * surface the diagnostic; cc->error stays 1 so the caller bails. */
+       * surface the diagnostic; cc->error stays 1 so the caller bails.*/
       if (extra_errors > 16) {
         cc->error = 1;
         break;
@@ -5925,17 +6203,12 @@ void cc_parse_program(cc_state_t *cc) {
         }
         /* Optional explicit value: NAME = value */
         if (cc_match(cc, CC_TOK_EQ)) {
-          cc_token_t val_tok = cc_next(cc);
-          int negate = 0;
-          if (val_tok.type == CC_TOK_MINUS) {
-            negate = 1;
-            val_tok = cc_next(cc);
-          }
-          if (val_tok.type != CC_TOK_NUMBER) {
+          int32_t explicit_value;
+          if (!cc_parse_const_int_expr(cc, &explicit_value)) {
             cc_error(cc, "expected integer in enum");
             break;
           }
-          enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+          enum_val = explicit_value;
         }
         /* Register as global constant in data section */
         cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
@@ -5943,6 +6216,8 @@ void cc_parse_program(cc_state_t *cc) {
           if (!cc_data_reserve(cc, 4))
             break;
           gsym->address = cc->data_base + cc->data_pos;
+          gsym->is_const_int = 1;
+          gsym->const_int_value = enum_val;
           memset(cc->data + cc->data_pos, 0, 4);
           uint32_t v = (uint32_t)enum_val;
           cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
@@ -6082,12 +6357,12 @@ void cc_parse_program(cc_state_t *cc) {
 
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
               cc_next(cc);
-              cc_token_t size_tok = cc_next(cc);
-              if (size_tok.type != CC_TOK_NUMBER) {
+              int32_t array_count;
+              if (!cc_parse_const_int_expr(cc, &array_count)) {
                 cc_error(cc, "expected array size");
                 break;
               }
-              f->array_count = size_tok.int_value;
+              f->array_count = array_count;
               cc_expect(cc, CC_TOK_RBRACK);
             }
 
@@ -6201,12 +6476,12 @@ void cc_parse_program(cc_state_t *cc) {
           /* Check for array field: name[N] */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
-            cc_token_t size_tok = cc_next(cc);
-            if (size_tok.type != CC_TOK_NUMBER) {
+            int32_t array_count;
+            if (!cc_parse_const_int_expr(cc, &array_count)) {
               cc_error(cc, "expected array size");
               break;
             }
-            f->array_count = size_tok.int_value;
+            f->array_count = array_count;
             cc_expect(cc, CC_TOK_RBRACK);
           }
 
@@ -6256,7 +6531,7 @@ void cc_parse_program(cc_state_t *cc) {
         continue;
       }
       /* Otherwise fall through: struct Name used as a type for
-       * a function return or global variable - handled below */
+       * a function return or global variable - handled below*/
     }
 
     if (cc_is_type_or_typedef(cc, tok)) {
@@ -6270,6 +6545,7 @@ void cc_parse_program(cc_state_t *cc) {
       cc_token_t saved_cur = cc->cur;
 
       cc_type_t type = cc_parse_type(cc);
+      cc_skip_attributes(cc);
       cc_token_t name_tok = cc_next(cc);
       cc_token_t after = cc_peek(cc);
 
@@ -6283,7 +6559,7 @@ void cc_parse_program(cc_state_t *cc) {
       if (after.type == CC_TOK_LPAREN) {
         /* If we're in implicit top-level execution mode, emitted function
          * bodies must be skipped by __start so execution doesn't fall-through
-         * into them as straight-line code. */
+         * into them as straight-line code.*/
         uint32_t skip_func_jmp = 0;
         int has_skip_jmp = 0;
         if (top_level_started) {
@@ -6302,6 +6578,7 @@ void cc_parse_program(cc_state_t *cc) {
         (void)name_tok;
         cc_type_t gtype = cc_parse_type(cc);
         int gtype_si = cc_last_type_struct_index;
+        cc_skip_attributes(cc);
         cc_token_t gname = cc_next(cc);
         if (gname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected variable name");
@@ -6311,35 +6588,30 @@ void cc_parse_program(cc_state_t *cc) {
         /* Global array: type name[size]; or name[M][N]; */
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc); /* consume '[' */
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t arr_elems;
+          if (!cc_parse_const_int_expr(cc, &arr_elems)) {
             cc_error(cc, "expected array size");
             break;
           }
           cc_expect(cc, CC_TOK_RBRACK);
-          int32_t arr_elems = size_tok.int_value;
           int32_t inner_dim = 0;
           int32_t inner_dim2 = 0;
           /* Check for 2D array */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             cc_next(cc); /* consume '[' */
-            cc_token_t inner_tok = cc_next(cc);
-            if (inner_tok.type != CC_TOK_NUMBER) {
+            if (!cc_parse_const_int_expr(cc, &inner_dim)) {
               cc_error(cc, "expected array size");
               break;
             }
             cc_expect(cc, CC_TOK_RBRACK);
-            inner_dim = inner_tok.int_value;
             /* Check for 3D array: type name[A][B][C]; */
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
               cc_next(cc); /* consume '[' */
-              cc_token_t inner2_tok = cc_next(cc);
-              if (inner2_tok.type != CC_TOK_NUMBER) {
+              if (!cc_parse_const_int_expr(cc, &inner_dim2)) {
                 cc_error(cc, "expected array size");
                 break;
               }
               cc_expect(cc, CC_TOK_RBRACK);
-              inner_dim2 = inner2_tok.int_value;
             }
           }
           int32_t total_bytes;
@@ -6359,7 +6631,7 @@ void cc_parse_program(cc_state_t *cc) {
             arr_type = TYPE_STRUCT_PTR;
           } else if (inner_dim2 > 0) {
             /* 3D array name[A][B][C]: outer stride = B*C*base; middle
-             * stride = C*base; innermost element = base. */
+             * stride = C*base; innermost element = base.*/
             int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
             int32_t row_size = inner_dim * inner_dim2 * base_elem;
             total_bytes = arr_elems * row_size;
@@ -6476,7 +6748,7 @@ void cc_parse_program(cc_state_t *cc) {
     } else {
       /* Top-level executable statement (HolyC-style script mode).
        * We compile these into an implicit __start() thunk and execute it.
-       */
+*/
       if (!top_level_started) {
         cc_symbol_t *start_sym = cc_sym_find(cc, "__start");
         if (!start_sym) {
@@ -6495,6 +6767,7 @@ void cc_parse_program(cc_state_t *cc) {
         cc->max_local_offset = 0;
         cc->param_count = 0;
         cc_xmm_reset();
+        cc_labels_reset(cc);
 
         emit_prologue(cc);
         top_level_sub_esp_pos = cc->code_pos;
@@ -6518,10 +6791,12 @@ void cc_parse_program(cc_state_t *cc) {
   }
 
   if (!cc->error && top_level_started) {
+    cc_resolve_labels(cc);
+
     /* If main() exists and the user did NOT already invoke it from a
      * top-level statement, run it after top-level for legacy programs that
      * defined main but didn't call it. Skipping when the user *did* call
-     * main themselves prevents the body from running twice. */
+     * main themselves prevents the body from running twice.*/
     cc_symbol_t *main_sym = cc_sym_find(cc, "main");
     if (main_sym && main_sym->kind == SYM_FUNC && main_sym->is_defined &&
         !cc->main_called_top_level) {
@@ -6601,7 +6876,7 @@ void cc_parse_program(cc_state_t *cc) {
 }
 
 /*  *  REPL Line Parsing - TempleOS-style direct statement compilation
- *  */
+ **/
 
 static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
   int saved_pos = cc->pos;
@@ -6695,21 +6970,18 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         return;
       }
       if (cc_match(cc, CC_TOK_EQ)) {
-        cc_token_t val_tok = cc_next(cc);
-        int negate = 0;
-        if (val_tok.type == CC_TOK_MINUS) {
-          negate = 1;
-          val_tok = cc_next(cc);
-        }
-        if (val_tok.type != CC_TOK_NUMBER) {
+        int32_t explicit_value;
+        if (!cc_parse_const_int_expr(cc, &explicit_value)) {
           cc_error(cc, "expected integer in enum");
           return;
         }
-        enum_val = negate ? -val_tok.int_value : val_tok.int_value;
+        enum_val = explicit_value;
       }
       cc_symbol_t *gsym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, TYPE_INT);
       if (gsym) {
         gsym->address = cc->data_base + cc->data_pos;
+        gsym->is_const_int = 1;
+        gsym->const_int_value = enum_val;
         memset(cc->data + cc->data_pos, 0, 4);
         uint32_t v = (uint32_t)enum_val;
         cc->data[cc->data_pos] = (uint8_t)(v & 0xFF);
@@ -6819,12 +7091,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         f->array_count = 0;
         if (cc_peek(cc).type == CC_TOK_LBRACK) {
           cc_next(cc);
-          cc_token_t size_tok = cc_next(cc);
-          if (size_tok.type != CC_TOK_NUMBER) {
+          int32_t array_count;
+          if (!cc_parse_const_int_expr(cc, &array_count)) {
             cc_error(cc, "expected array size");
             return;
           }
-          f->array_count = size_tok.int_value;
+          f->array_count = array_count;
           cc_expect(cc, CC_TOK_RBRACK);
         }
         if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
@@ -6865,7 +7137,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     /* Fall through - struct used as type for variable or function */
   }
 
-  /*  Check if line starts with a type (function def or global var)  */
+  /* Check if line starts with a type (function def or global var) */
   if (cc_is_type_or_typedef(cc, tok)) {
     int saved_pos = cc->pos;
     int saved_line = cc->line;
@@ -6874,6 +7146,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc_token_t saved_cur = cc->cur;
 
     cc_type_t type = cc_parse_type(cc);
+    cc_skip_attributes(cc);
     cc_token_t name_tok = cc_next(cc);
     cc_token_t after = cc_peek(cc);
 
@@ -6908,6 +7181,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     (void)name_tok;
     cc_type_t gtype = cc_parse_type(cc);
     int gtype_si = cc_last_type_struct_index;
+    cc_skip_attributes(cc);
     cc_token_t gname = cc_next(cc);
     if (gname.type != CC_TOK_IDENT) {
       cc_error(cc, "expected variable name");
@@ -6916,13 +7190,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
 
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
       cc_next(cc);
-      cc_token_t size_tok = cc_next(cc);
-      if (size_tok.type != CC_TOK_NUMBER) {
+      int32_t arr_elems;
+      if (!cc_parse_const_int_expr(cc, &arr_elems)) {
         cc_error(cc, "expected array size");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
-      int32_t arr_elems = size_tok.int_value;
       int32_t elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
       cc_type_t arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
       if (gtype == TYPE_STRUCT && gtype_si >= 0 && gtype_si < cc->struct_count) {

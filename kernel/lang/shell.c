@@ -40,6 +40,7 @@
 #include "icmp.h"
 #include "ip.h"
 #include "socket.h"
+#include "sshd.h"
 
 #define MAX_INPUT_LEN 80
 #define HISTORY_SIZE 16
@@ -47,14 +48,34 @@
 
 /*
  *  GUI output mode support
- */
+*/
 static shell_output_mode_t output_mode = SHELL_OUTPUT_TEXT;
 static char gui_buffer[SHELL_ROWS * SHELL_COLS];
 static shell_color_t gui_color_buffer[SHELL_ROWS * SHELL_COLS];
+static char gui_saved_buffer[SHELL_ROWS * SHELL_COLS];
+static shell_color_t gui_saved_color_buffer[SHELL_ROWS * SHELL_COLS];
 static terminal_color_state_t shell_ansi_state;
 static int gui_cursor_x = 0;
 static int gui_cursor_y = 0;
+static int gui_saved_cursor_x = 0;
+static int gui_saved_cursor_y = 0;
+static int gui_last_was_cr = 0;
 static int gui_visible_cols = SHELL_COLS; /* actual visible column width */
+static int gui_visible_rows = 25;
+static int gui_scroll_top = 0;
+static int gui_scroll_bottom = 24;
+static int gui_alt_screen = 0;
+static int gui_saved_main_cursor_x = 0;
+static int gui_saved_main_cursor_y = 0;
+static int gui_terminal_cursor_visible = 1;
+static int gui_app_cursor_keys = 0;
+static int gui_wrap_enabled = 1;
+static int gui_origin_mode = 0;
+static int gui_utf8_remaining = 0;
+static uint32_t gui_utf8_codepoint = 0;
+static char gui_last_print_char = ' ';
+static int gui_input_origin_x = 0;
+static int gui_input_origin_y = 0;
 
 /* I/O redirection capture buffer */
 #define REDIR_BUF_SIZE 4096
@@ -98,11 +119,93 @@ static char gui_repl_pending[SHELL_REPL_PENDING_MAX];
 static uint32_t gui_repl_pending_len = 0;
 static int gui_repl_brace_depth = 0;
 
+static shell_output_sink_t process_output_sinks[MAX_PROCESSES + 1];
+static void *process_output_sink_ctx[MAX_PROCESSES + 1];
+
 static void shell_putchar(char c);
 static void shell_print(const char *s);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void gui_exec_command(const char *input);
+
+static int gui_ssh_debug = 1;
+
+static int shell_ssh_debug_active(void) {
+  return gui_ssh_debug && jit_program_running &&
+         strcmp(jit_program_name, "ssh") == 0;
+}
+
+static int shell_jit_input_queued(void) {
+  if (jit_input_write_pos >= jit_input_read_pos)
+    return jit_input_write_pos - jit_input_read_pos;
+  return JIT_INPUT_BUFFER_SIZE - jit_input_read_pos + jit_input_write_pos;
+}
+
+void shell_set_process_output_sink(uint32_t pid,
+                                   shell_output_sink_t sink,
+                                   void *ctx) {
+  if (pid > MAX_PROCESSES)
+    return;
+  process_output_sinks[pid] = sink;
+  process_output_sink_ctx[pid] = ctx;
+}
+
+void shell_clear_process_output_sink(uint32_t pid) {
+  if (pid > MAX_PROCESSES)
+    return;
+  process_output_sinks[pid] = NULL;
+  process_output_sink_ctx[pid] = NULL;
+}
+
+int shell_output_write_current(const char *buf, uint32_t len) {
+  uint32_t pid;
+  if (!process_is_active()) {
+    if (!process_output_sinks[0])
+      return 0;
+    process_output_sinks[0](buf, len, process_output_sink_ctx[0]);
+    return 1;
+  }
+
+  pid = process_get_current_pid();
+  if (pid <= MAX_PROCESSES && process_output_sinks[pid]) {
+    process_output_sinks[pid](buf, len, process_output_sink_ctx[pid]);
+    return 1;
+  }
+
+  if (!process_output_sinks[0])
+    return 0;
+  process_output_sinks[0](buf, len, process_output_sink_ctx[0]);
+  return 1;
+}
+
+int shell_output_putchar_current(char c) {
+  return shell_output_write_current(&c, 1u);
+}
+
+static void shell_debug_dump_bytes(const char *tag, const char *buf, int len) {
+  if (!shell_ssh_debug_active())
+    return;
+  serial_printf("[ssh-input] %s len=%d bytes=", tag, len);
+  for (int i = 0; i < len; i++) {
+    unsigned char b = (unsigned char)buf[i];
+    if (b == 0) serial_printf("<NUL>");
+    else if (b == 7) serial_printf("<BEL>");
+    else if (b == 8) serial_printf("<BS>");
+    else if (b == 9) serial_printf("<TAB>");
+    else if (b == 10) serial_printf("<LF>");
+    else if (b == 13) serial_printf("<CR>");
+    else if (b == 27) serial_printf("<ESC>");
+    else if (b >= 32 && b <= 126) {
+      char one[2];
+      one[0] = (char)b;
+      one[1] = '\0';
+      serial_printf("%s", one);
+    } else {
+      serial_printf("<0x%x>", b);
+    }
+  }
+  serial_printf("\n");
+}
 
 static void shell_print_u32_padded(uint32_t value, int width) {
   char buf[16];
@@ -204,6 +307,8 @@ static void shell_gui_print_prompt(void) {
     shell_gui_print(shell_cwd);
     shell_gui_print("> ");
   }
+  gui_input_origin_x = gui_cursor_x;
+  gui_input_origin_y = gui_cursor_y;
 }
 
 void shell_set_program_args(const char *args) {
@@ -236,7 +341,7 @@ void shell_set_cwd(const char *path) {
  *   - Absolute paths (starting with '/') are copied as-is.
  *   - Relative paths are joined with CWD.
  *   - ".." and "." components are resolved.
- */
+*/
 void shell_resolve_path(const char *input, char *out) {
   char tmp[VFS_MAX_PATH];
   int ti = 0;
@@ -342,6 +447,7 @@ void shell_resolve_path(const char *input, char *out) {
 
 /* Forward declarations */
 static void execute_command(const char *input);
+static void execute_command_inner(const char *input, int try_repl);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void shell_gui_print_int(uint32_t num);
@@ -375,6 +481,19 @@ void shell_set_output_mode(shell_output_mode_t mode) {
     ansi_init(&shell_ansi_state);
     gui_cursor_x = 0;
     gui_cursor_y = 0;
+    gui_saved_cursor_x = 0;
+    gui_saved_cursor_y = 0;
+    gui_last_was_cr = 0;
+    gui_scroll_top = 0;
+    gui_scroll_bottom = gui_visible_rows - 1;
+    gui_alt_screen = 0;
+    gui_terminal_cursor_visible = 1;
+    gui_app_cursor_keys = 0;
+    gui_wrap_enabled = 1;
+    gui_origin_mode = 0;
+    gui_utf8_remaining = 0;
+    gui_utf8_codepoint = 0;
+    gui_last_print_char = ' ';
     gui_repl_pending_len = 0;
     gui_repl_pending[0] = '\0';
     gui_repl_brace_depth = 0;
@@ -399,6 +518,20 @@ shell_output_mode_t shell_get_output_mode(void) { return output_mode; }
 void shell_set_visible_cols(int cols) {
   if (cols > 0 && cols <= SHELL_COLS) {
     gui_visible_cols = cols;
+    if (gui_cursor_x >= gui_visible_cols)
+      gui_cursor_x = gui_visible_cols - 1;
+  }
+}
+
+void shell_set_visible_rows(int rows) {
+  if (rows > 0 && rows <= SHELL_ROWS) {
+    gui_visible_rows = rows;
+    if (gui_scroll_bottom < gui_scroll_top || gui_scroll_bottom >= gui_visible_rows) {
+      gui_scroll_top = 0;
+      gui_scroll_bottom = gui_visible_rows - 1;
+    }
+    if (gui_alt_screen && gui_cursor_y >= gui_visible_rows)
+      gui_cursor_y = gui_visible_rows - 1;
   }
 }
 
@@ -410,19 +543,81 @@ int shell_get_cursor_x(void) { return gui_cursor_x; }
 
 int shell_get_cursor_y(void) { return gui_cursor_y; }
 
+int shell_get_terminal_cursor_visible(void) { return gui_terminal_cursor_visible; }
+
+int shell_get_terminal_alt_screen(void) { return gui_alt_screen; }
+
+int shell_get_terminal_app_cursor_keys(void) { return gui_app_cursor_keys; }
+
+static void shell_clamp_cursor(void) {
+  int max_row = gui_alt_screen ? gui_visible_rows : SHELL_ROWS;
+  if (max_row < 1) max_row = 1;
+  if (gui_cursor_x < 0) gui_cursor_x = 0;
+  if (gui_cursor_y < 0) gui_cursor_y = 0;
+  if (gui_cursor_x >= gui_visible_cols) gui_cursor_x = gui_visible_cols - 1;
+  if (gui_cursor_x >= SHELL_COLS) gui_cursor_x = SHELL_COLS - 1;
+  if (gui_cursor_y >= max_row) gui_cursor_y = max_row - 1;
+}
+
+static void shell_clear_row_raw(int row) {
+  if (row < 0 || row >= SHELL_ROWS)
+    return;
+  memset(gui_buffer + row * SHELL_COLS, 0, (size_t)SHELL_COLS);
+  for (int col = 0; col < SHELL_COLS; col++) {
+    int idx = row * SHELL_COLS + col;
+    gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+    gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+  }
+}
+
+static void shell_scroll_rows_up(int top, int bottom, int n) {
+  if (top < 0) top = 0;
+  if (bottom >= SHELL_ROWS) bottom = SHELL_ROWS - 1;
+  if (top > bottom || n <= 0) return;
+  int height = bottom - top + 1;
+  if (n > height) n = height;
+  if (n < height) {
+    int cells = (height - n) * SHELL_COLS;
+    for (int i = 0; i < cells; i++) {
+      gui_buffer[top * SHELL_COLS + i] =
+          gui_buffer[(top + n) * SHELL_COLS + i];
+      gui_color_buffer[top * SHELL_COLS + i] =
+          gui_color_buffer[(top + n) * SHELL_COLS + i];
+    }
+  }
+  for (int row = bottom - n + 1; row <= bottom; row++) {
+    shell_clear_row_raw(row);
+  }
+}
+
+static void shell_scroll_rows_down(int top, int bottom, int n) {
+  if (top < 0) top = 0;
+  if (bottom >= SHELL_ROWS) bottom = SHELL_ROWS - 1;
+  if (top > bottom || n <= 0) return;
+  int height = bottom - top + 1;
+  if (n > height) n = height;
+  if (n < height) {
+    int cells = (height - n) * SHELL_COLS;
+    for (int i = cells - 1; i >= 0; i--) {
+      gui_buffer[(top + n) * SHELL_COLS + i] =
+          gui_buffer[top * SHELL_COLS + i];
+      gui_color_buffer[(top + n) * SHELL_COLS + i] =
+          gui_color_buffer[top * SHELL_COLS + i];
+    }
+  }
+  for (int row = top; row < top + n; row++) {
+    shell_clear_row_raw(row);
+  }
+}
+
 /* Scroll both char and color buffers up one line */
 static void shell_gui_scroll(void) {
-  memcpy(gui_buffer, gui_buffer + SHELL_COLS,
-         (size_t)((SHELL_ROWS - 1) * SHELL_COLS));
-  memset(gui_buffer + (SHELL_ROWS - 1) * SHELL_COLS, 0, (size_t)SHELL_COLS);
-
-  memcpy(gui_color_buffer, gui_color_buffer + SHELL_COLS,
-         sizeof(shell_color_t) * (size_t)(SHELL_ROWS - 1) * (size_t)SHELL_COLS);
-  /* Clear last row colors to default */
-  for (int i = 0; i < SHELL_COLS; i++) {
-    gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].fg = ANSI_DEFAULT_FG;
-    gui_color_buffer[(SHELL_ROWS - 1) * SHELL_COLS + i].bg = ANSI_DEFAULT_BG;
+  if (gui_alt_screen) {
+    shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom, 1);
+    gui_cursor_y = gui_scroll_bottom;
+    return;
   }
+  shell_scroll_rows_up(0, SHELL_ROWS - 1, 1);
   gui_cursor_y = SHELL_ROWS - 1;
 }
 
@@ -432,16 +627,262 @@ static void shell_set_cell_color(int idx) {
   gui_color_buffer[idx].bg = ansi_get_bg(&shell_ansi_state);
 }
 
+static void shell_clear_cell_current(int row, int col) {
+  if (row < 0 || row >= SHELL_ROWS || col < 0 || col >= SHELL_COLS)
+    return;
+  int idx = row * SHELL_COLS + col;
+  gui_buffer[idx] = 0;
+  shell_set_cell_color(idx);
+}
+
+static void shell_clear_line_range_current(int row, int first_col, int last_col) {
+  if (row < 0 || row >= SHELL_ROWS)
+    return;
+  if (first_col < 0) first_col = 0;
+  if (last_col >= SHELL_COLS) last_col = SHELL_COLS - 1;
+  for (int col = first_col; col <= last_col; col++) {
+    shell_clear_cell_current(row, col);
+  }
+}
+
+static void shell_clear_rows_current(int first_row, int last_row) {
+  if (first_row < 0) first_row = 0;
+  if (last_row >= SHELL_ROWS) last_row = SHELL_ROWS - 1;
+  for (int row = first_row; row <= last_row; row++) {
+    shell_clear_line_range_current(row, 0, SHELL_COLS - 1);
+  }
+}
+
+static void shell_enter_alt_screen(void) {
+  if (gui_alt_screen)
+    return;
+
+  memcpy(gui_saved_buffer, gui_buffer, sizeof(gui_buffer));
+  memcpy(gui_saved_color_buffer, gui_color_buffer, sizeof(gui_color_buffer));
+  gui_saved_main_cursor_x = gui_cursor_x;
+  gui_saved_main_cursor_y = gui_cursor_y;
+
+  memset(gui_buffer, 0, sizeof(gui_buffer));
+  for (int i = 0; i < SHELL_ROWS * SHELL_COLS; i++) {
+    gui_color_buffer[i].fg = ANSI_DEFAULT_FG;
+    gui_color_buffer[i].bg = ANSI_DEFAULT_BG;
+  }
+
+  gui_alt_screen = 1;
+  gui_cursor_x = 0;
+  gui_cursor_y = 0;
+  gui_saved_cursor_x = 0;
+  gui_saved_cursor_y = 0;
+  gui_scroll_top = 0;
+  gui_scroll_bottom = gui_visible_rows - 1;
+  gui_last_was_cr = 0;
+}
+
+static void shell_leave_alt_screen(void) {
+  if (!gui_alt_screen)
+    return;
+
+  memcpy(gui_buffer, gui_saved_buffer, sizeof(gui_buffer));
+  memcpy(gui_color_buffer, gui_saved_color_buffer, sizeof(gui_color_buffer));
+  gui_alt_screen = 0;
+  gui_cursor_x = gui_saved_main_cursor_x;
+  gui_cursor_y = gui_saved_main_cursor_y;
+  gui_scroll_top = 0;
+  gui_scroll_bottom = gui_visible_rows - 1;
+  gui_terminal_cursor_visible = 1;
+  gui_app_cursor_keys = 0;
+  gui_wrap_enabled = 1;
+  gui_origin_mode = 0;
+  gui_last_was_cr = 0;
+  shell_clamp_cursor();
+}
+
+static int shell_region_bottom(void) {
+  if (gui_alt_screen) return gui_scroll_bottom;
+  return SHELL_ROWS - 1;
+}
+
+static void shell_linefeed(void) {
+  int bottom = shell_region_bottom();
+  if (gui_cursor_y >= bottom) {
+    if (gui_alt_screen) {
+      shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom, 1);
+      gui_cursor_y = bottom;
+    } else {
+      shell_gui_scroll();
+    }
+  } else {
+    gui_cursor_y++;
+  }
+}
+
+static void shell_insert_lines(int n) {
+  if (n <= 0) return;
+  if (gui_cursor_y < gui_scroll_top || gui_cursor_y > gui_scroll_bottom)
+    return;
+  shell_scroll_rows_down(gui_cursor_y, gui_scroll_bottom, n);
+}
+
+static void shell_delete_lines(int n) {
+  if (n <= 0) return;
+  if (gui_cursor_y < gui_scroll_top || gui_cursor_y > gui_scroll_bottom)
+    return;
+  shell_scroll_rows_up(gui_cursor_y, gui_scroll_bottom, n);
+}
+
+static void shell_insert_chars(int n) {
+  if (n <= 0 || gui_cursor_y < 0 || gui_cursor_y >= SHELL_ROWS)
+    return;
+  int row = gui_cursor_y;
+  if (n > gui_visible_cols - gui_cursor_x)
+    n = gui_visible_cols - gui_cursor_x;
+  for (int col = gui_visible_cols - 1; col >= gui_cursor_x + n; col--) {
+    int dst = row * SHELL_COLS + col;
+    int src = row * SHELL_COLS + col - n;
+    gui_buffer[dst] = gui_buffer[src];
+    gui_color_buffer[dst] = gui_color_buffer[src];
+  }
+  shell_clear_line_range_current(row, gui_cursor_x, gui_cursor_x + n - 1);
+}
+
+static void shell_delete_chars(int n) {
+  if (n <= 0 || gui_cursor_y < 0 || gui_cursor_y >= SHELL_ROWS)
+    return;
+  int row = gui_cursor_y;
+  if (n > gui_visible_cols - gui_cursor_x)
+    n = gui_visible_cols - gui_cursor_x;
+  for (int col = gui_cursor_x; col + n < gui_visible_cols; col++) {
+    int dst = row * SHELL_COLS + col;
+    int src = row * SHELL_COLS + col + n;
+    gui_buffer[dst] = gui_buffer[src];
+    gui_color_buffer[dst] = gui_color_buffer[src];
+  }
+  shell_clear_line_range_current(row, gui_visible_cols - n, gui_visible_cols - 1);
+}
+
+static void shell_set_terminal_mode(int mode, int private_mode, int enabled) {
+  if (private_mode) {
+    if (mode == 25) {
+      gui_terminal_cursor_visible = enabled ? 1 : 0;
+    } else if (mode == 1) {
+      gui_app_cursor_keys = enabled ? 1 : 0;
+    } else if (mode == 7) {
+      gui_wrap_enabled = enabled ? 1 : 0;
+    } else if (mode == 6) {
+      gui_origin_mode = enabled ? 1 : 0;
+      gui_cursor_x = 0;
+      gui_cursor_y = gui_origin_mode ? gui_scroll_top : 0;
+      shell_clamp_cursor();
+    } else if (mode == 47 || mode == 1047 || mode == 1049) {
+      if (enabled) shell_enter_alt_screen();
+      else shell_leave_alt_screen();
+    }
+  }
+}
+
+static char shell_map_unicode_to_cell(uint32_t cp) {
+  if (cp >= 0x2500U && cp <= 0x257FU) return '+';
+  if (cp >= 0x2580U && cp <= 0x259FU) return '#';
+  if (cp == 0x2190U) return '<';
+  if (cp == 0x2191U) return '^';
+  if (cp == 0x2192U) return '>';
+  if (cp == 0x2193U) return 'v';
+  if (cp == 0x2022U || cp == 0x25CFU || cp == 0x25CBU) return '*';
+  if (cp == 0x2013U || cp == 0x2014U || cp == 0x2212U) return '-';
+  if (cp == 0x00B0U) return 'o';
+  if (cp == 0x2713U || cp == 0x2714U) return '*';
+  if (cp >= 32U && cp <= 126U) return (char)cp;
+  return '?';
+}
+
+static char shell_map_acs_to_cell(char c) {
+  switch (c) {
+  case 'j': case 'k': case 'l': case 'm':
+  case 'n': case 't': case 'u': case 'v': case 'w':
+    return '+';
+  case 'q':
+    return '-';
+  case 'x':
+    return '|';
+  case 'a':
+    return '#';
+  case '`':
+    return '+';
+  case 'f':
+    return '\'';
+  case 'g':
+    return '#';
+  case 'o':
+    return '~';
+  case 's':
+    return '_';
+  case '~':
+    return 'o';
+  default:
+    return c;
+  }
+}
+
+static int shell_utf8_next_cell(unsigned char byte, char *out) {
+  if (gui_utf8_remaining > 0) {
+    if ((byte & 0xC0U) != 0x80U) {
+      gui_utf8_remaining = 0;
+      gui_utf8_codepoint = 0;
+      *out = '?';
+      return 1;
+    }
+    gui_utf8_codepoint = (gui_utf8_codepoint << 6) | (uint32_t)(byte & 0x3FU);
+    gui_utf8_remaining--;
+    if (gui_utf8_remaining == 0) {
+      *out = shell_map_unicode_to_cell(gui_utf8_codepoint);
+      gui_utf8_codepoint = 0;
+      return 1;
+    }
+    return 0;
+  }
+
+  if (byte < 0x80U) {
+    *out = (char)byte;
+    return 1;
+  }
+  if ((byte & 0xE0U) == 0xC0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x1FU);
+    gui_utf8_remaining = 1;
+    return 0;
+  }
+  if ((byte & 0xF0U) == 0xE0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x0FU);
+    gui_utf8_remaining = 2;
+    return 0;
+  }
+  if ((byte & 0xF8U) == 0xF0U) {
+    gui_utf8_codepoint = (uint32_t)(byte & 0x07U);
+    gui_utf8_remaining = 3;
+    return 0;
+  }
+
+  *out = '?';
+  return 1;
+}
+
 /* Put a character into the GUI buffer with ANSI escape processing */
 static void shell_gui_putchar(char c) {
 
   /* Feed character through ANSI parser first */
   ansi_result_t result = ansi_process_char(&shell_ansi_state, c);
+  if (shell_ssh_debug_active() && result != ANSI_RESULT_SKIP &&
+      result != ANSI_RESULT_PRINT) {
+    serial_printf("[ssh-render] ansi result=%d byte=0x%x p1=%d p2=%d cursor=%d,%d scroll=%d-%d alt=%d origin=%d wrap=%d app_cursor=%d\n",
+                  result, (unsigned char)c, shell_ansi_state.param1,
+                  shell_ansi_state.param2, gui_cursor_x, gui_cursor_y,
+                  gui_scroll_top, gui_scroll_bottom, gui_alt_screen,
+                  gui_origin_mode, gui_wrap_enabled, gui_app_cursor_keys);
+  }
 
   switch (result) {
   case ANSI_RESULT_SKIP:
     /* Escape sequence in progress or color code processed - nothing to display
-     */
+*/
     return;
 
   case ANSI_RESULT_CLEAR:
@@ -461,33 +902,196 @@ static void shell_gui_putchar(char c) {
     gui_cursor_y = 0;
     return;
 
+  case ANSI_RESULT_CURSOR_POS:
+    gui_cursor_y = shell_ansi_state.param1 +
+                   (gui_origin_mode ? gui_scroll_top : 0);
+    gui_cursor_x = shell_ansi_state.param2;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_UP:
+    gui_cursor_y -= shell_ansi_state.param1;
+    if (shell_ansi_state.param2 == 1) gui_cursor_x = 0;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_DOWN:
+    gui_cursor_y += shell_ansi_state.param1;
+    if (shell_ansi_state.param2 == 1) gui_cursor_x = 0;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_FORWARD:
+    gui_cursor_x += shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_BACK:
+    gui_cursor_x -= shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_CURSOR_COL:
+    gui_cursor_x = shell_ansi_state.param1;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_ERASE_LINE:
+    if (shell_ansi_state.param1 == 1) {
+      shell_clear_line_range_current(gui_cursor_y, 0, gui_cursor_x);
+    } else if (shell_ansi_state.param1 == 2) {
+      shell_clear_line_range_current(gui_cursor_y, 0, SHELL_COLS - 1);
+    } else {
+      shell_clear_line_range_current(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+    }
+    return;
+
+  case ANSI_RESULT_ERASE_DISPLAY:
+    if (shell_ansi_state.param1 == 1) {
+      shell_clear_rows_current(0, gui_cursor_y - 1);
+      shell_clear_line_range_current(gui_cursor_y, 0, gui_cursor_x);
+    } else {
+      shell_clear_line_range_current(gui_cursor_y, gui_cursor_x, SHELL_COLS - 1);
+      shell_clear_rows_current(gui_cursor_y + 1, SHELL_ROWS - 1);
+    }
+    return;
+
+  case ANSI_RESULT_SAVE_CURSOR:
+    gui_saved_cursor_x = gui_cursor_x;
+    gui_saved_cursor_y = gui_cursor_y;
+    return;
+
+  case ANSI_RESULT_RESTORE_CURSOR:
+    gui_cursor_x = gui_saved_cursor_x;
+    gui_cursor_y = gui_saved_cursor_y;
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_SCROLL_UP:
+    if (gui_alt_screen)
+      shell_scroll_rows_up(gui_scroll_top, gui_scroll_bottom,
+                           shell_ansi_state.param1);
+    else
+      shell_scroll_rows_up(0, SHELL_ROWS - 1, shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_SCROLL_DOWN:
+    if (gui_alt_screen)
+      shell_scroll_rows_down(gui_scroll_top, gui_scroll_bottom,
+                             shell_ansi_state.param1);
+    else
+      shell_scroll_rows_down(0, SHELL_ROWS - 1, shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_SET_MODE:
+    shell_set_terminal_mode(shell_ansi_state.param1, shell_ansi_state.param2, 1);
+    return;
+
+  case ANSI_RESULT_RESET_MODE:
+    shell_set_terminal_mode(shell_ansi_state.param1, shell_ansi_state.param2, 0);
+    return;
+
+  case ANSI_RESULT_SET_SCROLL_REGION:
+    gui_scroll_top = shell_ansi_state.param1;
+    gui_scroll_bottom = shell_ansi_state.param2 >= 0
+                            ? shell_ansi_state.param2
+                            : gui_visible_rows - 1;
+    if (gui_scroll_top < 0) gui_scroll_top = 0;
+    if (gui_scroll_bottom >= gui_visible_rows)
+      gui_scroll_bottom = gui_visible_rows - 1;
+    if (gui_scroll_top >= gui_scroll_bottom) {
+      gui_scroll_top = 0;
+      gui_scroll_bottom = gui_visible_rows - 1;
+    }
+    gui_cursor_x = 0;
+    gui_cursor_y = gui_origin_mode ? gui_scroll_top : 0;
+    return;
+
+  case ANSI_RESULT_CURSOR_ROW:
+    gui_cursor_y = shell_ansi_state.param1 +
+                   (gui_origin_mode ? gui_scroll_top : 0);
+    shell_clamp_cursor();
+    return;
+
+  case ANSI_RESULT_INSERT_LINE:
+    shell_insert_lines(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_DELETE_LINE:
+    shell_delete_lines(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_INSERT_CHARS:
+    shell_insert_chars(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_DELETE_CHARS:
+    shell_delete_chars(shell_ansi_state.param1);
+    return;
+
+  case ANSI_RESULT_ERASE_CHARS:
+    shell_clear_line_range_current(gui_cursor_y, gui_cursor_x,
+                                   gui_cursor_x + shell_ansi_state.param1 - 1);
+    return;
+
+  case ANSI_RESULT_REPEAT_CHAR:
+    for (int i = 0; i < shell_ansi_state.param1; i++) {
+      shell_gui_putchar(gui_last_print_char);
+    }
+    return;
+
   case ANSI_RESULT_PRINT:
     break; /* fall through to normal character handling */
   }
 
+  if ((unsigned char)c >= 0x80U || gui_utf8_remaining > 0) {
+    char mapped;
+    if (!shell_utf8_next_cell((unsigned char)c, &mapped))
+      return;
+    c = mapped;
+  } else if (shell_ansi_state.g0_alt_charset && c >= 32 && c <= 126) {
+    c = shell_map_acs_to_cell(c);
+  }
+
   /* Normal character handling */
   if (c == '\n') {
-    /* Clear remainder of current line */
-    for (int i = gui_cursor_x; i < SHELL_COLS; i++) {
-      int idx = gui_cursor_y * SHELL_COLS + i;
-      gui_buffer[idx] = 0;
-      gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
-      gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-render] LF cursor_before=%d,%d last_cr=%d\n",
+                    gui_cursor_x, gui_cursor_y, gui_last_was_cr);
     }
-    gui_cursor_x = 0;
-    gui_cursor_y++;
+    if (!gui_last_was_cr) {
+      /* Local shell output uses bare LF as newline, so keep that behavior.
+       * Remote PTYs send CRLF; in that case CR already moved to column 0 and
+       * clearing here would erase the line that was just printed.*/
+      for (int i = gui_cursor_x; i < SHELL_COLS; i++) {
+        int idx = gui_cursor_y * SHELL_COLS + i;
+        gui_buffer[idx] = 0;
+        gui_color_buffer[idx].fg = ANSI_DEFAULT_FG;
+        gui_color_buffer[idx].bg = ANSI_DEFAULT_BG;
+      }
+      gui_cursor_x = 0;
+    }
+    shell_linefeed();
+    gui_last_was_cr = 0;
   } else if (c == '\r') {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-render] CR cursor_before=%d,%d\n",
+                    gui_cursor_x, gui_cursor_y);
+    }
     /* Carriage return: cursor to col 0. Standard CRLF handling so HTTP
      * bodies (e.g. from /bin/curl.cc) don't render \r as a CP437 glyph
-     * (♪ at byte 0x0D) on each header line. */
+     * (♪ at byte 0x0D) on each header line.*/
     gui_cursor_x = 0;
+    gui_last_was_cr = 1;
   } else if (c == '\b') {
     if (gui_cursor_x > 0) {
       gui_cursor_x--;
     }
+    gui_last_was_cr = 0;
   } else if ((unsigned char)c < 32 && c != '\t') {
     /* Drop other control bytes - never render as glyphs.
-     * (Order matters: \b/\n/\r/\t are handled above.) */
+     * (Order matters: \b/\n/\r/\t are handled above.)*/
+    gui_last_was_cr = 0;
     return;
   } else if (c == '\t') {
     /* Tab = 4 spaces */
@@ -497,23 +1101,30 @@ static void shell_gui_putchar(char c) {
       shell_set_cell_color(idx);
       gui_cursor_x++;
     }
+    gui_last_was_cr = 0;
   } else {
     if (gui_cursor_x < gui_visible_cols) {
       int idx = gui_cursor_y * SHELL_COLS + gui_cursor_x;
       gui_buffer[idx] = c;
       shell_set_cell_color(idx);
       gui_cursor_x++;
+      gui_last_print_char = c;
     }
+    gui_last_was_cr = 0;
   }
 
   /* Wrap at visible column width */
   if (gui_cursor_x >= gui_visible_cols) {
-    gui_cursor_x = 0;
-    gui_cursor_y++;
+    if (!gui_wrap_enabled) {
+      gui_cursor_x = gui_visible_cols - 1;
+    } else {
+      gui_cursor_x = 0;
+      shell_linefeed();
+    }
   }
 
   /* Scroll */
-  if (gui_cursor_y >= SHELL_ROWS) {
+  if (!gui_alt_screen && gui_cursor_y >= SHELL_ROWS) {
     shell_gui_scroll();
   }
 
@@ -549,8 +1160,10 @@ static void shell_gui_print_int(uint32_t num) {
 
 /*
  *  Output wrappers that route to GUI or text mode
- */
+*/
 static void shell_print(const char *s) {
+  if (s && shell_output_write_current(s, (uint32_t)strlen(s)))
+    return;
   if (redir_active && redir_buf) {
     while (*s && redir_len < REDIR_BUF_SIZE - 1) {
       redir_buf[redir_len++] = *s++;
@@ -565,6 +1178,8 @@ static void shell_print(const char *s) {
 }
 
 static void shell_putchar(char c) {
+  if (shell_output_putchar_current(c))
+    return;
   if (redir_active && redir_buf) {
     if (redir_len < REDIR_BUF_SIZE - 1) {
       redir_buf[redir_len++] = c;
@@ -579,6 +1194,22 @@ static void shell_putchar(char c) {
 }
 
 static void shell_print_int(uint32_t num) {
+  uint32_t sink_pid = process_is_active() ? process_get_current_pid() : 0u;
+  if (sink_pid <= MAX_PROCESSES && process_output_sinks[sink_pid]) {
+    char tmp[16];
+    int i = 0;
+    if (num == 0) {
+      shell_output_putchar_current('0');
+      return;
+    }
+    while (num > 0 && i < (int)sizeof(tmp)) {
+      tmp[i++] = (char)('0' + (num % 10u));
+      num /= 10u;
+    }
+    while (i > 0)
+      shell_output_putchar_current(tmp[--i]);
+    return;
+  }
   if (redir_active && redir_buf) {
     char tmp[12];
     int i = 0;
@@ -603,11 +1234,36 @@ static void shell_print_int(uint32_t num) {
 }
 
 /* External-linkage wrappers for kernel.c routing */
-void shell_gui_putchar_ext(char c) { shell_gui_putchar(c); }
+void shell_gui_putchar_ext(char c) {
+  if (shell_output_putchar_current(c))
+    return;
+  shell_gui_putchar(c);
+}
 
-void shell_gui_print_ext(const char *s) { shell_gui_print(s); }
+void shell_gui_print_ext(const char *s) {
+  if (s && shell_output_write_current(s, (uint32_t)strlen(s)))
+    return;
+  shell_gui_print(s);
+}
 
-void shell_gui_print_int_ext(uint32_t num) { shell_gui_print_int(num); }
+void shell_gui_print_int_ext(uint32_t num) {
+  if (shell_output_write_current("", 0u)) {
+    char tmp[16];
+    int i = 0;
+    if (num == 0) {
+      shell_output_putchar_current('0');
+      return;
+    }
+    while (num > 0 && i < (int)sizeof(tmp)) {
+      tmp[i++] = (char)('0' + (num % 10u));
+      num /= 10u;
+    }
+    while (i > 0)
+      shell_output_putchar_current(tmp[--i]);
+    return;
+  }
+  shell_gui_print_int(num);
+}
 
 // Scancodes for extended keys we care about
 #define SCANCODE_ARROW_UP 0x48
@@ -651,6 +1307,7 @@ static void shell_netstat_cmd (const char *args);
 static void shell_arp_cmd     (const char *args);
 static void shell_resolve_cmd (const char *args);
 static void shell_doom_cmd    (const char *args);
+static void shell_sshd_cmd    (const char *args);
 
 // List of supported commands
 static struct shell_command commands[] = {
@@ -682,6 +1339,7 @@ static struct shell_command commands[] = {
     {"netstat",  "List sockets", shell_netstat_cmd},
     {"arp",      "Dump ARP cache", shell_arp_cmd},
     {"resolve",  "DNS resolve (resolve <host>)", shell_resolve_cmd},
+    {"sshd",     "SSH server (sshd [start|stop|status|passwd])", shell_sshd_cmd},
     {"doom",     "Run DOOM (doom [-iwad <path>])", shell_doom_cmd},
     {0, 0, 0} // Null terminator
 };
@@ -769,339 +1427,369 @@ static void replace_input(const char *new_text, char *input, int *pos, int *curs
   *cursor = i;
 }
 
-static void tab_complete(char *input, int *pos) {
-/* Helper: re-display prompt + current input after listing matches  */
-#define REDRAW_PROMPT()                                                        \
-  do {                                                                         \
-    shell_print("\n");                                                         \
-    shell_print_prompt();                                                      \
-    for (int _k = 0; _k < *pos; _k++)                                          \
-      shell_putchar(input[_k]);                                                \
-  } while (0)
+#define TAB_MAX_MATCHES 64
+#define TAB_MAX_NAME VFS_MAX_NAME
 
-  /* Find the first space to determine if we're completing
-     a command name or an argument. */
-  int first_space = -1;
-  for (int i = 0; i < *pos; i++) {
-    if (input[i] == ' ') {
-      first_space = i;
-      break;
+static char tab_matches[TAB_MAX_MATCHES][TAB_MAX_NAME];
+static char tab_suffix[TAB_MAX_MATCHES];
+
+static int tab_is_blank(char c) {
+  return c == ' ' || c == '\t';
+}
+
+static void tab_copy_range(char *out, int out_cap, const char *in,
+                           int start, int end) {
+  int n = 0;
+  while (start < end && n < out_cap - 1) {
+    out[n++] = in[start++];
+  }
+  out[n] = '\0';
+}
+
+static int tab_match_exists(const char *name, char suffix, int count) {
+  for (int i = 0; i < count; i++) {
+    if (tab_suffix[i] == suffix && strcmp(tab_matches[i], name) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+static void tab_add_match(const char *name, char suffix, int *count) {
+  int n = 0;
+  if (*count >= TAB_MAX_MATCHES)
+    return;
+  if (tab_match_exists(name, suffix, *count))
+    return;
+  while (name[n] && n < TAB_MAX_NAME - 1) {
+    tab_matches[*count][n] = name[n];
+    n++;
+  }
+  tab_matches[*count][n] = '\0';
+  tab_suffix[*count] = suffix;
+  (*count)++;
+}
+
+static int tab_common_prefix_len(int count) {
+  int common = TAB_MAX_NAME - 1;
+  if (count <= 0)
+    return 0;
+  for (int m = 1; m < count; m++) {
+    int n = 0;
+    while (n < common && tab_matches[0][n] && tab_matches[m][n] &&
+           tab_matches[0][n] == tab_matches[m][n])
+      n++;
+    common = n;
+  }
+  if (count == 1) {
+    common = 0;
+    while (tab_matches[0][common] && common < TAB_MAX_NAME - 1)
+      common++;
+  }
+  return common;
+}
+
+static void tab_redraw_prompt(char *input, int pos) {
+  shell_putchar('\n');
+  if (output_mode == SHELL_OUTPUT_GUI)
+    shell_gui_print_prompt();
+  else
+    shell_print_prompt();
+  for (int i = 0; i < pos; i++)
+    shell_putchar(input[i]);
+}
+
+static void tab_list_matches(char *input, int pos, int count) {
+  shell_putchar('\n');
+  for (int i = 0; i < count; i++) {
+    shell_print(tab_matches[i]);
+    if (tab_suffix[i])
+      shell_putchar(tab_suffix[i]);
+    shell_print("  ");
+  }
+  tab_redraw_prompt(input, pos);
+}
+
+static void tab_append_char(char *input, int *pos, char c) {
+  if (*pos >= MAX_INPUT_LEN)
+    return;
+  input[*pos] = c;
+  shell_putchar(c);
+  (*pos)++;
+  input[*pos] = '\0';
+}
+
+static int tab_apply_matches(char *input, int *pos, int token_prefix_len,
+                             int match_count, int add_space_for_single) {
+  int common_len;
+
+  if (match_count <= 0)
+    return 0;
+
+  if (match_count == 1) {
+    int i = token_prefix_len;
+    while (tab_matches[0][i] && *pos < MAX_INPUT_LEN) {
+      input[*pos] = tab_matches[0][i];
+      shell_putchar(tab_matches[0][i]);
+      (*pos)++;
+      i++;
     }
+    input[*pos] = '\0';
+    if (tab_suffix[0])
+      tab_append_char(input, pos, tab_suffix[0]);
+    else if (add_space_for_single)
+      tab_append_char(input, pos, ' ');
+    return 1;
   }
 
-  /*
-   *  ARGUMENT / FILENAME COMPLETION
-   */
-  if (first_space >= 0) {
-    /* Extract the command name */
-    char cmd[MAX_INPUT_LEN + 1];
-    for (int i = 0; i < first_space && i < MAX_INPUT_LEN; i++)
-      cmd[i] = input[i];
-    cmd[first_space] = '\0';
-
-    /* Only complete filenames for commands that take paths */
-    bool wants_file = strcmp(cmd, "cat") == 0 || strcmp(cmd, "cd") == 0 ||
-                      strcmp(cmd, "ls") == 0 || strcmp(cmd, "exec") == 0 ||
-                      strcmp(cmd, "ed") == 0 || strcmp(cmd, "cupid") == 0;
-
-    if (!wants_file)
-      return;
-
-    /* Find the start of the last argument (after last space) */
-    int arg_start = first_space + 1;
-    for (int i = *pos - 1; i > first_space; i--) {
-      if (input[i] == ' ') {
-        arg_start = i + 1;
-        break;
-      }
+  common_len = tab_common_prefix_len(match_count);
+  if (common_len > token_prefix_len) {
+    for (int i = token_prefix_len; i < common_len && *pos < MAX_INPUT_LEN; i++) {
+      input[*pos] = tab_matches[0][i];
+      shell_putchar(tab_matches[0][i]);
+      (*pos)++;
     }
+    input[*pos] = '\0';
+    return 1;
+  }
 
-    /* Extract the partial argument typed so far */
-    int arg_len = *pos - arg_start;
-    char arg_prefix[VFS_MAX_PATH];
-    for (int i = 0; i < arg_len && i < VFS_MAX_PATH - 1; i++)
-      arg_prefix[i] = input[arg_start + i];
-    arg_prefix[arg_len] = '\0';
+  tab_list_matches(input, *pos, match_count);
+  return 1;
+}
 
-    /* Split arg_prefix into directory part and name prefix.
-     * E.g. "/home/HEL" -> dir="/home", name_prefix="HEL"
-     * E.g. "HEL"       -> dir=CWD,     name_prefix="HEL"
-     * E.g. "/dev/"      -> dir="/dev",  name_prefix=""
-     */
-    char dir_path[VFS_MAX_PATH];
-    char name_prefix[VFS_MAX_NAME];
-    int name_prefix_len = 0;
+static int tab_file_allowed(const char *cmd, const char *prev_token,
+                            const vfs_dirent_t *ent) {
+  if (ent->type == VFS_TYPE_DIR)
+    return 1;
+  if (strcmp(cmd, "cd") == 0)
+    return 0;
+  if ((strcmp(cmd, "as") == 0 || strcmp(cmd, "cupidasm") == 0) &&
+      strcmp(prev_token, "-o") != 0)
+    return shell_ends_with(ent->name, ".asm");
+  if ((strcmp(cmd, "cc") == 0 || strcmp(cmd, "cupidc") == 0 ||
+       strcmp(cmd, "ccc") == 0) && strcmp(prev_token, "-o") != 0)
+    return shell_ends_with(ent->name, ".cc");
+  if (strcmp(cmd, "cupid") == 0)
+    return shell_ends_with(ent->name, ".cup");
+  return 1;
+}
 
-    /* Find last slash in arg_prefix */
-    int last_slash = -1;
-    for (int i = 0; i < arg_len; i++) {
-      if (arg_prefix[i] == '/')
-        last_slash = i;
-    }
+static int tab_complete_words(char *input, int *pos, int token_start,
+                              const char *token, const char **words) {
+  int count = 0;
+  int prefix_len = (int)strlen(token);
+  for (int i = 0; words[i]; i++) {
+    if (shell_strncmp(words[i], token, (size_t)prefix_len) == 0)
+      tab_add_match(words[i], ' ', &count);
+  }
+  return tab_apply_matches(input, pos, *pos - token_start, count, 1);
+}
 
-    if (last_slash >= 0) {
-      /* Has a slash - directory part is everything up to & including slash */
-      if (last_slash == 0) {
-        dir_path[0] = '/';
-        dir_path[1] = '\0';
-      } else {
-        for (int i = 0; i < last_slash && i < VFS_MAX_PATH - 1; i++)
-          dir_path[i] = arg_prefix[i];
-        dir_path[last_slash] = '\0';
-      }
-      /* Name prefix is everything after the last slash */
-      name_prefix_len = arg_len - last_slash - 1;
-      for (int i = 0; i < name_prefix_len && i < VFS_MAX_NAME - 1; i++)
-        name_prefix[i] = arg_prefix[last_slash + 1 + i];
-      name_prefix[name_prefix_len] = '\0';
+static int tab_complete_command_words(char *input, int *pos, int token_start,
+                                      const char *cmd, const char *prev_token,
+                                      const char *token, int arg_index) {
+  static const char *sshd_words[] = {"start", "stop", "status", "passwd", NULL};
+  static const char *theme_words[] = {"win95", "pastel", "dark", "contrast",
+                                      "amber", "vapor", "temple", NULL};
+  static const char *usb_words[] = {"hubs", "hc", NULL};
+  static const char *smp_words[] = {"info", NULL};
+  static const char *mount_words[] = {"fat16", "ramfs", "devfs", "iso9660", NULL};
+  static const char *asm_words[] = {"-o", NULL};
+
+  if ((strcmp(cmd, "as") == 0 || strcmp(cmd, "cupidasm") == 0 ||
+       strcmp(cmd, "ccc") == 0) && token[0] == '-')
+    return tab_complete_words(input, pos, token_start, token, asm_words);
+  if (strcmp(prev_token, "-o") == 0)
+    return 0;
+  if (arg_index == 0 && strcmp(cmd, "sshd") == 0)
+    return tab_complete_words(input, pos, token_start, token, sshd_words);
+  if (arg_index == 0 && strcmp(cmd, "theme") == 0)
+    return tab_complete_words(input, pos, token_start, token, theme_words);
+  if (arg_index == 0 && strcmp(cmd, "usb") == 0)
+    return tab_complete_words(input, pos, token_start, token, usb_words);
+  if (arg_index == 0 && strcmp(cmd, "smp") == 0)
+    return tab_complete_words(input, pos, token_start, token, smp_words);
+  if (arg_index == 2 && strcmp(cmd, "mount") == 0)
+    return tab_complete_words(input, pos, token_start, token, mount_words);
+  return 0;
+}
+
+static void tab_resolve_dir_token(const char *token, int token_len,
+                                  char *dir_path, char *name_prefix,
+                                  int *name_prefix_len) {
+  char dir_token[VFS_MAX_PATH];
+  int last_slash = -1;
+
+  for (int i = 0; i < token_len; i++) {
+    if (token[i] == '/')
+      last_slash = i;
+  }
+
+  if (last_slash >= 0) {
+    if (last_slash == 0) {
+      dir_token[0] = '/';
+      dir_token[1] = '\0';
     } else {
-      /* No slash - use CWD as directory, whole arg is the name prefix */
-      shell_resolve_path(".", dir_path);
-      name_prefix_len = arg_len;
-      for (int i = 0; i < arg_len && i < VFS_MAX_NAME - 1; i++)
-        name_prefix[i] = arg_prefix[i];
-      name_prefix[name_prefix_len] = '\0';
+      tab_copy_range(dir_token, VFS_MAX_PATH, token, 0, last_slash);
     }
+    *name_prefix_len = token_len - last_slash - 1;
+    tab_copy_range(name_prefix, VFS_MAX_NAME, token, last_slash + 1,
+                   token_len);
+  } else {
+    dir_token[0] = '.';
+    dir_token[1] = '\0';
+    *name_prefix_len = token_len;
+    tab_copy_range(name_prefix, VFS_MAX_NAME, token, 0, token_len);
+  }
 
-    /* Open the directory and collect matches */
-    int fd = vfs_open(dir_path, O_RDONLY);
-    if (fd < 0)
-      return;
+  shell_resolve_path(dir_token, dir_path);
+}
 
-    char first_match[VFS_MAX_NAME];
-    first_match[0] = '\0';
-    int match_count = 0;
-    bool first_is_dir = false;
-    vfs_dirent_t ent;
+static int tab_complete_path(char *input, int *pos, int token_start,
+                             const char *cmd, const char *prev_token,
+                             int command_position) {
+  char token[VFS_MAX_PATH];
+  char dir_path[VFS_MAX_PATH];
+  char name_prefix[VFS_MAX_NAME];
+  int name_prefix_len = 0;
+  int token_len = *pos - token_start;
+  int fd;
+  int count = 0;
+  vfs_dirent_t ent;
 
-    while (vfs_readdir(fd, &ent) > 0) {
-      if (shell_strncmp(ent.name, name_prefix, (size_t)name_prefix_len) == 0) {
-        if (match_count == 0) {
-          int n = 0;
-          while (ent.name[n] && n < VFS_MAX_NAME - 1) {
-            first_match[n] = ent.name[n];
-            n++;
-          }
-          first_match[n] = '\0';
-          first_is_dir = (ent.type == VFS_TYPE_DIR);
-        }
-        match_count++;
-      }
+  if (token_len >= VFS_MAX_PATH)
+    token_len = VFS_MAX_PATH - 1;
+  tab_copy_range(token, VFS_MAX_PATH, input, token_start, token_start + token_len);
+  tab_resolve_dir_token(token, token_len, dir_path, name_prefix,
+                        &name_prefix_len);
+
+  fd = vfs_open(dir_path, O_RDONLY);
+  if (fd < 0)
+    return 0;
+
+  while (vfs_readdir(fd, &ent) > 0 && count < TAB_MAX_MATCHES) {
+    if (shell_strncmp(ent.name, name_prefix, (size_t)name_prefix_len) != 0)
+      continue;
+    if (!command_position && !tab_file_allowed(cmd, prev_token, &ent))
+      continue;
+    tab_add_match(ent.name, ent.type == VFS_TYPE_DIR ? '/' : ' ', &count);
+  }
+  vfs_close(fd);
+
+  return tab_apply_matches(input, pos, name_prefix_len, count, 0);
+}
+
+static void tab_add_bin_commands(const char *dir, const char *prefix,
+                                 int prefix_len, int *count) {
+  int fd = vfs_open(dir, O_RDONLY);
+  vfs_dirent_t ent;
+  if (fd < 0)
+    return;
+
+  while (vfs_readdir(fd, &ent) > 0 && *count < TAB_MAX_MATCHES) {
+    char base[TAB_MAX_NAME];
+    int n = 0;
+    int base_len;
+
+    if (ent.type != VFS_TYPE_FILE)
+      continue;
+    while (ent.name[n] && n < TAB_MAX_NAME - 1) {
+      base[n] = ent.name[n];
+      n++;
     }
-    vfs_close(fd);
-
-    if (match_count == 1) {
-      /* Single match - append the rest of the name */
-      const char *rest = first_match + name_prefix_len;
-      while (*rest && *pos < MAX_INPUT_LEN) {
-        input[*pos] = *rest;
-        shell_putchar(*rest);
-        (*pos)++;
-        rest++;
-      }
-      /* Append / for directories, space for files */
-      if (first_is_dir && *pos < MAX_INPUT_LEN) {
-        input[*pos] = '/';
-        shell_putchar('/');
-        (*pos)++;
-      } else if (!first_is_dir && *pos < MAX_INPUT_LEN) {
-        input[*pos] = ' ';
-        shell_putchar(' ');
-        (*pos)++;
-      }
-    } else if (match_count > 1) {
-      /* Multiple matches - find common prefix, then list all */
-      /* First, compute the longest common prefix among matches */
-      /* (Re-scan directory for this) */
-      int common_len = VFS_MAX_NAME;
-      fd = vfs_open(dir_path, O_RDONLY);
-      if (fd >= 0) {
-        bool first = true;
-        char common[VFS_MAX_NAME];
-        common[0] = '\0';
-        while (vfs_readdir(fd, &ent) > 0) {
-          if (shell_strncmp(ent.name, name_prefix, (size_t)name_prefix_len) !=
-              0)
-            continue;
-          if (first) {
-            int n = 0;
-            while (ent.name[n] && n < VFS_MAX_NAME - 1) {
-              common[n] = ent.name[n];
-              n++;
-            }
-            common[n] = '\0';
-            common_len = n;
-            first = false;
-          } else {
-            int n = 0;
-            while (n < common_len && ent.name[n] && common[n] == ent.name[n])
-              n++;
-            common_len = n;
-            common[common_len] = '\0';
-          }
-        }
-        vfs_close(fd);
-
-        /* Append common prefix beyond what's already typed */
-        if (common_len > name_prefix_len) {
-          for (int ci = name_prefix_len;
-               ci < common_len && *pos < MAX_INPUT_LEN; ci++) {
-            input[*pos] = common[ci];
-            shell_putchar(common[ci]);
-            (*pos)++;
-          }
-          /* Don't list matches yet - user can press Tab again */
-          return;
-        }
-      }
-
-      /* List all matches */
-      shell_print("\n");
-      fd = vfs_open(dir_path, O_RDONLY);
-      if (fd >= 0) {
-        while (vfs_readdir(fd, &ent) > 0) {
-          if (shell_strncmp(ent.name, name_prefix, (size_t)name_prefix_len) !=
-              0)
-            continue;
-          shell_print(ent.name);
-          if (ent.type == VFS_TYPE_DIR)
-            shell_putchar('/');
-          shell_print("  ");
-        }
-        vfs_close(fd);
-      }
-      REDRAW_PROMPT();
+    base[n] = '\0';
+    base_len = n;
+    if (shell_ends_with(base, ".cc")) {
+      base_len -= 3;
+      base[base_len] = '\0';
     }
-    /* match_count == 0: no matches, do nothing */
+    if (base_len <= 0)
+      continue;
+    if (shell_strncmp(base, prefix, (size_t)prefix_len) == 0)
+      tab_add_match(base, ' ', count);
+  }
+  vfs_close(fd);
+}
+
+static void tab_complete_command(char *input, int *pos, int token_start) {
+  char prefix[MAX_INPUT_LEN + 1];
+  int prefix_len = *pos - token_start;
+  int count = 0;
+
+  if (prefix_len >= MAX_INPUT_LEN)
+    prefix_len = MAX_INPUT_LEN;
+  tab_copy_range(prefix, sizeof(prefix), input, token_start,
+                 token_start + prefix_len);
+
+  for (int i = 0; commands[i].name; i++) {
+    if (shell_strncmp(commands[i].name, prefix, (size_t)prefix_len) == 0)
+      tab_add_match(commands[i].name, ' ', &count);
+  }
+
+  tab_add_bin_commands("/bin", prefix, prefix_len, &count);
+  tab_add_bin_commands("/home/bin", prefix, prefix_len, &count);
+
+  if (count > 0)
+    tab_apply_matches(input, pos, prefix_len, count, 1);
+  else
+    tab_complete_path(input, pos, token_start, "", "", 1);
+}
+
+static void tab_complete(char *input, int *pos) {
+  int cmd_start = 0;
+  int cmd_end;
+  int token_start;
+  int arg_index = -1;
+  char cmd[MAX_INPUT_LEN + 1];
+  char token[VFS_MAX_PATH];
+  char prev_token[VFS_MAX_PATH];
+
+  input[*pos] = '\0';
+  while (cmd_start < *pos && tab_is_blank(input[cmd_start]))
+    cmd_start++;
+
+  token_start = *pos;
+  while (token_start > cmd_start && !tab_is_blank(input[token_start - 1]))
+    token_start--;
+
+  cmd_end = cmd_start;
+  while (cmd_end < *pos && !tab_is_blank(input[cmd_end]))
+    cmd_end++;
+
+  if (token_start <= cmd_start && *pos <= cmd_end) {
+    tab_complete_command(input, pos, token_start);
     return;
   }
 
-  /*
-   *  COMMAND NAME COMPLETION
-   *  Matches against both built-in commands[] AND /bin/ programs
-   */
-  size_t prefix_len = (size_t)(*pos);
-  char prefix[MAX_INPUT_LEN + 1];
-  for (size_t i = 0; i < prefix_len; i++) {
-    prefix[i] = input[i];
-  }
-  prefix[prefix_len] = '\0';
+  tab_copy_range(cmd, sizeof(cmd), input, cmd_start, cmd_end);
+  tab_copy_range(token, sizeof(token), input, token_start, *pos);
+  prev_token[0] = '\0';
 
-/* Collect all matching names into a small table.
- * 64 entries is plenty for our command set. */
-#define TAB_MAX_MATCHES 64
-#define TAB_MAX_NAME 64
-  static char tab_matches[TAB_MAX_MATCHES][TAB_MAX_NAME];
-  int match_count = 0;
-
-  /* 1) Built-in commands */
-  for (int i = 0; commands[i].name; i++) {
-    if (shell_strncmp(commands[i].name, prefix, prefix_len) == 0) {
-      if (match_count < TAB_MAX_MATCHES) {
-        int n = 0;
-        while (commands[i].name[n] && n < TAB_MAX_NAME - 1) {
-          tab_matches[match_count][n] = commands[i].name[n];
-          n++;
-        }
-        tab_matches[match_count][n] = '\0';
-        match_count++;
-      }
-    }
-  }
-
-  /* 2) Programs in /bin/ - scan for .cc files and strip extension */
   {
-    int bin_fd = vfs_open("/bin", O_RDONLY);
-    if (bin_fd >= 0) {
-      vfs_dirent_t ent;
-      while (vfs_readdir(bin_fd, &ent) > 0 && match_count < TAB_MAX_MATCHES) {
-        /* Only match .cc files */
-        if (!shell_ends_with(ent.name, ".cc"))
-          continue;
-
-        /* Compute name without .cc extension */
-        int nlen = 0;
-        while (ent.name[nlen])
-          nlen++;
-        int base_len = nlen - 3; /* strip ".cc" */
-        if (base_len <= 0 || base_len >= TAB_MAX_NAME)
-          continue;
-
-        char base_name[TAB_MAX_NAME];
-        for (int b = 0; b < base_len; b++)
-          base_name[b] = ent.name[b];
-        base_name[base_len] = '\0';
-
-        /* Check prefix match */
-        if (shell_strncmp(base_name, prefix, prefix_len) != 0)
-          continue;
-
-        /* Avoid duplicates (if a built-in has the same name) */
-        bool dup = false;
-        for (int m = 0; m < match_count; m++) {
-          if (strcmp(tab_matches[m], base_name) == 0) {
-            dup = true;
-            break;
-          }
-        }
-        if (dup)
-          continue;
-
-        for (int b = 0; b < base_len; b++)
-          tab_matches[match_count][b] = base_name[b];
-        tab_matches[match_count][base_len] = '\0';
-        match_count++;
-      }
-      vfs_close(bin_fd);
+    int scan = cmd_end;
+    int last_start = -1;
+    int last_end = -1;
+    while (scan < token_start) {
+      while (scan < token_start && tab_is_blank(input[scan]))
+        scan++;
+      if (scan >= token_start)
+        break;
+      last_start = scan;
+      while (scan < token_start && !tab_is_blank(input[scan]))
+        scan++;
+      last_end = scan;
+      arg_index++;
     }
+    if (last_start >= 0)
+      tab_copy_range(prev_token, sizeof(prev_token), input, last_start, last_end);
+    else
+      arg_index = 0;
   }
 
-  if (match_count == 1) {
-    const char *completion = tab_matches[0] + prefix_len;
-    while (*completion && *pos < MAX_INPUT_LEN) {
-      input[*pos] = *completion;
-      shell_putchar(*completion);
-      (*pos)++;
-      completion++;
-    }
-    /* Add trailing space after command */
-    if (*pos < MAX_INPUT_LEN) {
-      input[*pos] = ' ';
-      shell_putchar(' ');
-      (*pos)++;
-    }
-  } else if (match_count > 1) {
-    /* Compute longest common prefix among all matches */
-    int common_len = TAB_MAX_NAME;
-    for (int m = 1; m < match_count; m++) {
-      int n = 0;
-      while (n < common_len && tab_matches[0][n] && tab_matches[m][n] &&
-             tab_matches[0][n] == tab_matches[m][n])
-        n++;
-      common_len = n;
-    }
+  if (tab_complete_command_words(input, pos, token_start, cmd, prev_token,
+                                 token, arg_index))
+    return;
 
-    /* Append common prefix beyond what's typed */
-    if (common_len > (int)prefix_len) {
-      for (int ci = (int)prefix_len; ci < common_len && *pos < MAX_INPUT_LEN;
-           ci++) {
-        input[*pos] = tab_matches[0][ci];
-        shell_putchar(tab_matches[0][ci]);
-        (*pos)++;
-      }
-      return;
-    }
-
-    /* List all matching commands */
-    shell_print("\n");
-    for (int m = 0; m < match_count; m++) {
-      shell_print(tab_matches[m]);
-      shell_print("  ");
-    }
-    REDRAW_PROMPT();
-  }
-
-#undef REDRAW_PROMPT
+  tab_complete_path(input, pos, token_start, cmd, prev_token, 0);
 }
 
 static void shell_cupid(const char *args) {
@@ -1516,7 +2204,7 @@ static void shell_cc_repl(void) {
 }
 
 /*  *  CupidC Compiler Commands
- *  */
+ **/
 
 /* cupidc <file.cc> - JIT compile and run */
 static void shell_cupidc_cmd(const char *args) {
@@ -1623,7 +2311,7 @@ static void shell_ccc_cmd(const char *args) {
 
 /*
  *  CupidASM Assembler Commands
- */
+*/
 
 /* as <file.asm> - JIT assemble and run */
 static void shell_asm_cmd(const char *args) {
@@ -1735,7 +2423,7 @@ static void shell_cupidasm_cmd(const char *args) {
    *   cupidasm -o <out> <src>
    * plus:
    *   cupidasm <src>         (default output derived from source)
-   */
+*/
   if (tok1[0] == '\0') {
     int slen = 0, oi = 0;
     while (tok0[slen]) slen++;
@@ -1847,7 +2535,7 @@ static void shell_adam_cmd(const char *args) {
  *  With args:    mount <src> at <target>, optionally with <type>.
  *                If <type> is omitted and <src> ends in ".iso"
  *                (case-insensitive), default to "iso9660".
- */
+*/
 static void shell_mount_cmd(const char *args) {
   /* Skip leading whitespace (treat NULL as empty). */
   const char *p = args ? args : "";
@@ -1931,7 +2619,7 @@ static void shell_mount_cmd(const char *args) {
   } else {
     shell_print("mount: failed (");
     /* rc may be negative; shell_print_int takes uint32_t, so just print
-     * the raw unsigned representation which is sufficient for diagnostics. */
+     * the raw unsigned representation which is sufficient for diagnostics.*/
     shell_print_int((uint32_t)rc);
     shell_print(")\n");
   }
@@ -1939,7 +2627,7 @@ static void shell_mount_cmd(const char *args) {
 
 /*
  *  umount <target>
- */
+*/
 static void shell_umount_cmd(const char *args) {
   const char *p = args ? args : "";
   while (*p == ' ' || *p == '\t')
@@ -1969,7 +2657,7 @@ static void shell_umount_cmd(const char *args) {
 
 /*
  *  swapinit [pool_kb]
- */
+*/
 static uint32_t swap_shell_parse_uint_or(const char *s, uint32_t dflt) {
   if (!s) return dflt;
   while (*s == ' ' || *s == '\t') s++;
@@ -2325,6 +3013,77 @@ static void shell_resolve_cmd(const char *args) {
     shell_print_int(p[3]); shell_print("\n");
 }
 
+static int shell_parse_u16_arg(const char *s, uint16_t *out) {
+    uint32_t v = 0;
+    if (!s || !*s) return -1;
+    while (*s == ' ' || *s == '\t') s++;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10u + (uint32_t)(*s - '0');
+        if (v > 65535u) return -1;
+        s++;
+    }
+    while (*s == ' ' || *s == '\t') s++;
+    if (*s != '\0' || v == 0u) return -1;
+    *out = (uint16_t)v;
+    return 0;
+}
+
+static void shell_sshd_cmd(const char *args) {
+    if (!args || !*args || strcmp(args, "start") == 0) {
+        if (sshd_start(22u) == 0) {
+            shell_print("sshd: listening on port 22\n");
+        } else {
+            shell_print("sshd: start failed\n");
+        }
+        return;
+    }
+    if (strcmp(args, "stop") == 0) {
+        sshd_stop();
+        shell_print("sshd: stopped\n");
+        return;
+    }
+    if (strcmp(args, "status") == 0) {
+        shell_print("sshd: ");
+        if (sshd_is_running()) {
+            shell_print("running port ");
+            shell_print_int((uint32_t)sshd_port());
+            shell_print("\n");
+        } else {
+            shell_print("stopped\n");
+        }
+        return;
+    }
+    if (strncmp(args, "start ", 6u) == 0) {
+        uint16_t port;
+        if (shell_parse_u16_arg(args + 6, &port) != 0) {
+            shell_print("usage: sshd start [port]\n");
+            return;
+        }
+        if (sshd_start(port) == 0) {
+            shell_print("sshd: listening on port ");
+            shell_print_int((uint32_t)port);
+            shell_print("\n");
+        } else {
+            shell_print("sshd: start failed\n");
+        }
+        return;
+    }
+    if (strncmp(args, "passwd ", 7u) == 0) {
+        const char *pw = args + 7;
+        if (!*pw) {
+            shell_print("usage: sshd passwd <password>\n");
+            return;
+        }
+        if (sshd_set_password(pw) == 0) {
+            shell_print("sshd: password updated for root\n");
+        } else {
+            shell_print("sshd: password update failed\n");
+        }
+        return;
+    }
+    shell_print("usage: sshd [start [port]|stop|status|passwd <password>]\n");
+}
+
 /* doom shell builtin - calls into the platform shim's doom_main(). */
 extern int doom_main(int argc, char **argv);
 
@@ -2369,11 +3128,78 @@ static void shell_doom_cmd(const char *args) {
 void shell_execute_line(const char *line) {
   if (!line || line[0] == '\0')
     return;
-  execute_command(line);
+  execute_command_inner(line, 0);
+}
+
+static int shell_program_path_exists(const char *path) {
+  vfs_stat_t st;
+  return (vfs_stat(path, &st) >= 0 && st.type == VFS_TYPE_FILE) ? 1 : 0;
+}
+
+static void shell_make_bin_candidate(char *out, const char *prefix,
+                                     const char *cmd, const char *suffix) {
+  int oi = 0;
+  int ci = 0;
+  int si = 0;
+
+  while (prefix[oi] && oi < VFS_MAX_PATH - 1) {
+    out[oi] = prefix[oi];
+    oi++;
+  }
+  while (cmd[ci] && oi < VFS_MAX_PATH - 1) {
+    out[oi++] = cmd[ci++];
+  }
+  while (suffix && suffix[si] && oi < VFS_MAX_PATH - 1) {
+    out[oi++] = suffix[si++];
+  }
+  out[oi] = '\0';
+}
+
+static int shell_should_try_repl(const char *input) {
+  char cmd[MAX_INPUT_LEN];
+  char path[VFS_MAX_PATH];
+  int i = 0;
+
+  while (input[i] && input[i] != ' ' && input[i] != '\t' &&
+         i < MAX_INPUT_LEN - 1) {
+    cmd[i] = input[i];
+    i++;
+  }
+  cmd[i] = '\0';
+  if (cmd[0] == '\0')
+    return 0;
+
+  for (int j = 0; commands[j].name; j++) {
+    if (strcmp(cmd, commands[j].name) == 0)
+      return 0;
+  }
+
+  shell_resolve_path(cmd, path);
+  if (shell_program_path_exists(path))
+    return 0;
+
+  shell_make_bin_candidate(path, "/bin/", cmd, "");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/bin/", cmd, ".cc");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/home/bin/", cmd, "");
+  if (shell_program_path_exists(path))
+    return 0;
+  shell_make_bin_candidate(path, "/home/bin/", cmd, ".cc");
+  if (shell_program_path_exists(path))
+    return 0;
+
+  return 1;
 }
 
 // Find and execute a command
 static void execute_command(const char *input) {
+  execute_command_inner(input, 1);
+}
+
+static void execute_command_inner(const char *input, int try_repl) {
   char normalized_input[SHELL_REPL_PENDING_MAX];
   int ni = 0;
   int start = 0;
@@ -2479,7 +3305,7 @@ static void execute_command(const char *input) {
     }
   }
 
-  if (repl_eval(input) == 0)
+  if (try_repl && shell_should_try_repl(input) && repl_eval(input) == 0)
     goto redir_done;
 
   char cmd[MAX_INPUT_LEN];
@@ -2526,7 +3352,7 @@ static void execute_command(const char *input) {
    *    2. /bin/<cmd>.cc     - CupidC source   (ramfs)
    *    3. /home/bin/<cmd>   - ELF/CUPD binary (disk)
    *    4. /home/bin/<cmd>.cc - CupidC source  (disk, persistent)
-   */
+*/
   {
     char bin_path[VFS_MAX_PATH];
     vfs_stat_t bin_st;
@@ -2903,12 +3729,32 @@ void shell_run(void) {
  *  Called from terminal_app.c when a key is pressed while the
  *  terminal window is focused.  Mirrors the text-mode shell_run()
  *  logic but writes to the GUI buffer instead of VGA text memory.
- */
+*/
 
 static char gui_input[MAX_INPUT_LEN + 1];
 static int gui_input_pos = 0;    // length of input
 static int gui_input_cursor = 0; // cursor position within input
 static int gui_history_view = -1;
+static char gui_pending_command[SHELL_REPL_PENDING_MAX];
+static int gui_pending_command_state = 0; /* 0 idle, 1 queued, 2 running */
+
+static void shell_gui_queue_command(const char *input) {
+  int i = 0;
+
+  if (!input)
+    return;
+  if (gui_pending_command_state != 0) {
+    shell_gui_print("terminal: command already running\n");
+    return;
+  }
+
+  while (input[i] && i < SHELL_REPL_PENDING_MAX - 1) {
+    gui_pending_command[i] = input[i];
+    i++;
+  }
+  gui_pending_command[i] = '\0';
+  gui_pending_command_state = 1;
+}
 
 void shell_gui_insert_text(const char *text) {
   if (!text || output_mode != SHELL_OUTPUT_GUI)
@@ -2929,6 +3775,55 @@ void shell_gui_reset_input(void) {
   gui_repl_brace_depth = 0;
 }
 
+static void gui_seek_input_cursor(int offset) {
+  int cols = gui_visible_cols;
+  int x;
+  int y;
+
+  if (cols <= 0 || cols > SHELL_COLS)
+    cols = SHELL_COLS;
+  if (offset < 0)
+    offset = 0;
+
+  x = gui_input_origin_x + offset;
+  y = gui_input_origin_y;
+  while (x >= cols) {
+    x -= cols;
+    y++;
+  }
+
+  gui_cursor_x = x;
+  gui_cursor_y = y;
+  shell_clamp_cursor();
+}
+
+static void gui_clear_input_display(int len) {
+  int cols = gui_visible_cols;
+  int row = gui_input_origin_y;
+  int col = gui_input_origin_x;
+
+  if (cols <= 0 || cols > SHELL_COLS)
+    cols = SHELL_COLS;
+  if (len <= 0)
+    return;
+  while (col >= cols) {
+    col -= cols;
+    row++;
+  }
+
+  while (len > 0 && row < SHELL_ROWS) {
+    int count = cols - col;
+    if (count <= 0)
+      break;
+    if (count > len)
+      count = len;
+    shell_clear_line_range_current(row, col, col + count - 1);
+    len -= count;
+    row++;
+    col = 0;
+  }
+}
+
 void shell_gui_execute_line(const char *line) {
   char gui_full_input[SHELL_REPL_PENDING_MAX];
 
@@ -2945,31 +3840,23 @@ void shell_gui_execute_line(const char *line) {
                               sizeof(gui_full_input));
     if (repl_ready > 0) {
       history_record(gui_full_input);
-      gui_exec_command(gui_full_input);
+      shell_gui_queue_command(gui_full_input);
     }
   }
 
   shell_gui_reset_input();
-  shell_gui_print_prompt();
+  if (gui_pending_command_state == 0)
+    shell_gui_print_prompt();
 }
 
 /* GUI-mode wrappers (print/putchar go to GUI buffer) */
 static void gui_replace_input(const char *new_text) {
-  // Move cursor to end first
-  while (gui_input_cursor < gui_input_pos) {
-    shell_gui_putchar(gui_input[gui_input_cursor]);
-    gui_input_cursor++;
-  }
-  // Erase all
-  while (gui_input_pos > 0) {
-    shell_gui_putchar('\b');
-    shell_gui_putchar(' ');
-    shell_gui_putchar('\b');
-    gui_input_pos--;
-  }
-  gui_input_cursor = 0;
-
+  int old_len = gui_input_pos;
   int i = 0;
+
+  gui_seek_input_cursor(0);
+  gui_clear_input_display(old_len);
+
   if (new_text) {
     while (new_text[i] && i < MAX_INPUT_LEN) {
       gui_input[i] = new_text[i];
@@ -2980,13 +3867,15 @@ static void gui_replace_input(const char *new_text) {
   gui_input[i] = '\0';
   gui_input_pos = i;
   gui_input_cursor = i;
+  gui_seek_input_cursor(gui_input_cursor);
+  shell_mark_terminal_dirty();
 }
 
 /* Temporarily redirect print/putchar to GUI buffer, execute command,
  * then restore.  We achieve this by using a wrapper approach:
  * shell commands call print()/putchar() which go to VGA text.
  * In GUI mode we need them to go to the GUI buffer.
- * The simplest approach: hook print/putchar via function pointers. */
+ * The simplest approach: hook print/putchar via function pointers.*/
 
 /* Global function pointers for output redirection */
 static void (*shell_print_fn)(const char *) = NULL;
@@ -3008,7 +3897,7 @@ static void gui_exec_command(const char *input) {
    * Simple solution: copy what print/putchar write into our buffer
    * by calling shell_gui_print/shell_gui_putchar for each character
    * that would be printed.  We do this by overriding print temporarily.
-   */
+*/
 
   /* Since commands use print() from kernel.c and we can't easily
    * redirect that, we handle only built-in shell commands that we
@@ -3018,15 +3907,29 @@ static void gui_exec_command(const char *input) {
    * Pragmatic approach: execute_command calls print()/putchar() which
    * still write to 0xB8000 (harmless in Mode 13h - it's not visible).
    * We also echo the output to the GUI buffer by temporarily swapping
-   * the VGA write functions. */
+   * the VGA write functions.*/
 
   /* Execute through the existing command processor */
   execute_command(input);
 }
 
+int shell_gui_run_pending_command(void) {
+  if (gui_pending_command_state != 1)
+    return 0;
+
+  gui_pending_command_state = 2;
+
+  gui_exec_command(gui_pending_command);
+
+  gui_pending_command[0] = '\0';
+  gui_pending_command_state = 0;
+  shell_gui_print_prompt();
+  return 1;
+}
+
 /*
  *  JIT Program Input Routing (GUI Mode)
- */
+*/
 
 void shell_jit_program_input(char c) {
 
@@ -3042,7 +3945,32 @@ void shell_jit_program_input(char c) {
     jit_input_buffer[jit_input_write_pos] = c;
     jit_input_write_pos = next_write;
   } else {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] JIT input drop byte=0x%x queued=%d cap=%d\n",
+                    (unsigned char)c, shell_jit_input_queued(),
+                    JIT_INPUT_BUFFER_SIZE);
+    }
   }
+}
+
+static void shell_jit_program_input_seq(const char *seq) {
+  while (*seq) {
+    shell_jit_program_input(*seq);
+    seq++;
+  }
+}
+
+static void shell_jit_program_input_seq_debug(const char *name,
+                                              const char *seq) {
+  int len = 0;
+  while (seq[len])
+    len++;
+  if (shell_ssh_debug_active()) {
+    serial_printf("[ssh-input] gui special %s queued_before=%d app_cursor=%d\n",
+                  name, shell_jit_input_queued(), gui_app_cursor_keys);
+    shell_debug_dump_bytes("gui queued special", seq, len);
+  }
+  shell_jit_program_input_seq(seq);
 }
 
 char shell_jit_program_getchar(void) {
@@ -3107,7 +4035,7 @@ int shell_jit_program_start(const char *name) {
 
     /* Block the process that owns the JIT region so the scheduler
      * won't dispatch it while a different program's code is loaded
-     * there.  It will be unblocked when the pop restores its code. */
+     * there.  It will be unblocked when the pop restores its code.*/
     jit_stack[d].owner_pid = jit_owner_pid;
     if (jit_owner_pid != 0) {
       process_block(jit_owner_pid);
@@ -3175,7 +4103,7 @@ void shell_jit_program_end(void) {
     }
 
     /* The previous owner's code is now back in the JIT region - safe
-     * to let the scheduler dispatch it again. */
+     * to let the scheduler dispatch it again.*/
     uint32_t prev_owner = jit_stack[d].owner_pid;
     jit_owner_pid = prev_owner;
     if (prev_owner != 0) {
@@ -3315,17 +4243,52 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
   int terminal_focused =
       (focused && strcmp(focused->title, "Terminal") == 0) ? 1 : 0;
 
-  /* If a JIT program is running, route input to it instead of shell */
+  /* If a JIT program is running in the focused terminal, route input to it
+   * instead of treating password/shell data as new shell commands.*/
   if (jit_program_running && strcmp(jit_program_name, "terminal") != 0 &&
-      !terminal_focused) {
-    /* Only route actual characters, not key releases or non-character keys */
-    if (character != 0) {
-      shell_jit_program_input(character);
+      terminal_focused) {
+    if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] gui key sc=0x%x ch=0x%x focused=%d queued=%d app_cursor=%d alt=%d origin=%d wrap=%d\n",
+                    scancode, (unsigned char)character, terminal_focused,
+                    shell_jit_input_queued(), gui_app_cursor_keys,
+                    gui_alt_screen, gui_origin_mode, gui_wrap_enabled);
     }
-    /* Also route arrow left/right scancodes for JIT programs that need them */
-    if (character == 0 && (scancode == SCANCODE_ARROW_LEFT ||
-                           scancode == SCANCODE_ARROW_RIGHT)) {
-      /* JIT programs currently don't handle raw scancodes, skip */
+    if (character != 0) {
+      if (shell_ssh_debug_active()) {
+        char one[1];
+        one[0] = character;
+        shell_debug_dump_bytes("gui queued char", one, 1);
+      }
+      shell_jit_program_input(character);
+      return;
+    }
+    if (scancode == SCANCODE_ARROW_UP) {
+      shell_jit_program_input_seq_debug("up",
+                                        gui_app_cursor_keys ? "\033OA" : "\033[A");
+    } else if (scancode == SCANCODE_ARROW_DOWN) {
+      shell_jit_program_input_seq_debug("down",
+                                        gui_app_cursor_keys ? "\033OB" : "\033[B");
+    } else if (scancode == SCANCODE_ARROW_RIGHT) {
+      shell_jit_program_input_seq_debug("right",
+                                        gui_app_cursor_keys ? "\033OC" : "\033[C");
+    } else if (scancode == SCANCODE_ARROW_LEFT) {
+      shell_jit_program_input_seq_debug("left",
+                                        gui_app_cursor_keys ? "\033OD" : "\033[D");
+    } else if (scancode == 0x47) {
+      shell_jit_program_input_seq_debug("home",
+                                        gui_app_cursor_keys ? "\033OH" : "\033[H");
+    } else if (scancode == 0x4F) {
+      shell_jit_program_input_seq_debug("end",
+                                        gui_app_cursor_keys ? "\033OF" : "\033[F");
+    } else if (scancode == 0x49) {
+      shell_jit_program_input_seq_debug("page-up", "\033[5~");
+    } else if (scancode == 0x51) {
+      shell_jit_program_input_seq_debug("page-down", "\033[6~");
+    } else if (scancode == 0x53) {
+      shell_jit_program_input_seq_debug("delete", "\033[3~");
+    } else if (shell_ssh_debug_active()) {
+      serial_printf("[ssh-input] gui key unmapped sc=0x%x ch=0x%x\n",
+                    scancode, (unsigned char)character);
     }
     return;
   }
@@ -3410,6 +4373,7 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
   }
 
   if (character == '\n') {
+    int queued_command = 0;
     gui_input[gui_input_pos] = '\0';
     shell_gui_putchar('\n');
 
@@ -3420,7 +4384,8 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
                                 sizeof(gui_full_input));
       if (repl_ready > 0) {
         history_record(gui_full_input);
-        gui_exec_command(gui_full_input);
+        shell_gui_queue_command(gui_full_input);
+        queued_command = 1;
       }
     }
 
@@ -3428,7 +4393,8 @@ void shell_gui_handle_key(uint8_t scancode, char character) {
     gui_input_cursor = 0;
     gui_history_view = -1;
     memset(gui_input, 0, sizeof(gui_input));
-    shell_gui_print_prompt();
+    if (!queued_command)
+      shell_gui_print_prompt();
   } else if (character == '\b') {
     if (gui_input_cursor > 0) {
       gui_input_cursor--;

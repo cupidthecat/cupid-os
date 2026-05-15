@@ -1,6 +1,6 @@
 /**
  * dis.c - CupidDis x86-32 disassembler
- */
+*/
 
 #include "dis.h"
 #include "exec.h"

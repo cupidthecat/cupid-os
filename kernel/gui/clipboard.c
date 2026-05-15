@@ -3,7 +3,7 @@
  *
  * System-wide clipboard singleton that persists across application
  * lifetime.  Shared between Notepad, Terminal, and future apps.
- */
+*/
 
 #include "clipboard.h"
 #include "string.h"

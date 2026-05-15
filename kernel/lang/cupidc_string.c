@@ -4,7 +4,7 @@
  * Provides additional string operations beyond the basic kernel string.h.
  * These are bound into CupidC as kernel API calls so that CupidC shell
  * and other programs can use them.
- */
+*/
 
 #include "cupidc_string.h"
 #include "memory.h"

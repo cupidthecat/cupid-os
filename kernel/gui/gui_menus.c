@@ -3,7 +3,7 @@
  *
  * Menu bars, context menus, toolbars, status bars,
  * tooltips, and keyboard shortcuts.
- */
+*/
 
 #include "gui_menus.h"
 #include "gui_themes.h"

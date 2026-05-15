@@ -74,7 +74,7 @@ bool      gui_is_minimized(int wid);
 int       gui_draw_window(int wid);
 /* draw_shadows: pass true when the background was repainted (shadows must
  * be redrawn); pass false when only window content changed and no windows
- * moved (shadow pixels in back_buffer are already correct from prev frame). */
+ * moved (shadow pixels in back_buffer are already correct from prev frame).*/
 void      gui_draw_all_windows(bool draw_shadows);
 
 /* Focus */
@@ -117,7 +117,7 @@ int       gui_present_windows(void);
 bool      gui_focused_is_self_rendering(void);
 
 /* During active drag/resize, returns the workspace region that must be
- * repainted under moving/resizing window(s). Returns false if unavailable. */
+ * repainted under moving/resizing window(s). Returns false if unavailable.*/
 bool      gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
                                        uint16_t *w, uint16_t *h);
 

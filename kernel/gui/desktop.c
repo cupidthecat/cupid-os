@@ -3,7 +3,7 @@
  *
  * Implements the desktop background, taskbar, icons, and the
  * main event loop that drives the graphical environment.
- */
+*/
 
 #include "desktop.h"
 #include "simd.h"
@@ -1587,16 +1587,16 @@ void desktop_draw_taskbar(void) {
   for (int i = 0; i < wc && i < MAX_WINDOWS; i++) {
     /* We access windows via ID by iterating; use gui_get_window with
      * a scan approach since we don't have direct index access.
-     * For simplicity, iterate through possible window IDs. */
+     * For simplicity, iterate through possible window IDs.*/
     /* Actually, just draw a button per visible window by checking
-     * the window array position. We'll use a helper approach. */
+     * the window array position. We'll use a helper approach.*/
     break; /* Filled in the loop below */
   }
 
   /* Simple approach: iterate through the window array by index.
    * gui module stores windows internally; we re-check by calling
    * gui_get_window with each potential ID (1..next_id). This is
-   * not ideal but works for 16 windows max. */
+   * not ideal but works for 16 windows max.*/
   /* Better: expose a simple iteration.  For now, we count and draw. */
   (void)wc;
 
@@ -1606,7 +1606,7 @@ void desktop_draw_taskbar(void) {
     /* We'll just scan by trying IDs 1..next_id */
     /* Simplification: we draw buttons as the desktop loop
      * knows the windows.  We use gui_window_count and
-     * access via offset. */
+     * access via offset.*/
     break;
   }
 
@@ -1809,7 +1809,7 @@ bool desktop_calendar_visible(void) { return cal_state.visible; }
  *   │   2  3  4  5 [6] 7  8               │
  *   │   ...                               │
  *   └┘
- */
+*/
 static void desktop_draw_calendar(void) {
   if (!cal_state.visible)
     return;
@@ -1973,7 +1973,7 @@ static void desktop_draw_calendar(void) {
  *
  * @param mx, my: Absolute screen coordinates
  * @return: day number (1-31) or 0 if no day was hit
- */
+*/
 static int calendar_hit_test_day(int16_t mx, int16_t my) {
   int16_t cx = (int16_t)((VGA_GFX_WIDTH - CALENDAR_WIDTH) / 2);
   int16_t cy = (int16_t)((TASKBAR_Y - CALENDAR_HEIGHT) / 2);
@@ -2010,7 +2010,7 @@ static int calendar_hit_test_day(int16_t mx, int16_t my) {
  *
  * @param mx, my: Absolute screen coordinates of the click
  * @return: true if click was consumed by the calendar
- */
+*/
 static bool calendar_handle_click(int16_t mx, int16_t my) {
   if (!cal_state.visible)
     return false;
@@ -2098,7 +2098,7 @@ static bool calendar_handle_click(int16_t mx, int16_t my) {
  *
  * @param mx, my: Absolute screen coordinates of the click
  * @return: true if click was consumed by the calendar
- */
+*/
 static bool calendar_handle_right_click(int16_t mx, int16_t my) {
   if (!cal_state.visible)
     return false;
@@ -2198,7 +2198,7 @@ void desktop_redraw_cycle(void) {
 
   /* Fast path: cursor moved but nothing else changed - just update cursor.
    * Use mouse_mark_cursor_dirty() to only copy the ~10x10 px cursor region
-   * to VRAM instead of the full 1.2MB back buffer. */
+   * to VRAM instead of the full 1.2MB back buffer.*/
   if (mouse_only && !needs_redraw && !any_dirty && cycle_has_first_render) {
     mouse_mark_cursor_dirty();   /* mark old+new cursor rect before moving */
     mouse_restore_under_cursor();
@@ -2242,7 +2242,7 @@ void desktop_redraw_cycle(void) {
  * Since JIT programs execute synchronously (blocking the desktop
  * loop), this function takes over as the temporary event loop until
  * the user clicks the taskbar button to restore the app.
- */
+*/
 
 void desktop_run_minimized_loop(const char *app_name) {
   serial_printf("[desktop] minimized app: %s\n", app_name);
@@ -2260,7 +2260,7 @@ void desktop_run_minimized_loop(const char *app_name) {
     }
 
     /* Recalculate all minimized JIT button positions each frame
-     * (stack depth can change if a nested JIT program launches/exits) */
+     * (stack depth can change if a nested JIT program launches/exits)*/
     int16_t jit_btn_x = TASKBAR_BTN_START;
     /* Skip past GUI window buttons */
     int wc_live = gui_window_count();
@@ -2278,7 +2278,7 @@ void desktop_run_minimized_loop(const char *app_name) {
     int n_suspended = shell_jit_suspended_count();
     /* We only care about stack entries below us (indices 0..n_suspended-1
      * are older minimized apps; the topmost entry is us but we pass
-     * ourselves as app_name). */
+     * ourselves as app_name).*/
     #define MAX_JIT_BTNS 8
     struct {
       int16_t  x;
@@ -2378,7 +2378,7 @@ void desktop_run_minimized_loop(const char *app_name) {
         } else if (pressed && mouse.y >= TASKBAR_Y) {
           /* Handle other taskbar window buttons - no window-hit guard,
            * the taskbar strip belongs to the taskbar regardless of whether
-           * a window's bounds extend into it. */
+           * a window's bounds extend into it.*/
           int tb_id = desktop_hit_test_taskbar(mouse.x, mouse.y);
           if (tb_id >= 0) {
             gui_restore_window(tb_id);
@@ -2405,7 +2405,7 @@ void desktop_run_minimized_loop(const char *app_name) {
 
       /* Forward mouse to window manager for dragging/focus - but NOT for
        * clicks in the taskbar strip; those were already handled above and
-       * must not also interact with windows whose bodies extend there. */
+       * must not also interact with windows whose bodies extend there.*/
       if (!drag_passthrough && (mouse.y < TASKBAR_Y || !(btn & MOUSE_LEFT))) {
         gui_handle_mouse(mouse.x, mouse.y, btn, prev_btns);
       }
@@ -2545,7 +2545,7 @@ void desktop_run(void) {
     /* Skip ALL desktop processing if a fullscreen app is running.
      * Yield (not hlt) so the fullscreen app's process actually gets
      * scheduled - without yielding, desktop spins on hlt and the app
-     * never gets CPU time, freezing its render loop / cursor. */
+     * never gets CPU time, freezing its render loop / cursor.*/
     if (gfx2d_fullscreen_active()) {
       process_yield();
       continue;
@@ -2561,7 +2561,7 @@ void desktop_run(void) {
       /* Handle scroll wheel - consume accumulated delta */
       if (mouse.scroll_z != 0) {
         /* Each scroll notch is ±1 in scroll_z.
-         * Positive scroll_z = scroll up (show older content). */
+         * Positive scroll_z = scroll up (show older content).*/
         window_t *focused_for_wheel = gui_get_focused_window();
         if (focused_for_wheel &&
             strcmp(focused_for_wheel->title, "Terminal") == 0) {
@@ -2570,7 +2570,7 @@ void desktop_run(void) {
         } else if (focused_for_wheel) {
           /* Any other focused window - leave scroll_z intact so the
            * window's owning process (notepad, paint, fm, etc.) can
-           * read it via mouse_scroll() in its main loop. */
+           * read it via mouse_scroll() in its main loop.*/
         } else if (!shell_jit_program_is_running()) {
           mouse.scroll_z = 0;
         }
@@ -2579,7 +2579,7 @@ void desktop_run(void) {
       /* Track prev in the desktop loop, not from mouse.prev_buttons.
        * mouse.prev_buttons is overwritten by every IRQ packet, so if
        * multiple packets (e.g. release + move) arrive between loop
-       * iterations, the release transition is silently lost. */
+       * iterations, the release transition is silently lost.*/
       static uint8_t last_buttons = 0;
       uint8_t btn = mouse.buttons;
       uint8_t prev = last_buttons;
@@ -2628,7 +2628,7 @@ void desktop_run(void) {
 
       /* Check taskbar clicks first.  No window-hit guard: the taskbar is
        * always drawn on top, so any click at y >= TASKBAR_Y belongs to it
-       * even if a window's bounding box extends into that strip. */
+       * even if a window's bounding box extends into that strip.*/
         if (!drag_passthrough && pressed && mouse.y >= TASKBAR_Y) {
         /* Check clock hitbox */
         if (mouse.x >= clock_hitbox_x &&
@@ -2692,7 +2692,7 @@ void desktop_run(void) {
         }
 
         /* Tooltip is anchored to icon position. Repaint only when
-         * hover target changes (enter/leave/switch icon). */
+         * hover target changes (enter/leave/switch icon).*/
         if (hover_icon != last_hover_icon) {
           last_hover_icon = hover_icon;
           force_full_repaint = true;
@@ -2741,7 +2741,7 @@ void desktop_run(void) {
 
     /* Redraw */
     /* Skip desktop rendering if a fullscreen gfx2d app is running.
-     * Yield instead of hlt so fullscreen apps get CPU. */
+     * Yield instead of hlt so fullscreen apps get CPU.*/
     if (gfx2d_fullscreen_active()) {
       process_yield();
       continue;
@@ -2772,13 +2772,13 @@ void desktop_run(void) {
     /* Keep full repaints for pointer-driven interactions that change
      * occlusion (clicks that may refocus/reorder windows).  Layout changes
      * and scroll activity are handled by the normal dirty-window path
-     * without needing a full desktop repaint. */
+     * without needing a full desktop repaint.*/
     if (gui_window_count() > 1 && mouse_buttons_changed) {
       force_full_repaint = true;
     }
 
     /* Calendar popup: only force redraw on button/scroll interaction,
-     * not on bare mouse movement (the cursor-only fast path handles that). */
+     * not on bare mouse movement (the cursor-only fast path handles that).*/
     if (cal_state.visible && mouse_activity &&
         (mouse_buttons_changed || mouse_scroll_activity)) {
       needs_redraw = true;
@@ -2786,7 +2786,7 @@ void desktop_run(void) {
 
     /* Rate-limit animated background to ~60 fps: only force a full redraw
      * when enough time has elapsed since the last vga_flip().  Between frames
-     * the cursor-only fast path below still handles mouse movement smoothly. */
+     * the cursor-only fast path below still handles mouse movement smoothly.*/
     if (desktop_bg_mode == DESKTOP_BG_ANIM && !force_full_repaint &&
         !layout_changed && !cal_visibility_changed && vga_flip_ready()) {
       needs_redraw = true;
@@ -2795,7 +2795,7 @@ void desktop_run(void) {
     /* If only mouse moved and nothing else changed, do a cursor-only
      * backbuffer refresh to keep display/backbuffer fully in sync.
      * This must work over windows as well as desktop; otherwise cursor
-     * movement appears sticky when hovering stacked windows. */
+     * movement appears sticky when hovering stacked windows.*/
     if (mouse_activity && !needs_redraw && !force_full_repaint && !any_dirty &&
       !layout_changed && !mouse_buttons_changed && !mouse_scroll_activity &&
       !cal_state.visible && !cal_visibility_changed &&
@@ -2835,7 +2835,7 @@ void desktop_run(void) {
         /* Full scene render.
          * If fast path ran since last full render, back_buffer has a stale
          * cursor at the old position (fast path never touches back_buffer).
-         * Force a full background repaint to cover it. */
+         * Force a full background repaint to cover it.*/
         if (force_full_repaint || layout_changed || cal_visibility_changed) {
           force_full_repaint = false;
           if (layout_changed && gui_is_dragging_any() &&
@@ -2851,7 +2851,7 @@ void desktop_run(void) {
                * repainted region gets composited back on top.  Without
                * this, windows behind the dragged one are erased because
                * only the background is repainted but they never get
-               * a redraw pass. */
+               * a redraw pass.*/
               repainted_workspace = true;
             } else {
               desktop_anim_tick++;
@@ -2883,7 +2883,7 @@ void desktop_run(void) {
             /* Only repaint background when the tick actually changed.
              * On the other 3 frames the back-buffer still has the correct
              * background - just restore the cursor area and skip the 640x456
-             * pixel fill entirely. */
+             * pixel fill entirely.*/
             if (desktop_anim_tick != last_anim_tick) {
               desktop_draw_background();
               desktop_draw_icons();
@@ -2904,7 +2904,7 @@ void desktop_run(void) {
          * Windows whose bodies extend below TASKBAR_Y would otherwise paint
          * over it on frames where draw_taskbar_now is false (e.g. when only
          * window content is dirty).  The taskbar strip is 640x24 px and
-         * cheap to render. */
+         * cheap to render.*/
         {
           uint32_t now_ms = timer_get_uptime_ms();
           window_t *fw = gui_get_focused_window();
@@ -2945,7 +2945,7 @@ void desktop_run(void) {
      * reached with IRQs disabled - some of our USB-polling paths leak
      * IF=0 back through bkl_unlock when the scheduler did a context
      * switch earlier in this iteration. Without sti, hlt would wedge
-     * forever. */
+     * forever.*/
     __asm__ volatile("sti; hlt");
   }
 }

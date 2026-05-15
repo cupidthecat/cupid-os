@@ -2,7 +2,7 @@
  * cupidscript_lex.c - Lexer/tokenizer for CupidScript
  *
  * Breaks script source text into a flat array of tokens.
- */
+*/
 #include "cupidscript.h"
 #include "string.h"
 #include "serial.h"
@@ -27,7 +27,7 @@ static int is_word_char(char c) {
 }
 
 /* Check if a word is a keyword and return its token type.
- * Returns TOK_WORD if not a keyword. */
+ * Returns TOK_WORD if not a keyword.*/
 static token_type_t keyword_type(const char *word) {
     if (strcmp(word, "if") == 0)     return TOK_IF;
     if (strcmp(word, "then") == 0)   return TOK_THEN;
@@ -55,7 +55,7 @@ static void safe_copy(char *dst, const char *src, int len, int max) {
 /* cupidscript_tokenize
  * Tokenizes `source` (length bytes) into the `tokens` array.
  * Returns the number of tokens produced.
- */
+*/
 int cupidscript_tokenize(const char *source, uint32_t length,
                          token_t *tokens, int max_tokens)
 {
@@ -332,7 +332,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                      * reconstruct $varname.  But for ${...} forms we
                      * need to keep the braces so expand() sees ${...}.
                      * Store the inner content in value, but prefix with
-                     * a sentinel '{' so we can reconstruct ${...}. */
+                     * a sentinel '{' so we can reconstruct ${...}.*/
                     pos++; /* skip { */
                     int start = (int)pos;
                     int depth = 1;
@@ -348,7 +348,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
                     if (pos < length) pos++; /* skip } */
                     /* Store as TOK_WORD with value = ${...} already
                      * reconstructed, so the parser copies it as-is and
-                     * expand() can process it. */
+                     * expand() can process it.*/
                     tokens[count].type = TOK_WORD;
                     /* Build "${...}" into token value */
                     {
@@ -463,7 +463,7 @@ int cupidscript_tokenize(const char *source, uint32_t length,
             int len = (int)pos - start;
 
             /* Safety: if we somehow didn't advance, skip the character
-             * to prevent an infinite loop */
+             * to prevent an infinite loop*/
             if (len == 0) {
                 pos++;
                 continue;

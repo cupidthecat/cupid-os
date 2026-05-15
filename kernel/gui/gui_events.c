@@ -3,7 +3,7 @@
  *
  * Event dispatching, message box, input dialog,
  * color picker, progress dialog.
- */
+*/
 
 #include "gui_events.h"
 #include "gfx2d.h"
@@ -272,7 +272,7 @@ ui_msgbox_result_t ui_msgbox(const char *title, const char *message,
                               ui_msgbox_buttons_t buttons) {
     /* Blocking msgbox - set up state, caller should loop on ui_msgbox_draw */
     /* In a cooperative multitasking OS, true blocking isn't ideal.
-       We provide the draw function for frame-by-frame rendering instead. */
+       We provide the draw function for frame-by-frame rendering instead.*/
     ui_msgbox_state_t state;
     state.active = true;
     state.title = title;
@@ -283,7 +283,7 @@ ui_msgbox_result_t ui_msgbox(const char *title, const char *message,
     state.hover_btn = 0;
 
     /* In a real blocking implementation we'd loop here.
-       For cupid-os, use ui_msgbox_draw() per frame instead. */
+       For cupid-os, use ui_msgbox_draw() per frame instead.*/
     (void)state;
     return UI_MSGBOX_RESULT_OK;
 }

@@ -1,5 +1,5 @@
 /**
- *  outdated - ed was rewritten in cupid c 
+ *  outdated - ed was rewritten in cupid c
  * ed.c - Ed line editor for cupid-os
  *
  * A faithful implementation of the classic Unix ed(1) line editor.
@@ -11,7 +11,7 @@
  *   - Maximum ED_MAX_LINES lines, each up to ED_MAX_LINE_LEN characters
  *   - Reads from in-memory fs and FAT16 disk; writes to FAT16 disk
  *   - Regex limited to basic literal and ^ $ . * support
- */
+*/
 
 #include "ed.h"
 #include "kernel.h"
@@ -30,14 +30,14 @@
 #define ED_FILENAME_LEN  64
 
 /* Editor state */
-static char *ed_lines[ED_MAX_LINES];     /* Array of line pointers      */
-static int   ed_nlines;                  /* Total number of lines       */
+static char *ed_lines[ED_MAX_LINES];     /* Array of line pointers */
+static int   ed_nlines;                  /* Total number of lines */
 static int   ed_cur;                     /* Current line (1-based, 0=no lines) */
-static int   ed_dirty;                   /* Buffer modified flag        */
-static char  ed_filename[ED_FILENAME_LEN]; /* Current filename          */
-static int   ed_quit;                    /* Set when we should exit     */
-static int   ed_show_errors;             /* H toggle: verbose errors    */
-static char  ed_last_error[128];         /* Last error message          */
+static int   ed_dirty;                   /* Buffer modified flag */
+static char  ed_filename[ED_FILENAME_LEN]; /* Current filename */
+static int   ed_quit;                    /* Set when we should exit */
+static int   ed_show_errors;             /* H toggle: verbose errors */
+static char  ed_last_error[128];         /* Last error message */
 
 /* Undo state: single-level undo for the last change */
 #define ED_UNDO_MAX_LINES 1024
@@ -98,7 +98,7 @@ static void ed_print_int(int n) {
 }
 
 /* Read a full line of input from the keyboard, return length.
- * Handles backspace. Returns the line WITHOUT trailing newline. */
+ * Handles backspace. Returns the line WITHOUT trailing newline.*/
 static int ed_readline(char *buf, int maxlen) {
     int pos = 0;
     while (1) {
@@ -195,7 +195,7 @@ static void ed_do_undo(void) {
 /* Buffer manipulation */
 
 /* Insert a line AFTER position 'after' (0 = insert at beginning).
- * Returns 1 on success, 0 on failure. */
+ * Returns 1 on success, 0 on failure.*/
 static int ed_insert_line(int after, const char *text) {
     if (ed_nlines >= ED_MAX_LINES) {
         ed_error("buffer full");
@@ -253,7 +253,7 @@ static int ed_replace_line(int pos, const char *text) {
 
 /* Match pattern at a specific position in text.
  * Returns 1 if matched, 0 otherwise.
- * *match_start and *match_end set to the matched range in text. */
+ * *match_start and *match_end set to the matched range in text.*/
 static int ed_regex_match_here(const char *pat, const char *text);
 static int ed_regex_match_star(char c, const char *pat, const char *text);
 
@@ -318,7 +318,7 @@ static const char *ed_regex_match_end(const char *pat, const char *text) {
 /* Parse a single address from the command string.
  * Returns the resolved line number (1-based), or -1 on error.
  * Advances *pp past the consumed characters.
- * 'set' is set to 1 if an address was actually parsed. */
+ * 'set' is set to 1 if an address was actually parsed.*/
 static int ed_parse_address(const char **pp, int *set) {
     const char *p = *pp;
     int addr = -1;
@@ -430,7 +430,7 @@ static int ed_parse_address(const char **pp, int *set) {
 
 /* Read lines from input until a line containing only "." is entered.
  * Insert them after 'after' (1-based index; 0 = before first line).
- * Returns the line number of the last inserted line. */
+ * Returns the line number of the last inserted line.*/
 static int ed_input_mode(int after) {
     char buf[ED_MAX_LINE_LEN];
     int count = 0;
@@ -448,7 +448,7 @@ static int ed_input_mode(int after) {
 /* Substitution */
 
 /* Perform s/pattern/replacement/flags on a single line.
- * Returns 1 if a substitution was made, 0 otherwise. */
+ * Returns 1 if a substitution was made, 0 otherwise.*/
 static int ed_substitute_line(int linenum, const char *pattern,
                               const char *replacement, int global_flag,
                               int count_target) {
@@ -680,7 +680,7 @@ static void ed_print_escaped(const char *s) {
 /* Load / save buffer */
 
 /* Load text data into the buffer starting after 'after' (0 for empty buf).
- * Splits on newlines. Returns byte count. */
+ * Splits on newlines. Returns byte count.*/
 static int ed_load_text(const char *data, uint32_t size, int after) {
     int bytes = 0;
     char line[ED_MAX_LINE_LEN];
@@ -725,7 +725,7 @@ static int ed_load_text(const char *data, uint32_t size, int after) {
  * @param from: First line to write (1-based)
  * @param to: Last line to write (1-based)
  * @return Bytes written on success, -1 on error
- */
+*/
 static int ed_write_to_disk(const char *filename, int from, int to) {
     /* Calculate total size needed */
     int total = 0;
@@ -1400,7 +1400,7 @@ static void ed_exec_command(const char *cmdline) {
                 ed_cur = i + 1;
                 /* Build a command line with current address */
                 char gcmd_buf[ED_CMD_BUF_LEN];
-                /* For simple commands like p, d, s/...  */
+                /* For simple commands like p, d, s/... */
                 int gi = 0;
                 /* Write current line number */
                 char numstr[12];
@@ -1559,7 +1559,7 @@ static void ed_exec_command(const char *cmdline) {
 
         /* For W (append), read existing file, concatenate, and rewrite.
          * True append isn't possible on FAT16 without more complexity,
-         * so we read-modify-write. */
+         * so we read-modify-write.*/
         int existing_size = 0;
         char *existing_data = NULL;
 

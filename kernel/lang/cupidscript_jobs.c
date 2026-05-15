@@ -3,7 +3,7 @@
  *
  * Manages background jobs started with & operator.
  * Tracks job status and prints completion notifications.
- */
+*/
 
 #include "cupidscript_jobs.h"
 #include "process.h"

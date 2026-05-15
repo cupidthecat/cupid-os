@@ -3,7 +3,7 @@
  *
  * Extended BMP image loading with handle pool, custom bitmap font
  * loading (.fnt format), and text rendering with effects.
- */
+*/
 
 #include "gfx2d_assets.h"
 #include "gfx2d.h"
@@ -216,9 +216,9 @@ void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
     uint32_t *data = g2d_img_data[handle];
     /* Use the alpha-aware blit so transparent PNG regions composite
      * over the destination instead of writing raw RGB=0,A=0 (which
-     * would show up as solid black where the source was transparent —
+     * would show up as solid black where the source was transparent -
      * the bottom of the Wikipedia logo, for example). JPEG decode
-     * emits A=255 so the same path stays a fast opaque write. */
+     * emits A=255 so the same path stays a fast opaque write.*/
     for (row = 0; row < dh; row++) {
         int sy = (row * sh) / dh;
         for (col = 0; col < dw; col++) {
@@ -298,7 +298,7 @@ const uint32_t *gfx2d_image_data(int handle, int *w, int *h) {
  * - For each char (first_char..last_char):
  * char_height bytes of row data (1 byte per row, MSB = left pixel)
  * (same format as font_8x8, but variable size)
- */
+*/
 
 int gfx2d_font_load(const char *path) {
     int i, fd;

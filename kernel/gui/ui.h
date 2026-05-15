@@ -9,7 +9,7 @@
  *  functions (buttons, labels, panels, text fields, scrollbars) so
  *  that draw code and hit-test code share the same geometry, and text
  *  is automatically centered/padded without manual pixel math.
- *  */
+ **/
 
 
 typedef struct {
@@ -62,7 +62,7 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised);
 
 
 /* Button: 3D raised panel + auto-centered label.
- * If `focused` is true, draws a 1px black focus ring. */
+ * If `focused` is true, draws a 1px black focus ring.*/
 void ui_draw_button(ui_rect_t r, const char *label, bool focused);
 
 /* Label: text with alignment, vertically centered in rect */
@@ -70,7 +70,7 @@ void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
                    ui_align_t align);
 
 /* Sunken text-entry field with cursor.
- * `cursor_pos` = character index, or < 0 to hide cursor. */
+ * `cursor_pos` = character index, or < 0 to hide cursor.*/
 void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos);
 
 /* Title bar: filled color bar with left-aligned white text */
@@ -78,7 +78,7 @@ void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused);
 
 /* Vertical scrollbar (up/down arrows + thumb).
  * `total` = total items, `visible` = visible items,
- * `offset` = first visible item index. */
+ * `offset` = first visible item index.*/
 void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset);
 
 /* Scrollbar hit test.
@@ -86,7 +86,7 @@ void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset);
  *           +1 = down/page-down area,
  *            0 = not hit or nothing to do.
  * `page` is set to true if the click was on the track (page
- * scroll) rather than an arrow button. */
+ * scroll) rather than an arrow button.*/
 int ui_vscrollbar_hit(ui_rect_t r, int16_t mx, int16_t my, bool *page);
 
 #endif

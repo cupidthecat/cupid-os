@@ -11,7 +11,7 @@
  *   - memmove
  *
  * These are bound into CupidC programs as kernel API calls.
- */
+*/
 
 #ifndef CUPIDC_STRING_H
 #define CUPIDC_STRING_H

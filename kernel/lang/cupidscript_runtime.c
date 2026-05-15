@@ -2,7 +2,7 @@
  * cupidscript_runtime.c - Runtime variable/function management for CupidScript
  *
  * Manages variable storage, function registry, and variable expansion.
- */
+*/
 #include "cupidscript.h"
 #include "string.h"
 #include "memory.h"
@@ -146,7 +146,7 @@ void cupidscript_set_variable(script_context_t *ctx, const char *name,
 /* Variable expansion
  * Replaces $VAR patterns in a string with their values.
  * Returns a kmalloc'd string - caller must kfree().
- */
+*/
 
 static int is_varname_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
@@ -154,7 +154,7 @@ static int is_varname_char(char c) {
 }
 
 /* Parse a string as an integer for arithmetic.  Returns 0 for empty or
- * non-numeric strings. */
+ * non-numeric strings.*/
 static int parse_arith_int(const char *s) {
     if (!s || !*s) return 0;
     int neg = 0;
@@ -282,7 +282,7 @@ char *cupidscript_expand(const char *str, script_context_t *ctx) {
                 /* Simple arithmetic evaluator for expanded expression.
                  * Supports: +, -, *, /, % with integer operands.
                  * Operands can be numbers or bare variable names
-                 * (bash allows both $VAR and VAR inside $(())). */
+                 * (bash allows both $VAR and VAR inside $(())).*/
 
                 /* Helper: parse one operand (number or variable) */
                 #define ARITH_PARSE_OPERAND(ptr, result_var) do {      \

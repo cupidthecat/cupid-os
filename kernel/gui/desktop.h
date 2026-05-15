@@ -37,7 +37,7 @@ void desktop_add_icon(int16_t x, int16_t y, const char *label,
 void desktop_run(void);
 
 /* Perform one redraw cycle (mouse + tick + repaint).
- * Call from blocking loops (e.g. getchar) to keep the GUI alive. */
+ * Call from blocking loops (e.g. getchar) to keep the GUI alive.*/
 void desktop_redraw_cycle(void);
 
 /* Drawing helpers (used internally and by redraw) */
@@ -73,7 +73,7 @@ int  desktop_hit_test_taskbar(int16_t mx, int16_t my);
 
 /* Minimized fullscreen app support.
  * Runs the desktop event loop with a taskbar button for the minimized app.
- * Blocks until the user clicks the taskbar button to restore the app. */
+ * Blocks until the user clicks the taskbar button to restore the app.*/
 void desktop_run_minimized_loop(const char *app_name);
 
 /* CupidC notepad launcher */

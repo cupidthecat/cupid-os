@@ -3,7 +3,7 @@
  * Takes a font-unit outline (flat point arrays + per-contour endpoints,
  * as produced by ttf_glyph_outline) and produces an anti-aliased
  * coverage bitmap at a given pixel size. 4x4 supersampling, non-zero
- * winding fill, no hinting. */
+ * winding fill, no hinting.*/
 
 #ifndef GLYPH_RASTER_H
 #define GLYPH_RASTER_H
@@ -27,7 +27,7 @@
  *   *out_by      : pixels above baseline (positive = up; cap-height
  *                  glyphs sit at +ascent).
  *
- * Returns -1 on overflow of internal scratch buffers (rare; defensive). */
+ * Returns -1 on overflow of internal scratch buffers (rare; defensive).*/
 int glyph_rasterize(const int *xs, const int *ys, const int *on_curve,
                     int n_pts,
                     const int *contour_end, int n_ctrs,

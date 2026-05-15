@@ -3,14 +3,14 @@
  *
  * Parses ANSI escape codes (colors, cursor control, clearing)
  * and maintains terminal color state for both VGA text and GUI rendering.
- */
+*/
 #ifndef TERMINAL_ANSI_H
 #define TERMINAL_ANSI_H
 
 #include "types.h"
 
 /*  *  VGA color constants (0-15)
- *  */
+ **/
 #define ANSI_COLOR_BLACK        0
 #define ANSI_COLOR_BLUE         1
 #define ANSI_COLOR_GREEN        2
@@ -33,7 +33,7 @@
 #define ANSI_DEFAULT_BG  ANSI_COLOR_BLACK
 
 /*  *  Terminal color state
- *  */
+ **/
 
 #define ANSI_ESC_BUF_SIZE 32
 
@@ -48,7 +48,7 @@ typedef struct {
 } terminal_color_state_t;
 
 /*  *  Parser result - what to do with each character
- *  */
+ **/
 typedef enum {
     ANSI_RESULT_PRINT,    /* Render this character normally */
     ANSI_RESULT_SKIP,     /* Part of escape sequence - don't render */
@@ -57,7 +57,7 @@ typedef enum {
 } ansi_result_t;
 
 /*  *  Public API
- *  */
+ **/
 
 /* Initialize color state to defaults */
 void ansi_init(terminal_color_state_t *state);
@@ -66,7 +66,7 @@ void ansi_init(terminal_color_state_t *state);
  * Returns ANSI_RESULT_PRINT if the character should be rendered,
  * ANSI_RESULT_SKIP if it's part of an escape sequence, etc.
  * After returning PRINT, state->fg_color and state->bg_color
- * reflect the current active colors. */
+ * reflect the current active colors.*/
 ansi_result_t ansi_process_char(terminal_color_state_t *state, char c);
 
 /* Get the effective foreground color (accounting for bold) */
@@ -80,7 +80,7 @@ void ansi_reset(terminal_color_state_t *state);
 
 /* Map a VGA color index (0-15) to a 32-bit XRGB color value.
  * Used by the GUI terminal to convert VGA text-mode color codes
- * to 32bpp true-color pixel values. */
+ * to 32bpp true-color pixel values.*/
 uint32_t ansi_vga_to_palette(uint8_t vga_color);
 
 #endif /* TERMINAL_ANSI_H */

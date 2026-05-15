@@ -11,14 +11,14 @@
  *   \e[2J          - Clear screen
  *   \e[H           - Cursor home
  *   \e[<row>;<col>H - Cursor position (parsed but not acted on here)
- */
+*/
 
 #include "terminal_ansi.h"
 #include "string.h"
 
-/* 
+/*
  *  Initialization
- */
+*/
 
 void ansi_init(terminal_color_state_t *state) {
     state->fg_color  = ANSI_DEFAULT_FG;
@@ -38,7 +38,7 @@ void ansi_reset(terminal_color_state_t *state) {
 
 /*
  *  Color accessors
- */
+*/
 
 uint8_t ansi_get_fg(const terminal_color_state_t *state) {
     uint8_t fg = state->fg_color;
@@ -64,7 +64,7 @@ uint8_t ansi_get_bg(const terminal_color_state_t *state) {
  *    ANSI 5 (magenta) -> VGA 5
  *    ANSI 6 (cyan)    -> VGA 3
  *    ANSI 7 (white)   -> VGA 7
- */
+*/
 static const uint8_t ansi_to_vga[8] = {
     0,  /* ANSI black   -> VGA black */
     4,  /* ANSI red     -> VGA red */
@@ -76,28 +76,28 @@ static const uint8_t ansi_to_vga[8] = {
     7   /* ANSI white   -> VGA light gray */
 };
 
-/* 
+/*
  *  VGA-to-32bpp XRGB color mapping (pastel / Temple OS vibe)
  *
  *  Maps VGA text-mode color indices (0-15) to 32-bit XRGB pixel values.
- */
+*/
 static const uint32_t vga_to_rgb32[16] = {
-    0x00141418U, /* 0  Black         */
-    0x000060A8U, /* 1  Blue          */
-    0x00408040U, /* 2  Green         */
-    0x004090A8U, /* 3  Cyan          */
-    0x00A04040U, /* 4  Red           */
-    0x00885088U, /* 5  Magenta       */
-    0x00907030U, /* 6  Brown         */
-    0x00C8C8C8U, /* 7  Light Gray    */
-    0x00505060U, /* 8  Dark Gray     */
-    0x00B8DDFFU, /* 9  Light Blue    */
-    0x0090D090U, /* 10 Light Green   */
-    0x0090D8E8U, /* 11 Light Cyan    */
-    0x00FF9090U, /* 12 Light Red     */
+    0x00141418U, /* 0  Black */
+    0x000060A8U, /* 1  Blue */
+    0x00408040U, /* 2  Green */
+    0x004090A8U, /* 3  Cyan */
+    0x00A04040U, /* 4  Red */
+    0x00885088U, /* 5  Magenta */
+    0x00907030U, /* 6  Brown */
+    0x00C8C8C8U, /* 7  Light Gray */
+    0x00505060U, /* 8  Dark Gray */
+    0x00B8DDFFU, /* 9  Light Blue */
+    0x0090D090U, /* 10 Light Green */
+    0x0090D8E8U, /* 11 Light Cyan */
+    0x00FF9090U, /* 12 Light Red */
     0x00F0C0F0U, /* 13 Light Magenta */
-    0x00F0E060U, /* 14 Yellow        */
-    0x00F8F8F8U  /* 15 White         */
+    0x00F0E060U, /* 14 Yellow */
+    0x00F8F8F8U  /* 15 White */
 };
 
 uint32_t ansi_vga_to_palette(uint8_t vga_color) {
@@ -105,9 +105,9 @@ uint32_t ansi_vga_to_palette(uint8_t vga_color) {
     return vga_to_rgb32[vga_color];
 }
 
-/* 
+/*
  *  Parse a single numeric parameter from the escape buffer
- */
+*/
 
 static int parse_number(const char *buf, int start, int end) {
     int val = 0;
@@ -121,12 +121,12 @@ static int parse_number(const char *buf, int start, int end) {
     return found ? val : -1;
 }
 
-/* 
+/*
  *  Process a complete CSI sequence: ESC [ ... <final>
  *
  *  The escape buffer contains everything after ESC [ up to and
  *  including the final character.
- */
+*/
 static ansi_result_t process_csi(terminal_color_state_t *state) {
     int len = state->esc_len;
     if (len < 1) return ANSI_RESULT_SKIP;
@@ -222,9 +222,9 @@ static ansi_result_t process_csi(terminal_color_state_t *state) {
     return ANSI_RESULT_SKIP;
 }
 
-/* 
+/*
  *  Main character processing
- */
+*/
 
 ansi_result_t ansi_process_char(terminal_color_state_t *state, char c) {
     /* Currently inside an escape sequence? */

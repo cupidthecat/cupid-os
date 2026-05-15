@@ -2,7 +2,7 @@
  * cupidc_runtime.c - Dynamic data structures for CupidC programs
  *
  * Implements Array and HashTable for CupidC shell and other programs.
- */
+*/
 
 #include "cupidc_runtime.h"
 #include "memory.h"

@@ -4,7 +4,7 @@
  * Software-rendered 2D graphics with alpha blending, gradients,
  * drop shadows, retro effects, sprites, and demo-scene aesthetics.
  * All drawing respects the global clip rectangle.
- */
+*/
 
 #include "gfx2d.h"
 #include "keyboard.h"
@@ -278,7 +278,7 @@ void gfx2d_flip(void) {
        * earlier disabled interrupts and never re-enabled), hlt waits
        * for an IRQ that never arrives and the app freezes.  Yielding to
        * the scheduler is safer and lets other processes run while we
-       * wait for the next frame. */
+       * wait for the next frame.*/
       while ((uint32_t)(now - g2d_last_flip_ms) < 16u) {
         process_yield();
         now = timer_get_uptime_ms();
@@ -287,7 +287,7 @@ void gfx2d_flip(void) {
     g2d_last_flip_ms = now;
   } else {
     /* Windowed mode: still cap to ~60 fps so app loops don't flood
-     * VRAM with memcpy calls faster than QEMU can display them. */
+     * VRAM with memcpy calls faster than QEMU can display them.*/
     if (!vga_flip_ready()) return;
     g2d_last_flip_ms = 0;
   }
@@ -669,7 +669,7 @@ void gfx2d_gradient_h(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
     return;
   n = x2 - x1 + 1;
   /* Incremental fixed-point interpolation: 3 divisions total (at setup),
-   * zero divisions in the per-pixel loop - replaces g2d_lerp per pixel. */
+   * zero divisions in the per-pixel loop - replaces g2d_lerp per pixel.*/
   first_row = fb + (uint32_t)y1 * (uint32_t)fb_w + (uint32_t)x1;
   {
     int32_t steps = (w > 1) ? w - 1 : 1;
@@ -760,7 +760,7 @@ void gfx2d_gradient_v(int x, int y, int w, int h, uint32_t c1, uint32_t c2) {
  * browser to paint `background: linear-gradient(...)` behind a
  * `border-radius`. Each row interpolates color top->bottom (same fixed-
  * point math as gfx2d_gradient_v) and clips its horizontal extent past
- * the corner offset, mirroring gfx2d_rect_round_fill's per-row mask. */
+ * the corner offset, mirroring gfx2d_rect_round_fill's per-row mask.*/
 void gfx2d_gradient_v_round(int x, int y, int w, int h, int r,
                             uint32_t c1, uint32_t c2) {
   if (w <= 0 || h <= 0) return;
@@ -800,7 +800,7 @@ void gfx2d_gradient_v_round(int x, int y, int w, int h, int r,
 
 /* Horizontal 2-stop gradient masked to a rounded rectangle. The
  * gradient runs along x so every row is the same color sequence; only
- * the per-row clip shrinks past the corner offsets. */
+ * the per-row clip shrinks past the corner offsets.*/
 void gfx2d_gradient_h_round(int x, int y, int w, int h, int r,
                             uint32_t c1, uint32_t c2) {
   if (w <= 0 || h <= 0) return;
@@ -1092,7 +1092,7 @@ void gfx2d_shadow(int x, int y, int w, int h, int blur, uint32_t color) {
    * outermost pixel at offset blur+1 only gets one contribution while
    * inner pixels accumulate.  We compute the alpha by counting how many
    * passes cover a given (row,col) offset - equivalent to pass index 0..n-1
-   * where n = min(row-2, col-2, blur) when those are >=0. */
+   * where n = min(row-2, col-2, blur) when those are >=0.*/
   uint32_t base_a = (color >> 24) & 0xFFu;
   if (base_a == 0u)
     base_a = 180u;
@@ -1111,14 +1111,14 @@ void gfx2d_shadow(int x, int y, int w, int h, int blur, uint32_t color) {
        * Pass i covers cols [i..i+w-1], rows [i..i+h-1].
        * Number of passes covering (col,row): passes where i<=col && i<=row && i<blur
        * => n_passes = min(col, row, blur-1) + 1  (clamped to passes that also fit w,h)
-       * For simplicity use min(col,row,blur-1)+1 which gives fade at edges */
+       * For simplicity use min(col,row,blur-1)+1 which gives fade at edges*/
       int nc = (col < blur) ? col : blur - 1;
       int nr = (row < blur) ? row : blur - 1;
       int n_passes = (nc < nr ? nc : nr) + 1;
       /* Average alpha: sum of base_a*(blur-i)/blur for i=0..n_passes-1
        * = base_a/blur * sum(blur-i for i=0..n_p-1)
        * = base_a/blur * (blur*n_p - n_p*(n_p-1)/2)
-       * We cap at base_a */
+       * We cap at base_a*/
       uint32_t a = (uint32_t)base_a * (uint32_t)n_passes / (uint32_t)blur;
       if (a > base_a) a = base_a;
       if (a == 0) continue;
@@ -1386,7 +1386,7 @@ static void g2d_blit_alpha(const uint8_t *a, int w, int h,
 
 /* TTF glyph blit that mimics bitmap behavior: caller passes the bbox
  * top-left (x, y); we offset by ascent so the baseline lands sensibly
- * inside that cell. Returns the pen advance, or 0 on miss/empty glyph. */
+ * inside that cell. Returns the pen advance, or 0 on miss/empty glyph.*/
 static int g2d_draw_char_ttf(int x, int y, char c, uint32_t color,
                              int face, int sz) {
   const uint8_t *a; int w, h, bx, by, adv;
@@ -1568,7 +1568,7 @@ int gfx2d_text_height(int font) {
 /* Per-glyph proportional advance, lazily cached. Computed from the
  * rightmost set pixel column of the 8x8 bitmap + 1 (inter-char spacing).
  * Empty glyphs (space) get a fixed 4-px advance. Clamped to keep the
- * page from running too tight or too loose. */
+ * page from running too tight or too loose.*/
 static uint8_t g2d_glyph_adv_cache[128];
 static uint8_t g2d_glyph_adv_cached[128];
 
@@ -2831,7 +2831,7 @@ void gfx2d_draw_cursor(void) {
  * Adapted from notepad's file dialog.  Self-contained: renders
  * directly to the gfx2d framebuffer, blocks until the user confirms
  * or cancels.
- */
+*/
 
 #define FDLG_SC_ESCAPE     0x01
 #define FDLG_SC_BACKSPACE  0x0E
@@ -3745,13 +3745,19 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
   gfx2d_surface_unset_active();
 
   while (!dlg->done) {
-    key_event_t evt;
-    while (keyboard_read_event(&evt)) {
-      if (evt.pressed) {
-        fdlg_handle_key(dlg, evt.scancode, evt.character);
-        if (dlg->done)
-          break;
-      }
+    /* Read keys from the host window's per-window queue rather than the
+     * global keyboard ring. The desktop loop routes key events into the
+     * focused window's key_queue via gui_handle_key(); if we read the
+     * global queue directly we race with desktop dispatch, so typed
+     * chars can leak past the dialog into the underlying app.*/
+    while (win->key_head != win->key_tail) {
+      uint32_t packed = (uint32_t)win->key_queue[win->key_head];
+      win->key_head = (win->key_head + 1) % GUI_KEY_QUEUE_SIZE;
+      uint8_t scancode = (uint8_t)((packed >> 8) & 0xFFu);
+      char ch = (char)(packed & 0xFFu);
+      fdlg_handle_key(dlg, scancode, ch);
+      if (dlg->done)
+        break;
     }
     if (dlg->done)
       break;
@@ -3782,6 +3788,10 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
 
     process_yield();
   }
+
+  /* Drop any keys that arrived during the dialog so they don't replay
+   * into the host app's input handler after we return.*/
+  win->key_head = win->key_tail;
 
   if (gui_begin_window_paint((int)win->id) == GUI_OK) {
     surface_fb = gfx2d_get_active_fb();

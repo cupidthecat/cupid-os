@@ -4,7 +4,7 @@
  * Provides a graphical terminal window that interfaces with
  * the existing shell.  The shell writes to a character buffer
  * and the terminal renders it inside a GUI window.
- */
+*/
 
 #include "terminal_app.h"
 #include "gui.h"
@@ -22,6 +22,7 @@
 
 #define TERM_WIN_W 560
 #define TERM_WIN_H 320
+#define TERMINAL_STACK_SIZE (512u * 1024u)
 
 #define CURSOR_BLINK_MS 500   /* Toggle cursor every 500 ms */
 
@@ -43,7 +44,7 @@ static void terminal_process_entry(void) {
     /* This process stays alive as long as the terminal window exists.
      * The actual key handling is event-driven via the desktop loop
      * calling terminal_handle_key().  This process just keeps the
-     * terminal alive in the process table and yields its time slice. */
+     * terminal alive in the process table and yields its time slice.*/
     while (1) {
         /* Check if our window was closed */
         if (terminal_wid < 0 || !gui_get_window(terminal_wid)) {
@@ -54,6 +55,10 @@ static void terminal_process_entry(void) {
 
         /* Perform deferred reschedule check */
         kernel_check_reschedule();
+
+        if (shell_gui_run_pending_command()) {
+            continue;
+        }
 
         /* Yield until next time slice */
         process_yield();
@@ -93,8 +98,13 @@ void terminal_launch(void) {
     {
         uint16_t content_w = (uint16_t)(TERM_WIN_W - 4);
         int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
+        int vis_rows = (int)(TERM_WIN_H - TITLEBAR_H - WINDOW_CONTENT_BORDER) /
+                       (FONT_H * terminal_font_scale);
         if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
+        if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
+        if (vis_rows < 1) vis_rows = 1;
         shell_set_visible_cols(vis_cols);
+        shell_set_visible_rows(vis_rows);
     }
 
     shell_set_output_mode(SHELL_OUTPUT_GUI);
@@ -103,12 +113,43 @@ void terminal_launch(void) {
 
     /* Spawn the terminal as its own process */
     terminal_pid = process_create(terminal_process_entry, "terminal",
-                                  DEFAULT_STACK_SIZE);
+                                  TERMINAL_STACK_SIZE);
     if (terminal_pid == 0) {
         KWARN("terminal_launch: failed to create terminal process");
     }
 
     KINFO("Terminal launched (wid=%d, pid=%u)", terminal_wid, terminal_pid);
+}
+
+void terminal_get_size(int *cols, int *rows) {
+    int out_cols = 80;
+    int out_rows = 25;
+    window_t *win = NULL;
+
+    if (terminal_wid >= 0) {
+        win = gui_get_window(terminal_wid);
+    }
+
+    if (win) {
+        int scale = terminal_font_scale;
+        int char_w = FONT_W * scale;
+        int char_h = FONT_H * scale;
+        uint16_t content_w = (uint16_t)(win->width - 4);
+        uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
+                                        WINDOW_CONTENT_BORDER);
+
+        out_cols = (int)content_w / char_w;
+        out_rows = (int)content_h / char_h;
+        if (out_cols > SHELL_COLS) out_cols = SHELL_COLS;
+        if (out_rows > SHELL_ROWS) out_rows = SHELL_ROWS;
+        if (out_cols < 1) out_cols = 1;
+        if (out_rows < 1) out_rows = 1;
+        shell_set_visible_cols(out_cols);
+        shell_set_visible_rows(out_rows);
+    }
+
+    if (cols) *cols = out_cols;
+    if (rows) *rows = out_rows;
 }
 
 
@@ -139,6 +180,7 @@ void terminal_redraw(window_t *win) {
     if (chars_per_row > SHELL_COLS) chars_per_row = SHELL_COLS;
     if (visible_rows > SHELL_ROWS) visible_rows = SHELL_ROWS;
     if (visible_rows < 1) visible_rows = 1;
+    shell_set_visible_rows(visible_rows);
 
     /* Get shell buffer */
     const char *buf = shell_get_buffer();
@@ -148,7 +190,10 @@ void terminal_redraw(window_t *win) {
 
     /* Determine scroll: auto-follow cursor to keep it visible */
     int scroll_row = 0;
-    if (scy >= visible_rows) {
+    if (shell_get_terminal_alt_screen()) {
+        terminal_scroll_offset = 0;
+        scroll_row = 0;
+    } else if (scy >= visible_rows) {
         scroll_row = scy - visible_rows + 1;
     }
 
@@ -156,7 +201,7 @@ void terminal_redraw(window_t *win) {
     scroll_row -= terminal_scroll_offset;
     if (scroll_row < 0) scroll_row = 0;
     /* Don't scroll past the cursor row */
-    if (scroll_row > scy) scroll_row = scy;
+    if (!shell_get_terminal_alt_screen() && scroll_row > scy) scroll_row = scy;
 
     /* Render characters - clip to content area */
     for (int row = 0; row < visible_rows; row++) {
@@ -196,7 +241,7 @@ void terminal_redraw(window_t *win) {
     }
 
     /* Draw blinking cursor - only when visible and fits in content area */
-    if (cursor_visible) {
+    if (cursor_visible && shell_get_terminal_cursor_visible()) {
         int cursor_screen_row = scy - scroll_row;
         if (cursor_screen_row >= 0 && cursor_screen_row < visible_rows) {
             int16_t cx = (int16_t)(content_x + scx * char_w);
@@ -223,9 +268,15 @@ void terminal_handle_key(uint8_t scancode, char character) {
             terminal_font_scale++;
             /* Update visible cols for the shell line-wrap */
             uint16_t content_w = (uint16_t)(win->width - 4);
+            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
+                                            WINDOW_CONTENT_BORDER);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
+            int vis_rows = (int)content_h / (FONT_H * terminal_font_scale);
             if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
+            if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
+            if (vis_rows < 1) vis_rows = 1;
             shell_set_visible_cols(vis_cols);
+            shell_set_visible_rows(vis_rows);
             win->flags |= WINDOW_FLAG_DIRTY;
         }
         return;
@@ -234,11 +285,26 @@ void terminal_handle_key(uint8_t scancode, char character) {
         if (terminal_font_scale > 1) {
             terminal_font_scale--;
             uint16_t content_w = (uint16_t)(win->width - 4);
+            uint16_t content_h = (uint16_t)(win->height - TITLEBAR_H -
+                                            WINDOW_CONTENT_BORDER);
             int vis_cols = (int)content_w / (FONT_W * terminal_font_scale);
+            int vis_rows = (int)content_h / (FONT_H * terminal_font_scale);
             if (vis_cols > SHELL_COLS) vis_cols = SHELL_COLS;
+            if (vis_rows > SHELL_ROWS) vis_rows = SHELL_ROWS;
+            if (vis_rows < 1) vis_rows = 1;
             shell_set_visible_cols(vis_cols);
+            shell_set_visible_rows(vis_rows);
             win->flags |= WINDOW_FLAG_DIRTY;
         }
+        return;
+    }
+
+    if (shell_jit_program_is_running()) {
+        terminal_scroll_offset = 0;
+        cursor_visible = true;
+        last_blink_ms = timer_get_uptime_ms();
+        shell_gui_handle_key(scancode, character);
+        win->flags |= WINDOW_FLAG_DIRTY;
         return;
     }
 
@@ -276,7 +342,7 @@ void terminal_handle_key(uint8_t scancode, char character) {
 
     /* Reset scroll to bottom only on Enter/Return - typing characters
      * elsewhere doesn't kick the user out of their scrolled-back view.
-     * (Hitting return commits a command and we want to see its output.) */
+     * (Hitting return commits a command and we want to see its output.)*/
     if (character == '\n' || character == '\r') {
         terminal_scroll_offset = 0;
     }
@@ -317,10 +383,15 @@ void terminal_handle_scroll(int delta) {
     if (terminal_wid < 0) return;
     window_t *win = gui_get_window(terminal_wid);
     if (!win) return;
+    if (shell_get_terminal_alt_screen()) {
+        terminal_scroll_offset = 0;
+        win->flags |= WINDOW_FLAG_DIRTY;
+        return;
+    }
     /* No focus check - caller (desktop wheel routing) already verified
      * Terminal is focused. Removing the gate so scroll never silently
      * vanishes if the FOCUSED flag is briefly cleared between mouse
-     * events and our handler running. */
+     * events and our handler running.*/
     terminal_scroll_offset += delta;
 
     /* Clamp to valid range */

@@ -3,7 +3,7 @@
  *
  * Theme palettes, style properties, built-in theme presets,
  * and theme load/save from .theme files.
- */
+*/
 #ifndef GUI_THEMES_H
 #define GUI_THEMES_H
 
@@ -69,7 +69,7 @@ typedef struct {
     int  window_shadow_blur;
     int  window_border_width;
     int  button_border_width;
-    int  corner_radius;         /* 0 = square corners     */
+    int  corner_radius;         /* 0 = square corners */
     bool use_gradients;
     bool use_shadows;
     bool use_animations;

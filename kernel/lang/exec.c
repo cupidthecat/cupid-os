@@ -8,7 +8,7 @@
  * Format detection is automatic: the first 4 bytes determine which
  * loader is used.  ELF programs receive a pointer to the kernel
  * syscall table as their first argument to _start().
- */
+*/
 
 #include "exec.h"
 #include "kernel.h"
@@ -30,7 +30,7 @@
 /**
  * elf_validate_header - Check that an ELF header is valid for CupidOS.
  * Returns 0 on success, VFS_EINVAL on failure.
- */
+*/
 static int elf_validate_header(const elf32_ehdr_t *hdr) {
     /* Check magic bytes */
     if (hdr->e_ident[0] != ELF_MAGIC_0 ||
@@ -134,7 +134,7 @@ int elf_exec(const char *path, const char *proc_name) {
         if (phdrs[i].p_memsz == 0) continue;
 
         /* Guard against crafted phdr where p_vaddr + p_memsz wraps u32 and
-         * bypasses the max_vaddr range check below. */
+         * bypasses the max_vaddr range check below.*/
         if (phdrs[i].p_memsz > IDENTITY_MAP_SIZE ||
             phdrs[i].p_vaddr > IDENTITY_MAP_SIZE - phdrs[i].p_memsz) {
             vfs_close(fd);
@@ -175,7 +175,7 @@ int elf_exec(const char *path, const char *proc_name) {
      * and must not overlap with the kernel BSS.  Kernel _end now lives
      * past 0x00474000 (with embedded ramfs assets), so user programs must
      * load >= 0x00500000 to avoid clobbering kernel state.  The CupidC
-     * JIT region sits at 0x00600000+ for the same reason. */
+     * JIT region sits at 0x00600000+ for the same reason.*/
     if (min_vaddr < 0x00500000) {
         vfs_close(fd);
         serial_printf("[elf] Load address too low (0x%x) in %s - "
@@ -225,13 +225,13 @@ int elf_exec(const char *path, const char *proc_name) {
         }
 
         /* BSS: the gap between filesz and memsz is already zeroed
-         * because we memset the whole region to 0 above. */
+         * because we memset the whole region to 0 above.*/
     }
 
     vfs_close(fd);
 
     /* The entry point is the ELF's e_entry - since we loaded at the
-     * exact virtual addresses the ELF expects, we use it directly. */
+     * exact virtual addresses the ELF expects, we use it directly.*/
     uint32_t entry_addr = ehdr.e_entry;
 
     /* Create the entry function pointer */
@@ -242,7 +242,7 @@ int elf_exec(const char *path, const char *proc_name) {
     const char *pname = proc_name ? proc_name : path;
 
     /* Create process with syscall table argument on the stack.
-     * We use process_create_with_arg to push the arg before entry. */
+     * We use process_create_with_arg to push the arg before entry.*/
     uint32_t pid = process_create_with_arg_ex(
         entry_fn, pname, DEFAULT_STACK_SIZE,
         (uint32_t)syscall_get_table(), PROCESS_DOMAIN_EXTERNAL
@@ -255,14 +255,14 @@ int elf_exec(const char *path, const char *proc_name) {
     }
 
     /* Associate the image memory with the process so it gets
-     * freed when the process exits. */
+     * freed when the process exits.*/
     process_set_image(pid, page_base, page_size);
 
     serial_printf("[elf] Loaded %s as PID %u (ELF32, %u bytes at 0x%x)\n",
                   path, pid, total_size, min_vaddr);
 
     /* Yield immediately so the new process gets a time slice
-     * without waiting for the next timer tick. */
+     * without waiting for the next timer tick.*/
     process_yield();
 
     return (int)pid;

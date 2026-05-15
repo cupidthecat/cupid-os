@@ -3,7 +3,7 @@
  *
  * Event dispatching, message box, input dialog,
  * color picker, progress dialog.
- */
+*/
 #ifndef GUI_EVENTS_H
 #define GUI_EVENTS_H
 
@@ -49,7 +49,7 @@ typedef struct {
     ui_event_callback_t callback;
     void              *context;
     int                widget_id;  /* 0 = all widgets */
-    ui_event_type_t    filter;     /* 0 = all events  */
+    ui_event_type_t    filter;     /* 0 = all events */
 } ui_event_handler_t;
 
 #define UI_MAX_EVENT_HANDLERS 16

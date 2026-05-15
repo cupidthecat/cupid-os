@@ -4,7 +4,7 @@
  * Provides the main entry points for JIT and AOT assembly:
  *   - as_jit(): Assemble and execute a .asm file immediately
  *   - as_aot(): Assemble a .asm file to an ELF32 binary on disk
- */
+*/
 
 #include "as.h"
 #include "exec.h"
@@ -139,7 +139,7 @@ static void as_bind_equ(as_state_t *as, const char *name, uint32_t value) {
 }
 
 /* Register a kernel symbol as a pre-defined label with an absolute address.
- * Used in JIT mode so asm programs can `call print`, etc. */
+ * Used in JIT mode so asm programs can `call print`, etc.*/
 /* convert a function pointer to uint32_t address safely */
 static uint32_t fn_to_u32(void (*fn)(void)) {
   uint32_t addr;
@@ -148,7 +148,7 @@ static uint32_t fn_to_u32(void (*fn)(void)) {
 }
 
 /* Macro to bind a kernel function - casts any function type through
- * void(*)(void) so we only extract the address, never call through it. */
+ * void(*)(void) so we only extract the address, never call through it.*/
 #define AS_BIND(as, name, fn) \
   as_bind((as), (name), fn_to_u32((void(*)(void))(fn)))
 
@@ -516,7 +516,7 @@ static int as_fp_to_int(int a) { return a >> 16; }
 static int as_fp_frac(int a) { return a & 0xFFFF; }
 static int as_fp_one(void) { return 65536; }
 
-/*  Net/HW wrappers for CupidASM  */
+/* Net/HW wrappers for CupidASM */
 static uint32_t as_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -561,7 +561,7 @@ static uint32_t as_net_tx_errors(void) {
   return n ? (uint32_t)n->tx_errors : 0u;
 }
 
-/*  Clipboard / notepad / keyboard / ansi / pci wrappers (mirror cupidc)  */
+/* Clipboard / notepad / keyboard / ansi / pci wrappers (mirror cupidc) */
 extern char cc_notepad_open_path[256];
 extern char cc_notepad_save_path[256];
 
@@ -605,7 +605,7 @@ static void as_pci_enable_bus_master_idx(int idx) {
   if (d) pci_enable_bus_master(d);
 }
 
-/*  GUI window wrappers  */
+/* GUI window wrappers */
 static int as_gui_win_create(const char *title, int x, int y, int w, int h) {
   return gui_create_window((int16_t)x, (int16_t)y, (uint16_t)w, (uint16_t)h, title);
 }
@@ -670,7 +670,7 @@ static int as_gui_win_draw_frame(int wid) {
   return gui_draw_window(wid);
 }
 
-/*  Shell buffer wrappers  */
+/* Shell buffer wrappers */
 static int as_shell_buf_rows(void) { return SHELL_ROWS; }
 static int as_shell_buf_cols(void) { return SHELL_COLS; }
 static int as_shell_buf_char(int row, int col) {
@@ -690,7 +690,7 @@ static void as_shell_send_key(int scancode, int ch) {
   shell_gui_handle_key((uint8_t)scancode, (char)ch);
 }
 
-/*  gfx2d text helper wrappers (1bpp glyph routes via graphics.h)  */
+/* gfx2d text helper wrappers (1bpp glyph routes via graphics.h) */
 static void as_gfx2d_char(int x, int y, int ch, int color) {
   gfx_draw_char((int16_t)x, (int16_t)y, (char)ch, (uint32_t)color);
 }
@@ -740,7 +740,7 @@ static uint32_t as_pci_bar_idx(int idx, int bar) {
 
 /* Register kernel functions as pre-defined labels so asm programs can call
  * them directly (e.g. `call print`).  JIT and AOT share most bindings, but
- * `exit` differs: JIT returns to as_jit(), AOT must terminate its process. */
+ * `exit` differs: JIT returns to as_jit(), AOT must terminate its process.*/
 static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   /* Console output */
   AS_BIND(as, "print",        print);
@@ -1025,7 +1025,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "desktop_bg_get_tiled_pattern", desktop_bg_get_tiled_pattern);
   AS_BIND(as, "desktop_bg_get_tiled_use_bmp", desktop_bg_get_tiled_use_bmp);
 
-  /*  Full networking stack (parity with CupidC)  */
+  /* Full networking stack (parity with CupidC) */
   AS_BIND(as, "net_get_ip",          as_net_get_ip);
   AS_BIND(as, "net_get_gateway",     as_net_get_gateway);
   AS_BIND(as, "net_get_dns",         as_net_get_dns);
@@ -1064,14 +1064,14 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   as_bind_equ(as, "SOCK_TYPE_UDP",   SOCK_TYPE_UDP);
   as_bind_equ(as, "SOCK_TYPE_TCP",   SOCK_TYPE_TCP);
 
-  /*  Block devices  */
+  /* Block devices */
   AS_BIND(as, "blkdev_count",        blkdev_count);
   AS_BIND(as, "blkdev_read",         as_blkdev_read);
   AS_BIND(as, "blkdev_write",        as_blkdev_write);
   AS_BIND(as, "ata_read_sectors",    ata_read_sectors);
   AS_BIND(as, "ata_write_sectors",   ata_write_sectors);
 
-  /*  Serial / keyboard direct  */
+  /* Serial / keyboard direct */
   AS_BIND(as, "serial_read_char",    serial_read_char);
   AS_BIND(as, "serial_write_char",   serial_write_char);
   AS_BIND(as, "serial_write_string", serial_write_string);
@@ -1088,13 +1088,13 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "keyboard_test_sub_last_sc", keyboard_test_sub_last_sc);
   AS_BIND(as, "keyboard_test_sub_last_pressed", keyboard_test_sub_last_pressed);
 
-  /*  Speaker / PIT  */
+  /* Speaker / PIT */
   AS_BIND(as, "pc_speaker_on",       pc_speaker_on);
   AS_BIND(as, "pc_speaker_off",      pc_speaker_off);
   AS_BIND(as, "pit_set_frequency",   pit_set_frequency);
   AS_BIND(as, "timer_delay_us",      timer_delay_us);
 
-  /*  PCI introspection  */
+  /* PCI introspection */
   AS_BIND(as, "pci_device_count",    pci_device_count);
   AS_BIND(as, "pci_get_vendor",      as_pci_vendor_idx);
   AS_BIND(as, "pci_get_device_id",   as_pci_device_id_idx);
@@ -1102,7 +1102,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "pci_get_irq",         as_pci_irq_idx);
   AS_BIND(as, "pci_get_bar",         as_pci_bar_idx);
 
-  /*  SMP / LAPIC / BKL / paging  */
+  /* SMP / LAPIC / BKL / paging */
   AS_BIND(as, "lapic_get_id",        lapic_get_id);
   AS_BIND(as, "lapic_eoi",           lapic_eoi);
   AS_BIND(as, "bkl_lock",            bkl_lock);
@@ -1111,7 +1111,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "pmm_alloc_page",      pmm_alloc_page);
   AS_BIND(as, "pmm_free_page",       pmm_free_page);
 
-  /*  Audio: AC97 driver, MIDI/OPL3 synth, PCM mixer  */
+  /* Audio: AC97 driver, MIDI/OPL3 synth, PCM mixer */
   AS_BIND(as, "ac97_init",                ac97_init);
   AS_BIND(as, "ac97_start",               ac97_start);
   AS_BIND(as, "ac97_stop",                ac97_stop);
@@ -1135,30 +1135,30 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "mixer_set_volume",         mixer_set_volume);
   AS_BIND(as, "mixer_fill",               mixer_fill);
 
-  /*  AC97 PCM channel + getters (parity additions)  */
+  /* AC97 PCM channel + getters (parity additions) */
   AS_BIND(as, "ac97_set_pcm_volume",     ac97_set_pcm_volume);
   AS_BIND(as, "ac97_get_master_volume",  ac97_get_master_volume);
   AS_BIND(as, "ac97_get_pcm_volume",     ac97_get_pcm_volume);
 
-  /*  Socket polling + TLS upgrade (parity additions)  */
+  /* Socket polling + TLS upgrade (parity additions) */
   AS_BIND(as, "sock_avail",          socket_avail);
   AS_BIND(as, "sock_state",          socket_state);
   AS_BIND(as, "setsockopt",          socket_setsockopt);
 
-  /*  Net interface stats (parity)  */
+  /* Net interface stats (parity) */
   AS_BIND(as, "net_rx_drops",        as_net_rx_drops);
   AS_BIND(as, "net_tx_errors",       as_net_tx_errors);
 
-  /*  Image codecs (parity)  */
+  /* Image codecs (parity) */
   AS_BIND(as, "png_decode_mem",            png_decode_mem);
   AS_BIND(as, "jpeg_decode_mem",           jpeg_decode_mem);
   AS_BIND(as, "bmp_decode_to_surface_fit", bmp_decode_to_surface_fit);
 
-  /*  Storage / FS  */
+  /* Storage / FS */
   AS_BIND(as, "storage_total_bytes", fat16_total_bytes);
   AS_BIND(as, "storage_free_bytes",  fat16_free_bytes);
 
-  /*  Swap / SMP / USB  */
+  /* Swap / SMP / USB */
   AS_BIND(as, "swap_init",           swap_init);
   AS_BIND(as, "swap_kmalloc",        swap_kmalloc);
   AS_BIND(as, "swap_pin",            swap_pin);
@@ -1170,7 +1170,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "usb_device_count",    usb_device_count);
   AS_BIND(as, "usb_device_class",    usb_device_class);
 
-  /*  Clipboard / notepad / ansi / keyboard ctrl  */
+  /* Clipboard / notepad / ansi / keyboard ctrl */
   AS_BIND(as, "clipboard_set",       as_clipboard_set);
   AS_BIND(as, "clipboard_get",       as_clipboard_get);
   AS_BIND(as, "clipboard_len",       as_clipboard_len);
@@ -1178,17 +1178,17 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "ansi_color",          as_ansi_color);
   AS_BIND(as, "keyboard_ctrl_held",  as_keyboard_ctrl_held);
 
-  /*  PCI extra  */
+  /* PCI extra */
   AS_BIND(as, "pci_bar_is_mmio",       as_pci_bar_is_mmio);
   AS_BIND(as, "pci_enable_bus_master", as_pci_enable_bus_master_idx);
 
-  /*  Fontsys + REPL  */
+  /* Fontsys + REPL */
   AS_BIND(as, "fontsys_draw_run_styled", fontsys_draw_run_styled);
   AS_BIND(as, "fontsys_set_os_default",  fontsys_set_os_default);
   AS_BIND(as, "repl_eval",                  repl_eval);
   AS_BIND(as, "repl_consume_prompt_result", repl_consume_prompt_result);
 
-  /*  Shell extra  */
+  /* Shell extra */
   AS_BIND(as, "shell_buf_rows",        as_shell_buf_rows);
   AS_BIND(as, "shell_buf_cols",        as_shell_buf_cols);
   AS_BIND(as, "shell_buf_char",        as_shell_buf_char);
@@ -1203,7 +1203,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "shell_jit_program_suspend", shell_jit_program_suspend);
   AS_BIND(as, "shell_set_output_mode", shell_set_output_mode);
 
-  /*  GUI window API  */
+  /* GUI window API */
   AS_BIND(as, "gui_win_create",          as_gui_win_create);
   AS_BIND(as, "gui_win_close",           as_gui_win_close);
   AS_BIND(as, "gui_win_is_open",         as_gui_win_is_open);
@@ -1224,7 +1224,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
 
   /*  libm parity (callers marshal float / double args & FPU return).
    *  Float ABI: float on stack (4 B) returns in st0; double on stack (8 B)
-   *  returns in st0. Caller must fstp result. */
+   *  returns in st0. Caller must fstp result.*/
   AS_BIND(as, "sqrt",      sqrt);   AS_BIND(as, "sqrtf",      sqrtf);
   AS_BIND(as, "sin",       sin);    AS_BIND(as, "sinf",       sinf);
   AS_BIND(as, "cos",       cos);    AS_BIND(as, "cosf",       cosf);
@@ -1251,7 +1251,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "hypot",     hypot);  AS_BIND(as, "hypotf",     hypotf);
   AS_BIND(as, "nextafter", nextafter); AS_BIND(as, "nextafterf", nextafterf);
 
-  /*  Compression / fontsys / doom-test (integer-ABI parity)  */
+  /* Compression / fontsys / doom-test (integer-ABI parity) */
   AS_BIND(as, "kdeflate_raw",            kdeflate_raw);
   AS_BIND(as, "dglibc_test_main",        dglibc_test_main);
   AS_BIND(as, "fontsys_advance",         fontsys_advance);
@@ -1272,7 +1272,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "fontsys_run_width",       fontsys_run_width);
   AS_BIND(as, "fontsys_unregister",      fontsys_unregister);
 
-  /*  gfx2d additions (parity)  */
+  /* gfx2d additions (parity) */
   AS_BIND(as, "gfx2d_image_load",          gfx2d_image_load);
   AS_BIND(as, "gfx2d_image_load_mem",      gfx2d_image_load_mem);
   AS_BIND(as, "gfx2d_image_free",          gfx2d_image_free);
@@ -1298,7 +1298,7 @@ static void as_register_kernel_bindings(as_state_t *as, int jit_mode) {
   AS_BIND(as, "gfx2d_glyph_advance",       gfx2d_glyph_advance);
   AS_BIND(as, "gfx2d_capture_screen_to_surface", gfx2d_capture_screen_to_surface);
 
-  /*  Low-level I/O for drivers  */
+  /* Low-level I/O for drivers */
   AS_BIND(as, "outb",                outb);
   AS_BIND(as, "inb",                 inb);
 }
@@ -1343,116 +1343,121 @@ static int as_init_state(as_state_t *as, int jit_mode) {
   as_register_kernel_bindings(as, jit_mode);
 
   /* Register syscall table offsets as equ constants.
-   * These match cupid_syscall_table_t field offsets so AOT programs
-   * can do:  call [ebx + SYS_PRINT]  where ebx = syscall table ptr.
-   * JIT programs can also use them for portability. */
-  as_bind_equ(as, "SYS_VERSION",      0);
-  as_bind_equ(as, "SYS_TABLE_SIZE",   4);
-  as_bind_equ(as, "SYS_SIZE",         4);
-  as_bind_equ(as, "SYS_PRINT",        8);
-  as_bind_equ(as, "SYS_PUTCHAR",      12);
-  as_bind_equ(as, "SYS_PRINT_INT",    16);
-  as_bind_equ(as, "SYS_PRINT_HEX",    20);
-  as_bind_equ(as, "SYS_CLEAR_SCREEN", 24);
-  as_bind_equ(as, "SYS_MALLOC",       28);
-  as_bind_equ(as, "SYS_FREE",         32);
-  as_bind_equ(as, "SYS_STRLEN",       36);
-  as_bind_equ(as, "SYS_STRCMP",        40);
-  as_bind_equ(as, "SYS_STRNCMP",      44);
-  as_bind_equ(as, "SYS_MEMSET",       48);
-  as_bind_equ(as, "SYS_MEMCPY",       52);
-  as_bind_equ(as, "SYS_VFS_OPEN",     56);
-  as_bind_equ(as, "SYS_VFS_CLOSE",    60);
-  as_bind_equ(as, "SYS_VFS_READ",     64);
-  as_bind_equ(as, "SYS_VFS_WRITE",    68);
-  as_bind_equ(as, "SYS_VFS_SEEK",     72);
-  as_bind_equ(as, "SYS_VFS_STAT",     76);
-  as_bind_equ(as, "SYS_VFS_READDIR",  80);
-  as_bind_equ(as, "SYS_VFS_MKDIR",    84);
-  as_bind_equ(as, "SYS_VFS_UNLINK",   88);
-  as_bind_equ(as, "SYS_EXIT",         92);
-  as_bind_equ(as, "SYS_YIELD",        96);
-  as_bind_equ(as, "SYS_GETPID",       100);
-  as_bind_equ(as, "SYS_KILL",         104);
-  as_bind_equ(as, "SYS_SLEEP_MS",     108);
-  as_bind_equ(as, "SYS_SHELL_EXEC",   112);
-  as_bind_equ(as, "SYS_SHELL_EXEC_LINE", 112);
-  as_bind_equ(as, "SYS_SHELL_EXECUTE",112);
-  as_bind_equ(as, "SYS_SHELL_CWD",    116);
-  as_bind_equ(as, "SYS_SHELL_GET_CWD",116);
-  as_bind_equ(as, "SYS_UPTIME_MS",    120);
-  as_bind_equ(as, "SYS_EXEC",         124);
-  as_bind_equ(as, "SYS_VFS_RENAME",   128);
-  as_bind_equ(as, "SYS_VFS_COPY_FILE",132);
-  as_bind_equ(as, "SYS_VFS_COPY",     132);
-  as_bind_equ(as, "SYS_VFS_READ_ALL", 136);
-  as_bind_equ(as, "SYS_VFS_WRITE_ALL",140);
-  as_bind_equ(as, "SYS_VFS_READ_TEXT",144);
-  as_bind_equ(as, "SYS_VFS_WRITE_TEXT",148);
-  as_bind_equ(as, "SYS_MEMSTATS",     152);
+   * Keep these derived from cupid_syscall_table_t so ASM programs cannot
+   * drift from the real table when fields are inserted above them.*/
+#define AS_BIND_SYS(name, field) \
+  as_bind_equ(as, (name), (uint32_t)__builtin_offsetof(cupid_syscall_table_t, field))
+  AS_BIND_SYS("SYS_VERSION",      version);
+  AS_BIND_SYS("SYS_TABLE_SIZE",   table_size);
+  AS_BIND_SYS("SYS_SIZE",         table_size);
+  AS_BIND_SYS("SYS_PRINT",        print);
+  AS_BIND_SYS("SYS_PUTCHAR",      putchar);
+  AS_BIND_SYS("SYS_PRINT_INT",    print_int);
+  AS_BIND_SYS("SYS_PRINT_HEX",    print_hex);
+  AS_BIND_SYS("SYS_CLEAR_SCREEN", clear_screen);
+  AS_BIND_SYS("SYS_MALLOC",       malloc);
+  AS_BIND_SYS("SYS_FREE",         free);
+  AS_BIND_SYS("SYS_STRLEN",       strlen);
+  AS_BIND_SYS("SYS_STRCMP",       strcmp);
+  AS_BIND_SYS("SYS_STRNCMP",      strncmp);
+  AS_BIND_SYS("SYS_MEMSET",       memset);
+  AS_BIND_SYS("SYS_MEMCPY",       memcpy);
+  AS_BIND_SYS("SYS_VFS_OPEN",     vfs_open);
+  AS_BIND_SYS("SYS_VFS_CLOSE",    vfs_close);
+  AS_BIND_SYS("SYS_VFS_READ",     vfs_read);
+  AS_BIND_SYS("SYS_VFS_WRITE",    vfs_write);
+  AS_BIND_SYS("SYS_VFS_SEEK",     vfs_seek);
+  AS_BIND_SYS("SYS_VFS_STAT",     vfs_stat);
+  AS_BIND_SYS("SYS_VFS_READDIR",  vfs_readdir);
+  AS_BIND_SYS("SYS_VFS_MKDIR",    vfs_mkdir);
+  AS_BIND_SYS("SYS_VFS_UNLINK",   vfs_unlink);
+  AS_BIND_SYS("SYS_VFS_RENAME",   vfs_rename);
+  AS_BIND_SYS("SYS_VFS_COPY_FILE",vfs_copy_file);
+  AS_BIND_SYS("SYS_VFS_COPY",     vfs_copy_file);
+  AS_BIND_SYS("SYS_VFS_READ_ALL", vfs_read_all);
+  AS_BIND_SYS("SYS_VFS_WRITE_ALL",vfs_write_all);
+  AS_BIND_SYS("SYS_VFS_READ_TEXT",vfs_read_text);
+  AS_BIND_SYS("SYS_VFS_WRITE_TEXT",vfs_write_text);
+  AS_BIND_SYS("SYS_EXIT",         exit);
+  AS_BIND_SYS("SYS_YIELD",        yield);
+  AS_BIND_SYS("SYS_GETPID",       getpid);
+  AS_BIND_SYS("SYS_KILL",         kill);
+  AS_BIND_SYS("SYS_SLEEP_MS",     sleep_ms);
+  AS_BIND_SYS("SYS_SHELL_EXEC",   shell_execute);
+  AS_BIND_SYS("SYS_SHELL_EXEC_LINE", shell_execute);
+  AS_BIND_SYS("SYS_SHELL_EXECUTE",shell_execute);
+  AS_BIND_SYS("SYS_SHELL_CWD",    shell_get_cwd);
+  AS_BIND_SYS("SYS_SHELL_GET_CWD",shell_get_cwd);
+  AS_BIND_SYS("SYS_UPTIME_MS",    uptime_ms);
+  AS_BIND_SYS("SYS_EXEC",         exec);
+  AS_BIND_SYS("SYS_MEMSTATS",     memstats);
 
-  /*  Syscall table offsets (v3)  */
-  as_bind_equ(as, "SYS_NET_GET_IP",        156);
-  as_bind_equ(as, "SYS_NET_GET_GATEWAY",   160);
-  as_bind_equ(as, "SYS_NET_GET_DNS",       164);
-  as_bind_equ(as, "SYS_NET_GET_MASK",      168);
-  as_bind_equ(as, "SYS_NET_GET_MAC",       172);
-  as_bind_equ(as, "SYS_NET_LINK_UP",       176);
-  as_bind_equ(as, "SYS_NET_RX_PACKETS",    180);
-  as_bind_equ(as, "SYS_NET_TX_PACKETS",    184);
-  as_bind_equ(as, "SYS_NET_RX_DROPS",      188);
-  as_bind_equ(as, "SYS_NET_TX_ERRORS",     192);
-  as_bind_equ(as, "SYS_IP_PARSE",          196);
-  as_bind_equ(as, "SYS_IPV4_SEND",         200);
-  as_bind_equ(as, "SYS_ARP_RESOLVE",       204);
-  as_bind_equ(as, "SYS_ARP_DUMP",          208);
-  as_bind_equ(as, "SYS_ARP_GET_ENTRIES",   212);
-  as_bind_equ(as, "SYS_ICMP_SEND_ECHO",    216);
-  as_bind_equ(as, "SYS_ICMP_WAIT_REPLY",   220);
-  as_bind_equ(as, "SYS_UDP_SEND_RAW",      224);
-  as_bind_equ(as, "SYS_DNS_RESOLVE",       228);
-  as_bind_equ(as, "SYS_HTONS",             232);
-  as_bind_equ(as, "SYS_HTONL",             236);
-  as_bind_equ(as, "SYS_NTOHS",             240);
-  as_bind_equ(as, "SYS_NTOHL",             244);
-  as_bind_equ(as, "SYS_SOCKET",            248);
-  as_bind_equ(as, "SYS_BIND",              252);
-  as_bind_equ(as, "SYS_LISTEN",            256);
-  as_bind_equ(as, "SYS_ACCEPT",            260);
-  as_bind_equ(as, "SYS_CONNECT",           264);
-  as_bind_equ(as, "SYS_SEND",              268);
-  as_bind_equ(as, "SYS_RECV",              272);
-  as_bind_equ(as, "SYS_SENDTO",            276);
-  as_bind_equ(as, "SYS_RECVFROM",          280);
-  as_bind_equ(as, "SYS_CLOSE",             284);
-  as_bind_equ(as, "SYS_BLKDEV_COUNT",      288);
-  as_bind_equ(as, "SYS_BLKDEV_READ",       292);
-  as_bind_equ(as, "SYS_BLKDEV_WRITE",      296);
-  as_bind_equ(as, "SYS_ATA_READ_SECTORS",  300);
-  as_bind_equ(as, "SYS_ATA_WRITE_SECTORS", 304);
-  as_bind_equ(as, "SYS_SERIAL_READ_CHAR",  308);
-  as_bind_equ(as, "SYS_SERIAL_WRITE_CHAR", 312);
-  as_bind_equ(as, "SYS_SERIAL_WRITE_STRING", 316);
-  as_bind_equ(as, "SYS_SERIAL_HAS_RX",     320);
-  as_bind_equ(as, "SYS_PC_SPEAKER_ON",     324);
-  as_bind_equ(as, "SYS_PC_SPEAKER_OFF",    328);
-  as_bind_equ(as, "SYS_PIT_SET_FREQUENCY", 332);
-  as_bind_equ(as, "SYS_TIMER_DELAY_US",    336);
-  as_bind_equ(as, "SYS_PCI_DEVICE_COUNT",  340);
-  as_bind_equ(as, "SYS_PCI_GET_VENDOR",    344);
-  as_bind_equ(as, "SYS_PCI_GET_DEVICE_ID", 348);
-  as_bind_equ(as, "SYS_PCI_GET_CLASS",     352);
-  as_bind_equ(as, "SYS_PCI_GET_IRQ",       356);
-  as_bind_equ(as, "SYS_PCI_GET_BAR",       360);
-  as_bind_equ(as, "SYS_LAPIC_GET_ID",      364);
-  as_bind_equ(as, "SYS_LAPIC_EOI",         368);
-  as_bind_equ(as, "SYS_BKL_LOCK",          372);
-  as_bind_equ(as, "SYS_BKL_UNLOCK",        376);
-  as_bind_equ(as, "SYS_PAGING_MAP_MMIO",   380);
-  as_bind_equ(as, "SYS_PMM_ALLOC_PAGE",    384);
-  as_bind_equ(as, "SYS_PMM_FREE_PAGE",     388);
-  as_bind_equ(as, "SYS_OUTB",              392);
-  as_bind_equ(as, "SYS_INB",               396);
+  /* Syscall table offsets (v3+) */
+  AS_BIND_SYS("SYS_NET_GET_IP",        net_get_ip);
+  AS_BIND_SYS("SYS_NET_GET_GATEWAY",   net_get_gateway);
+  AS_BIND_SYS("SYS_NET_GET_DNS",       net_get_dns);
+  AS_BIND_SYS("SYS_NET_GET_MASK",      net_get_mask);
+  AS_BIND_SYS("SYS_NET_GET_MAC",       net_get_mac);
+  AS_BIND_SYS("SYS_NET_LINK_UP",       net_link_up);
+  AS_BIND_SYS("SYS_NET_RX_PACKETS",    net_rx_packets);
+  AS_BIND_SYS("SYS_NET_TX_PACKETS",    net_tx_packets);
+  AS_BIND_SYS("SYS_NET_RX_DROPS",      net_rx_drops);
+  AS_BIND_SYS("SYS_NET_TX_ERRORS",     net_tx_errors);
+  AS_BIND_SYS("SYS_IP_PARSE",          ip_parse);
+  AS_BIND_SYS("SYS_IPV4_SEND",         ipv4_send);
+  AS_BIND_SYS("SYS_ARP_RESOLVE",       arp_resolve);
+  AS_BIND_SYS("SYS_ARP_DUMP",          arp_dump);
+  AS_BIND_SYS("SYS_ARP_GET_ENTRIES",   arp_get_entries);
+  AS_BIND_SYS("SYS_ICMP_SEND_ECHO",    icmp_send_echo);
+  AS_BIND_SYS("SYS_ICMP_WAIT_REPLY",   icmp_wait_reply);
+  AS_BIND_SYS("SYS_UDP_SEND_RAW",      udp_send_raw);
+  AS_BIND_SYS("SYS_DNS_RESOLVE",       dns_resolve);
+  AS_BIND_SYS("SYS_HTONS",             htons);
+  AS_BIND_SYS("SYS_HTONL",             htonl);
+  AS_BIND_SYS("SYS_NTOHS",             ntohs);
+  AS_BIND_SYS("SYS_NTOHL",             ntohl);
+  AS_BIND_SYS("SYS_SOCKET",            sock_socket);
+  AS_BIND_SYS("SYS_BIND",              sock_bind);
+  AS_BIND_SYS("SYS_LISTEN",            sock_listen);
+  AS_BIND_SYS("SYS_ACCEPT",            sock_accept);
+  AS_BIND_SYS("SYS_CONNECT",           sock_connect);
+  AS_BIND_SYS("SYS_SEND",              sock_send);
+  AS_BIND_SYS("SYS_RECV",              sock_recv);
+  AS_BIND_SYS("SYS_SENDTO",            sock_sendto);
+  AS_BIND_SYS("SYS_RECVFROM",          sock_recvfrom);
+  AS_BIND_SYS("SYS_CLOSE",             sock_close);
+  AS_BIND_SYS("SYS_BLKDEV_COUNT",      blkdev_count);
+  AS_BIND_SYS("SYS_BLKDEV_READ",       blkdev_read);
+  AS_BIND_SYS("SYS_BLKDEV_WRITE",      blkdev_write);
+  AS_BIND_SYS("SYS_ATA_READ_SECTORS",  ata_read_sectors);
+  AS_BIND_SYS("SYS_ATA_WRITE_SECTORS", ata_write_sectors);
+  AS_BIND_SYS("SYS_SERIAL_READ_CHAR",  serial_read_char);
+  AS_BIND_SYS("SYS_SERIAL_WRITE_CHAR", serial_write_char);
+  AS_BIND_SYS("SYS_SERIAL_WRITE_STRING", serial_write_string);
+  AS_BIND_SYS("SYS_SERIAL_HAS_RX",     serial_has_rx);
+  AS_BIND_SYS("SYS_PC_SPEAKER_ON",     pc_speaker_on);
+  AS_BIND_SYS("SYS_PC_SPEAKER_OFF",    pc_speaker_off);
+  AS_BIND_SYS("SYS_PIT_SET_FREQUENCY", pit_set_frequency);
+  AS_BIND_SYS("SYS_TIMER_DELAY_US",    timer_delay_us);
+  AS_BIND_SYS("SYS_PCI_DEVICE_COUNT",  pci_device_count);
+  AS_BIND_SYS("SYS_PCI_GET_VENDOR",    pci_get_vendor);
+  AS_BIND_SYS("SYS_PCI_GET_DEVICE_ID", pci_get_device_id);
+  AS_BIND_SYS("SYS_PCI_GET_CLASS",     pci_get_class);
+  AS_BIND_SYS("SYS_PCI_GET_IRQ",       pci_get_irq);
+  AS_BIND_SYS("SYS_PCI_GET_BAR",       pci_get_bar);
+  AS_BIND_SYS("SYS_LAPIC_GET_ID",      lapic_get_id);
+  AS_BIND_SYS("SYS_LAPIC_EOI",         lapic_eoi);
+  AS_BIND_SYS("SYS_BKL_LOCK",          bkl_lock);
+  AS_BIND_SYS("SYS_BKL_UNLOCK",        bkl_unlock);
+  AS_BIND_SYS("SYS_PAGING_MAP_MMIO",   paging_map_mmio);
+  AS_BIND_SYS("SYS_PMM_ALLOC_PAGE",    pmm_alloc_page);
+  AS_BIND_SYS("SYS_PMM_FREE_PAGE",     pmm_free_page);
+  AS_BIND_SYS("SYS_OUTB",              outb_io);
+  AS_BIND_SYS("SYS_INB",               inb_io);
+  AS_BIND_SYS("SYS_SOCK_SETSOCKOPT",   sock_setsockopt);
+  AS_BIND_SYS("SYS_SOCK_AVAIL",        sock_avail);
+  AS_BIND_SYS("SYS_SOCK_STATE",        sock_state);
+#undef AS_BIND_SYS
 
   /* Protocol / socket-type constants for AOT programs */
   as_bind_equ(as, "IP_PROTO_ICMP",   IP_PROTO_ICMP);

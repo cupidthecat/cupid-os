@@ -5,7 +5,7 @@
  * provide composite, self-contained widgets (buttons, labels, panels,
  * text fields, scrollbars) that handle their own text centering,
  * padding, and 3D effects.
- */
+*/
 
 #include "ui.h"
 #include "gui_themes.h"
@@ -50,7 +50,7 @@ static void ui_draw_3d_frame(ui_rect_t r, bool raised) {
 
 /*
  *  Constructors / layout helpers
- */
+*/
 
 ui_rect_t ui_rect(int16_t x, int16_t y, uint16_t w, uint16_t h) {
     ui_rect_t r;
@@ -133,18 +133,18 @@ ui_rect_t ui_cut_right(ui_rect_t *r, uint16_t width) {
     return slice;
 }
 
-/* 
+/*
  *  Hit testing
- */
+*/
 
 bool ui_contains(ui_rect_t r, int16_t px, int16_t py) {
     return px >= r.x && px < (int16_t)(r.x + (int16_t)r.w) &&
            py >= r.y && py < (int16_t)(r.y + (int16_t)r.h);
 }
 
-/* 
+/*
  *  Drawing: low-level
- */
+*/
 
 void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
     gfx_fill_rect((int16_t)(r.x + offset), (int16_t)(r.y + offset),
@@ -164,9 +164,9 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
     }
 }
 
-/* 
+/*
  *  Drawing: composite widgets
-  */
+*/
 
 /* Button */
 

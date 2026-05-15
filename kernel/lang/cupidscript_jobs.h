@@ -1,6 +1,6 @@
 /*
  * cupidscript_jobs.h - Background job management for CupidScript
- */
+*/
 #ifndef CUPIDSCRIPT_JOBS_H
 #define CUPIDSCRIPT_JOBS_H
 

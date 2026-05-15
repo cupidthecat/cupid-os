@@ -3,7 +3,7 @@
  *
  * Provides pixel, line, rectangle, and text drawing with automatic
  * clipping to screen bounds (640x480).
- */
+*/
 
 #include "graphics.h"
 #include "font_8x8.h"

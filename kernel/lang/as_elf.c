@@ -9,7 +9,7 @@
  *   - Two program headers (PT_LOAD for code, PT_LOAD for data)
  *   - Code section loaded at 0x00500000
  *   - Data section loaded at 0x00520000
- */
+*/
 
 #include "as.h"
 #include "exec.h"
@@ -33,7 +33,7 @@ int as_write_elf(as_state_t *as, const char *path) {
      *   Offset 0x74: padding to 0x80
      *   Offset 0x80: code section
      *   Offset 0x80 + code_size (aligned): data section
-     */
+*/
 
     uint32_t headers_size = 52 + 32 * 2;  /* ehdr + 2 phdrs = 116 */
     uint32_t code_offset = 0x80;           /* file offset of code */

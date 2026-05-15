@@ -9,7 +9,7 @@
  * the zlib wrapper (RFC 1950) header bytes are skipped and the
  * trailing Adler-32 is not verified.  CRC32 on PNG chunks is also
  * skipped - corrupt files surface as inflate errors instead.
- */
+*/
 
 #include "png.h"
 #include "memory.h"

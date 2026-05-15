@@ -3,7 +3,7 @@
  *
  * Provides a file descriptor table with support for terminal I/O,
  * in-memory buffers (pipes), and VFS file access.
- */
+*/
 #ifndef CUPIDSCRIPT_STREAMS_H
 #define CUPIDSCRIPT_STREAMS_H
 

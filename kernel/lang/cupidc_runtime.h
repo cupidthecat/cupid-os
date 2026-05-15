@@ -4,7 +4,7 @@
  * Provides Array and HashTable implementations that CupidC programs
  * can use via kernel API bindings.  These are essential for the
  * CupidC shell implementation.
- */
+*/
 
 #ifndef CUPIDC_RUNTIME_H
 #define CUPIDC_RUNTIME_H
@@ -53,14 +53,14 @@ void cc_hash_free(cc_hash_t *ht);
  * Iterate over all entries.  Calls fn(key, value) for each entry.
  * Note: CupidC doesn't support function pointer args directly yet,
  * so this is primarily for kernel-side use.
- */
+*/
 void cc_hash_foreach(cc_hash_t *ht, void (*fn)(const char *, const char *));
 
 /**
  * Get all keys as a freshly allocated array of strings.
  * Caller must kfree each string and the array itself.
  * Returns count via out parameter.
- */
+*/
 char **cc_hash_keys(cc_hash_t *ht, int *out_count);
 
 #endif /* CUPIDC_RUNTIME_H */

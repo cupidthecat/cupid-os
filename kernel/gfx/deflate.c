@@ -2,7 +2,7 @@
  *
  * Lifted from png.c. Hand-rolled bit reader + Huffman + inflate.
  * Static-block, fixed-block, and dynamic-block decoders all here.
- */
+*/
 
 #include "deflate.h"
 

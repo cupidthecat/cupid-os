@@ -6,7 +6,7 @@
  * string literals, labels, directives, and delimiters.
  * Skips whitespace (except newlines) and ; line comments.
  * Case-insensitive for mnemonics and registers.
- */
+*/
 
 #include "as.h"
 #include "string.h"
@@ -119,7 +119,7 @@ static const char *as_mnemonics[] = {
   "ldmxcsr", "stmxcsr",
   /* SSE scalar (Task 9): <prefix> 0F <op> /r
    * movsd overlaps the string-op already in this table; the parser
-   * disambiguates by peeking for operands after the mnemonic. */
+   * disambiguates by peeking for operands after the mnemonic.*/
   "movss",                     /* movsd already listed above */
   "addss",  "addsd",
   "subss",  "subsd",
@@ -152,6 +152,12 @@ static const char *as_mnemonics[] = {
   "fsin", "fcos", "fptan", "fpatan",
   "f2xm1", "fyl2x", "fscale", "fprem",
   "fstsw", "fldcw", "fstcw",
+  /* Privileged/system + atomic instructions. */
+  "lgdt", "lidt", "sgdt", "sidt", "invlpg",
+  "ltr", "str", "sldt", "smsw", "lmsw",
+  "cpuid", "rdtsc", "rdmsr", "wrmsr", "wbinvd", "invd", "clts",
+  "sysenter", "sysexit", "syscall", "iretd", "retf",
+  "bswap", "xadd", "cmpxchg", "lock",
   NULL
 };
 

@@ -6,7 +6,7 @@
  *   hinting interpreter, no kerning, no GPOS.
  *
  * Reference: stb_truetype.h by Sean Barrett (public domain).
- */
+*/
 
 #ifndef TTF_H
 #define TTF_H
@@ -21,7 +21,7 @@ int16_t  ttf_i16(const uint8_t *blob, int off);
 /* Walk the TTF table directory at the start of `blob`. On success
  * fills *out_off and *out_len with the table's location and returns 0.
  * Returns -1 if the tag isn't present.
- *   tag: 4-byte ASCII packed big-endian, e.g. ('h'<<24|'e'<<16|'a'<<8|'d'). */
+ *   tag: 4-byte ASCII packed big-endian, e.g. ('h'<<24|'e'<<16|'a'<<8|'d').*/
 int ttf_find_table(const uint8_t *blob, int blob_len,
                    uint32_t tag,
                    int *out_off, int *out_len);
@@ -44,7 +44,7 @@ int ttf_parse_os2(const uint8_t *blob, int off,
 
 /* name:  pull a UTF-8/Latin-1 string for `name_id` (1=family, 2=subfamily).
  * Writes up to (out_cap-1) bytes plus NUL into out_buf. Returns the
- * number of bytes written, or 0 on failure. */
+ * number of bytes written, or 0 on failure.*/
 int ttf_parse_name(const uint8_t *blob, int off,
                    int name_id,
                    char *out_buf, int out_cap);
@@ -70,7 +70,7 @@ int ttf_glyph_offset(const uint8_t *blob, int loca_off,
  *   *out_xmin/ymin/xmax/ymax: bbox in font units.
  * Returns 0 on success, -1 on overflow / malformed glyph.
  * For composite glyphs the routine recurses (depth cap 4) and merges
- * the children's points + contours into the same output arrays. */
+ * the children's points + contours into the same output arrays.*/
 int ttf_glyph_outline(const uint8_t *blob,
                       int glyf_off, int loca_off, int idx_to_loc_fmt,
                       int glyph_idx,

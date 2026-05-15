@@ -3,7 +3,7 @@
  *
  * Tab controls, split panes, scroll areas, tree views,
  * group boxes, and collapsible panels.
- */
+*/
 
 #include "gui_containers.h"
 #include "gui_themes.h"

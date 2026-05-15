@@ -7,7 +7,7 @@
  *
  * Initializes kernel function bindings so CupidC programs can call
  * print(), kmalloc(), outb(), inb(), and other kernel APIs directly.
- */
+*/
 
 #include "cupidc.h"
 #include "keyboard.h"
@@ -70,6 +70,16 @@
 #include "audio/mixer.h"
 #include "audio/opl_smoke.h"
 #include "doom/dglibc.h"
+#include "sha256.h"
+#include "sha512.h"
+#include "hmac.h"
+#include "chacha20.h"
+#include "poly1305.h"
+#include "x25519.h"
+#include "ed25519.h"
+#include "rsa.h"
+#include "csprng.h"
+#include "ssh_io.h"
 
 char cc_notepad_open_path[256];
 char cc_notepad_save_path[256];
@@ -78,7 +88,7 @@ static repl_state_t repl_state = {0};
 /* Port I/O wrappers for CupidC kernel bindings
  * The compiler binds calls to outb()/inb() to these wrappers which
  * match cdecl calling convention with 32-bit args on the stack.
- *  */
+ **/
 
 static void cc_outb(uint32_t port, uint32_t value) {
   outb((uint16_t)port, (uint8_t)value);
@@ -87,37 +97,20 @@ static void cc_outb(uint32_t port, uint32_t value) {
 static uint32_t cc_inb(uint32_t port) { return (uint32_t)inb((uint16_t)port); }
 
 static void cc_println(const char *s) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_ext(s ? s : "");
-    shell_gui_putchar_ext('\n');
-  } else {
-    print(s ? s : "");
-    print("\n");
-  }
+  print(s ? s : "");
+  print("\n");
 }
 
 static void cc_print(const char *s) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_ext(s ? s : "");
-  } else {
-    print(s ? s : "");
-  }
+  print(s ? s : "");
 }
 
 static void cc_putchar(char c) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_putchar_ext(c);
-  } else {
-    putchar(c);
-  }
+  putchar(c);
 }
 
 static void cc_print_int(uint32_t v) {
-  if (shell_get_output_mode() == SHELL_OUTPUT_GUI) {
-    shell_gui_print_int_ext(v);
-  } else {
-    print_int(v);
-  }
+  print_int(v);
 }
 
 typedef __builtin_va_list cc_va_list;
@@ -500,7 +493,7 @@ static const char *cc_mount_path(int index) {
 }
 
 /* CupidC can't do inline asm, so we provide a wrapper that captures
- * the current EBP/EIP and calls print_stack_trace(). */
+ * the current EBP/EIP and calls print_stack_trace().*/
 static void cc_dump_stack_trace(void) {
   uint32_t ebp, eip;
   __asm__ volatile("movl %%ebp, %0" : "=r"(ebp));
@@ -604,7 +597,7 @@ static int cc_fp_mul(int a, int b) {
 static int cc_fp_div(int a, int b) {
   /* 16.16 fixed-point division using 32-bit math only
    * Result = (a << 16) / b, but we can't do 64-bit division
-   * Use iterative approach: divide in parts to avoid overflow */
+   * Use iterative approach: divide in parts to avoid overflow*/
   if (b == 0)
     return 0;
 
@@ -819,7 +812,7 @@ static void cc_gui_win_flip(int win_id) {
 
   /* Compatibility path for older immediate-mode hosted apps: cache the
    * content they drew into the screen backbuffer into the retained
-   * per-window surface, then present through the compositor path. */
+   * per-window surface, then present through the compositor path.*/
   (void)gui_cache_window_content(win_id);
   (void)gui_invalidate_window(win_id);
   (void)gui_present_windows();
@@ -845,7 +838,7 @@ static int cc_gui_win_draw_frame(int win_id) {
     return 0;
   /* Hide the mouse cursor before the app draws its content so the app
    * never paints over cursor pixels in the back buffer.  The cursor
-   * will be re-drawn in cc_gui_win_flip after the frame is complete. */
+   * will be re-drawn in cc_gui_win_flip after the frame is complete.*/
   mouse_restore_under_cursor();
   return gui_draw_window(win_id);
 }
@@ -900,7 +893,7 @@ static uint32_t cc_ansi_color(int idx) {
   return ansi_vga_to_palette((uint8_t)idx);
 }
 
-/*  Wrappers: networking + drivers + low-level access  */
+/* Wrappers: networking + drivers + low-level access */
 
 /* Network interface info - primary NIC only (covers the common case). */
 static uint32_t cc_net_get_ip(void) {
@@ -1014,7 +1007,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
  * BIND_T() - explicit return type.  Use this for float/double-returning
  *            kernel functions (libm) so that CupidC's caller-
  *            side wiring (call_ret_type -> cc_last_expr_type, cc_last_xmm)
- *            fires correctly after the CALL. */
+ *            fires correctly after the CALL.*/
 #define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
   do {                                                                         \
     cc_symbol_t *s = cc_sym_add(cc, name_str, SYM_KERNEL, (ret_type));         \
@@ -1060,7 +1053,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   /* Memory management */
   /* kmalloc_debug takes (size, file, line) but CupidC programs should
    * just call kmalloc(size).  We bind to a wrapper that fills in
-   * a dummy file/line. */
+   * a dummy file/line.*/
   void *(*p_malloc)(size_t, const char *, uint32_t) = kmalloc_debug;
   BIND("kmalloc", p_malloc, 1);
 
@@ -1195,6 +1188,57 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_htonl)(uint32_t) = htonl;
   BIND("htonl", p_htonl, 1);
 
+  /* SSH crypto primitives */
+  void (*p_sha256)(const uint8_t *, uint32_t, uint8_t *) = sha256;
+  BIND("sha256", p_sha256, 3);
+  void (*p_sha256_init)(sha256_ctx_t *) = sha256_init;
+  BIND("sha256_init", p_sha256_init, 1);
+  void (*p_sha256_update)(sha256_ctx_t *, const uint8_t *, uint32_t) = sha256_update;
+  BIND("sha256_update", p_sha256_update, 3);
+  void (*p_sha256_final)(sha256_ctx_t *, uint8_t *) = sha256_final;
+  BIND("sha256_final", p_sha256_final, 2);
+  void (*p_sha512)(const uint8_t *, uint32_t, uint8_t *) = sha512;
+  BIND("sha512", p_sha512, 3);
+  void (*p_hmac_sha256)(const uint8_t *, uint32_t, const uint8_t *, uint32_t, uint8_t *) = hmac_sha256;
+  BIND("hmac_sha256", p_hmac_sha256, 5);
+
+  void (*p_x25519)(uint8_t *, const uint8_t *, const uint8_t *) = x25519;
+  BIND("x25519", p_x25519, 3);
+  int (*p_ed25519_verify)(const uint8_t *, const uint8_t *, uint32_t, const uint8_t *) = ed25519_verify;
+  BIND_T("ed25519_verify", p_ed25519_verify, 4, TYPE_INT);
+
+  void (*p_chacha20)(const uint8_t *, uint32_t, const uint8_t *, const uint8_t *, uint8_t *, uint32_t) = chacha20_xor;
+  BIND("chacha20_xor", p_chacha20, 6);
+  void (*p_poly1305_auth)(uint8_t *, const uint8_t *, uint32_t, const uint8_t *) = poly1305_auth;
+  BIND("poly1305_auth", p_poly1305_auth, 4);
+
+  void (*p_rand)(uint8_t *, uint32_t) = crypto_random_bytes;
+  BIND("crypto_random_bytes", p_rand, 2);
+
+  int (*p_rsa_v256)(const uint8_t *, uint32_t, const uint8_t *, uint32_t,
+                    const uint8_t *, uint32_t, const uint8_t *) = rsa_pkcs1v15_verify_sha256;
+  BIND_T("rsa_pkcs1v15_verify_sha256", p_rsa_v256, 7, TYPE_INT);
+  int (*p_rsa_v512)(const uint8_t *, uint32_t, const uint8_t *, uint32_t,
+                    const uint8_t *, uint32_t, const uint8_t *) = rsa_pkcs1v15_verify_sha512;
+  BIND_T("rsa_pkcs1v15_verify_sha512", p_rsa_v512, 7, TYPE_INT);
+
+  int (*p_ecdsa_blob)(const uint8_t *, const uint8_t *, uint32_t,
+                      const uint8_t *, uint32_t, const uint8_t *, uint32_t)
+      = ssh_ecdsa_p256_verify_blob;
+  BIND_T("ssh_ecdsa_p256_verify_blob", p_ecdsa_blob, 7, TYPE_INT);
+
+  /* SSH terminal I/O helpers */
+  int (*p_read_line)(char *, uint32_t) = ssh_read_line;
+  BIND_T("read_line", p_read_line, 2, TYPE_INT);
+  int (*p_read_password)(char *, uint32_t) = ssh_read_password;
+  BIND_T("read_password", p_read_password, 2, TYPE_INT);
+  int (*p_poll_key_vt)(char *) = ssh_poll_key_vt;
+  BIND_T("poll_key_vt", p_poll_key_vt, 1, TYPE_INT);
+  void (*p_print_n)(const char *, uint32_t) = ssh_print_n;
+  BIND("print_n", p_print_n, 2);
+  void (*p_screen_size)(int *, int *) = ssh_get_screen_size;
+  BIND("get_screen_size", p_screen_size, 2);
+
   /* Process management */
   void (*p_yield)(void) = cc_yield;
   BIND("yield", p_yield, 0);
@@ -1253,7 +1297,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("storage_free_bytes", p_storage_free_bytes, 0);
 
   /* TempleOS-style argument passing: CupidC programs call get_args()
-   * to receive command-line arguments set by the shell. */
+   * to receive command-line arguments set by the shell.*/
   const char *(*p_get_args)(void) = shell_get_program_args;
   BIND("get_args", p_get_args, 0);
 
@@ -2197,7 +2241,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2, plus
    * f-suffixed float variants).  These functions follow the CupidC
-   * kernel-binding ABI (stack args, XMM0 return) - see libm.c. */
+   * kernel-binding ABI (stack args, XMM0 return) - see libm.c.*/
   double (*p_sqrt)(double)  = sqrt;
   BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
   float  (*p_sqrtf)(float)  = sqrtf;
@@ -2265,7 +2309,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
    *   log2  - FYL2X with y=1
    *   log   - FYL2X with y=ln(2)
    *   pow   - C dispatch (y=0 -> 1; x<=0 + y!=0 -> domain error) then
-   *           x87 exp/log pipeline, ST(0)->XMM0 bridged in asm wrapper. */
+   *           x87 exp/log pipeline, ST(0)->XMM0 bridged in asm wrapper.*/
   double (*p_exp)(double)    = exp;
   BIND_T("exp",     p_exp,    1, TYPE_DOUBLE);
   float  (*p_expf)(float)    = expf;
@@ -2294,7 +2338,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   /* asin/acos/sinh/cosh/tanh + f-variants.
    *   asin/acos - atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
    *   sinh/cosh - (exp(x) +/- exp(-x)) / 2.
-   *   tanh      - (e1 - e2) / (e1 + e2). */
+   *   tanh      - (e1 - e2) / (e1 + e2).*/
   double (*p_asin)(double)   = asin;
   BIND_T("asin",    p_asin,   1, TYPE_DOUBLE);
   float  (*p_asinf)(float)   = asinf;
@@ -2324,7 +2368,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
    *   cbrt      - bit-trick initial estimate + 3 Newton iterations of
    *               y = (2y + x/y^2)/3.
    *   hypot     - scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
-   *   nextafter - IEEE bit-level step toward y (++/-- the integer repr). */
+   *   nextafter - IEEE bit-level step toward y (++/-- the integer repr).*/
   double (*p_cbrt)(double)   = cbrt;
   BIND_T("cbrt",    p_cbrt,   1, TYPE_DOUBLE);
   float  (*p_cbrtf)(float)   = cbrtf;
@@ -2340,7 +2384,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   float  (*p_nextafterf)(float, float)  = nextafterf;
   BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
 
-  /*  Full networking stack  */
+  /* Full networking stack */
   uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
   BIND("net_get_ip", p_net_ip, 0);
   uint32_t (*p_net_gw)(void)        = cc_net_get_gateway;
@@ -2391,7 +2435,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint32_t (*p_proto_tcp)(void)  = cc_proto_tcp;
   BIND("IP_PROTO_TCP",  p_proto_tcp,  0);
 
-  /*  Block devices (ATA + loopdev + USB-MSC, by blkdev index) */
+  /* Block devices (ATA + loopdev + USB-MSC, by blkdev index) */
   int (*p_blkdev_count)(void)                                           = blkdev_count;
   BIND("blkdev_count", p_blkdev_count, 0);
   int (*p_blkdev_read)(int, uint32_t, uint32_t, void *)                 = cc_blkdev_read;
@@ -2403,7 +2447,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_ata_write)(uint8_t, uint32_t, uint8_t, const void *)          = ata_write_sectors;
   BIND("ata_write_sectors", p_ata_write, 4);
 
-  /*  Keyboard direct  */
+  /* Keyboard direct */
   bool (*p_kbd_event)(key_event_t *)    = keyboard_read_event;
   BIND("keyboard_read_event", p_kbd_event, 1);
   void (*p_kbd_inject)(uint8_t)         = keyboard_inject_scancode;
@@ -2428,7 +2472,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_kbd_ts_pr)(void)             = keyboard_test_sub_last_pressed;
   BIND_T("keyboard_test_sub_last_pressed", p_kbd_ts_pr, 0, TYPE_INT);
 
-  /*  Serial direct  */
+  /* Serial direct */
   int  (*p_serial_rx)(void)             = serial_read_char;
   BIND("serial_read_char", p_serial_rx, 0);
   void (*p_serial_tx)(char)             = serial_write_char;
@@ -2438,13 +2482,13 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int  (*p_serial_has)(void)            = serial_has_rx;
   BIND("serial_has_rx", p_serial_has, 0);
 
-  /*  PIT  */
+  /* PIT */
   void (*p_pit_freq)(uint32_t, uint32_t) = pit_set_frequency;
   BIND("pit_set_frequency", p_pit_freq, 2);
   void (*p_timer_delay)(uint32_t)        = timer_delay_us;
   BIND("timer_delay_us", p_timer_delay, 1);
 
-  /*  PCI introspection (by index)  */
+  /* PCI introspection (by index) */
   int      (*p_pci_count)(void)        = pci_device_count;
   BIND("pci_device_count", p_pci_count, 0);
   uint32_t (*p_pci_v)(int)             = cc_pci_vendor;
@@ -2462,19 +2506,19 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void     (*p_pci_bm)(int)            = cc_pci_enable_bus_master;
   BIND("pci_enable_bus_master", p_pci_bm, 1);
 
-  /*  SMP / LAPIC  */
+  /* SMP / LAPIC */
   uint32_t (*p_lapic_id)(void)         = cc_lapic_get_id;
   BIND("lapic_get_id", p_lapic_id, 0);
   void     (*p_lapic_eoi)(void)        = lapic_eoi;
   BIND("lapic_eoi", p_lapic_eoi, 0);
 
-  /*  BKL (use with care - disables IRQs)  */
+  /* BKL (use with care - disables IRQs) */
   void (*p_bkl_lock)(void)             = bkl_lock;
   BIND("bkl_lock", p_bkl_lock, 0);
   void (*p_bkl_unlock)(void)           = bkl_unlock;
   BIND("bkl_unlock", p_bkl_unlock, 0);
 
-  /*  Paging / PMM low-level  */
+  /* Paging / PMM low-level */
   void  (*p_paging_mmio)(uint32_t, uint32_t) = paging_map_mmio;
   BIND("paging_map_mmio", p_paging_mmio, 2);
   void *(*p_pmm_alloc_p)(void)         = pmm_alloc_page;
@@ -2482,7 +2526,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void  (*p_pmm_free_p)(void *)        = pmm_free_page;
   BIND("pmm_free_page", p_pmm_free_p, 1);
 
-  /*  AC97 audio smoke-test helpers  */
+  /* AC97 audio smoke-test helpers */
   int  (*p_ac97_present)(void)         = ac97_is_present_int;
   BIND_T("ac97_is_present_int", p_ac97_present, 0, TYPE_INT);
   int  (*p_ac97_smoke)(void)           = ac97_smoke_sine;
@@ -2496,7 +2540,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_audiotest_all)(void)       = audiotest_all;
   BIND("audiotest_all", p_audiotest_all, 0);
 
-  /*  AC97 driver control (init / DMA arm / stop / volume / sleep)  */
+  /* AC97 driver control (init / DMA arm / stop / volume / sleep) */
   int  (*p_ac97_init)(void)             = ac97_init;
   BIND_T("ac97_init", p_ac97_init, 0, TYPE_INT);
   void (*p_ac97_start)(void)            = ac97_start;
@@ -2514,7 +2558,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_ac97_sleep)(uint32_t)        = ac97_tsc_sleep_ms;
   BIND("ac97_tsc_sleep_ms", p_ac97_sleep, 1);
 
-  /*  MIDI / OPL3 synth (Doom MUS-style)  */
+  /* MIDI / OPL3 synth (Doom MUS-style) */
   int  (*p_midiopl_init)(const uint8_t *, uint32_t) = midiopl_init;
   BIND_T("midiopl_init", p_midiopl_init, 2, TYPE_INT);
   void (*p_midiopl_reset)(void)         = midiopl_reset;
@@ -2526,7 +2570,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_midiopl_setvol)(uint8_t)     = midiopl_set_volume;
   BIND("midiopl_set_volume", p_midiopl_setvol, 1);
 
-  /*  PCM mixer (16 slots, s16 stereo @ 22050 Hz)  */
+  /* PCM mixer (16 slots, s16 stereo @ 22050 Hz) */
   int  (*p_mixer_init)(void)            = mixer_init;
   BIND_T("mixer_init", p_mixer_init, 0, TYPE_INT);
   int  (*p_mixer_play)(int, const int16_t *, uint32_t,
@@ -2541,7 +2585,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_mixer_fill)(int16_t *, uint32_t) = mixer_fill;
   BIND("mixer_fill", p_mixer_fill, 2);
 
-  /*  dglibc smoke test  */
+  /* dglibc smoke test */
   int  (*p_dglibc_test)(void)         = dglibc_test_main;
   BIND_T("dglibc_test_main", p_dglibc_test, 0, TYPE_INT);
 
@@ -3674,10 +3718,10 @@ int cupidc_jit_status(const char *path) {
   }
 
   /* JIT code/data regions are permanently reserved at boot by pmm_init()
-   * so the heap never allocates into them.  Just copy and execute. */
+   * so the heap never allocates into them.  Just copy and execute.*/
 
   /* Save the current JIT regions BEFORE overwriting (for nested JIT programs).
-   * This must happen before the memcpy so we preserve the previous program. */
+   * This must happen before the memcpy so we preserve the previous program.*/
   if (!shell_jit_program_start(path)) {
     print("CupidC: cannot launch nested JIT program (snapshot failed)\n");
     kfree(source);

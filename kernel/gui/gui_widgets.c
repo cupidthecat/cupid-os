@@ -7,7 +7,7 @@
  *
  * All drawing goes through the gfx2d/graphics primitives so
  * clipping and surfaces are respected.
- */
+*/
 
 #include "gui_widgets.h"
 #include "gui_themes.h"

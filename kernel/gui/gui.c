@@ -4,7 +4,7 @@
  * Provides window creation, rendering, dragging, focus management,
  * and input dispatch.  Windows are stored in a flat array ordered
  * by z-index (index 0 = back, highest = front / focused).
- */
+*/
 
 #include "gui.h"
 #include "simd.h"
@@ -401,7 +401,7 @@ window_t *gui_get_focused_window(void) {
     return top;
 
   /* Recover from transient focus-flag desync: top window is authoritative
-   * for keyboard routing and z-order interaction. */
+   * for keyboard routing and z-order interaction.*/
   for (int i = 0; i < win_count; i++) {
     windows[i].flags &= (uint8_t)~WINDOW_FLAG_FOCUSED;
   }
@@ -555,7 +555,7 @@ int gui_cache_window_content(int wid) {
 /* Returns true when the focused window has no redraw callback - it is a
  * self-rendering CupidC app that calls vga_flip() itself.  The desktop
  * uses this to skip its own flip during drag so the displayed frame always
- * contains both the desktop's chrome and the app's content. */
+ * contains both the desktop's chrome and the app's content.*/
 bool gui_focused_is_self_rendering(void) {
   window_t *focused = gui_get_focused_window();
   if (!focused)
@@ -677,7 +677,7 @@ static void draw_single_window(window_t *win) {
   /* Content area.
    * Callback-based apps overdraw via win->redraw below.
    * Self-rendering apps (no redraw callback) replay their most recent
-   * captured content if available so unfocused windows keep their last frame. */
+   * captured content if available so unfocused windows keep their last frame.*/
   {
     int cx;
     int cy;
@@ -774,7 +774,7 @@ void gui_draw_all_windows(bool draw_shadows) {
 
   /* Draw shadows first (back-to-front pass) so they sit behind all windows.
    * When the background wasn't repainted this frame, old shadow pixels are
-   * still correct in the back_buffer - skip the fill entirely. */
+   * still correct in the back_buffer - skip the fill entirely.*/
   if (draw_shadows) {
     for (int i = first; i < win_count; i++) {
       if (!window_is_drawable(&windows[i]))
@@ -893,7 +893,7 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
           if (w->x > VGA_GFX_WIDTH - 20)
             w->x = (int16_t)(VGA_GFX_WIDTH - 20);
           /* Keep the title bar above the taskbar so windows can never
-           * be dragged on top of it. */
+           * be dragged on top of it.*/
           if (w->y > TASKBAR_Y - TITLEBAR_H)
             w->y = (int16_t)(TASKBAR_Y - TITLEBAR_H);
           w->flags |= WINDOW_FLAG_DRAGGING;
@@ -910,7 +910,7 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   if (pressed) {
     /* Find the topmost window under the cursor first.  All subsequent
      * hit-tests are scoped to this one window so that occluded windows
-     * (behind a higher-z peer) can never accidentally steal a click. */
+     * (behind a higher-z peer) can never accidentally steal a click.*/
     int top_wid = gui_hit_test_window(mx, my);
     if (top_wid < 0)
       return; /* click landed on bare desktop */

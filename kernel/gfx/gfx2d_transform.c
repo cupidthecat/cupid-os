@@ -4,7 +4,7 @@
  * Provides a transform stack with translate/rotate/scale operations
  * using 16.16 fixed-point arithmetic. Transformed drawing re-samples
  * source pixels through the inverse matrix.
- */
+*/
 
 #include "gfx2d_transform.h"
 #include "gfx2d.h"
@@ -15,7 +15,7 @@
 
 /* Integer sine/cosine lookup (returns fixed-point, 1.0 = FP_ONE)
  * Table covers 0-359 degrees.  Values stored as 16.16 fixed-point.
- */
+*/
 
 /* sin/cos for 0..90 degrees, 16.16 fixed-point (65536 = 1.0) */
 static const int sin_table_q1[91] = {
@@ -56,7 +56,7 @@ static int fp_cos(int deg) {
  * | 0  0  1  |
  * a,b,c,d are 16.16 fixed-point; tx,ty are pixel offsets in
  * fixed-point (FP_TO_INT to get screen coords).
- */
+*/
 
 typedef struct {
     int m[6]; /* a, b, c, d, tx, ty */
@@ -177,7 +177,7 @@ void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
  * Strategy: For each destination pixel in the bounding box, compute
  * the inverse-transformed source coordinate and sample from the
  * original image/sprite.
- */
+*/
 
 /* Invert the current 2x2 + translation matrix */
 static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
@@ -191,7 +191,7 @@ static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
     if (det64 == 0) return -1;  /* Singular */
 
     /* We need 1/det in fixed-point.
-     * inv_det = FP_ONE^2 / det (since det is already FP) */
+     * inv_det = FP_ONE^2 / det (since det is already FP)*/
     det = (int)det64;
     det_abs = (det < 0) ? (uint32_t)(-(int64_t)det) : (uint32_t)det;
     /* Use kernel-provided unsigned 64-bit division helper (no libgcc). */

@@ -1,5 +1,5 @@
 /**
- * notepad.cc is used instead of .c to allow for cupid c JIT compilation 
+ * notepad.cc is used instead of .c to allow for cupid c JIT compilation
  * notepad.c - Windows XP-style Notepad for cupid-os
  *
  * Full GUI text editor with menu bar, scrollbars, file operations,
@@ -13,7 +13,7 @@
  *   4. Menu system (File, Edit dropdowns with keyboard shortcuts)
  *   5. File operations (open/save via FAT16 file browser dialog)
  *   6. Icon and polish (desktop icon, status bar)
- */
+*/
 
 #include "notepad.h"
 #include "keyboard.h"
@@ -173,20 +173,20 @@ typedef struct {
 
 /* Computed layout for the file dialog - shared by draw and mouse */
 typedef struct {
-  ui_rect_t dialog;      /* Outer dialog rect                    */
-  ui_rect_t titlebar;    /* Title bar                            */
-  ui_rect_t path_row;    /* Current directory display            */
-  ui_rect_t list_area;   /* File list + scrollbar (sunken)       */
-  ui_rect_t list;        /* File list only (no scrollbar)        */
-  ui_rect_t scrollbar;   /* Vertical scrollbar                   */
-  ui_rect_t input_label; /* "File:" label                        */
-  ui_rect_t input_field; /* Text input field                     */
-  ui_rect_t ok_btn;      /* OK / Open / Save button              */
-  ui_rect_t cancel_btn;  /* Cancel button                        */
-  ui_rect_t status;      /* File count text area                 */
-  int items_y;           /* Y of first file entry (absolute)     */
-  int items_h;           /* Height available for file entries    */
-  int items_visible;     /* Number of visible file entries       */
+  ui_rect_t dialog;      /* Outer dialog rect */
+  ui_rect_t titlebar;    /* Title bar */
+  ui_rect_t path_row;    /* Current directory display */
+  ui_rect_t list_area;   /* File list + scrollbar (sunken) */
+  ui_rect_t list;        /* File list only (no scrollbar) */
+  ui_rect_t scrollbar;   /* Vertical scrollbar */
+  ui_rect_t input_label; /* "File:" label */
+  ui_rect_t input_field; /* Text input field */
+  ui_rect_t ok_btn;      /* OK / Open / Save button */
+  ui_rect_t cancel_btn;  /* Cancel button */
+  ui_rect_t status;      /* File count text area */
+  int items_y;           /* Y of first file entry (absolute) */
+  int items_h;           /* Height available for file entries */
+  int items_visible;     /* Number of visible file entries */
 } dlg_layout_t;
 
 typedef struct {
@@ -2240,7 +2240,7 @@ static void notepad_get_viewport(int *vis_cols, int *vis_lines, int *edit_x,
                                  int *edit_y, int *edit_w, int *edit_h,
                                  window_t *win) {
   /* Content area: inside window border, below titlebar+menubar,
-   * above status bar, minus scrollbar areas */
+   * above status bar, minus scrollbar areas*/
   int cx = (int)win->x + 2;
   int cy = (int)win->y + TITLEBAR_H + 1 + MENUBAR_H;
   int cw = (int)win->width - 4 - VSCROLL_W;
@@ -2824,8 +2824,8 @@ static void notepad_open_file(const char *name) {
   notepad_clear_selection();
 
   /* Read file contents - grow buffer dynamically until EOF */
-  uint32_t buf_cap = 32768;      /* start at 32 KB          */
-  uint32_t buf_max = 512 * 1024; /* hard cap: 512 KB        */
+  uint32_t buf_cap = 32768;      /* start at 32 KB */
+  uint32_t buf_max = 512 * 1024; /* hard cap: 512 KB */
   char *read_buf = kmalloc(buf_cap);
   if (!read_buf) {
     vfs_close(fd);
@@ -3150,7 +3150,7 @@ static void notepad_close_dialog(void) {
 }
 
 /* Navigate the file dialog into a directory by name.
-   Used by Enter key, OK button, and double-click handlers. */
+   Used by Enter key, OK button, and double-click handlers.*/
 static void notepad_dialog_navigate_dir(const char *dname) {
   if (dname[0] == '.' && dname[1] == '.' && dname[2] == '\0') {
     /* Go up: strip last path component */
@@ -3194,7 +3194,7 @@ static void notepad_dialog_handle_key(uint8_t scancode, char character) {
     /* Confirm action */
     if (app.dialog.input_len > 0) {
       /* Navigate into a directory only if the input text exactly matches
-         a directory entry - not just because a dir happens to be selected */
+         a directory entry - not just because a dir happens to be selected*/
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
           app.dialog.files[sel].is_directory &&
@@ -3300,7 +3300,7 @@ static void notepad_dialog_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
     }
     if (app.dialog.input_len > 0) {
       /* Navigate into a directory only if the input text exactly matches
-         a directory entry - not just because a dir happens to be selected */
+         a directory entry - not just because a dir happens to be selected*/
       int sel = app.dialog.selected_index;
       if (sel >= 0 && sel < app.dialog.file_count &&
           app.dialog.files[sel].is_directory &&
@@ -4229,7 +4229,7 @@ void notepad_launch_with_file(const char *vfs_path, const char *save_path) {
     return;
 
   /* If a persistent copy exists on disk, open that instead of the
-     ramfs temp so the user's saved edits are preserved. */
+     ramfs temp so the user's saved edits are preserved.*/
   bool opened_persist = false;
   if (save_path && save_path[0]) {
     int fd = vfs_open(save_path, O_RDONLY);
@@ -4321,7 +4321,7 @@ void notepad_handle_key(uint8_t scancode, char character) {
   /* Check for Ctrl key combos.
    * The keyboard driver stores ctrl state via scancode 0x1D.
    * We check if ctrl is held by reading the key state or the
-   * keyboard_get_ctrl() helper. */
+   * keyboard_get_ctrl() helper.*/
 
   if (app.is_ctxt_file && app.render_mode) {
     if (ctrl_held && scancode == SC_KEY_S) {
@@ -4481,7 +4481,7 @@ void notepad_handle_key(uint8_t scancode, char character) {
   }
 
   /* Ctrl+=/- zoom: character-based fallback for keyboard layouts where
-   * the scancode check above didn't match */
+   * the scancode check above didn't match*/
   if (ctrl_held && (character == '=' || character == '+')) {
     if (app.font_scale < 3)
       app.font_scale++;

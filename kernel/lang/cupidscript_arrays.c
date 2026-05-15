@@ -3,7 +3,7 @@
  *
  * Provides bash-like arrays: arr=(one two three), ${arr[0]}, ${arr[@]}
  * and associative arrays: declare -A map; map[key]=value
- */
+*/
 
 #include "cupidscript_arrays.h"
 #include "string.h"

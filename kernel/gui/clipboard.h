@@ -3,7 +3,7 @@
  *
  * Provides a system-wide clipboard for copy/cut/paste operations
  * shared between all applications (Notepad, Terminal, etc.).
- */
+*/
 
 #ifndef CLIPBOARD_H
 #define CLIPBOARD_H

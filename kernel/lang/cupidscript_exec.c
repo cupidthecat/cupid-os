@@ -4,7 +4,7 @@
  * Walks the AST and executes nodes: commands, assignments,
  * conditionals, loops, functions, and test expressions.
  * Also contains the top-level cupidscript_run_file() entry point.
- */
+*/
 #include "cupidscript.h"
 #include "string.h"
 #include "memory.h"
@@ -104,7 +104,7 @@ static int execute_node(ast_node_t *node, script_context_t *ctx);
 /* Test expression evaluator
  * Evaluates [ arg1 op arg2 ] style test expressions.
  * Returns 0 for true (success), 1 for false (failure).
- */
+*/
 static int evaluate_test(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_TEST) return 1;
 
@@ -182,7 +182,7 @@ static int evaluate_test(ast_node_t *node, script_context_t *ctx) {
 
 /* Built-in command: echo
  * Handles echo specially so we can do $VAR expansion in arguments.
- */
+*/
 static int builtin_echo(int argc, char expanded[MAX_ARGS][MAX_EXPAND_LEN],
                         script_context_t *ctx) {
     int start_arg = 1;
@@ -650,7 +650,7 @@ static void cs_apply_command_redirections(ast_node_t *node,
 
 /* Execute a command node
  * Expands variables, checks for functions, then dispatches.
- */
+*/
 static int execute_command_internal(ast_node_t *node, script_context_t *ctx,
                                     cs_exec_opts_t *base_opts) {
     if (!node || node->type != NODE_COMMAND) return 1;
@@ -995,7 +995,7 @@ static int execute_for(ast_node_t *node, script_context_t *ctx) {
 }
 
 /* Execute a function definition
- * Just registers the function - doesn't execute the body. */
+ * Just registers the function - doesn't execute the body.*/
 static int execute_function_def(ast_node_t *node, script_context_t *ctx) {
     if (!node || node->type != NODE_FUNCTION_DEF) return 1;
 
@@ -1078,7 +1078,7 @@ static int parse_args(const char *args, char argv[MAX_SCRIPT_ARGS][MAX_VAR_VALUE
 
 /* cupidscript_run_file
  * Top-level entry point: reads a script file and executes it.
- * Called from shell.c. */
+ * Called from shell.c.*/
 int cupidscript_run_file(const char *filename, const char *args) {
     const char *source = NULL;
     uint32_t source_len = 0;
