@@ -4,7 +4,7 @@
  * Provides a unified file API across multiple filesystem types
  * (RamFS, DevFS, FAT16) with hierarchical mount points and
  * Linux-style path resolution.
- */
+*/
 
 #include "vfs.h"
 #include "string.h"
@@ -23,9 +23,9 @@ static int mount_count = 0;
 /* File descriptor table */
 static vfs_file_t fd_table[VFS_MAX_OPEN_FILES];
 
-/* 
+/*
  *  Internal helpers
- */
+*/
 
 static size_t vfs_strlen(const char *s) {
     size_t len = 0;
@@ -45,7 +45,7 @@ static void vfs_strcpy(char *dst, const char *src, size_t max) {
 /**
  * Find the mount point with the longest matching prefix for `path`.
  * Returns NULL if no mount matches.
- */
+*/
 static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
     vfs_mount_t *best = NULL;
     size_t best_len = 0;
@@ -93,7 +93,7 @@ static vfs_mount_t *find_mount(const char *path, const char **rel_path) {
 
 /**
  * Find a filesystem type by name.
- */
+*/
 static vfs_fs_ops_t *find_fs_type(const char *name) {
     for (int i = 0; i < fs_type_count; i++) {
         if (strcmp(fs_types[i]->name, name) == 0) {
@@ -105,7 +105,7 @@ static vfs_fs_ops_t *find_fs_type(const char *name) {
 
 /**
  * Allocate a file descriptor. Returns index or -1.
- */
+*/
 static int alloc_fd(void) {
     for (int i = 0; i < VFS_MAX_OPEN_FILES; i++) {
         if (!fd_table[i].in_use) {
@@ -119,7 +119,7 @@ static int alloc_fd(void) {
 
 /*
  *  Public API
- */
+*/
 
 int vfs_init(void) {
     memset(mounts, 0, sizeof(mounts));

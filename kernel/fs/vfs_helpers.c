@@ -3,7 +3,7 @@
  *
  * Simple read/write-all wrappers around the VFS layer so callers
  * don't need to manually open / read-loop / close.
- */
+*/
 
 #include "vfs_helpers.h"
 #include "vfs.h"

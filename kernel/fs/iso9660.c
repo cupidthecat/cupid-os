@@ -50,7 +50,7 @@ static bool ci_eq(const char *a, const char *b, uint32_t n) {
 
 /* Copy base name bytes from directory record, stripping trailing ";1"
  * and optional trailing '.'. Returns the resulting length.
- * dst is NOT null-terminated by this function. */
+ * dst is NOT null-terminated by this function.*/
 static uint32_t strip_base_name(const uint8_t *src, uint8_t src_len,
                                 char *dst, uint32_t dst_cap) {
     /* Find optional ';' version separator */
@@ -69,7 +69,7 @@ static uint32_t strip_base_name(const uint8_t *src, uint8_t src_len,
 #define SUSP_HDR_LEN 4
 
 /* Return start of the System Use (SU) area within a directory record,
- * and its length. Caller owns the input record bytes. */
+ * and its length. Caller owns the input record bytes.*/
 static void get_su_area(const uint8_t *rec, uint32_t rec_len,
                         const uint8_t **out_start, uint32_t *out_len) {
     uint8_t name_len = rec[DIR_OFF_NAME_LEN];
@@ -108,7 +108,7 @@ static int read_sector(block_device_t *bdev, uint32_t lba, uint8_t *buf) {
 typedef int (*susp_entry_cb)(const uint8_t *entry, uint32_t elen, void *ctx);
 
 /* Walk SU area, invoking cb(entry, elen, ctx) per entry. Follows CE
- * continuation records. Stops on ST or depth limit. Returns 0 or -errno. */
+ * continuation records. Stops on ST or depth limit. Returns 0 or -errno.*/
 static int susp_walk(block_device_t *bdev,
                      const uint8_t *su, uint32_t su_len,
                      susp_entry_cb cb, void *ctx) {
@@ -208,7 +208,7 @@ int iso9660_mount_parse(block_device_t *bdev, iso9660_mount_t *m) {
     m->has_rockridge     = false;  /* Task 5 sets this after SUSP scan */
 
     /* Rock Ridge detection: read root extent sector 0, look at the
-     * "." record (first record) and check its SU area for SP marker. */
+     * "." record (first record) and check its SU area for SP marker.*/
     uint8_t root_sec[ISO9660_LOGICAL_BLOCK_SIZE];
     if (read_sector(bdev, m->root_extent_lba, root_sec) == 0) {
         uint8_t rlen = root_sec[0];
@@ -228,7 +228,7 @@ int iso9660_mount_parse(block_device_t *bdev, iso9660_mount_t *m) {
 /* Find the next record in a directory at byte-offset *off within extent
  * starting at extent_lba with size extent_size. Reads sector(s) into
  * caller-provided 2048-byte buffer. Returns 1 if a record was found,
- * 0 at end-of-directory, -errno on I/O error. */
+ * 0 at end-of-directory, -errno on I/O error.*/
 static int next_dir_record(block_device_t *bdev,
                            uint32_t extent_lba, uint32_t extent_size,
                            uint32_t *off, uint8_t *sec, uint32_t *cur_lba,

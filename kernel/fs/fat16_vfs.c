@@ -8,7 +8,7 @@
  *  - Root directory only (no subdirectories)
  *  - 8.3 filenames
  *  - First partition only
- */
+*/
 
 #include "fat16_vfs.h"
 #include "fat16.h"
@@ -18,16 +18,16 @@
 #include "serial.h"
 
 typedef struct {
-    fat16_file_t *fat_file;     /* Underlying FAT16 file handle       */
-    uint8_t       is_dir;       /* 1 if opened as root directory      */
+    fat16_file_t *fat_file;     /* Underlying FAT16 file handle */
+    uint8_t       is_dir;       /* 1 if opened as root directory */
     int           enum_done;    /* For readdir: 1 if enumeration done */
-    char          filename[64]; /* 8.3 filename for write-back        */
-    uint8_t      *write_buf;    /* Heap-allocated write buffer         */
-    uint32_t      write_len;    /* Bytes written so far                */
-    uint32_t      write_cap;    /* Allocated capacity                  */
-    uint32_t      cursor;       /* Logical file position               */
-    bool          dirty;        /* True if writes were made            */
-    bool          writable;     /* Opened with write access            */
+    char          filename[64]; /* 8.3 filename for write-back */
+    uint8_t      *write_buf;    /* Heap-allocated write buffer */
+    uint32_t      write_len;    /* Bytes written so far */
+    uint32_t      write_cap;    /* Allocated capacity */
+    uint32_t      cursor;       /* Logical file position */
+    bool          dirty;        /* True if writes were made */
+    bool          writable;     /* Opened with write access */
 } fat16_vfs_handle_t;
 
 #define FAT16_VFS_MAX_ENTRIES 128
@@ -47,7 +47,7 @@ typedef struct {
 
 /**
  * Callback for fat16_enumerate_root - collects entries into context.
- */
+*/
 static int fat16_vfs_enum_cb(const char *name, uint32_t size,
                              uint8_t attr, void *ctx) {
     fat16_vfs_dir_ctx_t *d = (fat16_vfs_dir_ctx_t *)ctx;
@@ -68,7 +68,7 @@ static int fat16_vfs_enum_cb(const char *name, uint32_t size,
 
 /**
  * Strip leading slashes from a path.
- */
+*/
 static const char *fat16_vfs_strip(const char *path) {
     while (*path == '/') path++;
     return path;

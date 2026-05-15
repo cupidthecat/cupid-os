@@ -7,19 +7,19 @@
  *
  *  Linux-style VFS providing unified file API across multiple
  *  filesystem types with hierarchical mount points.
- *  */
+ **/
 
 #define VFS_OK       0
 #define VFS_ENOENT  -2    /* No such file or directory */
-#define VFS_EACCES  -13   /* Permission denied         */
-#define VFS_EEXIST  -17   /* File exists               */
-#define VFS_ENOTDIR -20   /* Not a directory           */
-#define VFS_EISDIR  -21   /* Is a directory            */
-#define VFS_EINVAL  -22   /* Invalid argument          */
-#define VFS_EMFILE  -24   /* Too many open files       */
-#define VFS_ENOSPC  -28   /* No space left on device   */
-#define VFS_EIO     -5    /* I/O error                 */
-#define VFS_ENOSYS  -38   /* Function not implemented  */
+#define VFS_EACCES  -13   /* Permission denied */
+#define VFS_EEXIST  -17   /* File exists */
+#define VFS_ENOTDIR -20   /* Not a directory */
+#define VFS_EISDIR  -21   /* Is a directory */
+#define VFS_EINVAL  -22   /* Invalid argument */
+#define VFS_EMFILE  -24   /* Too many open files */
+#define VFS_ENOSPC  -28   /* No space left on device */
+#define VFS_EIO     -5    /* I/O error */
+#define VFS_ENOSYS  -38   /* Function not implemented */
 
 #define O_RDONLY   0x0000
 #define O_WRONLY   0x0001
@@ -100,7 +100,7 @@ int vfs_mount(const char *source, const char *target,
               const char *fs_type);
 
 /* Unmount a filesystem at `target`. Returns 0 or negative errno.
- * Calls the fs-specific `unmount` callback before clearing the slot. */
+ * Calls the fs-specific `unmount` callback before clearing the slot.*/
 int vfs_umount(const char *target);
 
 /* File operations - return fd (>= 0) or negative error */

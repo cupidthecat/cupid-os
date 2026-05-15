@@ -3,7 +3,7 @@
  *
  * Provides /dev with pseudo-devices like null, zero, random, serial.
  * Each device is registered with read/write callbacks.
- */
+*/
 
 #include "devfs.h"
 #include "vfs.h"
@@ -55,7 +55,7 @@ static int dev_zero_write(const void *buf, uint32_t count) {
 }
 
 /* /dev/random is backed by the ChaCha20-DRBG in kernel/tls/csprng.c.
- * Writes feed entropy into the pool. */
+ * Writes feed entropy into the pool.*/
 static int dev_random_read(void *buf, uint32_t count) {
     crypto_random_bytes((uint8_t *)buf, count);
     return (int)count;

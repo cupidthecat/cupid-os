@@ -10,7 +10,7 @@
  * - LRU eviction policy
  * - Write-back with periodic flush (every 5 seconds)
  * - Cache statistics tracking
- */
+*/
 
 #include "blockcache.h"
 #include "homefs.h"
@@ -36,7 +36,7 @@ void blockcache_set_output(void (*print_fn)(const char*), void (*print_int_fn)(u
  *
  * @param device: Block device to cache
  * @return 0 on success, -1 on failure
- */
+*/
 int blockcache_init(block_device_t* device) {
     if (!device) {
         return -1;
@@ -77,7 +77,7 @@ int blockcache_init(block_device_t* device) {
  *
  * @param lba: Logical block address
  * @return Pointer to cache entry, or NULL if not found
- */
+*/
 static cache_entry_t* find_cache_entry(uint32_t lba) {
     for (int i = 0; i < CACHE_SIZE; i++) {
         if (cache.entries[i].valid && cache.entries[i].lba == lba) {
@@ -94,7 +94,7 @@ static cache_entry_t* find_cache_entry(uint32_t lba) {
  * entry with oldest last_access time.
  *
  * @return Pointer to LRU cache entry
- */
+*/
 static cache_entry_t* find_lru_entry(void) {
     uint32_t oldest = 0xFFFFFFFF;
     int lru_idx = 0;
@@ -118,7 +118,7 @@ static cache_entry_t* find_lru_entry(void) {
  * @param lba: Logical block address
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
- */
+*/
 int blockcache_read(uint32_t lba, void* buffer) {
     // Search for cached entry
     cache_entry_t* entry = find_cache_entry(lba);
@@ -176,7 +176,7 @@ int blockcache_read(uint32_t lba, void* buffer) {
  * @param lba: Logical block address
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
- */
+*/
 int blockcache_write(uint32_t lba, const void* buffer) {
     cache_entry_t* entry = find_cache_entry(lba);
 
@@ -226,7 +226,7 @@ int blockcache_write(uint32_t lba, const void* buffer) {
 
 /**
  * blockcache_flush_all - Flush all dirty cache entries to disk
- */
+*/
 void blockcache_flush_all(void) {
     uint32_t flushed = 0;
 
@@ -261,7 +261,7 @@ void blockcache_flush_all(void) {
  *
  * @param r: Interrupt registers (unused)
  * @param channel: Timer channel (unused)
- */
+*/
 void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
     (void)r;
     (void)channel;
@@ -270,7 +270,7 @@ void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
 
 /**
  * blockcache_sync - Manual cache flush (sync command)
- */
+*/
 void blockcache_sync(void) {
     (void)homefs_sync();
     blockcache_flush_all();
@@ -278,7 +278,7 @@ void blockcache_sync(void) {
 
 /**
  * blockcache_stats - Print cache statistics
- */
+*/
 void blockcache_stats(void) {
     cache_print("Cache statistics:\n");
     cache_print("  Hits: ");

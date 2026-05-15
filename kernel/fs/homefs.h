@@ -5,7 +5,7 @@
 #include "vfs.h"
 
 /* Native persistent filesystem for /home.
- * Backed by a serialized container file stored on the FAT16 partition. */
+ * Backed by a serialized container file stored on the FAT16 partition.*/
 
 vfs_fs_ops_t *homefs_get_ops(void);
 

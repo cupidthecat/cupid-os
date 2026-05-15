@@ -1,5 +1,5 @@
 /* kernel/loopdev.h -- File-backed block device for mounting disk images
- * (e.g. .iso files) via the VFS layer. */
+ * (e.g. .iso files) via the VFS layer.*/
 #ifndef LOOPDEV_H
 #define LOOPDEV_H
 
@@ -11,7 +11,7 @@
  * and must free with loopdev_destroy.
  *
  * The returned device is NOT automatically registered via blkdev_register.
- * Callers (e.g. iso9660_vfs mount) pass it directly to block-level APIs. */
+ * Callers (e.g. iso9660_vfs mount) pass it directly to block-level APIs.*/
 block_device_t *loopdev_create(const char *vfs_path);
 
 /* vfs_close the backing fd, free driver_data and device struct. */

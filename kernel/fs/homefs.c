@@ -5,7 +5,7 @@
  * while persisting all contents into a single FAT16-hosted container file.
  * This keeps FAT16 as a compatibility/storage backend instead of exposing
  * its namespace limitations directly to the OS.
- */
+*/
 
 #include "homefs.h"
 
@@ -444,7 +444,7 @@ static int homefs_flush(homefs_t *fs) {
      * calls back into homefs_flush(). If dirty were still set the inner
      * call would re-flush, allocating a fresh FAT cluster each time and
      * eventually overflowing the kernel stack via unbounded recursion.
-     * Restore the flag if the write fails so the data isn't lost. */
+     * Restore the flag if the write fails so the data isn't lost.*/
     fs->dirty = false;
 
     uint8_t *buf = NULL;
@@ -573,7 +573,7 @@ static int homefs_import_root_entry(const char *name, uint32_t size,
     if (homefs_strieq(name, HOMEFS_CONTAINER_NAME)) return 0;
     /* /wads/ holds DOOM IWAD/PWAD files. They stay on FAT16 and are
      * read directly via /disk/wads/<file>. Importing them into the
-     * homefs container would inflate HOMEFS.SYS by ~57 MB. */
+     * homefs container would inflate HOMEFS.SYS by ~57 MB.*/
     if (homefs_strieq(name, "WADS")) return 0;
 
     if (attr & FAT_ATTR_DIRECTORY) {

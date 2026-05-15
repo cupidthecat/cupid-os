@@ -4,7 +4,7 @@
  * Implements a simple RAM-based filesystem with directory tree support.
  * Files are stored in dynamically allocated memory.  Used for root
  * filesystem (/), /bin, and /tmp mount points.
- */
+*/
 
 #include "ramfs.h"
 #include "vfs.h"
@@ -16,13 +16,13 @@
 typedef struct ramfs_node {
     char     name[VFS_MAX_NAME];
     uint8_t  type;           /* VFS_TYPE_FILE or VFS_TYPE_DIR */
-    uint8_t *data;           /* File content (NULL for dirs)  */
-    uint32_t size;           /* File size in bytes            */
-    uint32_t capacity;       /* Allocated capacity            */
+    uint8_t *data;           /* File content (NULL for dirs) */
+    uint32_t size;           /* File size in bytes */
+    uint32_t capacity;       /* Allocated capacity */
 
     struct ramfs_node *parent;
-    struct ramfs_node *children;  /* First child (dirs only)  */
-    struct ramfs_node *next;      /* Next sibling             */
+    struct ramfs_node *children;  /* First child (dirs only) */
+    struct ramfs_node *next;      /* Next sibling */
 } ramfs_node_t;
 
 
@@ -38,7 +38,7 @@ typedef struct {
 } ramfs_handle_t;
 
 /*  *  Internal helpers
- *  */
+ **/
 
 static ramfs_node_t *ramfs_alloc_node(const char *name, uint8_t type) {
     ramfs_node_t *n = kmalloc(sizeof(ramfs_node_t));
@@ -57,7 +57,7 @@ static ramfs_node_t *ramfs_alloc_node(const char *name, uint8_t type) {
 
 /**
  * Look up a child node by name within a directory.
- */
+*/
 static ramfs_node_t *ramfs_find_child(ramfs_node_t *dir,
                                       const char *name, size_t len) {
     ramfs_node_t *child = dir->children;
@@ -74,7 +74,7 @@ static ramfs_node_t *ramfs_find_child(ramfs_node_t *dir,
 /**
  * Walk a relative path from `dir` to find a node.
  * Path components separated by '/'.  Empty path returns `dir`.
- */
+*/
 static ramfs_node_t *ramfs_lookup(ramfs_node_t *dir, const char *path) {
     if (!path || path[0] == '\0') return dir;
 
@@ -121,7 +121,7 @@ static void ramfs_free_node(ramfs_node_t *node) {
 /**
  * Ensure parent directories exist for a path, create them if needed.
  * Returns the parent directory node.
- */
+*/
 static ramfs_node_t *ramfs_mkdirs(ramfs_node_t *root, const char *path,
                                   const char **filename) {
     ramfs_node_t *cur = root;
@@ -171,7 +171,7 @@ static ramfs_node_t *ramfs_mkdirs(ramfs_node_t *root, const char *path,
 }
 
 /*  *  VFS operations implementation
- *  */
+ **/
 
 static int ramfs_mount(const char *source, void **fs_private) {
     (void)source;
@@ -416,7 +416,7 @@ static int ramfs_unlink(void *fs_private, const char *path) {
 }
 
 /*  *  VFS operations struct
- *  */
+ **/
 
 static vfs_fs_ops_t ramfs_ops = {
     .name     = "ramfs",
@@ -438,7 +438,7 @@ vfs_fs_ops_t *ramfs_get_ops(void) {
 }
 
 /*  *  Public helper: add pre-populated file
- *  */
+ **/
 
 int ramfs_add_file(void *fs_private, const char *path,
                    const void *data, uint32_t size) {
