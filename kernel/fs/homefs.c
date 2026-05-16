@@ -35,6 +35,7 @@ typedef struct homefs_node {
 typedef struct {
     homefs_node_t *root;
     bool           dirty;
+    bool           seed_mode;
 } homefs_t;
 
 typedef struct {
@@ -216,7 +217,7 @@ static int homefs_node_ensure_capacity(homefs_node_t *node, uint32_t need) {
 }
 
 static void homefs_mark_dirty(homefs_t *fs) {
-    if (fs) {
+    if (fs && !fs->seed_mode) {
         fs->dirty = true;
     }
 }
@@ -716,7 +717,7 @@ static int homefs_close(void *file_handle) {
     homefs_handle_t *h = (homefs_handle_t *)file_handle;
     int rc = VFS_OK;
     if (h) {
-        if (h->fs && h->fs->dirty) {
+        if (h->fs && h->fs->dirty && !h->fs->seed_mode) {
             rc = homefs_flush(h->fs);
         }
         kfree(h);
@@ -872,4 +873,16 @@ vfs_fs_ops_t *homefs_get_ops(void) {
 int homefs_sync(void) {
     if (!g_homefs) return VFS_OK;
     return homefs_flush(g_homefs);
+}
+
+void homefs_seed_begin(void) {
+    if (g_homefs) {
+        g_homefs->seed_mode = true;
+    }
+}
+
+void homefs_seed_end(void) {
+    if (g_homefs) {
+        g_homefs->seed_mode = false;
+    }
 }

@@ -21,6 +21,7 @@
 #include "bmp.h"
 #include "calendar.h"
 #include "clipboard.h"
+#include "ctxt_image_worker.h"
 #include "desktop.h"
 #include "ed.h"
 #include "exec.h"
@@ -1426,6 +1427,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   /* Notepad integration */
   void (*p_notepad_open_file)(const char *) = cc_notepad_open_file;
   BIND("notepad_open_file", p_notepad_open_file, 1);
+
+  void (*p_ctxt_image_worker_start)(void) = ctxt_image_worker_start;
+  BIND("ctxt_image_worker_start", p_ctxt_image_worker_start, 0);
 
   void (*p_shell_execute_line)(const char *) = shell_execute_line;
   BIND("shell_execute_line", p_shell_execute_line, 1);

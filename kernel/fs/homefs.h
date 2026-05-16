@@ -12,4 +12,8 @@ vfs_fs_ops_t *homefs_get_ops(void);
 /* Flush the mounted /home filesystem to its FAT16-backed container file. */
 int homefs_sync(void);
 
+/* Suppress persistence while generated boot assets seed /home. */
+void homefs_seed_begin(void);
+void homefs_seed_end(void);
+
 #endif
