@@ -69,7 +69,7 @@ int		columnofs[MAXWIDTH];
 //
 byte		translations[3][256];	
  
-// Backing buffer containing the bezel drawn around the screen and 
+// Backing buffer containing the bezel drawn around the screen and
 // surrounding background.
 
 static byte *background_buffer = NULL;
@@ -86,10 +86,10 @@ int			dc_yh;
 fixed_t			dc_iscale; 
 fixed_t			dc_texturemid;
 
-// first pixel in a column (possibly virtual) 
+// first pixel in a column (possibly virtual)
 byte*			dc_source;		
 
-// just for profiling 
+// just for profiling
 int			dccount;
 
 //
@@ -98,7 +98,7 @@ int			dccount;
 //  will always have constant z depth.
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
-// 
+//
 void R_DrawColumn (void) 
 { 
     int			count; 
@@ -121,7 +121,7 @@ void R_DrawColumn (void)
 
     // Framebuffer destination address.
     // Use ylookup LUT to avoid multiply with ScreenWidth.
-    // Use columnofs LUT for subwindows? 
+    // Use columnofs LUT for subwindows?
     dest = ylookup[dc_yl] + columnofs[dc_x];  
 
     // Determine scaling,
@@ -228,7 +228,7 @@ void R_DrawColumnLow (void)
 	
 	I_Error ("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
     }
-    //	dccount++; 
+    //	dccount++;
 #endif 
     // Blocky mode, need to multiply by 2.
     x = dc_x << 1;
@@ -287,7 +287,7 @@ void R_DrawFuzzColumn (void)
     fixed_t		frac;
     fixed_t		fracstep;	 
 
-    // Adjust borders. Low... 
+    // Adjust borders. Low...
     if (!dc_yl) 
 	dc_yl = 1;
 
@@ -348,7 +348,7 @@ void R_DrawFuzzColumnLow (void)
     fixed_t		fracstep;	 
     int x;
 
-    // Adjust borders. Low... 
+    // Adjust borders. Low...
     if (!dc_yl) 
 	dc_yl = 1;
 
@@ -457,7 +457,7 @@ void R_DrawTranslatedColumn (void)
 	//  to map certain colorramps to other ones,
 	//  used with PLAY sprites.
 	// Thus the "green" ramp of the player 0 sprite
-	//  is mapped to gray, red, black/indigo. 
+	//  is mapped to gray, red, black/indigo.
 	*dest = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
 	dest += SCREENWIDTH;
 	
@@ -507,7 +507,7 @@ void R_DrawTranslatedColumnLow (void)
 	//  to map certain colorramps to other ones,
 	//  used with PLAY sprites.
 	// Thus the "green" ramp of the player 0 sprite
-	//  is mapped to gray, red, black/indigo. 
+	//  is mapped to gray, red, black/indigo.
 	*dest = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
 	*dest2 = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
 	dest += SCREENWIDTH;
@@ -556,7 +556,7 @@ void R_InitTranslationTables (void)
 
 
 //
-// R_DrawSpan 
+// R_DrawSpan
 // With DOOM style restrictions on view orientation,
 //  the floors and ceilings consist of horizontal slices
 //  or spans with constant z depth.
@@ -578,7 +578,7 @@ fixed_t			ds_yfrac;
 fixed_t			ds_xstep; 
 fixed_t			ds_ystep;
 
-// start of a 64*64 tile image 
+// start of a 64*64 tile image
 byte*			ds_source;	
 
 // just for profiling
@@ -733,7 +733,7 @@ void R_DrawSpanLow (void)
 	I_Error( "R_DrawSpan: %i to %i at %i",
 		 ds_x1,ds_x2,ds_y);
     }
-//	dscount++; 
+//	dscount++;
 #endif
 
     position = ((ds_xfrac << 10) & 0xffff0000)
@@ -767,7 +767,7 @@ void R_DrawSpanLow (void)
 }
 
 //
-// R_InitBuffer 
+// R_InitBuffer
 // Creats lookup tables that avoid
 //  multiplies and other hazzles
 //  for getting the framebuffer address
@@ -891,7 +891,7 @@ void R_FillBackScreen (void)
     for (y=0 ; y<viewheight ; y+=8)
 	V_DrawPatch(viewwindowx+scaledviewwidth, viewwindowy+y, patch);
 
-    // Draw beveled edge. 
+    // Draw beveled edge.
     V_DrawPatch(viewwindowx-8,
                 viewwindowy-8,
                 W_CacheLumpName(DEH_String("brdr_tl"),PU_CACHE));
@@ -951,14 +951,14 @@ void R_DrawViewBorder (void)
     top = ((SCREENHEIGHT-SBARHEIGHT)-viewheight)/2; 
     side = (SCREENWIDTH-scaledviewwidth)/2; 
  
-    // copy top and one line of left side 
+    // copy top and one line of left side
     R_VideoErase (0, top*SCREENWIDTH+side); 
  
-    // copy one line of right side and bottom 
+    // copy one line of right side and bottom
     ofs = (viewheight+top)*SCREENWIDTH-side; 
     R_VideoErase (ofs, top*SCREENWIDTH+side); 
  
-    // copy sides using wraparound 
+    // copy sides using wraparound
     ofs = top*SCREENWIDTH + SCREENWIDTH-side; 
     side <<= 1;
     
@@ -968,7 +968,7 @@ void R_DrawViewBorder (void)
 	ofs += SCREENWIDTH; 
     } 
 
-    // ? 
+    // ?
     V_MarkRect (0,0,SCREENWIDTH, SCREENHEIGHT-SBARHEIGHT); 
 } 
  

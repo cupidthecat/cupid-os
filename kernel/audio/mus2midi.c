@@ -9,9 +9,9 @@
  *  - Dropped #include "i_swap.h": SHORT() defined locally as identity cast
  *    (x86 is always little-endian; MUS headers are LE).
  *  - Removed #ifdef STANDALONE main() block (depends on M_ReadFile, Z_Init,
- *    fprintf, printf, exit — none available in kernel).
+ *    fprintf, printf, exit - none available in kernel).
  *  - Added mus2midi_convert() wrapper at the bottom using kmalloc/kfree.
- */
+*/
 
 //
 // Copyright(C) 1993-1996 Id Software, Inc.
@@ -31,9 +31,9 @@
 // mus2mid.c - Ben Ryves 2006 - http://benryves.com - benryves@benryves.com
 // Use to convert a MUS file into a single track, type 0 MIDI file.
 
-#include "../types.h"
-#include "../string.h"
-#include "../memory.h"
+#include "types.h"
+#include "string.h"
+#include "memory.h"
 
 #include "memio.h"
 #include "mus2midi.h"
@@ -704,9 +704,9 @@ boolean mus2mid(MEMFILE *musinput, MEMFILE *midioutput)
     return false;
 }
 
-/* =========================================================================
- * mus2midi_convert — kernel wrapper
- * ========================================================================= */
+/*
+ * mus2midi_convert - kernel wrapper
+ **/
 
 int mus2midi_convert(const uint8_t *mus, uint32_t mus_len,
                      uint8_t **out_midi, uint32_t *out_len)

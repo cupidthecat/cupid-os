@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS User Documentation
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -27,10 +27,12 @@ In rendered view, links, trees, buttons, and sprites are live.
 [Open the CupidC guide](open:04CUPIDC.CTXT)
 [List the docs directory](shell:ls /docs)
 [Evaluate quick math](repl:6 * 7;)
+[Open networking guide](open:18NET.CTXT)
 
 >button Open Shell Guide | open:01SHELL.CTXT
 >button Open CupidC Guide | open:04CUPIDC.CTXT
 >button Show Commands | open:08CMDS.CTXT
+>button Networking | open:18NET.CTXT
 
 >h2 Quick Launch
 >tree open Common Commands
@@ -69,6 +71,25 @@ In rendered view, links, trees, buttons, and sprites are live.
 [18NET.CTXT](open:18NET.CTXT)          Networking Tier 4 (TCP/IP, DHCP, DNS) (P6)
 >endtree
 
+>tree open Current Branch Highlights
+Browser:
+  HTML5 tree build, CSS cascade/layout/paint, HTTPS, external stylesheets,
+  @font-face web fonts, forms, and about:dump.
+
+Remote terminals:
+  ssh client, telnet client, and sshd server.  The GUI Terminal understands
+  enough VT/xterm state for interactive remote shells and full-screen tools.
+
+Fonts/media:
+  TrueType font system with bundled Liberation fonts, fontswitch GUI,
+  AC97 mixer/OPL3/MIDI audio, and DOOM/Freedoom runtime support.
+
+Compiler/tools:
+  CupidC accepts more C/HolyC compatibility spellings, constant expressions
+  in enum/array bounds, labels/goto, and skipped __attribute__((...)).
+  CupidASM supports %include, JCC aliases, and more privileged/atomic opcodes.
+>endtree
+
 >h2 Implementation Notes
 >tree open Implementation Notes
 1) The shell is command-dispatch driven:
@@ -83,7 +104,8 @@ In rendered view, links, trees, buttons, and sprites are live.
    inline action links, clickable sprites, buttons, and tree widgets all
    run inside Notepad render mode.
 
-4) New in P1-P5:
+4) Newer subsystem tracks:
    FPU/SSE2 + libm, ISO9660 loop-mount, opt-in swap, USB 1.1/2.0 stack,
-   SMP up to 32 CPUs under BKL.
+   SMP up to 32 CPUs under BKL, TCP/IP + TLS, browser, SSH/Telnet,
+   AC97/audio/DOOM, and TrueType font rendering.
 >endtree

@@ -34,7 +34,7 @@ boolean W_ParseCommandLine(void)
 
 #ifdef FEATURE_WAD_MERGE
 
-    // Merged PWADs are loaded first, because they are supposed to be 
+    // Merged PWADs are loaded first, because they are supposed to be
     // modified IWADs.
 
     //!

@@ -64,11 +64,11 @@ int dirtybox[4];
 static vpatchclipfunc_t patchclip_callback = NULL;
 
 //
-// V_MarkRect 
-// 
+// V_MarkRect
+//
 void V_MarkRect(int x, int y, int width, int height) 
 { 
-    // If we are temporarily using an alternate screen, do not 
+    // If we are temporarily using an alternate screen, do not
     // affect the update box.
 
     if (dest_screen == I_VideoBuffer)
@@ -80,8 +80,8 @@ void V_MarkRect(int x, int y, int width, int height)
  
 
 //
-// V_CopyRect 
-// 
+// V_CopyRect
+//
 void V_CopyRect(int srcx, int srcy, byte *source,
                 int width, int height,
                 int destx, int desty)
@@ -120,7 +120,7 @@ void V_CopyRect(int srcx, int srcy, byte *source,
 // V_SetPatchClipCallback
 //
 // haleyjd 08/28/10: Added for Strife support.
-// By calling this function, you can setup runtime error checking for patch 
+// By calling this function, you can setup runtime error checking for patch
 // clipping. Strife never caused errors by drawing patches partway off-screen.
 // Some versions of vanilla DOOM also behaved differently than the default
 // implementation, so this could possibly be extended to those as well for
@@ -133,7 +133,7 @@ void V_SetPatchClipCallback(vpatchclipfunc_t func)
 
 //
 // V_DrawPatch
-// Masks a column based masked pic to the screen. 
+// Masks a column based masked pic to the screen.
 //
 
 void V_DrawPatch(int x, int y, patch_t *patch)
@@ -262,7 +262,7 @@ void V_DrawPatchFlipped(int x, int y, patch_t *patch)
 
 //
 // V_DrawPatchDirect
-// Draws directly to the screen on the pc. 
+// Draws directly to the screen on the pc.
 //
 
 void V_DrawPatchDirect(int x, int y, patch_t *patch)
@@ -593,7 +593,7 @@ void V_DrawRawScreen(byte *raw)
 
 //
 // V_Init
-// 
+//
 void V_Init (void) 
 { 
     // no-op!
@@ -902,7 +902,7 @@ void V_DrawMouseSpeedBox(int speed)
 
     linelen = (original_speed * redline_x) / mouse_threshold;
 
-    // Draw horizontal "thermometer" 
+    // Draw horizontal "thermometer"
 
     if (linelen > MOUSE_SPEED_BOX_WIDTH - 1)
     {

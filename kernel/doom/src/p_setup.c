@@ -371,7 +371,7 @@ void P_LoadThings (int lump)
 	if (spawn == false)
 	    break;
 
-	// Do spawn all other stuff. 
+	// Do spawn all other stuff.
 	spawnthing.x = SHORT(mt->x);
 	spawnthing.y = SHORT(mt->y);
 	spawnthing.angle = SHORT(mt->angle);
@@ -577,7 +577,7 @@ void P_GroupLines (void)
 	}
     }
 
-    // build line tables for each sector	
+    // build line tables for each sector
     linebuffer = Z_Malloc (totallines*sizeof(line_t *), PU_LEVEL, 0);
 
     for (i=0; i<numsectors; ++i)
@@ -792,7 +792,7 @@ P_SetupLevel
 	
     leveltime = 0;
 	
-    // note: most of this ordering is important	
+    // note: most of this ordering is important
     P_LoadBlockMap (lumpnum+ML_BLOCKMAP);
     P_LoadVertexes (lumpnum+ML_VERTEXES);
     P_LoadSectors (lumpnum+ML_SECTORS);

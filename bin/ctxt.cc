@@ -17,10 +17,14 @@ int CTXT_ACT_OPEN;
 int CTXT_ACT_SHELL;
 int CTXT_ACT_REPL;
 int CTXT_ACT_TREE;
+int CTXT_ACT_WEB;
 
 int CTXT_MAX_LINES;
 int CTXT_MAX_LINKS;
 int CTXT_MAX_TEXT;
+int CTXT_WEB_BUF_SIZE;
+int CTXT_AUTO_FETCH_REMOTE_IMAGES;
+int CTXT_REMOTE_WORKER_STARTED;
 
 int ctxt_line_count;
 int ctxt_line_type[1024];
@@ -33,7 +37,7 @@ int ctxt_line_aux_b[1024];
 int ctxt_line_tree_mask[1024];
 
 int ctxt_link_count;
-char ctxt_link_target[192][128];
+char ctxt_link_target[192][512];
 int ctxt_link_action[192];
 int ctxt_link_ref[192];
 int ctxt_link_x[192];
@@ -46,10 +50,14 @@ int ctxt_action_type[128];
 char ctxt_action_payload[128][512];
 
 int ctxt_sprite_count;
-char ctxt_sprite_path[64][128];
+char ctxt_sprite_path[64][512];
 int ctxt_sprite_w[64];
 int ctxt_sprite_h[64];
 int ctxt_sprite_action[64];
+int ctxt_sprite_remote[64];
+int ctxt_sprite_state[64];
+int ctxt_sprite_handle[64];
+int ctxt_sprite_explicit_size[64];
 
 int ctxt_tree_count;
 int ctxt_tree_open[32];
@@ -108,6 +116,19 @@ int ctxt_starts_with(char *line, char *prefix) {
   int i = 0;
   while (prefix[i]) {
     if (line[i] != prefix[i]) return 0;
+    i = i + 1;
+  }
+  return 1;
+}
+
+int ctxt_starts_with_ci(char *line, char *prefix) {
+  int i = 0;
+  while (prefix[i]) {
+    int a = line[i];
+    int b = prefix[i];
+    if (a >= 65 && a <= 90) a = a + 32;
+    if (b >= 65 && b <= 90) b = b + 32;
+    if (a != b) return 0;
     i = i + 1;
   }
   return 1;
@@ -219,6 +240,450 @@ int ctxt_parse_u32(char *src) {
   return v;
 }
 
+int ctxt_is_web_url(char *s) {
+  return ctxt_starts_with_ci(s, "http://") || ctxt_starts_with_ci(s, "https://");
+}
+
+int ctxt_url_path_has_ext(char *s, char *ext) {
+  int end = 0;
+  int elen = ctxt_strlen(ext);
+  while (s[end] && s[end] != '?' && s[end] != '#') end = end + 1;
+  if (end < elen) return 0;
+  return ctxt_starts_with_ci(s + end - elen, ext);
+}
+
+int ctxt_is_remote_image_url(char *s) {
+  if (!ctxt_is_web_url(s)) return 0;
+  return ctxt_url_path_has_ext(s, ".png") ||
+         ctxt_url_path_has_ext(s, ".bmp") ||
+         ctxt_url_path_has_ext(s, ".jpg") ||
+         ctxt_url_path_has_ext(s, ".jpeg");
+}
+
+U32 ctxt_url_hash(char *s) {
+  U32 h = 2166136261u;
+  int i = 0;
+  while (s[i]) {
+    h = h ^ (U32)((unsigned char)s[i]);
+    h = h * 16777619u;
+    i = i + 1;
+  }
+  return h;
+}
+
+void ctxt_hex8(U32 v, char *out) {
+  char *hex = "0123456789abcdef";
+  int i = 0;
+  while (i < 8) {
+    int shift = (7 - i) * 4;
+    out[i] = hex[(v >> shift) & 15u];
+    i = i + 1;
+  }
+  out[8] = 0;
+}
+
+void ctxt_remote_image_ext(char *url, char *out) {
+  int end = 0;
+  int dot = -1;
+  int o = 0;
+  while (url[end] && url[end] != '?' && url[end] != '#') {
+    if (url[end] == '.') dot = end;
+    end = end + 1;
+  }
+  if (dot < 0 || dot >= end) {
+    ctxt_strcpy_n(out, ".img", 8);
+    return;
+  }
+  while (dot < end && o < 7) {
+    out[o] = (char)ctxt_tolower(url[dot]);
+    o = o + 1;
+    dot = dot + 1;
+  }
+  out[o] = 0;
+}
+
+void ctxt_remote_cache_paths(int idx, char *asset, char *job,
+                             char *done, char *fail) {
+  char hex[9];
+  char ext[8];
+  ctxt_hex8(ctxt_url_hash(ctxt_sprite_path[idx]), hex);
+  ctxt_remote_image_ext(ctxt_sprite_path[idx], ext);
+
+  ctxt_strcpy_n(asset, "/ctxt-cache/ctxt_", 256);
+  ctxt_strcat_n(asset, hex, 256);
+  ctxt_strcat_n(asset, ext, 256);
+
+  ctxt_strcpy_n(job, "/ctxt-cache/ctxt_", 256);
+  ctxt_strcat_n(job, hex, 256);
+  ctxt_strcat_n(job, ".job", 256);
+
+  ctxt_strcpy_n(done, "/ctxt-cache/ctxt_", 256);
+  ctxt_strcat_n(done, hex, 256);
+  ctxt_strcat_n(done, ".done", 256);
+
+  ctxt_strcpy_n(fail, "/ctxt-cache/ctxt_", 256);
+  ctxt_strcat_n(fail, hex, 256);
+  ctxt_strcat_n(fail, ".fail", 256);
+}
+
+int ctxt_file_exists(char *path) {
+  char st[8];
+  return vfs_stat(path, st) >= 0;
+}
+
+int ctxt_schedule_remote_image(int idx) {
+  char asset[256];
+  char job[256];
+  char done[256];
+  char fail[256];
+  char body[2048];
+  if (!CTXT_AUTO_FETCH_REMOTE_IMAGES) return 0;
+  ctxt_remote_cache_paths(idx, asset, job, done, fail);
+
+  if (ctxt_file_exists(done) && ctxt_file_exists(asset)) return 1;
+  if (ctxt_file_exists(fail)) return 0;
+
+  vfs_mkdir("/ctxt-cache");
+  if (!ctxt_file_exists(job)) {
+    body[0] = 0;
+    ctxt_strcat_n(body, ctxt_sprite_path[idx], 2048);
+    ctxt_strcat_n(body, "\n", 2048);
+    ctxt_strcat_n(body, asset, 2048);
+    ctxt_strcat_n(body, "\n", 2048);
+    ctxt_strcat_n(body, done, 2048);
+    ctxt_strcat_n(body, "\n", 2048);
+    ctxt_strcat_n(body, fail, 2048);
+    ctxt_strcat_n(body, "\n", 2048);
+    vfs_write_text(job, body);
+  }
+
+  if (!CTXT_REMOTE_WORKER_STARTED) {
+    ctxt_image_worker_start();
+    CTXT_REMOTE_WORKER_STARTED = 1;
+  }
+  return 1;
+}
+
+int ctxt_is_url_break(char c) {
+  if (ctxt_is_space(c)) return 1;
+  if (c == ')' || c == ']' || c == '}' || c == '"' || c == '\'') return 1;
+  return 0;
+}
+
+int ctxt_parse_ipv4(char *host, int *ip_out) {
+  int parts[4];
+  int i = 0;
+  int p = 0;
+  while (p < 4) {
+    int v = 0;
+    int digits = 0;
+    if (host[i] < '0' || host[i] > '9') return 0;
+    while (host[i] >= '0' && host[i] <= '9') {
+      v = v * 10 + (host[i] - '0');
+      digits = digits + 1;
+      if (digits > 3 || v > 255) return 0;
+      i = i + 1;
+    }
+    parts[p] = v;
+    if (p < 3) {
+      if (host[i] != '.') return 0;
+      i = i + 1;
+    }
+    p = p + 1;
+  }
+  if (host[i] != 0) return 0;
+  *ip_out = parts[0] | (parts[1] << 8) | (parts[2] << 16) | (parts[3] << 24);
+  return 1;
+}
+
+int ctxt_parse_url(char *url, char *host, int *port_out, char *path,
+                   int *is_https_out) {
+  int i = 0;
+  int hi = 0;
+  int pi = 0;
+  *is_https_out = 0;
+  if (ctxt_starts_with_ci(url, "http://")) {
+    i = 7;
+  } else if (ctxt_starts_with_ci(url, "https://")) {
+    i = 8;
+    *is_https_out = 1;
+  } else {
+    return -1;
+  }
+  *port_out = *is_https_out ? 443 : 80;
+  while (url[i] && url[i] != ':' && url[i] != '/' && hi < 255) {
+    host[hi] = url[i];
+    hi = hi + 1;
+    i = i + 1;
+  }
+  host[hi] = 0;
+  if (hi == 0) return -1;
+  if (url[i] == ':') {
+    int v = 0;
+    i = i + 1;
+    while (url[i] >= '0' && url[i] <= '9') {
+      v = v * 10 + (url[i] - '0');
+      i = i + 1;
+    }
+    if (v <= 0 || v > 65535) return -1;
+    *port_out = v;
+  }
+  if (url[i] != '/') {
+    path[pi] = '/';
+    pi = pi + 1;
+  }
+  while (url[i] && pi < 1023) {
+    path[pi] = url[i];
+    pi = pi + 1;
+    i = i + 1;
+  }
+  path[pi] = 0;
+  return 0;
+}
+
+int ctxt_resolve_redirect(char *location, char *host, int port, int is_https,
+                          char *out, int max) {
+  int p = 0;
+  int i = 0;
+  if (ctxt_is_web_url(location)) {
+    ctxt_strcpy_n(out, location, max);
+    return 0;
+  }
+  if (location[0] != '/') return -1;
+  char *prefix = is_https ? "https://" : "http://";
+  while (prefix[i] && p < max - 1) {
+    out[p] = prefix[i];
+    p = p + 1;
+    i = i + 1;
+  }
+  i = 0;
+  while (host[i] && p < max - 1) {
+    out[p] = host[i];
+    p = p + 1;
+    i = i + 1;
+  }
+  {
+    int default_port = is_https ? 443 : 80;
+    if (port != default_port && p < max - 8) {
+      char tmp[8];
+      int n = 0;
+      int v = port;
+      out[p] = ':';
+      p = p + 1;
+      while (v > 0 && n < 7) {
+        tmp[n] = '0' + (v % 10);
+        n = n + 1;
+        v = v / 10;
+      }
+      while (n > 0 && p < max - 1) {
+        n = n - 1;
+        out[p] = tmp[n];
+        p = p + 1;
+      }
+    }
+  }
+  i = 0;
+  while (location[i] && p < max - 1) {
+    out[p] = location[i];
+    p = p + 1;
+    i = i + 1;
+  }
+  out[p] = 0;
+  return 0;
+}
+
+int ctxt_decode_chunked(char *raw, int body_start, int raw_len, char *out,
+                        int max) {
+  int i = body_start;
+  int out_len = 0;
+  while (i < raw_len) {
+    int sz = 0;
+    while (i < raw_len) {
+      int ch = raw[i];
+      int dig = -1;
+      if (ch >= '0' && ch <= '9') dig = ch - '0';
+      else if (ch >= 'a' && ch <= 'f') dig = 10 + (ch - 'a');
+      else if (ch >= 'A' && ch <= 'F') dig = 10 + (ch - 'A');
+      if (dig >= 0) {
+        sz = (sz * 16) + dig;
+        i = i + 1;
+      } else {
+        break;
+      }
+    }
+    while (i < raw_len && raw[i] != 10) i = i + 1;
+    if (i < raw_len && raw[i] == 10) i = i + 1;
+    if (sz <= 0) return out_len;
+    if (i + sz > raw_len) sz = raw_len - i;
+    {
+      int can = max - out_len;
+      int k = 0;
+      if (sz < can) can = sz;
+      while (k < can) {
+        out[out_len + k] = raw[i + k];
+        k = k + 1;
+      }
+      out_len = out_len + can;
+    }
+    i = i + sz;
+    while (i < raw_len && (raw[i] == 13 || raw[i] == 10)) i = i + 1;
+    if (out_len >= max) return out_len;
+  }
+  return out_len;
+}
+
+int ctxt_fetch_url(char *url, char *out, int max, int *out_len) {
+  char work_url[512];
+  int redirects = 0;
+  ctxt_strcpy_n(work_url, url, 512);
+  *out_len = 0;
+
+  while (redirects < 5) {
+    char host[256];
+    char path[1024];
+    int port = 80;
+    int is_https = 0;
+    int ip = 0;
+    int fd = -1;
+    if (ctxt_parse_url(work_url, host, &port, path, &is_https) != 0) return -1;
+    if (!ctxt_parse_ipv4(host, &ip)) {
+      if (dns_resolve(host, &ip) != 0) return -1;
+    }
+    fd = socket(2);
+    if (fd < 0) return -1;
+    if (connect(fd, ip, htons(port)) != 0) {
+      close(fd);
+      return -1;
+    }
+    if (is_https) {
+      int hl = ctxt_strlen(host);
+      if (setsockopt(fd, 1, 1, host, hl + 1) != 0) {
+        close(fd);
+        return -1;
+      }
+    }
+
+    char req[2048];
+    int rp = 0;
+    rp = ctxt_strlen("GET ");
+    ctxt_strcpy_n(req, "GET ", 2048);
+    ctxt_strcat_n(req, path, 2048);
+    ctxt_strcat_n(req, " HTTP/1.1\r\nHost: ", 2048);
+    ctxt_strcat_n(req, host, 2048);
+    ctxt_strcat_n(req, "\r\nUser-Agent: cupidos-ctxt/1.0\r\nAccept: image/*,*/*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n", 2048);
+    rp = ctxt_strlen(req);
+    if (send(fd, req, rp) < 0) {
+      close(fd);
+      return -1;
+    }
+
+    int raw_cap = max + 8192;
+    char *raw = (char*)kmalloc(raw_cap);
+    if (!raw) {
+      close(fd);
+      return -1;
+    }
+    int raw_len = 0;
+    char tmp[4096];
+    while (1) {
+      int n = recv(fd, tmp, 4096);
+      if (n <= 0) break;
+      int can = raw_cap - raw_len;
+      int k = 0;
+      if (n < can) can = n;
+      while (k < can) {
+        raw[raw_len + k] = tmp[k];
+        k = k + 1;
+      }
+      raw_len = raw_len + can;
+      if (raw_len >= raw_cap) break;
+    }
+    close(fd);
+
+    int header_end = -1;
+    int i = 0;
+    while (i + 3 < raw_len) {
+      if (raw[i] == 13 && raw[i + 1] == 10 &&
+          raw[i + 2] == 13 && raw[i + 3] == 10) {
+        header_end = i + 4;
+        break;
+      }
+      i = i + 1;
+    }
+    if (header_end < 0) {
+      kfree(raw);
+      return -1;
+    }
+
+    int status = 0;
+    i = 0;
+    while (i < raw_len && raw[i] != ' ') i = i + 1;
+    while (i < raw_len && raw[i] == ' ') i = i + 1;
+    while (i < raw_len && raw[i] >= '0' && raw[i] <= '9') {
+      status = status * 10 + (raw[i] - '0');
+      i = i + 1;
+    }
+
+    int chunked = 0;
+    char location[512];
+    location[0] = 0;
+    i = 0;
+    while (i < header_end) {
+      int ls = i;
+      int le = i;
+      while (le < header_end && raw[le] != 10) le = le + 1;
+      if (le > ls && raw[le - 1] == 13) le = le - 1;
+      if (le - ls > 9 && ctxt_starts_with_ci(raw + ls, "location:")) {
+        int p = ls + 9;
+        int o = 0;
+        while (p < le && ctxt_is_space(raw[p])) p = p + 1;
+        while (p < le && o < 511) {
+          location[o] = raw[p];
+          o = o + 1;
+          p = p + 1;
+        }
+        location[o] = 0;
+      }
+      if (le - ls > 18 && ctxt_starts_with_ci(raw + ls, "transfer-encoding:")) {
+        int p = ls + 18;
+        while (p < le && ctxt_is_space(raw[p])) p = p + 1;
+        if (ctxt_starts_with_ci(raw + p, "chunked")) chunked = 1;
+      }
+      i = le + 1;
+    }
+
+    if (status >= 300 && status < 400 && location[0]) {
+      char next_url[512];
+      if (ctxt_resolve_redirect(location, host, port, is_https, next_url, 512) == 0) {
+        ctxt_strcpy_n(work_url, next_url, 512);
+        redirects = redirects + 1;
+        kfree(raw);
+        continue;
+      }
+    }
+
+    if (status < 200 || status >= 300) {
+      kfree(raw);
+      return -1;
+    }
+    if (chunked) {
+      *out_len = ctxt_decode_chunked(raw, header_end, raw_len, out, max);
+    } else {
+      int body_len = raw_len - header_end;
+      int k = 0;
+      if (body_len > max) body_len = max;
+      while (k < body_len) {
+        out[k] = raw[header_end + k];
+        k = k + 1;
+      }
+      *out_len = body_len;
+    }
+    kfree(raw);
+    return *out_len > 0 ? 0 : -1;
+  }
+  return -1;
+}
+
 int ctxt_named_color(char *name) {
   if (ctxt_strcmp(name, "black") == 0) return 0x00000000;
   if (ctxt_strcmp(name, "red") == 0) return 0x00FF5555;
@@ -283,7 +748,20 @@ void ctxt_set_theme_temple() {
   ctxt_col_code_text = 0x0055FF55;
 }
 
+void ctxt_release_sprite_handles() {
+  int i = 0;
+  while (i < ctxt_sprite_count) {
+    if (ctxt_sprite_handle[i] >= 0) {
+      gfx2d_image_free(ctxt_sprite_handle[i]);
+      ctxt_sprite_handle[i] = -1;
+    }
+    ctxt_sprite_state[i] = 0;
+    i = i + 1;
+  }
+}
+
 void ctxt_reset() {
+  ctxt_release_sprite_handles();
   ctxt_line_count = 0;
   ctxt_link_count = 0;
   ctxt_action_count = 0;
@@ -307,9 +785,13 @@ void ctxt_reset() {
   CTXT_ACT_SHELL = 1;
   CTXT_ACT_REPL = 2;
   CTXT_ACT_TREE = 3;
+  CTXT_ACT_WEB = 4;
   CTXT_MAX_LINES = 1024;
   CTXT_MAX_LINKS = 192;
   CTXT_MAX_TEXT = 128;
+  CTXT_WEB_BUF_SIZE = 524288;
+  CTXT_AUTO_FETCH_REMOTE_IMAGES = 1;
+  CTXT_REMOTE_WORKER_STARTED = 0;
   ctxt_set_theme(1);
 }
 
@@ -342,13 +824,18 @@ int ctxt_add_action(int type, char *payload) {
   return idx;
 }
 
-int ctxt_add_sprite(char *path, int w, int h, int action_ref) {
+int ctxt_add_sprite(char *path, int w, int h, int action_ref, int explicit_size) {
   int idx = ctxt_sprite_count;
+  int remote = ctxt_is_remote_image_url(path);
   if (idx >= 64) return -1;
-  ctxt_strcpy_n(ctxt_sprite_path[idx], path, 128);
+  ctxt_strcpy_n(ctxt_sprite_path[idx], path, 512);
   ctxt_sprite_w[idx] = w;
   ctxt_sprite_h[idx] = h;
   ctxt_sprite_action[idx] = action_ref;
+  ctxt_sprite_remote[idx] = remote;
+  ctxt_sprite_state[idx] = 0;
+  ctxt_sprite_handle[idx] = -1;
+  ctxt_sprite_explicit_size[idx] = explicit_size;
   ctxt_sprite_count = ctxt_sprite_count + 1;
   return idx;
 }
@@ -359,6 +846,13 @@ int ctxt_add_tree(int open) {
   ctxt_tree_open[idx] = open;
   ctxt_tree_count = ctxt_tree_count + 1;
   return idx;
+}
+
+int ctxt_image_arg_pos(char *line) {
+  if (ctxt_starts_with(line, ">sprite ")) return 8;
+  if (ctxt_starts_with(line, ">image ")) return 7;
+  if (ctxt_starts_with(line, ">img ")) return 5;
+  return -1;
 }
 
 int ctxt_parse_action(char *src, int type_out_ptr, int payload_out_ptr, int payload_max) {
@@ -377,6 +871,12 @@ int ctxt_parse_action(char *src, int type_out_ptr, int payload_out_ptr, int payl
   } else if (ctxt_starts_with(tmp, "repl:")) {
     type = CTXT_ACT_REPL;
     ctxt_trim_copy(tmp + 5, payload, payload_max);
+  } else if (ctxt_starts_with(tmp, "web:")) {
+    type = CTXT_ACT_WEB;
+    ctxt_trim_copy(tmp + 4, payload, payload_max);
+  } else if (ctxt_is_web_url(tmp)) {
+    type = CTXT_ACT_WEB;
+    ctxt_trim_copy(tmp, payload, payload_max);
   } else {
     type = CTXT_ACT_SHELL;
     ctxt_trim_copy(tmp, payload, payload_max);
@@ -434,6 +934,7 @@ void ctxt_parse(int buf_ptr, int len) {
   int tree_top = 0;
   int code_action = -1;
 
+  ctxt_release_sprite_handles();
   ctxt_line_count = 0;
   ctxt_link_count = 0;
   ctxt_action_count = 0;
@@ -473,7 +974,7 @@ void ctxt_parse(int buf_ptr, int len) {
     ctxt_line_aux_b[n] = 0;
     /* Snapshot BEFORE >tree/>endtree update tree_mask. A tree's own button
      * line must be visible regardless of its own open/closed state - otherwise
-     * a closed tree hides the toggle that would open it. */
+     * a closed tree hides the toggle that would open it.*/
     int line_tree_mask = tree_mask;
 
     if (code_action >= 0) {
@@ -622,26 +1123,27 @@ void ctxt_parse(int buf_ptr, int len) {
           tree_top = tree_top - 1;
           tree_mask = tree_mask & ~(1 << tree_stack[tree_top]);
         }
-      } else if (ctxt_starts_with(line, ">sprite ")) {
-        char sprite_args[256];
-        char path[128];
+      } else if (ctxt_image_arg_pos(line) >= 0) {
+        char sprite_args[512];
+        char path[512];
         char size1[32];
         char size2[32];
         char action_src[512];
         char payload[512];
         int action_type = CTXT_ACT_OPEN;
         int action_ref = -1;
-        int p = 8;
+        int p = ctxt_image_arg_pos(line);
         int q = 0;
         int s = 0;
         int draw_w = 0;
         int draw_h = 0;
+        int explicit_size = 0;
         int cut = 0;
         while (line[p + cut] && line[p + cut] != '|') {
-          if (cut < 255) sprite_args[cut] = line[p + cut];
+          if (cut < 511) sprite_args[cut] = line[p + cut];
           cut = cut + 1;
         }
-        if (cut > 255) cut = 255;
+        if (cut > 511) cut = 511;
         sprite_args[cut] = 0;
         if (line[p + cut] == '|') {
           int a = 0;
@@ -657,13 +1159,13 @@ void ctxt_parse(int buf_ptr, int len) {
           }
           p = 0;
         } else {
-          p = 8;
+          p = ctxt_image_arg_pos(line);
         }
         if (sprite_args[0]) {
           p = 0;
           while (sprite_args[p] && ctxt_is_space(sprite_args[p])) p = p + 1;
         }
-        while (sprite_args[p] && !ctxt_is_space(sprite_args[p]) && q < 127) {
+        while (sprite_args[p] && !ctxt_is_space(sprite_args[p]) && q < 511) {
           path[q] = sprite_args[p];
           q = q + 1;
           p = p + 1;
@@ -686,10 +1188,11 @@ void ctxt_parse(int buf_ptr, int len) {
         size2[s] = 0;
         draw_w = ctxt_parse_u32(size1);
         draw_h = ctxt_parse_u32(size2);
-        if (draw_w <= 0) draw_w = 96;
+        explicit_size = size1[0] != 0;
+        if (draw_w <= 0) draw_w = ctxt_is_web_url(path) ? 160 : 96;
         if (draw_h <= 0) draw_h = draw_w;
         type = CTXT_SPRITE;
-        ref = ctxt_add_sprite(path, draw_w, draw_h, action_ref);
+        ref = ctxt_add_sprite(path, draw_w, draw_h, action_ref, explicit_size);
         aux_a = draw_w;
         aux_b = draw_h;
         ctxt_strcpy_n(ctxt_line_text[n], path, CTXT_MAX_TEXT);
@@ -726,7 +1229,7 @@ void ctxt_add_link_rect(int x, int y, int w, int h, int action, int ref, char *t
   ctxt_link_h[ctxt_link_count] = h;
   ctxt_link_action[ctxt_link_count] = action;
   ctxt_link_ref[ctxt_link_count] = ref;
-  ctxt_strcpy_n(ctxt_link_target[ctxt_link_count], target, 128);
+  ctxt_strcpy_n(ctxt_link_target[ctxt_link_count], target, 512);
   ctxt_link_count = ctxt_link_count + 1;
 }
 
@@ -742,7 +1245,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
       int li = ti + 1;
       char code[8];
       char arg[64];
-      char arg2[128];
+      char arg2[512];
       int ci = 0;
       int ai = 0;
       int has_arg = 0;
@@ -766,7 +1269,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
         if (text[li] == 44) {
           int a2 = 0;
           li = li + 1;
-          while (text[li] && text[li] != 36 && a2 < 127) {
+          while (text[li] && text[li] != 36 && a2 < 511) {
             arg2[a2] = text[li];
             a2 = a2 + 1;
             li = li + 1;
@@ -814,7 +1317,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
           ti = li + 1;
           continue;
         } else if (ctxt_strcmp(code, "LK") == 0) {
-          char payload[256];
+          char payload[512];
           int action_type = CTXT_ACT_OPEN;
           int ux = px;
           int k = 0;
@@ -825,7 +1328,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
             px = px + ch_w;
             k = k + 1;
           }
-          if (arg2[0] && ctxt_parse_action(arg2, &action_type, payload, 256)) {
+          if (arg2[0] && ctxt_parse_action(arg2, &action_type, payload, 512)) {
             int uw = k * ch_w;
             if (uw > 0) {
               gfx2d_hline(ux, py + lh - 2, uw, ctxt_col_link);
@@ -840,8 +1343,8 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
     if (text[ti] == 91) {
       int li = ti + 1;
       char label[64];
-      char target[256];
-      char payload[256];
+      char target[512];
+      char payload[512];
       int action_type = CTXT_ACT_OPEN;
       int lpos = 0;
       int tpos = 0;
@@ -853,7 +1356,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
       label[lpos] = 0;
       if (text[li] == 93 && text[li + 1] == 40) {
         li = li + 2;
-        while (text[li] && text[li] != 41 && tpos < 255) {
+        while (text[li] && text[li] != 41 && tpos < 511) {
           target[tpos] = text[li];
           tpos = tpos + 1;
           li = li + 1;
@@ -869,7 +1372,7 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
             px = px + ch_w;
             k = k + 1;
           }
-          if (ctxt_parse_action(target, &action_type, payload, 256)) {
+          if (ctxt_parse_action(target, &action_type, payload, 512)) {
             int uw = lpos * ch_w;
             if (uw > 0) {
               gfx2d_hline(ux, py + lh - 2, uw, ctxt_col_link);
@@ -879,6 +1382,40 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
           ti = li + 1;
           continue;
         }
+      }
+    }
+
+    if (ctxt_is_web_url(text + ti) &&
+        (ti == 0 || ctxt_is_url_break(text[ti - 1]))) {
+      int li = ti;
+      int plen = 0;
+      while (text[li] && !ctxt_is_url_break(text[li]) && plen < 511) {
+        li = li + 1;
+        plen = plen + 1;
+      }
+      if (plen > 7) {
+        int ux = px;
+        int k = 0;
+        while (k < plen) {
+          if (px + ch_w > x && px < x2 && py + lh > y && py < y2) {
+            gfx2d_char_scaled(px, py, text[ti + k], ctxt_col_link, scale);
+          }
+          px = px + ch_w;
+          k = k + 1;
+        }
+        gfx2d_hline(ux, py + lh - 2, plen * ch_w, ctxt_col_link);
+        {
+          char tok[512];
+          k = 0;
+          while (k < plen && k < 511) {
+            tok[k] = text[ti + k];
+            k = k + 1;
+          }
+          tok[k] = 0;
+          ctxt_add_link_rect(ux, py, plen * ch_w, lh, CTXT_ACT_WEB, -1, tok);
+        }
+        ti = li;
+        continue;
       }
     }
 
@@ -927,15 +1464,110 @@ void ctxt_draw_text_links(int base_x, int py, int x, int x2, int y, int y2,
   }
 }
 
-void ctxt_draw_sprite(int x, int y, int w, int h, char *path) {
-  int img = gfx2d_image_load(path);
-  if (img >= 0) {
-    gfx2d_image_draw_scaled(img, x, y, w, h);
-    gfx2d_image_free(img);
+void ctxt_apply_sprite_intrinsic(int idx) {
+  int iw = gfx2d_image_width(ctxt_sprite_handle[idx]);
+  int ih = gfx2d_image_height(ctxt_sprite_handle[idx]);
+  if (iw <= 0 || ih <= 0) return;
+  if (!ctxt_sprite_explicit_size[idx]) {
+    if (iw > 640) {
+      ih = (ih * 640) / iw;
+      iw = 640;
+    }
+    if (ih > 480) {
+      iw = (iw * 480) / ih;
+      ih = 480;
+    }
+    if (iw < 1) iw = 1;
+    if (ih < 1) ih = 1;
+    ctxt_sprite_w[idx] = iw;
+    ctxt_sprite_h[idx] = ih;
+  }
+}
+
+void ctxt_sprite_ensure_loaded(int idx) {
+  if (idx < 0 || idx >= ctxt_sprite_count) return;
+  if (ctxt_sprite_state[idx] != 0) return;
+
+  if (ctxt_sprite_remote[idx]) {
+    if (CTXT_AUTO_FETCH_REMOTE_IMAGES && ctxt_schedule_remote_image(idx)) {
+      ctxt_sprite_state[idx] = 3;
+    } else {
+      ctxt_sprite_state[idx] = 2;
+    }
+    return;
+  }
+
+  ctxt_sprite_state[idx] = 2;
+  int handle = gfx2d_image_load(ctxt_sprite_path[idx]);
+  if (handle >= 0) {
+    ctxt_sprite_handle[idx] = handle;
+    ctxt_sprite_state[idx] = 1;
+    ctxt_apply_sprite_intrinsic(idx);
+  }
+}
+
+int ctxt_pump_remote_images() {
+  if (!CTXT_AUTO_FETCH_REMOTE_IMAGES) return 0;
+
+  int changed = 0;
+  int i = 0;
+  while (i < ctxt_sprite_count) {
+    if (ctxt_sprite_remote[i]) {
+      if (ctxt_sprite_state[i] == 0) {
+        if (ctxt_schedule_remote_image(i)) {
+          ctxt_sprite_state[i] = 3;
+        } else {
+          ctxt_sprite_state[i] = 2;
+        }
+        changed = 1;
+      } else if (ctxt_sprite_state[i] == 3) {
+        char asset[256];
+        char job[256];
+        char done[256];
+        char fail[256];
+        ctxt_remote_cache_paths(i, asset, job, done, fail);
+        if (ctxt_file_exists(done) && ctxt_file_exists(asset)) {
+          int handle = gfx2d_image_load(asset);
+          if (handle >= 0) {
+            ctxt_sprite_handle[i] = handle;
+            ctxt_sprite_state[i] = 1;
+            ctxt_apply_sprite_intrinsic(i);
+          } else {
+            ctxt_sprite_state[i] = 2;
+          }
+          changed = 1;
+        } else if (ctxt_file_exists(fail)) {
+          ctxt_sprite_state[i] = 2;
+          changed = 1;
+        } else if (!ctxt_file_exists(job) && !ctxt_file_exists(done)) {
+          ctxt_schedule_remote_image(i);
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return changed;
+}
+
+void ctxt_draw_sprite(int idx, int x, int y, int w, int h) {
+  if (idx < 0 || idx >= ctxt_sprite_count || w <= 0 || h <= 0) return;
+
+  ctxt_sprite_ensure_loaded(idx);
+  if (ctxt_sprite_state[idx] == 1 && ctxt_sprite_handle[idx] >= 0) {
+    gfx2d_image_draw_scaled(ctxt_sprite_handle[idx], x, y, w, h);
     gfx2d_rect(x, y, w, h, ctxt_col_rule);
+    return;
+  }
+
+  gfx2d_rect(x, y, w, h, ctxt_col_rule);
+  if (ctxt_sprite_remote[idx]) {
+    if (ctxt_sprite_state[idx] == 0 || ctxt_sprite_state[idx] == 3) {
+      gfx2d_text(x + 4, y + 4, "(loading image)", ctxt_col_rule, 1);
+    } else {
+      gfx2d_text(x + 4, y + 4, "(image failed)", ctxt_col_rule, 1);
+    }
   } else {
-    gfx2d_rect(x, y, w, h, ctxt_col_rule);
-    gfx2d_text(x + 4, y + 4, "(missing sprite)", ctxt_col_rule, 1);
+    gfx2d_text(x + 4, y + 4, "(missing image)", ctxt_col_rule, 1);
   }
 }
 
@@ -1017,11 +1649,20 @@ void ctxt_render(int x, int y, int w, int h, int sy, int sx) {
                                ctxt_action_payload[ctxt_line_ref[i]]);
           }
         } else if (type == CTXT_SPRITE) {
+          if (ctxt_line_ref[i] >= 0 && ctxt_line_ref[i] < ctxt_sprite_count) {
+            int spr = ctxt_line_ref[i];
+            ctxt_sprite_ensure_loaded(spr);
+            if (!ctxt_sprite_explicit_size[spr] &&
+                ctxt_sprite_state[spr] == 1) {
+              ctxt_line_aux_a[i] = ctxt_sprite_w[spr];
+              ctxt_line_aux_b[i] = ctxt_sprite_h[spr];
+            }
+          }
           gfx2d_rect_fill(x + 2, py, ctxt_line_aux_a[i] + 8, ctxt_line_aux_b[i] + 8,
                           ctxt_col_code_bg);
           if (ctxt_line_ref[i] >= 0 && ctxt_line_ref[i] < ctxt_sprite_count) {
-            ctxt_draw_sprite(x + 6, py + 4, ctxt_line_aux_a[i], ctxt_line_aux_b[i],
-                             ctxt_sprite_path[ctxt_line_ref[i]]);
+            ctxt_draw_sprite(ctxt_line_ref[i], x + 6, py + 4,
+                             ctxt_line_aux_a[i], ctxt_line_aux_b[i]);
             if (ctxt_sprite_action[ctxt_line_ref[i]] >= 0 &&
                 ctxt_sprite_action[ctxt_line_ref[i]] < ctxt_action_count) {
               int action_ref = ctxt_sprite_action[ctxt_line_ref[i]];

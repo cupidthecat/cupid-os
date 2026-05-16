@@ -41,7 +41,7 @@ int savegamelength;
 boolean savegame_error;
 
 // Get the filename of a temporary file to write the savegame to.  After
-// the file has been successfully saved, it will be renamed to the 
+// the file has been successfully saved, it will be renamed to the
 // real file.
 
 char *P_TempSaveGameFile(void)
@@ -243,7 +243,7 @@ static void saveg_write_mapthing_t(mapthing_t *str)
 
 //
 // actionf_t
-// 
+//
 
 static void saveg_read_actionf_t(actionf_t *str)
 {
@@ -1372,7 +1372,7 @@ void P_WriteSaveGameHeader(char *description)
     saveg_write8(leveltime & 0xff);
 }
 
-// 
+//
 // Read the header for a savegame
 //
 
@@ -1383,7 +1383,7 @@ boolean P_ReadSaveGameHeader(void)
     char vcheck[VERSIONSIZE]; 
     char read_vcheck[VERSIONSIZE];
 	 
-    // skip the description field 
+    // skip the description field
 
     for (i=0; i<SAVESTRINGSIZE; ++i)
         saveg_read8();
@@ -1394,7 +1394,7 @@ boolean P_ReadSaveGameHeader(void)
     memset(vcheck, 0, sizeof(vcheck));
     M_snprintf(vcheck, sizeof(vcheck), "version %i", G_VanillaVersionCode());
     if (strcmp(read_vcheck, vcheck) != 0)
-	return false;				// bad version 
+	return false;				// bad version
 
     gameskill = saveg_read8();
     gameepisode = saveg_read8();
@@ -1403,7 +1403,7 @@ boolean P_ReadSaveGameHeader(void)
     for (i=0 ; i<MAXPLAYERS ; i++) 
 	playeringame[i] = saveg_read8();
 
-    // get the times 
+    // get the times
     a = saveg_read8();
     b = saveg_read8();
     c = saveg_read8();
@@ -1414,7 +1414,7 @@ boolean P_ReadSaveGameHeader(void)
 
 //
 // Read the end of file marker.  Returns true if read successfully.
-// 
+//
 
 boolean P_ReadSaveGameEOF(void)
 {

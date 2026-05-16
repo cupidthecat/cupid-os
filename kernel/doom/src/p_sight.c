@@ -242,7 +242,7 @@ boolean P_CrossSubsector (int num)
 	}
 		
 	if (topslope <= bottomslope)
-	    return false;		// stop				
+	    return false;		// stop
     }
     // passed the subsector ok
     return true;		
@@ -286,7 +286,7 @@ boolean P_CrossBSPNode (int bspnum)
 	return true;
     }
     
-    // cross the ending side		
+    // cross the ending side
     return P_CrossBSPNode (bsp->children[side^1]);
 }
 

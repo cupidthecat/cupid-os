@@ -15,7 +15,7 @@
 // DESCRIPTION:
 //	Enemy thinking, AI.
 //	Action Pointer Functions
-//	that are associated with states/frames. 
+//	that are associated with states/frames.
 //
 
 #include <stdio.h>
@@ -1014,7 +1014,7 @@ void A_Tracer (mobj_t* actor)
     if (gametic & 3)
 	return;
     
-    // spawn a puff of smoke behind the rocket		
+    // spawn a puff of smoke behind the rocket
     P_SpawnPuff (actor->x, actor->y, actor->z);
 	
     th = P_SpawnMobj (actor->x-actor->momx,
@@ -1032,7 +1032,7 @@ void A_Tracer (mobj_t* actor)
     if (!dest || dest->health <= 0)
 	return;
     
-    // change angle	
+    // change angle
     exact = R_PointToAngle2 (actor->x,
 			     actor->y,
 			     dest->x,
@@ -1332,7 +1332,7 @@ void A_VileAttack (mobj_t* actor)
 // Mancubus attack,
 // firing three missiles (bruisers)
 // in three different directions?
-// Doesn't look like it. 
+// Doesn't look like it.
 //
 #define	FATSPREAD	(ANG90/8)
 
@@ -1504,7 +1504,7 @@ A_PainShootSkull
 //
 // A_PainAttack
 // Spawn a lost soul and launch it at the target
-// 
+//
 void A_PainAttack (mobj_t* actor)
 {
     if (!actor->target)

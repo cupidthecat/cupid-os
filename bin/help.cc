@@ -118,10 +118,11 @@ void show_cmd_help(char *cmd) {
 void list_dir_programs(char *dir, char *label) {
     int fd = vfs_open(dir, 0);
     if (fd < 0) return;
-    char ent[72];
+    // vfs_dirent_t: name[128], size(4 at 128), type(1 at 132). 136 with pad.
+    char ent[136];
     int found = 0;
     while (vfs_readdir(fd, ent) > 0) {
-        if (ent[68] == 0) {
+        if (ent[132] == 0) {
             if (!found) { println(label); found = 1; }
             char name[64];
             int i = 0;

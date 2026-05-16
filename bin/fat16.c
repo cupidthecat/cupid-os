@@ -8,7 +8,7 @@
  * - Root directory only (no subdirectories)
  * - 8.3 filenames only
  * - First partition only
- */
+*/
 
 #include "fat16.h"
 #include "blockcache.h"
@@ -37,7 +37,7 @@ void fat16_set_output(void (*print_fn)(const char*), void (*putchar_fn)(char), v
  *
  * @param cluster: Cluster number
  * @return FAT entry value
- */
+*/
 static uint16_t fat16_read_fat_entry(uint16_t cluster) {
     if (cluster < 2) {
         return 0;
@@ -62,7 +62,7 @@ static uint16_t fat16_read_fat_entry(uint16_t cluster) {
  *
  * @param cluster: Cluster number
  * @return LBA sector address
- */
+*/
 static uint32_t fat16_cluster_to_lba(uint16_t cluster) {
     if (cluster < 2) {
         return 0;
@@ -77,7 +77,7 @@ static uint32_t fat16_cluster_to_lba(uint16_t cluster) {
  *
  * @param input: Input filename
  * @param output: Output buffer (11 bytes)
- */
+*/
 static void fat16_filename_to_83(const char* input, char* output) {
     int i;
 
@@ -123,7 +123,7 @@ static void fat16_filename_to_83(const char* input, char* output) {
  * fat16_init - Initialize FAT16 filesystem
  *
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_init(void) {
     // Read MBR
     uint8_t mbr_buffer[512];
@@ -203,11 +203,11 @@ int fat16_is_initialized(void) {
     return fat16_initialized;
 }
 
-/*  Subdirectory path helpers  */
+/* ── Subdirectory path helpers ────────────────────────────────────── */
 
 /* Split "dir/file" into dir_out and name_out.
  * Returns 1 if a slash was found, 0 if flat name.
- * Handles only one level of subdirectory. */
+ * Handles only one level of subdirectory.*/
 static int fat16_split_path(const char *path, char *dir_out, char *name_out) {
     int slash = -1;
     int i;
@@ -229,7 +229,7 @@ static int fat16_split_path(const char *path, char *dir_out, char *name_out) {
 }
 
 /* Return the first cluster of a directory named dirname (in the root dir),
- * or 0 if not found. */
+ * or 0 if not found.*/
 static uint16_t fat16_get_dir_cluster(const char *dirname) {
     char name83[11];
     fat16_filename_to_83(dirname, name83);
@@ -259,7 +259,7 @@ static uint16_t fat16_get_dir_cluster(const char *dirname) {
  *
  * @param filename: Filename to open
  * @return File handle or NULL on error
- */
+*/
 fat16_file_t* fat16_open(const char* filename) {
     if (!fat16_initialized) {
         print("No FAT16 filesystem mounted\n");
@@ -373,7 +373,7 @@ fat16_file_t* fat16_open(const char* filename) {
  * @param buffer: Buffer to read into
  * @param count: Number of bytes to read
  * @return Bytes read, or -1 on error
- */
+*/
 int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
     if (!file || !file->is_open) {
         serial_printf("[fat16_read] ERROR: invalid file handle\n");
@@ -429,7 +429,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         /* Log each cluster we read from */
         if (current_cluster != last_logged_cluster) {
             if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] reading cluster[%u]=%u -> LBA %u-%u (offset_in_cluster=%u)\n",
+                serial_printf("[READ] reading cluster[%u]=%u → LBA %u-%u (offset_in_cluster=%u)\n",
                              clusters_read, current_cluster, cluster_lba,
                              cluster_lba + fs.sectors_per_cluster - 1, offset_in_cluster);
             }
@@ -466,7 +466,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
         if ((offset_in_cluster + bytes_to_copy) >= cluster_size && bytes_read < count) {
             uint16_t next_cluster = fat16_read_fat_entry(current_cluster);
             if (clusters_read < 5 || clusters_read % 50 == 0) {
-                serial_printf("[READ] cluster %u -> next %u (EOC if >= 0x%04X)\n",
+                serial_printf("[READ] cluster %u → next %u (EOC if >= 0x%04X)\n",
                              current_cluster, next_cluster, FAT16_EOC_MIN);
             }
             current_cluster = next_cluster;
@@ -488,7 +488,7 @@ int fat16_read(fat16_file_t* file, void* buffer, uint32_t count) {
  *
  * @param file: File handle
  * @return 0 on success
- */
+*/
 int fat16_close(fat16_file_t* file) {
     if (!file) {
         return -1;
@@ -497,8 +497,9 @@ int fat16_close(fat16_file_t* file) {
     return 0;
 }
 
-/*  *  FAT16 Write Support
- *  */
+/* ══════════════════════════════════════════════════════════════════════
+ *  FAT16 Write Support
+ * ══════════════════════════════════════════════════════════════════════*/
 
 /**
  * fat16_write_fat_entry - Write a FAT table entry
@@ -508,7 +509,7 @@ int fat16_close(fat16_file_t* file) {
  * @param cluster: Cluster number
  * @param value: Value to write
  * @return 0 on success, -1 on error
- */
+*/
 static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
     if (cluster < 2) {
         serial_printf("[fat16_write_fat_entry] ERROR: invalid cluster %u\n", cluster);
@@ -551,7 +552,7 @@ static int fat16_write_fat_entry(uint16_t cluster, uint16_t value) {
  * and returns the cluster number.
  *
  * @return Cluster number (>= 2) on success, 0 on failure (disk full)
- */
+*/
 static uint16_t fat16_alloc_cluster(void) {
     /* Calculate total data clusters */
     uint32_t root_dir_sectors = ((uint32_t)fs.root_dir_entries * 32 +
@@ -581,7 +582,7 @@ static uint16_t fat16_alloc_cluster(void) {
  * Follows the FAT chain and marks each cluster as free.
  *
  * @param cluster: Starting cluster of chain
- */
+*/
 static void fat16_free_chain(uint16_t cluster) {
     while (cluster >= 2 && cluster < FAT16_EOC_MIN &&
            cluster != FAT16_BAD_CLUSTER) {
@@ -601,7 +602,7 @@ static void fat16_free_chain(uint16_t cluster) {
  * @param data: File content buffer
  * @param size: Number of bytes to write
  * @return Bytes written on success, -1 on error
- */
+*/
 int fat16_write_file(const char* filename, const void* data, uint32_t size) {
     serial_printf("[fat16_write_file] START: filename='%s' size=%u\n",
                  filename ? filename : "(null)", size);
@@ -619,7 +620,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
                  name83[0], name83[1], name83[2], name83[3], name83[4], name83[5], name83[6], name83[7],
                  name83[8], name83[9], name83[10]);
 
-    /*  Allocate cluster chain for the new data  */
+    /* ── Allocate cluster chain for the new data ── */
     uint32_t cluster_size = (uint32_t)fs.sectors_per_cluster * fs.bytes_per_sector;
     uint32_t clusters_needed = 0;
     if (size > 0) {
@@ -647,7 +648,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         } else {
             /* Link previous cluster to this one */
             if (i < 5 || i % 50 == 0 || i >= clusters_needed - 5) {
-                serial_printf("[ALLOC] cluster[%u]=%u, linking [%u]=%u -> %u\n",
+                serial_printf("[ALLOC] cluster[%u]=%u, linking [%u]=%u → %u\n",
                              i, c, i-1, prev_cluster, c);
             }
             int link_rc = fat16_write_fat_entry(prev_cluster, c);
@@ -686,7 +687,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         while (verify_cluster >= 2 && verify_cluster < FAT16_EOC_MIN && chain_len < clusters_needed + 10) {
             uint16_t next = fat16_read_fat_entry(verify_cluster);
             if (chain_len < 5 || chain_len % 50 == 0) {
-                serial_printf("[VERIFY] chain[%u] = %u -> %u (EOC if >= 0x%04X)\n",
+                serial_printf("[VERIFY] chain[%u] = %u → %u (EOC if >= 0x%04X)\n",
                              chain_len, verify_cluster, next, FAT16_EOC_MIN);
             }
             verify_cluster = next;
@@ -699,7 +700,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         }
     }
 
-    /*  Write file data to the allocated clusters  */
+    /* ── Write file data to the allocated clusters ── */
     {
         uint16_t cur_cluster = first_cluster;
         uint32_t bytes_written = 0;
@@ -712,7 +713,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
 
             /* Log first few and some later clusters */
             if (clusters_written < 5 || clusters_written % 50 == 0) {
-                serial_printf("[WRITE] cluster[%u]=%u -> LBA %u-%u\n",
+                serial_printf("[WRITE] cluster[%u]=%u → LBA %u-%u\n",
                              clusters_written, cur_cluster, cluster_lba,
                              cluster_lba + fs.sectors_per_cluster - 1);
             }
@@ -750,7 +751,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
 
             uint16_t next_cluster = fat16_read_fat_entry(cur_cluster);
             if (clusters_written < 5 || clusters_written % 50 == 0) {
-                serial_printf("[WRITE] cluster %u -> next %u (EOC if >= 0x%04X)\n",
+                serial_printf("[WRITE] cluster %u → next %u (EOC if >= 0x%04X)\n",
                              cur_cluster, next_cluster, FAT16_EOC_MIN);
             }
             cur_cluster = next_cluster;
@@ -774,7 +775,7 @@ int fat16_write_file(const char* filename, const void* data, uint32_t size) {
         blockcache_sync();
     }
 
-    /*  Find or create directory entry  */
+    /* ── Find or create directory entry ── */
 
     /* Handle subdirectory path (e.g. "asm/hello.txt") */
     {
@@ -946,7 +947,7 @@ dir_search_done:
         entry->file_size = size;
 
         /* If this was the end-of-directory marker, write a new end marker
-         * in the next slot (if within same sector) */
+         * in the next slot (if within same sector)*/
         if (entries[free_entry_index].filename[0] != (char)0xE5) {
             /* Was a 0x00 entry, need to put a new 0x00 terminator after */
             if (free_entry_index + 1 < 16) {
@@ -984,7 +985,7 @@ dir_search_done:
  *
  * @param filename: 8.3 filename to delete
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_delete_file(const char* filename) {
     if (!fat16_initialized) return -1;
 
@@ -1076,7 +1077,7 @@ int fat16_delete_file(const char* filename) {
  * fat16_is_dir - Check if a name refers to a directory in the root dir
  *
  * @return 1 if it's a directory, 0 if not found or not a dir
- */
+*/
 int fat16_is_dir(const char *dirname) {
     if (!fat16_initialized || !dirname || dirname[0] == '\0') return 0;
 
@@ -1115,7 +1116,7 @@ int fat16_is_dir(const char *dirname) {
  *
  * @param dirname: Directory name (8.3 style)
  * @return 0 on success, -1 on error
- */
+*/
 int fat16_mkdir(const char *dirname) {
     if (!fat16_initialized || !dirname || dirname[0] == '\0') return -1;
 
@@ -1226,7 +1227,7 @@ scan_done:
  * fat16_list_root - List root directory
  *
  * @return Number of files listed
- */
+*/
 int fat16_list_root(void) {
     if (!fat16_initialized) {
         fat16_print("No FAT16 filesystem mounted\n");
@@ -1297,7 +1298,7 @@ int fat16_list_root(void) {
  * @param callback: Function called for each entry
  * @param ctx:      Opaque pointer forwarded to callback
  * @return Number of entries enumerated, or -1 on error
- */
+*/
 int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
     if (!fat16_initialized || !callback) {
         return -1;
@@ -1373,7 +1374,7 @@ int fat16_enumerate_root(fat16_enum_callback_t callback, void *ctx) {
  * @param callback: Called per entry
  * @param ctx:      Passed through to callback
  * @return Number of entries enumerated, -1 on error
- */
+*/
 int fat16_enumerate_subdir(const char *dirname,
                            fat16_enum_callback_t callback, void *ctx) {
     if (!fat16_initialized || !dirname || !callback) return -1;

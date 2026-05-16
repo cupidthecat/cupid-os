@@ -279,7 +279,7 @@ int W_CheckNumForName (char* name)
     else
     {
         // We don't have a hash table generate yet. Linear search :-(
-        // 
+        //
         // scan backwards so patch lump files take precedence
 
         for (i=numlumps-1; i >= 0; --i)
@@ -374,7 +374,7 @@ void W_ReadLump(unsigned int lump, void *dest)
 // the lump data.
 //
 // 'tag' is the type of zone memory buffer to allocate for the lump
-// (usually PU_STATIC or PU_CACHE).  If the lump is loaded as 
+// (usually PU_STATIC or PU_CACHE).  If the lump is loaded as
 // PU_STATIC, it should be released back using W_ReleaseLumpNum
 // when no longer needed (do not use Z_ChangeTag).
 //
@@ -431,12 +431,12 @@ void *W_CacheLumpName(char *name, int tag)
     return W_CacheLumpNum(W_GetNumForName(name), tag);
 }
 
-// 
-// Release a lump back to the cache, so that it can be reused later 
+//
+// Release a lump back to the cache, so that it can be reused later
 // without having to read from disk again, or alternatively, discarded
 // if we run out of memory.
 //
-// Back in Vanilla Doom, this was just done using Z_ChangeTag 
+// Back in Vanilla Doom, this was just done using Z_ChangeTag
 // directly, but now that we have WAD mmap, things are a bit more
 // complicated ...
 //

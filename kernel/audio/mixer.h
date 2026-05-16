@@ -1,7 +1,7 @@
 #ifndef KERNEL_AUDIO_MIXER_H
 #define KERNEL_AUDIO_MIXER_H
 
-#include "../types.h"
+#include "types.h"
 
 #define MIXER_SLOTS         16
 #define MIXER_RATE_HZ       22050

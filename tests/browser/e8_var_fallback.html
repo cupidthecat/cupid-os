@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+<title>e8 var() fallback when undefined</title>
+<style>
+:root { --defined: tomato; }
+.has_var      { color: var(--defined); }
+.miss_no_fb   { color: var(--undefined); }
+.miss_with_fb { color: var(--undefined, blue); }
+.nested_fb    { color: var(--also-undefined, var(--defined)); }
+.literal_fb   { color: var(--undefined, #008000); }
+</style>
+</head>
+<body>
+<p class="has_var">Defined --defined: tomato</p>
+<p class="miss_no_fb">Undefined, no fallback: initial color (default black)</p>
+<p class="miss_with_fb">Undefined with fallback: blue</p>
+<p class="nested_fb">Nested fallback: tomato (resolves through inner var)</p>
+<p class="literal_fb">Hex literal fallback: #008000 (dark green)</p>
+</body>
+</html>

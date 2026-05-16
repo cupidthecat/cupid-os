@@ -11,41 +11,41 @@
  * - Uses standard PIT base frequency of 1.193182 MHz
  * - 16-bit counter per channel
  * - Interrupt generation on channel 0 (IRQ0)
- */
+*/
 
 #include "pit.h"
-#include "../kernel/ports.h"
+#include "ports.h"
 
 /**
  * Initialize a PIT channel with the specified frequency
- * 
+ *
  * @param channel: PIT channel number (0-2)
  * @param frequency: Desired frequency in Hz (1-1193182)
- * 
+ *
  * Configures the specified PIT channel to generate square waves
  * at the requested frequency. Channel 0 is typically used as
  * the system timer, channel 1 is unused, and channel 2 can
  * control the PC speaker.
- */
+*/
 void pit_init(uint32_t channel, uint32_t frequency) {
     pit_set_frequency(channel, frequency);
 }
 
 /**
  * Set the operating frequency for a PIT channel
- * 
+ *
  * @param channel: PIT channel number (0-2)
  * @param frequency: Desired frequency in Hz (1-1193182)
  *
  * Programs the specified PIT channel to generate square waves at
- * the requested frequency. The PIT uses a base frequency of 
+ * the requested frequency. The PIT uses a base frequency of
  * 1.193182 MHz which is divided to achieve the target frequency.
  * Each channel can be independently configured.
  *
  * The actual frequency achieved may differ slightly from the
  * requested frequency due to integer division of the base
  * frequency.
- */
+*/
 void pit_set_frequency(uint32_t channel, uint32_t frequency) {
     if (channel > 2 || frequency == 0) return;  // Invalid channel or bad freq
     
@@ -77,7 +77,7 @@ void pit_set_frequency(uint32_t channel, uint32_t frequency) {
  *
  * Sets channel 0 to fire IRQ0 every 5ms for smoother desktop and
  * lower input latency (was 100Hz / 10ms).
- */
+*/
 void pit_set_scheduler_mode(void) {
     pit_set_frequency(0, 200);
 }

@@ -6,6 +6,10 @@ section .data
 
 section .text
 
+main:
+    call print_include_message
+    ret
+
 print_include_message:
     push inc_msg
     call print

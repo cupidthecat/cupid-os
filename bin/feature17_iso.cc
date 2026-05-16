@@ -21,7 +21,7 @@ int str_eq_n(const char *a, const char *b, int n) {
 
 int is_mounted(const char *target) {
     /* mount_count is a high-water-mark; mount_path(i) returns NULL for
-     * unmounted slots.  Scan all slots and look for an exact path match. */
+     * unmounted slots.  Scan all slots and look for an exact path match.*/
     int c = mount_count();
     int i = 0;
     while (i < c) {
@@ -36,7 +36,7 @@ int is_mounted(const char *target) {
 
 int count_mounted_iso(const char *prefix, int prefix_len) {
     /* Count active mounts whose path starts with prefix.  Used to verify
-     * multi-mount and pool-exhaustion scenarios. */
+     * multi-mount and pool-exhaustion scenarios.*/
     int c = mount_count();
     int n = 0;
     int i = 0;
@@ -153,7 +153,7 @@ void main() {
 
     /* 9. Pool exhaustion: mount 4 then try a 5th.  iso9660 loopdev pool
      * is size 4; 5th should be rejected.  We verify by counting /iso_N
-     * slots before and after the 5th mount attempt. */
+     * slots before and after the 5th mount attempt.*/
     shell_execute_line("mount /disk/hello.iso /iso_1 iso9660");
     shell_execute_line("mount /disk/hello.iso /iso_2 iso9660");
     shell_execute_line("mount /disk/hello.iso /iso_3 iso9660");

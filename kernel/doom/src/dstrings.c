@@ -14,7 +14,7 @@
 //
 // DESCRIPTION:
 //	Globally defined strings.
-// 
+//
 
 
 

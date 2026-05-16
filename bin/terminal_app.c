@@ -4,7 +4,7 @@
  * Provides a graphical terminal window that interfaces with
  * the existing shell.  The shell writes to a character buffer
  * and the terminal renders it inside a GUI window.
- */
+*/
 
 #include "terminal_app.h"
 #include "gui.h"
@@ -43,7 +43,7 @@ static void terminal_process_entry(void) {
     /* This process stays alive as long as the terminal window exists.
      * The actual key handling is event-driven via the desktop loop
      * calling terminal_handle_key().  This process just keeps the
-     * terminal alive in the process table and yields its time slice. */
+     * terminal alive in the process table and yields its time slice.*/
     while (1) {
         /* Check if our window was closed */
         if (terminal_wid < 0 || !gui_get_window(terminal_wid)) {

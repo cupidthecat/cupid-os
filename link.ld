@@ -47,8 +47,10 @@ SECTIONS
 
     /*
      * Safety check: kernel text+data must fit in bootloader kernel area
-     * (LBA 5..8191 = 8187 sectors = 0x3FF600 bytes) loaded at 0x100000.
+     * (LBA 5..16383 = 16379 sectors = 0x7FF600 bytes) loaded at 0x100000.
+     * The partition table moves with this — see boot/boot.asm partition
+     * entry start LBA and Makefile FAT_START_LBA.
      */
-    ASSERT(_loaded_end <= 0x4FF600,
+    ASSERT(_loaded_end <= 0x8FF600,
            "Kernel binary (text+data) exceeds reserved HDD kernel area")
 }

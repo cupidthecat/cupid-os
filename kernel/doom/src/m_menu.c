@@ -821,7 +821,7 @@ void M_DrawReadThis2(void)
 {
     inhelpscreens = true;
 
-    // We only ever draw the second page if this is 
+    // We only ever draw the second page if this is
     // gameversion == exe_doom_1_9 and gamemode == registered
 
     V_DrawPatchDirect(0, 0, W_CacheLumpName(DEH_String("HELP1"), PU_CACHE));

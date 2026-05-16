@@ -99,7 +99,7 @@ P_GiveAmmo
     if (player->ammo[ammo] > player->maxammo[ammo])
 	player->ammo[ammo] = player->maxammo[ammo];
 
-    // If non zero ammo, 
+    // If non zero ammo,
     // don't change up weapons,
     // player was lower on purpose.
     if (oldammo)
@@ -283,7 +283,7 @@ P_GiveCard
 boolean
 P_GivePower
 ( player_t*	player,
-  int /*powertype_t*/	power )
+  int /* powertype_t */	power )
 {
     if (power == pw_invulnerability)
     {
@@ -407,7 +407,7 @@ P_TouchSpecialThing
 	    return;
 	player->health = deh_megasphere_health;
 	player->mo->health = player->health;
-        // We always give armor type 2 for the megasphere; dehacked only 
+        // We always give armor type 2 for the megasphere; dehacked only
         // affects the MegaArmor.
 	P_GiveArmor (player, 2);
 	player->message = DEH_String(GOTMSPHERE);
@@ -887,7 +887,7 @@ P_DamageMobj
 	    I_Tactile (40,10,40+temp*2);
     }
     
-    // do the damage	
+    // do the damage
     target->health -= damage;	
     if (target->health <= 0)
     {
@@ -903,7 +903,7 @@ P_DamageMobj
 	P_SetMobjState (target, target->info->painstate);
     }
 			
-    target->reactiontime = 0;		// we're awake now...	
+    target->reactiontime = 0;		// we're awake now...
 
     if ( (!target->threshold || target->type == MT_VILE)
 	 && source && source != target

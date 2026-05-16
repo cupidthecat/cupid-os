@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<title>g1 float basics</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.figure-right {
+  float: right;
+  width: 120px;
+  height: 80px;
+  background: #ccf;
+  margin: 4px 0 4px 12px;
+  padding: 8px;
+}
+.figure-left {
+  float: left;
+  width: 100px;
+  height: 60px;
+  background: #cfc;
+  margin: 4px 12px 4px 0;
+  padding: 8px;
+}
+p { margin: 0 0 12px 0; }
+.cleared { clear: both; background: #fec; padding: 6px; }
+</style>
+</head>
+<body>
+<div class="figure-right">right float</div>
+<p>Right-floated box sits at the right edge of the body content area; this paragraph wraps along the LEFT edge until it clears the float bottom. CSS 2.1 §9.5.1 specifies the floated box anchors to the closest preceding line and following text flows around it.</p>
+
+<div class="figure-left">left float</div>
+<p>Left-floated box anchors to the LEFT; this text flows along the right side. Multiple paragraphs in a row keep wrapping until they pass the float vertical extent, then they widen back to full content width.</p>
+
+<p class="cleared">clear: both — this block sits below ALL preceding floats (left and right). cs_clear advances cy past the lowest float bottom before placing the cleared box.</p>
+
+<p>Following block returns to full content width since the cleared box pushed past the float bands.</p>
+</body>
+</html>

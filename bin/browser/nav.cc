@@ -41,7 +41,100 @@ void compute_url_relative(char *rel, char *out, int max) {
     out[p] = 0;
 }
 
+/* §2.x External stylesheet loader. After the tokenizer and tree builder
+ * complete (so all text is interned in attr_pool and page_buf is free
+ * for reuse), walk the DOM for `<link rel="stylesheet" href="...">` and
+ * fetch each, feeding the body into css_parse_block.
+ *
+ * Cascade caveat: external rules are always appended AFTER inline
+ * <style> rules emitted during tree-build, so a `<style>` preceding a
+ * `<link>` in the source will out-rank it on doc-order ties. Real-world
+ * pages put link first; document the limitation and move on. Reference:
+ * Blink core/css/StyleEngine.cpp::createSheet.
+ *
+ * Net globals (cur_host/cur_port/cur_path/cur_is_https/cur_url/page_buf/
+ * page_len) are saved on entry and restored on exit so the outer
+ * navigate() resumes against the original document URL.*/
+void fetch_external_stylesheets(void) {
+    int link_count = 0;
+    /* Pre-scan: count and short-circuit if no candidates so the save/restore
+     * dance and serial spam stay off the hot path.*/
+    for (int n = 0; n < nodes_count; n = n + 1) {
+        if (n_tag[n] != T_LINK) continue;
+        char *rel = dom_attr_str(n, "rel");
+        if (!rel || !b_strieq(rel, "stylesheet")) continue;
+        char *href = dom_attr_str(n, "href");
+        if (!href || href[0] == 0) continue;
+        link_count = link_count + 1;
+    }
+    if (link_count == 0) return;
+    if (link_count > 16) link_count = 16;     /* PENDING_LINK_MAX */
+
+    /* Save net state so fetch_url's clobber of cur_* + page_buf is reversible. */
+    char saved_host[256];
+    char saved_path[1024];
+    char saved_url [1024];
+    int  saved_port    = cur_port;
+    int  saved_https   = cur_is_https;
+    int  saved_page_len = page_len;
+    b_strcpy_n(saved_host, cur_host, 256);
+    b_strcpy_n(saved_path, cur_path, 1024);
+    b_strcpy_n(saved_url,  cur_url,  1024);
+
+    int parsed = 0;
+    for (int n = 0; n < nodes_count && parsed < 16; n = n + 1) {
+        if (n_tag[n] != T_LINK) continue;
+        char *rel = dom_attr_str(n, "rel");
+        if (!rel || !b_strieq(rel, "stylesheet")) continue;
+        char *href = dom_attr_str(n, "href");
+        if (!href || href[0] == 0) continue;
+
+        char absu[1024];
+        compute_url_relative(href, absu, URL_MAX);
+
+        char ct[128]; ct[0] = 0;
+        if (fetch_url(absu, ct) != 0) {
+            serial_printf("[browser] link skip (fetch failed): %s\n", absu);
+            continue;
+        }
+        serial_printf("[browser] link parsed: %s (%d bytes)\n", absu, page_len);
+        css_parse_block(page_buf, page_len);
+        parsed = parsed + 1;
+    }
+
+    /* Restore. page_buf contents are no longer needed by anything (text was
+     * interned during tree-build), so we don't bother to repopulate it -
+     * only the metadata globals matter.*/
+    b_strcpy_n(cur_host, saved_host, 256);
+    b_strcpy_n(cur_path, saved_path, 1024);
+    b_strcpy_n(cur_url,  saved_url,  1024);
+    cur_port     = saved_port;
+    cur_is_https = saved_https;
+    page_len     = saved_page_len;
+}
+
+void about_dump() {
+    /* Stream the current render tree and per-node computed-style summary
+     * to the serial port. Useful for `about:dump` and the Ctrl-D shortcut.
+     * The output appears in the host's serial log; the visible page is
+     * not affected.*/
+    serial_printf("[browser] === about:dump ===\n");
+    serial_printf("[browser] %d DOM nodes, %d RT nodes, %d CSS rules\n",
+                  nodes_count, rt_count, css_rule_count);
+    if (rt_count > 0) dump_rt(0, 0);
+    for (int n = 0; n < nodes_count; n = n + 1) dump_style(n);
+    serial_printf("[browser] === end about:dump ===\n");
+}
+
 void navigate(char *u) {
+    /* about:dump - dump the previous page's render tree and per-node
+     * computed style to serial; do not actually fetch anything. The
+     * status bar reports completion.*/
+    if (b_strieq_n(u, "about:dump", 10)) {
+        about_dump();
+        b_strcpy_n(status_msg, "about:dump - serial log written", 256);
+        return;
+    }
     b_strcpy_n(status_msg, "Loading: ", 256);
     int sl = b_strlen(status_msg);
     b_strcpy_n(status_msg + sl, u, 256 - sl);
@@ -54,26 +147,43 @@ void navigate(char *u) {
         scroll_y = 0;
         return;
     }
-    /* push history */
-    if (hist_count < HIST_MAX) {
-        b_strcpy_n(hist_url_pool + hist_count * URL_MAX, cur_url, URL_MAX);
-        hist_count = hist_count + 1;
-    } else {
-        int k = 0;
-        while (k < HIST_MAX - 1) {
-            int j = 0;
-            while (j < URL_MAX) {
-                hist_url_pool[k * URL_MAX + j] = hist_url_pool[(k + 1) * URL_MAX + j];
-                j = j + 1;
+    /* push history. Back/forward set nav_no_push so they don't grow
+     * the trail when revisiting old entries.  A normal navigation
+     * truncates any forward history past hist_pos before adding the
+     * new entry. Same as Chrome / Firefox behaviour.*/
+    if (!nav_no_push) {
+        if (hist_pos < hist_count) hist_count = hist_pos;
+        if (hist_count < HIST_MAX) {
+            b_strcpy_n(hist_url_pool + hist_count * URL_MAX, cur_url, URL_MAX);
+            hist_count = hist_count + 1;
+        } else {
+            int k = 0;
+            while (k < HIST_MAX - 1) {
+                int j = 0;
+                while (j < URL_MAX) {
+                    hist_url_pool[k * URL_MAX + j] = hist_url_pool[(k + 1) * URL_MAX + j];
+                    j = j + 1;
+                }
+                k = k + 1;
             }
-            k = k + 1;
+            b_strcpy_n(hist_url_pool + (HIST_MAX - 1) * URL_MAX, cur_url, URL_MAX);
         }
-        b_strcpy_n(hist_url_pool + (HIST_MAX - 1) * URL_MAX, cur_url, URL_MAX);
+        hist_pos = hist_count;
     }
+    nav_no_push = 0;
     /* Reset persistent string pool BEFORE parse_html runs. The tree
      * builder used to do this internally, but now tokenize() interns into
-     * attr_pool, so we must reset before tokenize starts. */
+     * attr_pool, so we must reset before tokenize starts.*/
     attr_pool_pos = 1;
+    js_reset_per_page();
+    /* Per-page eviction: free webfont blobs and decoded image buffers
+     * before parsing the new document. font_face_init now unregisters
+     * each kernel face_id and kfrees the heap blob; image_evict_all
+     * walks the previous DOM and gfx2d_image_free's every cached
+     * handle. Without this, heap usage climbs across navigations.*/
+    image_evict_all();
+    font_face_init();
+    image_queue_init();
     parse_html(page_len);
     run_layout();           /* render-tree layout drives the visible pipeline */
     scroll_y = 0;
@@ -86,13 +196,21 @@ void navigate(char *u) {
 }
 
 void go_back() {
-    if (hist_count <= 1) return;
-    hist_count = hist_count - 1;
+    if (hist_pos <= 1) return;
+    hist_pos = hist_pos - 1;
     char prev[1024];
-    b_strcpy_n(prev, hist_url_pool + (hist_count - 1) * URL_MAX, URL_MAX);
-    /* re-fetch (don't double-push) */
-    hist_count = hist_count - 1;
+    b_strcpy_n(prev, hist_url_pool + (hist_pos - 1) * URL_MAX, URL_MAX);
+    nav_no_push = 1;
     navigate(prev);
+}
+
+void go_forward() {
+    if (hist_pos >= hist_count) return;
+    hist_pos = hist_pos + 1;
+    char nxt[1024];
+    b_strcpy_n(nxt, hist_url_pool + (hist_pos - 1) * URL_MAX, URL_MAX);
+    nav_no_push = 1;
+    navigate(nxt);
 }
 
 /* GET-only form submit (per spec §10).
@@ -100,7 +218,7 @@ void go_back() {
  * Takes a DOM node index pointing at the <form> element. Walks the form's
  * descendant subtree via n_first_child/n_next, collects every <input> with
  * a name attribute, URL-encodes name=value pairs, and navigates to
- * action?query (action defaults to the current URL when absent). */
+ * action?query (action defaults to the current URL when absent).*/
 void submit_form(int form_node_idx) {
     if (form_node_idx < 0 || form_node_idx >= nodes_count) return;
     if (n_tag[form_node_idx] != T_FORM) return;

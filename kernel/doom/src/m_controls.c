@@ -37,7 +37,7 @@ int key_use = KEY_USE;
 int key_strafe = KEY_RALT;
 int key_speed = KEY_RSHIFT; 
 
-// 
+//
 // Heretic keyboard controls
 //
  
@@ -192,12 +192,12 @@ int joybnextweapon = -1;
 
 int joybmenu = -1;
 
-// Control whether if a mouse button is double clicked, it acts like 
+// Control whether if a mouse button is double clicked, it acts like
 // "use" has been pressed
 
 int dclick_use = 1;
  
-// 
+//
 // Bind all of the common controls used by Doom and all other games.
 //
 

@@ -25,12 +25,12 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 New files:
 
 ```
-kernel/percpu.h / percpu.c       per-CPU data, GS-base init
-kernel/lapic.h  / lapic.c        Local APIC driver
-kernel/ioapic.h / ioapic.c       IOAPIC driver
-kernel/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
-kernel/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
-kernel/mp.h     / mp.c           MP table + ACPI MADT discovery
+kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
+kernel/smp/lapic.h  / lapic.c        Local APIC driver
+kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
+kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
+kernel/smp/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
+kernel/smp/mp.h / mp.c           MP table + ACPI MADT discovery
 bin/smp.cc                       `smp` shell command
 ```
 
@@ -66,7 +66,7 @@ for each AP:
 
 ## Per-CPU Data
 
-### `per_cpu_t` struct (kernel/percpu.h)
+### `per_cpu_t` struct (kernel/smp/percpu.h)
 
 ```c
 typedef struct {
@@ -500,16 +500,16 @@ Tier 3.
 
 | File | Purpose |
 |---|---|
-| `kernel/percpu.h` | `per_cpu_t` struct definition, `this_cpu()` macro |
-| `kernel/percpu.c` | BSP + AP per-CPU init, GDT slot allocation |
-| `kernel/lapic.h` | LAPIC register offsets, API declarations |
-| `kernel/lapic.c` | MMIO map, software enable, PIT calibration, IPI send |
-| `kernel/ioapic.h` | IOAPIC register layout, API |
-| `kernel/ioapic.c` | Redirection table init, GSI routing, ISA remap |
-| `kernel/smp.h` | `cpu_table_t`, AP trampoline API |
-| `kernel/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
-| `kernel/bkl.h` | `bkl_acquire` / `bkl_release` declarations |
-| `kernel/bkl.c` | Ticket spinlock implementation |
-| `kernel/mp.h` | MP table + ACPI MADT parser API |
-| `kernel/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
+| `kernel/smp/percpu.h` | `per_cpu_t` struct definition, `this_cpu()` macro |
+| `kernel/smp/percpu.c` | BSP + AP per-CPU init, GDT slot allocation |
+| `kernel/smp/lapic.h` | LAPIC register offsets, API declarations |
+| `kernel/smp/lapic.c` | MMIO map, software enable, PIT calibration, IPI send |
+| `kernel/smp/ioapic.h` | IOAPIC register layout, API |
+| `kernel/smp/ioapic.c` | Redirection table init, GSI routing, ISA remap |
+| `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
+| `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
+| `kernel/smp/bkl.h` | `bkl_acquire` / `bkl_release` declarations |
+| `kernel/smp/bkl.c` | Ticket spinlock implementation |
+| `kernel/smp/mp.h` | MP table + ACPI MADT parser API |
+| `kernel/smp/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
 | `bin/smp.cc` | `smp` and `smp info` shell commands |

@@ -1,6 +1,6 @@
 /* TLS crypto self-test: runs RFC test vectors at boot and panics on
  * mismatch. Catches endian bugs, off-by-one in padding, miswired KDFs
- * before they corrupt a TLS handshake silently. */
+ * before they corrupt a TLS handshake silently.*/
 
 #include "tls_selftest.h"
 #include "sha256.h"
@@ -13,8 +13,8 @@
 #include "p256.h"
 #include "ecdsa.h"
 #include "asn1.h"
-#include "../panic.h"
-#include "../../drivers/serial.h"
+#include "panic.h"
+#include "serial.h"
 
 static int eq_bytes(const uint8_t *a, const uint8_t *b, uint32_t n) {
     uint32_t i;
@@ -208,7 +208,7 @@ static void test_x25519(void) {
 
 static void test_asn1(void) {
     /* SEQUENCE { INTEGER 0x010203, OCTET STRING 0xAA 0xBB }
-     * Body length: 5 (INTEGER TLV) + 4 (OCTET STRING TLV) = 9. */
+     * Body length: 5 (INTEGER TLV) + 4 (OCTET STRING TLV) = 9.*/
     static const uint8_t enc[] = {
         0x30, 0x09,
             0x02, 0x03, 0x01, 0x02, 0x03,
@@ -290,7 +290,7 @@ static void test_aes128_gcm(void) {
     /* NIST gcmEncryptExtIV128.rsp Test Case #2:
      *   K = 00..., IV = 00..., P = 00 (16 bytes), no AAD.
      *   C = 0388dace60b6a392f328c2b971b2fe78
-     *   T = ab6e47d42cec13bdf53a67b21257bddf */
+     *   T = ab6e47d42cec13bdf53a67b21257bddf*/
     static const uint8_t key[16] = { 0 };
     static const uint8_t iv[12]  = { 0 };
     static const uint8_t pt[16]  = { 0 };
@@ -321,7 +321,7 @@ static void test_aes128_gcm(void) {
     /* NIST GCM Test Case #3: K = feffe9928665731c6d6a8f9467308308,
      *   IV = cafebabefacedbaddecaf888,
      *   P = 64 bytes 'd9313225...b39'
-     * Validates non-trivial CTR + GHASH path. */
+     * Validates non-trivial CTR + GHASH path.*/
     {
         static const uint8_t k3[16] = {
             0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
@@ -384,7 +384,7 @@ static void test_p256(void) {
 
     /* 2*G via doubling: known SEC 2 / NIST published value.
      *   x = 7CF27B188D034F7E8A52380304B51AC3C08969E277F21B35A60B48FC47669978
-     *   y = 07775510DB8ED040293D9AC69F7430DBBA7DADE63CE982299E04B79D227873D1 */
+     *   y = 07775510DB8ED040293D9AC69F7430DBBA7DADE63CE982299E04B79D227873D1*/
     {
         static const uint8_t want_x[32] = {
             0x7c,0xf2,0x7b,0x18,0x8d,0x03,0x4f,0x7e,

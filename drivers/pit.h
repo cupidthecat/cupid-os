@@ -1,7 +1,7 @@
 #ifndef PIT_H
 #define PIT_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 // PIT ports
 #define PIT_CHANNEL0 0x40

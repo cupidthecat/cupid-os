@@ -13,7 +13,7 @@
 // GNU General Public License for more details.
 //
 // DESCRIPTION:
-//     Screen scale-up code: 
+//     Screen scale-up code:
 //         1x,2x,3x,4x pixel doubling
 //         Aspect ratio-correcting stretch functions
 //
@@ -424,7 +424,7 @@ void I_ResetScaleTables(byte *palette)
 }
 
 
-// 
+//
 // Aspect ratio correcting scale up functions.
 //
 // These double up pixels to stretch the screen when using a 4:3
@@ -1012,18 +1012,18 @@ screen_mode_t mode_stretch_5x = {
 };
 
 //
-// Aspect ratio correcting "squash" functions. 
+// Aspect ratio correcting "squash" functions.
 //
 // These do the opposite of the "stretch" functions above: while the
 // stretch functions increase the vertical dimensions, the squash
 // functions decrease the horizontal dimensions for the same result.
 //
-// The same blend tables from the stretch functions are reused; as 
+// The same blend tables from the stretch functions are reused; as
 // a result, the dimensions are *slightly* wrong (eg. 320x200 should
 // squash to 266x200, but actually squashes to 256x200).
 //
 
-// 
+//
 // 1x squashed scale (256x200)
 //
 
@@ -1236,7 +1236,7 @@ static inline void WriteSquashedLine3x(byte *dest, byte *src)
 // 3x scale squashed (800x600)
 //
 // This is a special case that uses the half_stretch_table (50%) rather
-// than the normal stretch_tables(20,40%), to scale up to 800x600 
+// than the normal stretch_tables(20,40%), to scale up to 800x600
 // exactly.
 //
 

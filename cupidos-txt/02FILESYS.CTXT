@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-04-17
 
 >h2 Mount Layout
 >tree open Mount Layout
-Source-verified mount flow from kernel/kernel.c:
+Source-verified mount flow from kernel/core/kernel.c:
 
   /      -> ramfs
   /dev   -> devfs
@@ -49,9 +49,13 @@ Current boot-installed content includes:
 
 Ramfs is session-local and rebuilt from source at boot.
 It is the canonical location for shipped manuals and demos.
+After /home is mounted, the generated docs installer also seeds /home with
+top-level image assets such as /home/snail.bmp, /home/test.png, and
+/home/file_example_JPG_1MB.jpg.
 
 >button ls /docs | shell:ls /docs
 >button ls /demos | shell:ls /demos
+>button ls /home | shell:ls /home
 >endtree
 
 >h2 DEVFS
@@ -82,7 +86,7 @@ and the compatibility/diagnostics view at /disk.
 
 >h2 HomeFS
 >tree open HomeFS
-homefs is implemented in kernel/homefs.c.
+homefs is implemented in kernel/fs/homefs.c.
 
 Source-verified behavior:
 - tree-based filesystem
@@ -107,7 +111,7 @@ not:
 >h2 ISO9660 Loop-Mount
 >tree open ISO9660 Loop-Mount
 ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
-via the loop device adapter (kernel/loopdev.c + kernel/iso9660_vfs.c).
+via the loop device adapter (kernel/fs/loopdev.c + kernel/fs/iso9660_vfs.c).
 
 Example:
   mount /disk/hello.iso /iso
@@ -150,7 +154,7 @@ Recommended persistent workflow:
 2) run <name>
 3) the shell JIT-compiles it from /home/bin
 
-This is source-verified in kernel/shell.c, where /home/bin/<cmd> and
+This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
 /home/bin/<cmd>.cc are part of the command search order.
 >button ls /home/bin | shell:ls /home/bin
 >endtree
@@ -189,11 +193,12 @@ If you are doing persistent edits or demo sync work, use sync before reboot.
 The shipped docs path is source-generated at build time:
 - cupidos-txt/*.CTXT -> /docs/*.ctxt
 - image.bmp -> /docs/image.bmp
+- top-level *.bmp/*.png/*.jpg/*.jpeg -> /home/<same filename>
 - demos/*.asm -> /demos/*.asm
 
 So:
 - /docs is the canonical in-OS manual set
-- /home is where user-edited persistent copies belong
+- /home is where user-edited persistent copies and shipped image assets belong
 >button Open Docs Index | open:00INDEX.CTXT
 >button Open Embed Guide | open:09EMBED.CTXT
 >endtree

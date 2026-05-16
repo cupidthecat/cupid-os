@@ -1,22 +1,22 @@
 /* dglibc_compat.h - included via -include into every DOOM source file.
  * Aliases standard libc names to dglibc shim symbols.
  * Task 12: CupidOS DOOM port.
- */
+*/
 #ifndef DGLIBC_COMPAT_H
 #define DGLIBC_COMPAT_H
 
 /* Pull in our base types first (provides NULL, uint32_t, size_t, bool, etc.) */
-#include "../types.h"
+#include "types.h"
 #include "dglibc.h"
 
-/* va_list / va_arg - GCC always provides these as builtins            */
+/* va_list / va_arg - GCC always provides these as builtins */
 typedef __builtin_va_list va_list;
 #define va_start(ap, last)  __builtin_va_start(ap, last)
 #define va_end(ap)          __builtin_va_end(ap)
 #define va_arg(ap, type)    __builtin_va_arg(ap, type)
 #define va_copy(dst, src)   __builtin_va_copy(dst, src)
 
-/* stdint / stddef aliases (GCC builtins)                              */
+/* stdint / stddef aliases (GCC builtins) */
 typedef unsigned char      uint8_t;
 typedef unsigned short     uint16_t;
 typedef unsigned int       uint32_t;
@@ -40,11 +40,11 @@ typedef int32_t            off_t;
 #define PRId64 "lld"
 #define PRIu64 "llu"
 
-/* Boolean - kernel/types.h already defines bool/true/false under C   */
-/* Guard against re-definition if types.h already did it.             */
+/* Boolean - kernel/types.h already defines bool/true/false under C */
+/* Guard against re-definition if types.h already did it. */
 /* types.h defines bool as enum under !C++ - that's fine. No extra needed. */
 
-/* Common constants                                                    */
+/* Common constants */
 #ifndef M_PI
 #define M_PI    3.14159265358979323846
 #endif
@@ -79,12 +79,12 @@ typedef int32_t            off_t;
 #define SIZE_MAX 0xFFFFFFFFU
 #endif
 
-/* SEEK_* constants                                                    */
+/* SEEK_* constants */
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-/* errno stub - DOOM tests errno in some file-open error paths         */
+/* errno stub - DOOM tests errno in some file-open error paths */
 /* Provide a per-TU static so multiple TUs don't conflict at link time */
 static int errno = 0;
 #define ENOENT  2
@@ -96,7 +96,7 @@ static int errno = 0;
 #define ENOMEM 12
 #define ENOSPC 28
 
-/* Heap                                                                */
+/* Heap */
 #define malloc(n)        dg_malloc((uint32_t)(n))
 #define calloc(n,sz)     dg_calloc((uint32_t)(n), (uint32_t)(sz))
 #define realloc(p,n)     dg_realloc((p), (uint32_t)(n))
@@ -108,14 +108,14 @@ static int errno = 0;
 #define qsort(b,n,s,c)  dg_qsort((b),(uint32_t)(n),(uint32_t)(s),(c))
 #define time(t)          dg_time(t)
 
-/* printf family                                                       */
+/* printf family */
 #define snprintf(s,n,...)   dg_snprintf((s),(uint32_t)(n),__VA_ARGS__)
 #define vsnprintf(s,n,f,v)  dg_vsnprintf((s),(uint32_t)(n),(f),(v))
 #define sprintf(s,...)      dg_sprintf((s),__VA_ARGS__)
 #define printf(...)         dg_printf(__VA_ARGS__)
 #define fprintf(f,...)      dg_fprintf((f),__VA_ARGS__)
 
-/* stdio                                                               */
+/* stdio */
 #define FILE      DG_FILE
 #define stdin     dg_stdin
 #define stdout    dg_stdout
@@ -135,7 +135,7 @@ static int errno = 0;
 #define fflush(f)   0                      /* no-op */
 #define perror(s)   dg_printf("error: %s\n", (s))
 
-/* ctype                                                               */
+/* ctype */
 #define isspace(c)   dg_isspace(c)
 #define isdigit(c)   dg_isdigit(c)
 #define isalpha(c)   dg_isalpha(c)
@@ -151,9 +151,9 @@ static int errno = 0;
 #define strcasecmp   dg_strcasecmp
 #define strncasecmp  dg_strncasecmp
 
-/* string.h functions - kernel/string.h provides these already but    */
-/* doom pulls them through <string.h>. We forward-declare them here   */
-/* since our include_stubs/string.h is empty.                         */
+/* string.h functions - kernel/string.h provides these already but */
+/* doom pulls them through <string.h>. We forward-declare them here */
+/* since our include_stubs/string.h is empty. */
 /* Provided by kernel/string.h which is in the include path */
 /* Forward-declare the ones DOOM uses directly */
 extern void  *memcpy(void *dst, const void *src, size_t n);
@@ -176,7 +176,7 @@ extern unsigned long strtoul(const char *s, char **end, int base);
 extern double strtod(const char *s, char **end);
 extern int    atoi(const char *s);
 
-/* math.h - DOOM uses a few math functions                             */
+/* math.h - DOOM uses a few math functions */
 extern double sqrt(double x);
 extern double fabs(double x);
 extern double floor(double x);
@@ -202,12 +202,12 @@ extern double log(double x);
  * forced R_ScaleFromGlobalAngle into its 64*FRACUNIT clamp, which in
  * turn made R_RenderSegLoop sample the same texture column for every
  * screen X (a uniform vertical stripe = "gray slab" walls).
- */
+*/
 #ifndef abs
 #define abs(x) (((int)(x)) < 0 ? -((int)(x)) : ((int)(x)))
 #endif
 
-/* stdlib.h extras - implemented in doom_libc_stubs.c                 */
+/* stdlib.h extras - implemented in doom_libc_stubs.c */
 extern int           atoi(const char *s);
 extern long          atol(const char *s);
 extern double        atof(const char *s);
@@ -225,20 +225,20 @@ extern int  remove(const char *path);
 extern int  rename(const char *old_path, const char *new_path);
 extern int  mkdir(const char *path, unsigned int mode);
 
-/* setjmp                                                              */
+/* setjmp */
 #define jmp_buf    dg_jmp_buf
 #define setjmp(e)  dg_setjmp(e)
 #define longjmp    dg_longjmp
 
-/* assert - DOOM uses assert() in some debug code                     */
+/* assert - DOOM uses assert() in some debug code */
 #define assert(expr)  ((void)0)
 
-/* Rename main() so DOOM's i_system.c main doesn't clash with kernel  */
+/* Rename main() so DOOM's i_system.c main doesn't clash with kernel */
 /* doomgeneric uses doomgeneric_Create() as entry - no main() in tree */
 /* but guard anyway: */
 /* #define main doomgeneric_main_unused */
 
-/* Misc POSIX bits DOOM may reference                                  */
+/* Misc POSIX bits DOOM may reference */
 #define O_RDONLY  0
 #define O_WRONLY  1
 #define O_RDWR    2

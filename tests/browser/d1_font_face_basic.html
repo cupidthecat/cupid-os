@@ -1,0 +1,12 @@
+<!doctype html>
+<title>@font-face basic</title>
+<style>
+@font-face {
+  font-family: 'TestSans';
+  src: url('/system/fonts/LiberationSans-Regular.ttf') format('truetype');
+}
+p.web { font-family: 'TestSans'; font-size: 24px; }
+p.fb  { font-family: 'NoSuchFamily'; font-size: 24px; }
+</style>
+<p class="web">Web font: ABC abc 0123 ()[]</p>
+<p class="fb">Fallback: ABC abc 0123 ()[]</p>

@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS_KDF_H
 #define CUPID_TLS_KDF_H
 
-#include "../types.h"
+#include "types.h"
 
 /* TLS 1.3 key schedule helpers (RFC 8446 §7).
  *
@@ -9,10 +9,10 @@
  *       HKDF-Expand-Label(secret, label, SHA-256(messages), 32)
  *
  * The "messages" input is supplied as a precomputed transcript hash,
- * not the raw bytes. */
+ * not the raw bytes.*/
 
 /* Derive-Secret. transcript_hash may be NULL when ctx_len == 0
- * (special "" empty-context case used by the early/derived secrets). */
+ * (special "" empty-context case used by the early/derived secrets).*/
 void tls_kdf_derive_secret(const uint8_t secret[32],
                            const char *label,
                            const uint8_t *transcript_hash,
@@ -20,7 +20,7 @@ void tls_kdf_derive_secret(const uint8_t secret[32],
                            uint8_t out[32]);
 
 /* Derive AEAD key (`key_len` bytes: 16 for AES-128-GCM, 32 for
- * ChaCha20-Poly1305) and IV (12) from a traffic secret. */
+ * ChaCha20-Poly1305) and IV (12) from a traffic secret.*/
 void tls_kdf_traffic_keys(const uint8_t traffic_secret[32],
                           uint8_t *key_out, uint32_t key_len,
                           uint8_t iv_out[12]);

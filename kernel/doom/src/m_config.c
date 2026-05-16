@@ -39,7 +39,7 @@
 // DEFAULTS
 //
 
-// Location where all configuration data is stored - 
+// Location where all configuration data is stored -
 // default.cfg, savegames, etc.
 
 char *configdir;
@@ -74,7 +74,7 @@ typedef struct
     // If zero, we didn't read this value from a config file.
     int untranslated;
 
-    // The value we translated the scancode into when we read the 
+    // The value we translated the scancode into when we read the
     // config file on startup.  If the variable value is different from
     // this, it has been changed and needs to be converted; otherwise,
     // use the 'untranslated' value.
@@ -1595,7 +1595,7 @@ static const int scantokey[128] =
     '\'',   '`',    KEY_RSHIFT,'\\',   'z',    'x',    'c',    'v',
     'b',    'n',    'm',    ',',    '.',    '/',    KEY_RSHIFT,KEYP_MULTIPLY,
     KEY_RALT,  ' ',  KEY_CAPSLOCK,KEY_F1,  KEY_F2,   KEY_F3,   KEY_F4,   KEY_F5,
-    KEY_F6,   KEY_F7,   KEY_F8,   KEY_F9,   KEY_F10,  /*KEY_NUMLOCK?*/KEY_PAUSE,KEY_SCRLCK,KEY_HOME,
+    KEY_F6,   KEY_F7,   KEY_F8,   KEY_F9,   KEY_F10,  /* KEY_NUMLOCK? */KEY_PAUSE,KEY_SCRLCK,KEY_HOME,
     KEY_UPARROW,KEY_PGUP,KEY_MINUS,KEY_LEFTARROW,KEYP_5,KEY_RIGHTARROW,KEYP_PLUS,KEY_END,
     KEY_DOWNARROW,KEY_PGDN,KEY_INS,KEY_DEL,0,   0,      0,      KEY_F11,
     KEY_F12,  0,      0,      0,      0,      0,      0,      0,
@@ -1781,7 +1781,7 @@ static void LoadDefaultCollection(default_collection_t *collection)
 
     if (f == NULL)
     {
-        // File not opened, but don't complain. 
+        // File not opened, but don't complain.
         // It's probably just the first time they ran the game.
 
         return;
@@ -2049,7 +2049,7 @@ static char *GetDefaultConfigDir(void)
     return result;
 }
 
-// 
+//
 // SetConfigDir:
 //
 // Sets the location of the configuration directory, where configuration

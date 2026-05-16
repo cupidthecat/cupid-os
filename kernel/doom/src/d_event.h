@@ -14,7 +14,7 @@
 //
 // DESCRIPTION:
 //
-//    
+//
 
 
 #ifndef __D_EVENT__
@@ -95,7 +95,7 @@ typedef enum
     BTS_SAVEGAME	= 2,
 
     // Savegame slot numbers
-    //  occupy the second byte of buttons.    
+    //  occupy the second byte of buttons.
     BTS_SAVEMASK	= (4+8+16),
     BTS_SAVESHIFT 	= 2,
   

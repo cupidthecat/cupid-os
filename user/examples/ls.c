@@ -8,7 +8,7 @@
  *       -Iuser -c user/examples/ls.c -o ls.o
  *   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
  *       -o ls ls.o
- */
+*/
 
 #include "../cupid.h"
 

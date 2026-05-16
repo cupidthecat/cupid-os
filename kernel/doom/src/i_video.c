@@ -1,5 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
+// Emacs style mode select   -*- C++ -*-
+//
 //
 // $Id:$
 //
@@ -20,7 +20,7 @@
 // DESCRIPTION:
 //	DOOM graphics stuff for X11, UNIX.
 //
-//-----------------------------------------------------------------------------
+//
 
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
@@ -52,24 +52,24 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 struct FB_BitField
 {
-	uint32_t offset;			/* beginning of bitfield	*/
-	uint32_t length;			/* length of bitfield		*/
+	uint32_t offset;			/* beginning of bitfield */
+	uint32_t length;			/* length of bitfield */
 };
 
 struct FB_ScreenInfo
 {
-	uint32_t xres;			/* visible resolution		*/
+	uint32_t xres;			/* visible resolution */
 	uint32_t yres;
-	uint32_t xres_virtual;		/* virtual resolution		*/
+	uint32_t xres_virtual;		/* virtual resolution */
 	uint32_t yres_virtual;
 
-	uint32_t bits_per_pixel;		/* guess what			*/
+	uint32_t bits_per_pixel;		/* guess what */
 	
-							/* >1 = FOURCC			*/
+							/* >1 = FOURCC */
 	struct FB_BitField red;		/* bitfield in s_Fb mem if true color, */
 	struct FB_BitField green;	/* else only length is significant */
 	struct FB_BitField blue;
-	struct FB_BitField transp;	/* transparency			*/
+	struct FB_BitField transp;	/* transparency */
 };
 
 static struct FB_ScreenInfo s_Fb;
@@ -403,7 +403,7 @@ void I_SetPalette (byte* palette)
     
 
     /* performance boost:
-     * map to the right pixel format over here! */
+     * map to the right pixel format over here!*/
 
     for (i=0; i<256; ++i ) {
         colors[i].a = 0;

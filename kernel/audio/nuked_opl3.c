@@ -12,8 +12,8 @@
  *    unreachable at default configuration.
  *  - <inttypes.h> in nuked_opl3.h replaced with "../types.h".
  *  - Added typedef uint32_t uint_fast32_t (not in kernel types.h).
- *  - Added #define UINT64_C(c) (c##ULL) — <stdint.h> macro not in kernel types.h.
- */
+ *  - Added #define UINT64_C(c) (c##ULL) - <stdint.h> macro not in kernel types.h.
+*/
 
 /* Nuked OPL3
  * Copyright (C) 2013-2020 Nuke.YKT
@@ -45,10 +45,10 @@
  *          YMF262 and VRC VII decaps and die shots.
  *
  * version: 1.8
- */
+*/
 
 /* <stdio.h> and <stdlib.h> omitted: no printf/malloc/free/abs usage in this file. */
-#include "../string.h"
+#include "string.h"
 #include "nuked_opl3.h"
 
 /* uint_fast32_t is from <stdint.h>; map to uint32_t under kernel -nostdinc. */
@@ -63,7 +63,7 @@ typedef uint32_t uint_fast32_t;
 #define _USE_MATH_DEFINES 1
 #endif
 /* <math.h> not included: OPL_ENABLE_STEREOEXT is 0 (default). If stereo ext
- * is ever enabled, provide OPL_SIN via kernel/libm.h before enabling this. */
+ * is ever enabled, provide OPL_SIN via kernel/libm.h before enabling this.*/
 /* input: [0, 256), output: [0, 65536] */
 #define OPL_SIN(x) ((int32_t)(sin((x) * M_PI / 512.0) * 65536.0))
 #endif

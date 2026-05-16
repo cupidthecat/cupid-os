@@ -313,7 +313,7 @@ P_UseSpecialLine
     }
 
     
-    // do something  
+    // do something
     switch (line->special)
     {
 	// MANUALS

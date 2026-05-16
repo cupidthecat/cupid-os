@@ -28,5 +28,5 @@ void main() {
     }
 
     /* If we got here, #XF didn't fire - unexpected */
-    println("fp_drill: UNEXPECTED - #XF did not fire despite unmasked DE");
+    println("fp_drill: UNEXPECTED — #XF did not fire despite unmasked DE");
 }

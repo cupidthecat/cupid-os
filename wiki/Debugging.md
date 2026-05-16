@@ -30,7 +30,7 @@ This prints all kernel debug output to your host terminal.
 
 ## Debug Macros
 
-Four severity levels are available, defined in `kernel/debug.h`:
+Four severity levels are available, defined in `kernel/core/debug.h`:
 
 | Macro | Level | Prefix | Usage |
 |-------|-------|--------|-------|

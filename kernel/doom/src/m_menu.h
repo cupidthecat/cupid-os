@@ -14,7 +14,7 @@
 //
 // DESCRIPTION:
 //   Menu widget stuff, episode selection and such.
-//    
+//
 
 
 #ifndef __M_MENU__

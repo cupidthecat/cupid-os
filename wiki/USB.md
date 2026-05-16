@@ -30,14 +30,14 @@ shell sees a unified input stream. Mass storage registers as a block device (`us
 
 | Subsystem | File | Notes |
 |-----------|------|-------|
-| PCI enumeration | `kernel/pci.c` | Bus 0, dev 0-31, multi-function via header type bit 7 |
-| USB core | `kernel/usb.c` | Device model, enumeration FSM, work queue |
-| HC vtable | `kernel/usb_hc.h` | `usb_hc_t` interface |
-| UHCI driver | `kernel/uhci.c` | IO-port MMIO, USB 1.1 |
-| EHCI driver | `kernel/ehci.c` | MMIO, USB 2.0, companion routing |
-| HID class | `kernel/usb_hid.c` | Boot protocol keyboard + mouse |
-| Hub class | `kernel/usb_hub.c` | Hub descriptor, per-port power + reset |
-| Mass storage | `kernel/usb_msc.c` | BBB + SCSI, block device registration |
+| PCI enumeration | `drivers/pci.c` | Bus 0, dev 0-31, multi-function via header type bit 7 |
+| USB core | `kernel/usb/usb.c` | Device model, enumeration FSM, work queue |
+| HC vtable | `kernel/usb/usb_hc.h` | `usb_hc_t` interface |
+| UHCI driver | `kernel/usb/uhci.c` | IO-port MMIO, USB 1.1 |
+| EHCI driver | `kernel/usb/ehci.c` | MMIO, USB 2.0, companion routing |
+| HID class | `kernel/usb/usb_hid.c` | Boot protocol keyboard + mouse |
+| Hub class | `kernel/usb/usb_hub.c` | Hub descriptor, per-port power + reset |
+| Mass storage | `kernel/usb/usb_msc.c` | BBB + SCSI, block device registration |
 
 ### Subsystem relationships
 
@@ -99,7 +99,7 @@ permanently capping it at USB 1.1 speeds for that boot session. The reversed ini
 
 ## PCI Layer
 
-Source: `kernel/pci.c`, `kernel/pci.h`
+Source: `drivers/pci.c`, `drivers/pci.h`
 
 ### Enumeration
 
@@ -156,7 +156,7 @@ which is the safe value for R/WC bits - zeros do not clear anything.
 
 ## USB Core
 
-Source: `kernel/usb.c`, `kernel/usb_hc.h`, `kernel/usb.h`
+Source: `kernel/usb/usb.c`, `kernel/usb/usb_hc.h`, `kernel/usb/usb.h`
 
 ### Host controller vtable (`usb_hc_t`)
 
@@ -250,7 +250,7 @@ via `hc->submit_sync`.
 
 ## UHCI Driver
 
-Source: `kernel/uhci.c`
+Source: `kernel/usb/uhci.c`
 
 ### Register access
 
@@ -314,7 +314,7 @@ any port whose `CONNECT_STATUS_CHANGE` bit is set.
 
 ## EHCI Driver
 
-Source: `kernel/ehci.c`
+Source: `kernel/usb/ehci.c`
 
 ### MMIO mapping
 
@@ -412,7 +412,7 @@ Interrupt transfers use the **periodic schedule**:
 
 ## HID Driver
 
-Source: `kernel/usb_hid.c`
+Source: `kernel/usb/usb_hid.c`
 
 ### Probe and setup
 
@@ -488,7 +488,7 @@ scroll events.
 
 ## Hub Driver
 
-Source: `kernel/usb_hub.c`
+Source: `kernel/usb/usb_hub.c`
 
 ### Probe and descriptor fetch
 
@@ -540,7 +540,7 @@ EHCI uses these fields to set the `PORTSC.SPLIT_EN` and `TT*` fields in the QH f
 
 ## Mass Storage Driver
 
-Source: `kernel/usb_msc.c`
+Source: `kernel/usb/usb_msc.c`
 
 ### Bulk-Only Transport (BBB)
 
@@ -609,7 +609,7 @@ FAT16 partition types detected: `0x04`, `0x06`, `0x0E`.
 
 ### Auto-mount status
 
-> **Not yet wired.** The FAT16 VFS implementation (`kernel/fat16.c`) is currently a
+> **Not yet wired.** The FAT16 VFS implementation (`kernel/fs/fat16.c`) is currently a
 > single-instance driver hardcoded to the ATA block device. Mounting a second FAT16 volume
 > would require per-instance state throughout the driver.
 >

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -18,8 +18,9 @@ Verified against source on: 2026-04-17
 >tree open What Is CupidC
 CupidC is the in-OS C-like compiler used for most shell programs in /bin.
 
-Source files: kernel/cupidc.c, cupidc_lex.c, cupidc_parse.c,
-              cupidc_string.c, cupidc_elf.c
+Source files: kernel/lang/cupidc.c, kernel/lang/cupidc_lex.c,
+              kernel/lang/cupidc_parse.c, kernel/lang/cupidc_string.c,
+              kernel/lang/cupidc_elf.c
 
 Three modes:
 1) JIT run:
@@ -80,7 +81,9 @@ Save as /home/bin/hello.cc, then run:
 >tree open Language Features (Current)
 Supported core features include:
 - int, char, void, pointers
-- sized types: U0, U8, U16, U32, I8, I16, I32, Bool
+- sized types: U0, U8, U16, U32, I8, I16, I32, U64, I64, Bool
+- C compatibility spellings: long, short, signed, unsigned
+- float, double, float4, double2
 - structs (including field access)
 - class keyword with methods (HolyC-style)
 - arrays
@@ -89,10 +92,13 @@ Supported core features include:
 - while / for / do-while
 - switch / case / default
 - break / continue / return
+- labels and goto
 - function definitions and calls (including forward calls via two-pass)
 - new / del (kmalloc+zero-init / kfree+null)
-- reg / noreg storage class hints (accepted, semantic no-op)
+- reg / noreg / extern / inline / register / restrict hints
 - typedef and enum support
+- enum and array bounds can use constant integer expressions
+- __attribute__((...)) is accepted and skipped on declarations
 - basic inline asm blocks
 - arithmetic and logical operators
 - #pragma once
@@ -102,6 +108,22 @@ Known practical constraints:
 - Keep code simple and direct.
 - Preprocessor/macros are not a normal workflow.
 - One-file program style is the easiest path.
+>endtree
+
+>h2 C Compatibility Notes
+>tree open C Compatibility Notes
+CupidC remains a small in-OS compiler, not hosted GCC C.
+
+Accepted for source compatibility:
+  long, short, signed, unsigned, long long
+  extern, inline, register, restrict
+  __attribute__((...))
+  labels and goto
+  constant integer expressions in enum/array bounds
+
+Generated code still targets CupidOS's 32-bit flat kernel ABI. Use explicit
+bindings for data that truly needs wider or protocol-specific handling.
+>button Run Wide Types Test | shell:feature24_widetypes
 >endtree
 
 >h2 Floating Point
@@ -130,7 +152,7 @@ Element access on SIMD:
   double2 w; w.x, w.y
 
 Intrinsics: _mm_*_ps (17) and _mm_*_pd (11) are recognized by
-name and inlined as SSE opcodes. See kernel/simd_intrin.h.
+name and inlined as SSE opcodes. See kernel/cpu/simd_intrin.h.
 
 libm is available via the BIND_T table (25 operations, 50 symbols
 with f-variants): sqrt, sin, cos, tan, atan, atan2, exp, exp2, log,

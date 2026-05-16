@@ -66,7 +66,7 @@ int NOTEPAD_CONSOLE_H;
 
 /* Heap-allocated so notepad can open files up to FILE_BUF_SIZE bytes
  * without bloating the JIT data section (e.g. /god/Psalms.DD ≈ 322 KB).
- * file_buf is kmalloc'd at startup, freed on exit. */
+ * file_buf is kmalloc'd at startup, freed on exit.*/
 char *file_buf = 0;
 int FILE_BUF_SIZE = 524288;     /* 512 KB cap */
 char clip_buf[4096];
@@ -480,6 +480,13 @@ int np_open_link_target(char *target) {
   int i = 0;
   int slash = -1;
   if (target[0] == 0) return 0;
+  if (ctxt_is_web_url(target)) {
+    char cmd[640];
+    np_strcpy(cmd, "browser ", 640);
+    np_strcat(cmd, target, 640);
+    shell_execute_line(cmd);
+    return 1;
+  }
 
   if (target[0] == 47) {
     if (np_try_open_candidate(target)) return 1;
@@ -765,6 +772,11 @@ void np_run_ctxt_action(int action, int ref, char *target) {
   }
   if (action == CTXT_ACT_OPEN) {
     if (!np_open_link_target(target)) np_set_ctxt_status_ex("Open failed", detail);
+    return;
+  }
+  if (action == CTXT_ACT_WEB) {
+    if (np_open_link_target(target)) np_set_ctxt_status_ex("Opening web link", detail);
+    else np_set_ctxt_status_ex("Web link failed", detail);
     return;
   }
   if (action == CTXT_ACT_SHELL) {
@@ -2177,11 +2189,11 @@ void handle_mouse(int mx, int my, int buttons, int cx, int cy, int cw, int ch_h)
       console_focus = 0;
       int lidx = ctxt_link_at(mx, my, ctxt_sy, ctxt_sx);
       if (lidx >= 0) {
-        char target[256];
+        char target[512];
         int action = ctxt_get_link_action(lidx);
         int ref = ctxt_get_link_ref(lidx);
         target[0] = 0;
-        ctxt_get_link(lidx, target, 256);
+        ctxt_get_link(lidx, target, 512);
         np_run_ctxt_action(action, ref, target);
       }
     }
@@ -2261,7 +2273,7 @@ void main() {
   ctxt_reset();
 
   /* Heap-alloc file_buf so we can load files up to FILE_BUF_SIZE bytes
-   * (e.g. /god/Psalms.DD ≈ 322 KB). */
+   * (e.g. /god/Psalms.DD ≈ 322 KB).*/
   if (file_buf == 0) {
     file_buf = (char*)kmalloc(FILE_BUF_SIZE);
     if (file_buf == 0) {
@@ -2329,7 +2341,7 @@ void main() {
 
   /* Force first paint so menu/text/status appear immediately on launch.
    * Without this, dirty=0 on first iter and the window stays blank until
-   * the user types or moves the mouse. */
+   * the user types or moves the mouse.*/
   int first_paint = 1;
 
   while (gui_win_is_open(win)) {
@@ -2352,6 +2364,9 @@ void main() {
     int ch_h = gui_win_content_h(win);
 
     int dirty = first_paint;
+    if (!first_paint && render_mode && is_ctxt && ctxt_pump_remote_images()) {
+      dirty = 1;
+    }
 
     int rows = get_rows(ch_h);
     int cols = get_cols(cw - 12);
@@ -2369,7 +2384,7 @@ void main() {
     /* Only follow cursor when the user moved it (typed/arrowed). Without
      * this gate every paint frame ran ensure_cursor_visible(), which
      * snapped scroll_y back to wherever the cursor was - making both the
-     * scroll wheel and scrollbar drag look broken. */
+     * scroll wheel and scrollbar drag look broken.*/
     if (key_handled) ensure_cursor_visible(rows, cols);
 
     {
@@ -2447,6 +2462,9 @@ void main() {
     gui_win_end_paint(win);
     gui_win_present(win);
     first_paint = 0;
+    if (render_mode && is_ctxt && ctxt_pump_remote_images()) {
+      first_paint = 1;
+    }
     yield();
   }
 

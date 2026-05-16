@@ -3,7 +3,7 @@
  * Creates a test pattern in memory, encodes it as a 24-bit BMP,
  * decodes it back, verifies pixels match, then displays on screen.
  * Uses kmalloc for pixel buffers to stay within CupidC data limits.
- */
+*/
 
 int W = 32;
 int H = 32;

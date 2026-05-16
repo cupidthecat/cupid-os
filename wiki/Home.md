@@ -11,11 +11,11 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Getting Started](Getting-Started) | Build requirements, compiling, booting in QEMU |
 | [Real Hardware](Real-Hardware) | Flashing to USB/disk, BIOS/CSM setup, booting on physical PCs |
 | [Architecture](Architecture) | System overview, memory layout, boot sequence, component diagram |
-| [Shell Commands](Shell-Commands) | Full reference for all 24 built-in shell commands |
+| [Shell Commands](Shell-Commands) | Full reference for built-ins and auto-discovered `/bin` / `/home/bin` commands |
 | [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
 | [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
-| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, 62 instructions, kernel bindings |
+| [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
 | [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
@@ -27,7 +27,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [Debugging](Debugging) | Serial console, memory safety, crash testing, assertions |
 | [USB](USB) | UHCI + EHCI host controllers, HID keyboard/mouse, hub class, mass storage (BBB + SCSI) |
 | [SMP](SMP) | SMP Tier 2: ACPI/MP discovery, per-CPU LAPIC timer, big kernel lock, IPI reschedule and cross-CPU call |
-| [Networking](Networking) | RTL8139 + E1000 drivers, TCP/UDP/ICMP/ARP/DHCP/DNS, BSD sockets |
+| [Networking](Networking) | RTL8139 + E1000 drivers, TCP/UDP/ICMP/ARP/DHCP/DNS, BSD sockets, HTTP/HTTPS, SSH/Telnet |
 
 ---
 
@@ -40,15 +40,21 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │  Desktop │ Terminal │  Notepad  │   User Scripts    │
 │  (GUI)   │  (Shell) │  (Editor) │   (.cup files)    │
 ├──────────┴──────────┴───────────┴───────────────────┤
-│              Shell + CupidScript + CupidC           │
-│   40+ commands │ bash-like scripting │ C compiler   │
-│   colors │ pipes │ redirects │ jobs │ JIT + AOT     │
+│        Shell + Terminal + CupidScript + Tools       │
+│ 100+ cmds │ pipes │ redirects │ jobs │ SSH/Telnet    │
+│  completion │ ANSI/xterm │ browser │ source cmds     │
+├─────────────────────────────────────────────────────┤
+│              CupidC + CupidASM                      │
+│  C-like JIT/AOT │ x86 asm JIT/AOT │ kernel binds     │
 ├─────────────────────────────────────────────────────┤
 │       Virtual File System (VFS)                     │
-│   RamFS (/) │ DevFS (/dev) │ FAT16 (/home)          │
+│ RamFS (/) │ DevFS (/dev) │ FAT16 (/disk) │ homefs    │
+├─────────────────────────────────────────────────────┤
+│       Networking + TLS                              │
+│ RTL8139/E1000 │ TCP/UDP/DNS │ HTTPS │ sshd │ browser │
 ├─────────────────────────────────────────────────────┤
 │              Process Scheduler                      │
-│   Round-robin │ 10ms slices │ 32 kernel threads     │
+│   Round-robin │ 5ms ticks │ 32 kernel threads       │
 ├─────────────────────────────────────────────────────┤
 │              Window Manager (GUI)                   │
 │   16 windows │ z-order │ drag │ focus │ taskbar     │
@@ -56,14 +62,14 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 │ Keyboard │  Mouse   │   VBE     │    Serial         │
 │  (IRQ1)  │ (IRQ12)  │640x480    │   (COM1)          │
 ├──────────┴──────────┴───────────┴───────────────────┤
-│              FAT16 + Block Cache + ATA              │
-│   Block cache │ ATA/IDE PIO │ MBR partitions        │
+│       Storage + Media                               │
+│ FAT16 │ ISO9660 │ block cache │ USB MSC │ ATA PIO    │
 ├─────────────────────────────────────────────────────┤
 │              Memory Management                      │
 │   PMM bitmap │ Paging │ Heap + canaries │ Tracking  │
 ├─────────────────────────────────────────────────────┤
 │              IDT / IRQ / PIC / PIT                  │
-│   Interrupts │ Exceptions │ Timer (100Hz)           │
+│   Interrupts │ Exceptions │ Timer (200Hz)           │
 ├─────────────────────────────────────────────────────┤
 │              Bootloader (boot.asm)                  │
 │   Real mode -> Protected mode │ GDT │ Load kernel   │
@@ -89,7 +95,7 @@ This makes cupid-os ideal for learning how computers really work at the lowest l
 
 ```bash
 # Install dependencies (Ubuntu/Debian)
-sudo apt-get install nasm gcc make qemu-system-x86 dosfstools
+sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
 
 # Build
 make
@@ -107,34 +113,20 @@ cupid-os/
 ├── boot/
 │   └── boot.asm              # Bootloader (real -> protected mode)
 ├── kernel/
-│   ├── kernel.c/h             # Main kernel, VGA init, entry point
-│   ├── shell.c/h              # Shell with 38 commands + CWD
-│   ├── vfs.c/h                # Virtual File System core
-│   ├── ramfs.c/h              # In-memory filesystem (RamFS)
-│   ├── devfs.c/h              # Device filesystem (DevFS)
-│   ├── fat16_vfs.c/h          # FAT16 VFS wrapper
-│   ├── exec.c/h               # CUPD program loader
-│   ├── cupidscript*.c/h       # CupidScript scripting language
-│   ├── cupidc.h/c             # CupidC compiler (JIT/AOT driver)
-│   ├── cupidc_lex.c           # CupidC lexer (tokenizer)
-│   ├── cupidc_parse.c         # CupidC parser + x86 code gen
-│   ├── cupidc_elf.c           # CupidC ELF32 binary writer
-│   ├── cupidscript_streams.c/h # Stream system (pipes, fd table)
-│   ├── cupidscript_strings.c  # Advanced string operations
-│   ├── cupidscript_arrays.c/h # Arrays & associative arrays
-│   ├── cupidscript_jobs.c/h   # Background job management
-│   ├── terminal_ansi.c/h      # ANSI escape sequence parser
-│   ├── ed.c/h                 # Ed line editor
-│   ├── process.c/h            # Process scheduler
-│   ├── context_switch.asm     # Assembly context switch
-│   ├── memory.c/h             # Heap, PMM, canaries
-│   ├── fat16.c/h              # FAT16 filesystem driver
-│   ├── gui.c/h                # Window manager
-│   ├── desktop.c/h            # Desktop environment
-│   ├── graphics.c/h           # Drawing primitives
-│   ├── terminal_app.c/h       # GUI terminal
-│   ├── notepad.c/h            # Notepad application (VFS file dialog)
-│   └── ...                    # IDT, IRQ, PIC, panic, etc.
+│   ├── core/                  # kmain, panic, process, scheduler, syscall
+│   ├── cpu/                   # IDT/IRQ/PIC, FPU/SSE, libm, ksyms
+│   ├── fs/                    # VFS, FAT16, ISO9660, ramfs, devfs, homefs
+│   ├── gfx/                   # gfx2d, BMP/PNG/JPEG, fontsys, TTF
+│   ├── gui/                   # window manager, desktop, terminal, ANSI
+│   ├── lang/                  # shell, CupidC, CupidASM, CupidScript, ssh_io
+│   ├── network/               # ARP/IP/ICMP/UDP/TCP/DHCP/DNS/sockets/sshd
+│   ├── tls/                   # TLS records, handshake, CA bundle
+│   ├── crypto/                # AES/ChaCha/RSA/P-256/X25519/X.509 helpers
+│   ├── audio/                 # AC97, mixer, OPL3, MIDI/MUS
+│   ├── doom/                  # doomgeneric port and platform shim
+│   ├── mm/                    # heap, paging, swap
+│   ├── smp/                   # AP bringup, LAPIC/IOAPIC, BKL
+│   └── usb/                   # UHCI/EHCI, HID, hubs, mass storage
 ├── drivers/
 │   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
 │   ├── mouse.c/h              # PS/2 mouse (IRQ12)
@@ -142,7 +134,13 @@ cupid-os/
 │   ├── ata.c/h                # ATA/IDE disk
 │   ├── serial.c/h             # COM1 serial port
 │   ├── timer.c/h + pit.c/h    # PIT timer
+│   ├── rtl8139.c/h            # Realtek NIC
+│   ├── e1000.c/h              # Intel NIC
 │   └── speaker.c/h            # PC speaker
+├── bin/
+│   ├── browser.cc + browser/  # render-pipeline browser
+│   ├── ssh.cc, telnet.cc      # remote terminal clients
+│   └── *.cc                   # source-backed shell commands
 ├── docs/plans/                # Design documents
 ├── link.ld                    # Linker script
 ├── Makefile                   # Build system

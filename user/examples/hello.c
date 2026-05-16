@@ -6,7 +6,7 @@
  *       -Iuser -c user/examples/hello.c -o hello.o
  *   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
  *       -o hello hello.o
- */
+*/
 
 #include "../cupid.h"
 

@@ -3,7 +3,6 @@
 32-bit x86 hobby OS written in C and NASM. Has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. Runs on real hardware or QEMU. Inspired by TempleOS, OsakaOS, and Unix.
 
 ![Desktop](img/background.png)
-![Freedoom](img/freedoom.png)
 ![File manager](img/fm.png)
 ![Paint](img/paint.png)
 
@@ -18,7 +17,7 @@
 - #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump
 - CupidASM, an Intel-syntax x86-32 assembler with JIT and ELF32 AOT output
 - CupidScript, a shell scripting language with pipes, redirects, and job control
-- 73 built-in shell programs with history, tab completion, pipes, and redirects
+- 100+ embedded source-backed shell programs with history, context-aware tab completion, pipes, and redirects
 - VFS with RamFS (/), DevFS (/dev), FAT16 (/disk), and persistent homefs (/home)
 - Opt-in swap: handle-based disk-backed memory extension with 4 size
   classes (1K/4K/16K/64K), true LRU eviction, up to 1024 handles over
@@ -37,12 +36,13 @@
 - **Networking**: RTL8139 + E1000 drivers, ARP / IPv4 (with fragmentation + reassembly) / ICMP / UDP / TCP (client + server, retransmit, dynamic window), DHCP with static fallback, DNS resolver, BSD-style sockets, integration test harness (`make test-net`) on both NICs
 - **TLS 1.2 + 1.3 client**: full handshake against the public Internet, ChaCha20-Poly1305 + AES-128-GCM AEAD, RSA-PKCS1v15 + RSA-PSS verify, ECDSA-P256, X25519 + P-256 ECDHE, X.509 chain validation against an embedded Mozilla CA bundle, hostname matching
 - **HTTP + HTTPS clients**: `curl` (GET/POST, `-o`, `-i`, `-s`, `-X`, `-d`, `-H`, follows http->http redirects), `wget` (auto-named output, `-O`, `-q`, status report)
-- **Browser**: in-shell graphical browser with a real render pipeline (HTML5 tokenizer, tree builder, CSS lexer + cascade, render tree, BFC + IFC layout, paint), HTTP and HTTPS, link navigation, Backspace history, GET form submit
+- **Remote terminals**: in-OS `ssh` client, `telnet` client, and `sshd` server. SSH supports password/keyboard-interactive auth, PTY shells, remote exec, host-key verification, Curve25519/ChaCha20-Poly1305, and terminal window-size updates.
+- **Browser**: in-shell graphical browser with a real render pipeline (HTML5 tokenizer, tree builder, CSS lexer + cascade/specificity, CSS variables/calc, `@font-face`, external stylesheets, render tree, BFC + IFC layout, paint), HTTP and HTTPS, link navigation, Backspace history, GET form submit
 - **Audio stack**: AC97 PCI codec at 22050 Hz stereo with BDL DMA + IRQ refill, 16-slot s16 software mixer (PCM + streaming), Nuked-OPL3 FM emulator (cycle-accurate, LGPL-2.1), 18-voice MIDI dispatcher with GENMIDI patch loader, percussion, 2-voice patches, pan, sustain pedal
 - **DOOM**: Freedoom1/2 WADs auto-discovered from `/disk/wads/`, full SFX through the mixer, music via MUS->MIDI->OPL3 (slot 8), keyboard controls, savegames + `default.cfg` persisted to `/home/doom/`
 - Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE. Scriptable with `run-tests.sh`
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
-- System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs
+- System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
 ## Recent additions
@@ -57,12 +57,14 @@ Six feature tracks landed on top of the GUI/compiler/shell base, each with a des
 - **TCP/IP networking**: RTL8139 and E1000 drivers, ARP + IPv4 + ICMP + UDP + TCP (RFC 793 subset, client and server), DHCP client with static fallback, DNS resolver with 16-entry TTL cache, and a 32-slot BSD socket table exposed to both the shell and CupidC. TCP includes per-socket retransmit (stop-and-wait, exponential backoff), dynamic advertised window from actual rx-buffer free space, and listen-queue half-open garbage collection. IP supports fragmentation on send and a 4-slot reassembly table on receive (~64 KB datagrams).
 - **TLS 1.2 + 1.3 client**: in-tree implementation of TLS records (ChaCha20-Poly1305, AES-128-GCM), handshake (X25519 / P-256 ECDHE, ECDSA-P256, RSA verify with both PKCS1v15 and PSS), HKDF + SHA-256 + HMAC, ASN.1/DER walker, X.509 v3 parser, and chain validation against an embedded Mozilla CA bundle. Self-test boots through RFC test vectors. Used by `curl https://`, `wget https://`, and the in-shell `browser`.
 - **HTTP / HTTPS clients**: `bin/curl.cc` and `bin/wget.cc` are CupidC programs against the Phase-5 socket + TLS bindings. curl supports GET and POST, `-o` / `-i` / `-s` / `-X` / `-d` / `-H`, and follows http->http redirects (capped at 5 hops). wget auto-derives the output filename and reports status code + bytes saved.
-- **Browser**: `bin/browser.cc` is a render-pipeline browser split across `bin/browser/{util,url,net,dom,parser,style,render_tree,layout,paint,nav,input,main}.cc`. HTML5 tokenizer + tree builder, CSS lexer with UA + author cascade and inheritance, render-tree builder, BFC + IFC line-box layout, painter walks the render tree. HTTP and HTTPS, address bar (Ctrl-L), Backspace history, click navigation, GET form submit. Tested against `example.com`, `iana.org` (RSA-4096, 6 KB body), and Cloudflare-fronted sites.
+- **SSH + Telnet**: `bin/ssh.cc` is a CupidC SSH-2 client with Curve25519 key exchange, ChaCha20-Poly1305 transport, host-key verification for Ed25519/RSA-SHA2/ECDSA-P256, password and keyboard-interactive auth, PTY shell, and remote exec. `bin/telnet.cc` handles IAC negotiation, TTYPE, NAWS, Ctrl-] local commands, and CRLF-safe interactive use. `kernel/lang/ssh_io.c` bridges both clients to the GUI terminal with hidden password input, VT/xterm key translation, resize events, and ANSI rendering.
+- **Browser**: `bin/browser.cc` is a render-pipeline browser split across `bin/browser/{css,dom,font_face,image,input,js_dom,js_interp,js_lex,js_parse,layout,main,nav,net,paint,parser,render_tree,style,url,url_hash,util,woff,woff2}.cc`. HTML5 tokenizer + tree builder, CSS lexer with UA + author cascade, specificity, variables/calc, `@font-face`, external `<link rel=stylesheet>`, rounded corners, box shadows, overflow clipping, WOFF1 webfont support, WOFF2 fallback handling, render-tree builder, BFC + IFC line-box layout, painter walks the render tree. HTTP and HTTPS, address bar (Ctrl-L), Backspace history, click navigation, GET form submit, checkboxes/text inputs, and `about:dump`.
+- **Font system**: `kernel/gfx/fontsys.c` registers bundled Liberation TTFs, rasterizes UTF-8 text, persists the OS default in `/etc/font.conf`, exposes CupidC bindings, and powers browser text plus the `fontswitch` GUI.
 - **Audio stack**: PCI AC97 codec at 22050 Hz stereo, 32-entry BDL ring with IOC IRQ refill (`kernel/audio/ac97.c`). 16-slot s16 software mixer with both PCM and streaming-source playback (`kernel/audio/mixer.c`). Nuked-OPL3 FM emulator vendored under LGPL-2.1 (`kernel/audio/nuked_opl3.c`). MUS-to-MIDI converter (chocolate-doom, GPL-2). 18-voice MIDI dispatcher with GENMIDI patch loader, percussion bank, 2-voice patches, pan, sustain pedal, master-volume re-leveling, single-pass resampler (`kernel/audio/midiopl.c`). `audiotest all` exercises sine, sweep, pan, OPL smoke, and AC97-routed OPL.
 - **DOOM**: doomgeneric vendored under `kernel/doom/src/` (BSD/GPL-2). Platform shim wires DG_DrawFrame to the VBE backbuffer, DG_GetKey to the raw-scancode keyboard subscriber ring, and DG_SleepMs/DG_GetTicksMs to the PIT. dglibc supplies the libc subset DOOM needs (heap, string, stdio, fmt, setjmp). SFX hooks the mixer directly; music goes MUS lump -> MIDI -> midiopl -> Nuked-OPL3 -> mixer slot 8. Freedoom WADs are auto-discovered from `/disk/wads/`; savegames + `default.cfg` persist to `/home/doom/` (homefs). Run: `doom` (or `doom -iwad <path>`).
 - **Kernel symbols + panic backtrace**: two-pass kernel link generates a `.ksyms` blob from `nm` output and embeds it in the kernel. `kernel_panic` decodes return addresses to `function_name+offset` per frame using `ksym_lookup` + a frame-pointer walker. Graceful fallback to raw addresses if the blob is absent or corrupt.
 
-Built-in CupidC smoke tests exercise each track: `feature12_float`, `feature13_double`, `feature14_simd`, `feature15_libm`, `feature16_asm_fpu` (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap), `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client: DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept + echo).
+Built-in CupidC smoke tests exercise each track: `feature12_float`, `feature13_double`, `feature14_simd`, `feature15_libm`, `feature16_asm_fpu` (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap), `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client: DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept + echo), `feature23_full_access` (network/kernel binding sanity), and `feature24_widetypes` (CupidC C-compatibility spellings and control-flow parsing).
 
 ## Feature demo quickstart
 
@@ -147,7 +149,12 @@ resolve example.com
 netstat
 feature21_net           # TCP client: DNS + connect + HTTP GET
 feature22_net_server    # TCP server: listen + accept + echo
+feature23_full_access   # kernel binding sanity checks
 cupidfetch              # one-shot HTTP GET
+sshd                    # start SSH server on port 22
+# host, with make run-ssh: ssh -p 2222 root@127.0.0.1
+ssh user@host           # in-OS SSH client
+telnet telehack.com     # in-OS Telnet client
 
 # 15) HTTP / HTTPS clients
 curl http://example.com/
@@ -158,9 +165,12 @@ wget -O /home/page.html http://example.com/
 # 16) Graphical browser (HTTP + HTTPS)
 browser http://example.com/
 browser https://www.iana.org/
+browser about:dump
 
-# 17) Audio + DOOM
+# 17) Fonts, audio + DOOM
+fontswitch                 # choose system TTF/bitmap font
 audiotest all              # sine + sweep + pan + OPL smoke + AC97-routed OPL
+volume 50                  # mixer master volume
 doom                       # auto-finds Freedoom WAD in /disk/wads/
 doom -iwad /home/my.wad    # alternate IWAD
 ```
@@ -250,19 +260,47 @@ QEMU monitor is at Ctrl+Alt+2. Serial output comes through stdout on `make run`.
 
 ```
 cupid-os/
-  boot/           two-stage BIOS bootloader
-  kernel/         kernel source (104 C files + headers/asm)
-  drivers/        hardware drivers (9 C files)
-  bin/            built-in CupidC programs (88 .cc files)
-  demos/          CupidASM demo programs (21 .asm files)
-  user/           example ELF user programs and cupid.h header
-  wiki/           documentation (28 Markdown files)
-  docs/superpowers/  additional project docs
-  cupidos-txt/    embedded rich-text docs (.CTXT format)
-  img/            screenshots
-  link.ld         linker script
+  boot/                  two-stage BIOS bootloader
+  kernel/                kernel source, organised by subsystem:
+    audio/                 AC97 driver, mixer, OPL3 synth, MIDI/MUS
+    core/                  kmain, panic, process, scheduler,
+                           syscall, app_launch, types, string
+    cpu/                   IDT/IRQ/PIC, FPU, libm, math, simd, ksyms
+    crypto/                AES, ChaCha20, SHA, HMAC, HKDF, RSA,
+                           x25519, P-256, ECDSA, ASN.1, X.509
+    doom/                  vendored doomgeneric + dglibc shim
+    fs/                    VFS, FAT16, ISO9660, ramfs, devfs,
+                           homefs, loopdev, blockcache, blockdev
+    gfx/                   gfx2d, BMP/PNG/JPEG, font, graphics
+    gui/                   gui widgets, desktop, ed, notepad,
+                           terminal app, ANSI
+    lang/                  CupidC compiler, CupidASM, CupidScript,
+                           shell, exec, godspeak, dis
+    mm/                    memory, paging, swap, swap_disk
+    network/               ARP, IP, ICMP, UDP, TCP, DHCP, DNS,
+                           sockets, net_if
+    smp/                   SMP, MP tables, LAPIC/IOAPIC, BKL,
+                           per-CPU, ACPI, AP trampoline
+    tls/                   TLS 1.2/1.3 record + handshake + CA
+    usb/                   USB core, UHCI, EHCI, HID, hub, MSC
+    util/                  calendar, generated *_programs_gen.c
+  drivers/               hardware drivers: ATA, keyboard, mouse,
+                         PIT, RTC, serial, speaker, timer, VGA,
+                         PCI, RTL8139, E1000
+  bin/                   built-in CupidC programs (88 .cc files)
+  demos/                 CupidASM demo programs (21 .asm files)
+  user/                  example ELF user programs + cupid.h
+  wiki/                  documentation (28 Markdown files)
+  docs/superpowers/      additional project docs
+  cupidos-txt/           embedded rich-text docs (.CTXT format)
+  img/                   screenshots
+  link.ld                linker script
   Makefile
 ```
+
+All `kernel/<subdir>/` and `drivers/` are on the include path, so
+sources use bare `#include "foo.h"` regardless of the file's
+location.
 
 ---
 
@@ -277,7 +315,7 @@ Stage 2 does the real work:
 - Switches to unreal mode so it can write above 1MB while still in 16-bit real mode
 - Probes VBE and sets mode 0x118 (640x480x32bpp linear framebuffer)
 - Loads the kernel in 127-sector chunks from LBA 5 to physical address 0x100000
-- Sets up 4KB page tables, identity-mapping 0 to 32MB
+- Sets up 4KB page tables, identity-mapping 0 to 512MB
 - Loads the GDT, enables protected mode, jumps to `_start`
 
 Disk layout:
@@ -309,10 +347,10 @@ LBA 4096+   FAT16 partition (mounted as /disk)
 
 | File | What it does |
 |------|-------------|
-| `memory.c/.h` | Physical memory manager, bitmap allocator over the first 32MB, kernel heap |
+| `memory.c/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
 | `paging.c` | Page tables, identity-mapped address space |
 
-The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit address space. The stack lives from 0x800000 to 0x880000 (grows down, 512KB).
+The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at 0x00B00000-0x00D00000.
 
 ### Processes
 
@@ -398,14 +436,14 @@ Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, a
 - Single-pass recursive descent compiler
 - JIT mode: compile and run .cc files in memory immediately
 - AOT mode: compile to ELF32 binaries on disk
-- Inline assembly, structs up to 16 fields, full ring-0 kernel bindings
-- Limits: 128KB code, 32KB data, 256 functions, 512 symbols per unit
+- Inline assembly, structs/classes, floats/SIMD, constant expressions, labels/goto, and full ring-0 kernel bindings
+- Limits: 1MB code, 8MB data/string storage, 1024 functions, 4096 symbols per unit
 
 **CupidASM** (`as*.c`) is an Intel-syntax x86-32 assembler:
-- 62 mnemonics, 24 registers (8/16/32-bit)
+- Expanded x86-32 integer/control-flow/system/FPU/SSE/atomic coverage
 - JIT and AOT (ELF32) modes
-- Directives: INCLUDE, RESERVE, alignment
-- Forward references, up to 512 labels
+- Directives: `%include`, reserve aliases, `times`, alignment
+- Forward references, up to 8192 labels
 - Kernel bindings for print, malloc, VFS, graphics calls
 
 **CupidScript** (`cupidscript*.c`) is a bash-like scripting language (.cup files):
@@ -424,7 +462,7 @@ Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, a
 | `exec.c/.h` | ELF32 loader: program headers, BSS zeroing, relocation |
 | `syscall.c/.h` | Syscall table passed to ELF programs as a struct of function pointers |
 
-### Shell (kernel/shell.c)
+### Shell (kernel/lang/shell.c)
 
 The shell handles command parsing, pipelines, input/output redirection, background jobs, history with arrow-key navigation, and tab completion. Typing a .cc filename runs it through CupidC JIT. Typing a .asm file runs it through CupidASM JIT. Typing a .cup file runs it through CupidScript.
 
@@ -455,33 +493,31 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-88 CupidC programs embedded in RamFS at boot, all directly runnable from the shell:
+104 top-level CupidC programs are embedded in RamFS at boot, all directly runnable from the shell. Browser support modules under `bin/browser/*.cc` are embedded too, but are included by `browser.cc` rather than launched directly.
 
 | Category | Programs |
 |----------|---------|
-| Core shell/filesystem | cat, cd, cp, find, grep, ls, mkdir, mount, mv, pwd, rm, rmdir, sync, touch |
-| Text/console | clear, echo, ed, printc, resetcolor, setcolor |
-| Process/system | date, help, history, kill, ps, reboot, spawn, sysinfo, time, yield |
+| Core shell/filesystem | cat, cd, cp, find, grep, head, ls, mkdir, mount, mv, pwd, rm, rmdir, sort, sync, tail, touch, wc |
+| Text/console | clear, echo, ed, help, history, printc, resetcolor, setcolor |
+| Process/system | date, kill, ps, reboot, spawn, sysinfo, time, yield |
 | Introspection/debug | cachestats, crashtest, logdump, loglevel, registers, stacktrace |
 | Memory tools | memcheck, memdump, memleak, memstats |
-| GUI/graphics apps | bgstudio, bmptest, fm, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
-| Audio/speech | godsong, godspeak |
+| GUI/graphics apps | bgstudio, bmptest, browser, ctxt, fm, fontswitch, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
+| Audio/speech/media | audiotest, doom, godsong, godspeak, volume |
 | CupidC language tests | cupidc_test1-5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
 | FPU/SSE/libm tests | feature12_float, feature13_double, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |
-| Subsystem smoke tests | feature17_iso (ISO9660), feature18_swap (swap), feature19_usb (USB), feature20_smp (SMP), feature21_net (TCP client), feature22_net_server (TCP server) |
-| Networking utilities | cupidfetch |
-| Legacy compiler experiments | old_cc2, old_cc2_single |
+| Subsystem smoke tests | feature17_iso (ISO9660), feature18_swap (swap), feature19_usb (USB), feature20_smp (SMP), feature21_net (TCP client), feature22_net_server (TCP server), feature23_full_access, feature24_widetypes |
+| Networking utilities | arp, curl, cupidfetch, ifconfig, netstat, ping, resolve, ssh, telnet, wget |
 | Text/documentation viewers | auto, bible, oracle |
-| Test programs | test, test_print |
-| Misc utility | ctxt |
+| Test programs | dglibc_test, kbdsub_test, test, test_fpaug, test_print |
 
 ---
 
 ## Assembly demos (demos/)
 
-21 CupidASM programs embedded in RamFS. Run with `as <name>.asm` from the shell:
+22 CupidASM programs embedded in RamFS. Run with `as <name>.asm` from the shell:
 
-hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_feature, include_helper, jcc_aliases, asm_compat_reserve, reserve_directives, fs_syscalls, syscall_table_demo, syscall_vfs_extended_demo, parity_core, parity_diag, parity_gfx2d, fpu_kernel, simd_blur
+hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_feature, include_helper, jcc_aliases, asm_compat_reserve, reserve_directives, fs_syscalls, syscall_table_demo, syscall_vfs_extended_demo, parity_core, parity_diag, parity_gfx2d, parity_priv, fpu_kernel, simd_blur
 
 ---
 
@@ -499,10 +535,9 @@ The user/ directory has example ELF32 programs (hello.c, cat.c, ls.c) and user/c
 0x100000            Kernel start (_start)
                     .text, .rodata, .data (2MB max)
                     .bss
-0x400000            CupidC JIT region (128KB code + 32KB data)
-0x500000            CupidASM JIT region (128KB code + 32KB data)
-0x800000            Stack guard page
-0x800000-0x880000   Kernel stack (512KB, grows down)
+0x00B00000-0x00D00000 Kernel stack (2MB, grows down; 16-byte guard)
+0x01000000-0x01900000 CupidC JIT/AOT region (1MB code + 8MB data)
+0x01A00000-0x01C00000 CupidASM JIT/AOT region (1MB code + 1MB data)
 0xE0000000+         VBE linear framebuffer (address comes from BIOS)
 ```
 
@@ -534,7 +569,7 @@ Changes made in the 2026-02-16 optimization pass:
 - desktop_redraw_cycle has a cursor-only path that skips full repaints on mouse moves
 - Background animation LUT recalculates at most every 3-4 frames
 - vga_retrace_timeout reduced from 1,000,000 to 50,000 cycles (was blocking up to 100ms)
-- PIT raised from 100Hz to 200Hz, giving 5ms scheduler slices
+- PIT runs at 200Hz, giving 5ms scheduler slices
 - Terminal background is drawn once; characters are not rendered twice on colored backgrounds
 
 ---

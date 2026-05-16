@@ -37,7 +37,7 @@ cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a 
 
 ## VFS Layer
 
-The VFS (`kernel/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications - shell, notepad, program loader - use VFS calls exclusively.
+The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications - shell, notepad, program loader - use VFS calls exclusively.
 
 ### Features
 
@@ -130,7 +130,7 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 ### VFS Helpers
 
-High-level convenience functions for common file I/O patterns. These wrap the low-level `vfs_open` / `vfs_read` / `vfs_write` / `vfs_close` sequence into single calls. Defined in `kernel/vfs_helpers.c/h` and available as CupidC bindings.
+High-level convenience functions for common file I/O patterns. These wrap the low-level `vfs_open` / `vfs_read` / `vfs_write` / `vfs_close` sequence into single calls. Defined in `kernel/fs/vfs_helpers.c/h` and available as CupidC bindings.
 
 | Function | Description |
 |----------|-------------|
@@ -167,7 +167,7 @@ void main() {
 
 ## RamFS
 
-The RAM filesystem (`kernel/ramfs.c/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
+The RAM filesystem (`kernel/fs/ramfs.c/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
 
 ### Features
 
@@ -203,7 +203,7 @@ ramfs_node_t {
 
 ## DevFS
 
-The device filesystem (`kernel/devfs.c/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
+The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
 
 ### Built-in Devices
 
@@ -228,7 +228,7 @@ The device filesystem (`kernel/devfs.c/h`) exposes hardware and pseudo-devices a
 
 ## FAT16 VFS Wrapper
 
-The FAT16 VFS wrapper (`kernel/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making disk files accessible through the unified API.
+The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making disk files accessible through the unified API.
 
 ### How It Works
 
@@ -259,7 +259,7 @@ The FAT16 VFS wrapper (`kernel/fat16_vfs.c/h`) adapts the existing FAT16 driver 
 
 ## Program Loader
 
-The program loader (`kernel/exec.c/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
+The program loader (`kernel/lang/exec.c/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
 
 ### Supported Formats
 
@@ -357,7 +357,7 @@ The VFS sits on top of the existing disk I/O stack, which remains unchanged.
 
 ### Block Device Layer
 
-The block device abstraction (`kernel/blockdev.c`) provides a uniform interface between the filesystem and disk driver.
+The block device abstraction (`kernel/fs/blockdev.c`) provides a uniform interface between the filesystem and disk driver.
 
 | Function | Description |
 |----------|-------------|
@@ -367,7 +367,7 @@ The block device abstraction (`kernel/blockdev.c`) provides a uniform interface 
 
 ### Block Cache
 
-An LRU (Least Recently Used) write-back cache (`kernel/blockcache.c`) sits between the block device layer and the ATA driver.
+An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.c`) sits between the block device layer and the ATA driver.
 
 | Parameter | Value |
 |-----------|-------|
@@ -409,21 +409,21 @@ The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE di
 | `pwd` | `pwd` | Print current working directory |
 | `ls` | `ls [path]` | List files in current directory (or given path) |
 | `cat` | `cat <file>` | Display file contents (supports VFS paths) |
+| `mkdir` | `mkdir <dir...>` | Create one or more directories |
+| `rm` | `rm <file...>` | Delete files |
+| `touch` | `touch <file...>` | Create empty files or update timestamps |
+| `cp` | `cp <source> <dest>` | Copy a file |
+| `mv` | `mv <source> <dest>` | Move/rename a file |
+| `find` | `find [path] [name]` | Search a directory tree |
+| `grep` | `grep <pattern> <path...>` | Search file contents |
 | `mount` | `mount` | Show all mounted filesystems |
-| `vls` | `vls [path]` | List files at an absolute VFS path |
-| `vcat` | `vcat <path>` | Display file at an absolute VFS path |
-| `vstat` | `vstat <path>` | Show file/directory info (type, size) |
-| `vmkdir` | `vmkdir <path>` | Create a directory |
-| `vrm` | `vrm <path>` | Delete a file |
-| `vwrite` | `vwrite <path> <text>` | Write text to a file |
+| `umount` | `umount <target>` | Unmount a filesystem |
 | `exec` | `exec <path>` | Load and run a CUPD executable |
 
 ### Legacy Disk Commands
 
 | Command | Description |
 |---------|-------------|
-| `lsdisk` | List files on FAT16 disk directly |
-| `catdisk <file>` | Read a file from FAT16 disk directly |
 | `sync` | Flush block cache to disk |
 | `cachestats` | Show block cache hit/miss statistics |
 
@@ -457,11 +457,12 @@ MOTD.txt
 Mounted filesystems:
   /       ramfs
   /dev    devfs
-  /home   fat16
+  /disk   fat16
+  /home   homefs
 
-/> vmkdir /tmp/test
-/> vwrite /tmp/test/hello.txt Hello World
-/> vcat /tmp/test/hello.txt
+/> mkdir /tmp/test
+/> echo Hello World > /tmp/test/hello.txt
+/> cat /tmp/test/hello.txt
 Hello World
 ```
 

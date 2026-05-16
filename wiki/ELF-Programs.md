@@ -35,7 +35,7 @@ make -C user
 # Or compile manually:
 gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
     -Iuser -c user/examples/hello.c -o hello.o
-ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
+ld -m elf_i386 -Ttext=0x00600000 --oformat=elf32-i386 \
     -o hello hello.o
 ```
 
@@ -73,7 +73,7 @@ Hello from an ELF program!
 ```
 ┌────────────────────┐
 │   ELF Binary       │  (on FAT16 disk at /home/HELLO)
-│   .text @ 0x400000 │
+│   .text @ 0x600000 │
 │   .data / .bss     │
 └────────┬───────────┘
          │  exec("/home/HELLO", "hello")
@@ -106,21 +106,21 @@ Hello from an ELF program!
 
 ### Memory Model
 
-CupidOS uses a **flat 32 MB identity-mapped** address space. ELF programs are loaded directly at the virtual addresses specified in their program headers - no address translation needed.
+CupidOS uses a **flat 512 MB identity-mapped** address space. ELF programs are loaded directly at the virtual addresses specified in their program headers - no address translation needed.
 
 ```
-Physical / Virtual Memory (32 MB identity-mapped):
+Physical / Virtual Memory (512 MB identity-mapped):
 ┌─────────────────────────┬──────────────────────┐
 │ 0x00000000 - 0x00010000 │ Reserved (64 KB)     │
 │ 0x00010000 - 0x00040000 │ Kernel (~192 KB)     │
 │ 0x00040000 - 0x00200000 │ Heap + Stacks        │
-│ 0x00400000 - ...        │ ELF Program Memory   │
+│ 0x00500000 - ...        │ ELF Program Memory   │
 │ ...                     │ ...                  │
-│ 0x02000000              │ End of identity map  │
+│ 0x20000000              │ End of identity map  │
 └─────────────────────────┴──────────────────────┘
 ```
 
-Programs are linked at `0x00400000` by default (well above the kernel and heap). The PMM reserves the pages used by each ELF so they won't be allocated for other purposes. When the process exits, the pages are released back to the PMM.
+Programs should be linked at `0x00600000` by default. The loader rejects ELF load ranges below `0x00500000` to avoid kernel image overlap, and the PMM reserves the pages used by each ELF so they won't be allocated for other purposes. When the process exits, the pages are released back to the PMM.
 
 ### Syscall Table
 
@@ -157,7 +157,7 @@ This design is simple, fast (no mode switches), and gives programs full kernel a
 | Flag | Purpose |
 |------|---------|
 | `-m elf_i386` | Target i386 ELF format |
-| `-Ttext=0x00400000` | Set code base address (4 MB) |
+| `-Ttext=0x00600000` | Set code base address (6 MB) |
 | `--oformat=elf32-i386` | Output ELF32 format |
 
 ### User Makefile
@@ -280,7 +280,7 @@ After calling `cupid_init(sys)`, you can use these wrapper functions directly (n
 ### Phase 4 / 5 - Networking + drivers (syscall table v3)
 
 Bumped to **`CUPID_SYSCALL_VERSION = 3`** in
-`kernel/syscall.h`. Layout is append-only - programs built against v2
+`kernel/core/syscall.h`. Layout is append-only - programs built against v2
 still work; new programs should check `sys->version >= 3` and
 `sys->table_size >= sizeof(<largest field they touch>)` before calling
 the new fields.
@@ -575,10 +575,10 @@ The loader checks all of the following before loading:
 
 | Constraint | Value | Reason |
 |------------|-------|--------|
-| Minimum vaddr | `0x00200000` (2 MB) | Stay above kernel/heap |
-| Maximum vaddr | `0x02000000` (32 MB) | End of identity map |
+| Minimum vaddr | `0x00500000` (5 MB) | Stay above the kernel image |
+| Maximum vaddr | `0x20000000` (512 MB) | End of identity map |
 | Max total image | 256 KB | `EXEC_MAX_SIZE` limit |
-| Link address | `0x00400000` (default) | Convention for user programs |
+| Link address | `0x00600000` (recommended) | Loader diagnostic recommends this for external ELFs |
 
 ### Memory Lifecycle
 
@@ -635,8 +635,8 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 | Max program headers | 16 |
 | Max concurrent processes | 32 |
 | Stack per process | 8 KB (default) |
-| Total system memory | 32 MB |
-| Disk filename format | 8.3 uppercase (FAT16) |
+| Total managed memory | 512 MB |
+| Disk filename format | VFS paths, with FAT16 constraints visible under `/disk` |
 
 ---
 

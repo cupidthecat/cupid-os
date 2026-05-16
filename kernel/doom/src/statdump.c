@@ -17,7 +17,7 @@
  Functions for presenting the information captured from the statistics
  buffer to a file.
 
- */
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,7 +66,7 @@ static GameMission_t discovered_gamemission = none;
 /* Try to work out whether this is a Doom 1 or Doom 2 game, by looking
  * at the episode and map, and the par times.  This is used to decide
  * how to format the level name.  Unfortunately, in some cases it is
- * impossible to determine whether this is Doom 1 or Doom 2. */
+ * impossible to determine whether this is Doom 1 or Doom 2.*/
 
 static void DiscoverGamemode(wbstartstruct_t *stats, int num_stats)
 {
@@ -92,7 +92,7 @@ static void DiscoverGamemode(wbstartstruct_t *stats, int num_stats)
         }
 
         /* This is episode 1.  If this is level 10 or higher,
-           it must be Doom 2. */
+           it must be Doom 2.*/
 
         if (level >= 9)
         {
@@ -101,7 +101,7 @@ static void DiscoverGamemode(wbstartstruct_t *stats, int num_stats)
         }
 
         /* Try to work out if this is Doom 1 or Doom 2 by looking
-           at the par time. */
+           at the par time.*/
 
         partime = stats[i].partime;
 

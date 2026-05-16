@@ -5,7 +5,7 @@
  * Local modifications:
  *  - Replaced <inttypes.h> with "../types.h" so the header is usable under
  *    the kernel's -nostdlib -nostdinc build environment.
- */
+*/
 
 /* Nuked OPL3
  * Copyright (C) 2013-2020 Nuke.YKT
@@ -37,7 +37,7 @@
  *          YMF262 and VRC VII decaps and die shots.
  *
  * version: 1.8
- */
+*/
 
 #ifndef OPL_OPL3_H
 #define OPL_OPL3_H
@@ -46,7 +46,7 @@
 extern "C" {
 #endif
 
-#include "../types.h"
+#include "types.h"
 
 #ifndef OPL_ENABLE_STEREOEXT
 #define OPL_ENABLE_STEREOEXT 0
@@ -92,7 +92,7 @@ struct _opl3_slot {
 };
 
 struct _opl3_channel {
-    opl3_slot *slotz[2];/*Don't use "slots" keyword to avoid conflict with Qt applications*/
+    opl3_slot *slotz[2];/* Don't use "slots" keyword to avoid conflict with Qt applications */
     opl3_channel *pair;
     opl3_chip *chip;
     int16_t *out[4];

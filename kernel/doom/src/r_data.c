@@ -44,7 +44,7 @@
 // is stored in vertical runs of opaque pixels (posts).
 // A column is composed of zero or more posts,
 // a patch or sprite is composed of zero or more columns.
-// 
+//
 
 
 
@@ -611,7 +611,7 @@ void R_InitTextures (void)
     if (maptex2)
         W_ReleaseLumpName(DEH_String("TEXTURE2"));
     
-    // Precalculate whatever possible.	
+    // Precalculate whatever possible.
 
     for (i=0 ; i<numtextures ; i++)
 	R_GenerateLookup (i);
@@ -686,7 +686,7 @@ void R_InitColormaps (void)
 {
     int	lump;
 
-    // Load in the light tables, 
+    // Load in the light tables,
     //  256 byte align tables.
     lump = W_GetNumForName(DEH_String("COLORMAP"));
     colormaps = W_CacheLumpNum(lump, PU_STATIC);

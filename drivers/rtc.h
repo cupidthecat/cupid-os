@@ -4,12 +4,12 @@
  * Provides access to the CMOS Real-Time Clock hardware for reading
  * the current time and date. The RTC is accessed through CMOS ports
  * 0x70 (index) and 0x71 (data).
- */
+*/
 
 #ifndef RTC_H
 #define RTC_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 typedef struct {
     uint8_t second;  /* 0-59 */
@@ -28,14 +28,14 @@ typedef struct {
  * rtc_init - Initialize the RTC driver
  *
  * Performs a test read to verify the RTC is present and functional.
- */
+*/
 void rtc_init(void);
 
 /**
  * rtc_read_time - Read current time from CMOS RTC
  *
  * @param time: Pointer to rtc_time_t to fill with current time
- */
+*/
 void rtc_read_time(rtc_time_t *time);
 
 /**
@@ -44,7 +44,7 @@ void rtc_read_time(rtc_time_t *time);
  * Reads day, month, year and calculates the weekday.
  *
  * @param date: Pointer to rtc_date_t to fill with current date
- */
+*/
 void rtc_read_date(rtc_date_t *date);
 
 /**
@@ -52,7 +52,7 @@ void rtc_read_date(rtc_date_t *date);
  *
  * @param time: Pointer to time structure to validate
  * @return: true if valid, false otherwise
- */
+*/
 bool rtc_validate_time(const rtc_time_t *time);
 
 /**
@@ -60,7 +60,7 @@ bool rtc_validate_time(const rtc_time_t *time);
  *
  * @param date: Pointer to date structure to validate
  * @return: true if valid, false otherwise
- */
+*/
 bool rtc_validate_date(const rtc_date_t *date);
 
 /**
@@ -70,7 +70,7 @@ bool rtc_validate_date(const rtc_date_t *date);
  * Note: Assumes the RTC is set to local time (no timezone offset).
  *
  * @return: Seconds since epoch, or 0 if RTC data is invalid
- */
+*/
 uint32_t rtc_get_epoch_seconds(void);
 
 #endif

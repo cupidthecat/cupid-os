@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -29,7 +29,7 @@ Use:
 
 >h2 Shell Built-Ins
 >tree open Shell Built-Ins
-Built-ins verified in kernel/shell.c (commands[] table):
+Built-ins verified in kernel/lang/shell.c (commands[] table):
 
 Language / compiler:
 - cupid        run a .cup script
@@ -61,6 +61,13 @@ System:
 - usb          list USB devices (usb | usb hubs | usb hc)
 - pci          list PCI devices (bus:dev.fn vid:did class irq)
 - smp          list CPUs (smp | smp info)
+- ifconfig     show/configure primary NIC state
+- ping         ICMP echo
+- netstat      socket table
+- arp          ARP cache
+- resolve      DNS lookup
+- sshd         manage the SSH server (start|stop|status|passwd)
+- doom         run DOOM with auto-discovered Freedoom WAD
 
 Note: jobs is a CupidScript-only builtin (runs inside .cup scripts),
 not a shell built-in.
@@ -99,6 +106,10 @@ Source-backed command set from shipped /bin/*.cc:
 - pwd
 - cd [path]
 - cat <file>
+- head <file>
+- tail <file>
+- wc <file>
+- sort <file>
 - cp <source> <dest>
 - mv <source> <dest>
 - rm <file...>
@@ -129,6 +140,20 @@ Core shipped commands:
 - reboot
 - sysinfo
 - cupidfetch
+- ifconfig
+- arp
+- ping
+- resolve
+- netstat
+- curl
+- wget
+- ssh
+- telnet
+- browser
+- fontswitch
+- audiotest
+- volume
+- doom
 - godspeak
 - godsong
 - setcolor
@@ -140,6 +165,36 @@ Core shipped commands:
 >button history | shell:history
 >button cupidfetch | shell:cupidfetch
 >button godspeak | shell:godspeak
+>endtree
+
+>h2 Networking, Browser, Remote Shells
+>tree open Networking, Browser, Remote Shells
+Source-backed network tools:
+- ifconfig     primary NIC IP/gw/dns/MAC/counters
+- arp          ARP cache
+- ping         ICMP echo
+- resolve      DNS lookup
+- netstat      socket table
+- curl         HTTP/HTTPS client
+- wget         HTTP/HTTPS downloader
+- browser      graphical HTTP/HTTPS browser
+- ssh          SSH-2 client
+- telnet       Telnet client
+- sshd         SSH server manager
+
+Examples:
+  curl -i https://www.iana.org/
+  browser http://example.com/
+  ssh user@host
+  telnet telehack.com
+
+Host-to-guest SSH server:
+  make run-ssh
+  (guest) sshd
+  (host)  ssh -p 2222 root@127.0.0.1
+
+>button curl example.com | shell:curl http://example.com/
+>button Networking Guide | open:18NET.CTXT
 >endtree
 
 >h2 Process and Debug Commands
@@ -174,6 +229,8 @@ Shipped GUI/app-side commands and demos:
 - notepad
 - fm
 - paint
+- browser
+- fontswitch
 - gfxdemo
 - gfxtest
 - gfxgui_test
@@ -185,6 +242,18 @@ Shipped GUI/app-side commands and demos:
 >button Notepad | shell:notepad
 >button FM | shell:fm
 >button Paint | shell:paint
+>endtree
+
+>h2 Audio and DOOM
+>tree open Audio and DOOM
+Media/runtime commands:
+- audiotest all       run sine/sweep/pan/OPL smoke tests
+- volume [0-100]      get/set mixer master volume
+- doom                run DOOM with auto-discovered Freedoom WAD
+- doom -iwad <path>   choose an IWAD manually
+
+WADs are staged under /disk/wads with make stage-wads.
+>button Audio Test | shell:audiotest all
 >endtree
 
 >h2 TempleOS / God Commands
@@ -223,9 +292,16 @@ Compiler/language test programs currently embedded in /bin:
 - feature18_swap           (P3 swap)
 - feature19_usb            (P4 USB)
 - feature20_smp            (P5 SMP)
+- feature21_net            (P6 TCP client)
+- feature22_net_server     (P6 TCP server)
+- feature23_full_access    (binding sanity)
+- feature24_widetypes      (CupidC C-compat types/control flow)
 - fp_drill                 (FPU exception drill — reboots kernel!)
-- old_cc2
-- old_cc2_single
+- dglibc_test
+- kbdsub_test
+- test
+- test_fpaug
+- test_print
 >endtree
 
 >h2 Assembler and Loader Commands

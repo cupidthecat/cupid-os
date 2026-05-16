@@ -1,0 +1,18 @@
+<!doctype html>
+<title>overflow:hidden</title>
+<style>
+.frame {
+  width: 200px; height: 60px;
+  background: #f0f0f0;
+  border: 1px solid #404040;
+  margin: 16px;
+  overflow: hidden;
+}
+.tall {
+  width: 400px; height: 200px;
+  background: #ffc0c0;
+}
+</style>
+<div class="frame">
+  <div class="tall">This wide+tall content should clip to the 200x60 frame.</div>
+</div>

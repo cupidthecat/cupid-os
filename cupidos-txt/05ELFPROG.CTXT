@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,7 +17,7 @@ Verified against source on: 2026-04-17
 >tree open Overview
 This is the GCC/ELF path, separate from CupidC source JIT.
 
-kernel/exec.c currently supports:
+kernel/lang/exec.c currently supports:
 - ELF32 executables
 - i386 machine type
 - ET_EXEC
@@ -45,15 +45,16 @@ the kernel.
 
 >h2 Loader Constraints
 >tree open Loader Constraints
-Source-verified loader checks from kernel/exec.c:
+Source-verified loader checks from kernel/lang/exec.c:
 - ELF32 only (EXEC_MAX_SIZE = 256 KB)
 - little-endian
 - executable type required
 - i386 only
 - at least one PT_LOAD segment (max ELF_MAX_PHDRS = 16)
 - image size must be <= 256 KB
-- load address must be >= 0x00400000
-- image must fit inside the identity-mapped range
+- load address must be >= 0x00500000
+- loader error text recommends relinking external ELFs with -Ttext=0x00600000
+- image must fit inside the 512 MB identity-mapped range
 
 If the binary violates those rules, exec rejects it.
 >endtree
@@ -119,11 +120,11 @@ Example object build:
       -c user/examples/hello.c -o hello.o
 
 Example link:
-  ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
+ld -m elf_i386 -Ttext=0x00600000 --oformat=elf32-i386 \
      -o hello hello.o
 
-The -Ttext=0x00400000 choice matters because the loader rejects low load
-addresses.
+The -Ttext=0x00600000 choice matters because the loader rejects low load
+addresses below 0x00500000.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC

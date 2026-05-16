@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,8 +17,9 @@ Verified against source on: 2026-04-17
 >tree open Overview
 CupidASM is CupidOS's in-kernel x86-32 assembler.
 
-Source files: kernel/as.c, kernel/as_lex.c, kernel/as_parse.c,
-              kernel/as_elf.c (AOT ELF output), kernel/dis.c (disassembly).
+Source files: kernel/lang/as.c, kernel/lang/as_lex.c,
+              kernel/lang/as_parse.c, kernel/lang/as_elf.c
+              (AOT ELF output), kernel/lang/dis.c (disassembly).
 
 Main command forms:
   as file.asm
@@ -30,6 +31,16 @@ Main command forms:
 as is the JIT-first path.
 cupidasm is the explicit assemble-to-ELF path with a default derived output
 name when -o is omitted.
+
+Source-backed limits from kernel/lang/as.h:
+- code buffer: 1 MB
+- data buffer: 1 MB
+- labels: 8192
+- forward-reference patches: 8192
+- source line and string literal length: 1024 bytes
+- nested %include depth: 16
+- JIT/AOT code base: 0x01A00000
+- JIT/AOT data base: 0x01B00000
 >endtree
 
 >h2 Entry Points and Calling Convention
@@ -66,9 +77,11 @@ Source-backed syntax from the assembler/parser:
 - times
 - global
 - extern
+- %include "path.asm" with capped nesting depth
 
-Known limitation:
-- %include is tokenized but include expansion is not implemented
+Relative includes resolve from the including file first, then through the VFS
+CWD. This supports helper files under /demos and source-tree examples that
+share constants or small routines.
 >endtree
 
 >h2 Instruction Coverage
@@ -85,6 +98,12 @@ shipped demos, including:
 - mul, imul, div, idiv
 - shifts and rotates
 - nop, hlt, cli, sti, iret, leave
+- jcc aliases including parity aliases: jp/jpe and jnp/jpo
+- privileged/system opcodes: lgdt/lidt/sgdt/sidt, invlpg, ltr/str/sldt,
+  smsw/lmsw, cpuid, rdtsc, rdmsr/wrmsr, wbinvd/invd, clts,
+  sysenter/sysexit/syscall, iretd/retf
+- atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
+- sized memory inc/dec and reserve directives
 
 FPU/SSE opcodes added in P1 (~80 new opcodes):
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
@@ -94,6 +113,8 @@ FPU/SSE opcodes added in P1 (~80 new opcodes):
 - Register tokens: XMM0-7 and ST0-7
 
 Use the shipped demos under /demos as the real compatibility baseline.
+Recent coverage demos include include_helper.asm, jcc_aliases.asm,
+reserve_directives.asm, parity_priv.asm, and parity_gfx2d.asm.
 >endtree
 
 >h2 JIT Mode
@@ -102,7 +123,7 @@ as file.asm reads the source through VFS, assembles it in memory, and runs it
 immediately.
 
 JIT mode pre-registers kernel symbols as labels so asm programs can call into
-the OS directly. Examples from kernel/as.c:
+the OS directly. Examples from kernel/lang/as.c:
 - print, println (console output)
 - vfs_open, vfs_read, vfs_write, vfs_close, vfs_seek, vfs_stat, vfs_readdir
 - vfs_mkdir, vfs_unlink, vfs_rename, vfs_copy_file, vfs_read_all, vfs_write_all
@@ -143,12 +164,29 @@ as CupidC.
 
 >h2 Demo Sources
 >tree open Demo Sources
-The source tree and boot image ship asm demos under:
-- /demos/*.asm
-
-FPU/SIMD demo files added in P1:
-- demos/fpu_kernel.asm    CupidASM FPU state + scalar + packed + x87
-- demos/simd_blur.asm     SIMD box blur via MOVUPS/ADDPS/MULPS
+The source tree and boot image ship 22 asm demos under /demos:
+- asm_compat_reserve.asm
+- bubblesort.asm
+- data.asm
+- factorial.asm
+- fibonacci.asm
+- fpu_kernel.asm
+- fs_syscalls.asm
+- hello.asm
+- include_feature.asm
+- include_helper.asm
+- jcc_aliases.asm
+- loop.asm
+- math.asm
+- parity_core.asm
+- parity_diag.asm
+- parity_gfx2d.asm
+- parity_priv.asm
+- reserve_directives.asm
+- simd_blur.asm
+- stack.asm
+- syscall_table_demo.asm
+- syscall_vfs_extended_demo.asm
 
 If you are using persistent copies under the HDD image, make sync-demos
 refreshes the demo set there.

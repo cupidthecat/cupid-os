@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 
 /*  Test vectors:
@@ -27,7 +27,7 @@
  *
  *  "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
  *  8498 3E44 1C3B D26E BAAE  4AA1 F951 29E5 E546 70F1
- */
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ void SHA1_Init(sha1_context_t *hd)
 
 /****************
  * Transform the message X which consists of 16 32-bit-words
- */
+*/
 static void Transform(sha1_context_t *hd, byte *data)
 {
     uint32_t a,b,c,d,e,tm;
@@ -194,7 +194,7 @@ static void Transform(sha1_context_t *hd, byte *data)
 
 /* Update the message digest with the contents
  * of INBUF with length INLEN.
- */
+*/
 void SHA1_Update(sha1_context_t *hd, byte *inbuf, size_t inlen)
 {
     if (hd->count == 64)
@@ -233,7 +233,7 @@ void SHA1_Update(sha1_context_t *hd, byte *inbuf, size_t inlen)
  * The handle is prepared for a new cycle, but adding bytes to the
  * handle will the destroy the returned buffer.
  * Returns: 20 bytes representing the digest.
- */
+*/
 
 void SHA1_Final(sha1_digest_t digest, sha1_context_t *hd)
 {

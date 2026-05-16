@@ -76,7 +76,7 @@ boolean M_FileExists(char *filename)
     }
     else
     {
-        // If we can't open because the file is a directory, the 
+        // If we can't open because the file is a directory, the
         // "file" exists at least!
 
         return errno == EISDIR;
@@ -232,13 +232,13 @@ void M_ExtractFileBase(char *path, char *dest)
     }
 }
 
-//---------------------------------------------------------------------------
+//
 //
 // PROC M_ForceUppercase
 //
 // Change string to uppercase.
 //
-//---------------------------------------------------------------------------
+//
 
 void M_ForceUppercase(char *text)
 {

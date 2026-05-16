@@ -11,7 +11,7 @@
  * Notepad/Terminal:
  *   gui_win_create -> gui_win_is_open -> gui_win_can_draw ->
  *   gui_win_draw_frame -> gui_win_flip
- */
+*/
 
 int FM_MAX_FILES     = 256;
 int FM_MAX_PATH      = 128;
@@ -246,7 +246,8 @@ int fm_delete_path_recursive(char *path, int is_dir) {
 
   int fd = vfs_open(path, 0);
   if (fd >= 0) {
-    char ent[72];
+    // vfs_dirent_t: name[128], size@128, type@132. 136 bytes total.
+    char ent[136];
     while (1) {
       int r = vfs_readdir(fd, ent);
       if (r <= 0) break;
@@ -257,7 +258,7 @@ int fm_delete_path_recursive(char *path, int is_dir) {
 
       char child[128];
       fm_build_path(child, path, dname);
-      int child_is_dir = (ent[68] == VFS_TYPE_DIR) ? 1 : 0;
+      int child_is_dir = (ent[132] == VFS_TYPE_DIR) ? 1 : 0;
       fm_delete_path_recursive(child, child_is_dir);
     }
     vfs_close(fd);
@@ -304,7 +305,8 @@ void fm_refresh() {
   int fd = vfs_open(cwd, 0);
   if (fd < 0) return;
 
-  char ent[72];
+  // vfs_dirent_t: name[128], size@128, type@132. 136 bytes total.
+  char ent[136];
   while (1) {
     int r = vfs_readdir(fd, ent);
     if (r <= 0) break;
@@ -316,13 +318,13 @@ void fm_refresh() {
 
     fm_copy_name64(files[file_count].name, dname);
     {
-      int b0 = ((int)ent[64]) & 255;
-      int b1 = ((int)ent[65]) & 255;
-      int b2 = ((int)ent[66]) & 255;
-      int b3 = ((int)ent[67]) & 255;
+      int b0 = ((int)ent[128]) & 255;
+      int b1 = ((int)ent[129]) & 255;
+      int b2 = ((int)ent[130]) & 255;
+      int b3 = ((int)ent[131]) & 255;
       files[file_count].size = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
     }
-    files[file_count].is_dir = ((((int)ent[68]) & 255) == VFS_TYPE_DIR) ? 1 : 0;
+    files[file_count].is_dir = ((((int)ent[132]) & 255) == VFS_TYPE_DIR) ? 1 : 0;
     files[file_count].selected = 0;
     file_count++;
   }
@@ -835,7 +837,7 @@ void main() {
 
       if (left_click && in_content) {
         /* Toolbar buttons are handled in render() through draw_button() hit test.
-         * For list interactions we handle here. */
+         * For list interactions we handle here.*/
         if (lmx >= list_x && lmx < list_x + list_w &&
             lmy >= items_y && lmy < items_y + items_h) {
           int clicked_row = (lmy - items_y) / FM_ITEM_H;

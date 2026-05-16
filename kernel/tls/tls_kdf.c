@@ -30,7 +30,7 @@ void tls_kdf_finished_key(const uint8_t traffic_secret[32],
  *   P_hash(secret, seed) = HMAC(secret, A(1) || seed) ||
  *                          HMAC(secret, A(2) || seed) || ...
  *   where A(0) = seed, A(i) = HMAC(secret, A(i-1)).
- *   PRF(secret, label, seed) = P_SHA256(secret, label || seed). */
+ *   PRF(secret, label, seed) = P_SHA256(secret, label || seed).*/
 void tls12_prf(const uint8_t *secret,  uint32_t secret_len,
                const char    *label,
                const uint8_t *seed,    uint32_t seed_len,

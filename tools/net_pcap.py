@@ -34,13 +34,13 @@ def check_pcap(path: Path) -> tuple[bool, list[str]]:
             ok = False
         notes.append(("OK  " if b else "FAIL") + " " + msg)
 
-    # ARP
+    # ----- ARP -----
     arp_req = [p for p in pkts if p.haslayer(ARP) and p[ARP].op == 1]
     arp_rep = [p for p in pkts if p.haslayer(ARP) and p[ARP].op == 2]
     add(len(arp_req) >= 1, f"ARP requests: {len(arp_req)}")
     add(len(arp_rep) >= 1, f"ARP replies:  {len(arp_rep)}")
 
-    # DHCP
+    # ----- DHCP -----
     dhcp_msgs = {1: 0, 2: 0, 3: 0, 5: 0}  # DISCOVER/OFFER/REQUEST/ACK
     for p in pkts:
         if not p.haslayer(DHCP):
@@ -55,13 +55,13 @@ def check_pcap(path: Path) -> tuple[bool, list[str]]:
     add(dhcp_msgs[3] >= 1, f"DHCP REQUEST:  {dhcp_msgs[3]}")
     add(dhcp_msgs[5] >= 1, f"DHCP ACK:      {dhcp_msgs[5]}")
 
-    # ICMP
+    # ----- ICMP -----
     icmp_req = [p for p in pkts if p.haslayer(ICMP) and p[ICMP].type == 8]
     icmp_rep = [p for p in pkts if p.haslayer(ICMP) and p[ICMP].type == 0]
     add(len(icmp_req) >= 1, f"ICMP echo-request: {len(icmp_req)}")
     add(len(icmp_rep) >= 1, f"ICMP echo-reply:   {len(icmp_rep)}")
 
-    # TCP handshake / teardown
+    # ----- TCP handshake / teardown -----
     tcp = [p for p in pkts if p.haslayer(TCP) and p.haslayer(IP)]
     syn      = [p for p in tcp if p[TCP].flags & 0x02 and not (p[TCP].flags & 0x10)]
     syn_ack  = [p for p in tcp if (p[TCP].flags & 0x12) == 0x12]
@@ -74,7 +74,7 @@ def check_pcap(path: Path) -> tuple[bool, list[str]]:
     pub = [p for p in syn if not p[IP].dst.startswith("10.")]
     add(len(pub) >= 1, f"TCP SYN to public IP: {len(pub)}")
 
-    # IP header checksums
+    # ----- IP header checksums -----
     bad_ip = 0
     for p in pkts:
         if not p.haslayer(IP):

@@ -63,11 +63,11 @@
 
 
 // in tics
-//U #define PAUSELEN		(TICRATE*2) 
+//U #define PAUSELEN		(TICRATE*2)
 //U #define SCORESTEP		100
 //U #define ANIMPERIOD		32
 // pixel distance from "(YOU)" to "PLAYER N"
-//U #define STARDIST		10 
+//U #define STARDIST		10
 //U #define WK 1
 
 
@@ -419,7 +419,7 @@ void WI_drawLF(void)
 
     if (gamemode != commercial || wbs->last < NUMCMAPS)
     {
-        // draw <LevelName> 
+        // draw <LevelName>
         V_DrawPatch((SCREENWIDTH - SHORT(lnames[wbs->last]->width))/2,
                     y, lnames[wbs->last]);
 
@@ -756,7 +756,7 @@ void WI_updateNoState(void) {
 
     if (!--cnt)
     {
-        // Don't call WI_End yet.  G_WorldDone doesnt immediately 
+        // Don't call WI_End yet.  G_WorldDone doesnt immediately
         // change gamestate, so WI_Drawer is still going to get
         // run until that happens.  If we do that after WI_End
         // (which unloads all the graphics), we're in trouble.

@@ -159,7 +159,7 @@ R_InstallSpriteLump
 //  (4 chars exactly) to be used.
 // Builds the sprite rotation matrixes to account
 //  for horizontally flipped sprites.
-// Will report an error if the lumps are inconsistant. 
+// Will report an error if the lumps are inconsistant.
 // Only called at startup.
 //
 // Sprite lump names are 4 characters for the actor,

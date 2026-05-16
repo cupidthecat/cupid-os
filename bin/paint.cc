@@ -9,7 +9,7 @@
  *
  * A Win95-style paint program for CupidOS.
  * REFACTOR: Removed preprocessor macros for CupidC compatibility.
- */
+*/
 
 /* Replaced #define with global variables */
 int TOOL_PENCIL = 0;
@@ -189,7 +189,7 @@ void init_palette() {
 
 /* Simple sleep wrapper if needed, or rely on built-in if available */
 /* We will just use 'yield()' loops for now if sleep isn't guaranteed,
-   but 'sleep_ms' is likely available in the symbol table. */
+   but 'sleep_ms' is likely available in the symbol table.*/
 void my_sleep(int ms) {
   /* spin or sleep */
   /* sleep_ms(ms); -- assuming implicit declaration works or built-in */
@@ -354,7 +354,7 @@ int load_from_bmp(char* path) {
   int data_size = info[3];
 
   /* Prevent huge allocations on constrained heap.
-     For oversized images, stream+scale directly into canvas surface. */
+     For oversized images, stream+scale directly into canvas surface.*/
   int max_decode_size = CANVAS_W * CANVAS_H * 4;
   if (data_size <= 0) {
     return -1;

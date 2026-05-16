@@ -16,7 +16,7 @@
 // DESCRIPTION:
 //	Lookup tables.
 //	Do not try to look them up :-).
-//	In the order of appearance: 
+//	In the order of appearance:
 //
 //	int finetangent[4096]	- Tangens LUT.
 //	 Should work with BAM fairly well (12 of 16bit,
@@ -24,11 +24,11 @@
 //
 //	int finesine[10240]		- Sine lookup.
 //	 Guess what, serves as cosine, too.
-//	 Remarkable thing is, how to use BAMs with this? 
+//	 Remarkable thing is, how to use BAMs with this?
 //
 //	int tantoangle[2049]	- ArcTan LUT,
-//	  maps tan(angle) to angle fast. Gotta search.	
-//    
+//	  maps tan(angle) to angle fast. Gotta search.
+//
 
 
 #ifndef __TABLES__
@@ -69,7 +69,7 @@ extern const byte gammatable[5][256];
 #define ANG1            (ANG45 / 45)
 #define ANG60           (ANG180 / 3)
 
-// Heretic code uses this definition as though it represents one 
+// Heretic code uses this definition as though it represents one
 // degree, but it is not!  This is actually ~1.40 degrees.
 
 #define ANG1_X          0x01000000

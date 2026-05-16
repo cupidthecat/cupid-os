@@ -8,12 +8,12 @@
  * generates at 49716 then linear-resamples to 22050.
  *
  * Not wired into the audio chain yet - Task 17 does that.
- */
+*/
 
 #include "midiopl.h"
 #include "nuked_opl3.h"
-#include "../../drivers/serial.h"
-#include "../string.h"
+#include "serial.h"
+#include "string.h"
 
 /* GENMIDI lump structures (DMX format)
  *
@@ -36,12 +36,12 @@
  *   [4] ksl_lvl     (KSL/TL - total level)
  *   [5] ksr_eg_vib_am (flags byte)
  *   [6] feedback_conn (for the voice, after both ops)
- */
+*/
 
 /* OPL operator. Field names match chocolate-doom's genmidi_op_t - these
  * are the *bytes* read from the GENMIDI lump, not the OPL3 register
  * names. tremolo->$20, attack->$60, sustain->$80, waveform->$E0; scale and
- * level together form $40 (KSL=upper 2 bits, TL=lower 6 bits). */
+ * level together form $40 (KSL=upper 2 bits, TL=lower 6 bits).*/
 typedef struct {
     uint8_t tremolo;       /* $20: AM/VIB/EG/KSR/MULT */
     uint8_t attack;        /* $60: AR/DR */
@@ -53,7 +53,7 @@ typedef struct {
 
 /* GENMIDI voice (16 bytes per chocolate-doom genmidi_voice_t). One
  * patch carries two voices; if the patch flags include GM_FLAG_2VOICE
- * the synth layers both. */
+ * the synth layers both.*/
 typedef struct {
     opl_op_t mod;
     uint8_t  feedback;        /* $C0 lower 4 bits (FB|connection) */
@@ -75,7 +75,7 @@ static int             s_patches_loaded = 0;
 
 /* Single global OPL3 chip state.
  * opl3_chip is large (~32KB); lives in BSS (zero-init, no flash cost).
- */
+*/
 static opl3_chip g_chip;
 
 /* OPL3 18-voice allocator. Bank 0 (registers 0x000..0x0FF) holds voices
@@ -83,7 +83,7 @@ static opl3_chip g_chip;
  * voice_index is 0 for the primary (voice0) layer and 1 for the
  * secondary (voice1) layer of GM_FLAG_2VOICE patches; both share the
  * same midi_ch + midi_note so note-off frees them together.
- */
+*/
 #define NUM_OPL_CH 18
 
 typedef struct {
@@ -93,7 +93,7 @@ typedef struct {
     uint8_t  voice_index;   /* 0 = primary, 1 = secondary (2-voice patches) */
     uint8_t  prog;          /* patch number used (for level updates) */
     uint8_t  velocity;      /* note-on velocity (0..127) - kept so that
-                             * I_SetMusicVolume can rescale live voices */
+                             * I_SetMusicVolume can rescale live voices*/
     uint32_t age;           /* monotonic counter - smaller = older = steal first */
 } opl_ch_state_t;
 
@@ -101,7 +101,7 @@ static opl_ch_state_t s_opl_ch[NUM_OPL_CH];
 static uint32_t       s_age = 0u;
 
 /* MIDI channel state (16 channels)
- */
+*/
 typedef struct {
     uint8_t  program;
     uint8_t  volume;       /* CC 7  - channel volume 0..127 */
@@ -113,11 +113,11 @@ typedef struct {
 static midi_ch_state_t s_midi[16];
 
 /* Master volume (0..127) applied at render time.
- */
+*/
 static uint8_t s_master_vol = 100u;
 
 /* MIDI running-status parser state
- */
+*/
 static uint8_t s_running_status = 0u;
 static uint8_t s_msg_buf[3];
 static uint8_t s_msg_have = 0u;
@@ -135,7 +135,7 @@ static uint8_t s_msg_need = 0u;
  *   ch 6: op12=0x10, op15=0x13
  *   ch 7: op13=0x11, op16=0x14
  *   ch 8: op14=0x12, op17=0x15
- */
+*/
 static const uint8_t OP_OFFSET[9][2] = {
     {0x00u, 0x03u}, {0x01u, 0x04u}, {0x02u, 0x05u},
     {0x08u, 0x0Bu}, {0x09u, 0x0Cu}, {0x0Au, 0x0Du},
@@ -146,7 +146,7 @@ static const uint8_t OP_OFFSET[9][2] = {
  * Voices 0..8 live in OPL3 bank 0 (registers 0x000..0x0FF); voices 9..17
  * live in bank 1 (registers 0x100..0x1FF). The operator-offset table
  * above is the same for both banks; only the register-address high bit
- * changes. */
+ * changes.*/
 static uint16_t voice_bank(int v)    { return (v >= 9) ? (uint16_t)0x100u : (uint16_t)0x000u; }
 static uint8_t  voice_ch(int v)      { return (uint8_t)(v % 9); }
 static uint8_t  voice_op_mod(int v)  { return OP_OFFSET[voice_ch(v)][0]; }
@@ -162,7 +162,7 @@ static uint8_t  voice_op_car(int v)  { return OP_OFFSET[voice_ch(v)][1]; }
  * which the previous 12-entry chromatic table couldn't do - and is
  * the reason real DOOM/Freedoom music plays as recognisable melodies
  * here instead of buzzy beeps.
- */
+*/
 static const uint16_t s_freq_curve[] = {
     0x133, 0x133, 0x134, 0x134, 0x135, 0x136, 0x136, 0x137,
     0x137, 0x138, 0x138, 0x139, 0x139, 0x13a, 0x13b, 0x13b,
@@ -252,7 +252,7 @@ static const uint16_t s_freq_curve[] = {
 #define FREQ_CURVE_LEN ((int)(sizeof(s_freq_curve) / sizeof(s_freq_curve[0])))
 
 /* Forward declarations (strict -Wmissing-prototypes compliance)
- */
+*/
 static int  midiopl_load_genmidi(const uint8_t *lump, uint32_t len);
 static void midiopl_handle_event(const uint8_t *msg, uint8_t msglen);
 static void note_on(uint8_t ch, uint8_t note, uint8_t vel);
@@ -271,7 +271,7 @@ static void key_off(int oplv);
 static uint32_t freq_for_note(int note, int bend, int finetune);
 
 /* Public API
- */
+*/
 
 int midiopl_init(const uint8_t *genmidi_lump, uint32_t lump_len)
 {
@@ -284,7 +284,7 @@ int midiopl_init(const uint8_t *genmidi_lump, uint32_t lump_len)
      * the requested rate. The previous code reset at native 49716 and
      * then linear-resampled in midiopl_render - same interpolation
      * but with a phase reset at every buffer boundary, which produced
-     * audible buzz at the music-pull cadence. */
+     * audible buzz at the music-pull cadence.*/
     OPL3_Reset(&g_chip, 22050u);
     /* Enable OPL3 mode (new-register access + bank 1 + CHA/CHB stereo) */
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)0x105u, (uint8_t)0x01u);
@@ -337,7 +337,7 @@ void midiopl_set_volume(uint8_t vol_0_127)
 
     /* Re-level any currently sounding voices so the change takes
      * effect immediately rather than only on the next note-on.
-     * Mirrors chocolate-doom's SetMusicVolume. */
+     * Mirrors chocolate-doom's SetMusicVolume.*/
     if (!s_patches_loaded) return;
     for (i = 0; i < NUM_OPL_CH; i++) {
         const opl_ch_state_t *cs = &s_opl_ch[i];
@@ -379,7 +379,7 @@ void midiopl_set_volume(uint8_t vol_0_127)
  *             [13] car.ksr_eg_vib_am
  *             [14..15] (padding)
  *   [20..35] voice1 (same layout; ignored for v1 2-op)
- */
+*/
 static int midiopl_load_genmidi(const uint8_t *lump, uint32_t len)
 {
     const uint8_t *p;
@@ -416,7 +416,7 @@ static int midiopl_load_genmidi(const uint8_t *lump, uint32_t len)
          *   [6]  feedback/connection -> OPL3 reg $C0 lower 4 bits
          *   [7..12] carrier op (same six fields)
          *   [13] unused
-         *   [14..15] base_note_offset (LE16 signed) */
+         *   [14..15] base_note_offset (LE16 signed)*/
         for (v = 0; v < 2; v++) {
             const uint8_t *vp = p + 4u + (uint32_t)(v * 16);
             s_patches[i].voices[v].mod.tremolo   = vp[0];
@@ -452,7 +452,7 @@ static int midiopl_load_genmidi(const uint8_t *lump, uint32_t len)
  *  0xF0/0xF7  (sysex)    - body skipped up to 0xF7
  *  0x80..0xEF (channel)  - running-status buffered, dispatched
  *  data bytes            - accumulated into s_msg_buf[]
- */
+*/
 void midiopl_feed(const uint8_t *bytes, uint32_t len)
 {
     uint32_t i;
@@ -468,7 +468,7 @@ void midiopl_feed(const uint8_t *bytes, uint32_t len)
                 /* 0xFF is also realtime in a raw MIDI stream.
                  * In a MIDI *file* SMF stream 0xFF is meta - but midiopl_feed
                  * processes raw MIDI output from mus2midi which does not embed
-                 * SMF meta events in the live byte stream. Skip. */
+                 * SMF meta events in the live byte stream. Skip.*/
                 continue;
             }
 
@@ -527,7 +527,7 @@ void midiopl_feed(const uint8_t *bytes, uint32_t len)
 }
 
 /* Event dispatcher
- */
+*/
 static void midiopl_handle_event(const uint8_t *msg, uint8_t msglen)
 {
     uint8_t kind = (uint8_t)(msg[0] & 0xF0u);
@@ -569,13 +569,13 @@ static void midiopl_handle_event(const uint8_t *msg, uint8_t msglen)
  *     0xA0+oplc  F-number low 8 bits
  *     0xB0+oplc  key-on, block, F-number high 2 bits
  *     0xC0+oplc  feedback / connection / L+R output enable
- */
+*/
 /* GENMIDI flag bits (LE16, taken from chocolate-doom's i_oplmusic.c). */
 #define GM_FLAG_FIXED   0x0001u   /* fixed-pitch patch (drums, sfx) */
 #define GM_FLAG_2VOICE  0x0004u   /* layer voice0 + voice1 */
 
 /* MIDI 0..127 -> DOOM volume_mapping_table (chocolate-doom). Used for
- * scaling carrier output level by note velocity * channel volume. */
+ * scaling carrier output level by note velocity * channel volume.*/
 static const uint8_t s_vmt[128] = {
       0,  1,  3,  5,  6,  8, 10, 11,
      13, 14, 16, 17, 19, 20, 22, 23,
@@ -600,7 +600,7 @@ static const uint8_t s_vmt[128] = {
  * additive mode the modulator is silenced so only the carrier is
  * audible. Carrier level is silenced here and applied later in
  * set_voice_volume after velocity + channel volume scaling. Matches
- * chocolate-doom's LoadOperatorData / LoadVoiceData. */
+ * chocolate-doom's LoadOperatorData / LoadVoiceData.*/
 static void program_voice(int oplv, const opl_voice_t *vc)
 {
     uint16_t bank    = voice_bank(oplv);
@@ -621,7 +621,7 @@ static void program_voice(int oplv, const opl_voice_t *vc)
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(bank | (0xE0u + (uint16_t)mod_off)), vc->mod.waveform);
 
     /* Carrier - silence first; set_voice_volume applies velocity-scaled
-     * volume after. */
+     * volume after.*/
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(bank | (0x20u + (uint16_t)car_off)), vc->car.tremolo);
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(bank | (0x40u + (uint16_t)car_off)),
                           (uint8_t)((vc->car.scale & 0xC0u) | 0x3Fu));
@@ -631,7 +631,7 @@ static void program_voice(int oplv, const opl_voice_t *vc)
 
     /* Feedback / connection. OR 0x30 = both L+R output enable (OPL3
      * stereo). set_voice_pan rewrites this register if the MIDI
-     * channel pan CC has biased the note off-centre. */
+     * channel pan CC has biased the note off-centre.*/
     OPL3_WriteRegBuffered(&g_chip, (uint16_t)(bank | (0xC0u + (uint16_t)ch)),
                           (uint8_t)((fb & 0x0Fu) | 0x30u));
 }
@@ -649,7 +649,7 @@ static void program_voice(int oplv, const opl_voice_t *vc)
  * Saturation inside the chip is what made the previous pass sound
  * harsh and "dirty" - once we hit ±32767 internally the clipping is
  * irreversible no matter how we scale at render time.
- */
+*/
 static void set_voice_volume(int oplv, const opl_voice_t *vc,
                              uint8_t channel_volume, uint8_t velocity)
 {
@@ -678,7 +678,7 @@ static void set_voice_volume(int oplv, const opl_voice_t *vc,
 /* Apply pan: write the channel's $C0 register with CHA / CHB output
  * enable bits derived from the MIDI pan CC (0..127, 64=centre). The
  * lower nibble (feedback/connection) is preserved from the voice
- * patch. Hard-pan thresholds match chocolate-doom's three-zone pan. */
+ * patch. Hard-pan thresholds match chocolate-doom's three-zone pan.*/
 static void set_voice_pan(int oplv, const opl_voice_t *vc, uint8_t pan)
 {
     uint16_t bank = voice_bank(oplv);
@@ -687,7 +687,7 @@ static void set_voice_pan(int oplv, const opl_voice_t *vc, uint8_t pan)
 
     if (pan < 32u)       cha_chb = 0x10u;   /* hard left  (CHA only) */
     else if (pan > 96u)  cha_chb = 0x20u;   /* hard right (CHB only) */
-    else                 cha_chb = 0x30u;   /* centred (both)         */
+    else                 cha_chb = 0x30u;   /* centred (both) */
 
     OPL3_WriteRegBuffered(&g_chip,
                           (uint16_t)(bank | (0xC0u + (uint16_t)ch)),
@@ -695,7 +695,7 @@ static void set_voice_pan(int oplv, const opl_voice_t *vc, uint8_t pan)
 }
 
 /* Key-on / Key-off helpers - bank-aware (voices 0..17)
- */
+*/
 static void key_on_freq(int oplv, uint32_t freq)
 {
     uint16_t bank = voice_bank(oplv);
@@ -721,7 +721,7 @@ static void key_off(int oplv)
 /* Frequency lookup matching chocolate-doom FrequencyForVoice. Returns
  * a packed value with FNUM in low 10 bits and OPL block in bits 10+
  * (so the high byte after >>8 already has block in bits 5..2 + fnum
- * upper in 1..0, ready for register 0xB0 OR'd with the key-on bit). */
+ * upper in 1..0, ready for register 0xB0 OR'd with the key-on bit).*/
 static uint32_t freq_for_note(int note, int bend, int finetune_voice2)
 {
     int freq_index;
@@ -755,7 +755,7 @@ static uint32_t freq_for_note(int note, int bend, int finetune_voice2)
  * whether this is the primary (0) or secondary (1) layer of a
  * 2-voice patch - both share the same midi_ch + midi_note so that
  * note-off can release them as a unit.
- */
+*/
 static int alloc_opl_voice(uint8_t midi_ch, uint8_t note, uint8_t voice_idx)
 {
     int i;
@@ -794,9 +794,9 @@ static void free_opl_ch(int v)
 }
 
 /* MIDI event handlers
- */
+*/
 /* Allocate, program, freq + level + pan, key-on a single OPL voice
- * for one layer of a note. Used twice when a patch has GM_FLAG_2VOICE. */
+ * for one layer of a note. Used twice when a patch has GM_FLAG_2VOICE.*/
 static void start_one_layer(const genmidi_patch_t *p, int prog,
                             int patch_voice_idx,
                             uint8_t ch, uint8_t key, int base_note,
@@ -819,13 +819,13 @@ static void start_one_layer(const genmidi_patch_t *p, int prog,
     /* Voice 1 of a 2-voice patch is detuned by the patch's `finetune`
      * byte (signed offset around 0x80 = neutral) so it produces a
      * subtle chorus when layered with voice 0. Voice 0 itself is
-     * never detuned. */
+     * never detuned.*/
     finetune = (patch_voice_idx == 1) ? (int)p->finetune : 0;
 
     freq = freq_for_note(eff_note, bend, finetune);
 
     /* Order: level + pan before key-on so the envelope starts at the
-     * right amplitude / output enable, not ramping from silence. */
+     * right amplitude / output enable, not ramping from silence.*/
     set_voice_volume(oplv, vc, s_midi[ch].volume, vel);
     pan = (ch == 9u) ? 64u : s_midi[ch].pan;
     set_voice_pan(oplv, vc, pan);
@@ -844,7 +844,7 @@ static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
     /* Channel 9 = GM percussion. Note number selects which drum, not
      * the pitch. GENMIDI ships 47 drum patches at indices 128..174;
      * drum keys are 35..81 (kick=35). Out-of-range keys ignored,
-     * matching chocolate-doom. */
+     * matching chocolate-doom.*/
     if (ch == 9u) {
         if (note < 35u || note > 81u) return;
         prog = 128 + ((int)note - 35);
@@ -857,7 +857,7 @@ static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
     /* Pick the *played* note. Percussion and any patch flagged FIXED
      * use the patch's hard-coded fixed_note (e.g. a snare always plays
      * at one specific frequency, independent of the MIDI key that
-     * triggered it). All other notes follow the MIDI key. */
+     * triggered it). All other notes follow the MIDI key.*/
     if (ch == 9u || (p->flags & GM_FLAG_FIXED)) {
         base_note = (int)p->fixed_note;
     } else {
@@ -867,7 +867,7 @@ static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
     /* Pitch-bend: 14-bit unsigned, 0x2000 = neutral. Frequency table
      * indexes 1/32-semitone steps, so divide bend delta by 64 for
      * ±2-semitone bend at full deflection. Percussion ignores pitch
-     * bend (drums are always fixed pitch). */
+     * bend (drums are always fixed pitch).*/
     if (ch == 9u) {
         bend = 0;
     } else {
@@ -881,7 +881,7 @@ static void note_on(uint8_t ch, uint8_t note, uint8_t vel)
     /* Voice 1 - only if the patch is a 2-voice instrument (flag 0x04).
      * Adds chorus / fullness; ~30% of the vanilla GENMIDI bank uses
      * this. The two layers share (midi_ch, midi_note) so note-off
-     * releases them together. */
+     * releases them together.*/
     if (p->flags & GM_FLAG_2VOICE) {
         start_one_layer(p, prog, 1, ch, note, base_note, bend, vel);
     }
@@ -894,7 +894,7 @@ static void note_off(uint8_t ch, uint8_t note)
     /* Sustain pedal held: defer the actual key-off until the pedal is
      * released. We mark the voice ended-but-sustained by setting age
      * to 0 so it's the first stolen if all voices fill up. Channels
-     * with sustain off release immediately. */
+     * with sustain off release immediately.*/
     if (s_midi[ch].sustain >= 64u) {
         for (i = 0; i < NUM_OPL_CH; i++) {
             if (s_opl_ch[i].in_use &&
@@ -908,7 +908,7 @@ static void note_off(uint8_t ch, uint8_t note)
 
     /* Free *every* voice matching (ch, note). 2-voice patches occupy
      * two OPL voices per note - the previous early-`return` after the
-     * first match left the second layer ringing forever. */
+     * first match left the second layer ringing forever.*/
     for (i = 0; i < NUM_OPL_CH; i++) {
         if (s_opl_ch[i].in_use &&
             s_opl_ch[i].midi_ch   == ch &&
@@ -924,7 +924,7 @@ static void program_change(uint8_t ch, uint8_t prog)
 }
 
 /* Release every voice on `ch` that is in the sustain-deferred state
- * (marked with age=0 by note_off while the pedal was held). */
+ * (marked with age=0 by note_off while the pedal was held).*/
 static void release_sustained(uint8_t ch)
 {
     int i;
@@ -976,7 +976,7 @@ static void pitch_bend_change(uint8_t ch, uint16_t bend)
     s_midi[ch].pitch_bend = bend;
     /* TODO: re-key ringing notes on this channel with detuned fnum.
      * Most DOOM songs only use bend at note-on, so this is rarely
-     * audible in practice. */
+     * audible in practice.*/
 }
 
 /* midiopl_render - pull stereo s16 @ 22050 Hz
@@ -987,7 +987,7 @@ static void pitch_bend_change(uint8_t ch, uint16_t bend)
  * Master volume is applied per-voice via set_voice_volume so the
  * chip's internal mixbuffer never saturates - at this point we just
  * stream the resampled output straight to the caller.
- */
+*/
 void midiopl_render(int16_t *out_stereo, uint32_t frames)
 {
     OPL3_GenerateStream(&g_chip, out_stereo, frames);

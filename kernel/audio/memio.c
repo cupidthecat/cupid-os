@@ -3,13 +3,13 @@
  * License: GPL-2
  *
  * Local modifications:
- *  - Dropped <stdio.h>, <stdlib.h>, <string.h> — replaced with kernel headers.
+ *  - Dropped <stdio.h>, <stdlib.h>, <string.h> - replaced with kernel headers.
  *  - Dropped #include "z_zone.h" (chocolate-doom zone allocator).
  *  - Replaced Z_Malloc(..., PU_STATIC, 0) with kmalloc(size).
  *  - Replaced Z_Free(ptr) with kfree(ptr).
  *  - Removed printf() calls in error paths (no stdio in kernel); those
  *    paths now just return the error value silently.
- */
+*/
 
 //
 // Copyright(C) 1993-1996 Id Software, Inc.
@@ -29,9 +29,9 @@
 // memory.
 //
 
-#include "../types.h"
-#include "../string.h"
-#include "../memory.h"
+#include "types.h"
+#include "string.h"
+#include "memory.h"
 
 #include "memio.h"
 

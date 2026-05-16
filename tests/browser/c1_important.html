@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>C1 !important</title>
+<style>
+  /* author rule, no !important */
+  p.x { color: green; }
+  /* author rule with !important: should beat inline */
+  p.y { color: red !important; }
+  /* author higher specificity but no !important */
+  p.z { color: green; }
+  p.z { color: orange !important; }       /* later & important wins */
+  p.w { color: blue !important; }
+  p.w { color: red; }                     /* later but not important, loses */
+</style>
+</head>
+<body>
+<h2>C1 !important</h2>
+
+<p class="x">[non-!important author rule] should be GREEN.</p>
+<p class="x" style="color:purple">[author=green, inline=purple] inline wins, PURPLE.</p>
+<p class="y" style="color:purple">[author=red !important, inline=purple] !important wins, RED.</p>
+<p class="z">[two author rules: later one is !important] should be ORANGE.</p>
+<p class="w">[earlier !important blue, later normal red] !important wins, BLUE.</p>
+</body>
+</html>

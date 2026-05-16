@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 USB Host Controller Stack
-Verified against source on: 2026-04-17
+Verified against source on: 2026-05-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -25,14 +25,14 @@ CupidOS P4 implements a full USB host controller stack with:
   - Mass storage registers as block_device_t: usb0, usb1, ...
 
 Source files:
-  kernel/pci.h + pci.c         PCI enumeration layer
-  kernel/usb_hc.h              Host controller vtable
-  kernel/usb.h + usb.c         USB core: enumeration FSM, work queue
-  kernel/uhci.c                UHCI 1.1 driver
-  kernel/ehci.c                EHCI 2.0 driver
-  kernel/usb_hid.c             HID keyboard + mouse
-  kernel/usb_hub.c             Hub class driver
-  kernel/usb_msc.c             Mass storage (BBB + SCSI)
+  drivers/pci.h + pci.c        PCI enumeration layer
+  kernel/usb/usb_hc.h          Host controller vtable
+  kernel/usb/usb.h + usb.c     USB core: enumeration FSM, work queue
+  kernel/usb/uhci.c            UHCI 1.1 driver
+  kernel/usb/ehci.c            EHCI 2.0 driver
+  kernel/usb/usb_hid.c         HID keyboard + mouse
+  kernel/usb/usb_hub.c         Hub class driver
+  kernel/usb/usb_msc.c         Mass storage (BBB + SCSI)
 >endtree
 
 >h2 Boot Order: EHCI Before UHCI
@@ -66,7 +66,7 @@ Why it matters:
 
 >h2 PCI Layer
 >tree open PCI Layer
-Source: kernel/pci.c + kernel/pci.h
+Source: drivers/pci.c + drivers/pci.h
 
 Enumeration: pci_init() scans bus 0, devices 0-31.
   - Read vendor/device ID at config offset 0x00.
@@ -99,7 +99,7 @@ pci_write32(bus, dev, fn, 0x04, v);
 
 >h2 USB Core
 >tree open USB Core
-Source: kernel/usb.c + kernel/usb_hc.h + kernel/usb.h
+Source: kernel/usb/usb.c + kernel/usb/usb_hc.h + kernel/usb/usb.h
 
 Host controller vtable (usb_hc_t):
 
@@ -152,7 +152,7 @@ transfer (SETUP -> optional DATA -> STATUS) via hc->submit_sync.
 
 >h2 UHCI Driver
 >tree open UHCI Driver
-Source: kernel/uhci.c
+Source: kernel/usb/uhci.c
 
 Register access: IO-port at BAR4 (bit 0 set in BAR value).
 IO base = pci_read32(..., 0x20) & ~3.
@@ -195,7 +195,7 @@ usb_port_change(hc, port) to trigger enumeration.
 
 >h2 EHCI Driver
 >tree open EHCI Driver
-Source: kernel/ehci.c
+Source: kernel/usb/ehci.c
 
 MMIO mapping:
   BAR0 is a memory BAR (bit 0 clear). Typical address: 0xFEBxxxxx,
@@ -258,7 +258,7 @@ supporting up to 20KB per transfer without chaining.
 
 >h2 HID Driver
 >tree open HID Driver
-Source: kernel/usb_hid.c
+Source: kernel/usb/usb_hid.c
 
 Claimed when: bInterfaceClass=0x03 (HID) AND bInterfaceSubClass=0x01
 (Boot Interface Subclass). Both keyboard and mouse use this driver.
@@ -299,7 +299,7 @@ Mouse processing:
 
 >h2 Hub Driver
 >tree open Hub Driver
-Source: kernel/usb_hub.c
+Source: kernel/usb/usb_hub.c
 
 Claimed when: bDeviceClass=0x09 (Hub).
 
@@ -340,7 +340,7 @@ Transaction Translator routing:
 
 >h2 Mass Storage Driver
 >tree open Mass Storage Driver
-Source: kernel/usb_msc.c
+Source: kernel/usb/usb_msc.c
 
 Bulk-Only Transport (BBB) phases:
 

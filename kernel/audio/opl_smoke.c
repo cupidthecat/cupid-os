@@ -2,9 +2,9 @@
  * Plays a single sustained FM note for ~2 seconds via slot 8
  * using a streaming-source pull callback that resamples
  * 49716 -> 22050 Hz with linear interpolation.
- */
-#include "../types.h"
-#include "../../drivers/serial.h"
+*/
+#include "types.h"
+#include "serial.h"
 #include "nuked_opl3.h"
 #include "mixer.h"
 #include "ac97.h"
@@ -15,7 +15,7 @@ static opl3_chip g_chip;
 /* Generate native at 49716 Hz, resample to 22050 Hz via linear interp.
  * Mixer requests `frames` at 22050; we render `(frames * 49716 + 22049) / 22050`
  * native samples then walk the output table.
- */
+*/
 static void opl_pull(int16_t *out, uint32_t frames, void *ctx) {
     static int16_t native[2048u * 2u];
     uint32_t need;

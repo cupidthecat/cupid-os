@@ -12,7 +12,7 @@ This guide walks you through building cupid-os from source and running it in QEM
 | **GCC** (32-bit support) | C compiler for kernel and drivers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **dosfstools** | Creating FAT16 partition in the HDD image |
+| **mtools** | Copying files into the FAT16 partition inside `cupidos.img` |
 | **Linux environment** | Ubuntu, Debian, WSL, or equivalent |
 
 ---
@@ -21,12 +21,12 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install nasm gcc make qemu-system-x86 dosfstools
+sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S nasm gcc make qemu-full dosfstools
+sudo pacman -S nasm gcc make qemu-full mtools
 ```
 
 ### WSL (Windows Subsystem for Linux)
@@ -66,6 +66,12 @@ Default is `HDD_MB=200`.
 | `make distclean` | Remove build artifacts + `cupidos.img` |
 | `make run` | Build and run in QEMU (serial to stdout) |
 | `make run-log` | Build and run with serial output saved to `debug.log` |
+| `make run-headless` | Build and boot a serial-only shell for scripts/tests |
+| `make run-usb` | Boot with UHCI/EHCI and a FAT16 USB mass-storage image |
+| `make run-net` | Boot with RTL8139 networking and host port 8080 forwarded to guest port 80 |
+| `make run-ssh` | Boot with RTL8139 networking and host port 2222 forwarded to guest port 22 |
+| `make test-net` | Run the headless networking integration harness |
+| `make stage-wads` | Copy Freedoom WAD files into `/disk/wads/` |
 | `make sync-demos` | Copy local `demos/*.asm` into `/home/demos` in `cupidos.img` |
 
 ---
@@ -84,6 +90,21 @@ Serial output appears in your terminal.
 make run-log
 ```
 All serial output (debug logs, kernel messages) saved to `debug.log`.
+
+### Networking and SSH Server
+
+```bash
+make run-ssh
+```
+
+Inside CupidOS, run `sshd`. From the host:
+
+```bash
+ssh -p 2222 root@127.0.0.1
+```
+
+The default login is `root` / `cupid`; change it in the guest with
+`sshd passwd <new-password>`.
 
 ---
 
@@ -141,7 +162,7 @@ examples and widget demos.
 
 ### Exploring the Shell
 
-Click the **Terminal** icon on the desktop (or boot in text mode). You'll see:
+Click the **Terminal** icon on the desktop (or use `make run-headless`). You'll see:
 
 ```
 cupid-os shell
@@ -152,11 +173,15 @@ Try these commands to get started:
 ```
 help              # List all commands
 sysinfo           # System information
-ls                # List in-memory files
+ls                # List files in the current directory
 ls /docs          # List embedded manuals
-lsdisk            # List files on FAT16 disk
+ls /disk          # List the FAT16 disk mount
+ls /home          # List persistent homefs
 ed hello.cup      # Create a script with the editor
 cupid hello.cup   # Run your script
+browser http://example.com/
+ssh user@host
+telnet telehack.com
 ```
 
 ---

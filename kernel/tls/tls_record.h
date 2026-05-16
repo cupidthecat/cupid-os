@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS_RECORD_H
 #define CUPID_TLS_RECORD_H
 
-#include "../types.h"
+#include "types.h"
 
 /* TLS 1.3 record layer (RFC 8446 §5).
  *
@@ -14,7 +14,7 @@
  * callbacks must perform full sends/recvs (loop on partials internally
  * if necessary) and return 0 on connection drop or negative on error;
  * a positive value is treated as bytes transferred.
- */
+*/
 
 #define TLS_REC_HEADER_SIZE         5u
 #define TLS_REC_MAX_PLAINTEXT   16384u           /* 2^14 */
@@ -54,7 +54,7 @@ typedef struct {
     uint8_t  tls12;               /* 1 = TLS 1.2 wire format, 0 = 1.3 */
 
     /* Inbound assembly: bytes already pulled from transport but not yet
-     * consumed by the record reader. We hold at most one full record. */
+     * consumed by the record reader. We hold at most one full record.*/
     uint8_t  in_buf[TLS_REC_BUF_SIZE];
     uint32_t in_len;
 } tls_record_state_t;
@@ -65,17 +65,17 @@ void tls_record_init(tls_record_state_t *r,
                      tls_xport_recv_fn rcb);
 
 /* Pick AEAD suite for this connection. Must be called before any
- * tls_record_set_*_key (the suite determines the expected key length). */
+ * tls_record_set_*_key (the suite determines the expected key length).*/
 void tls_record_set_aead(tls_record_state_t *r, uint8_t aead_alg);
 
 /* Switch the record layer into TLS 1.2 wire format (different AAD
  * shape, plaintext does not carry a trailing inner type byte, AES-GCM
- * adds an 8-byte explicit nonce on the wire). */
+ * adds an 8-byte explicit nonce on the wire).*/
 void tls_record_set_tls12(tls_record_state_t *r);
 
 /* Install AEAD send / recv keys. `key_len` must match the active suite
  * (32 for ChaCha20-Poly1305, 16 for AES-128-GCM). Resets the
- * corresponding seq to 0 and sets active=1. */
+ * corresponding seq to 0 and sets active=1.*/
 void tls_record_set_send_key(tls_record_state_t *r,
                              const uint8_t *key, uint32_t key_len,
                              const uint8_t iv[12]);
@@ -88,7 +88,7 @@ void tls_record_set_recv_key(tls_record_state_t *r,
  * sent in the clear (used during handshake before the first
  * EncryptedExtensions message). `len` must be <= TLS_REC_MAX_PLAINTEXT.
  *
- * Returns 0 on success, -1 on transport error or oversize input. */
+ * Returns 0 on success, -1 on transport error or oversize input.*/
 int tls_record_send(tls_record_state_t *r,
                     uint8_t type,
                     const uint8_t *data, uint32_t len);
@@ -100,7 +100,7 @@ int tls_record_send(tls_record_state_t *r,
  * byte goes to *type_out, padding zeros are stripped).
  *
  * Returns -1 on transport drop, -2 on parse / size error, -3 on AEAD
- * tag mismatch. */
+ * tag mismatch.*/
 int tls_record_recv(tls_record_state_t *r,
                     uint8_t *type_out,
                     uint8_t *buf, uint32_t buf_max,

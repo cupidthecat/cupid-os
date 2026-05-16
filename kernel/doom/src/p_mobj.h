@@ -90,7 +90,7 @@
 // things, but nothing can run into a missile).
 // Each block in the grid is 128*128 units, and knows about
 // every line_t that it contains a piece of, and every
-// interactable mobj_t that has its origin contained.  
+// interactable mobj_t that has its origin contained.
 //
 // A valid mobj_t is a mobj_t that has the proper subsector_t
 // filled in for its xy coordinates and is linked into the

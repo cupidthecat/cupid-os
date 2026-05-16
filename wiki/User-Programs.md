@@ -12,12 +12,12 @@ When you type a command the shell doesn't recognize as a built-in, it searches t
 |:---:|------|------|---------|
 | 1 | `/bin/<cmd>` | ELF/CUPD binary | ramfs (memory) |
 | 2 | `/bin/<cmd>.cc` | CupidC source | ramfs (memory) |
-| 3 | `/home/bin/<cmd>` | ELF/CUPD binary | FAT16 (disk) |
-| 4 | `/home/bin/<cmd>.cc` | CupidC source | FAT16 (disk) |
+| 3 | `/home/bin/<cmd>` | ELF/CUPD binary | homefs (persistent, backed by `/disk/HOMEFS.SYS`) |
+| 4 | `/home/bin/<cmd>.cc` | CupidC source | homefs (persistent, backed by `/disk/HOMEFS.SYS`) |
 
 CupidC `.cc` files are JIT-compiled and run instantly. ELF binaries are loaded and executed as kernel threads.
 
-Programs in `/bin/` (ramfs) are baked into the OS image at build time. Programs in `/home/bin/` (FAT16 disk) can be created, edited, and deployed at runtime - no reboot needed.
+Programs in `/bin/` (ramfs) are baked into the OS image at build time. Programs in `/home/bin/` live on persistent homefs and can be created, edited, and deployed at runtime - no reboot needed. `/home/bin` is created automatically on boot if it is missing.
 
 ---
 
@@ -51,7 +51,6 @@ That's it - no need to edit `kernel.c`, the `Makefile`, or any other file.
 Use the `ed` editor to create the file on disk:
 
 ```
-> vmkdir /home/bin
 > ed /home/bin/hello.cc
 a
 void main() {
@@ -135,8 +134,8 @@ The `help` command reads the source file itself to extract these lines - source 
 
 - Every program must have a `void main()` function
 - No `#include` needed - kernel bindings are pre-registered
-- No structs - use `char`, `int`, pointers, and arrays
-- Max 64 KB code, 16 KB data per program
+- Structs, classes, enums, arrays, floats, and many kernel bindings are available; keep source direct and single-file when possible
+- Current JIT buffers allow up to 1 MB of code and 8 MB of data/string storage
 - Programs run in ring 0 with full kernel access
 
 ---

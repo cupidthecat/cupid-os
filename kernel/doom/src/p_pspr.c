@@ -96,7 +96,7 @@ P_SetPsprite
 
 //
 // P_CalcSwing
-//	
+//
 fixed_t		swingx;
 fixed_t		swingy;
 

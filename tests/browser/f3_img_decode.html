@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+<title>f3 img fetch + decode</title>
+<style>
+body { font-family: sans-serif; }
+.thumb { border: 1px solid #888; margin: 8px; vertical-align: top; }
+</style>
+</head>
+<body>
+<h2>PNG / JPEG decode</h2>
+<p>Each &lt;img&gt; below is fetched after first paint, decoded via gfx2d_image_load_mem, and painted at intrinsic dimensions when the queue drains.</p>
+<img class="thumb" src="https://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png">
+<img class="thumb" src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/120px-PNG_transparency_demonstration_1.png">
+<img class="thumb" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Cat_August_2010-4.jpg/120px-Cat_August_2010-4.jpg">
+<img class="thumb" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/120px-Cat03.jpg">
+<p>Failed fetches keep the [img] placeholder.</p>
+</body>
+</html>

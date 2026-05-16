@@ -75,7 +75,7 @@ void main() {
     /* Phase D: printf(string, FP) mixes int ptr with FP args which Task 18's
      * calling convention doesn't yet handle. Verify instead by casting
      * the FP values to int (truncating) - for exact whole-number results
-     * this round-trips losslessly. 1234.5 truncates to 1234. */
+     * this round-trips losslessly. 1234.5 truncates to 1234.*/
     float big = 1234.5;
     int big_as_int = (int)big;
     if (big_as_int != 1234) {
@@ -92,7 +92,7 @@ void main() {
     }
 
     /* 2 * 0.00012345 = 0.00024690; scale by 1e9 = 246900 (approximately).
-     * Use a wider tolerance: scale * 1e6 = 123.  Verify it's in 120..130. */
+     * Use a wider tolerance: scale * 1e6 = 123.  Verify it's in 120..130.*/
     double small = 0.00012345;
     double scaled = small * 1000000.0;
     int scaled_i = (int)scaled;
@@ -102,7 +102,7 @@ void main() {
     }
 
     /* Phase E Task 23: libm hardware fast-paths.
-     * sin(0)=0, cos(0)=1, sqrt(4)=2 - exact results, truncate to int. */
+     * sin(0)=0, cos(0)=1, sqrt(4)=2 - exact results, truncate to int.*/
     double s0 = sin(0.0);
     double c0 = cos(0.0);
     double sq = sqrt(4.0);
@@ -118,7 +118,7 @@ void main() {
     /* Phase E Task 24: fabs / floor / ceil / fmod.
      * fabs(3.5)=3.5 (scale by 2 -> 7), floor(3.7)=3, ceil(3.2)=4, fmod(10,3)=1.
      * CupidC's unary minus is broken for doubles, so build the negative
-     * argument via 0.0 - 3.5. */
+     * argument via 0.0 - 3.5.*/
     double neg35 = 0.0 - 3.5;
     double af = fabs(neg35);
     double fl = floor(3.7);
@@ -135,13 +135,13 @@ void main() {
     }
 
     /* trunc(-2.7) = -2.0;  round(2.5) may be 2.0 or 3.0.
-     * Use 0.0 - 2.7 for the negative double. */
+     * Use 0.0 - 2.7 for the negative double.*/
     double neg27 = 0.0 - 2.7;
     double tr = trunc(neg27);
     double rn = round(2.5);
     /* (int) cast of negative double: scale to positive first to work
      * around potential cvttsd2si signedness bug. trunc(-2.7) = -2.0;
-     * adding 10 gives 8, which casts cleanly to int 8. */
+     * adding 10 gives 8, which casts cleanly to int 8.*/
     double tr_shifted = tr + 10.0;
     int tr_i = (int)tr_shifted;
     int rn_i = (int)rn;
@@ -166,7 +166,7 @@ void main() {
 
     /* Phase F Task 31: double2 element access (.x/.y).
      * 7.5, 12.25 - scale by 4 to test fractional bits without FP compare.
-     * 7.5*4=30, 12.25*4=49. */
+     * 7.5*4=30, 12.25*4=49.*/
     double2 d2 = {7.5, 12.25};
     double d2x = d2.x;
     double d2y = d2.y;

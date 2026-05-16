@@ -1,7 +1,7 @@
 #ifndef SPEAKER_H
 #define SPEAKER_H
 
-#include "../kernel/types.h"
+#include "types.h"
 
 // PC Speaker port definitions
 #define SPEAKER_PORT 0x61

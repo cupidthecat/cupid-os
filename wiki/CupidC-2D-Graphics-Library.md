@@ -6,7 +6,7 @@ A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel b
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
+The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
 
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -352,7 +352,53 @@ int bmp_get_info(char *path, void *info);        // read dimensions without load
 int bmp_decode(char *path, int *buffer, int buffer_size);  // decode BMP to XRGB buffer
 int bmp_encode(char *path, int *buffer, int width, int height);  // encode XRGB buffer to BMP
 int bmp_decode_to_fb(char *path, int x, int y);  // decode BMP directly to framebuffer
+int bmp_decode_to_surface_fit(char *path, int sid, int w, int h);  // decode + scale into a gfx2d surface
 ```
+
+### PNG / JPEG (in-memory codecs)
+
+For images that are already in memory (e.g. fetched over HTTP, embedded
+as data, or read with `vfs_read_all`), `png_decode_mem` and
+`jpeg_decode_mem` allocate a fresh XRGB pixel buffer that the caller
+must `kfree`.
+
+```c
+int png_decode_mem (uint8_t *data, uint32_t len,
+                    uint32_t **out_pixels, int *out_w, int *out_h);  // 0 / negative
+int jpeg_decode_mem(uint8_t *data, uint32_t len,
+                    uint32_t **out_pixels, int *out_w, int *out_h);  // 0 / negative
+int kdeflate_raw   (uint8_t *src, uint32_t src_len,
+                    uint8_t *out, uint32_t out_len);                 // bytes / negative
+```
+
+Supported variants: 8-bit non-interlaced PNGs (color types 0/2/3/6);
+baseline JPEGs (SOF0/SOF1, 1- or 3-component, 4:4:4 / 4:2:2 / 4:2:0).
+
+```c
+// HTTP -> PNG -> screen
+uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
+uint32_t *px; int w, h;
+if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) gfx2d_pixel(x, y, px[y*w + x]);
+    gfx2d_flip();
+    kfree(px);
+}
+kfree(bytes);
+```
+
+### CupidASM parity note
+
+Every `gfx2d_*` and image-codec function listed above is also bound from
+CupidASM (see `wiki/CupidASM-Assembler.md`), with the same names and
+calling convention. This includes the previously CupidC-only image
+slot (`gfx2d_image_load` / `_load_mem` / `_draw` / `_draw_scaled` /
+`_draw_transformed` / `_get_pixel` / `_width` / `_height` / `_free`),
+the thick-stroke shapes (`gfx2d_circle_thick`, `gfx2d_line_thick`,
+`gfx2d_tri`, `gfx2d_tri_fill_gradient`), the rounded / radial gradients,
+the glyph helpers (`gfx2d_char` / `_char_scaled` / `_text_n` /
+`_text_simple` / `_text_width_n` / `_glyph_advance`), and
+`gfx2d_capture_screen_to_surface`.
 
 **`bmp_info_t` struct** (passed as `void*` to `bmp_get_info`):
 
@@ -427,12 +473,12 @@ void draw_window(int x, int y, int w, int h, char *title) {
 
 | File | Purpose |
 |------|---------|
-| `kernel/gfx2d.h` | Public API header (including file dialogs) |
-| `kernel/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
-| `kernel/bmp.h` | BMP encoding/decoding API header |
-| `kernel/bmp.c` | BMP format implementation |
-| `kernel/vfs_helpers.h` | High-level VFS convenience functions |
-| `kernel/vfs_helpers.c` | VFS helpers implementation |
+| `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
+| `kernel/gfx/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
+| `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
+| `kernel/gfx/bmp.c` | BMP format implementation |
+| `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
+| `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
 | `cupidc.c` | Binding registration (~100 entries) |
 | `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
 | `cupidc_parse.c` | Type parsing for new keywords |

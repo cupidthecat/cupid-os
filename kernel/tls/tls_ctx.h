@@ -1,7 +1,7 @@
 #ifndef CUPID_TLS_CTX_H
 #define CUPID_TLS_CTX_H
 
-#include "../types.h"
+#include "types.h"
 #include "sha256.h"
 #include "tls_record.h"
 #include "x509_chain.h"
@@ -11,7 +11,7 @@
 
 /* TLS context - one per active connection. Allocated by socket_setsockopt
  * via kmalloc; zero-initialized; carries everything the handshake and
- * the application data path need. */
+ * the application data path need.*/
 
 #define TLS_ERR_OK                0
 #define TLS_ERR_TRANSPORT        -1
@@ -44,7 +44,7 @@ typedef struct {
     uint8_t ecdhe_shared[32];
 
     /* P-256 ephemeral keypair (only the 32-byte X coordinate of the
-     * shared secret is used as the input to HKDF - same as X25519). */
+     * shared secret is used as the input to HKDF - same as X25519).*/
     uint8_t  p256_priv[32];
     uint8_t  p256_pub[65];        /* 0x04 || X || Y, SEC1 uncompressed */
 
@@ -65,13 +65,13 @@ typedef struct {
     uint8_t s_ap_traffic[32];
 
     /* Snapshot of transcript hash at "after Certificate" (used by
-     * CertificateVerify) and "after server Finished". */
+     * CertificateVerify) and "after server Finished".*/
     uint8_t th_before_cert_verify[32];
     uint8_t th_before_server_finished[32];
     uint8_t th_after_server_finished[32];
 
     /* Server cert chain. The DER bytes for each cert remain inside
-     * cert_buf; x509_chain_t holds spans into it. */
+     * cert_buf; x509_chain_t holds spans into it.*/
     x509_chain_t chain;
     uint8_t  cert_buf[TLS_CTX_CERT_BUF];
     uint32_t cert_buf_used;
@@ -86,7 +86,7 @@ typedef struct {
     /* App-data spillover. A single TLS 1.3 record can carry up to 16 KB
      * of plaintext but callers typically pass small recv buffers (4 KB).
      * tls_app_recv decrypts into app_buf, returns up to buf_max bytes,
-     * and stashes the rest here for the next call. */
+     * and stashes the rest here for the next call.*/
     uint8_t  app_buf[TLS_REC_MAX_PLAINTEXT];
     uint32_t app_buf_off;
     uint32_t app_buf_len;
@@ -94,7 +94,7 @@ typedef struct {
 
 /* Initialize an already-allocated context. xport callbacks send/recv
  * over TCP. `hostname` is NUL-terminated. `now` is current Unix epoch
- * for validity checks. */
+ * for validity checks.*/
 int tls_ctx_init(tls_ctx_t *ctx,
                  void *xport_user,
                  tls_xport_send_fn s,
@@ -104,11 +104,11 @@ int tls_ctx_init(tls_ctx_t *ctx,
 
 /* Drive a full TLS 1.3 client handshake to completion. Returns
  * TLS_ERR_OK on success or a TLS_ERR_* / X509_ERR_* (negative) on
- * failure. ctx->last_error is also set. */
+ * failure. ctx->last_error is also set.*/
 int tls_handshake_client(tls_ctx_t *ctx);
 
 /* Read decrypted application data into buf (max buf_max bytes).
- * Returns the byte count, 0 on close_notify, or TLS_ERR_* (<0). */
+ * Returns the byte count, 0 on close_notify, or TLS_ERR_* (<0).*/
 int tls_app_recv(tls_ctx_t *ctx, uint8_t *buf, uint32_t buf_max);
 
 /* Send application data. Returns 0 on success, TLS_ERR_* on failure. */

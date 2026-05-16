@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<title>g4 clear semantics</title>
+<style>
+body { margin: 0; padding: 16px; font-family: sans-serif; }
+.l { float: left; width: 80px; height: 60px; background: #fcc; margin: 0 8px 8px 0; }
+.r { float: right; width: 80px; height: 80px; background: #cfc; margin: 0 0 8px 8px; }
+.cl  { clear: left;  background: #ccf; padding: 6px; margin: 0 0 8px 0; }
+.cr  { clear: right; background: #fcf; padding: 6px; margin: 0 0 8px 0; }
+.cb  { clear: both;  background: #ffc; padding: 6px; margin: 0 0 8px 0; }
+</style>
+</head>
+<body>
+<div class="l">L1</div>
+<div class="r">R1</div>
+<div class="cl">clear:left — sits below the left float, may still be alongside right float.</div>
+<div class="cr">clear:right — sits below the right float.</div>
+
+<div class="l">L2</div>
+<div class="r">R2</div>
+<div class="cb">clear:both — sits below the lowest of L2 + R2.</div>
+</body>
+</html>

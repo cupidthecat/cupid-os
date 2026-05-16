@@ -10,11 +10,11 @@
  * The generator emits two roots by default:
  *   - ISRG Root X1   (RSA-4096) - Let's Encrypt
  *   - DigiCert Global Root G2 (RSA-2048) - most CDNs
- */
+*/
 
 #include "x509_chain.h"
 
 /* Weak default: empty bundle. Override by linking
- * `tls_ca_bundle_data.o` after running the generator. */
+ * `tls_ca_bundle_data.o` after running the generator.*/
 __attribute__((weak)) const ca_root_t TLS_CA_BUNDLE[1] = { { 0, 0, 0 } };
 __attribute__((weak)) const uint32_t  TLS_CA_BUNDLE_COUNT = 0u;
