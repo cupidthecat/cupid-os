@@ -3,7 +3,7 @@
  *
  * Extended BMP image loading with handle pool, custom bitmap font
  * loading (.fnt format), and text rendering with effects.
-*/
+ */
 
 #include "gfx2d_assets.h"
 #include "gfx2d.h"
@@ -55,6 +55,15 @@ void gfx2d_assets_init(void) {
 
 /* Image loading: dispatches by file/buffer signature */
 
+static uint16_t g2d_read_le16(const uint8_t *p) {
+    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+}
+
+static uint32_t g2d_read_le32(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
 static int g2d_alloc_slot(void) {
     int i;
     for (i = 0; i < GFX2D_MAX_IMAGES; i++) {
@@ -80,9 +89,66 @@ static int g2d_load_bmp_path(int slot, const char *path) {
     if (!data) return -1;
     rc = bmp_decode(path, data, info.data_size);
     if (rc != BMP_OK) { kfree(data); return -1; }
+    uint32_t count = info.width * info.height;
+    for (uint32_t i = 0; i < count; i++)
+        data[i] |= 0xFF000000u;
     g2d_img_data[slot] = data;
     g2d_img_w[slot]    = (int)info.width;
     g2d_img_h[slot]    = (int)info.height;
+    g2d_img_used[slot] = 1;
+    return slot;
+}
+
+static int g2d_load_bmp_mem(int slot, const uint8_t *buf, uint32_t len) {
+    if (!buf || len < BMP_HEADER_SIZE)
+        return -1;
+    if (g2d_read_le16(buf) != BMP_SIGNATURE)
+        return -1;
+
+    uint32_t data_offset = g2d_read_le32(buf + 10);
+    uint32_t dib_size = g2d_read_le32(buf + 14);
+    int32_t w = (int32_t)g2d_read_le32(buf + 18);
+    int32_t h = (int32_t)g2d_read_le32(buf + 22);
+    uint16_t planes = g2d_read_le16(buf + 26);
+    uint16_t bpp = g2d_read_le16(buf + 28);
+    uint32_t compression = g2d_read_le32(buf + 30);
+    if (dib_size < BMP_DIB_HDR_SIZE || planes != 1u ||
+        bpp != 24u || compression != 0u || w <= 0 || h == 0)
+        return -1;
+
+    uint32_t width = (uint32_t)w;
+    uint32_t height = (h > 0) ? (uint32_t)h : (uint32_t)(-h);
+    int top_down = h < 0;
+    if (width == 0u || height == 0u ||
+        width > BMP_MAX_DIM || height > BMP_MAX_DIM)
+        return -1;
+
+    uint32_t row_bytes = (width * 3u + 3u) & ~3u;
+    uint64_t pixel_end = (uint64_t)data_offset +
+                         (uint64_t)row_bytes * (uint64_t)height;
+    if (data_offset >= len || pixel_end > (uint64_t)len)
+        return -1;
+
+    uint32_t *data = (uint32_t *)kmalloc(width * height * 4u);
+    if (!data)
+        return -1;
+
+    for (uint32_t file_y = 0; file_y < height; file_y++) {
+        uint32_t out_y = top_down ? file_y : (height - 1u - file_y);
+        const uint8_t *row = buf + data_offset + file_y * row_bytes;
+        for (uint32_t x = 0; x < width; x++) {
+            uint8_t b = row[x * 3u + 0u];
+            uint8_t g = row[x * 3u + 1u];
+            uint8_t r = row[x * 3u + 2u];
+            data[out_y * width + x] =
+                0xFF000000u | ((uint32_t)r << 16) |
+                ((uint32_t)g << 8) | (uint32_t)b;
+        }
+    }
+
+    g2d_img_data[slot] = data;
+    g2d_img_w[slot] = (int)width;
+    g2d_img_h[slot] = (int)height;
     g2d_img_used[slot] = 1;
     return slot;
 }
@@ -171,6 +237,9 @@ int gfx2d_image_load_mem(const uint8_t *buf, uint32_t len) {
     if (!buf || len < 4) return -1;
     int slot = g2d_alloc_slot();
     if (slot < 0) return -1;
+    if (buf[0] == 0x42 && buf[1] == 0x4D) {
+        return g2d_load_bmp_mem(slot, buf, len);
+    }
     if (buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4E && buf[3] == 0x47) {
         return g2d_load_png_mem(slot, buf, len);
     }
@@ -217,8 +286,8 @@ void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
     /* Use the alpha-aware blit so transparent PNG regions composite
      * over the destination instead of writing raw RGB=0,A=0 (which
      * would show up as solid black where the source was transparent -
-     * the bottom of the Wikipedia logo, for example). JPEG decode
-     * emits A=255 so the same path stays a fast opaque write.*/
+     * the bottom of the Wikipedia logo, for example). BMP/JPEG decode
+     * emits A=255 so the same path stays a fast opaque write. */
     for (row = 0; row < dh; row++) {
         int sy = (row * sh) / dh;
         for (col = 0; col < dw; col++) {
@@ -298,7 +367,7 @@ const uint32_t *gfx2d_image_data(int handle, int *w, int *h) {
  * - For each char (first_char..last_char):
  * char_height bytes of row data (1 byte per row, MSB = left pixel)
  * (same format as font_8x8, but variable size)
-*/
+ */
 
 int gfx2d_font_load(const char *path) {
     int i, fd;

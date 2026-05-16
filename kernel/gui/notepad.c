@@ -23,16 +23,22 @@
 #include "calendar.h"
 #include "bmp.h"
 #include "clipboard.h"
+#include "ctxt_image_worker.h"
 #include "cupidc.h"
+#include "app_launch.h"
 #include "desktop.h"
 #include "font_8x8.h"
 #include "gfx2d.h"
+#include "gfx2d_assets.h"
 #include "graphics.h"
 #include "gui.h"
 #include "kernel.h"
 #include "memory.h"
+#include "dns.h"
+#include "ip.h"
 #include "process.h"
 #include "shell.h"
+#include "socket.h"
 #include "string.h"
 #include "ui.h"
 #include "vfs.h"
@@ -47,6 +53,8 @@
 #define NOTEPAD_CTXT_MAX_ACTION_PAYLOAD 2048
 #define NOTEPAD_CTXT_MAX_SPRITES 64
 #define NOTEPAD_CTXT_MAX_TREES 32
+#define NOTEPAD_CTXT_MAX_TARGET 1024
+#define NOTEPAD_CTXT_WEB_BUF_SIZE (512u * 1024u)
 #define NOTEPAD_STATUS_MSG_MAX 96
 
 #define MENUBAR_H 12
@@ -151,7 +159,8 @@ typedef struct {
 enum {
   CTXT_ACTION_OPEN = 0,
   CTXT_ACTION_SHELL,
-  CTXT_ACTION_REPL
+  CTXT_ACTION_REPL,
+  CTXT_ACTION_WEB
 };
 
 /* File browser dialog */
@@ -244,7 +253,7 @@ typedef struct {
     uint16_t h;
     uint8_t action_type;
     int16_t ref;
-    char target[VFS_MAX_PATH];
+    char target[NOTEPAD_CTXT_MAX_TARGET];
   } ctxt_links[256];
   int ctxt_link_count;
   int ctxt_hover_link;
@@ -257,10 +266,14 @@ typedef struct {
   int ctxt_action_count;
 
   struct {
-    char path[VFS_MAX_PATH];
+    char path[NOTEPAD_CTXT_MAX_TARGET];
     int width;
     int height;
     int16_t action_ref;
+    bool remote;
+    uint8_t state;
+    int handle;
+    bool explicit_size;
   } ctxt_sprites[NOTEPAD_CTXT_MAX_SPRITES];
   int ctxt_sprite_count;
 
@@ -305,6 +318,8 @@ typedef struct {
 
 /* Static state */
 static notepad_app_t app;
+static bool notepad_ctxt_auto_fetch_remote_images = true;
+static bool notepad_ctxt_worker_started = false;
 static int notepad_wid = -1;
 
 /* Forward declarations */
@@ -334,6 +349,9 @@ static int notepad_ctxt_hit_link(int16_t mx, int16_t my);
 static void notepad_ctxt_resolve_link(const char *target, char *out);
 static void notepad_ctxt_open_link(const char *target);
 static void notepad_ctxt_run_action(uint8_t action_type, const char *target);
+static bool notepad_ctxt_is_web_url(const char *s);
+static bool notepad_ctxt_is_remote_image_url(const char *s);
+static void notepad_ctxt_release_image_handles(void);
 static int notepad_ctxt_max_scroll(window_t *win);
 static int notepad_ctxt_max_scroll_x(window_t *win);
 static void notepad_ctxt_refresh_metrics(void);
@@ -590,7 +608,9 @@ static int notepad_buffer_looks_ctxt(void) {
         np_strncmp(line, ">button", 7) == 0 ||
         np_strncmp(line, ">code", 5) == 0 ||
         np_strncmp(line, ">endcode", 8) == 0 ||
-        np_strncmp(line, ">sprite", 7) == 0) {
+        np_strncmp(line, ">sprite", 7) == 0 ||
+        np_strncmp(line, ">image", 6) == 0 ||
+        np_strncmp(line, ">img", 4) == 0) {
       return 1;
     }
   }
@@ -840,18 +860,37 @@ static int notepad_ctxt_add_action(uint8_t type, const char *label,
   return idx;
 }
 
+static void notepad_ctxt_release_image_handles(void) {
+  for (int i = 0; i < app.ctxt_sprite_count; i++) {
+    if (app.ctxt_sprites[i].handle >= 0) {
+      gfx2d_image_free(app.ctxt_sprites[i].handle);
+      app.ctxt_sprites[i].handle = -1;
+    }
+    app.ctxt_sprites[i].state = 0;
+  }
+  notepad_ctxt_worker_started = false;
+}
+
 static int notepad_ctxt_add_sprite(const char *path, int width, int height,
-                                   int16_t action_ref) {
+                                   int16_t action_ref, bool explicit_size) {
   int idx;
+  bool remote;
 
   if (app.ctxt_sprite_count >= NOTEPAD_CTXT_MAX_SPRITES)
     return -1;
 
+  remote = notepad_ctxt_is_remote_image_url(path);
+
   idx = app.ctxt_sprite_count++;
-  np_copy_limited(app.ctxt_sprites[idx].path, path ? path : "", VFS_MAX_PATH);
+  np_copy_limited(app.ctxt_sprites[idx].path, path ? path : "",
+                  NOTEPAD_CTXT_MAX_TARGET);
   app.ctxt_sprites[idx].width = width;
   app.ctxt_sprites[idx].height = height;
   app.ctxt_sprites[idx].action_ref = action_ref;
+  app.ctxt_sprites[idx].remote = remote;
+  app.ctxt_sprites[idx].state = 0;
+  app.ctxt_sprites[idx].handle = -1;
+  app.ctxt_sprites[idx].explicit_size = explicit_size;
   return idx;
 }
 
@@ -945,6 +984,11 @@ static int notepad_ctxt_parse_action_spec(const char *spec, uint8_t *type_out,
   } else if (np_strncmp(payload, "repl:", 5) == 0) {
     type = CTXT_ACTION_REPL;
     payload += 5;
+  } else if (np_strncmp(payload, "web:", 4) == 0) {
+    type = CTXT_ACTION_WEB;
+    payload += 4;
+  } else if (notepad_ctxt_is_web_url(payload)) {
+    type = CTXT_ACTION_WEB;
   }
 
   np_copy_trimmed(payload_out, payload, payload_out_len);
@@ -959,6 +1003,7 @@ static void notepad_set_status_message(const char *msg) {
 }
 
 static void notepad_ctxt_parse(void) {
+  notepad_ctxt_release_image_handles();
   app.ctxt_line_count = 0;
   app.ctxt_action_count = 0;
   app.ctxt_sprite_count = 0;
@@ -1080,16 +1125,23 @@ static void notepad_ctxt_parse(void) {
           int tree_idx = tree_stack[--tree_top];
           current_tree_mask &= ~(1u << tree_idx);
         }
-      } else if (np_strncmp(src, ">sprite", 7) == 0) {
-        const char *arg = np_skip_spaces(src + 7);
+      } else if (np_strncmp(src, ">sprite", 7) == 0 ||
+                 np_strncmp(src, ">image", 6) == 0 ||
+                 np_strncmp(src, ">img", 4) == 0) {
+        const char *arg = np_strncmp(src, ">sprite", 7) == 0
+                              ? np_skip_spaces(src + 7)
+                              : (np_strncmp(src, ">image", 6) == 0
+                                     ? np_skip_spaces(src + 6)
+                                     : np_skip_spaces(src + 4));
         const char *sep = arg;
-        char sprite_args[VFS_MAX_PATH];
-        char sprite_spec[VFS_MAX_PATH];
+        char sprite_args[NOTEPAD_CTXT_MAX_TARGET];
+        char sprite_spec[NOTEPAD_CTXT_MAX_TARGET];
         char action_buf[NOTEPAD_CTXT_MAX_ACTION_PAYLOAD];
         int path_len = 0;
         int draw_w = 0;
         int draw_h = 0;
         int action_ref = -1;
+        bool explicit_size = false;
         bmp_info_t info;
         int sprite_idx;
         uint8_t action_type = CTXT_ACTION_OPEN;
@@ -1098,8 +1150,8 @@ static void notepad_ctxt_parse(void) {
           sep++;
         if (*sep == '|') {
           int args_len = (int)(sep - arg);
-          if (args_len >= VFS_MAX_PATH)
-            args_len = VFS_MAX_PATH - 1;
+          if (args_len >= NOTEPAD_CTXT_MAX_TARGET)
+            args_len = NOTEPAD_CTXT_MAX_TARGET - 1;
           for (int j = 0; j < args_len; j++)
             sprite_args[j] = arg[j];
           sprite_args[args_len] = '\0';
@@ -1117,29 +1169,37 @@ static void notepad_ctxt_parse(void) {
         }
 
         while (arg[path_len] && arg[path_len] != ' ' && arg[path_len] != '\t' &&
-               path_len < VFS_MAX_PATH - 1) {
+               path_len < NOTEPAD_CTXT_MAX_TARGET - 1) {
           sprite_spec[path_len] = arg[path_len];
           path_len++;
         }
         sprite_spec[path_len] = '\0';
         arg = np_skip_spaces(arg + path_len);
-        if (*arg)
+        if (*arg) {
+          explicit_size = true;
           (void)np_parse_u16_value(arg, &draw_w);
+        }
         while (*arg && *arg != ' ' && *arg != '\t')
           arg++;
         arg = np_skip_spaces(arg);
         if (*arg)
           (void)np_parse_u16_value(arg, &draw_h);
         if (sprite_spec[0] != '\0') {
-          if ((draw_w <= 0 || draw_h <= 0) &&
+          if (!notepad_ctxt_is_web_url(sprite_spec) &&
+              (draw_w <= 0 || draw_h <= 0) &&
               bmp_get_info(sprite_spec, &info) == BMP_OK) {
             if (draw_w <= 0)
               draw_w = (int)info.width;
             if (draw_h <= 0)
               draw_h = (int)info.height;
           }
+          if (draw_w <= 0)
+            draw_w = notepad_ctxt_is_web_url(sprite_spec) ? 160 : 96;
+          if (draw_h <= 0)
+            draw_h = draw_w;
           sprite_idx =
-              notepad_ctxt_add_sprite(sprite_spec, draw_w, draw_h, action_ref);
+              notepad_ctxt_add_sprite(sprite_spec, draw_w, draw_h,
+                                      (int16_t)action_ref, explicit_size);
           if (sprite_idx >= 0) {
             type = CTXT_LINE_SPRITE;
             text = sprite_spec;
@@ -1325,9 +1385,153 @@ static int np_is_link_break(char c) {
          c == '}' || c == '"' || c == '\'';
 }
 
+static bool notepad_ctxt_is_web_url(const char *s) {
+  return s && (np_strncmp(s, "http://", 7) == 0 ||
+               np_strncmp(s, "https://", 8) == 0);
+}
+
+static bool notepad_ctxt_url_path_has_ext(const char *s, const char *ext) {
+  int end = 0;
+  int elen = (int)np_strlen(ext);
+  while (s[end] && s[end] != '?' && s[end] != '#')
+    end++;
+  if (end < elen)
+    return false;
+  for (int i = 0; i < elen; i++) {
+    char a = s[end - elen + i];
+    char b = ext[i];
+    if (a >= 'A' && a <= 'Z')
+      a = (char)(a - 'A' + 'a');
+    if (b >= 'A' && b <= 'Z')
+      b = (char)(b - 'A' + 'a');
+    if (a != b)
+      return false;
+  }
+  return true;
+}
+
+static bool notepad_ctxt_is_remote_image_url(const char *s) {
+  return notepad_ctxt_is_web_url(s) &&
+         (notepad_ctxt_url_path_has_ext(s, ".png") ||
+          notepad_ctxt_url_path_has_ext(s, ".bmp") ||
+          notepad_ctxt_url_path_has_ext(s, ".jpg") ||
+          notepad_ctxt_url_path_has_ext(s, ".jpeg"));
+}
+
+static uint32_t notepad_ctxt_url_hash(const char *s) {
+  uint32_t h = 2166136261u;
+  for (int i = 0; s && s[i]; i++) {
+    h ^= (uint32_t)(uint8_t)s[i];
+    h *= 16777619u;
+  }
+  return h;
+}
+
+static void notepad_ctxt_hex8(uint32_t v, char *out) {
+  static const char hex[] = "0123456789abcdef";
+  for (int i = 0; i < 8; i++) {
+    uint32_t shift = (uint32_t)(7 - i) * 4u;
+    out[i] = hex[(v >> shift) & 15u];
+  }
+  out[8] = '\0';
+}
+
+static void notepad_ctxt_remote_image_ext(const char *url, char *out) {
+  int end = 0;
+  int dot = -1;
+  int o = 0;
+  while (url && url[end] && url[end] != '?' && url[end] != '#') {
+    if (url[end] == '.')
+      dot = end;
+    end++;
+  }
+  if (dot < 0 || dot >= end) {
+    np_copy_limited(out, ".img", 8);
+    return;
+  }
+  while (dot < end && o < 7) {
+    char c = url[dot++];
+    if (c >= 'A' && c <= 'Z')
+      c = (char)(c - 'A' + 'a');
+    out[o++] = c;
+  }
+  out[o] = '\0';
+}
+
+static void notepad_ctxt_remote_cache_paths(int sprite_idx, char *asset,
+                                            char *job, char *done,
+                                            char *fail) {
+  char hex[9];
+  char ext[8];
+  notepad_ctxt_hex8(notepad_ctxt_url_hash(app.ctxt_sprites[sprite_idx].path),
+                    hex);
+  notepad_ctxt_remote_image_ext(app.ctxt_sprites[sprite_idx].path, ext);
+
+  np_copy_limited(asset, "/ctxt-cache/ctxt_", 256);
+  np_append_limited(asset, hex, 256);
+  np_append_limited(asset, ext, 256);
+
+  np_copy_limited(job, "/ctxt-cache/ctxt_", 256);
+  np_append_limited(job, hex, 256);
+  np_append_limited(job, ".job", 256);
+
+  np_copy_limited(done, "/ctxt-cache/ctxt_", 256);
+  np_append_limited(done, hex, 256);
+  np_append_limited(done, ".done", 256);
+
+  np_copy_limited(fail, "/ctxt-cache/ctxt_", 256);
+  np_append_limited(fail, hex, 256);
+  np_append_limited(fail, ".fail", 256);
+}
+
+static bool notepad_ctxt_file_exists(const char *path) {
+  vfs_stat_t st;
+  return vfs_stat(path, &st) >= 0;
+}
+
+static bool notepad_ctxt_schedule_remote_image(int sprite_idx) {
+  char asset[256];
+  char job[256];
+  char done[256];
+  char fail[256];
+  char body[2400];
+
+  if (!notepad_ctxt_auto_fetch_remote_images)
+    return false;
+  notepad_ctxt_remote_cache_paths(sprite_idx, asset, job, done, fail);
+
+  if (notepad_ctxt_file_exists(done) && notepad_ctxt_file_exists(asset))
+    return true;
+  if (notepad_ctxt_file_exists(fail))
+    return false;
+
+  (void)vfs_mkdir("/ctxt-cache");
+  if (!notepad_ctxt_file_exists(job)) {
+    body[0] = '\0';
+    np_append_limited(body, app.ctxt_sprites[sprite_idx].path,
+                      (int)sizeof(body));
+    np_append_limited(body, "\n", (int)sizeof(body));
+    np_append_limited(body, asset, (int)sizeof(body));
+    np_append_limited(body, "\n", (int)sizeof(body));
+    np_append_limited(body, done, (int)sizeof(body));
+    np_append_limited(body, "\n", (int)sizeof(body));
+    np_append_limited(body, fail, (int)sizeof(body));
+    np_append_limited(body, "\n", (int)sizeof(body));
+    (void)vfs_write_text(job, body);
+  }
+
+  if (!notepad_ctxt_worker_started) {
+    ctxt_image_worker_start();
+    notepad_ctxt_worker_started = true;
+  }
+  return true;
+}
+
 static int np_looks_like_link_target(const char *tok) {
   if (!tok || !tok[0])
     return 0;
+  if (notepad_ctxt_is_web_url(tok))
+    return 1;
   if (tok[0] == '/' || (tok[0] == '.' && tok[1] == '/'))
     return 1;
   for (int i = 0; tok[i]; i++) {
@@ -1446,6 +1650,14 @@ static int notepad_try_open_path(const char *path) {
 static void notepad_ctxt_open_link(const char *target) {
   char resolved[VFS_MAX_PATH];
   static const char *ext_variants[] = {".ctxt", ".CTXT", ".txt", ".TXT"};
+  if (notepad_ctxt_is_web_url(target)) {
+    if (app_launch_by_name("browser", target))
+      notepad_set_status_message("Opening web link");
+    else
+      notepad_set_status_message("Browser launch failed");
+    return;
+  }
+
   notepad_ctxt_resolve_link(target, resolved);
 
   if (notepad_try_open_path(resolved))
@@ -1492,6 +1704,11 @@ static void notepad_ctxt_run_action(uint8_t action_type, const char *target) {
     return;
 
   if (action_type == CTXT_ACTION_OPEN) {
+    notepad_ctxt_open_link(target);
+    return;
+  }
+
+  if (action_type == CTXT_ACTION_WEB) {
     notepad_ctxt_open_link(target);
     return;
   }
@@ -1626,8 +1843,8 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
       while (*end && !np_is_link_break(*end) && *end != '{')
         end++;
       int tok_len = (int)(end - p);
-      if (tok_len > 0 && tok_len < VFS_MAX_PATH) {
-        char tok[VFS_MAX_PATH];
+      if (tok_len > 0 && tok_len < NOTEPAD_CTXT_MAX_TARGET) {
+        char tok[NOTEPAD_CTXT_MAX_TARGET];
         for (int i = 0; i < tok_len; i++)
           tok[i] = p[i];
         tok[tok_len] = '\0';
@@ -1665,7 +1882,7 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
               app.ctxt_links[app.ctxt_link_count].action_type = CTXT_ACTION_OPEN;
               app.ctxt_links[app.ctxt_link_count].ref = -1;
               np_copy_limited(app.ctxt_links[app.ctxt_link_count].target, tok,
-                              VFS_MAX_PATH);
+                              NOTEPAD_CTXT_MAX_TARGET);
               app.ctxt_link_count++;
             }
           }
@@ -1688,12 +1905,12 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
           int label_len = (int)(close - (p + 1));
           int target_len = (int)(r - (close + 2));
           if (label_len > 0 && target_len > 0) {
-            char target[VFS_MAX_PATH];
-            char payload[VFS_MAX_PATH];
+            char target[NOTEPAD_CTXT_MAX_TARGET];
+            char payload[NOTEPAD_CTXT_MAX_TARGET];
             uint8_t action_type = CTXT_ACTION_OPEN;
             int tl = 0;
             const char *ts = close + 2;
-            while (tl < target_len && tl < VFS_MAX_PATH - 1) {
+            while (tl < target_len && tl < NOTEPAD_CTXT_MAX_TARGET - 1) {
               target[tl] = ts[tl];
               tl++;
             }
@@ -1701,7 +1918,7 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
             if (!notepad_ctxt_parse_action_spec(target, &action_type, payload,
                                                 (int)sizeof(payload))) {
               action_type = CTXT_ACTION_OPEN;
-              np_copy_limited(payload, target, VFS_MAX_PATH);
+              np_copy_limited(payload, target, NOTEPAD_CTXT_MAX_TARGET);
             }
 
             int start_x = cx;
@@ -1739,7 +1956,7 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
                 app.ctxt_links[app.ctxt_link_count].action_type = action_type;
                 app.ctxt_links[app.ctxt_link_count].ref = -1;
                 np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
-                                payload, VFS_MAX_PATH);
+                                payload, NOTEPAD_CTXT_MAX_TARGET);
                 app.ctxt_link_count++;
               }
             }
@@ -1858,47 +2075,435 @@ static void notepad_ctxt_draw_text(int16_t x, int16_t y, const char *text,
   }
 }
 
-static void notepad_ctxt_draw_sprite(const char *path, int16_t x, int16_t y,
-                                     int draw_w, int draw_h, uint32_t border) {
-  bmp_info_t info;
-  uint32_t *pixels;
-
-  if (!path || !path[0] || draw_w <= 0 || draw_h <= 0) {
-    return;
+static bool notepad_ctxt_starts_ci(const char *s, const char *prefix) {
+  int i = 0;
+  while (prefix[i]) {
+    char a = s[i];
+    char b = prefix[i];
+    if (a >= 'A' && a <= 'Z')
+      a = (char)(a - 'A' + 'a');
+    if (b >= 'A' && b <= 'Z')
+      b = (char)(b - 'A' + 'a');
+    if (a != b)
+      return false;
+    i++;
   }
+  return true;
+}
 
-  if (bmp_get_info(path, &info) != BMP_OK || info.data_size == 0) {
-    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
-    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(missing sprite)",
-                  border);
-    return;
+static int notepad_ctxt_parse_url(const char *url, char *host, int *port_out,
+                                  char *path, bool *is_https_out) {
+  int i = 0;
+  int hi = 0;
+  int pi = 0;
+  *is_https_out = false;
+  if (notepad_ctxt_starts_ci(url, "http://")) {
+    i = 7;
+  } else if (notepad_ctxt_starts_ci(url, "https://")) {
+    i = 8;
+    *is_https_out = true;
+  } else {
+    return -1;
   }
-
-  pixels = (uint32_t *)kmalloc(info.data_size);
-  if (!pixels) {
-    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
-    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(sprite OOM)", border);
-    return;
+  *port_out = *is_https_out ? 443 : 80;
+  while (url[i] && url[i] != ':' && url[i] != '/' &&
+         hi < NOTEPAD_CTXT_MAX_TARGET - 1) {
+    host[hi++] = url[i++];
   }
-
-  if (bmp_decode(path, pixels, info.data_size) != BMP_OK) {
-    kfree(pixels);
-    gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
-    gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), "(sprite error)", border);
-    return;
+  host[hi] = '\0';
+  if (hi == 0)
+    return -1;
+  if (url[i] == ':') {
+    int port = 0;
+    i++;
+    while (url[i] >= '0' && url[i] <= '9') {
+      port = port * 10 + (url[i] - '0');
+      i++;
+    }
+    if (port <= 0 || port > 65535)
+      return -1;
+    *port_out = port;
   }
+  if (url[i] != '/')
+    path[pi++] = '/';
+  while (url[i] && pi < NOTEPAD_CTXT_MAX_TARGET - 1) {
+    path[pi++] = url[i++];
+  }
+  path[pi] = '\0';
+  return 0;
+}
 
-  for (int dy = 0; dy < draw_h; dy++) {
-    uint32_t src_y = (uint32_t)((dy * (int)info.height) / draw_h);
-    for (int dx = 0; dx < draw_w; dx++) {
-      uint32_t src_x = (uint32_t)((dx * (int)info.width) / draw_w);
-      gfx_plot_pixel((int16_t)(x + dx), (int16_t)(y + dy),
-                     pixels[src_y * info.width + src_x]);
+static int notepad_ctxt_resolve_redirect_url(const char *location,
+                                             const char *host, int port,
+                                             bool is_https, char *out,
+                                             int out_len) {
+  if (notepad_ctxt_is_web_url(location)) {
+    np_copy_limited(out, location, out_len);
+    return 0;
+  }
+  if (!location || location[0] != '/')
+    return -1;
+
+  out[0] = '\0';
+  np_append_limited(out, is_https ? "https://" : "http://", out_len);
+  np_append_limited(out, host, out_len);
+  {
+    int default_port = is_https ? 443 : 80;
+    if (port != default_port) {
+      char port_buf[12];
+      char rev[12];
+      int n = 0;
+      int v = port;
+      np_append_limited(out, ":", out_len);
+      while (v > 0 && n < 11) {
+        rev[n++] = (char)('0' + (v % 10));
+        v /= 10;
+      }
+      for (int i = 0; i < n; i++)
+        port_buf[i] = rev[n - 1 - i];
+      port_buf[n] = '\0';
+      np_append_limited(out, port_buf, out_len);
     }
   }
+  np_append_limited(out, location, out_len);
+  return 0;
+}
 
+static int notepad_ctxt_decode_chunked(const uint8_t *raw, int body_start,
+                                       int raw_len, uint8_t *out, int max) {
+  int i = body_start;
+  int out_len = 0;
+  while (i < raw_len) {
+    int sz = 0;
+    while (i < raw_len) {
+      int ch = raw[i];
+      int dig = -1;
+      if (ch >= '0' && ch <= '9')
+        dig = ch - '0';
+      else if (ch >= 'a' && ch <= 'f')
+        dig = ch - 'a' + 10;
+      else if (ch >= 'A' && ch <= 'F')
+        dig = ch - 'A' + 10;
+      if (dig < 0)
+        break;
+      sz = sz * 16 + dig;
+      i++;
+    }
+    while (i < raw_len && raw[i] != '\n')
+      i++;
+    if (i < raw_len && raw[i] == '\n')
+      i++;
+    if (sz <= 0)
+      return out_len;
+    if (i + sz > raw_len)
+      sz = raw_len - i;
+    int can = max - out_len;
+    if (sz < can)
+      can = sz;
+    if (can > 0)
+      memcpy(out + out_len, raw + i, (size_t)can);
+    out_len += can;
+    i += sz;
+    while (i < raw_len && (raw[i] == '\r' || raw[i] == '\n'))
+      i++;
+    if (out_len >= max)
+      return out_len;
+  }
+  return out_len;
+}
+
+static int __attribute__((unused))
+notepad_ctxt_fetch_url(const char *url, uint8_t *out, int max, int *out_len) {
+  char work_url[NOTEPAD_CTXT_MAX_TARGET];
+  int redirects = 0;
+  *out_len = 0;
+  np_copy_limited(work_url, url, (int)sizeof(work_url));
+
+  while (redirects < 5) {
+    char host[NOTEPAD_CTXT_MAX_TARGET];
+    char path[NOTEPAD_CTXT_MAX_TARGET];
+    int port = 80;
+    bool is_https = false;
+    uint32_t ip = 0;
+    if (notepad_ctxt_parse_url(work_url, host, &port, path, &is_https) != 0)
+      return -1;
+    if (ip_parse(host, &ip) != 0 && dns_resolve(host, &ip) != 0)
+      return -1;
+
+    int fd = socket_create(SOCK_TYPE_TCP);
+    if (fd < 0)
+      return -1;
+    if (socket_connect(fd, ip, htons((uint16_t)port)) != 0) {
+      socket_close(fd);
+      return -1;
+    }
+    if (is_https &&
+        socket_setsockopt(fd, SOL_TLS, TLS_ENABLE, host,
+                          (uint32_t)(strlen(host) + 1)) != 0) {
+      socket_close(fd);
+      return -1;
+    }
+
+    char req[2048];
+    req[0] = '\0';
+    np_append_limited(req, "GET ", (int)sizeof(req));
+    np_append_limited(req, path, (int)sizeof(req));
+    np_append_limited(req, " HTTP/1.1\r\nHost: ", (int)sizeof(req));
+    np_append_limited(req, host, (int)sizeof(req));
+    np_append_limited(req, "\r\nUser-Agent: cupidos-ctxt/1.0\r\n"
+                           "Accept: image/*,*/*\r\n"
+                           "Accept-Encoding: identity\r\n"
+                           "Connection: close\r\n\r\n",
+                      (int)sizeof(req));
+    if (socket_send(fd, req, (uint32_t)strlen(req)) < 0) {
+      socket_close(fd);
+      return -1;
+    }
+
+    int raw_cap = max + 8192;
+    uint8_t *raw = kmalloc((uint32_t)raw_cap);
+    if (!raw) {
+      socket_close(fd);
+      return -1;
+    }
+    int raw_len = 0;
+    uint8_t tmp[4096];
+    for (;;) {
+      int n = socket_recv(fd, tmp, sizeof(tmp));
+      if (n <= 0)
+        break;
+      int can = raw_cap - raw_len;
+      if (n < can)
+        can = n;
+      if (can > 0)
+        memcpy(raw + raw_len, tmp, (size_t)can);
+      raw_len += can;
+      if (raw_len >= raw_cap)
+        break;
+    }
+    socket_close(fd);
+
+    int header_end = -1;
+    for (int i = 0; i + 3 < raw_len; i++) {
+      if (raw[i] == '\r' && raw[i + 1] == '\n' &&
+          raw[i + 2] == '\r' && raw[i + 3] == '\n') {
+        header_end = i + 4;
+        break;
+      }
+    }
+    if (header_end < 0) {
+      kfree(raw);
+      return -1;
+    }
+
+    int status = 0;
+    int i = 0;
+    while (i < raw_len && raw[i] != ' ')
+      i++;
+    while (i < raw_len && raw[i] == ' ')
+      i++;
+    while (i < raw_len && raw[i] >= '0' && raw[i] <= '9')
+      status = status * 10 + (raw[i++] - '0');
+
+    bool chunked = false;
+    char location[NOTEPAD_CTXT_MAX_TARGET];
+    location[0] = '\0';
+    i = 0;
+    while (i < header_end) {
+      int ls = i;
+      int le = i;
+      while (le < header_end && raw[le] != '\n')
+        le++;
+      if (le > ls && raw[le - 1] == '\r')
+        le--;
+      if (le - ls > 9 && notepad_ctxt_starts_ci((const char *)raw + ls,
+                                                "location:")) {
+        int p = ls + 9;
+        int o = 0;
+        while (p < le && np_is_space_char((char)raw[p]))
+          p++;
+        while (p < le && o < NOTEPAD_CTXT_MAX_TARGET - 1)
+          location[o++] = (char)raw[p++];
+        location[o] = '\0';
+      }
+      if (le - ls > 18 && notepad_ctxt_starts_ci((const char *)raw + ls,
+                                                 "transfer-encoding:")) {
+        int p = ls + 18;
+        while (p < le && np_is_space_char((char)raw[p]))
+          p++;
+        if (notepad_ctxt_starts_ci((const char *)raw + p, "chunked"))
+          chunked = true;
+      }
+      i = le + 1;
+    }
+
+    if (status >= 300 && status < 400 && location[0]) {
+      char next_url[NOTEPAD_CTXT_MAX_TARGET];
+      if (notepad_ctxt_resolve_redirect_url(location, host, port, is_https,
+                                            next_url,
+                                            (int)sizeof(next_url)) == 0) {
+        np_copy_limited(work_url, next_url, (int)sizeof(work_url));
+        redirects++;
+        kfree(raw);
+        continue;
+      }
+    }
+
+    if (status < 200 || status >= 300) {
+      kfree(raw);
+      return -1;
+    }
+
+    if (chunked) {
+      *out_len = notepad_ctxt_decode_chunked(raw, header_end, raw_len, out, max);
+    } else {
+      int body_len = raw_len - header_end;
+      if (body_len > max)
+        body_len = max;
+      if (body_len > 0)
+        memcpy(out, raw + header_end, (size_t)body_len);
+      *out_len = body_len;
+    }
+    kfree(raw);
+    return *out_len > 0 ? 0 : -1;
+  }
+  return -1;
+}
+
+static void notepad_ctxt_apply_sprite_intrinsic(int sprite_idx) {
+  int w = gfx2d_image_width(app.ctxt_sprites[sprite_idx].handle);
+  int h = gfx2d_image_height(app.ctxt_sprites[sprite_idx].handle);
+  if (w <= 0 || h <= 0 || app.ctxt_sprites[sprite_idx].explicit_size)
+    return;
+  if (w > 640) {
+    h = (h * 640) / w;
+    w = 640;
+  }
+  if (h > 480) {
+    w = (w * 480) / h;
+    h = 480;
+  }
+  if (w < 1) w = 1;
+  if (h < 1) h = 1;
+  app.ctxt_sprites[sprite_idx].width = w;
+  app.ctxt_sprites[sprite_idx].height = h;
+}
+
+static void notepad_ctxt_ensure_sprite_loaded(int sprite_idx) {
+  if (sprite_idx < 0 || sprite_idx >= app.ctxt_sprite_count)
+    return;
+  if (app.ctxt_sprites[sprite_idx].state != 0)
+    return;
+
+  if (app.ctxt_sprites[sprite_idx].remote) {
+    if (notepad_ctxt_auto_fetch_remote_images &&
+        notepad_ctxt_schedule_remote_image(sprite_idx)) {
+      app.ctxt_sprites[sprite_idx].state = 3;
+    } else {
+      app.ctxt_sprites[sprite_idx].state = 2;
+    }
+    return;
+  }
+
+  app.ctxt_sprites[sprite_idx].state = 2;
+  int handle = gfx2d_image_load(app.ctxt_sprites[sprite_idx].path);
+  if (handle >= 0) {
+    app.ctxt_sprites[sprite_idx].handle = handle;
+    app.ctxt_sprites[sprite_idx].state = 1;
+    notepad_ctxt_apply_sprite_intrinsic(sprite_idx);
+  }
+}
+
+static bool notepad_ctxt_pump_remote_images(void) {
+  if (!notepad_ctxt_auto_fetch_remote_images)
+    return false;
+
+  bool changed = false;
+  for (int i = 0; i < app.ctxt_sprite_count; i++) {
+    if (!app.ctxt_sprites[i].remote)
+      continue;
+
+    if (app.ctxt_sprites[i].state == 0) {
+      if (notepad_ctxt_schedule_remote_image(i)) {
+        app.ctxt_sprites[i].state = 3;
+      } else {
+        app.ctxt_sprites[i].state = 2;
+      }
+      changed = true;
+    } else if (app.ctxt_sprites[i].state == 3) {
+      char asset[256];
+      char job[256];
+      char done[256];
+      char fail[256];
+      notepad_ctxt_remote_cache_paths(i, asset, job, done, fail);
+      if (notepad_ctxt_file_exists(done) &&
+          notepad_ctxt_file_exists(asset)) {
+        int handle = gfx2d_image_load(asset);
+        if (handle >= 0) {
+          app.ctxt_sprites[i].handle = handle;
+          app.ctxt_sprites[i].state = 1;
+          notepad_ctxt_apply_sprite_intrinsic(i);
+        } else {
+          app.ctxt_sprites[i].state = 2;
+        }
+        changed = true;
+      } else if (notepad_ctxt_file_exists(fail)) {
+        app.ctxt_sprites[i].state = 2;
+        changed = true;
+      } else if (!notepad_ctxt_file_exists(job) &&
+                 !notepad_ctxt_file_exists(done)) {
+        (void)notepad_ctxt_schedule_remote_image(i);
+      }
+    }
+  }
+  return changed;
+}
+
+static void notepad_ctxt_draw_image_handle(int handle, int16_t x, int16_t y,
+                                           int draw_w, int draw_h,
+                                           uint32_t border) {
+  int iw = 0;
+  int ih = 0;
+  const uint32_t *pixels = gfx2d_image_data(handle, &iw, &ih);
+  if (!pixels || iw <= 0 || ih <= 0)
+    return;
+  for (int dy = 0; dy < draw_h; dy++) {
+    int src_y = (dy * ih) / draw_h;
+    for (int dx = 0; dx < draw_w; dx++) {
+      int src_x = (dx * iw) / draw_w;
+      uint32_t c = pixels[src_y * iw + src_x];
+      if ((c & 0xFF000000u) == 0 && (c & 0x00FFFFFFu) == 0)
+        continue;
+      gfx_plot_pixel((int16_t)(x + dx), (int16_t)(y + dy),
+                     c & 0x00FFFFFFu);
+    }
+  }
   gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
-  kfree(pixels);
+}
+
+static void notepad_ctxt_draw_sprite(int sprite_idx, int16_t x, int16_t y,
+                                     int draw_w, int draw_h, uint32_t border) {
+  if (sprite_idx < 0 || sprite_idx >= app.ctxt_sprite_count ||
+      draw_w <= 0 || draw_h <= 0) {
+    return;
+  }
+
+  notepad_ctxt_ensure_sprite_loaded(sprite_idx);
+  if (app.ctxt_sprites[sprite_idx].state == 1 &&
+      app.ctxt_sprites[sprite_idx].handle >= 0) {
+    notepad_ctxt_draw_image_handle(app.ctxt_sprites[sprite_idx].handle,
+                                   x, y, draw_w, draw_h, border);
+    return;
+  }
+
+  const char *msg = "(missing image)";
+  if (app.ctxt_sprites[sprite_idx].remote)
+    msg = (app.ctxt_sprites[sprite_idx].state == 0 ||
+           app.ctxt_sprites[sprite_idx].state == 3)
+              ? "(loading image)"
+              : "(image failed)";
+  gfx_draw_rect(x, y, (uint16_t)draw_w, (uint16_t)draw_h, border);
+  gfx_draw_text((int16_t)(x + 4), (int16_t)(y + 4), msg, border);
 }
 
 static void notepad_draw_ctxt_area(window_t *win) {
@@ -2016,7 +2621,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
             app.ctxt_lines[i].ref < app.ctxt_action_count) {
           np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
                           app.ctxt_actions[app.ctxt_lines[i].ref].payload,
-                          VFS_MAX_PATH);
+                          NOTEPAD_CTXT_MAX_TARGET);
         } else {
           app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
         }
@@ -2076,7 +2681,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
               app.ctxt_lines[i].ref < app.ctxt_action_count) {
             np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
                             app.ctxt_actions[app.ctxt_lines[i].ref].payload,
-                            VFS_MAX_PATH);
+                            NOTEPAD_CTXT_MAX_TARGET);
           } else {
             app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
           }
@@ -2122,7 +2727,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
         if (app.ctxt_lines[i].ref < app.ctxt_action_count) {
           np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
                           app.ctxt_actions[app.ctxt_lines[i].ref].payload,
-                          VFS_MAX_PATH);
+                          NOTEPAD_CTXT_MAX_TARGET);
         } else {
           app.ctxt_links[app.ctxt_link_count].target[0] = '\0';
         }
@@ -2134,6 +2739,16 @@ static void notepad_draw_ctxt_area(window_t *win) {
       if (app.ctxt_lines[i].ref >= 0 && app.ctxt_lines[i].ref < app.ctxt_sprite_count &&
           app.ctxt_sprites[app.ctxt_lines[i].ref].action_ref >= 0)
         is_hover = (app.ctxt_hover_link == app.ctxt_link_count);
+      if (app.ctxt_lines[i].ref >= 0 &&
+          app.ctxt_lines[i].ref < app.ctxt_sprite_count) {
+        int sprite_idx = app.ctxt_lines[i].ref;
+        notepad_ctxt_ensure_sprite_loaded(sprite_idx);
+        if (!app.ctxt_sprites[sprite_idx].explicit_size &&
+            app.ctxt_sprites[sprite_idx].state == 1) {
+          app.ctxt_lines[i].aux_w = (int16_t)app.ctxt_sprites[sprite_idx].width;
+          app.ctxt_lines[i].aux_h = (int16_t)app.ctxt_sprites[sprite_idx].height;
+        }
+      }
       gfx_fill_rect((int16_t)content_x, (int16_t)y,
                     (uint16_t)(app.ctxt_lines[i].aux_w + 8),
                     (uint16_t)(app.ctxt_lines[i].aux_h + 8),
@@ -2141,7 +2756,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
                              : code_bg);
       if (app.ctxt_lines[i].ref >= 0 &&
           app.ctxt_lines[i].ref < app.ctxt_sprite_count) {
-        notepad_ctxt_draw_sprite(app.ctxt_sprites[app.ctxt_lines[i].ref].path,
+        notepad_ctxt_draw_sprite(app.ctxt_lines[i].ref,
                                  (int16_t)(content_x + 4), (int16_t)(y + 4),
                                  app.ctxt_lines[i].aux_w,
                                  app.ctxt_lines[i].aux_h, theme.rule);
@@ -2160,7 +2775,8 @@ static void notepad_draw_ctxt_area(window_t *win) {
               app.ctxt_actions[action_ref].type;
           app.ctxt_links[app.ctxt_link_count].ref = (int16_t)action_ref;
           np_copy_limited(app.ctxt_links[app.ctxt_link_count].target,
-                          app.ctxt_actions[action_ref].payload, VFS_MAX_PATH);
+                          app.ctxt_actions[action_ref].payload,
+                          NOTEPAD_CTXT_MAX_TARGET);
           app.ctxt_link_count++;
         }
       }
@@ -2187,6 +2803,7 @@ static void notepad_draw_ctxt_area(window_t *win) {
       y += app.ctxt_lines[i].aux_h;
   }
 
+  notepad_ctxt_refresh_metrics();
   gfx2d_clip_clear();
 }
 
@@ -2766,6 +3383,7 @@ static void notepad_do_new(void) {
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
   app.ctxt_action_count = 0;
+  notepad_ctxt_release_image_handles();
   app.ctxt_sprite_count = 0;
   app.ctxt_tree_count = 0;
   app.ctxt_tree_count = 0;
@@ -2929,6 +3547,7 @@ static void notepad_open_file(const char *name) {
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
   app.ctxt_action_count = 0;
+  notepad_ctxt_release_image_handles();
   app.ctxt_sprite_count = 0;
   app.ctxt_tree_count = 0;
   app.status_message[0] = '\0';
@@ -4188,6 +4807,7 @@ void notepad_launch(void) {
   app.ctxt_link_count = 0;
   app.ctxt_hover_link = -1;
   app.ctxt_action_count = 0;
+  notepad_ctxt_release_image_handles();
   app.ctxt_sprite_count = 0;
   app.ctxt_tree_count = 0;
   app.status_message[0] = '\0';
@@ -5044,8 +5664,11 @@ void notepad_tick(void) {
   if (!(win->flags & WINDOW_FLAG_FOCUSED))
     return;
 
-  if (app.is_ctxt_file && app.render_mode)
+  if (app.is_ctxt_file && app.render_mode) {
+    if (notepad_ctxt_pump_remote_images())
+      win->flags |= WINDOW_FLAG_DIRTY;
     return;
+  }
 
   uint32_t now = timer_get_uptime_ms();
   if (now - app.last_blink_ms >= CURSOR_BLINK_MS) {
