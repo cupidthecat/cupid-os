@@ -31,11 +31,13 @@ Render mode is where widgets, sprites, links, and executable code come alive.
 >tree open Clickable Actions
 Use markdown-style links for inline actions:
 - [Open the shell guide](open:01SHELL.CTXT)
+- [Open the CupidOS web site](https://example.com/)
 - [Run a shell command](shell:ls /docs)
 - [Evaluate CupidC](repl:3 + 4;)
 
 Standalone button widgets:
 >button Open CupidC Guide | open:04CUPIDC.CTXT
+>button Open Example.com | web:https://example.com/
 >button Show Processes | shell:ps
 >button Evaluate 40 + 2 | repl:40 + 2;
 >endtree
@@ -56,21 +58,45 @@ For shell command examples or pseudocode, indent them 2 spaces as plain prose
 text instead of wrapping them in >code...>endcode.
 >endtree
 
->tree open Sprites And Assets
-CupidOS .CTXT supports both static and clickable BMP widgets inline.
+>tree open Images And Assets
+CupidOS .CTXT supports static and clickable image widgets inline. Local files
+can be BMP, PNG, or JPEG. HTTP/HTTPS image URLs are embedded only when used
+inside >sprite, >image, or >img and the URL points directly at a .bmp, .png,
+.jpg, or .jpeg file.
 
 >sprite /docs/image.bmp 96 96
 >sprite /docs/image.bmp 96 96 | open:04CUPIDC.CTXT
 >sprite /docs/image.bmp 96 96 | repl:6 * 7;
+>image /home/snail.bmp 96 96
+>image /home/test.png 120 90
+>image /home/file_example_JPG_1MB.jpg 160 107
+>img https://www.kaffeewiki.de/images/b/bd/Test.jpg 160 120
 
 Syntax:
   >sprite /docs/image.bmp
   >sprite /docs/image.bmp 160 120
   >sprite /docs/image.bmp 96 96 | open:04CUPIDC.CTXT
   >sprite /docs/image.bmp 96 96 | repl:6 * 7;
+  >image /home/snail.bmp 96 96
+  >img /home/test.png 120 90
+  >image /home/file_example_JPG_1MB.jpg 160 107
+  >image https://host/path/picture.png 160 100
+  >img https://www.kaffeewiki.de/images/b/bd/Test.jpg 160 120
+  >img https://host/path/photo.jpg 240 160 | web:https://host/
 
-For this manual set, image.bmp is embedded into ramfs at /docs/image.bmp
-so examples work out of the box after boot.
+Use explicit width and height for stable layout. Web image downloads are
+scheduled after the first paint through the kernel ctxtimgd worker service and
+stored in the volatile /ctxt-cache ramfs, so Notepad can keep repainting while
+network fetches run and no persistent /home writes are triggered. Regular
+HTTP/HTTPS markdown links stay links; only explicit image tags fetch pixels.
+Add a | web: action only when the image itself should also be clickable.
+
+Top-level image files ending in .bmp, .png, .jpg, or .jpeg are embedded at
+build time and installed into /home at boot. Build embeds .jpg/.jpeg files as
+baseline JPEG bytes, so progressive source JPEGs can still render through the
+current kernel JPEG decoder. This manual set currently ships /home/snail.bmp,
+/home/test.png, and /home/file_example_JPG_1MB.jpg. image.bmp also remains
+embedded at /docs/image.bmp for older examples.
 >endtree
 
 >tree open Collapsible Tree Widgets
@@ -104,8 +130,10 @@ Supported block tags:
 - >button Label | action clickable button widget
 - >code [Label]          runnable CupidC block (clicking fires REPL)
 - >endcode               code block end
-- >sprite path [w h]     inline BMP sprite
-- >sprite ... | action   clickable BMP widget
+- >sprite path [w h]     inline image widget
+- >image path [w h]      alias for >sprite
+- >img path [w h]        short alias for >sprite
+- >sprite ... | action   clickable image widget
 
 >box
 Important: every >code...>endcode block registers itself as a clickable REPL
@@ -126,11 +154,13 @@ Inline styling:
 >tree open Action Prefixes
 Inline action links, buttons, and code blocks use these prefixes:
 - open:path      open another file in Notepad
+- web:url        open http:// or https:// in Browser
 - shell:command  execute a shell command
 - repl:code      evaluate CupidC in the live REPL
 
 Examples:
 - [Open docs index](open:00INDEX.CTXT)
+- [Open a web page](web:https://example.com/)
 - [List /docs](shell:ls /docs)
 - [Set ans](repl:ans = 99;)
 >endtree
@@ -141,10 +171,13 @@ Two link forms are supported:
 1) Action-aware markdown links:
    [Run demo](repl:12 * 12;)
    [Open guide](open:04CUPIDC.CTXT)
+   [Open web](https://example.com/)
 2) Bare path tokens:
    /docs/04CUPIDC.ctxt
+   https://example.com/
 
-Bare path tokens open files. Markdown links can open files or run actions.
+Bare path tokens open files. Bare HTTP/HTTPS tokens open Browser. Markdown
+links can open files, open web pages, or run actions.
 >endtree
 
 >h2 Manuals Using DolDoc
@@ -193,6 +226,7 @@ Use this as a starter page (copy and edit):
   One short paragraph.
 
   >button Open Shell Guide | open:01SHELL.CTXT
+  >button Open Example.com | web:https://example.com/
   [Run quick math](repl:6 * 7;)
 
   >tree open Example Block
@@ -202,5 +236,8 @@ Use this as a starter page (copy and edit):
     demo + 2;
 
   >sprite /docs/image.bmp 96 96
+  >image /home/test.png 120 90
+  >image /home/file_example_JPG_1MB.jpg 160 107
+  >img https://www.kaffeewiki.de/images/b/bd/Test.jpg 160 120
   >endtree
 >endtree

@@ -14,12 +14,13 @@ Verified against source on: 2026-05-15
 >rule
 
 This repo folder is the source of truth for the shipped manual set.
-CupidOS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt,
-then renders them inside Notepad as live DolDoc-style manuals.
+CupidOS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt, then
+renders them inside Notepad as live DolDoc-style manuals.
 
->sprite /docs/image.bmp 64 64 | open:11CTXT.CTXT
+>sprite /home/snail.bmp 64 64 | open:11CTXT.CTXT
 >button Open Docs Index | open:00INDEX.CTXT
 >button List /docs | shell:ls /docs
+>button List /home | shell:ls /home
 >button Open DolDoc Manual | open:11CTXT.CTXT
 
 >h2 Canonical Path
@@ -37,17 +38,18 @@ Workflow:
 
 This is the TempleOS-style path. The document source stays readable as text,
 but rendered view gains live buttons, runnable CupidC, action links, trees,
-and inline BMP widgets.
+and inline BMP, PNG, or JPEG widgets.
 >endtree
 
 >h2 Makefile Auto-Discovery
 >tree open Makefile Auto-Discovery
-The Makefile auto-discovers and embeds files from four source trees:
+The Makefile auto-discovers and embeds these source sets:
 
   bin/*.cc     -> kernel/util/bin_programs_gen.c  -> /bin/*.cc in ramfs
   bin/*.h      -> kernel/util/bin_programs_gen.c  -> /bin/*.h in ramfs
   bin/browser/*.cc -> kernel/util/bin_programs_gen.c -> /bin/browser/*.cc
   cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.c -> /docs/*.ctxt
+  *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.c -> /home/<same name>
   demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
   god/*.DD     -> embedded via objcopy        -> /god/*.DD in image
 
@@ -55,11 +57,17 @@ Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
   BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
   DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
+  HOME_ASSET_SRCS := $(HOME_BMP_SRCS) $(HOME_PNG_SRCS) $(HOME_JPG_SRCS) $(HOME_JPEG_SRCS)
   DEMO_ASM_SRCS := $(wildcard demos/*.asm)
   GOD_DD_SRCS   := $(wildcard god/*.DD)
 
 Adding a new .CTXT file to cupidos-txt/ is enough: the next build will pick
 it up automatically through docs_programs_gen.c.
+
+Adding a top-level .bmp, .png, .jpg, or .jpeg file is enough: the next build
+embeds it and the boot path installs it to /home with the same filename.
+JPEG files are normalized to baseline JPEG while embedding so progressive
+source files still load in the current in-kernel decoder.
 
 Adding a new .cc to bin/ is enough: bin_programs_gen.c handles it.
 
@@ -119,13 +127,14 @@ Tradeoff:
 - Non-persistent (rebuilt image required)
 >endtree
 
->h2 Method C: Auto-Install Doc Files To RAMFS At Boot (Advanced)
->tree open Method C: Auto-Install Doc Files To RAMFS At Boot
+>h2 Method C: Auto-Install Docs And Images At Boot (Advanced)
+>tree open Method C: Auto-Install Docs And Images At Boot
 Pattern is already implemented for:
 - /bin programs (bin/*.cc)
 - /docs pages (cupidos-txt/*.CTXT)
 - /demos asm sources (demos/*.asm)
 - /docs/image.bmp sprite assets
+- /home image assets (*.bmp, *.png, *.jpg, *.jpeg at repo root)
 - /god/*.DD word lists (via objcopy)
 
 Build-time generators:
@@ -155,6 +164,12 @@ For user-customized copies:
 
 For asm demos used in docs:
 - Use make sync-demos to refresh /home/demos in cupidos.img
+
+For image assets used in docs:
+- Put BMP, PNG, JPG, or JPEG files at the repo root
+- Rebuild so /home/<same filename> is available to >sprite, >image, and >img
+- Top-level JPG/JPEG sources may be progressive; the build embeds baseline
+  JPEG bytes under the same /home filename
 >endtree
 
 >h2 See Also

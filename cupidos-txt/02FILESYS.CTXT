@@ -49,9 +49,13 @@ Current boot-installed content includes:
 
 Ramfs is session-local and rebuilt from source at boot.
 It is the canonical location for shipped manuals and demos.
+After /home is mounted, the generated docs installer also seeds /home with
+top-level image assets such as /home/snail.bmp, /home/test.png, and
+/home/file_example_JPG_1MB.jpg.
 
 >button ls /docs | shell:ls /docs
 >button ls /demos | shell:ls /demos
+>button ls /home | shell:ls /home
 >endtree
 
 >h2 DEVFS
@@ -189,11 +193,12 @@ If you are doing persistent edits or demo sync work, use sync before reboot.
 The shipped docs path is source-generated at build time:
 - cupidos-txt/*.CTXT -> /docs/*.ctxt
 - image.bmp -> /docs/image.bmp
+- top-level *.bmp/*.png/*.jpg/*.jpeg -> /home/<same filename>
 - demos/*.asm -> /demos/*.asm
 
 So:
 - /docs is the canonical in-OS manual set
-- /home is where user-edited persistent copies belong
+- /home is where user-edited persistent copies and shipped image assets belong
 >button Open Docs Index | open:00INDEX.CTXT
 >button Open Embed Guide | open:09EMBED.CTXT
 >endtree
