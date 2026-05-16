@@ -74,6 +74,20 @@ $(info DOC_ASSET_SRCS=$(DOC_ASSET_SRCS))
 DOC_ASSET_OBJS := $(DOC_ASSET_SRCS:.bmp=.bmp.o)
 DOC_ASSET_NAMES := $(notdir $(basename $(DOC_ASSET_SRCS)))
 
+# Auto-discover top-level image assets to seed /home at boot.
+HOME_BMP_SRCS := $(wildcard *.bmp)
+HOME_PNG_SRCS := $(wildcard *.png)
+HOME_JPG_SRCS := $(wildcard *.jpg)
+HOME_JPEG_SRCS := $(wildcard *.jpeg)
+HOME_ASSET_SRCS := $(HOME_BMP_SRCS) $(HOME_PNG_SRCS) $(HOME_JPG_SRCS) $(HOME_JPEG_SRCS)
+$(info HOME_ASSET_SRCS=$(HOME_ASSET_SRCS))
+HOME_ASSET_OBJS := $(addsuffix .o,$(HOME_ASSET_SRCS))
+HOME_BMP_NAMES := $(notdir $(basename $(HOME_BMP_SRCS)))
+HOME_PNG_NAMES := $(notdir $(basename $(HOME_PNG_SRCS)))
+HOME_JPG_NAMES := $(notdir $(basename $(HOME_JPG_SRCS)))
+HOME_JPEG_NAMES := $(notdir $(basename $(HOME_JPEG_SRCS)))
+EMBED_ASSET_OBJS := $(sort $(DOC_ASSET_OBJS) $(HOME_ASSET_OBJS))
+
 # Auto-discover CupidASM demos to embed at boot (/demos/*.asm in ramfs)
 DEMO_ASM_SRCS := $(wildcard demos/*.asm)
 $(info DEMO_ASM_SRCS=$(DEMO_ASM_SRCS))
@@ -119,6 +133,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/lang/cupidscript_arrays.o kernel/lang/cupidscript_jobs.o \
 			kernel/gui/ansi.o \
 			kernel/gui/terminal_app.o \
+			kernel/gui/ctxt_image_worker.o \
             kernel/fs/vfs.o kernel/fs/ramfs.o kernel/fs/devfs.o kernel/fs/fat16_vfs.o kernel/lang/exec.o \
             kernel/fs/homefs.o kernel/fs/loopdev.o kernel/fs/iso9660.o kernel/fs/iso9660_vfs.o \
             kernel/mm/swap_disk.o kernel/mm/swap.o \
@@ -188,7 +203,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/audio/memio.o \
 			kernel/audio/mus2midi.o \
 			kernel/audio/midiopl.o \
-			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(DOC_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS) $(FONT_TTF_OBJS)
+			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(EMBED_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS) $(FONT_TTF_OBJS)
 
 .PHONY: FORCE
 FORCE:
@@ -632,7 +647,7 @@ kernel/util/calendar.o: kernel/util/calendar.c kernel/util/calendar.h
 kernel/gui/desktop.o: kernel/gui/desktop.c kernel/gui/desktop.h kernel/gfx/gfx2d_icons.h kernel/lang/cupidc.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gui/desktop.c -o kernel/gui/desktop.o
 
-kernel/core/app_launch.o: kernel/core/app_launch.c kernel/core/app_launch.h kernel/lang/cupidc.h kernel/core/process.h kernel/lang/shell.h kernel/gui/terminal_app.h
+kernel/core/app_launch.o: kernel/core/app_launch.c kernel/core/app_launch.h kernel/lang/cupidc.h kernel/core/process.h kernel/lang/shell.h kernel/gui/terminal_app.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/core/app_launch.c -o kernel/core/app_launch.o
 
 # Terminal application
@@ -644,6 +659,9 @@ kernel/gui/terminal_ansi.o: kernel/gui/terminal_ansi.c kernel/gui/terminal_ansi.
 
 kernel/gui/terminal_app.o: kernel/gui/terminal_app.c kernel/gui/terminal_app.h kernel/gui/terminal_ansi.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gui/terminal_app.c -o kernel/gui/terminal_app.o
+
+kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c kernel/gui/ctxt_image_worker.h kernel/network/dns.h kernel/network/socket.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/process.h
+	$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler (process.c)
 kernel/core/process.o: kernel/core/process.c kernel/core/process.h
@@ -801,7 +819,7 @@ kernel/gui/gui_themes.o: kernel/gui/gui_themes.c kernel/gui/gui_themes.h kernel/
 	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_themes.c -o kernel/gui/gui_themes.o
 
 # CupidC compiler
-kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h
+kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc.c -o kernel/lang/cupidc.o
 
 kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.c kernel/lang/cupidc_string.h kernel/core/types.h
@@ -876,20 +894,48 @@ kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o
 
 # Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
-kernel/util/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) Makefile
+kernel/util/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) $(HOME_ASSET_SRCS) Makefile
 	@echo "/* Auto-generated -- do not edit. */" > $@
 	@echo "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */" >> $@
+	@echo '#include "homefs.h"' >> $@
 	@echo '#include "ramfs.h"' >> $@
 	@echo '#include "types.h"' >> $@
+	@echo '#include "vfs.h"' >> $@
 	@echo '#include "../drivers/serial.h"' >> $@
 	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
 	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
+	@$(foreach n,$(HOME_BMP_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_png_start[];' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpg_start[];' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpeg_start[];' >> $@;)
 	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
 	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
+	@$(foreach n,$(HOME_BMP_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_png_end[];' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpg_end[];' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpeg_end[];' >> $@;)
+	@echo 'static void install_home_asset(const char *path, const char *data, uint32_t size) {' >> $@
+	@echo '    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);' >> $@
+	@echo '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\n", path, fd); return; }' >> $@
+	@echo '    uint32_t off = 0;' >> $@
+	@echo '    while (off < size) {' >> $@
+	@echo '        int n = vfs_write(fd, data + off, size - off);' >> $@
+	@echo '        if (n <= 0) break;' >> $@
+	@echo '        off += (uint32_t)n;' >> $@
+	@echo '    }' >> $@
+	@echo '    vfs_close(fd);' >> $@
+	@echo '    serial_printf("[kernel] Installed %s (%u bytes)\n", path, off);' >> $@
+	@echo '}' >> $@
 	@echo 'void install_docs_programs(void *fs_private);' >> $@
 	@echo 'void install_docs_programs(void *fs_private) {' >> $@
 	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\n", sz); }' >> $@;)
 	@$(foreach n,$(DOC_ASSET_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\n", sz); }' >> $@;)
+	@echo '    homefs_seed_begin();' >> $@
+	@$(foreach n,$(HOME_BMP_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); install_home_asset("/home/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_png_end - _binary_$(subst -,_,$(n))_png_start); install_home_asset("/home/$(n).png", _binary_$(subst -,_,$(n))_png_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpg_end - _binary_$(subst -,_,$(n))_jpg_start); install_home_asset("/home/$(n).jpg", _binary_$(subst -,_,$(n))_jpg_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpeg_end - _binary_$(subst -,_,$(n))_jpeg_start); install_home_asset("/home/$(n).jpeg", _binary_$(subst -,_,$(n))_jpeg_start, sz); }' >> $@;)
+	@echo '    homefs_seed_end();' >> $@
 	@echo '}' >> $@
 
 kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.c
@@ -932,6 +978,15 @@ cupidos-txt/%.o: cupidos-txt/%.CTXT
 
 %.bmp.o: %.bmp
 	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+%.png.o: %.png
+	objcopy -I binary -O elf32-i386 -B i386 $< $@
+
+%.jpg.o: %.jpg tools/embed_jpeg_baseline.sh
+	sh tools/embed_jpeg_baseline.sh $< $@
+
+%.jpeg.o: %.jpeg tools/embed_jpeg_baseline.sh
+	sh tools/embed_jpeg_baseline.sh $< $@
 
 # Pattern rule: embed any system/fonts/*.ttf file via objcopy.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
@@ -1172,7 +1227,7 @@ clean:
 	      kernel/mm/*.o kernel/network/*.o kernel/smp/*.o kernel/tls/*.o \
 	      kernel/usb/*.o kernel/util/*.o \
 	      drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o \
-	      cupidos-txt/*.o demos/*.o god/*.o image.bmp.o \
+	      cupidos-txt/*.o demos/*.o god/*.o *.bmp.o *.png.o *.jpg.o *.jpeg.o \
 	      kernel/kernel.elf kernel/kernel.elf.pass1 kernel/kernel.bin \
 	      kernel/smp/smp_trampoline.bin \
 	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c \
