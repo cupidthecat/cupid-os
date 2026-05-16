@@ -1,9 +1,12 @@
 #include "app_launch.h"
 
+#include "ctxt_image_worker.h"
 #include "cupidc.h"
 #include "shell.h"
 #include "string.h"
 #include "terminal_app.h"
+
+#define HOSTED_CUPIDC_STACK_SIZE (4u * 1024u * 1024u)
 
 static const app_descriptor_t g_apps[] = {
     {
@@ -60,6 +63,20 @@ static const app_descriptor_t g_apps[] = {
         .icon_y = 130,
         .icon_type = 0,
         .icon_color = 0x00C8FFu,
+        .icon_style = APP_ICON_STYLE_DEFAULT
+    },
+    {
+        .name = "ctxtimgd",
+        .path = "__kernel_ctxtimgd",
+        .label = "CTXT Image Loader",
+        .description = "Background CTXT web image loader",
+        .runtime = APP_RUNTIME_KERNEL_SERVICE,
+        .domain = PROCESS_DOMAIN_KERNEL,
+        .desktop_visible = 0,
+        .icon_x = 0,
+        .icon_y = 0,
+        .icon_type = 0,
+        .icon_color = 0x000000u,
         .icon_style = APP_ICON_STYLE_DEFAULT
     }
 };
@@ -135,22 +152,28 @@ bool app_launch_cupidc_process(const char *path,
 
   shell_set_output_mode(SHELL_OUTPUT_GUI);
   return process_create_with_arg_ex((void (*)(void))app_cupidc_process_entry,
-                                    process_name, 1048576u, (uint32_t)path,
-                                    domain) != 0;
+                                    process_name, HOSTED_CUPIDC_STACK_SIZE,
+                                    (uint32_t)path, domain) != 0;
 }
 
 bool app_launch_registered(const app_descriptor_t *app, const char *args) {
-  (void)args;
-
   if (!app) {
     return false;
   }
 
   switch (app->runtime) {
   case APP_RUNTIME_KERNEL_SERVICE:
-    terminal_launch();
-    return true;
+    if (strcmp(app->name, "terminal") == 0) {
+      terminal_launch();
+      return true;
+    }
+    if (strcmp(app->name, "ctxtimgd") == 0) {
+      ctxt_image_worker_start();
+      return true;
+    }
+    return false;
   case APP_RUNTIME_HOSTED_CUPIDC:
+    shell_set_program_args(args ? args : "");
     return app_launch_cupidc_process(app->path, app->name, app->domain);
   case APP_RUNTIME_EXTERNAL_BINARY:
     return false;

@@ -176,6 +176,28 @@ static int check_canaries(heap_block_t *block) {
   return (*back_canary == CANARY_BACK);
 }
 
+static void report_heap_block(const char *label, heap_block_t *block) {
+  if (!block) {
+    return;
+  }
+
+  uint32_t back_addr = 0;
+  uint32_t back_value = 0;
+  const char *file = block->alloc_file ? block->alloc_file : "unknown";
+
+  if (block->canary_front == CANARY_FRONT &&
+      block->size < (HEAP_INITIAL_PAGES * PAGE_SIZE)) {
+    back_addr = get_back_canary_addr(block);
+    back_value = *(uint32_t *)back_addr;
+  }
+
+  serial_printf("[heap] %s block=0x%x size=%u free=%u front=0x%x "
+                "back@0x%x=0x%x next=0x%x alloc=%s:%u\n",
+                label, (uint32_t)block, (uint32_t)block->size,
+                (uint32_t)block->free, block->canary_front, back_addr,
+                back_value, (uint32_t)block->next, file, block->alloc_line);
+}
+
 void heap_init(uint32_t initial_pages) {
   if (initial_pages == 0)
     return;
@@ -250,11 +272,14 @@ static void *kmalloc_debug_locked(size_t size, const char *file, uint32_t line) 
 
   size_t needed = size + sizeof(uint32_t);
   heap_block_t *current = heap_head;
+  heap_block_t *prev = 0;
 
   while (current) {
     if (!check_canaries(current)) {
       serial_printf("[heap] CORRUPTION detected in block at 0x%x\n",
                     (uint32_t)current);
+      report_heap_block("corrupt", current);
+      report_heap_block("previous", prev);
       kernel_panic("Heap corruption detected in kmalloc");
     }
 
@@ -289,6 +314,7 @@ static void *kmalloc_debug_locked(size_t size, const char *file, uint32_t line) 
 
       return user_ptr;
     }
+    prev = current;
     current = current->next;
   }
 
