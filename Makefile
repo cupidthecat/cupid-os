@@ -123,7 +123,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o \
             drivers/serial.o kernel/core/panic.o kernel/gui/ed.o \
             drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o \
-			kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o \
+			kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/kdebugger.o kernel/core/context_switch.o \
 			kernel/gui/clipboard.o kernel/gui/ui.o \
 			kernel/lang/godspeak.o \
 			kernel/cpu/fpu.o kernel/cpu/libm.o \
@@ -176,12 +176,13 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
 			kernel/lang/as.o kernel/lang/as_lex.o kernel/lang/as_parse.o kernel/lang/as_elf.o \
-			kernel/lang/dis.o \
+			kernel/lang/dis.o kernel/lang/obj.o \
             kernel/gfx/gfx2d.o \
             kernel/gfx/bmp.o \
             kernel/gfx/png.o \
             kernel/gfx/deflate.o \
             kernel/gfx/jpeg.o \
+            kernel/gfx/gif.o \
             kernel/gfx/ttf.o \
             kernel/gfx/glyph_raster.o \
             kernel/gfx/fontsys.o \
@@ -237,7 +238,7 @@ SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) -msse2 -O2
 kernel/cpu/simd.o: kernel/cpu/simd.c kernel/cpu/simd.h
 	$(CC) $(SIMD_CFLAGS) kernel/cpu/simd.c -o kernel/cpu/simd.o
 
-kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core/kernel.h
+kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core/kernel.h kernel/core/kdebugger.h
 	$(CC) $(CFLAGS) kernel/cpu/idt.c -o kernel/cpu/idt.o
 
 # Compile assembly files
@@ -664,8 +665,11 @@ kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c kernel/gui/ctxt_i
 	$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler (process.c)
-kernel/core/process.o: kernel/core/process.c kernel/core/process.h
+kernel/core/process.o: kernel/core/process.c kernel/core/process.h kernel/core/kdebugger.h
 	$(CC) $(CFLAGS) kernel/core/process.c -o kernel/core/process.o
+
+kernel/core/kdebugger.o: kernel/core/kdebugger.c kernel/core/kdebugger.h kernel/core/process.h kernel/lang/exec.h kernel/lang/dis.h kernel/lang/shell.h
+	$(CC) $(CFLAGS) kernel/core/kdebugger.c -o kernel/core/kdebugger.o
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm
@@ -750,7 +754,7 @@ kernel/mm/swap.o: kernel/mm/swap.c kernel/mm/swap.h kernel/mm/swap_disk.h kernel
 	$(CC) $(CFLAGS) $(OPT) kernel/mm/swap.c -o kernel/mm/swap.o
 
 # Program loader (ELF + CUPD)
-kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h
+kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h kernel/core/kdebugger.h
 	$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o
 
 # Syscall table for ELF programs
@@ -769,6 +773,9 @@ kernel/gfx/deflate.o: kernel/gfx/deflate.c kernel/gfx/deflate.h
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
+
+kernel/gfx/gif.o: kernel/gfx/gif.c kernel/gfx/gif.h kernel/mm/memory.h kernel/core/string.h
+	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gif.c -o kernel/gfx/gif.o
 
 # TrueType font system: parser, rasterizer, registry/cache.
 kernel/gfx/ttf.o: kernel/gfx/ttf.c kernel/gfx/ttf.h drivers/serial.h kernel/core/string.h
@@ -789,7 +796,7 @@ kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.c kernel/gfx/gfx2d.h kernel/gfx/font_8x8.h 
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d.c -o kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d.h kernel/gfx/bmp.h kernel/gfx/png.h kernel/gfx/jpeg.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/gfx/font_8x8.h
+kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d.h kernel/gfx/bmp.h kernel/gfx/png.h kernel/gfx/jpeg.h kernel/gfx/gif.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/gfx/font_8x8.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_assets.c -o kernel/gfx/gfx2d_assets.o
 
 kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.c kernel/gfx/gfx2d_transform.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h
@@ -852,6 +859,9 @@ kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h k
 
 kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/core/types.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
 	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
+
+kernel/lang/obj.o: kernel/lang/obj.c kernel/lang/obj.h kernel/lang/cupidc.h kernel/lang/as.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
+	$(CC) $(CFLAGS) kernel/lang/obj.c -o kernel/lang/obj.o
 
 # Auto-generate browser CSS data tables from Blink .in files.
 # Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h
@@ -1233,10 +1243,32 @@ clean:
 	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c \
 	      kernel/util/demos_programs_gen.c kernel/cpu/ksyms_data.c \
 	      debug.log
+	@echo "[make] Preserved $(OS_IMAGE) and persistent /home data."
+	@echo "[make] Use 'make reset-home' to wipe Cupid Studio projects, or 'make clean-image' to remove the disk image."
 
 clean-image:
 	rm -f $(OS_IMAGE)
 
+reset-home clean-home:
+	@if [ ! -f $(OS_IMAGE) ]; then \
+	  echo "[make] No $(OS_IMAGE) to reset"; \
+	elif ! command -v mdel >/dev/null 2>&1; then \
+	  echo "[make] reset-home needs mtools (mdel)"; \
+	  exit 1; \
+	elif ! MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/ >/dev/null 2>&1; then \
+	  echo "[make] Could not read FAT16 partition in $(OS_IMAGE)"; \
+	  exit 1; \
+	elif ! MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/HOMEFS.SYS >/dev/null 2>&1; then \
+	  echo "[make] No HOMEFS.SYS found in $(OS_IMAGE); /home is already clean"; \
+	else \
+	  echo "[make] Removing persistent /home container from $(OS_IMAGE)"; \
+	  MTOOLS_SKIP_CHECK=1 mdel -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/HOMEFS.SYS; \
+	  echo "[make] /home will be re-seeded on next boot; Studio's built-in examples may be recreated."; \
+	fi
+
+clean-projects: reset-home
+	@echo "[make] clean-projects resets all /home state because Studio projects live inside HOMEFS.SYS."
+
 distclean: clean clean-image
 
-.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image reset-home clean-home clean-projects distclean
