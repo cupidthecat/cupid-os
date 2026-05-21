@@ -3,6 +3,9 @@
 ASM=nasm
 CC=gcc
 .DEFAULT_GOAL := all
+# Use printf for generated C so /bin/sh variants that expand echo escapes
+# (notably dash on Debian/Mint) do not turn C "\n" strings into real newlines.
+GEN_LINE=printf '%s\n'
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
 KERNEL_INCLUDES=-I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu \
@@ -123,7 +126,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o \
             drivers/serial.o kernel/core/panic.o kernel/gui/ed.o \
             drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o \
-			kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/kdebugger.o kernel/core/context_switch.o \
+			kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o \
 			kernel/gui/clipboard.o kernel/gui/ui.o \
 			kernel/lang/godspeak.o \
 			kernel/cpu/fpu.o kernel/cpu/libm.o \
@@ -176,13 +179,12 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
 			kernel/lang/as.o kernel/lang/as_lex.o kernel/lang/as_parse.o kernel/lang/as_elf.o \
-			kernel/lang/dis.o kernel/lang/obj.o \
+			kernel/lang/dis.o \
             kernel/gfx/gfx2d.o \
             kernel/gfx/bmp.o \
             kernel/gfx/png.o \
             kernel/gfx/deflate.o \
             kernel/gfx/jpeg.o \
-            kernel/gfx/gif.o \
             kernel/gfx/ttf.o \
             kernel/gfx/glyph_raster.o \
             kernel/gfx/fontsys.o \
@@ -238,7 +240,7 @@ SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) -msse2 -O2
 kernel/cpu/simd.o: kernel/cpu/simd.c kernel/cpu/simd.h
 	$(CC) $(SIMD_CFLAGS) kernel/cpu/simd.c -o kernel/cpu/simd.o
 
-kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core/kernel.h kernel/core/kdebugger.h
+kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core/kernel.h
 	$(CC) $(CFLAGS) kernel/cpu/idt.c -o kernel/cpu/idt.o
 
 # Compile assembly files
@@ -665,11 +667,8 @@ kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c kernel/gui/ctxt_i
 	$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler (process.c)
-kernel/core/process.o: kernel/core/process.c kernel/core/process.h kernel/core/kdebugger.h
+kernel/core/process.o: kernel/core/process.c kernel/core/process.h
 	$(CC) $(CFLAGS) kernel/core/process.c -o kernel/core/process.o
-
-kernel/core/kdebugger.o: kernel/core/kdebugger.c kernel/core/kdebugger.h kernel/core/process.h kernel/lang/exec.h kernel/lang/dis.h kernel/lang/shell.h
-	$(CC) $(CFLAGS) kernel/core/kdebugger.c -o kernel/core/kdebugger.o
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm
@@ -754,7 +753,7 @@ kernel/mm/swap.o: kernel/mm/swap.c kernel/mm/swap.h kernel/mm/swap_disk.h kernel
 	$(CC) $(CFLAGS) $(OPT) kernel/mm/swap.c -o kernel/mm/swap.o
 
 # Program loader (ELF + CUPD)
-kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h kernel/core/kdebugger.h
+kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h
 	$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o
 
 # Syscall table for ELF programs
@@ -773,9 +772,6 @@ kernel/gfx/deflate.o: kernel/gfx/deflate.c kernel/gfx/deflate.h
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
-
-kernel/gfx/gif.o: kernel/gfx/gif.c kernel/gfx/gif.h kernel/mm/memory.h kernel/core/string.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gif.c -o kernel/gfx/gif.o
 
 # TrueType font system: parser, rasterizer, registry/cache.
 kernel/gfx/ttf.o: kernel/gfx/ttf.c kernel/gfx/ttf.h drivers/serial.h kernel/core/string.h
@@ -796,7 +792,7 @@ kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.c kernel/gfx/gfx2d.h kernel/gfx/font_8x8.h 
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d.c -o kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d.h kernel/gfx/bmp.h kernel/gfx/png.h kernel/gfx/jpeg.h kernel/gfx/gif.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/gfx/font_8x8.h
+kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d.h kernel/gfx/bmp.h kernel/gfx/png.h kernel/gfx/jpeg.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/gfx/font_8x8.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_assets.c -o kernel/gfx/gfx2d_assets.o
 
 kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.c kernel/gfx/gfx2d_transform.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h
@@ -860,9 +856,6 @@ kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h k
 kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/core/types.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
 	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
 
-kernel/lang/obj.o: kernel/lang/obj.c kernel/lang/obj.h kernel/lang/cupidc.h kernel/lang/as.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
-	$(CC) $(CFLAGS) kernel/lang/obj.c -o kernel/lang/obj.o
-
 # Auto-generate browser CSS data tables from Blink .in files.
 # Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h
 # consumed by bin/browser parser + style code.
@@ -882,88 +875,88 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
 kernel/util/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) $(BROWSER_SUB_SRCS) Makefile
-	@echo "/* Auto-generated -- do not edit. */" > $@
-	@echo "/* Lists all embedded CupidC programs from bin/ directory */" >> $@
-	@echo '#include "ramfs.h"' >> $@
-	@echo '#include "types.h"' >> $@
-	@echo '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_start[];' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
-	@$(foreach n,$(BIN_CC_NAMES),echo 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),echo 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_start[];' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),echo 'extern const char _binary_bin_browser_$(n)_cc_end[];' >> $@;)
-	@echo 'void install_bin_programs(void *fs_private);' >> $@
-	@echo 'void install_bin_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(BIN_CC_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_bin_browser_$(n)_cc_end - _binary_bin_browser_$(n)_cc_start); ramfs_add_file(fs_private, "bin/browser/$(n).cc", _binary_bin_browser_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/$(n).cc (%u bytes)\n", sz); }' >> $@;)
-	@echo '}' >> $@
+	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
+	@$(GEN_LINE) '/* Lists all embedded CupidC programs from bin/ directory */' >> $@
+	@$(GEN_LINE) '#include "ramfs.h"' >> $@
+	@$(GEN_LINE) '#include "types.h"' >> $@
+	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
+	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) 'extern const char _binary_bin_browser_$(n)_cc_start[];' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) 'extern const char _binary_bin_browser_$(n)_cc_end[];' >> $@;)
+	@$(GEN_LINE) 'void install_bin_programs(void *fs_private);' >> $@
+	@$(GEN_LINE) 'void install_bin_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_browser_$(n)_cc_end - _binary_bin_browser_$(n)_cc_start); ramfs_add_file(fs_private, "bin/browser/$(n).cc", _binary_bin_browser_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/$(n).cc (%u bytes)\n", sz); }' >> $@;)
+	@$(GEN_LINE) '}' >> $@
 
 kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o
 
 # Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
 kernel/util/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) $(HOME_ASSET_SRCS) Makefile
-	@echo "/* Auto-generated -- do not edit. */" > $@
-	@echo "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */" >> $@
-	@echo '#include "homefs.h"' >> $@
-	@echo '#include "ramfs.h"' >> $@
-	@echo '#include "types.h"' >> $@
-	@echo '#include "vfs.h"' >> $@
-	@echo '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
-	@$(foreach n,$(HOME_BMP_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_png_start[];' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpg_start[];' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpeg_start[];' >> $@;)
-	@$(foreach n,$(DOC_CTXT_NAMES),echo 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
-	@$(foreach n,$(HOME_BMP_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_png_end[];' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpg_end[];' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),echo 'extern const char _binary_$(subst -,_,$(n))_jpeg_end[];' >> $@;)
-	@echo 'static void install_home_asset(const char *path, const char *data, uint32_t size) {' >> $@
-	@echo '    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);' >> $@
-	@echo '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\n", path, fd); return; }' >> $@
-	@echo '    uint32_t off = 0;' >> $@
-	@echo '    while (off < size) {' >> $@
-	@echo '        int n = vfs_write(fd, data + off, size - off);' >> $@
-	@echo '        if (n <= 0) break;' >> $@
-	@echo '        off += (uint32_t)n;' >> $@
-	@echo '    }' >> $@
-	@echo '    vfs_close(fd);' >> $@
-	@echo '    serial_printf("[kernel] Installed %s (%u bytes)\n", path, off);' >> $@
-	@echo '}' >> $@
-	@echo 'void install_docs_programs(void *fs_private);' >> $@
-	@echo 'void install_docs_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\n", sz); }' >> $@;)
-	@echo '    homefs_seed_begin();' >> $@
-	@$(foreach n,$(HOME_BMP_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); install_home_asset("/home/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_png_end - _binary_$(subst -,_,$(n))_png_start); install_home_asset("/home/$(n).png", _binary_$(subst -,_,$(n))_png_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpg_end - _binary_$(subst -,_,$(n))_jpg_start); install_home_asset("/home/$(n).jpg", _binary_$(subst -,_,$(n))_jpg_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpeg_end - _binary_$(subst -,_,$(n))_jpeg_start); install_home_asset("/home/$(n).jpeg", _binary_$(subst -,_,$(n))_jpeg_start, sz); }' >> $@;)
-	@echo '    homefs_seed_end();' >> $@
-	@echo '}' >> $@
+	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
+	@$(GEN_LINE) '/* Lists all embedded CupidDoc files from cupidos-txt/ directory */' >> $@
+	@$(GEN_LINE) '#include "homefs.h"' >> $@
+	@$(GEN_LINE) '#include "ramfs.h"' >> $@
+	@$(GEN_LINE) '#include "types.h"' >> $@
+	@$(GEN_LINE) '#include "vfs.h"' >> $@
+	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
+	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_png_start[];' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpg_start[];' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpeg_start[];' >> $@;)
+	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
+	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_png_end[];' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpg_end[];' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpeg_end[];' >> $@;)
+	@$(GEN_LINE) 'static void install_home_asset(const char *path, const char *data, uint32_t size) {' >> $@
+	@$(GEN_LINE) '    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);' >> $@
+	@$(GEN_LINE) '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\n", path, fd); return; }' >> $@
+	@$(GEN_LINE) '    uint32_t off = 0;' >> $@
+	@$(GEN_LINE) '    while (off < size) {' >> $@
+	@$(GEN_LINE) '        int n = vfs_write(fd, data + off, size - off);' >> $@
+	@$(GEN_LINE) '        if (n <= 0) break;' >> $@
+	@$(GEN_LINE) '        off += (uint32_t)n;' >> $@
+	@$(GEN_LINE) '    }' >> $@
+	@$(GEN_LINE) '    vfs_close(fd);' >> $@
+	@$(GEN_LINE) '    serial_printf("[kernel] Installed %s (%u bytes)\n", path, off);' >> $@
+	@$(GEN_LINE) '}' >> $@
+	@$(GEN_LINE) 'void install_docs_programs(void *fs_private);' >> $@
+	@$(GEN_LINE) 'void install_docs_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\n", sz); }' >> $@;)
+	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\n", sz); }' >> $@;)
+	@$(GEN_LINE) '    homefs_seed_begin();' >> $@
+	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); install_home_asset("/home/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_png_end - _binary_$(subst -,_,$(n))_png_start); install_home_asset("/home/$(n).png", _binary_$(subst -,_,$(n))_png_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpg_end - _binary_$(subst -,_,$(n))_jpg_start); install_home_asset("/home/$(n).jpg", _binary_$(subst -,_,$(n))_jpg_start, sz); }' >> $@;)
+	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpeg_end - _binary_$(subst -,_,$(n))_jpeg_start); install_home_asset("/home/$(n).jpeg", _binary_$(subst -,_,$(n))_jpeg_start, sz); }' >> $@;)
+	@$(GEN_LINE) '    homefs_seed_end();' >> $@
+	@$(GEN_LINE) '}' >> $@
 
 kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o
 
 # Auto-generate demos_programs_gen.c from demos/*.asm files
 kernel/util/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
-	@echo "/* Auto-generated -- do not edit. */" > $@
-	@echo "/* Lists all embedded CupidASM demos from demos/ directory */" >> $@
-	@echo '#include "ramfs.h"' >> $@
-	@echo '#include "types.h"' >> $@
-	@echo '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(DEMO_ASM_NAMES),echo 'extern const char _binary_demos_$(n)_asm_start[];' >> $@;)
-	@$(foreach n,$(DEMO_ASM_NAMES),echo 'extern const char _binary_demos_$(n)_asm_end[];' >> $@;)
-	@echo 'void install_demo_programs(void *fs_private);' >> $@
-	@echo 'void install_demo_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DEMO_ASM_NAMES),echo '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\n", sz); }' >> $@;)
-	@echo '}' >> $@
+	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
+	@$(GEN_LINE) '/* Lists all embedded CupidASM demos from demos/ directory */' >> $@
+	@$(GEN_LINE) '#include "ramfs.h"' >> $@
+	@$(GEN_LINE) '#include "types.h"' >> $@
+	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
+	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) 'extern const char _binary_demos_$(n)_asm_start[];' >> $@;)
+	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) 'extern const char _binary_demos_$(n)_asm_end[];' >> $@;)
+	@$(GEN_LINE) 'void install_demo_programs(void *fs_private);' >> $@
+	@$(GEN_LINE) 'void install_demo_programs(void *fs_private) {' >> $@
+	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\n", sz); }' >> $@;)
+	@$(GEN_LINE) '}' >> $@
 
 kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o
@@ -1243,32 +1236,10 @@ clean:
 	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c \
 	      kernel/util/demos_programs_gen.c kernel/cpu/ksyms_data.c \
 	      debug.log
-	@echo "[make] Preserved $(OS_IMAGE) and persistent /home data."
-	@echo "[make] Use 'make reset-home' to wipe Cupid Studio projects, or 'make clean-image' to remove the disk image."
 
 clean-image:
 	rm -f $(OS_IMAGE)
 
-reset-home clean-home:
-	@if [ ! -f $(OS_IMAGE) ]; then \
-	  echo "[make] No $(OS_IMAGE) to reset"; \
-	elif ! command -v mdel >/dev/null 2>&1; then \
-	  echo "[make] reset-home needs mtools (mdel)"; \
-	  exit 1; \
-	elif ! MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/ >/dev/null 2>&1; then \
-	  echo "[make] Could not read FAT16 partition in $(OS_IMAGE)"; \
-	  exit 1; \
-	elif ! MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/HOMEFS.SYS >/dev/null 2>&1; then \
-	  echo "[make] No HOMEFS.SYS found in $(OS_IMAGE); /home is already clean"; \
-	else \
-	  echo "[make] Removing persistent /home container from $(OS_IMAGE)"; \
-	  MTOOLS_SKIP_CHECK=1 mdel -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/HOMEFS.SYS; \
-	  echo "[make] /home will be re-seeded on next boot; Studio's built-in examples may be recreated."; \
-	fi
-
-clean-projects: reset-home
-	@echo "[make] clean-projects resets all /home state because Studio projects live inside HOMEFS.SYS."
-
 distclean: clean clean-image
 
-.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image reset-home clean-home clean-projects distclean
+.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image distclean
