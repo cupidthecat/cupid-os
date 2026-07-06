@@ -22,7 +22,8 @@
 
 #define TERM_WIN_W 560
 #define TERM_WIN_H 320
-#define TERMINAL_STACK_SIZE (512u * 1024u)
+/* Terminal runs shell commands and CupidC compilation inline in its process. */
+#define TERMINAL_STACK_SIZE (4u * 1024u * 1024u)
 
 #define CURSOR_BLINK_MS 500   /* Toggle cursor every 500 ms */
 
