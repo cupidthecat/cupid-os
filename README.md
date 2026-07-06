@@ -189,11 +189,26 @@ The design borrows from TempleOS (single address space, built-in compiler, bare 
 
 ## Building
 
-Requires NASM, GCC with 32-bit support, GNU Make, QEMU, and mtools.
+Linux builds default to GCC/binutils and require NASM, GCC with 32-bit
+support, Python 3, GNU Make, and QEMU:
 
 ```bash
-sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
+sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
 ```
+
+Native Windows builds default to LLVM because the kernel links as ELF. Install
+GNU Make, Python 3, NASM, LLVM (`clang`, `ld.lld`, `llvm-objcopy`, `llvm-nm`),
+and QEMU, then build from PowerShell or another native Windows shell:
+
+```powershell
+choco install make python nasm llvm qemu
+```
+
+`mtools` is no longer required for the normal build; the Makefile uses
+`tools/hostbuild.py` to create and update the FAT16 image on both platforms.
+On Windows, QEMU defaults to no host audio so booting does not depend on a
+working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
+enable DirectSound.
 
 ```bash
 make               # builds cupidos.img
@@ -230,7 +245,7 @@ make HDD_MB=100
 
 A `run-tests.sh` harness wraps `make run-headless`, feeds a batch of commands over COM1, and parses PASS/FAIL sentinels. Used for CupidC/CupidASM regression checks in CI or local sanity runs.
 
-### Copying files into /home
+### Copying files into the disk image
 
 CupidOS now mounts FAT16 at `/disk` and mounts persistent `homefs` at `/home`.
 
@@ -238,14 +253,22 @@ CupidOS now mounts FAT16 at `/disk` and mounts persistent `homefs` at `/home`.
 - `/home` is `homefs`, serialized into `HOMEFS.SYS` on FAT16.
 - On first boot without `HOMEFS.SYS`, `homefs` imports existing FAT16 files.
 
-The FAT16 partition sits at byte offset 2097152 (4096 * 512) inside `cupidos.img`. Use mtools to put files in the FAT16 backend:
+The FAT16 partition sits at byte offset 8388608 (16384 * 512) inside `cupidos.img`. Use the portable host helper to put files in the FAT16 backend:
 
 ```bash
-mcopy -o -i cupidos.img@@2097152 myfile.txt ::/myfile.txt
-mdir  -i cupidos.img@@2097152 ::/
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 myfile.txt:/myfile.txt
 ```
 
-If you change FAT_START_LBA in the Makefile, recalculate: offset = FAT_START_LBA * 512.
+On Windows, use `python` instead of `python3`. If you prefer `mtools`, point it
+at the same offset:
+
+```bash
+mcopy -o -i cupidos.img@@8388608 myfile.txt ::/myfile.txt
+mdir  -i cupidos.img@@8388608 ::/
+```
+
+If you change `FAT_START_LBA` in the Makefile, recalculate: offset =
+`FAT_START_LBA * 512`.
 
 ### Debugging
 
@@ -328,8 +351,8 @@ Disk layout:
 ```
 LBA 0       MBR / Stage 1
 LBA 1-4     Stage 2
-LBA 5-4095  Kernel binary (up to ~2MB)
-LBA 4096+   FAT16 partition (mounted as /disk)
+LBA 5-16383 Kernel binary area (up to ~8MB)
+LBA 16384+  FAT16 partition (mounted as /disk)
            homefs persistent container (HOMEFS.SYS), mounted as /home
 ```
 
@@ -593,10 +616,12 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 ## Requirements
 
 - NASM
-- GCC with 32-bit support (gcc-multilib on 64-bit hosts)
+- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts)
+- Windows: LLVM (`clang`, `ld.lld`, `llvm-objcopy`, `llvm-nm`)
+- Python 3
 - GNU Make
 - QEMU (qemu-system-i386)
-- mtools (mcopy, mdir) for FAT16 image work and WAD staging
+- mtools (mcopy, mdir) optional for manual FAT16 image inspection/copying
 - DOOM WADs (optional): the build picks up `freedoom1.wad` /
   `freedoom2.wad` from `/usr/share/games/doom/` on the build host and
   auto-copies them into `/disk/wads/` inside the image. On Ubuntu/Debian:
@@ -607,7 +632,6 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
   `/usr/share/games/doom/` manually before running `make`. If no WADs
   are present the build still succeeds, but the `doom` shell command
   will report no IWAD found.
-- Linux or similar Unix environment
 
 ---
 

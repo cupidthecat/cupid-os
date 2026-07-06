@@ -1,11 +1,35 @@
 # Compiler settings
 .SUFFIXES:
-ASM=nasm
-CC=gcc
+ASM ?= nasm
+QEMU ?= qemu-system-i386
+ifeq ($(OS),Windows_NT)
+PYTHON ?= python
+ifeq ($(origin CC),default)
+CC := clang
+endif
+ifeq ($(origin LD),default)
+LD := ld.lld
+endif
+OBJCOPY ?= llvm-objcopy
+NM ?= llvm-nm
+CC_TARGET ?= --target=i386-unknown-elf
+QEMU_AUDIODEV ?= none,id=speaker
+CLANG_COMPAT_CFLAGS ?= -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion
+else
+PYTHON ?= python3
+ifeq ($(origin CC),default)
+CC := gcc
+endif
+ifeq ($(origin LD),default)
+LD := ld
+endif
+OBJCOPY ?= objcopy
+NM ?= nm
+CC_TARGET ?=
+QEMU_AUDIODEV ?= alsa,id=speaker
+CLANG_COMPAT_CFLAGS ?=
+endif
 .DEFAULT_GOAL := all
-# Use printf for generated C so /bin/sh variants that expand echo escapes
-# (notably dash on Debian/Mint) do not turn C "\n" strings into real newlines.
-GEN_LINE=printf '%s\n'
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
 KERNEL_INCLUDES=-I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu \
@@ -13,12 +37,12 @@ KERNEL_INCLUDES=-I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu \
                 -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network \
                 -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util \
                 -I./drivers
-CFLAGS=-m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c $(KERNEL_INCLUDES) \
+CFLAGS=$(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c $(KERNEL_INCLUDES) \
 	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
-       -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS)
+       -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS) $(CLANG_COMPAT_CFLAGS)
 # Relaxed flags for vendored / DOOM-tree code that won't pass our strict gates
-CFLAGS_DOOM := -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
+CFLAGS_DOOM := $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
                -ffreestanding -c $(KERNEL_INCLUDES) \
                -I./kernel/doom/src \
                -I./kernel/doom/src/include_stubs \
@@ -26,7 +50,7 @@ CFLAGS_DOOM := -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
                -O2 -Wno-unused -Wno-unused-result \
                -Wno-implicit-function-declaration \
                -Wno-sign-compare -Wno-strict-prototypes \
-               -Wno-unused-parameter
+               -Wno-unused-parameter $(CLANG_COMPAT_CFLAGS)
 # DOOM source tree flags — extends CFLAGS_DOOM with the dglibc_compat.h alias
 # header and extra suppressions needed for the DOOM upstream source files.
 CFLAGS_DOOM_TREE := $(CFLAGS_DOOM) \
@@ -113,12 +137,9 @@ FONT_TTF_OBJS := $(FONT_TTF_SRCS:.ttf=.ttf.o)
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
-QEMU_AUDIODEV ?= alsa,id=speaker
 HDD_MB ?= 200
 FAT_START_LBA ?= 16384
-OS_IMAGE_SECTORS := $(shell expr $(HDD_MB) \* 1024 \* 1024 / 512)
-FAT_BLOCKS := $(shell expr \( $(OS_IMAGE_SECTORS) - $(FAT_START_LBA) \) / 2)
-FAT_OFFSET_BYTES := $(shell expr $(FAT_START_LBA) \* 512)
+FAT_OFFSET_BYTES := $(shell $(PYTHON) -c "print($(FAT_START_LBA) * 512)")
 WAD_SRCS := $(wildcard /usr/share/games/doom/freedoom*.wad)
 KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o \
             kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o \
@@ -221,10 +242,6 @@ $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 # Keep tracked binary artifacts intact if a later build step fails.
 .PRECIOUS: $(BOOTLOADER) $(KERNEL)
 
-check-mtools:
-	@command -v mcopy >/dev/null 2>&1 || { \
-	  echo "ERROR: mtools not installed. Run: pacman -S mtools"; exit 1; }
-
 all: $(OS_IMAGE)
 
 # Compile bootloader
@@ -307,7 +324,7 @@ kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S
 	$(ASM) -f bin -o $@ $<
 
 kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin
-	objcopy -I binary -O elf32-i386 -B i386 \
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 \
 	  --redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \
 	  --redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \
 	  --redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \
@@ -867,7 +884,7 @@ BLINK_CSS_INS := blink/Source/core/css/CSSProperties.in \
                  blink/Source/core/css/MediaFeatureNames.in
 
 $(BROWSER_CSS_GEN): $(BLINK_CSS_INS) tools/gen_css_props.py
-	python3 tools/gen_css_props.py blink bin/browser
+	$(PYTHON) tools/gen_css_props.py blink bin/browser
 
 browser_css_gen: $(BROWSER_CSS_GEN)
 
@@ -875,135 +892,68 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
 kernel/util/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) $(BROWSER_SUB_SRCS) Makefile
-	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
-	@$(GEN_LINE) '/* Lists all embedded CupidC programs from bin/ directory */' >> $@
-	@$(GEN_LINE) '#include "ramfs.h"' >> $@
-	@$(GEN_LINE) '#include "types.h"' >> $@
-	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_cc_start[];' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_h_start[];' >> $@;)
-	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_cc_end[];' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) 'extern const char _binary_bin_$(n)_h_end[];' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) 'extern const char _binary_bin_browser_$(n)_cc_start[];' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) 'extern const char _binary_bin_browser_$(n)_cc_end[];' >> $@;)
-	@$(GEN_LINE) 'void install_bin_programs(void *fs_private);' >> $@
-	@$(GEN_LINE) 'void install_bin_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(BIN_CC_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_cc_end - _binary_bin_$(n)_cc_start); ramfs_add_file(fs_private, "bin/$(n).cc", _binary_bin_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/$(n).cc (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(BIN_HDR_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_$(n)_h_end - _binary_bin_$(n)_h_start); ramfs_add_file(fs_private, "bin/$(n).h", _binary_bin_$(n)_h_start, sz); serial_printf("[kernel] Installed /bin/$(n).h (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(BROWSER_SUB_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_bin_browser_$(n)_cc_end - _binary_bin_browser_$(n)_cc_start); ramfs_add_file(fs_private, "bin/browser/$(n).cc", _binary_bin_browser_$(n)_cc_start, sz); serial_printf("[kernel] Installed /bin/browser/$(n).cc (%u bytes)\n", sz); }' >> $@;)
-	@$(GEN_LINE) '}' >> $@
+	$(PYTHON) tools/hostbuild.py gen-bin-programs --out $@ --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS)
 
 kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o
 
 # Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
 kernel/util/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) $(HOME_ASSET_SRCS) Makefile
-	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
-	@$(GEN_LINE) '/* Lists all embedded CupidDoc files from cupidos-txt/ directory */' >> $@
-	@$(GEN_LINE) '#include "homefs.h"' >> $@
-	@$(GEN_LINE) '#include "ramfs.h"' >> $@
-	@$(GEN_LINE) '#include "types.h"' >> $@
-	@$(GEN_LINE) '#include "vfs.h"' >> $@
-	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start[];' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
-	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_start[];' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_png_start[];' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpg_start[];' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpeg_start[];' >> $@;)
-	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) 'extern const char _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end[];' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
-	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_bmp_end[];' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_png_end[];' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpg_end[];' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) 'extern const char _binary_$(subst -,_,$(n))_jpeg_end[];' >> $@;)
-	@$(GEN_LINE) 'static void install_home_asset(const char *path, const char *data, uint32_t size) {' >> $@
-	@$(GEN_LINE) '    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);' >> $@
-	@$(GEN_LINE) '    if (fd < 0) { serial_printf("[kernel] Failed to open %s (%d)\n", path, fd); return; }' >> $@
-	@$(GEN_LINE) '    uint32_t off = 0;' >> $@
-	@$(GEN_LINE) '    while (off < size) {' >> $@
-	@$(GEN_LINE) '        int n = vfs_write(fd, data + off, size - off);' >> $@
-	@$(GEN_LINE) '        if (n <= 0) break;' >> $@
-	@$(GEN_LINE) '        off += (uint32_t)n;' >> $@
-	@$(GEN_LINE) '    }' >> $@
-	@$(GEN_LINE) '    vfs_close(fd);' >> $@
-	@$(GEN_LINE) '    serial_printf("[kernel] Installed %s (%u bytes)\n", path, off);' >> $@
-	@$(GEN_LINE) '}' >> $@
-	@$(GEN_LINE) 'void install_docs_programs(void *fs_private);' >> $@
-	@$(GEN_LINE) 'void install_docs_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DOC_CTXT_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_cupidos_txt_$(subst -,_,$(n))_CTXT_end - _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start); ramfs_add_file(fs_private, "docs/$(n).ctxt", _binary_cupidos_txt_$(subst -,_,$(n))_CTXT_start, sz); serial_printf("[kernel] Installed /docs/$(n).ctxt (%u bytes)\n", sz); }' >> $@;)
-	@$(foreach n,$(DOC_ASSET_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); ramfs_add_file(fs_private, "docs/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); serial_printf("[kernel] Installed /docs/$(n).bmp (%u bytes)\n", sz); }' >> $@;)
-	@$(GEN_LINE) '    homefs_seed_begin();' >> $@
-	@$(foreach n,$(HOME_BMP_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_bmp_end - _binary_$(subst -,_,$(n))_bmp_start); install_home_asset("/home/$(n).bmp", _binary_$(subst -,_,$(n))_bmp_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_PNG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_png_end - _binary_$(subst -,_,$(n))_png_start); install_home_asset("/home/$(n).png", _binary_$(subst -,_,$(n))_png_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_JPG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpg_end - _binary_$(subst -,_,$(n))_jpg_start); install_home_asset("/home/$(n).jpg", _binary_$(subst -,_,$(n))_jpg_start, sz); }' >> $@;)
-	@$(foreach n,$(HOME_JPEG_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_$(subst -,_,$(n))_jpeg_end - _binary_$(subst -,_,$(n))_jpeg_start); install_home_asset("/home/$(n).jpeg", _binary_$(subst -,_,$(n))_jpeg_start, sz); }' >> $@;)
-	@$(GEN_LINE) '    homefs_seed_end();' >> $@
-	@$(GEN_LINE) '}' >> $@
+	$(PYTHON) tools/hostbuild.py gen-docs-programs --out $@ --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS)
 
 kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o
 
 # Auto-generate demos_programs_gen.c from demos/*.asm files
 kernel/util/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
-	@$(GEN_LINE) '/* Auto-generated -- do not edit. */' > $@
-	@$(GEN_LINE) '/* Lists all embedded CupidASM demos from demos/ directory */' >> $@
-	@$(GEN_LINE) '#include "ramfs.h"' >> $@
-	@$(GEN_LINE) '#include "types.h"' >> $@
-	@$(GEN_LINE) '#include "../drivers/serial.h"' >> $@
-	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) 'extern const char _binary_demos_$(n)_asm_start[];' >> $@;)
-	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) 'extern const char _binary_demos_$(n)_asm_end[];' >> $@;)
-	@$(GEN_LINE) 'void install_demo_programs(void *fs_private);' >> $@
-	@$(GEN_LINE) 'void install_demo_programs(void *fs_private) {' >> $@
-	@$(foreach n,$(DEMO_ASM_NAMES),$(GEN_LINE) '    { uint32_t sz = (uint32_t)(_binary_demos_$(n)_asm_end - _binary_demos_$(n)_asm_start); ramfs_add_file(fs_private, "demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /demos/$(n).asm (%u bytes)\n", sz); ramfs_add_file(fs_private, "docs/demos/$(n).asm", _binary_demos_$(n)_asm_start, sz); serial_printf("[kernel] Installed /docs/demos/$(n).asm (%u bytes)\n", sz); }' >> $@;)
-	@$(GEN_LINE) '}' >> $@
+	$(PYTHON) tools/hostbuild.py gen-demos-programs --out $@ --demos $(DEMO_ASM_SRCS)
 
 kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o
 
 # Pattern rule: embed any bin/*.cc file via objcopy
 bin/%.o: bin/%.cc
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any bin/browser/*.cc library file via objcopy.
 # These live in ramfs at /bin/browser/<n>.cc and are #include'd by
 # bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
 bin/browser/%.o: bin/browser/%.cc
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
 bin/%.h.o: bin/%.h
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any cupidos-txt/*.CTXT file via objcopy
 cupidos-txt/%.o: cupidos-txt/%.CTXT
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 %.bmp.o: %.bmp
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 %.png.o: %.png
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
-%.jpg.o: %.jpg tools/embed_jpeg_baseline.sh
-	sh tools/embed_jpeg_baseline.sh $< $@
+%.jpg.o: %.jpg tools/hostbuild.py
+	$(PYTHON) tools/hostbuild.py embed-jpeg --objcopy $(OBJCOPY) $< $@
 
-%.jpeg.o: %.jpeg tools/embed_jpeg_baseline.sh
-	sh tools/embed_jpeg_baseline.sh $< $@
+%.jpeg.o: %.jpeg tools/hostbuild.py
+	$(PYTHON) tools/hostbuild.py embed-jpeg --objcopy $(OBJCOPY) $< $@
 
 # Pattern rule: embed any system/fonts/*.ttf file via objcopy.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
 # (dashes in the filename get translated to underscores by objcopy).
 system/fonts/%.ttf.o: system/fonts/%.ttf
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any demos/*.asm file via objcopy
 demos/%.o: demos/%.asm
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Pattern rule: embed any god/*.DD file via objcopy
 god/%.o: god/%.DD
-	objcopy -I binary -O elf32-i386 -B i386 $< $@
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
 
 # Link kernel objects.
 #
@@ -1021,77 +971,23 @@ god/%.o: god/%.DD
 #           moves, which is fine.
 #   objcopy kernel.elf -> kernel.bin (raw binary the bootloader expects).
 kernel/kernel.elf.pass1: $(KERNEL_OBJS)
-	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
+	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
 
-kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/mksyms.sh
-	bash tools/mksyms.sh $< $@
+kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py
+	$(PYTHON) tools/hostbuild.py mksyms --nm $(NM) $< $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.c kernel/cpu/ksyms.h
 	$(CC) $(CFLAGS) kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o
 
 kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
-	ld $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
+	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
 $(KERNEL): kernel/kernel.elf
-	objcopy -O binary $< $(KERNEL)
+	$(OBJCOPY) -O binary $< $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
-	@if [ ! -f $(OS_IMAGE) ]; then \
-		echo "[make] Creating new persistent image $(OS_IMAGE) ($(HDD_MB)MB)"; \
-		dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
-		printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
-		mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
-	else \
-		actual_lba=$$(sfdisk -d $(OS_IMAGE) 2>/dev/null | sed -n 's/.*start=[[:space:]]*\([0-9]*\),.*/\1/p' | head -1); \
-		if [ -n "$$actual_lba" ] && [ "$$actual_lba" != "$(FAT_START_LBA)" ]; then \
-			echo "[make] Stale image (FAT at LBA $$actual_lba, expected $(FAT_START_LBA)) — recreating"; \
-			rm -f $(OS_IMAGE); \
-			dd if=/dev/zero of=$(OS_IMAGE) bs=512 count=$(OS_IMAGE_SECTORS); \
-			printf "$(FAT_START_LBA),,6\\n" | sfdisk $(OS_IMAGE); \
-			mkfs.fat -F 16 --offset=$(FAT_START_LBA) $(OS_IMAGE) $(FAT_BLOCKS); \
-		else \
-			echo "[make] Reusing existing image $(OS_IMAGE) (preserving /home data)"; \
-		fi; \
-	fi
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=1 count=446
-	dd if=$(BOOTLOADER) of=$(OS_IMAGE) conv=notrunc bs=512 seek=1 skip=1 count=4
-	dd if=$(KERNEL) of=$(OS_IMAGE) conv=notrunc bs=512 seek=5
-	@if [ ! -f test_iso/hello.iso ]; then \
-	  if command -v mkisofs >/dev/null 2>&1 || command -v genisoimage >/dev/null 2>&1 || command -v xorrisofs >/dev/null 2>&1; then \
-	    echo "Building test ISO fixture..."; \
-	    test_iso/fixtures/gen_big.sh; \
-	    ISO_TOOL=$$(command -v mkisofs 2>/dev/null || command -v genisoimage 2>/dev/null || command -v xorrisofs); \
-	    $$ISO_TOOL -R -quiet -o test_iso/hello.iso test_iso/fixtures; \
-	  else \
-	    echo "Skipping test ISO fixture build (need mkisofs, genisoimage, or xorrisofs)"; \
-	  fi; \
-	fi
-	@if [ -f test_iso/hello.iso ] && command -v mcopy >/dev/null 2>&1; then \
-	  echo "Staging test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"; \
-	  MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso </dev/null; \
-	elif [ -f test_iso/hello.iso ]; then \
-	  echo "Skipping test ISO staging (mcopy not installed)"; \
-	fi
-	@if [ -z "$(WAD_SRCS)" ]; then \
-	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
-	else \
-	  need_stage=0; \
-	  for w in $(WAD_SRCS); do \
-	    base=$$(basename "$$w"); \
-	    MTOOLS_SKIP_CHECK=1 mdir -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads/$$base >/dev/null 2>&1 || need_stage=1; \
-	  done; \
-	  if [ $$need_stage -eq 0 ]; then \
-	    echo "WADs already staged in image (use 'make stage-wads' to force re-copy)"; \
-	  else \
-	    echo "Staging WADs into FAT16 partition..."; \
-	    MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
-	    for w in $(WAD_SRCS); do \
-	      echo "  mcopy $$w -> /wads/"; \
-	      MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
-	    done; \
-	  fi; \
-	fi
+	$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) --hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) --stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive
@@ -1105,10 +1001,10 @@ QEMU_COMMON = -m 512M -boot c \
 	-device usb-kbd -device usb-mouse
 
 run: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) -serial stdio
+	$(QEMU) $(QEMU_COMMON) -serial stdio
 
 run-log: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) -serial file:debug.log
+	$(QEMU) $(QEMU_COMMON) -serial file:debug.log
 
 # Headless build: kernel routes to shell_run() over COM1 instead of desktop.
 # Rebuilds kernel with -DHEADLESS, leaves FAT16 /home intact.
@@ -1118,42 +1014,27 @@ headless-image:
 
 # Boot headless shell over stdio (no GUI, no VBE). Use for scripted testing.
 run-headless: headless-image
-	qemu-system-i386 $(QEMU_COMMON) -display none -serial stdio
+	$(QEMU) $(QEMU_COMMON) -display none -serial stdio
 
 # Full P4 test: UHCI + EHCI + kbd + mouse + 32MB USB stick with FAT16 MBR.
 # Creates test_usb_partitioned.img on first use.
 run-usb: $(OS_IMAGE) test_usb_partitioned.img
-	qemu-system-i386 $(QEMU_COMMON) \
-		-drive if=none,id=ustick,file=test_usb_partitioned.img,format=raw \
-		-device usb-storage,drive=ustick \
-		-serial stdio
+	$(QEMU) $(QEMU_COMMON) -drive if=none,id=ustick,file=test_usb_partitioned.img,format=raw -device usb-storage,drive=ustick -serial stdio
 
 run-smp: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) -smp cpus=4 -serial stdio
+	$(QEMU) $(QEMU_COMMON) -smp cpus=4 -serial stdio
 
 run-net: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) \
-		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
-		-device rtl8139,netdev=n0 \
-		-serial stdio
+	$(QEMU) $(QEMU_COMMON) -netdev user,id=n0,hostfwd=tcp::8080-:80 -device rtl8139,netdev=n0 -serial stdio
 
 run-ssh: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) \
-		-netdev user,id=n0,hostfwd=tcp::2222-:22 \
-		-device rtl8139,netdev=n0 \
-		-serial stdio
+	$(QEMU) $(QEMU_COMMON) -netdev user,id=n0,hostfwd=tcp::2222-:22 -device rtl8139,netdev=n0 -serial stdio
 
 run-smp-net: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) -smp cpus=4 \
-		-netdev user,id=n0,hostfwd=tcp::8080-:80 \
-		-device rtl8139,netdev=n0 \
-		-serial stdio
+	$(QEMU) $(QEMU_COMMON) -smp cpus=4 -netdev user,id=n0,hostfwd=tcp::8080-:80 -device rtl8139,netdev=n0 -serial stdio
 
 run-net-e1000: $(OS_IMAGE)
-	qemu-system-i386 $(QEMU_COMMON) \
-		-netdev user,id=n0 \
-		-device e1000,netdev=n0 \
-		-serial stdio
+	$(QEMU) $(QEMU_COMMON) -netdev user,id=n0 -device e1000,netdev=n0 -serial stdio
 
 # Headless image specifically for the net-test harness. Same as headless-image
 # but kept as a separate target so callers can re-build deliberately.
@@ -1164,82 +1045,47 @@ headless-net-image: headless-image
 # forwarded port. net_pcap.py then re-validates the captured frames at the
 # protocol level (ARP, DHCP, ICMP, TCP handshake, IP checksums).
 test-net-quick: headless-image
-	python3 tools/net_test.py --nic rtl8139
-	python3 tools/net_pcap.py tests/rtl8139.pcap
+	$(PYTHON) tools/net_test.py --nic rtl8139
+	$(PYTHON) tools/net_pcap.py tests/rtl8139.pcap
 
 test-net: headless-image
-	python3 tools/net_test.py --nic rtl8139
-	python3 tools/net_test.py --nic e1000
-	python3 tools/net_pcap.py tests/rtl8139.pcap tests/e1000.pcap
+	$(PYTHON) tools/net_test.py --nic rtl8139
+	$(PYTHON) tools/net_test.py --nic e1000
+	$(PYTHON) tools/net_pcap.py tests/rtl8139.pcap tests/e1000.pcap
 
 test_usb_partitioned.img:
-	dd if=/dev/zero of=$@ bs=1M count=32 status=none
-	python3 -c "\
-import sys;\
-f=open('$@','r+b');\
-f.seek(0x1BE); f.write(bytes([0x80,0,1,0,0x06,0,1,0]));\
-f.write((2048).to_bytes(4,'little'));\
-f.write((63488).to_bytes(4,'little'));\
-f.seek(0x1FE); f.write(bytes([0x55,0xAA]));\
-f.close()"
-	@echo "Built $@ (32MB, MBR with one FAT16 partition at LBA 2048)"
+	$(PYTHON) tools/hostbuild.py usb-image $@
 
 # Sync local demos/*.asm into FAT16 partition in cupidos image at /home/demos/
 sync-demos: $(OS_IMAGE)
-	-@mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/home
-	-@mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/home/demos
-	mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) demos/*.asm ::/home/demos/
+	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(foreach f,$(DEMO_ASM_SRCS),$(f):/home/demos/$(notdir $(f)))
 	@echo "Synced demos/*.asm -> $(OS_IMAGE):/home/demos/"
 
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
-TEST_ISO_FIXTURES := $(shell find test_iso/fixtures -type f 2>/dev/null)
+TEST_ISO_FIXTURES := $(wildcard test_iso/fixtures/* test_iso/fixtures/sub/*)
 
 test_iso/fixtures/big.bin:
-	@test_iso/fixtures/gen_big.sh
+	$(PYTHON) tools/hostbuild.py gen-big $@
 
 test_iso/hello.iso: $(TEST_ISO_FIXTURES) test_iso/fixtures/big.bin
-	@which mkisofs >/dev/null 2>&1 || which genisoimage >/dev/null 2>&1 || which xorrisofs >/dev/null 2>&1 || \
-	  (echo "ERROR: need mkisofs, genisoimage, or xorrisofs (apt install genisoimage)"; false)
-	@ISO_TOOL=$$(which mkisofs 2>/dev/null || which genisoimage 2>/dev/null || which xorrisofs); \
-	  $$ISO_TOOL -R -quiet -o test_iso/hello.iso test_iso/fixtures
+	$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures --out test_iso/hello.iso
 
 sync-iso: $(OS_IMAGE) test_iso/hello.iso
-	@mcopy -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) test_iso/hello.iso ::/hello.iso
+	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) test_iso/hello.iso:/hello.iso
 	@echo "Synced test_iso/hello.iso -> $(OS_IMAGE):/hello.iso"
 
 # Stage DOOM WADs into FAT16 partition at /wads/.
 # No-op (warning only) if no freedoom*.wad present on host.
-stage-wads: $(OS_IMAGE) check-mtools
-	@if [ -n "$(WAD_SRCS)" ]; then \
-	  echo "Staging WADs into FAT16 partition (forced)..."; \
-	  MTOOLS_SKIP_CHECK=1 mmd -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) ::/wads >/dev/null 2>&1 || true; \
-	  for w in $(WAD_SRCS); do \
-	    echo "  mcopy $$w -> /wads/"; \
-	    MTOOLS_SKIP_CHECK=1 mcopy -Q -o -i $(OS_IMAGE)@@$(FAT_OFFSET_BYTES) "$$w" ::/wads/ </dev/null; \
-	  done; \
-	else \
-	  echo "Skipping WAD staging (no /usr/share/games/doom/freedoom*.wad on host)"; \
-	fi
+stage-wads: $(OS_IMAGE)
+	$(PYTHON) tools/hostbuild.py stage-wads --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(WAD_SRCS)
 
 clean:
-	rm -f $(BOOTLOADER) $(KERNEL) \
-	      kernel/*.o kernel/audio/*.o kernel/core/*.o kernel/cpu/*.o \
-	      kernel/crypto/*.o kernel/doom/*.o kernel/doom/src/*.o \
-	      kernel/fs/*.o kernel/gfx/*.o kernel/gui/*.o kernel/lang/*.o \
-	      kernel/mm/*.o kernel/network/*.o kernel/smp/*.o kernel/tls/*.o \
-	      kernel/usb/*.o kernel/util/*.o \
-	      drivers/*.o filesystem/*.o bin/*.o bin/browser/*.o \
-	      cupidos-txt/*.o demos/*.o god/*.o *.bmp.o *.png.o *.jpg.o *.jpeg.o \
-	      kernel/kernel.elf kernel/kernel.elf.pass1 kernel/kernel.bin \
-	      kernel/smp/smp_trampoline.bin \
-	      kernel/util/bin_programs_gen.c kernel/util/docs_programs_gen.c \
-	      kernel/util/demos_programs_gen.c kernel/cpu/ksyms_data.c \
-	      debug.log
+	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/smp/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log"
 
 clean-image:
-	rm -f $(OS_IMAGE)
+	$(PYTHON) tools/hostbuild.py clean $(OS_IMAGE)
 
 distclean: clean clean-image
 
-.PHONY: all check-mtools run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all run run-log sync-demos sync-iso stage-wads clean clean-image distclean

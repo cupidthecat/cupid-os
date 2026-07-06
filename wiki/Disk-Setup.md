@@ -12,8 +12,8 @@ If you just want a working HDD image fast:
 # Build (or reuse) cupidos.img
 make HDD_MB=200
 
-# Copy host file into FAT root (maps to /home in CupidOS)
-mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
+# Copy host file into FAT root (visible as /disk in CupidOS)
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
 
 # Boot
 make run
@@ -25,12 +25,17 @@ That's it. Read on for a detailed explanation of each step.
 
 ## Requirements
 
-- **Linux** (or WSL) with root/sudo access
+The normal build and host-copy flow uses `tools/hostbuild.py` and works on
+Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
+inspection/copying.
+
+The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
+
 - **fdisk** - included in `util-linux` (pre-installed on most distros)
 - **mkfs.fat** - from `dosfstools`
 - **losetup** - from `util-linux`
 
-Install if needed:
+Install loop-mount tools if needed:
 ```bash
 # Ubuntu / Debian / WSL
 sudo apt-get install dosfstools util-linux
@@ -51,7 +56,8 @@ make
 This creates `cupidos.img` (or reuses the existing image) with:
 - MBR boot code + partition table
 - Stage 2 + kernel area
-- FAT16 partition mounted at `/home`
+- FAT16 partition mounted at `/disk`
+- persistent `/home` data stored in `HOMEFS.SYS` on FAT16
 
 Choose image size with `HDD_MB`:
 
@@ -62,30 +68,29 @@ make HDD_MB=200
 
 Default is `HDD_MB=200`.
 
-### 2. Copy Files from Host (Recommended: mtools)
+### 2. Copy Files from Host (Recommended: portable helper)
 
-Install `mtools` if needed:
+Copy files into FAT root with the Python helper:
+
+```bash
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+```
+
+On Windows, use `python` instead of `python3`.
+
+If you prefer `mtools`, install it and use the FAT byte offset:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y mtools
-```
-
-Copy files into FAT root:
-
-```bash
-mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
-```
-
-List files:
-
-```bash
-mdir -i cupidos.img@@2097152 ::/
+mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
+mdir -i cupidos.img@@8388608 ::/
 ```
 
 Mapping:
-- FAT `::/` corresponds to CupidOS `/home`
-- `::/cupid.bmp` becomes `/home/cupid.bmp` in CupidOS
+- FAT `::/` corresponds to CupidOS `/disk`
+- `::/cupid.bmp` becomes `/disk/cupid.bmp` in CupidOS
+- On first boot without `HOMEFS.SYS`, homefs imports existing FAT files into `/home`
 
 If `FAT_START_LBA` is customized, use offset:
 
@@ -99,7 +104,7 @@ mcopy -o -i cupidos.img@@${offset_bytes} file.txt ::/file.txt
 If you prefer mounting from Linux directly:
 
 ```bash
-sudo mount -o loop,offset=$((4096*512)) cupidos.img /mnt/cupidos
+sudo mount -o loop,offset=$((16384*512)) cupidos.img /mnt/cupidos
 ```
 
 This mounts the FAT16 partition directly from `cupidos.img`.
@@ -147,7 +152,7 @@ EOF
 sudo umount /mnt/cupidos
 ```
 
-Your `cupidos.img` now contains the updated `/home` data.
+Your `cupidos.img` now contains the updated FAT16 data.
 
 ---
 
@@ -174,7 +179,7 @@ qemu-system-i386 \
 | Flag | Purpose |
 |------|---------|
 | `-boot c` | Boot from hard disk |
-| `-hda cupidos.img` | HDD image with bootloader, kernel, and FAT16 `/home` |
+| `-hda cupidos.img` | HDD image with bootloader, kernel, FAT16 `/disk`, and homefs backing data |
 | `-rtc base=localtime` | Set RTC to host's local time |
 | `-serial stdio` | Route serial debug output to your terminal |
 
@@ -182,32 +187,33 @@ qemu-system-i386 \
 
 ## Using the Disk in cupid-os
 
-Once booted with `make run`, the FAT16 partition is automatically mounted at `/home`:
+Once booted with `make run`, the FAT16 partition is automatically mounted at `/disk`, and persistent homefs is mounted at `/home`:
 
 ```
 /> mount
 Mounted filesystems:
   /       ramfs
   /dev    devfs
-  /home   fat16
+  /disk   fat16
+  /home   homefs
 
-/> cd /home
-/home> ls
+/> cd /disk
+/disk> ls
 HELLO   .TXT      21
 HELLO   .CUP      64
 DEMO    .CC       110
 
-/home> cat HELLO.TXT
+/disk> cat HELLO.TXT
 Hello from CupidOS!
 ```
 
 ### Reading and Writing Files
 
 ```bash
-# Read a file
-cat /home/HELLO.TXT
+# Read a staged FAT file
+cat /disk/HELLO.TXT
 
-# Write a new file
+# Write a persistent homefs file
 vwrite /home/NOTES.TXT "My notes here"
 
 # Delete a file
@@ -253,12 +259,12 @@ Always `sync` before shutting down QEMU to avoid data loss.
 ### "Disk error!" on boot
 - `cupidos.img` may be missing or corrupted. Rebuild with `make`.
 
-### No files visible in /home
-- Verify files were copied to FAT root `::/` (not `::/home`).
-- Check FAT listing from host: `mdir -i cupidos.img@@2097152 ::/`.
+### No files visible in /disk
+- Verify files were copied to FAT root `::/`.
+- Check FAT listing from host: `mdir -i cupidos.img@@8388608 ::/`.
 - Check serial output for FAT16 mount messages.
 
-### "mount" doesn't show /home as fat16
+### "mount" doesn't show /disk as fat16
 - QEMU may not be using `cupidos.img`; use `make run`.
 - The ATA driver didn't detect the disk - check serial log for ATA init messages.
 
@@ -272,7 +278,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 - No long filename (LFN) support.
 
 ### Wrong offset in mtools/loop mount
-- Default FAT offset is `2097152` bytes (`4096 * 512`).
+- Default FAT offset is `8388608` bytes (`16384 * 512`).
 - If `FAT_START_LBA` changed, recompute offset as `FAT_START_LBA * 512`.
 
 ### Permission denied

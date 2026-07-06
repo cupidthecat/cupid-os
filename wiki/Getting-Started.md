@@ -9,11 +9,12 @@ This guide walks you through building cupid-os from source and running it in QEM
 | Tool | Purpose |
 |------|---------|
 | **NASM** | Assembler for bootloader and context switch |
-| **GCC** (32-bit support) | C compiler for kernel and drivers |
+| **GCC** (32-bit support, Linux) | C compiler for kernel and drivers on Linux |
+| **LLVM** (Windows) | `clang`, `ld.lld`, `llvm-objcopy`, and `llvm-nm` for native Windows ELF builds |
+| **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **mtools** | Copying files into the FAT16 partition inside `cupidos.img` |
-| **Linux environment** | Ubuntu, Debian, WSL, or equivalent |
+| **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 
 ---
 
@@ -21,13 +22,27 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
+sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S nasm gcc make qemu-full mtools
+sudo pacman -S nasm gcc python make qemu-full
 ```
+
+### Native Windows
+Install GNU Make, Python 3, NASM, LLVM, and QEMU, and make sure they are on
+`PATH`.
+
+```powershell
+choco install make python nasm llvm qemu
+```
+
+MinGW GCC/LD are not enough for the default native Windows build because the
+kernel is linked as ELF; the Makefile defaults to LLVM on Windows.
+QEMU defaults to no host audio on Windows so booting does not depend on a
+working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
+enable DirectSound.
 
 ### WSL (Windows Subsystem for Linux)
 Same as Ubuntu/Debian. For display, ensure an X server (VcXsrv, WSLg) is available for QEMU's graphical output.
@@ -112,24 +127,33 @@ The default login is `root` / `cupid`; change it in the guest with
 
 `make` now creates a single HDD image (`cupidos.img`) that already contains:
 - MBR boot sector + Stage 2 + kernel area
-- FAT16 partition mounted as `/home`
+- FAT16 partition mounted as `/disk`
+- persistent `/home` data stored in `HOMEFS.SYS` on FAT16
 
-By default, FAT starts at LBA 4096 (offset `2097152` bytes).
+By default, FAT starts at LBA 16384 (offset `8388608` bytes).
 
 You no longer need a separate `test-disk.img`.
 
 ---
 
-## Copy Host Files Into `/home`
+## Copy Host Files Into the Disk Image
 
-Use `mtools` against the FAT partition inside `cupidos.img`:
+Use the portable host helper against the FAT partition inside `cupidos.img`:
 
 ```bash
-# Host file -> OS /home/cupid.bmp
-mcopy -o -i cupidos.img@@2097152 cupid.bmp ::/cupid.bmp
+# Host file -> OS /disk/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+```
 
-# Verify (FAT root == OS /home)
-mdir -i cupidos.img@@2097152 ::/
+On Windows, use `python` instead of `python3`.
+
+If you prefer `mtools`, use the FAT byte offset:
+
+```bash
+mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
+
+# Verify the FAT root (visible in CupidOS as /disk)
+mdir -i cupidos.img@@8388608 ::/
 ```
 
 If `FAT_START_LBA` changes, recompute offset:
