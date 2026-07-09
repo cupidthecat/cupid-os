@@ -20,6 +20,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANIC_RE = re.compile(r"KERNEL PANIC|Heap corruption|CORRUPTION detected")
+KEY_HOLD_MILLISECONDS = 300
+KEY_PAUSE_SECONDS = 0.35
 
 
 def free_tcp_port() -> int:
@@ -76,6 +78,13 @@ def hmp(sock: socket.socket, command: str, pause: float = 0.25) -> None:
         sock.recv(4096)
     except OSError:
         pass
+
+
+def send_key(
+    sock: socket.socket, key: str, pause: float = KEY_PAUSE_SECONDS
+) -> None:
+    """Send a key report long enough for Cupid OS's USB HID poll to observe it."""
+    hmp(sock, f"sendkey {key} {KEY_HOLD_MILLISECONDS}", pause)
 
 
 def key_name(ch: str) -> str:
@@ -161,7 +170,7 @@ def run(args: argparse.Namespace) -> int:
 
         mon = connect_monitor(monitor_port, 10.0)
         time.sleep(1.0)
-        hmp(mon, "sendkey ctrl-alt-t", 0.8)
+        send_key(mon, "ctrl-alt-t", 0.8)
         ok, data = wait_log(proc, args.log, r"Terminal launched", 10.0)
         if not ok:
             print("Terminal did not launch from Ctrl+Alt+T", file=sys.stderr)
@@ -170,8 +179,8 @@ def run(args: argparse.Namespace) -> int:
 
         time.sleep(0.5)
         for ch in args.command:
-            hmp(mon, f"sendkey {key_name(ch)}")
-        hmp(mon, "sendkey ret")
+            send_key(mon, key_name(ch))
+        send_key(mon, "ret")
 
         ok, data = wait_log(
             proc,

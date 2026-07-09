@@ -114,3 +114,21 @@ No source cohort changed toolchain ownership in this step. GCC/Clang, NASM, host
 | Host tool preflight | PASS | Make, Python, Clang, NASM, LLD, LLVM objcopy/nm, and QEMU resolved and were SHA-256 readable; optional JPEG probing recorded FFmpeg as available and the IJG tools as absent. |
 
 The first checked two-run Windows evidence is recorded in the following evidence commit so its `source.revision` names the committed runner it executed.
+
+### First capture failure and GUI input fix
+
+The first capture of runner commit `e1cfed3` did not reach its second build. The clean build (9.316 seconds), host tests, and CupidC GUI smoke passed, but the CupidASM GUI smoke timed out with no panic. The serial log showed that the terminal sometimes received `/demoshello.asm`, `/demo/hello.asm`, or other reordered fragments instead of `as /demos/hello.asm`.
+
+The failure was reproduced with an unattended three-attempt loop: two attempts failed and one passed. Three one-variable probes narrowed the cause:
+
+- Doubling inter-key pauses did not help (one of three passed), so command pacing alone was rejected.
+- Removing the USB keyboard made Ctrl+Alt+T fail in all three attempts, proving that the smoke VM had no usable alternate PS/2 injection path.
+- Holding each QEMU HMP key report for 300 ms passed three of three attempts. The unmodified harness with that fix then passed the original three-attempt CupidASM loop three of three times.
+
+The root cause was a mismatch between QEMU's default key-report hold and Cupid OS USB HID polling: a long delay between keys did not prevent the guest from missing a short individual press. `gui_terminal_smoke.py` now emits `sendkey <key> 300` for the terminal hotkey, command characters, and Return, with a regression test that pins the HMP command and pause.
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `python -m unittest tests.test_gui_terminal_smoke` | PASS | The USB-visible 300 ms HMP hold contract is pinned. |
+| `make test` | PASS | 10 host tests passed after adding the harness regression. |
+| Three-attempt original CupidASM GUI loop | PASS | 3/3 passed at 23.37–23.58 seconds after the fix; the pre-fix loop passed only 1/3. |
