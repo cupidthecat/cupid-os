@@ -11,6 +11,8 @@ The current baseline is host-owned: the Makefile defaults to Clang/LLVM tools on
 - `CAPABILITY-MATRIX.md` records implemented and missing CupidC, CupidASM, CupidDis, object, linker, and bootstrap capabilities.
 - `MIGRATION-MATRIX.md` records which tool owns each source and artifact cohort today and at the self-hosting fixed point.
 - `BASELINE.md` documents the reproducible oracle-build interface and evidence format.
+- `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of both supported build roots, ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
+- `audits/active-build.json` is the deterministic machine-readable companion. Regenerate it with `make bootstrap-audit`; `make test` and `make check-bootstrap-audit` reject drift or a failing audit contract.
 - `../adr/` records stable architectural decisions; `../../CONTEXT.md` defines project vocabulary.
 
 ## Update contract

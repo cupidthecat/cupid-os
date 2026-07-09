@@ -14,6 +14,14 @@ _Avoid_: CupidOS, cupid-os (except as a repository or package identifier)
 Cupid OS source that participates in a supported build or ships as part of the system.
 _Avoid_: all checked-in source
 
+**Supported build root**:
+An accepted build entry point whose reachable inputs and outputs are part of Cupid OS delivery or verification. The normal root image build and the separate user-program build are current supported build roots; arbitrary Make targets are not automatically supported roots.
+_Avoid_: every build target, only the default target
+
+**Source cohort**:
+A related group of active sources migrated and verified under one tool-ownership and behavior gate.
+_Avoid_: directory (a cohort may cross directories), individual file count
+
 **TempleOS reference tree**:
 The checked-in TempleOS source consulted for design understanding but excluded from Cupid OS source, builds, and progress measures.
 _Avoid_: vendored Cupid OS source, Cupid OS source

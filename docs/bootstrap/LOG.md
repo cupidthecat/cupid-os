@@ -150,3 +150,109 @@ The root cause was a mismatch between QEMU's default key-report hold and Cupid O
 | Fresh baseline disk image | 209,715,200 bytes |
 
 This completes the reproducible baseline on the current Windows host toolchain. Linux GCC/binutils evidence remains a separate host capture; Windows and Linux oracle outputs are not required to match each other.
+
+## 2026-07-09: active build graph and source feature audit
+
+### Audit interface and decisions
+
+- Added `tools/build_graph_audit.py` behind `make bootstrap-audit` and `make check-bootstrap-audit`. Its external seam is a deterministic JSON inventory plus a generated Markdown summary; tests invoke the CLI against synthetic Make graphs rather than its parser internals.
+- Chose GNU Make's expanded database as the graph authority. Extension-wide counts and early variable snapshots were rejected because they cannot distinguish host-compiled source, wrapped runtime source, generated source, or late `KERNEL_OBJS` appends.
+- Preserved Make prerequisite order in every transform. Alphabetizing inputs was rejected because link order is an ABI/layout contract even though sorting would look deterministic.
+- Added the separate `user:all` supported build root. Root `all` alone would incorrectly classify the three user C programs and `user/cupid.h` as inactive.
+- Include closure covers declared `-I` paths, forced headers, quoted/angle C includes, and assembly `%include`. Generated C translation units remain reachable even when absent from a clean checkout; their generator/build feature is recorded without borrowing content from a dirty build tree.
+- Feature IDs are comment/string-masked lexical evidence with file/line examples, supplemented by build-derived output and relocation requirements. They are deliberately labeled as discovery evidence rather than a substitute for a compiler AST or semantic tests.
+- Independent review rejected the first generated snapshot because it read include edges from ignored generated C files when those files happened to exist. Generated translation units are now opaque generator outputs, and a two-state regression proves byte-identical audit JSON before and after materialization. The same review exposed lexical false positives: bit-field recognition now reports only the four declarations in `i_video.h`, function-pointer return syntax is not called a compound literal, and commented includes do not create graph edges.
+- Kept graph extraction, evidence collection, schema rendering, and the atomic CLI check behind one standalone audit module for this first contract. The public seam is deliberately narrow; the collectors can move into separate modules when another consumer needs an independently evolving interface.
+- Added `Supported build root` and `Source cohort` to the project glossary. The audit's cohort order transfers tool ownership without calling every checked file active.
+- Added a checked contract that every final-link object is individually present in the reproducibility manifest. `make test` now verifies the checked audit and fails on source, Makefile, generator, summary, or contract drift. Source/control hashes canonicalize LF according to `.gitattributes`, so a pre-existing CRLF checkout and a clean checkout produce the same audit evidence.
+
+### Resolved build graph and ownership
+
+The two supported roots contain 642 active language inputs and 437 reachable transforms:
+
+| Input/transform cohort | Count | Current ownership |
+| --- | ---: | --- |
+| C translation units | 241 | 238 root outputs through Clang/GCC; three user outputs through hard-coded GCC |
+| C headers | 249 | 246 root preprocessor inputs, two embedded CupidC headers, one user ABI header |
+| Cupid C source | 126 | 104 top-level programs plus 22 browser fragments; host objcopy embeds, CupidC compiles at runtime |
+| Assembly source | 26 | Four NASM outputs plus 22 embedded CupidASM inputs |
+| Root transforms | 430 | 238 C, four NASM, two linker, 181 object-copy-owned, and six Python-owned/composite transforms |
+| User transforms | 7 | Three GCC objects, three GNU-ld executables, one host-shell-owned POSIX directory command |
+
+The root pass-1 link has 419 ordered objects; the final link adds `ksyms_data.o` for 420. The 419 divide into 240 kernel/driver inputs and 179 wrapped payload objects. Python generates three installer C tables before pass 1 and the symbol C table between links.
+
+### C and Cupid C requirements
+
+The source audit established the following C-mode requirements:
+
+- i386 ILP32/cdecl with signed plain char, 8/16/32/64-bit integer semantics, float/double, 16-byte stack/SIMD alignment, aggregate layout/calls, callbacks, variadics, and real volatile MMIO/IRQ/SMP behavior.
+- Structs, unions, enums, typedefs, anonymous aggregate members, four verified bit-fields, `_Static_assert`, multidimensional/inferred arrays, function pointers, designated/partial initialization with zero-fill, static/tentative storage, weak/undefined linkage, and complete control/expression conversions. No compound literal is verified in the active corpus.
+- Full preprocessing: 2,032 quoted and 146 angle includes, forced Doom compatibility input, object/function/multiline/variadic macros, rescanning, stringify, paste, GNU comma elision, nested arithmetic conditionals, predefined/command-line macros, `__FILE__`/`__LINE__`, and pack/once pragmas.
+- GNU platform requirements: 199 basic/extended inline-assembly sites across 33 C files and 72 attribute sites across 31 files. Required attributes include packed/aligned, section, weak, noreturn, noinline, used/unused, and naked.
+- The 83-file Doom/port cohort needs a deliberate compatibility mode for old/no-prototype declarations, five implicit calls, legacy callback/object-pointer conversions, shim headers, and relaxed diagnostics without weakening strict C mode.
+- Cupid mode's 126 files exercise sized types, `float4`/`double2`, two class declarations, new/del, reg/noreg, `#exe`, native `asm {}` blocks, predefined kernel bindings, and browser-scale globals/include fragments. Existing wide-type fixtures do not prove the full 64-bit semantics required by C mode.
+
+Source-driven CupidC order is therefore ELF32 interoperability first; then ILP32/cdecl types and calls; full preprocessing; storage/linkage/initialization/qualifiers; GNU attributes and extended asm; Doom compatibility; and finally production-scale plus extension-specific Cupid mode behavior.
+
+### Cupid ASM and CupidDis requirements
+
+All 26 checked assembly files are active and total 2,239 lines:
+
+| Role | Files | Required output |
+| --- | ---: | --- |
+| Boot and SMP trampoline | 2 | Exact flat binaries |
+| ISR and context switch | 2 | ELF32 `ET_REL` objects |
+| Runtime demo/include corpus | 22 | Embedded source assembled by CupidASM |
+
+The corpus has 1,196 instruction statements, 91 mnemonics plus two active prefixes, 153 colon labels, 33 exports, five externals, 99 memory operands, and 18 directive spellings. It requires `BITS`, `ORG`, section/global/extern, data and reserve forms, `times`, `equ`, `%define`, `%include`, `$`/`$$`, label arithmetic, binary-suffix literals, mixed 16/32-bit encoding, far transfers, segment/control registers, sized operands, segment overrides, and full ModRM/SIB indexing.
+
+Executed oracle observations:
+
+- `boot/boot.bin` is 2,560 bytes with SHA-256 `57884f86c907d8669f16a667e83238b5f840f2b67e7b82eeeedea09ec5244445`.
+- `kernel/smp_trampoline.bin` is 4,096 bytes with SHA-256 `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+- `isr.o` is ELF32 `ET_REL`; `.text` is 377 bytes aligned to 16 and has five `R_386_PC32` relocations. `context_switch.o` is ELF32 `ET_REL`; `.text` is 44 bytes aligned to 16 and has no relocations.
+
+CupidASM is closest on the demo mnemonic set, but structural gaps dominate: no host interface, raw output, `ET_REL`, real sections/symbols/relocations, mode switching, complete expressions, far/segment/control forms, or emitted SIB indexing. Global/extern are parsed then discarded; include resolution is CWD-relative. CupidDis cannot yet validate the migration because it lacks 16-bit mode, semantic prefix handling, broad system/x87/SSE coverage, and `ET_REL` section/symbol/relocation inspection.
+
+### ABI and object evidence
+
+Direct `llvm-readobj` inspection of all 238 root C objects found exactly 27,375 `R_386_32` and 11,658 `R_386_PC32` relocations, with no other i386 relocation type. Current sections include `.text`, `.text.start`, `.rodata*`, `.data`, `.bss`, and `.ksyms`, with alignment through 64 bytes and local/global/weak/undefined symbols. Eleven objects rely on 64-bit division helpers.
+
+`link.ld` requires `ENTRY`, `SECTIONS`, absolute location-counter updates, input-section wildcards, `ALIGN`, symbol definitions, `COMMON`, and `ASSERT`. It is referenced by link flags but is not a declared Make prerequisite. The three Python installer generators similarly omit `tools/hostbuild.py` from their prerequisite lists; 106 active headers are absent from handwritten object dependencies. Forced rebuilds mask much of that dependency incompleteness in root `all`.
+
+The audit also corrected README drift: `run-net-debug` did not exist, while `run-net`/`run-net-e1000` do; active counts are 104 top-level Cupid C programs, 22 browser fragments, and 22 assembly demos rather than the older 88/21 figures.
+
+### Unreachable and duplicate findings
+
+The machine inventory accounts for 35 checked source-like files outside the supported roots: 11 C files, three Cupid C files, 20 headers, and one CupidScript file. No assembly source is unreachable.
+
+- `bin/old_cc2.cc` and `bin/old_cc2_single.cc` are explicitly filtered legacy compiler fixtures.
+- Seven `bin/*.c` files are diverged historical snapshots of live kernel/tool implementations. The machine records each active counterpart rather than mislabeling these files as byte-identical duplicates.
+- `scheduler.c`/`.h`, `notepad.c`, `terminal_ansi.c`, and `demos/paint.cc` have recorded active successors. `cupidc_runtime.c`/`.h` remain unlinked without an asserted successor.
+- The separate `bin/build.cup` CupidScript is also not embedded or referenced and is included directly in the source-like JSON universe.
+- Three generated browser headers and six project headers are unreferenced. Fourteen additional dormant headers are from the vendored Doom compatibility surface.
+- Seven unreachable one-line Doom stub headers have exact content matches. Header path identity can still be semantically required, so byte equality is not removal evidence.
+- `browser_css_gen` is not reachable from root `all`, its outputs are unused, and its declared Blink `.in` prerequisites are absent.
+
+No source was deleted. `not_reached` proves absence from the two supported roots, not safety to remove from every intended future workflow.
+
+### Reproducibility manifest defect and correction
+
+The audit found that `BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS)` and the `$(KERNEL_OBJS): FORCE` rule were expanded before later TLS/Doom appends. The historical manifest therefore contained 343 paths and omitted 84 linked objects: the checked CA bundle object, four Doom port objects, and all 79 vendored Doom objects. Downstream ELF/kernel/image hashes were still captured, but the claim of complete per-object hashing was false.
+
+Both whole-link declarations now occur after the final append. The manifest contains 427 unique paths and the checked contract proves coverage of all 420 final-link objects. The historical Windows JSON remains useful downstream evidence but is marked historical until a corrected clean-worktree capture is committed.
+
+An ordinary working-tree hash comparison was rejected as recapture evidence. This checkout predates the LF attributes and still has CRLF source bytes: exactly 171 byte-wrapped text objects differed from the clean-LF historical capture, followed by three downstream kernel artifacts and the persistent disk image. Compiled C objects and the boot/trampoline binaries matched. The isolated baseline runner remains the authority because it checks out canonical LF text and starts with a fresh image.
+
+### Test and inspection results
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `python -m unittest tests.test_build_graph_audit` | PASS | Eleven CLI-level tests cover graph/tool ownership, include closure, feature evidence, unreachable/duplicate/successor classification, manifest coverage, generated-source two-state determinism, supplemental builds, ABI/link script, drift/errors, and LF/CRLF equivalence. |
+| `make check-bootstrap-audit` | PASS | Checked JSON/Markdown match generated bytes; 427 declared artifacts cover all 420 linked objects. |
+| `make test` | PASS | 21 host tests passed and the audit drift/contract gate passed. |
+| `make -j4 all WAD_SRCS=` | PASS | Complete host image build succeeded after forcing every final kernel object. |
+| `llvm-readobj --relocations <238 root C objects>` | PASS | Only `R_386_32` (27,375) and `R_386_PC32` (11,658) were present. |
+| ELF/raw assembly inspection | PASS | Boot/trampoline sizes/hashes and ISR/context-switch ELF32 properties matched the recorded oracle constraints. |
+
+No source cohort changed tool ownership in this step. The audit clears the source-order fog and makes the next host-core/object/instruction seams concrete; corrected Windows baseline recapture remains the next evidence commit for this implementation step.

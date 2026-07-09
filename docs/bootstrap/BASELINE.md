@@ -33,7 +33,7 @@ The runner:
 1. Resolves and hashes the Make, Python, C compiler, NASM, linker, `objcopy`, `nm`, and QEMU executables and records their version output. It also records the availability, versions, and hashes of optional PATH-dependent JPEG normalizers (`jpegtran`, `djpeg`/`cjpeg`, and FFmpeg) that can change embedded bytes. Conversion can fall through per file, so artifact hashes—not this availability inventory—are the authority for what was produced.
 2. Creates two independent worktrees for the requested revision.
 3. Runs `distclean`, then a complete image build with fixed disk geometry and `WAD_SRCS=` so optional host WAD discovery cannot change the image.
-4. Asks Make for the exact ordered `KERNEL_OBJS` cohort plus the boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries.
+4. Asks Make for the final ordered `KERNEL_OBJS` cohort after every conditional/discovered append, plus the boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries. `make check-bootstrap-audit` independently proves that every linked object is present in this manifest.
 5. Records each artifact's byte size and SHA-256 and compares every later run with run 1. Any missing, extra, or changed artifact fails the capture and is named in `reproducibility.mismatches`.
 6. On run 1, executes all host unit tests, the explicit `/bin/ls.cc` CupidC GUI smoke, and the `as /demos/hello.asm` CupidASM GUI smoke. Each check records its command, status, duration, output digest, and diagnostic tail.
 7. Reads the final ELF `.text` size without host `objdump` and records kernel/image sizes. Host wall-clock durations are observational evidence only; they are not the future 20% guest-performance gate.
@@ -48,8 +48,11 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `092ada5` | PASS: two 343-artifact builds byte-identical | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | `092ada5` | Historical only: two declared 343-artifact builds matched, but the active-source audit proved that an early Make expansion omitted 84 linked TLS/Doom objects from individual hashing | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | Pending recapture | Current manifest contains 427 artifacts and covers all 420 final-link objects | Not captured yet |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
+
+The historical Windows JSON still proves deterministic downstream ELF, kernel, image, tests, and GUI smokes for its recorded revision, but it is not accepted as the complete per-object oracle baseline. The audit moved `BOOTSTRAP_ARTIFACTS` and the forced-rebuild prerequisite until after the final `KERNEL_OBJS` append; a checked contract now localizes any future missing link input.
 
 ## Build-output hygiene
 

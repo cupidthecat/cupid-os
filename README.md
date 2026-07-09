@@ -216,7 +216,7 @@ make run           # boots in QEMU with SDL graphics
 make run-log       # boots and writes serial output to debug.log
 make run-headless  # boots straight into shell over stdio (scriptable tests)
 make run-usb       # UHCI + EHCI + kbd/mouse + FAT16 USB stick
-make run-net-debug # dumps every TX/RX frame over serial
+make run-net       # boots with RTL8139 user-mode networking
 ```
 
 Default image size is 200MB. To change it:
@@ -234,10 +234,13 @@ make HDD_MB=100
 | `make run-log` | Boot in QEMU, write serial to debug.log |
 | `make run-headless` | Boot headless shell over stdio (no VBE), scriptable |
 | `make run-usb` | Boot with UHCI + EHCI + a 32 MB FAT16 USB stick |
-| `make run-net-debug` | Dump every TX/RX frame over serial |
+| `make run-net` | Boot with RTL8139 user-mode networking and host port 8080 forwarded |
+| `make run-net-e1000` | Boot with E1000 user-mode networking |
 | `make test-net` | Headless networking integration tests (rtl8139 + e1000) |
 | `make test-net-quick` | Same as `test-net` for one NIC only |
 | `make test` | Run all deterministic host-side unit tests |
+| `make bootstrap-audit` | Regenerate the checked active-source/build-feature inventory |
+| `make check-bootstrap-audit` | Reject audit drift or a failing graph contract |
 | `make bootstrap-baseline` | Build committed HEAD twice in isolation and record host-toolchain evidence |
 | `make stage-wads` | Copy Freedoom WADs from host into FAT16 partition |
 | `make sync-demos` | Copy demos/*.asm into the FAT16 partition |
@@ -318,8 +321,8 @@ cupid-os/
   drivers/               hardware drivers: ATA, keyboard, mouse,
                          PIT, RTC, serial, speaker, timer, VGA,
                          PCI, RTL8139, E1000
-  bin/                   built-in CupidC programs (88 .cc files)
-  demos/                 CupidASM demo programs (21 .asm files)
+  bin/                   104 CupidC programs + 22 browser fragments
+  demos/                 22 CupidASM demo/include programs
   user/                  example ELF user programs + cupid.h
   wiki/                  documentation (28 Markdown files)
   docs/superpowers/      additional project docs

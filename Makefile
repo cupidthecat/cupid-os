@@ -229,22 +229,8 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/audio/midiopl.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(EMBED_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS) $(FONT_TTF_OBJS)
 
-# Exact output cohort hashed by the reproducible host-toolchain baseline.
-# KERNEL_OBJS remains in link order; the recorder also includes every format
-# boundary that is not itself a final link input.
-BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
-	$(BOOTLOADER) kernel/smp_trampoline.bin \
-	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c kernel/cpu/ksyms_data.o \
-	kernel/kernel.elf $(KERNEL) $(OS_IMAGE)
-
 .PHONY: FORCE
 FORCE:
-
-# A build tree may contain artifacts whose mtimes match source checkout mtimes
-# closely enough that make incorrectly reuses stale objects from an older
-# source revision, producing bad kernels or link failures.
-# Force kernel-related artifacts to rebuild from source on each invocation.
-$(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 
 # Keep tracked binary artifacts intact if a later build step fails.
 .PRECIOUS: $(BOOTLOADER) $(KERNEL)
@@ -614,6 +600,24 @@ kernel/doom/src/%.o: kernel/doom/src/%.c
 
 KERNEL_OBJS += $(DOOM_SRC_OBJS)
 
+# Define whole-link contracts only after every conditional and discovered
+# KERNEL_OBJS cohort has been appended. GNU Make expands target/prerequisite
+# lists and simply-expanded variables at their definition site.
+#
+# Exact output cohort hashed by the reproducible host-toolchain baseline.
+# KERNEL_OBJS remains in link order; the recorder also includes every format
+# boundary that is not itself a final link input.
+BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
+	$(BOOTLOADER) kernel/smp_trampoline.bin \
+	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c kernel/cpu/ksyms_data.o \
+	kernel/kernel.elf $(KERNEL) $(OS_IMAGE)
+
+# A build tree may contain artifacts whose mtimes match source checkout mtimes
+# closely enough that make incorrectly reuses stale objects from an older
+# source revision, producing bad kernels or link failures.
+# Force every final kernel object to rebuild from source on each invocation.
+$(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
+
 # Add new rule for paging.o
 kernel/mm/paging.o: kernel/mm/paging.c kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/mm/paging.c -o kernel/mm/paging.o
@@ -900,6 +904,19 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # evidence under build/bootstrap/ by default.
 test:
 	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
+	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	  --output docs/bootstrap/audits/active-build.json \
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
+
+bootstrap-audit:
+	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	  --output docs/bootstrap/audits/active-build.json \
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md
+
+check-bootstrap-audit:
+	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	  --output docs/bootstrap/audits/active-build.json \
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
 
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
@@ -1108,4 +1125,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build"
 
-.PHONY: all test bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test bootstrap-audit check-bootstrap-audit bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
