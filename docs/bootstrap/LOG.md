@@ -281,7 +281,7 @@ The capture fingerprints Windows 10 AMD64, Make 4.4.1, Python 3.14.3, Clang/LLD 
 
 - Added a freestanding `toolchain/ctool.c` core with no libc or kernel headers. One opaque toolchain job owns a bounded chunked arena, canonical logical paths, NUL-sentinel whole-file sources, and insertion-ordered structured diagnostics; checked growable buffers are explicit bounded handles and invocation output is scoped to the job. All public sizes, offsets, limits, and serialized integer helpers are checked 32-bit values for the i386/ELF32 domain.
 - Chose three composable platform capabilities: allocator, whole-file size/read/write, and length-aware text sink. The hosted adapter implements them with the C runtime below an explicit checkout root; the kernel adapter implements them with `kmalloc`/`kfree`, VFS, and `print`. Arena alignment belongs to the core, so the kernel heap needs to promise only pointer alignment.
-- Added `ctool_invoke` as a deep lifecycle helper: normalize paths, load the primary input, create job-owned output, run a typed callback, suppress file writes after a callback failure or error diagnostic, render diagnostics, and release all state. This is not a generic tool dispatch enum; later `cupidc_compile`, `cupidasm_assemble`, and `cupiddis_inspect` interfaces remain separately typed modules.
+- Added `ctool_invoke` as a deep lifecycle helper: normalize paths, load the primary input, create scoped output, run a typed callback, suppress file writes after a callback failure or error diagnostic, render diagnostics, and release all state. This is not a generic tool dispatch enum; later `cupidc_compile`, `cupidasm_assemble`, and `cupiddis_inspect` interfaces remain separately typed modules.
 - Rejected a giant platform vtable containing x86, ELF, JIT, shell, or kernel-symbol behavior because it would move the existing coupling instead of hiding it. Also rejected bare allocator/file callbacks without job ownership because every frontend would repeat limits, cleanup, path, output, and diagnostic policy.
 - Kernel bindings, executable-memory policy, fixed JIT addresses, shell state, and stack guards remain in kernel drivers. Existing CupidC, CupidASM, and CupidDis entry points and behavior are unchanged; this step creates their migration seam but does not claim their frontends are host-runnable.
 - Recorded the stable decision in ADR 0006 and added `Toolchain job` and `Platform adapter` to the glossary. No user clarification was needed and `TempleOS/` remained read-only reference material outside all counts.
@@ -299,7 +299,7 @@ The capture fingerprints Windows 10 AMD64, Make 4.4.1, Python 3.14.3, Clang/LLD 
 
 The hosted contract is the third supported root beside root `all` and `user:all`. The checked graph now contains 649 active language inputs, 248 feature IDs, 444 transforms, and 35 accounted unreachable source-like files. Its 429 declared artifacts cover all 422 final-link objects. Of the C outputs, 243 are i386 ELF32 objects and three are native host objects; the host compiler also links the temporary native contract executable.
 
-The previous Windows oracle JSON remains valid historical evidence for revision `7a8cf7a` at 427 artifacts/420 link objects. Because this step adds two linked kernel objects, a new isolated two-build Windows capture must be made from the committed implementation rather than hand-editing that evidence.
+The previous Windows oracle JSON remains valid historical evidence for revision `7a8cf7a` at 427 artifacts/420 link objects. Because this step adds two linked kernel objects, the replacement capture was made from committed implementation `e72f608` and is recorded below rather than being inferred from the working tree.
 
 ### Verification
 
@@ -315,4 +315,20 @@ The previous Windows oracle JSON remains valid historical evidence for revision 
 | CupidC GUI smoke (`ls`) | PASS | Kernel adapter self-test passed during boot; CupidC reached `JIT execution complete` without panic. |
 | CupidASM GUI smoke (`as /demos/hello.asm`) | PASS | Kernel adapter self-test passed during boot; CupidASM reached `JIT execution complete` without panic. |
 
-The complete Linux OS oracle baseline and the isolated post-commit Windows reproducibility recapture remain pending evidence, not inferred successes.
+The complete Linux OS oracle baseline remains pending evidence, not an inferred success.
+
+## 2026-07-09: shared-core Windows oracle recapture
+
+The Windows oracle was recaptured from committed shared-core revision `e72f608f08260f50f8f43eb8970cda4d66c1ae62`. The first launch mistakenly used a five-second wrapper timeout and was terminated during the first build; it left no process or worktree behind, and its disposable 4 KB partial evidence was rejected. A complete rerun with a four-minute command window replaced it.
+
+| Evidence | Result |
+| --- | --- |
+| Reproducibility | PASS: all 429 artifacts matched between two isolated builds; aggregate SHA-256 `124220c8d0e14621ee654e5a252c655fe41d38491cd6151edc5d2282a3b715c3` |
+| Manifest contract | PASS: the checked audit covers all 422 final-link objects, including `toolchain/ctool.o` and `kernel/lang/ctool_kernel.o` |
+| Clean builds | PASS in 8.809 and 9.589 seconds |
+| Host tests | PASS: 29 tests in 5.460 seconds |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 18.810 seconds, after the kernel core self-test |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.376 seconds, after the kernel core self-test |
+| Output sizes | Kernel ELF 6,146,648 bytes; raw kernel 5,939,861 bytes; `.text` 1,309,972 bytes; disk image 209,715,200 bytes |
+
+The capture fingerprints the same Windows 10 AMD64 oracle family (Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling) in the machine-readable manifest. Linux GCC/binutils remains a separate complete-OS capture; the hosted core contract already passed Linux GCC and sanitizer checks but is not a substitute for that oracle.
