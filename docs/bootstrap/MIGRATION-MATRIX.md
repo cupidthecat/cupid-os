@@ -27,7 +27,7 @@
 
 | Milestone | Ownership gate | Current state |
 | --- | --- | --- |
-| Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | In progress; initial Windows build/smokes recorded, clean dual-host capture pending |
+| Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Windows complete: two 343-artifact builds match with tool/runtime/quality evidence; Linux capture pending |
 | Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Not started |
 | Assembly migration | All four host-assembled OS sources produced by CupidASM with equivalent bytes/behavior | Not started |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | Not started |

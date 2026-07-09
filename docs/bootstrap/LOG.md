@@ -132,3 +132,21 @@ The root cause was a mismatch between QEMU's default key-report hold and Cupid O
 | `python -m unittest tests.test_gui_terminal_smoke` | PASS | The USB-visible 300 ms HMP hold contract is pinned. |
 | `make test` | PASS | 10 host tests passed after adding the harness regression. |
 | Three-attempt original CupidASM GUI loop | PASS | 3/3 passed at 23.37–23.58 seconds after the fix; the pre-fix loop passed only 1/3. |
+
+### Frozen Windows evidence
+
+`docs/bootstrap/baselines/windows-amd64.json` records a passing capture of committed revision `092ada58f4180d207a83dd577b898950bacedddd` on Windows 10 AMD64. It fingerprints Make 4.4.1, Python 3.14.3, Clang and LLD 22.1.0, hashed LLVM objcopy/nm utilities, NASM 2.16.01, QEMU 10.2.50, and the available FFmpeg 8.0.1 JPEG converter; the JSON contains full executable SHA-256 values.
+
+| Evidence | Result |
+| --- | --- |
+| Isolated build 1 | PASS in 8.615 seconds |
+| Host tests | PASS in 0.593 seconds (10 tests) |
+| CupidC `/bin/ls.cc` GUI smoke | PASS in 18.947 seconds |
+| CupidASM `as /demos/hello.asm` GUI smoke | PASS in 23.460 seconds |
+| Isolated build 2 | PASS in 8.673 seconds |
+| Reproducibility | PASS: all 343 artifacts matched; aggregate SHA-256 `b10222d82c963cac5330e0cf2bd7d9152d32c9f3c658adfd198d664b50291a4e` |
+| Final ELF `.text` | 1,292,372 bytes |
+| Final kernel ELF / raw binary | 6,123,276 / 5,919,539 bytes |
+| Fresh baseline disk image | 209,715,200 bytes |
+
+This completes the reproducible baseline on the current Windows host toolchain. Linux GCC/binutils evidence remains a separate host capture; Windows and Linux oracle outputs are not required to match each other.

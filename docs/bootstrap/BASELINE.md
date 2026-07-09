@@ -46,6 +46,11 @@ Windows Clang/LLVM and Linux GCC/binutils evidence are separate oracle baselines
 
 Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay under ignored `build/bootstrap/`. The JSON has schema identifier `cupid.bootstrap-baseline.v1`; schema changes require tests and a bootstrap-log entry.
 
+| Host oracle | Source revision | Result | Evidence |
+| --- | --- | --- | --- |
+| Windows AMD64, Clang/LLVM | `092ada5` | PASS: two 343-artifact builds byte-identical | `baselines/windows-amd64.json` |
+| Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
+
 ## Build-output hygiene
 
 `.gitignore` excludes compiler objects, OS binaries/images, generated build intermediates, Python caches, runtime logs, and ordinary baseline output. `.gitattributes` fixes text checkouts to LF so embedded Cupid C, Cupid ASM, documentation, and other text do not change bytes with host checkout policy. Binary fixtures and assets are explicitly marked binary.

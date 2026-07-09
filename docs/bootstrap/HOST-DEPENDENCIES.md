@@ -1,6 +1,6 @@
 # Host dependency inventory
 
-This source inspection records every external code-producing invocation found in the tracked build definitions at baseline commit `0333208`. The clean dual-host audit must still capture resolved commands, versions, inputs, outputs, and artifact hashes, and must prove whether sources without active Make rules are reachable through another supported path.
+This source inspection records every external code-producing invocation found in the tracked build definitions at baseline commit `0333208`. `baselines/windows-amd64.json` now captures resolved Windows commands, versions, executable hashes, checks, outputs, and artifact hashes; an equivalent Linux capture remains pending. The active-source audit must still prove whether sources without active Make rules are reachable through another supported path.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
