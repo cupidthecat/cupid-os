@@ -48,11 +48,10 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `092ada5` | Historical only: two declared 343-artifact builds matched, but the active-source audit proved that an early Make expansion omitted 84 linked TLS/Doom objects from individual hashing | `baselines/windows-amd64.json` |
-| Windows AMD64, Clang/LLVM | Pending recapture | Current manifest contains 427 artifacts and covers all 420 final-link objects | Not captured yet |
+| Windows AMD64, Clang/LLVM | `7a8cf7a` | PASS: two clean 427-artifact builds matched; aggregate SHA-256 `d1e176f5d8543105cc6febff368d128563a7de2539fd2da54dd03056234d5bf4` | `baselines/windows-amd64.json` |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
 
-The historical Windows JSON still proves deterministic downstream ELF, kernel, image, tests, and GUI smokes for its recorded revision, but it is not accepted as the complete per-object oracle baseline. The audit moved `BOOTSTRAP_ARTIFACTS` and the forced-rebuild prerequisite until after the final `KERNEL_OBJS` append; a checked contract now localizes any future missing link input.
+This capture supersedes the incomplete 343-artifact Windows evidence from `092ada5`. The audit moved `BOOTSTRAP_ARTIFACTS` and the forced-rebuild prerequisite until after the final `KERNEL_OBJS` append; its checked contract proves that the 427-path manifest includes all 420 final-link objects. The current capture also passed 21 host tests, `/bin/ls.cc` through CupidC, and `as /demos/hello.asm` through CupidASM. Its two isolated builds took 8.231 and 9.487 seconds; these are host observations, not performance gates.
 
 ## Build-output hygiene
 

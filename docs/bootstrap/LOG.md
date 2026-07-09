@@ -135,7 +135,7 @@ The root cause was a mismatch between QEMU's default key-report hold and Cupid O
 
 ### Frozen Windows evidence
 
-`docs/bootstrap/baselines/windows-amd64.json` records a passing capture of committed revision `092ada58f4180d207a83dd577b898950bacedddd` on Windows 10 AMD64. It fingerprints Make 4.4.1, Python 3.14.3, Clang and LLD 22.1.0, hashed LLVM objcopy/nm utilities, NASM 2.16.01, QEMU 10.2.50, and the available FFmpeg 8.0.1 JPEG converter; the JSON contains full executable SHA-256 values.
+The first checked Windows capture, later superseded by the complete manifest below, recorded committed revision `092ada58f4180d207a83dd577b898950bacedddd` on Windows 10 AMD64. It fingerprinted Make 4.4.1, Python 3.14.3, Clang and LLD 22.1.0, hashed LLVM objcopy/nm utilities, NASM 2.16.01, QEMU 10.2.50, and the available FFmpeg 8.0.1 JPEG converter.
 
 | Evidence | Result |
 | --- | --- |
@@ -240,7 +240,7 @@ No source was deleted. `not_reached` proves absence from the two supported roots
 
 The audit found that `BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS)` and the `$(KERNEL_OBJS): FORCE` rule were expanded before later TLS/Doom appends. The historical manifest therefore contained 343 paths and omitted 84 linked objects: the checked CA bundle object, four Doom port objects, and all 79 vendored Doom objects. Downstream ELF/kernel/image hashes were still captured, but the claim of complete per-object hashing was false.
 
-Both whole-link declarations now occur after the final append. The manifest contains 427 unique paths and the checked contract proves coverage of all 420 final-link objects. The historical Windows JSON remains useful downstream evidence but is marked historical until a corrected clean-worktree capture is committed.
+Both whole-link declarations now occur after the final append. The manifest contains 427 unique paths and the checked contract proves coverage of all 420 final-link objects. The earlier Windows JSON was retained only as historical evidence until the corrected clean-worktree capture recorded below.
 
 An ordinary working-tree hash comparison was rejected as recapture evidence. This checkout predates the LF attributes and still has CRLF source bytes: exactly 171 byte-wrapped text objects differed from the clean-LF historical capture, followed by three downstream kernel artifacts and the persistent disk image. Compiled C objects and the boot/trampoline binaries matched. The isolated baseline runner remains the authority because it checks out canonical LF text and starts with a fresh image.
 
@@ -255,4 +255,22 @@ An ordinary working-tree hash comparison was rejected as recapture evidence. Thi
 | `llvm-readobj --relocations <238 root C objects>` | PASS | Only `R_386_32` (27,375) and `R_386_PC32` (11,658) were present. |
 | ELF/raw assembly inspection | PASS | Boot/trampoline sizes/hashes and ISR/context-switch ELF32 properties matched the recorded oracle constraints. |
 
-No source cohort changed tool ownership in this step. The audit clears the source-order fog and makes the next host-core/object/instruction seams concrete; corrected Windows baseline recapture remains the next evidence commit for this implementation step.
+No source cohort changed tool ownership in this step. The audit clears the source-order fog and makes the next host-core/object/instruction seams concrete; the corrected Windows baseline recapture is recorded below as a separate evidence commit.
+
+## 2026-07-09: corrected Windows oracle baseline
+
+The Windows baseline was recaptured from committed audit revision `7a8cf7ab6d8d3372352ab61c86c31efad0493e89`. A first invocation used an erroneously short command-wrapper timeout, closed the runner's output stream, and wrote failure evidence with zero builds. That partial file was rejected and replaced by a complete rerun with enough time for both isolated builds and guest smokes.
+
+The complete capture passed:
+
+| Evidence | Result |
+| --- | --- |
+| Reproducibility | PASS: all 427 artifacts matched between two isolated builds; aggregate SHA-256 `d1e176f5d8543105cc6febff368d128563a7de2539fd2da54dd03056234d5bf4` |
+| Manifest contract | PASS: the audit independently covers all 420 final-link objects |
+| Clean builds | PASS in 8.231 and 9.487 seconds |
+| Host tests | PASS: 21 tests in 4.590 seconds |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 19.067 seconds |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.823 seconds |
+| Output sizes | Kernel ELF 6,123,276 bytes; raw kernel 5,919,539 bytes; `.text` 1,292,372 bytes; disk image 209,715,200 bytes |
+
+The capture fingerprints Windows 10 AMD64, Make 4.4.1, Python 3.14.3, Clang/LLD 22.1.0, NASM 2.16.01, LLVM objcopy/nm, QEMU 10.2.50, and FFmpeg 8.0.1. Linux GCC/binutils evidence remains a separate pending capture; cross-host oracle bytes are not required to match.

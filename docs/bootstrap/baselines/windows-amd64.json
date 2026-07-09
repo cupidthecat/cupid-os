@@ -337,6 +337,90 @@
         "system/fonts/LiberationSans-Regular.ttf.o",
         "system/fonts/LiberationSerif-Regular.ttf.o",
         "system/fonts/NotoSansSymbols-Regular.ttf.o",
+        "kernel/tls/tls_ca_bundle_data.o",
+        "kernel/doom/dglibc.o",
+        "kernel/doom/doomgeneric_cupidos.o",
+        "kernel/doom/doom_libc_stubs.o",
+        "kernel/doom/i_sound_cupidos.o",
+        "kernel/doom/src/am_map.o",
+        "kernel/doom/src/d_event.o",
+        "kernel/doom/src/d_items.o",
+        "kernel/doom/src/d_iwad.o",
+        "kernel/doom/src/d_loop.o",
+        "kernel/doom/src/d_main.o",
+        "kernel/doom/src/d_mode.o",
+        "kernel/doom/src/d_net.o",
+        "kernel/doom/src/doomdef.o",
+        "kernel/doom/src/doomgeneric.o",
+        "kernel/doom/src/doomstat.o",
+        "kernel/doom/src/dstrings.o",
+        "kernel/doom/src/dummy.o",
+        "kernel/doom/src/f_finale.o",
+        "kernel/doom/src/f_wipe.o",
+        "kernel/doom/src/g_game.o",
+        "kernel/doom/src/gusconf.o",
+        "kernel/doom/src/hu_lib.o",
+        "kernel/doom/src/hu_stuff.o",
+        "kernel/doom/src/i_endoom.o",
+        "kernel/doom/src/i_input.o",
+        "kernel/doom/src/i_joystick.o",
+        "kernel/doom/src/i_scale.o",
+        "kernel/doom/src/i_system.o",
+        "kernel/doom/src/i_timer.o",
+        "kernel/doom/src/i_video.o",
+        "kernel/doom/src/icon.o",
+        "kernel/doom/src/info.o",
+        "kernel/doom/src/m_argv.o",
+        "kernel/doom/src/m_bbox.o",
+        "kernel/doom/src/m_cheat.o",
+        "kernel/doom/src/m_config.o",
+        "kernel/doom/src/m_controls.o",
+        "kernel/doom/src/m_fixed.o",
+        "kernel/doom/src/m_menu.o",
+        "kernel/doom/src/m_misc.o",
+        "kernel/doom/src/m_random.o",
+        "kernel/doom/src/p_ceilng.o",
+        "kernel/doom/src/p_doors.o",
+        "kernel/doom/src/p_enemy.o",
+        "kernel/doom/src/p_floor.o",
+        "kernel/doom/src/p_inter.o",
+        "kernel/doom/src/p_lights.o",
+        "kernel/doom/src/p_map.o",
+        "kernel/doom/src/p_maputl.o",
+        "kernel/doom/src/p_mobj.o",
+        "kernel/doom/src/p_plats.o",
+        "kernel/doom/src/p_pspr.o",
+        "kernel/doom/src/p_saveg.o",
+        "kernel/doom/src/p_setup.o",
+        "kernel/doom/src/p_sight.o",
+        "kernel/doom/src/p_spec.o",
+        "kernel/doom/src/p_switch.o",
+        "kernel/doom/src/p_telept.o",
+        "kernel/doom/src/p_tick.o",
+        "kernel/doom/src/p_user.o",
+        "kernel/doom/src/r_bsp.o",
+        "kernel/doom/src/r_data.o",
+        "kernel/doom/src/r_draw.o",
+        "kernel/doom/src/r_main.o",
+        "kernel/doom/src/r_plane.o",
+        "kernel/doom/src/r_segs.o",
+        "kernel/doom/src/r_sky.o",
+        "kernel/doom/src/r_things.o",
+        "kernel/doom/src/s_sound.o",
+        "kernel/doom/src/sha1.o",
+        "kernel/doom/src/sounds.o",
+        "kernel/doom/src/st_lib.o",
+        "kernel/doom/src/st_stuff.o",
+        "kernel/doom/src/statdump.o",
+        "kernel/doom/src/tables.o",
+        "kernel/doom/src/v_video.o",
+        "kernel/doom/src/w_checksum.o",
+        "kernel/doom/src/w_file.o",
+        "kernel/doom/src/w_file_stdc.o",
+        "kernel/doom/src/w_main.o",
+        "kernel/doom/src/w_wad.o",
+        "kernel/doom/src/wi_stuff.o",
+        "kernel/doom/src/z_zone.o",
         "boot/boot.bin",
         "kernel/smp_trampoline.bin",
         "kernel/kernel.elf.pass1",
@@ -347,7 +431,7 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "b10222d82c963cac5330e0cf2bd7d9152d32c9f3c658adfd198d664b50291a4e",
+        "digest": "d1e176f5d8543105cc6febff368d128563a7de2539fd2da54dd03056234d5bf4",
         "files": [
           {
             "path": "bin/audiotest.o",
@@ -1510,6 +1594,421 @@
             "size": 2756
           },
           {
+            "path": "kernel/doom/dglibc.o",
+            "sha256": "f304ef19e8993551f9fcd79184393cadeb1c4e944d22e85f15ab17b02bf1edd7",
+            "size": 19008
+          },
+          {
+            "path": "kernel/doom/doom_libc_stubs.o",
+            "sha256": "8a6694c3af206dc56ce1ff09828bb054413256893f17172d730c0c3f54a3be63",
+            "size": 6696
+          },
+          {
+            "path": "kernel/doom/doomgeneric_cupidos.o",
+            "sha256": "6a739614332eb042cf23762cc301fa03bbda7007497fd7100305b9e3e19ac8ed",
+            "size": 6144
+          },
+          {
+            "path": "kernel/doom/i_sound_cupidos.o",
+            "sha256": "75f85fb0d1e695348c76931189c706f6f2dca3b857d60c86e1f11df5561bd092",
+            "size": 12244
+          },
+          {
+            "path": "kernel/doom/src/am_map.o",
+            "sha256": "f695946674f2bd7864748bc5181e38a8906086b6d2c925862a291f8b6177ab06",
+            "size": 21016
+          },
+          {
+            "path": "kernel/doom/src/d_event.o",
+            "sha256": "0eab40fb0d3defc7ac3a35b089138d3681b0268f898cbeb0518c090d67e8c366",
+            "size": 996
+          },
+          {
+            "path": "kernel/doom/src/d_items.o",
+            "sha256": "590e44b9c7b4da7f9a8cc4503df111e443a23f56da5cc8f5e7301f3267c13b00",
+            "size": 832
+          },
+          {
+            "path": "kernel/doom/src/d_iwad.o",
+            "sha256": "1b9b0d22cfcac6efa3f29d7d92b215c4c4c6f8bed1e4eeb83e20472daa7b4f3e",
+            "size": 4784
+          },
+          {
+            "path": "kernel/doom/src/d_loop.o",
+            "sha256": "8ec57082cca3ea56e530378f5fb1edb5b04dde37817ba1b59b2065d1f91b5f82",
+            "size": 5268
+          },
+          {
+            "path": "kernel/doom/src/d_main.o",
+            "sha256": "23a8bb3aa2fbf6a211fc1b6ca9ea0f52756e68abb835f1393ef86c8d13be9167",
+            "size": 22440
+          },
+          {
+            "path": "kernel/doom/src/d_mode.o",
+            "sha256": "1ac8720fb50217ce4932493f743b3c320e6bfb2ced80fa48f0071e600ff54aba",
+            "size": 2456
+          },
+          {
+            "path": "kernel/doom/src/d_net.o",
+            "sha256": "0ca2833d9ea3443536f785cd56c00ce5b44eaf648990b7511b8760762451bbb2",
+            "size": 4896
+          },
+          {
+            "path": "kernel/doom/src/doomdef.o",
+            "sha256": "3849c86b7a813430ff05c1a99402bdb72e6a41ff60241994c0233faa8e5470e1",
+            "size": 540
+          },
+          {
+            "path": "kernel/doom/src/doomgeneric.o",
+            "sha256": "02fb32ddfb40cb3c43ef554cf16861db288f289eeb251d7120e45d9c3eab4867",
+            "size": 988
+          },
+          {
+            "path": "kernel/doom/src/doomstat.o",
+            "sha256": "1d482d1df4b75bbe26f7d5d7afe1755ce6f808b54b84195693f3abac4fc74873",
+            "size": 784
+          },
+          {
+            "path": "kernel/doom/src/dstrings.o",
+            "sha256": "ad8795d788401f52d6bc52436e39318de718023d4c16729468dea75511c0e5c1",
+            "size": 1760
+          },
+          {
+            "path": "kernel/doom/src/dummy.o",
+            "sha256": "13c610cf443d61685ad391ae031f4a632b139f61dfd79a5b88ded269f7e79cc2",
+            "size": 704
+          },
+          {
+            "path": "kernel/doom/src/f_finale.o",
+            "sha256": "5fb1538283129bfb71d93611441465225f349de4263713f06d45655fd9357e6e",
+            "size": 18928
+          },
+          {
+            "path": "kernel/doom/src/f_wipe.o",
+            "sha256": "924d8a0ac34ba5d1080b349e257247dd2ac54d2ff073b70b7a2b483e8d92a803",
+            "size": 5992
+          },
+          {
+            "path": "kernel/doom/src/g_game.o",
+            "sha256": "3fb865c980344b4e229d5b3f6639d94f3578908c250d1d5a0ea19de4d18e4156",
+            "size": 32172
+          },
+          {
+            "path": "kernel/doom/src/gusconf.o",
+            "sha256": "50e905ded3bbcb5058b588c7a2dbc6c82f997b6d1b20c1eaaba835e1603e2ef2",
+            "size": 3332
+          },
+          {
+            "path": "kernel/doom/src/hu_lib.o",
+            "sha256": "15a49ee6435b53d304fffa97d8590858922214f6ca74780a150059d60c1109c0",
+            "size": 4000
+          },
+          {
+            "path": "kernel/doom/src/hu_stuff.o",
+            "sha256": "e1d9ceddb5cdfca622587c6cd54348efb084b5a4a9ef92f091a701567ad8e7ec",
+            "size": 12276
+          },
+          {
+            "path": "kernel/doom/src/i_endoom.o",
+            "sha256": "df72d57de5247065d84ffaa910198707cd527328688e70154eedca9fde5e4950",
+            "size": 588
+          },
+          {
+            "path": "kernel/doom/src/i_input.o",
+            "sha256": "bee6ae0f6b34c300d07ebf75903f899d0ab39519093b2b777d83c19253c8077d",
+            "size": 1468
+          },
+          {
+            "path": "kernel/doom/src/i_joystick.o",
+            "sha256": "27b99fe54ae0a7cb589494d7a64ae0ad373741e7fa4b31b0afdf7f35bcd22795",
+            "size": 2572
+          },
+          {
+            "path": "kernel/doom/src/i_scale.o",
+            "sha256": "210fb3f024eb9b8e93097e34051497cbbb924b8228df603f4686ab8aab040c7a",
+            "size": 18492
+          },
+          {
+            "path": "kernel/doom/src/i_system.o",
+            "sha256": "153219f7af99019d0ed719fde4512a7e21bdc5c465ee034c6eeac3f670891756",
+            "size": 5020
+          },
+          {
+            "path": "kernel/doom/src/i_timer.o",
+            "sha256": "27ad493522938cea85af4978ba34c5985a58f69cd66983cda61d2f005f04e786",
+            "size": 1152
+          },
+          {
+            "path": "kernel/doom/src/i_video.o",
+            "sha256": "5fe72f4cad42ee3f1ea433560fe277c15c8756e3969d8c1401e0f9a9d9d0b458",
+            "size": 5016
+          },
+          {
+            "path": "kernel/doom/src/icon.o",
+            "sha256": "b8b05e1945ab27b0d247e5877c638fd776a6de171b1ce79792befa9c60667756",
+            "size": 540
+          },
+          {
+            "path": "kernel/doom/src/info.o",
+            "sha256": "e0121ec89352df82da72cbd5f4cfac6b3a2cf6b08f39c58fdfb9b0f1d7046e68",
+            "size": 48508
+          },
+          {
+            "path": "kernel/doom/src/m_argv.o",
+            "sha256": "fb7625fa1878eaf7a65e076212e5506b0e5d09b02421eea746aa63e6ec470468",
+            "size": 1340
+          },
+          {
+            "path": "kernel/doom/src/m_bbox.o",
+            "sha256": "fdac3fbd47f630ff8e1a4c15b1017b9fb8d74de5d98ffb8c945ad161db628202",
+            "size": 840
+          },
+          {
+            "path": "kernel/doom/src/m_cheat.o",
+            "sha256": "9c9013965fb409f6bda317501951c36bd05d85af5999f85e151e0c26a3ed123c",
+            "size": 928
+          },
+          {
+            "path": "kernel/doom/src/m_config.o",
+            "sha256": "6f4d45adc5398b29f3c51c3c55ff19fcfa6c0452e3b5ffb44c79488f290466a2",
+            "size": 13384
+          },
+          {
+            "path": "kernel/doom/src/m_controls.o",
+            "sha256": "662ec8f858eb41a6d05b63d64ba30b61afdf1c1eea8d783cea928f96e6000a05",
+            "size": 11704
+          },
+          {
+            "path": "kernel/doom/src/m_fixed.o",
+            "sha256": "7a8c133a81b41d6541fb692694f2c7755fcb823866d3543f7f234edaa8cf78ff",
+            "size": 792
+          },
+          {
+            "path": "kernel/doom/src/m_menu.o",
+            "sha256": "fd11be4f2091b4b671128ba4569d2e3fa487f668b2069eef68640794f9966eb4",
+            "size": 24728
+          },
+          {
+            "path": "kernel/doom/src/m_misc.o",
+            "sha256": "1b5f5229ecded785c11bfd2c0e2d2a31a6374401045774ba454c4ad8c282a458",
+            "size": 5004
+          },
+          {
+            "path": "kernel/doom/src/m_random.o",
+            "sha256": "eba87103faae0bc91b5ed3127e158f01b45a07f91d2b7c0601286d98f07125ec",
+            "size": 1272
+          },
+          {
+            "path": "kernel/doom/src/p_ceilng.o",
+            "sha256": "29d584c3c735bcae9d687f28ee2df95f12ca13f3c24c9c08ace87f0d52d590fd",
+            "size": 4456
+          },
+          {
+            "path": "kernel/doom/src/p_doors.o",
+            "sha256": "33fdefe3e0f994500e1d47c1f709da18e2e054faacecce9593aacfad14ac7ecd",
+            "size": 4436
+          },
+          {
+            "path": "kernel/doom/src/p_enemy.o",
+            "sha256": "4979b3cbfa025cd2bce15335fc90da0fe12da54628066f1a03a07dffff22f5ef",
+            "size": 18996
+          },
+          {
+            "path": "kernel/doom/src/p_floor.o",
+            "sha256": "6b1b3ad8232764f7a48616a75998ffdb2b0c9085eedefe2f88ad791e69457bc7",
+            "size": 3736
+          },
+          {
+            "path": "kernel/doom/src/p_inter.o",
+            "sha256": "028854086c6b1e86326ee002eeb33294b7bad67baf6fb6c8fdd9a70cb3edf645",
+            "size": 8136
+          },
+          {
+            "path": "kernel/doom/src/p_lights.o",
+            "sha256": "602965222188bd922a410c5710df76f2b0be75f148d45b80bc3a92a821516432",
+            "size": 2696
+          },
+          {
+            "path": "kernel/doom/src/p_map.o",
+            "sha256": "fb5d9d31e4ec7ec17082347740661cf07729434ea93f196501e62ffbd1586573",
+            "size": 12532
+          },
+          {
+            "path": "kernel/doom/src/p_maputl.o",
+            "sha256": "7d9ce9e0fc04bb3b01876751eb473bfcafcf7b74fa2cd44fa243cc796b89064b",
+            "size": 8784
+          },
+          {
+            "path": "kernel/doom/src/p_mobj.o",
+            "sha256": "7122882f51bd5ed48d9ba9109b54d9756d308f281e60f1d37ab1e1d18c32aae0",
+            "size": 9532
+          },
+          {
+            "path": "kernel/doom/src/p_plats.o",
+            "sha256": "67039750cd012e453932edf1f406c0b14701bd04a35fcfd41b1e10fc55263446",
+            "size": 4768
+          },
+          {
+            "path": "kernel/doom/src/p_pspr.o",
+            "sha256": "a6a7123d9fff7d230944c37c01990f0a0855ccdb86db67b5cbf693479af3e6db",
+            "size": 10128
+          },
+          {
+            "path": "kernel/doom/src/p_saveg.o",
+            "sha256": "8406803d5dce55bc5c4a6a154c2a4b200f675efdc920dacbe8f7432bc93428a6",
+            "size": 21356
+          },
+          {
+            "path": "kernel/doom/src/p_setup.o",
+            "sha256": "9e5529f67714b025956144aec493a655bb0c2e94d15d6f1e2f0e2b9a4ca2b34a",
+            "size": 9944
+          },
+          {
+            "path": "kernel/doom/src/p_sight.o",
+            "sha256": "967b046e71665208f6a7ad0c527aadbab9e15b4dd737551aec557f29be5d6362",
+            "size": 3944
+          },
+          {
+            "path": "kernel/doom/src/p_spec.o",
+            "sha256": "994ac980019c27238a09f72438823a313cc5cbf93809664f7e9c7eac80a22bc6",
+            "size": 12720
+          },
+          {
+            "path": "kernel/doom/src/p_switch.o",
+            "sha256": "4a39d77fcd21aeac5314250b358770ebf00de3e4ad312e3a820c646df1b90e1d",
+            "size": 7084
+          },
+          {
+            "path": "kernel/doom/src/p_telept.o",
+            "sha256": "753a6c9a3181e6beef5a0f4627a0fc3aaf07647723b2569d8177020c23907231",
+            "size": 1432
+          },
+          {
+            "path": "kernel/doom/src/p_tick.o",
+            "sha256": "83df7f10461cf0e9af1ff272a6e86540dc8f8296dd46d0c6e3f28e09e28f9735",
+            "size": 1896
+          },
+          {
+            "path": "kernel/doom/src/p_user.o",
+            "sha256": "a72e6bd30c90ea3531038642883f4d8851c77a546c656eb07749a54593957f08",
+            "size": 2816
+          },
+          {
+            "path": "kernel/doom/src/r_bsp.o",
+            "sha256": "a06e4c9ad909bb990fb553e51e9901e128d485d8b16f328898108355e72be3bf",
+            "size": 4580
+          },
+          {
+            "path": "kernel/doom/src/r_data.o",
+            "sha256": "37bd5f0c1f087acb8e8f11d3fea365fcd06b863b69bf416f56be04ccccd83ada",
+            "size": 9864
+          },
+          {
+            "path": "kernel/doom/src/r_draw.o",
+            "sha256": "d195816d0a63173a998e8d5ba549f4c3ef99a0cf5d2c039706b2407f51e999a3",
+            "size": 9460
+          },
+          {
+            "path": "kernel/doom/src/r_main.o",
+            "sha256": "bffb8634c47c21b222150b57ab3308822c92037e739c7460ee56ada4a01f5beb",
+            "size": 8504
+          },
+          {
+            "path": "kernel/doom/src/r_plane.o",
+            "sha256": "a0c6fc8fd97b139033261988e0f1b79ca212a003a61a96409b32c9e03f196acf",
+            "size": 6152
+          },
+          {
+            "path": "kernel/doom/src/r_segs.o",
+            "sha256": "c1391d705ac978c9f258d039949cdac854407383090aee98c38ce4cb105a465f",
+            "size": 9036
+          },
+          {
+            "path": "kernel/doom/src/r_sky.o",
+            "sha256": "b4d5d94ec338ec508ae9075a15436d27890f5c23ada94821d50994d3be0a4a3b",
+            "size": 780
+          },
+          {
+            "path": "kernel/doom/src/r_things.o",
+            "sha256": "5aa0a044e35106dea47fa8a4665be749ef9f522213f3d7df80a27b7f3ac3ff0d",
+            "size": 12720
+          },
+          {
+            "path": "kernel/doom/src/s_sound.o",
+            "sha256": "9455103c1b5a77fd2e4155c22f6aabc730525e5eadc3b7fa7eeac9211eb0e88d",
+            "size": 6308
+          },
+          {
+            "path": "kernel/doom/src/sha1.o",
+            "sha256": "30cb8cfbc94981e82a124882fce80050bc3066f03ebc4e7db895ed3b733640ec",
+            "size": 6268
+          },
+          {
+            "path": "kernel/doom/src/sounds.o",
+            "sha256": "eb0ef4094cb94e75ef92800085fb644a072f3f782297f66f1d3da9c1dd956515",
+            "size": 8016
+          },
+          {
+            "path": "kernel/doom/src/st_lib.o",
+            "sha256": "a901e91cb2b2aedc4e4f07ea10f7a4060a0d7f39623609baa36609f873b2216f",
+            "size": 2692
+          },
+          {
+            "path": "kernel/doom/src/st_stuff.o",
+            "sha256": "61c9ec51168b439bec29f5932cbeb7e2c32eb1783fcb5b52383346f84bfca960",
+            "size": 19724
+          },
+          {
+            "path": "kernel/doom/src/statdump.o",
+            "sha256": "3b01316d494e9304af67ade7c6deed46c0aed1b9f0d302645cf3527d19519b21",
+            "size": 1048
+          },
+          {
+            "path": "kernel/doom/src/tables.o",
+            "sha256": "27d7347e56a6c4276938c2777d8f9da1bb588c821ed601d9e653a15124c582ac",
+            "size": 67740
+          },
+          {
+            "path": "kernel/doom/src/v_video.o",
+            "sha256": "49bddf84601f0c015444034e8dcf4706d03f0f3deb5764fb7a03e708488e55d2",
+            "size": 11760
+          },
+          {
+            "path": "kernel/doom/src/w_checksum.o",
+            "sha256": "8abb52dbd49158aaae308c6768d2d4a5e7ff755a34195f2040e8b291017f90aa",
+            "size": 1380
+          },
+          {
+            "path": "kernel/doom/src/w_file.o",
+            "sha256": "14ee2c4179c8b7c5c3ec2116c99a2eb2ba7f3b70e00c5bc31d73d0fc81338b0c",
+            "size": 944
+          },
+          {
+            "path": "kernel/doom/src/w_file_stdc.o",
+            "sha256": "b0f6046d4fd390ab1e6d9d12b53efedc1e411952c7b87eab5b237a97826484e0",
+            "size": 1392
+          },
+          {
+            "path": "kernel/doom/src/w_main.o",
+            "sha256": "72dbf88d5a5a3dccc293b3f9ac701e0386f61f0c7aa1bef8f7396e176c8ed496",
+            "size": 1080
+          },
+          {
+            "path": "kernel/doom/src/w_wad.o",
+            "sha256": "3f8a36fd3a1a31360be1a9ac5baa32c670a3171ecbb58d8eaa34c83cc5f944ce",
+            "size": 6112
+          },
+          {
+            "path": "kernel/doom/src/wi_stuff.o",
+            "sha256": "2f72a5196ab2553644676f1756e859d12a89dc89bd26bf2606f04714467a3af7",
+            "size": 32124
+          },
+          {
+            "path": "kernel/doom/src/z_zone.o",
+            "sha256": "3b0e2b00ca9c96689c418249804ac3b74ab2ad4849f3c55c885dacf3b62016ec",
+            "size": 3900
+          },
+          {
             "path": "kernel/fs/blockcache.o",
             "sha256": "f4659d3730f9a65316efb5dd325bf160908da31960c32a2c57792849e9b396f2",
             "size": 5424
@@ -1960,6 +2459,11 @@
             "size": 676
           },
           {
+            "path": "kernel/tls/tls_ca_bundle_data.o",
+            "sha256": "fc17999510bb06494eae980a74381f6e93300ed1ef5ec746334e4e0dad92f918",
+            "size": 42732
+          },
+          {
             "path": "kernel/tls/tls_ctx.o",
             "sha256": "646825f07a34115073524a057ed736e90c400e603b0d57990f2a90a7ee44f495",
             "size": 1736
@@ -2075,7 +2579,7 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.581,
+          "elapsed_seconds": 0.58,
           "name": "clean",
           "output_sha256": "7f4653ad7d595b2b9a0f65f0171ce13cb02edfa3451e96940e60cc6ef8cbea34",
           "output_tail": [
@@ -2104,7 +2608,7 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 8.615,
+          "elapsed_seconds": 8.231,
           "name": "build",
           "output_sha256": "b843d4311b14dcde6c447fdc43176b6bcf0c4636b1d3eba6c46663f5430ccb49",
           "output_tail": [
@@ -2141,11 +2645,11 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.209,
+          "elapsed_seconds": 0.187,
           "name": "artifact-list",
-          "output_sha256": "806d6a44ab5af3372021fe82e1929dfbe24d7db8b6a8f31a4304d5426367b4c4",
+          "output_sha256": "b166d9f7c39a0d96f41b309c14241a0adbef181d8487913666fa19c7d7cab3c6",
           "output_tail": [
-            "<artifact list: 343 paths>"
+            "<artifact list: 427 paths>"
           ],
           "returncode": 0,
           "status": "pass"
@@ -2161,13 +2665,13 @@
             "-p",
             "test_*.py"
           ],
-          "elapsed_seconds": 0.593,
+          "elapsed_seconds": 4.59,
           "name": "host-unit-tests",
-          "output_sha256": "0175e552f694af4b7b253b70bc412888d8d5163939e96210317b8cba8ae62805",
+          "output_sha256": "31ed9531cd1b92059263c01b2d29b26db5f8ca9f995ab44f5d46925efbc0ac19",
           "output_tail": [
-            "..........",
+            ".....................",
             "----------------------------------------------------------------------",
-            "Ran 10 tests in 0.123s",
+            "Ran 21 tests in 4.100s",
             "",
             "OK",
             "[hostbuild] JPEG baseline embed <TEMP>\\photo.jpg",
@@ -2191,7 +2695,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 18.947,
+          "elapsed_seconds": 19.067,
           "name": "cupidc-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -2213,7 +2717,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 23.46,
+          "elapsed_seconds": 23.823,
           "name": "cupidasm-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -2569,6 +3073,90 @@
         "system/fonts/LiberationSans-Regular.ttf.o",
         "system/fonts/LiberationSerif-Regular.ttf.o",
         "system/fonts/NotoSansSymbols-Regular.ttf.o",
+        "kernel/tls/tls_ca_bundle_data.o",
+        "kernel/doom/dglibc.o",
+        "kernel/doom/doomgeneric_cupidos.o",
+        "kernel/doom/doom_libc_stubs.o",
+        "kernel/doom/i_sound_cupidos.o",
+        "kernel/doom/src/am_map.o",
+        "kernel/doom/src/d_event.o",
+        "kernel/doom/src/d_items.o",
+        "kernel/doom/src/d_iwad.o",
+        "kernel/doom/src/d_loop.o",
+        "kernel/doom/src/d_main.o",
+        "kernel/doom/src/d_mode.o",
+        "kernel/doom/src/d_net.o",
+        "kernel/doom/src/doomdef.o",
+        "kernel/doom/src/doomgeneric.o",
+        "kernel/doom/src/doomstat.o",
+        "kernel/doom/src/dstrings.o",
+        "kernel/doom/src/dummy.o",
+        "kernel/doom/src/f_finale.o",
+        "kernel/doom/src/f_wipe.o",
+        "kernel/doom/src/g_game.o",
+        "kernel/doom/src/gusconf.o",
+        "kernel/doom/src/hu_lib.o",
+        "kernel/doom/src/hu_stuff.o",
+        "kernel/doom/src/i_endoom.o",
+        "kernel/doom/src/i_input.o",
+        "kernel/doom/src/i_joystick.o",
+        "kernel/doom/src/i_scale.o",
+        "kernel/doom/src/i_system.o",
+        "kernel/doom/src/i_timer.o",
+        "kernel/doom/src/i_video.o",
+        "kernel/doom/src/icon.o",
+        "kernel/doom/src/info.o",
+        "kernel/doom/src/m_argv.o",
+        "kernel/doom/src/m_bbox.o",
+        "kernel/doom/src/m_cheat.o",
+        "kernel/doom/src/m_config.o",
+        "kernel/doom/src/m_controls.o",
+        "kernel/doom/src/m_fixed.o",
+        "kernel/doom/src/m_menu.o",
+        "kernel/doom/src/m_misc.o",
+        "kernel/doom/src/m_random.o",
+        "kernel/doom/src/p_ceilng.o",
+        "kernel/doom/src/p_doors.o",
+        "kernel/doom/src/p_enemy.o",
+        "kernel/doom/src/p_floor.o",
+        "kernel/doom/src/p_inter.o",
+        "kernel/doom/src/p_lights.o",
+        "kernel/doom/src/p_map.o",
+        "kernel/doom/src/p_maputl.o",
+        "kernel/doom/src/p_mobj.o",
+        "kernel/doom/src/p_plats.o",
+        "kernel/doom/src/p_pspr.o",
+        "kernel/doom/src/p_saveg.o",
+        "kernel/doom/src/p_setup.o",
+        "kernel/doom/src/p_sight.o",
+        "kernel/doom/src/p_spec.o",
+        "kernel/doom/src/p_switch.o",
+        "kernel/doom/src/p_telept.o",
+        "kernel/doom/src/p_tick.o",
+        "kernel/doom/src/p_user.o",
+        "kernel/doom/src/r_bsp.o",
+        "kernel/doom/src/r_data.o",
+        "kernel/doom/src/r_draw.o",
+        "kernel/doom/src/r_main.o",
+        "kernel/doom/src/r_plane.o",
+        "kernel/doom/src/r_segs.o",
+        "kernel/doom/src/r_sky.o",
+        "kernel/doom/src/r_things.o",
+        "kernel/doom/src/s_sound.o",
+        "kernel/doom/src/sha1.o",
+        "kernel/doom/src/sounds.o",
+        "kernel/doom/src/st_lib.o",
+        "kernel/doom/src/st_stuff.o",
+        "kernel/doom/src/statdump.o",
+        "kernel/doom/src/tables.o",
+        "kernel/doom/src/v_video.o",
+        "kernel/doom/src/w_checksum.o",
+        "kernel/doom/src/w_file.o",
+        "kernel/doom/src/w_file_stdc.o",
+        "kernel/doom/src/w_main.o",
+        "kernel/doom/src/w_wad.o",
+        "kernel/doom/src/wi_stuff.o",
+        "kernel/doom/src/z_zone.o",
         "boot/boot.bin",
         "kernel/smp_trampoline.bin",
         "kernel/kernel.elf.pass1",
@@ -2579,7 +3167,7 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "b10222d82c963cac5330e0cf2bd7d9152d32c9f3c658adfd198d664b50291a4e",
+        "digest": "d1e176f5d8543105cc6febff368d128563a7de2539fd2da54dd03056234d5bf4",
         "files": [
           {
             "path": "bin/audiotest.o",
@@ -3742,6 +4330,421 @@
             "size": 2756
           },
           {
+            "path": "kernel/doom/dglibc.o",
+            "sha256": "f304ef19e8993551f9fcd79184393cadeb1c4e944d22e85f15ab17b02bf1edd7",
+            "size": 19008
+          },
+          {
+            "path": "kernel/doom/doom_libc_stubs.o",
+            "sha256": "8a6694c3af206dc56ce1ff09828bb054413256893f17172d730c0c3f54a3be63",
+            "size": 6696
+          },
+          {
+            "path": "kernel/doom/doomgeneric_cupidos.o",
+            "sha256": "6a739614332eb042cf23762cc301fa03bbda7007497fd7100305b9e3e19ac8ed",
+            "size": 6144
+          },
+          {
+            "path": "kernel/doom/i_sound_cupidos.o",
+            "sha256": "75f85fb0d1e695348c76931189c706f6f2dca3b857d60c86e1f11df5561bd092",
+            "size": 12244
+          },
+          {
+            "path": "kernel/doom/src/am_map.o",
+            "sha256": "f695946674f2bd7864748bc5181e38a8906086b6d2c925862a291f8b6177ab06",
+            "size": 21016
+          },
+          {
+            "path": "kernel/doom/src/d_event.o",
+            "sha256": "0eab40fb0d3defc7ac3a35b089138d3681b0268f898cbeb0518c090d67e8c366",
+            "size": 996
+          },
+          {
+            "path": "kernel/doom/src/d_items.o",
+            "sha256": "590e44b9c7b4da7f9a8cc4503df111e443a23f56da5cc8f5e7301f3267c13b00",
+            "size": 832
+          },
+          {
+            "path": "kernel/doom/src/d_iwad.o",
+            "sha256": "1b9b0d22cfcac6efa3f29d7d92b215c4c4c6f8bed1e4eeb83e20472daa7b4f3e",
+            "size": 4784
+          },
+          {
+            "path": "kernel/doom/src/d_loop.o",
+            "sha256": "8ec57082cca3ea56e530378f5fb1edb5b04dde37817ba1b59b2065d1f91b5f82",
+            "size": 5268
+          },
+          {
+            "path": "kernel/doom/src/d_main.o",
+            "sha256": "23a8bb3aa2fbf6a211fc1b6ca9ea0f52756e68abb835f1393ef86c8d13be9167",
+            "size": 22440
+          },
+          {
+            "path": "kernel/doom/src/d_mode.o",
+            "sha256": "1ac8720fb50217ce4932493f743b3c320e6bfb2ced80fa48f0071e600ff54aba",
+            "size": 2456
+          },
+          {
+            "path": "kernel/doom/src/d_net.o",
+            "sha256": "0ca2833d9ea3443536f785cd56c00ce5b44eaf648990b7511b8760762451bbb2",
+            "size": 4896
+          },
+          {
+            "path": "kernel/doom/src/doomdef.o",
+            "sha256": "3849c86b7a813430ff05c1a99402bdb72e6a41ff60241994c0233faa8e5470e1",
+            "size": 540
+          },
+          {
+            "path": "kernel/doom/src/doomgeneric.o",
+            "sha256": "02fb32ddfb40cb3c43ef554cf16861db288f289eeb251d7120e45d9c3eab4867",
+            "size": 988
+          },
+          {
+            "path": "kernel/doom/src/doomstat.o",
+            "sha256": "1d482d1df4b75bbe26f7d5d7afe1755ce6f808b54b84195693f3abac4fc74873",
+            "size": 784
+          },
+          {
+            "path": "kernel/doom/src/dstrings.o",
+            "sha256": "ad8795d788401f52d6bc52436e39318de718023d4c16729468dea75511c0e5c1",
+            "size": 1760
+          },
+          {
+            "path": "kernel/doom/src/dummy.o",
+            "sha256": "13c610cf443d61685ad391ae031f4a632b139f61dfd79a5b88ded269f7e79cc2",
+            "size": 704
+          },
+          {
+            "path": "kernel/doom/src/f_finale.o",
+            "sha256": "5fb1538283129bfb71d93611441465225f349de4263713f06d45655fd9357e6e",
+            "size": 18928
+          },
+          {
+            "path": "kernel/doom/src/f_wipe.o",
+            "sha256": "924d8a0ac34ba5d1080b349e257247dd2ac54d2ff073b70b7a2b483e8d92a803",
+            "size": 5992
+          },
+          {
+            "path": "kernel/doom/src/g_game.o",
+            "sha256": "3fb865c980344b4e229d5b3f6639d94f3578908c250d1d5a0ea19de4d18e4156",
+            "size": 32172
+          },
+          {
+            "path": "kernel/doom/src/gusconf.o",
+            "sha256": "50e905ded3bbcb5058b588c7a2dbc6c82f997b6d1b20c1eaaba835e1603e2ef2",
+            "size": 3332
+          },
+          {
+            "path": "kernel/doom/src/hu_lib.o",
+            "sha256": "15a49ee6435b53d304fffa97d8590858922214f6ca74780a150059d60c1109c0",
+            "size": 4000
+          },
+          {
+            "path": "kernel/doom/src/hu_stuff.o",
+            "sha256": "e1d9ceddb5cdfca622587c6cd54348efb084b5a4a9ef92f091a701567ad8e7ec",
+            "size": 12276
+          },
+          {
+            "path": "kernel/doom/src/i_endoom.o",
+            "sha256": "df72d57de5247065d84ffaa910198707cd527328688e70154eedca9fde5e4950",
+            "size": 588
+          },
+          {
+            "path": "kernel/doom/src/i_input.o",
+            "sha256": "bee6ae0f6b34c300d07ebf75903f899d0ab39519093b2b777d83c19253c8077d",
+            "size": 1468
+          },
+          {
+            "path": "kernel/doom/src/i_joystick.o",
+            "sha256": "27b99fe54ae0a7cb589494d7a64ae0ad373741e7fa4b31b0afdf7f35bcd22795",
+            "size": 2572
+          },
+          {
+            "path": "kernel/doom/src/i_scale.o",
+            "sha256": "210fb3f024eb9b8e93097e34051497cbbb924b8228df603f4686ab8aab040c7a",
+            "size": 18492
+          },
+          {
+            "path": "kernel/doom/src/i_system.o",
+            "sha256": "153219f7af99019d0ed719fde4512a7e21bdc5c465ee034c6eeac3f670891756",
+            "size": 5020
+          },
+          {
+            "path": "kernel/doom/src/i_timer.o",
+            "sha256": "27ad493522938cea85af4978ba34c5985a58f69cd66983cda61d2f005f04e786",
+            "size": 1152
+          },
+          {
+            "path": "kernel/doom/src/i_video.o",
+            "sha256": "5fe72f4cad42ee3f1ea433560fe277c15c8756e3969d8c1401e0f9a9d9d0b458",
+            "size": 5016
+          },
+          {
+            "path": "kernel/doom/src/icon.o",
+            "sha256": "b8b05e1945ab27b0d247e5877c638fd776a6de171b1ce79792befa9c60667756",
+            "size": 540
+          },
+          {
+            "path": "kernel/doom/src/info.o",
+            "sha256": "e0121ec89352df82da72cbd5f4cfac6b3a2cf6b08f39c58fdfb9b0f1d7046e68",
+            "size": 48508
+          },
+          {
+            "path": "kernel/doom/src/m_argv.o",
+            "sha256": "fb7625fa1878eaf7a65e076212e5506b0e5d09b02421eea746aa63e6ec470468",
+            "size": 1340
+          },
+          {
+            "path": "kernel/doom/src/m_bbox.o",
+            "sha256": "fdac3fbd47f630ff8e1a4c15b1017b9fb8d74de5d98ffb8c945ad161db628202",
+            "size": 840
+          },
+          {
+            "path": "kernel/doom/src/m_cheat.o",
+            "sha256": "9c9013965fb409f6bda317501951c36bd05d85af5999f85e151e0c26a3ed123c",
+            "size": 928
+          },
+          {
+            "path": "kernel/doom/src/m_config.o",
+            "sha256": "6f4d45adc5398b29f3c51c3c55ff19fcfa6c0452e3b5ffb44c79488f290466a2",
+            "size": 13384
+          },
+          {
+            "path": "kernel/doom/src/m_controls.o",
+            "sha256": "662ec8f858eb41a6d05b63d64ba30b61afdf1c1eea8d783cea928f96e6000a05",
+            "size": 11704
+          },
+          {
+            "path": "kernel/doom/src/m_fixed.o",
+            "sha256": "7a8c133a81b41d6541fb692694f2c7755fcb823866d3543f7f234edaa8cf78ff",
+            "size": 792
+          },
+          {
+            "path": "kernel/doom/src/m_menu.o",
+            "sha256": "fd11be4f2091b4b671128ba4569d2e3fa487f668b2069eef68640794f9966eb4",
+            "size": 24728
+          },
+          {
+            "path": "kernel/doom/src/m_misc.o",
+            "sha256": "1b5f5229ecded785c11bfd2c0e2d2a31a6374401045774ba454c4ad8c282a458",
+            "size": 5004
+          },
+          {
+            "path": "kernel/doom/src/m_random.o",
+            "sha256": "eba87103faae0bc91b5ed3127e158f01b45a07f91d2b7c0601286d98f07125ec",
+            "size": 1272
+          },
+          {
+            "path": "kernel/doom/src/p_ceilng.o",
+            "sha256": "29d584c3c735bcae9d687f28ee2df95f12ca13f3c24c9c08ace87f0d52d590fd",
+            "size": 4456
+          },
+          {
+            "path": "kernel/doom/src/p_doors.o",
+            "sha256": "33fdefe3e0f994500e1d47c1f709da18e2e054faacecce9593aacfad14ac7ecd",
+            "size": 4436
+          },
+          {
+            "path": "kernel/doom/src/p_enemy.o",
+            "sha256": "4979b3cbfa025cd2bce15335fc90da0fe12da54628066f1a03a07dffff22f5ef",
+            "size": 18996
+          },
+          {
+            "path": "kernel/doom/src/p_floor.o",
+            "sha256": "6b1b3ad8232764f7a48616a75998ffdb2b0c9085eedefe2f88ad791e69457bc7",
+            "size": 3736
+          },
+          {
+            "path": "kernel/doom/src/p_inter.o",
+            "sha256": "028854086c6b1e86326ee002eeb33294b7bad67baf6fb6c8fdd9a70cb3edf645",
+            "size": 8136
+          },
+          {
+            "path": "kernel/doom/src/p_lights.o",
+            "sha256": "602965222188bd922a410c5710df76f2b0be75f148d45b80bc3a92a821516432",
+            "size": 2696
+          },
+          {
+            "path": "kernel/doom/src/p_map.o",
+            "sha256": "fb5d9d31e4ec7ec17082347740661cf07729434ea93f196501e62ffbd1586573",
+            "size": 12532
+          },
+          {
+            "path": "kernel/doom/src/p_maputl.o",
+            "sha256": "7d9ce9e0fc04bb3b01876751eb473bfcafcf7b74fa2cd44fa243cc796b89064b",
+            "size": 8784
+          },
+          {
+            "path": "kernel/doom/src/p_mobj.o",
+            "sha256": "7122882f51bd5ed48d9ba9109b54d9756d308f281e60f1d37ab1e1d18c32aae0",
+            "size": 9532
+          },
+          {
+            "path": "kernel/doom/src/p_plats.o",
+            "sha256": "67039750cd012e453932edf1f406c0b14701bd04a35fcfd41b1e10fc55263446",
+            "size": 4768
+          },
+          {
+            "path": "kernel/doom/src/p_pspr.o",
+            "sha256": "a6a7123d9fff7d230944c37c01990f0a0855ccdb86db67b5cbf693479af3e6db",
+            "size": 10128
+          },
+          {
+            "path": "kernel/doom/src/p_saveg.o",
+            "sha256": "8406803d5dce55bc5c4a6a154c2a4b200f675efdc920dacbe8f7432bc93428a6",
+            "size": 21356
+          },
+          {
+            "path": "kernel/doom/src/p_setup.o",
+            "sha256": "9e5529f67714b025956144aec493a655bb0c2e94d15d6f1e2f0e2b9a4ca2b34a",
+            "size": 9944
+          },
+          {
+            "path": "kernel/doom/src/p_sight.o",
+            "sha256": "967b046e71665208f6a7ad0c527aadbab9e15b4dd737551aec557f29be5d6362",
+            "size": 3944
+          },
+          {
+            "path": "kernel/doom/src/p_spec.o",
+            "sha256": "994ac980019c27238a09f72438823a313cc5cbf93809664f7e9c7eac80a22bc6",
+            "size": 12720
+          },
+          {
+            "path": "kernel/doom/src/p_switch.o",
+            "sha256": "4a39d77fcd21aeac5314250b358770ebf00de3e4ad312e3a820c646df1b90e1d",
+            "size": 7084
+          },
+          {
+            "path": "kernel/doom/src/p_telept.o",
+            "sha256": "753a6c9a3181e6beef5a0f4627a0fc3aaf07647723b2569d8177020c23907231",
+            "size": 1432
+          },
+          {
+            "path": "kernel/doom/src/p_tick.o",
+            "sha256": "83df7f10461cf0e9af1ff272a6e86540dc8f8296dd46d0c6e3f28e09e28f9735",
+            "size": 1896
+          },
+          {
+            "path": "kernel/doom/src/p_user.o",
+            "sha256": "a72e6bd30c90ea3531038642883f4d8851c77a546c656eb07749a54593957f08",
+            "size": 2816
+          },
+          {
+            "path": "kernel/doom/src/r_bsp.o",
+            "sha256": "a06e4c9ad909bb990fb553e51e9901e128d485d8b16f328898108355e72be3bf",
+            "size": 4580
+          },
+          {
+            "path": "kernel/doom/src/r_data.o",
+            "sha256": "37bd5f0c1f087acb8e8f11d3fea365fcd06b863b69bf416f56be04ccccd83ada",
+            "size": 9864
+          },
+          {
+            "path": "kernel/doom/src/r_draw.o",
+            "sha256": "d195816d0a63173a998e8d5ba549f4c3ef99a0cf5d2c039706b2407f51e999a3",
+            "size": 9460
+          },
+          {
+            "path": "kernel/doom/src/r_main.o",
+            "sha256": "bffb8634c47c21b222150b57ab3308822c92037e739c7460ee56ada4a01f5beb",
+            "size": 8504
+          },
+          {
+            "path": "kernel/doom/src/r_plane.o",
+            "sha256": "a0c6fc8fd97b139033261988e0f1b79ca212a003a61a96409b32c9e03f196acf",
+            "size": 6152
+          },
+          {
+            "path": "kernel/doom/src/r_segs.o",
+            "sha256": "c1391d705ac978c9f258d039949cdac854407383090aee98c38ce4cb105a465f",
+            "size": 9036
+          },
+          {
+            "path": "kernel/doom/src/r_sky.o",
+            "sha256": "b4d5d94ec338ec508ae9075a15436d27890f5c23ada94821d50994d3be0a4a3b",
+            "size": 780
+          },
+          {
+            "path": "kernel/doom/src/r_things.o",
+            "sha256": "5aa0a044e35106dea47fa8a4665be749ef9f522213f3d7df80a27b7f3ac3ff0d",
+            "size": 12720
+          },
+          {
+            "path": "kernel/doom/src/s_sound.o",
+            "sha256": "9455103c1b5a77fd2e4155c22f6aabc730525e5eadc3b7fa7eeac9211eb0e88d",
+            "size": 6308
+          },
+          {
+            "path": "kernel/doom/src/sha1.o",
+            "sha256": "30cb8cfbc94981e82a124882fce80050bc3066f03ebc4e7db895ed3b733640ec",
+            "size": 6268
+          },
+          {
+            "path": "kernel/doom/src/sounds.o",
+            "sha256": "eb0ef4094cb94e75ef92800085fb644a072f3f782297f66f1d3da9c1dd956515",
+            "size": 8016
+          },
+          {
+            "path": "kernel/doom/src/st_lib.o",
+            "sha256": "a901e91cb2b2aedc4e4f07ea10f7a4060a0d7f39623609baa36609f873b2216f",
+            "size": 2692
+          },
+          {
+            "path": "kernel/doom/src/st_stuff.o",
+            "sha256": "61c9ec51168b439bec29f5932cbeb7e2c32eb1783fcb5b52383346f84bfca960",
+            "size": 19724
+          },
+          {
+            "path": "kernel/doom/src/statdump.o",
+            "sha256": "3b01316d494e9304af67ade7c6deed46c0aed1b9f0d302645cf3527d19519b21",
+            "size": 1048
+          },
+          {
+            "path": "kernel/doom/src/tables.o",
+            "sha256": "27d7347e56a6c4276938c2777d8f9da1bb588c821ed601d9e653a15124c582ac",
+            "size": 67740
+          },
+          {
+            "path": "kernel/doom/src/v_video.o",
+            "sha256": "49bddf84601f0c015444034e8dcf4706d03f0f3deb5764fb7a03e708488e55d2",
+            "size": 11760
+          },
+          {
+            "path": "kernel/doom/src/w_checksum.o",
+            "sha256": "8abb52dbd49158aaae308c6768d2d4a5e7ff755a34195f2040e8b291017f90aa",
+            "size": 1380
+          },
+          {
+            "path": "kernel/doom/src/w_file.o",
+            "sha256": "14ee2c4179c8b7c5c3ec2116c99a2eb2ba7f3b70e00c5bc31d73d0fc81338b0c",
+            "size": 944
+          },
+          {
+            "path": "kernel/doom/src/w_file_stdc.o",
+            "sha256": "b0f6046d4fd390ab1e6d9d12b53efedc1e411952c7b87eab5b237a97826484e0",
+            "size": 1392
+          },
+          {
+            "path": "kernel/doom/src/w_main.o",
+            "sha256": "72dbf88d5a5a3dccc293b3f9ac701e0386f61f0c7aa1bef8f7396e176c8ed496",
+            "size": 1080
+          },
+          {
+            "path": "kernel/doom/src/w_wad.o",
+            "sha256": "3f8a36fd3a1a31360be1a9ac5baa32c670a3171ecbb58d8eaa34c83cc5f944ce",
+            "size": 6112
+          },
+          {
+            "path": "kernel/doom/src/wi_stuff.o",
+            "sha256": "2f72a5196ab2553644676f1756e859d12a89dc89bd26bf2606f04714467a3af7",
+            "size": 32124
+          },
+          {
+            "path": "kernel/doom/src/z_zone.o",
+            "sha256": "3b0e2b00ca9c96689c418249804ac3b74ab2ad4849f3c55c885dacf3b62016ec",
+            "size": 3900
+          },
+          {
             "path": "kernel/fs/blockcache.o",
             "sha256": "f4659d3730f9a65316efb5dd325bf160908da31960c32a2c57792849e9b396f2",
             "size": 5424
@@ -4192,6 +5195,11 @@
             "size": 676
           },
           {
+            "path": "kernel/tls/tls_ca_bundle_data.o",
+            "sha256": "fc17999510bb06494eae980a74381f6e93300ed1ef5ec746334e4e0dad92f918",
+            "size": 42732
+          },
+          {
             "path": "kernel/tls/tls_ctx.o",
             "sha256": "646825f07a34115073524a057ed736e90c400e603b0d57990f2a90a7ee44f495",
             "size": 1736
@@ -4307,7 +5315,7 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.609,
+          "elapsed_seconds": 0.814,
           "name": "clean",
           "output_sha256": "7f4653ad7d595b2b9a0f65f0171ce13cb02edfa3451e96940e60cc6ef8cbea34",
           "output_tail": [
@@ -4336,7 +5344,7 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 8.673,
+          "elapsed_seconds": 9.487,
           "name": "build",
           "output_sha256": "b843d4311b14dcde6c447fdc43176b6bcf0c4636b1d3eba6c46663f5430ccb49",
           "output_tail": [
@@ -4373,11 +5381,11 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.188,
+          "elapsed_seconds": 0.229,
           "name": "artifact-list",
-          "output_sha256": "806d6a44ab5af3372021fe82e1929dfbe24d7db8b6a8f31a4304d5426367b4c4",
+          "output_sha256": "b166d9f7c39a0d96f41b309c14241a0adbef181d8487913666fa19c7d7cab3c6",
           "output_tail": [
-            "<artifact list: 343 paths>"
+            "<artifact list: 427 paths>"
           ],
           "returncode": 0,
           "status": "pass"
@@ -4442,15 +5450,15 @@
   },
   "performance": {
     "build_seconds": [
-      8.615,
-      8.673
+      8.231,
+      9.487
     ],
     "gating": false,
     "note": "Host wall-clock observations are frozen evidence, not the future 20% guest-performance gate.",
     "runtime_and_test_seconds": {
-      "cupidasm-gui-smoke": 23.46,
-      "cupidc-gui-smoke": 18.947,
-      "host-unit-tests": 0.593
+      "cupidasm-gui-smoke": 23.823,
+      "cupidc-gui-smoke": 19.067,
+      "host-unit-tests": 4.59
     }
   },
   "quality": {
@@ -4470,7 +5478,7 @@
   "schema": "cupid.bootstrap-baseline.v1",
   "source": {
     "isolated_worktree": true,
-    "revision": "092ada58f4180d207a83dd577b898950bacedddd"
+    "revision": "7a8cf7ab6d8d3372352ab61c86c31efad0493e89"
   },
   "status": "pass",
   "tools": {

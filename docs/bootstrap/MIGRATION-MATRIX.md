@@ -28,7 +28,7 @@
 
 | Milestone | Ownership gate | Current state |
 | --- | --- | --- |
-| Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Historical Windows capture matched its declared 343 files but omitted 84 linked objects; corrected 427-artifact recapture and Linux capture pending |
+| Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Windows PASS at `7a8cf7a`: two clean 427-artifact builds matched and covered all 420 linked objects; Linux capture pending |
 | Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all` plus `user:all`: 642 active inputs, 248 feature IDs, 437 transforms, 35 accounted unreachable source-like files, and a checked drift/coverage gate |
 | Assembly migration | All four host-assembled OS sources produced by CupidASM with equivalent bytes/behavior | Not started |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | Not started |

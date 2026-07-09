@@ -1,6 +1,6 @@
 # Host dependency inventory
 
-The deterministic active-source audit records both supported build roots: root `all` and `user:all`. `audits/active-build.json` owns current transform/source counts and `baselines/windows-amd64.json` records the historical Windows oracle tools. The historical baseline's 343-file manifest is incomplete; the corrected graph has 427 baseline artifacts and awaits a new frozen capture.
+The deterministic active-source audit records both supported build roots: root `all` and `user:all`. `audits/active-build.json` owns current transform/source counts and `baselines/windows-amd64.json` records the passing Windows oracle tools and all 427 artifacts. The manifest covers all 420 final-link objects; a Linux GCC/binutils capture remains pending.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
