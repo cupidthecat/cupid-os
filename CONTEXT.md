@@ -15,12 +15,20 @@ Cupid OS source that participates in a supported build or ships as part of the s
 _Avoid_: all checked-in source
 
 **Supported build root**:
-An accepted build entry point whose reachable inputs and outputs are part of Cupid OS delivery or verification. The normal root image build and the separate user-program build are current supported build roots; arbitrary Make targets are not automatically supported roots.
+An accepted build entry point whose reachable inputs and outputs are part of Cupid OS delivery or verification. The normal root image build, separate user-program build, and hosted Cupid Toolchain contract build are current supported build roots; arbitrary Make targets are not automatically supported roots.
 _Avoid_: every build target, only the default target
 
 **Source cohort**:
 A related group of active sources migrated and verified under one tool-ownership and behavior gate.
 _Avoid_: directory (a cohort may cross directories), individual file count
+
+**Toolchain job**:
+An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
+_Avoid_: global compiler state, platform context
+
+**Platform adapter**:
+The narrow allocator, whole-file, and text-output capabilities that connect the shared Cupid Toolchain core to a hosted runtime or the Cupid OS kernel.
+_Avoid_: tool backend, giant platform vtable
 
 **TempleOS reference tree**:
 The checked-in TempleOS source consulted for design understanding but excluded from Cupid OS source, builds, and progress measures.

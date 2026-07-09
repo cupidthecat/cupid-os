@@ -2,7 +2,7 @@
 
 This directory is the durable record for moving Cupid OS from its current host-produced build to a self-hosting Cupid Toolchain. The implementation map is [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13).
 
-The current baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. CupidC, CupidASM, and CupidDis run inside Cupid OS and are themselves compiled into the kernel by the host C compiler. They are useful native tools, but they are not yet host-runnable bootstrap tools.
+The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. A platform-neutral Cupid Toolchain foundation now builds through a supported hosted contract and a real kernel adapter, but CupidC, CupidASM, and CupidDis still run only inside Cupid OS and are themselves compiled into the kernel by the host C compiler. The shared core is host-runnable; the three tool frontends are not yet host-runnable bootstrap tools.
 
 ## Records
 
@@ -11,7 +11,7 @@ The current baseline is host-owned: the Makefile defaults to Clang/LLVM tools on
 - `CAPABILITY-MATRIX.md` records implemented and missing CupidC, CupidASM, CupidDis, object, linker, and bootstrap capabilities.
 - `MIGRATION-MATRIX.md` records which tool owns each source and artifact cohort today and at the self-hosting fixed point.
 - `BASELINE.md` documents the reproducible oracle-build interface and evidence format.
-- `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of both supported build roots, ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
+- `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of the root OS image, separate user-program, and hosted toolchain-contract build roots, including ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
 - `audits/active-build.json` is the deterministic machine-readable companion. Regenerate it with `make bootstrap-audit`; `make test` and `make check-bootstrap-audit` reject drift or a failing audit contract.
 - `../adr/` records stable architectural decisions; `../../CONTEXT.md` defines project vocabulary.
 

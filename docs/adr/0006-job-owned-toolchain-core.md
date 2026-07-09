@@ -1,0 +1,7 @@
+# Put deterministic tool state behind a job-owned core
+
+Cupid Toolchain modules will share one freestanding core whose opaque job owns an arena, logical paths, loaded sources, and structured diagnostics, while checked buffers remain explicit bounded handles and invocation output is scoped to one job. Platform variation is limited to narrow allocator, whole-file size/read/write, and text-sink adapters. Hosted adapters may use the C runtime; the kernel adapter uses the Cupid OS heap, VFS, and output path. Core paths are absolute logical `/` paths, core sizes and serialized offsets are checked 32-bit values, diagnostic order is emission order, and an invocation commits output only when its body succeeds without an error diagnostic.
+
+Tool-specific language, x86, ELF, linker, symbol-catalogue, and JIT policy remain typed modules above this seam. Kernel bindings, executable-memory policy, shell state, and stack guards do not become platform callbacks. A single giant platform vtable was rejected because it would relocate the current coupling instead of hiding it; bare allocation/file callbacks without job ownership were rejected because each tool would repeat lifetime, limit, path, output, and diagnostic policy.
+
+The core and both real adapters are now buildable, but this decision does not make the existing CupidC, CupidASM, or CupidDis frontends host-runnable. Their current entry points remain behavior-compatible kernel drivers until later migration tickets move their internals behind typed tool interfaces.

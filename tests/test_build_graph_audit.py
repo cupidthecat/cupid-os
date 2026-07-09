@@ -736,6 +736,86 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(transforms["user/build"]["tools"], ["host_shell"])
 
+    def test_inventory_distinguishes_c_objects_from_host_executables(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                CFLAGS = -c
+                .PHONY: all
+                all: module.o
+                module.o: module.c
+                \t$(CC) $(CFLAGS) $< -o $@
+                """,
+            )
+            _write(root / "module.c", "int module(void) { return 0; }\n")
+            _write(
+                root / "toolchain" / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                .PHONY: all
+                all: build/contract
+                build/contract: build/contract.o
+                \t$(CC) $< -o $@
+                build/contract.o: contract.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "toolchain" / "contract.c",
+                "int main(void) { return 0; }\n",
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            root_transforms = {
+                entry["output"]: entry for entry in audit["build"]["transforms"]
+            }
+            host_transforms = {
+                entry["output"]: entry
+                for entry in audit["supplemental_builds"][0]["transforms"]
+            }
+            self.assertEqual(
+                root_transforms["module.o"]["operation"],
+                "compile_c_to_elf32_object",
+            )
+            self.assertEqual(
+                host_transforms["toolchain/build/contract"]["operation"],
+                "compile_and_link_host_executable",
+            )
+            self.assertEqual(
+                host_transforms["toolchain/build/contract.o"]["operation"],
+                "compile_c_to_host_object",
+            )
+            sources = {entry["path"]: entry for entry in audit["sources"]}
+            self.assertIn(
+                "c.output.elf32_relocatable", sources["module.c"]["features"]
+            )
+            self.assertNotIn(
+                "c.output.elf32_relocatable",
+                sources["toolchain/contract.c"]["features"],
+            )
+
     def test_inventory_records_the_i386_abi_and_linker_script_subset(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

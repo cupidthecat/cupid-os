@@ -274,3 +274,45 @@ The complete capture passed:
 | Output sizes | Kernel ELF 6,123,276 bytes; raw kernel 5,919,539 bytes; `.text` 1,292,372 bytes; disk image 209,715,200 bytes |
 
 The capture fingerprints Windows 10 AMD64, Make 4.4.1, Python 3.14.3, Clang/LLD 22.1.0, NASM 2.16.01, LLVM objcopy/nm, QEMU 10.2.50, and FFmpeg 8.0.1. Linux GCC/binutils evidence remains a separate pending capture; cross-host oracle bytes are not required to match.
+
+## 2026-07-09: shared Cupid Toolchain core seam
+
+### Interface decision
+
+- Added a freestanding `toolchain/ctool.c` core with no libc or kernel headers. One opaque toolchain job owns a bounded chunked arena, canonical logical paths, NUL-sentinel whole-file sources, and insertion-ordered structured diagnostics; checked growable buffers are explicit bounded handles and invocation output is scoped to the job. All public sizes, offsets, limits, and serialized integer helpers are checked 32-bit values for the i386/ELF32 domain.
+- Chose three composable platform capabilities: allocator, whole-file size/read/write, and length-aware text sink. The hosted adapter implements them with the C runtime below an explicit checkout root; the kernel adapter implements them with `kmalloc`/`kfree`, VFS, and `print`. Arena alignment belongs to the core, so the kernel heap needs to promise only pointer alignment.
+- Added `ctool_invoke` as a deep lifecycle helper: normalize paths, load the primary input, create job-owned output, run a typed callback, suppress file writes after a callback failure or error diagnostic, render diagnostics, and release all state. This is not a generic tool dispatch enum; later `cupidc_compile`, `cupidasm_assemble`, and `cupiddis_inspect` interfaces remain separately typed modules.
+- Rejected a giant platform vtable containing x86, ELF, JIT, shell, or kernel-symbol behavior because it would move the existing coupling instead of hiding it. Also rejected bare allocator/file callbacks without job ownership because every frontend would repeat limits, cleanup, path, output, and diagnostic policy.
+- Kernel bindings, executable-memory policy, fixed JIT addresses, shell state, and stack guards remain in kernel drivers. Existing CupidC, CupidASM, and CupidDis entry points and behavior are unchanged; this step creates their migration seam but does not claim their frontends are host-runnable.
+- Recorded the stable decision in ADR 0006 and added `Toolchain job` and `Platform adapter` to the glossary. No user clarification was needed and `TempleOS/` remained read-only reference material outside all counts.
+
+### TDD and implementation evidence
+
+- The first public-contract test failed because no `toolchain` build root existed. The green implementation added a strict C11 hosted build and seven black-box contract cases covering zeroed/aligned arena allocation and rewind, checked little-endian buffer emission/patching, canonical relative/absolute path resolution and root-escape rejection, stable diagnostics, real binary file round-trip and missing-input translation, configured-limit failures, and invocation output suppression.
+- Strict compilation then exposed a `const`-incorrect arena rewind token; the token now carries a mutable opaque block identity without exposing arena internals. Later boundary review found and fixed zero-length null-pointer arithmetic, small output-limit initialization, unchecked manually constructed paths, unsafe string-length condition ordering, and an internal failed path resolution that incorrectly invalidated an outer arena mark. Nested marks now remain composable while their block/offset exists.
+- A second red audit test showed that all `$(CC)` recipes were labeled as ELF32 object compilation. Classification now uses object suffix or standalone `-c`, preserves objects whose `-c` is hidden in `$(CFLAGS)`, recognizes direct compiler links as hosted executables, and recognizes objects feeding those links as native host objects. This avoids assigning the i386 `ET_REL` requirement to the three hosted contract objects.
+- Independent Standards review found missing real-adapter not-found coverage, repeated audit-root arguments, and a primitive host root pointer/length pair. The final implementation adds hosted and kernel `CTOOL_ERR_NOT_FOUND` checks, centralizes `BOOTSTRAP_AUDIT_BUILDS`, and uses `ctool_string_t` for the host root. A follow-up found that recycled arena block addresses could make stale marks appear valid; per-block generations plus a deterministic recycling allocator regression now prove stale-mark rejection and zeroed reused storage. Final Standards and Spec re-reviews reported no remaining findings.
+- Added a DEBUG kernel self-test after VFS initialization and embedded `/bin` installation. It enters only through `ctool_invoke`, loads `/bin/ls.cc`, verifies the source sentinel, 16-byte zeroed arena allocation and canonical path equivalence, commits a marker to `/tmp`, reads it back, removes it, and then verifies a missing `/bin` input maps to `CTOOL_ERR_NOT_FOUND` without creating output. It panics on any mismatch. The boot log recorded `Cupid toolchain core self-test passed` before entering the desktop.
+- Output is gated at the invocation boundary, not transactionally replaced by the current file adapters: a callback/error diagnostic cannot touch the destination, but a platform write failure can still leave a partial file. Whole-file source caching/interning, atomic replacement, and migration of the three tool frontends remain later work.
+
+### Build graph and migration state
+
+The hosted contract is the third supported root beside root `all` and `user:all`. The checked graph now contains 649 active language inputs, 248 feature IDs, 444 transforms, and 35 accounted unreachable source-like files. Its 429 declared artifacts cover all 422 final-link objects. Of the C outputs, 243 are i386 ELF32 objects and three are native host objects; the host compiler also links the temporary native contract executable.
+
+The previous Windows oracle JSON remains valid historical evidence for revision `7a8cf7a` at 427 artifacts/420 link objects. Because this step adds two linked kernel objects, a new isolated two-build Windows capture must be made from the committed implementation rather than hand-editing that evidence.
+
+### Verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `python -m unittest tests.test_toolchain_core` | PASS | Seven public hosted contract tests passed under strict C11 flags. |
+| WSL Linux GCC hosted contract | PASS | The same seven public tests built and ran natively under Linux GCC; MinGW GCC also compiled the strict hosted target. |
+| Linux ASan/UBSan contract run | PASS | All contract modes, including real file I/O and success/error invocation paths, completed without sanitizer findings. |
+| `python -m unittest tests.test_build_graph_audit` | PASS | Twelve CLI tests passed, including native-object/direct-link classification. |
+| `make test` / `make check-bootstrap-audit` | PASS | All 29 host tests passed; regenerated JSON/Markdown and the 429/422 coverage contract matched exactly. |
+| Strict i386 object build | PASS | The shared core and real kernel adapter compiled with the repository's freestanding warning-as-error flags. |
+| `make -j4 all WAD_SRCS=` | PASS | The complete 422-object kernel, raw binary, and disk image built. |
+| CupidC GUI smoke (`ls`) | PASS | Kernel adapter self-test passed during boot; CupidC reached `JIT execution complete` without panic. |
+| CupidASM GUI smoke (`as /demos/hello.asm`) | PASS | Kernel adapter self-test passed during boot; CupidASM reached `JIT execution complete` without panic. |
+
+The complete Linux OS oracle baseline and the isolated post-commit Windows reproducibility recapture remain pending evidence, not inferred successes.

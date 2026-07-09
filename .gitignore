@@ -22,5 +22,6 @@ __pycache__/
 
 # Runtime, test, and baseline output
 /build/
+/toolchain/build/
 /debug.log
 /tests/*.log

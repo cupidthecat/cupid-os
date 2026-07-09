@@ -69,6 +69,7 @@
 #include "syscall.h"
 #include "pit.h"
 #include "rtc.h"
+#include "ctool_kernel.h"
 
 #define PIT_FREQUENCY 1193180     // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -863,6 +864,10 @@ void kmain(void) {
         }
     }
     KINFO("VFS initialized");
+
+#ifdef DEBUG
+    ctool_kernel_selftest();
+#endif
 
     KINFO("System Timer Frequency: %u Hz", timer_get_frequency());
     KINFO("CPU Frequency: %u MHz", (uint32_t)(get_cpu_freq() / 1000000));

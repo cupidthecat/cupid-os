@@ -36,7 +36,7 @@ KERNEL_INCLUDES=-I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu \
                 -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx \
                 -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network \
                 -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util \
-                -I./drivers
+                -I./drivers -I./toolchain
 CFLAGS=$(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c $(KERNEL_INCLUDES) \
 	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
@@ -196,6 +196,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
             kernel/tls/tls12_handshake.o \
             kernel/tls/tls_selftest.o \
+			toolchain/ctool.o kernel/lang/ctool_kernel.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
@@ -242,7 +243,7 @@ $(BOOTLOADER): boot/boot.asm
 	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h
+kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/ctool_kernel.h
 	$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o
 
 # simd.c uses SSE2 inline asm helpers; keep freestanding include policy
@@ -850,6 +851,12 @@ kernel/gui/gui_themes.o: kernel/gui/gui_themes.c kernel/gui/gui_themes.h kernel/
 	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_themes.c -o kernel/gui/gui_themes.o
 
 # CupidC compiler
+toolchain/ctool.o: toolchain/ctool.c toolchain/ctool.h
+	$(CC) $(CFLAGS) toolchain/ctool.c -o toolchain/ctool.o
+
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h toolchain/ctool.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h drivers/serial.h
+	$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o
+
 kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc.c -o kernel/lang/cupidc.o
 
@@ -902,19 +909,22 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # Stable host-side verification entry points. The full bootstrap baseline
 # builds the committed revision twice in isolated worktrees and records JSON
 # evidence under build/bootstrap/ by default.
+BOOTSTRAP_AUDIT_BUILDS := --supplemental-build user:all \
+	--supplemental-build toolchain:all
+
 test:
 	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
-	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
 
 bootstrap-audit:
-	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md
 
 check-bootstrap-audit:
-	$(PYTHON) tools/build_graph_audit.py --root . --supplemental-build user:all \
+	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
 
@@ -1117,12 +1127,12 @@ stage-wads: $(OS_IMAGE)
 	$(PYTHON) tools/hostbuild.py stage-wads --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(WAD_SRCS)
 
 clean:
-	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
+	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "toolchain/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
 
 clean-image:
 	$(PYTHON) tools/hostbuild.py clean $(OS_IMAGE)
 
 distclean: clean clean-image
-	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build"
+	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
 .PHONY: all test bootstrap-audit check-bootstrap-audit bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

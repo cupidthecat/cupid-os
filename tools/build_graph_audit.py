@@ -582,10 +582,19 @@ def _prefix_repo_path(directory: str, path: str) -> str:
     return f"{directory.rstrip('/')}/{normalized.lstrip('./')}"
 
 
-def _operation_for_recipe(recipe: list[str], tools: list[str]) -> str:
+def _operation_for_recipe(
+    recipe: list[str],
+    tools: list[str],
+    output: str,
+    c_object_operation: str,
+) -> str:
     joined = " ".join(recipe).lower()
     if "host_c_compiler" in tools:
-        return "compile_c_to_elf32_object"
+        if output.lower().endswith((".o", ".obj")) or re.search(
+            r"(?:^|\s)-c(?:\s|$)", joined
+        ):
+            return c_object_operation
+        return "compile_and_link_host_executable"
     if "nasm" in tools:
         if re.search(r"(?:^|\s)-f\s+bin(?:\s|$)", joined):
             return "assemble_flat_binary"
@@ -617,6 +626,18 @@ def _build_transforms(
     rules: dict[str, MakeRule],
 ) -> list[dict[str, object]]:
     transforms = []
+    host_object_outputs = {
+        prerequisite
+        for local_output in reachable
+        if "host_c_compiler" in _tools_for_recipe(rules[local_output].recipe)
+        and not local_output.lower().endswith((".o", ".obj"))
+        and not re.search(
+            r"(?:^|\s)-c(?:\s|$)",
+            " ".join(rules[local_output].recipe).lower(),
+        )
+        for prerequisite in rules[local_output].prerequisites
+        if prerequisite.lower().endswith((".o", ".obj"))
+    }
     for local_output in sorted(reachable):
         rule = rules[local_output]
         if not rule.recipe:
@@ -630,7 +651,16 @@ def _build_transforms(
                     for item in dict.fromkeys(rule.prerequisites)
                 ],
                 "tools": tools,
-                "operation": _operation_for_recipe(rule.recipe, tools),
+                "operation": _operation_for_recipe(
+                    rule.recipe,
+                    tools,
+                    local_output,
+                    (
+                        "compile_c_to_host_object"
+                        if local_output in host_object_outputs
+                        else "compile_c_to_elf32_object"
+                    ),
+                ),
                 "recipe": rule.recipe,
             }
         )
@@ -752,6 +782,14 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
     if path.startswith("kernel/doom/"):
         return "doom_port"
     basename = Path(path).name
+    if path.startswith("toolchain/tests/"):
+        return "toolchain_contract"
+    if path.startswith("toolchain/") and basename.startswith("ctool_host"):
+        return "toolchain_host_adapter"
+    if path.startswith("toolchain/"):
+        return "toolchain_core"
+    if path.startswith("kernel/lang/") and basename.startswith("ctool_kernel"):
+        return "toolchain_kernel_adapter"
     if path.startswith("kernel/lang/") and basename.startswith("cupidc"):
         return "cupidc"
     if path.startswith("kernel/lang/") and (
@@ -781,9 +819,17 @@ def _roadmap(
         (
             "host_runnable_toolchain_core",
             "Establish a host-runnable shared Cupid Toolchain core",
-            ("cupidc", "cupidasm", "cupiddis"),
+            (
+                "toolchain_core",
+                "toolchain_host_adapter",
+                "toolchain_kernel_adapter",
+                "toolchain_contract",
+                "cupidc",
+                "cupidasm",
+                "cupiddis",
+            ),
             (),
-            "The compiler, assembler, and inspector are active kernel C cohorts but have no host bootstrap interface.",
+            "The shared foundations now cross hosted and kernel adapters; each tool frontend still needs migration onto that interface.",
         ),
         (
             "elf32_relocatable_interchange",
@@ -901,7 +947,15 @@ def _roadmap(
     cohort_definitions = [
         (
             "toolchain_sources",
-            ("cupidc", "cupidasm", "cupiddis"),
+            (
+                "toolchain_core",
+                "toolchain_host_adapter",
+                "toolchain_kernel_adapter",
+                "toolchain_contract",
+                "cupidc",
+                "cupidasm",
+                "cupiddis",
+            ),
             "Bootstrap the tools that transfer ownership to every later cohort.",
         ),
         (
