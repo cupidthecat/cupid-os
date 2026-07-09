@@ -5115,6 +5115,7 @@
           "kernel/tls/tls12_handshake.o",
           "kernel/tls/tls_selftest.o",
           "toolchain/ctool.o",
+          "toolchain/elf32.o",
           "kernel/lang/ctool_kernel.o",
           "kernel/lang/cupidc.o",
           "kernel/lang/cupidc_lex.o",
@@ -5549,6 +5550,7 @@
           "kernel/tls/tls12_handshake.o",
           "kernel/tls/tls_selftest.o",
           "toolchain/ctool.o",
+          "toolchain/elf32.o",
           "kernel/lang/ctool_kernel.o",
           "kernel/lang/cupidc.o",
           "kernel/lang/cupidc_lex.o",
@@ -5933,6 +5935,7 @@
           "kernel/lang/ctool_kernel.c",
           "kernel/lang/ctool_kernel.h",
           "toolchain/ctool.h",
+          "toolchain/elf32.h",
           "kernel/mm/memory.h",
           "kernel/fs/vfs.h",
           "kernel/fs/vfs_helpers.h",
@@ -7236,13 +7239,28 @@
         "tools": [
           "host_c_compiler"
         ]
+      },
+      {
+        "inputs": [
+          "toolchain/elf32.c",
+          "toolchain/elf32.h",
+          "toolchain/ctool.h"
+        ],
+        "operation": "compile_c_to_elf32_object",
+        "output": "toolchain/elf32.o",
+        "recipe": [
+          "$(CC) $(CFLAGS) toolchain/elf32.c -o toolchain/elf32.o"
+        ],
+        "tools": [
+          "host_c_compiler"
+        ]
       }
     ]
   },
   "contracts": {
     "bootstrap_artifact_coverage": {
-      "declared_artifacts": 429,
-      "linked_objects": 422,
+      "declared_artifacts": 430,
+      "linked_objects": 423,
       "missing_link_inputs": [],
       "status": "pass"
     }
@@ -11216,10 +11234,11 @@
         "kernel/usb/usb_hub.c",
         "kernel/usb/usb_msc.c",
         "kernel/util/calendar.c",
-        "toolchain/ctool.c"
+        "toolchain/ctool.c",
+        "toolchain/elf32.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 864
+      "occurrences": 867
     },
     {
       "category": "control",
@@ -11609,11 +11628,13 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 2758
+      "occurrences": 2771
     },
     {
       "category": "control",
@@ -11850,10 +11871,12 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
-        "toolchain/tests/core_contract.c"
+        "toolchain/elf32.c",
+        "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2179
+      "occurrences": 2230
     },
     {
       "category": "control",
@@ -11887,10 +11910,12 @@
         "kernel/lang/cupidscript_exec.c",
         "kernel/lang/dis.c",
         "kernel/lang/shell.c",
-        "kernel/network/sshd.c"
+        "kernel/network/sshd.c",
+        "toolchain/elf32.c",
+        "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 92
+      "occurrences": 118
     },
     {
       "category": "control",
@@ -12242,12 +12267,14 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/examples/cat.c",
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 16569
+      "occurrences": 16828
     },
     {
       "category": "control",
@@ -12572,11 +12599,13 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 9127
+      "occurrences": 9326
     },
     {
       "category": "control",
@@ -12913,11 +12942,12 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "user/examples/cat.c",
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2286
+      "occurrences": 2293
     },
     {
       "category": "declaration",
@@ -13153,10 +13183,12 @@
         "kernel/tls/tls_selftest.c",
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
-        "toolchain/tests/core_contract.c"
+        "toolchain/elf32.c",
+        "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 212
+      "occurrences": 222
     },
     {
       "category": "declarator",
@@ -13358,11 +13390,13 @@
         "kernel/usb/usb_msc.c",
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 736
+      "occurrences": 776
     },
     {
       "category": "extension",
@@ -14132,12 +14166,13 @@
         "kernel/util/demos_programs_gen.c",
         "kernel/util/docs_programs_gen.c",
         "toolchain/ctool.c",
+        "toolchain/elf32.c",
         "user/examples/cat.c",
         "user/examples/hello.c",
         "user/examples/ls.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 243
+      "occurrences": 244
     },
     {
       "category": "preprocessor",
@@ -14521,10 +14556,12 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
+        "toolchain/elf32.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2532
+      "occurrences": 2553
     },
     {
       "category": "preprocessor",
@@ -14899,10 +14936,11 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 450
+      "occurrences": 451
     },
     {
       "category": "preprocessor",
@@ -15379,10 +15417,11 @@
         "kernel/util/calendar.h",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 268
+      "occurrences": 269
     },
     {
       "category": "preprocessor",
@@ -15847,13 +15886,16 @@
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
+        "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/examples/cat.c",
         "user/examples/hello.c",
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2187
+      "occurrences": 2196
     },
     {
       "category": "preprocessor",
@@ -16307,13 +16349,16 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
+        "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h",
         "user/examples/cat.c",
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 3153
+      "occurrences": 3298
     },
     {
       "category": "qualifier",
@@ -16791,12 +16836,14 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h",
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 3043
+      "occurrences": 3110
     },
     {
       "category": "type",
@@ -17157,13 +17204,15 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h",
         "user/examples/cat.c",
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 5081
+      "occurrences": 5114
     },
     {
       "category": "type",
@@ -17291,10 +17340,11 @@
         "kernel/lang/shell.h",
         "kernel/network/socket.h",
         "kernel/network/sshd.c",
-        "toolchain/ctool.h"
+        "toolchain/ctool.h",
+        "toolchain/elf32.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 113
+      "occurrences": 120
     },
     {
       "category": "type",
@@ -17830,12 +17880,13 @@
         "toolchain/ctool.c",
         "toolchain/ctool.h",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h",
         "user/examples/cat.c",
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18275
+      "occurrences": 18291
     },
     {
       "category": "type",
@@ -18205,11 +18256,13 @@
         "toolchain/ctool.c",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
+        "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 557
+      "occurrences": 571
     },
     {
       "category": "type",
@@ -18424,11 +18477,13 @@
         "toolchain/ctool.c",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
+        "toolchain/elf32.c",
+        "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 569
+      "occurrences": 590
     },
     {
       "category": "type",
@@ -19139,14 +19194,16 @@
         "toolchain/ctool.c",
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
+        "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
+        "toolchain/tests/elf32_contract.c",
         "user/cupid.h",
         "user/examples/cat.c",
         "user/examples/hello.c",
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 6959
+      "occurrences": 7061
     },
     {
       "category": "declaration",
@@ -19756,11 +19813,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "201b82f3543dc4ec2d2f047f37dc45221d9d2444e754b3e1711da8503775d55f",
+    "active_source_digest": "589b0b2c9127868afc0700ecf0cffafbc833520b01e448f8c4524ae46733a71b",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "b08d9894e5b02359b39df0d0848b6169ed5ee3885e3d40c96cfd12763a4066b1"
+        "sha256": "da426b4da1562b6240a0f78ea11abe20bdb0bf59a3abcf21f365140a023babb9"
       },
       {
         "path": "user/Makefile",
@@ -19768,7 +19825,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "d4addbba5a2354245abb21f4932b1d6bdef52b8612f4f68e0f9d708bb5bc4b2e"
+        "sha256": "682bd415abf0237d2a8ee5e6a422674df82312baa13ab305ea338927dabc98a3"
       }
     ],
     "generator": {
@@ -19807,7 +19864,7 @@
           "kernel/lang/cupidc_lex.c",
           "kernel/lang/cupidc_parse.c"
         ],
-        "source_count": 21,
+        "source_count": 24,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -19836,7 +19893,7 @@
           "drivers/timer.c",
           "drivers/vga.c"
         ],
-        "source_count": 245,
+        "source_count": 246,
         "title": "Emit and consume deterministic ELF32 relocatable objects"
       },
       {
@@ -20152,7 +20209,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 490,
+        "source_count": 493,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -20197,7 +20254,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 592,
+        "source_count": 595,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -20337,7 +20394,7 @@
           "kernel/lang/cupidc_lex.c",
           "kernel/lang/cupidc_parse.c"
         ],
-        "source_count": 21
+        "source_count": 24
       },
       {
         "cohorts": [
@@ -38695,15 +38752,16 @@
         "kernel/fs/vfs.h",
         "kernel/fs/vfs_helpers.h",
         "kernel/lang/ctool_kernel.h",
-        "kernel/mm/memory.h"
+        "kernel/mm/memory.h",
+        "toolchain/elf32.h"
       ],
       "language": "c",
-      "lines": 229,
+      "lines": 310,
       "origin": "tracked",
       "path": "kernel/lang/ctool_kernel.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "800afb1e79dc1a2f4fb7a56306062f4488f1e1baa893c1ccca5eaa25ff14a5cb"
+      "sha256": "135f1c6f7ff20a54f7b837917d8d0e64f80fa045826f889d25a8843c5badf58e"
     },
     {
       "build_owners": [
@@ -42566,6 +42624,76 @@
         "host_c_compiler"
       ],
       "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.output.elf32_relocatable",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/elf32.h"
+      ],
+      "language": "c",
+      "lines": 1546,
+      "origin": "tracked",
+      "path": "toolchain/elf32.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "48d36a1d3852cdb2f9ce79e5abd1475e78457c798dc51a7f53600ab0e801ac88"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.enum",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [
+        "toolchain/ctool.h"
+      ],
+      "language": "c_header",
+      "lines": 178,
+      "origin": "tracked",
+      "path": "toolchain/elf32.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "b4fb83d2ac7cb0513fc1979a64e02018fc40fb07f75e50e5717964daaffb7266"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
         "toolchain"
       ],
       "cohort": "toolchain_contract",
@@ -42596,6 +42724,42 @@
       "reachability": "direct_build_input",
       "runtime_owner": null,
       "sha256": "f6bb20a8417d3d018387bbf5685e35289ef1ca37fdf44e6fb3bd82600347e7d6"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/ctool.h",
+        "toolchain/ctool_host.h",
+        "toolchain/elf32.h"
+      ],
+      "language": "c",
+      "lines": 1371,
+      "origin": "tracked",
+      "path": "toolchain/tests/elf32_contract.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "939e6e6e7b966c9f94f08017d4f431d1097f29df3a2fbd0898506ebedf5baa09"
     },
     {
       "build_owners": [
@@ -42720,10 +42884,10 @@
     }
   ],
   "summary": {
-    "active_sources": 649,
+    "active_sources": 652,
     "features": 248,
-    "transforms": 444,
-    "unreachable_sources": 35
+    "transforms": 448,
+    "unreachable_sources": 36
   },
   "supplemental_builds": [
     {
@@ -42856,7 +43020,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/core-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(CORE_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -42902,6 +43066,55 @@
           ],
           "operation": "compile_c_to_host_object",
           "output": "toolchain/build/ctool_host.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/build/ctool.o",
+            "toolchain/build/ctool_host.o",
+            "toolchain/build/elf32.o",
+            "toolchain/build/elf32_contract.o"
+          ],
+          "operation": "compile_and_link_host_executable",
+          "output": "toolchain/build/elf32-contract.exe",
+          "recipe": [
+            "$(CC) $(CFLAGS) $(ELF32_OBJECTS) -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/elf32.c",
+            "toolchain/elf32.h",
+            "toolchain/ctool.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/elf32.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/tests/elf32_contract.c",
+            "toolchain/elf32.h",
+            "toolchain/ctool.h",
+            "toolchain/ctool_host.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/elf32_contract.o",
           "recipe": [
             "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
           ],
@@ -43936,6 +44149,16 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "81e6dde9ad1e191ea10f79a070364fd6c750328d1f696d2202ec592f684cd0b8"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 8,
+      "path": "toolchain/tests/elf32_oracle.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "d20f21f4efac24a85450c02e62b43a79fbb84c8f2e2b47644e0d803fc0d98822"
     }
   ]
 }

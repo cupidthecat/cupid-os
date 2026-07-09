@@ -1,4 +1,5 @@
 #include "ctool_kernel.h"
+#include "elf32.h"
 
 #include "kernel.h"
 #include "memory.h"
@@ -180,6 +181,85 @@ static ctool_status_t ctool_kernel_selftest_body(
       ctool_bytes(marker, (ctool_u32)(sizeof(marker) - 1u)));
 }
 
+static void ctool_kernel_elf32_selftest(void) {
+  static const ctool_u8 text[] = {0xe8u, 0u, 0u, 0u, 0u, 0xc3u};
+  ctool_job_config_t config = ctool_kernel_job_config(ctool_default_limits());
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_elf32_section_spec_t section;
+  ctool_elf32_symbol_spec_t symbols[2];
+  ctool_elf32_relocation_spec_t relocation;
+  ctool_elf32_object_spec_t spec;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  ctool_status_t status = ctool_job_open(&config, &job);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &output);
+  }
+  if (status != CTOOL_OK) {
+    if (job != (ctool_job_t *)0) {
+      ctool_job_close(job);
+    }
+    kernel_panic("Cupid ELF32 self-test setup failed (%u)",
+                 (uint32_t)status);
+  }
+  section.name = ctool_string(".text");
+  section.type = CTOOL_ELF32_SHT_PROGBITS;
+  section.flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  section.alignment = 16u;
+  section.entry_size = 0u;
+  section.size = (ctool_u32)sizeof(text);
+  section.contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+  symbols[0].name = ctool_string("entry");
+  symbols[0].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[0].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[0].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[0].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[0].section = 0u;
+  symbols[0].value = 0u;
+  symbols[0].size = (ctool_u32)sizeof(text);
+  symbols[0].alignment = 0u;
+  symbols[1].name = ctool_string("external");
+  symbols[1].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[1].type = CTOOL_ELF32_SYMBOL_NOTYPE;
+  symbols[1].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[1].placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbols[1].section = CTOOL_ELF32_NO_SECTION;
+  symbols[1].value = 0u;
+  symbols[1].size = 0u;
+  symbols[1].alignment = 0u;
+  relocation.target_section = 0u;
+  relocation.offset = 1u;
+  relocation.symbol = 1u;
+  relocation.type = CTOOL_ELF32_R_386_PC32;
+  relocation.addend = -4;
+  spec.sections = &section;
+  spec.section_count = 1u;
+  spec.symbols = symbols;
+  spec.symbol_count = 2u;
+  spec.relocations = &relocation;
+  spec.relocation_count = 1u;
+  status = ctool_elf32_write(job, &spec, output);
+  source.path.text = ctool_string("/ctool-selftest.o");
+  source.contents = ctool_buffer_view(output);
+  if (status == CTOOL_OK) {
+    status = ctool_elf32_read(job, &source, &object);
+  }
+  if (status != CTOOL_OK || object.section_count != 6u ||
+      object.symbol_count != 3u || object.relocation_count != 1u ||
+      object.relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
+      object.relocations[0].addend_known == CTOOL_FALSE ||
+      object.relocations[0].addend != -4) {
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    kernel_panic("Cupid ELF32 self-test failed (%u)", (uint32_t)status);
+  }
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  KINFO("Cupid ELF32 object self-test passed");
+}
+
 void ctool_kernel_selftest(void) {
   static const char output_name[] = "/tmp/ctool-core-selftest.bin";
   static const char marker[] = "ctool-kernel-ok";
@@ -226,4 +306,5 @@ void ctool_kernel_selftest(void) {
                  (uint32_t)status);
   }
   KINFO("Cupid toolchain core self-test passed");
+  ctool_kernel_elf32_selftest();
 }

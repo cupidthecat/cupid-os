@@ -332,3 +332,48 @@ The Windows oracle was recaptured from committed shared-core revision `e72f608f0
 | Output sizes | Kernel ELF 6,146,648 bytes; raw kernel 5,939,861 bytes; `.text` 1,309,972 bytes; disk image 209,715,200 bytes |
 
 The capture fingerprints the same Windows 10 AMD64 oracle family (Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling) in the machine-readable manifest. Linux GCC/binutils remains a separate complete-OS capture; the hosted core contract already passed Linux GCC and sanitizer checks but is not a substitute for that oracle.
+
+## 2026-07-09: deterministic shared ELF32 relocatable objects
+
+### Object seam and format decisions
+
+- Added the freestanding `toolchain/elf32.c` module with exactly two public operations: a one-shot semantic `ctool_elf32_write` description and a bounded typed `ctool_elf32_read` view. It depends only on the shared job/arena/source/diagnostic/buffer contracts and is compiled unchanged into the hosted object contract and kernel.
+- Compared a stateful append-only builder, raw normalized ELF arrays, and a common-caller one-shot description. The chosen seam keeps frontend parser state out of the object module and hides file offsets, serialized indices, metadata tables, string offsets, layout, and padding while retaining ordered semantic sections, symbols, and relocations.
+- The strict canonical writer emits little-endian i386 `ET_REL`: caller `PROGBITS`/`NOBITS` sections, one `SHT_REL` per target, `.symtab`, `.strtab`, `.shstrtab`, then section headers. It stable-partitions local symbols before global/weak symbols, preserves relative input order, remaps relocations, interns strings on first occurrence, and emits deterministic zero padding.
+- Relocations carry explicit signed addends at the interface. The module writes or reads the four-byte implicit target field required by `SHT_REL`; `R_386_32` and `R_386_PC32` follow the i386 `S + A` and `S + A - P` rules. Local/global/weak, notype/object/function/section/file/common, and undefined/defined/absolute/common storage are represented without exposing `SHN_*` policy to producers.
+- The reader uses explicit little-endian decoding rather than packed hostile-input casts. It rejects malformed known semantics and unsupported object-wide domains, but preserves structurally valid unfamiliar section and relocation codes so CupidDis can inspect more than CupidLD or the canonical writer can yet consume. Unknown relocation addends remain explicitly undecoded.
+- Existing CupidC/CupidASM fixed-address `ET_EXEC` output is unchanged. The shared object implementation is now Cupid-owned, but no compiler, assembler, disassembler, linker, object-copy, or source cohort ownership transfers in this step.
+
+### TDD, failures, and fixes
+
+- The first writer contract failed with the missing implementation. Successive red cases drove basic deterministic layout, then the complete symbol/relocation model. An output-limit case exposed both a missing rollback diagnostic and a dangling diagnostic when the arena was rewound; failure diagnostics are now emitted after transactional state restoration.
+- Reader round-trip began with an undefined entry point. Malformed-input tests then exposed acceptance of invalid known `STT_SECTION` placement; known symbol-kind semantics are now validated. Failed reads rewind temporary arena state, zero the result, and retain their diagnostic.
+- A review-time red case placed two four-byte relocations two bytes apart. The original duplicate-offset check accepted the partially overlapping fields; both writer models and reader objects now reject every known i386 overlap without overflow-prone endpoint arithmetic. Further hostile mutations added common-function, string-table metadata, and invalid-argument rollback coverage.
+- Independent review found that the writer exposed link-order/info/group and arbitrary flag bits even though its semantic sections cannot supply the metadata those flags require. V1 now accepts only write/allocate/execute/merge/strings/TLS/exclude, validates merge/string entry semantics, and has positive and negative public contracts.
+- Independent review also found that resolving every referenced string offset by rescanning to NUL could amplify a bounded object into quadratic kernel work. The reader now heap-sorts temporary offset/view pairs and resolves each string-table region in one forward pass; 512 descending suffix references into a 32 KiB name exercise the bounded path.
+- Kernel integration exposed that the toolchain `test` target invoked the ELF contract without declaring it as a prerequisite. The graph now builds both contracts before running either. The checked active-source audit correctly rejected the resulting graph drift and was regenerated only after review.
+- Positive contracts cover deterministic layout, ordered sections, alignment, weak/common symbols, both relocation kinds, explicit addends, stable local partitioning, round-trip parsing, and transactional failure. Negative contracts cover invalid writer models, truncated/corrupt headers and tables, invalid strings, symbols, relocations, alignments, ranges, and unsupported domains.
+
+### Interoperability and build state
+
+- Two independently generated Cupid objects were byte-identical. GNU `readelf` accepted their sections, symbols, weak/common storage, and both relocations; LLVM `ld.lld -m elf_i386 -r` consumed one and the Cupid reader parsed the linked output.
+- The reader accepted a Clang i386 `-fcommon` fixture and the real NASM `kernel/cpu/isr.asm` object. The ISR oracle retained a 377-byte, 16-byte-aligned `.text`, five `R_386_PC32` entries, the required symbols, and `-4` call addends. Oracle binaries are optional test dependencies and are skipped when unavailable; their eight-line C fixture is intentionally test-only and therefore recorded as `not_reached` by the three supported `all` build roots.
+- A DEBUG kernel self-test writes and reads an actual relocatable object through the public seam, including one undefined symbol and one PC-relative relocation, and logs `Cupid ELF32 object self-test passed` after the existing toolchain-core self-test and before the desktop starts.
+- The checked graph now contains 652 active language inputs, 248 feature IDs, 448 transforms, and 36 accounted unreachable source-like files. Its 430 declared artifacts cover all 423 final-link objects; the host compiler still owns 244 i386 objects, five native contract objects, and two native contract executables.
+
+Alternating the Linux sanitizer build and the dedicated Windows oracle test exposed a cross-host test-isolation failure: Windows Make tried to link Linux objects left in `toolchain/build`. The hosted Make root now permits an overridden build directory, and the ELF Python suite uses its own automatically cleaned temporary directory rather than deleting or reusing the shared one. The unchanged suite passes independently of a WSL-produced default build directory and no longer races another suite's clean.
+
+### Verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `make test` | PASS | All 38 repository host tests passed, including nine ELF32 module/oracle tests and the generated-audit check. |
+| Strict Windows Clang and MinGW GCC contracts | PASS | Both compilers built the shared core/object contracts with warning-as-error C11 flags; every contract mode passed. |
+| WSL Linux GCC contract | PASS | The same public writer, reader, malformed-input, and core modes built and ran natively. |
+| WSL Linux ASan/UBSan contract | PASS | Every public contract mode completed with address/undefined sanitizers and no finding. |
+| GNU/LLVM/NASM/Clang object oracles | PASS | Cupid output was deterministic, readable, and linkable; external compiler/assembler/linker objects were accepted with the expected semantic manifests. |
+| `make check-bootstrap-audit` | PASS | The checked 652-source/448-transform graph and 430/423 artifact-coverage contract matched generated evidence. |
+| Strict freestanding i386 objects | PASS | `toolchain/elf32.o` and `kernel/lang/ctool_kernel.o` rebuilt with the repository's warning-as-error freestanding flags. |
+| `make -j4 all WAD_SRCS=` | PASS | The complete 423-object kernel, raw binary, and disk image built. |
+| CupidC GUI smoke (`/bin/ls.cc`) | PASS | Boot logged the shared core and ELF32 self-tests; CupidC completed execution without panic. |
+| CupidASM GUI smoke (`as /demos/hello.asm`) | PASS after unchanged retry | The first attempt hit the known terminal-input flake and reported `undefined variable` before assembly; the unchanged retry completed, with the ELF32 self-test passing on both boots. |

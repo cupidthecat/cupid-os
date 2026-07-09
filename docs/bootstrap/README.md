@@ -2,7 +2,7 @@
 
 This directory is the durable record for moving Cupid OS from its current host-produced build to a self-hosting Cupid Toolchain. The implementation map is [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13).
 
-The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. A platform-neutral Cupid Toolchain foundation now builds through a supported hosted contract and a real kernel adapter, but CupidC, CupidASM, and CupidDis still run only inside Cupid OS and are themselves compiled into the kernel by the host C compiler. The shared core is host-runnable; the three tool frontends are not yet host-runnable bootstrap tools.
+The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. A platform-neutral Cupid Toolchain foundation and deterministic ELF32 relocatable-object module now build through supported hosted contracts and a real kernel adapter, but CupidC, CupidASM, and CupidDis still run only inside Cupid OS and are themselves compiled into the kernel by the host C compiler. The shared runtime and object seams are host-runnable; the three tool frontends are not yet host-runnable bootstrap tools.
 
 ## Records
 

@@ -5,11 +5,12 @@
 | Source or artifact cohort | Current owner/path | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |
 | `boot/boot.asm` | NASM flat binary | CupidASM flat binary | Host-owned; inventory directives, layout constraints, and byte/boot parity |
-| `kernel/cpu/isr.asm` | NASM ELF32 object | CupidASM ELF32 `ET_REL` | Host-owned; requires shared object/relocation support and encoding parity |
-| `kernel/core/context_switch.asm` | NASM ELF32 object | CupidASM ELF32 `ET_REL` | Host-owned; requires ABI-sensitive encoding parity and boot/runtime smoke |
+| `kernel/cpu/isr.asm` | NASM ELF32 object | CupidASM ELF32 `ET_REL` | Host-owned; the shared reader accepts its real 377-byte aligned `.text` and five PC-relative relocations, but CupidASM still needs encoding and object-emission parity |
+| `kernel/core/context_switch.asm` | NASM ELF32 object | CupidASM ELF32 `ET_REL` | Host-owned; shared object support is ready, but CupidASM still needs ABI-sensitive encoding parity and boot/runtime smoke |
 | `kernel/smp/smp_trampoline.S` | NASM flat binary despite `.S` suffix | CupidASM flat binary | Host-owned; requires 16/32-bit mode/layout parity and SMP smoke |
 | 22 `demos/*.asm` inputs | Host `objcopy` embeds source; in-OS CupidASM assembles on demand | CupidObj embeds source; CupidASM remains the language owner and can also be host-run | Partly Cupid-owned at runtime; all are reachable and form the checked directive/instruction regression corpus |
 | Shared `toolchain/ctool*` core, hosted adapter/contract, and `kernel/lang/ctool_kernel*` adapter | Host C compiler builds native contract objects and freestanding kernel objects from one core | CupidC builds the shared core and both adapters; checked seeds build the hosted contract | Interface established and tested; language/object frontends still need to consume it before ownership transfers |
+| Shared `toolchain/elf32.*` object module | Host C compiler builds one implementation into the hosted contract and freestanding kernel | CupidC builds the same module; CupidC, CupidASM, CupidDis, CupidLD, and CupidObj share its typed object seam | Object semantics are Cupid-owned and interoperability-tested; no source cohort transfers until the existing frontends call the module |
 | 153 checked-in core/driver/tool C files plus four generated C files | GCC/Clang freestanding compilation | CupidC C mode to ELF32 `ET_REL` | Host-owned; migrate strict foundational cohorts after the shared host/object/ABI seams |
 | `kernel/lang/cupidc*.c` | GCC/Clang, linked into kernel | CupidC builds host and in-OS CupidC variants | Host-owned; first requires deep shared core, host runtime seam, object writer, then staged self-build |
 | `kernel/lang/as*.c` | GCC/Clang, linked into kernel | CupidC builds host and in-OS CupidASM variants | Host-owned; requires shared runtime/object/instruction seams |
@@ -30,7 +31,7 @@
 | Milestone | Ownership gate | Current state |
 | --- | --- | --- |
 | Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Windows PASS at `e72f608`: two clean 429-artifact builds matched and covered all 422 linked objects; Linux capture pending |
-| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 649 active inputs, 248 feature IDs, 444 transforms, 35 accounted unreachable source-like files, and a checked 429-artifact/422-link-object drift and coverage gate |
+| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 652 active inputs, 248 feature IDs, 448 transforms, 36 accounted unreachable source-like files, and a checked 430-artifact/423-link-object drift and coverage gate |
 | Assembly migration | All four host-assembled OS sources produced by CupidASM with equivalent bytes/behavior | Not started |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | Not started |
 | Toolchain self-hosting | Checked seeds rebuild host tools; stage 2 and stage 3 outputs are byte-identical on Windows and Linux | Not started |
