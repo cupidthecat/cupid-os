@@ -46,7 +46,7 @@
 - **Browser**: in-shell graphical browser with a real render pipeline (HTML5 tokenizer, tree builder, CSS lexer + cascade/specificity, CSS variables/calc, `@font-face`, external stylesheets, render tree, BFC + IFC layout, paint), HTTP and HTTPS, link navigation, Backspace history, GET form submit
 - **Audio stack**: AC97 PCI codec at 22050 Hz stereo with BDL DMA + IRQ refill, 16-slot s16 software mixer (PCM + streaming), Nuked-OPL3 FM emulator (cycle-accurate, LGPL-2.1), 18-voice MIDI dispatcher with GENMIDI patch loader, percussion, 2-voice patches, pan, sustain pedal
 - **DOOM**: Freedoom1/2 WADs auto-discovered from `/disk/wads/`, full SFX through the mixer, music via MUS->MIDI->OPL3 (slot 8), keyboard controls, savegames + `default.cfg` persisted to `/home/doom/`
-- Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE. Scriptable with `run-tests.sh`
+- Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE. Scriptable through the Python serial/QEMU harnesses in `tools/`.
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
@@ -237,13 +237,15 @@ make HDD_MB=100
 | `make run-net-debug` | Dump every TX/RX frame over serial |
 | `make test-net` | Headless networking integration tests (rtl8139 + e1000) |
 | `make test-net-quick` | Same as `test-net` for one NIC only |
+| `make test` | Run all deterministic host-side unit tests |
+| `make bootstrap-baseline` | Build committed HEAD twice in isolation and record host-toolchain evidence |
 | `make stage-wads` | Copy Freedoom WADs from host into FAT16 partition |
 | `make sync-demos` | Copy demos/*.asm into the FAT16 partition |
 | `make clean` | Remove object files, keep cupidos.img |
 | `make clean-image` | Remove cupidos.img only |
 | `make distclean` | Remove everything including cupidos.img |
 
-A `run-tests.sh` harness wraps `make run-headless`, feeds a batch of commands over COM1, and parses PASS/FAIL sentinels. Used for CupidC/CupidASM regression checks in CI or local sanity runs.
+`make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
 
 ### Copying files into the disk image
 

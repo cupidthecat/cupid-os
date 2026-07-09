@@ -81,3 +81,36 @@ The baseline build produced many untracked objects and images. They were deliber
 ### Migration progress
 
 No source cohort changed toolchain ownership in this step. GCC/Clang, NASM, host linker, `objcopy`, and `nm` remain required by the current build. This step established the durable records and dependency graph needed to migrate them without weakening the OS.
+
+## 2026-07-09: reproducible baseline runner
+
+### Decision and failed approaches
+
+- Chose one deep host module, `tools/bootstrap_baseline.py`, behind `make bootstrap-baseline`. Make names the workflow; the module owns isolated process execution, evidence normalization, artifact hashing, comparison, and failure reporting.
+- Rejected hashing the developer's ordinary `cupidos.img`: image construction intentionally preserves an existing FAT filesystem, including guest writes. Each baseline run instead starts from a clean detached worktree and therefore creates a new image.
+- Rejected globbing every object in the checkout because stale or currently unreachable objects can exist. Make now expands the exact `KERNEL_OBJS` link cohort and appends the non-link format boundaries that the migration must preserve.
+- Disabled optional host WAD discovery for baseline builds. Otherwise `/usr/share/games/doom/freedoom*.wad` makes the image depend on unrelated host content.
+- Kept Windows LLVM and Linux GNU evidence separate. The two external toolchains are not required to match each other; two isolated builds using one recorded tool set must match.
+- Chose final ELF `.text` bytes and kernel/image byte sizes as stable quality evidence. Build and GUI-smoke wall-clock time is recorded but explicitly non-gating until a guest-monotonic trusted performance cohort exists.
+- Added canonical LF checkout attributes because `.cc`, `.h`, `.asm`, CTXT, and other text are embedded byte-for-byte into the image; host line-ending policy must not silently change artifacts.
+
+### Implementation
+
+- Added `make test` as the deterministic host unit-test entry point.
+- Added `make bootstrap-baseline`, which probes and fingerprints required host tools plus the optional JPEG converters that can affect embedded bytes, builds a committed revision twice in disposable worktrees, runs host/CupidC/CupidASM checks, hashes 343 currently expanded artifacts, and emits `cupid.bootstrap-baseline.v1` JSON.
+- Added per-file mismatch localization, missing-artifact errors, command failure/skip evidence, direct ELF32 section-size inspection, and atomic evidence writes.
+- Added `.gitignore` coverage for 436 current build/cache/log artifacts without hiding `.agents/`, `TempleOS/`, or `skills-lock.json`.
+- Extended clean targets for runtime logs, Python caches, the USB image, and root baseline output. Removed the dead `kernel/smp/smp_trampoline.bin` cleanup path; the actual output is `kernel/smp_trampoline.bin`.
+- Added `docs/bootstrap/BASELINE.md` as the reproduction and interpretation guide.
+
+### Test results before frozen capture
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `python -m unittest tests.test_bootstrap_baseline` | PASS | 5 artifact, pre-runtime capture, comparison, ELF, and command-failure tests passed after red/green cycles. |
+| `make test` | PASS | 9 total host tests passed through the new public Make entry point. |
+| `python -m py_compile tools/bootstrap_baseline.py tests/test_bootstrap_baseline.py` | PASS | Baseline runner and tests compile under Python 3.14. |
+| `make -s print-bootstrap-artifacts` | PASS | Expanded 343 distinct artifact paths, including generated `ksyms_data.o`; current build output contained every path. |
+| Host tool preflight | PASS | Make, Python, Clang, NASM, LLD, LLVM objcopy/nm, and QEMU resolved and were SHA-256 readable; optional JPEG probing recorded FFmpeg as available and the IJG tools as absent. |
+
+The first checked two-run Windows evidence is recorded in the following evidence commit so its `source.revision` names the committed runner it executed.

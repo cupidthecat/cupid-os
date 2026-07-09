@@ -229,13 +229,20 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
 			kernel/audio/midiopl.o \
 			$(BIN_CC_OBJS) $(BIN_HDR_OBJS) $(BROWSER_SUB_OBJS) $(DOC_CTXT_OBJS) $(EMBED_ASSET_OBJS) $(DEMO_ASM_OBJS) $(GOD_DD_OBJS) $(FONT_TTF_OBJS)
 
+# Exact output cohort hashed by the reproducible host-toolchain baseline.
+# KERNEL_OBJS remains in link order; the recorder also includes every format
+# boundary that is not itself a final link input.
+BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
+	$(BOOTLOADER) kernel/smp_trampoline.bin \
+	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c kernel/cpu/ksyms_data.o \
+	kernel/kernel.elf $(KERNEL) $(OS_IMAGE)
+
 .PHONY: FORCE
 FORCE:
 
-# The repository currently contains checked-in build artifacts such as
-# drivers/*.o, boot/boot.bin, and kernel/kernel.bin. Their mtimes can match
-# source checkout mtimes closely enough that make may incorrectly reuse stale
-# objects from older source revisions, producing bad kernels or link failures.
+# A build tree may contain artifacts whose mtimes match source checkout mtimes
+# closely enough that make incorrectly reuses stale objects from an older
+# source revision, producing bad kernels or link failures.
 # Force kernel-related artifacts to rebuild from source on each invocation.
 $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 
@@ -888,6 +895,18 @@ $(BROWSER_CSS_GEN): $(BLINK_CSS_INS) tools/gen_css_props.py
 
 browser_css_gen: $(BROWSER_CSS_GEN)
 
+# Stable host-side verification entry points. The full bootstrap baseline
+# builds the committed revision twice in isolated worktrees and records JSON
+# evidence under build/bootstrap/ by default.
+test:
+	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
+
+print-bootstrap-artifacts:
+	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
+
+bootstrap-baseline:
+	$(PYTHON) tools/bootstrap_baseline.py
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
@@ -1081,11 +1100,12 @@ stage-wads: $(OS_IMAGE)
 	$(PYTHON) tools/hostbuild.py stage-wads --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(WAD_SRCS)
 
 clean:
-	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/smp/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log"
+	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
 
 clean-image:
 	$(PYTHON) tools/hostbuild.py clean $(OS_IMAGE)
 
 distclean: clean clean-image
+	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build"
 
-.PHONY: all run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

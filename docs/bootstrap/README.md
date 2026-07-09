@@ -10,6 +10,7 @@ The current baseline is host-owned: the Makefile defaults to Clang/LLVM tools on
 - `HOST-DEPENDENCIES.md` records every external build dependency and whether it belongs in the final normal build.
 - `CAPABILITY-MATRIX.md` records implemented and missing CupidC, CupidASM, CupidDis, object, linker, and bootstrap capabilities.
 - `MIGRATION-MATRIX.md` records which tool owns each source and artifact cohort today and at the self-hosting fixed point.
+- `BASELINE.md` documents the reproducible oracle-build interface and evidence format.
 - `../adr/` records stable architectural decisions; `../../CONTEXT.md` defines project vocabulary.
 
 ## Update contract

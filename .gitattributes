@@ -1,0 +1,13 @@
+# Canonical LF text prevents host checkout policy from changing embedded source.
+* text=auto eol=lf
+
+# Keep binary fixtures and assets byte-for-byte.
+*.bin binary
+*.bmp binary
+*.iso binary
+*.jpeg binary
+*.jpg binary
+*.pcap binary
+*.png binary
+*.ttf binary
+*.wad binary

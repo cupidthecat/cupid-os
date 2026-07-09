@@ -1,0 +1,26 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Compiler and embedded-resource objects
+*.o
+
+# OS build products
+/boot/boot.bin
+/kernel/kernel.bin
+/kernel/kernel.elf
+/kernel/kernel.elf.pass1
+/kernel/smp_trampoline.bin
+/cupidos.img
+/test_usb_partitioned.img
+
+# Generated build intermediates
+/kernel/cpu/ksyms_data.c
+/kernel/util/bin_programs_gen.c
+/kernel/util/docs_programs_gen.c
+/kernel/util/demos_programs_gen.c
+
+# Runtime, test, and baseline output
+/build/
+/debug.log
+/tests/*.log
