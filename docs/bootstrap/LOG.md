@@ -377,3 +377,19 @@ Alternating the Linux sanitizer build and the dedicated Windows oracle test expo
 | `make -j4 all WAD_SRCS=` | PASS | The complete 423-object kernel, raw binary, and disk image built. |
 | CupidC GUI smoke (`/bin/ls.cc`) | PASS | Boot logged the shared core and ELF32 self-tests; CupidC completed execution without panic. |
 | CupidASM GUI smoke (`as /demos/hello.asm`) | PASS after unchanged retry | The first attempt hit the known terminal-input flake and reported `undefined variable` before assembly; the unchanged retry completed, with the ELF32 self-test passing on both boots. |
+
+## 2026-07-09: shared-ELF32 Windows oracle recapture
+
+The Windows oracle was recaptured from committed shared-object revision `1b5901c1b363182e07ff9f0c9e109f429982deba`. The first capture built its initial isolated tree and passed all 38 host tests, but its CupidC GUI command lost the `n` keystroke and reached the compiler as `/bi/ls.cc`, alongside a stray `expected expression` input. The resulting preprocess failure was the known terminal-input flake, not an ELF failure. The runner exited, left no QEMU process or worktree, and its failed disposable evidence was replaced by an unchanged retry.
+
+| Evidence | Result |
+| --- | --- |
+| Reproducibility | PASS: all 430 artifacts matched between two isolated builds; aggregate SHA-256 `5a25340e2c6b803cd0bfd7dac8b8a866c97fd008ea0529e3f19d8478a6d3279f` |
+| Manifest contract | PASS: the checked audit covers all 423 final-link objects, including `toolchain/ctool.o`, `toolchain/elf32.o`, and `kernel/lang/ctool_kernel.o` |
+| Clean builds | PASS in 9.915 and 9.987 seconds |
+| Host tests | PASS: 38 tests in 9.429 seconds |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 19.219 seconds, after the shared core and ELF32 kernel self-tests |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.800 seconds, after the same self-tests |
+| Output sizes | Kernel ELF 6,181,012 bytes; raw kernel 5,973,175 bytes; `.text` 1,340,356 bytes; disk image 209,715,200 bytes |
+
+The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the shared core/object contracts passing Linux GCC and sanitizers do not substitute for it.

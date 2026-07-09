@@ -48,10 +48,10 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `e72f608` | PASS: two clean 429-artifact builds matched; aggregate SHA-256 `124220c8d0e14621ee654e5a252c655fe41d38491cd6151edc5d2282a3b715c3` | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | `1b5901c` | PASS: two clean 430-artifact builds matched; aggregate SHA-256 `5a25340e2c6b803cd0bfd7dac8b8a866c97fd008ea0529e3f19d8478a6d3279f` | `baselines/windows-amd64.json` |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
 
-This capture supersedes the 427-artifact Windows evidence from `7a8cf7a`. The checked audit contract proves that the 429-path manifest includes all 422 final-link objects, including the shared core and kernel adapter. The current capture also passed 29 host tests, `/bin/ls.cc` through CupidC, and `as /demos/hello.asm` through CupidASM. Its two isolated builds took 8.809 and 9.589 seconds; these are host observations, not performance gates.
+This capture supersedes the 429-artifact shared-core evidence from `e72f608`. The checked audit contract proves that the 430-path manifest includes all 423 final-link objects, including the shared runtime core, shared ELF32 module, and kernel adapter. The current capture also passed 38 host tests, `/bin/ls.cc` through CupidC, and `as /demos/hello.asm` through CupidASM. Its two isolated builds took 9.915 and 9.987 seconds; these are host observations, not performance gates.
 
 ## Build-output hygiene
 
