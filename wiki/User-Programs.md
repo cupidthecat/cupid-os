@@ -948,7 +948,7 @@ See also: [Ed Editor](Ed-Editor)
 - **Test with `cupidc`.** Run `cupidc /bin/yourprog.cc` to JIT-compile and test before deploying.
 - **Use `println` for errors.** There's no stderr - just print error messages and `return`.
 - **Structs are supported.** Define structs for structured data (max 32 structs, 16 fields each).
-- **Programs in `/home/bin/` persist across reboots** since they're on the FAT16 disk. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
+- **Programs in `/home/bin/` persist across reboots** in homefs, whose backing container is `/disk/HOMEFS.SYS`. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
 
 ---
 

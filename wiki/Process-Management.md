@@ -83,7 +83,9 @@ The `context_switch_resume` label pops saved registers in reverse order and does
 ### New Process Startup
 
 New processes are set up so that:
-- ESP points to a prepared stack with fake saved registers
+- ESP points to a prepared stack containing the optional entry argument and
+  the trampoline return address; saved registers are created only after a
+  running process is switched out
 - EIP is the process entry function
 - `process_exit_trampoline` is the return address on the stack (auto-cleanup when function returns)
 

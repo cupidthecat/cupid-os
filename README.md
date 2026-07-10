@@ -396,7 +396,7 @@ The kernel heap uses a bump allocator with a free list. Everything runs at ring 
 | `process.c/.h` | PCB, process list, round-robin scheduler |
 | `context_switch.asm` | Saves EBX/ESI/EDI/EBP/EFLAGS, swaps ESP/EIP |
 
-Up to 32 threads. Scheduler is preemptive, driven by IRQ0 at 200Hz (5ms slices). Process states: running, ready, blocked, zombie. Primitives: spawn(), exit(), wait().
+Up to 32 threads. Scheduler is preemptive, driven by IRQ0 at 200Hz (5ms slices). Process states are READY, RUNNING, BLOCKED, and TERMINATED. Core primitives are `process_create()`, `process_yield()`, `process_exit()`, and `process_kill()`; detached terminated PCBs are reclaimed by the quiescent reaper.
 
 ### Filesystem
 
