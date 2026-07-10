@@ -418,7 +418,7 @@ The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its M
 
 - The root kernel now links `toolchain/x86.o`. The DEBUG adapter validates the model, encodes an exact 16-bit `MOV AX,[BX+SI+0x7f]`, verifies a symbolic PC-relative `CALL` field, decodes an SSE2 `PXOR`, and logs `Cupid x86 instruction model self-test passed` after the shared core and ELF32 tests.
 - The hosted toolchain root builds a third native contract executable and runs eight x86 modes: inventory, model, integer, addressing, relocations, system/SIMD, active surface, and errors. The checked build graph now contains 655 active inputs, 248 feature IDs, 452 transforms, and 36 accounted unreachable source-like files. Its 431 declared artifacts cover all 424 final-link objects; the host C compiler still owns 245 i386 objects, seven native contract objects, and three native contract executables.
-- This step transfers shared instruction semantics, not a source or artifact cohort. The existing CupidC, CupidASM, and CupidDis frontends do not yet call the module; NASM still produces the two flat binaries and two ELF32 objects, and GCC/Clang, the host linker, objcopy, and nm retain their documented production roles. The Windows `1b5901c` 430/423 oracle remains historical evidence until the committed 431/424 graph is recaptured in an isolated baseline run.
+- This step transfers shared instruction semantics, not a source or artifact cohort. The existing CupidC, CupidASM, and CupidDis frontends do not yet call the module; NASM still produces the two flat binaries and two ELF32 objects, and GCC/Clang, the host linker, objcopy, and nm retain their documented production roles. The committed 431/424 graph is captured by the `c1df30c` Windows oracle recorded below.
 
 ### Verification
 
@@ -434,3 +434,19 @@ The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its M
 | CupidASM GUI smoke (`as /demos/hello.asm`) | PASS | Boot logged all three shared-module self-tests and CupidASM reached `JIT execution complete` without panic. |
 
 The complete Linux GCC/binutils OS oracle baseline remains pending; hosted GCC and sanitizer contracts do not substitute for it.
+
+## 2026-07-09: shared-x86 Windows oracle recapture
+
+After committing the shared x86 model as `c1df30c`, the baseline runner rebuilt that exact revision twice in isolated worktrees and refreshed `baselines/windows-amd64.json`.
+
+| Check | Result |
+| --- | --- |
+| Reproducibility | PASS: all 431 artifacts matched between two isolated builds; aggregate SHA-256 `11febd09886aba270b9e3780774f1d0ab5e825146bf496e18e7cf9fb23ff596f` |
+| Manifest contract | PASS: the checked audit covers all 424 final-link objects, including `toolchain/ctool.o`, `toolchain/elf32.o`, `toolchain/x86.o`, and `kernel/lang/ctool_kernel.o` |
+| Clean builds | PASS in 8.754 and 7.792 seconds |
+| Host tests | PASS: 48 tests in 12.096 seconds |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 18.628 seconds, after all three shared-module kernel self-tests |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.229 seconds, after the same self-tests |
+| Output sizes | Kernel ELF 6,249,088 bytes; raw kernel 6,039,445 bytes; `.text` 1,369,924 bytes; disk image 209,715,200 bytes |
+
+The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the hosted GCC and sanitizer contracts do not substitute for it.
