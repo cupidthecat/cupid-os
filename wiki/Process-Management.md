@@ -80,6 +80,16 @@ context_switch(process_t *old_proc, process_t *new_proc,
 
 The handoff is deliberately split across C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. This prevents a suspended caller's critical section from becoming owned by the unrelated process selected next. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
 
+### Interrupt entry and per-CPU state
+
+`this_cpu()` reads the current `per_cpu_t *` from `GS:0`. The common exception
+and IRQ stubs save and later restore `GS`, but they keep the incoming per-CPU
+selector active while calling C. Only `DS`, `ES`, and `FS` are loaded with the
+flat kernel-data selector. This matters because an IRQ-side log, allocator, or
+reschedule path can acquire the BKL and call `this_cpu()` before returning
+through `IRET`; loading `GS` with the flat selector would read low memory and
+can recursively fault while trying to report the original exception.
+
 ### Resume Path
 
 The `context_switch_resume` label pops saved registers in reverse order and does `ret`, returning normally to wherever the process left off.
