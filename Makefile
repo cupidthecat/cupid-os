@@ -196,11 +196,11 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
             kernel/tls/tls12_handshake.o \
             kernel/tls/tls_selftest.o \
-			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o kernel/lang/ctool_kernel.o \
+			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
-			kernel/lang/as.o kernel/lang/as_lex.o kernel/lang/as_parse.o kernel/lang/as_elf.o \
+			kernel/lang/as.o kernel/lang/as_elf.o \
 			kernel/lang/dis.o \
             kernel/gfx/gfx2d.o \
             kernel/gfx/bmp.o \
@@ -243,7 +243,7 @@ $(BOOTLOADER): boot/boot.asm
 	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/ctool_kernel.h
+kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/as.h kernel/lang/ctool_kernel.h
 	$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o
 
 # simd.c uses SSE2 inline asm helpers; keep freestanding include policy
@@ -863,6 +863,9 @@ toolchain/x86.o: toolchain/x86.c toolchain/x86.h toolchain/ctool.h
 toolchain/cupiddis.o: toolchain/cupiddis.c toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h
 	$(CC) $(CFLAGS) toolchain/cupiddis.c -o toolchain/cupiddis.o
 
+toolchain/cupidasm.o: toolchain/cupidasm.c toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h
+	$(CC) $(CFLAGS) toolchain/cupidasm.c -o toolchain/cupidasm.o
+
 kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h kernel/core/string.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o
 
@@ -885,16 +888,10 @@ kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shel
 	$(CC) $(CFLAGS) kernel/lang/ssh_io.c -o kernel/lang/ssh_io.o
 
 # CupidASM assembler
-kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h
+kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/lang/as_elf.h kernel/lang/ctool_kernel.h kernel/lang/shell.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h
 	$(CC) $(CFLAGS) kernel/lang/as.c -o kernel/lang/as.o
 
-kernel/lang/as_lex.o: kernel/lang/as_lex.c kernel/lang/as.h
-	$(CC) $(CFLAGS) kernel/lang/as_lex.c -o kernel/lang/as_lex.o
-
-kernel/lang/as_parse.o: kernel/lang/as_parse.c kernel/lang/as.h
-	$(CC) $(CFLAGS) kernel/lang/as_parse.c -o kernel/lang/as_parse.o
-
-kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h kernel/fs/vfs.h
+kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as_elf.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h
 	$(CC) $(CFLAGS) kernel/lang/as_elf.c -o kernel/lang/as_elf.o
 
 kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/lang/ctool_kernel.h toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/core/types.h kernel/core/kernel.h kernel/fs/vfs.h

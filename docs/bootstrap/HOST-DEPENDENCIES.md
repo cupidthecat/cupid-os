@@ -1,6 +1,6 @@
 # Host dependency inventory
 
-The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 664-source/465-transform graph and its 432-path manifest covers all 425 final-link objects. `baselines/windows-amd64.json` records the passing `4efd5ed` Windows oracle for the preceding 659-source/458-transform state; a new committed capture and a complete Linux GCC/binutils OS capture remain pending.
+The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 664-source/467-transform graph and its 431-path manifest covers all 424 final-link objects. `baselines/windows-amd64.json` records the passing `4efd5ed` Windows oracle for the preceding 659-source/458-transform state; a new committed capture and a complete Linux GCC/binutils OS capture remain pending.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 
 | Tool hand-off | Reachable outputs | Required external behavior |
 | --- | ---: | --- |
-| Host C compiler | 268 | 246 i386 objects, 14 native hosted core/ELF32/x86/CupidDis/CupidASM objects, and eight native contract/CLI executables; these builds remain temporary bootstrap evidence even though assembly and inspection semantics have transferred |
+| Host C compiler | 270 | 245 i386 root/user objects, 16 native hosted core/ELF32/x86/CupidDis/CupidASM/kernel-bridge objects, and nine native contract/CLI executables; these builds remain temporary bootstrap evidence even though assembly and inspection semantics have transferred |
 | NASM | 4 | Two flat binaries and two ELF32 `ET_REL` objects. CupidASM now passes the required directive/expression, layout, instruction/addressing, symbol, relocation, and exact-output parity gates; production recipe and boot/runtime transfer remain |
 | Host linker | 5 | Two kernel links plus three fixed-address user executables; `R_386_32`/`R_386_PC32`, weak/strong symbols, layout/alignment, and the used `link.ld` subset |
 | Host object-copy utility | 181 owned transforms | 179 binary-to-ELF wrappers, SMP object transformation, and final ELF-to-raw conversion; the JPEG transform invokes objcopy twice internally |
@@ -38,7 +38,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 
 `tools/hostbuild.py::_symbols_from_nm`, `_objcopy_binary`, and `embed_jpeg` are the subprocess seams behind the composite transforms. `tools/mksyms.sh` and `tools/embed_jpeg_baseline.sh` are tracked legacy/oracle duplicates outside the normal Make path.
 
-The hosted contract suites use the host C compiler only to bootstrap and exercise the shared core, ELF32, x86, CupidDis, and CupidASM implementations. The ELF32 and CupidASM suites may additionally use NASM, GNU `readelf`, and LLVM `ld.lld` as optional comparison oracles. They prove that Cupid-written objects are accepted by external consumers, that the Cupid reader accepts Clang-, NASM-, and linker-produced objects, and that every active assembly source reaches the required raw, relocatable, or fixed artifact; absent oracle tools are skipped. Assembly and inspection semantics have transferred, but source-build ownership and the four production NASM transforms have not. These tests do not transfer CupidC, linker, or object-copy ownership.
+The hosted contract suites use the host C compiler only to bootstrap and exercise the shared core, ELF32, x86, CupidDis, CupidASM, and the kernel's buffer-only fixed-image-to-`ET_EXEC` bridge. The ELF32 and CupidASM suites may additionally use NASM, GNU `readelf`, and LLVM `ld.lld` as optional comparison oracles. They prove that Cupid-written objects are accepted by external consumers, that the Cupid reader accepts Clang-, NASM-, and linker-produced objects, that every active assembly source reaches the required raw, relocatable, or fixed artifact, and that code-only, code/data/BSS, and malformed rollback executable bridges obey their contracts; absent oracle tools are skipped. Assembly and inspection semantics have transferred, but source-build ownership and the four production NASM transforms have not. These tests do not transfer CupidC, linker, or object-copy ownership.
 
 The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECTIONS`, location-counter assignment, input-section wildcards, `ALIGN`, symbol definitions, `COMMON`, and `ASSERT`. It is referenced in linker flags but is not currently a declared prerequisite of either kernel ELF target.
 
@@ -47,7 +47,7 @@ The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECT
 - The 104 active `bin/*.cc` roots and 22 `bin/browser/*.cc` fragments are wrapped as bytes and installed in the OS filesystem. CupidC compiles them on demand inside Cupid OS.
 - The 22 `demos/*.asm` files are likewise embedded as source and assembled by CupidASM on demand.
 - Repository headers and compatibility code replace the host libc/header environment for root compilation (`-nostdlib -nostdinc -ffreestanding`). The compiler executables remain external.
-- The hosted contracts intentionally use the host C runtime only through the core adapter and thin CLI drivers. The shared arena, buffer, path, source, diagnostic, limit, object, instruction, assembly, and inspection behavior is freestanding; CupidASM joins the kernel build in the next adapter step.
+- The hosted contracts intentionally use the host C runtime only through the core adapter and thin CLI drivers. The shared arena, buffer, path, source, diagnostic, limit, object, instruction, assembly, and inspection behavior is freestanding and the same CupidASM source is linked into the kernel.
 - Optional WAD discovery and test fixtures affect packaged/runtime content, not compiler ownership.
 
 ## Removal gate

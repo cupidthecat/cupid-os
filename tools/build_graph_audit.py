@@ -6,6 +6,7 @@ import argparse
 import collections
 import hashlib
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -576,10 +577,12 @@ def _artifact_coverage_contract(
 def _prefix_repo_path(directory: str, path: str) -> str:
     normalized = path.replace("\\", "/")
     if directory in {"", "."} or normalized.startswith("/"):
-        return normalized
+        return posixpath.normpath(normalized)
     if re.match(r"^[A-Za-z]:/", normalized):
         return normalized
-    return f"{directory.rstrip('/')}/{normalized.lstrip('./')}"
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return posixpath.normpath(f"{directory.rstrip('/')}/{normalized}")
 
 
 def _operation_for_recipe(

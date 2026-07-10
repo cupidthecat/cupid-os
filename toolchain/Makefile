@@ -22,6 +22,7 @@ CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
 CUPIDDIS := $(BUILD_DIR)/cupiddis$(EXE)
 CUPIDASM_CONTRACT := $(BUILD_DIR)/cupidasm-contract$(EXE)
 CUPIDASM_DEMOS_CONTRACT := $(BUILD_DIR)/cupidasm-demos-contract$(EXE)
+CUPIDASM_KERNEL_ELF_CONTRACT := $(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
@@ -45,6 +46,11 @@ CUPIDASM_DEMOS_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                   $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
                                   $(BUILD_DIR)/cupidasm.o \
                                   $(BUILD_DIR)/cupidasm_demos_contract.o
+CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
+                                       $(BUILD_DIR)/ctool_host.o \
+                                       $(BUILD_DIR)/elf32.o \
+                                       $(BUILD_DIR)/as_elf.o \
+                                       $(BUILD_DIR)/cupidasm_kernel_elf_contract.o
 CUPIDASM_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                     $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
                     $(BUILD_DIR)/cupidasm.o $(BUILD_DIR)/cupidasm_main.o
@@ -57,7 +63,7 @@ CPPFLAGS ?= -I.
 
 all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
      $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-     $(CUPIDASM)
+     $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -86,6 +92,9 @@ $(BUILD_DIR)/cupidasm.o: cupidasm.c cupidasm.h elf32.h x86.h ctool.h | $(BUILD_D
 $(BUILD_DIR)/cupidasm_main.o: cupidasm_main.c cupidasm.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -103,6 +112,9 @@ $(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.c cupidasm.h elf32.h x
 
 $(BUILD_DIR)/cupidasm_demos_contract.o: tests/cupidasm_demos_contract.c cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.c ../kernel/lang/as_elf.h cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
 
 $(CONTRACT): $(CORE_OBJECTS)
 	$(CC) $(CFLAGS) $(CORE_OBJECTS) -o $@
@@ -125,12 +137,15 @@ $(CUPIDASM_CONTRACT): $(CUPIDASM_CONTRACT_OBJECTS)
 $(CUPIDASM_DEMOS_CONTRACT): $(CUPIDASM_DEMOS_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(CUPIDASM_DEMOS_CONTRACT_OBJECTS) -o $@
 
+$(CUPIDASM_KERNEL_ELF_CONTRACT): $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS) -o $@
+
 $(CUPIDASM): $(CUPIDASM_OBJECTS)
 	$(CC) $(CFLAGS) $(CUPIDASM_OBJECTS) -o $@
 
 test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-      $(CUPIDASM)
+      $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -166,6 +181,9 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
 	$(CUPIDASM_CONTRACT) errors
 	$(CUPIDASM_CONTRACT) long-line
 	$(CUPIDASM_DEMOS_CONTRACT) all
+	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-only
+	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-data-bss
+	$(CUPIDASM_KERNEL_ELF_CONTRACT) errors
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"

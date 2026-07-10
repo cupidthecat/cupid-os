@@ -106,12 +106,21 @@ static struct {
   char     name[64];
   int      running;
   int      killed;
-  void    *saved_code;  /* kmalloc'd copy of CC_JIT_CODE_BASE region */
-  void    *saved_data;  /* kmalloc'd copy of CC_JIT_DATA_BASE region */
+  void    *saved_code;
+  void    *saved_data;
+  uint32_t code_address;
+  uint32_t code_bytes;
+  uint32_t data_address;
+  uint32_t data_bytes;
   uint32_t owner_pid;   /* PID that was blocked when this entry was pushed */
 } jit_stack[JIT_STACK_MAX];
 static int      jit_stack_depth = 0;
-static uint32_t jit_owner_pid   = 0; /* PID whose stack frames live in CC_JIT_CODE_BASE */
+static uint32_t jit_owner_pid   = 0;
+static uint32_t jit_code_address = 0;
+static uint32_t jit_code_bytes = 0;
+static uint32_t jit_data_address = 0;
+static uint32_t jit_data_bytes = 0;
+static int jit_regions_active = 0;
 static char shell_repl_pending[SHELL_REPL_PENDING_MAX];
 static uint32_t shell_repl_pending_len = 0;
 static int shell_repl_brace_depth = 0;
@@ -129,6 +138,14 @@ static void shell_gui_print(const char *s);
 static void gui_exec_command(const char *input);
 
 static int gui_ssh_debug = 1;
+
+static void shell_jit_clear_active_regions(void) {
+  jit_code_address = 0u;
+  jit_code_bytes = 0u;
+  jit_data_address = 0u;
+  jit_data_bytes = 0u;
+  jit_regions_active = 0;
+}
 
 static int shell_ssh_debug_active(void) {
   return gui_ssh_debug && jit_program_running &&
@@ -4001,9 +4018,32 @@ char shell_jit_program_pollchar(void) {
   return c;
 }
 
-int shell_jit_program_start(const char *name) {
+int shell_jit_program_start_regions(const char *name,
+                                    uint32_t code_address,
+                                    uint32_t code_bytes,
+                                    uint32_t data_address,
+                                    uint32_t data_bytes) {
+  uint32_t code_end;
+  uint32_t data_end;
+  if (code_address == 0u || code_bytes == 0u || data_address == 0u ||
+      data_bytes == 0u || code_address > 0xffffffffu - code_bytes ||
+      data_address > 0xffffffffu - data_bytes) {
+    serial_printf("[shell] JIT start rejected invalid memory regions\n");
+    return 0;
+  }
+  code_end = code_address + code_bytes;
+  data_end = data_address + data_bytes;
+  if (code_address < data_end && data_address < code_end) {
+    serial_printf("[shell] JIT start rejected overlapping memory regions\n");
+    return 0;
+  }
+
   /* If a JIT program is already loaded, push its state onto the stack */
-  if (jit_program_name[0] != '\0' && jit_stack_depth < JIT_STACK_MAX) {
+  if (jit_regions_active) {
+    if (jit_stack_depth >= JIT_STACK_MAX) {
+      serial_printf("[shell] JIT stack push failed: maximum depth reached\n");
+      return 0;
+    }
     int d = jit_stack_depth;
     int j = 0;
     while (jit_program_name[j]) {
@@ -4014,9 +4054,13 @@ int shell_jit_program_start(const char *name) {
     jit_stack[d].running = jit_program_running;
     jit_stack[d].killed  = jit_program_killed;
 
-    /* Save the JIT code+data regions so they survive being overwritten */
-    jit_stack[d].saved_code = kmalloc(CC_MAX_CODE);
-    jit_stack[d].saved_data = kmalloc(CC_MAX_DATA);
+    /* Save the current tool's regions so cross-tool nesting is lossless. */
+    jit_stack[d].code_address = jit_code_address;
+    jit_stack[d].code_bytes = jit_code_bytes;
+    jit_stack[d].data_address = jit_data_address;
+    jit_stack[d].data_bytes = jit_data_bytes;
+    jit_stack[d].saved_code = kmalloc(jit_code_bytes);
+    jit_stack[d].saved_data = kmalloc(jit_data_bytes);
     if (!jit_stack[d].saved_code || !jit_stack[d].saved_data) {
       if (jit_stack[d].saved_code) {
         kfree(jit_stack[d].saved_code);
@@ -4030,8 +4074,10 @@ int shell_jit_program_start(const char *name) {
                     jit_program_name);
       return 0;
     }
-    memcpy(jit_stack[d].saved_code, (void *)CC_JIT_CODE_BASE, CC_MAX_CODE);
-    memcpy(jit_stack[d].saved_data, (void *)CC_JIT_DATA_BASE, CC_MAX_DATA);
+    memcpy(jit_stack[d].saved_code, (void *)jit_code_address,
+           jit_code_bytes);
+    memcpy(jit_stack[d].saved_data, (void *)jit_data_address,
+           jit_data_bytes);
 
     /* Block the process that owns the JIT region so the scheduler
      * won't dispatch it while a different program's code is loaded
@@ -4048,6 +4094,11 @@ int shell_jit_program_start(const char *name) {
 
   /* Current process now owns the JIT region */
   jit_owner_pid = process_get_current_pid();
+  jit_code_address = code_address;
+  jit_code_bytes = code_bytes;
+  jit_data_address = data_address;
+  jit_data_bytes = data_bytes;
+  jit_regions_active = 1;
 
   jit_program_running = 1;
   jit_program_interrupted = 0;
@@ -4075,6 +4126,11 @@ int shell_jit_program_start(const char *name) {
   return 1;
 }
 
+int shell_jit_program_start(const char *name) {
+  return shell_jit_program_start_regions(
+      name, CC_JIT_CODE_BASE, CC_MAX_CODE, CC_JIT_DATA_BASE, CC_MAX_DATA);
+}
+
 void shell_jit_program_end(void) {
   /* Pop previous JIT state if we nested */
   if (jit_stack_depth > 0) {
@@ -4092,15 +4148,23 @@ void shell_jit_program_end(void) {
 
     /* Restore the saved JIT code+data regions */
     if (jit_stack[d].saved_code) {
-      memcpy((void *)CC_JIT_CODE_BASE, jit_stack[d].saved_code, CC_MAX_CODE);
+      memcpy((void *)jit_stack[d].code_address, jit_stack[d].saved_code,
+             jit_stack[d].code_bytes);
       kfree(jit_stack[d].saved_code);
       jit_stack[d].saved_code = NULL;
     }
     if (jit_stack[d].saved_data) {
-      memcpy((void *)CC_JIT_DATA_BASE, jit_stack[d].saved_data, CC_MAX_DATA);
+      memcpy((void *)jit_stack[d].data_address, jit_stack[d].saved_data,
+             jit_stack[d].data_bytes);
       kfree(jit_stack[d].saved_data);
       jit_stack[d].saved_data = NULL;
     }
+
+    jit_code_address = jit_stack[d].code_address;
+    jit_code_bytes = jit_stack[d].code_bytes;
+    jit_data_address = jit_stack[d].data_address;
+    jit_data_bytes = jit_stack[d].data_bytes;
+    jit_regions_active = 1;
 
     /* The previous owner's code is now back in the JIT region - safe
      * to let the scheduler dispatch it again.*/
@@ -4114,6 +4178,7 @@ void shell_jit_program_end(void) {
                   jit_stack_depth, jit_program_name, prev_owner);
   } else {
     jit_owner_pid = 0;
+    shell_jit_clear_active_regions();
     jit_program_running = 0;
     jit_program_interrupted = 0;
     jit_program_killed = 0;
@@ -4226,6 +4291,7 @@ void shell_jit_discard_by_owner(uint32_t pid) {
 
   if (jit_owner_pid == pid) {
     jit_owner_pid = 0;
+    shell_jit_clear_active_regions();
     jit_program_running = 0;
     jit_program_killed = 1;
     jit_program_interrupted = 1;

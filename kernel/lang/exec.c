@@ -19,8 +19,12 @@
 #include "syscall.h"
 #include "serial.h"
 
-/* Maximum executable size (256 KB) */
+/* Maximum CUPD payload size. */
 #define EXEC_MAX_SIZE (256u * 1024u)
+
+/* CupidASM's temporary fixed ET_EXEC layout places independent 1 MiB code
+ * and data regions next to one another. */
+#define ELF_MAX_IMAGE_SPAN (2u * 1024u * 1024u)
 
 /* Maximum number of ELF program headers we support */
 #define ELF_MAX_PHDRS 16
@@ -161,7 +165,7 @@ int elf_exec(const char *path, const char *proc_name) {
     }
 
     uint32_t total_size = max_vaddr - min_vaddr;
-    if (total_size == 0 || total_size > EXEC_MAX_SIZE) {
+    if (total_size == 0 || total_size > ELF_MAX_IMAGE_SPAN) {
         vfs_close(fd);
         serial_printf("[elf] Image too large (%u bytes) in %s\n",
                       total_size, path);

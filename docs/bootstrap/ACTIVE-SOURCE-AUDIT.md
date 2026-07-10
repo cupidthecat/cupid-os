@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 664
 - Unreachable source-like files: 36
-- Reachable output transforms: 465
+- Reachable output transforms: 467
 - Distinct feature requirements: 248
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -20,8 +20,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 26 |
-| `c` | 256 |
-| `c_header` | 256 |
+| `c` | 255 |
+| `c_header` | 257 |
 | `cupid_c` | 126 |
 
 ## Source cohorts
@@ -33,7 +33,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c_browser_fragment` | 22 | 14185 |
 | `cupid_c_program` | 104 | 18443 |
 | `cupid_c_runtime_header` | 2 | 286 |
-| `cupidasm` | 8 | 9890 |
+| `cupidasm` | 7 | 6678 |
 | `cupidc` | 7 | 13072 |
 | `cupiddis` | 5 | 2647 |
 | `doom_port` | 7 | 2638 |
@@ -42,20 +42,20 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 474 |
 | `kernel_audio` | 14 | 4532 |
-| `kernel_core` | 16 | 3715 |
+| `kernel_core` | 16 | 3717 |
 | `kernel_cpu` | 18 | 3255 |
 | `kernel_crypto` | 40 | 5144 |
 | `kernel_fs` | 26 | 6076 |
 | `kernel_gfx` | 28 | 12183 |
 | `kernel_gui` | 28 | 11971 |
-| `kernel_lang` | 20 | 10253 |
+| `kernel_lang` | 20 | 10334 |
 | `kernel_mm` | 7 | 1281 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1081 |
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 6 | 6745 |
+| `toolchain_contract` | 7 | 7159 |
 | `toolchain_core` | 6 | 7661 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
@@ -67,15 +67,15 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 435 | 20 |
+| `.` | `all` | 434 | 20 |
 | `user` | `all` | 7 | 1 |
-| `toolchain` | `all` | 23 | 1 |
+| `toolchain` | `all` | 26 | 2 |
 
 ## Current output ownership
 
 | Tool interface | Reachable transforms |
 | --- | ---: |
-| `host_c_compiler` | 268 |
+| `host_c_compiler` | 270 |
 | `host_linker` | 5 |
 | `host_object_copy` | 181 |
 | `host_python` | 7 |
@@ -98,17 +98,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 4 |
 | `asm.register` | 27 | 734 |
 | `asm.relocation` | 1 | 5 |
-| `c.control` | 12 | 40532 |
+| `c.control` | 12 | 39533 |
 | `c.declaration` | 1 | 18 |
-| `c.declarator` | 4 | 1325 |
-| `c.expression` | 1 | 1074 |
-| `c.extension` | 16 | 368 |
-| `c.initializer` | 1 | 525 |
-| `c.output` | 1 | 246 |
-| `c.preprocessor` | 17 | 6125 |
-| `c.qualifier` | 2 | 4147 |
-| `c.storage` | 4 | 4326 |
-| `c.type` | 14 | 34139 |
+| `c.declarator` | 4 | 1324 |
+| `c.expression` | 1 | 1095 |
+| `c.extension` | 16 | 367 |
+| `c.initializer` | 1 | 600 |
+| `c.output` | 1 | 245 |
+| `c.preprocessor` | 17 | 6124 |
+| `c.qualifier` | 2 | 4149 |
+| `c.storage` | 4 | 4250 |
+| `c.type` | 14 | 33905 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -139,7 +139,7 @@ It is referenced by linker flags but is not a declared Make prerequisite.
 | Rank | Capability | Source evidence |
 | ---: | --- | ---: |
 | 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 36 |
-| 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 248 |
+| 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 247 |
 | 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 61 |
 | 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 9 |
 | 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 26 |
@@ -147,7 +147,7 @@ It is referenced by linker flags but is not a declared Make prerequisite.
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 3 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 505 |
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 607 |
-| 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 56 |
+| 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 128 |
 
@@ -217,7 +217,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 
 | Contract | Status | Detail |
 | --- | --- | --- |
-| `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
+| `bootstrap_artifact_coverage` | `pass` | 424 linked objects; 431 declared artifacts; 0 missing |
 
 ## Interpretation limits
 

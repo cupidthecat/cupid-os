@@ -718,10 +718,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 all: build build/tool
                 build:
                 \tmkdir -p build
-                build/tool: build/tool.o
-                \t$(LD) -o $@ $<
+                build/tool: build/tool.o build/shared.o
+                \t$(LD) -o $@ $^
                 build/tool.o: examples/tool.c cupid.h
                 \t$(CC) -I. -c $< -o $@
+                build/shared.o: ../shared.c
+                \t$(CC) -c $< -o $@
                 """,
             )
             _write(
@@ -729,6 +731,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "#include \"cupid.h\"\nint tool(void) { return CUPID; }\n",
             )
             _write(root / "user" / "cupid.h", "#define CUPID 1\n")
+            _write(root / "shared.c", "int shared(void) { return 1; }\n")
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -751,6 +754,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertIn("user/examples/tool.c", sources)
             self.assertIn("user/cupid.h", sources)
+            self.assertIn("shared.c", sources)
+            self.assertNotIn("user/../shared.c", sources)
             self.assertEqual(
                 sources["user/examples/tool.c"]["cohort"], "user_program"
             )
@@ -763,6 +768,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             self.assertEqual(
                 transforms["user/build/tool.o"]["tools"], ["host_c_compiler"]
+            )
+            self.assertEqual(
+                transforms["user/build/shared.o"]["inputs"], ["shared.c"]
             )
             self.assertEqual(
                 transforms["user/build/tool"]["tools"], ["host_linker"]

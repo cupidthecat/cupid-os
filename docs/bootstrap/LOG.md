@@ -554,3 +554,44 @@ Wayfinder ticket [#20](https://github.com/cupidthecat/cupid-os/issues/20) moved 
 | WSL Linux ASan/UBSan hosted build | PASS | All 35 modes, including two full demo-corpus assemblies per source, completed under address/undefined sanitizers with no finding. |
 
 The production Makefile still invokes NASM for two raw binaries and two ELF32 objects. The kernel still links the legacy CupidASM lexer/parser/emitter, every new C source is still compiled by GCC/Clang, and no CupidASM checked seed or staged self-build exists. Kernel fixed-image adapter migration, strict i386/full-OS/guest proof, the four production recipe cutovers, and self-hosting remain separate green steps.
+
+## 2026-07-10: shared CupidASM kernel JIT/AOT adapter
+
+Wayfinder ticket [#20](https://github.com/cupidthecat/cupid-os/issues/20) completed the semantic migration started by the hosted frontend. The in-OS `as` and `cupidasm` commands now call the same freestanding `ctool_asm_assemble` operation as the native CLI. The legacy `kernel/lang/as_lex.c` and `kernel/lang/as_parse.c` implementations were deleted rather than retained as a second parser, expression engine, layout policy, or encoder authority.
+
+### Kernel boundary and compatibility decisions
+
+- `kernel/lang/as.c` is now a policy adapter. It owns the checked 631-entry case-insensitive runtime-definition catalogue, JIT-versus-AOT binding choices, VFS loading, the historical 0x01A00000 code and 0x01B00000 data placement, entry selection, executable-memory copying, diagnostics, and execution. The shared module owns source semantics and fixed-image construction. The catalogue preserves the legacy 8,192-entry ceiling, and the DEBUG self-test rejects accidental additions, removals, or duplicate spellings by requiring exactly 631 definitions.
+- Kernel `%include` resolution first tries the including source's parent, then the shell CWD when it is not `/`, then the VFS root. These latter two paths are ordered request roots rather than hidden filesystem behavior. `/demos/include_feature.asm` is the boot self-test input so the production VFS adapter and included helper are exercised together.
+- Fixed artifacts are validated before use: one required executable code region, at most one non-executable data region, bounded initialized and memory sizes, contiguous artifact bytes, an entry inside initialized code, and the established 1 MiB per-region limits. JIT zeroes each complete memory region before copying initialized bytes, so BSS remains represented without being stored in the artifact.
+- `kernel/lang/as_elf.c` is now a pure checked buffer operation behind `as_elf32_exec_write`. It accepts a validated fixed artifact and serializes the existing sectionless i386 `ET_EXEC` compatibility format without performing VFS writes or retaining assembly state. Hosted contracts cover code-only, code/data/BSS, and malformed-artifact/output-rollback behavior. Final executable layout remains CupidLD ownership.
+- Shell JIT state now records and snapshots explicit code and data regions. The compatibility wrapper `shell_jit_program_start` still supplies CupidC's historical regions, while CupidASM supplies its own two regions. Nested or suspended programs therefore restore the memory actually owned by the active frontend instead of assuming every JIT uses CupidC placement.
+- The in-OS guide `cupidos-txt/10ASM.CTXT` was reverified against source on 2026-07-10. It now describes the shared module and thin adapters, active syntax, real limits, include order, runtime catalogue, JIT snapshots, and AOT wrapper rather than the deleted legacy parser.
+
+### Test-first failure and runtime fix
+
+- The first AOT guest smoke assembled the hello demo successfully, then the loader rejected its historical 1,048,598-byte mapped span. `exec` still imposed an unrelated 256 KiB whole-executable ceiling even though CupidASM deliberately places independent 1 MiB code and data regions next to one another. The loader ceiling is now 2 MiB: exactly the bounded span already permitted by those adjacent fixed regions, not an unbounded acceptance rule. Header/program-table validation, segment bounds, identity-mapped-address validation, and the per-region assembler limits remain in force.
+- After the bounded loader fix, `cupidasm` wrote the hello executable, `exec` loaded it as a process and reported its PID, and the guest completed without panic. This is the first executed proof of the shared CupidASM AOT path rather than only a writer-format contract.
+- Moving the wrapper behind a buffer-only operation exposed malformed-artifact cases that the old file-writing function could not test transactionally. The negative contract now proves an empty output remains empty for invalid region counts, flags, ordering, entry placement, sizes, and overlapping or inconsistent byte views.
+
+### Migration state
+
+- Hosted RAW, hosted ELF32 `ET_REL`, kernel fixed-image JIT, and kernel fixed-image-to-`ET_EXEC` AOT now share one parser, expression engine, symbol/layout model, and x86 encoder. The real kernel catalogue and VFS include behavior are checked at boot; the hello demo passed both JIT and AOT/`exec` guest paths.
+- The compatibility AOT bridge still places every executable in the same global 0x01A00000/0x01B00000 slots. It proves single-image assembly/loading but does not provide concurrent per-process placement or final image-lifetime ownership; those remain explicit CupidLD/loader work rather than hidden assembler policy.
+- The checked graph contains 664 active language inputs, 248 feature IDs, 467 transforms, and 36 accounted unreachable source-like files. Its 431 declared artifacts cover all 424 final-link objects. The supported roots contribute 434 root, seven user, and 26 hosted-toolchain transforms; the host C compiler still owns 270 outputs.
+- No production assembly artifact changes owner in this adapter step. NASM still produces the boot image, ISR object, context-switch object, and SMP trampoline until issue #22 changes the four recipes and runs their boot, interrupt, scheduler, and SMP proofs. GCC/Clang still compiles the shared CupidASM source, kernel adapter, and temporary executable bridge; no checked seed or staged self-build exists.
+
+### Verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `make -C toolchain test` | PASS | Strict Windows Clang built the hosted tools plus the kernel ELF bridge contract and passed all 38 core/ELF32/x86/CupidDis/CupidASM modes. The three new modes cover code-only, code/data/BSS, and malformed rollback. |
+| WSL Linux strict GCC and ASan/UBSan hosted gates | PASS | Strict warning-as-error GCC passed all 38 modes. A separate build ran the same modes with address, leak, and undefined-behavior sanitizers enabled on every compile and link command; it reported no finding. |
+| Strict Windows i386 object gate | PASS | `toolchain/cupidasm.c`, `kernel/lang/as.c`, `kernel/lang/as_elf.c`, the region-aware shell changes, loader change, and kernel self-test compiled under the root freestanding warning-as-error policy. |
+| `make -j4 all WAD_SRCS=` | PASS | The complete root image linked all 424 final objects, including the shared CupidASM implementation and thin kernel bridge, and produced the kernel and disk image. |
+| `make test` | PASS | All 76 repository tests passed in 40.386 seconds; one platform-specific case was skipped on Windows. |
+| Checked build-graph audit | PASS | The generated JSON/Markdown match 664 active inputs, 248 feature IDs, 467 transforms, 36 unreachable files, and the 431/424 artifact coverage contract. |
+| DEBUG kernel self-test | PASS | Boot assembled the real `/demos/include_feature.asm` plus its included helper through VFS and logged `CupidASM kernel adapter self-test passed (631 definitions)`. |
+| CupidASM JIT GUI smoke | PASS | `as /demos/hello.asm` assembled and executed through shared fixed-image output, reached `JIT execution complete`, and produced no panic. |
+| CupidASM AOT/loader GUI smoke | PASS after bounded loader fix | `cupidasm` assembled the hello demo to ELF32, `exec` loaded the result and reported a PID, and serial output contained no panic. The initial unchanged assembly had exposed the obsolete 256 KiB loader ceiling described above. |
+| Four-CPU boot comparison | PRE-EXISTING FAILURE | With the repository's exact `-smp cpus=4` flags, both this tree and an isolated `d72a528` control build stopped after `acpi: MADT: 4 CPUs, 1 IOAPIC(s)` and never reached the CPU-online or desktop markers. The adapter therefore did not introduce the hang, but issue #22 must not claim the production SMP-trampoline cutover until a four-CPU boot succeeds. |

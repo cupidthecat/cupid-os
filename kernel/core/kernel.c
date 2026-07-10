@@ -70,6 +70,7 @@
 #include "pit.h"
 #include "rtc.h"
 #include "ctool_kernel.h"
+#include "as.h"
 
 #define PIT_FREQUENCY 1193180     // Base PIT frequency in Hz
 #define CALIBRATION_MS 250        // Time to calibrate over (in milliseconds)
@@ -867,6 +868,7 @@ void kmain(void) {
 
 #ifdef DEBUG
     ctool_kernel_selftest();
+    as_kernel_selftest();
 #endif
 
     KINFO("System Timer Frequency: %u Hz", timer_get_frequency());
