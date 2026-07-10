@@ -811,6 +811,7 @@ The isolated Linux test run found two host-environment failures unrelated to OS 
 | WSL `make -C user clean all` | PASS | All three freestanding user programs compiled with no unwind metadata and linked through CupidLD. |
 | WSL `make -C toolchain clean test` | PASS | Every strict hosted contract mode and all 22 demo assemblies passed under GCC. |
 | Windows clean root build, host assemblers poisoned | PASS | Clang accepted the shared portability flags and completed the full image. |
+| Four-vCPU CupidC guest smoke | PASS | All APs completed the CPU-local FPU/SSE enable path and `/bin/ls.cc` reached JIT completion without a panic or exception marker. |
 | Focused Windows/Linux FPU, package, recipe, and audit contracts | PASS | All new positive contracts pass on both supported hosts after recording their failing state. |
 
 This is source/build portability evidence, not the oracle capture itself. The next committed step must run both isolated builds, all three supported roots, host tests, and guest smokes from one revision before Linux baseline status changes from pending.
