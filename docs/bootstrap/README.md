@@ -2,7 +2,7 @@
 
 This directory is the durable record for moving Cupid OS from its current host-produced build to a self-hosting Cupid Toolchain. The implementation map is [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13).
 
-The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. A platform-neutral Cupid Toolchain foundation, deterministic ELF32 relocatable-object module, and shared typed 16/32-bit x86 instruction model now build through supported hosted contracts and a real kernel adapter, but CupidC, CupidASM, and CupidDis still run only inside Cupid OS and are themselves compiled into the kernel by the host C compiler. The shared runtime, object, and instruction seams are host-runnable; the three tool frontends neither consume all of those seams nor run as hosted bootstrap tools yet, so no frontend or source ownership has transferred.
+The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools on Windows, GCC/binutils on Linux, and NASM on both. A platform-neutral Cupid Toolchain foundation, deterministic ELF32 relocatable-object/read-only executable module, and shared typed 16/32-bit x86 instruction model now build through supported hosted contracts and a real kernel adapter. CupidDis is the first migrated frontend: one freestanding implementation serves a native `cupiddis` CLI plus the in-OS `dis`, `exec -d`, and CupidC JIT adapters. CupidC and CupidASM still run only inside Cupid OS, and all three tools are themselves built by the host C compiler. Inspection semantics have transferred to Cupid tooling, but source-build ownership and the normal GCC/Clang/NASM/LLVM paths have not.
 
 ## Records
 
@@ -11,7 +11,7 @@ The current OS baseline is host-owned: the Makefile defaults to Clang/LLVM tools
 - `CAPABILITY-MATRIX.md` records implemented and missing CupidC, CupidASM, CupidDis, object, linker, and bootstrap capabilities.
 - `MIGRATION-MATRIX.md` records which tool owns each source and artifact cohort today and at the self-hosting fixed point.
 - `BASELINE.md` documents the reproducible oracle-build interface and evidence format.
-- `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of the root OS image, separate user-program, and hosted toolchain-contract build roots, including ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
+- `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of the root OS image, separate user-program, and hosted toolchain build roots, including ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
 - `audits/active-build.json` is the deterministic machine-readable companion. Regenerate it with `make bootstrap-audit`; `make test` and `make check-bootstrap-audit` reject drift or a failing audit contract.
 - `../adr/` records stable architectural decisions; `../../CONTEXT.md` defines project vocabulary.
 

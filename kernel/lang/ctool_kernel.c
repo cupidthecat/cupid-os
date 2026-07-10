@@ -2,6 +2,7 @@
 #include "elf32.h"
 #include "x86.h"
 
+#include "dis.h"
 #include "kernel.h"
 #include "memory.h"
 #include "panic.h"
@@ -358,6 +359,116 @@ static void ctool_kernel_x86_selftest(void) {
   KINFO("Cupid x86 instruction model self-test passed");
 }
 
+typedef struct {
+  char bytes[256];
+  uint32_t size;
+  bool overflowed;
+} ctool_kernel_dis_capture_t;
+
+static ctool_kernel_dis_capture_t *ctool_kernel_dis_capture_active;
+
+static void ctool_kernel_dis_capture_write(const char *text) {
+  ctool_kernel_dis_capture_t *capture = ctool_kernel_dis_capture_active;
+  uint32_t index = 0u;
+  if (capture == (ctool_kernel_dis_capture_t *)0 || text == (const char *)0) {
+    return;
+  }
+  while (text[index] != '\0') {
+    if (capture->size + 1u >= (uint32_t)sizeof(capture->bytes)) {
+      capture->overflowed = true;
+      return;
+    }
+    capture->bytes[capture->size] = text[index];
+    capture->size++;
+    index++;
+  }
+  capture->bytes[capture->size] = '\0';
+}
+
+static void ctool_kernel_dis_put_le16(uint8_t *bytes, uint32_t offset,
+                                      uint16_t value) {
+  bytes[offset] = (uint8_t)(value & 0xffu);
+  bytes[offset + 1u] = (uint8_t)((value >> 8u) & 0xffu);
+}
+
+static void ctool_kernel_dis_put_le32(uint8_t *bytes, uint32_t offset,
+                                      uint32_t value) {
+  bytes[offset] = (uint8_t)(value & 0xffu);
+  bytes[offset + 1u] = (uint8_t)((value >> 8u) & 0xffu);
+  bytes[offset + 2u] = (uint8_t)((value >> 16u) & 0xffu);
+  bytes[offset + 3u] = (uint8_t)((value >> 24u) & 0xffu);
+}
+
+static void ctool_kernel_cupiddis_selftest(void) {
+  static const char object_name[] = "/tmp/ctool-cupiddis-selftest.elf";
+  static const ctool_u8 code[] = {0xb8u, 0x78u, 0x56u, 0x34u,
+                                  0x12u, 0xc3u};
+  static const dis_sym_t symbols[] = {{0x00400000u, "entry"}};
+  uint8_t image[90];
+  ctool_kernel_dis_capture_t capture;
+  int status;
+
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  dis_disassemble(code, (uint32_t)sizeof(code), 0x00400000u, symbols, 1,
+                  ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (capture.overflowed ||
+      strstr(capture.bytes, "[disassembly raw]\n") == (char *)0 ||
+      strstr(capture.bytes, "00400000 <entry>:") == (char *)0 ||
+      strstr(capture.bytes, "00400000") == (char *)0 ||
+      strstr(capture.bytes, "mov eax, 0x12345678") == (char *)0 ||
+      strstr(capture.bytes, "ret") == (char *)0) {
+    kernel_panic("CupidDis kernel adapter self-test failed");
+  }
+
+  memset(image, 0, (uint32_t)sizeof(image));
+  image[0] = 0x7fu;
+  image[1] = (uint8_t)'E';
+  image[2] = (uint8_t)'L';
+  image[3] = (uint8_t)'F';
+  image[4] = 1u;
+  image[5] = 1u;
+  image[6] = 1u;
+  ctool_kernel_dis_put_le16(image, 16u, 2u);
+  ctool_kernel_dis_put_le16(image, 18u, 3u);
+  ctool_kernel_dis_put_le32(image, 20u, 1u);
+  ctool_kernel_dis_put_le32(image, 24u, 0x00400000u);
+  ctool_kernel_dis_put_le32(image, 28u, 52u);
+  ctool_kernel_dis_put_le16(image, 40u, 52u);
+  ctool_kernel_dis_put_le16(image, 42u, 32u);
+  ctool_kernel_dis_put_le16(image, 44u, 1u);
+  ctool_kernel_dis_put_le32(image, 52u, CTOOL_ELF32_PT_LOAD);
+  ctool_kernel_dis_put_le32(image, 56u, 84u);
+  ctool_kernel_dis_put_le32(image, 60u, 0x00400000u);
+  ctool_kernel_dis_put_le32(image, 64u, 0x00400000u);
+  ctool_kernel_dis_put_le32(image, 68u, (uint32_t)sizeof(code));
+  ctool_kernel_dis_put_le32(image, 72u, (uint32_t)sizeof(code));
+  ctool_kernel_dis_put_le32(image, 76u,
+                            CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X);
+  ctool_kernel_dis_put_le32(image, 80u, 4u);
+  memcpy(image + 84u, code, (uint32_t)sizeof(code));
+  status = vfs_write_all(object_name, image, (uint32_t)sizeof(image));
+  if (status != (int)sizeof(image)) {
+    kernel_panic("CupidDis kernel command fixture write failed");
+  }
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  status = dis_elf(object_name, ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (vfs_unlink(object_name) != VFS_OK) {
+    kernel_panic("CupidDis kernel command fixture cleanup failed");
+  }
+  if (status != VFS_OK || capture.overflowed ||
+      strstr(capture.bytes, "[disassembly LOAD#0]\n") == (char *)0 ||
+      strstr(capture.bytes, "00400000") == (char *)0 ||
+      strstr(capture.bytes, "mov eax, 0x12345678") == (char *)0 ||
+      strstr(capture.bytes, "ret") == (char *)0) {
+    kernel_panic("CupidDis kernel command self-test failed");
+  }
+  KINFO("CupidDis kernel adapter self-test passed");
+}
+
 void ctool_kernel_selftest(void) {
   static const char output_name[] = "/tmp/ctool-core-selftest.bin";
   static const char marker[] = "ctool-kernel-ok";
@@ -406,4 +517,5 @@ void ctool_kernel_selftest(void) {
   KINFO("Cupid toolchain core self-test passed");
   ctool_kernel_elf32_selftest();
   ctool_kernel_x86_selftest();
+  ctool_kernel_cupiddis_selftest();
 }

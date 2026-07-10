@@ -20,6 +20,7 @@ class ToolchainElf32ContractTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
         suffix = ".exe" if os.name == "nt" else ""
         cls.contract_path = build_path / ("elf32-contract" + suffix)
+        cls.cli_path = build_path / ("cupiddis" + suffix)
         result = subprocess.run(
             [
                 "make",
@@ -83,6 +84,26 @@ class ToolchainElf32ContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "reader-roundtrip: ok\n")
+
+    def test_reader_exposes_bounded_elf32_executable_view(self):
+        result = subprocess.run(
+            [str(self.contract_path), "reader-exec"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "reader-exec: ok\n")
+
+    def test_reader_rejects_malformed_elf32_program_headers(self):
+        result = subprocess.run(
+            [str(self.contract_path), "reader-exec-malformed"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "reader-exec-malformed: ok\n")
 
     def test_reader_bounds_descending_string_table_offsets(self):
         result = subprocess.run(
@@ -247,6 +268,91 @@ class ToolchainElf32ContractTests(unittest.TestCase):
             )
             self.assertEqual(inspection.returncode, 0, inspection.stderr)
             self.assertEqual(inspection.stdout.count("R_386_PC32"), 5)
+
+    def test_reader_accepts_linked_tdata_and_tbss_symbols(self):
+        compiler = shutil.which("clang") or shutil.which("gcc")
+        linker = shutil.which("ld.lld") or shutil.which("ld")
+        readelf = shutil.which("readelf") or shutil.which("llvm-readelf")
+        if compiler is None or linker is None or readelf is None:
+            self.skipTest("C/linker/ELF oracle tools are not installed")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "tls.c"
+            object_path = root / "tls.o"
+            executable = root / "tls.elf"
+            source.write_text(
+                "__thread int tls_init = 1;\n"
+                "__thread int tls_zero;\n"
+                "void _start(void) {}\n",
+                encoding="utf-8",
+            )
+            command = [compiler]
+            if "clang" in Path(compiler).name.lower():
+                command.append("--target=i386-unknown-elf")
+            else:
+                command.append("-m32")
+            command.extend(
+                [
+                    "-std=c11",
+                    "-O0",
+                    "-ffreestanding",
+                    "-fno-pie",
+                    "-fno-pic",
+                    "-fno-asynchronous-unwind-tables",
+                    "-fno-unwind-tables",
+                    "-c",
+                    str(source),
+                    "-o",
+                    str(object_path),
+                ]
+            )
+            compiled = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            linked = subprocess.run(
+                [
+                    linker,
+                    "-m",
+                    "elf_i386",
+                    "--emit-relocs",
+                    "-e",
+                    "_start",
+                    str(object_path),
+                    "-o",
+                    str(executable),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(linked.returncode, 0, linked.stderr)
+            oracle = subprocess.run(
+                [readelf, "-l", "-S", "-s", "-W", str(executable)],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(oracle.returncode, 0, oracle.stderr)
+            self.assertIn(" TLS ", oracle.stdout)
+            self.assertIn("tls_init", oracle.stdout)
+            self.assertIn("tls_zero", oracle.stdout)
+            parsed = subprocess.run(
+                [str(self.contract_path), "inspect", td, "/tls.elf"],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(parsed.returncode, 0, parsed.stderr)
+            report = subprocess.run(
+                [str(self.cli_path), "--headers", "--symbols", str(executable)],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(report.returncode, 0, report.stderr)
+            self.assertIn("] TLS off=", report.stdout)
+            self.assertIn(" TLS DEFAULT ", report.stdout)
 
 
 if __name__ == "__main__":

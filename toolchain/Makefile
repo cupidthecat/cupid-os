@@ -18,12 +18,21 @@ BUILD_DIR ?= build
 CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
+CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
+CUPIDDIS := $(BUILD_DIR)/cupiddis$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                  $(BUILD_DIR)/elf32.o $(BUILD_DIR)/elf32_contract.o
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                $(BUILD_DIR)/x86.o $(BUILD_DIR)/x86_contract.o
+CUPIDDIS_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                            $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
+                            $(BUILD_DIR)/cupiddis.o \
+                            $(BUILD_DIR)/cupiddis_contract.o
+CUPIDDIS_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
+                    $(BUILD_DIR)/cupiddis.o $(BUILD_DIR)/cupiddis_main.o
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -31,7 +40,8 @@ CPPFLAGS ?= -I.
 
 .DEFAULT_GOAL := all
 
-all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT)
+all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
+     $(CUPIDDIS)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -48,6 +58,12 @@ $(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/x86.o: x86.c x86.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupiddis.o: cupiddis.c cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupiddis_main.o: cupiddis_main.c cupiddis.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -55,6 +71,9 @@ $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/x86_contract.o: tests/x86_contract.c tests/x86_active_cases.inc tests/x86_inline_cases.inc x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.c cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(CONTRACT): $(CORE_OBJECTS)
@@ -66,7 +85,14 @@ $(ELF32_CONTRACT): $(ELF32_OBJECTS)
 $(X86_CONTRACT): $(X86_OBJECTS)
 	$(CC) $(CFLAGS) $(X86_OBJECTS) -o $@
 
-test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT)
+$(CUPIDDIS_CONTRACT): $(CUPIDDIS_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDDIS_CONTRACT_OBJECTS) -o $@
+
+$(CUPIDDIS): $(CUPIDDIS_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDDIS_OBJECTS) -o $@
+
+test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
+      $(CUPIDDIS)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -75,6 +101,8 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT)
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors
 	$(ELF32_CONTRACT) reader-roundtrip
+	$(ELF32_CONTRACT) reader-exec
+	$(ELF32_CONTRACT) reader-exec-malformed
 	$(ELF32_CONTRACT) reader-string-offsets
 	$(ELF32_CONTRACT) reader-malformed
 	$(X86_CONTRACT) inventory
@@ -85,6 +113,11 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT)
 	$(X86_CONTRACT) system-simd
 	$(X86_CONTRACT) active-surface
 	$(X86_CONTRACT) errors
+	$(CUPIDDIS_CONTRACT) raw
+	$(CUPIDDIS_CONTRACT) object
+	$(CUPIDDIS_CONTRACT) exec
+	$(CUPIDDIS_CONTRACT) nm
+	$(CUPIDDIS_CONTRACT) errors
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"

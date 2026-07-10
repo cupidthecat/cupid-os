@@ -18,11 +18,229 @@ static ctool_u32 read_le32(const ctool_u8 *bytes, ctool_u32 offset) {
          ((ctool_u32)bytes[offset + 3u] << 24u);
 }
 
+static void write_le16(ctool_u8 *bytes, ctool_u32 offset, ctool_u16 value) {
+  bytes[offset] = (ctool_u8)(value & 0xffu);
+  bytes[offset + 1u] = (ctool_u8)((value >> 8u) & 0xffu);
+}
+
 static void write_le32(ctool_u8 *bytes, ctool_u32 offset, ctool_u32 value) {
   bytes[offset] = (ctool_u8)(value & 0xffu);
   bytes[offset + 1u] = (ctool_u8)((value >> 8u) & 0xffu);
   bytes[offset + 2u] = (ctool_u8)((value >> 16u) & 0xffu);
   bytes[offset + 3u] = (ctool_u8)((value >> 24u) & 0xffu);
+}
+
+static ctool_u32 build_exec_fixture(ctool_u8 *bytes, ctool_u32 capacity,
+                                     ctool_bool with_sections) {
+  static const ctool_u8 text[] = {0x55u, 0x89u, 0xe5u, 0xc3u};
+  static const char strtab[] = "\0entry\0";
+  static const char shstrtab[] =
+      "\0.text\0.symtab\0.strtab\0.shstrtab\0";
+  const ctool_u32 image_size = with_sections == CTOOL_TRUE ? 364u : 88u;
+  const ctool_u32 section_headers = 164u;
+  ctool_u32 header;
+  if (capacity < image_size) {
+    return 0u;
+  }
+  (void)memset(bytes, 0, (size_t)image_size);
+  bytes[0] = 0x7fu;
+  bytes[1] = (ctool_u8)'E';
+  bytes[2] = (ctool_u8)'L';
+  bytes[3] = (ctool_u8)'F';
+  bytes[4] = 1u;
+  bytes[5] = 1u;
+  bytes[6] = 1u;
+  write_le16(bytes, 16u, 2u);
+  write_le16(bytes, 18u, 3u);
+  write_le32(bytes, 20u, 1u);
+  write_le32(bytes, 24u, 0x00100000u);
+  write_le32(bytes, 28u, 52u);
+  write_le32(bytes, 32u,
+             with_sections == CTOOL_TRUE ? section_headers : 0u);
+  write_le32(bytes, 36u, 0x12345678u);
+  write_le16(bytes, 40u, 52u);
+  write_le16(bytes, 42u, 32u);
+  write_le16(bytes, 44u, 1u);
+  write_le16(bytes, 46u, with_sections == CTOOL_TRUE ? 40u : 0u);
+  write_le16(bytes, 48u, with_sections == CTOOL_TRUE ? 5u : 0u);
+  write_le16(bytes, 50u, with_sections == CTOOL_TRUE ? 4u : 0u);
+
+  write_le32(bytes, 52u, 1u);
+  write_le32(bytes, 56u, 84u);
+  write_le32(bytes, 60u, 0x00100000u);
+  write_le32(bytes, 64u, 0x00100000u);
+  write_le32(bytes, 68u, 4u);
+  write_le32(bytes, 72u, 8u);
+  write_le32(bytes, 76u, 5u);
+  write_le32(bytes, 80u, 4u);
+  (void)memcpy(bytes + 84u, text, sizeof(text));
+  if (with_sections == CTOOL_FALSE) {
+    return image_size;
+  }
+
+  (void)memcpy(bytes + 88u, strtab, sizeof(strtab));
+  write_le32(bytes, 112u, 1u);
+  write_le32(bytes, 116u, 0x00100000u);
+  write_le32(bytes, 120u, 4u);
+  bytes[124u] = 0x12u;
+  write_le16(bytes, 126u, 1u);
+  (void)memcpy(bytes + 128u, shstrtab, sizeof(shstrtab));
+
+  header = section_headers + 40u;
+  write_le32(bytes, header, 1u);
+  write_le32(bytes, header + 4u, 1u);
+  write_le32(bytes, header + 8u, 6u);
+  write_le32(bytes, header + 12u, 0x00100000u);
+  write_le32(bytes, header + 16u, 84u);
+  write_le32(bytes, header + 20u, 4u);
+  write_le32(bytes, header + 32u, 4u);
+
+  header = section_headers + 80u;
+  write_le32(bytes, header, 7u);
+  write_le32(bytes, header + 4u, 2u);
+  write_le32(bytes, header + 16u, 96u);
+  write_le32(bytes, header + 20u, 32u);
+  write_le32(bytes, header + 24u, 3u);
+  write_le32(bytes, header + 28u, 1u);
+  write_le32(bytes, header + 32u, 4u);
+  write_le32(bytes, header + 36u, 16u);
+
+  header = section_headers + 120u;
+  write_le32(bytes, header, 15u);
+  write_le32(bytes, header + 4u, 3u);
+  write_le32(bytes, header + 16u, 88u);
+  write_le32(bytes, header + 20u, (ctool_u32)sizeof(strtab));
+  write_le32(bytes, header + 32u, 1u);
+
+  header = section_headers + 160u;
+  write_le32(bytes, header, 23u);
+  write_le32(bytes, header + 4u, 3u);
+  write_le32(bytes, header + 16u, 128u);
+  write_le32(bytes, header + 20u, (ctool_u32)sizeof(shstrtab));
+  write_le32(bytes, header + 32u, 1u);
+  return image_size;
+}
+
+static ctool_u32 build_tls_exec_fixture(ctool_u8 *bytes,
+                                         ctool_u32 capacity) {
+  static const char strtab[] = "\0tls_init\0tls_zero\0";
+  static const char shstrtab[] =
+      "\0.text\0.tdata\0.tbss\0.symtab\0.strtab\0.shstrtab\0";
+  const ctool_u32 image_size = 520u;
+  const ctool_u32 section_headers = 240u;
+  ctool_u32 header;
+  if (capacity < image_size) {
+    return 0u;
+  }
+  (void)memset(bytes, 0, (size_t)image_size);
+  bytes[0] = 0x7fu;
+  bytes[1] = (ctool_u8)'E';
+  bytes[2] = (ctool_u8)'L';
+  bytes[3] = (ctool_u8)'F';
+  bytes[4] = 1u;
+  bytes[5] = 1u;
+  bytes[6] = 1u;
+  write_le16(bytes, 16u, 2u);
+  write_le16(bytes, 18u, 3u);
+  write_le32(bytes, 20u, 1u);
+  write_le32(bytes, 24u, 0x1000u);
+  write_le32(bytes, 28u, 52u);
+  write_le32(bytes, 32u, section_headers);
+  write_le16(bytes, 40u, 52u);
+  write_le16(bytes, 42u, 32u);
+  write_le16(bytes, 44u, 2u);
+  write_le16(bytes, 46u, 40u);
+  write_le16(bytes, 48u, 7u);
+  write_le16(bytes, 50u, 6u);
+
+  write_le32(bytes, 52u, CTOOL_ELF32_PT_LOAD);
+  write_le32(bytes, 56u, 116u);
+  write_le32(bytes, 60u, 0x1000u);
+  write_le32(bytes, 64u, 0x1000u);
+  write_le32(bytes, 68u, 1u);
+  write_le32(bytes, 72u, 1u);
+  write_le32(bytes, 76u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X);
+  write_le32(bytes, 80u, 1u);
+  write_le32(bytes, 84u, CTOOL_ELF32_PT_TLS);
+  write_le32(bytes, 88u, 120u);
+  write_le32(bytes, 92u, 0x2000u);
+  write_le32(bytes, 96u, 0x2000u);
+  write_le32(bytes, 100u, 4u);
+  write_le32(bytes, 104u, 8u);
+  write_le32(bytes, 108u, CTOOL_ELF32_PF_R);
+  write_le32(bytes, 112u, 4u);
+
+  bytes[116u] = 0xc3u;
+  write_le32(bytes, 120u, 1u);
+  write_le32(bytes, 140u, 1u);
+  write_le32(bytes, 144u, 0u);
+  write_le32(bytes, 148u, 4u);
+  bytes[152u] = 0x16u;
+  write_le16(bytes, 154u, 2u);
+  write_le32(bytes, 156u, 10u);
+  write_le32(bytes, 160u, 4u);
+  write_le32(bytes, 164u, 4u);
+  bytes[168u] = 0x16u;
+  write_le16(bytes, 170u, 3u);
+  (void)memcpy(bytes + 172u, strtab, sizeof(strtab));
+  (void)memcpy(bytes + 192u, shstrtab, sizeof(shstrtab));
+
+  header = section_headers + 40u;
+  write_le32(bytes, header, 1u);
+  write_le32(bytes, header + 4u, CTOOL_ELF32_SHT_PROGBITS);
+  write_le32(bytes, header + 8u,
+             CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR);
+  write_le32(bytes, header + 12u, 0x1000u);
+  write_le32(bytes, header + 16u, 116u);
+  write_le32(bytes, header + 20u, 1u);
+  write_le32(bytes, header + 32u, 1u);
+
+  header = section_headers + 80u;
+  write_le32(bytes, header, 7u);
+  write_le32(bytes, header + 4u, CTOOL_ELF32_SHT_PROGBITS);
+  write_le32(bytes, header + 8u,
+             CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE |
+                 CTOOL_ELF32_SHF_TLS);
+  write_le32(bytes, header + 12u, 0x2000u);
+  write_le32(bytes, header + 16u, 120u);
+  write_le32(bytes, header + 20u, 4u);
+  write_le32(bytes, header + 32u, 4u);
+
+  header = section_headers + 120u;
+  write_le32(bytes, header, 14u);
+  write_le32(bytes, header + 4u, CTOOL_ELF32_SHT_NOBITS);
+  write_le32(bytes, header + 8u,
+             CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE |
+                 CTOOL_ELF32_SHF_TLS);
+  write_le32(bytes, header + 12u, 0x2004u);
+  write_le32(bytes, header + 16u, 124u);
+  write_le32(bytes, header + 20u, 4u);
+  write_le32(bytes, header + 32u, 4u);
+
+  header = section_headers + 160u;
+  write_le32(bytes, header, 20u);
+  write_le32(bytes, header + 4u, 2u);
+  write_le32(bytes, header + 16u, 124u);
+  write_le32(bytes, header + 20u, 48u);
+  write_le32(bytes, header + 24u, 5u);
+  write_le32(bytes, header + 28u, 1u);
+  write_le32(bytes, header + 32u, 4u);
+  write_le32(bytes, header + 36u, 16u);
+
+  header = section_headers + 200u;
+  write_le32(bytes, header, 28u);
+  write_le32(bytes, header + 4u, 3u);
+  write_le32(bytes, header + 16u, 172u);
+  write_le32(bytes, header + 20u, (ctool_u32)sizeof(strtab));
+  write_le32(bytes, header + 32u, 1u);
+
+  header = section_headers + 240u;
+  write_le32(bytes, header, 36u);
+  write_le32(bytes, header + 4u, 3u);
+  write_le32(bytes, header + 16u, 192u);
+  write_le32(bytes, header + 20u, (ctool_u32)sizeof(shstrtab));
+  write_le32(bytes, header + 32u, 1u);
+  return image_size;
 }
 
 static int check_status(ctool_status_t actual, ctool_status_t expected,
@@ -34,6 +252,11 @@ static int check_status(ctool_status_t actual, ctool_status_t expected,
   }
   return 1;
 }
+
+static int expect_reader_failure(ctool_job_t *job, const ctool_u8 *bytes,
+                                 ctool_u32 size, ctool_status_t expected_status,
+                                 ctool_u32 expected_code,
+                                 const char *case_name);
 
 static int open_job_at(const char *root, ctool_host_adapter_t *adapter,
                        ctool_job_config_t *config, ctool_job_t **job) {
@@ -744,6 +967,10 @@ static int run_reader_roundtrip(void) {
   if (!check_status(status, CTOOL_OK, "ELF32 read after write") ||
       object.image.data != source.contents.data ||
       object.image.size != source.contents.size || object.section_count != 6u ||
+      object.file_type != CTOOL_ELF32_ET_REL || object.entry_point != 0u ||
+      object.flags != 0u || object.program_headers !=
+                                (const ctool_elf32_program_header_t *)0 ||
+      object.program_header_count != 0u ||
       object.symbol_count != 3u || object.relocation_count != 1u ||
       text_view == (const ctool_elf32_section_t *)0 ||
       text_view->file_index != 1u ||
@@ -807,6 +1034,310 @@ static int run_reader_roundtrip(void) {
   ctool_buffer_close(output);
   ctool_job_close(job);
   (void)puts("reader-roundtrip: ok");
+  return 0;
+}
+
+static int run_reader_exec(void) {
+  ctool_u8 image[600];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_program_header_t *load;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *entry;
+  const ctool_elf32_symbol_t *tls_init;
+  const ctool_elf32_symbol_t *tls_zero;
+  ctool_u32 image_size;
+  ctool_u32 section_headers;
+  ctool_u32 symtab_header;
+  ctool_u32 symtab_offset;
+  ctool_u32 entry_offset;
+  ctool_u32 index;
+  ctool_status_t status;
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  image_size = build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_TRUE);
+  source.path.text = ctool_string("/kernel.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  load = object.program_header_count == 1u ? &object.program_headers[0]
+                                           : (const ctool_elf32_program_header_t *)0;
+  text = find_view_section(&object, ".text");
+  entry = find_view_symbol(&object, "entry");
+  if (!check_status(status, CTOOL_OK, "read ELF32 executable") ||
+      object.file_type != CTOOL_ELF32_ET_EXEC ||
+      object.entry_point != 0x00100000u || object.flags != 0x12345678u ||
+      load == (const ctool_elf32_program_header_t *)0 ||
+      load->file_index != 0u || load->type != CTOOL_ELF32_PT_LOAD ||
+      load->file_offset != 84u || load->virtual_address != 0x00100000u ||
+      load->physical_address != 0x00100000u || load->file_size != 4u ||
+      load->memory_size != 8u ||
+      load->flags != (CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X) ||
+      load->alignment != 4u || load->contents.data != image + 84u ||
+      load->contents.size != 4u || load->contents.data[3] != 0xc3u ||
+      object.section_count != 5u || text == (const ctool_elf32_section_t *)0 ||
+      text->address != 0x00100000u || text->contents.size != 4u ||
+      object.symbol_count != 2u || entry == (const ctool_elf32_symbol_t *)0 ||
+      entry->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      entry->section_file_index != 1u || entry->value != 0x00100000u ||
+      entry->size != 4u) {
+    (void)fprintf(stderr, "ELF32 executable view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+
+  section_headers = read_le32(image, 32u);
+  symtab_header =
+      section_headers + find_section(ctool_bytes(image, image_size),
+                                     ".symtab") * 40u;
+  symtab_offset = read_le32(image, symtab_header + 16u);
+  entry_offset = symtab_offset + 16u;
+  write_le32(image, entry_offset + 4u, 0x00100008u);
+  write_le32(image, entry_offset + 8u, 0u);
+  image[entry_offset + 12u] = 0x10u;
+  status = ctool_elf32_read(job, &source, &object);
+  entry = find_view_symbol(&object, "entry");
+  if (!check_status(status, CTOOL_OK, "read executable linker boundary") ||
+      entry == (const ctool_elf32_symbol_t *)0 ||
+      entry->type != CTOOL_ELF32_SYMBOL_NOTYPE || entry->size != 0u ||
+      entry->value != 0x00100008u ||
+      entry->section_file_index != 1u) {
+    (void)fprintf(stderr, "ELF32 executable linker boundary differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+
+  image_size = build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_TRUE);
+  section_headers = read_le32(image, 32u);
+  write_le32(image, section_headers + 40u + 8u,
+             CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE |
+                 CTOOL_ELF32_SHF_TLS);
+  symtab_header =
+      section_headers + find_section(ctool_bytes(image, image_size),
+                                     ".symtab") * 40u;
+  symtab_offset = read_le32(image, symtab_header + 16u);
+  entry_offset = symtab_offset + 16u;
+  write_le32(image, entry_offset + 4u, 0u);
+  image[entry_offset + 12u] = 0x16u;
+  source.path.text = ctool_string("/tls-symbol.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  entry = find_view_symbol(&object, "entry");
+  if (!check_status(status, CTOOL_OK, "read executable TLS symbol") ||
+      entry == (const ctool_elf32_symbol_t *)0 ||
+      entry->type != CTOOL_ELF32_SYMBOL_TLS || entry->value != 0u ||
+      entry->size != 4u || entry->section_file_index != 1u) {
+    (void)fprintf(stderr, "ELF32 executable TLS symbol differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  write_le32(image, entry_offset + 4u, 5u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_SYMBOL,
+                             "out-of-range executable TLS symbol")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  write_le32(image, entry_offset + 4u, 0u);
+  write_le16(image, entry_offset + 14u, 0xfff1u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_SYMBOL,
+                             "absolute executable TLS symbol")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  image_size = build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_TRUE);
+  section_headers = read_le32(image, 32u);
+  write_le16(image, 50u, 0u);
+  for (index = 0u; index < 5u; index++) {
+    write_le32(image, section_headers + index * 40u, 0u);
+  }
+  source.path.text = ctool_string("/unnamed-sections.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  entry = find_view_symbol(&object, "entry");
+  if (!check_status(status, CTOOL_OK, "read unnamed ELF32 sections") ||
+      object.section_count != 5u ||
+      object.sections[1].name.size != 0u ||
+      entry == (const ctool_elf32_symbol_t *)0 ||
+      entry->section_file_index != 1u) {
+    (void)fprintf(stderr, "unnamed ELF32 section view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+
+  image_size = build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_TRUE);
+  section_headers = read_le32(image, 32u);
+  (void)memmove(image + section_headers + 1u, image + section_headers,
+                5u * 40u);
+  write_le32(image, 32u, section_headers + 1u);
+  image_size++;
+  source.path.text = ctool_string("/unaligned-sections.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  if (!check_status(status, CTOOL_OK, "read unaligned section table") ||
+      object.section_count != 5u ||
+      find_view_section(&object, ".text") ==
+          (const ctool_elf32_section_t *)0) {
+    (void)fprintf(stderr, "unaligned section-table view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  source.path.text = ctool_string("/sectionless.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  if (!check_status(status, CTOOL_OK, "read sectionless ELF32 executable") ||
+      object.file_type != CTOOL_ELF32_ET_EXEC ||
+      object.entry_point != 0x00100000u || object.program_header_count != 1u ||
+      object.program_headers[0].contents.data != image + 84u ||
+      object.program_headers[0].contents.size != 4u ||
+      object.sections != (const ctool_elf32_section_t *)0 ||
+      object.section_count != 0u ||
+      object.symbols != (const ctool_elf32_symbol_t *)0 ||
+      object.symbol_count != 0u ||
+      object.relocations != (const ctool_elf32_relocation_t *)0 ||
+      object.relocation_count != 0u) {
+    (void)fprintf(stderr, "sectionless ELF32 executable view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memmove(image + 53u, image + 52u, 36u);
+  write_le32(image, 28u, 53u);
+  write_le32(image, 57u, 85u);
+  write_le32(image, 81u, 1u);
+  image_size++;
+  source.path.text = ctool_string("/unaligned-programs.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  if (!check_status(status, CTOOL_OK, "read unaligned program table") ||
+      object.program_header_count != 1u ||
+      object.program_headers[0].file_offset != 85u ||
+      object.program_headers[0].contents.data != image + 85u ||
+      object.program_headers[0].contents.size != 4u ||
+      object.program_headers[0].contents.data[3] != 0xc3u) {
+    (void)fprintf(stderr, "unaligned program-table view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 28u, 0u);
+  write_le16(image, 44u, 0u);
+  write_le16(image, 46u, 40u);
+  source.path.text = ctool_string("/empty-tables.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  if (!check_status(status, CTOOL_OK, "read zero-count ELF32 tables") ||
+      object.program_header_count != 0u || object.section_count != 0u) {
+    (void)fprintf(stderr, "zero-count ELF32 table view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size = build_tls_exec_fixture(image, (ctool_u32)sizeof(image));
+  source.path.text = ctool_string("/multi-section-tls.elf");
+  source.contents = ctool_bytes(image, image_size);
+  status = ctool_elf32_read(job, &source, &object);
+  tls_init = find_view_symbol(&object, "tls_init");
+  tls_zero = find_view_symbol(&object, "tls_zero");
+  if (!check_status(status, CTOOL_OK, "read multi-section TLS layout") ||
+      object.program_header_count != 2u ||
+      object.program_headers[1].type != CTOOL_ELF32_PT_TLS ||
+      object.program_headers[1].memory_size != 8u ||
+      tls_init == (const ctool_elf32_symbol_t *)0 ||
+      tls_init->type != CTOOL_ELF32_SYMBOL_TLS || tls_init->value != 0u ||
+      tls_init->section_file_index != 2u ||
+      tls_zero == (const ctool_elf32_symbol_t *)0 ||
+      tls_zero->type != CTOOL_ELF32_SYMBOL_TLS || tls_zero->value != 4u ||
+      tls_zero->section_file_index != 3u) {
+    (void)fprintf(stderr, "multi-section ELF32 TLS view differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  write_le32(image, 160u, 8u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_SYMBOL,
+                             "out-of-range multi-section TLS symbol")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)puts("reader-exec: ok");
+  return 0;
+}
+
+static int run_reader_exec_malformed(void) {
+  ctool_u8 image[364];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job;
+  ctool_u32 image_size;
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 28u, image_size - 16u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_HEADER,
+                             "truncated program-header table")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 68u, 9u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER,
+                             "program contents out of range")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 72u, 3u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER,
+                             "load file size exceeds memory size")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 80u, 3u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER,
+                             "invalid program alignment")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_FALSE);
+  write_le32(image, 60u, 0xfffffffeu);
+  write_le32(image, 80u, 1u);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER,
+                             "overflowing load address")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  image_size =
+      build_exec_fixture(image, (ctool_u32)sizeof(image), CTOOL_TRUE);
+  write_le32(image, read_le32(image, 32u) + 40u + 12u, 0xfffffffeu);
+  if (!expect_reader_failure(job, image, image_size, CTOOL_ERR_INPUT,
+                             CTOOL_ELF32_DIAG_BAD_SECTION,
+                             "overflowing executable section address")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)puts("reader-exec-malformed: ok");
   return 0;
 }
 
@@ -928,6 +1459,11 @@ static int expect_reader_failure(ctool_job_t *job, const ctool_u8 *bytes,
   source.contents = ctool_bytes(bytes, size);
   object.image.data = (const ctool_u8 *)bytes;
   object.image.size = 1u;
+  object.file_type = CTOOL_ELF32_ET_EXEC;
+  object.entry_point = 1u;
+  object.flags = 1u;
+  object.program_headers = (const ctool_elf32_program_header_t *)bytes;
+  object.program_header_count = 1u;
   object.section_count = 1u;
   object.symbol_count = 1u;
   object.relocation_count = 1u;
@@ -938,6 +1474,10 @@ static int expect_reader_failure(ctool_job_t *job, const ctool_u8 *bytes,
       diagnostic == (const ctool_diagnostic_t *)0 ||
       diagnostic->code != expected_code || diagnostic->message.size == 0u ||
       object.image.data != (const ctool_u8 *)0 || object.image.size != 0u ||
+      (ctool_u32)object.file_type != 0u || object.entry_point != 0u ||
+      object.flags != 0u ||
+      object.program_headers != (const ctool_elf32_program_header_t *)0 ||
+      object.program_header_count != 0u ||
       object.sections != (const ctool_elf32_section_t *)0 ||
       object.section_count != 0u ||
       object.symbols != (const ctool_elf32_symbol_t *)0 ||
@@ -988,6 +1528,12 @@ static int run_reader_malformed(void) {
   invalid_source.path.text = ctool_string("/invalid.o");
   invalid_source.contents = ctool_bytes((const void *)0, 1u);
   invalid_object.image = ctool_bytes(text, (ctool_u32)sizeof(text));
+  invalid_object.file_type = CTOOL_ELF32_ET_EXEC;
+  invalid_object.entry_point = 1u;
+  invalid_object.flags = 1u;
+  invalid_object.program_headers =
+      (const ctool_elf32_program_header_t *)(const void *)text;
+  invalid_object.program_header_count = 1u;
   invalid_object.sections = (const ctool_elf32_section_t *)&section;
   invalid_object.section_count = 1u;
   invalid_object.symbols = (const ctool_elf32_symbol_t *)symbols;
@@ -1000,6 +1546,11 @@ static int run_reader_malformed(void) {
                     "invalid reader source") ||
       invalid_object.image.data != (const ctool_u8 *)0 ||
       invalid_object.image.size != 0u ||
+      (ctool_u32)invalid_object.file_type != 0u ||
+      invalid_object.entry_point != 0u || invalid_object.flags != 0u ||
+      invalid_object.program_headers !=
+          (const ctool_elf32_program_header_t *)0 ||
+      invalid_object.program_header_count != 0u ||
       invalid_object.sections != (const ctool_elf32_section_t *)0 ||
       invalid_object.section_count != 0u ||
       invalid_object.symbols != (const ctool_elf32_symbol_t *)0 ||
@@ -1012,6 +1563,18 @@ static int run_reader_malformed(void) {
     ctool_job_close(job);
     return 1;
   }
+  invalid_source.path.text.data = (const char *)0;
+  invalid_source.path.text.size = 1u;
+  invalid_source.contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+  status = ctool_elf32_read(job, &invalid_source, &invalid_object);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "invalid reader path") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  invalid_source.path.text = ctool_string("/invalid.o");
   section.name = ctool_string(".text");
   section.type = CTOOL_ELF32_SHT_PROGBITS;
   section.flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
@@ -1109,6 +1672,13 @@ static int run_reader_malformed(void) {
   if (!expect_reader_failure(job, copy, valid.size, CTOOL_ERR_INPUT,
                              CTOOL_ELF32_DIAG_BAD_STRING,
                              "invalid section name")) {
+    goto malformed_fail;
+  }
+  (void)memcpy(copy, valid.data, (size_t)valid.size);
+  write_le32(copy, symtab_header + 4u, 11u);
+  if (!expect_reader_failure(job, copy, valid.size, CTOOL_ERR_UNSUPPORTED,
+                             CTOOL_ELF32_DIAG_UNSUPPORTED_FEATURE,
+                             "dynamic symbol table")) {
     goto malformed_fail;
   }
   (void)memcpy(copy, valid.data, (size_t)valid.size);
@@ -1346,6 +1916,12 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "reader-roundtrip") == 0) {
     return run_reader_roundtrip();
   }
+  if (argc == 2 && strcmp(argv[1], "reader-exec") == 0) {
+    return run_reader_exec();
+  }
+  if (argc == 2 && strcmp(argv[1], "reader-exec-malformed") == 0) {
+    return run_reader_exec_malformed();
+  }
   if (argc == 2 && strcmp(argv[1], "reader-string-offsets") == 0) {
     return run_reader_string_offsets();
   }
@@ -1364,7 +1940,7 @@ int main(int argc, char **argv) {
   (void)fprintf(stderr,
                 "usage: elf32-contract writer-basic|writer-model|"
                 "writer-errors|reader-roundtrip|reader-string-offsets|"
-                "reader-malformed|"
+                "reader-exec|reader-exec-malformed|reader-malformed|"
                 "write-oracle ROOT|inspect ROOT LOGICAL_PATH|"
                 "reader-c-oracle ROOT|reader-isr-oracle ROOT\n");
   return 2;

@@ -786,6 +786,12 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
         return "toolchain_contract"
     if path.startswith("toolchain/") and basename.startswith("ctool_host"):
         return "toolchain_host_adapter"
+    if path.startswith("toolchain/") and basename in {
+        "cupiddis.c",
+        "cupiddis.h",
+        "cupiddis_main.c",
+    }:
+        return "cupiddis"
     if path.startswith("toolchain/"):
         return "toolchain_core"
     if path.startswith("kernel/lang/") and basename.startswith("ctool_kernel"):

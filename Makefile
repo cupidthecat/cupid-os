@@ -196,7 +196,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
             kernel/tls/tls12_handshake.o \
             kernel/tls/tls_selftest.o \
-			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o kernel/lang/ctool_kernel.o \
+			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o kernel/lang/ctool_kernel.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
@@ -860,7 +860,10 @@ toolchain/elf32.o: toolchain/elf32.c toolchain/elf32.h toolchain/ctool.h
 toolchain/x86.o: toolchain/x86.c toolchain/x86.h toolchain/ctool.h
 	$(CC) $(CFLAGS) toolchain/x86.c -o toolchain/x86.o
 
-kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h kernel/core/string.h drivers/serial.h
+toolchain/cupiddis.o: toolchain/cupiddis.c toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h
+	$(CC) $(CFLAGS) toolchain/cupiddis.c -o toolchain/cupiddis.o
+
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h kernel/core/string.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o
 
 kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
@@ -894,7 +897,7 @@ kernel/lang/as_parse.o: kernel/lang/as_parse.c kernel/lang/as.h
 kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as.h kernel/lang/exec.h kernel/fs/vfs.h
 	$(CC) $(CFLAGS) kernel/lang/as_elf.c -o kernel/lang/as_elf.o
 
-kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/core/types.h kernel/lang/exec.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h
+kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/lang/ctool_kernel.h toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/core/types.h kernel/core/kernel.h kernel/fs/vfs.h
 	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
 
 # Auto-generate browser CSS data tables from Blink .in files.

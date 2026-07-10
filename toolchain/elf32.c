@@ -1,9 +1,11 @@
 #include "elf32.h"
 
 #define ELF32_HEADER_SIZE 52u
+#define ELF32_PROGRAM_HEADER_SIZE 32u
 #define ELF32_SECTION_HEADER_SIZE 40u
 #define ELF32_SYMBOL_SIZE 16u
 #define ELF32_RELOCATION_SIZE 8u
+#define ELF32_U32_MAX 4294967295u
 #define ELF32_SHN_LORESERVE 0xff00u
 #define ELF32_SHN_ABS 0xfff1u
 #define ELF32_SHN_COMMON 0xfff2u
@@ -11,6 +13,7 @@
 #define ELF32_SHT_SYMTAB 2u
 #define ELF32_SHT_STRTAB 3u
 #define ELF32_SHT_REL 9u
+#define ELF32_SHT_DYNSYM 11u
 #define ELF32_WRITER_SECTION_FLAGS                                           \
   (CTOOL_ELF32_SHF_WRITE | CTOOL_ELF32_SHF_ALLOC |                         \
    CTOOL_ELF32_SHF_EXECINSTR | CTOOL_ELF32_SHF_MERGE |                     \
@@ -893,6 +896,11 @@ static ctool_bool elf32_range_fits(ctool_u32 offset, ctool_u32 size,
 static void elf32_zero_object(ctool_elf32_object_t *object) {
   object->image.data = (const ctool_u8 *)0;
   object->image.size = 0u;
+  object->file_type = (ctool_elf32_file_type_t)0;
+  object->entry_point = 0u;
+  object->flags = 0u;
+  object->program_headers = (const ctool_elf32_program_header_t *)0;
+  object->program_header_count = 0u;
   object->sections = (const ctool_elf32_section_t *)0;
   object->section_count = 0u;
   object->symbols = (const ctool_elf32_symbol_t *)0;
@@ -1038,6 +1046,8 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
   ctool_bytes_t image;
   ctool_arena_t *arena;
   ctool_arena_mark_t mark;
+  ctool_elf32_program_header_t *program_headers =
+      (ctool_elf32_program_header_t *)0;
   ctool_elf32_section_t *sections;
   ctool_elf32_symbol_t *symbols = (ctool_elf32_symbol_t *)0;
   ctool_elf32_relocation_t *relocations =
@@ -1048,12 +1058,19 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
       (elf32_relocation_site_t *)0;
   ctool_u32 *relocation_counts = (ctool_u32 *)0;
   ctool_u32 *relocation_cursors = (ctool_u32 *)0;
+  ctool_u32 file_type;
+  ctool_u32 entry_point;
+  ctool_u32 elf_flags;
+  ctool_u32 program_header_table;
+  ctool_u32 program_header_count;
   ctool_u32 section_headers;
   ctool_u32 section_count;
   ctool_u32 shstrtab_index;
   ctool_u32 symtab_index = 0u;
   ctool_u32 symtab_count = 0u;
   ctool_u32 relocation_count = 0u;
+  ctool_u32 tls_base = ELF32_U32_MAX;
+  ctool_bool have_tls = CTOOL_FALSE;
   ctool_u32 index;
   ctool_u32 other;
   ctool_u32 position;
@@ -1070,7 +1087,9 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
   if (job == (ctool_job_t *)0 || source == (const ctool_source_t *)0 ||
       object_out == (ctool_elf32_object_t *)0 ||
       (source->contents.data == (const ctool_u8 *)0 &&
-       source->contents.size != 0u)) {
+       source->contents.size != 0u) ||
+      (source->path.text.data == (const char *)0 &&
+       source->path.text.size != 0u)) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
   image = source->contents;
@@ -1088,32 +1107,53 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
                               CTOOL_ERR_INPUT, CTOOL_ELF32_DIAG_BAD_MAGIC, 0u,
                               "ELF32 magic is invalid");
   }
+  file_type = (ctool_u32)elf32_read_le16(image, 16u);
   if (image.data[4] != 1u || image.data[5] != 1u || image.data[6] != 1u ||
-      elf32_read_le16(image, 16u) != 1u ||
+      (file_type != (ctool_u32)CTOOL_ELF32_ET_REL &&
+       file_type != (ctool_u32)CTOOL_ELF32_ET_EXEC) ||
       elf32_read_le16(image, 18u) != 3u ||
       elf32_read_le32(image, 20u) != 1u) {
     return elf32_read_failure(
         job, source, arena, mark, object_out, CTOOL_ERR_UNSUPPORTED,
         CTOOL_ELF32_DIAG_UNSUPPORTED_DOMAIN, 4u,
-        "ELF file is not little-endian i386 ET_REL");
+        "ELF file is not little-endian i386 ET_REL or ET_EXEC");
   }
+  entry_point = elf32_read_le32(image, 24u);
+  program_header_table = elf32_read_le32(image, 28u);
   section_headers = elf32_read_le32(image, 32u);
+  elf_flags = elf32_read_le32(image, 36u);
+  program_header_count = (ctool_u32)elf32_read_le16(image, 44u);
   section_count = (ctool_u32)elf32_read_le16(image, 48u);
   shstrtab_index = (ctool_u32)elf32_read_le16(image, 50u);
-  if (elf32_read_le32(image, 24u) != 0u ||
-      elf32_read_le32(image, 28u) != 0u ||
-      elf32_read_le16(image, 40u) != ELF32_HEADER_SIZE ||
-      elf32_read_le16(image, 42u) != 0u ||
-      elf32_read_le16(image, 44u) != 0u ||
-      elf32_read_le16(image, 46u) != ELF32_SECTION_HEADER_SIZE ||
-      section_count == 0u || section_count >= ELF32_SHN_LORESERVE ||
-      shstrtab_index == 0u || shstrtab_index >= section_count ||
-      (section_headers & 3u) != 0u ||
-      elf32_mul_overflows(section_count, ELF32_SECTION_HEADER_SIZE) ==
-          CTOOL_TRUE) {
+  if (elf32_read_le16(image, 40u) != ELF32_HEADER_SIZE ||
+      (file_type == (ctool_u32)CTOOL_ELF32_ET_REL &&
+       (entry_point != 0u || program_header_table != 0u ||
+        program_header_count != 0u)) ||
+      (program_header_count == 0u && program_header_table != 0u) ||
+      (program_header_count != 0u &&
+       (elf32_read_le16(image, 42u) != ELF32_PROGRAM_HEADER_SIZE ||
+         elf32_mul_overflows(program_header_count,
+                             ELF32_PROGRAM_HEADER_SIZE) == CTOOL_TRUE)) ||
+      (section_count == 0u &&
+       (file_type != (ctool_u32)CTOOL_ELF32_ET_EXEC ||
+         section_headers != 0u || shstrtab_index != 0u)) ||
+      (section_count != 0u &&
+       (elf32_read_le16(image, 46u) != ELF32_SECTION_HEADER_SIZE ||
+         section_count >= ELF32_SHN_LORESERVE ||
+         shstrtab_index >= section_count ||
+         elf32_mul_overflows(section_count, ELF32_SECTION_HEADER_SIZE) ==
+            CTOOL_TRUE))) {
     return elf32_read_failure(
         job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
         CTOOL_ELF32_DIAG_BAD_HEADER, 32u, "ELF32 header fields are invalid");
+  }
+  table_bytes = program_header_count * ELF32_PROGRAM_HEADER_SIZE;
+  if (elf32_range_fits(program_header_table, table_bytes, image.size) ==
+      CTOOL_FALSE) {
+    return elf32_read_failure(
+        job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+        CTOOL_ELF32_DIAG_BAD_HEADER, program_header_table,
+        "ELF32 program header table is out of range");
   }
   table_bytes = section_count * ELF32_SECTION_HEADER_SIZE;
   if (elf32_range_fits(section_headers, table_bytes, image.size) ==
@@ -1122,6 +1162,60 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
         job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
         CTOOL_ELF32_DIAG_BAD_HEADER, section_headers,
         "ELF32 section header table is out of range");
+  }
+  status = elf32_alloc_array(
+      arena, program_header_count,
+      (ctool_u32)sizeof(ctool_elf32_program_header_t),
+      (void **)&program_headers);
+  if (status != CTOOL_OK) {
+    return elf32_read_failure(job, source, arena, mark, object_out, status,
+                              CTOOL_ELF32_DIAG_LIMIT, 0u,
+                              "ELF32 program-header metadata limit exceeded");
+  }
+  for (index = 0u; index < program_header_count; index++) {
+    ctool_elf32_program_header_t *program_header = &program_headers[index];
+    offset = program_header_table + index * ELF32_PROGRAM_HEADER_SIZE;
+    program_header->file_index = index;
+    program_header->type = elf32_read_le32(image, offset);
+    program_header->file_offset = elf32_read_le32(image, offset + 4u);
+    program_header->virtual_address = elf32_read_le32(image, offset + 8u);
+    program_header->physical_address = elf32_read_le32(image, offset + 12u);
+    program_header->file_size = elf32_read_le32(image, offset + 16u);
+    program_header->memory_size = elf32_read_le32(image, offset + 20u);
+    program_header->flags = elf32_read_le32(image, offset + 24u);
+    program_header->alignment = elf32_read_le32(image, offset + 28u);
+    if ((program_header->alignment > 1u &&
+         elf32_is_power_of_two(program_header->alignment) == CTOOL_FALSE) ||
+        elf32_range_fits(program_header->file_offset,
+                         program_header->file_size, image.size) ==
+            CTOOL_FALSE ||
+        (program_header->type == CTOOL_ELF32_PT_LOAD &&
+         (program_header->file_size > program_header->memory_size ||
+          (program_header->memory_size != 0u &&
+           program_header->virtual_address >
+               ELF32_U32_MAX - (program_header->memory_size - 1u)) ||
+          (program_header->alignment > 1u &&
+           ((program_header->file_offset &
+             (program_header->alignment - 1u)) !=
+            (program_header->virtual_address &
+             (program_header->alignment - 1u))))))) {
+      return elf32_read_failure(
+          job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+          CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER, offset,
+          "ELF32 program header fields are invalid");
+    }
+    program_header->contents.data =
+        image.data + program_header->file_offset;
+    program_header->contents.size = program_header->file_size;
+  }
+  if (section_count == 0u) {
+    object_out->image = image;
+    object_out->file_type = (ctool_elf32_file_type_t)file_type;
+    object_out->entry_point = entry_point;
+    object_out->flags = elf_flags;
+    object_out->program_headers = program_headers;
+    object_out->program_header_count = program_header_count;
+    return CTOOL_OK;
   }
   status = elf32_alloc_array(arena, section_count,
                              (ctool_u32)sizeof(ctool_elf32_section_t),
@@ -1146,6 +1240,14 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
     section->info = elf32_read_le32(image, offset + 28u);
     section->alignment = elf32_read_le32(image, offset + 32u);
     section->entry_size = elf32_read_le32(image, offset + 36u);
+    if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC &&
+        section->size != 0u &&
+        section->address > ELF32_U32_MAX - (section->size - 1u)) {
+      return elf32_read_failure(
+          job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+          CTOOL_ELF32_DIAG_BAD_SECTION, offset,
+          "ELF32 executable section address range overflows");
+    }
     section->relocation_first = 0u;
     section->relocation_count = 0u;
     if (section->alignment != 0u &&
@@ -1170,6 +1272,15 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
       section->contents.size = section->size;
     }
   }
+  if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC) {
+    for (index = 1u; index < section_count; index++) {
+      if ((sections[index].flags & CTOOL_ELF32_SHF_TLS) != 0u &&
+          (have_tls == CTOOL_FALSE || sections[index].address < tls_base)) {
+        tls_base = sections[index].address;
+        have_tls = CTOOL_TRUE;
+      }
+    }
+  }
   for (offset = 0u; offset < ELF32_SECTION_HEADER_SIZE; offset++) {
     if (image.data[section_headers + offset] != 0u) {
       return elf32_read_failure(
@@ -1178,38 +1289,46 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
           "ELF32 null section is not zero");
     }
   }
-  if (elf32_validate_string_section(&sections[shstrtab_index]) != CTOOL_OK) {
-    return elf32_read_failure(
-        job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
-        CTOOL_ELF32_DIAG_BAD_STRING, sections[shstrtab_index].file_offset,
-        "ELF32 section-name table is invalid");
-  }
-  shstrtab = sections[shstrtab_index].contents;
-  scratch_mark = ctool_arena_mark(arena);
-  status = elf32_alloc_array(arena, section_count,
-                             (ctool_u32)sizeof(elf32_string_reference_t),
-                             (void **)&string_references);
-  if (status != CTOOL_OK) {
-    return elf32_read_failure(job, source, arena, mark, object_out, status,
-                              CTOOL_ELF32_DIAG_LIMIT, 0u,
-                              "ELF32 section-name metadata limit exceeded");
+  if (shstrtab_index != 0u) {
+    if (elf32_validate_string_section(&sections[shstrtab_index]) != CTOOL_OK) {
+      return elf32_read_failure(
+          job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+          CTOOL_ELF32_DIAG_BAD_STRING, sections[shstrtab_index].file_offset,
+          "ELF32 section-name table is invalid");
+    }
+    shstrtab = sections[shstrtab_index].contents;
+    scratch_mark = ctool_arena_mark(arena);
+    status = elf32_alloc_array(arena, section_count,
+                               (ctool_u32)sizeof(elf32_string_reference_t),
+                               (void **)&string_references);
+    if (status != CTOOL_OK) {
+      return elf32_read_failure(job, source, arena, mark, object_out, status,
+                                CTOOL_ELF32_DIAG_LIMIT, 0u,
+                                "ELF32 section-name metadata limit exceeded");
+    }
+    for (index = 0u; index < section_count; index++) {
+      offset = section_headers + index * ELF32_SECTION_HEADER_SIZE;
+      string_references[index].offset = elf32_read_le32(image, offset);
+      string_references[index].view = &sections[index].name;
+    }
+    status = elf32_resolve_string_references(shstrtab, string_references,
+                                              section_count);
+    if (status != CTOOL_OK) {
+      return elf32_read_failure(job, source, arena, mark, object_out,
+                                CTOOL_ERR_INPUT, CTOOL_ELF32_DIAG_BAD_STRING,
+                                section_headers,
+                                "ELF32 section name is invalid");
+    }
+    (void)ctool_arena_rewind(arena, scratch_mark);
+    string_references = (elf32_string_reference_t *)0;
   }
   for (index = 0u; index < section_count; index++) {
-    offset = section_headers + index * ELF32_SECTION_HEADER_SIZE;
-    string_references[index].offset = elf32_read_le32(image, offset);
-    string_references[index].view = &sections[index].name;
-  }
-  status = elf32_resolve_string_references(shstrtab, string_references,
-                                            section_count);
-  if (status != CTOOL_OK) {
-    return elf32_read_failure(job, source, arena, mark, object_out,
-                              CTOOL_ERR_INPUT, CTOOL_ELF32_DIAG_BAD_STRING,
-                              section_headers,
-                              "ELF32 section name is invalid");
-  }
-  (void)ctool_arena_rewind(arena, scratch_mark);
-  string_references = (elf32_string_reference_t *)0;
-  for (index = 0u; index < section_count; index++) {
+    if (sections[index].type == ELF32_SHT_DYNSYM) {
+      return elf32_read_failure(
+          job, source, arena, mark, object_out, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_ELF32_DIAG_UNSUPPORTED_FEATURE, sections[index].file_offset,
+          "ELF32 dynamic symbol tables are not supported");
+    }
     if (sections[index].type == ELF32_SHT_SYMTAB) {
       symtab_index = index;
       symtab_count++;
@@ -1319,10 +1438,58 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
               "ELF32 common symbol is invalid");
         }
       } else if (raw_section < section_count) {
+        ctool_u32 section_value;
+        ctool_bool linker_boundary = CTOOL_FALSE;
         symbol->placement = CTOOL_ELF32_SYMBOL_DEFINED;
         symbol->section_file_index = raw_section;
-        if (symbol->value > sections[raw_section].size ||
-            symbol->size > sections[raw_section].size - symbol->value) {
+        section_value = symbol->value;
+        if (symbol->type == CTOOL_ELF32_SYMBOL_TLS &&
+            (sections[raw_section].flags & CTOOL_ELF32_SHF_TLS) == 0u) {
+          return elf32_read_failure(
+              job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+              CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
+              "ELF32 TLS symbol section is invalid");
+        }
+        if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC) {
+          if (symbol->type == CTOOL_ELF32_SYMBOL_TLS) {
+            ctool_u32 section_tls_offset;
+            if (have_tls == CTOOL_FALSE ||
+                sections[raw_section].address < tls_base) {
+              return elf32_read_failure(
+                  job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+                  CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
+                  "ELF32 TLS symbol offset is invalid");
+            }
+            section_tls_offset = sections[raw_section].address - tls_base;
+            if (section_value < section_tls_offset) {
+              return elf32_read_failure(
+                  job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+                  CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
+                  "ELF32 TLS symbol offset is invalid");
+            }
+            section_value -= section_tls_offset;
+          } else {
+            linker_boundary =
+                symbol->type == CTOOL_ELF32_SYMBOL_NOTYPE && symbol->size == 0u
+                    ? CTOOL_TRUE
+                    : CTOOL_FALSE;
+          }
+          if (symbol->type != CTOOL_ELF32_SYMBOL_TLS &&
+              linker_boundary == CTOOL_FALSE &&
+              section_value < sections[raw_section].address) {
+            return elf32_read_failure(
+                job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+                CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
+                "ELF32 defined symbol is out of range");
+          }
+          if (symbol->type != CTOOL_ELF32_SYMBOL_TLS &&
+              linker_boundary == CTOOL_FALSE) {
+            section_value -= sections[raw_section].address;
+          }
+        }
+        if (linker_boundary == CTOOL_FALSE &&
+            (section_value > sections[raw_section].size ||
+             symbol->size > sections[raw_section].size - section_value)) {
           return elf32_read_failure(
               job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
               CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
@@ -1338,7 +1505,11 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
       if (symbol->type == CTOOL_ELF32_SYMBOL_SECTION &&
           (symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
            symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
-           symbol->name.size != 0u || symbol->value != 0u ||
+           symbol->name.size != 0u ||
+           symbol->value !=
+               (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC
+                    ? sections[symbol->section_file_index].address
+                    : 0u) ||
            symbol->size != 0u)) {
         return elf32_read_failure(
             job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
@@ -1361,6 +1532,14 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
             job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
             CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
             "ELF32 common symbol semantics are invalid");
+      }
+      if (symbol->type == CTOOL_ELF32_SYMBOL_TLS &&
+          symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED &&
+          symbol->placement != CTOOL_ELF32_SYMBOL_UNDEFINED) {
+        return elf32_read_failure(
+            job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+            CTOOL_ELF32_DIAG_BAD_SYMBOL, offset,
+            "ELF32 TLS symbol placement is invalid");
       }
     }
     for (offset = 0u; offset < ELF32_SYMBOL_SIZE; offset++) {
@@ -1462,23 +1641,63 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
       if (type == CTOOL_ELF32_R_386_32 ||
           type == CTOOL_ELF32_R_386_PC32) {
         const ctool_elf32_section_t *target = &sections[rel_section->info];
+        ctool_u32 target_offset = relocation->offset;
+        if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC) {
+          if (target_offset < target->address) {
+            return elf32_read_failure(
+                job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+                CTOOL_ELF32_DIAG_BAD_RELOCATION, offset,
+                "ELF32 relocation target is out of range");
+          }
+          target_offset -= target->address;
+        }
         if (target->type == CTOOL_ELF32_SHT_NOBITS ||
-            relocation->offset > target->size ||
-            target->size - relocation->offset < 4u ||
-            target->contents.size < relocation->offset + 4u) {
+            target_offset > target->size ||
+            target->size - target_offset < 4u ||
+            target->contents.size < target_offset + 4u) {
           return elf32_read_failure(
               job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
               CTOOL_ELF32_DIAG_BAD_RELOCATION, offset,
               "ELF32 relocation target is out of range");
         }
         relocation->addend_known = CTOOL_TRUE;
-        relocation->addend = elf32_signed_u32(
-            elf32_read_le32(target->contents, relocation->offset));
-      } else if (relocation->offset > sections[rel_section->info].size) {
-        return elf32_read_failure(
-            job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
-            CTOOL_ELF32_DIAG_BAD_RELOCATION, offset,
-            "ELF32 relocation offset is invalid");
+        {
+          ctool_u32 field_value =
+              elf32_read_le32(target->contents, target_offset);
+          if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC) {
+            const ctool_elf32_symbol_t *symbol =
+                &symbols[symbol_index];
+            if (symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED &&
+                symbol->placement != CTOOL_ELF32_SYMBOL_ABSOLUTE) {
+              relocation->addend_known = CTOOL_FALSE;
+            } else if (type == CTOOL_ELF32_R_386_32) {
+              relocation->addend =
+                  elf32_signed_u32(field_value - symbol->value);
+            } else {
+              relocation->addend = elf32_signed_u32(
+                  field_value + relocation->offset - symbol->value);
+            }
+          } else {
+            relocation->addend = elf32_signed_u32(field_value);
+          }
+        }
+      } else {
+        ctool_u32 target_offset = relocation->offset;
+        if (file_type == (ctool_u32)CTOOL_ELF32_ET_EXEC) {
+          if (target_offset < sections[rel_section->info].address) {
+            return elf32_read_failure(
+                job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+                CTOOL_ELF32_DIAG_BAD_RELOCATION, offset,
+                "ELF32 relocation offset is invalid");
+          }
+          target_offset -= sections[rel_section->info].address;
+        }
+        if (target_offset > sections[rel_section->info].size) {
+          return elf32_read_failure(
+              job, source, arena, mark, object_out, CTOOL_ERR_INPUT,
+              CTOOL_ELF32_DIAG_BAD_RELOCATION, offset,
+              "ELF32 relocation offset is invalid");
+        }
       }
     }
   }
@@ -1536,6 +1755,11 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
     relocation_sites = (elf32_relocation_site_t *)0;
   }
   object_out->image = image;
+  object_out->file_type = (ctool_elf32_file_type_t)file_type;
+  object_out->entry_point = entry_point;
+  object_out->flags = elf_flags;
+  object_out->program_headers = program_headers;
+  object_out->program_header_count = program_header_count;
   object_out->sections = sections;
   object_out->section_count = section_count;
   object_out->symbols = symbols;

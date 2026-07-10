@@ -3,10 +3,22 @@
 
 #include "ctool.h"
 
-/* Semantic i386 ELF32 ET_REL interface.  Callers describe object content;
- * the module owns all file offsets, indices, derived tables, and padding. */
+/* Semantic i386 ELF32 interface.  The writer emits ET_REL and owns all file
+ * layout.  The reader exposes bounded ET_REL and ET_EXEC views. */
 
 #define CTOOL_ELF32_NO_SECTION 0xffffffffu
+
+typedef enum {
+  CTOOL_ELF32_ET_REL = 1,
+  CTOOL_ELF32_ET_EXEC = 2
+} ctool_elf32_file_type_t;
+
+#define CTOOL_ELF32_PT_LOAD 1u
+#define CTOOL_ELF32_PT_TLS 7u
+
+#define CTOOL_ELF32_PF_X 0x00000001u
+#define CTOOL_ELF32_PF_W 0x00000002u
+#define CTOOL_ELF32_PF_R 0x00000004u
 
 typedef enum {
   CTOOL_ELF32_SHT_PROGBITS = 1,
@@ -43,7 +55,9 @@ typedef enum {
   CTOOL_ELF32_SYMBOL_FUNCTION = 2,
   CTOOL_ELF32_SYMBOL_SECTION = 3,
   CTOOL_ELF32_SYMBOL_FILE = 4,
-  CTOOL_ELF32_SYMBOL_COMMON = 5
+  CTOOL_ELF32_SYMBOL_COMMON = 5,
+  /* Reader-visible; the canonical ET_REL writer does not yet emit TLS. */
+  CTOOL_ELF32_SYMBOL_TLS = 6
 } ctool_elf32_symbol_type_t;
 
 typedef enum {
@@ -137,9 +151,29 @@ typedef struct {
 } ctool_elf32_relocation_t;
 
 typedef struct {
+  ctool_u32 file_index;
+  ctool_u32 type;
+  ctool_u32 file_offset;
+  ctool_u32 virtual_address;
+  ctool_u32 physical_address;
+  ctool_u32 file_size;
+  ctool_u32 memory_size;
+  ctool_u32 flags;
+  ctool_u32 alignment;
+  ctool_bytes_t contents;
+} ctool_elf32_program_header_t;
+
+typedef struct {
   ctool_bytes_t image;
-  /* Read arrays retain serialized order.  Section and symbol counts include
-   * their null entry and every generated metadata entry. */
+  ctool_elf32_file_type_t file_type;
+  ctool_u32 entry_point;
+  ctool_u32 flags;
+  const ctool_elf32_program_header_t *program_headers;
+  ctool_u32 program_header_count;
+  /* Section and symbol arrays retain serialized order and include their null
+   * entry and every generated metadata entry.  Relocations are target-grouped
+   * so each section owns a contiguous slice; each record retains its serialized
+   * relocation-section file index and entry index. */
   const ctool_elf32_section_t *sections;
   ctool_u32 section_count;
   const ctool_elf32_symbol_t *symbols;
@@ -159,7 +193,8 @@ typedef enum {
   CTOOL_ELF32_DIAG_BAD_SYMBOL = 0x03000007u,
   CTOOL_ELF32_DIAG_BAD_RELOCATION = 0x03000008u,
   CTOOL_ELF32_DIAG_UNSUPPORTED_FEATURE = 0x03000009u,
-  CTOOL_ELF32_DIAG_LIMIT = 0x0300000au
+  CTOOL_ELF32_DIAG_LIMIT = 0x0300000au,
+  CTOOL_ELF32_DIAG_BAD_PROGRAM_HEADER = 0x0300000bu
 } ctool_elf32_diag_code_t;
 
 ctool_status_t ctool_elf32_write(ctool_job_t *job,
@@ -170,9 +205,14 @@ ctool_status_t ctool_elf32_read(ctool_job_t *job,
                                  ctool_elf32_object_t *object_out);
 
 /* Writer descriptions and source images are borrowed for the call.  Reader
- * metadata is arena-owned; its names and contents borrow source->contents.
+ * metadata is arena-owned; its names and section/program contents borrow
+ * source->contents.
  * Writer output must be empty and is rewound to empty after any failure.
  * Every read-side field ending in file_index, plus type-defined raw link/info,
- * uses the serialized ELF table domain, including null/generated entries. */
+ * uses the serialized ELF table domain, including null/generated entries.
+ * Defined symbol values and relocation offsets are section-relative in ET_REL
+ * and virtual addresses in ET_EXEC, matching their serialized ELF meaning.
+ * Known ET_EXEC REL addends are recovered from applied fields with the linked
+ * symbol/place values; unresolved symbol domains leave addend_known false. */
 
 #endif
