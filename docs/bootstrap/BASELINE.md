@@ -48,10 +48,10 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `c1df30c` | PASS: two clean 431-artifact builds matched; aggregate SHA-256 `11febd09886aba270b9e3780774f1d0ab5e825146bf496e18e7cf9fb23ff596f` | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | `4efd5ed` | PASS: two clean 432-artifact builds matched; aggregate SHA-256 `d9590ca71017c18842b910a174f8844bb1385cfd93cf883e5d09af5d34d4a133` | `baselines/windows-amd64.json` |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
 
-This capture supersedes the 430-artifact shared-ELF32 evidence from `1b5901c`. The checked audit contract proves that the 431-path manifest includes all 424 final-link objects, including the shared runtime core, ELF32 module, x86 instruction model, and kernel adapter. The current capture also passed 48 host tests in 12.096 seconds, `/bin/ls.cc` through CupidC in 18.628 seconds, and `as /demos/hello.asm` through CupidASM in 23.229 seconds. Its two isolated builds took 8.754 and 7.792 seconds. The resulting kernel ELF is 6,249,088 bytes, its raw binary is 6,039,445 bytes, `.text` is 1,369,924 bytes, and the disk image is 209,715,200 bytes; all times and sizes are oracle observations, not performance gates.
+This capture supersedes the 431-artifact shared-x86 evidence from `c1df30c`. The checked audit contract proves that the 432-path manifest includes all 425 final-link objects, including the shared runtime core, ELF32 module, x86 instruction model, CupidDis module, and kernel adapter. The current capture also passed 63 host tests in 19.731 seconds (one Windows-only skip), `/bin/ls.cc` through CupidC in 18.620 seconds, and `as /demos/hello.asm` through CupidASM in 23.352 seconds. Its two isolated builds took 9.017 and 7.690 seconds. The resulting kernel ELF is 6,275,816 bytes, its raw binary is 6,062,681 bytes, `.text` is 1,394,020 bytes, and the disk image is 209,715,200 bytes; all times and sizes are oracle observations, not performance gates.
 
 ## Build-output hygiene
 

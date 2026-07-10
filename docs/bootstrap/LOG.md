@@ -496,4 +496,20 @@ Wayfinder ticket [#19](https://github.com/cupidthecat/cupid-os/issues/19) moved 
 | Kernel-symbol oracle parity | PASS | `tools.hostbuild._symbols_from_nm` returned the same ordered 3,756 text/weak symbol pairs for `llvm-nm -n` and `cupiddis -n` on the clean pass-1 kernel ELF. Production Make still selects the host oracle. |
 | CupidC and CupidASM GUI smoke | PASS | `/bin/ls.cc` and `as /demos/hello.asm` each completed without panic; boot serial output included `CupidDis kernel adapter self-test passed` after the shared ELF32 and x86 tests. |
 
-A separate post-commit Windows baseline recapture records reproducibility, exact artifact hashes, sizes, and smoke durations. The complete Linux GCC/binutils OS oracle baseline remains pending; hosted GCC/sanitizer evidence is not a substitute.
+The post-commit Windows baseline recapture below records reproducibility, exact artifact hashes, sizes, and smoke durations. The complete Linux GCC/binutils OS oracle baseline remains pending; hosted GCC/sanitizer evidence is not a substitute.
+
+## 2026-07-09: hosted-CupidDis Windows oracle recapture
+
+After committing the shared inspector as `4efd5ed`, the baseline runner rebuilt that exact revision twice in isolated worktrees and refreshed `baselines/windows-amd64.json`.
+
+| Check | Result |
+| --- | --- |
+| Reproducibility | PASS: all 432 artifacts matched between two isolated builds; aggregate SHA-256 `d9590ca71017c18842b910a174f8844bb1385cfd93cf883e5d09af5d34d4a133` |
+| Manifest contract | PASS: the checked audit covers all 425 final-link objects, including `toolchain/ctool.o`, `toolchain/elf32.o`, `toolchain/x86.o`, `toolchain/cupiddis.o`, and `kernel/lang/ctool_kernel.o` |
+| Clean builds | PASS in 9.017 and 7.690 seconds |
+| Host tests | PASS: 63 tests in 19.731 seconds, with the Windows-only `/dev/full` case skipped and covered by the WSL suite |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 18.620 seconds, after the CupidDis kernel adapter self-test |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.352 seconds, after the same self-test |
+| Output sizes | Kernel ELF 6,275,816 bytes; raw kernel 6,062,681 bytes; `.text` 1,394,020 bytes; disk image 209,715,200 bytes |
+
+The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the hosted GCC and sanitizer contracts do not substitute for it.
