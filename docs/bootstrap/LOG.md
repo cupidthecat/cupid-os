@@ -815,3 +815,28 @@ The isolated Linux test run found two host-environment failures unrelated to OS 
 | Focused Windows/Linux FPU, package, recipe, and audit contracts | PASS | All new positive contracts pass on both supported hosts after recording their failing state. |
 
 This is source/build portability evidence, not the oracle capture itself. The next committed step must run both isolated builds, all three supported roots, host tests, and guest smokes from one revision before Linux baseline status changes from pending.
+
+## 2026-07-10: Three-root baseline and cross-host gate
+
+The reproducible recorder now treats the active-source audit's three supported Make roots as one bootstrap evidence cohort. Every isolated run cleans and builds root `all`, `user:all`, and `toolchain:all`; each root publishes its final artifact list, and the recorder stores both per-root manifests and one combined 447-path digest. The original 431-path OS manifest remains intact inside the root record and still covers all 424 final-link objects. User evidence adds three CupidLD executables, while hosted-tool evidence adds all thirteen contract and CLI executables. This closes the former gap where tests happened to build hosted tools and never built user programs, but neither supplemental root was named or hashed by the baseline.
+
+Git is now an explicit required orchestration probe and the exact resolved/configured command owns revision resolution and disposable worktrees. The C compiler probe must produce a nonempty freestanding i386 object using the configured `CC_TARGET`; a working version command without 32-bit capability fails preflight before an expensive build. Linux host metadata also records `/etc/os-release` identity, so WSL kernel provenance no longer hides the Ubuntu user space.
+
+The new `bootstrap-host-comparison`/`check-bootstrap-host-comparison` workflow compares checked Windows and Linux evidence only when both describe the same revision. The hard gate requires one Windows and one Linux host, passing two-run reproducibility, every supported-root check in both runs, run-one host tests and both guest smokes, an identical artifact-path cohort, and the fixed 200 MiB disk geometry. Cross-toolchain SHA-256 equality is explicitly observational rather than gating; the comparison records both aggregate digests and absolute/percentage quality deltas. Canonical comparison evidence uses schema `cupid.bootstrap-host-comparison.v1` at `baselines/windows-linux.json`.
+
+### Red/green and verification evidence
+
+- New contracts first failed because Git, the functional compiler probe, distribution metadata, supported-root manifests, and host comparison operation did not exist. Positive/negative cases now prove a real output object is required, differing host bytes are accepted, and mismatched revisions, artifact paths, failed checks, failed reproducibility, or stale comparison JSON are rejected.
+- The first full in-place recorder rehearsal exposed a relative-checkout normalization bug: treating `.` as the worktree path rewrote every period in artifact names. A focused test reproduced `artifact.o` becoming `artifact<WORKTREE>o`; `_run_command` and `capture_build` now canonicalize the checkout before output normalization or hashing.
+- A full Windows rehearsal passed all nine build/artifact checks, hashed 447 paths across all three roots, passed the complete host suite, then passed the CupidC and CupidASM guest smokes. The equivalent Linux build/hash rehearsal passed all three clean GCC roots and produced a 447-path digest.
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Bootstrap recorder unit/CLI contracts on Windows and Linux | PASS | All 18 positive, negative, collision, capability, supported-root, comparison, and stale-evidence cases passed on each host. |
+| WSL complete repository suite | PASS | All 158 tests passed in 127.135 seconds. |
+| Windows full in-place baseline rehearsal | PASS | Root build 15.752 seconds, user build 0.227 seconds, hosted-tool build 3.066 seconds, host tests 75.329 seconds, CupidC smoke 21.152 seconds, CupidASM smoke 25.142 seconds; 447 artifacts hashed. |
+| Linux three-root build/hash rehearsal | PASS | Root GCC build 25.593 seconds, user build 0.132 seconds, hosted-tool build 4.493 seconds; all 447 declared artifacts hashed. |
+| WSL ASan/UBSan hosted toolchain gate | PASS | Every contract mode and all 22 demo assemblies passed with address/leak/undefined checks and halt-on-error enabled. |
+| Required tool capability probes | PASS | Windows Clang 22 and WSL GCC 13.3 each produced the real freestanding i386 probe object; Git, Make, Python, `nm`, and QEMU also resolved and fingerprinted. |
+
+This step establishes the recorder and gate but deliberately does not claim checked oracle evidence from a dirty tree. The next step must commit this workflow, capture Windows and Linux twice from that exact commit, generate the cross-host comparison, and freeze all three JSON files.
