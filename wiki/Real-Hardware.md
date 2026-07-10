@@ -33,7 +33,7 @@ What does **not** work:
 
 ## 2. Build the disk image on a Linux host
 
-On a Linux machine with `nasm`, `gcc-multilib`, `make`, `mtools`, and `dosfstools`:
+On a Linux machine with `gcc-multilib`, binutils, Python 3, and GNU Make:
 
 ```bash
 git clone <your cupid-os repo>

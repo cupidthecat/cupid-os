@@ -1,6 +1,6 @@
 # cupid-os
 
-32-bit x86 hobby OS written in C and NASM. Has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. Runs on real hardware or QEMU. Inspired by TempleOS, OsakaOS, and Unix.
+32-bit x86 hobby OS written in C and Cupid ASM. Has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. Runs on real hardware or QEMU. Inspired by TempleOS, OsakaOS, and Unix.
 
 <img src="img/background.png" alt="Desktop" width="700">
 
@@ -189,29 +189,32 @@ The design borrows from TempleOS (single address space, built-in compiler, bare 
 
 ## Building
 
-Linux image builds default to GCC for C compilation and require NASM, GCC with
-32-bit support (including its native linker backend), binutils `nm`, Python 3,
-and GNU Make. QEMU is required only to run the image or execute emulator tests.
-CupidLD and CupidObj perform every OS/user ELF link and object/binary transform;
-the GCC driver still links the temporary hosted Cupid tools:
+Linux image builds default to GCC for C compilation and require GCC with 32-bit
+support (including its native linker backend), binutils `nm`, Python 3, and GNU
+Make. QEMU is required only to run the image or execute emulator tests.
+CupidASM assembles every active OS assembly input, while CupidLD and CupidObj
+perform every OS/user ELF link and object/binary transform. The GCC driver still
+links the temporary hosted Cupid tools:
 
 ```bash
-sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
+sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
 ```
 
 Native Windows image builds default to Clang for C compilation. Install GNU
-Make, Python 3, NASM, and LLVM (`clang` and `llvm-nm`), then build from
+Make, Python 3, and LLVM (`clang` and `llvm-nm`), then build from
 PowerShell or another native Windows shell. Install QEMU for runtime/tests.
 No standalone LLVM ELF-linker or `objcopy` command produces an OS/user artifact.
 Clang still needs its native linker backend to build the temporary hosted Cupid
 tools:
 
 ```powershell
-choco install make python nasm llvm qemu
+choco install make python llvm qemu
 ```
 
 `mtools` is no longer required for the normal build; the Makefile uses
 `tools/hostbuild.py` to create and update the FAT16 image on both platforms.
+NASM is also not required; install it only to run the optional
+`make nasm-assembly-oracle` comparison suite.
 On Windows, QEMU defaults to no host audio so booting does not depend on a
 working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
 enable DirectSound.
@@ -627,12 +630,12 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 ## Requirements
 
-- NASM
 - Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts), its native linker backend, and binutils `nm`
 - Windows: LLVM (`clang`, its native linker backend, `llvm-nm`)
 - Python 3
 - GNU Make
 - QEMU (`qemu-system-i386`, runtime/testing only)
+- NASM (optional, for `make nasm-assembly-oracle` parity checks)
 - mtools (mcopy, mdir) optional for manual FAT16 image inspection/copying
 - DOOM WADs (optional): the build picks up `freedoom1.wad` /
   `freedoom2.wad` from `/usr/share/games/doom/` on the build host and

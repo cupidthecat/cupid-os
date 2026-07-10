@@ -8,7 +8,7 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 | Tool | Purpose |
 |------|---------|
-| **NASM** | Owns the current boot, ISR, context-switch, and SMP-trampoline transforms |
+| **CupidASM** | Built automatically, then owns the boot, ISR, context-switch, and SMP-trampoline transforms |
 | **GCC** (32-bit support, Linux) | C compiler for kernel and drivers plus native compiler/link bootstrap for hosted Cupid tools |
 | **GNU binutils** (Linux) | `nm` for the remaining kernel-symbol extraction hand-off |
 | **LLVM** (Windows) | `clang` plus its native linker backend bootstrap hosted Cupid tools, and `llvm-nm` extracts kernel symbols; CupidLD/CupidObj own OS/user ELF linking and binary transforms |
@@ -16,6 +16,7 @@ This guide walks you through building cupid-os from source and running it in QEM
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
+| **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
 
 ---
 
@@ -23,20 +24,20 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install nasm gcc gcc-multilib binutils python3 make qemu-system-x86
+sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S nasm gcc binutils python make qemu-full
+sudo pacman -S gcc binutils python make qemu-full
 ```
 
 ### Native Windows
-Install GNU Make, Python 3, NASM, LLVM, and QEMU, and make sure they are on
+Install GNU Make, Python 3, LLVM, and QEMU, and make sure they are on
 `PATH`.
 
 ```powershell
-choco install make python nasm llvm qemu
+choco install make python llvm qemu
 ```
 
 MinGW GCC is not the supported native Windows compiler; the Makefile defaults

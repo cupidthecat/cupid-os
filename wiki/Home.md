@@ -95,7 +95,7 @@ This makes cupid-os ideal for learning how computers really work at the lowest l
 
 ```bash
 # Install dependencies (Ubuntu/Debian)
-sudo apt-get install nasm gcc gcc-multilib make qemu-system-x86 mtools
+sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
 
 # Build
 make
