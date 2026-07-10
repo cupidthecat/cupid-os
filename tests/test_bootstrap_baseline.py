@@ -127,8 +127,10 @@ class BaselineArtifactTests(unittest.TestCase):
             image = root / "cupidos.img"
             image.write_bytes(b"clean")
             artifacts = ["kernel/kernel.elf", "kernel/kernel.bin", "cupidos.img"]
+            commands = {}
 
             def invoke(check):
+                commands[check.name] = check.command
                 if check.name == "artifact-list":
                     return bootstrap_baseline.CommandResult(0, 0.1, json.dumps(artifacts))
                 if check.name in {"cupidc-gui-smoke", "cupidasm-gui-smoke"}:
@@ -157,6 +159,10 @@ class BaselineArtifactTests(unittest.TestCase):
                 "3b066804f6d1d077173cfe4d06002e6a61e6f21c2b2e648417962115f1afcd8e",
             )
             self.assertEqual(image.read_bytes(), b"mutated")
+            for name in ("cupidc-gui-smoke", "cupidasm-gui-smoke"):
+                command = commands[name]
+                pause = command.index("--key-pause")
+                self.assertEqual(command[pause + 1], "0.60")
 
 
 class BaselineCheckTests(unittest.TestCase):
