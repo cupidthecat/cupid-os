@@ -739,3 +739,33 @@ The detached recapture at `857b6c7` completed its clean 142-test host suite (141
 Recapture from the committed fix `92b3684` passed. Two clean isolated builds produced the same 431-artifact digest, `5f141dadf52069b8fda711533cc8d694191479b5e5a0681744fa24bb5ab79e5d`, with no mismatch. The first isolated build passed the 142-test host suite (141 passed, one platform skip) plus CupidC and CupidASM GUI smokes; the second independently rebuilt and rehashed the complete manifest. The checked JSON is 252,942 bytes with SHA-256 `03bfe0543e639ede5a410cc8fa9bbb93191dd6bc3311b14bf06384b02c7dbef2`. Canonical-LF baseline quality values are 1,396,388 kernel text bytes, 6,252,832 kernel ELF bytes, 6,078,269 flattened kernel bytes, and a 209,715,200-byte image. Timings remain recorded non-gating observations.
 
 Normal-build OS/user link and object-transform ownership is now Cupid-native, but the fixed point is not reached. GCC/Clang and their native linker backends still build every hosted Cupid executable, the compiler owns 280 outputs, NASM still owns four production assembly transforms, and GNU/LLVM `nm` still owns one kernel-symbol extraction transform. CupidC host extraction/self-build, CupidASM Make cutover, CupidDis symbol-reader cutover, checked seeds, staged bootstrap equivalence, and the Linux full-OS baseline remain open.
+
+## 2026-07-10: CupidASM production ownership and NASM retirement
+
+Wayfinder ticket [Migrate the OS assembly build off NASM](https://github.com/cupidthecat/cupid-os/issues/22) transfers the four active assembly transforms without changing any assembly source. Root Make now builds the hosted CupidASM executable first, uses it for the boot image, ISR object, context-switch object, and SMP trampoline, and serializes the three hosted-tool recursive builds around their shared object directory. The normal graph has no `ASM`/NASM fallback. `make nasm-assembly-oracle` retains the installed external assembler only as an optional comparison path.
+
+The supported build and baseline interfaces now distinguish production ownership from oracle evidence. The active-graph auditor recognizes CupidASM as a code-producing assembler, classifies both raw and ELF32 operations, and assigns the four source inputs to the CupidASM runtime owner. Baseline preflight no longer fails when NASM is absent; it records NASM separately under `optional_oracle_tools`. The checked graph contains 672 active inputs, 248 feature IDs, 481 transforms, and 39 accounted unreachable source-like files. Tool ownership is CupidASM 4, CupidLD 5, CupidObj 181, host C compiler 280, host symbol reader 1, Python 8, and Make recursion 4; normal NASM, host ELF-linker, and host object-copy ownership are zero.
+
+### Red/green ownership contracts
+
+- The baseline preflight contract first failed because `assembler` was still required, then passed after moving NASM to optional oracle discovery.
+- A synthetic build-graph contract first reported a `$(CUPIDASM)` recipe as `host_shell`, then passed after the auditor gained typed CupidASM ownership and raw/ELF32 operation classification.
+- The repository-level graph contract first found all four expected outputs owned by NASM, then passed after the Make cutover. It now rejects any normal-build NASM transform and pins the four exact output/operation pairs.
+- No source feature was weakened or rewritten. The 2,560-byte boot image and 4,096-byte trampoline remain byte-identical to NASM. The ISR and context-switch ELF containers deliberately use Cupid's deterministic table layout, while their code bytes, alignment, symbols, bindings, and all twelve combined `R_386_PC32` relocations match the oracle semantics.
+
+### Verification and remaining host debt
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `make nasm-assembly-oracle` | PASS | Both active raw and ELF32 source suites passed against installed NASM. |
+| Focused Python suites | PASS | 42 CupidASM CLI/source/ELF32, build-graph, and baseline tests passed. |
+| `make -C toolchain test` | PASS | All 49 strict Windows Clang contract modes passed, including all 22 unchanged demos. |
+| Kernel loader/process/SMP contracts | PASS | All 48 cases passed, including the produced ISR/context-switch invariants. |
+| Clean Windows normal build with `ASM=__nasm_must_not_run__` | PASS | The full 424-object image completed; four assembly outputs came from the freshly built hosted CupidASM. |
+| Four-vCPU CupidC guest smoke | PASS | Four CPUs reached online state, scheduler startup completed, the CupidASM kernel self-test passed with 631 definitions, and `/bin/ls.cc` reached JIT completion without an accepted failure marker. |
+| UP CupidASM guest smoke | PASS | `as /demos/hello.asm` reached `JIT execution complete`. |
+| Checked active-source audit | PASS | Generated JSON/Markdown report four `cupid_assembler`, zero normal NASM, and complete 431-artifact/424-link-object coverage. |
+
+One full WSL GCC attempt is retained as a failed approach rather than claimed as Linux evidence. With `ASM` poisoned, Linux successfully built the hosted CupidASM and began the root graph, then GCC 13.3 stopped on the pre-existing `fpu_init_cpu` `target("no-sse,no-sse2")` diagnostic under `-Werror`. The source and failure are unchanged from the prior revision and unrelated to assembly ownership. [Capture the Linux oracle bootstrap baseline](https://github.com/cupidthecat/cupid-os/issues/23) remains responsible for resolving that host-C portability blocker and freezing complete Linux evidence.
+
+The post-cutover Windows reproducibility capture must run from the committed implementation, because the baseline runner intentionally ignores working-tree changes. GCC/Clang plus their native linker backend still bootstrap hosted Cupid tools, and GNU/LLVM `nm` still owns kernel-symbol extraction. NASM is no longer a normal-build dependency.
