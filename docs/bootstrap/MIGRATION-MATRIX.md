@@ -32,7 +32,7 @@
 | Milestone | Ownership gate | Current state |
 | --- | --- | --- |
 | Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Windows PASS at `6731dd6`: two clean 431-artifact builds matched after the CupidObj production cutover and covered all 424 linked objects; Linux capture pending |
-| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 672 active inputs, 248 feature IDs, 480 transforms, 36 accounted unreachable source-like files, and a checked 431-artifact/424-link-object drift and coverage gate |
+| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 672 active inputs, 247 feature IDs, 480 transforms, 39 accounted unreachable source-like files, and a checked 431-artifact/424-link-object drift and coverage gate |
 | Assembly migration | All four host-assembled OS sources produced by CupidASM with equivalent bytes/behavior | Shared host and kernel assembly semantics, all-source parity, and JIT/AOT runtime gates are complete. NASM still owns the four production transforms pending issue #22 Make cutover plus boot/interrupt/scheduler/SMP proof |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | Not started |
 | Toolchain self-hosting | Checked seeds rebuild host tools; stage 2 and stage 3 outputs are byte-identical on Windows and Linux | Not started |
