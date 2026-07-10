@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 672
 - Unreachable source-like files: 39
-- Reachable output transforms: 480
+- Reachable output transforms: 481
 - Distinct feature requirements: 248
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -67,7 +67,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 436 | 19 |
+| `.` | `all` | 437 | 19 |
 | `user` | `all` | 8 | 1 |
 | `toolchain` | `all` | 36 | 2 |
 
@@ -75,13 +75,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Tool interface | Reachable transforms |
 | --- | ---: |
+| `cupid_assembler` | 4 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 181 |
 | `host_c_compiler` | 280 |
 | `host_python` | 8 |
 | `host_symbol_reader` | 1 |
-| `make` | 3 |
-| `nasm` | 4 |
+| `make` | 4 |
 
 ## Feature inventory
 
@@ -156,7 +156,7 @@ It is also a declared Make prerequisite.
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
 | 1 | `toolchain_sources` | 44 | Bootstrap the tools that transfer ownership to every later cohort. |
-| 2 | `boot_and_kernel_assembly` | 4 | Cut over four NASM-owned transforms now that raw and ELF32 parity gates exist. |
+| 2 | `boot_and_kernel_assembly` | 4 | Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 276 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 190 | Preserve upstream behavior under a deliberate compatibility mode. |
 | 5 | `user_programs` | 4 | Migrate the remaining separate host-C compilation path to CupidC and stage its CupidLD outputs deliberately. |
