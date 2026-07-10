@@ -1,6 +1,6 @@
 # Filesystem
 
-cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a unified file API across multiple filesystem types. The VFS enables a hierarchical directory structure (`/home`, `/dev`, `/tmp`, `/bin`) with three backend drivers: RamFS for in-memory storage, DevFS for device files, and a FAT16 wrapper for persistent disk storage.
+cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a unified file API across multiple filesystem types. The VFS enables a hierarchical directory structure (`/home`, `/disk`, `/dev`, `/tmp`, `/bin`) with RamFS for boot-time files, DevFS for devices, a raw FAT16 mount at `/disk`, and homefs at `/home`. Homefs persists its logical tree inside `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is only a mount-failure fallback.
 
 ---
 
@@ -33,6 +33,15 @@ cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a 
 └────────────┴────────────┴────────────────────────┘
 ```
 
+Runtime mount ownership is:
+
+```text
+RamFS   -> /
+DevFS   -> /dev
+FAT16   -> /disk
+homefs  -> /home  (backed by /disk/HOMEFS.SYS)
+```
+
 ---
 
 ## VFS Layer
@@ -53,7 +62,8 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 |------|-----------|---------|
 | `/` | RamFS | Root filesystem, boot-time files |
 | `/dev` | DevFS | Device special files |
-| `/home` | FAT16 | User files on ATA disk |
+| `/disk` | FAT16 | Raw files in the disk partition |
+| `/home` | homefs | Persistent logical tree backed by `/disk/HOMEFS.SYS` |
 | `/bin` | RamFS | System programs (subdirectory of root) |
 | `/tmp` | RamFS | Temporary files (subdirectory of root) |
 
@@ -63,7 +73,9 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 /                        (RamFS root)
 ├── bin/                 (system programs - future)
 ├── tmp/                 (temporary files)
-├── home/                (FAT16 - persistent user files on disk)
+├── disk/                (raw FAT16 partition)
+│   └── HOMEFS.SYS       (homefs backing container)
+├── home/                (persistent homefs logical tree)
 │   ├── HELLO.TXT
 │   ├── SCRIPT.CUP
 │   └── ...
@@ -107,10 +119,10 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 1. **Longest prefix match** - scan mount table for best match
-   - `/home` matches -> FAT16 filesystem
+   - `/home` matches -> homefs
 2. **Calculate relative path** - strip mount prefix
    - `/home/README.TXT` -> `README.TXT`
-3. **Call filesystem driver** - `fat16_vfs_open(fs_data, "README.TXT", ...)`
+3. **Call filesystem driver** - `homefs_open(fs_data, "README.TXT", ...)`
 4. **Allocate file descriptor** - wrap in VFS fd and return to caller
 
 ### Error Codes
@@ -228,7 +240,7 @@ The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-device
 
 ## FAT16 VFS Wrapper
 
-The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making disk files accessible through the unified API.
+The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. Homefs separately serializes `/home` into `/disk/HOMEFS.SYS`.
 
 ### How It Works
 
@@ -476,7 +488,7 @@ The Notepad application uses VFS for its file dialog, open, and save operations:
 - **Double-click** a file to open it, or a directory to enter it
 - **Open** reads file contents via `vfs_open()` / `vfs_read()` / `vfs_close()`
 - **Save** writes via `vfs_open(O_WRONLY | O_CREAT | O_TRUNC)` / `vfs_write()` / `vfs_close()`
-- Saving to `/home` persists data to the ATA disk through the FAT16 VFS wrapper
+- Saving to `/home` updates homefs, which persists through `/disk/HOMEFS.SYS`
 
 ---
 

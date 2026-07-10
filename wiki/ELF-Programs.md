@@ -73,7 +73,7 @@ Hello from an ELF program!
 
 ```
 ┌────────────────────┐
-│   ELF Binary       │  (on FAT16 disk at /home/hello)
+│   ELF Binary       │  (in homefs at /home/hello)
 │   .text @ 0xD00000 │
 │   .data / .bss     │
 └────────┬───────────┘
@@ -180,7 +180,7 @@ Every ELF program must:
 1. **Include `cupid.h`** - provides types, constants, and wrapper functions
 2. **Implement `_start(cupid_syscall_table_t *sys)`** - the entry point
 3. **Call `cupid_init(sys)`** - stores the syscall table pointer globally
-4. **Call `exit()` when done** - cleans up the process
+4. **Terminate cleanly** - either call `exit()` explicitly or return from `_start()`
 
 ```c
 #include "cupid.h"
@@ -190,11 +190,13 @@ void _start(cupid_syscall_table_t *sys) {
 
     // ... your code here ...
 
-    exit();                // Required: clean exit
+    exit();                // Optional: returning also exits cleanly
 }
 ```
 
-> ⚠️ **Important:** If you don't call `exit()`, the process will return from `_start()` into undefined memory and likely crash the system.
+The initial process stack supplies `process_exit_trampoline` as `_start()`'s
+return address, so falling off the end marks the process terminated just like
+an explicit `exit()` call. Explicit `exit()` remains useful for early exits.
 
 ---
 
@@ -577,13 +579,13 @@ The loader checks all of the following before loading:
 |------------|-------|--------|
 | External arena | `0x00D00000..0x00F00000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
 | Max external image span | 2 MiB | The complete image must fit the external arena |
-| Entry/load range | Wholly inside one accepted arena | Prevent cross-region overwrite |
+| Entry/load range | Loads wholly inside one arena; entry in file-backed `PF_X` bytes | Prevent cross-region overwrite and non-code entry |
 | Link address | `0x00D00000` | Fixed base used by `user/Makefile` |
 
 The loader also preserves CupidC's `0x01000000..0x01900000` and CupidASM's
 `0x01A00000..0x01C00000` fixed AOT ranges. An image must fit wholly inside
-exactly one of these three arenas, and its entry must be inside a loaded
-segment. The legacy Cupid ranges are permanent shared runtime regions; the
+exactly one of these three arenas, and its entry must be inside the
+file-backed (`p_filesz`) bytes of a `PF_X` `PT_LOAD`. The legacy Cupid ranges are permanent shared runtime regions; the
 exclusive lease applies only to ordinary external images.
 
 ### Memory Lifecycle
@@ -591,7 +593,8 @@ exclusive lease applies only to ordinary external images.
 ```
 exec("/home/hello")
   │
-  ├─ validate and read a zero-filled staging image
+  ├─ validate metadata and read a zero-filled staging image
+  ├─ close the source after all validation and reads complete
   ├─ claim external-ELF arena lease
   ├─ commit staged segments to fixed vaddrs
   ├─ create process with image/lease metadata atomically
@@ -603,10 +606,11 @@ exec("/home/hello")
                                       └─ quiescent reaper releases lease
 ```
 
-Load/read or process-creation failures discard an unconsumed lease. Exit,
-kill, and stack-canary termination release a consumed lease only after the
-process is no longer executing on any CPU. The underlying arena pages remain
-permanently reserved in every case.
+Validation, load/read, allocation, and close failures happen before a lease is
+claimed. If process creation fails after the claim, the loader discards that
+still-unconsumed generation. Exit, kill, and stack-canary termination release
+a consumed lease only after the process is no longer executing on any CPU. The
+underlying arena pages remain permanently reserved in every case.
 
 ### BSS Handling
 
