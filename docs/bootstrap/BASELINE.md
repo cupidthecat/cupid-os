@@ -30,11 +30,11 @@ The revision must resolve to a commit. Working-tree changes and untracked files 
 
 The runner:
 
-1. Resolves and hashes the Make, Python, C compiler, `nm`, and QEMU executables still required by the normal build or runtime gates and records their version output. Retired host assembler, standalone linker, and object-copy tools are no longer preflight requirements. NASM availability is recorded separately under `optional_oracle_tools` and never fails preflight. The runner also records the availability, versions, and hashes of optional PATH-dependent JPEG normalizers (`jpegtran`, `djpeg`/`cjpeg`, and FFmpeg) that can change embedded bytes. Conversion can fall through per file, so artifact hashes—not this availability inventory—are the authority for what was produced.
+1. Resolves and hashes Git, Make, Python, the C compiler, `nm`, and QEMU, then records their version output. The compiler preflight must also produce a real freestanding i386 object with the configured `CC_TARGET`; a version string without 32-bit capability is a failed prerequisite. Linux evidence records `/etc/os-release` distribution identity in addition to the kernel/platform tuple. Retired host assembler, standalone linker, and object-copy tools are no longer preflight requirements. NASM availability is recorded separately under `optional_oracle_tools` and never fails preflight. The runner also records the availability, versions, and hashes of optional PATH-dependent JPEG normalizers (`jpegtran`, `djpeg`/`cjpeg`, and FFmpeg) that can change embedded bytes. Conversion can fall through per file, so artifact hashes—not this availability inventory—are the authority for what was produced.
 2. Creates two independent worktrees for the requested revision.
-3. Runs `distclean`, then a complete image build with fixed disk geometry and `WAD_SRCS=` so optional host WAD discovery cannot change the image.
-4. Asks Make for the final ordered `KERNEL_OBJS` cohort after every conditional/discovered append, plus the boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries. `make check-bootstrap-audit` independently proves that every linked object is present in this manifest.
-5. Records each artifact's byte size and SHA-256 and compares every later run with run 1. Any missing, extra, or changed artifact fails the capture and is named in `reproducibility.mismatches`.
+3. Builds all three supported roots in every worktree: root `all` after `distclean` with fixed disk geometry and `WAD_SRCS=`, user `all` after `user:clean`, and hosted toolchain `all` after `toolchain:clean`.
+4. Asks each Make root for its declared final artifacts. The root cohort contains the ordered `KERNEL_OBJS` plus boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries; the user cohort contains the three CupidLD executables; the hosted cohort contains all thirteen contract/CLI executables. `make check-bootstrap-audit` independently proves that every linked OS object is present in the root manifest.
+5. Records per-root and combined artifact byte sizes and SHA-256 values, then compares the combined cohort from every later run with run 1. Any missing, extra, or changed artifact fails the capture and is named in `reproducibility.mismatches`.
 6. On run 1, executes all host unit tests, the explicit `/bin/ls.cc` CupidC GUI smoke, and the `as /demos/hello.asm` CupidASM GUI smoke. Each check records its command, status, duration, output digest, and diagnostic tail.
 7. Reads the final ELF `.text` size without host `objdump` and records kernel/image sizes. Host wall-clock durations are observational evidence only; they are not the future 20% guest-performance gate.
 
@@ -43,6 +43,15 @@ The runner writes failure evidence when tool preflight, build, tests, runtime sm
 ## Cross-host interpretation
 
 Windows Clang/LLVM and Linux GCC/binutils evidence are separate oracle baselines and are not expected to be byte-identical to each other. Reproducibility means two clean builds match on one recorded host/tool set. Later Cupid stages have the stronger byte-identical stage-2/stage-3 contract described in `../adr/0004-deterministic-bootstrap-seeds.md`.
+
+After both checked files describe the same revision, generate and check the cross-host gate:
+
+```sh
+make bootstrap-host-comparison
+make check-bootstrap-host-comparison
+```
+
+The comparison requires one passing Windows baseline and one passing Linux baseline, two-run same-host reproducibility, every named check, all three supported roots in both runs, an identical combined artifact-path cohort, and the fixed 200 MiB disk geometry. It records artifact digests and size deltas but explicitly does not gate on cross-toolchain hash equality. Canonical comparison evidence is `baselines/windows-linux.json` with schema `cupid.bootstrap-host-comparison.v1`.
 
 Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay under ignored `build/bootstrap/`. The JSON has schema identifier `cupid.bootstrap-baseline.v1`; schema changes require tests and a bootstrap-log entry.
 
