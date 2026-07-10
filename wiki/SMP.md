@@ -20,9 +20,9 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 | Timer source | per-CPU LAPIC periodic timer, vector 0x20 |
 | External IRQs | all on BSP (keyboard, mouse, disk, ...) |
 | IPI vectors | 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic |
-| New source files | 13 |
+| Per-CPU selector | `%gs`, one 128-byte `per_cpu_t` per logical CPU |
 
-New files:
+Core files:
 
 ```
 kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
@@ -30,8 +30,9 @@ kernel/smp/lapic.h  / lapic.c        Local APIC driver
 kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
 kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
 kernel/smp/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
-kernel/smp/mp.h / mp.c           MP table + ACPI MADT discovery
-bin/smp.cc                       `smp` shell command
+kernel/smp/mp_tables.h / .c      MP table discovery
+kernel/smp/acpi.h / acpi.c       ACPI MADT fallback
+kernel/lang/shell.c              `smp` shell command
 ```
 
 ---
@@ -42,20 +43,19 @@ The LAPIC and IOAPIC must be live before any AP is released. The 8259 PIC
 must be fully masked so that its IRQ lines do not collide with LAPIC vectors.
 
 ```
-percpu_init_bsp()       // allocate BSP per_cpu_t, load GS, set cpu_id=0
+percpu_init_bsp()       // initialise static per_cpu_t array/GDT, load BSP GS
 lapic_init_bsp()        // map LAPIC MMIO, software-enable, calibrate PIT-ch2
-ioapic_init_all()       // discover IOAPICs via MADT, build GSI table
 pic_mask_all()          // OCW1=0xFF on both 8259s - all legacy IRQ lines masked
+ioapic_init_all(bsp_id) // discover IOAPICs via MADT, build GSI table
+keyboard_init()         // install handler only after IOAPIC setup
 bkl_init()              // initialise ticket spinlock, per-CPU recursion counters
 smp_init()              // parse MP/MADT, populate cpu_table[], write trampoline
 smp_init_ipi()          // wire IPI vectors 0xF0/0xF1/0xFE in IDT
-                        // --- uniprocessor regression gate ---
-                        // if cpu_count == 1 -> skip AP bringup entirely
                         // --- AP bringup ---
 for each AP:
-    lapic_send_init_ipi(apic_id)
-    lapic_send_sipi(apic_id, 0x08)   // trampoline at 0x8000
-    wait up to 10 ms for AP to set ap_ready flag
+    send INIT, wait 10 ms
+    send SIPI vector 0x08 twice      // trampoline at 0x8000
+    wait up to 100 ms for cpus[i].online
 ```
 
 > **Warning** - reversing `lapic_init_bsp` and `ioapic_init_all` causes
@@ -69,14 +69,26 @@ for each AP:
 ### `per_cpu_t` struct (kernel/smp/percpu.h)
 
 ```c
-typedef struct {
-    uint32_t  self;          // GS:0  - pointer to this struct (cheap self-ref)
-    uint32_t  cpu_id;        // GS:4  - logical CPU index 0..31
-    uint32_t  apic_id;       // GS:8  - APIC hardware ID
-    uint32_t  current_pid;   // GS:12 - PID running on this CPU
-    uint32_t  bkl_depth;     // GS:16 - BKL recursion depth
-    uint32_t  bkl_irqflags;  // GS:20 - EFLAGS saved on outermost lock
-    uint8_t   pad[104];      // pad to 128 bytes
+typedef struct per_cpu_t {
+    struct per_cpu_t *self_ptr; // GS:0x00
+    uint8_t cpu_id;              // GS:0x04, logical CPU index
+    uint8_t apic_id;             // GS:0x05, hardware APIC ID
+    uint8_t bootstrap;           // GS:0x06, BSP marker
+    uint8_t online;              // GS:0x07
+    process_t *current;          // GS:0x08, reserved task pointer
+    process_t *idle;             // GS:0x0C, reserved idle pointer
+    uint32_t bkl_depth;          // GS:0x10, mirrored global BKL depth
+    uint64_t preempt_count;      // GS:0x14
+    uint8_t *idle_stack_top;     // GS:0x1C, AP bootstrap stack
+    uint32_t bkl_eflags_saved;   // GS:0x20, outer caller EFLAGS
+    uint32_t current_pid;        // GS:0x24, 0 means CPU-local idle loop
+    void (*call_fn)(void *);     // GS:0x28, cross-CPU call
+    void *call_arg;              // GS:0x2C
+    uint8_t call_pending;        // GS:0x30
+    uint8_t call_done;           // GS:0x31
+    uint8_t reschedule_pending;  // GS:0x32
+    uint8_t interrupt_depth;     // GS:0x33
+    uint8_t _pad[74];
 } per_cpu_t;
 
 _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
@@ -92,7 +104,7 @@ with a self-pointer so callers never need to know the linear address.
 | 0 | 0x00 | null descriptor |
 | 1 | 0x08 | flat code segment (ring 0) |
 | 2 | 0x10 | flat data segment (ring 0) |
-| 3 | 0x18 | TSS |
+| 3 | 0x18 | reserved |
 | 4 | 0x20 | (reserved) |
 | 5-36 | 0x28-0x128 | 32 per-CPU data descriptors (one per logical CPU) |
 
@@ -269,15 +281,8 @@ tramp32:
     mov  eax, [LAPIC_VA + 0x20]
     shr  eax, 24               ; APIC ID in bits 31:24
 
-    ; Look up logical cpu_id in BSP-populated apic_to_cpu[] table
-    mov  ecx, [apic_to_cpu + eax*4]
-
-    ; Load idle stack pointer
-    mov  esp, [idle_stacks + ecx*4]
-
-    ; Set GS = 0x10 (flat data) temporarily, ap_main_c fixes it
-    mov  ax, 0x10
-    mov  gs, ax
+    ; Scan apic_to_cpu_id[32] for the logical CPU slot
+    ; Load temporary GS=0x10 and idle_stack_tops[cpu_id]
 
     call ap_main_c             ; -> loads real kernel GDT + per-CPU GS
 ```
@@ -285,13 +290,29 @@ tramp32:
 ### `ap_main_c` (C side)
 
 ```c
-void ap_main_c(uint32_t cpu_id) {
-    percpu_init_ap(cpu_id);    // allocate per_cpu_t, set GS selector
-    lapic_init_ap();           // enable LAPIC, start periodic timer
-    bkl_acquire();
-    scheduler_ap_idle();       // enter idle loop, release BKL each round
+void ap_main_c(void) {
+    fpu_init_cpu();            // first operation: no logging or XMM use
+    uint8_t my_apic = lapic_get_id();
+    int cpu_id = 0;
+    for (int j = 1; j < smp_cpu_count_var; j++) {
+        if (cpus[j].apic_id == my_apic) { cpu_id = j; break; }
+    }
+    percpu_load_kernel_gdt(cpu_id);
+    this_cpu()->online = 1;
+    idt_load_ap();
+    lapic_init_ap();
+    __asm__ volatile("sti");
+    for (;;) {
+        schedule();
+        __asm__ volatile("sti; hlt");
+    }
 }
 ```
+
+CR0 and CR4 are per logical CPU, so the BSP cannot enable SSE for an AP.
+`fpu_init_cpu()` is compiled with `target("no-sse,no-sse2")`, performs no
+logging, and establishes CR0/CR4, `FNINIT`, and MXCSR before ordinary AP C
+code can execute compiler-generated SSE.
 
 ---
 
@@ -304,35 +325,54 @@ save on the outermost acquire.
 
 ```c
 typedef struct {
-    volatile uint32_t next_ticket;
-    volatile uint32_t now_serving;
-} ticket_lock_t;
+    volatile uint32_t ticket_head;
+    volatile uint32_t ticket_tail;
+    int32_t owner_cpu;
+    uint32_t depth;
+} bkl_t;
 ```
 
 ### Acquire / release
 
 ```c
-void bkl_acquire(void) {
-    uint32_t cpu = this_cpu()->cpu_id;
-    if (this_cpu()->bkl_depth > 0) {   // recursive - just increment depth
-        this_cpu()->bkl_depth++;
+void bkl_lock(void) {
+    uint32_t eflags = save_and_cli();
+    per_cpu_t *cpu = this_cpu();
+    if (klock.owner_cpu == cpu->cpu_id) {
+        klock.depth++;
+        cpu->bkl_depth = klock.depth;
         return;
     }
-    // save EFLAGS and disable interrupts (outermost only)
-    this_cpu()->bkl_irqflags = read_eflags();
-    cli();
-    uint32_t my_ticket = atomic_fetch_add(&bkl.next_ticket, 1);
-    while (bkl.now_serving != my_ticket) { __asm__ volatile("pause"); }
-    this_cpu()->bkl_depth = 1;
+    uint32_t ticket = atomic_fetch_add(&klock.ticket_tail, 1);
+    while (klock.ticket_head != ticket) pause();
+    klock.owner_cpu = cpu->cpu_id;
+    klock.depth = 1;
+    cpu->bkl_depth = 1;
+    cpu->bkl_eflags_saved = eflags;
 }
 
-void bkl_release(void) {
-    this_cpu()->bkl_depth--;
-    if (this_cpu()->bkl_depth > 0) return;
-    bkl.now_serving++;
-    write_eflags(this_cpu()->bkl_irqflags);   // restore interrupts
+void bkl_unlock(void) {
+    per_cpu_t *cpu = this_cpu();
+    if (klock.depth == 0 || klock.owner_cpu != cpu->cpu_id) return;
+    uint32_t eflags = cpu->bkl_eflags_saved;
+    klock.depth--;
+    cpu->bkl_depth = klock.depth;
+    if (klock.depth != 0) return;
+    klock.owner_cpu = -1;
+    cpu->bkl_eflags_saved = 0;
+    atomic_fetch_add(&klock.ticket_head, 1);
+    process_reschedule_if_pending();
+    restore_if(eflags);
 }
 ```
+
+A real switch uses a different release path. `schedule()` may transfer only
+its sole BKL acquisition. After it publishes the outgoing PCB detached
+(`on_cpu = 0xFF`), `context_switch.asm` loads the target ESP and FPU state,
+then calls `bkl_context_switch_release()` on the target stack with interrupts
+still disabled. The target's saved interrupt policy is restored only after
+that handoff. Nested scheduling requests remain CPU-local and are consumed by
+the outer `bkl_unlock()`.
 
 ### What is wrapped
 
