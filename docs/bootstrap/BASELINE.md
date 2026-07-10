@@ -48,10 +48,10 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `6731dd6` | PASS: two clean 431-artifact builds matched; aggregate SHA-256 `a1f4a1b10fd326318ad0c2b861a050ca95dc225d6aea95caa6e7864d8d6d5fdf` | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | `0969300` | PASS: two clean 431-artifact builds matched; aggregate SHA-256 `c5fd401aff3dd914d72d3b8b2fff97d6f89df0dcf5fcb8e7de905b745c0b2f55` | `baselines/windows-amd64.json` |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
 
-This capture supersedes the shared-CupidASM evidence from `50c5b04`. The checked audit contract proves that the 431-path manifest includes all 424 final-link objects, including the shared runtime core, ELF32 module, x86 instruction model, CupidDis, CupidASM, and every CupidObj-produced wrapper. The current capture passed 82 host tests in 52.467 seconds (one Windows-only skip), `/bin/ls.cc` through CupidC in 18.882 seconds, and `as /demos/hello.asm` through CupidASM in 23.246 seconds. Its two isolated builds took 14.387 and 12.975 seconds. The resulting kernel ELF is 6,276,332 bytes, its raw binary is 6,064,029 bytes, `.text` is 1,390,468 bytes, and the disk image is 209,715,200 bytes; all times and sizes are oracle observations, not performance gates.
+This capture supersedes the CupidLD evidence from `92b3684` and proves the production CupidASM cutover at `0969300`. The checked audit contract proves that the 431-path manifest includes all 424 final-link objects. The current capture passed 145 host tests in 74.943 seconds (144 pass, one Windows-only skip), `/bin/ls.cc` through CupidC in 20.487 seconds, and `as /demos/hello.asm` through CupidASM in 25.598 seconds. Its two isolated builds took 18.364 and 17.169 seconds. The resulting kernel ELF is 6,252,832 bytes, its raw binary is 6,078,269 bytes, `.text` is 1,396,388 bytes, and the disk image is 209,715,200 bytes. Relative to the prior baseline, only the two CupidASM-produced relocatable objects and the two linked ELF containers changed; boot/trampoline bytes, flattened kernel bytes, and the disk image remained identical. All times and sizes are oracle observations, not performance gates.
 
 ## Build-output hygiene
 

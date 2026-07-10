@@ -772,3 +772,19 @@ One full WSL GCC attempt is retained as a failed approach rather than claimed as
 Independent standards and specification reviews finished green. The first specification pass found that baseline provenance honored a configured `NASM` command while two optional oracle suites still resolved PATH independently. One shared command parser/resolver now supplies both the fingerprint and both executions, including configured arguments and explicit paths; the re-review confirmed the mismatch closed. The standards pass also led to one shared hosted-tool prerequisite list and the same command resolver instead of three drifting copies.
 
 The post-cutover Windows reproducibility capture must run from the committed implementation, because the baseline runner intentionally ignores working-tree changes. GCC/Clang plus their native linker backend still bootstrap hosted Cupid tools, and GNU/LLVM `nm` still owns kernel-symbol extraction. NASM is no longer a normal-build dependency.
+
+## 2026-07-10: CupidASM Windows oracle recapture
+
+The baseline runner rebuilt committed cutover revision `0969300` twice in isolated Windows worktrees and refreshed `baselines/windows-amd64.json`.
+
+| Check | Result |
+| --- | --- |
+| Reproducibility | PASS: all 431 artifacts matched; aggregate SHA-256 `c5fd401aff3dd914d72d3b8b2fff97d6f89df0dcf5fcb8e7de905b745c0b2f55` |
+| Clean builds | PASS in 18.364 and 17.169 seconds |
+| Host tests | PASS: 145 tests in 74.943 seconds, 144 pass and one Windows-only skip |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 20.487 seconds |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 25.598 seconds |
+| Quality | Kernel `.text` 1,396,388 bytes; ELF 6,252,832 bytes; raw kernel 6,078,269 bytes; disk image 209,715,200 bytes |
+| Evidence file | 252,773 bytes; SHA-256 `bd896f8219e9127098b21de5c1a2eaa8e3b9e15e4a927ab3b15dd778c4bb15f8` |
+
+The captured required-tool set no longer contains an assembler; NASM 2.16.01 is fingerprinted only under `optional_oracle_tools`. Relative to the preceding Windows evidence, exactly four artifacts changed: the 696-byte context-switch object, the 1,892-byte ISR object, and the pass-one/final linked ELF containers. The boot image, SMP trampoline, flattened kernel, disk image, all sizes at loaded boundaries, and every other manifest artifact remain byte-identical. This is the expected distinction between Cupid's deterministic ELF metadata layout and NASM's container layout, not a runtime payload change. The complete Linux oracle remains pending on its separate roadmap ticket.

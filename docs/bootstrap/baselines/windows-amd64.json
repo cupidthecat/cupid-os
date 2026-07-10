@@ -435,7 +435,7 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "5f141dadf52069b8fda711533cc8d694191479b5e5a0681744fa24bb5ab79e5d",
+        "digest": "c5fd401aff3dd914d72d3b8b2fff97d6f89df0dcf5fcb8e7de905b745c0b2f55",
         "files": [
           {
             "path": "bin/audiotest.o",
@@ -1414,8 +1414,8 @@
           },
           {
             "path": "kernel/core/context_switch.o",
-            "sha256": "8132a3111c83c327c4fbefbabf9cd0d889018b1b972cdb53a8e52f4e1cb8762c",
-            "size": 784
+            "sha256": "8b0fa9415a5f549f6516e3ae4e73d39676d56fb58bbba87d9479610dd95818ea",
+            "size": 696
           },
           {
             "path": "kernel/core/kernel.o",
@@ -1459,8 +1459,8 @@
           },
           {
             "path": "kernel/cpu/isr.o",
-            "sha256": "e5887c2398d534a8f9455fa165c81c2b313503dbaab02381cf25b917f19005bb",
-            "size": 1968
+            "sha256": "caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6",
+            "size": 1892
           },
           {
             "path": "kernel/cpu/ksyms.o",
@@ -2219,12 +2219,12 @@
           },
           {
             "path": "kernel/kernel.elf",
-            "sha256": "dd28dd8975ae386449288410173c5e3219836811b8f8d4b494472620c20ee659",
+            "sha256": "60292d313506af28c52857d2f9f08301d803570e87a34060f9ed5171a5718595",
             "size": 6252832
           },
           {
             "path": "kernel/kernel.elf.pass1",
-            "sha256": "ff98fb75db257756befda09bb6d49a71c7c5f069c131ff2daa3ce210490d2eb0",
+            "sha256": "13056f0b598a09e012b0a89eea263755070f553cb0cbaacb615ed59c93dac38a",
             "size": 6162720
           },
           {
@@ -2603,11 +2603,10 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.681,
+          "elapsed_seconds": 0.641,
           "name": "clean",
-          "output_sha256": "626831136a9968a5dd9893e1d6aa8e38b03b2ba076d64762bb981a8fade2bed8",
+          "output_sha256": "b03d85f72f355e4e5a00bd980e18201f1e1519f7168d605b76d38b2013bd9e9c",
           "output_tail": [
-            "make[1]: Entering directory '<WORKTREE>'",
             "BIN_CC_SRCS=bin/audiotest.cc bin/auto.cc bin/bgstudio.cc bin/bible.cc bin/bmptest.cc bin/browser.cc bin/cachestats.cc bin/cat.cc bin/cd.cc bin/clear.cc bin/cp.cc bin/crashtest.cc bin/ctxt.cc bin/cupidc_test1.cc bin/cupidc_test2.cc bin/cupidc_test3.cc bin/cupidc_test4.cc bin/cupidc_test5.cc bin/cupidfetch.cc bin/curl.cc bin/date.cc bin/dglibc_test.cc bin/doom.cc bin/echo.cc bin/ed.cc bin/feature10_repl.cc bin/feature11_ternary.cc bin/feature12_float.cc bin/feature13_double.cc bin/feature14_simd.cc bin/feature15_libm.cc bin/feature16_asm_fpu.cc bin/feature17_iso.cc bin/feature18_swap.cc bin/feature19_usb.cc bin/feature1_types.cc bin/feature20_smp.cc bin/feature21_net.cc bin/feature22_net_server.cc bin/feature23_full_access.cc bin/feature24_widetypes.cc bin/feature2_top_level.cc bin/feature3_class.cc bin/feature4_forward_calls.cc bin/feature5_print_builtin.cc bin/feature6_exe.cc bin/feature7_new_del.cc bin/feature8_reg_noreg.cc bin/feature9_abs_addr.cc bin/find.cc bin/fm.cc bin/fontswitch.cc bin/fp_drill.cc bin/gfxdemo.cc bin/gfxgui_test.cc bin/gfxtest.cc bin/godsong.cc bin/godspeak.cc bin/grep.cc bin/head.cc bin/help.cc bin/history.cc bin/kbdsub_test.cc bin/kill.cc bin/logdump.cc bin/loglevel.cc bin/ls.cc bin/memcheck.cc bin/memdump.cc bin/memleak.cc bin/memstats.cc bin/mkdir.cc bin/mount.cc bin/mv.cc bin/notepad.cc bin/oracle.cc bin/paint.cc bin/printc.cc bin/ps.cc bin/pwd.cc bin/reboot.cc bin/registers.cc bin/resetcolor.cc bin/rm.cc bin/rmdir.cc bin/setcolor.cc bin/sort.cc bin/spawn.cc bin/ssh.cc bin/stacktrace.cc bin/sync.cc bin/sysinfo.cc bin/tail.cc bin/telnet.cc bin/terminal.cc bin/test.cc bin/test_fpaug.cc bin/test_print.cc bin/time.cc bin/touch.cc bin/volume.cc bin/wc.cc bin/wget.cc bin/yield.cc",
             "BIN_HDR_SRCS=bin/fat16.h bin/shell.h",
             "BROWSER_SUB_SRCS=bin/browser/css.cc bin/browser/dom.cc bin/browser/font_face.cc bin/browser/image.cc bin/browser/input.cc bin/browser/js_dom.cc bin/browser/js_interp.cc bin/browser/js_lex.cc bin/browser/js_parse.cc bin/browser/layout.cc bin/browser/main.cc bin/browser/nav.cc bin/browser/net.cc bin/browser/paint.cc bin/browser/parser.cc bin/browser/render_tree.cc bin/browser/style.cc bin/browser/url.cc bin/browser/url_hash.cc bin/browser/util.cc bin/browser/woff.cc bin/browser/woff2.cc",
@@ -2619,8 +2618,7 @@
             "FONT_TTF_SRCS=system/fonts/LiberationMono-Regular.ttf system/fonts/LiberationSans-Regular.ttf system/fonts/LiberationSerif-Regular.ttf system/fonts/NotoSansSymbols-Regular.ttf",
             "python tools/hostbuild.py clean boot/boot.bin kernel/kernel.bin \"kernel/*.o\" \"kernel/audio/*.o\" \"kernel/core/*.o\" \"kernel/cpu/*.o\" \"kernel/crypto/*.o\" \"kernel/doom/*.o\" \"kernel/doom/src/*.o\" \"kernel/fs/*.o\" \"kernel/gfx/*.o\" \"kernel/gui/*.o\" \"kernel/lang/*.o\" \"kernel/mm/*.o\" \"kernel/network/*.o\" \"kernel/smp/*.o\" \"kernel/tls/*.o\" \"kernel/usb/*.o\" \"kernel/util/*.o\" \"toolchain/*.o\" \"drivers/*.o\" \"filesystem/*.o\" \"bin/*.o\" \"bin/browser/*.o\" \"cupidos-txt/*.o\" \"demos/*.o\" \"god/*.o\" \"system/fonts/*.ttf.o\" \"*.bmp.o\" \"*.png.o\" \"*.jpg.o\" \"*.jpeg.o\" \"kernel/kernel.elf\" \"kernel/kernel.elf.pass1\" \"kernel/kernel.bin\" \"kernel/smp_trampoline.bin\" \"kernel/util/bin_programs_gen.c\" \"kernel/util/docs_programs_gen.c\" \"kernel/util/demos_programs_gen.c\" \"kernel/cpu/ksyms_data.c\" \"debug.log\" \"tests/*.log\" \"tests/__pycache__\" \"tools/__pycache__\"",
             "python tools/hostbuild.py clean cupidos.img",
-            "python tools/hostbuild.py clean \"test_usb_partitioned.img\" \"build\" \"toolchain/build\"",
-            "make[1]: Leaving directory '<WORKTREE>'"
+            "python tools/hostbuild.py clean \"test_usb_partitioned.img\" \"build\" \"toolchain/build\""
           ],
           "returncode": 0,
           "status": "pass"
@@ -2634,20 +2632,21 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 17.486,
+          "elapsed_seconds": 18.364,
           "name": "build",
-          "output_sha256": "afd7822178c64f6cbe9068230e81f7523a2479742d728dffe42939c7c0e78071",
+          "output_sha256": "98bcd25e9ccb27e5c70692cbc60bda505c58cba9730f705c1d5d0806d34a2ba3",
           "output_tail": [
-            "C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe -C toolchain build/cupidld.exe",
-            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
-            "make[2]: Entering directory '<WORKTREE>/toolchain'",
+            "toolchain/build/cupidasm.exe -f bin boot/boot.asm -o boot/boot.bin",
+            "make[1]: Entering directory '<WORKTREE>/toolchain'",
             "clang -I. -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -c cupidld.c -o build/cupidld.o",
             "clang -I. -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -c cupidld_main.c -o build/cupidld_main.o",
+            "toolchain/build/cupidasm.exe -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o",
+            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o",
             "clang -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion build/ctool.o build/ctool_host.o build/elf32.o build/cupidld.o build/cupidld_main.o -o build/cupidld.exe",
-            "make[2]: Leaving directory '<WORKTREE>/toolchain'",
+            "make[1]: Leaving directory '<WORKTREE>/toolchain'",
             "toolchain/build/cupidld.exe -m elf_i386 -T link.ld -o kernel/kernel.elf.pass1 kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o drivers/speaker.o kernel/lang/shell.o kernel/core/string.o kernel/mm/memory.o drivers/pci.o kernel/usb/usb.o kernel/usb/uhci.o kernel/usb/ehci.o kernel/usb/usb_hid.o kernel/usb/usb_hub.o kernel/usb/usb_msc.o kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o drivers/serial.o kernel/core/panic.o kernel/gui/ed.o drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o kernel/gui/clipboard.o kernel/gui/ui.o kernel/lang/godspeak.o kernel/cpu/fpu.o kernel/cpu/libm.o kernel/lang/cupidscript_lex.o kernel/lang/cupidscript_parse.o kernel/lang/cupidscript_exec.o kernel/lang/cupidscript_runtime.o kernel/lang/cupidscript_streams.o kernel/lang/cupidscript_strings.o kernel/lang/cupidscript_arrays.o kernel/lang/cupidscript_jobs.o kernel/gui/ansi.o kernel/gui/terminal_app.o kernel/gui/ctxt_image_worker.o kernel/fs/vfs.o kernel/fs/ramfs.o kernel/fs/devfs.o kernel/fs/fat16_vfs.o kernel/lang/exec.o kernel/fs/homefs.o kernel/fs/loopdev.o kernel/fs/iso9660.o kernel/fs/iso9660_vfs.o kernel/mm/swap_disk.o kernel/mm/swap.o kernel/smp/percpu.o kernel/smp/smp_trampoline.o kernel/smp/lapic.o kernel/smp/ioapic.o kernel/smp/bkl.o kernel/smp/mp_tables.o kernel/smp/acpi.o kernel/smp/smp.o kernel/network/net_if.o kernel/network/arp.o kernel/network/ip.o kernel/network/icmp.o kernel/network/udp.o kernel/network/socket.o kernel/network/tcp.o kernel/network/dhcp.o kernel/network/dns.o kernel/network/sshd.o drivers/rtl8139.o drivers/e1000.o kernel/core/syscall.o kernel/crypto/chacha20.o kernel/crypto/csprng.o kernel/crypto/sha256.o kernel/crypto/sha512.o kernel/crypto/hmac.o kernel/crypto/hkdf.o kernel/crypto/ct.o kernel/crypto/poly1305.o kernel/crypto/chacha20poly1305.o kernel/crypto/aes.o kernel/crypto/aes_gcm.o kernel/crypto/bigint.o kernel/crypto/rsa.o kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o kernel/crypto/ed25519.o kernel/crypto/asn1.o kernel/crypto/x509.o kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o kernel/tls/tls_record.o kernel/tls/tls_kdf.o kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o kernel/tls/tls12_handshake.o kernel/tls/tls_selftest.o toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o kernel/lang/cupidc_string.o kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o kernel/lang/as.o kernel/lang/as_elf.o kernel/lang/dis.o kernel/gfx/gfx2d.o kernel/gfx/bmp.o kernel/gfx/png.o kernel/gfx/deflate.o kernel/gfx/jpeg.o kernel/gfx/ttf.o kernel/gfx/glyph_raster.o kernel/gfx/fontsys.o kernel/fs/vfs_helpers.o drivers/rtc.o kernel/util/calendar.o kernel/gfx/gfx2d_assets.o kernel/gfx/gfx2d_transform.o kernel/gfx/gfx2d_effects.o kernel/cpu/simd.o kernel/gfx/gfx2d_icons.o kernel/gui/gui_widgets.o kernel/gui/gui_containers.o kernel/gui/gui_menus.o kernel/gui/gui_events.o kernel/gui/gui_themes.o kernel/util/bin_programs_gen.o kernel/util/docs_programs_gen.o kernel/util/demos_programs_gen.o kernel/cpu/ksyms.o kernel/audio/ac97.o kernel/audio/mixer.o kernel/audio/nuked_opl3.o kernel/audio/opl_smoke.o kernel/audio/memio.o kernel/audio/mus2midi.o kernel/audio/midiopl.o bin/audiotest.o bin/auto.o bin/bgstudio.o bin/bible.o bin/bmptest.o bin/browser.o bin/cachestats.o bin/cat.o bin/cd.o bin/clear.o bin/cp.o bin/crashtest.o bin/ctxt.o bin/cupidc_test1.o bin/cupidc_test2.o bin/cupidc_test3.o bin/cupidc_test4.o bin/cupidc_test5.o bin/cupidfetch.o bin/curl.o bin/date.o bin/dglibc_test.o bin/doom.o bin/echo.o bin/ed.o bin/feature10_repl.o bin/feature11_ternary.o bin/feature12_float.o bin/feature13_double.o bin/feature14_simd.o bin/feature15_libm.o bin/feature16_asm_fpu.o bin/feature17_iso.o bin/feature18_swap.o bin/feature19_usb.o bin/feature1_types.o bin/feature20_smp.o bin/feature21_net.o bin/feature22_net_server.o bin/feature23_full_access.o bin/feature24_widetypes.o bin/feature2_top_level.o bin/feature3_class.o bin/feature4_forward_calls.o bin/feature5_print_builtin.o bin/feature6_exe.o bin/feature7_new_del.o bin/feature8_reg_noreg.o bin/feature9_abs_addr.o bin/find.o bin/fm.o bin/fontswitch.o bin/fp_drill.o bin/gfxdemo.o bin/gfxgui_test.o bin/gfxtest.o bin/godsong.o bin/godspeak.o bin/grep.o bin/head.o bin/help.o bin/history.o bin/kbdsub_test.o bin/kill.o bin/logdump.o bin/loglevel.o bin/ls.o bin/memcheck.o bin/memdump.o bin/memleak.o bin/memstats.o bin/mkdir.o bin/mount.o bin/mv.o bin/notepad.o bin/oracle.o bin/paint.o bin/printc.o bin/ps.o bin/pwd.o bin/reboot.o bin/registers.o bin/resetcolor.o bin/rm.o bin/rmdir.o bin/setcolor.o bin/sort.o bin/spawn.o bin/ssh.o bin/stacktrace.o bin/sync.o bin/sysinfo.o bin/tail.o bin/telnet.o bin/terminal.o bin/test.o bin/test_fpaug.o bin/test_print.o bin/time.o bin/touch.o bin/volume.o bin/wc.o bin/wget.o bin/yield.o bin/fat16.h.o bin/shell.h.o bin/browser/css.o bin/browser/dom.o bin/browser/font_face.o bin/browser/image.o bin/browser/input.o bin/browser/js_dom.o bin/browser/js_interp.o bin/browser/js_lex.o bin/browser/js_parse.o bin/browser/layout.o bin/browser/main.o bin/browser/nav.o bin/browser/net.o bin/browser/paint.o bin/browser/parser.o bin/browser/render_tree.o bin/browser/style.o bin/browser/url.o bin/browser/url_hash.o bin/browser/util.o bin/browser/woff.o bin/browser/woff2.o cupidos-txt/00INDEX.o cupidos-txt/01SHELL.o cupidos-txt/02FILESYS.o cupidos-txt/03CUPIDSC.o cupidos-txt/04CUPIDC.o cupidos-txt/05ELFPROG.o cupidos-txt/06GUITERM.o cupidos-txt/07LABS.o cupidos-txt/08CMDS.o cupidos-txt/09EMBED.o cupidos-txt/10ASM.o cupidos-txt/11CTXT.o cupidos-txt/12HOLYC-CUPIDC.o cupidos-txt/13USB.o cupidos-txt/14FPU-SSE.o cupidos-txt/15ISO9660.o cupidos-txt/16SWAP.o cupidos-txt/17SMP.o cupidos-txt/18NET.o file_example_JPG_1MB.jpg.o image.bmp.o snail.bmp.o test.png.o demos/asm_compat_reserve.o demos/bubblesort.o demos/data.o demos/factorial.o demos/fibonacci.o demos/fpu_kernel.o demos/fs_syscalls.o demos/hello.o demos/include_feature.o demos/include_helper.o demos/jcc_aliases.o demos/loop.o demos/math.o demos/parity_core.o demos/parity_diag.o demos/parity_gfx2d.o demos/parity_priv.o demos/reserve_directives.o demos/simd_blur.o demos/stack.o demos/syscall_table_demo.o demos/syscall_vfs_extended_demo.o god/Psalms.o god/Vocab.o system/fonts/LiberationMono-Regular.ttf.o system/fonts/LiberationSans-Regular.ttf.o system/fonts/LiberationSerif-Regular.ttf.o system/fonts/NotoSansSymbols-Regular.ttf.o kernel/tls/tls_ca_bundle_data.o kernel/doom/dglibc.o kernel/doom/doomgeneric_cupidos.o kernel/doom/doom_libc_stubs.o kernel/doom/i_sound_cupidos.o kernel/doom/src/am_map.o kernel/doom/src/d_event.o kernel/doom/src/d_items.o kernel/doom/src/d_iwad.o kernel/doom/src/d_loop.o kernel/doom/src/d_main.o kernel/doom/src/d_mode.o kernel/doom/src/d_net.o kernel/doom/src/doomdef.o kernel/doom/src/doomgeneric.o kernel/doom/src/doomstat.o kernel/doom/src/dstrings.o kernel/doom/src/dummy.o kernel/doom/src/f_finale.o kernel/doom/src/f_wipe.o kernel/doom/src/g_game.o kernel/doom/src/gusconf.o kernel/doom/src/hu_lib.o kernel/doom/src/hu_stuff.o kernel/doom/src/i_endoom.o kernel/doom/src/i_input.o kernel/doom/src/i_joystick.o kernel/doom/src/i_scale.o kernel/doom/src/i_system.o kernel/doom/src/i_timer.o kernel/doom/src/i_video.o kernel/doom/src/icon.o kernel/doom/src/info.o kernel/doom/src/m_argv.o kernel/doom/src/m_bbox.o kernel/doom/src/m_cheat.o kernel/doom/src/m_config.o kernel/doom/src/m_controls.o kernel/doom/src/m_fixed.o kernel/doom/src/m_menu.o kernel/doom/src/m_misc.o kernel/doom/src/m_random.o kernel/doom/src/p_ceilng.o kernel/doom/src/p_doors.o kernel/doom/src/p_enemy.o kernel/doom/src/p_floor.o kernel/doom/src/p_inter.o kernel/doom/src/p_lights.o kernel/doom/src/p_map.o kernel/doom/src/p_maputl.o kernel/doom/src/p_mobj.o kernel/doom/src/p_plats.o kernel/doom/src/p_pspr.o kernel/doom/src/p_saveg.o kernel/doom/src/p_setup.o kernel/doom/src/p_sight.o kernel/doom/src/p_spec.o kernel/doom/src/p_switch.o kernel/doom/src/p_telept.o kernel/doom/src/p_tick.o kernel/doom/src/p_user.o kernel/doom/src/r_bsp.o kernel/doom/src/r_data.o kernel/doom/src/r_draw.o kernel/doom/src/r_main.o kernel/doom/src/r_plane.o kernel/doom/src/r_segs.o kernel/doom/src/r_sky.o kernel/doom/src/r_things.o kernel/doom/src/s_sound.o kernel/doom/src/sha1.o kernel/doom/src/sounds.o kernel/doom/src/st_lib.o kernel/doom/src/st_stuff.o kernel/doom/src/statdump.o kernel/doom/src/tables.o kernel/doom/src/v_video.o kernel/doom/src/w_checksum.o kernel/doom/src/w_file.o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_main.o kernel/doom/src/w_wad.o kernel/doom/src/wi_stuff.o kernel/doom/src/z_zone.o",
             "python tools/hostbuild.py mksyms --nm llvm-nm kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c",
             "[hostbuild] mksyms: kernel\\cpu\\ksyms_data.c (91165 bytes)",
@@ -2656,8 +2655,7 @@
             "toolchain/build/cupidobj.exe flat kernel/kernel.elf -o kernel/kernel.bin",
             "python tools/hostbuild.py image --image cupidos.img --bootloader boot/boot.bin --kernel kernel/kernel.bin --hdd-mb 200 --fat-start-lba 16384 --stage test_iso/hello.iso:/hello.iso --wads ",
             "[hostbuild] Created cupidos.img (200MB FAT16 at LBA 16384)",
-            "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso",
-            "make[1]: Leaving directory '<WORKTREE>'"
+            "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso"
           ],
           "returncode": 0,
           "status": "pass"
@@ -2671,7 +2669,7 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.274,
+          "elapsed_seconds": 0.241,
           "name": "artifact-list",
           "output_sha256": "2499e8957c27d60c494702eacb5488f20adc605cd01d5c02342db7643ab4affd",
           "output_tail": [
@@ -2691,13 +2689,13 @@
             "-p",
             "test_*.py"
           ],
-          "elapsed_seconds": 76.944,
+          "elapsed_seconds": 74.943,
           "name": "host-unit-tests",
-          "output_sha256": "948345eb48aeeb22745de36c73e814d362ef5fbbab159eec2a7d84e9268e2fa8",
+          "output_sha256": "03bc10912e235db52a7dc3cb674650c95efe24ca18ba2759ee7874477396bc39",
           "output_tail": [
-            "..........................................................................................................s...................................",
+            ".............................................................................................................s...................................",
             "----------------------------------------------------------------------",
-            "Ran 142 tests in 76.011s",
+            "Ran 145 tests in 74.117s",
             "",
             "OK (skipped=1)",
             "[hostbuild] JPEG baseline embed <TEMP>\\photo.jpg",
@@ -2723,7 +2721,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 20.867,
+          "elapsed_seconds": 20.487,
           "name": "cupidc-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -2747,7 +2745,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 25.266,
+          "elapsed_seconds": 25.598,
           "name": "cupidasm-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -3201,7 +3199,7 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "5f141dadf52069b8fda711533cc8d694191479b5e5a0681744fa24bb5ab79e5d",
+        "digest": "c5fd401aff3dd914d72d3b8b2fff97d6f89df0dcf5fcb8e7de905b745c0b2f55",
         "files": [
           {
             "path": "bin/audiotest.o",
@@ -4180,8 +4178,8 @@
           },
           {
             "path": "kernel/core/context_switch.o",
-            "sha256": "8132a3111c83c327c4fbefbabf9cd0d889018b1b972cdb53a8e52f4e1cb8762c",
-            "size": 784
+            "sha256": "8b0fa9415a5f549f6516e3ae4e73d39676d56fb58bbba87d9479610dd95818ea",
+            "size": 696
           },
           {
             "path": "kernel/core/kernel.o",
@@ -4225,8 +4223,8 @@
           },
           {
             "path": "kernel/cpu/isr.o",
-            "sha256": "e5887c2398d534a8f9455fa165c81c2b313503dbaab02381cf25b917f19005bb",
-            "size": 1968
+            "sha256": "caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6",
+            "size": 1892
           },
           {
             "path": "kernel/cpu/ksyms.o",
@@ -4985,12 +4983,12 @@
           },
           {
             "path": "kernel/kernel.elf",
-            "sha256": "dd28dd8975ae386449288410173c5e3219836811b8f8d4b494472620c20ee659",
+            "sha256": "60292d313506af28c52857d2f9f08301d803570e87a34060f9ed5171a5718595",
             "size": 6252832
           },
           {
             "path": "kernel/kernel.elf.pass1",
-            "sha256": "ff98fb75db257756befda09bb6d49a71c7c5f069c131ff2daa3ce210490d2eb0",
+            "sha256": "13056f0b598a09e012b0a89eea263755070f553cb0cbaacb615ed59c93dac38a",
             "size": 6162720
           },
           {
@@ -5369,11 +5367,10 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.701,
+          "elapsed_seconds": 0.758,
           "name": "clean",
-          "output_sha256": "626831136a9968a5dd9893e1d6aa8e38b03b2ba076d64762bb981a8fade2bed8",
+          "output_sha256": "b03d85f72f355e4e5a00bd980e18201f1e1519f7168d605b76d38b2013bd9e9c",
           "output_tail": [
-            "make[1]: Entering directory '<WORKTREE>'",
             "BIN_CC_SRCS=bin/audiotest.cc bin/auto.cc bin/bgstudio.cc bin/bible.cc bin/bmptest.cc bin/browser.cc bin/cachestats.cc bin/cat.cc bin/cd.cc bin/clear.cc bin/cp.cc bin/crashtest.cc bin/ctxt.cc bin/cupidc_test1.cc bin/cupidc_test2.cc bin/cupidc_test3.cc bin/cupidc_test4.cc bin/cupidc_test5.cc bin/cupidfetch.cc bin/curl.cc bin/date.cc bin/dglibc_test.cc bin/doom.cc bin/echo.cc bin/ed.cc bin/feature10_repl.cc bin/feature11_ternary.cc bin/feature12_float.cc bin/feature13_double.cc bin/feature14_simd.cc bin/feature15_libm.cc bin/feature16_asm_fpu.cc bin/feature17_iso.cc bin/feature18_swap.cc bin/feature19_usb.cc bin/feature1_types.cc bin/feature20_smp.cc bin/feature21_net.cc bin/feature22_net_server.cc bin/feature23_full_access.cc bin/feature24_widetypes.cc bin/feature2_top_level.cc bin/feature3_class.cc bin/feature4_forward_calls.cc bin/feature5_print_builtin.cc bin/feature6_exe.cc bin/feature7_new_del.cc bin/feature8_reg_noreg.cc bin/feature9_abs_addr.cc bin/find.cc bin/fm.cc bin/fontswitch.cc bin/fp_drill.cc bin/gfxdemo.cc bin/gfxgui_test.cc bin/gfxtest.cc bin/godsong.cc bin/godspeak.cc bin/grep.cc bin/head.cc bin/help.cc bin/history.cc bin/kbdsub_test.cc bin/kill.cc bin/logdump.cc bin/loglevel.cc bin/ls.cc bin/memcheck.cc bin/memdump.cc bin/memleak.cc bin/memstats.cc bin/mkdir.cc bin/mount.cc bin/mv.cc bin/notepad.cc bin/oracle.cc bin/paint.cc bin/printc.cc bin/ps.cc bin/pwd.cc bin/reboot.cc bin/registers.cc bin/resetcolor.cc bin/rm.cc bin/rmdir.cc bin/setcolor.cc bin/sort.cc bin/spawn.cc bin/ssh.cc bin/stacktrace.cc bin/sync.cc bin/sysinfo.cc bin/tail.cc bin/telnet.cc bin/terminal.cc bin/test.cc bin/test_fpaug.cc bin/test_print.cc bin/time.cc bin/touch.cc bin/volume.cc bin/wc.cc bin/wget.cc bin/yield.cc",
             "BIN_HDR_SRCS=bin/fat16.h bin/shell.h",
             "BROWSER_SUB_SRCS=bin/browser/css.cc bin/browser/dom.cc bin/browser/font_face.cc bin/browser/image.cc bin/browser/input.cc bin/browser/js_dom.cc bin/browser/js_interp.cc bin/browser/js_lex.cc bin/browser/js_parse.cc bin/browser/layout.cc bin/browser/main.cc bin/browser/nav.cc bin/browser/net.cc bin/browser/paint.cc bin/browser/parser.cc bin/browser/render_tree.cc bin/browser/style.cc bin/browser/url.cc bin/browser/url_hash.cc bin/browser/util.cc bin/browser/woff.cc bin/browser/woff2.cc",
@@ -5385,8 +5382,7 @@
             "FONT_TTF_SRCS=system/fonts/LiberationMono-Regular.ttf system/fonts/LiberationSans-Regular.ttf system/fonts/LiberationSerif-Regular.ttf system/fonts/NotoSansSymbols-Regular.ttf",
             "python tools/hostbuild.py clean boot/boot.bin kernel/kernel.bin \"kernel/*.o\" \"kernel/audio/*.o\" \"kernel/core/*.o\" \"kernel/cpu/*.o\" \"kernel/crypto/*.o\" \"kernel/doom/*.o\" \"kernel/doom/src/*.o\" \"kernel/fs/*.o\" \"kernel/gfx/*.o\" \"kernel/gui/*.o\" \"kernel/lang/*.o\" \"kernel/mm/*.o\" \"kernel/network/*.o\" \"kernel/smp/*.o\" \"kernel/tls/*.o\" \"kernel/usb/*.o\" \"kernel/util/*.o\" \"toolchain/*.o\" \"drivers/*.o\" \"filesystem/*.o\" \"bin/*.o\" \"bin/browser/*.o\" \"cupidos-txt/*.o\" \"demos/*.o\" \"god/*.o\" \"system/fonts/*.ttf.o\" \"*.bmp.o\" \"*.png.o\" \"*.jpg.o\" \"*.jpeg.o\" \"kernel/kernel.elf\" \"kernel/kernel.elf.pass1\" \"kernel/kernel.bin\" \"kernel/smp_trampoline.bin\" \"kernel/util/bin_programs_gen.c\" \"kernel/util/docs_programs_gen.c\" \"kernel/util/demos_programs_gen.c\" \"kernel/cpu/ksyms_data.c\" \"debug.log\" \"tests/*.log\" \"tests/__pycache__\" \"tools/__pycache__\"",
             "python tools/hostbuild.py clean cupidos.img",
-            "python tools/hostbuild.py clean \"test_usb_partitioned.img\" \"build\" \"toolchain/build\"",
-            "make[1]: Leaving directory '<WORKTREE>'"
+            "python tools/hostbuild.py clean \"test_usb_partitioned.img\" \"build\" \"toolchain/build\""
           ],
           "returncode": 0,
           "status": "pass"
@@ -5400,20 +5396,21 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 18.326,
+          "elapsed_seconds": 17.169,
           "name": "build",
-          "output_sha256": "e456386ad4739e742fc9b06fdfd5cbbc267302224557f61c23897bf062c89b4f",
+          "output_sha256": "5d8a37d64268cfea2f192cfe0cd8e2e8816bd2a290af733f078da0a20e3deb7c",
           "output_tail": [
-            "C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe -C toolchain build/cupidld.exe",
-            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
-            "make[2]: Entering directory '<WORKTREE>/toolchain'",
+            "toolchain/build/cupidasm.exe -f bin boot/boot.asm -o boot/boot.bin",
+            "make[1]: Entering directory '<WORKTREE>/toolchain'",
             "clang -I. -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -c cupidld.c -o build/cupidld.o",
             "clang -I. -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -c cupidld_main.c -o build/cupidld_main.o",
+            "toolchain/build/cupidasm.exe -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o",
+            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o",
             "clang -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion build/ctool.o build/ctool_host.o build/elf32.o build/cupidld.o build/cupidld_main.o -o build/cupidld.exe",
-            "make[2]: Leaving directory '<WORKTREE>/toolchain'",
+            "make[1]: Leaving directory '<WORKTREE>/toolchain'",
             "toolchain/build/cupidld.exe -m elf_i386 -T link.ld -o kernel/kernel.elf.pass1 kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o drivers/speaker.o kernel/lang/shell.o kernel/core/string.o kernel/mm/memory.o drivers/pci.o kernel/usb/usb.o kernel/usb/uhci.o kernel/usb/ehci.o kernel/usb/usb_hid.o kernel/usb/usb_hub.o kernel/usb/usb_msc.o kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o drivers/serial.o kernel/core/panic.o kernel/gui/ed.o drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o kernel/gui/clipboard.o kernel/gui/ui.o kernel/lang/godspeak.o kernel/cpu/fpu.o kernel/cpu/libm.o kernel/lang/cupidscript_lex.o kernel/lang/cupidscript_parse.o kernel/lang/cupidscript_exec.o kernel/lang/cupidscript_runtime.o kernel/lang/cupidscript_streams.o kernel/lang/cupidscript_strings.o kernel/lang/cupidscript_arrays.o kernel/lang/cupidscript_jobs.o kernel/gui/ansi.o kernel/gui/terminal_app.o kernel/gui/ctxt_image_worker.o kernel/fs/vfs.o kernel/fs/ramfs.o kernel/fs/devfs.o kernel/fs/fat16_vfs.o kernel/lang/exec.o kernel/fs/homefs.o kernel/fs/loopdev.o kernel/fs/iso9660.o kernel/fs/iso9660_vfs.o kernel/mm/swap_disk.o kernel/mm/swap.o kernel/smp/percpu.o kernel/smp/smp_trampoline.o kernel/smp/lapic.o kernel/smp/ioapic.o kernel/smp/bkl.o kernel/smp/mp_tables.o kernel/smp/acpi.o kernel/smp/smp.o kernel/network/net_if.o kernel/network/arp.o kernel/network/ip.o kernel/network/icmp.o kernel/network/udp.o kernel/network/socket.o kernel/network/tcp.o kernel/network/dhcp.o kernel/network/dns.o kernel/network/sshd.o drivers/rtl8139.o drivers/e1000.o kernel/core/syscall.o kernel/crypto/chacha20.o kernel/crypto/csprng.o kernel/crypto/sha256.o kernel/crypto/sha512.o kernel/crypto/hmac.o kernel/crypto/hkdf.o kernel/crypto/ct.o kernel/crypto/poly1305.o kernel/crypto/chacha20poly1305.o kernel/crypto/aes.o kernel/crypto/aes_gcm.o kernel/crypto/bigint.o kernel/crypto/rsa.o kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o kernel/crypto/ed25519.o kernel/crypto/asn1.o kernel/crypto/x509.o kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o kernel/tls/tls_record.o kernel/tls/tls_kdf.o kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o kernel/tls/tls12_handshake.o kernel/tls/tls_selftest.o toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o kernel/lang/cupidc_string.o kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o kernel/lang/as.o kernel/lang/as_elf.o kernel/lang/dis.o kernel/gfx/gfx2d.o kernel/gfx/bmp.o kernel/gfx/png.o kernel/gfx/deflate.o kernel/gfx/jpeg.o kernel/gfx/ttf.o kernel/gfx/glyph_raster.o kernel/gfx/fontsys.o kernel/fs/vfs_helpers.o drivers/rtc.o kernel/util/calendar.o kernel/gfx/gfx2d_assets.o kernel/gfx/gfx2d_transform.o kernel/gfx/gfx2d_effects.o kernel/cpu/simd.o kernel/gfx/gfx2d_icons.o kernel/gui/gui_widgets.o kernel/gui/gui_containers.o kernel/gui/gui_menus.o kernel/gui/gui_events.o kernel/gui/gui_themes.o kernel/util/bin_programs_gen.o kernel/util/docs_programs_gen.o kernel/util/demos_programs_gen.o kernel/cpu/ksyms.o kernel/audio/ac97.o kernel/audio/mixer.o kernel/audio/nuked_opl3.o kernel/audio/opl_smoke.o kernel/audio/memio.o kernel/audio/mus2midi.o kernel/audio/midiopl.o bin/audiotest.o bin/auto.o bin/bgstudio.o bin/bible.o bin/bmptest.o bin/browser.o bin/cachestats.o bin/cat.o bin/cd.o bin/clear.o bin/cp.o bin/crashtest.o bin/ctxt.o bin/cupidc_test1.o bin/cupidc_test2.o bin/cupidc_test3.o bin/cupidc_test4.o bin/cupidc_test5.o bin/cupidfetch.o bin/curl.o bin/date.o bin/dglibc_test.o bin/doom.o bin/echo.o bin/ed.o bin/feature10_repl.o bin/feature11_ternary.o bin/feature12_float.o bin/feature13_double.o bin/feature14_simd.o bin/feature15_libm.o bin/feature16_asm_fpu.o bin/feature17_iso.o bin/feature18_swap.o bin/feature19_usb.o bin/feature1_types.o bin/feature20_smp.o bin/feature21_net.o bin/feature22_net_server.o bin/feature23_full_access.o bin/feature24_widetypes.o bin/feature2_top_level.o bin/feature3_class.o bin/feature4_forward_calls.o bin/feature5_print_builtin.o bin/feature6_exe.o bin/feature7_new_del.o bin/feature8_reg_noreg.o bin/feature9_abs_addr.o bin/find.o bin/fm.o bin/fontswitch.o bin/fp_drill.o bin/gfxdemo.o bin/gfxgui_test.o bin/gfxtest.o bin/godsong.o bin/godspeak.o bin/grep.o bin/head.o bin/help.o bin/history.o bin/kbdsub_test.o bin/kill.o bin/logdump.o bin/loglevel.o bin/ls.o bin/memcheck.o bin/memdump.o bin/memleak.o bin/memstats.o bin/mkdir.o bin/mount.o bin/mv.o bin/notepad.o bin/oracle.o bin/paint.o bin/printc.o bin/ps.o bin/pwd.o bin/reboot.o bin/registers.o bin/resetcolor.o bin/rm.o bin/rmdir.o bin/setcolor.o bin/sort.o bin/spawn.o bin/ssh.o bin/stacktrace.o bin/sync.o bin/sysinfo.o bin/tail.o bin/telnet.o bin/terminal.o bin/test.o bin/test_fpaug.o bin/test_print.o bin/time.o bin/touch.o bin/volume.o bin/wc.o bin/wget.o bin/yield.o bin/fat16.h.o bin/shell.h.o bin/browser/css.o bin/browser/dom.o bin/browser/font_face.o bin/browser/image.o bin/browser/input.o bin/browser/js_dom.o bin/browser/js_interp.o bin/browser/js_lex.o bin/browser/js_parse.o bin/browser/layout.o bin/browser/main.o bin/browser/nav.o bin/browser/net.o bin/browser/paint.o bin/browser/parser.o bin/browser/render_tree.o bin/browser/style.o bin/browser/url.o bin/browser/url_hash.o bin/browser/util.o bin/browser/woff.o bin/browser/woff2.o cupidos-txt/00INDEX.o cupidos-txt/01SHELL.o cupidos-txt/02FILESYS.o cupidos-txt/03CUPIDSC.o cupidos-txt/04CUPIDC.o cupidos-txt/05ELFPROG.o cupidos-txt/06GUITERM.o cupidos-txt/07LABS.o cupidos-txt/08CMDS.o cupidos-txt/09EMBED.o cupidos-txt/10ASM.o cupidos-txt/11CTXT.o cupidos-txt/12HOLYC-CUPIDC.o cupidos-txt/13USB.o cupidos-txt/14FPU-SSE.o cupidos-txt/15ISO9660.o cupidos-txt/16SWAP.o cupidos-txt/17SMP.o cupidos-txt/18NET.o file_example_JPG_1MB.jpg.o image.bmp.o snail.bmp.o test.png.o demos/asm_compat_reserve.o demos/bubblesort.o demos/data.o demos/factorial.o demos/fibonacci.o demos/fpu_kernel.o demos/fs_syscalls.o demos/hello.o demos/include_feature.o demos/include_helper.o demos/jcc_aliases.o demos/loop.o demos/math.o demos/parity_core.o demos/parity_diag.o demos/parity_gfx2d.o demos/parity_priv.o demos/reserve_directives.o demos/simd_blur.o demos/stack.o demos/syscall_table_demo.o demos/syscall_vfs_extended_demo.o god/Psalms.o god/Vocab.o system/fonts/LiberationMono-Regular.ttf.o system/fonts/LiberationSans-Regular.ttf.o system/fonts/LiberationSerif-Regular.ttf.o system/fonts/NotoSansSymbols-Regular.ttf.o kernel/tls/tls_ca_bundle_data.o kernel/doom/dglibc.o kernel/doom/doomgeneric_cupidos.o kernel/doom/doom_libc_stubs.o kernel/doom/i_sound_cupidos.o kernel/doom/src/am_map.o kernel/doom/src/d_event.o kernel/doom/src/d_items.o kernel/doom/src/d_iwad.o kernel/doom/src/d_loop.o kernel/doom/src/d_main.o kernel/doom/src/d_mode.o kernel/doom/src/d_net.o kernel/doom/src/doomdef.o kernel/doom/src/doomgeneric.o kernel/doom/src/doomstat.o kernel/doom/src/dstrings.o kernel/doom/src/dummy.o kernel/doom/src/f_finale.o kernel/doom/src/f_wipe.o kernel/doom/src/g_game.o kernel/doom/src/gusconf.o kernel/doom/src/hu_lib.o kernel/doom/src/hu_stuff.o kernel/doom/src/i_endoom.o kernel/doom/src/i_input.o kernel/doom/src/i_joystick.o kernel/doom/src/i_scale.o kernel/doom/src/i_system.o kernel/doom/src/i_timer.o kernel/doom/src/i_video.o kernel/doom/src/icon.o kernel/doom/src/info.o kernel/doom/src/m_argv.o kernel/doom/src/m_bbox.o kernel/doom/src/m_cheat.o kernel/doom/src/m_config.o kernel/doom/src/m_controls.o kernel/doom/src/m_fixed.o kernel/doom/src/m_menu.o kernel/doom/src/m_misc.o kernel/doom/src/m_random.o kernel/doom/src/p_ceilng.o kernel/doom/src/p_doors.o kernel/doom/src/p_enemy.o kernel/doom/src/p_floor.o kernel/doom/src/p_inter.o kernel/doom/src/p_lights.o kernel/doom/src/p_map.o kernel/doom/src/p_maputl.o kernel/doom/src/p_mobj.o kernel/doom/src/p_plats.o kernel/doom/src/p_pspr.o kernel/doom/src/p_saveg.o kernel/doom/src/p_setup.o kernel/doom/src/p_sight.o kernel/doom/src/p_spec.o kernel/doom/src/p_switch.o kernel/doom/src/p_telept.o kernel/doom/src/p_tick.o kernel/doom/src/p_user.o kernel/doom/src/r_bsp.o kernel/doom/src/r_data.o kernel/doom/src/r_draw.o kernel/doom/src/r_main.o kernel/doom/src/r_plane.o kernel/doom/src/r_segs.o kernel/doom/src/r_sky.o kernel/doom/src/r_things.o kernel/doom/src/s_sound.o kernel/doom/src/sha1.o kernel/doom/src/sounds.o kernel/doom/src/st_lib.o kernel/doom/src/st_stuff.o kernel/doom/src/statdump.o kernel/doom/src/tables.o kernel/doom/src/v_video.o kernel/doom/src/w_checksum.o kernel/doom/src/w_file.o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_main.o kernel/doom/src/w_wad.o kernel/doom/src/wi_stuff.o kernel/doom/src/z_zone.o",
             "python tools/hostbuild.py mksyms --nm llvm-nm kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c",
             "[hostbuild] mksyms: kernel\\cpu\\ksyms_data.c (91165 bytes)",
@@ -5422,8 +5419,7 @@
             "toolchain/build/cupidobj.exe flat kernel/kernel.elf -o kernel/kernel.bin",
             "python tools/hostbuild.py image --image cupidos.img --bootloader boot/boot.bin --kernel kernel/kernel.bin --hdd-mb 200 --fat-start-lba 16384 --stage test_iso/hello.iso:/hello.iso --wads ",
             "[hostbuild] Created cupidos.img (200MB FAT16 at LBA 16384)",
-            "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso",
-            "make[1]: Leaving directory '<WORKTREE>'"
+            "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso"
           ],
           "returncode": 0,
           "status": "pass"
@@ -5437,7 +5433,7 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.232,
+          "elapsed_seconds": 0.241,
           "name": "artifact-list",
           "output_sha256": "2499e8957c27d60c494702eacb5488f20adc605cd01d5c02342db7643ab4affd",
           "output_tail": [
@@ -5504,17 +5500,29 @@
       "status": "missing"
     }
   },
+  "optional_oracle_tools": {
+    "nasm": {
+      "command": [
+        "nasm"
+      ],
+      "executable": "C:\\Strawberry\\c\\bin\\nasm.exe",
+      "executable_sha256": "f7c79a99292712281753c1467de0622d667c7309cbfdaa2d42fc932901ac7fa5",
+      "status": "pass",
+      "version": "NASM version 2.16.01 compiled on May  3 2024",
+      "version_returncode": 0
+    }
+  },
   "performance": {
     "build_seconds": [
-      17.486,
-      18.326
+      18.364,
+      17.169
     ],
     "gating": false,
     "note": "Host wall-clock observations are frozen evidence, not the future 20% guest-performance gate.",
     "runtime_and_test_seconds": {
-      "cupidasm-gui-smoke": 25.266,
-      "cupidc-gui-smoke": 20.867,
-      "host-unit-tests": 76.944
+      "cupidasm-gui-smoke": 25.598,
+      "cupidc-gui-smoke": 20.487,
+      "host-unit-tests": 74.943
     }
   },
   "quality": {
@@ -5534,20 +5542,10 @@
   "schema": "cupid.bootstrap-baseline.v1",
   "source": {
     "isolated_worktree": true,
-    "revision": "92b3684bbf6e2c3b2faf7d338c3a0f589190c440"
+    "revision": "0969300e6164d4eff0645eef1f427a8ee28dca9c"
   },
   "status": "pass",
   "tools": {
-    "assembler": {
-      "command": [
-        "nasm"
-      ],
-      "executable": "C:\\Strawberry\\c\\bin\\nasm.exe",
-      "executable_sha256": "f7c79a99292712281753c1467de0622d667c7309cbfdaa2d42fc932901ac7fa5",
-      "status": "pass",
-      "version": "NASM version 2.16.01 compiled on May  3 2024",
-      "version_returncode": 0
-    },
     "c_compiler": {
       "command": [
         "clang"
