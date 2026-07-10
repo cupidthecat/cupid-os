@@ -713,6 +713,10 @@ The timer design remains explicit debt: the nominal five-second callback still e
 - `hello`, `ls`, and `cat` each rebuild twice to deterministic 12,656-byte ELF files. Their SHA-256 values are `2d783d4ac3400820253497fbbd5d784647b32b14baae8daefd1a939a0874c3eb`, `aa942961bc2a9e565c5983910ca5a28184209df177aafacfaf8b1da0b9d8c7a9`, and `a2c01d0ae096c9f82c23e9a5cdfc971c7c69196af9b66debcb538fe4a7328096`. CupidDis accepts all three and reports RX/R/RW loads, allocated read-only `.rodata`, BSS, and RW `GNU_STACK`.
 - The checked graph contains 672 active inputs, 248 feature IDs, 480 transforms, 36 accounted unreachable source-like files, and exact coverage of 431 declared artifacts/424 linked objects. Ownership is CupidLD 5, CupidObj 181, host C compiler 280, NASM 4, host symbol reader 1, Python 8, and Make recursion 3; host ELF-link and objcopy transform ownership is zero.
 
+### Independent review
+
+Standards and specification reviews ran independently against fixed point `48af6d2`. Standards review found relocation-blind merge interning, section-relative COMMON alignment, silent unsupported allocated-section semantics, and an unrelated `sync-demos` path change; all four were corrected and re-reviewed green. Specification review found shared PID1/AP idle ownership, lack of a terminated-AP detach target, and unsafe generic-interrupt migration/GS restoration; the detached-candidate gate, BSP-only PID1, CPU-local idle contexts, interrupt-depth safe point, and GS-slot discard resolve them. Final review accepted the implementation after requiring this evidence/doc recapture. The later AP FPU and SMP cache/ATA failures were found by that recapture and received their own red contracts and fresh guest proof before commit.
+
 ### Verification
 
 | Command/check | Result | Evidence |
