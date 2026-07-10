@@ -611,3 +611,36 @@ After committing the kernel adapter as `50c5b04`, the baseline runner rebuilt th
 | Output sizes | Kernel ELF 6,276,332 bytes; raw kernel 6,064,029 bytes; `.text` 1,390,468 bytes; disk image 209,715,200 bytes |
 
 The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the passing hosted GCC and sanitizer contracts do not substitute for it.
+
+## 2026-07-10: CupidObj production ownership cutover
+
+Wayfinder ticket [#21](https://github.com/cupidthecat/cupid-os/issues/21) first transferred every normal-build object transformation from GNU/LLVM `objcopy` to a hosted CupidObj implementation. ADR 0010 records a single transactional final-artifact operation: it either wraps bytes directly into their requested final relocatable-object form or extracts the initialized flat range from a linked executable. A public generic object-edit graph was rejected because every production rename and section change is already known at wrapping time; direct final-form construction removes an intermediate parse/rewrite pass and keeps object policy behind one deep seam.
+
+### Capability and migration decisions
+
+- `ctool_obj_transform` follows the shared job/arena/caller-buffer contract. `WRAP_BINARY` emits one deterministic i386 `ET_REL` `PROGBITS` section with exact requested name, flags, alignment, global start/end symbols, and absolute size symbol, including an empty-payload case. `EXTRACT_FLAT` orders initialized `PT_LOAD` bytes by physical address, zero-fills gaps, excludes BSS, and provides a checked allocated-`PROGBITS` fallback for static executables without load segments. Failures restore an empty output and zero the result.
+- The hosted `cupidobj wrap|flat` adapter accepts relative or absolute inputs, maps both native arguments into one canonical logical-path universe, and enters through `ctool_invoke`, so the source is job-owned, source/output limits apply, diagnostics carry canonical paths, and publication uses the job commit gate. It derives GNU binary symbol identity from the caller's input spelling, supports an explicit original identity or final symbol stem, and owns section/read-only policy without exposing ELF editing. Usage failures exit 2 and processing failures exit 1.
+- The normal root graph now builds the hosted tool, uses it for 178 direct source/asset wrappers plus one JPEG-preprocessed wrapper, emits the SMP trampoline directly as read-only `.rodata` with `smp_trampoline_{start,end,size}`, and flattens the final kernel ELF. The JPEG helper preprocesses bytes into a temporary JPEG, then invokes CupidObj once with the original source identity; the former wrapper plus three-symbol rewrite pass was removed.
+- GNU/LLVM `objcopy` is no longer selected or required by root `all`, `user:all`, or `toolchain:all`. It remains only in tracked legacy/oracle helpers outside the normal graph. The host C compiler still bootstraps CupidObj, so this is semantic and production-transform ownership rather than a checked-seed/self-hosting claim.
+- The generated audit now records 668 active sources, 248 feature IDs, and 473 transforms. CupidObj owns 181 production transforms; the host C compiler owns 275, the host linker five, NASM four, and the host symbol reader one. All 431 declared artifacts still cover the 424 final-link objects.
+
+### Test-first findings and behavior proof
+
+- The first public contract failed to link because `ctool_obj_transform` did not exist. The first extraction tracer then exposed missing gap/BSS behavior. A final negative pass caught invalid-operation and reserved-section diagnostics with the wrong classifications; stable `CT8000001`-`CT800000B` cases now cover invalid requests/input/names, no-load, overlap, overflow, limits, unsupported forms, and rollback.
+- Five C contract modes cover basic/model wrapping, determinism, empty payloads, load-segment flattening, section fallback, and failures. Five hosted CLI tests cover relative/absolute paths, default and explicit identities, final stems/sections/flags, deterministic output, sectionless executable gaps, external `readelf` acceptance, status classes, diagnostics, and preservation of an existing destination on pre-publication failures.
+- The JPEG migration began with a failing test that observed two objcopy invocations. It now proves exactly one CupidObj call over the converted temporary bytes with `--identity` set to the original source path.
+- Rebuilding the complete 424-object image after every wrapper and the final extraction changed no trusted artifact bytes: `kernel/kernel.elf` remained SHA-256 `88b8006dcc869618483e1b59f695e92f67877f14ce0580d20f9e28f8ac511c10`, `kernel/kernel.bin` remained `565c23edbc88ad4ea9a89704e84f542d384cd4f8bb00dd3439631c0c53a2397a`, and `cupidos.img` remained `027146215be35a7ef85576f549ec30d5bd105acfcecb96f3a35666aed877b8c9`. A second independent CupidObj flatten matched byte-for-byte.
+
+### Verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Strict Windows Clang CupidObj contracts | PASS | All five core modes and the hosted CLI compiled under the repository warning-as-error policy and passed. |
+| WSL strict GCC and ASan/UBSan CupidObj contracts | PASS | The same five modes passed under strict GCC and under address/leak/undefined sanitizers with no finding. |
+| `python -m unittest tests.test_toolchain_cupidobj tests.test_hostbuild` | PASS | Nine CLI/helper tests passed, including external-format, error, and JPEG single-wrap cases. |
+| `python -m unittest tests.test_build_graph_audit` | PASS | All 14 ownership/classification tests passed, including native CupidObj wrapper/flat ownership. |
+| Repository host tests through this commit scope | PASS | All 82 tests in the CupidObj commit passed in 49.030 seconds; one platform-specific case was skipped on Windows. Subsequent CupidLD work was outside this coherent commit gate. |
+| `make -j4 all WAD_SRCS=` | PASS | The complete root image rebuilt with all 181 production object transforms owned by CupidObj. |
+| CupidC GUI smoke (`/bin/ls.cc`) | PASS | The rebuilt image reached `JIT execution complete` without panic in 18.2 seconds. |
+
+CupidLD, the three user links, the two kernel links, production NASM cutover, and CupidDis symbol-reader cutover remain separate ownership steps. The post-commit reproducibility recapture remains pending.

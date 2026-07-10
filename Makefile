@@ -10,8 +10,8 @@ endif
 ifeq ($(origin LD),default)
 LD := ld.lld
 endif
-OBJCOPY ?= llvm-objcopy
 NM ?= llvm-nm
+HOST_EXE := .exe
 CC_TARGET ?= --target=i386-unknown-elf
 QEMU_AUDIODEV ?= none,id=speaker
 CLANG_COMPAT_CFLAGS ?= -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion
@@ -23,12 +23,19 @@ endif
 ifeq ($(origin LD),default)
 LD := ld
 endif
-OBJCOPY ?= objcopy
 NM ?= nm
+HOST_EXE :=
 CC_TARGET ?=
 QEMU_AUDIODEV ?= alsa,id=speaker
 CLANG_COMPAT_CFLAGS ?=
 endif
+CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
+CUPIDOBJ ?= $(CUPIDOBJ_BUILD)
+CUPIDOBJ_SOURCES := toolchain/ctool.c toolchain/ctool.h \
+	toolchain/ctool_host.c toolchain/ctool_host.h \
+	toolchain/elf32.c toolchain/elf32.h \
+	toolchain/cupidobj.c toolchain/cupidobj.h toolchain/cupidobj_main.c \
+	toolchain/Makefile
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
@@ -317,13 +324,8 @@ drivers/pci.o: drivers/pci.c drivers/pci.h kernel/core/ports.h
 kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S
 	$(ASM) -f bin -o $@ $<
 
-kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 \
-	  --redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \
-	  --redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \
-	  --redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \
-	  --rename-section .data=.rodata,alloc,load,readonly,data,contents \
-	  $< $@
+kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@
 
 # Per-CPU data infrastructure (P5 SMP)
 kernel/smp/percpu.o: kernel/smp/percpu.c kernel/smp/percpu.h kernel/core/process.h
@@ -940,6 +942,9 @@ print-bootstrap-artifacts:
 bootstrap-baseline:
 	$(PYTHON) tools/bootstrap_baseline.py
 
+$(CUPIDOBJ_BUILD): $(CUPIDOBJ_SOURCES)
+	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
@@ -963,49 +968,49 @@ kernel/util/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
 kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o
 
-# Pattern rule: embed any bin/*.cc file via objcopy
-bin/%.o: bin/%.cc
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# Pattern rule: embed any bin/*.cc file with CupidObj.
+bin/%.o: bin/%.cc $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-# Pattern rule: embed any bin/browser/*.cc library file via objcopy.
+# Pattern rule: embed any bin/browser/*.cc library file with CupidObj.
 # These live in ramfs at /bin/browser/<n>.cc and are #include'd by
 # bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
-bin/browser/%.o: bin/browser/%.cc
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+bin/browser/%.o: bin/browser/%.cc $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-# Pattern rule: embed any bin/*.h file via objcopy (output keeps .h in name)
-bin/%.h.o: bin/%.h
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# Pattern rule: embed any bin/*.h file with CupidObj (output keeps .h in name).
+bin/%.h.o: bin/%.h $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-# Pattern rule: embed any cupidos-txt/*.CTXT file via objcopy
-cupidos-txt/%.o: cupidos-txt/%.CTXT
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# Pattern rule: embed any cupidos-txt/*.CTXT file with CupidObj.
+cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-%.bmp.o: %.bmp
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+%.bmp.o: %.bmp $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-%.png.o: %.png
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+%.png.o: %.png $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-%.jpg.o: %.jpg tools/hostbuild.py
-	$(PYTHON) tools/hostbuild.py embed-jpeg --objcopy $(OBJCOPY) $< $@
+%.jpg.o: %.jpg tools/hostbuild.py $(CUPIDOBJ)
+	$(PYTHON) tools/hostbuild.py embed-jpeg --object-tool $(CUPIDOBJ) $< $@
 
-%.jpeg.o: %.jpeg tools/hostbuild.py
-	$(PYTHON) tools/hostbuild.py embed-jpeg --objcopy $(OBJCOPY) $< $@
+%.jpeg.o: %.jpeg tools/hostbuild.py $(CUPIDOBJ)
+	$(PYTHON) tools/hostbuild.py embed-jpeg --object-tool $(CUPIDOBJ) $< $@
 
-# Pattern rule: embed any system/fonts/*.ttf file via objcopy.
+# Pattern rule: embed any system/fonts/*.ttf file with CupidObj.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
-# (dashes in the filename get translated to underscores by objcopy).
-system/fonts/%.ttf.o: system/fonts/%.ttf
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# (dashes in the filename get translated to underscores by CupidObj).
+system/fonts/%.ttf.o: system/fonts/%.ttf $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-# Pattern rule: embed any demos/*.asm file via objcopy
-demos/%.o: demos/%.asm
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# Pattern rule: embed any demos/*.asm file with CupidObj.
+demos/%.o: demos/%.asm $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
-# Pattern rule: embed any god/*.DD file via objcopy
-god/%.o: god/%.DD
-	$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@
+# Pattern rule: embed any god/*.DD file with CupidObj.
+god/%.o: god/%.DD $(CUPIDOBJ)
+	$(CUPIDOBJ) wrap $< -o $@
 
 # Link kernel objects.
 #
@@ -1021,7 +1026,7 @@ god/%.o: god/%.DD
 #           .ksyms section is placed after .data in link.ld so code
 #           addresses don't shift between passes; only .bss start
 #           moves, which is fine.
-#   objcopy kernel.elf -> kernel.bin (raw binary the bootloader expects).
+#   CupidObj flattens kernel.elf into the raw binary the bootloader expects.
 kernel/kernel.elf.pass1: $(KERNEL_OBJS)
 	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
 
@@ -1034,8 +1039,8 @@ kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.c kernel/cpu/ksyms.h
 kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
-$(KERNEL): kernel/kernel.elf
-	$(OBJCOPY) -O binary $< $(KERNEL)
+$(KERNEL): kernel/kernel.elf $(CUPIDOBJ)
+	$(CUPIDOBJ) flat $< -o $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
 $(OS_IMAGE): $(BOOTLOADER) $(KERNEL)

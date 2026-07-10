@@ -61,1673 +61,1800 @@
       "drivers",
       "toolchain",
       "kernel/doom/src",
-      "kernel/doom/src/include_stubs",
-      "binary"
+      "kernel/doom/src/include_stubs"
     ],
     "root_target": "all",
     "transforms": [
       {
         "inputs": [
-          "bin/audiotest.cc"
+          "bin/audiotest.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/audiotest.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/auto.cc"
+          "bin/auto.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/auto.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/bgstudio.cc"
+          "bin/bgstudio.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/bgstudio.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/bible.cc"
+          "bin/bible.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/bible.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/bmptest.cc"
+          "bin/bmptest.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/bmptest.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser.cc"
+          "bin/browser.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/css.cc"
+          "bin/browser/css.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/css.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/dom.cc"
+          "bin/browser/dom.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/dom.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/font_face.cc"
+          "bin/browser/font_face.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/font_face.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/image.cc"
+          "bin/browser/image.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/image.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/input.cc"
+          "bin/browser/input.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/input.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/js_dom.cc"
+          "bin/browser/js_dom.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/js_dom.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/js_interp.cc"
+          "bin/browser/js_interp.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/js_interp.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/js_lex.cc"
+          "bin/browser/js_lex.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/js_lex.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/js_parse.cc"
+          "bin/browser/js_parse.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/js_parse.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/layout.cc"
+          "bin/browser/layout.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/layout.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/main.cc"
+          "bin/browser/main.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/main.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/nav.cc"
+          "bin/browser/nav.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/nav.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/net.cc"
+          "bin/browser/net.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/net.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/paint.cc"
+          "bin/browser/paint.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/paint.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/parser.cc"
+          "bin/browser/parser.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/parser.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/render_tree.cc"
+          "bin/browser/render_tree.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/render_tree.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/style.cc"
+          "bin/browser/style.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/style.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/url.cc"
+          "bin/browser/url.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/url.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/url_hash.cc"
+          "bin/browser/url_hash.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/url_hash.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/util.cc"
+          "bin/browser/util.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/util.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/woff.cc"
+          "bin/browser/woff.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/woff.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/browser/woff2.cc"
+          "bin/browser/woff2.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/browser/woff2.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cachestats.cc"
+          "bin/cachestats.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cachestats.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cat.cc"
+          "bin/cat.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cat.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cd.cc"
+          "bin/cd.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cd.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/clear.cc"
+          "bin/clear.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/clear.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cp.cc"
+          "bin/cp.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cp.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/crashtest.cc"
+          "bin/crashtest.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/crashtest.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/ctxt.cc"
+          "bin/ctxt.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/ctxt.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidc_test1.cc"
+          "bin/cupidc_test1.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidc_test1.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidc_test2.cc"
+          "bin/cupidc_test2.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidc_test2.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidc_test3.cc"
+          "bin/cupidc_test3.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidc_test3.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidc_test4.cc"
+          "bin/cupidc_test4.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidc_test4.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidc_test5.cc"
+          "bin/cupidc_test5.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidc_test5.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/cupidfetch.cc"
+          "bin/cupidfetch.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/cupidfetch.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/curl.cc"
+          "bin/curl.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/curl.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/date.cc"
+          "bin/date.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/date.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/dglibc_test.cc"
+          "bin/dglibc_test.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/dglibc_test.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/doom.cc"
+          "bin/doom.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/doom.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/echo.cc"
+          "bin/echo.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/echo.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/ed.cc"
+          "bin/ed.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/ed.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/fat16.h"
+          "bin/fat16.h",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/fat16.h.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature10_repl.cc"
+          "bin/feature10_repl.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature10_repl.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature11_ternary.cc"
+          "bin/feature11_ternary.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature11_ternary.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature12_float.cc"
+          "bin/feature12_float.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature12_float.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature13_double.cc"
+          "bin/feature13_double.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature13_double.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature14_simd.cc"
+          "bin/feature14_simd.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature14_simd.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature15_libm.cc"
+          "bin/feature15_libm.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature15_libm.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature16_asm_fpu.cc"
+          "bin/feature16_asm_fpu.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature16_asm_fpu.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature17_iso.cc"
+          "bin/feature17_iso.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature17_iso.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature18_swap.cc"
+          "bin/feature18_swap.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature18_swap.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature19_usb.cc"
+          "bin/feature19_usb.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature19_usb.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature1_types.cc"
+          "bin/feature1_types.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature1_types.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature20_smp.cc"
+          "bin/feature20_smp.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature20_smp.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature21_net.cc"
+          "bin/feature21_net.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature21_net.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature22_net_server.cc"
+          "bin/feature22_net_server.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature22_net_server.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature23_full_access.cc"
+          "bin/feature23_full_access.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature23_full_access.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature24_widetypes.cc"
+          "bin/feature24_widetypes.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature24_widetypes.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature2_top_level.cc"
+          "bin/feature2_top_level.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature2_top_level.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature3_class.cc"
+          "bin/feature3_class.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature3_class.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature4_forward_calls.cc"
+          "bin/feature4_forward_calls.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature4_forward_calls.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature5_print_builtin.cc"
+          "bin/feature5_print_builtin.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature5_print_builtin.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature6_exe.cc"
+          "bin/feature6_exe.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature6_exe.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature7_new_del.cc"
+          "bin/feature7_new_del.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature7_new_del.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature8_reg_noreg.cc"
+          "bin/feature8_reg_noreg.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature8_reg_noreg.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/feature9_abs_addr.cc"
+          "bin/feature9_abs_addr.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/feature9_abs_addr.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/find.cc"
+          "bin/find.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/find.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/fm.cc"
+          "bin/fm.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/fm.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/fontswitch.cc"
+          "bin/fontswitch.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/fontswitch.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/fp_drill.cc"
+          "bin/fp_drill.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/fp_drill.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/gfxdemo.cc"
+          "bin/gfxdemo.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/gfxdemo.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/gfxgui_test.cc"
+          "bin/gfxgui_test.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/gfxgui_test.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/gfxtest.cc"
+          "bin/gfxtest.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/gfxtest.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/godsong.cc"
+          "bin/godsong.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/godsong.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/godspeak.cc"
+          "bin/godspeak.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/godspeak.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/grep.cc"
+          "bin/grep.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/grep.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/head.cc"
+          "bin/head.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/head.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/help.cc"
+          "bin/help.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/help.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/history.cc"
+          "bin/history.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/history.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/kbdsub_test.cc"
+          "bin/kbdsub_test.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/kbdsub_test.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/kill.cc"
+          "bin/kill.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/kill.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/logdump.cc"
+          "bin/logdump.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/logdump.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/loglevel.cc"
+          "bin/loglevel.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/loglevel.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/ls.cc"
+          "bin/ls.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/ls.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/memcheck.cc"
+          "bin/memcheck.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/memcheck.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/memdump.cc"
+          "bin/memdump.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/memdump.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/memleak.cc"
+          "bin/memleak.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/memleak.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/memstats.cc"
+          "bin/memstats.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/memstats.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/mkdir.cc"
+          "bin/mkdir.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/mkdir.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/mount.cc"
+          "bin/mount.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/mount.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/mv.cc"
+          "bin/mv.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/mv.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/notepad.cc"
+          "bin/notepad.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/notepad.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/oracle.cc"
+          "bin/oracle.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/oracle.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/paint.cc"
+          "bin/paint.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/paint.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/printc.cc"
+          "bin/printc.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/printc.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/ps.cc"
+          "bin/ps.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/ps.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/pwd.cc"
+          "bin/pwd.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/pwd.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/reboot.cc"
+          "bin/reboot.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/reboot.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/registers.cc"
+          "bin/registers.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/registers.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/resetcolor.cc"
+          "bin/resetcolor.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/resetcolor.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/rm.cc"
+          "bin/rm.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/rm.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/rmdir.cc"
+          "bin/rmdir.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/rmdir.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/setcolor.cc"
+          "bin/setcolor.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/setcolor.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/shell.h"
+          "bin/shell.h",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/shell.h.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/sort.cc"
+          "bin/sort.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/sort.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/spawn.cc"
+          "bin/spawn.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/spawn.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/ssh.cc"
+          "bin/ssh.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/ssh.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/stacktrace.cc"
+          "bin/stacktrace.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/stacktrace.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/sync.cc"
+          "bin/sync.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/sync.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/sysinfo.cc"
+          "bin/sysinfo.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/sysinfo.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/tail.cc"
+          "bin/tail.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/tail.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/telnet.cc"
+          "bin/telnet.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/telnet.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/terminal.cc"
+          "bin/terminal.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/terminal.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/test.cc"
+          "bin/test.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/test.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/test_fpaug.cc"
+          "bin/test_fpaug.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/test_fpaug.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/test_print.cc"
+          "bin/test_print.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/test_print.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/time.cc"
+          "bin/time.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/time.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/touch.cc"
+          "bin/touch.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/touch.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/volume.cc"
+          "bin/volume.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/volume.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/wc.cc"
+          "bin/wc.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/wc.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/wget.cc"
+          "bin/wget.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/wget.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "bin/yield.cc"
+          "bin/yield.cc",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "bin/yield.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -1745,249 +1872,268 @@
       },
       {
         "inputs": [
-          "cupidos-txt/00INDEX.CTXT"
+          "cupidos-txt/00INDEX.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/00INDEX.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/01SHELL.CTXT"
+          "cupidos-txt/01SHELL.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/01SHELL.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/02FILESYS.CTXT"
+          "cupidos-txt/02FILESYS.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/02FILESYS.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/03CUPIDSC.CTXT"
+          "cupidos-txt/03CUPIDSC.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/03CUPIDSC.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/04CUPIDC.CTXT"
+          "cupidos-txt/04CUPIDC.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/04CUPIDC.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/05ELFPROG.CTXT"
+          "cupidos-txt/05ELFPROG.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/05ELFPROG.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/06GUITERM.CTXT"
+          "cupidos-txt/06GUITERM.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/06GUITERM.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/07LABS.CTXT"
+          "cupidos-txt/07LABS.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/07LABS.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/08CMDS.CTXT"
+          "cupidos-txt/08CMDS.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/08CMDS.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/09EMBED.CTXT"
+          "cupidos-txt/09EMBED.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/09EMBED.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/10ASM.CTXT"
+          "cupidos-txt/10ASM.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/10ASM.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/11CTXT.CTXT"
+          "cupidos-txt/11CTXT.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/11CTXT.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/12HOLYC-CUPIDC.CTXT"
+          "cupidos-txt/12HOLYC-CUPIDC.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/12HOLYC-CUPIDC.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/13USB.CTXT"
+          "cupidos-txt/13USB.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/13USB.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/14FPU-SSE.CTXT"
+          "cupidos-txt/14FPU-SSE.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/14FPU-SSE.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/15ISO9660.CTXT"
+          "cupidos-txt/15ISO9660.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/15ISO9660.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/16SWAP.CTXT"
+          "cupidos-txt/16SWAP.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/16SWAP.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/17SMP.CTXT"
+          "cupidos-txt/17SMP.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/17SMP.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "cupidos-txt/18NET.CTXT"
+          "cupidos-txt/18NET.CTXT",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "cupidos-txt/18NET.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -2006,288 +2152,310 @@
       },
       {
         "inputs": [
-          "demos/asm_compat_reserve.asm"
+          "demos/asm_compat_reserve.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/asm_compat_reserve.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/bubblesort.asm"
+          "demos/bubblesort.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/bubblesort.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/data.asm"
+          "demos/data.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/data.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/factorial.asm"
+          "demos/factorial.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/factorial.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/fibonacci.asm"
+          "demos/fibonacci.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/fibonacci.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/fpu_kernel.asm"
+          "demos/fpu_kernel.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/fpu_kernel.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/fs_syscalls.asm"
+          "demos/fs_syscalls.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/fs_syscalls.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/hello.asm"
+          "demos/hello.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/hello.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/include_feature.asm"
+          "demos/include_feature.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/include_feature.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/include_helper.asm"
+          "demos/include_helper.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/include_helper.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/jcc_aliases.asm"
+          "demos/jcc_aliases.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/jcc_aliases.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/loop.asm"
+          "demos/loop.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/loop.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/math.asm"
+          "demos/math.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/math.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/parity_core.asm"
+          "demos/parity_core.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/parity_core.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/parity_diag.asm"
+          "demos/parity_diag.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/parity_diag.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/parity_gfx2d.asm"
+          "demos/parity_gfx2d.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/parity_gfx2d.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/parity_priv.asm"
+          "demos/parity_priv.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/parity_priv.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/reserve_directives.asm"
+          "demos/reserve_directives.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/reserve_directives.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/simd_blur.asm"
+          "demos/simd_blur.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/simd_blur.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/stack.asm"
+          "demos/stack.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/stack.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/syscall_table_demo.asm"
+          "demos/syscall_table_demo.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/syscall_table_demo.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "demos/syscall_vfs_extended_demo.asm"
+          "demos/syscall_vfs_extended_demo.asm",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "demos/syscall_vfs_extended_demo.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -2469,55 +2637,59 @@
       {
         "inputs": [
           "file_example_JPG_1MB.jpg",
-          "tools/hostbuild.py"
+          "tools/hostbuild.py",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "transform_object",
         "output": "file_example_JPG_1MB.jpg.o",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py embed-jpeg --objcopy $(OBJCOPY) $< $@"
+          "$(PYTHON) tools/hostbuild.py embed-jpeg --object-tool $(CUPIDOBJ) $< $@"
         ],
         "tools": [
-          "host_object_copy",
+          "cupid_object",
           "host_python"
         ]
       },
       {
         "inputs": [
-          "god/Psalms.DD"
+          "god/Psalms.DD",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "god/Psalms.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "god/Vocab.DD"
+          "god/Vocab.DD",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "god/Vocab.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "image.bmp"
+          "image.bmp",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "image.bmp.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -4989,15 +5161,16 @@
       },
       {
         "inputs": [
-          "kernel/kernel.elf"
+          "kernel/kernel.elf",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "extract_raw_binary",
         "output": "kernel/kernel.bin",
         "recipe": [
-          "$(OBJCOPY) -O binary $< $(KERNEL)"
+          "$(CUPIDOBJ) flat $< -o $(KERNEL)"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -6572,20 +6745,16 @@
       },
       {
         "inputs": [
-          "kernel/smp_trampoline.bin"
+          "kernel/smp_trampoline.bin",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "kernel/smp/smp_trampoline.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 \\",
-          "--redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \\",
-          "--redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \\",
-          "--redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \\",
-          "--rename-section .data=.rodata,alloc,load,readonly,data,contents \\",
-          "$< $@"
+          "$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
@@ -7140,80 +7309,108 @@
       },
       {
         "inputs": [
-          "snail.bmp"
+          "snail.bmp",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "snail.bmp.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "system/fonts/LiberationMono-Regular.ttf"
+          "system/fonts/LiberationMono-Regular.ttf",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "system/fonts/LiberationMono-Regular.ttf.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "system/fonts/LiberationSans-Regular.ttf"
+          "system/fonts/LiberationSans-Regular.ttf",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "system/fonts/LiberationSans-Regular.ttf.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "system/fonts/LiberationSerif-Regular.ttf"
+          "system/fonts/LiberationSerif-Regular.ttf",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "system/fonts/LiberationSerif-Regular.ttf.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "system/fonts/NotoSansSymbols-Regular.ttf"
+          "system/fonts/NotoSansSymbols-Regular.ttf",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "system/fonts/NotoSansSymbols-Regular.ttf.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
         ]
       },
       {
         "inputs": [
-          "test.png"
+          "test.png",
+          "toolchain/build/cupidobj.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "test.png.o",
         "recipe": [
-          "$(OBJCOPY) -I binary -O elf32-i386 -B i386 $< $@"
+          "$(CUPIDOBJ) wrap $< -o $@"
         ],
         "tools": [
-          "host_object_copy"
+          "cupid_object"
+        ]
+      },
+      {
+        "inputs": [
+          "toolchain/ctool.c",
+          "toolchain/ctool.h",
+          "toolchain/ctool_host.c",
+          "toolchain/ctool_host.h",
+          "toolchain/elf32.c",
+          "toolchain/elf32.h",
+          "toolchain/cupidobj.c",
+          "toolchain/cupidobj.h",
+          "toolchain/cupidobj_main.c",
+          "toolchain/Makefile"
+        ],
+        "operation": "recursive_make",
+        "output": "toolchain/build/cupidobj.exe",
+        "recipe": [
+          "$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)"
+        ],
+        "tools": [
+          "make"
         ]
       },
       {
@@ -11291,11 +11488,13 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 823
+      "occurrences": 832
     },
     {
       "category": "control",
@@ -11691,16 +11890,19 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/x86.c",
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 2860
+      "occurrences": 2879
     },
     {
       "category": "control",
@@ -11939,16 +12141,19 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2331
+      "occurrences": 2347
     },
     {
       "category": "control",
@@ -11984,12 +12189,13 @@
         "kernel/network/sshd.c",
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 110
+      "occurrences": 114
     },
     {
       "category": "control",
@@ -12343,12 +12549,15 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -12356,7 +12565,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 17762
+      "occurrences": 17916
     },
     {
       "category": "control",
@@ -12682,19 +12891,22 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 10196
+      "occurrences": 10312
     },
     {
       "category": "control",
@@ -13034,6 +13246,8 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/x86.c",
@@ -13041,7 +13255,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2332
+      "occurrences": 2335
     },
     {
       "category": "declaration",
@@ -13275,18 +13489,20 @@
         "kernel/util/calendar.c",
         "toolchain/ctool.c",
         "toolchain/cupiddis.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 330
+      "occurrences": 338
     },
     {
       "category": "declarator",
@@ -13491,19 +13707,22 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 1095
+      "occurrences": 1140
     },
     {
       "category": "extension",
@@ -14671,6 +14890,9 @@
         "toolchain/cupiddis.c",
         "toolchain/cupiddis.h",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/cupidasm_demos_contract.c",
@@ -14680,7 +14902,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2646
+      "occurrences": 2651
     },
     {
       "category": "preprocessor",
@@ -14748,10 +14970,11 @@
         "kernel/doom/src/sha1.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
-        "toolchain/cupidasm_main.c"
+        "toolchain/cupidasm_main.c",
+        "toolchain/cupidobj_main.c"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 40
+      "occurrences": 45
     },
     {
       "category": "preprocessor",
@@ -15060,12 +15283,14 @@
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.h",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.h",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 459
+      "occurrences": 466
     },
     {
       "category": "preprocessor",
@@ -15220,10 +15445,11 @@
         "kernel/doom/src/w_wad.c",
         "toolchain/ctool.c",
         "toolchain/ctool_host.c",
-        "toolchain/cupidasm_main.c"
+        "toolchain/cupidasm_main.c",
+        "toolchain/cupidobj_main.c"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 85
+      "occurrences": 91
     },
     {
       "category": "preprocessor",
@@ -15549,12 +15775,13 @@
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h",
         "toolchain/cupiddis.h",
+        "toolchain/cupidobj.h",
         "toolchain/elf32.h",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 273
+      "occurrences": 274
     },
     {
       "category": "preprocessor",
@@ -16024,6 +16251,9 @@
         "toolchain/cupiddis.c",
         "toolchain/cupiddis.h",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
@@ -16031,6 +16261,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -16040,7 +16271,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2247
+      "occurrences": 2265
     },
     {
       "category": "preprocessor",
@@ -16502,6 +16733,9 @@
         "toolchain/cupiddis.c",
         "toolchain/cupiddis.h",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
@@ -16509,6 +16743,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -16518,7 +16753,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 3920
+      "occurrences": 4008
     },
     {
       "category": "qualifier",
@@ -16997,12 +17232,15 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -17010,7 +17248,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 3446
+      "occurrences": 3491
     },
     {
       "category": "type",
@@ -17372,12 +17610,15 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -17386,7 +17627,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 5244
+      "occurrences": 5359
     },
     {
       "category": "type",
@@ -17516,12 +17757,13 @@
         "toolchain/cupidasm.c",
         "toolchain/cupidasm.h",
         "toolchain/cupiddis.h",
+        "toolchain/cupidobj.h",
         "toolchain/elf32.h",
         "toolchain/x86.c",
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 141
+      "occurrences": 143
     },
     {
       "category": "type",
@@ -18054,11 +18296,13 @@
         "toolchain/ctool.h",
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -18067,7 +18311,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18212
+      "occurrences": 18240
     },
     {
       "category": "type",
@@ -18442,6 +18686,9 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.h",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
@@ -18454,7 +18701,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 622
+      "occurrences": 628
     },
     {
       "category": "type",
@@ -18673,6 +18920,9 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.h",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj.h",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/core_contract.c",
@@ -18685,7 +18935,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 647
+      "occurrences": 655
     },
     {
       "category": "type",
@@ -18714,10 +18964,11 @@
         "kernel/lang/cupidscript_streams.h",
         "toolchain/cupidasm.c",
         "toolchain/cupidasm.h",
+        "toolchain/cupidobj.h",
         "toolchain/x86.h"
       ],
       "id": "c.type.union",
-      "occurrences": 10
+      "occurrences": 11
     },
     {
       "category": "type",
@@ -18849,13 +19100,14 @@
         "toolchain/ctool.c",
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/x86_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 598
+      "occurrences": 607
     },
     {
       "category": "type",
@@ -19403,12 +19655,15 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupiddis.c",
         "toolchain/cupiddis_main.c",
+        "toolchain/cupidobj.c",
+        "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
         "toolchain/tests/core_contract.c",
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupiddis_contract.c",
+        "toolchain/tests/cupidobj_contract.c",
         "toolchain/tests/elf32_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
@@ -19419,7 +19674,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 7365
+      "occurrences": 7427
     },
     {
       "category": "declaration",
@@ -20029,11 +20284,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "519b2351ee25f3836890baeabe6dddfb5b8eae7cd5716257f6df7334885a1a49",
+    "active_source_digest": "1242a0815f4c716c493993c7ea891cc4420d66e513f4d96df9cf541e67a46686",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "c9c92ac6ebd9d7e45f6e8bdd45a99cc8fbcd372ad4e6d02e8c28cdb0bb3e066e"
+        "sha256": "a0eba049612d403baa8496a15936457a0a365e389e1111275d61e4cfc5a185d0"
       },
       {
         "path": "user/Makefile",
@@ -20041,12 +20296,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "bc58cb2b6147efeb978d92f766b93097b9931d43d685dec18e265d7a68117748"
+        "sha256": "4b79bc5d6f6650d22192e2ae17ee8742693f78da78810aece09b508a69fa0a53"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "e5214b0b6f1d05da318c83bd4d2770551371a5e4daa1bb9b0ae93cc2e790112b"
+      "sha256": "71fbcd226ccad5da8f3870fa4c5c007e4a4e5ec6b8ce271e867c7d86b1919831"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -20080,7 +20335,7 @@
           "kernel/lang/cupidc_parse.c",
           "kernel/lang/cupidc_string.c"
         ],
-        "source_count": 36,
+        "source_count": 40,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -20428,7 +20683,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 505,
+        "source_count": 509,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -20473,7 +20728,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 607,
+        "source_count": 611,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -20613,7 +20868,7 @@
           "kernel/lang/cupidc_parse.c",
           "kernel/lang/cupidc_string.c"
         ],
-        "source_count": 36
+        "source_count": 40
       },
       {
         "cohorts": [
@@ -20740,7 +20995,7 @@
   "sources": [
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20766,7 +21021,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20796,7 +21051,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20826,7 +21081,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20855,7 +21110,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20881,7 +21136,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20927,7 +21182,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20958,7 +21213,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -20989,7 +21244,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21022,7 +21277,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21054,7 +21309,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21085,7 +21340,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21117,7 +21372,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21148,7 +21403,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21178,7 +21433,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21208,7 +21463,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21240,7 +21495,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21270,7 +21525,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21301,7 +21556,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21332,7 +21587,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21364,7 +21619,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21396,7 +21651,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21427,7 +21682,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21458,7 +21713,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21485,7 +21740,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21515,7 +21770,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21542,7 +21797,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21572,7 +21827,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21597,7 +21852,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21619,7 +21874,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21647,7 +21902,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21674,7 +21929,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21697,7 +21952,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21724,7 +21979,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21750,7 +22005,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21783,7 +22038,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21814,7 +22069,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21848,7 +22103,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21877,7 +22132,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21907,7 +22162,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21943,7 +22198,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -21970,7 +22225,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22002,7 +22257,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22027,7 +22282,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22052,7 +22307,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22074,7 +22329,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22098,7 +22353,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22129,7 +22384,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22166,7 +22421,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22187,7 +22442,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22211,7 +22466,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22240,7 +22495,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22266,7 +22521,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22295,7 +22550,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22321,7 +22576,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22350,7 +22605,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22379,7 +22634,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22407,7 +22662,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22433,7 +22688,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22467,7 +22722,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22494,7 +22749,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22524,7 +22779,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22554,7 +22809,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22582,7 +22837,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22619,7 +22874,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22646,7 +22901,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22674,7 +22929,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22700,7 +22955,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22727,7 +22982,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22753,7 +23008,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22783,7 +23038,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22811,7 +23066,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22836,7 +23091,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22865,7 +23120,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22896,7 +23151,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22925,7 +23180,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22951,7 +23206,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -22976,7 +23231,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23005,7 +23260,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23030,7 +23285,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23060,7 +23315,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23089,7 +23344,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23119,7 +23374,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23148,7 +23403,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23175,7 +23430,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23202,7 +23457,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23227,7 +23482,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23255,7 +23510,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23277,7 +23532,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23303,7 +23558,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23331,7 +23586,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23353,7 +23608,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23381,7 +23636,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23407,7 +23662,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23429,7 +23684,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23458,7 +23713,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23485,7 +23740,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23512,7 +23767,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23545,7 +23800,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23574,7 +23829,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23603,7 +23858,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23631,7 +23886,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23653,7 +23908,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23676,7 +23931,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23702,7 +23957,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23724,7 +23979,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23746,7 +24001,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23775,7 +24030,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23804,7 +24059,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23832,7 +24087,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23866,7 +24121,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23895,7 +24150,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23922,7 +24177,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23955,7 +24210,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23977,7 +24232,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -23999,7 +24254,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24022,7 +24277,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24050,7 +24305,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24081,7 +24336,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24109,7 +24364,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24131,7 +24386,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24158,7 +24413,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24180,7 +24435,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24204,7 +24459,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24234,7 +24489,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24261,7 +24516,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24289,7 +24544,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24320,7 +24575,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24428,7 +24683,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24464,7 +24719,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24513,7 +24768,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24553,7 +24808,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24597,7 +24852,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24637,7 +24892,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24690,7 +24945,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24727,7 +24982,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24756,7 +25011,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24780,7 +25035,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24809,7 +25064,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24852,7 +25107,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24888,7 +25143,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24928,7 +25183,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24958,7 +25213,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -24988,7 +25243,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25026,7 +25281,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25093,7 +25348,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25127,7 +25382,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25173,7 +25428,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25214,7 +25469,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -25247,7 +25502,7 @@
     },
     {
       "build_owners": [
-        "host_object_copy",
+        "cupid_object",
         "host_python"
       ],
       "builds": [
@@ -42623,7 +42878,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -42673,7 +42929,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -42708,9 +42965,11 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
+        ".",
         "toolchain"
       ],
       "cohort": "toolchain_host_adapter",
@@ -42733,6 +42992,9 @@
         "c.type.void"
       ],
       "includes": [
+        "kernel/doom/src/include_stubs/errno.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
         "toolchain/ctool_host.h"
       ],
       "language": "c",
@@ -42745,9 +43007,11 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
+        ".",
         "toolchain"
       ],
       "cohort": "toolchain_host_adapter",
@@ -43010,7 +43274,131 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidobj.h"
+      ],
+      "language": "c",
+      "lines": 423,
+      "origin": "tracked",
+      "path": "toolchain/cupidobj.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "307b75387e0960fbce6bfcc6dfa16b44fc1e0355f9827612e56f842a8ab22679"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler",
+        "make"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.enum",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.union"
+      ],
+      "includes": [
+        "toolchain/ctool.h",
+        "toolchain/elf32.h"
+      ],
+      "language": "c_header",
+      "lines": 65,
+      "origin": "tracked",
+      "path": "toolchain/cupidobj.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "a7d24446c8dc679f239a45e789b69ea03a9f756fa7a44efbce95e7f945799372"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler",
+        "make"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.else",
+        "c.preprocessor.endif",
+        "c.preprocessor.if",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/errno.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "kernel/doom/src/include_stubs/unistd.h",
+        "toolchain/ctool.h",
+        "toolchain/ctool_host.h",
+        "toolchain/cupidobj.h"
+      ],
+      "language": "c",
+      "lines": 450,
+      "origin": "tracked",
+      "path": "toolchain/cupidobj_main.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "72f216d3728e361dcc808db4f9eff1aaae7b1ee4829373c016828bd9b8849bf8"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -43050,7 +43438,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -43264,6 +43653,42 @@
       "reachability": "direct_build_input",
       "runtime_owner": null,
       "sha256": "98a689a4ebc11d90a8091c0b2db9f76bdf5e47cceee0feea741361d23dc63bdf"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/ctool.h",
+        "toolchain/ctool_host.h",
+        "toolchain/cupidobj.h",
+        "toolchain/elf32.h"
+      ],
+      "language": "c",
+      "lines": 655,
+      "origin": "tracked",
+      "path": "toolchain/tests/cupidobj_contract.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "dc69fafe5de8aed36b32fe87bb586634157eb995dff38f2774729531f2c0ad7e"
     },
     {
       "build_owners": [
@@ -43545,9 +43970,9 @@
     }
   ],
   "summary": {
-    "active_sources": 664,
+    "active_sources": 668,
     "features": 248,
-    "transforms": 467,
+    "transforms": 473,
     "unreachable_sources": 36
   },
   "supplemental_builds": [
@@ -44003,6 +44428,93 @@
           ],
           "operation": "compile_c_to_host_object",
           "output": "toolchain/build/cupiddis_main.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/build/ctool.o",
+            "toolchain/build/ctool_host.o",
+            "toolchain/build/elf32.o",
+            "toolchain/build/cupidobj.o",
+            "toolchain/build/cupidobj_contract.o"
+          ],
+          "operation": "compile_and_link_host_executable",
+          "output": "toolchain/build/cupidobj-contract.exe",
+          "recipe": [
+            "$(CC) $(CFLAGS) $(CUPIDOBJ_CONTRACT_OBJECTS) -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/build/ctool.o",
+            "toolchain/build/ctool_host.o",
+            "toolchain/build/elf32.o",
+            "toolchain/build/cupidobj.o",
+            "toolchain/build/cupidobj_main.o"
+          ],
+          "operation": "compile_and_link_host_executable",
+          "output": "toolchain/build/cupidobj.exe",
+          "recipe": [
+            "$(CC) $(CFLAGS) $(CUPIDOBJ_OBJECTS) -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/cupidobj.c",
+            "toolchain/cupidobj.h",
+            "toolchain/elf32.h",
+            "toolchain/ctool.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/cupidobj.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/tests/cupidobj_contract.c",
+            "toolchain/cupidobj.h",
+            "toolchain/elf32.h",
+            "toolchain/ctool.h",
+            "toolchain/ctool_host.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/cupidobj_contract.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/cupidobj_main.c",
+            "toolchain/cupidobj.h",
+            "toolchain/ctool_host.h",
+            "toolchain/ctool.h",
+            "toolchain/elf32.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/cupidobj_main.o",
           "recipe": [
             "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
           ],

@@ -47,17 +47,6 @@ def _ceil_div(a: int, b: int) -> int:
     return (a + b - 1) // b
 
 
-def _path_for_symbol(path: str | Path) -> str:
-    return "".join(ch if ch.isalnum() else "_" for ch in str(path).replace("\\", "/"))
-
-
-def _objcopy_binary(objcopy: str, src: Path, out: Path) -> None:
-    subprocess.run(
-        [objcopy, "-I", "binary", "-O", "elf32-i386", "-B", "i386", str(src), str(out)],
-        check=True,
-    )
-
-
 def _parse_stage(value: str) -> StageFile:
     if ":" not in value:
         raise argparse.ArgumentTypeError("stage entries must be SRC:/guest/path")
@@ -601,7 +590,7 @@ def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
     print(f"[hostbuild] mksyms: {out} ({len(blob)} bytes)")
 
 
-def embed_jpeg(objcopy: str, src: Path, out: Path) -> None:
+def embed_jpeg(object_tool: str, src: Path, out: Path) -> None:
     tmp = Path(str(out) + ".baseline.jpg")
     converted = False
     try:
@@ -653,15 +642,14 @@ def embed_jpeg(objcopy: str, src: Path, out: Path) -> None:
         else:
             print(f"[hostbuild] JPEG baseline embed {src}")
 
-        _objcopy_binary(objcopy, tmp, out)
-        old = _path_for_symbol(tmp)
-        new = _path_for_symbol(src)
         subprocess.run(
             [
-                objcopy,
-                f"--redefine-sym=_binary_{old}_start=_binary_{new}_start",
-                f"--redefine-sym=_binary_{old}_end=_binary_{new}_end",
-                f"--redefine-sym=_binary_{old}_size=_binary_{new}_size",
+                object_tool,
+                "wrap",
+                str(tmp),
+                "--identity",
+                str(src),
+                "-o",
                 str(out),
             ],
             check=True,
@@ -874,7 +862,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("embed-jpeg")
-    p.add_argument("--objcopy", default="objcopy")
+    p.add_argument("--object-tool", default="cupidobj")
     p.add_argument("src", type=Path)
     p.add_argument("out", type=Path)
 
@@ -929,7 +917,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "mksyms":
         write_ksyms_source(args.nm, args.elf, args.out)
     elif args.cmd == "embed-jpeg":
-        embed_jpeg(args.objcopy, args.src, args.out)
+        embed_jpeg(args.object_tool, args.src, args.out)
     elif args.cmd == "gen-bin-programs":
         gen_bin_programs(args.out, args.bin, args.headers, args.browser)
     elif args.cmd == "gen-docs-programs":

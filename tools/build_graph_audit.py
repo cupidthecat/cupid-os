@@ -25,6 +25,7 @@ SOURCE_SUFFIXES = {
     ".s": "assembly",
 }
 TOOL_MARKERS = (
+    ("$(CUPIDOBJ)", "cupid_object"),
     ("$(CC)", "host_c_compiler"),
     ("$(ASM)", "nasm"),
     ("$(LD)", "host_linker"),
@@ -606,10 +607,15 @@ def _operation_for_recipe(
         return "assemble"
     if "host_linker" in tools:
         return "link_elf32_executable"
-    if "host_object_copy" in tools:
-        if "-i binary" in joined and "-o elf32-i386" in joined:
+    if "host_object_copy" in tools or "cupid_object" in tools:
+        if (
+            ("-i binary" in joined and "-o elf32-i386" in joined)
+            or re.search(r"(?:^|\s)wrap(?:\s|$)", joined)
+        ):
             return "wrap_binary_as_elf32_relocatable"
-        if re.search(r"(?:^|\s)-o\s+binary(?:\s|$)", joined):
+        if re.search(r"(?:^|\s)-o\s+binary(?:\s|$)", joined) or re.search(
+            r"(?:^|\s)flat(?:\s|$)", joined
+        ):
             return "extract_raw_binary"
         return "transform_object"
     if "host_python" in tools:
@@ -1873,9 +1879,16 @@ def build_audit(
         runtime_owner = None
         if language == "cupid_c":
             runtime_owner = "CupidC"
-        elif language == "assembly" and "host_object_copy" in owners and "nasm" not in owners:
+        elif (
+            language == "assembly"
+            and {"host_object_copy", "cupid_object"}.intersection(owners)
+            and "nasm" not in owners
+        ):
             runtime_owner = "CupidASM"
-        elif language == "c_header" and "host_object_copy" in owners:
+        elif language == "c_header" and {
+            "host_object_copy",
+            "cupid_object",
+        }.intersection(owners):
             runtime_owner = "CupidC"
         sources.append(
             {

@@ -109,13 +109,14 @@ class HostBuildSymbolTests(unittest.TestCase):
 
 
 class HostBuildAssetTests(unittest.TestCase):
-    def test_embed_jpeg_gives_ffmpeg_a_jpg_output_name(self):
+    def test_embed_jpeg_wraps_converted_bytes_with_original_identity(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             src = root / "photo.jpg"
             out = root / "photo.jpg.o"
             src.write_bytes(b"source jpeg")
             ffmpeg_outputs = []
+            object_tool_commands = []
 
             def fake_which(name):
                 return "ffmpeg" if name == "ffmpeg" else None
@@ -128,17 +129,29 @@ class HostBuildAssetTests(unittest.TestCase):
                         tmp.write_bytes(b"converted jpeg")
                         return subprocess.CompletedProcess(args, 0)
                     return subprocess.CompletedProcess(args, 1)
-                if args[0] == "llvm-objcopy":
-                    if "-I" in args:
-                        Path(args[-1]).write_bytes(b"object")
+                if args[0] == "cupidobj":
+                    object_tool_commands.append(args)
+                    Path(args[-1]).write_bytes(b"object")
                     return subprocess.CompletedProcess(args, 0)
                 raise AssertionError(f"unexpected command: {args}")
 
             with mock.patch("tools.hostbuild.shutil.which", side_effect=fake_which), \
                 mock.patch("tools.hostbuild.subprocess.run", side_effect=fake_run):
-                hostbuild.embed_jpeg("llvm-objcopy", src, out)
+                hostbuild.embed_jpeg("cupidobj", src, out)
 
             self.assertEqual(ffmpeg_outputs[0].suffix.lower(), ".jpg")
+            self.assertEqual(
+                object_tool_commands,
+                [[
+                    "cupidobj",
+                    "wrap",
+                    str(out) + ".baseline.jpg",
+                    "--identity",
+                    str(src),
+                    "-o",
+                    str(out),
+                ]],
+            )
             self.assertTrue(out.exists())
 
 

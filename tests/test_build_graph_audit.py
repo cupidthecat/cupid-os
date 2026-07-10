@@ -123,6 +123,80 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "elf32_relocatable_interchange",
             )
 
+    def test_inventory_attributes_transforms_to_cupid_object(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                LD = host-ld
+                CUPIDOBJ = cupidobj
+
+                .PHONY: all print-bootstrap-artifacts
+                all: kernel.elf kernel.bin app.o
+
+                kernel.elf: main.o link.ld
+                \t$(LD) -m elf_i386 -T link.ld -o $@ main.o
+
+                kernel.bin: kernel.elf
+                \t$(CUPIDOBJ) flat $< -o $@
+
+                app.o: app.cc
+                \t$(CUPIDOBJ) wrap $< -o $@
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+
+                print-bootstrap-artifacts:
+                \t@echo ["main.o"]
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            _write(root / "app.cc", "U0 Main() {}\n")
+            _write(
+                root / "link.ld",
+                "ENTRY(main)\nSECTIONS { . = 0x100000; .text : { *(.text) } }\n",
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            transforms = {
+                entry["output"]: entry for entry in audit["build"]["transforms"]
+            }
+            self.assertEqual(transforms["kernel.elf"]["tools"], ["host_linker"])
+            self.assertEqual(
+                transforms["kernel.elf"]["operation"], "link_elf32_executable"
+            )
+            self.assertEqual(transforms["kernel.bin"]["tools"], ["cupid_object"])
+            self.assertEqual(
+                transforms["kernel.bin"]["operation"], "extract_raw_binary"
+            )
+            self.assertEqual(transforms["app.o"]["tools"], ["cupid_object"])
+            self.assertEqual(
+                transforms["app.o"]["operation"],
+                "wrap_binary_as_elf32_relocatable",
+            )
+            self.assertEqual(
+                audit["contracts"]["bootstrap_artifact_coverage"]["linked_objects"],
+                1,
+            )
+
     def test_inventory_reports_source_features_with_stable_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

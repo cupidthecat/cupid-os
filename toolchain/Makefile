@@ -24,6 +24,8 @@ CUPIDASM_CONTRACT := $(BUILD_DIR)/cupidasm-contract$(EXE)
 CUPIDASM_DEMOS_CONTRACT := $(BUILD_DIR)/cupidasm-demos-contract$(EXE)
 CUPIDASM_KERNEL_ELF_CONTRACT := $(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
+CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
+CUPIDOBJ := $(BUILD_DIR)/cupidobj$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -54,6 +56,12 @@ CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
 CUPIDASM_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                     $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
                     $(BUILD_DIR)/cupidasm.o $(BUILD_DIR)/cupidasm_main.o
+CUPIDOBJ_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                            $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidobj.o \
+                            $(BUILD_DIR)/cupidobj_contract.o
+CUPIDOBJ_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidobj.o \
+                    $(BUILD_DIR)/cupidobj_main.o
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -63,7 +71,8 @@ CPPFLAGS ?= -I.
 
 all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
      $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-     $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM)
+     $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
+     $(CUPIDOBJ)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -92,6 +101,12 @@ $(BUILD_DIR)/cupidasm.o: cupidasm.c cupidasm.h elf32.h x86.h ctool.h | $(BUILD_D
 $(BUILD_DIR)/cupidasm_main.o: cupidasm_main.c cupidasm.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupidobj.o: cupidobj.c cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidobj_main.o: cupidobj_main.c cupidobj.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
 
@@ -115,6 +130,9 @@ $(BUILD_DIR)/cupidasm_demos_contract.o: tests/cupidasm_demos_contract.c cupidasm
 
 $(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.c ../kernel/lang/as_elf.h cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.c cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(CONTRACT): $(CORE_OBJECTS)
 	$(CC) $(CFLAGS) $(CORE_OBJECTS) -o $@
@@ -143,9 +161,16 @@ $(CUPIDASM_KERNEL_ELF_CONTRACT): $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS)
 $(CUPIDASM): $(CUPIDASM_OBJECTS)
 	$(CC) $(CFLAGS) $(CUPIDASM_OBJECTS) -o $@
 
+$(CUPIDOBJ_CONTRACT): $(CUPIDOBJ_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDOBJ_CONTRACT_OBJECTS) -o $@
+
+$(CUPIDOBJ): $(CUPIDOBJ_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDOBJ_OBJECTS) -o $@
+
 test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-      $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM)
+      $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
+      $(CUPIDOBJ)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -184,6 +209,11 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-only
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-data-bss
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) errors
+	$(CUPIDOBJ_CONTRACT) wrap-basic
+	$(CUPIDOBJ_CONTRACT) wrap-model
+	$(CUPIDOBJ_CONTRACT) extract-basic
+	$(CUPIDOBJ_CONTRACT) extract-fallback
+	$(CUPIDOBJ_CONTRACT) errors
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"
