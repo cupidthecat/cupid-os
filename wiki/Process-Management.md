@@ -46,16 +46,19 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 
 ## Deferred Preemptive Scheduling
 
-cupid-os does **not** context switch inside interrupt handlers. Instead:
+The PIT callback does not context switch while its handler is running. IRQ0
+sets `need_reschedule = 1`, and that timer-specific flag is consumed at safe
+voluntary points such as the desktop loop, `process_yield()`, and the PID 1
+idle loop.
 
-1. **PIT IRQ0** fires every 5ms -> sets `need_reschedule = 1`
-2. The flag is checked only at **safe voluntary points**:
-   - Desktop main loop (before `HLT` instruction)
-   - `process_yield()` calls
-   - Idle process loop
-3. If the flag is set, `schedule()` is called to switch to the next ready process
-
-This approach avoids the complexity and stack corruption risks of switching inside ISRs.
+That is not a blanket "interrupt frames never switch" rule. Generic exception
+and IRQ entry increments the CPU-local `interrupt_depth`; a BKL unlock or
+direct `schedule()` reached by the C handler leaves a CPU-local request
+pending. After the handler finishes and `irq_handler()` has sent its LAPIC
+EOI, the common exit decrements the depth and may switch at that explicit
+suspension point. The reschedule IPI similarly acknowledges the LAPIC before
+it consumes the sender's already-published request. No switch occurs while a
+generic C handler or its device acknowledgement is still incomplete.
 
 ---
 

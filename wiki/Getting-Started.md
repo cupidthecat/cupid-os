@@ -88,7 +88,7 @@ Default is `HDD_MB=200`.
 | `make run-ssh` | Boot with RTL8139 networking and host port 2222 forwarded to guest port 22 |
 | `make test-net` | Run the headless networking integration harness |
 | `make stage-wads` | Copy Freedoom WAD files into `/disk/wads/` |
-| `make sync-demos` | Stage local `demos/*.asm` into raw FAT `/demos` (guest `/disk/demos`; first-boot homefs import may also seed `/home/demos`) |
+| `make sync-demos` | Stage local `demos/*.asm` into `/home/demos` in `cupidos.img` |
 
 ---
 
