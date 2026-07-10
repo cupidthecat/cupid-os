@@ -10,6 +10,7 @@
 #include "serial.h"
 #include "idt.h"
 #include "isr.h"
+#include "fpu.h"
 
 /* Forward declarations for IPI C handlers (called from asm stubs). */
 void ipi_reschedule_c(void);
@@ -161,14 +162,12 @@ static void ipi_panic_stub(void) {
 
 void ipi_reschedule_c(void) {
     lapic_eoi();
-    /* Mark current as needing reschedule. The next scheduler_tick
-     * or explicit schedule() call will then switch. This avoids
-     * calling schedule() from within an ISR path where BKL reentry
-     * + context switch is complex.*/
-    per_cpu_t *c = this_cpu();
-    /* Force quantum expiry - existing scheduler honors this. */
-    /* Don't hold BKL here; scheduler.c will acquire it on next tick. */
-    (void)c;
+    /* The sender publishes the request before raising the IPI.  An outer BKL
+     * release may consume it before this interrupt is delivered, so the IPI
+     * must not re-arm an already-serviced request.  An IPI frame is a safe
+     * suspension point: after a switch this handler resumes and returns
+     * through its original IRET. */
+    process_reschedule_if_pending();
 }
 
 void ipi_call_c(void) {
@@ -190,6 +189,7 @@ void smp_init_ipi(void) {
 void smp_reschedule(int cpu_id) {
     if (cpu_id < 0 || cpu_id >= SMP_MAX_CPUS) return;
     if (!cpus[cpu_id].online) return;
+    percpu_request_reschedule(&cpus[cpu_id]);
     lapic_send_ipi(cpus[cpu_id].apic_id, IPI_RESCHEDULE, LAPIC_DELIVER_FIXED);
 }
 
@@ -220,6 +220,10 @@ int smp_call_on_cpu(int cpu_id, void (*fn)(void*), void *arg) {
 }
 
 void ap_main_c(void) {
+    /* CR0/CR4 are per-CPU.  The BSP's fpu_init cannot enable SSE on an AP,
+     * and ordinary compiled C may use XMM registers before the first log. */
+    fpu_init_cpu();
+
     /* Find our cpu slot by LAPIC ID (before kernel GDT / this_cpu is ready). */
     uint8_t my_apic = lapic_get_id();
     int cpu_id = 0;
@@ -240,6 +244,9 @@ void ap_main_c(void) {
     __asm__ volatile("sti");
     KINFO("cpu%u: online apic=%u", (unsigned)c->cpu_id, (unsigned)c->apic_id);
     for (;;) {
+        /* The first dispatch captures this stack as the CPU-local scheduler
+         * context.  A terminating task can hand back here without borrowing
+         * the BSP-only PID 1 stack. */
         schedule();   /* BKL acquired/released internally */
         __asm__ volatile("sti; hlt");
     }

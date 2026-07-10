@@ -160,6 +160,12 @@ class BaselineArtifactTests(unittest.TestCase):
 
 
 class BaselineCheckTests(unittest.TestCase):
+    def test_preflight_excludes_retired_normal_build_tools(self):
+        specs = bootstrap_baseline._tool_specs()
+
+        self.assertNotIn("linker", specs)
+        self.assertNotIn("object_copy", specs)
+
     def test_failed_check_is_recorded_and_dependent_checks_are_skipped(self):
         calls = []
 

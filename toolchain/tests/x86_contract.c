@@ -1269,7 +1269,7 @@ static int run_active_surface(void) {
   }
   if (!check_true(
           (ctool_u32)(sizeof(source_cases) / sizeof(source_cases[0])) ==
-              182u,
+              185u,
           "active source manifest inventory") ||
       !check_true(
           (ctool_u32)(sizeof(inline_cases) / sizeof(inline_cases[0])) ==

@@ -26,6 +26,8 @@ CUPIDASM_KERNEL_ELF_CONTRACT := $(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
 CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
 CUPIDOBJ := $(BUILD_DIR)/cupidobj$(EXE)
+CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
+CUPIDLD := $(BUILD_DIR)/cupidld$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -62,6 +64,12 @@ CUPIDOBJ_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDOBJ_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                     $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidobj.o \
                     $(BUILD_DIR)/cupidobj_main.o
+CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                           $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
+                           $(BUILD_DIR)/cupidld_contract.o
+CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                   $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
+                   $(BUILD_DIR)/cupidld_main.o
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -72,7 +80,7 @@ CPPFLAGS ?= -I.
 all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
      $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
      $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
-     $(CUPIDOBJ)
+     $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -107,6 +115,12 @@ $(BUILD_DIR)/cupidobj.o: cupidobj.c cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/cupidobj_main.o: cupidobj_main.c cupidobj.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupidld.o: cupidld.c cupidld.h elf32.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidld_main.o: cupidld_main.c cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
 
@@ -132,6 +146,9 @@ $(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.c cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.c cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(CONTRACT): $(CORE_OBJECTS)
@@ -167,10 +184,16 @@ $(CUPIDOBJ_CONTRACT): $(CUPIDOBJ_CONTRACT_OBJECTS)
 $(CUPIDOBJ): $(CUPIDOBJ_OBJECTS)
 	$(CC) $(CFLAGS) $(CUPIDOBJ_OBJECTS) -o $@
 
+$(CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDLD_CONTRACT_OBJECTS) -o $@
+
+$(CUPIDLD): $(CUPIDLD_OBJECTS)
+	$(CC) $(CFLAGS) $(CUPIDLD_OBJECTS) -o $@
+
 test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
-      $(CUPIDOBJ)
+      $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -214,6 +237,12 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
 	$(CUPIDOBJ_CONTRACT) extract-basic
 	$(CUPIDOBJ_CONTRACT) extract-fallback
 	$(CUPIDOBJ_CONTRACT) errors
+	$(CUPIDLD_CONTRACT) fixed-basic
+	$(CUPIDLD_CONTRACT) fixed-layout
+	$(CUPIDLD_CONTRACT) merge-symbols
+	$(CUPIDLD_CONTRACT) merge-addends
+	$(CUPIDLD_CONTRACT) script-layout
+	$(CUPIDLD_CONTRACT) errors
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"

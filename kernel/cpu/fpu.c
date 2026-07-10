@@ -4,8 +4,11 @@
 #include "libm.h"
 #include "serial.h"
 
-void fpu_init(void) {
-    uint32_t cr0, cr4, mxcsr;
+__attribute__((target("no-sse,no-sse2")))
+void fpu_init_cpu(void) {
+    uint32_t cr0;
+    uint32_t cr4;
+    uint32_t mxcsr;
 
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 &= ~(1u << 2);   /* CR0.EM = 0 (hw x87) */
@@ -24,6 +27,17 @@ void fpu_init(void) {
     mxcsr = 0x1F80u;     /* all 6 SIMD FP exceptions masked */
     __asm__ volatile("ldmxcsr %0" :: "m"(mxcsr));
 
+}
+
+void fpu_init(void) {
+    uint32_t cr0;
+    uint32_t cr4;
+    uint32_t mxcsr;
+
+    fpu_init_cpu();
+    __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
+    __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
+    __asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
     serial_printf("[fpu] SSE2 enabled, CR0=%x CR4=%x MXCSR=%x\n",
                   cr0, cr4, mxcsr);
 }

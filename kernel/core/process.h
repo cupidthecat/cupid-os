@@ -37,6 +37,21 @@ typedef enum {
     PROCESS_DOMAIN_EXTERNAL      /* ELF/CUPD program via loader */
 } process_domain_t;
 
+typedef enum {
+    PROCESS_IMAGE_NONE = 0,
+    PROCESS_IMAGE_PERMANENT,
+    PROCESS_IMAGE_EXTERNAL_LEASE
+} process_image_ownership_t;
+
+/* A process image descriptor is consumed only after successful process
+ * creation.  An external lease generation is opaque to callers. */
+typedef struct {
+    uint32_t                  base;
+    uint32_t                  size;
+    process_image_ownership_t ownership;
+    uint32_t                  lease_generation;
+} process_image_t;
+
 typedef struct {
     uint32_t eax, ebx, ecx, edx;
     uint32_t esi, edi, esp, ebp;
@@ -52,12 +67,15 @@ typedef struct {
                                               /* FXSAVE/FXRSTOR area */
     void            *stack_base;              /* Bottom of stack mem */
     uint32_t         stack_size;              /* Stack size in bytes */
-    uint32_t         image_base;              /* ELF image load addr */
-    uint32_t         image_size;              /* ELF image total size */
+    uint32_t         image_base;              /* Owned image range start */
+    uint32_t         image_size;              /* Owned image range size */
+    process_image_ownership_t image_ownership; /* Image cleanup policy */
+    uint32_t         image_lease_generation;  /* External lease identity */
     process_domain_t domain;                  /* Execution domain */
     char             name[PROCESS_NAME_LEN];  /* Human-readable name */
     uint8_t          on_cpu;   /* 0..31 = CPU currently running this process;
-                                * 0xFFu = not running on any CPU*/
+                                * 0xFFu = detached and safe to reap when
+                                * state is PROCESS_TERMINATED */
     uint8_t          last_cpu; /* last CPU that ran this process */
 } process_t;
 
@@ -92,8 +110,8 @@ uint32_t process_create_ex(void (*entry_point)(void),
  * process_create_with_arg - Spawn a new kernel thread with one argument
  *
  * Like process_create, but pushes `arg` onto the stack so the entry
- * function can receive it as its first parameter.  Used by the ELF
- * loader to pass the syscall table pointer to _start().
+ * function can receive it as its first parameter.  Image-owning loaders use
+ * process_create_with_arg_image_ex so metadata is published atomically.
  *
  * @entry_point: function to run (cast to void(*)(void) but actually
  *               takes one uint32_t argument)
@@ -115,10 +133,42 @@ uint32_t process_create_with_arg_ex(void (*entry_point)(void),
                                     process_domain_t domain);
 
 /**
+ * process_create_with_arg_image_ex - Spawn with atomically-published image
+ * ownership metadata
+ *
+ * On success, the descriptor is consumed and reset to PROCESS_IMAGE_NONE in
+ * the same BKL critical section that publishes the READY process.  On failure,
+ * the caller retains the descriptor and must pass it to process_image_discard.
+ */
+uint32_t process_create_with_arg_image_ex(void (*entry_point)(void),
+                                          const char *name,
+                                          uint32_t stack_size,
+                                          uint32_t arg,
+                                          process_domain_t domain,
+                                          process_image_t *image);
+
+/**
+ * process_external_image_claim - Try to acquire the fixed external ELF arena
+ *
+ * On success, initializes image with the permanent arena and an exclusive
+ * lease.  The descriptor must be consumed by process creation or discarded.
+ */
+bool process_external_image_claim(process_image_t *image);
+
+/**
+ * process_image_discard - Release an unconsumed image descriptor
+ *
+ * Cancels an external lease.  Permanent images require no cleanup.  The
+ * descriptor is reset on return.
+ */
+void process_image_discard(process_image_t *image);
+
+/**
  * process_exit - Terminate the currently running process
  *
- * Frees the process stack, marks the slot as free, and immediately
- * reschedules.  Never returns.  Cannot exit the idle process (PID 1).
+ * Marks the process terminated and immediately reschedules.  Stack/image
+ * cleanup is deferred until the scheduler has detached the owning CPU and a
+ * quiescent reaper reclaims the slot.  Never returns.  Cannot exit PID 1.
 */
 void process_exit(void);
 
@@ -137,9 +187,9 @@ uint32_t process_get_current_pid(void);
 /**
  * process_kill - Terminate a process by PID
  *
- * Frees the stack, marks the slot as free, and reschedules if the
- * killed process is the currently running one.  Cannot kill the idle
- * process (PID 1).
+ * Marks the target terminated and reschedules if it is currently running.
+ * Cleanup is immediate only for a target already detached from every CPU;
+ * otherwise the quiescent reaper performs it later.  Cannot kill PID 1.
 */
 void process_kill(uint32_t pid);
 
@@ -170,9 +220,22 @@ void process_list_adam(void);
  * Called from the timer IRQ0 handler every 10ms for preemptive
  * multitasking.  Also called explicitly by process_exit/process_yield.
  *
- * Uses round-robin scheduling with the idle process as a fallback.
+ * Uses round-robin scheduling over detached READY PCBs.  PID 1 is the BSP
+ * fallback; APs capture their own PID-less scheduler context so a terminating
+ * task can detach without sharing an idle stack between CPUs.
+ * Calls made from generic interrupt context are deferred until the common
+ * stub has completed the handler and acknowledged the interrupt.
 */
 void schedule(void);
+
+/**
+ * process_reschedule_if_pending - Consume a CPU-local remote request
+ *
+ * Switches immediately when the scheduler is active and this CPU is outside
+ * a BKL critical section.  Otherwise the request remains pending for the
+ * outer BKL release or a later safe point.
+ */
+void process_reschedule_if_pending(void);
 
 /**
  * process_is_active - Returns true if the scheduler is running
@@ -203,18 +266,6 @@ void process_start_scheduler(void);
  * Returns: the assigned PID, or 0 on failure.
 */
 uint32_t process_register_current(const char *name);
-
-/**
- * process_set_image - Associate an ELF image region with a process
- *
- * Records the base address and size of memory loaded for an ELF
- * program so it can be freed when the process exits.
- *
- * @pid:  the process PID
- * @base: physical start address of the loaded ELF image
- * @size: size in bytes of the loaded image
-*/
-void process_set_image(uint32_t pid, uint32_t base, uint32_t size);
 
 /**
  * process_block - Suspend a READY process so the scheduler skips it

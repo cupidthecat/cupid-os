@@ -20,8 +20,39 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANIC_RE = re.compile(r"KERNEL PANIC|Heap corruption|CORRUPTION detected")
+DEFAULT_SUCCESS_PATTERN = r"JIT execution complete"
 KEY_HOLD_MILLISECONDS = 300
 KEY_PAUSE_SECONDS = 0.35
+
+
+def completion_pattern(success_pattern: str) -> re.Pattern[str]:
+    """Return the first-event pattern for either success or a kernel panic."""
+    re.compile(success_pattern)
+    return re.compile(
+        rf"(?:{PANIC_RE.pattern})|(?:{success_pattern})",
+        re.S,
+    )
+
+
+def success_count(data: str, success_pattern: str) -> int:
+    """Count completed command markers without depending on capture groups."""
+    return sum(1 for _ in re.finditer(success_pattern, data, re.S))
+
+
+def positive_count(text: str) -> int:
+    """Parse a positive repeat count for argparse and direct callers."""
+    value = int(text)
+    if value < 1:
+        raise ValueError("repeat count must be positive")
+    return value
+
+
+def positive_delay(text: str) -> float:
+    """Parse a positive key delay for argparse and direct callers."""
+    value = float(text)
+    if value <= 0.0:
+        raise ValueError("key pause must be positive")
+    return value
 
 
 def free_tcp_port() -> int:
@@ -46,6 +77,27 @@ def wait_log(proc: subprocess.Popen, log: Path, pattern: str, timeout: float) ->
     while time.time() < deadline:
         data = read_log(log)
         if compiled.search(data):
+            return True, data
+        if proc.poll() is not None:
+            return False, data
+        time.sleep(0.1)
+    return False, read_log(log)
+
+
+def wait_log_success_count(
+    proc: subprocess.Popen,
+    log: Path,
+    success_pattern: str,
+    minimum_count: int,
+    timeout: float,
+) -> tuple[bool, str]:
+    """Wait for a new repeated-command success or an immediate panic."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        data = read_log(log)
+        if PANIC_RE.search(data):
+            return True, data
+        if success_count(data, success_pattern) >= minimum_count:
             return True, data
         if proc.poll() is not None:
             return False, data
@@ -80,6 +132,32 @@ def hmp(sock: socket.socket, command: str, pause: float = 0.25) -> None:
         pass
 
 
+def stop_qemu(proc: subprocess.Popen, mon: socket.socket | None) -> None:
+    """Request a disk-flushing QEMU exit before using hard-stop fallbacks."""
+    graceful = mon is not None
+    if mon is not None:
+        try:
+            hmp(mon, "quit")
+        except OSError:
+            pass
+        finally:
+            mon.close()
+    if proc.poll() is not None:
+        return
+    if graceful:
+        try:
+            proc.wait(timeout=3.0)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+    proc.terminate()
+    try:
+        proc.wait(timeout=3.0)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=3.0)
+
+
 def send_key(
     sock: socket.socket, key: str, pause: float = KEY_PAUSE_SECONDS
 ) -> None:
@@ -107,6 +185,8 @@ def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
         args.qemu,
         "-m",
         "512M",
+        "-smp",
+        f"cpus={args.smp}",
         "-boot",
         "c",
         "-drive",
@@ -154,6 +234,7 @@ def run(args: argparse.Namespace) -> int:
         pass
 
     monitor_port = free_tcp_port()
+    re.compile(args.success_pattern, re.S)
     proc = subprocess.Popen(
         qemu_args(args, monitor_port),
         cwd=REPO_ROOT,
@@ -178,53 +259,81 @@ def run(args: argparse.Namespace) -> int:
             return 1
 
         time.sleep(0.5)
-        for ch in args.command:
-            send_key(mon, key_name(ch))
-        send_key(mon, "ret")
+        completed = success_count(read_log(args.log), args.success_pattern)
+        for iteration in range(args.repeat):
+            for ch in args.command:
+                send_key(mon, key_name(ch), args.key_pause)
+            send_key(mon, "ret", args.key_pause)
 
-        ok, data = wait_log(
-            proc,
-            args.log,
-            r"KERNEL PANIC|Heap corruption|CORRUPTION detected|JIT execution complete",
-            args.timeout,
-        )
-        if ok and "JIT execution complete" in data and not PANIC_RE.search(data):
-            ok_after, data_after = wait_log(proc, args.log, PANIC_RE.pattern, 5.0)
-            if ok_after:
-                data = data_after
+            ok, data = wait_log_success_count(
+                proc,
+                args.log,
+                args.success_pattern,
+                completed + 1,
+                args.timeout,
+            )
+            if PANIC_RE.search(data):
+                print("GUI terminal smoke failed: panic detected", file=sys.stderr)
+                print(data[-5000:], file=sys.stderr)
+                return 1
+            if not ok or success_count(data, args.success_pattern) < completed + 1:
+                print(
+                    "GUI terminal smoke failed: command did not complete "
+                    f"({iteration + 1}/{args.repeat})",
+                    file=sys.stderr,
+                )
+                print(data[-5000:], file=sys.stderr)
+                return 1
+            completed += 1
 
-        if PANIC_RE.search(data):
+        ok_after, data_after = wait_log(proc, args.log, PANIC_RE.pattern, 5.0)
+        if ok_after:
             print("GUI terminal smoke failed: panic detected", file=sys.stderr)
-            print(data[-5000:], file=sys.stderr)
-            return 1
-        if "JIT execution complete" not in data:
-            print("GUI terminal smoke failed: command did not complete", file=sys.stderr)
-            print(data[-5000:], file=sys.stderr)
+            print(data_after[-5000:], file=sys.stderr)
             return 1
 
         print("GUI terminal smoke passed")
         return 0
     finally:
-        if mon is not None:
-            mon.close()
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=3.0)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=3.0)
+        stop_qemu(proc, mon)
 
 
-def main(argv: list[str]) -> int:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qemu", default=os.environ.get("QEMU", "qemu-system-i386"))
     parser.add_argument("--image", type=Path, default=REPO_ROOT / "cupidos.img")
     parser.add_argument("--log", type=Path, default=REPO_ROOT / "tests" / "gui-terminal-smoke.log")
     parser.add_argument("--nic", default="e1000", choices=["e1000", "rtl8139"])
+    parser.add_argument(
+        "--smp",
+        type=positive_count,
+        default=1,
+        help="number of virtual CPUs",
+    )
     parser.add_argument("--command", default="ls")
+    parser.add_argument(
+        "--repeat",
+        type=positive_count,
+        default=1,
+        help="number of sequential command completions required",
+    )
+    parser.add_argument(
+        "--key-pause",
+        type=positive_delay,
+        default=KEY_PAUSE_SECONDS,
+        help="seconds to wait after each emulated key report",
+    )
+    parser.add_argument(
+        "--success-pattern",
+        default=DEFAULT_SUCCESS_PATTERN,
+        help="regular expression required in serial output after the command",
+    )
     parser.add_argument("--timeout", type=float, default=45.0)
-    return run(parser.parse_args(argv))
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    return run(parse_args(argv))
 
 
 if __name__ == "__main__":

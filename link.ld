@@ -1,13 +1,13 @@
-/* Output format is selected on the ld command line — `--oformat binary`
- * for the bootable kernel.bin and default elf32-i386 for the pass-1
- * symbol-extraction step (see Makefile two-pass kernel link). */
+/* CupidLD emits the pass ELF32 executable used for symbol extraction.
+ * CupidObj then flattens the final executable for the bootloader. */
 ENTRY(_start)
 SECTIONS
 {
     /*
      * Kernel is loaded at 1MB (0x100000) by the bootloader via unreal mode.
-     * This gives us ~31MB of contiguous space (up to the 32MB identity map)
-     * instead of the old 576KB limit below the BIOS hole.
+     * File-backed bytes must end by 0x8FF600 for the bootloader's reserved
+     * disk area, and the complete memory image must end below the fixed
+     * kernel stack at 0xB00000 (both asserted below).
      */
     . = 0x100000;
     .text : {
@@ -24,8 +24,9 @@ SECTIONS
 
     /* Kernel symbol blob for panic backtrace. Placed after .data so its
      * size doesn't shift any code addresses between two-pass links —
-     * mksyms.sh extracts symbols from a pass-1 ELF, then the populated
-     * ksyms_data.o is linked in for pass 2 with stable text addresses. */
+     * tools/hostbuild.py mksyms extracts symbols from a pass-1 ELF, then the
+     * populated ksyms_data.o is linked in for pass 2 with stable text
+     * addresses. */
     .ksyms ALIGN(4) : {
         __ksyms_start = .;
         *(.ksyms)
@@ -53,4 +54,6 @@ SECTIONS
      */
     ASSERT(_loaded_end <= 0x8FF600,
            "Kernel binary (text+data) exceeds reserved HDD kernel area")
+    ASSERT(_kernel_end <= 0xB00000,
+           "Kernel memory image overlaps the fixed kernel stack")
 }

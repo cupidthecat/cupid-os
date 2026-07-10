@@ -25,6 +25,7 @@ SOURCE_SUFFIXES = {
     ".s": "assembly",
 }
 TOOL_MARKERS = (
+    ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDOBJ)", "cupid_object"),
     ("$(CC)", "host_c_compiler"),
     ("$(ASM)", "nasm"),
@@ -276,8 +277,12 @@ def _language(path: str) -> str | None:
 
 
 def _run_make_database(root: Path, make: str, target: str) -> str:
+    # GNU Make executes recipes containing $(MAKE) even under -n.  Replace the
+    # recursive command while printing the database so a missing hosted Cupid
+    # tool cannot append a nested Makefile database and overwrite this root's
+    # `all` rule during parsing.  Recipes remain unexpanded in `-p` output.
     result = subprocess.run(
-        [make, "--no-print-directory", "-prRn", target],
+        [make, "MAKE=:", "--no-print-directory", "-prRn", target],
         cwd=root,
         text=True,
         encoding="utf-8",
@@ -562,7 +567,7 @@ def _artifact_coverage_contract(
     linked_objects = {
         str(source)
         for transform in transforms
-        if "host_linker" in transform["tools"]
+        if {"host_linker", "cupid_linker"}.intersection(transform["tools"])
         for source in transform["inputs"]
         if str(source).endswith(".o")
     }
@@ -605,7 +610,7 @@ def _operation_for_recipe(
         if re.search(r"(?:^|\s)-f\s+elf32(?:\s|$)", joined):
             return "assemble_elf32_relocatable"
         return "assemble"
-    if "host_linker" in tools:
+    if "host_linker" in tools or "cupid_linker" in tools:
         return "link_elf32_executable"
     if "host_object_copy" in tools or "cupid_object" in tools:
         if (
@@ -1004,7 +1009,7 @@ def _roadmap(
         (
             "user_programs",
             ("user_program", "user_runtime_interface"),
-            "Replace the separate hard-coded GCC/ld path and stage its outputs deliberately.",
+            "Migrate the remaining separate host-C compilation path to CupidC and stage its CupidLD outputs deliberately.",
         ),
         (
             "embedded_cupid_sources",

@@ -77,13 +77,15 @@ void pmm_init(uint32_t kernel_end) {
                                               kernel-BSS overlap that
                                               clobbered the guard zone*/
 
-  /* Reserve CupidC and CupidASM JIT/AOT execution regions so the heap
-   * never allocates into them.  Layout (well above kernel BSS + stack):
+  /* Reserve every fixed execution region so the PMM never allocates into it.
+   * Layout (well above kernel BSS + stack):
+   *   13 MB - 15 MB  external CupidLD executables
    *   16 MB - 25 MB  CupidC   (1 MB code + 8 MB data)
    *   26 MB - 28 MB  CupidASM (1 MB code + 1 MB data)
 */
-  pmm_mark_region(0x01000000, 0x01900000, 1); /* CupidC JIT region */
-  pmm_mark_region(0x01A00000, 0x01C00000, 1); /* CupidASM JIT region */
+  pmm_mark_region(EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END, 1);
+  pmm_mark_region(CUPIDC_EXEC_ARENA_START, CUPIDC_EXEC_ARENA_END, 1);
+  pmm_mark_region(CUPIDASM_EXEC_ARENA_START, CUPIDASM_EXEC_ARENA_END, 1);
 
   /* Initialize stack guard after reserving the region */
   stack_guard_init();

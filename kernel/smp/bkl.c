@@ -1,5 +1,6 @@
 #include "bkl.h"
 #include "percpu.h"
+#include "process.h"
 
 typedef struct {
     volatile uint32_t ticket_head;
@@ -51,17 +52,48 @@ void bkl_lock(void) {
 
 void bkl_unlock(void) {
     per_cpu_t *c = this_cpu();
-    if (klock.depth == 0) return;   /* programming error - ignore */
+    if (klock.depth == 0 || klock.owner_cpu != (int32_t)c->cpu_id) {
+        return;   /* programming error - ignore */
+    }
     uint32_t eflags = c->bkl_eflags_saved;
     klock.depth--;
     c->bkl_depth = klock.depth;
     if (klock.depth == 0) {
         klock.owner_cpu = -1;
+        c->bkl_eflags_saved = 0;
         __atomic_fetch_add(&klock.ticket_head, 1, __ATOMIC_RELEASE);
+        /* A remote CPU may have posted a reschedule while this CPU had IF
+         * clear.  Service it after publishing the unlock and before restoring
+         * the outer caller's IF. */
+        process_reschedule_if_pending();
         restore_if(eflags);
     }
 }
 
 bool bkl_held_by_this_cpu(void) {
     return klock.owner_cpu == (int32_t)this_cpu()->cpu_id;
+}
+
+uint32_t bkl_context_switch_eflags(void) {
+    per_cpu_t *c = this_cpu();
+    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u ||
+        c->bkl_depth != 1u) {
+        return 0u;
+    }
+    return c->bkl_eflags_saved;
+}
+
+bool bkl_context_switch_release(void) {
+    per_cpu_t *c = this_cpu();
+    if (klock.owner_cpu != (int32_t)c->cpu_id || klock.depth != 1u ||
+        c->bkl_depth != 1u) {
+        return false;
+    }
+
+    klock.depth = 0;
+    c->bkl_depth = 0;
+    c->bkl_eflags_saved = 0;
+    klock.owner_cpu = -1;
+    __atomic_fetch_add(&klock.ticket_head, 1, __ATOMIC_RELEASE);
+    return true;
 }

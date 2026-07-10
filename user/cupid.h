@@ -19,7 +19,7 @@
  *
  *   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
  *       -I/path/to/cupid-os/user -c hello.c -o hello.o
- *   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
+ *   cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
  *       -o hello hello.o
  *
  * ── Running in CupidOS ──────────────────────────────────────────

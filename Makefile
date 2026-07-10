@@ -7,9 +7,6 @@ PYTHON ?= python
 ifeq ($(origin CC),default)
 CC := clang
 endif
-ifeq ($(origin LD),default)
-LD := ld.lld
-endif
 NM ?= llvm-nm
 HOST_EXE := .exe
 CC_TARGET ?= --target=i386-unknown-elf
@@ -20,9 +17,6 @@ PYTHON ?= python3
 ifeq ($(origin CC),default)
 CC := gcc
 endif
-ifeq ($(origin LD),default)
-LD := ld
-endif
 NM ?= nm
 HOST_EXE :=
 CC_TARGET ?=
@@ -31,10 +25,17 @@ CLANG_COMPAT_CFLAGS ?=
 endif
 CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
 CUPIDOBJ ?= $(CUPIDOBJ_BUILD)
+CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
+CUPIDLD ?= $(CUPIDLD_BUILD)
 CUPIDOBJ_SOURCES := toolchain/ctool.c toolchain/ctool.h \
 	toolchain/ctool_host.c toolchain/ctool_host.h \
 	toolchain/elf32.c toolchain/elf32.h \
 	toolchain/cupidobj.c toolchain/cupidobj.h toolchain/cupidobj_main.c \
+	toolchain/Makefile
+CUPIDLD_SOURCES := toolchain/ctool.c toolchain/ctool.h \
+	toolchain/ctool_host.c toolchain/ctool_host.h \
+	toolchain/elf32.c toolchain/elf32.h \
+	toolchain/cupidld.c toolchain/cupidld.h toolchain/cupidld_main.c \
 	toolchain/Makefile
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
@@ -68,10 +69,6 @@ CFLAGS_DOOM_TREE := $(CFLAGS_DOOM) \
                -DDOOM_PORT_CUPIDOS=1
 # Optimisation flags for rendering/computation-only files (no hw I/O or IRQs)
 OPT=-O2
-LDFLAGS=-m elf_i386 -T link.ld --oformat binary
-# ELF link variant — used for the pass-1 kernel.elf so mksyms.sh can read symbols.
-LDFLAGS_ELF=-m elf_i386 -T link.ld
-
 # Auto-discover all CupidC programs in bin/.
 # Exclude legacy cc2-bootstrap fixtures (old_cc2*) — they're superseded
 # by the production CupidC compiler and embed ~265 KB of fixture text
@@ -945,6 +942,12 @@ bootstrap-baseline:
 $(CUPIDOBJ_BUILD): $(CUPIDOBJ_SOURCES)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
 
+# CupidObj and CupidLD share hosted-core objects in toolchain/build.  Keep the
+# independent recursive builds ordered under -j without making CupidObj's
+# private sources timestamp dependencies of CupidLD.
+$(CUPIDLD_BUILD): $(CUPIDLD_SOURCES) | $(CUPIDOBJ_BUILD)
+	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
@@ -1027,8 +1030,8 @@ god/%.o: god/%.DD $(CUPIDOBJ)
 #           addresses don't shift between passes; only .bss start
 #           moves, which is fine.
 #   CupidObj flattens kernel.elf into the raw binary the bootloader expects.
-kernel/kernel.elf.pass1: $(KERNEL_OBJS)
-	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS)
+kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD)
+	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)
 
 kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py
 	$(PYTHON) tools/hostbuild.py mksyms --nm $(NM) $< $@
@@ -1036,8 +1039,8 @@ kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.c kernel/cpu/ksyms.h
 	$(CC) $(CFLAGS) kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o
 
-kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
-	$(LD) $(LDFLAGS_ELF) -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
+kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld $(CUPIDLD)
+	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
 $(KERNEL): kernel/kernel.elf $(CUPIDOBJ)
 	$(CUPIDOBJ) flat $< -o $(KERNEL)

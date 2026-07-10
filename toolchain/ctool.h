@@ -84,6 +84,10 @@ typedef struct {
   ctool_u32 diagnostic_message_bytes;
 } ctool_limits_t;
 
+/* A job reserves diagnostic_count fixed path/message slots at open using
+ * path_bytes and diagnostic_message_bytes as per-entry limits.  Diagnostic
+ * storage is bounded independently from the rewindable operation arena. */
+
 typedef struct ctool_arena ctool_arena_t;
 typedef struct ctool_buffer ctool_buffer_t;
 typedef struct ctool_job ctool_job_t;
@@ -251,8 +255,9 @@ const ctool_diagnostic_t *ctool_job_diagnostic(const ctool_job_t *job,
 ctool_bool ctool_job_has_errors(const ctool_job_t *job);
 ctool_status_t ctool_job_render_diagnostics(const ctool_job_t *job);
 
-/* Job source/path/diagnostic views live until job close (or an explicit arena
- * rewind past them).  Buffers opened through a job still have explicit caller
+/* Job source/path views are arena-owned and live until job close or an arena
+ * rewind past them.  Diagnostic views live until job close and survive every
+ * arena rewind.  Buffers opened through a job still have explicit caller
  * ownership and must close before the job's adapter context becomes invalid. */
 
 ctool_status_t ctool_invoke(const ctool_job_config_t *config,

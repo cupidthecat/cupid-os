@@ -267,7 +267,7 @@ class ToolchainElf32ContractTests(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(inspection.returncode, 0, inspection.stderr)
-            self.assertEqual(inspection.stdout.count("R_386_PC32"), 5)
+            self.assertEqual(inspection.stdout.count("R_386_PC32"), 11)
 
     def test_reader_accepts_linked_tdata_and_tbss_symbols(self):
         compiler = shutil.which("clang") or shutil.which("gcc")

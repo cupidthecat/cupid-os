@@ -229,8 +229,7 @@ The source tree and boot image ship 22 asm demos under /demos:
 - syscall_table_demo.asm
 - syscall_vfs_extended_demo.asm
 
-If you are using persistent copies under the HDD image, make sync-demos
-refreshes the demo set there.
+For persistent copies, make sync-demos refreshes /home/demos in cupidos.img.
 
 >button ls /demos | shell:ls /demos
 >button cat /demos/factorial.asm | shell:cat /demos/factorial.asm

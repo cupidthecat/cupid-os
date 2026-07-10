@@ -29,9 +29,11 @@
 #include "simd.h"
 #include "percpu.h"
 #include "bkl.h"
+#include "smp.h"
 #include "serial.h"
 
-extern void context_switch(process_t *old_proc, process_t *new_proc);
+extern void context_switch(process_t *old_proc, process_t *new_proc,
+                           uint32_t resume_eflags);
 extern void context_switch_resume(void);  /* resume label address */
 
 _Static_assert(__alignof__(((process_t *)0)->fp_state) >= 16,
@@ -49,14 +51,28 @@ _Static_assert(__builtin_offsetof(process_t, context) +
                __builtin_offsetof(cpu_context_t, eip) == 40,
                "PCB EIP offset baked into context_switch.asm "
                "(PCB_EIP_OFFSET=40)");
+_Static_assert(__builtin_offsetof(process_t, context) +
+               __builtin_offsetof(cpu_context_t, eflags) == 44,
+               "PCB EFLAGS offset baked into context_switch.asm "
+               "(PCB_EFLAGS_OFFSET=44)");
 _Static_assert(__builtin_offsetof(process_t, fp_state) == 80,
                "PCB fp_state offset baked into context_switch.asm "
                "(PCB_FP_STATE_OFFSET=80)");
 
 static process_t  process_table[MAX_PROCESSES];
+/* Each CPU that enters the scheduler without a process (the AP idle loop)
+ * captures that stack/FPU context here.  It is a scheduler refuge, not a PID:
+ * a terminating AP task can switch back to its own idle stack without
+ * stealing PID 1's single PCB/stack from another CPU. */
+static process_t  cpu_idle_contexts[SMP_MAX_CPUS]
+    __attribute__((aligned(16)));
+static bool       cpu_idle_context_valid[SMP_MAX_CPUS];
 static uint32_t   next_schedule_index  = 0;
 static uint32_t   process_count        = 0;
 static bool       scheduler_active     = false;
+static uint32_t   external_image_generation = 0;
+static uint32_t   external_image_owner_pid = 0;
+static uint32_t   next_external_image_generation = 0;
 
 static const char *state_names[] = {
     "READY",
@@ -73,19 +89,25 @@ static const char *domain_names[] = {
 
 static void idle_process(void);
 static uint32_t find_free_slot(void);
+static void process_reap_terminated_impl(void);
 static void process_reap_terminated(void);
+static void process_release_image_locked(process_t *process);
+static bool process_cleanup_resources_locked(process_t *process);
+static bool process_reclaim_locked(process_t *process);
 static uint32_t process_create_common_locked(void (*entry_point)(void),
                                              const char *name,
                                              uint32_t stack_size,
                                              bool with_arg,
                                              uint32_t arg,
-                                             process_domain_t domain);
+                                             process_domain_t domain,
+                                             process_image_t *image);
 static uint32_t process_create_common(void (*entry_point)(void),
                                       const char *name,
                                       uint32_t stack_size,
                                       bool with_arg,
                                       uint32_t arg,
-                                      process_domain_t domain);
+                                      process_domain_t domain,
+                                      process_image_t *image);
 
 /* Trampoline: if a process entry function returns, we land here
  *  and call process_exit() to clean up.
@@ -120,44 +142,102 @@ static uint32_t find_free_slot(void) {
     return MAX_PROCESSES;
 }
 
-static void process_reap_terminated(void) {
+static void process_release_image_locked(process_t *process) {
+    if (!bkl_held_by_this_cpu()) {
+        KERROR("process_release_image_locked requires BKL");
+        return;
+    }
+    uint32_t generation = process->image_lease_generation;
+    process_image_ownership_t ownership = process->image_ownership;
+
+    /* Clear ownership before performing cleanup so every path is idempotent. */
+    process->image_base = 0;
+    process->image_size = 0;
+    process->image_ownership = PROCESS_IMAGE_NONE;
+    process->image_lease_generation = 0;
+
+    if (ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
+        if (generation != 0 && generation == external_image_generation &&
+            process->pid == external_image_owner_pid) {
+            serial_printf("[PROCESS] PID %u released external image lease %u\n",
+                          process->pid, generation);
+            external_image_generation = 0;
+            external_image_owner_pid = 0;
+        } else {
+            serial_printf("[PROCESS] PID %u has stale external image lease %u\n",
+                          process->pid, generation);
+        }
+    }
+}
+
+static bool process_cleanup_resources_locked(process_t *process) {
+    if (!process || !bkl_held_by_this_cpu() || process->pid == 0 ||
+        process->state != PROCESS_TERMINATED || process->on_cpu != 0xFFu) {
+        serial_printf("[PROCESS] Refused unsafe cleanup pid=%u state=%u "
+                      "on_cpu=%u\n",
+                      process ? process->pid : 0u,
+                      process ? (uint32_t)process->state : 0u,
+                      process ? (uint32_t)process->on_cpu : 0u);
+        return false;
+    }
+
+    uint32_t dead_pid = process->pid;
+    shell_jit_discard_by_owner(dead_pid);
+    gui_destroy_windows_by_owner(dead_pid);
+
+    if (process->stack_base) {
+        kfree(process->stack_base);
+        process->stack_base = NULL;
+    }
+    process_release_image_locked(process);
+    return true;
+}
+
+static bool process_reclaim_locked(process_t *process) {
+    if (!process_cleanup_resources_locked(process)) {
+        return false;
+    }
+    memset(process, 0, sizeof(process_t));
+    if (process_count > 0) {
+        process_count--;
+    }
+    return true;
+}
+
+static void process_reap_terminated_impl(void) {
+    if (!bkl_held_by_this_cpu()) {
+        KERROR("process_reap_terminated_impl requires BKL");
+        return;
+    }
     for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].state != PROCESS_TERMINATED ||
-            process_table[i].pid == 0) {
+            process_table[i].pid == 0 || process_table[i].on_cpu != 0xFFu) {
             continue;
         }
 
-        uint32_t dead_pid = process_table[i].pid;
-        shell_jit_discard_by_owner(dead_pid);
-        gui_destroy_windows_by_owner(dead_pid);
-
-        if (process_table[i].stack_base) {
-            kfree(process_table[i].stack_base);
-            process_table[i].stack_base = NULL;
-        }
-        if (process_table[i].image_size > 0) {
-            pmm_release_region(process_table[i].image_base,
-                               process_table[i].image_size);
-            process_table[i].image_base = 0;
-            process_table[i].image_size = 0;
-        }
-
-        process_table[i].pid = 0;
-        memset(&process_table[i], 0, sizeof(process_t));
-        if (process_count > 0) {
-            process_count--;
-        }
+        (void)process_reclaim_locked(&process_table[i]);
     }
+}
+
+static void process_reap_terminated(void) {
+    bkl_lock();
+    process_reap_terminated_impl();
+    bkl_unlock();
 }
 
 /*  *  process_init
  **/
 void process_init(void) {
     memset(process_table, 0, sizeof(process_table));
+    memset(cpu_idle_contexts, 0, sizeof(cpu_idle_contexts));
+    memset(cpu_idle_context_valid, 0, sizeof(cpu_idle_context_valid));
     this_cpu()->current_pid = 0;
     next_schedule_index = 0;
     process_count       = 0;
     scheduler_active    = false;
+    external_image_generation = 0;
+    external_image_owner_pid = 0;
+    next_external_image_generation = 0;
 
     uint32_t pid = process_create(idle_process, "idle", DEFAULT_STACK_SIZE);
     if (pid != 1) {
@@ -174,12 +254,50 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
                                              uint32_t stack_size,
                                              bool with_arg,
                                              uint32_t arg,
-                                             process_domain_t domain) {
-    process_reap_terminated();
+                                             process_domain_t domain,
+                                             process_image_t *image) {
+    process_reap_terminated_impl();
 
     if (!entry_point) {
         KERROR("process_create: NULL entry point");
         return 0;
+    }
+    if (image) {
+        bool range_valid = image->size > 0 &&
+                           image->base <= 0xFFFFFFFFu - image->size;
+        if (image->ownership == PROCESS_IMAGE_NONE) {
+            range_valid = image->base == 0 && image->size == 0 &&
+                          image->lease_generation == 0;
+        } else if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
+            range_valid = range_valid &&
+                          image->base == EXTERNAL_EXEC_ARENA_START &&
+                          image->size == EXTERNAL_EXEC_ARENA_END -
+                                         EXTERNAL_EXEC_ARENA_START &&
+                          image->lease_generation != 0 &&
+                          image->lease_generation ==
+                              external_image_generation &&
+                          external_image_owner_pid == 0 &&
+                          domain == PROCESS_DOMAIN_EXTERNAL;
+        } else if (image->ownership == PROCESS_IMAGE_PERMANENT) {
+            uint32_t image_end = range_valid
+                                     ? image->base + image->size
+                                     : 0u;
+            bool in_cupidc = image->base >= CUPIDC_EXEC_ARENA_START &&
+                             image_end <= CUPIDC_EXEC_ARENA_END;
+            bool in_cupidasm = image->base >= CUPIDASM_EXEC_ARENA_START &&
+                               image_end <= CUPIDASM_EXEC_ARENA_END;
+            range_valid = range_valid && image->lease_generation == 0u &&
+                          domain == PROCESS_DOMAIN_EXTERNAL &&
+                          (image->base & (PAGE_SIZE - 1u)) == 0u &&
+                          (image->size & (PAGE_SIZE - 1u)) == 0u &&
+                          (in_cupidc || in_cupidasm);
+        } else {
+            range_valid = false;
+        }
+        if (!range_valid) {
+            KERROR("process_create: invalid image ownership metadata");
+            return 0;
+        }
     }
     if (process_count >= MAX_PROCESSES) {
         KWARN("process_create: table full (%u/%u)",
@@ -210,8 +328,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
 
     p->on_cpu     = 0xFFu;   /* not running on any CPU yet */
     p->last_cpu   = 0u;
-    p->pid        = slot + 1;
-    p->state      = PROCESS_READY;
+    p->state      = PROCESS_TERMINATED; /* not published until complete */
     p->stack_base = stack;
     p->stack_size = stack_size;
     if (domain > PROCESS_DOMAIN_EXTERNAL) {
@@ -251,6 +368,7 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
 
     p->context.esp    = (uint32_t)sp;
     p->context.eip    = (uint32_t)entry_point;
+    p->context.eflags = 0x00000202u; /* reserved bit + interrupts enabled */
 
     /* Seed fp_state with a fresh FXSAVE from the currently-init'd FPU
      * so the first FXRSTOR into this process loads a valid image.  The
@@ -258,6 +376,24 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
      * technically an acceptable FXRSTOR source (MXCSR reserved bits =
      * 0), but grabbing a real snapshot is free and cleaner.*/
     __asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
+
+    if (image && image->ownership != PROCESS_IMAGE_NONE) {
+        p->image_base = image->base;
+        p->image_size = image->size;
+        p->image_ownership = image->ownership;
+        p->image_lease_generation = image->lease_generation;
+        if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE) {
+            external_image_owner_pid = slot + 1;
+        }
+        image->base = 0;
+        image->size = 0;
+        image->ownership = PROCESS_IMAGE_NONE;
+        image->lease_generation = 0;
+    }
+
+    /* PID is the publication field: scheduler readers ignore pid == 0. */
+    p->state = PROCESS_READY;
+    p->pid = slot + 1;
 
     process_count++;
 
@@ -281,10 +417,11 @@ static uint32_t process_create_common(void (*entry_point)(void),
                                       uint32_t stack_size,
                                       bool with_arg,
                                       uint32_t arg,
-                                      process_domain_t domain) {
+                                      process_domain_t domain,
+                                      process_image_t *image) {
     bkl_lock();
     uint32_t pid = process_create_common_locked(entry_point, name, stack_size,
-                                                with_arg, arg, domain);
+                                                with_arg, arg, domain, image);
     bkl_unlock();
     return pid;
 }
@@ -293,7 +430,7 @@ uint32_t process_create(void (*entry_point)(void),
                         const char *name,
                         uint32_t stack_size) {
     return process_create_common(entry_point, name, stack_size, false, 0,
-                                 PROCESS_DOMAIN_KERNEL);
+                                 PROCESS_DOMAIN_KERNEL, NULL);
 }
 
 uint32_t process_create_ex(void (*entry_point)(void),
@@ -301,7 +438,7 @@ uint32_t process_create_ex(void (*entry_point)(void),
                            uint32_t stack_size,
                            process_domain_t domain) {
     return process_create_common(entry_point, name, stack_size, false, 0,
-                                 domain);
+                                 domain, NULL);
 }
 
 /*  *  process_create_with_arg - like process_create but pushes one
@@ -312,7 +449,7 @@ uint32_t process_create_with_arg(void (*entry_point)(void),
                                  uint32_t stack_size,
                                  uint32_t arg) {
     return process_create_common(entry_point, name, stack_size, true, arg,
-                                 PROCESS_DOMAIN_KERNEL);
+                                 PROCESS_DOMAIN_KERNEL, NULL);
 }
 
 uint32_t process_create_with_arg_ex(void (*entry_point)(void),
@@ -321,7 +458,70 @@ uint32_t process_create_with_arg_ex(void (*entry_point)(void),
                                     uint32_t arg,
                                     process_domain_t domain) {
     return process_create_common(entry_point, name, stack_size, true, arg,
-                                 domain);
+                                 domain, NULL);
+}
+
+uint32_t process_create_with_arg_image_ex(void (*entry_point)(void),
+                                          const char *name,
+                                          uint32_t stack_size,
+                                          uint32_t arg,
+                                          process_domain_t domain,
+                                          process_image_t *image) {
+    return process_create_common(entry_point, name, stack_size, true, arg,
+                                 domain, image);
+}
+
+bool process_external_image_claim(process_image_t *image) {
+    if (!image || image->base != 0 || image->size != 0 ||
+        image->ownership != PROCESS_IMAGE_NONE ||
+        image->lease_generation != 0) {
+        return false;
+    }
+
+    bkl_lock();
+    process_reap_terminated_impl();
+    if (external_image_generation != 0) {
+        bkl_unlock();
+        return false;
+    }
+
+    next_external_image_generation++;
+    if (next_external_image_generation == 0) {
+        next_external_image_generation++;
+    }
+    external_image_generation = next_external_image_generation;
+    external_image_owner_pid = 0;
+    image->base = EXTERNAL_EXEC_ARENA_START;
+    image->size = EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START;
+    image->ownership = PROCESS_IMAGE_EXTERNAL_LEASE;
+    image->lease_generation = external_image_generation;
+    serial_printf("[PROCESS] Claimed external image lease %u\n",
+                  external_image_generation);
+    bkl_unlock();
+    return true;
+}
+
+void process_image_discard(process_image_t *image) {
+    if (!image) return;
+
+    bkl_lock();
+    if (image->ownership == PROCESS_IMAGE_EXTERNAL_LEASE &&
+        image->lease_generation != 0) {
+        if (image->lease_generation == external_image_generation &&
+            external_image_owner_pid == 0) {
+            serial_printf("[PROCESS] Cancelled external image lease %u\n",
+                          image->lease_generation);
+            external_image_generation = 0;
+        } else {
+            serial_printf("[PROCESS] Ignored stale external image lease %u\n",
+                          image->lease_generation);
+        }
+    }
+    image->base = 0;
+    image->size = 0;
+    image->ownership = PROCESS_IMAGE_NONE;
+    image->lease_generation = 0;
+    bkl_unlock();
 }
 
 /*  *  process_exit
@@ -330,33 +530,26 @@ void process_exit(void) {
     bkl_lock();
 
     uint32_t exit_pid = this_cpu()->current_pid;
-    if (exit_pid == 0) {
-        for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
-            if (process_table[i].pid != 0 &&
-                process_table[i].state == PROCESS_RUNNING) {
-                exit_pid = process_table[i].pid;
-                break;
-            }
-        }
-    }
-
     if (exit_pid == 0 || exit_pid == 1) {
         bkl_unlock();
         return;
     }
 
     process_t *p = &process_table[exit_pid - 1];
+    if (p->pid != exit_pid || p->on_cpu != this_cpu()->cpu_id) {
+        serial_printf("[PROCESS] Refused inconsistent exit pid=%u on_cpu=%u\n",
+                      exit_pid, (uint32_t)p->on_cpu);
+        bkl_unlock();
+        return;
+    }
     serial_printf("[PROCESS] PID %u \"%s\" exiting\n", p->pid, p->name);
 
-    /* Mark terminated but DON'T free the stack yet - we're still
-     * running on it.  The stack will be freed lazily when the slot
-     * is reused by process_create or after schedule switches away.*/
-    p->state        = PROCESS_TERMINATED;
-    p->on_cpu       = 0xFFu;
-    this_cpu()->current_pid = 0;
+    /* Mark terminated but do not free the stack while it is current.  The
+     * quiescent reaper owns cleanup after schedule_locked detaches it. */
+    p->state = PROCESS_TERMINATED;
 
     /* Reschedule - never returns.
-     * schedule() will use dummy_esp path since current_pid == 0.
+     * schedule_locked() detaches this CPU immediately before switching.
      * Release BKL before schedule() so schedule() can re-acquire it.*/
     bkl_unlock();
     schedule();
@@ -425,31 +618,22 @@ void process_kill(uint32_t pid) {
     serial_printf("[PROCESS] Killing PID %u \"%s\"\n", p->pid, p->name);
 
     if (pid == this_cpu()->current_pid) {
-        /* Killing self - mark terminated and reschedule.
-         * Stack freed later by reaper in find_free_slot.*/
-        p->state  = PROCESS_TERMINATED;
-        p->on_cpu = 0xFFu;
-        this_cpu()->current_pid = 0;
+        /* Keep current_pid/on_cpu published until schedule_locked() has
+         * switched away from this stack and executable image. */
+        p->state = PROCESS_TERMINATED;
         bkl_unlock();
         schedule();
     } else {
-        /* Killing another process - safe to free stack now */
-        p->state  = PROCESS_TERMINATED;
-        p->on_cpu = 0xFFu;
-        shell_jit_discard_by_owner(pid);
-        gui_destroy_windows_by_owner(pid);
-        if (p->stack_base) {
-            kfree(p->stack_base);
-            p->stack_base = NULL;
+        uint8_t target_cpu = p->on_cpu;
+        p->state = PROCESS_TERMINATED;
+        if (target_cpu != 0xFFu) {
+            /* The remote CPU still owns its stack and image.  Its scheduler
+             * will detach the PCB; a later reaper performs cleanup. */
+            bkl_unlock();
+            smp_reschedule((int)target_cpu);
+            return;
         }
-        if (p->image_size > 0) {
-            pmm_release_region(p->image_base, p->image_size);
-            p->image_base = 0;
-            p->image_size = 0;
-        }
-        p->pid = 0;
-        memset(p, 0, sizeof(process_t));
-        process_count--;
+        (void)process_reclaim_locked(p);
         bkl_unlock();
     }
 }
@@ -597,7 +781,9 @@ void process_list_adam(void) {
 
 /*  *  schedule - Round-robin context switch
  *
- *  1. Find the next READY process (round-robin, fallback to idle)
+ *  1. Find the next detached READY process (round-robin).  If none exists,
+ *     continue the current process; a CPU with no current process stays in
+ *     its AP scheduler loop instead of stealing another CPU's idle stack.
  *  2. If different from current, call the assembly context_switch()
  *     which saves all callee-saved regs + ESP, then switches stack
  *     and jumps to the new process's saved EIP.
@@ -609,10 +795,16 @@ void process_list_adam(void) {
  **/
 /* schedule_locked - called with BKL held (or from context before BKL exists).
  * Does the actual round-robin pick and context switch.*/
-static void schedule_locked(void) {
-    if (process_count == 0 || !scheduler_active) return;
+static bool schedule_locked(void) {
+    if (process_count == 0 || !scheduler_active) return false;
+
+    /* Switching while a caller owns an outer critical section would transfer
+     * that caller's lock ownership to an unrelated process.  Keep the request
+     * pending; the outer bkl_unlock() safe point will retry it. */
+    if (this_cpu()->bkl_depth != 1u) return false;
 
     uint32_t cpu_id = this_cpu()->cpu_id;
+    if (cpu_id >= SMP_MAX_CPUS) return false;
 
     /* Mark current process as READY (if it's still running) */
     uint32_t cur_pid = this_cpu()->current_pid;
@@ -620,7 +812,6 @@ static void schedule_locked(void) {
         process_t *current = &process_table[cur_pid - 1];
         if (current->pid != 0 && current->state == PROCESS_RUNNING) {
             current->state = PROCESS_READY;
-            current->on_cpu = 0xFFu;
         }
 
         /* Stack canary check */
@@ -629,19 +820,14 @@ static void schedule_locked(void) {
             serial_printf("[PROCESS] Stack overflow PID %u \"%s\"\n",
                           current->pid, current->name);
             current->state = PROCESS_TERMINATED;
-            current->on_cpu = 0xFFu;
-            kfree(current->stack_base);
-            current->stack_base = NULL;
-            current->pid = 0;
-            memset(current, 0, sizeof(process_t));
-            process_count--;
-            this_cpu()->current_pid = 0;
-            cur_pid = 0;
+            /* This CPU still owns the current stack.  Cleanup is deferred
+             * until the context switch below clears on_cpu. */
         }
     }
 
     /* Find next READY process (round-robin) */
     process_t *next = NULL;
+    bool next_is_cpu_idle = false;
     uint32_t searches = 0;
 
     while (searches < MAX_PROCESSES) {
@@ -651,38 +837,50 @@ static void schedule_locked(void) {
         /* Skip the current process - we want a DIFFERENT one */
         if (candidate->pid != 0 &&
             candidate->pid != cur_pid &&
-            candidate->state == PROCESS_READY) {
+            (candidate->pid != 1u || cpu_id == 0u) &&
+            candidate->state == PROCESS_READY &&
+            candidate->on_cpu == 0xFFu) {
             next = candidate;
             break;
         }
         searches++;
     }
 
-    /* Fall back to idle (index 0, PID 1) */
+    /* The current PCB remains owned by this CPU until context_switch saves
+     * it.  It is the only non-detached READY process this CPU may select.
+     * A terminated/blocked AP task instead targets the CPU-local scheduler
+     * context captured on first dispatch; it never steals PID 1's stack. */
     if (!next) {
-        next = &process_table[0];
-        if (next->pid == 0) {
-            /* No processes at all - just restore current as running */
-            if (cur_pid != 0 && cur_pid <= MAX_PROCESSES) {
-                process_table[cur_pid - 1].state = PROCESS_RUNNING;
+        if (cur_pid != 0 && cur_pid <= MAX_PROCESSES) {
+            process_t *current = &process_table[cur_pid - 1];
+            if (current->pid == cur_pid &&
+                current->state == PROCESS_READY &&
+                current->on_cpu == (uint8_t)cpu_id) {
+                next = current;
             }
-            return;
         }
+        if (!next && cur_pid != 0u && cpu_idle_context_valid[cpu_id]) {
+            next = &cpu_idle_contexts[cpu_id];
+            next_is_cpu_idle = true;
+        }
+        if (!next) return false;
     }
 
     /* Same process - just mark running and return */
-    if (next->pid == cur_pid && cur_pid != 0) {
+    if (!next_is_cpu_idle && next->pid == cur_pid && cur_pid != 0) {
         next->state = PROCESS_RUNNING;
         next->on_cpu = (uint8_t)cpu_id;
-        return;
+        return false;
     }
 
     /* Perform context switch */
     uint32_t old_pid = cur_pid;
-    this_cpu()->current_pid = next->pid;
-    next->state    = PROCESS_RUNNING;
-    next->last_cpu = (uint8_t)cpu_id;
-    next->on_cpu   = (uint8_t)cpu_id;
+    this_cpu()->current_pid = next_is_cpu_idle ? 0u : next->pid;
+    if (!next_is_cpu_idle) {
+        next->state    = PROCESS_RUNNING;
+        next->last_cpu = (uint8_t)cpu_id;
+        next->on_cpu   = (uint8_t)cpu_id;
+    }
 
     /* context_switch(old_proc, new_proc):
      *   - pushes callee-saved regs on current stack
@@ -704,32 +902,67 @@ static void schedule_locked(void) {
 
     if (old_pid != 0 && old_pid <= MAX_PROCESSES) {
         process_t *old = &process_table[old_pid - 1];
+        /* Quiescence publication: after this point the old PCB may be reaped,
+         * but the BKL prevents cleanup until context_switch has saved it and
+         * transferred execution to the next stack. */
+        old->on_cpu = 0xFFu;
         /* Seed the old PCB's resume EIP so its next FXRSTOR+jmp
          * lands in context_switch_resume.*/
+        uint32_t resume_eflags = bkl_context_switch_eflags();
         old->context.eip = (uint32_t)context_switch_resume;
-        __asm__ volatile("sti");
-        context_switch(old, next);
-        /* We resume here when rescheduled.
-         * Re-disable interrupts: BKL's unlock will restore IF.*/
-        __asm__ volatile("cli");
+        old->context.eflags = resume_eflags;
+        context_switch(old, next, resume_eflags);
+        /* We resume here when rescheduled.  Assembly already released the
+         * scheduler's acquisition on the target stack and restored this
+         * caller's IF, so schedule() must not unlock a second time. */
     } else {
-        /* No valid old process (e.g. entering after process_exit).
-         * Use a throw-away PCB scratch area so context_switch has
-         * somewhere to stash its garbage save.  We never read any
-         * of its fields again.  Must be 16-byte aligned (fp_state
-         * constraint inherited from the containing struct).*/
-        static process_t dummy __attribute__((aligned(16)));
-        __asm__ volatile("sti");
-        context_switch(&dummy, next);
-        /* We resume here when rescheduled (dummy path). */
-        __asm__ volatile("cli");
+        /* Capture this CPU's scheduler/idle stack as a real resume target.
+         * APs enter here from ap_main_c with current_pid == 0; a task that
+         * later terminates on this CPU can hand back to the captured context
+         * and make its own stack quiescent. */
+        process_t *idle_context = &cpu_idle_contexts[cpu_id];
+        uint32_t resume_eflags = bkl_context_switch_eflags();
+        idle_context->context.eip = (uint32_t)context_switch_resume;
+        idle_context->context.eflags = resume_eflags;
+        cpu_idle_context_valid[cpu_id] = true;
+        context_switch(idle_context, next, resume_eflags);
+        /* We resume here after a task hands back to this CPU's idle stack. */
     }
+    return true;
 }
 
 void schedule(void) {
+    per_cpu_t *cpu = this_cpu();
+    if (percpu_in_interrupt(cpu)) {
+        if (scheduler_active) {
+            percpu_request_reschedule(cpu);
+        }
+        return;
+    }
     bkl_lock();
-    schedule_locked();
-    bkl_unlock();
+    if (cpu->bkl_depth == 1u) {
+        (void)percpu_take_reschedule(cpu);
+    } else if (scheduler_active) {
+        /* A direct yield/schedule inside an outer critical section cannot
+         * switch safely.  Convert it to the same CPU-local request used by a
+         * remote IPI so the outer unlock performs the switch, rather than
+         * silently losing the caller's request. */
+        percpu_request_reschedule(cpu);
+    }
+    if (!schedule_locked()) {
+        bkl_unlock();
+    }
+}
+
+void process_reschedule_if_pending(void) {
+    per_cpu_t *cpu = this_cpu();
+    if (!scheduler_active || !percpu_reschedule_is_pending(cpu) ||
+        percpu_in_interrupt(cpu) || bkl_held_by_this_cpu()) {
+        return;
+    }
+    if (percpu_take_reschedule(cpu)) {
+        schedule();
+    }
 }
 
 /*  *  Utility queries
@@ -748,7 +981,6 @@ uint32_t process_get_count(void) {
                 live_count++;
             }
         }
-        process_count = live_count;
         return live_count;
     }
 }
@@ -841,20 +1073,5 @@ void process_unblock(uint32_t pid) {
     if (p->pid == pid && p->state == PROCESS_BLOCKED) {
         p->state = PROCESS_READY;
     }
-    bkl_unlock();
-}
-
-/*  *  process_set_image - Associate an ELF image region with a process
- **/
-void process_set_image(uint32_t pid, uint32_t base, uint32_t size) {
-    if (pid == 0 || pid > MAX_PROCESSES) return;
-    bkl_lock();
-    process_t *p = &process_table[pid - 1];
-    if (p->pid != pid) { bkl_unlock(); return; }
-    /* Publish size = 0 first so any concurrent reader that observes the
-     * new base before size sees an empty region rather than a stale pair.*/
-    p->image_size = 0;
-    p->image_base = base;
-    p->image_size = size;
     bkl_unlock();
 }

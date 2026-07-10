@@ -105,7 +105,7 @@ static uint32_t ticks_channel1 = 0;
 static volatile bool need_reschedule = false;
 
 extern uint32_t _kernel_end;
-extern uint32_t _bss_start;  /* Linker symbol: start of BSS at 0x100000 */
+extern uint32_t _bss_start;  /* Linker symbol: page-aligned start of BSS */
 
 /* The Makefile auto-discovers bin/ .cc files and generates
  * kernel/bin_programs_gen.c with all extern symbols and an
@@ -442,8 +442,8 @@ void print(const char* str) {
  * It sets up the initial execution environment by:
  *
  * 1. Setting up the stack:
- *    - Sets stack pointer (ESP) to 0x190000 for kernel stack space (512KB stack)
- *    - Stack grows downward from 0x190000 to 0x110000
+ *    - Sets ESP to the top of the fixed 2 MiB kernel-stack reservation
+ *    - Stack grows downward through [0x00B00000, 0x00D00000)
  *    - Initializes base pointer (EBP) to match stack pointer
  *
  * 2. Transferring control:
@@ -457,8 +457,8 @@ void _start(void) {
     // We're already in protected mode with segments set up.
     // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
-        /* Stack moved 0xA00000 -> 0xD00000 so it sits above kernel
-         * BSS (_kernel_end ~= 0x8A4000).  See memory.h.*/
+        /* link.ld asserts that the complete kernel image stays below the
+         * fixed [0x00B00000, 0x00D00000) stack reservation. See memory.h.*/
         "mov $0xD00000, %%esp\n"
         "mov %%esp, %%ebp\n"
         /* Zero BSS region (_bss_start to _kernel_end) */

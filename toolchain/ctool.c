@@ -40,7 +40,11 @@ struct ctool_job {
   ctool_job_config_t config;
   ctool_arena_t *arena;
   ctool_diagnostic_t *diagnostics;
+  char *diagnostic_paths;
+  char *diagnostic_messages;
   ctool_u32 diagnostic_count;
+  ctool_u32 diagnostic_path_stride;
+  ctool_u32 diagnostic_message_stride;
   ctool_u32 diagnostic_allocation_bytes;
   ctool_bool has_errors;
   ctool_u32 allocation_bytes;
@@ -911,19 +915,45 @@ ctool_status_t ctool_job_open(const ctool_job_config_t *config,
   ctool_job_t *job;
   ctool_u32 object_bytes = (ctool_u32)sizeof(ctool_job_t);
   ctool_u32 diagnostics_bytes;
+  ctool_u32 path_stride;
+  ctool_u32 message_stride;
+  ctool_u32 paths_bytes;
+  ctool_u32 messages_bytes;
+  ctool_u32 diagnostic_allocation_bytes;
+  ctool_u8 *diagnostic_storage;
   ctool_status_t status;
   if (job_out == (ctool_job_t **)0 ||
       ctool_valid_job_config(config) == CTOOL_FALSE) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
   *job_out = (ctool_job_t *)0;
-  if (ctool_multiply_overflows(
+  if (ctool_add_overflows(config->limits.path_bytes, 1u) == CTOOL_TRUE ||
+      ctool_add_overflows(config->limits.diagnostic_message_bytes, 1u) ==
+          CTOOL_TRUE ||
+      ctool_multiply_overflows(
           config->limits.diagnostic_count,
           (ctool_u32)sizeof(ctool_diagnostic_t)) == CTOOL_TRUE) {
     return CTOOL_ERR_OVERFLOW;
   }
+  path_stride = config->limits.path_bytes + 1u;
+  message_stride = config->limits.diagnostic_message_bytes + 1u;
+  if (ctool_multiply_overflows(config->limits.diagnostic_count,
+                               path_stride) == CTOOL_TRUE ||
+      ctool_multiply_overflows(config->limits.diagnostic_count,
+                               message_stride) == CTOOL_TRUE) {
+    return CTOOL_ERR_OVERFLOW;
+  }
   diagnostics_bytes = config->limits.diagnostic_count *
                       (ctool_u32)sizeof(ctool_diagnostic_t);
+  paths_bytes = config->limits.diagnostic_count * path_stride;
+  messages_bytes = config->limits.diagnostic_count * message_stride;
+  if (ctool_add_overflows(diagnostics_bytes, paths_bytes) == CTOOL_TRUE ||
+      ctool_add_overflows(diagnostics_bytes + paths_bytes,
+                          messages_bytes) == CTOOL_TRUE) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  diagnostic_allocation_bytes =
+      diagnostics_bytes + paths_bytes + messages_bytes;
   job = (ctool_job_t *)config->allocator.allocate(config->allocator.context,
                                                    object_bytes);
   if (job == (ctool_job_t *)0) {
@@ -938,15 +968,22 @@ ctool_status_t ctool_job_open(const ctool_job_config_t *config,
     config->allocator.release(config->allocator.context, job, object_bytes);
     return status;
   }
-  job->diagnostics = (ctool_diagnostic_t *)config->allocator.allocate(
-      config->allocator.context, diagnostics_bytes);
-  if (job->diagnostics == (ctool_diagnostic_t *)0) {
+  diagnostic_storage = (ctool_u8 *)config->allocator.allocate(
+      config->allocator.context, diagnostic_allocation_bytes);
+  if (diagnostic_storage == (ctool_u8 *)0) {
     ctool_arena_close(job->arena);
     config->allocator.release(config->allocator.context, job, object_bytes);
     return CTOOL_ERR_NO_MEMORY;
   }
-  ctool_zero(job->diagnostics, diagnostics_bytes);
-  job->diagnostic_allocation_bytes = diagnostics_bytes;
+  ctool_zero(diagnostic_storage, diagnostic_allocation_bytes);
+  job->diagnostics = (ctool_diagnostic_t *)(void *)diagnostic_storage;
+  job->diagnostic_paths =
+      (char *)(void *)(diagnostic_storage + diagnostics_bytes);
+  job->diagnostic_messages =
+      (char *)(void *)(diagnostic_storage + diagnostics_bytes + paths_bytes);
+  job->diagnostic_path_stride = path_stride;
+  job->diagnostic_message_stride = message_stride;
+  job->diagnostic_allocation_bytes = diagnostic_allocation_bytes;
   *job_out = job;
   return CTOOL_OK;
 }
@@ -1051,8 +1088,8 @@ ctool_status_t ctool_job_write(ctool_job_t *job, const ctool_path_t *path,
 ctool_status_t ctool_job_emit(ctool_job_t *job,
                               const ctool_diagnostic_t *diagnostic) {
   ctool_diagnostic_t copy;
-  ctool_arena_mark_t mark;
-  ctool_status_t status;
+  char *path;
+  char *message;
   if (job == (ctool_job_t *)0 ||
       diagnostic == (const ctool_diagnostic_t *)0 ||
       diagnostic->severity > CTOOL_DIAG_FATAL ||
@@ -1070,16 +1107,16 @@ ctool_status_t ctool_job_emit(ctool_job_t *job,
     return CTOOL_ERR_LIMIT;
   }
   copy = *diagnostic;
-  mark = ctool_arena_mark(job->arena);
-  status = ctool_arena_copy_string(job->arena, diagnostic->path, &copy.path);
-  if (status == CTOOL_OK) {
-    status =
-        ctool_arena_copy_string(job->arena, diagnostic->message, &copy.message);
-  }
-  if (status != CTOOL_OK) {
-    (void)ctool_arena_rewind(job->arena, mark);
-    return status;
-  }
+  path = job->diagnostic_paths +
+         job->diagnostic_count * job->diagnostic_path_stride;
+  message = job->diagnostic_messages +
+            job->diagnostic_count * job->diagnostic_message_stride;
+  ctool_copy(path, diagnostic->path.data, diagnostic->path.size);
+  path[diagnostic->path.size] = '\0';
+  ctool_copy(message, diagnostic->message.data, diagnostic->message.size);
+  message[diagnostic->message.size] = '\0';
+  copy.path.data = path;
+  copy.message.data = message;
   job->diagnostics[job->diagnostic_count] = copy;
   job->diagnostic_count++;
   if (copy.severity == CTOOL_DIAG_ERROR ||

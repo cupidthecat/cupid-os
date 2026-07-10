@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -51,7 +51,7 @@ The Makefile auto-discovers and embeds these source sets:
   cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.c -> /docs/*.ctxt
   *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.c -> /home/<same name>
   demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
-  god/*.DD     -> embedded via objcopy        -> /god/*.DD in image
+  god/*.DD     -> wrapped by CupidObj         -> /god/*.DD in image
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
@@ -71,12 +71,12 @@ source files still load in the current in-kernel decoder.
 
 Adding a new .cc to bin/ is enough: bin_programs_gen.c handles it.
 
-The god/*.DD files are embedded via objcopy pattern rules; they are available
-at runtime under /god/ for godspeak, oracle, and bible commands.
+The god/*.DD files are wrapped by CupidObj pattern rules; they are available at
+runtime under /god/ for godspeak, oracle, and bible commands.
 >endtree
 
->h2 Method A: FAT16 Persistent Docs (/home)
->tree open Method A: FAT16 Persistent Docs
+>h2 Method A: Homefs Persistent Docs (/home)
+>tree open Method A: Homefs Persistent Docs
 Goal:
 - Copy docs under /home when you want user-editable or persistent local copies.
 
@@ -101,13 +101,15 @@ Simple in-OS approach:
 3) Run sync after edits.
 
 Host copy approach (recommended for bulk docs):
-  mcopy -o -i cupidos.img@@2097152 00INDEX.CTXT ::/00INDEX.CTXT
-  mcopy -o -i cupidos.img@@2097152 01SHELL.CTXT ::/01SHELL.CTXT
-  mdir  -i cupidos.img@@2097152 ::/
+  mcopy -o -i cupidos.img@@8388608 00INDEX.CTXT ::/00INDEX.CTXT
+  mcopy -o -i cupidos.img@@8388608 01SHELL.CTXT ::/01SHELL.CTXT
+  mdir  -i cupidos.img@@8388608 ::/
 
 Mapping reminder:
-- FAT ::/ is CupidOS /home.
-- Copy to ::/ (not ::/home).
+- FAT ::/ is always mounted as CupidOS /disk.
+- On a fresh image with no HOMEFS.SYS, the first homefs mount imports FAT-root
+  files into /home once. Later host-staged files remain under /disk until an
+  in-guest copy places them in /home.
 
 If you open a copied .CTXT file in Notepad, the same DolDoc-lite renderer
 still applies as long as the filename keeps the .ctxt or .CTXT suffix.
@@ -135,7 +137,7 @@ Pattern is already implemented for:
 - /demos asm sources (demos/*.asm)
 - /docs/image.bmp sprite assets
 - /home image assets (*.bmp, *.png, *.jpg, *.jpeg at repo root)
-- /god/*.DD word lists (via objcopy)
+- /god/*.DD word lists (via CupidObj)
 
 Build-time generators:
 - kernel/util/bin_programs_gen.c
@@ -163,7 +165,7 @@ For user-customized copies:
 3) Keep the .CTXT extension so render mode still works
 
 For asm demos used in docs:
-- Use make sync-demos to refresh /home/demos in cupidos.img
+- Use make sync-demos to refresh /home/demos in cupidos.img.
 
 For image assets used in docs:
 - Put BMP, PNG, JPG, or JPEG files at the repo root

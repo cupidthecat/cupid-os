@@ -16,11 +16,27 @@
 #include "homefs.h"
 #include "kernel.h"
 #include "memory.h"
+#include "bkl.h"
 #include "string.h"
 #include "debug.h"
 
 static block_cache_t cache;
 static uint32_t access_counter = 0;
+
+/* The cache metadata and the legacy PIO ATA command ports are both shared
+ * machine state.  Timer callbacks can reach this module from any LAPIC, so a
+ * local interrupt disable alone is insufficient on SMP.  The BKL also saves
+ * and clears IF, preventing a same-CPU timer callback from re-entering a PIO
+ * transaction while a sector operation is in flight. */
+static bool blockcache_guard_enter(void) {
+    bool locked = bkl_is_initialized();
+    if (locked) bkl_lock();
+    return locked;
+}
+
+static void blockcache_guard_leave(bool locked) {
+    if (locked) bkl_unlock();
+}
 
 /* Output function pointers (can be overridden for GUI mode) */
 static void (*cache_print)(const char*) = print;
@@ -119,7 +135,7 @@ static cache_entry_t* find_lru_entry(void) {
  * @param buffer: Buffer to read into
  * @return 0 on success, -1 on error
 */
-int blockcache_read(uint32_t lba, void* buffer) {
+static int blockcache_read_unlocked(uint32_t lba, void* buffer) {
     // Search for cached entry
     cache_entry_t* entry = find_cache_entry(lba);
 
@@ -170,6 +186,13 @@ int blockcache_read(uint32_t lba, void* buffer) {
     return 0;
 }
 
+int blockcache_read(uint32_t lba, void* buffer) {
+    bool locked = blockcache_guard_enter();
+    int rc = blockcache_read_unlocked(lba, buffer);
+    blockcache_guard_leave(locked);
+    return rc;
+}
+
 /**
  * blockcache_write - Write sector via cache
  *
@@ -177,7 +200,7 @@ int blockcache_read(uint32_t lba, void* buffer) {
  * @param buffer: Buffer containing data to write
  * @return 0 on success, -1 on error
 */
-int blockcache_write(uint32_t lba, const void* buffer) {
+static int blockcache_write_unlocked(uint32_t lba, const void* buffer) {
     cache_entry_t* entry = find_cache_entry(lba);
 
     if (entry) {
@@ -224,10 +247,17 @@ int blockcache_write(uint32_t lba, const void* buffer) {
     return 0;
 }
 
+int blockcache_write(uint32_t lba, const void* buffer) {
+    bool locked = blockcache_guard_enter();
+    int rc = blockcache_write_unlocked(lba, buffer);
+    blockcache_guard_leave(locked);
+    return rc;
+}
+
 /**
  * blockcache_flush_all - Flush all dirty cache entries to disk
 */
-void blockcache_flush_all(void) {
+static void blockcache_flush_all_unlocked(void) {
     uint32_t flushed = 0;
 
     for (int i = 0; i < CACHE_SIZE; i++) {
@@ -254,6 +284,12 @@ void blockcache_flush_all(void) {
     }
 }
 
+void blockcache_flush_all(void) {
+    bool locked = blockcache_guard_enter();
+    blockcache_flush_all_unlocked();
+    blockcache_guard_leave(locked);
+}
+
 /**
  * blockcache_periodic_flush - Timer callback for periodic cache flush
  *
@@ -272,8 +308,10 @@ void blockcache_periodic_flush(struct registers* r, uint32_t channel) {
  * blockcache_sync - Manual cache flush (sync command)
 */
 void blockcache_sync(void) {
+    bool locked = blockcache_guard_enter();
     (void)homefs_sync();
-    blockcache_flush_all();
+    blockcache_flush_all_unlocked();
+    blockcache_guard_leave(locked);
 }
 
 /**

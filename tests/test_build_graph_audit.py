@@ -123,7 +123,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "elf32_relocatable_interchange",
             )
 
-    def test_inventory_attributes_transforms_to_cupid_object(self):
+    def test_inventory_attributes_transforms_to_cupid_linker_and_object(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _write(
@@ -131,14 +131,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 """
                 .SUFFIXES:
                 CC = host-cc
-                LD = host-ld
+                CUPIDLD = cupidld
                 CUPIDOBJ = cupidobj
 
                 .PHONY: all print-bootstrap-artifacts
                 all: kernel.elf kernel.bin app.o
 
                 kernel.elf: main.o link.ld
-                \t$(LD) -m elf_i386 -T link.ld -o $@ main.o
+                \t$(CUPIDLD) -m elf_i386 -T link.ld -o $@ main.o
 
                 kernel.bin: kernel.elf
                 \t$(CUPIDOBJ) flat $< -o $@
@@ -179,7 +179,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transforms = {
                 entry["output"]: entry for entry in audit["build"]["transforms"]
             }
-            self.assertEqual(transforms["kernel.elf"]["tools"], ["host_linker"])
+            self.assertEqual(transforms["kernel.elf"]["tools"], ["cupid_linker"])
             self.assertEqual(
                 transforms["kernel.elf"]["operation"], "link_elf32_executable"
             )
@@ -195,6 +195,60 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit["contracts"]["bootstrap_artifact_coverage"]["linked_objects"],
                 1,
+            )
+
+    def test_make_database_does_not_execute_recursive_recipes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                .PHONY: all
+                all: main.o hosted-tool
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                hosted-tool:
+                \t$(MAKE) -C child all
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            _write(
+                root / "child" / "Makefile",
+                """
+                .SUFFIXES:
+                CC = child-cc
+                all: child.o
+                child.o: child.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "child" / "child.c", "int child(void) { return 1; }\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(audit["build"]["root_target"], "all")
+            self.assertIn(
+                "main.o",
+                {entry["output"] for entry in audit["build"]["transforms"]},
+            )
+            self.assertEqual(
+                [entry["path"] for entry in audit["sources"]], ["main.c"]
             )
 
     def test_inventory_reports_source_features_with_stable_evidence(self):
@@ -393,7 +447,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 99)
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 101)
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 7)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
 

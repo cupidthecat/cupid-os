@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -21,16 +21,15 @@ CupidOS P5 Tier 2 SMP supports up to 32 logical CPUs with:
   - Per-CPU LAPIC periodic timer, vector 0x20
   - All external IRQs routed through BSP (keyboard, mouse, disk)
   - IPI vectors: 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic
-  - 13 new source files
-
-New files:
+Core files:
   kernel/smp/percpu.h + percpu.c per-CPU data, GS-base init
   kernel/smp/lapic.h  + lapic.c  Local APIC driver
   kernel/smp/ioapic.h + ioapic.c IOAPIC driver
   kernel/smp/smp.h    + smp.c    AP trampoline, bringup, IPI wrappers
   kernel/smp/bkl.h    + bkl.c    big kernel lock (ticket spinlock)
-  kernel/smp/mp.h     + mp.c     MP table + ACPI MADT discovery
-  bin/smp.cc                     smp shell command
+  kernel/smp/mp_tables.h + mp_tables.c MP table discovery
+  kernel/smp/acpi.h   + acpi.c   ACPI MADT fallback
+  kernel/lang/shell.c            smp shell command
 >endtree
 
 >h2 Boot Order (Critical)
@@ -43,20 +42,19 @@ lines do not collide with LAPIC vectors.
 
 Correct call sequence:
 
-  percpu_init_bsp()      -- allocate BSP per_cpu_t, load GS, set cpu_id=0
+  percpu_init_bsp()      -- initialise static per_cpu_t array/GDT, load BSP GS
   lapic_init_bsp()       -- map LAPIC MMIO, software-enable, calibrate PIT-ch2
-  ioapic_init_all()      -- discover IOAPICs via MADT, build GSI table
   pic_mask_all()         -- OCW1=0xFF on both 8259s (all legacy lines masked)
+  ioapic_init_all(bsp_id) -- discover IOAPICs via MADT, build GSI table
+  keyboard_init()        -- install handler after the IOAPIC exists
   bkl_init()             -- initialise ticket spinlock + per-CPU counters
   smp_init()             -- parse MP/MADT, populate cpu_table[], write trampoline
   smp_init_ipi()         -- wire IPI vectors 0xF0/0xF1/0xFE in IDT
-                         -- uniprocessor regression gate:
-                         --   if cpu_count == 1 -> skip AP bringup entirely
                          -- AP bringup loop:
   for each AP:
-      lapic_send_init_ipi(apic_id)
-      lapic_send_sipi(apic_id, 0x08)   -- trampoline at 0x8000
-      wait up to 10 ms for AP to set ap_ready flag
+      send INIT, wait 10 ms
+      send SIPI vector 0x08 twice       -- trampoline at 0x8000
+      wait up to 100 ms for cpus[i].online
 
 >box
 WARNING: reversing lapic_init_bsp and ioapic_init_all causes spurious
@@ -70,14 +68,26 @@ BSP before APs are released. Do not reorder.
 
 >h3 per_cpu_t struct (kernel/smp/percpu.h)
 
-  typedef struct {
-      uint32_t  self;          // GS:0  -- pointer to this struct
-      uint32_t  cpu_id;        // GS:4  -- logical CPU index 0..31
-      uint32_t  apic_id;       // GS:8  -- APIC hardware ID
-      uint32_t  current_pid;   // GS:12 -- PID running on this CPU
-      uint32_t  bkl_depth;     // GS:16 -- BKL recursion depth
-      uint32_t  bkl_irqflags;  // GS:20 -- EFLAGS saved on outermost lock
-      uint8_t   pad[104];      // pad to 128 bytes
+  typedef struct per_cpu_t {
+      struct per_cpu_t *self_ptr; // GS:0x00
+      uint8_t cpu_id;              // GS:0x04, logical CPU index 0..31
+      uint8_t apic_id;             // GS:0x05, APIC hardware ID
+      uint8_t bootstrap;           // GS:0x06, BSP marker
+      uint8_t online;              // GS:0x07
+      process_t *current;          // GS:0x08, reserved task pointer
+      process_t *idle;             // GS:0x0C, reserved idle pointer
+      uint32_t bkl_depth;          // GS:0x10, mirrored global BKL depth
+      uint64_t preempt_count;      // GS:0x14
+      uint8_t *idle_stack_top;     // GS:0x1C, AP bootstrap stack
+      uint32_t bkl_eflags_saved;   // GS:0x20, outer caller EFLAGS
+      uint32_t current_pid;        // GS:0x24, 0 means CPU-local idle loop
+      void (*call_fn)(void *);     // GS:0x28, cross-CPU call
+      void *call_arg;              // GS:0x2C
+      uint8_t call_pending;        // GS:0x30
+      uint8_t call_done;           // GS:0x31
+      uint8_t reschedule_pending;  // GS:0x32
+      uint8_t interrupt_depth;     // GS:0x33
+      uint8_t _pad[74];
   } per_cpu_t;
 
   _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
@@ -92,7 +102,7 @@ with a self-pointer so callers never need to know the linear address.
      0     0x00   null descriptor
      1     0x08   flat code segment (ring 0)
      2     0x10   flat data segment (ring 0)
-     3     0x18   TSS
+     3     0x18   (reserved)
      4     0x20   (reserved)
   5-36  0x28-0x128  32 per-CPU data descriptors (one per logical CPU)
 
@@ -213,7 +223,7 @@ The trampoline is a 4KB raw binary placed at physical 0x8000. The BSP
 writes it before sending SIPI; it runs in real mode then transitions each
 AP to 32-bit protected mode.
 
->h3 Trampoline stages (NASM)
+>h3 Trampoline stages (Cupid ASM)
 
   ; Stage 1 - real mode entry at 0x8000
       cli
@@ -234,23 +244,35 @@ AP to 32-bit protected mode.
       ; Read own APIC ID from LAPIC MMIO
       mov  eax, [LAPIC_VA + 0x20]
       shr  eax, 24             ; APIC ID in bits 31:24
-      ; Look up logical cpu_id in BSP-populated apic_to_cpu[] table
-      mov  ecx, [apic_to_cpu + eax*4]
-      ; Load idle stack pointer
-      mov  esp, [idle_stacks + ecx*4]
-      ; GS = 0x10 temporarily; ap_main_c loads real per-CPU descriptor
-      mov  ax, 0x10
-      mov  gs, ax
+      ; Scan BSP-populated apic_to_cpu_id[32] for this APIC ID
+      ; Load temporary GS=0x10 and idle_stack_tops[cpu_id]
       call ap_main_c
 
 >h3 ap_main_c (C side)
 
-  void ap_main_c(uint32_t cpu_id) {
-      percpu_init_ap(cpu_id);  // allocate per_cpu_t, set GS selector
-      lapic_init_ap();         // enable LAPIC, start periodic timer
-      bkl_acquire();
-      scheduler_ap_idle();     // idle loop; releases BKL each round
+  void ap_main_c(void) {
+      fpu_init_cpu();           // first operation: no logging or XMM use
+      uint8_t my_apic = lapic_get_id();
+      int cpu_id = 0;
+      for (int j = 1; j < smp_cpu_count_var; j++) {
+          if (cpus[j].apic_id == my_apic) { cpu_id = j; break; }
+      }
+      percpu_load_kernel_gdt(cpu_id); // load real per-CPU GS selector
+      this_cpu()->online = 1;
+      idt_load_ap();
+      lapic_init_ap();          // enable LAPIC, start periodic timer
+      __asm__ volatile("sti");
+      for (;;) {
+          schedule();           // owns BKL acquisition/handoff internally
+          __asm__ volatile("sti; hlt");
+      }
   }
+
+The BSP's fpu_init cannot enable SSE on another logical CPU. Calling a
+logging/timer helper before the AP-local CR0/CR4 setup can execute compiler-
+generated SSE with OSFXSR clear and raise #UD. fpu_init_cpu is compiled with
+target("no-sse,no-sse2") and performs no logging, so it can safely establish
+CR0/CR4, FNINIT, and MXCSR before ordinary AP C code.
 >endtree
 
 >h2 Big Kernel Lock
@@ -262,37 +284,61 @@ on the outermost acquire.
 >h3 Data structure
 
   typedef struct {
-      volatile uint32_t next_ticket;
-      volatile uint32_t now_serving;
-  } ticket_lock_t;
+      volatile uint32_t ticket_head;
+      volatile uint32_t ticket_tail;
+      int32_t owner_cpu;
+      uint32_t depth;
+  } bkl_t;
 
 >h3 Acquire and Release
 
-  void bkl_acquire(void) {
-      if (this_cpu()->bkl_depth > 0) {    // recursive: just increment
-          this_cpu()->bkl_depth++;
+  void bkl_lock(void) {
+      uint32_t eflags = save_and_cli();
+      per_cpu_t *cpu = this_cpu();
+      if (klock.owner_cpu == cpu->cpu_id) {
+          klock.depth++;
+          cpu->bkl_depth = klock.depth;
           return;
       }
-      this_cpu()->bkl_irqflags = read_eflags();
-      cli();
-      uint32_t my_ticket = atomic_fetch_add(&bkl.next_ticket, 1);
-      while (bkl.now_serving != my_ticket) { __asm__ volatile("pause"); }
-      this_cpu()->bkl_depth = 1;
+      uint32_t ticket = atomic_fetch_add(&klock.ticket_tail, 1);
+      while (klock.ticket_head != ticket) pause();
+      klock.owner_cpu = cpu->cpu_id;
+      klock.depth = 1;
+      cpu->bkl_depth = 1;
+      cpu->bkl_eflags_saved = eflags;
   }
 
-  void bkl_release(void) {
-      this_cpu()->bkl_depth--;
-      if (this_cpu()->bkl_depth > 0) return;
-      bkl.now_serving++;
-      write_eflags(this_cpu()->bkl_irqflags);   // restore interrupts
+  void bkl_unlock(void) {
+      per_cpu_t *cpu = this_cpu();
+      if (klock.depth == 0 || klock.owner_cpu != cpu->cpu_id) return;
+      uint32_t eflags = cpu->bkl_eflags_saved;
+      klock.depth--;
+      cpu->bkl_depth = klock.depth;
+      if (klock.depth != 0) return;
+      klock.owner_cpu = -1;
+      cpu->bkl_eflags_saved = 0;
+      atomic_fetch_add(&klock.ticket_head, 1);  // publish BKL free
+      process_reschedule_if_pending();
+      restore_if(eflags);
   }
+
+A real scheduler switch does not return through this ordinary release path.
+Only a detached READY PCB may migrate. PID 1 is BSP-only; each AP captures
+its PID-less bootstrap context on first dispatch so a terminated task can
+detach onto that CPU-local scheduler stack. After the outgoing CPU publishes
+on_cpu = 0xFF under the BKL,
+context_switch.asm loads the target ESP, restores the target FPU state, and
+calls bkl_context_switch_release while interrupts remain disabled. Only then
+does it restore the target's saved interrupt policy and jump to its EIP. A
+schedule request at recursive BKL depth is converted into reschedule_pending
+and consumed by the outer release; critical-section ownership is never handed
+to the selected process.
 
 >h3 What is wrapped
 
-  Scheduler:  schedule, scheduler_tick
-  Process:    process_create, process_exit, process_block, process_unblock
-  Memory:     kmalloc, kfree, pmm_alloc, pmm_free
-  I/O:        serial_printf, klog
+The scheduler and process table use the BKL directly. Heap/PMM operations,
+serial/logging, IRQ registration, and shared networking paths also take it
+when the BKL is initialized.
 >endtree
 
 >h2 Scheduler Integration
@@ -304,19 +350,47 @@ process_t gains two new fields:
   uint8_t  last_cpu;   // logical cpu_id last time it ran
 
 current_pid moves from a global into per_cpu_t.current_pid. Each CPU reads
-this_cpu()->current_pid; the accessor get_current_pid() compiles to
-"mov eax, gs:[12]".
+this_cpu()->current_pid at offset 0x24; process_get_current_pid() therefore
+loads through the per-CPU pointer selected by GS.
 
-APs run schedule() inside their idle loop:
+Only a detached READY PCB (on_cpu == 0xFF) may be dispatched by another CPU.
+PID 1's one stack is a BSP-only fallback. APs enter ap_main_c with
+current_pid == 0 and run an inline schedule / STI+HLT loop.
 
-  void scheduler_ap_idle(void) {
-      while (1) {
-          bkl_acquire();
-          schedule();
-          bkl_release();
-          __asm__ volatile("hlt");   // wait for next LAPIC timer tick
-      }
-  }
+The first AP dispatch saves that PID-less bootstrap stack and FPU state in
+cpu_idle_contexts[cpu_id]. A blocked or terminated AP task can later switch
+back to the same CPU-local context, publish its PCB detached, and become safe
+for quiescent cleanup without borrowing PID 1 or another CPU's stack.
+>endtree
+
+>h2 Interrupt Entry and Per-CPU GS
+>tree open Interrupt Entry and Per-CPU GS
+
+this_cpu() reads the current per_cpu_t pointer from GS:0. The common IRQ and
+exception stubs reserve a GS diagnostic slot but keep the incoming per-CPU
+selector active while their C handlers run. They load only DS, ES, and FS
+with the flat kernel-data selector and bracket C with interrupt_depth:
+
+  push gs
+  mov  ax, 0x10
+  mov  ds, ax
+  mov  es, ax
+  mov  fs, ax
+  ; GS still selects this CPU's per_cpu_t
+  call percpu_interrupt_enter
+  call irq_handler
+  call percpu_interrupt_leave
+  call process_reschedule_if_pending  ; handler complete, device EOI sent
+  add  esp, 4                         ; discard source CPU's saved GS
+
+Generic BKL release and direct schedule calls defer while interrupt_depth is
+nonzero. A suspended frame may later resume on a different CPU, so common
+exit keeps that destination CPU's live GS instead of loading the source
+CPU's selector.
+
+C handlers may reach serial_printf(), the BKL, process safe points, or other
+this_cpu() users. Loading GS with 0x10 before that call would make GS:0 read
+linear address zero and turn the first per-CPU access into a recursive fault.
 >endtree
 
 >h2 IPIs
@@ -324,48 +398,53 @@ APs run schedule() inside their idle loop:
 
 >h3 Vectors
 
-  0xF0  Reschedule     -- target CPU calls schedule() on next tick
+  0xF0  Reschedule     -- consume a pre-published CPU-local pending request
   0xF1  Cross-CPU call -- target runs fn(arg) atomically
   0xFE  Panic          -- target halts and prints its CPU id
 
->h3 Handler skeleton (NASM)
+>h3 Reschedule handler skeleton
 
   ipi_reschedule:
       pushal
-      call   ipi_reschedule_c   ; sets per-CPU reschedule_pending flag
+      call   ipi_reschedule_c   ; EOI, then switch now or at outer BKL unlock
       popal
-      mov    dword [LAPIC_VA + 0xB0], 0   ; EOI
       iret
+
+The sender stores target.reschedule_pending before raising the IPI. The
+handler never re-arms it: a target that already consumed the request at an
+outer BKL release treats the later interrupt as a no-op. Otherwise the IPI
+frame is a suspension point and resumes through its original IRET after the
+old process is scheduled again.
 
 >h3 Cross-CPU call
 
   void smp_call_on_cpu(uint32_t cpu, void (*fn)(void *), void *arg) {
-      call_req[cpu].fn   = fn;
-      call_req[cpu].arg  = arg;
-      call_req[cpu].done = 0;
-      lapic_send_ipi(cpu_table[cpu].apic_id, 0xF1);
-      while (!call_req[cpu].done) { __asm__ volatile("pause"); }
+      cpus[cpu].call_fn = fn;
+      cpus[cpu].call_arg = arg;
+      cpus[cpu].call_done = 0;
+      lapic_send_ipi(cpus[cpu].apic_id, 0xF1);
+      while (!cpus[cpu].call_done) pause();
   }
 >endtree
 
 >h2 Shell Commands
 >tree open Shell Commands
 
-The smp command (bin/smp.cc):
+The smp command is implemented by shell_smp_cmd in kernel/lang/shell.c:
 
-  [smp — list CPUs](shell:smp)
-  [smp info — BKL stats](shell:smp info)
+  [smp - list CPUs](shell:smp)
+  [smp info - current BKL/CPU summary](shell:smp info)
 
 Example output:
 
-  CPU  APIC  STATUS
-    0     0  online (BSP)
-    1     1  online
-    2     2  online
-    3     3  online
+  [0] apic=0 online=1 preempts=0 current_pid=2
+  [1] apic=1 online=1 preempts=0 current_pid=0
+  [2] apic=2 online=1 preempts=0 current_pid=0
+  [3] apic=3 online=1 preempts=0 current_pid=0
 
-  BKL: now_serving=1402 next_ticket=1402 (unlocked)
-  shell running on cpu 0
+  bkl: free
+  cpus: 4
+  me: 0
 >endtree
 
 >h2 Testing
@@ -385,12 +464,6 @@ All 4 APs should appear in smp output within a few hundred milliseconds.
 4 threads each increment a shared counter 10000 times under the BKL.
 Expected final value: 40000.
 
->h3 X_VERIFY cross-CPU call probe
-
-  [Run X_VERIFY](shell:X_VERIFY)
-
-Sends a cross-CPU call from CPU 0 to CPU 1 and waits for the done flag.
-Pass = "cross-CPU call OK" printed to serial.
 >endtree
 
 >h2 Known Limits
@@ -403,9 +476,14 @@ These are Tier 2 design constraints. Tier 3 work can address them.
   No NUMA awareness   -- single memory pool
   No TLB shootdown    -- paging changes not propagated to other CPUs
   No per-CPU runqueues -- BKL caps parallelism to one CPU in kernel
-  All IRQs on BSP     -- IRQ migration not implemented
+  External IRQs on BSP -- IOAPIC affinity/migration is not implemented;
+                          every CPU still receives its LAPIC timer
   No MWAIT idle       -- APs use HLT in idle loop
   BKL serialisation   -- only one CPU in kernel at a time
+  Timer callback rates -- timer_channels currently dispatches every active
+                          callback on each channel-0 IRQ; requested callback
+                          frequencies and deferred block-cache flush work need
+                          a separate timer/work-queue design
 
 For workloads that are mostly user-space compute with occasional kernel
 calls the BKL overhead is acceptable. Replacing the BKL with fine-grained
@@ -422,9 +500,11 @@ locks is the natural next step for Tier 3.
   kernel/smp/ioapic.c   Redirection table init, GSI routing, ISA remap
   kernel/smp/smp.h      cpu_table_t, AP trampoline API
   kernel/smp/smp.c      Trampoline placement, INIT/SIPI sequence, idle loop
-  kernel/smp/bkl.h      bkl_acquire / bkl_release declarations
+  kernel/smp/bkl.h      bkl_lock / bkl_unlock and switch handoff declarations
   kernel/smp/bkl.c      Ticket spinlock implementation
-  kernel/smp/mp.h       MP table + ACPI MADT parser API
-  kernel/smp/mp.c       _MP_ scan, MADT walk, cpu/ioapic/gsi table build
-  bin/smp.cc        smp and smp info shell commands
+  kernel/smp/mp_tables.h MP table parser API
+  kernel/smp/mp_tables.c _MP_ scan and CPU/IOAPIC discovery
+  kernel/smp/acpi.h     ACPI discovery API
+  kernel/smp/acpi.c     RSDP/RSDT/XSDT/MADT fallback
+  kernel/lang/shell.c   smp and smp info shell commands
 >endtree

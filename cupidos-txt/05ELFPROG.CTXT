@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-This is the GCC/ELF path, separate from CupidC source JIT.
+This is the hosted-C/CupidLD ELF path, separate from CupidC source JIT.
 
 kernel/lang/exec.c currently supports:
 - ELF32 executables
@@ -46,15 +46,17 @@ the kernel.
 >h2 Loader Constraints
 >tree open Loader Constraints
 Source-verified loader checks from kernel/lang/exec.c:
-- ELF32 only (EXEC_MAX_SIZE = 256 KB)
+- ELF32 only
 - little-endian
 - executable type required
 - i386 only
 - at least one PT_LOAD segment (max ELF_MAX_PHDRS = 16)
-- image size must be <= 256 KB
-- load address must be >= 0x00500000
-- loader error text recommends relinking external ELFs with -Ttext=0x00600000
-- image must fit inside the 512 MB identity-mapped range
+- ordinary external ELF images must fit the exclusive 0x00D00000-0x00F00000
+  arena, so their maximum span is 2 MB
+- CupidC AOT images remain accepted in 0x01000000-0x01900000
+- CupidASM AOT images remain accepted in 0x01A00000-0x01C00000
+- the complete PT_LOAD range must stay inside one accepted arena
+- the entry point must be inside file-backed bytes of a PF_X PT_LOAD segment
 
 If the binary violates those rules, exec rejects it.
 >endtree
@@ -71,6 +73,11 @@ Build them with:
 
 The current user/Makefile writes outputs to:
   user/build/
+
+To import them into /home, stage them at FAT root after `make clean-image &&
+make` but before that fresh image's first boot. Once HOMEFS.SYS exists, later
+host-staged FAT files appear under /disk and must be run there or copied into
+/home from the guest.
 >endtree
 
 >h2 Running ELF Programs
@@ -104,8 +111,12 @@ pre-registered bindings.
 
 >h2 Process Model
 >tree open Process Model
-ELF programs are created through process_create_with_arg_ex(...) with:
+ELF programs are created through process_create_with_arg_image_ex(...) with:
   PROCESS_DOMAIN_EXTERNAL
+
+Image ownership is transferred into the process before its PID is published.
+Ordinary external programs hold one generation-tagged exclusive arena lease;
+cleanup releases the lease but never frees the permanently reserved pages.
 
 That is classification, not isolation:
 - ELF programs are distinct in the process table
@@ -120,11 +131,12 @@ Example object build:
       -c user/examples/hello.c -o hello.o
 
 Example link:
-ld -m elf_i386 -Ttext=0x00600000 --oformat=elf32-i386 \
-     -o hello hello.o
+cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
+        -o hello hello.o
 
-The -Ttext=0x00600000 choice matters because the loader rejects low load
-addresses below 0x00500000.
+The 0x00D00000 base matters: the kernel and fixed stack occupy the lower
+range, while CupidC begins at 0x01000000. The loader leases this external
+arena exclusively because these fixed-address programs cannot overlap.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC

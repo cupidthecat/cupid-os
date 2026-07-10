@@ -3,6 +3,11 @@
 
 #include "types.h"
 
+/* Enable x87 + SSE/SSE2 for the current logical CPU without logging or using
+ * pre-existing SIMD state.  AP entry calls this before any other C operation.
+ */
+void fpu_init_cpu(void);
+
 /* Enable x87 + SSE/SSE2 hardware. MUST be called as the FIRST statement
  * of kmain - before serial_init() and before any other C callable.
  * Rationale: with -mfpmath=sse in CFLAGS, GCC auto-vectorizes stack

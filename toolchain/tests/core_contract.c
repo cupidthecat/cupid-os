@@ -285,11 +285,21 @@ static int run_diagnostics(void) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
+  ctool_arena_t *arena;
+  ctool_arena_mark_t mark;
   ctool_diagnostic_t diagnostic;
+  void *sentinel;
   ctool_status_t status;
   if (!open_host_job(".", ctool_default_limits(), &adapter, &config, &job)) {
     return 1;
   }
+  arena = ctool_job_arena(job);
+  status = ctool_arena_alloc(arena, 16u, 1u, &sentinel);
+  if (status != CTOOL_OK) {
+    ctool_job_close(job);
+    return 1;
+  }
+  mark = ctool_arena_mark(arena);
   diagnostic.severity = CTOOL_DIAG_WARNING;
   diagnostic.code = 0x1000001u;
   diagnostic.path = ctool_string("/src/main.c");
@@ -309,6 +319,17 @@ static int run_diagnostics(void) {
       ctool_job_diagnostic_count(job) != 2u ||
       ctool_job_diagnostic(job, 0u)->code != 0x1000001u ||
       ctool_job_has_errors(job) == CTOOL_FALSE) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_arena_rewind(arena, mark);
+  if (!check_status(status, CTOOL_OK, "diagnostic-independent rewind") ||
+      !check_string(ctool_job_diagnostic(job, 0u)->path, "/src/main.c",
+                    "rewound diagnostic path") ||
+      !check_string(ctool_job_diagnostic(job, 0u)->message, "first warning",
+                    "rewound first diagnostic") ||
+      !check_string(ctool_job_diagnostic(job, 1u)->message, "then error",
+                    "rewound second diagnostic")) {
     ctool_job_close(job);
     return 1;
   }

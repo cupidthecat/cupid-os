@@ -182,10 +182,10 @@ class X86SourceManifestTests(unittest.TestCase):
             selected.setdefault((record[2], signature(record)), record)
 
         self.assertEqual(len(paths), 26)
-        self.assertEqual(len(records), 1196)
-        self.assertEqual(len({record[4] for record in records}), 91)
-        self.assertEqual(len({key[1] for key in selected}), 162)
-        self.assertEqual(len(selected), 182)
+        self.assertEqual(len(records), 1212)
+        self.assertEqual(len({record[4] for record in records}), 90)
+        self.assertEqual(len({key[1] for key in selected}), 163)
+        self.assertEqual(len(selected), 185)
 
         expected = {
             f"asm:{record[0]}:{record[1]}:bits{mode}:{case_signature}"
@@ -218,7 +218,7 @@ class X86SourceManifestTests(unittest.TestCase):
         self.assertTrue(all(label.startswith("inline:") for label in labels))
         self.assertEqual(len(labels), 129)
         self.assertEqual(len(feature["files"]), 36)
-        self.assertEqual(feature["occurrences"], 208)
+        self.assertEqual(feature["occurrences"], 207)
 
         spellings = {
             label.split(":", 2)[1].split("->", 1)[0] for label in labels

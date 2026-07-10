@@ -11,6 +11,17 @@ static uint64_t gdt_entries[GDT_ENTRIES] __attribute__((aligned(8)));
 int smp_cpu_count(void)   { return smp_cpu_count_var; }
 int smp_current_cpu(void) { return (int)this_cpu()->cpu_id; }
 
+void percpu_interrupt_enter(void) {
+    this_cpu()->interrupt_depth++;
+}
+
+void percpu_interrupt_leave(void) {
+    per_cpu_t *cpu = this_cpu();
+    if (cpu->interrupt_depth != 0u) {
+        cpu->interrupt_depth--;
+    }
+}
+
 static uint64_t make_data_seg(uint32_t base, uint32_t limit) {
     uint64_t d = 0;
     d |= (uint64_t)(limit & 0xFFFFu);
@@ -92,6 +103,8 @@ void percpu_init_bsp(void) {
         cpus[i].call_arg       = 0;
         cpus[i].call_pending   = 0;
         cpus[i].call_done      = 0;
+        cpus[i].reschedule_pending = 0;
+        cpus[i].interrupt_depth = 0;
     }
     cpus[0].bootstrap = 1;
     cpus[0].online    = 1;

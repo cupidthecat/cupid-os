@@ -405,6 +405,47 @@ static int build_object(ctool_job_t *job, ctool_buffer_t **buffer_out) {
   return 1;
 }
 
+static int build_merge_object(ctool_job_t *job,
+                              ctool_buffer_t **buffer_out) {
+  static const ctool_u8 constant[] = {0x78u, 0x56u, 0x34u, 0x12u};
+  static const ctool_u8 strings[] = {'o', 'n', 'e', 0u, 't', 'w', 'o', 0u};
+  ctool_elf32_section_spec_t sections[2];
+  ctool_elf32_object_spec_t object;
+  ctool_status_t status =
+      ctool_job_open_buffer(job, 256u, ctool_default_limits().output_bytes,
+                            buffer_out);
+  if (status != CTOOL_OK) {
+    return 0;
+  }
+  (void)memset(sections, 0, sizeof(sections));
+  sections[0].name = ctool_string(".rodata.cst4");
+  sections[0].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[0].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_MERGE;
+  sections[0].alignment = 4u;
+  sections[0].entry_size = 4u;
+  sections[0].size = (ctool_u32)sizeof(constant);
+  sections[0].contents =
+      ctool_bytes(constant, (ctool_u32)sizeof(constant));
+  sections[1].name = ctool_string(".rodata.str1.1");
+  sections[1].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[1].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_MERGE |
+                      CTOOL_ELF32_SHF_STRINGS;
+  sections[1].alignment = 1u;
+  sections[1].entry_size = 1u;
+  sections[1].size = (ctool_u32)sizeof(strings);
+  sections[1].contents = ctool_bytes(strings, (ctool_u32)sizeof(strings));
+  (void)memset(&object, 0, sizeof(object));
+  object.sections = sections;
+  object.section_count = 2u;
+  status = ctool_elf32_write(job, &object, *buffer_out);
+  if (status != CTOOL_OK) {
+    ctool_buffer_close(*buffer_out);
+    *buffer_out = (ctool_buffer_t *)0;
+    return 0;
+  }
+  return 1;
+}
+
 static int run_object(void) {
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
@@ -454,6 +495,37 @@ static int run_object(void) {
     ctool_buffer_close(object_bytes);
     ctool_job_close(job);
     return 1;
+  }
+  {
+    ctool_buffer_t *merge_bytes;
+    if (!build_merge_object(job, &merge_bytes)) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/merge.o");
+    source.contents = ctool_buffer_view(merge_bytes);
+    request.views = CTOOL_DIS_VIEW_SECTIONS;
+    (void)memset(&capture, 0, sizeof(capture));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (status == CTOOL_OK) {
+      status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                                capture_sink(&capture));
+    }
+    if (!check_status(status, CTOOL_OK, "merge section inspection") ||
+        !contains(&capture, ".rodata.cst4 type=PROGBITS flags=AM",
+                  "merge section flag") ||
+        !contains(&capture, ".rodata.str1.1 type=PROGBITS flags=AMS",
+                  "string section flags")) {
+      ctool_buffer_close(merge_bytes);
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(merge_bytes);
+    source.path.text = ctool_string("/fixture.o");
+    source.contents = ctool_buffer_view(object_bytes);
+    request.views = CTOOL_DIS_VIEW_ALL;
   }
   {
     ctool_dis_report_t header_report;
@@ -620,7 +692,7 @@ static int run_object(void) {
 }
 
 static int run_exec(void) {
-  ctool_u8 image[90];
+  ctool_u8 image[122];
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
   ctool_source_t source;
@@ -643,21 +715,24 @@ static int run_exec(void) {
   put_le32(image, 28u, 52u);
   put_le16(image, 40u, 52u);
   put_le16(image, 42u, 32u);
-  put_le16(image, 44u, 1u);
+  put_le16(image, 44u, 2u);
   put_le32(image, 52u, CTOOL_ELF32_PT_LOAD);
-  put_le32(image, 56u, 84u);
+  put_le32(image, 56u, 116u);
   put_le32(image, 60u, 0x00400000u);
   put_le32(image, 64u, 0x00400000u);
   put_le32(image, 68u, 6u);
   put_le32(image, 72u, 6u);
   put_le32(image, 76u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X);
   put_le32(image, 80u, 4u);
-  image[84] = 0xb8u;
-  image[85] = 0x78u;
-  image[86] = 0x56u;
-  image[87] = 0x34u;
-  image[88] = 0x12u;
-  image[89] = 0xc3u;
+  put_le32(image, 84u, 0x6474e551u);
+  put_le32(image, 108u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_W);
+  put_le32(image, 112u, 16u);
+  image[116] = 0xb8u;
+  image[117] = 0x78u;
+  image[118] = 0x56u;
+  image[119] = 0x34u;
+  image[120] = 0x12u;
+  image[121] = 0xc3u;
   if (!open_job(&adapter, &job)) {
     return 1;
   }
@@ -674,9 +749,10 @@ static int run_exec(void) {
   }
   if (!check_status(status, CTOOL_OK, "executable inspection") ||
       report.elf32.file_type != CTOOL_ELF32_ET_EXEC ||
-      report.elf32.program_header_count != 1u ||
+      report.elf32.program_header_count != 2u ||
       !contains(&capture, "ELF32 EXEC i386", "executable header") ||
       !contains(&capture, "[program headers]", "program headers") ||
+      !contains(&capture, "] GNU_STACK off=", "GNU stack header type") ||
       !contains(&capture, "[disassembly LOAD#0]", "load disassembly") ||
       !contains(&capture, "00400000", "load address") ||
       !contains(&capture, "mov eax, 0x12345678", "executable code")) {

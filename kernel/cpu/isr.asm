@@ -3,6 +3,9 @@
 ; Declare external C functions
 extern isr_handler
 extern irq_handler
+extern percpu_interrupt_enter
+extern percpu_interrupt_leave
+extern process_reschedule_if_pending
 extern fpu_nm_handler
 extern fpu_mf_handler
 extern fpu_xf_handler
@@ -50,12 +53,16 @@ isr_common_stub:
     push fs
     push gs
 
-    ; Load kernel data segment
+    ; Load the flat kernel data selector for ordinary C data accesses.  GS is
+    ; the live per-CPU selector used by this_cpu() and must remain intact while
+    ; the C handler runs (for example, when an IRQ-side serial write takes the
+    ; BKL).  Exit discards the diagnostic slot because GS belongs to the CPU.
     mov ax, 0x10
     mov ds, ax
     mov es, ax
     mov fs, ax
-    mov gs, ax
+
+    call percpu_interrupt_enter
 
     push esp    ; Push pointer to registers struct as parameter
 
@@ -63,7 +70,17 @@ isr_common_stub:
 
     add esp, 4  ; Remove pushed parameter
 
-    pop gs
+    ; Generic interrupt C code may release the outer BKL, but scheduling there
+    ; would migrate a half-finished interrupt frame before handler completion.
+    ; Leave interrupt context first, then consume the pending request at this
+    ; explicit suspension point.
+    call percpu_interrupt_leave
+    call process_reschedule_if_pending
+
+    ; GS is CPU-local state, not process state.  A suspended frame may resume
+    ; on another CPU, so discard the saved diagnostic slot instead of loading
+    ; the originating CPU's selector into the destination CPU.
+    add esp, 4
     pop fs
     pop es
     pop ds
@@ -80,11 +97,15 @@ irq_common_stub:
     push fs
     push gs
 
+    ; Keep the incoming per-CPU GS active across the C handler.  Replacing it
+    ; with the flat data selector makes GS:0 read low memory and turns the
+    ; first this_cpu() call into a recursive page fault.
     mov ax, 0x10           ; Load kernel data segment
     mov ds, ax
     mov es, ax
     mov fs, ax
-    mov gs, ax
+
+    call percpu_interrupt_enter
 
     push esp               ; Push pointer to stack structure as argument
 
@@ -92,7 +113,12 @@ irq_common_stub:
 
     add esp, 4             ; Remove pushed stack pointer
 
-    pop gs                 ; Restore segment registers
+    ; irq_handler acknowledges the local APIC before it returns.  Only now may
+    ; a pending request suspend and migrate this interrupt frame.
+    call percpu_interrupt_leave
+    call process_reschedule_if_pending
+
+    add esp, 4             ; Discard saved GS; keep this CPU's selector live
     pop fs
     pop es
     pop ds

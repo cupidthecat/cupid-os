@@ -5,6 +5,7 @@
 #define DIS_ELF32_SHT_SYMTAB 2u
 #define DIS_ELF32_SHT_STRTAB 3u
 #define DIS_ELF32_SHT_REL 9u
+#define DIS_ELF32_PT_GNU_STACK 0x6474e551u
 
 static ctool_status_t dis_prepare_report_orders(ctool_job_t *job,
                                                  ctool_dis_report_t *report);
@@ -292,6 +293,19 @@ static const char *dis_section_type_name(ctool_u32 type) {
   }
 }
 
+static const char *dis_program_type_name(ctool_u32 type) {
+  if (type == CTOOL_ELF32_PT_LOAD) {
+    return "LOAD";
+  }
+  if (type == CTOOL_ELF32_PT_TLS) {
+    return "TLS";
+  }
+  if (type == DIS_ELF32_PT_GNU_STACK) {
+    return "GNU_STACK";
+  }
+  return "UNKNOWN";
+}
+
 static const char *dis_binding_name(ctool_u32 binding) {
   switch (binding) {
   case CTOOL_ELF32_BIND_LOCAL:
@@ -414,12 +428,13 @@ static ctool_status_t dis_render_header(const ctool_dis_report_t *report,
         status = dis_decimal(output, header->file_index);
       }
       if (status == CTOOL_OK) {
-        status = dis_literal(
-            output, header->type == CTOOL_ELF32_PT_LOAD
-                        ? "] LOAD off="
-                        : (header->type == CTOOL_ELF32_PT_TLS
-                               ? "] TLS off="
-                               : "] UNKNOWN off="));
+        status = dis_literal(output, "] ");
+      }
+      if (status == CTOOL_OK) {
+        status = dis_literal(output, dis_program_type_name(header->type));
+      }
+      if (status == CTOOL_OK) {
+        status = dis_literal(output, " off=");
       }
       if (status == CTOOL_OK) {
         status = dis_hex_u32(output, header->file_offset);
@@ -505,6 +520,14 @@ static ctool_status_t dis_render_sections(const ctool_dis_report_t *report,
     if (status == CTOOL_OK &&
         (section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
       status = dis_literal(output, "X");
+    }
+    if (status == CTOOL_OK &&
+        (section->flags & CTOOL_ELF32_SHF_MERGE) != 0u) {
+      status = dis_literal(output, "M");
+    }
+    if (status == CTOOL_OK &&
+        (section->flags & CTOOL_ELF32_SHF_STRINGS) != 0u) {
+      status = dis_literal(output, "S");
     }
     if (status == CTOOL_OK && section->flags == 0u) {
       status = dis_literal(output, "-");

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -19,8 +19,12 @@ CupidOS supports hardware x87 + SSE/SSE2 floating point end-to-end:
 kernel, language, assembler, libm, printf.
 
   - Build: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
-  - Init: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
-    and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
+  - Init: `fpu_init()` is the first call in `kmain`; every AP calls the
+    no-log `fpu_init_cpu()` before any other C operation or compiler-generated
+    SSE. That helper is built with target("no-sse,no-sse2") so its own setup
+    cannot use XMM instructions. CR0 and CR4 are per-CPU: each path sets
+    CR0.EM=0/MP=1/NE=1/TS=0 and
+    CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, and loads MXCSR=0x1F80.
   - Context switch: `context_switch.asm` FXSAVEs the outgoing PCB's
     `fp_state[512]` and FXRSTORs the incoming task's. Eager: no CR0.TS games.
   - PCB: `process_t.fp_state` is 512 bytes at 16-byte alignment. Offset 80.

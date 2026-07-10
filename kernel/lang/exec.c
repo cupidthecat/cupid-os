@@ -2,7 +2,8 @@
  * exec.c - Program loader for CupidOS
  *
  * Supports two binary formats:
- *   1. ELF32 - Standard i386 ELF executables (compiled with GCC/Clang)
+ *   1. ELF32 - Static fixed-address i386 executables from CupidLD or the
+ *              CupidC/CupidASM AOT writers
  *   2. CUPD  - CupidOS flat binary format (20-byte header + code + data)
  *
  * Format detection is automatic: the first 4 bytes determine which
@@ -22,12 +23,207 @@
 /* Maximum CUPD payload size. */
 #define EXEC_MAX_SIZE (256u * 1024u)
 
-/* CupidASM's temporary fixed ET_EXEC layout places independent 1 MiB code
- * and data regions next to one another. */
-#define ELF_MAX_IMAGE_SPAN (2u * 1024u * 1024u)
-
 /* Maximum number of ELF program headers we support */
 #define ELF_MAX_PHDRS 16
+#define ELF_VERSION_CURRENT 1u
+#define ELF_PT_NULL 0u
+#define ELF_PT_GNU_STACK 0x6474E551u
+#define ELF_PF_X 0x1u
+#define ELF_PF_W 0x2u
+#define ELF_PF_R 0x4u
+#define ELF_PF_KNOWN (ELF_PF_X | ELF_PF_W | ELF_PF_R)
+
+typedef enum {
+    ELF_IMAGE_EXTERNAL = 0,
+    ELF_IMAGE_CUPIDC,
+    ELF_IMAGE_CUPIDASM
+} elf_image_kind_t;
+
+typedef struct {
+    uint32_t start;
+    uint32_t end;
+    elf_image_kind_t kind;
+    const char *name;
+} elf_image_region_t;
+
+typedef struct {
+    const elf_image_region_t *region;
+    uint32_t min_vaddr;
+    uint32_t max_vaddr;
+    uint32_t page_base;
+    uint32_t page_size;
+    uint16_t load_count;
+} elf_load_plan_t;
+
+_Static_assert((EXTERNAL_EXEC_ARENA_START & (PAGE_SIZE - 1u)) == 0u &&
+               (EXTERNAL_EXEC_ARENA_END & (PAGE_SIZE - 1u)) == 0u,
+               "external executable arena must be page aligned");
+_Static_assert((CUPIDC_EXEC_ARENA_START & (PAGE_SIZE - 1u)) == 0u &&
+               (CUPIDC_EXEC_ARENA_END & (PAGE_SIZE - 1u)) == 0u,
+               "CupidC executable arena must be page aligned");
+_Static_assert((CUPIDASM_EXEC_ARENA_START & (PAGE_SIZE - 1u)) == 0u &&
+               (CUPIDASM_EXEC_ARENA_END & (PAGE_SIZE - 1u)) == 0u,
+               "CupidASM executable arena must be page aligned");
+
+static const elf_image_region_t elf_image_regions[] = {
+    {EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END,
+     ELF_IMAGE_EXTERNAL, "external"},
+    {CUPIDC_EXEC_ARENA_START, CUPIDC_EXEC_ARENA_END,
+     ELF_IMAGE_CUPIDC, "CupidC"},
+    {CUPIDASM_EXEC_ARENA_START, CUPIDASM_EXEC_ARENA_END,
+     ELF_IMAGE_CUPIDASM, "CupidASM"}
+};
+
+static const elf_image_region_t *elf_image_region(uint32_t image_start,
+                                                   uint32_t image_end,
+                                                   uint32_t entry) {
+    uint32_t count = (uint32_t)(sizeof(elf_image_regions) /
+                                sizeof(elf_image_regions[0]));
+    for (uint32_t i = 0; i < count; i++) {
+        const elf_image_region_t *region = &elf_image_regions[i];
+        if (image_start >= region->start && image_end <= region->end &&
+            entry >= region->start && entry < region->end) {
+            return region;
+        }
+    }
+    return NULL;
+}
+
+static bool elf_range_within_file(uint32_t offset, uint32_t size,
+                                  uint32_t file_size) {
+    return offset <= file_size && size <= file_size - offset;
+}
+
+static bool elf_alignment_valid(uint32_t alignment) {
+    return alignment == 0u || alignment == 1u ||
+           (alignment & (alignment - 1u)) == 0u;
+}
+
+static bool elf_program_type_supported(uint32_t type) {
+    return type == ELF_PT_NULL || type == ELF_PT_LOAD ||
+           type == ELF_PT_GNU_STACK;
+}
+
+static int elf_read_exact(int fd, void *destination, uint32_t size) {
+    uint8_t *bytes = (uint8_t *)destination;
+    uint32_t offset = 0;
+    while (offset < size) {
+        uint32_t chunk = size - offset;
+        if (chunk > 512u) chunk = 512u;
+        int read_count = vfs_read(fd, bytes + offset, chunk);
+        if (read_count <= 0 || (uint32_t)read_count > chunk) {
+            return VFS_EIO;
+        }
+        offset += (uint32_t)read_count;
+    }
+    return VFS_OK;
+}
+
+static int elf_plan_load(const char *path, const elf32_ehdr_t *header,
+                         const elf32_phdr_t *programs, uint32_t file_size,
+                         elf_load_plan_t *plan) {
+    uint32_t min_vaddr = 0xFFFFFFFFu;
+    uint32_t max_vaddr = 0u;
+    uint16_t load_count = 0u;
+    bool entry_executable = false;
+
+    for (uint16_t i = 0; i < header->e_phnum; i++) {
+        const elf32_phdr_t *program = &programs[i];
+        if (!elf_program_type_supported(program->p_type)) {
+            serial_printf("[elf] Unsupported phdr type 0x%x at %u in %s\n",
+                          program->p_type, (uint32_t)i, path);
+            return VFS_EINVAL;
+        }
+        if ((program->p_flags & ~ELF_PF_KNOWN) != 0u ||
+            !elf_alignment_valid(program->p_align)) {
+            serial_printf("[elf] Invalid phdr flags/alignment at %u in %s\n",
+                          (uint32_t)i, path);
+            return VFS_EINVAL;
+        }
+        if (program->p_type != ELF_PT_LOAD) {
+            if (program->p_filesz != 0u || program->p_memsz != 0u) {
+                serial_printf("[elf] Non-load phdr %u has payload in %s\n",
+                              (uint32_t)i, path);
+                return VFS_EINVAL;
+            }
+            continue;
+        }
+        if (program->p_align > 1u &&
+            (program->p_offset & (program->p_align - 1u)) !=
+                (program->p_vaddr & (program->p_align - 1u))) {
+            serial_printf("[elf] PT_LOAD %u alignment is incongruent in %s\n",
+                          (uint32_t)i, path);
+            return VFS_EINVAL;
+        }
+        if (program->p_filesz > program->p_memsz ||
+            program->p_vaddr > 0xFFFFFFFFu - program->p_memsz ||
+            !elf_range_within_file(program->p_offset, program->p_filesz,
+                                   file_size) ||
+            (program->p_filesz > 0u && program->p_offset > 0x7FFFFFFFu)) {
+            serial_printf("[elf] Invalid PT_LOAD %u ranges in %s\n",
+                          (uint32_t)i, path);
+            return VFS_EINVAL;
+        }
+        if (program->p_memsz == 0u) {
+            continue;
+        }
+
+        uint32_t program_end = program->p_vaddr + program->p_memsz;
+        for (uint16_t j = 0; j < i; j++) {
+            const elf32_phdr_t *previous = &programs[j];
+            if (previous->p_type != ELF_PT_LOAD || previous->p_memsz == 0u) {
+                continue;
+            }
+            uint32_t previous_end = previous->p_vaddr + previous->p_memsz;
+            if (program->p_vaddr < previous_end &&
+                previous->p_vaddr < program_end) {
+                serial_printf("[elf] PT_LOAD %u overlaps PT_LOAD %u in %s\n",
+                              (uint32_t)i, (uint32_t)j, path);
+                return VFS_EINVAL;
+            }
+        }
+
+        load_count++;
+        if (program->p_vaddr < min_vaddr) min_vaddr = program->p_vaddr;
+        if (program_end > max_vaddr) max_vaddr = program_end;
+        if ((program->p_flags & ELF_PF_X) != 0u &&
+            header->e_entry >= program->p_vaddr &&
+            header->e_entry - program->p_vaddr < program->p_filesz) {
+            entry_executable = true;
+        }
+    }
+
+    if (load_count == 0u || !entry_executable) {
+        serial_printf("[elf] Missing loadable image or executable entry in %s\n",
+                      path);
+        return VFS_EINVAL;
+    }
+
+    const elf_image_region_t *region =
+        elf_image_region(min_vaddr, max_vaddr, header->e_entry);
+    if (!region) {
+        serial_printf("[elf] Image 0x%x-0x%x entry=0x%x is outside an "
+                      "executable arena in %s\n",
+                      min_vaddr, max_vaddr, header->e_entry, path);
+        return VFS_EINVAL;
+    }
+
+    uint32_t page_base = min_vaddr & ~(PAGE_SIZE - 1u);
+    uint32_t page_end = (max_vaddr + PAGE_SIZE - 1u) & ~(PAGE_SIZE - 1u);
+    uint32_t page_size = page_end - page_base;
+    if (page_size == 0u || page_size > region->end - region->start) {
+        serial_printf("[elf] Invalid staged image size in %s\n", path);
+        return VFS_EINVAL;
+    }
+
+    plan->region = region;
+    plan->min_vaddr = min_vaddr;
+    plan->max_vaddr = max_vaddr;
+    plan->page_base = page_base;
+    plan->page_size = page_size;
+    plan->load_count = load_count;
+    return VFS_OK;
+}
 
 /* ELF32 Loader */
 
@@ -59,6 +255,13 @@ static int elf_validate_header(const elf32_ehdr_t *hdr) {
         return VFS_EINVAL;
     }
 
+    if (hdr->e_ident[6] != ELF_VERSION_CURRENT ||
+        hdr->e_version != ELF_VERSION_CURRENT) {
+        serial_printf("[elf] Unsupported ELF version (%u/%u)\n",
+                      (uint32_t)hdr->e_ident[6], hdr->e_version);
+        return VFS_EINVAL;
+    }
+
     /* Must be executable */
     if (hdr->e_type != ELF_TYPE_EXEC) {
         serial_printf("[elf] Not ET_EXEC (type=%u)\n",
@@ -85,11 +288,34 @@ static int elf_validate_header(const elf32_ehdr_t *hdr) {
         return VFS_EINVAL;
     }
 
+    if (hdr->e_ehsize != (uint16_t)sizeof(elf32_ehdr_t) ||
+        hdr->e_phentsize != (uint16_t)sizeof(elf32_phdr_t)) {
+        serial_printf("[elf] Unsupported ELF header sizes (%u/%u)\n",
+                      (uint32_t)hdr->e_ehsize,
+                      (uint32_t)hdr->e_phentsize);
+        return VFS_EINVAL;
+    }
+
     return 0;
 }
 
 int elf_exec(const char *path, const char *proc_name) {
     if (!path) return VFS_EINVAL;
+
+    process_image_t image;
+    memset(&image, 0, sizeof(image));
+
+    vfs_stat_t file_info;
+    int status = vfs_stat(path, &file_info);
+    if (status < 0) {
+        serial_printf("[elf] Cannot stat %s (err=%d)\n", path, status);
+        return status;
+    }
+    if (file_info.type != VFS_TYPE_FILE ||
+        file_info.size < (uint32_t)sizeof(elf32_ehdr_t)) {
+        serial_printf("[elf] Invalid executable file size for %s\n", path);
+        return VFS_EINVAL;
+    }
 
     /* Open the file */
     int fd = vfs_open(path, O_RDONLY);
@@ -101,11 +327,11 @@ int elf_exec(const char *path, const char *proc_name) {
     /* Read the ELF header */
     elf32_ehdr_t ehdr;
     memset(&ehdr, 0, sizeof(ehdr));
-    int r = vfs_read(fd, &ehdr, sizeof(ehdr));
-    if (r < (int)sizeof(ehdr)) {
+    status = elf_read_exact(fd, &ehdr, (uint32_t)sizeof(ehdr));
+    if (status != VFS_OK) {
         vfs_close(fd);
         serial_printf("[elf] Failed to read ELF header from %s\n", path);
-        return VFS_EIO;
+        return status;
     }
 
     /* Validate */
@@ -118,121 +344,107 @@ int elf_exec(const char *path, const char *proc_name) {
     elf32_phdr_t phdrs[ELF_MAX_PHDRS];
     memset(phdrs, 0, sizeof(phdrs));
 
-    vfs_seek(fd, (int32_t)ehdr.e_phoff, SEEK_SET);
+    uint32_t phdr_bytes = (uint32_t)ehdr.e_phnum *
+                          (uint32_t)sizeof(elf32_phdr_t);
+    if (ehdr.e_phoff < (uint32_t)sizeof(elf32_ehdr_t) ||
+        ehdr.e_phoff > 0x7FFFFFFFu ||
+        !elf_range_within_file(ehdr.e_phoff, phdr_bytes, file_info.size) ||
+        vfs_seek(fd, (int32_t)ehdr.e_phoff, SEEK_SET) < 0) {
+        vfs_close(fd);
+        serial_printf("[elf] Invalid program-header offset in %s\n", path);
+        return VFS_EINVAL;
+    }
     for (uint16_t i = 0; i < ehdr.e_phnum; i++) {
-        r = vfs_read(fd, &phdrs[i], sizeof(elf32_phdr_t));
-        if (r < (int)sizeof(elf32_phdr_t)) {
+        status = elf_read_exact(fd, &phdrs[i],
+                                (uint32_t)sizeof(elf32_phdr_t));
+        if (status != VFS_OK) {
             vfs_close(fd);
             serial_printf("[elf] Failed to read phdr %u\n", (uint32_t)i);
-            return VFS_EIO;
+            return status;
         }
     }
 
-    /* Calculate total memory needed (scan all PT_LOAD segments) */
-    uint32_t min_vaddr = 0xFFFFFFFF;
-    uint32_t max_vaddr = 0;
-    int load_count = 0;
+    elf_load_plan_t plan;
+    memset(&plan, 0, sizeof(plan));
+    status = elf_plan_load(path, &ehdr, phdrs, file_info.size, &plan);
+    if (status != VFS_OK) {
+        vfs_close(fd);
+        return status;
+    }
 
+    uint32_t total_size = plan.max_vaddr - plan.min_vaddr;
+    serial_printf("[elf] %s: %u PT_LOAD segments, %s arena "
+                  "0x%x-0x%x (%u bytes)\n",
+                  path, (uint32_t)plan.load_count, plan.region->name,
+                  plan.min_vaddr, plan.max_vaddr, total_size);
+
+    /* Stage the complete page span before touching a permanent executable
+     * arena.  Exact reads remain authoritative if path metadata races. */
+    uint8_t *staging = (uint8_t *)kmalloc(plan.page_size);
+    if (!staging) {
+        vfs_close(fd);
+        serial_printf("[elf] Cannot stage %u bytes for %s\n",
+                      plan.page_size, path);
+        return VFS_ENOSPC;
+    }
+    memset(staging, 0, plan.page_size);
+
+    int load_error = VFS_OK;
     for (uint16_t i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type != ELF_PT_LOAD) continue;
         if (phdrs[i].p_memsz == 0) continue;
 
-        /* Guard against crafted phdr where p_vaddr + p_memsz wraps u32 and
-         * bypasses the max_vaddr range check below.*/
-        if (phdrs[i].p_memsz > IDENTITY_MAP_SIZE ||
-            phdrs[i].p_vaddr > IDENTITY_MAP_SIZE - phdrs[i].p_memsz) {
-            vfs_close(fd);
-            serial_printf("[elf] phdr %u out of range (vaddr=0x%x memsz=0x%x) in %s\n",
-                          (uint32_t)i, phdrs[i].p_vaddr, phdrs[i].p_memsz, path);
-            return VFS_EINVAL;
-        }
-
-        load_count++;
-
-        if (phdrs[i].p_vaddr < min_vaddr) {
-            min_vaddr = phdrs[i].p_vaddr;
-        }
-        uint32_t seg_end = phdrs[i].p_vaddr + phdrs[i].p_memsz;
-        if (seg_end > max_vaddr) {
-            max_vaddr = seg_end;
-        }
-    }
-
-    if (load_count == 0) {
-        vfs_close(fd);
-        serial_printf("[elf] No PT_LOAD segments in %s\n", path);
-        return VFS_EINVAL;
-    }
-
-    uint32_t total_size = max_vaddr - min_vaddr;
-    if (total_size == 0 || total_size > ELF_MAX_IMAGE_SPAN) {
-        vfs_close(fd);
-        serial_printf("[elf] Image too large (%u bytes) in %s\n",
-                      total_size, path);
-        return VFS_EINVAL;
-    }
-
-    serial_printf("[elf] %s: %d PT_LOAD segments, vaddr 0x%x-0x%x (%u bytes)\n",
-                  path, load_count, min_vaddr, max_vaddr, total_size);
-
-    /* Sanity check: the vaddr range must be within identity-mapped memory
-     * and must not overlap with the kernel BSS.  Kernel _end now lives
-     * past 0x00474000 (with embedded ramfs assets), so user programs must
-     * load >= 0x00500000 to avoid clobbering kernel state.  The CupidC
-     * JIT region sits at 0x00600000+ for the same reason.*/
-    if (min_vaddr < 0x00500000) {
-        vfs_close(fd);
-        serial_printf("[elf] Load address too low (0x%x) in %s - "
-                      "relink with -Ttext=0x00600000\n",
-                      min_vaddr, path);
-        return VFS_EINVAL;
-    }
-    if (max_vaddr > IDENTITY_MAP_SIZE) {
-        vfs_close(fd);
-        serial_printf("[elf] Load address too high (0x%x > 0x%x) in %s\n",
-                      max_vaddr, IDENTITY_MAP_SIZE, path);
-        return VFS_EINVAL;
-    }
-
-    /* Page-align the region for PMM reservation */
-    uint32_t page_base = min_vaddr & ~0xFFFu;
-    uint32_t page_end  = (max_vaddr + 0xFFFu) & ~0xFFFu;
-    uint32_t page_size = page_end - page_base;
-
-    /* Reserve these physical pages so nothing else uses them */
-    pmm_reserve_region(page_base, page_size);
-
-    /* Zero the entire region first (covers BSS and alignment gaps) */
-    memset((void *)page_base, 0, page_size);
-
-    /* Load each PT_LOAD segment directly to its virtual address */
-    for (uint16_t i = 0; i < ehdr.e_phnum; i++) {
-        if (phdrs[i].p_type != ELF_PT_LOAD) continue;
-        if (phdrs[i].p_memsz == 0) continue;
-
-        uint8_t *dest = (uint8_t *)phdrs[i].p_vaddr;
-
-        /* Read file data for this segment */
-        if (phdrs[i].p_filesz > 0) {
-            vfs_seek(fd, (int32_t)phdrs[i].p_offset, SEEK_SET);
-
-            uint32_t remaining = phdrs[i].p_filesz;
-            uint32_t written = 0;
-            while (remaining > 0) {
-                uint32_t chunk = remaining;
-                if (chunk > 512) chunk = 512;
-                r = vfs_read(fd, dest + written, chunk);
-                if (r <= 0) break;
-                written += (uint32_t)r;
-                remaining -= (uint32_t)r;
+        if (phdrs[i].p_filesz > 0u) {
+            if (vfs_seek(fd, (int32_t)phdrs[i].p_offset, SEEK_SET) < 0) {
+                load_error = VFS_EIO;
+                serial_printf("[elf] Failed to seek to phdr %u in %s\n",
+                              (uint32_t)i, path);
+                break;
+            }
+            uint32_t stage_offset = phdrs[i].p_vaddr - plan.page_base;
+            if (stage_offset > plan.page_size ||
+                phdrs[i].p_filesz > plan.page_size - stage_offset) {
+                load_error = VFS_EINVAL;
+                serial_printf("[elf] PT_LOAD %u exceeds staging in %s\n",
+                              (uint32_t)i, path);
+                break;
+            }
+            load_error = elf_read_exact(fd, staging + stage_offset,
+                                        phdrs[i].p_filesz);
+            if (load_error != VFS_OK) {
+                serial_printf("[elf] Short read in phdr %u from %s\n",
+                              (uint32_t)i, path);
+                break;
             }
         }
-
-        /* BSS: the gap between filesz and memsz is already zeroed
-         * because we memset the whole region to 0 above.*/
     }
 
-    vfs_close(fd);
+    int close_status = vfs_close(fd);
+    if (load_error != VFS_OK) {
+        kfree(staging);
+        return load_error;
+    }
+    if (close_status < 0) {
+        kfree(staging);
+        return close_status;
+    }
+
+    if (plan.region->kind == ELF_IMAGE_EXTERNAL) {
+        if (!process_external_image_claim(&image)) {
+            kfree(staging);
+            serial_printf("[elf] External executable arena is busy for %s\n",
+                          path);
+            return VFS_ENOSPC;
+        }
+    } else {
+        image.base = plan.page_base;
+        image.size = plan.page_size;
+        image.ownership = PROCESS_IMAGE_PERMANENT;
+        image.lease_generation = 0u;
+    }
+
+    memcpy((void *)plan.page_base, staging, plan.page_size);
+    kfree(staging);
 
     /* The entry point is the ELF's e_entry - since we loaded at the
      * exact virtual addresses the ELF expects, we use it directly.*/
@@ -245,25 +457,21 @@ int elf_exec(const char *path, const char *proc_name) {
     /* Use provided name, or fallback to path */
     const char *pname = proc_name ? proc_name : path;
 
-    /* Create process with syscall table argument on the stack.
-     * We use process_create_with_arg to push the arg before entry.*/
-    uint32_t pid = process_create_with_arg_ex(
+    /* Create the process and atomically transfer image ownership while
+     * publishing the syscall-table argument on its initial stack. */
+    uint32_t pid = process_create_with_arg_image_ex(
         entry_fn, pname, DEFAULT_STACK_SIZE,
-        (uint32_t)syscall_get_table(), PROCESS_DOMAIN_EXTERNAL
+        (uint32_t)syscall_get_table(), PROCESS_DOMAIN_EXTERNAL, &image
     );
 
     if (pid == 0) {
-        pmm_release_region(page_base, page_size);
+        process_image_discard(&image);
         serial_printf("[elf] Failed to create process for %s\n", path);
         return VFS_EIO;
     }
 
-    /* Associate the image memory with the process so it gets
-     * freed when the process exits.*/
-    process_set_image(pid, page_base, page_size);
-
     serial_printf("[elf] Loaded %s as PID %u (ELF32, %u bytes at 0x%x)\n",
-                  path, pid, total_size, min_vaddr);
+                  path, pid, total_size, plan.min_vaddr);
 
     /* Yield immediately so the new process gets a time slice
      * without waiting for the next timer tick.*/

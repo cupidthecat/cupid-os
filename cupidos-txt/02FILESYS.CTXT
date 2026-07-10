@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-10
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -164,12 +164,13 @@ This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
 Host-side FAT helpers still target the raw FAT partition inside cupidos.img.
 
 Mapping reminder:
-- FAT root ::/ corresponds to the persistent storage area inside the image
-- the running OS normally exposes that through /home via homefs
+- FAT root ::/ is mounted directly at /disk
+- a fresh image without HOMEFS.SYS is imported into /home once; later raw FAT
+  additions remain under /disk until copied into homefs in the guest
 
 Example host commands:
-  mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
-  mdir  -i cupidos.img@@2097152 ::/
+  mcopy -o -i cupidos.img@@8388608 file.txt ::/file.txt
+  mdir  -i cupidos.img@@8388608 ::/
 
 Use this for bulk host-to-image transfer.
 Use in-OS editing under /home for normal runtime work.
@@ -178,6 +179,13 @@ Use in-OS editing under /home for normal runtime work.
 >h2 Cache and Sync
 >tree open Cache and Sync
 Disk writes go through the block cache.
+
+On SMP, cached reads, writes, flushes, and sync hold the big kernel lock for
+the shared cache metadata and cached ATA PIO transaction.  This also keeps a
+same-CPU timer interrupt from re-entering an in-flight command.  Raw exported
+block-device/ATA calls are outside that guard.  The current periodic flush is
+still dispatched from the generic timer path on every LAPIC tick; moving it to
+frequency-aware deferred work remains a performance and IRQ-latency task.
 
 Useful commands:
 - sync       flush dirty data

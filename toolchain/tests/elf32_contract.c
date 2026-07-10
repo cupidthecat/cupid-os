@@ -1849,9 +1849,12 @@ static int run_reader_c_oracle(const char *root) {
 }
 
 static int run_reader_isr_oracle(const char *root) {
-  static const char *expected[] = {"isr_handler", "irq_handler",
-                                   "fpu_nm_handler", "fpu_mf_handler",
-                                   "fpu_xf_handler"};
+  static const char *expected[] = {
+      "percpu_interrupt_enter", "isr_handler", "percpu_interrupt_leave",
+      "process_reschedule_if_pending", "percpu_interrupt_enter",
+      "irq_handler", "percpu_interrupt_leave",
+      "process_reschedule_if_pending", "fpu_nm_handler", "fpu_mf_handler",
+      "fpu_xf_handler"};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
@@ -1871,13 +1874,13 @@ static int run_reader_isr_oracle(const char *root) {
   }
   text_section = find_view_section(&object, ".text");
   if (text_section == (const ctool_elf32_section_t *)0 ||
-      text_section->size != 377u || text_section->alignment != 16u ||
-      text_section->relocation_count != 5u || object.relocation_count != 5u) {
+      text_section->size != 417u || text_section->alignment != 16u ||
+      text_section->relocation_count != 11u || object.relocation_count != 11u) {
     (void)fprintf(stderr, "NASM ISR section view differs\n");
     ctool_job_close(job);
     return 1;
   }
-  for (index = 0u; index < 5u; index++) {
+  for (index = 0u; index < 11u; index++) {
     const ctool_elf32_relocation_t *relocation =
         &object.relocations[text_section->relocation_first + index];
     const ctool_elf32_symbol_t *symbol;

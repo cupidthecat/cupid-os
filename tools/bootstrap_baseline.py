@@ -219,10 +219,6 @@ def _tool_specs() -> dict[str, ToolSpec]:
         "python": ToolSpec("python" if windows else "python3", "PYTHON", ("--version",)),
         "c_compiler": ToolSpec("clang" if windows else "gcc", "CC", ("--version",)),
         "assembler": ToolSpec("nasm", "ASM", ("-v",)),
-        "linker": ToolSpec("ld.lld" if windows else "ld", "LD", ("--version",)),
-        "object_copy": ToolSpec(
-            "llvm-objcopy" if windows else "objcopy", "OBJCOPY", ("--version",)
-        ),
         "symbol_reader": ToolSpec(
             "llvm-nm" if windows else "nm", "NM", ("--version",)
         ),
