@@ -1,6 +1,6 @@
 # Host dependency inventory
 
-The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 664-source/467-transform graph and its 431-path manifest covers all 424 final-link objects. `baselines/windows-amd64.json` records the passing `4efd5ed` Windows oracle for the preceding 659-source/458-transform state; a new committed capture and a complete Linux GCC/binutils OS capture remain pending.
+The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 664-source/467-transform graph and its 431-path manifest covers all 424 final-link objects. `baselines/windows-amd64.json` records the passing `50c5b04` Windows oracle for that state; a complete Linux GCC/binutils OS capture remains pending.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |

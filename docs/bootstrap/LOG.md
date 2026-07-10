@@ -595,3 +595,19 @@ Wayfinder ticket [#20](https://github.com/cupidthecat/cupid-os/issues/20) comple
 | CupidASM JIT GUI smoke | PASS | `as /demos/hello.asm` assembled and executed through shared fixed-image output, reached `JIT execution complete`, and produced no panic. |
 | CupidASM AOT/loader GUI smoke | PASS after bounded loader fix | `cupidasm` assembled the hello demo to ELF32, `exec` loaded the result and reported a PID, and serial output contained no panic. The initial unchanged assembly had exposed the obsolete 256 KiB loader ceiling described above. |
 | Four-CPU boot comparison | PRE-EXISTING FAILURE | With the repository's exact `-smp cpus=4` flags, both this tree and an isolated `d72a528` control build stopped after `acpi: MADT: 4 CPUs, 1 IOAPIC(s)` and never reached the CPU-online or desktop markers. The adapter therefore did not introduce the hang, but issue #22 must not claim the production SMP-trampoline cutover until a four-CPU boot succeeds. |
+
+## 2026-07-10: shared-CupidASM Windows oracle recapture
+
+After committing the kernel adapter as `50c5b04`, the baseline runner rebuilt that exact revision twice in isolated worktrees and refreshed `baselines/windows-amd64.json`.
+
+| Check | Result |
+| --- | --- |
+| Reproducibility | PASS: all 431 artifacts matched between two isolated builds; aggregate SHA-256 `47f778f4e9b9a1954786aee1099f3aaf0a2ee1d357e82e1242fcc38a126d459d` |
+| Manifest contract | PASS: the checked audit covers all 424 final-link objects, including `toolchain/cupidasm.o`, `kernel/lang/as.o`, and the new `kernel/lang/as_elf.o` bridge |
+| Clean builds | PASS in 8.279 and 7.718 seconds |
+| Host tests | PASS: 76 tests in 42.159 seconds, with one Windows-only skip |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 18.625 seconds, after the shared toolchain kernel self-tests |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.355 seconds, after the 631-definition adapter self-test |
+| Output sizes | Kernel ELF 6,276,332 bytes; raw kernel 6,064,029 bytes; `.text` 1,390,468 bytes; disk image 209,715,200 bytes |
+
+The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the passing hosted GCC and sanitizer contracts do not substitute for it.
