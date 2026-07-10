@@ -40,7 +40,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `driver` | 22 | 3774 |
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
-| `kernel_assembly` | 3 | 510 |
+| `kernel_assembly` | 3 | 514 |
 | `kernel_audio` | 14 | 4532 |
 | `kernel_core` | 16 | 3947 |
 | `kernel_cpu` | 18 | 3255 |
@@ -91,12 +91,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.delivery` | 1 | 22 |
 | `asm.directive` | 18 | 298 |
 | `asm.expression` | 2 | 12 |
-| `asm.instruction` | 90 | 1208 |
+| `asm.instruction` | 90 | 1206 |
 | `asm.label` | 2 | 156 |
 | `asm.output` | 2 | 4 |
 | `asm.prefix` | 2 | 6 |
 | `asm.preprocessor` | 2 | 5 |
-| `asm.register` | 27 | 742 |
+| `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 6 |
 | `c.control` | 12 | 41080 |
 | `c.declaration` | 1 | 22 |
