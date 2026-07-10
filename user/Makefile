@@ -51,8 +51,9 @@ PROGRAMS = hello ls cat
 
 # Build directory
 BUILD ?= build
+BOOTSTRAP_ARTIFACTS := $(addprefix $(BUILD)/,$(PROGRAMS))
 
-all: $(BUILD) $(addprefix $(BUILD)/,$(PROGRAMS))
+all: $(BUILD) $(BOOTSTRAP_ARTIFACTS)
 
 $(BUILD):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -69,4 +70,7 @@ $(BUILD)/%.o: examples/%.c cupid.h | $(BUILD)
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD)', ignore_errors=True)"
 
-.PHONY: all clean
+print-bootstrap-artifacts:
+	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
+
+.PHONY: all clean print-bootstrap-artifacts

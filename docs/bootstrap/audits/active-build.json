@@ -14006,7 +14006,7 @@
         {
           "line": 7,
           "path": "kernel/cpu/fpu.c",
-          "text": "__attribute__((target(\"no-sse,no-sse2\")))"
+          "text": "__attribute__((target(\"general-regs-only\")))"
         }
       ],
       "files": [
@@ -20452,19 +20452,19 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a3b6e44d8333e5e38d6341fc6e6b3a01dc5ff661f992aaa98405db52082dc538",
+    "active_source_digest": "8996cd04e790accb8412469a668161204f94be83cf2126b5682c4c12b3ac0558",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "ca630769f6f167f81100aa334583e597fdcf1fedcce4d8e4b53e2a8d7da3265a"
+        "sha256": "98bc42809d43646997a4357b146f5391a72c0946e7dc8df461493eebae0d5a97"
       },
       {
         "path": "user/Makefile",
-        "sha256": "e3cb305fe3e47959cd7e6b7ecde85bdd39d37455f80a5022967dec4a17b601eb"
+        "sha256": "00364a86b442ee397709746c243df995ad49b517498ad877824b11925d2dec3e"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "b2676ed7c70f07f861c1aca009fc87596dd365f9f6e78e89835ccc392f5caab9"
+        "sha256": "1007033eba895a31de2f4283b08a7ce2e0b947747f31bb58d57cff31e0220c17"
       }
     ],
     "generator": {
@@ -27815,7 +27815,7 @@
       "path": "kernel/cpu/fpu.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "a31325c4e08d2584196267c4f0b024e2a91042600b19dd2b5f0ba675a28157d0"
+      "sha256": "f940cbbbaf164000857c2e55f5b3eebc8a1398083aa365fb1fba12d7c1350941"
     },
     {
       "build_owners": [

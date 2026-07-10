@@ -923,6 +923,9 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # evidence under build/bootstrap/ by default.
 BOOTSTRAP_AUDIT_BUILDS := --supplemental-build user:all \
 	--supplemental-build toolchain:all
+BOOTSTRAP_WINDOWS_BASELINE ?= docs/bootstrap/baselines/windows-amd64.json
+BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
+BOOTSTRAP_HOST_COMPARISON ?= docs/bootstrap/baselines/windows-linux.json
 
 test:
 	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
@@ -950,6 +953,16 @@ print-bootstrap-artifacts:
 
 bootstrap-baseline:
 	$(PYTHON) tools/bootstrap_baseline.py
+
+bootstrap-host-comparison:
+	$(PYTHON) tools/bootstrap_baseline.py \
+	  --compare-hosts $(BOOTSTRAP_WINDOWS_BASELINE) $(BOOTSTRAP_LINUX_BASELINE) \
+	  --output $(BOOTSTRAP_HOST_COMPARISON)
+
+check-bootstrap-host-comparison:
+	$(PYTHON) tools/bootstrap_baseline.py \
+	  --compare-hosts $(BOOTSTRAP_WINDOWS_BASELINE) $(BOOTSTRAP_LINUX_BASELINE) \
+	  --output $(BOOTSTRAP_HOST_COMPARISON) --check
 
 $(CUPIDASM_BUILD): $(CUPIDASM_SOURCES)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
@@ -1165,4 +1178,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

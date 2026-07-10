@@ -70,6 +70,12 @@ CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
+BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
+                       $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
+                       $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
+                       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
+                       $(CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
+                       $(CUPIDLD_CONTRACT) $(CUPIDLD)
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -77,10 +83,7 @@ CPPFLAGS ?= -I.
 
 .DEFAULT_GOAL := all
 
-all: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
-     $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-     $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
-     $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD)
+all: $(BOOTSTRAP_ARTIFACTS)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -247,4 +250,7 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"
 
-.PHONY: all test clean
+print-bootstrap-artifacts:
+	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
+
+.PHONY: all test clean print-bootstrap-artifacts
