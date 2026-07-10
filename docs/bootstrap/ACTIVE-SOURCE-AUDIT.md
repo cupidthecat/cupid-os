@@ -9,7 +9,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Active source inputs: 672
 - Unreachable source-like files: 36
 - Reachable output transforms: 480
-- Distinct feature requirements: 247
+- Distinct feature requirements: 248
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -43,7 +43,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_assembly` | 3 | 536 |
 | `kernel_audio` | 14 | 4532 |
 | `kernel_core` | 16 | 3985 |
-| `kernel_cpu` | 18 | 3255 |
+| `kernel_cpu` | 18 | 3274 |
 | `kernel_crypto` | 40 | 5144 |
 | `kernel_fs` | 26 | 6076 |
 | `kernel_gfx` | 28 | 12182 |
@@ -51,11 +51,11 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_lang` | 20 | 10542 |
 | `kernel_mm` | 7 | 1291 |
 | `kernel_network` | 20 | 3629 |
-| `kernel_smp` | 14 | 1156 |
+| `kernel_smp` | 14 | 1161 |
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 9 | 9834 |
+| `toolchain_contract` | 9 | 9837 |
 | `toolchain_core` | 12 | 12153 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
@@ -102,13 +102,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.declaration` | 1 | 22 |
 | `c.declarator` | 4 | 1362 |
 | `c.expression` | 1 | 1251 |
-| `c.extension` | 16 | 365 |
+| `c.extension` | 17 | 369 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 17 | 6235 |
-| `c.qualifier` | 2 | 4523 |
+| `c.preprocessor` | 17 | 6236 |
+| `c.qualifier` | 2 | 4526 |
 | `c.storage` | 4 | 4451 |
-| `c.type` | 14 | 34492 |
+| `c.type` | 14 | 34496 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
