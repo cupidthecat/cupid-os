@@ -7,9 +7,9 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 672
-- Unreachable source-like files: 36
+- Unreachable source-like files: 39
 - Reachable output transforms: 480
-- Distinct feature requirements: 248
+- Distinct feature requirements: 247
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -40,9 +40,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `driver` | 22 | 3774 |
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
-| `kernel_assembly` | 3 | 484 |
+| `kernel_assembly` | 3 | 510 |
 | `kernel_audio` | 14 | 4532 |
-| `kernel_core` | 16 | 3903 |
+| `kernel_core` | 16 | 3947 |
 | `kernel_cpu` | 18 | 3255 |
 | `kernel_crypto` | 40 | 5144 |
 | `kernel_fs` | 26 | 6076 |
@@ -51,12 +51,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_lang` | 20 | 10542 |
 | `kernel_mm` | 7 | 1291 |
 | `kernel_network` | 20 | 3629 |
-| `kernel_smp` | 14 | 1081 |
+| `kernel_smp` | 14 | 1134 |
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 9 | 9720 |
-| `toolchain_core` | 12 | 12142 |
+| `toolchain_contract` | 9 | 9743 |
+| `toolchain_core` | 12 | 12084 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 154 |
@@ -87,28 +87,28 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Feature family | Distinct requirements | Lexical/build occurrences |
 | --- | ---: | ---: |
-| `asm.addressing` | 6 | 119 |
+| `asm.addressing` | 6 | 122 |
 | `asm.delivery` | 1 | 22 |
-| `asm.directive` | 18 | 297 |
+| `asm.directive` | 18 | 298 |
 | `asm.expression` | 2 | 12 |
-| `asm.instruction` | 91 | 1197 |
-| `asm.label` | 2 | 153 |
+| `asm.instruction` | 90 | 1208 |
+| `asm.label` | 2 | 156 |
 | `asm.output` | 2 | 4 |
 | `asm.prefix` | 2 | 6 |
-| `asm.preprocessor` | 2 | 4 |
-| `asm.register` | 27 | 734 |
-| `asm.relocation` | 1 | 5 |
-| `c.control` | 12 | 41074 |
-| `c.declaration` | 1 | 21 |
+| `asm.preprocessor` | 2 | 5 |
+| `asm.register` | 27 | 742 |
+| `asm.relocation` | 1 | 6 |
+| `c.control` | 12 | 41080 |
+| `c.declaration` | 1 | 22 |
 | `c.declarator` | 4 | 1362 |
-| `c.expression` | 1 | 1248 |
+| `c.expression` | 1 | 1247 |
 | `c.extension` | 16 | 365 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 17 | 6234 |
-| `c.qualifier` | 2 | 4512 |
-| `c.storage` | 4 | 4438 |
-| `c.type` | 14 | 34472 |
+| `c.preprocessor` | 17 | 6235 |
+| `c.qualifier` | 2 | 4513 |
+| `c.storage` | 4 | 4445 |
+| `c.type` | 14 | 34480 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -169,7 +169,7 @@ It is also a declared Make prerequisite.
 | `exact_duplicate` | 7 |
 | `explicitly_excluded` | 2 |
 | `historical_copy` | 7 |
-| `not_reached` | 15 |
+| `not_reached` | 18 |
 | `superseded` | 5 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -211,6 +211,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.c` |
 | `kernel/lang/cupidc_runtime.c` | `c` | `not_reached` | 284 | not reachable from the supported Make target or include closure |
 | `kernel/lang/cupidc_runtime.h` | `c_header` | `not_reached` | 66 | not reachable from the supported Make target or include closure |
+| `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 36 | not reachable from the supported Make target or include closure |
+| `tests/kernel_exec_contract.c` | `c` | `not_reached` | 579 | not reachable from the supported Make target or include closure |
+| `tests/kernel_process_contract.c` | `c` | `not_reached` | 787 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `not_reached` | 8 | not reachable from the supported Make target or include closure |
 
 ## Audit contracts
