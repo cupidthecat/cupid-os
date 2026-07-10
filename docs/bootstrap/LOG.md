@@ -788,3 +788,29 @@ The baseline runner rebuilt committed cutover revision `0969300` twice in isolat
 | Evidence file | 252,773 bytes; SHA-256 `bd896f8219e9127098b21de5c1a2eaa8e3b9e15e4a927ab3b15dd778c4bb15f8` |
 
 The captured required-tool set no longer contains an assembler; NASM 2.16.01 is fingerprinted only under `optional_oracle_tools`. Relative to the preceding Windows evidence, exactly four artifacts changed: the 696-byte context-switch object, the 1,892-byte ISR object, and the pass-one/final linked ELF containers. The boot image, SMP trampoline, flattened kernel, disk image, all sizes at loaded boundaries, and every other manifest artifact remain byte-identical. This is the expected distinction between Cupid's deterministic ELF metadata layout and NASM's container layout, not a runtime payload change. The complete Linux oracle remains pending on its separate roadmap ticket.
+
+## 2026-07-10: Linux host portability and hermetic test gates
+
+The first implementation step for [the Linux oracle baseline](https://github.com/cupidthecat/cupid-os/issues/23) makes the existing freestanding source build under both supported host compiler families without weakening the AP/FPU invariant. GCC 13.3 rejected `fpu_init_cpu` because the per-function `no-sse,no-sse2` target inherited translation-unit `fpmath=sse`; the resulting contradictory option state warned that GCC was falling back to x87, and the repository's `-Werror` policy stopped the build. `target("general-regs-only")` is accepted by GCC 13.3 and Clang 18/22, prohibits compiler use of x87/MMX/SIMD registers, and still permits the two intentional post-enable `fninit` and `ldmxcsr` inline instructions. A production-source code-generation contract now rejects FP/SIMD registers, implicit x87 instructions, and runtime helper calls before the CR4 write, then requires CR4, `fninit`, and `ldmxcsr` in order. This closes the less obvious case where a future floating expression could lower to a soft-float helper call without naming an FP register.
+
+The next clean GCC build reached CupidLD and exposed allocated `.eh_frame` input that Clang's i386-unknown-ELF path had not emitted. The kernel and fixed-address user programs have no CFI unwinder, so all freestanding C recipes now explicitly disable synchronous and asynchronous unwind tables instead of teaching the linker to retain unusable metadata. Both strict kernel and relaxed vendored flags, plus the separate user-program flags, share that policy. A dry-run contract pins it on representative strict, vendored, and user objects.
+
+The isolated Linux test run found two host-environment failures unrelated to OS semantics. A user-installed regular Python package named `tools` displaced the repository's former namespace-package directory; a tracked `tools/__init__.py` and a hostile-package subprocess regression make imports checkout-local. Two build-audit fixtures used shell-dependent `echo` quoting and emitted `[main.o]` under POSIX `sh`; they now use the current Python interpreter and `json.dumps`, matching the production manifest seam on both Windows and Linux.
+
+### Red/green evidence
+
+- The new FPU compiler contract first reproduced GCC's `SSE instruction set disabled, using 387 arithmetics` failure, then passed on WSL GCC 13.3 and Windows Clang 22 with identical safety ordering.
+- The first post-FPU clean link failed explicitly on `kernel/core/kernel.o` section 11, `.eh_frame`; the new freestanding recipe contract failed for strict, vendored, and user C before the flags were added. A clean 424-object GCC build then completed both CupidLD passes, CupidObj flattening, and the 200 MB image with `ASM` and `NASM` poisoned.
+- The package-isolation test first imported `/home/frank/.local/lib/python3.12/site-packages/tools`; both platform runs now resolve `tools/bootstrap_baseline.py` from the checkout.
+- Both audit fixtures first failed on Linux with `did not emit a JSON string list`; the focused two-platform cases now pass.
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| WSL repository Python suite | PASS | All 149 tests passed in 140.038 seconds. |
+| WSL clean root build, host assemblers poisoned | PASS | GCC built the complete 424-object image; CupidASM owned all four production assembly transforms. |
+| WSL `make -C user clean all` | PASS | All three freestanding user programs compiled with no unwind metadata and linked through CupidLD. |
+| WSL `make -C toolchain clean test` | PASS | Every strict hosted contract mode and all 22 demo assemblies passed under GCC. |
+| Windows clean root build, host assemblers poisoned | PASS | Clang accepted the shared portability flags and completed the full image. |
+| Focused Windows/Linux FPU, package, recipe, and audit contracts | PASS | All new positive contracts pass on both supported hosts after recording their failing state. |
+
+This is source/build portability evidence, not the oracle capture itself. The next committed step must run both isolated builds, all three supported roots, host tests, and guest smokes from one revision before Linux baseline status changes from pending.
