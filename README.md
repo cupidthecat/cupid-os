@@ -251,13 +251,15 @@ make HDD_MB=100
 | `make bootstrap-audit` | Regenerate the checked active-source/build-feature inventory |
 | `make check-bootstrap-audit` | Reject audit drift or a failing graph contract |
 | `make bootstrap-baseline` | Build committed HEAD twice in isolation and record host-toolchain evidence |
+| `make bootstrap-host-comparison` | Compare the checked Windows/Linux baseline evidence and write the cross-host record |
+| `make check-bootstrap-host-comparison` | Reject stale, failed, or structurally incomparable checked host evidence |
 | `make stage-wads` | Copy Freedoom WADs from host into FAT16 partition |
 | `make sync-demos` | Copy demos/*.asm into the FAT16 partition |
 | `make clean` | Remove object files, keep cupidos.img |
 | `make clean-image` | Remove cupidos.img only |
 | `make distclean` | Remove everything including cupidos.img |
 
-`make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
+`make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact across the root, user, and hosted-toolchain roots. Checked revision `1e079d1` reproduces all 447 artifacts independently on Windows Clang/LLVM and Linux GCC/binutils; `make check-bootstrap-host-comparison` verifies the shared logical cohort and behavior/quality contract without requiring cross-toolchain byte equality. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
 
 ### Copying files into the disk image
 
