@@ -64,17 +64,21 @@ This approach avoids the complexity and stack corruption risks of switching insi
 The context switch is implemented in pure x86 assembly (`context_switch.asm`):
 
 ```
-context_switch(process_t *old_proc, process_t *new_proc)
+context_switch(process_t *old_proc, process_t *new_proc,
+               uint32_t resume_eflags)
 ```
 
 ### What It Does
 
-1. **Save** EFLAGS and callee-saved registers on the current stack
+1. **Save** the scheduler caller's pre-BKL EFLAGS and callee-saved registers on the current stack
 2. **FXSAVE** the current x87/SSE state into `old_proc->fp_state`
 3. **Store** ESP in `old_proc->context.esp`
 4. **Load** `new_proc->context.esp` and **FXRSTOR** its x87/SSE state
-5. Re-enable interrupts only after the new stack is active
-6. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
+5. Release the scheduler's sole BKL acquisition through `bkl_context_switch_release()` on the new stack
+6. Restore the target's interrupt policy only after the new stack and FPU state are active
+7. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
+
+The handoff is deliberately split across C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. This prevents a suspended caller's critical section from becoming owned by the unrelated process selected next. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
 
 ### Resume Path
 
@@ -144,8 +148,18 @@ Processes are indexed by `PID - 1`.
 - A terminated process keeps its stack and image while `on_cpu` identifies an
   executing CPU
 - The outgoing CPU publishes `on_cpu = 0xFF` while holding the BKL as part of
-  the stack switch; only then may a reaper free the stack, release an external
-  image lease, and clear the PCB
+  the stack switch; the BKL is released only after target ESP/FXRSTOR, and only
+  then may a reaper free the old stack, release an external image lease, and
+  clear the PCB
+
+### Remote Reschedule
+
+`process_kill()` marks a process running on another CPU terminated, publishes
+that CPU's `reschedule_pending` flag, and then raises IPI `0xF0`. The IPI
+handler acknowledges the LAPIC and consumes the already-published request
+without re-arming it. If the target CPU owns an outer BKL critical section,
+the request remains pending until that outer unlock; otherwise it switches at
+the IPI suspension point and later returns through the original `IRET` frame.
 
 ---
 
