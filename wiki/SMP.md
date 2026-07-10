@@ -396,21 +396,31 @@ uint8_t  last_cpu;   // logical cpu_id last time it ran (for NUMA hints)
 
 `current_pid` moves from a global variable into `per_cpu_t.current_pid`.
 Each CPU reads `this_cpu()->current_pid` to identify its own running
-process; the global accessor `get_current_pid()` compiles to
-`mov eax, gs:[12]`.
+process. The field is at offset `0x24`; `process_get_current_pid()` loads it
+through the per-CPU pointer selected by `%gs`.
 
-APs run `schedule()` inside their idle loop:
+Only a detached `READY` PCB (`on_cpu == 0xFF`) may migrate. PID 1's single
+stack is a BSP-only fallback. Each AP enters its inline schedule / `STI; HLT`
+loop with `current_pid == 0`; its first dispatch saves that PID-less bootstrap
+stack and FPU state in `cpu_idle_contexts[cpu_id]`. A blocked or terminated AP
+task can switch back to its own CPU-local context and detach safely for the
+quiescent reaper without borrowing PID 1 or another CPU's stack.
 
-```c
-void scheduler_ap_idle(void) {
-    while (1) {
-        bkl_acquire();
-        schedule();
-        bkl_release();
-        __asm__ volatile("hlt");   // wait for next LAPIC timer tick
-    }
-}
-```
+---
+
+## Interrupt Entry and Per-CPU GS
+
+Common exception and IRQ entry keeps the live per-CPU `%gs` selector while C
+runs; only `%ds`, `%es`, and `%fs` are replaced with the flat data selector.
+Entry increments `interrupt_depth`, so BKL unlock and direct `schedule()` calls
+leave a request pending until the handler completes and, for IRQs,
+`irq_handler()` has sent the LAPIC EOI. Common exit then decrements the depth
+and calls `process_reschedule_if_pending()` at an explicit suspension point.
+
+The saved `%gs` frame slot is discarded rather than reloaded. A suspended
+frame may resume on a different CPU and must retain that destination CPU's
+live selector; restoring the source selector would make `this_cpu()` address
+the wrong `per_cpu_t`.
 
 ---
 
