@@ -20464,7 +20464,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "1007033eba895a31de2f4283b08a7ce2e0b947747f31bb58d57cff31e0220c17"
+        "sha256": "1da96a5169ccc9b89b578409b22f3d4b128902f23aede5b1bad124f29d5be51b"
       }
     ],
     "generator": {
@@ -44528,7 +44528,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/core-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CORE_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CORE_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44593,7 +44593,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidasm-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDASM_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44611,7 +44611,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidasm-demos-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDASM_DEMOS_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_DEMOS_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44628,7 +44628,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidasm-kernel-elf-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44646,7 +44646,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidasm.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDASM_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44758,7 +44758,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupiddis-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDDIS_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44776,7 +44776,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupiddis.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDDIS_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44849,7 +44849,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidld-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDLD_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44866,7 +44866,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidld.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDLD_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44936,7 +44936,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidobj-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDOBJ_CONTRACT_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDOBJ_CONTRACT_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -44953,7 +44953,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/cupidobj.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(CUPIDOBJ_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDOBJ_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -45022,7 +45022,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/elf32-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(ELF32_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
@@ -45071,7 +45071,7 @@
           "operation": "compile_and_link_host_executable",
           "output": "toolchain/build/x86-contract.exe",
           "recipe": [
-            "$(CC) $(CFLAGS) $(X86_OBJECTS) -o $@"
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(X86_OBJECTS) -o $@"
           ],
           "tools": [
             "host_c_compiler"
