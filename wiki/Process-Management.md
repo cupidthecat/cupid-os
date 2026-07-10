@@ -9,7 +9,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 | Property | Value |
 |----------|-------|
 | Scheduling algorithm | Round-robin |
-| Timer tick | 5ms (PIT channel 0 at 200Hz) |
+| Timer tick | 10ms (PIT channel 0 at 100Hz) |
 | Max processes | 32 |
 | Address space | Flat, shared (ring 0) |
 | Context switch | Pure assembly (`context_switch.asm`) |
