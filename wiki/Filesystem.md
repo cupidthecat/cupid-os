@@ -265,7 +265,7 @@ The program loader (`kernel/lang/exec.c/h`) loads and runs executables from the 
 
 | Format | Magic Bytes | Description |
 |--------|-------------|-------------|
-| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Standard i386 ELF executables, compiled with GCC/Clang |
+| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Static i386 ELF executables, currently compiled with GCC/Clang and linked with CupidLD |
 | **CUPD** | `43 55 50 44` (`CUPD`) | CupidOS flat binary format (legacy) |
 
 ### Format Detection
@@ -287,7 +287,7 @@ exec("/home/hello", "hello")
 
 ### ELF32 Programs (Primary Format)
 
-ELF is the recommended format. Programs are compiled with a standard GCC cross-compiler and receive a **syscall table** pointer as their first argument. See the full [ELF Programs](ELF-Programs) wiki page for compiling, API reference, and examples.
+ELF is the recommended binary format. The hosted examples are compiled to relocatable objects with GCC/Clang, linked with CupidLD, and receive a **syscall table** pointer as their first argument. See the full [ELF Programs](ELF-Programs) wiki page for compiling, API reference, and examples.
 
 **Quick example:**
 
@@ -303,14 +303,13 @@ void _start(cupid_syscall_table_t *sys) {
 
 **Loading process (ELF):**
 
-1. Open file via `vfs_open(path, O_RDONLY)`
-2. Read and validate 52-byte ELF header (architecture, class, endianness)
-3. Read program headers, find all `PT_LOAD` segments
-4. Compute virtual address range (`min_vaddr` -> `max_vaddr`)
-5. Reserve physical pages via `pmm_reserve_region()` (identity-mapped)
-6. Zero the entire region, then load each segment to its `p_vaddr`
-7. Create a process with `process_create_with_arg()`, passing the syscall table
-8. Process runs as a normal scheduled kernel thread
+1. Stat and open the file, then validate its ELF32/i386/static header and table bounds
+2. Validate every `PT_LOAD`, executable entry, alignment, file range, and accepted fixed arena
+3. Read the complete zero-initialized image into bounded staging memory
+4. Claim the exclusive external-arena lease when that profile is selected
+5. Commit the staged bytes to their identity-mapped virtual addresses
+6. Call `process_create_with_arg_image_ex()` to transfer image/lease ownership atomically with process publication
+7. Process runs as a normal scheduled kernel thread; cleanup releases the lease, not the permanently reserved pages
 
 ### CUPD Programs (Legacy Format)
 

@@ -1,6 +1,6 @@
 # Reproducible oracle baseline
 
-The baseline runner freezes what the current external host toolchain produces before Cupid tools take ownership. It is an oracle and regression aid, not part of the fixed-point toolchain.
+The baseline runner freezes a committed normal build—including Cupid-owned stages and remaining host-owned stages—as reproducibility and oracle evidence during ownership transfer. It is not part of the fixed-point toolchain.
 
 ## Entry points
 
@@ -30,7 +30,7 @@ The revision must resolve to a commit. Working-tree changes and untracked files 
 
 The runner:
 
-1. Resolves and hashes the Make, Python, C compiler, NASM, linker, `objcopy`, `nm`, and QEMU executables and records their version output. It also records the availability, versions, and hashes of optional PATH-dependent JPEG normalizers (`jpegtran`, `djpeg`/`cjpeg`, and FFmpeg) that can change embedded bytes. Conversion can fall through per file, so artifact hashes—not this availability inventory—are the authority for what was produced.
+1. Resolves and hashes the Make, Python, C compiler, NASM, `nm`, and QEMU executables still required by the normal build or runtime gates and records their version output. Retired host linker and object-copy tools are no longer preflight requirements. The runner also records the availability, versions, and hashes of optional PATH-dependent JPEG normalizers (`jpegtran`, `djpeg`/`cjpeg`, and FFmpeg) that can change embedded bytes. Conversion can fall through per file, so artifact hashes—not this availability inventory—are the authority for what was produced.
 2. Creates two independent worktrees for the requested revision.
 3. Runs `distclean`, then a complete image build with fixed disk geometry and `WAD_SRCS=` so optional host WAD discovery cannot change the image.
 4. Asks Make for the final ordered `KERNEL_OBJS` cohort after every conditional/discovered append, plus the boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries. `make check-bootstrap-audit` independently proves that every linked object is present in this manifest.

@@ -8,9 +8,10 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 | Tool | Purpose |
 |------|---------|
-| **NASM** | Assembler for bootloader and context switch |
+| **NASM** | Owns the current boot, ISR, context-switch, and SMP-trampoline transforms |
 | **GCC** (32-bit support, Linux) | C compiler for kernel and drivers on Linux |
-| **LLVM** (Windows) | `clang`, `ld.lld`, `llvm-objcopy`, and `llvm-nm` for native Windows ELF builds |
+| **GNU binutils** (Linux) | `nm` for the remaining kernel-symbol extraction hand-off |
+| **LLVM** (Windows) | `clang` for C compilation and `llvm-nm` for kernel-symbol extraction; CupidLD/CupidObj own linking and binary transforms |
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
@@ -22,12 +23,12 @@ This guide walks you through building cupid-os from source and running it in QEM
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
+sudo apt-get install nasm gcc gcc-multilib binutils python3 make qemu-system-x86
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S nasm gcc python make qemu-full
+sudo pacman -S nasm gcc binutils python make qemu-full
 ```
 
 ### Native Windows
@@ -38,8 +39,8 @@ Install GNU Make, Python 3, NASM, LLVM, and QEMU, and make sure they are on
 choco install make python nasm llvm qemu
 ```
 
-MinGW GCC/LD are not enough for the default native Windows build because the
-kernel is linked as ELF; the Makefile defaults to LLVM on Windows.
+MinGW GCC is not the supported native Windows compiler; the Makefile defaults
+to Clang's i386 freestanding target. The kernel is linked by CupidLD.
 QEMU defaults to no host audio on Windows so booting does not depend on a
 working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
 enable DirectSound.
@@ -58,7 +59,7 @@ make
 ```
 
 This produces:
-- `boot/boot.bin` - 512-byte bootloader
+- `boot/boot.bin` - 2,560-byte image (512-byte stage 1 + 2 KiB stage 2)
 - `kernel/kernel.bin` - Flat binary kernel
 - `cupidos.img` - Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
 
@@ -87,7 +88,7 @@ Default is `HDD_MB=200`.
 | `make run-ssh` | Boot with RTL8139 networking and host port 2222 forwarded to guest port 22 |
 | `make test-net` | Run the headless networking integration harness |
 | `make stage-wads` | Copy Freedoom WAD files into `/disk/wads/` |
-| `make sync-demos` | Copy local `demos/*.asm` into `/home/demos` in `cupidos.img` |
+| `make sync-demos` | Stage local `demos/*.asm` into raw FAT `/demos` (guest `/disk/demos`; first-boot homefs import may also seed `/home/demos`) |
 
 ---
 

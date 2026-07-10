@@ -38,7 +38,7 @@ void main() {
 
 **Option A: Build-time (ramfs)**
 
-Place the file in the `bin/` directory in the source tree. The Makefile auto-discovers all `bin/*.cc` files, embeds them into the kernel image via `objcopy`, and generates the installation code automatically. When the OS boots, your program appears at `/bin/hello.cc`. Type `hello` in the shell and it runs.
+Place the file in the `bin/` directory in the source tree. The Makefile auto-discovers all `bin/*.cc` files, embeds them into the kernel image through CupidObj, and generates the installation code automatically. When the OS boots, your program appears at `/bin/hello.cc`. Type `hello` in the shell and it runs.
 
 To add a new build-time program:
 1. Create `bin/<name>.cc`
@@ -957,4 +957,4 @@ See also: [Ed Editor](Ed-Editor)
 - [CupidC Compiler](CupidC-Compiler) - full language reference and compiler internals
 - [Shell Commands](Shell-Commands) - all built-in commands
 - [Filesystem](Filesystem) - VFS, ramfs, FAT16, and directory structure
-- [ELF Programs](ELF-Programs) - compiling native C programs with GCC for cupid-os
+- [ELF Programs](ELF-Programs) - compiling hosted C to ELF32 objects with GCC/Clang and linking with CupidLD

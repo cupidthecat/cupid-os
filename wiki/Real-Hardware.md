@@ -46,17 +46,18 @@ Result: `cupidos.img` - a full 200 MB MBR disk image containing:
 ```
 LBA 0        MBR + Stage 1 bootloader
 LBA 1-4      Stage 2 bootloader
-LBA 5-4095   Kernel (up to ~2 MB)
-LBA 4096+    FAT16 partition (mounted as /disk and backing /home)
+LBA 5-16383  Reserved kernel area (loaded bytes are guarded by link.ld)
+LBA 16384+   FAT16 partition (mounted as /disk; initial import source for /home)
 ```
 
 Because the image already contains a real MBR + partition table, it can be written byte-for-byte to any disk that is at least `HDD_MB` in size.
 
-Optional: seed `/home` with files before flashing.
+Optional: seed FAT root before the image's first boot. The first homefs mount
+imports these files into `/home`; later raw additions remain under `/disk`.
 
 ```bash
-mcopy -o -i cupidos.img@@2097152 myfile.txt ::/myfile.txt
-mdir  -i cupidos.img@@2097152 ::/
+mcopy -o -i cupidos.img@@8388608 myfile.txt ::/myfile.txt
+mdir  -i cupidos.img@@8388608 ::/
 ```
 
 ---

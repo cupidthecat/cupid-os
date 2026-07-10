@@ -10,12 +10,13 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
     │
     ├── Set up stack at 0x7C00
-    ├── Load kernel from disk (sectors 1+) to 0x10000
+    ├── Read kernel chunks through the 0x10000 real-mode bounce buffer
+    ├── Copy each chunk to its final 0x00100000+ address with unreal mode
     ├── Set 640x480x32bpp via Bochs VBE I/O ports (0x01CE/0x01CF)
     ├── Read VBE LFB address from PCI BAR0 -> store at 0x0500
     ├── Set up GDT (flat model: code + data segments)
     ├── Switch to protected mode (CR0 bit 0)
-    └── Far jump to kernel entry at 0x10000
+    └── Far jump to kernel entry at 0x00100000
             │
             ├── idt_init()          - Interrupt Descriptor Table
             ├── pic_init()          - PIC remapping (IRQ0->32, IRQ8->40)
@@ -60,7 +61,7 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 0x00B00000 ├──────────────────────────┤
            │ Kernel stack             │ 2MB, grows down
 0x00D00000 ├──────────────────────────┤
-           │ Reserved gap             │ PMM-managed when free
+           │ External ELF arena       │ 2MB, permanent reservation/exclusive lease
 0x01000000 ├──────────────────────────┤
            │ CupidC JIT/AOT           │ 1MB code + 8MB data
 0x01900000 ├──────────────────────────┤

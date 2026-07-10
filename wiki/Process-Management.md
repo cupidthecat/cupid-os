@@ -31,7 +31,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
               │ exit() / kill()
               ▼
          ┌──────────┐
-         │TERMINATED│ -> stack freed lazily on slot reuse
+         │TERMINATED│ -> detach from CPU -> quiescent reaper cleanup
          └──────────┘
 ```
 
@@ -64,15 +64,17 @@ This approach avoids the complexity and stack corruption risks of switching insi
 The context switch is implemented in pure x86 assembly (`context_switch.asm`):
 
 ```
-context_switch(uint32_t *old_esp, uint32_t new_esp, uint32_t new_eip)
+context_switch(process_t *old_proc, process_t *new_proc)
 ```
 
 ### What It Does
 
-1. **Save** callee-saved registers: push EFLAGS, EBX, ESI, EDI, EBP onto current stack
-2. **Store** the resulting ESP into `*old_esp` (old process's PCB)
-3. **Load** new ESP from `new_esp` parameter
-4. **Jump** to `new_eip` (either `context_switch_resume` or process entry point)
+1. **Save** EFLAGS and callee-saved registers on the current stack
+2. **FXSAVE** the current x87/SSE state into `old_proc->fp_state`
+3. **Store** ESP in `old_proc->context.esp`
+4. **Load** `new_proc->context.esp` and **FXRSTOR** its x87/SSE state
+5. Re-enable interrupts only after the new stack is active
+6. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
 
 ### Resume Path
 
@@ -93,14 +95,20 @@ A static array of 32 Process Control Blocks (PCBs):
 
 ```c
 typedef struct {
-    uint32_t pid;           // Process ID (1-based)
-    process_state_t state;  // READY, RUNNING, BLOCKED, TERMINATED
-    uint32_t esp;           // Saved stack pointer
-    uint32_t eip;           // Saved instruction pointer
-    uint32_t stack_base;    // Bottom of allocated stack
-    uint32_t stack_size;    // Stack size in bytes
-    char name[32];          // Process name for display
-} pcb_t;
+    uint32_t pid;                       // Process ID (1-based)
+    process_state_t state;              // READY/RUNNING/BLOCKED/TERMINATED
+    cpu_context_t context;              // Saved registers, ESP, and EIP
+    uint8_t fp_state[512];               // 16-byte-aligned FXSAVE image
+    void *stack_base;
+    uint32_t stack_size;
+    uint32_t image_base, image_size;
+    process_image_ownership_t image_ownership;
+    uint32_t image_lease_generation;
+    process_domain_t domain;
+    char name[32];
+    uint8_t on_cpu;                     // 0xFF only after scheduler detach
+    uint8_t last_cpu;
+} process_t;
 ```
 
 Processes are indexed by `PID - 1`.
@@ -122,16 +130,20 @@ Processes are indexed by `PID - 1`.
 
 ### Stack Allocation
 - Each process gets its own stack via `kmalloc(stack_size)`
-- Default stack size: 4KB (configurable via `DEFAULT_STACK_SIZE`)
+- Default stack size: 32 KiB (configurable via `DEFAULT_STACK_SIZE`)
 
 ### Stack Canary
 - A canary value (`0xDEADC0DE`) is placed at the bottom of every stack
 - Checked on **every context switch**
-- If corrupted -> kernel panic with process identification
+- If corrupted, the process is marked terminated; its current CPU switches
+  away before the reaper may release the stack or executable-image lease
 
 ### Deferred Stack Freeing
-- When a process is terminated, its stack is **not freed immediately** (because we may still be using it)
-- Stack is freed **lazily** when the PCB slot is reused for a new process
+- A terminated process keeps its stack and image while `on_cpu` identifies an
+  executing CPU
+- The outgoing CPU publishes `on_cpu = 0xFF` while holding the BKL as part of
+  the stack switch; only then may a reaper free the stack, release an external
+  image lease, and clear the PCB
 
 ---
 
@@ -169,7 +181,10 @@ Voluntarily gives up the CPU. Clears the reschedule flag and calls `schedule()`.
 process_exit();
 ```
 
-Marks the process as `TERMINATED`, defers stack free, and reschedules. Also called automatically when a process's entry function returns (via the exit trampoline).
+Marks the process as `TERMINATED` and reschedules without clearing its current
+CPU ownership. The scheduler detaches it during the actual context switch;
+the quiescent reaper later frees its stack and releases any external image
+lease. Also called automatically when a process entry function returns.
 
 ### Killing
 
@@ -177,7 +192,9 @@ Marks the process as `TERMINATED`, defers stack free, and reschedules. Also call
 process_kill(pid);
 ```
 
-Terminates any process by PID. Cannot kill PID 1 (idle process).
+Marks any process terminated by PID. A target already detached from every CPU
+is reclaimed immediately; an executing local or remote target retains its
+stack and image until its owning CPU switches away. PID 1 cannot be killed.
 
 ### Listing
 

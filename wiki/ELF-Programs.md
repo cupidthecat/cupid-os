@@ -1,6 +1,6 @@
 # ELF Programs
 
-CupidOS supports loading and running standard **ELF32 i386** executables compiled with GCC or Clang. Programs run as kernel threads in ring 0 and access kernel services through a **syscall table** - a struct of function pointers passed to the program's `_start()` entry point.
+CupidOS supports loading and running static **ELF32 i386** executables. The current hosted examples are compiled to relocatable objects by GCC or Clang and linked by CupidLD. Programs run as kernel threads in ring 0 and access kernel services through a **syscall table** - a struct of function pointers passed to the program's `_start()` entry point.
 
 ---
 
@@ -35,7 +35,7 @@ make -C user
 # Or compile manually:
 gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
     -Iuser -c user/examples/hello.c -o hello.o
-ld -m elf_i386 -Ttext=0x00600000 --oformat=elf32-i386 \
+cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
     -o hello hello.o
 ```
 
@@ -44,22 +44,23 @@ ld -m elf_i386 -Ttext=0x00600000 --oformat=elf32-i386 \
 Copy the binary onto the FAT16 disk image:
 
 ```bash
-# Build image (or reuse existing)
+# Build a fresh, never-booted image
+make clean-image
 make
 
-# Copy programs (FAT root ::/ maps to CupidOS /home)
-mcopy -o -i cupidos.img@@2097152 user/build/hello ::/HELLO
-mcopy -o -i cupidos.img@@2097152 user/build/ls    ::/LS
-mcopy -o -i cupidos.img@@2097152 user/build/cat   ::/CAT
-
-# Verify
-mdir -i cupidos.img@@2097152 ::/
+# Stage programs at FAT root before first boot; homefs imports them into /home
+python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 \
+    user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
 ```
+
+After an image has booted and created `HOMEFS.SYS`, newly staged FAT-root files
+appear under `/disk` and are not automatically re-imported. Run them there or
+copy them into `/home` from inside Cupid OS.
 
 ### 4. Run in CupidOS
 
 ```
-/home> exec /home/HELLO
+/home> exec /home/hello
 Hello from an ELF program!
   PID: 4
 ```
@@ -72,11 +73,11 @@ Hello from an ELF program!
 
 ```
 ┌────────────────────┐
-│   ELF Binary       │  (on FAT16 disk at /home/HELLO)
-│   .text @ 0x600000 │
+│   ELF Binary       │  (on FAT16 disk at /home/hello)
+│   .text @ 0xD00000 │
 │   .data / .bss     │
 └────────┬───────────┘
-         │  exec("/home/HELLO", "hello")
+         │  exec("/home/hello", "hello")
          ▼
 ┌────────────────────────────────────────────────┐
 │  1. Format Detection                           │
@@ -88,16 +89,16 @@ Hello from an ELF program!
 │  3. Scan PT_LOAD Segments                      │
 │     Calculate vaddr range (min -> max)         │
 ├────────────────────────────────────────────────┤
-│  4. Reserve Physical Pages                     │
-│     pmm_reserve_region(page_base, page_size)   │
+│  4. Classify Fixed Executable Arena            │
+│     claim the external arena's exclusive lease │
 ├────────────────────────────────────────────────┤
 │  5. Load Segments at Virtual Addresses         │
 │     memset(0) entire region, then read each    │
 │     segment directly to its p_vaddr            │
 ├────────────────────────────────────────────────┤
 │  6. Create Process                             │
-│     process_create_with_arg(entry, name,       │
-│         stack_size, &syscall_table)            │
+│     atomically transfer image/lease ownership  │
+│     before publishing the READY process        │
 ├────────────────────────────────────────────────┤
 │  7. Schedule                                   │
 │     process_yield() -> new process runs        │
@@ -110,17 +111,15 @@ CupidOS uses a **flat 512 MB identity-mapped** address space. ELF programs are l
 
 ```
 Physical / Virtual Memory (512 MB identity-mapped):
-┌─────────────────────────┬──────────────────────┐
-│ 0x00000000 - 0x00010000 │ Reserved (64 KB)     │
-│ 0x00010000 - 0x00040000 │ Kernel (~192 KB)     │
-│ 0x00040000 - 0x00200000 │ Heap + Stacks        │
-│ 0x00500000 - ...        │ ELF Program Memory   │
-│ ...                     │ ...                  │
-│ 0x20000000              │ End of identity map  │
-└─────────────────────────┴──────────────────────┘
+0x00100000 ... kernel image ... below 0x00B00000
+0x00B00000 - 0x00D00000  fixed kernel stack
+0x00D00000 - 0x00F00000  exclusive external-ELF arena
+0x01000000 - 0x01900000  CupidC JIT/AOT region
+0x01A00000 - 0x01C00000  CupidASM JIT/AOT region
+0x20000000                end of identity map
 ```
 
-Programs should be linked at `0x00600000` by default. The loader rejects ELF load ranges below `0x00500000` to avoid kernel image overlap, and the PMM reserves the pages used by each ELF so they won't be allocated for other purposes. When the process exits, the pages are released back to the PMM.
+Ordinary external programs are linked at `0x00D00000`. The whole two-MiB arena is permanently reserved from ordinary PMM allocation and leased to one fixed-address external process at a time; process cleanup releases the lease, not the permanent pages.
 
 ### Syscall Table
 
@@ -157,8 +156,8 @@ This design is simple, fast (no mode switches), and gives programs full kernel a
 | Flag | Purpose |
 |------|---------|
 | `-m elf_i386` | Target i386 ELF format |
-| `-Ttext=0x00600000` | Set code base address (6 MB) |
-| `--oformat=elf32-i386` | Output ELF32 format |
+| `--text-address 0x00D00000` | Set the external-ELF arena base |
+| `--entry _start` | Select the program entry symbol |
 
 ### User Makefile
 
@@ -537,21 +536,22 @@ ELF binaries go on the FAT16 partition inside `cupidos.img`:
 # Build the programs
 make -C user
 
-# Copy programs into FAT root (::/), which appears as /home in CupidOS
-mcopy -o -i cupidos.img@@2097152 user/build/hello ::/HELLO
-mcopy -o -i cupidos.img@@2097152 user/build/ls    ::/LS
-mcopy -o -i cupidos.img@@2097152 user/build/cat   ::/CAT
-
-# List contents
-mdir -i cupidos.img@@2097152 ::/
+# For /home import, stage into a fresh image before its first boot
+make clean-image
+make
+python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 \
+    user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
 ```
+
+On an already-booted image these staged files are visible under `/disk`; copy
+them into `/home` in the guest if persistent homefs placement is required.
 
 Then in CupidOS:
 
 ```
-/home> exec /home/HELLO
-/home> exec /home/LS
-/home> exec /home/CAT
+/home> exec /home/hello
+/home> exec /home/ls
+/home> exec /home/cat
 ```
 
 ---
@@ -575,28 +575,38 @@ The loader checks all of the following before loading:
 
 | Constraint | Value | Reason |
 |------------|-------|--------|
-| Minimum vaddr | `0x00500000` (5 MB) | Stay above the kernel image |
-| Maximum vaddr | `0x20000000` (512 MB) | End of identity map |
-| Max total image | 256 KB | `EXEC_MAX_SIZE` limit |
-| Link address | `0x00600000` (recommended) | Loader diagnostic recommends this for external ELFs |
+| External arena | `0x00D00000..0x00F00000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
+| Max external image span | 2 MiB | The complete image must fit the external arena |
+| Entry/load range | Wholly inside one accepted arena | Prevent cross-region overwrite |
+| Link address | `0x00D00000` | Fixed base used by `user/Makefile` |
+
+The loader also preserves CupidC's `0x01000000..0x01900000` and CupidASM's
+`0x01A00000..0x01C00000` fixed AOT ranges. An image must fit wholly inside
+exactly one of these three arenas, and its entry must be inside a loaded
+segment. The legacy Cupid ranges are permanent shared runtime regions; the
+exclusive lease applies only to ordinary external images.
 
 ### Memory Lifecycle
 
 ```
-exec("/home/HELLO")
+exec("/home/hello")
   │
-  ├─ pmm_reserve_region(page_base, page_size)  ← pages locked
-  ├─ load segments to vaddr
-  ├─ process_create_with_arg(...)
-  ├─ process_set_image(pid, page_base, page_size)
+  ├─ validate and read a zero-filled staging image
+  ├─ claim external-ELF arena lease
+  ├─ commit staged segments to fixed vaddrs
+  ├─ create process with image/lease metadata atomically
   │
   │  ... program runs ...
   │
-  └─ exit()  ->  process_exit()
-                 │
-                 └─ find_free_slot() reaps terminated process
-                    └─ pmm_release_region(image_base, image_size)  ← pages freed
+  └─ exit()  -> mark TERMINATED -> scheduler detaches owning CPU
+                                      │
+                                      └─ quiescent reaper releases lease
 ```
+
+Load/read or process-creation failures discard an unconsumed lease. Exit,
+kill, and stack-canary termination release a consumed lease only after the
+process is no longer executing on any CPU. The underlying arena pages remain
+permanently reserved in every case.
 
 ### BSS Handling
 
@@ -611,9 +621,9 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 - ✅ ELF32 i386 static executables
 - ✅ Multiple PT_LOAD segments (.text, .data, .rodata, .bss)
 - ✅ BSS zero-initialization
-- ✅ Up to 256 KB per executable
+- ✅ External executables up to the two-MiB arena boundary
 - ✅ Full kernel API access (console, VFS, memory, process, shell)
-- ✅ Automatic memory cleanup on process exit
+- ✅ Quiescent external-arena lease cleanup after exit, kill, or stack failure
 
 ### Not Supported
 
@@ -625,16 +635,17 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 - ❌ Non-i386 architectures
 - ❌ Command-line arguments (programs can't receive argc/argv)
 - ❌ Standard C library (no libc - use syscall table wrappers)
-- ❌ Multiple ELF programs at the same link address simultaneously
+- ❌ Multiple ordinary external ELF programs simultaneously (the complete fixed arena has one exclusive lease)
 
 ### Constraints
 
 | Constraint | Value |
 |------------|-------|
-| Max executable size | 256 KB |
+| Max external executable span | 2 MiB |
 | Max program headers | 16 |
+| Max concurrent external ELF images | 1 |
 | Max concurrent processes | 32 |
-| Stack per process | 8 KB (default) |
+| Stack per process | 32 KB (default) |
 | Total managed memory | 512 MB |
 | Disk filename format | VFS paths, with FAT16 constraints visible under `/disk` |
 

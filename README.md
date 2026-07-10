@@ -189,16 +189,19 @@ The design borrows from TempleOS (single address space, built-in compiler, bare 
 
 ## Building
 
-Linux builds default to GCC/binutils and require NASM, GCC with 32-bit
-support, Python 3, GNU Make, and QEMU:
+Linux image builds default to GCC for C compilation and require NASM, GCC with
+32-bit support, binutils `nm`, Python 3, and GNU Make. QEMU is required only
+to run the image or execute emulator tests. CupidLD and CupidObj perform the
+production link and object/binary transforms:
 
 ```bash
 sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
 ```
 
-Native Windows builds default to LLVM because the kernel links as ELF. Install
-GNU Make, Python 3, NASM, LLVM (`clang`, `ld.lld`, `llvm-objcopy`, `llvm-nm`),
-and QEMU, then build from PowerShell or another native Windows shell:
+Native Windows image builds default to Clang for C compilation. Install GNU
+Make, Python 3, NASM, and LLVM (`clang` and `llvm-nm`), then build from
+PowerShell or another native Windows shell. Install QEMU for runtime/tests.
+LLVM's linker and `objcopy` are no longer required by the normal build:
 
 ```powershell
 choco install make python nasm llvm qemu
@@ -493,7 +496,7 @@ Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, a
 
 | File | What it does |
 |------|-------------|
-| `exec.c/.h` | ELF32 loader: program headers, BSS zeroing, relocation |
+| `exec.c/.h` | Fixed-address ELF32/CUPD loader: validated segments, staged ELF loading, BSS zeroing, and image/lease lifetime transfer |
 | `syscall.c/.h` | Syscall table passed to ELF programs as a struct of function pointers |
 
 ### Shell (kernel/lang/shell.c)
@@ -567,9 +570,10 @@ The user/ directory has example ELF32 programs (hello.c, cat.c, ls.c) and user/c
 0x007C00            Stage 1 bootloader (512 bytes)
 0x007E00            Stage 2 bootloader (2KB)
 0x100000            Kernel start (_start)
-                    .text, .rodata, .data (2MB max)
+                    .text, .rodata, .data
                     .bss
 0x00B00000-0x00D00000 Kernel stack (2MB, grows down; 16-byte guard)
+0x00D00000-0x00F00000 External ELF arena (exclusive fixed-address lease)
 0x01000000-0x01900000 CupidC JIT/AOT region (1MB code + 8MB data)
 0x01A00000-0x01C00000 CupidASM JIT/AOT region (1MB code + 1MB data)
 0xE0000000+         VBE linear framebuffer (address comes from BIOS)
@@ -621,11 +625,11 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 ## Requirements
 
 - NASM
-- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts)
-- Windows: LLVM (`clang`, `ld.lld`, `llvm-objcopy`, `llvm-nm`)
+- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts) and binutils `nm`
+- Windows: LLVM (`clang`, `llvm-nm`)
 - Python 3
 - GNU Make
-- QEMU (qemu-system-i386)
+- QEMU (`qemu-system-i386`, runtime/testing only)
 - mtools (mcopy, mdir) optional for manual FAT16 image inspection/copying
 - DOOM WADs (optional): the build picks up `freedoom1.wad` /
   `freedoom2.wad` from `/usr/share/games/doom/` on the build host and
