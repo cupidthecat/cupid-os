@@ -9,9 +9,9 @@ This guide walks you through building cupid-os from source and running it in QEM
 | Tool | Purpose |
 |------|---------|
 | **NASM** | Owns the current boot, ISR, context-switch, and SMP-trampoline transforms |
-| **GCC** (32-bit support, Linux) | C compiler for kernel and drivers on Linux |
+| **GCC** (32-bit support, Linux) | C compiler for kernel and drivers plus native compiler/link bootstrap for hosted Cupid tools |
 | **GNU binutils** (Linux) | `nm` for the remaining kernel-symbol extraction hand-off |
-| **LLVM** (Windows) | `clang` for C compilation and `llvm-nm` for kernel-symbol extraction; CupidLD/CupidObj own linking and binary transforms |
+| **LLVM** (Windows) | `clang` plus its native linker backend bootstrap hosted Cupid tools, and `llvm-nm` extracts kernel symbols; CupidLD/CupidObj own OS/user ELF linking and binary transforms |
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |

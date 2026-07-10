@@ -190,9 +190,10 @@ The design borrows from TempleOS (single address space, built-in compiler, bare 
 ## Building
 
 Linux image builds default to GCC for C compilation and require NASM, GCC with
-32-bit support, binutils `nm`, Python 3, and GNU Make. QEMU is required only
-to run the image or execute emulator tests. CupidLD and CupidObj perform the
-production link and object/binary transforms:
+32-bit support (including its native linker backend), binutils `nm`, Python 3,
+and GNU Make. QEMU is required only to run the image or execute emulator tests.
+CupidLD and CupidObj perform every OS/user ELF link and object/binary transform;
+the GCC driver still links the temporary hosted Cupid tools:
 
 ```bash
 sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
@@ -201,7 +202,9 @@ sudo apt-get install nasm gcc gcc-multilib python3 make qemu-system-x86
 Native Windows image builds default to Clang for C compilation. Install GNU
 Make, Python 3, NASM, and LLVM (`clang` and `llvm-nm`), then build from
 PowerShell or another native Windows shell. Install QEMU for runtime/tests.
-LLVM's linker and `objcopy` are no longer required by the normal build:
+No standalone LLVM ELF-linker or `objcopy` command produces an OS/user artifact.
+Clang still needs its native linker backend to build the temporary hosted Cupid
+tools:
 
 ```powershell
 choco install make python nasm llvm qemu
@@ -625,8 +628,8 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 ## Requirements
 
 - NASM
-- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts) and binutils `nm`
-- Windows: LLVM (`clang`, `llvm-nm`)
+- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts), its native linker backend, and binutils `nm`
+- Windows: LLVM (`clang`, its native linker backend, `llvm-nm`)
 - Python 3
 - GNU Make
 - QEMU (`qemu-system-i386`, runtime/testing only)

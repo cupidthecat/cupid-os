@@ -6,4 +6,8 @@ A public linker-script AST plus parse/plan/emit lifecycle was rejected because n
 
 Compatible `SHF_MERGE` entries are interned in exact first-occurrence order across the ordered inputs. Reproducing LLVM LLD 22's internal hash-table iteration was rejected: it is undocumented, version-specific behavior rather than an object or ABI contract. CupidLD must instead prove identical output-section addresses/sizes, segment layout, symbols, and relocation semantics, and comparisons may mask only the deliberate merge-entry permutation and words whose resolved addresses derive from it. No suffix merging is performed until an active source requires a specified rule.
 
+Merge and string flags describe one homogeneous entry domain and require a truthful nonzero entry size. CupidLD can combine ordinary read-only data, strings, and constant-width merge groups into one executable `.rodata`, so it uses those flags only while interning compatible input groups and clears `SHF_MERGE`/`SHF_STRINGS` on the heterogeneous final section. Splitting final sections is deferred until a runtime or object consumer needs preserved merge-group metadata.
+
 Relocations through a merge-section `STT_SECTION` symbol map the combined input offset `S+A`, because the addend selects a byte in that input section. Relocations through named object/function symbols first map `S` and then apply `A`, preserving ordinary ELF semantics when merge interning reorders neighboring entries. The full kernel corpus and a minimized `C,B,A` contract pin this distinction.
+
+Linker-script `ASSERT` diagnostics preserve the supplied script message in the job-owned diagnostic store. Replacing it with generic text was rejected because the source-owned size/overlap contract must remain actionable when a build fails.
