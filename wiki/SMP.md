@@ -437,13 +437,17 @@ the wrong `per_cpu_t`.
 ### Handler skeleton
 
 ```nasm
-ipi_reschedule:
+ipi_reschedule_stub:
     pushal
-    call   ipi_reschedule_c   ; sets per-CPU reschedule_pending flag
+    call   ipi_reschedule_c   ; EOI, then consume the published request
     popal
-    mov    dword [LAPIC_VA + 0xB0], 0   ; EOI
     iret
 ```
+
+The sender stores `target.reschedule_pending` before raising the IPI. The
+handler does not re-arm the request: it sends EOI and calls the process safe
+point, which either switches from the IPI frame or leaves the request for the
+outer BKL unlock.
 
 ### Cross-CPU call
 
@@ -462,24 +466,25 @@ void smp_call_on_cpu(uint32_t cpu, void (*fn)(void *), void *arg) {
 
 ## Shell Commands
 
-The `smp` command (bin/smp.cc) provides two views:
+The `smp` command is implemented by `shell_smp_cmd` in
+`kernel/lang/shell.c` and provides two views:
 
 ```
-smp              List all CPUs with status
-smp info         Show BKL ticket counts and current CPU for the shell process
+smp              List per-CPU APIC, online, preemption, and PID state
+smp info         Show whether this CPU holds the BKL, CPU count, and CPU id
 ```
 
 Example output:
 
 ```
-CPU  APIC  STATUS
-  0     0  online (BSP)
-  1     1  online
-  2     2  online
-  3     3  online
+[0] apic=0 online=1 preempts=0 current_pid=2
+[1] apic=1 online=1 preempts=0 current_pid=0
+[2] apic=2 online=1 preempts=0 current_pid=0
+[3] apic=3 online=1 preempts=0 current_pid=0
 
-BKL: now_serving=1402 next_ticket=1402 (unlocked)
-shell running on cpu 0
+bkl: free
+cpus: 4
+me: 0
 ```
 
 ---
@@ -515,17 +520,6 @@ feature20_smp
 
 Run it and verify the final counter value matches 40000.
 
-### X_VERIFY cross-CPU call probe
-
-```
-X_VERIFY
-```
-
-Sends a cross-CPU call from CPU 0 to CPU 1 and waits for the done flag.
-Pass = "cross-CPU call OK" printed to serial.
-
----
-
 ## Known Limits
 
 | Limitation | Notes |
@@ -534,9 +528,10 @@ Pass = "cross-CPU call OK" printed to serial.
 | No NUMA awareness | all memory allocated from a single pool |
 | No TLB shootdown | paging changes not propagated to other CPUs |
 | No per-CPU runqueues | single shared runqueue under BKL caps parallelism |
-| All IRQs on BSP | IRQ migration not implemented |
+| External IOAPIC IRQs target the BSP | IRQ affinity/migration is not implemented; every CPU still receives its LAPIC timer |
 | No MWAIT idle | APs use HLT in idle loop |
 | BKL serialisation | only one CPU in kernel at a time |
+| Timer callback cadence | Every active logical callback currently runs on each LAPIC timer tick in hard-IRQ context; frequency-aware deferred work remains |
 
 For workloads that are mostly user-space compute with occasional kernel calls
 the BKL overhead is acceptable. Workloads with heavy concurrent kernel entry
@@ -558,8 +553,9 @@ Tier 3.
 | `kernel/smp/ioapic.c` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
 | `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
-| `kernel/smp/bkl.h` | `bkl_acquire` / `bkl_release` declarations |
+| `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
 | `kernel/smp/bkl.c` | Ticket spinlock implementation |
-| `kernel/smp/mp.h` | MP table + ACPI MADT parser API |
-| `kernel/smp/mp.c` | `_MP_` scan, MADT walk, cpu/ioapic/gsi table build |
-| `bin/smp.cc` | `smp` and `smp info` shell commands |
+| `kernel/smp/mp_tables.h` | MP table parser API |
+| `kernel/smp/mp_tables.c` | `_MP_` scan and CPU/IOAPIC discovery |
+| `kernel/smp/acpi.h` / `kernel/smp/acpi.c` | ACPI RSDP/RSDT/XSDT/MADT fallback |
+| `kernel/lang/shell.c` | `smp` and `smp info` shell commands |
