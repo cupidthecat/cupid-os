@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 672
-- Unreachable source-like files: 36
+- Unreachable source-like files: 39
 - Reachable output transforms: 480
 - Distinct feature requirements: 248
 - The `TempleOS/` reference tree is excluded.
@@ -169,7 +169,7 @@ It is also a declared Make prerequisite.
 | `exact_duplicate` | 7 |
 | `explicitly_excluded` | 2 |
 | `historical_copy` | 7 |
-| `not_reached` | 15 |
+| `not_reached` | 18 |
 | `superseded` | 5 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -211,6 +211,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.c` |
 | `kernel/lang/cupidc_runtime.c` | `c` | `not_reached` | 284 | not reachable from the supported Make target or include closure |
 | `kernel/lang/cupidc_runtime.h` | `c_header` | `not_reached` | 66 | not reachable from the supported Make target or include closure |
+| `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
+| `tests/kernel_exec_contract.c` | `c` | `not_reached` | 579 | not reachable from the supported Make target or include closure |
+| `tests/kernel_process_contract.c` | `c` | `not_reached` | 929 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `not_reached` | 8 | not reachable from the supported Make target or include closure |
 
 ## Audit contracts
