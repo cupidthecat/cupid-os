@@ -1,8 +1,10 @@
 import json
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools import bootstrap_baseline
 
@@ -169,8 +171,25 @@ class BaselineCheckTests(unittest.TestCase):
     def test_preflight_excludes_retired_normal_build_tools(self):
         specs = bootstrap_baseline._tool_specs()
 
+        self.assertNotIn("assembler", specs)
         self.assertNotIn("linker", specs)
         self.assertNotIn("object_copy", specs)
+
+    def test_nasm_is_recorded_as_an_optional_oracle_tool(self):
+        specs = bootstrap_baseline._optional_oracle_tool_specs()
+
+        self.assertEqual(set(specs), {"nasm"})
+        self.assertEqual(specs["nasm"].default, "nasm")
+        self.assertEqual(specs["nasm"].environment, "NASM")
+        self.assertEqual(specs["nasm"].version_args, ("-v",))
+
+    def test_optional_oracle_command_honors_the_recorded_environment(self):
+        with patch.dict(
+            "os.environ", {"NASM": f'"{sys.executable}" --oracle-mode'}
+        ):
+            commands = bootstrap_baseline.optional_oracle_commands()
+
+        self.assertEqual(commands["nasm"], (sys.executable, "--oracle-mode"))
 
     def test_failed_check_is_recorded_and_dependent_checks_are_skipped(self):
         calls = []

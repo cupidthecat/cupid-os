@@ -761,11 +761,14 @@ The supported build and baseline interfaces now distinguish production ownership
 | Focused Python suites | PASS | 42 CupidASM CLI/source/ELF32, build-graph, and baseline tests passed. |
 | `make -C toolchain test` | PASS | All 49 strict Windows Clang contract modes passed, including all 22 unchanged demos. |
 | Kernel loader/process/SMP contracts | PASS | All 48 cases passed, including the produced ISR/context-switch invariants. |
-| Clean Windows normal build with `ASM=__nasm_must_not_run__` | PASS | The full 424-object image completed; four assembly outputs came from the freshly built hosted CupidASM. |
+| Clean Windows normal build with `ASM` and `NASM` poisoned | PASS | The full 424-object image completed; four assembly outputs came from the freshly built hosted CupidASM. |
 | Four-vCPU CupidC guest smoke | PASS | Four CPUs reached online state, scheduler startup completed, the CupidASM kernel self-test passed with 631 definitions, and `/bin/ls.cc` reached JIT completion without an accepted failure marker. |
 | UP CupidASM guest smoke | PASS | `as /demos/hello.asm` reached `JIT execution complete`. |
 | Checked active-source audit | PASS | Generated JSON/Markdown report four `cupid_assembler`, zero normal NASM, and complete 431-artifact/424-link-object coverage. |
+| `make test` | PASS | All 145 repository tests ran in 76.715 seconds: 144 passed and the Windows-only `/dev/full` case was skipped; the checked audit also matched. |
 
 One full WSL GCC attempt is retained as a failed approach rather than claimed as Linux evidence. With `ASM` poisoned, Linux successfully built the hosted CupidASM and began the root graph, then GCC 13.3 stopped on the pre-existing `fpu_init_cpu` `target("no-sse,no-sse2")` diagnostic under `-Werror`. The source and failure are unchanged from the prior revision and unrelated to assembly ownership. [Capture the Linux oracle bootstrap baseline](https://github.com/cupidthecat/cupid-os/issues/23) remains responsible for resolving that host-C portability blocker and freezing complete Linux evidence.
+
+Independent standards and specification reviews finished green. The first specification pass found that baseline provenance honored a configured `NASM` command while two optional oracle suites still resolved PATH independently. One shared command parser/resolver now supplies both the fingerprint and both executions, including configured arguments and explicit paths; the re-review confirmed the mismatch closed. The standards pass also led to one shared hosted-tool prerequisite list and the same command resolver instead of three drifting copies.
 
 The post-cutover Windows reproducibility capture must run from the committed implementation, because the baseline runner intentionally ignores working-tree changes. GCC/Clang plus their native linker backend still bootstrap hosted Cupid tools, and GNU/LLVM `nm` still owns kernel-symbol extraction. NASM is no longer a normal-build dependency.

@@ -218,11 +218,24 @@ def _tool_specs() -> dict[str, ToolSpec]:
         "make": ToolSpec("make", "MAKE", ("--version",)),
         "python": ToolSpec("python" if windows else "python3", "PYTHON", ("--version",)),
         "c_compiler": ToolSpec("clang" if windows else "gcc", "CC", ("--version",)),
-        "assembler": ToolSpec("nasm", "ASM", ("-v",)),
         "symbol_reader": ToolSpec(
             "llvm-nm" if windows else "nm", "NM", ("--version",)
         ),
         "qemu": ToolSpec("qemu-system-i386", "QEMU", ("--version",)),
+    }
+
+
+def _optional_oracle_tool_specs() -> dict[str, ToolSpec]:
+    return {
+        "nasm": ToolSpec("nasm", "NASM", ("-v",)),
+    }
+
+
+def optional_oracle_commands() -> dict[str, tuple[str, ...]]:
+    """Return the exact configured commands used by optional oracle tests."""
+    return {
+        name: _split_command(os.environ.get(spec.environment, spec.default))
+        for name, spec in _optional_oracle_tool_specs().items()
     }
 
 
@@ -238,13 +251,21 @@ def _tool_commands() -> dict[str, tuple[tuple[str, ...], tuple[str, ...]]]:
     }
 
 
-def _probe_tool(
-    command: tuple[str, ...], version_args: tuple[str, ...]
-) -> dict[str, object]:
+def resolve_tool_command(command: tuple[str, ...]) -> tuple[str, ...] | None:
+    """Resolve one configured executable while preserving its arguments."""
     executable = shutil.which(command[0])
     if executable is None and Path(command[0]).is_file():
         executable = str(Path(command[0]).resolve())
     if executable is None:
+        return None
+    return (str(Path(executable).resolve()), *command[1:])
+
+
+def _probe_tool(
+    command: tuple[str, ...], version_args: tuple[str, ...]
+) -> dict[str, object]:
+    resolved = resolve_tool_command(command)
+    if resolved is None:
         return {
             "status": "missing",
             "command": list(command),
@@ -252,7 +273,7 @@ def _probe_tool(
         }
     try:
         completed = subprocess.run(
-            [executable, *command[1:], *version_args],
+            [*resolved, *version_args],
             check=False,
             text=True,
             stdout=subprocess.PIPE,
@@ -262,15 +283,15 @@ def _probe_tool(
         return {
             "status": "error",
             "command": list(command),
-            "executable": executable,
+            "executable": resolved[0],
             "error": str(exc),
         }
     lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
     result: dict[str, object] = {
         "status": "pass" if completed.returncode == 0 else "error",
         "command": list(command),
-        "executable": str(Path(executable).resolve()),
-        "executable_sha256": _sha256_file(Path(executable)),
+        "executable": resolved[0],
+        "executable_sha256": _sha256_file(Path(resolved[0])),
         "version": lines[0] if lines else "",
         "version_returncode": completed.returncode,
     }
@@ -290,6 +311,15 @@ def probe_tools() -> tuple[dict[str, dict[str, object]], dict[str, tuple[str, ..
         if evidence[name]["status"] == "pass"
     }
     return evidence, commands
+
+
+def probe_optional_oracle_tools() -> dict[str, dict[str, object]]:
+    """Record comparison tools without making them normal-build requirements."""
+    commands = optional_oracle_commands()
+    return {
+        name: _probe_tool(commands[name], spec.version_args)
+        for name, spec in _optional_oracle_tool_specs().items()
+    }
 
 
 def probe_optional_jpeg_tools() -> dict[str, dict[str, object]]:
@@ -552,6 +582,7 @@ def capture_baseline(
     repo_root = repo_root.resolve()
     source_revision = _git_output(repo_root, "rev-parse", "--verify", f"{revision}^{{commit}}")
     tools, tool_commands = probe_tools()
+    oracle_tools = probe_optional_oracle_tools()
     jpeg_tools = probe_optional_jpeg_tools()
     missing_tools = sorted(name for name, item in tools.items() if item["status"] != "pass")
     manifest: dict[str, object] = {
@@ -576,12 +607,17 @@ def capture_baseline(
                 name: os.environ[name]
                 for name in (
                     *(spec.environment for spec in _tool_specs().values()),
+                    *(
+                        spec.environment
+                        for spec in _optional_oracle_tool_specs().values()
+                    ),
                     *BUILD_ENVIRONMENT,
                 )
                 if name in os.environ
             },
         },
         "tools": tools,
+        "optional_oracle_tools": oracle_tools,
         "optional_jpeg_tools": jpeg_tools,
         "builds": [],
     }

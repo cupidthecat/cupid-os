@@ -1,6 +1,5 @@
 # Compiler settings
 .SUFFIXES:
-ASM ?= nasm
 QEMU ?= qemu-system-i386
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
@@ -23,18 +22,23 @@ CC_TARGET ?=
 QEMU_AUDIODEV ?= alsa,id=speaker
 CLANG_COMPAT_CFLAGS ?=
 endif
+CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
+CUPIDASM ?= $(CUPIDASM_BUILD)
 CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
 CUPIDOBJ ?= $(CUPIDOBJ_BUILD)
 CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
 CUPIDLD ?= $(CUPIDLD_BUILD)
-CUPIDOBJ_SOURCES := toolchain/ctool.c toolchain/ctool.h \
+HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.c toolchain/ctool.h \
 	toolchain/ctool_host.c toolchain/ctool_host.h \
-	toolchain/elf32.c toolchain/elf32.h \
+	toolchain/elf32.c toolchain/elf32.h
+CUPIDASM_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
+	toolchain/x86.c toolchain/x86.h \
+	toolchain/cupidasm.c toolchain/cupidasm.h toolchain/cupidasm_main.c \
+	toolchain/Makefile
+CUPIDOBJ_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/cupidobj.c toolchain/cupidobj.h toolchain/cupidobj_main.c \
 	toolchain/Makefile
-CUPIDLD_SOURCES := toolchain/ctool.c toolchain/ctool.h \
-	toolchain/ctool_host.c toolchain/ctool_host.h \
-	toolchain/elf32.c toolchain/elf32.h \
+CUPIDLD_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/cupidld.c toolchain/cupidld.h toolchain/cupidld_main.c \
 	toolchain/Makefile
 .DEFAULT_GOAL := all
@@ -243,8 +247,8 @@ FORCE:
 all: $(OS_IMAGE)
 
 # Compile bootloader
-$(BOOTLOADER): boot/boot.asm
-	$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)
+$(BOOTLOADER): boot/boot.asm $(CUPIDASM)
+	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
 kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/as.h kernel/lang/ctool_kernel.h
@@ -259,8 +263,8 @@ kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core
 	$(CC) $(CFLAGS) kernel/cpu/idt.c -o kernel/cpu/idt.o
 
 # Compile assembly files
-kernel/cpu/isr.o: kernel/cpu/isr.asm
-	$(ASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o
+kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM)
+	$(CUPIDASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o
 
 kernel/cpu/pic.o: kernel/cpu/pic.c kernel/cpu/pic.h
 	$(CC) $(CFLAGS) -c kernel/cpu/pic.c -o kernel/cpu/pic.o
@@ -318,8 +322,8 @@ drivers/pci.o: drivers/pci.c drivers/pci.h kernel/core/ports.h
 	$(CC) $(CFLAGS) drivers/pci.c -o drivers/pci.o
 
 # AP trampoline raw binary blob (P5 SMP T8)
-kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S
-	$(ASM) -f bin -o $@ $<
+kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S $(CUPIDASM)
+	$(CUPIDASM) -f bin -o $@ $<
 
 kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin $(CUPIDOBJ)
 	$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@
@@ -699,8 +703,8 @@ kernel/core/process.o: kernel/core/process.c kernel/core/process.h
 	$(CC) $(CFLAGS) kernel/core/process.c -o kernel/core/process.o
 
 # Context switch (assembly)
-kernel/core/context_switch.o: kernel/core/context_switch.asm
-	$(ASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o
+kernel/core/context_switch.o: kernel/core/context_switch.asm $(CUPIDASM)
+	$(CUPIDASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o
 
 # Clipboard
 kernel/gui/clipboard.o: kernel/gui/clipboard.c kernel/gui/clipboard.h
@@ -923,6 +927,11 @@ test:
 	  --output docs/bootstrap/audits/active-build.json \
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
 
+# NASM is not part of the normal build.  When it is installed, this optional
+# source-parity suite assembles all four active inputs with both assemblers.
+nasm-assembly-oracle:
+	$(PYTHON) -m unittest -v tests.test_toolchain_cupidasm_sources
+
 bootstrap-audit:
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
@@ -939,12 +948,16 @@ print-bootstrap-artifacts:
 bootstrap-baseline:
 	$(PYTHON) tools/bootstrap_baseline.py
 
-$(CUPIDOBJ_BUILD): $(CUPIDOBJ_SOURCES)
+$(CUPIDASM_BUILD): $(CUPIDASM_SOURCES)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
 
-# CupidObj and CupidLD share hosted-core objects in toolchain/build.  Keep the
-# independent recursive builds ordered under -j without making CupidObj's
-# private sources timestamp dependencies of CupidLD.
+# The hosted Cupid tools share objects in toolchain/build.  Keep independent
+# recursive builds ordered under -j while allowing CupidASM assembly jobs to
+# proceed once its complete executable is available.
+$(CUPIDOBJ_BUILD): $(CUPIDOBJ_SOURCES) | $(CUPIDASM_BUILD)
+	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
+
+# Do not make CupidObj's private sources timestamp dependencies of CupidLD.
 $(CUPIDLD_BUILD): $(CUPIDLD_SOURCES) | $(CUPIDOBJ_BUILD)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
 
@@ -1149,4 +1162,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test bootstrap-audit check-bootstrap-audit bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

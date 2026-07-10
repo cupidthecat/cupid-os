@@ -1,11 +1,12 @@
 import hashlib
 import os
-import shutil
 import struct
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+from tools import bootstrap_baseline
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -241,7 +242,8 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             raise AssertionError(
                 "CupidASM hosted CLI build failed\n" + result.stdout + result.stderr
             )
-        cls.nasm_path = shutil.which("nasm")
+        configured_nasm = bootstrap_baseline.optional_oracle_commands()["nasm"]
+        cls.nasm_command = bootstrap_baseline.resolve_tool_command(configured_nasm)
 
     @classmethod
     def tearDownClass(cls):
@@ -249,7 +251,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
 
     def _assemble(self, assembler, source, output, output_format):
         result = subprocess.run(
-            [assembler, "-f", output_format, str(source), "-o", str(output)],
+            [*assembler, "-f", output_format, str(source), "-o", str(output)],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
@@ -257,7 +259,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
         self.assertEqual(
             result.returncode,
             0,
-            f"{Path(assembler).name} failed to assemble {source.relative_to(REPO_ROOT)}\n"
+            f"{Path(assembler[0]).name} failed to assemble {source.relative_to(REPO_ROOT)}\n"
             + result.stdout
             + result.stderr,
         )
@@ -270,7 +272,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             for fixture in RAW_FIXTURES:
                 with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
                     cupid = self._assemble(
-                        str(self.cli_path),
+                        (str(self.cli_path),),
                         fixture["source"],
                         root / f"{fixture['name']}.cupid.bin",
                         "bin",
@@ -279,9 +281,9 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     self.assertEqual(
                         hashlib.sha256(cupid).hexdigest(), fixture["sha256"]
                     )
-                    if self.nasm_path is not None:
+                    if self.nasm_command is not None:
                         oracle = self._assemble(
-                            self.nasm_path,
+                            self.nasm_command,
                             fixture["source"],
                             root / f"{fixture['name']}.nasm.bin",
                             "bin",
@@ -294,7 +296,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             for fixture in OBJECT_FIXTURES:
                 with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
                     cupid_image = self._assemble(
-                        str(self.cli_path),
+                        (str(self.cli_path),),
                         fixture["source"],
                         root / f"{fixture['name']}.cupid.o",
                         "elf32",
@@ -325,9 +327,9 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     )
                     self.assertEqual(cupid["relocations"], fixture["relocations"])
 
-                    if self.nasm_path is not None:
+                    if self.nasm_command is not None:
                         oracle_image = self._assemble(
-                            self.nasm_path,
+                            self.nasm_command,
                             fixture["source"],
                             root / f"{fixture['name']}.nasm.o",
                             "elf32",

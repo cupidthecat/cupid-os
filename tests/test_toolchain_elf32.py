@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools import bootstrap_baseline
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
@@ -239,14 +241,15 @@ class ToolchainElf32ContractTests(unittest.TestCase):
             self.assertIn("R_386_PC32", inspection.stdout)
 
     def test_reader_matches_real_nasm_isr_oracle(self):
-        nasm = shutil.which("nasm")
+        configured_nasm = bootstrap_baseline.optional_oracle_commands()["nasm"]
+        nasm = bootstrap_baseline.resolve_tool_command(configured_nasm)
         readelf = shutil.which("readelf") or shutil.which("llvm-readelf")
         if nasm is None or readelf is None:
             self.skipTest("NASM/ELF oracle tools are not installed")
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "isr.o"
             assembled = subprocess.run(
-                [nasm, "-f", "elf32", str(REPO_ROOT / "kernel" / "cpu" / "isr.asm"), "-o", str(output)],
+                [*nasm, "-f", "elf32", str(REPO_ROOT / "kernel" / "cpu" / "isr.asm"), "-o", str(output)],
                 cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,

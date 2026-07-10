@@ -1859,15 +1859,16 @@
       },
       {
         "inputs": [
-          "boot/boot.asm"
+          "boot/boot.asm",
+          "toolchain/build/cupidasm.exe"
         ],
         "operation": "assemble_flat_binary",
         "output": "boot/boot.bin",
         "recipe": [
-          "$(ASM) -f bin boot/boot.asm -o $(BOOTLOADER)"
+          "$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)"
         ],
         "tools": [
-          "nasm"
+          "cupid_assembler"
         ]
       },
       {
@@ -2836,15 +2837,16 @@
       },
       {
         "inputs": [
-          "kernel/core/context_switch.asm"
+          "kernel/core/context_switch.asm",
+          "toolchain/build/cupidasm.exe"
         ],
         "operation": "assemble_elf32_relocatable",
         "output": "kernel/core/context_switch.o",
         "recipe": [
-          "$(ASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o"
+          "$(CUPIDASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o"
         ],
         "tools": [
-          "nasm"
+          "cupid_assembler"
         ]
       },
       {
@@ -2972,15 +2974,16 @@
       },
       {
         "inputs": [
-          "kernel/cpu/isr.asm"
+          "kernel/cpu/isr.asm",
+          "toolchain/build/cupidasm.exe"
         ],
         "operation": "assemble_elf32_relocatable",
         "output": "kernel/cpu/isr.o",
         "recipe": [
-          "$(ASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o"
+          "$(CUPIDASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o"
         ],
         "tools": [
-          "nasm"
+          "cupid_assembler"
         ]
       },
       {
@@ -6763,15 +6766,16 @@
       },
       {
         "inputs": [
-          "kernel/smp/smp_trampoline.S"
+          "kernel/smp/smp_trampoline.S",
+          "toolchain/build/cupidasm.exe"
         ],
         "operation": "assemble_flat_binary",
         "output": "kernel/smp_trampoline.bin",
         "recipe": [
-          "$(ASM) -f bin -o $@ $<"
+          "$(CUPIDASM) -f bin -o $@ $<"
         ],
         "tools": [
-          "nasm"
+          "cupid_assembler"
         ]
       },
       {
@@ -7403,6 +7407,30 @@
           "toolchain/ctool_host.h",
           "toolchain/elf32.c",
           "toolchain/elf32.h",
+          "toolchain/x86.c",
+          "toolchain/x86.h",
+          "toolchain/cupidasm.c",
+          "toolchain/cupidasm.h",
+          "toolchain/cupidasm_main.c",
+          "toolchain/Makefile"
+        ],
+        "operation": "recursive_make",
+        "output": "toolchain/build/cupidasm.exe",
+        "recipe": [
+          "$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)"
+        ],
+        "tools": [
+          "make"
+        ]
+      },
+      {
+        "inputs": [
+          "toolchain/ctool.c",
+          "toolchain/ctool.h",
+          "toolchain/ctool_host.c",
+          "toolchain/ctool_host.h",
+          "toolchain/elf32.c",
+          "toolchain/elf32.h",
           "toolchain/cupidld.c",
           "toolchain/cupidld.h",
           "toolchain/cupidld_main.c",
@@ -7429,7 +7457,8 @@
           "toolchain/cupidobj.c",
           "toolchain/cupidobj.h",
           "toolchain/cupidobj_main.c",
-          "toolchain/Makefile"
+          "toolchain/Makefile",
+          "toolchain/build/cupidasm.exe"
         ],
         "operation": "recursive_make",
         "output": "toolchain/build/cupidobj.exe",
@@ -20427,7 +20456,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "6bec006fffaa9b9ce4519206fe1007027443a8731c68f406e6caa827e6a1b9ea"
+        "sha256": "ca630769f6f167f81100aa334583e597fdcf1fedcce4d8e4b53e2a8d7da3265a"
       },
       {
         "path": "user/Makefile",
@@ -20440,7 +20469,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "2d8993375058267475ffc4ada47ab65ca0465b7211d77548eef4f63d4348c5ed"
+      "sha256": "c14c44e1f14c699903b400af347776ee6f7348ef5a4a07ebafcaacd7acdb10af"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -21016,7 +21045,7 @@
         ],
         "id": "boot_and_kernel_assembly",
         "rank": 2,
-        "rationale": "Cut over four NASM-owned transforms now that raw and ELF32 parity gates exist.",
+        "rationale": "Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle.",
         "sample_sources": [
           "boot/boot.asm",
           "kernel/core/context_switch.asm",
@@ -24736,7 +24765,7 @@
     },
     {
       "build_owners": [
-        "nasm"
+        "cupid_assembler"
       ],
       "builds": [
         "."
@@ -24817,7 +24846,7 @@
       "origin": "tracked",
       "path": "boot/boot.asm",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidASM",
       "sha256": "61812bffb8f35999e2b7846321add442ad10ba33c1db77fac548e16d6c166c1a"
     },
     {
@@ -27090,7 +27119,7 @@
     },
     {
       "build_owners": [
-        "nasm"
+        "cupid_assembler"
       ],
       "builds": [
         "."
@@ -27139,7 +27168,7 @@
       "origin": "tracked",
       "path": "kernel/core/context_switch.asm",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidASM",
       "sha256": "29585e8f2ef695e353e625e0d00e9f4b9d4b4037b29ede19bc7e47942a4ccb41"
     },
     {
@@ -27956,7 +27985,7 @@
     },
     {
       "build_owners": [
-        "nasm"
+        "cupid_assembler"
       ],
       "builds": [
         "."
@@ -27996,7 +28025,7 @@
       "origin": "tracked",
       "path": "kernel/cpu/isr.asm",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidASM",
       "sha256": "5841f4375e4a4fb040ff0764d9856ce71b216a01856ab45b4bc621e529d263ab"
     },
     {
@@ -42066,7 +42095,7 @@
     },
     {
       "build_owners": [
-        "nasm"
+        "cupid_assembler"
       ],
       "builds": [
         "."
@@ -42120,7 +42149,7 @@
       "origin": "tracked",
       "path": "kernel/smp/smp_trampoline.S",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidASM",
       "sha256": "342ae4ddc59ac22947fd07d8aeb1709e2adf915284c30a210e1cf24715aa7429"
     },
     {
@@ -43203,7 +43232,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -43247,7 +43277,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -43280,9 +43311,11 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
+        ".",
         "toolchain"
       ],
       "cohort": "cupidasm",
@@ -43310,6 +43343,11 @@
         "c.type.void"
       ],
       "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/errno.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "kernel/doom/src/include_stubs/unistd.h",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h"
@@ -44105,7 +44143,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -44152,7 +44191,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -44307,7 +44347,7 @@
   "summary": {
     "active_sources": 672,
     "features": 248,
-    "transforms": 480,
+    "transforms": 481,
     "unreachable_sources": 39
   },
   "supplemental_builds": [

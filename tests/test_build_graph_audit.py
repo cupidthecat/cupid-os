@@ -17,6 +17,63 @@ def _write(path, content):
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_inventory_attributes_assembly_outputs_to_cupidasm(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CUPIDASM = cupidasm
+
+                .PHONY: all
+                all: boot.bin entry.o
+
+                boot.bin: boot.asm
+                \t$(CUPIDASM) -f bin $< -o $@
+
+                entry.o: entry.asm
+                \t$(CUPIDASM) -f elf32 $< -o $@
+                """,
+            )
+            _write(root / "boot.asm", "bits 16\norg 0x7c00\nhlt\n")
+            _write(root / "entry.asm", "bits 32\nret\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            transforms = {
+                entry["output"]: entry for entry in audit["build"]["transforms"]
+            }
+            self.assertEqual(
+                transforms["boot.bin"]["tools"], ["cupid_assembler"]
+            )
+            self.assertEqual(
+                transforms["boot.bin"]["operation"], "assemble_flat_binary"
+            )
+            self.assertEqual(
+                transforms["entry.o"]["tools"], ["cupid_assembler"]
+            )
+            self.assertEqual(
+                transforms["entry.o"]["operation"], "assemble_elf32_relocatable"
+            )
+            sources = {entry["path"]: entry for entry in audit["sources"]}
+            self.assertEqual(sources["boot.asm"]["runtime_owner"], "CupidASM")
+            self.assertEqual(sources["entry.asm"]["runtime_owner"], "CupidASM")
+
     def test_inventory_maps_reachable_language_inputs_to_tool_owned_outputs(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -450,6 +507,27 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(features["asm.addressing.memory"]["occurrences"], 101)
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 7)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
+            transforms = {
+                entry["output"]: entry for entry in audit["build"]["transforms"]
+            }
+            expected_assembly = {
+                "boot/boot.bin": "assemble_flat_binary",
+                "kernel/core/context_switch.o": "assemble_elf32_relocatable",
+                "kernel/cpu/isr.o": "assemble_elf32_relocatable",
+                "kernel/smp_trampoline.bin": "assemble_flat_binary",
+            }
+            for output_path, operation in expected_assembly.items():
+                self.assertEqual(
+                    transforms[output_path]["tools"], ["cupid_assembler"]
+                )
+                self.assertEqual(transforms[output_path]["operation"], operation)
+            self.assertFalse(
+                [
+                    entry["output"]
+                    for entry in audit["build"]["transforms"]
+                    if "nasm" in entry["tools"]
+                ]
+            )
 
     def test_inventory_accounts_for_unreachable_and_duplicate_sources(self):
         with tempfile.TemporaryDirectory() as td:

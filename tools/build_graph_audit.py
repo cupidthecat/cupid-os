@@ -25,6 +25,7 @@ SOURCE_SUFFIXES = {
     ".s": "assembly",
 }
 TOOL_MARKERS = (
+    ("$(CUPIDASM)", "cupid_assembler"),
     ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDOBJ)", "cupid_object"),
     ("$(CC)", "host_c_compiler"),
@@ -604,7 +605,7 @@ def _operation_for_recipe(
         ):
             return c_object_operation
         return "compile_and_link_host_executable"
-    if "nasm" in tools:
+    if "nasm" in tools or "cupid_assembler" in tools:
         if re.search(r"(?:^|\s)-f\s+bin(?:\s|$)", joined):
             return "assemble_flat_binary"
         if re.search(r"(?:^|\s)-f\s+elf32(?:\s|$)", joined):
@@ -987,7 +988,7 @@ def _roadmap(
         (
             "boot_and_kernel_assembly",
             ("boot_assembly", "kernel_assembly"),
-            "Cut over four NASM-owned transforms now that raw and ELF32 parity gates exist.",
+            "Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle.",
         ),
         (
             "kernel_and_drivers",
@@ -1886,8 +1887,13 @@ def build_audit(
             runtime_owner = "CupidC"
         elif (
             language == "assembly"
-            and {"host_object_copy", "cupid_object"}.intersection(owners)
-            and "nasm" not in owners
+            and (
+                "cupid_assembler" in owners
+                or (
+                    {"host_object_copy", "cupid_object"}.intersection(owners)
+                    and "nasm" not in owners
+                )
+            )
         ):
             runtime_owner = "CupidASM"
         elif language == "c_header" and {
