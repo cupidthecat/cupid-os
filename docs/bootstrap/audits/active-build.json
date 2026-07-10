@@ -44308,7 +44308,7 @@
     "active_sources": 672,
     "features": 248,
     "transforms": 480,
-    "unreachable_sources": 36
+    "unreachable_sources": 39
   },
   "supplemental_builds": [
     {
@@ -46099,6 +46099,36 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "81e6dde9ad1e191ea10f79a070364fd6c750328d1f696d2202ec592f684cd0b8"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c_header",
+      "lines": 43,
+      "path": "tests/kernel_contract_support/percpu.h",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "208256973951a435596bf62bab51b8c652f91af65ce603c3c666f76be75d9479"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 579,
+      "path": "tests/kernel_exec_contract.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "497aa8d4162b7b328bb65b289446e9b9ff2e6d5bccf00e123f65314a376a3cd2"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 929,
+      "path": "tests/kernel_process_contract.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "de86f7f12a3b997510d61bf05aa23dc8b81b9a803c5f546b072fb18c13f94214"
     },
     {
       "classification": "not_reached",
