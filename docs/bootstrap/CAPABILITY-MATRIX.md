@@ -23,7 +23,7 @@ The capability requirements below are backed by `ACTIVE-SOURCE-AUDIT.md` and `au
 | Deterministic ELF32 `ET_REL` output | Missing | The shared writer now owns the required object model, but CupidC still emits fixed-address executables and has no semantic lowering into it. |
 | Host-runnable compiler | Missing | CupidC is linked into the kernel and depends on kernel/VFS/runtime services. |
 | Compile CupidC and the remaining toolchain | Missing | No staged self-compilation gate or checked-in seed exists. |
-| GNU platform compatibility | Required/Partial | Active C has 206 GNU basic/extended asm sites across 36 files and 69 `__attribute__` sites across 29 files, containing 93 individual attribute-name occurrences (`packed`, alignment, section, weak, noreturn, noinline, used/unused, naked). These are platform requirements, not optional source simplifications. |
+| GNU platform compatibility | Required/Partial | Active C has 204 GNU basic/extended asm sites across 36 files and 69 `__attribute__` sites across 29 files, containing 93 individual attribute-name occurrences (`packed`, alignment, section, weak, noreturn, noinline, used/unused, naked). These are platform requirements, not optional source simplifications. |
 | Doom compatibility mode | Required/Missing | The 83-file Doom/port C cohort needs old/no-prototype declarations, five implicit calls, permissive callback/object-pointer conversions, compatibility headers, and relaxed diagnostics without weakening strict C mode. |
 | Optimization and measured quality gate | Missing | The oracle records size evidence, but no Cupid-built trusted cohort has the agreed size/runtime comparison yet. |
 
