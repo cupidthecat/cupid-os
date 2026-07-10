@@ -4,7 +4,7 @@
 #include "libm.h"
 #include "serial.h"
 
-__attribute__((target("no-sse,no-sse2")))
+__attribute__((target("general-regs-only")))
 void fpu_init_cpu(void) {
     uint32_t cr0;
     uint32_t cr4;

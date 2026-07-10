@@ -40,7 +40,10 @@ CUPIDLD_SOURCES := ../toolchain/ctool.c ../toolchain/ctool.h \
                    ../toolchain/cupidld.c ../toolchain/cupidld.h \
                    ../toolchain/cupidld_main.c ../toolchain/Makefile
 USER_TEXT_ADDRESS ?= 0x00D00000
-CFLAGS = $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -static -ffreestanding -O2 -Wall -Wextra \
+# Cupid user programs have no CFI unwinder, so their objects must not retain
+# host-generated .eh_frame metadata either.
+FREESTANDING_CODEGEN_CFLAGS := -fno-asynchronous-unwind-tables -fno-unwind-tables
+CFLAGS = $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -static -ffreestanding $(FREESTANDING_CODEGEN_CFLAGS) -O2 -Wall -Wextra \
          -Wno-unused-parameter -I.
 
 # List of programs to build

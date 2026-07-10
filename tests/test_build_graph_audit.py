@@ -16,6 +16,14 @@ def _write(path, content):
     path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
 
 
+def _json_list_recipe(values):
+    python = Path(sys.executable).resolve().as_posix()
+    return (
+        f'\t@"{python}" -c "import json; '
+        f"print(json.dumps({list(values)!r}))\""
+    )
+
+
 class BuildGraphAuditCliTests(unittest.TestCase):
     def test_inventory_attributes_assembly_outputs_to_cupidasm(self):
         with tempfile.TemporaryDirectory() as td:
@@ -183,9 +191,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_inventory_attributes_transforms_to_cupid_linker_and_object(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
+            artifact_recipe = _json_list_recipe(["main.o"])
             _write(
                 root / "Makefile",
-                """
+                f"""
                 .SUFFIXES:
                 CC = host-cc
                 CUPIDLD = cupidld
@@ -207,7 +216,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(CC) -c $< -o $@
 
                 print-bootstrap-artifacts:
-                \t@echo ["main.o"]
+                {artifact_recipe}
                 """,
             )
             _write(root / "main.c", "int main(void) { return 0; }\n")
@@ -731,9 +740,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
+            artifact_recipe = _json_list_recipe(["main.o"])
             _write(
                 root / "Makefile",
-                """
+                f"""
                 .SUFFIXES:
                 CC = host-cc
                 LD = host-ld
@@ -754,7 +764,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(CC) -c $< -o $@
 
                 print-bootstrap-artifacts:
-                \t@echo [\"main.o\"]
+                {artifact_recipe}
                 """,
             )
             _write(root / "main.c", "int main(void) { return 0; }\n")

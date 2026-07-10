@@ -1,5 +1,7 @@
 import json
+import os
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -7,6 +9,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools import bootstrap_baseline
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_test_elf(path, text=b"TEXT!"):
@@ -165,6 +170,44 @@ class BaselineArtifactTests(unittest.TestCase):
                 command = commands[name]
                 pause = command.index("--key-pause")
                 self.assertEqual(command[pause + 1], "0.60")
+
+
+class BaselinePackageIsolationTests(unittest.TestCase):
+    def test_repo_tools_package_wins_over_an_installed_name_collision(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-tools-shadow-") as directory:
+            shadow_root = Path(directory)
+            shadow_package = shadow_root / "tools"
+            shadow_package.mkdir()
+            (shadow_package / "__init__.py").write_text(
+                'raise RuntimeError("shadow tools package imported")\n',
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = os.pathsep.join(
+                filter(
+                    None,
+                    [str(shadow_root), environment.get("PYTHONPATH", "")],
+                )
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from tools import bootstrap_baseline; "
+                    "print(bootstrap_baseline.__file__)",
+                ],
+                cwd=REPO_ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                Path(result.stdout.strip()).resolve(),
+                (REPO_ROOT / "tools/bootstrap_baseline.py").resolve(),
+            )
 
 
 class BaselineCheckTests(unittest.TestCase):

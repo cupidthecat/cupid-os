@@ -44,18 +44,21 @@ CUPIDLD_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
 EXTRA_CFLAGS ?=
+# The kernel has no CFI unwinder.  Keep host compilers from emitting allocated
+# .eh_frame metadata that cannot be consumed at runtime.
+FREESTANDING_CODEGEN_CFLAGS := -fno-asynchronous-unwind-tables -fno-unwind-tables
 KERNEL_INCLUDES=-I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu \
                 -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx \
                 -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network \
                 -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util \
                 -I./drivers -I./toolchain
-CFLAGS=$(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c $(KERNEL_INCLUDES) \
+CFLAGS=$(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding $(FREESTANDING_CODEGEN_CFLAGS) -c $(KERNEL_INCLUDES) \
 	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS) $(CLANG_COMPAT_CFLAGS)
 # Relaxed flags for vendored / DOOM-tree code that won't pass our strict gates
 CFLAGS_DOOM := $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
-               -ffreestanding -c $(KERNEL_INCLUDES) \
+               -ffreestanding $(FREESTANDING_CODEGEN_CFLAGS) -c $(KERNEL_INCLUDES) \
                -I./kernel/doom/src \
                -I./kernel/doom/src/include_stubs \
                -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \

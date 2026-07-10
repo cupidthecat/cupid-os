@@ -301,6 +301,13 @@ class KernelFpuInitializationSourceContractTests(unittest.TestCase):
         self.assertIn("ldmxcsr", body)
         self.assertNotIn("serial_printf", body)
 
+    def test_cpu_local_enable_path_restricts_compiler_to_general_registers(self):
+        self.assertRegex(
+            self.source,
+            r'__attribute__\(\(target\("general-regs-only"\)\)\)\s*'
+            r"void\s+fpu_init_cpu",
+        )
+
     def test_bsp_initializer_uses_the_same_cpu_local_enable_path(self):
         body = self.function_body("fpu_init")
         self.assertIn("fpu_init_cpu()", body)
