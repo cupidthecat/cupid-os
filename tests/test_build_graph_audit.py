@@ -193,7 +193,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(
                 root / "entry.asm",
                 """
-                bits 32
+                [bits 16]
+                BITS 32
+                [org 0x7c00]
+                ORG 0x8000
                 section .text
                 global start
                 extern target
@@ -203,6 +206,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     rep movsd
                     call target
                 table dd 1
+                message db "[brackets in data are not an address]"
                     times COUNT db 0
                 """,
             )
@@ -230,6 +234,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "asm.directive.bits",
                 "asm.directive.extern",
                 "asm.directive.global",
+                "asm.directive.org",
                 "asm.directive.section",
                 "asm.directive.times",
                 "asm.instruction.call",
@@ -268,7 +273,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid_c.type.u0",
             }
             self.assertTrue(expected.issubset(features), expected - set(features))
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 1)
+            self.assertEqual(features["asm.directive.bits"]["occurrences"], 2)
+            self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
             self.assertEqual(features["asm.instruction.call"]["occurrences"], 1)
+            self.assertNotIn("asm.instruction.bits", features)
+            self.assertNotIn("asm.instruction.org", features)
             self.assertNotIn("asm.instruction.table", features)
             self.assertEqual(features["c.expression.compound_literal"]["occurrences"], 1)
             self.assertEqual(features["c.declarator.bit_field"]["occurrences"], 1)
@@ -289,6 +299,29 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid_c.type.u0",
                 sources["app.cc"]["features"],
             )
+
+    def test_active_assembly_controls_are_not_memory_operands(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            features = {entry["id"]: entry for entry in audit["features"]}
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 99)
+            self.assertEqual(features["asm.directive.bits"]["occurrences"], 7)
+            self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
 
     def test_inventory_accounts_for_unreachable_and_duplicate_sources(self):
         with tempfile.TemporaryDirectory() as td:

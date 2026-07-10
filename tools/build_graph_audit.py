@@ -792,6 +792,12 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
         "cupiddis_main.c",
     }:
         return "cupiddis"
+    if path.startswith("toolchain/") and basename in {
+        "cupidasm.c",
+        "cupidasm.h",
+        "cupidasm_main.c",
+    }:
+        return "cupidasm"
     if path.startswith("toolchain/"):
         return "toolchain_core"
     if path.startswith("kernel/lang/") and basename.startswith("ctool_kernel"):
@@ -835,7 +841,7 @@ def _roadmap(
                 "cupiddis",
             ),
             (),
-            "The shared foundations now cross hosted and kernel adapters; each tool frontend still needs migration onto that interface.",
+            "The shared foundations cross hosted and kernel adapters; CupidDis and hosted CupidASM consume them, while CupidC and the CupidASM kernel adapter remain.",
         ),
         (
             "elf32_relocatable_interchange",
@@ -863,7 +869,7 @@ def _roadmap(
             "Implement the active Cupid ASM directives and expression language",
             ("boot_assembly", "kernel_assembly", "cupid_asm_demo"),
             ("asm.directive.", "asm.expression.", "asm.preprocessor."),
-            "BITS, ORG, data/reserve forms, times, includes, macros, and label arithmetic gate real sources.",
+            "BITS, ORG, data/reserve forms, times, includes, %define, and label arithmetic gate real sources.",
         ),
         (
             "cupidasm_encoding_and_raw_parity",
@@ -967,7 +973,7 @@ def _roadmap(
         (
             "boot_and_kernel_assembly",
             ("boot_assembly", "kernel_assembly"),
-            "Migrate four NASM-owned sources after raw and ELF32 parity gates exist.",
+            "Cut over four NASM-owned transforms now that raw and ELF32 parity gates exist.",
         ),
         (
             "kernel_and_drivers",
@@ -1578,22 +1584,38 @@ def _scan_c_features(
                 )
 
 
-def _strip_asm_comment(line: str) -> str:
+def _mask_asm_strings(line: str) -> str:
+    """Replace quoted ASM data with spaces while preserving source positions."""
+    output = list(line)
     quote: str | None = None
     escaped = False
     for index, char in enumerate(line):
+        if quote is None:
+            if char in {'"', "'"}:
+                quote = char
+                output[index] = " "
+            continue
+
+        output[index] = " "
         if escaped:
             escaped = False
-            continue
-        if char == "\\" and quote is not None:
+        elif char == "\\":
             escaped = True
-            continue
-        if char in {'"', "'"}:
-            quote = None if quote == char else char if quote is None else quote
-            continue
-        if char == ";" and quote is None:
-            return line[:index]
-    return line
+        elif char == quote:
+            quote = None
+    return "".join(output)
+
+
+def _strip_asm_comment(line: str) -> str:
+    comment_index = _mask_asm_strings(line).find(";")
+    return line if comment_index < 0 else line[:comment_index]
+
+
+def _asm_bracketed_directive(line: str) -> str | None:
+    match = re.fullmatch(
+        r"\[\s*(bits|org)\b[^\]]*\]\s*", line, flags=re.IGNORECASE
+    )
+    return match.group(1).lower() if match is not None else None
 
 
 def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> None:
@@ -1627,7 +1649,11 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
             if not code_line:
                 continue
 
-        first_match = re.match(r"([^\s,]+)", code_line)
+        bracketed_directive = _asm_bracketed_directive(code_line)
+        scan_line = (
+            bracketed_directive if bracketed_directive is not None else code_line
+        )
+        first_match = re.match(r"([^\s,]+)", scan_line)
         if first_match is None:
             continue
         first = first_match.group(1).lower()
@@ -1637,7 +1663,7 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
                 f"asm.preprocessor.{first[1:]}", path, line_number, original_line
             )
         else:
-            tokens = re.findall(r"[A-Za-z_][\w.$@?]*", code_line.lower())
+            tokens = re.findall(r"[A-Za-z_][\w.$@?]*", scan_line.lower())
             directive = None
             if first in ASM_DIRECTIVES:
                 directive = first
@@ -1681,9 +1707,14 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
                 original_line,
                 words.count(register),
             )
-        if "[" in code_line and "]" in code_line:
+        memory_line = _mask_asm_strings(code_line)
+        memory_operands = re.findall(r"\[[^\[\]]*\]", memory_line)
+        if bracketed_directive is None and memory_operands:
             collector.add("asm.addressing.memory", path, line_number, original_line)
-            if re.search(r"\*\s*(?:2|4|8)\b", code_line):
+            if any(
+                re.search(r"\*\s*(?:2|4|8)\b", operand)
+                for operand in memory_operands
+            ):
                 collector.add(
                     "asm.addressing.base_index_scale",
                     path,

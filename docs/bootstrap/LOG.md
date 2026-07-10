@@ -450,7 +450,6 @@ After committing the shared x86 model as `c1df30c`, the baseline runner rebuilt 
 | Output sizes | Kernel ELF 6,249,088 bytes; raw kernel 6,039,445 bytes; `.text` 1,369,924 bytes; disk image 209,715,200 bytes |
 
 The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the hosted GCC and sanitizer contracts do not substitute for it.
-
 ## 2026-07-09: shared and hosted CupidDis object inspection
 
 Wayfinder ticket [#19](https://github.com/cupidthecat/cupid-os/issues/19) moved CupidDis off its kernel-only opcode/packed-ELF implementation and behind the shared Toolchain seams. `toolchain/cupiddis.c` is freestanding and composes the typed ELF32 reader with the single x86 catalogue; `toolchain/cupiddis_main.c` is the hosted driver, while `kernel/lang/dis.c` is now only a VFS/job/text adapter. The existing `dis`, `exec -d`, and CupidC JIT call sites remain. The unused `dis_decode_one` surface and its second opcode authority were removed after repository-wide caller verification.
@@ -513,3 +512,45 @@ After committing the shared inspector as `4efd5ed`, the baseline runner rebuilt 
 | Output sizes | Kernel ELF 6,275,816 bytes; raw kernel 6,062,681 bytes; `.text` 1,394,020 bytes; disk image 209,715,200 bytes |
 
 The machine-readable evidence fingerprints the Windows 10 AMD64 oracle and its Make, Python, Clang/LLD, NASM, LLVM objcopy/nm, QEMU, and optional JPEG tooling. Linux GCC/binutils remains a separate complete-OS capture; the hosted GCC and sanitizer contracts do not substitute for it.
+
+
+## 2026-07-10: shared hosted CupidASM and real-source parity
+
+Wayfinder ticket [#20](https://github.com/cupidthecat/cupid-os/issues/20) moved assembly semantics into a freestanding hosted frontend before changing production ownership. ADR 0009 records one deep `ctool_asm_assemble` operation with raw, deterministic ELF32 relocatable-object, and fixed code/data image profiles. The module owns lexing, `%define` and include expansion, expressions, symbols, section layout, branch relaxation, shared-x86 lowering, fixups, and artifact construction. It calls the shared x86 encoder and semantic ELF32 writer directly; it does not publish parser/fixup state or claim linker-script, multi-object, unrestricted `%macro`, or final-executable ownership.
+
+### Capability and interface decisions
+
+- `toolchain/cupidasm.h` accepts immutable request definitions, logical include roots, entry candidates, explicit artifact policy, and a caller-owned empty output buffer. Success returns borrowed bytes plus job-arena-owned fixed-region metadata; failure empties output and zeros the result while retaining structured diagnostics. Fixed regions publish ELF32 `SHF_*` flags, initialized byte slices, memory sizes including BSS, and code-before-data order.
+- Symbols are case-sensitive by default for the NASM-compatible host path. A request flag enables ASCII-insensitive identity for the future kernel adapter, preserving the legacy CupidASM policy for source labels, entry names, and runtime definitions. Contracts prove mixed-case binding/entry resolution and reject `Foo`/`foo` as a duplicate only in that compatibility profile.
+- `%include` tries the including source's logical parent followed by ordered request roots through the shared file-store seam. Missing files, cycles, excessive nesting, invalid requests, lexical/syntax failures, duplicate/undefined names, invalid expressions, layout/region limits, encoding, relocation, entry, and output failures have stable `CT6000001`-`CT6000017` diagnostics.
+- `toolchain/cupidasm_main.c` provides `cupidasm -f bin|elf32 INPUT -o OUTPUT`, including relative and repository-contained absolute paths from the process working directory, distinct usage exit 2 versus processing exit 1, opening output only after successful assembly, and rendered structured diagnostics. The CLI is a host adapter only; parsing, layout, encoding, and object policy remain freestanding. A late host write/close failure may leave a partial destination and is not described as transactional publication.
+- The source-driven surface includes mixed `BITS 16/32`, `ORG`, sections, global/extern, colon and no-colon data labels, dot-local labels, `equ`, `$`/`$$`, checked arithmetic/shift/complement expressions, binary-suffix literals, `db/dw/dd/dq`, `times`, `%define`, `%include`, all seven active reserve spellings, strings/escapes, prefixes, segment overrides, far operands, and the active integer/system/x87/SSE2 instruction forms. Branches begin short and widen deterministically when required.
+
+### Real-source evidence
+
+- Unmodified `boot/boot.asm` produces exactly 2,560 bytes with SHA-256 `57884f86c907d8669f16a667e83238b5f840f2b67e7b82eeeedea09ec5244445`; unmodified `kernel/smp/smp_trampoline.S` produces exactly 4,096 bytes with SHA-256 `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`. Both are byte-identical to NASM 2.16.01.
+- Unmodified `kernel/cpu/isr.asm` produces a 377-byte `.text` with SHA-256 `09434aeb25549b239065814f2fbbfbbe80c079cb56fe522ab1f79b18d3f93417`, 38 symbols, and five `R_386_PC32` relocations matching the NASM oracle's relevant semantics. Unmodified `kernel/core/context_switch.asm` produces a 44-byte `.text` with SHA-256 `6c926a52a59c328e65d3ca1dea1d4eb9355ea8b08478f27b5ea521d93ba980cb`, two globals, and no relocations.
+- A checked table names all 22 unmodified `demos/*.asm` inputs and the exact required constant/absolute definition names and kinds, using deterministic synthetic addresses. Every source assembles twice to an identical fixed image with valid entry and bounded code/data regions. The next adapter step exercises the real 631-name kernel catalogue; the kernel command still uses the legacy parser until then.
+- The build-graph lexer previously counted quoted bracket text and bracketed control directives as memory operands. Focused regressions correct 107 to 99 true memory operands while retaining seven `BITS` and two `ORG` occurrences. The generated source audit now classifies the new shared frontend, CLI, and contracts as CupidASM rather than generic host C.
+
+### Test-first findings and rejected failures
+
+- The first fixed-image run treated a resolved request constant as undefined because constant evaluation fell through into source-definition handling. Request constants now remain resolved expression atoms.
+- A symbolic immediate such as `push message` initially chose a constant-width layout before object/fixed lowering knew it needed a reference field. Non-raw layout now retains symbolic references so final encoding cannot change size.
+- The first whole-demo pass failed `fxsave [fp_buf]` because memory-only x87/SSE/system forms lacked source-width inference. Adding mnemonic-specific inference exposed a regression in `mov [BOOT_DRIVE], dl`: the mnemonic default incorrectly won over the companion 8-bit register. Direct raw and boot-image contracts now require the companion width first, with mnemonic defaults only when no operand supplies a width.
+- Fixed requests initially read `initial_origin` through the inactive raw-profile union member, accidentally aliasing the code base. Non-raw profiles now start with origin zero; fixed label and `EQU` evaluation uses the label's actual section load address, invalidates pre-layout cached values, and is pinned by a data-label address fixture.
+- The first hosted logical path split made relative paths use the source's directory as native root while retaining the directory in the logical name. Relative CLI inputs now use the working directory root; absolute inputs split once. Includes still resolve through logical source-parent/root policy rather than ambient CWD inside the assembler.
+- The initial active-source audit classified quoted `"[... ]"` strings and `[BITS ...]`/`[ORG ...]` controls as memory syntax. The tokenizer now removes quoted content and known bracketed directives before counting operands. A regression fixture locks the corrected feature evidence.
+- No production source was shortened or rewritten. The four NASM inputs and all 22 demos remain unchanged; capability was added to the toolchain instead.
+- Independent Standards and Spec review found an absolute-path CLI include-root loss, fixed-image branch-place ambiguity, unchecked linearized arithmetic, included-file post-parse diagnostics pointing at the primary source, sparse negative coverage, and a private 64-token line ceiling. Absolute repository paths now retain the working logical root; fixed layout assigns section addresses before relaxation; linearized addition/multiplication/shifts report overflow; statements/symbols carry their source path into layout/emission; one error matrix covers invalid requests, undefined/non-relocatable/overflowing expressions, narrow relocations, invalid `ORG`, missing entry, output rollback, include cycles/depth, and included encoding errors; token storage is bounded only by the job arena. A 70-value source line proves the artificial ceiling is gone.
+
+### Verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `make -C toolchain test` | PASS | Strict Windows Clang built eight native contracts/CLIs and passed 35 core/ELF32/x86/CupidDis/CupidASM modes, including the negative matrix, long-line contract, and all 22 demos. |
+| Relevant Python suites | PASS | 22 CLI, active-source, demo-corpus, and build-graph-audit tests passed; absolute-path includes, raw bytes, and ELF section/symbol/relocation semantics matched their frozen/oracle evidence. |
+| WSL Linux strict GCC hosted build | PASS | The identical shared sources and all 35 modes compiled warning-as-error and passed. |
+| WSL Linux ASan/UBSan hosted build | PASS | All 35 modes, including two full demo-corpus assemblies per source, completed under address/undefined sanitizers with no finding. |
+
+The production Makefile still invokes NASM for two raw binaries and two ELF32 objects. The kernel still links the legacy CupidASM lexer/parser/emitter, every new C source is still compiled by GCC/Clang, and no CupidASM checked seed or staged self-build exists. Kernel fixed-image adapter migration, strict i386/full-OS/guest proof, the four production recipe cutovers, and self-hosting remain separate green steps.
