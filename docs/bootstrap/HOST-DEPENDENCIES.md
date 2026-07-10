@@ -1,11 +1,11 @@
 # Host dependency inventory
 
-The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 652-source/448-transform graph and its 430-path manifest covers all 423 final-link objects. `baselines/windows-amd64.json` records the passing `1b5901c` Windows oracle with the same 430 artifacts/423 link objects; a complete Linux GCC/binutils OS capture remains pending.
+The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 655-source/452-transform graph and its 431-path manifest covers all 424 final-link objects. Until the post-implementation recapture is committed, `baselines/windows-amd64.json` remains historical evidence for the passing `1b5901c` Windows oracle at 430 artifacts/423 link objects; a complete Linux GCC/binutils OS capture remains pending.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
-| GCC with i386/multilib support | Compiles the root C graph on Linux; `user/Makefile` hard-codes GCC; also builds the native hosted core and object contracts on Linux | Required on Linux and for the separate user/contract builds | Remove from code-producing normal and user paths after Cupid seeds exist; retain only as an optional oracle/bootstrap escape hatch |
-| Clang with i386 target support | Compiles the root C graph on Windows and builds the native hosted core and object contracts | Required on Windows | Remove from code-producing normal and contract paths after Cupid seeds exist; retain only as an optional oracle/bootstrap escape hatch |
+| GCC with i386/multilib support | Compiles the root C graph on Linux; `user/Makefile` hard-codes GCC; also builds the native hosted core, object, and x86 contracts on Linux | Required on Linux and for the separate user/contract builds | Remove from code-producing normal and user paths after Cupid seeds exist; retain only as an optional oracle/bootstrap escape hatch |
+| Clang with i386 target support | Compiles the root C graph on Windows and builds the native hosted core, object, and x86 contracts | Required on Windows | Remove from code-producing normal and contract paths after Cupid seeds exist; retain only as an optional oracle/bootstrap escape hatch |
 | NASM | Produces `boot/boot.bin`, `kernel/cpu/isr.o`, `kernel/core/context_switch.o`, and `kernel/smp_trampoline.bin` | Required on both hosts | Replace with host-runnable CupidASM |
 | GNU `ld` / LLVM `ld.lld` | Performs the two-pass kernel link according to `link.ld`; `user/Makefile` hard-codes GNU `ld` for three executables | Required, selected by host for the kernel and fixed to GNU `ld` for user programs | Replace with CupidLD while preserving the used linker-script behavior |
 | GNU `objcopy` / `llvm-objcopy` | Wraps source/assets as ELF32 objects and converts the linked kernel ELF to a raw binary; Python's JPEG path also invokes it | Required, selected by host | Replace with CupidObj or equivalent shared object-library operations |
@@ -28,7 +28,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 
 | Tool hand-off | Reachable outputs | Required external behavior |
 | --- | ---: | --- |
-| Host C compiler | 251 | 244 i386 objects, five native hosted core/object-contract objects, and two native contract executables; these contracts are temporary bootstrap evidence rather than ownership transfer |
+| Host C compiler | 255 | 245 i386 objects, seven native hosted core/object/x86-contract objects, and three native contract executables; these contracts are temporary bootstrap evidence rather than ownership transfer |
 | NASM | 4 | Two flat binaries and two ELF32 `ET_REL` objects; active directives/expressions, exact 16/32-bit layout, instruction/addressing parity, symbols, and relocations |
 | Host linker | 5 | Two kernel links plus three fixed-address user executables; `R_386_32`/`R_386_PC32`, weak/strong symbols, layout/alignment, and the used `link.ld` subset |
 | Host object-copy utility | 181 owned transforms | 179 binary-to-ELF wrappers, SMP object transformation, and final ELF-to-raw conversion; the JPEG transform invokes objcopy twice internally |
@@ -38,7 +38,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 
 `tools/hostbuild.py::_symbols_from_nm`, `_objcopy_binary`, and `embed_jpeg` are the subprocess seams behind the composite transforms. `tools/mksyms.sh` and `tools/embed_jpeg_baseline.sh` are tracked legacy/oracle duplicates outside the normal Make path.
 
-The ELF32 contract suite may use a host C compiler, NASM, GNU `readelf`, and LLVM `ld.lld` as optional comparison oracles. It proves that Cupid-written objects are accepted by external consumers and that the Cupid reader accepts Clang-, NASM-, and linker-produced objects; absent oracle tools are skipped. These tests do not put those tools on a Cupid object-production path, and they do not transfer CupidC, CupidASM, CupidDis, linker, or object-copy ownership.
+The hosted contract suites use the host C compiler only to bootstrap and exercise the shared core, ELF32, and x86 implementations. The ELF32 suite may additionally use NASM, GNU `readelf`, and LLVM `ld.lld` as optional comparison oracles. It proves that Cupid-written objects are accepted by external consumers and that the Cupid reader accepts Clang-, NASM-, and linker-produced objects; absent oracle tools are skipped. The x86 suite uses checked exact-byte vectors derived from the active corpus and NASM behavior rather than invoking NASM on a production path. These tests do not transfer CupidC, CupidASM, CupidDis, linker, or object-copy ownership.
 
 The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECTIONS`, location-counter assignment, input-section wildcards, `ALIGN`, symbol definitions, `COMMON`, and `ASSERT`. It is referenced in linker flags but is not currently a declared prerequisite of either kernel ELF target.
 
@@ -47,7 +47,7 @@ The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECT
 - The 104 active `bin/*.cc` roots and 22 `bin/browser/*.cc` fragments are wrapped as bytes and installed in the OS filesystem. CupidC compiles them on demand inside Cupid OS.
 - The 22 `demos/*.asm` files are likewise embedded as source and assembled by CupidASM on demand.
 - Repository headers and compatibility code replace the host libc/header environment for root compilation (`-nostdlib -nostdinc -ffreestanding`). The compiler executables remain external.
-- The hosted core contract intentionally uses the host C runtime only through its adapter. Its arena, buffer, path, source, diagnostic, limit, and output-commit behavior is shared with the freestanding kernel build.
+- The hosted contracts intentionally use the host C runtime only through the core adapter. The shared arena, buffer, path, source, diagnostic, limit, object, and instruction behavior is also compiled freestanding into the kernel build.
 - Optional WAD discovery and test fixtures affect packaged/runtime content, not compiler ownership.
 
 ## Removal gate

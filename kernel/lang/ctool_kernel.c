@@ -1,10 +1,12 @@
 #include "ctool_kernel.h"
 #include "elf32.h"
+#include "x86.h"
 
 #include "kernel.h"
 #include "memory.h"
 #include "panic.h"
 #include "serial.h"
+#include "string.h"
 #include "vfs.h"
 #include "vfs_helpers.h"
 
@@ -260,6 +262,102 @@ static void ctool_kernel_elf32_selftest(void) {
   KINFO("Cupid ELF32 object self-test passed");
 }
 
+static void ctool_kernel_x86_selftest(void) {
+  static const ctool_u8 pxor_bytes[] = {0x66u, 0x0fu, 0xefu, 0xcau};
+  static const ctool_u8 address_bytes[] = {0x8bu, 0x40u, 0x7fu};
+  ctool_job_config_t config = ctool_kernel_job_config(ctool_default_limits());
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_x86_instruction_t instruction;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_decoded_t decoded;
+  ctool_status_t status = ctool_job_open(&config, &job);
+  ctool_u32 index;
+  if (status == CTOOL_OK) {
+    status = ctool_x86_validate_model(job);
+  }
+  if (status != CTOOL_OK) {
+    if (job != (ctool_job_t *)0) {
+      ctool_job_close(job);
+    }
+    kernel_panic("Cupid x86 model self-test setup failed (%u)",
+                 (uint32_t)status);
+  }
+
+  memset(&instruction, 0, (uint32_t)sizeof(instruction));
+  instruction.mnemonic = CTOOL_X86_MN_MOV;
+  instruction.operand_bits = 16u;
+  instruction.address_bits = 16u;
+  instruction.operand_count = 2u;
+  instruction.operands[0].kind = CTOOL_X86_OPERAND_REGISTER;
+  instruction.operands[0].as.reg.class_id = CTOOL_X86_REG_GPR16;
+  instruction.operands[0].as.reg.index = 0u;
+  instruction.operands[1].kind = CTOOL_X86_OPERAND_MEMORY;
+  instruction.operands[1].width_bits = 16u;
+  instruction.operands[1].as.memory.address_bits = 16u;
+  instruction.operands[1].as.memory.segment.class_id = CTOOL_X86_REG_NONE;
+  instruction.operands[1].as.memory.base.class_id = CTOOL_X86_REG_GPR16;
+  instruction.operands[1].as.memory.base.index = 3u;
+  instruction.operands[1].as.memory.index.class_id = CTOOL_X86_REG_GPR16;
+  instruction.operands[1].as.memory.index.index = 6u;
+  instruction.operands[1].as.memory.scale = 1u;
+  instruction.operands[1].as.memory.displacement.kind =
+      CTOOL_X86_VALUE_CONSTANT;
+  instruction.operands[1].as.memory.displacement.bits = 0x7fu;
+  instruction.operands[1].as.memory.displacement_bits = 8u;
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_16, &instruction,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (status != CTOOL_OK || encoding.size != (ctool_u8)sizeof(address_bytes)) {
+    ctool_job_close(job);
+    kernel_panic("Cupid x86 16-bit encode self-test failed (%u)",
+                 (uint32_t)status);
+  }
+  for (index = 0u; index < (ctool_u32)sizeof(address_bytes); index++) {
+    if (encoding.bytes[index] != address_bytes[index]) {
+      ctool_job_close(job);
+      kernel_panic("Cupid x86 16-bit encode bytes mismatch");
+    }
+  }
+
+  memset(&instruction, 0, (uint32_t)sizeof(instruction));
+  instruction.mnemonic = CTOOL_X86_MN_CALL;
+  instruction.operand_bits = 32u;
+  instruction.address_bits = 32u;
+  instruction.operand_count = 1u;
+  instruction.operands[0].kind = CTOOL_X86_OPERAND_RELATIVE;
+  instruction.operands[0].width_bits = 32u;
+  instruction.operands[0].encoding_bits = 32u;
+  instruction.operands[0].as.value.kind = CTOOL_X86_VALUE_REFERENCE;
+  instruction.operands[0].as.value.reference = 9u;
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &instruction,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (status != CTOOL_OK || encoding.size != 5u ||
+      encoding.field_count != 1u ||
+      encoding.fields[0].kind != CTOOL_X86_FIELD_RELATIVE ||
+      encoding.fields[0].relocation != CTOOL_X86_RELOC_PC_RELATIVE ||
+      encoding.fields[0].encoded_addend != -4 ||
+      encoding.fields[0].reference != 9u) {
+    ctool_job_close(job);
+    kernel_panic("Cupid x86 relocation self-test failed (%u)",
+                 (uint32_t)status);
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(pxor_bytes, (ctool_u32)sizeof(pxor_bytes)), 0u, &decoded);
+  if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+      decoded.instruction.mnemonic != CTOOL_X86_MN_PXOR ||
+      decoded.instruction.prefixes != 0u || decoded.consumed != 4u ||
+      decoded.instruction.operands[0].as.reg.class_id != CTOOL_X86_REG_XMM ||
+      decoded.instruction.operands[0].as.reg.index != 1u ||
+      decoded.instruction.operands[1].as.reg.index != 2u) {
+    ctool_job_close(job);
+    kernel_panic("Cupid x86 SSE2 decode self-test failed (%u)",
+                 (uint32_t)status);
+  }
+  ctool_job_close(job);
+  KINFO("Cupid x86 instruction model self-test passed");
+}
+
 void ctool_kernel_selftest(void) {
   static const char output_name[] = "/tmp/ctool-core-selftest.bin";
   static const char marker[] = "ctool-kernel-ok";
@@ -307,4 +405,5 @@ void ctool_kernel_selftest(void) {
   }
   KINFO("Cupid toolchain core self-test passed");
   ctool_kernel_elf32_selftest();
+  ctool_kernel_x86_selftest();
 }

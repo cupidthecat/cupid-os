@@ -196,7 +196,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
             kernel/tls/tls12_handshake.o \
             kernel/tls/tls_selftest.o \
-			toolchain/ctool.o toolchain/elf32.o kernel/lang/ctool_kernel.o \
+			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o kernel/lang/ctool_kernel.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
@@ -857,7 +857,10 @@ toolchain/ctool.o: toolchain/ctool.c toolchain/ctool.h
 toolchain/elf32.o: toolchain/elf32.c toolchain/elf32.h toolchain/ctool.h
 	$(CC) $(CFLAGS) toolchain/elf32.c -o toolchain/elf32.o
 
-kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h toolchain/ctool.h toolchain/elf32.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h drivers/serial.h
+toolchain/x86.o: toolchain/x86.c toolchain/x86.h toolchain/ctool.h
+	$(CC) $(CFLAGS) toolchain/x86.c -o toolchain/x86.o
+
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h kernel/core/string.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o
 
 kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
