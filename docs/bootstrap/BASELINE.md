@@ -53,7 +53,7 @@ make check-bootstrap-host-comparison
 
 The comparison requires one passing Windows baseline and one passing Linux baseline, two-run same-host reproducibility, every named check, all three supported roots in both runs, an identical combined artifact-path cohort, and the fixed 200 MiB disk geometry. It records artifact digests and size deltas but explicitly does not gate on cross-toolchain hash equality. Canonical comparison evidence is `baselines/windows-linux.json` with schema `cupid.bootstrap-host-comparison.v1`.
 
-Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay under ignored `build/bootstrap/`. The JSON has schema identifier `cupid.bootstrap-baseline.v1`; schema changes require tests and a bootstrap-log entry.
+Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay under ignored `build/bootstrap/`. Three-root evidence has schema identifier `cupid.bootstrap-baseline.v2`; the prior v1 schema described only the 431-path root manifest and is deliberately rejected by the cross-host gate. Schema changes require tests and a bootstrap-log entry.
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
