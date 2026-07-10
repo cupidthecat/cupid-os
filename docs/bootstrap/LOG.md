@@ -644,3 +644,19 @@ Wayfinder ticket [#21](https://github.com/cupidthecat/cupid-os/issues/21) first 
 | CupidC GUI smoke (`/bin/ls.cc`) | PASS | The rebuilt image reached `JIT execution complete` without panic in 18.2 seconds. |
 
 CupidLD, the three user links, the two kernel links, production NASM cutover, and CupidDis symbol-reader cutover remain separate ownership steps. The post-commit reproducibility recapture remains pending.
+
+## 2026-07-10: CupidObj Windows oracle recapture
+
+After committing the production object-transform cutover as `6731dd6`, the baseline runner rebuilt that exact revision twice in isolated worktrees and refreshed `baselines/windows-amd64.json`.
+
+| Check | Result |
+| --- | --- |
+| Reproducibility | PASS: all 431 artifacts matched between two isolated builds; aggregate SHA-256 `a1f4a1b10fd326318ad0c2b861a050ca95dc225d6aea95caa6e7864d8d6d5fdf` |
+| Manifest contract | PASS: the checked audit covers all 424 final-link objects while assigning all 181 normal object transformations to CupidObj |
+| Clean builds | PASS in 14.387 and 12.975 seconds |
+| Host tests | PASS: 82 tests in 52.467 seconds, with one Windows-only skip |
+| CupidC guest smoke | PASS: `/bin/ls.cc` in 18.882 seconds |
+| CupidASM guest smoke | PASS: `as /demos/hello.asm` in 23.246 seconds |
+| Output sizes | Kernel ELF 6,276,332 bytes; raw kernel 6,064,029 bytes; `.text` 1,390,468 bytes; disk image 209,715,200 bytes |
+
+The evidence still fingerprints the installed LLVM `objcopy` as historical oracle context because the baseline preflight catalogue has not yet made that probe optional; none of the three captured normal build roots invoked it. The complete Linux GCC/binutils OS oracle remains pending, and hosted GCC/sanitizer contracts do not substitute for it.

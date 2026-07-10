@@ -48,10 +48,10 @@ Checked evidence belongs under `docs/bootstrap/baselines/`. Ordinary runs stay u
 
 | Host oracle | Source revision | Result | Evidence |
 | --- | --- | --- | --- |
-| Windows AMD64, Clang/LLVM | `50c5b04` | PASS: two clean 431-artifact builds matched; aggregate SHA-256 `47f778f4e9b9a1954786aee1099f3aaf0a2ee1d357e82e1242fcc38a126d459d` | `baselines/windows-amd64.json` |
+| Windows AMD64, Clang/LLVM | `6731dd6` | PASS: two clean 431-artifact builds matched; aggregate SHA-256 `a1f4a1b10fd326318ad0c2b861a050ca95dc225d6aea95caa6e7864d8d6d5fdf` | `baselines/windows-amd64.json` |
 | Linux, GCC/binutils | Pending | A separate capture is required; cross-toolchain equality is not expected | Not captured |
 
-This capture supersedes the 432-artifact hosted-CupidDis evidence from `4efd5ed`. The checked audit contract proves that the 431-path manifest includes all 424 final-link objects, including the shared runtime core, ELF32 module, x86 instruction model, CupidDis and CupidASM modules, and their kernel adapters. The current capture passed 76 host tests in 42.159 seconds (one Windows-only skip), `/bin/ls.cc` through CupidC in 18.625 seconds, and `as /demos/hello.asm` through CupidASM in 23.355 seconds. Its two isolated builds took 8.279 and 7.718 seconds. The resulting kernel ELF is 6,276,332 bytes, its raw binary is 6,064,029 bytes, `.text` is 1,390,468 bytes, and the disk image is 209,715,200 bytes; all times and sizes are oracle observations, not performance gates.
+This capture supersedes the shared-CupidASM evidence from `50c5b04`. The checked audit contract proves that the 431-path manifest includes all 424 final-link objects, including the shared runtime core, ELF32 module, x86 instruction model, CupidDis, CupidASM, and every CupidObj-produced wrapper. The current capture passed 82 host tests in 52.467 seconds (one Windows-only skip), `/bin/ls.cc` through CupidC in 18.882 seconds, and `as /demos/hello.asm` through CupidASM in 23.246 seconds. Its two isolated builds took 14.387 and 12.975 seconds. The resulting kernel ELF is 6,276,332 bytes, its raw binary is 6,064,029 bytes, `.text` is 1,390,468 bytes, and the disk image is 209,715,200 bytes; all times and sizes are oracle observations, not performance gates.
 
 ## Build-output hygiene
 

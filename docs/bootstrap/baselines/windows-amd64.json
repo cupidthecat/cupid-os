@@ -435,647 +435,647 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "47f778f4e9b9a1954786aee1099f3aaf0a2ee1d357e82e1242fcc38a126d459d",
+        "digest": "a1f4a1b10fd326318ad0c2b861a050ca95dc225d6aea95caa6e7864d8d6d5fdf",
         "files": [
           {
             "path": "bin/audiotest.o",
-            "sha256": "e62e9dd447fbcd7050981cb52d4413c4f95bc0df1f19218a178ac50374493840",
-            "size": 1352
+            "sha256": "f742d1d04821a3f96579c2cdfc1754ad9e3a89056204f036c4af345ef00e3c19",
+            "size": 1400
           },
           {
             "path": "bin/auto.o",
-            "sha256": "44ae9105d176cebbf94e232724a7d1742664def81a4915e5a54a122a9ce3168a",
-            "size": 2296
+            "sha256": "e280bc0e5babc1b1a9c6f71cbf27588561570c82fa7d8f1533ceb59afa82d184",
+            "size": 2348
           },
           {
             "path": "bin/bgstudio.o",
-            "sha256": "3c5836871eb3625723a72fd56eadda2b5bd0b47f85ad40f403cd9dd4efe02959",
-            "size": 17500
+            "sha256": "f64fa52f2361eccbeb17fac73a8f5fb2dab7c195fecf27cb520062122ff4e48f",
+            "size": 17552
           },
           {
             "path": "bin/bible.o",
-            "sha256": "a5453a692954d56f51f30a35f6d3f3d9155da0f363b67472c54162343bd955f0",
-            "size": 2012
+            "sha256": "5ccfc28787e1e58c42ac9d2964df9cf52eed6bb263b78cfe5c96fc1e846648f9",
+            "size": 2060
           },
           {
             "path": "bin/bmptest.o",
-            "sha256": "676c3968adac5907ae0ddcc08338837fc65da6223d4614e186d5d295be3a3dbd",
-            "size": 3876
+            "sha256": "dc6d9acd4ae1a8ba976db1439c7773537da6e8a181c78a1eb78d5776b7411d69",
+            "size": 3928
           },
           {
             "path": "bin/browser.o",
-            "sha256": "cddb0b65908a60ec293655e2f28070f4e6aa2fab3056e66282efafd0ad954c6d",
-            "size": 1316
+            "sha256": "fffd2abf2a2dc0a4cc2d96b59d23c15f72f4347230485290ebe065aca8e5084c",
+            "size": 1368
           },
           {
             "path": "bin/browser/css.o",
-            "sha256": "a0c3ea13f85ab8216b6d1faf3660ba388a01e684293decb02bcacfbe440a285e",
-            "size": 49368
+            "sha256": "0c2108720d70317eb267964348fcb43b8381c1a8cfb8a74109a9f431a65f6c17",
+            "size": 49420
           },
           {
             "path": "bin/browser/dom.o",
-            "sha256": "d3925af026f32ddc7f11d21ebeee88f65ed4c8d80d514c27db94896ff2b4b35d",
-            "size": 31660
+            "sha256": "da818a2cb21ca22da88dd0ebb74b789511ff772ec15bcc72064787129e86e638",
+            "size": 31712
           },
           {
             "path": "bin/browser/font_face.o",
-            "sha256": "1ff2f95043f924f9373f37fb1faa85ada6ef2d9542560f9a30757ee942faec5d",
-            "size": 18392
+            "sha256": "3c1e379a3afa3aa1eb4fce2b0a86a2f4bdda4768a585adf1a623fe310d0dbfca",
+            "size": 18440
           },
           {
             "path": "bin/browser/image.o",
-            "sha256": "1b907e3fb48916dbdc9a372704c08ffcb3ae6fa29666b9df5a5c70bc52aed512",
-            "size": 15032
+            "sha256": "bff94800209339b55dcc93274c4f9120a90ee3749f5f13e00992d84484159cd5",
+            "size": 15080
           },
           {
             "path": "bin/browser/input.o",
-            "sha256": "6af64e7c4eab09fe9c3b94da1552f3142f43d36121d0bef6ed44cc5e37e24616",
-            "size": 13800
+            "sha256": "fbb6fd52ee2ebb5937de42fd776dcdc72490fbf1632fb678726dee3933e6b045",
+            "size": 13848
           },
           {
             "path": "bin/browser/js_dom.o",
-            "sha256": "d521d337c0d72c1fec18aee878a11103eb8e1246f300f20b2716b8ffa14d860c",
-            "size": 26936
+            "sha256": "9c1f08bb272d901fffecffdc901e6db34bc778008e565e6a371f2f7989308bf7",
+            "size": 26988
           },
           {
             "path": "bin/browser/js_interp.o",
-            "sha256": "c91375b2ed546536702838474883e187b4fb6d4399600dd97efa00cafe8624ba",
-            "size": 38744
+            "sha256": "3e5a7cd5edad6d21babe21485e81a2867156637b19536ba345dac4a59c36c7b4",
+            "size": 38792
           },
           {
             "path": "bin/browser/js_lex.o",
-            "sha256": "437356d3a5bd5606cd183b6d2605305bc68c0c4381fb0735acf32cc9a9d8756b",
-            "size": 9964
+            "sha256": "e27d09d6881c482c28255017c3a7d687a11fbeba7363409d0bafaf774efcfcb1",
+            "size": 10016
           },
           {
             "path": "bin/browser/js_parse.o",
-            "sha256": "b33539dc231b89ce7d28328a4c69096a305086cf6bb40bbcc147f62f4a6acd5a",
-            "size": 22596
+            "sha256": "30569f77adba08cc38b60a574d9506c2a12b3efb16e4c10bb1eb03bfadafe61c",
+            "size": 22648
           },
           {
             "path": "bin/browser/layout.o",
-            "sha256": "aa5d167db20da55b06425576152c9dec4c1db84f0fc1e3e3d67766acc57aaac4",
-            "size": 70572
+            "sha256": "b5f87e42f4ca700fe0817c12e5a035dd2537dec451c07a0e844ff6d4e5e1db68",
+            "size": 70624
           },
           {
             "path": "bin/browser/main.o",
-            "sha256": "296bf5999f9fcb759e7d01636fbfd40b0aa4295a20823878926eb5db5663da3f",
-            "size": 36152
+            "sha256": "4c8dd9ce4236408a46f80a0577cfb84c97de5d7559769a9ccaa3eb2a8eb983c7",
+            "size": 36204
           },
           {
             "path": "bin/browser/nav.o",
-            "sha256": "7851388ea03b3d5332489aa53becbbd581f0ff99518cf61159a012e8ee3727fb",
-            "size": 13160
+            "sha256": "203cb61b6e0b492848b747d984443a40d2b8d9ade7e08ae56b01808ec9119b9c",
+            "size": 13212
           },
           {
             "path": "bin/browser/net.o",
-            "sha256": "eb6d250ce2b89e1bf48861e3a8b2d9b781f67bb13156d3e3bb3ffaf11a305f51",
-            "size": 12208
+            "sha256": "def94f26419b8f52543fcfa200a075155b1542e83c38ded81cf77bd0752fd8ac",
+            "size": 12260
           },
           {
             "path": "bin/browser/paint.o",
-            "sha256": "39b6d0f7255d605b8c9160464b05efe26b51a72696c290969d46415a123dd28e",
-            "size": 44700
+            "sha256": "6744aece2ce94b7ee3e8f52df635e5e5d396103bec9c49e9b6c170ffd2f7ad61",
+            "size": 44748
           },
           {
             "path": "bin/browser/parser.o",
-            "sha256": "42c9f471ce35ecff0d505876a5f09ea7f4e4d8ade02f827f70e8b22a28b76d92",
-            "size": 33984
+            "sha256": "85b9400d24be3986e93840ab9926787f776b88522fd5a389a7687d901a87d61e",
+            "size": 34036
           },
           {
             "path": "bin/browser/render_tree.o",
-            "sha256": "ef224531952e278a72917017fca239b5d316553d9e40ad495b759e0ead6a176b",
-            "size": 15016
+            "sha256": "6d300f47b17d28aa9eca6638da29d4a9d4be0f9b0cc072524f8e74c17b9f7ee0",
+            "size": 15068
           },
           {
             "path": "bin/browser/style.o",
-            "sha256": "ed27233d5c6c02311812b93a054c7484b9309bbb81335540408b763a720adfc5",
-            "size": 111036
+            "sha256": "c9db52bb7555ce1f1069eeee5fbf831e93c079f33b0573b6c4cfb5af6aa8fb2c",
+            "size": 111084
           },
           {
             "path": "bin/browser/url.o",
-            "sha256": "1a8cc45910b368451f5f299c5797a4fadafc1b12a64697c2f3ca1611ac6c22a8",
-            "size": 2792
+            "sha256": "845f2bb1c5404589c28628cd20b6342aa594213ecc0cc8276e05e7ba017d85ba",
+            "size": 2844
           },
           {
             "path": "bin/browser/url_hash.o",
-            "sha256": "82589ed4d3eabefcc9baae222589962a8d50ea0ec72e171fe774fca479f2f7e1",
-            "size": 2060
+            "sha256": "084373703f95e074ea022f9f73795388265265026399b9a916f6f9d8e6c817d0",
+            "size": 2112
           },
           {
             "path": "bin/browser/util.o",
-            "sha256": "c11cc6daae36d6b9ae28085aeedf4fcbd9fc3c990816e1b44b2db417a3034409",
-            "size": 2280
+            "sha256": "5432543b140e50cf5eade950beff9c23775cee908aa8b64b2efa11693a37ddad",
+            "size": 2332
           },
           {
             "path": "bin/browser/woff.o",
-            "sha256": "8239f7de4f34d66dbaf65b7cdf3301fc54e432d7e7fb586b576860834cb37125",
-            "size": 5492
+            "sha256": "fabb13bd42eba494ccb755685bb8ce218f84636e95ff7a2b17130ad89eaecd96",
+            "size": 5544
           },
           {
             "path": "bin/browser/woff2.o",
-            "sha256": "227831ae69ed1ebd792d041ac71c77f3d579487668fb49e3187d701c5dd09f88",
-            "size": 1544
+            "sha256": "ca8d448eb582e3cc822361b0481d3a14ffd46c5672ff21b51a722b111730cdb4",
+            "size": 1592
           },
           {
             "path": "bin/cachestats.o",
-            "sha256": "69b469c60986959361fd7e4556387a367fbf91719e9a5f94907a8af854e192eb",
-            "size": 480
+            "sha256": "7f0ec52ccf491f0fb3dca70af321be22fdc84b8c693e95ce2e2e053468a2daf3",
+            "size": 532
           },
           {
             "path": "bin/cat.o",
-            "sha256": "245e25552edecc3439566888f1aaae5285a9d8198869fb7c59b09ffcd1d925a2",
-            "size": 1292
+            "sha256": "d292d38054c504aae36573809dcd367d38d7ea2952fba1eef32280511b151bbf",
+            "size": 1344
           },
           {
             "path": "bin/cd.o",
-            "sha256": "98ed44181d7a07ac8fe70762392bee846f1a89c64548ec54bb12cb5edd639c2e",
-            "size": 1340
+            "sha256": "266b193787e33b033c6829a8f6622de23811c3a916f7751cecf0bff7d4d72b98",
+            "size": 1392
           },
           {
             "path": "bin/clear.o",
-            "sha256": "357475a5dc9a976ba705ea76c93719c59ee1dd2f26823ad828937192c077fef9",
-            "size": 728
+            "sha256": "d82cbf8ba4a72678aad0f33b1c4545bfe757f91b2bf78dacb5b9ed5efd2e4b93",
+            "size": 776
           },
           {
             "path": "bin/cp.o",
-            "sha256": "1e2d2f58013a8a7402918d7f18f7f5596c45c5e6a7f29e9666ac8ae8c3b1af7a",
-            "size": 2364
+            "sha256": "32e3063d316a09da6e14351eaf166d010cc12ca0222c77e6a942adc63e1bde27",
+            "size": 2416
           },
           {
             "path": "bin/crashtest.o",
-            "sha256": "0e3b7b2724862e461f5354c54a3de05b01e211816385d109fb7688a770d7c766",
-            "size": 1440
+            "sha256": "32543835db9fc230c454fcce3ddb4dc62cd0e53e82708d095202d2ed5c8cf90c",
+            "size": 1488
           },
           {
             "path": "bin/ctxt.o",
-            "sha256": "b0612bb1eaa94b12b58a58c77879b8544db8919046bff3e0ffb375755b296e92",
-            "size": 50512
+            "sha256": "c6aecc50f4267ebf59444b9992adf8a16d921ef1687986eacaa65aa864fbc288",
+            "size": 50564
           },
           {
             "path": "bin/cupidc_test1.o",
-            "sha256": "9d92ed4612bb573c95b3ff772c5d43572fb1324c1f3dc03569987c6029c62c66",
-            "size": 1124
+            "sha256": "5d5c36b56d7bff05003ad2bbbc5892df52dc3eabcf6379d4082e074f2786a73f",
+            "size": 1176
           },
           {
             "path": "bin/cupidc_test2.o",
-            "sha256": "9295090a0a575c070fb78637c239b3c650c768c6c7c2099118335e0d6638c28a",
-            "size": 1564
+            "sha256": "0eac4042498d6bc0e006072c231ab2161686d54bdac444df514b4bd56e25a159",
+            "size": 1616
           },
           {
             "path": "bin/cupidc_test3.o",
-            "sha256": "b0799748422ddc7ece602d0f05fe65589d8967113cf3af2519a44be5325aac48",
-            "size": 2616
+            "sha256": "206605bc6a2e9346c3273616334b2acb64bb345076c47dfccaddb270e776cf8c",
+            "size": 2668
           },
           {
             "path": "bin/cupidc_test4.o",
-            "sha256": "8f9941fa0bfef060e07d228c30e006278aaa060073ff50a69e23bd48c8dc0fe6",
-            "size": 1856
+            "sha256": "068f71b7e05eb2f4d79dc9a79217896bb18849e6ba9771486fb7ea910768a5fd",
+            "size": 1908
           },
           {
             "path": "bin/cupidc_test5.o",
-            "sha256": "8f0219de71ee002c990c0e92a192a7d82b9127202653b89a21557efe245720e9",
-            "size": 2680
+            "sha256": "93e7bbedfb0f7eb2c0c220ffca7964c80d6f3c451a4aed7895d2c0f89f6e52a0",
+            "size": 2732
           },
           {
             "path": "bin/cupidfetch.o",
-            "sha256": "9c191b487aea54a8e1f1572d70ac46ad1c208ec73cb0b2a29f1a3a622a49ede6",
-            "size": 5880
+            "sha256": "ed2527f4e949a222a378ed476ffb0b0489f23a6fe0309b14316706eca40ef456",
+            "size": 5932
           },
           {
             "path": "bin/curl.o",
-            "sha256": "cb4c97da8a7cdb5e1db033eec4702869e6b8cfbb9a045a681531cdecda0cabd4",
-            "size": 14868
+            "sha256": "ea3a8b8e53e12dacf5df38451fa1a1d17851b1e49ff1df7691d7fb506dea0c10",
+            "size": 14920
           },
           {
             "path": "bin/date.o",
-            "sha256": "368c3ee0265d732b9457493bba92d095890c2d04250dc851c0311908a6b4d079",
-            "size": 1104
+            "sha256": "afedbfefadf45bb831fbaa3d5f2bbcbdcd84c642da147672498bd29233cc7ea6",
+            "size": 1156
           },
           {
             "path": "bin/dglibc_test.o",
-            "sha256": "3b5386ad1ebb6a5f0a8917bf2d580b3fcd4ec4d47ecded45cb94c7e3e26ccd61",
-            "size": 724
+            "sha256": "8dfe09affb2662d42a6646b5aecaaf80c70c1c276e39ebeb5e6c8483c8e023c5",
+            "size": 776
           },
           {
             "path": "bin/doom.o",
-            "sha256": "6ce7da8cb3c7ac3535f39920d8a2c5fdb6efc46342d70708e213208e53070607",
-            "size": 716
+            "sha256": "a0c4f2fa6294fa27b5aebf6e86d4b8f1de4548c3a51c8fd3292adcc9b69d407b",
+            "size": 768
           },
           {
             "path": "bin/echo.o",
-            "sha256": "2847a6bd77f54527e50a2dd13c72f1363a985bbc2a98689265f6eb1bdfef3851",
-            "size": 616
+            "sha256": "7ca16868a9be2b0c61489595a69fe52d21524b4bd8593a142a12c889c0587949",
+            "size": 668
           },
           {
             "path": "bin/ed.o",
-            "sha256": "e92b9eff7f8f00f42906f5a30493925a36b90cdf6378295798620612385deac6",
-            "size": 47240
+            "sha256": "bae0818504217e8c5a6a0852363b57c0ecfb6fb1bc45089c90ce768aaa0e33fe",
+            "size": 47292
           },
           {
             "path": "bin/fat16.h.o",
-            "sha256": "7b94069165a89e3e44f8b777ce99f1ad6ca82a86bcc90068df5beea557ad1ad4",
-            "size": 3556
+            "sha256": "cf11a7a09fb006883de1eae14ec87d74265d7260bf56b7303ce546dd0858bcc3",
+            "size": 3608
           },
           {
             "path": "bin/feature10_repl.o",
-            "sha256": "ef6d1cfab64f8ca4a4f100adcbb97cb601efa37b8d5a1808538b472767993c70",
-            "size": 840
+            "sha256": "f389503b9104a18a49d2d0f10a4869baba858e2c5f9416466d719b8280094f1a",
+            "size": 892
           },
           {
             "path": "bin/feature11_ternary.o",
-            "sha256": "5c68e6d1b0e2d3254b5feeddfa1b2e6ec6167e86f28a0f01b72f1148589fb9e0",
-            "size": 764
-          },
-          {
-            "path": "bin/feature12_float.o",
-            "sha256": "19a77bae696bf7376afcff3f51d192c3e23b69056a03a01919576341223e0736",
-            "size": 6616
-          },
-          {
-            "path": "bin/feature13_double.o",
-            "sha256": "2d839aa1df4678f1631303d8c8b4b2d8a29482e02ae676141ff0c927cc6ea4da",
-            "size": 4760
-          },
-          {
-            "path": "bin/feature14_simd.o",
-            "sha256": "4b7b2355c4d2fc433bd611c47c1d52a1ff6bf6462000b1e9673e1e5b9b35b738",
-            "size": 9248
-          },
-          {
-            "path": "bin/feature15_libm.o",
-            "sha256": "85b176827731fa271cbb00cb8ed9f132adb84d9023dab0043ec4a0df780621b3",
-            "size": 6504
-          },
-          {
-            "path": "bin/feature16_asm_fpu.o",
-            "sha256": "83f841b8e40303ef1e20fedfa33a50ee21a6e12d31b1bc36957cc170a98a5e9a",
-            "size": 2888
-          },
-          {
-            "path": "bin/feature17_iso.o",
-            "sha256": "71a0399b18e45d58955e13d85d4e1454bc1512161f79f8806bddda32a3430078",
-            "size": 6876
-          },
-          {
-            "path": "bin/feature18_swap.o",
-            "sha256": "3c58c4e88dc6bd8128e20d6dbcaedffe9b0769b280fe9f0d6c17cfbda5d3c525",
-            "size": 5548
-          },
-          {
-            "path": "bin/feature19_usb.o",
-            "sha256": "05e6b80e72f03022cf4f1485f9df7b08cae67bc96f149e2f6dc8500d57f8f0de",
-            "size": 1068
-          },
-          {
-            "path": "bin/feature1_types.o",
-            "sha256": "440e1b9dfac28835f41f1e5aea753b24af2020f4017cb20682ad24c7513b72dc",
-            "size": 1892
-          },
-          {
-            "path": "bin/feature20_smp.o",
-            "sha256": "f3a63731595a9bb79b96f51a25fc1cb9277e83ba6c575930374e06b148793de3",
-            "size": 956
-          },
-          {
-            "path": "bin/feature21_net.o",
-            "sha256": "af133718c069dd8fe8f7f339b1834896899b15568a491ae33af66295bc9c2ec3",
-            "size": 1260
-          },
-          {
-            "path": "bin/feature22_net_server.o",
-            "sha256": "30f9c37f0bd21beac5633d0450709d138a0aa720993728f8c5397e5d724f7455",
-            "size": 1340
-          },
-          {
-            "path": "bin/feature23_full_access.o",
-            "sha256": "7bebcd35dc8f117c0dc487f407756c1210f115b212a322c7bf61a7cbe921c13a",
-            "size": 2364
-          },
-          {
-            "path": "bin/feature24_widetypes.o",
-            "sha256": "fe82b26f0f449b9da5d420844d69ca38afb0fbef7a6325ab1bccd878bb400709",
-            "size": 1708
-          },
-          {
-            "path": "bin/feature2_top_level.o",
-            "sha256": "5cfca9b0a9fd3706ec24e1f59f6deda052a1fa4673be6226efe35f3a7c976366",
-            "size": 1132
-          },
-          {
-            "path": "bin/feature3_class.o",
-            "sha256": "61997061f5f10cc74acfdecd7c9719a25fb7053a1c5121eae0de52b0a403ab8a",
-            "size": 1036
-          },
-          {
-            "path": "bin/feature4_forward_calls.o",
-            "sha256": "48dd0c9d7ff09de50302e1a807286d7755fc97dfe23304185791df700d388277",
-            "size": 908
-          },
-          {
-            "path": "bin/feature5_print_builtin.o",
-            "sha256": "80ef6f9cde3d8579c632a5f9d63f913b5fdf9b567690f9cfd5b377f27c9d3f00",
-            "size": 1012
-          },
-          {
-            "path": "bin/feature6_exe.o",
-            "sha256": "a7fd41adaa93d9ba7fca3b1375a057080c20212009ba48a729cfc98f1ddbce02",
-            "size": 772
-          },
-          {
-            "path": "bin/feature7_new_del.o",
-            "sha256": "361f09afa54ed1f1d2da85dd1f7e69d142b1abf637bfa450b5018ec3e74026b0",
-            "size": 1056
-          },
-          {
-            "path": "bin/feature8_reg_noreg.o",
-            "sha256": "fd4aa57c9483d21d2899f92c57103e096e49ddc64147ac6df734add8bd3fac1a",
-            "size": 888
-          },
-          {
-            "path": "bin/feature9_abs_addr.o",
-            "sha256": "c4ac127ed613fa85135452ae4dc02b049ab8480fb1cfa7721feb59fc7c1548ce",
-            "size": 868
-          },
-          {
-            "path": "bin/find.o",
-            "sha256": "73b97a4a680ef5bc82876391b0b5e0389791ef8bb58211af38693c73371f1f5b",
-            "size": 3232
-          },
-          {
-            "path": "bin/fm.o",
-            "sha256": "2b2320a8da52f8e90ff4fc963742407f4e18ba9b47aab7a3c2e6194c68c2fd43",
-            "size": 23752
-          },
-          {
-            "path": "bin/fontswitch.o",
-            "sha256": "d8f342bbd645f576ed737cc7174f7f2b5046cc5f14221e4b566e3a3b65705542",
-            "size": 8400
-          },
-          {
-            "path": "bin/fp_drill.o",
-            "sha256": "d1758efe4d63b5a2cf534d9bd8f85183d7c8b893b9698bab4e3c0f7d7260b63a",
-            "size": 1276
-          },
-          {
-            "path": "bin/gfxdemo.o",
-            "sha256": "119fac2e057f4e8a592f79ddf1d1a3053e0918571700b333e3ae08d1564bf5be",
-            "size": 2684
-          },
-          {
-            "path": "bin/gfxgui_test.o",
-            "sha256": "71c79108f2d49547d513267f895612076246eb22ec578624cf054697d887d1b1",
-            "size": 5660
-          },
-          {
-            "path": "bin/gfxtest.o",
-            "sha256": "f9eb9c9932eb741483fcc0d0542870995ab10bd0ea5783115d35d9184aa0630d",
-            "size": 1048
-          },
-          {
-            "path": "bin/godsong.o",
-            "sha256": "3699252de7af293df147e1f673d8fea65a228726aa44faec8936efa7a89bb271",
-            "size": 9588
-          },
-          {
-            "path": "bin/godspeak.o",
-            "sha256": "1d666a0591542894d7da633a5c4fc340909b79c91809784e17f67a5a54fdff1b",
-            "size": 2208
-          },
-          {
-            "path": "bin/grep.o",
-            "sha256": "670a36b149204b493e0d021699548ed4c8cf011f1d59421016a653ccbc6c9e08",
-            "size": 4336
-          },
-          {
-            "path": "bin/head.o",
-            "sha256": "f31f770f2ee452748e380444e9383db28b218e03d10954ea0c20b015bcdf9cb8",
-            "size": 2672
-          },
-          {
-            "path": "bin/help.o",
-            "sha256": "11a2229864aa269c2d57472a5e0a9048c3f8bda61d9bee2d5a3634065d444a57",
-            "size": 5936
-          },
-          {
-            "path": "bin/history.o",
-            "sha256": "a7c4a94303c8432a54de6e510f70a48871e38e7106a6a457f6b59043b2008fe3",
-            "size": 936
-          },
-          {
-            "path": "bin/kbdsub_test.o",
-            "sha256": "2b15531fcf9952507f507ba5b2f08ef872d01c24f1f230b4a4e80348bb6da995",
-            "size": 1796
-          },
-          {
-            "path": "bin/kill.o",
-            "sha256": "06b100c008b949c6001174d7437eaa702c128dbf26d134a335f8b3b7585a69ae",
-            "size": 1200
-          },
-          {
-            "path": "bin/logdump.o",
-            "sha256": "8bb941dbcfb64bd16f447a56533dd2e308635ff87878e3c20c64732d6f453814",
-            "size": 508
-          },
-          {
-            "path": "bin/loglevel.o",
-            "sha256": "4e8fdaeaebf18503ef6475085d9ba3a15529c13e1c2d57f5e4e12bc2d2258f0a",
-            "size": 1260
-          },
-          {
-            "path": "bin/ls.o",
-            "sha256": "e970b017f1563ea7e614a0ca1b8c87c1e38f97d36c65e9c0fd389429e390e3d9",
-            "size": 1952
-          },
-          {
-            "path": "bin/memcheck.o",
-            "sha256": "3b627ee331fc0b9f96b733598a99c75a7b62367b0a3869f08228a6a6b8679e3b",
-            "size": 548
-          },
-          {
-            "path": "bin/memdump.o",
-            "sha256": "0dad513f3716eb45b200a4b0b199057525d84127692e7970af6f89387b31b1d7",
-            "size": 2060
-          },
-          {
-            "path": "bin/memleak.o",
-            "sha256": "1abe3ba4f5b0210406bfb72402f6b739036aa1eb55db7137078070baddd23c02",
+            "sha256": "6fbb36086aebb449e39c2e40322f67a064eddac541110aa51567785cdba29578",
             "size": 812
           },
           {
+            "path": "bin/feature12_float.o",
+            "sha256": "bdebed1df52cf97c0f4cbb31de6c485ebb51856be6be099bb7a2455b0383def3",
+            "size": 6668
+          },
+          {
+            "path": "bin/feature13_double.o",
+            "sha256": "dabb9089b0b0c3f57f17a6f778b99d4ed068726c07a824ce3ab0cc759a8478ab",
+            "size": 4812
+          },
+          {
+            "path": "bin/feature14_simd.o",
+            "sha256": "c9125e78e7d142f102f88f279f44092175170613717e106c43d71a44d9420789",
+            "size": 9300
+          },
+          {
+            "path": "bin/feature15_libm.o",
+            "sha256": "21f686934b03bca447039fc11b0937fc8ddd0e6d87ff795c880d1a21d0613c43",
+            "size": 6556
+          },
+          {
+            "path": "bin/feature16_asm_fpu.o",
+            "sha256": "0845c5b0aeb9fee045542cf3a541c866481561094c24d027f68a716d37568e88",
+            "size": 2936
+          },
+          {
+            "path": "bin/feature17_iso.o",
+            "sha256": "4cfe6b4b9815484605c6f1cf316f7060a08e8f95b44e727203edd17e424538ad",
+            "size": 6924
+          },
+          {
+            "path": "bin/feature18_swap.o",
+            "sha256": "488b620432397499a582c14ac8a8ae10ce4ffde1b68390bc434a85c54fc24e41",
+            "size": 5600
+          },
+          {
+            "path": "bin/feature19_usb.o",
+            "sha256": "5fe6128fddd3619e5b01ee2174d3a64a7d615699d0fe8a689f0a480263f5bec2",
+            "size": 1116
+          },
+          {
+            "path": "bin/feature1_types.o",
+            "sha256": "306d90045835b921fe68d21821bbc71f83ecbed71c32771eb659d72cf189d609",
+            "size": 1944
+          },
+          {
+            "path": "bin/feature20_smp.o",
+            "sha256": "2f2f2769cffcc949b9a79bd183f5b494fd6b65ebc74b3cbf8dcddfc7a2ba2769",
+            "size": 1004
+          },
+          {
+            "path": "bin/feature21_net.o",
+            "sha256": "dfd455f2d52baebde7a463585d64b91661f9ed94b11cbf46f828e8c9690f1127",
+            "size": 1308
+          },
+          {
+            "path": "bin/feature22_net_server.o",
+            "sha256": "9ae43cf2e39f8c17b33377d45dddcfd56d9f8405b8b4aaa743a02603450e882b",
+            "size": 1392
+          },
+          {
+            "path": "bin/feature23_full_access.o",
+            "sha256": "58b9431b91273d3d95d074c14be88b8af8c6bd48844e5cd051c588cf85d22401",
+            "size": 2412
+          },
+          {
+            "path": "bin/feature24_widetypes.o",
+            "sha256": "c6e660a4276b694c6d031e71591c20c3cfc7f874b683943b7450594c0dc23a67",
+            "size": 1760
+          },
+          {
+            "path": "bin/feature2_top_level.o",
+            "sha256": "aebea4a9e7ac8a4d8fc06db2d1b4058360c6b0c15f396aa7055ca064c0082c0f",
+            "size": 1184
+          },
+          {
+            "path": "bin/feature3_class.o",
+            "sha256": "103d8aeac7946502f01ec527e708eb61cacab67e34c57ff906322dcb332072ea",
+            "size": 1088
+          },
+          {
+            "path": "bin/feature4_forward_calls.o",
+            "sha256": "9b805b49e1c44e8b5394b09a53b1594b21fe9f616fdb7167dc6d89f62be25329",
+            "size": 960
+          },
+          {
+            "path": "bin/feature5_print_builtin.o",
+            "sha256": "4c11450827a2ba3241a2e82ce620b0e74b24bf8088fe78f6d1518d138c4a1827",
+            "size": 1064
+          },
+          {
+            "path": "bin/feature6_exe.o",
+            "sha256": "0b909b88e3b9010533c74168d36834fbeb9881c2f2b173e664cacf2a4699ce7f",
+            "size": 824
+          },
+          {
+            "path": "bin/feature7_new_del.o",
+            "sha256": "f272bccfc01c0c53cc51a0ad907541adde160f63784dbd33245175d7b19a2a13",
+            "size": 1108
+          },
+          {
+            "path": "bin/feature8_reg_noreg.o",
+            "sha256": "5c1eb6fcf6d20333bf902ccad9f1f0857e3437c85daf4d98b8411a10293e250f",
+            "size": 940
+          },
+          {
+            "path": "bin/feature9_abs_addr.o",
+            "sha256": "6ebc6f247c6d6ff81222ad3d29b6371a76c767f33d2d049bb812ad961bee9026",
+            "size": 916
+          },
+          {
+            "path": "bin/find.o",
+            "sha256": "e94f1275889f478b6906128d5ee1e0b4fbe9392cc3e280ae81e58ecbc4a57394",
+            "size": 3284
+          },
+          {
+            "path": "bin/fm.o",
+            "sha256": "4419acc25b484b56838c95b39921d25984d859e87239527302c7aef0f9f4ba5b",
+            "size": 23804
+          },
+          {
+            "path": "bin/fontswitch.o",
+            "sha256": "31167b934b1e06db0da5f6270ce9fac2c62d60a814752716ee3c133e2359c4b6",
+            "size": 8452
+          },
+          {
+            "path": "bin/fp_drill.o",
+            "sha256": "ff57ab0cd2c601c99473e6c2047290b02895da9573d958d307eff6a1874510e6",
+            "size": 1328
+          },
+          {
+            "path": "bin/gfxdemo.o",
+            "sha256": "61bf1f3c9cbac641fe4f86a0a161a4fadb544ca32cb8308424defc50c7a8d1ab",
+            "size": 2736
+          },
+          {
+            "path": "bin/gfxgui_test.o",
+            "sha256": "9263e6bebff215b0be154524f6b64ffede639515cc148ed962c0760738474d3a",
+            "size": 5712
+          },
+          {
+            "path": "bin/gfxtest.o",
+            "sha256": "77116888a30ae312bb1f05cc4ca8806bab693668922e8640c7fc46d6939155ec",
+            "size": 1100
+          },
+          {
+            "path": "bin/godsong.o",
+            "sha256": "42cbf9083f4e396ce7d125df11f14a1991b7758eb014744c3b3a1a657b8c3aa1",
+            "size": 9640
+          },
+          {
+            "path": "bin/godspeak.o",
+            "sha256": "df71c6fb8c37ce5d4403ea126c2de41176f59a21066d755654072f515f6749df",
+            "size": 2260
+          },
+          {
+            "path": "bin/grep.o",
+            "sha256": "2c595b6da12feb02a0462540bff50919191eec9368df4c96612b14717ffd112b",
+            "size": 4388
+          },
+          {
+            "path": "bin/head.o",
+            "sha256": "300ae46bb9466d0313c80a055aa22b61b4e0ab9061d34f7b165bdfa151b75b67",
+            "size": 2724
+          },
+          {
+            "path": "bin/help.o",
+            "sha256": "0e84f28e5ec13f2672f81140ae88333765ce54c26df6fcc93daac4a7ed1f1df0",
+            "size": 5988
+          },
+          {
+            "path": "bin/history.o",
+            "sha256": "22f04b1eb2b37f0a566e3d6489e67bd37fdc42461794b2c088c6a21769e9ce70",
+            "size": 988
+          },
+          {
+            "path": "bin/kbdsub_test.o",
+            "sha256": "48d22f50a0c93cb4d06a6c8c15b569a80c2286548e3becc000fddd88fe59a36b",
+            "size": 1848
+          },
+          {
+            "path": "bin/kill.o",
+            "sha256": "1388bdd5ffc6c71a495f5ac48898fdb551cdf4d50b777e9fdd8fabdf19721355",
+            "size": 1252
+          },
+          {
+            "path": "bin/logdump.o",
+            "sha256": "3fb42f59b826669a3c7f28e43610e9dff6f5319a056ce222a4cd882a10099f7d",
+            "size": 560
+          },
+          {
+            "path": "bin/loglevel.o",
+            "sha256": "fb58bf994973a65cc302808dd587ba4f54205d072f1327e2f9f636ae8f2922d7",
+            "size": 1312
+          },
+          {
+            "path": "bin/ls.o",
+            "sha256": "9474d113853416f8e87207d317b5514d680a0b50ca4ff91747e4d853074a2f13",
+            "size": 2004
+          },
+          {
+            "path": "bin/memcheck.o",
+            "sha256": "925590373444280f9b3f2b69322cbf11a9c60e4a8535717915fa5faa74803835",
+            "size": 600
+          },
+          {
+            "path": "bin/memdump.o",
+            "sha256": "4c9f569218b33c2410c87da5a23b93b3a9138acc71af0b707371b501fbfd3852",
+            "size": 2112
+          },
+          {
+            "path": "bin/memleak.o",
+            "sha256": "ef19ecee4f0c1a97c0b6c719dbaa9cae2cdb6f29b1a54c9ab02b5327cdb56033",
+            "size": 864
+          },
+          {
             "path": "bin/memstats.o",
-            "sha256": "6749e0b8d4b41eda21fde2d77b10c0318fee6c2fedcf7979876663ad2a25d1a3",
-            "size": 460
+            "sha256": "6ac4cde6ca6b24496683b6b416ab90fb5d8eed469c895826100d51cd2baf8244",
+            "size": 512
           },
           {
             "path": "bin/mkdir.o",
-            "sha256": "37172f70e0faab6c4c0df2d7b5f33c3a312b70de7a05fa316a0c05c89fb26d0c",
-            "size": 3188
+            "sha256": "46b85c4ae6c9688435b2ec3d0a1f467c18db8aead1233187c8c6e9f5ebe5c0ce",
+            "size": 3236
           },
           {
             "path": "bin/mount.o",
-            "sha256": "50efb7fcf2781f7c5da50722d471eb15953ee28cdb65d2cdcbd586b98331ee4e",
-            "size": 956
+            "sha256": "b823a1ecf8e7b0d981ee7b5d50d2a08175568cd1824ef23fe98b4a11352ded44",
+            "size": 1004
           },
           {
             "path": "bin/mv.o",
-            "sha256": "17daf63022f57df8e4c7e06af2e378a942876757d93eb27744740a1cdd07a6d1",
-            "size": 2964
+            "sha256": "66d348e48fcf432a4a4ea8e27344a63dc0d095731e86c67b4a3d9fdf5f397d7c",
+            "size": 3016
           },
           {
             "path": "bin/notepad.o",
-            "sha256": "c7156265625c9fdc587c661bc487697e8bcd07b90d3decb040405da3a0b000a6",
-            "size": 61872
+            "sha256": "f9bef5380600016e970ab4b1b99634bc6667a9912d428e35ac013e533cbae6c8",
+            "size": 61924
           },
           {
             "path": "bin/oracle.o",
-            "sha256": "b91727497c499497330df37ff4cf8744918ff68f6c023fd6fa25175dd67f3f56",
-            "size": 2672
+            "sha256": "504c387b3740a2059affdacb7925e40f6957a59da4aedc391121f3ddfe051cc3",
+            "size": 2724
           },
           {
             "path": "bin/paint.o",
-            "sha256": "4973efb29f93b48d5efae73a7b26e65f0b650ff93818a9e3dccf5e2a7e239d99",
-            "size": 43792
+            "sha256": "44719aa821f9247d8c2508ddf91f9b52e635e777c78da2ee9b1fb675c4656c82",
+            "size": 43840
           },
           {
             "path": "bin/printc.o",
-            "sha256": "dbc5174c7042d9171ce67698bbf12336e15215647f9962ca1d5756b579848b6c",
-            "size": 1628
+            "sha256": "50abb1a00804f08fa578e95cbec92396f74a1b133832b8ea19542d8074041720",
+            "size": 1680
           },
           {
             "path": "bin/ps.o",
-            "sha256": "b1605004a596b803265e452fa7fc6b8dd8fa49013c593e61be634db33b7ec475",
-            "size": 516
+            "sha256": "a07eeb7365e4ea48d1fa0aba630ac31612acc4b8e422091398ff1eed9f7691f9",
+            "size": 568
           },
           {
             "path": "bin/pwd.o",
-            "sha256": "9e204e35ccba2bb3d208aa2abbb62a85386d1fb9011af94fc78fc7c34f2ec053",
-            "size": 576
+            "sha256": "978f9cb3a46b3c8f3ff87211ad870e2f03c60db4ff624a72fa27809e8bdd7f7e",
+            "size": 628
           },
           {
             "path": "bin/reboot.o",
-            "sha256": "7d33a87250c4b81561d607b62f926cc5693269bd6ab44948806104d488a548af",
-            "size": 852
+            "sha256": "981bcb7b61e80c135146bfa66b4415c7f27294dbb337e2f83fbc272545aed2c6",
+            "size": 904
           },
           {
             "path": "bin/registers.o",
-            "sha256": "9b72588d228c2bee57e2a031039ab22f0d161fe43d1c7ba6bcd983f4e9b4439f",
-            "size": 468
+            "sha256": "5cf5711ca91ef6e8a3530d38ff9a8fcff450d68ca5fbc6647f903f29dd466a8a",
+            "size": 516
           },
           {
             "path": "bin/resetcolor.o",
-            "sha256": "3eee77afb4b3a24b1d82e25e0fd3660f194bb16893b4c46c3c5e188912624f12",
-            "size": 584
+            "sha256": "66ffcfeb607fe294ebdb7f10b0deb6c46923d1e5965699c6b955cef92b665935",
+            "size": 636
           },
           {
             "path": "bin/rm.o",
-            "sha256": "e410b095a49526674721018ef83c45e07203c32c446cb1f6fc664a845a0765f5",
-            "size": 3004
+            "sha256": "687a2997c8fe456cf6432221ea0f745ed66e8454986de74256921940a5833304",
+            "size": 3056
           },
           {
             "path": "bin/rmdir.o",
-            "sha256": "c72f4c3b8c2b063b0b3fd441a78fa1252c67cda0f1eff364bd53e28dbabd287c",
-            "size": 3256
+            "sha256": "f52790f550b19306d51e682f0f092772258623a3d9f7b9facbac2a4bd263e964",
+            "size": 3304
           },
           {
             "path": "bin/setcolor.o",
-            "sha256": "30ee0a8ff7b2b6d1af3f15bca5f8c2dcb5c07165b48a4ee70f460b7f42306037",
-            "size": 1732
+            "sha256": "9cb5bd533ad7611cd288fa8dfdd91fc90077e21842faf52d1afa02ad0fe0aaab",
+            "size": 1784
           },
           {
             "path": "bin/shell.h.o",
-            "sha256": "6da35eafebf5ab6ea7bd8d374654584bcf3af1aa895f45ecfa8168cea5ab5102",
-            "size": 4896
+            "sha256": "538179e570fbbec6eb169ee36699ae4f207182eb31b1cd2ec73d76e42c012fd3",
+            "size": 4948
           },
           {
             "path": "bin/sort.o",
-            "sha256": "34f73584fa2d4c85f5019a9ca2a962f8e061ee100a63347b67f1d081ccc52cbb",
-            "size": 3784
+            "sha256": "25df482a190b7569b7ff880afb43cd793e3cc684367996b1ec6e50b92675d69e",
+            "size": 3836
           },
           {
             "path": "bin/spawn.o",
-            "sha256": "81954028204366027e1364951a6688d2858d9a27b0ebbf10453e5b27e64bda8c",
-            "size": 1016
+            "sha256": "b48b173deb6647009129219017269ee837eb147bf235f4c1378c46ba8f1232d6",
+            "size": 1064
           },
           {
             "path": "bin/ssh.o",
-            "sha256": "ae06865476d683fdb4a4b620b6000ef336c39eb14212bd4e8b1421848e9a74d7",
-            "size": 54972
+            "sha256": "849ba20820398f815e0b0f4be1bc5c3d68c6c446c895d881b9d09524c38af7aa",
+            "size": 55024
           },
           {
             "path": "bin/stacktrace.o",
-            "sha256": "722fbe90ad9947d3e028e706f8dd36df1f9f615843d05fbb1ddb39e08a1b7784",
-            "size": 476
+            "sha256": "f91e6cdfb73247cd5712aa5fadf454decb5fdfcfb2e5356cf81295f0a3b790d4",
+            "size": 528
           },
           {
             "path": "bin/sync.o",
-            "sha256": "33a3969c66a476d034694cf46ea55b2365d53bb98208f6319eccb2347804dd92",
-            "size": 492
+            "sha256": "ed93dae83768bed02e31678cac351dc253e29e8aa13ef4917e3097a551fb6254",
+            "size": 544
           },
           {
             "path": "bin/sysinfo.o",
-            "sha256": "d779bc45acd8c74c0686a7f00cd29a8750d87c0669f574f3f9ac1359f782f1a2",
-            "size": 1008
+            "sha256": "8f6970d4f78ce8fb3f7fc91d5a364b0e55362a2334d40d5cb02ec82a7af946e7",
+            "size": 1060
           },
           {
             "path": "bin/tail.o",
-            "sha256": "f4074f78b4c6d9c344a56dc4f7750f948786514c78feacb70c881aed2b01fa21",
-            "size": 3132
+            "sha256": "f4ced7a9e76f2573699069711adf68c4aa0a2476584191ab02ae0017f2a25faf",
+            "size": 3184
           },
           {
             "path": "bin/telnet.o",
-            "sha256": "5f3ca624bb72b8c8d9585c4f9c36715cccbafcb1e06921e5482575a074d3fc38",
-            "size": 12452
+            "sha256": "29d0361dc766018d861c9d3d3b460e77c969d157bd87c8a3be53a59000a7587e",
+            "size": 12504
           },
           {
             "path": "bin/terminal.o",
-            "sha256": "87e5e7dfece78d11ef01c1d92ef71f644eb498dc099c58bec63a59e1c3de8321",
-            "size": 4676
+            "sha256": "dc953bbd1bbf24a974d551a2b5f2b2296c0359b7a151f593b7b113b8021be1b6",
+            "size": 4728
           },
           {
             "path": "bin/test.o",
-            "sha256": "8a7d1cc5e135d9e9368cdd2ce7aa25f1ea7672b6359bc81f2d6998c30da0a8c7",
-            "size": 416
+            "sha256": "7c35f5bd029979d1a893f5f0d1ced72a3ab79508887b74a99785b48473a1a532",
+            "size": 468
           },
           {
             "path": "bin/test_fpaug.o",
-            "sha256": "b9acadf1657fcd2da6f5b331a1e4d2399940ef23a879199e11bfc23ea066b436",
-            "size": 2036
+            "sha256": "a29f3c911f41fc7446c4927c1a085694e22333254fe7353b90e8637224c0770b",
+            "size": 2088
           },
           {
             "path": "bin/test_print.o",
-            "sha256": "190be4876ab0a9f763240e6d4ab036fd9ef2b3070d51548e511c9f8d2ca08af3",
-            "size": 692
+            "sha256": "3d4b97bc8c51fa308fefee5237347b3e7ef68c5cbe18b75b0434c530abb25948",
+            "size": 744
           },
           {
             "path": "bin/time.o",
-            "sha256": "63c23923d64232d9b55966c0aa1e02023512cac702ef97ed39ac330b069a794c",
-            "size": 880
+            "sha256": "fee2bbb7f445034ea986528783bee225881b16ef75dadcd823bb1d6cc6f1247b",
+            "size": 932
           },
           {
             "path": "bin/touch.o",
-            "sha256": "96a171e7067bb6a86f0834199ad2532003bf7e6c37442ae11a1d3ba5168c7fa4",
-            "size": 1820
+            "sha256": "d650fbaae51db742018e80e09e96a100b5b39d3742500513648c74e27a7525a5",
+            "size": 1868
           },
           {
             "path": "bin/volume.o",
-            "sha256": "c81ea81a3c0af3e7226d7ec7ecde75bc224a475c195b22d7083bcebd74d5fdae",
-            "size": 1288
+            "sha256": "056ae667f8137c9dcd69a74ea9e1787eb25fd4cfe23d3915ebff57839e549965",
+            "size": 1340
           },
           {
             "path": "bin/wc.o",
-            "sha256": "27ed628d7b9d23b940404c35b96624f2fde4af1388970b718026e1826024571f",
-            "size": 3068
+            "sha256": "38d527402c4175e21feaca69f242d1e33cecb6b1eba7d42df37c5de5cf458a4f",
+            "size": 3120
           },
           {
             "path": "bin/wget.o",
-            "sha256": "2b6662a907ada7f2f4fccd66ff274617350b86fedd2d70a56c4a317dc39ecbfc",
-            "size": 8300
+            "sha256": "e686a561cc892b2c9697e823982ecd440bde612291c03004c3968fd9794044be",
+            "size": 8352
           },
           {
             "path": "bin/yield.o",
-            "sha256": "09d9644d87c53ed444f750783020b7fe62fe3a0149e9d63e08754639cb424674",
-            "size": 568
+            "sha256": "55d6132a754c68688b2670b2990fa410629e179189c99f3a7cd0273738517d80",
+            "size": 616
           },
           {
             "path": "boot/boot.bin",
@@ -1084,98 +1084,98 @@
           },
           {
             "path": "cupidos-txt/00INDEX.o",
-            "sha256": "4b205e57ead5103662bcb6e672aad3197563b33223833476e27c029bcb1c546b",
-            "size": 4652
+            "sha256": "0e73b3996f3d114a532f278bd5df3907a9c328ef24b3e3493b08d826063ec6e5",
+            "size": 4700
           },
           {
             "path": "cupidos-txt/01SHELL.o",
-            "sha256": "722858b332c3e377e800174011c0d33868379420fac417cead4cc541523a96cc",
-            "size": 7692
+            "sha256": "c779b315200727f013460d1949fe8d2546b38a3dd1eafbef733a92b95f0e1b8d",
+            "size": 7740
           },
           {
             "path": "cupidos-txt/02FILESYS.o",
-            "sha256": "c1bb6c5a88e846b814b2e9ec5810b6ddcb083e5cd7773dd05e548ec1cfdc6746",
-            "size": 6336
+            "sha256": "cbeda27c94cfe070f395c040f1bd66d5368619b7d070f3fe2721de22309d7eab",
+            "size": 6388
           },
           {
             "path": "cupidos-txt/03CUPIDSC.o",
-            "sha256": "084f64b7510c354115d60ea70fae675c0e5efb42314faa8f827871dfe45a9dee",
-            "size": 5040
+            "sha256": "e41de4609ac567729a820ff311a7cdc0c0d8229037ffd2c0b03892ed1e45e5cc",
+            "size": 5092
           },
           {
             "path": "cupidos-txt/04CUPIDC.o",
-            "sha256": "15f0d21161a54c7e09188237367eb0513388ae61235f6196544524cb0b3d2946",
-            "size": 10228
+            "sha256": "2a5a4bd18faa357fbb1e53b32057557e81d5a221176960a37bdba3229666fd37",
+            "size": 10280
           },
           {
             "path": "cupidos-txt/05ELFPROG.o",
-            "sha256": "f49f42e3e2f0ae5c65d42d9faac492002f20c82ea3e98138dd9f7a5fe83b91df",
-            "size": 4176
+            "sha256": "a36f5a8ff7288bac6b3fbfa01fcafc611c2274423d251a6aebd71debe1de237a",
+            "size": 4228
           },
           {
             "path": "cupidos-txt/06GUITERM.o",
-            "sha256": "01955dd661aa1212170b42741fb679769c520fcbed4b3bdf4e45a045d76a7de5",
-            "size": 4968
+            "sha256": "37c099911fc6d418945d80f22abd5a287d9acdb71bc816f954bd45b30745bd02",
+            "size": 5020
           },
           {
             "path": "cupidos-txt/07LABS.o",
-            "sha256": "802aeabb9478ba301fc338f127dfb5d3ce834c7697bac5c4517993d664b2037e",
-            "size": 5748
+            "sha256": "f3605840d5920c19038798fe13cf8abf51eb726d33dde173aecb6a97b83f4454",
+            "size": 5800
           },
           {
             "path": "cupidos-txt/08CMDS.o",
-            "sha256": "6cd0c7aec26ec1b635928252e44e802d2653e86ae7d391b1d05b85dbe4f29ffc",
-            "size": 8668
+            "sha256": "fc5a560cfe1b9dceacc5493c6692bb2cfe95d110c1aa4e694883d0fa61c73592",
+            "size": 8720
           },
           {
             "path": "cupidos-txt/09EMBED.o",
-            "sha256": "45e15fef1cc2dd1aee75d86c20d867f91b2f90524afc991d8264231aad12cdde",
-            "size": 6672
+            "sha256": "0469c549700bd7f89617665b15d5ff274fa0a67b6dcec15a6aacc620d9fad5a9",
+            "size": 6720
           },
           {
             "path": "cupidos-txt/10ASM.o",
-            "sha256": "d1caa0c320da9004cc5d54d5f8fba1041b7818a78b48f30cbab169072baa4a74",
-            "size": 8920
+            "sha256": "d42b101d1a85ec0b1b05e72bef3ef1b6eeddb54e115af11809d7bac20121d0cf",
+            "size": 8972
           },
           {
             "path": "cupidos-txt/11CTXT.o",
-            "sha256": "98bca2966c83aaa0b6bf23646885b38f82820ef4ec2d8bef9670abf46371985d",
-            "size": 8852
+            "sha256": "6061af22837c6f64c03e845b454b93ce493581d9e1ff640484ff363a4a51d275",
+            "size": 8904
           },
           {
             "path": "cupidos-txt/12HOLYC-CUPIDC.o",
-            "sha256": "4019bda080d0d50f0e1251902dce77de5b698ec367f7577c226d9e3f7ab97ad7",
-            "size": 8408
+            "sha256": "03d5c7ff532f7987240edeb4ddc6501417fecb3e086724cd60b941953a06f04c",
+            "size": 8460
           },
           {
             "path": "cupidos-txt/13USB.o",
-            "sha256": "9976091531f7e2a129114da7d06021ffc7b7e094901dba5c08dd22b490772591",
-            "size": 17884
+            "sha256": "9971361d9220c163bba1237385b206c46d31d977ad82f8dc38f331d5445caa6c",
+            "size": 17936
           },
           {
             "path": "cupidos-txt/14FPU-SSE.o",
-            "sha256": "c40edc1932c72bbc516693795b6ef24e2a69b7a761b0800531482689d7addf4b",
-            "size": 4900
+            "sha256": "4921fbb2b6a3b4ed4699417251288da0b1a2ebb455df0c9fea210ed7449212cb",
+            "size": 4952
           },
           {
             "path": "cupidos-txt/15ISO9660.o",
-            "sha256": "7c05670856319b21d02dc3f7463c794034f74ee61ac5776c03afb35d0fb4b0bf",
-            "size": 3724
+            "sha256": "4f4573046cc9789a210c7ac87aee3c16866df803855c090eb60ba25dae4c14bb",
+            "size": 3776
           },
           {
             "path": "cupidos-txt/16SWAP.o",
-            "sha256": "43614d450e1b1426ea98daffc3b25fdfcb19aec21652cb360e72fdb7adf8c0d9",
-            "size": 4680
+            "sha256": "d8a0ad3cb7c233dec69e5edcb9072b623948c8d8a673c6f8e266dc2c27b251fd",
+            "size": 4732
           },
           {
             "path": "cupidos-txt/17SMP.o",
-            "sha256": "c640c7c3b138f4c5dafce8ff3601d525505c740e5ebdc93a18796abb7d6e24f2",
-            "size": 13992
+            "sha256": "5c1ddd05410af65c4b3c950260cbf8259f7d2e6626398afe0f433a5620d4a04a",
+            "size": 14044
           },
           {
             "path": "cupidos-txt/18NET.o",
-            "sha256": "29919f96cf5df092259550b8998a8b0b98fba27899a77ad183d5c4b36ce1b22c",
-            "size": 35516
+            "sha256": "8c67812716fd73f13099297acb74a28cf929e9b5121a783d2d1f50864263b019",
+            "size": 35568
           },
           {
             "path": "cupidos.img",
@@ -1184,113 +1184,113 @@
           },
           {
             "path": "demos/asm_compat_reserve.o",
-            "sha256": "e13ab20d00c14e6a5a2c7d9e2286592e4b1221179902952cbf7e3e33085e1112",
-            "size": 1540
+            "sha256": "80a954c84bb22a0a31b2f421cc3625840d3e7f32d463351aec2beb3dba01261d",
+            "size": 1588
           },
           {
             "path": "demos/bubblesort.o",
-            "sha256": "369ccaa66799167d45d2e6cab6440b7f3834924a2e05903bd7178332b9b6c4ac",
-            "size": 2272
+            "sha256": "4af574efcfaf7cc3c53d6e1c146e17ba4c8e7b2ff02c29911665f74ba254bec0",
+            "size": 2320
           },
           {
             "path": "demos/data.o",
-            "sha256": "6826f79579b4b088c5d08a2fa8ce2a8fcd6700ecf214bb64bf5872ccf973aafa",
-            "size": 1580
-          },
-          {
-            "path": "demos/factorial.o",
-            "sha256": "39c55e413105a29813eb838bd78b67649696ede5ca7294edfd0cb58e9ad87170",
-            "size": 1628
-          },
-          {
-            "path": "demos/fibonacci.o",
-            "sha256": "aacaee1fadc674e1864c4b2b30c0b569237041b0fb49279799b62e212c061375",
-            "size": 1556
-          },
-          {
-            "path": "demos/fpu_kernel.o",
-            "sha256": "9bdb2990e95f2ca5ecb27c1d0eec9a6c63bff91046b6c163dcd451c8842c6925",
-            "size": 4772
-          },
-          {
-            "path": "demos/fs_syscalls.o",
-            "sha256": "864f80530543871d8d5e3e823358abba97d5fd021792b076977e620b138c172d",
-            "size": 2288
-          },
-          {
-            "path": "demos/hello.o",
-            "sha256": "6a26a56bc0fcbf10e76867342f1b326461c37a8b82aee0ec4c5a77920851416e",
-            "size": 660
-          },
-          {
-            "path": "demos/include_feature.o",
-            "sha256": "4810681be4a380ffe9cae9886c9d75741113be3ee18a01612ceb6bfd26a99079",
-            "size": 540
-          },
-          {
-            "path": "demos/include_helper.o",
-            "sha256": "1e5d160b0af129def4cfa9e9445116056653bb727ed267a1be94cbb03a42925f",
-            "size": 736
-          },
-          {
-            "path": "demos/jcc_aliases.o",
-            "sha256": "36317c494c8bf52c53f423811e5e42974b9e6a209041512e8175c957cb4576ce",
+            "sha256": "1de5423e6ae9c1656e3563e9995d91c07a1a69db4efb956a5b6e617728f2219a",
             "size": 1632
           },
           {
+            "path": "demos/factorial.o",
+            "sha256": "b7744e88774401239335ae96e52debc65bb924fc3c190522bf2a38e04485e967",
+            "size": 1680
+          },
+          {
+            "path": "demos/fibonacci.o",
+            "sha256": "515bab35d2dbd7fc0eebdcea8263ac0422b6ee642a4ef09b6a401f4f66dbaed7",
+            "size": 1608
+          },
+          {
+            "path": "demos/fpu_kernel.o",
+            "sha256": "7142e96c42a4ce53c2d5851afec1a358fbd26badf223f7d89c77470b7c009e1d",
+            "size": 4820
+          },
+          {
+            "path": "demos/fs_syscalls.o",
+            "sha256": "a6a295496379e40f17c6504e3997aef6add7fc0bba037ecc94e2a58718ea1f84",
+            "size": 2340
+          },
+          {
+            "path": "demos/hello.o",
+            "sha256": "66db3e703dd08b66ea5ded1eb9f2e12b444daca73191fec8372918e32cb3b957",
+            "size": 712
+          },
+          {
+            "path": "demos/include_feature.o",
+            "sha256": "5973ba0f481494a8fdf8ecfdd7d13f1d8a125507011f81f67f8c288009a211c3",
+            "size": 592
+          },
+          {
+            "path": "demos/include_helper.o",
+            "sha256": "05064a244f3c95fd3205bc082440b6b36c14d7ab4f84ec8b527ff12f64af7d99",
+            "size": 784
+          },
+          {
+            "path": "demos/jcc_aliases.o",
+            "sha256": "c1ce00f94a052909b05fbd7e127eef2b67fc079bf3e7e6c9947d43b846297774",
+            "size": 1684
+          },
+          {
             "path": "demos/loop.o",
-            "sha256": "e462f0732ef27f60c603e52c280ab8bcb2f7fa00daf6e56047dda888f16919a8",
-            "size": 1036
+            "sha256": "df5d274f7c4ff6d17759d23918c4463399f3eca75a8a4fcdb9f367f5d10e873e",
+            "size": 1088
           },
           {
             "path": "demos/math.o",
-            "sha256": "d2cb74b4893130f537739b387c2b5429410d8eda2f2e44990bf1a0af5be18686",
-            "size": 2236
+            "sha256": "f5bb6c3faea458604c69c2f77937f8b10a22ab5866c420b375682644baa9827f",
+            "size": 2288
           },
           {
             "path": "demos/parity_core.o",
-            "sha256": "e02311a646d766b0896360c3ce8d212d8e116b9e528259a2adb903475bb0ed6e",
-            "size": 1952
+            "sha256": "f802dde1a61f03d5bc6ce937e646e68ed554d5a128799c4f2d8d1477b8e75b71",
+            "size": 2004
           },
           {
             "path": "demos/parity_diag.o",
-            "sha256": "b185cf9fb0a3e306dde46c8e6b144c998f9a5cf6eeb4145b64d96a7e7a9f03c8",
-            "size": 1488
+            "sha256": "59538b4d8a0a451672b51b816eb3f822a04d86b049cbe65bf1d3a52975d12176",
+            "size": 1540
           },
           {
             "path": "demos/parity_gfx2d.o",
-            "sha256": "2bf0fc85b0a1c61890f0c1d2513f242ccef4776eda9095fe6d561b8db3d21abd",
-            "size": 2332
+            "sha256": "978f66453bf9abb7790ecdc89c225d454a46b160d499dddc9b88deb1882d9d75",
+            "size": 2384
           },
           {
             "path": "demos/parity_priv.o",
-            "sha256": "adeb64ade71094f39030e0de2002e5bda34363766265d7f91da9612636601a98",
-            "size": 1904
+            "sha256": "665213137015716ef202d1fd89e9f19f068ed98e77ff60994bdf7f9981d913bb",
+            "size": 1956
           },
           {
             "path": "demos/reserve_directives.o",
-            "sha256": "e6776eb4d0f17c991428cf0883ed9484553db4daea790be7d20cfd054d727dd5",
-            "size": 1220
+            "sha256": "0f87e027d732b4bfca2877f0690d7edd018e3169fdc963cabff94dc2884cc598",
+            "size": 1268
           },
           {
             "path": "demos/simd_blur.o",
-            "sha256": "4266019e8099c46e92a48d07faca5b1e819cb9ba7f271518b3106e0ea6b61c65",
-            "size": 2444
+            "sha256": "33b34a8966d1bd6b1a79d7b60983d3c5e1363858d7166f0e2dc55a7257210cb6",
+            "size": 2496
           },
           {
             "path": "demos/stack.o",
-            "sha256": "6f4764a770b58f5c04c246e7adbccca48892d08b5972b529f3ce49660c9d1175",
-            "size": 1716
+            "sha256": "0e1f9bf1ddf0cbfe13e35c9606b9c9a837b5caf3fc54101152de812c8fe1861d",
+            "size": 1768
           },
           {
             "path": "demos/syscall_table_demo.o",
-            "sha256": "ecf6e0067162012d47eff637f17415bf35d610cba10a5a9b764993d87bb2cac8",
-            "size": 1508
+            "sha256": "86390cba0134a20a04995289acf154e49e971a81ef82860c4ae42487900cc5a5",
+            "size": 1556
           },
           {
             "path": "demos/syscall_vfs_extended_demo.o",
-            "sha256": "f9eefa14c346e681c55bdd8db8d0d7e708e7b49e3c371ed8bbd727f144b83301",
-            "size": 1604
+            "sha256": "d48b66bfba7905e1303472687dcad19a689404aa534d7f8518ddcd10bac26bb4",
+            "size": 1656
           },
           {
             "path": "drivers/ata.o",
@@ -1354,23 +1354,23 @@
           },
           {
             "path": "file_example_JPG_1MB.jpg.o",
-            "sha256": "7b2c244170b1be43dcc5d676f2a4b347a040f512e250f47c0a7ad1dedac291ef",
-            "size": 800812
+            "sha256": "74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e",
+            "size": 800860
           },
           {
             "path": "god/Psalms.o",
-            "sha256": "ea2aaed0790193eac66e5bc655423234e6a70be36a55ff5b764873e7c2be02ec",
-            "size": 323168
+            "sha256": "aa11d1e86fc3888961c9bbb2deae54822850c1dacee998a51e16735d0a184049",
+            "size": 323220
           },
           {
             "path": "god/Vocab.o",
-            "sha256": "937cd275ef916cc228576afbbed01aac39999394992ecfea8321b3cf45fb8ec8",
-            "size": 63560
+            "sha256": "38558ecaa7568a77660634c3cef22d0597661ebc2e82987581e4da5d19b119ab",
+            "size": 63608
           },
           {
             "path": "image.bmp.o",
-            "sha256": "ad2b3369126d826c558b7230c90c9afdebb69de007aa876aac342bb1b2328f3e",
-            "size": 12796
+            "sha256": "139e697eaa1bec2cb94473397437d1421a7f01dd087e2437dc741a3c2bb8ea7c",
+            "size": 12848
           },
           {
             "path": "kernel/audio/ac97.o",
@@ -2439,8 +2439,8 @@
           },
           {
             "path": "kernel/smp/smp_trampoline.o",
-            "sha256": "b17d242b8e75e8830bb8c0a4dde13a5dbaf24b754c30b896455af1c9743401d6",
-            "size": 4460
+            "sha256": "d13d7248b9518b84d40b2a0602f50e63c9eda0c2241149e650924b428cc0e6db",
+            "size": 4508
           },
           {
             "path": "kernel/smp_trampoline.bin",
@@ -2539,33 +2539,33 @@
           },
           {
             "path": "snail.bmp.o",
-            "sha256": "9602f9046793104ca6a4f0d97fd760cf2e24cf2355cc88b756713e5f6e362680",
-            "size": 197036
+            "sha256": "b1cdb84c093035d7a538288fb5e735105350da85689f86a137d23c63682bdee2",
+            "size": 197088
           },
           {
             "path": "system/fonts/LiberationMono-Regular.ttf.o",
-            "sha256": "2e4035681c99c53817db5b1123c5ff5e26c9744f31ee24da9486cd14bcb9977f",
-            "size": 320084
+            "sha256": "ebacf485e7394b6d9019d566c919d456ea80613a366ebf1a219476132c84e8e7",
+            "size": 320136
           },
           {
             "path": "system/fonts/LiberationSans-Regular.ttf.o",
-            "sha256": "e382b5e9b7915778b178052b42ee233ab40aa3179b329ab8be6fa265cf17ff65",
-            "size": 411280
+            "sha256": "5498428ddc9f06c20f9d25531a644ec48368d97546211b5f234e4a6002aac9d6",
+            "size": 411332
           },
           {
             "path": "system/fonts/LiberationSerif-Regular.ttf.o",
-            "sha256": "48014e9d1b9b28d3e51912f615517dfcd340cbaa2a4d4056fc3578090b1841d8",
-            "size": 394156
+            "sha256": "2debc932dc3450c490ae868261cb1d9f15fcdeb05a4285d76263fb952efbd537",
+            "size": 394204
           },
           {
             "path": "system/fonts/NotoSansSymbols-Regular.ttf.o",
-            "sha256": "7c231ff24ad60a50eb09bfa02cf6558b8fa451f70347a391a8f95d2326426a83",
-            "size": 227444
+            "sha256": "138ce68cb0b735daecda521dd0add9ee97af988592e2bae51a9a71d99daf83b0",
+            "size": 227492
           },
           {
             "path": "test.png.o",
-            "sha256": "03441c93f62a691a41a8efbe0b6382e51d59271326886c7b6ad4738bf77f77b0",
-            "size": 224936
+            "sha256": "d3376d4a5f544b0b6618b4a6906022e88ca530696223a0fbb9887909ff14bb07",
+            "size": 224984
           },
           {
             "path": "toolchain/ctool.o",
@@ -2603,7 +2603,7 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.515,
+          "elapsed_seconds": 0.612,
           "name": "clean",
           "output_sha256": "b03d85f72f355e4e5a00bd980e18201f1e1519f7168d605b76d38b2013bd9e9c",
           "output_tail": [
@@ -2632,18 +2632,18 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 8.279,
+          "elapsed_seconds": 14.387,
           "name": "build",
-          "output_sha256": "c1b112acf190b46be278034f737269b39e7059038f27f45dd5c15ebdd7217b67",
+          "output_sha256": "ba6645fdecd92916f6893bc75dac66a7f0e196a71922255e2dea0b1edd150ac5",
           "output_tail": [
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_checksum.o kernel/doom/src/w_checksum.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_file.o kernel/doom/src/w_file.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_file_stdc.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_main.o kernel/doom/src/w_main.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_wad.o kernel/doom/src/w_wad.c",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/wi_stuff.o kernel/doom/src/wi_stuff.c",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/z_zone.o kernel/doom/src/z_zone.c",
-            "llvm-objcopy -I binary -O elf32-i386 -B i386 \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \\",
-            "  --rename-section .data=.rodata,alloc,load,readonly,data,contents \\",
-            "  kernel/smp_trampoline.bin kernel/smp/smp_trampoline.o",
+            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o",
@@ -2652,7 +2652,7 @@
             "[hostbuild] mksyms: kernel\\cpu\\ksyms_data.c (90113 bytes)",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o",
             "ld.lld -m elf_i386 -T link.ld -o kernel/kernel.elf kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o drivers/speaker.o kernel/lang/shell.o kernel/core/string.o kernel/mm/memory.o drivers/pci.o kernel/usb/usb.o kernel/usb/uhci.o kernel/usb/ehci.o kernel/usb/usb_hid.o kernel/usb/usb_hub.o kernel/usb/usb_msc.o kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o drivers/serial.o kernel/core/panic.o kernel/gui/ed.o drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o kernel/gui/clipboard.o kernel/gui/ui.o kernel/lang/godspeak.o kernel/cpu/fpu.o kernel/cpu/libm.o kernel/lang/cupidscript_lex.o kernel/lang/cupidscript_parse.o kernel/lang/cupidscript_exec.o kernel/lang/cupidscript_runtime.o kernel/lang/cupidscript_streams.o kernel/lang/cupidscript_strings.o kernel/lang/cupidscript_arrays.o kernel/lang/cupidscript_jobs.o kernel/gui/ansi.o kernel/gui/terminal_app.o kernel/gui/ctxt_image_worker.o kernel/fs/vfs.o kernel/fs/ramfs.o kernel/fs/devfs.o kernel/fs/fat16_vfs.o kernel/lang/exec.o kernel/fs/homefs.o kernel/fs/loopdev.o kernel/fs/iso9660.o kernel/fs/iso9660_vfs.o kernel/mm/swap_disk.o kernel/mm/swap.o kernel/smp/percpu.o kernel/smp/smp_trampoline.o kernel/smp/lapic.o kernel/smp/ioapic.o kernel/smp/bkl.o kernel/smp/mp_tables.o kernel/smp/acpi.o kernel/smp/smp.o kernel/network/net_if.o kernel/network/arp.o kernel/network/ip.o kernel/network/icmp.o kernel/network/udp.o kernel/network/socket.o kernel/network/tcp.o kernel/network/dhcp.o kernel/network/dns.o kernel/network/sshd.o drivers/rtl8139.o drivers/e1000.o kernel/core/syscall.o kernel/crypto/chacha20.o kernel/crypto/csprng.o kernel/crypto/sha256.o kernel/crypto/sha512.o kernel/crypto/hmac.o kernel/crypto/hkdf.o kernel/crypto/ct.o kernel/crypto/poly1305.o kernel/crypto/chacha20poly1305.o kernel/crypto/aes.o kernel/crypto/aes_gcm.o kernel/crypto/bigint.o kernel/crypto/rsa.o kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o kernel/crypto/ed25519.o kernel/crypto/asn1.o kernel/crypto/x509.o kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o kernel/tls/tls_record.o kernel/tls/tls_kdf.o kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o kernel/tls/tls12_handshake.o kernel/tls/tls_selftest.o toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o kernel/lang/cupidc_string.o kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o kernel/lang/as.o kernel/lang/as_elf.o kernel/lang/dis.o kernel/gfx/gfx2d.o kernel/gfx/bmp.o kernel/gfx/png.o kernel/gfx/deflate.o kernel/gfx/jpeg.o kernel/gfx/ttf.o kernel/gfx/glyph_raster.o kernel/gfx/fontsys.o kernel/fs/vfs_helpers.o drivers/rtc.o kernel/util/calendar.o kernel/gfx/gfx2d_assets.o kernel/gfx/gfx2d_transform.o kernel/gfx/gfx2d_effects.o kernel/cpu/simd.o kernel/gfx/gfx2d_icons.o kernel/gui/gui_widgets.o kernel/gui/gui_containers.o kernel/gui/gui_menus.o kernel/gui/gui_events.o kernel/gui/gui_themes.o kernel/util/bin_programs_gen.o kernel/util/docs_programs_gen.o kernel/util/demos_programs_gen.o kernel/cpu/ksyms.o kernel/audio/ac97.o kernel/audio/mixer.o kernel/audio/nuked_opl3.o kernel/audio/opl_smoke.o kernel/audio/memio.o kernel/audio/mus2midi.o kernel/audio/midiopl.o bin/audiotest.o bin/auto.o bin/bgstudio.o bin/bible.o bin/bmptest.o bin/browser.o bin/cachestats.o bin/cat.o bin/cd.o bin/clear.o bin/cp.o bin/crashtest.o bin/ctxt.o bin/cupidc_test1.o bin/cupidc_test2.o bin/cupidc_test3.o bin/cupidc_test4.o bin/cupidc_test5.o bin/cupidfetch.o bin/curl.o bin/date.o bin/dglibc_test.o bin/doom.o bin/echo.o bin/ed.o bin/feature10_repl.o bin/feature11_ternary.o bin/feature12_float.o bin/feature13_double.o bin/feature14_simd.o bin/feature15_libm.o bin/feature16_asm_fpu.o bin/feature17_iso.o bin/feature18_swap.o bin/feature19_usb.o bin/feature1_types.o bin/feature20_smp.o bin/feature21_net.o bin/feature22_net_server.o bin/feature23_full_access.o bin/feature24_widetypes.o bin/feature2_top_level.o bin/feature3_class.o bin/feature4_forward_calls.o bin/feature5_print_builtin.o bin/feature6_exe.o bin/feature7_new_del.o bin/feature8_reg_noreg.o bin/feature9_abs_addr.o bin/find.o bin/fm.o bin/fontswitch.o bin/fp_drill.o bin/gfxdemo.o bin/gfxgui_test.o bin/gfxtest.o bin/godsong.o bin/godspeak.o bin/grep.o bin/head.o bin/help.o bin/history.o bin/kbdsub_test.o bin/kill.o bin/logdump.o bin/loglevel.o bin/ls.o bin/memcheck.o bin/memdump.o bin/memleak.o bin/memstats.o bin/mkdir.o bin/mount.o bin/mv.o bin/notepad.o bin/oracle.o bin/paint.o bin/printc.o bin/ps.o bin/pwd.o bin/reboot.o bin/registers.o bin/resetcolor.o bin/rm.o bin/rmdir.o bin/setcolor.o bin/sort.o bin/spawn.o bin/ssh.o bin/stacktrace.o bin/sync.o bin/sysinfo.o bin/tail.o bin/telnet.o bin/terminal.o bin/test.o bin/test_fpaug.o bin/test_print.o bin/time.o bin/touch.o bin/volume.o bin/wc.o bin/wget.o bin/yield.o bin/fat16.h.o bin/shell.h.o bin/browser/css.o bin/browser/dom.o bin/browser/font_face.o bin/browser/image.o bin/browser/input.o bin/browser/js_dom.o bin/browser/js_interp.o bin/browser/js_lex.o bin/browser/js_parse.o bin/browser/layout.o bin/browser/main.o bin/browser/nav.o bin/browser/net.o bin/browser/paint.o bin/browser/parser.o bin/browser/render_tree.o bin/browser/style.o bin/browser/url.o bin/browser/url_hash.o bin/browser/util.o bin/browser/woff.o bin/browser/woff2.o cupidos-txt/00INDEX.o cupidos-txt/01SHELL.o cupidos-txt/02FILESYS.o cupidos-txt/03CUPIDSC.o cupidos-txt/04CUPIDC.o cupidos-txt/05ELFPROG.o cupidos-txt/06GUITERM.o cupidos-txt/07LABS.o cupidos-txt/08CMDS.o cupidos-txt/09EMBED.o cupidos-txt/10ASM.o cupidos-txt/11CTXT.o cupidos-txt/12HOLYC-CUPIDC.o cupidos-txt/13USB.o cupidos-txt/14FPU-SSE.o cupidos-txt/15ISO9660.o cupidos-txt/16SWAP.o cupidos-txt/17SMP.o cupidos-txt/18NET.o file_example_JPG_1MB.jpg.o image.bmp.o snail.bmp.o test.png.o demos/asm_compat_reserve.o demos/bubblesort.o demos/data.o demos/factorial.o demos/fibonacci.o demos/fpu_kernel.o demos/fs_syscalls.o demos/hello.o demos/include_feature.o demos/include_helper.o demos/jcc_aliases.o demos/loop.o demos/math.o demos/parity_core.o demos/parity_diag.o demos/parity_gfx2d.o demos/parity_priv.o demos/reserve_directives.o demos/simd_blur.o demos/stack.o demos/syscall_table_demo.o demos/syscall_vfs_extended_demo.o god/Psalms.o god/Vocab.o system/fonts/LiberationMono-Regular.ttf.o system/fonts/LiberationSans-Regular.ttf.o system/fonts/LiberationSerif-Regular.ttf.o system/fonts/NotoSansSymbols-Regular.ttf.o kernel/tls/tls_ca_bundle_data.o kernel/doom/dglibc.o kernel/doom/doomgeneric_cupidos.o kernel/doom/doom_libc_stubs.o kernel/doom/i_sound_cupidos.o kernel/doom/src/am_map.o kernel/doom/src/d_event.o kernel/doom/src/d_items.o kernel/doom/src/d_iwad.o kernel/doom/src/d_loop.o kernel/doom/src/d_main.o kernel/doom/src/d_mode.o kernel/doom/src/d_net.o kernel/doom/src/doomdef.o kernel/doom/src/doomgeneric.o kernel/doom/src/doomstat.o kernel/doom/src/dstrings.o kernel/doom/src/dummy.o kernel/doom/src/f_finale.o kernel/doom/src/f_wipe.o kernel/doom/src/g_game.o kernel/doom/src/gusconf.o kernel/doom/src/hu_lib.o kernel/doom/src/hu_stuff.o kernel/doom/src/i_endoom.o kernel/doom/src/i_input.o kernel/doom/src/i_joystick.o kernel/doom/src/i_scale.o kernel/doom/src/i_system.o kernel/doom/src/i_timer.o kernel/doom/src/i_video.o kernel/doom/src/icon.o kernel/doom/src/info.o kernel/doom/src/m_argv.o kernel/doom/src/m_bbox.o kernel/doom/src/m_cheat.o kernel/doom/src/m_config.o kernel/doom/src/m_controls.o kernel/doom/src/m_fixed.o kernel/doom/src/m_menu.o kernel/doom/src/m_misc.o kernel/doom/src/m_random.o kernel/doom/src/p_ceilng.o kernel/doom/src/p_doors.o kernel/doom/src/p_enemy.o kernel/doom/src/p_floor.o kernel/doom/src/p_inter.o kernel/doom/src/p_lights.o kernel/doom/src/p_map.o kernel/doom/src/p_maputl.o kernel/doom/src/p_mobj.o kernel/doom/src/p_plats.o kernel/doom/src/p_pspr.o kernel/doom/src/p_saveg.o kernel/doom/src/p_setup.o kernel/doom/src/p_sight.o kernel/doom/src/p_spec.o kernel/doom/src/p_switch.o kernel/doom/src/p_telept.o kernel/doom/src/p_tick.o kernel/doom/src/p_user.o kernel/doom/src/r_bsp.o kernel/doom/src/r_data.o kernel/doom/src/r_draw.o kernel/doom/src/r_main.o kernel/doom/src/r_plane.o kernel/doom/src/r_segs.o kernel/doom/src/r_sky.o kernel/doom/src/r_things.o kernel/doom/src/s_sound.o kernel/doom/src/sha1.o kernel/doom/src/sounds.o kernel/doom/src/st_lib.o kernel/doom/src/st_stuff.o kernel/doom/src/statdump.o kernel/doom/src/tables.o kernel/doom/src/v_video.o kernel/doom/src/w_checksum.o kernel/doom/src/w_file.o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_main.o kernel/doom/src/w_wad.o kernel/doom/src/wi_stuff.o kernel/doom/src/z_zone.o kernel/cpu/ksyms_data.o",
-            "llvm-objcopy -O binary kernel/kernel.elf kernel/kernel.bin",
+            "toolchain/build/cupidobj.exe flat kernel/kernel.elf -o kernel/kernel.bin",
             "python tools/hostbuild.py image --image cupidos.img --bootloader boot/boot.bin --kernel kernel/kernel.bin --hdd-mb 200 --fat-start-lba 16384 --stage test_iso/hello.iso:/hello.iso --wads ",
             "[hostbuild] Created cupidos.img (200MB FAT16 at LBA 16384)",
             "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso"
@@ -2669,7 +2669,7 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.172,
+          "elapsed_seconds": 0.184,
           "name": "artifact-list",
           "output_sha256": "2499e8957c27d60c494702eacb5488f20adc605cd01d5c02342db7643ab4affd",
           "output_tail": [
@@ -2689,13 +2689,13 @@
             "-p",
             "test_*.py"
           ],
-          "elapsed_seconds": 42.159,
+          "elapsed_seconds": 53.135,
           "name": "host-unit-tests",
-          "output_sha256": "c444a20a4b0864f156e5725564dc11f3251dec53d7aa2ffd6b705fb97854116d",
+          "output_sha256": "10fe63c8e265af034c0c9acb2983b761d0a12efebeda17faf3a6cbe1bd79ce66",
           "output_tail": [
-            ".................................................s..........................",
+            "..................................................s...............................",
             "----------------------------------------------------------------------",
-            "Ran 76 tests in 41.606s",
+            "Ran 82 tests in 52.467s",
             "",
             "OK (skipped=1)",
             "[hostbuild] JPEG baseline embed <TEMP>\\photo.jpg",
@@ -2719,7 +2719,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 18.625,
+          "elapsed_seconds": 18.882,
           "name": "cupidc-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -2741,7 +2741,7 @@
             "--timeout",
             "60"
           ],
-          "elapsed_seconds": 23.355,
+          "elapsed_seconds": 23.246,
           "name": "cupidasm-gui-smoke",
           "output_sha256": "353a7daf4aae87b5412670f56098816539e15ebf0194cd49c0c111b53b22a533",
           "output_tail": [
@@ -3195,647 +3195,647 @@
         "cupidos.img"
       ],
       "artifacts": {
-        "digest": "47f778f4e9b9a1954786aee1099f3aaf0a2ee1d357e82e1242fcc38a126d459d",
+        "digest": "a1f4a1b10fd326318ad0c2b861a050ca95dc225d6aea95caa6e7864d8d6d5fdf",
         "files": [
           {
             "path": "bin/audiotest.o",
-            "sha256": "e62e9dd447fbcd7050981cb52d4413c4f95bc0df1f19218a178ac50374493840",
-            "size": 1352
+            "sha256": "f742d1d04821a3f96579c2cdfc1754ad9e3a89056204f036c4af345ef00e3c19",
+            "size": 1400
           },
           {
             "path": "bin/auto.o",
-            "sha256": "44ae9105d176cebbf94e232724a7d1742664def81a4915e5a54a122a9ce3168a",
-            "size": 2296
+            "sha256": "e280bc0e5babc1b1a9c6f71cbf27588561570c82fa7d8f1533ceb59afa82d184",
+            "size": 2348
           },
           {
             "path": "bin/bgstudio.o",
-            "sha256": "3c5836871eb3625723a72fd56eadda2b5bd0b47f85ad40f403cd9dd4efe02959",
-            "size": 17500
+            "sha256": "f64fa52f2361eccbeb17fac73a8f5fb2dab7c195fecf27cb520062122ff4e48f",
+            "size": 17552
           },
           {
             "path": "bin/bible.o",
-            "sha256": "a5453a692954d56f51f30a35f6d3f3d9155da0f363b67472c54162343bd955f0",
-            "size": 2012
+            "sha256": "5ccfc28787e1e58c42ac9d2964df9cf52eed6bb263b78cfe5c96fc1e846648f9",
+            "size": 2060
           },
           {
             "path": "bin/bmptest.o",
-            "sha256": "676c3968adac5907ae0ddcc08338837fc65da6223d4614e186d5d295be3a3dbd",
-            "size": 3876
+            "sha256": "dc6d9acd4ae1a8ba976db1439c7773537da6e8a181c78a1eb78d5776b7411d69",
+            "size": 3928
           },
           {
             "path": "bin/browser.o",
-            "sha256": "cddb0b65908a60ec293655e2f28070f4e6aa2fab3056e66282efafd0ad954c6d",
-            "size": 1316
+            "sha256": "fffd2abf2a2dc0a4cc2d96b59d23c15f72f4347230485290ebe065aca8e5084c",
+            "size": 1368
           },
           {
             "path": "bin/browser/css.o",
-            "sha256": "a0c3ea13f85ab8216b6d1faf3660ba388a01e684293decb02bcacfbe440a285e",
-            "size": 49368
+            "sha256": "0c2108720d70317eb267964348fcb43b8381c1a8cfb8a74109a9f431a65f6c17",
+            "size": 49420
           },
           {
             "path": "bin/browser/dom.o",
-            "sha256": "d3925af026f32ddc7f11d21ebeee88f65ed4c8d80d514c27db94896ff2b4b35d",
-            "size": 31660
+            "sha256": "da818a2cb21ca22da88dd0ebb74b789511ff772ec15bcc72064787129e86e638",
+            "size": 31712
           },
           {
             "path": "bin/browser/font_face.o",
-            "sha256": "1ff2f95043f924f9373f37fb1faa85ada6ef2d9542560f9a30757ee942faec5d",
-            "size": 18392
+            "sha256": "3c1e379a3afa3aa1eb4fce2b0a86a2f4bdda4768a585adf1a623fe310d0dbfca",
+            "size": 18440
           },
           {
             "path": "bin/browser/image.o",
-            "sha256": "1b907e3fb48916dbdc9a372704c08ffcb3ae6fa29666b9df5a5c70bc52aed512",
-            "size": 15032
+            "sha256": "bff94800209339b55dcc93274c4f9120a90ee3749f5f13e00992d84484159cd5",
+            "size": 15080
           },
           {
             "path": "bin/browser/input.o",
-            "sha256": "6af64e7c4eab09fe9c3b94da1552f3142f43d36121d0bef6ed44cc5e37e24616",
-            "size": 13800
+            "sha256": "fbb6fd52ee2ebb5937de42fd776dcdc72490fbf1632fb678726dee3933e6b045",
+            "size": 13848
           },
           {
             "path": "bin/browser/js_dom.o",
-            "sha256": "d521d337c0d72c1fec18aee878a11103eb8e1246f300f20b2716b8ffa14d860c",
-            "size": 26936
+            "sha256": "9c1f08bb272d901fffecffdc901e6db34bc778008e565e6a371f2f7989308bf7",
+            "size": 26988
           },
           {
             "path": "bin/browser/js_interp.o",
-            "sha256": "c91375b2ed546536702838474883e187b4fb6d4399600dd97efa00cafe8624ba",
-            "size": 38744
+            "sha256": "3e5a7cd5edad6d21babe21485e81a2867156637b19536ba345dac4a59c36c7b4",
+            "size": 38792
           },
           {
             "path": "bin/browser/js_lex.o",
-            "sha256": "437356d3a5bd5606cd183b6d2605305bc68c0c4381fb0735acf32cc9a9d8756b",
-            "size": 9964
+            "sha256": "e27d09d6881c482c28255017c3a7d687a11fbeba7363409d0bafaf774efcfcb1",
+            "size": 10016
           },
           {
             "path": "bin/browser/js_parse.o",
-            "sha256": "b33539dc231b89ce7d28328a4c69096a305086cf6bb40bbcc147f62f4a6acd5a",
-            "size": 22596
+            "sha256": "30569f77adba08cc38b60a574d9506c2a12b3efb16e4c10bb1eb03bfadafe61c",
+            "size": 22648
           },
           {
             "path": "bin/browser/layout.o",
-            "sha256": "aa5d167db20da55b06425576152c9dec4c1db84f0fc1e3e3d67766acc57aaac4",
-            "size": 70572
+            "sha256": "b5f87e42f4ca700fe0817c12e5a035dd2537dec451c07a0e844ff6d4e5e1db68",
+            "size": 70624
           },
           {
             "path": "bin/browser/main.o",
-            "sha256": "296bf5999f9fcb759e7d01636fbfd40b0aa4295a20823878926eb5db5663da3f",
-            "size": 36152
+            "sha256": "4c8dd9ce4236408a46f80a0577cfb84c97de5d7559769a9ccaa3eb2a8eb983c7",
+            "size": 36204
           },
           {
             "path": "bin/browser/nav.o",
-            "sha256": "7851388ea03b3d5332489aa53becbbd581f0ff99518cf61159a012e8ee3727fb",
-            "size": 13160
+            "sha256": "203cb61b6e0b492848b747d984443a40d2b8d9ade7e08ae56b01808ec9119b9c",
+            "size": 13212
           },
           {
             "path": "bin/browser/net.o",
-            "sha256": "eb6d250ce2b89e1bf48861e3a8b2d9b781f67bb13156d3e3bb3ffaf11a305f51",
-            "size": 12208
+            "sha256": "def94f26419b8f52543fcfa200a075155b1542e83c38ded81cf77bd0752fd8ac",
+            "size": 12260
           },
           {
             "path": "bin/browser/paint.o",
-            "sha256": "39b6d0f7255d605b8c9160464b05efe26b51a72696c290969d46415a123dd28e",
-            "size": 44700
+            "sha256": "6744aece2ce94b7ee3e8f52df635e5e5d396103bec9c49e9b6c170ffd2f7ad61",
+            "size": 44748
           },
           {
             "path": "bin/browser/parser.o",
-            "sha256": "42c9f471ce35ecff0d505876a5f09ea7f4e4d8ade02f827f70e8b22a28b76d92",
-            "size": 33984
+            "sha256": "85b9400d24be3986e93840ab9926787f776b88522fd5a389a7687d901a87d61e",
+            "size": 34036
           },
           {
             "path": "bin/browser/render_tree.o",
-            "sha256": "ef224531952e278a72917017fca239b5d316553d9e40ad495b759e0ead6a176b",
-            "size": 15016
+            "sha256": "6d300f47b17d28aa9eca6638da29d4a9d4be0f9b0cc072524f8e74c17b9f7ee0",
+            "size": 15068
           },
           {
             "path": "bin/browser/style.o",
-            "sha256": "ed27233d5c6c02311812b93a054c7484b9309bbb81335540408b763a720adfc5",
-            "size": 111036
+            "sha256": "c9db52bb7555ce1f1069eeee5fbf831e93c079f33b0573b6c4cfb5af6aa8fb2c",
+            "size": 111084
           },
           {
             "path": "bin/browser/url.o",
-            "sha256": "1a8cc45910b368451f5f299c5797a4fadafc1b12a64697c2f3ca1611ac6c22a8",
-            "size": 2792
+            "sha256": "845f2bb1c5404589c28628cd20b6342aa594213ecc0cc8276e05e7ba017d85ba",
+            "size": 2844
           },
           {
             "path": "bin/browser/url_hash.o",
-            "sha256": "82589ed4d3eabefcc9baae222589962a8d50ea0ec72e171fe774fca479f2f7e1",
-            "size": 2060
+            "sha256": "084373703f95e074ea022f9f73795388265265026399b9a916f6f9d8e6c817d0",
+            "size": 2112
           },
           {
             "path": "bin/browser/util.o",
-            "sha256": "c11cc6daae36d6b9ae28085aeedf4fcbd9fc3c990816e1b44b2db417a3034409",
-            "size": 2280
+            "sha256": "5432543b140e50cf5eade950beff9c23775cee908aa8b64b2efa11693a37ddad",
+            "size": 2332
           },
           {
             "path": "bin/browser/woff.o",
-            "sha256": "8239f7de4f34d66dbaf65b7cdf3301fc54e432d7e7fb586b576860834cb37125",
-            "size": 5492
+            "sha256": "fabb13bd42eba494ccb755685bb8ce218f84636e95ff7a2b17130ad89eaecd96",
+            "size": 5544
           },
           {
             "path": "bin/browser/woff2.o",
-            "sha256": "227831ae69ed1ebd792d041ac71c77f3d579487668fb49e3187d701c5dd09f88",
-            "size": 1544
+            "sha256": "ca8d448eb582e3cc822361b0481d3a14ffd46c5672ff21b51a722b111730cdb4",
+            "size": 1592
           },
           {
             "path": "bin/cachestats.o",
-            "sha256": "69b469c60986959361fd7e4556387a367fbf91719e9a5f94907a8af854e192eb",
-            "size": 480
+            "sha256": "7f0ec52ccf491f0fb3dca70af321be22fdc84b8c693e95ce2e2e053468a2daf3",
+            "size": 532
           },
           {
             "path": "bin/cat.o",
-            "sha256": "245e25552edecc3439566888f1aaae5285a9d8198869fb7c59b09ffcd1d925a2",
-            "size": 1292
+            "sha256": "d292d38054c504aae36573809dcd367d38d7ea2952fba1eef32280511b151bbf",
+            "size": 1344
           },
           {
             "path": "bin/cd.o",
-            "sha256": "98ed44181d7a07ac8fe70762392bee846f1a89c64548ec54bb12cb5edd639c2e",
-            "size": 1340
+            "sha256": "266b193787e33b033c6829a8f6622de23811c3a916f7751cecf0bff7d4d72b98",
+            "size": 1392
           },
           {
             "path": "bin/clear.o",
-            "sha256": "357475a5dc9a976ba705ea76c93719c59ee1dd2f26823ad828937192c077fef9",
-            "size": 728
+            "sha256": "d82cbf8ba4a72678aad0f33b1c4545bfe757f91b2bf78dacb5b9ed5efd2e4b93",
+            "size": 776
           },
           {
             "path": "bin/cp.o",
-            "sha256": "1e2d2f58013a8a7402918d7f18f7f5596c45c5e6a7f29e9666ac8ae8c3b1af7a",
-            "size": 2364
+            "sha256": "32e3063d316a09da6e14351eaf166d010cc12ca0222c77e6a942adc63e1bde27",
+            "size": 2416
           },
           {
             "path": "bin/crashtest.o",
-            "sha256": "0e3b7b2724862e461f5354c54a3de05b01e211816385d109fb7688a770d7c766",
-            "size": 1440
+            "sha256": "32543835db9fc230c454fcce3ddb4dc62cd0e53e82708d095202d2ed5c8cf90c",
+            "size": 1488
           },
           {
             "path": "bin/ctxt.o",
-            "sha256": "b0612bb1eaa94b12b58a58c77879b8544db8919046bff3e0ffb375755b296e92",
-            "size": 50512
+            "sha256": "c6aecc50f4267ebf59444b9992adf8a16d921ef1687986eacaa65aa864fbc288",
+            "size": 50564
           },
           {
             "path": "bin/cupidc_test1.o",
-            "sha256": "9d92ed4612bb573c95b3ff772c5d43572fb1324c1f3dc03569987c6029c62c66",
-            "size": 1124
+            "sha256": "5d5c36b56d7bff05003ad2bbbc5892df52dc3eabcf6379d4082e074f2786a73f",
+            "size": 1176
           },
           {
             "path": "bin/cupidc_test2.o",
-            "sha256": "9295090a0a575c070fb78637c239b3c650c768c6c7c2099118335e0d6638c28a",
-            "size": 1564
+            "sha256": "0eac4042498d6bc0e006072c231ab2161686d54bdac444df514b4bd56e25a159",
+            "size": 1616
           },
           {
             "path": "bin/cupidc_test3.o",
-            "sha256": "b0799748422ddc7ece602d0f05fe65589d8967113cf3af2519a44be5325aac48",
-            "size": 2616
+            "sha256": "206605bc6a2e9346c3273616334b2acb64bb345076c47dfccaddb270e776cf8c",
+            "size": 2668
           },
           {
             "path": "bin/cupidc_test4.o",
-            "sha256": "8f9941fa0bfef060e07d228c30e006278aaa060073ff50a69e23bd48c8dc0fe6",
-            "size": 1856
+            "sha256": "068f71b7e05eb2f4d79dc9a79217896bb18849e6ba9771486fb7ea910768a5fd",
+            "size": 1908
           },
           {
             "path": "bin/cupidc_test5.o",
-            "sha256": "8f0219de71ee002c990c0e92a192a7d82b9127202653b89a21557efe245720e9",
-            "size": 2680
+            "sha256": "93e7bbedfb0f7eb2c0c220ffca7964c80d6f3c451a4aed7895d2c0f89f6e52a0",
+            "size": 2732
           },
           {
             "path": "bin/cupidfetch.o",
-            "sha256": "9c191b487aea54a8e1f1572d70ac46ad1c208ec73cb0b2a29f1a3a622a49ede6",
-            "size": 5880
+            "sha256": "ed2527f4e949a222a378ed476ffb0b0489f23a6fe0309b14316706eca40ef456",
+            "size": 5932
           },
           {
             "path": "bin/curl.o",
-            "sha256": "cb4c97da8a7cdb5e1db033eec4702869e6b8cfbb9a045a681531cdecda0cabd4",
-            "size": 14868
+            "sha256": "ea3a8b8e53e12dacf5df38451fa1a1d17851b1e49ff1df7691d7fb506dea0c10",
+            "size": 14920
           },
           {
             "path": "bin/date.o",
-            "sha256": "368c3ee0265d732b9457493bba92d095890c2d04250dc851c0311908a6b4d079",
-            "size": 1104
+            "sha256": "afedbfefadf45bb831fbaa3d5f2bbcbdcd84c642da147672498bd29233cc7ea6",
+            "size": 1156
           },
           {
             "path": "bin/dglibc_test.o",
-            "sha256": "3b5386ad1ebb6a5f0a8917bf2d580b3fcd4ec4d47ecded45cb94c7e3e26ccd61",
-            "size": 724
+            "sha256": "8dfe09affb2662d42a6646b5aecaaf80c70c1c276e39ebeb5e6c8483c8e023c5",
+            "size": 776
           },
           {
             "path": "bin/doom.o",
-            "sha256": "6ce7da8cb3c7ac3535f39920d8a2c5fdb6efc46342d70708e213208e53070607",
-            "size": 716
+            "sha256": "a0c4f2fa6294fa27b5aebf6e86d4b8f1de4548c3a51c8fd3292adcc9b69d407b",
+            "size": 768
           },
           {
             "path": "bin/echo.o",
-            "sha256": "2847a6bd77f54527e50a2dd13c72f1363a985bbc2a98689265f6eb1bdfef3851",
-            "size": 616
+            "sha256": "7ca16868a9be2b0c61489595a69fe52d21524b4bd8593a142a12c889c0587949",
+            "size": 668
           },
           {
             "path": "bin/ed.o",
-            "sha256": "e92b9eff7f8f00f42906f5a30493925a36b90cdf6378295798620612385deac6",
-            "size": 47240
+            "sha256": "bae0818504217e8c5a6a0852363b57c0ecfb6fb1bc45089c90ce768aaa0e33fe",
+            "size": 47292
           },
           {
             "path": "bin/fat16.h.o",
-            "sha256": "7b94069165a89e3e44f8b777ce99f1ad6ca82a86bcc90068df5beea557ad1ad4",
-            "size": 3556
+            "sha256": "cf11a7a09fb006883de1eae14ec87d74265d7260bf56b7303ce546dd0858bcc3",
+            "size": 3608
           },
           {
             "path": "bin/feature10_repl.o",
-            "sha256": "ef6d1cfab64f8ca4a4f100adcbb97cb601efa37b8d5a1808538b472767993c70",
-            "size": 840
+            "sha256": "f389503b9104a18a49d2d0f10a4869baba858e2c5f9416466d719b8280094f1a",
+            "size": 892
           },
           {
             "path": "bin/feature11_ternary.o",
-            "sha256": "5c68e6d1b0e2d3254b5feeddfa1b2e6ec6167e86f28a0f01b72f1148589fb9e0",
-            "size": 764
-          },
-          {
-            "path": "bin/feature12_float.o",
-            "sha256": "19a77bae696bf7376afcff3f51d192c3e23b69056a03a01919576341223e0736",
-            "size": 6616
-          },
-          {
-            "path": "bin/feature13_double.o",
-            "sha256": "2d839aa1df4678f1631303d8c8b4b2d8a29482e02ae676141ff0c927cc6ea4da",
-            "size": 4760
-          },
-          {
-            "path": "bin/feature14_simd.o",
-            "sha256": "4b7b2355c4d2fc433bd611c47c1d52a1ff6bf6462000b1e9673e1e5b9b35b738",
-            "size": 9248
-          },
-          {
-            "path": "bin/feature15_libm.o",
-            "sha256": "85b176827731fa271cbb00cb8ed9f132adb84d9023dab0043ec4a0df780621b3",
-            "size": 6504
-          },
-          {
-            "path": "bin/feature16_asm_fpu.o",
-            "sha256": "83f841b8e40303ef1e20fedfa33a50ee21a6e12d31b1bc36957cc170a98a5e9a",
-            "size": 2888
-          },
-          {
-            "path": "bin/feature17_iso.o",
-            "sha256": "71a0399b18e45d58955e13d85d4e1454bc1512161f79f8806bddda32a3430078",
-            "size": 6876
-          },
-          {
-            "path": "bin/feature18_swap.o",
-            "sha256": "3c58c4e88dc6bd8128e20d6dbcaedffe9b0769b280fe9f0d6c17cfbda5d3c525",
-            "size": 5548
-          },
-          {
-            "path": "bin/feature19_usb.o",
-            "sha256": "05e6b80e72f03022cf4f1485f9df7b08cae67bc96f149e2f6dc8500d57f8f0de",
-            "size": 1068
-          },
-          {
-            "path": "bin/feature1_types.o",
-            "sha256": "440e1b9dfac28835f41f1e5aea753b24af2020f4017cb20682ad24c7513b72dc",
-            "size": 1892
-          },
-          {
-            "path": "bin/feature20_smp.o",
-            "sha256": "f3a63731595a9bb79b96f51a25fc1cb9277e83ba6c575930374e06b148793de3",
-            "size": 956
-          },
-          {
-            "path": "bin/feature21_net.o",
-            "sha256": "af133718c069dd8fe8f7f339b1834896899b15568a491ae33af66295bc9c2ec3",
-            "size": 1260
-          },
-          {
-            "path": "bin/feature22_net_server.o",
-            "sha256": "30f9c37f0bd21beac5633d0450709d138a0aa720993728f8c5397e5d724f7455",
-            "size": 1340
-          },
-          {
-            "path": "bin/feature23_full_access.o",
-            "sha256": "7bebcd35dc8f117c0dc487f407756c1210f115b212a322c7bf61a7cbe921c13a",
-            "size": 2364
-          },
-          {
-            "path": "bin/feature24_widetypes.o",
-            "sha256": "fe82b26f0f449b9da5d420844d69ca38afb0fbef7a6325ab1bccd878bb400709",
-            "size": 1708
-          },
-          {
-            "path": "bin/feature2_top_level.o",
-            "sha256": "5cfca9b0a9fd3706ec24e1f59f6deda052a1fa4673be6226efe35f3a7c976366",
-            "size": 1132
-          },
-          {
-            "path": "bin/feature3_class.o",
-            "sha256": "61997061f5f10cc74acfdecd7c9719a25fb7053a1c5121eae0de52b0a403ab8a",
-            "size": 1036
-          },
-          {
-            "path": "bin/feature4_forward_calls.o",
-            "sha256": "48dd0c9d7ff09de50302e1a807286d7755fc97dfe23304185791df700d388277",
-            "size": 908
-          },
-          {
-            "path": "bin/feature5_print_builtin.o",
-            "sha256": "80ef6f9cde3d8579c632a5f9d63f913b5fdf9b567690f9cfd5b377f27c9d3f00",
-            "size": 1012
-          },
-          {
-            "path": "bin/feature6_exe.o",
-            "sha256": "a7fd41adaa93d9ba7fca3b1375a057080c20212009ba48a729cfc98f1ddbce02",
-            "size": 772
-          },
-          {
-            "path": "bin/feature7_new_del.o",
-            "sha256": "361f09afa54ed1f1d2da85dd1f7e69d142b1abf637bfa450b5018ec3e74026b0",
-            "size": 1056
-          },
-          {
-            "path": "bin/feature8_reg_noreg.o",
-            "sha256": "fd4aa57c9483d21d2899f92c57103e096e49ddc64147ac6df734add8bd3fac1a",
-            "size": 888
-          },
-          {
-            "path": "bin/feature9_abs_addr.o",
-            "sha256": "c4ac127ed613fa85135452ae4dc02b049ab8480fb1cfa7721feb59fc7c1548ce",
-            "size": 868
-          },
-          {
-            "path": "bin/find.o",
-            "sha256": "73b97a4a680ef5bc82876391b0b5e0389791ef8bb58211af38693c73371f1f5b",
-            "size": 3232
-          },
-          {
-            "path": "bin/fm.o",
-            "sha256": "2b2320a8da52f8e90ff4fc963742407f4e18ba9b47aab7a3c2e6194c68c2fd43",
-            "size": 23752
-          },
-          {
-            "path": "bin/fontswitch.o",
-            "sha256": "d8f342bbd645f576ed737cc7174f7f2b5046cc5f14221e4b566e3a3b65705542",
-            "size": 8400
-          },
-          {
-            "path": "bin/fp_drill.o",
-            "sha256": "d1758efe4d63b5a2cf534d9bd8f85183d7c8b893b9698bab4e3c0f7d7260b63a",
-            "size": 1276
-          },
-          {
-            "path": "bin/gfxdemo.o",
-            "sha256": "119fac2e057f4e8a592f79ddf1d1a3053e0918571700b333e3ae08d1564bf5be",
-            "size": 2684
-          },
-          {
-            "path": "bin/gfxgui_test.o",
-            "sha256": "71c79108f2d49547d513267f895612076246eb22ec578624cf054697d887d1b1",
-            "size": 5660
-          },
-          {
-            "path": "bin/gfxtest.o",
-            "sha256": "f9eb9c9932eb741483fcc0d0542870995ab10bd0ea5783115d35d9184aa0630d",
-            "size": 1048
-          },
-          {
-            "path": "bin/godsong.o",
-            "sha256": "3699252de7af293df147e1f673d8fea65a228726aa44faec8936efa7a89bb271",
-            "size": 9588
-          },
-          {
-            "path": "bin/godspeak.o",
-            "sha256": "1d666a0591542894d7da633a5c4fc340909b79c91809784e17f67a5a54fdff1b",
-            "size": 2208
-          },
-          {
-            "path": "bin/grep.o",
-            "sha256": "670a36b149204b493e0d021699548ed4c8cf011f1d59421016a653ccbc6c9e08",
-            "size": 4336
-          },
-          {
-            "path": "bin/head.o",
-            "sha256": "f31f770f2ee452748e380444e9383db28b218e03d10954ea0c20b015bcdf9cb8",
-            "size": 2672
-          },
-          {
-            "path": "bin/help.o",
-            "sha256": "11a2229864aa269c2d57472a5e0a9048c3f8bda61d9bee2d5a3634065d444a57",
-            "size": 5936
-          },
-          {
-            "path": "bin/history.o",
-            "sha256": "a7c4a94303c8432a54de6e510f70a48871e38e7106a6a457f6b59043b2008fe3",
-            "size": 936
-          },
-          {
-            "path": "bin/kbdsub_test.o",
-            "sha256": "2b15531fcf9952507f507ba5b2f08ef872d01c24f1f230b4a4e80348bb6da995",
-            "size": 1796
-          },
-          {
-            "path": "bin/kill.o",
-            "sha256": "06b100c008b949c6001174d7437eaa702c128dbf26d134a335f8b3b7585a69ae",
-            "size": 1200
-          },
-          {
-            "path": "bin/logdump.o",
-            "sha256": "8bb941dbcfb64bd16f447a56533dd2e308635ff87878e3c20c64732d6f453814",
-            "size": 508
-          },
-          {
-            "path": "bin/loglevel.o",
-            "sha256": "4e8fdaeaebf18503ef6475085d9ba3a15529c13e1c2d57f5e4e12bc2d2258f0a",
-            "size": 1260
-          },
-          {
-            "path": "bin/ls.o",
-            "sha256": "e970b017f1563ea7e614a0ca1b8c87c1e38f97d36c65e9c0fd389429e390e3d9",
-            "size": 1952
-          },
-          {
-            "path": "bin/memcheck.o",
-            "sha256": "3b627ee331fc0b9f96b733598a99c75a7b62367b0a3869f08228a6a6b8679e3b",
-            "size": 548
-          },
-          {
-            "path": "bin/memdump.o",
-            "sha256": "0dad513f3716eb45b200a4b0b199057525d84127692e7970af6f89387b31b1d7",
-            "size": 2060
-          },
-          {
-            "path": "bin/memleak.o",
-            "sha256": "1abe3ba4f5b0210406bfb72402f6b739036aa1eb55db7137078070baddd23c02",
+            "sha256": "6fbb36086aebb449e39c2e40322f67a064eddac541110aa51567785cdba29578",
             "size": 812
           },
           {
+            "path": "bin/feature12_float.o",
+            "sha256": "bdebed1df52cf97c0f4cbb31de6c485ebb51856be6be099bb7a2455b0383def3",
+            "size": 6668
+          },
+          {
+            "path": "bin/feature13_double.o",
+            "sha256": "dabb9089b0b0c3f57f17a6f778b99d4ed068726c07a824ce3ab0cc759a8478ab",
+            "size": 4812
+          },
+          {
+            "path": "bin/feature14_simd.o",
+            "sha256": "c9125e78e7d142f102f88f279f44092175170613717e106c43d71a44d9420789",
+            "size": 9300
+          },
+          {
+            "path": "bin/feature15_libm.o",
+            "sha256": "21f686934b03bca447039fc11b0937fc8ddd0e6d87ff795c880d1a21d0613c43",
+            "size": 6556
+          },
+          {
+            "path": "bin/feature16_asm_fpu.o",
+            "sha256": "0845c5b0aeb9fee045542cf3a541c866481561094c24d027f68a716d37568e88",
+            "size": 2936
+          },
+          {
+            "path": "bin/feature17_iso.o",
+            "sha256": "4cfe6b4b9815484605c6f1cf316f7060a08e8f95b44e727203edd17e424538ad",
+            "size": 6924
+          },
+          {
+            "path": "bin/feature18_swap.o",
+            "sha256": "488b620432397499a582c14ac8a8ae10ce4ffde1b68390bc434a85c54fc24e41",
+            "size": 5600
+          },
+          {
+            "path": "bin/feature19_usb.o",
+            "sha256": "5fe6128fddd3619e5b01ee2174d3a64a7d615699d0fe8a689f0a480263f5bec2",
+            "size": 1116
+          },
+          {
+            "path": "bin/feature1_types.o",
+            "sha256": "306d90045835b921fe68d21821bbc71f83ecbed71c32771eb659d72cf189d609",
+            "size": 1944
+          },
+          {
+            "path": "bin/feature20_smp.o",
+            "sha256": "2f2f2769cffcc949b9a79bd183f5b494fd6b65ebc74b3cbf8dcddfc7a2ba2769",
+            "size": 1004
+          },
+          {
+            "path": "bin/feature21_net.o",
+            "sha256": "dfd455f2d52baebde7a463585d64b91661f9ed94b11cbf46f828e8c9690f1127",
+            "size": 1308
+          },
+          {
+            "path": "bin/feature22_net_server.o",
+            "sha256": "9ae43cf2e39f8c17b33377d45dddcfd56d9f8405b8b4aaa743a02603450e882b",
+            "size": 1392
+          },
+          {
+            "path": "bin/feature23_full_access.o",
+            "sha256": "58b9431b91273d3d95d074c14be88b8af8c6bd48844e5cd051c588cf85d22401",
+            "size": 2412
+          },
+          {
+            "path": "bin/feature24_widetypes.o",
+            "sha256": "c6e660a4276b694c6d031e71591c20c3cfc7f874b683943b7450594c0dc23a67",
+            "size": 1760
+          },
+          {
+            "path": "bin/feature2_top_level.o",
+            "sha256": "aebea4a9e7ac8a4d8fc06db2d1b4058360c6b0c15f396aa7055ca064c0082c0f",
+            "size": 1184
+          },
+          {
+            "path": "bin/feature3_class.o",
+            "sha256": "103d8aeac7946502f01ec527e708eb61cacab67e34c57ff906322dcb332072ea",
+            "size": 1088
+          },
+          {
+            "path": "bin/feature4_forward_calls.o",
+            "sha256": "9b805b49e1c44e8b5394b09a53b1594b21fe9f616fdb7167dc6d89f62be25329",
+            "size": 960
+          },
+          {
+            "path": "bin/feature5_print_builtin.o",
+            "sha256": "4c11450827a2ba3241a2e82ce620b0e74b24bf8088fe78f6d1518d138c4a1827",
+            "size": 1064
+          },
+          {
+            "path": "bin/feature6_exe.o",
+            "sha256": "0b909b88e3b9010533c74168d36834fbeb9881c2f2b173e664cacf2a4699ce7f",
+            "size": 824
+          },
+          {
+            "path": "bin/feature7_new_del.o",
+            "sha256": "f272bccfc01c0c53cc51a0ad907541adde160f63784dbd33245175d7b19a2a13",
+            "size": 1108
+          },
+          {
+            "path": "bin/feature8_reg_noreg.o",
+            "sha256": "5c1eb6fcf6d20333bf902ccad9f1f0857e3437c85daf4d98b8411a10293e250f",
+            "size": 940
+          },
+          {
+            "path": "bin/feature9_abs_addr.o",
+            "sha256": "6ebc6f247c6d6ff81222ad3d29b6371a76c767f33d2d049bb812ad961bee9026",
+            "size": 916
+          },
+          {
+            "path": "bin/find.o",
+            "sha256": "e94f1275889f478b6906128d5ee1e0b4fbe9392cc3e280ae81e58ecbc4a57394",
+            "size": 3284
+          },
+          {
+            "path": "bin/fm.o",
+            "sha256": "4419acc25b484b56838c95b39921d25984d859e87239527302c7aef0f9f4ba5b",
+            "size": 23804
+          },
+          {
+            "path": "bin/fontswitch.o",
+            "sha256": "31167b934b1e06db0da5f6270ce9fac2c62d60a814752716ee3c133e2359c4b6",
+            "size": 8452
+          },
+          {
+            "path": "bin/fp_drill.o",
+            "sha256": "ff57ab0cd2c601c99473e6c2047290b02895da9573d958d307eff6a1874510e6",
+            "size": 1328
+          },
+          {
+            "path": "bin/gfxdemo.o",
+            "sha256": "61bf1f3c9cbac641fe4f86a0a161a4fadb544ca32cb8308424defc50c7a8d1ab",
+            "size": 2736
+          },
+          {
+            "path": "bin/gfxgui_test.o",
+            "sha256": "9263e6bebff215b0be154524f6b64ffede639515cc148ed962c0760738474d3a",
+            "size": 5712
+          },
+          {
+            "path": "bin/gfxtest.o",
+            "sha256": "77116888a30ae312bb1f05cc4ca8806bab693668922e8640c7fc46d6939155ec",
+            "size": 1100
+          },
+          {
+            "path": "bin/godsong.o",
+            "sha256": "42cbf9083f4e396ce7d125df11f14a1991b7758eb014744c3b3a1a657b8c3aa1",
+            "size": 9640
+          },
+          {
+            "path": "bin/godspeak.o",
+            "sha256": "df71c6fb8c37ce5d4403ea126c2de41176f59a21066d755654072f515f6749df",
+            "size": 2260
+          },
+          {
+            "path": "bin/grep.o",
+            "sha256": "2c595b6da12feb02a0462540bff50919191eec9368df4c96612b14717ffd112b",
+            "size": 4388
+          },
+          {
+            "path": "bin/head.o",
+            "sha256": "300ae46bb9466d0313c80a055aa22b61b4e0ab9061d34f7b165bdfa151b75b67",
+            "size": 2724
+          },
+          {
+            "path": "bin/help.o",
+            "sha256": "0e84f28e5ec13f2672f81140ae88333765ce54c26df6fcc93daac4a7ed1f1df0",
+            "size": 5988
+          },
+          {
+            "path": "bin/history.o",
+            "sha256": "22f04b1eb2b37f0a566e3d6489e67bd37fdc42461794b2c088c6a21769e9ce70",
+            "size": 988
+          },
+          {
+            "path": "bin/kbdsub_test.o",
+            "sha256": "48d22f50a0c93cb4d06a6c8c15b569a80c2286548e3becc000fddd88fe59a36b",
+            "size": 1848
+          },
+          {
+            "path": "bin/kill.o",
+            "sha256": "1388bdd5ffc6c71a495f5ac48898fdb551cdf4d50b777e9fdd8fabdf19721355",
+            "size": 1252
+          },
+          {
+            "path": "bin/logdump.o",
+            "sha256": "3fb42f59b826669a3c7f28e43610e9dff6f5319a056ce222a4cd882a10099f7d",
+            "size": 560
+          },
+          {
+            "path": "bin/loglevel.o",
+            "sha256": "fb58bf994973a65cc302808dd587ba4f54205d072f1327e2f9f636ae8f2922d7",
+            "size": 1312
+          },
+          {
+            "path": "bin/ls.o",
+            "sha256": "9474d113853416f8e87207d317b5514d680a0b50ca4ff91747e4d853074a2f13",
+            "size": 2004
+          },
+          {
+            "path": "bin/memcheck.o",
+            "sha256": "925590373444280f9b3f2b69322cbf11a9c60e4a8535717915fa5faa74803835",
+            "size": 600
+          },
+          {
+            "path": "bin/memdump.o",
+            "sha256": "4c9f569218b33c2410c87da5a23b93b3a9138acc71af0b707371b501fbfd3852",
+            "size": 2112
+          },
+          {
+            "path": "bin/memleak.o",
+            "sha256": "ef19ecee4f0c1a97c0b6c719dbaa9cae2cdb6f29b1a54c9ab02b5327cdb56033",
+            "size": 864
+          },
+          {
             "path": "bin/memstats.o",
-            "sha256": "6749e0b8d4b41eda21fde2d77b10c0318fee6c2fedcf7979876663ad2a25d1a3",
-            "size": 460
+            "sha256": "6ac4cde6ca6b24496683b6b416ab90fb5d8eed469c895826100d51cd2baf8244",
+            "size": 512
           },
           {
             "path": "bin/mkdir.o",
-            "sha256": "37172f70e0faab6c4c0df2d7b5f33c3a312b70de7a05fa316a0c05c89fb26d0c",
-            "size": 3188
+            "sha256": "46b85c4ae6c9688435b2ec3d0a1f467c18db8aead1233187c8c6e9f5ebe5c0ce",
+            "size": 3236
           },
           {
             "path": "bin/mount.o",
-            "sha256": "50efb7fcf2781f7c5da50722d471eb15953ee28cdb65d2cdcbd586b98331ee4e",
-            "size": 956
+            "sha256": "b823a1ecf8e7b0d981ee7b5d50d2a08175568cd1824ef23fe98b4a11352ded44",
+            "size": 1004
           },
           {
             "path": "bin/mv.o",
-            "sha256": "17daf63022f57df8e4c7e06af2e378a942876757d93eb27744740a1cdd07a6d1",
-            "size": 2964
+            "sha256": "66d348e48fcf432a4a4ea8e27344a63dc0d095731e86c67b4a3d9fdf5f397d7c",
+            "size": 3016
           },
           {
             "path": "bin/notepad.o",
-            "sha256": "c7156265625c9fdc587c661bc487697e8bcd07b90d3decb040405da3a0b000a6",
-            "size": 61872
+            "sha256": "f9bef5380600016e970ab4b1b99634bc6667a9912d428e35ac013e533cbae6c8",
+            "size": 61924
           },
           {
             "path": "bin/oracle.o",
-            "sha256": "b91727497c499497330df37ff4cf8744918ff68f6c023fd6fa25175dd67f3f56",
-            "size": 2672
+            "sha256": "504c387b3740a2059affdacb7925e40f6957a59da4aedc391121f3ddfe051cc3",
+            "size": 2724
           },
           {
             "path": "bin/paint.o",
-            "sha256": "4973efb29f93b48d5efae73a7b26e65f0b650ff93818a9e3dccf5e2a7e239d99",
-            "size": 43792
+            "sha256": "44719aa821f9247d8c2508ddf91f9b52e635e777c78da2ee9b1fb675c4656c82",
+            "size": 43840
           },
           {
             "path": "bin/printc.o",
-            "sha256": "dbc5174c7042d9171ce67698bbf12336e15215647f9962ca1d5756b579848b6c",
-            "size": 1628
+            "sha256": "50abb1a00804f08fa578e95cbec92396f74a1b133832b8ea19542d8074041720",
+            "size": 1680
           },
           {
             "path": "bin/ps.o",
-            "sha256": "b1605004a596b803265e452fa7fc6b8dd8fa49013c593e61be634db33b7ec475",
-            "size": 516
+            "sha256": "a07eeb7365e4ea48d1fa0aba630ac31612acc4b8e422091398ff1eed9f7691f9",
+            "size": 568
           },
           {
             "path": "bin/pwd.o",
-            "sha256": "9e204e35ccba2bb3d208aa2abbb62a85386d1fb9011af94fc78fc7c34f2ec053",
-            "size": 576
+            "sha256": "978f9cb3a46b3c8f3ff87211ad870e2f03c60db4ff624a72fa27809e8bdd7f7e",
+            "size": 628
           },
           {
             "path": "bin/reboot.o",
-            "sha256": "7d33a87250c4b81561d607b62f926cc5693269bd6ab44948806104d488a548af",
-            "size": 852
+            "sha256": "981bcb7b61e80c135146bfa66b4415c7f27294dbb337e2f83fbc272545aed2c6",
+            "size": 904
           },
           {
             "path": "bin/registers.o",
-            "sha256": "9b72588d228c2bee57e2a031039ab22f0d161fe43d1c7ba6bcd983f4e9b4439f",
-            "size": 468
+            "sha256": "5cf5711ca91ef6e8a3530d38ff9a8fcff450d68ca5fbc6647f903f29dd466a8a",
+            "size": 516
           },
           {
             "path": "bin/resetcolor.o",
-            "sha256": "3eee77afb4b3a24b1d82e25e0fd3660f194bb16893b4c46c3c5e188912624f12",
-            "size": 584
+            "sha256": "66ffcfeb607fe294ebdb7f10b0deb6c46923d1e5965699c6b955cef92b665935",
+            "size": 636
           },
           {
             "path": "bin/rm.o",
-            "sha256": "e410b095a49526674721018ef83c45e07203c32c446cb1f6fc664a845a0765f5",
-            "size": 3004
+            "sha256": "687a2997c8fe456cf6432221ea0f745ed66e8454986de74256921940a5833304",
+            "size": 3056
           },
           {
             "path": "bin/rmdir.o",
-            "sha256": "c72f4c3b8c2b063b0b3fd441a78fa1252c67cda0f1eff364bd53e28dbabd287c",
-            "size": 3256
+            "sha256": "f52790f550b19306d51e682f0f092772258623a3d9f7b9facbac2a4bd263e964",
+            "size": 3304
           },
           {
             "path": "bin/setcolor.o",
-            "sha256": "30ee0a8ff7b2b6d1af3f15bca5f8c2dcb5c07165b48a4ee70f460b7f42306037",
-            "size": 1732
+            "sha256": "9cb5bd533ad7611cd288fa8dfdd91fc90077e21842faf52d1afa02ad0fe0aaab",
+            "size": 1784
           },
           {
             "path": "bin/shell.h.o",
-            "sha256": "6da35eafebf5ab6ea7bd8d374654584bcf3af1aa895f45ecfa8168cea5ab5102",
-            "size": 4896
+            "sha256": "538179e570fbbec6eb169ee36699ae4f207182eb31b1cd2ec73d76e42c012fd3",
+            "size": 4948
           },
           {
             "path": "bin/sort.o",
-            "sha256": "34f73584fa2d4c85f5019a9ca2a962f8e061ee100a63347b67f1d081ccc52cbb",
-            "size": 3784
+            "sha256": "25df482a190b7569b7ff880afb43cd793e3cc684367996b1ec6e50b92675d69e",
+            "size": 3836
           },
           {
             "path": "bin/spawn.o",
-            "sha256": "81954028204366027e1364951a6688d2858d9a27b0ebbf10453e5b27e64bda8c",
-            "size": 1016
+            "sha256": "b48b173deb6647009129219017269ee837eb147bf235f4c1378c46ba8f1232d6",
+            "size": 1064
           },
           {
             "path": "bin/ssh.o",
-            "sha256": "ae06865476d683fdb4a4b620b6000ef336c39eb14212bd4e8b1421848e9a74d7",
-            "size": 54972
+            "sha256": "849ba20820398f815e0b0f4be1bc5c3d68c6c446c895d881b9d09524c38af7aa",
+            "size": 55024
           },
           {
             "path": "bin/stacktrace.o",
-            "sha256": "722fbe90ad9947d3e028e706f8dd36df1f9f615843d05fbb1ddb39e08a1b7784",
-            "size": 476
+            "sha256": "f91e6cdfb73247cd5712aa5fadf454decb5fdfcfb2e5356cf81295f0a3b790d4",
+            "size": 528
           },
           {
             "path": "bin/sync.o",
-            "sha256": "33a3969c66a476d034694cf46ea55b2365d53bb98208f6319eccb2347804dd92",
-            "size": 492
+            "sha256": "ed93dae83768bed02e31678cac351dc253e29e8aa13ef4917e3097a551fb6254",
+            "size": 544
           },
           {
             "path": "bin/sysinfo.o",
-            "sha256": "d779bc45acd8c74c0686a7f00cd29a8750d87c0669f574f3f9ac1359f782f1a2",
-            "size": 1008
+            "sha256": "8f6970d4f78ce8fb3f7fc91d5a364b0e55362a2334d40d5cb02ec82a7af946e7",
+            "size": 1060
           },
           {
             "path": "bin/tail.o",
-            "sha256": "f4074f78b4c6d9c344a56dc4f7750f948786514c78feacb70c881aed2b01fa21",
-            "size": 3132
+            "sha256": "f4ced7a9e76f2573699069711adf68c4aa0a2476584191ab02ae0017f2a25faf",
+            "size": 3184
           },
           {
             "path": "bin/telnet.o",
-            "sha256": "5f3ca624bb72b8c8d9585c4f9c36715cccbafcb1e06921e5482575a074d3fc38",
-            "size": 12452
+            "sha256": "29d0361dc766018d861c9d3d3b460e77c969d157bd87c8a3be53a59000a7587e",
+            "size": 12504
           },
           {
             "path": "bin/terminal.o",
-            "sha256": "87e5e7dfece78d11ef01c1d92ef71f644eb498dc099c58bec63a59e1c3de8321",
-            "size": 4676
+            "sha256": "dc953bbd1bbf24a974d551a2b5f2b2296c0359b7a151f593b7b113b8021be1b6",
+            "size": 4728
           },
           {
             "path": "bin/test.o",
-            "sha256": "8a7d1cc5e135d9e9368cdd2ce7aa25f1ea7672b6359bc81f2d6998c30da0a8c7",
-            "size": 416
+            "sha256": "7c35f5bd029979d1a893f5f0d1ced72a3ab79508887b74a99785b48473a1a532",
+            "size": 468
           },
           {
             "path": "bin/test_fpaug.o",
-            "sha256": "b9acadf1657fcd2da6f5b331a1e4d2399940ef23a879199e11bfc23ea066b436",
-            "size": 2036
+            "sha256": "a29f3c911f41fc7446c4927c1a085694e22333254fe7353b90e8637224c0770b",
+            "size": 2088
           },
           {
             "path": "bin/test_print.o",
-            "sha256": "190be4876ab0a9f763240e6d4ab036fd9ef2b3070d51548e511c9f8d2ca08af3",
-            "size": 692
+            "sha256": "3d4b97bc8c51fa308fefee5237347b3e7ef68c5cbe18b75b0434c530abb25948",
+            "size": 744
           },
           {
             "path": "bin/time.o",
-            "sha256": "63c23923d64232d9b55966c0aa1e02023512cac702ef97ed39ac330b069a794c",
-            "size": 880
+            "sha256": "fee2bbb7f445034ea986528783bee225881b16ef75dadcd823bb1d6cc6f1247b",
+            "size": 932
           },
           {
             "path": "bin/touch.o",
-            "sha256": "96a171e7067bb6a86f0834199ad2532003bf7e6c37442ae11a1d3ba5168c7fa4",
-            "size": 1820
+            "sha256": "d650fbaae51db742018e80e09e96a100b5b39d3742500513648c74e27a7525a5",
+            "size": 1868
           },
           {
             "path": "bin/volume.o",
-            "sha256": "c81ea81a3c0af3e7226d7ec7ecde75bc224a475c195b22d7083bcebd74d5fdae",
-            "size": 1288
+            "sha256": "056ae667f8137c9dcd69a74ea9e1787eb25fd4cfe23d3915ebff57839e549965",
+            "size": 1340
           },
           {
             "path": "bin/wc.o",
-            "sha256": "27ed628d7b9d23b940404c35b96624f2fde4af1388970b718026e1826024571f",
-            "size": 3068
+            "sha256": "38d527402c4175e21feaca69f242d1e33cecb6b1eba7d42df37c5de5cf458a4f",
+            "size": 3120
           },
           {
             "path": "bin/wget.o",
-            "sha256": "2b6662a907ada7f2f4fccd66ff274617350b86fedd2d70a56c4a317dc39ecbfc",
-            "size": 8300
+            "sha256": "e686a561cc892b2c9697e823982ecd440bde612291c03004c3968fd9794044be",
+            "size": 8352
           },
           {
             "path": "bin/yield.o",
-            "sha256": "09d9644d87c53ed444f750783020b7fe62fe3a0149e9d63e08754639cb424674",
-            "size": 568
+            "sha256": "55d6132a754c68688b2670b2990fa410629e179189c99f3a7cd0273738517d80",
+            "size": 616
           },
           {
             "path": "boot/boot.bin",
@@ -3844,98 +3844,98 @@
           },
           {
             "path": "cupidos-txt/00INDEX.o",
-            "sha256": "4b205e57ead5103662bcb6e672aad3197563b33223833476e27c029bcb1c546b",
-            "size": 4652
+            "sha256": "0e73b3996f3d114a532f278bd5df3907a9c328ef24b3e3493b08d826063ec6e5",
+            "size": 4700
           },
           {
             "path": "cupidos-txt/01SHELL.o",
-            "sha256": "722858b332c3e377e800174011c0d33868379420fac417cead4cc541523a96cc",
-            "size": 7692
+            "sha256": "c779b315200727f013460d1949fe8d2546b38a3dd1eafbef733a92b95f0e1b8d",
+            "size": 7740
           },
           {
             "path": "cupidos-txt/02FILESYS.o",
-            "sha256": "c1bb6c5a88e846b814b2e9ec5810b6ddcb083e5cd7773dd05e548ec1cfdc6746",
-            "size": 6336
+            "sha256": "cbeda27c94cfe070f395c040f1bd66d5368619b7d070f3fe2721de22309d7eab",
+            "size": 6388
           },
           {
             "path": "cupidos-txt/03CUPIDSC.o",
-            "sha256": "084f64b7510c354115d60ea70fae675c0e5efb42314faa8f827871dfe45a9dee",
-            "size": 5040
+            "sha256": "e41de4609ac567729a820ff311a7cdc0c0d8229037ffd2c0b03892ed1e45e5cc",
+            "size": 5092
           },
           {
             "path": "cupidos-txt/04CUPIDC.o",
-            "sha256": "15f0d21161a54c7e09188237367eb0513388ae61235f6196544524cb0b3d2946",
-            "size": 10228
+            "sha256": "2a5a4bd18faa357fbb1e53b32057557e81d5a221176960a37bdba3229666fd37",
+            "size": 10280
           },
           {
             "path": "cupidos-txt/05ELFPROG.o",
-            "sha256": "f49f42e3e2f0ae5c65d42d9faac492002f20c82ea3e98138dd9f7a5fe83b91df",
-            "size": 4176
+            "sha256": "a36f5a8ff7288bac6b3fbfa01fcafc611c2274423d251a6aebd71debe1de237a",
+            "size": 4228
           },
           {
             "path": "cupidos-txt/06GUITERM.o",
-            "sha256": "01955dd661aa1212170b42741fb679769c520fcbed4b3bdf4e45a045d76a7de5",
-            "size": 4968
+            "sha256": "37c099911fc6d418945d80f22abd5a287d9acdb71bc816f954bd45b30745bd02",
+            "size": 5020
           },
           {
             "path": "cupidos-txt/07LABS.o",
-            "sha256": "802aeabb9478ba301fc338f127dfb5d3ce834c7697bac5c4517993d664b2037e",
-            "size": 5748
+            "sha256": "f3605840d5920c19038798fe13cf8abf51eb726d33dde173aecb6a97b83f4454",
+            "size": 5800
           },
           {
             "path": "cupidos-txt/08CMDS.o",
-            "sha256": "6cd0c7aec26ec1b635928252e44e802d2653e86ae7d391b1d05b85dbe4f29ffc",
-            "size": 8668
+            "sha256": "fc5a560cfe1b9dceacc5493c6692bb2cfe95d110c1aa4e694883d0fa61c73592",
+            "size": 8720
           },
           {
             "path": "cupidos-txt/09EMBED.o",
-            "sha256": "45e15fef1cc2dd1aee75d86c20d867f91b2f90524afc991d8264231aad12cdde",
-            "size": 6672
+            "sha256": "0469c549700bd7f89617665b15d5ff274fa0a67b6dcec15a6aacc620d9fad5a9",
+            "size": 6720
           },
           {
             "path": "cupidos-txt/10ASM.o",
-            "sha256": "d1caa0c320da9004cc5d54d5f8fba1041b7818a78b48f30cbab169072baa4a74",
-            "size": 8920
+            "sha256": "d42b101d1a85ec0b1b05e72bef3ef1b6eeddb54e115af11809d7bac20121d0cf",
+            "size": 8972
           },
           {
             "path": "cupidos-txt/11CTXT.o",
-            "sha256": "98bca2966c83aaa0b6bf23646885b38f82820ef4ec2d8bef9670abf46371985d",
-            "size": 8852
+            "sha256": "6061af22837c6f64c03e845b454b93ce493581d9e1ff640484ff363a4a51d275",
+            "size": 8904
           },
           {
             "path": "cupidos-txt/12HOLYC-CUPIDC.o",
-            "sha256": "4019bda080d0d50f0e1251902dce77de5b698ec367f7577c226d9e3f7ab97ad7",
-            "size": 8408
+            "sha256": "03d5c7ff532f7987240edeb4ddc6501417fecb3e086724cd60b941953a06f04c",
+            "size": 8460
           },
           {
             "path": "cupidos-txt/13USB.o",
-            "sha256": "9976091531f7e2a129114da7d06021ffc7b7e094901dba5c08dd22b490772591",
-            "size": 17884
+            "sha256": "9971361d9220c163bba1237385b206c46d31d977ad82f8dc38f331d5445caa6c",
+            "size": 17936
           },
           {
             "path": "cupidos-txt/14FPU-SSE.o",
-            "sha256": "c40edc1932c72bbc516693795b6ef24e2a69b7a761b0800531482689d7addf4b",
-            "size": 4900
+            "sha256": "4921fbb2b6a3b4ed4699417251288da0b1a2ebb455df0c9fea210ed7449212cb",
+            "size": 4952
           },
           {
             "path": "cupidos-txt/15ISO9660.o",
-            "sha256": "7c05670856319b21d02dc3f7463c794034f74ee61ac5776c03afb35d0fb4b0bf",
-            "size": 3724
+            "sha256": "4f4573046cc9789a210c7ac87aee3c16866df803855c090eb60ba25dae4c14bb",
+            "size": 3776
           },
           {
             "path": "cupidos-txt/16SWAP.o",
-            "sha256": "43614d450e1b1426ea98daffc3b25fdfcb19aec21652cb360e72fdb7adf8c0d9",
-            "size": 4680
+            "sha256": "d8a0ad3cb7c233dec69e5edcb9072b623948c8d8a673c6f8e266dc2c27b251fd",
+            "size": 4732
           },
           {
             "path": "cupidos-txt/17SMP.o",
-            "sha256": "c640c7c3b138f4c5dafce8ff3601d525505c740e5ebdc93a18796abb7d6e24f2",
-            "size": 13992
+            "sha256": "5c1ddd05410af65c4b3c950260cbf8259f7d2e6626398afe0f433a5620d4a04a",
+            "size": 14044
           },
           {
             "path": "cupidos-txt/18NET.o",
-            "sha256": "29919f96cf5df092259550b8998a8b0b98fba27899a77ad183d5c4b36ce1b22c",
-            "size": 35516
+            "sha256": "8c67812716fd73f13099297acb74a28cf929e9b5121a783d2d1f50864263b019",
+            "size": 35568
           },
           {
             "path": "cupidos.img",
@@ -3944,113 +3944,113 @@
           },
           {
             "path": "demos/asm_compat_reserve.o",
-            "sha256": "e13ab20d00c14e6a5a2c7d9e2286592e4b1221179902952cbf7e3e33085e1112",
-            "size": 1540
+            "sha256": "80a954c84bb22a0a31b2f421cc3625840d3e7f32d463351aec2beb3dba01261d",
+            "size": 1588
           },
           {
             "path": "demos/bubblesort.o",
-            "sha256": "369ccaa66799167d45d2e6cab6440b7f3834924a2e05903bd7178332b9b6c4ac",
-            "size": 2272
+            "sha256": "4af574efcfaf7cc3c53d6e1c146e17ba4c8e7b2ff02c29911665f74ba254bec0",
+            "size": 2320
           },
           {
             "path": "demos/data.o",
-            "sha256": "6826f79579b4b088c5d08a2fa8ce2a8fcd6700ecf214bb64bf5872ccf973aafa",
-            "size": 1580
-          },
-          {
-            "path": "demos/factorial.o",
-            "sha256": "39c55e413105a29813eb838bd78b67649696ede5ca7294edfd0cb58e9ad87170",
-            "size": 1628
-          },
-          {
-            "path": "demos/fibonacci.o",
-            "sha256": "aacaee1fadc674e1864c4b2b30c0b569237041b0fb49279799b62e212c061375",
-            "size": 1556
-          },
-          {
-            "path": "demos/fpu_kernel.o",
-            "sha256": "9bdb2990e95f2ca5ecb27c1d0eec9a6c63bff91046b6c163dcd451c8842c6925",
-            "size": 4772
-          },
-          {
-            "path": "demos/fs_syscalls.o",
-            "sha256": "864f80530543871d8d5e3e823358abba97d5fd021792b076977e620b138c172d",
-            "size": 2288
-          },
-          {
-            "path": "demos/hello.o",
-            "sha256": "6a26a56bc0fcbf10e76867342f1b326461c37a8b82aee0ec4c5a77920851416e",
-            "size": 660
-          },
-          {
-            "path": "demos/include_feature.o",
-            "sha256": "4810681be4a380ffe9cae9886c9d75741113be3ee18a01612ceb6bfd26a99079",
-            "size": 540
-          },
-          {
-            "path": "demos/include_helper.o",
-            "sha256": "1e5d160b0af129def4cfa9e9445116056653bb727ed267a1be94cbb03a42925f",
-            "size": 736
-          },
-          {
-            "path": "demos/jcc_aliases.o",
-            "sha256": "36317c494c8bf52c53f423811e5e42974b9e6a209041512e8175c957cb4576ce",
+            "sha256": "1de5423e6ae9c1656e3563e9995d91c07a1a69db4efb956a5b6e617728f2219a",
             "size": 1632
           },
           {
+            "path": "demos/factorial.o",
+            "sha256": "b7744e88774401239335ae96e52debc65bb924fc3c190522bf2a38e04485e967",
+            "size": 1680
+          },
+          {
+            "path": "demos/fibonacci.o",
+            "sha256": "515bab35d2dbd7fc0eebdcea8263ac0422b6ee642a4ef09b6a401f4f66dbaed7",
+            "size": 1608
+          },
+          {
+            "path": "demos/fpu_kernel.o",
+            "sha256": "7142e96c42a4ce53c2d5851afec1a358fbd26badf223f7d89c77470b7c009e1d",
+            "size": 4820
+          },
+          {
+            "path": "demos/fs_syscalls.o",
+            "sha256": "a6a295496379e40f17c6504e3997aef6add7fc0bba037ecc94e2a58718ea1f84",
+            "size": 2340
+          },
+          {
+            "path": "demos/hello.o",
+            "sha256": "66db3e703dd08b66ea5ded1eb9f2e12b444daca73191fec8372918e32cb3b957",
+            "size": 712
+          },
+          {
+            "path": "demos/include_feature.o",
+            "sha256": "5973ba0f481494a8fdf8ecfdd7d13f1d8a125507011f81f67f8c288009a211c3",
+            "size": 592
+          },
+          {
+            "path": "demos/include_helper.o",
+            "sha256": "05064a244f3c95fd3205bc082440b6b36c14d7ab4f84ec8b527ff12f64af7d99",
+            "size": 784
+          },
+          {
+            "path": "demos/jcc_aliases.o",
+            "sha256": "c1ce00f94a052909b05fbd7e127eef2b67fc079bf3e7e6c9947d43b846297774",
+            "size": 1684
+          },
+          {
             "path": "demos/loop.o",
-            "sha256": "e462f0732ef27f60c603e52c280ab8bcb2f7fa00daf6e56047dda888f16919a8",
-            "size": 1036
+            "sha256": "df5d274f7c4ff6d17759d23918c4463399f3eca75a8a4fcdb9f367f5d10e873e",
+            "size": 1088
           },
           {
             "path": "demos/math.o",
-            "sha256": "d2cb74b4893130f537739b387c2b5429410d8eda2f2e44990bf1a0af5be18686",
-            "size": 2236
+            "sha256": "f5bb6c3faea458604c69c2f77937f8b10a22ab5866c420b375682644baa9827f",
+            "size": 2288
           },
           {
             "path": "demos/parity_core.o",
-            "sha256": "e02311a646d766b0896360c3ce8d212d8e116b9e528259a2adb903475bb0ed6e",
-            "size": 1952
+            "sha256": "f802dde1a61f03d5bc6ce937e646e68ed554d5a128799c4f2d8d1477b8e75b71",
+            "size": 2004
           },
           {
             "path": "demos/parity_diag.o",
-            "sha256": "b185cf9fb0a3e306dde46c8e6b144c998f9a5cf6eeb4145b64d96a7e7a9f03c8",
-            "size": 1488
+            "sha256": "59538b4d8a0a451672b51b816eb3f822a04d86b049cbe65bf1d3a52975d12176",
+            "size": 1540
           },
           {
             "path": "demos/parity_gfx2d.o",
-            "sha256": "2bf0fc85b0a1c61890f0c1d2513f242ccef4776eda9095fe6d561b8db3d21abd",
-            "size": 2332
+            "sha256": "978f66453bf9abb7790ecdc89c225d454a46b160d499dddc9b88deb1882d9d75",
+            "size": 2384
           },
           {
             "path": "demos/parity_priv.o",
-            "sha256": "adeb64ade71094f39030e0de2002e5bda34363766265d7f91da9612636601a98",
-            "size": 1904
+            "sha256": "665213137015716ef202d1fd89e9f19f068ed98e77ff60994bdf7f9981d913bb",
+            "size": 1956
           },
           {
             "path": "demos/reserve_directives.o",
-            "sha256": "e6776eb4d0f17c991428cf0883ed9484553db4daea790be7d20cfd054d727dd5",
-            "size": 1220
+            "sha256": "0f87e027d732b4bfca2877f0690d7edd018e3169fdc963cabff94dc2884cc598",
+            "size": 1268
           },
           {
             "path": "demos/simd_blur.o",
-            "sha256": "4266019e8099c46e92a48d07faca5b1e819cb9ba7f271518b3106e0ea6b61c65",
-            "size": 2444
+            "sha256": "33b34a8966d1bd6b1a79d7b60983d3c5e1363858d7166f0e2dc55a7257210cb6",
+            "size": 2496
           },
           {
             "path": "demos/stack.o",
-            "sha256": "6f4764a770b58f5c04c246e7adbccca48892d08b5972b529f3ce49660c9d1175",
-            "size": 1716
+            "sha256": "0e1f9bf1ddf0cbfe13e35c9606b9c9a837b5caf3fc54101152de812c8fe1861d",
+            "size": 1768
           },
           {
             "path": "demos/syscall_table_demo.o",
-            "sha256": "ecf6e0067162012d47eff637f17415bf35d610cba10a5a9b764993d87bb2cac8",
-            "size": 1508
+            "sha256": "86390cba0134a20a04995289acf154e49e971a81ef82860c4ae42487900cc5a5",
+            "size": 1556
           },
           {
             "path": "demos/syscall_vfs_extended_demo.o",
-            "sha256": "f9eefa14c346e681c55bdd8db8d0d7e708e7b49e3c371ed8bbd727f144b83301",
-            "size": 1604
+            "sha256": "d48b66bfba7905e1303472687dcad19a689404aa534d7f8518ddcd10bac26bb4",
+            "size": 1656
           },
           {
             "path": "drivers/ata.o",
@@ -4114,23 +4114,23 @@
           },
           {
             "path": "file_example_JPG_1MB.jpg.o",
-            "sha256": "7b2c244170b1be43dcc5d676f2a4b347a040f512e250f47c0a7ad1dedac291ef",
-            "size": 800812
+            "sha256": "74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e",
+            "size": 800860
           },
           {
             "path": "god/Psalms.o",
-            "sha256": "ea2aaed0790193eac66e5bc655423234e6a70be36a55ff5b764873e7c2be02ec",
-            "size": 323168
+            "sha256": "aa11d1e86fc3888961c9bbb2deae54822850c1dacee998a51e16735d0a184049",
+            "size": 323220
           },
           {
             "path": "god/Vocab.o",
-            "sha256": "937cd275ef916cc228576afbbed01aac39999394992ecfea8321b3cf45fb8ec8",
-            "size": 63560
+            "sha256": "38558ecaa7568a77660634c3cef22d0597661ebc2e82987581e4da5d19b119ab",
+            "size": 63608
           },
           {
             "path": "image.bmp.o",
-            "sha256": "ad2b3369126d826c558b7230c90c9afdebb69de007aa876aac342bb1b2328f3e",
-            "size": 12796
+            "sha256": "139e697eaa1bec2cb94473397437d1421a7f01dd087e2437dc741a3c2bb8ea7c",
+            "size": 12848
           },
           {
             "path": "kernel/audio/ac97.o",
@@ -5199,8 +5199,8 @@
           },
           {
             "path": "kernel/smp/smp_trampoline.o",
-            "sha256": "b17d242b8e75e8830bb8c0a4dde13a5dbaf24b754c30b896455af1c9743401d6",
-            "size": 4460
+            "sha256": "d13d7248b9518b84d40b2a0602f50e63c9eda0c2241149e650924b428cc0e6db",
+            "size": 4508
           },
           {
             "path": "kernel/smp_trampoline.bin",
@@ -5299,33 +5299,33 @@
           },
           {
             "path": "snail.bmp.o",
-            "sha256": "9602f9046793104ca6a4f0d97fd760cf2e24cf2355cc88b756713e5f6e362680",
-            "size": 197036
+            "sha256": "b1cdb84c093035d7a538288fb5e735105350da85689f86a137d23c63682bdee2",
+            "size": 197088
           },
           {
             "path": "system/fonts/LiberationMono-Regular.ttf.o",
-            "sha256": "2e4035681c99c53817db5b1123c5ff5e26c9744f31ee24da9486cd14bcb9977f",
-            "size": 320084
+            "sha256": "ebacf485e7394b6d9019d566c919d456ea80613a366ebf1a219476132c84e8e7",
+            "size": 320136
           },
           {
             "path": "system/fonts/LiberationSans-Regular.ttf.o",
-            "sha256": "e382b5e9b7915778b178052b42ee233ab40aa3179b329ab8be6fa265cf17ff65",
-            "size": 411280
+            "sha256": "5498428ddc9f06c20f9d25531a644ec48368d97546211b5f234e4a6002aac9d6",
+            "size": 411332
           },
           {
             "path": "system/fonts/LiberationSerif-Regular.ttf.o",
-            "sha256": "48014e9d1b9b28d3e51912f615517dfcd340cbaa2a4d4056fc3578090b1841d8",
-            "size": 394156
+            "sha256": "2debc932dc3450c490ae868261cb1d9f15fcdeb05a4285d76263fb952efbd537",
+            "size": 394204
           },
           {
             "path": "system/fonts/NotoSansSymbols-Regular.ttf.o",
-            "sha256": "7c231ff24ad60a50eb09bfa02cf6558b8fa451f70347a391a8f95d2326426a83",
-            "size": 227444
+            "sha256": "138ce68cb0b735daecda521dd0add9ee97af988592e2bae51a9a71d99daf83b0",
+            "size": 227492
           },
           {
             "path": "test.png.o",
-            "sha256": "03441c93f62a691a41a8efbe0b6382e51d59271326886c7b6ad4738bf77f77b0",
-            "size": 224936
+            "sha256": "d3376d4a5f544b0b6618b4a6906022e88ca530696223a0fbb9887909ff14bb07",
+            "size": 224984
           },
           {
             "path": "toolchain/ctool.o",
@@ -5363,7 +5363,7 @@
             "FAT_START_LBA=16384",
             "distclean"
           ],
-          "elapsed_seconds": 0.515,
+          "elapsed_seconds": 0.508,
           "name": "clean",
           "output_sha256": "b03d85f72f355e4e5a00bd980e18201f1e1519f7168d605b76d38b2013bd9e9c",
           "output_tail": [
@@ -5392,18 +5392,18 @@
             "FAT_START_LBA=16384",
             "all"
           ],
-          "elapsed_seconds": 7.718,
+          "elapsed_seconds": 12.975,
           "name": "build",
-          "output_sha256": "c10c108cec50346ce640156afdc8788e3797242b4ac9a4478e532f1a1c266726",
+          "output_sha256": "7913efe09145cb78b248525105851221489305d16d24b0c6d0b3bc9d8e62d9be",
           "output_tail": [
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_checksum.o kernel/doom/src/w_checksum.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_file.o kernel/doom/src/w_file.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_file_stdc.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_main.o kernel/doom/src/w_main.c",
+            "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/w_wad.o kernel/doom/src/w_wad.c",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/wi_stuff.o kernel/doom/src/wi_stuff.c",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -I./kernel/doom/src -I./kernel/doom/src/include_stubs -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -O2 -Wno-unused -Wno-unused-result -Wno-implicit-function-declaration -Wno-sign-compare -Wno-strict-prototypes -Wno-unused-parameter -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion -include kernel/doom/dglibc_compat.h -Wno-unused-variable -Wno-type-limits -Wno-missing-field-initializers -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" -DDOOM_PORT_CUPIDOS=1 -o kernel/doom/src/z_zone.o kernel/doom/src/z_zone.c",
-            "llvm-objcopy -I binary -O elf32-i386 -B i386 \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_start=smp_trampoline_start \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_end=smp_trampoline_end \\",
-            "  --redefine-sym _binary_kernel_smp_trampoline_bin_size=smp_trampoline_size \\",
-            "  --rename-section .data=.rodata,alloc,load,readonly,data,contents \\",
-            "  kernel/smp_trampoline.bin kernel/smp/smp_trampoline.o",
+            "toolchain/build/cupidobj.exe wrap kernel/smp_trampoline.bin --stem smp_trampoline --section .rodata --readonly -o kernel/smp/smp_trampoline.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o",
@@ -5412,7 +5412,7 @@
             "[hostbuild] mksyms: kernel\\cpu\\ksyms_data.c (90113 bytes)",
             "clang --target=i386-unknown-elf -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffreestanding -c -I./kernel -I./kernel/audio -I./kernel/core -I./kernel/cpu -I./kernel/crypto -I./kernel/doom -I./kernel/fs -I./kernel/gfx -I./kernel/gui -I./kernel/lang -I./kernel/mm -I./kernel/network -I./kernel/smp -I./kernel/tls -I./kernel/usb -I./kernel/util -I./drivers -I./toolchain -mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings  -Wno-gnu-zero-variadic-macro-arguments -Wno-strict-prototypes -Wno-implicit-int-conversion -Wno-sign-conversion kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o",
             "ld.lld -m elf_i386 -T link.ld -o kernel/kernel.elf kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o drivers/speaker.o kernel/lang/shell.o kernel/core/string.o kernel/mm/memory.o drivers/pci.o kernel/usb/usb.o kernel/usb/uhci.o kernel/usb/ehci.o kernel/usb/usb_hid.o kernel/usb/usb_hub.o kernel/usb/usb_msc.o kernel/mm/paging.o drivers/ata.o kernel/fs/blockdev.o kernel/fs/blockcache.o kernel/fs/fat16.o drivers/serial.o kernel/core/panic.o kernel/gui/ed.o drivers/vga.o drivers/mouse.o kernel/gfx/font_8x8.o kernel/gfx/graphics.o kernel/gui/gui.o kernel/gui/desktop.o kernel/core/app_launch.o kernel/core/process.o kernel/core/context_switch.o kernel/gui/clipboard.o kernel/gui/ui.o kernel/lang/godspeak.o kernel/cpu/fpu.o kernel/cpu/libm.o kernel/lang/cupidscript_lex.o kernel/lang/cupidscript_parse.o kernel/lang/cupidscript_exec.o kernel/lang/cupidscript_runtime.o kernel/lang/cupidscript_streams.o kernel/lang/cupidscript_strings.o kernel/lang/cupidscript_arrays.o kernel/lang/cupidscript_jobs.o kernel/gui/ansi.o kernel/gui/terminal_app.o kernel/gui/ctxt_image_worker.o kernel/fs/vfs.o kernel/fs/ramfs.o kernel/fs/devfs.o kernel/fs/fat16_vfs.o kernel/lang/exec.o kernel/fs/homefs.o kernel/fs/loopdev.o kernel/fs/iso9660.o kernel/fs/iso9660_vfs.o kernel/mm/swap_disk.o kernel/mm/swap.o kernel/smp/percpu.o kernel/smp/smp_trampoline.o kernel/smp/lapic.o kernel/smp/ioapic.o kernel/smp/bkl.o kernel/smp/mp_tables.o kernel/smp/acpi.o kernel/smp/smp.o kernel/network/net_if.o kernel/network/arp.o kernel/network/ip.o kernel/network/icmp.o kernel/network/udp.o kernel/network/socket.o kernel/network/tcp.o kernel/network/dhcp.o kernel/network/dns.o kernel/network/sshd.o drivers/rtl8139.o drivers/e1000.o kernel/core/syscall.o kernel/crypto/chacha20.o kernel/crypto/csprng.o kernel/crypto/sha256.o kernel/crypto/sha512.o kernel/crypto/hmac.o kernel/crypto/hkdf.o kernel/crypto/ct.o kernel/crypto/poly1305.o kernel/crypto/chacha20poly1305.o kernel/crypto/aes.o kernel/crypto/aes_gcm.o kernel/crypto/bigint.o kernel/crypto/rsa.o kernel/crypto/x25519.o kernel/crypto/p256.o kernel/crypto/ecdsa.o kernel/crypto/ed25519.o kernel/crypto/asn1.o kernel/crypto/x509.o kernel/crypto/x509_chain.o kernel/tls/tls_ca_bundle.o kernel/tls/tls_record.o kernel/tls/tls_kdf.o kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o kernel/tls/tls12_handshake.o kernel/tls/tls_selftest.o toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o kernel/lang/cupidc_string.o kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o kernel/lang/as.o kernel/lang/as_elf.o kernel/lang/dis.o kernel/gfx/gfx2d.o kernel/gfx/bmp.o kernel/gfx/png.o kernel/gfx/deflate.o kernel/gfx/jpeg.o kernel/gfx/ttf.o kernel/gfx/glyph_raster.o kernel/gfx/fontsys.o kernel/fs/vfs_helpers.o drivers/rtc.o kernel/util/calendar.o kernel/gfx/gfx2d_assets.o kernel/gfx/gfx2d_transform.o kernel/gfx/gfx2d_effects.o kernel/cpu/simd.o kernel/gfx/gfx2d_icons.o kernel/gui/gui_widgets.o kernel/gui/gui_containers.o kernel/gui/gui_menus.o kernel/gui/gui_events.o kernel/gui/gui_themes.o kernel/util/bin_programs_gen.o kernel/util/docs_programs_gen.o kernel/util/demos_programs_gen.o kernel/cpu/ksyms.o kernel/audio/ac97.o kernel/audio/mixer.o kernel/audio/nuked_opl3.o kernel/audio/opl_smoke.o kernel/audio/memio.o kernel/audio/mus2midi.o kernel/audio/midiopl.o bin/audiotest.o bin/auto.o bin/bgstudio.o bin/bible.o bin/bmptest.o bin/browser.o bin/cachestats.o bin/cat.o bin/cd.o bin/clear.o bin/cp.o bin/crashtest.o bin/ctxt.o bin/cupidc_test1.o bin/cupidc_test2.o bin/cupidc_test3.o bin/cupidc_test4.o bin/cupidc_test5.o bin/cupidfetch.o bin/curl.o bin/date.o bin/dglibc_test.o bin/doom.o bin/echo.o bin/ed.o bin/feature10_repl.o bin/feature11_ternary.o bin/feature12_float.o bin/feature13_double.o bin/feature14_simd.o bin/feature15_libm.o bin/feature16_asm_fpu.o bin/feature17_iso.o bin/feature18_swap.o bin/feature19_usb.o bin/feature1_types.o bin/feature20_smp.o bin/feature21_net.o bin/feature22_net_server.o bin/feature23_full_access.o bin/feature24_widetypes.o bin/feature2_top_level.o bin/feature3_class.o bin/feature4_forward_calls.o bin/feature5_print_builtin.o bin/feature6_exe.o bin/feature7_new_del.o bin/feature8_reg_noreg.o bin/feature9_abs_addr.o bin/find.o bin/fm.o bin/fontswitch.o bin/fp_drill.o bin/gfxdemo.o bin/gfxgui_test.o bin/gfxtest.o bin/godsong.o bin/godspeak.o bin/grep.o bin/head.o bin/help.o bin/history.o bin/kbdsub_test.o bin/kill.o bin/logdump.o bin/loglevel.o bin/ls.o bin/memcheck.o bin/memdump.o bin/memleak.o bin/memstats.o bin/mkdir.o bin/mount.o bin/mv.o bin/notepad.o bin/oracle.o bin/paint.o bin/printc.o bin/ps.o bin/pwd.o bin/reboot.o bin/registers.o bin/resetcolor.o bin/rm.o bin/rmdir.o bin/setcolor.o bin/sort.o bin/spawn.o bin/ssh.o bin/stacktrace.o bin/sync.o bin/sysinfo.o bin/tail.o bin/telnet.o bin/terminal.o bin/test.o bin/test_fpaug.o bin/test_print.o bin/time.o bin/touch.o bin/volume.o bin/wc.o bin/wget.o bin/yield.o bin/fat16.h.o bin/shell.h.o bin/browser/css.o bin/browser/dom.o bin/browser/font_face.o bin/browser/image.o bin/browser/input.o bin/browser/js_dom.o bin/browser/js_interp.o bin/browser/js_lex.o bin/browser/js_parse.o bin/browser/layout.o bin/browser/main.o bin/browser/nav.o bin/browser/net.o bin/browser/paint.o bin/browser/parser.o bin/browser/render_tree.o bin/browser/style.o bin/browser/url.o bin/browser/url_hash.o bin/browser/util.o bin/browser/woff.o bin/browser/woff2.o cupidos-txt/00INDEX.o cupidos-txt/01SHELL.o cupidos-txt/02FILESYS.o cupidos-txt/03CUPIDSC.o cupidos-txt/04CUPIDC.o cupidos-txt/05ELFPROG.o cupidos-txt/06GUITERM.o cupidos-txt/07LABS.o cupidos-txt/08CMDS.o cupidos-txt/09EMBED.o cupidos-txt/10ASM.o cupidos-txt/11CTXT.o cupidos-txt/12HOLYC-CUPIDC.o cupidos-txt/13USB.o cupidos-txt/14FPU-SSE.o cupidos-txt/15ISO9660.o cupidos-txt/16SWAP.o cupidos-txt/17SMP.o cupidos-txt/18NET.o file_example_JPG_1MB.jpg.o image.bmp.o snail.bmp.o test.png.o demos/asm_compat_reserve.o demos/bubblesort.o demos/data.o demos/factorial.o demos/fibonacci.o demos/fpu_kernel.o demos/fs_syscalls.o demos/hello.o demos/include_feature.o demos/include_helper.o demos/jcc_aliases.o demos/loop.o demos/math.o demos/parity_core.o demos/parity_diag.o demos/parity_gfx2d.o demos/parity_priv.o demos/reserve_directives.o demos/simd_blur.o demos/stack.o demos/syscall_table_demo.o demos/syscall_vfs_extended_demo.o god/Psalms.o god/Vocab.o system/fonts/LiberationMono-Regular.ttf.o system/fonts/LiberationSans-Regular.ttf.o system/fonts/LiberationSerif-Regular.ttf.o system/fonts/NotoSansSymbols-Regular.ttf.o kernel/tls/tls_ca_bundle_data.o kernel/doom/dglibc.o kernel/doom/doomgeneric_cupidos.o kernel/doom/doom_libc_stubs.o kernel/doom/i_sound_cupidos.o kernel/doom/src/am_map.o kernel/doom/src/d_event.o kernel/doom/src/d_items.o kernel/doom/src/d_iwad.o kernel/doom/src/d_loop.o kernel/doom/src/d_main.o kernel/doom/src/d_mode.o kernel/doom/src/d_net.o kernel/doom/src/doomdef.o kernel/doom/src/doomgeneric.o kernel/doom/src/doomstat.o kernel/doom/src/dstrings.o kernel/doom/src/dummy.o kernel/doom/src/f_finale.o kernel/doom/src/f_wipe.o kernel/doom/src/g_game.o kernel/doom/src/gusconf.o kernel/doom/src/hu_lib.o kernel/doom/src/hu_stuff.o kernel/doom/src/i_endoom.o kernel/doom/src/i_input.o kernel/doom/src/i_joystick.o kernel/doom/src/i_scale.o kernel/doom/src/i_system.o kernel/doom/src/i_timer.o kernel/doom/src/i_video.o kernel/doom/src/icon.o kernel/doom/src/info.o kernel/doom/src/m_argv.o kernel/doom/src/m_bbox.o kernel/doom/src/m_cheat.o kernel/doom/src/m_config.o kernel/doom/src/m_controls.o kernel/doom/src/m_fixed.o kernel/doom/src/m_menu.o kernel/doom/src/m_misc.o kernel/doom/src/m_random.o kernel/doom/src/p_ceilng.o kernel/doom/src/p_doors.o kernel/doom/src/p_enemy.o kernel/doom/src/p_floor.o kernel/doom/src/p_inter.o kernel/doom/src/p_lights.o kernel/doom/src/p_map.o kernel/doom/src/p_maputl.o kernel/doom/src/p_mobj.o kernel/doom/src/p_plats.o kernel/doom/src/p_pspr.o kernel/doom/src/p_saveg.o kernel/doom/src/p_setup.o kernel/doom/src/p_sight.o kernel/doom/src/p_spec.o kernel/doom/src/p_switch.o kernel/doom/src/p_telept.o kernel/doom/src/p_tick.o kernel/doom/src/p_user.o kernel/doom/src/r_bsp.o kernel/doom/src/r_data.o kernel/doom/src/r_draw.o kernel/doom/src/r_main.o kernel/doom/src/r_plane.o kernel/doom/src/r_segs.o kernel/doom/src/r_sky.o kernel/doom/src/r_things.o kernel/doom/src/s_sound.o kernel/doom/src/sha1.o kernel/doom/src/sounds.o kernel/doom/src/st_lib.o kernel/doom/src/st_stuff.o kernel/doom/src/statdump.o kernel/doom/src/tables.o kernel/doom/src/v_video.o kernel/doom/src/w_checksum.o kernel/doom/src/w_file.o kernel/doom/src/w_file_stdc.o kernel/doom/src/w_main.o kernel/doom/src/w_wad.o kernel/doom/src/wi_stuff.o kernel/doom/src/z_zone.o kernel/cpu/ksyms_data.o",
-            "llvm-objcopy -O binary kernel/kernel.elf kernel/kernel.bin",
+            "toolchain/build/cupidobj.exe flat kernel/kernel.elf -o kernel/kernel.bin",
             "python tools/hostbuild.py image --image cupidos.img --bootloader boot/boot.bin --kernel kernel/kernel.bin --hdd-mb 200 --fat-start-lba 16384 --stage test_iso/hello.iso:/hello.iso --wads ",
             "[hostbuild] Created cupidos.img (200MB FAT16 at LBA 16384)",
             "[hostbuild] Staged test_iso\\hello.iso -> cupidos.img:/hello.iso"
@@ -5429,7 +5429,7 @@
             "FAT_START_LBA=16384",
             "print-bootstrap-artifacts"
           ],
-          "elapsed_seconds": 0.169,
+          "elapsed_seconds": 0.182,
           "name": "artifact-list",
           "output_sha256": "2499e8957c27d60c494702eacb5488f20adc605cd01d5c02342db7643ab4affd",
           "output_tail": [
@@ -5498,15 +5498,15 @@
   },
   "performance": {
     "build_seconds": [
-      8.279,
-      7.718
+      14.387,
+      12.975
     ],
     "gating": false,
     "note": "Host wall-clock observations are frozen evidence, not the future 20% guest-performance gate.",
     "runtime_and_test_seconds": {
-      "cupidasm-gui-smoke": 23.355,
-      "cupidc-gui-smoke": 18.625,
-      "host-unit-tests": 42.159
+      "cupidasm-gui-smoke": 23.246,
+      "cupidc-gui-smoke": 18.882,
+      "host-unit-tests": 53.135
     }
   },
   "quality": {
@@ -5526,7 +5526,7 @@
   "schema": "cupid.bootstrap-baseline.v1",
   "source": {
     "isolated_worktree": true,
-    "revision": "50c5b04378cc1a69543f13a55a465e5b0b943982"
+    "revision": "6731dd63ed81693d18deb826360d3e3c4652f3a2"
   },
   "status": "pass",
   "tools": {
