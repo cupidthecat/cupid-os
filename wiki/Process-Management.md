@@ -78,17 +78,20 @@ context_switch(process_t *old_proc, process_t *new_proc,
 6. Restore the target's interrupt policy only after the new stack and FPU state are active
 7. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
 
-The handoff is deliberately split across C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. This prevents a suspended caller's critical section from becoming owned by the unrelated process selected next. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
+The handoff is deliberately split across C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. Only a detached `READY` PCB is eligible on another CPU. PID 1 is the BSP fallback; an AP's first dispatch captures its PID-less bootstrap context so a terminated or blocked AP task can detach onto that CPU-local stack. This prevents both cross-CPU idle-stack sharing and transfer of a suspended caller's critical section. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
 
 ### Interrupt entry and per-CPU state
 
 `this_cpu()` reads the current `per_cpu_t *` from `GS:0`. The common exception
-and IRQ stubs save and later restore `GS`, but they keep the incoming per-CPU
-selector active while calling C. Only `DS`, `ES`, and `FS` are loaded with the
-flat kernel-data selector. This matters because an IRQ-side log, allocator, or
-reschedule path can acquire the BKL and call `this_cpu()` before returning
-through `IRET`; loading `GS` with the flat selector would read low memory and
-can recursively fault while trying to report the original exception.
+and IRQ stubs reserve the `GS` diagnostic-frame slot but keep the live per-CPU
+selector while calling C. Only `DS`, `ES`, and `FS` use the flat kernel-data
+selector. Entry increments `interrupt_depth`, so a generic handler's BKL
+release or direct `schedule()` call leaves the request pending. After handler
+completion and device EOI, common exit decrements the depth and consumes the
+request at its explicit suspension point. The saved `GS` slot is discarded,
+not reloaded: a frame that resumes after migration must keep the destination
+CPU's selector. Loading flat or source-CPU `GS` would make `this_cpu()` read
+the wrong memory and can recursively fault while reporting an exception.
 
 ### Resume Path
 
