@@ -66,6 +66,15 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_unimplemented_configuration_fails_explicitly(self):
         self.run_contract("unsupported")
 
+    def test_function_macros_expand_with_standard_argument_rescanning(self):
+        self.run_contract("function-macros")
+
+    def test_function_macro_substitution_scales_at_the_parameter_limit(self):
+        self.run_contract("function-scale")
+
+    def test_function_macro_failures_are_useful_and_transactional(self):
+        self.run_contract("function-errors")
+
     def test_object_macros_conditionals_and_includes_share_one_state(self):
         self.run_contract("object-includes")
 

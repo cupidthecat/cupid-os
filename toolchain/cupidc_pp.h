@@ -103,9 +103,9 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * On failure the result is fully zeroed and every operation allocation is
  * rewound, while structured job diagnostics remain valid.
  *
- * During the incremental bootstrap, function-like macros, general #if/#elif
- * expressions, predefined-macro uses, and unimplemented pragmas/directives
- * return explicit CTOOL_ERR_UNSUPPORTED diagnostics until their contract
- * slices land. */
+ * During the incremental bootstrap, variadic macros, stringify/paste
+ * operators, general #if/#elif expressions, predefined-macro uses, and
+ * unimplemented pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED
+ * diagnostics until their contract slices land. */
 
 #endif

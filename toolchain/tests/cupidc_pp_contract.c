@@ -41,6 +41,59 @@ static int open_job(const char *mode, ctool_host_adapter_t *adapter,
   return 0;
 }
 
+static int append_character(char *buffer, ctool_u32 capacity,
+                            ctool_u32 *size, char value) {
+  if (*size == capacity) {
+    return 1;
+  }
+  buffer[*size] = value;
+  (*size)++;
+  return 0;
+}
+
+static int append_text(char *buffer, ctool_u32 capacity,
+                       ctool_u32 *size, const char *text) {
+  while (*text != '\0') {
+    if (append_character(buffer, capacity, size, *text) != 0) {
+      return 1;
+    }
+    text++;
+  }
+  return 0;
+}
+
+static int append_decimal(char *buffer, ctool_u32 capacity,
+                          ctool_u32 *size, ctool_u32 value) {
+  char digits[10];
+  ctool_u32 count = 0u;
+  do {
+    digits[count] = (char)('0' + (char)(value % 10u));
+    count++;
+    value /= 10u;
+  } while (value != 0u);
+  while (count != 0u) {
+    count--;
+    if (append_character(buffer, capacity, size, digits[count]) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int append_parameter_name(char *buffer, ctool_u32 capacity,
+                                 ctool_u32 *size, ctool_u32 index) {
+  return append_character(buffer, capacity, size, 'p') != 0 ||
+                 append_character(buffer, capacity, size,
+                                  (char)('0' + (char)(index / 100u))) != 0 ||
+                 append_character(
+                     buffer, capacity, size,
+                     (char)('0' + (char)((index / 10u) % 10u))) != 0 ||
+                 append_character(buffer, capacity, size,
+                                  (char)('0' + (char)(index % 10u))) != 0
+             ? 1
+             : 0;
+}
+
 typedef struct {
   ctool_string_t path;
   ctool_bytes_t contents;
@@ -342,8 +395,6 @@ static int run_errors(void) {
 }
 
 static int run_unsupported(void) {
-  static const char directive_text[] =
-      "token\n/*a\n*/ #define FUNCTION(x) x\n";
   static const char *const unsupported_text[] = {
       "__FILE__", "__LINE__", "__STDC__", "__STDC_HOSTED__",
       "__STDC_VERSION__", "#if VALUE + 1\n#endif\n"};
@@ -365,26 +416,8 @@ static int run_unsupported(void) {
   if (open_job("unsupported", &adapter, &job) != 0) {
     return 1;
   }
-  source.path.text = ctool_string("/directive.c");
-  source.contents = ctool_bytes(
-      directive_text, (ctool_u32)(sizeof(directive_text) - 1u));
   (void)memset(&request, 0, sizeof(request));
   request.mode = CTOOL_C_PP_MODE_C11;
-  mark = ctool_arena_mark(ctool_job_arena(job));
-
-  status = ctool_c_preprocess(job, &source, &request, &result);
-  diagnostic = ctool_job_diagnostic(job, 0u);
-  if (status != CTOOL_ERR_UNSUPPORTED || result.tokens != NULL ||
-      result.token_count != 0u || diagnostic == NULL ||
-      diagnostic->code != CTOOL_C_PP_DIAG_MACRO_DEFINITION ||
-      diagnostic->line != 3u || diagnostic->column != 12u ||
-      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
-    (void)fprintf(stderr,
-                  "unsupported: function macro did not fail explicitly\n");
-    ctool_job_close(job);
-    return 1;
-  }
-
   source.path.text = ctool_string("/builtin.c");
   for (index = 0u;
        index <
@@ -395,7 +428,7 @@ static int run_unsupported(void) {
                     (ctool_u32)strlen(unsupported_text[index]));
     mark = ctool_arena_mark(ctool_job_arena(job));
     status = ctool_c_preprocess(job, &source, &request, &result);
-    diagnostic = ctool_job_diagnostic(job, 1u + index);
+    diagnostic = ctool_job_diagnostic(job, index);
     if (status != CTOOL_ERR_UNSUPPORTED || result.tokens != NULL ||
         result.token_count != 0u || diagnostic == NULL ||
         diagnostic->code != unsupported_code[index] ||
@@ -410,6 +443,354 @@ static int run_unsupported(void) {
   }
   ctool_job_close(job);
   (void)printf("unsupported: ok\n");
+  return 0;
+}
+
+static int run_function_macros(void) {
+  static char source_text[] =
+      "owned\n"
+      "#define EMPTY()\n"
+      "#define ZERO() 5\n"
+      "#define ID(value) value\n"
+      "#define CALL(function, argument) function(argument)\n"
+      "#define CALL_ALIAS CALL\n"
+      "#define PAIR(left, right) left right\n"
+      "#define REPEAT(first, unused, last) first first last\n"
+      "#define NEED_TWO(left, right) left right\n"
+      "#define SHOW_EMPTY(left, right) (left)(right)\n"
+      "#define ERASE(value)\n"
+      "#define SELF(value) SELF(value)\n"
+      "#define MUTUAL_A(value) MUTUAL_B(value)\n"
+      "#define MUTUAL_B(value) MUTUAL_A(value)\n"
+      "#define SAME(left, right) left + right\n"
+      "#define SAME(left, right) left  +  right\n"
+      "#define PICK_22(p01, p02, p03, p04, p05, p06, p07, p08, p09, "
+      "p10, p11, \\\n"
+      "                p12, p13, p14, p15, p16, p17, p18, p19, p20, "
+      "p21, p22) p01 p11 p22\n"
+      "unused ZERO\n"
+      "empty before EMPTY() after\n"
+      "zero ZERO()\n"
+      "nested PAIR(call(1, 2), (3, 4))\n"
+      "alias CALL_ALIAS(ID, 7)\n"
+      "prescan CALL(ID, ZERO())\n"
+      "repeat REPEAT(alpha, NEED_TWO(1), omega)\n"
+      "vacant SHOW_EMPTY(, tail) SHOW_EMPTY(head, )\n"
+      "erased before ERASE(anything) after\n"
+      "same SAME(8, 9)\n"
+      "wide PICK_22(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, "
+      "15, 16, 17, 18, 19, 20, 21, 22)\n"
+      "self SELF(10)\n"
+      "mutual MUTUAL_A(11)\n"
+      "#define COMMA ,\n"
+      "#define TWO_VALUES(left, right) left right\n"
+      "#define FORWARD(value) TWO_VALUES(value)\n"
+      "introduced FORWARD(12 COMMA 13)\n"
+      "#define F(value) value\n"
+      "#define G F\n"
+      "hidden F(G)(14)\n"
+      "#define TRAILING_ELLIPSIS(value) value ...\n"
+      "ellipsis TRAILING_ELLIPSIS(15)\n"
+      "#define H(value) J(value)\n"
+      "#define J H\n"
+      "intersection J(16)\n";
+  static char source_path[] = "/function.c";
+  static const char *const expected_text[] = {
+      "owned", "unused", "ZERO", "empty", "before", "after", "zero",
+      "5", "nested", "call", "(", "1", ",", "2", ")", "(", "3",
+      ",", "4", ")", "alias", "7", "prescan", "5", "repeat",
+      "alpha", "alpha", "omega", "vacant", "(", ")", "(", "tail",
+      ")", "(", "head", ")", "(", ")", "erased", "before", "after",
+      "same", "8", "+", "9", "wide", "1", "11", "22", "self",
+      "SELF", "(", "10", ")", "mutual", "MUTUAL_A", "(", "11", ")",
+      "introduced", "12", "13", "hidden", "F", "(", "14", ")",
+      "ellipsis", "15", "...", "intersection", "H", "(", "16", ")"};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  if (open_job("function-macros", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text.data = source_path;
+  source.path.text.size = (ctool_u32)(sizeof(source_path) - 1u);
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "function-macros: preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path, "/function.c")) {
+      (void)fprintf(stderr, "function-macros: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (result.tokens[0].location.line != 1u ||
+      result.tokens[0].location.column != 1u ||
+      result.tokens[2].location.line != 19u ||
+      result.tokens[2].location.column != 8u ||
+      result.tokens[7].location.line != 21u ||
+      result.tokens[21].location.line != 23u ||
+      result.tokens[23].location.line != 24u ||
+      result.tokens[48].location.line != 29u ||
+      result.tokens[51].location.line != 30u ||
+      result.tokens[56].location.line != 31u) {
+    (void)fprintf(stderr, "function-macros: source locations differ\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  source_text[0] = 'X';
+  source_path[1] = 'X';
+  if (!string_equal(result.tokens[0].spelling, "owned") ||
+      !string_equal(result.tokens[7].spelling, "5") ||
+      !string_equal(result.tokens[56].location.path, "/function.c")) {
+    (void)fprintf(stderr,
+                  "function-macros: result retained a borrowed source view\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  source_text[0] = 'o';
+  source_path[1] = 'f';
+
+  ctool_job_close(job);
+  (void)printf("function-macros: ok\n");
+  return 0;
+}
+
+static int run_function_macro_scale(void) {
+  enum {
+    PARAMETER_COUNT = 256,
+    NOISE_TOKEN_COUNT = 10000,
+    SOURCE_CAPACITY = 128 * 1024
+  };
+  static char source_text[SOURCE_CAPACITY];
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_u32 source_size = 0u;
+  ctool_u32 index;
+  ctool_status_t status;
+
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "#define SCALE(") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < PARAMETER_COUNT; index++) {
+    if ((index != 0u &&
+         append_text(source_text, SOURCE_CAPACITY, &source_size, ", ") != 0) ||
+        append_parameter_name(source_text, SOURCE_CAPACITY, &source_size,
+                              index) != 0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size, ") ") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < NOISE_TOKEN_COUNT; index++) {
+    if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                    "noise ") != 0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "p000 p255\nSCALE(") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < PARAMETER_COUNT; index++) {
+    if ((index != 0u &&
+         append_text(source_text, SOURCE_CAPACITY, &source_size, ", ") != 0) ||
+        append_decimal(source_text, SOURCE_CAPACITY, &source_size, index) !=
+            0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size, ")\n") != 0) {
+    return 1;
+  }
+
+  if (open_job("function-scale", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/function-scale.c");
+  source.contents = ctool_bytes(source_text, source_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK ||
+      result.token_count != NOISE_TOKEN_COUNT + 2u ||
+      !string_equal(result.tokens[0].spelling, "noise") ||
+      !string_equal(result.tokens[NOISE_TOKEN_COUNT - 1u].spelling,
+                    "noise") ||
+      !string_equal(result.tokens[NOISE_TOKEN_COUNT].spelling, "0") ||
+      !string_equal(result.tokens[NOISE_TOKEN_COUNT + 1u].spelling, "255")) {
+    (void)fprintf(stderr,
+                  "function-scale: bounded expansion failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("function-scale: ok\n");
+  return 0;
+}
+
+static int run_function_macro_errors(void) {
+  static const char *const error_text[] = {
+      "#define BAD(1) 1\n",
+      "#define BAD(x, ) x\n",
+      "#define DUP(x, x) x\n",
+      "#define F(__VA_ARGS__) 7\n",
+      "#define F(x) __VA_ARGS__\n",
+      "#define OBJECT __VA_ARGS__\n",
+      "#define __VA_ARGS__(x) x\n",
+      "prefix\n#define TWO(a, b) a b\nTWO(1)\n",
+      "#define TWO(a, b) a b\nTWO(1, 2, 3)\n",
+      "#define ID(x) x\nID((1, 2)\n",
+      ("#define SAME(left, right) left + right\n"
+       "#define SAME(x, y) x + y\n"),
+      ("#define TIGHT(value) value+value\n"
+       "#define TIGHT(value) value + value\n"),
+      "#define VAR(first, ...) first\n",
+      "#define STRING(x) #x\n",
+      "#define PASTE(a, b) a ## b\n"};
+  static const ctool_status_t error_status[] = {
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_UNSUPPORTED,
+      CTOOL_ERR_UNSUPPORTED,
+      CTOOL_ERR_UNSUPPORTED};
+  static const ctool_u32 error_code[] = {
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_ARGUMENTS,
+      CTOOL_C_PP_DIAG_MACRO_ARGUMENTS,
+      CTOOL_C_PP_DIAG_MACRO_ARGUMENTS,
+      CTOOL_C_PP_DIAG_MACRO_REDEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_REDEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+      CTOOL_C_PP_DIAG_MACRO_PASTE};
+  static const ctool_u32 error_line[] = {1u, 1u, 1u, 1u, 1u, 1u, 1u,
+                                        3u, 2u, 2u, 2u, 2u, 1u, 1u, 1u};
+  static const ctool_u32 error_column[] = {13u, 16u, 16u, 11u, 14u, 16u,
+                                          9u, 1u, 1u, 1u, 9u, 9u, 20u,
+                                          19u, 23u};
+  static const char valid_text[] =
+      "#define ID(value) value\n"
+      "recovered ID(37)\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_macro_action_t action;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(error_text) / sizeof(error_text[0]));
+  ctool_u32 index;
+
+  if (open_job("function-errors", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/function-errors.c");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+
+  for (index = 0u; index < case_count; index++) {
+    source.contents =
+        ctool_bytes(error_text[index], (ctool_u32)strlen(error_text[index]));
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, index);
+    if (status != error_status[index] || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != error_code[index] ||
+        !string_equal(diagnostic->path, "/function-errors.c") ||
+        diagnostic->line != error_line[index] ||
+        diagnostic->column != error_column[index] ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "function-errors: table case %u was not useful (%s)\n",
+                    index, ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  source.contents = ctool_bytes(NULL, 0u);
+  action.kind = CTOOL_C_PP_MACRO_DEFINE;
+  action.name = ctool_string("COMMAND_OBJECT");
+  action.replacement = ctool_string("__VA_ARGS__");
+  request.macro_actions = &action;
+  request.macro_action_count = 1u;
+  (void)memset(&result, 0xa5, sizeof(result));
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  diagnostic = ctool_job_diagnostic(job, case_count);
+  if (status != CTOOL_ERR_INPUT || result.tokens != NULL ||
+      result.token_count != 0u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_MACRO_DEFINITION ||
+      !string_equal(diagnostic->path, "/function-errors.c") ||
+      diagnostic->line != 1u || diagnostic->column != 1u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr,
+                  "function-errors: command macro reserved replacement failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/function-recovery.c");
+  source.contents =
+      ctool_bytes(valid_text, (ctool_u32)(sizeof(valid_text) - 1u));
+  request.macro_actions = (const ctool_c_pp_macro_action_t *)0;
+  request.macro_action_count = 0u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "recovered") ||
+      !string_equal(result.tokens[1].spelling, "37") ||
+      !string_equal(result.tokens[1].location.path,
+                    "/function-recovery.c") ||
+      result.tokens[1].location.line != 2u ||
+      ctool_job_diagnostic_count(job) != case_count + 1u) {
+    (void)fprintf(stderr, "function-errors: same-job recovery failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_job_close(job);
+  (void)printf("function-errors: ok\n");
   return 0;
 }
 
@@ -908,7 +1289,8 @@ int main(int argc, char **argv) {
     (void)fprintf(
         stderr,
         "usage: cupidc-pp-contract phases|tokens|errors|unsupported|"
-        "object-includes|directive-errors|limits\n");
+        "function-macros|function-scale|function-errors|object-includes|"
+        "directive-errors|limits\n");
     return 2;
   }
   if (strcmp(argv[1], "phases") == 0) {
@@ -922,6 +1304,15 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "unsupported") == 0) {
     return run_unsupported();
+  }
+  if (strcmp(argv[1], "function-macros") == 0) {
+    return run_function_macros();
+  }
+  if (strcmp(argv[1], "function-scale") == 0) {
+    return run_function_macro_scale();
+  }
+  if (strcmp(argv[1], "function-errors") == 0) {
+    return run_function_macro_errors();
   }
   if (strcmp(argv[1], "object-includes") == 0) {
     return run_object_includes();
