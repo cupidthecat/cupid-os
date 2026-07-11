@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 681
 - Unreachable source-like files: 39
-- Reachable output transforms: 490
+- Reachable output transforms: 491
 - Distinct feature requirements: 250
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -67,7 +67,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 437 | 20 |
+| `.` | `all` | 438 | 20 |
 | `user` | `all` | 8 | 1 |
 | `toolchain` | `all` | 45 | 2 |
 
@@ -76,12 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
+| `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 181 |
 | `host_c_compiler` | 289 |
 | `host_python` | 8 |
-| `host_symbol_reader` | 1 |
-| `make` | 4 |
+| `make` | 5 |
 
 ## Feature inventory
 
