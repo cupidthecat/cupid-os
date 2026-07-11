@@ -1295,7 +1295,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 645)
+            self.assertEqual(contract["source_files"], 648)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1316,7 +1316,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 645 source files; max conditional depth 0",
+                "0 numeric markers; 648 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2204,10 +2204,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 645)
-            self.assertEqual(contract["include_occurrences"], 2297)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2101)
-            self.assertEqual(contract["direct_angle_occurrences"], 196)
+            self.assertEqual(contract["source_files"], 648)
+            self.assertEqual(contract["include_occurrences"], 2305)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2106)
+            self.assertEqual(contract["direct_angle_occurrences"], 199)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3046,7 +3046,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             [path for path, _ in non_roots],
             ["/bin/fat16.h", "/bin/shell.h"],
         )
-        self.assertEqual(len(deferred), 24)
+        self.assertEqual(len(deferred), 26)
         self.assertEqual(
             {path for path, _ in deferred},
             {
@@ -3056,6 +3056,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/cupidasm.c",
                 "/toolchain/cupidasm_main.c",
                 "/toolchain/cupidc_pp.c",
+                "/toolchain/cupidc_type.c",
                 "/toolchain/cupiddis.c",
                 "/toolchain/cupiddis_main.c",
                 "/toolchain/cupidld.c",
@@ -3068,6 +3069,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/tests/cupidasm_demos_contract.c",
                 "/toolchain/tests/cupidasm_kernel_elf_contract.c",
                 "/toolchain/tests/cupidc_pp_contract.c",
+                "/toolchain/tests/cupidc_type_contract.c",
                 "/toolchain/tests/cupiddis_contract.c",
                 "/toolchain/tests/cupidld_contract.c",
                 "/toolchain/tests/cupidobj_contract.c",
@@ -3185,9 +3187,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "total_translation_units": 349,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
-                    "deferred_hosted_translation_units": 24,
-                    "deferred_external_header_units": 15,
-                    "deferred_hermetic_units": 9,
+                    "deferred_hosted_translation_units": 26,
+                    "deferred_external_header_units": 16,
+                    "deferred_hermetic_units": 10,
                 },
             )
             self.assertEqual(

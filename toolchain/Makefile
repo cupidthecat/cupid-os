@@ -21,6 +21,7 @@ endif
 BUILD_DIR ?= build
 CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
 CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
+CUPIDC_TYPE_CONTRACT := $(BUILD_DIR)/cupidc-type-contract$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
                               ../kernel/util/bin_programs_gen.c \
@@ -44,6 +45,10 @@ CUPIDC_PP_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                               $(BUILD_DIR)/ctool_host.o \
                               $(BUILD_DIR)/cupidc_pp.o \
                               $(BUILD_DIR)/cupidc_pp_contract.o
+CUPIDC_TYPE_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
+                                $(BUILD_DIR)/ctool_host.o \
+                                $(BUILD_DIR)/cupidc_type.o \
+                                $(BUILD_DIR)/cupidc_type_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                  $(BUILD_DIR)/elf32.o $(BUILD_DIR)/elf32_contract.o
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -85,6 +90,7 @@ CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
 BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
+                       $(CUPIDC_TYPE_CONTRACT) \
                        $(ELF32_CONTRACT) $(X86_CONTRACT) \
                        $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
                        $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
@@ -111,6 +117,9 @@ $(BUILD_DIR)/ctool_host.o: ctool_host.c ctool_host.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cupidc_pp.o: cupidc_pp.c cupidc_pp.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidc_type.o: cupidc_type.c cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
@@ -155,6 +164,11 @@ $(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c \
                                  cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.c \
+                                   cupidc_type.h cupidc_pp.h \
+                                   ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -184,6 +198,9 @@ $(CONTRACT): $(CORE_OBJECTS)
 
 $(CUPIDC_PP_CONTRACT): $(CUPIDC_PP_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_PP_CONTRACT_OBJECTS) -o $@
+
+$(CUPIDC_TYPE_CONTRACT): $(CUPIDC_TYPE_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_TYPE_CONTRACT_OBJECTS) -o $@
 
 $(ELF32_CONTRACT): $(ELF32_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@
@@ -221,7 +238,8 @@ $(CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
 $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
 
-test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
+test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
+      $(ELF32_CONTRACT) $(X86_CONTRACT) \
       $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
@@ -271,6 +289,12 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) active-corpus ..
 	$(CUPIDC_PP_CONTRACT) directive-errors
 	$(CUPIDC_PP_CONTRACT) limits
+	$(CUPIDC_TYPE_CONTRACT) scalars
+	$(CUPIDC_TYPE_CONTRACT) fat16
+	$(CUPIDC_TYPE_CONTRACT) records
+	$(CUPIDC_TYPE_CONTRACT) errors
+	$(CUPIDC_TYPE_CONTRACT) scale
+	$(CUPIDC_TYPE_CONTRACT) adversarial
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors
