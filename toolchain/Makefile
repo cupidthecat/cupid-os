@@ -236,6 +236,10 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) tokens
 	$(CUPIDC_PP_CONTRACT) errors
 	$(CUPIDC_PP_CONTRACT) unsupported
+	$(CUPIDC_PP_CONTRACT) line-directives
+	$(CUPIDC_PP_CONTRACT) line-files
+	$(CUPIDC_PP_CONTRACT) line-errors
+	$(CUPIDC_PP_CONTRACT) line-scale
 	$(CUPIDC_PP_CONTRACT) conditional-expressions
 	$(CUPIDC_PP_CONTRACT) predefined
 	$(CUPIDC_PP_CONTRACT) predefined-files

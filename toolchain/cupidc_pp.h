@@ -62,7 +62,13 @@ typedef enum {
 typedef struct {
   ctool_c_pp_token_kind_t kind;
   ctool_string_t spelling;
+  /* Effective presumed source name/line after active #line directives.
+   * The source name is a counted string and need not be a canonical logical
+   * path (or even nonempty) after #line.  The column remains physical. */
   ctool_c_pp_location_t location;
+  /* Immutable phase-three origin.  Its path is the canonical logical source
+   * path and its line/column count physical source lines and columns. */
+  ctool_c_pp_location_t physical_location;
   /* Zero selects natural alignment; otherwise this is the effective
    * #pragma pack member-alignment cap at the token's emission or macro
    * invocation position. */
@@ -92,7 +98,8 @@ typedef enum {
   CTOOL_C_PP_DIAG_PRAGMA_PACK = 0x0900000fu,
   CTOOL_C_PP_DIAG_CUPID_EXE = 0x09000010u,
   CTOOL_C_PP_DIAG_LIMIT = 0x09000011u,
-  CTOOL_C_PP_DIAG_UNSUPPORTED_CONFIGURATION = 0x09000012u
+  CTOOL_C_PP_DIAG_UNSUPPORTED_CONFIGURATION = 0x09000012u,
+  CTOOL_C_PP_DIAG_LINE = 0x09000013u
 } ctool_c_pp_diag_code_t;
 
 ctool_status_t ctool_c_preprocess(ctool_job_t *job,
@@ -101,7 +108,8 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
                                   ctool_c_pp_result_t *result_out);
 
 /* Request/source views are borrowed only for the call.  Successful tokens,
- * spellings, and canonical logical paths are job-arena owned.  Configured
+ * spellings, presumed source names, and canonical physical paths are
+ * job-arena owned.  Configured
  * macro actions are applied before forced includes, which are processed in
  * order before primary.  Quoted includes try the including-file
  * parent before eligible roots; angle includes use eligible roots only.
@@ -119,6 +127,21 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * and all seven C11 language predefined macros are part of the token-tape
  * contract. `__DATE__` and `__TIME__` use only the request's reproducible
  * translation seed and never consult a host clock.
+ *
+ * Active C11 #line and %:line directives set the presumed line of the
+ * following source line and may set its presumed source name with one
+ * ordinary narrow string literal. Operands are macro-expanded, the line is a
+ * decimal value in [1, 2147483647], and string contents are decoded into
+ * counted target UTF-8/source bytes. Relative includes, source caching, and
+ * #pragma once continue to use physical canonical source identity. Eager
+ * phase-three lexical diagnostics precede #line processing and therefore use
+ * physical locations; structured downstream diagnostics use exact presumed
+ * locations. The shared text renderer displays an empty diagnostic path as
+ * `<toolchain>` while the structured counted path remains empty.
+ * Direct tokens and substituted argument tokens retain their own physical
+ * origins. Replacement-list, stringified, pasted, and predefined output uses
+ * the macro invocation origin; a Cupid `#exe` marker uses its directive
+ * marker origin.
  *
  * Active `#pragma once` uses canonical logical-path identity for the current
  * preprocessing operation. Active `#pragma pack` state is translation-unit

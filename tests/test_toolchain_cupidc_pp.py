@@ -66,6 +66,18 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_unimplemented_configuration_fails_explicitly(self):
         self.run_contract("unsupported")
 
+    def test_line_directives_remap_presumed_locations(self):
+        self.run_contract("line-directives")
+
+    def test_line_state_is_local_to_physical_source_entries(self):
+        self.run_contract("line-files")
+
+    def test_line_failures_are_precise_and_transactional(self):
+        self.run_contract("line-errors")
+
+    def test_line_macro_expansion_and_replay_scratch_are_bounded(self):
+        self.run_contract("line-scale")
+
     def test_full_c11_conditional_expressions_follow_integer_semantics(self):
         self.run_contract("conditional-expressions")
 

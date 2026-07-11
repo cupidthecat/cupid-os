@@ -2498,6 +2498,191 @@ def _c_preprocessor_include_operands_contract(
     }
 
 
+def _c_preprocessor_line_directives_contract(
+    root: Path,
+    active_sources: set[str],
+    generated_sources: set[str],
+) -> dict[str, object]:
+    by_form: dict[
+        tuple[str, str, bool | None, int], list[dict[str, object]]
+    ] = collections.defaultdict(list)
+    source_files = 0
+    named_line_occurrences = 0
+    direct_line_occurrences = 0
+    pp_token_line_occurrences = 0
+    filename_occurrences = 0
+    ordinary_marker_occurrences = 0
+    digraph_marker_occurrences = 0
+    numeric_marker_occurrences = 0
+    max_conditional_depth = 0
+    temple_sources = sorted(
+        path
+        for path in active_sources
+        if _language(path) in {"c", "c_header", "cupid_c"}
+        and path.replace("\\", "/").split("/", 1)[0].casefold()
+        == "templeos"
+    )
+    if temple_sources:
+        raise AuditError(
+            f"{temple_sources[0]}: TempleOS reference tree cannot be an "
+            "active C preprocessing input"
+        )
+    for path in sorted(active_sources - generated_sources):
+        if _language(path) not in {"c", "c_header", "cupid_c"}:
+            continue
+        source_files += 1
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        logical_lines = _c_raw_logical_lines(text)
+        if not logical_lines:
+            continue
+        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        directive_lines = _mask_c_noncode(logical_text).split("\n")
+        payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
+            "\n"
+        )
+        if (
+            len(directive_lines) != len(logical_lines)
+            or len(payload_lines) != len(logical_lines)
+        ):
+            raise AuditError("C masking changed the logical line count")
+        conditional_depth = 0
+        for (
+            (line_number, _original_line, raw_line),
+            directive_line,
+            payload_line,
+        ) in zip(
+            logical_lines,
+            directive_lines,
+            payload_lines,
+            strict=True,
+        ):
+            conditional_match = re.match(
+                r"\s*(?:#|%:)\s*(if|ifdef|ifndef|endif)\b",
+                directive_line,
+            )
+            if conditional_match is not None:
+                if conditional_match.group(1) == "endif":
+                    conditional_depth = max(0, conditional_depth - 1)
+                else:
+                    conditional_depth += 1
+                continue
+
+            match = re.match(r"\s*(#|%:)\s*line\b", directive_line)
+            if match is None:
+                numeric_match = re.match(
+                    r"\s*(#|%:)\s*([0-9]+)(?=\s|$)", directive_line
+                )
+                if numeric_match is None:
+                    continue
+                marker, line_number_token = numeric_match.groups()
+                payload = (
+                    line_number_token + payload_line[numeric_match.end() :]
+                )
+                tokens = _normalize_c_preprocessing_tokens(
+                    payload, path, line_number
+                )
+                has_filename = (
+                    len(tokens) >= 2
+                    and tokens[1].startswith('"')
+                    and tokens[1].endswith('"')
+                )
+                numeric_marker_occurrences += 1
+                max_conditional_depth = max(
+                    max_conditional_depth, conditional_depth
+                )
+                by_form[
+                    (
+                        "numeric_marker",
+                        marker,
+                        has_filename,
+                        conditional_depth,
+                    )
+                ].append(
+                    {
+                        "path": path,
+                        "line": line_number,
+                        "text": raw_line.strip()[:160],
+                        "operand": " ".join(tokens),
+                    }
+                )
+                continue
+            marker = match.group(1)
+            payload = payload_line[match.end() :]
+            if not payload.strip():
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active #line form: "
+                    "empty operand"
+                )
+            tokens = _normalize_c_preprocessing_tokens(
+                payload, path, line_number
+            )
+            direct_decimal = re.fullmatch(r"[0-9]+", tokens[0]) is not None
+            has_filename = (
+                len(tokens) == 2
+                and tokens[1].startswith('"')
+                and tokens[1].endswith('"')
+            )
+            if direct_decimal and len(tokens) == 1:
+                form = "direct_decimal"
+                direct_line_occurrences += 1
+            elif direct_decimal and has_filename:
+                form = "direct_decimal_filename"
+                direct_line_occurrences += 1
+                filename_occurrences += 1
+            else:
+                form = "pp_tokens"
+                pp_token_line_occurrences += 1
+                # Expansion decides whether the final standard form contains
+                # a filename; the source audit deliberately does not evaluate
+                # macros independently from the CupidC corpus harness.
+                has_filename = None
+            named_line_occurrences += 1
+            if marker == "#":
+                ordinary_marker_occurrences += 1
+            else:
+                digraph_marker_occurrences += 1
+            max_conditional_depth = max(
+                max_conditional_depth, conditional_depth
+            )
+            by_form[(form, marker, has_filename, conditional_depth)].append(
+                {
+                    "path": path,
+                    "line": line_number,
+                    "text": raw_line.strip()[:160],
+                    "operand": " ".join(tokens),
+                }
+            )
+
+    forms = []
+    for (form, marker, has_filename, conditional_depth), evidence in sorted(
+        by_form.items(), key=lambda item: item[0]
+    ):
+        forms.append(
+            {
+                "form": form,
+                "marker": marker,
+                "has_filename": has_filename,
+                "conditional_depth": conditional_depth,
+                "occurrences": len(evidence),
+                "files": sorted({str(item["path"]) for item in evidence}),
+                "evidence": evidence,
+            }
+        )
+    return {
+        "status": "pass",
+        "source_files": source_files,
+        "named_line_occurrences": named_line_occurrences,
+        "direct_line_occurrences": direct_line_occurrences,
+        "pp_token_line_occurrences": pp_token_line_occurrences,
+        "filename_occurrences": filename_occurrences,
+        "ordinary_marker_occurrences": ordinary_marker_occurrences,
+        "digraph_marker_occurrences": digraph_marker_occurrences,
+        "numeric_marker_occurrences": numeric_marker_occurrences,
+        "max_conditional_depth": max_conditional_depth,
+        "forms": forms,
+    }
+
+
 def _c_preprocessor_conditionals_contract(
     root: Path,
     active_sources: set[str],
@@ -2985,6 +3170,13 @@ def build_audit(
         contracts["bootstrap_artifact_coverage"] = artifact_contract
     contracts["c_preprocessor_include_operands"] = (
         _c_preprocessor_include_operands_contract(
+            root,
+            all_sources,
+            generated_sources,
+        )
+    )
+    contracts["c_preprocessor_line_directives"] = (
+        _c_preprocessor_line_directives_contract(
             root,
             all_sources,
             generated_sources,
@@ -4147,6 +4339,25 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"{contract['directive_expression_pairs']} "
                     "directive/expression pairs"
                 )
+            elif "named_line_occurrences" in contract:
+                directive_word = (
+                    "directive"
+                    if contract["named_line_occurrences"] == 1
+                    else "directives"
+                )
+                source_word = (
+                    "file" if contract["source_files"] == 1 else "files"
+                )
+                detail = (
+                    f"{contract['named_line_occurrences']} named #line "
+                    f"{directive_word} ({contract['direct_line_occurrences']} "
+                    f"direct, {contract['pp_token_line_occurrences']} pp-token; "
+                    f"{contract['filename_occurrences']} filename); "
+                    f"{contract['numeric_marker_occurrences']} numeric markers; "
+                    f"{contract['source_files']} source {source_word}; "
+                    "max conditional depth "
+                    f"{contract['max_conditional_depth']}"
+                )
             elif "pp_token_operand_occurrences" in contract:
                 detail = (
                     f"{contract['include_occurrences']} C include operands "
@@ -4200,6 +4411,8 @@ def _render_markdown(audit: dict[str, object]) -> str:
             "quoted/angle C includes, and `%include`; the conditional contract records "
             "normalized source expressions while evaluation remains a "
             "compiler-contract responsibility.",
+            "- Named `#line` pp-token operands are classified before macro expansion; "
+            "the CupidC corpus harness owns expansion and semantic validation.",
             "- Relocation kinds and ABI values are required interchange contracts; "
             "per-object relocation counts are recorded in the chronological bootstrap log.",
             "- `not_reached` means absent from the supported roots recorded above, not "

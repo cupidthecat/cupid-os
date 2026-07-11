@@ -53,10 +53,16 @@ typedef struct {
   ctool_c_pp_token_kind_t kind;
   ctool_string_t spelling;
   ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
   ctool_u32 pack_alignment;
+  /* Nonzero only for a raw directive marker.  This is the physical line
+   * immediately following the retained newline that terminates its logical
+   * directive line, including any preceding spliced physical lines. */
+  ctool_u32 following_physical_line;
   ctool_bool leading_space;
   ctool_bool at_line_start;
   ctool_bool header_name;
+  ctool_bool location_presumed;
 } pp_token_t;
 
 typedef struct pp_macro pp_macro_t;
@@ -64,6 +70,8 @@ typedef struct pp_source_cache pp_source_cache_t;
 typedef struct pp_hide pp_hide_t;
 typedef struct pp_expand_node pp_expand_node_t;
 typedef struct pp_pack_frame pp_pack_frame_t;
+typedef struct pp_presumed_name pp_presumed_name_t;
+typedef struct pp_location_frame pp_location_frame_t;
 
 typedef enum {
   PP_EXPAND_TOKEN = 1,
@@ -122,6 +130,18 @@ struct pp_source_cache {
   pp_source_cache_t *next;
 };
 
+struct pp_presumed_name {
+  ctool_string_t text;
+  pp_presumed_name_t *next;
+};
+
+struct pp_location_frame {
+  ctool_string_t presumed_name;
+  ctool_u32 physical_anchor;
+  ctool_u32 presumed_anchor;
+  pp_location_frame_t *previous;
+};
+
 struct pp_pack_frame {
   ctool_u32 saved_alignment;
   ctool_string_t name;
@@ -144,8 +164,7 @@ struct pp_conditional {
   ctool_bool current_active;
   ctool_bool branch_taken;
   ctool_bool saw_else;
-  ctool_u32 opening_line;
-  ctool_u32 opening_column;
+  ctool_c_pp_location_t opening_location;
   pp_conditional_t *previous;
 };
 
@@ -156,9 +175,12 @@ typedef struct {
   ctool_string_t path;
   ctool_string_t failure_path;
   char *include_operand;
+  char *line_operand;
   pp_macro_t *macros;
   pp_source_cache_t *sources;
   pp_source_cache_t *source_entry;
+  pp_presumed_name_t *presumed_names;
+  pp_location_frame_t *location_frame;
   pp_pack_frame_t *pack_stack;
   pp_pack_frame_t *free_pack_frames;
   pp_output_chunk_t *output_head;
@@ -404,6 +426,68 @@ static void pp_fail(pp_context_t *context, ctool_status_t status,
   context->failure_column = column;
   context->failure_path = context->path;
   context->failure_message = message;
+}
+
+static ctool_status_t pp_presume_token(pp_context_t *context,
+                                       const pp_token_t *source,
+                                       pp_token_t *token_out) {
+  pp_location_frame_t *frame = context->location_frame;
+  ctool_u32 delta;
+  *token_out = *source;
+  if (source->location_presumed == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  if (frame == (pp_location_frame_t *)0) {
+    pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_LINE,
+            source->physical_location.line,
+            source->physical_location.column,
+            "CupidC presumed source location has no active source");
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (source->physical_location.line < frame->physical_anchor) {
+    pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_LINE,
+            source->physical_location.line,
+            source->physical_location.column,
+            "CupidC presumed source location moved before its line anchor");
+    return CTOOL_ERR_INTERNAL;
+  }
+  delta = source->physical_location.line - frame->physical_anchor;
+  if (frame->presumed_anchor > 0xffffffffu - delta) {
+    pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LINE,
+            source->physical_location.line,
+            source->physical_location.column,
+            "CupidC presumed source line overflows 32 bits");
+    return CTOOL_ERR_OVERFLOW;
+  }
+  token_out->location.path = frame->presumed_name;
+  token_out->location.line = frame->presumed_anchor + delta;
+  token_out->location.column = source->physical_location.column;
+  token_out->location_presumed = CTOOL_TRUE;
+  return CTOOL_OK;
+}
+
+static void pp_fail_at_location(pp_context_t *context, ctool_status_t status,
+                                ctool_u32 code,
+                                ctool_c_pp_location_t location,
+                                const char *message) {
+  ctool_string_t previous_path = context->path;
+  context->path = location.path;
+  pp_fail(context, status, code, location.line, location.column, message);
+  context->path = previous_path;
+}
+
+static ctool_status_t pp_fail_at_token(pp_context_t *context,
+                                       ctool_status_t status,
+                                       ctool_u32 code,
+                                       const pp_token_t *token,
+                                       const char *message) {
+  pp_token_t presumed;
+  ctool_status_t mapped = pp_presume_token(context, token, &presumed);
+  if (mapped != CTOOL_OK) {
+    return mapped;
+  }
+  pp_fail_at_location(context, status, code, presumed.location, message);
+  return status;
 }
 
 static ctool_status_t pp_publish_failure(pp_context_t *context) {
@@ -860,6 +944,53 @@ static ctool_status_t pp_next_token(pp_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_bool pp_raw_directive_marker(const pp_token_t *token) {
+  return token->at_line_start == CTOOL_TRUE &&
+                 token->kind == CTOOL_C_PP_TOKEN_PUNCTUATOR &&
+                 ((token->spelling.size == 1u &&
+                   token->spelling.data[0] == '#') ||
+                  (token->spelling.size == 2u &&
+                   token->spelling.data[0] == '%' &&
+                   token->spelling.data[1] == ':'))
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static void pp_record_directive_following_lines(const pp_input_t *input,
+                                                 pp_token_t *tokens,
+                                                 ctool_u32 token_count) {
+  ctool_u32 position = 0u;
+  ctool_u32 token_index = 0u;
+  ctool_u32 splice_index = 0u;
+  ctool_u32 physical_line = 1u;
+  pp_token_t *pending = (pp_token_t *)0;
+  for (;;) {
+    while (splice_index < input->splice_count &&
+           input->splice_offsets[splice_index] == position) {
+      physical_line++;
+      splice_index++;
+    }
+    while (token_index < token_count &&
+           tokens[token_index].spelling.data == input->text + position) {
+      if (pp_raw_directive_marker(&tokens[token_index]) == CTOOL_TRUE) {
+        pending = &tokens[token_index];
+      }
+      token_index++;
+    }
+    if (position == input->size || input->text[position] == '\n') {
+      if (pending != (pp_token_t *)0) {
+        pending->following_physical_line = physical_line + 1u;
+        pending = (pp_token_t *)0;
+      }
+      if (position == input->size) {
+        break;
+      }
+      physical_line++;
+    }
+    position++;
+  }
+}
+
 static ctool_status_t pp_tokenize(pp_context_t *context,
                                   const pp_input_t *input,
                                   pp_token_t **tokens_out,
@@ -918,11 +1049,15 @@ static ctool_status_t pp_tokenize(pp_context_t *context,
     tokens[index].location.path = context->path;
     tokens[index].location.line = lexeme.line;
     tokens[index].location.column = lexeme.column;
+    tokens[index].physical_location = tokens[index].location;
     tokens[index].pack_alignment = 0u;
+    tokens[index].following_physical_line = 0u;
     tokens[index].leading_space = lexeme.leading_space;
     tokens[index].at_line_start = lexeme.at_line_start;
     tokens[index].header_name = lexeme.header_name;
+    tokens[index].location_presumed = CTOOL_FALSE;
   }
+  pp_record_directive_following_lines(input, tokens, token_count);
   *tokens_out = tokens;
   *token_count_out = token_count;
   return CTOOL_OK;
@@ -1001,10 +1136,9 @@ static ctool_status_t pp_reject_reserved_variadic_identifier(
       pp_name_is_variadic_identifier(token->spelling) == CTOOL_FALSE) {
     return CTOOL_OK;
   }
-  pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-          token->location.line, token->location.column,
-          "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
-  return CTOOL_ERR_INPUT;
+  return pp_fail_at_token(
+      context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_EXPANSION, token,
+      "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
 }
 
 static pp_macro_t *pp_macro_entry(pp_context_t *context,
@@ -1363,6 +1497,7 @@ static ctool_status_t pp_output_append(pp_context_t *context,
   output->kind = token->kind;
   output->spelling = token->spelling;
   output->location = token->location;
+  output->physical_location = token->physical_location;
   output->pack_alignment = token->pack_alignment;
   chunk->count++;
   context->output_count++;
@@ -1747,9 +1882,12 @@ static pp_token_t pp_replacement_token(const pp_token_t *source,
                                        const pp_token_t *invocation) {
   pp_token_t token = *source;
   token.location = invocation->location;
+  token.physical_location = invocation->physical_location;
   token.pack_alignment = invocation->pack_alignment;
+  token.following_physical_line = 0u;
   token.at_line_start = CTOOL_FALSE;
   token.header_name = CTOOL_FALSE;
+  token.location_presumed = CTOOL_TRUE;
   return token;
 }
 
@@ -2177,10 +2315,13 @@ static ctool_status_t pp_paste_tokens(
     return status;
   }
   tokens[0].location = invocation->location;
+  tokens[0].physical_location = invocation->physical_location;
   tokens[0].pack_alignment = invocation->pack_alignment;
+  tokens[0].following_physical_line = 0u;
   tokens[0].leading_space = left->token.leading_space;
   tokens[0].at_line_start = CTOOL_FALSE;
   tokens[0].header_name = CTOOL_FALSE;
+  tokens[0].location_presumed = CTOOL_TRUE;
   left->token = tokens[0];
   left->hide = hide;
   left->condition_defined = CTOOL_FALSE;
@@ -2649,11 +2790,16 @@ static ctool_status_t pp_emit_expanded_range(pp_context_t *context,
   ctool_status_t status;
   pp_expand_list_zero(&work);
   for (index = 0u; index < token_count; index++) {
-    status = pp_reject_reserved_variadic_identifier(context, &tokens[index]);
+    pp_token_t token;
+    status = pp_presume_token(context, &tokens[index], &token);
     if (status != CTOOL_OK) {
       return status;
     }
-    status = pp_expand_list_append_copy(context, &work, &tokens[index],
+    status = pp_reject_reserved_variadic_identifier(context, &token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = pp_expand_list_append_copy(context, &work, &token,
                                         (const pp_hide_t *)0);
     if (status != CTOOL_OK) {
       return status;
@@ -2781,7 +2927,10 @@ static ctool_status_t pp_copy_token_range(pp_context_t *context,
     return status;
   }
   for (index = 0u; index < count; index++) {
-    copy[index] = tokens[index];
+    status = pp_presume_token(context, &tokens[index], &copy[index]);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   *copy_out = copy;
   return CTOOL_OK;
@@ -2790,9 +2939,8 @@ static ctool_status_t pp_copy_token_range(pp_context_t *context,
 static ctool_status_t pp_function_macro_unsupported(
     pp_context_t *context, const pp_token_t *token, ctool_u32 code,
     const char *message) {
-  pp_fail(context, CTOOL_ERR_UNSUPPORTED, code, token->location.line,
-          token->location.column, message);
-  return CTOOL_ERR_UNSUPPORTED;
+  return pp_fail_at_token(context, CTOOL_ERR_UNSUPPORTED, code, token,
+                          message);
 }
 
 static ctool_status_t pp_handle_function_define(
@@ -2807,6 +2955,12 @@ static ctool_status_t pp_handle_function_define(
   ctool_u32 replacement_count;
   ctool_bool variadic = CTOOL_FALSE;
   ctool_status_t status;
+  pp_token_t presumed_name;
+
+  status = pp_presume_token(context, &tokens[name_index], &presumed_name);
+  if (status != CTOOL_OK) {
+    return status;
+  }
 
   if (close > end) {
     return pp_directive_error(context, marker,
@@ -2828,36 +2982,30 @@ static ctool_status_t pp_handle_function_define(
         close++;
         if (close >= end ||
             pp_token_equal_literal(&tokens[close], ")") == CTOOL_FALSE) {
-          pp_fail(context, CTOOL_ERR_INPUT,
-                  CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-                  tokens[close - 1u].location.line,
-                  tokens[close - 1u].location.column,
-                  "CupidC variadic ellipsis must end the parameter list");
-          return CTOOL_ERR_INPUT;
+          return pp_fail_at_token(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+              &tokens[close - 1u],
+              "CupidC variadic ellipsis must end the parameter list");
         }
         break;
       }
       if (tokens[close].kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
           pp_name_is_variadic_identifier(tokens[close].spelling) ==
               CTOOL_TRUE) {
-        pp_fail(context, CTOOL_ERR_INPUT,
-                CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-                tokens[close].location.line, tokens[close].location.column,
-                "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
-        return CTOOL_ERR_INPUT;
+        return pp_fail_at_token(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            &tokens[close],
+            "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
       }
       if (pp_token_is_identifier(&tokens[close]) == CTOOL_FALSE) {
-        pp_fail(context, CTOOL_ERR_INPUT,
-                CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-                tokens[close].location.line, tokens[close].location.column,
-                "CupidC macro parameter must be an identifier");
-        return CTOOL_ERR_INPUT;
+        return pp_fail_at_token(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            &tokens[close], "CupidC macro parameter must be an identifier");
       }
       if (parameter_count == PP_MACRO_PARAMETER_LIMIT) {
-        pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
-                tokens[close].location.line, tokens[close].location.column,
-                "CupidC macro parameter limit exceeded");
-        return CTOOL_ERR_LIMIT;
+        return pp_fail_at_token(context, CTOOL_ERR_LIMIT,
+                                CTOOL_C_PP_DIAG_LIMIT, &tokens[close],
+                                "CupidC macro parameter limit exceeded");
       }
       parameter_count++;
       close++;
@@ -2875,11 +3023,10 @@ static ctool_status_t pp_handle_function_define(
             "CupidC named GNU variadic parameters are not implemented yet");
       }
       if (pp_token_equal_literal(&tokens[close], ",") == CTOOL_FALSE) {
-        pp_fail(context, CTOOL_ERR_INPUT,
-                CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-                tokens[close].location.line, tokens[close].location.column,
-                "CupidC macro parameters require comma separators");
-        return CTOOL_ERR_INPUT;
+        return pp_fail_at_token(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            &tokens[close],
+            "CupidC macro parameters require comma separators");
       }
       close++;
     }
@@ -2892,8 +3039,7 @@ static ctool_status_t pp_handle_function_define(
         (void **)&parameters);
     if (status != CTOOL_OK) {
       pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
-              tokens[name_index].location.line,
-              tokens[name_index].location.column,
+              presumed_name.location.line, presumed_name.location.column,
               "CupidC macro parameter storage limit exceeded");
       return status;
     }
@@ -2905,11 +3051,9 @@ static ctool_status_t pp_handle_function_define(
     for (previous = 0u; previous < parameter_index; previous++) {
       if (pp_string_equal(parameters[previous], parameters[parameter_index]) ==
           CTOOL_TRUE) {
-        pp_fail(context, CTOOL_ERR_INPUT,
-                CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-                tokens[index].location.line, tokens[index].location.column,
-                "CupidC macro parameter name is duplicated");
-        return CTOOL_ERR_INPUT;
+        return pp_fail_at_token(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            &tokens[index], "CupidC macro parameter name is duplicated");
       }
     }
     parameter_index++;
@@ -2924,15 +3068,14 @@ static ctool_status_t pp_handle_function_define(
                                replacement_count, &replacement);
   if (status != CTOOL_OK) {
     pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
-            tokens[name_index].location.line,
-            tokens[name_index].location.column,
+            presumed_name.location.line, presumed_name.location.column,
             "CupidC macro replacement storage limit exceeded");
     return status;
   }
   return pp_define_macro(
       context, tokens[name_index].spelling, CTOOL_TRUE, parameters,
       parameter_count, variadic, replacement, replacement_count,
-      tokens[name_index].location.line, tokens[name_index].location.column);
+      presumed_name.location.line, presumed_name.location.column);
 }
 
 static ctool_status_t pp_handle_define(pp_context_t *context,
@@ -2941,6 +3084,7 @@ static ctool_status_t pp_handle_define(pp_context_t *context,
                                        ctool_u32 begin,
                                        ctool_u32 end) {
   pp_token_t *replacement = (pp_token_t *)0;
+  pp_token_t presumed_name;
   ctool_u32 replacement_count;
   ctool_status_t status;
   if (begin >= end || pp_token_is_identifier(&tokens[begin]) == CTOOL_FALSE) {
@@ -2953,18 +3097,22 @@ static ctool_status_t pp_handle_define(pp_context_t *context,
       tokens[begin + 1u].leading_space == CTOOL_FALSE) {
     return pp_handle_function_define(context, marker, tokens, begin, end);
   }
+  status = pp_presume_token(context, &tokens[begin], &presumed_name);
+  if (status != CTOOL_OK) {
+    return status;
+  }
   replacement_count = end - begin - 1u;
   status = pp_copy_token_range(context, tokens + begin + 1u,
                                replacement_count, &replacement);
   if (status != CTOOL_OK) {
     pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
-            tokens[begin].location.line, tokens[begin].location.column,
+            presumed_name.location.line, presumed_name.location.column,
             "CupidC macro replacement storage limit exceeded");
     return status;
   }
   return pp_define_object_macro(
       context, tokens[begin].spelling, replacement, replacement_count,
-      tokens[begin].location.line, tokens[begin].location.column);
+      presumed_name.location.line, presumed_name.location.column);
 }
 
 static ctool_status_t pp_handle_undef(pp_context_t *context,
@@ -2978,9 +3126,17 @@ static ctool_status_t pp_handle_undef(pp_context_t *context,
                               CTOOL_C_PP_DIAG_MACRO_DEFINITION,
                               "CupidC #undef requires one macro name");
   }
-  return pp_undefine_macro(context, tokens[begin].spelling,
-                           tokens[begin].location.line,
-                           tokens[begin].location.column);
+  {
+    pp_token_t presumed_name;
+    ctool_status_t status =
+        pp_presume_token(context, &tokens[begin], &presumed_name);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return pp_undefine_macro(context, tokens[begin].spelling,
+                             presumed_name.location.line,
+                             presumed_name.location.column);
+  }
 }
 
 static ctool_status_t pp_pragma_pack_error(pp_context_t *context,
@@ -3270,10 +3426,13 @@ static ctool_status_t pp_handle_cupid_exe(
   exe_token = *name;
   exe_token.kind = CTOOL_C_PP_TOKEN_CUPID_EXE;
   exe_token.location = marker->location;
+  exe_token.physical_location = marker->physical_location;
   exe_token.pack_alignment = context->pack_alignment;
+  exe_token.following_physical_line = 0u;
   exe_token.leading_space = CTOOL_FALSE;
   exe_token.at_line_start = CTOOL_FALSE;
   exe_token.header_name = CTOOL_FALSE;
+  exe_token.location_presumed = CTOOL_TRUE;
   status = pp_output_append(context, &exe_token);
   if (status != CTOOL_OK) {
     return status;
@@ -3363,8 +3522,13 @@ static ctool_status_t pp_include_spelling(
   pp_expand_list_zero(&work);
   pp_expand_list_zero(&expanded);
   for (index = begin; index < end; index++) {
+    pp_token_t token;
+    status = pp_presume_token(context, &tokens[index], &token);
+    if (status != CTOOL_OK) {
+      break;
+    }
     status = pp_expand_list_append_copy(
-        context, &work, &tokens[index], (const pp_hide_t *)0);
+        context, &work, &token, (const pp_hide_t *)0);
     if (status != CTOOL_OK) {
       break;
     }
@@ -3614,6 +3778,406 @@ static ctool_status_t pp_handle_include(pp_context_t *context,
           marker->location.line, marker->location.column,
           "CupidC include file was not found");
   return CTOOL_ERR_NOT_FOUND;
+}
+
+static ctool_status_t pp_line_error(pp_context_t *context,
+                                    const pp_token_t *marker,
+                                    const char *message) {
+  pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_LINE,
+          marker->location.line, marker->location.column, message);
+  return CTOOL_ERR_INPUT;
+}
+
+static ctool_i32 pp_line_hex_digit(char character) {
+  if (character >= '0' && character <= '9') {
+    return (ctool_i32)(character - '0');
+  }
+  if (character >= 'a' && character <= 'f') {
+    return (ctool_i32)(character - 'a') + 10;
+  }
+  if (character >= 'A' && character <= 'F') {
+    return (ctool_i32)(character - 'A') + 10;
+  }
+  return -1;
+}
+
+static ctool_status_t pp_line_append_byte(pp_context_t *context,
+                                          const pp_token_t *marker,
+                                          ctool_u32 capacity,
+                                          ctool_u32 *size,
+                                          ctool_u8 value) {
+  if (*size == capacity) {
+    pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
+            marker->location.line, marker->location.column,
+            "CupidC #line presumed source name exceeds the path limit");
+    return CTOOL_ERR_LIMIT;
+  }
+  context->line_operand[*size] = (char)value;
+  (*size)++;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_line_append_utf8(pp_context_t *context,
+                                          const pp_token_t *marker,
+                                          ctool_u32 capacity,
+                                          ctool_u32 *size,
+                                          ctool_u32 value) {
+  ctool_status_t status;
+  if (value <= 0x7fu) {
+    return pp_line_append_byte(context, marker, capacity, size,
+                               (ctool_u8)value);
+  }
+  if (value <= 0x7ffu) {
+    status = pp_line_append_byte(context, marker, capacity, size,
+                                 (ctool_u8)(0xc0u | (value >> 6u)));
+    if (status == CTOOL_OK) {
+      status = pp_line_append_byte(
+          context, marker, capacity, size,
+          (ctool_u8)(0x80u | (value & 0x3fu)));
+    }
+    return status;
+  }
+  if (value <= 0xffffu) {
+    status = pp_line_append_byte(context, marker, capacity, size,
+                                 (ctool_u8)(0xe0u | (value >> 12u)));
+    if (status == CTOOL_OK) {
+      status = pp_line_append_byte(
+          context, marker, capacity, size,
+          (ctool_u8)(0x80u | ((value >> 6u) & 0x3fu)));
+    }
+    if (status == CTOOL_OK) {
+      status = pp_line_append_byte(
+          context, marker, capacity, size,
+          (ctool_u8)(0x80u | (value & 0x3fu)));
+    }
+    return status;
+  }
+  status = pp_line_append_byte(context, marker, capacity, size,
+                               (ctool_u8)(0xf0u | (value >> 18u)));
+  if (status == CTOOL_OK) {
+    status = pp_line_append_byte(
+        context, marker, capacity, size,
+        (ctool_u8)(0x80u | ((value >> 12u) & 0x3fu)));
+  }
+  if (status == CTOOL_OK) {
+    status = pp_line_append_byte(
+        context, marker, capacity, size,
+        (ctool_u8)(0x80u | ((value >> 6u) & 0x3fu)));
+  }
+  if (status == CTOOL_OK) {
+    status = pp_line_append_byte(context, marker, capacity, size,
+                                 (ctool_u8)(0x80u | (value & 0x3fu)));
+  }
+  return status;
+}
+
+static ctool_status_t pp_line_decode_name(pp_context_t *context,
+                                          const pp_token_t *marker,
+                                          const pp_token_t *token,
+                                          ctool_u32 *size_out) {
+  ctool_string_t text = token->spelling;
+  ctool_u32 capacity = ctool_job_limits(context->job)->path_bytes;
+  ctool_u32 index = 1u;
+  ctool_u32 end = text.size - 1u;
+  ctool_u32 size = 0u;
+  ctool_status_t status = CTOOL_OK;
+  while (index < end && status == CTOOL_OK) {
+    ctool_u32 value;
+    char character = text.data[index++];
+    if (character != '\\') {
+      status = pp_line_append_byte(context, marker, capacity, &size,
+                                   (ctool_u8)character);
+      continue;
+    }
+    if (index == end) {
+      return pp_line_error(context, marker,
+                           "CupidC #line source-name escape is incomplete");
+    }
+    character = text.data[index++];
+    if (character == '\'' || character == '"' || character == '?' ||
+        character == '\\') {
+      value = (ctool_u32)(ctool_u8)character;
+    } else if (character == 'a') {
+      value = 7u;
+    } else if (character == 'b') {
+      value = 8u;
+    } else if (character == 'f') {
+      value = 12u;
+    } else if (character == 'n') {
+      value = 10u;
+    } else if (character == 'r') {
+      value = 13u;
+    } else if (character == 't') {
+      value = 9u;
+    } else if (character == 'v') {
+      value = 11u;
+    } else if (character >= '0' && character <= '7') {
+      ctool_u32 count = 1u;
+      value = (ctool_u32)(character - '0');
+      while (index < end && count < 3u && text.data[index] >= '0' &&
+             text.data[index] <= '7') {
+        value = value * 8u + (ctool_u32)(text.data[index] - '0');
+        index++;
+        count++;
+      }
+    } else if (character == 'x') {
+      ctool_bool have_digit = CTOOL_FALSE;
+      value = 0u;
+      while (index < end) {
+        ctool_i32 digit = pp_line_hex_digit(text.data[index]);
+        if (digit < 0) {
+          break;
+        }
+        have_digit = CTOOL_TRUE;
+        if (value > (0xffu - (ctool_u32)digit) / 16u) {
+          return pp_line_error(
+              context, marker,
+              "CupidC #line hexadecimal source-name escape is out of range");
+        }
+        value = value * 16u + (ctool_u32)digit;
+        index++;
+      }
+      if (have_digit == CTOOL_FALSE) {
+        return pp_line_error(
+            context, marker,
+            "CupidC #line hexadecimal source-name escape has no digits");
+      }
+    } else if (character == 'u' || character == 'U') {
+      ctool_u32 digits = character == 'u' ? 4u : 8u;
+      ctool_u32 count;
+      value = 0u;
+      if (end - index < digits) {
+        return pp_line_error(
+            context, marker,
+            "CupidC #line universal source-name escape is short");
+      }
+      for (count = 0u; count < digits; count++) {
+        ctool_i32 digit = pp_line_hex_digit(text.data[index]);
+        if (digit < 0) {
+          return pp_line_error(
+              context, marker,
+              "CupidC #line universal source-name escape is invalid");
+        }
+        value = value * 16u + (ctool_u32)digit;
+        index++;
+      }
+      if (value > 0x10ffffu ||
+          (value >= 0xd800u && value <= 0xdfffu) ||
+          (value < 0x00a0u && value != 0x0024u && value != 0x0040u &&
+           value != 0x0060u)) {
+        return pp_line_error(
+            context, marker,
+            "CupidC #line universal source-name value is invalid");
+      }
+      status = pp_line_append_utf8(context, marker, capacity, &size, value);
+      continue;
+    } else if (character == 'e' &&
+               context->request->gnu_extensions == CTOOL_TRUE) {
+      value = 27u;
+    } else {
+      return pp_line_error(context, marker,
+                           "CupidC #line source-name escape is invalid");
+    }
+    if (value > 0xffu) {
+      return pp_line_error(context, marker,
+                           "CupidC #line source-name escape is out of range");
+    }
+    status = pp_line_append_byte(context, marker, capacity, &size,
+                                 (ctool_u8)value);
+  }
+  if (status == CTOOL_OK) {
+    *size_out = size;
+  }
+  return status;
+}
+
+static ctool_status_t pp_line_number(pp_context_t *context,
+                                     const pp_token_t *marker,
+                                     const pp_token_t *token,
+                                     ctool_u32 *number_out) {
+  ctool_u32 value = 0u;
+  ctool_u32 index;
+  if (token->kind != CTOOL_C_PP_TOKEN_NUMBER ||
+      token->spelling.size == 0u) {
+    return pp_line_error(context, marker,
+                         "CupidC #line requires a decimal digit sequence");
+  }
+  for (index = 0u; index < token->spelling.size; index++) {
+    ctool_u32 digit;
+    if (token->spelling.data[index] < '0' ||
+        token->spelling.data[index] > '9') {
+      return pp_line_error(context, marker,
+                           "CupidC #line requires a decimal digit sequence");
+    }
+    digit = (ctool_u32)(token->spelling.data[index] - '0');
+    if (value > (2147483647u - digit) / 10u) {
+      return pp_line_error(
+          context, marker,
+          "CupidC #line number must not exceed 2147483647");
+    }
+    value = value * 10u + digit;
+  }
+  if (value == 0u) {
+    return pp_line_error(context, marker,
+                         "CupidC #line number must be positive");
+  }
+  *number_out = value;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_intern_presumed_name(
+    pp_context_t *context, const pp_token_t *marker, ctool_u32 size,
+    ctool_string_t *name_out) {
+  pp_presumed_name_t *entry = context->presumed_names;
+  ctool_string_t value;
+  ctool_status_t status;
+  value.data = context->line_operand;
+  value.size = size;
+  while (entry != (pp_presumed_name_t *)0) {
+    if (pp_string_equal(entry->text, value) == CTOOL_TRUE) {
+      *name_out = entry->text;
+      return CTOOL_OK;
+    }
+    entry = entry->next;
+  }
+  status = ctool_arena_alloc_zero(
+      ctool_job_arena(context->job), 1u, (ctool_u32)sizeof(*entry),
+      (ctool_u32)sizeof(void *), (void **)&entry);
+  if (status == CTOOL_OK) {
+    status = ctool_arena_copy_string(ctool_job_arena(context->job), value,
+                                     &entry->text);
+  }
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            marker->location.line, marker->location.column,
+            "CupidC #line presumed source-name storage limit exceeded");
+    return status;
+  }
+  entry->next = context->presumed_names;
+  context->presumed_names = entry;
+  *name_out = entry->text;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_expand_line_tokens(pp_context_t *context,
+                                            const pp_token_t *tokens,
+                                            ctool_u32 begin,
+                                            ctool_u32 end,
+                                            pp_expand_list_t *expanded_out) {
+  pp_expand_list_t work;
+  ctool_u32 index;
+  ctool_status_t status;
+  pp_expand_list_zero(&work);
+  pp_expand_list_zero(expanded_out);
+  for (index = begin; index < end; index++) {
+    pp_token_t token;
+    status = pp_presume_token(context, &tokens[index], &token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = pp_expand_list_append_copy(
+        context, &work, &token, (const pp_hide_t *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    work.tail->token.pack_alignment = context->pack_alignment;
+  }
+  return pp_expand_work(context, &work, expanded_out);
+}
+
+static ctool_status_t pp_handle_line(pp_context_t *context,
+                                     const pp_token_t *marker,
+                                     const pp_token_t *tokens,
+                                     ctool_u32 begin, ctool_u32 end) {
+  ctool_arena_t *arena = ctool_job_arena(context->job);
+  ctool_arena_mark_t mark;
+  pp_expand_list_t expanded;
+  pp_expand_node_t *number_token;
+  pp_expand_node_t *name_token;
+  ctool_u32 saved_expansion_node_count;
+  ctool_u32 number = 0u;
+  ctool_u32 name_size = 0u;
+  ctool_string_t presumed_name;
+  ctool_bool have_name = CTOOL_FALSE;
+  ctool_status_t status;
+  ctool_status_t rewound;
+  if (context->location_frame == (pp_location_frame_t *)0 ||
+      marker->following_physical_line == 0u) {
+    pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_LINE,
+            marker->location.line, marker->location.column,
+            "CupidC #line has no physical source-line anchor");
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (context->line_operand == (char *)0) {
+    status = ctool_arena_alloc_zero(
+        arena, ctool_job_limits(context->job)->path_bytes,
+        (ctool_u32)sizeof(*context->line_operand),
+        (ctool_u32)sizeof(*context->line_operand),
+        (void **)&context->line_operand);
+    if (status != CTOOL_OK) {
+      pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC #line source-name scratch limit exceeded");
+      return status;
+    }
+  }
+  mark = ctool_arena_mark(arena);
+  saved_expansion_node_count = context->expansion_node_count;
+  status = pp_expand_line_tokens(context, tokens, begin, end, &expanded);
+  number_token = expanded.head;
+  name_token = number_token != (pp_expand_node_t *)0
+                   ? number_token->next
+                   : (pp_expand_node_t *)0;
+  if (status == CTOOL_OK && number_token == (pp_expand_node_t *)0) {
+    status = pp_line_error(context, marker,
+                           "CupidC #line requires a line number");
+  }
+  if (status == CTOOL_OK) {
+    status = pp_line_number(context, marker, &number_token->token, &number);
+  }
+  if (status == CTOOL_OK && name_token != (pp_expand_node_t *)0) {
+    if (name_token->next != (pp_expand_node_t *)0 ||
+        name_token->token.kind != CTOOL_C_PP_TOKEN_STRING ||
+        name_token->token.spelling.size < 2u ||
+        name_token->token.spelling.data[0] != '"' ||
+        name_token->token.spelling.data[name_token->token.spelling.size - 1u] !=
+            '"') {
+      status = pp_line_error(
+          context, marker,
+          "CupidC #line requires one ordinary narrow source-name string");
+    } else {
+      have_name = CTOOL_TRUE;
+      status = pp_line_decode_name(context, marker, &name_token->token,
+                                   &name_size);
+    }
+  }
+  context->expansion_node_count = saved_expansion_node_count;
+  rewound = ctool_arena_rewind(arena, mark);
+  if (rewound != CTOOL_OK) {
+    if (status == CTOOL_OK) {
+      pp_fail(context, rewound, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC #line expansion scratch could not be rewound");
+    }
+    return rewound;
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  presumed_name = context->location_frame->presumed_name;
+  if (have_name == CTOOL_TRUE) {
+    status = pp_intern_presumed_name(context, marker, name_size,
+                                     &presumed_name);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  context->location_frame->presumed_name = presumed_name;
+  context->location_frame->physical_anchor =
+      marker->following_physical_line;
+  context->location_frame->presumed_anchor = number;
+  context->path = presumed_name;
+  return CTOOL_OK;
 }
 
 static ctool_status_t pp_validate_condition_name(
@@ -4549,13 +5113,18 @@ static ctool_status_t pp_expand_condition_tokens(
   ctool_status_t status;
   pp_expand_list_zero(&work);
   for (index = begin; index < end; index++) {
-    status = pp_expand_list_append_copy(
-        context, &work, &tokens[index], (const pp_hide_t *)0);
+    pp_token_t token;
+    status = pp_presume_token(context, &tokens[index], &token);
     if (status != CTOOL_OK) {
       return status;
     }
-    if (tokens[index].kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
-        pp_token_equal_literal(&tokens[index], "defined") == CTOOL_TRUE) {
+    status = pp_expand_list_append_copy(
+        context, &work, &token, (const pp_hide_t *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (token.kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
+        pp_token_equal_literal(&token, "defined") == CTOOL_TRUE) {
       work.tail->condition_defined = CTOOL_TRUE;
     }
   }
@@ -4651,19 +5220,40 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
       continue;
     }
     {
-      const pp_token_t *marker = &tokens[index];
+      pp_token_t marker_storage;
+      pp_token_t name_storage;
+      const pp_token_t *marker;
       ctool_u32 name_index = index + 1u;
       ctool_u32 end = pp_directive_end(tokens, token_count, name_index);
       const pp_token_t *name;
       ctool_u32 arguments;
       ctool_bool condition;
+      status = pp_presume_token(context, &tokens[index], &marker_storage);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      marker = &marker_storage;
       if (name_index == end) {
         index = end;
         continue;
       }
-      name = &tokens[name_index];
+      status = pp_presume_token(context, &tokens[name_index], &name_storage);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      name = &name_storage;
       arguments = name_index + 1u;
       if (pp_token_is_identifier(name) == CTOOL_FALSE) {
+        if (active == CTOOL_FALSE) {
+          index = end;
+          continue;
+        }
+        if (name->kind == CTOOL_C_PP_TOKEN_NUMBER) {
+          pp_fail(context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PP_DIAG_LINE,
+                  marker->location.line, marker->location.column,
+                  "CupidC GNU digit-led line markers are not implemented");
+          return CTOOL_ERR_UNSUPPORTED;
+        }
         return pp_directive_error(context, marker,
                                   CTOOL_C_PP_DIAG_DIRECTIVE,
                                   "CupidC directive name is invalid");
@@ -4709,8 +5299,7 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
                                                             : CTOOL_FALSE;
           conditional->branch_taken = condition;
           conditional->saw_else = CTOOL_FALSE;
-          conditional->opening_line = marker->location.line;
-          conditional->opening_column = marker->location.column;
+          conditional->opening_location = marker->location;
           conditional->previous = conditional_stack;
           conditional_stack = conditional;
           active = conditional->current_active;
@@ -4795,6 +5384,11 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
         if (status != CTOOL_OK) {
           return status;
         }
+      } else if (pp_token_equal_literal(name, "line") == CTOOL_TRUE) {
+        status = pp_handle_line(context, marker, tokens, arguments, end);
+        if (status != CTOOL_OK) {
+          return status;
+        }
       } else if (pp_token_equal_literal(name, "pragma") == CTOOL_TRUE) {
         status = pp_handle_pragma(context, marker, tokens, arguments, end);
         if (status != CTOOL_OK) {
@@ -4829,10 +5423,10 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
     }
   }
   if (conditional_depth != 0u) {
-    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_CONDITIONAL,
-            conditional_stack->opening_line,
-            conditional_stack->opening_column,
-            "CupidC source ends inside a conditional group");
+    pp_fail_at_location(context, CTOOL_ERR_INPUT,
+                        CTOOL_C_PP_DIAG_CONDITIONAL,
+                        conditional_stack->opening_location,
+                        "CupidC source ends inside a conditional group");
     return CTOOL_ERR_INPUT;
   }
   return CTOOL_OK;
@@ -4843,7 +5437,9 @@ static ctool_status_t pp_process_source(pp_context_t *context,
   const ctool_source_t *previous_source = context->source;
   ctool_string_t previous_path = context->path;
   pp_source_cache_t *previous_entry = context->source_entry;
+  pp_location_frame_t *previous_location_frame = context->location_frame;
   pp_source_cache_t *entry = pp_source_cache_find(context, &source->path);
+  pp_location_frame_t location_frame;
   pp_input_t input;
   ctool_status_t status;
   if (entry == (pp_source_cache_t *)0) {
@@ -4856,9 +5452,14 @@ static ctool_status_t pp_process_source(pp_context_t *context,
     return CTOOL_OK;
   }
   entry->entered = CTOOL_TRUE;
+  location_frame.presumed_name = entry->source.path.text;
+  location_frame.physical_anchor = 1u;
+  location_frame.presumed_anchor = 1u;
+  location_frame.previous = previous_location_frame;
   context->source = &entry->source;
   context->path = entry->source.path.text;
   context->source_entry = entry;
+  context->location_frame = &location_frame;
   status = CTOOL_OK;
   if (entry->tokenized == CTOOL_FALSE) {
     input.text = (char *)0;
@@ -4880,6 +5481,7 @@ static ctool_status_t pp_process_source(pp_context_t *context,
   context->source = previous_source;
   context->path = previous_path;
   context->source_entry = previous_entry;
+  context->location_frame = previous_location_frame;
   return status;
 }
 
@@ -5019,9 +5621,12 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
   context.path = primary->path.text;
   context.failure_path = primary->path.text;
   context.include_operand = (char *)0;
+  context.line_operand = (char *)0;
   context.macros = (pp_macro_t *)0;
   context.sources = (pp_source_cache_t *)0;
   context.source_entry = (pp_source_cache_t *)0;
+  context.presumed_names = (pp_presumed_name_t *)0;
+  context.location_frame = (pp_location_frame_t *)0;
   context.pack_stack = (pp_pack_frame_t *)0;
   context.free_pack_frames = (pp_pack_frame_t *)0;
   context.output_head = (pp_output_chunk_t *)0;

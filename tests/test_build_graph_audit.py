@@ -619,6 +619,288 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             [(1, controls, controls)],
         )
 
+    def test_inventory_contracts_direct_c_line_directives(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", '#line 40 "virtual.c"\nint value;\n')
+
+            output = root / "audit.json"
+            summary = root / "AUDIT.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_line_directives"]
+            self.assertEqual(contract["status"], "pass")
+            self.assertEqual(contract["source_files"], 1)
+            self.assertEqual(contract["named_line_occurrences"], 1)
+            self.assertEqual(contract["direct_line_occurrences"], 1)
+            self.assertEqual(contract["pp_token_line_occurrences"], 0)
+            self.assertEqual(contract["filename_occurrences"], 1)
+            self.assertEqual(contract["ordinary_marker_occurrences"], 1)
+            self.assertEqual(contract["digraph_marker_occurrences"], 0)
+            self.assertEqual(contract["numeric_marker_occurrences"], 0)
+            self.assertEqual(contract["max_conditional_depth"], 0)
+            self.assertEqual(
+                contract["forms"],
+                [
+                    {
+                        "conditional_depth": 0,
+                        "evidence": [
+                            {
+                                "line": 1,
+                                "operand": '40 "virtual.c"',
+                                "path": "main.c",
+                                "text": '#line 40 "virtual.c"',
+                            }
+                        ],
+                        "files": ["main.c"],
+                        "form": "direct_decimal_filename",
+                        "has_filename": True,
+                        "marker": "#",
+                        "occurrences": 1,
+                    }
+                ],
+            )
+            self.assertIn(
+                "1 named #line directive (1 direct, 0 pp-token; 1 filename); "
+                "0 numeric markers; 1 source file; max conditional depth 0",
+                summary.read_text(encoding="utf-8"),
+            )
+
+    def test_inventory_classifies_all_c_line_forms_after_phase_two(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "main.c",
+                r'''
+                /* #line 1 "comment.c" */
+                static const char ignored[] = "#line 2 \"string.c\"";
+                #define LINE_NUMBER 70
+                #if FEATURE
+                #li\
+                ne 20
+                %:line LINE_NUMBER FILE_NAME
+                # 88 "generated.c" 1 3
+                #endif
+                #line 90 /* separator */ "direct.c"
+                int value;
+                ''',
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_line_directives"]
+            self.assertEqual(contract["named_line_occurrences"], 3)
+            self.assertEqual(contract["direct_line_occurrences"], 2)
+            self.assertEqual(contract["pp_token_line_occurrences"], 1)
+            self.assertEqual(contract["filename_occurrences"], 1)
+            self.assertEqual(contract["ordinary_marker_occurrences"], 2)
+            self.assertEqual(contract["digraph_marker_occurrences"], 1)
+            self.assertEqual(contract["numeric_marker_occurrences"], 1)
+            self.assertEqual(contract["max_conditional_depth"], 1)
+            features = {
+                entry["id"]: entry
+                for entry in json.loads(output.read_text(encoding="utf-8"))[
+                    "features"
+                ]
+            }
+            self.assertEqual(
+                features["c.preprocessor.line"]["occurrences"], 3
+            )
+
+            forms = {
+                (
+                    entry["form"],
+                    entry["marker"],
+                    entry["conditional_depth"],
+                ): entry
+                for entry in contract["forms"]
+            }
+            self.assertEqual(
+                set(forms),
+                {
+                    ("direct_decimal", "#", 1),
+                    ("direct_decimal_filename", "#", 0),
+                    ("numeric_marker", "#", 1),
+                    ("pp_tokens", "%:", 1),
+                },
+            )
+            self.assertEqual(
+                forms[("direct_decimal", "#", 1)]["evidence"],
+                [
+                    {
+                        "line": 5,
+                        "operand": "20",
+                        "path": "main.c",
+                        "text": "#line 20",
+                    }
+                ],
+            )
+            self.assertEqual(
+                forms[("pp_tokens", "%:", 1)]["evidence"][0]["operand"],
+                "LINE_NUMBER FILE_NAME",
+            )
+            self.assertIsNone(
+                forms[("pp_tokens", "%:", 1)]["has_filename"]
+            )
+            self.assertTrue(
+                forms[("numeric_marker", "#", 1)]["has_filename"]
+            )
+            self.assertEqual(
+                forms[("numeric_marker", "#", 1)]["evidence"][0][
+                    "operand"
+                ],
+                '88 "generated.c" 1 3',
+            )
+
+    def test_line_directive_contract_rejects_unclassifiable_operands(self):
+        cases = {
+            "empty": ("#line\n", "unclassified active #line form"),
+            "comment only": (
+                "#line /* no operand */\n",
+                "unclassified active #line form",
+            ),
+            "invalid token": (
+                "%:line @\n",
+                "unrecognized preprocessing token",
+            ),
+        }
+        for name, (source, message) in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(
+                    root / "Makefile",
+                    """
+                    .SUFFIXES:
+                    CC = host-cc
+
+                    .PHONY: all
+                    all: main.o
+
+                    main.o: main.c
+                    \t$(CC) -c $< -o $@
+                    """,
+                )
+                _write(root / "main.c", source)
+
+                output = root / "audit.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(output),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(output.exists())
+                self.assertIn("main.c:1", result.stderr)
+                self.assertIn(message, result.stderr)
+
+    def test_line_directive_contract_rejects_active_templeos_edges(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: TempleOS/reference.o
+
+                TempleOS/reference.o: TempleOS/reference.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "TempleOS" / "reference.c",
+                '#line 900 "temple-reference.c"\nint reference;\n',
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(output.exists())
+            self.assertIn("TempleOS/reference.c", result.stderr)
+            self.assertIn(
+                "TempleOS reference tree cannot be an active C preprocessing input",
+                result.stderr,
+            )
+
     def test_inventory_contracts_active_conditional_expression_tokens(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -980,6 +1262,62 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             features = {entry["id"]: entry for entry in generated["features"]}
             self.assertEqual(
                 features["c.preprocessor.pragma.once"]["occurrences"], 1
+            )
+
+    def test_checked_line_directive_contract_matches_active_sources(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            summary = Path(td) / "audit.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--supplemental-build",
+                    "user:all",
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = json.loads(output.read_text(encoding="utf-8"))
+            checked = json.loads(
+                ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+            )
+            contract = generated["contracts"][
+                "c_preprocessor_line_directives"
+            ]
+            self.assertEqual(contract["source_files"], 645)
+            self.assertEqual(contract["named_line_occurrences"], 0)
+            self.assertEqual(contract["direct_line_occurrences"], 0)
+            self.assertEqual(contract["pp_token_line_occurrences"], 0)
+            self.assertEqual(contract["filename_occurrences"], 0)
+            self.assertEqual(contract["ordinary_marker_occurrences"], 0)
+            self.assertEqual(contract["digraph_marker_occurrences"], 0)
+            self.assertEqual(contract["numeric_marker_occurrences"], 0)
+            self.assertEqual(contract["max_conditional_depth"], 0)
+            self.assertEqual(contract["forms"], [])
+            self.assertEqual(
+                checked["contracts"]["c_preprocessor_line_directives"],
+                contract,
+            )
+            self.assertNotIn(
+                "c.preprocessor.line",
+                {entry["id"] for entry in generated["features"]},
+            )
+            self.assertIn(
+                "`c_preprocessor_line_directives` | `pass` | "
+                "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
+                "0 numeric markers; 645 source files; max conditional depth 0",
+                summary.read_text(encoding="utf-8"),
             )
 
     def test_inventory_contracts_unconditional_cupid_exe_block_forms(self):
@@ -1461,7 +1799,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(root / "unused.c", "int unused(void) { return 0; }\n")
             _write(root / "filtered.cc", "U0 Legacy() {}\n")
             _write(root / "bin" / "build.cup", "echo bootstrap\n")
-            _write(root / "TempleOS" / "reference.c", "int reference;\n")
+            _write(
+                root / "TempleOS" / "reference.c",
+                '#line 900 "temple-reference.c"\nint reference;\n',
+            )
 
             first = root / "first.json"
             second = root / "second.json"
@@ -1488,6 +1829,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 set(unreachable),
                 {"bin/build.cup", "copy.c", "filtered.cc", "unused.c"},
+            )
+            self.assertEqual(
+                audit["contracts"]["c_preprocessor_line_directives"],
+                {
+                    "status": "pass",
+                    "source_files": 1,
+                    "named_line_occurrences": 0,
+                    "direct_line_occurrences": 0,
+                    "pp_token_line_occurrences": 0,
+                    "filename_occurrences": 0,
+                    "ordinary_marker_occurrences": 0,
+                    "digraph_marker_occurrences": 0,
+                    "numeric_marker_occurrences": 0,
+                    "max_conditional_depth": 0,
+                    "forms": [],
+                },
             )
             self.assertEqual(
                 unreachable["bin/build.cup"]["language"], "cupid_script"
@@ -1998,7 +2355,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            _write(root / "generated.c", '#include "ignored.h"\nint generated;\n')
+            _write(
+                root / "generated.c",
+                '#line 77 "generated-template.c"\n'
+                '#include "ignored.h"\nint generated;\n',
+            )
             materialized_output = root / "materialized.json"
             materialized = subprocess.run(
                 [
@@ -2023,6 +2384,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 sources["generated.c"]["features"],
                 ["c.output.elf32_relocatable"],
+            )
+            self.assertEqual(
+                audit["contracts"]["c_preprocessor_line_directives"],
+                {
+                    "status": "pass",
+                    "source_files": 0,
+                    "named_line_occurrences": 0,
+                    "direct_line_occurrences": 0,
+                    "pp_token_line_occurrences": 0,
+                    "filename_occurrences": 0,
+                    "ordinary_marker_occurrences": 0,
+                    "digraph_marker_occurrences": 0,
+                    "numeric_marker_occurrences": 0,
+                    "max_conditional_depth": 0,
+                    "forms": [],
+                },
             )
 
     def test_inventory_includes_an_explicit_supplemental_build(self):
