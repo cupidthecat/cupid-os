@@ -1312,6 +1312,7 @@ Function specifiers are accepted only on declarations whose completed declarator
 - Silently accepting and discarding `inline`, as the private kernel parser does, was rejected because later external-definition and emission policy would have no source-semantic fact to consume.
 - Using the canonical OR-summary to decide external-inline emission was rejected because it loses which definition used `inline` and whether that declaration spelled `extern` or `static`.
 - Pulling function-body parsing into this slice was rejected because statements, local scopes, typed expressions, defined-entity state, and AST ownership must arrive together at the ADR 0003 seam rather than through brace skipping.
+- Required static analysis exposed a pre-existing proof gap in pointer-declarator parsing: the `*` loop predicate guaranteed a token, but the token returned by `cfront_advance` was dereferenced without an explicit null proof. Reading with `cfront_peek`, guarding the impossible null case, and advancing only afterward made GCC `-fanalyzer` green without changing accepted input or the public result.
 
 ### Verification record
 
@@ -1321,5 +1322,9 @@ Function specifiers are accepted only on declarations whose completed declarator
 | CupidC Python suites | PASS | All 59 preprocessing, type/layout, and frontend tests pass; the frontend module now contains 14 tests including the exact 107-occurrence/20-file inline inventory and 152-header frontier. |
 | Complete hosted Toolchain suite | PASS | `make -C toolchain test` passes the strict core, preprocessing, type/layout, 13-mode declaration frontend, ELF32, x86, CupidDis, CupidASM, CupidObj, CupidLD, and all 22 unchanged demo contracts under Windows Clang. |
 | Active-source audit regeneration and drift gate | PASS | The graph remains 681 inputs, 490 transforms, 250 feature IDs, and the exact 107 inline occurrences; regenerated JSON and CRDT-authored human summary pass `make check-bootstrap-audit`. |
+| Fresh WSL GCC and Clang contracts | PASS | Strict GCC and Clang builds in separate ignored directories compile the complete shared frontend dependency closure and pass `function-specifiers`. |
+| Linux sanitizers | PASS | A fresh Clang build with AddressSanitizer, UndefinedBehaviorSanitizer, and LeakSanitizer passes the dedicated public contract with leak detection and halt-on-UB enabled. |
+| Static analysis | PASS | Clang reports no finding in the product or contract. GCC `-fanalyzer` first exposed the pointer-token proof gap above; after the explicit guard it reports no finding in the product. |
+| Full repository gate | PASS | `make test` runs 253 tests in 515.207 seconds: 252 pass and only the expected platform case skips. The enclosing audit gate completes in 548 seconds. |
 
 This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and contract, the private in-kernel CupidC parser/code generator remains the production compiler, and no kernel, driver, application, Doom, assembly, linker, object, image, ABI, or runtime artifact changed. A boot smoke is therefore not attributed to this metadata-only change. The next declaration frontier is a real function-body/typed-expression AST slice; host symbol extraction through `nm` remains a separate ready ownership cutover to CupidDis.
