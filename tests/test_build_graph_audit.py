@@ -357,9 +357,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     #value
                 #define GNU_MORE(fmt, ...) log(fmt, \\
                     ## __VA_ARGS__)
+                %:define DIGRAPH_JOIN(a, b) a %:%: b
+                %:define DIGRAPH_NAME(value) %: value
+                %:define DIGRAPH_GNU(fmt, ...) log(fmt, %:%: __VA_ARGS__)
+                #define ADJACENT_HASH(value) left ### value
+                %:define ADJACENT_DIGRAPH(value) left %:%:%: value
                 // phase-two splice keeps the next line in this comment \\
                 #define NOT_REAL(value) value ## value
-                #pragma pack(push, 1)
+                %:pragma pack(push, 1)
                 struct __attribute__((packed)) packet {
                     unsigned kind : 3;
                     int values[];
@@ -483,7 +488,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
             self.assertEqual(features["asm.instruction.call"]["occurrences"], 1)
             self.assertEqual(
-                features["c.preprocessor.function_macro"]["occurrences"], 7
+                features["c.preprocessor.function_macro"]["occurrences"], 12
             )
             self.assertEqual(
                 features["c.preprocessor.function_macro"]["examples"][0][
@@ -497,22 +502,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ].startswith("#define SPANNED(")
             )
             self.assertEqual(
-                features["c.preprocessor.variadic_macro"]["occurrences"], 3
+                features["c.preprocessor.variadic_macro"]["occurrences"], 4
             )
             self.assertEqual(
-                features["c.preprocessor.token_paste"]["occurrences"], 4
+                features["c.preprocessor.token_paste"]["occurrences"], 8
             )
             self.assertEqual(
-                features["c.preprocessor.stringify"]["occurrences"], 2
+                features["c.preprocessor.stringify"]["occurrences"], 5
             )
             self.assertEqual(
                 features["c.preprocessor.gnu_variadic_comma_elision"][
                     "occurrences"
                 ],
-                2,
+                3,
             )
             self.assertEqual(
-                features["c.preprocessor.define"]["occurrences"], 7
+                features["c.preprocessor.define"]["occurrences"], 12
             )
             self.assertNotIn("c.preprocessor.value", features)
             self.assertNotIn("asm.instruction.bits", features)
@@ -529,7 +534,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 features["c.extension.attribute.packed"]["examples"][0]["line"],
-                16,
+                21,
             )
 
             sources = {entry["path"]: entry for entry in audit["sources"]}
@@ -764,7 +769,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 int value;
                 """,
             )
-            _write(root / "include" / "api.h", "#include \"types.h\"\n")
+            _write(root / "include" / "api.h", "%:include \"types.h\"\n")
             _write(root / "include" / "types.h", "typedef int word;\n")
             _write(root / "ignored.h", "#define IGNORED 1\n")
             _write(root / "forced.h", "#define FORCED 1\n")

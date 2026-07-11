@@ -454,7 +454,7 @@ def _declared_includes(path: Path, language: str) -> list[tuple[str, str]]:
     return [
         (match.group(2), "quoted" if match.group(1) == '"' else "angle")
         for match in re.finditer(
-            r'^\s*#\s*include\s*(["<])([^">]+)[">]',
+            r'^\s*(?:#|%:)\s*include\s*(["<])([^">]+)[">]',
             text,
             flags=re.MULTILINE,
         )
@@ -1432,7 +1432,7 @@ def _scan_c_macro_features(
 ) -> None:
     for line_number, original_line, code_line in logical_lines:
         macro_match = re.match(
-            r"\s*#\s*define\s+[A-Za-z_]\w*\(([^)]*)\)", code_line
+            r"\s*(?:#|%:)\s*define\s+[A-Za-z_]\w*\(([^)]*)\)", code_line
         )
         if macro_match:
             collector.add(
@@ -1446,20 +1446,18 @@ def _scan_c_macro_features(
                     original_line,
                 )
         define_match = re.match(
-            r"\s*#\s*define\s+[A-Za-z_]\w*(?:\([^)]*\))?\s*(.*)$",
+            r"\s*(?:#|%:)\s*define\s+[A-Za-z_]\w*(?:\([^)]*\))?\s*(.*)$",
             code_line,
         )
         if define_match:
             replacement = define_match.group(1)
+            paste_count, stringify_count = _c_macro_operator_counts(replacement)
             collector.add(
                 "c.preprocessor.token_paste",
                 path,
                 line_number,
                 original_line,
-                replacement.count("##"),
-            )
-            stringify_count = len(
-                re.findall(r"(?<!#)#(?!#)\s*[A-Za-z_]\w*", replacement)
+                paste_count,
             )
             collector.add(
                 "c.preprocessor.stringify",
@@ -1473,8 +1471,47 @@ def _scan_c_macro_features(
                 path,
                 line_number,
                 original_line,
-                len(re.findall(r",\s*##\s*__VA_ARGS__\b", replacement)),
+                len(
+                    re.findall(
+                        r",\s*(?:##|%:%:)\s*__VA_ARGS__\b", replacement
+                    )
+                ),
             )
+
+
+def _c_macro_operator_counts(replacement: str) -> tuple[int, int]:
+    """Count paste and parameter-stringify tokens with C longest matching."""
+    paste_count = 0
+    stringify_count = 0
+    index = 0
+    while index < len(replacement):
+        if replacement.startswith("%:%:", index):
+            paste_count += 1
+            index += 4
+            continue
+        if replacement.startswith("##", index):
+            paste_count += 1
+            index += 2
+            continue
+        width = 0
+        if replacement.startswith("%:", index):
+            width = 2
+        elif replacement[index] == "#":
+            width = 1
+        if width != 0:
+            operand = index + width
+            while operand < len(replacement) and replacement[operand].isspace():
+                operand += 1
+            if operand < len(replacement) and (
+                replacement[operand] == "_"
+                or "A" <= replacement[operand] <= "Z"
+                or "a" <= replacement[operand] <= "z"
+            ):
+                stringify_count += 1
+            index += width
+            continue
+        index += 1
+    return paste_count, stringify_count
 
 
 def _scan_c_features(
@@ -1514,7 +1551,9 @@ def _scan_c_features(
                     tokens.count(token),
                 )
 
-        directive_match = re.match(r"\s*#\s*([A-Za-z_]\w*)", code_line)
+        directive_match = re.match(
+            r"\s*(?:#|%:)\s*([A-Za-z_]\w*)", code_line
+        )
         if directive_match:
             directive = directive_match.group(1).lower()
             feature_id = (
@@ -1525,7 +1564,7 @@ def _scan_c_features(
             collector.add(
                 feature_id, path, line_number, original_line
             )
-        if re.match(r"\s*#\s*pragma\s+pack\b", code_line):
+        if re.match(r"\s*(?:#|%:)\s*pragma\s+pack\b", code_line):
             collector.add(
                 "c.preprocessor.pragma.pack", path, line_number, original_line
             )

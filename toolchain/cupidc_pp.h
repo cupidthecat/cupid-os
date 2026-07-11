@@ -103,9 +103,11 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * On failure the result is fully zeroed and every operation allocation is
  * rewound, while structured job diagnostics remain valid.
  *
- * During the incremental bootstrap, variadic macros, stringify/paste
- * operators, general #if/#elif expressions, predefined-macro uses, and
- * unimplemented pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED
- * diagnostics until their contract slices land. */
+ * Standard variadic macros, stringify/paste operators, and opt-in GNU
+ * omitted-variable-argument comma elision are part of the token-tape
+ * contract. During the incremental bootstrap, named GNU `args...` macros,
+ * general #if/#elif expressions, predefined-macro uses, and unimplemented
+ * pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED diagnostics until
+ * their contract slices land. */
 
 #endif

@@ -59,6 +59,12 @@ typedef struct pp_source_cache pp_source_cache_t;
 typedef struct pp_hide pp_hide_t;
 typedef struct pp_expand_node pp_expand_node_t;
 
+typedef enum {
+  PP_EXPAND_TOKEN = 1,
+  PP_EXPAND_PLACEMARKER,
+  PP_EXPAND_PASTE
+} pp_expand_kind_t;
+
 struct pp_macro {
   ctool_string_t name;
   ctool_bool defined;
@@ -68,7 +74,7 @@ struct pp_macro {
   ctool_u32 parameter_count;
   const pp_token_t *replacement;
   const ctool_u32 *replacement_parameters;
-  const ctool_bool *parameter_used;
+  const ctool_bool *parameter_expanded;
   ctool_u32 replacement_count;
   pp_macro_t *next;
 };
@@ -79,6 +85,7 @@ struct pp_hide {
 };
 
 struct pp_expand_node {
+  pp_expand_kind_t kind;
   pp_token_t token;
   const pp_hide_t *hide;
   pp_expand_node_t *next;
@@ -88,12 +95,14 @@ typedef struct {
   pp_expand_node_t *head;
   pp_expand_node_t *tail;
   ctool_u32 count;
+  ctool_bool trailing_space;
 } pp_expand_list_t;
 
 typedef struct {
   pp_expand_node_t *raw;
   ctool_u32 raw_count;
   pp_expand_list_t expanded;
+  ctool_bool omitted;
 } pp_macro_argument_t;
 
 struct pp_source_cache {
@@ -836,6 +845,20 @@ static ctool_bool pp_token_equal_literal(const pp_token_t *token,
   return pp_string_equal_literal(token->spelling, literal);
 }
 
+static ctool_bool pp_token_is_stringify_operator(const pp_token_t *token) {
+  return pp_token_equal_literal(token, "#") == CTOOL_TRUE ||
+                 pp_token_equal_literal(token, "%:") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool pp_token_is_paste_operator(const pp_token_t *token) {
+  return pp_token_equal_literal(token, "##") == CTOOL_TRUE ||
+                 pp_token_equal_literal(token, "%:%:") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool pp_name_is_predefined(ctool_string_t name) {
   return pp_string_equal_literal(name, "__FILE__") == CTOOL_TRUE ||
                  pp_string_equal_literal(name, "__LINE__") == CTOOL_TRUE ||
@@ -850,6 +873,18 @@ static ctool_bool pp_name_is_predefined(ctool_string_t name) {
 
 static ctool_bool pp_name_is_variadic_identifier(ctool_string_t name) {
   return pp_string_equal_literal(name, "__VA_ARGS__");
+}
+
+static ctool_status_t pp_reject_reserved_variadic_identifier(
+    pp_context_t *context, const pp_token_t *token) {
+  if (token->kind != CTOOL_C_PP_TOKEN_IDENTIFIER ||
+      pp_name_is_variadic_identifier(token->spelling) == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+          token->location.line, token->location.column,
+          "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
+  return CTOOL_ERR_INPUT;
 }
 
 static pp_macro_t *pp_macro_entry(pp_context_t *context,
@@ -882,6 +917,21 @@ static ctool_bool pp_parameter_index(const ctool_string_t *parameters,
       *index_out = index;
       return CTOOL_TRUE;
     }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool pp_replacement_parameter_index(
+    const ctool_string_t *parameters, ctool_u32 parameter_count,
+    ctool_bool variadic, ctool_string_t name, ctool_u32 *index_out) {
+  if (pp_parameter_index(parameters, parameter_count, name, index_out) ==
+      CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (variadic == CTOOL_TRUE &&
+      pp_name_is_variadic_identifier(name) == CTOOL_TRUE) {
+    *index_out = parameter_count;
+    return CTOOL_TRUE;
   }
   return CTOOL_FALSE;
 }
@@ -925,7 +975,9 @@ static ctool_status_t pp_define_macro(
   pp_macro_t *macro;
   ctool_string_t *parameter_copy = (ctool_string_t *)0;
   ctool_u32 *replacement_parameters = (ctool_u32 *)0;
-  ctool_bool *parameter_used = (ctool_bool *)0;
+  ctool_bool *parameter_expanded = (ctool_bool *)0;
+  ctool_u32 total_parameter_count =
+      parameter_count + (variadic == CTOOL_TRUE ? 1u : 0u);
   ctool_u32 index;
   ctool_status_t status;
   if (pp_name_is_predefined(name) == CTOOL_TRUE) {
@@ -949,6 +1001,32 @@ static ctool_status_t pp_define_macro(
             replacement[index].location.line,
             replacement[index].location.column,
             "CupidC __VA_ARGS__ is reserved for variadic macro replacement lists");
+        return CTOOL_ERR_INPUT;
+      }
+    }
+  }
+  for (index = 0u; index < replacement_count; index++) {
+    if (pp_token_is_paste_operator(&replacement[index]) == CTOOL_TRUE &&
+        (index == 0u || index + 1u == replacement_count)) {
+      pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_PASTE,
+              replacement[index].location.line,
+              replacement[index].location.column,
+              "CupidC macro paste cannot be first or last in a replacement");
+      return CTOOL_ERR_INPUT;
+    }
+    if (function_like == CTOOL_TRUE &&
+        pp_token_is_stringify_operator(&replacement[index]) == CTOOL_TRUE) {
+      ctool_u32 parameter = 0u;
+      if (index + 1u == replacement_count ||
+          replacement[index + 1u].kind != CTOOL_C_PP_TOKEN_IDENTIFIER ||
+          pp_replacement_parameter_index(
+              parameters, parameter_count, variadic,
+              replacement[index + 1u].spelling, &parameter) == CTOOL_FALSE) {
+        pp_fail(context, CTOOL_ERR_INPUT,
+                CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+                replacement[index].location.line,
+                replacement[index].location.column,
+                "CupidC macro stringification requires a parameter");
         return CTOOL_ERR_INPUT;
       }
     }
@@ -999,10 +1077,13 @@ static ctool_status_t pp_define_macro(
         return status;
       }
     }
+  }
+  if (total_parameter_count != 0u) {
     status = ctool_arena_alloc_zero(
-        ctool_job_arena(context->job), parameter_count,
-        (ctool_u32)sizeof(*parameter_used),
-        (ctool_u32)sizeof(*parameter_used), (void **)&parameter_used);
+        ctool_job_arena(context->job), total_parameter_count,
+        (ctool_u32)sizeof(*parameter_expanded),
+        (ctool_u32)sizeof(*parameter_expanded),
+        (void **)&parameter_expanded);
     if (status != CTOOL_OK) {
       pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT, line, column,
               "CupidC macro parameter-use storage limit exceeded");
@@ -1023,10 +1104,27 @@ static ctool_status_t pp_define_macro(
     for (index = 0u; index < replacement_count; index++) {
       ctool_u32 parameter = PP_NOT_A_PARAMETER;
       if (replacement[index].kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
-          pp_parameter_index(parameter_copy, parameter_count,
-                             replacement[index].spelling, &parameter) ==
-              CTOOL_TRUE) {
-        parameter_used[parameter] = CTOOL_TRUE;
+          pp_replacement_parameter_index(
+              parameter_copy, parameter_count, variadic,
+              replacement[index].spelling, &parameter) == CTOOL_TRUE) {
+        ctool_bool stringified =
+            index != 0u && function_like == CTOOL_TRUE &&
+                    pp_token_is_stringify_operator(&replacement[index - 1u]) ==
+                        CTOOL_TRUE
+                ? CTOOL_TRUE
+                : CTOOL_FALSE;
+        ctool_bool pasted =
+            (index != 0u &&
+             pp_token_is_paste_operator(&replacement[index - 1u]) ==
+                 CTOOL_TRUE) ||
+                    (index + 1u < replacement_count &&
+                     pp_token_is_paste_operator(&replacement[index + 1u]) ==
+                         CTOOL_TRUE)
+                ? CTOOL_TRUE
+                : CTOOL_FALSE;
+        if (stringified == CTOOL_FALSE && pasted == CTOOL_FALSE) {
+          parameter_expanded[parameter] = CTOOL_TRUE;
+        }
       }
       replacement_parameters[index] = parameter;
     }
@@ -1038,7 +1136,7 @@ static ctool_status_t pp_define_macro(
   macro->parameter_count = parameter_count;
   macro->replacement = replacement;
   macro->replacement_parameters = replacement_parameters;
-  macro->parameter_used = parameter_used;
+  macro->parameter_expanded = parameter_expanded;
   macro->replacement_count = replacement_count;
   macro->next = context->macros;
   context->macros = macro;
@@ -1208,6 +1306,7 @@ static void pp_expand_list_zero(pp_expand_list_t *list) {
   list->head = (pp_expand_node_t *)0;
   list->tail = (pp_expand_node_t *)0;
   list->count = 0u;
+  list->trailing_space = CTOOL_FALSE;
 }
 
 static ctool_status_t pp_expand_node_new(pp_context_t *context,
@@ -1232,6 +1331,7 @@ static ctool_status_t pp_expand_node_new(pp_context_t *context,
     return status;
   }
   node->token = *token;
+  node->kind = PP_EXPAND_TOKEN;
   node->hide = hide;
   context->expansion_node_count++;
   *node_out = node;
@@ -1256,6 +1356,18 @@ static ctool_status_t pp_expand_list_append_copy(
   pp_expand_node_t *node;
   ctool_status_t status = pp_expand_node_new(context, token, hide, &node);
   if (status == CTOOL_OK) {
+    pp_expand_list_append_node(list, node);
+  }
+  return status;
+}
+
+static ctool_status_t pp_expand_list_append_special(
+    pp_context_t *context, pp_expand_list_t *list, pp_expand_kind_t kind,
+    const pp_token_t *token, const pp_hide_t *hide) {
+  pp_expand_node_t *node;
+  ctool_status_t status = pp_expand_node_new(context, token, hide, &node);
+  if (status == CTOOL_OK) {
+    node->kind = kind;
     pp_expand_list_append_node(list, node);
   }
   return status;
@@ -1327,7 +1439,10 @@ static ctool_status_t pp_collect_macro_arguments(
   pp_macro_argument_t *arguments = (pp_macro_argument_t *)0;
   ctool_u32 depth = 0u;
   ctool_u32 separators = 0u;
-  ctool_u32 argument_count;
+  ctool_u32 syntactic_argument_count;
+  ctool_u32 argument_count =
+      macro->parameter_count +
+      (macro->variadic == CTOOL_TRUE ? 1u : 0u);
   ctool_u32 argument_index = 0u;
   ctool_u32 token_count = 0u;
   ctool_status_t status;
@@ -1354,10 +1469,20 @@ static ctool_status_t pp_collect_macro_arguments(
             "CupidC function macro invocation is unterminated");
     return CTOOL_ERR_INPUT;
   }
-  argument_count = open->next == close && macro->parameter_count == 0u
-                       ? 0u
-                       : separators + 1u;
-  if (argument_count != macro->parameter_count) {
+  if (open->next == close && macro->parameter_count == 0u &&
+      (macro->variadic == CTOOL_FALSE ||
+       context->request->gnu_extensions == CTOOL_TRUE)) {
+    syntactic_argument_count = 0u;
+  } else {
+    syntactic_argument_count = separators + 1u;
+  }
+  if ((macro->variadic == CTOOL_FALSE &&
+       syntactic_argument_count != macro->parameter_count) ||
+      (macro->variadic == CTOOL_TRUE &&
+       syntactic_argument_count < macro->parameter_count) ||
+      (macro->variadic == CTOOL_TRUE &&
+       syntactic_argument_count == macro->parameter_count &&
+       context->request->gnu_extensions == CTOOL_FALSE)) {
     pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_ARGUMENTS,
             name->token.location.line, name->token.location.column,
             "CupidC function macro argument count differs");
@@ -1374,6 +1499,18 @@ static ctool_status_t pp_collect_macro_arguments(
               "CupidC macro argument storage limit exceeded");
       return status;
     }
+    if (arguments == (pp_macro_argument_t *)0) {
+      pp_fail(context, CTOOL_ERR_INTERNAL,
+              CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+              name->token.location.line, name->token.location.column,
+              "CupidC macro argument storage was not returned");
+      return CTOOL_ERR_INTERNAL;
+    }
+  } else {
+    *close_out = close;
+    *arguments_out = (pp_macro_argument_t *)0;
+    *argument_count_out = 0u;
+    return CTOOL_OK;
   }
 
   argument_start = open->next;
@@ -1382,13 +1519,16 @@ static ctool_status_t pp_collect_macro_arguments(
   while (cursor != close) {
     ctool_bool separator =
         depth == 0u &&
-                pp_token_equal_literal(&cursor->token, ",") == CTOOL_TRUE
+                pp_token_equal_literal(&cursor->token, ",") == CTOOL_TRUE &&
+                (macro->variadic == CTOOL_FALSE ||
+                 argument_index < macro->parameter_count)
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if (separator == CTOOL_TRUE) {
       arguments[argument_index].raw = argument_start;
       arguments[argument_index].raw_count = token_count;
       pp_expand_list_zero(&arguments[argument_index].expanded);
+      arguments[argument_index].omitted = CTOOL_FALSE;
       argument_index++;
       argument_start = cursor->next;
       token_count = 0u;
@@ -1402,10 +1542,18 @@ static ctool_status_t pp_collect_macro_arguments(
     }
     cursor = cursor->next;
   }
-  if (argument_count != 0u) {
+  if (syntactic_argument_count != 0u) {
     arguments[argument_index].raw = argument_start;
     arguments[argument_index].raw_count = token_count;
     pp_expand_list_zero(&arguments[argument_index].expanded);
+    arguments[argument_index].omitted = CTOOL_FALSE;
+  }
+  if (macro->variadic == CTOOL_TRUE &&
+      syntactic_argument_count == macro->parameter_count) {
+    arguments[macro->parameter_count].raw = close;
+    arguments[macro->parameter_count].raw_count = 0u;
+    pp_expand_list_zero(&arguments[macro->parameter_count].expanded);
+    arguments[macro->parameter_count].omitted = CTOOL_TRUE;
   }
   *close_out = close;
   *arguments_out = arguments;
@@ -1428,7 +1576,7 @@ static ctool_status_t pp_expand_macro_arguments(
   context->expansion_depth++;
   for (index = 0u; index < argument_count; index++) {
     pp_expand_list_t argument_work;
-    if (macro->parameter_used[index] == CTOOL_FALSE) {
+    if (macro->parameter_expanded[index] == CTOOL_FALSE) {
       continue;
     }
     status = pp_expand_list_copy_range(context, arguments[index].raw,
@@ -1447,21 +1595,54 @@ static ctool_status_t pp_expand_macro_arguments(
   return CTOOL_OK;
 }
 
-static ctool_status_t pp_build_object_replacement(
-    pp_context_t *context, pp_macro_t *macro, pp_expand_node_t *invocation,
-    pp_expand_list_t *replacement_out) {
-  const pp_hide_t *hide;
+static pp_token_t pp_replacement_token(const pp_token_t *source,
+                                       const pp_token_t *invocation) {
+  pp_token_t token = *source;
+  token.location = invocation->location;
+  token.pack_alignment = invocation->pack_alignment;
+  token.at_line_start = CTOOL_FALSE;
+  token.header_name = CTOOL_FALSE;
+  return token;
+}
+
+static ctool_status_t pp_append_argument_replacement(
+    pp_context_t *context, const pp_macro_argument_t *argument,
+    ctool_bool expanded, ctool_bool placemarker_if_empty,
+    const pp_token_t *placeholder, const pp_token_t *invocation,
+    const pp_hide_t *base_hide, pp_expand_list_t *replacement_out) {
+  pp_expand_node_t *node = expanded == CTOOL_TRUE
+                               ? argument->expanded.head
+                               : argument->raw;
+  ctool_u32 count = expanded == CTOOL_TRUE ? argument->expanded.count
+                                            : argument->raw_count;
   ctool_u32 index;
-  ctool_status_t status = pp_hide_add(
-      context, invocation->hide, macro, &invocation->token, &hide);
-  pp_expand_list_zero(replacement_out);
-  if (status != CTOOL_OK) {
-    return status;
+  ctool_status_t status;
+  if (count == 0u && placemarker_if_empty == CTOOL_TRUE) {
+    pp_token_t marker = pp_replacement_token(placeholder, invocation);
+    return pp_expand_list_append_special(
+        context, replacement_out, PP_EXPAND_PLACEMARKER, &marker,
+        base_hide);
   }
-  for (index = 0u; index < macro->replacement_count; index++) {
-    pp_token_t token = macro->replacement[index];
-    token.location = invocation->token.location;
-    token.pack_alignment = invocation->token.pack_alignment;
+  for (index = 0u; index < count; index++) {
+    pp_token_t token;
+    const pp_hide_t *hide;
+    if (node == (pp_expand_node_t *)0) {
+      pp_fail(context, CTOOL_ERR_INTERNAL,
+              CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+              invocation->location.line, invocation->location.column,
+              "CupidC macro argument replacement became inconsistent");
+      return CTOOL_ERR_INTERNAL;
+    }
+    token = node->token;
+    status = pp_hide_union(context, node->hide, base_hide, invocation,
+                           &hide);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (index == 0u) {
+      token.leading_space = placeholder->leading_space;
+    }
+    token.pack_alignment = invocation->pack_alignment;
     token.at_line_start = CTOOL_FALSE;
     token.header_name = CTOOL_FALSE;
     status = pp_expand_list_append_copy(context, replacement_out, &token,
@@ -1469,8 +1650,433 @@ static ctool_status_t pp_build_object_replacement(
     if (status != CTOOL_OK) {
       return status;
     }
+    node = node->next;
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t pp_stringify_argument(
+    pp_context_t *context, const pp_macro_argument_t *argument,
+    const pp_token_t *operator_token, const pp_token_t *invocation,
+    const pp_hide_t *base_hide, pp_expand_list_t *replacement_out) {
+  pp_expand_node_t *node = argument->raw;
+  ctool_u32 size = 2u;
+  ctool_u32 index;
+  ctool_u32 offset = 0u;
+  char *spelling;
+  pp_token_t token;
+  ctool_status_t status;
+  for (index = 0u; index < argument->raw_count; index++) {
+    ctool_u32 character;
+    if (node == (pp_expand_node_t *)0) {
+      pp_fail(context, CTOOL_ERR_INTERNAL,
+              CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+              invocation->location.line, invocation->location.column,
+              "CupidC stringification argument became inconsistent");
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (index != 0u && node->token.leading_space == CTOOL_TRUE) {
+      if (size == 0xffffffffu) {
+        pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+                invocation->location.line, invocation->location.column,
+                "CupidC stringified macro argument is too large");
+        return CTOOL_ERR_OVERFLOW;
+      }
+      size++;
+    }
+    for (character = 0u; character < node->token.spelling.size;
+         character++) {
+      ctool_u32 addition =
+          (node->token.kind == CTOOL_C_PP_TOKEN_STRING ||
+           node->token.kind == CTOOL_C_PP_TOKEN_CHARACTER) &&
+                  (node->token.spelling.data[character] == '\\' ||
+                   node->token.spelling.data[character] == '"')
+              ? 2u
+              : 1u;
+      if (size > 0xffffffffu - addition) {
+        pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+                invocation->location.line, invocation->location.column,
+                "CupidC stringified macro argument is too large");
+        return CTOOL_ERR_OVERFLOW;
+      }
+      size += addition;
+    }
+    node = node->next;
+  }
+  if (size == 0xffffffffu) {
+    pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+            invocation->location.line, invocation->location.column,
+            "CupidC stringified macro argument is too large");
+    return CTOOL_ERR_OVERFLOW;
+  }
+  status = ctool_arena_alloc_zero(ctool_job_arena(context->job), size + 1u,
+                                  1u, 1u, (void **)&spelling);
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            invocation->location.line, invocation->location.column,
+            "CupidC stringified macro storage limit exceeded");
+    return status;
+  }
+  spelling[offset] = '"';
+  offset++;
+  node = argument->raw;
+  for (index = 0u; index < argument->raw_count; index++) {
+    ctool_u32 character;
+    if (index != 0u && node->token.leading_space == CTOOL_TRUE) {
+      spelling[offset] = ' ';
+      offset++;
+    }
+    for (character = 0u; character < node->token.spelling.size;
+         character++) {
+      char value = node->token.spelling.data[character];
+      if ((node->token.kind == CTOOL_C_PP_TOKEN_STRING ||
+           node->token.kind == CTOOL_C_PP_TOKEN_CHARACTER) &&
+          (value == '\\' || value == '"')) {
+        spelling[offset] = '\\';
+        offset++;
+      }
+      spelling[offset] = value;
+      offset++;
+    }
+    node = node->next;
+  }
+  spelling[offset] = '"';
+  token = pp_replacement_token(operator_token, invocation);
+  token.kind = CTOOL_C_PP_TOKEN_STRING;
+  token.spelling.data = spelling;
+  token.spelling.size = size;
+  return pp_expand_list_append_copy(context, replacement_out, &token,
+                                    base_hide);
+}
+
+static ctool_status_t pp_paste_tokens(
+    pp_context_t *context, pp_expand_node_t *left,
+    const pp_expand_node_t *right, const pp_token_t *invocation) {
+  ctool_u32 size;
+  char *spelling;
+  pp_input_t input;
+  pp_token_t *tokens;
+  ctool_u32 token_count;
+  pp_context_t scratch;
+  const pp_hide_t *hide;
+  ctool_status_t status;
+  if (left->kind == PP_EXPAND_PLACEMARKER &&
+      right->kind == PP_EXPAND_PLACEMARKER) {
+    return CTOOL_OK;
+  }
+  if (left->kind == PP_EXPAND_PLACEMARKER) {
+    ctool_bool leading_space = left->token.leading_space;
+    left->kind = right->kind;
+    left->token = right->token;
+    left->token.leading_space = leading_space;
+    left->hide = right->hide;
+    return CTOOL_OK;
+  }
+  if (right->kind == PP_EXPAND_PLACEMARKER) {
+    return CTOOL_OK;
+  }
+  if (left->kind != PP_EXPAND_TOKEN || right->kind != PP_EXPAND_TOKEN) {
+    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_PASTE,
+            invocation->location.line, invocation->location.column,
+            "CupidC macro paste operands are invalid");
+    return CTOOL_ERR_INPUT;
+  }
+  if (left->token.spelling.size >
+      0xffffffffu - right->token.spelling.size) {
+    pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+            invocation->location.line, invocation->location.column,
+            "CupidC pasted token is too large");
+    return CTOOL_ERR_OVERFLOW;
+  }
+  size = left->token.spelling.size + right->token.spelling.size;
+  if (size == 0xffffffffu) {
+    pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+            invocation->location.line, invocation->location.column,
+            "CupidC pasted token is too large");
+    return CTOOL_ERR_OVERFLOW;
+  }
+  status = ctool_arena_alloc_zero(ctool_job_arena(context->job), size + 1u,
+                                  1u, 1u, (void **)&spelling);
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            invocation->location.line, invocation->location.column,
+            "CupidC pasted token storage limit exceeded");
+    return status;
+  }
+  for (token_count = 0u; token_count < left->token.spelling.size;
+       token_count++) {
+    spelling[token_count] = left->token.spelling.data[token_count];
+  }
+  for (token_count = 0u; token_count < right->token.spelling.size;
+       token_count++) {
+    spelling[left->token.spelling.size + token_count] =
+        right->token.spelling.data[token_count];
+  }
+  input.text = spelling;
+  input.size = size;
+  input.splice_offsets = (ctool_u32 *)0;
+  input.splice_count = 0u;
+  scratch = *context;
+  scratch.failure_status = CTOOL_OK;
+  scratch.failure_code = 0u;
+  scratch.failure_line = 0u;
+  scratch.failure_column = 0u;
+  scratch.failure_message = "CupidC pasted-token validation failed";
+  status = pp_tokenize(&scratch, &input, &tokens, &token_count);
+  if (status != CTOOL_OK || token_count != 1u ||
+      tokens[0].spelling.size != size) {
+    if (status != CTOOL_OK && status != CTOOL_ERR_INPUT) {
+      pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+              invocation->location.line, invocation->location.column,
+              "CupidC pasted-token validation exceeded a limit");
+      return status;
+    }
+    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_PASTE,
+            invocation->location.line, invocation->location.column,
+            "CupidC macro paste does not form one preprocessing token");
+    return CTOOL_ERR_INPUT;
+  }
+  status = pp_hide_intersection(context, left->hide, right->hide,
+                                invocation, &hide);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  tokens[0].location = invocation->location;
+  tokens[0].pack_alignment = invocation->pack_alignment;
+  tokens[0].leading_space = left->token.leading_space;
+  tokens[0].at_line_start = CTOOL_FALSE;
+  tokens[0].header_name = CTOOL_FALSE;
+  left->token = tokens[0];
+  left->hide = hide;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_resolve_pastes(pp_context_t *context,
+                                        pp_expand_list_t *replacement,
+                                        const pp_token_t *invocation) {
+  pp_expand_node_t *node = replacement->head;
+  pp_expand_node_t *previous = (pp_expand_node_t *)0;
+  ctool_status_t status;
+  while (node != (pp_expand_node_t *)0) {
+    if (node->kind == PP_EXPAND_PASTE) {
+      pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_PASTE,
+              invocation->location.line, invocation->location.column,
+              "CupidC macro paste has no left operand");
+      return CTOOL_ERR_INPUT;
+    }
+    if (node->next != (pp_expand_node_t *)0 &&
+        node->next->kind == PP_EXPAND_PASTE) {
+      pp_expand_node_t *right = node->next->next;
+      if (right == (pp_expand_node_t *)0 ||
+          right->kind == PP_EXPAND_PASTE) {
+        pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_PASTE,
+                invocation->location.line, invocation->location.column,
+                "CupidC macro paste has an invalid operand");
+        return CTOOL_ERR_INPUT;
+      }
+      status = pp_paste_tokens(context, node, right, invocation);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      node->next = right->next;
+      replacement->count -= 2u;
+      continue;
+    }
+    previous = node;
+    node = node->next;
+  }
+  replacement->tail = previous;
+  previous = (pp_expand_node_t *)0;
+  node = replacement->head;
+  while (node != (pp_expand_node_t *)0) {
+    if (node->kind == PP_EXPAND_PLACEMARKER) {
+      if (node->token.leading_space == CTOOL_TRUE) {
+        if (node->next != (pp_expand_node_t *)0) {
+          node->next->token.leading_space = CTOOL_TRUE;
+        } else {
+          replacement->trailing_space = CTOOL_TRUE;
+        }
+      }
+      if (previous == (pp_expand_node_t *)0) {
+        replacement->head = node->next;
+      } else {
+        previous->next = node->next;
+      }
+      replacement->count--;
+      node = node->next;
+      continue;
+    }
+    previous = node;
+    node = node->next;
+  }
+  replacement->tail = previous;
+  return CTOOL_OK;
+}
+
+static void pp_apply_pending_space(pp_expand_list_t *replacement,
+                                   pp_expand_node_t *old_tail,
+                                   ctool_bool *pending_space) {
+  pp_expand_node_t *first = old_tail == (pp_expand_node_t *)0
+                                ? replacement->head
+                                : old_tail->next;
+  if (first != (pp_expand_node_t *)0 && *pending_space == CTOOL_TRUE) {
+    first->token.leading_space = CTOOL_TRUE;
+    *pending_space = CTOOL_FALSE;
+  }
+}
+
+static ctool_status_t pp_build_replacement(
+    pp_context_t *context, pp_macro_t *macro,
+    pp_expand_node_t *invocation, pp_macro_argument_t *arguments,
+    const pp_hide_t *base_hide, pp_expand_list_t *replacement_out) {
+  ctool_u32 index = 0u;
+  ctool_bool pending_space = CTOOL_FALSE;
+  ctool_status_t status;
+  pp_expand_list_zero(replacement_out);
+  if (macro->function_like == CTOOL_TRUE &&
+      macro->replacement_count != 0u &&
+      macro->replacement_parameters == (ctool_u32 *)0) {
+    pp_fail(context, CTOOL_ERR_INTERNAL,
+            CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+            invocation->token.location.line, invocation->token.location.column,
+            "CupidC function macro substitution plan is missing");
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (macro->variadic == CTOOL_TRUE &&
+      arguments == (pp_macro_argument_t *)0) {
+    pp_fail(context, CTOOL_ERR_INTERNAL,
+            CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+            invocation->token.location.line, invocation->token.location.column,
+            "CupidC variadic macro arguments are missing");
+    return CTOOL_ERR_INTERNAL;
+  }
+  while (index < macro->replacement_count) {
+    pp_expand_node_t *old_tail = replacement_out->tail;
+    ctool_u32 old_count = replacement_out->count;
+    const pp_token_t *replacement = &macro->replacement[index];
+    ctool_u32 parameter = macro->replacement_parameters !=
+                                  (const ctool_u32 *)0
+                              ? macro->replacement_parameters[index]
+                              : PP_NOT_A_PARAMETER;
+    if (context->request->gnu_extensions == CTOOL_TRUE &&
+        macro->variadic == CTOOL_TRUE && arguments != (pp_macro_argument_t *)0 &&
+        index + 2u < macro->replacement_count &&
+        macro->replacement_parameters != (ctool_u32 *)0 &&
+        pp_token_equal_literal(replacement, ",") == CTOOL_TRUE &&
+        pp_token_is_paste_operator(&macro->replacement[index + 1u]) ==
+            CTOOL_TRUE &&
+        macro->replacement_parameters[index + 2u] ==
+            macro->parameter_count) {
+      const pp_macro_argument_t *argument =
+          &arguments[macro->parameter_count];
+      if (argument->omitted == CTOOL_FALSE) {
+        pp_token_t comma =
+            pp_replacement_token(replacement, &invocation->token);
+        pp_token_t variadic_placeholder =
+            macro->replacement[index + 2u];
+        variadic_placeholder.leading_space = CTOOL_FALSE;
+        status = pp_expand_list_append_copy(context, replacement_out,
+                                            &comma, base_hide);
+        if (status == CTOOL_OK) {
+          status = pp_append_argument_replacement(
+              context, argument, CTOOL_FALSE, CTOOL_FALSE,
+              &variadic_placeholder, &invocation->token,
+              base_hide, replacement_out);
+        }
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        pp_apply_pending_space(replacement_out, old_tail, &pending_space);
+      }
+      index += 3u;
+      continue;
+    }
+    if (macro->function_like == CTOOL_TRUE &&
+        pp_token_is_stringify_operator(replacement) == CTOOL_TRUE) {
+      if (macro->replacement_parameters == (ctool_u32 *)0 ||
+          arguments == (pp_macro_argument_t *)0 ||
+          index + 1u >= macro->replacement_count) {
+        pp_fail(context, CTOOL_ERR_INTERNAL,
+                CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+                invocation->token.location.line,
+                invocation->token.location.column,
+                "CupidC macro stringification plan is invalid");
+        return CTOOL_ERR_INTERNAL;
+      }
+      parameter = macro->replacement_parameters[index + 1u];
+      status = pp_stringify_argument(
+          context, &arguments[parameter], replacement, &invocation->token,
+          base_hide, replacement_out);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      pp_apply_pending_space(replacement_out, old_tail, &pending_space);
+      index += 2u;
+      continue;
+    }
+    if (pp_token_is_paste_operator(replacement) == CTOOL_TRUE) {
+      pp_token_t paste =
+          pp_replacement_token(replacement, &invocation->token);
+      status = pp_expand_list_append_special(
+          context, replacement_out, PP_EXPAND_PASTE, &paste, base_hide);
+    } else if (parameter != PP_NOT_A_PARAMETER) {
+      ctool_bool pasted =
+          (index != 0u &&
+           pp_token_is_paste_operator(&macro->replacement[index - 1u]) ==
+               CTOOL_TRUE) ||
+                  (index + 1u < macro->replacement_count &&
+                   pp_token_is_paste_operator(&macro->replacement[index + 1u]) ==
+                       CTOOL_TRUE)
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      status = pp_append_argument_replacement(
+          context, &arguments[parameter],
+          pasted == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE, pasted,
+          replacement, &invocation->token, base_hide, replacement_out);
+    } else {
+      pp_token_t token =
+          pp_replacement_token(replacement, &invocation->token);
+      status = pp_expand_list_append_copy(context, replacement_out, &token,
+                                          base_hide);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (replacement_out->count != old_count) {
+      pp_apply_pending_space(replacement_out, old_tail, &pending_space);
+    } else if (parameter != PP_NOT_A_PARAMETER &&
+               pp_token_is_paste_operator(replacement) == CTOOL_FALSE &&
+               replacement->leading_space == CTOOL_TRUE) {
+      pending_space = CTOOL_TRUE;
+    }
+    index++;
+  }
+  replacement_out->trailing_space = pending_space;
+  if (replacement_out->head != (pp_expand_node_t *)0) {
+    replacement_out->head->token.leading_space =
+        invocation->token.leading_space;
+  }
+  status = pp_resolve_pastes(context, replacement_out, &invocation->token);
+  if (status == CTOOL_OK &&
+      replacement_out->head != (pp_expand_node_t *)0) {
+    replacement_out->head->token.leading_space =
+        invocation->token.leading_space;
+  }
+  return status;
+}
+
+static ctool_status_t pp_build_object_replacement(
+    pp_context_t *context, pp_macro_t *macro, pp_expand_node_t *invocation,
+    pp_expand_list_t *replacement_out) {
+  const pp_hide_t *hide;
+  ctool_status_t status = pp_hide_add(
+      context, invocation->hide, macro, &invocation->token, &hide);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return pp_build_replacement(context, macro, invocation,
+                              (pp_macro_argument_t *)0, hide,
+                              replacement_out);
 }
 
 static ctool_status_t pp_build_function_replacement(
@@ -1478,10 +2084,8 @@ static ctool_status_t pp_build_function_replacement(
     pp_expand_node_t *invocation, pp_expand_node_t *close,
     pp_macro_argument_t *arguments, pp_expand_list_t *replacement_out) {
   const pp_hide_t *base_hide;
-  ctool_u32 index;
   ctool_status_t status = pp_hide_intersection(
       context, invocation->hide, close->hide, &invocation->token, &base_hide);
-  pp_expand_list_zero(replacement_out);
   if (status == CTOOL_OK) {
     status = pp_hide_add(context, base_hide, macro, &invocation->token,
                          &base_hide);
@@ -1489,48 +2093,8 @@ static ctool_status_t pp_build_function_replacement(
   if (status != CTOOL_OK) {
     return status;
   }
-  for (index = 0u; index < macro->replacement_count; index++) {
-    ctool_u32 parameter = macro->replacement_parameters[index];
-    const pp_token_t *replacement = &macro->replacement[index];
-    if (parameter != PP_NOT_A_PARAMETER) {
-      pp_expand_node_t *argument = arguments[parameter].expanded.head;
-      ctool_bool first = CTOOL_TRUE;
-      while (argument != (pp_expand_node_t *)0) {
-        pp_token_t token = argument->token;
-        const pp_hide_t *hide;
-        status = pp_hide_union(context, argument->hide, base_hide,
-                               &invocation->token, &hide);
-        if (status != CTOOL_OK) {
-          return status;
-        }
-        if (first == CTOOL_TRUE) {
-          token.leading_space = replacement->leading_space;
-          first = CTOOL_FALSE;
-        }
-        token.pack_alignment = invocation->token.pack_alignment;
-        token.at_line_start = CTOOL_FALSE;
-        token.header_name = CTOOL_FALSE;
-        status = pp_expand_list_append_copy(context, replacement_out, &token,
-                                            hide);
-        if (status != CTOOL_OK) {
-          return status;
-        }
-        argument = argument->next;
-      }
-    } else {
-      pp_token_t token = *replacement;
-      token.location = invocation->token.location;
-      token.pack_alignment = invocation->token.pack_alignment;
-      token.at_line_start = CTOOL_FALSE;
-      token.header_name = CTOOL_FALSE;
-      status = pp_expand_list_append_copy(context, replacement_out, &token,
-                                          base_hide);
-      if (status != CTOOL_OK) {
-        return status;
-      }
-    }
-  }
-  return CTOOL_OK;
+  return pp_build_replacement(context, macro, invocation, arguments,
+                              base_hide, replacement_out);
 }
 
 static ctool_status_t pp_expand_work(pp_context_t *context,
@@ -1540,7 +2104,18 @@ static ctool_status_t pp_expand_work(pp_context_t *context,
     pp_expand_node_t *node = work->head;
     pp_macro_t *macro = (pp_macro_t *)0;
     ctool_status_t status;
+    if (node->kind != PP_EXPAND_TOKEN) {
+      pp_fail(context, CTOOL_ERR_INTERNAL,
+              CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+              node->token.location.line, node->token.location.column,
+              "CupidC private macro operator escaped replacement resolution");
+      return CTOOL_ERR_INTERNAL;
+    }
     if (node->token.kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+      status = pp_reject_reserved_variadic_identifier(context, &node->token);
+      if (status != CTOOL_OK) {
+        return status;
+      }
       if (pp_name_is_predefined(node->token.spelling) == CTOOL_TRUE) {
         pp_fail(context, CTOOL_ERR_UNSUPPORTED,
                 CTOOL_C_PP_DIAG_MACRO_EXPANSION,
@@ -1572,11 +2147,19 @@ static ctool_status_t pp_expand_work(pp_context_t *context,
     }
     if (macro->function_like == CTOOL_FALSE) {
       pp_expand_list_t replacement;
+      ctool_bool invocation_space;
       node = pp_expand_list_pop(work);
+      invocation_space = node->token.leading_space;
       status = pp_build_object_replacement(context, macro, node,
                                            &replacement);
       if (status != CTOOL_OK) {
         return status;
+      }
+      if (work->head != (pp_expand_node_t *)0 &&
+          (replacement.trailing_space == CTOOL_TRUE ||
+           (replacement.head == (pp_expand_node_t *)0 &&
+            invocation_space == CTOOL_TRUE))) {
+        work->head->token.leading_space = CTOOL_TRUE;
       }
       pp_expand_list_prepend(work, &replacement);
     } else {
@@ -1584,6 +2167,7 @@ static ctool_status_t pp_expand_work(pp_context_t *context,
       pp_macro_argument_t *arguments;
       ctool_u32 argument_count;
       ctool_u32 consumed = 0u;
+      ctool_bool invocation_space = node->token.leading_space;
       pp_expand_node_t *cursor;
       pp_expand_list_t replacement;
       status = pp_collect_macro_arguments(context, macro, node, &close,
@@ -1611,6 +2195,12 @@ static ctool_status_t pp_expand_work(pp_context_t *context,
         (void)pp_expand_list_pop(work);
         consumed--;
       }
+      if (work->head != (pp_expand_node_t *)0 &&
+          (replacement.trailing_space == CTOOL_TRUE ||
+           (replacement.head == (pp_expand_node_t *)0 &&
+            invocation_space == CTOOL_TRUE))) {
+        work->head->token.leading_space = CTOOL_TRUE;
+      }
       pp_expand_list_prepend(work, &replacement);
     }
   }
@@ -1625,6 +2215,10 @@ static ctool_status_t pp_emit_expanded_range(pp_context_t *context,
   ctool_status_t status;
   pp_expand_list_zero(&work);
   for (index = 0u; index < token_count; index++) {
+    status = pp_reject_reserved_variadic_identifier(context, &tokens[index]);
+    if (status != CTOOL_OK) {
+      return status;
+    }
     status = pp_expand_list_append_copy(context, &work, &tokens[index],
                                         (const pp_hide_t *)0);
     if (status != CTOOL_OK) {
@@ -1774,6 +2368,7 @@ static ctool_status_t pp_handle_function_define(
   ctool_u32 close = name_index + 2u;
   ctool_u32 index;
   ctool_u32 replacement_count;
+  ctool_bool variadic = CTOOL_FALSE;
   ctool_status_t status;
 
   if (close > end) {
@@ -1792,9 +2387,18 @@ static ctool_status_t pp_handle_function_define(
             "CupidC function macro parameter list is unterminated");
       }
       if (pp_token_equal_literal(&tokens[close], "...") == CTOOL_TRUE) {
-        return pp_function_macro_unsupported(
-            context, &tokens[close], CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-            "CupidC variadic macros are not implemented yet");
+        variadic = CTOOL_TRUE;
+        close++;
+        if (close >= end ||
+            pp_token_equal_literal(&tokens[close], ")") == CTOOL_FALSE) {
+          pp_fail(context, CTOOL_ERR_INPUT,
+                  CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+                  tokens[close - 1u].location.line,
+                  tokens[close - 1u].location.column,
+                  "CupidC variadic ellipsis must end the parameter list");
+          return CTOOL_ERR_INPUT;
+        }
+        break;
       }
       if (tokens[close].kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
           pp_name_is_variadic_identifier(tokens[close].spelling) ==
@@ -1831,7 +2435,7 @@ static ctool_status_t pp_handle_function_define(
       if (pp_token_equal_literal(&tokens[close], "...") == CTOOL_TRUE) {
         return pp_function_macro_unsupported(
             context, &tokens[close], CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-            "CupidC variadic macros are not implemented yet");
+            "CupidC named GNU variadic parameters are not implemented yet");
       }
       if (pp_token_equal_literal(&tokens[close], ",") == CTOOL_FALSE) {
         pp_fail(context, CTOOL_ERR_INPUT,
@@ -1858,7 +2462,7 @@ static ctool_status_t pp_handle_function_define(
     }
   }
   index = name_index + 2u;
-  while (index < close) {
+  while (parameter_index < parameter_count) {
     ctool_u32 previous;
     parameters[parameter_index] = tokens[index].spelling;
     for (previous = 0u; previous < parameter_index; previous++) {
@@ -1873,26 +2477,12 @@ static ctool_status_t pp_handle_function_define(
     }
     parameter_index++;
     index++;
-    if (index < close) {
+    if (parameter_index < parameter_count) {
       index++;
     }
   }
 
   replacement_count = end - close - 1u;
-  for (index = close + 1u; index < end; index++) {
-    if (pp_token_equal_literal(&tokens[index], "##") == CTOOL_TRUE ||
-        pp_token_equal_literal(&tokens[index], "%:%:") == CTOOL_TRUE) {
-      return pp_function_macro_unsupported(
-          context, &tokens[index], CTOOL_C_PP_DIAG_MACRO_PASTE,
-          "CupidC macro token paste is not implemented yet");
-    }
-    if (pp_token_equal_literal(&tokens[index], "#") == CTOOL_TRUE ||
-        pp_token_equal_literal(&tokens[index], "%:") == CTOOL_TRUE) {
-      return pp_function_macro_unsupported(
-          context, &tokens[index], CTOOL_C_PP_DIAG_MACRO_DEFINITION,
-          "CupidC macro stringification is not implemented yet");
-    }
-  }
   status = pp_copy_token_range(context, tokens + close + 1u,
                                replacement_count, &replacement);
   if (status != CTOOL_OK) {
@@ -1904,7 +2494,7 @@ static ctool_status_t pp_handle_function_define(
   }
   return pp_define_macro(
       context, tokens[name_index].spelling, CTOOL_TRUE, parameters,
-      parameter_count, CTOOL_FALSE, replacement, replacement_count,
+      parameter_count, variadic, replacement, replacement_count,
       tokens[name_index].location.line, tokens[name_index].location.column);
 }
 
@@ -2134,6 +2724,11 @@ static ctool_status_t pp_condition_name(pp_context_t *context,
   ctool_bool defined;
   ctool_status_t status = pp_validate_condition_name(
       context, marker, tokens, begin, end);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status =
+      pp_reject_reserved_variadic_identifier(context, &tokens[begin]);
   if (status != CTOOL_OK) {
     return status;
   }

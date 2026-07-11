@@ -44,9 +44,9 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._build_directory.cleanup()
 
-    def run_contract(self, mode):
+    def run_contract(self, mode, *arguments):
         result = subprocess.run(
-            [str(self.contract_path), mode],
+            [str(self.contract_path), mode, *(str(value) for value in arguments)],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
@@ -71,6 +71,21 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
 
     def test_function_macro_substitution_scales_at_the_parameter_limit(self):
         self.run_contract("function-scale")
+
+    def test_variadic_stringify_and_paste_macros_follow_c11_and_gnu_rules(self):
+        self.run_contract("macro-operators")
+
+    def test_gnu_variadic_omission_is_distinct_from_an_empty_argument(self):
+        self.run_contract("macro-gnu")
+
+    def test_stringify_paste_and_variadic_work_are_bounded_at_scale(self):
+        self.run_contract("macro-operator-scale")
+
+    def test_active_x86_variadic_call_manifest_is_accepted_from_any_cwd(self):
+        self.run_contract("macro-active-cases", TOOLCHAIN_ROOT)
+
+    def test_macro_operator_failures_are_useful_and_transactional(self):
+        self.run_contract("macro-operator-errors")
 
     def test_function_macro_failures_are_useful_and_transactional(self):
         self.run_contract("function-errors")

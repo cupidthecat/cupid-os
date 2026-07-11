@@ -217,7 +217,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
       $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
-      $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD)
+      $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD) \
+      tests/x86_active_cases.inc tests/x86_inline_cases.inc
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -228,6 +229,11 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) unsupported
 	$(CUPIDC_PP_CONTRACT) function-macros
 	$(CUPIDC_PP_CONTRACT) function-scale
+	$(CUPIDC_PP_CONTRACT) macro-operators
+	$(CUPIDC_PP_CONTRACT) macro-gnu
+	$(CUPIDC_PP_CONTRACT) macro-operator-scale
+	$(CUPIDC_PP_CONTRACT) macro-active-cases .
+	$(CUPIDC_PP_CONTRACT) macro-operator-errors
 	$(CUPIDC_PP_CONTRACT) function-errors
 	$(CUPIDC_PP_CONTRACT) object-includes
 	$(CUPIDC_PP_CONTRACT) directive-errors
