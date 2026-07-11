@@ -1276,6 +1276,9 @@ The audit derives the hosted flags from GNU Make's evaluated `CPPFLAGS` and `CFL
 - The first complete Toolchain suite then exposed the other manifest consumer: `cupidc_frontend_contract.c` also used the old profile shape. Updating that consumer and propagating the hosted field restored the complete contract matrix.
 - Fail-closed recipe review found that selecting a hosted profile from `CFLAGS` alone would let a rule silently drop `CPPFLAGS`. An exact marker-set check and a red missing-`CPPFLAGS` case close that hole.
 - The first OpenKnowledge CRDT replacement of the generated human audit exposed a terminal-newline mismatch: the CRDT projection preserves one blank line at EOF while `_render_markdown` emitted only one newline. Native Markdown writes were not used as a bypass. The generator now contracts a terminal blank line, a red renderer assertion pins it, and `make check-bootstrap-audit` accepts the CRDT-authored file exactly.
+- Independent review found that the first hosted Make validator inherited the kernel profile's global i386/freestanding flag allowlist and inferred hostedness from a `HOSTED_` name prefix. A named immutable profile record now owns mode, GNU policy, and hosted policy; strict-hosted and i386 modeled flags are disjoint, so `-m32` and `-ffreestanding` are useful hosted errors rather than silently contradicting `__SIZEOF_POINTER__=8` and hosted semantics.
+- Count-only recipe checks initially allowed a bridge include flag to move to another source, duplicate markers to collapse into a set, markers to hide in comments or quotes, the bridge include to precede `CPPFLAGS`, and backtick substitution to inject unknown flags. The corrected gate requires one direct compiler command, exact marker multiplicity across root/user/hosted recipes, unquoted ordered argument profiles, and the exact bridge flag only on `as_elf.c` and its deferred kernel-ELF contract.
+- Path-only deferral initially let a listed external unit move to a freestanding transform or bypass source-origin validation. Each of the 17 deferrals must now be a present tracked source owned by a Toolchain `compile_c_to_host_object` transform under an explicit hosted profile; moved, absent, or generated cases fail before the exact inventory check.
 
 ### Verification record
 
@@ -1283,7 +1286,8 @@ The audit derives the hosted flags from GNU Make's evaluated `CPPFLAGS` and `CFL
 | --- | --- | --- |
 | Focused CupidC preprocessing suite | PASS | All 39 Python tests pass; the active-corpus mode preprocesses all 356 tracked roots through fresh bounded jobs. |
 | Complete hosted Toolchain suite | PASS | `make -C toolchain test` passes the core, preprocessing, type/layout, declaration, ELF32, x86, CupidDis, CupidASM, CupidObj, CupidLD, and all 22 unchanged demo contracts. |
-| Complete build-audit suite | PASS | All 48 tests pass in 265.447 seconds, including exact hosted recipe/profile drift and manifest regeneration checks. |
+| Complete build-audit suite | PASS | All 48 tests pass in 279.117 seconds, including ordered compiler-argument profiles, exact hosted recipe/source drift, tracked deferral provenance, and manifest regeneration checks. |
+| Independent Standards, Spec, and semantic rereviews | PASS | Initial findings for profile flag leakage, path-only deferrals, marker multiplicity/placement, bridge swaps/order, quoting, comments, and shell substitution were fixed; all three final rereviews report no remaining finding. |
 | Generated active-source audit | PASS | The checked graph remains 681 inputs and 490 transforms; the preprocessing contract is 356 tracked plus four generated roots with 17 external and zero hermetic hosted deferrals. |
 | Full repository gate | PASS | `make test` runs 251 tests in 377.914 seconds: 250 pass and only the expected platform case skips. The enclosing Toolchain/audit command completes in 407.8 seconds. |
 
