@@ -1245,6 +1245,13 @@ typedef struct {
   ctool_u32 diagnostic_code;
 } frontend_failure_case_t;
 
+typedef struct {
+  frontend_failure_case_t failure;
+  ctool_u32 line;
+  ctool_u32 column;
+  const char *message;
+} frontend_exact_failure_case_t;
+
 static int append_scale_text(char *text, size_t capacity, size_t *used,
                              const char *suffix);
 
@@ -1422,6 +1429,7 @@ static int validate_anchor(const frontend_fixture_t *fixture) {
   if (binding->kind != CTOOL_C_BINDING_TYPEDEF ||
       binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
       !string_equal(binding->name, "anchor_t") ||
+      binding->function_declaration_flags != 0u ||
       binding->type >= fixture->anchor.graph.type_count) {
     return 1;
   }
@@ -1466,10 +1474,10 @@ static int begin_frontend_fixture(frontend_fixture_t *fixture,
   return 0;
 }
 
-static int expect_frontend_failure_at(
+static int expect_frontend_failure_at_message(
     frontend_fixture_t *fixture, const frontend_failure_case_t *test_case,
     const char *path, ctool_u32 expected_line,
-    ctool_u32 expected_column) {
+    ctool_u32 expected_column, const char *expected_message) {
   ctool_c_pp_result_t tape;
   ctool_c_translation_unit_t unit;
   ctool_c_pp_token_t *snapshot;
@@ -1504,6 +1512,8 @@ static int expect_frontend_failure_at(
                            : diagnostic->line != expected_line) ||
       (expected_column == 0u ? diagnostic->column == 0u
                              : diagnostic->column != expected_column) ||
+      (expected_message != NULL &&
+       !string_equal(diagnostic->message, expected_message)) ||
       arena_marks_equal(mark,
                         ctool_arena_mark(ctool_job_arena(fixture->job))) == 0 ||
       memcmp(snapshot, tape.tokens, token_bytes) != 0 ||
@@ -1521,6 +1531,14 @@ static int expect_frontend_failure_at(
   }
   free(snapshot);
   return failed;
+}
+
+static int expect_frontend_failure_at(
+    frontend_fixture_t *fixture, const frontend_failure_case_t *test_case,
+    const char *path, ctool_u32 expected_line,
+    ctool_u32 expected_column) {
+  return expect_frontend_failure_at_message(
+      fixture, test_case, path, expected_line, expected_column, NULL);
 }
 
 static int expect_frontend_failure(frontend_fixture_t *fixture,
@@ -4418,6 +4436,113 @@ static int validate_compatible_redeclarations_unit(
   return 0;
 }
 
+static int run_function_specifiers(const char *host_root) {
+  static const char source[] =
+      "static inline int local_helper(void);\n"
+      "static int local_helper(void);\n"
+      "inline inline int repeated(int value);\n"
+      "extern int repeated(int renamed);\n"
+      "int later_inline(void);\n"
+      "int inline later_inline(void);\n"
+      "__attribute__((noreturn)) inline void inline_fatal(void);\n"
+      "int ordinary(void);\n";
+  static const frontend_exact_failure_case_t invalid_cases[] = {
+      {{"inline object", "inline int object;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 1u, "inline function specifier requires a function declaration"},
+      {{"inline function-pointer object",
+        "inline int (*function_pointer)(void);\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 1u, "inline function specifier requires a function declaration"},
+      {{"inline typedef", "inline typedef int alias_t;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 1u, "inline function specifier requires a function declaration"},
+      {{"inline empty tag declaration", "inline struct Tag;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 1u, "inline function specifier requires a function declarator"},
+      {{"inline parameter", "int consume(inline int callback(void));\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 13u,
+       "function specifier cannot apply to a parameter declaration"},
+      {{"inline record member", "struct Record { inline int member; };\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 17u, "function specifier cannot apply to a record member"},
+      {{"inline type name",
+        "_Static_assert(sizeof(inline int) == 4, \"inline type name\");\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 23u, "function specifier cannot appear in a type name"},
+      {{"mixed inline declarators", "inline int function(void), object;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 1u, "inline function specifier requires a function declaration"},
+      {{"inline function body boundary",
+        "static inline int body(void) { return 1; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
+       1u, 30u, "function body parsing is outside the declaration frontend"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *local_helper;
+  const ctool_c_binding_t *repeated;
+  const ctool_c_binding_t *later_inline;
+  const ctool_c_binding_t *inline_fatal;
+  const ctool_c_binding_t *ordinary;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "function-specifiers", host_root,
+                             32u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/function-specifiers.c", source,
+                          &unit) != 0) {
+    goto cleanup;
+  }
+  local_helper = find_binding(&unit, "local_helper");
+  repeated = find_binding(&unit, "repeated");
+  later_inline = find_binding(&unit, "later_inline");
+  inline_fatal = find_binding(&unit, "inline_fatal");
+  ordinary = find_binding(&unit, "ordinary");
+  if (local_helper == NULL || repeated == NULL || later_inline == NULL ||
+      inline_fatal == NULL || ordinary == NULL ||
+      local_helper->kind != CTOOL_C_BINDING_FUNCTION ||
+      local_helper->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      local_helper->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      repeated->kind != CTOOL_C_BINDING_FUNCTION ||
+      repeated->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      repeated->function_declaration_flags != CTOOL_C_FUNCTION_DECL_INLINE ||
+      later_inline->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      later_inline->storage != CTOOL_C_STORAGE_NONE ||
+      later_inline->location.line != 5u ||
+      inline_fatal->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      inline_fatal->attributes != CTOOL_C_DECL_ATTR_NORETURN ||
+      ordinary->function_declaration_flags != 0u) {
+    (void)fprintf(stderr,
+                  "function-specifiers: retained declaration metadata "
+                  "differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+  for (index = 0u; index < ARRAY_COUNT(invalid_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &invalid_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/function-specifier-invalid.c", test_case->line,
+            test_case->column, test_case->message) != 0) {
+      failed = 1;
+    }
+  }
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("function-specifiers: ok\n");
+  }
+  return failed;
+}
+
 static int run_semantics(const char *host_root) {
   static const frontend_failure_case_t invalid_cases[] = {
       {"sole flexible-array member", "struct S { int only[]; };\n",
@@ -5430,7 +5555,8 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                  "fat16|redeclarations|attributes|static-asserts|errors|scale|semantics|constants|"
+                  "fat16|redeclarations|attributes|static-asserts|"
+                  "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
                   "<repository-root>\n"
@@ -5449,6 +5575,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);
+  }
+  if (strcmp(argv[1], "function-specifiers") == 0) {
+    return run_function_specifiers(argv[2]);
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors(argv[2]);

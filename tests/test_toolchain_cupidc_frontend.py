@@ -67,6 +67,42 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_static_asserts_use_target_sizeof_and_integer_relations(self):
         self.run_contract("static-asserts")
 
+    def test_inline_function_specifiers_are_retained_semantically(self):
+        self.run_contract("function-specifiers")
+
+    def test_active_inline_inventory_is_drift_gated(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        feature = next(
+            item for item in audit["features"] if item["id"] == "c.storage.inline"
+        )
+        self.assertEqual(feature["occurrences"], 107)
+        self.assertEqual(
+            feature["files"],
+            [
+                "bin/feature24_widetypes.cc",
+                "drivers/timer.c",
+                "drivers/vga.c",
+                "kernel/audio/nuked_opl3.c",
+                "kernel/core/debug.h",
+                "kernel/core/kernel.c",
+                "kernel/core/ports.h",
+                "kernel/cpu/cpu.h",
+                "kernel/cpu/fpu.c",
+                "kernel/cpu/irq.c",
+                "kernel/cpu/pic.c",
+                "kernel/doom/doomgeneric_cupidos.c",
+                "kernel/doom/src/i_scale.c",
+                "kernel/doom/src/i_swap.h",
+                "kernel/gfx/glyph_raster.c",
+                "kernel/mm/memory.c",
+                "kernel/smp/percpu.h",
+                "kernel/usb/ehci.c",
+                "kernel/usb/uhci.c",
+                "user/cupid.h",
+            ],
+        )
+
     def test_active_static_assert_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
@@ -99,22 +135,22 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         )
         failures = {
             "/kernel/smp/mp_tables.h": (
-                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
             ),
             "/kernel/smp/percpu.h": (
-                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
             ),
             "/kernel/smp/smp.h": (
-                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
             ),
             "/kernel/core/debug.h": (
-                "/kernel/core/debug.h", 8, 1, "0x0b000003"
+                "/kernel/core/debug.h", 8, 71, "0x0b000008"
             ),
             "/kernel/core/ports.h": (
-                "/kernel/core/ports.h", 6, 1, "0x0b000003"
+                "/kernel/core/ports.h", 6, 42, "0x0b000008"
             ),
             "/kernel/cpu/cpu.h": (
-                "/kernel/cpu/cpu.h", 21, 1, "0x0b000003"
+                "/kernel/cpu/cpu.h", 21, 36, "0x0b000008"
             ),
         }
         self.assertEqual(len(headers), 152)
@@ -126,7 +162,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 continue
             path, line, column, code = failures[header]
             expected_lines.append(
-                f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
+                f"FAIL\t{header}\tunsupported\t{code}\t{path}\t{line}\t{column}"
             )
         expected_lines.append("header-sweep: ok 146 6")
         result = subprocess.run(

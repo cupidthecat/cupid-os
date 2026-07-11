@@ -100,8 +100,16 @@ typedef struct {
 } cfront_attributes_t;
 
 typedef struct {
+  ctool_u32 attributes;
+  ctool_u32 function_declaration_flags;
+  ctool_u32 minimum_alignment;
+} cfront_binding_semantics_t;
+
+typedef struct {
   ctool_u32 type;
   cfront_storage_t storage;
+  ctool_u32 function_declaration_flags;
+  const ctool_c_pp_token_t *inline_token;
   ctool_u32 pack_alignment;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -608,6 +616,18 @@ static ctool_status_t cfront_emit_failure(
     const ctool_c_pp_token_t *token, const char *message) {
   return cfront_emit_failure_string(context, status, code, token,
                                     ctool_string(message));
+}
+
+static ctool_status_t cfront_validate_function_specifier_context(
+    cfront_context_t *context, const cfront_specifiers_t *specifiers,
+    ctool_bool function_declaration_allowed, const char *message) {
+  if (specifiers->function_declaration_flags == 0u ||
+      function_declaration_allowed == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS,
+      specifiers->inline_token, message);
 }
 
 static ctool_status_t cfront_enter_syntax(
@@ -2162,7 +2182,7 @@ static ctool_bool cfront_find_file_binding_index(
 static ctool_status_t cfront_append_binding(
     cfront_context_t *context, ctool_c_binding_kind_t kind,
     ctool_c_storage_class_t storage, ctool_string_t name, ctool_u32 type,
-    ctool_u32 attributes, ctool_u32 minimum_alignment,
+    cfront_binding_semantics_t semantics,
     const ctool_c_pp_token_t *token,
     const ctool_c_pp_location_t *location,
     const ctool_c_pp_location_t *physical_location, ctool_u64 integer_bits,
@@ -2222,13 +2242,17 @@ static ctool_status_t cfront_append_binding(
         }
         if (status == CTOOL_OK &&
             (composite != existing.type ||
-             (attributes & ~existing.attributes) != 0u ||
-             minimum_alignment > existing.minimum_alignment)) {
+             (semantics.attributes & ~existing.attributes) != 0u ||
+             (semantics.function_declaration_flags &
+              ~existing.function_declaration_flags) != 0u ||
+             semantics.minimum_alignment > existing.minimum_alignment)) {
           ctool_c_binding_t replacement = existing;
           replacement.type = composite;
-          replacement.attributes |= attributes;
-          if (minimum_alignment > replacement.minimum_alignment) {
-            replacement.minimum_alignment = minimum_alignment;
+          replacement.attributes |= semantics.attributes;
+          replacement.function_declaration_flags |=
+              semantics.function_declaration_flags;
+          if (semantics.minimum_alignment > replacement.minimum_alignment) {
+            replacement.minimum_alignment = semantics.minimum_alignment;
           }
           status = cfront_vector_replace(
               context, &context->bindings, existing_index, &replacement);
@@ -2258,8 +2282,9 @@ static ctool_status_t cfront_append_binding(
   binding.kind = kind;
   binding.storage = storage;
   binding.linkage = cfront_binding_linkage(kind, storage);
-  binding.attributes = attributes;
-  binding.minimum_alignment = minimum_alignment;
+  binding.attributes = semantics.attributes;
+  binding.function_declaration_flags = semantics.function_declaration_flags;
+  binding.minimum_alignment = semantics.minimum_alignment;
   binding.type = type;
   if (location != (const ctool_c_pp_location_t *)0 &&
       physical_location != (const ctool_c_pp_location_t *)0) {
@@ -3200,6 +3225,7 @@ static ctool_bool cfront_starts_declaration_specifier(
       cfront_token_is(token, "static") == CTOOL_TRUE ||
       cfront_token_is(token, "auto") == CTOOL_TRUE ||
       cfront_token_is(token, "register") == CTOOL_TRUE ||
+      cfront_token_is(token, "inline") == CTOOL_TRUE ||
       cfront_token_is(token, "const") == CTOOL_TRUE ||
       cfront_token_is(token, "volatile") == CTOOL_TRUE ||
       cfront_token_is(token, "restrict") == CTOOL_TRUE ||
@@ -3559,6 +3585,12 @@ static ctool_status_t cfront_parse_function_suffix_body(
       break;
     }
     status = cfront_parse_specifiers(context, &specifiers);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = cfront_validate_function_specifier_context(
+        context, &specifiers, CTOOL_FALSE,
+        "function specifier cannot apply to a parameter declaration");
     if (status != CTOOL_OK) {
       return status;
     }
@@ -4141,6 +4173,12 @@ static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
   if (status != CTOOL_OK) {
     return status;
   }
+  status = cfront_validate_function_specifier_context(
+      context, &specifiers, CTOOL_FALSE,
+      "function specifier cannot appear in a type name");
+  if (status != CTOOL_OK) {
+    return status;
+  }
   if (specifiers.storage != CFRONT_STORAGE_NONE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME, token,
@@ -4410,6 +4448,12 @@ static ctool_status_t cfront_parse_member_declaration(
   if (status != CTOOL_OK) {
     return status;
   }
+  status = cfront_validate_function_specifier_context(
+      context, &specifiers, CTOOL_FALSE,
+      "function specifier cannot apply to a record member");
+  if (status != CTOOL_OK) {
+    return status;
+  }
   if (specifiers.storage != CFRONT_STORAGE_NONE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
@@ -4576,6 +4620,12 @@ static ctool_status_t cfront_parse_external_declaration(
         "file-scope declaration has an invalid storage class");
   }
   if (cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    status = cfront_validate_function_specifier_context(
+        context, &specifiers, CTOOL_FALSE,
+        "inline function specifier requires a function declarator");
+    if (status != CTOOL_OK) {
+      return status;
+    }
     if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
@@ -4602,10 +4652,11 @@ static ctool_status_t cfront_parse_external_declaration(
     ctool_c_type_node_t type_node;
     ctool_u32 type_base;
     ctool_u32 type_qualifiers;
-    ctool_u32 binding_attributes = 0u;
-    ctool_u32 binding_alignment = 0u;
+    cfront_binding_semantics_t binding_semantics;
     cfront_attributes_t declarator_attributes;
     const ctool_c_pp_token_t *name_token = cfront_peek(context);
+    cfront_zero(&binding_semantics,
+                (ctool_u32)sizeof(binding_semantics));
     declarator_attributes = specifiers.attributes;
     status = cfront_parse_declarator(context, CTOOL_FALSE, &root);
     if (status != CTOOL_OK) {
@@ -4636,7 +4687,8 @@ static ctool_status_t cfront_parse_external_declaration(
           return cfront_storage_failure(context, status);
         }
       } else {
-        binding_alignment = declarator_attributes.alignment;
+        binding_semantics.minimum_alignment =
+            declarator_attributes.alignment;
       }
     }
     if (cfront_peek_is(context, "=") == CTOOL_TRUE) {
@@ -4679,12 +4731,21 @@ static ctool_status_t cfront_parse_external_declaration(
             declarator_attributes.noreturn_token,
             "noreturn attribute requires a function declaration");
       }
-      binding_attributes |= CTOOL_C_DECL_ATTR_NORETURN;
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NORETURN;
     }
+    status = cfront_validate_function_specifier_context(
+        context, &specifiers,
+        kind == CTOOL_C_BINDING_FUNCTION ? CTOOL_TRUE : CTOOL_FALSE,
+        "inline function specifier requires a function declaration");
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    binding_semantics.function_declaration_flags =
+        specifiers.function_declaration_flags;
     status = cfront_append_binding(
         context, kind, cfront_public_storage(specifiers.storage), name, type,
-        binding_attributes, binding_alignment, name_token, &location,
-        &physical_location, 0ull, CTOOL_FALSE);
+        binding_semantics, name_token, &location, &physical_location, 0ull,
+        CTOOL_FALSE);
     if (status != CTOOL_OK) {
       return status;
     }
@@ -4712,7 +4773,9 @@ static ctool_status_t cfront_enum_type(
   ctool_u32 unsigned_long_long;
   ctool_u32 type = CFRONT_NONE;
   ctool_bool has_existing = CTOOL_FALSE;
+  cfront_binding_semantics_t binding_semantics;
   ctool_status_t status;
+  cfront_zero(&binding_semantics, (ctool_u32)sizeof(binding_semantics));
   *anonymous_definition_out = CTOOL_FALSE;
   status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, keyword,
                               &signed_int);
@@ -4865,7 +4928,7 @@ static ctool_status_t cfront_enum_type(
       }
       status = cfront_append_binding(
           context, CTOOL_C_BINDING_ENUMERATOR, CTOOL_C_STORAGE_NONE,
-          enumerator->spelling, enumerator_type, 0u, 0u, enumerator,
+          enumerator->spelling, enumerator_type, binding_semantics, enumerator,
           &enumerator->location, &enumerator->physical_location, value.bits,
           cfront_integer_unsigned(value.kind));
       if (status != CTOOL_OK) {
@@ -5444,6 +5507,15 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
             "declaration repeats or conflicts with a storage class");
       }
       spec_out->storage = storage;
+      saw_any = CTOOL_TRUE;
+      (void)cfront_advance(context);
+      continue;
+    }
+    if (cfront_token_is(token, "inline") == CTOOL_TRUE) {
+      spec_out->function_declaration_flags |= CTOOL_C_FUNCTION_DECL_INLINE;
+      if (spec_out->inline_token == (const ctool_c_pp_token_t *)0) {
+        spec_out->inline_token = token;
+      }
       saw_any = CTOOL_TRUE;
       (void)cfront_advance(context);
       continue;

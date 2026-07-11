@@ -38,6 +38,9 @@ typedef enum {
 #define CTOOL_C_DECL_ATTR_NORETURN 0x00000001u
 #define CTOOL_C_DECL_ATTR_ALL CTOOL_C_DECL_ATTR_NORETURN
 
+#define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
+#define CTOOL_C_FUNCTION_DECL_ALL CTOOL_C_FUNCTION_DECL_INLINE
+
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
@@ -49,6 +52,10 @@ typedef struct {
   /* Semantically retained declaration attributes. Noreturn belongs to the
    * canonical function entity and merges across compatible declarations. */
   ctool_u32 attributes;
+  /* OR-summary of standard function-declaration specifiers seen across
+   * compatible declarations. Definition-local inline/storage spelling must
+   * be retained separately when function definitions are represented. */
+  ctool_u32 function_declaration_flags;
   /* Minimum object/function entity alignment. Zero selects the declared
    * type's alignment; exact typedef/type alignment uses an ALIGNED node. */
   ctool_u32 minimum_alignment;
@@ -126,10 +133,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * relational/equality conversions and `sizeof(type-name)` for complete object
  * types at that declaration point. Assertions publish no entity or member;
  * semantic types constructed by their type names remain in the immutable
- * graph. `sizeof` expression operands and block-scope assertions await the
- * typed expression/body frontend and fail closed. `_Thread_local`, `inline`,
- * `_Noreturn`, `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type
- * specifiers are pending and fail closed rather than being skipped.
+   * graph. `sizeof` expression operands and block-scope assertions await the
+   * typed expression/body frontend and fail closed. C11 `inline` is retained
+   * as a canonical OR-summary across compatible function declarations while
+   * definition-local inline/linkage policy awaits function-definition and
+   * translation-unit finalization state. `_Thread_local`, `_Noreturn`,
+   * `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type specifiers
+   * are pending and fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Function bodies, object initializers,
  * statement/expression ASTs, code generation, object emission, and Cupid
