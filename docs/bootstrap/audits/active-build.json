@@ -8429,6 +8429,80 @@
       "if_occurrences": 97,
       "status": "pass",
       "unique_expressions": 21
+    },
+    "c_preprocessor_pragmas": {
+      "forms": [
+        {
+          "action": "once",
+          "alignment": null,
+          "evidence": [
+            {
+              "line": 1,
+              "path": "bin/ctxt.cc",
+              "text": "#pragma once"
+            }
+          ],
+          "files": [
+            "bin/ctxt.cc"
+          ],
+          "form": "once",
+          "occurrences": 1
+        },
+        {
+          "action": "pack_pop",
+          "alignment": null,
+          "evidence": [
+            {
+              "line": 76,
+              "path": "bin/fat16.h",
+              "text": "#pragma pack(pop)"
+            },
+            {
+              "line": 76,
+              "path": "kernel/fs/fat16.h",
+              "text": "#pragma pack(pop)"
+            }
+          ],
+          "files": [
+            "bin/fat16.h",
+            "kernel/fs/fat16.h"
+          ],
+          "form": "pack(pop)",
+          "occurrences": 2
+        },
+        {
+          "action": "pack_push",
+          "alignment": 1,
+          "evidence": [
+            {
+              "line": 26,
+              "path": "bin/fat16.h",
+              "text": "#pragma pack(push, 1)"
+            },
+            {
+              "line": 26,
+              "path": "kernel/fs/fat16.h",
+              "text": "#pragma pack(push, 1)"
+            }
+          ],
+          "files": [
+            "bin/fat16.h",
+            "kernel/fs/fat16.h"
+          ],
+          "form": "pack(push, 1)",
+          "occurrences": 2
+        }
+      ],
+      "max_pack_depth": 1,
+      "once_occurrences": 1,
+      "pack_balanced": true,
+      "pack_occurrences": 4,
+      "pack_pop_occurrences": 2,
+      "pack_push_occurrences": 2,
+      "pack_underflow_occurrences": 0,
+      "pragma_occurrences": 5,
+      "status": "pass",
+      "unmatched_pack_pushes": 0
     }
   },
   "features": [
@@ -12214,7 +12288,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.break",
-      "occurrences": 1440
+      "occurrences": 1442
     },
     {
       "category": "control",
@@ -12874,7 +12948,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3012
+      "occurrences": 3015
     },
     {
       "category": "control",
@@ -13130,7 +13204,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2502
+      "occurrences": 2511
     },
     {
       "category": "control",
@@ -13550,7 +13624,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 19246
+      "occurrences": 19311
     },
     {
       "category": "control",
@@ -13896,7 +13970,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 11362
+      "occurrences": 11424
     },
     {
       "category": "control",
@@ -14250,7 +14324,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2387
+      "occurrences": 2389
     },
     {
       "category": "declaration",
@@ -14503,7 +14577,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 466
+      "occurrences": 489
     },
     {
       "category": "declarator",
@@ -14553,7 +14627,7 @@
       "category": "expression",
       "examples": [
         {
-          "line": 934,
+          "line": 950,
           "path": "toolchain/cupidc_pp.c",
           "text": "return pp_string_equal(value, (ctool_string_t){literal, size});"
         }
@@ -14743,7 +14817,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 1425
+      "occurrences": 1456
     },
     {
       "category": "extension",
@@ -15944,7 +16018,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2699
+      "occurrences": 2700
     },
     {
       "category": "preprocessor",
@@ -17363,6 +17437,21 @@
       "category": "preprocessor",
       "examples": [
         {
+          "line": 1,
+          "path": "bin/ctxt.cc",
+          "text": "#pragma once"
+        }
+      ],
+      "files": [
+        "bin/ctxt.cc"
+      ],
+      "id": "c.preprocessor.pragma.once",
+      "occurrences": 1
+    },
+    {
+      "category": "preprocessor",
+      "examples": [
+        {
           "line": 26,
           "path": "bin/fat16.h",
           "text": "#pragma pack(push, 1)"
@@ -17836,7 +17925,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 4622
+      "occurrences": 4662
     },
     {
       "category": "qualifier",
@@ -18336,7 +18425,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 3911
+      "occurrences": 3951
     },
     {
       "category": "type",
@@ -18720,7 +18809,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 5658
+      "occurrences": 5684
     },
     {
       "category": "type",
@@ -18862,7 +18951,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 159
+      "occurrences": 160
     },
     {
       "category": "type",
@@ -19413,7 +19502,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18317
+      "occurrences": 18321
     },
     {
       "category": "type",
@@ -19810,7 +19899,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 677
+      "occurrences": 679
     },
     {
       "category": "type",
@@ -20051,7 +20140,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 711
+      "occurrences": 712
     },
     {
       "category": "type",
@@ -20796,7 +20885,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 7853
+      "occurrences": 7894
     },
     {
       "category": "declaration",
@@ -21406,7 +21495,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "d13a42b768d0245dde975208ad9956387b9b2adf1e32f294813dd327b592e80a",
+    "active_source_digest": "1065279b68b9d3729d7152bef447a6fccc4885c4f29991f5bbd8ab9920a41f6d",
     "control_files": [
       {
         "path": "Makefile",
@@ -21418,12 +21507,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "9849d59680375fddfd5ff7646c0955143aba22ef23a0632c66f765109f08093e"
+        "sha256": "4b80b857813374150c5a54015e10161641cc4e72ed835b85477819e26fdb2896"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "8c74bfb5834b20407529c497e9f1dd4b7dd4088cf5a90de731f37d0c12149524"
+      "sha256": "a0466cf9f21704846d780149666b2c747543869736d4e17fdfa028b915e8d149"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -21780,6 +21869,7 @@
           "c.preprocessor.ifndef",
           "c.preprocessor.include",
           "c.preprocessor.pragma",
+          "c.preprocessor.pragma.once",
           "c.preprocessor.pragma.pack",
           "c.preprocessor.stringify",
           "c.preprocessor.token_paste",
@@ -23142,6 +23232,7 @@
         "c.control.return",
         "c.control.while",
         "c.preprocessor.pragma",
+        "c.preprocessor.pragma.once",
         "c.type.char",
         "c.type.int",
         "c.type.unsigned",
@@ -44356,12 +44447,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 4523,
+      "lines": 4823,
       "origin": "tracked",
       "path": "toolchain/cupidc_pp.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "3734f84af0d7894b170e797148f2193107750b0f3bf0a9cb214c63c9c6551c5e"
+      "sha256": "60256bbda00930e02bfcefdd1a248e4d6215bff5fdb77bfeac678c0b807e872d"
     },
     {
       "build_owners": [
@@ -44385,12 +44476,12 @@
         "toolchain/ctool.h"
       ],
       "language": "c_header",
-      "lines": 119,
+      "lines": 129,
       "origin": "tracked",
       "path": "toolchain/cupidc_pp.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "e06aa3d56c667d77f51028086e78bd3b1114bf28e00646720ecc8ef306c84460"
+      "sha256": "057403f61067d5333364b990798b89d79b348e48b70d21695b0151282e8b14c8"
     },
     {
       "build_owners": [
@@ -45023,12 +45114,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 3204,
+      "lines": 3789,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "4032c3439d3325e81771d5d99fe46d54a039d1d71c82aed44d033855999b41a9"
+      "sha256": "3c99cb945fc340d016effb3b2560dfcf111ac3d51390ffa02dbb7041aaf220b0"
     },
     {
       "build_owners": [
@@ -45421,7 +45512,7 @@
   ],
   "summary": {
     "active_sources": 675,
-    "features": 249,
+    "features": 250,
     "transforms": 484,
     "unreachable_sources": 39
   },

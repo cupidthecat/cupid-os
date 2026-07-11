@@ -11,6 +11,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AUDIT_TOOL = REPO_ROOT / "tools" / "build_graph_audit.py"
+ACTIVE_BUILD_MANIFEST = (
+    REPO_ROOT / "docs" / "bootstrap" / "audits" / "active-build.json"
+)
 CONDITIONAL_MANIFEST = (
     REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_conditional_cases.inc"
 )
@@ -680,6 +683,285 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "4 conditional expressions (2 #if, 2 #elif); "
                 "3 normalized expressions; 4 directive/expression pairs",
                 summary.read_text(encoding="utf-8"),
+            )
+
+    def test_inventory_contracts_active_pragma_once_form(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", "#pragma once\nint main_value;\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            contract = audit["contracts"]["c_preprocessor_pragmas"]
+            self.assertEqual(contract["status"], "pass")
+            self.assertEqual(contract["pragma_occurrences"], 1)
+            self.assertEqual(contract["once_occurrences"], 1)
+            self.assertEqual(contract["pack_occurrences"], 0)
+            self.assertEqual(
+                contract["forms"],
+                [
+                    {
+                        "action": "once",
+                        "alignment": None,
+                        "evidence": [
+                            {
+                                "line": 1,
+                                "path": "main.c",
+                                "text": "#pragma once",
+                            }
+                        ],
+                        "files": ["main.c"],
+                        "form": "once",
+                        "occurrences": 1,
+                    }
+                ],
+            )
+            sources = {entry["path"]: entry for entry in audit["sources"]}
+            self.assertIn(
+                "c.preprocessor.pragma.once", sources["main.c"]["features"]
+            )
+
+    def test_inventory_contracts_normalized_pack_actions_and_depth(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "main.c",
+                """
+                #pragma pack(push, 1)
+                struct outer { char value; };
+                %:pragma pack(push, 2)
+                struct inner { char value; };
+                #pragma pack(pop)
+                #pragma pack(\\
+                pop)
+                struct natural { char value; };
+                """,
+            )
+
+            output = root / "audit.json"
+            summary = root / "AUDIT.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_pragmas"]
+            self.assertEqual(contract["pragma_occurrences"], 4)
+            self.assertEqual(contract["once_occurrences"], 0)
+            self.assertEqual(contract["pack_occurrences"], 4)
+            self.assertEqual(contract["pack_push_occurrences"], 2)
+            self.assertEqual(contract["pack_pop_occurrences"], 2)
+            self.assertTrue(contract["pack_balanced"])
+            self.assertEqual(contract["max_pack_depth"], 2)
+            self.assertEqual(contract["pack_underflow_occurrences"], 0)
+            self.assertEqual(contract["unmatched_pack_pushes"], 0)
+            forms = {entry["form"]: entry for entry in contract["forms"]}
+            self.assertEqual(
+                set(forms),
+                {
+                    "pack(pop)",
+                    "pack(push, 1)",
+                    "pack(push, 2)",
+                },
+            )
+            self.assertEqual(
+                (
+                    forms["pack(push, 1)"]["action"],
+                    forms["pack(push, 1)"]["alignment"],
+                ),
+                ("pack_push", 1),
+            )
+            self.assertEqual(
+                (
+                    forms["pack(push, 2)"]["action"],
+                    forms["pack(push, 2)"]["alignment"],
+                ),
+                ("pack_push", 2),
+            )
+            self.assertEqual(
+                (
+                    forms["pack(pop)"]["action"],
+                    forms["pack(pop)"]["alignment"],
+                    forms["pack(pop)"]["occurrences"],
+                ),
+                ("pack_pop", None, 2),
+            )
+            self.assertIn(
+                "4 pragmas (0 once, 2 pack pushes, 2 pack pops); "
+                "pack balanced: yes; max pack depth 2",
+                summary.read_text(encoding="utf-8"),
+            )
+
+    def test_pragma_inventory_fails_closed_on_unclassified_active_forms(self):
+        cases = {
+            "vendor": "#pragma cupid_vendor frobnicate\n",
+            "malformed-pack": "#pragma pack(push, 3)\n",
+            "pragma-operator": '#define APPLY _Pragma("once")\n',
+        }
+        for name, source in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(
+                    root / "Makefile",
+                    """
+                    .SUFFIXES:
+                    CC = host-cc
+                    .PHONY: all
+                    all: main.o
+                    main.o: main.c
+                    \t$(CC) -c $< -o $@
+                    """,
+                )
+                _write(root / "main.c", source)
+
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(root / "audit.json"),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("main.c:1", result.stderr)
+                self.assertIn(
+                    "unclassified active #pragma form", result.stderr
+                )
+
+    def test_checked_pragma_manifest_matches_active_source_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--supplemental-build",
+                    "user:all",
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = json.loads(output.read_text(encoding="utf-8"))
+            checked = json.loads(
+                ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+            )
+            contract = generated["contracts"]["c_preprocessor_pragmas"]
+            self.assertEqual(
+                checked["contracts"]["c_preprocessor_pragmas"], contract
+            )
+            self.assertEqual(contract["pragma_occurrences"], 5)
+            self.assertEqual(contract["once_occurrences"], 1)
+            self.assertEqual(contract["pack_occurrences"], 4)
+            self.assertEqual(contract["pack_push_occurrences"], 2)
+            self.assertEqual(contract["pack_pop_occurrences"], 2)
+            self.assertTrue(contract["pack_balanced"])
+            self.assertEqual(contract["max_pack_depth"], 1)
+            self.assertEqual(contract["pack_underflow_occurrences"], 0)
+            self.assertEqual(contract["unmatched_pack_pushes"], 0)
+
+            forms = {entry["form"]: entry for entry in contract["forms"]}
+            self.assertEqual(
+                set(forms),
+                {
+                    "once",
+                    "pack(pop)",
+                    "pack(push, 1)",
+                },
+            )
+            self.assertEqual(
+                [(item["path"], item["line"]) for item in forms["once"]["evidence"]],
+                [("bin/ctxt.cc", 1)],
+            )
+            self.assertEqual(
+                [
+                    (item["path"], item["line"])
+                    for item in forms["pack(push, 1)"]["evidence"]
+                ],
+                [("bin/fat16.h", 26), ("kernel/fs/fat16.h", 26)],
+            )
+            self.assertEqual(
+                [
+                    (item["path"], item["line"])
+                    for item in forms["pack(pop)"]["evidence"]
+                ],
+                [("bin/fat16.h", 76), ("kernel/fs/fat16.h", 76)],
+            )
+            self.assertTrue(
+                all(
+                    not item["path"].casefold().startswith("templeos/")
+                    for form in contract["forms"]
+                    for item in form["evidence"]
+                )
+            )
+            features = {entry["id"]: entry for entry in generated["features"]}
+            self.assertEqual(
+                features["c.preprocessor.pragma.once"]["occurrences"], 1
             )
 
     def test_conditional_inventory_fails_closed_on_unknown_tokens(self):

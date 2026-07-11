@@ -5,6 +5,7 @@
 #define PP_CONDITIONAL_EXPRESSION_DEPTH_LIMIT 256u
 #define PP_MACRO_EXPANSION_DEPTH_LIMIT 256u
 #define PP_MACRO_PARAMETER_LIMIT 256u
+#define PP_PRAGMA_PACK_DEPTH_LIMIT 256u
 #define PP_NOT_A_PARAMETER 0xffffffffu
 #define PP_OUTPUT_CHUNK_TOKENS 128u
 #define PP_TOKEN_LIMIT 1000000u
@@ -62,6 +63,7 @@ typedef struct pp_macro pp_macro_t;
 typedef struct pp_source_cache pp_source_cache_t;
 typedef struct pp_hide pp_hide_t;
 typedef struct pp_expand_node pp_expand_node_t;
+typedef struct pp_pack_frame pp_pack_frame_t;
 
 typedef enum {
   PP_EXPAND_TOKEN = 1,
@@ -115,7 +117,16 @@ struct pp_source_cache {
   pp_token_t *tokens;
   ctool_u32 token_count;
   ctool_bool tokenized;
+  ctool_bool entered;
+  ctool_bool pragma_once;
   pp_source_cache_t *next;
+};
+
+struct pp_pack_frame {
+  ctool_u32 saved_alignment;
+  ctool_string_t name;
+  ctool_bool named;
+  pp_pack_frame_t *next;
 };
 
 typedef struct pp_output_chunk pp_output_chunk_t;
@@ -146,12 +157,17 @@ typedef struct {
   ctool_string_t failure_path;
   pp_macro_t *macros;
   pp_source_cache_t *sources;
+  pp_source_cache_t *source_entry;
+  pp_pack_frame_t *pack_stack;
+  pp_pack_frame_t *free_pack_frames;
   pp_output_chunk_t *output_head;
   pp_output_chunk_t *output_tail;
   ctool_u32 output_count;
   ctool_u32 include_depth;
   ctool_u32 expansion_depth;
   ctool_u32 expansion_node_count;
+  ctool_u32 pack_depth;
+  ctool_u32 pack_alignment;
   ctool_bool condition_expression;
   ctool_status_t failure_status;
   ctool_u32 failure_code;
@@ -2608,6 +2624,7 @@ static ctool_status_t pp_emit_expanded_range(pp_context_t *context,
     if (status != CTOOL_OK) {
       return status;
     }
+    work.tail->token.pack_alignment = context->pack_alignment;
   }
   return pp_expand_work(context, &work, (pp_expand_list_t *)0);
 }
@@ -2677,6 +2694,8 @@ static ctool_status_t pp_source_cache_add(pp_context_t *context,
   entry->tokens = (pp_token_t *)0;
   entry->token_count = 0u;
   entry->tokenized = CTOOL_FALSE;
+  entry->entered = CTOOL_FALSE;
+  entry->pragma_once = CTOOL_FALSE;
   entry->next = context->sources;
   context->sources = entry;
   *entry_out = entry;
@@ -2928,6 +2947,270 @@ static ctool_status_t pp_handle_undef(pp_context_t *context,
   return pp_undefine_macro(context, tokens[begin].spelling,
                            tokens[begin].location.line,
                            tokens[begin].location.column);
+}
+
+static ctool_status_t pp_pragma_pack_error(pp_context_t *context,
+                                           const pp_token_t *marker,
+                                           ctool_status_t status,
+                                           const char *message) {
+  pp_fail(context, status, CTOOL_C_PP_DIAG_PRAGMA_PACK,
+          marker->location.line, marker->location.column, message);
+  return status;
+}
+
+static ctool_i32 pp_integer_digit_value(char character);
+static ctool_bool pp_integer_is_u_suffix(char character);
+static ctool_bool pp_integer_is_l_suffix(char character);
+
+static ctool_bool pp_pragma_pack_alignment(const pp_token_t *token,
+                                           ctool_u32 *alignment_out) {
+  ctool_string_t text = token->spelling;
+  ctool_u32 index = 0u;
+  ctool_u32 base = 10u;
+  ctool_u32 value = 0u;
+  ctool_bool have_digit = CTOOL_FALSE;
+  ctool_bool saw_u_suffix = CTOOL_FALSE;
+  if (token->kind != CTOOL_C_PP_TOKEN_NUMBER) {
+    return CTOOL_FALSE;
+  }
+  if (text.size == 0u) {
+    return CTOOL_FALSE;
+  }
+  if (text.data[0] == '0') {
+    have_digit = CTOOL_TRUE;
+    index = 1u;
+    base = 8u;
+    if (index < text.size &&
+        (text.data[index] == 'x' || text.data[index] == 'X')) {
+      base = 16u;
+      have_digit = CTOOL_FALSE;
+      index++;
+    }
+  }
+  while (index < text.size) {
+    ctool_i32 digit = pp_integer_digit_value(text.data[index]);
+    if (digit < 0 || (ctool_u32)digit >= base) {
+      break;
+    }
+    have_digit = CTOOL_TRUE;
+    if (value > (16u - (ctool_u32)digit) / base) {
+      return CTOOL_FALSE;
+    }
+    value = value * base + (ctool_u32)digit;
+    index++;
+  }
+  if (have_digit == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (index < text.size &&
+      pp_integer_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+    saw_u_suffix = CTOOL_TRUE;
+    index++;
+  }
+  if (index < text.size &&
+      pp_integer_is_l_suffix(text.data[index]) == CTOOL_TRUE) {
+    char first = text.data[index];
+    index++;
+    if (index < text.size && text.data[index] == first) {
+      index++;
+    }
+  }
+  if (saw_u_suffix == CTOOL_FALSE && index < text.size &&
+      pp_integer_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+    index++;
+  }
+  if (index != text.size ||
+      (value != 0u && value != 1u && value != 2u && value != 4u &&
+       value != 8u && value != 16u)) {
+    return CTOOL_FALSE;
+  }
+  *alignment_out = value;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t pp_pragma_pack_push(pp_context_t *context,
+                                          const pp_token_t *marker,
+                                          ctool_bool named,
+                                          ctool_string_t name,
+                                          ctool_bool changes_alignment,
+                                          ctool_u32 alignment) {
+  pp_pack_frame_t *frame;
+  ctool_status_t status;
+  if (context->pack_depth == PP_PRAGMA_PACK_DEPTH_LIMIT) {
+    return pp_pragma_pack_error(context, marker, CTOOL_ERR_LIMIT,
+                                "CupidC #pragma pack stack limit exceeded");
+  }
+  frame = context->free_pack_frames;
+  if (frame != (pp_pack_frame_t *)0) {
+    context->free_pack_frames = frame->next;
+  } else {
+    status = ctool_arena_alloc_zero(
+        ctool_job_arena(context->job), 1u, (ctool_u32)sizeof(*frame),
+        (ctool_u32)sizeof(void *), (void **)&frame);
+    if (status != CTOOL_OK) {
+      return pp_pragma_pack_error(
+          context, marker, status,
+          "CupidC #pragma pack stack storage limit exceeded");
+    }
+  }
+  frame->saved_alignment = context->pack_alignment;
+  frame->name = name;
+  frame->named = named;
+  frame->next = context->pack_stack;
+  context->pack_stack = frame;
+  context->pack_depth++;
+  if (changes_alignment == CTOOL_TRUE) {
+    context->pack_alignment = alignment;
+  }
+  return CTOOL_OK;
+}
+
+static void pp_pragma_pack_recycle_top(pp_context_t *context) {
+  pp_pack_frame_t *frame = context->pack_stack;
+  context->pack_alignment = frame->saved_alignment;
+  context->pack_stack = frame->next;
+  context->pack_depth--;
+  frame->next = context->free_pack_frames;
+  context->free_pack_frames = frame;
+}
+
+static ctool_status_t pp_pragma_pack_pop(pp_context_t *context,
+                                         const pp_token_t *marker,
+                                         ctool_bool named,
+                                         ctool_string_t name) {
+  pp_pack_frame_t *target = context->pack_stack;
+  if (named == CTOOL_TRUE) {
+    while (target != (pp_pack_frame_t *)0 &&
+           (target->named == CTOOL_FALSE ||
+            pp_string_equal(target->name, name) == CTOOL_FALSE)) {
+      target = target->next;
+    }
+  }
+  if (target == (pp_pack_frame_t *)0) {
+    return pp_pragma_pack_error(
+        context, marker, CTOOL_ERR_INPUT,
+        named == CTOOL_TRUE
+            ? "CupidC #pragma pack pop name has no matching push"
+            : "CupidC #pragma pack pop has no matching push");
+  }
+  for (;;) {
+    ctool_bool reached_target =
+        context->pack_stack == target ? CTOOL_TRUE : CTOOL_FALSE;
+    pp_pragma_pack_recycle_top(context);
+    if (reached_target == CTOOL_TRUE) {
+      break;
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_handle_pragma_pack(
+    pp_context_t *context, const pp_token_t *marker,
+    const pp_token_t *tokens, ctool_u32 begin, ctool_u32 end) {
+  ctool_u32 inner_begin;
+  ctool_u32 inner_end;
+  ctool_u32 inner_count;
+  ctool_u32 alignment = 0u;
+  ctool_string_t no_name = {(const char *)0, 0u};
+  if (end - begin < 2u ||
+      pp_token_equal_literal(&tokens[begin], "(") == CTOOL_FALSE ||
+      pp_token_equal_literal(&tokens[end - 1u], ")") == CTOOL_FALSE) {
+    return pp_pragma_pack_error(
+        context, marker, CTOOL_ERR_INPUT,
+        "CupidC #pragma pack requires a parenthesized action");
+  }
+  inner_begin = begin + 1u;
+  inner_end = end - 1u;
+  inner_count = inner_end - inner_begin;
+  if (inner_count == 0u) {
+    context->pack_alignment = 0u;
+    return CTOOL_OK;
+  }
+  if (inner_count == 1u) {
+    if (pp_pragma_pack_alignment(&tokens[inner_begin], &alignment) ==
+        CTOOL_TRUE) {
+      context->pack_alignment = alignment;
+      return CTOOL_OK;
+    }
+    if (pp_token_equal_literal(&tokens[inner_begin], "push") == CTOOL_TRUE) {
+      return pp_pragma_pack_push(context, marker, CTOOL_FALSE, no_name,
+                                 CTOOL_FALSE, 0u);
+    }
+    if (pp_token_equal_literal(&tokens[inner_begin], "pop") == CTOOL_TRUE) {
+      return pp_pragma_pack_pop(context, marker, CTOOL_FALSE, no_name);
+    }
+    return pp_pragma_pack_error(
+        context, marker, CTOOL_ERR_INPUT,
+        "CupidC #pragma pack action or alignment is invalid");
+  }
+  if (inner_count == 3u &&
+      pp_token_equal_literal(&tokens[inner_begin + 1u], ",") == CTOOL_TRUE) {
+    if (pp_token_equal_literal(&tokens[inner_begin], "push") == CTOOL_TRUE) {
+      if (pp_pragma_pack_alignment(&tokens[inner_begin + 2u], &alignment) ==
+          CTOOL_TRUE) {
+        return pp_pragma_pack_push(context, marker, CTOOL_FALSE, no_name,
+                                   CTOOL_TRUE, alignment);
+      }
+      if (pp_token_is_identifier(&tokens[inner_begin + 2u]) == CTOOL_TRUE) {
+        return pp_pragma_pack_push(
+            context, marker, CTOOL_TRUE, tokens[inner_begin + 2u].spelling,
+            CTOOL_FALSE, 0u);
+      }
+    } else if (pp_token_equal_literal(&tokens[inner_begin], "pop") ==
+                   CTOOL_TRUE &&
+               pp_token_is_identifier(&tokens[inner_begin + 2u]) ==
+                   CTOOL_TRUE) {
+      return pp_pragma_pack_pop(context, marker, CTOOL_TRUE,
+                                tokens[inner_begin + 2u].spelling);
+    }
+    return pp_pragma_pack_error(
+        context, marker, CTOOL_ERR_INPUT,
+        "CupidC #pragma pack push or pop operands are invalid");
+  }
+  if (inner_count == 5u &&
+      pp_token_equal_literal(&tokens[inner_begin], "push") == CTOOL_TRUE &&
+      pp_token_equal_literal(&tokens[inner_begin + 1u], ",") == CTOOL_TRUE &&
+      pp_token_is_identifier(&tokens[inner_begin + 2u]) == CTOOL_TRUE &&
+      pp_token_equal_literal(&tokens[inner_begin + 3u], ",") == CTOOL_TRUE &&
+      pp_pragma_pack_alignment(&tokens[inner_begin + 4u], &alignment) ==
+          CTOOL_TRUE) {
+    return pp_pragma_pack_push(
+        context, marker, CTOOL_TRUE, tokens[inner_begin + 2u].spelling,
+        CTOOL_TRUE, alignment);
+  }
+  return pp_pragma_pack_error(
+      context, marker, CTOOL_ERR_INPUT,
+      "CupidC #pragma pack syntax is invalid");
+}
+
+static ctool_status_t pp_handle_pragma(pp_context_t *context,
+                                       const pp_token_t *marker,
+                                       const pp_token_t *tokens,
+                                       ctool_u32 begin,
+                                       ctool_u32 end) {
+  if (begin < end &&
+      pp_token_equal_literal(&tokens[begin], "once") == CTOOL_TRUE) {
+    if (end - begin != 1u) {
+      return pp_directive_error(context, marker, CTOOL_C_PP_DIAG_DIRECTIVE,
+                                "CupidC #pragma once has trailing tokens");
+    }
+    if (context->source_entry == (pp_source_cache_t *)0) {
+      pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_DIRECTIVE,
+              marker->location.line, marker->location.column,
+              "CupidC #pragma once has no active source");
+      return CTOOL_ERR_INTERNAL;
+    }
+    context->source_entry->pragma_once = CTOOL_TRUE;
+    return CTOOL_OK;
+  }
+  if (begin < end &&
+      pp_token_equal_literal(&tokens[begin], "pack") == CTOOL_TRUE) {
+    return pp_handle_pragma_pack(context, marker, tokens, begin + 1u, end);
+  }
+  pp_fail(context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PP_DIAG_DIRECTIVE,
+          marker->location.line, marker->location.column,
+          "CupidC pragma is not implemented yet");
+  return CTOOL_ERR_UNSUPPORTED;
 }
 
 static ctool_status_t pp_include_spelling(
@@ -3205,7 +3488,7 @@ static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {
   return left < right ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
-static ctool_i32 pp_if_digit_value(char character) {
+static ctool_i32 pp_integer_digit_value(char character) {
   if (character >= '0' && character <= '9') {
     return (ctool_i32)(character - '0');
   }
@@ -3218,12 +3501,12 @@ static ctool_i32 pp_if_digit_value(char character) {
   return -1;
 }
 
-static ctool_bool pp_if_is_u_suffix(char character) {
+static ctool_bool pp_integer_is_u_suffix(char character) {
   return character == 'u' || character == 'U' ? CTOOL_TRUE
                                                : CTOOL_FALSE;
 }
 
-static ctool_bool pp_if_is_l_suffix(char character) {
+static ctool_bool pp_integer_is_l_suffix(char character) {
   return character == 'l' || character == 'L' ? CTOOL_TRUE
                                                : CTOOL_FALSE;
 }
@@ -3263,7 +3546,7 @@ static ctool_status_t pp_if_parse_integer(
     }
   }
   while (index < text.size) {
-    ctool_i32 digit = pp_if_digit_value(text.data[index]);
+    ctool_i32 digit = pp_integer_digit_value(text.data[index]);
     if (digit < 0 || (ctool_u32)digit >= base) {
       break;
     }
@@ -3281,12 +3564,12 @@ static ctool_status_t pp_if_parse_integer(
                              "CupidC conditional integer has no digits");
   }
   if (index < text.size &&
-      pp_if_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+      pp_integer_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
     unsigned_suffix = CTOOL_TRUE;
     index++;
   }
   if (index < text.size &&
-      pp_if_is_l_suffix(text.data[index]) == CTOOL_TRUE) {
+      pp_integer_is_l_suffix(text.data[index]) == CTOOL_TRUE) {
     char first = text.data[index];
     index++;
     if (index < text.size && text.data[index] == first) {
@@ -3294,7 +3577,7 @@ static ctool_status_t pp_if_parse_integer(
     }
   }
   if (unsigned_suffix == CTOOL_FALSE && index < text.size &&
-      pp_if_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+      pp_integer_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
     unsigned_suffix = CTOOL_TRUE;
     index++;
   }
@@ -3390,7 +3673,7 @@ static ctool_status_t pp_if_parse_escape(
     ctool_u32 value = 0u;
     ctool_bool have_digit = CTOOL_FALSE;
     while (*index < end) {
-      ctool_i32 digit = pp_if_digit_value(text.data[*index]);
+      ctool_i32 digit = pp_integer_digit_value(text.data[*index]);
       if (digit < 0) {
         break;
       }
@@ -3420,7 +3703,7 @@ static ctool_status_t pp_if_parse_escape(
                                "CupidC universal character escape is short");
     }
     for (count = 0u; count < required; count++) {
-      ctool_i32 digit = pp_if_digit_value(text.data[*index]);
+      ctool_i32 digit = pp_integer_digit_value(text.data[*index]);
       if (digit < 0) {
         return pp_if_parser_fail(
             parser, token, CTOOL_ERR_INPUT,
@@ -4273,6 +4556,11 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
         if (status != CTOOL_OK) {
           return status;
         }
+      } else if (pp_token_equal_literal(name, "pragma") == CTOOL_TRUE) {
+        status = pp_handle_pragma(context, marker, tokens, arguments, end);
+        if (status != CTOOL_OK) {
+          return status;
+        }
       } else if (pp_token_equal_literal(name, "error") == CTOOL_TRUE) {
         return pp_directive_error(context, marker,
                                   CTOOL_C_PP_DIAG_ERROR_DIRECTIVE,
@@ -4300,6 +4588,7 @@ static ctool_status_t pp_process_source(pp_context_t *context,
                                         const ctool_source_t *source) {
   const ctool_source_t *previous_source = context->source;
   ctool_string_t previous_path = context->path;
+  pp_source_cache_t *previous_entry = context->source_entry;
   pp_source_cache_t *entry = pp_source_cache_find(context, &source->path);
   pp_input_t input;
   ctool_status_t status;
@@ -4309,8 +4598,13 @@ static ctool_status_t pp_process_source(pp_context_t *context,
       return status;
     }
   }
+  if (entry->pragma_once == CTOOL_TRUE && entry->entered == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  entry->entered = CTOOL_TRUE;
   context->source = &entry->source;
   context->path = entry->source.path.text;
+  context->source_entry = entry;
   status = CTOOL_OK;
   if (entry->tokenized == CTOOL_FALSE) {
     input.text = (char *)0;
@@ -4331,6 +4625,7 @@ static ctool_status_t pp_process_source(pp_context_t *context,
   }
   context->source = previous_source;
   context->path = previous_path;
+  context->source_entry = previous_entry;
   return status;
 }
 
@@ -4471,12 +4766,17 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
   context.failure_path = primary->path.text;
   context.macros = (pp_macro_t *)0;
   context.sources = (pp_source_cache_t *)0;
+  context.source_entry = (pp_source_cache_t *)0;
+  context.pack_stack = (pp_pack_frame_t *)0;
+  context.free_pack_frames = (pp_pack_frame_t *)0;
   context.output_head = (pp_output_chunk_t *)0;
   context.output_tail = (pp_output_chunk_t *)0;
   context.output_count = 0u;
   context.include_depth = 0u;
   context.expansion_depth = 0u;
   context.expansion_node_count = 0u;
+  context.pack_depth = 0u;
+  context.pack_alignment = 0u;
   context.condition_expression = CTOOL_FALSE;
   context.failure_status = CTOOL_OK;
   context.failure_code = 0u;

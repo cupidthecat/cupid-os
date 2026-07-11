@@ -63,7 +63,8 @@ typedef struct {
   ctool_string_t spelling;
   ctool_c_pp_location_t location;
   /* Zero selects natural alignment; otherwise this is the effective
-   * #pragma pack member-alignment cap at the token's source position. */
+   * #pragma pack member-alignment cap at the token's emission or macro
+   * invocation position. */
   ctool_u32 pack_alignment;
 } ctool_c_pp_token_t;
 
@@ -112,8 +113,17 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * and all seven C11 language predefined macros are part of the token-tape
  * contract. `__DATE__` and `__TIME__` use only the request's reproducible
  * translation seed and never consult a host clock.
+ *
+ * Active `#pragma once` uses canonical logical-path identity for the current
+ * preprocessing operation. Active `#pragma pack` state is translation-unit
+ * global across forced includes, ordinary includes, and the primary source.
+ * The common `pack()`, `pack(n)`, push, named push, pop, and named pop forms
+ * accept member caps 0, 1, 2, 4, 8, and 16 and annotate emitted tokens with
+ * the effective cap. Unmatched pushes at translation-unit end are accepted;
+ * stack underflow, invalid syntax, and a missing named push are errors.
+ *
  * During the incremental bootstrap, named GNU `args...` macros and
- * unimplemented pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED
+ * unknown pragmas or directives return explicit CTOOL_ERR_UNSUPPORTED
  * diagnostics until their contract slices land. */
 
 #endif

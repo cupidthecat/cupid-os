@@ -78,6 +78,18 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_predefined_ownership_failures_are_transactional(self):
         self.run_contract("predefined-errors")
 
+    def test_once_and_pack_pragmas_update_source_and_tape_state(self):
+        self.run_contract("pragmas")
+
+    def test_once_and_pack_state_cross_include_boundaries(self):
+        self.run_contract("pragma-files")
+
+    def test_pragma_failures_are_precise_and_transactional(self):
+        self.run_contract("pragma-errors")
+
+    def test_pack_stack_depth_and_reuse_are_bounded(self):
+        self.run_contract("pragma-scale")
+
     def test_conditional_expression_failures_are_precise_and_transactional(self):
         self.run_contract("conditional-errors")
 

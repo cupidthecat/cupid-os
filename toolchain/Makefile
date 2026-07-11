@@ -233,6 +233,10 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) predefined
 	$(CUPIDC_PP_CONTRACT) predefined-files
 	$(CUPIDC_PP_CONTRACT) predefined-errors
+	$(CUPIDC_PP_CONTRACT) pragmas
+	$(CUPIDC_PP_CONTRACT) pragma-files
+	$(CUPIDC_PP_CONTRACT) pragma-errors
+	$(CUPIDC_PP_CONTRACT) pragma-scale
 	$(CUPIDC_PP_CONTRACT) conditional-errors
 	$(CUPIDC_PP_CONTRACT) conditional-active
 	$(CUPIDC_PP_CONTRACT) conditional-scale

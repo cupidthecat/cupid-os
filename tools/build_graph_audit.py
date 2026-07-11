@@ -1807,6 +1807,10 @@ def _scan_c_features(
             collector.add(
                 "c.preprocessor.pragma.pack", path, line_number, original_line
             )
+        if re.match(r"\s*(?:#|%:)\s*pragma\s+once\b", code_line):
+            collector.add(
+                "c.preprocessor.pragma.once", path, line_number, original_line
+            )
 
         _add_regex_feature(
             collector,
@@ -2229,6 +2233,138 @@ def _c_preprocessor_conditionals_contract(
     }
 
 
+def _c_preprocessor_pragmas_contract(
+    root: Path,
+    active_sources: set[str],
+    generated_sources: set[str],
+) -> dict[str, object]:
+    by_form: dict[
+        tuple[str, str, int | None], list[dict[str, object]]
+    ] = collections.defaultdict(list)
+    once_occurrences = 0
+    pack_push_occurrences = 0
+    pack_pop_occurrences = 0
+    pack_underflow_occurrences = 0
+    unmatched_pack_pushes = 0
+    max_pack_depth = 0
+    for path in sorted(active_sources - generated_sources):
+        if _language(path) not in {"c", "c_header", "cupid_c"}:
+            continue
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        logical_lines = _c_raw_logical_lines(text)
+        if not logical_lines:
+            continue
+        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        directive_lines = _mask_c_noncode(logical_text).split("\n")
+        payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
+            "\n"
+        )
+        if (
+            len(directive_lines) != len(logical_lines)
+            or len(payload_lines) != len(logical_lines)
+        ):
+            raise AuditError("C masking changed the logical line count")
+        pack_depth = 0
+        for (
+            (line_number, _original_line, raw_line),
+            directive_line,
+            payload_line,
+        ) in zip(
+            logical_lines,
+            directive_lines,
+            payload_lines,
+            strict=True,
+        ):
+            if re.search(r"\b_Pragma\b", directive_line):
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active #pragma form: "
+                    "_Pragma operator"
+                )
+            match = re.match(r"\s*(?:#|%:)\s*pragma\b", directive_line)
+            if match is None:
+                continue
+            payload = payload_line[match.end() :]
+            if not payload.strip():
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active #pragma form: "
+                    "<empty>"
+                )
+            tokens = _normalize_c_preprocessing_tokens(
+                payload, path, line_number
+            )
+            form: str
+            action: str
+            alignment: int | None
+            if tokens == ("once",):
+                form = "once"
+                action = "once"
+                alignment = None
+                once_occurrences += 1
+            elif tokens == ("pack", "(", "pop", ")"):
+                form = "pack(pop)"
+                action = "pack_pop"
+                alignment = None
+                pack_pop_occurrences += 1
+                if pack_depth == 0:
+                    pack_underflow_occurrences += 1
+                else:
+                    pack_depth -= 1
+            elif (
+                len(tokens) == 6
+                and tokens[:4] == ("pack", "(", "push", ",")
+                and tokens[5] == ")"
+                and tokens[4] in {"1", "2", "4", "8", "16"}
+            ):
+                alignment = int(tokens[4])
+                form = f"pack(push, {alignment})"
+                action = "pack_push"
+                pack_push_occurrences += 1
+                pack_depth += 1
+                max_pack_depth = max(max_pack_depth, pack_depth)
+            else:
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active #pragma form: "
+                    f"{' '.join(tokens)}"
+                )
+            by_form[(form, action, alignment)].append(
+                {
+                    "path": path,
+                    "line": line_number,
+                    "text": raw_line.strip()[:160],
+                }
+            )
+        unmatched_pack_pushes += pack_depth
+
+    forms: list[dict[str, object]] = []
+    for (form, action, alignment), evidence in sorted(by_form.items()):
+        forms.append(
+            {
+                "form": form,
+                "action": action,
+                "alignment": alignment,
+                "occurrences": len(evidence),
+                "files": sorted({str(item["path"]) for item in evidence}),
+                "evidence": evidence,
+            }
+        )
+    pack_occurrences = pack_push_occurrences + pack_pop_occurrences
+    return {
+        "status": "pass",
+        "pragma_occurrences": once_occurrences + pack_occurrences,
+        "once_occurrences": once_occurrences,
+        "pack_occurrences": pack_occurrences,
+        "pack_push_occurrences": pack_push_occurrences,
+        "pack_pop_occurrences": pack_pop_occurrences,
+        "pack_balanced": (
+            pack_underflow_occurrences == 0 and unmatched_pack_pushes == 0
+        ),
+        "max_pack_depth": max_pack_depth,
+        "pack_underflow_occurrences": pack_underflow_occurrences,
+        "unmatched_pack_pushes": unmatched_pack_pushes,
+        "forms": forms,
+    }
+
+
 def _scan_build_features(
     transforms: list[dict[str, object]],
     collector: FeatureCollector,
@@ -2385,6 +2521,11 @@ def build_audit(
             all_sources,
             generated_sources,
         )
+    )
+    contracts["c_preprocessor_pragmas"] = _c_preprocessor_pragmas_contract(
+        root,
+        all_sources,
+        generated_sources,
     )
     feature_inventory = feature_collector.inventory()
     roadmap = _roadmap(sources, feature_inventory)
@@ -2685,6 +2826,16 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"{contract['unique_expressions']} normalized expressions; "
                     f"{contract['directive_expression_pairs']} "
                     "directive/expression pairs"
+                )
+            elif "pragma_occurrences" in contract:
+                detail = (
+                    f"{contract['pragma_occurrences']} pragmas "
+                    f"({contract['once_occurrences']} once, "
+                    f"{contract['pack_push_occurrences']} pack pushes, "
+                    f"{contract['pack_pop_occurrences']} pack pops); "
+                    "pack balanced: "
+                    f"{'yes' if contract['pack_balanced'] else 'no'}; "
+                    f"max pack depth {contract['max_pack_depth']}"
                 )
             else:
                 missing = contract.get("missing_link_inputs", [])

@@ -417,14 +417,13 @@ static int run_errors(void) {
 
 static int run_unsupported(void) {
   static const char *const unsupported_text[] = {
-      "#pragma once\n",
-      "#pragma pack(push, 1)\n",
+      "#pragma cupid_vendor_extension\n",
       "#define HEADER \"x.h\"\n#include HEADER\n",
       "#line 77 \"virtual.c\"\n"};
   static const ctool_u32 unsupported_code[] = {
-      CTOOL_C_PP_DIAG_DIRECTIVE, CTOOL_C_PP_DIAG_DIRECTIVE,
-      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_DIRECTIVE};
-  static const ctool_u32 unsupported_line[] = {1u, 1u, 2u, 1u};
+      CTOOL_C_PP_DIAG_DIRECTIVE, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_DIRECTIVE};
+  static const ctool_u32 unsupported_line[] = {1u, 2u, 1u};
   ctool_host_adapter_t adapter;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
@@ -1079,6 +1078,579 @@ static int run_predefined_errors(void) {
   }
   ctool_job_close(job);
   (void)printf("predefined-errors: ok\n");
+  return 0;
+}
+
+static int run_pragmas(void) {
+  static const char source_text[] =
+      "natural\n"
+      "#define OBJECT object\n"
+      "#define FUNCTION(value) value __LINE__\n"
+      "#define STRING(value) #value\n"
+      "#define PASTE(left, right) left ## right\n"
+      "#define VARIADIC(...) __VA_ARGS__\n"
+      "#pragma pack(push, 1)\n"
+      "packed direct OBJECT FUNCTION(argument) STRING(stringified) "
+      "PASTE(paste, d) VARIADIC(variable) __FILE__\n"
+      "#if 0\n"
+      "#pragma cupid_ignored\n"
+      "#pragma pack(pop)\n"
+      "#endif\n"
+      "still_packed\n"
+      "%:pragma pack(push, 4)\n"
+      "four_byte\n"
+      "%:pragma pack(2)\n"
+      "two_byte\n"
+      "%:pragma pack()\n"
+      "reset_inside_push\n"
+      "%:pragma pack(pop)\n"
+      "back_to_one\n"
+      "#pragma pack(push)\n"
+      "unnamed_same\n"
+      "#pragma pack(pop)\n"
+      "#pragma pack(push, outer, 0x8U)\n"
+      "named_eight\n"
+      "#pragma pack(push, inner, 2)\n"
+      "named_two\n"
+      "#pragma pack(pop, outer)\n"
+      "named_back_to_one\n"
+      "#pragma pack(push, same)\n"
+      "named_same\n"
+      "#pragma pack(pop, same)\n"
+      "#pragma pack(push, duplicate, 4U)\n"
+      "duplicate_four\n"
+      "#pragma pack(push, duplicate, 02)\n"
+      "duplicate_two\n"
+      "#pragma pack(pop, duplicate)\n"
+      "duplicate_back_four\n"
+      "#pragma pack(pop, duplicate)\n"
+      "duplicate_back_one\n"
+      "#pragma pack(push, 0)\n"
+      "pushed_natural\n"
+      "#pragma pack(pop)\n"
+      "after_zero_push\n"
+      "#pragma pack(0U)\n"
+      "direct_natural\n"
+      "#pragma pack(0x10ULL)\n"
+      "wide_sixteen\n"
+      "#pragma pack(01)\n"
+      "direct_octal_one\n"
+      "#pragma pack(pop)\n"
+      "natural_again\n";
+  static const char unbalanced_text[] =
+      "#pragma pack(push, dangling, 1)\n"
+      "accepted_dangling_push\n";
+  static const char *const expected_text[] = {
+      "natural", "packed", "direct", "object", "argument", "8",
+      "\"stringified\"", "pasted", "variable", "\"/pragmas.c\"",
+      "still_packed", "four_byte", "two_byte",
+      "reset_inside_push", "back_to_one", "unnamed_same", "named_eight",
+      "named_two", "named_back_to_one", "named_same", "duplicate_four",
+      "duplicate_two", "duplicate_back_four", "duplicate_back_one",
+      "pushed_natural", "after_zero_push", "direct_natural",
+      "wide_sixteen", "direct_octal_one", "natural_again"};
+  static const ctool_u32 expected_pack[] = {
+      0u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 4u, 2u, 0u,
+      1u, 1u, 8u, 2u, 1u, 1u, 4u, 2u, 4u, 1u, 0u, 1u, 0u, 16u,
+      1u, 0u};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+  ctool_u32 mode_index;
+
+  if (open_job("pragmas", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/pragmas.c");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  for (mode_index = 0u; mode_index < 2u; mode_index++) {
+    request.mode = mode_index == 0u ? CTOOL_C_PP_MODE_C11
+                                    : CTOOL_C_PP_MODE_CUPID;
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    if (status != CTOOL_OK ||
+        result.token_count !=
+            (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0])) ||
+        result.token_count !=
+            (ctool_u32)(sizeof(expected_pack) / sizeof(expected_pack[0]))) {
+      (void)fprintf(stderr,
+                    "pragmas: preprocessing failed (%s, %u tokens)\n",
+                    ctool_status_name(status), result.token_count);
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+    for (index = 0u; index < result.token_count; index++) {
+      if (!string_equal(result.tokens[index].spelling,
+                        expected_text[index]) ||
+          !string_equal(result.tokens[index].location.path, "/pragmas.c") ||
+          result.tokens[index].pack_alignment != expected_pack[index]) {
+        (void)fprintf(stderr, "pragmas: mode %u token %u differs\n",
+                      mode_index, index);
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+  }
+  source.path.text = ctool_string("/unbalanced-pragma.c");
+  source.contents = ctool_bytes(
+      unbalanced_text, (ctool_u32)(sizeof(unbalanced_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "accepted_dangling_push") ||
+      result.tokens[0].pack_alignment != 1u) {
+    (void)fprintf(stderr, "pragmas: dangling push policy differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("pragmas: ok\n");
+  return 0;
+}
+
+static int run_pragma_files(void) {
+  static const char forced_text[] =
+      "#pragma once\n"
+      "#pragma pack(push, forced_scope, 4)\n"
+      "forced_once\n";
+  static const char once_text[] =
+      "before_once\n"
+      "#pragma once\n"
+      "after_once\n"
+      "#include \"once.h\"\n";
+  static const char pack_text[] =
+      "#pragma pack(push, header_scope, 1)\n"
+      "header_packed\n";
+  static const char leak_text[] =
+      "#pragma pack(2)\n"
+      "leaked_header\n";
+  static const char twin_text[] =
+      "#pragma once\n"
+      "path_once\n";
+  static const char inactive_once_text[] =
+      "#if 0\n"
+      "#pragma once\n"
+      "#endif\n"
+      "inactive_once_repeat\n";
+  static const char ambient_text[] = "ambient_replay\n";
+  static const char source_text[] =
+      "#pragma pack(pop, forced_scope)\n"
+      "primary_natural\n"
+      "#include \"once.h\"\n"
+      "#include \"./once.h\"\n"
+      "#include \"twin-a.h\"\n"
+      "#include \"twin-b.h\"\n"
+      "#include \"inactive-once.h\"\n"
+      "#include \"inactive-once.h\"\n"
+      "#pragma pack(1)\n"
+      "#include \"ambient.h\"\n"
+      "#pragma pack(2)\n"
+      "#include \"ambient.h\"\n"
+      "#pragma pack()\n"
+      "#include \"pack.h\"\n"
+      "#pragma pack(pop, header_scope)\n"
+      "between_natural\n"
+      "#include \"pack.h\"\n"
+      "#pragma pack(pop, header_scope)\n"
+      "after_natural\n"
+      "#include \"leak.h\"\n"
+      "after_leak\n"
+      "#pragma pack()\n"
+      "#include \"forced-once.h\"\n";
+  static const char self_text[] =
+      "#pragma once\n"
+      "self_once\n"
+      "#include \"./self.c\"\n";
+  static const char *const expected_text[] = {
+      "forced_once", "primary_natural", "before_once", "after_once",
+      "path_once", "path_once", "inactive_once_repeat",
+      "inactive_once_repeat", "ambient_replay", "ambient_replay",
+      "header_packed", "between_natural", "header_packed", "after_natural",
+      "leaked_header", "after_leak"};
+  static const char *const expected_path[] = {
+      "/forced-once.h", "/main.c", "/inc/once.h", "/inc/once.h",
+      "/inc/twin-a.h", "/inc/twin-b.h", "/inc/inactive-once.h",
+      "/inc/inactive-once.h", "/inc/ambient.h", "/inc/ambient.h",
+      "/inc/pack.h", "/main.c", "/inc/pack.h", "/main.c",
+      "/inc/leak.h", "/main.c"};
+  static const ctool_u32 expected_pack[] = {
+      4u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 1u, 2u, 1u, 0u, 1u, 0u,
+      2u, 2u};
+  fixture_file_t files[8];
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_path_t forced;
+  ctool_c_pp_include_root_t roots[2];
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  files[0].path = ctool_string("/forced-once.h");
+  files[0].contents =
+      ctool_bytes(forced_text, (ctool_u32)(sizeof(forced_text) - 1u));
+  files[1].path = ctool_string("/inc/once.h");
+  files[1].contents =
+      ctool_bytes(once_text, (ctool_u32)(sizeof(once_text) - 1u));
+  files[2].path = ctool_string("/inc/pack.h");
+  files[2].contents =
+      ctool_bytes(pack_text, (ctool_u32)(sizeof(pack_text) - 1u));
+  files[3].path = ctool_string("/inc/leak.h");
+  files[3].contents =
+      ctool_bytes(leak_text, (ctool_u32)(sizeof(leak_text) - 1u));
+  files[4].path = ctool_string("/inc/twin-a.h");
+  files[4].contents =
+      ctool_bytes(twin_text, (ctool_u32)(sizeof(twin_text) - 1u));
+  files[5].path = ctool_string("/inc/twin-b.h");
+  files[5].contents =
+      ctool_bytes(twin_text, (ctool_u32)(sizeof(twin_text) - 1u));
+  files[6].path = ctool_string("/inc/inactive-once.h");
+  files[6].contents = ctool_bytes(
+      inactive_once_text, (ctool_u32)(sizeof(inactive_once_text) - 1u));
+  files[7].path = ctool_string("/inc/ambient.h");
+  files[7].contents =
+      ctool_bytes(ambient_text, (ctool_u32)(sizeof(ambient_text) - 1u));
+  store.files = files;
+  store.file_count = 8u;
+  store.read_count = 0u;
+  if (open_fixture_job("pragma-files", &store, &adapter, &job) != 0) {
+    return 1;
+  }
+  roots[0].directory.text = ctool_string("/inc");
+  roots[0].forms = CTOOL_C_PP_INCLUDE_QUOTED;
+  roots[1].directory.text = ctool_string("/");
+  roots[1].forms = CTOOL_C_PP_INCLUDE_QUOTED;
+  forced.text = ctool_string("/forced-once.h");
+  source.path.text = ctool_string("/main.c");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.include_roots = roots;
+  request.include_root_count = 2u;
+  request.forced_includes = &forced;
+  request.forced_include_count = 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 8u ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "pragma-files: preprocessing failed (%s, %u tokens, %u reads)\n",
+                  ctool_status_name(status), result.token_count,
+                  store.read_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path,
+                      expected_path[index]) ||
+        result.tokens[index].pack_alignment != expected_pack[index]) {
+      (void)fprintf(stderr, "pragma-files: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  source.path.text = ctool_string("/self.c");
+  source.contents =
+      ctool_bytes(self_text, (ctool_u32)(sizeof(self_text) - 1u));
+  request.forced_includes = (const ctool_path_t *)0;
+  request.forced_include_count = 0u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 8u ||
+      result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "self_once") ||
+      !string_equal(result.tokens[0].location.path, "/self.c") ||
+      result.tokens[0].pack_alignment != 0u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "pragma-files: primary once recursion differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 8u ||
+      result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "self_once") ||
+      !string_equal(result.tokens[0].location.path, "/self.c") ||
+      result.tokens[0].pack_alignment != 0u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "pragma-files: once state leaked between jobs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("pragma-files: ok\n");
+  return 0;
+}
+
+static int run_pragma_errors(void) {
+  static const char *const error_text[] = {
+      "#pragma once extra\n",
+      "#pragma pack\n",
+      "#pragma pack(3)\n",
+      "#pragma pack(push,)\n",
+      "#pragma pack(pop)\n",
+      "#pragma pack(push, 1, 2)\n",
+      "#pragma cupid_vendor_extension\n",
+      "#pragma pack(pop, missing)\n",
+      "#pragma pack(pop, 1)\n",
+      "#pragma pack(pop, label, 2)\n",
+      "#pragma pack(push, 123, 1)\n",
+      "#pragma pack(1UU)\n",
+      "#pragma pack(0x)\n",
+      "#define CAP 1\n#pragma pack(CAP)\n"};
+  static const ctool_status_t error_status[] = {
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_UNSUPPORTED, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT};
+  static const ctool_u32 error_code[] = {
+      CTOOL_C_PP_DIAG_DIRECTIVE,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_DIRECTIVE,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK,
+      CTOOL_C_PP_DIAG_PRAGMA_PACK};
+  static const ctool_u32 error_line[] = {
+      1u, 1u, 1u, 1u, 1u, 1u, 1u,
+      1u, 1u, 1u, 1u, 1u, 1u, 2u};
+  static const char recovery_text[] =
+      "#pragma pack(push, 2)\n"
+      "recovered\n"
+      "#pragma pack(pop)\n"
+      "natural\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(error_text) / sizeof(error_text[0]));
+  ctool_u32 index;
+
+  if (open_job("pragma-errors", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/pragma-errors.c");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  for (index = 0u; index < case_count; index++) {
+    source.contents =
+        ctool_bytes(error_text[index], (ctool_u32)strlen(error_text[index]));
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, index);
+    if (status != error_status[index] || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != error_code[index] ||
+        !string_equal(diagnostic->path, "/pragma-errors.c") ||
+        diagnostic->line != error_line[index] || diagnostic->column != 1u ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "pragma-errors: case %u differs (%s)\n", index,
+                    ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  source.contents =
+      ctool_bytes(recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "recovered") ||
+      result.tokens[0].pack_alignment != 2u ||
+      !string_equal(result.tokens[1].spelling, "natural") ||
+      result.tokens[1].pack_alignment != 0u ||
+      ctool_job_diagnostic_count(job) != case_count) {
+    (void)fprintf(stderr, "pragma-errors: recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("pragma-errors: ok\n");
+  return 0;
+}
+
+static int run_pragma_scale(void) {
+  enum {
+    PACK_DEPTH_LIMIT = 256,
+    REUSE_COUNT = 2048,
+    REUSE_FORCED_COUNT = 16384,
+    SOURCE_CAPACITY = 128 * 1024
+  };
+  static char source_text[SOURCE_CAPACITY];
+  static char failure_text[SOURCE_CAPACITY];
+  static const char recovery_text[] = "after_failure\n";
+  static const char forced_reuse_text[] =
+      "#pragma pack(push, 1)\n"
+      "#pragma pack(pop)\n";
+  static ctool_path_t forced_reuse[REUSE_FORCED_COUNT];
+  fixture_file_t reuse_file;
+  fixture_store_t reuse_store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_job_config_t config;
+  ctool_limits_t limits;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 source_size = 0u;
+  ctool_u32 failure_size = 0u;
+  ctool_u32 index;
+
+  for (index = 0u; index < PACK_DEPTH_LIMIT; index++) {
+    if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                    "#pragma pack(push, 1)\n") != 0 ||
+        append_text(failure_text, SOURCE_CAPACITY, &failure_size,
+                    "#pragma pack(push, 1)\n") != 0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "at_limit\n") != 0 ||
+      append_text(failure_text, SOURCE_CAPACITY, &failure_size,
+                  "#pragma pack(push, 1)\n") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < PACK_DEPTH_LIMIT; index++) {
+    if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                    "#pragma pack(pop)\n") != 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < REUSE_COUNT; index++) {
+    if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                    "#pragma pack(push, 2)\n#pragma pack(pop)\n") != 0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "after_reuse\n") != 0) {
+    return 1;
+  }
+
+  if (open_job("pragma-scale", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/pragma-scale.c");
+  source.contents = ctool_bytes(source_text, source_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "at_limit") ||
+      result.tokens[0].pack_alignment != 1u ||
+      !string_equal(result.tokens[1].spelling, "after_reuse") ||
+      result.tokens[1].pack_alignment != 0u) {
+    (void)fprintf(stderr, "pragma-scale: bounded success differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/pragma-scale-fail.c");
+  source.contents = ctool_bytes(failure_text, failure_size);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || result.tokens != NULL ||
+      result.token_count != 0u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_PRAGMA_PACK ||
+      !string_equal(diagnostic->path, "/pragma-scale-fail.c") ||
+      diagnostic->line != 257u || diagnostic->column != 1u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr, "pragma-scale: depth failure differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/pragma-scale-recovery.c");
+  source.contents =
+      ctool_bytes(recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "after_failure") ||
+      result.tokens[0].pack_alignment != 0u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "pragma-scale: recovery differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+
+  reuse_file.path = ctool_string("/pack-reuse.h");
+  reuse_file.contents = ctool_bytes(
+      forced_reuse_text, (ctool_u32)(sizeof(forced_reuse_text) - 1u));
+  reuse_store.files = &reuse_file;
+  reuse_store.file_count = 1u;
+  reuse_store.read_count = 0u;
+  for (index = 0u; index < REUSE_FORCED_COUNT; index++) {
+    forced_reuse[index].text = ctool_string("/pack-reuse.h");
+  }
+  limits = ctool_default_limits();
+  limits.arena_block_bytes = 4096u;
+  limits.arena_bytes = 256u * 1024u;
+  config = ctool_host_job_config(&adapter, limits);
+  config.files.context = &reuse_store;
+  config.files.file_size = fixture_file_size;
+  config.files.read_exact = fixture_read_exact;
+  config.files.write_all = fixture_write_all;
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "pragma-scale: reuse job open failed (%s)\n",
+                  ctool_status_name(status));
+    return 1;
+  }
+  source.path.text = ctool_string("/pack-reuse-primary.c");
+  source.contents = ctool_bytes("", 0u);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.forced_includes = forced_reuse;
+  request.forced_include_count = REUSE_FORCED_COUNT;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 0u ||
+      reuse_store.read_count != 1u || ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr,
+                  "pragma-scale: bounded frame reuse differs (%s, %u reads)\n",
+                  ctool_status_name(status), reuse_store.read_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("pragma-scale: ok\n");
   return 0;
 }
 
@@ -3119,6 +3691,7 @@ int main(int argc, char **argv) {
         stderr,
         "usage: cupidc-pp-contract phases|tokens|errors|unsupported|"
         "conditional-expressions|predefined|predefined-files|predefined-errors|"
+        "pragmas|pragma-files|pragma-errors|pragma-scale|"
         "conditional-errors|"
         "conditional-active|conditional-scale|"
         "function-macros|function-scale|macro-operators|macro-gnu|"
@@ -3151,6 +3724,18 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "predefined-errors") == 0) {
     return run_predefined_errors();
+  }
+  if (strcmp(argv[1], "pragmas") == 0) {
+    return run_pragmas();
+  }
+  if (strcmp(argv[1], "pragma-files") == 0) {
+    return run_pragma_files();
+  }
+  if (strcmp(argv[1], "pragma-errors") == 0) {
+    return run_pragma_errors();
+  }
+  if (strcmp(argv[1], "pragma-scale") == 0) {
+    return run_pragma_scale();
   }
   if (strcmp(argv[1], "conditional-errors") == 0) {
     return run_conditional_expression_errors();
