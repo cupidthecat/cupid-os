@@ -48,3 +48,9 @@ A text-only single call was rejected because future symbol, linker, and debug
 consumers would have to scrape presentation output.  Streaming means an output
 adapter failure may occur after an earlier prefix was accepted; inspection
 itself remains transactional and zeros its report on failure.
+
+## Production ownership status
+
+The normal two-pass kernel build now passes the hosted CupidDis executable to the existing numeric-reader subprocess seam. CupidDis therefore owns the one composite symbol-inspection transform; Python still filters and serializes the generated C blob, and the host compiler still compiles that source. GNU/LLVM `nm` remains an optional transition oracle rather than a required build input. The current pass-one kernel yields the same 3,790 consumed text/weak symbols and byte-identical 91,190-byte blob through both readers; the rebuilt image boots and a deliberate panic resolves `kernel_panic` from that blob.
+
+The address order and serialized-symbol-index tie break specified above remain the Cupid contract. Generic `nm -n` implementations may order equal-address non-consumed rows lexically instead. No current consumed kernel symbol shares an address, and a hosted contract pins CupidDis's deterministic index ordering; future aliases therefore deepen the explicit Cupid policy rather than silently inheriting a host utility's tie rule.
