@@ -226,6 +226,9 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) tokens
 	$(CUPIDC_PP_CONTRACT) errors
 	$(CUPIDC_PP_CONTRACT) unsupported
+	$(CUPIDC_PP_CONTRACT) object-includes
+	$(CUPIDC_PP_CONTRACT) directive-errors
+	$(CUPIDC_PP_CONTRACT) limits
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

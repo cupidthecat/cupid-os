@@ -857,14 +857,15 @@ ctool_bool ctool_path_is_canonical(const ctool_path_t *path) {
   ctool_u32 cursor;
   ctool_u32 segment_start = 1u;
   if (path == (const ctool_path_t *)0 || path->text.data == (const char *)0 ||
-      path->text.size == 0u || path->text.data[0] != '/' ||
+      path->text.size == 0u || path->text.size == 0xffffffffu ||
+      path->text.data[0] != '/' ||
       (path->text.size > 1u && path->text.data[path->text.size - 1u] == '/')) {
     return CTOOL_FALSE;
   }
   if (path->text.size == 1u) {
     return CTOOL_TRUE;
   }
-  for (cursor = 1u; cursor <= path->text.size; cursor++) {
+  for (cursor = 1u;; cursor++) {
     ctool_bool boundary =
         cursor == path->text.size || path->text.data[cursor] == '/'
             ? CTOOL_TRUE
@@ -880,6 +881,9 @@ ctool_bool ctool_path_is_canonical(const ctool_path_t *path) {
           (segment_size == 2u && path->text.data[segment_start] == '.' &&
            path->text.data[segment_start + 1u] == '.')) {
         return CTOOL_FALSE;
+      }
+      if (cursor == path->text.size) {
+        break;
       }
       segment_start = cursor + 1u;
     }
@@ -1006,6 +1010,11 @@ void ctool_job_close(ctool_job_t *job) {
 
 ctool_arena_t *ctool_job_arena(ctool_job_t *job) {
   return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;
+}
+
+const ctool_limits_t *ctool_job_limits(const ctool_job_t *job) {
+  return job != (const ctool_job_t *)0 ? &job->config.limits
+                                       : (const ctool_limits_t *)0;
 }
 
 ctool_status_t ctool_job_open_buffer(ctool_job_t *job,

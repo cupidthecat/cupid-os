@@ -66,6 +66,15 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_unimplemented_configuration_fails_explicitly(self):
         self.run_contract("unsupported")
 
+    def test_object_macros_conditionals_and_includes_share_one_state(self):
+        self.run_contract("object-includes")
+
+    def test_directive_failures_are_useful_and_transactional(self):
+        self.run_contract("directive-errors")
+
+    def test_configured_request_limits_roll_back_and_recover(self):
+        self.run_contract("limits")
+
 
 if __name__ == "__main__":
     unittest.main()

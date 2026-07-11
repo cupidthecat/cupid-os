@@ -305,6 +305,14 @@ static int run_paths(void) {
     ctool_job_close(job);
     return 1;
   }
+  candidate.text.data = "/";
+  candidate.text.size = 0xffffffffu;
+  if (ctool_path_is_canonical(&candidate) != CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "canonical path predicate accepted maximal-size view\n");
+    ctool_job_close(job);
+    return 1;
+  }
   ctool_job_close(job);
   (void)puts("paths: ok");
   return 0;
@@ -454,8 +462,18 @@ static int run_limits(void) {
   ctool_status_t status;
   ctool_u32 before;
   void *allocation;
+  const ctool_limits_t *job_limits;
   limits.diagnostic_count = 1u;
   if (!open_host_job(".", limits, &adapter, &config, &job)) {
+    return 1;
+  }
+  job_limits = ctool_job_limits(job);
+  if (job_limits == NULL ||
+      job_limits->diagnostic_count != limits.diagnostic_count ||
+      job_limits->path_bytes != limits.path_bytes ||
+      ctool_job_limits((const ctool_job_t *)0) != NULL) {
+    (void)fprintf(stderr, "job limit view differs\n");
+    ctool_job_close(job);
     return 1;
   }
   status = ctool_arena_alloc(ctool_job_arena(job), 4u, 3u, &allocation);

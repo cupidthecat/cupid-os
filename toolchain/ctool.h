@@ -239,6 +239,7 @@ ctool_status_t ctool_job_open(const ctool_job_config_t *config,
                               ctool_job_t **job_out);
 void ctool_job_close(ctool_job_t *job);
 ctool_arena_t *ctool_job_arena(ctool_job_t *job);
+const ctool_limits_t *ctool_job_limits(const ctool_job_t *job);
 ctool_status_t ctool_job_open_buffer(ctool_job_t *job,
                                      ctool_u32 initial_capacity,
                                      ctool_u32 byte_limit,

@@ -95,16 +95,17 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
                                   ctool_c_pp_result_t *result_out);
 
 /* Request/source views are borrowed only for the call.  Successful tokens,
- * spellings, and canonical logical paths are job-arena owned.  Predefined and
- * command-line macro actions are applied before forced includes, which are
- * processed in order before primary.  Quoted includes try the including-file
+ * spellings, and canonical logical paths are job-arena owned.  Configured
+ * macro actions are applied before forced includes, which are processed in
+ * order before primary.  Quoted includes try the including-file
  * parent before eligible roots; angle includes use eligible roots only.
  *
  * On failure the result is fully zeroed and every operation allocation is
  * rewound, while structured job diagnostics remain valid.
  *
- * During the incremental bootstrap, configured macro actions, forced
- * includes, directives, and predefined-macro uses return explicit
- * CTOOL_ERR_UNSUPPORTED diagnostics until their contract slices land. */
+ * During the incremental bootstrap, function-like macros, general #if/#elif
+ * expressions, predefined-macro uses, and unimplemented pragmas/directives
+ * return explicit CTOOL_ERR_UNSUPPORTED diagnostics until their contract
+ * slices land. */
 
 #endif
