@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AUDIT_TOOL = REPO_ROOT / "tools" / "build_graph_audit.py"
+CONDITIONAL_MANIFEST = (
+    REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_conditional_cases.inc"
+)
+CUPIDC_PP_CONTRACT = REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_contract.c"
+TOOLCHAIN_MAKEFILE = REPO_ROOT / "toolchain" / "Makefile"
 
 
 def _write(path, content):
@@ -23,6 +29,27 @@ def _json_list_recipe(values):
         f'\t@"{python}" -c "import json; '
         f"print(json.dumps({list(values)!r}))\""
     )
+
+
+def _conditional_manifest_records():
+    records = {}
+    pattern = re.compile(
+        r'^CUPIDC_PP_CONDITIONAL_CASE\("([^"]+)", '
+        r"([0-9]+)u, ([0-9]+)u, ([01])\)$"
+    )
+    for line in CONDITIONAL_MANIFEST.read_text(encoding="utf-8").splitlines():
+        match = pattern.fullmatch(line)
+        if match is None:
+            continue
+        expression, if_count, elif_count, expected = match.groups()
+        if expression in records:
+            raise AssertionError(f"duplicate conditional manifest: {expression}")
+        records[expression] = (
+            int(if_count),
+            int(elif_count),
+            int(expected),
+        )
+    return records
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
@@ -570,6 +597,230 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             module._c_logical_lines(controls),
             [(1, controls, controls)],
         )
+
+    def test_inventory_contracts_active_conditional_expression_tokens(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "main.c",
+                r"""
+                /* #if COMMENTED_OUT */
+                static const char ignored[] = "#elif STRING_LITERAL";
+                #if FLAG && \
+                    defined(OTHER)
+                #elif (VALUE + 1) == 2
+                #endif
+                %:if defined /* separator */ THIRD || '\x41' == 'A'
+                %:elif FLAG && defined(OTHER)
+                %:endif
+                """,
+            )
+
+            output = root / "audit.json"
+            summary = root / "AUDIT.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_conditionals"]
+            self.assertEqual(contract["status"], "pass")
+            self.assertEqual(contract["if_occurrences"], 2)
+            self.assertEqual(contract["elif_occurrences"], 2)
+            self.assertEqual(contract["expression_occurrences"], 4)
+            self.assertEqual(contract["unique_expressions"], 3)
+            self.assertEqual(contract["directive_expression_pairs"], 4)
+            expressions = {
+                entry["expression"]: entry for entry in contract["expressions"]
+            }
+            self.assertEqual(
+                set(expressions),
+                {
+                    "FLAG && defined ( OTHER )",
+                    "( VALUE + 1 ) == 2",
+                    "defined THIRD || '\\x41' == 'A'",
+                },
+            )
+            shared = expressions["FLAG && defined ( OTHER )"]
+            self.assertEqual(shared["if_occurrences"], 1)
+            self.assertEqual(shared["elif_occurrences"], 1)
+            self.assertEqual(shared["occurrences"], 2)
+            self.assertEqual(shared["files"], ["main.c"])
+            self.assertEqual(
+                [(item["directive"], item["line"]) for item in shared["evidence"]],
+                [("if", 3), ("elif", 8)],
+            )
+            self.assertIn(
+                "4 conditional expressions (2 #if, 2 #elif); "
+                "3 normalized expressions; 4 directive/expression pairs",
+                summary.read_text(encoding="utf-8"),
+            )
+
+    def test_conditional_inventory_fails_closed_on_unknown_tokens(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                .PHONY: all
+                all: main.o
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", "#if VALUE @ 1\n#endif\n")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(root / "audit.json"),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("main.c:1", result.stderr)
+            self.assertIn("unrecognized preprocessing token", result.stderr)
+
+    def test_checked_conditional_manifest_matches_active_source_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--supplemental-build",
+                    "user:all",
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_conditionals"]
+            self.assertEqual(contract["if_occurrences"], 97)
+            self.assertEqual(contract["elif_occurrences"], 4)
+            self.assertEqual(contract["expression_occurrences"], 101)
+            self.assertEqual(contract["unique_expressions"], 21)
+            self.assertEqual(contract["directive_expression_pairs"], 22)
+            self.assertTrue(
+                all(
+                    not item["path"].casefold().startswith("templeos/")
+                    for expression in contract["expressions"]
+                    for item in expression["evidence"]
+                )
+            )
+
+            manifest = _conditional_manifest_records()
+            inventory = {
+                entry["expression"]: entry for entry in contract["expressions"]
+            }
+            self.assertEqual(set(manifest), set(inventory))
+            for expression, entry in inventory.items():
+                self.assertEqual(len(entry["evidence"]), entry["occurrences"])
+                self.assertEqual(
+                    entry["files"],
+                    sorted({item["path"] for item in entry["evidence"]}),
+                )
+                self.assertEqual(
+                    manifest[expression][:2],
+                    (entry["if_occurrences"], entry["elif_occurrences"]),
+                )
+            self.assertEqual(
+                {expression: values[2] for expression, values in manifest.items()},
+                {
+                    "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
+                    "! defined ( __DJGPP__ )": 1,
+                    "! defined ( __STDC_VERSION__ ) || "
+                    "( __STDC_VERSION__ < 202311L )": 1,
+                    "! defined ( __cplusplus )": 1,
+                    "( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )": 0,
+                    "( __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ )": 1,
+                    "0": 0,
+                    "1": 1,
+                    "OPL_ENABLE_STEREOEXT": 0,
+                    "OPL_ENABLE_STEREOEXT && ! defined OPL_SIN": 0,
+                    "OPL_QUIRK_CHANNELSAMPLEDELAY": 1,
+                    "ORIGCODE": 0,
+                    "_MSC_VER < 1400": 1,
+                    "_WIN64": 0,
+                    "defined ( _MSC_VER ) && ! defined ( __cplusplus )": 0,
+                    "defined ( _WIN32 )": 0,
+                    "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
+                    "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
+                    "defined ( __DJGPP__ )": 0,
+                    "defined ( __MACOSX__ )": 0,
+                    "defined ( __SIZEOF_POINTER__ ) && "
+                    "( __SIZEOF_POINTER__ == 8 )": 0,
+                    "defined ( __cplusplus ) || "
+                    "defined ( __bool_true_false_are_defined )": 1,
+                },
+            )
+
+    def test_checked_conditional_manifest_is_a_c_contract_prerequisite(self):
+        source = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
+        define = source.index(
+            "#define CUPIDC_PP_CONDITIONAL_CASE(expression, if_count, "
+            "elif_count, expected)"
+        )
+        include = source.index(
+            '#include "cupidc_pp_conditional_cases.inc"', define
+        )
+        undefine = source.index(
+            "#undef CUPIDC_PP_CONDITIONAL_CASE", include
+        )
+        self.assertLess(define, include)
+        self.assertLess(include, undefine)
+
+        makefile = TOOLCHAIN_MAKEFILE.read_text(encoding="utf-8")
+        rule = re.search(
+            r"\$\(BUILD_DIR\)/cupidc_pp_contract\.o:(.*?)\n\t",
+            makefile,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(rule)
+        self.assertIn("tests/cupidc_pp_conditional_cases.inc", rule.group(1))
 
     def test_active_assembly_controls_are_not_memory_operands(self):
         with tempfile.TemporaryDirectory() as td:

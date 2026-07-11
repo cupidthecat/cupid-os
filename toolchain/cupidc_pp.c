@@ -2,11 +2,15 @@
 
 #define PP_INCLUDE_DEPTH_LIMIT 64u
 #define PP_CONDITIONAL_DEPTH_LIMIT 64u
+#define PP_CONDITIONAL_EXPRESSION_DEPTH_LIMIT 256u
 #define PP_MACRO_EXPANSION_DEPTH_LIMIT 256u
 #define PP_MACRO_PARAMETER_LIMIT 256u
 #define PP_NOT_A_PARAMETER 0xffffffffu
 #define PP_OUTPUT_CHUNK_TOKENS 128u
 #define PP_TOKEN_LIMIT 1000000u
+#define PP_IF_SIGN_BIT 0x8000000000000000ull
+#define PP_IF_SIGNED_MAX 0x7fffffffffffffffull
+#define PP_IF_U64_MAX 0xffffffffffffffffull
 #define PP_LEXER_DIRECTIVE_NONE 0u
 #define PP_LEXER_DIRECTIVE_MARKER 1u
 #define PP_LEXER_DIRECTIVE_INCLUDE 2u
@@ -88,6 +92,7 @@ struct pp_expand_node {
   pp_expand_kind_t kind;
   pp_token_t token;
   const pp_hide_t *hide;
+  ctool_bool condition_defined;
   pp_expand_node_t *next;
 };
 
@@ -147,6 +152,7 @@ typedef struct {
   ctool_u32 include_depth;
   ctool_u32 expansion_depth;
   ctool_u32 expansion_node_count;
+  ctool_bool condition_expression;
   ctool_status_t failure_status;
   ctool_u32 failure_code;
   ctool_u32 failure_line;
@@ -198,6 +204,90 @@ static ctool_bool pp_string_is_identifier(ctool_string_t value) {
   return CTOOL_TRUE;
 }
 
+static ctool_bool pp_translation_date_is_valid(ctool_string_t value) {
+  static const char months[] =
+      "JanFebMarAprMayJunJulAugSepOctNovDec";
+  static const ctool_u32 month_days[] = {
+      31u, 28u, 31u, 30u, 31u, 30u,
+      31u, 31u, 30u, 31u, 30u, 31u};
+  ctool_u32 month;
+  ctool_u32 day;
+  ctool_u32 year = 0u;
+  ctool_u32 maximum_day;
+  ctool_u32 index;
+  if (value.size == 0u) {
+    return CTOOL_TRUE;
+  }
+  if (value.data == (const char *)0 || value.size != 11u ||
+      value.data[3] != ' ' || value.data[6] != ' ' ||
+      (value.data[4] != ' ' && pp_is_digit(value.data[4]) == CTOOL_FALSE) ||
+      pp_is_digit(value.data[5]) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  for (month = 0u; month < 12u; month++) {
+    if (value.data[0] == months[month * 3u] &&
+        value.data[1] == months[month * 3u + 1u] &&
+        value.data[2] == months[month * 3u + 2u]) {
+      break;
+    }
+  }
+  if (month == 12u) {
+    return CTOOL_FALSE;
+  }
+  day = (value.data[4] == ' ' ? 0u
+                                : (ctool_u32)(value.data[4] - '0') * 10u) +
+        (ctool_u32)(value.data[5] - '0');
+  if (day == 0u ||
+      (day < 10u && value.data[4] != ' ') ||
+      (day >= 10u && value.data[4] == ' ')) {
+    return CTOOL_FALSE;
+  }
+  for (index = 7u; index < 11u; index++) {
+    if (pp_is_digit(value.data[index]) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    year = year * 10u + (ctool_u32)(value.data[index] - '0');
+  }
+  if (year == 0u) {
+    return CTOOL_FALSE;
+  }
+  maximum_day = month_days[month];
+  if (month == 1u &&
+      (year % 400u == 0u ||
+       (year % 4u == 0u && year % 100u != 0u))) {
+    maximum_day = 29u;
+  }
+  return day <= maximum_day ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool pp_translation_time_is_valid(ctool_string_t value) {
+  ctool_u32 hour;
+  ctool_u32 minute;
+  ctool_u32 second;
+  ctool_u32 index;
+  if (value.size == 0u) {
+    return CTOOL_TRUE;
+  }
+  if (value.data == (const char *)0 || value.size != 8u ||
+      value.data[2] != ':' || value.data[5] != ':') {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (index != 2u && index != 5u &&
+        pp_is_digit(value.data[index]) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  hour = (ctool_u32)(value.data[0] - '0') * 10u +
+         (ctool_u32)(value.data[1] - '0');
+  minute = (ctool_u32)(value.data[3] - '0') * 10u +
+           (ctool_u32)(value.data[4] - '0');
+  second = (ctool_u32)(value.data[6] - '0') * 10u +
+           (ctool_u32)(value.data[7] - '0');
+  return hour <= 23u && minute <= 59u && second <= 60u ? CTOOL_TRUE
+                                                       : CTOOL_FALSE;
+}
+
 static ctool_status_t pp_validate_request(
     const ctool_source_t *source, const ctool_c_pp_request_t *request,
     const ctool_c_pp_result_t *result, const ctool_limits_t *limits) {
@@ -216,6 +306,10 @@ static ctool_status_t pp_validate_request(
        request->hosted_environment != CTOOL_TRUE) ||
       (request->gnu_extensions != CTOOL_FALSE &&
        request->gnu_extensions != CTOOL_TRUE) ||
+      pp_translation_date_is_valid(request->translation_date) ==
+          CTOOL_FALSE ||
+      pp_translation_time_is_valid(request->translation_time) ==
+          CTOOL_FALSE ||
       (request->include_root_count != 0u &&
        request->include_roots == (const ctool_c_pp_include_root_t *)0) ||
       (request->forced_include_count != 0u &&
@@ -862,6 +956,8 @@ static ctool_bool pp_token_is_paste_operator(const pp_token_t *token) {
 static ctool_bool pp_name_is_predefined(ctool_string_t name) {
   return pp_string_equal_literal(name, "__FILE__") == CTOOL_TRUE ||
                  pp_string_equal_literal(name, "__LINE__") == CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__DATE__") == CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__TIME__") == CTOOL_TRUE ||
                  pp_string_equal_literal(name, "__STDC__") == CTOOL_TRUE ||
                  pp_string_equal_literal(name, "__STDC_HOSTED__") ==
                      CTOOL_TRUE ||
@@ -905,6 +1001,14 @@ static pp_macro_t *pp_macro_find(pp_context_t *context,
   return macro != (pp_macro_t *)0 && macro->defined == CTOOL_TRUE
              ? macro
              : (pp_macro_t *)0;
+}
+
+static ctool_bool pp_macro_is_defined(pp_context_t *context,
+                                      ctool_string_t name) {
+  return pp_name_is_predefined(name) == CTOOL_TRUE ||
+                 pp_macro_find(context, name) != (pp_macro_t *)0
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static ctool_bool pp_parameter_index(const ctool_string_t *parameters,
@@ -983,6 +1087,12 @@ static ctool_status_t pp_define_macro(
   if (pp_name_is_predefined(name) == CTOOL_TRUE) {
     pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
             line, column, "CupidC predefined macros cannot be redefined");
+    return CTOOL_ERR_INPUT;
+  }
+  if (pp_string_equal_literal(name, "defined") == CTOOL_TRUE) {
+    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            line, column,
+            "CupidC defined operator cannot be used as a macro name");
     return CTOOL_ERR_INPUT;
   }
   if (pp_name_is_variadic_identifier(name) == CTOOL_TRUE) {
@@ -1161,6 +1271,12 @@ static ctool_status_t pp_undefine_macro(pp_context_t *context,
   if (pp_name_is_predefined(name) == CTOOL_TRUE) {
     pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
             line, column, "CupidC predefined macros cannot be undefined");
+    return CTOOL_ERR_INPUT;
+  }
+  if (pp_string_equal_literal(name, "defined") == CTOOL_TRUE) {
+    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
+            line, column,
+            "CupidC defined operator cannot be used as a macro name");
     return CTOOL_ERR_INPUT;
   }
   if (pp_name_is_variadic_identifier(name) == CTOOL_TRUE) {
@@ -1391,6 +1507,7 @@ static ctool_status_t pp_expand_list_copy_range(
     if (status != CTOOL_OK) {
       return status;
     }
+    copy_out->tail->condition_defined = node->condition_defined;
     node = node->next;
   }
   return CTOOL_OK;
@@ -1605,6 +1722,182 @@ static pp_token_t pp_replacement_token(const pp_token_t *source,
   return token;
 }
 
+static ctool_status_t pp_generated_token(
+    pp_context_t *context, const pp_token_t *source,
+    ctool_c_pp_token_kind_t kind, ctool_string_t spelling,
+    pp_token_t *token_out) {
+  ctool_status_t status;
+  *token_out = *source;
+  token_out->kind = kind;
+  status = ctool_arena_copy_string(ctool_job_arena(context->job), spelling,
+                                   &token_out->spelling);
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            source->location.line, source->location.column,
+            "CupidC generated token storage limit exceeded");
+  }
+  return status;
+}
+
+static ctool_u32 pp_decimal_u32(char *output, ctool_u32 value) {
+  char reverse[10];
+  ctool_u32 count = 0u;
+  ctool_u32 index;
+  do {
+    reverse[count] = (char)('0' + (char)(value % 10u));
+    count++;
+    value /= 10u;
+  } while (value != 0u);
+  for (index = 0u; index < count; index++) {
+    output[index] = reverse[count - index - 1u];
+  }
+  return count;
+}
+
+static ctool_status_t pp_predefined_file_token(
+    pp_context_t *context, const pp_token_t *source,
+    pp_token_t *token_out) {
+  ctool_string_t path = source->location.path;
+  ctool_u32 size = 2u;
+  ctool_u32 index;
+  ctool_u32 offset = 0u;
+  char *spelling;
+  ctool_status_t status;
+  for (index = 0u; index < path.size; index++) {
+    ctool_u8 value = (ctool_u8)path.data[index];
+    ctool_u32 width = value == (ctool_u8)'\\' || value == (ctool_u8)'"'
+                          ? 2u
+                          : value < 0x20u || value >= 0x7fu ? 4u : 1u;
+    if (size > 0xffffffffu - width) {
+      pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+              source->location.line, source->location.column,
+              "CupidC __FILE__ spelling is too large");
+      return CTOOL_ERR_OVERFLOW;
+    }
+    size += width;
+  }
+  if (size == 0xffffffffu) {
+    pp_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_C_PP_DIAG_LIMIT,
+            source->location.line, source->location.column,
+            "CupidC __FILE__ spelling is too large");
+    return CTOOL_ERR_OVERFLOW;
+  }
+  status = ctool_arena_alloc_zero(ctool_job_arena(context->job), size + 1u,
+                                  1u, 1u, (void **)&spelling);
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            source->location.line, source->location.column,
+            "CupidC __FILE__ token storage limit exceeded");
+    return status;
+  }
+  spelling[offset++] = '"';
+  for (index = 0u; index < path.size; index++) {
+    ctool_u8 value = (ctool_u8)path.data[index];
+    if (value == (ctool_u8)'\\' || value == (ctool_u8)'"') {
+      spelling[offset++] = '\\';
+      spelling[offset++] = (char)value;
+    } else if (value < 0x20u || value >= 0x7fu) {
+      spelling[offset++] = '\\';
+      spelling[offset++] = (char)('0' + (char)((value >> 6u) & 7u));
+      spelling[offset++] = (char)('0' + (char)((value >> 3u) & 7u));
+      spelling[offset++] = (char)('0' + (char)(value & 7u));
+    } else {
+      spelling[offset++] = (char)value;
+    }
+  }
+  spelling[offset++] = '"';
+  *token_out = *source;
+  token_out->kind = CTOOL_C_PP_TOKEN_STRING;
+  token_out->spelling.data = spelling;
+  token_out->spelling.size = size;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_predefined_quoted_token(
+    pp_context_t *context, const pp_token_t *source,
+    ctool_string_t value, pp_token_t *token_out) {
+  char *spelling;
+  ctool_u32 index;
+  ctool_status_t status = ctool_arena_alloc_zero(
+      ctool_job_arena(context->job), value.size + 3u, 1u, 1u,
+      (void **)&spelling);
+  if (status != CTOOL_OK) {
+    pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+            source->location.line, source->location.column,
+            "CupidC predefined string token storage limit exceeded");
+    return status;
+  }
+  spelling[0] = '"';
+  for (index = 0u; index < value.size; index++) {
+    spelling[index + 1u] = value.data[index];
+  }
+  spelling[value.size + 1u] = '"';
+  *token_out = *source;
+  token_out->kind = CTOOL_C_PP_TOKEN_STRING;
+  token_out->spelling.data = spelling;
+  token_out->spelling.size = value.size + 2u;
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_build_predefined_replacement(
+    pp_context_t *context, const pp_token_t *source,
+    pp_expand_list_t *replacement_out) {
+  static const char one[] = "1";
+  static const char zero[] = "0";
+  static const char c11[] = "201112L";
+  static const char default_date[] = "Jan  1 1970";
+  static const char default_time[] = "00:00:00";
+  char line[10];
+  ctool_string_t spelling;
+  pp_token_t token;
+  ctool_status_t status;
+  pp_expand_list_zero(replacement_out);
+  if (pp_token_equal_literal(source, "__FILE__") == CTOOL_TRUE) {
+    status = pp_predefined_file_token(context, source, &token);
+  } else if (pp_token_equal_literal(source, "__LINE__") == CTOOL_TRUE) {
+    spelling.data = line;
+    spelling.size = pp_decimal_u32(line, source->location.line);
+    status = pp_generated_token(context, source, CTOOL_C_PP_TOKEN_NUMBER,
+                                spelling, &token);
+  } else if (pp_token_equal_literal(source, "__DATE__") == CTOOL_TRUE ||
+             pp_token_equal_literal(source, "__TIME__") == CTOOL_TRUE) {
+    ctool_string_t value =
+        pp_token_equal_literal(source, "__DATE__") == CTOOL_TRUE
+            ? context->request->translation_date
+            : context->request->translation_time;
+    if (value.size == 0u) {
+      if (pp_token_equal_literal(source, "__DATE__") == CTOOL_TRUE) {
+        value.data = default_date;
+        value.size = (ctool_u32)(sizeof(default_date) - 1u);
+      } else {
+        value.data = default_time;
+        value.size = (ctool_u32)(sizeof(default_time) - 1u);
+      }
+    }
+    status = pp_predefined_quoted_token(context, source, value, &token);
+  } else {
+    if (pp_token_equal_literal(source, "__STDC_HOSTED__") == CTOOL_TRUE &&
+        context->request->hosted_environment == CTOOL_FALSE) {
+      spelling.data = zero;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__STDC_VERSION__") ==
+               CTOOL_TRUE) {
+      spelling.data = c11;
+      spelling.size = 7u;
+    } else {
+      spelling.data = one;
+      spelling.size = 1u;
+    }
+    status = pp_generated_token(context, source, CTOOL_C_PP_TOKEN_NUMBER,
+                                spelling, &token);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return pp_expand_list_append_copy(context, replacement_out, &token,
+                                    (const pp_hide_t *)0);
+}
+
 static ctool_status_t pp_append_argument_replacement(
     pp_context_t *context, const pp_macro_argument_t *argument,
     ctool_bool expanded, ctool_bool placemarker_if_empty,
@@ -1650,6 +1943,7 @@ static ctool_status_t pp_append_argument_replacement(
     if (status != CTOOL_OK) {
       return status;
     }
+    replacement_out->tail->condition_defined = CTOOL_FALSE;
     node = node->next;
   }
   return CTOOL_OK;
@@ -1762,6 +2056,7 @@ static ctool_status_t pp_paste_tokens(
   ctool_status_t status;
   if (left->kind == PP_EXPAND_PLACEMARKER &&
       right->kind == PP_EXPAND_PLACEMARKER) {
+    left->condition_defined = CTOOL_FALSE;
     return CTOOL_OK;
   }
   if (left->kind == PP_EXPAND_PLACEMARKER) {
@@ -1770,9 +2065,11 @@ static ctool_status_t pp_paste_tokens(
     left->token = right->token;
     left->token.leading_space = leading_space;
     left->hide = right->hide;
+    left->condition_defined = CTOOL_FALSE;
     return CTOOL_OK;
   }
   if (right->kind == PP_EXPAND_PLACEMARKER) {
+    left->condition_defined = CTOOL_FALSE;
     return CTOOL_OK;
   }
   if (left->kind != PP_EXPAND_TOKEN || right->kind != PP_EXPAND_TOKEN) {
@@ -1848,6 +2145,7 @@ static ctool_status_t pp_paste_tokens(
   tokens[0].header_name = CTOOL_FALSE;
   left->token = tokens[0];
   left->hide = hide;
+  left->condition_defined = CTOOL_FALSE;
   return CTOOL_OK;
 }
 
@@ -2097,6 +2395,79 @@ static ctool_status_t pp_build_function_replacement(
                               base_hide, replacement_out);
 }
 
+static ctool_status_t pp_expand_condition_defined(
+    pp_context_t *context, pp_expand_list_t *work) {
+  static const char zero[] = "0";
+  static const char one[] = "1";
+  pp_expand_node_t *operator_node = work->head;
+  pp_expand_node_t *operand;
+  ctool_bool parenthesized = CTOOL_FALSE;
+  ctool_string_t spelling;
+  pp_token_t number;
+  pp_expand_list_t replacement;
+  ctool_status_t status;
+  if (operator_node->condition_defined == CTOOL_FALSE) {
+    pp_fail(context, CTOOL_ERR_INPUT,
+            CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+            operator_node->token.location.line,
+            operator_node->token.location.column,
+            "CupidC macro expansion produced a defined operator");
+    return CTOOL_ERR_INPUT;
+  }
+  (void)pp_expand_list_pop(work);
+  if (work->head != (pp_expand_node_t *)0 &&
+      pp_token_equal_literal(&work->head->token, "(") == CTOOL_TRUE) {
+    parenthesized = CTOOL_TRUE;
+    (void)pp_expand_list_pop(work);
+  }
+  operand = work->head;
+  if (operand == (pp_expand_node_t *)0 ||
+      operand->token.kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    pp_fail(context, CTOOL_ERR_INPUT,
+            CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+            operator_node->token.location.line,
+            operator_node->token.location.column,
+            "CupidC defined requires one macro identifier");
+    return CTOOL_ERR_INPUT;
+  }
+  status = pp_reject_reserved_variadic_identifier(context, &operand->token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  (void)pp_expand_list_pop(work);
+  if (parenthesized == CTOOL_TRUE) {
+    if (work->head == (pp_expand_node_t *)0 ||
+        pp_token_equal_literal(&work->head->token, ")") == CTOOL_FALSE) {
+      pp_fail(context, CTOOL_ERR_INPUT,
+              CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+              operator_node->token.location.line,
+              operator_node->token.location.column,
+              "CupidC parenthesized defined operand is malformed");
+      return CTOOL_ERR_INPUT;
+    }
+    (void)pp_expand_list_pop(work);
+  }
+  spelling.data = pp_macro_is_defined(context, operand->token.spelling) ==
+                          CTOOL_TRUE
+                      ? one
+                      : zero;
+  spelling.size = 1u;
+  status = pp_generated_token(context, &operator_node->token,
+                              CTOOL_C_PP_TOKEN_NUMBER, spelling, &number);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  pp_expand_list_zero(&replacement);
+  status = pp_expand_list_append_copy(
+      context, &replacement, &number, operator_node->hide);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  replacement.head->condition_defined = CTOOL_FALSE;
+  pp_expand_list_prepend(work, &replacement);
+  return CTOOL_OK;
+}
+
 static ctool_status_t pp_expand_work(pp_context_t *context,
                                      pp_expand_list_t *work,
                                      pp_expand_list_t *private_output) {
@@ -2112,16 +2483,29 @@ static ctool_status_t pp_expand_work(pp_context_t *context,
       return CTOOL_ERR_INTERNAL;
     }
     if (node->token.kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+      if (context->condition_expression == CTOOL_TRUE &&
+          context->expansion_depth == 0u &&
+          pp_token_equal_literal(&node->token, "defined") == CTOOL_TRUE) {
+        status = pp_expand_condition_defined(context, work);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        continue;
+      }
       status = pp_reject_reserved_variadic_identifier(context, &node->token);
       if (status != CTOOL_OK) {
         return status;
       }
       if (pp_name_is_predefined(node->token.spelling) == CTOOL_TRUE) {
-        pp_fail(context, CTOOL_ERR_UNSUPPORTED,
-                CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-                node->token.location.line, node->token.location.column,
-                "CupidC predefined macro expansion is not implemented yet");
-        return CTOOL_ERR_UNSUPPORTED;
+        pp_expand_list_t replacement;
+        node = pp_expand_list_pop(work);
+        status = pp_build_predefined_replacement(
+            context, &node->token, &replacement);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        pp_expand_list_prepend(work, &replacement);
+        continue;
       }
       macro = pp_macro_find(context, node->token.spelling);
       if (macro != (pp_macro_t *)0 &&
@@ -2732,17 +3116,7 @@ static ctool_status_t pp_condition_name(pp_context_t *context,
   if (status != CTOOL_OK) {
     return status;
   }
-  if (pp_name_is_predefined(tokens[begin].spelling) == CTOOL_TRUE) {
-    pp_fail(context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-            tokens[begin].location.line, tokens[begin].location.column,
-            "CupidC predefined macro expansion is not implemented yet");
-    return CTOOL_ERR_UNSUPPORTED;
-  }
-  defined = pp_macro_find(context, tokens[begin].spelling) !=
-                    (pp_macro_t *)0
-                ? CTOOL_TRUE
-                : CTOOL_FALSE;
+  defined = pp_macro_is_defined(context, tokens[begin].spelling);
   *value_out = negate == CTOOL_TRUE
                    ? (defined == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE)
                    : defined;
@@ -2761,26 +3135,969 @@ static ctool_status_t pp_validate_condition_name(
   return CTOOL_OK;
 }
 
-static ctool_status_t pp_simple_if_expression(
+typedef struct {
+  ctool_u64 bits;
+  ctool_bool is_unsigned;
+} pp_if_value_t;
+
+typedef struct {
+  pp_context_t *context;
+  const pp_token_t *marker;
+  pp_expand_node_t *cursor;
+  ctool_u32 depth;
+} pp_if_parser_t;
+
+static ctool_status_t pp_if_expression_fail(
+    pp_context_t *context, const pp_token_t *marker,
+    const pp_token_t *token, ctool_status_t status,
+    const char *message) {
+  const pp_token_t *location =
+      token != (const pp_token_t *)0 ? token : marker;
+  pp_fail(context, status, CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+          location->location.line, location->location.column, message);
+  return status;
+}
+
+static ctool_status_t pp_if_parser_fail(
+    pp_if_parser_t *parser, const pp_token_t *token,
+    ctool_status_t status, const char *message) {
+  return pp_if_expression_fail(parser->context, parser->marker, token,
+                               status, message);
+}
+
+static ctool_bool pp_if_value_truth(pp_if_value_t value) {
+  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static pp_if_value_t pp_if_signed_value(ctool_u64 bits) {
+  pp_if_value_t value;
+  value.bits = bits;
+  value.is_unsigned = CTOOL_FALSE;
+  return value;
+}
+
+static pp_if_value_t pp_if_unsigned_value(ctool_u64 bits) {
+  pp_if_value_t value;
+  value.bits = bits;
+  value.is_unsigned = CTOOL_TRUE;
+  return value;
+}
+
+static ctool_bool pp_if_is_negative(pp_if_value_t value) {
+  return value.is_unsigned == CTOOL_FALSE &&
+                 (value.bits & PP_IF_SIGN_BIT) != 0ull
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_u64 pp_if_signed_magnitude(ctool_u64 bits) {
+  return (bits & PP_IF_SIGN_BIT) != 0ull ? (~bits) + 1ull : bits;
+}
+
+static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {
+  ctool_bool left_negative =
+      (left & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_bool right_negative =
+      (right & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+  if (left_negative != right_negative) {
+    return left_negative;
+  }
+  return left < right ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_i32 pp_if_digit_value(char character) {
+  if (character >= '0' && character <= '9') {
+    return (ctool_i32)(character - '0');
+  }
+  if (character >= 'a' && character <= 'f') {
+    return (ctool_i32)(character - 'a') + 10;
+  }
+  if (character >= 'A' && character <= 'F') {
+    return (ctool_i32)(character - 'A') + 10;
+  }
+  return -1;
+}
+
+static ctool_bool pp_if_is_u_suffix(char character) {
+  return character == 'u' || character == 'U' ? CTOOL_TRUE
+                                               : CTOOL_FALSE;
+}
+
+static ctool_bool pp_if_is_l_suffix(char character) {
+  return character == 'l' || character == 'L' ? CTOOL_TRUE
+                                               : CTOOL_FALSE;
+}
+
+static ctool_status_t pp_if_parse_integer(
+    pp_if_parser_t *parser, const pp_token_t *token,
+    pp_if_value_t *value_out) {
+  ctool_string_t text = token->spelling;
+  ctool_u32 index = 0u;
+  ctool_u32 base = 10u;
+  ctool_bool have_digit = CTOOL_FALSE;
+  ctool_bool unsigned_suffix = CTOOL_FALSE;
+  ctool_u64 value = 0ull;
+  if (text.size == 0u) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC conditional integer is empty");
+  }
+  if (text.data[0] == '0') {
+    have_digit = CTOOL_TRUE;
+    index = 1u;
+    base = 8u;
+    if (index < text.size &&
+        (text.data[index] == 'x' || text.data[index] == 'X')) {
+      base = 16u;
+      have_digit = CTOOL_FALSE;
+      index++;
+    } else if (index < text.size &&
+               (text.data[index] == 'b' || text.data[index] == 'B')) {
+      if (parser->context->request->gnu_extensions == CTOOL_FALSE) {
+        return pp_if_parser_fail(
+            parser, token, CTOOL_ERR_INPUT,
+            "CupidC binary conditional constants require GNU mode");
+      }
+      base = 2u;
+      have_digit = CTOOL_FALSE;
+      index++;
+    }
+  }
+  while (index < text.size) {
+    ctool_i32 digit = pp_if_digit_value(text.data[index]);
+    if (digit < 0 || (ctool_u32)digit >= base) {
+      break;
+    }
+    have_digit = CTOOL_TRUE;
+    if (value > (PP_IF_U64_MAX - (ctool_u64)(ctool_u32)digit) /
+                    (ctool_u64)base) {
+      return pp_if_parser_fail(parser, token, CTOOL_ERR_OVERFLOW,
+                               "CupidC conditional integer overflows uintmax");
+    }
+    value = value * (ctool_u64)base + (ctool_u64)(ctool_u32)digit;
+    index++;
+  }
+  if (have_digit == CTOOL_FALSE) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC conditional integer has no digits");
+  }
+  if (index < text.size &&
+      pp_if_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+    unsigned_suffix = CTOOL_TRUE;
+    index++;
+  }
+  if (index < text.size &&
+      pp_if_is_l_suffix(text.data[index]) == CTOOL_TRUE) {
+    char first = text.data[index];
+    index++;
+    if (index < text.size && text.data[index] == first) {
+      index++;
+    }
+  }
+  if (unsigned_suffix == CTOOL_FALSE && index < text.size &&
+      pp_if_is_u_suffix(text.data[index]) == CTOOL_TRUE) {
+    unsigned_suffix = CTOOL_TRUE;
+    index++;
+  }
+  if (index != text.size) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC conditional integer suffix is invalid");
+  }
+  if (unsigned_suffix == CTOOL_TRUE ||
+      (base != 10u && value > PP_IF_SIGNED_MAX)) {
+    *value_out = pp_if_unsigned_value(value);
+    return CTOOL_OK;
+  }
+  if (value > PP_IF_SIGNED_MAX) {
+    if (parser->context->request->gnu_extensions == CTOOL_TRUE) {
+      *value_out = pp_if_unsigned_value(value);
+      return CTOOL_OK;
+    }
+    return pp_if_parser_fail(
+        parser, token, CTOOL_ERR_OVERFLOW,
+        "CupidC decimal conditional integer overflows intmax");
+  }
+  *value_out = pp_if_signed_value(value);
+  return CTOOL_OK;
+}
+
+static ctool_status_t pp_if_parse_escape(
+    pp_if_parser_t *parser, const pp_token_t *token,
+    ctool_u32 end, ctool_u32 *index, ctool_u32 *code_out) {
+  ctool_string_t text = token->spelling;
+  char character;
+  if (*index >= end) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC character escape is incomplete");
+  }
+  character = text.data[*index];
+  (*index)++;
+  if (character != '\\') {
+    *code_out = (ctool_u32)(ctool_u8)character;
+    return CTOOL_OK;
+  }
+  if (*index >= end) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC character escape is incomplete");
+  }
+  character = text.data[*index];
+  (*index)++;
+  if (character == '\'' || character == '"' || character == '?' ||
+      character == '\\') {
+    *code_out = (ctool_u32)(ctool_u8)character;
+    return CTOOL_OK;
+  }
+  if (character == 'a') {
+    *code_out = 7u;
+    return CTOOL_OK;
+  }
+  if (character == 'b') {
+    *code_out = 8u;
+    return CTOOL_OK;
+  }
+  if (character == 'f') {
+    *code_out = 12u;
+    return CTOOL_OK;
+  }
+  if (character == 'n') {
+    *code_out = 10u;
+    return CTOOL_OK;
+  }
+  if (character == 'r') {
+    *code_out = 13u;
+    return CTOOL_OK;
+  }
+  if (character == 't') {
+    *code_out = 9u;
+    return CTOOL_OK;
+  }
+  if (character == 'v') {
+    *code_out = 11u;
+    return CTOOL_OK;
+  }
+  if (character >= '0' && character <= '7') {
+    ctool_u32 value = (ctool_u32)(character - '0');
+    ctool_u32 count = 1u;
+    while (*index < end && count < 3u &&
+           text.data[*index] >= '0' && text.data[*index] <= '7') {
+      value = value * 8u + (ctool_u32)(text.data[*index] - '0');
+      (*index)++;
+      count++;
+    }
+    *code_out = value;
+    return CTOOL_OK;
+  }
+  if (character == 'x') {
+    ctool_u32 value = 0u;
+    ctool_bool have_digit = CTOOL_FALSE;
+    while (*index < end) {
+      ctool_i32 digit = pp_if_digit_value(text.data[*index]);
+      if (digit < 0) {
+        break;
+      }
+      have_digit = CTOOL_TRUE;
+      if (value > (0xffffffffu - (ctool_u32)digit) / 16u) {
+        return pp_if_parser_fail(
+            parser, token, CTOOL_ERR_OVERFLOW,
+            "CupidC hexadecimal character escape overflows");
+      }
+      value = value * 16u + (ctool_u32)digit;
+      (*index)++;
+    }
+    if (have_digit == CTOOL_FALSE) {
+      return pp_if_parser_fail(
+          parser, token, CTOOL_ERR_INPUT,
+          "CupidC hexadecimal character escape has no digits");
+    }
+    *code_out = value;
+    return CTOOL_OK;
+  }
+  if (character == 'u' || character == 'U') {
+    ctool_u32 required = character == 'u' ? 4u : 8u;
+    ctool_u32 value = 0u;
+    ctool_u32 count;
+    if (end - *index < required) {
+      return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                               "CupidC universal character escape is short");
+    }
+    for (count = 0u; count < required; count++) {
+      ctool_i32 digit = pp_if_digit_value(text.data[*index]);
+      if (digit < 0) {
+        return pp_if_parser_fail(
+            parser, token, CTOOL_ERR_INPUT,
+            "CupidC universal character escape is invalid");
+      }
+      value = value * 16u + (ctool_u32)digit;
+      (*index)++;
+    }
+    if (value > 0x10ffffu ||
+        (value >= 0xd800u && value <= 0xdfffu) ||
+        (value < 0x00a0u && value != 0x0024u && value != 0x0040u &&
+         value != 0x0060u)) {
+      return pp_if_parser_fail(
+          parser, token, CTOOL_ERR_INPUT,
+          "CupidC universal character value is invalid");
+    }
+    *code_out = value;
+    return CTOOL_OK;
+  }
+  if (character == 'e' &&
+      parser->context->request->gnu_extensions == CTOOL_TRUE) {
+    *code_out = 27u;
+    return CTOOL_OK;
+  }
+  return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                           "CupidC character escape is invalid");
+}
+
+typedef enum {
+  PP_IF_CHARACTER_ORDINARY = 0,
+  PP_IF_CHARACTER_WIDE,
+  PP_IF_CHARACTER_UTF16,
+  PP_IF_CHARACTER_UTF32
+} pp_if_character_kind_t;
+
+static ctool_status_t pp_if_parse_character(
+    pp_if_parser_t *parser, const pp_token_t *token,
+    pp_if_value_t *value_out) {
+  ctool_string_t text = token->spelling;
+  ctool_u32 prefix = 0u;
+  pp_if_character_kind_t kind = PP_IF_CHARACTER_ORDINARY;
+  ctool_u32 index;
+  ctool_u32 end;
+  ctool_u32 count = 0u;
+  ctool_u64 value = 0ull;
+  if (text.size < 3u) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC character constant is empty");
+  }
+  if (text.data[0] == 'L') {
+    prefix = 1u;
+    kind = PP_IF_CHARACTER_WIDE;
+  } else if (text.data[0] == 'u') {
+    prefix = 1u;
+    kind = PP_IF_CHARACTER_UTF16;
+  } else if (text.data[0] == 'U') {
+    prefix = 1u;
+    kind = PP_IF_CHARACTER_UTF32;
+  }
+  if (text.data[prefix] != '\'' || text.data[text.size - 1u] != '\'') {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC character constant is malformed");
+  }
+  index = prefix + 1u;
+  end = text.size - 1u;
+  while (index < end) {
+    ctool_u32 code = 0u;
+    ctool_status_t status =
+        pp_if_parse_escape(parser, token, end, &index, &code);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    count++;
+    if (kind != PP_IF_CHARACTER_ORDINARY && count != 1u) {
+      return pp_if_parser_fail(
+          parser, token, CTOOL_ERR_INPUT,
+          "CupidC wide character constant has multiple characters");
+    }
+    if (kind == PP_IF_CHARACTER_ORDINARY) {
+      if (code > 0xffu || count > 4u) {
+        return pp_if_parser_fail(
+            parser, token, CTOOL_ERR_INPUT,
+            "CupidC ordinary character constant is out of range");
+      }
+      value = (value << 8u) | (ctool_u64)code;
+    } else {
+      value = (ctool_u64)code;
+    }
+  }
+  if (count == 0u) {
+    return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                             "CupidC character constant is empty");
+  }
+  if (kind == PP_IF_CHARACTER_UTF16) {
+    if (value > 0xffffull) {
+      return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                               "CupidC char16 constant is out of range");
+    }
+    *value_out = pp_if_unsigned_value(value);
+  } else if (kind == PP_IF_CHARACTER_UTF32) {
+    if (value > 0xffffffffull) {
+      return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                               "CupidC char32 constant is out of range");
+    }
+    *value_out = pp_if_unsigned_value(value);
+  } else if (kind == PP_IF_CHARACTER_WIDE) {
+    if (value > 0xffffffffull) {
+      return pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                               "CupidC wide character is out of range");
+    }
+    if ((value & 0x80000000ull) != 0ull) {
+      value |= 0xffffffff00000000ull;
+    }
+    *value_out = pp_if_signed_value(value);
+  } else {
+    if (count == 1u && (value & 0x80ull) != 0ull) {
+      value |= PP_IF_U64_MAX ^ 0xffull;
+    } else if (count > 1u && (value & 0x80000000ull) != 0ull) {
+      value |= PP_IF_U64_MAX ^ 0xffffffffull;
+    }
+    *value_out = pp_if_signed_value(value);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_u32 pp_if_binary_precedence(const pp_token_t *token) {
+  if (pp_token_equal_literal(token, "||") == CTOOL_TRUE) {
+    return 1u;
+  }
+  if (pp_token_equal_literal(token, "&&") == CTOOL_TRUE) {
+    return 2u;
+  }
+  if (pp_token_equal_literal(token, "|") == CTOOL_TRUE) {
+    return 3u;
+  }
+  if (pp_token_equal_literal(token, "^") == CTOOL_TRUE) {
+    return 4u;
+  }
+  if (pp_token_equal_literal(token, "&") == CTOOL_TRUE) {
+    return 5u;
+  }
+  if (pp_token_equal_literal(token, "==") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "!=") == CTOOL_TRUE) {
+    return 6u;
+  }
+  if (pp_token_equal_literal(token, "<") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "<=") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, ">") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, ">=") == CTOOL_TRUE) {
+    return 7u;
+  }
+  if (pp_token_equal_literal(token, "<<") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, ">>") == CTOOL_TRUE) {
+    return 8u;
+  }
+  if (pp_token_equal_literal(token, "+") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "-") == CTOOL_TRUE) {
+    return 9u;
+  }
+  if (pp_token_equal_literal(token, "*") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "/") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "%") == CTOOL_TRUE) {
+    return 10u;
+  }
+  return 0u;
+}
+
+static ctool_status_t pp_if_parse_expression(
+    pp_if_parser_t *parser, ctool_u32 minimum_precedence,
+    ctool_bool evaluate, ctool_bool allow_comma,
+    pp_if_value_t *value_out);
+
+static ctool_status_t pp_if_parse_prefix(
+    pp_if_parser_t *parser, ctool_bool evaluate,
+    pp_if_value_t *value_out) {
+  pp_expand_node_t *node = parser->cursor;
+  const pp_token_t *token;
+  ctool_status_t status;
+  if (node == (pp_expand_node_t *)0) {
+    return pp_if_parser_fail(
+        parser, (const pp_token_t *)0, CTOOL_ERR_INPUT,
+        "CupidC conditional expression needs an operand");
+  }
+  token = &node->token;
+  if (pp_token_equal_literal(token, "+") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "-") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "!") == CTOOL_TRUE ||
+      pp_token_equal_literal(token, "~") == CTOOL_TRUE) {
+    pp_if_value_t operand = pp_if_signed_value(0ull);
+    if (parser->depth == PP_CONDITIONAL_EXPRESSION_DEPTH_LIMIT) {
+      return pp_if_parser_fail(
+          parser, token, CTOOL_ERR_LIMIT,
+          "CupidC conditional expression nesting is too deep");
+    }
+    parser->depth++;
+    parser->cursor = node->next;
+    status = pp_if_parse_prefix(parser, evaluate, &operand);
+    if (status == CTOOL_OK) {
+      if (pp_token_equal_literal(token, "!") == CTOOL_TRUE) {
+        *value_out = pp_if_signed_value(
+            evaluate == CTOOL_TRUE &&
+                    pp_if_value_truth(operand) == CTOOL_FALSE
+                ? 1ull
+                : 0ull);
+      } else if (pp_token_equal_literal(token, "~") == CTOOL_TRUE) {
+        *value_out = operand;
+        value_out->bits = evaluate == CTOOL_TRUE ? ~operand.bits : 0ull;
+      } else if (pp_token_equal_literal(token, "-") == CTOOL_TRUE) {
+        *value_out = operand;
+        if (evaluate == CTOOL_FALSE) {
+          value_out->bits = 0ull;
+        } else if (operand.is_unsigned == CTOOL_FALSE &&
+                   operand.bits == PP_IF_SIGN_BIT) {
+          status = pp_if_parser_fail(
+              parser, token, CTOOL_ERR_OVERFLOW,
+              "CupidC conditional unary minus overflows intmax");
+        } else {
+          value_out->bits = 0ull - operand.bits;
+        }
+      } else {
+        *value_out = operand;
+        if (evaluate == CTOOL_FALSE) {
+          value_out->bits = 0ull;
+        }
+      }
+    }
+    parser->depth--;
+    return status;
+  }
+  if (pp_token_equal_literal(token, "(") == CTOOL_TRUE) {
+    pp_expand_node_t *close;
+    if (parser->depth == PP_CONDITIONAL_EXPRESSION_DEPTH_LIMIT) {
+      return pp_if_parser_fail(
+          parser, token, CTOOL_ERR_LIMIT,
+          "CupidC conditional expression nesting is too deep");
+    }
+    parser->depth++;
+    parser->cursor = node->next;
+    status = pp_if_parse_expression(parser, 0u, evaluate, CTOOL_TRUE,
+                                    value_out);
+    close = parser->cursor;
+    if (status == CTOOL_OK &&
+        (close == (pp_expand_node_t *)0 ||
+         pp_token_equal_literal(&close->token, ")") == CTOOL_FALSE)) {
+      status = pp_if_parser_fail(
+          parser, token, CTOOL_ERR_INPUT,
+          "CupidC conditional parenthesis is not closed");
+    }
+    if (status == CTOOL_OK && close != (pp_expand_node_t *)0) {
+      parser->cursor = close->next;
+    }
+    parser->depth--;
+    return status;
+  }
+  parser->cursor = node->next;
+  if (token->kind == CTOOL_C_PP_TOKEN_NUMBER) {
+    status = pp_if_parse_integer(parser, token, value_out);
+  } else if (token->kind == CTOOL_C_PP_TOKEN_CHARACTER) {
+    status = pp_if_parse_character(parser, token, value_out);
+  } else if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    if (pp_token_equal_literal(token, "defined") == CTOOL_TRUE) {
+      status = pp_if_parser_fail(
+          parser, token, CTOOL_ERR_INPUT,
+          "CupidC macro expansion produced a defined operator");
+    } else {
+      *value_out = pp_if_signed_value(0ull);
+      status = CTOOL_OK;
+    }
+  } else {
+    status = pp_if_parser_fail(parser, token, CTOOL_ERR_INPUT,
+                               "CupidC conditional operand is not an integer");
+  }
+  if (status == CTOOL_OK && evaluate == CTOOL_FALSE) {
+    value_out->bits = 0ull;
+  }
+  return status;
+}
+
+static ctool_status_t pp_if_apply_binary(
+    pp_if_parser_t *parser, const pp_token_t *operator_token,
+    pp_if_value_t left, pp_if_value_t right, ctool_bool evaluate,
+    pp_if_value_t *value_out) {
+  ctool_bool common_unsigned =
+      left.is_unsigned == CTOOL_TRUE || right.is_unsigned == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_bool comparison =
+      pp_token_equal_literal(operator_token, "<") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, "<=") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, ">") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, ">=") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, "==") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, "!=") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, "&&") == CTOOL_TRUE ||
+              pp_token_equal_literal(operator_token, "||") == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  if (comparison == CTOOL_TRUE) {
+    *value_out = pp_if_signed_value(0ull);
+  } else if (pp_token_equal_literal(operator_token, "<<") == CTOOL_TRUE ||
+             pp_token_equal_literal(operator_token, ">>") == CTOOL_TRUE) {
+    *value_out = left;
+    value_out->bits = 0ull;
+  } else {
+    value_out->bits = 0ull;
+    value_out->is_unsigned = common_unsigned;
+  }
+  if (evaluate == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "&&") == CTOOL_TRUE) {
+    value_out->bits =
+        pp_if_value_truth(left) == CTOOL_TRUE &&
+                pp_if_value_truth(right) == CTOOL_TRUE
+            ? 1ull
+            : 0ull;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "||") == CTOOL_TRUE) {
+    value_out->bits =
+        pp_if_value_truth(left) == CTOOL_TRUE ||
+                pp_if_value_truth(right) == CTOOL_TRUE
+            ? 1ull
+            : 0ull;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "==") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, "!=") == CTOOL_TRUE) {
+    ctool_bool equal = left.bits == right.bits ? CTOOL_TRUE : CTOOL_FALSE;
+    value_out->bits =
+        pp_token_equal_literal(operator_token, "==") == CTOOL_TRUE
+            ? (equal == CTOOL_TRUE ? 1ull : 0ull)
+            : (equal == CTOOL_TRUE ? 0ull : 1ull);
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "<") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, "<=") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, ">") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, ">=") == CTOOL_TRUE) {
+    ctool_bool less = common_unsigned == CTOOL_TRUE
+                          ? (left.bits < right.bits ? CTOOL_TRUE
+                                                   : CTOOL_FALSE)
+                          : pp_if_signed_less(left.bits, right.bits);
+    ctool_bool equal = left.bits == right.bits ? CTOOL_TRUE : CTOOL_FALSE;
+    if (pp_token_equal_literal(operator_token, "<") == CTOOL_TRUE) {
+      value_out->bits = less == CTOOL_TRUE ? 1ull : 0ull;
+    } else if (pp_token_equal_literal(operator_token, "<=") == CTOOL_TRUE) {
+      value_out->bits = less == CTOOL_TRUE || equal == CTOOL_TRUE ? 1ull
+                                                                  : 0ull;
+    } else if (pp_token_equal_literal(operator_token, ">") == CTOOL_TRUE) {
+      value_out->bits = less == CTOOL_FALSE && equal == CTOOL_FALSE ? 1ull
+                                                                    : 0ull;
+    } else {
+      value_out->bits = less == CTOOL_FALSE ? 1ull : 0ull;
+    }
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "&") == CTOOL_TRUE) {
+    value_out->bits = left.bits & right.bits;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "^") == CTOOL_TRUE) {
+    value_out->bits = left.bits ^ right.bits;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "|") == CTOOL_TRUE) {
+    value_out->bits = left.bits | right.bits;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "<<") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, ">>") == CTOOL_TRUE) {
+    ctool_u32 count;
+    if (pp_if_is_negative(right) == CTOOL_TRUE || right.bits >= 64ull) {
+      return pp_if_parser_fail(parser, operator_token, CTOOL_ERR_INPUT,
+                               "CupidC conditional shift count is invalid");
+    }
+    count = (ctool_u32)right.bits;
+    if (pp_token_equal_literal(operator_token, "<<") == CTOOL_TRUE) {
+      if (left.is_unsigned == CTOOL_FALSE &&
+          ((left.bits & PP_IF_SIGN_BIT) != 0ull ||
+           (count != 0u && left.bits > (PP_IF_SIGNED_MAX >> count)))) {
+        return pp_if_parser_fail(parser, operator_token,
+                                 CTOOL_ERR_OVERFLOW,
+                                 "CupidC signed conditional left shift overflows");
+      }
+      value_out->bits = left.bits << count;
+    } else if (left.is_unsigned == CTOOL_TRUE ||
+               (left.bits & PP_IF_SIGN_BIT) == 0ull || count == 0u) {
+      value_out->bits = left.bits >> count;
+    } else {
+      value_out->bits =
+          (left.bits >> count) | (PP_IF_U64_MAX << (64u - count));
+    }
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "+") == CTOOL_TRUE) {
+    ctool_u64 result = left.bits + right.bits;
+    if (common_unsigned == CTOOL_FALSE &&
+        ((left.bits ^ result) & (right.bits ^ result) & PP_IF_SIGN_BIT) !=
+            0ull) {
+      return pp_if_parser_fail(parser, operator_token, CTOOL_ERR_OVERFLOW,
+                               "CupidC signed conditional addition overflows");
+    }
+    value_out->bits = result;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "-") == CTOOL_TRUE) {
+    ctool_u64 result = left.bits - right.bits;
+    if (common_unsigned == CTOOL_FALSE &&
+        ((left.bits ^ right.bits) & (left.bits ^ result) & PP_IF_SIGN_BIT) !=
+            0ull) {
+      return pp_if_parser_fail(parser, operator_token, CTOOL_ERR_OVERFLOW,
+                               "CupidC signed conditional subtraction overflows");
+    }
+    value_out->bits = result;
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "*") == CTOOL_TRUE) {
+    if (common_unsigned == CTOOL_TRUE) {
+      value_out->bits = left.bits * right.bits;
+    } else {
+      ctool_bool negative =
+          ((left.bits ^ right.bits) & PP_IF_SIGN_BIT) != 0ull
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_u64 left_magnitude = pp_if_signed_magnitude(left.bits);
+      ctool_u64 right_magnitude = pp_if_signed_magnitude(right.bits);
+      ctool_u64 limit =
+          negative == CTOOL_TRUE ? PP_IF_SIGN_BIT : PP_IF_SIGNED_MAX;
+      ctool_u64 magnitude;
+      if (left_magnitude != 0ull &&
+          right_magnitude > limit / left_magnitude) {
+        return pp_if_parser_fail(
+            parser, operator_token, CTOOL_ERR_OVERFLOW,
+            "CupidC signed conditional multiplication overflows");
+      }
+      magnitude = left_magnitude * right_magnitude;
+      value_out->bits = negative == CTOOL_TRUE && magnitude != 0ull
+                            ? (~magnitude) + 1ull
+                            : magnitude;
+    }
+    return CTOOL_OK;
+  }
+  if (pp_token_equal_literal(operator_token, "/") == CTOOL_TRUE ||
+      pp_token_equal_literal(operator_token, "%") == CTOOL_TRUE) {
+    if (right.bits == 0ull) {
+      return pp_if_parser_fail(parser, operator_token, CTOOL_ERR_INPUT,
+                               "CupidC conditional division by zero");
+    }
+    if (common_unsigned == CTOOL_TRUE) {
+      value_out->bits =
+          pp_token_equal_literal(operator_token, "/") == CTOOL_TRUE
+              ? left.bits / right.bits
+              : left.bits % right.bits;
+    } else {
+      ctool_bool left_negative =
+          (left.bits & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+      ctool_bool right_negative =
+          (right.bits & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+      ctool_u64 left_magnitude = pp_if_signed_magnitude(left.bits);
+      ctool_u64 right_magnitude = pp_if_signed_magnitude(right.bits);
+      ctool_u64 magnitude;
+      ctool_bool negative;
+      if (left.bits == PP_IF_SIGN_BIT && right.bits == PP_IF_U64_MAX) {
+        return pp_if_parser_fail(
+            parser, operator_token, CTOOL_ERR_OVERFLOW,
+            "CupidC signed conditional division overflows");
+      }
+      if (pp_token_equal_literal(operator_token, "/") == CTOOL_TRUE) {
+        magnitude = left_magnitude / right_magnitude;
+        negative = left_negative != right_negative ? CTOOL_TRUE
+                                                   : CTOOL_FALSE;
+      } else {
+        magnitude = left_magnitude % right_magnitude;
+        negative = left_negative;
+      }
+      value_out->bits = negative == CTOOL_TRUE && magnitude != 0ull
+                            ? (~magnitude) + 1ull
+                            : magnitude;
+    }
+    return CTOOL_OK;
+  }
+  return pp_if_parser_fail(parser, operator_token, CTOOL_ERR_INTERNAL,
+                           "CupidC conditional operator is not implemented");
+}
+
+static ctool_status_t pp_if_parse_expression(
+    pp_if_parser_t *parser, ctool_u32 minimum_precedence,
+    ctool_bool evaluate, ctool_bool allow_comma,
+    pp_if_value_t *value_out) {
+  pp_if_value_t left = pp_if_signed_value(0ull);
+  ctool_status_t status;
+  status = pp_if_parse_prefix(parser, evaluate, &left);
+  while (status == CTOOL_OK && parser->cursor != (pp_expand_node_t *)0) {
+    pp_expand_node_t *operator_node = parser->cursor;
+    ctool_u32 precedence =
+        pp_if_binary_precedence(&operator_node->token);
+    pp_if_value_t right = pp_if_signed_value(0ull);
+    ctool_bool right_evaluate = evaluate;
+    if (precedence == 0u || precedence < minimum_precedence) {
+      break;
+    }
+    parser->cursor = operator_node->next;
+    if (evaluate == CTOOL_TRUE &&
+        pp_token_equal_literal(&operator_node->token, "&&") == CTOOL_TRUE &&
+        pp_if_value_truth(left) == CTOOL_FALSE) {
+      right_evaluate = CTOOL_FALSE;
+    } else if (evaluate == CTOOL_TRUE &&
+               pp_token_equal_literal(&operator_node->token, "||") ==
+                   CTOOL_TRUE &&
+               pp_if_value_truth(left) == CTOOL_TRUE) {
+      right_evaluate = CTOOL_FALSE;
+    }
+    status = pp_if_parse_expression(parser, precedence + 1u,
+                                    right_evaluate, allow_comma, &right);
+    if (status == CTOOL_OK) {
+      status = pp_if_apply_binary(parser, &operator_node->token, left, right,
+                                  evaluate, &left);
+    }
+  }
+  if (status == CTOOL_OK && minimum_precedence == 0u &&
+      parser->cursor != (pp_expand_node_t *)0 &&
+      pp_token_equal_literal(&parser->cursor->token, "?") == CTOOL_TRUE) {
+    pp_expand_node_t *question = parser->cursor;
+    pp_if_value_t when_true = pp_if_signed_value(0ull);
+    pp_if_value_t when_false = pp_if_signed_value(0ull);
+    pp_expand_node_t *colon;
+    ctool_bool condition = pp_if_value_truth(left);
+    if (parser->depth == PP_CONDITIONAL_EXPRESSION_DEPTH_LIMIT) {
+      return pp_if_parser_fail(
+          parser, &question->token, CTOOL_ERR_LIMIT,
+          "CupidC conditional expression nesting is too deep");
+    }
+    parser->depth++;
+    parser->cursor = question->next;
+    status = pp_if_parse_expression(
+        parser, 0u,
+        evaluate == CTOOL_TRUE && condition == CTOOL_TRUE ? CTOOL_TRUE
+                                                          : CTOOL_FALSE,
+        CTOOL_TRUE, &when_true);
+    colon = parser->cursor;
+    if (status == CTOOL_OK &&
+        (colon == (pp_expand_node_t *)0 ||
+         pp_token_equal_literal(&colon->token, ":") == CTOOL_FALSE)) {
+      status = pp_if_parser_fail(
+          parser, &question->token, CTOOL_ERR_INPUT,
+          "CupidC conditional operator requires a colon");
+    }
+    if (status == CTOOL_OK && colon != (pp_expand_node_t *)0) {
+      parser->cursor = colon->next;
+      status = pp_if_parse_expression(
+          parser, 0u,
+          evaluate == CTOOL_TRUE && condition == CTOOL_FALSE ? CTOOL_TRUE
+                                                             : CTOOL_FALSE,
+          CTOOL_FALSE, &when_false);
+    }
+    if (status == CTOOL_OK) {
+      ctool_bool result_unsigned =
+          when_true.is_unsigned == CTOOL_TRUE ||
+                  when_false.is_unsigned == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      *value_out = condition == CTOOL_TRUE ? when_true : when_false;
+      value_out->is_unsigned = result_unsigned;
+      if (evaluate == CTOOL_FALSE) {
+        value_out->bits = 0ull;
+      }
+      left = *value_out;
+    }
+    parser->depth--;
+  }
+  while (status == CTOOL_OK && minimum_precedence == 0u &&
+         allow_comma == CTOOL_TRUE &&
+         parser->cursor != (pp_expand_node_t *)0 &&
+         pp_token_equal_literal(&parser->cursor->token, ",") == CTOOL_TRUE) {
+    pp_expand_node_t *comma = parser->cursor;
+    pp_if_value_t right = pp_if_signed_value(0ull);
+    if (evaluate == CTOOL_TRUE) {
+      status = pp_if_parser_fail(
+          parser, &comma->token, CTOOL_ERR_INPUT,
+          "CupidC conditional comma operator is evaluated");
+      break;
+    }
+    parser->cursor = comma->next;
+    status = pp_if_parse_expression(parser, 0u, CTOOL_FALSE, CTOOL_FALSE,
+                                    &right);
+    if (status == CTOOL_OK) {
+      left = right;
+      left.bits = 0ull;
+    }
+  }
+  if (status == CTOOL_OK) {
+    *value_out = left;
+  }
+  return status;
+}
+
+static ctool_status_t pp_expand_condition_tokens(
+    pp_context_t *context, const pp_token_t *tokens,
+    ctool_u32 begin, ctool_u32 end,
+    pp_expand_list_t *expanded_out) {
+  pp_expand_list_t work;
+  ctool_u32 index;
+  ctool_status_t status;
+  pp_expand_list_zero(&work);
+  for (index = begin; index < end; index++) {
+    status = pp_expand_list_append_copy(
+        context, &work, &tokens[index], (const pp_hide_t *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (tokens[index].kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
+        pp_token_equal_literal(&tokens[index], "defined") == CTOOL_TRUE) {
+      work.tail->condition_defined = CTOOL_TRUE;
+    }
+  }
+  pp_expand_list_zero(expanded_out);
+  return pp_expand_work(context, &work, expanded_out);
+}
+
+static ctool_status_t pp_evaluate_condition(
     pp_context_t *context, const pp_token_t *marker,
     const pp_token_t *tokens, ctool_u32 begin, ctool_u32 end,
     ctool_bool *value_out) {
+  ctool_arena_t *arena = ctool_job_arena(context->job);
+  ctool_arena_mark_t mark;
+  ctool_u32 saved_expansion_node_count;
+  ctool_bool saved_condition_expression;
+  pp_expand_list_t expanded;
+  pp_if_parser_t parser;
+  pp_if_value_t value = pp_if_signed_value(0ull);
+  ctool_status_t status;
+  ctool_status_t rewound;
   if (begin == end) {
     return pp_directive_error(context, marker,
                               CTOOL_C_PP_DIAG_CONDITIONAL,
                               "CupidC conditional requires an expression");
   }
-  if (end - begin == 1u && tokens[begin].kind == CTOOL_C_PP_TOKEN_NUMBER &&
-      (pp_token_equal_literal(&tokens[begin], "0") == CTOOL_TRUE ||
-       pp_token_equal_literal(&tokens[begin], "1") == CTOOL_TRUE)) {
-    *value_out = pp_token_equal_literal(&tokens[begin], "1");
-    return CTOOL_OK;
+  mark = ctool_arena_mark(arena);
+  pp_expand_list_zero(&expanded);
+  saved_expansion_node_count = context->expansion_node_count;
+  saved_condition_expression = context->condition_expression;
+  context->condition_expression = CTOOL_TRUE;
+  status = pp_expand_condition_tokens(context, tokens, begin, end, &expanded);
+  if (status == CTOOL_OK && expanded.head == (pp_expand_node_t *)0) {
+    status = pp_if_expression_fail(
+        context, marker, marker, CTOOL_ERR_INPUT,
+        "CupidC conditional macro expansion is empty");
   }
-  pp_fail(context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
-          marker->location.line, marker->location.column,
-          "CupidC conditional expressions are not implemented yet");
-  return CTOOL_ERR_UNSUPPORTED;
+  if (status == CTOOL_OK) {
+    parser.context = context;
+    parser.marker = marker;
+    parser.cursor = expanded.head;
+    parser.depth = 0u;
+    status = pp_if_parse_expression(&parser, 0u, CTOOL_TRUE, CTOOL_FALSE,
+                                    &value);
+    if (status == CTOOL_OK && parser.cursor != (pp_expand_node_t *)0) {
+      status = pp_if_parser_fail(
+          &parser, &parser.cursor->token, CTOOL_ERR_INPUT,
+          "CupidC conditional expression has trailing tokens");
+    }
+    if (status == CTOOL_OK) {
+      *value_out = pp_if_value_truth(value);
+    }
+  }
+  context->condition_expression = saved_condition_expression;
+  context->expansion_node_count = saved_expansion_node_count;
+  rewound = ctool_arena_rewind(arena, mark);
+  if (rewound != CTOOL_OK) {
+    if (status == CTOOL_OK) {
+      pp_fail(context, rewound, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC conditional scratch storage could not be rewound");
+    }
+    return rewound;
+  }
+  return status;
 }
 
 static ctool_status_t pp_process_tokens(pp_context_t *context,
@@ -2842,8 +4159,8 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
           condition = CTOOL_FALSE;
           status = CTOOL_OK;
         } else if (pp_token_equal_literal(name, "if") == CTOOL_TRUE) {
-          status = pp_simple_if_expression(context, marker, tokens, arguments,
-                                           end, &condition);
+          status = pp_evaluate_condition(context, marker, tokens, arguments,
+                                         end, &condition);
         } else {
           status = pp_condition_name(
               context, marker, tokens, arguments, end,
@@ -2893,8 +4210,8 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
           condition = CTOOL_FALSE;
           status = CTOOL_OK;
         } else {
-          status = pp_simple_if_expression(context, marker, tokens, arguments,
-                                           end, &condition);
+          status = pp_evaluate_condition(context, marker, tokens, arguments,
+                                         end, &condition);
         }
         if (status != CTOOL_OK) {
           return status;
@@ -3160,6 +4477,7 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
   context.include_depth = 0u;
   context.expansion_depth = 0u;
   context.expansion_node_count = 0u;
+  context.condition_expression = CTOOL_FALSE;
   context.failure_status = CTOOL_OK;
   context.failure_code = 0u;
   context.failure_line = 0u;

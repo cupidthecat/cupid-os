@@ -417,13 +417,14 @@ static int run_errors(void) {
 
 static int run_unsupported(void) {
   static const char *const unsupported_text[] = {
-      "__FILE__", "__LINE__", "__STDC__", "__STDC_HOSTED__",
-      "__STDC_VERSION__", "#if VALUE + 1\n#endif\n"};
+      "#pragma once\n",
+      "#pragma pack(push, 1)\n",
+      "#define HEADER \"x.h\"\n#include HEADER\n",
+      "#line 77 \"virtual.c\"\n"};
   static const ctool_u32 unsupported_code[] = {
-      CTOOL_C_PP_DIAG_MACRO_EXPANSION, CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-      CTOOL_C_PP_DIAG_MACRO_EXPANSION, CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-      CTOOL_C_PP_DIAG_MACRO_EXPANSION,
-      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION};
+      CTOOL_C_PP_DIAG_DIRECTIVE, CTOOL_C_PP_DIAG_DIRECTIVE,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_DIRECTIVE};
+  static const ctool_u32 unsupported_line[] = {1u, 1u, 2u, 1u};
   ctool_host_adapter_t adapter;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
@@ -453,7 +454,8 @@ static int run_unsupported(void) {
     if (status != CTOOL_ERR_UNSUPPORTED || result.tokens != NULL ||
         result.token_count != 0u || diagnostic == NULL ||
         diagnostic->code != unsupported_code[index] ||
-        diagnostic->line != 1u || diagnostic->column != 1u ||
+        diagnostic->line != unsupported_line[index] ||
+        diagnostic->column != 1u ||
         !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
       (void)fprintf(stderr,
                     "unsupported: table case %u did not fail explicitly\n",
@@ -464,6 +466,1111 @@ static int run_unsupported(void) {
   }
   ctool_job_close(job);
   (void)printf("unsupported: ok\n");
+  return 0;
+}
+
+static int run_conditional_expressions(void) {
+  static const char source_text[] =
+      "ordinary_defined defined follower\n"
+      "#define ONE 1\n"
+      "#define VALUE (ONE + 1)\n"
+      "#define TWICE(value) ((value) * 2)\n"
+      "#define ALIAS ONE\n"
+      "#define IGNORE(value) 1\n"
+      "#if defined(ONE) && defined ALIAS && !defined(MISSING)\n"
+      "defined_ok\n"
+      "#endif\n"
+      "#if IGNORE(defined())\n"
+      "unused_defined_ok\n"
+      "#endif\n"
+      "#if UNKNOWN == 0 && VALUE == 2 && TWICE(3) == 6\n"
+      "macro_ok\n"
+      "#endif\n"
+      "#if 1 + 2 * 3 == 7 && 20 / 4 == 5 && 20 % 6 == 2\n"
+      "arithmetic_ok\n"
+      "#endif\n"
+      "#if (1 << 5) == 32 && (32 >> 3) == 4\n"
+      "shifts_ok\n"
+      "#endif\n"
+      "#if 3 < 4 && 4 <= 4 && 5 > 4 && 5 >= 5 && 6 != 7\n"
+      "relations_ok\n"
+      "#endif\n"
+      "#if ((0xf0U & 0x0fU) == 0U) && ((1U | 2U) == 3U) && "
+      "((7U ^ 3U) == 4U) && (~0U != 0U)\n"
+      "bitwise_ok\n"
+      "#endif\n"
+      "#if +1 == 1 && -1 < 0 && !0 && !!1 && -1 > 0U\n"
+      "unary_ok\n"
+      "#endif\n"
+      "#if (0 && (1 / 0)) == 0 && (1 || (1 / 0)) == 1 && "
+      "(0 ? (1 / 0) : 9) == 9 && (1 ? 7 : (1 / 0)) == 7\n"
+      "short_circuit_ok\n"
+      "#endif\n"
+      "#if 010 == 8 && 0x10UL == 16 && '\\n' == 10 && "
+      "'\\x41' == 'A' && '\\101' == 'A'\n"
+      "literals_ok\n"
+      "#endif\n"
+      "#if U'\\x110000' == 0x110000 && U'\\xffffffff' == 0xffffffffU && "
+      "'\\u0024' == '$' && '\\u0040' == '@' && '\\u0060' == '`'\n"
+      "character_ranges_ok\n"
+      "#endif\n"
+      "#if L'\\x80000000' < 0 && L'\\xffffffff' == -1\n"
+      "wide_ranges_ok\n"
+      "#endif\n"
+      "#if (0 && (1, 2)) == 0 && (1 || (1, 2)) == 1 && "
+      "(0 ? (1, 2) : 3) == 3 && (1 ? -1 : (0, 0U)) > 0\n"
+      "unevaluated_comma_ok\n"
+      "#endif\n"
+      "#if (0 ? 1 : 0 ? 2 : 3) == 3 && (1 ? -1 : 0U) > 0U\n"
+      "conditional_ok\n"
+      "#endif\n"
+      "#if (1 + 2 << 2) == 12 && (1 | 2 && 0) == 0 && "
+      "(1 || 0 ? 4 : 5) == 4\n"
+      "precedence_ok\n"
+      "#endif\n"
+      "#if 1UL == 1LU && 1ULL == 1LLU && "
+      "18446744073709551615ULL == ~0ULL\n"
+      "suffixes_ok\n"
+      "#endif\n"
+      "#if 0xffffffff > 0 && -1 < 0xffffffff && -1 > 0xffffffffU\n"
+      "preprocessor_width_ok\n"
+      "#endif\n"
+      "#if ONE && \\\n"
+      "    VALUE == 2\n"
+      "splice_ok\n"
+      "#endif\n"
+      "#if 0\n"
+      "not_taken\n"
+      "#elif (3 * 3) == 9\n"
+      "elif_ok\n"
+      "#else\n"
+      "not_taken\n"
+      "#endif\n"
+      "%:if 1\n"
+      "digraph_ok\n"
+      "%:endif\n"
+      "#if COMMAND_FLAG == 12\n"
+      "command_ok\n"
+      "#endif\n"
+      "restored_defined defined follower\n";
+  static const char gnu_text[] =
+      "#if 0b1010ULL == 10 && 9223372036854775808 > 0 && '\\e' == 27\n"
+      "gnu_literals_ok\n"
+      "#endif\n";
+  static const char *const expected_text[] = {
+      "ordinary_defined", "defined", "follower", "defined_ok",
+      "unused_defined_ok", "macro_ok", "arithmetic_ok", "shifts_ok",
+      "relations_ok", "bitwise_ok", "unary_ok", "short_circuit_ok",
+      "literals_ok", "character_ranges_ok", "wide_ranges_ok",
+      "unevaluated_comma_ok", "conditional_ok", "precedence_ok",
+      "suffixes_ok", "preprocessor_width_ok", "splice_ok",
+      "elif_ok", "digraph_ok", "command_ok", "restored_defined",
+      "defined", "follower"};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_macro_action_t action;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  if (open_job("conditional-expressions", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/conditional-expressions.c");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  action.kind = CTOOL_C_PP_MACRO_DEFINE;
+  action.name = ctool_string("COMMAND_FLAG");
+  action.replacement = ctool_string("(3 << 2)");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.macro_actions = &action;
+  request.macro_action_count = 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path,
+                      "/conditional-expressions.c")) {
+      (void)fprintf(stderr,
+                    "conditional-expressions: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  source.path.text = ctool_string("/conditional-gnu.c");
+  source.contents =
+      ctool_bytes(gnu_text, (ctool_u32)(sizeof(gnu_text) - 1u));
+  request.gnu_extensions = CTOOL_TRUE;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "gnu_literals_ok") ||
+      !string_equal(result.tokens[0].location.path, "/conditional-gnu.c") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: GNU literal probe differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("conditional-expressions: ok\n");
+  return 0;
+}
+
+static int run_predefined_macros(void) {
+  static char source_text[] =
+      "#define SITE __FILE__ __LINE__\n"
+      "first __FILE__ __LINE__ __STDC__ __STDC_HOSTED__ __STDC_VERSION__\n"
+      "site SITE\n"
+      "#if defined(__FILE__) && defined __LINE__ && defined(__STDC__) && "
+      "__STDC__ == 1 && __STDC_VERSION__ == 201112L && "
+      "__STDC_HOSTED__ == 0\n"
+      "predefined_condition\n"
+      "#endif\n"
+      "#ifdef __STDC__\n"
+      "ifdef_ok\n"
+      "#endif\n"
+      "#ifndef __LINE__\n"
+      "not_taken\n"
+      "#endif\n"
+      "timestamp __DATE__ __TIME__\n"
+      "#if defined(__DATE__) && defined(__TIME__)\n"
+      "timestamp_condition\n"
+      "#endif\n";
+  static char source_path[] = "/predefined/path.c";
+  static const char hosted_text[] = "hosted __STDC_HOSTED__\n";
+  static const char cupid_text[] =
+      "cupid __FILE__ __LINE__ __STDC__ __STDC_HOSTED__ "
+      "__STDC_VERSION__ __DATE__ __TIME__\n";
+  static const char custom_text[] = "custom __DATE__ __TIME__\n";
+  static char custom_date[] = "Feb 29 2024";
+  static char custom_time[] = "23:59:58";
+  static const char escaped_text[] = "escaped __FILE__\n";
+  static char escaped_path[] = "/q\"\n\001x.c";
+  static const char *const expected_text[] = {
+      "first", "\"/predefined/path.c\"", "2", "1", "0", "201112L",
+      "site", "\"/predefined/path.c\"", "3", "predefined_condition",
+      "ifdef_ok", "timestamp", "\"Jan  1 1970\"", "\"00:00:00\"",
+      "timestamp_condition"};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  if (open_job("predefined", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text.data = source_path;
+  source.path.text.size = (ctool_u32)(sizeof(source_path) - 1u);
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "predefined: freestanding preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path,
+                      "/predefined/path.c")) {
+      (void)fprintf(stderr, "predefined: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (result.tokens[1].location.line != 2u ||
+      result.tokens[1].location.column != 7u ||
+      result.tokens[7].location.line != 3u ||
+      result.tokens[7].location.column != 6u ||
+      result.tokens[8].location.line != 3u ||
+      result.tokens[8].location.column != 6u) {
+    (void)fprintf(stderr, "predefined: generated locations differ\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  source_text[0] = 'X';
+  source_path[1] = 'X';
+  if (!string_equal(result.tokens[1].spelling,
+                    "\"/predefined/path.c\"") ||
+      !string_equal(result.tokens[7].spelling,
+                    "\"/predefined/path.c\"") ||
+      !string_equal(result.tokens[1].location.path,
+                    "/predefined/path.c")) {
+    (void)fprintf(stderr, "predefined: generated values retained input\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  source_text[0] = '#';
+  source_path[1] = 'p';
+
+  source.path.text = ctool_string("/hosted.c");
+  source.contents =
+      ctool_bytes(hosted_text, (ctool_u32)(sizeof(hosted_text) - 1u));
+  request.hosted_environment = CTOOL_TRUE;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "hosted") ||
+      !string_equal(result.tokens[1].spelling, "1") ||
+      !string_equal(result.tokens[1].location.path, "/hosted.c") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "predefined: hosted expansion differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/cupid.cc");
+  source.contents =
+      ctool_bytes(cupid_text, (ctool_u32)(sizeof(cupid_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  request.hosted_environment = CTOOL_FALSE;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 8u ||
+      !string_equal(result.tokens[0].spelling, "cupid") ||
+      !string_equal(result.tokens[1].spelling, "\"/cupid.cc\"") ||
+      !string_equal(result.tokens[2].spelling, "1") ||
+      !string_equal(result.tokens[3].spelling, "1") ||
+      !string_equal(result.tokens[4].spelling, "0") ||
+      !string_equal(result.tokens[5].spelling, "201112L") ||
+      !string_equal(result.tokens[6].spelling, "\"Jan  1 1970\"") ||
+      !string_equal(result.tokens[7].spelling, "\"00:00:00\"") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "predefined: Cupid-mode expansion differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/custom-time.c");
+  source.contents =
+      ctool_bytes(custom_text, (ctool_u32)(sizeof(custom_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.translation_date = ctool_string(custom_date);
+  request.translation_time = ctool_string(custom_time);
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 3u ||
+      !string_equal(result.tokens[0].spelling, "custom") ||
+      !string_equal(result.tokens[1].spelling, "\"Feb 29 2024\"") ||
+      !string_equal(result.tokens[2].spelling, "\"23:59:58\"") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "predefined: custom timestamp differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  custom_date[0] = 'X';
+  custom_time[0] = 'X';
+  if (!string_equal(result.tokens[1].spelling, "\"Feb 29 2024\"") ||
+      !string_equal(result.tokens[2].spelling, "\"23:59:58\"")) {
+    (void)fprintf(stderr, "predefined: custom timestamp retained input\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  custom_date[0] = 'F';
+  custom_time[0] = '2';
+
+  source.path.text.data = escaped_path;
+  source.path.text.size = (ctool_u32)(sizeof(escaped_path) - 1u);
+  source.contents =
+      ctool_bytes(escaped_text, (ctool_u32)(sizeof(escaped_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "escaped") ||
+      !string_equal(result.tokens[1].spelling,
+                    "\"/q\\\"\\012\\001x.c\"") ||
+      !string_equal(result.tokens[1].location.path, "/q\"\n\001x.c")) {
+    (void)fprintf(stderr, "predefined: escaped file spelling differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  escaped_path[1] = 'X';
+  if (!string_equal(result.tokens[1].spelling,
+                    "\"/q\\\"\\012\\001x.c\"") ||
+      !string_equal(result.tokens[1].location.path, "/q\"\n\001x.c")) {
+    (void)fprintf(stderr, "predefined: escaped path retained input\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  escaped_path[1] = 'q';
+  ctool_job_close(job);
+  (void)printf("predefined: ok\n");
+  return 0;
+}
+
+static int run_predefined_files(void) {
+  static char forced_text[] = "forced __FILE__ __LINE__\n";
+  static char header_text[] =
+      "included __FILE__ __LINE__\n"
+      "#define HEADER_SITE __FILE__ __LINE__\n"
+      "#define HEADER_FUNCTION(value) value __FILE__ __LINE__\n";
+  static const char source_text[] =
+      "#include \"predefined.h\"\n"
+      "invoked HEADER_SITE\n"
+      "#define STR(value) #value\n"
+      "#define XSTR(value) STR(value)\n"
+      "raw STR(__LINE__)\n"
+      "expanded XSTR(__LINE__)\n"
+      "#define CAT(left, right) left ## right\n"
+      "paste CAT(__LINE__, X)\n"
+      "#if defined(HEADER_SITE)\nheader_macro_ok\n#endif\n"
+      "function_site HEADER_FUNCTION(value)\n";
+  static const char *const expected_text[] = {
+      "forced",   "\"/forced.h\"",                  "1",
+      "included", "\"/predefined/predefined.h\"", "1",
+      "invoked",  "\"/predefined/main.c\"",       "2",
+      "raw",      "\"__LINE__\"",
+      "expanded", "\"6\"",
+      "paste",    "__LINE__X",
+      "header_macro_ok",
+      "function_site", "value", "\"/predefined/main.c\"", "12"};
+  static const char *const expected_path[] = {
+      "/forced.h", "/forced.h", "/forced.h",
+      "/predefined/predefined.h", "/predefined/predefined.h",
+      "/predefined/predefined.h", "/predefined/main.c",
+      "/predefined/main.c", "/predefined/main.c", "/predefined/main.c",
+      "/predefined/main.c", "/predefined/main.c", "/predefined/main.c",
+      "/predefined/main.c", "/predefined/main.c", "/predefined/main.c",
+      "/predefined/main.c", "/predefined/main.c", "/predefined/main.c",
+      "/predefined/main.c"};
+  fixture_file_t files[2];
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_path_t forced;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  files[0].path = ctool_string("/forced.h");
+  files[0].contents =
+      ctool_bytes(forced_text, (ctool_u32)(sizeof(forced_text) - 1u));
+  files[1].path = ctool_string("/predefined/predefined.h");
+  files[1].contents =
+      ctool_bytes(header_text, (ctool_u32)(sizeof(header_text) - 1u));
+  store.files = files;
+  store.file_count = 2u;
+  store.read_count = 0u;
+  if (open_fixture_job("predefined-files", &store, &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/predefined/main.c");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  forced.text = ctool_string("/forced.h");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.forced_includes = &forced;
+  request.forced_include_count = 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 2u ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "predefined-files: preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path,
+                      expected_path[index])) {
+      (void)fprintf(stderr,
+                    "predefined-files: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  forced_text[0] = 'X';
+  header_text[0] = 'X';
+  if (!string_equal(result.tokens[1].spelling, "\"/forced.h\"") ||
+      !string_equal(result.tokens[4].spelling,
+                    "\"/predefined/predefined.h\"") ||
+      !string_equal(result.tokens[7].spelling,
+                    "\"/predefined/main.c\"") ||
+      !string_equal(result.tokens[1].location.path, "/forced.h")) {
+    (void)fprintf(stderr,
+                  "predefined-files: result retained fixture storage\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  forced_text[0] = 'f';
+  header_text[0] = 'i';
+  ctool_job_close(job);
+  (void)printf("predefined-files: ok\n");
+  return 0;
+}
+
+static int run_predefined_errors(void) {
+  static const char *const names[] = {
+      "__FILE__", "__LINE__", "__DATE__", "__TIME__", "__STDC__",
+      "__STDC_HOSTED__", "__STDC_VERSION__", "defined"};
+  static const char recovery_text[] =
+      "#define ID(defined) defined\nrecovered ID(value) __STDC__\n";
+  static const char action_text[] = "unreached\n";
+  static const char *const invalid_dates[] = {
+      "Foo 10 2026", "Jan 01 1970", "Jul 32 2026",
+      "Feb 31 2026", "Apr 31 2026", "Feb 29 2025"};
+  static const char *const invalid_times[] = {
+      "24:00:00", "23:60:00", "23:59:61"};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_macro_action_t action;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 diagnostic_index = 0u;
+  ctool_u32 index;
+  ctool_u32 operation;
+  char source_text[96];
+
+  if (open_job("predefined-errors", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/predefined-errors.c");
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(names) / sizeof(names[0])); index++) {
+    for (operation = 0u; operation < 2u; operation++) {
+      int written = snprintf(
+          source_text, sizeof(source_text),
+          operation == 0u ? "#define %s 1\n" : "#undef %s\n",
+          names[index]);
+      if (written < 0 || (size_t)written >= sizeof(source_text)) {
+        (void)fprintf(stderr,
+                      "predefined-errors: source fixture overflowed\n");
+        ctool_job_close(job);
+        return 1;
+      }
+      source.contents = ctool_bytes(source_text, (ctool_u32)written);
+      (void)memset(&request, 0, sizeof(request));
+      request.mode = CTOOL_C_PP_MODE_C11;
+      (void)memset(&result, 0xa5, sizeof(result));
+      mark = ctool_arena_mark(ctool_job_arena(job));
+      status = ctool_c_preprocess(job, &source, &request, &result);
+      diagnostic = ctool_job_diagnostic(job, diagnostic_index);
+      if (status != CTOOL_ERR_INPUT || result.tokens != NULL ||
+          result.token_count != 0u || diagnostic == NULL ||
+          diagnostic->code != CTOOL_C_PP_DIAG_MACRO_DEFINITION ||
+          diagnostic->line != 1u ||
+          diagnostic->column != (operation == 0u ? 9u : 8u) ||
+          !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+        (void)fprintf(stderr,
+                      "predefined-errors: source case %u/%u differs\n",
+                      index, operation);
+        (void)ctool_job_render_diagnostics(job);
+        ctool_job_close(job);
+        return 1;
+      }
+      diagnostic_index++;
+    }
+  }
+
+  source.contents =
+      ctool_bytes(action_text, (ctool_u32)(sizeof(action_text) - 1u));
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(names) / sizeof(names[0])); index++) {
+    for (operation = 0u; operation < 2u; operation++) {
+      (void)memset(&request, 0, sizeof(request));
+      request.mode = CTOOL_C_PP_MODE_C11;
+      action.kind = operation == 0u ? CTOOL_C_PP_MACRO_DEFINE
+                                    : CTOOL_C_PP_MACRO_UNDEF;
+      action.name = ctool_string(names[index]);
+      action.replacement = operation == 0u ? ctool_string("1")
+                                           : ctool_string("");
+      request.macro_actions = &action;
+      request.macro_action_count = 1u;
+      (void)memset(&result, 0xa5, sizeof(result));
+      mark = ctool_arena_mark(ctool_job_arena(job));
+      status = ctool_c_preprocess(job, &source, &request, &result);
+      diagnostic = ctool_job_diagnostic(job, diagnostic_index);
+      if (status != CTOOL_ERR_INPUT || result.tokens != NULL ||
+          result.token_count != 0u || diagnostic == NULL ||
+          diagnostic->code != CTOOL_C_PP_DIAG_MACRO_DEFINITION ||
+          diagnostic->line != 0u || diagnostic->column != 0u ||
+          !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+        (void)fprintf(stderr,
+                      "predefined-errors: action case %u/%u differs\n",
+                      index, operation);
+        (void)ctool_job_render_diagnostics(job);
+        ctool_job_close(job);
+        return 1;
+      }
+      diagnostic_index++;
+    }
+  }
+
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(invalid_dates) / sizeof(invalid_dates[0])) +
+                   (ctool_u32)(sizeof(invalid_times) / sizeof(invalid_times[0]));
+       index++) {
+    ctool_u32 date_count =
+        (ctool_u32)(sizeof(invalid_dates) / sizeof(invalid_dates[0]));
+    (void)memset(&request, 0, sizeof(request));
+    request.mode = CTOOL_C_PP_MODE_C11;
+    if (index < date_count) {
+      request.translation_date = ctool_string(invalid_dates[index]);
+    } else {
+      request.translation_time =
+          ctool_string(invalid_times[index - date_count]);
+    }
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, diagnostic_index);
+    if (status != CTOOL_ERR_INVALID_ARGUMENT || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != CTOOL_C_PP_DIAG_INVALID_REQUEST ||
+        diagnostic->line != 0u || diagnostic->column != 0u ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "predefined-errors: timestamp case %u differs\n", index);
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+    diagnostic_index++;
+  }
+
+  source.contents =
+      ctool_bytes(recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 3u ||
+      !string_equal(result.tokens[0].spelling, "recovered") ||
+      !string_equal(result.tokens[1].spelling, "value") ||
+      !string_equal(result.tokens[2].spelling, "1") ||
+      ctool_job_diagnostic_count(job) != diagnostic_index) {
+    (void)fprintf(stderr, "predefined-errors: recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("predefined-errors: ok\n");
+  return 0;
+}
+
+static int run_conditional_expression_errors(void) {
+  static const char *const error_text[] = {
+      "#if defined\n#endif\n",
+      "#if defined()\n#endif\n",
+      "#if 1 2\n#endif\n",
+      "#if (1\n#endif\n",
+      "#if 08\n#endif\n",
+      "#if 1.0\n#endif\n",
+      "#if 0x10000000000000000\n#endif\n",
+      "#if 1 / 0\n#endif\n",
+      "#if 1 % 0\n#endif\n",
+      "#if 1 << 64\n#endif\n",
+      "#if 1 << -1\n#endif\n",
+      "#if 9223372036854775807 + 1\n#endif\n",
+      "#if 4611686018427387904 * 2\n#endif\n",
+      "#if -(-9223372036854775807 - 1)\n#endif\n",
+      "#if 1 ? 2\n#endif\n",
+      "#if \"text\"\n#endif\n",
+      "#define MAKE_DEFINED defined\n#if MAKE_DEFINED(NAME)\n#endif\n",
+      "#if defined(__VA_ARGS__)\n#endif\n",
+      "#if '\\q'\n#endif\n",
+      "#define EMPTY\n#if EMPTY\n#endif\n",
+      "#if 1 = 1\n#endif\n",
+      "#if 1, 2\n#endif\n",
+      "#if 0 && (1 + )\n#endif\n",
+      "#if '\\u0001'\n#endif\n",
+      "#define A 1\n#define PASS(value) value\n#if PASS(defined(A))\n#endif\n",
+      "#if '\\u0041'\n#endif\n",
+      "#if '\\uD800'\n#endif\n",
+      "#if '\\U00110000'\n#endif\n",
+      "#if L'\\x100000000'\n#endif\n",
+      "#if U'\\x100000000'\n#endif\n",
+      "#if u'\\x10000'\n#endif\n",
+      "#if 0b10\n#endif\n",
+      "#if 9223372036854775808\n#endif\n",
+      "#if '\\e'\n#endif\n",
+      "#if 1lL\n#endif\n",
+      "#if 18446744073709551616ULL\n#endif\n",
+      "#if (1, 2)\n#endif\n",
+      "#if 1 ? 2, 3 : 4\n#endif\n"};
+  static const ctool_status_t error_status[] = {
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_OVERFLOW, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_OVERFLOW, CTOOL_ERR_OVERFLOW, CTOOL_ERR_OVERFLOW,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_OVERFLOW, CTOOL_ERR_OVERFLOW, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_OVERFLOW, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_OVERFLOW, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT};
+  static const ctool_u32 error_code[] = {
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION,
+      CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION};
+  static const ctool_u32 error_line[] = {
+      1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
+      1u, 1u, 1u, 1u, 2u, 1u, 1u, 2u, 1u, 1u, 1u, 1u, 3u,
+      1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u};
+  static const ctool_u32 error_column[] = {
+      5u, 5u, 7u, 5u, 5u, 5u, 5u, 7u, 7u, 7u, 7u, 25u,
+      25u, 5u, 7u, 5u, 5u, 13u, 5u, 1u, 7u, 6u, 15u, 5u, 10u,
+      5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 7u, 10u};
+  static const char recovery_text[] =
+      "#if 2 + 2 == 4\nrecovered\n#endif\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(error_text) / sizeof(error_text[0]));
+  ctool_u32 index;
+
+  if (open_job("conditional-errors", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/conditional-errors.c");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  for (index = 0u; index < case_count; index++) {
+    source.contents =
+        ctool_bytes(error_text[index], (ctool_u32)strlen(error_text[index]));
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, index);
+    if (status != error_status[index] || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != error_code[index] ||
+        !string_equal(diagnostic->path, "/conditional-errors.c") ||
+        diagnostic->line != error_line[index] ||
+        diagnostic->column != error_column[index] ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "conditional-errors: case %u differs (%s)\n", index,
+                    ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  source.contents =
+      ctool_bytes(recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "recovered") ||
+      ctool_job_diagnostic_count(job) != case_count) {
+    (void)fprintf(stderr, "conditional-errors: recovery failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("conditional-errors: ok\n");
+  return 0;
+}
+
+static int run_conditional_active_cases(void) {
+  typedef struct {
+    const char *expression;
+    ctool_u32 if_occurrences;
+    ctool_u32 elif_occurrences;
+    ctool_bool expected_i386;
+  } conditional_case_t;
+  enum { SOURCE_CAPACITY = 16 * 1024 };
+  static const conditional_case_t cases[] = {
+#define CUPIDC_PP_CONDITIONAL_CASE(expression, if_count, elif_count, expected) \
+  {expression, if_count, elif_count, expected != 0 ? CTOOL_TRUE : CTOOL_FALSE},
+#include "cupidc_pp_conditional_cases.inc"
+#undef CUPIDC_PP_CONDITIONAL_CASE
+  };
+  static char source_text[SOURCE_CAPACITY];
+  static const char host_text[] =
+      "#if defined(_WIN32) && _WIN64 && _MSC_VER >= 1400 && "
+      "defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8 && "
+      "__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__\n"
+      "host_profile_ok\n"
+      "#endif\n";
+  ctool_c_pp_macro_action_t actions[11];
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 source_size = 0u;
+  ctool_u32 if_occurrences = 0u;
+  ctool_u32 elif_occurrences = 0u;
+  ctool_u32 probe_count = 0u;
+  ctool_u32 output_index = 0u;
+  ctool_u32 index;
+  char expected[48];
+
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    if_occurrences += cases[index].if_occurrences;
+    elif_occurrences += cases[index].elif_occurrences;
+    if (cases[index].if_occurrences != 0u) {
+      if (append_text(source_text, SOURCE_CAPACITY, &source_size, "#if ") != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      cases[index].expression) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size, "\ncase") != 0 ||
+          append_decimal(source_text, SOURCE_CAPACITY, &source_size, index) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "_if_true\n#else\ncase") != 0 ||
+          append_decimal(source_text, SOURCE_CAPACITY, &source_size, index) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "_if_false\n#endif\n") != 0) {
+        (void)fprintf(stderr,
+                      "conditional-active: source fixture overflowed\n");
+        return 1;
+      }
+      probe_count++;
+    }
+    if (cases[index].elif_occurrences != 0u) {
+      if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "#if 0\nnot_taken\n#elif ") != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      cases[index].expression) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "\ncase") != 0 ||
+          append_decimal(source_text, SOURCE_CAPACITY, &source_size, index) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "_elif_true\n#else\ncase") != 0 ||
+          append_decimal(source_text, SOURCE_CAPACITY, &source_size, index) != 0 ||
+          append_text(source_text, SOURCE_CAPACITY, &source_size,
+                      "_elif_false\n#endif\n") != 0) {
+        (void)fprintf(stderr,
+                      "conditional-active: source fixture overflowed\n");
+        return 1;
+      }
+      probe_count++;
+    }
+  }
+  if ((ctool_u32)(sizeof(cases) / sizeof(cases[0])) != 21u ||
+      if_occurrences != 97u || elif_occurrences != 4u ||
+      probe_count != 22u) {
+    (void)fprintf(stderr,
+                  "conditional-active: checked manifest totals differ\n");
+    return 1;
+  }
+
+  if (open_job("conditional-active", &adapter, &job) != 0) {
+    return 1;
+  }
+  actions[0].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[0].name = ctool_string("__ORDER_LITTLE_ENDIAN__");
+  actions[0].replacement = ctool_string("1234");
+  actions[1].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[1].name = ctool_string("__ORDER_BIG_ENDIAN__");
+  actions[1].replacement = ctool_string("4321");
+  actions[2].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[2].name = ctool_string("__ORDER_PDP_ENDIAN__");
+  actions[2].replacement = ctool_string("3412");
+  actions[3].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[3].name = ctool_string("__BYTE_ORDER__");
+  actions[3].replacement = ctool_string("__ORDER_LITTLE_ENDIAN__");
+  actions[4].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[4].name = ctool_string("__SIZEOF_POINTER__");
+  actions[4].replacement = ctool_string("4");
+  actions[5].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[5].name = ctool_string("OPL_ENABLE_STEREOEXT");
+  actions[5].replacement = ctool_string("0");
+  actions[6].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[6].name = ctool_string("OPL_QUIRK_CHANNELSAMPLEDELAY");
+  actions[6].replacement = ctool_string("(!OPL_ENABLE_STEREOEXT)");
+  actions[7].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[7].name = ctool_string("__bool_true_false_are_defined");
+  actions[7].replacement = ctool_string("1");
+  actions[8].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[8].name = ctool_string("ORIGCODE");
+  actions[8].replacement = ctool_string("1");
+  actions[9].kind = CTOOL_C_PP_MACRO_UNDEF;
+  actions[9].name = ctool_string("ORIGCODE");
+  actions[9].replacement = ctool_string("");
+  actions[10].kind = CTOOL_C_PP_MACRO_UNDEF;
+  actions[10].name = ctool_string("_WIN32");
+  actions[10].replacement = ctool_string("");
+  source.path.text = ctool_string("/conditional-active.c");
+  source.contents =
+      ctool_bytes(source_text, source_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.macro_actions = actions;
+  request.macro_action_count = 11u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != probe_count) {
+    (void)fprintf(stderr,
+                  "conditional-active: OS profile failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    if (cases[index].if_occurrences != 0u) {
+      int written = snprintf(
+          expected, sizeof(expected), "case%u_if_%s", index,
+          cases[index].expected_i386 == CTOOL_TRUE ? "true" : "false");
+      if (written < 0 || (size_t)written >= sizeof(expected) ||
+          !string_equal(result.tokens[output_index].spelling, expected) ||
+          !string_equal(result.tokens[output_index].location.path,
+                        "/conditional-active.c")) {
+        (void)fprintf(stderr,
+                      "conditional-active: #if case %u differs\n", index);
+        ctool_job_close(job);
+        return 1;
+      }
+      output_index++;
+    }
+    if (cases[index].elif_occurrences != 0u) {
+      int written = snprintf(
+          expected, sizeof(expected), "case%u_elif_%s", index,
+          cases[index].expected_i386 == CTOOL_TRUE ? "true" : "false");
+      if (written < 0 || (size_t)written >= sizeof(expected) ||
+          !string_equal(result.tokens[output_index].spelling, expected) ||
+          !string_equal(result.tokens[output_index].location.path,
+                        "/conditional-active.c")) {
+        (void)fprintf(stderr,
+                      "conditional-active: #elif case %u differs\n", index);
+        ctool_job_close(job);
+        return 1;
+      }
+      output_index++;
+    }
+  }
+  if (output_index != result.token_count) {
+    (void)fprintf(stderr,
+                  "conditional-active: OS profile output count differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+
+  actions[4].replacement = ctool_string("8");
+  actions[8].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[8].name = ctool_string("_WIN32");
+  actions[8].replacement = ctool_string("1");
+  actions[9].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[9].name = ctool_string("_WIN64");
+  actions[9].replacement = ctool_string("1");
+  actions[10].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[10].name = ctool_string("_MSC_VER");
+  actions[10].replacement = ctool_string("1930");
+  source.path.text = ctool_string("/conditional-host.c");
+  source.contents =
+      ctool_bytes(host_text, (ctool_u32)(sizeof(host_text) - 1u));
+  request.hosted_environment = CTOOL_TRUE;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "host_profile_ok") ||
+      !string_equal(result.tokens[0].location.path,
+                    "/conditional-host.c") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr,
+                  "conditional-active: hosted profile failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("conditional-active: ok\n");
+  return 0;
+}
+
+static int run_conditional_expression_scale(void) {
+  enum {
+    TERM_COUNT = 10000,
+    NESTING_LIMIT = 256,
+    SOURCE_CAPACITY = 128 * 1024
+  };
+  static char source_text[SOURCE_CAPACITY];
+  static char limit_text[SOURCE_CAPACITY];
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 source_size = 0u;
+  ctool_u32 limit_size = 0u;
+  ctool_u32 index;
+
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size, "#if ") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < TERM_COUNT; index++) {
+    if ((index != 0u &&
+         append_character(source_text, SOURCE_CAPACITY, &source_size, '+') !=
+             0) ||
+        append_character(source_text, SOURCE_CAPACITY, &source_size, '1') !=
+            0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size, " == ") != 0 ||
+      append_decimal(source_text, SOURCE_CAPACITY, &source_size, TERM_COUNT) !=
+          0 ||
+      append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "\nchain_ok\n#endif\n#if ") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < NESTING_LIMIT; index++) {
+    if (append_character(source_text, SOURCE_CAPACITY, &source_size, '(') !=
+        0) {
+      return 1;
+    }
+  }
+  if (append_character(source_text, SOURCE_CAPACITY, &source_size, '1') !=
+      0) {
+    return 1;
+  }
+  for (index = 0u; index < NESTING_LIMIT; index++) {
+    if (append_character(source_text, SOURCE_CAPACITY, &source_size, ')') !=
+        0) {
+      return 1;
+    }
+  }
+  if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                  "\nnesting_ok\n#endif\n"
+                  "#define SELF SELF\n"
+                  "#if SELF\nnot_taken\n#else\nrecursion_ok\n#endif\n") !=
+      0) {
+    return 1;
+  }
+
+  if (append_text(limit_text, SOURCE_CAPACITY, &limit_size, "#if ") != 0) {
+    return 1;
+  }
+  for (index = 0u; index < NESTING_LIMIT + 1u; index++) {
+    if (append_character(limit_text, SOURCE_CAPACITY, &limit_size, '(') != 0) {
+      return 1;
+    }
+  }
+  if (append_character(limit_text, SOURCE_CAPACITY, &limit_size, '1') != 0) {
+    return 1;
+  }
+  for (index = 0u; index < NESTING_LIMIT + 1u; index++) {
+    if (append_character(limit_text, SOURCE_CAPACITY, &limit_size, ')') != 0) {
+      return 1;
+    }
+  }
+  if (append_text(limit_text, SOURCE_CAPACITY, &limit_size,
+                  "\n#endif\n") != 0) {
+    return 1;
+  }
+
+  if (open_job("conditional-scale", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/conditional-scale.c");
+  source.contents = ctool_bytes(source_text, source_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 3u ||
+      !string_equal(result.tokens[0].spelling, "chain_ok") ||
+      !string_equal(result.tokens[1].spelling, "nesting_ok") ||
+      !string_equal(result.tokens[2].spelling, "recursion_ok")) {
+    (void)fprintf(stderr,
+                  "conditional-scale: positive scale failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/conditional-depth.c");
+  source.contents = ctool_bytes(limit_text, limit_size);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || result.tokens != NULL ||
+      result.token_count != 0u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_CONDITIONAL_EXPRESSION ||
+      !string_equal(diagnostic->path, "/conditional-depth.c") ||
+      diagnostic->line != 1u || diagnostic->column != 261u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr,
+                  "conditional-scale: nesting limit differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("conditional-scale: ok\n");
   return 0;
 }
 
@@ -2011,6 +3118,9 @@ int main(int argc, char **argv) {
     (void)fprintf(
         stderr,
         "usage: cupidc-pp-contract phases|tokens|errors|unsupported|"
+        "conditional-expressions|predefined|predefined-files|predefined-errors|"
+        "conditional-errors|"
+        "conditional-active|conditional-scale|"
         "function-macros|function-scale|macro-operators|macro-gnu|"
         "macro-operator-scale|macro-active-cases <toolchain-root>|"
         "macro-operator-errors|"
@@ -2029,6 +3139,27 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "unsupported") == 0) {
     return run_unsupported();
+  }
+  if (strcmp(argv[1], "conditional-expressions") == 0) {
+    return run_conditional_expressions();
+  }
+  if (strcmp(argv[1], "predefined") == 0) {
+    return run_predefined_macros();
+  }
+  if (strcmp(argv[1], "predefined-files") == 0) {
+    return run_predefined_files();
+  }
+  if (strcmp(argv[1], "predefined-errors") == 0) {
+    return run_predefined_errors();
+  }
+  if (strcmp(argv[1], "conditional-errors") == 0) {
+    return run_conditional_expression_errors();
+  }
+  if (strcmp(argv[1], "conditional-active") == 0) {
+    return run_conditional_active_cases();
+  }
+  if (strcmp(argv[1], "conditional-scale") == 0) {
+    return run_conditional_expression_scale();
   }
   if (strcmp(argv[1], "function-macros") == 0) {
     return run_function_macros();

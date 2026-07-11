@@ -66,6 +66,27 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_unimplemented_configuration_fails_explicitly(self):
         self.run_contract("unsupported")
 
+    def test_full_c11_conditional_expressions_follow_integer_semantics(self):
+        self.run_contract("conditional-expressions")
+
+    def test_language_predefined_macros_are_target_deterministic(self):
+        self.run_contract("predefined")
+
+    def test_predefined_paths_follow_forced_included_and_invocation_sources(self):
+        self.run_contract("predefined-files")
+
+    def test_predefined_ownership_failures_are_transactional(self):
+        self.run_contract("predefined-errors")
+
+    def test_conditional_expression_failures_are_precise_and_transactional(self):
+        self.run_contract("conditional-errors")
+
+    def test_every_active_conditional_shape_accepts_target_profile_actions(self):
+        self.run_contract("conditional-active")
+
+    def test_conditional_expression_work_and_nesting_are_bounded(self):
+        self.run_contract("conditional-scale")
+
     def test_function_macros_expand_with_standard_argument_rescanning(self):
         self.run_contract("function-macros")
 

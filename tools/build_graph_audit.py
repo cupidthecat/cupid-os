@@ -1340,6 +1340,58 @@ def _mask_c_noncode(text: str) -> str:
     return "".join(output)
 
 
+def _mask_c_comments_preserve_literals(text: str) -> str:
+    """Mask comments while retaining literal preprocessing-token spelling."""
+    output: list[str] = []
+    index = 0
+    state = "code"
+    delimiter = ""
+    while index < len(text):
+        char = text[index]
+        following = text[index + 1] if index + 1 < len(text) else ""
+        if state == "code":
+            if char == "/" and following == "/":
+                output.extend((" ", " "))
+                index += 2
+                state = "line_comment"
+                continue
+            if char == "/" and following == "*":
+                output.extend((" ", " "))
+                index += 2
+                state = "block_comment"
+                continue
+            output.append(char)
+            index += 1
+            if char in {'"', "'"}:
+                delimiter = char
+                state = "literal"
+            continue
+        if state == "line_comment":
+            output.append("\n" if char == "\n" else " ")
+            index += 1
+            if char == "\n":
+                state = "code"
+            continue
+        if state == "block_comment":
+            if char == "*" and following == "/":
+                output.extend((" ", " "))
+                index += 2
+                state = "code"
+                continue
+            output.append("\n" if char == "\n" else " ")
+            index += 1
+            continue
+        output.append(char)
+        index += 1
+        if char == "\\" and index < len(text):
+            escaped = text[index]
+            output.append(escaped)
+            index += 1
+        elif char == delimiter:
+            state = "code"
+    return "".join(output)
+
+
 def _add_regex_feature(
     collector: FeatureCollector,
     feature_id: str,
@@ -1378,8 +1430,8 @@ def _c_physical_lines(text: str) -> list[tuple[str, bool]]:
     return lines
 
 
-def _c_logical_lines(text: str) -> list[tuple[int, str, str]]:
-    """Return phase-two logical lines with their first physical location."""
+def _c_raw_logical_lines(text: str) -> list[tuple[int, str, str]]:
+    """Return phase-two logical lines before comments and literals are masked."""
     raw_lines = _c_physical_lines(text)
     raw_logical_lines: list[tuple[int, str, str]] = []
     chunks: list[str] = []
@@ -1408,6 +1460,12 @@ def _c_logical_lines(text: str) -> list[tuple[int, str, str]]:
                 "".join(chunks),
             )
         )
+    return raw_logical_lines
+
+
+def _c_logical_lines(text: str) -> list[tuple[int, str, str]]:
+    """Return phase-two logical lines with their first physical location."""
+    raw_logical_lines = _c_raw_logical_lines(text)
     if not raw_logical_lines:
         return []
 
@@ -1423,6 +1481,187 @@ def _c_logical_lines(text: str) -> list[tuple[int, str, str]]:
             raw_logical_lines, masked_lines, strict=True
         )
     ]
+
+
+_C_PP_PUNCTUATORS = tuple(
+    sorted(
+        {
+            "%:%:",
+            ">>=",
+            "<<=",
+            "...",
+            "##",
+            "->",
+            "++",
+            "--",
+            "<<",
+            ">>",
+            "<=",
+            ">=",
+            "==",
+            "!=",
+            "&&",
+            "||",
+            "*=",
+            "/=",
+            "%=",
+            "+=",
+            "-=",
+            "&=",
+            "^=",
+            "|=",
+            "<:",
+            ":>",
+            "<%",
+            "%>",
+            "%:",
+            "[",
+            "]",
+            "(",
+            ")",
+            "{",
+            "}",
+            ".",
+            "&",
+            "*",
+            "+",
+            "-",
+            "~",
+            "!",
+            "/",
+            "%",
+            "<",
+            ">",
+            "^",
+            "|",
+            "?",
+            ":",
+            ";",
+            "=",
+            ",",
+            "#",
+        },
+        key=lambda spelling: (-len(spelling), spelling),
+    )
+)
+
+
+def _c_ucn_width(text: str, index: int) -> int:
+    if index + 2 > len(text) or text[index] != "\\":
+        return 0
+    marker = text[index + 1]
+    digits = 4 if marker == "u" else 8 if marker == "U" else 0
+    if digits == 0 or index + 2 + digits > len(text):
+        return 0
+    spelling = text[index + 2 : index + 2 + digits]
+    valid = all(char in "0123456789abcdefABCDEF" for char in spelling)
+    return 2 + digits if valid else 0
+
+
+def _c_identifier_unit_width(text: str, index: int, initial: bool) -> int:
+    char = text[index]
+    if char == "_" or char.isalpha() or (not initial and char.isdigit()):
+        return 1
+    return _c_ucn_width(text, index)
+
+
+def _c_literal_end(text: str, index: int) -> int:
+    delimiter_index = index
+    if text.startswith("u8", index) and index + 2 < len(text):
+        delimiter_index = index + 2
+    elif text[index] in {"L", "u", "U"} and index + 1 < len(text):
+        delimiter_index = index + 1
+    if text[delimiter_index] not in {'"', "'"}:
+        return index
+    delimiter = text[delimiter_index]
+    cursor = delimiter_index + 1
+    while cursor < len(text):
+        if text[cursor] == "\\":
+            if cursor + 1 >= len(text) or text[cursor + 1] in {"\r", "\n"}:
+                return index
+            cursor += 2
+            continue
+        if text[cursor] == delimiter:
+            return cursor + 1
+        if text[cursor] in {"\r", "\n"}:
+            return index
+        cursor += 1
+    return index
+
+
+def _c_pp_number_end(text: str, index: int) -> int:
+    cursor = index + 1
+    while cursor < len(text):
+        char = text[cursor]
+        if char == "." or char == "_" or char.isalnum():
+            cursor += 1
+            continue
+        ucn_width = _c_ucn_width(text, cursor)
+        if ucn_width != 0:
+            cursor += ucn_width
+            continue
+        if char in {"+", "-"} and text[cursor - 1] in {"e", "E", "p", "P"}:
+            cursor += 1
+            continue
+        break
+    return cursor
+
+
+def _normalize_c_preprocessing_tokens(
+    expression: str, path: str, line: int
+) -> tuple[str, ...]:
+    tokens: list[str] = []
+    index = 0
+    while index < len(expression):
+        if expression[index].isspace():
+            index += 1
+            continue
+        literal_end = _c_literal_end(expression, index)
+        if literal_end != index:
+            tokens.append(expression[index:literal_end])
+            index = literal_end
+            continue
+        identifier_width = _c_identifier_unit_width(
+            expression, index, initial=True
+        )
+        if identifier_width != 0:
+            end = index + identifier_width
+            while end < len(expression):
+                width = _c_identifier_unit_width(expression, end, initial=False)
+                if width == 0:
+                    break
+                end += width
+            tokens.append(expression[index:end])
+            index = end
+            continue
+        if expression[index].isdigit() or (
+            expression[index] == "."
+            and index + 1 < len(expression)
+            and expression[index + 1].isdigit()
+        ):
+            end = _c_pp_number_end(expression, index)
+            tokens.append(expression[index:end])
+            index = end
+            continue
+        punctuator = next(
+            (
+                spelling
+                for spelling in _C_PP_PUNCTUATORS
+                if expression.startswith(spelling, index)
+            ),
+            None,
+        )
+        if punctuator is not None:
+            tokens.append(punctuator)
+            index += len(punctuator)
+            continue
+        excerpt = expression[index : index + 12]
+        raise AuditError(
+            f"{path}:{line}: unrecognized preprocessing token at {excerpt!r}"
+        )
+    if not tokens:
+        raise AuditError(f"{path}:{line}: conditional expression is empty")
+    return tuple(tokens)
 
 
 def _scan_c_macro_features(
@@ -1904,6 +2143,92 @@ def _scan_source_features(
         _scan_asm_features(path, text, collector)
 
 
+def _c_preprocessor_conditionals_contract(
+    root: Path,
+    active_sources: set[str],
+    generated_sources: set[str],
+) -> dict[str, object]:
+    by_expression: dict[tuple[str, ...], list[dict[str, object]]] = (
+        collections.defaultdict(list)
+    )
+    for path in sorted(active_sources - generated_sources):
+        if _language(path) not in {"c", "c_header", "cupid_c"}:
+            continue
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        logical_lines = _c_raw_logical_lines(text)
+        if not logical_lines:
+            continue
+        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        directive_lines = _mask_c_noncode(logical_text).split("\n")
+        expression_lines = _mask_c_comments_preserve_literals(logical_text).split(
+            "\n"
+        )
+        if (
+            len(directive_lines) != len(logical_lines)
+            or len(expression_lines) != len(logical_lines)
+        ):
+            raise AuditError("C masking changed the logical line count")
+        for (
+            (line_number, _original_line, raw_line),
+            directive_line,
+            expression_line,
+        ) in zip(
+            logical_lines,
+            directive_lines,
+            expression_lines,
+            strict=True,
+        ):
+            match = re.match(
+                r"\s*(?:#|%:)\s*(if|elif)\b", directive_line
+            )
+            if match is None:
+                continue
+            directive = match.group(1)
+            tokens = _normalize_c_preprocessing_tokens(
+                expression_line[match.end() :], path, line_number
+            )
+            by_expression[tokens].append(
+                {
+                    "path": path,
+                    "line": line_number,
+                    "directive": directive,
+                    "text": raw_line.strip()[:160],
+                }
+            )
+
+    expressions: list[dict[str, object]] = []
+    if_occurrences = 0
+    elif_occurrences = 0
+    directive_expression_pairs = 0
+    for tokens, evidence in sorted(
+        by_expression.items(), key=lambda item: item[0]
+    ):
+        if_count = sum(item["directive"] == "if" for item in evidence)
+        elif_count = sum(item["directive"] == "elif" for item in evidence)
+        if_occurrences += if_count
+        elif_occurrences += elif_count
+        directive_expression_pairs += int(if_count != 0) + int(elif_count != 0)
+        expressions.append(
+            {
+                "expression": " ".join(tokens),
+                "if_occurrences": if_count,
+                "elif_occurrences": elif_count,
+                "occurrences": len(evidence),
+                "files": sorted({str(item["path"]) for item in evidence}),
+                "evidence": evidence,
+            }
+        )
+    return {
+        "status": "pass",
+        "if_occurrences": if_occurrences,
+        "elif_occurrences": elif_occurrences,
+        "expression_occurrences": if_occurrences + elif_occurrences,
+        "unique_expressions": len(expressions),
+        "directive_expression_pairs": directive_expression_pairs,
+        "expressions": expressions,
+    }
+
+
 def _scan_build_features(
     transforms: list[dict[str, object]],
     collector: FeatureCollector,
@@ -2054,6 +2379,13 @@ def build_audit(
     )
     if artifact_contract is not None:
         contracts["bootstrap_artifact_coverage"] = artifact_contract
+    contracts["c_preprocessor_conditionals"] = (
+        _c_preprocessor_conditionals_contract(
+            root,
+            all_sources,
+            generated_sources,
+        )
+    )
     feature_inventory = feature_collector.inventory()
     roadmap = _roadmap(sources, feature_inventory)
     abi = _abi_inventory(root, all_transforms)
@@ -2345,12 +2677,22 @@ def _render_markdown(audit: dict[str, object]) -> str:
     )
     if audit["contracts"]:
         for name, contract in sorted(audit["contracts"].items()):
-            missing = contract.get("missing_link_inputs", [])
-            detail = (
-                f"{contract.get('linked_objects', 0)} linked objects; "
-                f"{contract.get('declared_artifacts', 0)} declared artifacts; "
-                f"{len(missing)} missing"
-            )
+            if "expression_occurrences" in contract:
+                detail = (
+                    f"{contract['expression_occurrences']} conditional expressions "
+                    f"({contract['if_occurrences']} #if, "
+                    f"{contract['elif_occurrences']} #elif); "
+                    f"{contract['unique_expressions']} normalized expressions; "
+                    f"{contract['directive_expression_pairs']} "
+                    "directive/expression pairs"
+                )
+            else:
+                missing = contract.get("missing_link_inputs", [])
+                detail = (
+                    f"{contract.get('linked_objects', 0)} linked objects; "
+                    f"{contract.get('declared_artifacts', 0)} declared artifacts; "
+                    f"{len(missing)} missing"
+                )
             lines.append(
                 f"| `{_markdown_cell(name)}` | `{contract['status']}` | "
                 f"{_markdown_cell(detail)} |"
@@ -2364,9 +2706,11 @@ def _render_markdown(audit: dict[str, object]) -> str:
             "",
             "- Feature occurrences are comment/string-masked lexical evidence, not a "
             "substitute for a compiler AST or executed semantic tests.",
-            "- Include reachability follows checked Make include paths, forced includes, "
-            "quoted/angle C includes, and `%include`; condition evaluation remains a "
-            "future compiler-owned manifest capability.",
+            "- Include reachability follows checked Make include paths, forced "
+            "includes, "
+            "quoted/angle C includes, and `%include`; the conditional contract records "
+            "normalized source expressions while evaluation remains a "
+            "compiler-contract responsibility.",
             "- Relocation kinds and ABI values are required interchange contracts; "
             "per-object relocation counts are recorded in the chronological bootstrap log.",
             "- `not_reached` means absent from the supported roots recorded above, not "

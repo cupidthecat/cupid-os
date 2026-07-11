@@ -7555,6 +7555,880 @@
       "linked_objects": 424,
       "missing_link_inputs": [],
       "status": "pass"
+    },
+    "c_preprocessor_conditionals": {
+      "directive_expression_pairs": 22,
+      "elif_occurrences": 4,
+      "expression_occurrences": 101,
+      "expressions": [
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 267,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#if !defined(_WIN32) && !defined(__MACOSX__) && !defined(__DJGPP__)"
+            }
+          ],
+          "expression": "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && ! defined ( __DJGPP__ )",
+          "files": [
+            "kernel/doom/src/i_system.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 7,
+              "path": "kernel/core/types.h",
+              "text": "#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 202311L)"
+            }
+          ],
+          "expression": "! defined ( __STDC_VERSION__ ) || ( __STDC_VERSION__ < 202311L )",
+          "files": [
+            "kernel/core/types.h"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 6,
+              "path": "kernel/core/types.h",
+              "text": "#if !defined(__cplusplus)"
+            }
+          ],
+          "expression": "! defined ( __cplusplus )",
+          "files": [
+            "kernel/core/types.h"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 1,
+          "evidence": [
+            {
+              "directive": "elif",
+              "line": 39,
+              "path": "kernel/doom/src/i_swap.h",
+              "text": "#elif ( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )"
+            },
+            {
+              "directive": "if",
+              "line": 62,
+              "path": "kernel/doom/src/i_swap.h",
+              "text": "#if ( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )"
+            }
+          ],
+          "expression": "( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )",
+          "files": [
+            "kernel/doom/src/i_swap.h"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 2
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 35,
+              "path": "kernel/doom/src/i_swap.h",
+              "text": "#if ( __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ )"
+            }
+          ],
+          "expression": "( __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ )",
+          "files": [
+            "kernel/doom/src/i_swap.h"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 48,
+              "path": "kernel/doom/src/dstrings.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 766,
+              "path": "kernel/doom/src/g_game.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 217,
+              "path": "kernel/doom/src/m_argv.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 1912,
+              "path": "kernel/doom/src/m_menu.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 36,
+              "path": "kernel/doom/src/p_doors.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 571,
+              "path": "kernel/doom/src/p_doors.c",
+              "text": "#if 0\t\t// ABANDONED TO THE MISTS OF TIME!!!"
+            },
+            {
+              "directive": "if",
+              "line": 181,
+              "path": "kernel/doom/src/p_floor.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 710,
+              "path": "kernel/doom/src/p_maputl.c",
+              "text": "#if 0  // UNUSED"
+            },
+            {
+              "directive": "if",
+              "line": 362,
+              "path": "kernel/doom/src/p_pspr.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 390,
+              "path": "kernel/doom/src/p_spec.h",
+              "text": "#if 0 // UNUSED"
+            },
+            {
+              "directive": "if",
+              "line": 126,
+              "path": "kernel/doom/src/p_switch.c",
+              "text": "#if 0\t// UNUSED - debug?"
+            },
+            {
+              "directive": "if",
+              "line": 151,
+              "path": "kernel/doom/src/r_draw.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 645,
+              "path": "kernel/doom/src/r_draw.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 425,
+              "path": "kernel/doom/src/r_main.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 460,
+              "path": "kernel/doom/src/r_main.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 508,
+              "path": "kernel/doom/src/r_main.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 428,
+              "path": "kernel/doom/src/r_segs.c",
+              "text": "#if 0"
+            },
+            {
+              "directive": "if",
+              "line": 470,
+              "path": "kernel/doom/src/w_wad.c",
+              "text": "#if 0"
+            }
+          ],
+          "expression": "0",
+          "files": [
+            "kernel/doom/src/dstrings.c",
+            "kernel/doom/src/g_game.c",
+            "kernel/doom/src/m_argv.c",
+            "kernel/doom/src/m_menu.c",
+            "kernel/doom/src/p_doors.c",
+            "kernel/doom/src/p_floor.c",
+            "kernel/doom/src/p_maputl.c",
+            "kernel/doom/src/p_pspr.c",
+            "kernel/doom/src/p_spec.h",
+            "kernel/doom/src/p_switch.c",
+            "kernel/doom/src/r_draw.c",
+            "kernel/doom/src/r_main.c",
+            "kernel/doom/src/r_segs.c",
+            "kernel/doom/src/w_wad.c"
+          ],
+          "if_occurrences": 18,
+          "occurrences": 18
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 230,
+              "path": "kernel/doom/src/p_maputl.c",
+              "text": "#if 1"
+            }
+          ],
+          "expression": "1",
+          "files": [
+            "kernel/doom/src/p_maputl.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 219,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1019,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1028,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1163,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1196,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1361,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1373,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1402,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 1485,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 100,
+              "path": "kernel/audio/nuked_opl3.h",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            },
+            {
+              "directive": "if",
+              "line": 150,
+              "path": "kernel/audio/nuked_opl3.h",
+              "text": "#if OPL_ENABLE_STEREOEXT"
+            }
+          ],
+          "expression": "OPL_ENABLE_STEREOEXT",
+          "files": [
+            "kernel/audio/nuked_opl3.c",
+            "kernel/audio/nuked_opl3.h"
+          ],
+          "if_occurrences": 11,
+          "occurrences": 11
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 61,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_ENABLE_STEREOEXT && !defined OPL_SIN"
+            }
+          ],
+          "expression": "OPL_ENABLE_STEREOEXT && ! defined OPL_SIN",
+          "files": [
+            "kernel/audio/nuked_opl3.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 1148,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
+            },
+            {
+              "directive": "if",
+              "line": 1173,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
+            },
+            {
+              "directive": "if",
+              "line": 1183,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
+            },
+            {
+              "directive": "if",
+              "line": 1206,
+              "path": "kernel/audio/nuked_opl3.c",
+              "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
+            }
+          ],
+          "expression": "OPL_QUIRK_CHANNELSAMPLEDELAY",
+          "files": [
+            "kernel/audio/nuked_opl3.c"
+          ],
+          "if_occurrences": 4,
+          "occurrences": 4
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 511,
+              "path": "kernel/doom/src/d_iwad.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 569,
+              "path": "kernel/doom/src/d_iwad.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 310,
+              "path": "kernel/doom/src/d_loop.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 343,
+              "path": "kernel/doom/src/d_loop.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1088,
+              "path": "kernel/doom/src/d_main.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1168,
+              "path": "kernel/doom/src/d_main.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1380,
+              "path": "kernel/doom/src/d_main.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1391,
+              "path": "kernel/doom/src/d_main.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1521,
+              "path": "kernel/doom/src/d_main.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 206,
+              "path": "kernel/doom/src/d_net.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 216,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 260,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 369,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 464,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 77,
+              "path": "kernel/doom/src/m_argv.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 95,
+              "path": "kernel/doom/src/m_argv.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1611,
+              "path": "kernel/doom/src/m_config.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 1773,
+              "path": "kernel/doom/src/m_config.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 2090,
+              "path": "kernel/doom/src/m_config.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 2103,
+              "path": "kernel/doom/src/m_config.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 44,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 60,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 64,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 126,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 148,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 176,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 209,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 268,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 297,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 345,
+              "path": "kernel/doom/src/statdump.c",
+              "text": "#if ORIGCODE"
+            },
+            {
+              "directive": "if",
+              "line": 508,
+              "path": "kernel/doom/src/w_wad.c",
+              "text": "#if ORIGCODE"
+            }
+          ],
+          "expression": "ORIGCODE",
+          "files": [
+            "kernel/doom/src/d_iwad.c",
+            "kernel/doom/src/d_loop.c",
+            "kernel/doom/src/d_main.c",
+            "kernel/doom/src/d_net.c",
+            "kernel/doom/src/i_system.c",
+            "kernel/doom/src/m_argv.c",
+            "kernel/doom/src/m_config.c",
+            "kernel/doom/src/statdump.c",
+            "kernel/doom/src/w_wad.c"
+          ],
+          "if_occurrences": 31,
+          "occurrences": 31
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 476,
+              "path": "kernel/doom/src/m_misc.c",
+              "text": "#if _MSC_VER < 1400 /* not needed for Visual Studio 2008 */"
+            }
+          ],
+          "expression": "_MSC_VER < 1400",
+          "files": [
+            "kernel/doom/src/m_misc.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 101,
+              "path": "kernel/doom/src/d_iwad.c",
+              "text": "#if _WIN64"
+            }
+          ],
+          "expression": "_WIN64",
+          "files": [
+            "kernel/doom/src/d_iwad.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 31,
+              "path": "kernel/doom/src/i_scale.c",
+              "text": "#if defined(_MSC_VER) && !defined(__cplusplus)"
+            }
+          ],
+          "expression": "defined ( _MSC_VER ) && ! defined ( __cplusplus )",
+          "files": [
+            "kernel/doom/src/i_scale.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 10,
+              "path": "toolchain/ctool_host.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 75,
+              "path": "toolchain/ctool_host.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 9,
+              "path": "toolchain/cupidasm_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 190,
+              "path": "toolchain/cupidasm_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 213,
+              "path": "toolchain/cupidasm_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 250,
+              "path": "toolchain/cupidasm_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 10,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 185,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 218,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 223,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 266,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 283,
+              "path": "toolchain/cupidld_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 10,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 160,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 193,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 215,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 245,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 395,
+              "path": "toolchain/cupidobj_main.c",
+              "text": "#if defined(_WIN32)"
+            }
+          ],
+          "expression": "defined ( _WIN32 )",
+          "files": [
+            "toolchain/ctool_host.c",
+            "toolchain/cupidasm_main.c",
+            "toolchain/cupidld_main.c",
+            "toolchain/cupidobj_main.c"
+          ],
+          "if_occurrences": 18,
+          "occurrences": 18
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 78,
+              "path": "kernel/doom/src/d_iwad.c",
+              "text": "#if defined(_WIN32) && !defined(_WIN32_WCE)"
+            }
+          ],
+          "expression": "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )",
+          "files": [
+            "kernel/doom/src/d_iwad.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 87,
+              "path": "kernel/doom/src/doomtype.h",
+              "text": "#if defined(_WIN32) || defined(__DJGPP__)"
+            },
+            {
+              "directive": "if",
+              "line": 171,
+              "path": "kernel/doom/src/m_misc.c",
+              "text": "#if defined(_WIN32) || defined(__DJGPP__)"
+            }
+          ],
+          "expression": "defined ( _WIN32 ) || defined ( __DJGPP__ )",
+          "files": [
+            "kernel/doom/src/doomtype.h",
+            "kernel/doom/src/m_misc.c"
+          ],
+          "if_occurrences": 2,
+          "occurrences": 2
+        },
+        {
+          "elif_occurrences": 2,
+          "evidence": [
+            {
+              "directive": "elif",
+              "line": 86,
+              "path": "kernel/doom/src/i_endoom.c",
+              "text": "#elif defined(__DJGPP__)"
+            },
+            {
+              "directive": "elif",
+              "line": 451,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#elif defined(__DJGPP__)"
+            }
+          ],
+          "expression": "defined ( __DJGPP__ )",
+          "files": [
+            "kernel/doom/src/i_endoom.c",
+            "kernel/doom/src/i_system.c"
+          ],
+          "if_occurrences": 0,
+          "occurrences": 2
+        },
+        {
+          "elif_occurrences": 1,
+          "evidence": [
+            {
+              "directive": "elif",
+              "line": 422,
+              "path": "kernel/doom/src/i_system.c",
+              "text": "#elif defined(__MACOSX__)"
+            }
+          ],
+          "expression": "defined ( __MACOSX__ )",
+          "files": [
+            "kernel/doom/src/i_system.c"
+          ],
+          "if_occurrences": 0,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 6,
+              "path": "toolchain/ctool.c",
+              "text": "#if defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 8)"
+            }
+          ],
+          "expression": "defined ( __SIZEOF_POINTER__ ) && ( __SIZEOF_POINTER__ == 8 )",
+          "files": [
+            "toolchain/ctool.c"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 65,
+              "path": "kernel/doom/src/doomtype.h",
+              "text": "#if defined(__cplusplus) || defined(__bool_true_false_are_defined)"
+            }
+          ],
+          "expression": "defined ( __cplusplus ) || defined ( __bool_true_false_are_defined )",
+          "files": [
+            "kernel/doom/src/doomtype.h"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        }
+      ],
+      "if_occurrences": 97,
+      "status": "pass",
+      "unique_expressions": 21
     }
   },
   "features": [
@@ -11340,7 +12214,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.break",
-      "occurrences": 1435
+      "occurrences": 1440
     },
     {
       "category": "control",
@@ -11582,7 +12456,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 866
+      "occurrences": 868
     },
     {
       "category": "control",
@@ -11711,7 +12585,7 @@
         "toolchain/tests/cupidc_pp_contract.c"
       ],
       "id": "c.control.do",
-      "occurrences": 54
+      "occurrences": 55
     },
     {
       "category": "control",
@@ -12000,7 +12874,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 2975
+      "occurrences": 3012
     },
     {
       "category": "control",
@@ -12256,7 +13130,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2477
+      "occurrences": 2502
     },
     {
       "category": "control",
@@ -12676,7 +13550,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 19005
+      "occurrences": 19246
     },
     {
       "category": "control",
@@ -13022,7 +13896,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 11168
+      "occurrences": 11362
     },
     {
       "category": "control",
@@ -13376,7 +14250,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2380
+      "occurrences": 2387
     },
     {
       "category": "declaration",
@@ -13629,7 +14503,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 425
+      "occurrences": 466
     },
     {
       "category": "declarator",
@@ -13679,7 +14553,7 @@
       "category": "expression",
       "examples": [
         {
-          "line": 840,
+          "line": 934,
           "path": "toolchain/cupidc_pp.c",
           "text": "return pp_string_equal(value, (ctool_string_t){literal, size});"
         }
@@ -13869,7 +14743,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 1363
+      "occurrences": 1425
     },
     {
       "category": "extension",
@@ -15063,13 +15937,14 @@
         "toolchain/elf32.c",
         "toolchain/elf32.h",
         "toolchain/tests/cupidasm_demos_contract.c",
+        "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c",
         "toolchain/x86.h",
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2694
+      "occurrences": 2699
     },
     {
       "category": "preprocessor",
@@ -15535,11 +16410,12 @@
         "kernel/usb/ehci.c",
         "kernel/usb/uhci.c",
         "toolchain/tests/cupidasm_demos_contract.c",
+        "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 184
+      "occurrences": 185
     },
     {
       "category": "preprocessor",
@@ -16454,7 +17330,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2295
+      "occurrences": 2296
     },
     {
       "category": "preprocessor",
@@ -16596,11 +17472,12 @@
         "kernel/lang/as.c",
         "kernel/lang/cupidc.c",
         "kernel/lang/cupidscript_runtime.c",
+        "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/x86_contract.c",
         "toolchain/x86.c"
       ],
       "id": "c.preprocessor.undef",
-      "occurrences": 51
+      "occurrences": 52
     },
     {
       "category": "preprocessor",
@@ -16959,7 +17836,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 4552
+      "occurrences": 4622
     },
     {
       "category": "qualifier",
@@ -17459,7 +18336,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 3831
+      "occurrences": 3911
     },
     {
       "category": "type",
@@ -17843,7 +18720,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 5594
+      "occurrences": 5658
     },
     {
       "category": "type",
@@ -17985,7 +18862,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 156
+      "occurrences": 159
     },
     {
       "category": "type",
@@ -18536,7 +19413,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18307
+      "occurrences": 18317
     },
     {
       "category": "type",
@@ -18933,7 +19810,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 674
+      "occurrences": 677
     },
     {
       "category": "type",
@@ -19174,7 +20051,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 707
+      "occurrences": 711
     },
     {
       "category": "type",
@@ -19919,7 +20796,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 7768
+      "occurrences": 7853
     },
     {
       "category": "declaration",
@@ -20529,7 +21406,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "dc2c619a735e4a314a46bd3303c68061090b590d70921f9e20f00528dfe4016b",
+    "active_source_digest": "d13a42b768d0245dde975208ad9956387b9b2adf1e32f294813dd327b592e80a",
     "control_files": [
       {
         "path": "Makefile",
@@ -20541,12 +21418,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "1799bab23cecd0cbc265985c257708ca1863b2bd741fee58f1c2fe79150b4b90"
+        "sha256": "9849d59680375fddfd5ff7646c0955143aba22ef23a0632c66f765109f08093e"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "5312939706a54c3e4910f6a33d225c36b4a57fa886e9f5677029e3419e283cc2"
+      "sha256": "8c74bfb5834b20407529c497e9f1dd4b7dd4088cf5a90de731f37d0c12149524"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -43479,12 +44356,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 3205,
+      "lines": 4523,
       "origin": "tracked",
       "path": "toolchain/cupidc_pp.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "9569f8027d99443c5838c477cc20db885043f1f6b46b4096f7ad2682ea3ae939"
+      "sha256": "3734f84af0d7894b170e797148f2193107750b0f3bf0a9cb214c63c9c6551c5e"
     },
     {
       "build_owners": [
@@ -43508,12 +44385,12 @@
         "toolchain/ctool.h"
       ],
       "language": "c_header",
-      "lines": 113,
+      "lines": 119,
       "origin": "tracked",
       "path": "toolchain/cupidc_pp.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "d28caf120a0a893e43909ea4a9e9954fbd943f377dce4b16b94bedb25bc56963"
+      "sha256": "e06aa3d56c667d77f51028086e78bd3b1114bf28e00646720ecc8ef306c84460"
     },
     {
       "build_owners": [
@@ -44127,7 +45004,10 @@
         "c.control.while",
         "c.declarator.unsized_array",
         "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.function_macro",
         "c.preprocessor.include",
+        "c.preprocessor.undef",
         "c.qualifier.const",
         "c.storage.static",
         "c.type.char",
@@ -44143,12 +45023,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 2073,
+      "lines": 3204,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "32bca2ec6106d0b4583a80d4e46b11a25380973e006b472c18dfde55ebe4c1c5"
+      "sha256": "4032c3439d3325e81771d5d99fe46d54a039d1d71c82aed44d033855999b41a9"
     },
     {
       "build_owners": [
@@ -44976,6 +45856,7 @@
         {
           "inputs": [
             "toolchain/tests/cupidc_pp_contract.c",
+            "toolchain/tests/cupidc_pp_conditional_cases.inc",
             "toolchain/cupidc_pp.h",
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",

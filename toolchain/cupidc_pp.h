@@ -31,6 +31,10 @@ typedef struct {
   ctool_c_pp_mode_t mode;
   ctool_bool hosted_environment;
   ctool_bool gnu_extensions;
+  /* Unquoted C11 `Mmm dd yyyy` and `hh:mm:ss` spellings. Empty values select
+   * the deterministic bootstrap epoch (`Jan  1 1970`, `00:00:00`). */
+  ctool_string_t translation_date;
+  ctool_string_t translation_time;
   const ctool_c_pp_include_root_t *include_roots;
   ctool_u32 include_root_count;
   const ctool_path_t *forced_includes;
@@ -103,11 +107,13 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * On failure the result is fully zeroed and every operation allocation is
  * rewound, while structured job diagnostics remain valid.
  *
- * Standard variadic macros, stringify/paste operators, and opt-in GNU
- * omitted-variable-argument comma elision are part of the token-tape
- * contract. During the incremental bootstrap, named GNU `args...` macros,
- * general #if/#elif expressions, predefined-macro uses, and unimplemented
- * pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED diagnostics until
- * their contract slices land. */
+ * Standard variadic macros, stringify/paste operators, opt-in GNU
+ * omitted-variable-argument comma elision, C11 #if/#elif integer expressions,
+ * and all seven C11 language predefined macros are part of the token-tape
+ * contract. `__DATE__` and `__TIME__` use only the request's reproducible
+ * translation seed and never consult a host clock.
+ * During the incremental bootstrap, named GNU `args...` macros and
+ * unimplemented pragmas/directives return explicit CTOOL_ERR_UNSUPPORTED
+ * diagnostics until their contract slices land. */
 
 #endif

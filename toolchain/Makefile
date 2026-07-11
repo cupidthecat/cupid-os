@@ -144,7 +144,9 @@ $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.
 $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c \
+                                 tests/cupidc_pp_conditional_cases.inc \
+                                 cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
@@ -227,6 +229,13 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) tokens
 	$(CUPIDC_PP_CONTRACT) errors
 	$(CUPIDC_PP_CONTRACT) unsupported
+	$(CUPIDC_PP_CONTRACT) conditional-expressions
+	$(CUPIDC_PP_CONTRACT) predefined
+	$(CUPIDC_PP_CONTRACT) predefined-files
+	$(CUPIDC_PP_CONTRACT) predefined-errors
+	$(CUPIDC_PP_CONTRACT) conditional-errors
+	$(CUPIDC_PP_CONTRACT) conditional-active
+	$(CUPIDC_PP_CONTRACT) conditional-scale
 	$(CUPIDC_PP_CONTRACT) function-macros
 	$(CUPIDC_PP_CONTRACT) function-scale
 	$(CUPIDC_PP_CONTRACT) macro-operators
