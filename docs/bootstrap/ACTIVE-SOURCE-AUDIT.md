@@ -105,7 +105,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.extension` | 17 | 369 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 17 | 6257 |
+| `c.preprocessor` | 17 | 6268 |
 | `c.qualifier` | 2 | 4682 |
 | `c.storage` | 4 | 4568 |
 | `c.type` | 14 | 34736 |
