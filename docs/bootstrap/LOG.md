@@ -1099,15 +1099,15 @@ Adapting the private kernel frontend was rejected. It re-lexes flattened text, c
 
 | Command/check | Result | Evidence |
 | --- | --- | --- |
-| Focused CupidC type/layout Python contract | PASS | All six tests passed: scalar/derived types, manual FAT16 ABI, records/packing/qualification, precise errors and recovery, scale, and adversarial active shapes. |
+| Focused CupidC type/layout Python contract | PASS | All six tests passed on the final tree: scalar/derived types including the synthetic atomic pointer and compatible-enum cases, manual FAT16 ABI, records/packing/qualification, precise errors and recovery, scale, and adversarial active shapes. |
 | Fresh strict Windows Clang Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
 | Fresh strict WSL GCC Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
 | Fresh strict WSL Clang Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
 | WSL GCC sanitizers | PASS | All six type/layout modes passed with address, undefined-behavior, and leak detection enabled; the resulting executable linked both `libasan` and `libubsan`. |
 | Static analysis | PASS | Clang's analyzer and GCC `-fanalyzer` reported no finding in the type/layout product or contract harness. |
-| Active-source audit | PASS | The audit regenerated successfully and its checked drift gate passed with the 678-input/487-transform graph and current include/deferral contracts. |
-| Windows repository suite | PASS | 238 tests ran in 448.1 seconds: 237 passed and only the expected Windows `/dev/full` case skipped. |
+| Active-source audit | PASS | The enum-only final-tree refresh regenerated successfully and its checked drift gate passed with the 678-input/487-transform graph and current include/deferral contracts. |
+| Windows repository suite | PASS | The exact final tree ran 238 tests: 237 passed and only the expected Windows `/dev/full` case skipped. Unittest reported 417.092 seconds; the enclosing command completed in 451.8 seconds. |
 
-The completed full gates above cover the reviewed product and qualification behavior. The final synthetic atomic-pointer and signed-`long long`-compatible enum additions landed as test-only positive coverage afterward; their pending focused/audit refresh is not claimed here.
+The completed full gates above cover the reviewed product and qualification behavior. The final focused, audit-regeneration/drift, and repository reruns include the synthetic direct atomic-pointer and signed-`long long`-compatible atomic-enum contracts.
 
 No OS source, kernel adapter, generated OS artifact, or `TempleOS/` reference file changed. The module and contract are hosted only, so no kernel ownership or boot behavior is claimed and no emulator smoke follows from this slice. Production CupidC still uses its private frontend. Parsing unchanged declarations through the typed tape is next; private-preprocessor removal, typed AST/linear IR, kernel cutover, host-runnable source compilation, and staged self-hosting remain.
