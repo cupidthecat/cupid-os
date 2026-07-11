@@ -55,7 +55,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 12 | 23523 |
+| `toolchain_contract` | 12 | 23560 |
 | `toolchain_core` | 18 | 25502 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
@@ -98,17 +98,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 46247 |
+| `c.control` | 12 | 46249 |
 | `c.declaration` | 1 | 22 |
 | `c.declarator` | 4 | 1643 |
-| `c.expression` | 2 | 1806 |
+| `c.expression` | 2 | 1808 |
 | `c.extension` | 17 | 372 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
 | `c.preprocessor` | 18 | 6397 |
 | `c.qualifier` | 2 | 5870 |
 | `c.storage` | 4 | 5248 |
-| `c.type` | 14 | 36363 |
+| `c.type` | 14 | 36368 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -226,7 +226,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_include_operands` | `pass` | 2314 C include operands (2112 quoted, 202 angle, 0 pp-token); 651 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 651 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
-| `c_preprocessor_translation_units` | `pass` | 345 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=104); 22 include-only, 2 non-root headers; 28 hosted deferred (17 external, 11 hermetic) |
+| `c_preprocessor_translation_units` | `pass` | 356 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=104, HOSTED_TOOLCHAIN_64=10, HOSTED_KERNEL_BRIDGE_64=1); 22 include-only, 2 non-root headers; 17 hosted deferred (17 external, 0 hermetic) |
 
 ## Interpretation limits
 
@@ -235,3 +235,4 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 - Named `#line` pp-token operands are classified before macro expansion; the CupidC corpus harness owns expansion and semantic validation.
 - Relocation kinds and ABI values are required interchange contracts; per-object relocation counts are recorded in the chronological bootstrap log.
 - `not_reached` means absent from the supported roots recorded above, not automatically safe to delete.
+
