@@ -3004,15 +3004,16 @@
       {
         "inputs": [
           "kernel/kernel.elf.pass1",
-          "tools/hostbuild.py"
+          "tools/hostbuild.py",
+          "toolchain/build/cupiddis.exe"
         ],
         "operation": "generate_c_source",
         "output": "kernel/cpu/ksyms_data.c",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py mksyms --nm $(NM) $< $@"
+          "$(PYTHON) tools/hostbuild.py mksyms --nm $(CUPIDDIS) $< $@"
         ],
         "tools": [
-          "host_symbol_reader",
+          "cupid_disassembler",
           "host_python"
         ]
       },
@@ -7417,6 +7418,31 @@
         ],
         "operation": "recursive_make",
         "output": "toolchain/build/cupidasm.exe",
+        "recipe": [
+          "$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)"
+        ],
+        "tools": [
+          "make"
+        ]
+      },
+      {
+        "inputs": [
+          "toolchain/ctool.c",
+          "toolchain/ctool.h",
+          "toolchain/ctool_host.c",
+          "toolchain/ctool_host.h",
+          "toolchain/elf32.c",
+          "toolchain/elf32.h",
+          "toolchain/x86.c",
+          "toolchain/x86.h",
+          "toolchain/cupiddis.c",
+          "toolchain/cupiddis.h",
+          "toolchain/cupiddis_main.c",
+          "toolchain/Makefile",
+          "toolchain/build/cupidld.exe"
+        ],
+        "operation": "recursive_make",
+        "output": "toolchain/build/cupiddis.exe",
         "recipe": [
           "$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)"
         ],
@@ -22153,11 +22179,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a49151b2d6692075d1d1d96736cdb4914b9f711d73dd90b83fcb67b5d9cca418",
+    "active_source_digest": "0a7f38b88a2ebf1dc8430668bfb36498e8be58105d6737552c1629f6681d8ebe",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "5460cf3c12566dd2cbd5860b53f4adf55c37e49729922e952f7cc7bdf3a2f514"
+        "sha256": "a04138789b132c88d61c44bb185a40a88d7e2b9e7c4fb6055d14dc77e4cdffeb"
       },
       {
         "path": "user/Makefile",
@@ -22170,7 +22196,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "9de282f48517bc4b71d45cadee7ba6ce6598a1f9af89f9a7eb1075576275f4fb"
+      "sha256": "38273dec5746900bfc83153520420505dc4c6715c3c7d3a168cf1b368682e0b3"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -45301,7 +45327,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -45343,7 +45370,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
         ".",
@@ -45375,9 +45403,11 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "host_c_compiler",
+        "make"
       ],
       "builds": [
+        ".",
         "toolchain"
       ],
       "cohort": "cupiddis",
@@ -45402,6 +45432,9 @@
         "c.type.void"
       ],
       "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupiddis.h"
@@ -46062,12 +46095,12 @@
         "toolchain/elf32.h"
       ],
       "language": "c",
-      "lines": 987,
+      "lines": 996,
       "origin": "tracked",
       "path": "toolchain/tests/cupiddis_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "1218d3655fed56b382cb7dbd89b130fde88d983efec0b6079ad3c574440569c1"
+      "sha256": "365e30931e98a81daccf094d9ff1aa41f9c9a281448616f812b477ce0a5aadc6"
     },
     {
       "build_owners": [
@@ -46425,7 +46458,7 @@
   "summary": {
     "active_sources": 681,
     "features": 250,
-    "transforms": 490,
+    "transforms": 491,
     "unreachable_sources": 39
   },
   "supplemental_builds": [

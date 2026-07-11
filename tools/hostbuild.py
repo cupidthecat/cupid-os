@@ -557,8 +557,16 @@ def build_ksyms_blob(symbols: list[tuple[int, str]]) -> bytes:
     return bytes(blob)
 
 
-def _symbols_from_nm(nm: str, elf: Path) -> list[tuple[int, str]]:
-    proc = subprocess.run([nm, "-n", str(elf)], check=True, text=True, capture_output=True)
+def _symbols_from_nm(
+    nm: str | tuple[str, ...], elf: Path
+) -> list[tuple[int, str]]:
+    command = (nm,) if isinstance(nm, str) else nm
+    proc = subprocess.run(
+        [*command, "-n", str(elf)],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
     symbols: list[tuple[int, str]] = []
     for line in proc.stdout.splitlines():
         parts = line.split()

@@ -3422,9 +3422,34 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 681,
                     "features": 250,
-                    "transforms": 490,
+                    "transforms": 491,
                     "unreachable_sources": 39,
                 },
+            )
+            root_transform_by_output = {
+                transform["output"]: transform
+                for transform in audit_payload["build"]["transforms"]
+            }
+            symbol_transform = root_transform_by_output[
+                "kernel/cpu/ksyms_data.c"
+            ]
+            self.assertEqual(
+                symbol_transform["tools"],
+                ["cupid_disassembler", "host_python"],
+            )
+            self.assertEqual(
+                symbol_transform["operation"], "generate_c_source"
+            )
+            self.assertIn(
+                "toolchain/build/cupiddis"
+                + (".exe" if sys.platform == "win32" else ""),
+                symbol_transform["inputs"],
+            )
+            self.assertFalse(
+                any(
+                    "host_symbol_reader" in transform["tools"]
+                    for transform in audit_payload["build"]["transforms"]
+                )
             )
             toolchain_cohort = next(
                 cohort

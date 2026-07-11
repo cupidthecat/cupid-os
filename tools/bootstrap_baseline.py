@@ -92,7 +92,6 @@ REQUIRED_HOST_TOOLS = (
     "make",
     "python",
     "c_compiler",
-    "symbol_reader",
     "qemu",
 )
 QUALITY_METRICS = (
@@ -432,13 +431,6 @@ def _baseline_gate_failures(label: str, baseline: dict[str, object]) -> list[str
             str(compiler.get(field, ""))
             for field in ("executable", "version")
         ).lower()
-    symbol_reader = tool_evidence.get("symbol_reader")
-    symbol_identity = ""
-    if isinstance(symbol_reader, dict):
-        symbol_identity = " ".join(
-            str(symbol_reader.get(field, ""))
-            for field in ("executable", "version")
-        ).lower()
     if label.lower() == "linux":
         if not isinstance(host, dict) or not isinstance(
             host.get("distribution"), dict
@@ -446,13 +438,9 @@ def _baseline_gate_failures(label: str, baseline: dict[str, object]) -> list[str
             failures.append("Linux baseline does not record distribution identity")
         if "gcc" not in compiler_identity:
             failures.append("Linux baseline compiler is not GCC")
-        if "gnu nm" not in symbol_identity and "gnu binutils" not in symbol_identity:
-            failures.append("Linux baseline symbol reader is not GNU binutils nm")
     elif label.lower() == "windows":
         if "clang" not in compiler_identity:
             failures.append("Windows baseline compiler is not Clang")
-        if "llvm" not in symbol_identity:
-            failures.append("Windows baseline symbol reader is not LLVM nm")
     builds = baseline.get("builds")
     if not isinstance(builds, list) or len(builds) < 2:
         failures.append(f"{label} baseline does not contain two builds")
@@ -753,9 +741,6 @@ def _tool_specs() -> dict[str, ToolSpec]:
         "make": ToolSpec("make", "MAKE", ("--version",)),
         "python": ToolSpec("python" if windows else "python3", "PYTHON", ("--version",)),
         "c_compiler": ToolSpec("clang" if windows else "gcc", "CC", ("--version",)),
-        "symbol_reader": ToolSpec(
-            "llvm-nm" if windows else "nm", "NM", ("--version",)
-        ),
         "qemu": ToolSpec("qemu-system-i386", "QEMU", ("--version",)),
     }
 
@@ -770,8 +755,12 @@ def _cc_target_arguments() -> tuple[str, ...]:
 
 
 def _optional_oracle_tool_specs() -> dict[str, ToolSpec]:
+    windows = os.name == "nt"
     return {
         "nasm": ToolSpec("nasm", "NASM", ("-v",)),
+        "symbol_reader": ToolSpec(
+            "llvm-nm" if windows else "nm", "NM", ("--version",)
+        ),
     }
 
 

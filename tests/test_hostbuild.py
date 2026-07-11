@@ -84,6 +84,29 @@ class HostBuildImageTests(unittest.TestCase):
 
 
 class HostBuildSymbolTests(unittest.TestCase):
+    def test_symbol_reader_preserves_configured_command_arguments(self):
+        reader = ("custom-nm", "--target=i386")
+        elf = Path("kernel.elf")
+        completed = subprocess.CompletedProcess(
+            [*reader, "-n", str(elf)],
+            0,
+            "00001000 T first\n00002000 D ignored\n",
+            "",
+        )
+
+        with mock.patch(
+            "tools.hostbuild.subprocess.run", return_value=completed
+        ) as run:
+            symbols = hostbuild._symbols_from_nm(reader, elf)
+
+        run.assert_called_once_with(
+            [*reader, "-n", str(elf)],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(symbols, [(0x1000, "first")])
+
     def test_ksyms_blob_is_stable_sorted_and_deduplicated(self):
         blob = hostbuild.build_ksyms_blob(
             [

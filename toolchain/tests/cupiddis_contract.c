@@ -303,7 +303,7 @@ static int build_object(ctool_job_t *job, ctool_buffer_t **buffer_out) {
                                   0u,    0u,    0u,    0u,    0xc3u};
   static const ctool_u8 data[] = {1u, 2u, 3u, 4u};
   ctool_elf32_section_spec_t sections[2];
-  ctool_elf32_symbol_spec_t symbols[6];
+  ctool_elf32_symbol_spec_t symbols[7];
   ctool_elf32_relocation_spec_t relocations[4];
   ctool_elf32_object_spec_t object;
   ctool_status_t status =
@@ -369,6 +369,14 @@ static int build_object(ctool_job_t *job, ctool_buffer_t **buffer_out) {
   symbols[5].visibility = CTOOL_ELF32_VIS_DEFAULT;
   symbols[5].placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
   symbols[5].section = CTOOL_ELF32_NO_SECTION;
+  symbols[6].name = ctool_string("alias_before_entry");
+  symbols[6].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[6].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[6].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[6].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[6].section = 0u;
+  symbols[6].value = 0u;
+  symbols[6].size = 16u;
 
   relocations[0].target_section = 0u;
   relocations[0].offset = 1u;
@@ -393,7 +401,7 @@ static int build_object(ctool_job_t *job, ctool_buffer_t **buffer_out) {
   object.sections = sections;
   object.section_count = 2u;
   object.symbols = symbols;
-  object.symbol_count = 6u;
+  object.symbol_count = 7u;
   object.relocations = relocations;
   object.relocation_count = 4u;
   status = ctool_elf32_write(job, &object, *buffer_out);
@@ -803,6 +811,7 @@ static int run_nm(void) {
   if (!check_status(status, CTOOL_OK, "nm rendering") ||
       strcmp(capture.bytes,
              "00000000 T entry\n         U external\n         v weak_import\n"
+             "00000000 T alias_before_entry\n"
              "0000000F V weak_data\n00000010 T later\n") !=
           0) {
     (void)fprintf(stderr, "unexpected nm output:\n%s", capture.bytes);

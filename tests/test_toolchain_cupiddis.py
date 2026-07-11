@@ -6,12 +6,35 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from hostbuild import _symbols_from_nm
+import bootstrap_baseline
+
+
+def configured_symbol_reader_command():
+    configured = bootstrap_baseline.optional_oracle_commands()[
+        "symbol_reader"
+    ]
+    return bootstrap_baseline.resolve_tool_command(configured)
+
+
+class CupidDisOracleConfigurationTests(unittest.TestCase):
+    def test_configured_symbol_reader_arguments_are_preserved(self):
+        with mock.patch.dict(
+            os.environ,
+            {"NM": f'"{sys.executable}" --symbol-oracle-mode'},
+        ):
+            command = configured_symbol_reader_command()
+
+        self.assertEqual(
+            command,
+            (str(Path(sys.executable).resolve()), "--symbol-oracle-mode"),
+        )
 
 
 class CupidDisContractTests(unittest.TestCase):
@@ -81,6 +104,7 @@ class CupidDisContractTests(unittest.TestCase):
                          0x00400000, 6, 6, 5, 4)
         executable[84:] = bytes([0xB8, 0x78, 0x56, 0x34, 0x12, 0xC3])
         cls.exec_path.write_bytes(executable)
+        cls.symbol_reader_command = configured_symbol_reader_command()
 
     @classmethod
     def tearDownClass(cls):
@@ -177,9 +201,9 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(numeric_sort.stdout, symbols.stdout)
 
     def test_cli_is_a_drop_in_numeric_nm_symbol_reader(self):
-        oracle = shutil.which("llvm-nm") or shutil.which("nm")
+        oracle = self.symbol_reader_command
         if oracle is None:
-            self.skipTest("host nm oracle is not installed")
+            self.skipTest("configured host nm oracle is not installed")
         expected = _symbols_from_nm(oracle, self.object_path)
         actual = _symbols_from_nm(str(self.cli_path), self.object_path)
         self.assertEqual(actual, expected)

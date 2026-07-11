@@ -283,22 +283,37 @@ class BaselineCheckTests(unittest.TestCase):
         self.assertNotIn("assembler", specs)
         self.assertNotIn("linker", specs)
         self.assertNotIn("object_copy", specs)
+        self.assertNotIn("symbol_reader", specs)
 
-    def test_nasm_is_recorded_as_an_optional_oracle_tool(self):
+    def test_retired_build_tools_are_recorded_as_optional_oracles(self):
         specs = bootstrap_baseline._optional_oracle_tool_specs()
 
-        self.assertEqual(set(specs), {"nasm"})
+        self.assertEqual(set(specs), {"nasm", "symbol_reader"})
         self.assertEqual(specs["nasm"].default, "nasm")
         self.assertEqual(specs["nasm"].environment, "NASM")
         self.assertEqual(specs["nasm"].version_args, ("-v",))
+        self.assertEqual(
+            specs["symbol_reader"].default,
+            "llvm-nm" if os.name == "nt" else "nm",
+        )
+        self.assertEqual(specs["symbol_reader"].environment, "NM")
+        self.assertEqual(specs["symbol_reader"].version_args, ("--version",))
 
     def test_optional_oracle_command_honors_the_recorded_environment(self):
         with patch.dict(
-            "os.environ", {"NASM": f'"{sys.executable}" --oracle-mode'}
+            "os.environ",
+            {
+                "NASM": f'"{sys.executable}" --oracle-mode',
+                "NM": f'"{sys.executable}" --symbol-oracle-mode',
+            },
         ):
             commands = bootstrap_baseline.optional_oracle_commands()
 
         self.assertEqual(commands["nasm"], (sys.executable, "--oracle-mode"))
+        self.assertEqual(
+            commands["symbol_reader"],
+            (sys.executable, "--symbol-oracle-mode"),
+        )
 
     def test_failed_check_is_recorded_and_dependent_checks_are_skipped(self):
         calls = []
@@ -539,18 +554,9 @@ class BaselineHostComparisonTests(unittest.TestCase):
             tools["c_compiler"].update(
                 {"executable": "/usr/bin/gcc", "version": "gcc 13.3.0"}
             )
-            tools["symbol_reader"].update(
-                {
-                    "executable": "/usr/bin/nm",
-                    "version": "GNU nm (GNU Binutils) 2.42",
-                }
-            )
         else:
             tools["c_compiler"].update(
                 {"executable": "clang.exe", "version": "clang version 22.1.0"}
-            )
-            tools["symbol_reader"].update(
-                {"executable": "llvm-nm.exe", "version": "LLVM version 22.1.0"}
             )
         second_build = deepcopy(build)
         second_build["run"] = 2

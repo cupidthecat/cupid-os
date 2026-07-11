@@ -27,6 +27,7 @@ SOURCE_SUFFIXES = {
     ".s": "assembly",
 }
 TOOL_MARKERS = (
+    ("$(CUPIDDIS)", "cupid_disassembler"),
     ("$(CUPIDASM)", "cupid_assembler"),
     ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDOBJ)", "cupid_object"),

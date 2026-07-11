@@ -6,7 +6,6 @@ PYTHON ?= python
 ifeq ($(origin CC),default)
 CC := clang
 endif
-NM ?= llvm-nm
 HOST_EXE := .exe
 CC_TARGET ?= --target=i386-unknown-elf
 QEMU_AUDIODEV ?= none,id=speaker
@@ -16,12 +15,13 @@ PYTHON ?= python3
 ifeq ($(origin CC),default)
 CC := gcc
 endif
-NM ?= nm
 HOST_EXE :=
 CC_TARGET ?=
 QEMU_AUDIODEV ?= alsa,id=speaker
 CLANG_COMPAT_CFLAGS ?=
 endif
+CUPIDDIS_BUILD := toolchain/build/cupiddis$(HOST_EXE)
+CUPIDDIS ?= $(CUPIDDIS_BUILD)
 CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
 CUPIDASM ?= $(CUPIDASM_BUILD)
 CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
@@ -31,6 +31,10 @@ CUPIDLD ?= $(CUPIDLD_BUILD)
 HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.c toolchain/ctool.h \
 	toolchain/ctool_host.c toolchain/ctool_host.h \
 	toolchain/elf32.c toolchain/elf32.h
+CUPIDDIS_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
+	toolchain/x86.c toolchain/x86.h \
+	toolchain/cupiddis.c toolchain/cupiddis.h toolchain/cupiddis_main.c \
+	toolchain/Makefile
 CUPIDASM_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
 	toolchain/x86.c toolchain/x86.h \
 	toolchain/cupidasm.c toolchain/cupidasm.h toolchain/cupidasm_main.c \
@@ -981,6 +985,11 @@ $(CUPIDOBJ_BUILD): $(CUPIDOBJ_SOURCES) | $(CUPIDASM_BUILD)
 $(CUPIDLD_BUILD): $(CUPIDLD_SOURCES) | $(CUPIDOBJ_BUILD)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
 
+# CupidDis shares hosted objects with the other bootstrap tools. Build it
+# after their ordered chain so parallel root builds cannot race those objects.
+$(CUPIDDIS_BUILD): $(CUPIDDIS_SOURCES) | $(CUPIDLD_BUILD)
+	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
+
 # Auto-generate bin_programs_gen.c from all bin/*.cc files
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
@@ -1066,8 +1075,8 @@ god/%.o: god/%.DD $(CUPIDOBJ)
 kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)
 
-kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py
-	$(PYTHON) tools/hostbuild.py mksyms --nm $(NM) $< $@
+kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py $(CUPIDDIS)
+	$(PYTHON) tools/hostbuild.py mksyms --nm $(CUPIDDIS) $< $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.c kernel/cpu/ksyms.h
 	$(CC) $(CFLAGS) kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o
