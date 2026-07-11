@@ -2,6 +2,7 @@
 
 #define CFRONT_U32_MAX 0xffffffffu
 #define CFRONT_NONE 0xffffffffu
+#define CFRONT_GNU_DEFAULT_ALIGNMENT 16u
 
 typedef struct {
   ctool_buffer_t *storage;
@@ -89,6 +90,16 @@ static ctool_c_storage_class_t cfront_public_storage(
 }
 
 typedef struct {
+  ctool_bool packed;
+  const ctool_c_pp_token_t *packed_token;
+  ctool_bool has_alignment;
+  ctool_u32 alignment;
+  const ctool_c_pp_token_t *alignment_token;
+  ctool_bool noreturn;
+  const ctool_c_pp_token_t *noreturn_token;
+} cfront_attributes_t;
+
+typedef struct {
   ctool_u32 type;
   cfront_storage_t storage;
   ctool_u32 pack_alignment;
@@ -96,6 +107,7 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
   ctool_bool anonymous_record_definition;
   ctool_bool empty_declaration_valid;
+  cfront_attributes_t attributes;
 } cfront_specifiers_t;
 
 typedef enum {
@@ -680,6 +692,16 @@ static ctool_status_t cfront_qualified_type(
   return cfront_type_append(context, &node, type_out);
 }
 
+static ctool_status_t cfront_aligned_type(
+    cfront_context_t *context, ctool_u32 base, ctool_u32 alignment,
+    const ctool_c_pp_token_t *token, ctool_u32 *type_out) {
+  ctool_c_type_node_t node;
+  cfront_node_init(&node, CTOOL_C_TYPE_ALIGNED, token);
+  node.referenced_type = base;
+  node.explicit_alignment = alignment;
+  return cfront_type_append(context, &node, type_out);
+}
+
 static ctool_status_t cfront_underlying_type(
     const cfront_context_t *context, ctool_u32 type, ctool_u32 *base_out,
     ctool_u32 *qualifiers_out, ctool_c_type_node_t *node_out) {
@@ -1054,6 +1076,31 @@ static ctool_status_t cfront_type_view(const cfront_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_alignment_transparent_qualifiers(
+    const cfront_context_t *context, const cfront_type_view_t *view,
+    ctool_bool parameter, ctool_u32 *qualifiers_out) {
+  cfront_type_view_t current = *view;
+  ctool_u32 qualifiers = current.qualifiers;
+  ctool_u32 traversed = 0u;
+  ctool_status_t status = CTOOL_OK;
+  while (current.node.kind == CTOOL_C_TYPE_ALIGNED) {
+    cfront_type_ref_t reference;
+    reference.type = current.node.referenced_type;
+    reference.qualifiers = 0u;
+    status = cfront_type_view(context, reference, parameter, &current);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    qualifiers |= current.qualifiers;
+    traversed++;
+    if (traversed > context->types.count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
+  *qualifiers_out = qualifiers;
+  return CTOOL_OK;
+}
+
 static ctool_bool cfront_type_pair_equal(const cfront_type_pair_t *left,
                                           const cfront_type_pair_t *right) {
   return left->left.type == right->left.type &&
@@ -1101,10 +1148,22 @@ static ctool_status_t cfront_parameter_survives_default_promotion(
     ctool_bool *survives_out) {
   cfront_type_ref_t reference;
   cfront_type_view_t view;
+  ctool_u32 traversed = 0u;
   ctool_status_t status;
   reference.type = type;
   reference.qualifiers = 0u;
-  status = cfront_type_view(context, reference, CTOOL_TRUE, &view);
+  for (;;) {
+    status = cfront_type_view(context, reference, CTOOL_TRUE, &view);
+    if (status != CTOOL_OK || view.node.kind != CTOOL_C_TYPE_ALIGNED) {
+      break;
+    }
+    reference.type = view.node.referenced_type;
+    reference.qualifiers = view.qualifiers;
+    traversed++;
+    if (traversed > context->types.count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
   if (status != CTOOL_OK) {
     return status;
   }
@@ -1176,6 +1235,18 @@ static ctool_status_t cfront_compare_type_refs(
     }
     left_qualifiers = left_view.qualifiers;
     right_qualifiers = right_view.qualifiers;
+    if (left_view.node.kind == CTOOL_C_TYPE_ALIGNED ||
+        right_view.node.kind == CTOOL_C_TYPE_ALIGNED) {
+      status = cfront_alignment_transparent_qualifiers(
+          context, &left_view, pair.parameter, &left_qualifiers);
+      if (status == CTOOL_OK) {
+        status = cfront_alignment_transparent_qualifiers(
+            context, &right_view, pair.parameter, &right_qualifiers);
+      }
+      if (status != CTOOL_OK) {
+        break;
+      }
+    }
     if (left_view.node.kind != CTOOL_C_TYPE_ARRAY &&
         left_qualifiers != right_qualifiers) {
       matches = CTOOL_FALSE;
@@ -1183,6 +1254,33 @@ static ctool_status_t cfront_compare_type_refs(
     }
     if (left_view.node.kind != right_view.node.kind) {
       cfront_type_pair_t child;
+      if (left_view.node.kind == CTOOL_C_TYPE_ALIGNED ||
+          right_view.node.kind == CTOOL_C_TYPE_ALIGNED) {
+        ctool_u32 left_alignment =
+            left_view.node.kind == CTOOL_C_TYPE_ALIGNED
+                ? left_view.node.explicit_alignment
+                : 0u;
+        ctool_u32 right_alignment =
+            right_view.node.kind == CTOOL_C_TYPE_ALIGNED
+                ? right_view.node.explicit_alignment
+                : 0u;
+        if (relation == CFRONT_TYPE_CAN_REPRESENT_COMPOSITE &&
+            left_alignment < right_alignment) {
+          matches = CTOOL_FALSE;
+          break;
+        }
+        child.left.type = left_view.node.kind == CTOOL_C_TYPE_ALIGNED
+                              ? left_view.node.referenced_type
+                              : left_view.type;
+        child.right.type = right_view.node.kind == CTOOL_C_TYPE_ALIGNED
+                               ? right_view.node.referenced_type
+                               : right_view.type;
+        child.left.qualifiers = left_view.qualifiers;
+        child.right.qualifiers = right_view.qualifiers;
+        child.parameter = pair.parameter;
+        status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+        continue;
+      }
       ctool_bool left_enum =
           left_view.node.kind == CTOOL_C_TYPE_ENUM ? CTOOL_TRUE : CTOOL_FALSE;
       ctool_bool right_enum =
@@ -1245,14 +1343,26 @@ static ctool_status_t cfront_compare_type_refs(
       status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
       break;
     }
-    case CTOOL_C_TYPE_ALIGNED:
+    case CTOOL_C_TYPE_ALIGNED: {
+      cfront_type_pair_t child;
+      if (relation == CFRONT_TYPE_CAN_REPRESENT_COMPOSITE &&
+          (left_view.node.explicit_alignment <
+               right_view.node.explicit_alignment ||
+           left_view.qualifiers != right_view.qualifiers)) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      child.left.type = left_view.node.referenced_type;
+      child.right.type = right_view.node.referenced_type;
+      child.left.qualifiers = left_view.qualifiers;
+      child.right.qualifiers = right_view.qualifiers;
+      child.parameter = pair.parameter;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      break;
+    }
     case CTOOL_C_TYPE_VECTOR: {
       cfront_type_pair_t child;
-      if ((left_view.node.kind == CTOOL_C_TYPE_ALIGNED &&
-           left_view.node.explicit_alignment !=
-               right_view.node.explicit_alignment) ||
-          (left_view.node.kind == CTOOL_C_TYPE_VECTOR &&
-           left_view.node.element_count != right_view.node.element_count)) {
+      if (left_view.node.element_count != right_view.node.element_count) {
         matches = CTOOL_FALSE;
         break;
       }
@@ -1443,6 +1553,9 @@ static ctool_status_t cfront_types_same(cfront_context_t *context,
 typedef struct {
   cfront_type_pair_t pair;
   ctool_bool expanded;
+  ctool_bool aligned_composite;
+  cfront_type_pair_t aligned_child;
+  ctool_u32 aligned_qualifiers;
 } cfront_composite_frame_t;
 
 typedef struct {
@@ -1530,6 +1643,95 @@ static cfront_type_pair_t cfront_child_pair(
   return pair;
 }
 
+static ctool_status_t cfront_materialize_view_without_qualifiers(
+    cfront_context_t *context, const cfront_type_view_t *view,
+    ctool_u32 removed_qualifiers, ctool_u32 *type_out) {
+  ctool_c_type_node_t node = view->node;
+  ctool_u32 qualifiers = view->qualifiers & ~removed_qualifiers;
+  ctool_u32 node_qualifiers = node.qualifiers & qualifiers;
+  ctool_u32 type = view->type;
+  ctool_status_t status = CTOOL_OK;
+  if (node_qualifiers != node.qualifiers) {
+    if (node.kind == CTOOL_C_TYPE_RECORD || node.kind == CTOOL_C_TYPE_ENUM) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    node.qualifiers = node_qualifiers;
+    status = cfront_type_append(context, &node, &type);
+  }
+  if (status == CTOOL_OK && qualifiers != node_qualifiers) {
+    ctool_c_type_node_t qualified;
+    cfront_node_init(&qualified, CTOOL_C_TYPE_QUALIFIED,
+                     (const ctool_c_pp_token_t *)0);
+    qualified.location = view->node.location;
+    qualified.physical_location = view->node.physical_location;
+    qualified.referenced_type = type;
+    qualified.qualifiers = qualifiers & ~node_qualifiers;
+    status = cfront_type_append(context, &qualified, &type);
+  }
+  if (status == CTOOL_OK) {
+    *type_out = type;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_prepare_aligned_composite(
+    cfront_context_t *context, const cfront_type_pair_t *pair,
+    const cfront_type_view_t *left_view,
+    const cfront_type_view_t *right_view, cfront_type_pair_t *child_out,
+    ctool_u32 *qualifiers_out) {
+  cfront_type_ref_t reference;
+  cfront_type_view_t left_child_view;
+  cfront_type_view_t right_child_view;
+  ctool_u32 left_child_type;
+  ctool_u32 right_child_type;
+  ctool_u32 qualifiers;
+  ctool_status_t status;
+  ctool_bool left_aligned = left_view->node.kind == CTOOL_C_TYPE_ALIGNED
+                                ? CTOOL_TRUE
+                                : CTOOL_FALSE;
+  ctool_bool right_aligned = right_view->node.kind == CTOOL_C_TYPE_ALIGNED
+                                 ? CTOOL_TRUE
+                                 : CTOOL_FALSE;
+  if (left_aligned == CTOOL_FALSE && right_aligned == CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  qualifiers = left_aligned == CTOOL_TRUE && right_aligned == CTOOL_TRUE
+                   ? left_view->qualifiers | right_view->qualifiers
+                   : (left_aligned == CTOOL_TRUE ? left_view->qualifiers
+                                                 : right_view->qualifiers);
+  if (left_aligned == CTOOL_TRUE) {
+    reference.type = left_view->node.referenced_type;
+    reference.qualifiers = 0u;
+    status = cfront_type_view(context, reference, pair->parameter,
+                              &left_child_view);
+  } else {
+    left_child_view = *left_view;
+    status = CTOOL_OK;
+  }
+  if (status == CTOOL_OK && right_aligned == CTOOL_TRUE) {
+    reference.type = right_view->node.referenced_type;
+    reference.qualifiers = 0u;
+    status = cfront_type_view(context, reference, pair->parameter,
+                              &right_child_view);
+  } else if (status == CTOOL_OK) {
+    right_child_view = *right_view;
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_materialize_view_without_qualifiers(
+        context, &left_child_view, qualifiers, &left_child_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_materialize_view_without_qualifiers(
+        context, &right_child_view, qualifiers, &right_child_type);
+  }
+  if (status == CTOOL_OK) {
+    *child_out = cfront_child_pair(left_child_type, right_child_type, 0u, 0u,
+                                   pair->parameter);
+    *qualifiers_out = qualifiers;
+  }
+  return status;
+}
+
 static ctool_status_t cfront_append_composite_result(
     cfront_vector_t *results, const cfront_type_pair_t *pair,
     ctool_u32 type) {
@@ -1547,6 +1749,10 @@ static ctool_status_t cfront_push_composite_children(
   cfront_composite_frame_t child;
   ctool_status_t status = CTOOL_OK;
   cfront_zero(&child, (ctool_u32)sizeof(child));
+  if (frame->aligned_composite == CTOOL_TRUE) {
+    child.pair = frame->aligned_child;
+    return cfront_vector_append(frames, &child, (ctool_u32 *)0);
+  }
   switch (left_view->node.kind) {
   case CTOOL_C_TYPE_POINTER:
   case CTOOL_C_TYPE_ALIGNED:
@@ -1598,7 +1804,7 @@ static ctool_status_t cfront_push_composite_children(
 }
 
 static ctool_status_t cfront_build_composite_node(
-    cfront_context_t *context, const cfront_type_pair_t *pair,
+    cfront_context_t *context, const cfront_composite_frame_t *frame,
     const cfront_type_view_t *left_view,
     const cfront_type_view_t *right_view,
     const cfront_vector_t *results, ctool_u32 *type_out) {
@@ -1606,11 +1812,35 @@ static ctool_status_t cfront_build_composite_node(
   cfront_type_pair_t child;
   ctool_u32 child_type;
   ctool_status_t status;
+  const cfront_type_view_t *aligned_view;
+  if (frame->aligned_composite == CTOOL_TRUE) {
+    if (left_view->node.kind == CTOOL_C_TYPE_ALIGNED &&
+        right_view->node.kind == CTOOL_C_TYPE_ALIGNED) {
+      aligned_view = left_view->node.explicit_alignment >=
+                             right_view->node.explicit_alignment
+                         ? left_view
+                         : right_view;
+    } else if (left_view->node.kind == CTOOL_C_TYPE_ALIGNED) {
+      aligned_view = left_view;
+    } else if (right_view->node.kind == CTOOL_C_TYPE_ALIGNED) {
+      aligned_view = right_view;
+    } else {
+      return CTOOL_ERR_INTERNAL;
+    }
+    child = frame->aligned_child;
+    if (cfront_find_composite_result(results, &child, &child_type) ==
+        CTOOL_FALSE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    node = aligned_view->node;
+    node.referenced_type = child_type;
+    node.qualifiers = frame->aligned_qualifiers;
+    return cfront_type_append(context, &node, type_out);
+  }
   node.location = left_view->node.location;
   node.physical_location = left_view->node.physical_location;
   switch (left_view->node.kind) {
   case CTOOL_C_TYPE_POINTER:
-  case CTOOL_C_TYPE_ALIGNED:
   case CTOOL_C_TYPE_VECTOR:
     child = cfront_child_pair(left_view->node.referenced_type,
                               right_view->node.referenced_type, 0u, 0u,
@@ -1621,6 +1851,22 @@ static ctool_status_t cfront_build_composite_node(
     }
     node.referenced_type = child_type;
     node.qualifiers = left_view->qualifiers;
+    return cfront_type_append(context, &node, type_out);
+  case CTOOL_C_TYPE_ALIGNED:
+    child = cfront_child_pair(left_view->node.referenced_type,
+                              right_view->node.referenced_type, 0u, 0u,
+                              CTOOL_FALSE);
+    if (cfront_find_composite_result(results, &child, &child_type) ==
+        CTOOL_FALSE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    aligned_view = left_view->node.explicit_alignment >=
+                           right_view->node.explicit_alignment
+                       ? left_view
+                       : right_view;
+    node = aligned_view->node;
+    node.referenced_type = child_type;
+    node.qualifiers = aligned_view->qualifiers;
     return cfront_type_append(context, &node, type_out);
   case CTOOL_C_TYPE_ARRAY:
     child = cfront_child_pair(
@@ -1699,7 +1945,7 @@ static ctool_status_t cfront_build_composite_node(
     return cfront_type_append(context, &node, type_out);
   }
   default:
-    (void)pair;
+    (void)frame;
     return CTOOL_ERR_INTERNAL;
   }
 }
@@ -1768,9 +2014,22 @@ static ctool_status_t cfront_composite_type(cfront_context_t *context,
         status = cfront_type_view(context, frame.pair.right,
                                   frame.pair.parameter, &right_view);
       }
-      if (status != CTOOL_OK || left_view.node.kind != right_view.node.kind) {
+      if (status != CTOOL_OK ||
+          (left_view.node.kind != right_view.node.kind &&
+           left_view.node.kind != CTOOL_C_TYPE_ALIGNED &&
+           right_view.node.kind != CTOOL_C_TYPE_ALIGNED)) {
         status = status == CTOOL_OK ? CTOOL_ERR_INTERNAL : status;
         break;
+      }
+      if (left_view.node.kind == CTOOL_C_TYPE_ALIGNED ||
+          right_view.node.kind == CTOOL_C_TYPE_ALIGNED) {
+        status = cfront_prepare_aligned_composite(
+            context, &frame.pair, &left_view, &right_view,
+            &frame.aligned_child, &frame.aligned_qualifiers);
+        if (status != CTOOL_OK) {
+          break;
+        }
+        frame.aligned_composite = CTOOL_TRUE;
       }
       frame.expanded = CTOOL_TRUE;
       status = cfront_vector_append(&frames, &frame, (ctool_u32 *)0);
@@ -1788,8 +2047,7 @@ static ctool_status_t cfront_composite_type(cfront_context_t *context,
     }
     if (status == CTOOL_OK) {
       status = cfront_build_composite_node(
-          context, &frame.pair, &left_view, &right_view, &results,
-          &result_type);
+          context, &frame, &left_view, &right_view, &results, &result_type);
     }
     if (status == CTOOL_OK) {
       status = cfront_append_composite_result(&results, &frame.pair,
@@ -1804,6 +2062,33 @@ static ctool_status_t cfront_composite_type(cfront_context_t *context,
   cfront_vector_close(&results);
   cfront_vector_close(&frames);
   return status;
+}
+
+static ctool_status_t cfront_type_attribute_alignment(
+    const cfront_context_t *context, ctool_u32 type,
+    ctool_u32 *alignment_out) {
+  ctool_u32 traversed = 0u;
+  for (;;) {
+    ctool_c_type_node_t node;
+    ctool_status_t status = cfront_type_get(context, type, &node);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (node.kind == CTOOL_C_TYPE_ALIGNED) {
+      *alignment_out = node.explicit_alignment;
+      return CTOOL_OK;
+    }
+    if (node.kind == CTOOL_C_TYPE_QUALIFIED) {
+      type = node.referenced_type;
+    } else {
+      *alignment_out = 0u;
+      return CTOOL_OK;
+    }
+    traversed++;
+    if (traversed > context->types.count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
 }
 
 static ctool_c_linkage_t cfront_binding_linkage(
@@ -1869,6 +2154,7 @@ static ctool_bool cfront_find_file_binding_index(
 static ctool_status_t cfront_append_binding(
     cfront_context_t *context, ctool_c_binding_kind_t kind,
     ctool_c_storage_class_t storage, ctool_string_t name, ctool_u32 type,
+    ctool_u32 attributes, ctool_u32 minimum_alignment,
     const ctool_c_pp_token_t *token,
     const ctool_c_pp_location_t *location,
     const ctool_c_pp_location_t *physical_location, ctool_u64 integer_bits,
@@ -1908,14 +2194,34 @@ static ctool_status_t cfront_append_binding(
         status = cfront_types_compatible(context, existing.type, type,
                                          &compatible);
       }
-      if (status == CTOOL_OK && compatible == CTOOL_TRUE &&
-          kind != CTOOL_C_BINDING_TYPEDEF) {
-        ctool_u32 composite = CFRONT_NONE;
-        status = cfront_composite_type(context, existing.type, type,
-                                       &composite);
-        if (status == CTOOL_OK && composite != existing.type) {
+      if (status == CTOOL_OK && compatible == CTOOL_TRUE) {
+        ctool_u32 existing_type_alignment = 0u;
+        ctool_u32 new_type_alignment = 0u;
+        ctool_u32 composite = existing.type;
+        status = cfront_type_attribute_alignment(
+            context, existing.type, &existing_type_alignment);
+        if (status == CTOOL_OK) {
+          status = cfront_type_attribute_alignment(
+              context, type, &new_type_alignment);
+        }
+        if (status == CTOOL_OK &&
+            new_type_alignment > existing_type_alignment) {
+          status = cfront_composite_type(context, type, existing.type,
+                                         &composite);
+        } else if (status == CTOOL_OK) {
+          status = cfront_composite_type(context, existing.type, type,
+                                         &composite);
+        }
+        if (status == CTOOL_OK &&
+            (composite != existing.type ||
+             (attributes & ~existing.attributes) != 0u ||
+             minimum_alignment > existing.minimum_alignment)) {
           ctool_c_binding_t replacement = existing;
           replacement.type = composite;
+          replacement.attributes |= attributes;
+          if (minimum_alignment > replacement.minimum_alignment) {
+            replacement.minimum_alignment = minimum_alignment;
+          }
           status = cfront_vector_replace(
               context, &context->bindings, existing_index, &replacement);
         }
@@ -1944,6 +2250,8 @@ static ctool_status_t cfront_append_binding(
   binding.kind = kind;
   binding.storage = storage;
   binding.linkage = cfront_binding_linkage(kind, storage);
+  binding.attributes = attributes;
+  binding.minimum_alignment = minimum_alignment;
   binding.type = type;
   if (location != (const ctool_c_pp_location_t *)0 &&
       physical_location != (const ctool_c_pp_location_t *)0) {
@@ -2496,10 +2804,172 @@ static ctool_status_t cfront_validate_completed_record(
     ctool_u32 first_member, ctool_u32 member_count,
     const ctool_c_pp_token_t *diagnostic_token);
 
+static ctool_bool cfront_starts_attribute(
+    const cfront_context_t *context) {
+  return cfront_peek_is(context, "__attribute__") == CTOOL_TRUE ||
+                 cfront_peek_is(context, "__attribute") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_attributes_any(
+    const cfront_attributes_t *attributes) {
+  return attributes->packed == CTOOL_TRUE ||
+                 attributes->has_alignment == CTOOL_TRUE ||
+                 attributes->noreturn == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static const ctool_c_pp_token_t *cfront_first_attribute_token(
+    const cfront_attributes_t *attributes) {
+  if (attributes->packed_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->packed_token;
+  }
+  if (attributes->alignment_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->alignment_token;
+  }
+  return attributes->noreturn_token;
+}
+
+static ctool_status_t cfront_attribute_expected(
+    cfront_context_t *context, const char *spelling, const char *message) {
+  if (cfront_peek_is(context, spelling) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        cfront_peek(context), message);
+  }
+  (void)cfront_advance(context);
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_attributes(
+    cfront_context_t *context, cfront_attributes_t *attributes) {
+  while (cfront_starts_attribute(context) == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *attribute = cfront_advance(context);
+    ctool_status_t status;
+    if (context->request->gnu_extensions == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          attribute, "GNU attributes require GNU extensions");
+    }
+    status = cfront_attribute_expected(
+        context, "(", "GNU attribute requires two opening parentheses");
+    if (status == CTOOL_OK) {
+      status = cfront_attribute_expected(
+          context, "(", "GNU attribute requires two opening parentheses");
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    while (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+      const ctool_c_pp_token_t *name = cfront_peek(context);
+      if (name == (const ctool_c_pp_token_t *)0) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, attribute,
+            "GNU attribute list is not terminated");
+      }
+      if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
+        (void)cfront_advance(context);
+        continue;
+      }
+      if (cfront_token_is(name, "packed") == CTOOL_TRUE ||
+          cfront_token_is(name, "__packed__") == CTOOL_TRUE) {
+        attributes->packed = CTOOL_TRUE;
+        if (attributes->packed_token == (const ctool_c_pp_token_t *)0) {
+          attributes->packed_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "packed attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "aligned") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__aligned__") == CTOOL_TRUE) {
+        cfront_integer_t alignment = {CFRONT_GNU_DEFAULT_ALIGNMENT,
+                                      CFRONT_INTEGER_SIGNED_32};
+        const ctool_c_pp_token_t *argument = name;
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          argument = cfront_peek(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            status = cfront_parse_constant_or(context, &alignment);
+            if (status != CTOOL_OK) {
+              return status;
+            }
+          }
+          status = cfront_attribute_expected(
+              context, ")", "aligned attribute argument is not terminated");
+          if (status != CTOOL_OK) {
+            return status;
+          }
+        }
+        if (cfront_integer_negative(&alignment) == CTOOL_TRUE ||
+            alignment.bits == 0ull || alignment.bits > CFRONT_U32_MAX ||
+            (alignment.bits & (alignment.bits - 1ull)) != 0ull) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
+              "aligned attribute requires a positive power-of-two value");
+        }
+        if (attributes->has_alignment == CTOOL_FALSE ||
+            alignment.bits > (ctool_u64)attributes->alignment) {
+          attributes->alignment = (ctool_u32)alignment.bits;
+          attributes->alignment_token = name;
+        }
+        attributes->has_alignment = CTOOL_TRUE;
+      } else if (cfront_token_is(name, "noreturn") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__noreturn__") == CTOOL_TRUE) {
+        attributes->noreturn = CTOOL_TRUE;
+        if (attributes->noreturn_token == (const ctool_c_pp_token_t *)0) {
+          attributes->noreturn_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "noreturn attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            name, "GNU attribute is not supported");
+      }
+      if (cfront_peek_is(context, ",") == CTOOL_FALSE) {
+        break;
+      }
+      (void)cfront_advance(context);
+    }
+    status = cfront_attribute_expected(
+        context, ")", "GNU attribute requires two closing parentheses");
+    if (status == CTOOL_OK) {
+      status = cfront_attribute_expected(
+          context, ")", "GNU attribute requires two closing parentheses");
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token) {
   ctool_u32 typedef_type;
-  if (cfront_token_is(token, "typedef") == CTOOL_TRUE ||
+  if (cfront_token_is(token, "__attribute__") == CTOOL_TRUE ||
+      cfront_token_is(token, "__attribute") == CTOOL_TRUE ||
+      cfront_token_is(token, "typedef") == CTOOL_TRUE ||
       cfront_token_is(token, "extern") == CTOOL_TRUE ||
       cfront_token_is(token, "static") == CTOOL_TRUE ||
       cfront_token_is(token, "auto") == CTOOL_TRUE ||
@@ -2554,14 +3024,21 @@ static ctool_status_t cfront_record_type_body(
     cfront_context_t *context, ctool_c_record_kind_t record_kind,
     ctool_u32 *type_out, ctool_bool *anonymous_definition_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
-  const ctool_c_pp_token_t *name_token = cfront_peek(context);
+  const ctool_c_pp_token_t *name_token;
   ctool_string_t name = ctool_string("");
   ctool_c_tag_t existing_tag;
   ctool_c_type_node_t node;
   ctool_u32 type = CFRONT_NONE;
   ctool_bool has_existing = CTOOL_FALSE;
+  cfront_attributes_t record_attributes;
   ctool_status_t status;
+  cfront_zero(&record_attributes, (ctool_u32)sizeof(record_attributes));
   *anonymous_definition_out = CTOOL_FALSE;
+  status = cfront_parse_attributes(context, &record_attributes);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  name_token = cfront_peek(context);
   if (name_token != (const ctool_c_pp_token_t *)0 &&
       name_token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
       cfront_token_is(name_token, "{") == CTOOL_FALSE) {
@@ -2572,6 +3049,10 @@ static ctool_status_t cfront_record_type_body(
     }
     name = name_token->spelling;
     (void)cfront_advance(context);
+    status = cfront_parse_attributes(context, &record_attributes);
+    if (status != CTOOL_OK) {
+      return status;
+    }
     has_existing =
         context->prototype_scope_depth != 0u &&
                 cfront_peek_is(context, "{") == CTOOL_TRUE
@@ -2589,6 +3070,12 @@ static ctool_status_t cfront_record_type_body(
       type = existing_tag.type;
     }
   }
+  if (record_attributes.noreturn == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        record_attributes.noreturn_token,
+        "noreturn attribute cannot apply to a record type");
+  }
   if (cfront_peek_is(context, "{") == CTOOL_FALSE) {
     if (name.size == 0u) {
       return cfront_emit_failure(
@@ -2600,10 +3087,25 @@ static ctool_status_t cfront_record_type_body(
       cfront_node_init(&node, CTOOL_C_TYPE_RECORD, keyword);
       node.record_kind = record_kind;
       node.record_complete = CTOOL_FALSE;
+      node.record_packed = record_attributes.packed;
+      node.explicit_alignment = record_attributes.alignment;
       status = cfront_type_append(context, &node, &type);
       if (status == CTOOL_OK) {
         status = cfront_append_tag(context, name, type, name_token);
       }
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+    } else if ((record_attributes.packed == CTOOL_TRUE &&
+                node.record_packed == CTOOL_FALSE) ||
+               record_attributes.alignment > node.explicit_alignment) {
+      if (record_attributes.packed == CTOOL_TRUE) {
+        node.record_packed = CTOOL_TRUE;
+      }
+      if (record_attributes.alignment > node.explicit_alignment) {
+        node.explicit_alignment = record_attributes.alignment;
+      }
+      status = cfront_type_update(context, type, &node);
       if (status != CTOOL_OK) {
         return cfront_storage_failure(context, status);
       }
@@ -2647,6 +3149,16 @@ static ctool_status_t cfront_record_type_body(
       }
     }
     (void)cfront_advance(context);
+    status = cfront_parse_attributes(context, &record_attributes);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (record_attributes.noreturn == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          record_attributes.noreturn_token,
+          "noreturn attribute cannot apply to a record type");
+    }
     first_member = context->members.count;
     while (member_head != CFRONT_NONE) {
       cfront_pending_member_t pending;
@@ -2692,6 +3204,12 @@ static ctool_status_t cfront_record_type_body(
                                  "record placeholder is unavailable");
     }
     node.record_complete = CTOOL_TRUE;
+    if (record_attributes.packed == CTOOL_TRUE) {
+      node.record_packed = CTOOL_TRUE;
+    }
+    if (record_attributes.alignment > node.explicit_alignment) {
+      node.explicit_alignment = record_attributes.alignment;
+    }
     node.first_member = first_member;
     node.member_count = member_count;
     status = cfront_validate_completed_record(
@@ -2785,6 +3303,7 @@ static ctool_status_t cfront_parse_function_suffix_body(
   function.has_prototype = CTOOL_TRUE;
   for (;;) {
     cfront_specifiers_t specifiers;
+    cfront_attributes_t declarator_attributes;
     ctool_u32 parameter_root = CFRONT_NONE;
     ctool_u32 declared_type = CFRONT_NONE;
     ctool_u32 adjusted_type = CFRONT_NONE;
@@ -2795,6 +3314,8 @@ static ctool_status_t cfront_parse_function_suffix_body(
     const ctool_c_pp_token_t *parameter_token = cfront_peek(context);
     cfront_zero(&location, (ctool_u32)sizeof(location));
     cfront_zero(&physical_location, (ctool_u32)sizeof(physical_location));
+    cfront_zero(&declarator_attributes,
+                (ctool_u32)sizeof(declarator_attributes));
     if (cfront_peek_is(context, "...") == CTOOL_TRUE) {
       if (count == 0u) {
         return cfront_emit_failure(
@@ -2814,6 +3335,12 @@ static ctool_status_t cfront_parse_function_suffix_body(
     if (status != CTOOL_OK) {
       return status;
     }
+    if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          cfront_first_attribute_token(&specifiers.attributes),
+          "prototype parameter attributes are not represented");
+    }
     if (specifiers.storage != CFRONT_STORAGE_NONE &&
         specifiers.storage != CFRONT_STORAGE_REGISTER) {
       return cfront_emit_failure(
@@ -2823,6 +3350,16 @@ static ctool_status_t cfront_parse_function_suffix_body(
     status = cfront_parse_declarator(context, CTOOL_TRUE, &parameter_root);
     if (status != CTOOL_OK) {
       return status;
+    }
+    status = cfront_parse_attributes(context, &declarator_attributes);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cfront_attributes_any(&declarator_attributes) == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          cfront_first_attribute_token(&declarator_attributes),
+          "prototype parameter attributes are not represented");
     }
     status = cfront_build_declarator(
         context, parameter_root, specifiers.type, &declared_type, &name,
@@ -3606,6 +4143,12 @@ static ctool_status_t cfront_parse_member_declaration(
         declaration_token, "record member cannot have a storage class");
   }
   if (cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          cfront_first_attribute_token(&specifiers.attributes),
+          "declaration attributes require a declarator or type placement");
+    }
     if (specifiers.anonymous_record_definition == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
@@ -3633,10 +4176,22 @@ static ctool_status_t cfront_parse_member_declaration(
     ctool_c_pp_location_t location;
     ctool_c_pp_location_t physical_location;
     ctool_c_record_member_t member;
+    cfront_attributes_t declarator_attributes;
     const ctool_c_pp_token_t *declarator_token = cfront_peek(context);
+    declarator_attributes = specifiers.attributes;
     status = cfront_parse_declarator(context, CTOOL_TRUE, &root);
     if (status != CTOOL_OK) {
       return status;
+    }
+    status = cfront_parse_attributes(context, &declarator_attributes);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (declarator_attributes.noreturn == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.noreturn_token,
+          "noreturn attribute cannot apply to a record member");
     }
     status = cfront_build_declarator(
         context, root, specifiers.type, &type, &name, &location,
@@ -3683,6 +4238,8 @@ static ctool_status_t cfront_parse_member_declaration(
     member.location = location;
     member.physical_location = physical_location;
     member.pack_alignment = specifiers.pack_alignment;
+    member.member_packed = declarator_attributes.packed;
+    member.explicit_alignment = declarator_attributes.alignment;
     if (cfront_peek_is(context, ":") == CTOOL_TRUE) {
       cfront_integer_t width = {0ull, CFRONT_INTEGER_SIGNED_32};
       (void)cfront_advance(context);
@@ -3743,6 +4300,12 @@ static ctool_status_t cfront_parse_external_declaration(
         "file-scope declaration has an invalid storage class");
   }
   if (cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          cfront_first_attribute_token(&specifiers.attributes),
+          "declaration attributes require a declarator or type placement");
+    }
     if (specifiers.storage != CFRONT_STORAGE_NONE ||
         specifiers.empty_declaration_valid == CTOOL_FALSE) {
       return cfront_emit_failure(
@@ -3763,7 +4326,11 @@ static ctool_status_t cfront_parse_external_declaration(
     ctool_c_type_node_t type_node;
     ctool_u32 type_base;
     ctool_u32 type_qualifiers;
+    ctool_u32 binding_attributes = 0u;
+    ctool_u32 binding_alignment = 0u;
+    cfront_attributes_t declarator_attributes;
     const ctool_c_pp_token_t *name_token = cfront_peek(context);
+    declarator_attributes = specifiers.attributes;
     status = cfront_parse_declarator(context, CTOOL_FALSE, &root);
     if (status != CTOOL_OK) {
       return status;
@@ -3773,6 +4340,28 @@ static ctool_status_t cfront_parse_external_declaration(
         &physical_location);
     if (status != CTOOL_OK) {
       return status;
+    }
+    status = cfront_parse_attributes(context, &declarator_attributes);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (declarator_attributes.packed == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.packed_token,
+          "packed attribute requires a record or record member");
+    }
+    if (declarator_attributes.has_alignment == CTOOL_TRUE) {
+      if (specifiers.storage == CFRONT_STORAGE_TYPEDEF) {
+        status = cfront_aligned_type(
+            context, type, declarator_attributes.alignment,
+            declarator_attributes.alignment_token, &type);
+        if (status != CTOOL_OK) {
+          return cfront_storage_failure(context, status);
+        }
+      } else {
+        binding_alignment = declarator_attributes.alignment;
+      }
     }
     if (cfront_peek_is(context, "=") == CTOOL_TRUE) {
       return cfront_emit_failure(
@@ -3807,9 +4396,18 @@ static ctool_status_t cfront_parse_external_declaration(
       }
       kind = CTOOL_C_BINDING_OBJECT;
     }
+    if (declarator_attributes.noreturn == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.noreturn_token,
+            "noreturn attribute requires a function declaration");
+      }
+      binding_attributes |= CTOOL_C_DECL_ATTR_NORETURN;
+    }
     status = cfront_append_binding(
         context, kind, cfront_public_storage(specifiers.storage), name, type,
-        name_token, &location,
+        binding_attributes, binding_alignment, name_token, &location,
         &physical_location, 0ull, CTOOL_FALSE);
     if (status != CTOOL_OK) {
       return status;
@@ -3991,7 +4589,7 @@ static ctool_status_t cfront_enum_type(
       }
       status = cfront_append_binding(
           context, CTOOL_C_BINDING_ENUMERATOR, CTOOL_C_STORAGE_NONE,
-          enumerator->spelling, enumerator_type, enumerator,
+          enumerator->spelling, enumerator_type, 0u, 0u, enumerator,
           &enumerator->location, &enumerator->physical_location, value.bits,
           cfront_integer_unsigned(value.kind));
       if (status != CTOOL_OK) {
@@ -4456,6 +5054,13 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
     cfront_storage_t storage = CFRONT_STORAGE_NONE;
     ctool_u32 qualifier = 0u;
     ctool_u32 found_typedef;
+    if (cfront_starts_attribute(context) == CTOOL_TRUE) {
+      status = cfront_parse_attributes(context, &spec_out->attributes);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      continue;
+    }
     if (cfront_token_is(token, "typedef") == CTOOL_TRUE) {
       storage = CFRONT_STORAGE_TYPEDEF;
     } else if (cfront_token_is(token, "extern") == CTOOL_TRUE) {

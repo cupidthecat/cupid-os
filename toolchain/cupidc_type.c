@@ -949,11 +949,10 @@ static ctool_status_t ctype_layout_node(ctype_context_t *context,
     return ctype_layout_record(context, type);
   case CTOOL_C_TYPE_ALIGNED:
     referenced = &context->types[node->referenced_type];
-    if (referenced->is_object == CTOOL_FALSE ||
-        referenced->is_complete_object == CTOOL_FALSE) {
+    if (referenced->is_object == CTOOL_FALSE) {
       return ctype_fail_type(context, type, CTOOL_ERR_INPUT,
                              CTOOL_C_TYPE_DIAG_INCOMPLETE,
-                             "aligned type requires a complete object type");
+                             "aligned type requires an object type");
     }
     *layout = *referenced;
     introduces_atomic =

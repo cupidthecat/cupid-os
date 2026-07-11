@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import hashlib
 import json
@@ -2061,6 +2062,96 @@ def _c_macro_operator_counts(replacement: str) -> tuple[int, int]:
     return paste_count, stringify_count
 
 
+def _c_attribute_names(contents: str) -> list[str]:
+    items: list[str] = []
+    start = 0
+    depth = 0
+    for index, char in enumerate(contents):
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth != 0:
+            depth -= 1
+        elif char == "," and depth == 0:
+            items.append(contents[start:index])
+            start = index + 1
+    items.append(contents[start:])
+    names: list[str] = []
+    for item in items:
+        match = re.match(r"\s*([A-Za-z_]\w*)\b", item)
+        if match is not None:
+            names.append(match.group(1).strip("_").lower())
+    return names
+
+
+def _scan_c_attributes(
+    path: str,
+    logical_lines: list[tuple[int, str, str]],
+    collector: FeatureCollector,
+) -> None:
+    code = "\n".join(code_line for _, _, code_line in logical_lines)
+    line_starts: list[int] = []
+    offset = 0
+    for _, _, code_line in logical_lines:
+        line_starts.append(offset)
+        offset += len(code_line) + 1
+    cursor = 0
+    introducer = re.compile(r"\b__attribute(?:__)?\b")
+    while True:
+        match = introducer.search(code, cursor)
+        if match is None:
+            return
+        position = match.end()
+        while position < len(code) and code[position].isspace():
+            position += 1
+        if position >= len(code) or code[position] != "(":
+            cursor = match.end()
+            continue
+        position += 1
+        while position < len(code) and code[position].isspace():
+            position += 1
+        if position >= len(code) or code[position] != "(":
+            cursor = match.end()
+            continue
+        contents_start = position + 1
+        position = contents_start
+        depth = 0
+        contents_end: int | None = None
+        group_end: int | None = None
+        while position < len(code):
+            char = code[position]
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                if depth != 0:
+                    depth -= 1
+                else:
+                    close = position + 1
+                    while close < len(code) and code[close].isspace():
+                        close += 1
+                    if close < len(code) and code[close] == ")":
+                        contents_end = position
+                        group_end = close + 1
+                        break
+            position += 1
+        if contents_end is None or group_end is None:
+            cursor = match.end()
+            continue
+        line_index = bisect.bisect_right(line_starts, match.start()) - 1
+        line_number, original_line, _ = logical_lines[line_index]
+        counts = collections.Counter(
+            _c_attribute_names(code[contents_start:contents_end])
+        )
+        for name in sorted(counts):
+            collector.add(
+                f"c.extension.attribute.{name}",
+                path,
+                line_number,
+                original_line,
+                counts[name],
+            )
+        cursor = group_end
+
+
 def _scan_c_features(
     path: str,
     text: str,
@@ -2069,6 +2160,7 @@ def _scan_c_features(
 ) -> None:
     logical_lines = _c_logical_lines(text)
     _scan_c_macro_features(path, logical_lines, collector)
+    _scan_c_attributes(path, logical_lines, collector)
     for line_number, original_line, code_line in logical_lines:
         tokens = re.findall(r"\b[A-Za-z_]\w*\b", code_line)
         for token in sorted(set(tokens)):
@@ -2252,20 +2344,6 @@ def _scan_c_features(
                 original_line,
                 code_line.count(builtin),
             )
-        for attribute_match in re.finditer(
-            r"\b__attribute__\s*\(\((.*?)\)\)", code_line
-        ):
-            names = re.findall(r"\b([A-Za-z_]\w*)\b", attribute_match.group(1))
-            for name in sorted(set(names)):
-                collector.add(
-                    f"c.extension.attribute.{name.strip('_').lower()}",
-                    path,
-                    line_number,
-                    original_line,
-                    names.count(name),
-                )
-
-
 def _mask_asm_strings(line: str) -> str:
     """Replace quoted ASM data with spaces while preserving source positions."""
     output = list(line)

@@ -417,6 +417,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     unsigned kind : 3;
                     int values[];
                 };
+                static const char blob[]
+                    __attribute__((weak, section(".meta"),
+                                   aligned(16)));
                 static long long wide_value;
                 static void (*handler)(int);
                 static void noop(void) {}
@@ -508,6 +511,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "c.declarator.unsized_array",
                 "c.declarator.variadic",
                 "c.extension.attribute.packed",
+                "c.extension.attribute.aligned",
+                "c.extension.attribute.section",
+                "c.extension.attribute.weak",
                 "c.extension.inline_assembly",
                 "c.initializer.designated",
                 "c.preprocessor.function_macro",
@@ -584,11 +590,47 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 features["c.extension.attribute.packed"]["examples"][0]["line"],
                 21,
             )
+            for attribute_name in ("aligned", "section", "weak"):
+                feature = features[f"c.extension.attribute.{attribute_name}"]
+                self.assertEqual(feature["occurrences"], 1)
+                self.assertEqual(feature["files"], ["feature.c"])
+                self.assertEqual(feature["examples"][0]["line"], 26)
+                self.assertTrue(
+                    feature["examples"][0]["text"].startswith("__attribute__")
+                )
 
             sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertIn(
                 "cupid_c.type.u0",
                 sources["app.cc"]["features"],
+            )
+
+    def test_checked_attribute_inventory_matches_active_sources(self):
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        features = {entry["id"]: entry for entry in audit["features"]}
+        expected = {
+            "packed": 30,
+            "aligned": 12,
+            "noreturn": 3,
+            "section": 2,
+            "weak": 5,
+            "used": 18,
+            "noinline": 18,
+            "unused": 5,
+            "naked": 3,
+            "target": 1,
+        }
+        attribute_files = set()
+        for name, occurrences in expected.items():
+            feature = features[f"c.extension.attribute.{name}"]
+            self.assertEqual(feature["occurrences"], occurrences)
+            attribute_files.update(feature["files"])
+        self.assertEqual(sum(expected.values()), 97)
+        self.assertEqual(len(attribute_files), 30)
+        for name in ("aligned", "section", "weak"):
+            self.assertIn(
+                "kernel/cpu/ksyms.c",
+                features[f"c.extension.attribute.{name}"]["files"],
             )
 
     def test_c_logical_lines_use_only_real_newlines_and_preserve_evidence(self):

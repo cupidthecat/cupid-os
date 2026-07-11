@@ -35,6 +35,9 @@ typedef enum {
   CTOOL_C_LINKAGE_EXTERNAL
 } ctool_c_linkage_t;
 
+#define CTOOL_C_DECL_ATTR_NORETURN 0x00000001u
+#define CTOOL_C_DECL_ATTR_ALL CTOOL_C_DECL_ATTR_NORETURN
+
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
@@ -43,6 +46,12 @@ typedef struct {
    * type is symbol-local and never mutates a shared typedef graph. */
   ctool_c_storage_class_t storage;
   ctool_c_linkage_t linkage;
+  /* Semantically retained declaration attributes. Noreturn belongs to the
+   * canonical function entity and merges across compatible declarations. */
+  ctool_u32 attributes;
+  /* Minimum object/function entity alignment. Zero selects the declared
+   * type's alignment; exact typedef/type alignment uses an ALIGNED node. */
+  ctool_u32 minimum_alignment;
   ctool_u32 type;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -87,7 +96,8 @@ typedef enum {
   CTOOL_C_PARSE_DIAG_UNSUPPORTED = 0x0b000008u,
   CTOOL_C_PARSE_DIAG_LIMIT = 0x0b000009u,
   CTOOL_C_PARSE_DIAG_OVERFLOW = 0x0b00000au,
-  CTOOL_C_PARSE_DIAG_INTERNAL = 0x0b00000bu
+  CTOOL_C_PARSE_DIAG_INTERNAL = 0x0b00000bu,
+  CTOOL_C_PARSE_DIAG_ATTRIBUTE = 0x0b00000cu
 } ctool_c_parse_diag_code_t;
 
 ctool_status_t ctool_c_parse(ctool_job_t *job,
@@ -106,7 +116,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * This declaration slice owns the contracted scalar/typedef/storage subset,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
- * and function types, C linkage, and layout. Type compatibility uses checked
+ * and function types, C linkage, layout, and normalized GNU packed, aligned,
+ * and noreturn attributes at their contracted placements. Other attributes
+ * fail closed instead of being skipped. Type compatibility uses checked
  * iterative graph walks; the public nesting limit applies to recursive source
  * syntax, not derived-type graph depth. `_Thread_local`, `inline`,
  * `_Noreturn`, `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type

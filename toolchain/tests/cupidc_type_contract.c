@@ -221,6 +221,8 @@ static int run_scalars(void) {
     T_QUALIFIED_ATOMIC_ALIGNED_INT,
     T_REALIGNED_ATOMIC_INT,
     T_CONST_REALIGNED_ATOMIC_INT,
+    T_INCOMPLETE_INT_ARRAY,
+    T_ALIGNED_INCOMPLETE_INT_ARRAY,
     T_COUNT
   };
   static const ctool_c_type_kind_t builtin_kinds[] = {
@@ -276,7 +278,9 @@ static int run_scalars(void) {
       {4u, 1u, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE},
       {4u, 4u, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE},
       {4u, 1u, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE},
-      {4u, 1u, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE}};
+      {4u, 1u, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE},
+      {0u, 4u, CTOOL_FALSE, CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE},
+      {0u, 16u, CTOOL_FALSE, CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE}};
   ctool_c_type_node_t nodes[T_COUNT];
   ctool_c_type_node_t node_copy[T_COUNT];
   ctool_u32 parameter_types[2];
@@ -377,6 +381,17 @@ static int run_scalars(void) {
   nodes[T_CONST_REALIGNED_ATOMIC_INT].referenced_type =
       T_REALIGNED_ATOMIC_INT;
   nodes[T_CONST_REALIGNED_ATOMIC_INT].qualifiers = CTOOL_C_QUAL_CONST;
+  nodes[T_INCOMPLETE_INT_ARRAY] = type_node(
+      CTOOL_C_TYPE_ARRAY, "/scalars.c", T_INCOMPLETE_INT_ARRAY + 1u);
+  nodes[T_INCOMPLETE_INT_ARRAY].referenced_type = T_SIGNED_INT;
+  nodes[T_INCOMPLETE_INT_ARRAY].array_bound_kind =
+      CTOOL_C_ARRAY_UNSPECIFIED;
+  nodes[T_ALIGNED_INCOMPLETE_INT_ARRAY] = type_node(
+      CTOOL_C_TYPE_ALIGNED, "/scalars.c",
+      T_ALIGNED_INCOMPLETE_INT_ARRAY + 1u);
+  nodes[T_ALIGNED_INCOMPLETE_INT_ARRAY].referenced_type =
+      T_INCOMPLETE_INT_ARRAY;
+  nodes[T_ALIGNED_INCOMPLETE_INT_ARRAY].explicit_alignment = 16u;
 
   parameter_types[0] = T_SIGNED_INT;
   parameter_types[1] = T_VOID_POINTER;
@@ -1417,7 +1432,7 @@ static int run_errors(void) {
   request = layout_request(nodes, 2u, NULL, 0u, "/aligned-void.c");
   if (expect_failure(job, &request, CTOOL_ERR_INPUT,
                      CTOOL_C_TYPE_DIAG_INCOMPLETE, "/aligned-void.c", 9u, 4u,
-                     "aligned type requires a complete object type",
+                     "aligned type requires an object type",
                      23u) != 0) {
     ctool_job_close(job);
     return 1;

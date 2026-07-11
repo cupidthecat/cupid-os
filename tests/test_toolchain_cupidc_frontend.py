@@ -61,6 +61,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_unchanged_kernel_header_merges_compatible_redeclarations(self):
         self.run_contract("redeclarations")
 
+    def test_gnu_attributes_preserve_declaration_and_layout_semantics(self):
+        self.run_contract("attributes")
+
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
@@ -73,32 +76,14 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             and source["path"] not in excluded
         )
         failures = {
-            "/kernel/core/app_launch.h": (
-                "/kernel/core/process.h", 66, 36, "0x0b000002"
-            ),
-            "/kernel/core/process.h": (
-                "/kernel/core/process.h", 66, 36, "0x0b000002"
-            ),
             "/kernel/smp/mp_tables.h": (
-                "/kernel/core/process.h", 66, 36, "0x0b000002"
+                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
             ),
             "/kernel/smp/percpu.h": (
-                "/kernel/core/process.h", 66, 36, "0x0b000002"
+                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
             ),
             "/kernel/smp/smp.h": (
-                "/kernel/core/process.h", 66, 36, "0x0b000002"
-            ),
-            "/kernel/core/assert.h": (
-                "/kernel/core/panic.h", 8, 41, "0x0b000002"
-            ),
-            "/kernel/core/panic.h": (
-                "/kernel/core/panic.h", 8, 41, "0x0b000002"
-            ),
-            "/kernel/cpu/idt.h": (
-                "/kernel/cpu/idt.h", 23, 17, "0x0b000003"
-            ),
-            "/kernel/lang/exec.h": (
-                "/kernel/lang/exec.h", 23, 17, "0x0b000003"
+                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
             ),
             "/kernel/core/debug.h": (
                 "/kernel/core/debug.h", 8, 1, "0x0b000003"
@@ -111,7 +96,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             ),
         }
         self.assertEqual(len(headers), 152)
-        self.assertEqual(len(failures), 12)
+        self.assertEqual(len(failures), 6)
         expected_lines = []
         for header in headers:
             if header not in failures:
@@ -121,7 +106,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 140 12")
+        expected_lines.append("header-sweep: ok 146 6")
         result = subprocess.run(
             [
                 str(self.contract_path),

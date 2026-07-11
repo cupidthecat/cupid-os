@@ -1322,6 +1322,83 @@ static int parse_valid_fixture(frontend_fixture_t *fixture, const char *path,
   return failed;
 }
 
+static int parse_loaded_fixture(frontend_fixture_t *fixture,
+                                const char *path_text,
+                                const char *stop_spelling,
+                                ctool_c_translation_unit_t *unit_out) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_c_pp_result_t tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 token_index;
+  size_t token_bytes;
+  int failed = 1;
+
+  path.text = ctool_string(path_text);
+  status = ctool_job_load_source(fixture->job, &path, &source);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "%s: load %s failed: %s\n", fixture->mode,
+                  path_text, ctool_status_name(status));
+    return 1;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(fixture->job);
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(fixture->job, &source, &fixture->pp_request, &tape);
+  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(fixture->job) != diagnostic_count) {
+    (void)fprintf(stderr, "%s: preprocess %s failed: %s\n", fixture->mode,
+                  path_text, ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(fixture->job);
+    return 1;
+  }
+  if (stop_spelling != NULL) {
+    for (token_index = 0u; token_index < tape.token_count; token_index++) {
+      if (string_equal(tape.tokens[token_index].spelling, stop_spelling) != 0 &&
+          string_equal(tape.tokens[token_index].physical_location.path,
+                       path_text) != 0) {
+        break;
+      }
+    }
+    if (token_index == tape.token_count) {
+      (void)fprintf(stderr, "%s: stop token %s is absent from %s\n",
+                    fixture->mode, stop_spelling, path_text);
+      return 1;
+    }
+    while (token_index != 0u &&
+           tape.tokens[token_index - 1u].physical_location.line ==
+               tape.tokens[token_index].physical_location.line &&
+           string_equal(
+               tape.tokens[token_index - 1u].physical_location.path,
+               path_text) != 0) {
+      token_index--;
+    }
+    tape.token_count = token_index;
+  }
+  token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    (void)fprintf(stderr, "%s: snapshot %s failed\n", fixture->mode,
+                  path_text);
+    return 1;
+  }
+  (void)memcpy(snapshot, tape.tokens, token_bytes);
+  (void)memset(unit_out, 0xa5, sizeof(*unit_out));
+  status = ctool_c_parse(fixture->job, &tape, &fixture->parse_request, unit_out);
+  if (status != CTOOL_OK ||
+      ctool_job_diagnostic_count(fixture->job) != diagnostic_count ||
+      memcmp(snapshot, tape.tokens, token_bytes) != 0) {
+    (void)fprintf(stderr, "%s: parse %s failed: %s\n", fixture->mode,
+                  path_text, ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(fixture->job);
+  } else {
+    failed = 0;
+  }
+  free(snapshot);
+  return failed;
+}
+
 static int validate_anchor(const frontend_fixture_t *fixture) {
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *type;
@@ -1482,6 +1559,871 @@ find_tag(const ctool_c_translation_unit_t *unit, const char *name) {
     }
   }
   return NULL;
+}
+
+static int validate_attribute_storage_limit(frontend_fixture_t *fixture,
+                                            const char *host_root);
+
+static int run_attributes(const char *host_root) {
+  static const frontend_failure_case_t failure_cases[] = {
+      {"unknown attribute",
+       "struct unknown_attr { int value; } __attribute__((mystery));\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"malformed attribute",
+       "struct malformed_attr { int value; } __attribute__((packed);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unterminated attribute",
+       "struct unterminated_attr { int value; } __attribute__((\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"zero alignment",
+       "struct zero_align { int value __attribute__((aligned(0))); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"non-power alignment",
+       "struct odd_align { int value __attribute__((aligned(3))); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"negative alignment",
+       "struct negative_align { int value __attribute__((aligned(-8))); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"nonconstant alignment",
+       "int alignment_value; int value __attribute__((aligned(alignment_value)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"packed argument", "struct packed_arg { int value; } "
+                          "__attribute__((packed(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noreturn argument",
+       "void bad_noreturn(void) __attribute__((noreturn(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"packed scalar", "unsigned int packed_scalar __attribute__((packed));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noreturn object", "unsigned int returning_object "
+                          "__attribute__((noreturn));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noreturn record",
+       "struct bad_record { int value; } __attribute__((noreturn));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noreturn member", "struct bad_member { int value "
+                          "__attribute__((noreturn)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"attributed parameter specifier",
+       "void bad_parameter(int __attribute__((aligned(16))) value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"attributed parameter declarator",
+       "void bad_parameter(int value __attribute__((aligned(16))));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"old-style aligned char promotion mismatch",
+       "typedef char aligned_char_t __attribute__((aligned(16))); "
+       "int promoted(); int promoted(aligned_char_t value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"reverse old-style aligned char promotion mismatch",
+       "typedef char aligned_char_t __attribute__((aligned(16))); "
+       "int promoted(aligned_char_t value); int promoted();\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"misplaced record alignment",
+       "__attribute__((aligned(16))) struct misplaced_record { int value; };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"attributed body",
+       "void attributed_body(void) __attribute__((noreturn)) { }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled GNU attribute",
+      "unsigned int disabled __attribute__((aligned(8)));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const char *const exec_types[] = {
+      "cupd_header_t", "elf32_ehdr_t", "elf32_phdr_t", "elf32_shdr_t",
+      "elf32_sym_t"};
+  static const ctool_u32 exec_sizes[] = {20u, 52u, 32u, 40u, 16u};
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  const ctool_c_tag_t *tag;
+  const ctool_c_type_node_t *record;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 payload_index;
+  ctool_u32 failure_index;
+  ctool_u32 active_index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "attributes", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-packed.c",
+          "struct descriptor {\n"
+          "  unsigned char tag;\n"
+          "  unsigned int payload;\n"
+          "} __attribute__((packed));\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  tag = find_tag(&unit, "descriptor");
+  record = tag == NULL ? NULL : type_node(&unit, tag->type);
+  layout = tag == NULL ? NULL : type_layout(&unit, tag->type);
+  payload_index = record == NULL ? unit.graph.member_count
+                                 : record->first_member + 1u;
+  if (unit.binding_count != 0u || unit.tag_count != 1u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_packed != CTOOL_TRUE || record->member_count != 2u ||
+      layout == NULL || layout->size != 5u || layout->alignment != 1u ||
+      payload_index >= unit.graph.member_count ||
+      unit.graph.members[payload_index].member_packed != CTOOL_FALSE ||
+      unit.layout.members[payload_index].byte_offset != 1u ||
+      unit.layout.members[payload_index].alignment != 1u) {
+    (void)fprintf(stderr, "attributes: packed record semantics differ\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-record-prefix.c",
+          "typedef struct __attribute__((packed, aligned(16))) descriptor16 {\n"
+          "  unsigned char tag;\n"
+          "  unsigned int payload;\n"
+          "} descriptor16_t;\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "descriptor16_t");
+    const ctool_c_tag_t *prefix_tag = find_tag(&unit, "descriptor16");
+    const ctool_c_type_node_t *prefix_record =
+        prefix_tag == NULL ? NULL : type_node(&unit, prefix_tag->type);
+    const ctool_c_type_layout_t *prefix_layout =
+        prefix_tag == NULL ? NULL : type_layout(&unit, prefix_tag->type);
+    ctool_u32 prefix_payload =
+        prefix_record == NULL ? unit.graph.member_count
+                              : prefix_record->first_member + 1u;
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        prefix_tag == NULL || binding->type != prefix_tag->type ||
+        prefix_record == NULL || prefix_record->record_packed != CTOOL_TRUE ||
+        prefix_record->explicit_alignment != 16u || prefix_layout == NULL ||
+        prefix_layout->size != 16u || prefix_layout->alignment != 16u ||
+        prefix_payload >= unit.graph.member_count ||
+        unit.layout.members[prefix_payload].byte_offset != 1u ||
+        unit.layout.members[prefix_payload].alignment != 1u) {
+      (void)fprintf(stderr, "attributes: prefix record semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-forward-record.c",
+          "struct __attribute__((packed, aligned(16))) forward_attr;\n"
+          "struct forward_attr { unsigned char tag; unsigned int payload; };\n"
+          "struct later_attr;\n"
+          "struct __attribute__((packed, aligned(32))) later_attr {\n"
+          "  unsigned char tag; unsigned int payload;\n"
+          "};\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    static const char *const tag_names[] = {"forward_attr", "later_attr"};
+    static const ctool_u32 tag_alignments[] = {16u, 32u};
+    for (active_index = 0u; active_index < ARRAY_COUNT(tag_names);
+         active_index++) {
+      const ctool_c_tag_t *forward_tag =
+          find_tag(&unit, tag_names[active_index]);
+      const ctool_c_type_node_t *forward_record =
+          forward_tag == NULL ? NULL : type_node(&unit, forward_tag->type);
+      const ctool_c_type_layout_t *forward_layout =
+          forward_tag == NULL ? NULL : type_layout(&unit, forward_tag->type);
+      if (forward_record == NULL || forward_layout == NULL ||
+          forward_record->record_complete != CTOOL_TRUE ||
+          forward_record->record_packed != CTOOL_TRUE ||
+          forward_record->explicit_alignment != tag_alignments[active_index] ||
+          forward_layout->size != tag_alignments[active_index] ||
+          forward_layout->alignment != tag_alignments[active_index]) {
+        (void)fprintf(stderr,
+                      "attributes: forward record attributes differ\n");
+        goto cleanup;
+      }
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-aligned-compatibility.c",
+          "typedef int aligned_int_t __attribute__((aligned(16)));\n"
+          "extern aligned_int_t aligned_object_first;\n"
+          "extern int aligned_object_first;\n"
+          "extern int aligned_object_later;\n"
+          "extern aligned_int_t aligned_object_later;\n"
+          "extern aligned_int_t *aligned_pointer_first;\n"
+          "extern int *aligned_pointer_first;\n"
+          "extern int *aligned_pointer_later;\n"
+          "extern aligned_int_t *aligned_pointer_later;\n"
+          "typedef int repeated_aligned_t __attribute__((aligned(8)));\n"
+          "typedef int repeated_aligned_t __attribute__((aligned(32)));\n"
+          "typedef int repeated_aligned_t;\n"
+          "typedef int *repeated_pointer_t;\n"
+          "typedef aligned_int_t *repeated_pointer_t;\n"
+          "typedef int aligned_incomplete_array_t[] "
+          "__attribute__((aligned(16)));\n"
+          "extern aligned_incomplete_array_t combined_aligned_array;\n"
+          "extern int combined_aligned_array[4];\n"
+          "typedef int nested_inner_t __attribute__((aligned(64)));\n"
+          "typedef nested_inner_t nested_effective_t "
+          "__attribute__((aligned(16)));\n"
+          "typedef int nested_effective_t __attribute__((aligned(32)));\n"
+          "typedef int *outer_aligned_pointer_t "
+          "__attribute__((aligned(8)));\n"
+          "typedef int inner_aligned_t __attribute__((aligned(16)));\n"
+          "extern outer_aligned_pointer_t mixed_alignment_first;\n"
+          "extern inner_aligned_t *mixed_alignment_first;\n"
+          "extern inner_aligned_t *mixed_alignment_later;\n"
+          "extern outer_aligned_pointer_t mixed_alignment_later;\n"
+          "extern outer_aligned_pointer_t const qualified_mixed_first;\n"
+          "extern inner_aligned_t * const qualified_mixed_first;\n"
+          "extern inner_aligned_t * const qualified_mixed_later;\n"
+          "extern outer_aligned_pointer_t const qualified_mixed_later;\n"
+          "typedef int atomic_inner_t __attribute__((aligned(16)));\n"
+          "typedef atomic_inner_t * _Atomic atomic_left_t;\n"
+          "typedef int *atomic_pointer_t __attribute__((aligned(1)));\n"
+          "typedef _Atomic atomic_pointer_t atomic_right_t;\n"
+          "extern atomic_left_t *atomic_mixed_first;\n"
+          "extern atomic_right_t *atomic_mixed_first;\n"
+          "extern atomic_right_t *atomic_mixed_later;\n"
+          "extern atomic_left_t *atomic_mixed_later;\n"
+          "typedef int *same_aligned_pointer_t;\n"
+          "typedef same_aligned_pointer_t same_aligned_t "
+          "__attribute__((aligned(1)));\n"
+          "typedef _Atomic same_aligned_t same_atomic_outer_t;\n"
+          "typedef int * _Atomic same_atomic_pointer_t;\n"
+          "typedef same_atomic_pointer_t same_atomic_inner_t "
+          "__attribute__((aligned(1)));\n"
+          "extern same_atomic_outer_t atomic_same_first;\n"
+          "extern same_atomic_inner_t atomic_same_first;\n"
+          "extern same_atomic_inner_t atomic_same_later;\n"
+          "extern same_atomic_outer_t atomic_same_later;\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    static const char *const aligned_names[] = {
+        "aligned_object_first", "aligned_object_later", "repeated_aligned_t"};
+    static const ctool_u32 aligned_values[] = {16u, 16u, 32u};
+    for (active_index = 0u; active_index < ARRAY_COUNT(aligned_names);
+         active_index++) {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, aligned_names[active_index]);
+      const ctool_c_type_node_t *aligned_node =
+          binding == NULL ? NULL : type_node(&unit, binding->type);
+      const ctool_c_type_layout_t *aligned_layout =
+          binding == NULL ? NULL : type_layout(&unit, binding->type);
+      if (binding == NULL || aligned_node == NULL || aligned_layout == NULL ||
+          aligned_node->kind != CTOOL_C_TYPE_ALIGNED ||
+          aligned_node->explicit_alignment != aligned_values[active_index] ||
+          aligned_layout->size != 4u ||
+          aligned_layout->alignment != aligned_values[active_index]) {
+        (void)fprintf(stderr,
+                      "attributes: aligned type compatibility differs\n");
+        goto cleanup;
+      }
+    }
+    {
+      static const char *const pointer_names[] = {
+          "aligned_pointer_first", "aligned_pointer_later"};
+      for (active_index = 0u; active_index < ARRAY_COUNT(pointer_names);
+           active_index++) {
+        const ctool_c_binding_t *binding =
+            find_binding(&unit, pointer_names[active_index]);
+        const ctool_c_type_node_t *pointer =
+            binding == NULL ? NULL : type_node(&unit, binding->type);
+        const ctool_c_type_node_t *referent =
+            pointer == NULL ? NULL : type_node(&unit, pointer->referenced_type);
+        if (pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+            referent == NULL || referent->kind != CTOOL_C_TYPE_ALIGNED ||
+            referent->explicit_alignment != 16u) {
+          (void)fprintf(
+              stderr,
+              "attributes: recursive aligned compatibility differs\n");
+          goto cleanup;
+        }
+      }
+    }
+    {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, "repeated_pointer_t");
+      const ctool_c_type_node_t *pointer =
+          binding == NULL ? NULL : type_node(&unit, binding->type);
+      const ctool_c_type_node_t *referent =
+          pointer == NULL ? NULL : type_node(&unit, pointer->referenced_type);
+      if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+          pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+          referent == NULL || referent->kind != CTOOL_C_TYPE_ALIGNED ||
+          referent->explicit_alignment != 16u) {
+        (void)fprintf(stderr,
+                      "attributes: repeated aligned typedef differs\n");
+        goto cleanup;
+      }
+    }
+    {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, "combined_aligned_array");
+      const ctool_c_type_node_t *aligned =
+          binding == NULL ? NULL : type_node(&unit, binding->type);
+      const ctool_c_type_node_t *array =
+          aligned == NULL ? NULL : type_node(&unit, aligned->referenced_type);
+      const ctool_c_type_layout_t *combined_layout =
+          binding == NULL ? NULL : type_layout(&unit, binding->type);
+      if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+          aligned == NULL || aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+          aligned->explicit_alignment != 16u || array == NULL ||
+          array->kind != CTOOL_C_TYPE_ARRAY ||
+          array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+          array->element_count != 4u || combined_layout == NULL ||
+          combined_layout->size != 16u ||
+          combined_layout->alignment != 16u) {
+        (void)fprintf(stderr,
+                      "attributes: aligned array composite differs\n");
+        goto cleanup;
+      }
+    }
+    {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, "nested_effective_t");
+      const ctool_c_type_node_t *aligned =
+          binding == NULL ? NULL : type_node(&unit, binding->type);
+      const ctool_c_type_layout_t *nested_layout =
+          binding == NULL ? NULL : type_layout(&unit, binding->type);
+      if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+          aligned == NULL || aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+          aligned->explicit_alignment != 32u || nested_layout == NULL ||
+          nested_layout->size != 4u || nested_layout->alignment != 32u) {
+        (void)fprintf(stderr,
+                      "attributes: nested effective alignment differs\n");
+        goto cleanup;
+      }
+    }
+    {
+      static const char *const mixed_names[] = {
+          "mixed_alignment_first", "mixed_alignment_later"};
+      for (active_index = 0u; active_index < ARRAY_COUNT(mixed_names);
+           active_index++) {
+        const ctool_c_binding_t *binding =
+            find_binding(&unit, mixed_names[active_index]);
+        const ctool_c_type_node_t *outer =
+            binding == NULL ? NULL : type_node(&unit, binding->type);
+        const ctool_c_type_node_t *pointer =
+            outer == NULL ? NULL : type_node(&unit, outer->referenced_type);
+        const ctool_c_type_node_t *inner =
+            pointer == NULL ? NULL
+                            : type_node(&unit, pointer->referenced_type);
+        const ctool_c_type_layout_t *mixed_layout =
+            binding == NULL ? NULL : type_layout(&unit, binding->type);
+        if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+            outer == NULL || outer->kind != CTOOL_C_TYPE_ALIGNED ||
+            outer->explicit_alignment != 8u || pointer == NULL ||
+            pointer->kind != CTOOL_C_TYPE_POINTER || inner == NULL ||
+            inner->kind != CTOOL_C_TYPE_ALIGNED ||
+            inner->explicit_alignment != 16u || mixed_layout == NULL ||
+            mixed_layout->size != 4u || mixed_layout->alignment != 8u) {
+          (void)fprintf(stderr,
+                        "attributes: opposing aligned composite differs\n");
+          goto cleanup;
+        }
+      }
+    }
+    {
+      static const char *const qualified_names[] = {
+          "qualified_mixed_first", "qualified_mixed_later"};
+      for (active_index = 0u; active_index < ARRAY_COUNT(qualified_names);
+           active_index++) {
+        const ctool_c_binding_t *binding =
+            find_binding(&unit, qualified_names[active_index]);
+        const ctool_c_type_node_t *outer =
+            binding == NULL ? NULL : type_node(&unit, binding->type);
+        const ctool_c_type_node_t *pointer =
+            outer == NULL ? NULL : type_node(&unit, outer->referenced_type);
+        const ctool_c_type_node_t *inner =
+            pointer == NULL ? NULL
+                            : type_node(&unit, pointer->referenced_type);
+        if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+            outer == NULL || outer->kind != CTOOL_C_TYPE_ALIGNED ||
+            outer->explicit_alignment != 8u ||
+            (outer->qualifiers & CTOOL_C_QUAL_CONST) == 0u ||
+            pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+            inner == NULL || inner->kind != CTOOL_C_TYPE_ALIGNED ||
+            inner->explicit_alignment != 16u) {
+          (void)fprintf(stderr,
+                        "attributes: qualified aligned composite differs\n");
+          goto cleanup;
+        }
+      }
+    }
+    {
+      static const char *const atomic_names[] = {
+          "atomic_mixed_first", "atomic_mixed_later"};
+      for (active_index = 0u; active_index < ARRAY_COUNT(atomic_names);
+           active_index++) {
+        const ctool_c_binding_t *binding =
+            find_binding(&unit, atomic_names[active_index]);
+        const ctool_c_type_node_t *outer_pointer =
+            binding == NULL ? NULL : type_node(&unit, binding->type);
+        const ctool_c_type_node_t *atomic_aligned =
+            outer_pointer == NULL
+                ? NULL
+                : type_node(&unit, outer_pointer->referenced_type);
+        const ctool_c_type_node_t *inner_pointer =
+            atomic_aligned == NULL
+                ? NULL
+                : type_node(&unit, atomic_aligned->referenced_type);
+        const ctool_c_type_node_t *inner_aligned =
+            inner_pointer == NULL
+                ? NULL
+                : type_node(&unit, inner_pointer->referenced_type);
+        const ctool_c_type_layout_t *atomic_layout =
+            outer_pointer == NULL
+                ? NULL
+                : type_layout(&unit, outer_pointer->referenced_type);
+        if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+            outer_pointer == NULL ||
+            outer_pointer->kind != CTOOL_C_TYPE_POINTER ||
+            atomic_aligned == NULL ||
+            atomic_aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+            atomic_aligned->explicit_alignment != 1u ||
+            (atomic_aligned->qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u ||
+            inner_pointer == NULL ||
+            inner_pointer->kind != CTOOL_C_TYPE_POINTER ||
+            inner_aligned == NULL ||
+            inner_aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+            inner_aligned->explicit_alignment != 16u ||
+            atomic_layout == NULL || atomic_layout->size != 4u ||
+            atomic_layout->alignment != 4u) {
+          (void)fprintf(stderr,
+                        "attributes: atomic aligned composite differs\n");
+          goto cleanup;
+        }
+      }
+    }
+    {
+      static const char *const atomic_same_names[] = {
+          "atomic_same_first", "atomic_same_later"};
+      for (active_index = 0u; active_index < ARRAY_COUNT(atomic_same_names);
+           active_index++) {
+        const ctool_c_binding_t *binding =
+            find_binding(&unit, atomic_same_names[active_index]);
+        const ctool_c_type_node_t *aligned =
+            binding == NULL ? NULL : type_node(&unit, binding->type);
+        const ctool_c_type_node_t *pointer =
+            aligned == NULL ? NULL : type_node(&unit, aligned->referenced_type);
+        const ctool_c_type_layout_t *same_layout =
+            binding == NULL ? NULL : type_layout(&unit, binding->type);
+        if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+            aligned == NULL || aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+            aligned->explicit_alignment != 1u ||
+            (aligned->qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u ||
+            pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+            same_layout == NULL || same_layout->size != 4u ||
+            same_layout->alignment != 4u) {
+          (void)fprintf(
+              stderr,
+              "attributes: same-layer atomic alignment differs\n");
+          goto cleanup;
+        }
+      }
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-normalized-spellings.c",
+          "typedef struct __attribute((, __packed__(), aligned(), "
+          "__aligned__(32),)) normalized {\n"
+          "  unsigned char tag;\n"
+          "  unsigned int payload;\n"
+          "} normalized_t;\n"
+          "__attribute((__noreturn__())) void normalized_fatal(void);\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "normalized_t");
+    const ctool_c_binding_t *function =
+        find_binding(&unit, "normalized_fatal");
+    const ctool_c_tag_t *normalized_tag = find_tag(&unit, "normalized");
+    const ctool_c_type_node_t *normalized_record =
+        normalized_tag == NULL ? NULL : type_node(&unit, normalized_tag->type);
+    const ctool_c_type_layout_t *normalized_layout =
+        normalized_tag == NULL ? NULL : type_layout(&unit, normalized_tag->type);
+    if (binding == NULL || function == NULL || normalized_tag == NULL ||
+        normalized_record == NULL || normalized_layout == NULL ||
+        binding->type != normalized_tag->type ||
+        normalized_record->record_packed != CTOOL_TRUE ||
+        normalized_record->explicit_alignment != 32u ||
+        normalized_layout->size != 32u || normalized_layout->alignment != 32u ||
+        (function->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u) {
+      (void)fprintf(stderr,
+                    "attributes: normalized GNU spellings differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-prefix-declaration.c",
+          "__attribute__((noreturn)) void leading_fatal(void);\n"
+          "static __attribute__((aligned(16))) unsigned char leading_object;\n"
+          "static unsigned char bare_aligned_object "
+          "__attribute__((aligned));\n"
+          "void aligned_function(void) __attribute__((aligned(32)));\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *function = find_binding(&unit, "leading_fatal");
+    const ctool_c_binding_t *object = find_binding(&unit, "leading_object");
+    const ctool_c_binding_t *bare =
+        find_binding(&unit, "bare_aligned_object");
+    const ctool_c_binding_t *aligned_function =
+        find_binding(&unit, "aligned_function");
+    if (unit.binding_count != 4u || function == NULL || object == NULL ||
+        bare == NULL || aligned_function == NULL ||
+        function->kind != CTOOL_C_BINDING_FUNCTION ||
+        (function->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u ||
+        function->minimum_alignment != 0u ||
+        object->kind != CTOOL_C_BINDING_OBJECT ||
+        object->storage != CTOOL_C_STORAGE_STATIC ||
+        object->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+        object->attributes != 0u || object->minimum_alignment != 16u ||
+        bare->kind != CTOOL_C_BINDING_OBJECT ||
+        bare->minimum_alignment != 16u ||
+        aligned_function->kind != CTOOL_C_BINDING_FUNCTION ||
+        aligned_function->attributes != 0u ||
+        aligned_function->minimum_alignment != 32u) {
+      (void)fprintf(stderr,
+                    "attributes: prefix declaration semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-object-aligned.c",
+          "unsigned char aligned_object __attribute__((aligned(32)));\n"
+          "unsigned char plain_object;\n"
+          "unsigned char comma_aligned __attribute__((aligned(16))), comma_plain;\n"
+          "extern unsigned char aligned_later;\n"
+          "extern unsigned char aligned_later __attribute__((aligned(8)));\n"
+          "extern unsigned char aligned_first __attribute__((aligned(4)));\n"
+          "extern unsigned char aligned_first;\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *aligned = find_binding(&unit, "aligned_object");
+    const ctool_c_binding_t *plain = find_binding(&unit, "plain_object");
+    const ctool_c_binding_t *comma_aligned =
+        find_binding(&unit, "comma_aligned");
+    const ctool_c_binding_t *comma_plain = find_binding(&unit, "comma_plain");
+    const ctool_c_binding_t *later = find_binding(&unit, "aligned_later");
+    const ctool_c_binding_t *first = find_binding(&unit, "aligned_first");
+    if (unit.binding_count != 6u || aligned == NULL || plain == NULL ||
+        comma_aligned == NULL || comma_plain == NULL || later == NULL ||
+        first == NULL || aligned->kind != CTOOL_C_BINDING_OBJECT ||
+        aligned->type != plain->type || aligned->minimum_alignment != 32u ||
+        plain->minimum_alignment != 0u ||
+        comma_aligned->minimum_alignment != 16u ||
+        comma_plain->minimum_alignment != 0u ||
+        later->minimum_alignment != 8u || first->minimum_alignment != 4u) {
+      (void)fprintf(stderr, "attributes: aligned object semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-member-aligned.c",
+          "struct aligned_member {\n"
+          "  unsigned char tag;\n"
+          "  unsigned char payload[3] __attribute__((aligned(16)));\n"
+          "  unsigned char tail;\n"
+          "};\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  tag = find_tag(&unit, "aligned_member");
+  record = tag == NULL ? NULL : type_node(&unit, tag->type);
+  layout = tag == NULL ? NULL : type_layout(&unit, tag->type);
+  payload_index = record == NULL ? unit.graph.member_count
+                                 : record->first_member + 1u;
+  if (unit.binding_count != 0u || unit.tag_count != 1u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD || record->member_count != 3u ||
+      layout == NULL || layout->size != 32u || layout->alignment != 16u ||
+      payload_index >= unit.graph.member_count ||
+      unit.graph.members[payload_index].explicit_alignment != 16u ||
+      unit.layout.members[payload_index].byte_offset != 16u ||
+      unit.layout.members[payload_index].size != 3u ||
+      unit.layout.members[payload_index].alignment != 16u ||
+      unit.layout.members[payload_index + 1u].byte_offset != 19u) {
+    (void)fprintf(stderr, "attributes: aligned member semantics differ\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-member-packed.c",
+          "struct packed_member {\n"
+          "  unsigned char tag;\n"
+          "  unsigned int payload __attribute__((packed));\n"
+          "  unsigned char tail;\n"
+          "};\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  tag = find_tag(&unit, "packed_member");
+  record = tag == NULL ? NULL : type_node(&unit, tag->type);
+  layout = tag == NULL ? NULL : type_layout(&unit, tag->type);
+  payload_index = record == NULL ? unit.graph.member_count
+                                 : record->first_member + 1u;
+  if (unit.binding_count != 0u || unit.tag_count != 1u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_packed != CTOOL_FALSE || record->member_count != 3u ||
+      layout == NULL || layout->size != 6u || layout->alignment != 1u ||
+      payload_index >= unit.graph.member_count ||
+      unit.graph.members[payload_index].member_packed != CTOOL_TRUE ||
+      unit.layout.members[payload_index].byte_offset != 1u ||
+      unit.layout.members[payload_index].size != 4u ||
+      unit.layout.members[payload_index].alignment != 1u ||
+      unit.layout.members[payload_index + 1u].byte_offset != 5u) {
+    (void)fprintf(stderr, "attributes: packed member semantics differ\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-typedef-aligned.c",
+          "typedef struct aligned_alias {\n"
+          "  unsigned char bytes[64];\n"
+          "} aligned_alias_t __attribute__((aligned(64)));\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "aligned_alias_t");
+    const ctool_c_tag_t *record_tag = find_tag(&unit, "aligned_alias");
+    const ctool_c_type_node_t *aligned =
+        binding == NULL ? NULL : type_node(&unit, binding->type);
+    const ctool_c_type_node_t *natural_record =
+        record_tag == NULL ? NULL : type_node(&unit, record_tag->type);
+    const ctool_c_type_layout_t *aligned_layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    const ctool_c_type_layout_t *natural_layout =
+        record_tag == NULL ? NULL : type_layout(&unit, record_tag->type);
+    if (unit.binding_count != 1u || unit.tag_count != 1u || binding == NULL ||
+        binding->kind != CTOOL_C_BINDING_TYPEDEF || aligned == NULL ||
+        aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+        aligned->explicit_alignment != 64u || record_tag == NULL ||
+        aligned->referenced_type != record_tag->type || natural_record == NULL ||
+        natural_record->kind != CTOOL_C_TYPE_RECORD ||
+        natural_record->explicit_alignment != 0u || aligned_layout == NULL ||
+        aligned_layout->size != 64u || aligned_layout->alignment != 64u ||
+        natural_layout == NULL || natural_layout->size != 64u ||
+        natural_layout->alignment != 1u) {
+      (void)fprintf(stderr, "attributes: aligned typedef semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-noreturn.c",
+          "void fatal_first(const char *message) __attribute__((noreturn));\n"
+          "void fatal_first(const char *message);\n"
+          "void fatal_later(void);\n"
+          "void fatal_later(void) __attribute__((__noreturn__));\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *first = find_binding(&unit, "fatal_first");
+    const ctool_c_binding_t *later = find_binding(&unit, "fatal_later");
+    if (unit.binding_count != 2u || first == NULL || later == NULL ||
+        first->kind != CTOOL_C_BINDING_FUNCTION ||
+        later->kind != CTOOL_C_BINDING_FUNCTION ||
+        (first->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u ||
+        (later->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u ||
+        !dual_location_matches(&first->location, &first->physical_location,
+                               "/attributes-noreturn.c", 1u) ||
+        !dual_location_matches(&later->location, &later->physical_location,
+                               "/attributes-noreturn.c", 3u)) {
+      (void)fprintf(stderr, "attributes: noreturn binding semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0) {
+    goto cleanup;
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/core/process.h", NULL, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "process_t");
+    const ctool_c_type_node_t *process =
+        binding == NULL ? NULL : type_node(&unit, binding->type);
+    const ctool_c_type_layout_t *process_layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    ctool_u32 member_index = unit.graph.member_count;
+    const ctool_c_record_member_t *member =
+        process == NULL
+            ? NULL
+            : find_record_member(&unit, process, "fp_state", &member_index);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        process == NULL || process->kind != CTOOL_C_TYPE_RECORD ||
+        process_layout == NULL || process_layout->size != 656u ||
+        process_layout->alignment != 16u || member == NULL ||
+        member->explicit_alignment != 16u ||
+        member_index >= unit.layout.member_count ||
+        unit.layout.members[member_index].byte_offset != 80u ||
+        unit.layout.members[member_index].size != 512u ||
+        unit.layout.members[member_index].alignment != 16u) {
+      (void)fprintf(stderr, "attributes: unchanged process ABI differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "_Static_assert",
+                           &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "per_cpu_t");
+    const ctool_c_type_node_t *aligned =
+        binding == NULL ? NULL : type_node(&unit, binding->type);
+    const ctool_c_type_node_t *body =
+        aligned == NULL ? NULL : type_node(&unit, aligned->referenced_type);
+    const ctool_c_type_layout_t *aligned_layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    const ctool_c_type_layout_t *body_layout =
+        aligned == NULL ? NULL : type_layout(&unit, aligned->referenced_type);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        aligned == NULL || aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+        aligned->explicit_alignment != 64u || body == NULL ||
+        body->kind != CTOOL_C_TYPE_RECORD || body->explicit_alignment != 0u ||
+        aligned_layout == NULL || aligned_layout->size != 128u ||
+        aligned_layout->alignment != 64u || body_layout == NULL ||
+        body_layout->size != 128u || body_layout->alignment != 4u ||
+        !dual_location_matches(&binding->location,
+                               &binding->physical_location,
+                               "/kernel/smp/percpu.h", 33u)) {
+      (void)fprintf(stderr, "attributes: unchanged per-CPU ABI differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/drivers/e1000.c", "e1000_init",
+                           &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    static const char *const descriptor_names[] = {
+        "e1000_rx_desc_t", "e1000_tx_desc_t"};
+    for (active_index = 0u;
+         active_index < ARRAY_COUNT(descriptor_names); active_index++) {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, descriptor_names[active_index]);
+      const ctool_c_type_node_t *descriptor =
+          binding == NULL ? NULL : type_node(&unit, binding->type);
+      const ctool_c_type_layout_t *descriptor_layout =
+          binding == NULL ? NULL : type_layout(&unit, binding->type);
+      if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+          descriptor == NULL || descriptor->kind != CTOOL_C_TYPE_RECORD ||
+          descriptor->record_packed != CTOOL_TRUE ||
+          descriptor->explicit_alignment != 16u || descriptor_layout == NULL ||
+          descriptor_layout->size != 16u ||
+          descriptor_layout->alignment != 16u) {
+        (void)fprintf(stderr,
+                      "attributes: unchanged E1000 descriptor ABI differs\n");
+        goto cleanup;
+      }
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/cpu/idt.h", NULL, &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    static const char *const idt_tags[] = {"idt_entry", "idt_ptr"};
+    static const ctool_u32 idt_sizes[] = {8u, 6u};
+    for (active_index = 0u; active_index < ARRAY_COUNT(idt_tags);
+         active_index++) {
+      const ctool_c_tag_t *active_tag =
+          find_tag(&unit, idt_tags[active_index]);
+      const ctool_c_type_node_t *active_record =
+          active_tag == NULL ? NULL : type_node(&unit, active_tag->type);
+      const ctool_c_type_layout_t *record_layout =
+          active_tag == NULL ? NULL : type_layout(&unit, active_tag->type);
+      if (active_record == NULL ||
+          active_record->kind != CTOOL_C_TYPE_RECORD ||
+          active_record->record_packed != CTOOL_TRUE || record_layout == NULL ||
+          record_layout->size != idt_sizes[active_index] ||
+          record_layout->alignment != 1u) {
+        (void)fprintf(stderr, "attributes: unchanged IDT ABI differs\n");
+        goto cleanup;
+      }
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.h", NULL, &unit) != 0) {
+    goto cleanup;
+  }
+  for (active_index = 0u; active_index < ARRAY_COUNT(exec_types);
+       active_index++) {
+    const ctool_c_binding_t *binding =
+        find_binding(&unit, exec_types[active_index]);
+    const ctool_c_type_node_t *active_record =
+        binding == NULL ? NULL : type_node(&unit, binding->type);
+    const ctool_c_type_layout_t *record_layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        active_record == NULL ||
+        active_record->kind != CTOOL_C_TYPE_RECORD ||
+        active_record->record_packed != CTOOL_TRUE || record_layout == NULL ||
+        record_layout->size != exec_sizes[active_index] ||
+        record_layout->alignment != 1u) {
+      (void)fprintf(stderr, "attributes: unchanged exec ABI differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/core/panic.h", NULL, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  {
+    static const char *const noreturn_functions[] = {
+        "kernel_panic", "kernel_panic_regs", "panic_fpu"};
+    const ctool_c_binding_t *ordinary =
+        find_binding(&unit, "print_stack_trace");
+    for (active_index = 0u;
+         active_index < ARRAY_COUNT(noreturn_functions); active_index++) {
+      const ctool_c_binding_t *binding =
+          find_binding(&unit, noreturn_functions[active_index]);
+      if (binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
+          (binding->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u) {
+        (void)fprintf(stderr,
+                      "attributes: unchanged panic semantics differ\n");
+        goto cleanup;
+      }
+    }
+    if (ordinary == NULL || ordinary->kind != CTOOL_C_BINDING_FUNCTION ||
+        ordinary->attributes != 0u) {
+      (void)fprintf(stderr,
+                    "attributes: ordinary panic declaration differs\n");
+      goto cleanup;
+    }
+  }
+  for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
+       failure_index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[failure_index],
+                                "/attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(&fixture, &disabled_case,
+                              "/attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (validate_attribute_storage_limit(&fixture, host_root) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("attributes: ok\n");
+  }
+  return failed;
 }
 
 static const ctool_c_type_node_t *
@@ -2102,6 +3044,133 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
     }
   }
   destroy_borrowed_tape(tokens, storage, original.token_count);
+  return failed;
+}
+
+static char *build_attribute_limit_source(ctool_bool aligned) {
+  const size_t capacity = 4096u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used, "typedef int ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 64u; index++) {
+    if (append_scale_text(source, capacity, &used, "*") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(
+          source, capacity, &used,
+          aligned == CTOOL_TRUE
+              ? "limited_t __attribute__((aligned(64)));\n"
+              : "limited_t;\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_attribute_storage_limit(frontend_fixture_t *fixture,
+                                            const char *host_root) {
+  static const char anchor_source[] =
+      "typedef unsigned int attribute_limit_anchor_t;\n";
+  char *control_source = build_attribute_limit_source(CTOOL_FALSE);
+  char *aligned_source = build_attribute_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_unit;
+  ctool_c_translation_unit_t aligned_unit;
+  ctool_c_translation_unit_t anchor_unit;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_pp_result_t aligned_tape;
+  ctool_c_pp_result_t anchor_tape;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_c_binding_t *anchor_binding;
+  ctool_status_t status;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || aligned_source == NULL ||
+      parse_valid_fixture(fixture, "/attribute-control.c", control_source,
+                          &control_unit) != 0 ||
+      parse_valid_fixture(fixture, "/attribute-success.c", aligned_source,
+                          &aligned_unit) != 0 ||
+      aligned_unit.graph.type_count != control_unit.graph.type_count + 1u ||
+      preprocess_fixture(fixture, "/attribute-limit.c", aligned_source,
+                         &aligned_tape) != 0 ||
+      preprocess_fixture(fixture, "/attribute-limit-anchor.c", anchor_source,
+                         &anchor_tape) != 0 ||
+      (size_t)control_unit.graph.type_count *
+              sizeof(ctool_c_type_node_t) >
+          0xffffffffu) {
+    (void)fprintf(stderr, "attributes: storage-limit control differs\n");
+    goto cleanup;
+  }
+  limits.output_bytes =
+      control_unit.graph.type_count * (ctool_u32)sizeof(ctool_c_type_node_t);
+  token_bytes = (size_t)aligned_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, aligned_tape.tokens, token_bytes);
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor_unit, 0xa5, sizeof(anchor_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &anchor_unit);
+  anchor_binding = find_binding(&anchor_unit, "attribute_limit_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr, "attributes: limited anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &aligned_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor_unit, "attribute_limit_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/attribute-limit.c") ||
+      diagnostic->line != 1u || diagnostic->column == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, aligned_tape.tokens, token_bytes) != 0 ||
+      anchor_binding == NULL || anchor_unit.binding_count != 1u ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(stderr, "attributes: storage-limit rollback differs: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(aligned_source);
+  free(control_source);
   return failed;
 }
 
@@ -3823,7 +4892,7 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                  "fat16|redeclarations|errors|scale|semantics|constants|"
+                  "fat16|redeclarations|attributes|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
                   "<repository-root>\n"
@@ -3836,6 +4905,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "redeclarations") == 0) {
     return run_redeclarations(argv[2]);
+  }
+  if (strcmp(argv[1], "attributes") == 0) {
+    return run_attributes(argv[2]);
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors(argv[2]);
