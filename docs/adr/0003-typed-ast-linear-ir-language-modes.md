@@ -1,3 +1,5 @@
 # Share a typed AST and linear IR across two language modes
 
 CupidC will parse C mode and Cupid mode into a shared typed AST and lower both through a shared linear IR, with C semantics and Cupid-specific extensions kept distinct at the language boundary. This replaces direct parser-to-machine-code generation while avoiding two independent compilers, enabling semantic checking and optimization without forcing Cupid extensions into ordinary C.
+
+ADR 0013 establishes the first shared semantic layer beneath that frontend: one immutable indexed type graph and fixed i386 layout operation. The graph is intentionally parser-neutral and does not expose the private kernel parser or its direct code-generation state. The next frontend slice consumes ADR 0012's typed preprocessing tape, applies declaration and language-mode legality, and constructs the graph before typed-AST and IR lowering. Manual active-header layout graphs are ABI oracles only; parsing unchanged source and transferring production compiler ownership remain separate gates.
