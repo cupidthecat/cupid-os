@@ -1620,6 +1620,221 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit["build"]["include_search_paths"], ["include"]
             )
 
+    def test_inventory_contracts_direct_c_include_operand_forms(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                CFLAGS = -Iinclude
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) $(CFLAGS) -c $< -o $@
+                """,
+            )
+            _write(
+                root / "main.c",
+                """
+                # include "local.h" // trailing comment
+                %:include <angle.h>
+                #inc\\
+                lude "spliced.h"
+                #include /* operand comment */ "commented.h"
+                int value;
+                """,
+            )
+            _write(root / "local.h", "int local_value;\n")
+            _write(root / "spliced.h", "int spliced_value;\n")
+            _write(root / "commented.h", "int commented_value;\n")
+            _write(root / "include" / "angle.h", "int angle_value;\n")
+
+            output = root / "audit.json"
+            summary = root / "audit.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(
+                audit["contracts"]["c_preprocessor_include_operands"],
+                {
+                    "status": "pass",
+                    "source_files": 5,
+                    "include_occurrences": 4,
+                    "direct_quoted_occurrences": 3,
+                    "direct_angle_occurrences": 1,
+                    "pp_token_operand_occurrences": 0,
+                    "ordinary_marker_occurrences": 3,
+                    "digraph_marker_occurrences": 1,
+                    "max_conditional_depth": 0,
+                },
+            )
+            sources = {entry["path"]: entry for entry in audit["sources"]}
+            self.assertEqual(
+                sources["main.c"]["includes"],
+                ["commented.h", "include/angle.h", "local.h", "spliced.h"],
+            )
+            self.assertIn(
+                "4 C include operands (3 quoted, 1 angle, 0 pp-token); "
+                "5 source files; max conditional depth 0",
+                summary.read_text(encoding="utf-8"),
+            )
+
+    def test_include_closure_fails_closed_on_pp_token_operands(self):
+        cases = {
+            "object": {
+                "flags": "",
+                "source": """
+                    #define HEADER "x.h"
+                    #if FEATURE
+                    #include /* bridge */ HEADER
+                    #endif
+                """,
+                "line": 3,
+                "marker": "#",
+                "raw": "#include /* bridge */ HEADER",
+                "normalized": "HEADER",
+                "conditional": "#if FEATURE at line 2",
+            },
+            "function": {
+                "flags": "",
+                "source": """
+                    #define PICK(value) value
+                    %:include PICK("x.h")
+                """,
+                "line": 2,
+                "marker": "%:",
+                "raw": '%:include PICK("x.h")',
+                "normalized": 'PICK ( "x.h" )',
+                "conditional": "<unconditional>",
+            },
+            "configured": {
+                "flags": '-DCONFIG_HEADER=\\"x.h\\"',
+                "source": "#include CONFIG_HEADER\n",
+                "line": 1,
+                "marker": "#",
+                "raw": "#include CONFIG_HEADER",
+                "normalized": "CONFIG_HEADER",
+                "conditional": "<unconditional>",
+            },
+            "forced": {
+                "flags": "-include forced.h",
+                "source": "#include FORCED_HEADER\n",
+                "line": 1,
+                "marker": "#",
+                "raw": "#include FORCED_HEADER",
+                "normalized": "FORCED_HEADER",
+                "conditional": "<unconditional>",
+            },
+        }
+        for name, case in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(
+                    root / "Makefile",
+                    f"""
+                    .SUFFIXES:
+                    CC = host-cc
+                    CFLAGS = {case['flags']}
+
+                    .PHONY: all
+                    all: main.o
+
+                    main.o: main.c
+                    \t$(CC) $(CFLAGS) -c $< -o $@
+                    """,
+                )
+                _write(root / "main.c", case["source"])
+                if name == "forced":
+                    _write(
+                        root / "forced.h",
+                        '#define FORCED_HEADER "x.h"\n',
+                    )
+
+                output = root / "audit.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(output),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(output.exists())
+                self.assertIn(f"main.c:{case['line']}", result.stderr)
+                self.assertIn(
+                    "macro-expanded #include operand", result.stderr
+                )
+                self.assertIn(f"marker={case['marker']!r}", result.stderr)
+                self.assertIn(f"raw={case['raw']!r}", result.stderr)
+                self.assertIn(
+                    f"normalized={case['normalized']!r}", result.stderr
+                )
+                self.assertIn(
+                    f"conditional={case['conditional']!r}", result.stderr
+                )
+
+    def test_checked_include_operand_contract_matches_active_sources(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--supplemental-build",
+                    "user:all",
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = json.loads(output.read_text(encoding="utf-8"))
+            checked = json.loads(
+                ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+            )
+            contract = generated["contracts"][
+                "c_preprocessor_include_operands"
+            ]
+            self.assertEqual(
+                checked["contracts"]["c_preprocessor_include_operands"],
+                contract,
+            )
+            self.assertEqual(contract["source_files"], 645)
+            self.assertEqual(contract["include_occurrences"], 2296)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2100)
+            self.assertEqual(contract["direct_angle_occurrences"], 196)
+            self.assertEqual(contract["pp_token_operand_occurrences"], 0)
+
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

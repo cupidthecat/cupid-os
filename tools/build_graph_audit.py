@@ -86,6 +86,19 @@ class BuildModel:
     transforms: list[dict[str, object]]
 
 
+@dataclass(frozen=True)
+class CIncludeDirective:
+    """One source-written C include operand after phases two and three."""
+
+    line: int
+    marker: str
+    raw: str
+    normalized: str
+    kind: str
+    spelling: str | None
+    conditional_stack: tuple[str, ...]
+
+
 @dataclass
 class FeatureEvidence:
     """Aggregated, source-located evidence for one language requirement."""
@@ -383,60 +396,106 @@ def _reachable_rules(rules: dict[str, MakeRule], target: str) -> set[str]:
     return reachable
 
 
-def _mask_c_comments(text: str) -> str:
-    """Replace C comments with whitespace while preserving literals and lines."""
-    output: list[str] = []
-    index = 0
-    state = "code"
-    while index < len(text):
-        char = text[index]
-        following = text[index + 1] if index + 1 < len(text) else ""
-        if state == "code":
-            if char == "/" and following == "/":
-                output.extend((" ", " "))
-                index += 2
-                state = "line_comment"
-                continue
-            if char == "/" and following == "*":
-                output.extend((" ", " "))
-                index += 2
-                state = "block_comment"
-                continue
-            output.append(char)
-            index += 1
-            if char == '"':
-                state = "string"
-            elif char == "'":
-                state = "character"
+def _c_include_directives(
+    text: str, display_path: str
+) -> list[CIncludeDirective]:
+    raw_logical_lines = _c_raw_logical_lines(text)
+    if not raw_logical_lines:
+        return []
+    logical_text = "\n".join(line for _, _, line in raw_logical_lines)
+    source_lines = _mask_c_comments_preserve_literals(logical_text).split("\n")
+    if len(source_lines) != len(raw_logical_lines):
+        raise AuditError("C masking changed the logical line count")
+
+    directives: list[CIncludeDirective] = []
+    conditional_stack: list[str] = []
+    conditional_pattern = re.compile(
+        r"^\s*(#|%:)\s*(if|ifdef|ifndef|elif|else|endif)\b(.*)$"
+    )
+    include_pattern = re.compile(r"^\s*(#|%:)\s*include\b(.*)$")
+    for (line_number, _original_line, raw_line), source_line in zip(
+        raw_logical_lines, source_lines, strict=True
+    ):
+        conditional_match = conditional_pattern.match(source_line)
+        if conditional_match is not None:
+            marker, directive, remainder = conditional_match.groups()
+            operand = remainder.strip()
+            if directive in {"if", "ifdef", "ifndef", "elif"} and operand:
+                normalized = " ".join(
+                    _normalize_c_preprocessing_tokens(
+                        operand, display_path, line_number
+                    )
+                )
+                evidence = f"{marker}{directive} {normalized} at line {line_number}"
+            else:
+                evidence = f"{marker}{directive} at line {line_number}"
+            if directive in {"if", "ifdef", "ifndef"}:
+                conditional_stack.append(evidence)
+            elif directive in {"elif", "else"} and conditional_stack:
+                conditional_stack[-1] = evidence
+            elif directive == "endif" and conditional_stack:
+                conditional_stack.pop()
             continue
-        if state == "line_comment":
-            output.append("\n" if char == "\n" else " ")
-            index += 1
-            if char == "\n":
-                state = "code"
+
+        include_match = include_pattern.match(source_line)
+        if include_match is None:
             continue
-        if state == "block_comment":
-            if char == "*" and following == "/":
-                output.extend((" ", " "))
-                index += 2
-                state = "code"
-                continue
-            output.append("\n" if char == "\n" else " ")
-            index += 1
-            continue
-        output.append(char)
-        index += 1
-        if char == "\\" and index < len(text):
-            output.append(text[index])
-            index += 1
-        elif (state == "string" and char == '"') or (
-            state == "character" and char == "'"
-        ):
-            state = "code"
-    return "".join(output)
+        marker, remainder = include_match.groups()
+        operand = remainder.strip()
+        quoted_match = re.fullmatch(r'"([^"\r\n]+)"\s*', operand)
+        angle_match = re.fullmatch(r"<([^>\r\n]+)>\s*", operand)
+        if quoted_match is not None:
+            kind = "quoted"
+            spelling: str | None = quoted_match.group(1)
+            normalized_operand = f'"{spelling}"'
+        elif angle_match is not None:
+            kind = "angle"
+            spelling = angle_match.group(1)
+            normalized_operand = f"<{spelling}>"
+        else:
+            kind = "pp_tokens"
+            spelling = None
+            tokens = (
+                _normalize_c_preprocessing_tokens(
+                    operand, display_path, line_number
+                )
+                if operand
+                else ()
+            )
+            normalized_operand = " ".join(tokens) if tokens else "<empty>"
+        directives.append(
+            CIncludeDirective(
+                line=line_number,
+                marker=marker,
+                raw=raw_line.strip()[:160],
+                normalized=normalized_operand,
+                kind=kind,
+                spelling=spelling,
+                conditional_stack=tuple(conditional_stack),
+            )
+        )
+    return directives
 
 
-def _declared_includes(path: Path, language: str) -> list[tuple[str, str]]:
+def _reject_pp_token_include(
+    display_path: str, directive: CIncludeDirective
+) -> None:
+    conditional = (
+        " > ".join(directive.conditional_stack)
+        if directive.conditional_stack
+        else "<unconditional>"
+    )
+    raise AuditError(
+        f"{display_path}:{directive.line}: macro-expanded #include operand "
+        "cannot be represented by the deterministic include closure; "
+        f"marker={directive.marker!r}; raw={directive.raw!r}; "
+        f"normalized={directive.normalized!r}; conditional={conditional!r}"
+    )
+
+
+def _declared_includes(
+    path: Path, language: str, display_path: str | None = None
+) -> list[tuple[str, str]]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
@@ -450,15 +509,17 @@ def _declared_includes(path: Path, language: str) -> list[tuple[str, str]]:
                 flags=re.MULTILINE | re.IGNORECASE,
             )
         ]
-    text = _mask_c_comments(text)
-    return [
-        (match.group(2), "quoted" if match.group(1) == '"' else "angle")
-        for match in re.finditer(
-            r'^\s*(?:#|%:)\s*include\s*(["<])([^">]+)[">]',
-            text,
-            flags=re.MULTILINE,
-        )
-    ]
+    source_name = display_path or path.as_posix()
+    includes: list[tuple[str, str]] = []
+    for directive in _c_include_directives(text, source_name):
+        if directive.kind == "pp_tokens":
+            _reject_pp_token_include(source_name, directive)
+        if directive.spelling is None:
+            raise AuditError(
+                f"{source_name}:{directive.line}: include spelling is absent"
+            )
+        includes.append((directive.spelling, directive.kind))
+    return includes
 
 
 def _make_include_configuration(root: Path) -> tuple[list[str], list[str]]:
@@ -530,7 +591,9 @@ def _include_closure(
             continue
 
         resolved: list[str] = []
-        for include, kind in _declared_includes(source_path, language):
+        for include, kind in _declared_includes(
+            source_path, language, relative
+        ):
             included_relative = _resolve_include(
                 root,
                 source_path,
@@ -2147,6 +2210,53 @@ def _scan_source_features(
         _scan_asm_features(path, text, collector)
 
 
+def _c_preprocessor_include_operands_contract(
+    root: Path,
+    active_sources: set[str],
+    generated_sources: set[str],
+) -> dict[str, object]:
+    source_files = 0
+    include_occurrences = 0
+    direct_quoted_occurrences = 0
+    direct_angle_occurrences = 0
+    pp_token_operand_occurrences = 0
+    ordinary_marker_occurrences = 0
+    digraph_marker_occurrences = 0
+    max_conditional_depth = 0
+    for path in sorted(active_sources - generated_sources):
+        if _language(path) not in {"c", "c_header", "cupid_c"}:
+            continue
+        source_files += 1
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        for directive in _c_include_directives(text, path):
+            include_occurrences += 1
+            if directive.kind == "quoted":
+                direct_quoted_occurrences += 1
+            elif directive.kind == "angle":
+                direct_angle_occurrences += 1
+            else:
+                pp_token_operand_occurrences += 1
+                _reject_pp_token_include(path, directive)
+            if directive.marker == "#":
+                ordinary_marker_occurrences += 1
+            else:
+                digraph_marker_occurrences += 1
+            max_conditional_depth = max(
+                max_conditional_depth, len(directive.conditional_stack)
+            )
+    return {
+        "status": "pass",
+        "source_files": source_files,
+        "include_occurrences": include_occurrences,
+        "direct_quoted_occurrences": direct_quoted_occurrences,
+        "direct_angle_occurrences": direct_angle_occurrences,
+        "pp_token_operand_occurrences": pp_token_operand_occurrences,
+        "ordinary_marker_occurrences": ordinary_marker_occurrences,
+        "digraph_marker_occurrences": digraph_marker_occurrences,
+        "max_conditional_depth": max_conditional_depth,
+    }
+
+
 def _c_preprocessor_conditionals_contract(
     root: Path,
     active_sources: set[str],
@@ -2632,6 +2742,13 @@ def build_audit(
     )
     if artifact_contract is not None:
         contracts["bootstrap_artifact_coverage"] = artifact_contract
+    contracts["c_preprocessor_include_operands"] = (
+        _c_preprocessor_include_operands_contract(
+            root,
+            all_sources,
+            generated_sources,
+        )
+    )
     contracts["c_preprocessor_conditionals"] = (
         _c_preprocessor_conditionals_contract(
             root,
@@ -2950,6 +3067,16 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"{contract['unique_expressions']} normalized expressions; "
                     f"{contract['directive_expression_pairs']} "
                     "directive/expression pairs"
+                )
+            elif "pp_token_operand_occurrences" in contract:
+                detail = (
+                    f"{contract['include_occurrences']} C include operands "
+                    f"({contract['direct_quoted_occurrences']} quoted, "
+                    f"{contract['direct_angle_occurrences']} angle, "
+                    f"{contract['pp_token_operand_occurrences']} pp-token); "
+                    f"{contract['source_files']} source files; "
+                    "max conditional depth "
+                    f"{contract['max_conditional_depth']}"
                 )
             elif "exe_occurrences" in contract:
                 detail = (

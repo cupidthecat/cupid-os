@@ -254,6 +254,9 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) macro-operator-errors
 	$(CUPIDC_PP_CONTRACT) function-errors
 	$(CUPIDC_PP_CONTRACT) object-includes
+	$(CUPIDC_PP_CONTRACT) include-macros
+	$(CUPIDC_PP_CONTRACT) include-macro-errors
+	$(CUPIDC_PP_CONTRACT) include-macro-scale
 	$(CUPIDC_PP_CONTRACT) directive-errors
 	$(CUPIDC_PP_CONTRACT) limits
 	$(ELF32_CONTRACT) writer-basic

@@ -141,6 +141,15 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_object_macros_conditionals_and_includes_share_one_state(self):
         self.run_contract("object-includes")
 
+    def test_include_operands_expand_through_normal_macro_rescanning(self):
+        self.run_contract("include-macros")
+
+    def test_macro_include_failures_are_precise_and_transactional(self):
+        self.run_contract("include-macro-errors")
+
+    def test_macro_include_expansion_scratch_is_reused_at_scale(self):
+        self.run_contract("include-macro-scale")
+
     def test_directive_failures_are_useful_and_transactional(self):
         self.run_contract("directive-errors")
 

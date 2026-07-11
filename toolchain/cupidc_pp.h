@@ -105,6 +105,11 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * macro actions are applied before forced includes, which are processed in
  * order before primary.  Quoted includes try the including-file
  * parent before eligible roots; angle includes use eligible roots only.
+ * Exact direct header-name and string operands remain unexpanded. Other
+ * include operands undergo normal macro rescanning and must finish as one
+ * ordinary string token, one surviving contextual header-name token, or a
+ * complete split angle form. Expanded angle forms retain each surviving token
+ * separation as one ASCII space.
  *
  * On failure the result is fully zeroed and every operation allocation is
  * rewound, while structured job diagnostics remain valid.

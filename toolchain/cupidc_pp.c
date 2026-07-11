@@ -155,6 +155,7 @@ typedef struct {
   const ctool_c_pp_request_t *request;
   ctool_string_t path;
   ctool_string_t failure_path;
+  char *include_operand;
   pp_macro_t *macros;
   pp_source_cache_t *sources;
   pp_source_cache_t *source_entry;
@@ -939,6 +940,13 @@ static ctool_bool pp_string_equal(ctool_string_t left,
     }
   }
   return CTOOL_TRUE;
+}
+
+static void pp_copy_characters(char *destination, ctool_string_t source) {
+  ctool_u32 index;
+  for (index = 0u; index < source.size; index++) {
+    destination[index] = source.data[index];
+  }
 }
 
 static ctool_bool pp_string_equal_literal(ctool_string_t value,
@@ -3274,14 +3282,45 @@ static ctool_status_t pp_handle_cupid_exe(
                                 expansion_end - begin);
 }
 
+static ctool_bool pp_token_is_angle_header_name(const pp_token_t *token) {
+  return token->header_name == CTOOL_TRUE && token->spelling.size >= 2u &&
+                 token->spelling.data[0] == '<' &&
+                 token->spelling.data[token->spelling.size - 1u] == '>'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool pp_token_is_include_string(const pp_token_t *token) {
+  return token->kind == CTOOL_C_PP_TOKEN_STRING &&
+                 token->spelling.size >= 2u &&
+                 token->spelling.data[0] == '"' &&
+                 token->spelling.data[token->spelling.size - 1u] == '"'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t pp_include_spelling(
     pp_context_t *context, const pp_token_t *marker,
     const pp_token_t *tokens, ctool_u32 begin, ctool_u32 end,
     ctool_bool *quoted_out, ctool_string_t *spelling_out) {
-  if (end - begin == 1u && tokens[begin].header_name == CTOOL_TRUE &&
-      tokens[begin].spelling.size >= 2u &&
-      tokens[begin].spelling.data[0] == '<' &&
-      tokens[begin].spelling.data[tokens[begin].spelling.size - 1u] == '>') {
+  ctool_arena_t *arena = ctool_job_arena(context->job);
+  ctool_arena_mark_t mark;
+  ctool_u32 saved_expansion_node_count;
+  pp_expand_list_t work;
+  pp_expand_list_t expanded;
+  pp_expand_node_t *node;
+  ctool_u32 index;
+  ctool_u32 spelling_size = 0u;
+  ctool_status_t status = CTOOL_OK;
+  ctool_status_t rewound;
+  if (begin > end) {
+    pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+            marker->location.line, marker->location.column,
+            "CupidC include operand range is invalid");
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (end - begin == 1u &&
+      pp_token_is_angle_header_name(&tokens[begin]) == CTOOL_TRUE) {
     if (tokens[begin].spelling.size == 2u) {
       return pp_directive_error(context, marker,
                                 CTOOL_C_PP_DIAG_INCLUDE_PATH,
@@ -3292,10 +3331,8 @@ static ctool_status_t pp_include_spelling(
     *quoted_out = CTOOL_FALSE;
     return CTOOL_OK;
   }
-  if (end - begin == 1u && tokens[begin].kind == CTOOL_C_PP_TOKEN_STRING &&
-      tokens[begin].spelling.size >= 2u &&
-      tokens[begin].spelling.data[0] == '"' &&
-      tokens[begin].spelling.data[tokens[begin].spelling.size - 1u] == '"') {
+  if (end - begin == 1u &&
+      pp_token_is_include_string(&tokens[begin]) == CTOOL_TRUE) {
     if (tokens[begin].spelling.size == 2u) {
       return pp_directive_error(context, marker,
                                 CTOOL_C_PP_DIAG_INCLUDE_PATH,
@@ -3306,16 +3343,157 @@ static ctool_status_t pp_include_spelling(
     *quoted_out = CTOOL_TRUE;
     return CTOOL_OK;
   }
-  if (begin < end && pp_token_is_identifier(&tokens[begin]) == CTOOL_TRUE) {
-    pp_fail(context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PP_DIAG_INCLUDE_PATH, marker->location.line,
-            marker->location.column,
-            "CupidC macro-expanded includes are not implemented yet");
-    return CTOOL_ERR_UNSUPPORTED;
+
+  if (context->include_operand == (char *)0) {
+    status = ctool_arena_alloc_zero(
+        arena, ctool_job_limits(context->job)->path_bytes,
+        (ctool_u32)sizeof(*context->include_operand),
+        (ctool_u32)sizeof(*context->include_operand),
+        (void **)&context->include_operand);
+    if (status != CTOOL_OK) {
+      pp_fail(context, status, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC include operand storage limit exceeded");
+      return status;
+    }
   }
-  return pp_directive_error(context, marker,
-                            CTOOL_C_PP_DIAG_INCLUDE_PATH,
-                            "CupidC #include requires \"path\" or <path>");
+
+  mark = ctool_arena_mark(arena);
+  saved_expansion_node_count = context->expansion_node_count;
+  pp_expand_list_zero(&work);
+  pp_expand_list_zero(&expanded);
+  for (index = begin; index < end; index++) {
+    status = pp_expand_list_append_copy(
+        context, &work, &tokens[index], (const pp_hide_t *)0);
+    if (status != CTOOL_OK) {
+      break;
+    }
+    work.tail->token.pack_alignment = context->pack_alignment;
+  }
+  if (index == end) {
+    status = pp_expand_work(context, &work, &expanded);
+  }
+  if (status == CTOOL_OK && expanded.head != (pp_expand_node_t *)0 &&
+      expanded.head == expanded.tail &&
+      pp_token_is_angle_header_name(&expanded.head->token) == CTOOL_TRUE) {
+    ctool_string_t inner;
+    inner.data = expanded.head->token.spelling.data + 1u;
+    inner.size = expanded.head->token.spelling.size - 2u;
+    if (inner.size == 0u) {
+      status = pp_directive_error(context, marker,
+                                  CTOOL_C_PP_DIAG_INCLUDE_PATH,
+                                  "CupidC angle include path is empty");
+    } else if (inner.size > ctool_job_limits(context->job)->path_bytes) {
+      pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC expanded include path is too large");
+      status = CTOOL_ERR_LIMIT;
+    } else {
+      pp_copy_characters(context->include_operand, inner);
+      spelling_size = inner.size;
+      *quoted_out = CTOOL_FALSE;
+    }
+  } else if (status == CTOOL_OK &&
+             expanded.head != (pp_expand_node_t *)0 &&
+             expanded.head == expanded.tail &&
+             pp_token_is_include_string(&expanded.head->token) ==
+                 CTOOL_TRUE) {
+    ctool_string_t inner;
+    inner.data = expanded.head->token.spelling.data + 1u;
+    inner.size = expanded.head->token.spelling.size - 2u;
+    if (inner.size == 0u) {
+      status = pp_directive_error(context, marker,
+                                  CTOOL_C_PP_DIAG_INCLUDE_PATH,
+                                  "CupidC quoted include path is empty");
+    } else if (inner.size > ctool_job_limits(context->job)->path_bytes) {
+      pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC expanded include path is too large");
+      status = CTOOL_ERR_LIMIT;
+    } else {
+      pp_copy_characters(context->include_operand, inner);
+      spelling_size = inner.size;
+      *quoted_out = CTOOL_TRUE;
+    }
+  } else if (status == CTOOL_OK &&
+             expanded.head != (pp_expand_node_t *)0 &&
+             pp_token_equal_literal(&expanded.head->token, "<") ==
+                 CTOOL_TRUE) {
+    /* C leaves reconstruction implementation-defined. Preserve each
+     * surviving token separation as one space, matching GCC and Clang. */
+    node = expanded.head->next;
+    while (node != (pp_expand_node_t *)0 &&
+           pp_token_equal_literal(&node->token, ">") == CTOOL_FALSE) {
+      ctool_u32 separation = node->token.leading_space == CTOOL_TRUE ? 1u : 0u;
+      if (separation > ctool_job_limits(context->job)->path_bytes -
+                           spelling_size ||
+          node->token.spelling.size >
+              ctool_job_limits(context->job)->path_bytes - spelling_size -
+                  separation) {
+        pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
+                marker->location.line, marker->location.column,
+                "CupidC expanded include path is too large");
+        status = CTOOL_ERR_LIMIT;
+        break;
+      }
+      if (separation != 0u) {
+        context->include_operand[spelling_size] = ' ';
+        spelling_size++;
+      }
+      if (node->token.spelling.size != 0u) {
+        pp_copy_characters(context->include_operand + spelling_size,
+                           node->token.spelling);
+        spelling_size += node->token.spelling.size;
+      }
+      node = node->next;
+    }
+    if (status == CTOOL_OK && node != (pp_expand_node_t *)0 &&
+        pp_token_equal_literal(&node->token, ">") == CTOOL_TRUE &&
+        node == expanded.tail) {
+      if (node->token.leading_space == CTOOL_TRUE) {
+        if (spelling_size == ctool_job_limits(context->job)->path_bytes) {
+          pp_fail(context, CTOOL_ERR_LIMIT, CTOOL_C_PP_DIAG_LIMIT,
+                  marker->location.line, marker->location.column,
+                  "CupidC expanded include path is too large");
+          status = CTOOL_ERR_LIMIT;
+        } else {
+          context->include_operand[spelling_size] = ' ';
+          spelling_size++;
+        }
+      }
+      if (status == CTOOL_OK && spelling_size == 0u) {
+        status = pp_directive_error(context, marker,
+                                    CTOOL_C_PP_DIAG_INCLUDE_PATH,
+                                    "CupidC angle include path is empty");
+      }
+      if (status == CTOOL_OK) {
+        *quoted_out = CTOOL_FALSE;
+      }
+    } else if (status == CTOOL_OK) {
+      status = pp_directive_error(
+          context, marker, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+          "CupidC macro-expanded #include has an invalid angle form");
+    }
+  } else if (status == CTOOL_OK) {
+    status = pp_directive_error(
+        context, marker, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+        "CupidC macro-expanded #include requires \"path\" or <path>");
+  }
+  if (status == CTOOL_OK) {
+    spelling_out->data = context->include_operand;
+    spelling_out->size = spelling_size;
+  }
+  context->expansion_node_count = saved_expansion_node_count;
+  rewound = ctool_arena_rewind(arena, mark);
+  if (rewound != CTOOL_OK) {
+    if (status == CTOOL_OK) {
+      pp_fail(context, rewound, CTOOL_C_PP_DIAG_LIMIT,
+              marker->location.line, marker->location.column,
+              "CupidC include expansion scratch could not be rewound");
+    }
+    return rewound;
+  }
+  return status;
 }
 
 static ctool_status_t pp_process_source(pp_context_t *context,
@@ -4840,6 +5018,7 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
   context.request = request;
   context.path = primary->path.text;
   context.failure_path = primary->path.text;
+  context.include_operand = (char *)0;
   context.macros = (pp_macro_t *)0;
   context.sources = (pp_source_cache_t *)0;
   context.source_entry = (pp_source_cache_t *)0;

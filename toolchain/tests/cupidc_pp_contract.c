@@ -427,12 +427,10 @@ static int run_errors(void) {
 static int run_unsupported(void) {
   static const char *const unsupported_text[] = {
       "#pragma cupid_vendor_extension\n",
-      "#define HEADER \"x.h\"\n#include HEADER\n",
       "#line 77 \"virtual.c\"\n"};
   static const ctool_u32 unsupported_code[] = {
-      CTOOL_C_PP_DIAG_DIRECTIVE, CTOOL_C_PP_DIAG_INCLUDE_PATH,
-      CTOOL_C_PP_DIAG_DIRECTIVE};
-  static const ctool_u32 unsupported_line[] = {1u, 2u, 1u};
+      CTOOL_C_PP_DIAG_DIRECTIVE, CTOOL_C_PP_DIAG_DIRECTIVE};
+  static const ctool_u32 unsupported_line[] = {1u, 1u};
   ctool_host_adapter_t adapter;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
@@ -3949,6 +3947,426 @@ static int run_object_includes(void) {
   return 0;
 }
 
+static int run_include_macros(void) {
+  static const char forced_text[] =
+      "#include CONFIG_HEADER\n"
+      "forced_tail\n";
+  static const char config_text[] = "config_body\n";
+  static const char local_text[] =
+      "#pragma once\n"
+      "local_body\n"
+      "#define NESTED \"nested.h\"\n"
+      "#include NESTED\n";
+  static const char nested_text[] = "nested_body\n";
+  static const char angle_text[] = "angle_body\n";
+  static const char stringified_text[] = "stringified_body\n";
+  static const char literal_text[] = "literal_body\n";
+  static const char direct_quote_text[] = "direct_quote_body\n";
+  static const char surviving_header_text[] = "surviving_header_body\n";
+  static const char pasted_text[] = "pasted_body\n";
+  static const char leading_space_text[] = "leading_space_body\n";
+  static const char spaced_text[] = "spaced_body\n";
+  static const char trailing_space_text[] = "trailing_space_body\n";
+  static const char spliced_text[] = "spliced_body\n";
+  static const char source_text[] =
+      "#define LOCAL \"local.h\"\n"
+      "#define PASS(value) value\n"
+      "#define ANGLE(value) <value>\n"
+      "#define STRINGIFY_RAW(value) #value\n"
+      "#define STRINGIFY(value) STRINGIFY_RAW(value)\n"
+      "#define HEADER_FILE \"pasted.h\"\n"
+      "#define CAT_RAW(left, right) left ## right\n"
+      "#define CAT(left, right) CAT_RAW(left, right)\n"
+      "#define EMPTY\n"
+      "#define SPLICE \"spliced.h\"\n"
+      "#define SPACED <space dir/with space.h>\n"
+      "#define LEADING_SPACE < leading.h>\n"
+      "#define TRAILING_SPACE <trailing.h >\n"
+      "#define NAME wrong.h\n"
+      "#if 0\n"
+      "#include MALFORMED(\n"
+      "#endif\n"
+      "#pragma pack(2)\n"
+      "#include LOCAL\n"
+      "#include PASS(LOCAL)\n"
+      "%:include PASS(ANGLE(deep/with-dash.h))\n"
+      "#include ANGLE(deep/with-dash.h)\n"
+      "#include STRINGIFY(stringified.h)\n"
+      "#include <NAME>\n"
+      "#include \"NAME\" EMPTY\n"
+      "#include <SURVIVES> EMPTY\n"
+      "#include CAT(HEADER_, FILE)\n"
+      "#include LEADING_SPACE\n"
+      "#include SPACED\n"
+      "#include TRAILING_SPACE\n"
+      "#include PASS( \\\n"
+      "  SPLICE)\n"
+      "#pragma pack()\n"
+      "primary_tail\n";
+  static const char *const expected_text[] = {
+      "config_body", "forced_tail", "local_body", "nested_body",
+      "angle_body", "angle_body", "stringified_body", "literal_body",
+      "direct_quote_body", "surviving_header_body", "pasted_body",
+      "leading_space_body", "spaced_body", "trailing_space_body", "spliced_body",
+      "primary_tail"};
+  static const char *const expected_path[] = {
+      "/config.h", "/forced.h", "/src/local.h", "/src/nested.h",
+      "/inc/deep/with-dash.h", "/inc/deep/with-dash.h",
+      "/src/stringified.h", "/inc/NAME",
+      "/src/NAME", "/inc/SURVIVES", "/src/pasted.h",
+      "/inc/ leading.h", "/inc/space dir/with space.h",
+      "/inc/trailing.h ", "/src/spliced.h", "/src/main.c"};
+  static const ctool_u32 expected_pack[] = {
+      0u, 0u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u,
+      2u, 0u};
+  fixture_file_t files[14];
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_path_t forced;
+  ctool_c_pp_include_root_t root;
+  ctool_c_pp_macro_action_t action;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  files[0].path = ctool_string("/forced.h");
+  files[0].contents =
+      ctool_bytes(forced_text, (ctool_u32)(sizeof(forced_text) - 1u));
+  files[1].path = ctool_string("/config.h");
+  files[1].contents =
+      ctool_bytes(config_text, (ctool_u32)(sizeof(config_text) - 1u));
+  files[2].path = ctool_string("/src/local.h");
+  files[2].contents =
+      ctool_bytes(local_text, (ctool_u32)(sizeof(local_text) - 1u));
+  files[3].path = ctool_string("/src/nested.h");
+  files[3].contents =
+      ctool_bytes(nested_text, (ctool_u32)(sizeof(nested_text) - 1u));
+  files[4].path = ctool_string("/inc/deep/with-dash.h");
+  files[4].contents =
+      ctool_bytes(angle_text, (ctool_u32)(sizeof(angle_text) - 1u));
+  files[5].path = ctool_string("/src/stringified.h");
+  files[5].contents = ctool_bytes(
+      stringified_text, (ctool_u32)(sizeof(stringified_text) - 1u));
+  files[6].path = ctool_string("/inc/NAME");
+  files[6].contents =
+      ctool_bytes(literal_text, (ctool_u32)(sizeof(literal_text) - 1u));
+  files[7].path = ctool_string("/src/spliced.h");
+  files[7].contents =
+      ctool_bytes(spliced_text, (ctool_u32)(sizeof(spliced_text) - 1u));
+  files[8].path = ctool_string("/inc/space dir/with space.h");
+  files[8].contents =
+      ctool_bytes(spaced_text, (ctool_u32)(sizeof(spaced_text) - 1u));
+  files[9].path = ctool_string("/inc/trailing.h ");
+  files[9].contents = ctool_bytes(
+      trailing_space_text, (ctool_u32)(sizeof(trailing_space_text) - 1u));
+  files[10].path = ctool_string("/src/NAME");
+  files[10].contents = ctool_bytes(
+      direct_quote_text, (ctool_u32)(sizeof(direct_quote_text) - 1u));
+  files[11].path = ctool_string("/src/pasted.h");
+  files[11].contents =
+      ctool_bytes(pasted_text, (ctool_u32)(sizeof(pasted_text) - 1u));
+  files[12].path = ctool_string("/inc/SURVIVES");
+  files[12].contents = ctool_bytes(
+      surviving_header_text, (ctool_u32)(sizeof(surviving_header_text) - 1u));
+  files[13].path = ctool_string("/inc/ leading.h");
+  files[13].contents = ctool_bytes(
+      leading_space_text, (ctool_u32)(sizeof(leading_space_text) - 1u));
+  store.files = files;
+  store.file_count = 14u;
+  store.read_count = 0u;
+  if (open_fixture_job("include-macros", &store, &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/src/main.c");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  forced.text = ctool_string("/forced.h");
+  root.directory.text = ctool_string("/inc");
+  root.forms = CTOOL_C_PP_INCLUDE_ANGLE;
+  action.kind = CTOOL_C_PP_MACRO_DEFINE;
+  action.name = ctool_string("CONFIG_HEADER");
+  action.replacement = ctool_string("\"config.h\"");
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.include_roots = &root;
+  request.include_root_count = 1u;
+  request.forced_includes = &forced;
+  request.forced_include_count = 1u;
+  request.macro_actions = &action;
+  request.macro_action_count = 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 14u ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr,
+                  "include-macros: preprocessing failed (%s, %u tokens, "
+                  "%u reads)\n",
+                  ctool_status_name(status), result.token_count,
+                  store.read_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        !string_equal(result.tokens[index].location.path,
+                      expected_path[index]) ||
+        result.tokens[index].pack_alignment != expected_pack[index]) {
+      (void)fprintf(stderr, "include-macros: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  ctool_job_close(job);
+  (void)printf("include-macros: ok\n");
+  return 0;
+}
+
+static int run_include_macro_errors(void) {
+  enum { LARGE_SOURCE_CAPACITY = 8192 };
+  static const char *const error_text[] = {
+      "#include UNKNOWN\n",
+      "#define EMPTY\n#include EMPTY\n",
+      "#define NUMBER 7\n#include NUMBER\n",
+      "#define TWO \"a.h\" \"b.h\"\n#include TWO\n",
+      "#define WIDE L\"a.h\"\n#include WIDE\n",
+      "#define EMPTY_ANGLE <>\n#include EMPTY_ANGLE\n",
+      "#define OPEN <broken.h\n#include OPEN\n",
+      "#define TRAILING <a.h> extra\n#include TRAILING\n",
+      "#define SELF SELF\n#include SELF\n",
+      "#define BAD(a, b) a ## b\n#include BAD(+, *)\n",
+      "#define MISSING \"missing.h\"\n#include MISSING\n"};
+  static const ctool_status_t error_status[] = {
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_NOT_FOUND};
+  static const ctool_u32 error_code[] = {
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_MACRO_PASTE,
+      CTOOL_C_PP_DIAG_INCLUDE_NOT_FOUND};
+  static const ctool_u32 error_line[] = {
+      1u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u};
+  static const ctool_u32 error_column[] = {
+      1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 10u, 1u};
+  static const char ok_text[] = "included_ok\n";
+  static const char recovery_text[] =
+      "#define GOOD \"ok.h\"\n"
+      "#include GOOD\n"
+      "recovered\n";
+  static char large_text[LARGE_SOURCE_CAPACITY];
+  fixture_file_t file;
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_include_root_t root;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_limits_t limits;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(error_text) / sizeof(error_text[0]));
+  ctool_u32 large_size = 0u;
+  ctool_u32 index;
+
+  limits = ctool_default_limits();
+  if (limits.path_bytes + 64u > LARGE_SOURCE_CAPACITY ||
+      append_text(large_text, LARGE_SOURCE_CAPACITY, &large_size,
+                  "#define LARGE <") != 0) {
+    return 1;
+  }
+  for (index = 0u; index <= limits.path_bytes; index++) {
+    if (append_character(large_text, LARGE_SOURCE_CAPACITY, &large_size,
+                         'a') != 0) {
+      return 1;
+    }
+  }
+  if (append_text(large_text, LARGE_SOURCE_CAPACITY, &large_size,
+                  ">\n#include LARGE\n") != 0) {
+    return 1;
+  }
+
+  file.path = ctool_string("/ok.h");
+  file.contents = ctool_bytes(ok_text, (ctool_u32)(sizeof(ok_text) - 1u));
+  store.files = &file;
+  store.file_count = 1u;
+  store.read_count = 0u;
+  if (open_fixture_job("include-macro-errors", &store, &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/case.c");
+  root.directory.text = ctool_string("/");
+  root.forms = CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.include_roots = &root;
+  request.include_root_count = 1u;
+  for (index = 0u; index < case_count; index++) {
+    source.contents =
+        ctool_bytes(error_text[index], (ctool_u32)strlen(error_text[index]));
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, index);
+    if (status != error_status[index] || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != error_code[index] ||
+        !string_equal(diagnostic->path, "/case.c") ||
+        diagnostic->line != error_line[index] ||
+        diagnostic->column != error_column[index] ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "include-macro-errors: case %u differs (%s)\n",
+                    index, ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  source.contents = ctool_bytes(large_text, large_size);
+  (void)memset(&result, 0xa5, sizeof(result));
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  diagnostic = ctool_job_diagnostic(job, case_count);
+  if (status != CTOOL_ERR_LIMIT || result.tokens != NULL ||
+      result.token_count != 0u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/case.c") ||
+      diagnostic->line != 2u || diagnostic->column != 1u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr,
+                  "include-macro-errors: expanded path limit differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  source.contents = ctool_bytes(
+      recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 1u ||
+      result.token_count != 2u ||
+      !string_equal(result.tokens[0].spelling, "included_ok") ||
+      !string_equal(result.tokens[0].location.path, "/ok.h") ||
+      !string_equal(result.tokens[1].spelling, "recovered") ||
+      ctool_job_diagnostic_count(job) != case_count + 1u) {
+    (void)fprintf(stderr, "include-macro-errors: recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("include-macro-errors: ok\n");
+  return 0;
+}
+
+static int run_include_macro_scale(void) {
+  enum {
+    ALIAS_COUNT = 32,
+    REPEAT_COUNT = 32768
+  };
+  static const char dispatcher_text[] = "#include p000\n";
+  static const char once_text[] = "#pragma once\n";
+  static char alias_names[ALIAS_COUNT][4];
+  static ctool_c_pp_macro_action_t actions[ALIAS_COUNT + 1];
+  static ctool_path_t forced[REPEAT_COUNT];
+  fixture_file_t files[2];
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_job_config_t config;
+  ctool_limits_t limits;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  for (index = 0u; index < ALIAS_COUNT; index++) {
+    ctool_u32 name_size = 0u;
+    if (append_parameter_name(alias_names[index], 4u, &name_size, index) != 0 ||
+        name_size != 4u) {
+      return 1;
+    }
+    actions[index].kind = CTOOL_C_PP_MACRO_DEFINE;
+    actions[index].name.data = alias_names[index];
+    actions[index].name.size = 4u;
+  }
+  for (index = 0u; index < ALIAS_COUNT; index++) {
+    if (index + 1u < ALIAS_COUNT) {
+      actions[index].replacement.data = alias_names[index + 1u];
+      actions[index].replacement.size = 4u;
+    } else {
+      actions[index].replacement = ctool_string("TARGET");
+    }
+  }
+  actions[ALIAS_COUNT].kind = CTOOL_C_PP_MACRO_DEFINE;
+  actions[ALIAS_COUNT].name = ctool_string("TARGET");
+  actions[ALIAS_COUNT].replacement = ctool_string("\"once.h\"");
+  files[0].path = ctool_string("/dispatcher.h");
+  files[0].contents = ctool_bytes(
+      dispatcher_text, (ctool_u32)(sizeof(dispatcher_text) - 1u));
+  files[1].path = ctool_string("/once.h");
+  files[1].contents =
+      ctool_bytes(once_text, (ctool_u32)(sizeof(once_text) - 1u));
+  store.files = files;
+  store.file_count = 2u;
+  store.read_count = 0u;
+  for (index = 0u; index < REPEAT_COUNT; index++) {
+    forced[index].text = ctool_string("/dispatcher.h");
+  }
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "include-macro-scale: host adapter failed (%s)\n",
+                  ctool_status_name(status));
+    return 1;
+  }
+  limits = ctool_default_limits();
+  limits.arena_block_bytes = 4096u;
+  limits.arena_bytes = 512u * 1024u;
+  config = ctool_host_job_config(&adapter, limits);
+  config.files.context = &store;
+  config.files.file_size = fixture_file_size;
+  config.files.read_exact = fixture_read_exact;
+  config.files.write_all = fixture_write_all;
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "include-macro-scale: job open failed (%s)\n",
+                  ctool_status_name(status));
+    return 1;
+  }
+  source.path.text = ctool_string("/primary.c");
+  source.contents = ctool_bytes("", 0u);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  request.forced_includes = forced;
+  request.forced_include_count = REPEAT_COUNT;
+  request.macro_actions = actions;
+  request.macro_action_count = ALIAS_COUNT + 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 0u ||
+      store.read_count != 2u || ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr,
+                  "include-macro-scale: scratch reuse differs (%s, %u "
+                  "reads)\n",
+                  ctool_status_name(status), store.read_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("include-macro-scale: ok\n");
+  return 0;
+}
+
 static int run_directive_errors(void) {
   static const char missing_text[] = "#include \"missing.h\"\n";
   static const char conditional_text[] = "#else\n";
@@ -3963,13 +4381,13 @@ static int run_directive_errors(void) {
   static const ctool_status_t error_status[] = {
       CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
       CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
-      CTOOL_ERR_UNSUPPORTED,
+      CTOOL_ERR_NOT_FOUND,
       CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_LIMIT};
   static const ctool_u32 error_code[] = {
       CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_MACRO_DEFINITION,
       CTOOL_C_PP_DIAG_MACRO_REDEFINITION, CTOOL_C_PP_DIAG_CONDITIONAL,
       CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
-      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_PATH,
+      CTOOL_C_PP_DIAG_INCLUDE_PATH, CTOOL_C_PP_DIAG_INCLUDE_NOT_FOUND,
       CTOOL_C_PP_DIAG_CONDITIONAL,
       CTOOL_C_PP_DIAG_CONDITIONAL, CTOOL_C_PP_DIAG_INCLUDE_DEPTH};
   static const ctool_u32 error_line[] = {1u, 1u, 2u, 1u, 1u,
@@ -4248,7 +4666,8 @@ int main(int argc, char **argv) {
         "function-macros|function-scale|macro-operators|macro-gnu|"
         "macro-operator-scale|macro-active-cases <toolchain-root>|"
         "macro-operator-errors|"
-        "function-errors|object-includes|"
+        "function-errors|object-includes|include-macros|"
+        "include-macro-errors|include-macro-scale|"
         "directive-errors|limits\n");
     return 2;
   }
@@ -4347,6 +4766,15 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "object-includes") == 0) {
     return run_object_includes();
+  }
+  if (strcmp(argv[1], "include-macros") == 0) {
+    return run_include_macros();
+  }
+  if (strcmp(argv[1], "include-macro-errors") == 0) {
+    return run_include_macro_errors();
+  }
+  if (strcmp(argv[1], "include-macro-scale") == 0) {
+    return run_include_macro_scale();
   }
   if (strcmp(argv[1], "directive-errors") == 0) {
     return run_directive_errors();
