@@ -1330,3 +1330,33 @@ Function specifiers are accepted only on declarations whose completed declarator
 | Full repository gate | PASS | `make test` runs 253 tests in 561.555 seconds: 252 pass and only the expected platform case skips. The enclosing Toolchain/audit gate completes in 641.7 seconds. |
 
 This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and contract, the private in-kernel CupidC parser/code generator remains the production compiler, and no kernel, driver, application, Doom, assembly, linker, object, image, ABI, or runtime artifact changed. A boot smoke is therefore not attributed to this metadata-only change. The next declaration frontier is a real function-body/typed-expression AST slice; host symbol extraction through `nm` remains a separate ready ownership cutover to CupidDis.
+
+## 2026-07-11: CupidDis owns production kernel-symbol inspection
+
+The normal two-pass kernel build no longer selects GNU `nm` or `llvm-nm`. Root Make now declares the hosted `CUPIDDIS_BUILD` executable and passes `$(CUPIDDIS)` through the existing `tools/hostbuild.py mksyms --nm` subprocess seam. Python still filters `t/T/w/W` rows, sorts and deduplicates addresses, and serializes the generated C blob; the host compiler still compiles that source. This is therefore one inspection-ownership transfer, not a claim that Python serialization, host C compilation, or the hosted CupidDis bootstrap has disappeared.
+
+The hosted-tool rule is order-only serialized after the existing CupidASM → CupidObj → CupidLD chain. All four recursive builds share `toolchain/build` objects, so allowing CupidDis and those tools to start independently under `make -j` was rejected as a race. Making `NM=$(CUPIDDIS)` an alias was also rejected: the audit intentionally classifies literal recipe owners, and such an alias would leave the transform mislabeled as `host_symbol_reader`. The recipe now names `$(CUPIDDIS)` directly, while the audit retains its `$(NM)` marker so a future regression back to a host reader is still visible.
+
+The checked graph remains 681 active sources, 250 feature IDs, and 39 accounted unreachable source-like files, and grows from 490 to 491 transforms because root `all` now has a fifth recursive hosted-tool build. Ownership becomes CupidDis one composite transform, CupidASM four, CupidLD five, CupidObj 181, host C compiler 289, Python eight, and Make recursion five; normal host symbol-reader, NASM, standalone ELF-linker, and object-copy ownership is zero. Baseline preflight likewise stops requiring or platform-validating a symbol reader. GNU/LLVM `nm` moves beside NASM under optional oracle evidence and remains configurable through `NM` only for comparison tests and historical recapture.
+
+### Determinism, red/green history, and compatibility boundary
+
+- The first active-graph contract was red because `kernel/cpu/ksyms_data.c` still reported `[host_symbol_reader, host_python]`; the baseline contracts were independently red because `symbol_reader` remained required and absent from the optional-oracle set.
+- Adding the literal CupidDis owner, recursive target/prerequisite, exact 491-transform expectation, and required-versus-optional baseline policy made both seams green. The regression also requires the hosted CupidDis path as a symbol-generation input and forbids `host_symbol_reader` anywhere in the normal root graph.
+- ADR 0008's address plus serialized-symbol-index order remains the canonical Cupid policy. A new same-address function alias in the hosted contract pins that order even though generic `nm -n` implementations may lexically reorder equal-address rows. The current production consumer has no duplicate retained addresses, so this explicit policy changes no active backtrace name.
+- The current 6,211,904-byte pass-one kernel is below the hosted CLI's 64 MiB source limit. CupidDis and the optional LLVM oracle each produce the same 3,790 consumer-visible symbols—2,222 global `T` and 1,568 local `t`—and the same 91,190-byte blob. Their complete generated C files are byte-identical with SHA-256 `aede0fe469d06dc18a8ca2b6fbe7e9b3aea655d19671457152d4a36dc354eab5`.
+- No user question was required: the existing ADR already decides the equal-address tie rule, and the checked build graph identifies the sole production consumer and its exact removal gate.
+
+### Verification record
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Red/green ownership contracts | PASS | The active graph now attributes `ksyms_data.c` to `[cupid_disassembler, host_python]`, requires the hosted executable input, and contains no normal `host_symbol_reader`; baseline preflight excludes the reader and records it as an optional oracle. |
+| Hosted Toolchain suite | PASS | `make -C toolchain test` passes the complete core, CupidC, ELF32, x86, CupidDis, CupidASM, CupidObj, CupidLD, and demo matrix; the same-address CupidDis `nm` row is exact. |
+| Focused Python suites | PASS | All 37 CupidDis CLI, hostbuild, and bootstrap-baseline tests pass; only the expected unavailable optional oracle case skips. |
+| Active-source audit | PASS | Regeneration and `make check-bootstrap-audit` pass at 681 sources, 250 features, and 491 transforms. |
+| Production parity | PASS | CupidDis and LLVM `nm` produce byte-identical generated C with 3,790 retained symbols and a 91,190-byte blob. |
+| Normal and parallel builds | PASS | `make all` and `make -j4 all` both run the real `mksyms --nm toolchain/build/cupiddis.exe` recipe and complete the two-pass kernel/image build. |
+| Runtime proof | PASS | The rebuilt image passes the GUI terminal/JIT smoke. A deliberate `crashtest panic` reaches `STACK TRACE` and resolves frame zero as `kernel_panic+0x00000085`. |
+
+GNU/LLVM `nm` is no longer required by root `all`, `user:all`, `toolchain:all`, or baseline preflight. The host compiler and its native linker backend still build every hosted Cupid tool and all host/root C outputs, and Python remains build orchestration plus symbol-blob serialization. Checked native seeds, CupidC object lowering and self-build, and removal of the host C compiler are still the fixed-point blockers.
