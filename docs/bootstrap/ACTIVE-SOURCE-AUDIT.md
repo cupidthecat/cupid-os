@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 10 | 11957 |
-| `toolchain_core` | 14 | 15482 |
+| `toolchain_contract` | 10 | 13088 |
+| `toolchain_core` | 14 | 16806 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 154 |
@@ -98,17 +98,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 42157 |
+| `c.control` | 12 | 42669 |
 | `c.declaration` | 1 | 22 |
-| `c.declarator` | 4 | 1422 |
-| `c.expression` | 2 | 1364 |
+| `c.declarator` | 4 | 1463 |
+| `c.expression` | 2 | 1426 |
 | `c.extension` | 17 | 369 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 17 | 6270 |
-| `c.qualifier` | 2 | 4781 |
-| `c.storage` | 4 | 4639 |
-| `c.type` | 14 | 34891 |
+| `c.preprocessor` | 17 | 6278 |
+| `c.qualifier` | 2 | 4851 |
+| `c.storage` | 4 | 4719 |
+| `c.type` | 14 | 35060 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -221,10 +221,11 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | Contract | Status | Detail |
 | --- | --- | --- |
 | `bootstrap_artifact_coverage` | `pass` | 424 linked objects; 431 declared artifacts; 0 missing |
+| `c_preprocessor_conditionals` | `pass` | 101 conditional expressions (97 #if, 4 #elif); 21 normalized expressions; 22 directive/expression pairs |
 
 ## Interpretation limits
 
 - Feature occurrences are comment/string-masked lexical evidence, not a substitute for a compiler AST or executed semantic tests.
-- Include reachability follows checked Make include paths, forced includes, quoted/angle C includes, and `%include`; condition evaluation remains a future compiler-owned manifest capability.
+- Include reachability follows checked Make include paths, forced includes, quoted/angle C includes, and `%include`; the conditional contract records normalized source expressions while evaluation remains a compiler-contract responsibility.
 - Relocation kinds and ABI values are required interchange contracts; per-object relocation counts are recorded in the chronological bootstrap log.
 - `not_reached` means absent from the supported roots recorded above, not automatically safe to delete.
