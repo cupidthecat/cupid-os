@@ -1295,7 +1295,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 648)
+            self.assertEqual(contract["source_files"], 651)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1316,7 +1316,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 648 source files; max conditional depth 0",
+                "0 numeric markers; 651 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2204,10 +2204,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 648)
-            self.assertEqual(contract["include_occurrences"], 2305)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2106)
-            self.assertEqual(contract["direct_angle_occurrences"], 199)
+            self.assertEqual(contract["source_files"], 651)
+            self.assertEqual(contract["include_occurrences"], 2314)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2112)
+            self.assertEqual(contract["direct_angle_occurrences"], 202)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3046,7 +3046,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             [path for path, _ in non_roots],
             ["/bin/fat16.h", "/bin/shell.h"],
         )
-        self.assertEqual(len(deferred), 26)
+        self.assertEqual(len(deferred), 28)
         self.assertEqual(
             {path for path, _ in deferred},
             {
@@ -3055,6 +3055,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/ctool_host.c",
                 "/toolchain/cupidasm.c",
                 "/toolchain/cupidasm_main.c",
+                "/toolchain/cupidc_frontend.c",
                 "/toolchain/cupidc_pp.c",
                 "/toolchain/cupidc_type.c",
                 "/toolchain/cupiddis.c",
@@ -3068,6 +3069,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/tests/cupidasm_contract.c",
                 "/toolchain/tests/cupidasm_demos_contract.c",
                 "/toolchain/tests/cupidasm_kernel_elf_contract.c",
+                "/toolchain/tests/cupidc_frontend_contract.c",
                 "/toolchain/tests/cupidc_pp_contract.c",
                 "/toolchain/tests/cupidc_type_contract.c",
                 "/toolchain/tests/cupiddis_contract.c",
@@ -3187,9 +3189,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "total_translation_units": 349,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
-                    "deferred_hosted_translation_units": 26,
-                    "deferred_external_header_units": 16,
-                    "deferred_hermetic_units": 10,
+                    "deferred_hosted_translation_units": 28,
+                    "deferred_external_header_units": 17,
+                    "deferred_hermetic_units": 11,
                 },
             )
             self.assertEqual(
@@ -3209,6 +3211,64 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 104, 0),
                 ],
             )
+            self.assertEqual(
+                audit_payload["summary"],
+                {
+                    "active_sources": 681,
+                    "features": 250,
+                    "transforms": 490,
+                    "unreachable_sources": 39,
+                },
+            )
+            toolchain_cohort = next(
+                cohort
+                for cohort in audit_payload["roadmap"]["source_cohort_order"]
+                if cohort["id"] == "toolchain_sources"
+            )
+            self.assertEqual(toolchain_cohort["source_count"], 53)
+
+            source_by_path = {
+                source["path"]: source for source in audit_payload["sources"]
+            }
+            frontend_sources = {
+                "toolchain/cupidc_frontend.c": "toolchain_core",
+                "toolchain/cupidc_frontend.h": "toolchain_core",
+                "toolchain/tests/cupidc_frontend_contract.c":
+                    "toolchain_contract",
+            }
+            for path, cohort in frontend_sources.items():
+                with self.subTest(path=path):
+                    self.assertEqual(source_by_path[path]["cohort"], cohort)
+                    self.assertEqual(
+                        source_by_path[path]["reachability"],
+                        "direct_build_input",
+                    )
+                    self.assertIsNone(source_by_path[path]["runtime_owner"])
+
+            toolchain_build = next(
+                build
+                for build in audit_payload["supplemental_builds"]
+                if build["directory"] == "toolchain"
+            )
+            self.assertEqual(len(toolchain_build["transforms"]), 45)
+            toolchain_transform_by_output = {
+                transform["output"]: transform
+                for transform in toolchain_build["transforms"]
+            }
+            frontend_transforms = {
+                "toolchain/build/cupidc_frontend.o":
+                    "compile_c_to_host_object",
+                "toolchain/build/cupidc_frontend_contract.o":
+                    "compile_c_to_host_object",
+                "toolchain/build/cupidc-frontend-contract"
+                + (".exe" if sys.platform == "win32" else ""):
+                    "compile_and_link_host_executable",
+            }
+            for output_path, operation in frontend_transforms.items():
+                with self.subTest(output=output_path):
+                    transform = toolchain_transform_by_output[output_path]
+                    self.assertEqual(transform["operation"], operation)
+                    self.assertEqual(transform["tools"], ["host_c_compiler"])
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
                 "345 tracked + 4 generated",

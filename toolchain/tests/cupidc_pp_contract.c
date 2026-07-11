@@ -5528,7 +5528,7 @@ static int validate_active_manifest(const char *mode) {
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
-      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 26u) {
+      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 28u) {
     (void)fprintf(stderr,
                   "%s: manifest counts differ "
                   "(profiles=%u tracked=%u generated=%u include-only=%u "
