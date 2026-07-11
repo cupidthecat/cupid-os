@@ -1095,6 +1095,19 @@ Adapting the private kernel frontend was rejected. It re-lexes flattened text, c
 - Adding the product and contract introduced two hosted C roots before the checked audit was regenerated. The drift gate failed closed instead of silently accepting them. The first Windows audit rerun then exposed stale exact source/include expectations, and the first WSL suite exposed a still-hard-coded 24-unit preprocessing deferral sentinel. Correcting those contracts and regenerating the audit records 678 active inputs, 487 transforms, 250 feature IDs, 265 C files, 261 headers, 126 Cupid C files, and 50 prioritized toolchain sources.
 - The include inventory is now 2,305 direct operands across 648 C-family inputs: 2,106 quoted and 199 angle. The supported preprocessing delivery manifest remains 345 tracked roots plus four generated roots. Hosted deferrals increase transparently to 26: 16 external-header/runtime cases and ten hermetic units awaiting a hosted profile.
 - The host compiler owns 286 transforms after adding two native objects and the fifteenth hosted artifact. This is explicit bootstrap debt, not a retirement claim.
-- The focused Python contract passes all six tests. The first sanitizer command was misquoted and truncated before it exercised the intended modes, so that invocation is discarded rather than counted. Final whole-repository, cross-compiler, corrected sanitizer, analyzer, and audit timing evidence belongs to the implementation gate and is not pre-claimed here.
+- The first WSL verification loop crossed the PowerShell boundary with an empty mode argument. Its strict GCC and Clang builds were clean, but it did not exercise the requested contract modes and is discarded. The first sanitizer wrapper likewise returned without producing a contract binary and supplies no evidence. Corrected explicit invocations produced the results below.
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC type/layout Python contract | PASS | All six tests passed: scalar/derived types, manual FAT16 ABI, records/packing/qualification, precise errors and recovery, scale, and adversarial active shapes. |
+| Fresh strict Windows Clang Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
+| Fresh strict WSL GCC Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
+| Fresh strict WSL Clang Toolchain suite | PASS | All 94 hosted contract invocations and all 22 CupidASM demos passed. |
+| WSL GCC sanitizers | PASS | All six type/layout modes passed with address, undefined-behavior, and leak detection enabled; the resulting executable linked both `libasan` and `libubsan`. |
+| Static analysis | PASS | Clang's analyzer and GCC `-fanalyzer` reported no finding in the type/layout product or contract harness. |
+| Active-source audit | PASS | The audit regenerated successfully and its checked drift gate passed with the 678-input/487-transform graph and current include/deferral contracts. |
+| Windows repository suite | PASS | 238 tests ran in 448.1 seconds: 237 passed and only the expected Windows `/dev/full` case skipped. |
+
+The completed full gates above cover the reviewed product and qualification behavior. The final synthetic atomic-pointer and signed-`long long`-compatible enum additions landed as test-only positive coverage afterward; their pending focused/audit refresh is not claimed here.
 
 No OS source, kernel adapter, generated OS artifact, or `TempleOS/` reference file changed. The module and contract are hosted only, so no kernel ownership or boot behavior is claimed and no emulator smoke follows from this slice. Production CupidC still uses its private frontend. Parsing unchanged declarations through the typed tape is next; private-preprocessor removal, typed AST/linear IR, kernel cutover, host-runnable source compilation, and staged self-hosting remain.
