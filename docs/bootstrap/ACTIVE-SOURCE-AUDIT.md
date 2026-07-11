@@ -9,7 +9,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Active source inputs: 675
 - Unreachable source-like files: 39
 - Reachable output transforms: 484
-- Distinct feature requirements: 249
+- Distinct feature requirements: 250
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 10 | 13088 |
-| `toolchain_core` | 14 | 16806 |
+| `toolchain_contract` | 10 | 13654 |
+| `toolchain_core` | 14 | 17116 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 154 |
@@ -98,17 +98,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 42669 |
+| `c.control` | 12 | 42812 |
 | `c.declaration` | 1 | 22 |
-| `c.declarator` | 4 | 1463 |
-| `c.expression` | 2 | 1426 |
+| `c.declarator` | 4 | 1484 |
+| `c.expression` | 2 | 1456 |
 | `c.extension` | 17 | 369 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 17 | 6278 |
-| `c.qualifier` | 2 | 4851 |
-| `c.storage` | 4 | 4719 |
-| `c.type` | 14 | 35060 |
+| `c.preprocessor` | 18 | 6280 |
+| `c.qualifier` | 2 | 4889 |
+| `c.storage` | 4 | 4757 |
+| `c.type` | 14 | 35134 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -222,6 +222,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `bootstrap_artifact_coverage` | `pass` | 424 linked objects; 431 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 101 conditional expressions (97 #if, 4 #elif); 21 normalized expressions; 22 directive/expression pairs |
+| `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 
 ## Interpretation limits
 
