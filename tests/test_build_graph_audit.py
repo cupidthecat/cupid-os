@@ -2730,7 +2730,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         profile_pattern = re.compile(
             r"^CUPIDC_PP_PROFILE\(([A-Z0-9_]+), ([A-Z0-9_]+), "
-            r"(CTOOL_(?:TRUE|FALSE))\)$"
+            r"(CTOOL_(?:TRUE|FALSE)), (CTOOL_(?:TRUE|FALSE))\)$"
         )
         active_pattern = re.compile(
             r'^CUPIDC_PP_ACTIVE_CASE\(([A-Z0-9_]+), "([^"]+)"\)$'
@@ -2757,37 +2757,64 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             profiles,
             [
-                ("KERNEL_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+                (
+                    "KERNEL_I386",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_TRUE",
+                    "CTOOL_FALSE",
+                ),
                 (
                     "DOOM_COMPAT_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "DOOM_TREE_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
-                ("USER_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+                (
+                    "USER_I386",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_TRUE",
+                    "CTOOL_FALSE",
+                ),
                 (
                     "CUPID_RUNTIME",
                     "CTOOL_C_PP_MODE_CUPID",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
+                ),
+                (
+                    "HOSTED_TOOLCHAIN_64",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_FALSE",
+                    "CTOOL_TRUE",
+                ),
+                (
+                    "HOSTED_KERNEL_BRIDGE_64",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_FALSE",
+                    "CTOOL_TRUE",
                 ),
             ],
         )
         self.assertEqual(
             {name: sum(case_name == name for case_name, _ in active)
-             for name, _, _ in profiles},
+             for name, _, _, _ in profiles},
             {
                 "KERNEL_I386": 152,
                 "DOOM_COMPAT_I386": 6,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "CUPID_RUNTIME": 104,
+                "HOSTED_TOOLCHAIN_64": 10,
+                "HOSTED_KERNEL_BRIDGE_64": 1,
             },
         )
-        self.assertEqual(len(active), 345)
+        self.assertEqual(len(active), 356)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.c"),
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
@@ -2795,6 +2822,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
             ("USER_I386", "/user/examples/hello.c"),
             ("CUPID_RUNTIME", "/bin/browser.cc"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.c"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/x86.c"),
+            ("HOSTED_KERNEL_BRIDGE_64", "/kernel/lang/as_elf.c"),
         ):
             self.assertIn(expected, active)
         self.assertEqual(
@@ -2851,6 +2881,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
             "USER_I386": ["/user"],
             "CUPID_RUNTIME": [],
+            "HOSTED_TOOLCHAIN_64": ["/toolchain"],
+            "HOSTED_KERNEL_BRIDGE_64": ["/toolchain", "/kernel/lang"],
         }
         root_pattern = re.compile(
             r'^CUPIDC_PP_INCLUDE_ROOT\(([A-Z0-9_]+), "([^"]+)", '
@@ -2892,6 +2924,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
             "USER_I386": common_macros,
             "CUPID_RUNTIME": [],
+            "HOSTED_TOOLCHAIN_64": [("__SIZEOF_POINTER__", "8")],
+            "HOSTED_KERNEL_BRIDGE_64": [("__SIZEOF_POINTER__", "8")],
         }
 
         def macro_line(profile, name, replacement):
@@ -2923,7 +2957,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_cupidc_active_manifest_fails_closed_on_compile_recipe_shape(self):
         module = _load_audit_module()
 
-        def audit(inputs, recipe):
+        def audit(inputs, recipe, sources=None):
             return {
                 "build": {
                     "directory": ".",
@@ -2938,7 +2972,36 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ],
                 },
                 "supplemental_builds": [],
-                "sources": [],
+                "sources": [] if sources is None else sources,
+            }
+
+        def hosted_audit(
+            recipe,
+            source="toolchain/unit.c",
+            *,
+            origin=None,
+        ):
+            return {
+                "build": {"directory": ".", "transforms": []},
+                "supplemental_builds": [
+                    {
+                        "directory": "toolchain",
+                        "transforms": [
+                            {
+                                "output": "build/unit.o",
+                                "inputs": [source],
+                                "tools": ["host_c_compiler"],
+                                "operation": "compile_c_to_host_object",
+                                "recipe": [recipe],
+                            }
+                        ],
+                    }
+                ],
+                "sources": (
+                    []
+                    if origin is None
+                    else [{"path": source, "origin": origin}]
+                ),
             }
 
         cases = {
@@ -3025,6 +3088,108 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ),
                 r"literal preprocessor flag.*CPATH=private",
             ),
+            "hosted recipe omits include profile": (
+                hosted_audit("$(CC) $(CFLAGS) -c $< -o $@"),
+                r"hosted recipe markers differ.*CPPFLAGS",
+            ),
+            "hosted recipe duplicates include profile": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CPPFLAGS) $(CFLAGS) "
+                    "-c $< -o $@"
+                ),
+                r"hosted recipe markers differ.*CPPFLAGS",
+            ),
+            "root recipe duplicates compiler marker": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CC) $(CFLAGS) -c $< -o $@",
+                ),
+                r"recipe markers differ.*CC",
+            ),
+            "root recipe duplicates profile marker": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) $(CFLAGS) -c $< -o $@",
+                ),
+                r"recipe markers differ.*CFLAGS",
+            ),
+            "hosted bridge flag moves to ordinary source": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
+                    "-c $< -o $@"
+                ),
+                r"hosted bridge recipe differs.*toolchain/unit\.c",
+            ),
+            "hosted bridge source loses its include flag": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
+                    "kernel/lang/as_elf.c",
+                ),
+                r"hosted bridge recipe differs.*kernel/lang/as_elf\.c",
+            ),
+            "hosted bridge include precedes common include roots": (
+                hosted_audit(
+                    "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) "
+                    "-c $< -o $@",
+                    "kernel/lang/as_elf.c",
+                ),
+                r"compiler argument profile differs"
+                r".*kernel/lang/as_elf\.c",
+            ),
+            "hosted include marker is shell quoted": (
+                hosted_audit(
+                    '$(CC) "$(CPPFLAGS)" $(CFLAGS) -c $< -o $@'
+                ),
+                r"compiler argument profile differs.*toolchain/unit\.c",
+            ),
+            "hosted command substitution injects flags": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) `cat extra.flags` "
+                    "-c $< -o $@"
+                ),
+                r"compile recipe has unmodeled shell substitution",
+            ),
+            "hosted markers hidden in shell comment": (
+                hosted_audit(
+                    "$(CC) $(CFLAGS) -c $< -o $@ # $(CPPFLAGS)"
+                ),
+                r"compile recipe contains a shell comment",
+            ),
+            "hosted markers belong to a different command": (
+                hosted_audit(
+                    "echo $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+                ),
+                r"compile recipe does not invoke.*CC",
+            ),
+            "hosted deferral moves to freestanding build": (
+                audit(
+                    ["toolchain/ctool_host.c"],
+                    "$(CC) $(CFLAGS) -c $< -o $@",
+                    [
+                        {
+                            "path": "toolchain/ctool_host.c",
+                            "origin": "tracked",
+                        }
+                    ],
+                ),
+                r"hosted deferral transform differs.*toolchain/ctool_host\.c",
+            ),
+            "hosted deferral is absent from source inventory": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
+                    "toolchain/ctool_host.c",
+                ),
+                r"root is absent from source inventory.*toolchain/ctool_host\.c",
+            ),
+            "hosted deferral has generated origin": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
+                    "toolchain/ctool_host.c",
+                    origin="generated",
+                ),
+                r"hosted deferral is not a tracked source"
+                r".*toolchain/ctool_host\.c",
+            ),
         }
         for name, (synthetic, message) in cases.items():
             with self.subTest(name=name), self.assertRaisesRegex(
@@ -3088,25 +3253,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             [path for path, _ in non_roots],
             ["/bin/fat16.h", "/bin/shell.h"],
         )
-        self.assertEqual(len(deferred), 28)
+        self.assertEqual(len(deferred), 17)
         self.assertEqual(
             {path for path, _ in deferred},
             {
-                "/kernel/lang/as_elf.c",
-                "/toolchain/ctool.c",
                 "/toolchain/ctool_host.c",
-                "/toolchain/cupidasm.c",
                 "/toolchain/cupidasm_main.c",
-                "/toolchain/cupidc_frontend.c",
-                "/toolchain/cupidc_pp.c",
-                "/toolchain/cupidc_type.c",
-                "/toolchain/cupiddis.c",
                 "/toolchain/cupiddis_main.c",
-                "/toolchain/cupidld.c",
                 "/toolchain/cupidld_main.c",
-                "/toolchain/cupidobj.c",
                 "/toolchain/cupidobj_main.c",
-                "/toolchain/elf32.c",
                 "/toolchain/tests/core_contract.c",
                 "/toolchain/tests/cupidasm_contract.c",
                 "/toolchain/tests/cupidasm_demos_contract.c",
@@ -3119,7 +3274,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/tests/cupidobj_contract.c",
                 "/toolchain/tests/elf32_contract.c",
                 "/toolchain/tests/x86_contract.c",
-                "/toolchain/x86.c",
             },
         )
         self.assertTrue(all(reason for _, reason in [*non_roots, *deferred]))
@@ -3127,7 +3281,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_cupidc_active_manifest_renderer_is_grouped_and_c_escaped(self):
         module = _load_audit_module()
         manifest = module.CPreprocessorActiveCasesManifest(
-            profiles=(("SYNTH", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),),
+            profiles=(
+                module.CPreprocessorProfile(
+                    name="SYNTH",
+                    mode="CTOOL_C_PP_MODE_C11",
+                    gnu_extensions="CTOOL_TRUE",
+                    hosted_environment="CTOOL_FALSE",
+                ),
+            ),
             include_roots=(
                 (
                     "SYNTH",
@@ -3205,6 +3366,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             generated = subprocess.run(command, text=True, capture_output=True)
             self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertTrue(summary.read_text(encoding="utf-8").endswith("\n\n"))
             audit_payload = json.loads(output.read_text(encoding="utf-8"))
             contract = audit_payload["contracts"][
                 "c_preprocessor_translation_units"
@@ -3226,14 +3388,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 345,
+                    "tracked_translation_units": 356,
                     "generated_translation_units": 4,
-                    "total_translation_units": 349,
+                    "total_translation_units": 360,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
-                    "deferred_hosted_translation_units": 28,
+                    "deferred_hosted_translation_units": 17,
                     "deferred_external_header_units": 17,
-                    "deferred_hermetic_units": 11,
+                    "deferred_hermetic_units": 0,
                 },
             )
             self.assertEqual(
@@ -3251,6 +3413,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("CUPID_RUNTIME", 104, 0),
+                    ("HOSTED_TOOLCHAIN_64", 10, 0),
+                    ("HOSTED_KERNEL_BRIDGE_64", 1, 0),
                 ],
             )
             self.assertEqual(
@@ -3313,7 +3477,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertEqual(transform["tools"], ["host_c_compiler"])
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "345 tracked + 4 generated",
+                "356 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -3419,6 +3583,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             simd_extra="",
             opt_extra="",
             roots_extra="",
+            hosted_cppflags_extra="",
+            hosted_cflags_extra="",
         ):
             _write(
                 root / "Makefile",
@@ -3441,6 +3607,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(
                 root / "user" / "Makefile",
                 "CFLAGS=-m32 -ffreestanding -I.\n",
+            )
+            _write(
+                root / "toolchain" / "Makefile",
+                f"CPPFLAGS=-I. {hosted_cppflags_extra}\n"
+                f"CFLAGS=-std=c11 {hosted_cflags_extra}\n",
             )
 
         cases = {
@@ -3499,6 +3670,27 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "OPT-only macro": (
                 {"opt_extra": "-DLOCAL=1"},
                 r"OPT has preprocessor effects",
+            ),
+            "hosted alternate language mode": (
+                {"hosted_cflags_extra": "-std=gnu11"},
+                r"unmodeled preprocessor flag.*-std=gnu11",
+            ),
+            "hosted configured macro": (
+                {"hosted_cflags_extra": "-DLOCAL=1"},
+                r"configured macros differ.*CPPFLAGS\+CFLAGS",
+            ),
+            "hosted extra include root": (
+                {"hosted_cppflags_extra": "-Iprivate"},
+                r"HOSTED_TOOLCHAIN_64 include-root order differs",
+            ),
+            "hosted contradictory word size": (
+                {"hosted_cflags_extra": "-m32"},
+                r"HOSTED_TOOLCHAIN_64 has unmodeled preprocessor flag.*-m32",
+            ),
+            "hosted freestanding mode": (
+                {"hosted_cflags_extra": "-ffreestanding"},
+                r"HOSTED_TOOLCHAIN_64 has unmodeled preprocessor flag"
+                r".*-ffreestanding",
             ),
         }
         for name, (changes, message) in cases.items():

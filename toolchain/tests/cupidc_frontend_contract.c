@@ -28,27 +28,32 @@ typedef struct {
   const char *second;
   ctool_u32 value;
   ctool_bool flag;
+  ctool_bool hosted_environment;
 } active_row_t;
 
 static const active_row_t active_rows[] = {
-#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL)                                \
-  {ACTIVE_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL)},
+#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL)                   \
+  {ACTIVE_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL),           \
+   (HOSTED_BOOL)},
 #define CUPIDC_PP_INCLUDE_ROOT(NAME, PATH, FORMS)                              \
-  {ACTIVE_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE},
+  {ACTIVE_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE,             \
+   CTOOL_FALSE},
 #define CUPIDC_PP_MACRO(NAME, MACRO_NAME, REPLACEMENT)                        \
-  {ACTIVE_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE},
+  {ACTIVE_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE,          \
+   CTOOL_FALSE},
 #define CUPIDC_PP_FORCED_INCLUDE(NAME, PATH)                                  \
-  {ACTIVE_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_ACTIVE_CASE(NAME, PATH)                                     \
-  {ACTIVE_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_GENERATED_CASE(NAME, PATH)                                  \
-  {ACTIVE_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_INCLUDE_ONLY(PATH, OWNER)                                   \
-  {ACTIVE_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE},
+  {ACTIVE_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_NON_ROOT(PATH, REASON)                                      \
-  {ACTIVE_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE},
+  {ACTIVE_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_DEFERRED_HOSTED(PATH, REASON)                               \
-  {ACTIVE_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE},
+  {ACTIVE_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,            \
+   CTOOL_FALSE},
 #include "cupidc_pp_active_cases.inc"
 #undef CUPIDC_PP_PROFILE
 #undef CUPIDC_PP_INCLUDE_ROOT
@@ -269,6 +274,7 @@ static int build_kernel_profile(
     if (row->kind == ACTIVE_PROFILE) {
       request->mode = (ctool_c_pp_mode_t)row->value;
       request->gnu_extensions = row->flag;
+      request->hosted_environment = row->hosted_environment;
       profile_count++;
     } else if (row->kind == ACTIVE_INCLUDE_ROOT) {
       include_roots[request->include_root_count].directory.text =

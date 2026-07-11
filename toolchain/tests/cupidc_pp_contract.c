@@ -81,12 +81,14 @@ typedef struct {
   const char *second;
   ctool_u32 value;
   ctool_bool flag;
+  ctool_bool hosted_environment;
 } active_row_t;
 
 typedef struct {
   const char *name;
   ctool_c_pp_mode_t mode;
   ctool_bool gnu_extensions;
+  ctool_bool hosted_environment;
   ctool_u32 tracked_case_count;
   ctool_u32 include_root_count;
   ctool_u32 macro_count;
@@ -94,24 +96,32 @@ typedef struct {
 } active_expected_profile_t;
 
 static const active_row_t active_rows[] = {
-#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL)                              \
-  {ACTIVE_ROW_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL)},
+#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL)                 \
+  {ACTIVE_ROW_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL),     \
+   (HOSTED_BOOL)},
 #define CUPIDC_PP_INCLUDE_ROOT(NAME, PATH, FORMS)                            \
-  {ACTIVE_ROW_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE},
+  {ACTIVE_ROW_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE,       \
+   CTOOL_FALSE},
 #define CUPIDC_PP_MACRO(NAME, MACRO_NAME, REPLACEMENT)                      \
-  {ACTIVE_ROW_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE,    \
+   CTOOL_FALSE},
 #define CUPIDC_PP_FORCED_INCLUDE(NAME, PATH)                                \
-  {ACTIVE_ROW_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE,          \
+   CTOOL_FALSE},
 #define CUPIDC_PP_ACTIVE_CASE(NAME, PATH)                                   \
-  {ACTIVE_ROW_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_GENERATED_CASE(NAME, PATH)                                \
-  {ACTIVE_ROW_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE,          \
+   CTOOL_FALSE},
 #define CUPIDC_PP_INCLUDE_ONLY(PATH, OWNER)                                 \
-  {ACTIVE_ROW_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE,          \
+   CTOOL_FALSE},
 #define CUPIDC_PP_NON_ROOT(PATH, REASON)                                    \
-  {ACTIVE_ROW_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,             \
+   CTOOL_FALSE},
 #define CUPIDC_PP_DEFERRED_HOSTED(PATH, REASON)                             \
-  {ACTIVE_ROW_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE},
+  {ACTIVE_ROW_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,      \
+   CTOOL_FALSE},
 #include "cupidc_pp_active_cases.inc"
 #undef CUPIDC_PP_PROFILE
 #undef CUPIDC_PP_INCLUDE_ROOT
@@ -125,12 +135,20 @@ static const active_row_t active_rows[] = {
 };
 
 static const active_expected_profile_t active_expected_profiles[] = {
-    {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, 152u, 18u, 8u, 0u},
-    {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, 6u, 20u, 7u, 0u},
-    {"DOOM_TREE_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, 80u, 20u, 9u, 1u},
-    {"USER_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, 3u, 1u, 6u, 0u},
-    {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, 104u, 0u, 0u,
-     0u}};
+    {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 152u,
+     18u, 8u, 0u},
+    {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 6u,
+     20u, 7u, 0u},
+    {"DOOM_TREE_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 80u,
+     20u, 9u, 1u},
+    {"USER_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 3u, 1u, 6u,
+     0u},
+    {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE, 104u,
+     0u, 0u, 0u},
+    {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
+     10u, 1u, 1u, 0u},
+    {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
+     1u, 2u, 1u, 0u}};
 
 static int open_job_at_root(const char *mode, const char *host_root,
                             ctool_host_adapter_t *adapter,
@@ -5447,7 +5465,8 @@ static int validate_active_manifest(const char *mode) {
       expected = &active_expected_profiles[profile_count];
       if (strcmp(row->profile, expected->name) != 0 || row->first != NULL ||
           row->second != NULL || row->value != (ctool_u32)expected->mode ||
-          row->flag != expected->gnu_extensions) {
+          row->flag != expected->gnu_extensions ||
+          row->hosted_environment != expected->hosted_environment) {
         (void)fprintf(stderr,
                       "%s: manifest profile %u metadata differs\n", mode,
                       profile_count);
@@ -5456,7 +5475,8 @@ static int validate_active_manifest(const char *mode) {
       profile_count++;
     } else if (row->kind == ACTIVE_ROW_INCLUDE_ROOT) {
       if (active_path_is_canonical(row->first) == 0 || row->second != NULL ||
-          row->flag != CTOOL_FALSE || row->value == 0u ||
+          row->flag != CTOOL_FALSE ||
+          row->hosted_environment != CTOOL_FALSE || row->value == 0u ||
           (row->value & ~(CTOOL_C_PP_INCLUDE_QUOTED |
                           CTOOL_C_PP_INCLUDE_ANGLE)) != 0u) {
         (void)fprintf(stderr, "%s: invalid include-root row %u\n", mode,
@@ -5466,7 +5486,8 @@ static int validate_active_manifest(const char *mode) {
       profile_include_root_counts[(ctool_u32)profile_index]++;
     } else if (row->kind == ACTIVE_ROW_MACRO) {
       if (row->first == NULL || row->first[0] == '\0' || row->second == NULL ||
-          row->value != 0u || row->flag != CTOOL_FALSE) {
+          row->value != 0u || row->flag != CTOOL_FALSE ||
+          row->hosted_environment != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid macro row %u\n", mode, row_index);
         return 1;
       }
@@ -5474,7 +5495,8 @@ static int validate_active_manifest(const char *mode) {
     } else if (row->kind == ACTIVE_ROW_FORCED_INCLUDE ||
                row->kind == ACTIVE_ROW_CASE) {
       if (active_path_is_canonical(row->first) == 0 || row->second != NULL ||
-          row->value != 0u || row->flag != CTOOL_FALSE) {
+          row->value != 0u || row->flag != CTOOL_FALSE ||
+          row->hosted_environment != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid source row %u\n", mode, row_index);
         return 1;
       }
@@ -5485,7 +5507,8 @@ static int validate_active_manifest(const char *mode) {
       }
     } else {
       if (active_path_is_canonical(row->first) == 0 || row->value != 0u ||
-          row->flag != CTOOL_FALSE) {
+          row->flag != CTOOL_FALSE ||
+          row->hosted_environment != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid classification row %u\n", mode,
                       row_index);
         return 1;
@@ -5523,12 +5546,12 @@ static int validate_active_manifest(const char *mode) {
   if (profile_count !=
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
-      kind_counts[ACTIVE_ROW_PROFILE] != 5u ||
-      kind_counts[ACTIVE_ROW_CASE] != 345u ||
+      kind_counts[ACTIVE_ROW_PROFILE] != 7u ||
+      kind_counts[ACTIVE_ROW_CASE] != 356u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
-      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 28u) {
+      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 17u) {
     (void)fprintf(stderr,
                   "%s: manifest counts differ "
                   "(profiles=%u tracked=%u generated=%u include-only=%u "
@@ -5585,6 +5608,7 @@ static int build_active_request(
     if (row->kind == ACTIVE_ROW_PROFILE) {
       request->mode = (ctool_c_pp_mode_t)row->value;
       request->gnu_extensions = row->flag;
+      request->hosted_environment = row->hosted_environment;
       profile_count++;
     } else if (row->kind == ACTIVE_ROW_INCLUDE_ROOT) {
       include_roots[request->include_root_count].directory.text =
@@ -5608,6 +5632,13 @@ static int build_active_request(
   if (profile_count != 1u) {
     (void)fprintf(stderr, "%s: profile %s request metadata is incomplete\n",
                   mode, profile_name);
+    return 1;
+  }
+  if (request->hosted_environment == CTOOL_TRUE && sizeof(void *) != 8u) {
+    (void)fprintf(stderr,
+                  "%s: profile %s requires an eight-byte bootstrap-host "
+                  "pointer (found %u)\n",
+                  mode, profile_name, (unsigned int)sizeof(void *));
     return 1;
   }
   request->include_roots = include_roots;
@@ -5738,7 +5769,7 @@ static int run_one_active_case(const char *mode, const char *host_root,
 
 static int run_active_corpus(const char *mode, const char *host_root,
                              ctool_bool generated) {
-  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 345u;
+  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 356u;
   ctool_u32 executed_count = 0u;
   ctool_u32 row_index;
 

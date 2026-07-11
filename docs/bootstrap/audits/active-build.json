@@ -8557,8 +8557,8 @@
     },
     "c_preprocessor_translation_units": {
       "deferred_external_header_units": 17,
-      "deferred_hermetic_units": 11,
-      "deferred_hosted_translation_units": 28,
+      "deferred_hermetic_units": 0,
+      "deferred_hosted_translation_units": 17,
       "delivered_non_root_headers": 2,
       "generated_translation_units": 4,
       "include_only_fragments": 22,
@@ -8567,6 +8567,7 @@
           "forced_includes": [],
           "generated_translation_units": 4,
           "gnu_extensions": true,
+          "hosted_environment": false,
           "include_roots": [
             {
               "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
@@ -8683,6 +8684,7 @@
           "forced_includes": [],
           "generated_translation_units": 0,
           "gnu_extensions": true,
+          "hosted_environment": false,
           "include_roots": [
             {
               "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
@@ -8805,6 +8807,7 @@
           ],
           "generated_translation_units": 0,
           "gnu_extensions": true,
+          "hosted_environment": false,
           "include_roots": [
             {
               "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
@@ -8933,6 +8936,7 @@
           "forced_includes": [],
           "generated_translation_units": 0,
           "gnu_extensions": true,
+          "hosted_environment": false,
           "include_roots": [
             {
               "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
@@ -8973,16 +8977,63 @@
           "forced_includes": [],
           "generated_translation_units": 0,
           "gnu_extensions": false,
+          "hosted_environment": false,
           "include_roots": [],
           "macro_actions": [],
           "mode": "CTOOL_C_PP_MODE_CUPID",
           "name": "CUPID_RUNTIME",
           "tracked_translation_units": 104
+        },
+        {
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": false,
+          "hosted_environment": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "8"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "HOSTED_TOOLCHAIN_64",
+          "tracked_translation_units": 10
+        },
+        {
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": false,
+          "hosted_environment": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/lang"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "8"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "HOSTED_KERNEL_BRIDGE_64",
+          "tracked_translation_units": 1
         }
       ],
       "status": "pass",
-      "total_translation_units": 349,
-      "tracked_translation_units": 345
+      "total_translation_units": 360,
+      "tracked_translation_units": 356
     }
   },
   "features": [
@@ -14131,7 +14182,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 20875
+      "occurrences": 20876
     },
     {
       "category": "control",
@@ -14481,7 +14532,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 12555
+      "occurrences": 12556
     },
     {
       "category": "control",
@@ -15152,12 +15203,12 @@
           "text": "return pp_string_equal(value, (ctool_string_t){literal, size});"
         },
         {
-          "line": 726,
+          "line": 744,
           "path": "toolchain/tests/cupidc_pp_contract.c",
           "text": "(ctool_string_t){expected_escaped_spelling,"
         },
         {
-          "line": 731,
+          "line": 749,
           "path": "toolchain/tests/cupidc_pp_contract.c",
           "text": "(ctool_string_t){expected_escaped_path,"
         }
@@ -15353,7 +15404,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 1775
+      "occurrences": 1777
     },
     {
       "category": "extension",
@@ -20091,7 +20142,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18487
+      "occurrences": 18488
     },
     {
       "category": "type",
@@ -20911,11 +20962,12 @@
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/x86_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 631
+      "occurrences": 632
     },
     {
       "category": "type",
@@ -21491,7 +21543,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 8502
+      "occurrences": 8505
     },
     {
       "category": "declaration",
@@ -22101,7 +22153,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "4f0ecb3ef183c155efcf308afaaa3dcb95eca68ee9d4d7193936bc45a4fc298e",
+    "active_source_digest": "15067d1d84450ad1c38a7336e035428f54516650693d0c24c18d559669da2cc6",
     "control_files": [
       {
         "path": "Makefile",
@@ -22118,7 +22170,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "21711e4cf8a81084b8e7a345aea801374b0f761ed46d4b8cb0adcb12dffc9983"
+      "sha256": "9de282f48517bc4b71d45cadee7ba6ce6598a1f9af89f9a7eb1075576275f4fb"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -45882,12 +45934,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c",
-      "lines": 5473,
+      "lines": 5479,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "fb0c258a1aacdfa9e9b48be46ef070b8a5a08878b62a51cbc4365f3e2c819bf6"
+      "sha256": "f0ead8b7d056c023d0a896f0e872cef4acabc1f7411051ac1741c73377ade064"
     },
     {
       "build_owners": [
@@ -45920,6 +45972,7 @@
         "c.type.int",
         "c.type.struct",
         "c.type.typedef",
+        "c.type.unsigned",
         "c.type.void"
       ],
       "includes": [
@@ -45928,12 +45981,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 5938,
+      "lines": 5969,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "8583487cf2e299393859188ddf26266b7720d06677e493e6faf03aed7c454542"
+      "sha256": "e4bbd4040d830db08b791dd6eb49309d575fe78eaa3a7682189ed220eb420d50"
     },
     {
       "build_owners": [
