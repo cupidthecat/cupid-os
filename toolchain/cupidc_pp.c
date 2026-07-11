@@ -1580,6 +1580,13 @@ static ctool_status_t pp_collect_macro_arguments(
   ctool_u32 token_count = 0u;
   ctool_status_t status;
 
+  if (open == (pp_expand_node_t *)0 ||
+      pp_token_equal_literal(&open->token, "(") == CTOOL_FALSE) {
+    pp_fail(context, CTOOL_ERR_INTERNAL, CTOOL_C_PP_DIAG_MACRO_ARGUMENTS,
+            name->token.location.line, name->token.location.column,
+            "CupidC function macro opening delimiter is missing");
+    return CTOOL_ERR_INTERNAL;
+  }
   cursor = open->next;
   while (cursor != (pp_expand_node_t *)0) {
     if (pp_token_equal_literal(&cursor->token, "(") == CTOOL_TRUE) {
@@ -1919,13 +1926,20 @@ static ctool_status_t pp_append_argument_replacement(
     ctool_bool expanded, ctool_bool placemarker_if_empty,
     const pp_token_t *placeholder, const pp_token_t *invocation,
     const pp_hide_t *base_hide, pp_expand_list_t *replacement_out) {
-  pp_expand_node_t *node = expanded == CTOOL_TRUE
-                               ? argument->expanded.head
-                               : argument->raw;
-  ctool_u32 count = expanded == CTOOL_TRUE ? argument->expanded.count
-                                            : argument->raw_count;
+  pp_expand_node_t *node;
+  ctool_u32 count;
   ctool_u32 index;
   ctool_status_t status;
+  if (argument == (const pp_macro_argument_t *)0) {
+    pp_fail(context, CTOOL_ERR_INTERNAL,
+            CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+            invocation->location.line, invocation->location.column,
+            "CupidC macro argument replacement is missing");
+    return CTOOL_ERR_INTERNAL;
+  }
+  node = expanded == CTOOL_TRUE ? argument->expanded.head : argument->raw;
+  count = expanded == CTOOL_TRUE ? argument->expanded.count
+                                  : argument->raw_count;
   if (count == 0u && placemarker_if_empty == CTOOL_TRUE) {
     pp_token_t marker = pp_replacement_token(placeholder, invocation);
     return pp_expand_list_append_special(
@@ -2256,22 +2270,23 @@ static ctool_status_t pp_build_replacement(
             "CupidC function macro substitution plan is missing");
     return CTOOL_ERR_INTERNAL;
   }
-  if (macro->variadic == CTOOL_TRUE &&
+  if (macro->function_like == CTOOL_TRUE &&
+      (macro->parameter_count != 0u || macro->variadic == CTOOL_TRUE) &&
       arguments == (pp_macro_argument_t *)0) {
     pp_fail(context, CTOOL_ERR_INTERNAL,
             CTOOL_C_PP_DIAG_MACRO_EXPANSION,
             invocation->token.location.line, invocation->token.location.column,
-            "CupidC variadic macro arguments are missing");
+            "CupidC function macro arguments are missing");
     return CTOOL_ERR_INTERNAL;
   }
   while (index < macro->replacement_count) {
     pp_expand_node_t *old_tail = replacement_out->tail;
     ctool_u32 old_count = replacement_out->count;
     const pp_token_t *replacement = &macro->replacement[index];
-    ctool_u32 parameter = macro->replacement_parameters !=
-                                  (const ctool_u32 *)0
-                              ? macro->replacement_parameters[index]
-                              : PP_NOT_A_PARAMETER;
+    ctool_u32 parameter = PP_NOT_A_PARAMETER;
+    if (macro->function_like == CTOOL_TRUE) {
+      parameter = macro->replacement_parameters[index];
+    }
     if (context->request->gnu_extensions == CTOOL_TRUE &&
         macro->variadic == CTOOL_TRUE && arguments != (pp_macro_argument_t *)0 &&
         index + 2u < macro->replacement_count &&
@@ -2343,6 +2358,17 @@ static ctool_status_t pp_build_replacement(
                        CTOOL_TRUE)
               ? CTOOL_TRUE
               : CTOOL_FALSE;
+      ctool_u32 argument_count = macro->parameter_count +
+                                 (macro->variadic == CTOOL_TRUE ? 1u : 0u);
+      if (arguments == (pp_macro_argument_t *)0 ||
+          parameter >= argument_count) {
+        pp_fail(context, CTOOL_ERR_INTERNAL,
+                CTOOL_C_PP_DIAG_MACRO_EXPANSION,
+                invocation->token.location.line,
+                invocation->token.location.column,
+                "CupidC macro substitution parameter is invalid");
+        return CTOOL_ERR_INTERNAL;
+      }
       status = pp_append_argument_replacement(
           context, &arguments[parameter],
           pasted == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE, pasted,
@@ -3211,6 +3237,41 @@ static ctool_status_t pp_handle_pragma(pp_context_t *context,
           marker->location.line, marker->location.column,
           "CupidC pragma is not implemented yet");
   return CTOOL_ERR_UNSUPPORTED;
+}
+
+static ctool_status_t pp_handle_cupid_exe(
+    pp_context_t *context, const pp_token_t *marker,
+    const pp_token_t *name, const pp_token_t *tokens,
+    ctool_u32 begin, ctool_u32 directive_end,
+    ctool_u32 expansion_end) {
+  pp_token_t exe_token;
+  ctool_status_t status;
+  if (context->request->mode != CTOOL_C_PP_MODE_CUPID) {
+    pp_fail(context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PP_DIAG_CUPID_EXE,
+            marker->location.line, marker->location.column,
+            "CupidC #exe requires Cupid language mode");
+    return CTOOL_ERR_UNSUPPORTED;
+  }
+  if (begin == directive_end ||
+      pp_token_equal_literal(&tokens[begin], "{") == CTOOL_FALSE) {
+    pp_fail(context, CTOOL_ERR_INPUT, CTOOL_C_PP_DIAG_CUPID_EXE,
+            marker->location.line, marker->location.column,
+            "CupidC #exe requires a raw opening brace");
+    return CTOOL_ERR_INPUT;
+  }
+  exe_token = *name;
+  exe_token.kind = CTOOL_C_PP_TOKEN_CUPID_EXE;
+  exe_token.location = marker->location;
+  exe_token.pack_alignment = context->pack_alignment;
+  exe_token.leading_space = CTOOL_FALSE;
+  exe_token.at_line_start = CTOOL_FALSE;
+  exe_token.header_name = CTOOL_FALSE;
+  status = pp_output_append(context, &exe_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return pp_emit_expanded_range(context, tokens + begin,
+                                expansion_end - begin);
 }
 
 static ctool_status_t pp_include_spelling(
@@ -4561,6 +4622,21 @@ static ctool_status_t pp_process_tokens(pp_context_t *context,
         if (status != CTOOL_OK) {
           return status;
         }
+      } else if (pp_token_equal_literal(name, "exe") == CTOOL_TRUE) {
+        ctool_u32 exe_end = end;
+        /* Keep the raw opener on this logical directive line, but expand the
+         * ordinary suffix as one range so a macro call may cross newlines. */
+        while (exe_end < token_count &&
+               pp_token_is_directive_marker(&tokens[exe_end]) ==
+                   CTOOL_FALSE) {
+          exe_end++;
+        }
+        status = pp_handle_cupid_exe(context, marker, name, tokens,
+                                     arguments, end, exe_end);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        end = exe_end;
       } else if (pp_token_equal_literal(name, "error") == CTOOL_TRUE) {
         return pp_directive_error(context, marker,
                                   CTOOL_C_PP_DIAG_ERROR_DIRECTIVE,

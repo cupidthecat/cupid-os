@@ -55,6 +55,7 @@ typedef enum {
   CTOOL_C_PP_TOKEN_CHARACTER,
   CTOOL_C_PP_TOKEN_STRING,
   CTOOL_C_PP_TOKEN_PUNCTUATOR,
+  /* Spelling is `exe`; location is the introducing # or %: token. */
   CTOOL_C_PP_TOKEN_CUPID_EXE
 } ctool_c_pp_token_kind_t;
 
@@ -121,6 +122,12 @@ ctool_status_t ctool_c_preprocess(ctool_job_t *job,
  * accept member caps 0, 1, 2, 4, 8, and 16 and annotate emitted tokens with
  * the effective cap. Unmatched pushes at translation-unit end are accepted;
  * stack underflow, invalid syntax, and a missing named push are errors.
+ *
+ * In Cupid mode an active `#exe` or `%:exe` with a raw same-logical-line
+ * opening brace emits one CTOOL_C_PP_TOKEN_CUPID_EXE marker followed by the
+ * ordinary expanded brace/body tape. Block matching, JIT/AOT lowering,
+ * execution order, and runtime limits remain parser/runtime policy. C11 mode
+ * rejects an active marker explicitly; inactive groups have no effect.
  *
  * During the incremental bootstrap, named GNU `args...` macros and
  * unknown pragmas or directives return explicit CTOOL_ERR_UNSUPPORTED

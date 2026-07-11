@@ -14,6 +14,15 @@ static int string_equal(ctool_string_t actual, const char *expected) {
              : 0;
 }
 
+static int string_starts_with(ctool_string_t actual, const char *prefix) {
+  size_t prefix_size = strlen(prefix);
+  return actual.size >= (ctool_u32)prefix_size &&
+                 (prefix_size == 0u ||
+                  memcmp(actual.data, prefix, prefix_size) == 0)
+             ? 1
+             : 0;
+}
+
 static ctool_u32 text_line_of(const char *text, const char *needle) {
   const char *found = strstr(text, needle);
   ctool_u32 line = 1u;
@@ -1651,6 +1660,544 @@ static int run_pragma_scale(void) {
   }
   ctool_job_close(job);
   (void)printf("pragma-scale: ok\n");
+  return 0;
+}
+
+static int run_cupid_exe(void) {
+  static const char source_text[] =
+      "#define VALUE expanded\n"
+      "#define CALL(value) value\n"
+      "ordinary\n"
+      "#pragma pack(2)\n"
+      "#exe { VALUE __LINE__ CALL(\n"
+      "cross_line)\n"
+      "#if 1\n"
+      "nested\n"
+      "#endif\n"
+      "}\n"
+      "#if 0\n"
+      "#exe malformed\n"
+      "#endif\n"
+      "%:exe { same_line }\n"
+      "#pragma pack()\n"
+      "after\n";
+  static const char c11_skipped_text[] =
+      "#if 0\n"
+      "#exe malformed\n"
+      "#endif\n"
+      "c11_ok\n";
+  static const char selected_text[] =
+      "#if 1\n"
+      "#exe { selected }\n"
+      "#endif\n";
+  static const char unclosed_text[] =
+      "#exe {\n"
+      "parser_owns_close\n";
+  static const char spliced_text[] =
+      "#ex\\\n"
+      "e /* comment */ \\\n"
+      "{ spliced }\n";
+  static const char directive_name_text[] =
+      "#define exe changed\n"
+      "#exe {}\n"
+      "exe\n";
+  char owned_text[] = "#exe {}\n";
+  char owned_path[] = "/owned-exe.cc";
+  static const char *const expected_text[] = {
+      "ordinary", "exe", "{", "expanded", "5", "cross_line", "nested",
+      "}", "exe", "{", "same_line", "}", "after"};
+  static const ctool_c_pp_token_kind_t expected_kind[] = {
+      CTOOL_C_PP_TOKEN_IDENTIFIER,
+      CTOOL_C_PP_TOKEN_CUPID_EXE,
+      CTOOL_C_PP_TOKEN_PUNCTUATOR,
+      CTOOL_C_PP_TOKEN_IDENTIFIER,
+      CTOOL_C_PP_TOKEN_NUMBER,
+      CTOOL_C_PP_TOKEN_IDENTIFIER,
+      CTOOL_C_PP_TOKEN_IDENTIFIER,
+      CTOOL_C_PP_TOKEN_PUNCTUATOR,
+      CTOOL_C_PP_TOKEN_CUPID_EXE,
+      CTOOL_C_PP_TOKEN_PUNCTUATOR,
+      CTOOL_C_PP_TOKEN_IDENTIFIER,
+      CTOOL_C_PP_TOKEN_PUNCTUATOR,
+      CTOOL_C_PP_TOKEN_IDENTIFIER};
+  static const ctool_u32 expected_line[] = {
+      3u, 5u, 5u, 5u, 5u, 6u, 8u, 10u, 14u, 14u, 14u, 14u, 16u};
+  static const ctool_u32 expected_column[] = {
+      1u, 1u, 6u, 8u, 14u, 1u, 1u, 1u, 1u, 7u, 9u, 19u, 1u};
+  static const ctool_u32 expected_pack[] = {
+      0u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 2u, 0u};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  if (open_job("cupid-exe", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/cupid-exe.cc");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK ||
+      result.token_count !=
+          (ctool_u32)(sizeof(expected_text) / sizeof(expected_text[0]))) {
+    (void)fprintf(stderr, "cupid-exe: preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (!string_equal(result.tokens[index].spelling, expected_text[index]) ||
+        result.tokens[index].kind != expected_kind[index] ||
+        !string_equal(result.tokens[index].location.path, "/cupid-exe.cc") ||
+        result.tokens[index].location.line != expected_line[index] ||
+        result.tokens[index].location.column != expected_column[index] ||
+        result.tokens[index].pack_alignment != expected_pack[index]) {
+      (void)fprintf(stderr, "cupid-exe: token %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  source.path.text = ctool_string("/c11-skipped-exe.c");
+  source.contents = ctool_bytes(
+      c11_skipped_text, (ctool_u32)(sizeof(c11_skipped_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_C11;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 1u ||
+      !string_equal(result.tokens[0].spelling, "c11_ok") ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_IDENTIFIER ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "cupid-exe: inactive C11 directive differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/selected-exe.cc");
+  source.contents = ctool_bytes(
+      selected_text, (ctool_u32)(sizeof(selected_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 4u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      result.tokens[0].location.line != 2u ||
+      !string_equal(result.tokens[1].spelling, "{") ||
+      !string_equal(result.tokens[2].spelling, "selected") ||
+      !string_equal(result.tokens[3].spelling, "}") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "cupid-exe: selected conditional differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/unclosed-exe.cc");
+  source.contents = ctool_bytes(
+      unclosed_text, (ctool_u32)(sizeof(unclosed_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 3u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      !string_equal(result.tokens[1].spelling, "{") ||
+      !string_equal(result.tokens[2].spelling, "parser_owns_close") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "cupid-exe: parser ownership differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/spliced-exe.cc");
+  source.contents =
+      ctool_bytes(spliced_text, (ctool_u32)(sizeof(spliced_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 4u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      result.tokens[0].location.line != 1u ||
+      result.tokens[0].location.column != 1u ||
+      !string_equal(result.tokens[1].spelling, "{") ||
+      result.tokens[1].location.line != 3u ||
+      result.tokens[1].location.column != 1u ||
+      !string_equal(result.tokens[2].spelling, "spliced") ||
+      result.tokens[2].location.line != 3u ||
+      result.tokens[2].location.column != 3u ||
+      !string_equal(result.tokens[3].spelling, "}") ||
+      result.tokens[3].location.line != 3u ||
+      result.tokens[3].location.column != 11u) {
+    (void)fprintf(stderr, "cupid-exe: spliced directive differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/exe-name-macro.cc");
+  source.contents = ctool_bytes(
+      directive_name_text,
+      (ctool_u32)(sizeof(directive_name_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 4u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      !string_equal(result.tokens[0].spelling, "exe") ||
+      !string_equal(result.tokens[1].spelling, "{") ||
+      !string_equal(result.tokens[2].spelling, "}") ||
+      !string_equal(result.tokens[3].spelling, "changed")) {
+    (void)fprintf(stderr, "cupid-exe: directive name expansion differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string(owned_path);
+  source.contents =
+      ctool_bytes(owned_text, (ctool_u32)(sizeof(owned_text) - 1u));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  owned_text[1] = 'X';
+  owned_path[1] = 'X';
+  if (status != CTOOL_OK || result.token_count != 3u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      !string_equal(result.tokens[0].spelling, "exe") ||
+      !string_equal(result.tokens[0].location.path, "/owned-exe.cc") ||
+      result.tokens[0].location.line != 1u ||
+      result.tokens[0].location.column != 1u) {
+    (void)fprintf(stderr, "cupid-exe: marker ownership differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("cupid-exe: ok\n");
+  return 0;
+}
+
+static int run_cupid_exe_active(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 marker_count = 0u;
+  ctool_u32 marker_index = 0u;
+  ctool_u32 index;
+
+  if (open_job_at_root("cupid-exe-active", host_root, &adapter, &job) != 0) {
+    return 1;
+  }
+  path.text = ctool_string("/bin/feature6_exe.cc");
+  status = ctool_job_load_source(job, &path, &source);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "cupid-exe-active: source load failed (%s)\n",
+                  ctool_status_name(status));
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "cupid-exe-active: preprocessing failed (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < result.token_count; index++) {
+    if (result.tokens[index].kind == CTOOL_C_PP_TOKEN_CUPID_EXE) {
+      marker_count++;
+      marker_index = index;
+    }
+    if (string_starts_with(result.tokens[index].spelling, "__cc_exe_")) {
+      (void)fprintf(stderr, "cupid-exe-active: policy lowering leaked\n");
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (marker_count != 1u || marker_index + 2u >= result.token_count ||
+      !string_equal(result.tokens[marker_index].spelling, "exe") ||
+      !string_equal(result.tokens[marker_index].location.path,
+                    "/bin/feature6_exe.cc") ||
+      result.tokens[marker_index].location.line != 7u ||
+      result.tokens[marker_index].location.column != 1u ||
+      result.tokens[marker_index].pack_alignment != 0u ||
+      !string_equal(result.tokens[marker_index + 1u].spelling, "{") ||
+      result.tokens[marker_index + 1u].location.line != 7u ||
+      result.tokens[marker_index + 1u].location.column != 6u ||
+      !string_equal(result.tokens[marker_index + 2u].spelling, "g_value") ||
+      result.tokens[marker_index + 2u].location.line != 8u) {
+    (void)fprintf(stderr, "cupid-exe-active: marker contract differs\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("cupid-exe-active: ok\n");
+  return 0;
+}
+
+static int run_cupid_exe_files(void) {
+  static const char forced_text[] =
+      "#pragma pack(4)\n"
+      "#exe { forced_body }\n"
+      "#pragma pack()\n";
+  static const char guardless_text[] =
+      "#exe { guardless_body }\n";
+  static const char once_text[] =
+      "#pragma once\n"
+      "#exe { once_body }\n";
+  static const char source_text[] =
+      "#pragma pack(2)\n"
+      "#include \"guardless-exe.h\"\n"
+      "#pragma pack(1)\n"
+      "#include \"./guardless-exe.h\"\n"
+      "#pragma pack()\n"
+      "#include \"once-exe.h\"\n"
+      "#include \"once-exe.h\"\n"
+      "#exe { primary_body }\n";
+  static const char *const expected_path[] = {
+      "/forced-exe.h", "/inc/guardless-exe.h", "/inc/guardless-exe.h",
+      "/inc/once-exe.h", "/primary-exe.cc"};
+  static const char *const expected_body[] = {
+      "forced_body", "guardless_body", "guardless_body", "once_body",
+      "primary_body"};
+  static const ctool_u32 expected_pack[] = {4u, 2u, 1u, 0u, 0u};
+  fixture_file_t files[3];
+  fixture_store_t store;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_path_t forced;
+  ctool_c_pp_include_root_t roots[2];
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  files[0].path = ctool_string("/forced-exe.h");
+  files[0].contents =
+      ctool_bytes(forced_text, (ctool_u32)(sizeof(forced_text) - 1u));
+  files[1].path = ctool_string("/inc/guardless-exe.h");
+  files[1].contents = ctool_bytes(
+      guardless_text, (ctool_u32)(sizeof(guardless_text) - 1u));
+  files[2].path = ctool_string("/inc/once-exe.h");
+  files[2].contents =
+      ctool_bytes(once_text, (ctool_u32)(sizeof(once_text) - 1u));
+  store.files = files;
+  store.file_count = 3u;
+  store.read_count = 0u;
+  if (open_fixture_job("cupid-exe-files", &store, &adapter, &job) != 0) {
+    return 1;
+  }
+  roots[0].directory.text = ctool_string("/inc");
+  roots[0].forms = CTOOL_C_PP_INCLUDE_QUOTED;
+  roots[1].directory.text = ctool_string("/");
+  roots[1].forms = CTOOL_C_PP_INCLUDE_QUOTED;
+  forced.text = ctool_string("/forced-exe.h");
+  source.path.text = ctool_string("/primary-exe.cc");
+  source.contents =
+      ctool_bytes(source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  request.include_roots = roots;
+  request.include_root_count = 2u;
+  request.forced_includes = &forced;
+  request.forced_include_count = 1u;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || store.read_count != 3u ||
+      result.token_count != 20u) {
+    (void)fprintf(stderr,
+                  "cupid-exe-files: preprocessing failed (%s, %u tokens, "
+                  "%u reads)\n",
+                  ctool_status_name(status), result.token_count,
+                  store.read_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < 5u; index++) {
+    ctool_u32 offset = index * 4u;
+    if (result.tokens[offset].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+        !string_equal(result.tokens[offset].spelling, "exe") ||
+        !string_equal(result.tokens[offset].location.path,
+                      expected_path[index]) ||
+        result.tokens[offset].pack_alignment != expected_pack[index] ||
+        !string_equal(result.tokens[offset + 1u].spelling, "{") ||
+        !string_equal(result.tokens[offset + 2u].spelling,
+                      expected_body[index]) ||
+        !string_equal(result.tokens[offset + 2u].location.path,
+                      expected_path[index]) ||
+        result.tokens[offset + 2u].pack_alignment != expected_pack[index] ||
+        !string_equal(result.tokens[offset + 3u].spelling, "}")) {
+      (void)fprintf(stderr, "cupid-exe-files: group %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  ctool_job_close(job);
+  (void)printf("cupid-exe-files: ok\n");
+  return 0;
+}
+
+static int run_cupid_exe_errors(void) {
+  static const char *const error_text[] = {
+      "#exe\n",
+      "#exe value\n",
+      "#define OPEN {\n#exe OPEN\n",
+      "#exe()\n",
+      "#exe\n{}\n",
+      "#exe \"file.cc\"\n",
+      "#exe {\n}\n"};
+  static const ctool_c_pp_mode_t error_mode[] = {
+      CTOOL_C_PP_MODE_CUPID, CTOOL_C_PP_MODE_CUPID,
+      CTOOL_C_PP_MODE_CUPID, CTOOL_C_PP_MODE_CUPID,
+      CTOOL_C_PP_MODE_CUPID,
+      CTOOL_C_PP_MODE_CUPID,
+      CTOOL_C_PP_MODE_C11};
+  static const ctool_status_t error_status[] = {
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_INPUT, CTOOL_ERR_INPUT, CTOOL_ERR_INPUT,
+      CTOOL_ERR_UNSUPPORTED};
+  static const ctool_u32 error_line[] = {1u, 1u, 2u, 1u, 1u, 1u, 1u};
+  static const char post_marker_error_text[] =
+      "#define BAD(a, b) a ## b\n"
+      "#exe { BAD(+, *) }\n";
+  static const char recovery_text[] = "#exe { recovered }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(error_text) / sizeof(error_text[0]));
+  ctool_u32 index;
+
+  if (open_job("cupid-exe-errors", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/cupid-exe-errors.cc");
+  (void)memset(&request, 0, sizeof(request));
+  for (index = 0u; index < case_count; index++) {
+    source.contents =
+        ctool_bytes(error_text[index], (ctool_u32)strlen(error_text[index]));
+    request.mode = error_mode[index];
+    (void)memset(&result, 0xa5, sizeof(result));
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_c_preprocess(job, &source, &request, &result);
+    diagnostic = ctool_job_diagnostic(job, index);
+    if (status != error_status[index] || result.tokens != NULL ||
+        result.token_count != 0u || diagnostic == NULL ||
+        diagnostic->code != CTOOL_C_PP_DIAG_CUPID_EXE ||
+        !string_equal(diagnostic->path, "/cupid-exe-errors.cc") ||
+        diagnostic->line != error_line[index] || diagnostic->column != 1u ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "cupid-exe-errors: case %u differs (%s)\n",
+                    index, ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  source.contents = ctool_bytes(
+      post_marker_error_text,
+      (ctool_u32)(sizeof(post_marker_error_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  (void)memset(&result, 0xa5, sizeof(result));
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  diagnostic = ctool_job_diagnostic(job, case_count);
+  if (status != CTOOL_ERR_INPUT || result.tokens != NULL ||
+      result.token_count != 0u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_MACRO_PASTE ||
+      !string_equal(diagnostic->path, "/cupid-exe-errors.cc") ||
+      diagnostic->line != 2u || diagnostic->column != 8u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr,
+                  "cupid-exe-errors: post-marker rollback differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.contents =
+      ctool_bytes(recovery_text, (ctool_u32)(sizeof(recovery_text) - 1u));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != 4u ||
+      result.tokens[0].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+      !string_equal(result.tokens[0].spelling, "exe") ||
+      !string_equal(result.tokens[1].spelling, "{") ||
+      !string_equal(result.tokens[2].spelling, "recovered") ||
+      !string_equal(result.tokens[3].spelling, "}") ||
+      ctool_job_diagnostic_count(job) != case_count + 1u) {
+    (void)fprintf(stderr, "cupid-exe-errors: recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  (void)printf("cupid-exe-errors: ok\n");
+  return 0;
+}
+
+static int run_cupid_exe_scale(void) {
+  enum { EXE_COUNT = 256, SOURCE_CAPACITY = 4096 };
+  static char source_text[SOURCE_CAPACITY];
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_c_pp_request_t request;
+  ctool_c_pp_result_t result;
+  ctool_status_t status;
+  ctool_u32 source_size = 0u;
+  ctool_u32 index;
+
+  for (index = 0u; index < EXE_COUNT; index++) {
+    if (append_text(source_text, SOURCE_CAPACITY, &source_size,
+                    "#exe {}\n") != 0) {
+      return 1;
+    }
+  }
+  if (open_job("cupid-exe-scale", &adapter, &job) != 0) {
+    return 1;
+  }
+  source.path.text = ctool_string("/cupid-exe-scale.cc");
+  source.contents = ctool_bytes(source_text, source_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.mode = CTOOL_C_PP_MODE_CUPID;
+  status = ctool_c_preprocess(job, &source, &request, &result);
+  if (status != CTOOL_OK || result.token_count != EXE_COUNT * 3u) {
+    (void)fprintf(stderr,
+                  "cupid-exe-scale: preprocessing failed (%s, %u tokens)\n",
+                  ctool_status_name(status), result.token_count);
+    (void)ctool_job_render_diagnostics(job);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u; index < EXE_COUNT; index++) {
+    ctool_u32 offset = index * 3u;
+    if (result.tokens[offset].kind != CTOOL_C_PP_TOKEN_CUPID_EXE ||
+        !string_equal(result.tokens[offset].spelling, "exe") ||
+        result.tokens[offset].location.line != index + 1u ||
+        result.tokens[offset].location.column != 1u ||
+        !string_equal(result.tokens[offset + 1u].spelling, "{") ||
+        !string_equal(result.tokens[offset + 2u].spelling, "}")) {
+      (void)fprintf(stderr, "cupid-exe-scale: marker %u differs\n", index);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  ctool_job_close(job);
+  (void)printf("cupid-exe-scale: ok\n");
   return 0;
 }
 
@@ -3686,12 +4233,16 @@ static int run_limits(void) {
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 3 ||
-      (argc == 3 && strcmp(argv[1], "macro-active-cases") != 0)) {
+      (argc == 3 && strcmp(argv[1], "macro-active-cases") != 0 &&
+       strcmp(argv[1], "cupid-exe-active") != 0)) {
     (void)fprintf(
         stderr,
         "usage: cupidc-pp-contract phases|tokens|errors|unsupported|"
         "conditional-expressions|predefined|predefined-files|predefined-errors|"
         "pragmas|pragma-files|pragma-errors|pragma-scale|"
+        "cupid-exe|cupid-exe-active <repo-root>|cupid-exe-files|"
+        "cupid-exe-errors|"
+        "cupid-exe-scale|"
         "conditional-errors|"
         "conditional-active|conditional-scale|"
         "function-macros|function-scale|macro-operators|macro-gnu|"
@@ -3736,6 +4287,25 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "pragma-scale") == 0) {
     return run_pragma_scale();
+  }
+  if (strcmp(argv[1], "cupid-exe") == 0) {
+    return run_cupid_exe();
+  }
+  if (strcmp(argv[1], "cupid-exe-active") == 0) {
+    if (argc != 3) {
+      (void)fprintf(stderr, "cupid-exe-active requires the repository root\n");
+      return 2;
+    }
+    return run_cupid_exe_active(argv[2]);
+  }
+  if (strcmp(argv[1], "cupid-exe-files") == 0) {
+    return run_cupid_exe_files();
+  }
+  if (strcmp(argv[1], "cupid-exe-errors") == 0) {
+    return run_cupid_exe_errors();
+  }
+  if (strcmp(argv[1], "cupid-exe-scale") == 0) {
+    return run_cupid_exe_scale();
   }
   if (strcmp(argv[1], "conditional-errors") == 0) {
     return run_conditional_expression_errors();

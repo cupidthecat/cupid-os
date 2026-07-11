@@ -964,6 +964,279 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 features["c.preprocessor.pragma.once"]["occurrences"], 1
             )
 
+    def test_inventory_contracts_unconditional_cupid_exe_block_forms(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                OBJCOPY = host-objcopy
+
+                .PHONY: all
+                all: ordinary.o digraph.o header_user.o
+
+                ordinary.o: ordinary.cc
+                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+
+                digraph.o: digraph.cc
+                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+
+                header_user.o: header_user.cc exe_header.h
+                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                """,
+            )
+            _write(
+                root / "ordinary.cc",
+                """
+                I32 ordinary_value;
+                #exe {
+                    ordinary_value = 1;
+                }
+                """,
+            )
+            _write(
+                root / "digraph.cc",
+                """
+                I32 digraph_value;
+                %:exe { digraph_value = 2; }
+                """,
+            )
+            _write(
+                root / "header_user.cc",
+                '#include "exe_header.h"\nI32 header_value;\n',
+            )
+            _write(
+                root / "exe_header.h",
+                "#exe { header_value = 3; }\n",
+            )
+
+            output = root / "audit.json"
+            summary = root / "AUDIT.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--summary",
+                    str(summary),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            contract = json.loads(output.read_text(encoding="utf-8"))["contracts"][
+                "c_preprocessor_cupid_exe"
+            ]
+            self.assertEqual(
+                contract,
+                {
+                    "status": "pass",
+                    "exe_occurrences": 3,
+                    "block_occurrences": 3,
+                    "ordinary_marker_occurrences": 2,
+                    "digraph_marker_occurrences": 1,
+                    "max_conditional_depth": 0,
+                    "forms": [
+                        {
+                            "form": "block",
+                            "marker": "#",
+                            "conditional_depth": 0,
+                            "occurrences": 2,
+                            "files": ["exe_header.h", "ordinary.cc"],
+                            "evidence": [
+                                {
+                                    "path": "exe_header.h",
+                                    "line": 1,
+                                    "text": "#exe { header_value = 3; }",
+                                },
+                                {
+                                    "path": "ordinary.cc",
+                                    "line": 2,
+                                    "text": "#exe {",
+                                }
+                            ],
+                        },
+                        {
+                            "form": "block",
+                            "marker": "%:",
+                            "conditional_depth": 0,
+                            "occurrences": 1,
+                            "files": ["digraph.cc"],
+                            "evidence": [
+                                {
+                                    "path": "digraph.cc",
+                                    "line": 2,
+                                    "text": "%:exe { digraph_value = 2; }",
+                                }
+                            ],
+                        },
+                    ],
+                },
+            )
+            self.assertIn(
+                "3 Cupid #exe blocks (2 #, 1 %:); max conditional depth 0",
+                summary.read_text(encoding="utf-8"),
+            )
+
+    def test_cupid_exe_inventory_fails_closed_on_conditional_form(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                OBJCOPY = host-objcopy
+                .PHONY: all
+                all: app.o
+                app.o: app.cc
+                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                """,
+            )
+            _write(
+                root / "app.cc",
+                """
+                #if ENABLED
+                #exe {
+                }
+                #endif
+                """,
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(root / "audit.json"),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("app.cc:2", result.stderr)
+            self.assertIn(
+                "unclassified active Cupid #exe form: conditional depth 1",
+                result.stderr,
+            )
+
+    def test_cupid_exe_inventory_fails_closed_on_non_block_forms(self):
+        cases = {
+            "empty": "#exe\n",
+            "string": '#exe "script.cc"\n',
+            "angle-file": "#exe <script.cc>\n",
+            "identifier": "#exe body\n",
+            "parenthesized": "#exe()\n",
+            "case-variant": "#EXE {\n}\n",
+            "brace-digraph": "#exe <%\n%>\n",
+            "invalid-token": "#exe @\n",
+        }
+        for name, source in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(
+                    root / "Makefile",
+                    """
+                    .SUFFIXES:
+                    OBJCOPY = host-objcopy
+                    .PHONY: all
+                    all: app.o
+                    app.o: app.cc
+                    \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                    """,
+                )
+                _write(root / "app.cc", source)
+
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(root / "audit.json"),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("app.cc:1", result.stderr)
+                self.assertIn(
+                    "unclassified active Cupid #exe form", result.stderr
+                )
+
+    def test_checked_cupid_exe_manifest_matches_active_source_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--supplemental-build",
+                    "user:all",
+                    "--supplemental-build",
+                    "toolchain:all",
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = json.loads(output.read_text(encoding="utf-8"))
+            checked = json.loads(
+                ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+            )
+            contract = generated["contracts"]["c_preprocessor_cupid_exe"]
+            self.assertEqual(
+                checked["contracts"]["c_preprocessor_cupid_exe"], contract
+            )
+            self.assertEqual(
+                contract,
+                {
+                    "status": "pass",
+                    "exe_occurrences": 1,
+                    "block_occurrences": 1,
+                    "ordinary_marker_occurrences": 1,
+                    "digraph_marker_occurrences": 0,
+                    "max_conditional_depth": 0,
+                    "forms": [
+                        {
+                            "form": "block",
+                            "marker": "#",
+                            "conditional_depth": 0,
+                            "occurrences": 1,
+                            "files": ["bin/feature6_exe.cc"],
+                            "evidence": [
+                                {
+                                    "path": "bin/feature6_exe.cc",
+                                    "line": 7,
+                                    "text": "#exe {",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+            self.assertTrue(
+                all(
+                    not item["path"].casefold().startswith("templeos/")
+                    for form in contract["forms"]
+                    for item in form["evidence"]
+                )
+            )
+
     def test_conditional_inventory_fails_closed_on_unknown_tokens(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

@@ -2365,6 +2365,123 @@ def _c_preprocessor_pragmas_contract(
     }
 
 
+def _c_preprocessor_cupid_exe_contract(
+    root: Path,
+    active_sources: set[str],
+    generated_sources: set[str],
+) -> dict[str, object]:
+    by_form: dict[
+        tuple[str, str, int], list[dict[str, object]]
+    ] = collections.defaultdict(list)
+    ordinary_marker_occurrences = 0
+    digraph_marker_occurrences = 0
+    max_conditional_depth = 0
+    for path in sorted(active_sources - generated_sources):
+        if _language(path) not in {"cupid_c", "c_header"}:
+            continue
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        logical_lines = _c_raw_logical_lines(text)
+        if not logical_lines:
+            continue
+        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        directive_lines = _mask_c_noncode(logical_text).split("\n")
+        payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
+            "\n"
+        )
+        if (
+            len(directive_lines) != len(logical_lines)
+            or len(payload_lines) != len(logical_lines)
+        ):
+            raise AuditError("C masking changed the logical line count")
+        conditional_depth = 0
+        for (
+            (line_number, _original_line, raw_line),
+            directive_line,
+            payload_line,
+        ) in zip(
+            logical_lines,
+            directive_lines,
+            payload_lines,
+            strict=True,
+        ):
+            match = re.match(
+                r"\s*(#|%:)\s*([A-Za-z_]\w*)\b", directive_line
+            )
+            if match is None:
+                continue
+            marker, directive = match.groups()
+            if directive in {"if", "ifdef", "ifndef"}:
+                conditional_depth += 1
+                continue
+            if directive == "endif":
+                conditional_depth = max(0, conditional_depth - 1)
+                continue
+            if directive.casefold() != "exe":
+                continue
+            payload = payload_line[match.end() :]
+            try:
+                tokens = (
+                    _normalize_c_preprocessing_tokens(
+                        payload, path, line_number
+                    )
+                    if payload.strip()
+                    else ()
+                )
+            except AuditError:
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active Cupid #exe "
+                    f"form: {payload.strip()[:80]}"
+                ) from None
+            if directive != "exe" or not tokens or tokens[0] != "{":
+                rendered = " ".join(tokens) if tokens else "<empty>"
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active Cupid #exe "
+                    f"form: {directive} {rendered}"
+                )
+            if conditional_depth != 0:
+                raise AuditError(
+                    f"{path}:{line_number}: unclassified active Cupid #exe "
+                    f"form: conditional depth {conditional_depth}"
+                )
+            max_conditional_depth = max(
+                max_conditional_depth, conditional_depth
+            )
+            by_form[("block", marker, conditional_depth)].append(
+                {
+                    "path": path,
+                    "line": line_number,
+                    "text": raw_line.strip()[:160],
+                }
+            )
+            if marker == "#":
+                ordinary_marker_occurrences += 1
+            else:
+                digraph_marker_occurrences += 1
+
+    forms: list[dict[str, object]] = []
+    for (form, marker, conditional_depth), evidence in sorted(by_form.items()):
+        forms.append(
+            {
+                "form": form,
+                "marker": marker,
+                "conditional_depth": conditional_depth,
+                "occurrences": len(evidence),
+                "files": sorted({str(item["path"]) for item in evidence}),
+                "evidence": evidence,
+            }
+        )
+    exe_occurrences = ordinary_marker_occurrences + digraph_marker_occurrences
+    return {
+        "status": "pass",
+        "exe_occurrences": exe_occurrences,
+        "block_occurrences": exe_occurrences,
+        "ordinary_marker_occurrences": ordinary_marker_occurrences,
+        "digraph_marker_occurrences": digraph_marker_occurrences,
+        "max_conditional_depth": max_conditional_depth,
+        "forms": forms,
+    }
+
+
 def _scan_build_features(
     transforms: list[dict[str, object]],
     collector: FeatureCollector,
@@ -2526,6 +2643,13 @@ def build_audit(
         root,
         all_sources,
         generated_sources,
+    )
+    contracts["c_preprocessor_cupid_exe"] = (
+        _c_preprocessor_cupid_exe_contract(
+            root,
+            all_sources,
+            generated_sources,
+        )
     )
     feature_inventory = feature_collector.inventory()
     roadmap = _roadmap(sources, feature_inventory)
@@ -2826,6 +2950,14 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"{contract['unique_expressions']} normalized expressions; "
                     f"{contract['directive_expression_pairs']} "
                     "directive/expression pairs"
+                )
+            elif "exe_occurrences" in contract:
+                detail = (
+                    f"{contract['block_occurrences']} Cupid #exe blocks "
+                    f"({contract['ordinary_marker_occurrences']} #, "
+                    f"{contract['digraph_marker_occurrences']} %:); "
+                    "max conditional depth "
+                    f"{contract['max_conditional_depth']}"
                 )
             elif "pragma_occurrences" in contract:
                 detail = (

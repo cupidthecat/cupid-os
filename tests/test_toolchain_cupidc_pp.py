@@ -90,6 +90,21 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_pack_stack_depth_and_reuse_are_bounded(self):
         self.run_contract("pragma-scale")
 
+    def test_cupid_exe_is_a_typed_policy_neutral_marker(self):
+        self.run_contract("cupid-exe")
+
+    def test_active_cupid_exe_source_emits_the_typed_marker(self):
+        self.run_contract("cupid-exe-active", REPO_ROOT)
+
+    def test_cupid_exe_preserves_forced_and_include_provenance(self):
+        self.run_contract("cupid-exe-files")
+
+    def test_cupid_exe_failures_are_precise_and_transactional(self):
+        self.run_contract("cupid-exe-errors")
+
+    def test_cupid_exe_markers_do_not_inherit_the_kernel_runtime_limit(self):
+        self.run_contract("cupid-exe-scale")
+
     def test_conditional_expression_failures_are_precise_and_transactional(self):
         self.run_contract("conditional-errors")
 
