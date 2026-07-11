@@ -150,6 +150,9 @@ class ToolchainCupidCPreprocessorContractTests(unittest.TestCase):
     def test_macro_include_expansion_scratch_is_reused_at_scale(self):
         self.run_contract("include-macro-scale")
 
+    def test_every_tracked_active_root_preprocesses_with_its_build_profile(self):
+        self.run_contract("active-corpus", REPO_ROOT)
+
     def test_directive_failures_are_useful_and_transactional(self):
         self.run_contract("directive-errors")
 

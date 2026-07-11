@@ -8,6 +8,7 @@ import hashlib
 import json
 import posixpath
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -97,6 +98,108 @@ class CIncludeDirective:
     kind: str
     spelling: str | None
     conditional_stack: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CPreprocessorActiveCasesManifest:
+    """Checked X-macro inputs for active CupidC preprocessing jobs."""
+
+    profiles: tuple[tuple[str, str, str], ...]
+    include_roots: tuple[tuple[str, str, str], ...]
+    macros: tuple[tuple[str, str, str], ...]
+    forced_includes: tuple[tuple[str, str], ...]
+    active_cases: tuple[tuple[str, str], ...]
+    generated_cases: tuple[tuple[str, str], ...]
+    include_only: tuple[tuple[str, str], ...]
+    non_roots: tuple[tuple[str, str], ...]
+    deferred_hosted: tuple[tuple[str, str], ...]
+
+
+_C_PP_INCLUDE_BOTH = (
+    "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
+)
+_C_PP_PROFILE_ROWS = (
+    ("KERNEL_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+    ("DOOM_COMPAT_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+    ("DOOM_TREE_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+    ("USER_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+    ("CUPID_RUNTIME", "CTOOL_C_PP_MODE_CUPID", "CTOOL_FALSE"),
+)
+_C_PP_KERNEL_INCLUDE_ROOTS = (
+    "/kernel",
+    "/kernel/audio",
+    "/kernel/core",
+    "/kernel/cpu",
+    "/kernel/crypto",
+    "/kernel/doom",
+    "/kernel/fs",
+    "/kernel/gfx",
+    "/kernel/gui",
+    "/kernel/lang",
+    "/kernel/mm",
+    "/kernel/network",
+    "/kernel/smp",
+    "/kernel/tls",
+    "/kernel/usb",
+    "/kernel/util",
+    "/drivers",
+    "/toolchain",
+)
+_C_PP_DOOM_EXTRA_INCLUDE_ROOTS = (
+    "/kernel/doom/src",
+    "/kernel/doom/src/include_stubs",
+)
+_C_PP_COMMON_I386_MACROS = (
+    ("__GNUC__", "1"),
+    ("__SIZEOF_POINTER__", "4"),
+    ("__ORDER_LITTLE_ENDIAN__", "1234"),
+    ("__ORDER_BIG_ENDIAN__", "4321"),
+    ("__ORDER_PDP_ENDIAN__", "3412"),
+    ("__BYTE_ORDER__", "__ORDER_LITTLE_ENDIAN__"),
+)
+_C_PP_ACTIVE_COUNTS = {
+    "KERNEL_I386": 152,
+    "DOOM_COMPAT_I386": 6,
+    "DOOM_TREE_I386": 80,
+    "USER_I386": 3,
+    "CUPID_RUNTIME": 104,
+}
+_C_PP_GENERATED_KERNEL_CASES = (
+    "/kernel/cpu/ksyms_data.c",
+    "/kernel/util/bin_programs_gen.c",
+    "/kernel/util/demos_programs_gen.c",
+    "/kernel/util/docs_programs_gen.c",
+)
+_C_PP_NON_ROOT_HEADERS = (
+    "/bin/fat16.h",
+    "/bin/shell.h",
+)
+_C_PP_DEFERRED_HOSTED_CASES = (
+    "/kernel/lang/as_elf.c",
+    "/toolchain/ctool.c",
+    "/toolchain/ctool_host.c",
+    "/toolchain/cupidasm.c",
+    "/toolchain/cupidasm_main.c",
+    "/toolchain/cupidc_pp.c",
+    "/toolchain/cupiddis.c",
+    "/toolchain/cupiddis_main.c",
+    "/toolchain/cupidld.c",
+    "/toolchain/cupidld_main.c",
+    "/toolchain/cupidobj.c",
+    "/toolchain/cupidobj_main.c",
+    "/toolchain/elf32.c",
+    "/toolchain/tests/core_contract.c",
+    "/toolchain/tests/cupidasm_contract.c",
+    "/toolchain/tests/cupidasm_demos_contract.c",
+    "/toolchain/tests/cupidasm_kernel_elf_contract.c",
+    "/toolchain/tests/cupidc_pp_contract.c",
+    "/toolchain/tests/cupiddis_contract.c",
+    "/toolchain/tests/cupidld_contract.c",
+    "/toolchain/tests/cupidobj_contract.c",
+    "/toolchain/tests/elf32_contract.c",
+    "/toolchain/tests/x86_contract.c",
+    "/toolchain/x86.c",
+)
 
 
 @dataclass
@@ -530,17 +633,155 @@ def _make_include_configuration(root: Path) -> tuple[list[str], list[str]]:
     logical_text = re.sub(r"\\\r?\n", " ", text)
     include_paths: list[str] = []
     forced_includes: list[str] = []
-    for match in re.finditer(r"(?:^|\s)-I\s*([^\s]+)", logical_text):
+    for match in re.finditer(r"(?:^|[\s=])-I\s*([^\s]+)", logical_text):
         value = match.group(1).strip('"\'').replace("\\", "/")
         value = re.sub(r"^\./", "", value)
         if "$" not in value and value not in include_paths:
             include_paths.append(value)
-    for match in re.finditer(r"(?:^|\s)-include\s+([^\s]+)", logical_text):
+    for match in re.finditer(
+        r"(?:^|[\s=])-include\s+([^\s]+)", logical_text
+    ):
         value = match.group(1).strip('"\'').replace("\\", "/")
         value = re.sub(r"^\./", "", value)
         if "$" not in value and value not in forced_includes:
             forced_includes.append(value)
     return include_paths, forced_includes
+
+
+def _read_evaluated_make_variables(
+    root: Path, make: str, variables: tuple[str, ...]
+) -> dict[str, str]:
+    target = "__cupid_audit_profile_values__"
+    value_names = [f"__CUPID_AUDIT_VALUE_{index}" for index in range(len(variables))]
+    origin_names = [
+        f"__CUPID_AUDIT_ORIGIN_{index}" for index in range(len(variables))
+    ]
+    overlay_lines = []
+    for index, variable in enumerate(variables):
+        overlay_lines.append(f"{value_names[index]} := $({variable})")
+        overlay_lines.append(f"{origin_names[index]} := $(origin {variable})")
+    overlay_lines.extend((f".PHONY: {target}", f"{target}:", ""))
+    result = subprocess.run(
+        [
+            make,
+            "MAKE=:",
+            "--no-print-directory",
+            "-prRn",
+            "-f",
+            "Makefile",
+            "-f",
+            "-",
+            target,
+        ],
+        cwd=root,
+        input="\n".join(overlay_lines),
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise AuditError(
+            f"GNU Make could not evaluate CupidC profile variables in "
+            f"{root}: {detail}"
+        )
+    wanted = set(value_names) | set(origin_names)
+    evaluated: dict[str, str] = {}
+    assignment_pattern = re.compile(
+        r"^(__CUPID_AUDIT_(?:VALUE|ORIGIN)_[0-9]+)\s*:=\s?(.*)$"
+    )
+    for line in result.stdout.splitlines():
+        match = assignment_pattern.match(line)
+        if match is not None and match.group(1) in wanted:
+            evaluated[match.group(1)] = match.group(2)
+    missing = sorted(wanted - set(evaluated))
+    if missing:
+        raise AuditError(
+            f"GNU Make omitted CupidC profile sentinel(s): {missing!r}"
+        )
+    values: dict[str, str] = {}
+    for index, variable in enumerate(variables):
+        if evaluated[origin_names[index]] == "undefined":
+            raise AuditError(
+                f"missing Make variable in CupidC preprocessing profile: "
+                f"{variable}"
+            )
+        values[variable] = evaluated[value_names[index]]
+    return values
+
+
+def _make_preprocessor_flags(
+    expanded: str, variable: str
+) -> tuple[list[str], list[str], dict[str, str], set[str]]:
+    if "$(" in expanded or "${" in expanded:
+        raise AuditError(
+            f"unmodeled Make reference/function remains in CupidC profile "
+            f"{variable}: {expanded!r}"
+        )
+    try:
+        tokens = shlex.split(expanded, posix=True)
+    except ValueError as exc:
+        raise AuditError(
+            f"could not tokenize Make variable {variable}: {exc}"
+        ) from exc
+    include_paths: list[str] = []
+    forced_includes: list[str] = []
+    defines: dict[str, str] = {}
+    flags: set[str] = set()
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        flags.add(token)
+        if token == "-I":
+            index += 1
+            if index >= len(tokens):
+                raise AuditError(f"missing -I operand in Make variable {variable}")
+            include_paths.append(tokens[index])
+        elif token.startswith("-I") and len(token) > 2:
+            include_paths.append(token[2:])
+        elif token == "-include":
+            index += 1
+            if index >= len(tokens):
+                raise AuditError(
+                    f"missing -include operand in Make variable {variable}"
+                )
+            forced_includes.append(tokens[index])
+        elif token == "-D":
+            index += 1
+            if index >= len(tokens):
+                raise AuditError(f"missing -D operand in Make variable {variable}")
+            definition = tokens[index]
+            macro_name, separator, replacement = definition.partition("=")
+            defines[macro_name] = replacement if separator else "1"
+        elif token.startswith("-D") and len(token) > 2:
+            macro_name, separator, replacement = token[2:].partition("=")
+            defines[macro_name] = replacement if separator else "1"
+        index += 1
+    return include_paths, forced_includes, defines, flags
+
+
+def _make_flag_logical_path(directory: str, path: str) -> str:
+    normalized = path.replace("\\", "/")
+    if "$" in normalized or re.match(r"^[A-Za-z]:/", normalized):
+        raise AuditError(
+            f"non-logical Make path in CupidC preprocessing profile: {path!r}"
+        )
+    if normalized.startswith("/"):
+        relative = normalized[1:]
+    else:
+        relative = posixpath.normpath(
+            normalized
+            if directory == "."
+            else posixpath.join(directory, normalized)
+        )
+    if relative in {"", ".", ".."} or relative.startswith("../"):
+        raise AuditError(
+            f"Make path escapes CupidC preprocessing profile: {path!r}"
+        )
+    if relative.startswith("./"):
+        relative = relative[2:]
+    return f"/{relative}"
 
 
 def _resolve_include(
@@ -2773,7 +3014,7 @@ def build_audit(
     abi = _abi_inventory(root, all_transforms)
     provenance = _provenance(root, models, sources)
 
-    return {
+    audit = {
         "schema": SCHEMA,
         "abi": abi,
         "provenance": provenance,
@@ -2806,6 +3047,828 @@ def build_audit(
             "transforms": len(all_transforms),
         },
     }
+    if {model.directory for model in models} == {".", "user", "toolchain"}:
+        _validate_c_preprocessor_make_profiles(root, make)
+        active_manifest = _c_preprocessor_active_cases_manifest(audit)
+        contracts["c_preprocessor_translation_units"] = (
+            _c_preprocessor_translation_unit_contract(active_manifest)
+        )
+    return audit
+
+
+def _c_preprocessor_logical_path(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    if (
+        not normalized
+        or normalized.startswith("/")
+        or re.match(r"^[A-Za-z]:/", normalized)
+        or posixpath.normpath(normalized) != normalized
+        or normalized == ".."
+        or normalized.startswith("../")
+    ):
+        raise AuditError(
+            f"CupidC active preprocessing case is not repository-relative: {path!r}"
+        )
+    return f"/{normalized}"
+
+
+def _c_preprocessor_recipe_markers(
+    transform: dict[str, object], allowed: set[str]
+) -> set[str]:
+    output = str(transform.get("output", "<unknown>"))
+    recipe = transform.get("recipe")
+    if not isinstance(recipe, list) or not all(
+        isinstance(line, str) for line in recipe
+    ):
+        raise AuditError(
+            f"CupidC active preprocessing recipe is absent for {output}"
+        )
+    recipe_text = "\n".join(recipe)
+    markers: set[str] = set()
+    automatic_variables = frozenset("@%<?^+|*")
+    index = 0
+    while index < len(recipe_text):
+        if recipe_text[index] != "$":
+            index += 1
+            continue
+        if index + 1 >= len(recipe_text):
+            raise AuditError(
+                f"CupidC active preprocessing found an unmodeled recipe "
+                f"dollar reference for {output}: trailing '$'"
+            )
+        opener = recipe_text[index + 1]
+        if opener in "({":
+            closer = ")" if opener == "(" else "}"
+            end = recipe_text.find(closer, index + 2)
+            if end < 0:
+                raise AuditError(
+                    f"CupidC active preprocessing found an unmodeled recipe "
+                    f"Make reference/function for {output}: "
+                    f"{recipe_text[index:]!r}"
+                )
+            reference = recipe_text[index : end + 1]
+            name = recipe_text[index + 2 : end]
+            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+                raise AuditError(
+                    f"CupidC active preprocessing found an unmodeled recipe "
+                    f"Make reference/function for {output}: {reference!r}"
+                )
+            markers.add(name)
+            index = end + 1
+            continue
+        if opener in automatic_variables:
+            index += 2
+            continue
+        raise AuditError(
+            f"CupidC active preprocessing found an unmodeled recipe dollar "
+            f"reference for {output}: {recipe_text[index:index + 2]!r}"
+        )
+    unknown = sorted(markers - allowed)
+    if unknown:
+        raise AuditError(
+            f"CupidC active preprocessing found unknown recipe marker(s) for "
+            f"{output}: {', '.join(unknown)}"
+        )
+    return markers
+
+
+def _c_preprocessor_literal_recipe_flags(
+    transform: dict[str, object]
+) -> list[str]:
+    recipe = transform.get("recipe")
+    if not isinstance(recipe, list):
+        return []
+    tokens: list[str] = []
+    for line in recipe:
+        if not isinstance(line, str):
+            continue
+        try:
+            tokens.extend(shlex.split(line, posix=True))
+        except ValueError as exc:
+            raise AuditError(
+                f"could not tokenize CupidC compile recipe for "
+                f"{transform.get('output')}: {exc}"
+            ) from exc
+    safe_recipe_flags = {"-c", "-o", "-Os"}
+    return sorted(
+        token
+        for token in tokens
+        if (token.startswith("-") and token not in safe_recipe_flags)
+        or token.startswith("@")
+        or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", token) is not None
+    )
+
+
+def _c_preprocessor_one_c_root(transform: dict[str, object]) -> str:
+    output = str(transform.get("output", "<unknown>"))
+    inputs = transform.get("inputs")
+    if not isinstance(inputs, list) or not all(
+        isinstance(path, str) for path in inputs
+    ):
+        raise AuditError(
+            f"CupidC active preprocessing inputs are absent for {output}"
+        )
+    roots = [path for path in inputs if _language(path) == "c"]
+    if len(roots) != 1:
+        rendered = ", ".join(roots) if roots else "<none>"
+        raise AuditError(
+            f"CupidC active preprocessing expected exactly one C "
+            f"translation-unit root for {output}; found {len(roots)}: {rendered}"
+        )
+    return roots[0]
+
+
+def _c_preprocessor_profile_for_c_transform(
+    directory: str, transform: dict[str, object]
+) -> str:
+    output = str(transform.get("output", "<unknown>"))
+    if directory == ".":
+        markers = _c_preprocessor_recipe_markers(
+            transform,
+            {
+                "CC",
+                "CFLAGS",
+                "CFLAGS_DOOM",
+                "CFLAGS_DOOM_TREE",
+                "SIMD_CFLAGS",
+                "OPT",
+            },
+        )
+        profiles = {
+            "CFLAGS": "KERNEL_I386",
+            "SIMD_CFLAGS": "KERNEL_I386",
+            "CFLAGS_DOOM": "DOOM_COMPAT_I386",
+            "CFLAGS_DOOM_TREE": "DOOM_TREE_I386",
+        }
+    elif directory == "user":
+        markers = _c_preprocessor_recipe_markers(
+            transform, {"CC", "CFLAGS"}
+        )
+        profiles = {"CFLAGS": "USER_I386"}
+    elif directory == "toolchain":
+        markers = _c_preprocessor_recipe_markers(
+            transform, {"CC", "CPPFLAGS", "CFLAGS"}
+        )
+        profiles = {"CFLAGS": "DEFERRED_HOSTED"}
+    else:
+        raise AuditError(
+            f"CupidC active preprocessing has no profile for supported build "
+            f"directory {directory!r} ({output})"
+        )
+    selected = [profiles[marker] for marker in profiles if marker in markers]
+    if len(selected) != 1:
+        rendered = ", ".join(sorted(markers)) if markers else "<none>"
+        raise AuditError(
+            f"CupidC active preprocessing expected exactly one profile recipe "
+            f"marker for {output}; found {len(selected)} in: {rendered}"
+        )
+    if directory != "toolchain":
+        literal_flags = _c_preprocessor_literal_recipe_flags(transform)
+        if literal_flags:
+            raise AuditError(
+                f"CupidC active preprocessing found literal preprocessor "
+                f"flag(s) outside the selected profile for {output}: "
+                f"{literal_flags!r}"
+            )
+    return selected[0]
+
+
+def _c_preprocessor_profile_configuration() -> tuple[
+    tuple[tuple[str, str, str], ...],
+    tuple[tuple[str, str, str], ...],
+    tuple[tuple[str, str], ...],
+]:
+    include_roots: list[tuple[str, str, str]] = []
+    for profile in ("KERNEL_I386", "DOOM_COMPAT_I386", "DOOM_TREE_I386"):
+        include_roots.extend(
+            (profile, root, _C_PP_INCLUDE_BOTH)
+            for root in _C_PP_KERNEL_INCLUDE_ROOTS
+        )
+        if profile != "KERNEL_I386":
+            include_roots.extend(
+                (profile, root, _C_PP_INCLUDE_BOTH)
+                for root in _C_PP_DOOM_EXTRA_INCLUDE_ROOTS
+            )
+    include_roots.append(
+        ("USER_I386", "/user", _C_PP_INCLUDE_BOTH)
+    )
+
+    macros: list[tuple[str, str, str]] = []
+    for profile in (
+        "KERNEL_I386",
+        "DOOM_COMPAT_I386",
+        "DOOM_TREE_I386",
+        "USER_I386",
+    ):
+        macros.extend(
+            (profile, name, replacement)
+            for name, replacement in _C_PP_COMMON_I386_MACROS
+        )
+        if profile in {
+            "KERNEL_I386",
+            "DOOM_COMPAT_I386",
+            "DOOM_TREE_I386",
+        }:
+            macros.append((profile, "__SSE2__", "1"))
+        if profile == "KERNEL_I386":
+            macros.append((profile, "DEBUG", "1"))
+        elif profile == "DOOM_TREE_I386":
+            macros.extend(
+                (
+                    (profile, "DEFAULT_SAVEGAMEDIR", '"/home/doom/"'),
+                    (profile, "DOOM_PORT_CUPIDOS", "1"),
+                )
+            )
+    forced_includes = (
+        ("DOOM_TREE_I386", "/kernel/doom/dglibc_compat.h"),
+    )
+    return tuple(include_roots), tuple(macros), forced_includes
+
+
+def _c_preprocessor_unmodeled_flags(flags: set[str]) -> list[str]:
+    modeled_flags = {
+        "--target=i386-unknown-elf",
+        "-m32",
+        "-mfpmath=sse",
+        "-msse",
+        "-msse2",
+        "-mstackrealign",
+        "-fno-pie",
+        "-fno-stack-protector",
+        "-nostdlib",
+        "-nostdinc",
+        "-ffreestanding",
+        "-fno-asynchronous-unwind-tables",
+        "-fno-unwind-tables",
+        "-c",
+        "-fno-omit-frame-pointer",
+        "-static",
+        "-O2",
+        "-pedantic",
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+        "-Wshadow",
+        "-Wpointer-arith",
+        "-Wcast-qual",
+        "-Wstrict-prototypes",
+        "-Wmissing-prototypes",
+        "-Wconversion",
+        "-Wsign-conversion",
+        "-Wwrite-strings",
+        "-Wno-gnu-zero-variadic-macro-arguments",
+        "-Wno-strict-prototypes",
+        "-Wno-implicit-int-conversion",
+        "-Wno-sign-conversion",
+        "-Wno-unused",
+        "-Wno-unused-result",
+        "-Wno-implicit-function-declaration",
+        "-Wno-sign-compare",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-Wno-type-limits",
+        "-Wno-missing-field-initializers",
+        "-I",
+        "-D",
+        "-include",
+    }
+    return sorted(
+        flag
+        for flag in flags
+        if flag not in modeled_flags
+        and not (flag.startswith("-I") and len(flag) > 2)
+        and not (flag.startswith("-D") and len(flag) > 2)
+    )
+
+
+def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
+    include_rows, macro_rows, forced_rows = (
+        _c_preprocessor_profile_configuration()
+    )
+    manifest_roots: dict[str, list[str]] = collections.defaultdict(list)
+    for profile, path, _ in include_rows:
+        manifest_roots[profile].append(path)
+    manifest_forced: dict[str, list[str]] = collections.defaultdict(list)
+    for profile, path in forced_rows:
+        manifest_forced[profile].append(path)
+
+    root_values = _read_evaluated_make_variables(
+        root,
+        make,
+        ("CFLAGS", "SIMD_CFLAGS", "CFLAGS_DOOM", "CFLAGS_DOOM_TREE", "OPT"),
+    )
+    user_values = _read_evaluated_make_variables(
+        root / "user", make, ("CFLAGS",)
+    )
+    specifications = (
+        ("KERNEL_I386", ".", "CFLAGS", root_values["CFLAGS"]),
+        ("KERNEL_I386", ".", "SIMD_CFLAGS", root_values["SIMD_CFLAGS"]),
+        (
+            "DOOM_COMPAT_I386",
+            ".",
+            "CFLAGS_DOOM",
+            root_values["CFLAGS_DOOM"],
+        ),
+        (
+            "DOOM_TREE_I386",
+            ".",
+            "CFLAGS_DOOM_TREE",
+            root_values["CFLAGS_DOOM_TREE"],
+        ),
+        ("USER_I386", "user", "CFLAGS", user_values["CFLAGS"]),
+    )
+    make_owned_macro_names = {
+        "KERNEL_I386": {"DEBUG"},
+        "DOOM_COMPAT_I386": set(),
+        "DOOM_TREE_I386": {
+            "DEFAULT_SAVEGAMEDIR",
+            "DOOM_PORT_CUPIDOS",
+        },
+        "USER_I386": set(),
+    }
+    manifest_macros: dict[str, dict[str, str]] = collections.defaultdict(dict)
+    for profile, name, replacement in macro_rows:
+        manifest_macros[profile][name] = replacement
+    for profile, directory, variable, expanded in specifications:
+        includes, forced, defines, flags = _make_preprocessor_flags(
+            expanded, variable
+        )
+        logical_includes = [
+            _make_flag_logical_path(directory, path) for path in includes
+        ]
+        logical_forced = [
+            _make_flag_logical_path(directory, path) for path in forced
+        ]
+        if logical_includes != manifest_roots[profile]:
+            raise AuditError(
+                f"CupidC profile {profile} include-root order differs from "
+                f"Make {variable}: expected={manifest_roots[profile]!r}, "
+                f"actual={logical_includes!r}"
+            )
+        if logical_forced != manifest_forced[profile]:
+            raise AuditError(
+                f"CupidC profile {profile} forced includes differ from Make "
+                f"{variable}: expected={manifest_forced[profile]!r}, "
+                f"actual={logical_forced!r}"
+            )
+        missing_manifest_macros = sorted(
+            make_owned_macro_names[profile] - set(manifest_macros[profile])
+        )
+        if missing_manifest_macros:
+            raise AuditError(
+                f"CupidC profile {profile} omits Make-owned macro action(s): "
+                f"{missing_manifest_macros!r}"
+            )
+        expected_defines = {
+            name: manifest_macros[profile][name]
+            for name in make_owned_macro_names[profile]
+        }
+        if defines != expected_defines:
+            raise AuditError(
+                f"CupidC profile {profile} configured macros differ from Make "
+                f"{variable}: expected={expected_defines!r}, "
+                f"actual={defines!r}"
+            )
+        required_flags = {"-m32", "-ffreestanding"}
+        if profile != "USER_I386":
+            required_flags.update(("-msse2", "-nostdinc"))
+        missing_flags = sorted(required_flags - flags)
+        if missing_flags:
+            raise AuditError(
+                f"CupidC profile {profile} lost target flag(s) in Make "
+                f"{variable}: {missing_flags!r}"
+            )
+        unsupported = _c_preprocessor_unmodeled_flags(flags)
+        if unsupported:
+            raise AuditError(
+                f"CupidC profile {profile} has unmodeled preprocessor flag(s) "
+                f"in Make {variable}: {unsupported!r}"
+            )
+
+    opt_includes, opt_forced, opt_defines, opt_flags = (
+        _make_preprocessor_flags(root_values["OPT"], "OPT")
+    )
+    opt_unmodeled = _c_preprocessor_unmodeled_flags(opt_flags)
+    if opt_includes or opt_forced or opt_defines or opt_unmodeled:
+        raise AuditError(
+            "CupidC KERNEL_I386 OPT has preprocessor effects: "
+            f"includes={opt_includes!r}, forced={opt_forced!r}, "
+            f"defines={opt_defines!r}, unsupported={opt_unmodeled!r}"
+        )
+
+
+def _c_preprocessor_deferred_reason(path: str) -> str:
+    external_header_units = {
+        "/toolchain/ctool_host.c",
+        "/toolchain/cupidasm_main.c",
+        "/toolchain/cupiddis_main.c",
+        "/toolchain/cupidld_main.c",
+        "/toolchain/cupidobj_main.c",
+    }
+    if path in external_header_units or path.startswith("/toolchain/tests/"):
+        return "external system headers/runtime block hosted CupidC preprocessing"
+    return "hermetic unit is deferred pending a supported hosted CupidC profile"
+
+
+def _c_preprocessor_require_exact_paths(
+    label: str, actual: list[str], expected: tuple[str, ...]
+) -> None:
+    if tuple(sorted(actual)) != tuple(sorted(expected)):
+        missing = sorted(set(expected) - set(actual))
+        unexpected = sorted(set(actual) - set(expected))
+        raise AuditError(
+            f"CupidC active preprocessing {label} changed; "
+            f"missing={missing!r}, unexpected={unexpected!r}"
+        )
+
+
+def _c_preprocessor_active_cases_manifest(
+    audit: dict[str, object],
+) -> CPreprocessorActiveCasesManifest:
+    sources = audit.get("sources")
+    if not isinstance(sources, list):
+        raise AuditError("CupidC active preprocessing source inventory is absent")
+    source_entries: dict[str, dict[str, object]] = {}
+    for entry in sources:
+        if not isinstance(entry, dict) or "path" not in entry:
+            raise AuditError(
+                "CupidC active preprocessing source inventory is malformed"
+            )
+        path = str(entry["path"])
+        if path in source_entries:
+            raise AuditError(
+                f"CupidC active preprocessing source is duplicated: {path}"
+            )
+        source_entries[path] = entry
+
+    root_build = audit.get("build")
+    supplemental = audit.get("supplemental_builds")
+    if not isinstance(root_build, dict) or not isinstance(supplemental, list):
+        raise AuditError("CupidC active preprocessing build inventory is absent")
+    builds: list[dict[str, object]] = [root_build]
+    for build in supplemental:
+        if not isinstance(build, dict):
+            raise AuditError(
+                "CupidC active preprocessing supplemental build is malformed"
+            )
+        builds.append(build)
+
+    active_by_profile: dict[str, list[str]] = {
+        name: [] for name, _, _ in _C_PP_PROFILE_ROWS
+    }
+    generated: list[str] = []
+    include_only: list[str] = []
+    non_roots: list[str] = []
+    deferred_hosted: list[str] = []
+    seen_directories: set[str] = set()
+
+    for build in builds:
+        directory = str(build.get("directory", ""))
+        if directory in seen_directories:
+            raise AuditError(
+                f"CupidC active preprocessing build is duplicated: {directory!r}"
+            )
+        seen_directories.add(directory)
+        transforms = build.get("transforms")
+        if not isinstance(transforms, list):
+            raise AuditError(
+                f"CupidC active preprocessing transforms are absent for {directory!r}"
+            )
+        for transform_value in sorted(
+            transforms,
+            key=lambda item: str(item.get("output", ""))
+            if isinstance(item, dict)
+            else "",
+        ):
+            if not isinstance(transform_value, dict):
+                raise AuditError(
+                    f"CupidC active preprocessing transform is malformed in "
+                    f"{directory!r}"
+                )
+            transform = transform_value
+            operation = str(transform.get("operation", ""))
+            tools = transform.get("tools")
+            if operation in {
+                "compile_c_to_elf32_object",
+                "compile_c_to_host_object",
+            }:
+                if tools != ["host_c_compiler"]:
+                    raise AuditError(
+                        f"CupidC active preprocessing compile transform has "
+                        f"unexpected tools for {transform.get('output')}: {tools!r}"
+                    )
+                profile = _c_preprocessor_profile_for_c_transform(
+                    directory, transform
+                )
+                root = _c_preprocessor_one_c_root(transform)
+                logical = _c_preprocessor_logical_path(root)
+                if profile == "DEFERRED_HOSTED":
+                    deferred_hosted.append(logical)
+                    continue
+                entry = source_entries.get(root)
+                if entry is None:
+                    raise AuditError(
+                        f"CupidC active preprocessing root is absent from source "
+                        f"inventory: {root}"
+                    )
+                origin = str(entry.get("origin", ""))
+                if origin == "generated":
+                    if profile != "KERNEL_I386":
+                        raise AuditError(
+                            f"CupidC generated root has non-kernel profile: {root}"
+                        )
+                    generated.append(logical)
+                elif origin == "tracked":
+                    active_by_profile[profile].append(logical)
+                else:
+                    raise AuditError(
+                        f"CupidC active preprocessing root has unknown origin "
+                        f"{origin!r}: {root}"
+                    )
+                continue
+
+            inputs = transform.get("inputs")
+            if not isinstance(inputs, list):
+                if operation == "wrap_binary_as_elf32_relocatable":
+                    raise AuditError(
+                        f"CupidC delivery transform inputs are absent for "
+                        f"{transform.get('output')}"
+                    )
+                continue
+            delivered_inputs = [
+                path
+                for path in inputs
+                if isinstance(path, str)
+                and (
+                    _language(path) == "cupid_c"
+                    or (
+                        _language(path) == "c_header"
+                        and path.startswith("bin/")
+                    )
+                )
+            ]
+            if (
+                delivered_inputs
+                and directory == "."
+                and operation == "generate_c_source"
+                and transform.get("output") == "kernel/util/bin_programs_gen.c"
+                and tools == ["host_python"]
+            ):
+                # This generator embeds the delivered Cupid sources; their
+                # preprocessing ownership is established by the separate
+                # CupidObj wrap transform for each source below.
+                continue
+            if delivered_inputs and operation != "wrap_binary_as_elf32_relocatable":
+                raise AuditError(
+                    f"CupidC active preprocessing found an unclassified Cupid "
+                    f"delivery transform: {transform.get('output')} ({operation})"
+                )
+            if operation != "wrap_binary_as_elf32_relocatable":
+                continue
+            cupid_inputs = [
+                path
+                for path in inputs
+                if isinstance(path, str)
+                and _language(path) in {"cupid_c", "c_header"}
+            ]
+            if not cupid_inputs:
+                continue
+            if directory != ".":
+                raise AuditError(
+                    f"CupidC active preprocessing found an unclassified Cupid "
+                    f"delivery transform: {transform.get('output')} ({operation})"
+                )
+            _c_preprocessor_recipe_markers(transform, {"CUPIDOBJ"})
+            if tools != ["cupid_object"]:
+                raise AuditError(
+                    f"CupidC delivery transform has unexpected tools for "
+                    f"{transform.get('output')}: {tools!r}"
+                )
+            if len(cupid_inputs) != 1:
+                raise AuditError(
+                    f"CupidC delivery transform expected exactly one source for "
+                    f"{transform.get('output')}; found {len(cupid_inputs)}"
+                )
+            root = cupid_inputs[0]
+            logical = _c_preprocessor_logical_path(root)
+            if _language(root) == "c_header":
+                non_roots.append(logical)
+            elif root.startswith("bin/browser/"):
+                include_only.append(logical)
+            elif root.startswith("bin/") and root.count("/") == 1:
+                active_by_profile["CUPID_RUNTIME"].append(logical)
+            else:
+                raise AuditError(
+                    f"CupidC delivery source has no active-case classification: {root}"
+                )
+
+    for profile, expected_count in _C_PP_ACTIVE_COUNTS.items():
+        cases = active_by_profile[profile]
+        if len(cases) != len(set(cases)):
+            raise AuditError(
+                f"CupidC active preprocessing profile has duplicate roots: {profile}"
+            )
+        if len(cases) != expected_count:
+            raise AuditError(
+                f"CupidC active preprocessing profile {profile} expected "
+                f"{expected_count} tracked roots; found {len(cases)}"
+            )
+    _c_preprocessor_require_exact_paths(
+        "generated kernel roots", generated, _C_PP_GENERATED_KERNEL_CASES
+    )
+    _c_preprocessor_require_exact_paths(
+        "delivered non-root headers", non_roots, _C_PP_NON_ROOT_HEADERS
+    )
+    _c_preprocessor_require_exact_paths(
+        "deferred hosted roots", deferred_hosted, _C_PP_DEFERRED_HOSTED_CASES
+    )
+    if len(include_only) != 22 or len(include_only) != len(set(include_only)):
+        raise AuditError(
+            f"CupidC active preprocessing expected 22 distinct browser "
+            f"include-only fragments; found {len(include_only)}"
+        )
+    browser = source_entries.get("bin/browser.cc")
+    browser_includes = set(browser.get("includes", [])) if browser else set()
+    unresolved_fragments = sorted(
+        path[1:] for path in include_only if path[1:] not in browser_includes
+    )
+    if unresolved_fragments:
+        raise AuditError(
+            f"CupidC browser fragments lost /bin/browser.cc ownership: "
+            f"{unresolved_fragments!r}"
+        )
+
+    include_roots, macros, forced_includes = (
+        _c_preprocessor_profile_configuration()
+    )
+    active_rows = tuple(
+        (profile, path)
+        for profile, _, _ in _C_PP_PROFILE_ROWS
+        for path in sorted(active_by_profile[profile])
+    )
+    generated_rows = tuple(
+        ("KERNEL_I386", path) for path in sorted(generated)
+    )
+    return CPreprocessorActiveCasesManifest(
+        profiles=_C_PP_PROFILE_ROWS,
+        include_roots=include_roots,
+        macros=macros,
+        forced_includes=forced_includes,
+        active_cases=active_rows,
+        generated_cases=generated_rows,
+        include_only=tuple(
+            (path, "/bin/browser.cc") for path in sorted(include_only)
+        ),
+        non_roots=tuple(
+            (
+                path,
+                "delivered header requires a translation-unit owner context",
+            )
+            for path in sorted(non_roots)
+        ),
+        deferred_hosted=tuple(
+            (path, _c_preprocessor_deferred_reason(path))
+            for path in sorted(deferred_hosted)
+        ),
+    )
+
+
+def _c_preprocessor_translation_unit_contract(
+    manifest: CPreprocessorActiveCasesManifest,
+) -> dict[str, object]:
+    profiles = []
+    for name, mode, gnu in manifest.profiles:
+        roots = [
+            {"path": path, "forms": forms}
+            for profile, path, forms in manifest.include_roots
+            if profile == name
+        ]
+        macros = [
+            {"name": macro_name, "replacement": replacement}
+            for profile, macro_name, replacement in manifest.macros
+            if profile == name
+        ]
+        forced = [
+            path
+            for profile, path in manifest.forced_includes
+            if profile == name
+        ]
+        profiles.append(
+            {
+                "name": name,
+                "mode": mode,
+                "gnu_extensions": gnu == "CTOOL_TRUE",
+                "tracked_translation_units": sum(
+                    profile == name
+                    for profile, _ in manifest.active_cases
+                ),
+                "generated_translation_units": sum(
+                    profile == name
+                    for profile, _ in manifest.generated_cases
+                ),
+                "include_roots": roots,
+                "macro_actions": macros,
+                "forced_includes": forced,
+            }
+        )
+    external_deferred = sum(
+        reason.startswith("external system headers/runtime")
+        for _, reason in manifest.deferred_hosted
+    )
+    hermetic_deferred = sum(
+        reason.startswith("hermetic unit")
+        for _, reason in manifest.deferred_hosted
+    )
+    return {
+        "status": "pass",
+        "tracked_translation_units": len(manifest.active_cases),
+        "generated_translation_units": len(manifest.generated_cases),
+        "total_translation_units": (
+            len(manifest.active_cases) + len(manifest.generated_cases)
+        ),
+        "include_only_fragments": len(manifest.include_only),
+        "delivered_non_root_headers": len(manifest.non_roots),
+        "deferred_hosted_translation_units": len(manifest.deferred_hosted),
+        "deferred_external_header_units": external_deferred,
+        "deferred_hermetic_units": hermetic_deferred,
+        "profiles": profiles,
+    }
+
+
+def _c_string_literal(value: str) -> str:
+    pieces = ['"']
+    for byte in value.encode("utf-8"):
+        if byte == 0x22:
+            pieces.append('\\"')
+        elif byte == 0x5C:
+            pieces.append("\\\\")
+        elif byte == 0x3F:
+            pieces.append("\\?")
+        elif 0x20 <= byte <= 0x7E:
+            pieces.append(chr(byte))
+        else:
+            pieces.append(f"\\{byte:03o}")
+    pieces.append('"')
+    return "".join(pieces)
+
+
+def _render_c_preprocessor_active_cases(
+    manifest: CPreprocessorActiveCasesManifest,
+) -> str:
+    groups = (
+        [
+            f"CUPIDC_PP_PROFILE({name}, {mode}, {gnu})"
+            for name, mode, gnu in manifest.profiles
+        ],
+        [
+            f"CUPIDC_PP_INCLUDE_ROOT({name}, {_c_string_literal(path)}, {forms})"
+            for name, path, forms in manifest.include_roots
+        ],
+        [
+            f"CUPIDC_PP_MACRO({profile}, {_c_string_literal(name)}, "
+            f"{_c_string_literal(replacement)})"
+            for profile, name, replacement in manifest.macros
+        ],
+        [
+            f"CUPIDC_PP_FORCED_INCLUDE({profile}, {_c_string_literal(path)})"
+            for profile, path in manifest.forced_includes
+        ],
+        [
+            f"CUPIDC_PP_ACTIVE_CASE({profile}, {_c_string_literal(path)})"
+            for profile, path in manifest.active_cases
+        ],
+        [
+            f"CUPIDC_PP_GENERATED_CASE({profile}, {_c_string_literal(path)})"
+            for profile, path in manifest.generated_cases
+        ],
+        [
+            f"CUPIDC_PP_INCLUDE_ONLY({_c_string_literal(path)}, "
+            f"{_c_string_literal(owner)})"
+            for path, owner in manifest.include_only
+        ],
+        [
+            f"CUPIDC_PP_NON_ROOT({_c_string_literal(path)}, "
+            f"{_c_string_literal(reason)})"
+            for path, reason in manifest.non_roots
+        ],
+        [
+            f"CUPIDC_PP_DEFERRED_HOSTED({_c_string_literal(path)}, "
+            f"{_c_string_literal(reason)})"
+            for path, reason in manifest.deferred_hosted
+        ],
+    )
+    lines = [
+        "/* Checked active CupidC preprocessing cases.",
+        " * Generated by tools/build_graph_audit.py; do not edit.",
+        " * __GNUC__=1 is an active-source definedness compatibility marker,",
+        " * not the version of the compiler hosting the bootstrap.",
+        " */",
+        "",
+    ]
+    for group in groups:
+        lines.extend(group)
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _json_payload(audit: dict[str, object]) -> str:
@@ -3059,7 +4122,23 @@ def _render_markdown(audit: dict[str, object]) -> str:
     )
     if audit["contracts"]:
         for name, contract in sorted(audit["contracts"].items()):
-            if "expression_occurrences" in contract:
+            if "tracked_translation_units" in contract:
+                profile_counts = ", ".join(
+                    f"{profile['name']}={profile['tracked_translation_units']}"
+                    for profile in contract["profiles"]
+                )
+                detail = (
+                    f"{contract['tracked_translation_units']} tracked + "
+                    f"{contract['generated_translation_units']} generated "
+                    f"translation units ({profile_counts}); "
+                    f"{contract['include_only_fragments']} include-only, "
+                    f"{contract['delivered_non_root_headers']} non-root headers; "
+                    f"{contract['deferred_hosted_translation_units']} hosted "
+                    f"deferred ({contract['deferred_external_header_units']} "
+                    "external, "
+                    f"{contract['deferred_hermetic_units']} hermetic)"
+                )
+            elif "expression_occurrences" in contract:
                 detail = (
                     f"{contract['expression_occurrences']} conditional expressions "
                     f"({contract['if_occurrences']} #if, "
@@ -3169,6 +4248,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--summary", type=Path, help="generated Markdown summary")
     parser.add_argument(
+        "--c-preprocessor-active-cases",
+        type=Path,
+        help="generated checked X-macro manifest for active CupidC jobs",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="verify checked outputs and passing contracts without writing",
@@ -3201,6 +4285,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         json_payload = _json_payload(audit)
         markdown_payload = _render_markdown(audit) if args.summary else None
+        active_cases_payload = (
+            _render_c_preprocessor_active_cases(
+                _c_preprocessor_active_cases_manifest(audit)
+            )
+            if args.c_preprocessor_active_cases
+            else None
+        )
     except AuditError as exc:
         print(f"build graph audit failed: {exc}", file=sys.stderr)
         return 2
@@ -3211,6 +4302,10 @@ def main(argv: list[str] | None = None) -> int:
             stale.append(args.output)
         if args.summary and not _check_text(args.summary, markdown_payload or ""):
             stale.append(args.summary)
+        if args.c_preprocessor_active_cases and not _check_text(
+            args.c_preprocessor_active_cases, active_cases_payload or ""
+        ):
+            stale.append(args.c_preprocessor_active_cases)
         for path in stale:
             print(f"build graph audit out of date: {path.name}", file=sys.stderr)
         failed_contracts = [
@@ -3225,6 +4320,10 @@ def main(argv: list[str] | None = None) -> int:
     _write_text_atomic(args.output, json_payload)
     if args.summary and markdown_payload is not None:
         _write_text_atomic(args.summary, markdown_payload)
+    if args.c_preprocessor_active_cases and active_cases_payload is not None:
+        _write_text_atomic(
+            args.c_preprocessor_active_cases, active_cases_payload
+        )
     return 0
 
 

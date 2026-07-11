@@ -923,6 +923,7 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 # evidence under build/bootstrap/ by default.
 BOOTSTRAP_AUDIT_BUILDS := --supplemental-build user:all \
 	--supplemental-build toolchain:all
+BOOTSTRAP_CUPIDC_ACTIVE_CASES := toolchain/tests/cupidc_pp_active_cases.inc
 BOOTSTRAP_WINDOWS_BASELINE ?= docs/bootstrap/baselines/windows-amd64.json
 BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
 BOOTSTRAP_HOST_COMPARISON ?= docs/bootstrap/baselines/windows-linux.json
@@ -931,7 +932,8 @@ test:
 	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
-	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md \
+	  --c-preprocessor-active-cases $(BOOTSTRAP_CUPIDC_ACTIVE_CASES) --check
 
 # NASM is not part of the normal build.  When it is installed, this optional
 # source-parity suite assembles all four active inputs with both assemblers.
@@ -941,12 +943,14 @@ nasm-assembly-oracle:
 bootstrap-audit:
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
-	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md \
+	  --c-preprocessor-active-cases $(BOOTSTRAP_CUPIDC_ACTIVE_CASES)
 
 check-bootstrap-audit:
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
-	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md --check
+	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md \
+	  --c-preprocessor-active-cases $(BOOTSTRAP_CUPIDC_ACTIVE_CASES) --check
 
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)

@@ -17,6 +17,9 @@ ACTIVE_BUILD_MANIFEST = (
 CONDITIONAL_MANIFEST = (
     REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_conditional_cases.inc"
 )
+ACTIVE_CASE_MANIFEST = (
+    REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_active_cases.inc"
+)
 CUPIDC_PP_CONTRACT = REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_contract.c"
 TOOLCHAIN_MAKEFILE = REPO_ROOT / "toolchain" / "Makefile"
 
@@ -53,6 +56,21 @@ def _conditional_manifest_records():
             int(expected),
         )
     return records
+
+
+def _load_audit_module():
+    spec = importlib.util.spec_from_file_location(
+        "_cupid_build_graph_audit_manifest_test", AUDIT_TOOL
+    )
+    if spec is None or spec.loader is None:
+        raise AssertionError("could not load build graph audit module")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        del sys.modules[spec.name]
+    return module
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
@@ -1830,8 +1848,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 645)
-            self.assertEqual(contract["include_occurrences"], 2296)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2100)
+            self.assertEqual(contract["include_occurrences"], 2297)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2101)
             self.assertEqual(contract["direct_angle_occurrences"], 196)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -2288,6 +2306,767 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(second_result.returncode, 0, second_result.stderr)
             self.assertEqual(first.read_bytes(), second.read_bytes())
+
+    def test_checked_cupidc_active_manifest_has_exact_source_cohorts(self):
+        lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
+        profile_pattern = re.compile(
+            r"^CUPIDC_PP_PROFILE\(([A-Z0-9_]+), ([A-Z0-9_]+), "
+            r"(CTOOL_(?:TRUE|FALSE))\)$"
+        )
+        active_pattern = re.compile(
+            r'^CUPIDC_PP_ACTIVE_CASE\(([A-Z0-9_]+), "([^"]+)"\)$'
+        )
+        generated_pattern = re.compile(
+            r'^CUPIDC_PP_GENERATED_CASE\(([A-Z0-9_]+), "([^"]+)"\)$'
+        )
+        profiles = [
+            match.groups()
+            for line in lines
+            if (match := profile_pattern.fullmatch(line)) is not None
+        ]
+        active = [
+            match.groups()
+            for line in lines
+            if (match := active_pattern.fullmatch(line)) is not None
+        ]
+        generated = [
+            match.groups()
+            for line in lines
+            if (match := generated_pattern.fullmatch(line)) is not None
+        ]
+
+        self.assertEqual(
+            profiles,
+            [
+                ("KERNEL_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+                (
+                    "DOOM_COMPAT_I386",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_TRUE",
+                ),
+                (
+                    "DOOM_TREE_I386",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_TRUE",
+                ),
+                ("USER_I386", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),
+                (
+                    "CUPID_RUNTIME",
+                    "CTOOL_C_PP_MODE_CUPID",
+                    "CTOOL_FALSE",
+                ),
+            ],
+        )
+        self.assertEqual(
+            {name: sum(case_name == name for case_name, _ in active)
+             for name, _, _ in profiles},
+            {
+                "KERNEL_I386": 152,
+                "DOOM_COMPAT_I386": 6,
+                "DOOM_TREE_I386": 80,
+                "USER_I386": 3,
+                "CUPID_RUNTIME": 104,
+            },
+        )
+        self.assertEqual(len(active), 345)
+        for expected in (
+            ("KERNEL_I386", "/kernel/core/kernel.c"),
+            ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
+            ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
+            ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
+            ("USER_I386", "/user/examples/hello.c"),
+            ("CUPID_RUNTIME", "/bin/browser.cc"),
+        ):
+            self.assertIn(expected, active)
+        self.assertEqual(
+            generated,
+            [
+                ("KERNEL_I386", "/kernel/cpu/ksyms_data.c"),
+                ("KERNEL_I386", "/kernel/util/bin_programs_gen.c"),
+                ("KERNEL_I386", "/kernel/util/demos_programs_gen.c"),
+                ("KERNEL_I386", "/kernel/util/docs_programs_gen.c"),
+            ],
+        )
+
+    def test_checked_cupidc_active_manifest_keeps_profiles_isolated(self):
+        lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
+        roots = [line for line in lines if line.startswith("CUPIDC_PP_INCLUDE_ROOT(")]
+        macros = [line for line in lines if line.startswith("CUPIDC_PP_MACRO(")]
+        forced = [
+            line for line in lines if line.startswith("CUPIDC_PP_FORCED_INCLUDE(")
+        ]
+        forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        kernel_roots = [
+            "/kernel",
+            "/kernel/audio",
+            "/kernel/core",
+            "/kernel/cpu",
+            "/kernel/crypto",
+            "/kernel/doom",
+            "/kernel/fs",
+            "/kernel/gfx",
+            "/kernel/gui",
+            "/kernel/lang",
+            "/kernel/mm",
+            "/kernel/network",
+            "/kernel/smp",
+            "/kernel/tls",
+            "/kernel/usb",
+            "/kernel/util",
+            "/drivers",
+            "/toolchain",
+        ]
+        expected_roots = {
+            "KERNEL_I386": kernel_roots,
+            "DOOM_COMPAT_I386": [
+                *kernel_roots,
+                "/kernel/doom/src",
+                "/kernel/doom/src/include_stubs",
+            ],
+            "DOOM_TREE_I386": [
+                *kernel_roots,
+                "/kernel/doom/src",
+                "/kernel/doom/src/include_stubs",
+            ],
+            "USER_I386": ["/user"],
+            "CUPID_RUNTIME": [],
+        }
+        root_pattern = re.compile(
+            r'^CUPIDC_PP_INCLUDE_ROOT\(([A-Z0-9_]+), "([^"]+)", '
+            r"(.+)\)$"
+        )
+        actual_roots = {name: [] for name in expected_roots}
+        for line in roots:
+            match = root_pattern.fullmatch(line)
+            self.assertIsNotNone(match, line)
+            name, path, actual_forms = match.groups()
+            self.assertEqual(actual_forms, forms)
+            actual_roots[name].append(path)
+        self.assertEqual(actual_roots, expected_roots)
+
+        self.assertEqual(
+            roots[0],
+            f'CUPIDC_PP_INCLUDE_ROOT(KERNEL_I386, "/kernel", {forms})',
+        )
+        common_macros = [
+            ("__GNUC__", "1"),
+            ("__SIZEOF_POINTER__", "4"),
+            ("__ORDER_LITTLE_ENDIAN__", "1234"),
+            ("__ORDER_BIG_ENDIAN__", "4321"),
+            ("__ORDER_PDP_ENDIAN__", "3412"),
+            ("__BYTE_ORDER__", "__ORDER_LITTLE_ENDIAN__"),
+        ]
+        expected_macros = {
+            "KERNEL_I386": [
+                *common_macros,
+                ("__SSE2__", "1"),
+                ("DEBUG", "1"),
+            ],
+            "DOOM_COMPAT_I386": [*common_macros, ("__SSE2__", "1")],
+            "DOOM_TREE_I386": [
+                *common_macros,
+                ("__SSE2__", "1"),
+                ("DEFAULT_SAVEGAMEDIR", '\"/home/doom/\"'),
+                ("DOOM_PORT_CUPIDOS", "1"),
+            ],
+            "USER_I386": common_macros,
+            "CUPID_RUNTIME": [],
+        }
+
+        def macro_line(profile, name, replacement):
+            escaped_name = name.replace("\\", "\\\\").replace('"', '\\"')
+            escaped_replacement = replacement.replace("\\", "\\\\").replace(
+                '"', '\\"'
+            )
+            return (
+                f'CUPIDC_PP_MACRO({profile}, "{escaped_name}", '
+                f'"{escaped_replacement}")'
+            )
+
+        self.assertEqual(
+            macros,
+            [
+                macro_line(profile, name, replacement)
+                for profile in expected_macros
+                for name, replacement in expected_macros[profile]
+            ],
+        )
+        self.assertEqual(
+            forced,
+            [
+                'CUPIDC_PP_FORCED_INCLUDE(DOOM_TREE_I386, '
+                '"/kernel/doom/dglibc_compat.h")'
+            ],
+        )
+
+    def test_cupidc_active_manifest_fails_closed_on_compile_recipe_shape(self):
+        module = _load_audit_module()
+
+        def audit(inputs, recipe):
+            return {
+                "build": {
+                    "directory": ".",
+                    "transforms": [
+                        {
+                            "output": "unit.o",
+                            "inputs": inputs,
+                            "tools": ["host_c_compiler"],
+                            "operation": "compile_c_to_elf32_object",
+                            "recipe": [recipe],
+                        }
+                    ],
+                },
+                "supplemental_builds": [],
+                "sources": [],
+            }
+
+        cases = {
+            "unknown marker": (
+                audit(["unit.c"], "$(CC) $(NEW_CFLAGS) -c $< -o $@"),
+                r"unknown recipe marker.*NEW_CFLAGS",
+            ),
+            "brace-form unknown marker": (
+                audit(["unit.c"], "${CC} ${NEW_CFLAGS} -c $< -o $@"),
+                r"unknown recipe marker.*NEW_CFLAGS",
+            ),
+            "escaped shell marker": (
+                audit(["unit.c"], "$(CC) $(CFLAGS) $${NEW_CFLAGS} -c $< -o $@"),
+                r"unmodeled recipe dollar reference",
+            ),
+            "computed marker": (
+                audit(["unit.c"], "$(CC) $(CFLAGS) $(value NEW_CFLAGS) -c $< -o $@"),
+                r"unmodeled recipe Make reference/function",
+            ),
+            "zero roots": (
+                audit(["unit.h"], "$(CC) $(CFLAGS) -c $< -o $@"),
+                r"exactly one C translation-unit root.*found 0",
+            ),
+            "multiple roots": (
+                audit(
+                    ["first.c", "second.c"],
+                    "$(CC) $(CFLAGS) -c $< -o $@",
+                ),
+                r"exactly one C translation-unit root.*found 2",
+            ),
+            "literal macro": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -DLOCAL=1 -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-DLOCAL=1",
+            ),
+            "literal contradictory target": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -m64 -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-m64",
+            ),
+            "literal driver pass-through": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -Wp,-DLOCAL=1 -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-Wp,-DLOCAL=1",
+            ),
+            "literal language mode": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -xc++ -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-xc\+\+",
+            ),
+            "literal character mode": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -funsigned-char -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-funsigned-char",
+            ),
+            "literal predefined accelerator macro": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) -fopenacc -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*-fopenacc",
+            ),
+            "compiler response file": (
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) @extra.rsp -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*@extra.rsp",
+            ),
+            "recipe environment include path": (
+                audit(
+                    ["unit.c"],
+                    "CPATH=private $(CC) $(CFLAGS) -c $< -o $@",
+                ),
+                r"literal preprocessor flag.*CPATH=private",
+            ),
+        }
+        for name, (synthetic, message) in cases.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                module.AuditError, message
+            ):
+                module._c_preprocessor_active_cases_manifest(synthetic)
+
+        malformed_wrap = {
+            "build": {
+                "directory": ".",
+                "transforms": [
+                    {
+                        "output": "bin/malformed.o",
+                        "inputs": None,
+                        "tools": ["cupid_object"],
+                        "operation": "wrap_binary_as_elf32_relocatable",
+                        "recipe": ["$(CUPIDOBJ) wrap $< -o $@"],
+                    }
+                ],
+            },
+            "supplemental_builds": [],
+            "sources": [],
+        }
+        with self.assertRaisesRegex(
+            module.AuditError, r"delivery transform inputs are absent"
+        ):
+            module._c_preprocessor_active_cases_manifest(malformed_wrap)
+
+    def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(self):
+        lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
+        include_only_pattern = re.compile(
+            r'^CUPIDC_PP_INCLUDE_ONLY\("([^"]+)", "([^"]+)"\)$'
+        )
+        non_root_pattern = re.compile(
+            r'^CUPIDC_PP_NON_ROOT\("([^"]+)", "([^"]+)"\)$'
+        )
+        deferred_pattern = re.compile(
+            r'^CUPIDC_PP_DEFERRED_HOSTED\("([^"]+)", "([^"]+)"\)$'
+        )
+        include_only = [
+            match.groups()
+            for line in lines
+            if (match := include_only_pattern.fullmatch(line)) is not None
+        ]
+        non_roots = [
+            match.groups()
+            for line in lines
+            if (match := non_root_pattern.fullmatch(line)) is not None
+        ]
+        deferred = [
+            match.groups()
+            for line in lines
+            if (match := deferred_pattern.fullmatch(line)) is not None
+        ]
+
+        self.assertEqual(len(include_only), 22)
+        self.assertTrue(
+            all(owner == "/bin/browser.cc" for _, owner in include_only)
+        )
+        self.assertEqual(
+            [path for path, _ in non_roots],
+            ["/bin/fat16.h", "/bin/shell.h"],
+        )
+        self.assertEqual(len(deferred), 24)
+        self.assertEqual(
+            {path for path, _ in deferred},
+            {
+                "/kernel/lang/as_elf.c",
+                "/toolchain/ctool.c",
+                "/toolchain/ctool_host.c",
+                "/toolchain/cupidasm.c",
+                "/toolchain/cupidasm_main.c",
+                "/toolchain/cupidc_pp.c",
+                "/toolchain/cupiddis.c",
+                "/toolchain/cupiddis_main.c",
+                "/toolchain/cupidld.c",
+                "/toolchain/cupidld_main.c",
+                "/toolchain/cupidobj.c",
+                "/toolchain/cupidobj_main.c",
+                "/toolchain/elf32.c",
+                "/toolchain/tests/core_contract.c",
+                "/toolchain/tests/cupidasm_contract.c",
+                "/toolchain/tests/cupidasm_demos_contract.c",
+                "/toolchain/tests/cupidasm_kernel_elf_contract.c",
+                "/toolchain/tests/cupidc_pp_contract.c",
+                "/toolchain/tests/cupiddis_contract.c",
+                "/toolchain/tests/cupidld_contract.c",
+                "/toolchain/tests/cupidobj_contract.c",
+                "/toolchain/tests/elf32_contract.c",
+                "/toolchain/tests/x86_contract.c",
+                "/toolchain/x86.c",
+            },
+        )
+        self.assertTrue(all(reason for _, reason in [*non_roots, *deferred]))
+
+    def test_cupidc_active_manifest_renderer_is_grouped_and_c_escaped(self):
+        module = _load_audit_module()
+        manifest = module.CPreprocessorActiveCasesManifest(
+            profiles=(("SYNTH", "CTOOL_C_PP_MODE_C11", "CTOOL_TRUE"),),
+            include_roots=(
+                (
+                    "SYNTH",
+                    '/root/??/"quoted"\\tab\n\N{GREEK CAPITAL LETTER OMEGA}',
+                    "CTOOL_C_PP_INCLUDE_QUOTED",
+                ),
+            ),
+            macros=(("SYNTH", 'A"B', "line\n\\end"),),
+            forced_includes=(("SYNTH", "/forced.h"),),
+            active_cases=(("SYNTH", "/active.c"),),
+            generated_cases=(("SYNTH", "/generated.c"),),
+            include_only=(("/fragment.cc", "/owner.cc"),),
+            non_roots=(("/header.h", "delivered header"),),
+            deferred_hosted=(("/host.c", "host-only contract"),),
+        )
+
+        first = module._render_c_preprocessor_active_cases(manifest)
+        second = module._render_c_preprocessor_active_cases(manifest)
+        self.assertEqual(first, second)
+        self.assertIn(
+            'CUPIDC_PP_INCLUDE_ROOT(SYNTH, '
+            '"/root/\\?\\?/\\\"quoted\\\"\\\\tab\\012\\316\\251", '
+            "CTOOL_C_PP_INCLUDE_QUOTED)",
+            first,
+        )
+        self.assertIn(
+            'CUPIDC_PP_MACRO(SYNTH, "A\\\"B", '
+            '"line\\012\\\\end")',
+            first,
+        )
+        row_prefixes = [
+            "CUPIDC_PP_PROFILE(",
+            "CUPIDC_PP_INCLUDE_ROOT(",
+            "CUPIDC_PP_MACRO(",
+            "CUPIDC_PP_FORCED_INCLUDE(",
+            "CUPIDC_PP_ACTIVE_CASE(",
+            "CUPIDC_PP_GENERATED_CASE(",
+            "CUPIDC_PP_INCLUDE_ONLY(",
+            "CUPIDC_PP_NON_ROOT(",
+            "CUPIDC_PP_DEFERRED_HOSTED(",
+        ]
+        self.assertEqual(
+            [
+                next(index for index, line in enumerate(first.splitlines())
+                     if line.startswith(prefix))
+                for prefix in row_prefixes
+            ],
+            sorted(
+                next(index for index, line in enumerate(first.splitlines())
+                     if line.startswith(prefix))
+                for prefix in row_prefixes
+            ),
+        )
+
+    def test_cupidc_active_manifest_check_rejects_drift(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            summary = Path(td) / "audit.md"
+            manifest = Path(td) / "cupidc_pp_active_cases.inc"
+            command = [
+                sys.executable,
+                str(AUDIT_TOOL),
+                "--root",
+                str(REPO_ROOT),
+                "--supplemental-build",
+                "user:all",
+                "--supplemental-build",
+                "toolchain:all",
+                "--output",
+                str(output),
+                "--summary",
+                str(summary),
+                "--c-preprocessor-active-cases",
+                str(manifest),
+            ]
+            generated = subprocess.run(command, text=True, capture_output=True)
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            audit_payload = json.loads(output.read_text(encoding="utf-8"))
+            contract = audit_payload["contracts"][
+                "c_preprocessor_translation_units"
+            ]
+            self.assertEqual(
+                {
+                    key: contract[key]
+                    for key in (
+                        "status",
+                        "tracked_translation_units",
+                        "generated_translation_units",
+                        "total_translation_units",
+                        "include_only_fragments",
+                        "delivered_non_root_headers",
+                        "deferred_hosted_translation_units",
+                        "deferred_external_header_units",
+                        "deferred_hermetic_units",
+                    )
+                },
+                {
+                    "status": "pass",
+                    "tracked_translation_units": 345,
+                    "generated_translation_units": 4,
+                    "total_translation_units": 349,
+                    "include_only_fragments": 22,
+                    "delivered_non_root_headers": 2,
+                    "deferred_hosted_translation_units": 24,
+                    "deferred_external_header_units": 15,
+                    "deferred_hermetic_units": 9,
+                },
+            )
+            self.assertEqual(
+                [
+                    (
+                        profile["name"],
+                        profile["tracked_translation_units"],
+                        profile["generated_translation_units"],
+                    )
+                    for profile in contract["profiles"]
+                ],
+                [
+                    ("KERNEL_I386", 152, 4),
+                    ("DOOM_COMPAT_I386", 6, 0),
+                    ("DOOM_TREE_I386", 80, 0),
+                    ("USER_I386", 3, 0),
+                    ("CUPID_RUNTIME", 104, 0),
+                ],
+            )
+            self.assertIn(
+                "`c_preprocessor_translation_units` | `pass` | "
+                "345 tracked + 4 generated",
+                summary.read_text(encoding="utf-8"),
+            )
+            audit_payload["build"]["transforms"].append(
+                {
+                    "output": "bin/new.h.o",
+                    "inputs": ["bin/new.h"],
+                    "tools": ["cupid_object"],
+                    "operation": "wrap_binary_as_elf32_relocatable",
+                    "recipe": ["$(CUPIDOBJ) wrap $< -o $@"],
+                }
+            )
+            module = _load_audit_module()
+            with self.assertRaisesRegex(
+                module.AuditError, r"delivered non-root headers changed"
+            ):
+                module._c_preprocessor_active_cases_manifest(audit_payload)
+            checked = subprocess.run(
+                [*command, "--check"], text=True, capture_output=True
+            )
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8") + "/* stale */\n",
+                encoding="utf-8",
+            )
+            stale = subprocess.run(
+                [*command, "--check"], text=True, capture_output=True
+            )
+            self.assertEqual(stale.returncode, 1)
+            self.assertIn(manifest.name, stale.stderr)
+
+    def test_make_include_extraction_keeps_assignment_adjacent_first_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+                KERNEL_INCLUDES=-I./kernel -I./kernel/core
+                CFLAGS = $(KERNEL_INCLUDES)
+                .PHONY: all
+                all: main.o
+                main.o: main.c
+                \t$(CC) $(CFLAGS) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            (root / "kernel" / "core").mkdir(parents=True)
+            output = root / "audit.json"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(output.read_text(encoding="utf-8"))["build"][
+                    "include_search_paths"
+                ],
+                ["kernel", "kernel/core"],
+            )
+
+    def test_cupidc_make_profile_validation_rejects_preprocessor_drift(self):
+        module = _load_audit_module()
+        kernel_roots = " ".join(
+            f"-I.{path}"
+            for path in (
+                "/kernel",
+                "/kernel/audio",
+                "/kernel/core",
+                "/kernel/cpu",
+                "/kernel/crypto",
+                "/kernel/doom",
+                "/kernel/fs",
+                "/kernel/gfx",
+                "/kernel/gui",
+                "/kernel/lang",
+                "/kernel/mm",
+                "/kernel/network",
+                "/kernel/smp",
+                "/kernel/tls",
+                "/kernel/usb",
+                "/kernel/util",
+                "/drivers",
+                "/toolchain",
+            )
+        )
+
+        def fixture(
+            root,
+            *,
+            cflags_extra="",
+            simd_extra="",
+            opt_extra="",
+            roots_extra="",
+        ):
+            _write(
+                root / "Makefile",
+                f"""
+                KERNEL_INCLUDES={kernel_roots} {roots_extra}
+                CFLAGS=-m32 -ffreestanding -nostdinc -msse2 -pedantic \\
+                       $(KERNEL_INCLUDES) -DDEBUG {cflags_extra}
+                CFLAGS_DOOM=-m32 -ffreestanding -nostdinc -msse2 \\
+                            $(KERNEL_INCLUDES) -I./kernel/doom/src \\
+                            -I./kernel/doom/src/include_stubs
+                CFLAGS_DOOM_TREE=$(CFLAGS_DOOM) \\
+                    -include kernel/doom/dglibc_compat.h \\
+                    -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" \\
+                    -DDOOM_PORT_CUPIDOS=1
+                SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) \\
+                            -msse2 -O2 {simd_extra}
+                OPT=-O2 {opt_extra}
+                """,
+            )
+            _write(
+                root / "user" / "Makefile",
+                "CFLAGS=-m32 -ffreestanding -I.\n",
+            )
+
+        cases = {
+            "strict standard": (
+                {"cflags_extra": "-std=c11"},
+                r"unmodeled preprocessor flag.*-std=c11",
+            ),
+            "undefinition": (
+                {"cflags_extra": "-UDEBUG"},
+                r"unmodeled preprocessor flag.*-UDEBUG",
+            ),
+            "alternate include": (
+                {"cflags_extra": "-iquote./private"},
+                r"unmodeled preprocessor flag.*-iquote",
+            ),
+            "contradictory word size": (
+                {"cflags_extra": "-m64"},
+                r"unmodeled preprocessor flag.*-m64",
+            ),
+            "disabled SIMD target": (
+                {"simd_extra": "-mno-sse2"},
+                r"unmodeled preprocessor flag.*-mno-sse2",
+            ),
+            "driver preprocessor pass-through": (
+                {"cflags_extra": "-Wp,-DLOCAL=1"},
+                r"unmodeled preprocessor flag.*-Wp,-DLOCAL=1",
+            ),
+            "alternate language mode": (
+                {"cflags_extra": "-xc++"},
+                r"unmodeled preprocessor flag.*-xc\+\+",
+            ),
+            "unsigned character mode": (
+                {"cflags_extra": "-funsigned-char"},
+                r"unmodeled preprocessor flag.*-funsigned-char",
+            ),
+            "negated signed character mode": (
+                {"cflags_extra": "-fno-signed-char"},
+                r"unmodeled preprocessor flag.*-fno-signed-char",
+            ),
+            "short wchar mode": (
+                {"cflags_extra": "-fshort-wchar"},
+                r"unmodeled preprocessor flag.*-fshort-wchar",
+            ),
+            "accelerator predefined macro": (
+                {"cflags_extra": "-fopenacc"},
+                r"unmodeled preprocessor flag.*-fopenacc",
+            ),
+            "extra include root": (
+                {"roots_extra": "-I./private"},
+                r"include-root order differs",
+            ),
+            "SIMD-only macro": (
+                {"simd_extra": "-DLOCAL=1"},
+                r"configured macros differ.*SIMD_CFLAGS",
+            ),
+            "OPT-only macro": (
+                {"opt_extra": "-DLOCAL=1"},
+                r"OPT has preprocessor effects",
+            ),
+        }
+        for name, (changes, message) in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                fixture(root, **changes)
+                with self.assertRaisesRegex(module.AuditError, message):
+                    module._validate_c_preprocessor_make_profiles(root, "make")
+
+    def test_make_profile_values_use_gnu_make_assignment_timing(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                ROOT=-I/a
+                CFLAGS := $(ROOT)
+                ROOT=-I/b
+                .PHONY: all
+                all:
+                """,
+            )
+
+            values = module._read_evaluated_make_variables(
+                root, "make", ("CFLAGS", "ROOT")
+            )
+
+            self.assertEqual(values, {"CFLAGS": "-I/a", "ROOT": "-I/b"})
+
+    def test_supported_audit_targets_check_and_consume_active_manifest(self):
+        root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        toolchain_makefile = TOOLCHAIN_MAKEFILE.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            root_makefile.count("--c-preprocessor-active-cases "), 3
+        )
+        self.assertIn(
+            "BOOTSTRAP_CUPIDC_ACTIVE_CASES := "
+            "toolchain/tests/cupidc_pp_active_cases.inc",
+            root_makefile,
+        )
+        self.assertIn(
+            "$(CUPIDC_PP_ACTIVE_CASES) \\", toolchain_makefile
+        )
+        self.assertIn(
+            '#include "cupidc_pp_active_cases.inc"',
+            CUPIDC_PP_CONTRACT.read_text(encoding="utf-8"),
+        )
 
 
 if __name__ == "__main__":

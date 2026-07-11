@@ -43,6 +43,7 @@
       "kernel/doom/dglibc_compat.h"
     ],
     "include_search_paths": [
+      "kernel",
       "kernel/audio",
       "kernel/core",
       "kernel/cpu",
@@ -8459,10 +8460,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 196,
-      "direct_quoted_occurrences": 2100,
-      "include_occurrences": 2296,
+      "direct_quoted_occurrences": 2101,
+      "include_occurrences": 2297,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2296,
+      "ordinary_marker_occurrences": 2297,
       "pp_token_operand_occurrences": 0,
       "source_files": 645,
       "status": "pass"
@@ -8540,6 +8541,435 @@
       "pragma_occurrences": 5,
       "status": "pass",
       "unmatched_pack_pushes": 0
+    },
+    "c_preprocessor_translation_units": {
+      "deferred_external_header_units": 15,
+      "deferred_hermetic_units": 9,
+      "deferred_hosted_translation_units": 24,
+      "delivered_non_root_headers": 2,
+      "generated_translation_units": 4,
+      "include_only_fragments": 22,
+      "profiles": [
+        {
+          "forced_includes": [],
+          "generated_translation_units": 4,
+          "gnu_extensions": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/audio"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/core"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/cpu"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/crypto"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/fs"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gfx"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gui"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/lang"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/mm"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/network"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/smp"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/tls"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/usb"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/util"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/drivers"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__GNUC__",
+              "replacement": "1"
+            },
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "4"
+            },
+            {
+              "name": "__ORDER_LITTLE_ENDIAN__",
+              "replacement": "1234"
+            },
+            {
+              "name": "__ORDER_BIG_ENDIAN__",
+              "replacement": "4321"
+            },
+            {
+              "name": "__ORDER_PDP_ENDIAN__",
+              "replacement": "3412"
+            },
+            {
+              "name": "__BYTE_ORDER__",
+              "replacement": "__ORDER_LITTLE_ENDIAN__"
+            },
+            {
+              "name": "__SSE2__",
+              "replacement": "1"
+            },
+            {
+              "name": "DEBUG",
+              "replacement": "1"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "KERNEL_I386",
+          "tracked_translation_units": 152
+        },
+        {
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/audio"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/core"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/cpu"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/crypto"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/fs"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gfx"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gui"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/lang"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/mm"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/network"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/smp"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/tls"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/usb"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/util"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/drivers"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom/src"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom/src/include_stubs"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__GNUC__",
+              "replacement": "1"
+            },
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "4"
+            },
+            {
+              "name": "__ORDER_LITTLE_ENDIAN__",
+              "replacement": "1234"
+            },
+            {
+              "name": "__ORDER_BIG_ENDIAN__",
+              "replacement": "4321"
+            },
+            {
+              "name": "__ORDER_PDP_ENDIAN__",
+              "replacement": "3412"
+            },
+            {
+              "name": "__BYTE_ORDER__",
+              "replacement": "__ORDER_LITTLE_ENDIAN__"
+            },
+            {
+              "name": "__SSE2__",
+              "replacement": "1"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "DOOM_COMPAT_I386",
+          "tracked_translation_units": 6
+        },
+        {
+          "forced_includes": [
+            "/kernel/doom/dglibc_compat.h"
+          ],
+          "generated_translation_units": 0,
+          "gnu_extensions": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/audio"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/core"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/cpu"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/crypto"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/fs"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gfx"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/gui"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/lang"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/mm"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/network"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/smp"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/tls"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/usb"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/util"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/drivers"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom/src"
+            },
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/kernel/doom/src/include_stubs"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__GNUC__",
+              "replacement": "1"
+            },
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "4"
+            },
+            {
+              "name": "__ORDER_LITTLE_ENDIAN__",
+              "replacement": "1234"
+            },
+            {
+              "name": "__ORDER_BIG_ENDIAN__",
+              "replacement": "4321"
+            },
+            {
+              "name": "__ORDER_PDP_ENDIAN__",
+              "replacement": "3412"
+            },
+            {
+              "name": "__BYTE_ORDER__",
+              "replacement": "__ORDER_LITTLE_ENDIAN__"
+            },
+            {
+              "name": "__SSE2__",
+              "replacement": "1"
+            },
+            {
+              "name": "DEFAULT_SAVEGAMEDIR",
+              "replacement": "\"/home/doom/\""
+            },
+            {
+              "name": "DOOM_PORT_CUPIDOS",
+              "replacement": "1"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "DOOM_TREE_I386",
+          "tracked_translation_units": 80
+        },
+        {
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": true,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/user"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__GNUC__",
+              "replacement": "1"
+            },
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "4"
+            },
+            {
+              "name": "__ORDER_LITTLE_ENDIAN__",
+              "replacement": "1234"
+            },
+            {
+              "name": "__ORDER_BIG_ENDIAN__",
+              "replacement": "4321"
+            },
+            {
+              "name": "__ORDER_PDP_ENDIAN__",
+              "replacement": "3412"
+            },
+            {
+              "name": "__BYTE_ORDER__",
+              "replacement": "__ORDER_LITTLE_ENDIAN__"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "USER_I386",
+          "tracked_translation_units": 3
+        },
+        {
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": false,
+          "include_roots": [],
+          "macro_actions": [],
+          "mode": "CTOOL_C_PP_MODE_CUPID",
+          "name": "CUPID_RUNTIME",
+          "tracked_translation_units": 104
+        }
+      ],
+      "status": "pass",
+      "total_translation_units": 349,
+      "tracked_translation_units": 345
     }
   },
   "features": [
@@ -12564,10 +12994,11 @@
         "toolchain/cupidobj.c",
         "toolchain/cupidobj_main.c",
         "toolchain/elf32.c",
+        "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 868
+      "occurrences": 870
     },
     {
       "category": "control",
@@ -12985,7 +13416,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3026
+      "occurrences": 3036
     },
     {
       "category": "control",
@@ -13241,7 +13672,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2525
+      "occurrences": 2532
     },
     {
       "category": "control",
@@ -13661,7 +14092,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 19394
+      "occurrences": 19444
     },
     {
       "category": "control",
@@ -14007,7 +14438,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 11493
+      "occurrences": 11540
     },
     {
       "category": "control",
@@ -14614,7 +15045,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 542
+      "occurrences": 545
     },
     {
       "category": "declarator",
@@ -14854,7 +15285,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 1510
+      "occurrences": 1543
     },
     {
       "category": "extension",
@@ -16055,7 +16486,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2700
+      "occurrences": 2709
     },
     {
       "category": "preprocessor",
@@ -16526,7 +16957,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 185
+      "occurrences": 194
     },
     {
       "category": "preprocessor",
@@ -17441,7 +17872,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2296
+      "occurrences": 2297
     },
     {
       "category": "preprocessor",
@@ -17533,10 +17964,11 @@
       "files": [
         "kernel/core/assert.h",
         "kernel/doom/src/m_config.c",
-        "kernel/gui/gui_themes.c"
+        "kernel/gui/gui_themes.c",
+        "toolchain/tests/cupidc_pp_contract.c"
       ],
       "id": "c.preprocessor.stringify",
-      "occurrences": 3
+      "occurrences": 9
     },
     {
       "category": "preprocessor",
@@ -17603,7 +18035,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.preprocessor.undef",
-      "occurrences": 52
+      "occurrences": 61
     },
     {
       "category": "preprocessor",
@@ -17962,7 +18394,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 4730
+      "occurrences": 4757
     },
     {
       "category": "qualifier",
@@ -18462,7 +18894,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 4020
+      "occurrences": 4033
     },
     {
       "category": "type",
@@ -18846,7 +19278,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 5733
+      "occurrences": 5750
     },
     {
       "category": "type",
@@ -18988,7 +19420,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 163
+      "occurrences": 164
     },
     {
       "category": "type",
@@ -19539,7 +19971,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18330
+      "occurrences": 18341
     },
     {
       "category": "type",
@@ -19936,7 +20368,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 679
+      "occurrences": 681
     },
     {
       "category": "type",
@@ -20177,7 +20609,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 712
+      "occurrences": 715
     },
     {
       "category": "type",
@@ -20922,7 +21354,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 7968
+      "occurrences": 8004
     },
     {
       "category": "declaration",
@@ -21532,11 +21964,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "14878cd298b6266a2df3a845dd9c0f362e1f85318276803ff347546a8725f21d",
+    "active_source_digest": "3df0124e82f6491ce4129cc87a22c2907fb20a248bcc22086853d90a75cd518f",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "98bc42809d43646997a4357b146f5391a72c0946e7dc8df461493eebae0d5a97"
+        "sha256": "5460cf3c12566dd2cbd5860b53f4adf55c37e49729922e952f7cc7bdf3a2f514"
       },
       {
         "path": "user/Makefile",
@@ -21544,12 +21976,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "2748d86d19fcfc0c7f5fbe27f8ce0e036eff1e36e51089f180e3e9178c61b436"
+        "sha256": "c2d9615e3f94e6796916b147b5d6e95e6fa3a2cc7bc923974665b7684e82a31c"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "ac43aafdbd3113c87e73f4f0489ac673df94d741a54a0e7515dc2871021e47c7"
+      "sha256": "ebf81b06411fe1618cfd0d2588471d263335be2cd28e1445e7c1534dda6b10aa"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -28376,6 +28808,7 @@
         "kernel/smp/lapic.h",
         "kernel/smp/percpu.h",
         "kernel/smp/smp.h",
+        "kernel/tls/tls_selftest.h",
         "kernel/usb/usb.h"
       ],
       "language": "c",
@@ -40251,6 +40684,10 @@
         "drivers/serial.h",
         "drivers/speaker.h",
         "drivers/timer.h",
+        "kernel/audio/ac97.h",
+        "kernel/audio/midiopl.h",
+        "kernel/audio/mixer.h",
+        "kernel/audio/opl_smoke.h",
         "kernel/core/kernel.h",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -40259,6 +40696,7 @@
         "kernel/core/syscall.h",
         "kernel/cpu/libm.h",
         "kernel/cpu/math.h",
+        "kernel/doom/dglibc.h",
         "kernel/fs/blockcache.h",
         "kernel/fs/blockdev.h",
         "kernel/fs/fat16.h",
@@ -40526,6 +40964,10 @@
         "drivers/speaker.h",
         "drivers/timer.h",
         "drivers/vga.h",
+        "kernel/audio/ac97.h",
+        "kernel/audio/midiopl.h",
+        "kernel/audio/mixer.h",
+        "kernel/audio/opl_smoke.h",
         "kernel/core/kernel.h",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -40542,6 +40984,7 @@
         "kernel/crypto/sha256.h",
         "kernel/crypto/sha512.h",
         "kernel/crypto/x25519.h",
+        "kernel/doom/dglibc.h",
         "kernel/fs/blockcache.h",
         "kernel/fs/blockdev.h",
         "kernel/fs/fat16.h",
@@ -42427,7 +42870,8 @@
         "kernel/network/socket.h",
         "kernel/network/tcp.h",
         "kernel/network/udp.h",
-        "kernel/smp/bkl.h"
+        "kernel/smp/bkl.h",
+        "kernel/tls/tls_ctx.h"
       ],
       "language": "c",
       "lines": 329,
@@ -45124,6 +45568,7 @@
       ],
       "cohort": "toolchain_contract",
       "features": [
+        "c.control.continue",
         "c.control.do",
         "c.control.else",
         "c.control.for",
@@ -45135,6 +45580,7 @@
         "c.preprocessor.define",
         "c.preprocessor.function_macro",
         "c.preprocessor.include",
+        "c.preprocessor.stringify",
         "c.preprocessor.undef",
         "c.qualifier.const",
         "c.storage.static",
@@ -45151,12 +45597,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 4787,
+      "lines": 5298,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "fbc95d30bf917bc2d7fefc673c1351b01c2e9274f28e17c9186139f46a47bdeb"
+      "sha256": "4e9613c455d85403cf1d4f185656183325161e75311135f8e489b32b8b959130"
     },
     {
       "build_owners": [
@@ -45985,6 +46431,7 @@
           "inputs": [
             "toolchain/tests/cupidc_pp_contract.c",
             "toolchain/tests/cupidc_pp_conditional_cases.inc",
+            "toolchain/tests/cupidc_pp_active_cases.inc",
             "toolchain/cupidc_pp.h",
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",

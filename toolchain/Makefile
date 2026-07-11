@@ -21,6 +21,11 @@ endif
 BUILD_DIR ?= build
 CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
 CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
+CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
+CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
+                              ../kernel/util/bin_programs_gen.c \
+                              ../kernel/util/demos_programs_gen.c \
+                              ../kernel/util/docs_programs_gen.c
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
@@ -146,6 +151,7 @@ $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUI
 
 $(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c \
                                  tests/cupidc_pp_conditional_cases.inc \
+                                 $(CUPIDC_PP_ACTIVE_CASES) \
                                  cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -220,7 +226,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
       $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD) \
-      tests/x86_active_cases.inc tests/x86_inline_cases.inc
+      tests/x86_active_cases.inc tests/x86_inline_cases.inc \
+      $(CUPIDC_PP_ACTIVE_CASES)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -257,6 +264,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDC_PP_CONTRACT) include-macros
 	$(CUPIDC_PP_CONTRACT) include-macro-errors
 	$(CUPIDC_PP_CONTRACT) include-macro-scale
+	$(CUPIDC_PP_CONTRACT) active-corpus ..
 	$(CUPIDC_PP_CONTRACT) directive-errors
 	$(CUPIDC_PP_CONTRACT) limits
 	$(ELF32_CONTRACT) writer-basic
@@ -305,10 +313,19 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
 	$(CUPIDLD_CONTRACT) script-layout
 	$(CUPIDLD_CONTRACT) errors
 
+# Generated C sources remain explicit materialization boundaries.  The hosted
+# contract prerequisite completes first; one recipe then serializes the root
+# build and execution even under parallel Make.  A missing file is not a skip.
+test-cupidc-pp-active-generated: $(CUPIDC_PP_CONTRACT) \
+                                 $(CUPIDC_PP_ACTIVE_CASES)
+	$(MAKE) -C .. $(patsubst ../%,%,$(CUPIDC_PP_GENERATED_SOURCES))
+	$(CUPIDC_PP_CONTRACT) active-corpus-generated ..
+
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"
 
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
-.PHONY: all test clean print-bootstrap-artifacts
+.PHONY: all test test-cupidc-pp-active-generated clean \
+        print-bootstrap-artifacts
