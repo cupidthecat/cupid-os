@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 
+# Local agent/tool workspace configuration
+/.mcp.json
+/opencode.json
+/skills-lock.json
+
 # Compiler and embedded-resource objects
 *.o
 
