@@ -1275,6 +1275,7 @@ The audit derives the hosted flags from GNU Make's evaluated `CPPFLAGS` and `CFL
 - The first public corpus run was red because `cupidc_pp_contract.c` still accepted the old profile macro. Adding hosted policy to its row/request model made all 356 roots green.
 - The first complete Toolchain suite then exposed the other manifest consumer: `cupidc_frontend_contract.c` also used the old profile shape. Updating that consumer and propagating the hosted field restored the complete contract matrix.
 - Fail-closed recipe review found that selecting a hosted profile from `CFLAGS` alone would let a rule silently drop `CPPFLAGS`. An exact marker-set check and a red missing-`CPPFLAGS` case close that hole.
+- The first OpenKnowledge CRDT replacement of the generated human audit exposed a terminal-newline mismatch: the CRDT projection preserves one blank line at EOF while `_render_markdown` emitted only one newline. Native Markdown writes were not used as a bypass. The generator now contracts a terminal blank line, a red renderer assertion pins it, and `make check-bootstrap-audit` accepts the CRDT-authored file exactly.
 
 ### Verification record
 
