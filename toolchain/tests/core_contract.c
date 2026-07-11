@@ -220,6 +220,7 @@ static int run_foundations(void) {
 }
 
 static int run_paths(void) {
+  static const char embedded_nul[] = {'/', 'a', '\0', 'b'};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
@@ -228,6 +229,7 @@ static int run_paths(void) {
   ctool_path_t base;
   ctool_path_t path;
   ctool_path_t parent;
+  ctool_path_t candidate;
   ctool_arena_mark_t outer_mark;
   ctool_status_t status;
   if (!open_host_job(".", ctool_default_limits(), &adapter, &config, &job)) {
@@ -273,6 +275,33 @@ static int run_paths(void) {
   }
   status = ctool_arena_rewind(arena, outer_mark);
   if (!check_status(status, CTOOL_OK, "outer arena rewind")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  candidate.text = ctool_string("/src/main.c");
+  if (ctool_path_is_canonical(&root) != CTOOL_TRUE ||
+      ctool_path_is_canonical(&candidate) != CTOOL_TRUE) {
+    (void)fprintf(stderr, "canonical path predicate rejected valid path\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  candidate.text = ctool_string("relative/path");
+  if (ctool_path_is_canonical(&candidate) != CTOOL_FALSE) {
+    (void)fprintf(stderr, "canonical path predicate accepted relative path\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  candidate.text = ctool_string("/src/../escape");
+  if (ctool_path_is_canonical(&candidate) != CTOOL_FALSE) {
+    (void)fprintf(stderr, "canonical path predicate accepted dot segment\n");
+    ctool_job_close(job);
+    return 1;
+  }
+  candidate.text.data = embedded_nul;
+  candidate.text.size = (ctool_u32)sizeof(embedded_nul);
+  if (ctool_path_is_canonical(&candidate) != CTOOL_FALSE ||
+      ctool_path_is_canonical((const ctool_path_t *)0) != CTOOL_FALSE) {
+    (void)fprintf(stderr, "canonical path predicate accepted invalid view\n");
     ctool_job_close(job);
     return 1;
   }

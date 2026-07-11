@@ -229,6 +229,7 @@ ctool_status_t ctool_path_parent(const ctool_path_t *path,
 ctool_string_t ctool_path_basename(const ctool_path_t *path);
 ctool_bool ctool_path_equal(const ctool_path_t *left,
                             const ctool_path_t *right);
+ctool_bool ctool_path_is_canonical(const ctool_path_t *path);
 
 /* Path outputs are arena-owned, canonical, absolute logical paths.  They use
  * '/' regardless of host syntax, collapse '.' and duplicate separators, and

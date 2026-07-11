@@ -853,7 +853,7 @@ ctool_bool ctool_path_equal(const ctool_path_t *left,
   return CTOOL_TRUE;
 }
 
-static ctool_bool ctool_path_is_canonical(const ctool_path_t *path) {
+ctool_bool ctool_path_is_canonical(const ctool_path_t *path) {
   ctool_u32 cursor;
   ctool_u32 segment_start = 1u;
   if (path == (const ctool_path_t *)0 || path->text.data == (const char *)0 ||

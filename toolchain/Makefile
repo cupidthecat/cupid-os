@@ -20,6 +20,7 @@ endif
 
 BUILD_DIR ?= build
 CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
+CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
@@ -34,6 +35,10 @@ CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
 CUPIDLD := $(BUILD_DIR)/cupidld$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
+CUPIDC_PP_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
+                              $(BUILD_DIR)/ctool_host.o \
+                              $(BUILD_DIR)/cupidc_pp.o \
+                              $(BUILD_DIR)/cupidc_pp_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                  $(BUILD_DIR)/elf32.o $(BUILD_DIR)/elf32_contract.o
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -74,7 +79,8 @@ CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
-BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
+BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
+                       $(ELF32_CONTRACT) $(X86_CONTRACT) \
                        $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
                        $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
                        $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
@@ -97,6 +103,9 @@ $(BUILD_DIR)/ctool.o: ctool.c ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/ctool_host.o: ctool_host.c ctool_host.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidc_pp.o: cupidc_pp.c cupidc_pp.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
@@ -135,6 +144,9 @@ $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.
 $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -161,6 +173,9 @@ $(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.c cupidld.h elf32.h ctoo
 
 $(CONTRACT): $(CORE_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CORE_OBJECTS) -o $@
+
+$(CUPIDC_PP_CONTRACT): $(CUPIDC_PP_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_PP_CONTRACT_OBJECTS) -o $@
 
 $(ELF32_CONTRACT): $(ELF32_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@
@@ -198,7 +213,8 @@ $(CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
 $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
 
-test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
+test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) \
+      $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
       $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD)
@@ -206,6 +222,10 @@ test: $(CONTRACT) $(ELF32_CONTRACT) $(X86_CONTRACT) $(CUPIDDIS_CONTRACT) \
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
 	$(CONTRACT) limits
+	$(CUPIDC_PP_CONTRACT) phases
+	$(CUPIDC_PP_CONTRACT) tokens
+	$(CUPIDC_PP_CONTRACT) errors
+	$(CUPIDC_PP_CONTRACT) unsupported
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors
