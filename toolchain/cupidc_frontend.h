@@ -97,7 +97,8 @@ typedef enum {
   CTOOL_C_PARSE_DIAG_LIMIT = 0x0b000009u,
   CTOOL_C_PARSE_DIAG_OVERFLOW = 0x0b00000au,
   CTOOL_C_PARSE_DIAG_INTERNAL = 0x0b00000bu,
-  CTOOL_C_PARSE_DIAG_ATTRIBUTE = 0x0b00000cu
+  CTOOL_C_PARSE_DIAG_ATTRIBUTE = 0x0b00000cu,
+  CTOOL_C_PARSE_DIAG_STATIC_ASSERT = 0x0b00000du
 } ctool_c_parse_diag_code_t;
 
 ctool_status_t ctool_c_parse(ctool_job_t *job,
@@ -120,7 +121,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * and noreturn attributes at their contracted placements. Other attributes
  * fail closed instead of being skipped. Type compatibility uses checked
  * iterative graph walks; the public nesting limit applies to recursive source
- * syntax, not derived-type graph depth. `_Thread_local`, `inline`,
+ * syntax, not derived-type graph depth. File- and record-scope C11 static
+ * assertions validate the shared integer-constant grammar, including target
+ * relational/equality conversions and `sizeof(type-name)` for complete object
+ * types at that declaration point. Assertions publish no entity or member;
+ * semantic types constructed by their type names remain in the immutable
+ * graph. `sizeof` expression operands and block-scope assertions await the
+ * typed expression/body frontend and fail closed. `_Thread_local`, `inline`,
  * `_Noreturn`, `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type
  * specifiers are pending and fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage

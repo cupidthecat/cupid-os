@@ -1563,6 +1563,215 @@ find_tag(const ctool_c_translation_unit_t *unit, const char *name) {
 
 static int validate_attribute_storage_limit(frontend_fixture_t *fixture,
                                             const char *host_root);
+static char *build_depth_source(const char *kind, ctool_u32 depth);
+
+static char *build_static_assert_snapshot_source(void) {
+  static const char prefix[] = "typedef int ";
+  static const char suffix[] =
+      " snapshot_type_t;\n"
+      "_Static_assert(sizeof(snapshot_type_t) == 4, \"snapshot\");\n";
+  const ctool_u32 pointer_count = 96u;
+  size_t size = sizeof(prefix) - 1u + pointer_count + sizeof(suffix);
+  char *source = (char *)malloc(size);
+  size_t cursor = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  (void)memcpy(source + cursor, prefix, sizeof(prefix) - 1u);
+  cursor += sizeof(prefix) - 1u;
+  for (index = 0u; index < pointer_count; index++) {
+    source[cursor++] = '*';
+  }
+  (void)memcpy(source + cursor, suffix, sizeof(suffix));
+  return source;
+}
+
+static int validate_static_assert_limits(frontend_fixture_t *fixture,
+                                         const char *host_root) {
+  static const char anchor_source[] =
+      "typedef unsigned int static_assert_limit_anchor_t;\n";
+  static const char short_source[] =
+      "_Static_assert(0, \"small output\");\n";
+  static const char long_source[] =
+      "_Static_assert(0, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\");\n";
+  char *snapshot_source = build_static_assert_snapshot_source();
+  ctool_c_pp_result_t anchor_tape;
+  ctool_c_pp_result_t short_tape;
+  ctool_c_pp_result_t long_tape;
+  ctool_c_pp_result_t snapshot_tape;
+  ctool_c_translation_unit_t control_unit;
+  ctool_c_translation_unit_t anchor_unit;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_pp_token_t *short_copy = NULL;
+  ctool_c_pp_token_t *long_copy = NULL;
+  ctool_c_pp_token_t *snapshot_copy = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_c_binding_t *anchor_binding;
+  ctool_status_t status;
+  size_t short_bytes;
+  size_t long_bytes;
+  size_t snapshot_bytes;
+  int failed = 1;
+
+  if (snapshot_source == NULL ||
+      parse_valid_fixture(fixture, "/static-assert-snapshot-success.c",
+                          snapshot_source, &control_unit) != 0 ||
+      find_binding(&control_unit, "snapshot_type_t") == NULL ||
+      preprocess_fixture(fixture, "/static-assert-limit-anchor.c",
+                         anchor_source, &anchor_tape) != 0 ||
+      preprocess_fixture(fixture, "/static-assert-small-output.c",
+                         short_source, &short_tape) != 0 ||
+      preprocess_fixture(fixture, "/static-assert-long-message.c",
+                         long_source, &long_tape) != 0 ||
+      preprocess_fixture(fixture, "/static-assert-snapshot-limit.c",
+                         snapshot_source, &snapshot_tape) != 0) {
+    (void)fprintf(stderr, "static-asserts: limit control differs\n");
+    goto cleanup;
+  }
+  short_bytes = (size_t)short_tape.token_count * sizeof(*short_copy);
+  long_bytes = (size_t)long_tape.token_count * sizeof(*long_copy);
+  snapshot_bytes =
+      (size_t)snapshot_tape.token_count * sizeof(*snapshot_copy);
+  short_copy = (ctool_c_pp_token_t *)malloc(short_bytes);
+  long_copy = (ctool_c_pp_token_t *)malloc(long_bytes);
+  snapshot_copy = (ctool_c_pp_token_t *)malloc(snapshot_bytes);
+  if (short_copy == NULL || long_copy == NULL || snapshot_copy == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(short_copy, short_tape.tokens, short_bytes);
+  (void)memcpy(long_copy, long_tape.tokens, long_bytes);
+  (void)memcpy(snapshot_copy, snapshot_tape.tokens, snapshot_bytes);
+
+  limits.output_bytes = 256u;
+  limits.diagnostic_message_bytes = 512u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor_unit, 0xa5, sizeof(anchor_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &anchor_unit);
+  anchor_binding = find_binding(&anchor_unit,
+                                "static_assert_limit_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr, "static-asserts: small-output anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &short_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor_unit,
+                                "static_assert_limit_anchor_t");
+  if (status != CTOOL_ERR_INPUT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_STATIC_ASSERT ||
+      !string_equal(diagnostic->message,
+                    "static assertion failed: small output") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(short_copy, short_tape.tokens, short_bytes) != 0 ||
+      anchor_binding == NULL || anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr,
+                  "static-asserts: output-independent diagnostic differs\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &long_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 1u);
+  anchor_binding = find_binding(&anchor_unit,
+                                "static_assert_limit_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 2u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/static-assert-long-message.c") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(long_copy, long_tape.tokens, long_bytes) != 0 ||
+      anchor_binding == NULL || anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr,
+                  "static-asserts: message-limit rollback differs\n");
+    goto cleanup;
+  }
+  ctool_job_close(job);
+  job = NULL;
+
+  limits = ctool_default_limits();
+  limits.arena_block_bytes = 4096u;
+  limits.arena_bytes = 4096u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor_unit, 0xa5, sizeof(anchor_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &anchor_unit);
+  anchor_binding = find_binding(&anchor_unit,
+                                "static_assert_limit_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr, "static-asserts: arena-limit anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &snapshot_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor_unit,
+                                "static_assert_limit_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/static-assert-snapshot-limit.c") ||
+      diagnostic->line != 2u || diagnostic->column != 40u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot_copy, snapshot_tape.tokens, snapshot_bytes) != 0 ||
+      anchor_binding == NULL || anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr,
+                  "static-asserts: layout-snapshot limit differs: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot_copy);
+  free(long_copy);
+  free(short_copy);
+  free(snapshot_source);
+  return failed;
+}
 
 static int run_attributes(const char *host_root) {
   static const frontend_failure_case_t failure_cases[] = {
@@ -2422,6 +2631,302 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_static_asserts(const char *host_root) {
+  static const frontend_failure_case_t failure_cases[] = {
+      {"false static assertion",
+       "_Static_assert(sizeof(int) == 8, \"int width drift\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"zero static assertion",
+       "_Static_assert(0, \"zero is false\");\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"missing static assertion message", "_Static_assert(1);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"non-string static assertion message", "_Static_assert(1, 42);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"nonconstant static assertion",
+       "int value; _Static_assert(value == 0, \"not constant\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"comparison result width overflow",
+       "_Static_assert((0 == 0) + 0x7fffffff > 0, \"comparison width\");\n",
+       CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+      {"incomplete array sizeof",
+       "typedef int incomplete_array_t[]; "
+       "_Static_assert(sizeof(incomplete_array_t) == 0, \"incomplete\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"incomplete record sizeof",
+       "struct incomplete_record; "
+       "_Static_assert(sizeof(struct incomplete_record) == 0, "
+       "\"incomplete\"); "
+       "struct incomplete_record { int value; };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"void sizeof", "_Static_assert(sizeof(void) == 0, \"void\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"function sizeof",
+       "typedef int function_t(void); "
+       "_Static_assert(sizeof(function_t) == 0, \"function\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"self record sizeof",
+       "struct self_sized { "
+       "_Static_assert(sizeof(struct self_sized) == 4, \"self\"); "
+       "int value; };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"storage class in sizeof type name",
+       "_Static_assert(sizeof(static int) == 4, \"storage\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+      {"sizeof expression pending",
+       "_Static_assert(sizeof(1 + 2) == 4, \"expression\");\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
+      {"logical expression pending",
+       "_Static_assert(((1 == 1) && (2 == 2)), \"logical\");\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
+      {"logical-not expression pending",
+       "_Static_assert(!0, \"logical not\");\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
+      {"floating assertion condition",
+       "_Static_assert(1.0, \"floating\");\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"pointer assertion condition",
+       "_Static_assert((void *)0, \"pointer\");\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"missing static assertion semicolon",
+       "_Static_assert(1, \"semicolon\")\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_STATIC_ASSERT},
+      {"record false static assertion",
+       "struct failed_record { "
+       "_Static_assert(sizeof(int) == 8, \"record failure\"); int value; };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT}};
+  static const char source[] =
+      "typedef struct assertion_record {\n"
+      "  unsigned char tag;\n"
+      "  unsigned int value;\n"
+      "} assertion_record_t;\n"
+      "typedef int assertion_array_t[4];\n"
+      "typedef const assertion_array_t qualified_assertion_array_t;\n"
+      "typedef int aligned_assertion_int_t __attribute__((aligned(16)));\n"
+      "typedef unsigned char comparison_array_t[2 < 3];\n"
+      "enum { assertion_comparison_kind = (0xffffffffU == -1) - 2 };\n"
+      "struct assertion_bit_field { unsigned int value : 3 >= 2; };\n"
+      "_Static_assert(sizeof(assertion_record_t) == 8, \"record size\");\n"
+      "_Static_assert(sizeof(assertion_array_t) != 15, \"array size\");\n"
+      "_Static_assert(sizeof(qualified_assertion_array_t) == 16, "
+      "\"qualified array\");\n"
+      "_Static_assert(sizeof(comparison_array_t) == 1, "
+      "\"comparison array\");\n"
+      "_Static_assert(sizeof(int[3]) == 12, \"abstract array\");\n"
+      "_Static_assert(sizeof(int (*)[3]) == 4, \"array pointer\");\n"
+      "_Static_assert(sizeof(int (*)(void)) == 4, \"function pointer\");\n"
+      "_Static_assert(sizeof(const int) == 4, \"qualified type\");\n"
+      "_Static_assert(sizeof(aligned_assertion_int_t) >= 4, "
+      "\"aligned \" \"size\");\n"
+      "_Static_assert(sizeof(unsigned long long) > sizeof(unsigned int), "
+      "\"rank sizes\");\n"
+      "_Static_assert(sizeof(unsigned int) <= sizeof(unsigned long), "
+      "\"relational equality\");\n"
+      "_Static_assert(sizeof(int *) == 4u, \"pointer size\");\n"
+      "_Static_assert(sizeof(int) + 0xffffffffU == 3U, "
+      "\"size_t width\");\n"
+      "_Static_assert((1 < 1) == 0, \"strict less boundary\");\n"
+      "_Static_assert((1 > 1) == 0, \"strict greater boundary\");\n"
+      "_Static_assert(1 < 2 == 1, \"comparison precedence\");\n"
+      "_Static_assert(-1 < 1u == 0, \"usual conversions\");\n"
+      "_Static_assert(-1 == 0xffffffffU, \"equality conversion\");\n"
+      "_Static_assert(-1LL < 1U, \"wider signed conversion\");\n"
+      "_Static_assert(assertion_comparison_kind < 0, \"signed result\");\n"
+      "_Static_assert(((0xffffffffU == -1) - 2) < 0, "
+      "\"comparison result is int\");\n"
+      "_Static_assert(sizeof(int) - 5 > 0, \"sizeof is unsigned\");\n"
+      "_Static_assert(1 | 2 == 2, \"operator precedence\");\n"
+      "_Static_assert(-7, \"nonzero is true\");\n"
+      "_Static_assert(1, \"\");\n"
+      "struct pending_assertion_record;\n"
+      "_Static_assert(sizeof(struct pending_assertion_record *) == 4, "
+      "L\"pointer to incomplete\");\n"
+      "struct pending_assertion_record { int value; };\n"
+      "struct assertion_container {\n"
+      "  _Static_assert(sizeof(assertion_record_t) <= 8, "
+      "\"member \" \"scope\");\n"
+      "  unsigned char value;\n"
+      "};\n";
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  ctool_u32 failure_index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "static-asserts", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/static-asserts.c", source, &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *record_binding =
+        find_binding(&unit, "assertion_record_t");
+    const ctool_c_binding_t *array_binding =
+        find_binding(&unit, "assertion_array_t");
+    const ctool_c_binding_t *aligned_binding =
+        find_binding(&unit, "aligned_assertion_int_t");
+    const ctool_c_binding_t *qualified_binding =
+        find_binding(&unit, "qualified_assertion_array_t");
+    const ctool_c_binding_t *comparison_binding =
+        find_binding(&unit, "assertion_comparison_kind");
+    const ctool_c_binding_t *comparison_array_binding =
+        find_binding(&unit, "comparison_array_t");
+    const ctool_c_tag_t *container_tag =
+        find_tag(&unit, "assertion_container");
+    const ctool_c_tag_t *bit_field_tag =
+        find_tag(&unit, "assertion_bit_field");
+    const ctool_c_type_node_t *container =
+        container_tag == NULL ? NULL : type_node(&unit, container_tag->type);
+    const ctool_c_type_layout_t *record_layout =
+        record_binding == NULL ? NULL : type_layout(&unit, record_binding->type);
+    const ctool_c_type_layout_t *array_layout =
+        array_binding == NULL ? NULL : type_layout(&unit, array_binding->type);
+    const ctool_c_type_layout_t *aligned_layout =
+        aligned_binding == NULL
+            ? NULL
+            : type_layout(&unit, aligned_binding->type);
+    const ctool_c_type_layout_t *qualified_layout =
+        qualified_binding == NULL
+            ? NULL
+            : type_layout(&unit, qualified_binding->type);
+    const ctool_c_type_layout_t *container_layout =
+        container_tag == NULL ? NULL : type_layout(&unit, container_tag->type);
+    const ctool_c_type_layout_t *comparison_array_layout =
+        comparison_array_binding == NULL
+            ? NULL
+            : type_layout(&unit, comparison_array_binding->type);
+    const ctool_c_type_node_t *bit_field =
+        bit_field_tag == NULL ? NULL : type_node(&unit, bit_field_tag->type);
+    const ctool_c_type_layout_t *bit_field_layout =
+        bit_field_tag == NULL ? NULL : type_layout(&unit, bit_field_tag->type);
+    const ctool_c_record_member_t *bit_field_member =
+        bit_field == NULL || bit_field->member_count != 1u
+            ? NULL
+            : &unit.graph.members[bit_field->first_member];
+    if (unit.binding_count != 6u || unit.tag_count != 4u ||
+        unit.graph.member_count != 5u || record_binding == NULL ||
+        record_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        array_binding == NULL ||
+        array_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        aligned_binding == NULL ||
+        aligned_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        qualified_binding == NULL ||
+        qualified_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        comparison_binding == NULL ||
+        comparison_binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+        comparison_binding->integer_unsigned != CTOOL_FALSE ||
+        comparison_binding->integer_bits != 0xffffffffffffffffull ||
+        comparison_array_binding == NULL ||
+        comparison_array_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        comparison_array_layout == NULL ||
+        comparison_array_layout->size != 1u ||
+        comparison_array_layout->alignment != 1u || bit_field == NULL ||
+        bit_field->kind != CTOOL_C_TYPE_RECORD || bit_field_member == NULL ||
+        bit_field_member->is_bit_field != CTOOL_TRUE ||
+        bit_field_member->bit_width != 1u || bit_field_layout == NULL ||
+        bit_field_layout->size != 4u || bit_field_layout->alignment != 4u ||
+        record_layout == NULL || record_layout->size != 8u ||
+        record_layout->alignment != 4u || array_layout == NULL ||
+        array_layout->size != 16u || array_layout->alignment != 4u ||
+        aligned_layout == NULL || aligned_layout->size != 4u ||
+        aligned_layout->alignment != 16u || qualified_layout == NULL ||
+        qualified_layout->size != 16u || qualified_layout->alignment != 4u ||
+        container == NULL ||
+        container->kind != CTOOL_C_TYPE_RECORD ||
+        container->member_count != 1u || container_layout == NULL ||
+        container_layout->size != 1u || container_layout->alignment != 1u) {
+      (void)fprintf(stderr,
+                    "static-asserts: semantic graph or layout differs\n");
+      goto cleanup;
+    }
+  }
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "static",
+                           &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "per_cpu_t");
+    const ctool_c_type_layout_t *percpu_layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+        percpu_layout == NULL || percpu_layout->size != 128u ||
+        percpu_layout->alignment != 64u ||
+        find_binding(&unit, "cpus") == NULL ||
+        find_binding(&unit, "smp_cpu_count_var") == NULL) {
+      (void)fprintf(stderr,
+                    "static-asserts: unchanged per-CPU assertion differs\n");
+      goto cleanup;
+    }
+  }
+  for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
+       failure_index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[failure_index],
+                                "/static-assert-failure.c") != 0) {
+      goto cleanup;
+    }
+  }
+  {
+    static const frontend_failure_case_t message_case = {
+        "concatenated false static assertion message",
+        "_Static_assert(0, \"alpha \" \"beta\");\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_STATIC_ASSERT};
+    ctool_u32 diagnostic_index =
+        ctool_job_diagnostic_count(fixture.job);
+    const ctool_diagnostic_t *diagnostic;
+    if (expect_frontend_failure(&fixture, &message_case,
+                                "/static-assert-message.c") != 0) {
+      goto cleanup;
+    }
+    diagnostic = ctool_job_diagnostic(fixture.job, diagnostic_index);
+    if (diagnostic == NULL ||
+        !string_equal(diagnostic->message,
+                      "static assertion failed: alpha beta")) {
+      (void)fprintf(stderr,
+                    "static-asserts: concatenated diagnostic differs\n");
+      goto cleanup;
+    }
+  }
+  {
+    frontend_failure_case_t depth_case;
+    char *depth_source = build_depth_source(
+        "static-assert", CTOOL_C_PARSE_NESTING_LIMIT - 1u);
+    if (depth_source == NULL) {
+      (void)fprintf(stderr,
+                    "static-asserts: nesting source construction failed\n");
+      goto cleanup;
+    }
+    depth_case.name = "static assertion at occupied nesting limit";
+    depth_case.source = depth_source;
+    depth_case.status = CTOOL_ERR_LIMIT;
+    depth_case.diagnostic_code = CTOOL_C_PARSE_DIAG_LIMIT;
+    if (expect_frontend_failure(&fixture, &depth_case,
+                                "/static-assert-depth.c") != 0) {
+      free(depth_source);
+      goto cleanup;
+    }
+    free(depth_source);
+  }
+  if (validate_static_assert_limits(&fixture, host_root) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("static-asserts: ok\n");
   }
   return failed;
 }
@@ -4590,6 +5095,33 @@ static char *build_depth_source(const char *kind, ctool_u32 depth) {
       free(text);
       return NULL;
     }
+  } else if (strcmp(kind, "static-assert") == 0) {
+    if (append_scale_text(text, capacity, &used, "struct Root {\n") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, "struct {\n") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(
+            text, capacity, &used,
+            "_Static_assert(1, \"nesting boundary\");\n") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, "};\n") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(text, capacity, &used, "};\n") != 0) {
+      free(text);
+      return NULL;
+    }
   } else {
     free(text);
     return NULL;
@@ -4892,7 +5424,7 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                  "fat16|redeclarations|attributes|errors|scale|semantics|constants|"
+                  "fat16|redeclarations|attributes|static-asserts|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
                   "<repository-root>\n"
@@ -4908,6 +5440,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "attributes") == 0) {
     return run_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "static-asserts") == 0) {
+    return run_static_asserts(argv[2]);
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors(argv[2]);

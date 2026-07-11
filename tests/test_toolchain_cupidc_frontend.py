@@ -64,6 +64,28 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_gnu_attributes_preserve_declaration_and_layout_semantics(self):
         self.run_contract("attributes")
 
+    def test_static_asserts_use_target_sizeof_and_integer_relations(self):
+        self.run_contract("static-asserts")
+
+    def test_active_static_assert_inventory_is_drift_gated(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        feature = next(
+            item
+            for item in audit["features"]
+            if item["id"] == "c.declaration.static_assert"
+        )
+        self.assertEqual(feature["occurrences"], 22)
+        self.assertEqual(
+            feature["files"],
+            [
+                "kernel/core/process.c",
+                "kernel/core/syscall.c",
+                "kernel/lang/exec.c",
+                "kernel/smp/percpu.h",
+            ],
+        )
+
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
@@ -77,13 +99,13 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         )
         failures = {
             "/kernel/smp/mp_tables.h": (
-                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
             ),
             "/kernel/smp/percpu.h": (
-                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
             ),
             "/kernel/smp/smp.h": (
-                "/kernel/smp/percpu.h", 36, 1, "0x0b000003"
+                "/kernel/smp/percpu.h", 42, 1, "0x0b000003"
             ),
             "/kernel/core/debug.h": (
                 "/kernel/core/debug.h", 8, 1, "0x0b000003"

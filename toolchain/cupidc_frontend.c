@@ -572,9 +572,9 @@ static const ctool_c_pp_location_t *cfront_failure_location(
   return (const ctool_c_pp_location_t *)0;
 }
 
-static ctool_status_t cfront_emit_failure(
+static ctool_status_t cfront_emit_failure_string(
     cfront_context_t *context, ctool_status_t status, ctool_u32 code,
-    const ctool_c_pp_token_t *token, const char *message) {
+    const ctool_c_pp_token_t *token, ctool_string_t message) {
   const ctool_c_pp_location_t *location;
   ctool_diagnostic_t diagnostic;
   ctool_status_t emitted;
@@ -583,7 +583,8 @@ static ctool_status_t cfront_emit_failure(
       token->kind == CTOOL_C_PP_TOKEN_CUPID_EXE) {
     status = CTOOL_ERR_UNSUPPORTED;
     code = CTOOL_C_PARSE_DIAG_UNSUPPORTED;
-    message = "Cupid #exe execution is outside the declaration frontend";
+    message = ctool_string(
+        "Cupid #exe execution is outside the declaration frontend");
   }
   location = cfront_failure_location(context, token);
   diagnostic.severity = CTOOL_DIAG_ERROR;
@@ -597,9 +598,16 @@ static ctool_status_t cfront_emit_failure(
   diagnostic.column = location != (const ctool_c_pp_location_t *)0
                           ? location->column
                           : 0u;
-  diagnostic.message = ctool_string(message);
+  diagnostic.message = message;
   emitted = ctool_job_emit(context->job, &diagnostic);
   return emitted == CTOOL_OK ? status : emitted;
+}
+
+static ctool_status_t cfront_emit_failure(
+    cfront_context_t *context, ctool_status_t status, ctool_u32 code,
+    const ctool_c_pp_token_t *token, const char *message) {
+  return cfront_emit_failure_string(context, status, code, token,
+                                    ctool_string(message));
 }
 
 static ctool_status_t cfront_enter_syntax(
@@ -2549,6 +2557,13 @@ static ctool_status_t cfront_parse_number_token(
 
 static ctool_status_t cfront_parse_constant_or(
     cfront_context_t *context, cfront_integer_t *value_out);
+static ctool_bool cfront_starts_declaration_specifier(
+    const cfront_context_t *context, const ctool_c_pp_token_t *token);
+static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
+                                             ctool_u32 *type_out);
+static ctool_status_t cfront_layout_type_now(
+    cfront_context_t *context, ctool_u32 type,
+    const ctool_c_pp_token_t *token, ctool_c_type_layout_t *layout_out);
 
 static ctool_status_t cfront_parse_constant_primary(
     cfront_context_t *context, cfront_integer_t *value_out) {
@@ -2622,6 +2637,53 @@ static ctool_status_t cfront_parse_constant_primary(
 
 static ctool_status_t cfront_parse_constant_unary(
     cfront_context_t *context, cfront_integer_t *value_out) {
+  if (cfront_peek_is(context, "!") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
+        cfront_peek(context),
+        "logical-not constant expressions are outside this slice");
+  }
+  if (cfront_peek_is(context, "sizeof") == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+    ctool_c_type_layout_t layout;
+    ctool_u32 type = CFRONT_NONE;
+    ctool_status_t status = cfront_enter_syntax(context, operator_token);
+    cfront_zero(&layout, (ctool_u32)sizeof(layout));
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
+          cfront_peek(context),
+          "sizeof unary-expression is outside this declaration slice");
+    } else {
+      (void)cfront_advance(context);
+      if (cfront_starts_declaration_specifier(context,
+                                              cfront_peek(context)) ==
+          CTOOL_FALSE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
+            cfront_peek(context),
+            "sizeof expression operands require the typed expression frontend");
+      } else {
+        status = cfront_parse_type_name(context, &type);
+        if (status == CTOOL_OK) {
+          status = cfront_expected(context, ")");
+        }
+        if (status == CTOOL_OK) {
+          status = cfront_layout_type_now(context, type, operator_token,
+                                          &layout);
+        }
+        if (status == CTOOL_OK) {
+          value_out->bits = layout.size;
+          value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
+        }
+      }
+    }
+    cfront_leave_syntax(context);
+    return status;
+  }
   if (cfront_peek_is(context, "+") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *operator_token = cfront_peek(context);
     ctool_status_t status = cfront_enter_syntax(context, operator_token);
@@ -2964,6 +3026,170 @@ static ctool_status_t cfront_parse_attributes(
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_static_assert_expected(
+    cfront_context_t *context, const char *spelling, const char *message) {
+  if (cfront_peek_is(context, spelling) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT,
+        cfront_peek(context), message);
+  }
+  (void)cfront_advance(context);
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_string_literal_interior(
+    const ctool_c_pp_token_t *token, ctool_bytes_t *interior_out) {
+  ctool_u32 first_quote = 0u;
+  ctool_u32 last_quote;
+  if (token == (const ctool_c_pp_token_t *)0 ||
+      interior_out == (ctool_bytes_t *)0 ||
+      token->kind != CTOOL_C_PP_TOKEN_STRING) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  last_quote = token->spelling.size;
+  while (first_quote < token->spelling.size &&
+         token->spelling.data[first_quote] != '"') {
+    first_quote++;
+  }
+  while (last_quote > first_quote &&
+         token->spelling.data[last_quote - 1u] != '"') {
+    last_quote--;
+  }
+  if (first_quote >= token->spelling.size ||
+      last_quote <= first_quote + 1u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *interior_out =
+      ctool_bytes(token->spelling.data + first_quote + 1u,
+                  last_quote - first_quote - 2u);
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_static_assert_false(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    ctool_u32 message_first, ctool_u32 message_end) {
+  static const char prefix[] = "static assertion failed: ";
+  const ctool_limits_t *limits = ctool_job_limits(context->job);
+  ctool_arena_t *arena = ctool_job_arena(context->job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  char *message = (char *)0;
+  ctool_u32 message_size = (ctool_u32)sizeof(prefix) - 1u;
+  ctool_u32 cursor;
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  ctool_status_t rewind_status;
+  for (index = message_first; index < message_end; index++) {
+    const ctool_c_pp_token_t *token = cfront_token(context, index);
+    ctool_bytes_t interior;
+    status = cfront_string_literal_interior(token, &interior);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, keyword,
+          "static assertion message token is malformed");
+    }
+    if (message_size > CFRONT_U32_MAX - interior.size) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW, keyword,
+          "static assertion diagnostic exceeds 32-bit size");
+    }
+    message_size += interior.size;
+  }
+  if (message_size > limits->diagnostic_message_bytes) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_LIMIT, CTOOL_C_PARSE_DIAG_LIMIT, keyword,
+        "static assertion diagnostic exceeds configured limit");
+  }
+  status = ctool_arena_alloc(arena, message_size, 1u, (void **)&message);
+  if (status == CTOOL_OK) {
+    ctool_string_t text;
+    cfront_copy(message, prefix, (ctool_u32)sizeof(prefix) - 1u);
+    cursor = (ctool_u32)sizeof(prefix) - 1u;
+    for (index = message_first; index < message_end; index++) {
+      const ctool_c_pp_token_t *token = cfront_token(context, index);
+      ctool_bytes_t interior;
+      status = cfront_string_literal_interior(token, &interior);
+      if (status != CTOOL_OK) {
+        break;
+      }
+      cfront_copy(message + cursor, interior.data, interior.size);
+      cursor += interior.size;
+    }
+    if (status == CTOOL_OK) {
+      text.data = message;
+      text.size = message_size;
+      status = cfront_emit_failure_string(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT,
+          keyword, text);
+    }
+  } else {
+    status = cfront_emit_failure(
+        context, status,
+        status == CTOOL_ERR_OVERFLOW ? CTOOL_C_PARSE_DIAG_OVERFLOW
+                                     : CTOOL_C_PARSE_DIAG_LIMIT,
+        keyword, status == CTOOL_ERR_OVERFLOW
+                     ? "static assertion diagnostic exceeds 32-bit size"
+                     : "static assertion diagnostic storage limit exceeded");
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  if (rewind_status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, keyword,
+        "static assertion diagnostic scratch rewind failed");
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_static_assert(
+    cfront_context_t *context) {
+  const ctool_c_pp_token_t *keyword = cfront_advance(context);
+  cfront_integer_t value = {0ull, CFRONT_INTEGER_SIGNED_32};
+  ctool_u32 message_first = 0u;
+  ctool_u32 message_end = 0u;
+  ctool_status_t status = cfront_enter_syntax(context, keyword);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_static_assert_expected(
+      context, "(", "static assertion requires an opening parenthesis");
+  if (status == CTOOL_OK) {
+    status = cfront_parse_constant_or(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_static_assert_expected(
+        context, ",", "C11 static assertion requires a message");
+  }
+  if (status == CTOOL_OK) {
+    const ctool_c_pp_token_t *message = cfront_peek(context);
+    if (message == (const ctool_c_pp_token_t *)0 ||
+        message->kind != CTOOL_C_PP_TOKEN_STRING) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATIC_ASSERT,
+          message, "static assertion message must be a string literal");
+    } else {
+      message_first = context->position;
+      do {
+        (void)cfront_advance(context);
+      } while (cfront_peek(context) != (const ctool_c_pp_token_t *)0 &&
+               cfront_peek(context)->kind == CTOOL_C_PP_TOKEN_STRING);
+      message_end = context->position;
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_static_assert_expected(
+        context, ")", "static assertion requires a closing parenthesis");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_static_assert_expected(
+        context, ";", "static assertion declaration requires a semicolon");
+  }
+  if (status == CTOOL_OK && value.bits == 0ull) {
+    status = cfront_static_assert_false(context, keyword, message_first,
+                                        message_end);
+  }
+  cfront_leave_syntax(context);
+  return status;
+}
+
 static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token) {
   ctool_u32 typedef_type;
@@ -3033,6 +3259,7 @@ static ctool_status_t cfront_record_type_body(
   cfront_attributes_t record_attributes;
   ctool_status_t status;
   cfront_zero(&record_attributes, (ctool_u32)sizeof(record_attributes));
+  cfront_zero(&node, (ctool_u32)sizeof(node));
   *anonymous_definition_out = CTOOL_FALSE;
   status = cfront_parse_attributes(context, &record_attributes);
   if (status != CTOOL_OK) {
@@ -3901,6 +4128,48 @@ static ctool_status_t cfront_build_declarator(
   }
 }
 
+static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
+                                             ctool_u32 *type_out) {
+  const ctool_c_pp_token_t *token = cfront_peek(context);
+  cfront_specifiers_t specifiers;
+  ctool_u32 root = CFRONT_NONE;
+  ctool_u32 type = CFRONT_NONE;
+  ctool_string_t name = ctool_string("");
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+  ctool_status_t status = cfront_parse_specifiers(context, &specifiers);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (specifiers.storage != CFRONT_STORAGE_NONE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME, token,
+        "type name cannot contain a storage-class specifier");
+  }
+  if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        cfront_first_attribute_token(&specifiers.attributes),
+        "attributes in a type name are outside this declaration slice");
+  }
+  status = cfront_parse_declarator(context, CTOOL_TRUE, &root);
+  if (status == CTOOL_OK) {
+    status = cfront_build_declarator(
+        context, root, specifiers.type, &type, &name, &location,
+        &physical_location);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (name.size != 0u) {
+    return cfront_emit_failure(context, CTOOL_ERR_INPUT,
+                               CTOOL_C_PARSE_DIAG_TYPE_NAME, token,
+                               "type name cannot declare an identifier");
+  }
+  *type_out = type;
+  return CTOOL_OK;
+}
+
 static ctool_bool cfront_pending_member_name_exists(
     const cfront_context_t *context, ctool_u32 head, ctool_string_t name) {
   while (head != CFRONT_NONE) {
@@ -4133,7 +4402,11 @@ static ctool_status_t cfront_parse_member_declaration(
     ctool_u32 *member_count) {
   const ctool_c_pp_token_t *declaration_token = cfront_peek(context);
   cfront_specifiers_t specifiers;
-  ctool_status_t status = cfront_parse_specifiers(context, &specifiers);
+  ctool_status_t status;
+  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
+    return cfront_parse_static_assert(context);
+  }
+  status = cfront_parse_specifiers(context, &specifiers);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -4281,6 +4554,9 @@ static ctool_status_t cfront_parse_external_declaration(
   const ctool_c_pp_token_t *declaration_token = cfront_peek(context);
   cfront_specifiers_t specifiers;
   ctool_status_t status;
+  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
+    return cfront_parse_static_assert(context);
+  }
   if (declaration_token != (const ctool_c_pp_token_t *)0 &&
       declaration_token->kind == CTOOL_C_PP_TOKEN_CUPID_EXE) {
     return cfront_emit_failure(
@@ -4711,6 +4987,94 @@ static ctool_status_t cfront_alloc_array(cfront_context_t *context,
   return ctool_arena_alloc_zero(ctool_job_arena(context->job), count,
                                 element_size, (ctool_u32)sizeof(void *),
                                 allocation_out);
+}
+
+static ctool_status_t cfront_layout_type_now(
+    cfront_context_t *context, ctool_u32 type,
+    const ctool_c_pp_token_t *token, ctool_c_type_layout_t *layout_out) {
+  ctool_c_type_node_t *types = (ctool_c_type_node_t *)0;
+  ctool_c_record_member_t *members = (ctool_c_record_member_t *)0;
+  ctool_u32 *parameter_types = (ctool_u32 *)0;
+  ctool_c_layout_request_t request;
+  ctool_c_layout_result_t result;
+  ctool_arena_t *arena = ctool_job_arena(context->job);
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_u32 index;
+  ctool_bool complete = CTOOL_FALSE;
+  ctool_status_t rewind_status;
+  ctool_status_t status = cfront_type_is_complete_object_now(
+      context, type, &complete);
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "sizeof operand completeness is unavailable");
+  }
+  if (complete == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+        token, "sizeof requires a complete object type");
+  }
+  mark = ctool_arena_mark(arena);
+  diagnostic_count = ctool_job_diagnostic_count(context->job);
+  cfront_zero(&request, (ctool_u32)sizeof(request));
+  cfront_zero(&result, (ctool_u32)sizeof(result));
+  status = cfront_alloc_array(context, context->types.count,
+                              (ctool_u32)sizeof(*types), (void **)&types);
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->members.count,
+                                (ctool_u32)sizeof(*members),
+                                (void **)&members);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->parameter_types.count,
+                                (ctool_u32)sizeof(*parameter_types),
+                                (void **)&parameter_types);
+  }
+  for (index = 0u; status == CTOOL_OK && index < context->types.count;
+       index++) {
+    status = cfront_type_get(context, index, &types[index]);
+  }
+  for (index = 0u; status == CTOOL_OK && index < context->members.count;
+       index++) {
+    status = cfront_vector_get(&context->members, index, &members[index]);
+  }
+  for (index = 0u;
+       status == CTOOL_OK && index < context->parameter_types.count;
+       index++) {
+    status = cfront_vector_get(&context->parameter_types, index,
+                               &parameter_types[index]);
+  }
+  if (status == CTOOL_OK) {
+    request.location = token->location;
+    request.physical_location = token->physical_location;
+    request.types = types;
+    request.type_count = context->types.count;
+    request.members = members;
+    request.member_count = context->members.count;
+    request.parameter_types = parameter_types;
+    request.parameter_type_count = context->parameter_types.count;
+    status = ctool_c_layout_types(context->job, &request, &result);
+  }
+  if (status == CTOOL_OK &&
+      (type >= result.type_count ||
+       result.types == (const ctool_c_type_layout_t *)0)) {
+    status = CTOOL_ERR_INTERNAL;
+  }
+  if (status == CTOOL_OK) {
+    *layout_out = result.types[type];
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  if (rewind_status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "sizeof layout scratch rewind failed");
+  }
+  if (status != CTOOL_OK &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
 }
 
 static ctool_status_t cfront_copy_string_owned(cfront_context_t *context,
@@ -5488,15 +5852,101 @@ static ctool_status_t cfront_parse_constant_shift(
   return status;
 }
 
+static ctool_bool cfront_integer_less_than(cfront_integer_t left,
+                                           cfront_integer_t right) {
+  if (cfront_integer_unsigned(left.kind) == CTOOL_TRUE) {
+    return left.bits < right.bits ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  {
+    ctool_bool left_negative = cfront_integer_negative(&left);
+    ctool_bool right_negative = cfront_integer_negative(&right);
+    if (left_negative != right_negative) {
+      return left_negative;
+    }
+    if (left_negative == CTOOL_TRUE) {
+      return cfront_integer_magnitude(&left) >
+                     cfront_integer_magnitude(&right)
+                 ? CTOOL_TRUE
+                 : CTOOL_FALSE;
+    }
+  }
+  return left.bits < right.bits ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_parse_constant_relational(
+    cfront_context_t *context, cfront_integer_t *value_out) {
+  ctool_status_t status = cfront_parse_constant_shift(context, value_out);
+  while (status == CTOOL_OK &&
+         (cfront_peek_is(context, "<") == CTOOL_TRUE ||
+          cfront_peek_is(context, ">") == CTOOL_TRUE ||
+          cfront_peek_is(context, "<=") == CTOOL_TRUE ||
+          cfront_peek_is(context, ">=") == CTOOL_TRUE)) {
+    const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+    cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};
+    cfront_integer_kind_t kind;
+    cfront_integer_t left;
+    ctool_bool result;
+    status = cfront_parse_constant_shift(context, &right);
+    if (status != CTOOL_OK) {
+      break;
+    }
+    kind = cfront_integer_usual_kind(value_out->kind, right.kind);
+    left = cfront_integer_convert(*value_out, kind);
+    right = cfront_integer_convert(right, kind);
+    if (cfront_token_is(operator_token, "<") == CTOOL_TRUE) {
+      result = cfront_integer_less_than(left, right);
+    } else if (cfront_token_is(operator_token, ">") == CTOOL_TRUE) {
+      result = cfront_integer_less_than(right, left);
+    } else if (cfront_token_is(operator_token, "<=") == CTOOL_TRUE) {
+      result = cfront_integer_less_than(right, left) == CTOOL_TRUE
+                   ? CTOOL_FALSE
+                   : CTOOL_TRUE;
+    } else {
+      result = cfront_integer_less_than(left, right) == CTOOL_TRUE
+                   ? CTOOL_FALSE
+                   : CTOOL_TRUE;
+    }
+    value_out->bits = result == CTOOL_TRUE ? 1ull : 0ull;
+    value_out->kind = CFRONT_INTEGER_SIGNED_32;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_constant_equality(
+    cfront_context_t *context, cfront_integer_t *value_out) {
+  ctool_status_t status = cfront_parse_constant_relational(context, value_out);
+  while (status == CTOOL_OK &&
+         (cfront_peek_is(context, "==") == CTOOL_TRUE ||
+          cfront_peek_is(context, "!=") == CTOOL_TRUE)) {
+    ctool_bool equal = cfront_peek_is(context, "==");
+    cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};
+    cfront_integer_kind_t kind;
+    cfront_integer_t left;
+    (void)cfront_advance(context);
+    status = cfront_parse_constant_relational(context, &right);
+    if (status != CTOOL_OK) {
+      break;
+    }
+    kind = cfront_integer_usual_kind(value_out->kind, right.kind);
+    left = cfront_integer_convert(*value_out, kind);
+    right = cfront_integer_convert(right, kind);
+    value_out->bits = (left.bits == right.bits) == (equal == CTOOL_TRUE)
+                          ? 1ull
+                          : 0ull;
+    value_out->kind = CFRONT_INTEGER_SIGNED_32;
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_constant_and(
     cfront_context_t *context, cfront_integer_t *value_out) {
   value_out->bits = 0ull;
   value_out->kind = CFRONT_INTEGER_SIGNED_32;
-  ctool_status_t status = cfront_parse_constant_shift(context, value_out);
+  ctool_status_t status = cfront_parse_constant_equality(context, value_out);
   while (status == CTOOL_OK && cfront_peek_is(context, "&") == CTOOL_TRUE) {
     cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};
     (void)cfront_advance(context);
-    status = cfront_parse_constant_shift(context, &right);
+    status = cfront_parse_constant_equality(context, &right);
     if (status == CTOOL_OK) {
       cfront_integer_kind_t kind =
           cfront_integer_usual_kind(value_out->kind, right.kind);
@@ -5550,6 +6000,15 @@ static ctool_status_t cfront_parse_constant_or(
       value_out->bits =
           cfront_integer_normalize_bits(left.bits | right.bits, kind);
     }
+  }
+  if (status == CTOOL_OK &&
+      (cfront_peek_is(context, "&&") == CTOOL_TRUE ||
+       cfront_peek_is(context, "||") == CTOOL_TRUE ||
+       cfront_peek_is(context, "?") == CTOOL_TRUE)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
+        cfront_peek(context),
+        "logical and conditional constant operators are outside this slice");
   }
   return status;
 }
