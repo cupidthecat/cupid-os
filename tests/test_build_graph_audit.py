@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import subprocess
 import sys
@@ -344,10 +345,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(
                 root / "feature.c",
                 """
+                #define SPANNED( \\
+                    left, \\
+                    right) left ## \\
+                    right
                 #define TRACE(fmt, ...) log(fmt, __VA_ARGS__)
                 #define JOIN(a, b) a ## b
                 #define NAME(value) #value
                 #define DEBUG(fmt, ...) log(fmt, ##__VA_ARGS__)
+                #define STRINGIFIED(value) \\
+                    #value
+                #define GNU_MORE(fmt, ...) log(fmt, \\
+                    ## __VA_ARGS__)
+                // phase-two splice keeps the next line in this comment \\
+                #define NOT_REAL(value) value ## value
                 #pragma pack(push, 1)
                 struct __attribute__((packed)) packet {
                     unsigned kind : 3;
@@ -471,6 +482,39 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 2)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
             self.assertEqual(features["asm.instruction.call"]["occurrences"], 1)
+            self.assertEqual(
+                features["c.preprocessor.function_macro"]["occurrences"], 7
+            )
+            self.assertEqual(
+                features["c.preprocessor.function_macro"]["examples"][0][
+                    "line"
+                ],
+                1,
+            )
+            self.assertTrue(
+                features["c.preprocessor.function_macro"]["examples"][0][
+                    "text"
+                ].startswith("#define SPANNED(")
+            )
+            self.assertEqual(
+                features["c.preprocessor.variadic_macro"]["occurrences"], 3
+            )
+            self.assertEqual(
+                features["c.preprocessor.token_paste"]["occurrences"], 4
+            )
+            self.assertEqual(
+                features["c.preprocessor.stringify"]["occurrences"], 2
+            )
+            self.assertEqual(
+                features["c.preprocessor.gnu_variadic_comma_elision"][
+                    "occurrences"
+                ],
+                2,
+            )
+            self.assertEqual(
+                features["c.preprocessor.define"]["occurrences"], 7
+            )
+            self.assertNotIn("c.preprocessor.value", features)
             self.assertNotIn("asm.instruction.bits", features)
             self.assertNotIn("asm.instruction.org", features)
             self.assertNotIn("asm.instruction.table", features)
@@ -485,7 +529,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 features["c.extension.attribute.packed"]["examples"][0]["line"],
-                6,
+                16,
             )
 
             sources = {entry["path"]: entry for entry in audit["sources"]}
@@ -493,6 +537,34 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid_c.type.u0",
                 sources["app.cc"]["features"],
             )
+
+    def test_c_logical_lines_use_only_real_newlines_and_preserve_evidence(self):
+        spec = importlib.util.spec_from_file_location(
+            "_cupid_build_graph_audit_test", AUDIT_TOOL
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            del sys.modules[spec.name]
+
+        lf = "#define JOIN( \\\n left) left\n"
+        crlf = lf.replace("\n", "\r\n")
+        self.assertEqual(
+            module._c_logical_lines(lf), module._c_logical_lines(crlf)
+        )
+        self.assertEqual(
+            module._c_logical_lines("#define TRAILING value\\"),
+            [(1, "#define TRAILING value\\", "#define TRAILING value\\")],
+        )
+        controls = "#define ONLY 1\v#define NOT_SECOND 2\fstill_same"
+        self.assertEqual(
+            module._c_logical_lines(controls),
+            [(1, controls, controls)],
+        )
 
     def test_active_assembly_controls_are_not_memory_operands(self):
         with tempfile.TemporaryDirectory() as td:

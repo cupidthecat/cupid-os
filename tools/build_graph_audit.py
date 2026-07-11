@@ -1354,56 +1354,83 @@ def _add_regex_feature(
     collector.add(feature_id, path, line_number, original_line, occurrences)
 
 
-def _scan_c_features(
+def _c_physical_lines(text: str) -> list[tuple[str, bool]]:
+    """Split only the CR/LF sequences that phase two treats as newlines."""
+    lines: list[tuple[str, bool]] = []
+    start = 0
+    index = 0
+    while index < len(text):
+        if text[index] not in {"\r", "\n"}:
+            index += 1
+            continue
+        lines.append((text[start:index], True))
+        if (
+            text[index] == "\r"
+            and index + 1 < len(text)
+            and text[index + 1] == "\n"
+        ):
+            index += 2
+        else:
+            index += 1
+        start = index
+    if start < len(text):
+        lines.append((text[start:], False))
+    return lines
+
+
+def _c_logical_lines(text: str) -> list[tuple[int, str, str]]:
+    """Return phase-two logical lines with their first physical location."""
+    raw_lines = _c_physical_lines(text)
+    raw_logical_lines: list[tuple[int, str, str]] = []
+    chunks: list[str] = []
+    start_index = 0
+    for index, (raw_body, terminated) in enumerate(raw_lines):
+        if not chunks:
+            start_index = index
+        continued = terminated and raw_body.endswith("\\")
+        chunks.append(raw_body[:-1] if continued else raw_body)
+        if continued:
+            continue
+        raw_logical_lines.append(
+            (
+                start_index + 1,
+                raw_lines[start_index][0],
+                "".join(chunks),
+            )
+        )
+        chunks = []
+
+    if chunks:
+        raw_logical_lines.append(
+            (
+                start_index + 1,
+                raw_lines[start_index][0],
+                "".join(chunks),
+            )
+        )
+    if not raw_logical_lines:
+        return []
+
+    masked_text = _mask_c_noncode(
+        "\n".join(code_line for _, _, code_line in raw_logical_lines)
+    )
+    masked_lines = masked_text.split("\n")
+    if len(masked_lines) != len(raw_logical_lines):
+        raise AuditError("C masking changed the logical line count")
+    return [
+        (line_number, original_line, masked_line)
+        for (line_number, original_line, _), masked_line in zip(
+            raw_logical_lines, masked_lines, strict=True
+        )
+    ]
+
+
+def _scan_c_macro_features(
     path: str,
-    text: str,
-    language: str,
+    logical_lines: list[tuple[int, str, str]],
     collector: FeatureCollector,
 ) -> None:
-    masked = _mask_c_noncode(text)
-    original_lines = text.splitlines()
-    code_lines = masked.splitlines()
-    for line_number, code_line in enumerate(code_lines, start=1):
-        original_line = original_lines[line_number - 1]
-        tokens = re.findall(r"\b[A-Za-z_]\w*\b", code_line)
-        for token in sorted(set(tokens)):
-            feature_id = C_KEYWORD_FEATURES.get(token)
-            if feature_id is not None:
-                collector.add(
-                    feature_id,
-                    path,
-                    line_number,
-                    original_line,
-                    tokens.count(token),
-                )
-            if language == "cupid_c" and token in CUPID_TYPE_TOKENS:
-                collector.add(
-                    f"cupid_c.type.{CUPID_TYPE_TOKENS[token]}",
-                    path,
-                    line_number,
-                    original_line,
-                    tokens.count(token),
-                )
-            if language == "cupid_c" and token in CUPID_KEYWORD_FEATURES:
-                collector.add(
-                    CUPID_KEYWORD_FEATURES[token],
-                    path,
-                    line_number,
-                    original_line,
-                    tokens.count(token),
-                )
-
-        directive_match = re.match(r"\s*#\s*([A-Za-z_]\w*)", code_line)
-        if directive_match:
-            directive = directive_match.group(1).lower()
-            feature_id = (
-                f"c.preprocessor.{directive}"
-                if directive in C_PREPROCESSOR_DIRECTIVES or language != "cupid_c"
-                else f"cupid_c.directive.{directive}"
-            )
-            collector.add(
-                feature_id, path, line_number, original_line
-            )
+    for line_number, original_line, code_line in logical_lines:
         macro_match = re.match(
             r"\s*#\s*define\s+[A-Za-z_]\w*\(([^)]*)\)", code_line
         )
@@ -1447,6 +1474,56 @@ def _scan_c_features(
                 line_number,
                 original_line,
                 len(re.findall(r",\s*##\s*__VA_ARGS__\b", replacement)),
+            )
+
+
+def _scan_c_features(
+    path: str,
+    text: str,
+    language: str,
+    collector: FeatureCollector,
+) -> None:
+    logical_lines = _c_logical_lines(text)
+    _scan_c_macro_features(path, logical_lines, collector)
+    for line_number, original_line, code_line in logical_lines:
+        tokens = re.findall(r"\b[A-Za-z_]\w*\b", code_line)
+        for token in sorted(set(tokens)):
+            feature_id = C_KEYWORD_FEATURES.get(token)
+            if feature_id is not None:
+                collector.add(
+                    feature_id,
+                    path,
+                    line_number,
+                    original_line,
+                    tokens.count(token),
+                )
+            if language == "cupid_c" and token in CUPID_TYPE_TOKENS:
+                collector.add(
+                    f"cupid_c.type.{CUPID_TYPE_TOKENS[token]}",
+                    path,
+                    line_number,
+                    original_line,
+                    tokens.count(token),
+                )
+            if language == "cupid_c" and token in CUPID_KEYWORD_FEATURES:
+                collector.add(
+                    CUPID_KEYWORD_FEATURES[token],
+                    path,
+                    line_number,
+                    original_line,
+                    tokens.count(token),
+                )
+
+        directive_match = re.match(r"\s*#\s*([A-Za-z_]\w*)", code_line)
+        if directive_match:
+            directive = directive_match.group(1).lower()
+            feature_id = (
+                f"c.preprocessor.{directive}"
+                if directive in C_PREPROCESSOR_DIRECTIVES or language != "cupid_c"
+                else f"cupid_c.directive.{directive}"
+            )
+            collector.add(
+                feature_id, path, line_number, original_line
             )
         if re.match(r"\s*#\s*pragma\s+pack\b", code_line):
             collector.add(

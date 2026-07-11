@@ -15536,7 +15536,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 182
+      "occurrences": 184
     },
     {
       "category": "preprocessor",
@@ -15558,10 +15558,12 @@
         }
       ],
       "files": [
-        "drivers/serial.h"
+        "drivers/serial.h",
+        "kernel/core/assert.h",
+        "kernel/core/panic.h"
       ],
       "id": "c.preprocessor.gnu_variadic_comma_elision",
-      "occurrences": 4
+      "occurrences": 6
     },
     {
       "category": "preprocessor",
@@ -16508,16 +16510,28 @@
       "category": "preprocessor",
       "examples": [
         {
+          "line": 7,
+          "path": "kernel/core/assert.h",
+          "text": "#define ASSERT(cond) \\"
+        },
+        {
+          "line": 95,
+          "path": "kernel/doom/src/m_config.c",
+          "text": "#define CONFIG_VARIABLE_GENERIC(name, type) \\"
+        },
+        {
           "line": 417,
           "path": "kernel/gui/gui_themes.c",
           "text": "#define FIELD(n) { #n, (int)__builtin_offsetof(ui_theme_t, n) }"
         }
       ],
       "files": [
+        "kernel/core/assert.h",
+        "kernel/doom/src/m_config.c",
         "kernel/gui/gui_themes.c"
       ],
       "id": "c.preprocessor.stringify",
-      "occurrences": 1
+      "occurrences": 3
     },
     {
       "category": "preprocessor",
@@ -16541,10 +16555,13 @@
       "files": [
         "drivers/serial.h",
         "kernel/audio/nuked_opl3.c",
+        "kernel/core/assert.h",
+        "kernel/core/panic.h",
+        "kernel/cpu/fpu.c",
         "kernel/doom/src/sha1.c"
       ],
       "id": "c.preprocessor.token_paste",
-      "occurrences": 8
+      "occurrences": 13
     },
     {
       "category": "preprocessor",
@@ -20524,7 +20541,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "c14c44e1f14c699903b400af347776ee6f7348ef5a4a07ebafcaacd7acdb10af"
+      "sha256": "3426f829b666c7d5a9b47d8ddb487e4c8c0d24b380c241a43622dbcaf5328f53"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -27155,9 +27172,12 @@
         "c.preprocessor.else",
         "c.preprocessor.endif",
         "c.preprocessor.function_macro",
+        "c.preprocessor.gnu_variadic_comma_elision",
         "c.preprocessor.ifdef",
         "c.preprocessor.ifndef",
         "c.preprocessor.include",
+        "c.preprocessor.stringify",
+        "c.preprocessor.token_paste",
         "c.preprocessor.variadic_macro",
         "c.type.void"
       ],
@@ -27455,8 +27475,10 @@
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.function_macro",
+        "c.preprocessor.gnu_variadic_comma_elision",
         "c.preprocessor.ifndef",
         "c.preprocessor.include",
+        "c.preprocessor.token_paste",
         "c.preprocessor.variadic_macro",
         "c.qualifier.const",
         "c.qualifier.volatile",
@@ -27848,6 +27870,7 @@
         "c.preprocessor.define",
         "c.preprocessor.function_macro",
         "c.preprocessor.include",
+        "c.preprocessor.token_paste",
         "c.qualifier.const",
         "c.qualifier.volatile",
         "c.storage.inline",
@@ -32724,6 +32747,7 @@
         "c.preprocessor.if",
         "c.preprocessor.ifdef",
         "c.preprocessor.include",
+        "c.preprocessor.stringify",
         "c.qualifier.const",
         "c.storage.static",
         "c.type.char",
