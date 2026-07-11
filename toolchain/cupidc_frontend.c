@@ -261,6 +261,58 @@ static ctool_status_t cfront_vector_get(const cfront_vector_t *vector,
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_vector_replace(cfront_context_t *context,
+                                            cfront_vector_t *vector,
+                                            ctool_u32 index,
+                                            const void *value) {
+  const ctool_limits_t *limits;
+  ctool_buffer_t *replacement = (ctool_buffer_t *)0;
+  ctool_bytes_t bytes;
+  ctool_u32 offset;
+  ctool_u32 suffix_offset;
+  ctool_u32 initial;
+  ctool_status_t status;
+  if (context == (cfront_context_t *)0 || vector == (cfront_vector_t *)0 ||
+      value == (const void *)0 || vector->storage == (ctool_buffer_t *)0 ||
+      index >= vector->count ||
+      cfront_multiply_overflows(index, vector->element_size) == CTOOL_TRUE) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  bytes = ctool_buffer_view(vector->storage);
+  offset = index * vector->element_size;
+  if (offset > bytes.size || vector->element_size > bytes.size - offset) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  suffix_offset = offset + vector->element_size;
+  limits = ctool_job_limits(context->job);
+  initial = bytes.size < 256u ? bytes.size : 256u;
+  if (initial == 0u) {
+    initial = 1u;
+  }
+  status = ctool_job_open_buffer(context->job, initial,
+                                 limits->output_bytes, &replacement);
+  if (status == CTOOL_OK && offset != 0u) {
+    status = ctool_buffer_append(replacement,
+                                 ctool_bytes(bytes.data, offset));
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_append(
+        replacement, ctool_bytes(value, vector->element_size));
+  }
+  if (status == CTOOL_OK && suffix_offset < bytes.size) {
+    status = ctool_buffer_append(
+        replacement, ctool_bytes(bytes.data + suffix_offset,
+                                 bytes.size - suffix_offset));
+  }
+  if (status == CTOOL_OK) {
+    ctool_buffer_close(vector->storage);
+    vector->storage = replacement;
+  } else {
+    ctool_buffer_close(replacement);
+  }
+  return status;
+}
+
 static ctool_u32 cfront_vector_mark(const cfront_vector_t *vector) {
   return vector->count;
 }
@@ -656,6 +708,36 @@ static ctool_status_t cfront_underlying_type(
   }
 }
 
+static ctool_status_t cfront_unqualified_parameter_type(
+    cfront_context_t *context, ctool_u32 type, ctool_u32 *type_out) {
+  ctool_c_type_node_t node;
+  ctool_u32 preserved_qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  ctool_status_t status;
+  for (;;) {
+    status = cfront_type_get(context, type, &node);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (node.kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    preserved_qualifiers |= node.qualifiers & CTOOL_C_QUAL_ATOMIC;
+    type = node.referenced_type;
+    traversed++;
+    if (traversed > context->types.count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
+  preserved_qualifiers |= node.qualifiers & CTOOL_C_QUAL_ATOMIC;
+  if (node.qualifiers == preserved_qualifiers) {
+    *type_out = type;
+    return CTOOL_OK;
+  }
+  node.qualifiers = preserved_qualifiers;
+  return cfront_type_append(context, &node, type_out);
+}
+
 static ctool_status_t cfront_type_is_complete_object_now(
     const cfront_context_t *context, ctool_u32 type,
     ctool_bool *complete_out) {
@@ -920,6 +1002,870 @@ static ctool_bool cfront_find_typedef(const cfront_context_t *context,
   return CTOOL_FALSE;
 }
 
+typedef enum {
+  CFRONT_TYPE_SAME = 1,
+  CFRONT_TYPE_COMPATIBLE,
+  CFRONT_TYPE_CAN_REPRESENT_COMPOSITE
+} cfront_type_relation_t;
+
+typedef struct {
+  ctool_u32 type;
+  ctool_u32 qualifiers;
+} cfront_type_ref_t;
+
+typedef struct {
+  cfront_type_ref_t left;
+  cfront_type_ref_t right;
+  ctool_bool parameter;
+} cfront_type_pair_t;
+
+typedef struct {
+  ctool_u32 type;
+  ctool_c_type_node_t node;
+  ctool_u32 qualifiers;
+} cfront_type_view_t;
+
+static ctool_status_t cfront_type_view(const cfront_context_t *context,
+                                       cfront_type_ref_t reference,
+                                       ctool_bool parameter,
+                                       cfront_type_view_t *view_out) {
+  ctool_u32 traversed = 0u;
+  ctool_status_t status;
+  for (;;) {
+    status = cfront_type_get(context, reference.type, &view_out->node);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (view_out->node.kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    reference.qualifiers |= view_out->node.qualifiers;
+    reference.type = view_out->node.referenced_type;
+    traversed++;
+    if (traversed > context->types.count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
+  view_out->type = reference.type;
+  view_out->qualifiers = reference.qualifiers | view_out->node.qualifiers;
+  if (parameter == CTOOL_TRUE) {
+    view_out->qualifiers &= CTOOL_C_QUAL_ATOMIC;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_bool cfront_type_pair_equal(const cfront_type_pair_t *left,
+                                          const cfront_type_pair_t *right) {
+  return left->left.type == right->left.type &&
+                 left->left.qualifiers == right->left.qualifiers &&
+                 left->right.type == right->right.type &&
+                 left->right.qualifiers == right->right.qualifiers &&
+                 left->parameter == right->parameter
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_type_pair_seen(const cfront_vector_t *seen,
+                                        const cfront_type_pair_t *pair) {
+  ctool_u32 index;
+  for (index = 0u; index < seen->count; index++) {
+    cfront_type_pair_t candidate;
+    if (cfront_vector_get(seen, index, &candidate) != CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_type_pair_equal(&candidate, pair) == CTOOL_TRUE) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cfront_integer_type_kind(ctool_c_type_kind_t kind) {
+  return kind == CTOOL_C_TYPE_BOOL || kind == CTOOL_C_TYPE_CHAR ||
+                 kind == CTOOL_C_TYPE_SIGNED_CHAR ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_CHAR ||
+                 kind == CTOOL_C_TYPE_SIGNED_SHORT ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_SHORT ||
+                 kind == CTOOL_C_TYPE_SIGNED_INT ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+                 kind == CTOOL_C_TYPE_SIGNED_LONG ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
+                 kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_parameter_survives_default_promotion(
+    const cfront_context_t *context, ctool_u32 type,
+    ctool_bool *survives_out) {
+  cfront_type_ref_t reference;
+  cfront_type_view_t view;
+  ctool_status_t status;
+  reference.type = type;
+  reference.qualifiers = 0u;
+  status = cfront_type_view(context, reference, CTOOL_TRUE, &view);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  switch (view.node.kind) {
+  case CTOOL_C_TYPE_BOOL:
+  case CTOOL_C_TYPE_CHAR:
+  case CTOOL_C_TYPE_SIGNED_CHAR:
+  case CTOOL_C_TYPE_UNSIGNED_CHAR:
+  case CTOOL_C_TYPE_SIGNED_SHORT:
+  case CTOOL_C_TYPE_UNSIGNED_SHORT:
+  case CTOOL_C_TYPE_FLOAT:
+    *survives_out = CTOOL_FALSE;
+    break;
+  default:
+    *survives_out = CTOOL_TRUE;
+    break;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_compare_type_refs(
+    cfront_context_t *context, cfront_type_ref_t left,
+    cfront_type_ref_t right, ctool_bool parameter,
+    cfront_type_relation_t relation, ctool_bool *matches_out) {
+  cfront_vector_t work;
+  cfront_vector_t seen;
+  cfront_type_pair_t initial;
+  ctool_status_t status;
+  ctool_bool matches = CTOOL_TRUE;
+  cfront_zero(&work, (ctool_u32)sizeof(work));
+  cfront_zero(&seen, (ctool_u32)sizeof(seen));
+  initial.left = left;
+  initial.right = right;
+  initial.parameter = parameter;
+  status = cfront_vector_open(context, &work,
+                              (ctool_u32)sizeof(cfront_type_pair_t));
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &seen,
+                                (ctool_u32)sizeof(cfront_type_pair_t));
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&work, &initial, (ctool_u32 *)0);
+  }
+  while (status == CTOOL_OK && matches == CTOOL_TRUE && work.count != 0u) {
+    cfront_type_pair_t pair;
+    cfront_type_view_t left_view;
+    cfront_type_view_t right_view;
+    ctool_u32 left_qualifiers;
+    ctool_u32 right_qualifiers;
+    status = cfront_vector_get(&work, work.count - 1u, &pair);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(&work, work.count - 1u);
+    }
+    if (status != CTOOL_OK ||
+        cfront_type_pair_seen(&seen, &pair) == CTOOL_TRUE) {
+      continue;
+    }
+    status = cfront_vector_append(&seen, &pair, (ctool_u32 *)0);
+    if (status == CTOOL_OK) {
+      status = cfront_type_view(context, pair.left, pair.parameter,
+                                &left_view);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_type_view(context, pair.right, pair.parameter,
+                                &right_view);
+    }
+    if (status != CTOOL_OK) {
+      break;
+    }
+    left_qualifiers = left_view.qualifiers;
+    right_qualifiers = right_view.qualifiers;
+    if (left_view.node.kind != CTOOL_C_TYPE_ARRAY &&
+        left_qualifiers != right_qualifiers) {
+      matches = CTOOL_FALSE;
+      break;
+    }
+    if (left_view.node.kind != right_view.node.kind) {
+      cfront_type_pair_t child;
+      ctool_bool left_enum =
+          left_view.node.kind == CTOOL_C_TYPE_ENUM ? CTOOL_TRUE : CTOOL_FALSE;
+      ctool_bool right_enum =
+          right_view.node.kind == CTOOL_C_TYPE_ENUM ? CTOOL_TRUE : CTOOL_FALSE;
+      ctool_bool enum_integer =
+          left_enum == CTOOL_TRUE &&
+                  cfront_integer_type_kind(right_view.node.kind) == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : (right_enum == CTOOL_TRUE &&
+                         cfront_integer_type_kind(left_view.node.kind) ==
+                             CTOOL_TRUE
+                     ? CTOOL_TRUE
+                     : CTOOL_FALSE);
+      if (relation == CFRONT_TYPE_SAME || enum_integer == CTOOL_FALSE) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      child.left.type = left_enum == CTOOL_TRUE
+                            ? left_view.node.referenced_type
+                            : left_view.type;
+      child.right.type = right_enum == CTOOL_TRUE
+                             ? right_view.node.referenced_type
+                             : right_view.type;
+      child.left.qualifiers = 0u;
+      child.right.qualifiers = 0u;
+      child.parameter = CTOOL_FALSE;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      continue;
+    }
+    if (left_view.type == right_view.type &&
+        (left_view.node.kind != CTOOL_C_TYPE_ARRAY ||
+         left_qualifiers == right_qualifiers)) {
+      continue;
+    }
+    switch (left_view.node.kind) {
+    case CTOOL_C_TYPE_VOID:
+    case CTOOL_C_TYPE_BOOL:
+    case CTOOL_C_TYPE_CHAR:
+    case CTOOL_C_TYPE_SIGNED_CHAR:
+    case CTOOL_C_TYPE_UNSIGNED_CHAR:
+    case CTOOL_C_TYPE_SIGNED_SHORT:
+    case CTOOL_C_TYPE_UNSIGNED_SHORT:
+    case CTOOL_C_TYPE_SIGNED_INT:
+    case CTOOL_C_TYPE_UNSIGNED_INT:
+    case CTOOL_C_TYPE_SIGNED_LONG:
+    case CTOOL_C_TYPE_UNSIGNED_LONG:
+    case CTOOL_C_TYPE_SIGNED_LONG_LONG:
+    case CTOOL_C_TYPE_UNSIGNED_LONG_LONG:
+    case CTOOL_C_TYPE_FLOAT:
+    case CTOOL_C_TYPE_DOUBLE:
+    case CTOOL_C_TYPE_LONG_DOUBLE:
+      break;
+    case CTOOL_C_TYPE_POINTER: {
+      cfront_type_pair_t child;
+      child.left.type = left_view.node.referenced_type;
+      child.right.type = right_view.node.referenced_type;
+      child.left.qualifiers = 0u;
+      child.right.qualifiers = 0u;
+      child.parameter = CTOOL_FALSE;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      break;
+    }
+    case CTOOL_C_TYPE_ALIGNED:
+    case CTOOL_C_TYPE_VECTOR: {
+      cfront_type_pair_t child;
+      if ((left_view.node.kind == CTOOL_C_TYPE_ALIGNED &&
+           left_view.node.explicit_alignment !=
+               right_view.node.explicit_alignment) ||
+          (left_view.node.kind == CTOOL_C_TYPE_VECTOR &&
+           left_view.node.element_count != right_view.node.element_count)) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      child.left.type = left_view.node.referenced_type;
+      child.right.type = right_view.node.referenced_type;
+      child.left.qualifiers = 0u;
+      child.right.qualifiers = 0u;
+      child.parameter = CTOOL_FALSE;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      break;
+    }
+    case CTOOL_C_TYPE_ARRAY: {
+      cfront_type_pair_t child;
+      if (left_view.node.array_bound_kind == CTOOL_C_ARRAY_VARIABLE ||
+          right_view.node.array_bound_kind == CTOOL_C_ARRAY_VARIABLE) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      if (relation == CFRONT_TYPE_SAME &&
+          (left_view.node.array_bound_kind !=
+               right_view.node.array_bound_kind ||
+           (left_view.node.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+            left_view.node.element_count != right_view.node.element_count))) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      if (relation == CFRONT_TYPE_COMPATIBLE &&
+          left_view.node.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+          right_view.node.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+          left_view.node.element_count != right_view.node.element_count) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      if (relation == CFRONT_TYPE_CAN_REPRESENT_COMPOSITE &&
+          right_view.node.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+          (left_view.node.array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+           left_view.node.element_count != right_view.node.element_count)) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      child.left.type = left_view.node.referenced_type;
+      child.right.type = right_view.node.referenced_type;
+      child.left.qualifiers = left_qualifiers;
+      child.right.qualifiers = right_qualifiers;
+      child.parameter = CTOOL_FALSE;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      break;
+    }
+    case CTOOL_C_TYPE_FUNCTION: {
+      cfront_type_pair_t child;
+      ctool_bool both_prototypes =
+          left_view.node.has_prototype == CTOOL_TRUE &&
+                  right_view.node.has_prototype == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool different_prototypes =
+          left_view.node.has_prototype != right_view.node.has_prototype
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_u32 index;
+      if (relation == CFRONT_TYPE_SAME &&
+          (different_prototypes == CTOOL_TRUE ||
+           left_view.node.variadic != right_view.node.variadic ||
+           left_view.node.parameter_count !=
+               right_view.node.parameter_count)) {
+        matches = CTOOL_FALSE;
+        break;
+      }
+      if (different_prototypes == CTOOL_TRUE &&
+          relation != CFRONT_TYPE_SAME) {
+        const ctool_c_type_node_t *prototype =
+            left_view.node.has_prototype == CTOOL_TRUE ? &left_view.node
+                                                       : &right_view.node;
+        if ((relation == CFRONT_TYPE_CAN_REPRESENT_COMPOSITE &&
+             left_view.node.has_prototype == CTOOL_FALSE) ||
+            prototype->variadic == CTOOL_TRUE) {
+          matches = CTOOL_FALSE;
+          break;
+        }
+        for (index = 0u; index < prototype->parameter_count; index++) {
+          ctool_u32 parameter_type;
+          ctool_bool survives = CTOOL_FALSE;
+          status = cfront_vector_get(
+              &context->parameter_types,
+              prototype->first_parameter + index, &parameter_type);
+          if (status == CTOOL_OK) {
+            status = cfront_parameter_survives_default_promotion(
+                context, parameter_type, &survives);
+          }
+          if (status != CTOOL_OK || survives == CTOOL_FALSE) {
+            if (status == CTOOL_OK) {
+              matches = CTOOL_FALSE;
+            }
+            break;
+          }
+        }
+        if (status != CTOOL_OK || matches == CTOOL_FALSE) {
+          break;
+        }
+      } else if (both_prototypes == CTOOL_TRUE) {
+        if (left_view.node.variadic != right_view.node.variadic ||
+            left_view.node.parameter_count !=
+                right_view.node.parameter_count) {
+          matches = CTOOL_FALSE;
+          break;
+        }
+        for (index = 0u; index < left_view.node.parameter_count; index++) {
+          ctool_u32 left_parameter;
+          ctool_u32 right_parameter;
+          status = cfront_vector_get(
+              &context->parameter_types,
+              left_view.node.first_parameter + index, &left_parameter);
+          if (status == CTOOL_OK) {
+            status = cfront_vector_get(
+                &context->parameter_types,
+                right_view.node.first_parameter + index, &right_parameter);
+          }
+          if (status != CTOOL_OK) {
+            break;
+          }
+          child.left.type = left_parameter;
+          child.right.type = right_parameter;
+          child.left.qualifiers = 0u;
+          child.right.qualifiers = 0u;
+          child.parameter = CTOOL_TRUE;
+          status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+          if (status != CTOOL_OK) {
+            break;
+          }
+        }
+        if (status != CTOOL_OK) {
+          break;
+        }
+      }
+      child.left.type = left_view.node.referenced_type;
+      child.right.type = right_view.node.referenced_type;
+      child.left.qualifiers = 0u;
+      child.right.qualifiers = 0u;
+      child.parameter = CTOOL_FALSE;
+      status = cfront_vector_append(&work, &child, (ctool_u32 *)0);
+      break;
+    }
+    case CTOOL_C_TYPE_ENUM:
+    case CTOOL_C_TYPE_RECORD:
+      matches = CTOOL_FALSE;
+      break;
+    case CTOOL_C_TYPE_QUALIFIED:
+    default:
+      status = CTOOL_ERR_INTERNAL;
+      break;
+    }
+  }
+  cfront_vector_close(&seen);
+  cfront_vector_close(&work);
+  if (status == CTOOL_OK) {
+    *matches_out = matches;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_compare_types(
+    cfront_context_t *context, ctool_u32 left, ctool_u32 right,
+    cfront_type_relation_t relation, ctool_bool *matches_out) {
+  cfront_type_ref_t left_ref;
+  cfront_type_ref_t right_ref;
+  left_ref.type = left;
+  left_ref.qualifiers = 0u;
+  right_ref.type = right;
+  right_ref.qualifiers = 0u;
+  return cfront_compare_type_refs(context, left_ref, right_ref, CTOOL_FALSE,
+                                  relation, matches_out);
+}
+
+static ctool_status_t cfront_types_compatible(
+    cfront_context_t *context, ctool_u32 left, ctool_u32 right,
+    ctool_bool *compatible_out) {
+  return cfront_compare_types(context, left, right,
+                              CFRONT_TYPE_COMPATIBLE, compatible_out);
+}
+
+static ctool_status_t cfront_types_same(cfront_context_t *context,
+                                        ctool_u32 left, ctool_u32 right,
+                                        ctool_bool *same_out) {
+  return cfront_compare_types(context, left, right, CFRONT_TYPE_SAME,
+                              same_out);
+}
+
+typedef struct {
+  cfront_type_pair_t pair;
+  ctool_bool expanded;
+} cfront_composite_frame_t;
+
+typedef struct {
+  cfront_type_pair_t pair;
+  ctool_u32 type;
+} cfront_composite_result_t;
+
+static ctool_bool cfront_find_composite_result(
+    const cfront_vector_t *results, const cfront_type_pair_t *pair,
+    ctool_u32 *type_out) {
+  ctool_u32 index;
+  for (index = 0u; index < results->count; index++) {
+    cfront_composite_result_t result;
+    if (cfront_vector_get(results, index, &result) != CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_type_pair_equal(&result.pair, pair) == CTOOL_TRUE) {
+      *type_out = result.type;
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_materialize_type_ref(
+    cfront_context_t *context, cfront_type_ref_t reference,
+    ctool_bool parameter, ctool_u32 *type_out) {
+  cfront_type_view_t view;
+  ctool_c_type_node_t node;
+  ctool_status_t status;
+  if (parameter == CTOOL_TRUE) {
+    status = cfront_type_view(context, reference, CTOOL_TRUE, &view);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (view.node.qualifiers == view.qualifiers) {
+      *type_out = view.type;
+      return CTOOL_OK;
+    }
+    node = view.node;
+    node.qualifiers = view.qualifiers;
+    return cfront_type_append(context, &node, type_out);
+  }
+  if (reference.qualifiers == 0u) {
+    *type_out = reference.type;
+    return CTOOL_OK;
+  }
+  status = cfront_type_get(context, reference.type, &node);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  {
+    ctool_c_type_node_t qualified;
+    cfront_node_init(&qualified, CTOOL_C_TYPE_QUALIFIED,
+                     (const ctool_c_pp_token_t *)0);
+    qualified.location = node.location;
+    qualified.physical_location = node.physical_location;
+    qualified.referenced_type = reference.type;
+    qualified.qualifiers = reference.qualifiers;
+    return cfront_type_append(context, &qualified, type_out);
+  }
+}
+
+static ctool_status_t cfront_type_ref_can_represent_composite(
+    cfront_context_t *context, const cfront_type_pair_t *pair,
+    ctool_bool reverse, ctool_bool *can_represent_out) {
+  cfront_type_ref_t left =
+      reverse == CTOOL_TRUE ? pair->right : pair->left;
+  cfront_type_ref_t right =
+      reverse == CTOOL_TRUE ? pair->left : pair->right;
+  return cfront_compare_type_refs(
+      context, left, right, pair->parameter,
+      CFRONT_TYPE_CAN_REPRESENT_COMPOSITE, can_represent_out);
+}
+
+static cfront_type_pair_t cfront_child_pair(
+    ctool_u32 left, ctool_u32 right, ctool_u32 left_qualifiers,
+    ctool_u32 right_qualifiers, ctool_bool parameter) {
+  cfront_type_pair_t pair;
+  pair.left.type = left;
+  pair.left.qualifiers = left_qualifiers;
+  pair.right.type = right;
+  pair.right.qualifiers = right_qualifiers;
+  pair.parameter = parameter;
+  return pair;
+}
+
+static ctool_status_t cfront_append_composite_result(
+    cfront_vector_t *results, const cfront_type_pair_t *pair,
+    ctool_u32 type) {
+  cfront_composite_result_t result;
+  result.pair = *pair;
+  result.type = type;
+  return cfront_vector_append(results, &result, (ctool_u32 *)0);
+}
+
+static ctool_status_t cfront_push_composite_children(
+    cfront_context_t *context, cfront_vector_t *frames,
+    const cfront_composite_frame_t *frame,
+    const cfront_type_view_t *left_view,
+    const cfront_type_view_t *right_view) {
+  cfront_composite_frame_t child;
+  ctool_status_t status = CTOOL_OK;
+  cfront_zero(&child, (ctool_u32)sizeof(child));
+  switch (left_view->node.kind) {
+  case CTOOL_C_TYPE_POINTER:
+  case CTOOL_C_TYPE_ALIGNED:
+  case CTOOL_C_TYPE_VECTOR:
+    child.pair = cfront_child_pair(
+        left_view->node.referenced_type, right_view->node.referenced_type,
+        0u, 0u, CTOOL_FALSE);
+    return cfront_vector_append(frames, &child, (ctool_u32 *)0);
+  case CTOOL_C_TYPE_ARRAY:
+    child.pair = cfront_child_pair(
+        left_view->node.referenced_type, right_view->node.referenced_type,
+        left_view->qualifiers, right_view->qualifiers, CTOOL_FALSE);
+    return cfront_vector_append(frames, &child, (ctool_u32 *)0);
+  case CTOOL_C_TYPE_FUNCTION: {
+    ctool_u32 index;
+    if (left_view->node.has_prototype == CTOOL_TRUE &&
+        right_view->node.has_prototype == CTOOL_TRUE) {
+      for (index = 0u; index < left_view->node.parameter_count; index++) {
+        ctool_u32 left_parameter = 0u;
+        ctool_u32 right_parameter = 0u;
+        status = cfront_vector_get(
+            &context->parameter_types,
+            left_view->node.first_parameter + index, &left_parameter);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_get(
+              &context->parameter_types,
+              right_view->node.first_parameter + index, &right_parameter);
+        }
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        child.pair = cfront_child_pair(left_parameter, right_parameter,
+                                       0u, 0u, CTOOL_TRUE);
+        status = cfront_vector_append(frames, &child, (ctool_u32 *)0);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+      }
+    }
+    child.pair = cfront_child_pair(
+        left_view->node.referenced_type, right_view->node.referenced_type,
+        0u, 0u, CTOOL_FALSE);
+    return cfront_vector_append(frames, &child, (ctool_u32 *)0);
+  }
+  default:
+    (void)frame;
+    return CTOOL_ERR_INTERNAL;
+  }
+}
+
+static ctool_status_t cfront_build_composite_node(
+    cfront_context_t *context, const cfront_type_pair_t *pair,
+    const cfront_type_view_t *left_view,
+    const cfront_type_view_t *right_view,
+    const cfront_vector_t *results, ctool_u32 *type_out) {
+  ctool_c_type_node_t node = left_view->node;
+  cfront_type_pair_t child;
+  ctool_u32 child_type;
+  ctool_status_t status;
+  node.location = left_view->node.location;
+  node.physical_location = left_view->node.physical_location;
+  switch (left_view->node.kind) {
+  case CTOOL_C_TYPE_POINTER:
+  case CTOOL_C_TYPE_ALIGNED:
+  case CTOOL_C_TYPE_VECTOR:
+    child = cfront_child_pair(left_view->node.referenced_type,
+                              right_view->node.referenced_type, 0u, 0u,
+                              CTOOL_FALSE);
+    if (cfront_find_composite_result(results, &child, &child_type) ==
+        CTOOL_FALSE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    node.referenced_type = child_type;
+    node.qualifiers = left_view->qualifiers;
+    return cfront_type_append(context, &node, type_out);
+  case CTOOL_C_TYPE_ARRAY:
+    child = cfront_child_pair(
+        left_view->node.referenced_type, right_view->node.referenced_type,
+        left_view->qualifiers, right_view->qualifiers, CTOOL_FALSE);
+    if (cfront_find_composite_result(results, &child, &child_type) ==
+        CTOOL_FALSE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    node.referenced_type = child_type;
+    node.qualifiers = 0u;
+    if (right_view->node.array_bound_kind == CTOOL_C_ARRAY_FIXED) {
+      node.array_bound_kind = CTOOL_C_ARRAY_FIXED;
+      node.element_count = right_view->node.element_count;
+    }
+    return cfront_type_append(context, &node, type_out);
+  case CTOOL_C_TYPE_FUNCTION: {
+    const cfront_type_view_t *prototype_view = left_view;
+    ctool_u32 index;
+    child = cfront_child_pair(left_view->node.referenced_type,
+                              right_view->node.referenced_type, 0u, 0u,
+                              CTOOL_FALSE);
+    if (cfront_find_composite_result(results, &child, &child_type) ==
+        CTOOL_FALSE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (left_view->node.has_prototype == CTOOL_FALSE &&
+        right_view->node.has_prototype == CTOOL_TRUE) {
+      prototype_view = right_view;
+    }
+    node = prototype_view->node;
+    node.location = left_view->node.location;
+    node.physical_location = left_view->node.physical_location;
+    node.referenced_type = child_type;
+    node.qualifiers = 0u;
+    if (left_view->node.has_prototype == CTOOL_TRUE &&
+        right_view->node.has_prototype == CTOOL_TRUE) {
+      node.first_parameter = context->parameter_types.count;
+      for (index = 0u; index < left_view->node.parameter_count; index++) {
+        ctool_u32 left_parameter = 0u;
+        ctool_u32 right_parameter = 0u;
+        ctool_c_parameter_t parameter;
+        status = cfront_vector_get(
+            &context->parameter_types,
+            left_view->node.first_parameter + index, &left_parameter);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_get(
+              &context->parameter_types,
+              right_view->node.first_parameter + index, &right_parameter);
+        }
+        child = cfront_child_pair(left_parameter, right_parameter, 0u, 0u,
+                                  CTOOL_TRUE);
+        if (status == CTOOL_OK &&
+            cfront_find_composite_result(results, &child, &child_type) ==
+                CTOOL_FALSE) {
+          status = CTOOL_ERR_INTERNAL;
+        }
+        if (status == CTOOL_OK) {
+          status = cfront_vector_get(
+              &context->parameters,
+              left_view->node.first_parameter + index, &parameter);
+        }
+        if (status == CTOOL_OK) {
+          status = cfront_vector_append(&context->parameter_types,
+                                        &child_type, (ctool_u32 *)0);
+        }
+        if (status == CTOOL_OK) {
+          status = cfront_vector_append(&context->parameters, &parameter,
+                                        (ctool_u32 *)0);
+        }
+        if (status != CTOOL_OK) {
+          return status;
+        }
+      }
+    }
+    return cfront_type_append(context, &node, type_out);
+  }
+  default:
+    (void)pair;
+    return CTOOL_ERR_INTERNAL;
+  }
+}
+
+static ctool_status_t cfront_composite_type(cfront_context_t *context,
+                                            ctool_u32 left,
+                                            ctool_u32 right,
+                                            ctool_u32 *composite_out) {
+  cfront_vector_t frames;
+  cfront_vector_t results;
+  cfront_composite_frame_t initial;
+  ctool_status_t status;
+  cfront_zero(&frames, (ctool_u32)sizeof(frames));
+  cfront_zero(&results, (ctool_u32)sizeof(results));
+  cfront_zero(&initial, (ctool_u32)sizeof(initial));
+  initial.pair = cfront_child_pair(left, right, 0u, 0u, CTOOL_FALSE);
+  status = cfront_vector_open(context, &frames,
+                              (ctool_u32)sizeof(cfront_composite_frame_t));
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &results,
+                                (ctool_u32)sizeof(cfront_composite_result_t));
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&frames, &initial, (ctool_u32 *)0);
+  }
+  while (status == CTOOL_OK && frames.count != 0u) {
+    cfront_composite_frame_t frame;
+    cfront_type_view_t left_view;
+    cfront_type_view_t right_view;
+    ctool_u32 result_type;
+    ctool_bool can_represent = CTOOL_FALSE;
+    status = cfront_vector_get(&frames, frames.count - 1u, &frame);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(&frames, frames.count - 1u);
+    }
+    if (status != CTOOL_OK ||
+        cfront_find_composite_result(&results, &frame.pair,
+                                     &result_type) == CTOOL_TRUE) {
+      continue;
+    }
+    if (frame.expanded == CTOOL_FALSE) {
+      status = cfront_type_ref_can_represent_composite(
+          context, &frame.pair, CTOOL_FALSE, &can_represent);
+      if (status == CTOOL_OK && can_represent == CTOOL_TRUE) {
+        status = cfront_materialize_type_ref(
+            context, frame.pair.left, frame.pair.parameter, &result_type);
+      } else if (status == CTOOL_OK) {
+        status = cfront_type_ref_can_represent_composite(
+            context, &frame.pair, CTOOL_TRUE, &can_represent);
+        if (status == CTOOL_OK && can_represent == CTOOL_TRUE) {
+          status = cfront_materialize_type_ref(
+              context, frame.pair.right, frame.pair.parameter, &result_type);
+        }
+      }
+      if (status != CTOOL_OK) {
+        break;
+      }
+      if (can_represent == CTOOL_TRUE) {
+        status = cfront_append_composite_result(
+            &results, &frame.pair, result_type);
+        continue;
+      }
+      status = cfront_type_view(context, frame.pair.left,
+                                frame.pair.parameter, &left_view);
+      if (status == CTOOL_OK) {
+        status = cfront_type_view(context, frame.pair.right,
+                                  frame.pair.parameter, &right_view);
+      }
+      if (status != CTOOL_OK || left_view.node.kind != right_view.node.kind) {
+        status = status == CTOOL_OK ? CTOOL_ERR_INTERNAL : status;
+        break;
+      }
+      frame.expanded = CTOOL_TRUE;
+      status = cfront_vector_append(&frames, &frame, (ctool_u32 *)0);
+      if (status == CTOOL_OK) {
+        status = cfront_push_composite_children(
+            context, &frames, &frame, &left_view, &right_view);
+      }
+      continue;
+    }
+    status = cfront_type_view(context, frame.pair.left,
+                              frame.pair.parameter, &left_view);
+    if (status == CTOOL_OK) {
+      status = cfront_type_view(context, frame.pair.right,
+                                frame.pair.parameter, &right_view);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_build_composite_node(
+          context, &frame.pair, &left_view, &right_view, &results,
+          &result_type);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_append_composite_result(&results, &frame.pair,
+                                              result_type);
+    }
+  }
+  if (status == CTOOL_OK &&
+      cfront_find_composite_result(&results, &initial.pair, composite_out) ==
+          CTOOL_FALSE) {
+    status = CTOOL_ERR_INTERNAL;
+  }
+  cfront_vector_close(&results);
+  cfront_vector_close(&frames);
+  return status;
+}
+
+static ctool_c_linkage_t cfront_binding_linkage(
+    ctool_c_binding_kind_t kind, ctool_c_storage_class_t storage) {
+  if (kind != CTOOL_C_BINDING_OBJECT &&
+      kind != CTOOL_C_BINDING_FUNCTION) {
+    return CTOOL_C_LINKAGE_NONE;
+  }
+  return storage == CTOOL_C_STORAGE_STATIC ? CTOOL_C_LINKAGE_INTERNAL
+                                           : CTOOL_C_LINKAGE_EXTERNAL;
+}
+
+static ctool_bool cfront_redeclaration_linkage_compatible(
+    const ctool_c_binding_t *existing, ctool_c_binding_kind_t kind,
+    ctool_c_storage_class_t storage) {
+  if (kind == CTOOL_C_BINDING_TYPEDEF) {
+    return existing->storage == CTOOL_C_STORAGE_TYPEDEF &&
+                   storage == CTOOL_C_STORAGE_TYPEDEF
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (kind != CTOOL_C_BINDING_OBJECT &&
+      kind != CTOOL_C_BINDING_FUNCTION) {
+    return CTOOL_FALSE;
+  }
+  if (storage == CTOOL_C_STORAGE_STATIC) {
+    return existing->linkage == CTOOL_C_LINKAGE_INTERNAL ? CTOOL_TRUE
+                                                         : CTOOL_FALSE;
+  }
+  if (storage == CTOOL_C_STORAGE_EXTERN ||
+      (kind == CTOOL_C_BINDING_FUNCTION &&
+       storage == CTOOL_C_STORAGE_NONE)) {
+    return existing->linkage == CTOOL_C_LINKAGE_NONE ? CTOOL_FALSE
+                                                     : CTOOL_TRUE;
+  }
+  if (kind == CTOOL_C_BINDING_OBJECT &&
+      storage == CTOOL_C_STORAGE_NONE) {
+    return existing->linkage == CTOOL_C_LINKAGE_EXTERNAL ? CTOOL_TRUE
+                                                         : CTOOL_FALSE;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cfront_find_file_binding_index(
+    const cfront_context_t *context, ctool_string_t name,
+    ctool_c_binding_t *binding_out, ctool_u32 *index_out) {
+  ctool_u32 index = context->bindings.count;
+  while (index != 0u) {
+    ctool_c_binding_t binding;
+    index--;
+    if (cfront_binding_get(context, index, &binding) != CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_string_equal(binding.name, name) == CTOOL_TRUE) {
+      *binding_out = binding;
+      *index_out = index;
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_status_t cfront_append_binding(
     cfront_context_t *context, ctool_c_binding_kind_t kind,
     ctool_c_storage_class_t storage, ctool_string_t name, ctool_u32 type,
@@ -929,26 +1875,75 @@ static ctool_status_t cfront_append_binding(
     ctool_bool integer_unsigned) {
   ctool_c_binding_t existing;
   ctool_c_binding_t binding;
+  ctool_u32 existing_index = CFRONT_NONE;
+  ctool_bool duplicate = CTOOL_FALSE;
   if (name.size == 0u) {
     return cfront_emit_failure(context, CTOOL_ERR_INPUT,
                                CTOOL_C_PARSE_DIAG_DECLARATOR, token,
                                "declaration requires an identifier");
   }
-  if ((context->prototype_scope_depth != 0u &&
-       (cfront_find_binding_from(context, context->prototype_binding_mark,
+  if (context->prototype_scope_depth != 0u) {
+    duplicate =
+        cfront_find_binding_from(context, context->prototype_binding_mark,
                                  name, &existing) == CTOOL_TRUE ||
-        cfront_prototype_name_exists_from(
-            context, context->prototype_name_mark, name) == CTOOL_TRUE)) ||
-      (context->prototype_scope_depth == 0u &&
-       cfront_find_binding(context, name, &existing) == CTOOL_TRUE)) {
+                cfront_prototype_name_exists_from(
+                    context, context->prototype_name_mark, name) == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+  } else {
+    duplicate = cfront_find_file_binding_index(
+        context, name, &existing, &existing_index);
+  }
+  if (duplicate == CTOOL_TRUE) {
+    if (context->prototype_scope_depth == 0u &&
+        kind != CTOOL_C_BINDING_ENUMERATOR && existing.kind == kind &&
+        cfront_redeclaration_linkage_compatible(&existing, kind, storage) ==
+            CTOOL_TRUE) {
+      ctool_bool compatible = CTOOL_FALSE;
+      ctool_status_t status;
+      if (kind == CTOOL_C_BINDING_TYPEDEF) {
+        status = cfront_types_same(context, existing.type, type,
+                                   &compatible);
+      } else {
+        status = cfront_types_compatible(context, existing.type, type,
+                                         &compatible);
+      }
+      if (status == CTOOL_OK && compatible == CTOOL_TRUE &&
+          kind != CTOOL_C_BINDING_TYPEDEF) {
+        ctool_u32 composite = CFRONT_NONE;
+        status = cfront_composite_type(context, existing.type, type,
+                                       &composite);
+        if (status == CTOOL_OK && composite != existing.type) {
+          ctool_c_binding_t replacement = existing;
+          replacement.type = composite;
+          status = cfront_vector_replace(
+              context, &context->bindings, existing_index, &replacement);
+        }
+      }
+      if (status == CTOOL_OK && compatible == CTOOL_TRUE) {
+        return CTOOL_OK;
+      }
+      if (status != CTOOL_OK) {
+        if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+            status == CTOOL_ERR_NO_MEMORY) {
+          return cfront_storage_failure(context, status);
+        }
+        return cfront_emit_failure(context, status,
+                                   CTOOL_C_PARSE_DIAG_INTERNAL, token,
+                                   "declaration type compatibility check "
+                                   "failed");
+      }
+    }
     return cfront_emit_failure(context, CTOOL_ERR_INPUT,
                                CTOOL_C_PARSE_DIAG_REDEFINITION, token,
-                               "ordinary identifier is already declared");
+                               "ordinary identifier has a conflicting "
+                               "declaration");
   }
   cfront_zero(&binding, (ctool_u32)sizeof(binding));
   binding.name = name;
   binding.kind = kind;
   binding.storage = storage;
+  binding.linkage = cfront_binding_linkage(kind, storage);
   binding.type = type;
   if (location != (const ctool_c_pp_location_t *)0 &&
       physical_location != (const ctool_c_pp_location_t *)0) {
@@ -1727,6 +2722,7 @@ static ctool_status_t cfront_adjust_parameter_type(
     const ctool_c_pp_token_t *token, ctool_u32 *adjusted_out) {
   ctool_u32 base;
   ctool_u32 qualifiers;
+  ctool_u32 adjusted = declared_type;
   ctool_c_type_node_t node;
   ctool_status_t status = cfront_underlying_type(
       context, declared_type, &base, &qualifiers, &node);
@@ -1746,14 +2742,16 @@ static ctool_status_t cfront_adjust_parameter_type(
     }
     cfront_node_init(&pointer, CTOOL_C_TYPE_POINTER, token);
     pointer.referenced_type = referenced;
-    status = cfront_type_append(context, &pointer, adjusted_out);
+    status = cfront_type_append(context, &pointer, &adjusted);
   } else if (node.kind == CTOOL_C_TYPE_FUNCTION) {
     ctool_c_type_node_t pointer;
     cfront_node_init(&pointer, CTOOL_C_TYPE_POINTER, token);
     pointer.referenced_type = declared_type;
-    status = cfront_type_append(context, &pointer, adjusted_out);
-  } else {
-    *adjusted_out = declared_type;
+    status = cfront_type_append(context, &pointer, &adjusted);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_unqualified_parameter_type(context, adjusted,
+                                               adjusted_out);
   }
   return status == CTOOL_OK ? CTOOL_OK : cfront_storage_failure(context, status);
 }

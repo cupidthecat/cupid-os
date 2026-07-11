@@ -29,10 +29,20 @@ typedef enum {
   CTOOL_C_STORAGE_REGISTER
 } ctool_c_storage_class_t;
 
+typedef enum {
+  CTOOL_C_LINKAGE_NONE = 0,
+  CTOOL_C_LINKAGE_INTERNAL,
+  CTOOL_C_LINKAGE_EXTERNAL
+} ctool_c_linkage_t;
+
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
+  /* Canonical bindings retain the first declaration's storage spelling and
+   * dual location. Linkage and type describe the merged entity; a composite
+   * type is symbol-local and never mutates a shared typedef graph. */
   ctool_c_storage_class_t storage;
+  ctool_c_linkage_t linkage;
   ctool_u32 type;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -95,14 +105,17 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * preprocessing provenance does not yet carry that configuration itself.
  * This declaration slice owns the contracted scalar/typedef/storage subset,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
- * arrays, prototypes, and layout. `_Thread_local`, `inline`, `_Noreturn`,
- * `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type specifiers are
- * pending and fail closed rather than being skipped. The public nesting limit
- * is one explicit implementation limit;
- * declaration/member/namespace counts otherwise consume checked job storage
- * rather than fixed frontend tables. Function
- * bodies, object initializers, statement/expression ASTs, linkage merging,
- * code generation, object emission, and Cupid #exe execution remain later
- * frontend operations and are diagnosed rather than skipped. */
+ * arrays, prototypes, compatible file-scope redeclarations, composite array
+ * and function types, C linkage, and layout. Type compatibility uses checked
+ * iterative graph walks; the public nesting limit applies to recursive source
+ * syntax, not derived-type graph depth. `_Thread_local`, `inline`,
+ * `_Noreturn`, `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type
+ * specifiers are pending and fail closed rather than being skipped.
+ * Declaration/member/namespace counts otherwise consume checked job storage
+ * rather than fixed frontend tables. Function bodies, object initializers,
+ * statement/expression ASTs, code generation, object emission, and Cupid
+ * #exe execution remain later frontend operations and are diagnosed rather
+ * than skipped. Tentative-definition state/finalization is not yet published,
+ * so incomplete array declarations retain their parsed bounds in this slice. */
 
 #endif

@@ -953,6 +953,286 @@ cleanup:
 }
 
 typedef struct {
+  const char *path;
+  ctool_u32 token_count;
+  ctool_u32 binding_count;
+  const char *binding_name;
+  const char *declaration_path;
+  ctool_u32 declaration_line;
+  ctool_c_binding_kind_t kind;
+  ctool_c_linkage_t linkage;
+} redeclaration_header_oracle_t;
+
+static int parse_unchanged_declaration_header(
+    ctool_job_t *job, const ctool_c_pp_request_t *pp_request,
+    const ctool_c_parse_request_t *parse_request,
+    const redeclaration_header_oracle_t *oracle) {
+  ctool_c_pp_result_t tape;
+  ctool_c_translation_unit_t unit;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  ctool_u32 binding_count = 0u;
+  const ctool_c_binding_t *binding = NULL;
+  ctool_u32 index;
+  size_t token_bytes;
+  int failed = 1;
+
+  path.text = ctool_string(oracle->path);
+  status = ctool_job_load_source(job, &path, &source);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "redeclarations: load %s: %s\n", oracle->path,
+                  ctool_status_name(status));
+    return 1;
+  }
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, pp_request, &tape);
+  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "redeclarations: preprocess %s: %s\n", oracle->path,
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    return 1;
+  }
+  token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    (void)fprintf(stderr, "redeclarations: snapshot %s failed\n",
+                  oracle->path);
+    return 1;
+  }
+  (void)memcpy(snapshot, tape.tokens, token_bytes);
+  (void)memset(&unit, 0xa5, sizeof(unit));
+  status = ctool_c_parse(job, &tape, parse_request, &unit);
+  if (status != CTOOL_OK ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      memcmp(snapshot, tape.tokens, token_bytes) != 0) {
+    (void)fprintf(stderr, "redeclarations: parse %s: %s\n", oracle->path,
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+  } else {
+    for (index = 0u; index < unit.binding_count; index++) {
+      if (string_equal(unit.bindings[index].name, oracle->binding_name) != 0) {
+        binding = &unit.bindings[index];
+        binding_count++;
+      }
+    }
+    if (tape.token_count != oracle->token_count ||
+        unit.binding_count != oracle->binding_count || binding_count != 1u ||
+        binding == NULL || binding->kind != oracle->kind ||
+        binding->linkage != oracle->linkage ||
+        !dual_location_matches(&binding->location,
+                               &binding->physical_location,
+                               oracle->declaration_path,
+                               oracle->declaration_line)) {
+      (void)fprintf(stderr,
+                    "redeclarations: oracle %s differs\n", oracle->path);
+    } else {
+      failed = 0;
+    }
+  }
+  free(snapshot);
+  return failed;
+}
+
+static int run_header_sweep(const char *host_root, int header_count,
+                            char *const *header_paths) {
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_request_t pp_request;
+  ctool_c_parse_request_t parse_request;
+  ctool_u32 passed = 0u;
+  ctool_u32 failed = 0u;
+  int index;
+  if (header_count <= 0 ||
+      build_kernel_profile(&pp_request, include_roots, macro_actions,
+                           forced_includes) != 0) {
+    return 1;
+  }
+  parse_request.mode = CTOOL_C_PP_MODE_C11;
+  parse_request.gnu_extensions = CTOOL_TRUE;
+  for (index = 0; index < header_count; index++) {
+    ctool_host_adapter_t adapter;
+    ctool_job_t *job = NULL;
+    ctool_path_t path;
+    ctool_source_t source;
+    ctool_c_pp_result_t tape;
+    ctool_c_translation_unit_t unit;
+    const ctool_diagnostic_t *diagnostic;
+    ctool_status_t status;
+    if (open_job("header-sweep", host_root, 256u * 1024u * 1024u,
+                 &adapter, &job) != 0) {
+      return 1;
+    }
+    path.text = ctool_string(header_paths[index]);
+    status = ctool_job_load_source(job, &path, &source);
+    if (status == CTOOL_OK) {
+      (void)memset(&tape, 0xa5, sizeof(tape));
+      status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+    }
+    if (status != CTOOL_OK || tape.tokens == NULL ||
+        tape.token_count == 0u || ctool_job_diagnostic_count(job) != 0u) {
+      (void)fprintf(stderr, "header-sweep: prepare %s: %s\n",
+                    header_paths[index], ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memset(&unit, 0xa5, sizeof(unit));
+    status = ctool_c_parse(job, &tape, &parse_request, &unit);
+    if (status == CTOOL_OK) {
+      if (ctool_job_diagnostic_count(job) != 0u) {
+        ctool_job_close(job);
+        return 1;
+      }
+      (void)printf("PASS\t%s\n", header_paths[index]);
+      passed++;
+    } else {
+      diagnostic = ctool_job_diagnostic(job, 0u);
+      if (ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+          unit_is_zero(&unit) == 0) {
+        ctool_job_close(job);
+        return 1;
+      }
+      (void)printf("FAIL\t%s\t%s\t0x%08x\t%.*s\t%u\t%u\n",
+                   header_paths[index], ctool_status_name(status),
+                   diagnostic->code, (int)diagnostic->path.size,
+                   diagnostic->path.data != NULL ? diagnostic->path.data : "",
+                   diagnostic->line, diagnostic->column);
+      failed++;
+    }
+    ctool_job_close(job);
+  }
+  (void)printf("header-sweep: ok %u %u\n", passed, failed);
+  return 0;
+}
+
+static int run_redeclarations(const char *host_root) {
+  static const redeclaration_header_oracle_t additional_headers[] = {
+      {"/kernel/cpu/irq.h", 512u, 57u, "irq_handler_t",
+       "/kernel/cpu/isr.h", 18u, CTOOL_C_BINDING_TYPEDEF,
+       CTOOL_C_LINKAGE_NONE},
+      {"/kernel/lang/cupidscript.h", 1867u, 177u, "script_context_t",
+       "/kernel/lang/cupidscript_streams.h", 13u,
+       CTOOL_C_BINDING_TYPEDEF, CTOOL_C_LINKAGE_NONE},
+      {"/kernel/lang/shell.h", 591u, 74u,
+       "shell_jit_program_is_running", "/kernel/lang/shell.h", 81u,
+       CTOOL_C_BINDING_FUNCTION, CTOOL_C_LINKAGE_EXTERNAL}};
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_request_t pp_request;
+  ctool_c_parse_request_t parse_request;
+  ctool_c_pp_result_t tape;
+  ctool_c_translation_unit_t unit;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = NULL;
+  ctool_path_t path;
+  ctool_source_t source;
+  const ctool_c_binding_t *print_binding = NULL;
+  const ctool_c_binding_t *cursor_binding;
+  const ctool_c_binding_t *handler_binding;
+  const ctool_c_type_node_t *print_type;
+  ctool_status_t status;
+  ctool_u32 print_count = 0u;
+  ctool_u32 index;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (build_kernel_profile(&pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      open_job("redeclarations", host_root, 256u * 1024u * 1024u,
+               &adapter, &job) != 0) {
+    return 1;
+  }
+  path.text = ctool_string("/kernel/core/kernel.h");
+  status = ctool_job_load_source(job, &path, &source);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "redeclarations: source load: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "redeclarations: preprocess: %s\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    (void)fprintf(stderr, "redeclarations: tape snapshot failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, tape.tokens, token_bytes);
+  parse_request.mode = CTOOL_C_PP_MODE_C11;
+  parse_request.gnu_extensions = CTOOL_TRUE;
+  (void)memset(&unit, 0xa5, sizeof(unit));
+  status = ctool_c_parse(job, &tape, &parse_request, &unit);
+  if (status != CTOOL_OK || ctool_job_diagnostic_count(job) != 0u ||
+      memcmp(snapshot, tape.tokens, token_bytes) != 0) {
+    (void)fprintf(stderr, "redeclarations: parse: %s\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "print") != 0) {
+      print_binding = &unit.bindings[index];
+      print_count++;
+    }
+  }
+  cursor_binding = find_binding(&unit, "cursor_x");
+  handler_binding = find_binding(&unit, "irq_handler_t");
+  print_type = print_binding == NULL
+                   ? NULL
+                   : type_node(&unit, print_binding->type);
+  if (tape.token_count != 569u || unit.binding_count != 69u ||
+      print_count != 1u || print_binding == NULL ||
+      print_binding->kind != CTOOL_C_BINDING_FUNCTION ||
+      print_binding->storage != CTOOL_C_STORAGE_NONE ||
+      print_binding->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      !dual_location_matches(&print_binding->location,
+                             &print_binding->physical_location,
+                             "/kernel/cpu/isr.h", 7u) ||
+      print_type == NULL || print_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      print_type->has_prototype != CTOOL_TRUE ||
+      print_type->parameter_count != 1u || cursor_binding == NULL ||
+      cursor_binding->kind != CTOOL_C_BINDING_OBJECT ||
+      cursor_binding->storage != CTOOL_C_STORAGE_EXTERN ||
+      cursor_binding->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      handler_binding == NULL ||
+      handler_binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+      handler_binding->linkage != CTOOL_C_LINKAGE_NONE) {
+    (void)fprintf(stderr,
+                  "redeclarations: unchanged kernel header differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(additional_headers); index++) {
+    if (parse_unchanged_declaration_header(
+            job, &pp_request, &parse_request, &additional_headers[index]) !=
+        0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+cleanup:
+  free(snapshot);
+  ctool_job_close(job);
+  if (failed == 0) {
+    (void)printf("redeclarations: ok\n");
+  }
+  return failed;
+}
+
+typedef struct {
   const char *name;
   const char *source;
   ctool_status_t status;
@@ -1897,6 +2177,148 @@ cleanup:
   return failed;
 }
 
+static char *build_composite_limit_source(ctool_u32 padding_count,
+                                          ctool_bool merge) {
+  const size_t capacity = 32u * 1024u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  for (index = 0u; index < padding_count; index++) {
+    char line[64];
+    int written = snprintf(line, sizeof(line), "const int pad%03u;\n",
+                           (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(line) ||
+        append_scale_text(source, capacity, &used, line) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(
+          source, capacity, &used,
+          merge == CTOOL_TRUE
+              ? "int combined(int (*first)[4], int (*second)[]);\n"
+                "int combined(int (*first)[], int (*second)[5]);\n"
+              : "int left(int (*first)[4], int (*second)[]);\n"
+                "int right(int (*first)[], int (*second)[5]);\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_composite_storage_limit(frontend_fixture_t *fixture,
+                                            const char *host_root) {
+  const ctool_u32 padding_count = 128u;
+  static const char anchor_source[] =
+      "typedef unsigned int limited_anchor_t;\n";
+  char *control_source =
+      build_composite_limit_source(padding_count, CTOOL_FALSE);
+  char *merge_source =
+      build_composite_limit_source(padding_count, CTOOL_TRUE);
+  ctool_c_pp_result_t merge_tape;
+  ctool_c_pp_result_t anchor_tape;
+  ctool_c_translation_unit_t control_unit;
+  ctool_c_translation_unit_t merge_unit;
+  ctool_c_translation_unit_t anchor_unit;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_c_binding_t *anchor_binding;
+  ctool_status_t status;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || merge_source == NULL) {
+    free(merge_source);
+    free(control_source);
+    return 1;
+  }
+  if (parse_valid_fixture(fixture, "/composite-control.c", control_source,
+                          &control_unit) != 0 ||
+      parse_valid_fixture(fixture, "/composite-success.c", merge_source,
+                          &merge_unit) != 0 ||
+      merge_unit.graph.type_count != control_unit.graph.type_count + 1u ||
+      merge_unit.binding_count != padding_count + 1u ||
+      preprocess_fixture(fixture, "/composite-limit.c", merge_source,
+                         &merge_tape) != 0 ||
+      preprocess_fixture(fixture, "/limited-anchor.c", anchor_source,
+                         &anchor_tape) != 0) {
+    (void)fprintf(stderr,
+                  "boundaries: composite limit control differs\n");
+    goto cleanup;
+  }
+  if ((size_t)control_unit.graph.type_count *
+          sizeof(ctool_c_type_node_t) >
+      0xffffffffu) {
+    goto cleanup;
+  }
+  limits.output_bytes =
+      control_unit.graph.type_count * (ctool_u32)sizeof(ctool_c_type_node_t);
+  token_bytes = (size_t)merge_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, merge_tape.tokens, token_bytes);
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor_unit, 0xa5, sizeof(anchor_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &anchor_unit);
+  anchor_binding = find_binding(&anchor_unit, "limited_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_unit.binding_count != 1u) {
+    (void)fprintf(stderr,
+                  "boundaries: limited composite anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &merge_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor_unit, "limited_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/composite-limit.c") ||
+      diagnostic->line != padding_count + 2u || diagnostic->column == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, merge_tape.tokens, token_bytes) != 0 ||
+      anchor_binding == NULL || anchor_unit.binding_count != 1u ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(stderr,
+                  "boundaries: composite storage rollback differs: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  failed = 0;
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(merge_source);
+  free(control_source);
+  return failed;
+}
+
 static int run_boundaries(const char *host_root) {
   static const frontend_failure_case_t initializer = {
       "object initializer boundary", "int boundary_object = 1;\n",
@@ -2020,7 +2442,8 @@ static int run_boundaries(const char *host_root) {
   if (preprocess_fixture(&fixture, "/limit.c", "int limited;\n",
                          &limit_tape) != 0 ||
       validate_configured_storage_limit(&fixture, host_root, &limit_tape) !=
-          0) {
+          0 ||
+      validate_composite_storage_limit(&fixture, host_root) != 0) {
     failed = 1;
   }
   if (owned_valid == 0 || validate_owned_unit(&owned_unit) != 0 ||
@@ -2089,6 +2512,330 @@ static char *build_shared_dag_source(ctool_u32 depth,
     }
   }
   return text;
+}
+
+static char *build_compatibility_dag_source(ctool_u32 depth) {
+  const size_t capacity = 64u * 1024u;
+  char *text = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (text == NULL || depth == 0u) {
+    free(text);
+    return NULL;
+  }
+  text[0] = '\0';
+  for (index = 0u; index < depth; index++) {
+    char line[256];
+    int written;
+    if (index == 0u) {
+      written = snprintf(
+          line, sizeof(line),
+          "typedef int LeftFn%03u(int, int);\n"
+          "typedef int RightFn%03u(int, int);\n",
+          (unsigned int)index, (unsigned int)index);
+    } else {
+      written = snprintf(
+          line, sizeof(line),
+          "typedef int LeftFn%03u(LeftPtr%03u, LeftPtr%03u);\n"
+          "typedef int RightFn%03u(RightPtr%03u, RightPtr%03u);\n",
+          (unsigned int)index, (unsigned int)(index - 1u),
+          (unsigned int)(index - 1u), (unsigned int)index,
+          (unsigned int)(index - 1u), (unsigned int)(index - 1u));
+    }
+    if (written <= 0 || (size_t)written >= sizeof(line) ||
+        append_scale_text(text, capacity, &used, line) != 0) {
+      free(text);
+      return NULL;
+    }
+    written = snprintf(
+        line, sizeof(line),
+        "typedef LeftFn%03u *LeftPtr%03u;\n"
+        "typedef RightFn%03u *RightPtr%03u;\n",
+        (unsigned int)index, (unsigned int)index, (unsigned int)index,
+        (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(line) ||
+        append_scale_text(text, capacity, &used, line) != 0) {
+      free(text);
+      return NULL;
+    }
+  }
+  {
+    char line[192];
+    int written = snprintf(
+        line, sizeof(line),
+        "extern LeftPtr%03u compatibility_dag;\n"
+        "extern RightPtr%03u compatibility_dag;\n",
+        (unsigned int)(depth - 1u), (unsigned int)(depth - 1u));
+    if (written <= 0 || (size_t)written >= sizeof(line) ||
+        append_scale_text(text, capacity, &used, line) != 0) {
+      free(text);
+      return NULL;
+    }
+  }
+  return text;
+}
+
+static char *build_deep_pointer_redeclaration_source(ctool_u32 depth) {
+  const size_t capacity = (size_t)depth * 2u + 128u;
+  char *text = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 declaration;
+  if (text == NULL || depth == 0u) {
+    free(text);
+    return NULL;
+  }
+  text[0] = '\0';
+  for (declaration = 0u; declaration < 2u; declaration++) {
+    ctool_u32 index;
+    if (append_scale_text(text, capacity, &used, "extern int ") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (used + 1u >= capacity) {
+        free(text);
+        return NULL;
+      }
+      text[used++] = '*';
+      text[used] = '\0';
+    }
+    if (append_scale_text(text, capacity, &used, "deep_pointer;\n") != 0) {
+      free(text);
+      return NULL;
+    }
+  }
+  return text;
+}
+
+static int validate_compatible_redeclarations_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *values = find_binding(unit, "values");
+  const ctool_c_binding_t *word = find_binding(unit, "word_t");
+  const ctool_c_binding_t *transform = find_binding(unit, "transform");
+  const ctool_c_binding_t *local = find_binding(unit, "local_object");
+  const ctool_c_binding_t *internal_object =
+      find_binding(unit, "internal_object");
+  const ctool_c_binding_t *internal_function =
+      find_binding(unit, "internal_function");
+  const ctool_c_binding_t *incomplete_alias =
+      find_binding(unit, "incomplete_array_t");
+  const ctool_c_binding_t *completed = find_binding(unit, "completed");
+  const ctool_c_binding_t *still_incomplete =
+      find_binding(unit, "still_incomplete");
+  const ctool_c_binding_t *promoted = find_binding(unit, "promoted");
+  const ctool_c_binding_t *no_arguments =
+      find_binding(unit, "no_arguments");
+  const ctool_c_binding_t *qualified = find_binding(unit, "qualified");
+  const ctool_c_binding_t *pointer_qualified =
+      find_binding(unit, "pointer_qualified");
+  const ctool_c_binding_t *duplicate_const =
+      find_binding(unit, "duplicate_const");
+  const ctool_c_binding_t *const_pointer =
+      find_binding(unit, "const_pointer");
+  const ctool_c_binding_t *qualified_completed =
+      find_binding(unit, "qualified_completed");
+  const ctool_c_binding_t *qualified_still_incomplete =
+      find_binding(unit, "qualified_still_incomplete");
+  const ctool_c_binding_t *qualified_function =
+      find_binding(unit, "qualified_function_t");
+  const ctool_c_binding_t *qualified_array_alias =
+      find_binding(unit, "qualified_array_t");
+  const ctool_c_binding_t *reverse_promoted =
+      find_binding(unit, "reverse_promoted");
+  const ctool_c_binding_t *promoted_double =
+      find_binding(unit, "promoted_double");
+  const ctool_c_binding_t *promoted_pointer =
+      find_binding(unit, "promoted_pointer");
+  const ctool_c_binding_t *combined = find_binding(unit, "combined");
+  const ctool_c_binding_t *atomic_qualified =
+      find_binding(unit, "atomic_qualified");
+  const ctool_c_binding_t *atomic_old_style =
+      find_binding(unit, "atomic_old_style");
+  const ctool_c_type_node_t *values_type =
+      values == NULL ? NULL : type_node(unit, values->type);
+  const ctool_c_type_node_t *transform_type =
+      transform == NULL ? NULL : type_node(unit, transform->type);
+  const ctool_c_type_node_t *incomplete_alias_type =
+      incomplete_alias == NULL ? NULL : type_node(unit, incomplete_alias->type);
+  const ctool_c_type_node_t *completed_type =
+      completed == NULL ? NULL : type_node(unit, completed->type);
+  const ctool_c_type_node_t *promoted_type =
+      promoted == NULL ? NULL : type_node(unit, promoted->type);
+  const ctool_c_type_node_t *no_arguments_type =
+      no_arguments == NULL ? NULL : type_node(unit, no_arguments->type);
+  const ctool_c_type_node_t *qualified_type =
+      qualified == NULL ? NULL : type_node(unit, qualified->type);
+  const ctool_c_type_node_t *pointer_qualified_type =
+      pointer_qualified == NULL ? NULL : type_node(unit,
+                                                   pointer_qualified->type);
+  const ctool_c_type_node_t *qualified_parameter_type = NULL;
+  const ctool_c_type_node_t *pointer_qualified_parameter_type = NULL;
+  const ctool_c_type_node_t *qualified_completed_type =
+      qualified_completed == NULL
+          ? NULL
+          : type_node(unit, qualified_completed->type);
+  const ctool_c_type_node_t *qualified_still_type =
+      qualified_still_incomplete == NULL
+          ? NULL
+          : strip_qualified(unit, qualified_still_incomplete->type, NULL);
+  const ctool_c_type_node_t *combined_type =
+      combined == NULL ? NULL : type_node(unit, combined->type);
+  const ctool_c_type_node_t *atomic_qualified_type =
+      atomic_qualified == NULL ? NULL : type_node(unit,
+                                                 atomic_qualified->type);
+  const ctool_c_type_node_t *atomic_parameter_type = NULL;
+  const ctool_c_type_node_t *combined_first_pointer = NULL;
+  const ctool_c_type_node_t *combined_second_pointer = NULL;
+  const ctool_c_type_node_t *combined_first_array = NULL;
+  const ctool_c_type_node_t *combined_second_array = NULL;
+  if (atomic_qualified_type != NULL &&
+      atomic_qualified_type->kind == CTOOL_C_TYPE_FUNCTION &&
+      atomic_qualified_type->parameter_count == 1u &&
+      atomic_qualified_type->first_parameter <
+          unit->graph.parameter_type_count) {
+    atomic_parameter_type = type_node(
+        unit,
+        unit->graph.parameter_types[atomic_qualified_type->first_parameter]);
+  }
+  if (qualified_type != NULL &&
+      qualified_type->kind == CTOOL_C_TYPE_FUNCTION &&
+      qualified_type->parameter_count == 1u &&
+      qualified_type->first_parameter < unit->graph.parameter_type_count) {
+    qualified_parameter_type = type_node(
+        unit, unit->graph.parameter_types[qualified_type->first_parameter]);
+  }
+  if (pointer_qualified_type != NULL &&
+      pointer_qualified_type->kind == CTOOL_C_TYPE_FUNCTION &&
+      pointer_qualified_type->parameter_count == 1u &&
+      pointer_qualified_type->first_parameter <
+          unit->graph.parameter_type_count) {
+    pointer_qualified_parameter_type = type_node(
+        unit,
+        unit->graph
+            .parameter_types[pointer_qualified_type->first_parameter]);
+  }
+  if (combined_type != NULL &&
+      combined_type->kind == CTOOL_C_TYPE_FUNCTION &&
+      combined_type->parameter_count == 2u &&
+      combined_type->first_parameter <= unit->graph.parameter_type_count &&
+      2u <= unit->graph.parameter_type_count -
+                combined_type->first_parameter) {
+    combined_first_pointer = type_node(
+        unit, unit->graph.parameter_types[combined_type->first_parameter]);
+    combined_second_pointer = type_node(
+        unit,
+        unit->graph.parameter_types[combined_type->first_parameter + 1u]);
+    if (combined_first_pointer != NULL &&
+        combined_first_pointer->kind == CTOOL_C_TYPE_POINTER) {
+      combined_first_array =
+          type_node(unit, combined_first_pointer->referenced_type);
+    }
+    if (combined_second_pointer != NULL &&
+        combined_second_pointer->kind == CTOOL_C_TYPE_POINTER) {
+      combined_second_array =
+          type_node(unit, combined_second_pointer->referenced_type);
+    }
+  }
+
+  if (unit->binding_count != 31u || values == NULL || word == NULL ||
+      transform == NULL || local == NULL || internal_object == NULL ||
+      internal_function == NULL || incomplete_alias == NULL ||
+      completed == NULL || still_incomplete == NULL || promoted == NULL ||
+      no_arguments == NULL || qualified == NULL || pointer_qualified == NULL ||
+      duplicate_const == NULL || const_pointer == NULL ||
+      qualified_completed == NULL || qualified_still_incomplete == NULL ||
+      qualified_function == NULL || qualified_array_alias == NULL ||
+      reverse_promoted == NULL || promoted_double == NULL ||
+      promoted_pointer == NULL || combined == NULL ||
+      atomic_qualified == NULL || atomic_old_style == NULL ||
+      values_type == NULL ||
+      values->kind != CTOOL_C_BINDING_OBJECT ||
+      values->storage != CTOOL_C_STORAGE_EXTERN ||
+      values->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      values_type->kind != CTOOL_C_TYPE_ARRAY ||
+      values_type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      values_type->element_count != 4u ||
+      unit->layout.types[values->type].size != 16u ||
+      word->kind != CTOOL_C_BINDING_TYPEDEF ||
+      word->linkage != CTOOL_C_LINKAGE_NONE || transform_type == NULL ||
+      transform->kind != CTOOL_C_BINDING_FUNCTION ||
+      transform->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      transform_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      transform_type->has_prototype != CTOOL_TRUE ||
+      transform_type->parameter_count != 1u ||
+      local->kind != CTOOL_C_BINDING_OBJECT ||
+      local->storage != CTOOL_C_STORAGE_STATIC ||
+      local->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      internal_object->kind != CTOOL_C_BINDING_OBJECT ||
+      internal_object->storage != CTOOL_C_STORAGE_STATIC ||
+      internal_object->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      internal_function->kind != CTOOL_C_BINDING_FUNCTION ||
+      internal_function->storage != CTOOL_C_STORAGE_STATIC ||
+      internal_function->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      incomplete_alias->kind != CTOOL_C_BINDING_TYPEDEF ||
+      incomplete_alias_type == NULL ||
+      incomplete_alias_type->kind != CTOOL_C_TYPE_ARRAY ||
+      incomplete_alias_type->array_bound_kind !=
+          CTOOL_C_ARRAY_UNSPECIFIED ||
+      completed->kind != CTOOL_C_BINDING_OBJECT || completed_type == NULL ||
+      completed_type->kind != CTOOL_C_TYPE_ARRAY ||
+      completed_type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      completed_type->element_count != 4u ||
+      unit->layout.types[completed->type].size != 16u ||
+      still_incomplete->type != incomplete_alias->type ||
+      promoted_type == NULL || promoted_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      promoted_type->has_prototype != CTOOL_TRUE ||
+      promoted_type->parameter_count != 1u || no_arguments_type == NULL ||
+      no_arguments_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      no_arguments_type->has_prototype != CTOOL_TRUE ||
+      no_arguments_type->parameter_count != 0u ||
+      qualified->kind != CTOOL_C_BINDING_FUNCTION || qualified_type == NULL ||
+      qualified_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      qualified_type->parameter_count != 1u ||
+      qualified_parameter_type == NULL ||
+      qualified_parameter_type->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      pointer_qualified->kind != CTOOL_C_BINDING_FUNCTION ||
+      pointer_qualified_type == NULL ||
+      pointer_qualified_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      pointer_qualified_type->parameter_count != 1u ||
+      pointer_qualified_parameter_type == NULL ||
+      pointer_qualified_parameter_type->kind != CTOOL_C_TYPE_POINTER ||
+      pointer_qualified_parameter_type->qualifiers != 0u ||
+      duplicate_const->kind != CTOOL_C_BINDING_OBJECT ||
+      const_pointer->kind != CTOOL_C_BINDING_OBJECT ||
+      qualified_completed_type == NULL ||
+      qualified_completed_type->kind != CTOOL_C_TYPE_ARRAY ||
+      qualified_completed_type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      qualified_completed_type->element_count != 4u ||
+      qualified_still_type == NULL ||
+      qualified_still_type->kind != CTOOL_C_TYPE_ARRAY ||
+      qualified_still_type->array_bound_kind !=
+          CTOOL_C_ARRAY_UNSPECIFIED ||
+      qualified_function->kind != CTOOL_C_BINDING_TYPEDEF ||
+      qualified_array_alias->kind != CTOOL_C_BINDING_TYPEDEF ||
+      reverse_promoted->kind != CTOOL_C_BINDING_FUNCTION ||
+      promoted_double->kind != CTOOL_C_BINDING_FUNCTION ||
+      promoted_pointer->kind != CTOOL_C_BINDING_FUNCTION ||
+      combined_type == NULL || combined_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      combined_type->parameter_count != 2u ||
+      combined_first_array == NULL || combined_second_array == NULL ||
+      combined_first_array->kind != CTOOL_C_TYPE_ARRAY ||
+      combined_first_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      combined_first_array->element_count != 4u ||
+      combined_second_array->kind != CTOOL_C_TYPE_ARRAY ||
+      combined_second_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      combined_second_array->element_count != 5u ||
+      atomic_qualified_type == NULL ||
+      atomic_qualified_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      atomic_parameter_type == NULL ||
+      atomic_parameter_type->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      atomic_parameter_type->qualifiers != CTOOL_C_QUAL_ATOMIC ||
+      atomic_old_style->kind != CTOOL_C_BINDING_FUNCTION) {
+    (void)fprintf(stderr,
+                  "semantics: compatible redeclarations differ\n");
+    return 1;
+  }
+  return 0;
 }
 
 static int run_semantics(const char *host_root) {
@@ -2185,7 +2932,49 @@ static int run_semantics(const char *host_root) {
       {"reserved member identifier", "struct S { int return; };\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
       {"reserved parameter identifier", "int f(int switch);\n",
-       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR}};
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+      {"conflicting object redeclaration", "extern int value; long value;\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"conflicting array redeclaration",
+       "extern int values[2]; extern int values[3];\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"conflicting function redeclaration",
+       "int function(int value); int function(long value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"conflicting linkage redeclaration",
+       "extern int value; static int value;\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"object loses internal linkage",
+       "static int value; int value;\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"conflicting typedef redeclaration",
+       "typedef int word_t; typedef long word_t;\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"typedef incomplete/fixed mismatch",
+       "typedef int array_t[]; typedef int array_t[4];\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"old-style char promotion mismatch",
+       "int function(); int function(char value);\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"old-style float promotion mismatch",
+       "int function(); int function(float value);\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"old-style variadic mismatch",
+       "int function(); int function(int value, ...);\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"pointer referent qualifier mismatch",
+       "typedef int *pointer_t; extern const pointer_t value; "
+       "extern const int *value;\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"atomic scalar parameter mismatch",
+       "int function(_Atomic int value); int function(int value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"atomic pointer parameter mismatch",
+       "int function(int *_Atomic value); int function(int *value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+      {"old-style atomic char promotion mismatch",
+       "int function(); int function(_Atomic char value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION}};
   static const char *const keywords[] = {
       "auto",          "break",       "case",       "char",
       "const",         "continue",    "default",    "do",
@@ -2217,6 +3006,63 @@ static int run_semantics(const char *host_root) {
       "struct Forward;\n"
       "int accept_forward(struct Forward value);\n"
       "extern int values[];\n";
+  static const char compatible_redeclarations_source[] =
+      "extern int values[];\n"
+      "extern int values[4];\n"
+      "extern int values[];\n"
+      "typedef int word_t;\n"
+      "typedef int word_t;\n"
+      "int transform(int value);\n"
+      "extern int transform(int renamed);\n"
+      "static int local_object;\n"
+      "static int local_object;\n"
+      "static int internal_object;\n"
+      "extern int internal_object;\n"
+      "static int internal_function(void);\n"
+      "int internal_function(void);\n"
+      "extern int internal_function(void);\n"
+      "typedef int incomplete_array_t[];\n"
+      "extern incomplete_array_t completed;\n"
+      "extern int completed[4];\n"
+      "extern incomplete_array_t still_incomplete;\n"
+      "int promoted();\n"
+      "int promoted(int value);\n"
+      "int no_arguments();\n"
+      "int no_arguments(void);\n"
+      "int qualified(const int value);\n"
+      "int qualified(int renamed);\n"
+      "int pointer_qualified(int *restrict value);\n"
+      "int pointer_qualified(int *renamed);\n"
+      "typedef const int const_int_t;\n"
+      "extern const const_int_t duplicate_const;\n"
+      "extern const int duplicate_const;\n"
+      "typedef int *pointer_alias_t;\n"
+      "extern const pointer_alias_t const_pointer;\n"
+      "extern int *const const_pointer;\n"
+      "typedef int fixed_array_t[4];\n"
+      "extern const fixed_array_t qualified_array;\n"
+      "extern const int qualified_array[4];\n"
+      "typedef int incomplete_qualified_array_t[];\n"
+      "extern const incomplete_qualified_array_t qualified_completed;\n"
+      "extern const int qualified_completed[4];\n"
+      "extern const incomplete_qualified_array_t qualified_still_incomplete;\n"
+      "typedef int qualified_function_t(const int);\n"
+      "typedef int qualified_function_t(int);\n"
+      "typedef int base_array_t[4];\n"
+      "typedef const base_array_t qualified_array_t;\n"
+      "typedef const int qualified_array_t[4];\n"
+      "int reverse_promoted(int value);\n"
+      "int reverse_promoted();\n"
+      "int promoted_double();\n"
+      "int promoted_double(double value);\n"
+      "int promoted_pointer();\n"
+      "int promoted_pointer(int *value);\n"
+      "int combined(int (*first)[4], int (*second)[]);\n"
+      "int combined(int (*first)[], int (*second)[5]);\n"
+      "int atomic_qualified(_Atomic const int value);\n"
+      "int atomic_qualified(_Atomic int renamed);\n"
+      "int atomic_old_style();\n"
+      "int atomic_old_style(_Atomic int value);\n";
   static const char strict_flexible_union_source[] =
       "struct FlexibleLeaf { int count; int values[]; };\n"
       "union FlexibleUnion { struct FlexibleLeaf leaf; int alternate; };\n";
@@ -2291,6 +3137,34 @@ static int run_semantics(const char *host_root) {
                           incomplete_declarations_source, &unit) != 0 ||
       validate_incomplete_declarations_unit(&unit) != 0) {
     failed = 1;
+  }
+  if (parse_valid_fixture(&fixture, "/compatible-redeclarations.c",
+                          compatible_redeclarations_source, &unit) != 0 ||
+      validate_compatible_redeclarations_unit(&unit) != 0) {
+    failed = 1;
+  }
+  {
+    char *compatibility_dag = build_compatibility_dag_source(24u);
+    char *deep_pointer = build_deep_pointer_redeclaration_source(512u);
+    if (compatibility_dag == NULL || deep_pointer == NULL) {
+      (void)fprintf(stderr,
+                    "semantics: redeclaration scale fixture failed\n");
+      failed = 1;
+    } else {
+      if (parse_valid_fixture(&fixture, "/compatibility-dag.c",
+                              compatibility_dag, &unit) != 0 ||
+          find_binding(&unit, "compatibility_dag") == NULL) {
+        failed = 1;
+      }
+      if (parse_valid_fixture(&fixture, "/deep-pointer.c", deep_pointer,
+                              &unit) != 0 ||
+          unit.binding_count != 1u ||
+          find_binding(&unit, "deep_pointer") == NULL) {
+        failed = 1;
+      }
+    }
+    free(compatibility_dag);
+    free(deep_pointer);
   }
   if (parse_valid_fixture(&fixture, "/qualified.c", qualified_source, &unit) !=
           0 ||
@@ -2943,16 +3817,25 @@ cleanup:
 }
 
 int main(int argc, char **argv) {
+  if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
+    return run_header_sweep(argv[2], argc - 3, &argv[3]);
+  }
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                  "fat16|errors|scale|semantics|constants|boundaries|"
+                  "fat16|redeclarations|errors|scale|semantics|constants|"
+                  "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
-                  "<repository-root>\n");
+                  "<repository-root>\n"
+                  "       cupidc-frontend-contract header-sweep "
+                  "<repository-root> <logical-header>...\n");
     return 2;
   }
   if (strcmp(argv[1], "fat16") == 0) {
     return run_fat16(argv[2]);
+  }
+  if (strcmp(argv[1], "redeclarations") == 0) {
+    return run_redeclarations(argv[2]);
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors(argv[2]);
