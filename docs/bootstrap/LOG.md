@@ -1360,5 +1360,6 @@ The checked graph remains 681 active sources, 250 feature IDs, and 39 accounted 
 | Production parity | PASS | CupidDis and LLVM `nm` produce byte-identical generated C with 3,790 retained symbols and a 91,190-byte blob. |
 | Normal and parallel builds | PASS | `make all` and `make -j4 all` both run the real `mksyms --nm toolchain/build/cupiddis.exe` recipe and complete the two-pass kernel/image build. |
 | Runtime proof | PASS | The rebuilt image passes the GUI terminal/JIT smoke. A deliberate `crashtest panic` reaches `STACK TRACE` and resolves frame zero as `kernel_panic+0x00000085`. |
+| Full repository gate | PASS | `make test` runs 255 tests in 343.767 seconds: 254 pass and only the expected optional/platform case skips. The enclosing Toolchain/audit gate completes in 372.5 seconds. |
 
 GNU/LLVM `nm` is no longer required by root `all`, `user:all`, `toolchain:all`, or baseline preflight. The host compiler and its native linker backend still build every hosted Cupid tool and all host/root C outputs, and Python remains build orchestration plus symbol-blob serialization. Checked native seeds, CupidC object lowering and self-build, and removal of the host C compiler are still the fixed-point blockers.
