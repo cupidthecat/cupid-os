@@ -4361,12 +4361,22 @@ static int validate_scalar_initializer_unit(
   return 0;
 }
 
-static int validate_toolchain_initializer_frontier(const char *host_root) {
+static int validate_toolchain_for_frontier(const char *host_root) {
   static const char *const paths[] = {
       "/toolchain/ctool.c", "/toolchain/cupiddis.c",
       "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
       "/toolchain/cupidc_type.c"};
-  static const ctool_u32 lines[] = {56u, 18u, 146u, 17u, 34u};
+  static const ctool_u32 lines[] = {71u, 30u, 152u, 24u, 40u};
+  static const ctool_u32 diagnostic_codes[] = {
+      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_STATEMENT,
+      CTOOL_C_PARSE_DIAG_STATEMENT};
+  static const char *const messages[] = {
+      "expression operator is outside this function-body slice",
+      "non-scalar assignment is outside this function-body slice",
+      "expression operator is outside this function-body slice",
+      "statement form is outside this function-body slice",
+      "statement form is outside this function-body slice"};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(paths); index++) {
     ctool_host_adapter_t adapter;
@@ -4385,7 +4395,7 @@ static int validate_toolchain_initializer_frontier(const char *host_root) {
     size_t token_bytes;
     int failed = 1;
 
-    if (open_job("scalar-initializers", host_root,
+    if (open_job("for-statements", host_root,
                  256u * 1024u * 1024u, &adapter, &job) != 0) {
       return 1;
     }
@@ -4410,7 +4420,7 @@ static int validate_toolchain_initializer_frontier(const char *host_root) {
     if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
         ctool_job_diagnostic_count(job) != 0u) {
       (void)fprintf(stderr,
-                    "scalar-initializers: prepare frontier %s failed: %s\n",
+                    "for-statements: prepare frontier %s failed: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
       ctool_job_close(job);
@@ -4426,12 +4436,10 @@ static int validate_toolchain_initializer_frontier(const char *host_root) {
       diagnostic = ctool_job_diagnostic(job, 0u);
       if (status == CTOOL_ERR_UNSUPPORTED && unit_is_zero(&unit) != 0 &&
           ctool_job_diagnostic_count(job) == 1u && diagnostic != NULL &&
-          diagnostic->code == CTOOL_C_PARSE_DIAG_STATEMENT &&
+          diagnostic->code == diagnostic_codes[index] &&
           string_equal(diagnostic->path, paths[index]) != 0 &&
           diagnostic->line == lines[index] && diagnostic->column != 0u &&
-          string_equal(diagnostic->message,
-                       "statement form is outside this function-body slice") !=
-              0 &&
+          string_equal(diagnostic->message, messages[index]) != 0 &&
           arena_marks_equal(mark,
                             ctool_arena_mark(ctool_job_arena(job))) != 0 &&
           memcmp(snapshot, tape.tokens, token_bytes) == 0) {
@@ -4440,7 +4448,7 @@ static int validate_toolchain_initializer_frontier(const char *host_root) {
     }
     if (failed != 0) {
       (void)fprintf(stderr,
-                    "scalar-initializers: frontier %s differs: %s\n",
+                    "for-statements: frontier %s differs: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
     }
@@ -4739,9 +4747,6 @@ static int run_scalar_initializers(const char *host_root) {
       goto cleanup;
     }
   }
-  if (validate_toolchain_initializer_frontier(host_root) != 0) {
-    goto cleanup;
-  }
   if (validate_scalar_initializer_storage_limit(&fixture, host_root) != 0) {
     goto cleanup;
   }
@@ -4753,6 +4758,725 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("scalar-initializers: ok\n");
+  }
+  return failed;
+}
+
+static ctool_u32 scalar_expression_child(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *expression, ctool_u32 child);
+static ctool_u32 scalar_unwrap_conversions(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression);
+static ctool_bool scalar_conversion_chain_has(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression,
+    ctool_c_conversion_kind_t conversion);
+static ctool_c_type_kind_t scalar_type_kind(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_u32 *qualifiers_out);
+
+static int for_expect_terminal_reference(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression,
+    ctool_c_expression_kind_t kind, ctool_u32 reference) {
+  expression = scalar_unwrap_conversions(unit, expression);
+  return expression < unit->expression_count &&
+                 unit->expressions[expression].kind == kind &&
+                 unit->expressions[expression].reference == reference
+             ? 0
+             : 1;
+}
+
+static int for_expect_call_argument(
+    const ctool_c_translation_unit_t *unit, ctool_u32 statement,
+    ctool_u32 binding) {
+  const ctool_c_statement_t *node;
+  const ctool_c_expression_t *call;
+  ctool_u32 argument;
+  if (statement >= unit->statement_count) {
+    return 1;
+  }
+  node = &unit->statements[statement];
+  if (node->kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      node->expression >= unit->expression_count) {
+    return 1;
+  }
+  call = &unit->expressions[node->expression];
+  if (call->kind != CTOOL_C_EXPRESSION_CALL || call->child_count != 2u) {
+    return 1;
+  }
+  argument = scalar_expression_child(unit, call, 1u);
+  return for_expect_terminal_reference(
+      unit, argument, CTOOL_C_EXPRESSION_BLOCK_BINDING, binding);
+}
+
+static int validate_for_statement_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_statement_kind_t expected_kinds[] = {
+      CTOOL_C_STATEMENT_DECLARATION, CTOOL_C_STATEMENT_DECLARATION,
+      CTOOL_C_STATEMENT_DECLARATION, CTOOL_C_STATEMENT_DECLARATION,
+      CTOOL_C_STATEMENT_EXPRESSION,  CTOOL_C_STATEMENT_CONTINUE,
+      CTOOL_C_STATEMENT_COMPOUND,    CTOOL_C_STATEMENT_FOR,
+      CTOOL_C_STATEMENT_DECLARATION, CTOOL_C_STATEMENT_DECLARATION,
+      CTOOL_C_STATEMENT_EXPRESSION,  CTOOL_C_STATEMENT_BREAK,
+      CTOOL_C_STATEMENT_COMPOUND,    CTOOL_C_STATEMENT_FOR,
+      CTOOL_C_STATEMENT_EXPRESSION,  CTOOL_C_STATEMENT_EXPRESSION,
+      CTOOL_C_STATEMENT_FOR,         CTOOL_C_STATEMENT_BREAK,
+      CTOOL_C_STATEMENT_FOR,         CTOOL_C_STATEMENT_BREAK,
+      CTOOL_C_STATEMENT_FOR,         CTOOL_C_STATEMENT_BREAK,
+      CTOOL_C_STATEMENT_FOR,         CTOOL_C_STATEMENT_BREAK,
+      CTOOL_C_STATEMENT_FOR,         CTOOL_C_STATEMENT_COMPOUND};
+  static const ctool_u32 expected_outer_children[] = {
+      0u, 1u, 2u, 3u, 7u, 13u, 14u, 16u, 18u, 20u, 22u, 24u};
+  static const char *const binding_names[] = {
+      "index", "inner", "keep", "values", "inner", "step", "inner"};
+  static const ctool_u32 binding_lines[] = {3u, 4u, 5u, 6u, 10u, 10u, 11u};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_statement_t *first_for;
+  const ctool_c_statement_t *declaration_for;
+  const ctool_c_statement_t *pointer_for;
+  const ctool_c_statement_t *volatile_for;
+  const ctool_c_statement_t *array_for;
+  const ctool_c_statement_t *function_for;
+  const ctool_c_statement_t *empty_for;
+  ctool_u32 pointer_parameter = CTOOL_C_AST_NONE;
+  ctool_u32 observe_binding = find_binding_index(unit, "observe");
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 terminal;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != ARRAY_COUNT(binding_names) ||
+      unit->statement_count != ARRAY_COUNT(expected_kinds) ||
+      unit->statement_child_count != 16u || unit->expression_count != 44u ||
+      unit->expression_child_count != 27u ||
+      observe_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "for-statements: AST inventory differs\n");
+    return 1;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->body != 25u || definition->binding >= unit->binding_count ||
+      !string_equal(unit->bindings[definition->binding].name, "counted") ||
+      unit->statements[definition->body].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[definition->body].first_child != 4u ||
+      unit->statements[definition->body].child_count !=
+          ARRAY_COUNT(expected_outer_children)) {
+    (void)fprintf(stderr, "for-statements: definition body differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(expected_kinds); index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != expected_kinds[index] ||
+        statement->location.path.data == NULL ||
+        !string_equal(statement->location.path, "/for-statements.c") ||
+        !string_equal(statement->physical_location.path,
+                      "/for-statements.c")) {
+      (void)fprintf(stderr, "for-statements: statement %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(expected_outer_children); index++) {
+    if (unit->statement_children[4u + index] !=
+        expected_outer_children[index]) {
+      (void)fprintf(stderr, "for-statements: outer child %u differs\n", index);
+      return 1;
+    }
+  }
+  if (unit->statement_children[0] != 5u ||
+      unit->statement_children[1] != 9u ||
+      unit->statement_children[2] != 10u ||
+      unit->statement_children[3] != 11u) {
+    (void)fprintf(stderr, "for-statements: nested children differ\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(binding_names); index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    if (!string_equal(binding->name, binding_names[index]) ||
+        binding->location.line != binding_lines[index] ||
+        binding->physical_location.line != binding_lines[index]) {
+      (void)fprintf(stderr, "for-statements: binding %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->parameter_count; index++) {
+    if (string_equal(unit->parameters[index].name, "pointer") != 0) {
+      pointer_parameter = index;
+    }
+  }
+  if (pointer_parameter == CTOOL_C_AST_NONE ||
+      for_expect_call_argument(unit, 10u, 6u) != 0 ||
+      for_expect_call_argument(unit, 14u, 1u) != 0) {
+    (void)fprintf(stderr, "for-statements: lexical shadowing differs\n");
+    return 1;
+  }
+
+  first_for = &unit->statements[7];
+  declaration_for = &unit->statements[13];
+  pointer_for = &unit->statements[16];
+  volatile_for = &unit->statements[18];
+  array_for = &unit->statements[20];
+  function_for = &unit->statements[22];
+  empty_for = &unit->statements[24];
+  if (declaration_for->condition >= unit->expression_count ||
+      declaration_for->iteration >= unit->expression_count ||
+      for_expect_terminal_reference(
+          unit,
+          scalar_expression_child(
+              unit, &unit->expressions[declaration_for->condition], 0u),
+          CTOOL_C_EXPRESSION_BLOCK_BINDING, 4u) != 0 ||
+      for_expect_terminal_reference(
+          unit,
+          scalar_expression_child(
+              unit, &unit->expressions[declaration_for->iteration], 0u),
+          CTOOL_C_EXPRESSION_BLOCK_BINDING, 4u) != 0 ||
+      for_expect_terminal_reference(
+          unit,
+          scalar_expression_child(
+              unit, &unit->expressions[declaration_for->iteration], 1u),
+          CTOOL_C_EXPRESSION_BLOCK_BINDING, 5u) != 0) {
+    (void)fprintf(stderr, "for-statements: declaration loop scope differs\n");
+    return 1;
+  }
+  if (first_for->initializer_statement != 4u || first_for->condition != 9u ||
+      first_for->iteration != 11u || first_for->body != 6u ||
+      declaration_for->initializer_statement != 8u ||
+      declaration_for->condition != 18u ||
+      declaration_for->iteration != 22u || declaration_for->body != 12u ||
+      pointer_for->initializer_statement != CTOOL_C_AST_NONE ||
+      pointer_for->condition != 35u || pointer_for->iteration != 37u ||
+      pointer_for->body != 15u ||
+      unit->statements[15].expression != CTOOL_C_AST_NONE ||
+      volatile_for->condition != 39u ||
+      volatile_for->iteration != CTOOL_C_AST_NONE ||
+      volatile_for->body != 17u || array_for->condition != 41u ||
+      array_for->body != 19u || function_for->condition != 43u ||
+      function_for->body != 21u ||
+      empty_for->initializer_statement != CTOOL_C_AST_NONE ||
+      empty_for->condition != CTOOL_C_AST_NONE ||
+      empty_for->iteration != CTOOL_C_AST_NONE || empty_for->body != 23u) {
+    (void)fprintf(stderr, "for-statements: for-node payload differs\n");
+    return 1;
+  }
+  if (unit->expressions[first_for->condition].kind !=
+          CTOOL_C_EXPRESSION_BINARY ||
+      unit->expressions[first_for->condition].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+      unit->expressions[first_for->iteration].kind !=
+          CTOOL_C_EXPRESSION_UPDATE ||
+      unit->expressions[first_for->iteration].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT ||
+      unit->expressions[pointer_for->iteration].kind !=
+          CTOOL_C_EXPRESSION_UPDATE ||
+      unit->expressions[pointer_for->iteration].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT) {
+    (void)fprintf(stderr, "for-statements: typed clauses differ\n");
+    return 1;
+  }
+  if (for_expect_terminal_reference(unit, pointer_for->condition,
+                                    CTOOL_C_EXPRESSION_PARAMETER,
+                                    pointer_parameter) != 0 ||
+      scalar_conversion_chain_has(unit, pointer_for->condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      for_expect_terminal_reference(unit, volatile_for->condition,
+                                    CTOOL_C_EXPRESSION_BLOCK_BINDING, 2u) !=
+          0 ||
+      scalar_conversion_chain_has(unit, volatile_for->condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      for_expect_terminal_reference(unit, array_for->condition,
+                                    CTOOL_C_EXPRESSION_BLOCK_BINDING, 3u) !=
+          0 ||
+      scalar_conversion_chain_has(unit, array_for->condition,
+                                  CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+          CTOOL_FALSE ||
+      for_expect_terminal_reference(unit, function_for->condition,
+                                    CTOOL_C_EXPRESSION_IDENTIFIER,
+                                    observe_binding) != 0 ||
+      scalar_conversion_chain_has(unit, function_for->condition,
+                                  CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+          CTOOL_FALSE) {
+    (void)fprintf(stderr, "for-statements: condition conversions differ\n");
+    return 1;
+  }
+  terminal = scalar_unwrap_conversions(unit, volatile_for->condition);
+  if (terminal >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[terminal].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
+      scalar_type_kind(unit, unit->expressions[volatile_for->condition].type,
+                       &qualifiers) != CTOOL_C_TYPE_SIGNED_INT ||
+      qualifiers != 0u) {
+    (void)fprintf(stderr, "for-statements: volatile condition differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_nested_for_statement_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_statement_t *inner;
+  const ctool_c_statement_t *outer;
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != 2u || unit->statement_count != 9u ||
+      unit->statement_child_count != 4u ||
+      unit->function_definitions[0].body != 8u ||
+      unit->statements[2].kind != CTOOL_C_STATEMENT_CONTINUE ||
+      unit->statements[3].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[4].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[5].kind != CTOOL_C_STATEMENT_BREAK ||
+      unit->statements[6].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[7].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[8].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statement_children[0] != 2u ||
+      unit->statement_children[1] != 4u ||
+      unit->statement_children[2] != 5u ||
+      unit->statement_children[3] != 7u) {
+    (void)fprintf(stderr, "for-statements: nested loop inventory differs\n");
+    return 1;
+  }
+  inner = &unit->statements[4];
+  outer = &unit->statements[7];
+  if (inner->initializer_statement != 1u ||
+      inner->condition == CTOOL_C_AST_NONE ||
+      inner->iteration == CTOOL_C_AST_NONE || inner->body != 3u ||
+      outer->initializer_statement != 0u ||
+      outer->condition == CTOOL_C_AST_NONE ||
+      outer->iteration == CTOOL_C_AST_NONE || outer->body != 6u ||
+      inner->body >= 4u || inner->initializer_statement >= 4u ||
+      outer->body >= 7u || outer->initializer_statement >= 7u) {
+    (void)fprintf(stderr, "for-statements: nested loop postorder differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static char *build_for_statement_depth_source(ctool_u32 depth) {
+  size_t capacity = (size_t)depth * 9u + 32u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used, "void deep(void) { ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < depth; index++) {
+    if (append_scale_text(source, capacity, &used, "for (;;) ") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "; }\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static char *build_for_statement_limit_source(ctool_bool loops) {
+  const size_t capacity = 8192u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void for_limit(void) {\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 128u; index++) {
+    if (append_scale_text(source, capacity, &used,
+                          loops == CTOOL_TRUE ? "  for (;;);\n" : "  ;\n") !=
+        0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "}\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_for_statement_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  char *control_source = build_for_statement_limit_source(CTOOL_FALSE);
+  char *loop_source = build_for_statement_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_oracle;
+  ctool_c_translation_unit_t loop_oracle;
+  ctool_c_translation_unit_t control;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_pp_result_t control_tape;
+  ctool_c_pp_result_t loop_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 output_limit =
+      256u * (ctool_u32)sizeof(ctool_c_statement_t);
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || loop_source == NULL ||
+      parse_valid_fixture(fixture, "/for-limit-control.c", control_source,
+                          &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, "/for-limit-success.c", loop_source,
+                          &loop_oracle) != 0 ||
+      control_oracle.statement_count != 129u ||
+      loop_oracle.statement_count != 257u ||
+      (ctool_u64)control_oracle.statement_count *
+              sizeof(ctool_c_statement_t) >
+          output_limit ||
+      (ctool_u64)loop_oracle.statement_count *
+              sizeof(ctool_c_statement_t) <=
+          output_limit ||
+      preprocess_fixture(fixture, "/for-limit-control.c", control_source,
+                         &control_tape) != 0 ||
+      preprocess_fixture(fixture, "/for-limit.c", loop_source, &loop_tape) !=
+          0) {
+    (void)fprintf(stderr, "for-statements: storage-limit controls differ\n");
+    goto cleanup;
+  }
+  token_bytes = (size_t)loop_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, loop_tape.tokens, token_bytes);
+  limits.output_bytes = output_limit;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&control, 0xa5, sizeof(control));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request, &control);
+  if (status != CTOOL_OK || control.statement_count != 129u ||
+      control.statements[0].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      control.statements[0].expression != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "for-statements: limited control failed: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &loop_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/for-limit.c") ||
+      diagnostic->line == 0u || diagnostic->column == 0u ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, loop_tape.tokens, token_bytes) != 0 ||
+      control.statement_count != 129u ||
+      control.statements[0].expression != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "for-statements: limited rollback differs: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status =
+      ctool_c_parse(job, &control_tape, &fixture->parse_request, &recovered);
+  if (status != CTOOL_OK || recovered.statement_count != 129u ||
+      recovered.statements[0].expression != CTOOL_C_AST_NONE ||
+      control.statement_count != 129u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "for-statements: limited recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(loop_source);
+  free(control_source);
+  return failed;
+}
+
+static int run_for_statements(const char *host_root) {
+  static const char source[] =
+      "int observe(int value);\n"
+      "void counted(int limit, int *pointer) {\n"
+      "  int index;\n"
+      "  int inner = 7;\n"
+      "  volatile int keep = 1;\n"
+      "  int values[1];\n"
+      "  for (index = 0; index < limit; index++) {\n"
+      "    continue;\n"
+      "  }\n"
+      "  for (int inner = 0, step = 1; inner < limit; inner += step) {\n"
+      "    int inner = 2;\n"
+      "    observe(inner);\n"
+      "    break;\n"
+      "  }\n"
+      "  observe(inner);\n"
+      "  for (; pointer; pointer++) ;\n"
+      "  for (; keep; ) break;\n"
+      "  for (; values; ) break;\n"
+      "  for (; observe; ) break;\n"
+      "  for (;;) break;\n"
+      "}\n";
+  static const char storage_source[] =
+      "void register_loop(int limit) {\n"
+      "  for (register int index = 0; index < limit; index++) break;\n"
+      "}\n"
+      "void auto_loop(int limit) {\n"
+      "  for (auto int index = 0; index < limit; index++) break;\n"
+      "}\n"
+      "void parameter_shadow(int value) {\n"
+      "  for (int value = 0; value < 1; value++) break;\n"
+      "}\n";
+  static const char nested_source[] =
+      "void nested(int outer_limit, int inner_limit) {\n"
+      "  for (int outer = 0; outer < outer_limit; outer++) {\n"
+      "    for (int inner = 0; inner < inner_limit; inner++) {\n"
+      "      continue;\n"
+      "    }\n"
+      "    break;\n"
+      "  }\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"break outside loop", "void bad(void) { break; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "break statement requires an enclosing loop or switch"},
+      {{"continue outside loop", "void bad(void) { continue; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "continue statement requires an enclosing loop"},
+      {{"aggregate controlling expression",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t value;\n"
+        "  for (; value; ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       4u, 10u, "controlling expression requires scalar type"},
+      {{"void controlling expression",
+        "void sink(void);\n"
+        "void bad(void) {\n"
+        "  for (; sink(); ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "controlling expression requires scalar type"},
+      {{"floating controlling expression",
+        "void bad(double value) {\n"
+        "  for (; value; ) { }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 10u,
+       "floating controlling expressions are outside this body slice"},
+      {{"declaration is not a loop body",
+        "void bad(void) {\n"
+        "  for (;;) int value;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 12u, "declaration is not a statement; use a compound statement"},
+      {{"expired loop initializer",
+        "void bad(void) {\n"
+        "  for (int index = 0; index < 1; index++) { }\n"
+        "  index;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "expression identifier is not declared"},
+      {{"static for initializer",
+        "void bad(void) {\n"
+        "  for (static int index = 0; index < 1; index++) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u,
+       "for initializer declaration requires automatic or register storage"},
+      {{"extern for initializer",
+        "void bad(void) {\n"
+        "  for (extern int index; index < 1; index++) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u,
+       "for initializer declaration requires automatic or register storage"},
+      {{"typedef for initializer",
+        "void bad(void) {\n"
+        "  for (typedef int item; ; ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u,
+       "for initializer declaration requires automatic or register storage"},
+      {{"function for initializer",
+        "void bad(void) {\n"
+        "  for (int callback(void); ; ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 12u, "for initializer cannot declare a function"},
+      {{"function specifier for initializer",
+        "void bad(void) {\n"
+        "  for (inline int index = 0; ; ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "for initializer cannot use a function specifier"},
+      {{"static assertion for initializer boundary",
+        "void bad(void) {\n"
+        "  for (_Static_assert(1, \"ok\"); ; ) { }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u,
+       "for initializer static assertions are outside this body slice"},
+      {{"missing for opening parenthesis",
+        "void bad(void) {\n"
+        "  int index;\n"
+        "  for index = 0; index < 1; index++) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 7u, "for statement requires an opening parenthesis"},
+      {{"missing initializer semicolon",
+        "void bad(void) {\n"
+        "  int index;\n"
+        "  for (index = 0 index < 1; index++) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 18u, "for initializer requires a semicolon"},
+      {{"missing condition semicolon",
+        "void bad(void) {\n"
+        "  int index;\n"
+        "  for (index = 0; index < 1 index++) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 29u, "for controlling expression requires a semicolon"},
+      {{"missing break semicolon",
+        "void bad(void) {\n"
+        "  for (;;) { break }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 20u, "break statement requires a semicolon"},
+      {{"comma initializer boundary",
+        "void bad(void) {\n"
+        "  int index;\n"
+        "  for (index = 0, index = 1; index < 2; index++) { }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 17u,
+       "expression operator is outside this function-body slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t storage_unit;
+  ctool_c_translation_unit_t nested_unit;
+  char *depth_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "for-statements", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/for-statements.c", source, &unit) !=
+          0 ||
+      validate_for_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/for-storage.c", storage_source,
+                          &storage_unit) != 0 ||
+      storage_unit.function_definition_count != 3u ||
+      storage_unit.block_binding_count != 3u ||
+      storage_unit.statement_count != 12u ||
+      storage_unit.block_bindings[0].storage != CTOOL_C_STORAGE_REGISTER ||
+      storage_unit.block_bindings[1].storage != CTOOL_C_STORAGE_AUTO ||
+      storage_unit.block_bindings[2].storage != CTOOL_C_STORAGE_NONE ||
+      !string_equal(storage_unit.block_bindings[2].name, "value") ||
+      storage_unit.statements[10].kind != CTOOL_C_STATEMENT_FOR ||
+      storage_unit.statements[10].condition >=
+          storage_unit.expression_count ||
+      storage_unit.statements[10].iteration >=
+          storage_unit.expression_count) {
+    (void)fprintf(stderr,
+                  "for-statements: initializer storage or shadowing differs\n");
+    goto cleanup;
+  }
+  if (for_expect_terminal_reference(
+          &storage_unit,
+          scalar_expression_child(
+              &storage_unit,
+              &storage_unit.expressions[storage_unit.statements[10].condition],
+              0u),
+          CTOOL_C_EXPRESSION_BLOCK_BINDING, 2u) != 0 ||
+      for_expect_terminal_reference(
+          &storage_unit,
+          scalar_expression_child(
+              &storage_unit,
+              &storage_unit.expressions[storage_unit.statements[10].iteration],
+              0u),
+          CTOOL_C_EXPRESSION_BLOCK_BINDING, 2u) != 0) {
+    (void)fprintf(stderr,
+                  "for-statements: parameter loop shadowing differs\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/for-nested.c", nested_source,
+                          &nested_unit) != 0 ||
+      validate_nested_for_statement_unit(&nested_unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/for-statement-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_for_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_for_statement_depth_source(256u);
+  if (depth_source == NULL) {
+    (void)fprintf(stderr, "for-statements: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "nested for statement limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/for-statement-depth.c", 1u, 2314u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        validate_for_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_toolchain_for_frontier(host_root) != 0 ||
+      validate_for_statement_storage_limit(&fixture, host_root) != 0 ||
+      validate_for_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("for-statements: ok\n");
   }
   return failed;
 }
@@ -6838,7 +7562,7 @@ static int run_pointer_arithmetic(const char *host_root) {
       {{"unterminated digraph subscript",
         "int bad(int *pointer, int index) { return pointer<:index; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
-       1u, 57u, "expected declaration token is missing"}};
+       1u, 57u, "expected source token is missing"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -7937,8 +8661,8 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 4u ||
-      unit->statement_child_count != 3u || unit->expression_count != 9u ||
+      unit->function_definition_count != 1u || unit->statement_count != 6u ||
+      unit->statement_child_count != 4u || unit->expression_count != 9u ||
       unit->expression_child_count != 7u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
@@ -7989,8 +8713,14 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !dual_location_matches(&addition_right->location,
                              &addition_right->physical_location,
                              "/borrowed.c", 4u) ||
-      unit->statements[2].kind != CTOOL_C_STATEMENT_RETURN ||
-      unit->statements[2].expression != CTOOL_C_AST_NONE ||
+      unit->statements[2].kind != CTOOL_C_STATEMENT_BREAK ||
+      unit->statements[3].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[3].initializer_statement != CTOOL_C_AST_NONE ||
+      unit->statements[3].condition != CTOOL_C_AST_NONE ||
+      unit->statements[3].iteration != CTOOL_C_AST_NONE ||
+      unit->statements[3].body != 2u ||
+      unit->statements[4].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[4].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
@@ -8029,6 +8759,7 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
       "  volatile int owned_local = 1 + 'A';\n"
       "  owned_sink(\"owned\\n\");\n"
+      "  for (;;) break;\n"
       "  return;\n"
       "}\n";
   ctool_c_pp_result_t original;
@@ -10141,7 +10872,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
-                   "scalar-returns|"
+                   "scalar-returns|for-statements|"
                    "pointer-expressions|pointer-arithmetic|scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
@@ -10174,6 +10905,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
+  }
+  if (strcmp(argv[1], "for-statements") == 0) {
+    return run_for_statements(argv[2]);
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);

@@ -190,6 +190,8 @@ typedef struct {
   ctool_u32 pending_block_binding_index;
   ctool_bool has_pending_block_binding;
   ctool_u32 syntax_depth;
+  ctool_u32 breakable_statement_depth;
+  ctool_u32 iteration_statement_depth;
   ctool_u32 constant_evaluation_suppression_depth;
   ctool_u32 prototype_scope_depth;
   ctool_u32 prototype_binding_mark;
@@ -700,7 +702,7 @@ static ctool_status_t cfront_enter_syntax(
   if (context->syntax_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
     return cfront_emit_failure(
         context, CTOOL_ERR_LIMIT, CTOOL_C_PARSE_DIAG_LIMIT, token,
-        "declaration syntax exceeds the public nesting limit");
+        "source syntax exceeds the public nesting limit");
   }
   context->syntax_depth++;
   return CTOOL_OK;
@@ -718,7 +720,7 @@ static ctool_status_t cfront_expected(cfront_context_t *context,
     return cfront_emit_failure(context, CTOOL_ERR_INPUT,
                                CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
                                cfront_peek(context),
-                               "expected declaration token is missing");
+                               "expected source token is missing");
   }
   (void)cfront_advance(context);
   return CTOOL_OK;
@@ -5310,6 +5312,10 @@ static void cfront_statement_init(
   statement->first_child = CTOOL_C_AST_NONE;
   statement->expression = CTOOL_C_AST_NONE;
   statement->first_block_binding = CTOOL_C_AST_NONE;
+  statement->initializer_statement = CTOOL_C_AST_NONE;
+  statement->condition = CTOOL_C_AST_NONE;
+  statement->iteration = CTOOL_C_AST_NONE;
+  statement->body = CTOOL_C_AST_NONE;
   if (token != (const ctool_c_pp_token_t *)0) {
     statement->location = token->location;
     statement->physical_location = token->physical_location;
@@ -6565,15 +6571,23 @@ static ctool_status_t cfront_apply_usual_integer_conversions(
       context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC, *type_out, right);
 }
 
-static ctool_status_t cfront_require_scalar_value(
-    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
-    cfront_expression_value_t *value) {
+typedef enum {
+  CFRONT_SCALAR_VALUE_INTEGER = 0,
+  CFRONT_SCALAR_VALUE_POINTER,
+  CFRONT_SCALAR_VALUE_FLOATING,
+  CFRONT_SCALAR_VALUE_OTHER
+} cfront_scalar_value_kind_t;
+
+static ctool_status_t cfront_classify_scalar_value(
+    cfront_context_t *context, cfront_expression_value_t *value,
+    cfront_scalar_value_kind_t *kind_out) {
   cfront_integer_type_t integer;
-  ctool_c_type_node_t node;
+  ctool_c_type_node_t node = {0};
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_u32 base;
   ctool_u32 qualifiers;
   ctool_status_t status = cfront_apply_default_conversion(context, value);
+  *kind_out = CFRONT_SCALAR_VALUE_OTHER;
   if (status != CTOOL_OK) {
     return status;
   }
@@ -6589,17 +6603,36 @@ static ctool_status_t cfront_require_scalar_value(
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
-  if (is_integer == CTOOL_FALSE && node.kind != CTOOL_C_TYPE_POINTER) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        node.kind == CTOOL_C_TYPE_FLOAT ||
-                node.kind == CTOOL_C_TYPE_DOUBLE ||
-                node.kind == CTOOL_C_TYPE_LONG_DOUBLE
-            ? "floating logical operands are outside this body slice"
-            : "non-scalar logical operands are outside this slice");
+  if (is_integer == CTOOL_TRUE) {
+    *kind_out = CFRONT_SCALAR_VALUE_INTEGER;
+  } else if (node.kind == CTOOL_C_TYPE_POINTER) {
+    *kind_out = CFRONT_SCALAR_VALUE_POINTER;
+  } else if (node.kind == CTOOL_C_TYPE_FLOAT ||
+             node.kind == CTOOL_C_TYPE_DOUBLE ||
+             node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    *kind_out = CFRONT_SCALAR_VALUE_FLOATING;
+  } else {
+    *kind_out = CFRONT_SCALAR_VALUE_OTHER;
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t cfront_require_scalar_value(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    cfront_expression_value_t *value) {
+  cfront_scalar_value_kind_t kind = CFRONT_SCALAR_VALUE_OTHER;
+  ctool_status_t status =
+      cfront_classify_scalar_value(context, value, &kind);
+  if (status != CTOOL_OK || kind == CFRONT_SCALAR_VALUE_INTEGER ||
+      kind == CFRONT_SCALAR_VALUE_POINTER) {
+    return status;
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      operator_token,
+      kind == CFRONT_SCALAR_VALUE_FLOATING
+          ? "floating logical operands are outside this body slice"
+          : "non-scalar logical operands are outside this slice");
 }
 
 static ctool_status_t cfront_apply_assignment_conversion(
@@ -8343,7 +8376,8 @@ static ctool_status_t cfront_parse_scalar_initializer(
 }
 
 static ctool_status_t cfront_parse_block_declaration(
-    cfront_context_t *context, ctool_u32 *statement_out) {
+    cfront_context_t *context, ctool_bool is_for_initializer,
+    ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *declaration_token = cfront_peek(context);
   cfront_specifiers_t specifiers;
   ctool_u32 first_binding = context->block_bindings.count;
@@ -8363,14 +8397,23 @@ static ctool_status_t cfront_parse_block_declaration(
       specifiers.storage == CFRONT_STORAGE_EXTERN ||
       specifiers.storage == CFRONT_STORAGE_STATIC) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        declaration_token, "block storage class is outside this body slice");
+        context,
+        is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
+                                         : CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, declaration_token,
+        is_for_initializer == CTOOL_TRUE
+            ? "for initializer declaration requires automatic or register storage"
+            : "block storage class is outside this body slice");
   }
   if (specifiers.function_declaration_flags != 0u) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        specifiers.inline_token,
-        "block function specifiers are outside this body slice");
+        context,
+        is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
+                                         : CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, specifiers.inline_token,
+        is_for_initializer == CTOOL_TRUE
+            ? "for initializer cannot use a function specifier"
+            : "block function specifiers are outside this body slice");
   }
   if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -8424,9 +8467,13 @@ static ctool_status_t cfront_parse_block_declaration(
     }
     if (node.kind == CTOOL_C_TYPE_FUNCTION) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-          name_token,
-          "block function declarations are outside this body slice");
+          context,
+          is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
+                                           : CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_STATEMENT, name_token,
+          is_for_initializer == CTOOL_TRUE
+              ? "for initializer cannot declare a function"
+              : "block function declarations are outside this body slice");
     }
     status = cfront_type_is_complete_object_now(context, type, &complete);
     if (status != CTOOL_OK) {
@@ -8494,6 +8541,229 @@ static ctool_status_t cfront_parse_block_declaration(
 
 static ctool_status_t cfront_parse_compound_statement(
     cfront_context_t *context, ctool_u32 *statement_out);
+
+static ctool_status_t cfront_parse_statement(
+    cfront_context_t *context, ctool_u32 *statement_out);
+
+static ctool_status_t cfront_require_controlling_value(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    cfront_expression_value_t *value) {
+  cfront_scalar_value_kind_t kind = CFRONT_SCALAR_VALUE_OTHER;
+  ctool_status_t status =
+      cfront_classify_scalar_value(context, value, &kind);
+  if (status != CTOOL_OK || kind == CFRONT_SCALAR_VALUE_INTEGER ||
+      kind == CFRONT_SCALAR_VALUE_POINTER) {
+    return status;
+  }
+  if (kind == CFRONT_SCALAR_VALUE_FLOATING) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+        "floating controlling expressions are outside this body slice");
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+      "controlling expression requires scalar type");
+}
+
+static ctool_status_t cfront_require_expression_terminator(
+    cfront_context_t *context, const char *terminator,
+    const char *missing_message) {
+  if (cfront_peek_is(context, terminator) == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  if (cfront_peek_is(context, ",") == CTOOL_TRUE ||
+      cfront_peek_is(context, "?") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        cfront_peek(context),
+        "expression operator is outside this function-body slice");
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+      cfront_peek(context), missing_message);
+}
+
+static ctool_status_t cfront_parse_expression_statement(
+    cfront_context_t *context, const char *missing_terminator_message,
+    ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *first = cfront_peek(context);
+  cfront_expression_value_t value;
+  ctool_c_statement_t statement;
+  ctool_status_t status = CTOOL_OK;
+  cfront_zero(&value, (ctool_u32)sizeof(value));
+  value.expression = CTOOL_C_AST_NONE;
+  if (cfront_peek_is(context, ";") == CTOOL_FALSE) {
+    status = cfront_parse_body_expression(context, &value);
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ";", missing_terminator_message);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_apply_default_conversion(context, &value);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_EXPRESSION, first);
+    statement.expression = value.expression;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_loop_jump_statement(
+    cfront_context_t *context, ctool_c_statement_kind_t kind,
+    ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *token = cfront_advance(context);
+  ctool_c_statement_t statement;
+  ctool_bool allowed = kind == CTOOL_C_STATEMENT_BREAK
+                           ? context->breakable_statement_depth != 0u
+                           : context->iteration_statement_depth != 0u;
+  ctool_status_t status;
+  if (allowed == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, token,
+        kind == CTOOL_C_STATEMENT_BREAK
+            ? "break statement requires an enclosing loop or switch"
+            : "continue statement requires an enclosing loop");
+  }
+  if (cfront_peek_is(context, ";") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        kind == CTOOL_C_STATEMENT_BREAK
+            ? "break statement requires a semicolon"
+            : "continue statement requires a semicolon");
+  }
+  status = cfront_expected(context, ";");
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, kind, token);
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_for_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *for_token = cfront_advance(context);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_u32 initializer = CTOOL_C_AST_NONE;
+  ctool_u32 condition = CTOOL_C_AST_NONE;
+  ctool_u32 iteration = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_bool scope_entered = CTOOL_FALSE;
+  ctool_bool loop_entered = CTOOL_FALSE;
+  ctool_status_t status = cfront_enter_syntax(context, for_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "for statement requires an opening parenthesis");
+  } else {
+    status = cfront_expected(context, "(");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_enter_block_scope(context);
+    if (status == CTOOL_OK) {
+      scope_entered = CTOOL_TRUE;
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+  } else if (status == CTOOL_OK &&
+             cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "for initializer static assertions are outside this body slice");
+  } else if (status == CTOOL_OK &&
+             cfront_starts_declaration_specifier(
+                 context, cfront_peek(context)) == CTOOL_TRUE) {
+    status = cfront_parse_block_declaration(context, CTOOL_TRUE,
+                                             &initializer);
+  } else if (status == CTOOL_OK) {
+    status = cfront_parse_expression_statement(
+        context, "for initializer requires a semicolon", &initializer);
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+  } else if (status == CTOOL_OK) {
+    const ctool_c_pp_token_t *condition_token = cfront_peek(context);
+    cfront_expression_value_t value;
+    cfront_zero(&value, (ctool_u32)sizeof(value));
+    status = cfront_parse_body_expression(context, &value);
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ";", "for controlling expression requires a semicolon");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_controlling_value(context, condition_token,
+                                                &value);
+    }
+    if (status == CTOOL_OK) {
+      condition = value.expression;
+      status = cfront_expected(context, ";");
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ")") == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+  } else if (status == CTOOL_OK) {
+    cfront_expression_value_t value;
+    cfront_zero(&value, (ctool_u32)sizeof(value));
+    status = cfront_parse_body_expression(context, &value);
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ")", "for iteration expression requires a closing parenthesis");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_apply_default_conversion(context, &value);
+    }
+    if (status == CTOOL_OK) {
+      iteration = value.expression;
+      status = cfront_expected(context, ")");
+    }
+  }
+  if (status == CTOOL_OK) {
+    context->breakable_statement_depth++;
+    context->iteration_statement_depth++;
+    loop_entered = CTOOL_TRUE;
+    status = cfront_parse_statement(context, &body);
+  }
+  if (loop_entered == CTOOL_TRUE) {
+    context->iteration_statement_depth--;
+    context->breakable_statement_depth--;
+  }
+  if (status == CTOOL_OK) {
+    ctool_c_statement_t statement;
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_FOR, for_token);
+    statement.initializer_statement = initializer;
+    statement.condition = condition;
+    statement.iteration = iteration;
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  if (scope_entered == CTOOL_TRUE) {
+    ctool_status_t scope_status = cfront_leave_block_scope(context);
+    if (status == CTOOL_OK && scope_status != CTOOL_OK) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, for_token,
+          "for statement scope rewind failed");
+    }
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY) &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
+}
 
 static ctool_status_t cfront_parse_return_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
@@ -8592,54 +8862,59 @@ static ctool_status_t cfront_parse_return_statement(
   return status;
 }
 
-static ctool_status_t cfront_parse_body_statement(
+static ctool_status_t cfront_parse_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *first = cfront_peek(context);
-  cfront_expression_value_t value;
-  ctool_c_statement_t statement;
-  ctool_status_t status;
   if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
     return cfront_parse_compound_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "return") == CTOOL_TRUE) {
     return cfront_parse_return_statement(context, statement_out);
   }
+  if (cfront_peek_is(context, "for") == CTOOL_TRUE) {
+    return cfront_parse_for_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "break") == CTOOL_TRUE) {
+    return cfront_parse_loop_jump_statement(
+        context, CTOOL_C_STATEMENT_BREAK, statement_out);
+  }
+  if (cfront_peek_is(context, "continue") == CTOOL_TRUE) {
+    return cfront_parse_loop_jump_statement(
+        context, CTOOL_C_STATEMENT_CONTINUE, statement_out);
+  }
   if (cfront_body_starts_gnu_assembly(context) == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
         "GNU inline assembly is outside this function-body slice");
   }
-  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
+  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE ||
+      cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
-        "block static assertions are outside this function-body slice");
-  }
-  if (cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
-    return cfront_parse_block_declaration(context, statement_out);
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, first,
+        "declaration is not a statement; use a compound statement");
   }
   if (cfront_body_statement_keyword(context) == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
         "statement form is outside this function-body slice");
   }
-  cfront_zero(&value, (ctool_u32)sizeof(value));
-  status = cfront_parse_body_expression(context, &value);
-  if (status == CTOOL_OK && cfront_peek_is(context, ";") == CTOOL_FALSE) {
-    status = cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        cfront_peek(context),
-        "expression operator is outside this function-body slice");
+  return cfront_parse_expression_statement(
+      context, "expression statement requires a semicolon", statement_out);
+}
+
+static ctool_status_t cfront_parse_block_item(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *first = cfront_peek(context);
+  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
+        "block static assertions are outside this function-body slice");
   }
-  if (status == CTOOL_OK) {
-    status = cfront_apply_default_conversion(context, &value);
+  if (cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
+    return cfront_parse_block_declaration(context, CTOOL_FALSE,
+                                           statement_out);
   }
-  if (status == CTOOL_OK) {
-    (void)cfront_advance(context);
-    cfront_statement_init(&statement, CTOOL_C_STATEMENT_EXPRESSION, first);
-    statement.expression = value.expression;
-    status = cfront_append_statement(context, &statement, statement_out);
-  }
-  return status;
+  return cfront_parse_statement(context, statement_out);
 }
 
 static ctool_status_t cfront_parse_compound_statement(
@@ -8673,7 +8948,7 @@ static ctool_status_t cfront_parse_compound_statement(
           "function compound statement is unterminated");
       break;
     }
-    status = cfront_parse_body_statement(context, &child);
+    status = cfront_parse_block_item(context, &child);
     if (status == CTOOL_OK) {
       status = cfront_vector_append(&children, &child, (ctool_u32 *)0);
     }
@@ -9428,11 +9703,13 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   ctool_u32 index;
   if (context->active_block_binding_indices.count != 0u ||
       context->block_scope_marks.count != 0u ||
-      context->has_pending_block_binding == CTOOL_TRUE) {
+      context->has_pending_block_binding == CTOOL_TRUE ||
+      context->breakable_statement_depth != 0u ||
+      context->iteration_statement_depth != 0u) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         cfront_peek(context),
-        "block scope or initializer remained active at freeze");
+        "block scope, initializer, or loop remained active at freeze");
   }
   ctool_status_t status = cfront_alloc_array(
       context, context->types.count, (ctool_u32)sizeof(*types),
@@ -9710,11 +9987,19 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   }
   for (index = 0u; index < context->statements.count; index++) {
     const ctool_c_statement_t *statement = &statements[index];
+    ctool_bool control_fields_none =
+        statement->initializer_statement == CTOOL_C_AST_NONE &&
+                statement->condition == CTOOL_C_AST_NONE &&
+                statement->iteration == CTOOL_C_AST_NONE &&
+                statement->body == CTOOL_C_AST_NONE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
       ctool_u32 child_index;
       if (statement->expression != CTOOL_C_AST_NONE ||
           statement->first_block_binding != CTOOL_C_AST_NONE ||
           statement->block_binding_count != 0u ||
+          control_fields_none == CTOOL_FALSE ||
           statement->first_child > context->statement_children.count ||
           statement->child_count >
               context->statement_children.count - statement->first_child) {
@@ -9736,7 +10021,9 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statement->child_count != 0u ||
           statement->first_block_binding != CTOOL_C_AST_NONE ||
           statement->block_binding_count != 0u ||
-          statement->expression >= context->expressions.count) {
+          control_fields_none == CTOOL_FALSE ||
+          (statement->expression != CTOOL_C_AST_NONE &&
+           statement->expression >= context->expressions.count)) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen expression statement is invalid");
@@ -9745,6 +10032,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       if (statement->first_child != CTOOL_C_AST_NONE ||
           statement->child_count != 0u ||
           statement->expression != CTOOL_C_AST_NONE ||
+          control_fields_none == CTOOL_FALSE ||
           statement->first_block_binding > context->block_bindings.count ||
           statement->block_binding_count == 0u ||
           statement->block_binding_count >
@@ -9760,11 +10048,60 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statement->child_count != 0u ||
           statement->first_block_binding != CTOOL_C_AST_NONE ||
           statement->block_binding_count != 0u ||
+          control_fields_none == CTOOL_FALSE ||
           (statement->expression != CTOOL_C_AST_NONE &&
            statement->expression >= context->expressions.count)) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen return statement is invalid");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_FOR) {
+      ctool_bool initializer_valid = CTOOL_TRUE;
+      if (statement->initializer_statement != CTOOL_C_AST_NONE) {
+        const ctool_c_statement_t *initializer_statement;
+        if (statement->initializer_statement >= index) {
+          initializer_valid = CTOOL_FALSE;
+        } else {
+          initializer_statement =
+              &statements[statement->initializer_statement];
+          if ((initializer_statement->kind !=
+                   CTOOL_C_STATEMENT_EXPRESSION &&
+               initializer_statement->kind !=
+                   CTOOL_C_STATEMENT_DECLARATION) ||
+              (initializer_statement->kind ==
+                   CTOOL_C_STATEMENT_EXPRESSION &&
+               initializer_statement->expression == CTOOL_C_AST_NONE)) {
+            initializer_valid = CTOOL_FALSE;
+          }
+        }
+      }
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          initializer_valid == CTOOL_FALSE ||
+          (statement->condition != CTOOL_C_AST_NONE &&
+           statement->condition >= context->expressions.count) ||
+          (statement->iteration != CTOOL_C_AST_NONE &&
+           statement->iteration >= context->expressions.count) ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen for statement is invalid");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_BREAK ||
+               statement->kind == CTOOL_C_STATEMENT_CONTINUE) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          control_fields_none == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen loop jump statement is invalid");
       }
     } else {
       return cfront_emit_failure(

@@ -105,7 +105,10 @@ typedef enum {
   CTOOL_C_STATEMENT_COMPOUND = 1,
   CTOOL_C_STATEMENT_EXPRESSION,
   CTOOL_C_STATEMENT_DECLARATION,
-  CTOOL_C_STATEMENT_RETURN
+  CTOOL_C_STATEMENT_RETURN,
+  CTOOL_C_STATEMENT_FOR,
+  CTOOL_C_STATEMENT_BREAK,
+  CTOOL_C_STATEMENT_CONTINUE
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -116,12 +119,23 @@ typedef struct {
   /* COMPOUND: ordered slice of translation_unit.statement_children. */
   ctool_u32 first_child;
   ctool_u32 child_count;
-  /* EXPRESSION: index into translation_unit.expressions.
+  /* EXPRESSION: index into translation_unit.expressions, or AST_NONE for the
+   * null statement `;`.
    * RETURN: returned expression, or AST_NONE for `return;`. */
   ctool_u32 expression;
   /* DECLARATION: ordered slice of translation_unit.block_bindings. */
   ctool_u32 first_block_binding;
   ctool_u32 block_binding_count;
+  /* FOR: optional EXPRESSION/DECLARATION initializer statement, optional
+   * controlling expression, optional iteration expression, and required body
+   * statement. Omitted clauses use AST_NONE; an omitted condition denotes
+   * C's nonzero constant. The initializer and body precede this node.
+   * BREAK/CONTINUE are targetless leaves; lowering resolves their nearest
+   * enclosing control target. */
+  ctool_u32 initializer_statement;
+  ctool_u32 condition;
+  ctool_u32 iteration;
+  ctool_u32 body;
 } ctool_c_statement_t;
 
 typedef enum {
