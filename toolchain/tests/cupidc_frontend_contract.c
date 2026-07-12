@@ -254,6 +254,8 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                  unit->binding_count == 0u && unit->tags == NULL &&
                  unit->tag_count == 0u && unit->parameters == NULL &&
                  unit->parameter_count == 0u &&
+                 unit->block_bindings == NULL &&
+                 unit->block_binding_count == 0u &&
                  unit->function_definitions == NULL &&
                  unit->function_definition_count == 0u &&
                  unit->statements == NULL && unit->statement_count == 0u &&
@@ -3313,9 +3315,6 @@ static int run_function_bodies(const char *host_root) {
       {{"undeclared body identifier", "void bad(void) { missing(); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 18u, "expression identifier is not declared"},
-      {{"block declaration boundary", "void bad(void) { int local; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "block declarations are outside this function-body slice"},
       {{"duplicate function definition",
         "void duplicate(void) { }\nvoid duplicate(void) { }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
@@ -3626,6 +3625,295 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("function-bodies: ok\n");
+  }
+  return failed;
+}
+
+static const ctool_c_expression_t *
+expression_terminal(const ctool_c_translation_unit_t *unit,
+                    const ctool_c_expression_t *expression) {
+  ctool_u32 traversed = 0u;
+  while (expression != NULL &&
+         expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+    ctool_u32 child;
+    if (expression->child_count != 1u ||
+        expression->first_child >= unit->expression_child_count) {
+      return NULL;
+    }
+    child = unit->expression_children[expression->first_child];
+    if (child >= unit->expression_count || traversed++ >= unit->expression_count) {
+      return NULL;
+    }
+    expression = &unit->expressions[child];
+  }
+  return expression;
+}
+
+static int validate_block_binding_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "file_value", "outer", "pointer", "nested",
+      "parameter", "outer", "word", "tail", "file_value"};
+  static const ctool_c_storage_class_t storage[] = {
+      CTOOL_C_STORAGE_NONE, CTOOL_C_STORAGE_NONE, CTOOL_C_STORAGE_NONE,
+      CTOOL_C_STORAGE_AUTO, CTOOL_C_STORAGE_REGISTER, CTOOL_C_STORAGE_NONE,
+      CTOOL_C_STORAGE_NONE, CTOOL_C_STORAGE_NONE, CTOOL_C_STORAGE_NONE};
+  static const ctool_u32 lines[] = {
+      7u, 7u, 7u, 11u, 12u, 13u, 14u, 20u, 27u};
+  static const ctool_u32 declaration_first[] = {
+      0u, 3u, 4u, 5u, 6u, 7u, 8u};
+  static const ctool_u32 declaration_count[] = {
+      3u, 1u, 1u, 1u, 1u, 1u, 1u};
+  static const ctool_c_expression_kind_t argument_kinds[] = {
+      CTOOL_C_EXPRESSION_IDENTIFIER,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_PARAMETER,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING,
+      CTOOL_C_EXPRESSION_BLOCK_BINDING};
+  static const ctool_u32 argument_references[] = {
+      0u, 0u, 2u, 3u, 4u, 6u, 5u, 7u, 0u, 0u, 1u, 8u};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function;
+  ctool_u32 file_value;
+  ctool_u32 declaration_index = 0u;
+  ctool_u32 call_index = 0u;
+  ctool_u32 index;
+
+  if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->statement_count != 22u || unit->statement_child_count != 20u ||
+      unit->expression_count != 60u ||
+      unit->expression_child_count != 48u ||
+      unit->function_definition_count != 2u) {
+    (void)fprintf(stderr, "block-bindings: AST inventory differs\n");
+    return 1;
+  }
+  definition = &unit->function_definitions[0];
+  function = type_node(unit, definition->declared_type);
+  file_value = find_binding_index(unit, "file_value");
+  if (function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->parameter_count != 1u ||
+      function->first_parameter >= unit->parameter_count ||
+      file_value == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "block-bindings: definition metadata differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    const ctool_c_type_layout_t *layout = type_layout(unit, binding->type);
+    if (!string_equal(binding->name, names[index]) ||
+        binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->storage != storage[index] || binding->type >= unit->graph.type_count ||
+        layout == NULL || layout->is_complete_object != CTOOL_TRUE ||
+        !dual_location_matches(&binding->location,
+                               &binding->physical_location,
+                               "/block-bindings.c", lines[index])) {
+      (void)fprintf(stderr,
+                    "block-bindings: binding %u metadata differs\n", index);
+      return 1;
+    }
+  }
+  {
+    const ctool_c_type_node_t *pointer =
+        type_node(unit, unit->block_bindings[2].type);
+    if (pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER) {
+      (void)fprintf(stderr,
+                    "block-bindings: mixed declarator type differs\n");
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if (declaration_index >= ARRAY_COUNT(declaration_first) ||
+        statement->first_block_binding !=
+            declaration_first[declaration_index] ||
+        statement->block_binding_count !=
+            declaration_count[declaration_index] ||
+        statement->first_child != CTOOL_C_AST_NONE ||
+        statement->expression != CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr,
+                    "block-bindings: declaration slice %u differs\n",
+                    declaration_index);
+      return 1;
+    }
+    declaration_index++;
+  }
+  if (declaration_index != ARRAY_COUNT(declaration_first)) {
+    (void)fprintf(stderr,
+                  "block-bindings: declaration inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *call = &unit->expressions[index];
+    const ctool_c_expression_t *argument;
+    ctool_u32 argument_index;
+    ctool_u32 expected_reference;
+    if (call->kind != CTOOL_C_EXPRESSION_CALL) {
+      continue;
+    }
+    if (call_index >= ARRAY_COUNT(argument_kinds) ||
+        call->child_count != 2u ||
+        call->first_child > unit->expression_child_count ||
+        call->child_count >
+            unit->expression_child_count - call->first_child) {
+      (void)fprintf(stderr, "block-bindings: call %u differs\n", call_index);
+      return 1;
+    }
+    argument_index = unit->expression_children[call->first_child + 1u];
+    argument = argument_index < unit->expression_count
+                   ? expression_terminal(unit, &unit->expressions[argument_index])
+                   : NULL;
+    expected_reference = argument_references[call_index];
+    if (call_index == 0u) {
+      expected_reference = file_value;
+    } else if (call_index == 8u) {
+      expected_reference = function->first_parameter;
+    }
+    if (argument == NULL || argument->kind != argument_kinds[call_index] ||
+        argument->reference != expected_reference) {
+      (void)fprintf(stderr,
+                    "block-bindings: call argument %u resolution differs\n",
+                    call_index);
+      return 1;
+    }
+    call_index++;
+  }
+  if (call_index != ARRAY_COUNT(argument_kinds)) {
+    (void)fprintf(stderr, "block-bindings: call inventory differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_block_bindings(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int word;\n"
+      "void sink(word value);\n"
+      "void sink_pointer(word *value);\n"
+      "word file_value;\n"
+      "void locals(register word parameter) {\n"
+      "  sink(file_value);\n"
+      "  word file_value, outer, *pointer;\n"
+      "  sink(file_value);\n"
+      "  sink_pointer(pointer);\n"
+      "  {\n"
+      "    auto word nested;\n"
+      "    register word parameter;\n"
+      "    word outer;\n"
+      "    word word;\n"
+      "    sink(nested);\n"
+      "    sink(parameter);\n"
+      "    sink(word);\n"
+      "    sink(outer);\n"
+      "  }\n"
+      "  word tail;\n"
+      "  sink(tail);\n"
+      "  sink(parameter);\n"
+      "  sink(file_value);\n"
+      "  sink(outer);\n"
+      "}\n"
+      "void second(void) {\n"
+      "  word file_value;\n"
+      "  sink(file_value);\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"duplicate local in declarator list",
+        "void bad(void) { int local, local; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 29u, "block-scope identifier is already declared in this scope"},
+      {{"outer local duplicates parameter",
+        "void bad(int value) { int value; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 27u, "block-scope identifier is already declared in this scope"},
+      {{"duplicate local across declarations",
+        "void bad(void) { int local; int local; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 33u, "block-scope identifier is already declared in this scope"},
+      {{"local initializer boundary",
+        "void bad(void) { int local = 1; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 28u, "block object initializers are outside this body slice"},
+      {{"static local boundary", "void bad(void) { static int local; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "block storage class is outside this body slice"},
+      {{"extern local boundary", "void bad(void) { extern int local; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "block storage class is outside this body slice"},
+      {{"block typedef boundary", "void bad(void) { typedef int local; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "block storage class is outside this body slice"},
+      {{"block function declaration boundary",
+        "void bad(void) { int local(void); }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 22u, "block function declarations are outside this body slice"},
+      {{"void block object", "void bad(void) { void local; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       1u, 23u, "block object requires a complete object type"},
+      {{"incomplete block array", "void bad(void) { int local[]; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       1u, 22u, "block object requires a complete object type"},
+      {{"incomplete block object",
+        "struct S;\nvoid bad(void) { struct S local; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 18u, "block tag specifiers are outside this body slice"},
+      {{"block static assertion boundary",
+        "void bad(void) { _Static_assert(1, \"ok\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u,
+       "block static assertions are outside this function-body slice"},
+      {{"block attribute boundary",
+        "void bad(void) { int local __attribute__((aligned(8))); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 43u, "block declaration attributes are outside this body slice"},
+      {{"GNU assembly boundary",
+        "void bad(void) { __asm__(\"nop\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "GNU inline assembly is outside this function-body slice"},
+      {{"expired local use",
+        "void sink(int value);\n"
+        "void bad(void) { { int local; sink(local); } sink(local); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 51u, "expression identifier is not declared"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-bindings", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-bindings.c", source, &unit) != 0 ||
+      validate_block_binding_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-binding-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_block_binding_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-bindings: ok\n");
   }
   return failed;
 }
@@ -4149,6 +4437,8 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       definition == NULL ? NULL : type_node(unit, definition->declared_type);
   const ctool_c_record_member_t *member;
   const ctool_c_parameter_t *parameter;
+  const ctool_c_block_binding_t *local =
+      unit->block_binding_count == 1u ? &unit->block_bindings[0] : NULL;
   const ctool_c_expression_t *literal = NULL;
   ctool_u32 member_index = 0u;
   ctool_u32 index;
@@ -4171,8 +4461,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   }
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
-      unit->function_definition_count != 1u || unit->statement_count != 2u ||
-      unit->statement_child_count != 1u || unit->expression_count != 6u ||
+      unit->block_binding_count != 1u ||
+      unit->function_definition_count != 1u || unit->statement_count != 3u ||
+      unit->statement_child_count != 2u || unit->expression_count != 6u ||
       unit->expression_child_count != 5u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
@@ -4196,12 +4487,20 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !dual_location_matches(&parameter->location,
                              &parameter->physical_location, "/borrowed.c",
                              3u) ||
+      local == NULL || !string_equal(local->name, "owned_local") ||
+      local->kind != CTOOL_C_BINDING_OBJECT ||
+      local->storage != CTOOL_C_STORAGE_NONE ||
+      !dual_location_matches(&local->location,
+                             &local->physical_location, "/borrowed.c", 4u) ||
+      unit->statements[0].kind != CTOOL_C_STATEMENT_DECLARATION ||
+      unit->statements[0].first_block_binding != 0u ||
+      unit->statements[0].block_binding_count != 1u ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
       !dual_location_matches(&literal->location,
                              &literal->physical_location, "/borrowed.c",
-                             4u)) {
+                             5u)) {
     (void)fprintf(stderr,
                   "boundaries: copied names or dual locations did not survive\n");
     return 1;
@@ -4225,6 +4524,7 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "struct OwnedTag { int owned_member; };\n"
       "void owned_sink(const char *text);\n"
       "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
+      "  int owned_local;\n"
       "  owned_sink(\"owned\\n\");\n"
       "}\n";
   ctool_c_pp_result_t original;
@@ -6318,7 +6618,7 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                   "fat16|redeclarations|attributes|static-asserts|"
-                  "function-bodies|"
+                  "function-bodies|block-bindings|"
                   "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
@@ -6341,6 +6641,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-bodies") == 0) {
     return run_function_bodies(argv[2]);
+  }
+  if (strcmp(argv[1], "block-bindings") == 0) {
+    return run_block_bindings(argv[2]);
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);

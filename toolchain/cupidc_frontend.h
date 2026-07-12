@@ -82,11 +82,22 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 } ctool_c_parameter_t;
 
+typedef struct {
+  ctool_string_t name;
+  ctool_c_binding_kind_t kind;
+  /* Block-scope declarations retain their source storage spelling. */
+  ctool_c_storage_class_t storage;
+  ctool_u32 type;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_block_binding_t;
+
 #define CTOOL_C_AST_NONE 0xffffffffu
 
 typedef enum {
   CTOOL_C_STATEMENT_COMPOUND = 1,
-  CTOOL_C_STATEMENT_EXPRESSION
+  CTOOL_C_STATEMENT_EXPRESSION,
+  CTOOL_C_STATEMENT_DECLARATION
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -99,6 +110,9 @@ typedef struct {
   ctool_u32 child_count;
   /* EXPRESSION: index into translation_unit.expressions. */
   ctool_u32 expression;
+  /* DECLARATION: ordered slice of translation_unit.block_bindings. */
+  ctool_u32 first_block_binding;
+  ctool_u32 block_binding_count;
 } ctool_c_statement_t;
 
 typedef enum {
@@ -106,7 +120,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_PARAMETER,
   CTOOL_C_EXPRESSION_STRING,
   CTOOL_C_EXPRESSION_CALL,
-  CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION
+  CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+  CTOOL_C_EXPRESSION_BLOCK_BINDING
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -125,7 +140,8 @@ typedef struct {
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 
-  /* IDENTIFIER: binding index. PARAMETER: parameter index. */
+  /* IDENTIFIER: file-binding index. PARAMETER: parameter index.
+   * BLOCK_BINDING: block-binding index. */
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
    * IMPLICIT_CONVERSION: one source-expression child. */
@@ -160,6 +176,9 @@ typedef struct {
   /* Parallel to graph.parameter_types. Function slices index both arrays. */
   const ctool_c_parameter_t *parameters;
   ctool_u32 parameter_count;
+  /* Source-ordered block bindings survive after their lexical scopes close. */
+  const ctool_c_block_binding_t *block_bindings;
+  ctool_u32 block_binding_count;
   /* Function bodies are immutable postorder tables. Child indices precede
    * their parents, and every child slice preserves source order. */
   const ctool_c_function_definition_t *function_definitions;
@@ -220,10 +239,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * types at that declaration point. Assertions publish no entity or member;
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
- * parameter storage, and represents compound/expression statements,
- * file-binding and parameter references, decoded ordinary narrow strings with
- * simple, octal, or hexadecimal escapes, fixed-argument prototyped calls, and
- * explicit lvalue, array, function, and qualification conversions. Lvalue
+ * parameter storage, and represents compound/expression/declaration
+ * statements, automatic/register block-object bindings, file/block/parameter
+ * references, decoded ordinary narrow strings with simple, octal, or
+ * hexadecimal escapes, fixed-argument prototyped calls, and explicit lvalue,
+ * array, function, and qualification conversions. Block bindings use lexical
+ * scope, share the outer function-body scope with definition parameters, and
+ * retain stable public indices after their scopes close. Lvalue
  * conversion removes top-level const, volatile, and atomic qualification while
  * retaining the qualified source node. Calls currently require compatible
  * argument types or pointer qualification addition; extra variadic arguments
@@ -236,10 +258,12 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * `_Atomic(type-name)`, and complex/imaginary type specifiers are pending and
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
- * rather than fixed frontend tables. Local declarations, control/return
+ * rather than fixed frontend tables. Block typedefs, static/extern objects,
+ * function declarations, block tag specifiers, attributes, initializers,
+ * and static assertions remain explicit body boundaries. Control/return
  * statements, general operators, universal-character/non-ordinary string
- * literals, calls without prototypes, variadic arguments, object initializers,
- * code generation, object emission, and
+ * literals, calls without prototypes, variadic arguments, code generation,
+ * object emission, and
  * Cupid #exe execution remain later frontend work and are diagnosed rather
  * than skipped. Tentative-definition state/finalization is not yet published,
  * so incomplete array declarations retain their parsed bounds in this slice. */

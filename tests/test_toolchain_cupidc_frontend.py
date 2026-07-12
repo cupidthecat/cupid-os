@@ -70,6 +70,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_function_bodies_publish_typed_call_ast(self):
         self.run_contract("function-bodies")
 
+    def test_block_declarations_publish_typed_lexical_bindings(self):
+        self.run_contract("block-bindings")
+
     def test_inline_function_specifiers_are_retained_semantically(self):
         self.run_contract("function-specifiers")
 
@@ -138,19 +141,19 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         )
         failures = {
             "/kernel/smp/mp_tables.h": (
-                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
+                "/kernel/smp/percpu.h", 44, 5, "0x0b00000f"
             ),
             "/kernel/smp/percpu.h": (
-                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
+                "/kernel/smp/percpu.h", 44, 5, "0x0b00000f"
             ),
             "/kernel/smp/smp.h": (
-                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
+                "/kernel/smp/percpu.h", 44, 5, "0x0b00000f"
             ),
             "/kernel/core/ports.h": (
-                "/kernel/core/ports.h", 7, 5, "0x0b00000f"
+                "/kernel/core/ports.h", 8, 5, "0x0b00000f"
             ),
             "/kernel/cpu/cpu.h": (
-                "/kernel/cpu/cpu.h", 22, 5, "0x0b00000f"
+                "/kernel/cpu/cpu.h", 23, 5, "0x0b00000f"
             ),
         }
         self.assertEqual(len(headers), 152)
