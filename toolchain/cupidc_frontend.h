@@ -78,6 +78,10 @@ typedef struct {
   ctool_string_t name;
   /* Definition parameters retain their source storage spelling. */
   ctool_c_storage_class_t storage;
+  /* The adjusted parameter object type retains definition-local top-level
+   * qualification. The parallel graph.parameter_types entry is the
+   * unqualified type used by function-type compatibility. */
+  ctool_u32 type;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_parameter_t;
@@ -97,7 +101,8 @@ typedef struct {
 typedef enum {
   CTOOL_C_STATEMENT_COMPOUND = 1,
   CTOOL_C_STATEMENT_EXPRESSION,
-  CTOOL_C_STATEMENT_DECLARATION
+  CTOOL_C_STATEMENT_DECLARATION,
+  CTOOL_C_STATEMENT_RETURN
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -108,7 +113,8 @@ typedef struct {
   /* COMPOUND: ordered slice of translation_unit.statement_children. */
   ctool_u32 first_child;
   ctool_u32 child_count;
-  /* EXPRESSION: index into translation_unit.expressions. */
+  /* EXPRESSION: index into translation_unit.expressions.
+   * RETURN: returned expression, or AST_NONE for `return;`. */
   ctool_u32 expression;
   /* DECLARATION: ordered slice of translation_unit.block_bindings. */
   ctool_u32 first_block_binding;
@@ -121,15 +127,49 @@ typedef enum {
   CTOOL_C_EXPRESSION_STRING,
   CTOOL_C_EXPRESSION_CALL,
   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
-  CTOOL_C_EXPRESSION_BLOCK_BINDING
+  CTOOL_C_EXPRESSION_BLOCK_BINDING,
+  CTOOL_C_EXPRESSION_INTEGER_CONSTANT,
+  CTOOL_C_EXPRESSION_UNARY,
+  CTOOL_C_EXPRESSION_BINARY,
+  CTOOL_C_EXPRESSION_ASSIGNMENT
 } ctool_c_expression_kind_t;
+
+typedef enum {
+  CTOOL_C_EXPRESSION_OPERATOR_NONE = 0,
+  CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS,
+  CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT,
+  CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT,
+  CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+  CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+  CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+  CTOOL_C_EXPRESSION_OPERATOR_ADD,
+  CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+  CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT,
+  CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+  CTOOL_C_EXPRESSION_OPERATOR_LESS,
+  CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL,
+  CTOOL_C_EXPRESSION_OPERATOR_GREATER,
+  CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL,
+  CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+  CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR,
+  CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND,
+  CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR,
+  CTOOL_C_EXPRESSION_OPERATOR_ASSIGN
+} ctool_c_expression_operator_t;
 
 typedef enum {
   CTOOL_C_CONVERSION_NONE = 0,
   CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
   CTOOL_C_CONVERSION_ARRAY_TO_POINTER,
   CTOOL_C_CONVERSION_FUNCTION_TO_POINTER,
-  CTOOL_C_CONVERSION_QUALIFICATION
+  CTOOL_C_CONVERSION_QUALIFICATION,
+  CTOOL_C_CONVERSION_INTEGER_PROMOTION,
+  CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+  CTOOL_C_CONVERSION_ASSIGNMENT
 } ctool_c_conversion_kind_t;
 
 typedef struct {
@@ -149,6 +189,13 @@ typedef struct {
   ctool_u32 child_count;
   /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
   ctool_c_conversion_kind_t conversion;
+  /* UNARY/BINARY/ASSIGNMENT: represented source operator. */
+  ctool_c_expression_operator_t operation;
+  /* ASSIGNMENT: arithmetic computation type; plain `=` uses result type.
+   * Other expression kinds use CTOOL_C_TYPE_NONE. */
+  ctool_u32 computation_type;
+  /* INTEGER_CONSTANT: target-width bit pattern; type carries rank/sign. */
+  ctool_u64 integer_bits;
   /* STRING: decoded target bytes including the trailing null byte. */
   ctool_bytes_t string_bytes;
 } ctool_c_expression_t;
@@ -173,7 +220,8 @@ typedef struct {
   ctool_u32 binding_count;
   const ctool_c_tag_t *tags;
   ctool_u32 tag_count;
-  /* Parallel to graph.parameter_types. Function slices index both arrays. */
+  /* Parallel to graph.parameter_types. Function slices index both arrays;
+   * parameter metadata also retains the definition-local object type. */
   const ctool_c_parameter_t *parameters;
   ctool_u32 parameter_count;
   /* Source-ordered block bindings survive after their lexical scopes close. */
@@ -239,19 +287,24 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * types at that declaration point. Assertions publish no entity or member;
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
- * parameter storage, and represents compound/expression/declaration
- * statements, automatic/register block-object bindings, file/block/parameter
- * references, decoded ordinary narrow strings with simple, octal, or
- * hexadecimal escapes, fixed-argument prototyped calls, and explicit lvalue,
- * array, function, and qualification conversions. Block bindings use lexical
- * scope, share the outer function-body scope with definition parameters, and
- * retain stable public indices after their scopes close. Lvalue
+ * parameter storage, and represents compound, expression, declaration, and
+ * scalar return statements; automatic/register block-object bindings;
+ * file/block/parameter references, target-typed integer and ordinary narrow
+ * character constants, decoded ordinary narrow strings, every integer unary
+ * and binary precedence tier, simple assignment, fixed-argument prototyped
+ * calls; and explicit lvalue, array, function, qualification, integer
+ * promotion, usual-arithmetic, and assignment conversions. Block bindings use
+ * lexical scope, share the outer function-body scope with definition
+ * parameters, and retain stable public indices after their scopes close. Lvalue
  * conversion removes top-level const, volatile, and atomic qualification while
- * retaining the qualified source node. Calls currently require compatible
- * argument types or pointer qualification addition; extra variadic arguments
- * fail closed until default argument promotions are represented. `sizeof`
- * expression operands and block-scope
- * assertions await the broader typed expression/body grammar and fail closed.
+ * retaining the qualified source node. Definition parameter metadata retains
+ * its adjusted qualified object type separately from normalized function-type
+ * parameters. Calls currently accept represented scalar assignment
+ * conversions or pointer qualification addition; extra variadic arguments
+ * fail closed until default argument promotions are represented. Runtime
+ * integer expressions are typed without constant folding. `sizeof`
+ * expression operands and block-scope assertions await the broader typed
+ * expression/body grammar and fail closed.
  * C11 `inline` is also retained as a canonical OR-summary across compatible
  * declarations; external-inline classification remains translation-unit
  * finalization policy. `_Thread_local`, `_Noreturn`, `_Alignas`,
@@ -260,10 +313,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, static/extern objects,
  * function declarations, block tag specifiers, attributes, initializers,
- * and static assertions remain explicit body boundaries. Control/return
- * statements, general operators, universal-character/non-ordinary string
- * literals, calls without prototypes, variadic arguments, code generation,
- * object emission, and
+ * and static assertions remain explicit body boundaries. Control statements
+ * other than return, casts, conditional/comma/member/address and compound-
+ * assignment operators, pointer arithmetic, floating expressions and
+ * conversions, universal-character/non-ordinary literals, calls without
+ * prototypes, variadic arguments, code generation, object emission, and
  * Cupid #exe execution remain later frontend work and are diagnosed rather
  * than skipped. Tentative-definition state/finalization is not yet published,
  * so incomplete array declarations retain their parsed bounds in this slice. */

@@ -1901,10 +1901,7 @@ static int run_attributes(const char *host_root) {
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
       {"misplaced record alignment",
        "__attribute__((aligned(16))) struct misplaced_record { int value; };\n",
-       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
-      {"attributed body",
-       "void attributed_body(void) __attribute__((noreturn)) { return; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT}};
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
   static const frontend_failure_case_t disabled_case = {
       "disabled GNU attribute",
       "unsigned int disabled __attribute__((aligned(8)));\n",
@@ -2674,6 +2671,46 @@ static int run_attributes(const char *host_root) {
         ordinary->attributes != 0u) {
       (void)fprintf(stderr,
                     "attributes: ordinary panic declaration differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-body.c",
+          "void attributed_body(void) __attribute__((noreturn)) { return; }\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *attributed =
+        find_binding(&unit, "attributed_body");
+    const ctool_c_function_definition_t *definition =
+        unit.function_definition_count == 1u
+            ? &unit.function_definitions[0]
+            : NULL;
+    const ctool_c_statement_t *body_statement =
+        definition != NULL && definition->body < unit.statement_count
+            ? &unit.statements[definition->body]
+            : NULL;
+    ctool_u32 return_index =
+        body_statement != NULL && body_statement->child_count == 1u &&
+                body_statement->first_child < unit.statement_child_count
+            ? unit.statement_children[body_statement->first_child]
+            : CTOOL_C_AST_NONE;
+    const ctool_c_statement_t *return_statement =
+        return_index < unit.statement_count ? &unit.statements[return_index]
+                                            : NULL;
+    if (unit.binding_count != 1u || attributed == NULL ||
+        attributed->kind != CTOOL_C_BINDING_FUNCTION ||
+        attributed->attributes != CTOOL_C_DECL_ATTR_NORETURN ||
+        definition == NULL ||
+        definition->binding != find_binding_index(&unit, "attributed_body") ||
+        body_statement == NULL ||
+        body_statement->kind != CTOOL_C_STATEMENT_COMPOUND ||
+        return_statement == NULL ||
+        return_statement->kind != CTOOL_C_STATEMENT_RETURN ||
+        return_statement->expression != CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr,
+                    "attributes: attributed function body differs\n");
       goto cleanup;
     }
   }
@@ -3918,6 +3955,1011 @@ cleanup:
   return failed;
 }
 
+static const ctool_c_function_definition_t *
+find_function_definition(const ctool_c_translation_unit_t *unit,
+                         const char *name) {
+  ctool_u32 binding = find_binding_index(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->function_definition_count; index++) {
+    if (unit->function_definitions[index].binding == binding) {
+      return &unit->function_definitions[index];
+    }
+  }
+  return NULL;
+}
+
+static ctool_u32 scalar_expression_child(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *expression, ctool_u32 child) {
+  if (expression == NULL || child >= expression->child_count ||
+      expression->first_child > unit->expression_child_count ||
+      expression->child_count >
+          unit->expression_child_count - expression->first_child) {
+    return CTOOL_C_AST_NONE;
+  }
+  child = unit->expression_children[expression->first_child + child];
+  return child < unit->expression_count ? child : CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 scalar_unwrap_conversions(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression) {
+  ctool_u32 traversed = 0u;
+  while (expression < unit->expression_count &&
+         unit->expressions[expression].kind ==
+             CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+    expression = scalar_expression_child(unit, &unit->expressions[expression],
+                                         0u);
+    if (expression == CTOOL_C_AST_NONE ||
+        traversed++ >= unit->expression_count) {
+      return CTOOL_C_AST_NONE;
+    }
+  }
+  return expression < unit->expression_count ? expression : CTOOL_C_AST_NONE;
+}
+
+static ctool_bool scalar_conversion_chain_has(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression,
+    ctool_c_conversion_kind_t conversion) {
+  ctool_u32 traversed = 0u;
+  while (expression < unit->expression_count &&
+         unit->expressions[expression].kind ==
+             CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+    const ctool_c_expression_t *node = &unit->expressions[expression];
+    if (node->conversion == conversion) {
+      return CTOOL_TRUE;
+    }
+    expression = scalar_expression_child(unit, node, 0u);
+    if (expression == CTOOL_C_AST_NONE ||
+        traversed++ >= unit->expression_count) {
+      break;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_c_type_kind_t scalar_type_kind(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_u32 *qualifiers_out) {
+  const ctool_c_type_node_t *node = type_node(unit, type);
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  while (node != NULL &&
+         (node->kind == CTOOL_C_TYPE_QUALIFIED ||
+          node->kind == CTOOL_C_TYPE_ALIGNED)) {
+    qualifiers |= node->qualifiers;
+    node = type_node(unit, node->referenced_type);
+    if (traversed++ >= unit->graph.type_count) {
+      node = NULL;
+      break;
+    }
+  }
+  if (qualifiers_out != NULL) {
+    *qualifiers_out = qualifiers;
+  }
+  return node == NULL ? (ctool_c_type_kind_t)0 : node->kind;
+}
+
+static const ctool_c_statement_t *scalar_return_statement(
+    const ctool_c_translation_unit_t *unit, const char *function_name) {
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, function_name);
+  const ctool_c_statement_t *body;
+  const ctool_c_statement_t *result = NULL;
+  ctool_u32 index;
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    return NULL;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count > unit->statement_child_count - body->first_child) {
+    return NULL;
+  }
+  for (index = 0u; index < body->child_count; index++) {
+    ctool_u32 child = unit->statement_children[body->first_child + index];
+    if (child >= unit->statement_count) {
+      return NULL;
+    }
+    if (unit->statements[child].kind == CTOOL_C_STATEMENT_RETURN) {
+      if (result != NULL) {
+        return NULL;
+      }
+      result = &unit->statements[child];
+    }
+  }
+  return result;
+}
+
+static ctool_u32 scalar_return_value(
+    const ctool_c_translation_unit_t *unit, const char *function_name,
+    ctool_c_type_kind_t expected_result) {
+  const ctool_c_statement_t *statement =
+      scalar_return_statement(unit, function_name);
+  const ctool_c_expression_t *conversion;
+  if (statement == NULL || statement->expression >= unit->expression_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  conversion = &unit->expressions[statement->expression];
+  if (scalar_type_kind(unit, conversion->type, NULL) != expected_result) {
+    return CTOOL_C_AST_NONE;
+  }
+  if (conversion->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+      conversion->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+      conversion->child_count == 1u) {
+    return scalar_expression_child(unit, conversion, 0u);
+  }
+  return statement->expression;
+}
+
+static int scalar_expect_operator(const ctool_c_translation_unit_t *unit,
+                                  ctool_u32 expression,
+                                  ctool_c_expression_kind_t kind,
+                                  ctool_c_expression_operator_t operation,
+                                  ctool_u32 child_count) {
+  expression = scalar_unwrap_conversions(unit, expression);
+  return expression != CTOOL_C_AST_NONE &&
+                 unit->expressions[expression].kind == kind &&
+                 unit->expressions[expression].operation == operation &&
+                 unit->expressions[expression].child_count == child_count
+             ? 0
+             : 1;
+}
+
+static ctool_u32 scalar_operator_child(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression,
+    ctool_u32 child) {
+  expression = scalar_unwrap_conversions(unit, expression);
+  return expression == CTOOL_C_AST_NONE
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, &unit->expressions[expression],
+                                       child);
+}
+
+static ctool_u32 scalar_count_integer_constants(
+    const ctool_c_translation_unit_t *unit, ctool_u32 line, ctool_u64 bits,
+    ctool_c_type_kind_t kind) {
+  ctool_u32 count = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+        expression->integer_bits == bits &&
+        scalar_type_kind(unit, expression->type, NULL) == kind &&
+        expression->location.line == line &&
+        string_equal(expression->location.path, "/scalar-returns.c") != 0 &&
+        expression->physical_location.line == line &&
+        string_equal(expression->physical_location.path,
+                     "/scalar-returns.c") != 0) {
+      count++;
+    }
+  }
+  return count;
+}
+
+static char *build_scalar_operator_chain(ctool_u32 operator_count) {
+  const size_t capacity = (size_t)operator_count * 4u + 80u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "int long_chain(void) { return 0") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < operator_count; index++) {
+    if (append_scale_text(source, capacity, &used, " + 1") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "; }\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_scalar_operator_chain(
+    const ctool_c_translation_unit_t *unit, ctool_u32 operator_count) {
+  const ctool_c_statement_t *statement =
+      scalar_return_statement(unit, "long_chain");
+  ctool_u32 expression;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || unit->statement_count != 2u ||
+      unit->statement_child_count != 1u ||
+      unit->expression_count != operator_count * 2u + 1u ||
+      unit->expression_child_count != operator_count * 2u ||
+      statement == NULL || statement->expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: long-chain inventory differs\n");
+    return 1;
+  }
+  expression = statement->expression;
+  for (index = 0u; index < operator_count; index++) {
+    const ctool_c_expression_t *node;
+    const ctool_c_expression_t *right;
+    ctool_u32 left_index;
+    ctool_u32 right_index;
+    expression = scalar_unwrap_conversions(unit, expression);
+    if (expression == CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr, "scalar-returns: long-chain root is invalid\n");
+      return 1;
+    }
+    node = &unit->expressions[expression];
+    left_index = scalar_expression_child(unit, node, 0u);
+    right_index = scalar_expression_child(unit, node, 1u);
+    right = right_index < unit->expression_count
+                ? &unit->expressions[right_index]
+                : NULL;
+    if (node->kind != CTOOL_C_EXPRESSION_BINARY ||
+        node->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+        node->child_count != 2u || left_index >= expression ||
+        right_index >= expression || right == NULL ||
+        right->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+        right->integer_bits != 1ull ||
+        scalar_type_kind(unit, right->type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT) {
+      (void)fprintf(stderr,
+                    "scalar-returns: long-chain reduction %u differs\n",
+                    index);
+      return 1;
+    }
+    expression = left_index;
+  }
+  expression = scalar_unwrap_conversions(unit, expression);
+  if (expression == CTOOL_C_AST_NONE ||
+      unit->expressions[expression].kind !=
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[expression].integer_bits != 0ull) {
+    (void)fprintf(stderr, "scalar-returns: long-chain left seed differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+typedef struct {
+  ctool_allocator_t base;
+  ctool_u64 outstanding_bytes;
+  ctool_u32 invalid_releases;
+} scalar_tracking_allocator_t;
+
+static void *scalar_tracking_allocate(void *context, ctool_u32 bytes) {
+  scalar_tracking_allocator_t *tracking =
+      (scalar_tracking_allocator_t *)context;
+  void *allocation = tracking->base.allocate(tracking->base.context, bytes);
+  if (allocation != NULL) {
+    tracking->outstanding_bytes += (ctool_u64)bytes;
+  }
+  return allocation;
+}
+
+static void scalar_tracking_release(void *context, void *allocation,
+                                    ctool_u32 bytes) {
+  scalar_tracking_allocator_t *tracking =
+      (scalar_tracking_allocator_t *)context;
+  if (allocation != NULL) {
+    if (tracking->outstanding_bytes < (ctool_u64)bytes) {
+      tracking->invalid_releases++;
+    } else {
+      tracking->outstanding_bytes -= (ctool_u64)bytes;
+    }
+  }
+  tracking->base.release(tracking->base.context, allocation, bytes);
+}
+
+static int validate_scalar_operator_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root,
+    const char *chain_source) {
+  static const char anchor_source[] =
+      "typedef unsigned int scalar_chain_anchor_t;\n";
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  scalar_tracking_allocator_t tracking;
+  ctool_c_pp_result_t chain_tape;
+  ctool_c_pp_result_t anchor_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_c_translation_unit_t anchor;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_c_binding_t *anchor_binding;
+  ctool_status_t status;
+  ctool_u64 outstanding_before_failure;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (preprocess_fixture(fixture, "/scalar-chain-limit.c", chain_source,
+                         &chain_tape) != 0 ||
+      preprocess_fixture(fixture, "/scalar-chain-anchor.c", anchor_source,
+                         &anchor_tape) != 0) {
+    return 1;
+  }
+  token_bytes = (size_t)chain_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    return 1;
+  }
+  (void)memcpy(snapshot, chain_tape.tokens, token_bytes);
+  limits.output_bytes = 256u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  (void)memset(&tracking, 0, sizeof(tracking));
+  tracking.base = config.allocator;
+  config.allocator.context = &tracking;
+  config.allocator.allocate = scalar_tracking_allocate;
+  config.allocator.release = scalar_tracking_release;
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor, 0xa5, sizeof(anchor));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request, &anchor);
+  anchor_binding = find_binding(&anchor, "scalar_chain_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(stderr, "scalar-returns: limited chain anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  outstanding_before_failure = tracking.outstanding_bytes;
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &chain_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor, "scalar_chain_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/scalar-chain-limit.c") ||
+      diagnostic->line != 1u || diagnostic->column == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      tracking.outstanding_bytes != outstanding_before_failure ||
+      tracking.invalid_releases != 0u ||
+      memcmp(snapshot, chain_tape.tokens, token_bytes) != 0 ||
+      anchor_binding == NULL ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(
+        stderr,
+        "scalar-returns: chain scratch rollback differs: %s diagnostics=%u\n",
+        ctool_status_name(status), ctool_job_diagnostic_count(job));
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &recovered);
+  if (status != CTOOL_OK ||
+      find_binding(&recovered, "scalar_chain_anchor_t") == NULL ||
+      find_binding(&anchor, "scalar_chain_anchor_t") == NULL ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "scalar-returns: limited chain recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+    job = NULL;
+    if (tracking.outstanding_bytes != 0ull ||
+        tracking.invalid_releases != 0u) {
+      (void)fprintf(stderr,
+                    "scalar-returns: chain scratch allocation leaked\n");
+      failed = 1;
+    }
+  }
+  free(snapshot);
+  return failed;
+}
+
+static int validate_scalar_return_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_expression_operator_t binary_operators[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+      CTOOL_C_EXPRESSION_OPERATOR_LESS,
+      CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_GREATER,
+      CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR,
+      CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND,
+      CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR};
+  static const struct {
+    const char *name;
+    ctool_u32 line;
+    ctool_c_type_kind_t kind;
+  } literal_functions[] = {
+      {"literal_int", 2u, CTOOL_C_TYPE_SIGNED_INT},
+      {"literal_unsigned", 3u, CTOOL_C_TYPE_UNSIGNED_INT},
+      {"literal_long", 4u, CTOOL_C_TYPE_SIGNED_LONG},
+      {"literal_unsigned_long", 5u, CTOOL_C_TYPE_UNSIGNED_LONG},
+      {"literal_long_long", 6u, CTOOL_C_TYPE_SIGNED_LONG_LONG},
+      {"literal_unsigned_long_long", 7u,
+       CTOOL_C_TYPE_UNSIGNED_LONG_LONG}};
+  const ctool_c_statement_t *statement;
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_statement_t *body;
+  const ctool_c_expression_t *expression;
+  ctool_u32 root;
+  ctool_u32 left;
+  ctool_u32 right;
+  ctool_u32 index;
+  ctool_u32 return_count = 0u;
+  ctool_u32 compound_count = 0u;
+  ctool_u32 expression_statement_count = 0u;
+
+  if (unit->function_definition_count != 22u ||
+      unit->block_binding_count != 1u) {
+    (void)fprintf(stderr, "scalar-returns: definition inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    if (unit->statements[index].kind == CTOOL_C_STATEMENT_RETURN) {
+      return_count++;
+    } else if (unit->statements[index].kind == CTOOL_C_STATEMENT_COMPOUND) {
+      compound_count++;
+    } else if (unit->statements[index].kind ==
+               CTOOL_C_STATEMENT_EXPRESSION) {
+      expression_statement_count++;
+    }
+  }
+  if (return_count != 22u || compound_count != 22u ||
+      expression_statement_count != 2u || unit->statement_count != 47u) {
+    (void)fprintf(stderr, "scalar-returns: statement inventory differs\n");
+    return 1;
+  }
+
+  statement = scalar_return_statement(unit, "returns_void");
+  if (statement == NULL || statement->expression != CTOOL_C_AST_NONE ||
+      !dual_location_matches(&statement->location,
+                             &statement->physical_location,
+                             "/scalar-returns.c", 1u)) {
+    (void)fprintf(stderr, "scalar-returns: void return differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(literal_functions); index++) {
+    root = scalar_return_value(unit, literal_functions[index].name,
+                               literal_functions[index].kind);
+    root = scalar_unwrap_conversions(unit, root);
+    if (root == CTOOL_C_AST_NONE ||
+        unit->expressions[root].kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+        unit->expressions[root].integer_bits != 42ull ||
+        scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+            literal_functions[index].kind ||
+        scalar_count_integer_constants(unit, literal_functions[index].line,
+                                       42ull,
+                                       literal_functions[index].kind) != 1u) {
+      (void)fprintf(stderr,
+                    "scalar-returns: exact literal rank %u differs\n", index);
+      return 1;
+    }
+  }
+  if (scalar_count_integer_constants(unit, 9u, 65ull,
+                                     CTOOL_C_TYPE_SIGNED_INT) != 2u ||
+      scalar_count_integer_constants(unit, 9u, 10ull,
+                                     CTOOL_C_TYPE_SIGNED_INT) != 1u) {
+    (void)fprintf(stderr, "scalar-returns: character constants differ\n");
+    return 1;
+  }
+  if (scalar_count_integer_constants(unit, 22u, 0xffffffffull,
+                                     CTOOL_C_TYPE_SIGNED_INT) != 1u) {
+    (void)fprintf(stderr,
+                  "scalar-returns: signed high-bit character differs\n");
+    return 1;
+  }
+
+  statement = scalar_return_statement(unit, "widened_return");
+  if (statement == NULL || statement->expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: widened return is absent\n");
+    return 1;
+  }
+  expression = &unit->expressions[statement->expression];
+  if (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      expression->conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      scalar_type_kind(unit, expression->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_LONG) {
+    (void)fprintf(stderr, "scalar-returns: return assignment conversion differs\n");
+    return 1;
+  }
+
+  root = scalar_return_value(unit, "precedence", CTOOL_C_TYPE_SIGNED_INT);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: logical-or root differs\n");
+    return 1;
+  }
+  left = scalar_operator_child(unit, root, 0u);
+  if (scalar_expect_operator(unit, left, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND, 2u) !=
+      0) {
+    (void)fprintf(stderr, "scalar-returns: logical-and precedence differs\n");
+    return 1;
+  }
+  left = scalar_operator_child(unit, left, 0u);
+  if (scalar_expect_operator(unit, left, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_EQUAL, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: equality precedence differs\n");
+    return 1;
+  }
+  right = scalar_operator_child(unit, left, 1u);
+  if (scalar_expect_operator(unit, right, CTOOL_C_EXPRESSION_UNARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT, 1u) !=
+      0) {
+    (void)fprintf(stderr, "scalar-returns: logical-not precedence differs\n");
+    return 1;
+  }
+  left = scalar_operator_child(unit, left, 0u);
+  if (scalar_expect_operator(unit, left, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: shift precedence differs\n");
+    return 1;
+  }
+  left = scalar_operator_child(unit, left, 0u);
+  if (scalar_expect_operator(unit, left, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_ADD, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: additive precedence differs\n");
+    return 1;
+  }
+  right = scalar_operator_child(unit, left, 1u);
+  if (scalar_expect_operator(unit, scalar_operator_child(unit, left, 0u),
+                             CTOOL_C_EXPRESSION_UNARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS, 1u) != 0 ||
+      scalar_expect_operator(unit, right, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY, 2u) != 0 ||
+      scalar_expect_operator(unit, scalar_operator_child(unit, right, 0u),
+                             CTOOL_C_EXPRESSION_UNARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE, 1u) !=
+          0 ||
+      scalar_expect_operator(unit, scalar_operator_child(unit, right, 1u),
+                             CTOOL_C_EXPRESSION_UNARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT, 1u) !=
+          0) {
+    (void)fprintf(stderr, "scalar-returns: unary/multiplicative precedence differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(binary_operators); index++) {
+    ctool_u32 expression_index;
+    ctool_bool found = CTOOL_FALSE;
+    for (expression_index = 0u;
+         expression_index < unit->expression_count; expression_index++) {
+      const ctool_c_expression_t *candidate =
+          &unit->expressions[expression_index];
+      if (candidate->kind == CTOOL_C_EXPRESSION_BINARY &&
+          candidate->operation == binary_operators[index]) {
+        found = CTOOL_TRUE;
+        break;
+      }
+    }
+    if (found == CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "scalar-returns: binary operator %u is absent\n", index);
+      return 1;
+    }
+  }
+
+  root = scalar_return_value(unit, "promotion", CTOOL_C_TYPE_SIGNED_INT);
+  root = scalar_unwrap_conversions(unit, root);
+  left = root == CTOOL_C_AST_NONE
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_ADD, 2u) != 0 ||
+      left == CTOOL_C_AST_NONE ||
+      scalar_conversion_chain_has(unit, left,
+                                  CTOOL_C_CONVERSION_INTEGER_PROMOTION) !=
+          CTOOL_TRUE ||
+      scalar_type_kind(unit, unit->expressions[left].type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr, "scalar-returns: integer promotion differs\n");
+    return 1;
+  }
+
+  root = scalar_return_value(unit, "mixed", CTOOL_C_TYPE_UNSIGNED_LONG);
+  root = scalar_unwrap_conversions(unit, root);
+  left = root == CTOOL_C_AST_NONE
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, &unit->expressions[root], 0u);
+  right = root == CTOOL_C_AST_NONE
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, &unit->expressions[root], 1u);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_ADD, 2u) != 0 ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_LONG ||
+      left == CTOOL_C_AST_NONE || right == CTOOL_C_AST_NONE ||
+      scalar_conversion_chain_has(unit, left,
+                                  CTOOL_C_CONVERSION_USUAL_ARITHMETIC) !=
+          CTOOL_TRUE ||
+      scalar_conversion_chain_has(unit, right,
+                                  CTOOL_C_CONVERSION_USUAL_ARITHMETIC) !=
+          CTOOL_TRUE ||
+      scalar_type_kind(unit, unit->expressions[left].type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_LONG ||
+      scalar_type_kind(unit, unit->expressions[right].type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_LONG) {
+    (void)fprintf(stderr, "scalar-returns: usual arithmetic conversion differs\n");
+    return 1;
+  }
+
+  root = scalar_return_value(unit, "assignment", CTOOL_C_TYPE_SIGNED_LONG);
+  root = scalar_unwrap_conversions(unit, root);
+  left = root == CTOOL_C_AST_NONE
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, &unit->expressions[root], 0u);
+  right = root == CTOOL_C_AST_NONE
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, &unit->expressions[root], 1u);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_ASSIGNMENT,
+                             CTOOL_C_EXPRESSION_OPERATOR_ASSIGN, 2u) != 0 ||
+      unit->expressions[root].computation_type != unit->expressions[root].type ||
+      left == CTOOL_C_AST_NONE ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_PARAMETER ||
+      scalar_conversion_chain_has(unit, right,
+                                  CTOOL_C_CONVERSION_ASSIGNMENT) !=
+          CTOOL_TRUE ||
+      scalar_expect_operator(unit, right, CTOOL_C_EXPRESSION_ASSIGNMENT,
+                             CTOOL_C_EXPRESSION_OPERATOR_ASSIGN, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: right-associative assignment differs\n");
+    return 1;
+  }
+  right = scalar_unwrap_conversions(unit, right);
+  left = scalar_expression_child(unit, &unit->expressions[right], 0u);
+  root = scalar_expression_child(unit, &unit->expressions[right], 1u);
+  if (left == CTOOL_C_AST_NONE ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_PARAMETER ||
+      root == CTOOL_C_AST_NONE ||
+      scalar_conversion_chain_has(unit, root,
+                                  CTOOL_C_CONVERSION_ASSIGNMENT) !=
+          CTOOL_TRUE) {
+    (void)fprintf(stderr, "scalar-returns: assignment lvalue conversion differs\n");
+    return 1;
+  }
+
+  definition = find_function_definition(unit, "volatile_read");
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    (void)fprintf(stderr, "scalar-returns: volatile definition differs\n");
+    return 1;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 3u ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count > unit->statement_child_count - body->first_child) {
+    (void)fprintf(stderr, "scalar-returns: volatile body differs\n");
+    return 1;
+  }
+  index = unit->statement_children[body->first_child];
+  if (index >= unit->statement_count ||
+      unit->statements[index].kind != CTOOL_C_STATEMENT_DECLARATION ||
+      unit->statements[index].first_block_binding != 0u ||
+      unit->statements[index].block_binding_count != 1u ||
+      !string_equal(unit->block_bindings[0].name, "value") ||
+      unit->block_bindings[0].kind != CTOOL_C_BINDING_OBJECT ||
+      unit->block_bindings[0].storage != CTOOL_C_STORAGE_NONE) {
+    (void)fprintf(stderr, "scalar-returns: volatile declaration differs\n");
+    return 1;
+  }
+  index = unit->statement_children[body->first_child + 1u];
+  if (index >= unit->statement_count ||
+      unit->statements[index].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[index].expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: volatile expression statement differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[unit->statements[index].expression];
+  if (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      expression->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      scalar_type_kind(unit, expression->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr, "scalar-returns: volatile final lvalue conversion differs\n");
+    return 1;
+  }
+  root = scalar_expression_child(unit, expression, 0u);
+  if (root == CTOOL_C_AST_NONE ||
+      unit->expressions[root].kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+      unit->expressions[root].reference != 0u) {
+    (void)fprintf(stderr, "scalar-returns: volatile source differs\n");
+    return 1;
+  }
+  {
+    ctool_u32 qualifiers = 0u;
+    if (scalar_type_kind(unit, unit->expressions[root].type, &qualifiers) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+      (void)fprintf(stderr,
+                    "scalar-returns: volatile source qualification differs\n");
+      return 1;
+    }
+  }
+  statement = scalar_return_statement(unit, "volatile_read");
+  if (statement == NULL || statement->expression != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "scalar-returns: trailing void return differs\n");
+    return 1;
+  }
+
+  statement = scalar_return_statement(unit, "enum_return");
+  if (statement == NULL || statement->expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: enum return is absent\n");
+    return 1;
+  }
+
+  definition = find_function_definition(unit, "converted_call");
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    (void)fprintf(stderr, "scalar-returns: converted call is absent\n");
+    return 1;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 2u ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count > unit->statement_child_count - body->first_child) {
+    (void)fprintf(stderr, "scalar-returns: converted call body differs\n");
+    return 1;
+  }
+  index = unit->statement_children[body->first_child];
+  if (index >= unit->statement_count ||
+      unit->statements[index].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[index].expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: converted call statement differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[unit->statements[index].expression];
+  root = scalar_expression_child(unit, expression, 1u);
+  if (expression->kind != CTOOL_C_EXPRESSION_CALL ||
+      expression->child_count != 2u || root == CTOOL_C_AST_NONE ||
+      unit->expressions[root].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[root].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_LONG) {
+    (void)fprintf(stderr,
+                  "scalar-returns: fixed call assignment conversion differs\n");
+    return 1;
+  }
+  left = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (left == CTOOL_C_AST_NONE ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[left].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      scalar_type_kind(unit, unit->expressions[left].type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr,
+                  "scalar-returns: fixed call source conversion differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[statement->expression];
+  root = scalar_expression_child(unit, expression, 0u);
+  if (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      expression->conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      scalar_type_kind(unit, expression->type, NULL) != CTOOL_C_TYPE_ENUM ||
+      root == CTOOL_C_AST_NONE ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_INT) {
+    (void)fprintf(stderr,
+                  "scalar-returns: enum assignment conversion differs\n");
+    return 1;
+  }
+
+  definition = find_function_definition(unit, "qualified_parameter");
+  statement = scalar_return_statement(unit, "qualified_parameter");
+  if (definition == NULL || statement == NULL ||
+      statement->expression >= unit->expression_count) {
+    (void)fprintf(stderr, "scalar-returns: qualified parameter is absent\n");
+    return 1;
+  }
+  {
+    const ctool_c_type_node_t *function =
+        type_node(unit, definition->declared_type);
+    const ctool_c_parameter_t *parameter;
+    ctool_u32 parameter_type;
+    ctool_u32 parameter_qualifiers = 0u;
+    ctool_u32 function_qualifiers = 0u;
+    if (function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+        function->parameter_count != 1u ||
+        function->first_parameter >= unit->parameter_count ||
+        function->first_parameter >= unit->graph.parameter_type_count) {
+      (void)fprintf(stderr,
+                    "scalar-returns: qualified parameter slice differs\n");
+      return 1;
+    }
+    parameter = &unit->parameters[function->first_parameter];
+    parameter_type = unit->graph.parameter_types[function->first_parameter];
+    expression = &unit->expressions[statement->expression];
+    root = scalar_expression_child(unit, expression, 0u);
+    if (!string_equal(parameter->name, "value") ||
+        parameter->storage != CTOOL_C_STORAGE_NONE ||
+        scalar_type_kind(unit, parameter->type, &parameter_qualifiers) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        (parameter_qualifiers &
+         (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE)) !=
+            (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE) ||
+        scalar_type_kind(unit, parameter_type, &function_qualifiers) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        function_qualifiers != 0u ||
+        expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        expression->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        root == CTOOL_C_AST_NONE ||
+        unit->expressions[root].kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        unit->expressions[root].reference != function->first_parameter ||
+        unit->expressions[root].type != parameter->type) {
+      (void)fprintf(stderr,
+                    "scalar-returns: parameter object qualification differs\n");
+      return 1;
+    }
+  }
+
+  root = scalar_return_value(unit, "divide_zero", CTOOL_C_TYPE_SIGNED_INT);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_DIVIDE, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: ordinary divide-by-zero was folded\n");
+    return 1;
+  }
+  root = scalar_return_value(unit, "signed_overflow",
+                             CTOOL_C_TYPE_SIGNED_INT);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_ADD, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: ordinary signed overflow was folded\n");
+    return 1;
+  }
+  root = scalar_return_value(unit, "overshift", CTOOL_C_TYPE_SIGNED_INT);
+  if (scalar_expect_operator(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                             CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT, 2u) != 0) {
+    (void)fprintf(stderr, "scalar-returns: ordinary overshift was folded\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_scalar_returns(const char *host_root) {
+  const ctool_u32 chain_operator_count = 4096u;
+  static const char source[] =
+      "void returns_void(void) { return; }\n"
+      "int literal_int(void) { return 42; }\n"
+      "unsigned int literal_unsigned(void) { return 42u; }\n"
+      "long literal_long(void) { return 42L; }\n"
+      "unsigned long literal_unsigned_long(void) { return 42UL; }\n"
+      "long long literal_long_long(void) { return 42LL; }\n"
+      "unsigned long long literal_unsigned_long_long(void) { return 42ULL; }\n"
+      "long widened_return(int value) { return value; }\n"
+      "int character_literals(void) { return 'A' + '\\n' + '\\x41'; }\n"
+      "int precedence(int a, int b, int c) { return +a + -b * ~c << 1 == !0 && a || b; }\n"
+      "int operator_inventory(int a, int b, int c) { return a * b / c % 3 + a - b << 1 >> 1 < b <= c > a >= b == c != a & b ^ c | a && b || c; }\n"
+      "int promotion(signed char value) { return value + 1; }\n"
+      "unsigned long mixed(long left, unsigned int right) { return left + right; }\n"
+      "long assignment(long left, int middle, signed char right) { return left = middle = right; }\n"
+      "void volatile_read(void) { volatile int value; value; return; }\n"
+      "int qualified_parameter(const volatile int value) { return value; }\n"
+      "int divide_zero(void) { return 1 / 0; }\n"
+      "int signed_overflow(void) { return 2147483647 + 1; }\n"
+      "int overshift(void) { return 1 << 32; }\n"
+      "enum scalar_code { SCALAR_CODE_ZERO, SCALAR_CODE_ONE };\n"
+      "enum scalar_code enum_return(unsigned int value) { return value; }\n"
+      "int high_character(void) { return '\\xff'; }\n"
+      "void take_long(long value);\n"
+      "void converted_call(int value) { take_long(value); return; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"missing return value", "int bad(void) { return; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 23u, "non-void function requires a return value"},
+      {{"value returned from void function",
+        "void bad(void) { return 1; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 25u, "void function cannot return a value"},
+      {{"assignment to const lvalue",
+        "void bad(void) { const int value; value = 1; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 41u, "assignment requires a modifiable lvalue"},
+      {{"assignment to non-lvalue",
+        "void bad(int value) { (value + 1) = 2; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 35u, "assignment requires a modifiable lvalue"},
+      {{"incompatible return", "int bad(int *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 30u, "return expression is not convertible to function result type"},
+      {{"incompatible assignment",
+        "void bad(int *pointer, int value) { pointer = value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 47u,
+       "assignment right operand is not convertible to left operand type"},
+      {{"malformed integer literal", "int bad(void) { return 09; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 24u, "integer constant suffix is invalid"},
+      {{"deferred decimal floating literal",
+        "int bad(void) { return 1.0; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 24u, "floating constants are outside this expression slice"},
+      {{"deferred hexadecimal floating literal",
+        "int bad(void) { return 0x1p0; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 24u, "floating constants are outside this expression slice"},
+      {{"deferred floating return conversion",
+        "int bad(float value) { return value; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 31u,
+       "floating assignment conversions are outside this body slice"},
+      {{"deferred floating logical operand",
+        "int bad(float value) { return !value; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 31u, "floating logical operands are outside this body slice"},
+      {{"malformed character literal",
+        "int bad(void) { return '\\x'; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 24u, "character hexadecimal escape requires a digit"},
+      {{"compound assignment boundary",
+        "void bad(int value) { value += 1; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 29u, "compound assignment is outside this expression slice"},
+      {{"pointer arithmetic boundary",
+        "int *bad(int *pointer) { return pointer + 1; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 41u, "pointer arithmetic is outside this expression slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t chain_unit;
+  char *chain_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "scalar-returns", host_root,
+                             64u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/scalar-returns.c", source, &unit) != 0 ||
+      validate_scalar_return_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  chain_source = build_scalar_operator_chain(chain_operator_count);
+  if (chain_source == NULL ||
+      parse_valid_fixture(&fixture, "/scalar-chain.c", chain_source,
+                          &chain_unit) != 0 ||
+      validate_scalar_operator_chain(&chain_unit, chain_operator_count) != 0 ||
+      validate_scalar_operator_storage_limit(&fixture, host_root,
+                                             chain_source) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/scalar-return-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_scalar_return_unit(&unit) != 0 ||
+        validate_scalar_operator_chain(&chain_unit,
+                                       chain_operator_count) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  free(chain_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("scalar-returns: ok\n");
+  }
+  return failed;
+}
+
 static const ctool_c_type_node_t *
 strip_qualified(const ctool_c_translation_unit_t *unit, ctool_u32 type,
                 ctool_u32 *qualifiers_out) {
@@ -4437,10 +5479,17 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       definition == NULL ? NULL : type_node(unit, definition->declared_type);
   const ctool_c_record_member_t *member;
   const ctool_c_parameter_t *parameter;
+  const ctool_c_type_node_t *parameter_type_node;
   const ctool_c_block_binding_t *local =
       unit->block_binding_count == 1u ? &unit->block_bindings[0] : NULL;
   const ctool_c_expression_t *literal = NULL;
+  const ctool_c_expression_t *assignment = NULL;
+  const ctool_c_expression_t *left = NULL;
+  const ctool_c_expression_t *addition = NULL;
+  const ctool_c_expression_t *addition_left = NULL;
+  const ctool_c_expression_t *addition_right = NULL;
   ctool_u32 member_index = 0u;
+  ctool_u32 qualifiers = 0u;
   ctool_u32 index;
 
   member = record == NULL
@@ -4453,18 +5502,46 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
               1u > unit->parameter_count - function->first_parameter
           ? NULL
           : &unit->parameters[function->first_parameter];
+  parameter_type_node =
+      parameter == NULL ? NULL : type_node(unit, parameter->type);
   for (index = 0u; index < unit->expression_count; index++) {
     if (unit->expressions[index].kind == CTOOL_C_EXPRESSION_STRING) {
       literal = &unit->expressions[index];
       break;
     }
   }
+  if (unit->statement_count > 1u &&
+      unit->statements[1].kind == CTOOL_C_STATEMENT_EXPRESSION &&
+      unit->statements[1].expression < unit->expression_count) {
+    ctool_u32 left_index;
+    ctool_u32 addition_index;
+    ctool_u32 addition_left_index;
+    ctool_u32 addition_right_index;
+    assignment = &unit->expressions[unit->statements[1].expression];
+    left_index = scalar_expression_child(unit, assignment, 0u);
+    addition_index = scalar_expression_child(unit, assignment, 1u);
+    if (left_index < unit->expression_count) {
+      left = &unit->expressions[left_index];
+    }
+    addition_index = scalar_unwrap_conversions(unit, addition_index);
+    if (addition_index < unit->expression_count) {
+      addition = &unit->expressions[addition_index];
+      addition_left_index = scalar_expression_child(unit, addition, 0u);
+      addition_right_index = scalar_expression_child(unit, addition, 1u);
+      if (addition_left_index < unit->expression_count) {
+        addition_left = &unit->expressions[addition_left_index];
+      }
+      if (addition_right_index < unit->expression_count) {
+        addition_right = &unit->expressions[addition_right_index];
+      }
+    }
+  }
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 3u ||
-      unit->statement_child_count != 2u || unit->expression_count != 6u ||
-      unit->expression_child_count != 5u ||
+      unit->function_definition_count != 1u || unit->statement_count != 5u ||
+      unit->statement_child_count != 4u || unit->expression_count != 11u ||
+      unit->expression_child_count != 9u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
                              &binding->physical_location, "/borrowed.c", 3u) ||
@@ -4483,6 +5560,8 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !dual_location_matches(&member->location, &member->physical_location,
                              "/borrowed.c", 1u) ||
       member_index >= unit->layout.member_count || parameter == NULL ||
+      parameter_type_node == NULL ||
+      parameter_type_node->kind != CTOOL_C_TYPE_RECORD ||
       !string_equal(parameter->name, "owned_parameter") ||
       !dual_location_matches(&parameter->location,
                              &parameter->physical_location, "/borrowed.c",
@@ -4490,17 +5569,48 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       local == NULL || !string_equal(local->name, "owned_local") ||
       local->kind != CTOOL_C_BINDING_OBJECT ||
       local->storage != CTOOL_C_STORAGE_NONE ||
+      scalar_type_kind(unit, local->type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
       !dual_location_matches(&local->location,
                              &local->physical_location, "/borrowed.c", 4u) ||
       unit->statements[0].kind != CTOOL_C_STATEMENT_DECLARATION ||
       unit->statements[0].first_block_binding != 0u ||
       unit->statements[0].block_binding_count != 1u ||
+      assignment == NULL ||
+      assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ASSIGN ||
+      assignment->computation_type != assignment->type ||
+      scalar_type_kind(unit, assignment->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      !dual_location_matches(&assignment->location,
+                             &assignment->physical_location, "/borrowed.c",
+                             5u) ||
+      left == NULL || left->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+      left->reference != 0u ||
+      !dual_location_matches(&left->location, &left->physical_location,
+                             "/borrowed.c", 5u) ||
+      addition == NULL || addition->kind != CTOOL_C_EXPRESSION_BINARY ||
+      addition->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      addition_left == NULL ||
+      addition_left->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      addition_left->integer_bits != 1ull || addition_right == NULL ||
+      addition_right->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      addition_right->integer_bits != 65ull ||
+      !dual_location_matches(&addition_left->location,
+                             &addition_left->physical_location,
+                             "/borrowed.c", 5u) ||
+      !dual_location_matches(&addition_right->location,
+                             &addition_right->physical_location,
+                             "/borrowed.c", 5u) ||
+      unit->statements[3].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[3].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
       !dual_location_matches(&literal->location,
                              &literal->physical_location, "/borrowed.c",
-                             5u)) {
+                             6u)) {
     (void)fprintf(stderr,
                   "boundaries: copied names or dual locations did not survive\n");
     return 1;
@@ -4524,8 +5634,10 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "struct OwnedTag { int owned_member; };\n"
       "void owned_sink(const char *text);\n"
       "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
-      "  int owned_local;\n"
+      "  volatile int owned_local;\n"
+      "  owned_local = 1 + 'A';\n"
       "  owned_sink(\"owned\\n\");\n"
+      "  return;\n"
       "}\n";
   ctool_c_pp_result_t original;
   ctool_c_pp_result_t borrowed;
@@ -4938,8 +6050,8 @@ static int run_boundaries(const char *host_root) {
       "object initializer boundary", "int boundary_object = 1;\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
-      "function statement boundary",
-      "int boundary_function(void) { return 0; }\n",
+      "control statement boundary",
+      "int boundary_function(void) { if (1) return 0; }\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
@@ -5462,7 +6574,8 @@ static int run_function_specifiers(const char *host_root) {
       "int later_inline(void);\n"
       "int inline later_inline(void);\n"
       "__attribute__((noreturn)) inline void inline_fatal(void);\n"
-      "int ordinary(void);\n";
+      "int ordinary(void);\n"
+      "static inline int body(void) { return 1; }\n";
   static const frontend_exact_failure_case_t invalid_cases[] = {
       {{"inline object", "inline int object;\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
@@ -5490,11 +6603,7 @@ static int run_function_specifiers(const char *host_root) {
        1u, 23u, "function specifier cannot appear in a type name"},
       {{"mixed inline declarators", "inline int function(void), object;\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
-       1u, 1u, "inline function specifier requires a function declaration"},
-      {{"inline function body boundary",
-        "static inline int body(void) { return 1; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 32u, "statement form is outside this function-body slice"}};
+       1u, 1u, "inline function specifier requires a function declaration"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   const ctool_c_binding_t *local_helper;
@@ -5502,6 +6611,10 @@ static int run_function_specifiers(const char *host_root) {
   const ctool_c_binding_t *later_inline;
   const ctool_c_binding_t *inline_fatal;
   const ctool_c_binding_t *ordinary;
+  const ctool_c_binding_t *body_binding;
+  const ctool_c_function_definition_t *body_definition;
+  const ctool_c_statement_t *body_return;
+  ctool_u32 body_value;
   ctool_u32 index;
   int failed = 1;
 
@@ -5518,8 +6631,13 @@ static int run_function_specifiers(const char *host_root) {
   later_inline = find_binding(&unit, "later_inline");
   inline_fatal = find_binding(&unit, "inline_fatal");
   ordinary = find_binding(&unit, "ordinary");
+  body_binding = find_binding(&unit, "body");
+  body_definition = find_function_definition(&unit, "body");
+  body_return = scalar_return_statement(&unit, "body");
+  body_value = scalar_return_value(&unit, "body", CTOOL_C_TYPE_SIGNED_INT);
+  body_value = scalar_unwrap_conversions(&unit, body_value);
   if (local_helper == NULL || repeated == NULL || later_inline == NULL ||
-      inline_fatal == NULL || ordinary == NULL ||
+      inline_fatal == NULL || ordinary == NULL || body_binding == NULL ||
       local_helper->kind != CTOOL_C_BINDING_FUNCTION ||
       local_helper->linkage != CTOOL_C_LINKAGE_INTERNAL ||
       local_helper->function_declaration_flags !=
@@ -5534,7 +6652,19 @@ static int run_function_specifiers(const char *host_root) {
       inline_fatal->function_declaration_flags !=
           CTOOL_C_FUNCTION_DECL_INLINE ||
       inline_fatal->attributes != CTOOL_C_DECL_ATTR_NORETURN ||
-      ordinary->function_declaration_flags != 0u) {
+      ordinary->function_declaration_flags != 0u ||
+      body_binding->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      body_binding->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      body_definition == NULL ||
+      body_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      body_definition->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      body_return == NULL || body_return->expression == CTOOL_C_AST_NONE ||
+      body_value == CTOOL_C_AST_NONE ||
+      unit.expressions[body_value].kind !=
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit.expressions[body_value].integer_bits != 1ull) {
     (void)fprintf(stderr,
                   "function-specifiers: retained declaration metadata "
                   "differs\n");
@@ -6618,7 +7748,7 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                   "fat16|redeclarations|attributes|static-asserts|"
-                  "function-bodies|block-bindings|"
+                  "function-bodies|block-bindings|scalar-returns|"
                   "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
@@ -6644,6 +7774,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "scalar-returns") == 0) {
+    return run_scalar_returns(argv[2]);
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);

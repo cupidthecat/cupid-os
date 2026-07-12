@@ -73,6 +73,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_block_declarations_publish_typed_lexical_bindings(self):
         self.run_contract("block-bindings")
 
+    def test_scalar_operators_assignments_and_returns_are_typed(self):
+        self.run_contract("scalar-returns")
+
     def test_inline_function_specifiers_are_retained_semantically(self):
         self.run_contract("function-specifiers")
 
@@ -127,6 +130,14 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "kernel/smp/percpu.h",
             ],
         )
+
+    def test_active_return_inventory_is_drift_gated(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        feature = next(
+            item for item in audit["features"] if item["id"] == "c.control.return"
+        )
+        self.assertEqual(feature["occurrences"], 12916)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
