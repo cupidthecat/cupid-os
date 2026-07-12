@@ -155,7 +155,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_ASSIGNMENT,
   CTOOL_C_EXPRESSION_UPDATE,
   CTOOL_C_EXPRESSION_CAST,
-  CTOOL_C_EXPRESSION_MEMBER
+  CTOOL_C_EXPRESSION_MEMBER,
+  CTOOL_C_EXPRESSION_CONDITIONAL
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -227,6 +228,7 @@ typedef struct {
    * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index. */
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
+   * CONDITIONAL: condition, selected-when-nonzero, selected-when-zero.
    * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
    * child. */
   ctool_u32 first_child;
@@ -344,7 +346,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * folded non-VLA layout queries, every integer unary and binary precedence
  * tier, pointer addition/subtraction and normalized subscripting with primary
  * or C11 digraph brackets, simple and compound assignment, prefix/postfix
- * increment/decrement, fixed-argument prototyped calls; and explicit lvalue,
+   * increment/decrement, right-associative C11 conditional values,
+   * fixed-argument prototyped calls; and explicit lvalue,
  * array, function, qualification, integer promotion, usual-arithmetic, and
  * assignment conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
@@ -372,8 +375,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * initializers, and static assertions remain explicit body boundaries.
  * File-scope and static-duration object initializers remain pending. Control
  * statements other than `return`, `if`, `for`, `break`, and `continue`,
- * conditional/comma expressions, pointer
- * null-pointer-constant conversions, floating arithmetic and
+ * comma expressions, pointer null-pointer-constant conversions,
+ * aggregate-valued conditional expressions, floating arithmetic and
  * non-void conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than

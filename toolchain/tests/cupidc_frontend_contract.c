@@ -2916,9 +2916,6 @@ static int run_static_asserts(const char *host_root) {
       {"selected logical-or overflow",
        "_Static_assert(0 || (50000 * 50000), \"selected overflow\");\n",
        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
-      {"conditional expression pending",
-       "_Static_assert(1 ? 1 : 0, \"conditional\");\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
       {"floating assertion condition",
        "_Static_assert(1.0, \"floating\");\n", CTOOL_ERR_INPUT,
        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -2976,6 +2973,16 @@ static int run_static_asserts(const char *host_root) {
       "_Static_assert(!0, \"logical not\");\n"
       "_Static_assert((1 == 1) && (2 == 2), \"logical and\");\n"
       "_Static_assert(0 || 9, \"logical or\");\n"
+      "_Static_assert(1 ? 7 : 0, \"conditional true arm\");\n"
+      "_Static_assert(0 ? 0 : 9, \"conditional false arm\");\n"
+      "_Static_assert((0 ? 1 : 0 ? 2 : 3) == 3, "
+      "\"conditional association\");\n"
+      "_Static_assert((1 ? -1 : 0u) > 0u, "
+      "\"conditional usual conversions\");\n"
+      "_Static_assert((1 ? 7 : (1 / 0)) == 7, "
+      "\"conditional skips false fault\");\n"
+      "_Static_assert((0 ? (1 / 0) : 9) == 9, "
+      "\"conditional skips true fault\");\n"
       "_Static_assert(!(0 && (1 / 0)), \"logical and short circuit\");\n"
       "_Static_assert(!(0 && (1 % 0)), "
       "\"logical and suppresses remainder by zero\");\n"
@@ -4377,18 +4384,18 @@ static int validate_toolchain_frontier(const char *host_root) {
       "/toolchain/ctool.c", "/toolchain/cupiddis.c",
       "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
       "/toolchain/cupidc_type.c"};
-  static const ctool_u32 lines[] = {71u, 30u, 152u, 51u, 46u};
-  static const ctool_u32 columns[] = {39u, 19u, 36u, 32u, 54u};
+  static const ctool_u32 lines[] = {94u, 30u, 247u, 51u, 102u};
+  static const ctool_u32 columns[] = {5u, 19u, 19u, 32u, 19u};
   static const ctool_u32 diagnostic_codes[] = {
-      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      CTOOL_C_PARSE_DIAG_STATEMENT, CTOOL_C_PARSE_DIAG_EXPRESSION,
       CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_STATEMENT,
       CTOOL_C_PARSE_DIAG_EXPRESSION};
   static const char *const messages[] = {
-      "expression operator is outside this function-body slice",
+      "statement form is outside this function-body slice",
       "non-scalar assignment is outside this function-body slice",
-      "expression operator is outside this function-body slice",
+      "non-scalar assignment is outside this function-body slice",
       "aggregate block object initializers are outside this body slice",
-      "expression operator is outside this function-body slice"};
+      "non-scalar assignment is outside this function-body slice"};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(paths); index++) {
     ctool_host_adapter_t adapter;
@@ -5550,6 +5557,7 @@ static int run_if_statements(const char *host_root) {
       "  if (flag) ;\n"
       "  if (values) ;\n"
       "  if (observe) ;\n"
+      "  if (flag ? 1 : 0) ;\n"
       "}\n"
       "void loop_jumps(int value) {\n"
       "  for (;;) {\n"
@@ -5605,13 +5613,6 @@ static int run_if_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        3u, 8u, "declaration is not a statement; use a compound statement"},
-      {{"conditional controlling boundary",
-        "void bad(int value) {\n"
-        "  if (value ? 1 : 0) ;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 13u,
-       "expression operator is outside this function-body slice"},
       {{"comma controlling boundary",
         "void bad(int value) {\n"
         "  if (value, value) ;\n"
@@ -5906,6 +5907,8 @@ static int validate_if_statement_unit(
       unit, "conversions", CTOOL_C_STATEMENT_IF, 2u);
   ctool_u32 function = function_top_level_statement_index(
       unit, "conversions", CTOOL_C_STATEMENT_IF, 3u);
+  ctool_u32 conditional = function_top_level_statement_index(
+      unit, "conversions", CTOOL_C_STATEMENT_IF, 4u);
   ctool_u32 loop = function_top_level_statement_index(
       unit, "loop_jumps", CTOOL_C_STATEMENT_FOR, 0u);
   ctool_u32 dangling_inner;
@@ -5930,7 +5933,10 @@ static int validate_if_statement_unit(
       if_statement_shape(unit, pointer, CTOOL_FALSE) != 0 ||
       if_statement_shape(unit, volatile_value, CTOOL_FALSE) != 0 ||
       if_statement_shape(unit, array, CTOOL_FALSE) != 0 ||
-      if_statement_shape(unit, function, CTOOL_FALSE) != 0) {
+      if_statement_shape(unit, function, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, conditional, CTOOL_FALSE) != 0 ||
+      if_condition_terminal_kind(unit, conditional,
+                                 CTOOL_C_EXPRESSION_CONDITIONAL) != 0) {
     (void)fprintf(stderr, "if-statements: public IF shape differs\n");
     return 1;
   }
@@ -11957,6 +11963,517 @@ cleanup:
   return failed;
 }
 
+static ctool_u32 conditional_return_root(
+    const ctool_c_translation_unit_t *unit, const char *function_name) {
+  const ctool_c_statement_t *statement =
+      scalar_return_statement(unit, function_name);
+  return statement == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_unwrap_conversions(unit, statement->expression);
+}
+
+static const ctool_c_expression_t *conditional_return_expression(
+    const ctool_c_translation_unit_t *unit, const char *function_name,
+    ctool_u32 *index_out) {
+  ctool_u32 index = conditional_return_root(unit, function_name);
+  if (index_out != NULL) {
+    *index_out = index;
+  }
+  return index < unit->expression_count ? &unit->expressions[index] : NULL;
+}
+
+static int conditional_shape(const ctool_c_translation_unit_t *unit,
+                             const char *function_name,
+                             ctool_c_type_kind_t result_kind,
+                             ctool_u32 *root_out) {
+  ctool_u32 root = CTOOL_C_AST_NONE;
+  const ctool_c_expression_t *expression =
+      conditional_return_expression(unit, function_name, &root);
+  ctool_u32 child;
+  if (expression == NULL ||
+      expression->kind != CTOOL_C_EXPRESSION_CONDITIONAL ||
+      expression->child_count != 3u ||
+      expression->first_child > unit->expression_child_count ||
+      expression->child_count >
+          unit->expression_child_count - expression->first_child ||
+      expression->reference != CTOOL_C_AST_NONE ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE ||
+      scalar_type_kind(unit, expression->type, NULL) != result_kind) {
+    return 1;
+  }
+  for (child = 0u; child < expression->child_count; child++) {
+    if (unit->expression_children[expression->first_child + child] >= root) {
+      return 1;
+    }
+  }
+  if (root_out != NULL) {
+    *root_out = root;
+  }
+  return 0;
+}
+
+static int conditional_pointer_referent(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *expression, ctool_c_type_kind_t expected_kind,
+    ctool_u32 expected_qualifiers) {
+  const ctool_c_type_node_t *pointer;
+  ctool_u32 qualifiers = 0u;
+  if (expression == NULL ||
+      scalar_type_kind(unit, expression->type, NULL) != CTOOL_C_TYPE_POINTER) {
+    return 1;
+  }
+  pointer = type_node(unit, expression->type);
+  if (pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+      scalar_type_kind(unit, pointer->referenced_type, &qualifiers) !=
+          expected_kind ||
+      qualifiers != expected_qualifiers) {
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_conditional_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 root;
+  ctool_u32 condition;
+  ctool_u32 when_nonzero;
+  ctool_u32 when_zero;
+  const ctool_c_expression_t *expression;
+  const ctool_c_statement_t *statement;
+
+  if (conditional_shape(unit, "choose", CTOOL_C_TYPE_SIGNED_INT, &root) !=
+      0) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: minimal conditional shape differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[root];
+  condition = scalar_expression_child(unit, expression, 0u);
+  if (scalar_conversion_chain_has(unit, condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+      CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: condition conversion differs\n");
+    return 1;
+  }
+
+  if (conditional_shape(unit, "integer_choice", CTOOL_C_TYPE_UNSIGNED_LONG,
+                        &root) != 0) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: integer result type differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[root];
+  when_nonzero = scalar_expression_child(unit, expression, 1u);
+  when_zero = scalar_expression_child(unit, expression, 2u);
+  if (scalar_conversion_chain_has(unit, when_nonzero,
+                                  CTOOL_C_CONVERSION_USUAL_ARITHMETIC) ==
+          CTOOL_FALSE ||
+      scalar_conversion_chain_has(unit, when_zero,
+                                  CTOOL_C_CONVERSION_USUAL_ARITHMETIC) ==
+          CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: integer arm conversions differ\n");
+    return 1;
+  }
+
+  if (conditional_shape(unit, "right_associated", CTOOL_C_TYPE_SIGNED_INT,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       when_zero = scalar_expression_child(unit, expression, 2u),
+       when_zero >= unit->expression_count ||
+           unit->expressions[when_zero].kind !=
+               CTOOL_C_EXPRESSION_CONDITIONAL) ||
+      conditional_shape(unit, "middle_assignment", CTOOL_C_TYPE_SIGNED_INT,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       when_nonzero = scalar_expression_child(unit, expression, 1u),
+       when_nonzero >= unit->expression_count ||
+           unit->expressions[when_nonzero].kind !=
+               CTOOL_C_EXPRESSION_ASSIGNMENT)) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: association or middle arm differs\n");
+    return 1;
+  }
+
+  if (conditional_shape(unit, "pointer_condition", CTOOL_C_TYPE_SIGNED_INT,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       condition = scalar_expression_child(unit, expression, 0u),
+       scalar_conversion_chain_has(unit, condition,
+                                   CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+           CTOOL_FALSE) ||
+      conditional_shape(unit, "array_condition", CTOOL_C_TYPE_SIGNED_INT,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       condition = scalar_expression_child(unit, expression, 0u),
+       scalar_conversion_chain_has(unit, condition,
+                                   CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+           CTOOL_FALSE) ||
+      conditional_shape(unit, "function_condition", CTOOL_C_TYPE_SIGNED_INT,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       condition = scalar_expression_child(unit, expression, 0u),
+       scalar_conversion_chain_has(unit, condition,
+                                   CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+           CTOOL_FALSE)) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: scalar condition forms differ\n");
+    return 1;
+  }
+
+  if (conditional_shape(unit, "array_choice", CTOOL_C_TYPE_POINTER, &root) !=
+          0 ||
+      (expression = &unit->expressions[root],
+       when_nonzero = scalar_expression_child(unit, expression, 1u),
+       when_zero = scalar_expression_child(unit, expression, 2u),
+       scalar_conversion_chain_has(unit, when_nonzero,
+                                   CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+               CTOOL_FALSE ||
+           scalar_conversion_chain_has(unit, when_zero,
+                                       CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+               CTOOL_FALSE) ||
+      conditional_shape(unit, "function_choice", CTOOL_C_TYPE_POINTER,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       when_nonzero = scalar_expression_child(unit, expression, 1u),
+       when_zero = scalar_expression_child(unit, expression, 2u),
+       scalar_conversion_chain_has(unit, when_nonzero,
+                                   CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+               CTOOL_FALSE ||
+           scalar_conversion_chain_has(unit, when_zero,
+                                       CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+               CTOOL_FALSE ||
+           conditional_pointer_referent(unit, expression,
+                                        CTOOL_C_TYPE_FUNCTION, 0u) != 0)) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: decay arm conversions differ\n");
+    return 1;
+  }
+
+  if (conditional_shape(unit, "qualified_choice", CTOOL_C_TYPE_POINTER,
+                        &root) != 0 ||
+      (expression = &unit->expressions[root],
+       conditional_pointer_referent(
+           unit, expression, CTOOL_C_TYPE_SIGNED_INT,
+           CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE) != 0) ||
+      conditional_shape(unit, "void_choice", CTOOL_C_TYPE_POINTER, &root) !=
+          0 ||
+      (expression = &unit->expressions[root],
+       when_nonzero = scalar_expression_child(unit, expression, 1u),
+       conditional_pointer_referent(
+           unit, expression, CTOOL_C_TYPE_VOID,
+           CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE) != 0 ||
+           scalar_conversion_chain_has(unit, when_nonzero,
+                                       CTOOL_C_CONVERSION_POINTER) ==
+               CTOOL_FALSE)) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: pointer result composition differs\n");
+    return 1;
+  }
+
+  statement = pointer_expression_statement(unit, "void_choice_values");
+  root = statement == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_unwrap_conversions(unit, statement->expression);
+  if (root >= unit->expression_count ||
+      unit->expressions[root].kind != CTOOL_C_EXPRESSION_CONDITIONAL ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_VOID) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: void conditional differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_conditional_constants(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *selected_true =
+      find_binding(unit, "CONDITIONAL_TRUE");
+  const ctool_c_binding_t *selected_false =
+      find_binding(unit, "CONDITIONAL_FALSE");
+  const ctool_c_binding_t *associated =
+      find_binding(unit, "CONDITIONAL_ASSOCIATED");
+  const ctool_c_binding_t *array_binding =
+      find_binding(unit, "conditional_array_t");
+  const ctool_c_tag_t *bits_tag = find_tag(unit, "conditional_bits");
+  const ctool_c_type_node_t *array =
+      array_binding == NULL ? NULL : type_node(unit, array_binding->type);
+  const ctool_c_type_node_t *record =
+      bits_tag == NULL ? NULL : type_node(unit, bits_tag->type);
+  if (selected_true == NULL || selected_true->integer_bits != 7ull ||
+      selected_false == NULL || selected_false->integer_bits != 9ull ||
+      associated == NULL || associated->integer_bits != 3ull ||
+      array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count != 4u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD || record->member_count != 1u ||
+      record->first_member >= unit->graph.member_count ||
+      unit->graph.members[record->first_member].is_bit_field == CTOOL_FALSE ||
+      unit->graph.members[record->first_member].bit_width != 5u) {
+    (void)fprintf(stderr,
+                  "conditional-expressions: constant contexts differ\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_conditional_alignment(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *binding =
+      find_binding(unit, "conditional_aligned_t");
+  const ctool_c_type_node_t *aligned =
+      binding == NULL ? NULL : type_node(unit, binding->type);
+  const ctool_c_type_layout_t *layout =
+      binding == NULL ? NULL : type_layout(unit, binding->type);
+  ctool_u32 root = CTOOL_C_AST_NONE;
+  const ctool_c_expression_t *expression;
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *referent;
+  if (conditional_shape(unit, "aligned_choice", CTOOL_C_TYPE_POINTER,
+                        &root) != 0) {
+    (void)fprintf(
+        stderr,
+        "conditional-expressions: aligned conditional shape differs\n");
+    return 1;
+  }
+  expression = &unit->expressions[root];
+  pointer = type_node(unit, expression->type);
+  referent = pointer == NULL
+                 ? NULL
+                 : type_node(unit, pointer->referenced_type);
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+      aligned == NULL || aligned->kind != CTOOL_C_TYPE_ALIGNED ||
+      aligned->explicit_alignment != 16u || layout == NULL ||
+      layout->alignment != 16u || pointer == NULL ||
+      pointer->kind != CTOOL_C_TYPE_POINTER || referent == NULL ||
+      referent->kind != CTOOL_C_TYPE_ALIGNED ||
+      referent->explicit_alignment != 16u) {
+    (void)fprintf(
+        stderr,
+        "conditional-expressions: aligned result composition differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static char *build_conditional_depth_source(ctool_u32 depth) {
+  const size_t capacity = 8192u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "int conditional_depth(void) { return ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < depth; index++) {
+    if (append_scale_text(source, capacity, &used, "0 ? 0 : ") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "0; }\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int run_conditional_expressions(const char *host_root) {
+  static const char minimal_source[] =
+      "int choose(int condition) {\n"
+      "  return condition ? 1 : 2;\n"
+      "}\n";
+  static const char source[] =
+      "typedef int callback_t(int);\n"
+      "int callback_one(int value) { return value; }\n"
+      "int callback_two(int value) { return value + 1; }\n"
+      "int choose(int condition) { return condition ? 1 : 2; }\n"
+      "unsigned long integer_choice(int condition, long left, unsigned int right) { return condition ? left : right; }\n"
+      "int right_associated(int first, int second) { return first ? 1 : second ? 2 : 3; }\n"
+      "int middle_assignment(int condition, int left, int right) { return condition ? left = right : right; }\n"
+      "int pointer_condition(int *pointer) { return pointer ? 1 : 0; }\n"
+      "int array_condition(int condition) { int values[2]; return values ? condition : 0; }\n"
+      "int function_condition(int condition) { return callback_one ? condition : 0; }\n"
+      "int *array_choice(int condition) { int left[1]; int right[1]; return condition ? left : right; }\n"
+      "callback_t *function_choice(int condition) { return condition ? callback_one : callback_two; }\n"
+      "const volatile int *qualified_choice(int condition, const int *left, volatile int *right) { return condition ? left : right; }\n"
+      "const volatile void *void_choice(int condition, const int *object, volatile void *other) { return condition ? object : other; }\n"
+      "void void_choice_values(int condition) { condition ? (void)0 : (void)0; }\n";
+  static const char constant_source[] =
+      "enum conditional_values {\n"
+      "  CONDITIONAL_TRUE = 1 ? 7 : 8,\n"
+      "  CONDITIONAL_FALSE = 0 ? 8 : 9,\n"
+      "  CONDITIONAL_ASSOCIATED = 0 ? 1 : 0 ? 2 : 3\n"
+      "};\n"
+      "typedef int conditional_array_t[1 ? 4 : 8];\n"
+      "struct conditional_bits { unsigned int value : (0 ? 2 : 5); };\n"
+      "_Static_assert((1 ? -1 : 0u) > 0u, \"conditional common type\");\n"
+      "_Static_assert((1 ? 7 : (1 / 0)) == 7, \"false arm skipped\");\n"
+      "_Static_assert((0 ? (1 / 0) : 9) == 9, \"true arm skipped\");\n";
+  static const char aligned_source[] =
+      "typedef int conditional_aligned_t "
+      "__attribute__((aligned(1 ? 16 : 8)));\n"
+      "conditional_aligned_t *aligned_choice("
+      "int condition, conditional_aligned_t *left, int *right) {\n"
+      "  return condition ? left : right;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"conditional missing colon",
+        "int bad(int condition) { return condition ? 1 2; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       1u, 47u, "expected source token is missing"},
+      {{"conditional aggregate condition",
+        "typedef struct { int value; } item_t; int bad(item_t value) { return value ? 1 : 0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 76u, "controlling expression requires scalar type"},
+      {{"conditional floating condition",
+        "int bad(double value) { return value ? 1 : 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 38u,
+       "floating controlling expressions are outside this body slice"},
+      {{"conditional comma boundary",
+        "int bad(int condition, int left, int right) { return condition ? (left, right) : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 71u,
+       "expression operator is outside this function-body slice"},
+      {{"conditional middle comma boundary",
+        "int bad(int condition, int left, int right) { return condition ? left, right : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 70u,
+       "expression operator is outside this function-body slice"},
+      {{"conditional result is not an lvalue",
+        "int *bad(int condition, int left, int right) { return &(condition ? left : right); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 55u,
+       "address operator requires an object lvalue or function designator"},
+      {{"conditional null pointer boundary",
+        "int *bad(int condition, int *pointer) { return condition ? pointer : 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 58u,
+       "conditional pointer and integer operands await null pointer constant semantics"},
+      {{"conditional nonzero pointer integer",
+        "int *bad(int condition, int *pointer) { return condition ? pointer : 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 58u,
+       "conditional pointer and integer operands require a null pointer constant"},
+      {{"conditional selected nested nonzero",
+        "int *bad(int condition, int *pointer) { return condition ? pointer : (0 ? 0 : 1); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 58u,
+       "conditional pointer and integer operands require a null pointer constant"},
+      {{"conditional selected nested zero",
+        "int *bad(int condition, int *pointer) { return condition ? pointer : (1 ? 0 : 1); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 58u,
+       "conditional pointer and integer operands await null pointer constant semantics"},
+      {{"conditional floating arms",
+        "void bad(int condition, double left, double right) { condition ? left : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 64u,
+       "floating conditional operands are outside this body slice"},
+      {{"conditional aggregate arms",
+        "typedef struct { int value; } item_t; void bad(int condition, item_t left, item_t right) { condition ? left : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 102u,
+       "aggregate conditional values are outside this body slice"},
+      {{"selected conditional constant fault",
+        "_Static_assert(1 ? (1 / 0) : 7, \"selected fault\");\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 23u, "integer constant expression divides by zero"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t minimal_unit;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t constant_unit;
+  ctool_c_translation_unit_t aligned_unit;
+  char *depth_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "conditional-expressions", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/conditional-minimal.c", minimal_source,
+                          &minimal_unit) != 0 ||
+      conditional_shape(&minimal_unit, "choose", CTOOL_C_TYPE_SIGNED_INT,
+                        (ctool_u32 *)0) != 0) {
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/conditional-expressions.c", source,
+                          &unit) != 0 ||
+      validate_conditional_unit(&unit) != 0 ||
+      parse_valid_fixture(&fixture, "/conditional-constants.c",
+                          constant_source, &constant_unit) != 0 ||
+      validate_conditional_constants(&constant_unit) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/conditional-aligned.c",
+                          aligned_source, &aligned_unit) != 0 ||
+      validate_conditional_alignment(&aligned_unit) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/conditional-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_conditional_unit(&unit) != 0 ||
+        validate_conditional_constants(&constant_unit) != 0 ||
+        validate_conditional_alignment(&aligned_unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_conditional_depth_source(256u);
+  if (depth_source == NULL) {
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "conditional nesting limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/conditional-depth.c", 1u, 0u,
+        "source syntax exceeds the public nesting limit") != 0 ||
+        validate_conditional_unit(&unit) != 0 ||
+        validate_conditional_constants(&constant_unit) != 0 ||
+        validate_conditional_alignment(&aligned_unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_scalar_operator_storage_limit(&fixture, host_root, source) !=
+          0 ||
+      validate_conditional_unit(&unit) != 0 ||
+      validate_conditional_constants(&constant_unit) != 0 ||
+      validate_conditional_alignment(&aligned_unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("conditional-expressions: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -11966,7 +12483,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
-                   "scalar-returns|for-statements|if-statements|"
+                   "scalar-returns|conditional-expressions|for-statements|"
+                   "if-statements|"
                    "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
@@ -12000,6 +12518,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
+  }
+  if (strcmp(argv[1], "conditional-expressions") == 0) {
+    return run_conditional_expressions(argv[2]);
   }
   if (strcmp(argv[1], "for-statements") == 0) {
     return run_for_statements(argv[2]);
