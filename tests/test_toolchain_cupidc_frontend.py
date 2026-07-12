@@ -67,6 +67,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_static_asserts_use_target_sizeof_and_integer_relations(self):
         self.run_contract("static-asserts")
 
+    def test_function_bodies_publish_typed_call_ast(self):
+        self.run_contract("function-bodies")
+
     def test_inline_function_specifiers_are_retained_semantically(self):
         self.run_contract("function-specifiers")
 
@@ -135,26 +138,23 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         )
         failures = {
             "/kernel/smp/mp_tables.h": (
-                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
+                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
             ),
             "/kernel/smp/percpu.h": (
-                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
+                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
             ),
             "/kernel/smp/smp.h": (
-                "/kernel/smp/percpu.h", 42, 41, "0x0b000008"
-            ),
-            "/kernel/core/debug.h": (
-                "/kernel/core/debug.h", 8, 71, "0x0b000008"
+                "/kernel/smp/percpu.h", 43, 5, "0x0b00000f"
             ),
             "/kernel/core/ports.h": (
-                "/kernel/core/ports.h", 6, 42, "0x0b000008"
+                "/kernel/core/ports.h", 7, 5, "0x0b00000f"
             ),
             "/kernel/cpu/cpu.h": (
-                "/kernel/cpu/cpu.h", 21, 36, "0x0b000008"
+                "/kernel/cpu/cpu.h", 22, 5, "0x0b00000f"
             ),
         }
         self.assertEqual(len(headers), 152)
-        self.assertEqual(len(failures), 6)
+        self.assertEqual(len(failures), 5)
         expected_lines = []
         for header in headers:
             if header not in failures:
@@ -164,7 +164,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tunsupported\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 146 6")
+        expected_lines.append("header-sweep: ok 147 5")
         result = subprocess.run(
             [
                 str(self.contract_path),

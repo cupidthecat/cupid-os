@@ -76,9 +76,79 @@ typedef struct {
 
 typedef struct {
   ctool_string_t name;
+  /* Definition parameters retain their source storage spelling. */
+  ctool_c_storage_class_t storage;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_parameter_t;
+
+#define CTOOL_C_AST_NONE 0xffffffffu
+
+typedef enum {
+  CTOOL_C_STATEMENT_COMPOUND = 1,
+  CTOOL_C_STATEMENT_EXPRESSION
+} ctool_c_statement_kind_t;
+
+typedef struct {
+  ctool_c_statement_kind_t kind;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+
+  /* COMPOUND: ordered slice of translation_unit.statement_children. */
+  ctool_u32 first_child;
+  ctool_u32 child_count;
+  /* EXPRESSION: index into translation_unit.expressions. */
+  ctool_u32 expression;
+} ctool_c_statement_t;
+
+typedef enum {
+  CTOOL_C_EXPRESSION_IDENTIFIER = 1,
+  CTOOL_C_EXPRESSION_PARAMETER,
+  CTOOL_C_EXPRESSION_STRING,
+  CTOOL_C_EXPRESSION_CALL,
+  CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION
+} ctool_c_expression_kind_t;
+
+typedef enum {
+  CTOOL_C_CONVERSION_NONE = 0,
+  CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+  CTOOL_C_CONVERSION_ARRAY_TO_POINTER,
+  CTOOL_C_CONVERSION_FUNCTION_TO_POINTER,
+  CTOOL_C_CONVERSION_QUALIFICATION
+} ctool_c_conversion_kind_t;
+
+typedef struct {
+  ctool_c_expression_kind_t kind;
+  /* Type produced by this node. A conversion node carries the result type;
+   * its child retains the source-semantic type. */
+  ctool_u32 type;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+
+  /* IDENTIFIER: binding index. PARAMETER: parameter index. */
+  ctool_u32 reference;
+  /* CALL: ordered slice of expression_children, callee first.
+   * IMPLICIT_CONVERSION: one source-expression child. */
+  ctool_u32 first_child;
+  ctool_u32 child_count;
+  /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
+  ctool_c_conversion_kind_t conversion;
+  /* STRING: decoded target bytes including the trailing null byte. */
+  ctool_bytes_t string_bytes;
+} ctool_c_expression_t;
+
+typedef struct {
+  /* Canonical function entity in translation_unit.bindings. */
+  ctool_u32 binding;
+  /* Exact definition declarator type and definition-local source spelling. */
+  ctool_u32 declared_type;
+  ctool_c_storage_class_t storage;
+  ctool_u32 function_declaration_flags;
+  /* COMPOUND statement index. */
+  ctool_u32 body;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_function_definition_t;
 
 typedef struct {
   ctool_c_layout_request_t graph;
@@ -90,6 +160,18 @@ typedef struct {
   /* Parallel to graph.parameter_types. Function slices index both arrays. */
   const ctool_c_parameter_t *parameters;
   ctool_u32 parameter_count;
+  /* Function bodies are immutable postorder tables. Child indices precede
+   * their parents, and every child slice preserves source order. */
+  const ctool_c_function_definition_t *function_definitions;
+  ctool_u32 function_definition_count;
+  const ctool_c_statement_t *statements;
+  ctool_u32 statement_count;
+  const ctool_u32 *statement_children;
+  ctool_u32 statement_child_count;
+  const ctool_c_expression_t *expressions;
+  ctool_u32 expression_count;
+  const ctool_u32 *expression_children;
+  ctool_u32 expression_child_count;
 } ctool_c_translation_unit_t;
 
 typedef enum {
@@ -105,7 +187,10 @@ typedef enum {
   CTOOL_C_PARSE_DIAG_OVERFLOW = 0x0b00000au,
   CTOOL_C_PARSE_DIAG_INTERNAL = 0x0b00000bu,
   CTOOL_C_PARSE_DIAG_ATTRIBUTE = 0x0b00000cu,
-  CTOOL_C_PARSE_DIAG_STATIC_ASSERT = 0x0b00000du
+  CTOOL_C_PARSE_DIAG_STATIC_ASSERT = 0x0b00000du,
+  CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION = 0x0b00000eu,
+  CTOOL_C_PARSE_DIAG_STATEMENT = 0x0b00000fu,
+  CTOOL_C_PARSE_DIAG_EXPRESSION = 0x0b000010u
 } ctool_c_parse_diag_code_t;
 
 ctool_status_t ctool_c_parse(ctool_job_t *job,
@@ -115,13 +200,14 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
 
 /* The tape and request are borrowed only for the call. Success publishes one
  * immutable, job-owned semantic graph plus layouts, ordinary bindings, named
- * tags, and parameter metadata. Presumed and physical locations and every
- * counted name/path are copied. Failure zeros the unit and rewinds all parser
+ * tags, parameter metadata, function definitions, and typed body AST tables.
+ * Presumed and physical locations, decoded string bytes, and every counted
+ * name/path are copied. Failure zeros the unit and rewinds all parser
  * allocations while preserving structured diagnostics.
  *
  * The request language settings must match those used to produce the tape;
  * preprocessing provenance does not yet carry that configuration itself.
- * This declaration slice owns the contracted scalar/typedef/storage subset,
+ * This frontend slice owns the contracted scalar/typedef/storage subset,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
  * and function types, C linkage, layout, and normalized GNU packed, aligned,
@@ -133,17 +219,28 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * relational/equality conversions and `sizeof(type-name)` for complete object
  * types at that declaration point. Assertions publish no entity or member;
  * semantic types constructed by their type names remain in the immutable
-   * graph. `sizeof` expression operands and block-scope assertions await the
-   * typed expression/body frontend and fail closed. C11 `inline` is retained
-   * as a canonical OR-summary across compatible function declarations while
-   * definition-local inline/linkage policy awaits function-definition and
-   * translation-unit finalization state. `_Thread_local`, `_Noreturn`,
-   * `_Alignas`, `_Atomic(type-name)`, and complex/imaginary type specifiers
-   * are pending and fail closed rather than being skipped.
+ * graph. The initial body AST retains definition-local storage, `inline`, and
+ * parameter storage, and represents compound/expression statements,
+ * file-binding and parameter references, decoded ordinary narrow strings with
+ * simple, octal, or hexadecimal escapes, fixed-argument prototyped calls, and
+ * explicit lvalue, array, function, and qualification conversions. Lvalue
+ * conversion removes top-level const, volatile, and atomic qualification while
+ * retaining the qualified source node. Calls currently require compatible
+ * argument types or pointer qualification addition; extra variadic arguments
+ * fail closed until default argument promotions are represented. `sizeof`
+ * expression operands and block-scope
+ * assertions await the broader typed expression/body grammar and fail closed.
+ * C11 `inline` is also retained as a canonical OR-summary across compatible
+ * declarations; external-inline classification remains translation-unit
+ * finalization policy. `_Thread_local`, `_Noreturn`, `_Alignas`,
+ * `_Atomic(type-name)`, and complex/imaginary type specifiers are pending and
+ * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
- * rather than fixed frontend tables. Function bodies, object initializers,
- * statement/expression ASTs, code generation, object emission, and Cupid
- * #exe execution remain later frontend operations and are diagnosed rather
+ * rather than fixed frontend tables. Local declarations, control/return
+ * statements, general operators, universal-character/non-ordinary string
+ * literals, calls without prototypes, variadic arguments, object initializers,
+ * code generation, object emission, and
+ * Cupid #exe execution remain later frontend work and are diagnosed rather
  * than skipped. Tentative-definition state/finalization is not yet published,
  * so incomplete array declarations retain their parsed bounds in this slice. */
 

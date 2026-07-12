@@ -253,7 +253,15 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                  unit->layout.member_count == 0u && unit->bindings == NULL &&
                  unit->binding_count == 0u && unit->tags == NULL &&
                  unit->tag_count == 0u && unit->parameters == NULL &&
-                 unit->parameter_count == 0u
+                 unit->parameter_count == 0u &&
+                 unit->function_definitions == NULL &&
+                 unit->function_definition_count == 0u &&
+                 unit->statements == NULL && unit->statement_count == 0u &&
+                 unit->statement_children == NULL &&
+                 unit->statement_child_count == 0u &&
+                 unit->expressions == NULL && unit->expression_count == 0u &&
+                 unit->expression_children == NULL &&
+                 unit->expression_child_count == 0u
              ? 1
              : 0;
 }
@@ -342,6 +350,17 @@ find_binding(const ctool_c_translation_unit_t *unit, const char *name) {
     }
   }
   return NULL;
+}
+
+static ctool_u32 find_binding_index(const ctool_c_translation_unit_t *unit,
+                                    const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (string_equal(unit->bindings[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
 }
 
 static const ctool_c_type_node_t *
@@ -1338,6 +1357,7 @@ static int parse_valid_fixture(frontend_fixture_t *fixture, const char *path,
 static int parse_loaded_fixture(frontend_fixture_t *fixture,
                                 const char *path_text,
                                 const char *stop_spelling,
+                                ctool_u32 expected_token_count,
                                 ctool_c_translation_unit_t *unit_out) {
   ctool_path_t path;
   ctool_source_t source;
@@ -1364,6 +1384,14 @@ static int parse_loaded_fixture(frontend_fixture_t *fixture,
     (void)fprintf(stderr, "%s: preprocess %s failed: %s\n", fixture->mode,
                   path_text, ctool_status_name(status));
     (void)ctool_job_render_diagnostics(fixture->job);
+    return 1;
+  }
+  if (expected_token_count != 0u &&
+      tape.token_count != expected_token_count) {
+    (void)fprintf(stderr,
+                  "%s: %s token inventory differs: expected %u, got %u\n",
+                  fixture->mode, path_text, expected_token_count,
+                  tape.token_count);
     return 1;
   }
   if (stop_spelling != NULL) {
@@ -1484,8 +1512,13 @@ static int expect_frontend_failure_at_message(
   ctool_arena_mark_t mark;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
+  ctool_u32 diagnostic_count_after;
   const ctool_diagnostic_t *diagnostic;
   size_t token_bytes;
+  int anchor_valid;
+  int arena_unchanged;
+  int tape_unchanged;
+  int unit_zero;
   int failed = 0;
 
   if (preprocess_fixture(fixture, path, test_case->source, &tape) != 0) {
@@ -1504,8 +1537,14 @@ static int expect_frontend_failure_at_message(
   (void)memset(&unit, 0xa5, sizeof(unit));
   status = ctool_c_parse(fixture->job, &tape, &fixture->parse_request, &unit);
   diagnostic = ctool_job_diagnostic(fixture->job, diagnostic_count);
-  if (status != test_case->status || unit_is_zero(&unit) == 0 ||
-      ctool_job_diagnostic_count(fixture->job) != diagnostic_count + 1u ||
+  diagnostic_count_after = ctool_job_diagnostic_count(fixture->job);
+  unit_zero = unit_is_zero(&unit);
+  arena_unchanged = arena_marks_equal(
+      mark, ctool_arena_mark(ctool_job_arena(fixture->job)));
+  tape_unchanged = memcmp(snapshot, tape.tokens, token_bytes) == 0;
+  anchor_valid = validate_anchor(fixture) == 0;
+  if (status != test_case->status || unit_zero == 0 ||
+      diagnostic_count_after != diagnostic_count + 1u ||
       diagnostic == NULL || diagnostic->code != test_case->diagnostic_code ||
       !string_equal(diagnostic->path, path) ||
       (expected_line == 0u ? diagnostic->line == 0u
@@ -1514,10 +1553,7 @@ static int expect_frontend_failure_at_message(
                              : diagnostic->column != expected_column) ||
       (expected_message != NULL &&
        !string_equal(diagnostic->message, expected_message)) ||
-      arena_marks_equal(mark,
-                        ctool_arena_mark(ctool_job_arena(fixture->job))) == 0 ||
-      memcmp(snapshot, tape.tokens, token_bytes) != 0 ||
-      validate_anchor(fixture) != 0) {
+      arena_unchanged == 0 || tape_unchanged == 0 || anchor_valid == 0) {
     (void)fprintf(stderr,
                   "%s: %s expected %s/0x%08x transactionally, got %s",
                   fixture->mode, test_case->name,
@@ -1525,7 +1561,17 @@ static int expect_frontend_failure_at_message(
                   test_case->diagnostic_code, ctool_status_name(status));
     if (diagnostic != NULL) {
       (void)fprintf(stderr, "/0x%08x", diagnostic->code);
+      (void)fprintf(stderr, " at %.*s:%u:%u: %.*s",
+                    (int)diagnostic->path.size, diagnostic->path.data,
+                    diagnostic->line, diagnostic->column,
+                    (int)diagnostic->message.size,
+                    diagnostic->message.data);
     }
+    (void)fprintf(stderr,
+                  " (diagnostics +%u, unit_zero=%d, arena_unchanged=%d, "
+                  "tape_unchanged=%d, anchor_valid=%d)",
+                  diagnostic_count_after - diagnostic_count, unit_zero,
+                  arena_unchanged, tape_unchanged, anchor_valid);
     (void)fprintf(stderr, "\n");
     failed = 1;
   }
@@ -1855,8 +1901,8 @@ static int run_attributes(const char *host_root) {
        "__attribute__((aligned(16))) struct misplaced_record { int value; };\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"attributed body",
-       "void attributed_body(void) __attribute__((noreturn)) { }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED}};
+       "void attributed_body(void) __attribute__((noreturn)) { return; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT}};
   static const frontend_failure_case_t disabled_case = {
       "disabled GNU attribute",
       "unsigned int disabled __attribute__((aligned(8)));\n",
@@ -2472,8 +2518,8 @@ static int run_attributes(const char *host_root) {
                            forced_includes) != 0) {
     goto cleanup;
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/core/process.h", NULL, &unit) !=
-      0) {
+  if (parse_loaded_fixture(&fixture, "/kernel/core/process.h", NULL, 0u,
+                           &unit) != 0) {
     goto cleanup;
   }
   {
@@ -2501,7 +2547,7 @@ static int run_attributes(const char *host_root) {
     }
   }
   if (parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "_Static_assert",
-                           &unit) != 0) {
+                           0u, &unit) != 0) {
     goto cleanup;
   }
   {
@@ -2528,7 +2574,7 @@ static int run_attributes(const char *host_root) {
       goto cleanup;
     }
   }
-  if (parse_loaded_fixture(&fixture, "/drivers/e1000.c", "e1000_init",
+  if (parse_loaded_fixture(&fixture, "/drivers/e1000.c", "e1000_init", 0u,
                            &unit) != 0) {
     goto cleanup;
   }
@@ -2555,7 +2601,8 @@ static int run_attributes(const char *host_root) {
       }
     }
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/cpu/idt.h", NULL, &unit) != 0) {
+  if (parse_loaded_fixture(&fixture, "/kernel/cpu/idt.h", NULL, 0u, &unit) !=
+      0) {
     goto cleanup;
   }
   {
@@ -2579,7 +2626,8 @@ static int run_attributes(const char *host_root) {
       }
     }
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.h", NULL, &unit) != 0) {
+  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.h", NULL, 0u, &unit) !=
+      0) {
     goto cleanup;
   }
   for (active_index = 0u; active_index < ARRAY_COUNT(exec_types);
@@ -2600,8 +2648,8 @@ static int run_attributes(const char *host_root) {
       goto cleanup;
     }
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/core/panic.h", NULL, &unit) !=
-      0) {
+  if (parse_loaded_fixture(&fixture, "/kernel/core/panic.h", NULL, 0u,
+                           &unit) != 0) {
     goto cleanup;
   }
   {
@@ -2909,7 +2957,7 @@ static int run_static_asserts(const char *host_root) {
   }
   if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
                            forced_includes) != 0 ||
-      parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "static",
+      parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "static", 0u,
                            &unit) != 0) {
     goto cleanup;
   }
@@ -2928,7 +2976,7 @@ static int run_static_asserts(const char *host_root) {
     }
   }
   if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.c",
-                           "elf_image_regions", &unit) != 0) {
+                           "elf_image_regions", 0u, &unit) != 0) {
     goto cleanup;
   }
   {
@@ -3008,6 +3056,576 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("static-asserts: ok\n");
+  }
+  return failed;
+}
+
+static int validate_debug_body_unit(const ctool_c_translation_unit_t *unit) {
+  const ctool_u32 definition_bindings[] = {69u, 70u};
+  const ctool_u32 definition_types[] = {80u, 88u};
+  const ctool_u32 definition_bodies[] = {3u, 7u};
+  const ctool_u32 definition_lines[] = {8u, 15u};
+  ctool_u32 identifier_count = 0u;
+  ctool_u32 parameter_count = 0u;
+  ctool_u32 string_count = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 conversion_count = 0u;
+  ctool_u32 index;
+  if (unit->graph.type_count != 94u || unit->graph.member_count != 37u ||
+      unit->parameter_count != 19u || unit->binding_count != 71u ||
+      unit->tag_count != 1u || unit->function_definition_count != 2u ||
+      unit->statement_count != 8u || unit->statement_child_count != 6u ||
+      unit->expression_count != 32u || unit->expression_child_count != 26u ||
+      find_binding_index(unit, "print") != 21u ||
+      find_binding_index(unit, "print_int") != 60u ||
+      find_binding_index(unit, "print_hex") != 62u ||
+      find_binding_index(unit, "debug_print_int") != 69u ||
+      find_binding_index(unit, "debug_print_hex") != 70u) {
+    (void)fprintf(stderr,
+                  "function-bodies: unchanged debug inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_statement_t *body =
+        definition->body < unit->statement_count
+            ? &unit->statements[definition->body]
+            : NULL;
+    const ctool_c_type_node_t *function =
+        type_node(unit, definition->declared_type);
+    if (definition->binding != definition_bindings[index] ||
+        definition->declared_type != definition_types[index] ||
+        definition->body != definition_bodies[index] ||
+        definition->storage != CTOOL_C_STORAGE_STATIC ||
+        definition->function_declaration_flags !=
+            CTOOL_C_FUNCTION_DECL_INLINE ||
+        definition->location.line != definition_lines[index] ||
+        definition->location.column != 20u ||
+        !dual_location_matches(&definition->location,
+                               &definition->physical_location,
+                               "/kernel/core/debug.h",
+                               definition_lines[index]) ||
+        body == NULL || body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+        body->location.line != definition_lines[index] ||
+        body->location.column != 71u || body->child_count != 3u ||
+        function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+        function->referenced_type != 20u || function->parameter_count != 2u ||
+        function->first_parameter + 1u >= unit->parameter_count ||
+        !string_equal(unit->parameters[function->first_parameter].name,
+                      "label") ||
+        !string_equal(unit->parameters[function->first_parameter + 1u].name,
+                      "value") ||
+        unit->parameters[function->first_parameter].storage !=
+            CTOOL_C_STORAGE_NONE ||
+        unit->parameters[function->first_parameter + 1u].storage !=
+            CTOOL_C_STORAGE_NONE) {
+      (void)fprintf(stderr,
+                    "function-bodies: unchanged debug definition %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (!dual_location_matches(&expression->location,
+                               &expression->physical_location,
+                               "/kernel/core/debug.h",
+                               expression->location.line)) {
+      (void)fprintf(stderr,
+                    "function-bodies: debug expression location differs\n");
+      return 1;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+      identifier_count++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER) {
+      parameter_count++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_STRING) {
+      const ctool_c_type_node_t *literal = type_node(unit, expression->type);
+      const ctool_c_type_layout_t *layout =
+          type_layout(unit, expression->type);
+      string_count++;
+      if (expression->string_bytes.size != 2u ||
+          expression->string_bytes.data == NULL ||
+          expression->string_bytes.data[0] != (ctool_u8)'\n' ||
+          expression->string_bytes.data[1] != 0u || literal == NULL ||
+          literal->kind != CTOOL_C_TYPE_ARRAY ||
+          literal->element_count != 2u || layout == NULL ||
+          layout->size != 2u || layout->alignment != 1u) {
+        (void)fprintf(stderr,
+                      "function-bodies: debug string literal differs\n");
+        return 1;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      const ctool_c_type_node_t *result = type_node(unit, expression->type);
+      call_count++;
+      if (expression->child_count != 2u || result == NULL ||
+          result->kind != CTOOL_C_TYPE_VOID) {
+        (void)fprintf(stderr, "function-bodies: debug call differs\n");
+        return 1;
+      }
+    } else if (expression->kind ==
+               CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+      const ctool_c_expression_t *child;
+      conversion_count++;
+      if (expression->child_count != 1u ||
+          expression->first_child >= unit->expression_child_count ||
+          unit->expression_children[expression->first_child] >= index) {
+        (void)fprintf(stderr,
+                      "function-bodies: debug conversion differs\n");
+        return 1;
+      }
+      child = &unit->expressions[
+          unit->expression_children[expression->first_child]];
+      if (expression->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+          expression->type != child->type) {
+        (void)fprintf(stderr,
+                      "function-bodies: debug lvalue conversion differs\n");
+        return 1;
+      }
+    } else {
+      (void)fprintf(stderr,
+                    "function-bodies: debug expression kind differs\n");
+      return 1;
+    }
+  }
+  if (identifier_count != 6u || parameter_count != 4u || string_count != 2u ||
+      call_count != 6u || conversion_count != 14u) {
+    (void)fprintf(stderr,
+                  "function-bodies: debug expression inventory differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_qualified_lvalue_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 sink_binding = find_binding_index(unit, "sink");
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_statement_t *body;
+  const ctool_c_statement_t *statement;
+  const ctool_c_expression_t *call;
+  const ctool_c_expression_t *conversion;
+  const ctool_c_expression_t *source;
+  const ctool_c_type_node_t *source_type;
+  const ctool_c_type_node_t *sink_type;
+  ctool_u32 statement_index;
+  ctool_u32 conversion_index;
+  ctool_u32 source_index;
+  ctool_u32 parameter_type;
+  if (sink_binding == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 1u || unit->statement_count != 2u ||
+      unit->statement_child_count != 1u || unit->expression_count != 5u ||
+      unit->expression_child_count != 4u) {
+    (void)fprintf(stderr,
+                  "function-bodies: qualified lvalue inventory differs\n");
+    return 1;
+  }
+  definition = &unit->function_definitions[0];
+  body = definition->body < unit->statement_count
+             ? &unit->statements[definition->body]
+             : NULL;
+  if (body == NULL || body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->child_count != 1u ||
+      body->first_child >= unit->statement_child_count) {
+    (void)fprintf(stderr,
+                  "function-bodies: qualified lvalue body differs\n");
+    return 1;
+  }
+  statement_index = unit->statement_children[body->first_child];
+  statement = statement_index < unit->statement_count
+                  ? &unit->statements[statement_index]
+                  : NULL;
+  call = statement != NULL &&
+                 statement->kind == CTOOL_C_STATEMENT_EXPRESSION &&
+                 statement->expression < unit->expression_count
+             ? &unit->expressions[statement->expression]
+             : NULL;
+  if (call == NULL || call->kind != CTOOL_C_EXPRESSION_CALL ||
+      call->child_count != 2u ||
+      call->first_child > unit->expression_child_count ||
+      call->child_count >
+          unit->expression_child_count - call->first_child) {
+    (void)fprintf(stderr,
+                  "function-bodies: qualified lvalue call differs\n");
+    return 1;
+  }
+  conversion_index = unit->expression_children[call->first_child + 1u];
+  conversion = conversion_index < unit->expression_count
+                   ? &unit->expressions[conversion_index]
+                   : NULL;
+  source_index = conversion != NULL && conversion->child_count == 1u &&
+                         conversion->first_child <
+                             unit->expression_child_count
+                     ? unit->expression_children[conversion->first_child]
+                     : CTOOL_C_AST_NONE;
+  source = source_index < unit->expression_count
+               ? &unit->expressions[source_index]
+               : NULL;
+  source_type = source != NULL ? type_node(unit, source->type) : NULL;
+  sink_type = type_node(unit, unit->bindings[sink_binding].type);
+  parameter_type = sink_type != NULL &&
+                           sink_type->kind == CTOOL_C_TYPE_FUNCTION &&
+                           sink_type->parameter_count == 1u &&
+                           sink_type->first_parameter <
+                               unit->graph.parameter_type_count
+                       ? unit->graph
+                             .parameter_types[sink_type->first_parameter]
+                       : CTOOL_C_AST_NONE;
+  if (conversion == NULL ||
+      conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      conversion->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      source == NULL || source->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+      source_type == NULL || source_type->kind != CTOOL_C_TYPE_QUALIFIED ||
+      source_type->qualifiers !=
+          (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE |
+           CTOOL_C_QUAL_ATOMIC) ||
+      conversion->type != parameter_type || source->type == conversion->type) {
+    (void)fprintf(stderr,
+                  "function-bodies: qualified lvalue conversion differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_function_bodies(const char *host_root) {
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"too few call arguments",
+        "void one(int value);\nvoid bad(void) { one(); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 22u, "function call has too few arguments"},
+      {{"too many call arguments",
+        "void one(int value);\n"
+        "void bad(int value) { one(value, value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 34u, "function call has too many arguments"},
+      {{"variadic call argument boundary",
+        "void variadic(int first, ...);\n"
+        "void bad(int value) { variadic(value, value); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 39u, "variadic call arguments are outside this body slice"},
+      {{"incompatible call argument",
+        "void pointer(const char *value);\n"
+        "void bad(unsigned int value) { pointer(value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 40u,
+       "function call argument is not convertible to parameter type"},
+      {{"undeclared body identifier", "void bad(void) { missing(); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 18u, "expression identifier is not declared"},
+      {{"block declaration boundary", "void bad(void) { int local; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "block declarations are outside this function-body slice"},
+      {{"duplicate function definition",
+        "void duplicate(void) { }\nvoid duplicate(void) { }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       2u, 6u, "function already has a definition"},
+      {{"definition in a declarator list",
+        "void prior(void), bad(void) { }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       1u, 29u,
+       "function definition must be the only declaration declarator"},
+      {{"oversized narrow string escape",
+        "void sink(const char *value);\n"
+        "void bad(void) { sink(\"\\777\"); }\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 23u,
+       "narrow string octal escape exceeds one target byte"}};
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "void print(const char *text, ...);\n"
+      "void print_u32(u32 value);\n"
+      "const char *label;\n"
+      "static inline void helper(const char *old_label, u32 old_value);\n"
+      "static void helper(const char *label, register u32 value) {\n"
+      "  print(label);\n"
+      "  print_u32(value);\n"
+      "  { print(\"\" \"\\n\"); }\n"
+      "}\n";
+  static const char qualified_source[] =
+      "typedef unsigned int u32;\n"
+      "const volatile _Atomic u32 sample;\n"
+      "void sink(u32 value);\n"
+      "void convert(void) { sink(sample); }\n";
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t qualified_unit;
+  ctool_c_translation_unit_t debug_unit;
+  ctool_u32 helper_binding;
+  ctool_u32 print_binding;
+  ctool_u32 print_u32_binding;
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function;
+  const ctool_c_statement_t *body;
+  const ctool_c_expression_t *calls[3];
+  const ctool_c_expression_t *callees[3];
+  const ctool_c_expression_t *arguments[3];
+  ctool_u32 index;
+  ctool_u32 failure_index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "function-bodies", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/function-bodies.c", source, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  helper_binding = find_binding_index(&unit, "helper");
+  print_binding = find_binding_index(&unit, "print");
+  print_u32_binding = find_binding_index(&unit, "print_u32");
+  if (helper_binding == CTOOL_C_AST_NONE ||
+      print_binding == CTOOL_C_AST_NONE ||
+      print_u32_binding == CTOOL_C_AST_NONE ||
+      unit.function_definition_count != 1u || unit.statement_count != 5u ||
+      unit.statement_child_count != 4u || unit.expression_count != 16u ||
+      unit.expression_child_count != 13u) {
+    (void)fprintf(stderr, "function-bodies: AST inventory differs\n");
+    goto cleanup;
+  }
+  definition = &unit.function_definitions[0];
+  function = type_node(&unit, definition->declared_type);
+  body = definition->body < unit.statement_count
+             ? &unit.statements[definition->body]
+             : NULL;
+  if (definition->binding != helper_binding ||
+      definition->storage != CTOOL_C_STORAGE_STATIC ||
+      definition->function_declaration_flags != 0u ||
+      unit.bindings[helper_binding].function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      unit.bindings[helper_binding].location.line != 5u ||
+      definition->location.line != 6u ||
+      function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->parameter_count != 2u ||
+      function->first_parameter > unit.parameter_count ||
+      function->parameter_count >
+          unit.parameter_count - function->first_parameter ||
+      body == NULL || body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > unit.statement_child_count ||
+      body->child_count != 3u ||
+      body->child_count > unit.statement_child_count - body->first_child ||
+      !string_equal(unit.parameters[function->first_parameter].name,
+                    "label") ||
+      !string_equal(unit.parameters[function->first_parameter + 1u].name,
+                    "value") ||
+      unit.parameters[function->first_parameter].storage !=
+          CTOOL_C_STORAGE_NONE ||
+      unit.parameters[function->first_parameter + 1u].storage !=
+          CTOOL_C_STORAGE_REGISTER) {
+    (void)fprintf(stderr,
+                  "function-bodies: definition metadata differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < 3u; index++) {
+    ctool_u32 statement_index =
+        unit.statement_children[body->first_child + index];
+    const ctool_c_statement_t *statement =
+        statement_index < unit.statement_count
+            ? &unit.statements[statement_index]
+            : NULL;
+    if (index == 2u) {
+      if (statement == NULL ||
+          statement->kind != CTOOL_C_STATEMENT_COMPOUND ||
+          statement->child_count != 1u ||
+          statement->first_child >= unit.statement_child_count) {
+        (void)fprintf(stderr,
+                      "function-bodies: nested compound differs\n");
+        goto cleanup;
+      }
+      statement_index = unit.statement_children[statement->first_child];
+      statement = statement_index < unit.statement_count
+                      ? &unit.statements[statement_index]
+                      : NULL;
+    }
+    if (statement == NULL ||
+        statement->kind != CTOOL_C_STATEMENT_EXPRESSION ||
+        statement->expression >= unit.expression_count) {
+      (void)fprintf(stderr,
+                    "function-bodies: expression statement %u differs\n",
+                    index);
+      goto cleanup;
+    }
+    calls[index] = &unit.expressions[statement->expression];
+    if (calls[index]->kind != CTOOL_C_EXPRESSION_CALL ||
+        calls[index]->first_child > unit.expression_child_count ||
+        calls[index]->child_count != 2u ||
+        calls[index]->child_count >
+            unit.expression_child_count - calls[index]->first_child) {
+      (void)fprintf(stderr, "function-bodies: call %u differs\n", index);
+      goto cleanup;
+    }
+    {
+      const ctool_c_expression_t *callee_conversion = &unit.expressions[
+          unit.expression_children[calls[index]->first_child]];
+      const ctool_c_expression_t *argument_conversion = &unit.expressions[
+          unit.expression_children[calls[index]->first_child + 1u]];
+      if (callee_conversion->kind !=
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          callee_conversion->conversion !=
+              CTOOL_C_CONVERSION_FUNCTION_TO_POINTER ||
+          callee_conversion->child_count != 1u ||
+          callee_conversion->first_child >= unit.expression_child_count ||
+          argument_conversion->kind !=
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+        (void)fprintf(stderr,
+                      "function-bodies: call conversion %u differs\n",
+                      index);
+        goto cleanup;
+      }
+      callees[index] = &unit.expressions[unit.expression_children[
+          callee_conversion->first_child]];
+      arguments[index] = argument_conversion;
+      {
+        const ctool_c_type_node_t *converted_callee =
+            type_node(&unit, callee_conversion->type);
+        if (converted_callee == NULL ||
+            converted_callee->kind != CTOOL_C_TYPE_POINTER ||
+            converted_callee->referenced_type != callees[index]->type) {
+          (void)fprintf(stderr,
+                        "function-bodies: callee result type %u differs\n",
+                        index);
+          goto cleanup;
+        }
+      }
+    }
+    if (callees[index]->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+        (index == 1u ? callees[index]->reference != print_u32_binding
+                     : callees[index]->reference != print_binding) ||
+        type_node(&unit, calls[index]->type) == NULL ||
+        type_node(&unit, calls[index]->type)->kind != CTOOL_C_TYPE_VOID) {
+      (void)fprintf(stderr,
+                    "function-bodies: typed callee %u differs\n", index);
+      goto cleanup;
+    }
+  }
+  if (arguments[0]->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      arguments[0]->child_count != 1u ||
+      arguments[1]->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      arguments[1]->child_count != 1u ||
+      arguments[2]->conversion != CTOOL_C_CONVERSION_QUALIFICATION ||
+      arguments[2]->child_count != 1u) {
+    (void)fprintf(stderr,
+                  "function-bodies: argument conversions differ\n");
+    goto cleanup;
+  }
+  {
+    const ctool_c_expression_t *label = &unit.expressions[
+        unit.expression_children[arguments[0]->first_child]];
+    const ctool_c_expression_t *value = &unit.expressions[
+        unit.expression_children[arguments[1]->first_child]];
+    const ctool_c_expression_t *array_decay = &unit.expressions[
+        unit.expression_children[arguments[2]->first_child]];
+    const ctool_c_expression_t *literal;
+    const ctool_c_type_node_t *print_function =
+        type_node(&unit, unit.bindings[print_binding].type);
+    if (label->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        label->reference != function->first_parameter ||
+        value->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        value->reference != function->first_parameter + 1u ||
+        array_decay->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        array_decay->conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+        array_decay->child_count != 1u ||
+        arguments[0]->type != label->type ||
+        arguments[1]->type != value->type || print_function == NULL ||
+        print_function->kind != CTOOL_C_TYPE_FUNCTION ||
+        print_function->parameter_count != 1u ||
+        print_function->variadic != CTOOL_TRUE ||
+        arguments[2]->type !=
+            unit.graph.parameter_types[print_function->first_parameter]) {
+      (void)fprintf(stderr,
+                    "function-bodies: parameter or decay source differs\n");
+      goto cleanup;
+    }
+    literal = &unit.expressions[
+        unit.expression_children[array_decay->first_child]];
+    if (literal->kind != CTOOL_C_EXPRESSION_STRING ||
+        literal->string_bytes.size != 2u ||
+        literal->string_bytes.data == NULL ||
+        literal->string_bytes.data[0] != (ctool_u8)'\n' ||
+        literal->string_bytes.data[1] != 0u) {
+      (void)fprintf(stderr,
+                    "function-bodies: string literal bytes differ\n");
+      goto cleanup;
+    }
+    const ctool_c_type_node_t *literal_type =
+        type_node(&unit, literal->type);
+    const ctool_c_type_layout_t *literal_layout =
+        type_layout(&unit, literal->type);
+    const ctool_c_type_node_t *decayed_type =
+        type_node(&unit, array_decay->type);
+    if (literal_type == NULL || literal_type->kind != CTOOL_C_TYPE_ARRAY ||
+        literal_type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        literal_type->element_count != 2u || literal_layout == NULL ||
+        literal_layout->size != 2u || literal_layout->alignment != 1u ||
+        decayed_type == NULL || decayed_type->kind != CTOOL_C_TYPE_POINTER ||
+        decayed_type->referenced_type != literal_type->referenced_type) {
+      (void)fprintf(stderr,
+                    "function-bodies: string literal type differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(&fixture, "/function-body-qualified.c",
+                          qualified_source, &qualified_unit) != 0 ||
+      validate_qualified_lvalue_unit(&qualified_unit) != 0) {
+    goto cleanup;
+  }
+  {
+    frontend_failure_case_t depth_case;
+    char *depth_source = build_depth_source(
+        "body-call", CTOOL_C_PARSE_NESTING_LIMIT);
+    int depth_failed;
+    if (depth_source == NULL) {
+      (void)fprintf(stderr,
+                    "function-bodies: call-depth source construction failed\n");
+      goto cleanup;
+    }
+    depth_case.name = "call expression at occupied nesting limit";
+    depth_case.source = depth_source;
+    depth_case.status = CTOOL_ERR_LIMIT;
+    depth_case.diagnostic_code = CTOOL_C_PARSE_DIAG_LIMIT;
+    depth_failed = expect_frontend_failure(
+        &fixture, &depth_case, "/function-body-depth.c");
+    free(depth_source);
+    if (depth_failed != 0) {
+      goto cleanup;
+    }
+  }
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      parse_loaded_fixture(&fixture, "/kernel/core/debug.h", NULL, 629u,
+                           &debug_unit) != 0 ||
+      validate_debug_body_unit(&debug_unit) != 0) {
+    goto cleanup;
+  }
+  for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
+       failure_index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[failure_index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/function-body-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0) {
+      goto cleanup;
+    }
+  }
+  if (unit.function_definition_count != 1u ||
+      validate_debug_body_unit(&debug_unit) != 0) {
+    (void)fprintf(stderr,
+                  "function-bodies: prior AST did not survive failures\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("function-bodies: ok\n");
   }
   return failed;
 }
@@ -3523,11 +4141,17 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   const ctool_c_tag_t *tag = find_tag(unit, "OwnedTag");
   const ctool_c_type_node_t *record =
       tag == NULL ? NULL : type_node(unit, tag->type);
+  const ctool_c_function_definition_t *definition =
+      unit->function_definition_count == 1u
+          ? &unit->function_definitions[0]
+          : NULL;
   const ctool_c_type_node_t *function =
-      binding == NULL ? NULL : type_node(unit, binding->type);
+      definition == NULL ? NULL : type_node(unit, definition->declared_type);
   const ctool_c_record_member_t *member;
   const ctool_c_parameter_t *parameter;
+  const ctool_c_expression_t *literal = NULL;
   ctool_u32 member_index = 0u;
+  ctool_u32 index;
 
   member = record == NULL
                ? NULL
@@ -3539,11 +4163,27 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
               1u > unit->parameter_count - function->first_parameter
           ? NULL
           : &unit->parameters[function->first_parameter];
-  if (unit->binding_count != 1u || unit->tag_count != 1u ||
-      unit->graph.member_count != 1u || unit->parameter_count != 1u ||
+  for (index = 0u; index < unit->expression_count; index++) {
+    if (unit->expressions[index].kind == CTOOL_C_EXPRESSION_STRING) {
+      literal = &unit->expressions[index];
+      break;
+    }
+  }
+  if (unit->binding_count != 2u || unit->tag_count != 1u ||
+      unit->graph.member_count != 1u || unit->parameter_count != 2u ||
+      unit->function_definition_count != 1u || unit->statement_count != 2u ||
+      unit->statement_child_count != 1u || unit->expression_count != 6u ||
+      unit->expression_child_count != 5u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
-                             &binding->physical_location, "/borrowed.c", 2u) ||
+                             &binding->physical_location, "/borrowed.c", 3u) ||
+      definition == NULL ||
+      definition->binding != find_binding_index(unit, "owned_function") ||
+      definition->storage != CTOOL_C_STORAGE_STATIC ||
+      definition->function_declaration_flags != CTOOL_C_FUNCTION_DECL_INLINE ||
+      !dual_location_matches(&definition->location,
+                             &definition->physical_location,
+                             "/borrowed.c", 3u) ||
       tag == NULL ||
       !dual_location_matches(&tag->location, &tag->physical_location,
                              "/borrowed.c", 1u) ||
@@ -3555,10 +4195,26 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !string_equal(parameter->name, "owned_parameter") ||
       !dual_location_matches(&parameter->location,
                              &parameter->physical_location, "/borrowed.c",
-                             2u)) {
+                             3u) ||
+      literal == NULL || literal->string_bytes.size != 7u ||
+      literal->string_bytes.data == NULL ||
+      memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
+      !dual_location_matches(&literal->location,
+                             &literal->physical_location, "/borrowed.c",
+                             4u)) {
     (void)fprintf(stderr,
                   "boundaries: copied names or dual locations did not survive\n");
     return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    if (!dual_location_matches(&unit->statements[index].location,
+                               &unit->statements[index].physical_location,
+                               "/borrowed.c",
+                               unit->statements[index].location.line)) {
+      (void)fprintf(stderr,
+                    "boundaries: copied statement locations did not survive\n");
+      return 1;
+    }
   }
   return 0;
 }
@@ -3567,7 +4223,10 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
                             ctool_c_translation_unit_t *unit_out) {
   static const char source[] =
       "struct OwnedTag { int owned_member; };\n"
-      "int owned_function(struct OwnedTag owned_parameter);\n";
+      "void owned_sink(const char *text);\n"
+      "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
+      "  owned_sink(\"owned\\n\");\n"
+      "}\n";
   ctool_c_pp_result_t original;
   ctool_c_pp_result_t borrowed;
   ctool_c_pp_token_t *tokens = NULL;
@@ -3979,8 +4638,9 @@ static int run_boundaries(const char *host_root) {
       "object initializer boundary", "int boundary_object = 1;\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
-      "function body boundary", "int boundary_function(void) { }\n",
-      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
+      "function statement boundary",
+      "int boundary_function(void) { return 0; }\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_PARSE_DIAG_UNSUPPORTED};
@@ -4075,7 +4735,7 @@ static int run_boundaries(const char *host_root) {
                                  "/unsupported-initializer.c", 1u, 21u) !=
           0 ||
       expect_frontend_failure_at(&fixture, &body, "/unsupported-body.c", 1u,
-                                 29u) != 0 ||
+                                 31u) != 0 ||
       expect_frontend_failure_at(&fixture, &layout, "/layout-invalid.c", 1u,
                                  16u) != 0) {
     failed = 1;
@@ -4533,8 +5193,8 @@ static int run_function_specifiers(const char *host_root) {
        1u, 1u, "inline function specifier requires a function declaration"},
       {{"inline function body boundary",
         "static inline int body(void) { return 1; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
-       1u, 30u, "function body parsing is outside the declaration frontend"}};
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 32u, "statement form is outside this function-body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   const ctool_c_binding_t *local_helper;
@@ -5328,6 +5988,33 @@ static char *build_depth_source(const char *kind, ctool_u32 depth) {
       free(text);
       return NULL;
     }
+  } else if (strcmp(kind, "body-call") == 0) {
+    if (append_scale_text(
+            text, capacity, &used,
+            "int id(int value);\nvoid bad(int value) { ") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, "id(") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(text, capacity, &used, "value") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, ")") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(text, capacity, &used, "; }\n") != 0) {
+      free(text);
+      return NULL;
+    }
   } else {
     free(text);
     return NULL;
@@ -5631,6 +6318,7 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                   "fat16|redeclarations|attributes|static-asserts|"
+                  "function-bodies|"
                   "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
@@ -5650,6 +6338,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);
+  }
+  if (strcmp(argv[1], "function-bodies") == 0) {
+    return run_function_bodies(argv[2]);
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);

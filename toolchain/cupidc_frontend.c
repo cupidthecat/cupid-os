@@ -131,6 +131,12 @@ typedef struct {
 } cfront_integer_t;
 
 typedef struct {
+  ctool_u32 expression;
+  ctool_u32 type;
+  ctool_bool is_lvalue;
+} cfront_expression_value_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_c_pp_result_t *tape;
   const ctool_c_parse_request_t *request;
@@ -152,12 +158,19 @@ typedef struct {
   cfront_vector_t prototype_name_marks;
   cfront_vector_t enum_binding_copies;
   cfront_vector_t flexible_seen;
+  cfront_vector_t function_definitions;
+  cfront_vector_t statements;
+  cfront_vector_t statement_children;
+  cfront_vector_t expressions;
+  cfront_vector_t expression_children;
   ctool_u32 syntax_depth;
   ctool_u32 constant_evaluation_suppression_depth;
   ctool_u32 prototype_scope_depth;
   ctool_u32 prototype_binding_mark;
   ctool_u32 prototype_tag_mark;
   ctool_u32 prototype_name_mark;
+  ctool_u32 active_function_type;
+  ctool_bool in_function_body;
   ctool_u32 scalar_types[CTOOL_C_TYPE_LONG_DOUBLE + 1u];
 } cfront_context_t;
 
@@ -434,6 +447,11 @@ static ctool_status_t cfront_type_update(cfront_context_t *context,
 }
 
 static void cfront_close_scratch(cfront_context_t *context) {
+  cfront_vector_close(&context->expression_children);
+  cfront_vector_close(&context->expressions);
+  cfront_vector_close(&context->statement_children);
+  cfront_vector_close(&context->statements);
+  cfront_vector_close(&context->function_definitions);
   cfront_vector_close(&context->flexible_seen);
   cfront_vector_close(&context->enum_binding_copies);
   cfront_vector_close(&context->prototype_name_marks);
@@ -476,6 +494,11 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(prototype_name_marks, ctool_u32)
   CFRONT_OPEN_VECTOR(enum_binding_copies, ctool_c_binding_t)
   CFRONT_OPEN_VECTOR(flexible_seen, ctool_u8)
+  CFRONT_OPEN_VECTOR(function_definitions, ctool_c_function_definition_t)
+  CFRONT_OPEN_VECTOR(statements, ctool_c_statement_t)
+  CFRONT_OPEN_VECTOR(statement_children, ctool_u32)
+  CFRONT_OPEN_VECTOR(expressions, ctool_c_expression_t)
+  CFRONT_OPEN_VECTOR(expression_children, ctool_u32)
 #undef CFRONT_OPEN_VECTOR
   return status;
 }
@@ -2187,7 +2210,7 @@ static ctool_status_t cfront_append_binding(
     const ctool_c_pp_token_t *token,
     const ctool_c_pp_location_t *location,
     const ctool_c_pp_location_t *physical_location, ctool_u64 integer_bits,
-    ctool_bool integer_unsigned) {
+    ctool_bool integer_unsigned, ctool_u32 *binding_out) {
   ctool_c_binding_t existing;
   ctool_c_binding_t binding;
   ctool_u32 existing_index = CFRONT_NONE;
@@ -2260,6 +2283,9 @@ static ctool_status_t cfront_append_binding(
         }
       }
       if (status == CTOOL_OK && compatible == CTOOL_TRUE) {
+        if (binding_out != (ctool_u32 *)0) {
+          *binding_out = existing_index;
+        }
         return CTOOL_OK;
       }
       if (status != CTOOL_OK) {
@@ -2294,8 +2320,7 @@ static ctool_status_t cfront_append_binding(
   }
   binding.integer_bits = integer_bits;
   binding.integer_unsigned = integer_unsigned;
-  return cfront_vector_append(&context->bindings, &binding,
-                              (ctool_u32 *)0);
+  return cfront_vector_append(&context->bindings, &binding, binding_out);
 }
 
 static ctool_bool cfront_find_tag_from(const cfront_context_t *context,
@@ -3709,6 +3734,7 @@ static ctool_status_t cfront_parse_function_suffix_body(
     }
     cfront_zero(&pending, (ctool_u32)sizeof(pending));
     pending.parameter.name = name;
+    pending.parameter.storage = cfront_public_storage(specifiers.storage);
     pending.parameter.location = location;
     pending.parameter.physical_location = physical_location;
     pending.type = adjusted_type;
@@ -4609,6 +4635,909 @@ static ctool_status_t cfront_parse_member_declaration(
   }
 }
 
+static void cfront_expression_init(
+    ctool_c_expression_t *expression, ctool_c_expression_kind_t kind,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  cfront_zero(expression, (ctool_u32)sizeof(*expression));
+  expression->kind = kind;
+  expression->reference = CTOOL_C_AST_NONE;
+  expression->first_child = CTOOL_C_AST_NONE;
+  if (location != (const ctool_c_pp_location_t *)0 &&
+      physical_location != (const ctool_c_pp_location_t *)0) {
+    expression->location = *location;
+    expression->physical_location = *physical_location;
+  }
+}
+
+static void cfront_statement_init(
+    ctool_c_statement_t *statement, ctool_c_statement_kind_t kind,
+    const ctool_c_pp_token_t *token) {
+  cfront_zero(statement, (ctool_u32)sizeof(*statement));
+  statement->kind = kind;
+  statement->first_child = CTOOL_C_AST_NONE;
+  statement->expression = CTOOL_C_AST_NONE;
+  if (token != (const ctool_c_pp_token_t *)0) {
+    statement->location = token->location;
+    statement->physical_location = token->physical_location;
+  }
+}
+
+static ctool_status_t cfront_append_expression(
+    cfront_context_t *context, const ctool_c_expression_t *expression,
+    ctool_u32 *expression_out) {
+  ctool_status_t status = cfront_vector_append(
+      &context->expressions, expression, expression_out);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
+static ctool_status_t cfront_append_statement(
+    cfront_context_t *context, const ctool_c_statement_t *statement,
+    ctool_u32 *statement_out) {
+  ctool_status_t status = cfront_vector_append(
+      &context->statements, statement, statement_out);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
+static ctool_status_t cfront_decode_narrow_string_token(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_buffer_t *bytes) {
+  ctool_u32 index;
+  if (token == (const ctool_c_pp_token_t *)0 ||
+      token->kind != CTOOL_C_PP_TOKEN_STRING || token->spelling.size < 2u ||
+      token->spelling.data[0] != '"' ||
+      token->spelling.data[token->spelling.size - 1u] != '"') {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "only ordinary narrow string literals are supported in bodies");
+  }
+  index = 1u;
+  while (index + 1u < token->spelling.size) {
+    ctool_u32 value = (ctool_u8)token->spelling.data[index++];
+    ctool_status_t status;
+    if (value == (ctool_u32)'\\') {
+      char escaped;
+      if (index >= token->spelling.size - 1u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            "string literal escape is incomplete");
+      }
+      escaped = token->spelling.data[index++];
+      switch (escaped) {
+      case '\'':
+      case '"':
+      case '?':
+      case '\\':
+        value = (ctool_u8)escaped;
+        break;
+      case 'a':
+        value = 7u;
+        break;
+      case 'b':
+        value = 8u;
+        break;
+      case 'f':
+        value = 12u;
+        break;
+      case 'n':
+        value = 10u;
+        break;
+      case 'r':
+        value = 13u;
+        break;
+      case 't':
+        value = 9u;
+        break;
+      case 'v':
+        value = 11u;
+        break;
+      case 'x': {
+        ctool_u32 digit;
+        ctool_bool saw_digit = CTOOL_FALSE;
+        value = 0u;
+        while (index + 1u < token->spelling.size &&
+               cfront_digit_value(token->spelling.data[index], &digit) ==
+                   CTOOL_TRUE) {
+          saw_digit = CTOOL_TRUE;
+          if (value > (255u - digit) / 16u) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_OVERFLOW,
+                CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+                "narrow string hexadecimal escape exceeds one target byte");
+          }
+          value = value * 16u + digit;
+          index++;
+        }
+        if (saw_digit == CTOOL_FALSE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+              token, "string hexadecimal escape requires a digit");
+        }
+        break;
+      }
+      default:
+        if (escaped >= '0' && escaped <= '7') {
+          ctool_u32 count = 1u;
+          value = (ctool_u32)(escaped - '0');
+          while (count < 3u && index + 1u < token->spelling.size &&
+                 token->spelling.data[index] >= '0' &&
+                 token->spelling.data[index] <= '7') {
+            value = value * 8u +
+                    (ctool_u32)(token->spelling.data[index] - '0');
+            index++;
+            count++;
+          }
+          if (value > 255u) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_OVERFLOW,
+                CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+                "narrow string octal escape exceeds one target byte");
+          }
+        } else {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+              token, "string literal escape is unsupported");
+        }
+        break;
+      }
+    }
+    status = ctool_buffer_put_u8(bytes, (ctool_u8)value);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_body_string(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  const ctool_c_pp_token_t *first = cfront_peek(context);
+  const ctool_limits_t *limits = ctool_job_limits(context->job);
+  ctool_buffer_t *decoded = (ctool_buffer_t *)0;
+  ctool_bytes_t decoded_view;
+  ctool_bytes_t owned;
+  ctool_c_type_node_t array;
+  ctool_c_expression_t expression;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_u32 character_type;
+  ctool_u32 array_type;
+  ctool_u32 initial = limits->output_bytes < 64u
+                          ? limits->output_bytes
+                          : 64u;
+  ctool_status_t status = ctool_job_open_buffer(
+      context->job, initial, limits->output_bytes, &decoded);
+  while (status == CTOOL_OK && cfront_peek(context) !=
+                                   (const ctool_c_pp_token_t *)0 &&
+         cfront_peek(context)->kind == CTOOL_C_PP_TOKEN_STRING) {
+    status = cfront_decode_narrow_string_token(context, cfront_peek(context),
+                                               decoded);
+    if (status == CTOOL_OK) {
+      (void)cfront_advance(context);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_u8(decoded, 0u);
+  }
+  decoded_view = status == CTOOL_OK ? ctool_buffer_view(decoded)
+                                    : ctool_bytes((const void *)0, 0u);
+  if (status == CTOOL_OK) {
+    status = ctool_arena_copy_bytes(ctool_job_arena(context->job),
+                                    decoded_view, &owned);
+  }
+  if (decoded != (ctool_buffer_t *)0) {
+    ctool_buffer_close(decoded);
+  }
+  if (status != CTOOL_OK) {
+    if (ctool_job_diagnostic_count(context->job) != diagnostic_count) {
+      return status;
+    }
+    return cfront_storage_failure(context, status);
+  }
+  status = cfront_scalar_type(context, CTOOL_C_TYPE_CHAR, first,
+                              &character_type);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_node_init(&array, CTOOL_C_TYPE_ARRAY, first);
+  array.referenced_type = character_type;
+  array.array_bound_kind = CTOOL_C_ARRAY_FIXED;
+  array.element_count = owned.size;
+  status = cfront_type_append(context, &array, &array_type);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_STRING,
+                         &first->location, &first->physical_location);
+  expression.type = array_type;
+  expression.string_bytes = owned;
+  status = cfront_append_expression(context, &expression,
+                                    &value_out->expression);
+  if (status == CTOOL_OK) {
+    value_out->type = array_type;
+    value_out->is_lvalue = CTOOL_TRUE;
+  }
+  return status;
+}
+
+static ctool_bool cfront_find_active_parameter(
+    const cfront_context_t *context, ctool_string_t name,
+    ctool_u32 *parameter_out, ctool_u32 *type_out) {
+  ctool_c_type_node_t function;
+  ctool_u32 index;
+  if (context->in_function_body == CTOOL_FALSE ||
+      cfront_type_get(context, context->active_function_type, &function) !=
+          CTOOL_OK ||
+      function.kind != CTOOL_C_TYPE_FUNCTION) {
+    return CTOOL_FALSE;
+  }
+  index = function.parameter_count;
+  while (index != 0u) {
+    ctool_c_parameter_t parameter;
+    ctool_u32 parameter_index = function.first_parameter + (index - 1u);
+    ctool_u32 type;
+    if (cfront_vector_get(&context->parameters, parameter_index, &parameter) !=
+            CTOOL_OK ||
+        cfront_vector_get(&context->parameter_types, parameter_index, &type) !=
+            CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_string_equal(parameter.name, name) == CTOOL_TRUE) {
+      *parameter_out = parameter_index;
+      *type_out = type;
+      return CTOOL_TRUE;
+    }
+    index--;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_parse_body_expression(
+    cfront_context_t *context, cfront_expression_value_t *value_out);
+
+static ctool_status_t cfront_parse_body_primary(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  const ctool_c_pp_token_t *token = cfront_peek(context);
+  ctool_c_expression_t expression;
+  ctool_c_binding_t binding;
+  ctool_u32 reference;
+  ctool_u32 type;
+  ctool_status_t status;
+  if (token == (const ctool_c_pp_token_t *)0) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+        "function-body expression is incomplete");
+  }
+  if (token->kind == CTOOL_C_PP_TOKEN_STRING) {
+    return cfront_parse_body_string(context, value_out);
+  }
+  if (token->kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+        "expression form is outside this function-body slice");
+  }
+  (void)cfront_advance(context);
+  if (cfront_find_active_parameter(context, token->spelling, &reference,
+                                   &type) == CTOOL_TRUE) {
+    cfront_expression_init(&expression, CTOOL_C_EXPRESSION_PARAMETER,
+                           &token->location, &token->physical_location);
+    expression.type = type;
+    expression.reference = reference;
+    value_out->is_lvalue = CTOOL_TRUE;
+  } else if (cfront_find_file_binding_index(context, token->spelling,
+                                            &binding, &reference) ==
+             CTOOL_TRUE &&
+             binding.kind != CTOOL_C_BINDING_TYPEDEF) {
+    cfront_expression_init(&expression, CTOOL_C_EXPRESSION_IDENTIFIER,
+                           &token->location, &token->physical_location);
+    expression.type = binding.type;
+    expression.reference = reference;
+    type = binding.type;
+    value_out->is_lvalue =
+        binding.kind == CTOOL_C_BINDING_OBJECT ? CTOOL_TRUE : CTOOL_FALSE;
+  } else {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+        "expression identifier is not declared");
+  }
+  status = cfront_append_expression(context, &expression,
+                                    &value_out->expression);
+  if (status == CTOOL_OK) {
+    value_out->type = type;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_append_conversion(
+    cfront_context_t *context, ctool_c_conversion_kind_t conversion,
+    ctool_u32 target_type, cfront_expression_value_t *value) {
+  ctool_c_expression_t child;
+  ctool_c_expression_t expression;
+  ctool_u32 first_child;
+  ctool_status_t status = cfront_vector_get(
+      &context->expressions, value->expression, &child);
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context), "expression conversion child is unavailable");
+  }
+  status = cfront_vector_append(&context->expression_children,
+                                &value->expression, &first_child);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+                         &child.location, &child.physical_location);
+  expression.type = target_type;
+  expression.first_child = first_child;
+  expression.child_count = 1u;
+  expression.conversion = conversion;
+  status = cfront_append_expression(context, &expression,
+                                    &value->expression);
+  if (status == CTOOL_OK) {
+    value->type = target_type;
+    value->is_lvalue = CTOOL_FALSE;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_pointer_conversion_type(
+    cfront_context_t *context, ctool_u32 referenced,
+    const ctool_c_expression_t *source, ctool_u32 *type_out) {
+  ctool_c_type_node_t pointer;
+  cfront_zero(&pointer, (ctool_u32)sizeof(pointer));
+  pointer.kind = CTOOL_C_TYPE_POINTER;
+  pointer.location = source->location;
+  pointer.physical_location = source->physical_location;
+  pointer.referenced_type = referenced;
+  pointer.array_bound_kind = CTOOL_C_ARRAY_FIXED;
+  pointer.record_kind = CTOOL_C_RECORD_STRUCT;
+  return cfront_type_append(context, &pointer, type_out);
+}
+
+static ctool_status_t cfront_lvalue_conversion_type(
+    cfront_context_t *context, ctool_u32 source_type,
+    ctool_u32 *type_out) {
+  cfront_vector_t alignments;
+  cfront_type_ref_t reference;
+  cfront_type_view_t view;
+  ctool_u32 result = source_type;
+  ctool_bool has_qualifiers = CTOOL_FALSE;
+  ctool_status_t status;
+  cfront_zero(&alignments, (ctool_u32)sizeof(alignments));
+  status = cfront_vector_open(context, &alignments,
+                              (ctool_u32)sizeof(ctool_c_type_node_t));
+  reference.type = source_type;
+  reference.qualifiers = 0u;
+  while (status == CTOOL_OK) {
+    status = cfront_type_view(context, reference, CTOOL_FALSE, &view);
+    if (status != CTOOL_OK) {
+      break;
+    }
+    if (view.qualifiers != 0u) {
+      has_qualifiers = CTOOL_TRUE;
+    }
+    if (view.node.kind != CTOOL_C_TYPE_ALIGNED) {
+      break;
+    }
+    status = cfront_vector_append(&alignments, &view.node,
+                                  (ctool_u32 *)0);
+    reference.type = view.node.referenced_type;
+    reference.qualifiers = 0u;
+  }
+  if (status == CTOOL_OK && has_qualifiers == CTOOL_TRUE) {
+    status = cfront_materialize_view_without_qualifiers(
+        context, &view, CTOOL_C_QUAL_ALL, &result);
+  }
+  while (status == CTOOL_OK && has_qualifiers == CTOOL_TRUE &&
+         alignments.count != 0u) {
+    ctool_c_type_node_t alignment;
+    status = cfront_vector_get(&alignments, alignments.count - 1u,
+                               &alignment);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(&alignments, alignments.count - 1u);
+    }
+    if (status == CTOOL_OK) {
+      alignment.referenced_type = result;
+      alignment.qualifiers = 0u;
+      status = cfront_type_append(context, &alignment, &result);
+    }
+  }
+  cfront_vector_close(&alignments);
+  if (status == CTOOL_OK) {
+    *type_out = result;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_apply_default_conversion(
+    cfront_context_t *context, cfront_expression_value_t *value) {
+  ctool_c_expression_t source;
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 target_type;
+  ctool_status_t status = cfront_vector_get(
+      &context->expressions, value->expression, &source);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(context, value->type, &base, &qualifiers,
+                                    &node);
+  }
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context), "expression conversion type is unavailable");
+  }
+  if (node.kind == CTOOL_C_TYPE_ARRAY) {
+    status = cfront_pointer_conversion_type(
+        context, node.referenced_type, &source, &target_type);
+    return status == CTOOL_OK
+               ? cfront_append_conversion(
+                     context, CTOOL_C_CONVERSION_ARRAY_TO_POINTER,
+                     target_type, value)
+               : cfront_storage_failure(context, status);
+  }
+  if (node.kind == CTOOL_C_TYPE_FUNCTION) {
+    status = cfront_pointer_conversion_type(context, value->type, &source,
+                                            &target_type);
+    return status == CTOOL_OK
+               ? cfront_append_conversion(
+                     context, CTOOL_C_CONVERSION_FUNCTION_TO_POINTER,
+                     target_type, value)
+               : cfront_storage_failure(context, status);
+  }
+  if (value->is_lvalue == CTOOL_TRUE) {
+    status = cfront_lvalue_conversion_type(context, value->type,
+                                           &target_type);
+    if (status != CTOOL_OK) {
+      if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+          status == CTOOL_ERR_NO_MEMORY) {
+        return cfront_storage_failure(context, status);
+      }
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "lvalue conversion type is unavailable");
+    }
+    return cfront_append_conversion(
+        context, CTOOL_C_CONVERSION_LVALUE_TO_VALUE, target_type, value);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_apply_parameter_conversion(
+    cfront_context_t *context, ctool_u32 parameter_type,
+    const ctool_c_pp_token_t *argument_token,
+    cfront_expression_value_t *argument) {
+  ctool_bool compatible = CTOOL_FALSE;
+  ctool_status_t status = cfront_types_compatible(
+      context, parameter_type, argument->type, &compatible);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (compatible == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  {
+    ctool_c_type_node_t parameter_node;
+    ctool_c_type_node_t argument_node;
+    ctool_u32 parameter_base;
+    ctool_u32 argument_base;
+    ctool_u32 parameter_qualifiers;
+    ctool_u32 argument_qualifiers;
+    status = cfront_underlying_type(
+        context, parameter_type, &parameter_base, &parameter_qualifiers,
+        &parameter_node);
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, argument->type, &argument_base, &argument_qualifiers,
+          &argument_node);
+    }
+    (void)parameter_base;
+    (void)argument_base;
+    (void)parameter_qualifiers;
+    (void)argument_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          argument_token, "call argument type is unavailable");
+    }
+    if (parameter_node.kind == CTOOL_C_TYPE_POINTER &&
+        argument_node.kind == CTOOL_C_TYPE_POINTER) {
+      ctool_c_type_node_t parameter_referent;
+      ctool_c_type_node_t argument_referent;
+      ctool_u32 parameter_referent_base;
+      ctool_u32 argument_referent_base;
+      ctool_u32 parameter_referent_qualifiers;
+      ctool_u32 argument_referent_qualifiers;
+      status = cfront_underlying_type(
+          context, parameter_node.referenced_type, &parameter_referent_base,
+          &parameter_referent_qualifiers, &parameter_referent);
+      if (status == CTOOL_OK) {
+        status = cfront_underlying_type(
+            context, argument_node.referenced_type, &argument_referent_base,
+            &argument_referent_qualifiers, &argument_referent);
+      }
+      (void)parameter_referent;
+      (void)argument_referent;
+      if (status == CTOOL_OK) {
+        status = cfront_types_compatible(
+            context, parameter_referent_base, argument_referent_base,
+            &compatible);
+      }
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (compatible == CTOOL_TRUE &&
+          (argument_referent_qualifiers &
+           ~parameter_referent_qualifiers) == 0u) {
+        return cfront_append_conversion(
+            context, CTOOL_C_CONVERSION_QUALIFICATION, parameter_type,
+            argument);
+      }
+    }
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      argument_token,
+      "function call argument is not convertible to parameter type");
+}
+
+static ctool_status_t cfront_parse_body_call(
+    cfront_context_t *context, cfront_expression_value_t *value) {
+  while (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+    ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+    const ctool_c_pp_token_t *open = cfront_advance(context);
+    cfront_vector_t children;
+    ctool_c_type_node_t pointer;
+    ctool_c_type_node_t function;
+    ctool_u32 pointer_base;
+    ctool_u32 pointer_qualifiers;
+    ctool_u32 function_base;
+    ctool_u32 function_qualifiers;
+    ctool_u32 argument_count = 0u;
+    ctool_u32 first_child;
+    ctool_u32 child_index;
+    ctool_status_t status;
+    cfront_zero(&children, (ctool_u32)sizeof(children));
+    status = cfront_apply_default_conversion(context, value);
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, value->type, &pointer_base, &pointer_qualifiers, &pointer);
+    }
+    (void)pointer_base;
+    (void)pointer_qualifiers;
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (pointer.kind != CTOOL_C_TYPE_POINTER ||
+        cfront_underlying_type(context, pointer.referenced_type,
+                               &function_base, &function_qualifiers,
+                               &function) != CTOOL_OK ||
+        function.kind != CTOOL_C_TYPE_FUNCTION) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, open,
+          "called expression does not have function or function-pointer type");
+    }
+    (void)function_base;
+    (void)function_qualifiers;
+    if (function.has_prototype == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          open, "calls without a prototype are outside this body slice");
+    }
+    status = cfront_enter_syntax(context, open);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = cfront_vector_open(context, &children,
+                                (ctool_u32)sizeof(ctool_u32));
+    if (status == CTOOL_OK) {
+      status = cfront_vector_append(&children, &value->expression,
+                                    (ctool_u32 *)0);
+    }
+    while (status == CTOOL_OK &&
+           cfront_peek_is(context, ")") == CTOOL_FALSE) {
+      const ctool_c_pp_token_t *argument_token = cfront_peek(context);
+      cfront_expression_value_t argument;
+      ctool_u32 parameter_type;
+      cfront_zero(&argument, (ctool_u32)sizeof(argument));
+      status = cfront_parse_body_expression(context, &argument);
+      if (status == CTOOL_OK) {
+        status = cfront_apply_default_conversion(context, &argument);
+      }
+      if (status == CTOOL_OK && argument_count < function.parameter_count) {
+        status = cfront_vector_get(
+            &context->parameter_types,
+            function.first_parameter + argument_count, &parameter_type);
+        if (status == CTOOL_OK) {
+          status = cfront_apply_parameter_conversion(
+              context, parameter_type, argument_token, &argument);
+        }
+      } else if (status == CTOOL_OK) {
+        status = cfront_emit_failure(
+            context,
+            function.variadic == CTOOL_TRUE ? CTOOL_ERR_UNSUPPORTED
+                                             : CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, argument_token,
+            function.variadic == CTOOL_TRUE
+                ? "variadic call arguments are outside this body slice"
+                : "function call has too many arguments");
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_vector_append(&children, &argument.expression,
+                                      (ctool_u32 *)0);
+      }
+      if (status == CTOOL_OK) {
+        argument_count++;
+        if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_TRUE) {
+            status = cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+                cfront_peek(context),
+                "function call requires an argument after comma");
+          }
+        } else {
+          break;
+        }
+      }
+    }
+    if (status == CTOOL_OK && argument_count < function.parameter_count) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          cfront_peek(context), "function call has too few arguments");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+    first_child = context->expression_children.count;
+    for (child_index = 0u;
+         status == CTOOL_OK && child_index < children.count; child_index++) {
+      ctool_u32 child;
+      status = cfront_vector_get(&children, child_index, &child);
+      if (status == CTOOL_OK) {
+        status = cfront_vector_append(&context->expression_children, &child,
+                                      (ctool_u32 *)0);
+      }
+    }
+    if (status == CTOOL_OK) {
+      ctool_c_expression_t expression;
+      cfront_expression_init(&expression, CTOOL_C_EXPRESSION_CALL,
+                             &open->location, &open->physical_location);
+      expression.type = function.referenced_type;
+      expression.first_child = first_child;
+      expression.child_count = children.count;
+      status = cfront_append_expression(context, &expression,
+                                        &value->expression);
+      if (status == CTOOL_OK) {
+        value->type = function.referenced_type;
+        value->is_lvalue = CTOOL_FALSE;
+      }
+    }
+    cfront_vector_close(&children);
+    cfront_leave_syntax(context);
+    if (status != CTOOL_OK) {
+      if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+          status == CTOOL_ERR_NO_MEMORY) {
+        if (ctool_job_diagnostic_count(context->job) != diagnostic_count) {
+          return status;
+        }
+        return cfront_storage_failure(context, status);
+      }
+      return status;
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_body_expression(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  ctool_status_t status = cfront_parse_body_primary(context, value_out);
+  return status == CTOOL_OK ? cfront_parse_body_call(context, value_out)
+                            : status;
+}
+
+static ctool_bool cfront_body_statement_keyword(
+    const cfront_context_t *context) {
+  static const char *const keywords[] = {
+      "break", "case", "continue", "default", "do", "for", "goto",
+      "if", "return", "switch", "while"};
+  ctool_u32 index;
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(keywords) / sizeof(keywords[0])); index++) {
+    if (cfront_peek_is(context, keywords[index]) == CTOOL_TRUE) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_parse_compound_statement(
+    cfront_context_t *context, ctool_u32 *statement_out);
+
+static ctool_status_t cfront_parse_body_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *first = cfront_peek(context);
+  cfront_expression_value_t value;
+  ctool_c_statement_t statement;
+  ctool_status_t status;
+  if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
+    return cfront_parse_compound_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE ||
+      cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
+        "block declarations are outside this function-body slice");
+  }
+  if (cfront_body_statement_keyword(context) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
+        "statement form is outside this function-body slice");
+  }
+  cfront_zero(&value, (ctool_u32)sizeof(value));
+  status = cfront_parse_body_expression(context, &value);
+  if (status == CTOOL_OK && cfront_peek_is(context, ";") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        cfront_peek(context),
+        "expression operator is outside this function-body slice");
+  }
+  if (status == CTOOL_OK) {
+    (void)cfront_advance(context);
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_EXPRESSION, first);
+    statement.expression = value.expression;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_compound_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *open = cfront_peek(context);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  cfront_vector_t children;
+  ctool_u32 first_child;
+  ctool_u32 index;
+  ctool_status_t status = cfront_enter_syntax(context, open);
+  cfront_zero(&children, (ctool_u32)sizeof(children));
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_expected(context, "{");
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &children, (ctool_u32)sizeof(ctool_u32));
+  }
+  while (status == CTOOL_OK && cfront_peek_is(context, "}") == CTOOL_FALSE) {
+    ctool_u32 child;
+    if (cfront_peek(context) == (const ctool_c_pp_token_t *)0) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, open,
+          "function compound statement is unterminated");
+      break;
+    }
+    status = cfront_parse_body_statement(context, &child);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_append(&children, &child, (ctool_u32 *)0);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, "}");
+  }
+  first_child = context->statement_children.count;
+  for (index = 0u; status == CTOOL_OK && index < children.count; index++) {
+    ctool_u32 child;
+    status = cfront_vector_get(&children, index, &child);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_append(&context->statement_children, &child,
+                                    (ctool_u32 *)0);
+    }
+  }
+  if (status == CTOOL_OK) {
+    ctool_c_statement_t statement;
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_COMPOUND, open);
+    statement.first_child = first_child;
+    statement.child_count = children.count;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  cfront_vector_close(&children);
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY) &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_function_definition(
+    cfront_context_t *context, ctool_u32 binding, ctool_u32 declared_type,
+    cfront_storage_t storage, ctool_u32 function_declaration_flags,
+    const ctool_c_pp_token_t *name_token,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  ctool_c_type_node_t function;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 index;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_u32 previous_type = context->active_function_type;
+  ctool_bool previous_in_body = context->in_function_body;
+  ctool_status_t status = cfront_underlying_type(
+      context, declared_type, &base, &qualifiers, &function);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK || function.kind != CTOOL_C_TYPE_FUNCTION) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
+        "function definition requires a function declarator");
+  }
+  if (function.has_prototype == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
+        "old-style function definitions are outside this body slice");
+  }
+  for (index = 0u; index < context->function_definitions.count; index++) {
+    ctool_c_function_definition_t existing;
+    if (cfront_vector_get(&context->function_definitions, index, &existing) !=
+        CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition table is unavailable");
+    }
+    if (existing.binding == binding) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT,
+          CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
+          "function already has a definition");
+    }
+  }
+  for (index = 0u; index < function.parameter_count; index++) {
+    ctool_c_parameter_t parameter;
+    if (cfront_vector_get(&context->parameters,
+                          function.first_parameter + index, &parameter) !=
+        CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition parameter is unavailable");
+    }
+    if (parameter.name.size == 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT,
+          CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
+          "function definition parameters require identifiers");
+    }
+  }
+  context->active_function_type = declared_type;
+  context->in_function_body = CTOOL_TRUE;
+  status = cfront_parse_compound_statement(context, &body);
+  context->active_function_type = previous_type;
+  context->in_function_body = previous_in_body;
+  if (status == CTOOL_OK) {
+    ctool_c_function_definition_t definition;
+    cfront_zero(&definition, (ctool_u32)sizeof(definition));
+    definition.binding = binding;
+    definition.declared_type = declared_type;
+    definition.storage = cfront_public_storage(storage);
+    definition.function_declaration_flags = function_declaration_flags;
+    definition.body = body;
+    definition.location = *location;
+    definition.physical_location = *physical_location;
+    status = cfront_vector_append(&context->function_definitions,
+                                  &definition, (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_external_declaration(
     cfront_context_t *context) {
   const ctool_c_pp_token_t *declaration_token = cfront_peek(context);
@@ -4658,6 +5587,7 @@ static ctool_status_t cfront_parse_external_declaration(
     (void)cfront_advance(context);
     return CTOOL_OK;
   }
+  ctool_bool has_prior_declarator = CTOOL_FALSE;
   for (;;) {
     ctool_u32 root = CFRONT_NONE;
     ctool_u32 type = CFRONT_NONE;
@@ -4665,6 +5595,7 @@ static ctool_status_t cfront_parse_external_declaration(
     ctool_c_pp_location_t location;
     ctool_c_pp_location_t physical_location;
     ctool_c_binding_kind_t kind;
+    ctool_u32 binding_index = CFRONT_NONE;
     ctool_c_type_node_t type_node;
     ctool_u32 type_base;
     ctool_u32 type_qualifiers;
@@ -4713,12 +5644,6 @@ static ctool_status_t cfront_parse_external_declaration(
           cfront_peek(context),
           "object initializer parsing is outside the declaration frontend");
     }
-    if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
-          cfront_peek(context),
-          "function body parsing is outside the declaration frontend");
-    }
     status = cfront_underlying_type(context, type, &type_base,
                                     &type_qualifiers, &type_node);
     (void)type_base;
@@ -4761,14 +5686,33 @@ static ctool_status_t cfront_parse_external_declaration(
     status = cfront_append_binding(
         context, kind, cfront_public_storage(specifiers.storage), name, type,
         binding_semantics, name_token, &location, &physical_location, 0ull,
-        CTOOL_FALSE);
+        CTOOL_FALSE, &binding_index);
     if (status != CTOOL_OK) {
       return status;
+    }
+    if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, cfront_peek(context),
+            "function body requires a function declaration");
+      }
+      if (has_prior_declarator == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, cfront_peek(context),
+            "function definition must be the only declaration declarator");
+      }
+      return cfront_parse_function_definition(
+          context, binding_index, type, specifiers.storage,
+          specifiers.function_declaration_flags, name_token, &location,
+          &physical_location);
     }
     (void)location;
     (void)physical_location;
     if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
       (void)cfront_advance(context);
+      has_prior_declarator = CTOOL_TRUE;
       continue;
     }
     return cfront_expected(context, ";");
@@ -4946,7 +5890,7 @@ static ctool_status_t cfront_enum_type(
           context, CTOOL_C_BINDING_ENUMERATOR, CTOOL_C_STORAGE_NONE,
           enumerator->spelling, enumerator_type, binding_semantics, enumerator,
           &enumerator->location, &enumerator->physical_location, value.bits,
-          cfront_integer_unsigned(value.kind));
+          cfront_integer_unsigned(value.kind), (ctool_u32 *)0);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -5180,6 +6124,12 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   ctool_c_parameter_t *parameters = (ctool_c_parameter_t *)0;
   ctool_c_binding_t *bindings = (ctool_c_binding_t *)0;
   ctool_c_tag_t *tags = (ctool_c_tag_t *)0;
+  ctool_c_function_definition_t *function_definitions =
+      (ctool_c_function_definition_t *)0;
+  ctool_c_statement_t *statements = (ctool_c_statement_t *)0;
+  ctool_u32 *statement_children = (ctool_u32 *)0;
+  ctool_c_expression_t *expressions = (ctool_c_expression_t *)0;
+  ctool_u32 *expression_children = (ctool_u32 *)0;
   ctool_u32 index;
   ctool_status_t status = cfront_alloc_array(
       context, context->types.count, (ctool_u32)sizeof(*types),
@@ -5207,6 +6157,32 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   if (status == CTOOL_OK) {
     status = cfront_alloc_array(context, context->tags.count,
                                 (ctool_u32)sizeof(*tags), (void **)&tags);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(
+        context, context->function_definitions.count,
+        (ctool_u32)sizeof(*function_definitions),
+        (void **)&function_definitions);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->statements.count,
+                                (ctool_u32)sizeof(*statements),
+                                (void **)&statements);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->statement_children.count,
+                                (ctool_u32)sizeof(*statement_children),
+                                (void **)&statement_children);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->expressions.count,
+                                (ctool_u32)sizeof(*expressions),
+                                (void **)&expressions);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->expression_children.count,
+                                (ctool_u32)sizeof(*expression_children),
+                                (void **)&expression_children);
   }
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
@@ -5307,6 +6283,160 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
+  for (index = 0u; index < context->function_definitions.count; index++) {
+    status = cfront_vector_get(&context->function_definitions, index,
+                               &function_definitions[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &function_definitions[index].location,
+          &function_definitions[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &function_definitions[index].physical_location,
+          &function_definitions[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->statements.count; index++) {
+    status = cfront_vector_get(&context->statements, index,
+                               &statements[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(context, &statements[index].location,
+                                          &statements[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &statements[index].physical_location,
+          &statements[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->statement_children.count; index++) {
+    status = cfront_vector_get(&context->statement_children, index,
+                               &statement_children[index]);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->expressions.count; index++) {
+    status = cfront_vector_get(&context->expressions, index,
+                               &expressions[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(context, &expressions[index].location,
+                                          &expressions[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &expressions[index].physical_location,
+          &expressions[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->expression_children.count; index++) {
+    status = cfront_vector_get(&context->expression_children, index,
+                               &expression_children[index]);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->function_definitions.count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &function_definitions[index];
+    if (definition->binding >= context->bindings.count ||
+        definition->declared_type >= context->types.count ||
+        definition->body >= context->statements.count ||
+        statements[definition->body].kind != CTOOL_C_STATEMENT_COMPOUND) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen function definition is invalid");
+    }
+  }
+  for (index = 0u; index < context->statements.count; index++) {
+    const ctool_c_statement_t *statement = &statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
+      ctool_u32 child_index;
+      if (statement->first_child > context->statement_children.count ||
+          statement->child_count >
+              context->statement_children.count - statement->first_child) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen statement child slice is invalid");
+      }
+      for (child_index = 0u; child_index < statement->child_count;
+           child_index++) {
+        if (statement_children[statement->first_child + child_index] >= index) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              cfront_peek(context),
+              "frozen statements are not in postorder");
+        }
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_EXPRESSION) {
+      if (statement->expression >= context->expressions.count) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen expression statement is invalid");
+      }
+    } else {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen statement kind is invalid");
+    }
+  }
+  for (index = 0u; index < context->expressions.count; index++) {
+    const ctool_c_expression_t *expression = &expressions[index];
+    ctool_u32 child_index;
+    if (expression->type >= context->types.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen expression type is invalid");
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+        expression->reference >= context->bindings.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen identifier reference is invalid");
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER &&
+        expression->reference >= context->parameters.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen parameter reference is invalid");
+    }
+    if (expression->child_count != 0u) {
+      if (expression->first_child > context->expression_children.count ||
+          expression->child_count >
+              context->expression_children.count - expression->first_child) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen expression child slice is invalid");
+      }
+      for (child_index = 0u; child_index < expression->child_count;
+           child_index++) {
+        if (expression_children[expression->first_child + child_index] >=
+            index) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              cfront_peek(context),
+              "frozen expressions are not in postorder");
+        }
+      }
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        (expression->child_count != 1u ||
+         expression->conversion == CTOOL_C_CONVERSION_NONE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen implicit conversion is invalid");
+    }
+  }
   if (context->tape->token_count != 0u) {
     status = cfront_copy_location_owned(
         context, &context->tape->tokens[0].location, &unit->graph.location);
@@ -5331,6 +6461,16 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   unit->tag_count = context->tags.count;
   unit->parameters = parameters;
   unit->parameter_count = context->parameters.count;
+  unit->function_definitions = function_definitions;
+  unit->function_definition_count = context->function_definitions.count;
+  unit->statements = statements;
+  unit->statement_count = context->statements.count;
+  unit->statement_children = statement_children;
+  unit->statement_child_count = context->statement_children.count;
+  unit->expressions = expressions;
+  unit->expression_count = context->expressions.count;
+  unit->expression_children = expression_children;
+  unit->expression_child_count = context->expression_children.count;
   return CTOOL_OK;
 }
 
