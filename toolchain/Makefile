@@ -327,6 +327,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) if-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-expressions ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-arithmetic ..
+	$(CUPIDC_FRONTEND_CONTRACT) pointer-comparisons ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-updates ..
 	$(CUPIDC_FRONTEND_CONTRACT) function-specifiers ..
 	$(CUPIDC_FRONTEND_CONTRACT) errors ..

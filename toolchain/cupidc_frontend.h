@@ -209,7 +209,10 @@ typedef enum {
   CTOOL_C_CONVERSION_QUALIFICATION,
   CTOOL_C_CONVERSION_INTEGER_PROMOTION,
   CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
-  CTOOL_C_CONVERSION_ASSIGNMENT
+  CTOOL_C_CONVERSION_ASSIGNMENT,
+  /* Object pointer converted to or from a qualified or unqualified void
+   * pointer for equality or assignment conversion. */
+  CTOOL_C_CONVERSION_POINTER
 } ctool_c_conversion_kind_t;
 
 typedef struct {
@@ -370,7 +373,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * File-scope and static-duration object initializers remain pending. Control
  * statements other than `return`, `if`, `for`, `break`, and `continue`,
  * conditional/comma expressions, pointer
- * comparison and null-pointer-constant conversions, floating arithmetic and
+ * null-pointer-constant conversions, floating arithmetic and
  * non-void conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than

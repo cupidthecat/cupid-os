@@ -366,6 +366,17 @@ static ctool_u32 find_binding_index(const ctool_c_translation_unit_t *unit,
   return CTOOL_C_AST_NONE;
 }
 
+static const ctool_c_block_binding_t *find_block_binding(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    if (string_equal(unit->block_bindings[index].name, name) != 0) {
+      return &unit->block_bindings[index];
+    }
+  }
+  return NULL;
+}
+
 static const ctool_c_type_node_t *
 type_node(const ctool_c_translation_unit_t *unit, ctool_u32 type) {
   return type < unit->graph.type_count ? &unit->graph.types[type] : NULL;
@@ -4361,23 +4372,23 @@ static int validate_scalar_initializer_unit(
   return 0;
 }
 
-static int validate_toolchain_statement_frontier(const char *host_root) {
+static int validate_toolchain_frontier(const char *host_root) {
   static const char *const paths[] = {
       "/toolchain/ctool.c", "/toolchain/cupiddis.c",
       "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
       "/toolchain/cupidc_type.c"};
-  static const ctool_u32 lines[] = {71u, 30u, 152u, 24u, 40u};
-  static const ctool_u32 columns[] = {39u, 19u, 36u, 19u, 14u};
+  static const ctool_u32 lines[] = {71u, 30u, 152u, 51u, 46u};
+  static const ctool_u32 columns[] = {39u, 19u, 36u, 32u, 54u};
   static const ctool_u32 diagnostic_codes[] = {
       CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
-      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_STATEMENT,
       CTOOL_C_PARSE_DIAG_EXPRESSION};
   static const char *const messages[] = {
       "expression operator is outside this function-body slice",
       "non-scalar assignment is outside this function-body slice",
       "expression operator is outside this function-body slice",
-      "non-integer operators are outside this body slice",
-      "non-integer operators are outside this body slice"};
+      "aggregate block object initializers are outside this body slice",
+      "expression operator is outside this function-body slice"};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(paths); index++) {
     ctool_host_adapter_t adapter;
@@ -4396,7 +4407,7 @@ static int validate_toolchain_statement_frontier(const char *host_root) {
     size_t token_bytes;
     int failed = 1;
 
-    if (open_job("if-statements", host_root,
+    if (open_job("pointer-comparisons", host_root,
                  256u * 1024u * 1024u, &adapter, &job) != 0) {
       return 1;
     }
@@ -4421,7 +4432,7 @@ static int validate_toolchain_statement_frontier(const char *host_root) {
     if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
         ctool_job_diagnostic_count(job) != 0u) {
       (void)fprintf(stderr,
-                    "if-statements: prepare frontier %s failed: %s\n",
+                    "pointer-comparisons: prepare frontier %s failed: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
       ctool_job_close(job);
@@ -4450,7 +4461,7 @@ static int validate_toolchain_statement_frontier(const char *host_root) {
     }
     if (failed != 0) {
       (void)fprintf(stderr,
-                    "if-statements: frontier %s differs: %s\n",
+                    "pointer-comparisons: frontier %s differs: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
     }
@@ -5699,7 +5710,6 @@ static int run_if_statements(const char *host_root) {
   }
   if (validate_statement_storage_limit(&fixture, host_root, "if",
                                        "if (1) ;") != 0 ||
-      validate_toolchain_statement_frontier(host_root) != 0 ||
       validate_if_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -7068,6 +7078,17 @@ static ctool_u32 pointer_return_root(const ctool_c_translation_unit_t *unit,
                                                        statement->expression);
 }
 
+static ctool_u32 pointer_function_result_type(
+    const ctool_c_translation_unit_t *unit, const char *function_name) {
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, function_name);
+  const ctool_c_type_node_t *function =
+      definition == NULL ? NULL : type_node(unit, definition->declared_type);
+  return function != NULL && function->kind == CTOOL_C_TYPE_FUNCTION
+             ? function->referenced_type
+             : CTOOL_C_TYPE_NONE;
+}
+
 static const ctool_c_statement_t *pointer_expression_statement(
     const ctool_c_translation_unit_t *unit, const char *function_name) {
   const ctool_c_function_definition_t *definition =
@@ -7872,15 +7893,18 @@ static int validate_pointer_arithmetic_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const subscript_names[] = {
       "read_index", "read_reverse"};
+  static const char *const difference_names[] = {
+      "distance", "atomic_distance", "mixed_atomic_distance"};
   ctool_u32 root = pointer_return_root(unit, "advance");
   ctool_u32 child;
+  ctool_u32 difference_index;
   ctool_u32 subscript_index;
   const ctool_c_expression_t *addition =
       root < unit->expression_count ? &unit->expressions[root] : NULL;
   const ctool_c_expression_t *expression;
   const ctool_c_type_node_t *result =
       addition == NULL ? NULL : type_node(unit, addition->type);
-  if (unit->function_definition_count != 6u || addition == NULL ||
+  if (unit->function_definition_count != 8u || addition == NULL ||
       addition->kind != CTOOL_C_EXPRESSION_BINARY ||
       addition->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
       addition->child_count != 2u || result == NULL ||
@@ -7905,17 +7929,24 @@ static int validate_pointer_arithmetic_unit(
     return 1;
   }
 
-  root = pointer_return_root(unit, "distance");
-  expression =
-      root < unit->expression_count ? &unit->expressions[root] : NULL;
-  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_BINARY ||
-      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
-      expression->child_count != 2u ||
-      scalar_type_kind(unit, expression->type, NULL) !=
-          CTOOL_C_TYPE_SIGNED_INT) {
-    (void)fprintf(stderr,
-                  "pointer-arithmetic: pointer difference AST differs\n");
-    return 1;
+  for (difference_index = 0u;
+       difference_index < ARRAY_COUNT(difference_names);
+       difference_index++) {
+    root = pointer_return_root(unit, difference_names[difference_index]);
+    expression =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    if (expression == NULL ||
+        expression->kind != CTOOL_C_EXPRESSION_BINARY ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+        expression->child_count != 2u ||
+        scalar_type_kind(unit, expression->type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT) {
+      (void)fprintf(
+          stderr,
+          "pointer-arithmetic: pointer difference %u AST differs\n",
+          (unsigned int)difference_index);
+      return 1;
+    }
   }
 
   for (subscript_index = 0u;
@@ -7972,6 +8003,8 @@ static int run_pointer_arithmetic(const char *host_root) {
       "int *advance(int *pointer, int index) { return pointer + index; }\n"
       "int *retreat(int *pointer, short index) { return pointer - index; }\n"
       "int distance(int *end, const int *begin) { return end - begin; }\n"
+      "int atomic_distance(_Atomic int *end, const _Atomic int *begin) { return end - begin; }\n"
+      "int mixed_atomic_distance(_Atomic int *end, const int *begin) { return end - begin; }\n"
       "int read_index(int *pointer, unsigned char index) { return pointer[index:>; }\n"
       "int read_reverse(int *pointer, unsigned char index) { return index<:pointer]; }\n"
       "const int *select_row(const int (*rows)<:4:>, int index) { return rows<:index:>; }\n";
@@ -8046,6 +8079,602 @@ static int run_pointer_arithmetic(const char *host_root) {
   }
   if (failed == 0) {
     (void)printf("pointer-arithmetic: ok\n");
+  }
+  return failed;
+}
+
+static int validate_pointer_comparison_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const struct {
+    const char *name;
+    ctool_c_expression_operator_t operation;
+  } comparison_cases[] = {
+      {"equal_object", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"unequal_qualified", CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL},
+      {"less_object", CTOOL_C_EXPRESSION_OPERATOR_LESS},
+      {"greater_array", CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL},
+      {"equal_function", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_incomplete", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_void", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"unequal_void_reverse", CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL},
+      {"equal_typed_null", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"unequal_typed_null", CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL},
+      {"unequal_record_null", CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL},
+      {"compare_array", CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL},
+      {"compare_function_designator", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"relate_incomplete", CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL},
+      {"relate_void", CTOOL_C_EXPRESSION_OPERATOR_GREATER},
+      {"equal_incomplete_void", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_atomic", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"relate_atomic", CTOOL_C_EXPRESSION_OPERATOR_LESS},
+      {"equal_atomic_void", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_mixed_atomic", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"relate_mixed_atomic", CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL},
+      {"compare_void_call", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"compare_void_nested", CTOOL_C_EXPRESSION_OPERATOR_EQUAL}};
+  static const struct {
+    const char *name;
+    ctool_u32 object_child;
+  } equality_conversion_cases[] = {
+      {"equal_void", 0u},
+      {"unequal_void_reverse", 1u},
+      {"equal_atomic_void", 0u},
+      {"compare_void_call", 0u},
+      {"compare_void_nested", 0u}};
+  static const char *const return_conversion_functions[] = {
+      "object_to_void", "void_to_object", "qualified_object_to_void",
+      "qualified_void_to_object", "incomplete_to_void",
+      "void_to_incomplete", "return_void_call", "return_void_nested"};
+
+  ctool_u32 index;
+  if (unit->function_definition_count !=
+      ARRAY_COUNT(comparison_cases) +
+          ARRAY_COUNT(return_conversion_functions) + 3u) {
+    (void)fprintf(stderr,
+                  "pointer-comparisons: function inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(comparison_cases); index++) {
+    ctool_u32 root =
+        pointer_return_root(unit, comparison_cases[index].name);
+    const ctool_c_expression_t *comparison =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    if (comparison == NULL ||
+        comparison->kind != CTOOL_C_EXPRESSION_BINARY ||
+        comparison->operation != comparison_cases[index].operation ||
+        comparison->child_count != 2u ||
+        scalar_type_kind(unit, comparison->type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: comparison %u differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  {
+    for (index = 0u; index < ARRAY_COUNT(equality_conversion_cases);
+         index++) {
+      ctool_u32 root =
+          pointer_return_root(unit, equality_conversion_cases[index].name);
+      const ctool_c_expression_t *comparison =
+          root < unit->expression_count ? &unit->expressions[root] : NULL;
+      ctool_u32 object_child =
+          comparison == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, comparison,
+                                          equality_conversion_cases[index]
+                                              .object_child);
+      ctool_u32 void_child =
+          comparison == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, comparison,
+                                          1u - equality_conversion_cases[index]
+                                                   .object_child);
+      if (object_child >= unit->expression_count ||
+          void_child >= unit->expression_count ||
+          unit->expressions[object_child].kind !=
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          unit->expressions[object_child].conversion !=
+              CTOOL_C_CONVERSION_POINTER ||
+          unit->expressions[object_child].type !=
+              unit->expressions[void_child].type) {
+        (void)fprintf(
+            stderr,
+            "pointer-comparisons: object to void conversion %u differs\n",
+            (unsigned int)index);
+        return 1;
+      }
+    }
+  }
+  {
+    ctool_u32 root = pointer_return_root(unit, "compare_array");
+    const ctool_c_expression_t *comparison =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    ctool_u32 child =
+        comparison == NULL ? CTOOL_C_AST_NONE
+                           : scalar_expression_child(unit, comparison, 0u);
+    if (child >= unit->expression_count ||
+        scalar_conversion_chain_has(unit, child,
+                                    CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+            CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: array decay differs\n");
+      return 1;
+    }
+    root = pointer_return_root(unit, "compare_function_designator");
+    comparison =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    child = comparison == NULL
+                ? CTOOL_C_AST_NONE
+                : scalar_expression_child(unit, comparison, 0u);
+    if (child >= unit->expression_count ||
+        scalar_conversion_chain_has(
+            unit, child, CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+            CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: function decay differs\n");
+      return 1;
+    }
+  }
+  {
+    for (index = 0u; index < ARRAY_COUNT(return_conversion_functions);
+         index++) {
+      const ctool_c_statement_t *statement =
+          scalar_return_statement(unit, return_conversion_functions[index]);
+      ctool_u32 expected_type = pointer_function_result_type(
+          unit, return_conversion_functions[index]);
+      ctool_u32 root = statement == NULL ? CTOOL_C_AST_NONE
+                                         : statement->expression;
+      const ctool_c_expression_t *conversion =
+          root < unit->expression_count ? &unit->expressions[root] : NULL;
+      if (conversion == NULL ||
+          conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          conversion->conversion != CTOOL_C_CONVERSION_POINTER ||
+          conversion->child_count != 1u ||
+          conversion->type != expected_type) {
+        (void)fprintf(stderr,
+                      "pointer-comparisons: assignment conversion %u differs\n",
+                      (unsigned int)index);
+        return 1;
+      }
+    }
+  }
+  {
+    const ctool_c_block_binding_t *binding =
+        find_block_binding(unit, "converted_object");
+    const ctool_c_expression_t *conversion =
+        binding == NULL || binding->initializer >= unit->expression_count
+            ? NULL
+            : &unit->expressions[binding->initializer];
+    if (conversion == NULL ||
+        conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        conversion->conversion != CTOOL_C_CONVERSION_POINTER ||
+        conversion->child_count != 1u ||
+        conversion->type != binding->type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: initializer conversion differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_statement_t *statement =
+        pointer_expression_statement(unit, "assign_object");
+    const ctool_c_expression_t *assignment =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    ctool_u32 right =
+        assignment == NULL
+            ? CTOOL_C_AST_NONE
+            : scalar_expression_child(unit, assignment, 1u);
+    if (assignment == NULL ||
+        assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+        assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ASSIGN ||
+        assignment->child_count != 2u || right >= unit->expression_count ||
+        unit->expressions[right].kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        unit->expressions[right].conversion != CTOOL_C_CONVERSION_POINTER ||
+        unit->expressions[right].type != assignment->type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: assignment conversion differs\n");
+      return 1;
+    }
+  }
+  {
+    static const char *const typed_null_functions[] = {
+        "equal_typed_null", "unequal_typed_null"};
+    for (index = 0u; index < ARRAY_COUNT(typed_null_functions); index++) {
+      ctool_u32 root =
+          pointer_return_root(unit, typed_null_functions[index]);
+      const ctool_c_expression_t *comparison =
+          root < unit->expression_count ? &unit->expressions[root] : NULL;
+      ctool_u32 pointer_child =
+          comparison == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, comparison, 0u);
+      ctool_u32 cast_child =
+          comparison == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, comparison, 1u);
+      const ctool_c_expression_t *cast =
+          cast_child < unit->expression_count
+              ? &unit->expressions[cast_child]
+              : NULL;
+      const ctool_c_type_node_t *pointer_type =
+          pointer_child < unit->expression_count
+              ? type_node(unit, unit->expressions[pointer_child].type)
+              : NULL;
+      const ctool_c_type_node_t *cast_type =
+          cast == NULL ? NULL : type_node(unit, cast->type);
+      ctool_u32 pointer_qualifiers = 0u;
+      ctool_u32 cast_qualifiers = 0u;
+      ctool_u32 zero_child =
+          cast == NULL ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, cast, 0u);
+      if (pointer_child >= unit->expression_count || cast == NULL ||
+          cast->kind != CTOOL_C_EXPRESSION_CAST ||
+          cast->child_count != 1u || pointer_type == NULL ||
+          pointer_type->kind != CTOOL_C_TYPE_POINTER || cast_type == NULL ||
+          cast_type->kind != CTOOL_C_TYPE_POINTER ||
+          scalar_type_kind(unit, pointer_type->referenced_type,
+                           &pointer_qualifiers) !=
+              scalar_type_kind(unit, cast_type->referenced_type,
+                               &cast_qualifiers) ||
+          pointer_qualifiers != cast_qualifiers ||
+          zero_child >= unit->expression_count ||
+          unit->expressions[zero_child].kind !=
+              CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+          unit->expressions[zero_child].integer_bits != 0ull) {
+        (void)fprintf(stderr,
+                      "pointer-comparisons: typed null %u differs\n",
+                      (unsigned int)index);
+        return 1;
+      }
+    }
+  }
+  {
+    ctool_u32 root = pointer_return_root(unit, "unequal_record_null");
+    const ctool_c_expression_t *comparison =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    ctool_u32 pointer_child =
+        comparison == NULL
+            ? CTOOL_C_AST_NONE
+            : scalar_expression_child(unit, comparison, 0u);
+    ctool_u32 cast_child =
+        comparison == NULL
+            ? CTOOL_C_AST_NONE
+            : scalar_expression_child(unit, comparison, 1u);
+    const ctool_c_expression_t *cast =
+        cast_child < unit->expression_count
+            ? &unit->expressions[cast_child]
+            : NULL;
+    const ctool_c_type_node_t *pointer_type =
+        pointer_child < unit->expression_count
+            ? type_node(unit, unit->expressions[pointer_child].type)
+            : NULL;
+    const ctool_c_type_node_t *cast_type =
+        cast == NULL ? NULL : type_node(unit, cast->type);
+    ctool_u32 zero_child =
+        cast == NULL ? CTOOL_C_AST_NONE
+                     : scalar_expression_child(unit, cast, 0u);
+    if (pointer_child >= unit->expression_count || cast == NULL ||
+        cast->kind != CTOOL_C_EXPRESSION_CAST ||
+        cast->child_count != 1u || pointer_type == NULL ||
+        pointer_type->kind != CTOOL_C_TYPE_POINTER || cast_type == NULL ||
+        cast_type->kind != CTOOL_C_TYPE_POINTER ||
+        pointer_type->referenced_type != cast_type->referenced_type ||
+        zero_child >= unit->expression_count ||
+        unit->expressions[zero_child].kind !=
+            CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+        unit->expressions[zero_child].integer_bits != 0ull) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: record typed null differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_statement_t *statement =
+        pointer_expression_statement(unit, "pass_object");
+    ctool_u32 call_index = statement == NULL ? CTOOL_C_AST_NONE
+                                             : statement->expression;
+    const ctool_c_expression_t *call =
+        call_index < unit->expression_count
+            ? &unit->expressions[call_index]
+            : NULL;
+    ctool_u32 argument =
+        call == NULL ? CTOOL_C_AST_NONE
+                     : scalar_expression_child(unit, call, 1u);
+    const ctool_c_binding_t *consume = find_binding(unit, "consume_void");
+    const ctool_c_type_node_t *function =
+        consume == NULL ? NULL : type_node(unit, consume->type);
+    ctool_u32 expected_type =
+        function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+                function->parameter_count != 1u ||
+                function->first_parameter >= unit->graph.parameter_type_count
+            ? CTOOL_C_TYPE_NONE
+            : unit->graph.parameter_types[function->first_parameter];
+    if (call == NULL || call->kind != CTOOL_C_EXPRESSION_CALL ||
+        argument >= unit->expression_count ||
+        unit->expressions[argument].kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        unit->expressions[argument].conversion !=
+            CTOOL_C_CONVERSION_POINTER ||
+        unit->expressions[argument].type != expected_type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: call conversion differs\n");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_pointer_comparisons(const char *host_root) {
+  static const char source[] =
+      "struct item { int value; };\n"
+      "struct pending;\n"
+      "typedef int callback_t(void);\n"
+      "int equal_object(int *left, int *right) { return left == right; }\n"
+      "int unequal_qualified(const int *left, volatile int *right) { return left != right; }\n"
+      "int less_object(struct item *left, const struct item *right) { return left < right; }\n"
+      "int greater_array(int (*left)[4], int (*right)[4]) { return left >= right; }\n"
+      "int equal_function(callback_t *left, callback_t *right) { return left == right; }\n"
+      "int equal_incomplete(struct pending *left, struct pending *right) { return left == right; }\n"
+      "int equal_void(int *left, const void *right) { return left == right; }\n"
+      "int unequal_void_reverse(const volatile void *left, volatile int *right) { return left != right; }\n"
+      "int equal_typed_null(const char *value) { return value == (const char *)0; }\n"
+      "int unequal_typed_null(void *value) { return value != (void *)0; }\n"
+      "int unequal_record_null(struct item *value) { return value != (struct item *)0; }\n"
+      "int compare_array(int *pointer) { int values[2]; return values != pointer; }\n"
+      "int target(void);\n"
+      "int compare_function_designator(int (*callback)(void)) { return target == callback; }\n"
+      "int relate_incomplete(struct pending *left, struct pending *right) { return left <= right; }\n"
+      "int relate_void(void *left, void *right) { return left > right; }\n"
+      "int equal_incomplete_void(struct pending *left, void *right) { return left == right; }\n"
+      "int equal_atomic(_Atomic int *left, const _Atomic int *right) { return left == right; }\n"
+      "int relate_atomic(_Atomic int *left, volatile _Atomic int *right) { return left < right; }\n"
+      "int equal_atomic_void(_Atomic int *left, void *right) { return left == right; }\n"
+      "int equal_mixed_atomic(_Atomic int *left, const int *right) { return left == right; }\n"
+      "int relate_mixed_atomic(volatile _Atomic int *left, int *right) { return left >= right; }\n"
+      "int make_integer(void);\n"
+      "int compare_void_call(int *pointer) { return pointer == (void *)make_integer(); }\n"
+      "int compare_void_nested(int *pointer, int value) { return pointer == (void *)(value + 1); }\n"
+      "void *object_to_void(int *value) { return value; }\n"
+      "int *void_to_object(void *value) { return value; }\n"
+      "const void *qualified_object_to_void(const int *value) { return value; }\n"
+      "const int *qualified_void_to_object(const void *value) { return value; }\n"
+      "void *incomplete_to_void(struct pending *value) { return value; }\n"
+      "struct pending *void_to_incomplete(void *value) { return value; }\n"
+      "int *return_void_call(void) { return (void *)make_integer(); }\n"
+      "int *return_void_nested(int value) { return (void *)(value + 1); }\n"
+      "void consume_void(void *value);\n"
+      "void pass_object(int *value) { consume_void(value); }\n"
+      "void initialize_object(int *value) { void *converted_object = value; }\n"
+      "void assign_object(void *destination, int *value) { destination = value; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"incompatible pointer equality",
+        "int bad(int *left, long *right) { return left == right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires compatible pointers, an object and void pointer pair, or a null pointer constant"},
+      {{"incompatible pointer relation",
+        "int bad(int *left, long *right) { return left < right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer relational comparison requires compatible object pointer types"},
+      {{"void pointer relation",
+        "int bad(int *left, void *right) { return left <= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer relational comparison requires compatible object pointer types"},
+      {{"function pointer relation",
+        "typedef int callback_t(void); int bad(callback_t *left, callback_t *right) { return left > right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer relational comparison requires compatible object pointer types"},
+      {{"function and void equality",
+        "typedef int callback_t(void); int bad(callback_t *left, void *right) { return left != right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires compatible pointers, an object and void pointer pair, or a null pointer constant"},
+      {{"atomic void equality",
+        "int bad(_Atomic int *left, _Atomic void *right) { return left == right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires compatible pointers, an object and void pointer pair, or a null pointer constant"},
+      {{"object and void-cast null equality",
+        "int bad(int *pointer) { return pointer == (void *)0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"function and void-cast null equality",
+        "typedef int callback_t(void); int bad(callback_t *pointer) { return pointer == (void *)0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"null pointer constant boundary",
+        "int bad(int *pointer) { return pointer == 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer and integer comparison awaits null pointer constant semantics"},
+      {{"nonzero integer constant",
+        "int bad(int *pointer) { return pointer == 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"integer object",
+        "int bad(int *pointer, int value) { return pointer != value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"integer call",
+        "int make_integer(void); int bad(int *pointer) { return pointer == make_integer(); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"nested integer object",
+        "int bad(int *pointer, int value) { return pointer == value + 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"integer assignment",
+        "int bad(int *pointer, int value) { return pointer == (value = 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"integer update",
+        "int bad(int *pointer, int value) { return pointer == value++; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"unevaluated call null boundary",
+        "int make_integer(void); int bad(int *pointer) { return pointer == (0 && make_integer()); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer and integer comparison awaits null pointer constant semantics"},
+      {{"evaluated logical object",
+        "int bad(int *pointer, int value) { return pointer == (value && 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer equality requires a pointer and a null pointer constant"},
+      {{"void-cast unevaluated call null boundary",
+        "int make_integer(void); int bad(int *pointer) { return pointer == (void *)(0 && make_integer()); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"relational pointer and integer",
+        "int bad(int *pointer) { return pointer < 0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer relational comparison requires two pointer operands"},
+      {{"aggregate pointer comparison",
+        "struct value { int member; }; int bad(int *pointer, struct value value) { return pointer == value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "pointer comparison requires two pointer operands"},
+      {{"object qualifier discard",
+        "void *bad(const int *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"void qualifier discard",
+        "int *bad(const void *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic type addition",
+        "_Atomic int *bad(int *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic type removal",
+        "int *bad(_Atomic int *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic object to void",
+        "void *bad(_Atomic int *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"void to atomic object",
+        "_Atomic int *bad(void *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic object to atomic void",
+        "_Atomic void *bad(_Atomic int *value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_TYPE_DIAG_INVALID_TYPE},
+       0u, 0u,
+       "atomic qualified type requires a supported scalar, pointer, or enum type"},
+      {{"atomic void to atomic object",
+        "_Atomic int *bad(_Atomic void *value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_TYPE_DIAG_INVALID_TYPE},
+       0u, 0u,
+       "atomic qualified type requires a supported scalar, pointer, or enum type"},
+      {{"void-cast null to function pointer",
+        "typedef int callback_t(void); callback_t *bad(void) { return (void *)0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"void-cast null to object pointer",
+        "int *bad(void) { return (void *)0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"void-cast null to atomic pointer",
+        "_Atomic int *bad(void) { return (void *)0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "void-cast null pointer constant conversion is outside this expression slice"},
+      {{"initializer qualifier discard",
+        "void bad(const int *value) { void *converted = value; }\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "initializer expression is not convertible to block object type"},
+      {{"function to void conversion",
+        "typedef int callback_t(void); void *bad(callback_t *value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"return null pointer conversion boundary",
+        "int *bad(void) { return 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer null pointer conversion is outside this expression slice"},
+      {{"initializer null pointer conversion boundary",
+        "void bad(void) { int *value = 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer null pointer conversion is outside this expression slice"},
+      {{"assignment null pointer conversion boundary",
+        "void bad(int *value) { value = 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer null pointer conversion is outside this expression slice"},
+      {{"call null pointer conversion boundary",
+        "void consume(int *value); void bad(void) { consume(0); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer null pointer conversion is outside this expression slice"},
+      {{"nonzero integer pointer return",
+        "int *bad(void) { return 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+  };
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "pointer-comparisons", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/pointer-comparisons.c", source, &unit) ==
+          0 &&
+      validate_pointer_comparison_unit(&unit) == 0) {
+    failed = 0;
+  }
+  for (index = 0u; failed == 0 && index < ARRAY_COUNT(failure_cases);
+       index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/pointer-comparison-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_pointer_comparison_unit(&unit) != 0) {
+      failed = 1;
+    }
+  }
+  if (failed == 0 && validate_toolchain_frontier(host_root) != 0) {
+    failed = 1;
+  }
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("pointer-comparisons: ok\n");
   }
   return failed;
 }
@@ -11338,7 +11967,8 @@ int main(int argc, char **argv) {
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
                    "scalar-returns|for-statements|if-statements|"
-                   "pointer-expressions|pointer-arithmetic|scalar-updates|"
+                   "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
+                   "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
@@ -11382,6 +12012,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "pointer-arithmetic") == 0) {
     return run_pointer_arithmetic(argv[2]);
+  }
+  if (strcmp(argv[1], "pointer-comparisons") == 0) {
+    return run_pointer_comparisons(argv[2]);
   }
   if (strcmp(argv[1], "scalar-updates") == 0) {
     return run_scalar_updates(argv[2]);

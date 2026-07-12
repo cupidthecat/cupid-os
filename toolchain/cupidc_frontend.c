@@ -1702,6 +1702,60 @@ static ctool_status_t cfront_types_same(cfront_context_t *context,
 }
 
 typedef struct {
+  ctool_c_type_node_t left;
+  ctool_c_type_node_t right;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_qualifiers;
+  ctool_bool compatible;
+  ctool_bool atomic_match;
+  ctool_bool left_object;
+  ctool_bool right_object;
+} cfront_pointer_pair_t;
+
+static ctool_status_t cfront_classify_pointer_pair(
+    cfront_context_t *context, ctool_u32 left_referent_type,
+    ctool_u32 right_referent_type, cfront_pointer_pair_t *pair_out) {
+  ctool_u32 left_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 right_base = CTOOL_C_TYPE_NONE;
+  ctool_status_t status;
+  cfront_zero(pair_out, (ctool_u32)sizeof(*pair_out));
+  status = cfront_underlying_type(
+      context, left_referent_type, &left_base, &pair_out->left_qualifiers,
+      &pair_out->left);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, right_referent_type, &right_base,
+        &pair_out->right_qualifiers, &pair_out->right);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_types_compatible(context, left_base, right_base,
+                                     &pair_out->compatible);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  pair_out->atomic_match =
+      ((pair_out->left_qualifiers ^ pair_out->right_qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) == 0u
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  pair_out->left_object = pair_out->left.kind != CTOOL_C_TYPE_FUNCTION
+                              ? CTOOL_TRUE
+                              : CTOOL_FALSE;
+  pair_out->right_object = pair_out->right.kind != CTOOL_C_TYPE_FUNCTION
+                               ? CTOOL_TRUE
+                               : CTOOL_FALSE;
+  return CTOOL_OK;
+}
+
+static ctool_bool cfront_pointer_assignment_qualifiers_allowed(
+    const cfront_pointer_pair_t *pair) {
+  return (pair->right_qualifiers & ~pair->left_qualifiers) == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+typedef struct {
   cfront_type_pair_t pair;
   ctool_bool expanded;
   ctool_bool aligned_composite;
@@ -6642,6 +6696,14 @@ static ctool_status_t cfront_require_scalar_value(
           : "non-scalar logical operands are outside this slice");
 }
 
+static ctool_status_t cfront_possible_void_cast_null_pointer_constant(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    ctool_bool *possible_out);
+
+static ctool_status_t cfront_integer_cannot_be_null_pointer_constant(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    ctool_bool *cannot_out);
+
 static ctool_status_t cfront_apply_assignment_conversion(
     cfront_context_t *context, ctool_u32 target_type,
     const ctool_c_pp_token_t *source_token,
@@ -6681,6 +6743,31 @@ static ctool_status_t cfront_apply_assignment_conversion(
   if (same == CTOOL_TRUE) {
     return CTOOL_OK;
   }
+  {
+    ctool_bool possible_void_null = CTOOL_FALSE;
+    ctool_c_type_node_t target_node = {0};
+    ctool_u32 target_base = CTOOL_C_TYPE_NONE;
+    ctool_u32 target_qualifiers = 0u;
+    status = cfront_possible_void_cast_null_pointer_constant(
+        context, value, &possible_void_null);
+    if (status == CTOOL_OK && possible_void_null == CTOOL_TRUE) {
+      status = cfront_underlying_type(
+          context, target_type, &target_base, &target_qualifiers,
+          &target_node);
+    }
+    (void)target_base;
+    (void)target_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (possible_void_null == CTOOL_TRUE &&
+        target_node.kind == CTOOL_C_TYPE_POINTER) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          source_token,
+          "void-cast null pointer constant conversion is outside this expression slice");
+    }
+  }
   status = cfront_integer_type(context, target_type, &target_integer,
                                &target_is_integer);
   if (status == CTOOL_OK) {
@@ -6695,6 +6782,33 @@ static ctool_status_t cfront_apply_assignment_conversion(
   if (target_is_integer == CTOOL_TRUE && source_is_integer == CTOOL_TRUE) {
     return cfront_append_conversion(
         context, CTOOL_C_CONVERSION_ASSIGNMENT, target_type, value);
+  }
+  if (source_is_integer == CTOOL_TRUE) {
+    ctool_c_type_node_t target_node = {0};
+    ctool_u32 target_base = CTOOL_C_TYPE_NONE;
+    ctool_u32 target_qualifiers = 0u;
+    ctool_bool cannot_be_null = CTOOL_FALSE;
+    status = cfront_underlying_type(
+        context, target_type, &target_base, &target_qualifiers,
+        &target_node);
+    (void)target_base;
+    (void)target_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (target_node.kind == CTOOL_C_TYPE_POINTER) {
+      status = cfront_integer_cannot_be_null_pointer_constant(
+          context, value, &cannot_be_null);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cannot_be_null == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, source_token,
+            "integer null pointer conversion is outside this expression slice");
+      }
+    }
   }
   status = cfront_types_compatible(context, target_type, value->type,
                                    &compatible);
@@ -6730,35 +6844,35 @@ static ctool_status_t cfront_apply_assignment_conversion(
     }
     if (parameter_node.kind == CTOOL_C_TYPE_POINTER &&
         argument_node.kind == CTOOL_C_TYPE_POINTER) {
-      ctool_c_type_node_t parameter_referent;
-      ctool_c_type_node_t argument_referent;
-      ctool_u32 parameter_referent_base;
-      ctool_u32 argument_referent_base;
-      ctool_u32 parameter_referent_qualifiers;
-      ctool_u32 argument_referent_qualifiers;
-      status = cfront_underlying_type(
-          context, parameter_node.referenced_type, &parameter_referent_base,
-          &parameter_referent_qualifiers, &parameter_referent);
-      if (status == CTOOL_OK) {
-        status = cfront_underlying_type(
-            context, argument_node.referenced_type, &argument_referent_base,
-            &argument_referent_qualifiers, &argument_referent);
-      }
-      (void)parameter_referent;
-      (void)argument_referent;
-      if (status == CTOOL_OK) {
-        status = cfront_types_compatible(
-            context, parameter_referent_base, argument_referent_base,
-            &compatible);
+      cfront_pointer_pair_t pair;
+      ctool_c_conversion_kind_t pointer_conversion =
+          CTOOL_C_CONVERSION_NONE;
+      status = cfront_classify_pointer_pair(
+          context, parameter_node.referenced_type,
+          argument_node.referenced_type, &pair);
+      if (status == CTOOL_OK && pair.compatible == CTOOL_TRUE &&
+          pair.atomic_match == CTOOL_TRUE) {
+        pointer_conversion = CTOOL_C_CONVERSION_QUALIFICATION;
+      } else if (status == CTOOL_OK &&
+                 pair.atomic_match == CTOOL_TRUE &&
+                 pair.left.kind == CTOOL_C_TYPE_VOID) {
+        if (pair.right_object == CTOOL_TRUE) {
+          pointer_conversion = CTOOL_C_CONVERSION_POINTER;
+        }
+      } else if (status == CTOOL_OK &&
+                 pair.atomic_match == CTOOL_TRUE &&
+                 pair.right.kind == CTOOL_C_TYPE_VOID) {
+        if (pair.left_object == CTOOL_TRUE) {
+          pointer_conversion = CTOOL_C_CONVERSION_POINTER;
+        }
       }
       if (status != CTOOL_OK) {
         return cfront_storage_failure(context, status);
       }
-      if (compatible == CTOOL_TRUE &&
-          (argument_referent_qualifiers &
-           ~parameter_referent_qualifiers) == 0u) {
+      if (pointer_conversion != CTOOL_C_CONVERSION_NONE &&
+          cfront_pointer_assignment_qualifiers_allowed(&pair) == CTOOL_TRUE) {
         return cfront_append_conversion(
-            context, CTOOL_C_CONVERSION_QUALIFICATION, target_type, value);
+            context, pointer_conversion, target_type, value);
       }
     }
   }
@@ -7336,14 +7450,8 @@ static ctool_status_t cfront_prepare_pointer_additive(
   ctool_u32 right_qualifiers = 0u;
   ctool_u32 pointer_type;
   ctool_u32 referent_type;
-  ctool_u32 left_referent_base = CTOOL_C_TYPE_NONE;
-  ctool_u32 right_referent_base = CTOOL_C_TYPE_NONE;
-  ctool_u32 left_referent_qualifiers = 0u;
-  ctool_u32 right_referent_qualifiers = 0u;
-  ctool_c_type_node_t left_referent;
-  ctool_c_type_node_t right_referent;
+  cfront_pointer_pair_t pair;
   cfront_expression_value_t *integer_value;
-  ctool_bool compatible = CTOOL_FALSE;
   ctool_status_t status;
 
   *handled_out = CTOOL_FALSE;
@@ -7407,26 +7515,13 @@ static ctool_status_t cfront_prepare_pointer_additive(
           operator_token,
           "pointer arithmetic requires pointers to complete object types");
     }
-    status = cfront_underlying_type(
-        context, left_node.referenced_type, &left_referent_base,
-        &left_referent_qualifiers, &left_referent);
-    if (status == CTOOL_OK) {
-      status = cfront_underlying_type(
-          context, right_node.referenced_type, &right_referent_base,
-          &right_referent_qualifiers, &right_referent);
-    }
-    (void)left_referent;
-    (void)right_referent;
-    (void)left_referent_qualifiers;
-    (void)right_referent_qualifiers;
-    if (status == CTOOL_OK) {
-      status = cfront_types_compatible(context, left_referent_base,
-                                       right_referent_base, &compatible);
-    }
+    status = cfront_classify_pointer_pair(
+        context, left_node.referenced_type, right_node.referenced_type,
+        &pair);
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
-    if (compatible == CTOOL_FALSE) {
+    if (pair.compatible == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
           operator_token,
@@ -7478,6 +7573,411 @@ static ctool_status_t cfront_prepare_pointer_additive(
     *result_type_out = pointer_type;
   }
   return status;
+}
+
+static ctool_bool cfront_integer_constant_unary_operation(
+    ctool_c_expression_operator_t operation) {
+  return operation == CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_integer_constant_binary_operation(
+    ctool_c_expression_operator_t operation) {
+  switch (operation) {
+  case CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY:
+  case CTOOL_C_EXPRESSION_OPERATOR_DIVIDE:
+  case CTOOL_C_EXPRESSION_OPERATOR_REMAINDER:
+  case CTOOL_C_EXPRESSION_OPERATOR_ADD:
+  case CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT:
+  case CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT:
+  case CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT:
+  case CTOOL_C_EXPRESSION_OPERATOR_LESS:
+  case CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL:
+  case CTOOL_C_EXPRESSION_OPERATOR_GREATER:
+  case CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL:
+  case CTOOL_C_EXPRESSION_OPERATOR_EQUAL:
+  case CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL:
+  case CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND:
+  case CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR:
+  case CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR:
+  case CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND:
+  case CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR:
+    return CTOOL_TRUE;
+  default:
+    return CTOOL_FALSE;
+  }
+}
+
+static ctool_status_t cfront_integer_cannot_be_null_pointer_constant(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    ctool_bool *cannot_out) {
+  cfront_vector_t work;
+  ctool_c_expression_t root = {0};
+  ctool_status_t status = cfront_vector_get(
+      &context->expressions, value->expression, &root);
+  *cannot_out = CTOOL_FALSE;
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (root.kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
+    *cannot_out = root.integer_bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+    return CTOOL_OK;
+  }
+  cfront_zero(&work, (ctool_u32)sizeof(work));
+  status = cfront_vector_open(context, &work, (ctool_u32)sizeof(ctool_u32));
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&work, &value->expression,
+                                  (ctool_u32 *)0);
+  }
+  while (status == CTOOL_OK && work.count != 0u &&
+         *cannot_out == CTOOL_FALSE) {
+    ctool_c_expression_t expression = {0};
+    cfront_integer_type_t integer = {0};
+    ctool_u32 expression_index = CTOOL_C_AST_NONE;
+    ctool_u32 expected_children = 0u;
+    ctool_u32 traversed_children = 0u;
+    ctool_u32 child;
+    ctool_bool is_integer = CTOOL_FALSE;
+    ctool_bool traverse_children = CTOOL_FALSE;
+    status = cfront_vector_get(&work, work.count - 1u,
+                               &expression_index);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(&work, work.count - 1u);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_vector_get(&context->expressions, expression_index,
+                                 &expression);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_integer_type(context, expression.type, &integer,
+                                   &is_integer);
+    }
+    (void)integer;
+    if (status != CTOOL_OK) {
+      break;
+    }
+    if (is_integer == CTOOL_FALSE) {
+      *cannot_out = CTOOL_TRUE;
+      break;
+    }
+    switch (expression.kind) {
+    case CTOOL_C_EXPRESSION_INTEGER_CONSTANT:
+      break;
+    case CTOOL_C_EXPRESSION_IDENTIFIER: {
+      ctool_c_binding_t binding;
+      status = cfront_vector_get(&context->bindings, expression.reference,
+                                 &binding);
+      if (status == CTOOL_OK &&
+          binding.kind != CTOOL_C_BINDING_ENUMERATOR) {
+        *cannot_out = CTOOL_TRUE;
+      }
+      break;
+    }
+    case CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION:
+      if (expression.conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
+        *cannot_out = CTOOL_TRUE;
+      } else {
+        expected_children = 1u;
+        traversed_children = 1u;
+        traverse_children = CTOOL_TRUE;
+      }
+      break;
+    case CTOOL_C_EXPRESSION_UNARY:
+      if (cfront_integer_constant_unary_operation(expression.operation) ==
+          CTOOL_TRUE) {
+        expected_children = 1u;
+        traversed_children = 1u;
+        traverse_children = CTOOL_TRUE;
+      } else {
+        *cannot_out = CTOOL_TRUE;
+      }
+      break;
+    case CTOOL_C_EXPRESSION_BINARY:
+      if (cfront_integer_constant_binary_operation(expression.operation) ==
+          CTOOL_FALSE) {
+        *cannot_out = CTOOL_TRUE;
+      } else if (expression.operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND ||
+                 expression.operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR) {
+        expected_children = 2u;
+        traversed_children = 1u;
+        traverse_children = CTOOL_TRUE;
+      } else {
+        expected_children = 2u;
+        traversed_children = 2u;
+        traverse_children = CTOOL_TRUE;
+      }
+      break;
+    case CTOOL_C_EXPRESSION_CAST:
+      expected_children = 1u;
+      traversed_children = 1u;
+      traverse_children = CTOOL_TRUE;
+      break;
+    default:
+      *cannot_out = CTOOL_TRUE;
+      break;
+    }
+    if (status != CTOOL_OK || traverse_children == CTOOL_FALSE) {
+      continue;
+    }
+    if (expression.child_count != expected_children ||
+        expression.first_child > context->expression_children.count ||
+        expected_children >
+            context->expression_children.count - expression.first_child) {
+      status = CTOOL_ERR_INTERNAL;
+      continue;
+    }
+    for (child = 0u; status == CTOOL_OK && child < traversed_children;
+         child++) {
+      ctool_u32 child_index = CTOOL_C_AST_NONE;
+      status = cfront_vector_get(
+          &context->expression_children, expression.first_child + child,
+          &child_index);
+      if (status == CTOOL_OK) {
+        status = cfront_vector_append(&work, &child_index,
+                                      (ctool_u32 *)0);
+      }
+    }
+  }
+  cfront_vector_close(&work);
+  return status;
+}
+
+static ctool_status_t cfront_possible_void_cast_null_pointer_constant(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    ctool_bool *possible_out) {
+  ctool_c_expression_t cast = {0};
+  ctool_c_expression_t operand = {0};
+  ctool_c_type_node_t pointer = {0};
+  ctool_c_type_node_t referent = {0};
+  cfront_integer_type_t integer = {0};
+  cfront_expression_value_t operand_value;
+  ctool_u32 pointer_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 pointer_qualifiers = 0u;
+  ctool_u32 referent_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 referent_qualifiers = 0u;
+  ctool_u32 operand_index = CTOOL_C_AST_NONE;
+  ctool_bool operand_is_integer = CTOOL_FALSE;
+  ctool_bool cannot_be_null = CTOOL_FALSE;
+  ctool_status_t status = cfront_vector_get(
+      &context->expressions, value->expression, &cast);
+  *possible_out = CTOOL_FALSE;
+  if (status != CTOOL_OK || cast.kind != CTOOL_C_EXPRESSION_CAST ||
+      cast.child_count != 1u) {
+    return status;
+  }
+  status = cfront_underlying_type(
+      context, cast.type, &pointer_base, &pointer_qualifiers, &pointer);
+  if (status != CTOOL_OK || pointer.kind != CTOOL_C_TYPE_POINTER ||
+      pointer_qualifiers != 0u) {
+    return status;
+  }
+  status = cfront_underlying_type(
+      context, pointer.referenced_type, &referent_base, &referent_qualifiers,
+      &referent);
+  if (status != CTOOL_OK || referent.kind != CTOOL_C_TYPE_VOID ||
+      referent_qualifiers != 0u) {
+    return status;
+  }
+  (void)pointer_base;
+  (void)referent_base;
+  status = cfront_vector_get(&context->expression_children,
+                             cast.first_child, &operand_index);
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(&context->expressions, operand_index,
+                               &operand);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, operand.type, &integer,
+                                 &operand_is_integer);
+  }
+  (void)integer;
+  if (status != CTOOL_OK || operand_is_integer == CTOOL_FALSE) {
+    return status;
+  }
+  cfront_zero(&operand_value, (ctool_u32)sizeof(operand_value));
+  operand_value.expression = operand_index;
+  operand_value.type = operand.type;
+  status = cfront_integer_cannot_be_null_pointer_constant(
+      context, &operand_value, &cannot_be_null);
+  if (status == CTOOL_OK && cannot_be_null == CTOOL_FALSE) {
+    *possible_out = CTOOL_TRUE;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_prepare_pointer_comparison(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *left, cfront_expression_value_t *right,
+    ctool_bool *handled_out) {
+  cfront_integer_type_t left_integer;
+  cfront_integer_type_t right_integer;
+  ctool_c_type_node_t left_node;
+  ctool_c_type_node_t right_node;
+  cfront_pointer_pair_t pair;
+  ctool_bool left_is_integer = CTOOL_FALSE;
+  ctool_bool right_is_integer = CTOOL_FALSE;
+  ctool_bool left_is_pointer = CTOOL_FALSE;
+  ctool_bool right_is_pointer = CTOOL_FALSE;
+  ctool_bool left_was_bit_field = left->is_bit_field;
+  ctool_bool right_was_bit_field = right->is_bit_field;
+  ctool_u32 left_bit_width = left->bit_width;
+  ctool_u32 right_bit_width = right->bit_width;
+  ctool_u32 left_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 right_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 left_qualifiers = 0u;
+  ctool_u32 right_qualifiers = 0u;
+  ctool_bool equality =
+      operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+              operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_status_t status;
+
+  *handled_out = CTOOL_FALSE;
+  status = cfront_apply_default_conversion(context, left);
+  if (status == CTOOL_OK) {
+    status = cfront_apply_default_conversion(context, right);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, left->type, &left_integer,
+                                 &left_is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, right->type, &right_integer,
+                                 &right_is_integer);
+  }
+  (void)left_integer;
+  (void)right_integer;
+  if (status == CTOOL_OK && left_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, left->type, &left_base,
+                                    &left_qualifiers, &left_node);
+    if (status == CTOOL_OK && left_node.kind == CTOOL_C_TYPE_POINTER) {
+      left_is_pointer = CTOOL_TRUE;
+    }
+  }
+  if (status == CTOOL_OK && right_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, right->type, &right_base,
+                                    &right_qualifiers, &right_node);
+    if (status == CTOOL_OK && right_node.kind == CTOOL_C_TYPE_POINTER) {
+      right_is_pointer = CTOOL_TRUE;
+    }
+  }
+  (void)left_base;
+  (void)right_base;
+  (void)left_qualifiers;
+  (void)right_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (left_is_pointer == CTOOL_FALSE && right_is_pointer == CTOOL_FALSE) {
+    left->is_bit_field = left_was_bit_field;
+    left->bit_width = left_bit_width;
+    right->is_bit_field = right_was_bit_field;
+    right->bit_width = right_bit_width;
+    return CTOOL_OK;
+  }
+  *handled_out = CTOOL_TRUE;
+  if (left_is_pointer == CTOOL_FALSE || right_is_pointer == CTOOL_FALSE) {
+    if ((left_is_pointer == CTOOL_TRUE && right_is_integer == CTOOL_TRUE) ||
+        (right_is_pointer == CTOOL_TRUE && left_is_integer == CTOOL_TRUE)) {
+      ctool_bool cannot_be_null = CTOOL_FALSE;
+      cfront_expression_value_t *integer_value =
+          left_is_pointer == CTOOL_TRUE ? right : left;
+      if (equality == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            operator_token,
+            "pointer relational comparison requires two pointer operands");
+      }
+      status = cfront_integer_cannot_be_null_pointer_constant(
+          context, integer_value, &cannot_be_null);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cannot_be_null == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            operator_token,
+            "pointer equality requires a pointer and a null pointer constant");
+      }
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer and integer comparison awaits null pointer constant semantics");
+    }
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "pointer comparison requires two pointer operands");
+  }
+  if (equality == CTOOL_TRUE) {
+    ctool_bool left_possible_void_null = CTOOL_FALSE;
+    ctool_bool right_possible_void_null = CTOOL_FALSE;
+    ctool_bool same_pointer_types = CTOOL_FALSE;
+    status = cfront_possible_void_cast_null_pointer_constant(
+        context, left, &left_possible_void_null);
+    if (status == CTOOL_OK) {
+      status = cfront_possible_void_cast_null_pointer_constant(
+          context, right, &right_possible_void_null);
+    }
+    if (status == CTOOL_OK &&
+        (left_possible_void_null == CTOOL_TRUE ||
+         right_possible_void_null == CTOOL_TRUE)) {
+      status = cfront_types_same(context, left->type, right->type,
+                                 &same_pointer_types);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if ((left_possible_void_null == CTOOL_TRUE ||
+         right_possible_void_null == CTOOL_TRUE) &&
+        same_pointer_types == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "void-cast null pointer constant conversion is outside this expression slice");
+    }
+  }
+  status = cfront_classify_pointer_pair(
+      context, left_node.referenced_type, right_node.referenced_type, &pair);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (equality == CTOOL_TRUE) {
+    if (pair.compatible == CTOOL_TRUE) {
+      return CTOOL_OK;
+    }
+    if (pair.left.kind == CTOOL_C_TYPE_VOID &&
+        (pair.left_qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+        pair.right_object == CTOOL_TRUE) {
+      return cfront_append_conversion(
+          context, CTOOL_C_CONVERSION_POINTER, left->type, right);
+    }
+    if (pair.right.kind == CTOOL_C_TYPE_VOID &&
+        (pair.right_qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+        pair.left_object == CTOOL_TRUE) {
+      return cfront_append_conversion(
+          context, CTOOL_C_CONVERSION_POINTER, right->type, left);
+    }
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "pointer equality requires compatible pointers, an object and void pointer pair, or a null pointer constant");
+  }
+  if (pair.compatible == CTOOL_FALSE || pair.left_object == CTOOL_FALSE ||
+      pair.right_object == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "pointer relational comparison requires compatible object pointer types");
+  }
+  return CTOOL_OK;
 }
 
 static ctool_status_t cfront_parse_body_unary(
@@ -7655,7 +8155,7 @@ static ctool_status_t cfront_reduce_body_binary(
   cfront_expression_value_t left;
   cfront_expression_value_t right;
   ctool_u32 result_type = CTOOL_C_TYPE_NONE;
-  ctool_bool pointer_addition = CTOOL_FALSE;
+  ctool_bool pointer_operation = CTOOL_FALSE;
   ctool_status_t status;
   cfront_zero(&pending, (ctool_u32)sizeof(pending));
   if (values->count < 2u || operators->count == 0u) {
@@ -7683,15 +8183,19 @@ static ctool_status_t cfront_reduce_body_binary(
   }
   if (pending.descriptor.semantics == CFRONT_BODY_BINARY_ARITHMETIC ||
       pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
-    if (pending.descriptor.semantics == CFRONT_BODY_BINARY_ARITHMETIC &&
-        (pending.descriptor.operation == CTOOL_C_EXPRESSION_OPERATOR_ADD ||
-         pending.descriptor.operation ==
-             CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT)) {
+    if (pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
+      status = cfront_prepare_pointer_comparison(
+          context, pending.token, pending.descriptor.operation, &left,
+          &right, &pointer_operation);
+    } else if (pending.descriptor.operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+               pending.descriptor.operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
       status = cfront_prepare_pointer_additive(
           context, pending.token, pending.descriptor.operation, &left,
-          &right, &pointer_addition, &result_type);
+          &right, &pointer_operation, &result_type);
     }
-    if (status == CTOOL_OK && pointer_addition == CTOOL_FALSE) {
+    if (status == CTOOL_OK && pointer_operation == CTOOL_FALSE) {
       status = cfront_apply_usual_integer_conversions(
           context, pending.token, &left, &right, &result_type);
     }
@@ -10319,7 +10823,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       if (expression->child_count != 1u ||
           expression->reference != CTOOL_C_AST_NONE ||
           expression->conversion == CTOOL_C_CONVERSION_NONE ||
-          expression->conversion > CTOOL_C_CONVERSION_ASSIGNMENT ||
+          expression->conversion > CTOOL_C_CONVERSION_POINTER ||
           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(
