@@ -2704,11 +2704,20 @@ static int run_static_asserts(const char *host_root) {
       {"sizeof expression pending",
        "_Static_assert(sizeof(1 + 2) == 4, \"expression\");\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
-      {"logical expression pending",
-       "_Static_assert(((1 == 1) && (2 == 2)), \"logical\");\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
-      {"logical-not expression pending",
-       "_Static_assert(!0, \"logical not\");\n",
+      {"short-circuited unknown enumerator",
+       "_Static_assert(!(0 && missing_value), \"unknown\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"short-circuited invalid sizeof",
+       "_Static_assert(1 || sizeof(void), \"invalid type\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"selected logical-and divide by zero",
+       "_Static_assert(1 && (1 / 0), \"selected divide\");\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"selected logical-or overflow",
+       "_Static_assert(0 || (50000 * 50000), \"selected overflow\");\n",
+       CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+      {"conditional expression pending",
+       "_Static_assert(1 ? 1 : 0, \"conditional\");\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
       {"floating assertion condition",
        "_Static_assert(1.0, \"floating\");\n", CTOOL_ERR_INPUT,
@@ -2764,6 +2773,32 @@ static int run_static_asserts(const char *host_root) {
       "\"comparison result is int\");\n"
       "_Static_assert(sizeof(int) - 5 > 0, \"sizeof is unsigned\");\n"
       "_Static_assert(1 | 2 == 2, \"operator precedence\");\n"
+      "_Static_assert(!0, \"logical not\");\n"
+      "_Static_assert((1 == 1) && (2 == 2), \"logical and\");\n"
+      "_Static_assert(0 || 9, \"logical or\");\n"
+      "_Static_assert(!(0 && (1 / 0)), \"logical and short circuit\");\n"
+      "_Static_assert(!(0 && (1 % 0)), "
+      "\"logical and suppresses remainder by zero\");\n"
+      "_Static_assert(!(0 && (2147483647 + 1)), "
+      "\"logical and suppresses overflow\");\n"
+      "_Static_assert(!(0 && (-2147483647 - 2)), "
+      "\"logical and suppresses subtraction overflow\");\n"
+      "_Static_assert(!(0 && (50000 * 50000)), "
+      "\"logical and suppresses multiply overflow\");\n"
+      "_Static_assert(!(0 && ((-2147483647 - 1) / -1)), "
+      "\"logical and suppresses divide overflow\");\n"
+      "_Static_assert(!(0 && ((-2147483647 - 1) % -1)), "
+      "\"logical and suppresses remainder overflow\");\n"
+      "_Static_assert(!(0 && (-(-2147483647 - 1))), "
+      "\"logical and suppresses unary overflow\");\n"
+      "_Static_assert(!(0 && (1 << 32)), "
+      "\"logical and suppresses invalid shift\");\n"
+      "_Static_assert(!(0 && (-1 << 1)), "
+      "\"logical and suppresses invalid left operand\");\n"
+      "_Static_assert(!(0 && (1 << 31)), "
+      "\"logical and suppresses shift overflow\");\n"
+      "_Static_assert(1 || (1 / 0), \"logical or short circuit\");\n"
+      "_Static_assert(!(1 | 0 && 0), \"bitwise logical precedence\");\n"
       "_Static_assert(-7, \"nonzero is true\");\n"
       "_Static_assert(1, \"\");\n"
       "struct pending_assertion_record;\n"
@@ -2889,6 +2924,28 @@ static int run_static_asserts(const char *host_root) {
         find_binding(&unit, "smp_cpu_count_var") == NULL) {
       (void)fprintf(stderr,
                     "static-asserts: unchanged per-CPU assertion differs\n");
+      goto cleanup;
+    }
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.c",
+                           "elf_image_regions", &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *region =
+        find_binding(&unit, "elf_image_region_t");
+    const ctool_c_binding_t *plan = find_binding(&unit, "elf_load_plan_t");
+    const ctool_c_type_layout_t *region_layout =
+        region == NULL ? NULL : type_layout(&unit, region->type);
+    const ctool_c_type_layout_t *plan_layout =
+        plan == NULL ? NULL : type_layout(&unit, plan->type);
+    if (region == NULL || region->kind != CTOOL_C_BINDING_TYPEDEF ||
+        plan == NULL || plan->kind != CTOOL_C_BINDING_TYPEDEF ||
+        region_layout == NULL || region_layout->size != 16u ||
+        region_layout->alignment != 4u || plan_layout == NULL ||
+        plan_layout->size != 24u || plan_layout->alignment != 4u) {
+      (void)fprintf(stderr,
+                    "static-asserts: unchanged exec assertion prefix differs\n");
       goto cleanup;
     }
   }
@@ -4986,6 +5043,17 @@ static int validate_constant_unit(const ctool_c_translation_unit_t *unit) {
        CTOOL_C_TYPE_SIGNED_INT},
       {"UNSIGNED_WRAP", 0ull, CTOOL_TRUE, CTOOL_C_TYPE_SIGNED_INT},
       {"UNSIGNED_SHIFT", 1ull, CTOOL_TRUE, CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_NOT", 0ull, CTOOL_FALSE, CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_AND", 1ull, CTOOL_FALSE, CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_OR", 1ull, CTOOL_FALSE, CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_PRECEDENCE", 1ull, CTOOL_FALSE,
+       CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_BITWISE_PRECEDENCE", 1ull, CTOOL_FALSE,
+       CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_SHORT_AND", 0ull, CTOOL_FALSE,
+       CTOOL_C_TYPE_SIGNED_INT},
+      {"LOGICAL_SHORT_OR", 1ull, CTOOL_FALSE,
+       CTOOL_C_TYPE_SIGNED_INT},
       {"MIXED_FIRST_NEGATIVE", 0xffffffffffffffffull, CTOOL_FALSE,
        CTOOL_C_TYPE_SIGNED_LONG_LONG},
       {"MIXED_FIRST_LARGE", 0xffffffffull, CTOOL_TRUE,
@@ -5066,7 +5134,14 @@ static int run_constants(const char *host_root) {
       "  POSITIVE_NEGATIVE_DIVIDE = 7 / -3,\n"
       "  POSITIVE_NEGATIVE_REMAINDER = 7 % -3,\n"
       "  UNSIGNED_WRAP = 0xffffffffu + 1u,\n"
-      "  UNSIGNED_SHIFT = 0xffffffffu >> 31\n"
+      "  UNSIGNED_SHIFT = 0xffffffffu >> 31,\n"
+      "  LOGICAL_NOT = !1,\n"
+      "  LOGICAL_AND = 2 && -3,\n"
+      "  LOGICAL_OR = 0 || 4,\n"
+      "  LOGICAL_PRECEDENCE = 0 || 1 && 1,\n"
+      "  LOGICAL_BITWISE_PRECEDENCE = !(1 | 0 && 0),\n"
+      "  LOGICAL_SHORT_AND = 0 && (1 / 0),\n"
+      "  LOGICAL_SHORT_OR = 1 || (1 / 0)\n"
       "};\n"
       "enum MixedFirst { MIXED_FIRST_NEGATIVE = -1,\n"
       "                  MIXED_FIRST_LARGE = 0xffffffffu };\n"

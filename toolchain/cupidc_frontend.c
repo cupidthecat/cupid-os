@@ -153,6 +153,7 @@ typedef struct {
   cfront_vector_t enum_binding_copies;
   cfront_vector_t flexible_seen;
   ctool_u32 syntax_depth;
+  ctool_u32 constant_evaluation_suppression_depth;
   ctool_u32 prototype_scope_depth;
   ctool_u32 prototype_binding_mark;
   ctool_u32 prototype_tag_mark;
@@ -2580,7 +2581,7 @@ static ctool_status_t cfront_parse_number_token(
   return CTOOL_OK;
 }
 
-static ctool_status_t cfront_parse_constant_or(
+static ctool_status_t cfront_parse_constant_logical_or(
     cfront_context_t *context, cfront_integer_t *value_out);
 static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token);
@@ -2606,7 +2607,7 @@ static ctool_status_t cfront_parse_constant_primary(
       return status;
     }
     (void)cfront_advance(context);
-    status = cfront_parse_constant_or(context, value_out);
+    status = cfront_parse_constant_logical_or(context, value_out);
     if (status == CTOOL_OK) {
       status = cfront_expected(context, ")");
     }
@@ -2663,10 +2664,19 @@ static ctool_status_t cfront_parse_constant_primary(
 static ctool_status_t cfront_parse_constant_unary(
     cfront_context_t *context, cfront_integer_t *value_out) {
   if (cfront_peek_is(context, "!") == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
-        cfront_peek(context),
-        "logical-not constant expressions are outside this slice");
+    const ctool_c_pp_token_t *operator_token = cfront_peek(context);
+    ctool_status_t status = cfront_enter_syntax(context, operator_token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    (void)cfront_advance(context);
+    status = cfront_parse_constant_unary(context, value_out);
+    if (status == CTOOL_OK) {
+      value_out->bits = value_out->bits == 0ull ? 1ull : 0ull;
+      value_out->kind = CFRONT_INTEGER_SIGNED_32;
+    }
+    cfront_leave_syntax(context);
+    return status;
   }
   if (cfront_peek_is(context, "sizeof") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *operator_token = cfront_advance(context);
@@ -2733,7 +2743,8 @@ static ctool_status_t cfront_parse_constant_unary(
           cfront_integer_magnitude(value_out) ==
               (cfront_integer_width(value_out->kind) == 32u
                    ? 0x80000000ull
-                   : 0x8000000000000000ull)) {
+                   : 0x8000000000000000ull) &&
+          context->constant_evaluation_suppression_depth == 0u) {
         status = cfront_integer_overflow(context, operator_token);
       } else {
         value_out->bits = cfront_integer_normalize_bits(
@@ -2802,7 +2813,8 @@ static ctool_status_t cfront_parse_constant_multiply(
                          ? 0x7fffffffull
                          : 0x7fffffffffffffffull);
           if (left_magnitude != 0ull &&
-              right_magnitude > limit / left_magnitude) {
+              right_magnitude > limit / left_magnitude &&
+              context->constant_evaluation_suppression_depth == 0u) {
             return cfront_integer_overflow(context, operator_token);
           }
           value_out->bits = left_magnitude * right_magnitude;
@@ -2815,12 +2827,14 @@ static ctool_status_t cfront_parse_constant_multiply(
       } else {
         ctool_u64 divisor = cfront_integer_magnitude(&right);
         if (divisor == 0ull) {
-          return cfront_emit_failure(
-              context, CTOOL_ERR_INPUT,
-              CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
-              "integer constant expression divides by zero");
-        }
-        if (cfront_integer_unsigned(kind) == CTOOL_TRUE) {
+          if (context->constant_evaluation_suppression_depth == 0u) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT,
+                CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
+                "integer constant expression divides by zero");
+          }
+          value_out->bits = 0ull;
+        } else if (cfront_integer_unsigned(kind) == CTOOL_TRUE) {
           value_out->bits =
               cfront_token_is(operator_token, "/") == CTOOL_TRUE
                   ? left.bits / right.bits
@@ -2832,7 +2846,8 @@ static ctool_status_t cfront_parse_constant_multiply(
               dividend == (cfront_integer_width(kind) == 32u
                                 ? 0x80000000ull
                                 : 0x8000000000000000ull) &&
-              divisor == 1ull) {
+              divisor == 1ull &&
+              context->constant_evaluation_suppression_depth == 0u) {
             return cfront_integer_overflow(context, operator_token);
           }
           if (cfront_token_is(operator_token, "/") == CTOOL_TRUE) {
@@ -2850,7 +2865,8 @@ static ctool_status_t cfront_parse_constant_multiply(
                     : (cfront_integer_width(kind) == 32u
                            ? 0x7fffffffull
                            : 0x7fffffffffffffffull);
-            if (quotient > limit) {
+            if (quotient > limit &&
+                context->constant_evaluation_suppression_depth == 0u) {
               return cfront_integer_overflow(context, operator_token);
             }
             value_out->bits =
@@ -2987,7 +3003,7 @@ static ctool_status_t cfront_parse_attributes(
           (void)cfront_advance(context);
           argument = cfront_peek(context);
           if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
-            status = cfront_parse_constant_or(context, &alignment);
+            status = cfront_parse_constant_logical_or(context, &alignment);
             if (status != CTOOL_OK) {
               return status;
             }
@@ -3177,7 +3193,7 @@ static ctool_status_t cfront_parse_static_assert(
   status = cfront_static_assert_expected(
       context, "(", "static assertion requires an opening parenthesis");
   if (status == CTOOL_OK) {
-    status = cfront_parse_constant_or(context, &value);
+    status = cfront_parse_constant_logical_or(context, &value);
   }
   if (status == CTOOL_OK) {
     status = cfront_static_assert_expected(
@@ -3901,7 +3917,7 @@ static ctool_status_t cfront_parse_declarator_body(
         array.array_bound_kind = CTOOL_C_ARRAY_UNSPECIFIED;
       } else {
         array.array_bound_kind = CTOOL_C_ARRAY_FIXED;
-        status = cfront_parse_constant_or(context, &count);
+        status = cfront_parse_constant_logical_or(context, &count);
         if (status != CTOOL_OK) {
           break;
         }
@@ -4560,7 +4576,7 @@ static ctool_status_t cfront_parse_member_declaration(
     if (cfront_peek_is(context, ":") == CTOOL_TRUE) {
       cfront_integer_t width = {0ull, CFRONT_INTEGER_SIGNED_32};
       (void)cfront_advance(context);
-      status = cfront_parse_constant_or(context, &width);
+      status = cfront_parse_constant_logical_or(context, &width);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -4871,7 +4887,7 @@ static ctool_status_t cfront_enum_type(
       (void)cfront_advance(context);
       if (cfront_peek_is(context, "=") == CTOOL_TRUE) {
         (void)cfront_advance(context);
-        status = cfront_parse_constant_or(context, &value);
+        status = cfront_parse_constant_logical_or(context, &value);
         if (status != CTOOL_OK) {
           return status;
         }
@@ -5856,7 +5872,9 @@ static ctool_status_t cfront_parse_constant_add(
             (subtract == CTOOL_TRUE &&
              left_negative != right_negative &&
              result_negative != left_negative)) {
-          return cfront_integer_overflow(context, operator_token);
+          if (context->constant_evaluation_suppression_depth == 0u) {
+            return cfront_integer_overflow(context, operator_token);
+          }
         }
       }
       value_out->kind = kind;
@@ -5883,10 +5901,14 @@ static ctool_status_t cfront_parse_constant_shift(
     }
     if (cfront_integer_negative(&right) == CTOOL_TRUE ||
         right.bits >= (ctool_u64)cfront_integer_width(value_out->kind)) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
-          "integer constant shift count is outside the left operand width");
+      if (context->constant_evaluation_suppression_depth == 0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
+            "integer constant shift count is outside the left operand width");
+      }
+      value_out->bits = 0ull;
+      continue;
     }
     if (left == CTOOL_TRUE) {
       ctool_u32 count = (ctool_u32)right.bits;
@@ -5896,12 +5918,17 @@ static ctool_status_t cfront_parse_constant_shift(
                 ? 0x7fffffffull
                 : 0x7fffffffffffffffull;
         if (cfront_integer_negative(value_out) == CTOOL_TRUE) {
-          return cfront_emit_failure(
-              context, CTOOL_ERR_INPUT,
-              CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
-              "signed left shift requires a nonnegative left operand");
+          if (context->constant_evaluation_suppression_depth == 0u) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT,
+                CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,
+                "signed left shift requires a nonnegative left operand");
+          }
+          value_out->bits = 0ull;
+          continue;
         }
-        if (value_out->bits > (maximum >> count)) {
+        if (value_out->bits > (maximum >> count) &&
+            context->constant_evaluation_suppression_depth == 0u) {
           return cfront_integer_overflow(context, operator_token);
         }
       }
@@ -6054,7 +6081,7 @@ static ctool_status_t cfront_parse_constant_xor(
   return status;
 }
 
-static ctool_status_t cfront_parse_constant_or(
+static ctool_status_t cfront_parse_constant_bitwise_or(
     cfront_context_t *context, cfront_integer_t *value_out) {
   value_out->bits = 0ull;
   value_out->kind = CFRONT_INTEGER_SIGNED_32;
@@ -6073,14 +6100,69 @@ static ctool_status_t cfront_parse_constant_or(
           cfront_integer_normalize_bits(left.bits | right.bits, kind);
     }
   }
-  if (status == CTOOL_OK &&
-      (cfront_peek_is(context, "&&") == CTOOL_TRUE ||
-       cfront_peek_is(context, "||") == CTOOL_TRUE ||
-       cfront_peek_is(context, "?") == CTOOL_TRUE)) {
+  return status;
+}
+
+static ctool_status_t cfront_parse_constant_logical_and(
+    cfront_context_t *context, cfront_integer_t *value_out) {
+  ctool_status_t status =
+      cfront_parse_constant_bitwise_or(context, value_out);
+  while (status == CTOOL_OK &&
+         cfront_peek_is(context, "&&") == CTOOL_TRUE) {
+    cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};
+    ctool_bool suppress_right =
+        context->constant_evaluation_suppression_depth != 0u ||
+                value_out->bits == 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    (void)cfront_advance(context);
+    if (suppress_right == CTOOL_TRUE) {
+      context->constant_evaluation_suppression_depth++;
+    }
+    status = cfront_parse_constant_bitwise_or(context, &right);
+    if (suppress_right == CTOOL_TRUE) {
+      context->constant_evaluation_suppression_depth--;
+    }
+    if (status == CTOOL_OK) {
+      value_out->bits =
+          value_out->bits != 0ull && right.bits != 0ull ? 1ull : 0ull;
+      value_out->kind = CFRONT_INTEGER_SIGNED_32;
+    }
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_constant_logical_or(
+    cfront_context_t *context, cfront_integer_t *value_out) {
+  ctool_status_t status =
+      cfront_parse_constant_logical_and(context, value_out);
+  while (status == CTOOL_OK &&
+         cfront_peek_is(context, "||") == CTOOL_TRUE) {
+    cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};
+    ctool_bool suppress_right =
+        context->constant_evaluation_suppression_depth != 0u ||
+                value_out->bits != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    (void)cfront_advance(context);
+    if (suppress_right == CTOOL_TRUE) {
+      context->constant_evaluation_suppression_depth++;
+    }
+    status = cfront_parse_constant_logical_and(context, &right);
+    if (suppress_right == CTOOL_TRUE) {
+      context->constant_evaluation_suppression_depth--;
+    }
+    if (status == CTOOL_OK) {
+      value_out->bits =
+          value_out->bits != 0ull || right.bits != 0ull ? 1ull : 0ull;
+      value_out->kind = CFRONT_INTEGER_SIGNED_32;
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, "?") == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
         cfront_peek(context),
-        "logical and conditional constant operators are outside this slice");
+        "conditional constant operators are outside this slice");
   }
   return status;
 }

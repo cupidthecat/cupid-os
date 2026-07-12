@@ -1363,3 +1363,33 @@ The checked graph remains 681 active sources, 250 feature IDs, and 39 accounted 
 | Full repository gate | PASS | `make test` runs 255 tests in 343.767 seconds: 254 pass and only the expected optional/platform case skips. The enclosing Toolchain/audit gate completes in 372.5 seconds. |
 
 GNU/LLVM `nm` is no longer required by root `all`, `user:all`, `toolchain:all`, or baseline preflight. The host compiler and its native linker backend still build every hosted Cupid tool and all host/root C outputs, and Python remains build orchestration plus symbol-blob serialization. Checked native seeds, CupidC object lowering and self-build, and removal of the host C compiler are still the fixed-point blockers.
+
+## 2026-07-11: CupidC logical integer constant expressions
+
+The shared declaration frontend now implements unary logical-not plus logical AND/OR in its target integer-constant-expression grammar. `!`, `&&`, and `||` produce signed Cupid i386 `int` zero or one at the standard precedence levels: bitwise OR binds above logical AND, and logical AND binds above logical OR. The same public grammar continues to serve enum initializers, array bounds, bit-field widths, GNU alignment arguments, and `_Static_assert`; no assertion-only parser or host-expression shortcut was introduced.
+
+Logical operands implement C short-circuit evaluation without skipping language validation. The frontend increments a parse-local suppression depth while consuming an unevaluated right operand. Tokenization, syntax, enumerator lookup, and operator/type constraints still run, so an unknown identifier or `sizeof(void)` remains an error even behind `0 &&` or `1 ||`. Only evaluation-time faults are suppressed: divide or remainder by zero; signed add, subtract, multiply, divide, remainder, or unary-negation overflow; and invalid, negative-left, or overflowing shifts. The same faults retain their existing structured diagnostics when their operand is selected. Integer literals outside the target representation and other source constraints remain errors even when short-circuited.
+
+An active-source contract preprocesses the unchanged `kernel/lang/exec.c` and truncates only before the first object initializer, at `elf_image_regions`. The public `ctool_c_parse` operation therefore consumes all three existing executable-arena alignment assertions at lines 58-66 without copying or weakening them, while also reproducing `elf_image_region_t` at `16/4` and `elf_load_plan_t` at `24/4`. Together with the unchanged `percpu.h:36` oracle, this advances proven active assertions from 1/22 to 4/22. It does not claim the full translation unit: `exec.c` still reaches the pending object-initializer seam immediately afterward, and the active non-Doom header frontier remains 146/152 with all six failures at function bodies.
+
+### Red/green, decisions, and review corrections
+
+- The first unary-not contract failed at `!` with `CTOOL_C_PARSE_DIAG_UNSUPPORTED`; recursive unary parsing and signed-`int` Booleanization made it green.
+- The first logical-AND and logical-OR contracts failed at their operators with the deliberate unsupported diagnostic. Separate bitwise-OR, logical-AND, and logical-OR precedence layers replaced that stop.
+- The first short-circuit contract failed on the unevaluated `1 / 0`; the next failed on unevaluated signed addition overflow. A suppression depth was chosen over brace/token skipping so every right operand still traverses the ordinary grammar and nested logical expressions remain balanced on success or failure.
+- Eagerly evaluating both operands was rejected because it diagnoses undefined arithmetic that C does not evaluate. Treating a skipped operand as unparsed text was rejected because unresolved names, invalid types, and malformed expressions must still fail.
+- Review found that the initial contract did not exercise every evaluation-fault branch named by the ADR. Skipped remainder-by-zero, subtraction overflow, signed-remainder overflow, signed-left-shift overflow, and the bitwise-OR/logical-AND precedence boundary were added. Existing selected-fault negatives remain green, and explicit selected logical-AND/OR failures prove suppression is conditional rather than global.
+- Review also renamed the top precedence entry to `cfront_parse_constant_logical_or`; the explicit AND/OR loops retain their different right-parser and truth predicates rather than hiding balanced suppression state behind a callback.
+- No user question was required. ADR 0014 already fixes the public `ctool_c_parse` seam, and the checked active-source inventory identifies the exact three `exec.c` assertions that require this capability.
+
+### Verification record
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Focused red/green contracts | PASS | The static-assert and integer-constant modes cover Boolean result kinds, both new precedence boundaries, nested short-circuiting, every evaluation-only arithmetic fault class, invalid skipped operands, selected-fault diagnostics, and the unchanged `exec.c` prefix. |
+| CupidC frontend Python suite | PASS | All 14 tests pass, including the exact 22-assertion/four-file inventory and unchanged 146/6 header frontier. |
+| Complete hosted Toolchain suite | PASS | `make -C toolchain test` passes the strict core, preprocessing, type/layout, all frontend modes, ELF32, x86, CupidDis, CupidASM, CupidObj, CupidLD, and all 22 unchanged demo contracts under Windows Clang. |
+| Active-source audit | PASS | Regeneration and `make check-bootstrap-audit` accept the checked graph at 681 inputs, 250 feature IDs, and 491 transforms with updated hosted-source provenance. |
+| Full repository gate | PASS | `make test` runs 255 tests in 404.717 seconds: 254 pass and only the expected optional/platform case skips. The enclosing command completes in 433.1 seconds. |
+
+This slice transfers no production build ownership. GCC or Clang still builds the hosted frontend and contract, the private in-kernel CupidC parser/code generator remains the production compiler, and no kernel object, ABI output, image, runtime path, or `TempleOS/` reference file changed. A boot smoke is therefore not attributed to this hosted semantic change. Function bodies and initializers, typed unevaluated expressions, alignment/offset builtins, conditional/comma/cast/character/address expressions, the remaining active GNU attributes and inline assembly, typed AST/IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
