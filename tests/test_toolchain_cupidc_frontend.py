@@ -79,6 +79,12 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_lvalue_designators_and_layout_queries_are_typed(self):
         self.run_contract("pointer-expressions")
 
+    def test_pointer_arithmetic_and_subscripts_are_typed(self):
+        self.run_contract("pointer-arithmetic")
+
+    def test_compound_assignments_and_updates_evaluate_lvalues_once(self):
+        self.run_contract("scalar-updates")
+
     def test_inline_function_specifiers_are_retained_semantically(self):
         self.run_contract("function-specifiers")
 
@@ -140,7 +146,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 13042)
+        self.assertEqual(feature["occurrences"], 13117)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"

@@ -4556,6 +4556,134 @@ cleanup:
   return failed;
 }
 
+static int validate_scalar_update_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  static const char control_source[] =
+      "unsigned char update_limit(unsigned char *value) { return *value; }\n";
+  static const char update_source[] =
+      "unsigned char update_limit(unsigned char *value) { return (*value)++; }\n";
+  static const char anchor_source[] =
+      "typedef unsigned char update_limit_anchor_t;\n";
+  ctool_c_translation_unit_t control_unit;
+  ctool_c_translation_unit_t update_unit;
+  ctool_c_translation_unit_t anchor_unit;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered_unit;
+  ctool_c_pp_result_t update_tape;
+  ctool_c_pp_result_t anchor_tape;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  scalar_tracking_allocator_t tracking;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_c_binding_t *anchor_binding;
+  ctool_status_t status;
+  ctool_u64 outstanding_before_failure;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (parse_valid_fixture(fixture, "/scalar-update-limit-control.c",
+                          control_source, &control_unit) != 0 ||
+      parse_valid_fixture(fixture, "/scalar-update-limit-success.c",
+                          update_source, &update_unit) != 0 ||
+      update_unit.graph.type_count != control_unit.graph.type_count + 1u ||
+      preprocess_fixture(fixture, "/scalar-update-limit.c", update_source,
+                         &update_tape) != 0 ||
+      preprocess_fixture(fixture, "/scalar-update-limit-anchor.c",
+                         anchor_source, &anchor_tape) != 0 ||
+      (size_t)control_unit.graph.type_count *
+              sizeof(ctool_c_type_node_t) >
+          0xffffffffu) {
+    (void)fprintf(stderr, "scalar-updates: storage-limit control differs\n");
+    goto cleanup;
+  }
+  limits.output_bytes =
+      control_unit.graph.type_count * (ctool_u32)sizeof(ctool_c_type_node_t);
+  token_bytes = (size_t)update_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, update_tape.tokens, token_bytes);
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  (void)memset(&tracking, 0, sizeof(tracking));
+  tracking.base = config.allocator;
+  config.allocator.context = &tracking;
+  config.allocator.allocate = scalar_tracking_allocate;
+  config.allocator.release = scalar_tracking_release;
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&anchor_unit, 0xa5, sizeof(anchor_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &anchor_unit);
+  anchor_binding = find_binding(&anchor_unit, "update_limit_anchor_t");
+  if (status != CTOOL_OK || anchor_binding == NULL ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(stderr, "scalar-updates: limited anchor failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  outstanding_before_failure = tracking.outstanding_bytes;
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &update_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  anchor_binding = find_binding(&anchor_unit, "update_limit_anchor_t");
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/scalar-update-limit.c") ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      diagnostic->line != 1u || diagnostic->column == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      tracking.outstanding_bytes != outstanding_before_failure ||
+      tracking.invalid_releases != 0u ||
+      memcmp(snapshot, update_tape.tokens, token_bytes) != 0 ||
+      anchor_binding == NULL ||
+      anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
+    (void)fprintf(
+        stderr,
+        "scalar-updates: update promotion rollback differs: %s diagnostics=%u\n",
+        ctool_status_name(status), ctool_job_diagnostic_count(job));
+    goto cleanup;
+  }
+  (void)memset(&recovered_unit, 0xa5, sizeof(recovered_unit));
+  status = ctool_c_parse(job, &anchor_tape, &fixture->parse_request,
+                         &recovered_unit);
+  if (status != CTOOL_OK ||
+      find_binding(&recovered_unit, "update_limit_anchor_t") == NULL ||
+      find_binding(&anchor_unit, "update_limit_anchor_t") == NULL ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: update-limit recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+    if (tracking.outstanding_bytes != 0ull ||
+        tracking.invalid_releases != 0u) {
+      (void)fprintf(stderr,
+                    "scalar-updates: update-limit allocation leaked\n");
+      failed = 1;
+    }
+  }
+  free(snapshot);
+  return failed;
+}
+
 static int validate_scalar_return_unit(
     const ctool_c_translation_unit_t *unit) {
   static const ctool_c_expression_operator_t binary_operators[] = {
@@ -5096,14 +5224,7 @@ static int run_scalar_returns(const char *host_root) {
         "int bad(void) { return '\\x'; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 24u, "character hexadecimal escape requires a digit"},
-      {{"compound assignment boundary",
-        "void bad(int value) { value += 1; }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 29u, "compound assignment is outside this expression slice"},
-      {{"pointer arithmetic boundary",
-        "int *bad(int *pointer) { return pointer + 1; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 41u, "pointer arithmetic is outside this expression slice"}};
+  };
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t chain_unit;
@@ -5952,6 +6073,640 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("pointer-expressions: ok\n");
+  }
+  return failed;
+}
+
+static int validate_pointer_arithmetic_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 root = pointer_return_root(unit, "advance");
+  ctool_u32 child;
+  const ctool_c_expression_t *addition =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  const ctool_c_expression_t *expression;
+  const ctool_c_type_node_t *result =
+      addition == NULL ? NULL : type_node(unit, addition->type);
+  if (unit->function_definition_count != 6u || addition == NULL ||
+      addition->kind != CTOOL_C_EXPRESSION_BINARY ||
+      addition->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      addition->child_count != 2u || result == NULL ||
+      result->kind != CTOOL_C_TYPE_POINTER ||
+      scalar_type_kind(unit, result->referenced_type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: pointer addition AST differs\n");
+    return 1;
+  }
+
+  root = pointer_return_root(unit, "retreat");
+  expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  result = expression == NULL ? NULL : type_node(unit, expression->type);
+  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_BINARY ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      expression->child_count != 2u || result == NULL ||
+      result->kind != CTOOL_C_TYPE_POINTER) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: pointer subtraction AST differs\n");
+    return 1;
+  }
+
+  root = pointer_return_root(unit, "distance");
+  expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_BINARY ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      expression->child_count != 2u ||
+      scalar_type_kind(unit, expression->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: pointer difference AST differs\n");
+    return 1;
+  }
+
+  root = pointer_return_root(unit, "read_index");
+  expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  if (expression != NULL &&
+      expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+    root = scalar_expression_child(unit, expression, 0u);
+    expression =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+  }
+  child = expression == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, expression, 0u);
+  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_UNARY ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+      expression->child_count != 1u || child >= unit->expression_count ||
+      unit->expressions[child].kind != CTOOL_C_EXPRESSION_BINARY ||
+      unit->expressions[child].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: subscript normalization differs\n");
+    return 1;
+  }
+
+  root = pointer_return_root(unit, "read_reverse");
+  expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  if (expression != NULL &&
+      expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+    root = scalar_expression_child(unit, expression, 0u);
+    expression =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+  }
+  child = expression == NULL
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, expression, 0u);
+  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_UNARY ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+      child >= unit->expression_count ||
+      unit->expressions[child].kind != CTOOL_C_EXPRESSION_BINARY ||
+      unit->expressions[child].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: reverse subscript differs\n");
+    return 1;
+  }
+
+  {
+    const ctool_c_statement_t *return_statement =
+        scalar_return_statement(unit, "select_row");
+    root = return_statement == NULL ? CTOOL_C_AST_NONE
+                                    : return_statement->expression;
+  }
+  expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  if (expression == NULL ||
+      expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      expression->conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+      type_node(unit, expression->type) == NULL ||
+      type_node(unit, expression->type)->kind != CTOOL_C_TYPE_POINTER) {
+    (void)fprintf(stderr,
+                  "pointer-arithmetic: subscript array decay differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_pointer_arithmetic(const char *host_root) {
+  static const char source[] =
+      "int *advance(int *pointer, int index) { return pointer + index; }\n"
+      "int *retreat(int *pointer, short index) { return pointer - index; }\n"
+      "int distance(int *end, const int *begin) { return end - begin; }\n"
+      "int read_index(int *pointer, unsigned char index) { return pointer[index]; }\n"
+      "int read_reverse(int *pointer, unsigned char index) { return index[pointer]; }\n"
+      "const int *select_row(const int (*rows)[4], int index) { return rows[index]; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"void pointer addition",
+        "void *bad(void *pointer) { return pointer + 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer arithmetic requires a pointer to a complete object type"},
+      {{"function pointer addition",
+        "int target(void); int (*bad(int (*pointer)(void)))(void) { return pointer + 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer arithmetic requires a pointer to a complete object type"},
+      {{"incomplete pointer subtraction",
+        "struct pending; struct pending *bad(struct pending *pointer) { return pointer - 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer arithmetic requires a pointer to a complete object type"},
+      {{"two-pointer addition",
+        "int *bad(int *left, int *right) { return left + right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer addition requires one pointer and one integer operand"},
+      {{"integer minus pointer",
+        "int *bad(int value, int *pointer) { return value - pointer; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer subtraction requires a pointer left operand and an integer right operand"},
+      {{"incompatible pointer difference",
+        "int bad(int *left, long *right) { return left - right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer subtraction requires compatible pointed-to types"},
+      {{"non-pointer subscript",
+        "int bad(int left, int right) { return left[right]; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "subscript requires one pointer and one integer operand"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "pointer-arithmetic", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/pointer-arithmetic.c", source, &unit) ==
+          0 &&
+      validate_pointer_arithmetic_unit(&unit) == 0) {
+    failed = 0;
+  }
+  for (index = 0u; failed == 0 && index < ARRAY_COUNT(failure_cases);
+       index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/pointer-arithmetic-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_pointer_arithmetic_unit(&unit) != 0) {
+      failed = 1;
+    }
+  }
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("pointer-arithmetic: ok\n");
+  }
+  return failed;
+}
+
+static int validate_scalar_update_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const function_names[] = {
+      "multiply_assign", "divide_assign", "remainder_assign",
+      "add_assign",      "subtract_assign", "shift_left_assign",
+      "shift_right_assign", "and_assign", "xor_assign", "or_assign"};
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR_ASSIGN,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR_ASSIGN};
+  static const char *const update_names[] = {
+      "prefix_increment", "prefix_decrement", "postfix_increment",
+      "postfix_decrement"};
+  static const ctool_c_expression_operator_t update_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT};
+  const ctool_c_statement_t *statement =
+      pointer_expression_statement(unit, "add_assign");
+  const ctool_c_expression_t *assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  ctool_u32 left = assignment == NULL
+                       ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, assignment, 0u);
+  ctool_u32 call_count = 0u;
+  ctool_u32 qualifiers;
+  ctool_u32 index;
+  if (unit->function_definition_count != 26u || assignment == NULL ||
+      assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN ||
+      assignment->child_count != 2u ||
+      scalar_type_kind(unit, assignment->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      scalar_type_kind(unit, assignment->computation_type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      left >= unit->expression_count ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_UNARY ||
+      unit->expressions[left].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
+    (void)fprintf(stderr, "scalar-updates: add assignment AST differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(function_names); index++) {
+    statement = pointer_expression_statement(unit, function_names[index]);
+    assignment =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    if (assignment == NULL ||
+        assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+        assignment->operation != operations[index] ||
+        assignment->child_count != 2u ||
+        scalar_type_kind(unit, assignment->type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        scalar_type_kind(unit, assignment->computation_type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT) {
+      (void)fprintf(stderr,
+                    "scalar-updates: compound assignment %u differs\n",
+                    (unsigned)index);
+      return 1;
+    }
+  }
+  statement = scalar_return_statement(unit, "narrow_add_assign");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  if (assignment == NULL ||
+      assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN ||
+      scalar_type_kind(unit, assignment->type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_CHAR ||
+      scalar_type_kind(unit, assignment->computation_type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_INT) {
+    (void)fprintf(stderr,
+                  "scalar-updates: narrow compound computation differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(update_names); index++) {
+    const ctool_c_expression_t *update;
+    ctool_u32 update_child;
+    statement = scalar_return_statement(unit, update_names[index]);
+    update = statement == NULL ||
+                     statement->expression >= unit->expression_count
+                 ? NULL
+                 : &unit->expressions[statement->expression];
+    update_child = update == NULL
+                       ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, update, 0u);
+    if (update == NULL || update->kind != CTOOL_C_EXPRESSION_UPDATE ||
+        update->operation != update_operations[index] ||
+        update->child_count != 1u ||
+        scalar_type_kind(unit, update->type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        scalar_type_kind(unit, update->computation_type, NULL) !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        update_child >= unit->expression_count ||
+        unit->expressions[update_child].kind != CTOOL_C_EXPRESSION_UNARY ||
+        unit->expressions[update_child].operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
+      (void)fprintf(stderr, "scalar-updates: update %u differs\n",
+                    (unsigned)index);
+      return 1;
+    }
+  }
+  statement = scalar_return_statement(unit, "narrow_postfix");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT ||
+      scalar_type_kind(unit, assignment->type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_CHAR ||
+      scalar_type_kind(unit, assignment->computation_type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr, "scalar-updates: narrow update differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    static const char *const pointer_names[] = {
+        "pointer_prefix", "pointer_postfix"};
+    const ctool_c_expression_t *update;
+    const ctool_c_type_node_t *result_type;
+    const ctool_c_type_node_t *computation_type;
+    statement = scalar_return_statement(unit, pointer_names[index]);
+    update = statement == NULL ||
+                     statement->expression >= unit->expression_count
+                 ? NULL
+                 : &unit->expressions[statement->expression];
+    result_type = update == NULL ? NULL : type_node(unit, update->type);
+    computation_type =
+        update == NULL ? NULL : type_node(unit, update->computation_type);
+    if (update == NULL || update->kind != CTOOL_C_EXPRESSION_UPDATE ||
+        result_type == NULL || result_type->kind != CTOOL_C_TYPE_POINTER ||
+        computation_type == NULL ||
+        computation_type->kind != CTOOL_C_TYPE_POINTER) {
+      (void)fprintf(stderr, "scalar-updates: pointer update %u differs\n",
+                    (unsigned)index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < 2u; index++) {
+    static const char *const pointer_assignment_names[] = {
+        "pointer_add_assign", "pointer_subtract_assign"};
+    static const ctool_c_expression_operator_t pointer_assignment_operations[] = {
+        CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN,
+        CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN};
+    const ctool_c_expression_t *pointer_assignment;
+    const ctool_c_type_node_t *result_type;
+    const ctool_c_type_node_t *computation_type;
+    statement = pointer_expression_statement(
+        unit, pointer_assignment_names[index]);
+    pointer_assignment =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    result_type = pointer_assignment == NULL
+                      ? NULL
+                      : type_node(unit, pointer_assignment->type);
+    computation_type =
+        pointer_assignment == NULL
+            ? NULL
+            : type_node(unit, pointer_assignment->computation_type);
+    if (pointer_assignment == NULL ||
+        pointer_assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+        pointer_assignment->operation !=
+            pointer_assignment_operations[index] ||
+        result_type == NULL || result_type->kind != CTOOL_C_TYPE_POINTER ||
+        computation_type == NULL ||
+        computation_type->kind != CTOOL_C_TYPE_POINTER) {
+      (void)fprintf(stderr,
+                    "scalar-updates: pointer assignment %u differs\n",
+                    (unsigned)index);
+      return 1;
+    }
+  }
+  statement = scalar_return_statement(unit, "indexed_postfix");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      left >= unit->expression_count ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_UNARY ||
+      unit->expressions[left].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
+    (void)fprintf(stderr, "scalar-updates: indexed update differs\n");
+    return 1;
+  }
+  statement = pointer_expression_statement(unit, "volatile_postfix");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  qualifiers = 0u;
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      left >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[left].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: volatile raw designator differs\n");
+    return 1;
+  }
+  statement = scalar_return_statement(unit, "atomic_prefix");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  qualifiers = 0u;
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      assignment->operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT ||
+      left >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[left].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: atomic raw designator differs\n");
+    return 1;
+  }
+  statement = scalar_return_statement(unit, "bitfield_postfix");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      assignment->operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT ||
+      scalar_type_kind(unit, assignment->type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_INT ||
+      scalar_type_kind(unit, assignment->computation_type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      left >= unit->expression_count ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_MEMBER ||
+      unit->expressions[left].reference >= unit->graph.member_count ||
+      unit->graph.members[unit->expressions[left].reference].is_bit_field !=
+          CTOOL_TRUE ||
+      unit->graph.members[unit->expressions[left].reference].bit_width != 3u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: bit-field provenance differs\n");
+    return 1;
+  }
+  statement = scalar_return_statement(unit, "side_effect_index");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  index = left >= unit->expression_count
+              ? CTOOL_C_AST_NONE
+              : scalar_expression_child(unit, &unit->expressions[left], 0u);
+  if (assignment == NULL || assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      assignment->child_count != 1u || left >= unit->expression_count ||
+      unit->expressions[left].kind != CTOOL_C_EXPRESSION_UNARY ||
+      unit->expressions[left].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+      index >= unit->expression_count ||
+      unit->expressions[index].kind != CTOOL_C_EXPRESSION_BINARY ||
+      unit->expressions[index].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      scalar_expression_child(unit, &unit->expressions[index], 0u) >=
+          unit->expression_count ||
+      unit->expressions[scalar_expression_child(
+          unit, &unit->expressions[index], 0u)].kind != CTOOL_C_EXPRESSION_CALL) {
+    (void)fprintf(stderr,
+                  "scalar-updates: side-effecting designator was duplicated\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    if (unit->expressions[index].kind == CTOOL_C_EXPRESSION_CALL) {
+      call_count++;
+    }
+  }
+  if (call_count != 1u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: side-effecting call count differs\n");
+    return 1;
+  }
+  statement = pointer_expression_statement(unit, "volatile_add_assign");
+  assignment =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  left = assignment == NULL
+             ? CTOOL_C_AST_NONE
+             : scalar_expression_child(unit, assignment, 0u);
+  qualifiers = 0u;
+  if (assignment == NULL ||
+      assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
+      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN ||
+      left >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[left].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+    (void)fprintf(stderr,
+                  "scalar-updates: volatile compound designator differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_scalar_updates(const char *host_root) {
+  static const char source[] =
+      "void multiply_assign(int *value, int right) { *value *= right; }\n"
+      "void divide_assign(int *value, int right) { *value /= right; }\n"
+      "void remainder_assign(int *value, int right) { *value %= right; }\n"
+      "void add_assign(int *value, unsigned char right) { *value += right; }\n"
+      "void subtract_assign(int *value, int right) { *value -= right; }\n"
+      "void shift_left_assign(int *value, int right) { *value <<= right; }\n"
+      "void shift_right_assign(int *value, int right) { *value >>= right; }\n"
+      "void and_assign(int *value, int right) { *value &= right; }\n"
+      "void xor_assign(int *value, int right) { *value ^= right; }\n"
+      "void or_assign(int *value, int right) { *value |= right; }\n"
+      "unsigned char narrow_add_assign(unsigned char *value, unsigned int right) { return *value += right; }\n"
+      "int prefix_increment(int *value) { return ++*value; }\n"
+      "int prefix_decrement(int *value) { return --*value; }\n"
+      "int postfix_increment(int *value) { return (*value)++; }\n"
+      "int postfix_decrement(int *value) { return (*value)--; }\n"
+      "unsigned char narrow_postfix(unsigned char *value) { return (*value)++; }\n"
+      "int *pointer_prefix(int **value) { return ++*value; }\n"
+      "int *pointer_postfix(int **value) { return (*value)--; }\n"
+      "void pointer_add_assign(int **value, unsigned char right) { *value += right; }\n"
+      "void pointer_subtract_assign(int **value, unsigned char right) { *value -= right; }\n"
+      "int indexed_postfix(int *values, int index) { return values[index]++; }\n"
+      "void volatile_postfix(volatile int *value) { (*value)++; }\n"
+      "void volatile_add_assign(volatile int *value, int right) { *value += right; }\n"
+      "int atomic_prefix(_Atomic int *value) { return ++*value; }\n"
+      "typedef struct { unsigned int bits : 3; } update_bits_t;\n"
+      "unsigned int bitfield_postfix(update_bits_t *value) { return value->bits++; }\n"
+      "int *next_pointer(void);\n"
+      "int side_effect_index(int index) { return next_pointer()[index]++; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"prefix update of rvalue",
+        "int bad(int value) { return ++(value + 1); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "assignment requires a modifiable lvalue"},
+      {{"postfix update of const object",
+        "int bad(const int value) { return value++; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "assignment requires a modifiable lvalue"},
+      {{"postfix update of const pointer object",
+        "int *bad(int *const pointer) { return pointer++; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "assignment requires a modifiable lvalue"},
+      {{"array update",
+        "int bad(void) { int value[2]; return value++; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "assignment requires a modifiable lvalue"},
+      {{"void pointer update",
+        "void *bad(void *pointer) { return pointer++; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer update requires a pointer to a complete object type"},
+      {{"pointer multiply assignment",
+        "void bad(int **pointer, int right) { *pointer *= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "pointer compound assignment supports only += and -="},
+      {{"pointer compound pointer offset",
+        "void bad(int **left, int *right) { *left += right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer compound assignment requires an integer right operand"},
+      {{"scalar add assignment with pointer right operand",
+        "void bad(int *left, int *right) { *left += right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment requires integer operands"},
+      {{"scalar multiply assignment with pointer right operand",
+        "void bad(int *left, int *right) { *left *= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment requires integer operands"},
+      {{"floating compound assignment boundary",
+        "void bad(int *left, float right) { *left += right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating compound assignment is outside this body slice"},
+      {{"incomplete pointer compound assignment",
+        "struct pending; void bad(struct pending **pointer) { *pointer += 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "pointer compound assignment requires a pointer to a complete object type"},
+      {{"floating update boundary",
+        "void bad(float value) { value++; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "floating assignment is outside this body slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "scalar-updates", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/scalar-updates.c", source, &unit) ==
+          0 &&
+      validate_scalar_update_unit(&unit) == 0) {
+    failed = 0;
+  }
+  for (index = 0u; failed == 0 && index < ARRAY_COUNT(failure_cases);
+       index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/scalar-update-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_scalar_update_unit(&unit) != 0) {
+      failed = 1;
+    }
+  }
+  if (failed == 0 &&
+      validate_scalar_update_storage_limit(&fixture, host_root) != 0) {
+    failed = 1;
+  }
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("scalar-updates: ok\n");
   }
   return failed;
 }
@@ -8745,7 +9500,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-returns|"
-                   "pointer-expressions|"
+                   "pointer-expressions|pointer-arithmetic|scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
@@ -8777,6 +9532,12 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);
+  }
+  if (strcmp(argv[1], "pointer-arithmetic") == 0) {
+    return run_pointer_arithmetic(argv[2]);
+  }
+  if (strcmp(argv[1], "scalar-updates") == 0) {
+    return run_scalar_updates(argv[2]);
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);

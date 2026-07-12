@@ -132,6 +132,7 @@ typedef enum {
   CTOOL_C_EXPRESSION_UNARY,
   CTOOL_C_EXPRESSION_BINARY,
   CTOOL_C_EXPRESSION_ASSIGNMENT,
+  CTOOL_C_EXPRESSION_UPDATE,
   CTOOL_C_EXPRESSION_CAST,
   CTOOL_C_EXPRESSION_MEMBER
 } ctool_c_expression_kind_t;
@@ -162,7 +163,21 @@ typedef enum {
   CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR,
   CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND,
   CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR,
-  CTOOL_C_EXPRESSION_OPERATOR_ASSIGN
+  CTOOL_C_EXPRESSION_OPERATOR_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_DIVIDE_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_REMAINDER_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR_ASSIGN,
+  CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT,
+  CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT,
+  CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT,
+  CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT
 } ctool_c_expression_operator_t;
 
 typedef enum {
@@ -188,15 +203,16 @@ typedef struct {
    * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index. */
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
-   * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY: one source-expression child. */
+   * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
+   * child. */
   ctool_u32 first_child;
   ctool_u32 child_count;
   /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
   ctool_c_conversion_kind_t conversion;
-  /* UNARY/BINARY/ASSIGNMENT: represented source operator. */
+  /* UNARY/BINARY/ASSIGNMENT/UPDATE: represented source operator. */
   ctool_c_expression_operator_t operation;
-  /* ASSIGNMENT: arithmetic computation type; plain `=` uses result type.
-   * Other expression kinds use CTOOL_C_TYPE_NONE. */
+  /* ASSIGNMENT/UPDATE: arithmetic computation type; plain `=` uses result
+   * type. Other expression kinds use CTOOL_C_TYPE_NONE. */
   ctool_u32 computation_type;
   /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
    * rank/sign. This includes target-folded non-VLA layout queries. */
@@ -299,9 +315,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
- * folded non-VLA layout queries, every integer unary and binary precedence tier,
- * simple assignment, fixed-argument prototyped calls; and explicit lvalue,
- * array, function, qualification, integer
+ * folded non-VLA layout queries, every integer unary and binary precedence
+ * tier, pointer addition/subtraction and normalized subscripting, simple and
+ * compound assignment, prefix/postfix increment/decrement, fixed-argument
+ * prototyped calls; and explicit lvalue, array, function, qualification,
+ * integer
  * promotion, usual-arithmetic, and assignment conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
  * parameters, and retain stable public indices after their scopes close. Lvalue
@@ -323,12 +341,12 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * rather than fixed frontend tables. Block typedefs, static/extern objects,
  * function declarations, block tag specifiers, attributes, initializers,
  * and static assertions remain explicit body boundaries. Control statements
- * other than return, conditional/comma/subscript and compound-assignment
- * operators, pointer arithmetic, floating arithmetic and non-void
+ * other than return, conditional/comma expressions, pointer comparison and
+ * null-pointer-constant conversions, floating arithmetic and non-void
  * conversions, universal-character/non-ordinary literals, calls without
- * prototypes, variadic arguments, code generation, object emission, and
- * Cupid #exe execution remain later frontend work and are diagnosed rather
- * than skipped. Tentative-definition state/finalization is not yet published,
- * so incomplete array declarations retain their parsed bounds in this slice. */
+ * prototypes, variadic arguments, code generation, object emission, and Cupid
+ * #exe execution remain later frontend work and are diagnosed rather than
+ * skipped. Tentative-definition state/finalization is not yet published, so
+ * incomplete array declarations retain their parsed bounds in this slice. */
 
 #endif

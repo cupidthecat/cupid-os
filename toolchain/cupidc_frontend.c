@@ -2697,6 +2697,24 @@ static ctool_status_t cfront_parse_body_unary(
     cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_parse_body_expression(
     cfront_context_t *context, cfront_expression_value_t *value_out);
+static ctool_status_t cfront_apply_dereference_operator(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    cfront_expression_value_t *operand);
+static ctool_status_t cfront_append_binary_expression(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_kind_t kind,
+    ctool_c_expression_operator_t operation, ctool_u32 type,
+    ctool_u32 computation_type, cfront_expression_value_t *left,
+    const cfront_expression_value_t *right);
+static ctool_status_t cfront_prepare_pointer_additive(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *left, cfront_expression_value_t *right,
+    ctool_bool *handled_out, ctool_u32 *result_type_out);
+static ctool_status_t cfront_apply_update(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *operand);
 static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token);
 static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
@@ -6377,10 +6395,33 @@ static ctool_status_t cfront_append_integer_conversion_if_needed(
                                         value);
 }
 
+static ctool_status_t cfront_integer_promotion_type(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 source_type, ctool_bool is_bit_field, ctool_u32 bit_width,
+    ctool_u32 *target_out, ctool_bool *is_integer_out) {
+  cfront_integer_type_t integer;
+  ctool_status_t status = cfront_integer_type(
+      context, source_type, &integer, is_integer_out);
+  if (status != CTOOL_OK || *is_integer_out == CTOOL_FALSE) {
+    return status;
+  }
+  if (is_bit_field == CTOOL_TRUE &&
+      integer.kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+      bit_width < integer.width) {
+    return cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
+                              target_out);
+  }
+  if (integer.rank < 4u) {
+    return cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
+                              target_out);
+  }
+  *target_out = integer.type;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_apply_integer_promotion(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value) {
-  cfront_integer_type_t integer;
   ctool_c_type_node_t node;
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_bool was_bit_field = value->is_bit_field;
@@ -6392,8 +6433,9 @@ static ctool_status_t cfront_apply_integer_promotion(
   if (status != CTOOL_OK) {
     return status;
   }
-  status = cfront_integer_type(context, value->type, &integer,
-                               &is_integer);
+  status = cfront_integer_promotion_type(
+      context, token, value->type, was_bit_field, bit_width, &target,
+      &is_integer);
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
@@ -6414,22 +6456,8 @@ static ctool_status_t cfront_apply_integer_promotion(
             ? "pointer arithmetic is outside this expression slice"
             : "non-integer operators are outside this body slice");
   }
-  if (was_bit_field == CTOOL_TRUE &&
-      integer.kind == CTOOL_C_TYPE_UNSIGNED_INT &&
-      bit_width < integer.width) {
-    status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
-                                &target);
-  } else if (integer.rank < 4u) {
-    status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
-                                &target);
-  } else {
-    target = integer.type;
-  }
-  return status == CTOOL_OK
-             ? cfront_append_integer_conversion_if_needed(
-                   context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target,
-                   value)
-             : cfront_storage_failure(context, status);
+  return cfront_append_integer_conversion_if_needed(
+      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target, value);
 }
 
 static ctool_status_t cfront_apply_usual_integer_conversions(
@@ -6686,6 +6714,58 @@ static ctool_status_t cfront_append_member_path(
 static ctool_status_t cfront_parse_body_postfix(
     cfront_context_t *context, cfront_expression_value_t *value) {
   for (;;) {
+    if (cfront_peek_is(context, "++") == CTOOL_TRUE ||
+        cfront_peek_is(context, "--") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+      ctool_c_expression_operator_t operation =
+          cfront_token_is(operator_token, "++") == CTOOL_TRUE
+              ? CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT
+              : CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT;
+      ctool_status_t status = cfront_apply_update(
+          context, operator_token, operation, value);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      continue;
+    }
+    if (cfront_peek_is(context, "[") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *open = cfront_advance(context);
+      cfront_expression_value_t index;
+      ctool_bool handled = CTOOL_FALSE;
+      ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+      ctool_status_t status = cfront_enter_syntax(context, open);
+      cfront_zero(&index, (ctool_u32)sizeof(index));
+      if (status == CTOOL_OK) {
+        status = cfront_parse_body_expression(context, &index);
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_expected(context, "]");
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_prepare_pointer_additive(
+            context, open, CTOOL_C_EXPRESSION_OPERATOR_ADD, value, &index,
+            &handled, &result_type);
+      }
+      if (status == CTOOL_OK && handled == CTOOL_FALSE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, open,
+            "subscript requires one pointer and one integer operand");
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_append_binary_expression(
+            context, open, CTOOL_C_EXPRESSION_BINARY,
+            CTOOL_C_EXPRESSION_OPERATOR_ADD, result_type,
+            CTOOL_C_TYPE_NONE, value, &index);
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_apply_dereference_operator(context, open, value);
+      }
+      cfront_leave_syntax(context);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      continue;
+    }
     if (cfront_peek_is(context, ".") == CTOOL_TRUE ||
         cfront_peek_is(context, "->") == CTOOL_TRUE) {
       const ctool_c_pp_token_t *operator_token = cfront_advance(context);
@@ -7132,12 +7212,198 @@ static ctool_status_t cfront_append_binary_expression(
   return status;
 }
 
+static ctool_status_t cfront_prepare_pointer_additive(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *left, cfront_expression_value_t *right,
+    ctool_bool *handled_out, ctool_u32 *result_type_out) {
+  cfront_integer_type_t left_integer;
+  cfront_integer_type_t right_integer;
+  ctool_c_type_node_t left_node;
+  ctool_c_type_node_t right_node;
+  ctool_bool left_is_integer = CTOOL_FALSE;
+  ctool_bool right_is_integer = CTOOL_FALSE;
+  ctool_bool left_is_pointer = CTOOL_FALSE;
+  ctool_bool right_is_pointer = CTOOL_FALSE;
+  ctool_bool left_was_bit_field = left->is_bit_field;
+  ctool_bool right_was_bit_field = right->is_bit_field;
+  ctool_u32 left_bit_width = left->bit_width;
+  ctool_u32 right_bit_width = right->bit_width;
+  ctool_bool complete = CTOOL_FALSE;
+  ctool_u32 left_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 right_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 left_qualifiers = 0u;
+  ctool_u32 right_qualifiers = 0u;
+  ctool_u32 pointer_type;
+  ctool_u32 referent_type;
+  ctool_u32 left_referent_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 right_referent_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 left_referent_qualifiers = 0u;
+  ctool_u32 right_referent_qualifiers = 0u;
+  ctool_c_type_node_t left_referent;
+  ctool_c_type_node_t right_referent;
+  cfront_expression_value_t *integer_value;
+  ctool_bool compatible = CTOOL_FALSE;
+  ctool_status_t status;
+
+  *handled_out = CTOOL_FALSE;
+  status = cfront_apply_default_conversion(context, left);
+  if (status == CTOOL_OK) {
+    status = cfront_apply_default_conversion(context, right);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, left->type, &left_integer,
+                                 &left_is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, right->type, &right_integer,
+                                 &right_is_integer);
+  }
+  (void)left_integer;
+  (void)right_integer;
+  if (status == CTOOL_OK && left_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, left->type, &left_base,
+                                    &left_qualifiers, &left_node);
+    if (status == CTOOL_OK && left_node.kind == CTOOL_C_TYPE_POINTER) {
+      left_is_pointer = CTOOL_TRUE;
+    }
+  }
+  if (status == CTOOL_OK && right_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, right->type, &right_base,
+                                    &right_qualifiers, &right_node);
+    if (status == CTOOL_OK && right_node.kind == CTOOL_C_TYPE_POINTER) {
+      right_is_pointer = CTOOL_TRUE;
+    }
+  }
+  (void)left_base;
+  (void)right_base;
+  (void)left_qualifiers;
+  (void)right_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (left_is_pointer == CTOOL_FALSE && right_is_pointer == CTOOL_FALSE) {
+    left->is_bit_field = left_was_bit_field;
+    left->bit_width = left_bit_width;
+    right->is_bit_field = right_was_bit_field;
+    right->bit_width = right_bit_width;
+    return CTOOL_OK;
+  }
+  *handled_out = CTOOL_TRUE;
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+      left_is_pointer == CTOOL_TRUE && right_is_pointer == CTOOL_TRUE) {
+    status = cfront_type_is_complete_object_now(
+        context, left_node.referenced_type, &complete);
+    if (status == CTOOL_OK && complete == CTOOL_TRUE) {
+      status = cfront_type_is_complete_object_now(
+          context, right_node.referenced_type, &complete);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (complete == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer arithmetic requires pointers to complete object types");
+    }
+    status = cfront_underlying_type(
+        context, left_node.referenced_type, &left_referent_base,
+        &left_referent_qualifiers, &left_referent);
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, right_node.referenced_type, &right_referent_base,
+          &right_referent_qualifiers, &right_referent);
+    }
+    (void)left_referent;
+    (void)right_referent;
+    (void)left_referent_qualifiers;
+    (void)right_referent_qualifiers;
+    if (status == CTOOL_OK) {
+      status = cfront_types_compatible(context, left_referent_base,
+                                       right_referent_base, &compatible);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (compatible == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer subtraction requires compatible pointed-to types");
+    }
+    return cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT,
+                              operator_token, result_type_out);
+  }
+  if (!((left_is_pointer == CTOOL_TRUE && right_is_integer == CTOOL_TRUE) ||
+        (operation == CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+         right_is_pointer == CTOOL_TRUE && left_is_integer == CTOOL_TRUE))) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        operation == CTOOL_C_EXPRESSION_OPERATOR_ADD
+            ? "pointer addition requires one pointer and one integer operand"
+            : "pointer subtraction requires a pointer left operand and an integer right operand");
+  }
+  if (left_is_pointer == CTOOL_TRUE) {
+    pointer_type = left->type;
+    referent_type = left_node.referenced_type;
+    integer_value = right;
+  } else {
+    pointer_type = right->type;
+    referent_type = right_node.referenced_type;
+    integer_value = left;
+  }
+  if (integer_value == left) {
+    integer_value->is_bit_field = left_was_bit_field;
+    integer_value->bit_width = left_bit_width;
+  } else {
+    integer_value->is_bit_field = right_was_bit_field;
+    integer_value->bit_width = right_bit_width;
+  }
+  status = cfront_type_is_complete_object_now(context, referent_type,
+                                               &complete);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (complete == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "pointer arithmetic requires a pointer to a complete object type");
+  }
+  status = cfront_apply_integer_promotion(context, operator_token,
+                                          integer_value);
+  if (status == CTOOL_OK) {
+    *result_type_out = pointer_type;
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_body_unary(
     cfront_context_t *context, cfront_expression_value_t *value_out) {
   const ctool_c_pp_token_t *token = cfront_peek(context);
   ctool_c_expression_operator_t operation =
       CTOOL_C_EXPRESSION_OPERATOR_NONE;
   ctool_status_t status;
+  if (cfront_token_is(token, "++") == CTOOL_TRUE ||
+      cfront_token_is(token, "--") == CTOOL_TRUE) {
+    ctool_c_expression_operator_t update =
+        cfront_token_is(token, "++") == CTOOL_TRUE
+            ? CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT
+            : CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT;
+    status = cfront_enter_syntax(context, token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    (void)cfront_advance(context);
+    status = cfront_parse_body_unary(context, value_out);
+    if (status == CTOOL_OK) {
+      status = cfront_apply_update(context, token, update, value_out);
+    }
+    cfront_leave_syntax(context);
+    return status;
+  }
   if (cfront_token_is(token, "sizeof") == CTOOL_TRUE) {
     ctool_u32 size = 0u;
     (void)cfront_advance(context);
@@ -7289,6 +7555,7 @@ static ctool_status_t cfront_reduce_body_binary(
   cfront_expression_value_t left;
   cfront_expression_value_t right;
   ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+  ctool_bool pointer_addition = CTOOL_FALSE;
   ctool_status_t status;
   cfront_zero(&pending, (ctool_u32)sizeof(pending));
   if (values->count < 2u || operators->count == 0u) {
@@ -7316,8 +7583,18 @@ static ctool_status_t cfront_reduce_body_binary(
   }
   if (pending.descriptor.semantics == CFRONT_BODY_BINARY_ARITHMETIC ||
       pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
-    status = cfront_apply_usual_integer_conversions(
-        context, pending.token, &left, &right, &result_type);
+    if (pending.descriptor.semantics == CFRONT_BODY_BINARY_ARITHMETIC &&
+        (pending.descriptor.operation == CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+         pending.descriptor.operation ==
+             CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT)) {
+      status = cfront_prepare_pointer_additive(
+          context, pending.token, pending.descriptor.operation, &left,
+          &right, &pointer_addition, &result_type);
+    }
+    if (status == CTOOL_OK && pointer_addition == CTOOL_FALSE) {
+      status = cfront_apply_usual_integer_conversions(
+          context, pending.token, &left, &right, &result_type);
+    }
     if (status == CTOOL_OK && pending.descriptor.semantics ==
                                   CFRONT_BODY_BINARY_COMPARISON) {
       status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT,
@@ -7482,9 +7759,259 @@ static ctool_status_t cfront_validate_assignment_target(
                             : cfront_storage_failure(context, status);
 }
 
+static ctool_status_t cfront_apply_update(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *operand) {
+  ctool_c_type_node_t node;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool complete = CTOOL_FALSE;
+  ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 computation_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 first_child;
+  ctool_c_expression_t expression;
+  ctool_status_t status = cfront_validate_assignment_target(
+      context, operator_token, operand, &result_type);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_promotion_type(
+        context, operator_token, result_type, operand->is_bit_field,
+        operand->bit_width, &computation_type, &is_integer);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  if (status == CTOOL_OK && is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, result_type, &base,
+                                    &qualifiers, &node);
+    (void)base;
+    (void)qualifiers;
+    if (status == CTOOL_OK && node.kind == CTOOL_C_TYPE_POINTER) {
+      status = cfront_type_is_complete_object_now(
+          context, node.referenced_type, &complete);
+      computation_type = result_type;
+    }
+    if (status == CTOOL_OK &&
+        (node.kind != CTOOL_C_TYPE_POINTER || complete == CTOOL_FALSE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer update requires a pointer to a complete object type");
+    }
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  first_child = context->expression_children.count;
+  status = cfront_vector_append(&context->expression_children,
+                                &operand->expression, (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_UPDATE,
+                         &operator_token->location,
+                         &operator_token->physical_location);
+  expression.type = result_type;
+  expression.first_child = first_child;
+  expression.child_count = 1u;
+  expression.operation = operation;
+  expression.computation_type = computation_type;
+  status = cfront_append_expression(context, &expression,
+                                    &operand->expression);
+  if (status == CTOOL_OK) {
+    operand->type = result_type;
+    operand->is_lvalue = CTOOL_FALSE;
+    operand->is_bit_field = CTOOL_FALSE;
+    operand->bit_width = 0u;
+    operand->address_forbidden = CTOOL_FALSE;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_prepare_compound_assignment(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    const cfront_expression_value_t *left, ctool_u32 result_type,
+    ctool_c_expression_operator_t operation, ctool_bool shift,
+    cfront_expression_value_t *right,
+    ctool_u32 *computation_type_out) {
+  cfront_integer_type_t left_integer;
+  cfront_integer_type_t right_integer;
+  ctool_c_type_node_t left_node;
+  ctool_c_type_node_t right_node;
+  ctool_bool left_is_integer = CTOOL_FALSE;
+  ctool_bool right_is_integer = CTOOL_FALSE;
+  ctool_bool complete = CTOOL_FALSE;
+  ctool_u32 left_promoted = CTOOL_C_TYPE_NONE;
+  ctool_u32 right_promoted = CTOOL_C_TYPE_NONE;
+  ctool_u32 left_base;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_base;
+  ctool_u32 right_qualifiers;
+  ctool_bool right_was_bit_field = right->is_bit_field;
+  ctool_u32 right_bit_width = right->bit_width;
+  ctool_status_t status = cfront_integer_promotion_type(
+      context, operator_token, result_type, left->is_bit_field,
+      left->bit_width, &left_promoted, &left_is_integer);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (left_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, result_type, &left_base,
+                                    &left_qualifiers, &left_node);
+    (void)left_base;
+    (void)left_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (left_node.kind != CTOOL_C_TYPE_POINTER) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "non-integer compound assignment is outside this body slice");
+    }
+    if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN &&
+        operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer compound assignment supports only += and -=");
+    }
+    status = cfront_type_is_complete_object_now(
+        context, left_node.referenced_type, &complete);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (complete == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer compound assignment requires a pointer to a complete object type");
+    }
+    status = cfront_apply_default_conversion(context, right);
+    if (status == CTOOL_OK) {
+      status = cfront_integer_promotion_type(
+          context, operator_token, right->type, right_was_bit_field,
+          right_bit_width, &right_promoted, &right_is_integer);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (right_is_integer == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "pointer compound assignment requires an integer right operand");
+    }
+    status = cfront_append_integer_conversion_if_needed(
+        context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, right_promoted,
+        right);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    *computation_type_out = result_type;
+    return CTOOL_OK;
+  }
+  status = cfront_apply_default_conversion(context, right);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_integer_promotion_type(
+      context, operator_token, right->type, right_was_bit_field,
+      right_bit_width, &right_promoted, &right_is_integer);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (right_is_integer == CTOOL_FALSE) {
+    status = cfront_underlying_type(context, right->type, &right_base,
+                                    &right_qualifiers, &right_node);
+    (void)right_base;
+    (void)right_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (right_node.kind == CTOOL_C_TYPE_FLOAT ||
+        right_node.kind == CTOOL_C_TYPE_DOUBLE ||
+        right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "floating compound assignment is outside this body slice");
+    }
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "compound assignment requires integer operands");
+  }
+  status = cfront_append_integer_conversion_if_needed(
+      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, right_promoted, right);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, left_promoted, &left_integer,
+                                 &left_is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, right_promoted, &right_integer,
+                                 &right_is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (left_is_integer == CTOOL_FALSE || right_is_integer == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "compound assignment requires integer operands");
+  }
+  if (shift == CTOOL_TRUE) {
+    *computation_type_out = left_promoted;
+    return CTOOL_OK;
+  }
+  status = cfront_common_integer_type(
+      context, &left_integer, &right_integer, operator_token,
+      computation_type_out);
+  if (status == CTOOL_OK) {
+    status = cfront_append_integer_conversion_if_needed(
+        context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+        *computation_type_out, right);
+  }
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
+typedef struct {
+  const char *spelling;
+  ctool_c_expression_operator_t operation;
+  ctool_bool shift;
+} cfront_compound_operator_t;
+
+static ctool_bool cfront_body_compound_operator(
+    const ctool_c_pp_token_t *token,
+    cfront_compound_operator_t *operator_out) {
+  static const cfront_compound_operator_t operators[] = {
+      {"*=", CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN, CTOOL_FALSE},
+      {"/=", CTOOL_C_EXPRESSION_OPERATOR_DIVIDE_ASSIGN, CTOOL_FALSE},
+      {"%=", CTOOL_C_EXPRESSION_OPERATOR_REMAINDER_ASSIGN, CTOOL_FALSE},
+      {"+=", CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN, CTOOL_FALSE},
+      {"-=", CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN, CTOOL_FALSE},
+      {"<<=", CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT_ASSIGN, CTOOL_TRUE},
+      {">>=", CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT_ASSIGN, CTOOL_TRUE},
+      {"&=", CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND_ASSIGN, CTOOL_FALSE},
+      {"^=", CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR_ASSIGN, CTOOL_FALSE},
+      {"|=", CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR_ASSIGN, CTOOL_FALSE}};
+  ctool_u32 index;
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(operators) / sizeof(operators[0]));
+       index++) {
+    if (cfront_token_is(token, operators[index].spelling) == CTOOL_TRUE) {
+      *operator_out = operators[index];
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_status_t cfront_parse_body_assignment(
     cfront_context_t *context, cfront_expression_value_t *value_out) {
   ctool_status_t status = cfront_parse_body_logical_or(context, value_out);
+  cfront_compound_operator_t compound;
   if (status == CTOOL_OK && cfront_peek_is(context, "=") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *operator_token = cfront_advance(context);
     const ctool_c_pp_token_t *right_token = cfront_peek(context);
@@ -7513,20 +8040,34 @@ static ctool_status_t cfront_parse_body_assignment(
     }
     cfront_leave_syntax(context);
   } else if (status == CTOOL_OK &&
-             (cfront_peek_is(context, "*=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "/=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "%=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "+=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "-=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "<<=") == CTOOL_TRUE ||
-              cfront_peek_is(context, ">>=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "&=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "^=") == CTOOL_TRUE ||
-              cfront_peek_is(context, "|=") == CTOOL_TRUE)) {
-    status = cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        cfront_peek(context),
-        "compound assignment is outside this expression slice");
+             cfront_body_compound_operator(cfront_peek(context),
+                                           &compound) == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+    cfront_expression_value_t right;
+    ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+    ctool_u32 computation_type = CTOOL_C_TYPE_NONE;
+    status = cfront_enter_syntax(context, operator_token);
+    cfront_zero(&right, (ctool_u32)sizeof(right));
+    if (status == CTOOL_OK) {
+      status = cfront_validate_assignment_target(
+          context, operator_token, value_out, &result_type);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_parse_body_assignment(context, &right);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_prepare_compound_assignment(
+          context, operator_token, value_out, result_type,
+          compound.operation, compound.shift, &right,
+          &computation_type);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_append_binary_expression(
+          context, operator_token, CTOOL_C_EXPRESSION_ASSIGNMENT,
+          compound.operation, result_type,
+          computation_type, value_out, &right);
+    }
+    cfront_leave_syntax(context);
   }
   return status;
 }
@@ -9153,13 +9694,32 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     case CTOOL_C_EXPRESSION_ASSIGNMENT:
       if (expression->child_count != 2u ||
           expression->reference != CTOOL_C_AST_NONE ||
-          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ASSIGN ||
+          (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ASSIGN &&
+           (expression->operation <
+                CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN ||
+            expression->operation >
+                CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR_ASSIGN)) ||
           expression->conversion != CTOOL_C_CONVERSION_NONE ||
           expression->computation_type >= context->types.count ||
-          expression->computation_type != expression->type) {
+          (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ASSIGN &&
+           expression->computation_type != expression->type)) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen assignment expression is invalid");
+      }
+      break;
+    case CTOOL_C_EXPRESSION_UPDATE:
+      if (expression->child_count != 1u ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation <
+              CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT ||
+          expression->operation >
+              CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type >= context->types.count) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen update expression is invalid");
       }
       break;
     default:

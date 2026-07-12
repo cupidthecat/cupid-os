@@ -323,6 +323,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-returns ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-expressions ..
+	$(CUPIDC_FRONTEND_CONTRACT) pointer-arithmetic ..
+	$(CUPIDC_FRONTEND_CONTRACT) scalar-updates ..
 	$(CUPIDC_FRONTEND_CONTRACT) function-specifiers ..
 	$(CUPIDC_FRONTEND_CONTRACT) errors ..
 	$(CUPIDC_FRONTEND_CONTRACT) scale ..
