@@ -4356,8 +4356,14 @@ static ctool_status_t cfront_parse_declarator_body(
   ctool_u32 root = CFRONT_NONE;
   ctool_status_t status;
   while (cfront_peek_is(context, "*") == CTOOL_TRUE) {
-    const ctool_c_pp_token_t *star = cfront_advance(context);
+    const ctool_c_pp_token_t *star = cfront_peek(context);
     cfront_pointer_spec_t pointer;
+    if (star == (const ctool_c_pp_token_t *)0) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, star,
+          "pointer declarator token is unavailable");
+    }
+    (void)cfront_advance(context);
     cfront_zero(&pointer, (ctool_u32)sizeof(pointer));
     pointer.location = star->location;
     pointer.physical_location = star->physical_location;
@@ -5316,6 +5322,7 @@ static void cfront_statement_init(
   statement->condition = CTOOL_C_AST_NONE;
   statement->iteration = CTOOL_C_AST_NONE;
   statement->body = CTOOL_C_AST_NONE;
+  statement->else_body = CTOOL_C_AST_NONE;
   if (token != (const ctool_c_pp_token_t *)0) {
     statement->location = token->location;
     statement->physical_location = token->physical_location;
@@ -8765,6 +8772,85 @@ static ctool_status_t cfront_parse_for_statement(
   return status;
 }
 
+static ctool_status_t cfront_parse_if_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *if_token = cfront_advance(context);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_u32 condition = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_u32 else_body = CTOOL_C_AST_NONE;
+  ctool_status_t status = cfront_enter_syntax(context, if_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "if statement requires an opening parenthesis");
+  } else {
+    status = cfront_expected(context, "(");
+  }
+  if (status == CTOOL_OK) {
+    const ctool_c_pp_token_t *condition_token = cfront_peek(context);
+    cfront_expression_value_t value;
+    cfront_zero(&value, (ctool_u32)sizeof(value));
+    status = cfront_parse_body_expression(context, &value);
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ")",
+          "if controlling expression requires a closing parenthesis");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_controlling_value(context, condition_token,
+                                                &value);
+    }
+    if (status == CTOOL_OK) {
+      condition = value.expression;
+      status = cfront_expected(context, ")");
+    }
+  }
+  if (status == CTOOL_OK &&
+      (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+       cfront_peek_is(context, "}") == CTOOL_TRUE ||
+       cfront_peek_is(context, "else") == CTOOL_TRUE)) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "if statement requires a body");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_parse_statement(context, &body);
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, "else") == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+    if (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+        cfront_peek_is(context, "}") == CTOOL_TRUE ||
+        cfront_peek_is(context, "else") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          cfront_peek(context), "else clause requires a body");
+    } else {
+      status = cfront_parse_statement(context, &else_body);
+    }
+  }
+  if (status == CTOOL_OK) {
+    ctool_c_statement_t statement;
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_IF, if_token);
+    statement.condition = condition;
+    statement.body = body;
+    statement.else_body = else_body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY) &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_return_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *return_token = cfront_advance(context);
@@ -8874,6 +8960,9 @@ static ctool_status_t cfront_parse_statement(
   if (cfront_peek_is(context, "for") == CTOOL_TRUE) {
     return cfront_parse_for_statement(context, statement_out);
   }
+  if (cfront_peek_is(context, "if") == CTOOL_TRUE) {
+    return cfront_parse_if_statement(context, statement_out);
+  }
   if (cfront_peek_is(context, "break") == CTOOL_TRUE) {
     return cfront_parse_loop_jump_statement(
         context, CTOOL_C_STATEMENT_BREAK, statement_out);
@@ -8881,6 +8970,11 @@ static ctool_status_t cfront_parse_statement(
   if (cfront_peek_is(context, "continue") == CTOOL_TRUE) {
     return cfront_parse_loop_jump_statement(
         context, CTOOL_C_STATEMENT_CONTINUE, statement_out);
+  }
+  if (cfront_peek_is(context, "else") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, first,
+        "else requires a matching if statement");
   }
   if (cfront_body_starts_gnu_assembly(context) == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -9989,9 +10083,10 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     const ctool_c_statement_t *statement = &statements[index];
     ctool_bool control_fields_none =
         statement->initializer_statement == CTOOL_C_AST_NONE &&
-                statement->condition == CTOOL_C_AST_NONE &&
+        statement->condition == CTOOL_C_AST_NONE &&
                 statement->iteration == CTOOL_C_AST_NONE &&
-                statement->body == CTOOL_C_AST_NONE
+                statement->body == CTOOL_C_AST_NONE &&
+                statement->else_body == CTOOL_C_AST_NONE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
@@ -10080,6 +10175,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statement->expression != CTOOL_C_AST_NONE ||
           statement->first_block_binding != CTOOL_C_AST_NONE ||
           statement->block_binding_count != 0u ||
+          statement->else_body != CTOOL_C_AST_NONE ||
           initializer_valid == CTOOL_FALSE ||
           (statement->condition != CTOOL_C_AST_NONE &&
            statement->condition >= context->expressions.count) ||
@@ -10089,7 +10185,27 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            cfront_peek(context), "frozen for statement is invalid");
+          cfront_peek(context), "frozen for statement is invalid");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_IF) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          statement->initializer_statement != CTOOL_C_AST_NONE ||
+          statement->iteration != CTOOL_C_AST_NONE ||
+          statement->condition == CTOOL_C_AST_NONE ||
+          statement->condition >= context->expressions.count ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION ||
+          (statement->else_body != CTOOL_C_AST_NONE &&
+           (statement->else_body >= index ||
+            statements[statement->else_body].kind ==
+                CTOOL_C_STATEMENT_DECLARATION))) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen if statement is invalid");
       }
     } else if (statement->kind == CTOOL_C_STATEMENT_BREAK ||
                statement->kind == CTOOL_C_STATEMENT_CONTINUE) {

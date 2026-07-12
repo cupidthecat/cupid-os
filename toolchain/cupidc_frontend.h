@@ -108,7 +108,8 @@ typedef enum {
   CTOOL_C_STATEMENT_RETURN,
   CTOOL_C_STATEMENT_FOR,
   CTOOL_C_STATEMENT_BREAK,
-  CTOOL_C_STATEMENT_CONTINUE
+  CTOOL_C_STATEMENT_CONTINUE,
+  CTOOL_C_STATEMENT_IF
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -126,7 +127,9 @@ typedef struct {
   /* DECLARATION: ordered slice of translation_unit.block_bindings. */
   ctool_u32 first_block_binding;
   ctool_u32 block_binding_count;
-  /* FOR: optional EXPRESSION/DECLARATION initializer statement, optional
+  /* IF: required controlling expression and body statement, plus optional
+   * else_body statement. The body statements precede this node.
+   * FOR: optional EXPRESSION/DECLARATION initializer statement, optional
    * controlling expression, optional iteration expression, and required body
    * statement. Omitted clauses use AST_NONE; an omitted condition denotes
    * C's nonzero constant. The initializer and body precede this node.
@@ -136,6 +139,7 @@ typedef struct {
   ctool_u32 condition;
   ctool_u32 iteration;
   ctool_u32 body;
+  ctool_u32 else_body;
 } ctool_c_statement_t;
 
 typedef enum {
@@ -327,8 +331,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * entity, member, or expression node;
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
- * parameter storage, and represents compound, expression, declaration, and
- * scalar return statements; automatic/register block-object bindings with
+ * parameter storage, and represents compound, expression, declaration,
+ * scalar return, `if`/`else`, counted `for`, `break`, and `continue`
+ * statements; automatic/register block-object bindings with
  * optional converted scalar initializer roots;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
@@ -363,7 +368,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * function declarations, block tag specifiers, attributes, aggregate
  * initializers, and static assertions remain explicit body boundaries.
  * File-scope and static-duration object initializers remain pending. Control
- * statements other than return, conditional/comma expressions, pointer
+ * statements other than `return`, `if`, `for`, `break`, and `continue`,
+ * conditional/comma expressions, pointer
  * comparison and null-pointer-constant conversions, floating arithmetic and
  * non-void conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid

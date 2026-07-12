@@ -4361,22 +4361,23 @@ static int validate_scalar_initializer_unit(
   return 0;
 }
 
-static int validate_toolchain_for_frontier(const char *host_root) {
+static int validate_toolchain_statement_frontier(const char *host_root) {
   static const char *const paths[] = {
       "/toolchain/ctool.c", "/toolchain/cupiddis.c",
       "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
       "/toolchain/cupidc_type.c"};
   static const ctool_u32 lines[] = {71u, 30u, 152u, 24u, 40u};
+  static const ctool_u32 columns[] = {39u, 19u, 36u, 19u, 14u};
   static const ctool_u32 diagnostic_codes[] = {
       CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
-      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_STATEMENT,
-      CTOOL_C_PARSE_DIAG_STATEMENT};
+      CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      CTOOL_C_PARSE_DIAG_EXPRESSION};
   static const char *const messages[] = {
       "expression operator is outside this function-body slice",
       "non-scalar assignment is outside this function-body slice",
       "expression operator is outside this function-body slice",
-      "statement form is outside this function-body slice",
-      "statement form is outside this function-body slice"};
+      "non-integer operators are outside this body slice",
+      "non-integer operators are outside this body slice"};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(paths); index++) {
     ctool_host_adapter_t adapter;
@@ -4395,7 +4396,7 @@ static int validate_toolchain_for_frontier(const char *host_root) {
     size_t token_bytes;
     int failed = 1;
 
-    if (open_job("for-statements", host_root,
+    if (open_job("if-statements", host_root,
                  256u * 1024u * 1024u, &adapter, &job) != 0) {
       return 1;
     }
@@ -4420,7 +4421,7 @@ static int validate_toolchain_for_frontier(const char *host_root) {
     if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
         ctool_job_diagnostic_count(job) != 0u) {
       (void)fprintf(stderr,
-                    "for-statements: prepare frontier %s failed: %s\n",
+                    "if-statements: prepare frontier %s failed: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
       ctool_job_close(job);
@@ -4438,7 +4439,8 @@ static int validate_toolchain_for_frontier(const char *host_root) {
           ctool_job_diagnostic_count(job) == 1u && diagnostic != NULL &&
           diagnostic->code == diagnostic_codes[index] &&
           string_equal(diagnostic->path, paths[index]) != 0 &&
-          diagnostic->line == lines[index] && diagnostic->column != 0u &&
+          diagnostic->line == lines[index] &&
+          diagnostic->column == columns[index] &&
           string_equal(diagnostic->message, messages[index]) != 0 &&
           arena_marks_equal(mark,
                             ctool_arena_mark(ctool_job_arena(job))) != 0 &&
@@ -4448,7 +4450,7 @@ static int validate_toolchain_for_frontier(const char *host_root) {
     }
     if (failed != 0) {
       (void)fprintf(stderr,
-                    "for-statements: frontier %s differs: %s\n",
+                    "if-statements: frontier %s differs: %s\n",
                     paths[index], ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
     }
@@ -5049,8 +5051,10 @@ static int validate_nested_for_statement_unit(
   return 0;
 }
 
-static char *build_for_statement_depth_source(ctool_u32 depth) {
-  size_t capacity = (size_t)depth * 9u + 32u;
+static char *build_nested_statement_depth_source(
+    ctool_u32 depth, size_t bytes_per_level, const char *prefix,
+    const char *nested_statement) {
+  size_t capacity = (size_t)depth * bytes_per_level + 64u;
   size_t used = 0u;
   char *source = (char *)malloc(capacity);
   ctool_u32 index;
@@ -5058,12 +5062,12 @@ static char *build_for_statement_depth_source(ctool_u32 depth) {
     return NULL;
   }
   source[0] = '\0';
-  if (append_scale_text(source, capacity, &used, "void deep(void) { ") != 0) {
+  if (append_scale_text(source, capacity, &used, prefix) != 0) {
     free(source);
     return NULL;
   }
   for (index = 0u; index < depth; index++) {
-    if (append_scale_text(source, capacity, &used, "for (;;) ") != 0) {
+    if (append_scale_text(source, capacity, &used, nested_statement) != 0) {
       free(source);
       return NULL;
     }
@@ -5075,8 +5079,9 @@ static char *build_for_statement_depth_source(ctool_u32 depth) {
   return source;
 }
 
-static char *build_for_statement_limit_source(ctool_bool loops) {
-  const size_t capacity = 8192u;
+static char *build_statement_limit_source(const char *label,
+                                          const char *statement) {
+  const size_t capacity = 16384u;
   size_t used = 0u;
   char *source = (char *)malloc(capacity);
   ctool_u32 index;
@@ -5084,15 +5089,16 @@ static char *build_for_statement_limit_source(ctool_bool loops) {
     return NULL;
   }
   source[0] = '\0';
-  if (append_scale_text(source, capacity, &used,
-                        "void for_limit(void) {\n") != 0) {
+  if (append_scale_text(source, capacity, &used, "void ") != 0 ||
+      append_scale_text(source, capacity, &used, label) != 0 ||
+      append_scale_text(source, capacity, &used, "_limit(void) {\n") != 0) {
     free(source);
     return NULL;
   }
   for (index = 0u; index < 128u; index++) {
-    if (append_scale_text(source, capacity, &used,
-                          loops == CTOOL_TRUE ? "  for (;;);\n" : "  ;\n") !=
-        0) {
+    if (append_scale_text(source, capacity, &used, "  ") != 0 ||
+        append_scale_text(source, capacity, &used, statement) != 0 ||
+        append_scale_text(source, capacity, &used, "\n") != 0) {
       free(source);
       return NULL;
     }
@@ -5104,17 +5110,22 @@ static char *build_for_statement_limit_source(ctool_bool loops) {
   return source;
 }
 
-static int validate_for_statement_storage_limit(
-    frontend_fixture_t *fixture, const char *host_root) {
-  char *control_source = build_for_statement_limit_source(CTOOL_FALSE);
-  char *loop_source = build_for_statement_limit_source(CTOOL_TRUE);
+static int validate_statement_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root, const char *label,
+    const char *feature_statement) {
+  char control_path[64];
+  char success_path[64];
+  char feature_path[64];
+  char *control_source = build_statement_limit_source(label, ";");
+  char *feature_source =
+      build_statement_limit_source(label, feature_statement);
   ctool_c_translation_unit_t control_oracle;
-  ctool_c_translation_unit_t loop_oracle;
+  ctool_c_translation_unit_t feature_oracle;
   ctool_c_translation_unit_t control;
   ctool_c_translation_unit_t failed_unit;
   ctool_c_translation_unit_t recovered;
   ctool_c_pp_result_t control_tape;
-  ctool_c_pp_result_t loop_tape;
+  ctool_c_pp_result_t feature_tape;
   ctool_c_pp_token_t *snapshot = NULL;
   ctool_limits_t limits = ctool_default_limits();
   ctool_host_adapter_t adapter;
@@ -5127,33 +5138,46 @@ static int validate_for_statement_storage_limit(
       256u * (ctool_u32)sizeof(ctool_c_statement_t);
   size_t token_bytes;
   int failed = 1;
+  int control_written = snprintf(control_path, sizeof(control_path),
+                                 "/%s-limit-control.c", label);
+  int success_written = snprintf(success_path, sizeof(success_path),
+                                 "/%s-limit-success.c", label);
+  int feature_written = snprintf(feature_path, sizeof(feature_path),
+                                 "/%s-limit.c", label);
 
-  if (control_source == NULL || loop_source == NULL ||
-      parse_valid_fixture(fixture, "/for-limit-control.c", control_source,
+  if (control_written <= 0 || (size_t)control_written >= sizeof(control_path) ||
+      success_written <= 0 ||
+      (size_t)success_written >= sizeof(success_path) ||
+      feature_written <= 0 ||
+      (size_t)feature_written >= sizeof(feature_path) ||
+      control_source == NULL || feature_source == NULL ||
+      parse_valid_fixture(fixture, control_path, control_source,
                           &control_oracle) != 0 ||
-      parse_valid_fixture(fixture, "/for-limit-success.c", loop_source,
-                          &loop_oracle) != 0 ||
+      parse_valid_fixture(fixture, success_path, feature_source,
+                          &feature_oracle) != 0 ||
       control_oracle.statement_count != 129u ||
-      loop_oracle.statement_count != 257u ||
+      feature_oracle.statement_count != 257u ||
       (ctool_u64)control_oracle.statement_count *
               sizeof(ctool_c_statement_t) >
           output_limit ||
-      (ctool_u64)loop_oracle.statement_count *
+      (ctool_u64)feature_oracle.statement_count *
               sizeof(ctool_c_statement_t) <=
           output_limit ||
-      preprocess_fixture(fixture, "/for-limit-control.c", control_source,
+      preprocess_fixture(fixture, control_path, control_source,
                          &control_tape) != 0 ||
-      preprocess_fixture(fixture, "/for-limit.c", loop_source, &loop_tape) !=
+      preprocess_fixture(fixture, feature_path, feature_source,
+                         &feature_tape) !=
           0) {
-    (void)fprintf(stderr, "for-statements: storage-limit controls differ\n");
+    (void)fprintf(stderr, "%s-statements: storage-limit controls differ\n",
+                  label);
     goto cleanup;
   }
-  token_bytes = (size_t)loop_tape.token_count * sizeof(*snapshot);
+  token_bytes = (size_t)feature_tape.token_count * sizeof(*snapshot);
   snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
   if (snapshot == NULL) {
     goto cleanup;
   }
-  (void)memcpy(snapshot, loop_tape.tokens, token_bytes);
+  (void)memcpy(snapshot, feature_tape.tokens, token_bytes);
   limits.output_bytes = output_limit;
   status = ctool_host_adapter_init(&adapter, host_root);
   if (status != CTOOL_OK) {
@@ -5170,29 +5194,29 @@ static int validate_for_statement_storage_limit(
       control.statements[0].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       control.statements[0].expression != CTOOL_C_AST_NONE) {
     (void)fprintf(stderr,
-                  "for-statements: limited control failed: %s/%u\n",
+                  "%s-statements: limited control failed: %s/%u\n", label,
                   ctool_status_name(status), (unsigned int)output_limit);
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   mark = ctool_arena_mark(ctool_job_arena(job));
   (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
-  status = ctool_c_parse(job, &loop_tape, &fixture->parse_request,
+  status = ctool_c_parse(job, &feature_tape, &fixture->parse_request,
                          &failed_unit);
   diagnostic = ctool_job_diagnostic(job, 0u);
   if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
       ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
       diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
-      !string_equal(diagnostic->path, "/for-limit.c") ||
+      !string_equal(diagnostic->path, feature_path) ||
       diagnostic->line == 0u || diagnostic->column == 0u ||
       !string_equal(diagnostic->message,
                     "declaration frontend storage limit exceeded") ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
-      memcmp(snapshot, loop_tape.tokens, token_bytes) != 0 ||
+      memcmp(snapshot, feature_tape.tokens, token_bytes) != 0 ||
       control.statement_count != 129u ||
       control.statements[0].expression != CTOOL_C_AST_NONE) {
     (void)fprintf(stderr,
-                  "for-statements: limited rollback differs: %s/%u\n",
+                  "%s-statements: limited rollback differs: %s/%u\n", label,
                   ctool_status_name(status), (unsigned int)output_limit);
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
@@ -5204,7 +5228,8 @@ static int validate_for_statement_storage_limit(
       recovered.statements[0].expression != CTOOL_C_AST_NONE ||
       control.statement_count != 129u ||
       ctool_job_diagnostic_count(job) != 1u) {
-    (void)fprintf(stderr, "for-statements: limited recovery differs\n");
+    (void)fprintf(stderr, "%s-statements: limited recovery differs\n",
+                  label);
     goto cleanup;
   }
   failed = 0;
@@ -5214,7 +5239,7 @@ cleanup:
     ctool_job_close(job);
   }
   free(snapshot);
-  free(loop_source);
+  free(feature_source);
   free(control_source);
   return failed;
 }
@@ -5447,7 +5472,8 @@ static int run_for_statements(const char *host_root) {
       goto cleanup;
     }
   }
-  depth_source = build_for_statement_depth_source(256u);
+  depth_source = build_nested_statement_depth_source(
+      256u, 9u, "void deep(void) { ", "for (;;) ");
   if (depth_source == NULL) {
     (void)fprintf(stderr, "for-statements: depth source construction failed\n");
     goto cleanup;
@@ -5463,8 +5489,8 @@ static int run_for_statements(const char *host_root) {
       goto cleanup;
     }
   }
-  if (validate_toolchain_for_frontier(host_root) != 0 ||
-      validate_for_statement_storage_limit(&fixture, host_root) != 0 ||
+  if (validate_statement_storage_limit(&fixture, host_root, "for",
+                                       "for (;;);") != 0 ||
       validate_for_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -5477,6 +5503,215 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("for-statements: ok\n");
+  }
+  return failed;
+}
+
+static int validate_if_statement_unit(
+    const ctool_c_translation_unit_t *unit);
+
+static int run_if_statements(const char *host_root) {
+  static const char source[] =
+      "int observe(int value);\n"
+      "void choose(int value) {\n"
+      "  if (value)\n"
+      "    value = 1;\n"
+      "  else\n"
+      "    value = 2;\n"
+      "}\n"
+      "void no_alternative(int value) {\n"
+      "  if (value) ;\n"
+      "}\n"
+      "void dangling(int outer, int inner) {\n"
+      "  if (outer)\n"
+      "    if (inner) outer = 1;\n"
+      "    else outer = 2;\n"
+      "}\n"
+      "void chain(int first, int second) {\n"
+      "  if (first) first = 1;\n"
+      "  else if (second) second = 1;\n"
+      "  else first = 2;\n"
+      "}\n"
+      "void conversions(int *pointer) {\n"
+      "  volatile int flag = 1;\n"
+      "  int values[1];\n"
+      "  if (pointer) ;\n"
+      "  if (flag) ;\n"
+      "  if (values) ;\n"
+      "  if (observe) ;\n"
+      "}\n"
+      "void loop_jumps(int value) {\n"
+      "  for (;;) {\n"
+      "    if (value) break;\n"
+      "    else continue;\n"
+      "  }\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"aggregate controlling expression",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(item_t value) {\n"
+        "  if (value) ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 7u, "controlling expression requires scalar type"},
+      {{"void controlling expression",
+        "void sink(void);\n"
+        "void bad(void) {\n"
+        "  if (sink()) ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 7u, "controlling expression requires scalar type"},
+      {{"floating controlling expression",
+        "void bad(double value) {\n"
+        "  if (value) ;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 7u,
+       "floating controlling expressions are outside this body slice"},
+      {{"missing opening parenthesis",
+        "void bad(int value) {\n"
+        "  if value) ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 6u, "if statement requires an opening parenthesis"},
+      {{"missing closing parenthesis",
+        "void bad(int value) {\n"
+        "  if (value value = 1;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 13u,
+       "if controlling expression requires a closing parenthesis"},
+      {{"declaration is not a then body",
+        "void bad(int value) {\n"
+        "  if (value) int local;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 14u, "declaration is not a statement; use a compound statement"},
+      {{"declaration is not an else body",
+        "void bad(int value) {\n"
+        "  if (value) ;\n"
+        "  else int local;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 8u, "declaration is not a statement; use a compound statement"},
+      {{"conditional controlling boundary",
+        "void bad(int value) {\n"
+        "  if (value ? 1 : 0) ;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 13u,
+       "expression operator is outside this function-body slice"},
+      {{"comma controlling boundary",
+        "void bad(int value) {\n"
+        "  if (value, value) ;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 12u,
+       "expression operator is outside this function-body slice"},
+      {{"unmatched else",
+        "void bad(int value) {\n"
+        "  else value = 1;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 3u, "else requires a matching if statement"},
+      {{"missing then body",
+        "void bad(int value) {\n"
+        "  if (value)\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 1u, "if statement requires a body"},
+      {{"missing else body",
+        "void bad(int value) {\n"
+        "  if (value) ; else\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 1u, "else clause requires a body"},
+      {{"missing then body at end of file",
+        "void bad(int value) {\n"
+        "  if (value)",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 12u, "if statement requires a body"},
+      {{"missing else body at end of file",
+        "void bad(int value) {\n"
+        "  if (value) ; else",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 16u, "else clause requires a body"},
+      {{"selection does not create break context",
+        "void bad(int value) {\n"
+        "  if (value) break;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 14u, "break statement requires an enclosing loop or switch"},
+      {{"selection does not create continue context",
+        "void bad(int value) {\n"
+        "  if (value) continue;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 14u, "continue statement requires an enclosing loop"},
+      {{"branch scope expires",
+        "void bad(int value) {\n"
+        "  if (value) { int local; }\n"
+        "  local;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "expression identifier is not declared"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  char *depth_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "if-statements", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/if-statements.c", source, &unit) != 0 ||
+      validate_if_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/if-statement-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_if_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_nested_statement_depth_source(
+      256u, 11u, "void deep(int value) { ", "if (value) ");
+  if (depth_source == NULL) {
+    (void)fprintf(stderr, "if-statements: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "nested if statement limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/if-statement-depth.c", 1u, 2829u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        validate_if_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_statement_storage_limit(&fixture, host_root, "if",
+                                       "if (1) ;") != 0 ||
+      validate_toolchain_statement_frontier(host_root) != 0 ||
+      validate_if_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("if-statements: ok\n");
   }
   return failed;
 }
@@ -5566,6 +5801,223 @@ static ctool_c_type_kind_t scalar_type_kind(
     *qualifiers_out = qualifiers;
   }
   return node == NULL ? (ctool_c_type_kind_t)0 : node->kind;
+}
+
+static ctool_u32 function_top_level_statement_index(
+    const ctool_c_translation_unit_t *unit, const char *function_name,
+    ctool_c_statement_kind_t kind, ctool_u32 occurrence) {
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, function_name);
+  const ctool_c_statement_t *body;
+  ctool_u32 index;
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count > unit->statement_child_count - body->first_child) {
+    return CTOOL_C_AST_NONE;
+  }
+  for (index = 0u; index < body->child_count; index++) {
+    ctool_u32 child = unit->statement_children[body->first_child + index];
+    if (child >= unit->statement_count) {
+      return CTOOL_C_AST_NONE;
+    }
+    if (unit->statements[child].kind == kind) {
+      if (occurrence == 0u) {
+        return child;
+      }
+      occurrence--;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static int if_statement_shape(const ctool_c_translation_unit_t *unit,
+                              ctool_u32 statement_index,
+                              ctool_bool has_else) {
+  const ctool_c_statement_t *statement;
+  if (statement_index >= unit->statement_count) {
+    return 1;
+  }
+  statement = &unit->statements[statement_index];
+  if (statement->kind != CTOOL_C_STATEMENT_IF ||
+      statement->condition >= unit->expression_count ||
+      statement->body >= statement_index ||
+      statement->first_child != CTOOL_C_AST_NONE ||
+      statement->child_count != 0u ||
+      statement->expression != CTOOL_C_AST_NONE ||
+      statement->first_block_binding != CTOOL_C_AST_NONE ||
+      statement->block_binding_count != 0u ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->location.path.data == NULL ||
+      !string_equal(statement->location.path, "/if-statements.c") ||
+      !string_equal(statement->physical_location.path, "/if-statements.c")) {
+    return 1;
+  }
+  if (has_else == CTOOL_TRUE) {
+    return statement->else_body < statement_index ? 0 : 1;
+  }
+  return statement->else_body == CTOOL_C_AST_NONE ? 0 : 1;
+}
+
+static int if_condition_terminal_kind(
+    const ctool_c_translation_unit_t *unit, ctool_u32 statement_index,
+    ctool_c_expression_kind_t kind) {
+  ctool_u32 expression;
+  if (statement_index >= unit->statement_count) {
+    return 1;
+  }
+  expression = scalar_unwrap_conversions(
+      unit, unit->statements[statement_index].condition);
+  return expression < unit->expression_count &&
+                 unit->expressions[expression].kind == kind
+             ? 0
+             : 1;
+}
+
+static int validate_if_statement_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 choose = function_top_level_statement_index(
+      unit, "choose", CTOOL_C_STATEMENT_IF, 0u);
+  ctool_u32 no_alternative = function_top_level_statement_index(
+      unit, "no_alternative", CTOOL_C_STATEMENT_IF, 0u);
+  ctool_u32 dangling = function_top_level_statement_index(
+      unit, "dangling", CTOOL_C_STATEMENT_IF, 0u);
+  ctool_u32 chain = function_top_level_statement_index(
+      unit, "chain", CTOOL_C_STATEMENT_IF, 0u);
+  ctool_u32 pointer = function_top_level_statement_index(
+      unit, "conversions", CTOOL_C_STATEMENT_IF, 0u);
+  ctool_u32 volatile_value = function_top_level_statement_index(
+      unit, "conversions", CTOOL_C_STATEMENT_IF, 1u);
+  ctool_u32 array = function_top_level_statement_index(
+      unit, "conversions", CTOOL_C_STATEMENT_IF, 2u);
+  ctool_u32 function = function_top_level_statement_index(
+      unit, "conversions", CTOOL_C_STATEMENT_IF, 3u);
+  ctool_u32 loop = function_top_level_statement_index(
+      unit, "loop_jumps", CTOOL_C_STATEMENT_FOR, 0u);
+  ctool_u32 dangling_inner;
+  ctool_u32 chain_inner;
+  ctool_u32 loop_if;
+  ctool_u32 terminal;
+  ctool_u32 qualifiers = 0u;
+  const ctool_c_statement_t *compound;
+  if ((ctool_u32)CTOOL_C_STATEMENT_COMPOUND != 1u ||
+      (ctool_u32)CTOOL_C_STATEMENT_EXPRESSION != 2u ||
+      (ctool_u32)CTOOL_C_STATEMENT_DECLARATION != 3u ||
+      (ctool_u32)CTOOL_C_STATEMENT_RETURN != 4u ||
+      (ctool_u32)CTOOL_C_STATEMENT_FOR != 5u ||
+      (ctool_u32)CTOOL_C_STATEMENT_BREAK != 6u ||
+      (ctool_u32)CTOOL_C_STATEMENT_CONTINUE != 7u ||
+      (ctool_u32)CTOOL_C_STATEMENT_IF != 8u ||
+      unit->function_definition_count != 6u ||
+      if_statement_shape(unit, choose, CTOOL_TRUE) != 0 ||
+      if_statement_shape(unit, no_alternative, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, dangling, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, chain, CTOOL_TRUE) != 0 ||
+      if_statement_shape(unit, pointer, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, volatile_value, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, array, CTOOL_FALSE) != 0 ||
+      if_statement_shape(unit, function, CTOOL_FALSE) != 0) {
+    (void)fprintf(stderr, "if-statements: public IF shape differs\n");
+    return 1;
+  }
+  if (unit->statements[choose].body >= unit->statement_count ||
+      unit->statements[choose].else_body >= unit->statement_count ||
+      unit->statements[unit->statements[choose].body].kind !=
+          CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[unit->statements[choose].body].expression ==
+          CTOOL_C_AST_NONE ||
+      unit->statements[unit->statements[choose].else_body].kind !=
+          CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[unit->statements[choose].else_body].expression ==
+          CTOOL_C_AST_NONE ||
+      unit->statements[no_alternative].body >= unit->statement_count ||
+      unit->statements[unit->statements[no_alternative].body].kind !=
+          CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[unit->statements[no_alternative].body].expression !=
+          CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "if-statements: branch bodies differ\n");
+    return 1;
+  }
+  dangling_inner = unit->statements[dangling].body;
+  chain_inner = unit->statements[chain].else_body;
+  if (if_statement_shape(unit, dangling_inner, CTOOL_TRUE) != 0 ||
+      unit->statements[dangling].else_body != CTOOL_C_AST_NONE ||
+      if_statement_shape(unit, chain_inner, CTOOL_TRUE) != 0) {
+    (void)fprintf(stderr,
+                  "if-statements: dangling else or else-if binding differs\n");
+    return 1;
+  }
+  if (if_condition_terminal_kind(unit, choose,
+                                 CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      scalar_conversion_chain_has(unit, unit->statements[choose].condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      if_condition_terminal_kind(unit, pointer,
+                                 CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      scalar_conversion_chain_has(unit, unit->statements[pointer].condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      if_condition_terminal_kind(unit, volatile_value,
+                                 CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
+      scalar_conversion_chain_has(
+          unit, unit->statements[volatile_value].condition,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
+      if_condition_terminal_kind(unit, array,
+                                 CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
+      scalar_conversion_chain_has(unit, unit->statements[array].condition,
+                                  CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+          CTOOL_FALSE ||
+      if_condition_terminal_kind(unit, function,
+                                 CTOOL_C_EXPRESSION_IDENTIFIER) != 0 ||
+      scalar_conversion_chain_has(unit, unit->statements[function].condition,
+                                  CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+          CTOOL_FALSE) {
+    (void)fprintf(stderr, "if-statements: condition conversions differ\n");
+    return 1;
+  }
+  terminal = scalar_unwrap_conversions(
+      unit, unit->statements[volatile_value].condition);
+  if (terminal >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[terminal].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
+      scalar_type_kind(
+          unit, unit->expressions[unit->statements[volatile_value].condition]
+                    .type,
+          &qualifiers) != CTOOL_C_TYPE_SIGNED_INT ||
+      qualifiers != 0u) {
+    (void)fprintf(stderr, "if-statements: volatile condition differs\n");
+    return 1;
+  }
+  if (loop >= unit->statement_count ||
+      unit->statements[loop].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[loop].body >= unit->statement_count) {
+    (void)fprintf(stderr, "if-statements: loop wrapper differs\n");
+    return 1;
+  }
+  compound = &unit->statements[unit->statements[loop].body];
+  if (compound->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      compound->child_count != 1u ||
+      compound->first_child >= unit->statement_child_count) {
+    (void)fprintf(stderr, "if-statements: loop compound differs\n");
+    return 1;
+  }
+  loop_if = unit->statement_children[compound->first_child];
+  if (if_statement_shape(unit, loop_if, CTOOL_TRUE) != 0 ||
+      unit->statements[loop_if].body >= unit->statement_count ||
+      unit->statements[loop_if].else_body >= unit->statement_count ||
+      unit->statements[unit->statements[loop_if].body].kind !=
+          CTOOL_C_STATEMENT_BREAK ||
+      unit->statements[unit->statements[loop_if].else_body].kind !=
+          CTOOL_C_STATEMENT_CONTINUE) {
+    (void)fprintf(stderr, "if-statements: loop jump context differs\n");
+    return 1;
+  }
+  return 0;
 }
 
 static const ctool_c_statement_t *scalar_return_statement(
@@ -8661,9 +9113,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 6u ||
-      unit->statement_child_count != 4u || unit->expression_count != 9u ||
-      unit->expression_child_count != 7u ||
+      unit->function_definition_count != 1u || unit->statement_count != 9u ||
+      unit->statement_child_count != 5u || unit->expression_count != 11u ||
+      unit->expression_child_count != 8u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
                              &binding->physical_location, "/borrowed.c", 3u) ||
@@ -8719,8 +9171,20 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       unit->statements[3].condition != CTOOL_C_AST_NONE ||
       unit->statements[3].iteration != CTOOL_C_AST_NONE ||
       unit->statements[3].body != 2u ||
-      unit->statements[4].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[4].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       unit->statements[4].expression != CTOOL_C_AST_NONE ||
+      unit->statements[5].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[5].expression != CTOOL_C_AST_NONE ||
+      unit->statements[6].kind != CTOOL_C_STATEMENT_IF ||
+      unit->statements[6].condition >= unit->expression_count ||
+      unit->statements[6].body != 4u ||
+      unit->statements[6].else_body != 5u ||
+      unit->expressions[unit->statements[6].condition].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[unit->statements[6].condition].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      unit->statements[7].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[7].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
@@ -8760,6 +9224,7 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "  volatile int owned_local = 1 + 'A';\n"
       "  owned_sink(\"owned\\n\");\n"
       "  for (;;) break;\n"
+      "  if (owned_local) ; else ;\n"
       "  return;\n"
       "}\n";
   ctool_c_pp_result_t original;
@@ -9174,7 +9639,7 @@ static int run_boundaries(const char *host_root) {
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
       "control statement boundary",
-      "int boundary_function(void) { if (1) return 0; }\n",
+      "int boundary_function(void) { while (1) return 0; }\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
@@ -10872,7 +11337,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
-                   "scalar-returns|for-statements|"
+                   "scalar-returns|for-statements|if-statements|"
                    "pointer-expressions|pointer-arithmetic|scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
@@ -10908,6 +11373,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "for-statements") == 0) {
     return run_for_statements(argv[2]);
+  }
+  if (strcmp(argv[1], "if-statements") == 0) {
+    return run_if_statements(argv[2]);
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);
