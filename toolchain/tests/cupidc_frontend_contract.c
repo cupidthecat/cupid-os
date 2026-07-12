@@ -6627,6 +6627,11 @@ static int run_pointer_expressions(const char *host_root) {
         "struct value { unsigned int bits : 3; }; unsigned int bad(void) { return __builtin_offsetof(struct value, bits); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "offsetof cannot apply to a bit-field"},
+      {{"offsetof digraph array designator boundary",
+        "struct value { int values[2]; }; unsigned int bad(void) { return __builtin_offsetof(struct value, values<:0:>); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "offsetof array designators are outside this expression slice"},
       {{"offsetof invalid designator",
         "struct value { int values[2]; }; unsigned int bad(void) { return __builtin_offsetof(struct value, values + 1); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -6689,8 +6694,11 @@ cleanup:
 
 static int validate_pointer_arithmetic_unit(
     const ctool_c_translation_unit_t *unit) {
+  static const char *const subscript_names[] = {
+      "read_index", "read_reverse"};
   ctool_u32 root = pointer_return_root(unit, "advance");
   ctool_u32 child;
+  ctool_u32 subscript_index;
   const ctool_c_expression_t *addition =
       root < unit->expression_count ? &unit->expressions[root] : NULL;
   const ctool_c_expression_t *expression;
@@ -6734,48 +6742,33 @@ static int validate_pointer_arithmetic_unit(
     return 1;
   }
 
-  root = pointer_return_root(unit, "read_index");
-  expression =
-      root < unit->expression_count ? &unit->expressions[root] : NULL;
-  if (expression != NULL &&
-      expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
-    root = scalar_expression_child(unit, expression, 0u);
+  for (subscript_index = 0u;
+       subscript_index < ARRAY_COUNT(subscript_names); subscript_index++) {
+    root = pointer_return_root(unit, subscript_names[subscript_index]);
     expression =
         root < unit->expression_count ? &unit->expressions[root] : NULL;
-  }
-  child = expression == NULL
-              ? CTOOL_C_AST_NONE
-              : scalar_expression_child(unit, expression, 0u);
-  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_UNARY ||
-      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
-      expression->child_count != 1u || child >= unit->expression_count ||
-      unit->expressions[child].kind != CTOOL_C_EXPRESSION_BINARY ||
-      unit->expressions[child].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD) {
-    (void)fprintf(stderr,
-                  "pointer-arithmetic: subscript normalization differs\n");
-    return 1;
-  }
-
-  root = pointer_return_root(unit, "read_reverse");
-  expression =
-      root < unit->expression_count ? &unit->expressions[root] : NULL;
-  if (expression != NULL &&
-      expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
-    root = scalar_expression_child(unit, expression, 0u);
-    expression =
-        root < unit->expression_count ? &unit->expressions[root] : NULL;
-  }
-  child = expression == NULL
-              ? CTOOL_C_AST_NONE
-              : scalar_expression_child(unit, expression, 0u);
-  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_UNARY ||
-      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
-      child >= unit->expression_count ||
-      unit->expressions[child].kind != CTOOL_C_EXPRESSION_BINARY ||
-      unit->expressions[child].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD) {
-    (void)fprintf(stderr,
-                  "pointer-arithmetic: reverse subscript differs\n");
-    return 1;
+    if (expression != NULL &&
+        expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+      root = scalar_expression_child(unit, expression, 0u);
+      expression =
+          root < unit->expression_count ? &unit->expressions[root] : NULL;
+    }
+    child = expression == NULL
+                ? CTOOL_C_AST_NONE
+                : scalar_expression_child(unit, expression, 0u);
+    if (expression == NULL ||
+        expression->kind != CTOOL_C_EXPRESSION_UNARY ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+        expression->child_count != 1u || child >= unit->expression_count ||
+        unit->expressions[child].kind != CTOOL_C_EXPRESSION_BINARY ||
+        unit->expressions[child].operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+      (void)fprintf(
+          stderr,
+          "pointer-arithmetic: subscript normalization %u differs\n",
+          (unsigned int)subscript_index);
+      return 1;
+    }
   }
 
   {
@@ -6803,9 +6796,9 @@ static int run_pointer_arithmetic(const char *host_root) {
       "int *advance(int *pointer, int index) { return pointer + index; }\n"
       "int *retreat(int *pointer, short index) { return pointer - index; }\n"
       "int distance(int *end, const int *begin) { return end - begin; }\n"
-      "int read_index(int *pointer, unsigned char index) { return pointer[index]; }\n"
-      "int read_reverse(int *pointer, unsigned char index) { return index[pointer]; }\n"
-      "const int *select_row(const int (*rows)[4], int index) { return rows[index]; }\n";
+      "int read_index(int *pointer, unsigned char index) { return pointer[index:>; }\n"
+      "int read_reverse(int *pointer, unsigned char index) { return index<:pointer]; }\n"
+      "const int *select_row(const int (*rows)<:4:>, int index) { return rows<:index:>; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"void pointer addition",
         "void *bad(void *pointer) { return pointer + 1; }\n",
@@ -6837,11 +6830,15 @@ static int run_pointer_arithmetic(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "pointer subtraction requires compatible pointed-to types"},
-      {{"non-pointer subscript",
-        "int bad(int left, int right) { return left[right]; }\n",
+      {{"non-pointer digraph subscript",
+        "int bad(int left, int right) { return left<:right:>; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "subscript requires one pointer and one integer operand"}};
+       "subscript requires one pointer and one integer operand"},
+      {{"unterminated digraph subscript",
+        "int bad(int *pointer, int index) { return pointer<:index; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       1u, 57u, "expected declaration token is missing"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -6851,6 +6848,8 @@ static int run_pointer_arithmetic(const char *host_root) {
                              16u * 1024u * 1024u) != 0) {
     return 1;
   }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
   if (parse_valid_fixture(&fixture, "/pointer-arithmetic.c", source, &unit) ==
           0 &&
       validate_pointer_arithmetic_unit(&unit) == 0) {
@@ -7265,16 +7264,65 @@ static int run_scalar_updates(const char *host_root) {
       {{"scalar add assignment with pointer right operand",
         "void bad(int *left, int *right) { *left += right; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "compound assignment requires integer operands"},
+       0u, 0u, "compound assignment requires arithmetic operands"},
       {{"scalar multiply assignment with pointer right operand",
         "void bad(int *left, int *right) { *left *= right; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "compound assignment requires integer operands"},
+       0u, 0u, "compound assignment requires arithmetic operands"},
       {{"floating compound assignment boundary",
         "void bad(int *left, float right) { *left += right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating compound assignment is outside this body slice"},
+      {{"floating divide assignment boundary",
+        "void bad(int *left, float right) { *left /= right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating compound assignment is outside this body slice"},
+      {{"floating left compound assignment boundary",
+        "void bad(float *left, int right) { *left *= right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating compound assignment is outside this body slice"},
+      {{"floating left subtract assignment boundary",
+        "void bad(float *left, int right) { *left -= right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating compound assignment is outside this body slice"},
+      {{"floating remainder right operand",
+        "void bad(int *left, float right) { *left %= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment operator requires integer operands"},
+      {{"floating shift right operand",
+        "void bad(int *left, float right) { *left <<= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment operator requires integer operands"},
+      {{"floating bitwise right operand",
+        "void bad(int *left, float right) { *left &= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment operator requires integer operands"},
+      {{"floating left remainder assignment",
+        "void bad(float *left, int right) { *left %= right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment operator requires integer operands"},
+      {{"floating compound pointer right operand",
+        "void bad(float *left, int *right) { *left += right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "compound assignment requires arithmetic operands"},
+      {{"aggregate update operand",
+        "struct item { int value; }; void bad(struct item value) { value++; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "update requires a real or pointer operand"},
+      {{"aggregate simple assignment remains deferred",
+        "struct item { int value; }; void bad(struct item *left, struct item right) { *left = right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "non-scalar assignment is outside this function-body slice"},
+      {{"aggregate compound assignment operand",
+        "struct item { int value; }; void bad(struct item value) { value += value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "compound assignment requires an arithmetic or pointer left operand"},
       {{"incomplete pointer compound assignment",
         "struct pending; void bad(struct pending **pointer) { *pointer += 1; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -7283,7 +7331,7 @@ static int run_scalar_updates(const char *host_root) {
       {{"floating update boundary",
         "void bad(float value) { value++; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating assignment is outside this body slice"}};
+       0u, 0u, "floating update is outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;

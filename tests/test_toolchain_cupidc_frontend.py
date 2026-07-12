@@ -149,7 +149,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 13153)
+        self.assertEqual(feature["occurrences"], 13163)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"

@@ -549,10 +549,19 @@ static const ctool_c_pp_token_t *cfront_peek(const cfront_context_t *context) {
 
 static ctool_bool cfront_token_is(const ctool_c_pp_token_t *token,
                                   const char *spelling) {
-  return token != (const ctool_c_pp_token_t *)0 &&
-                 cfront_string_literal(token->spelling, spelling) == CTOOL_TRUE
-             ? CTOOL_TRUE
-             : CTOOL_FALSE;
+  if (token == (const ctool_c_pp_token_t *)0) {
+    return CTOOL_FALSE;
+  }
+  if (cfront_string_literal(token->spelling, spelling) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if ((spelling[0] == '[' && spelling[1] == '\0' &&
+       cfront_string_literal(token->spelling, "<:") == CTOOL_TRUE) ||
+      (spelling[0] == ']' && spelling[1] == '\0' &&
+       cfront_string_literal(token->spelling, ":>") == CTOOL_TRUE)) {
+    return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
 }
 
 static ctool_bool cfront_peek_is(const cfront_context_t *context,
@@ -7760,9 +7769,16 @@ static ctool_status_t cfront_parse_body_logical_or(
   return status;
 }
 
+typedef enum {
+  CFRONT_ASSIGNMENT_PLAIN = 1,
+  CFRONT_ASSIGNMENT_COMPOUND,
+  CFRONT_ASSIGNMENT_UPDATE
+} cfront_assignment_form_t;
+
 static ctool_status_t cfront_validate_assignment_target(
     cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
-    const cfront_expression_value_t *left, ctool_u32 *result_type_out) {
+    const cfront_expression_value_t *left, cfront_assignment_form_t form,
+    ctool_u32 *result_type_out) {
   cfront_integer_type_t integer;
   ctool_c_type_node_t node;
   ctool_bool is_integer = CTOOL_FALSE;
@@ -7794,11 +7810,30 @@ static ctool_status_t cfront_validate_assignment_target(
   if (node.kind == CTOOL_C_TYPE_FLOAT ||
       node.kind == CTOOL_C_TYPE_DOUBLE ||
       node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token, "floating assignment is outside this body slice");
+    if (form != CFRONT_ASSIGNMENT_COMPOUND) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          form == CFRONT_ASSIGNMENT_UPDATE
+              ? "floating update is outside this body slice"
+              : "floating assignment is outside this body slice");
+    }
   }
-  if (is_integer == CTOOL_FALSE && node.kind != CTOOL_C_TYPE_POINTER) {
+  if (is_integer == CTOOL_FALSE && node.kind != CTOOL_C_TYPE_POINTER &&
+      node.kind != CTOOL_C_TYPE_FLOAT &&
+      node.kind != CTOOL_C_TYPE_DOUBLE &&
+      node.kind != CTOOL_C_TYPE_LONG_DOUBLE) {
+    if (form == CFRONT_ASSIGNMENT_UPDATE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "update requires a real or pointer operand");
+    }
+    if (form == CFRONT_ASSIGNMENT_COMPOUND) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "compound assignment requires an arithmetic or pointer left operand");
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,
@@ -7824,7 +7859,8 @@ static ctool_status_t cfront_apply_update(
   ctool_u32 first_child;
   ctool_c_expression_t expression;
   ctool_status_t status = cfront_validate_assignment_target(
-      context, operator_token, operand, &result_type);
+      context, operator_token, operand, CFRONT_ASSIGNMENT_UPDATE,
+      &result_type);
   if (status == CTOOL_OK) {
     status = cfront_integer_promotion_type(
         context, operator_token, result_type, operand->is_bit_field,
@@ -7880,6 +7916,16 @@ static ctool_status_t cfront_apply_update(
   return status;
 }
 
+static ctool_bool cfront_compound_allows_floating(
+    ctool_c_expression_operator_t operation) {
+  return operation == CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE_ASSIGN ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cfront_prepare_compound_assignment(
     cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
     const cfront_expression_value_t *left, ctool_u32 result_type,
@@ -7892,6 +7938,7 @@ static ctool_status_t cfront_prepare_compound_assignment(
   ctool_c_type_node_t right_node;
   ctool_bool left_is_integer = CTOOL_FALSE;
   ctool_bool right_is_integer = CTOOL_FALSE;
+  ctool_bool right_is_floating = CTOOL_FALSE;
   ctool_bool complete = CTOOL_FALSE;
   ctool_u32 left_promoted = CTOOL_C_TYPE_NONE;
   ctool_u32 right_promoted = CTOOL_C_TYPE_NONE;
@@ -7915,11 +7962,45 @@ static ctool_status_t cfront_prepare_compound_assignment(
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
-    if (left_node.kind != CTOOL_C_TYPE_POINTER) {
+    if (left_node.kind == CTOOL_C_TYPE_FLOAT ||
+        left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+        left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      status = cfront_apply_default_conversion(context, right);
+      if (status == CTOOL_OK) {
+        status = cfront_integer_promotion_type(
+            context, operator_token, right->type, right_was_bit_field,
+            right_bit_width, &right_promoted, &right_is_integer);
+      }
+      if (status == CTOOL_OK && right_is_integer == CTOOL_FALSE) {
+        status = cfront_floating_type(context, right->type,
+                                      &right_is_floating);
+      }
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cfront_compound_allows_floating(operation) == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            operator_token,
+            "compound assignment operator requires integer operands");
+      }
+      if (right_is_integer == CTOOL_FALSE &&
+          right_is_floating == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            operator_token,
+            "compound assignment requires arithmetic operands");
+      }
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
           operator_token,
-          "non-integer compound assignment is outside this body slice");
+          "floating compound assignment is outside this body slice");
+    }
+    if (left_node.kind != CTOOL_C_TYPE_POINTER) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "compound assignment requires an arithmetic or pointer left operand");
     }
     if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN &&
         operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT_ASSIGN) {
@@ -7984,6 +8065,12 @@ static ctool_status_t cfront_prepare_compound_assignment(
     if (right_node.kind == CTOOL_C_TYPE_FLOAT ||
         right_node.kind == CTOOL_C_TYPE_DOUBLE ||
         right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      if (cfront_compound_allows_floating(operation) == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            operator_token,
+            "compound assignment operator requires integer operands");
+      }
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
           operator_token,
@@ -7991,7 +8078,10 @@ static ctool_status_t cfront_prepare_compound_assignment(
     }
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token, "compound assignment requires integer operands");
+        operator_token,
+        cfront_compound_allows_floating(operation) == CTOOL_TRUE
+            ? "compound assignment requires arithmetic operands"
+            : "compound assignment operator requires integer operands");
   }
   status = cfront_append_integer_conversion_if_needed(
       context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, right_promoted, right);
@@ -8072,7 +8162,8 @@ static ctool_status_t cfront_parse_body_assignment(
     cfront_zero(&right, (ctool_u32)sizeof(right));
     if (status == CTOOL_OK) {
       status = cfront_validate_assignment_target(
-          context, operator_token, value_out, &result_type);
+          context, operator_token, value_out, CFRONT_ASSIGNMENT_PLAIN,
+          &result_type);
     }
     if (status == CTOOL_OK) {
       status = cfront_parse_body_assignment(context, &right);
@@ -8101,7 +8192,8 @@ static ctool_status_t cfront_parse_body_assignment(
     cfront_zero(&right, (ctool_u32)sizeof(right));
     if (status == CTOOL_OK) {
       status = cfront_validate_assignment_target(
-          context, operator_token, value_out, &result_type);
+          context, operator_token, value_out, CFRONT_ASSIGNMENT_COMPOUND,
+          &result_type);
     }
     if (status == CTOOL_OK) {
       status = cfront_parse_body_assignment(context, &right);

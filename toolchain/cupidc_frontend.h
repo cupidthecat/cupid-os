@@ -320,11 +320,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
  * folded non-VLA layout queries, every integer unary and binary precedence
- * tier, pointer addition/subtraction and normalized subscripting, simple and
- * compound assignment, prefix/postfix increment/decrement, fixed-argument
- * prototyped calls; and explicit lvalue, array, function, qualification,
- * integer
- * promotion, usual-arithmetic, and assignment conversions. Block bindings use
+ * tier, pointer addition/subtraction and normalized subscripting with primary
+ * or C11 digraph brackets, simple and compound assignment, prefix/postfix
+ * increment/decrement, fixed-argument prototyped calls; and explicit lvalue,
+ * array, function, qualification, integer promotion, usual-arithmetic, and
+ * assignment conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
  * parameters, and retain stable public indices after their scopes close. Lvalue
  * conversion removes top-level const, volatile, and atomic qualification while
@@ -335,7 +335,10 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * fail closed until default argument promotions are represented. Runtime
  * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
- * nodes. Block-scope assertions remain pending and fail closed.
+ * nodes. Valid floating arithmetic compounds and updates remain explicit
+ * deferred features, while integer-only floating compounds and aggregate
+ * compound/update operands are constraint errors. Block-scope assertions
+ * remain pending and fail closed.
  * C11 `inline` is also retained as a canonical OR-summary across compatible
  * declarations; external-inline classification remains translation-unit
  * finalization policy. `_Thread_local`, `_Noreturn`, `_Alignas`,
@@ -348,8 +351,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * File-scope and static-duration object initializers remain pending. Control
  * statements other than return, conditional/comma expressions, pointer
  * comparison and null-pointer-constant conversions, floating arithmetic and
- * non-void
- * conversions, universal-character/non-ordinary literals, calls without
+ * non-void conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than
  * skipped. Tentative-definition state/finalization is not yet published, so
