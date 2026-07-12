@@ -4,8 +4,21 @@ __pycache__/
 
 # Local agent/tool workspace configuration
 /.mcp.json
+/.opencode/
 /opencode.json
 /skills-lock.json
+
+# OpenKnowledge local state and generated editor integrations
+/.ok/
+/.okignore
+/.claude/launch.json
+/.claude/skills/open-knowledge/
+/.codex/config.toml
+/.codex/skills/open-knowledge/
+/.cursor/mcp.json
+/.cursor/skills/open-knowledge/
+/.pi/extensions/open-knowledge.ts
+/.pi/skills/open-knowledge/
 
 # Compiler and embedded-resource objects
 *.o
