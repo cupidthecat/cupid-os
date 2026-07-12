@@ -354,6 +354,11 @@ C_KEYWORD_FEATURES = {
     "while": "c.control.while",
 }
 
+GNU_C_OPERATOR_FEATURES = {
+    "__alignof": "c.extension.gnu_alignof",
+    "__alignof__": "c.extension.gnu_alignof",
+}
+
 CUPID_TYPE_TOKENS = {
     "Bool": "bool",
     "F64": "f64",
@@ -2215,6 +2220,15 @@ def _scan_c_features(
         tokens = re.findall(r"\b[A-Za-z_]\w*\b", code_line)
         for token in sorted(set(tokens)):
             feature_id = C_KEYWORD_FEATURES.get(token)
+            if feature_id is not None:
+                collector.add(
+                    feature_id,
+                    path,
+                    line_number,
+                    original_line,
+                    tokens.count(token),
+                )
+            feature_id = GNU_C_OPERATOR_FEATURES.get(token)
             if feature_id is not None:
                 collector.add(
                     feature_id,

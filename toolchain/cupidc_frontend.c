@@ -135,7 +135,15 @@ typedef struct {
   ctool_u32 expression;
   ctool_u32 type;
   ctool_bool is_lvalue;
+  ctool_bool is_bit_field;
+  ctool_u32 bit_width;
+  ctool_bool address_forbidden;
 } cfront_expression_value_t;
+
+typedef struct {
+  ctool_u32 member;
+  ctool_u32 parent;
+} cfront_member_search_item_t;
 
 typedef struct {
   ctool_c_type_kind_t kind;
@@ -2685,13 +2693,392 @@ static ctool_status_t cfront_parse_number_token(
 
 static ctool_status_t cfront_parse_constant_logical_or(
     cfront_context_t *context, cfront_integer_t *value_out);
+static ctool_status_t cfront_parse_body_unary(
+    cfront_context_t *context, cfront_expression_value_t *value_out);
+static ctool_status_t cfront_parse_body_expression(
+    cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token);
 static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
                                              ctool_u32 *type_out);
-static ctool_status_t cfront_layout_type_now(
+static ctool_status_t cfront_layout_query_now(
     cfront_context_t *context, ctool_u32 type,
-    const ctool_c_pp_token_t *token, ctool_c_type_layout_t *layout_out);
+    const cfront_vector_t *member_path,
+    const ctool_c_pp_token_t *token, ctool_u32 diagnostic_code,
+    const char *incomplete_message, ctool_c_type_layout_t *layout_out,
+    ctool_u32 *member_offset_out, ctool_u32 *member_alignment_out);
+static ctool_status_t cfront_resolve_member_path(
+    cfront_context_t *context, ctool_u32 record_type, ctool_string_t name,
+    const ctool_c_pp_token_t *member_token, cfront_vector_t *path);
+
+static ctool_bool cfront_parenthesized_type_name_starts(
+    const cfront_context_t *context) {
+  const ctool_c_pp_token_t *after_open;
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE ||
+      context->position == CFRONT_U32_MAX) {
+    return CTOOL_FALSE;
+  }
+  after_open = cfront_token(context, context->position + 1u);
+  return cfront_starts_declaration_specifier(context, after_open);
+}
+
+static ctool_status_t cfront_rewind_query_expressions(
+    cfront_context_t *context, ctool_u32 expression_mark,
+    ctool_u32 child_mark, ctool_arena_mark_t arena_mark,
+    const ctool_c_pp_token_t *operator_token, ctool_status_t status) {
+  ctool_status_t child_status = cfront_vector_rewind(
+      &context->expression_children, child_mark);
+  ctool_status_t expression_status = cfront_vector_rewind(
+      &context->expressions, expression_mark);
+  if (child_status != CTOOL_OK || expression_status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "unevaluated expression scratch rewind failed");
+  }
+  if (status == CTOOL_OK &&
+      ctool_arena_rewind(ctool_job_arena(context->job), arena_mark) !=
+          CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "unevaluated expression arena rewind failed");
+  }
+  return status;
+}
+
+static ctool_status_t cfront_expression_alignment_now(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    const ctool_c_pp_token_t *operator_token, ctool_u32 diagnostic_code,
+    ctool_u32 *alignment_out) {
+  ctool_c_expression_t expression;
+  ctool_c_type_layout_t layout;
+  cfront_vector_t member_path;
+  ctool_u32 binding_reference = CTOOL_C_AST_NONE;
+  ctool_u32 member_alignment = 0u;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_status_t status = cfront_vector_get(
+      &context->expressions, value->expression, &expression);
+  cfront_zero(&layout, (ctool_u32)sizeof(layout));
+  cfront_zero(&member_path, (ctool_u32)sizeof(member_path));
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "alignment-query expression is unavailable");
+  }
+  if (expression.kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+    binding_reference = expression.reference;
+  }
+  if (expression.kind == CTOOL_C_EXPRESSION_MEMBER) {
+    status = cfront_vector_open(context, &member_path,
+                                (ctool_u32)sizeof(ctool_u32));
+    if (status == CTOOL_OK) {
+      status = cfront_vector_append(&member_path, &expression.reference,
+                                    (ctool_u32 *)0);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_layout_query_now(
+          context, value->type, &member_path, operator_token,
+          diagnostic_code, "alignment query requires a complete object type",
+          &layout, (ctool_u32 *)0, &member_alignment);
+    }
+    cfront_vector_close(&member_path);
+    if (status != CTOOL_OK) {
+      return status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+                         status == CTOOL_ERR_NO_MEMORY
+                 ? (ctool_job_diagnostic_count(context->job) ==
+                            diagnostic_count
+                        ? cfront_storage_failure(context, status)
+                        : status)
+                 : status;
+    }
+  } else {
+    status = cfront_layout_query_now(
+        context, value->type, (const cfront_vector_t *)0, operator_token,
+        diagnostic_code, "alignment query requires a complete object type",
+        &layout, (ctool_u32 *)0, (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  *alignment_out = member_alignment != 0u ? member_alignment : layout.alignment;
+  if (binding_reference < context->bindings.count) {
+    ctool_c_binding_t binding;
+    status = cfront_binding_get(context, binding_reference, &binding);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          operator_token, "aligned object binding is unavailable");
+    }
+    if (binding.minimum_alignment > *alignment_out) {
+      *alignment_out = binding.minimum_alignment;
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_sizeof_query(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_u32 diagnostic_code, ctool_u32 *size_out) {
+  cfront_expression_value_t operand;
+  ctool_c_type_layout_t layout;
+  ctool_u32 expression_mark = cfront_vector_mark(&context->expressions);
+  ctool_u32 child_mark = cfront_vector_mark(&context->expression_children);
+  ctool_arena_mark_t arena_mark =
+      ctool_arena_mark(ctool_job_arena(context->job));
+  ctool_u32 operand_type = CTOOL_C_TYPE_NONE;
+  ctool_bool expression_operand = CTOOL_FALSE;
+  ctool_status_t status = cfront_enter_syntax(context, operator_token);
+  cfront_zero(&operand, (ctool_u32)sizeof(operand));
+  cfront_zero(&layout, (ctool_u32)sizeof(layout));
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_parenthesized_type_name_starts(context) == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+    status = cfront_parse_type_name(context, &operand_type);
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+  } else {
+    expression_operand = CTOOL_TRUE;
+    status = cfront_parse_body_unary(context, &operand);
+    if (status == CTOOL_OK) {
+      operand_type = operand.type;
+    }
+  }
+  if (status == CTOOL_OK && expression_operand == CTOOL_TRUE &&
+      operand.is_bit_field == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, diagnostic_code, operator_token,
+        "sizeof cannot apply to a bit-field");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_layout_query_now(
+        context, operand_type, (const cfront_vector_t *)0, operator_token,
+        diagnostic_code, "sizeof requires a complete object type", &layout,
+        (ctool_u32 *)0, (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    *size_out = layout.size;
+  }
+  status = cfront_rewind_query_expressions(
+      context, expression_mark, child_mark, arena_mark, operator_token,
+      status);
+  cfront_leave_syntax(context);
+  return status;
+}
+
+static ctool_status_t cfront_parse_alignof_query(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_u32 diagnostic_code, ctool_u32 *alignment_out) {
+  cfront_expression_value_t operand;
+  ctool_c_type_layout_t layout;
+  ctool_u32 expression_mark = cfront_vector_mark(&context->expressions);
+  ctool_u32 child_mark = cfront_vector_mark(&context->expression_children);
+  ctool_arena_mark_t arena_mark =
+      ctool_arena_mark(ctool_job_arena(context->job));
+  ctool_u32 operand_type = CTOOL_C_TYPE_NONE;
+  ctool_bool expression_operand = CTOOL_FALSE;
+  ctool_bool standard =
+      cfront_token_is(operator_token, "_Alignof") == CTOOL_TRUE;
+  ctool_status_t status;
+  cfront_zero(&operand, (ctool_u32)sizeof(operand));
+  cfront_zero(&layout, (ctool_u32)sizeof(layout));
+  if (standard == CTOOL_FALSE &&
+      context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, diagnostic_code, operator_token,
+        "GNU alignment queries require GNU extensions");
+  }
+  status = cfront_enter_syntax(context, operator_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_parenthesized_type_name_starts(context) == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+    status = cfront_parse_type_name(context, &operand_type);
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+  } else if (standard == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, diagnostic_code, cfront_peek(context),
+        "_Alignof requires a parenthesized type name");
+  } else {
+    expression_operand = CTOOL_TRUE;
+    status = cfront_parse_body_unary(context, &operand);
+    if (status == CTOOL_OK) {
+      operand_type = operand.type;
+    }
+  }
+  if (status == CTOOL_OK && expression_operand == CTOOL_TRUE &&
+      operand.is_bit_field == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, diagnostic_code, operator_token,
+        "alignment query cannot apply to a bit-field");
+  }
+  if (status == CTOOL_OK && expression_operand == CTOOL_TRUE) {
+    status = cfront_expression_alignment_now(
+        context, &operand, operator_token, diagnostic_code, alignment_out);
+  } else if (status == CTOOL_OK) {
+    status = cfront_layout_query_now(
+        context, operand_type, (const cfront_vector_t *)0, operator_token,
+        diagnostic_code, "alignment query requires a complete object type",
+        &layout, (ctool_u32 *)0, (ctool_u32 *)0);
+    if (status == CTOOL_OK) {
+      *alignment_out = layout.alignment;
+    }
+  }
+  status = cfront_rewind_query_expressions(
+      context, expression_mark, child_mark, arena_mark, operator_token,
+      status);
+  cfront_leave_syntax(context);
+  return status;
+}
+
+static ctool_status_t cfront_parse_offsetof_query(
+    cfront_context_t *context, const ctool_c_pp_token_t *builtin_token,
+    ctool_u32 diagnostic_code, ctool_u32 *offset_out) {
+  cfront_vector_t path;
+  cfront_vector_t segment;
+  ctool_c_type_layout_t record_layout;
+  ctool_c_type_node_t root_node;
+  ctool_c_record_member_t final_member;
+  const ctool_c_pp_token_t *member_token = (const ctool_c_pp_token_t *)0;
+  ctool_u32 root_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 current_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 root_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 root_qualifiers = 0u;
+  ctool_bool have_final_member = CTOOL_FALSE;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_status_t status;
+  cfront_zero(&path, (ctool_u32)sizeof(path));
+  cfront_zero(&segment, (ctool_u32)sizeof(segment));
+  cfront_zero(&record_layout, (ctool_u32)sizeof(record_layout));
+  cfront_zero(&root_node, (ctool_u32)sizeof(root_node));
+  cfront_zero(&final_member, (ctool_u32)sizeof(final_member));
+  if (context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, diagnostic_code, builtin_token,
+        "__builtin_offsetof requires GNU extensions");
+  }
+  status = cfront_enter_syntax(context, builtin_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_expected(context, "(");
+  if (status == CTOOL_OK) {
+    status = cfront_parse_type_name(context, &root_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(context, root_type, &root_base,
+                                    &root_qualifiers, &root_node);
+    (void)root_base;
+    (void)root_qualifiers;
+    if (status != CTOOL_OK) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          builtin_token, "offsetof record type is unavailable");
+    } else if (root_node.kind != CTOOL_C_TYPE_RECORD ||
+               root_node.record_complete == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, diagnostic_code, builtin_token,
+          "offsetof requires a complete record or union type");
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ",");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &path,
+                                (ctool_u32)sizeof(ctool_u32));
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &segment,
+                                (ctool_u32)sizeof(ctool_u32));
+  }
+  current_type = root_type;
+  while (status == CTOOL_OK) {
+    ctool_u32 index;
+    ctool_u32 member_index = CTOOL_C_AST_NONE;
+    member_token = cfront_peek(context);
+    if (member_token == (const ctool_c_pp_token_t *)0 ||
+        member_token->kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, diagnostic_code, member_token,
+          "offsetof member designator requires an identifier");
+      break;
+    }
+    status = cfront_vector_rewind(&segment, 0u);
+    if (status == CTOOL_OK) {
+      status = cfront_resolve_member_path(
+          context, current_type, member_token->spelling, member_token,
+          &segment);
+    }
+    for (index = 0u; status == CTOOL_OK && index < segment.count; index++) {
+      status = cfront_vector_get(&segment, index, &member_index);
+      if (status == CTOOL_OK) {
+        status = cfront_vector_append(&path, &member_index,
+                                      (ctool_u32 *)0);
+      }
+    }
+    if (status == CTOOL_OK && member_index != CTOOL_C_AST_NONE) {
+      status = cfront_vector_get(&context->members, member_index,
+                                 &final_member);
+      if (status == CTOOL_OK) {
+        current_type = final_member.type;
+        have_final_member = CTOOL_TRUE;
+      }
+    }
+    if (status != CTOOL_OK) {
+      break;
+    }
+    (void)cfront_advance(context);
+    if (cfront_peek_is(context, ".") == CTOOL_TRUE) {
+      (void)cfront_advance(context);
+      continue;
+    }
+    if (cfront_peek_is(context, "[") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, diagnostic_code,
+          cfront_peek(context),
+          "offsetof array designators are outside this expression slice");
+    } else if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, diagnostic_code, cfront_peek(context),
+          "builtin offsetof member designator is invalid");
+    }
+    break;
+  }
+  if (status == CTOOL_OK && have_final_member == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, diagnostic_code, member_token,
+        "offsetof requires a member designator");
+  }
+  if (status == CTOOL_OK && final_member.is_bit_field == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, diagnostic_code, member_token,
+        "offsetof cannot apply to a bit-field");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_layout_query_now(
+        context, root_type, &path, builtin_token, diagnostic_code,
+        "offsetof requires a complete record or union", &record_layout,
+        offset_out, (ctool_u32 *)0);
+  }
+  cfront_vector_close(&segment);
+  cfront_vector_close(&path);
+  cfront_leave_syntax(context);
+  if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+      status == CTOOL_ERR_NO_MEMORY) {
+    return ctool_job_diagnostic_count(context->job) == diagnostic_count
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  return status;
+}
 
 static ctool_status_t cfront_parse_constant_primary(
     cfront_context_t *context, cfront_integer_t *value_out) {
@@ -2784,43 +3171,40 @@ static ctool_status_t cfront_parse_constant_unary(
   }
   if (cfront_peek_is(context, "sizeof") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *operator_token = cfront_advance(context);
-    ctool_c_type_layout_t layout;
-    ctool_u32 type = CFRONT_NONE;
-    ctool_status_t status = cfront_enter_syntax(context, operator_token);
-    cfront_zero(&layout, (ctool_u32)sizeof(layout));
-    if (status != CTOOL_OK) {
-      return status;
+    ctool_u32 size = 0u;
+    ctool_status_t status = cfront_parse_sizeof_query(
+        context, operator_token, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+        &size);
+    if (status == CTOOL_OK) {
+      value_out->bits = size;
+      value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
     }
-    if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
-      status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
-          cfront_peek(context),
-          "sizeof unary-expression is outside this declaration slice");
-    } else {
-      (void)cfront_advance(context);
-      if (cfront_starts_declaration_specifier(context,
-                                              cfront_peek(context)) ==
-          CTOOL_FALSE) {
-        status = cfront_emit_failure(
-            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED,
-            cfront_peek(context),
-            "sizeof expression operands require the typed expression frontend");
-      } else {
-        status = cfront_parse_type_name(context, &type);
-        if (status == CTOOL_OK) {
-          status = cfront_expected(context, ")");
-        }
-        if (status == CTOOL_OK) {
-          status = cfront_layout_type_now(context, type, operator_token,
-                                          &layout);
-        }
-        if (status == CTOOL_OK) {
-          value_out->bits = layout.size;
-          value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
-        }
-      }
+    return status;
+  }
+  if (cfront_peek_is(context, "_Alignof") == CTOOL_TRUE ||
+      cfront_peek_is(context, "__alignof") == CTOOL_TRUE ||
+      cfront_peek_is(context, "__alignof__") == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+    ctool_u32 alignment = 0u;
+    ctool_status_t status = cfront_parse_alignof_query(
+        context, operator_token, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+        &alignment);
+    if (status == CTOOL_OK) {
+      value_out->bits = alignment;
+      value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
     }
-    cfront_leave_syntax(context);
+    return status;
+  }
+  if (cfront_peek_is(context, "__builtin_offsetof") == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *builtin_token = cfront_advance(context);
+    ctool_u32 offset = 0u;
+    ctool_status_t status = cfront_parse_offsetof_query(
+        context, builtin_token, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+        &offset);
+    if (status == CTOOL_OK) {
+      value_out->bits = offset;
+      value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
+    }
     return status;
   }
   if (cfront_peek_is(context, "+") == CTOOL_TRUE) {
@@ -4535,6 +4919,145 @@ static ctool_status_t cfront_validate_completed_record(
   return status;
 }
 
+static ctool_status_t cfront_resolve_member_path(
+    cfront_context_t *context, ctool_u32 record_type, ctool_string_t name,
+    const ctool_c_pp_token_t *member_token, cfront_vector_t *path) {
+  cfront_vector_t work;
+  cfront_vector_t visited;
+  cfront_vector_t chain;
+  ctool_c_type_node_t record;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 index;
+  ctool_bool found = CTOOL_FALSE;
+  ctool_status_t status;
+  cfront_zero(&work, (ctool_u32)sizeof(work));
+  cfront_zero(&visited, (ctool_u32)sizeof(visited));
+  cfront_zero(&chain, (ctool_u32)sizeof(chain));
+  status = cfront_underlying_type(context, record_type, &base, &qualifiers,
+                                  &record);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        member_token, "member access type is unavailable");
+  }
+  if (record.kind != CTOOL_C_TYPE_RECORD ||
+      record.record_complete == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        member_token, "member access requires a complete record or union");
+  }
+  status = cfront_vector_open(context, &work, (ctool_u32)sizeof(ctool_u32));
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(
+        context, &visited, (ctool_u32)sizeof(cfront_member_search_item_t));
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_open(context, &chain,
+                                (ctool_u32)sizeof(ctool_u32));
+  }
+  index = record.member_count;
+  while (status == CTOOL_OK && index != 0u) {
+    cfront_member_search_item_t item;
+    ctool_u32 item_index;
+    item.member = record.first_member + (index - 1u);
+    item.parent = CFRONT_NONE;
+    status = cfront_vector_append(&visited, &item, &item_index);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_append(&work, &item_index, (ctool_u32 *)0);
+    }
+    index--;
+  }
+  while (status == CTOOL_OK && work.count != 0u && found == CTOOL_FALSE) {
+    cfront_member_search_item_t item;
+    ctool_c_record_member_t member;
+    ctool_u32 item_index;
+    status = cfront_vector_get(&work, work.count - 1u, &item_index);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(&work, work.count - 1u);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_vector_get(&visited, item_index, &item);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_vector_get(&context->members, item.member, &member);
+    }
+    if (status != CTOOL_OK) {
+      break;
+    }
+    if (member.name.size != 0u &&
+        cfront_string_equal(member.name, name) == CTOOL_TRUE) {
+      ctool_u32 cursor = item_index;
+      while (status == CTOOL_OK && cursor != CFRONT_NONE) {
+        status = cfront_vector_get(&visited, cursor, &item);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_append(&chain, &item.member,
+                                        (ctool_u32 *)0);
+          cursor = item.parent;
+        }
+      }
+      index = chain.count;
+      while (status == CTOOL_OK && index != 0u) {
+        ctool_u32 member_index;
+        status = cfront_vector_get(&chain, index - 1u, &member_index);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_append(path, &member_index,
+                                        (ctool_u32 *)0);
+        }
+        index--;
+      }
+      if (status == CTOOL_OK) {
+        found = CTOOL_TRUE;
+      }
+    } else if (member.name.size == 0u &&
+               member.anonymous == CTOOL_TRUE) {
+      ctool_c_type_node_t nested;
+      status = cfront_underlying_type(context, member.type, &base,
+                                      &qualifiers, &nested);
+      (void)base;
+      (void)qualifiers;
+      if (status != CTOOL_OK || nested.kind != CTOOL_C_TYPE_RECORD ||
+          nested.record_complete == CTOOL_FALSE) {
+        status = CTOOL_ERR_INTERNAL;
+        break;
+      }
+      index = nested.member_count;
+      while (status == CTOOL_OK && index != 0u) {
+        cfront_member_search_item_t child;
+        ctool_u32 child_index;
+        child.member = nested.first_member + (index - 1u);
+        child.parent = item_index;
+        status = cfront_vector_append(&visited, &child, &child_index);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_append(&work, &child_index,
+                                        (ctool_u32 *)0);
+        }
+        index--;
+      }
+    }
+  }
+  cfront_vector_close(&chain);
+  cfront_vector_close(&visited);
+  cfront_vector_close(&work);
+  if (status != CTOOL_OK) {
+    if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+        status == CTOOL_ERR_NO_MEMORY) {
+      return cfront_storage_failure(context, status);
+    }
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        member_token, "record member traversal is invalid");
+  }
+  if (found == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        member_token, "record or union has no member with this name");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_append_pending_member(
     cfront_context_t *context, ctool_u32 *head, ctool_u32 *count,
     const ctool_c_record_member_t *member,
@@ -4943,6 +5466,9 @@ static ctool_status_t cfront_parse_body_string(
   if (status == CTOOL_OK) {
     value_out->type = array_type;
     value_out->is_lvalue = CTOOL_TRUE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
   }
   return status;
 }
@@ -5335,6 +5861,36 @@ static ctool_status_t cfront_parse_body_integer_constant(
   if (status == CTOOL_OK) {
     value_out->type = type;
     value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_append_folded_u32_constant(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_u32 bits, cfront_expression_value_t *value_out) {
+  ctool_c_expression_t expression;
+  ctool_u32 type;
+  ctool_status_t status = cfront_scalar_type(
+      context, CTOOL_C_TYPE_UNSIGNED_INT, operator_token, &type);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_INTEGER_CONSTANT,
+                         &operator_token->location,
+                         &operator_token->physical_location);
+  expression.type = type;
+  expression.integer_bits = bits;
+  status = cfront_append_expression(context, &expression,
+                                    &value_out->expression);
+  if (status == CTOOL_OK) {
+    value_out->type = type;
+    value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
   }
   return status;
 }
@@ -5475,6 +6031,9 @@ static ctool_status_t cfront_parse_body_character_constant(
   if (status == CTOOL_OK) {
     value_out->type = type;
     value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
   }
   return status;
 }
@@ -5501,6 +6060,16 @@ static ctool_status_t cfront_parse_body_primary(
   }
   if (token->kind == CTOOL_C_PP_TOKEN_CHARACTER) {
     return cfront_parse_body_character_constant(context, value_out);
+  }
+  if (cfront_token_is(token, "__builtin_offsetof") == CTOOL_TRUE) {
+    ctool_u32 offset = 0u;
+    (void)cfront_advance(context);
+    status = cfront_parse_offsetof_query(
+        context, token, CTOOL_C_PARSE_DIAG_EXPRESSION, &offset);
+    return status == CTOOL_OK
+               ? cfront_append_folded_u32_constant(context, token, offset,
+                                                   value_out)
+               : status;
   }
   if (cfront_token_is(token, "(") == CTOOL_TRUE) {
     ctool_status_t parenthesized = cfront_enter_syntax(context, token);
@@ -5530,13 +6099,30 @@ static ctool_status_t cfront_parse_body_primary(
     expression.reference = reference;
     type = block_binding.type;
     value_out->is_lvalue = CTOOL_TRUE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden =
+        block_binding.storage == CTOOL_C_STORAGE_REGISTER ? CTOOL_TRUE
+                                                          : CTOOL_FALSE;
   } else if (cfront_find_active_parameter(context, token->spelling, &reference,
                                    &type) == CTOOL_TRUE) {
+    ctool_c_parameter_t parameter;
     cfront_expression_init(&expression, CTOOL_C_EXPRESSION_PARAMETER,
                            &token->location, &token->physical_location);
     expression.type = type;
     expression.reference = reference;
     value_out->is_lvalue = CTOOL_TRUE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    if (cfront_vector_get(&context->parameters, reference, &parameter) !=
+        CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+          "parameter expression metadata is unavailable");
+    }
+    value_out->address_forbidden =
+        parameter.storage == CTOOL_C_STORAGE_REGISTER ? CTOOL_TRUE
+                                                       : CTOOL_FALSE;
   } else if (cfront_find_file_binding_index(context, token->spelling,
                                             &binding, &reference) ==
              CTOOL_TRUE &&
@@ -5548,6 +6134,9 @@ static ctool_status_t cfront_parse_body_primary(
     type = binding.type;
     value_out->is_lvalue =
         binding.kind == CTOOL_C_BINDING_OBJECT ? CTOOL_TRUE : CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
   } else {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
@@ -5590,8 +6179,54 @@ static ctool_status_t cfront_append_conversion(
   if (status == CTOOL_OK) {
     value->type = target_type;
     value->is_lvalue = CTOOL_FALSE;
+    value->is_bit_field = CTOOL_FALSE;
+    value->bit_width = 0u;
+    value->address_forbidden = CTOOL_FALSE;
   }
   return status;
+}
+
+static ctool_status_t cfront_append_one_child_expression(
+    cfront_context_t *context, ctool_c_expression_kind_t kind,
+    ctool_c_expression_operator_t operation,
+    const ctool_c_pp_token_t *operator_token, ctool_u32 result_type,
+    ctool_u32 reference, ctool_bool is_lvalue, ctool_bool is_bit_field,
+    ctool_u32 bit_width, ctool_bool address_forbidden,
+    cfront_expression_value_t *operand) {
+  ctool_c_expression_t expression;
+  ctool_u32 child = operand->expression;
+  ctool_u32 first_child;
+  ctool_status_t status = cfront_vector_append(
+      &context->expression_children, &child, &first_child);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  cfront_expression_init(&expression, kind, &operator_token->location,
+                         &operator_token->physical_location);
+  expression.type = result_type;
+  expression.first_child = first_child;
+  expression.child_count = 1u;
+  expression.operation = operation;
+  expression.reference = reference;
+  status = cfront_append_expression(context, &expression,
+                                    &operand->expression);
+  if (status == CTOOL_OK) {
+    operand->type = result_type;
+    operand->is_lvalue = is_lvalue;
+    operand->is_bit_field = is_bit_field;
+    operand->bit_width = bit_width;
+    operand->address_forbidden = address_forbidden;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_pointer_type_at(
+    cfront_context_t *context, ctool_u32 referenced,
+    const ctool_c_pp_token_t *token, ctool_u32 *type_out) {
+  ctool_c_type_node_t pointer;
+  cfront_node_init(&pointer, CTOOL_C_TYPE_POINTER, token);
+  pointer.referenced_type = referenced;
+  return cfront_type_append(context, &pointer, type_out);
 }
 
 static ctool_status_t cfront_pointer_conversion_type(
@@ -5677,15 +6312,23 @@ static ctool_status_t cfront_apply_default_conversion(
                                     &node);
   }
   (void)base;
-  (void)qualifiers;
   if (status != CTOOL_OK) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         cfront_peek(context), "expression conversion type is unavailable");
   }
   if (node.kind == CTOOL_C_TYPE_ARRAY) {
-    status = cfront_pointer_conversion_type(
-        context, node.referenced_type, &source, &target_type);
+    ctool_c_pp_token_t source_token;
+    ctool_u32 referenced = node.referenced_type;
+    cfront_zero(&source_token, (ctool_u32)sizeof(source_token));
+    source_token.location = source.location;
+    source_token.physical_location = source.physical_location;
+    status = cfront_qualified_type(context, referenced, qualifiers,
+                                   &source_token, &referenced);
+    if (status == CTOOL_OK) {
+      status = cfront_pointer_conversion_type(
+          context, referenced, &source, &target_type);
+    }
     return status == CTOOL_OK
                ? cfront_append_conversion(
                      context, CTOOL_C_CONVERSION_ARRAY_TO_POINTER,
@@ -5740,7 +6383,9 @@ static ctool_status_t cfront_apply_integer_promotion(
   cfront_integer_type_t integer;
   ctool_c_type_node_t node;
   ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool was_bit_field = value->is_bit_field;
   ctool_u32 base;
+  ctool_u32 bit_width = value->bit_width;
   ctool_u32 qualifiers;
   ctool_u32 target;
   ctool_status_t status = cfront_apply_default_conversion(context, value);
@@ -5769,7 +6414,12 @@ static ctool_status_t cfront_apply_integer_promotion(
             ? "pointer arithmetic is outside this expression slice"
             : "non-integer operators are outside this body slice");
   }
-  if (integer.rank < 4u) {
+  if (was_bit_field == CTOOL_TRUE &&
+      integer.kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+      bit_width < integer.width) {
+    status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
+                                &target);
+  } else if (integer.rank < 4u) {
     status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
                                 &target);
   } else {
@@ -5989,9 +6639,126 @@ static ctool_status_t cfront_apply_assignment_conversion(
       source_token, failure_message);
 }
 
-static ctool_status_t cfront_parse_body_call(
+static ctool_status_t cfront_append_member_path(
+    cfront_context_t *context, const ctool_c_pp_token_t *member_token,
+    const cfront_vector_t *path, cfront_expression_value_t *value) {
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  for (index = 0u; status == CTOOL_OK && index < path->count; index++) {
+    ctool_c_record_member_t member;
+    ctool_c_type_node_t record;
+    ctool_u32 member_index;
+    ctool_u32 record_base;
+    ctool_u32 record_qualifiers;
+    ctool_u32 result_type;
+    status = cfront_vector_get(path, index, &member_index);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_get(&context->members, member_index, &member);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(context, value->type, &record_base,
+                                      &record_qualifiers, &record);
+    }
+    (void)record_base;
+    if (status != CTOOL_OK || record.kind != CTOOL_C_TYPE_RECORD ||
+        record.record_complete == CTOOL_FALSE ||
+        member_index < record.first_member ||
+        member_index - record.first_member >= record.member_count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          member_token, "resolved member is not owned by its record operand");
+    }
+    record_qualifiers |= record.qualifiers;
+    status = cfront_qualified_type(context, member.type, record_qualifiers,
+                                   member_token, &result_type);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    status = cfront_append_one_child_expression(
+        context, CTOOL_C_EXPRESSION_MEMBER,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, member_token, result_type,
+        member_index, value->is_lvalue, member.is_bit_field,
+        member.bit_width, value->address_forbidden, value);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_body_postfix(
     cfront_context_t *context, cfront_expression_value_t *value) {
-  while (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+  for (;;) {
+    if (cfront_peek_is(context, ".") == CTOOL_TRUE ||
+        cfront_peek_is(context, "->") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+      const ctool_c_pp_token_t *member_token = cfront_peek(context);
+      cfront_vector_t path;
+      ctool_u32 member_diagnostic_count =
+          ctool_job_diagnostic_count(context->job);
+      ctool_status_t member_status;
+      cfront_zero(&path, (ctool_u32)sizeof(path));
+      if (member_token == (const ctool_c_pp_token_t *)0 ||
+          member_token->kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            member_token, "member access requires a member identifier");
+      }
+      if (cfront_token_is(operator_token, "->") == CTOOL_TRUE) {
+        ctool_c_type_node_t pointer;
+        ctool_u32 pointer_base;
+        ctool_u32 pointer_qualifiers;
+        member_status = cfront_apply_default_conversion(context, value);
+        if (member_status == CTOOL_OK) {
+          member_status = cfront_underlying_type(
+              context, value->type, &pointer_base, &pointer_qualifiers,
+              &pointer);
+        }
+        (void)pointer_base;
+        (void)pointer_qualifiers;
+        if (member_status != CTOOL_OK) {
+          return cfront_storage_failure(context, member_status);
+        }
+        if (pointer.kind != CTOOL_C_TYPE_POINTER) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+              operator_token,
+              "arrow member access requires a pointer to a record or union");
+        }
+        member_status = cfront_append_one_child_expression(
+            context, CTOOL_C_EXPRESSION_UNARY,
+            CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, operator_token,
+            pointer.referenced_type, CTOOL_C_AST_NONE, CTOOL_TRUE,
+            CTOOL_FALSE, 0u, CTOOL_FALSE, value);
+        if (member_status != CTOOL_OK) {
+          return member_status;
+        }
+      }
+      member_status = cfront_vector_open(context, &path,
+                                         (ctool_u32)sizeof(ctool_u32));
+      if (member_status == CTOOL_OK) {
+        member_status = cfront_resolve_member_path(
+            context, value->type, member_token->spelling, member_token,
+            &path);
+      }
+      if (member_status == CTOOL_OK) {
+        member_status = cfront_append_member_path(
+            context, member_token, &path, value);
+      }
+      cfront_vector_close(&path);
+      if (member_status != CTOOL_OK) {
+        if ((member_status == CTOOL_ERR_LIMIT ||
+             member_status == CTOOL_ERR_OVERFLOW ||
+             member_status == CTOOL_ERR_NO_MEMORY) &&
+            ctool_job_diagnostic_count(context->job) ==
+                member_diagnostic_count) {
+          return cfront_storage_failure(context, member_status);
+        }
+        return member_status;
+      }
+      (void)cfront_advance(context);
+      continue;
+    }
+    if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+      break;
+    }
     ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
     const ctool_c_pp_token_t *open = cfront_advance(context);
     cfront_vector_t children;
@@ -6118,6 +6885,9 @@ static ctool_status_t cfront_parse_body_call(
       if (status == CTOOL_OK) {
         value->type = function.referenced_type;
         value->is_lvalue = CTOOL_FALSE;
+        value->is_bit_field = CTOOL_FALSE;
+        value->bit_width = 0u;
+        value->address_forbidden = CTOOL_FALSE;
       }
     }
     cfront_vector_close(&children);
@@ -6159,28 +6929,171 @@ static ctool_status_t cfront_append_unary_expression(
     cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
     ctool_c_expression_operator_t operation, ctool_u32 type,
     cfront_expression_value_t *operand) {
-  ctool_c_expression_t expression;
-  ctool_u32 child = operand->expression;
-  ctool_u32 first_child;
-  ctool_status_t status = cfront_vector_append(
-      &context->expression_children, &child, &first_child);
+  return cfront_append_one_child_expression(
+      context, CTOOL_C_EXPRESSION_UNARY, operation, operator_token, type,
+      CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE, operand);
+}
+
+static ctool_status_t cfront_apply_address_operator(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    cfront_expression_value_t *operand) {
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 result_type;
+  ctool_status_t status = cfront_underlying_type(
+      context, operand->type, &base, &qualifiers, &node);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "address operand type is unavailable");
+  }
+  if (operand->is_bit_field == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "address operator cannot apply to a bit-field");
+  }
+  if (operand->address_forbidden == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "address operator cannot apply to a register object");
+  }
+  if (operand->is_lvalue == CTOOL_FALSE &&
+      node.kind != CTOOL_C_TYPE_FUNCTION) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "address operator requires an object lvalue or function designator");
+  }
+  status = cfront_pointer_type_at(context, operand->type, operator_token,
+                                  &result_type);
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
-  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_UNARY,
-                         &operator_token->location,
-                         &operator_token->physical_location);
-  expression.type = type;
-  expression.first_child = first_child;
-  expression.child_count = 1u;
-  expression.operation = operation;
-  status = cfront_append_expression(context, &expression,
-                                    &operand->expression);
+  return cfront_append_one_child_expression(
+      context, CTOOL_C_EXPRESSION_UNARY,
+      CTOOL_C_EXPRESSION_OPERATOR_ADDRESS, operator_token, result_type,
+      CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE, operand);
+}
+
+static ctool_status_t cfront_apply_dereference_operator(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    cfront_expression_value_t *operand) {
+  ctool_c_type_node_t pointer;
+  ctool_c_type_node_t referent;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 referent_base;
+  ctool_u32 referent_qualifiers;
+  ctool_status_t status = cfront_apply_default_conversion(context, operand);
   if (status == CTOOL_OK) {
-    operand->type = type;
-    operand->is_lvalue = CTOOL_FALSE;
+    status = cfront_underlying_type(context, operand->type, &base,
+                                    &qualifiers, &pointer);
   }
-  return status;
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (pointer.kind != CTOOL_C_TYPE_POINTER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "dereference operator requires a pointer operand");
+  }
+  status = cfront_underlying_type(context, pointer.referenced_type,
+                                  &referent_base, &referent_qualifiers,
+                                  &referent);
+  (void)referent_base;
+  (void)referent_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "dereference referent type is unavailable");
+  }
+  if (referent.kind == CTOOL_C_TYPE_VOID) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "dereference operator requires a pointer to an object or function");
+  }
+  return cfront_append_one_child_expression(
+      context, CTOOL_C_EXPRESSION_UNARY,
+      CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, operator_token,
+      pointer.referenced_type, CTOOL_C_AST_NONE,
+      referent.kind == CTOOL_C_TYPE_FUNCTION ? CTOOL_FALSE : CTOOL_TRUE,
+      CTOOL_FALSE, 0u, CTOOL_FALSE, operand);
+}
+
+static ctool_status_t cfront_apply_cast(
+    cfront_context_t *context, const ctool_c_pp_token_t *cast_token,
+    ctool_u32 target_type, cfront_expression_value_t *operand) {
+  cfront_integer_type_t integer;
+  ctool_c_type_node_t target;
+  ctool_c_type_node_t source;
+  ctool_u32 target_base;
+  ctool_u32 source_base;
+  ctool_u32 target_qualifiers;
+  ctool_u32 source_qualifiers;
+  ctool_bool target_integer = CTOOL_FALSE;
+  ctool_bool source_integer = CTOOL_FALSE;
+  ctool_status_t status = cfront_underlying_type(
+      context, target_type, &target_base, &target_qualifiers, &target);
+  (void)target_base;
+  (void)target_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, cast_token,
+        "cast destination type is unavailable");
+  }
+  status = cfront_apply_default_conversion(context, operand);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_underlying_type(context, operand->type, &source_base,
+                                  &source_qualifiers, &source);
+  (void)source_base;
+  (void)source_qualifiers;
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, target_type, &integer,
+                                 &target_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, operand->type, &integer,
+                                 &source_integer);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (target.kind != CTOOL_C_TYPE_VOID &&
+      (target.kind == CTOOL_C_TYPE_FLOAT ||
+       target.kind == CTOOL_C_TYPE_DOUBLE ||
+       target.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+       source.kind == CTOOL_C_TYPE_FLOAT ||
+       source.kind == CTOOL_C_TYPE_DOUBLE ||
+       source.kind == CTOOL_C_TYPE_LONG_DOUBLE)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        cast_token, "floating casts are outside this expression slice");
+  }
+  if (target.kind != CTOOL_C_TYPE_VOID &&
+      target_integer == CTOOL_FALSE && target.kind != CTOOL_C_TYPE_POINTER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, cast_token,
+        "cast destination must have scalar or void type");
+  }
+  if (target.kind != CTOOL_C_TYPE_VOID &&
+      source_integer == CTOOL_FALSE && source.kind != CTOOL_C_TYPE_POINTER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, cast_token,
+        "cast operand must have scalar type");
+  }
+  return cfront_append_one_child_expression(
+      context, CTOOL_C_EXPRESSION_CAST, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      cast_token, target_type, CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE,
+      0u, CTOOL_FALSE, operand);
 }
 
 static ctool_status_t cfront_append_binary_expression(
@@ -6212,6 +7125,9 @@ static ctool_status_t cfront_append_binary_expression(
   if (status == CTOOL_OK) {
     left->type = type;
     left->is_lvalue = CTOOL_FALSE;
+    left->is_bit_field = CTOOL_FALSE;
+    left->bit_width = 0u;
+    left->address_forbidden = CTOOL_FALSE;
   }
   return status;
 }
@@ -6222,6 +7138,49 @@ static ctool_status_t cfront_parse_body_unary(
   ctool_c_expression_operator_t operation =
       CTOOL_C_EXPRESSION_OPERATOR_NONE;
   ctool_status_t status;
+  if (cfront_token_is(token, "sizeof") == CTOOL_TRUE) {
+    ctool_u32 size = 0u;
+    (void)cfront_advance(context);
+    status = cfront_parse_sizeof_query(
+        context, token, CTOOL_C_PARSE_DIAG_EXPRESSION, &size);
+    return status == CTOOL_OK
+               ? cfront_append_folded_u32_constant(context, token, size,
+                                                   value_out)
+               : status;
+  }
+  if (cfront_token_is(token, "_Alignof") == CTOOL_TRUE ||
+      cfront_token_is(token, "__alignof") == CTOOL_TRUE ||
+      cfront_token_is(token, "__alignof__") == CTOOL_TRUE) {
+    ctool_u32 alignment = 0u;
+    (void)cfront_advance(context);
+    status = cfront_parse_alignof_query(
+        context, token, CTOOL_C_PARSE_DIAG_EXPRESSION, &alignment);
+    return status == CTOOL_OK
+               ? cfront_append_folded_u32_constant(
+                     context, token, alignment, value_out)
+               : status;
+  }
+  if (cfront_token_is(token, "(") == CTOOL_TRUE &&
+      cfront_parenthesized_type_name_starts(context) == CTOOL_TRUE) {
+    ctool_u32 target_type = CTOOL_C_TYPE_NONE;
+    status = cfront_enter_syntax(context, token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    (void)cfront_advance(context);
+    status = cfront_parse_type_name(context, &target_type);
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_parse_body_unary(context, value_out);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_apply_cast(context, token, target_type, value_out);
+    }
+    cfront_leave_syntax(context);
+    return status;
+  }
   if (cfront_token_is(token, "+") == CTOOL_TRUE) {
     operation = CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS;
   } else if (cfront_token_is(token, "-") == CTOOL_TRUE) {
@@ -6230,10 +7189,14 @@ static ctool_status_t cfront_parse_body_unary(
     operation = CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT;
   } else if (cfront_token_is(token, "!") == CTOOL_TRUE) {
     operation = CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT;
+  } else if (cfront_token_is(token, "&") == CTOOL_TRUE) {
+    operation = CTOOL_C_EXPRESSION_OPERATOR_ADDRESS;
+  } else if (cfront_token_is(token, "*") == CTOOL_TRUE) {
+    operation = CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE;
   }
   if (operation == CTOOL_C_EXPRESSION_OPERATOR_NONE) {
     status = cfront_parse_body_primary(context, value_out);
-    return status == CTOOL_OK ? cfront_parse_body_call(context, value_out)
+    return status == CTOOL_OK ? cfront_parse_body_postfix(context, value_out)
                               : status;
   }
   status = cfront_enter_syntax(context, token);
@@ -6249,10 +7212,18 @@ static ctool_status_t cfront_parse_body_unary(
       status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
                                   &value_out->type);
     }
+  } else if (status == CTOOL_OK &&
+             operation == CTOOL_C_EXPRESSION_OPERATOR_ADDRESS) {
+    status = cfront_apply_address_operator(context, token, value_out);
+  } else if (status == CTOOL_OK &&
+             operation == CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
+    status = cfront_apply_dereference_operator(context, token, value_out);
   } else if (status == CTOOL_OK) {
     status = cfront_apply_integer_promotion(context, token, value_out);
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_ADDRESS &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
     status = cfront_append_unary_expression(
         context, token, operation, value_out->type, value_out);
   }
@@ -7498,9 +8469,12 @@ static ctool_status_t cfront_alloc_array(cfront_context_t *context,
                                 allocation_out);
 }
 
-static ctool_status_t cfront_layout_type_now(
+static ctool_status_t cfront_layout_query_now(
     cfront_context_t *context, ctool_u32 type,
-    const ctool_c_pp_token_t *token, ctool_c_type_layout_t *layout_out) {
+    const cfront_vector_t *member_path,
+    const ctool_c_pp_token_t *token, ctool_u32 diagnostic_code,
+    const char *incomplete_message, ctool_c_type_layout_t *layout_out,
+    ctool_u32 *member_offset_out, ctool_u32 *member_alignment_out) {
   ctool_c_type_node_t *types = (ctool_c_type_node_t *)0;
   ctool_c_record_member_t *members = (ctool_c_record_member_t *)0;
   ctool_u32 *parameter_types = (ctool_u32 *)0;
@@ -7510,6 +8484,8 @@ static ctool_status_t cfront_layout_type_now(
   ctool_arena_mark_t mark;
   ctool_u32 diagnostic_count;
   ctool_u32 index;
+  ctool_u32 member_offset = 0u;
+  ctool_u32 member_alignment = 0u;
   ctool_bool complete = CTOOL_FALSE;
   ctool_status_t rewind_status;
   ctool_status_t status = cfront_type_is_complete_object_now(
@@ -7517,12 +8493,11 @@ static ctool_status_t cfront_layout_type_now(
   if (status != CTOOL_OK) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
-        "sizeof operand completeness is unavailable");
+        "layout-query operand completeness is unavailable");
   }
   if (complete == CTOOL_FALSE) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
-        token, "sizeof requires a complete object type");
+        context, CTOOL_ERR_INPUT, diagnostic_code, token, incomplete_message);
   }
   mark = ctool_arena_mark(arena);
   diagnostic_count = ctool_job_diagnostic_count(context->job);
@@ -7570,14 +8545,41 @@ static ctool_status_t cfront_layout_type_now(
        result.types == (const ctool_c_type_layout_t *)0)) {
     status = CTOOL_ERR_INTERNAL;
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK && layout_out != (ctool_c_type_layout_t *)0) {
     *layout_out = result.types[type];
+  }
+  for (index = 0u;
+       status == CTOOL_OK && member_path != (const cfront_vector_t *)0 &&
+       index < member_path->count;
+       index++) {
+    ctool_u32 member_index;
+    status = cfront_vector_get(member_path, index, &member_index);
+    if (status == CTOOL_OK &&
+        (result.members == (const ctool_c_member_layout_t *)0 ||
+         member_index >= result.member_count)) {
+      status = CTOOL_ERR_INTERNAL;
+    }
+    if (status == CTOOL_OK) {
+      if (member_offset >
+          CFRONT_U32_MAX - result.members[member_index].byte_offset) {
+        status = CTOOL_ERR_OVERFLOW;
+      } else {
+        member_offset += result.members[member_index].byte_offset;
+        member_alignment = result.members[member_index].alignment;
+      }
+    }
+  }
+  if (status == CTOOL_OK && member_offset_out != (ctool_u32 *)0) {
+    *member_offset_out = member_offset;
+  }
+  if (status == CTOOL_OK && member_alignment_out != (ctool_u32 *)0) {
+    *member_alignment_out = member_alignment;
   }
   rewind_status = ctool_arena_rewind(arena, mark);
   if (rewind_status != CTOOL_OK) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
-        "sizeof layout scratch rewind failed");
+        "layout-query scratch rewind failed");
   }
   if (status != CTOOL_OK &&
       ctool_job_diagnostic_count(context->job) == diagnostic_count) {
@@ -7988,6 +8990,12 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           cfront_peek(context),
           "frozen block-binding reference is invalid");
     }
+    if (expression->kind == CTOOL_C_EXPRESSION_MEMBER &&
+        expression->reference >= context->members.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen member reference is invalid");
+    }
     if (expression->child_count != 0u) {
       if (expression->first_child > context->expression_children.count ||
           expression->child_count >
@@ -8063,7 +9071,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           expression->operation <
               CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS ||
           expression->operation >
-              CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT ||
+              CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
           expression->conversion != CTOOL_C_CONVERSION_NONE ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(
@@ -8071,6 +9079,65 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             cfront_peek(context), "frozen unary expression is invalid");
       }
       break;
+    case CTOOL_C_EXPRESSION_CAST:
+      if (expression->child_count != 1u ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen cast expression is invalid");
+      }
+      break;
+    case CTOOL_C_EXPRESSION_MEMBER: {
+      ctool_c_record_member_t member;
+      ctool_c_type_node_t record;
+      ctool_c_type_node_t member_node;
+      ctool_c_type_node_t result_node;
+      ctool_u32 child;
+      ctool_u32 record_base;
+      ctool_u32 record_qualifiers;
+      ctool_u32 member_base;
+      ctool_u32 member_qualifiers;
+      ctool_u32 result_base;
+      ctool_u32 result_qualifiers;
+      if (expression->child_count != 1u ||
+          expression->reference >= context->members.count ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen member expression is invalid");
+      }
+      child = expression_children[expression->first_child];
+      if (child >= index ||
+          cfront_vector_get(&context->members, expression->reference,
+                            &member) != CTOOL_OK ||
+          cfront_underlying_type(context, expressions[child].type,
+                                 &record_base, &record_qualifiers,
+                                 &record) != CTOOL_OK ||
+          cfront_underlying_type(context, member.type, &member_base,
+                                 &member_qualifiers, &member_node) !=
+              CTOOL_OK ||
+          cfront_underlying_type(context, expression->type, &result_base,
+                                 &result_qualifiers, &result_node) !=
+              CTOOL_OK ||
+          record.kind != CTOOL_C_TYPE_RECORD ||
+          expression->reference < record.first_member ||
+          expression->reference - record.first_member >=
+              record.member_count ||
+          result_base != member_base ||
+          result_qualifiers !=
+              (member_qualifiers | record_qualifiers | record.qualifiers)) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen member is not owned by its operand record");
+      }
+      break;
+    }
     case CTOOL_C_EXPRESSION_BINARY:
       if (expression->child_count != 2u ||
           expression->reference != CTOOL_C_AST_NONE ||

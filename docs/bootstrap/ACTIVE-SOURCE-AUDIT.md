@@ -9,7 +9,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Active source inputs: 681
 - Unreachable source-like files: 39
 - Reachable output transforms: 491
-- Distinct feature requirements: 250
+- Distinct feature requirements: 251
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 12 | 25900 |
-| `toolchain_core` | 18 | 28649 |
+| `toolchain_contract` | 12 | 26900 |
+| `toolchain_core` | 18 | 29725 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 154 |
@@ -98,17 +98,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 47400 |
+| `c.control` | 12 | 47783 |
 | `c.declaration` | 1 | 22 |
-| `c.declarator` | 4 | 1668 |
-| `c.expression` | 2 | 1850 |
-| `c.extension` | 17 | 372 |
+| `c.declarator` | 4 | 1677 |
+| `c.expression` | 2 | 1878 |
+| `c.extension` | 18 | 373 |
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 18 | 6400 |
-| `c.qualifier` | 2 | 6109 |
-| `c.storage` | 4 | 5350 |
-| `c.type` | 14 | 36622 |
+| `c.preprocessor` | 18 | 6401 |
+| `c.qualifier` | 2 | 6210 |
+| `c.storage` | 4 | 5387 |
+| `c.type` | 14 | 36730 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 128 |
 | `cupid_c.directive` | 1 | 1 |
@@ -223,7 +223,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 424 linked objects; 431 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 101 conditional expressions (97 #if, 4 #elif); 21 normalized expressions; 22 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2314 C include operands (2112 quoted, 202 angle, 0 pp-token); 651 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2315 C include operands (2112 quoted, 203 angle, 0 pp-token); 651 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 651 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 356 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=104, HOSTED_TOOLCHAIN_64=10, HOSTED_KERNEL_BRIDGE_64=1); 22 include-only, 2 non-root headers; 17 hosted deferred (17 external, 0 hermetic) |

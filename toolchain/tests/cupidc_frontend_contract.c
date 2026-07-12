@@ -2,6 +2,7 @@
 #include "ctool_host.h"
 #include "cupidc_frontend.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2746,6 +2747,110 @@ cleanup:
   return failed;
 }
 
+static ctool_bool frontend_find_source_text(ctool_bytes_t source,
+                                            const char *text,
+                                            ctool_u32 first,
+                                            ctool_u32 *offset_out) {
+  size_t text_size_host = strlen(text);
+  ctool_u32 text_size;
+  ctool_u32 offset;
+  if (text_size_host == 0u || text_size_host > 0xffffffffu ||
+      first > source.size) {
+    return CTOOL_FALSE;
+  }
+  text_size = (ctool_u32)text_size_host;
+  if (text_size > source.size - first) {
+    return CTOOL_FALSE;
+  }
+  offset = first;
+  for (;;) {
+    if (memcmp(source.data + offset, text, text_size) == 0) {
+      *offset_out = offset;
+      return CTOOL_TRUE;
+    }
+    if (offset == source.size - text_size) {
+      break;
+    }
+    offset++;
+  }
+  return CTOOL_FALSE;
+}
+
+static char *build_active_assertion_fixture(
+    frontend_fixture_t *fixture, const char *source_path,
+    const char *prefix, const char *first_text, const char *last_text,
+    ctool_u32 expected_assertions) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  ctool_u32 first;
+  ctool_u32 last;
+  ctool_u32 last_size;
+  ctool_u32 span_size;
+  ctool_u32 assertion_count = 0u;
+  ctool_u32 assertion_offset;
+  ctool_u32 cursor;
+  size_t prefix_size = strlen(prefix);
+  size_t last_size_host = strlen(last_text);
+  size_t total_size;
+  char *result;
+  path.text = ctool_string(source_path);
+  status = ctool_job_load_source(fixture->job, &path, &source);
+  if (status != CTOOL_OK || prefix_size > 0xffffffffu ||
+      last_size_host == 0u || last_size_host > 0xffffffffu ||
+      frontend_find_source_text(source.contents, first_text, 0u, &first) ==
+          CTOOL_FALSE ||
+      frontend_find_source_text(source.contents, last_text, first, &last) ==
+          CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "%s: active assertion span is unavailable in %s\n",
+                  fixture->mode, source_path);
+    return NULL;
+  }
+  last_size = (ctool_u32)last_size_host;
+  if (last > source.contents.size ||
+      last_size > source.contents.size - last) {
+    return NULL;
+  }
+  last += last_size;
+  while (last < source.contents.size &&
+         (source.contents.data[last] == '\r' ||
+          source.contents.data[last] == '\n')) {
+    last++;
+  }
+  span_size = last - first;
+  cursor = first;
+  while (frontend_find_source_text(source.contents, "_Static_assert", cursor,
+                                   &assertion_offset) == CTOOL_TRUE &&
+         assertion_offset < last) {
+    assertion_count++;
+    cursor = assertion_offset + 1u;
+  }
+  if (assertion_count != expected_assertions) {
+    (void)fprintf(stderr,
+                  "%s: expected %u active assertions in %s, found %u\n",
+                  fixture->mode, expected_assertions, source_path,
+                  assertion_count);
+    return NULL;
+  }
+  if ((size_t)span_size > SIZE_MAX - prefix_size - 1u) {
+    return NULL;
+  }
+  total_size = prefix_size + (size_t)span_size;
+  if (total_size >= 0xffffffffu) {
+    return NULL;
+  }
+  result = (char *)malloc(total_size + 1u);
+  if (result == NULL) {
+    return NULL;
+  }
+  (void)memcpy(result, prefix, prefix_size);
+  (void)memcpy(result + prefix_size, source.contents.data + first,
+               (size_t)span_size);
+  result[total_size] = '\0';
+  return result;
+}
+
 static int run_static_asserts(const char *host_root) {
   static const frontend_failure_case_t failure_cases[] = {
       {"false static assertion",
@@ -2788,9 +2893,6 @@ static int run_static_asserts(const char *host_root) {
       {"storage class in sizeof type name",
        "_Static_assert(sizeof(static int) == 4, \"storage\");\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
-      {"sizeof expression pending",
-       "_Static_assert(sizeof(1 + 2) == 4, \"expression\");\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED},
       {"short-circuited unknown enumerator",
        "_Static_assert(!(0 && missing_value), \"unknown\");\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -2897,11 +2999,25 @@ static int run_static_asserts(const char *host_root) {
       "\"member \" \"scope\");\n"
       "  unsigned char value;\n"
       "};\n";
+  static const char expression_source[] =
+      "typedef struct assertion_designator {\n"
+      "  int lead;\n"
+      "  int values[4] __attribute__((aligned(16)));\n"
+      "  struct { int promoted; };\n"
+      "} assertion_designator_t;\n"
+      "_Static_assert(sizeof(((assertion_designator_t *)0)->values) == 16, \"member array size\");\n"
+      "_Static_assert(sizeof(1 / 0) == 4, \"unevaluated arithmetic\");\n"
+      "_Static_assert(_Alignof(assertion_designator_t) == 16, \"standard alignment\");\n"
+      "_Static_assert(__alignof__(((assertion_designator_t *)0)->values) == 16, \"GNU member alignment\");\n"
+      "_Static_assert(__builtin_offsetof(assertion_designator_t, values) == 16, \"direct offset\");\n"
+      "_Static_assert(__builtin_offsetof(assertion_designator_t, promoted) == 32, \"promoted offset\");\n";
   frontend_fixture_t fixture;
   ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
   ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
   ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
   ctool_c_translation_unit_t unit;
+  char *active_process_assertions = NULL;
+  char *active_syscall_assertions = NULL;
   ctool_u32 failure_index;
   int failed = 1;
 
@@ -2994,6 +3110,27 @@ static int run_static_asserts(const char *host_root) {
       goto cleanup;
     }
   }
+  if (parse_valid_fixture(&fixture, "/static-assert-expressions.c",
+                          expression_source, &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding =
+        find_binding(&unit, "assertion_designator_t");
+    const ctool_c_type_layout_t *layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    if (unit.binding_count != 1u || unit.tag_count != 1u ||
+        unit.graph.member_count != 4u || binding == NULL || layout == NULL ||
+        layout->size != 48u || layout->alignment != 16u ||
+        unit.function_definition_count != 0u || unit.statement_count != 0u ||
+        unit.statement_child_count != 0u || unit.expression_count != 0u ||
+        unit.expression_child_count != 0u || unit.block_binding_count != 0u) {
+      (void)fprintf(
+          stderr,
+          "static-asserts: typed unevaluated-expression fixture differs\n");
+      goto cleanup;
+    }
+  }
   if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
                            forced_includes) != 0 ||
       parse_loaded_fixture(&fixture, "/kernel/smp/percpu.h", "static", 0u,
@@ -3035,6 +3172,59 @@ static int run_static_asserts(const char *host_root) {
                     "static-asserts: unchanged exec assertion prefix differs\n");
       goto cleanup;
     }
+  }
+  active_process_assertions = build_active_assertion_fixture(
+      &fixture, "/kernel/core/process.c",
+      "#include \"process.h\"\n#line 39 \"/kernel/core/process.c\"\n",
+      "_Static_assert(__alignof__(((process_t *)0)->fp_state)",
+      "(PCB_FP_STATE_OFFSET=80)\");", 6u);
+  active_syscall_assertions = build_active_assertion_fixture(
+      &fixture, "/kernel/core/syscall.c",
+      "#include \"syscall.h\"\n#line 174 \"/kernel/core/syscall.c\"\n",
+      "#define SC_OFF(field)", "#undef SC_OFF", 12u);
+  if (active_process_assertions == NULL || active_syscall_assertions == NULL) {
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/active-process-assertions.c",
+                          active_process_assertions, &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *binding = find_binding(&unit, "process_t");
+    const ctool_c_type_node_t *process =
+        binding == NULL ? NULL : type_node(&unit, binding->type);
+    const ctool_c_type_layout_t *layout =
+        binding == NULL ? NULL : type_layout(&unit, binding->type);
+    ctool_u32 member_index = unit.graph.member_count;
+    const ctool_c_record_member_t *member =
+        process == NULL
+            ? NULL
+            : find_record_member(&unit, process, "fp_state", &member_index);
+    if (binding == NULL || process == NULL || layout == NULL ||
+        layout->size != 656u || layout->alignment != 16u || member == NULL ||
+        member_index >= unit.layout.member_count ||
+        unit.layout.members[member_index].byte_offset != 80u ||
+        unit.layout.members[member_index].size != 512u ||
+        unit.layout.members[member_index].alignment != 16u ||
+        unit.function_definition_count != 0u || unit.statement_count != 0u ||
+        unit.statement_child_count != 0u || unit.expression_count != 0u ||
+        unit.expression_child_count != 0u || unit.block_binding_count != 0u) {
+      (void)fprintf(stderr,
+                    "static-asserts: active process assertions differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(&fixture, "/active-syscall-assertions.c",
+                          active_syscall_assertions, &unit) != 0) {
+    goto cleanup;
+  }
+  if (find_binding(&unit, "cupid_syscall_table_t") == NULL ||
+      unit.function_definition_count != 0u || unit.statement_count != 0u ||
+      unit.statement_child_count != 0u || unit.expression_count != 0u ||
+      unit.expression_child_count != 0u || unit.block_binding_count != 0u) {
+    (void)fprintf(stderr,
+                  "static-asserts: active syscall assertions differ\n");
+    goto cleanup;
   }
   for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
        failure_index++) {
@@ -3090,6 +3280,8 @@ static int run_static_asserts(const char *host_root) {
   failed = 0;
 
 cleanup:
+  free(active_syscall_assertions);
+  free(active_process_assertions);
   if (finish_frontend_fixture(&fixture) != 0) {
     failed = 1;
   }
@@ -4956,6 +5148,810 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("scalar-returns: ok\n");
+  }
+  return failed;
+}
+
+static ctool_u32 pointer_return_root(const ctool_c_translation_unit_t *unit,
+                                     const char *function_name) {
+  const ctool_c_statement_t *statement =
+      scalar_return_statement(unit, function_name);
+  return statement == NULL ? CTOOL_C_AST_NONE
+                           : scalar_unwrap_conversions(unit,
+                                                       statement->expression);
+}
+
+static const ctool_c_statement_t *pointer_expression_statement(
+    const ctool_c_translation_unit_t *unit, const char *function_name) {
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, function_name);
+  const ctool_c_statement_t *body;
+  ctool_u32 index;
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    return NULL;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count > unit->statement_child_count - body->first_child) {
+    return NULL;
+  }
+  for (index = 0u; index < body->child_count; index++) {
+    ctool_u32 child = unit->statement_children[body->first_child + index];
+    if (child >= unit->statement_count) {
+      return NULL;
+    }
+    if (unit->statements[child].kind == CTOOL_C_STATEMENT_EXPRESSION) {
+      return &unit->statements[child];
+    }
+  }
+  return NULL;
+}
+
+static int pointer_expression_shape(const ctool_c_translation_unit_t *unit,
+                                    ctool_u32 expression,
+                                    ctool_c_expression_kind_t kind,
+                                    ctool_c_expression_operator_t operation,
+                                    ctool_u32 child_count) {
+  const ctool_c_expression_t *node =
+      expression < unit->expression_count ? &unit->expressions[expression]
+                                          : NULL;
+  return node != NULL && node->kind == kind && node->operation == operation &&
+                 node->child_count == child_count
+             ? 0
+             : 1;
+}
+
+static int pointer_folded_return(const ctool_c_translation_unit_t *unit,
+                                 const char *function_name,
+                                 ctool_u64 expected_bits) {
+  ctool_u32 root = pointer_return_root(unit, function_name);
+  const ctool_c_expression_t *expression =
+      root < unit->expression_count ? &unit->expressions[root] : NULL;
+  return expression != NULL &&
+                 expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+                 expression->integer_bits == expected_bits &&
+                 scalar_type_kind(unit, expression->type, NULL) ==
+                     CTOOL_C_TYPE_UNSIGNED_INT
+             ? 0
+             : 1;
+}
+
+static int validate_pointer_expression_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *aggregate_binding =
+      find_binding(unit, "aggregate_t");
+  const ctool_c_binding_t *packed_binding =
+      find_binding(unit, "promoted_pack_t");
+  const ctool_c_binding_t *wide_binding = find_binding(unit, "wide_bits_t");
+  const ctool_c_type_node_t *aggregate =
+      aggregate_binding == NULL ? NULL
+                                : type_node(unit, aggregate_binding->type);
+  const ctool_c_type_node_t *packed =
+      packed_binding == NULL ? NULL : type_node(unit, packed_binding->type);
+  const ctool_c_type_node_t *wide =
+      wide_binding == NULL ? NULL : type_node(unit, wide_binding->type);
+  const ctool_c_type_layout_t *aggregate_layout =
+      aggregate_binding == NULL ? NULL
+                                : type_layout(unit, aggregate_binding->type);
+  const ctool_c_record_member_t *direct;
+  const ctool_c_record_member_t *locked;
+  const ctool_c_record_member_t *values;
+  const ctool_c_record_member_t *anonymous;
+  const ctool_c_record_member_t *promoted;
+  const ctool_c_record_member_t *packed_anonymous;
+  const ctool_c_record_member_t *packed_promoted;
+  const ctool_c_record_member_t *named;
+  const ctool_c_record_member_t *named_value;
+  const ctool_c_record_member_t *bits;
+  const ctool_c_record_member_t *wide_bits;
+  const ctool_c_type_node_t *anonymous_record;
+  const ctool_c_type_node_t *packed_anonymous_record;
+  const ctool_c_type_node_t *named_record;
+  ctool_u32 direct_index = CTOOL_C_AST_NONE;
+  ctool_u32 locked_index = CTOOL_C_AST_NONE;
+  ctool_u32 values_index = CTOOL_C_AST_NONE;
+  ctool_u32 anonymous_index = CTOOL_C_AST_NONE;
+  ctool_u32 promoted_index = CTOOL_C_AST_NONE;
+  ctool_u32 packed_anonymous_index = CTOOL_C_AST_NONE;
+  ctool_u32 packed_promoted_index = CTOOL_C_AST_NONE;
+  ctool_u32 named_index = CTOOL_C_AST_NONE;
+  ctool_u32 named_value_index = CTOOL_C_AST_NONE;
+  ctool_u32 bits_index = CTOOL_C_AST_NONE;
+  ctool_u32 wide_bits_index = CTOOL_C_AST_NONE;
+  ctool_u32 root;
+  ctool_u32 child;
+  ctool_u32 index;
+  ctool_u32 qualifiers = 0u;
+  const ctool_c_expression_t *node;
+  const ctool_c_type_node_t *decay_pointer;
+  const ctool_c_statement_t *statement;
+
+  if (unit->binding_count != 37u || unit->tag_count != 1u ||
+      unit->graph.member_count != 11u ||
+      unit->function_definition_count != 33u || unit->statement_count != 68u ||
+      unit->statement_child_count != 35u || unit->block_binding_count != 0u ||
+      aggregate_binding == NULL ||
+      aggregate_binding->kind != CTOOL_C_BINDING_TYPEDEF || aggregate == NULL ||
+      aggregate->kind != CTOOL_C_TYPE_RECORD || aggregate->member_count != 6u ||
+      aggregate_layout == NULL || aggregate_layout->size != 48u ||
+      aggregate_layout->alignment != 16u || packed_binding == NULL ||
+      packed_binding->kind != CTOOL_C_BINDING_TYPEDEF || packed == NULL ||
+      packed->kind != CTOOL_C_TYPE_RECORD || packed->member_count != 1u ||
+      wide_binding == NULL ||
+      wide_binding->kind != CTOOL_C_BINDING_TYPEDEF || wide == NULL ||
+      wide->kind != CTOOL_C_TYPE_RECORD || wide->member_count != 1u) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: translation-unit inventory differs\n");
+    return 1;
+  }
+  direct = find_record_member(unit, aggregate, "direct", &direct_index);
+  locked = find_record_member(unit, aggregate, "locked", &locked_index);
+  values = find_record_member(unit, aggregate, "values", &values_index);
+  bits = find_record_member(unit, aggregate, "bits", &bits_index);
+  wide_bits = find_record_member(unit, wide, "wide_bits", &wide_bits_index);
+  anonymous = &unit->graph.members[aggregate->first_member + 3u];
+  anonymous_index = aggregate->first_member + 3u;
+  anonymous_record = type_node(unit, anonymous->type);
+  promoted = anonymous_record == NULL
+                 ? NULL
+                 : find_record_member(unit, anonymous_record, "promoted",
+                                      &promoted_index);
+  packed_anonymous_index = packed->first_member;
+  packed_anonymous = &unit->graph.members[packed_anonymous_index];
+  packed_anonymous_record = type_node(unit, packed_anonymous->type);
+  packed_promoted =
+      packed_anonymous_record == NULL
+          ? NULL
+          : find_record_member(unit, packed_anonymous_record,
+                               "packed_promoted", &packed_promoted_index);
+  named = find_record_member(unit, aggregate, "named", &named_index);
+  named_record = named == NULL ? NULL : type_node(unit, named->type);
+  named_value = named_record == NULL
+                    ? NULL
+                    : find_record_member(unit, named_record, "named_value",
+                                         &named_value_index);
+  if (direct == NULL || locked == NULL || values == NULL || bits == NULL ||
+      wide_bits == NULL || anonymous == NULL ||
+      anonymous->anonymous != CTOOL_TRUE || anonymous->name.size != 0u ||
+      anonymous_record == NULL ||
+      anonymous_record->kind != CTOOL_C_TYPE_RECORD || promoted == NULL ||
+      packed_anonymous == NULL ||
+      packed_anonymous->anonymous != CTOOL_TRUE ||
+      packed_anonymous_record == NULL || packed_promoted == NULL ||
+      named == NULL || named_record == NULL || named_value == NULL ||
+      bits->is_bit_field != CTOOL_TRUE || bits->bit_width != 3u ||
+      wide_bits->is_bit_field != CTOOL_TRUE || wide_bits->bit_width != 32u) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: aggregate member metadata differs\n");
+    return 1;
+  }
+  if (unit->layout.members[values_index].byte_offset != 16u ||
+      unit->layout.members[values_index].size != 16u ||
+      unit->layout.members[values_index].alignment != 16u ||
+      unit->layout.members[anonymous_index].byte_offset != 32u ||
+      unit->layout.members[promoted_index].byte_offset != 0u ||
+      unit->layout.members[bits_index].byte_offset != 40u ||
+      unit->layout.members[wide_bits_index].byte_offset != 0u) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: aggregate base layout differs\n");
+    return 1;
+  }
+  if (unit->layout.members[packed_anonymous_index].byte_offset != 0u ||
+      unit->layout.members[packed_anonymous_index].alignment != 1u ||
+      unit->layout.members[packed_promoted_index].alignment != 4u ||
+      unit->layout.members[named_index].byte_offset != 36u ||
+      unit->layout.members[named_index].alignment != 1u ||
+      unit->layout.members[named_value_index].alignment != 4u) {
+    (void)fprintf(
+        stderr,
+        "pointer-expressions: packed member layout differs (%u/%u, %u, %u/%u, %u)\n",
+        (unsigned)unit->layout.members[packed_anonymous_index].byte_offset,
+        (unsigned)unit->layout.members[packed_anonymous_index].alignment,
+        (unsigned)unit->layout.members[packed_promoted_index].alignment,
+        (unsigned)unit->layout.members[named_index].byte_offset,
+        (unsigned)unit->layout.members[named_index].alignment,
+        (unsigned)unit->layout.members[named_value_index].alignment);
+    return 1;
+  }
+
+  root = pointer_return_root(unit, "read_direct");
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != direct_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: direct member expression differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_arrow");
+  child = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != direct_index ||
+      pointer_expression_shape(unit, child, CTOOL_C_EXPRESSION_UNARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, 1u) !=
+          0) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: arrow normalization differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_promoted");
+  child = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != promoted_index ||
+      pointer_expression_shape(unit, child, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[child].reference != anonymous_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: anonymous member promotion differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_locked");
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != locked_index ||
+      scalar_type_kind(unit, unit->expressions[root].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_CONST) == 0u) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: qualified member expression differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_const");
+  qualifiers = 0u;
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != direct_index ||
+      scalar_type_kind(unit, unit->expressions[root].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_CONST) == 0u) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: inherited const member differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_volatile");
+  qualifiers = 0u;
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[root].reference != direct_index ||
+      scalar_type_kind(unit, unit->expressions[root].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+    (void)fprintf(
+        stderr,
+        "pointer-expressions: inherited volatile member differs\n");
+    return 1;
+  }
+  statement = scalar_return_statement(unit, "decay_const");
+  root = statement == NULL ? CTOOL_C_AST_NONE : statement->expression;
+  for (index = 0u;
+       root < unit->expression_count &&
+       unit->expressions[root].kind ==
+           CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+       unit->expressions[root].conversion !=
+           CTOOL_C_CONVERSION_ARRAY_TO_POINTER &&
+       index < unit->expression_count;
+       index++) {
+    root = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  }
+  node = root < unit->expression_count ? &unit->expressions[root] : NULL;
+  decay_pointer = node == NULL ? NULL : type_node(unit, node->type);
+  child = node == NULL ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, node, 0u);
+  qualifiers = 0u;
+  if (node == NULL ||
+      node->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      node->conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+      decay_pointer == NULL || decay_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      scalar_type_kind(unit, decay_pointer->referenced_type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_CONST) == 0u ||
+      child >= unit->expression_count ||
+      unit->expressions[child].kind != CTOOL_C_EXPRESSION_MEMBER ||
+      unit->expressions[child].reference != values_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: qualified array decay differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "address_member");
+  child = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_UNARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_ADDRESS, 1u) != 0 ||
+      pointer_expression_shape(unit, child, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[child].reference != direct_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: address-of member differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "read_deref");
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_UNARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, 1u) !=
+      0) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: dereference expression differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "promote_bit_field");
+  child = scalar_operator_child(unit, root, 0u);
+  node = child < unit->expression_count ? &unit->expressions[child] : NULL;
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_BINARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, 2u) != 0 ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      node == NULL ||
+      node->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      node->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      scalar_type_kind(unit, node->type, NULL) != CTOOL_C_TYPE_SIGNED_INT) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: bit-field promotion differs\n");
+    return 1;
+  }
+  child = scalar_expression_child(unit, node, 0u);
+  node = child < unit->expression_count ? &unit->expressions[child] : NULL;
+  index = node == NULL ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, node, 0u);
+  if (node == NULL ||
+      node->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      node->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      scalar_type_kind(unit, node->type, NULL) != CTOOL_C_TYPE_UNSIGNED_INT ||
+      index >= unit->expression_count ||
+      unit->expressions[index].kind != CTOOL_C_EXPRESSION_MEMBER ||
+      unit->expressions[index].reference != bits_index) {
+    (void)fprintf(
+        stderr,
+        "pointer-expressions: narrow bit-field conversion order differs\n");
+    return 1;
+  }
+  root = pointer_return_root(unit, "preserve_wide_bit_field");
+  child = scalar_operator_child(unit, root, 0u);
+  node = child < unit->expression_count ? &unit->expressions[child] : NULL;
+  index = node == NULL ? CTOOL_C_AST_NONE
+                       : scalar_expression_child(unit, node, 0u);
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_UNARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS, 1u) !=
+          0 ||
+      scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_INT ||
+      node == NULL ||
+      node->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      node->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      scalar_type_kind(unit, node->type, NULL) != CTOOL_C_TYPE_UNSIGNED_INT ||
+      scalar_conversion_chain_has(unit, child,
+                                  CTOOL_C_CONVERSION_INTEGER_PROMOTION) ==
+          CTOOL_TRUE ||
+      index >= unit->expression_count ||
+      unit->expressions[index].kind != CTOOL_C_EXPRESSION_MEMBER ||
+      unit->expressions[index].reference != wide_bits_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: full-width bit-field promotion differs\n");
+    return 1;
+  }
+
+  statement = pointer_expression_statement(unit, "assign_deref");
+  root = statement == NULL ? CTOOL_C_AST_NONE : statement->expression;
+  child = root < unit->expression_count
+              ? scalar_expression_child(unit, &unit->expressions[root], 0u)
+              : CTOOL_C_AST_NONE;
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_ASSIGNMENT,
+                               CTOOL_C_EXPRESSION_OPERATOR_ASSIGN, 2u) != 0 ||
+      pointer_expression_shape(unit, child, CTOOL_C_EXPRESSION_UNARY,
+                               CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, 1u) !=
+          0) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: dereference assignment differs\n");
+    return 1;
+  }
+  statement = pointer_expression_statement(unit, "assign_member");
+  root = statement == NULL ? CTOOL_C_AST_NONE : statement->expression;
+  child = root < unit->expression_count
+              ? scalar_expression_child(unit, &unit->expressions[root], 0u)
+              : CTOOL_C_AST_NONE;
+  if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_ASSIGNMENT,
+                               CTOOL_C_EXPRESSION_OPERATOR_ASSIGN, 2u) != 0 ||
+      pointer_expression_shape(unit, child, CTOOL_C_EXPRESSION_MEMBER,
+                               CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+      unit->expressions[child].reference != direct_index) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: member assignment differs\n");
+    return 1;
+  }
+
+  for (index = 0u; index < 3u; index++) {
+    static const char *const cast_functions[] = {
+        "cast_null", "cast_void", "cast_integer"};
+    root = pointer_return_root(unit, cast_functions[index]);
+    node = root < unit->expression_count ? &unit->expressions[root] : NULL;
+    child = node == NULL ? CTOOL_C_AST_NONE
+                         : scalar_expression_child(unit, node, 0u);
+    if (node == NULL || node->kind != CTOOL_C_EXPRESSION_CAST ||
+        node->child_count != 1u || node->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        node->conversion != CTOOL_C_CONVERSION_NONE ||
+        node->computation_type != CTOOL_C_TYPE_NONE ||
+        node->reference != CTOOL_C_AST_NONE || child >= root) {
+      (void)fprintf(stderr,
+                    "pointer-expressions: explicit cast %u differs\n", index);
+      return 1;
+    }
+  }
+  root = pointer_return_root(unit, "cast_null");
+  child = scalar_expression_child(unit, &unit->expressions[root], 0u);
+  if (child >= unit->expression_count ||
+      unit->expressions[child].kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[child].integer_bits != 0ull) {
+    (void)fprintf(stderr, "pointer-expressions: null cast child differs\n");
+    return 1;
+  }
+
+  {
+    static const char *const discard_functions[] = {
+        "discard_volatile", "discard_aggregate", "discard_array",
+        "discard_function", "discard_float"};
+    static const ctool_c_conversion_kind_t discard_conversions[] = {
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+        CTOOL_C_CONVERSION_ARRAY_TO_POINTER,
+        CTOOL_C_CONVERSION_FUNCTION_TO_POINTER,
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE};
+    for (index = 0u; index < ARRAY_COUNT(discard_functions); index++) {
+      ctool_u32 source;
+      statement = pointer_expression_statement(unit, discard_functions[index]);
+      root = statement == NULL ? CTOOL_C_AST_NONE : statement->expression;
+      child = root < unit->expression_count
+                  ? scalar_expression_child(unit, &unit->expressions[root], 0u)
+                  : CTOOL_C_AST_NONE;
+      source = child < unit->expression_count
+                   ? scalar_expression_child(unit, &unit->expressions[child],
+                                             0u)
+                   : CTOOL_C_AST_NONE;
+      if (pointer_expression_shape(unit, root, CTOOL_C_EXPRESSION_CAST,
+                                   CTOOL_C_EXPRESSION_OPERATOR_NONE, 1u) != 0 ||
+          scalar_type_kind(unit, unit->expressions[root].type, NULL) !=
+              CTOOL_C_TYPE_VOID ||
+          child >= unit->expression_count ||
+          unit->expressions[child].kind !=
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          unit->expressions[child].conversion != discard_conversions[index] ||
+          source >= child) {
+        (void)fprintf(stderr,
+                      "pointer-expressions: void discard %u differs\n",
+                      index);
+        return 1;
+      }
+      if (index == 0u) {
+        qualifiers = 0u;
+        if (scalar_type_kind(unit, unit->expressions[source].type,
+                             &qualifiers) != CTOOL_C_TYPE_SIGNED_INT ||
+            (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+          (void)fprintf(
+              stderr,
+              "pointer-expressions: volatile discard source differs\n");
+          return 1;
+        }
+      }
+      if (index == 4u) {
+        qualifiers = 0u;
+        if (scalar_type_kind(unit, unit->expressions[source].type,
+                             &qualifiers) != CTOOL_C_TYPE_FLOAT ||
+            (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+          (void)fprintf(
+              stderr,
+              "pointer-expressions: volatile float discard source differs\n");
+          return 1;
+        }
+      }
+    }
+  }
+
+  if (pointer_folded_return(unit, "size_array", 16ull) != 0 ||
+      pointer_folded_return(unit, "size_ub", 4ull) != 0 ||
+      pointer_folded_return(unit, "size_string", 4ull) != 0 ||
+      pointer_folded_return(unit, "type_alignment", 16ull) != 0 ||
+      pointer_folded_return(unit, "expression_alignment", 16ull) != 0 ||
+      pointer_folded_return(unit, "string_alignment", 1ull) != 0 ||
+      pointer_folded_return(unit, "offset_values", 16ull) != 0 ||
+      pointer_folded_return(unit, "offset_promoted", 32ull) != 0 ||
+      pointer_folded_return(unit, "promoted_alignment", 4ull) != 0 ||
+      pointer_folded_return(unit, "named_alignment", 4ull) != 0 ||
+      pointer_folded_return(unit, "aligned_member_alignment", 4ull) != 0 ||
+      pointer_folded_return(unit, "aligned_object_alignment", 64ull) != 0) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: folded query result differs\n");
+    return 1;
+  }
+
+  for (index = 0u; index < unit->expression_count; index++) {
+    node = &unit->expressions[index];
+    if (node->child_count == 0u) {
+      if (node->first_child != CTOOL_C_AST_NONE) {
+        (void)fprintf(
+            stderr,
+            "pointer-expressions: leaf expression child slice differs\n");
+        return 1;
+      }
+      continue;
+    }
+    if (node->first_child > unit->expression_child_count ||
+        node->child_count >
+            unit->expression_child_count - node->first_child) {
+      (void)fprintf(stderr,
+                    "pointer-expressions: expression child slice differs\n");
+      return 1;
+    }
+    for (child = 0u; child < node->child_count; child++) {
+      if (unit->expression_children[node->first_child + child] >= index) {
+        (void)fprintf(stderr,
+                      "pointer-expressions: expression order differs\n");
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static char *build_unevaluated_string_scale(void) {
+  static const char define_prefix[] = "#define QUERY_STRING \"";
+  static const char define_suffix[] = "\"\n";
+  static const char query[] =
+      "_Static_assert(sizeof(QUERY_STRING) == 16385, \"query\");\n";
+  const ctool_u32 query_count = 512u;
+  const size_t literal_size = 16384u;
+  size_t capacity;
+  size_t used = 0u;
+  char *source;
+  ctool_u32 index;
+  if ((size_t)query_count >
+      ((size_t)-1 - literal_size - sizeof(define_prefix) -
+       sizeof(define_suffix)) /
+          (sizeof(query) - 1u)) {
+    return NULL;
+  }
+  capacity = sizeof(define_prefix) - 1u + literal_size +
+             sizeof(define_suffix) - 1u +
+             (size_t)query_count * (sizeof(query) - 1u) + 1u;
+  source = (char *)malloc(capacity);
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used, define_prefix) != 0 ||
+      literal_size >= capacity - used) {
+    free(source);
+    return NULL;
+  }
+  (void)memset(source + used, 'x', literal_size);
+  used += literal_size;
+  source[used] = '\0';
+  if (append_scale_text(source, capacity, &used, define_suffix) != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < query_count; index++) {
+    if (append_scale_text(source, capacity, &used, query) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  return source;
+}
+
+static int validate_unevaluated_string_arena(const char *host_root) {
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  char *source = build_unevaluated_string_scale();
+  int failed = 1;
+  if (source == NULL) {
+    (void)fprintf(stderr,
+                  "pointer-expressions: string scale source failed\n");
+    return 1;
+  }
+  if (begin_frontend_fixture(&fixture, "pointer-expression-string-arena",
+                             host_root, 3u * 1024u * 1024u) != 0) {
+    free(source);
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/unevaluated-string-scale.c", source,
+                          &unit) == 0 &&
+      unit.binding_count == 0u && unit.tag_count == 0u &&
+      unit.function_definition_count == 0u && unit.statement_count == 0u &&
+      unit.expression_count == 0u && unit.expression_child_count == 0u &&
+      validate_anchor(&fixture) == 0) {
+    failed = 0;
+  } else {
+    (void)fprintf(
+        stderr,
+        "pointer-expressions: unevaluated string arena regression failed\n");
+  }
+  free(source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  return failed;
+}
+
+static int run_pointer_expressions(const char *host_root) {
+  static const char source[] =
+      "typedef struct aggregate {\n"
+      "  int direct;\n"
+      "  const int locked;\n"
+      "  int values[4] __attribute__((aligned(16)));\n"
+      "  struct { int promoted; };\n"
+      "  struct { int named_value; } named __attribute__((packed));\n"
+      "  unsigned int bits : 3;\n"
+      "} aggregate_t;\n"
+      "typedef struct __attribute__((packed)) { struct { int packed_promoted; }; } promoted_pack_t;\n"
+      "typedef struct { unsigned int wide_bits : 32; } wide_bits_t;\n"
+      "aggregate_t aligned_object __attribute__((aligned(64)));\n"
+      "int read_direct(aggregate_t value) { return value.direct; }\n"
+      "int read_arrow(aggregate_t *value) { return value->direct; }\n"
+      "int read_promoted(aggregate_t *value) { return value->promoted; }\n"
+      "int read_locked(aggregate_t *value) { return value->locked; }\n"
+      "int read_const(const aggregate_t *value) { return value->direct; }\n"
+      "int read_volatile(volatile aggregate_t *value) { return value->direct; }\n"
+      "const int *decay_const(const aggregate_t *value) { return value->values; }\n"
+      "int *address_member(aggregate_t *value) { return &value->direct; }\n"
+      "int read_deref(int *value) { return *value; }\n"
+      "void assign_deref(int *value) { *value = 4; return; }\n"
+      "void assign_member(aggregate_t *value) { value->direct = 5; return; }\n"
+      "aggregate_t *cast_null(void) { return (aggregate_t *)0; }\n"
+      "void *cast_void(aggregate_t *value) { return (void *)value; }\n"
+      "unsigned int cast_integer(signed char value) { return (unsigned int)value; }\n"
+      "void discard_volatile(volatile int *value) { (void)*value; }\n"
+      "void discard_aggregate(aggregate_t *value) { (void)*value; }\n"
+      "void discard_array(aggregate_t *value) { (void)value->values; }\n"
+      "void discard_function(void) { (void)read_direct; }\n"
+      "void discard_float(volatile float *value) { (void)*value; }\n"
+      "int promote_bit_field(aggregate_t value) { return value.bits - 2; }\n"
+      "unsigned int preserve_wide_bit_field(wide_bits_t value) { return +value.wide_bits; }\n"
+      "unsigned int size_array(aggregate_t *value) { return sizeof(value->values); }\n"
+      "unsigned int size_ub(void) { return sizeof(1 / 0); }\n"
+      "unsigned int size_string(void) { return sizeof(\"abc\"); }\n"
+      "unsigned int type_alignment(void) { return _Alignof(aggregate_t); }\n"
+      "unsigned int expression_alignment(aggregate_t *value) { return __alignof__(value->values); }\n"
+      "unsigned int string_alignment(void) { return __alignof__(\"abc\"); }\n"
+      "unsigned int offset_values(void) { return __builtin_offsetof(aggregate_t, values); }\n"
+      "unsigned int offset_promoted(void) { return __builtin_offsetof(aggregate_t, promoted); }\n"
+      "unsigned int promoted_alignment(promoted_pack_t *value) { return __alignof__(value->packed_promoted); }\n"
+      "unsigned int named_alignment(aggregate_t *value) { return __alignof__(value->named.named_value); }\n"
+      "unsigned int aligned_member_alignment(void) { return __alignof__(aligned_object.direct); }\n"
+      "unsigned int aligned_object_alignment(void) { return __alignof__(aligned_object); }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"dot scalar operand",
+        "int bad(int value) { return value.member; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "member access requires a complete record or union"},
+      {{"arrow aggregate operand",
+        "struct value { int member; }; int bad(struct value value) { return value->member; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "arrow member access requires a pointer to a record or union"},
+      {{"arrow scalar pointer operand",
+        "int bad(int *value) { return value->member; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "member access requires a complete record or union"},
+      {{"missing member",
+        "struct value { int member; }; int bad(struct value *value) { return value->missing; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "record or union has no member with this name"},
+      {{"address bit-field",
+        "struct value { unsigned int bits : 3; }; unsigned int *bad(struct value *value) { return &value->bits; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "address operator cannot apply to a bit-field"},
+      {{"address register object",
+        "int *bad(register int value) { return &value; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "address operator cannot apply to a register object"},
+      {{"address register promoted member",
+        "struct value { struct { int member; }; }; int *bad(register struct value value) { return &value.member; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "address operator cannot apply to a register object"},
+      {{"address rvalue",
+        "int *bad(int value) { return &(value + 1); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "address operator requires an object lvalue or function designator"},
+      {{"dereference nonpointer", "int bad(int value) { return *value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "dereference operator requires a pointer operand"},
+      {{"dereference void pointer",
+        "int bad(void *value) { return *value; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "dereference operator requires a pointer to an object or function"},
+      {{"aggregate cast source",
+        "struct value { int member; }; int bad(struct value value) { return (int)value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "cast operand must have scalar type"},
+      {{"aggregate cast destination",
+        "struct value { int member; }; int bad(int value) { return (struct value)value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "cast destination must have scalar or void type"},
+      {{"floating cast",
+        "int bad(float value) { return (int)value; }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "floating casts are outside this expression slice"},
+      {{"sizeof incomplete expression",
+        "struct pending; unsigned int bad(struct pending *value) { return sizeof(*value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "sizeof requires a complete object type"},
+      {{"sizeof function expression",
+        "int target(void); unsigned int bad(void) { return sizeof(target); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "sizeof requires a complete object type"},
+      {{"sizeof bit-field",
+        "struct value { unsigned int bits : 3; }; unsigned int bad(struct value value) { return sizeof(value.bits); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "sizeof cannot apply to a bit-field"},
+      {{"offsetof non-record",
+        "unsigned int bad(void) { return __builtin_offsetof(int, value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "offsetof requires a complete record or union type"},
+      {{"offsetof missing member",
+        "struct value { int member; }; unsigned int bad(void) { return __builtin_offsetof(struct value, missing); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "record or union has no member with this name"},
+      {{"offsetof bit-field",
+        "struct value { unsigned int bits : 3; }; unsigned int bad(void) { return __builtin_offsetof(struct value, bits); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "offsetof cannot apply to a bit-field"},
+      {{"offsetof invalid designator",
+        "struct value { int values[2]; }; unsigned int bad(void) { return __builtin_offsetof(struct value, values + 1); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "builtin offsetof member designator is invalid"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"GNU alignof disabled",
+       "unsigned int bad(int value) { return __alignof__(value); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      0u, 0u, "GNU alignment queries require GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "pointer-expressions", host_root,
+                             32u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/pointer-expressions.c", source, &unit) !=
+          0 ||
+      validate_pointer_expression_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/pointer-expression-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_pointer_expression_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/pointer-expression-gnu-disabled.c", disabled_gnu_case.line,
+          disabled_gnu_case.column, disabled_gnu_case.message) != 0 ||
+      validate_pointer_expression_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (validate_unevaluated_string_arena(host_root) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("pointer-expressions: ok\n");
   }
   return failed;
 }
@@ -7747,9 +8743,10 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                  "fat16|redeclarations|attributes|static-asserts|"
-                  "function-bodies|block-bindings|scalar-returns|"
-                  "function-specifiers|errors|scale|semantics|constants|"
+                   "fat16|redeclarations|attributes|static-asserts|"
+                   "function-bodies|block-bindings|scalar-returns|"
+                   "pointer-expressions|"
+                   "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
                   "<repository-root>\n"
@@ -7777,6 +8774,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
+  }
+  if (strcmp(argv[1], "pointer-expressions") == 0) {
+    return run_pointer_expressions(argv[2]);
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);

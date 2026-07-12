@@ -131,7 +131,9 @@ typedef enum {
   CTOOL_C_EXPRESSION_INTEGER_CONSTANT,
   CTOOL_C_EXPRESSION_UNARY,
   CTOOL_C_EXPRESSION_BINARY,
-  CTOOL_C_EXPRESSION_ASSIGNMENT
+  CTOOL_C_EXPRESSION_ASSIGNMENT,
+  CTOOL_C_EXPRESSION_CAST,
+  CTOOL_C_EXPRESSION_MEMBER
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -140,6 +142,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
   CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT,
   CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT,
+  CTOOL_C_EXPRESSION_OPERATOR_ADDRESS,
+  CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE,
   CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
   CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
   CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
@@ -181,10 +185,10 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 
   /* IDENTIFIER: file-binding index. PARAMETER: parameter index.
-   * BLOCK_BINDING: block-binding index. */
+   * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index. */
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
-   * IMPLICIT_CONVERSION: one source-expression child. */
+   * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY: one source-expression child. */
   ctool_u32 first_child;
   ctool_u32 child_count;
   /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
@@ -194,7 +198,8 @@ typedef struct {
   /* ASSIGNMENT: arithmetic computation type; plain `=` uses result type.
    * Other expression kinds use CTOOL_C_TYPE_NONE. */
   ctool_u32 computation_type;
-  /* INTEGER_CONSTANT: target-width bit pattern; type carries rank/sign. */
+  /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
+   * rank/sign. This includes target-folded non-VLA layout queries. */
   ctool_u64 integer_bits;
   /* STRING: decoded target bytes including the trailing null byte. */
   ctool_bytes_t string_bytes;
@@ -283,16 +288,20 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * iterative graph walks; the public nesting limit applies to recursive source
  * syntax, not derived-type graph depth. File- and record-scope C11 static
  * assertions validate the shared integer-constant grammar, including target
- * relational/equality conversions and `sizeof(type-name)` for complete object
- * types at that declaration point. Assertions publish no entity or member;
+ * relational/equality conversions, target `sizeof` type/expression queries,
+ * standard/GNU alignment queries, and GNU `__builtin_offsetof` member paths
+ * for complete objects at that declaration point. Assertions publish no
+ * entity, member, or expression node;
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
  * parameter storage, and represents compound, expression, declaration, and
  * scalar return statements; automatic/register block-object bindings;
  * file/block/parameter references, target-typed integer and ordinary narrow
- * character constants, decoded ordinary narrow strings, every integer unary
- * and binary precedence tier, simple assignment, fixed-argument prototyped
- * calls; and explicit lvalue, array, function, qualification, integer
+ * character constants, decoded ordinary narrow strings, typed scalar/void
+ * casts, address/dereference, direct/promoted record-member expressions,
+ * folded non-VLA layout queries, every integer unary and binary precedence tier,
+ * simple assignment, fixed-argument prototyped calls; and explicit lvalue,
+ * array, function, qualification, integer
  * promotion, usual-arithmetic, and assignment conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
  * parameters, and retain stable public indices after their scopes close. Lvalue
@@ -302,9 +311,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * parameters. Calls currently accept represented scalar assignment
  * conversions or pointer qualification addition; extra variadic arguments
  * fail closed until default argument promotions are represented. Runtime
- * integer expressions are typed without constant folding. `sizeof`
- * expression operands and block-scope assertions await the broader typed
- * expression/body grammar and fail closed.
+ * integer expressions are typed without constant folding. Unevaluated query
+ * operands are type-checked through the same grammar and leave no public AST
+ * nodes. Block-scope assertions remain pending and fail closed.
  * C11 `inline` is also retained as a canonical OR-summary across compatible
  * declarations; external-inline classification remains translation-unit
  * finalization policy. `_Thread_local`, `_Noreturn`, `_Alignas`,
@@ -314,8 +323,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * rather than fixed frontend tables. Block typedefs, static/extern objects,
  * function declarations, block tag specifiers, attributes, initializers,
  * and static assertions remain explicit body boundaries. Control statements
- * other than return, casts, conditional/comma/member/address and compound-
- * assignment operators, pointer arithmetic, floating expressions and
+ * other than return, conditional/comma/subscript and compound-assignment
+ * operators, pointer arithmetic, floating arithmetic and non-void
  * conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and
  * Cupid #exe execution remain later frontend work and are diagnosed rather

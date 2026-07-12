@@ -605,6 +605,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 sources["app.cc"]["features"],
             )
 
+    def test_inventory_distinguishes_gnu_and_c11_alignof_operators(self):
+        module = _load_audit_module()
+        collector = module.FeatureCollector()
+        source = textwrap.dedent(
+            """
+            int gnu_plain = __alignof(int);
+            int gnu_wrapped = __alignof__(int);
+            int c11 = _Alignof(int);
+            int __alignof_suffix = 0;
+            const char *documentation = "__alignof __alignof__";
+            /* __alignof(int) and __alignof__(int) are masked documentation. */
+            """
+        ).lstrip()
+
+        module._scan_c_features("alignof.c", source, "c", collector)
+        features = {entry["id"]: entry for entry in collector.inventory()}
+
+        self.assertEqual(features["c.extension.gnu_alignof"]["occurrences"], 2)
+        self.assertEqual(
+            [
+                example["line"]
+                for example in features["c.extension.gnu_alignof"]["examples"]
+            ],
+            [1, 2],
+        )
+        self.assertEqual(features["c.expression.alignof"]["occurrences"], 1)
+
     def test_checked_attribute_inventory_matches_active_sources(self):
         audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
         features = {entry["id"]: entry for entry in audit["features"]}
@@ -2247,9 +2274,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 651)
-            self.assertEqual(contract["include_occurrences"], 2314)
+            self.assertEqual(contract["include_occurrences"], 2315)
             self.assertEqual(contract["direct_quoted_occurrences"], 2112)
-            self.assertEqual(contract["direct_angle_occurrences"], 202)
+            self.assertEqual(contract["direct_angle_occurrences"], 203)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3421,10 +3448,35 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit_payload["summary"],
                 {
                     "active_sources": 681,
-                    "features": 250,
+                    "features": 251,
                     "transforms": 491,
                     "unreachable_sources": 39,
                 },
+            )
+            features = {
+                entry["id"]: entry for entry in audit_payload["features"]
+            }
+            expected_c_expression_inventory = {
+                "c.declaration.static_assert": (22, 4),
+                "c.expression.sizeof": (1847, 161),
+                "c.extension.builtin.offsetof": (12, 6),
+                "c.extension.gnu_alignof": (1, 1),
+            }
+            for feature_id, expected_counts in (
+                expected_c_expression_inventory.items()
+            ):
+                feature = features[feature_id]
+                self.assertEqual(
+                    (feature["occurrences"], len(feature["files"])),
+                    expected_counts,
+                )
+            self.assertEqual(
+                features["c.extension.gnu_alignof"]["files"],
+                ["kernel/core/process.c"],
+            )
+            self.assertEqual(
+                features["c.extension.gnu_alignof"]["examples"][0]["line"],
+                39,
             )
             root_transform_by_output = {
                 transform["output"]: transform
