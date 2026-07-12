@@ -3940,6 +3940,7 @@ static int validate_block_binding_unit(
     if (!string_equal(binding->name, names[index]) ||
         binding->kind != CTOOL_C_BINDING_OBJECT ||
         binding->storage != storage[index] || binding->type >= unit->graph.type_count ||
+        binding->initializer != CTOOL_C_AST_NONE ||
         layout == NULL || layout->is_complete_object != CTOOL_TRUE ||
         !dual_location_matches(&binding->location,
                                &binding->physical_location,
@@ -4068,10 +4069,6 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local; int local; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 33u, "block-scope identifier is already declared in this scope"},
-      {{"local initializer boundary",
-        "void bad(void) { int local = 1; }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 28u, "block object initializers are outside this body slice"},
       {{"static local boundary", "void bad(void) { static int local; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        1u, 18u, "block storage class is outside this body slice"},
@@ -4143,6 +4140,619 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("block-bindings: ok\n");
+  }
+  return failed;
+}
+
+static int validate_scalar_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "uninitialized", "first", "second", "narrowed",
+      "choice", "pointer", "qualified", "array", "decayed",
+      "callback", "registered", "atomic", "observed", "cast_pointer",
+      "hidden", "self_size", "self_reference", "braced", "trailing"};
+  static const ctool_bool initialized[] = {
+      CTOOL_FALSE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE,
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_FALSE,
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE,
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE,
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE};
+  ctool_u32 first;
+  ctool_u32 second;
+  ctool_u32 narrowed;
+  ctool_u32 choice;
+  ctool_u32 pointer;
+  ctool_u32 qualified;
+  ctool_u32 decayed;
+  ctool_u32 callback;
+  ctool_u32 registered;
+  ctool_u32 atomic;
+  ctool_u32 observed;
+  ctool_u32 cast_pointer;
+  ctool_u32 hidden;
+  ctool_u32 self_size;
+  ctool_u32 self_reference;
+  ctool_u32 braced;
+  ctool_u32 trailing;
+  ctool_u32 enum_one;
+  ctool_u32 sink;
+  ctool_u32 index;
+
+  if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->function_definition_count != 1u) {
+    (void)fprintf(stderr, "scalar-initializers: binding inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(names); index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    if (!string_equal(binding->name, names[index]) ||
+        binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->type >= unit->graph.type_count ||
+        (initialized[index] == CTOOL_TRUE &&
+         binding->initializer >= unit->expression_count) ||
+        (initialized[index] == CTOOL_FALSE &&
+         binding->initializer != CTOOL_C_AST_NONE)) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: binding %u differs\n", index);
+      return 1;
+    }
+  }
+  if (unit->block_bindings[1].storage != CTOOL_C_STORAGE_AUTO ||
+      unit->block_bindings[2].storage != CTOOL_C_STORAGE_AUTO ||
+      unit->block_bindings[10].storage != CTOOL_C_STORAGE_REGISTER ||
+      unit->block_bindings[3].storage != CTOOL_C_STORAGE_NONE) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: source storage differs\n");
+    return 1;
+  }
+  first = unit->block_bindings[1].initializer;
+  second = unit->block_bindings[2].initializer;
+  narrowed = unit->block_bindings[3].initializer;
+  choice = unit->block_bindings[4].initializer;
+  pointer = unit->block_bindings[5].initializer;
+  qualified = unit->block_bindings[6].initializer;
+  decayed = unit->block_bindings[8].initializer;
+  callback = unit->block_bindings[9].initializer;
+  registered = unit->block_bindings[10].initializer;
+  atomic = unit->block_bindings[11].initializer;
+  observed = unit->block_bindings[12].initializer;
+  cast_pointer = unit->block_bindings[13].initializer;
+  hidden = unit->block_bindings[14].initializer;
+  self_size = unit->block_bindings[15].initializer;
+  self_reference = unit->block_bindings[16].initializer;
+  braced = unit->block_bindings[17].initializer;
+  trailing = unit->block_bindings[18].initializer;
+  enum_one = find_binding_index(unit, "ENUM_ONE");
+  sink = find_binding_index(unit, "sink");
+  if (unit->expressions[first].kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[first].integer_bits != 1ull ||
+      unit->expressions[second].kind != CTOOL_C_EXPRESSION_BINARY ||
+      unit->expressions[second].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      unit->expressions[narrowed].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[narrowed].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      unit->expressions[choice].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[choice].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      unit->expressions[pointer].kind != CTOOL_C_EXPRESSION_UNARY ||
+      unit->expressions[pointer].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_ADDRESS ||
+      unit->expressions[qualified].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[qualified].conversion !=
+          CTOOL_C_CONVERSION_QUALIFICATION ||
+      unit->expressions[decayed].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[decayed].conversion !=
+          CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+      unit->expressions[callback].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[callback].conversion !=
+          CTOOL_C_CONVERSION_FUNCTION_TO_POINTER ||
+      unit->expressions[cast_pointer].kind != CTOOL_C_EXPRESSION_CAST ||
+      unit->expressions[hidden].kind !=
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[hidden].integer_bits != 4ull ||
+      unit->expressions[self_size].kind !=
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[self_size].integer_bits != 4ull ||
+      unit->expressions[trailing].kind !=
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      unit->expressions[trailing].integer_bits != 1ull) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: converted initializer AST differs "
+                  "(%u/%llu %u/%u %u/%u %u/%u %u/%u %u/%llu)\n",
+                  (unsigned int)unit->expressions[first].kind,
+                  (unsigned long long)unit->expressions[first].integer_bits,
+                  (unsigned int)unit->expressions[second].kind,
+                  (unsigned int)unit->expressions[second].operation,
+                  (unsigned int)unit->expressions[narrowed].kind,
+                  (unsigned int)unit->expressions[narrowed].conversion,
+                  (unsigned int)unit->expressions[choice].kind,
+                  (unsigned int)unit->expressions[choice].reference,
+                  (unsigned int)unit->expressions[pointer].kind,
+                  (unsigned int)unit->expressions[pointer].operation,
+                  (unsigned int)unit->expressions[self_size].kind,
+                  (unsigned long long)unit->expressions[self_size].integer_bits);
+    return 1;
+  }
+  {
+    static const ctool_c_expression_kind_t kinds[] = {
+        CTOOL_C_EXPRESSION_BLOCK_BINDING,
+        CTOOL_C_EXPRESSION_BLOCK_BINDING,
+        CTOOL_C_EXPRESSION_IDENTIFIER,
+        CTOOL_C_EXPRESSION_BLOCK_BINDING,
+        CTOOL_C_EXPRESSION_BLOCK_BINDING,
+        CTOOL_C_EXPRESSION_BLOCK_BINDING};
+    static const ctool_u32 references[] = {
+        5u, 7u, CTOOL_C_AST_NONE, 2u, 10u, 11u};
+    const ctool_u32 expressions[] = {
+        qualified, decayed, callback, registered, atomic, observed};
+    for (index = 0u; index < ARRAY_COUNT(expressions); index++) {
+      const ctool_c_expression_t *terminal =
+          expression_terminal(unit, &unit->expressions[expressions[index]]);
+      ctool_u32 expected_reference =
+          references[index] == CTOOL_C_AST_NONE ? sink : references[index];
+      if (terminal == NULL || terminal->kind != kinds[index] ||
+          terminal->reference != expected_reference) {
+        (void)fprintf(stderr,
+                      "scalar-initializers: conversion source %u differs\n",
+                      (unsigned int)index);
+        return 1;
+      }
+    }
+  }
+  {
+    const ctool_c_type_node_t *narrowed_object =
+        type_node(unit, unit->block_bindings[3].type);
+    const ctool_c_type_node_t *atomic_object =
+        type_node(unit, unit->block_bindings[11].type);
+    const ctool_c_type_node_t *volatile_object =
+        type_node(unit, unit->block_bindings[12].type);
+    if (narrowed_object == NULL ||
+        narrowed_object->kind != CTOOL_C_TYPE_QUALIFIED ||
+        (narrowed_object->qualifiers & CTOOL_C_QUAL_CONST) == 0u ||
+        atomic_object == NULL || atomic_object->kind != CTOOL_C_TYPE_QUALIFIED ||
+        (atomic_object->qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u ||
+        volatile_object == NULL ||
+        volatile_object->kind != CTOOL_C_TYPE_QUALIFIED ||
+        (volatile_object->qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
+        unit->expressions[narrowed].type == unit->block_bindings[3].type ||
+        unit->expressions[atomic].type == unit->block_bindings[11].type ||
+        unit->expressions[observed].type == unit->block_bindings[12].type) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: qualified target conversion differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_expression_t *terminal =
+        expression_terminal(unit, &unit->expressions[choice]);
+    if (terminal == NULL ||
+        terminal->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+        terminal->reference != enum_one) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: enum initializer differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_expression_t *terminal =
+        expression_terminal(unit, &unit->expressions[braced]);
+    if (terminal == NULL ||
+        terminal->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+        terminal->reference != 2u) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: braced initializer differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_expression_t *terminal =
+        expression_terminal(unit, &unit->expressions[self_reference]);
+    if (terminal == NULL ||
+        terminal->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+        terminal->reference != 16u) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: pending self reference differs\n");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_toolchain_initializer_frontier(const char *host_root) {
+  static const char *const paths[] = {
+      "/toolchain/ctool.c", "/toolchain/cupiddis.c",
+      "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
+      "/toolchain/cupidc_type.c"};
+  static const ctool_u32 lines[] = {56u, 18u, 146u, 17u, 34u};
+  ctool_u32 index;
+  for (index = 0u; index < ARRAY_COUNT(paths); index++) {
+    ctool_host_adapter_t adapter;
+    ctool_job_t *job = NULL;
+    ctool_path_t path;
+    ctool_source_t source;
+    ctool_c_pp_macro_action_t pointer_width;
+    ctool_c_pp_request_t pp_request;
+    ctool_c_parse_request_t parse_request;
+    ctool_c_pp_result_t tape;
+    ctool_c_translation_unit_t unit;
+    ctool_c_pp_token_t *snapshot = NULL;
+    const ctool_diagnostic_t *diagnostic;
+    ctool_arena_mark_t mark;
+    ctool_status_t status;
+    size_t token_bytes;
+    int failed = 1;
+
+    if (open_job("scalar-initializers", host_root,
+                 256u * 1024u * 1024u, &adapter, &job) != 0) {
+      return 1;
+    }
+    (void)memset(&pointer_width, 0, sizeof(pointer_width));
+    pointer_width.kind = CTOOL_C_PP_MACRO_DEFINE;
+    pointer_width.name = ctool_string("__SIZEOF_POINTER__");
+    pointer_width.replacement = ctool_string("8");
+    (void)memset(&pp_request, 0, sizeof(pp_request));
+    pp_request.mode = CTOOL_C_PP_MODE_C11;
+    pp_request.gnu_extensions = CTOOL_FALSE;
+    pp_request.hosted_environment = CTOOL_TRUE;
+    pp_request.macro_actions = &pointer_width;
+    pp_request.macro_action_count = 1u;
+    parse_request.mode = CTOOL_C_PP_MODE_C11;
+    parse_request.gnu_extensions = CTOOL_FALSE;
+    path.text = ctool_string(paths[index]);
+    status = ctool_job_load_source(job, &path, &source);
+    (void)memset(&tape, 0xa5, sizeof(tape));
+    if (status == CTOOL_OK) {
+      status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+    }
+    if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+        ctool_job_diagnostic_count(job) != 0u) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: prepare frontier %s failed: %s\n",
+                    paths[index], ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+      ctool_job_close(job);
+      return 1;
+    }
+    token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
+    snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+    if (snapshot != NULL) {
+      (void)memcpy(snapshot, tape.tokens, token_bytes);
+      mark = ctool_arena_mark(ctool_job_arena(job));
+      (void)memset(&unit, 0xa5, sizeof(unit));
+      status = ctool_c_parse(job, &tape, &parse_request, &unit);
+      diagnostic = ctool_job_diagnostic(job, 0u);
+      if (status == CTOOL_ERR_UNSUPPORTED && unit_is_zero(&unit) != 0 &&
+          ctool_job_diagnostic_count(job) == 1u && diagnostic != NULL &&
+          diagnostic->code == CTOOL_C_PARSE_DIAG_STATEMENT &&
+          string_equal(diagnostic->path, paths[index]) != 0 &&
+          diagnostic->line == lines[index] && diagnostic->column != 0u &&
+          string_equal(diagnostic->message,
+                       "statement form is outside this function-body slice") !=
+              0 &&
+          arena_marks_equal(mark,
+                            ctool_arena_mark(ctool_job_arena(job))) != 0 &&
+          memcmp(snapshot, tape.tokens, token_bytes) == 0) {
+        failed = 0;
+      }
+    }
+    if (failed != 0) {
+      (void)fprintf(stderr,
+                    "scalar-initializers: frontier %s differs: %s\n",
+                    paths[index], ctool_status_name(status));
+      (void)ctool_job_render_diagnostics(job);
+    }
+    free(snapshot);
+    ctool_job_close(job);
+    if (failed != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static char *build_scalar_initializer_limit_source(ctool_bool initialized) {
+  const size_t capacity = 32768u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void initializer_limit(void) {\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 128u; index++) {
+    char declaration[256];
+    int written = snprintf(
+        declaration, sizeof(declaration),
+        initialized == CTOOL_TRUE
+            ? "  int value_%03u = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8;\n"
+            : "  int value_%03u;\n",
+        (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(declaration) ||
+        append_scale_text(source, capacity, &used, declaration) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "}\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static ctool_u32 scalar_initializer_unit_max_bytes(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u64 maximum = 0ull;
+#define INITIALIZER_MAX_BYTES(count, type)                                  \
+  do {                                                                       \
+    ctool_u64 candidate = (ctool_u64)(count) * (ctool_u64)sizeof(type);      \
+    if (candidate > maximum) {                                               \
+      maximum = candidate;                                                   \
+    }                                                                        \
+  } while (0)
+  INITIALIZER_MAX_BYTES(unit->graph.type_count, ctool_c_type_node_t);
+  INITIALIZER_MAX_BYTES(unit->graph.member_count, ctool_c_record_member_t);
+  INITIALIZER_MAX_BYTES(unit->graph.parameter_type_count, ctool_u32);
+  INITIALIZER_MAX_BYTES(unit->parameter_count, ctool_c_parameter_t);
+  INITIALIZER_MAX_BYTES(unit->binding_count, ctool_c_binding_t);
+  INITIALIZER_MAX_BYTES(unit->tag_count, ctool_c_tag_t);
+  INITIALIZER_MAX_BYTES(unit->block_binding_count, ctool_c_block_binding_t);
+  INITIALIZER_MAX_BYTES(unit->function_definition_count,
+                        ctool_c_function_definition_t);
+  INITIALIZER_MAX_BYTES(unit->statement_count, ctool_c_statement_t);
+  INITIALIZER_MAX_BYTES(unit->statement_child_count, ctool_u32);
+  INITIALIZER_MAX_BYTES(unit->expression_count, ctool_c_expression_t);
+  INITIALIZER_MAX_BYTES(unit->expression_child_count, ctool_u32);
+#undef INITIALIZER_MAX_BYTES
+  return maximum <= 0xffffffffull ? (ctool_u32)maximum : 0u;
+}
+
+static int validate_scalar_initializer_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  char *control_source = build_scalar_initializer_limit_source(CTOOL_FALSE);
+  char *initializer_source =
+      build_scalar_initializer_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_oracle;
+  ctool_c_translation_unit_t initializer_oracle;
+  ctool_c_translation_unit_t control;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_pp_result_t control_tape;
+  ctool_c_pp_result_t initializer_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 output_limit;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || initializer_source == NULL ||
+      parse_valid_fixture(fixture, "/initializer-limit-control.c",
+                          control_source, &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, "/initializer-limit-success.c",
+                          initializer_source, &initializer_oracle) != 0 ||
+      control_oracle.block_binding_count != 128u ||
+      initializer_oracle.block_binding_count != 128u ||
+      initializer_oracle.expression_count <= control_oracle.expression_count ||
+      preprocess_fixture(fixture, "/initializer-limit-control.c",
+                         control_source, &control_tape) != 0 ||
+      preprocess_fixture(fixture, "/initializer-limit.c",
+                         initializer_source, &initializer_tape) != 0) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: storage-limit controls differ\n");
+    goto cleanup;
+  }
+  output_limit = scalar_initializer_unit_max_bytes(&control_oracle);
+  if (output_limit == 0u || output_limit > 0xffffffffu / 4u) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: storage-limit measurement differs\n");
+    goto cleanup;
+  }
+  output_limit *= 4u;
+  if (
+      (ctool_u64)initializer_oracle.expression_count *
+              sizeof(ctool_c_expression_t) <=
+          output_limit) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: storage-limit measurement differs\n");
+    goto cleanup;
+  }
+  token_bytes =
+      (size_t)initializer_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, initializer_tape.tokens, token_bytes);
+  limits.output_bytes = output_limit;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&control, 0xa5, sizeof(control));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &control);
+  if (status != CTOOL_OK || control.block_binding_count != 128u ||
+      control.block_bindings[0].initializer != CTOOL_C_AST_NONE ||
+      control.block_bindings[127].initializer != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: limited control failed: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &initializer_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/initializer-limit.c") ||
+      diagnostic->line == 0u || diagnostic->column == 0u ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, initializer_tape.tokens, token_bytes) != 0 ||
+      control.block_binding_count != 128u ||
+      control.block_bindings[0].initializer != CTOOL_C_AST_NONE ||
+      control.block_bindings[127].initializer != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: limited rollback differs: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &recovered);
+  if (status != CTOOL_OK || recovered.block_binding_count != 128u ||
+      recovered.block_bindings[0].initializer != CTOOL_C_AST_NONE ||
+      recovered.block_bindings[127].initializer != CTOOL_C_AST_NONE ||
+      control.block_binding_count != 128u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "scalar-initializers: limited recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(initializer_source);
+  free(control_source);
+  return failed;
+}
+
+static int run_scalar_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char byte;\n"
+      "typedef unsigned int word;\n"
+      "typedef byte hidden;\n"
+      "typedef enum { ENUM_ZERO, ENUM_ONE } choice_t;\n"
+      "void sink(word value);\n"
+      "void initialized(word parameter) {\n"
+      "  word uninitialized;\n"
+      "  auto word first = 1u, second = first + parameter;\n"
+      "  const byte narrowed = second;\n"
+      "  choice_t choice = ENUM_ONE;\n"
+      "  word *pointer = &first;\n"
+      "  const word *qualified = pointer;\n"
+      "  word array[2];\n"
+      "  word *decayed = array;\n"
+      "  void (*callback)(word) = sink;\n"
+      "  register word registered = second;\n"
+      "  _Atomic word atomic = registered;\n"
+      "  volatile word observed = atomic;\n"
+      "  byte *cast_pointer = (byte *)pointer;\n"
+      "  word hidden = sizeof(hidden);\n"
+      "  word self_size = sizeof self_size;\n"
+      "  word self_reference = self_reference;\n"
+      "  word braced = { second };\n"
+      "  word trailing = {{ 1u },};\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"aggregate automatic initializer",
+         "typedef struct { int member; } item_t;\n"
+         "void bad(void) { item_t item = { 1 }; }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        2u, 30u,
+        "aggregate block object initializers are outside this body slice"},
+      {{"unknown-bound array initializer boundary",
+         "void bad(void) { int values[] = { 1 }; }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 31u,
+        "aggregate block object initializers are outside this body slice"},
+      {{"incompatible scalar initializer",
+         "void bad(void) { int value = \"text\"; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        1u, 30u,
+        "initializer expression is not convertible to block object type"},
+      {{"later declarator is not visible",
+        "void bad(void) { int first = later, later = 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 30u, "expression identifier is not declared"},
+      {{"pending register binding retains address restriction",
+        "void bad(void) { register int value = *(&value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 41u, "address operator cannot apply to a register object"},
+      {{"missing scalar initializer expression",
+        "void bad(void) { int value = ; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 30u, "scalar initializer requires an expression"},
+      {{"empty scalar initializer",
+         "void bad(void) { int value = { }; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 32u, "scalar initializer list requires one expression"},
+      {{"excess scalar initializers",
+         "void bad(void) { int value = { 1, 2 }; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 35u, "scalar initializer list has excess elements"},
+      {{"floating scalar initializer boundary",
+         "void bad(void) { double value = 1.0; }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        1u, 33u, "floating constants are outside this expression slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "scalar-initializers", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/scalar-initializers.c", source, &unit) !=
+          0 ||
+      validate_scalar_initializer_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/scalar-initializer-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_scalar_initializer_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_toolchain_initializer_frontier(host_root) != 0) {
+    goto cleanup;
+  }
+  if (validate_scalar_initializer_storage_limit(&fixture, host_root) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("scalar-initializers: ok\n");
   }
   return failed;
 }
@@ -7234,8 +7844,6 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   const ctool_c_block_binding_t *local =
       unit->block_binding_count == 1u ? &unit->block_bindings[0] : NULL;
   const ctool_c_expression_t *literal = NULL;
-  const ctool_c_expression_t *assignment = NULL;
-  const ctool_c_expression_t *left = NULL;
   const ctool_c_expression_t *addition = NULL;
   const ctool_c_expression_t *addition_left = NULL;
   const ctool_c_expression_t *addition_right = NULL;
@@ -7261,19 +7869,10 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       break;
     }
   }
-  if (unit->statement_count > 1u &&
-      unit->statements[1].kind == CTOOL_C_STATEMENT_EXPRESSION &&
-      unit->statements[1].expression < unit->expression_count) {
-    ctool_u32 left_index;
-    ctool_u32 addition_index;
+  if (local != NULL && local->initializer < unit->expression_count) {
+    ctool_u32 addition_index = local->initializer;
     ctool_u32 addition_left_index;
     ctool_u32 addition_right_index;
-    assignment = &unit->expressions[unit->statements[1].expression];
-    left_index = scalar_expression_child(unit, assignment, 0u);
-    addition_index = scalar_expression_child(unit, assignment, 1u);
-    if (left_index < unit->expression_count) {
-      left = &unit->expressions[left_index];
-    }
     addition_index = scalar_unwrap_conversions(unit, addition_index);
     if (addition_index < unit->expression_count) {
       addition = &unit->expressions[addition_index];
@@ -7290,9 +7889,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 5u ||
-      unit->statement_child_count != 4u || unit->expression_count != 11u ||
-      unit->expression_child_count != 9u ||
+      unit->function_definition_count != 1u || unit->statement_count != 4u ||
+      unit->statement_child_count != 3u || unit->expression_count != 9u ||
+      unit->expression_child_count != 7u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
                              &binding->physical_location, "/borrowed.c", 3u) ||
@@ -7325,22 +7924,10 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
       !dual_location_matches(&local->location,
                              &local->physical_location, "/borrowed.c", 4u) ||
+      local->initializer >= unit->expression_count ||
       unit->statements[0].kind != CTOOL_C_STATEMENT_DECLARATION ||
       unit->statements[0].first_block_binding != 0u ||
       unit->statements[0].block_binding_count != 1u ||
-      assignment == NULL ||
-      assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
-      assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ASSIGN ||
-      assignment->computation_type != assignment->type ||
-      scalar_type_kind(unit, assignment->type, NULL) !=
-          CTOOL_C_TYPE_SIGNED_INT ||
-      !dual_location_matches(&assignment->location,
-                             &assignment->physical_location, "/borrowed.c",
-                             5u) ||
-      left == NULL || left->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
-      left->reference != 0u ||
-      !dual_location_matches(&left->location, &left->physical_location,
-                             "/borrowed.c", 5u) ||
       addition == NULL || addition->kind != CTOOL_C_EXPRESSION_BINARY ||
       addition->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
       addition_left == NULL ||
@@ -7349,21 +7936,28 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       addition_right->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
       addition_right->integer_bits != 65ull ||
       !dual_location_matches(&addition_left->location,
-                             &addition_left->physical_location,
-                             "/borrowed.c", 5u) ||
+                               &addition_left->physical_location,
+                               "/borrowed.c", 4u) ||
       !dual_location_matches(&addition_right->location,
                              &addition_right->physical_location,
-                             "/borrowed.c", 5u) ||
-      unit->statements[3].kind != CTOOL_C_STATEMENT_RETURN ||
-      unit->statements[3].expression != CTOOL_C_AST_NONE ||
+                             "/borrowed.c", 4u) ||
+      unit->statements[2].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[2].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
       !dual_location_matches(&literal->location,
                              &literal->physical_location, "/borrowed.c",
-                             6u)) {
+                             5u)) {
     (void)fprintf(stderr,
-                  "boundaries: copied names or dual locations did not survive\n");
+                  "boundaries: copied names or dual locations did not survive "
+                  "(statements=%u/%u expressions=%u/%u initializer=%u)\n",
+                  (unsigned int)unit->statement_count,
+                  (unsigned int)unit->statement_child_count,
+                  (unsigned int)unit->expression_count,
+                  (unsigned int)unit->expression_child_count,
+                  local == NULL ? 0xffffffffu
+                                : (unsigned int)local->initializer);
     return 1;
   }
   for (index = 0u; index < unit->statement_count; index++) {
@@ -7385,8 +7979,7 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "struct OwnedTag { int owned_member; };\n"
       "void owned_sink(const char *text);\n"
       "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
-      "  volatile int owned_local;\n"
-      "  owned_local = 1 + 'A';\n"
+      "  volatile int owned_local = 1 + 'A';\n"
       "  owned_sink(\"owned\\n\");\n"
       "  return;\n"
       "}\n";
@@ -9499,7 +10092,8 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
-                   "function-bodies|block-bindings|scalar-returns|"
+                   "function-bodies|block-bindings|scalar-initializers|"
+                   "scalar-returns|"
                    "pointer-expressions|pointer-arithmetic|scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
@@ -9526,6 +10120,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "scalar-initializers") == 0) {
+    return run_scalar_initializers(argv[2]);
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);

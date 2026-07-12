@@ -92,6 +92,9 @@ typedef struct {
   /* Block-scope declarations retain their source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
+  /* Scalar automatic initialization retains its converted value expression.
+   * Uninitialized objects use AST_NONE. */
+  ctool_u32 initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_block_binding_t;
@@ -311,7 +314,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
  * parameter storage, and represents compound, expression, declaration, and
- * scalar return statements; automatic/register block-object bindings;
+ * scalar return statements; automatic/register block-object bindings with
+ * optional converted scalar initializer roots;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
@@ -339,10 +343,12 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, static/extern objects,
- * function declarations, block tag specifiers, attributes, initializers,
- * and static assertions remain explicit body boundaries. Control statements
- * other than return, conditional/comma expressions, pointer comparison and
- * null-pointer-constant conversions, floating arithmetic and non-void
+ * function declarations, block tag specifiers, attributes, aggregate
+ * initializers, and static assertions remain explicit body boundaries.
+ * File-scope and static-duration object initializers remain pending. Control
+ * statements other than return, conditional/comma expressions, pointer
+ * comparison and null-pointer-constant conversions, floating arithmetic and
+ * non-void
  * conversions, universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than
