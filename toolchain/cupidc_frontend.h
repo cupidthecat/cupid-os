@@ -92,12 +92,38 @@ typedef struct {
   /* Block-scope declarations retain their source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
-  /* Automatic initialization retains its converted scalar or compatible
-   * aggregate value expression. Uninitialized objects use AST_NONE. */
+  /* Index into translation_unit.initializers. An uninitialized automatic
+   * object uses AST_NONE; a static object always retains its semantic
+   * initializer, including implicit zero initialization. */
   ctool_u32 initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_block_binding_t;
+
+typedef enum {
+  CTOOL_C_INITIALIZER_EXPRESSION = 1,
+  CTOOL_C_INITIALIZER_ZERO,
+  CTOOL_C_INITIALIZER_INTEGER,
+  CTOOL_C_INITIALIZER_STRING
+} ctool_c_initializer_kind_t;
+
+typedef struct {
+  ctool_c_initializer_kind_t kind;
+  /* Destination object or subobject type after initializer conversion and
+   * any array-bound completion. */
+  ctool_u32 type;
+  /* First value token, or the object name for implicit zero initialization. */
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+  /* EXPRESSION: converted runtime expression root. Other kinds use
+   * AST_NONE. */
+  ctool_u32 expression;
+  /* INTEGER: target-width converted value bits. */
+  ctool_u64 integer_bits;
+  /* STRING: effective character bytes copied into the target array. The
+   * target type supplies any remaining semantic zero initialization. */
+  ctool_bytes_t string_bytes;
+} ctool_c_initializer_t;
 
 #define CTOOL_C_AST_NONE 0xffffffffu
 
@@ -286,6 +312,10 @@ typedef struct {
   /* Source-ordered block bindings survive after their lexical scopes close. */
   const ctool_c_block_binding_t *block_bindings;
   ctool_u32 block_binding_count;
+  /* Semantic object initializers. Block-binding initializer indices refer to
+   * this immutable table rather than directly to expression roots. */
+  const ctool_c_initializer_t *initializers;
+  ctool_u32 initializer_count;
   /* Function bodies are immutable postorder tables. Child indices precede
    * their parents, and every child slice preserves source order. */
   const ctool_c_function_definition_t *function_definitions;
@@ -326,7 +356,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
 
 /* The tape and request are borrowed only for the call. Success publishes one
  * immutable, job-owned semantic graph plus layouts, ordinary bindings, named
- * tags, parameter metadata, function definitions, and typed body AST tables.
+ * tags, parameter metadata, object initializers, function definitions, and
+ * typed body AST tables.
  * Presumed and physical locations, decoded string bytes, and every counted
  * name/path are copied. Failure zeros the unit and rewinds all parser
  * allocations while preserving structured diagnostics.
@@ -349,11 +380,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
  * parameter storage, and represents compound, expression, declaration,
- * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `switch`,
- * `case`, `default`, `break`, and `continue`
- * statements; automatic/register block-object bindings with
- * optional converted scalar or compatible aggregate expression initializer
- * roots;
+ * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `do`,
+ * `switch`, `case`, `default`, `break`, and `continue` statements;
+ * automatic/register block-object bindings with optional converted
+ * expression initializer records; block-scope static objects with implicit
+ * zero, target-converted integer constant, or narrow character-array string
+ * records, including direct unknown-bound completion and one-value brace
+ * wrappers;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
@@ -385,12 +418,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * `_Atomic(type-name)`, and complex/imaginary type specifiers are pending and
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
- * rather than fixed frontend tables. Block typedefs, static/extern objects,
- * function declarations, block tag specifiers, attributes, aggregate
+ * rather than fixed frontend tables. Block typedefs, extern objects, function
+ * declarations, block tag specifiers, attributes, general aggregate
  * initializer lists, and static assertions remain explicit body boundaries.
- * File-scope and static-duration object initializers remain pending. Control
- * statements other than `return`, `if`, `for`, `while`, `switch`, `case`,
- * `default`, `break`, and `continue`,
+ * File-scope object initializers and block-static address, floating, and
+ * aggregate element constants remain pending. Control statements other than
+ * `return`, `if`, `for`, `while`, `do`, `switch`, `case`, `default`, `break`,
+ * and `continue`,
  * comma expressions, pointer null-pointer-constant conversions,
  * floating arithmetic and non-void conversions,
  * universal-character/non-ordinary literals, calls without

@@ -257,6 +257,8 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                  unit->parameter_count == 0u &&
                  unit->block_bindings == NULL &&
                  unit->block_binding_count == 0u &&
+                 unit->initializers == NULL &&
+                 unit->initializer_count == 0u &&
                  unit->function_definitions == NULL &&
                  unit->function_definition_count == 0u &&
                  unit->statements == NULL && unit->statement_count == 0u &&
@@ -375,6 +377,25 @@ static const ctool_c_block_binding_t *find_block_binding(
     }
   }
   return NULL;
+}
+
+static const ctool_c_initializer_t *initializer_node(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer) {
+  return initializer < unit->initializer_count
+             ? &unit->initializers[initializer]
+             : NULL;
+}
+
+static ctool_u32 block_initializer_expression(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_block_binding_t *binding) {
+  const ctool_c_initializer_t *initializer =
+      binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION &&
+                 initializer->expression < unit->expression_count
+             ? initializer->expression
+             : CTOOL_C_AST_NONE;
 }
 
 static const ctool_c_type_node_t *
@@ -4087,9 +4108,6 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local; int local; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 33u, "block-scope identifier is already declared in this scope"},
-      {{"static local boundary", "void bad(void) { static int local; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "block storage class is outside this body slice"},
       {{"extern local boundary", "void bad(void) { extern int local; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        1u, 18u, "block storage class is outside this body slice"},
@@ -4197,6 +4215,7 @@ static int validate_scalar_initializer_unit(
   ctool_u32 index;
 
   if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->initializer_count != 17u ||
       unit->function_definition_count != 1u) {
     (void)fprintf(stderr, "scalar-initializers: binding inventory differs\n");
     return 1;
@@ -4207,7 +4226,10 @@ static int validate_scalar_initializer_unit(
         binding->kind != CTOOL_C_BINDING_OBJECT ||
         binding->type >= unit->graph.type_count ||
         (initialized[index] == CTOOL_TRUE &&
-         binding->initializer >= unit->expression_count) ||
+         (binding->initializer >= unit->initializer_count ||
+          unit->initializers[binding->initializer].kind !=
+              CTOOL_C_INITIALIZER_EXPRESSION ||
+          unit->initializers[binding->initializer].type != binding->type)) ||
         (initialized[index] == CTOOL_FALSE &&
          binding->initializer != CTOOL_C_AST_NONE)) {
       (void)fprintf(stderr,
@@ -4223,23 +4245,25 @@ static int validate_scalar_initializer_unit(
                   "scalar-initializers: source storage differs\n");
     return 1;
   }
-  first = unit->block_bindings[1].initializer;
-  second = unit->block_bindings[2].initializer;
-  narrowed = unit->block_bindings[3].initializer;
-  choice = unit->block_bindings[4].initializer;
-  pointer = unit->block_bindings[5].initializer;
-  qualified = unit->block_bindings[6].initializer;
-  decayed = unit->block_bindings[8].initializer;
-  callback = unit->block_bindings[9].initializer;
-  registered = unit->block_bindings[10].initializer;
-  atomic = unit->block_bindings[11].initializer;
-  observed = unit->block_bindings[12].initializer;
-  cast_pointer = unit->block_bindings[13].initializer;
-  hidden = unit->block_bindings[14].initializer;
-  self_size = unit->block_bindings[15].initializer;
-  self_reference = unit->block_bindings[16].initializer;
-  braced = unit->block_bindings[17].initializer;
-  trailing = unit->block_bindings[18].initializer;
+  first = block_initializer_expression(unit, &unit->block_bindings[1]);
+  second = block_initializer_expression(unit, &unit->block_bindings[2]);
+  narrowed = block_initializer_expression(unit, &unit->block_bindings[3]);
+  choice = block_initializer_expression(unit, &unit->block_bindings[4]);
+  pointer = block_initializer_expression(unit, &unit->block_bindings[5]);
+  qualified = block_initializer_expression(unit, &unit->block_bindings[6]);
+  decayed = block_initializer_expression(unit, &unit->block_bindings[8]);
+  callback = block_initializer_expression(unit, &unit->block_bindings[9]);
+  registered = block_initializer_expression(unit, &unit->block_bindings[10]);
+  atomic = block_initializer_expression(unit, &unit->block_bindings[11]);
+  observed = block_initializer_expression(unit, &unit->block_bindings[12]);
+  cast_pointer =
+      block_initializer_expression(unit, &unit->block_bindings[13]);
+  hidden = block_initializer_expression(unit, &unit->block_bindings[14]);
+  self_size = block_initializer_expression(unit, &unit->block_bindings[15]);
+  self_reference =
+      block_initializer_expression(unit, &unit->block_bindings[16]);
+  braced = block_initializer_expression(unit, &unit->block_bindings[17]);
+  trailing = block_initializer_expression(unit, &unit->block_bindings[18]);
   enum_one = find_binding_index(unit, "ENUM_ONE");
   sink = find_binding_index(unit, "sink");
   if (unit->expressions[first].kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
@@ -4379,6 +4403,73 @@ static int validate_scalar_initializer_unit(
   return 0;
 }
 
+static int validate_toolchain_static_string(
+    const ctool_c_translation_unit_t *unit, ctool_u32 binding_index,
+    const char *name, ctool_u32 initializer_index, const char *path,
+    ctool_u32 line) {
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *initializer;
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *element;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  if (binding_index >= unit->block_binding_count ||
+      initializer_index >= unit->initializer_count) {
+    return 1;
+  }
+  binding = &unit->block_bindings[binding_index];
+  initializer = &unit->initializers[initializer_index];
+  array = type_node(unit, binding->type);
+  layout = type_layout(unit, binding->type);
+  while (array != NULL &&
+         (array->kind == CTOOL_C_TYPE_QUALIFIED ||
+          array->kind == CTOOL_C_TYPE_ALIGNED)) {
+    qualifiers |= array->qualifiers;
+    array = type_node(unit, array->referenced_type);
+    if (traversed++ >= unit->graph.type_count) {
+      return 1;
+    }
+  }
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY) {
+    return 1;
+  }
+  element = type_node(unit, array->referenced_type);
+  traversed = 0u;
+  while (element != NULL &&
+         (element->kind == CTOOL_C_TYPE_QUALIFIED ||
+          element->kind == CTOOL_C_TYPE_ALIGNED)) {
+    qualifiers |= element->qualifiers;
+    element = type_node(unit, element->referenced_type);
+    if (traversed++ >= unit->graph.type_count) {
+      return 1;
+    }
+  }
+  return !string_equal(binding->name, name) ||
+                 binding->storage != CTOOL_C_STORAGE_STATIC ||
+                 binding->initializer != initializer_index ||
+                 initializer->kind != CTOOL_C_INITIALIZER_STRING ||
+                 initializer->type != binding->type ||
+                 initializer->expression != CTOOL_C_AST_NONE ||
+                 initializer->string_bytes.size != 17u ||
+                 initializer->string_bytes.data == NULL ||
+                 memcmp(initializer->string_bytes.data,
+                        "0123456789ABCDEF\0", 17u) != 0 ||
+                 !dual_location_matches(&binding->location,
+                                        &binding->physical_location,
+                                        path, line) ||
+                 !dual_location_matches(&initializer->location,
+                                        &initializer->physical_location,
+                                        path, line) ||
+                 array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+                 array->element_count != 17u || element == NULL ||
+                 element->kind != CTOOL_C_TYPE_CHAR ||
+                 qualifiers != CTOOL_C_QUAL_CONST || layout == NULL ||
+                 layout->size != 17u || layout->alignment != 1u
+             ? 1
+             : 0;
+}
+
 static int validate_toolchain_frontier(const char *host_root) {
   typedef struct {
     const char *path;
@@ -4390,21 +4481,22 @@ static int validate_toolchain_frontier(const char *host_root) {
     ctool_u32 function_definitions;
     ctool_u32 statements;
     ctool_u32 expressions;
+    ctool_u32 block_bindings;
+    ctool_u32 initializers;
   } toolchain_frontier_case_t;
   static const toolchain_frontier_case_t cases[] = {
-      {"/toolchain/ctool.c", CTOOL_ERR_UNSUPPORTED, 1181u, 3u,
-       CTOOL_C_PARSE_DIAG_STATEMENT,
-       "block storage class is outside this body slice", 0u, 0u, 0u},
-      {"/toolchain/cupiddis.c", CTOOL_ERR_UNSUPPORTED, 231u, 3u,
-       CTOOL_C_PARSE_DIAG_STATEMENT,
-       "block storage class is outside this body slice", 0u, 0u, 0u},
-      {"/toolchain/cupidld.c", CTOOL_ERR_UNSUPPORTED, 1107u, 3u,
-       CTOOL_C_PARSE_DIAG_STATEMENT,
-       "block storage class is outside this body slice", 0u, 0u, 0u},
+      {"/toolchain/ctool.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
+       5981u, 133u, 33u},
+      {"/toolchain/cupiddis.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1470u,
+       9607u, 149u, 114u},
+      {"/toolchain/cupidld.c", CTOOL_ERR_UNSUPPORTED, 1107u, 34u,
+       CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+       "static string initialization outside character arrays awaits "
+       "address constants", 0u, 0u, 0u, 0u, 0u},
       {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 289u,
-       1984u},
+       1984u, 39u, 21u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
-       5487u}};
+       5487u, 85u, 43u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -4464,11 +4556,27 @@ static int validate_toolchain_frontier(const char *host_root) {
       status = ctool_c_parse(job, &tape, &parse_request, &unit);
       diagnostic = ctool_job_diagnostic(job, 0u);
       if (test_case->expected_status == CTOOL_OK) {
+        int static_string_valid = 1;
+        if (strcmp(test_case->path, "/toolchain/ctool.c") == 0) {
+          static_string_valid =
+              validate_toolchain_static_string(
+                  &unit, 111u, "digits", 26u, "/toolchain/ctool.c",
+                  1181u) == 0;
+        } else if (strcmp(test_case->path,
+                          "/toolchain/cupiddis.c") == 0) {
+          static_string_valid =
+              validate_toolchain_static_string(
+                  &unit, 18u, "hex", 7u, "/toolchain/cupiddis.c",
+                  231u) == 0;
+        }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==
                 test_case->function_definitions &&
             unit.statement_count == test_case->statements &&
             unit.expression_count == test_case->expressions &&
+            unit.block_binding_count == test_case->block_bindings &&
+            unit.initializer_count == test_case->initializers &&
+            static_string_valid != 0 &&
             memcmp(snapshot, tape.tokens, token_bytes) == 0) {
           failed = 0;
         }
@@ -4490,10 +4598,12 @@ static int validate_toolchain_frontier(const char *host_root) {
     if (failed != 0) {
       (void)fprintf(stderr,
                     "toolchain-frontier: %s differs: %s "
-                    "definitions=%u statements=%u expressions=%u\n",
+                    "definitions=%u statements=%u expressions=%u "
+                    "block-bindings=%u initializers=%u\n",
                     test_case->path, ctool_status_name(status),
                     unit.function_definition_count, unit.statement_count,
-                    unit.expression_count);
+                    unit.expression_count, unit.block_binding_count,
+                    unit.initializer_count);
       (void)ctool_job_render_diagnostics(job);
     }
     free(snapshot);
@@ -4557,6 +4667,7 @@ static ctool_u32 scalar_initializer_unit_max_bytes(
   INITIALIZER_MAX_BYTES(unit->binding_count, ctool_c_binding_t);
   INITIALIZER_MAX_BYTES(unit->tag_count, ctool_c_tag_t);
   INITIALIZER_MAX_BYTES(unit->block_binding_count, ctool_c_block_binding_t);
+  INITIALIZER_MAX_BYTES(unit->initializer_count, ctool_c_initializer_t);
   INITIALIZER_MAX_BYTES(unit->function_definition_count,
                         ctool_c_function_definition_t);
   INITIALIZER_MAX_BYTES(unit->statement_count, ctool_c_statement_t);
@@ -4698,6 +4809,146 @@ cleanup:
   return failed;
 }
 
+static char *build_static_initializer_limit_source(
+    ctool_bool static_storage) {
+  const size_t capacity = 16384u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void initializer_table_limit(void) {\n  ") != 0 ||
+      append_scale_text(source, capacity, &used,
+                        static_storage == CTOOL_TRUE ? "static int "
+                                                     : "int ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 100u; index++) {
+    char declarator[32];
+    int written = snprintf(declarator, sizeof(declarator),
+                           index == 0u ? "value_%03u" : ", value_%03u",
+                           (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(declarator) ||
+        append_scale_text(source, capacity, &used, declarator) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, ";\n}\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_static_initializer_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  char *control_source =
+      build_static_initializer_limit_source(CTOOL_FALSE);
+  char *static_source = build_static_initializer_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_oracle;
+  ctool_c_translation_unit_t static_oracle;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_pp_result_t control_tape;
+  ctool_c_pp_result_t static_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || static_source == NULL ||
+      parse_valid_fixture(fixture, "/initializer-table-control.c",
+                          control_source, &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, "/initializer-table-success.c",
+                          static_source, &static_oracle) != 0 ||
+      control_oracle.block_binding_count != 100u ||
+      control_oracle.initializer_count != 0u ||
+      static_oracle.block_binding_count != 100u ||
+      static_oracle.initializer_count != 100u ||
+      static_oracle.block_bindings[0].initializer != 0u ||
+      static_oracle.block_bindings[99].initializer != 99u ||
+      static_oracle.initializers[0].kind != CTOOL_C_INITIALIZER_ZERO ||
+      static_oracle.initializers[99].kind != CTOOL_C_INITIALIZER_ZERO ||
+      preprocess_fixture(fixture, "/initializer-table-control.c",
+                         control_source, &control_tape) != 0 ||
+      preprocess_fixture(fixture, "/initializer-table-limit.c",
+                         static_source, &static_tape) != 0) {
+    (void)fprintf(stderr,
+                  "static-initializers: storage-limit controls differ\n");
+    goto cleanup;
+  }
+  token_bytes = (size_t)static_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, static_tape.tokens, token_bytes);
+  limits.arena_block_bytes = 4096u;
+  limits.arena_bytes = 32u * 1024u;
+  limits.output_bytes = 64u * 1024u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &static_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/initializer-table-limit.c") ||
+      diagnostic->line != 3u || diagnostic->column != 1u ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, static_tape.tokens, token_bytes) != 0) {
+    (void)fprintf(stderr,
+                  "static-initializers: initializer-table rollback differs: "
+                  "%s\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &recovered);
+  if (status != CTOOL_OK || recovered.block_binding_count != 100u ||
+      recovered.initializer_count != 0u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "static-initializers: initializer-table recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(static_source);
+  free(control_source);
+  return failed;
+}
+
 static int run_scalar_initializers(const char *host_root) {
   static const char source[] =
       "typedef unsigned char byte;\n"
@@ -4802,6 +5053,410 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("scalar-initializers: ok\n");
+  }
+  return failed;
+}
+
+static char *build_static_initializer_depth_source(ctool_u32 depth) {
+  size_t capacity = (size_t)depth * 2u + 128u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void deep(void) { static int value = ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < depth; index++) {
+    if (append_scale_text(source, capacity, &used, "{") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "1") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < depth; index++) {
+    if (append_scale_text(source, capacity, &used, "}") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "; }\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_static_initializer_unit(
+    const ctool_c_translation_unit_t *unit);
+
+static int run_static_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char byte;\n"
+      "typedef enum { CHOICE_ZERO, CHOICE_ONE } choice_t;\n"
+      "typedef struct { int value; } item_t;\n"
+      "typedef char text_t[];\n"
+      "int read_static(int depth) {\n"
+      "  static int zero_int;\n"
+      "  static int *zero_pointer;\n"
+      "  static item_t zero_record;\n"
+      "  static int zero_array[2];\n"
+      "  static const int folded = 1 ? 7 : 1 / 0;\n"
+      "  static byte narrowed = 0x1ffu;\n"
+      "  static signed char signed_narrowed = 0x1ffu;\n"
+      "  static choice_t choice = CHOICE_ONE;\n"
+      "  static _Bool truth = 9;\n"
+      "  static _Atomic int atomic_value = 3;\n"
+      "  static volatile int observed = 4;\n"
+      "  static const char inferred[] = \"AB\" \"\\x43\";\n"
+      "  static text_t aliased = \"R\";\n"
+      "  static signed char exact[3] = \"XYZ\";\n"
+      "  static unsigned char padded[5] = { \"Q\", };\n"
+      "  static int braced = {{ 3 + sizeof(int) },};\n"
+      "  static int self_size = sizeof self_size;\n"
+      "  static int pair = 1, other;\n"
+      "  zero_int; zero_pointer; zero_record; zero_array; folded;\n"
+      "  narrowed; signed_narrowed; choice; truth; atomic_value; observed;\n"
+      "  inferred; aliased; exact; padded; braced; self_size; pair; other;\n"
+      "  { static int folded = 'Z'; folded; }\n"
+      "  if (depth) return read_static(depth - 1);\n"
+      "  return folded;\n"
+      "}\n"
+      "int second_static(void) {\n"
+      "  static int folded = 11;\n"
+      "  return folded;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"pending static object shadows enumerator",
+        "enum { VALUE = 7 };\n"
+        "void bad(void) {\n"
+        "  static int VALUE = VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 22u, "integer constant expression operand is unsupported"},
+      {{"parameter shadows enumerator",
+        "enum { VALUE = 7 };\n"
+        "void bad(int VALUE) {\n"
+        "  static int result = VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u, "integer constant expression operand is unsupported"},
+      {{"earlier local shadows enumerator",
+        "enum { VALUE = 7 };\n"
+        "void bad(void) {\n"
+        "  int VALUE;\n"
+        "  static int result = VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       4u, 23u, "integer constant expression operand is unsupported"},
+      {{"runtime parameter value",
+        "void bad(int parameter) {\n"
+        "  static int value = parameter;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 22u, "integer constant expression operand is unsupported"},
+      {{"const object is not an integer constant expression",
+        "void bad(void) {\n"
+        "  static const int first = 1;\n"
+        "  static int result = first;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u, "integer constant expression operand is unsupported"},
+      {{"function call is not a static integer constant",
+        "int make(void);\n"
+        "void bad(void) {\n"
+        "  static int value = make();\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 22u, "integer constant expression operand is unsupported"},
+      {{"selected division by zero",
+        "void bad(void) {\n"
+        "  static int value = 1 / 0;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 24u, "integer constant expression divides by zero"},
+      {{"selected signed overflow",
+        "void bad(void) {\n"
+        "  static int value = 2147483647 + 1;\n"
+        "}\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+       2u, 33u,
+       "signed integer constant expression overflows its target type"},
+      {{"string cannot initialize integer",
+        "void bad(void) {\n"
+        "  static int value = \"x\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 22u, "string initializer requires a character array"},
+      {{"string cannot initialize noncharacter array",
+        "void bad(void) {\n"
+        "  static int values[2] = \"x\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 26u, "string initializer requires a character array"},
+      {{"nonordinary static string array boundary",
+        "typedef int wchar_t;\n"
+        "void bad(void) {\n"
+        "  static wchar_t values[2] = L\"x\";\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 30u, "only ordinary narrow string literals are supported in bodies"},
+      {{"nonordinary static string pointer boundary",
+        "typedef int wchar_t;\n"
+        "void bad(void) {\n"
+        "  static const wchar_t *name = L\"x\";\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 32u, "only ordinary narrow string literals are supported in bodies"},
+      {{"string cannot initialize atomic character array",
+        "void bad(void) {\n"
+        "  static _Atomic char text[2] = \"x\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 33u,
+       "string initializer cannot initialize an atomic character array"},
+      {{"string address constant boundary",
+        "void bad(void) {\n"
+        "  static const char *name = \"x\";\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 29u,
+       "static string initialization outside character arrays awaits "
+       "address constants"},
+      {{"incompatible string pointer target",
+        "void bad(void) {\n"
+        "  static int *pointer = \"x\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u,
+       "string initializer is not convertible to pointer target"},
+      {{"pointer-array address constants boundary",
+        "void bad(void) {\n"
+        "  static const char *names[2] = {\"a\", \"b\"};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 34u,
+       "static string initialization outside character arrays awaits "
+       "address constants"},
+      {{"bare pointer array requires a list",
+        "void bad(void) {\n"
+        "  static const char *names[2] = \"a\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 33u,
+       "static aggregate initializer requires a brace-enclosed list"},
+      {{"nested character-array list boundary",
+        "void bad(void) {\n"
+        "  static char names[2][2] = {\"a\", \"b\"};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 30u,
+       "static aggregate initializer lists await element constants"},
+      {{"deep character-array list boundary",
+        "void bad(void) {\n"
+        "  static char names[2][2][2] = {{\"a\"}};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 34u,
+       "static aggregate initializer lists await element constants"},
+      {{"record string element list boundary",
+        "typedef struct { const char *name; } named_t;\n"
+        "void bad(void) {\n"
+        "  static named_t item = {\"a\"};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 26u,
+       "static aggregate initializer lists await element constants"},
+      {{"atomic character pointer is incompatible",
+        "void bad(void) {\n"
+        "  static _Atomic char *name = \"a\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 31u,
+       "string initializer is not convertible to pointer target"},
+      {{"byte-array element list boundary",
+        "void bad(void) {\n"
+        "  static unsigned char bytes[2] = {1, 2};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 35u,
+       "static aggregate initializer lists await element constants"},
+      {{"array requires an initializer list",
+        "void bad(void) {\n"
+        "  static int values[2] = 1;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 26u,
+       "static aggregate initializer requires a brace-enclosed list"},
+      {{"record element list boundary",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(void) {\n"
+        "  static item_t item = {1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 24u,
+       "static aggregate initializer lists await element constants"},
+      {{"oversized character-array string",
+        "void bad(void) {\n"
+        "  static char text[2] = \"abc\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u, "string initializer is too long for character array"},
+      {{"zero-bound character-array string",
+        "void bad(void) {\n"
+        "  static char text[0] = \"\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u, "character array initializer requires a nonzero bound"},
+      {{"empty static initializer list",
+        "void bad(void) {\n"
+        "  static int value = { };\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 24u, "static initializer list requires one value"},
+      {{"excess static scalar initializers",
+        "void bad(void) {\n"
+        "  static int value = { 1, 2 };\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 27u, "static initializer list has excess elements"},
+      {{"nested character-array string braces",
+        "void bad(void) {\n"
+        "  static char text[3] = {{ \"x\" }};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 26u,
+       "character-array string initializer cannot use nested braces"},
+      {{"floating static target boundary",
+        "void bad(void) {\n"
+        "  static double value = 1.0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u,
+       "static floating initialization is outside this constant-data slice"},
+      {{"floating arithmetic constant boundary",
+        "void bad(void) {\n"
+        "  static int value = 1.0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 22u,
+       "floating arithmetic static initialization is outside this "
+       "constant-data slice"},
+      {{"parenthesized floating arithmetic boundary",
+        "void bad(void) {\n"
+        "  static int value = (1.0);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "floating arithmetic static initialization is outside this "
+       "constant-data slice"},
+      {{"unary floating arithmetic boundary",
+        "void bad(void) {\n"
+        "  static int value = +1.0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "floating arithmetic static initialization is outside this "
+       "constant-data slice"},
+      {{"null pointer constant boundary",
+        "void bad(void) {\n"
+        "  static int *pointer = 0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u, "static pointer initialization awaits address constants"},
+      {{"missing static initializer value",
+        "void bad(void) {\n"
+        "  static int value = ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 22u, "static initializer requires a constant expression"},
+      {{"incomplete static array without initializer",
+        "void bad(void) {\n"
+        "  static char text[];\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 15u, "block object requires a complete object type"},
+      {{"zero-bound static array",
+        "void bad(void) {\n"
+        "  static int values[0];\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_TYPE_DIAG_ARRAY},
+       2u, 20u, "array element count must be nonzero"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t depth_unit;
+  char *depth_success = NULL;
+  char *depth_failure = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "static-initializers", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/static-initializers.c", source,
+                          &unit) == 0 &&
+      validate_static_initializer_unit(&unit) == 0) {
+    for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+      const frontend_exact_failure_case_t *test_case =
+          &failure_cases[index];
+      if (expect_frontend_failure_at_message(
+              &fixture, &test_case->failure,
+              "/static-initializer-failure.c", test_case->line,
+              test_case->column, test_case->message) != 0 ||
+          validate_static_initializer_unit(&unit) != 0) {
+        goto cleanup;
+      }
+    }
+    depth_success = build_static_initializer_depth_source(255u);
+    depth_failure = build_static_initializer_depth_source(256u);
+    if (depth_success == NULL || depth_failure == NULL ||
+        parse_valid_fixture(&fixture, "/static-initializer-depth-ok.c",
+                            depth_success, &depth_unit) != 0 ||
+        depth_unit.block_binding_count != 1u ||
+        depth_unit.initializer_count != 1u ||
+        depth_unit.block_bindings[0].initializer != 0u ||
+        depth_unit.initializers[0].kind != CTOOL_C_INITIALIZER_INTEGER ||
+        depth_unit.initializers[0].integer_bits != 1ull) {
+      (void)fprintf(stderr,
+                    "static-initializers: depth control differs\n");
+      goto cleanup;
+    }
+    {
+      const frontend_failure_case_t depth_case = {
+          "static initializer nesting limit", depth_failure,
+          CTOOL_ERR_LIMIT, CTOOL_C_PARSE_DIAG_LIMIT};
+      if (expect_frontend_failure_at_message(
+              &fixture, &depth_case, "/static-initializer-depth.c", 1u,
+              293u, "source syntax exceeds the public nesting limit") != 0 ||
+          validate_static_initializer_unit(&unit) != 0) {
+        goto cleanup;
+      }
+    }
+    if (validate_static_initializer_storage_limit(&fixture, host_root) != 0 ||
+        validate_static_initializer_unit(&unit) != 0) {
+      goto cleanup;
+    }
+    failed = 0;
+  }
+
+cleanup:
+  free(depth_failure);
+  free(depth_success);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("static-initializers: ok\n");
   }
   return failed;
 }
@@ -5875,6 +6530,162 @@ static ctool_c_type_kind_t underlying_type_kind(
     *qualifiers_out = qualifiers;
   }
   return node == NULL ? (ctool_c_type_kind_t)0 : node->kind;
+}
+
+static int validate_static_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "zero_int",     "zero_pointer", "zero_record", "zero_array",
+      "folded",       "narrowed",     "signed_narrowed",
+      "choice",       "truth",        "atomic_value", "observed",
+      "inferred",     "aliased",      "exact",        "padded",
+      "braced",       "self_size",    "pair",         "other",
+      "folded",       "folded"};
+  static const ctool_u32 lines[] = {
+      6u,  7u,  8u,  9u,  10u, 11u, 12u, 13u, 14u, 15u, 16u,
+      17u, 18u, 19u, 20u, 21u, 22u, 23u, 23u, 27u, 32u};
+  static const ctool_c_initializer_kind_t kinds[] = {
+      CTOOL_C_INITIALIZER_ZERO,    CTOOL_C_INITIALIZER_ZERO,
+      CTOOL_C_INITIALIZER_ZERO,    CTOOL_C_INITIALIZER_ZERO,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_INTEGER,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_INTEGER,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_INTEGER,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_STRING,
+      CTOOL_C_INITIALIZER_STRING,
+      CTOOL_C_INITIALIZER_STRING,  CTOOL_C_INITIALIZER_STRING,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_INTEGER,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_ZERO,
+      CTOOL_C_INITIALIZER_INTEGER, CTOOL_C_INITIALIZER_INTEGER};
+  static const ctool_u64 integer_bits[] = {
+      0ull, 0ull, 0ull, 0ull, 7ull, 255ull, 255ull, 1ull,
+      1ull, 3ull, 4ull, 0ull, 0ull, 0ull, 0ull, 7ull,
+      4ull, 1ull, 0ull, 90ull, 11ull};
+  static const char inferred_bytes[] = {'A', 'B', 'C', '\0'};
+  static const char aliased_bytes[] = {'R', '\0'};
+  static const char exact_bytes[] = {'X', 'Y', 'Z'};
+  static const char padded_bytes[] = {'Q', '\0'};
+  static const char *const string_bytes[] = {
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+      inferred_bytes, aliased_bytes, exact_bytes, padded_bytes,
+      NULL, NULL, NULL, NULL, NULL, NULL};
+  static const ctool_u32 string_sizes[] = {
+      0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
+      4u, 2u, 3u, 2u, 0u, 0u, 0u, 0u, 0u, 0u};
+  static const ctool_c_type_kind_t string_element_kinds[] = {
+      CTOOL_C_TYPE_CHAR, CTOOL_C_TYPE_CHAR, CTOOL_C_TYPE_SIGNED_CHAR,
+      CTOOL_C_TYPE_UNSIGNED_CHAR};
+  static const ctool_u32 string_element_counts[] = {4u, 2u, 3u, 5u};
+  static const ctool_u32 string_element_qualifiers[] = {
+      CTOOL_C_QUAL_CONST, 0u, 0u, 0u};
+  ctool_bool referenced[ARRAY_COUNT(names)];
+  ctool_u32 index;
+
+  if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->initializer_count != ARRAY_COUNT(names) ||
+      unit->function_definition_count != 2u || unit->statement_count != 47u ||
+      unit->statement_child_count != 44u || unit->expression_count != 53u ||
+      unit->expression_child_count != 29u) {
+    (void)fprintf(
+        stderr,
+        "static-initializers: inventory differs (%u bindings, %u "
+        "initializers, %u definitions, %u statements/%u children, "
+        "%u expressions/%u children)\n",
+        unit->block_binding_count, unit->initializer_count,
+        unit->function_definition_count, unit->statement_count,
+        unit->statement_child_count, unit->expression_count,
+        unit->expression_child_count);
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(names); index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    const ctool_c_initializer_t *initializer =
+        initializer_node(unit, binding->initializer);
+    referenced[index] = CTOOL_FALSE;
+    if (!string_equal(binding->name, names[index]) ||
+        binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->storage != CTOOL_C_STORAGE_STATIC ||
+        binding->type >= unit->graph.type_count ||
+        binding->initializer != index || initializer == NULL ||
+        initializer->kind != kinds[index] ||
+        initializer->type != binding->type ||
+        initializer->expression != CTOOL_C_AST_NONE ||
+        !dual_location_matches(&binding->location,
+                               &binding->physical_location,
+                               "/static-initializers.c", lines[index]) ||
+        !dual_location_matches(&initializer->location,
+                               &initializer->physical_location,
+                               "/static-initializers.c", lines[index])) {
+      (void)fprintf(stderr,
+                    "static-initializers: binding %u differs\n", index);
+      return 1;
+    }
+    if (kinds[index] == CTOOL_C_INITIALIZER_INTEGER &&
+        initializer->integer_bits != integer_bits[index]) {
+      (void)fprintf(stderr,
+                    "static-initializers: integer %u differs (%llu)\n",
+                    index,
+                    (unsigned long long)initializer->integer_bits);
+      return 1;
+    }
+    if (kinds[index] == CTOOL_C_INITIALIZER_STRING &&
+        (initializer->string_bytes.size != string_sizes[index] ||
+         initializer->string_bytes.data == NULL ||
+         memcmp(initializer->string_bytes.data, string_bytes[index],
+                string_sizes[index]) != 0)) {
+      (void)fprintf(stderr,
+                    "static-initializers: string %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(string_element_kinds); index++) {
+    const ctool_c_block_binding_t *binding =
+        &unit->block_bindings[11u + index];
+    const ctool_c_type_node_t *array = type_node(unit, binding->type);
+    const ctool_c_type_layout_t *layout = type_layout(unit, binding->type);
+    ctool_u32 qualifiers = 0u;
+    ctool_c_type_kind_t element_kind;
+    while (array != NULL &&
+           (array->kind == CTOOL_C_TYPE_QUALIFIED ||
+            array->kind == CTOOL_C_TYPE_ALIGNED)) {
+      array = type_node(unit, array->referenced_type);
+    }
+    element_kind =
+        array == NULL
+            ? (ctool_c_type_kind_t)0
+            : underlying_type_kind(unit, array->referenced_type,
+                                   &qualifiers);
+    if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->element_count != string_element_counts[index] ||
+        element_kind != string_element_kinds[index] ||
+        qualifiers != string_element_qualifiers[index] || layout == NULL ||
+        layout->size != string_element_counts[index] ||
+        layout->alignment != 1u) {
+      (void)fprintf(stderr,
+                    "static-initializers: string type %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING) {
+      if (expression->reference >= ARRAY_COUNT(names)) {
+        (void)fprintf(stderr,
+                      "static-initializers: binding reference is invalid\n");
+        return 1;
+      }
+      referenced[expression->reference] = CTOOL_TRUE;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(names); index++) {
+    if (referenced[index] == CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "static-initializers: binding %u lost object identity\n",
+                    index);
+      return 1;
+    }
+  }
+  return 0;
 }
 
 static ctool_u32 function_top_level_statement_index(
@@ -9620,10 +10431,11 @@ static int validate_pointer_comparison_unit(
   {
     const ctool_c_block_binding_t *binding =
         find_block_binding(unit, "converted_object");
+    ctool_u32 initializer = block_initializer_expression(unit, binding);
     const ctool_c_expression_t *conversion =
-        binding == NULL || binding->initializer >= unit->expression_count
+        initializer >= unit->expression_count
             ? NULL
-            : &unit->expressions[binding->initializer];
+            : &unit->expressions[initializer];
     if (conversion == NULL ||
         conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
         conversion->conversion != CTOOL_C_CONVERSION_POINTER ||
@@ -11065,7 +11877,23 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   const ctool_c_parameter_t *parameter;
   const ctool_c_type_node_t *parameter_type_node;
   const ctool_c_block_binding_t *local =
-      unit->block_binding_count == 1u ? &unit->block_bindings[0] : NULL;
+      unit->block_binding_count == 4u ? &unit->block_bindings[0] : NULL;
+  const ctool_c_block_binding_t *digits =
+      unit->block_binding_count == 4u ? &unit->block_bindings[1] : NULL;
+  const ctool_c_block_binding_t *static_value =
+      unit->block_binding_count == 4u ? &unit->block_bindings[2] : NULL;
+  const ctool_c_block_binding_t *static_zero =
+      unit->block_binding_count == 4u ? &unit->block_bindings[3] : NULL;
+  const ctool_c_initializer_t *digits_initializer =
+      digits == NULL ? NULL : initializer_node(unit, digits->initializer);
+  const ctool_c_initializer_t *value_initializer =
+      static_value == NULL
+          ? NULL
+          : initializer_node(unit, static_value->initializer);
+  const ctool_c_initializer_t *zero_initializer =
+      static_zero == NULL
+          ? NULL
+          : initializer_node(unit, static_zero->initializer);
   const ctool_c_expression_t *literal = NULL;
   const ctool_c_expression_t *addition = NULL;
   const ctool_c_expression_t *addition_left = NULL;
@@ -11092,8 +11920,8 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       break;
     }
   }
-  if (local != NULL && local->initializer < unit->expression_count) {
-    ctool_u32 addition_index = local->initializer;
+  if (local != NULL) {
+    ctool_u32 addition_index = block_initializer_expression(unit, local);
     ctool_u32 addition_left_index;
     ctool_u32 addition_right_index;
     addition_index = unwrap_conversions(unit, addition_index);
@@ -11111,9 +11939,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   }
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
-      unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 11u ||
-      unit->statement_child_count != 6u || unit->expression_count != 13u ||
+      unit->block_binding_count != 4u || unit->initializer_count != 4u ||
+      unit->function_definition_count != 1u || unit->statement_count != 14u ||
+      unit->statement_child_count != 9u || unit->expression_count != 13u ||
       unit->expression_child_count != 9u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
@@ -11147,10 +11975,51 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
       !dual_location_matches(&local->location,
                              &local->physical_location, "/borrowed.c", 4u) ||
-      local->initializer >= unit->expression_count ||
+      block_initializer_expression(unit, local) >= unit->expression_count ||
+      digits == NULL || !string_equal(digits->name, "owned_digits") ||
+      digits->storage != CTOOL_C_STORAGE_STATIC ||
+      !dual_location_matches(&digits->location,
+                             &digits->physical_location, "/borrowed.c", 5u) ||
+      digits_initializer == NULL ||
+      digits_initializer->kind != CTOOL_C_INITIALIZER_STRING ||
+      digits_initializer->type != digits->type ||
+      digits_initializer->string_bytes.size != 3u ||
+      digits_initializer->string_bytes.data == NULL ||
+      memcmp(digits_initializer->string_bytes.data, "09\0", 3u) != 0 ||
+      !dual_location_matches(&digits_initializer->location,
+                             &digits_initializer->physical_location,
+                             "/borrowed.c", 5u) ||
+      static_value == NULL ||
+      !string_equal(static_value->name, "owned_static") ||
+      static_value->storage != CTOOL_C_STORAGE_STATIC ||
+      value_initializer == NULL ||
+      value_initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      value_initializer->type != static_value->type ||
+      value_initializer->integer_bits != 7ull ||
+      !dual_location_matches(&value_initializer->location,
+                             &value_initializer->physical_location,
+                             "/borrowed.c", 6u) ||
+      static_zero == NULL ||
+      !string_equal(static_zero->name, "owned_zero") ||
+      static_zero->storage != CTOOL_C_STORAGE_STATIC ||
+      zero_initializer == NULL ||
+      zero_initializer->kind != CTOOL_C_INITIALIZER_ZERO ||
+      zero_initializer->type != static_zero->type ||
+      !dual_location_matches(&zero_initializer->location,
+                             &zero_initializer->physical_location,
+                             "/borrowed.c", 7u) ||
       unit->statements[0].kind != CTOOL_C_STATEMENT_DECLARATION ||
       unit->statements[0].first_block_binding != 0u ||
       unit->statements[0].block_binding_count != 1u ||
+      unit->statements[1].kind != CTOOL_C_STATEMENT_DECLARATION ||
+      unit->statements[1].first_block_binding != 1u ||
+      unit->statements[1].block_binding_count != 1u ||
+      unit->statements[2].kind != CTOOL_C_STATEMENT_DECLARATION ||
+      unit->statements[2].first_block_binding != 2u ||
+      unit->statements[2].block_binding_count != 1u ||
+      unit->statements[3].kind != CTOOL_C_STATEMENT_DECLARATION ||
+      unit->statements[3].first_block_binding != 3u ||
+      unit->statements[3].block_binding_count != 1u ||
       addition == NULL || addition->kind != CTOOL_C_EXPRESSION_BINARY ||
       addition->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
       addition_left == NULL ||
@@ -11164,44 +12033,44 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !dual_location_matches(&addition_right->location,
                              &addition_right->physical_location,
                              "/borrowed.c", 4u) ||
-      unit->statements[2].kind != CTOOL_C_STATEMENT_BREAK ||
-      unit->statements[3].kind != CTOOL_C_STATEMENT_FOR ||
-      unit->statements[3].initializer_statement != CTOOL_C_AST_NONE ||
-      unit->statements[3].condition != CTOOL_C_AST_NONE ||
-      unit->statements[3].iteration != CTOOL_C_AST_NONE ||
-      unit->statements[3].body != 2u ||
-      unit->statements[4].kind != CTOOL_C_STATEMENT_EXPRESSION ||
-      unit->statements[4].expression != CTOOL_C_AST_NONE ||
-      unit->statements[5].kind != CTOOL_C_STATEMENT_EXPRESSION ||
-      unit->statements[5].expression != CTOOL_C_AST_NONE ||
-      unit->statements[6].kind != CTOOL_C_STATEMENT_IF ||
-      unit->statements[6].condition >= unit->expression_count ||
-      unit->statements[6].body != 4u ||
-      unit->statements[6].else_body != 5u ||
-      unit->expressions[unit->statements[6].condition].kind !=
-          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
-      unit->expressions[unit->statements[6].condition].conversion !=
-          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      unit->statements[5].kind != CTOOL_C_STATEMENT_BREAK ||
+      unit->statements[6].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[6].initializer_statement != CTOOL_C_AST_NONE ||
+      unit->statements[6].condition != CTOOL_C_AST_NONE ||
+      unit->statements[6].iteration != CTOOL_C_AST_NONE ||
+      unit->statements[6].body != 5u ||
       unit->statements[7].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       unit->statements[7].expression != CTOOL_C_AST_NONE ||
-      unit->statements[8].kind != CTOOL_C_STATEMENT_WHILE ||
-      unit->statements[8].condition >= unit->expression_count ||
-      unit->statements[8].body != 7u ||
-      unit->expressions[unit->statements[8].condition].kind !=
+      unit->statements[8].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[8].expression != CTOOL_C_AST_NONE ||
+      unit->statements[9].kind != CTOOL_C_STATEMENT_IF ||
+      unit->statements[9].condition >= unit->expression_count ||
+      unit->statements[9].body != 7u ||
+      unit->statements[9].else_body != 8u ||
+      unit->expressions[unit->statements[9].condition].kind !=
           CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
-      unit->expressions[unit->statements[8].condition].conversion !=
+      unit->expressions[unit->statements[9].condition].conversion !=
           CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
-      !dual_location_matches(&unit->statements[8].location,
-                             &unit->statements[8].physical_location,
-                             "/borrowed.c", 8u) ||
-      unit->statements[9].kind != CTOOL_C_STATEMENT_RETURN ||
-      unit->statements[9].expression != CTOOL_C_AST_NONE ||
+      unit->statements[10].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[10].expression != CTOOL_C_AST_NONE ||
+      unit->statements[11].kind != CTOOL_C_STATEMENT_WHILE ||
+      unit->statements[11].condition >= unit->expression_count ||
+      unit->statements[11].body != 10u ||
+      unit->expressions[unit->statements[11].condition].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[unit->statements[11].condition].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !dual_location_matches(&unit->statements[11].location,
+                             &unit->statements[11].physical_location,
+                             "/borrowed.c", 11u) ||
+      unit->statements[12].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[12].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
       !dual_location_matches(&literal->location,
                              &literal->physical_location, "/borrowed.c",
-                             5u)) {
+                             8u)) {
     (void)fprintf(stderr,
                   "boundaries: copied names or dual locations did not survive "
                   "(statements=%u/%u expressions=%u/%u initializer=%u)\n",
@@ -11233,6 +12102,9 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "void owned_sink(const char *text);\n"
       "static inline void owned_function(struct OwnedTag owned_parameter) {\n"
       "  volatile int owned_local = 1 + 'A';\n"
+      "  static const char owned_digits[] = \"09\";\n"
+      "  static int owned_static = 7;\n"
+      "  static int owned_zero;\n"
       "  owned_sink(\"owned\\n\");\n"
       "  for (;;) break;\n"
       "  if (owned_local) ; else ;\n"
@@ -13881,6 +14753,9 @@ static int validate_aggregate_value_unit(
   ctool_u32 condition;
   ctool_u32 nonzero;
   ctool_u32 zero;
+  ctool_u32 local_initializer;
+  ctool_u32 called_initializer;
+  ctool_u32 locked_initializer;
   if (statement == NULL || statement->expression >= unit->expression_count) {
     (void)fprintf(stderr, "aggregate-values: return statement differs\n");
     return 1;
@@ -13953,25 +14828,28 @@ static int validate_aggregate_value_unit(
   }
   local = find_block_binding(unit, "local_pair");
   called = find_block_binding(unit, "called_pair");
+  local_initializer = block_initializer_expression(unit, local);
+  called_initializer = block_initializer_expression(unit, called);
   if (local == NULL || called == NULL ||
-      local->initializer >= unit->expression_count ||
-      called->initializer >= unit->expression_count ||
+      local_initializer >= unit->expression_count ||
+      called_initializer >= unit->expression_count ||
       underlying_type_kind(unit, local->type, NULL) != CTOOL_C_TYPE_RECORD ||
-      underlying_type_kind(unit, unit->expressions[local->initializer].type,
+      underlying_type_kind(unit, unit->expressions[local_initializer].type,
                        NULL) != CTOOL_C_TYPE_RECORD ||
       conversion_chain_has(
-          unit, local->initializer,
+          unit, local_initializer,
           CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
       underlying_type_kind(unit, called->type, NULL) != CTOOL_C_TYPE_RECORD ||
-      unit->expressions[called->initializer].kind !=
+      unit->expressions[called_initializer].kind !=
           CTOOL_C_EXPRESSION_CALL) {
     (void)fprintf(stderr, "aggregate-values: initializers differ\n");
     return 1;
   }
   locked = find_block_binding(unit, "local_locked");
+  locked_initializer = block_initializer_expression(unit, locked);
   assignment_statement = function_top_level_statement_index(
       unit, "assign_chain", CTOOL_C_STATEMENT_EXPRESSION, 0u);
-  if (locked == NULL || locked->initializer >= unit->expression_count ||
+  if (locked == NULL || locked_initializer >= unit->expression_count ||
       underlying_type_kind(unit, locked->type, NULL) != CTOOL_C_TYPE_RECORD ||
       assignment_statement == CTOOL_C_AST_NONE ||
       unit->statements[assignment_statement].expression >=
@@ -14324,6 +15202,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
+                   "static-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
@@ -14358,6 +15237,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "scalar-initializers") == 0) {
     return run_scalar_initializers(argv[2]);
+  }
+  if (strcmp(argv[1], "static-initializers") == 0) {
+    return run_static_initializers(argv[2]);
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);

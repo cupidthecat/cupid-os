@@ -2019,3 +2019,65 @@ The regenerated audit still contains 681 active sources, 39 unreachable source-l
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static and aggregate initialization, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC semantic block-static initializers
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now publishes one job-owned semantic initializer table. A block binding indexes that table instead of pointing directly at an expression. Initialized automatic objects use an `EXPRESSION` record, while uninitialized automatic objects keep `CTOOL_C_AST_NONE`. Every represented block-scope static object has a record: `ZERO` for implicit zero initialization, `INTEGER` for a target-converted integer constant expression, or `STRING` for an ordinary narrow string copied into a narrow character array.
+
+The block binding remains the object's only identity. This matters for point-of-declaration lookup, shadowing, and later IR references. A second static-object table would force consumers to reconcile two identities for the same declaration. Keeping only the old expression root was also rejected because implicit zero and string data are not runtime expressions. The semantic table records values, not target sections. Later lowering still owns byte order, padding, section placement, symbol selection, and relocations.
+
+String records own the effective bytes in the parse job. An inferred direct array bound is completed from the decoded string. A fixed array records the bytes that fit, including the terminator when present, and its type supplies any remaining zero fill. The frontend accepts the scalar and character-array brace wrapper already used for automatic scalar initialization, including nested braces and a trailing comma. General element lists remain deferred.
+
+The source audit found four blocking static declarations in the unchanged hosted Toolchain cohort. `ctool.c` and `cupiddis.c` each use a 17-byte hexadecimal digit string. `cupidld.c` first needs a four-element pointer array initialized from string addresses, then a 16-byte integer element list. This increment implements the common zero, integer, and character-array forms without inventing an incomplete address or relocation model for the two CupidLD lists.
+
+No user question was needed. C11 fixes the supported initialization rules, while ADRs 0003, 0013, and 0014 already fix object identity, target integer widths, immutable job ownership, and transactional publication.
+
+### Red-to-green sequence and corrections
+
+- The new `static-initializers` tracer first stopped at the old unsupported-storage diagnostic. The contract then advanced through implicit zero, integer constants, target conversion, character-array strings, braces, shadowing, and source ownership before the hosted frontier moved.
+- The public shape contract publishes 21 block bindings and 21 initializer records. It checks every kind, type, bit pattern, location, byte sequence, completed array bound, binding reference, and shadowed object identity. Integer cases cover enums, `_Bool`, narrow signed and unsigned conversion, qualifiers, `_Atomic`, selected conditional evaluation, and target `sizeof`. String cases cover concatenation, inferred bounds, exact fits without a terminator, fixed-array padding, typedef-named incomplete arrays, and comma declarations.
+- Exact failures cover runtime values, calls, const objects, selected arithmetic faults and overflow, pointer and floating targets, incompatible or deferred string pointers, invalid string destinations, zero and short array bounds, missing values, empty or excess brace lists, nested lists, incomplete arrays, and the real CupidLD pointer and byte-list boundaries. The valid deferred string-address case remains distinct from an incompatible pointer constraint.
+- A static `for` initializer remains rejected at the declaration boundary. Supporting static block objects did not weaken the loop-scope contract or silently turn them into automatic objects.
+- Pending local, parameter, and active block names now hide a same-spelled file enumerator during integer constant evaluation. A red shadowing case exposed that the first draft could fold the hidden enumerator instead of rejecting the runtime object. Lookup now follows C's ordinary-identifier scopes before accepting an enumerator.
+- Nested floating tokens inside an otherwise valid arithmetic static initializer now reach the explicit unsupported constant-expression diagnostic. They no longer fall through to a malformed-input result merely because the surrounding expression entered the integer evaluator.
+- The 255-brace success and 256-brace failure pin the shared syntax limit. A separate 32 KiB arena contract lets 100 equivalent automatic declarations publish, then makes the static form fail transactionally when its required initializer table crosses the same ceiling. The failed unit is zero, the tape and exact arena mark survive, an earlier unit remains readable, and the same job recovers.
+- The borrowed-tape ownership test now rereads `STRING`, `INTEGER`, and `ZERO` records after every caller-owned token spelling and path has been overwritten and freed. Names, locations, and copied string bytes remain intact.
+- Regenerating the active-source audit changed the checked `while`, `if`, `else`, `for`, `return`, and `sizeof` totals because the new frontend and contract code are themselves active hosted sources. The full frontend suite caught four stale drift oracles. Their expected values and the central `sizeof` inventory were updated to the generated manifest.
+- Clang analysis found that the string scratch view was not visibly initialized before the owning copy helper and that freeze computed an integer mask before proving the initializer type was integer. The scratch value now starts empty, and the width read is guarded by the integer classification. The focused suite remains green, and the final Clang frontend analysis is silent.
+- Formal review tightened four edge cases. Signed integer records now mask their stored bits to the target width instead of keeping host sign extension. `_Atomic` character elements and referents reject string initialization. Valid record and nested or deep array lists stop at the deferred aggregate-list boundary instead of being labeled malformed. Prefixed strings reach the ordinary-narrow unsupported boundary before target classification. Exact positive and negative cases now pin each rule.
+- Two preliminary sanitizer commands found cached output directories and are excluded. A random-directory PowerShell wrapper then lost its Bash variable before compilation and is also excluded. A later orchestration attempt lacked `TextEncoder` and stopped before invoking WSL. The established base64 transport produced fresh instrumented builds. The Clang suite completed cleanly, but its first symbol check returned 141 because `grep -q` closed an `nm` pipe under `pipefail`; a full-table symbol check then confirmed both ASan and UBSan instrumentation. These harness failures are not product failures.
+
+### Hosted-source progress and audit
+
+The unchanged five-source hosted Toolchain gate advances from 2/5 to 4/5 complete:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Parses completely: 65 definitions, 1,012 statements, 5,981 expressions, 133 block bindings, and 33 initializers |
+| `toolchain/cupiddis.c` | Parses completely: 65 definitions, 1,470 statements, 9,607 expressions, 149 block bindings, and 114 initializers |
+| `toolchain/cupidld.c` | Stops at `1107:34` on the first string address in a four-element static pointer-array list |
+| `toolchain/cupidobj.c` | Parses completely: 14 definitions, 289 statements, 1,984 expressions, 39 block bindings, and 21 initializers |
+| `toolchain/cupidc_type.c` | Parses completely: 31 definitions, 737 statements, 5,487 expressions, 85 block bindings, and 43 initializers |
+
+The `ctool.c` result retains the real `digits` object as a 17-byte `STRING` record, and `cupiddis.c` retains the matching `hex` object. CupidLD's later 16-byte integer list remains part of the same aggregate-list slice. Once both lists are represented, the next known boundaries are `goto` at line 1826 and an identifier label at line 2078.
+
+The regenerated audit contains 681 active sources, 39 unreachable source-like files, 251 feature IDs, and 491 transforms. It records 59 `do`, 202 `switch`, 1,515 `case`, 133 `default`, 2,482 `while`, 22,426 `if`, 3,305 `else`, 2,795 `for`, 13,572 `return`, and 1,909 `sizeof` occurrences. The SHA-256 digest of `active-build.json` is `22ed5f2b78884237c02605bedaad7bf849304307445e5bfa72a095648dd6d5d9`.
+
+### Final verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Static-initializer red/green | PASS | The new mode first stopped at the old storage boundary. The final mode covers semantic records, target values and types, strings and completed bounds, braces, shadowing, exact failures, syntax and storage limits, rollback, ownership, recovery, and hosted frontiers. |
+| Focused frontend suite | PASS | The settled frontend run passes all 36 tests in 7.496 seconds. |
+| Active-source audit | PASS | Final regeneration writes both checked outputs in 35.6 seconds with the counts and digest above. `make check-bootstrap-audit` reproduces them without drift in 34.0 seconds. |
+| Windows hosted Toolchain | PASS | The strict Windows suite passes every Toolchain contract in 14.148 seconds. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 suites pass in 64.82 and 64.53 seconds. |
+| Sanitizers | PASS AFTER INVALID PRELIMINARY RUNS | Fresh isolated GCC and Clang builds retain address and undefined-behavior sanitizers plus frame pointers. Their complete suites pass with leak detection and halt-on-error enabled in 152.00 and 132.71 seconds. Both proof binaries contain ASan and UBSan symbols. |
+| Static analysis | PASS AFTER HARDENING | Clang first found two scratch-initialization warnings and one unguarded integer-width read. After the fixes, GCC `-fanalyzer` and Clang `--analyze` are clean for the frontend and contract. The GCC runs take 295.08 and 22.87 seconds; the Clang runs take 48.66 and 38.44 seconds. |
+| Formal two-axis review | PASS | Standards and Spec reviews found no remaining issue against fixed point `763c384`. Both independently confirmed the frontend and audit gates. |
+| Full repository gate | PASS | `make test` runs 278 tests in 517.480 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 556.453 seconds. |
+| Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for address constants, general aggregate initializer lists, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.

@@ -322,6 +322,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) function-bodies ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-initializers ..
+	$(CUPIDC_FRONTEND_CONTRACT) static-initializers ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-returns ..
 	$(CUPIDC_FRONTEND_CONTRACT) conditional-expressions ..
 	$(CUPIDC_FRONTEND_CONTRACT) aggregate-values ..
