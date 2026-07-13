@@ -1910,3 +1910,59 @@ The regenerated audit contains 681 active sources, 251 feature IDs, and 491 tran
 | Boot gate | NOT RUN | This hosted frontend change alters no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate initializer lists, static-duration initialization, `switch` and `do`, static locals, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC typed C11 switch statements
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now represents typed C11 `switch`, `case`, and `default` statements. Public statement kinds `SWITCH`, `CASE`, and `DEFAULT` were appended as values 10, 11, and 12 so every earlier value remains stable. A switch retains its controlling expression after ordinary lvalue conversion and integer promotion, plus its required postorder body. Each case retains a folded integer constant converted to that promoted type and its postorder body. A default retains only its body.
+
+The parser keeps a checked context for each nested switch. Case values and the presence of a default are isolated from outer switches, and duplicate cases are rejected after conversion to the promoted controlling type. A switch supplies a breakable context while its body is parsed, but it does not supply an iteration context. `break` is therefore valid in a switch, while `continue` still needs an enclosing loop. Later linear IR remains responsible for branch and fallthrough targets.
+
+The shared integer constant-expression path now accepts ordinary narrow character constants and integer-target casts over represented constant operands. These forms are source-driven: the active audit records 1,515 case labels, and `toolchain/cupidld.c` contains ten labels that cast one ordinary character with `ctool_u8`. Casts use Cupid i386 widths and promotions. For an out-of-range signed result, Cupid chooses the low target bits and interprets them as two's complement. A floating literal immediately after an integer cast receives a direct deferred-feature diagnostic; other floating operands remain outside this constant-expression grammar. Multi-character constants remain an explicit unsupported boundary.
+
+No user question was needed. C11 fixes switch constraints and label association, while ADRs 0003 and 0014 already fix immutable postorder ownership, explicit conversions, transactional publication, and later IR target resolution. Switch was taken before the smaller `do` slice because it was the first boundary in two hosted Toolchain units and covers 202 active switch statements.
+
+### Red-to-green sequence and corrections
+
+- Before production edits, `python -m unittest tests.test_toolchain_cupidc_frontend` passed the unchanged 31-test suite in 6.691 seconds. The new `switch-statements` mode then reached the existing unsupported-statement diagnostic on its first switch. The strict hosted-source contract independently stopped at switch in both `ctool.c` and `cupidc_type.c`.
+- The positive contract publishes five definitions, eight bindings, 60 statements, 29 statement children, 39 expressions, and 14 expression children. It covers signed and unsigned narrow controls, a volatile unsigned control, an unsigned-compatible enum, a narrow unsigned bit-field, ordinary and escaped character labels, typedef-named casts, arithmetic labels, chained fallthrough labels, signed-to-unsigned conversion, nested switch isolation, and loop-owned `continue` inside a switch.
+- Exact failures cover aggregate, pointer, floating, and `void` controls; case and default outside a switch; duplicate values after conversion; duplicate defaults; nonconstant and comma labels; invalid integer casts; the immediate floating-literal cast boundary; malformed, multi-character, and overflowing character constants; missing delimiters, values, and bodies; declarations used as bodies; and `continue` without a loop. The 256-level nesting and constrained-output cases prove zero failed output, exact arena and tape rollback, earlier-unit survival, and same-job recovery.
+- The generic unsupported-statement fixture formerly used `switch`. It now uses `do` and stops at the exact `1:31` boundary. This keeps the fail-closed contract meaningful after switch became supported.
+- The first enum oracle assumed a signed compatible type. Cupid's target enum selection correctly chose unsigned `int` for that nonnegative enumeration, so the oracle was corrected instead of changing the frontend.
+- A parenthesized comma case reached the existing expected-token boundary inside the parentheses. The final `case 1, 2` failure exercises the intended top-level comma diagnostic without claiming the parenthesized grammar is implemented.
+- Reusing the body character decoder initially gave constant expressions the body diagnostic code, then briefly gave body escape failures the constant-expression code. The decoder now accepts its caller's diagnostic code. Existing body behavior is preserved while case labels receive constant-expression diagnostics.
+- The first cleanup combined two switch scratch rewinds with short-circuit logic. The final cleanup always evaluates both rewinds before reporting an internal failure.
+- Independent semantic review found that `\xff` entered the constant evaluator as `0x00000000ffffffff` while being marked signed 32-bit. An unsigned 64-bit switch could therefore treat it as positive `4294967295` instead of `-1`. The value is now normalized before later conversion. An enumerator oracle and an exact duplicate case against `0xffffffffffffffffULL` pin the correction.
+- One direct PowerShell-to-WSL validation wrapper corrupted a Bash variable before Make started. It is not counted as evidence. The completed cross-host runs used the established base64 script transport and printed the retained compiler and sanitizer flags.
+
+### Hosted-source progress and audit
+
+The unchanged five-source hosted Toolchain gate advances from 1/5 to 2/5 complete:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Stops at unsupported `do` on `1169:3` |
+| `toolchain/cupiddis.c` | Stops at unsupported `do` on `212:3` |
+| `toolchain/cupidld.c` | Stops at static local initialization on `1107:3` |
+| `toolchain/cupidobj.c` | Parses completely: 14 definitions, 289 statements, 1,984 expressions |
+| `toolchain/cupidc_type.c` | Parses completely: 31 definitions, 737 statements, 5,487 expressions |
+
+The regenerated audit still contains 681 active sources, 39 unreachable source-like files, 251 feature IDs, and 491 transforms. It records 202 `switch` occurrences across 64 files, 1,515 `case` occurrences across 64 files, 133 `default` occurrences across 51 files, and 59 `do` occurrences across 35 files. The affected wider inventory is 2,479 `while`, 22,291 `if`, 3,294 `else`, 2,779 `for`, 13,477 `return`, and 1,900 `sizeof` occurrences. The SHA-256 digest of `active-build.json` is `5444acacc79a04c365eaf141571c3fc5fc55d16a46ec2cb5fdafcdbdc96e21bd`.
+
+### Final verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Switch red/green | PASS | The new mode first stopped at the old unsupported-statement boundary. The final mode passes public shape, conversions, labels, nesting, exact failures, storage limits, rollback, ownership, recovery, and hosted frontiers. |
+| Focused frontend suite | PASS | `python -m unittest tests.test_toolchain_cupidc_frontend` passes all 33 tests in 6.786 seconds. |
+| Active-source audit | PASS | Final regeneration writes the counts and digest above. `make check-bootstrap-audit` reproduces both checked outputs in 32.5 seconds after the documentation audit. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Windows Clang suite in 22.103 seconds, including the new frontend mode and all existing Toolchain contracts. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 complete Toolchain suites pass in 71.52 and 62.00 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds retain address and undefined-behavior sanitizers plus frame pointers. Both complete suites pass with leak detection and halt-on-error enabled in 119.07 and 121.98 seconds. GCC executables load the sanitizer runtimes, and Clang executables contain the expected sanitizer symbols. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` are clean for the frontend and contract in 194.89 and 56.97 seconds. |
+| Formal two-axis review | PASS | Standards and Spec reviews of `git diff 544748b` report no remaining finding. They confirm the public values, switch semantics, transactional state, tests, docs, audit, hosted boundary, issue status, and lack of a production or boot claim. |
+| Full repository gate | PASS | `python -m unittest discover -s tests -p "test_*.py"` runs 275 tests in 435.293 seconds, passes with one expected skip, and returns from the enclosing command in 436.07 seconds. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for `do`, identifier labels, `goto`, static local and other nonautomatic initialization, aggregate initializer lists, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.

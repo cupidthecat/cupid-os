@@ -110,7 +110,10 @@ typedef enum {
   CTOOL_C_STATEMENT_BREAK,
   CTOOL_C_STATEMENT_CONTINUE,
   CTOOL_C_STATEMENT_IF,
-  CTOOL_C_STATEMENT_WHILE
+  CTOOL_C_STATEMENT_WHILE,
+  CTOOL_C_STATEMENT_SWITCH,
+  CTOOL_C_STATEMENT_CASE,
+  CTOOL_C_STATEMENT_DEFAULT
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -123,7 +126,9 @@ typedef struct {
   ctool_u32 child_count;
   /* EXPRESSION: index into translation_unit.expressions, or AST_NONE for the
    * null statement `;`.
-   * RETURN: returned expression, or AST_NONE for `return;`. */
+   * RETURN: returned expression, or AST_NONE for `return;`.
+   * CASE: folded integer constant converted to the promoted type of its
+   * enclosing SWITCH condition. */
   ctool_u32 expression;
   /* DECLARATION: ordered slice of translation_unit.block_bindings. */
   ctool_u32 first_block_binding;
@@ -135,6 +140,9 @@ typedef struct {
    * controlling expression, optional iteration expression, and required body
    * statement. Omitted clauses use AST_NONE; an omitted condition denotes
    * C's nonzero constant. The initializer and body precede this node.
+   * SWITCH: required promoted integer condition and body statement.
+   * CASE/DEFAULT: required labeled body statement. CASE also uses expression
+   * for its converted constant value. Nested labels precede their parents.
    * BREAK/CONTINUE are targetless leaves; lowering resolves their nearest
    * enclosing control target. */
   ctool_u32 initializer_statement;
@@ -339,8 +347,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
  * parameter storage, and represents compound, expression, declaration,
- * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `break`,
- * and `continue`
+ * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `switch`,
+ * `case`, `default`, `break`, and `continue`
  * statements; automatic/register block-object bindings with
  * optional converted scalar or compatible aggregate expression initializer
  * roots;
@@ -379,8 +387,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * function declarations, block tag specifiers, attributes, aggregate
  * initializer lists, and static assertions remain explicit body boundaries.
  * File-scope and static-duration object initializers remain pending. Control
- * statements other than `return`, `if`, `for`, `while`, `break`, and
- * `continue`,
+ * statements other than `return`, `if`, `for`, `while`, `switch`, `case`,
+ * `default`, `break`, and `continue`,
  * comma expressions, pointer null-pointer-constant conversions,
  * floating arithmetic and non-void conversions,
  * universal-character/non-ordinary literals, calls without

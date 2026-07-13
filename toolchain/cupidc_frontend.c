@@ -154,6 +154,12 @@ typedef struct {
 } cfront_integer_type_t;
 
 typedef struct {
+  ctool_u32 controlling_type;
+  ctool_u32 first_case;
+  ctool_bool has_default;
+} cfront_switch_context_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_c_pp_result_t *tape;
   const ctool_c_parse_request_t *request;
@@ -181,6 +187,8 @@ typedef struct {
   cfront_vector_t block_scope_marks;
   cfront_vector_t statements;
   cfront_vector_t statement_children;
+  cfront_vector_t switch_contexts;
+  cfront_vector_t switch_case_values;
   cfront_vector_t expressions;
   cfront_vector_t expression_children;
   /* A block identifier enters scope immediately after its declarator, before
@@ -477,6 +485,8 @@ static ctool_status_t cfront_type_update(cfront_context_t *context,
 static void cfront_close_scratch(cfront_context_t *context) {
   cfront_vector_close(&context->expression_children);
   cfront_vector_close(&context->expressions);
+  cfront_vector_close(&context->switch_case_values);
+  cfront_vector_close(&context->switch_contexts);
   cfront_vector_close(&context->statement_children);
   cfront_vector_close(&context->statements);
   cfront_vector_close(&context->block_scope_marks);
@@ -531,6 +541,8 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(block_scope_marks, ctool_u32)
   CFRONT_OPEN_VECTOR(statements, ctool_c_statement_t)
   CFRONT_OPEN_VECTOR(statement_children, ctool_u32)
+  CFRONT_OPEN_VECTOR(switch_contexts, cfront_switch_context_t)
+  CFRONT_OPEN_VECTOR(switch_case_values, ctool_u64)
   CFRONT_OPEN_VECTOR(expressions, ctool_c_expression_t)
   CFRONT_OPEN_VECTOR(expression_children, ctool_u32)
 #undef CFRONT_OPEN_VECTOR
@@ -2640,6 +2652,37 @@ static cfront_integer_t cfront_integer_convert(
   return value;
 }
 
+static cfront_integer_t cfront_integer_convert_to_type(
+    cfront_integer_t value, const cfront_integer_type_t *target) {
+  ctool_u64 mask = target->width == 64u
+                       ? 0xffffffffffffffffull
+                       : ((1ull << target->width) - 1ull);
+  cfront_integer_kind_t kind;
+  if (target->kind == CTOOL_C_TYPE_BOOL) {
+    value.bits = value.bits != 0ull ? 1ull : 0ull;
+  } else {
+    value.bits &= mask;
+    if (target->is_unsigned == CTOOL_FALSE && target->width < 64u &&
+        (value.bits & (1ull << (target->width - 1u))) != 0ull) {
+      value.bits |= ~mask;
+    }
+  }
+  if (target->rank < 4u) {
+    kind = CFRONT_INTEGER_SIGNED_32;
+  } else if (target->width == 64u) {
+    kind = target->is_unsigned == CTOOL_TRUE
+               ? CFRONT_INTEGER_UNSIGNED_64
+               : CFRONT_INTEGER_SIGNED_64;
+  } else {
+    kind = target->is_unsigned == CTOOL_TRUE
+               ? CFRONT_INTEGER_UNSIGNED_32
+               : CFRONT_INTEGER_SIGNED_32;
+  }
+  value.kind = kind;
+  value.bits = cfront_integer_normalize_bits(value.bits, kind);
+  return value;
+}
+
 static ctool_status_t cfront_integer_overflow(
     cfront_context_t *context, const ctool_c_pp_token_t *token) {
   return cfront_emit_failure(
@@ -2809,6 +2852,13 @@ static ctool_status_t cfront_parse_number_token(
 
 static ctool_status_t cfront_parse_constant_conditional(
     cfront_context_t *context, cfront_integer_t *value_out);
+static ctool_status_t cfront_integer_type(
+    const cfront_context_t *context, ctool_u32 type,
+    cfront_integer_type_t *integer_out, ctool_bool *is_integer_out);
+static ctool_status_t cfront_decode_character_constant(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 diagnostic_code, ctool_u32 *value_out);
+static ctool_bool cfront_body_floating_constant(ctool_string_t spelling);
 static ctool_status_t cfront_parse_body_unary(
     cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_parse_body_expression(
@@ -3248,6 +3298,18 @@ static ctool_status_t cfront_parse_constant_primary(
         context, token, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_out,
         (ctool_c_type_kind_t *)0);
   }
+  if (token->kind == CTOOL_C_PP_TOKEN_CHARACTER) {
+    ctool_u32 value = 0u;
+    status = cfront_decode_character_constant(
+        context, token, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, &value);
+    if (status == CTOOL_OK) {
+      (void)cfront_advance(context);
+      value_out->kind = CFRONT_INTEGER_SIGNED_32;
+      value_out->bits = cfront_integer_normalize_bits(
+          (ctool_u64)value, value_out->kind);
+    }
+    return status;
+  }
   if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
       cfront_find_binding(context, token->spelling, &binding) == CTOOL_TRUE &&
       binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
@@ -3293,6 +3355,51 @@ static ctool_status_t cfront_parse_constant_primary(
 
 static ctool_status_t cfront_parse_constant_unary(
     cfront_context_t *context, cfront_integer_t *value_out) {
+  if (cfront_parenthesized_type_name_starts(context) == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *cast_token = cfront_peek(context);
+    cfront_integer_type_t target_integer;
+    ctool_u32 target_type = CTOOL_C_TYPE_NONE;
+    ctool_bool target_is_integer = CTOOL_FALSE;
+    ctool_status_t status = cfront_enter_syntax(context, cast_token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    (void)cfront_advance(context);
+    status = cfront_parse_type_name(context, &target_type);
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_integer_type(context, target_type, &target_integer,
+                                   &target_is_integer);
+    }
+    if (status == CTOOL_OK && target_is_integer == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT,
+          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cast_token,
+          "integer constant expression cast requires an integer target");
+    }
+    if (status == CTOOL_OK &&
+        cfront_peek(context) != (const ctool_c_pp_token_t *)0 &&
+        cfront_peek(context)->kind == CTOOL_C_PP_TOKEN_NUMBER &&
+        cfront_body_floating_constant(cfront_peek(context)->spelling) ==
+            CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
+          "floating-to-integer casts are outside this constant-expression "
+          "slice");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_parse_constant_unary(context, value_out);
+    }
+    if (status == CTOOL_OK) {
+      *value_out = cfront_integer_convert_to_type(*value_out,
+                                                  &target_integer);
+    }
+    cfront_leave_syntax(context);
+    return status;
+  }
   if (cfront_peek_is(context, "!") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *operator_token = cfront_peek(context);
     ctool_status_t status = cfront_enter_syntax(context, operator_token);
@@ -6079,16 +6186,16 @@ static ctool_status_t cfront_append_folded_u32_constant(
   return status;
 }
 
-static ctool_status_t cfront_decode_body_character(
+static ctool_status_t cfront_decode_character_constant(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
-    ctool_u32 *value_out) {
+    ctool_u32 diagnostic_code, ctool_u32 *value_out) {
   ctool_u32 index;
   ctool_u32 value;
   ctool_u32 end;
   if (token->spelling.size < 3u || token->spelling.data[0] != '\'' ||
       token->spelling.data[token->spelling.size - 1u] != '\'') {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        context, CTOOL_ERR_UNSUPPORTED, diagnostic_code,
         token, "only ordinary narrow character constants are supported");
   }
   index = 1u;
@@ -6098,7 +6205,7 @@ static ctool_status_t cfront_decode_body_character(
     char escaped;
     if (index >= end) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          context, CTOOL_ERR_INPUT, diagnostic_code, token,
           "character constant escape is incomplete");
     }
     escaped = token->spelling.data[index++];
@@ -6140,8 +6247,7 @@ static ctool_status_t cfront_decode_body_character(
         saw_digit = CTOOL_TRUE;
         if (value > (255u - digit) / 16u) {
           return cfront_emit_failure(
-              context, CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_EXPRESSION,
-              token,
+              context, CTOOL_ERR_OVERFLOW, diagnostic_code, token,
               "narrow character hexadecimal escape exceeds one target byte");
         }
         value = value * 16u + digit;
@@ -6149,7 +6255,7 @@ static ctool_status_t cfront_decode_body_character(
       }
       if (saw_digit == CTOOL_FALSE) {
         return cfront_emit_failure(
-            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            context, CTOOL_ERR_INPUT, diagnostic_code, token,
             "character hexadecimal escape requires a digit");
       }
       break;
@@ -6168,12 +6274,12 @@ static ctool_status_t cfront_decode_body_character(
         }
         if (value > 255u) {
           return cfront_emit_failure(
-              context, CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_EXPRESSION,
-              token, "narrow character octal escape exceeds one target byte");
+              context, CTOOL_ERR_OVERFLOW, diagnostic_code, token,
+              "narrow character octal escape exceeds one target byte");
         }
       } else {
         return cfront_emit_failure(
-            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            context, CTOOL_ERR_INPUT, diagnostic_code, token,
             "character constant escape is unsupported");
       }
       break;
@@ -6181,8 +6287,12 @@ static ctool_status_t cfront_decode_body_character(
   }
   if (index != end) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        token, "multi-character constants are outside this body slice");
+        context, CTOOL_ERR_UNSUPPORTED, diagnostic_code,
+        token,
+        diagnostic_code == CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION
+            ? "multi-character constants are outside integer constant "
+              "expressions"
+            : "multi-character constants are outside this body slice");
   }
   if ((value & 0x80u) != 0u) {
     value |= 0xffffff00u;
@@ -6197,7 +6307,8 @@ static ctool_status_t cfront_parse_body_character_constant(
   ctool_c_expression_t expression;
   ctool_u32 value = 0u;
   ctool_u32 type;
-  ctool_status_t status = cfront_decode_body_character(context, token, &value);
+  ctool_status_t status = cfront_decode_character_constant(
+      context, token, CTOOL_C_PARSE_DIAG_EXPRESSION, &value);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -9699,6 +9810,329 @@ static ctool_status_t cfront_parse_loop_jump_statement(
   return status;
 }
 
+static ctool_status_t cfront_require_switch_value(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    cfront_expression_value_t *value) {
+  cfront_integer_type_t integer;
+  ctool_u32 target = CTOOL_C_TYPE_NONE;
+  ctool_u32 bit_width = value->bit_width;
+  ctool_bool is_bit_field = value->is_bit_field;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status = cfront_apply_default_conversion(context, value);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_promotion_type(
+        context, token, value->type, is_bit_field, bit_width, &target,
+        &is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (is_integer == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+        "switch controlling expression requires integer type");
+  }
+  status = cfront_integer_type(context, target, &integer, &is_integer);
+  if (status != CTOOL_OK || is_integer == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "promoted switch controlling type is unavailable");
+  }
+  return cfront_append_integer_conversion_if_needed(
+      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target, value);
+}
+
+static ctool_status_t cfront_current_switch_context(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    cfront_switch_context_t *switch_out, ctool_u32 *index_out) {
+  ctool_u32 index;
+  if (context->switch_contexts.count == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, token,
+        cfront_token_is(token, "case") == CTOOL_TRUE
+            ? "case label requires an enclosing switch"
+            : "default label requires an enclosing switch");
+  }
+  index = context->switch_contexts.count - 1u;
+  if (cfront_vector_get(&context->switch_contexts, index, switch_out) !=
+      CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "active switch context is unavailable");
+  }
+  *index_out = index;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_append_case_constant(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 type, ctool_u64 bits, ctool_u32 *expression_out) {
+  ctool_c_expression_t expression;
+  cfront_expression_init(&expression, CTOOL_C_EXPRESSION_INTEGER_CONSTANT,
+                         &token->location, &token->physical_location);
+  expression.type = type;
+  expression.integer_bits = bits;
+  return cfront_append_expression(context, &expression, expression_out);
+}
+
+static ctool_status_t cfront_parse_case_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *case_token = cfront_advance(context);
+  const ctool_c_pp_token_t *value_token = cfront_peek(context);
+  cfront_switch_context_t active;
+  cfront_integer_type_t controlling_integer;
+  cfront_integer_t value = {0ull, CFRONT_INTEGER_SIGNED_32};
+  ctool_c_statement_t statement;
+  ctool_u32 active_index = CTOOL_C_AST_NONE;
+  ctool_u32 expression = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status = cfront_current_switch_context(
+      context, case_token, &active, &active_index);
+  (void)active_index;
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_enter_syntax(context, case_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (value_token == (const ctool_c_pp_token_t *)0 ||
+      cfront_token_is(value_token, ":") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+        "case label requires an integer constant expression");
+  } else {
+    status = cfront_parse_constant_conditional(context, &value);
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
+        "case label does not permit a comma operator");
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context), "case label requires a colon");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, active.controlling_type,
+                                 &controlling_integer, &is_integer);
+  }
+  if (status == CTOOL_OK && is_integer == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, case_token,
+        "switch case conversion type is not integer");
+  }
+  if (status == CTOOL_OK) {
+    value = cfront_integer_convert_to_type(value, &controlling_integer);
+    for (index = active.first_case;
+         status == CTOOL_OK && index < context->switch_case_values.count;
+         index++) {
+      ctool_u64 prior = 0ull;
+      if (cfront_vector_get(&context->switch_case_values, index, &prior) !=
+          CTOOL_OK) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            case_token, "switch case value is unavailable");
+      } else if (prior == value.bits) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            value_token,
+            "case value duplicates an earlier label in this switch");
+      }
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&context->switch_case_values, &value.bits,
+                                  (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      status = cfront_storage_failure(context, status);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_append_case_constant(
+        context, value_token, active.controlling_type, value.bits,
+        &expression);
+  }
+  if (status == CTOOL_OK) {
+    (void)cfront_advance(context);
+    if (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+        cfront_peek_is(context, "}") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          cfront_peek(context), "case label requires a statement");
+    } else {
+      status = cfront_parse_statement(context, &body);
+    }
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_CASE, case_token);
+    statement.expression = expression;
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  cfront_leave_syntax(context);
+  return status;
+}
+
+static ctool_status_t cfront_parse_default_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *default_token = cfront_advance(context);
+  cfront_switch_context_t active;
+  ctool_c_statement_t statement;
+  ctool_u32 active_index = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_status_t status = cfront_current_switch_context(
+      context, default_token, &active, &active_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_enter_syntax(context, default_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (active.has_default == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        default_token, "switch statement has more than one default label");
+  } else if (cfront_peek_is(context, ":") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context), "default label requires a colon");
+  } else {
+    active.has_default = CTOOL_TRUE;
+    status = cfront_vector_replace(context, &context->switch_contexts,
+                                   active_index, &active);
+    if (status != CTOOL_OK) {
+      status = cfront_storage_failure(context, status);
+    }
+  }
+  if (status == CTOOL_OK) {
+    (void)cfront_advance(context);
+    if (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+        cfront_peek_is(context, "}") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          cfront_peek(context), "default label requires a statement");
+    } else {
+      status = cfront_parse_statement(context, &body);
+    }
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_DEFAULT,
+                          default_token);
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  cfront_leave_syntax(context);
+  return status;
+}
+
+static ctool_status_t cfront_parse_switch_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *switch_token = cfront_advance(context);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_u32 switch_mark = cfront_vector_mark(&context->switch_contexts);
+  ctool_u32 case_mark = cfront_vector_mark(&context->switch_case_values);
+  ctool_u32 condition = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_bool breakable_entered = CTOOL_FALSE;
+  ctool_status_t status = cfront_enter_syntax(context, switch_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "switch statement requires an opening parenthesis");
+  } else {
+    status = cfront_expected(context, "(");
+  }
+  if (status == CTOOL_OK) {
+    const ctool_c_pp_token_t *condition_token = cfront_peek(context);
+    cfront_expression_value_t value;
+    cfront_zero(&value, (ctool_u32)sizeof(value));
+    if (cfront_peek_is(context, ")") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          condition_token, "switch controlling expression is required");
+    } else {
+      status = cfront_parse_body_expression(context, &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ")",
+          "switch controlling expression requires a closing parenthesis");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_switch_value(context, condition_token, &value);
+    }
+    if (status == CTOOL_OK) {
+      cfront_switch_context_t active;
+      condition = value.expression;
+      active.controlling_type = value.type;
+      active.first_case = case_mark;
+      active.has_default = CTOOL_FALSE;
+      status = cfront_vector_append(&context->switch_contexts, &active,
+                                    (ctool_u32 *)0);
+      if (status != CTOOL_OK) {
+        status = cfront_storage_failure(context, status);
+      }
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_expected(context, ")");
+    }
+  }
+  if (status == CTOOL_OK &&
+      (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+       cfront_peek_is(context, "}") == CTOOL_TRUE ||
+       cfront_peek_is(context, "else") == CTOOL_TRUE)) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "switch statement requires a body");
+  }
+  if (status == CTOOL_OK) {
+    context->breakable_statement_depth++;
+    breakable_entered = CTOOL_TRUE;
+    status = cfront_parse_statement(context, &body);
+  }
+  if (breakable_entered == CTOOL_TRUE) {
+    context->breakable_statement_depth--;
+  }
+  if (status == CTOOL_OK) {
+    ctool_c_statement_t statement;
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_SWITCH,
+                          switch_token);
+    statement.condition = condition;
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  {
+    ctool_status_t case_rewind_status =
+        cfront_vector_rewind(&context->switch_case_values, case_mark);
+    ctool_status_t switch_rewind_status =
+        cfront_vector_rewind(&context->switch_contexts, switch_mark);
+    if (case_rewind_status != CTOOL_OK || switch_rewind_status != CTOOL_OK) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          switch_token, "switch context rewind failed");
+    }
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY) &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_for_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *for_token = cfront_advance(context);
@@ -10092,6 +10526,15 @@ static ctool_status_t cfront_parse_statement(
   }
   if (cfront_peek_is(context, "while") == CTOOL_TRUE) {
     return cfront_parse_while_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "switch") == CTOOL_TRUE) {
+    return cfront_parse_switch_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "case") == CTOOL_TRUE) {
+    return cfront_parse_case_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "default") == CTOOL_TRUE) {
+    return cfront_parse_default_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "break") == CTOOL_TRUE) {
     return cfront_parse_loop_jump_statement(
@@ -10929,11 +11372,13 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       context->block_scope_marks.count != 0u ||
       context->has_pending_block_binding == CTOOL_TRUE ||
       context->breakable_statement_depth != 0u ||
-      context->iteration_statement_depth != 0u) {
+      context->iteration_statement_depth != 0u ||
+      context->switch_contexts.count != 0u ||
+      context->switch_case_values.count != 0u) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         cfront_peek(context),
-        "block scope, initializer, or loop remained active at freeze");
+        "block scope, initializer, loop, or switch remained active at freeze");
   }
   ctool_status_t status = cfront_alloc_array(
       context, context->types.count, (ctool_u32)sizeof(*types),
@@ -11354,6 +11799,78 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen while statement is invalid");
       }
+    } else if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
+      cfront_integer_type_t controlling_integer;
+      ctool_bool condition_is_integer = CTOOL_FALSE;
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          statement->initializer_statement != CTOOL_C_AST_NONE ||
+          statement->iteration != CTOOL_C_AST_NONE ||
+          statement->else_body != CTOOL_C_AST_NONE ||
+          statement->condition == CTOOL_C_AST_NONE ||
+          statement->condition >= context->expressions.count ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen switch statement is invalid");
+      }
+      status = cfront_integer_type(
+          context, expressions[statement->condition].type,
+          &controlling_integer, &condition_is_integer);
+      if (status != CTOOL_OK || condition_is_integer == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen switch condition type is not integer");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_CASE) {
+      cfront_integer_type_t case_integer;
+      ctool_bool case_is_integer = CTOOL_FALSE;
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          statement->initializer_statement != CTOOL_C_AST_NONE ||
+          statement->condition != CTOOL_C_AST_NONE ||
+          statement->iteration != CTOOL_C_AST_NONE ||
+          statement->else_body != CTOOL_C_AST_NONE ||
+          statement->expression >= context->expressions.count ||
+          expressions[statement->expression].kind !=
+              CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen case statement is invalid");
+      }
+      status = cfront_integer_type(
+          context, expressions[statement->expression].type,
+          &case_integer, &case_is_integer);
+      if (status != CTOOL_OK || case_is_integer == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen case value type is not integer");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          statement->initializer_statement != CTOOL_C_AST_NONE ||
+          statement->condition != CTOOL_C_AST_NONE ||
+          statement->iteration != CTOOL_C_AST_NONE ||
+          statement->else_body != CTOOL_C_AST_NONE ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen default statement is invalid");
+      }
     } else if (statement->kind == CTOOL_C_STATEMENT_BREAK ||
                statement->kind == CTOOL_C_STATEMENT_CONTINUE) {
       if (statement->first_child != CTOOL_C_AST_NONE ||
@@ -11364,7 +11881,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           control_fields_none == CTOOL_FALSE) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            cfront_peek(context), "frozen loop jump statement is invalid");
+            cfront_peek(context), "frozen control jump statement is invalid");
       }
     } else {
       return cfront_emit_failure(

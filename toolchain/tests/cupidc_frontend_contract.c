@@ -4392,7 +4392,7 @@ static int validate_toolchain_frontier(const char *host_root) {
     ctool_u32 expressions;
   } toolchain_frontier_case_t;
   static const toolchain_frontier_case_t cases[] = {
-      {"/toolchain/ctool.c", CTOOL_ERR_UNSUPPORTED, 122u, 3u,
+      {"/toolchain/ctool.c", CTOOL_ERR_UNSUPPORTED, 1169u, 3u,
        CTOOL_C_PARSE_DIAG_STATEMENT,
        "statement form is outside this function-body slice", 0u, 0u, 0u},
       {"/toolchain/cupiddis.c", CTOOL_ERR_UNSUPPORTED, 212u, 3u,
@@ -4403,9 +4403,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        "block storage class is outside this body slice", 0u, 0u, 0u},
       {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 289u,
        1984u},
-      {"/toolchain/cupidc_type.c", CTOOL_ERR_UNSUPPORTED, 309u, 3u,
-       CTOOL_C_PARSE_DIAG_STATEMENT,
-       "statement form is outside this function-body slice", 0u, 0u, 0u}};
+      {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
+       5487u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -6333,6 +6332,721 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("while-statements: ok\n");
+  }
+  return failed;
+}
+
+static ctool_u32 compound_statement_child(
+    const ctool_c_translation_unit_t *unit, ctool_u32 compound_index,
+    ctool_u32 child_index) {
+  const ctool_c_statement_t *compound;
+  if (compound_index >= unit->statement_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  compound = &unit->statements[compound_index];
+  if (compound->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      child_index >= compound->child_count ||
+      compound->first_child > unit->statement_child_count ||
+      compound->child_count >
+          unit->statement_child_count - compound->first_child) {
+    return CTOOL_C_AST_NONE;
+  }
+  return unit->statement_children[compound->first_child + child_index];
+}
+
+static int switch_statement_shape(const ctool_c_translation_unit_t *unit,
+                                  ctool_u32 statement_index,
+                                  ctool_c_type_kind_t condition_type) {
+  const ctool_c_statement_t *statement;
+  ctool_u32 qualifiers = 0u;
+  if (statement_index >= unit->statement_count) {
+    return 1;
+  }
+  statement = &unit->statements[statement_index];
+  if (statement->kind != CTOOL_C_STATEMENT_SWITCH ||
+      statement->condition >= unit->expression_count ||
+      statement->body >= statement_index ||
+      unit->statements[statement->body].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      statement->first_child != CTOOL_C_AST_NONE ||
+      statement->child_count != 0u ||
+      statement->expression != CTOOL_C_AST_NONE ||
+      statement->first_block_binding != CTOOL_C_AST_NONE ||
+      statement->block_binding_count != 0u ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->else_body != CTOOL_C_AST_NONE ||
+      underlying_type_kind(unit,
+                           unit->expressions[statement->condition].type,
+                           &qualifiers) != condition_type ||
+      qualifiers != 0u || statement->location.path.data == NULL ||
+      !string_equal(statement->location.path, "/switch-statements.c") ||
+      !string_equal(statement->physical_location.path,
+                    "/switch-statements.c")) {
+    ctool_u32 actual_qualifiers = 0u;
+    ctool_c_type_kind_t actual_type =
+        statement->condition < unit->expression_count
+            ? underlying_type_kind(
+                  unit, unit->expressions[statement->condition].type,
+                  &actual_qualifiers)
+            : (ctool_c_type_kind_t)0;
+    (void)fprintf(stderr,
+                  "switch-statements: switch %u shape kind=%u condition=%u "
+                  "type=%u/%u body=%u\n",
+                  statement_index, (ctool_u32)statement->kind,
+                  statement->condition, (ctool_u32)actual_type,
+                  actual_qualifiers, statement->body);
+    return 1;
+  }
+  return 0;
+}
+
+static int case_statement_shape(const ctool_c_translation_unit_t *unit,
+                                ctool_u32 statement_index,
+                                ctool_c_type_kind_t value_type,
+                                ctool_u64 value_bits,
+                                ctool_c_statement_kind_t body_kind) {
+  const ctool_c_statement_t *statement;
+  const ctool_c_expression_t *expression;
+  ctool_u32 qualifiers = 0u;
+  if (statement_index >= unit->statement_count) {
+    return 1;
+  }
+  statement = &unit->statements[statement_index];
+  if (statement->kind != CTOOL_C_STATEMENT_CASE ||
+      statement->expression >= unit->expression_count ||
+      statement->body >= statement_index ||
+      unit->statements[statement->body].kind != body_kind ||
+      statement->first_child != CTOOL_C_AST_NONE ||
+      statement->child_count != 0u ||
+      statement->first_block_binding != CTOOL_C_AST_NONE ||
+      statement->block_binding_count != 0u ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->condition != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->else_body != CTOOL_C_AST_NONE) {
+    return 1;
+  }
+  expression = &unit->expressions[statement->expression];
+  if (expression->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      expression->integer_bits != value_bits ||
+      underlying_type_kind(unit, expression->type, &qualifiers) != value_type ||
+      qualifiers != 0u) {
+    return 1;
+  }
+  return 0;
+}
+
+static int default_statement_shape(const ctool_c_translation_unit_t *unit,
+                                   ctool_u32 statement_index,
+                                   ctool_c_statement_kind_t body_kind) {
+  const ctool_c_statement_t *statement;
+  if (statement_index >= unit->statement_count) {
+    return 1;
+  }
+  statement = &unit->statements[statement_index];
+  return statement->kind == CTOOL_C_STATEMENT_DEFAULT &&
+                 statement->body < statement_index &&
+                 unit->statements[statement->body].kind == body_kind &&
+                 statement->first_child == CTOOL_C_AST_NONE &&
+                 statement->child_count == 0u &&
+                 statement->expression == CTOOL_C_AST_NONE &&
+                 statement->first_block_binding == CTOOL_C_AST_NONE &&
+                 statement->block_binding_count == 0u &&
+                 statement->initializer_statement == CTOOL_C_AST_NONE &&
+                 statement->condition == CTOOL_C_AST_NONE &&
+                 statement->iteration == CTOOL_C_AST_NONE &&
+                 statement->else_body == CTOOL_C_AST_NONE
+             ? 0
+             : 1;
+}
+
+static int validate_switch_statement_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 first_switch = function_top_level_statement_index(
+      unit, "switch_forms", CTOOL_C_STATEMENT_SWITCH, 0u);
+  ctool_u32 second_switch = function_top_level_statement_index(
+      unit, "switch_forms", CTOOL_C_STATEMENT_SWITCH, 1u);
+  ctool_u32 third_switch = function_top_level_statement_index(
+      unit, "switch_forms", CTOOL_C_STATEMENT_SWITCH, 2u);
+  ctool_u32 signed_switch = function_top_level_statement_index(
+      unit, "signed_case", CTOOL_C_STATEMENT_SWITCH, 0u);
+  ctool_u32 narrow_switch = function_top_level_statement_index(
+      unit, "narrow_switch", CTOOL_C_STATEMENT_SWITCH, 0u);
+  ctool_u32 bitfield_switch = function_top_level_statement_index(
+      unit, "bitfield_switch", CTOOL_C_STATEMENT_SWITCH, 0u);
+  ctool_u32 nested_for = function_top_level_statement_index(
+      unit, "nested_switch", CTOOL_C_STATEMENT_FOR, 0u);
+  ctool_u32 first_case;
+  ctool_u32 chained_case;
+  ctool_u32 inner_case;
+  ctool_u32 first_default;
+  ctool_u32 second_case;
+  ctool_u32 second_default;
+  ctool_u32 third_case_zero;
+  ctool_u32 third_case_one;
+  ctool_u32 third_default;
+  ctool_u32 signed_case;
+  ctool_u32 narrow_negative_case;
+  ctool_u32 narrow_maximum_case;
+  ctool_u32 bitfield_case;
+  ctool_u32 loop_body;
+  ctool_u32 outer_switch;
+  ctool_u32 outer_case;
+  ctool_u32 outer_default;
+  ctool_u32 inner_switch;
+  ctool_u32 nested_case;
+  ctool_u32 nested_default;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 index;
+  const ctool_c_statement_t *statement;
+  if ((ctool_u32)CTOOL_C_STATEMENT_SWITCH != 10u ||
+      (ctool_u32)CTOOL_C_STATEMENT_CASE != 11u ||
+      (ctool_u32)CTOOL_C_STATEMENT_DEFAULT != 12u ||
+      unit->function_definition_count != 5u || unit->binding_count != 8u ||
+      unit->block_binding_count != 0u || unit->statement_count != 60u ||
+      unit->statement_child_count != 29u || unit->expression_count != 39u ||
+      unit->expression_child_count != 14u ||
+      switch_statement_shape(unit, first_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      switch_statement_shape(unit, second_switch,
+                             CTOOL_C_TYPE_UNSIGNED_INT) != 0 ||
+      switch_statement_shape(unit, third_switch,
+                             CTOOL_C_TYPE_UNSIGNED_INT) != 0 ||
+      switch_statement_shape(unit, signed_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      switch_statement_shape(unit, narrow_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      switch_statement_shape(unit, bitfield_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      nested_for == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "switch-statements: public inventory differs\n");
+    (void)fprintf(stderr,
+                  "  definitions=%u first=%u/%d second=%u/%d third=%u/%d "
+                  "signed=%u/%d narrow=%u/%d bitfield=%u/%d for=%u\n",
+                  unit->function_definition_count, first_switch,
+                  switch_statement_shape(unit, first_switch,
+                                         CTOOL_C_TYPE_SIGNED_INT),
+                  second_switch,
+                  switch_statement_shape(unit, second_switch,
+                                         CTOOL_C_TYPE_UNSIGNED_INT),
+                  third_switch,
+                  switch_statement_shape(unit, third_switch,
+                                         CTOOL_C_TYPE_UNSIGNED_INT),
+                  signed_switch,
+                  switch_statement_shape(unit, signed_switch,
+                                         CTOOL_C_TYPE_SIGNED_INT),
+                  narrow_switch,
+                  switch_statement_shape(unit, narrow_switch,
+                                         CTOOL_C_TYPE_SIGNED_INT),
+                  bitfield_switch,
+                  switch_statement_shape(unit, bitfield_switch,
+                                         CTOOL_C_TYPE_SIGNED_INT),
+                  nested_for);
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    if (!string_equal(unit->statements[index].location.path,
+                      "/switch-statements.c") ||
+        !string_equal(unit->statements[index].physical_location.path,
+                      "/switch-statements.c")) {
+      (void)fprintf(stderr,
+                    "switch-statements: statement %u path differs\n", index);
+      return 1;
+    }
+  }
+  if (condition_terminal_kind(unit, first_switch,
+                              CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      condition_terminal_kind(unit, second_switch,
+                              CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      condition_terminal_kind(unit, third_switch,
+                              CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      conversion_chain_has(unit, unit->statements[first_switch].condition,
+                           CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
+      conversion_chain_has(unit, unit->statements[first_switch].condition,
+                           CTOOL_C_CONVERSION_INTEGER_PROMOTION) == CTOOL_FALSE ||
+      conversion_chain_has(unit, unit->statements[second_switch].condition,
+                           CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
+      conversion_chain_has(unit, unit->statements[second_switch].condition,
+                           CTOOL_C_CONVERSION_INTEGER_PROMOTION) == CTOOL_TRUE ||
+      conversion_chain_has(unit, unit->statements[third_switch].condition,
+                           CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
+      conversion_chain_has(unit, unit->statements[third_switch].condition,
+                           CTOOL_C_CONVERSION_INTEGER_PROMOTION) == CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "switch-statements: controlling conversions differ\n");
+    return 1;
+  }
+  index = unwrap_conversions(unit, unit->statements[second_switch].condition);
+  if (index >= unit->expression_count ||
+      underlying_type_kind(unit, unit->expressions[index].type, &qualifiers) !=
+          CTOOL_C_TYPE_UNSIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u) {
+    (void)fprintf(stderr,
+                  "switch-statements: volatile control provenance differs\n");
+    return 1;
+  }
+
+  first_case = compound_statement_child(
+      unit, unit->statements[first_switch].body, 0u);
+  chained_case = compound_statement_child(
+      unit, unit->statements[first_switch].body, 1u);
+  first_default = compound_statement_child(
+      unit, unit->statements[first_switch].body, 2u);
+  if (unit->statements[unit->statements[first_switch].body].child_count != 3u ||
+      case_statement_shape(unit, first_case, CTOOL_C_TYPE_SIGNED_INT, 97ull,
+                           CTOOL_C_STATEMENT_BREAK) != 0 ||
+      case_statement_shape(unit, chained_case, CTOOL_C_TYPE_SIGNED_INT,
+                           122ull, CTOOL_C_STATEMENT_CASE) != 0 ||
+      default_statement_shape(unit, first_default,
+                              CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: first labels differ\n");
+    return 1;
+  }
+  inner_case = unit->statements[chained_case].body;
+  if (case_statement_shape(unit, inner_case, CTOOL_C_TYPE_SIGNED_INT, 11ull,
+                           CTOOL_C_STATEMENT_COMPOUND) != 0 ||
+      unit->statements[unit->statements[inner_case].body].child_count != 2u ||
+      unit->statements[compound_statement_child(
+          unit, unit->statements[inner_case].body, 0u)].kind !=
+          CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[compound_statement_child(
+          unit, unit->statements[inner_case].body, 1u)].kind !=
+          CTOOL_C_STATEMENT_BREAK) {
+    (void)fprintf(stderr, "switch-statements: chained labels differ\n");
+    return 1;
+  }
+
+  second_case = compound_statement_child(
+      unit, unit->statements[second_switch].body, 0u);
+  second_default = compound_statement_child(
+      unit, unit->statements[second_switch].body, 1u);
+  if (unit->statements[unit->statements[second_switch].body].child_count != 2u ||
+      case_statement_shape(unit, second_case, CTOOL_C_TYPE_UNSIGNED_INT,
+                           0xffffffffull, CTOOL_C_STATEMENT_BREAK) != 0 ||
+      default_statement_shape(unit, second_default,
+                              CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: unsigned labels differ\n");
+    return 1;
+  }
+
+  third_case_zero = compound_statement_child(
+      unit, unit->statements[third_switch].body, 0u);
+  third_case_one = compound_statement_child(
+      unit, unit->statements[third_switch].body, 1u);
+  third_default = compound_statement_child(
+      unit, unit->statements[third_switch].body, 2u);
+  if (unit->statements[unit->statements[third_switch].body].child_count != 3u ||
+      case_statement_shape(unit, third_case_zero, CTOOL_C_TYPE_UNSIGNED_INT,
+                           0ull, CTOOL_C_STATEMENT_RETURN) != 0 ||
+      case_statement_shape(unit, third_case_one, CTOOL_C_TYPE_UNSIGNED_INT,
+                           1ull, CTOOL_C_STATEMENT_RETURN) != 0 ||
+      default_statement_shape(unit, third_default,
+                              CTOOL_C_STATEMENT_RETURN) != 0) {
+    (void)fprintf(stderr, "switch-statements: enum labels differ\n");
+    return 1;
+  }
+
+  signed_case = compound_statement_child(
+      unit, unit->statements[signed_switch].body, 0u);
+  if (unit->statements[unit->statements[signed_switch].body].child_count != 1u ||
+      case_statement_shape(unit, signed_case, CTOOL_C_TYPE_SIGNED_INT,
+                           0xffffffffffffffffull,
+                           CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: signed cast label differs\n");
+    return 1;
+  }
+  narrow_negative_case = compound_statement_child(
+      unit, unit->statements[narrow_switch].body, 0u);
+  narrow_maximum_case = compound_statement_child(
+      unit, unit->statements[narrow_switch].body, 1u);
+  if (unit->statements[unit->statements[narrow_switch].body].child_count != 2u ||
+      conversion_chain_has(unit, unit->statements[narrow_switch].condition,
+                           CTOOL_C_CONVERSION_INTEGER_PROMOTION) ==
+          CTOOL_FALSE ||
+      case_statement_shape(unit, narrow_negative_case,
+                           CTOOL_C_TYPE_SIGNED_INT, 0xffffffffffffffffull,
+                           CTOOL_C_STATEMENT_BREAK) != 0 ||
+      case_statement_shape(unit, narrow_maximum_case,
+                           CTOOL_C_TYPE_SIGNED_INT, 255ull,
+                           CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: narrow promotion differs\n");
+    return 1;
+  }
+  bitfield_case = compound_statement_child(
+      unit, unit->statements[bitfield_switch].body, 0u);
+  if (unit->statements[unit->statements[bitfield_switch].body].child_count !=
+          1u ||
+      condition_terminal_kind(unit, bitfield_switch,
+                              CTOOL_C_EXPRESSION_MEMBER) != 0 ||
+      conversion_chain_has(unit, unit->statements[bitfield_switch].condition,
+                           CTOOL_C_CONVERSION_INTEGER_PROMOTION) ==
+          CTOOL_FALSE ||
+      case_statement_shape(unit, bitfield_case, CTOOL_C_TYPE_SIGNED_INT, 7ull,
+                           CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: bit-field promotion differs\n");
+    return 1;
+  }
+
+  statement = &unit->statements[nested_for];
+  if (statement->kind != CTOOL_C_STATEMENT_FOR ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->condition != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->body >= nested_for) {
+    (void)fprintf(stderr, "switch-statements: loop wrapper differs\n");
+    return 1;
+  }
+  loop_body = statement->body;
+  outer_switch = compound_statement_child(unit, loop_body, 0u);
+  if (unit->statements[loop_body].child_count != 2u ||
+      switch_statement_shape(unit, outer_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      unit->statements[compound_statement_child(unit, loop_body, 1u)].kind !=
+          CTOOL_C_STATEMENT_BREAK) {
+    (void)fprintf(stderr, "switch-statements: outer switch differs\n");
+    return 1;
+  }
+  outer_case = compound_statement_child(
+      unit, unit->statements[outer_switch].body, 0u);
+  outer_default = compound_statement_child(
+      unit, unit->statements[outer_switch].body, 2u);
+  if (unit->statements[unit->statements[outer_switch].body].child_count != 3u ||
+      case_statement_shape(unit, outer_case, CTOOL_C_TYPE_SIGNED_INT, 0ull,
+                           CTOOL_C_STATEMENT_SWITCH) != 0 ||
+      unit->statements[compound_statement_child(
+          unit, unit->statements[outer_switch].body, 1u)].kind !=
+          CTOOL_C_STATEMENT_BREAK ||
+      default_statement_shape(unit, outer_default,
+                              CTOOL_C_STATEMENT_BREAK) != 0) {
+    (void)fprintf(stderr, "switch-statements: outer labels differ\n");
+    return 1;
+  }
+  inner_switch = unit->statements[outer_case].body;
+  nested_case = compound_statement_child(
+      unit, unit->statements[inner_switch].body, 0u);
+  nested_default = compound_statement_child(
+      unit, unit->statements[inner_switch].body, 1u);
+  if (switch_statement_shape(unit, inner_switch,
+                             CTOOL_C_TYPE_SIGNED_INT) != 0 ||
+      unit->statements[unit->statements[inner_switch].body].child_count != 2u ||
+      case_statement_shape(unit, nested_case, CTOOL_C_TYPE_SIGNED_INT, 0ull,
+                           CTOOL_C_STATEMENT_BREAK) != 0 ||
+      default_statement_shape(unit, nested_default,
+                              CTOOL_C_STATEMENT_CONTINUE) != 0) {
+    (void)fprintf(stderr, "switch-statements: nested labels differ\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_switch_statements(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char switch_u8;\n"
+      "enum switch_mode { SWITCH_ZERO, SWITCH_ONE };\n"
+      "int switch_forms(char code, volatile unsigned int word, "
+      "enum switch_mode state) {\n"
+      "  switch (code) {\n"
+      "  case 'a': break;\n"
+      "  case (switch_u8)'z':\n"
+      "  case '\\n' + 1: { word++; break; }\n"
+      "  default: break;\n"
+      "  }\n"
+      "  switch (word) {\n"
+      "  case -1: break;\n"
+      "  default: break;\n"
+      "  }\n"
+      "  switch (state) {\n"
+      "  case SWITCH_ZERO: return 0;\n"
+      "  case SWITCH_ONE: return 1;\n"
+      "  default: return 2;\n"
+      "  }\n"
+      "  return 3;\n"
+      "}\n"
+      "void nested_switch(int outer, int inner) {\n"
+      "  for (;;) {\n"
+      "    switch (outer) {\n"
+      "    case 0:\n"
+      "      switch (inner) {\n"
+      "      case 0: break;\n"
+      "      default: continue;\n"
+      "      }\n"
+      "      break;\n"
+      "    default: break;\n"
+      "    }\n"
+      "    break;\n"
+      "  }\n"
+      "}\n"
+      "void signed_case(int value) {\n"
+      "  switch (value) { case (signed char)255: break; }\n"
+      "}\n"
+      "void narrow_switch(unsigned char value) {\n"
+      "  switch (value) { case -1: break; case 255: break; }\n"
+      "}\n"
+      "struct switch_bits { unsigned int value : 3; };\n"
+      "void bitfield_switch(struct switch_bits bits) {\n"
+      "  switch (bits.value) { case 7: break; }\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"aggregate controlling expression",
+         "typedef struct { int value; } item_t;\n"
+         "void bad(void) {\n"
+         "  item_t value;\n"
+         "  switch (value) { }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       4u, 11u, "switch controlling expression requires integer type"},
+      {{"pointer controlling expression",
+         "void bad(int *value) {\n"
+         "  switch (value) { }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 11u, "switch controlling expression requires integer type"},
+      {{"floating controlling expression",
+         "void bad(double value) {\n"
+         "  switch (value) { }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 11u, "switch controlling expression requires integer type"},
+      {{"void controlling expression",
+         "void sink(void);\n"
+         "void bad(void) {\n"
+         "  switch (sink()) { }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 11u, "switch controlling expression requires integer type"},
+      {{"case outside switch", "void bad(void) {\n  case 1: ;\n}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 3u, "case label requires an enclosing switch"},
+      {{"default outside switch",
+         "void bad(void) {\n  default: ;\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 3u, "default label requires an enclosing switch"},
+      {{"duplicate case after conversion",
+         "void bad(unsigned int value) {\n"
+         "  switch (value) {\n"
+         "  case -1: ;\n"
+         "  case 0xffffffffu: ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       4u, 8u, "case value duplicates an earlier label in this switch"},
+       {{"duplicate high character after conversion",
+          "void bad(unsigned long long value) {\n"
+          "  switch (value) {\n"
+          "  case '\\xff': ;\n"
+          "  case 0xffffffffffffffffULL: ;\n"
+          "  }\n"
+          "}\n",
+          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+        4u, 8u, "case value duplicates an earlier label in this switch"},
+       {{"duplicate default",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  default: ;\n"
+         "  default: ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       4u, 3u, "switch statement has more than one default label"},
+      {{"nonconstant case",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case value: ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 8u, "integer constant expression operand is unsupported"},
+      {{"comma case",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case 1, 2: ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 9u, "case label does not permit a comma operator"},
+      {{"noninteger case cast",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case (int *)0: ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 8u, "integer constant expression cast requires an integer target"},
+      {{"floating integer case cast",
+        "void bad(int value) {\n"
+        "  switch (value) {\n"
+        "  case (int)1.0: ;\n"
+        "  }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 13u,
+       "floating-to-integer casts are outside this constant-expression slice"},
+      {{"malformed character case",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case '\\x': ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 8u, "character hexadecimal escape requires a digit"},
+      {{"multi-character case",
+        "void bad(int value) {\n"
+        "  switch (value) {\n"
+        "  case 'ab': ;\n"
+        "  }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 8u,
+       "multi-character constants are outside integer constant expressions"},
+      {{"overflowing character case",
+        "void bad(int value) {\n"
+        "  switch (value) {\n"
+        "  case '\\x100': ;\n"
+        "  }\n"
+        "}\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 8u,
+       "narrow character hexadecimal escape exceeds one target byte"},
+      {{"missing switch opening parenthesis",
+         "void bad(int value) {\n  switch value) ;\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 10u, "switch statement requires an opening parenthesis"},
+      {{"missing switch condition",
+         "void bad(void) {\n  switch () ;\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 11u, "switch controlling expression is required"},
+      {{"missing switch closing parenthesis",
+         "void bad(int value) {\n  switch (value ;\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 17u,
+       "switch controlling expression requires a closing parenthesis"},
+      {{"missing switch body",
+         "void bad(void) {\n  switch (1)\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 1u, "switch statement requires a body"},
+      {{"missing switch body at end of file",
+         "void bad(void) { switch (1)", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "switch statement requires a body"},
+      {{"missing case expression",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case:\n"
+         "    ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 7u, "case label requires an integer constant expression"},
+      {{"missing case colon",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case 1 ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 10u, "case label requires a colon"},
+      {{"missing case statement",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case 1:\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       4u, 3u, "case label requires a statement"},
+      {{"missing default colon",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  default ;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 11u, "default label requires a colon"},
+      {{"missing default statement",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  default:\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       4u, 3u, "default label requires a statement"},
+      {{"declaration is not a switch body",
+         "void bad(void) {\n  switch (1) int value;\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 14u, "declaration is not a statement; use a compound statement"},
+      {{"declaration is not a case body",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  case 1: int local;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 11u, "declaration is not a statement; use a compound statement"},
+      {{"continue targets no loop",
+         "void bad(int value) {\n"
+         "  switch (value) {\n"
+         "  default: continue;\n"
+         "  }\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 12u, "continue statement requires an enclosing loop"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  char *depth_source = NULL;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "switch-statements", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/switch-statements.c", source, &unit) !=
+          0 ||
+      validate_switch_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/switch-statement-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_switch_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_nested_statement_depth_source(
+      256u, 16u, "void deep(int value) { ", "switch (value) ");
+  if (depth_source == NULL) {
+    (void)fprintf(stderr,
+                  "switch-statements: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "nested switch statement limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/switch-statement-depth.c", 1u, 3849u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        validate_switch_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_statement_storage_limit(&fixture, host_root, "switch",
+                                       "switch (1) ;") != 0 ||
+      validate_switch_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("switch-statements: ok\n");
   }
   return failed;
 }
@@ -10580,7 +11294,7 @@ static int run_boundaries(const char *host_root) {
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
       "control statement boundary",
-      "int boundary_function(void) { switch (1) return 0; }\n",
+      "int boundary_function(void) { do return 0; while (1); }\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
@@ -11681,9 +12395,11 @@ static int validate_constant_unit(const ctool_c_translation_unit_t *unit) {
        CTOOL_C_TYPE_SIGNED_LONG_LONG},
       {"MIXED_LAST_NEGATIVE", 0xffffffffffffffffull, CTOOL_FALSE,
        CTOOL_C_TYPE_SIGNED_LONG_LONG},
-      {"DECLARED_A", 1ull, CTOOL_TRUE, CTOOL_C_TYPE_SIGNED_INT},
-      {"DECLARED_B", 0xffffffffffffffffull, CTOOL_FALSE,
-       CTOOL_C_TYPE_SIGNED_INT}};
+       {"DECLARED_A", 1ull, CTOOL_TRUE, CTOOL_C_TYPE_SIGNED_INT},
+       {"DECLARED_B", 0xffffffffffffffffull, CTOOL_FALSE,
+        CTOOL_C_TYPE_SIGNED_INT},
+       {"HIGH_CHARACTER", 0xffffffffffffffffull, CTOOL_FALSE,
+        CTOOL_C_TYPE_SIGNED_INT}};
   static const char *const signed_int_enums[] = {"SignedOperations",
                                                  "DeclaredExpression"};
   static const char *const signed_long_long_enums[] = {"MixedFirst",
@@ -11766,8 +12482,9 @@ static int run_constants(const char *host_root) {
       "                  MIXED_FIRST_LARGE = 0xffffffffu };\n"
       "enum MixedLast { MIXED_LAST_LARGE = 0xffffffffu,\n"
       "                 MIXED_LAST_NEGATIVE = -1 };\n"
-      "enum DeclaredExpression { DECLARED_A = 1u,\n"
-      "                          DECLARED_B = DECLARED_A - 2 };\n";
+       "enum DeclaredExpression { DECLARED_A = 1u,\n"
+       "                          DECLARED_B = DECLARED_A - 2 };\n"
+       "enum CharacterExpression { HIGH_CHARACTER = '\\xff' };\n";
   static const frontend_failure_case_t invalid_cases[] = {
       {"duplicate unsigned suffix", "enum E { X = 1uu };\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -13252,7 +13969,7 @@ int main(int argc, char **argv) {
                    "function-bodies|block-bindings|scalar-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
-                   "if-statements|while-statements|"
+                   "if-statements|while-statements|switch-statements|"
                    "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
@@ -13301,6 +14018,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "while-statements") == 0) {
     return run_while_statements(argv[2]);
+  }
+  if (strcmp(argv[1], "switch-statements") == 0) {
+    return run_switch_statements(argv[2]);
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);
