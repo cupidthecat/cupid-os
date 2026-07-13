@@ -100,6 +100,16 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 } ctool_c_block_binding_t;
 
+typedef struct {
+  /* Function-scope label identity. LABEL and GOTO statements refer to this
+   * table instead of repeating or resolving source spellings later. */
+  ctool_string_t name;
+  /* Defining LABEL statement. The statement may follow an earlier GOTO. */
+  ctool_u32 statement;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_label_t;
+
 typedef enum {
   CTOOL_C_INITIALIZER_EXPRESSION = 1,
   CTOOL_C_INITIALIZER_ZERO,
@@ -170,7 +180,9 @@ typedef enum {
   CTOOL_C_STATEMENT_SWITCH,
   CTOOL_C_STATEMENT_CASE,
   CTOOL_C_STATEMENT_DEFAULT,
-  CTOOL_C_STATEMENT_DO
+  CTOOL_C_STATEMENT_DO,
+  CTOOL_C_STATEMENT_LABEL,
+  CTOOL_C_STATEMENT_GOTO
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -190,6 +202,8 @@ typedef struct {
   /* DECLARATION: ordered slice of translation_unit.block_bindings. */
   ctool_u32 first_block_binding;
   ctool_u32 block_binding_count;
+  /* LABEL/GOTO: canonical index into translation_unit.labels. */
+  ctool_u32 label;
   /* IF: required controlling expression and body statement, plus optional
    * else_body statement. The body statements precede this node.
    * WHILE/DO: required controlling expression and body statement. DO retains
@@ -322,6 +336,10 @@ typedef struct {
   ctool_u32 declared_type;
   ctool_c_storage_class_t storage;
   ctool_u32 function_declaration_flags;
+  /* Function-scope slice in translation_unit.labels. Entries are ordered by
+   * first definition or goto reference in this definition. */
+  ctool_u32 first_label;
+  ctool_u32 label_count;
   /* COMPOUND statement index. */
   ctool_u32 body;
   ctool_c_pp_location_t location;
@@ -350,6 +368,12 @@ typedef struct {
    * slices concatenate in LIST postorder. */
   const ctool_c_initializer_element_t *initializer_elements;
   ctool_u32 initializer_element_count;
+  /* Canonical function-scope labels. Function definitions own disjoint,
+   * source-ordered slices, and statements refer to entries by index. A GOTO
+   * reference is a semantic cross-reference, not a postorder child, so its
+   * defining LABEL statement may appear before or after the jump. */
+  const ctool_c_label_t *labels;
+  ctool_u32 label_count;
   /* Function bodies are immutable postorder tables. Child indices precede
    * their parents, and every child slice preserves source order. */
   const ctool_c_function_definition_t *function_definitions;
@@ -416,6 +440,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * parameter storage, and represents compound, expression, declaration,
  * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `do`,
  * `switch`, `case`, `default`, `break`, and `continue` statements;
+ * function-scope identifier labels and direct `goto` statements through one
+ * canonical label table per definition;
  * automatic/register block-object bindings with optional converted
  * expression initializer records; block-scope static objects with implicit
  * zero, target-converted integer constants, narrow character-array strings,
@@ -459,9 +485,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * initializer lists, and static assertions remain explicit body boundaries.
  * File-scope object initializers, designated and union lists, address
  * constants other than direct narrow strings, floating constants,
- * static-data allocation, and relocation lowering remain pending. Identifier
- * labels, `goto`, comma expressions, pointer null-pointer-constant conversions,
- * floating arithmetic and non-void conversions,
+ * static-data allocation, and relocation lowering remain pending. Comma
+ * expressions, pointer null-pointer-constant conversions, floating arithmetic
+ * and non-void conversions,
  * universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than

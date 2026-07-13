@@ -160,6 +160,12 @@ typedef struct {
 } cfront_switch_context_t;
 
 typedef struct {
+  ctool_c_label_t label;
+  const ctool_c_pp_token_t *first_goto_token;
+  ctool_bool defined;
+} cfront_function_label_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_c_pp_result_t *tape;
   const ctool_c_parse_request_t *request;
@@ -183,6 +189,7 @@ typedef struct {
   cfront_vector_t type_walk_seen;
   cfront_vector_t function_definitions;
   cfront_vector_t block_bindings;
+  cfront_vector_t labels;
   cfront_vector_t initializers;
   cfront_vector_t initializer_elements;
   cfront_vector_t pending_initializer_elements;
@@ -210,6 +217,7 @@ typedef struct {
   ctool_u32 prototype_tag_mark;
   ctool_u32 prototype_name_mark;
   ctool_u32 active_function_type;
+  ctool_u32 active_function_first_label;
   ctool_bool in_function_body;
   ctool_u32 scalar_types[CTOOL_C_TYPE_LONG_DOUBLE + 1u];
 } cfront_context_t;
@@ -498,6 +506,7 @@ static void cfront_close_scratch(cfront_context_t *context) {
   cfront_vector_close(&context->pending_initializer_elements);
   cfront_vector_close(&context->initializer_elements);
   cfront_vector_close(&context->initializers);
+  cfront_vector_close(&context->labels);
   cfront_vector_close(&context->block_bindings);
   cfront_vector_close(&context->function_definitions);
   cfront_vector_close(&context->type_walk_seen);
@@ -544,6 +553,7 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(type_walk_seen, ctool_u8)
   CFRONT_OPEN_VECTOR(function_definitions, ctool_c_function_definition_t)
   CFRONT_OPEN_VECTOR(block_bindings, ctool_c_block_binding_t)
+  CFRONT_OPEN_VECTOR(labels, cfront_function_label_t)
   CFRONT_OPEN_VECTOR(initializers, ctool_c_initializer_t)
   CFRONT_OPEN_VECTOR(initializer_elements, ctool_c_initializer_element_t)
   CFRONT_OPEN_VECTOR(pending_initializer_elements,
@@ -5544,6 +5554,7 @@ static void cfront_statement_init(
   statement->first_child = CTOOL_C_AST_NONE;
   statement->expression = CTOOL_C_AST_NONE;
   statement->first_block_binding = CTOOL_C_AST_NONE;
+  statement->label = CTOOL_C_AST_NONE;
   statement->initializer_statement = CTOOL_C_AST_NONE;
   statement->condition = CTOOL_C_AST_NONE;
   statement->iteration = CTOOL_C_AST_NONE;
@@ -10597,6 +10608,192 @@ static ctool_status_t cfront_parse_loop_jump_statement(
   return status;
 }
 
+static ctool_bool cfront_label_identifier(
+    const cfront_context_t *context, const ctool_c_pp_token_t *token) {
+  return token != (const ctool_c_pp_token_t *)0 &&
+                 token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
+                 cfront_reserved_identifier(context, token) == CTOOL_FALSE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_labeled_statement_starts(
+    const cfront_context_t *context) {
+  const ctool_c_pp_token_t *name = cfront_peek(context);
+  const ctool_c_pp_token_t *colon =
+      context->position == 0xffffffffu
+          ? (const ctool_c_pp_token_t *)0
+          : cfront_token(context, context->position + 1u);
+  return cfront_label_identifier(context, name) == CTOOL_TRUE &&
+                 cfront_token_is(colon, ":") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_find_function_label(
+    cfront_context_t *context, ctool_string_t name,
+    ctool_u32 *index_out, cfront_function_label_t *label_out,
+    ctool_bool *found_out) {
+  ctool_u32 index;
+  if (context->in_function_body == CTOOL_FALSE ||
+      context->active_function_first_label > context->labels.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context), "function label lookup has no active function");
+  }
+  *found_out = CTOOL_FALSE;
+  for (index = context->active_function_first_label;
+       index < context->labels.count; index++) {
+    cfront_function_label_t label;
+    if (cfront_vector_get(&context->labels, index, &label) != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "function label table is unavailable");
+    }
+    if (cfront_string_equal(label.label.name, name) == CTOOL_TRUE) {
+      *index_out = index;
+      *label_out = label;
+      *found_out = CTOOL_TRUE;
+      return CTOOL_OK;
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_get_or_add_function_label(
+    cfront_context_t *context, const ctool_c_pp_token_t *name_token,
+    ctool_bool goto_reference, ctool_u32 *index_out,
+    cfront_function_label_t *label_out) {
+  ctool_bool found = CTOOL_FALSE;
+  ctool_status_t status = cfront_find_function_label(
+      context, name_token->spelling, index_out, label_out, &found);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (found == CTOOL_FALSE) {
+    cfront_zero(label_out, (ctool_u32)sizeof(*label_out));
+    label_out->label.name = name_token->spelling;
+    label_out->label.statement = CTOOL_C_AST_NONE;
+    label_out->label.location = name_token->location;
+    label_out->label.physical_location = name_token->physical_location;
+    label_out->first_goto_token = goto_reference == CTOOL_TRUE
+                                      ? name_token
+                                      : (const ctool_c_pp_token_t *)0;
+    status = cfront_vector_append(&context->labels, label_out, index_out);
+    return status == CTOOL_OK ? CTOOL_OK
+                              : cfront_storage_failure(context, status);
+  }
+  if (goto_reference == CTOOL_TRUE &&
+      label_out->first_goto_token == (const ctool_c_pp_token_t *)0) {
+    label_out->first_goto_token = name_token;
+    status = cfront_vector_replace(context, &context->labels, *index_out,
+                                   label_out);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_goto_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *goto_token = cfront_advance(context);
+  const ctool_c_pp_token_t *name_token = cfront_peek(context);
+  cfront_function_label_t label;
+  ctool_u32 label_index = CTOOL_C_AST_NONE;
+  ctool_c_statement_t statement;
+  ctool_status_t status;
+  if (cfront_peek_is(context, "*") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        name_token, "computed goto is outside this function-body slice");
+  }
+  if (cfront_label_identifier(context, name_token) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, name_token,
+        "goto statement requires a label identifier");
+  }
+  status = cfront_get_or_add_function_label(
+      context, name_token, CTOOL_TRUE, &label_index, &label);
+  if (status == CTOOL_OK) {
+    (void)cfront_advance(context);
+    if (cfront_peek_is(context, ";") == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+          cfront_peek(context), "goto statement requires a semicolon");
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_GOTO, goto_token);
+    statement.label = label_index;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_labeled_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *name_token = cfront_peek(context);
+  cfront_function_label_t label;
+  ctool_c_statement_t statement;
+  ctool_u32 label_index = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_status_t status = cfront_enter_syntax(context, name_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_get_or_add_function_label(
+      context, name_token, CTOOL_FALSE, &label_index, &label);
+  if (status == CTOOL_OK && label.defined == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION,
+        name_token, "label is already defined in this function");
+  }
+  if (status == CTOOL_OK) {
+    label.defined = CTOOL_TRUE;
+    label.label.location = name_token->location;
+    label.label.physical_location = name_token->physical_location;
+    status = cfront_vector_replace(context, &context->labels, label_index,
+                                   &label);
+    if (status != CTOOL_OK) {
+      status = cfront_storage_failure(context, status);
+    }
+  }
+  if (status == CTOOL_OK) {
+    (void)cfront_advance(context);
+    status = cfront_expected(context, ":");
+  }
+  if (status == CTOOL_OK &&
+      (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+       cfront_peek_is(context, "}") == CTOOL_TRUE)) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "label requires a statement");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_parse_statement(context, &body);
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_LABEL, name_token);
+    statement.label = label_index;
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  if (status == CTOOL_OK) {
+    label.label.statement = *statement_out;
+    status = cfront_vector_replace(context, &context->labels, label_index,
+                                   &label);
+    if (status != CTOOL_OK) {
+      status = cfront_storage_failure(context, status);
+    }
+  }
+  cfront_leave_syntax(context);
+  return status;
+}
+
 static ctool_status_t cfront_require_switch_value(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value) {
@@ -11395,6 +11592,9 @@ static ctool_status_t cfront_parse_return_statement(
 static ctool_status_t cfront_parse_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *first = cfront_peek(context);
+  if (cfront_labeled_statement_starts(context) == CTOOL_TRUE) {
+    return cfront_parse_labeled_statement(context, statement_out);
+  }
   if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
     return cfront_parse_compound_statement(context, statement_out);
   }
@@ -11430,6 +11630,9 @@ static ctool_status_t cfront_parse_statement(
     return cfront_parse_loop_jump_statement(
         context, CTOOL_C_STATEMENT_CONTINUE, statement_out);
   }
+  if (cfront_peek_is(context, "goto") == CTOOL_TRUE) {
+    return cfront_parse_goto_statement(context, statement_out);
+  }
   if (cfront_peek_is(context, "else") == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, first,
@@ -11458,6 +11661,9 @@ static ctool_status_t cfront_parse_statement(
 static ctool_status_t cfront_parse_block_item(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *first = cfront_peek(context);
+  if (cfront_labeled_statement_starts(context) == CTOOL_TRUE) {
+    return cfront_parse_labeled_statement(context, statement_out);
+  }
   if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
@@ -11555,7 +11761,9 @@ static ctool_status_t cfront_parse_function_definition(
   ctool_u32 qualifiers;
   ctool_u32 index;
   ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_u32 first_label = context->labels.count;
   ctool_u32 previous_type = context->active_function_type;
+  ctool_u32 previous_first_label = context->active_function_first_label;
   ctool_bool previous_in_body = context->in_function_body;
   ctool_status_t status = cfront_underlying_type(
       context, declared_type, &base, &qualifiers, &function);
@@ -11605,9 +11813,26 @@ static ctool_status_t cfront_parse_function_definition(
     }
   }
   context->active_function_type = declared_type;
+  context->active_function_first_label = first_label;
   context->in_function_body = CTOOL_TRUE;
   status = cfront_parse_compound_statement(context, &body);
+  for (index = first_label;
+       status == CTOOL_OK && index < context->labels.count; index++) {
+    cfront_function_label_t label;
+    status = cfront_vector_get(&context->labels, index, &label);
+    if (status != CTOOL_OK) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function label table is unavailable");
+    } else if (label.defined == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          label.first_goto_token,
+          "goto target label is not defined in this function");
+    }
+  }
   context->active_function_type = previous_type;
+  context->active_function_first_label = previous_first_label;
   context->in_function_body = previous_in_body;
   if (status == CTOOL_OK) {
     ctool_c_function_definition_t definition;
@@ -11616,6 +11841,8 @@ static ctool_status_t cfront_parse_function_definition(
     definition.declared_type = declared_type;
     definition.storage = cfront_public_storage(storage);
     definition.function_declaration_flags = function_declaration_flags;
+    definition.first_label = first_label;
+    definition.label_count = context->labels.count - first_label;
     definition.body = body;
     definition.location = *location;
     definition.physical_location = *physical_location;
@@ -12247,6 +12474,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   ctool_c_tag_t *tags = (ctool_c_tag_t *)0;
   ctool_c_block_binding_t *block_bindings =
       (ctool_c_block_binding_t *)0;
+  ctool_c_label_t *labels = (ctool_c_label_t *)0;
   ctool_c_initializer_t *initializers =
       (ctool_c_initializer_t *)0;
   ctool_c_initializer_element_t *initializer_elements =
@@ -12267,11 +12495,13 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       context->iteration_statement_depth != 0u ||
       context->static_initializer_depth != 0u ||
       context->switch_contexts.count != 0u ||
-      context->switch_case_values.count != 0u) {
+      context->switch_case_values.count != 0u ||
+      context->in_function_body != CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         cfront_peek(context),
-        "block scope, initializer, loop, or switch remained active at freeze");
+        "block scope, initializer, loop, switch, or function remained active "
+        "at freeze");
   }
   ctool_status_t status = cfront_alloc_array(
       context, context->types.count, (ctool_u32)sizeof(*types),
@@ -12304,6 +12534,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     status = cfront_alloc_array(context, context->block_bindings.count,
                                 (ctool_u32)sizeof(*block_bindings),
                                 (void **)&block_bindings);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->labels.count,
+                                (ctool_u32)sizeof(*labels),
+                                (void **)&labels);
   }
   if (status == CTOOL_OK) {
     status = cfront_alloc_array(context, context->initializers.count,
@@ -12469,6 +12704,34 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
+  for (index = 0u; index < context->labels.count; index++) {
+    cfront_function_label_t label = {0};
+    status = cfront_vector_get(&context->labels, index, &label);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (label.defined == CTOOL_FALSE ||
+        label.label.statement == CTOOL_C_AST_NONE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "unresolved function label reached freeze");
+    }
+    labels[index] = label.label;
+    status = cfront_copy_string_owned(context, labels[index].name,
+                                      &labels[index].name);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(context, &labels[index].location,
+                                          &labels[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &labels[index].physical_location,
+          &labels[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
   for (index = 0u; index < context->initializers.count; index++) {
     status = cfront_vector_get(&context->initializers, index,
                                &initializers[index]);
@@ -12556,16 +12819,63 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
-  for (index = 0u; index < context->function_definitions.count; index++) {
-    const ctool_c_function_definition_t *definition =
-        &function_definitions[index];
-    if (definition->binding >= context->bindings.count ||
-        definition->declared_type >= context->types.count ||
-        definition->body >= context->statements.count ||
-        statements[definition->body].kind != CTOOL_C_STATEMENT_COMPOUND) {
+  {
+    ctool_u32 statement_cursor = 0u;
+    ctool_u32 label_cursor = 0u;
+    for (index = 0u; index < context->function_definitions.count; index++) {
+      const ctool_c_function_definition_t *definition =
+          &function_definitions[index];
+      ctool_u32 statement_index;
+      ctool_u32 label_index;
+      if (definition->binding >= context->bindings.count ||
+          definition->declared_type >= context->types.count ||
+          definition->body < statement_cursor ||
+          definition->body >= context->statements.count ||
+          statements[definition->body].kind != CTOOL_C_STATEMENT_COMPOUND ||
+          definition->first_label != label_cursor ||
+          definition->first_label > context->labels.count ||
+          definition->label_count >
+              context->labels.count - definition->first_label) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen function definition is invalid");
+      }
+      for (label_index = definition->first_label;
+           label_index < definition->first_label + definition->label_count;
+           label_index++) {
+        const ctool_c_label_t *label = &labels[label_index];
+        if (label->name.size == 0u || label->statement < statement_cursor ||
+            label->statement > definition->body ||
+            statements[label->statement].kind != CTOOL_C_STATEMENT_LABEL ||
+            statements[label->statement].label != label_index) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              cfront_peek(context), "frozen function label is invalid");
+        }
+      }
+      for (statement_index = statement_cursor;
+           statement_index <= definition->body; statement_index++) {
+        const ctool_c_statement_t *statement = &statements[statement_index];
+        if ((statement->kind == CTOOL_C_STATEMENT_LABEL ||
+             statement->kind == CTOOL_C_STATEMENT_GOTO) &&
+            (statement->label < definition->first_label ||
+             statement->label >=
+                 definition->first_label + definition->label_count)) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              cfront_peek(context),
+              "frozen statement refers outside its function labels");
+        }
+      }
+      statement_cursor = definition->body + 1u;
+      label_cursor += definition->label_count;
+    }
+    if (statement_cursor != context->statements.count ||
+        label_cursor != context->labels.count) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-          cfront_peek(context), "frozen function definition is invalid");
+          cfront_peek(context),
+          "frozen statements or labels are not owned by a function");
     }
   }
   for (index = 0u; index < context->initializers.count; index++) {
@@ -12871,6 +13181,16 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                 statement->else_body == CTOOL_C_AST_NONE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    if (((statement->kind == CTOOL_C_STATEMENT_LABEL ||
+          statement->kind == CTOOL_C_STATEMENT_GOTO) &&
+         statement->label >= context->labels.count) ||
+        ((statement->kind != CTOOL_C_STATEMENT_LABEL &&
+          statement->kind != CTOOL_C_STATEMENT_GOTO) &&
+         statement->label != CTOOL_C_AST_NONE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen statement label reference is invalid");
+    }
     if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
       ctool_u32 child_index;
       if (statement->expression != CTOOL_C_AST_NONE ||
@@ -13093,6 +13413,34 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen control jump statement is invalid");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_LABEL) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          statement->initializer_statement != CTOOL_C_AST_NONE ||
+          statement->condition != CTOOL_C_AST_NONE ||
+          statement->iteration != CTOOL_C_AST_NONE ||
+          statement->else_body != CTOOL_C_AST_NONE ||
+          statement->body >= index ||
+          statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION ||
+          labels[statement->label].statement != index) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen label statement is invalid");
+      }
+    } else if (statement->kind == CTOOL_C_STATEMENT_GOTO) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          control_fields_none == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen goto statement is invalid");
       }
     } else {
       return cfront_emit_failure(
@@ -13365,6 +13713,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   unit->initializer_count = context->initializers.count;
   unit->initializer_elements = initializer_elements;
   unit->initializer_element_count = context->initializer_elements.count;
+  unit->labels = labels;
+  unit->label_count = context->labels.count;
   unit->function_definitions = function_definitions;
   unit->function_definition_count = context->function_definitions.count;
   unit->statements = statements;

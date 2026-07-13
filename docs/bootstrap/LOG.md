@@ -2139,3 +2139,61 @@ The regenerated audit still contains 681 active sources, 39 accounted unreachabl
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC function-scoped labels and direct goto
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now publishes C11 identifier labels and direct `goto` statements. Each function definition owns a contiguous slice of `ctool_c_label_t` records. The first definition or jump creates the canonical identity. A later label definition fills its dual source locations and defining `LABEL` statement. Both `LABEL` and `GOTO` nodes use the same table index.
+
+A `LABEL` node owns its statement body in the normal postorder graph. A `GOTO` node is a leaf. Its label index is a semantic cross-reference, not a child edge, because C permits both forward and backward jumps. Freeze checks that every function owns a disjoint label slice, every label points back to its defining statement, and every jump stays inside its function's slice.
+
+Repeating the source spelling on each statement was rejected because every later consumer would have to resolve the same name again. Storing only a target statement index on `GOTO` was also rejected because a forward jump has no target statement when the leaf is published. A split definition/use table would preserve both problems. The canonical table gives parser diagnostics and later IR one stable identity without weakening postorder ownership.
+
+Labels use function scope and their own namespace. They may share a spelling with an object, parameter, or typedef, and another function may reuse the same spelling. Duplicate definitions fail at the second label. A target that remains unresolved when its function ends fails at the first jump. Computed goto and GNU label addresses remain explicit unsupported extensions. C11 also forbids a jump into the scope of a variably modified object; that check remains tied to future variable-length-array support because this frontend still rejects variable-length arrays.
+
+No user question was needed. C11 fixes label grammar, scope, namespace, and target resolution, while ADRs 0003 and 0014 already fix the indexed AST, immutable job ownership, and transactional failure model.
+
+### Red-to-green sequence and corrections
+
+- The new `labels-and-goto` contract first failed to compile because the public label type, statement kinds, and table fields did not exist. The smallest forward-jump case then went green after the parser and freeze path published one canonical label.
+- The final positive cases cover forward and backward jumps, two jumps to one target, nested jumps, chained labels, null statements, labels that share spellings with an object, parameter, and visible typedef, and the same label spelling in separate functions. Exact statement, function-slice, label-definition, source-location, and cross-reference indices are pinned.
+- Exact failures cover an unresolved target referenced twice and diagnosed at its first jump, a target defined only in another function, duplicate definitions, missing identifiers and semicolons, missing label bodies, a declaration used directly as a C11 label body, a reserved keyword target, computed goto, and GNU label addresses.
+- A 256-label chain reaches the public syntax limit at the exact token. A separate constrained-output run expands 128 `if` and `goto` pairs toward one label, then proves zero failed output, exact arena and tape rollback, survival of an earlier unit, and same-job recovery.
+- The borrowed-tape contract now reads the canonical label name, definition location, `LABEL`, and `GOTO` indices after caller-owned token spellings and paths have been overwritten and freed.
+- The old generic body-boundary fixture used `goto` and correctly stopped failing once the feature landed. It now uses block `_Static_assert`, which remains an explicit body boundary.
+- The unchanged `toolchain/cupidld.c` source advances from its first jump at line 1826 through all eleven jumps to `done` and the definition at line 2078. It now parses completely instead of exposing a later blocker.
+- Regenerating the active-source audit records 387 lexical `goto` occurrences in 22 files. The increase comes from active hosted contract control flow; source snippets inside fixtures remain masked by the audit lexer. A Python drift oracle pins the regenerated count and file set size.
+- Clang analysis found two paths where a checked helper return did not prove initialization to the analyzer: one freeze scratch label and one contract unit used only in an error report. Explicit zero initialization makes both invariants visible. Final GCC and Clang analysis is silent for the product and contract.
+- Standards and Spec review found that the implementation supported the label namespace rule but the first contract proved only an object-name collision. A visible typedef named `alias`, a parameter and label both named `retry`, and two unresolved jumps closed the evidence gap. The amended focused suite and regenerated audit pass before publication.
+- The first cross-host wrapper tried to use an unavailable JavaScript `btoa` helper and stopped before invoking WSL. A later combined unittest command used the wrong build-audit class name after all 39 frontend tests had passed. Neither harness error is product evidence. The corrected base64 runner and exact audit method provide the recorded results below.
+
+### Hosted-source progress
+
+The unchanged five-source hosted Toolchain gate advances from 4/5 to 5/5 complete:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Parses completely: 65 definitions, 1,012 statements, 5,981 expressions, 133 block bindings, and 33 initializers |
+| `toolchain/cupiddis.c` | Parses completely: 65 definitions, 1,470 statements, 9,607 expressions, 149 block bindings, and 114 initializers |
+| `toolchain/cupidld.c` | Parses completely: 66 definitions, 2,064 statements, 13,347 expressions, 267 block bindings, 146 initializers, and one canonical label |
+| `toolchain/cupidobj.c` | Parses completely: 14 definitions, 289 statements, 1,984 expressions, 39 block bindings, and 21 initializers |
+| `toolchain/cupidc_type.c` | Parses completely: 31 definitions, 737 statements, 5,487 expressions, 85 block bindings, and 43 initializers |
+
+The active non-Doom header frontier remains 147/152 at GNU inline assembly. This increment does not claim that other active bodies parse completely. It closes the exact hosted-source gate that was already tracked.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Label/goto red and green | PASS | The focused mode passes public shape, function scope, forward and backward references, exact failures, nesting, constrained output, rollback, ownership, and recovery. |
+| Focused frontend suite | PASS | Post-review `python -m unittest tests.test_toolchain_cupidc_frontend` passes all 39 tests in 6.572 seconds. |
+| Active-source audit | PASS | Post-review regeneration completes in 32.7 seconds, and `make check-bootstrap-audit` reproduces the outputs in 32.5 seconds. The final JSON digest is `6ebec35155fbd8471b53faf9bec70c38fbcddd80173a8a88d822f37af39457b4`. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain test` passes the complete strict Clang suite, including all 22 assembly demos and the new frontend mode, in 8.9 seconds. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 suites each report 140 successful contract markers in 51.8 and 51.7 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds visibly retain address and undefined-behavior sanitizers plus frame pointers. Both complete suites report 140 successful markers with leak detection and halt-on-error enabled in 111.2 and 116.1 seconds. The GCC binary loads both runtimes, and the Clang binary contains the expected sanitizer symbols. |
+| Static analysis | PASS AFTER HARDENING | Final GCC `-fanalyzer` runs are silent for the product and contract in 196 and 30 seconds. Final Clang `--analyze` runs are silent in 41 and 34 seconds after the explicit initialization fix above. |
+| Full repository gate | PASS | Post-review `make test` runs 281 tests in 401.965 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 437.1 seconds. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating and null-pointer semantics, comma expressions, computed goto and GNU label addresses, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.

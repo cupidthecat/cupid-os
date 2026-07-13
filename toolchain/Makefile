@@ -332,6 +332,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) while-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) do-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) switch-statements ..
+	$(CUPIDC_FRONTEND_CONTRACT) labels-and-goto ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-expressions ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-comparisons ..

@@ -261,6 +261,7 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                   unit->initializer_count == 0u &&
                   unit->initializer_elements == NULL &&
                   unit->initializer_element_count == 0u &&
+                 unit->labels == NULL && unit->label_count == 0u &&
                  unit->function_definitions == NULL &&
                  unit->function_definition_count == 0u &&
                  unit->statements == NULL && unit->statement_count == 0u &&
@@ -4518,20 +4519,19 @@ static int validate_toolchain_frontier(const char *host_root) {
     ctool_u32 expressions;
     ctool_u32 block_bindings;
     ctool_u32 initializers;
+    ctool_u32 labels;
   } toolchain_frontier_case_t;
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
-       5981u, 133u, 33u},
+       5981u, 133u, 33u, 0u},
       {"/toolchain/cupiddis.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1470u,
-       9607u, 149u, 114u},
-      {"/toolchain/cupidld.c", CTOOL_ERR_UNSUPPORTED, 1826u, 5u,
-       CTOOL_C_PARSE_DIAG_STATEMENT,
-       "statement form is outside this function-body slice", 0u, 0u, 0u, 0u,
-       0u},
+       9607u, 149u, 114u, 0u},
+      {"/toolchain/cupidld.c", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
+       13347u, 267u, 146u, 1u},
       {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 289u,
-       1984u, 39u, 21u},
+       1984u, 39u, 21u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
-       5487u, 85u, 43u}};
+       5487u, 85u, 43u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -4611,6 +4611,7 @@ static int validate_toolchain_frontier(const char *host_root) {
             unit.expression_count == test_case->expressions &&
             unit.block_binding_count == test_case->block_bindings &&
             unit.initializer_count == test_case->initializers &&
+            unit.label_count == test_case->labels &&
             static_string_valid != 0 &&
             memcmp(snapshot, tape.tokens, token_bytes) == 0) {
           failed = 0;
@@ -4634,11 +4635,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       (void)fprintf(stderr,
                     "toolchain-frontier: %s differs: %s "
                     "definitions=%u statements=%u expressions=%u "
-                    "block-bindings=%u initializers=%u\n",
+                    "block-bindings=%u initializers=%u labels=%u\n",
                     test_case->path, ctool_status_name(status),
                     unit.function_definition_count, unit.statement_count,
                     unit.expression_count, unit.block_binding_count,
-                    unit.initializer_count);
+                    unit.initializer_count, unit.label_count);
       (void)ctool_job_render_diagnostics(job);
     }
     free(snapshot);
@@ -6405,8 +6406,40 @@ static char *build_nested_do_statement_depth_source(ctool_u32 depth) {
   return source;
 }
 
+static char *build_nested_label_depth_source(ctool_u32 depth) {
+  const size_t capacity = (size_t)depth * 16u + 64u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void deep(void) { ") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < depth; index++) {
+    char label[24];
+    int written = snprintf(label, sizeof(label), "label_%03u: ",
+                           (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(label) ||
+        append_scale_text(source, capacity, &used, label) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "; }\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
 static char *build_statement_limit_source(const char *label,
-                                          const char *statement) {
+                                          const char *statement,
+                                          const char *tail) {
   const size_t capacity = 16384u;
   size_t used = 0u;
   char *source = (char *)malloc(capacity);
@@ -6429,6 +6462,13 @@ static char *build_statement_limit_source(const char *label,
       return NULL;
     }
   }
+  if (tail != NULL &&
+      (append_scale_text(source, capacity, &used, "  ") != 0 ||
+       append_scale_text(source, capacity, &used, tail) != 0 ||
+       append_scale_text(source, capacity, &used, "\n") != 0)) {
+    free(source);
+    return NULL;
+  }
   if (append_scale_text(source, capacity, &used, "}\n") != 0) {
     free(source);
     return NULL;
@@ -6438,13 +6478,15 @@ static char *build_statement_limit_source(const char *label,
 
 static int validate_statement_storage_limit(
     frontend_fixture_t *fixture, const char *host_root, const char *label,
-    const char *feature_statement) {
+    const char *feature_statement, const char *tail,
+    ctool_u32 expected_control_statements,
+    ctool_u32 expected_feature_statements) {
   char control_path[64];
   char success_path[64];
   char feature_path[64];
-  char *control_source = build_statement_limit_source(label, ";");
+  char *control_source = build_statement_limit_source(label, ";", tail);
   char *feature_source =
-      build_statement_limit_source(label, feature_statement);
+      build_statement_limit_source(label, feature_statement, tail);
   ctool_c_translation_unit_t control_oracle;
   ctool_c_translation_unit_t feature_oracle;
   ctool_c_translation_unit_t control;
@@ -6481,8 +6523,8 @@ static int validate_statement_storage_limit(
                           &control_oracle) != 0 ||
       parse_valid_fixture(fixture, success_path, feature_source,
                           &feature_oracle) != 0 ||
-      control_oracle.statement_count != 129u ||
-      feature_oracle.statement_count != 257u ||
+      control_oracle.statement_count != expected_control_statements ||
+      feature_oracle.statement_count != expected_feature_statements ||
       (ctool_u64)control_oracle.statement_count *
               sizeof(ctool_c_statement_t) >
           output_limit ||
@@ -6516,7 +6558,8 @@ static int validate_statement_storage_limit(
   }
   (void)memset(&control, 0xa5, sizeof(control));
   status = ctool_c_parse(job, &control_tape, &fixture->parse_request, &control);
-  if (status != CTOOL_OK || control.statement_count != 129u ||
+  if (status != CTOOL_OK ||
+      control.statement_count != expected_control_statements ||
       control.statements[0].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       control.statements[0].expression != CTOOL_C_AST_NONE) {
     (void)fprintf(stderr,
@@ -6539,7 +6582,7 @@ static int validate_statement_storage_limit(
                     "declaration frontend storage limit exceeded") ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
       memcmp(snapshot, feature_tape.tokens, token_bytes) != 0 ||
-      control.statement_count != 129u ||
+      control.statement_count != expected_control_statements ||
       control.statements[0].expression != CTOOL_C_AST_NONE) {
     (void)fprintf(stderr,
                   "%s-statements: limited rollback differs: %s/%u\n", label,
@@ -6550,9 +6593,10 @@ static int validate_statement_storage_limit(
   (void)memset(&recovered, 0xa5, sizeof(recovered));
   status =
       ctool_c_parse(job, &control_tape, &fixture->parse_request, &recovered);
-  if (status != CTOOL_OK || recovered.statement_count != 129u ||
+  if (status != CTOOL_OK ||
+      recovered.statement_count != expected_control_statements ||
       recovered.statements[0].expression != CTOOL_C_AST_NONE ||
-      control.statement_count != 129u ||
+      control.statement_count != expected_control_statements ||
       ctool_job_diagnostic_count(job) != 1u) {
     (void)fprintf(stderr, "%s-statements: limited recovery differs\n",
                   label);
@@ -6816,7 +6860,7 @@ static int run_for_statements(const char *host_root) {
     }
   }
   if (validate_statement_storage_limit(&fixture, host_root, "for",
-                                       "for (;;);") != 0 ||
+                                       "for (;;);", NULL, 129u, 257u) != 0 ||
       validate_for_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -7018,7 +7062,7 @@ static int run_if_statements(const char *host_root) {
     }
   }
   if (validate_statement_storage_limit(&fixture, host_root, "if",
-                                       "if (1) ;") != 0 ||
+                                       "if (1) ;", NULL, 129u, 257u) != 0 ||
       validate_if_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -7759,7 +7803,7 @@ static int run_while_statements(const char *host_root) {
     }
   }
   if (validate_statement_storage_limit(&fixture, host_root, "while",
-                                       "while (1) ;") != 0 ||
+                                       "while (1) ;", NULL, 129u, 257u) != 0 ||
       validate_while_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -8077,7 +8121,8 @@ static int run_do_statements(const char *host_root) {
     }
   }
   if (validate_statement_storage_limit(&fixture, host_root, "do",
-                                       "do ; while (1);") != 0 ||
+                                       "do ; while (1);", NULL, 129u,
+                                       257u) != 0 ||
       validate_do_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -8792,7 +8837,8 @@ static int run_switch_statements(const char *host_root) {
     }
   }
   if (validate_statement_storage_limit(&fixture, host_root, "switch",
-                                       "switch (1) ;") != 0 ||
+                                       "switch (1) ;", NULL, 129u,
+                                       257u) != 0 ||
       validate_switch_statement_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -12461,6 +12507,8 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       unit->function_definition_count == 1u
           ? &unit->function_definitions[0]
           : NULL;
+  const ctool_c_label_t *label =
+      unit->label_count == 1u ? &unit->labels[0] : NULL;
   const ctool_c_type_node_t *function =
       definition == NULL ? NULL : type_node(unit, definition->declared_type);
   const ctool_c_record_member_t *member;
@@ -12530,8 +12578,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 4u || unit->initializer_count != 4u ||
-      unit->function_definition_count != 1u || unit->statement_count != 14u ||
-      unit->statement_child_count != 9u || unit->expression_count != 13u ||
+      unit->label_count != 1u || unit->function_definition_count != 1u ||
+      unit->statement_count != 16u || unit->statement_child_count != 10u ||
+      unit->expression_count != 13u ||
       unit->expression_child_count != 9u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
@@ -12540,6 +12589,12 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       definition->binding != find_binding_index(unit, "owned_function") ||
       definition->storage != CTOOL_C_STORAGE_STATIC ||
       definition->function_declaration_flags != CTOOL_C_FUNCTION_DECL_INLINE ||
+      definition->first_label != 0u || definition->label_count != 1u ||
+      definition->body != 15u || label == NULL ||
+      !string_equal(label->name, "owned_label") ||
+      label->statement != 6u ||
+      !dual_location_matches(&label->location, &label->physical_location,
+                             "/borrowed.c", 9u) ||
       !dual_location_matches(&definition->location,
                              &definition->physical_location,
                              "/borrowed.c", 3u) ||
@@ -12623,44 +12678,48 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       !dual_location_matches(&addition_right->location,
                              &addition_right->physical_location,
                              "/borrowed.c", 4u) ||
-      unit->statements[5].kind != CTOOL_C_STATEMENT_BREAK ||
-      unit->statements[6].kind != CTOOL_C_STATEMENT_FOR ||
-      unit->statements[6].initializer_statement != CTOOL_C_AST_NONE ||
-      unit->statements[6].condition != CTOOL_C_AST_NONE ||
-      unit->statements[6].iteration != CTOOL_C_AST_NONE ||
-      unit->statements[6].body != 5u ||
-      unit->statements[7].kind != CTOOL_C_STATEMENT_EXPRESSION ||
-      unit->statements[7].expression != CTOOL_C_AST_NONE ||
-      unit->statements[8].kind != CTOOL_C_STATEMENT_EXPRESSION ||
-      unit->statements[8].expression != CTOOL_C_AST_NONE ||
-      unit->statements[9].kind != CTOOL_C_STATEMENT_IF ||
-      unit->statements[9].condition >= unit->expression_count ||
-      unit->statements[9].body != 7u ||
-      unit->statements[9].else_body != 8u ||
-      unit->expressions[unit->statements[9].condition].kind !=
-          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
-      unit->expressions[unit->statements[9].condition].conversion !=
-          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      unit->statements[4].kind != CTOOL_C_STATEMENT_GOTO ||
+      unit->statements[4].label != 0u ||
+      unit->statements[6].kind != CTOOL_C_STATEMENT_LABEL ||
+      unit->statements[6].label != 0u || unit->statements[6].body != 5u ||
+      unit->statements[7].kind != CTOOL_C_STATEMENT_BREAK ||
+      unit->statements[8].kind != CTOOL_C_STATEMENT_FOR ||
+      unit->statements[8].initializer_statement != CTOOL_C_AST_NONE ||
+      unit->statements[8].condition != CTOOL_C_AST_NONE ||
+      unit->statements[8].iteration != CTOOL_C_AST_NONE ||
+      unit->statements[8].body != 7u ||
+      unit->statements[9].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit->statements[9].expression != CTOOL_C_AST_NONE ||
       unit->statements[10].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       unit->statements[10].expression != CTOOL_C_AST_NONE ||
-      unit->statements[11].kind != CTOOL_C_STATEMENT_WHILE ||
+      unit->statements[11].kind != CTOOL_C_STATEMENT_IF ||
       unit->statements[11].condition >= unit->expression_count ||
-      unit->statements[11].body != 10u ||
+      unit->statements[11].body != 9u ||
+      unit->statements[11].else_body != 10u ||
       unit->expressions[unit->statements[11].condition].kind !=
           CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
       unit->expressions[unit->statements[11].condition].conversion !=
           CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
-      !dual_location_matches(&unit->statements[11].location,
-                             &unit->statements[11].physical_location,
-                             "/borrowed.c", 11u) ||
-      unit->statements[12].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[12].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       unit->statements[12].expression != CTOOL_C_AST_NONE ||
+      unit->statements[13].kind != CTOOL_C_STATEMENT_WHILE ||
+      unit->statements[13].condition >= unit->expression_count ||
+      unit->statements[13].body != 12u ||
+      unit->expressions[unit->statements[13].condition].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[unit->statements[13].condition].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !dual_location_matches(&unit->statements[13].location,
+                             &unit->statements[13].physical_location,
+                             "/borrowed.c", 13u) ||
+      unit->statements[14].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[14].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
       !dual_location_matches(&literal->location,
                              &literal->physical_location, "/borrowed.c",
-                             8u)) {
+                             10u)) {
     (void)fprintf(stderr,
                   "boundaries: copied names or dual locations did not survive "
                   "(statements=%u/%u expressions=%u/%u initializer=%u)\n",
@@ -12695,6 +12754,8 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "  static const char owned_digits[] = \"09\";\n"
       "  static int owned_static = 7;\n"
       "  static int owned_zero;\n"
+      "  goto owned_label;\n"
+      "owned_label:\n"
       "  owned_sink(\"owned\\n\");\n"
       "  for (;;) break;\n"
       "  if (owned_local) ; else ;\n"
@@ -13112,8 +13173,8 @@ static int run_boundaries(const char *host_root) {
       "object initializer boundary", "int boundary_object = 1;\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
-      "control statement boundary",
-      "int boundary_function(void) { goto done; }\n",
+      "block assertion boundary",
+      "int boundary_function(void) { _Static_assert(1, \"\"); }\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
@@ -15783,6 +15844,272 @@ static int run_aggregate_values(const char *host_root) {
   return failed;
 }
 
+static int run_labels_and_goto(const char *host_root) {
+  static const char source[] =
+      "int forward(int value) {\n"
+      "  goto done;\n"
+      "done:\n"
+      "  return value;\n"
+      "}\n"
+      "int separate(void) {\n"
+      "done: ;\n"
+      "}\n";
+  static const char control_source[] =
+      "typedef int alias;\n"
+      "int routes(int retry) {\n"
+      "  int finish = 0;\n"
+      "  goto finish;\n"
+      "retry:\n"
+      "  if (retry) goto finish;\n"
+      "  goto retry;\n"
+      "finish:\n"
+      "alias:\n"
+      "  ;\n"
+      "  return finish;\n"
+      "}\n"
+      "int second(void) {\n"
+      "finish:\n"
+      "  goto finish;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"undefined goto target",
+        "void bad(void) {\n"
+        "  goto missing;\n"
+        "  goto missing;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "goto target label is not defined in this function"},
+      {{"cross-function goto target",
+        "void first(void) {\n"
+        "  goto shared;\n"
+        "}\n"
+        "void second(void) {\n"
+        "shared: ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "goto target label is not defined in this function"},
+      {{"duplicate function label",
+        "void bad(void) {\n"
+        "  same: ;\n"
+        "  same: ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       3u, 3u, "label is already defined in this function"},
+      {{"goto without identifier",
+        "void bad(void) {\n"
+        "  goto ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "goto statement requires a label identifier"},
+      {{"goto without semicolon",
+        "void bad(void) {\n"
+        "  goto target\n"
+        "target: ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       3u, 1u, "goto statement requires a semicolon"},
+      {{"label without statement",
+        "void bad(void) {\n"
+        "target:\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 1u, "label requires a statement"},
+      {{"declaration after label",
+        "void bad(void) {\n"
+        "target: int value;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 9u, "declaration is not a statement; use a compound statement"},
+      {{"computed goto boundary",
+        "void bad(void) {\n"
+        "  goto *target;\n"
+        "target: ;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "computed goto is outside this function-body slice"},
+      {{"reserved goto target",
+        "void bad(void) {\n"
+        "  goto for;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u, "goto statement requires a label identifier"},
+      {{"GNU label address boundary",
+        "void bad(void) {\n"
+        "target:\n"
+        "  &&target;\n"
+        "}\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "expression form is outside this function-body slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t control_unit = {0};
+  const ctool_c_function_definition_t *forward;
+  const ctool_c_function_definition_t *separate;
+  const ctool_c_label_t *first_label;
+  const ctool_c_label_t *second_label;
+  char *depth_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "labels-and-goto", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/labels-and-goto.c", source, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  forward = unit.function_definition_count == 2u
+                ? &unit.function_definitions[0]
+                : NULL;
+  separate = unit.function_definition_count == 2u
+                 ? &unit.function_definitions[1]
+                 : NULL;
+  first_label = unit.label_count == 2u ? &unit.labels[0] : NULL;
+  second_label = unit.label_count == 2u ? &unit.labels[1] : NULL;
+  if ((ctool_u32)CTOOL_C_STATEMENT_LABEL != 14u ||
+      (ctool_u32)CTOOL_C_STATEMENT_GOTO != 15u ||
+      unit.statement_count != 7u || unit.statement_child_count != 3u ||
+      unit.expression_count != 2u || forward == NULL || separate == NULL ||
+      forward->first_label != 0u || forward->label_count != 1u ||
+      separate->first_label != 1u || separate->label_count != 1u ||
+      first_label == NULL || second_label == NULL ||
+      !string_equal(first_label->name, "done") ||
+      !string_equal(second_label->name, "done") ||
+      first_label->statement != 2u || second_label->statement != 5u ||
+      !dual_location_matches(&first_label->location,
+                             &first_label->physical_location,
+                             "/labels-and-goto.c", 3u) ||
+      !dual_location_matches(&second_label->location,
+                             &second_label->physical_location,
+                             "/labels-and-goto.c", 7u) ||
+      unit.statements[0].kind != CTOOL_C_STATEMENT_GOTO ||
+      unit.statements[0].label != 0u ||
+      unit.statements[1].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit.statements[2].kind != CTOOL_C_STATEMENT_LABEL ||
+      unit.statements[2].label != 0u || unit.statements[2].body != 1u ||
+      unit.statements[4].kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      unit.statements[4].expression != CTOOL_C_AST_NONE ||
+      unit.statements[5].kind != CTOOL_C_STATEMENT_LABEL ||
+      unit.statements[5].label != 1u || unit.statements[5].body != 4u) {
+    (void)fprintf(stderr, "labels-and-goto: public graph differs\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/label-control.c", control_source,
+                          &control_unit) != 0 ||
+      control_unit.function_definition_count != 2u ||
+      control_unit.label_count != 4u ||
+      control_unit.statement_count != 14u ||
+      control_unit.statement_child_count != 7u ||
+      control_unit.expression_count != 5u ||
+      control_unit.block_binding_count != 1u ||
+      control_unit.initializer_count != 1u ||
+      find_binding_index(&control_unit, "alias") == CTOOL_C_AST_NONE ||
+      condition_terminal_kind(&control_unit, 3u,
+                              CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      control_unit.function_definitions[0].first_label != 0u ||
+      control_unit.function_definitions[0].label_count != 3u ||
+      control_unit.function_definitions[0].body != 10u ||
+      control_unit.function_definitions[1].first_label != 3u ||
+      control_unit.function_definitions[1].label_count != 1u ||
+      control_unit.function_definitions[1].body != 13u ||
+      !string_equal(control_unit.block_bindings[0].name, "finish") ||
+      !string_equal(control_unit.labels[0].name, "finish") ||
+      !string_equal(control_unit.labels[1].name, "retry") ||
+      !string_equal(control_unit.labels[2].name, "alias") ||
+      !string_equal(control_unit.labels[3].name, "finish") ||
+      control_unit.labels[0].statement != 8u ||
+      control_unit.labels[1].statement != 4u ||
+      control_unit.labels[2].statement != 7u ||
+      control_unit.labels[3].statement != 12u ||
+      !dual_location_matches(&control_unit.labels[0].location,
+                             &control_unit.labels[0].physical_location,
+                             "/label-control.c", 8u) ||
+      !dual_location_matches(&control_unit.labels[1].location,
+                             &control_unit.labels[1].physical_location,
+                             "/label-control.c", 5u) ||
+      !dual_location_matches(&control_unit.labels[2].location,
+                             &control_unit.labels[2].physical_location,
+                             "/label-control.c", 9u) ||
+      !dual_location_matches(&control_unit.labels[3].location,
+                             &control_unit.labels[3].physical_location,
+                             "/label-control.c", 14u) ||
+      control_unit.statements[1].kind != CTOOL_C_STATEMENT_GOTO ||
+      control_unit.statements[1].label != 0u ||
+      control_unit.statements[2].kind != CTOOL_C_STATEMENT_GOTO ||
+      control_unit.statements[2].label != 0u ||
+      control_unit.statements[4].kind != CTOOL_C_STATEMENT_LABEL ||
+      control_unit.statements[4].label != 1u ||
+      control_unit.statements[5].kind != CTOOL_C_STATEMENT_GOTO ||
+      control_unit.statements[5].label != 1u ||
+      control_unit.statements[7].kind != CTOOL_C_STATEMENT_LABEL ||
+      control_unit.statements[7].label != 2u ||
+      control_unit.statements[8].kind != CTOOL_C_STATEMENT_LABEL ||
+      control_unit.statements[8].label != 0u ||
+      control_unit.statements[11].kind != CTOOL_C_STATEMENT_GOTO ||
+      control_unit.statements[11].label != 3u ||
+      control_unit.statements[12].kind != CTOOL_C_STATEMENT_LABEL ||
+      control_unit.statements[12].label != 3u) {
+    (void)fprintf(stderr,
+                  "labels-and-goto: control-flow inventory differs "
+                  "definitions=%u labels=%u statements=%u/%u "
+                  "expressions=%u block-bindings=%u initializers=%u\n",
+                  (unsigned int)control_unit.function_definition_count,
+                  (unsigned int)control_unit.label_count,
+                  (unsigned int)control_unit.statement_count,
+                  (unsigned int)control_unit.statement_child_count,
+                  (unsigned int)control_unit.expression_count,
+                  (unsigned int)control_unit.block_binding_count,
+                  (unsigned int)control_unit.initializer_count);
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/label-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        unit.label_count != 2u || unit.statements[0].label != 0u) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_nested_label_depth_source(256u);
+  if (depth_source == NULL) {
+    (void)fprintf(stderr,
+                  "labels-and-goto: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "nested label statement limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/label-depth.c", 1u, 2824u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        unit.label_count != 2u) {
+      goto cleanup;
+    }
+  }
+  if (validate_statement_storage_limit(
+          &fixture, host_root, "label_goto", "if (1) goto done;",
+          "done: ;", 131u, 259u) != 0 ||
+      unit.label_count != 2u) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("labels-and-goto: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -15796,7 +16123,7 @@ int main(int argc, char **argv) {
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
-                   "switch-statements|"
+                   "switch-statements|labels-and-goto|"
                    "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
@@ -15857,6 +16184,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "switch-statements") == 0) {
     return run_switch_statements(argv[2]);
+  }
+  if (strcmp(argv[1], "labels-and-goto") == 0) {
+    return run_labels_and_goto(argv[2]);
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);
