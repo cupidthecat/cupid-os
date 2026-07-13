@@ -10411,6 +10411,102 @@ static ctool_status_t cfront_parse_while_statement(
   return status;
 }
 
+static ctool_status_t cfront_parse_do_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *do_token = cfront_advance(context);
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_u32 condition = CTOOL_C_AST_NONE;
+  ctool_u32 body = CTOOL_C_AST_NONE;
+  ctool_bool loop_entered = CTOOL_FALSE;
+  ctool_status_t status = cfront_enter_syntax(context, do_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
+      cfront_peek_is(context, "}") == CTOOL_TRUE ||
+      cfront_peek_is(context, "else") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "do statement requires a body");
+  }
+  if (status == CTOOL_OK) {
+    context->breakable_statement_depth++;
+    context->iteration_statement_depth++;
+    loop_entered = CTOOL_TRUE;
+    status = cfront_parse_statement(context, &body);
+  }
+  if (loop_entered == CTOOL_TRUE) {
+    context->iteration_statement_depth--;
+    context->breakable_statement_depth--;
+  }
+  if (status == CTOOL_OK &&
+      cfront_peek_is(context, "while") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "do statement requires while after its body");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, "while");
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "do statement requires an opening parenthesis after while");
+  } else if (status == CTOOL_OK) {
+    status = cfront_expected(context, "(");
+  }
+  if (status == CTOOL_OK) {
+    const ctool_c_pp_token_t *condition_token = cfront_peek(context);
+    cfront_expression_value_t value;
+    cfront_zero(&value, (ctool_u32)sizeof(value));
+    if (cfront_peek_is(context, ")") == CTOOL_TRUE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          condition_token, "do controlling expression is required");
+    } else {
+      status = cfront_parse_body_expression(context, &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_expression_terminator(
+          context, ")",
+          "do controlling expression requires a closing parenthesis");
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_require_controlling_value(context, condition_token,
+                                                &value);
+    }
+    if (status == CTOOL_OK) {
+      condition = value.expression;
+      status = cfront_expected(context, ")");
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ";") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context), "do statement requires a semicolon");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    ctool_c_statement_t statement;
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_DO, do_token);
+    statement.condition = condition;
+    statement.body = body;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY) &&
+      ctool_job_diagnostic_count(context->job) == diagnostic_count) {
+    return cfront_storage_failure(context, status);
+  }
+  return status;
+}
+
 static ctool_status_t cfront_parse_return_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *return_token = cfront_advance(context);
@@ -10526,6 +10622,9 @@ static ctool_status_t cfront_parse_statement(
   }
   if (cfront_peek_is(context, "while") == CTOOL_TRUE) {
     return cfront_parse_while_statement(context, statement_out);
+  }
+  if (cfront_peek_is(context, "do") == CTOOL_TRUE) {
+    return cfront_parse_do_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "switch") == CTOOL_TRUE) {
     return cfront_parse_switch_statement(context, statement_out);
@@ -11782,7 +11881,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen if statement is invalid");
       }
-    } else if (statement->kind == CTOOL_C_STATEMENT_WHILE) {
+    } else if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
+               statement->kind == CTOOL_C_STATEMENT_DO) {
       if (statement->first_child != CTOOL_C_AST_NONE ||
           statement->child_count != 0u ||
           statement->expression != CTOOL_C_AST_NONE ||
@@ -11797,7 +11897,10 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statements[statement->body].kind == CTOOL_C_STATEMENT_DECLARATION) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            cfront_peek(context), "frozen while statement is invalid");
+            cfront_peek(context),
+            statement->kind == CTOOL_C_STATEMENT_WHILE
+                ? "frozen while statement is invalid"
+                : "frozen do statement is invalid");
       }
     } else if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
       cfront_integer_type_t controlling_integer;

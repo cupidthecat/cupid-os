@@ -1966,3 +1966,56 @@ The regenerated audit still contains 681 active sources, 39 unreachable source-l
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for `do`, identifier labels, `goto`, static local and other nonautomatic initialization, aggregate initializer lists, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC typed C11 do statements
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now represents typed C11 `do ... while` statements as public statement kind `CTOOL_C_STATEMENT_DO`, appended at value 13 so the earlier statement values remain stable. A do statement retains its postorder body and controlling expression. The body is parsed and published before the condition, matching both source order and the frontend's immutable tape contract.
+
+The controlling expression uses the same scalar seam as `if`, `switch`, and `while`. Integer lvalues undergo ordinary lvalue conversion and promotion where required. Pointer controls accept ordinary lvalues, array decay, function decay, and compatible conditional expressions. Aggregate and `void` controls fail directly. Floating controls remain a documented typed-frontend boundary.
+
+The parser establishes breakable and iteration contexts only while it parses the body. It therefore accepts `break` and `continue` in a do body without leaking either permission into the trailing condition or the following statement. The shared AST deliberately carries no branch targets. Later linear IR must lower `continue` to the condition, then branch back to the body when the converted condition is nonzero.
+
+No user question was needed. C11 fixes the post-test loop grammar and scalar controlling-expression rule, while ADRs 0003 and 0014 already fix postorder publication, explicit conversions, transactional parsing, and later target resolution.
+
+### Red-to-green sequence and corrections
+
+- Before production edits, `python -m unittest tests.test_toolchain_cupidc_frontend` passed all 33 existing tests in 6.568 seconds. The first `do-statements` tracer then failed at `/do-statements.c:2:3` with the old unsupported-statement diagnostic. The minimal parser made that tracer green before the contract expanded.
+- The final public contract covers integer, pointer, volatile lvalue, array, function, and conditional controls; null, unbraced, and compound bodies; nested post-test loops; and targetless `break` and `continue`. It pins 2 definitions, 24 statements, 14 statement children, 24 expressions, and 14 expression children, including body-before-condition publication and exact source locations.
+- Exact negative cases cover aggregate, `void`, and floating controls; a declaration used as the body; missing bodies, `while`, parentheses, conditions, and final semicolons; comma controls; scope expiration before the condition; and loop-context expiration after the body. The 256-level nesting case stops at the exact depth boundary. Constrained-output cases prove zero failed output, exact rollback, earlier-unit survival, and same-job recovery.
+- The generic unsupported-statement boundary moved from `do` to `goto`. This preserves a fail-closed statement contract after `do` became supported.
+- One body-before-condition assertion was first placed in the `while` validator. The full frontend suite caught the misplaced expectation, and the assertion now applies only to do statements. Two negative location oracles were also corrected to point at the actual closing parenthesis and comma tokens.
+- A preliminary GCC sanitizer run was killed by an outer five-second harness timeout before it reached the contracts. It is excluded from evidence. Fresh GCC and Clang sanitizer suites completed successfully. One static-analysis timing wrapper also hit a PowerShell-to-WSL line-ending error after the first GCC analyzer had already returned status 0 and written its object. Compiler status, timing status, and the object confirmed that run; all four analyzers were then accounted for directly.
+- Inspection of the private production compiler found a separate limitation in `kernel/lang/cupidc_parse.c`: its current do-loop emitter records the body start as the `continue` target. A production `continue` would therefore skip the trailing condition. This hosted AST increment does not change that private emitter or claim runtime support. Correcting it is separate production work and will require the relevant OS build and runtime smoke.
+
+### Hosted-source progress and audit
+
+The strict unchanged five-source hosted Toolchain gate remains 2/5 complete, but all three incomplete units advance to later source-driven boundaries:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Stops at static local initialization on `1181:3` |
+| `toolchain/cupiddis.c` | Stops at static local initialization on `231:3` |
+| `toolchain/cupidld.c` | Stops at static local initialization on `1107:3` |
+| `toolchain/cupidobj.c` | Parses completely: 14 definitions, 289 statements, 1,984 expressions |
+| `toolchain/cupidc_type.c` | Parses completely: 31 definitions, 737 statements, 5,487 expressions |
+
+The regenerated audit still contains 681 active sources, 39 unreachable source-like files, 251 feature IDs, and 491 transforms. It records 59 `do` occurrences across 35 files, 202 `switch` occurrences across 64 files, 1,515 `case` occurrences across 64 files, 133 `default` occurrences across 51 files, 2,479 `while` occurrences across 248 files, 22,331 `if` occurrences across 356 files, 3,296 `else` occurrences across 268 files, 2,785 `for` occurrences across 236 files, 13,498 `return` occurrences across 326 files, and 1,901 `sizeof` occurrences across 161 files. The SHA-256 digest of `active-build.json` is `10c69da550208a0d19e5bf89963abbc6c53c332910c0e2070a2bd0877501300f`.
+
+### Final verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Do red/green | PASS | The new mode first stopped at the old unsupported-statement boundary. The final mode passes public shape, postorder publication, scalar conversions, context lifetime, exact failures, nesting depth, constrained output, rollback, ownership, recovery, and hosted frontiers. |
+| Focused frontend suite | PASS | The final full frontend run passes all 35 tests in 7.895 seconds. A later single-mode rerun after the last context-expiration cases also passes in 5.378 seconds. |
+| Active-source audit | PASS | Final regeneration writes the counts and digest above in 37.3 seconds. The complete repository gate later reproduces the checked audit without drift. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Windows suite in 13.3 seconds, including the new frontend mode and every existing Toolchain contract. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 complete Toolchain suites pass in 53.32 and 53.19 seconds. |
+| Sanitizers | PASS AFTER INVALID PRELIMINARY RUN | Fresh GCC and Clang builds retain address and undefined-behavior sanitizers, frame pointers, leak detection, and halt-on-error behavior. Both complete 122-invocation suites pass in 53.49 and 39.99 seconds with no findings. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` are clean for the frontend and contract. The four runs complete in 270.39, 17.26, 45.58, and 29.17 seconds. |
+| Formal two-axis review | PASS | Standards review found no documented-rule violation or code smell. Spec review found no missing requirement, behavior mismatch, scope creep, or unsupported claim in the bounded issue #25 slice. Its independent focused contract rerun passes in 6.421 seconds. |
+| Full repository gate | PASS | `make test` runs 277 tests in 458.015 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 494.5 seconds. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static and aggregate initialization, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
