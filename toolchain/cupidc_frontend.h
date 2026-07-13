@@ -104,15 +104,23 @@ typedef enum {
   CTOOL_C_INITIALIZER_EXPRESSION = 1,
   CTOOL_C_INITIALIZER_ZERO,
   CTOOL_C_INITIALIZER_INTEGER,
-  CTOOL_C_INITIALIZER_STRING
+  CTOOL_C_INITIALIZER_STRING,
+  CTOOL_C_INITIALIZER_ADDRESS,
+  CTOOL_C_INITIALIZER_LIST
 } ctool_c_initializer_kind_t;
+
+typedef enum {
+  CTOOL_C_INITIALIZER_ADDRESS_NONE = 0,
+  CTOOL_C_INITIALIZER_ADDRESS_STRING
+} ctool_c_initializer_address_kind_t;
 
 typedef struct {
   ctool_c_initializer_kind_t kind;
   /* Destination object or subobject type after initializer conversion and
    * any array-bound completion. */
   ctool_u32 type;
-  /* First value token, or the object name for implicit zero initialization. */
+  /* First value token, an explicit list's opening brace, or the object name
+   * for implicit zero initialization. */
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
   /* EXPRESSION: converted runtime expression root. Other kinds use
@@ -121,9 +129,31 @@ typedef struct {
   /* INTEGER: target-width converted value bits. */
   ctool_u64 integer_bits;
   /* STRING: effective character bytes copied into the target array. The
-   * target type supplies any remaining semantic zero initialization. */
+   * target type supplies any remaining semantic zero initialization.
+   * ADDRESS with a STRING base: bytes of the static literal object,
+   * including its terminator. */
   ctool_bytes_t string_bytes;
+  /* ADDRESS: semantic base and target-byte addend. The destination pointer
+   * type above retains the initializer conversion. */
+  ctool_c_initializer_address_kind_t address_kind;
+  /* STRING bases use AST_NONE. Later object and function bases may use a
+   * stable binding index without changing the list seam. */
+  ctool_u32 address_reference;
+  ctool_i32 address_addend;
+  /* LIST: slice in translation_unit.initializer_elements. Edges name direct,
+   * explicitly initialized subobjects, and every referenced initializer
+   * precedes this node. Omitted subobjects are implicitly zero initialized.
+   * Other kinds use AST_NONE and zero. */
+  ctool_u32 first_element;
+  ctool_u32 element_count;
 } ctool_c_initializer_t;
+
+typedef struct {
+  /* ARRAY parent: element index. RECORD parent: absolute graph member index. */
+  ctool_u32 subobject;
+  /* Root initializer for this subobject. */
+  ctool_u32 initializer;
+} ctool_c_initializer_element_t;
 
 #define CTOOL_C_AST_NONE 0xffffffffu
 
@@ -316,6 +346,10 @@ typedef struct {
    * this immutable table rather than directly to expression roots. */
   const ctool_c_initializer_t *initializers;
   ctool_u32 initializer_count;
+  /* Direct LIST edges. Nested lists retain independent slices, and those
+   * slices concatenate in LIST postorder. */
+  const ctool_c_initializer_element_t *initializer_elements;
+  ctool_u32 initializer_element_count;
   /* Function bodies are immutable postorder tables. Child indices precede
    * their parents, and every child slice preserves source order. */
   const ctool_c_function_definition_t *function_definitions;
@@ -384,9 +418,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * `switch`, `case`, `default`, `break`, and `continue` statements;
  * automatic/register block-object bindings with optional converted
  * expression initializer records; block-scope static objects with implicit
- * zero, target-converted integer constant, or narrow character-array string
- * records, including direct unknown-bound completion and one-value brace
- * wrappers;
+ * zero, target-converted integer constants, narrow character-array strings,
+ * direct narrow-string address constants, and recursive nondesignated array
+ * or structure lists. Static lists retain explicit subobjects in postorder,
+ * apply brace elision, leave omitted tails implicitly zero initialized, and
+ * complete direct unknown-bound arrays without mutating shared typedefs;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
@@ -419,13 +455,12 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, extern objects, function
- * declarations, block tag specifiers, attributes, general aggregate
+ * declarations, block tag specifiers, attributes, automatic aggregate
  * initializer lists, and static assertions remain explicit body boundaries.
- * File-scope object initializers and block-static address, floating, and
- * aggregate element constants remain pending. Control statements other than
- * `return`, `if`, `for`, `while`, `do`, `switch`, `case`, `default`, `break`,
- * and `continue`,
- * comma expressions, pointer null-pointer-constant conversions,
+ * File-scope object initializers, designated and union lists, address
+ * constants other than direct narrow strings, floating constants,
+ * static-data allocation, and relocation lowering remain pending. Identifier
+ * labels, `goto`, comma expressions, pointer null-pointer-constant conversions,
  * floating arithmetic and non-void conversions,
  * universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid

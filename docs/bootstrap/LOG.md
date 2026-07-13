@@ -2081,3 +2081,61 @@ The regenerated audit contains 681 active sources, 39 unreachable source-like fi
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for address constants, general aggregate initializer lists, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC static aggregate initializer forests
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now publishes block-scope static array and structure initializers as a job-owned semantic forest. Existing `ZERO`, `INTEGER`, and `STRING` records remain stable. An `ADDRESS` leaf represents one direct ordinary narrow string address, owns the decoded bytes including the terminator, and carries a signed target-byte addend that is currently zero. A `LIST` node owns a slice in the new initializer-element table. Each edge names one explicitly initialized direct array element or structure member and points to a child initializer that precedes its parent.
+
+Omitted subobjects remain implicit zero initialization. Expanding them into `ZERO` leaves was rejected because it would make sparse source initializers consume storage in proportion to the destination object. Eager byte flattening was also rejected. It would discard the distinction between copied strings, addressed strings, direct subobjects, and future relocations before section placement exists. The public forest retains source meaning; later lowering still owns storage allocation, padding, byte order, symbols, and relocations.
+
+Recursive fixed arrays and complete structures follow C11 brace elision, explicit closing braces, and trailing commas. A closing brace around a child aggregate is a hard boundary, so `{{1}, 2}` and `{1, 2}` retain their distinct C meanings. Ordinary narrow strings are handled before general aggregate descent, which preserves character-array initialization inside nested wrappers. Unnamed bit-fields do not consume positional values, named bit-fields remain eligible, and a final flexible-array member is excluded from the positional sequence.
+
+A directly declared unknown-bound array is completed from its explicit element count. The frontend appends a private fixed-array node for that declaration instead of mutating the shared incomplete type, so two objects declared through the same typedef can receive different completed bounds. Wrapped incomplete arrays and nested completion remain explicit boundaries until parent type rebuilding exists.
+
+Freeze now validates payload exclusivity, string termination, address compatibility, direct edge selectors, concatenated postorder slices, child types, and exact forest ownership. Every initializer has one owner: either a block binding or one parent list. Pending direct edges are parser scratch and must be empty before publication. A string converted to `_Bool` is represented as the target integer value one, as permitted by [C11 draft N1570 sections 6.3.2.1, 6.5.16.1, and 6.7.9](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf); its temporary decoded bytes are rewound after validation.
+
+No user question was needed. C11 fixes the initializer traversal and conversion rules, while ADRs 0012 through 0014 already fix immutable tape ownership, target types, object identity, postorder publication, and transactional failure.
+
+### Red-to-green sequence and corrections
+
+- Before this mode was added, all 36 existing frontend tests passed. The first aggregate contract used CupidLD's four string pointers and 16-byte identity table, then failed at the old string-address boundary on the first pointer element.
+- The final positive contract publishes 13 block bindings, 55 initializer records, and 42 direct edges. It covers the two unchanged CupidLD tables, explicit and elided nested arrays, direct unknown-bound completion, copied character rows, a structure with copied and addressed strings, omitted members and tails, a named bit-field after unnamed padding, an omitted later bit-field, a direct string-address root, two independent completions from one incomplete typedef, and string-to-`_Bool` conversion.
+- Exact negative cases cover outer, nested, and structure excess elements; an empty list; direct and nested designators; runtime leaves; incompatible string pointers; and an attempted flexible-array value. The existing scalar contract retains precise failures for unsupported storage, floating values, non-string address forms, and invalid string destinations.
+- A measured output ceiling lets an uninitialized 256-element control object succeed and makes the explicit 256-element forest fail with `CTOOL_ERR_LIMIT`. The failed unit is zero, the exact arena mark and immutable tape survive, an earlier unit remains readable, and the same job recovers.
+- The parser publishes nested list slices before their parents, then rewinds pending edge scratch to the caller's mark. This avoided a global flattening pass and kept each recursive call responsible for its direct children.
+- A parent-opening-token shortcut was rejected because it misclassified valid nested character-array strings. Dispatching the string special case from the actual child type accepts `char rows[2][4] = {{"a"}, {"b"}}` without weakening other aggregate checks.
+- Preflight Clang analysis could not prove that a checked vector copy initialized the helper's local type node on the new address-validation path. Initializing that scratch node made the final frontend analysis silent without changing runtime semantics. The same preflight found temporary decoded bytes left behind by string-to-`_Bool`; a success-only arena rewind now removes them.
+- One combined frontend and audit command hit its outer 184-second timeout and is excluded from evidence. The isolated 49-test audit suite completed in 344.525 seconds. A first JavaScript base64 wrapper lacked `TextEncoder` and never invoked WSL; the established PowerShell base64 transport ran every cross-host command that appears below.
+
+### Hosted-source progress and audit
+
+The unchanged five-source hosted Toolchain gate remains 4/5 complete:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Parses completely: 65 definitions, 1,012 statements, and 5,981 expressions |
+| `toolchain/cupiddis.c` | Parses completely: 65 definitions, 1,470 statements, and 9,607 expressions |
+| `toolchain/cupidobj.c` | Parses completely: 14 definitions, 289 statements, and 1,984 expressions |
+| `toolchain/cupidc_type.c` | Parses completely: 31 definitions, 737 statements, and 5,487 expressions |
+| `toolchain/cupidld.c` | Consumes both static aggregate tables, then stops at unsupported `goto` on `1826:5`; the identifier label at `2078:1` is next |
+
+The regenerated audit still contains 681 active sources, 39 accounted unreachable source-like files, 251 feature IDs, and 491 transforms. It records 59 `do`, 202 `switch`, 1,515 `case`, 133 `default`, 2,485 `while`, 22,544 `if`, 3,313 `else`, 2,807 `for`, 13,638 `return`, and 1,919 `sizeof` occurrences. The active-source digest is `888da31af054e61e812a5fbb27c0497617314373891e6794358cd7f9ac7ffe9e`.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Aggregate red/green | PASS | The new mode first failed at the old string-address boundary. It now passes public forest shape, exact values and types, brace elision, completed bounds, direct selectors, implicit zeros, precise failures, constrained storage, rollback, ownership, recovery, and the hosted frontier. |
+| Focused frontend suite | PASS | The review-fixed `python -m unittest tests.test_toolchain_cupidc_frontend` run passes all 37 tests in 8.084 seconds. |
+| Active-source audit | PASS | The standalone build-graph suite passes all 49 tests in 344.525 seconds. Final regeneration and `make check-bootstrap-audit` reproduce the counts and digest above without drift. |
+| Windows hosted Toolchain | PASS | The strict Windows Clang suite passes every frontend mode, shared Toolchain contract, and all 22 unchanged assembly demos. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 suites each report 141 successful contract markers. |
+| Sanitizers | PASS | Fresh GCC and Clang suites use address and undefined-behavior sanitizers, frame pointers, leak detection, and halt-on-error behavior. Both report 141 successful contract markers, and their proof binaries retain ASan and UBSan instrumentation. |
+| Static analysis | PASS AFTER HARDENING | GCC `-fanalyzer` and Clang `--analyze` are silent for the frontend and its contract. The four production-and-contract runs return zero in 208 seconds; both contract analyzers remain silent after the review fix in a 35-second parallel rerun. |
+| Formal two-axis review | PASS AFTER COVERAGE FIX | Spec review found no mismatch. Standards review requested direct positive coverage for a named bit-field after unnamed padding. The added selector, type, and payload checks pass, and both follow-up reviews are clean. |
+| Full repository gate | PASS | The review-fixed `make test` runs 279 tests in 455.347 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 493.8 seconds. |
+| Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
