@@ -109,7 +109,8 @@ typedef enum {
   CTOOL_C_STATEMENT_FOR,
   CTOOL_C_STATEMENT_BREAK,
   CTOOL_C_STATEMENT_CONTINUE,
-  CTOOL_C_STATEMENT_IF
+  CTOOL_C_STATEMENT_IF,
+  CTOOL_C_STATEMENT_WHILE
 } ctool_c_statement_kind_t;
 
 typedef struct {
@@ -129,6 +130,7 @@ typedef struct {
   ctool_u32 block_binding_count;
   /* IF: required controlling expression and body statement, plus optional
    * else_body statement. The body statements precede this node.
+   * WHILE: required controlling expression and body statement.
    * FOR: optional EXPRESSION/DECLARATION initializer statement, optional
    * controlling expression, optional iteration expression, and required body
    * statement. Omitted clauses use AST_NONE; an omitted condition denotes

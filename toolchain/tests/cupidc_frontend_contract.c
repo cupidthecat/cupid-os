@@ -4384,14 +4384,14 @@ static int validate_toolchain_frontier(const char *host_root) {
       "/toolchain/ctool.c", "/toolchain/cupiddis.c",
       "/toolchain/cupidld.c", "/toolchain/cupidobj.c",
       "/toolchain/cupidc_type.c"};
-  static const ctool_u32 lines[] = {94u, 30u, 247u, 51u, 102u};
-  static const ctool_u32 columns[] = {5u, 19u, 19u, 32u, 19u};
+  static const ctool_u32 lines[] = {99u, 30u, 247u, 51u, 102u};
+  static const ctool_u32 columns[] = {3u, 19u, 19u, 32u, 19u};
   static const ctool_u32 diagnostic_codes[] = {
       CTOOL_C_PARSE_DIAG_STATEMENT, CTOOL_C_PARSE_DIAG_EXPRESSION,
       CTOOL_C_PARSE_DIAG_EXPRESSION, CTOOL_C_PARSE_DIAG_STATEMENT,
       CTOOL_C_PARSE_DIAG_EXPRESSION};
   static const char *const messages[] = {
-      "statement form is outside this function-body slice",
+      "non-scalar function returns are outside this body slice",
       "non-scalar assignment is outside this function-body slice",
       "non-scalar assignment is outside this function-body slice",
       "aggregate block object initializers are outside this body slice",
@@ -5874,7 +5874,7 @@ static int if_statement_shape(const ctool_c_translation_unit_t *unit,
   return statement->else_body == CTOOL_C_AST_NONE ? 0 : 1;
 }
 
-static int if_condition_terminal_kind(
+static int condition_terminal_kind(
     const ctool_c_translation_unit_t *unit, ctool_u32 statement_index,
     ctool_c_expression_kind_t kind) {
   ctool_u32 expression;
@@ -5935,7 +5935,7 @@ static int validate_if_statement_unit(
       if_statement_shape(unit, array, CTOOL_FALSE) != 0 ||
       if_statement_shape(unit, function, CTOOL_FALSE) != 0 ||
       if_statement_shape(unit, conditional, CTOOL_FALSE) != 0 ||
-      if_condition_terminal_kind(unit, conditional,
+      condition_terminal_kind(unit, conditional,
                                  CTOOL_C_EXPRESSION_CONDITIONAL) != 0) {
     (void)fprintf(stderr, "if-statements: public IF shape differs\n");
     return 1;
@@ -5967,27 +5967,27 @@ static int validate_if_statement_unit(
                   "if-statements: dangling else or else-if binding differs\n");
     return 1;
   }
-  if (if_condition_terminal_kind(unit, choose,
+  if (condition_terminal_kind(unit, choose,
                                  CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
       scalar_conversion_chain_has(unit, unit->statements[choose].condition,
                                   CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
           CTOOL_FALSE ||
-      if_condition_terminal_kind(unit, pointer,
+      condition_terminal_kind(unit, pointer,
                                  CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
       scalar_conversion_chain_has(unit, unit->statements[pointer].condition,
                                   CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
           CTOOL_FALSE ||
-      if_condition_terminal_kind(unit, volatile_value,
+      condition_terminal_kind(unit, volatile_value,
                                  CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
       scalar_conversion_chain_has(
           unit, unit->statements[volatile_value].condition,
           CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_FALSE ||
-      if_condition_terminal_kind(unit, array,
+      condition_terminal_kind(unit, array,
                                  CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
       scalar_conversion_chain_has(unit, unit->statements[array].condition,
                                   CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
           CTOOL_FALSE ||
-      if_condition_terminal_kind(unit, function,
+      condition_terminal_kind(unit, function,
                                  CTOOL_C_EXPRESSION_IDENTIFIER) != 0 ||
       scalar_conversion_chain_has(unit, unit->statements[function].condition,
                                   CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
@@ -6034,6 +6034,286 @@ static int validate_if_statement_unit(
     return 1;
   }
   return 0;
+}
+
+static int validate_while_statement_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_statement_kind_t expected_kinds[] = {
+      CTOOL_C_STATEMENT_DECLARATION, CTOOL_C_STATEMENT_DECLARATION,
+      CTOOL_C_STATEMENT_EXPRESSION,  CTOOL_C_STATEMENT_CONTINUE,
+      CTOOL_C_STATEMENT_COMPOUND,    CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_BREAK,       CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_BREAK,       CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_BREAK,       CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_BREAK,       CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_EXPRESSION,  CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_COMPOUND,    CTOOL_C_STATEMENT_CONTINUE,
+      CTOOL_C_STATEMENT_COMPOUND,    CTOOL_C_STATEMENT_WHILE,
+      CTOOL_C_STATEMENT_BREAK,       CTOOL_C_STATEMENT_COMPOUND,
+      CTOOL_C_STATEMENT_WHILE,       CTOOL_C_STATEMENT_COMPOUND};
+  static const ctool_u32 expected_children[] = {
+      2u, 3u, 0u, 1u, 5u, 7u, 9u, 11u, 13u, 15u, 17u, 19u, 20u, 22u};
+  static const struct {
+    ctool_u32 loop;
+    ctool_u32 body;
+  } loop_shapes[] = {{5u, 4u},   {7u, 6u},   {9u, 8u},  {11u, 10u},
+                     {13u, 12u}, {15u, 14u}, {22u, 21u}};
+  ctool_u32 terminal;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 index;
+  if ((ctool_u32)CTOOL_C_STATEMENT_WHILE != 9u ||
+      unit->function_definition_count != 2u || unit->binding_count != 3u ||
+      unit->block_binding_count != 2u ||
+      unit->statement_count != ARRAY_COUNT(expected_kinds) ||
+      unit->statement_child_count != ARRAY_COUNT(expected_children) ||
+      unit->expression_count != 24u || unit->expression_child_count != 14u ||
+      unit->function_definitions[0].body != 16u ||
+      unit->function_definitions[1].body != 23u ||
+      unit->statements[16].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[16].first_child != 2u ||
+      unit->statements[16].child_count != 8u ||
+      unit->statements[23].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[23].first_child != 13u ||
+      unit->statements[23].child_count != 1u ||
+      !string_equal(unit->block_bindings[0].name, "keep") ||
+      !string_equal(unit->block_bindings[1].name, "values")) {
+    (void)fprintf(stderr, "while-statements: public inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(expected_kinds); index++) {
+    if (unit->statements[index].kind != expected_kinds[index] ||
+        !string_equal(unit->statements[index].location.path,
+                      "/while-statements.c") ||
+        !string_equal(unit->statements[index].physical_location.path,
+                      "/while-statements.c")) {
+      (void)fprintf(stderr, "while-statements: statement %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(expected_children); index++) {
+    if (unit->statement_children[index] != expected_children[index]) {
+      (void)fprintf(stderr, "while-statements: child %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(loop_shapes); index++) {
+    const ctool_c_statement_t *statement =
+        &unit->statements[loop_shapes[index].loop];
+    if (statement->condition >= unit->expression_count ||
+        statement->body != loop_shapes[index].body ||
+        statement->body >= loop_shapes[index].loop ||
+        statement->first_child != CTOOL_C_AST_NONE ||
+        statement->child_count != 0u ||
+        statement->expression != CTOOL_C_AST_NONE ||
+        statement->first_block_binding != CTOOL_C_AST_NONE ||
+        statement->block_binding_count != 0u ||
+        statement->initializer_statement != CTOOL_C_AST_NONE ||
+        statement->iteration != CTOOL_C_AST_NONE ||
+        statement->else_body != CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr, "while-statements: loop %u differs\n", index);
+      return 1;
+    }
+  }
+  if (condition_terminal_kind(unit, 5u,
+                                 CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      condition_terminal_kind(unit, 7u,
+                                 CTOOL_C_EXPRESSION_PARAMETER) != 0 ||
+      condition_terminal_kind(unit, 9u,
+                                 CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
+      condition_terminal_kind(unit, 11u,
+                                 CTOOL_C_EXPRESSION_BLOCK_BINDING) != 0 ||
+      condition_terminal_kind(unit, 13u,
+                                 CTOOL_C_EXPRESSION_IDENTIFIER) != 0 ||
+      condition_terminal_kind(unit, 15u,
+                                 CTOOL_C_EXPRESSION_CONDITIONAL) != 0 ||
+      scalar_conversion_chain_has(unit, unit->statements[5].condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      scalar_conversion_chain_has(unit, unit->statements[7].condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      scalar_conversion_chain_has(unit, unit->statements[9].condition,
+                                  CTOOL_C_CONVERSION_LVALUE_TO_VALUE) ==
+          CTOOL_FALSE ||
+      scalar_conversion_chain_has(unit, unit->statements[11].condition,
+                                  CTOOL_C_CONVERSION_ARRAY_TO_POINTER) ==
+          CTOOL_FALSE ||
+      scalar_conversion_chain_has(unit, unit->statements[13].condition,
+                                  CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) ==
+          CTOOL_FALSE) {
+    (void)fprintf(stderr, "while-statements: condition conversions differ\n");
+    return 1;
+  }
+  terminal = scalar_unwrap_conversions(unit, unit->statements[9].condition);
+  if (terminal >= unit->expression_count ||
+      scalar_type_kind(unit, unit->expressions[terminal].type, &qualifiers) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      (qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
+      scalar_type_kind(unit,
+                       unit->expressions[unit->statements[9].condition].type,
+                       &qualifiers) != CTOOL_C_TYPE_SIGNED_INT ||
+      qualifiers != 0u ||
+      unit->statements[2].expression >= unit->expression_count ||
+      unit->expressions[unit->statements[2].expression].kind !=
+          CTOOL_C_EXPRESSION_UPDATE ||
+      unit->expressions[unit->statements[2].expression].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT ||
+      unit->statements[4].first_child != 0u ||
+      unit->statements[4].child_count != 2u ||
+      unit->statements[18].first_child != 10u ||
+      unit->statements[18].child_count != 1u ||
+      unit->statements[21].first_child != 11u ||
+      unit->statements[21].child_count != 2u ||
+      unit->statements[14].expression != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "while-statements: loop bodies differ\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_while_statements(const char *host_root) {
+  static const char source[] =
+      "int observe(int value);\n"
+      "void while_forms(int value, int *pointer) {\n"
+      "  volatile int keep = 1;\n"
+      "  int values[1];\n"
+      "  while (value) { value--; continue; }\n"
+      "  while (pointer) break;\n"
+      "  while (keep) break;\n"
+      "  while (values) break;\n"
+      "  while (observe) break;\n"
+      "  while (value ? pointer : pointer) ;\n"
+      "}\n"
+      "void nested_while(int outer, int inner) {\n"
+      "  while (outer) {\n"
+      "    while (inner) { continue; }\n"
+      "    break;\n"
+      "  }\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"aggregate controlling expression",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t value;\n"
+        "  while (value) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       4u, 10u, "controlling expression requires scalar type"},
+      {{"void controlling expression",
+        "void sink(void);\n"
+        "void bad(void) {\n"
+        "  while (sink()) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "controlling expression requires scalar type"},
+      {{"floating controlling expression",
+        "void bad(double value) {\n"
+        "  while (value) { }\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 10u,
+       "floating controlling expressions are outside this body slice"},
+      {{"declaration is not a while body",
+        "void bad(void) {\n"
+        "  while (1) int value;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 13u, "declaration is not a statement; use a compound statement"},
+      {{"missing while opening parenthesis",
+        "void bad(int value) {\n"
+        "  while value) ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 9u, "while statement requires an opening parenthesis"},
+      {{"missing while condition",
+        "void bad(void) {\n"
+        "  while () ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 10u, "while controlling expression is required"},
+      {{"missing while closing parenthesis",
+        "void bad(int value) {\n"
+        "  while (value ;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 16u,
+       "while controlling expression requires a closing parenthesis"},
+      {{"missing while body",
+        "void bad(void) {\n"
+        "  while (1)\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 1u, "while statement requires a body"},
+      {{"missing while body at end of file",
+        "void bad(void) { while (1)",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "while statement requires a body"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  char *depth_source = NULL;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "while-statements", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/while-statements.c", source, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  if (validate_while_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/while-statement-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_while_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_nested_statement_depth_source(
+      256u, 14u, "void deep(int value) { ", "while (value) ");
+  if (depth_source == NULL) {
+    (void)fprintf(stderr, "while-statements: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "nested while statement limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/while-statement-depth.c", 1u, 3594u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        validate_while_statement_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_statement_storage_limit(&fixture, host_root, "while",
+                                       "while (1) ;") != 0 ||
+      validate_while_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  if (validate_toolchain_frontier(host_root) != 0 ||
+      validate_while_statement_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("while-statements: ok\n");
+  }
+  return failed;
 }
 
 static const ctool_c_statement_t *scalar_return_statement(
@@ -9748,9 +10028,9 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   if (unit->binding_count != 2u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
       unit->block_binding_count != 1u ||
-      unit->function_definition_count != 1u || unit->statement_count != 9u ||
-      unit->statement_child_count != 5u || unit->expression_count != 11u ||
-      unit->expression_child_count != 8u ||
+      unit->function_definition_count != 1u || unit->statement_count != 11u ||
+      unit->statement_child_count != 6u || unit->expression_count != 13u ||
+      unit->expression_child_count != 9u ||
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
                              &binding->physical_location, "/borrowed.c", 3u) ||
@@ -9818,8 +10098,20 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
           CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
       unit->expressions[unit->statements[6].condition].conversion !=
           CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
-      unit->statements[7].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[7].kind != CTOOL_C_STATEMENT_EXPRESSION ||
       unit->statements[7].expression != CTOOL_C_AST_NONE ||
+      unit->statements[8].kind != CTOOL_C_STATEMENT_WHILE ||
+      unit->statements[8].condition >= unit->expression_count ||
+      unit->statements[8].body != 7u ||
+      unit->expressions[unit->statements[8].condition].kind !=
+          CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      unit->expressions[unit->statements[8].condition].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !dual_location_matches(&unit->statements[8].location,
+                             &unit->statements[8].physical_location,
+                             "/borrowed.c", 8u) ||
+      unit->statements[9].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[9].expression != CTOOL_C_AST_NONE ||
       literal == NULL || literal->string_bytes.size != 7u ||
       literal->string_bytes.data == NULL ||
       memcmp(literal->string_bytes.data, "owned\n\0", 7u) != 0 ||
@@ -9860,6 +10152,7 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "  owned_sink(\"owned\\n\");\n"
       "  for (;;) break;\n"
       "  if (owned_local) ; else ;\n"
+      "  while (owned_local) ;\n"
       "  return;\n"
       "}\n";
   ctool_c_pp_result_t original;
@@ -10274,7 +10567,7 @@ static int run_boundaries(const char *host_root) {
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
   static const frontend_failure_case_t body = {
       "control statement boundary",
-      "int boundary_function(void) { while (1) return 0; }\n",
+      "int boundary_function(void) { switch (1) return 0; }\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT};
   static const frontend_failure_case_t exe = {
       "Cupid #exe boundary", "#exe { }\n", CTOOL_ERR_UNSUPPORTED,
@@ -12484,7 +12777,7 @@ int main(int argc, char **argv) {
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
                    "scalar-returns|conditional-expressions|for-statements|"
-                   "if-statements|"
+                   "if-statements|while-statements|"
                    "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
@@ -12527,6 +12820,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "if-statements") == 0) {
     return run_if_statements(argv[2]);
+  }
+  if (strcmp(argv[1], "while-statements") == 0) {
+    return run_while_statements(argv[2]);
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);

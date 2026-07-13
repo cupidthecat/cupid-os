@@ -1814,3 +1814,47 @@ The exact strict hosted-source gate still has zero complete files. `ctool.c` pas
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, or runtime behavior. |
 
 This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for full null-pointer conversion, floating and aggregate-valued expressions, comma expressions, aggregate and nonautomatic initialization, remaining control and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment alone.
+
+## 2026-07-12: CupidC typed while statements
+
+### Decision and representation
+
+The shared `ctool_c_parse` operation represents typed C11 `while` statements for the current scalar-expression subset. `CTOOL_C_STATEMENT_WHILE` is public statement kind 9, appended after the existing kinds so their numeric values remain stable. Each node retains a required scalar controlling expression after ordinary lvalue, array, or function conversion and a required body that precedes the loop in statement postorder. The parser enters both breakable and iteration contexts only while parsing that body. `break` and `continue` remain targetless leaves for later lowering.
+
+Integer and pointer controls are represented. A floating control is valid C but remains a deferred feature until floating conversions exist. Aggregate and `void` controls fail their C constraints. A direct declaration cannot serve as a loop body without a compound statement. Missing parentheses, conditions, and bodies have statement-specific diagnostics. The public freeze validates every `WHILE` condition and body reference before publication.
+
+No user decision was needed for this slice. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25), ADR 0014, and the active-source audit already fix the public parser seam, target semantics, migration order, and fail-closed policy.
+
+### Contract and source frontier
+
+The focused contract covers integer, pointer, volatile lvalue, array, function, and conditional-expression controls. It pins exact statement and child inventories, the postfix decrement inside a compound body, null bodies, nested loops, `break`, `continue`, dual locations, and borrowed-tape ownership. Nine exact failures cover aggregate, `void`, and floating controls, a direct declaration body, missing delimiters or condition, and missing bodies at a closing brace or end of file. The 256-level syntax case and constrained-output case prove zero failed output, exact arena and tape rollback, earlier-unit survival, and same-job recovery.
+
+The new mode first failed at `/while-statements.c:2:3` with the old unsupported-statement diagnostic. The first general implementation made that tracer green. A negative tracer then exposed `while ()` as an unsupported expression; the final parser reports the invalid missing condition directly.
+
+The strict five-source hosted gate remains 0/5 complete. Unchanged `ctool.c` passes its first `while` loop and stops at aggregate return on `99:3`. `cupiddis.c` stops at aggregate assignment on `30:19`, `cupidld.c` on `247:19`, `cupidobj.c` at aggregate initialization on `51:32`, and `cupidc_type.c` at an aggregate-valued conditional on `102:19`. A read-ahead prediction that `ctool.c` would next reach `switch` was discarded after the exact public contract found the earlier aggregate return.
+
+The final generated audit still contains 681 active sources, 39 unreachable source-like files, 251 feature IDs, and 491 transforms. It records 2,479 `while`, 22,142 `if`, 3,278 `else`, 2,773 `for`, 13,382 `return`, and 1,896 `sizeof` occurrences. The SHA-256 digest of `active-build.json` is `13dff14205f2ea6782c7d68a0d9f03c4f05ee4b403b4b90d37771bef89643f77`.
+
+### Failed approaches and review corrections
+
+- The first GCC sanitizer command lost every flag after `-std=c11` at the PowerShell-to-WSL boundary and only built default binaries. It is invalid evidence. Fresh GCC and Clang directories used space-escaped environment assignments; their compile and link lines visibly retain address and undefined-behavior sanitizers plus frame pointers.
+- The first combined frontend and audit run found a stale `sizeof` drift oracle after audit regeneration. The exact expectation changed from 1,895 to 1,896. A corrected rerun then exceeded a six-minute command ceiling without reporting a test failure; a final run with a longer ceiling passed.
+- Contract review found uninspected compound children, unsafe nested-child indexing, weak earlier-result checks, and no `WHILE` borrowed-tape oracle. Exact inventory validation, safe bounds, full-unit revalidation after every failure, and ownership coverage close those gaps. Semantic review found no parser or freeze defect. It also found stale audit drift counts, which now match the regenerated manifest.
+
+### Final verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| While red/green | PASS | The new mode failed first at the old unsupported-statement boundary. The final mode passes typed postorder, conversions, nine exact failures, the 256-level syntax limit, constrained output, rollback, ownership, and recovery. |
+| Focused frontend suite | PASS | The final `python -m unittest tests.test_toolchain_cupidc_frontend` rerun passes all 30 tests in 7.061 seconds. |
+| Frontend plus audit tests | PASS AFTER DRIFT CORRECTION | `python -m unittest tests.test_toolchain_cupidc_frontend tests.test_build_graph_audit` passes all 79 tests in 309.779 seconds. |
+| Active-source audit | PASS AFTER FINAL REGENERATION | `make bootstrap-audit` writes the final manifest and summary. `make check-bootstrap-audit` reproduces both checked outputs in 35.7 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the strict Windows Clang suite in 11.6 seconds, including all 25 frontend modes and the existing core, CupidC, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts. |
+| WSL cross-host Toolchain | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete Toolchain suite with all 25 frontend modes in 67.2 and 62.6 seconds. |
+| Sanitizers | PASS AFTER INVALID FIRST INVOCATION | Corrected fresh GCC and Clang builds visibly retain `-fsanitize=address,undefined` and `-fno-omit-frame-pointer`. Both complete Toolchain suites pass with leak detection and halt-on-error enabled in 114.1 and 141.3 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` complete cleanly for the modified frontend and contract in 177.3 and 59.8 seconds. |
+| Formal two-axis review | PASS FOR THIS SLICE; TICKET PARTIAL | Standards review found diff-anchored reference prose, an `if`-specific helper name, and parallel loop/body arrays. Those findings are corrected. Spec review found no incorrect implementation or scope creep in this slice, but confirmed that floating and comma controls plus ABI/oracle execution remain open ticket work. |
+| Full repository gate | PASS BEFORE REVIEW CLEANUP | `make test` runs 272 tests in 406.605 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 440 seconds. The later review cleanup changes reference prose and contract expectation organization; the final focused suite and audit replay pass afterward. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, or runtime behavior. |
+
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate and nonautomatic initialization, floating and null-pointer semantics, comma and aggregate-valued expressions, the remaining control and ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
