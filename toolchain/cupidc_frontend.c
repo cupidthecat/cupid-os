@@ -174,7 +174,7 @@ typedef struct {
   cfront_vector_t prototype_binding_marks;
   cfront_vector_t prototype_name_marks;
   cfront_vector_t enum_binding_copies;
-  cfront_vector_t flexible_seen;
+  cfront_vector_t type_walk_seen;
   cfront_vector_t function_definitions;
   cfront_vector_t block_bindings;
   cfront_vector_t active_block_binding_indices;
@@ -483,7 +483,7 @@ static void cfront_close_scratch(cfront_context_t *context) {
   cfront_vector_close(&context->active_block_binding_indices);
   cfront_vector_close(&context->block_bindings);
   cfront_vector_close(&context->function_definitions);
-  cfront_vector_close(&context->flexible_seen);
+  cfront_vector_close(&context->type_walk_seen);
   cfront_vector_close(&context->enum_binding_copies);
   cfront_vector_close(&context->prototype_name_marks);
   cfront_vector_close(&context->prototype_binding_marks);
@@ -524,7 +524,7 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(prototype_binding_marks, ctool_u32)
   CFRONT_OPEN_VECTOR(prototype_name_marks, ctool_u32)
   CFRONT_OPEN_VECTOR(enum_binding_copies, ctool_c_binding_t)
-  CFRONT_OPEN_VECTOR(flexible_seen, ctool_u8)
+  CFRONT_OPEN_VECTOR(type_walk_seen, ctool_u8)
   CFRONT_OPEN_VECTOR(function_definitions, ctool_c_function_definition_t)
   CFRONT_OPEN_VECTOR(block_bindings, ctool_c_block_binding_t)
   CFRONT_OPEN_VECTOR(active_block_binding_indices, ctool_u32)
@@ -896,10 +896,16 @@ static ctool_status_t cfront_type_is_complete_object_now(
   }
 }
 
-static ctool_status_t cfront_type_contains_flexible_array(
-    cfront_context_t *context, ctool_u32 type, ctool_bool *contains_out) {
+typedef enum {
+  CFRONT_TYPE_PROPERTY_FLEXIBLE_ARRAY = 0,
+  CFRONT_TYPE_PROPERTY_NONMODIFIABLE
+} cfront_type_property_t;
+
+static ctool_status_t cfront_type_contains_property(
+    cfront_context_t *context, ctool_u32 type,
+    cfront_type_property_t property, ctool_bool *contains_out) {
   ctool_u32 stack_mark = cfront_vector_mark(&context->temporary_indices);
-  ctool_u32 seen_mark = cfront_vector_mark(&context->flexible_seen);
+  ctool_u32 seen_mark = cfront_vector_mark(&context->type_walk_seen);
   ctool_u32 work_budget;
   ctool_u32 index;
   ctool_u8 unseen = 0u;
@@ -912,7 +918,7 @@ static ctool_status_t cfront_type_contains_flexible_array(
   work_budget = context->types.count + context->members.count + 1u;
   for (index = 0u; status == CTOOL_OK && index < context->types.count;
        index++) {
-    status = cfront_vector_append(&context->flexible_seen, &unseen,
+    status = cfront_vector_append(&context->type_walk_seen, &unseen,
                                   (ctool_u32 *)0);
   }
   if (status == CTOOL_OK) {
@@ -925,6 +931,7 @@ static ctool_status_t cfront_type_contains_flexible_array(
     ctool_u32 base;
     ctool_u32 qualifiers;
     ctool_c_type_node_t node;
+    ctool_u8 seen;
     if (work_budget == 0u) {
       status = CTOOL_ERR_INTERNAL;
       break;
@@ -941,41 +948,49 @@ static ctool_status_t cfront_type_contains_flexible_array(
       status = cfront_underlying_type(context, current, &base, &qualifiers,
                                       &node);
     }
-    (void)base;
-    (void)qualifiers;
     if (status != CTOOL_OK) {
       break;
     }
-    {
-      ctool_u8 seen;
-      status = cfront_vector_get(&context->flexible_seen, base, &seen);
-      if (status != CTOOL_OK) {
-        break;
-      }
-      if (seen != 0u) {
-        continue;
-      }
-      status = ctool_buffer_patch_u8(context->flexible_seen.storage,
-                                     base, 1u);
-      if (status != CTOOL_OK) {
-        break;
-      }
+    qualifiers |= node.qualifiers;
+    if (property == CFRONT_TYPE_PROPERTY_NONMODIFIABLE &&
+        (qualifiers & CTOOL_C_QUAL_CONST) != 0u) {
+      *contains_out = CTOOL_TRUE;
+      break;
+    }
+    status = cfront_vector_get(&context->type_walk_seen, base, &seen);
+    if (status != CTOOL_OK) {
+      break;
+    }
+    if (seen != 0u) {
+      continue;
+    }
+    status = ctool_buffer_patch_u8(context->type_walk_seen.storage, base,
+                                   1u);
+    if (status != CTOOL_OK) {
+      break;
     }
     if (node.kind == CTOOL_C_TYPE_POINTER ||
         node.kind == CTOOL_C_TYPE_FUNCTION) {
       continue;
     }
     if (node.kind == CTOOL_C_TYPE_ARRAY) {
-      if (node.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
+      if (property == CFRONT_TYPE_PROPERTY_FLEXIBLE_ARRAY &&
+          node.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
         *contains_out = CTOOL_TRUE;
         break;
       }
       status = cfront_vector_append(&context->temporary_indices,
                                     &node.referenced_type,
                                     (ctool_u32 *)0);
-    } else if (node.kind == CTOOL_C_TYPE_RECORD &&
-               node.record_complete == CTOOL_TRUE) {
+    } else if (node.kind == CTOOL_C_TYPE_RECORD) {
       ctool_u32 member_offset;
+      if (node.record_complete == CTOOL_FALSE) {
+        if (property == CFRONT_TYPE_PROPERTY_NONMODIFIABLE) {
+          *contains_out = CTOOL_TRUE;
+          break;
+        }
+        continue;
+      }
       for (member_offset = 0u;
            status == CTOOL_OK && member_offset < node.member_count;
            member_offset++) {
@@ -999,10 +1014,29 @@ static ctool_status_t cfront_type_contains_flexible_array(
   }
   {
     ctool_status_t rewind_status =
-        cfront_vector_rewind(&context->flexible_seen, seen_mark);
+        cfront_vector_rewind(&context->type_walk_seen, seen_mark);
     if (status == CTOOL_OK && rewind_status != CTOOL_OK) {
       status = rewind_status;
     }
+  }
+  return status;
+}
+
+static ctool_status_t cfront_type_contains_flexible_array(
+    cfront_context_t *context, ctool_u32 type, ctool_bool *contains_out) {
+  return cfront_type_contains_property(
+      context, type, CFRONT_TYPE_PROPERTY_FLEXIBLE_ARRAY, contains_out);
+}
+
+static ctool_status_t cfront_type_is_modifiable_object(
+    cfront_context_t *context, ctool_u32 type,
+    ctool_bool *modifiable_out) {
+  ctool_bool nonmodifiable = CTOOL_FALSE;
+  ctool_status_t status = cfront_type_contains_property(
+      context, type, CFRONT_TYPE_PROPERTY_NONMODIFIABLE, &nonmodifiable);
+  if (status == CTOOL_OK) {
+    *modifiable_out = nonmodifiable == CTOOL_TRUE ? CTOOL_FALSE
+                                                   : CTOOL_TRUE;
   }
   return status;
 }
@@ -6726,6 +6760,8 @@ static ctool_status_t cfront_apply_assignment_conversion(
   ctool_bool source_is_integer = CTOOL_FALSE;
   ctool_bool target_is_floating = CTOOL_FALSE;
   ctool_bool source_is_floating = CTOOL_FALSE;
+  ctool_bool target_is_complete = CTOOL_FALSE;
+  ctool_bool source_is_complete = CTOOL_FALSE;
   ctool_bool same = CTOOL_FALSE;
   ctool_bool compatible = CTOOL_FALSE;
   ctool_status_t status = cfront_apply_default_conversion(context, value);
@@ -6747,6 +6783,21 @@ static ctool_status_t cfront_apply_assignment_conversion(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         source_token,
         "floating assignment conversions are outside this body slice");
+  }
+  status = cfront_type_is_complete_object_now(
+      context, target_type, &target_is_complete);
+  if (status == CTOOL_OK) {
+    status = cfront_type_is_complete_object_now(
+        context, value->type, &source_is_complete);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (target_is_complete == CTOOL_FALSE ||
+      source_is_complete == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        source_token, failure_message);
   }
   status = cfront_types_same(context, target_type, value->type, &same);
   if (status != CTOOL_OK) {
@@ -7649,6 +7700,8 @@ static ctool_status_t cfront_prepare_conditional_result(
   ctool_u32 nonzero_qualifiers;
   ctool_u32 zero_qualifiers;
   ctool_bool same = CTOOL_FALSE;
+  ctool_bool nonzero_complete = CTOOL_FALSE;
+  ctool_bool zero_complete = CTOOL_FALSE;
   ctool_status_t status = cfront_classify_scalar_value(
       context, when_nonzero, &nonzero_kind);
   if (status == CTOOL_OK) {
@@ -7721,17 +7774,34 @@ static ctool_status_t cfront_prepare_conditional_result(
   }
   if (nonzero_node.kind == CTOOL_C_TYPE_RECORD &&
       zero_node.kind == CTOOL_C_TYPE_RECORD) {
+    status = cfront_type_is_complete_object_now(
+        context, when_nonzero->type, &nonzero_complete);
+    if (status == CTOOL_OK) {
+      status = cfront_type_is_complete_object_now(
+          context, when_zero->type, &zero_complete);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (nonzero_complete == CTOOL_FALSE || zero_complete == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "conditional aggregate operands require complete record types");
+    }
     status = cfront_types_same(context, when_nonzero->type, when_zero->type,
                                &same);
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
+    if (same == CTOOL_TRUE) {
+      *type_out = when_nonzero->type;
+      return CTOOL_OK;
+    }
     return cfront_emit_failure(
-        context, same == CTOOL_TRUE ? CTOOL_ERR_UNSUPPORTED : CTOOL_ERR_INPUT,
-        CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-        same == CTOOL_TRUE
-            ? "aggregate conditional values are outside this body slice"
-            : "conditional aggregate operands must have the same record type");
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "conditional aggregate operands must have the same record type");
   }
   return cfront_emit_failure(
       context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
@@ -8730,6 +8800,7 @@ static ctool_status_t cfront_validate_assignment_target(
   cfront_integer_type_t integer;
   ctool_c_type_node_t node;
   ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool modifiable = CTOOL_TRUE;
   ctool_u32 base;
   ctool_u32 qualifiers;
   ctool_status_t status;
@@ -8782,10 +8853,22 @@ static ctool_status_t cfront_validate_assignment_target(
           operator_token,
           "compound assignment requires an arithmetic or pointer left operand");
     }
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "non-scalar assignment is outside this function-body slice");
+    if (node.kind != CTOOL_C_TYPE_RECORD) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token,
+          "non-scalar assignment is outside this function-body slice");
+    }
+    status = cfront_type_is_modifiable_object(context, left->type,
+                                               &modifiable);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (modifiable == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "assignment requires a modifiable lvalue");
+    }
   }
   status = cfront_unqualified_type_preserving_alignments(
       context, left->type, result_type_out);
@@ -9238,7 +9321,7 @@ static ctool_bool cfront_body_starts_gnu_assembly(
              : CTOOL_FALSE;
 }
 
-static ctool_status_t cfront_parse_scalar_initializer(
+static ctool_status_t cfront_parse_block_initializer(
     cfront_context_t *context, ctool_u32 object_type,
     const ctool_c_pp_token_t *initializer_token,
     ctool_u32 *expression_out) {
@@ -9251,6 +9334,7 @@ static ctool_status_t cfront_parse_scalar_initializer(
   const ctool_c_pp_token_t *value_token;
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_bool is_floating = CTOOL_FALSE;
+  ctool_bool is_aggregate = CTOOL_FALSE;
   ctool_status_t status = cfront_underlying_type(
       context, object_type, &base, &qualifiers, &node);
   (void)base;
@@ -9266,12 +9350,21 @@ static ctool_status_t cfront_parse_scalar_initializer(
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
+  is_aggregate = node.kind == CTOOL_C_TYPE_RECORD ? CTOOL_TRUE
+                                                   : CTOOL_FALSE;
   if (is_integer == CTOOL_FALSE && is_floating == CTOOL_FALSE &&
-      node.kind != CTOOL_C_TYPE_POINTER) {
+      node.kind != CTOOL_C_TYPE_POINTER && is_aggregate == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         initializer_token,
         "aggregate block object initializers are outside this body slice");
+  }
+  if (is_aggregate == CTOOL_TRUE &&
+      cfront_peek_is(context, "{") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "aggregate initializer lists are outside this body slice");
   }
   if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *open = cfront_advance(context);
@@ -9287,7 +9380,7 @@ static ctool_status_t cfront_parse_scalar_initializer(
           "scalar initializer list requires one expression");
     }
     if (status == CTOOL_OK) {
-      status = cfront_parse_scalar_initializer(
+      status = cfront_parse_block_initializer(
           context, object_type, open, &nested);
     }
     if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
@@ -9467,7 +9560,7 @@ static ctool_status_t cfront_parse_block_declaration(
       }
       cfront_prepare_pending_block_binding(context, &block_binding);
       initializer_token = cfront_advance(context);
-      status = cfront_parse_scalar_initializer(
+      status = cfront_parse_block_initializer(
           context, type, initializer_token,
           &block_binding.initializer);
       cfront_clear_pending_block_binding(context);
@@ -9945,7 +10038,8 @@ static ctool_status_t cfront_parse_return_statement(
       return cfront_storage_failure(context, status);
     }
     if (result_is_integer == CTOOL_FALSE &&
-        result.kind != CTOOL_C_TYPE_POINTER) {
+        result.kind != CTOOL_C_TYPE_POINTER &&
+        result.kind != CTOOL_C_TYPE_RECORD) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           return_token,

@@ -324,6 +324,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-initializers ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-returns ..
 	$(CUPIDC_FRONTEND_CONTRACT) conditional-expressions ..
+	$(CUPIDC_FRONTEND_CONTRACT) aggregate-values ..
 	$(CUPIDC_FRONTEND_CONTRACT) for-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) if-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) while-statements ..

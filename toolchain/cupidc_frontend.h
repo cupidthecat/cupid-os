@@ -92,8 +92,8 @@ typedef struct {
   /* Block-scope declarations retain their source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
-  /* Scalar automatic initialization retains its converted value expression.
-   * Uninitialized objects use AST_NONE. */
+  /* Automatic initialization retains its converted scalar or compatible
+   * aggregate value expression. Uninitialized objects use AST_NONE. */
   ctool_u32 initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -339,17 +339,19 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * semantic types constructed by their type names remain in the immutable
  * graph. The initial body AST retains definition-local storage, `inline`, and
  * parameter storage, and represents compound, expression, declaration,
- * scalar return, `if`/`else`, counted `for`, `break`, and `continue`
+ * scalar or aggregate return, `if`/`else`, counted `for`, `while`, `break`,
+ * and `continue`
  * statements; automatic/register block-object bindings with
- * optional converted scalar initializer roots;
+ * optional converted scalar or compatible aggregate expression initializer
+ * roots;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
  * folded non-VLA layout queries, every integer unary and binary precedence
  * tier, pointer addition/subtraction and normalized subscripting with primary
  * or C11 digraph brackets, simple and compound assignment, prefix/postfix
-   * increment/decrement, right-associative C11 conditional values,
-   * fixed-argument prototyped calls; and explicit lvalue,
+ * increment/decrement, right-associative C11 conditional values including
+ * same-record results, fixed-argument prototyped calls; and explicit lvalue,
  * array, function, qualification, integer promotion, usual-arithmetic, and
  * assignment conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
@@ -357,9 +359,10 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * conversion removes top-level const, volatile, and atomic qualification while
  * retaining the qualified source node. Definition parameter metadata retains
  * its adjusted qualified object type separately from normalized function-type
- * parameters. Calls currently accept represented scalar assignment
- * conversions or pointer qualification addition; extra variadic arguments
- * fail closed until default argument promotions are represented. Runtime
+ * parameters. Calls currently accept represented scalar or compatible
+ * aggregate assignment conversions and pointer qualification addition; extra
+ * variadic arguments fail closed until default argument promotions are
+ * represented. Runtime
  * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Valid floating arithmetic compounds and updates remain explicit
@@ -374,12 +377,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, static/extern objects,
  * function declarations, block tag specifiers, attributes, aggregate
- * initializers, and static assertions remain explicit body boundaries.
+ * initializer lists, and static assertions remain explicit body boundaries.
  * File-scope and static-duration object initializers remain pending. Control
- * statements other than `return`, `if`, `for`, `break`, and `continue`,
+ * statements other than `return`, `if`, `for`, `while`, `break`, and
+ * `continue`,
  * comma expressions, pointer null-pointer-constant conversions,
- * aggregate-valued conditional expressions, floating arithmetic and
- * non-void conversions, universal-character/non-ordinary literals, calls without
+ * floating arithmetic and non-void conversions,
+ * universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than
  * skipped. Tentative-definition state/finalization is not yet published, so

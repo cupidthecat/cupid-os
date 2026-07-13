@@ -1858,3 +1858,55 @@ The final generated audit still contains 681 active sources, 39 unreachable sour
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, or runtime behavior. |
 
 This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate and nonautomatic initialization, floating and null-pointer semantics, comma and aggregate-valued expressions, the remaining control and ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-12: CupidC compatible aggregate value flow
+
+### Representation and constraints
+
+The shared `ctool_c_parse` frontend now carries compatible structure and union values through plain assignment, function return, automatic expression initialization, fixed arguments, and matching-record conditional expressions. The implementation uses the existing assignment, call, conditional, implicit-conversion, block-binding, and return records. Aggregate lvalues receive ordinary lvalue conversion before use as values. Every converted aggregate source and destination must be a complete object type. Assignment and conditional results remain non-lvalues, and plain assignment retains one raw destination designator for later lowering.
+
+Record assignment enforces C11's full modifiable-lvalue rule. The destination must be complete and cannot contain a direct or recursively nested `const` member or array element. Flexible-array and modifiability checks now share one iterative property walk with visited logical type IDs and a checked `types + members + 1` work budget. The walk does not follow pointers. Initialization and return of a record with `const` members remain legal because they do not modify an existing object. Aggregate initializer lists remain an explicit unsupported boundary.
+
+No new public AST kind was needed. The existing assignment-conversion seam already accepted compatible record types after the former scalar-only checks were removed. Matching record arms use their common type in `CTOOL_C_EXPRESSION_CONDITIONAL`; incompatible record arms fail at `?`. A whole-object automatic initializer retains the converted expression on its public block binding, including call-valued initializers such as the unchanged `ctool_string_t prefix_string = ctool_string(prefix);` in `cupidobj.c`.
+
+### Red-to-green sequence and corrections
+
+- The first aggregate return tracer failed at `/aggregate-values.c:2:44` with the former non-scalar return boundary. After it passed, separate assignment, conditional, and automatic-initializer tracers failed at their respective old boundaries before each implementation step made them green.
+- The initial plain-record assignment change admitted every record. A red assignment to a structure with a `const` member exposed the missing modifiable-lvalue rule. The final bounded walk covers direct `const`, nested records, const arrays, unions, and incomplete records. Positive cases prove that return and initialization of the same const-containing types remain valid.
+- The contract also covers structures and unions, lvalue and call values, chained assignment, volatile destinations, fixed aggregate arguments, incompatible assignment, return, initialization, and call arguments, incomplete call and conditional values, mismatched conditional arms, non-lvalue results, the initializer-list boundary, constrained output, exact rollback, tape immutability, prior-unit survival, and same-job recovery.
+- Semantic review found that the first contract did not prove volatile result qualification, pointer-to-const members, flexible-array members, or per-query scratch rewind. Exact AST checks now retain volatile on the raw destination while producing an unqualified assignment result. A pointer-to-const member remains assignable, an ordinary flexible-array member remains assignable, and a const flexible-array member makes its record nonmodifiable. The first large-record fixture drained its temporary stack normally and did not prove either final rewind, so that claim was discarded. Its replacement introduces 600 distinct pointer types, then parses a 240-link aggregate assignment chain under a measured 128 KiB output ceiling. Disabling visited-type rewind now reproduces the public storage-limit diagnostic inside that chain.
+- Spec review found that identical incomplete records passed the early same-type branch used by calls and that matching incomplete conditional arms were accepted. Assignment conversion now requires complete source and destination object types before the same-type shortcut. Matching record conditionals perform the same check. Exact failures cover incomplete fixed arguments and conditional arms, and the fixed-argument positive inspects the call argument, conversion, and parameter target type.
+- Standards review found parallel frontier expectation arrays, a hidden success index, and scalar-specific names on shared AST helpers. One structured case table now records each frontier outcome and exact successful counts. The generic helpers now describe expression children, conversion chains, underlying type kinds, and single return statements directly.
+- The first sanitizer wrapper returned in under one second and produced no build because PowerShell-to-WSL quoting swallowed the script. It is excluded. A corrected stdin script built and ran both suites, but its final `ldd | grep` check returned nonzero for Clang's runtime layout after the suite itself had passed. Separate reruns passed, and compiler-specific checks found GCC's `libasan` and `libubsan` plus Clang's `__asan_init`.
+- Clang static analysis found that the hosted-frontier test could print an uninitialized translation-unit count if its tape-snapshot allocation failed. Zero-initializing that local closes the diagnostic-only path. Final GCC and Clang analyzer reruns are clean.
+
+### Hosted-source progress
+
+The strict unchanged hosted Toolchain gate advances from 0/5 to 1/5 complete. `cupidobj.c` publishes 14 definitions, 289 statements, and 1,984 expressions. The remaining units reach later, source-driven boundaries:
+
+| Source | Current result |
+| --- | --- |
+| `toolchain/ctool.c` | Stops at unsupported `switch` on `122:3` |
+| `toolchain/cupiddis.c` | Stops at unsupported `do` on `212:3` |
+| `toolchain/cupidld.c` | Stops at static local initialization on `1107:3` |
+| `toolchain/cupidobj.c` | Parses completely |
+| `toolchain/cupidc_type.c` | Stops at unsupported `switch` on `309:3` |
+
+The regenerated audit contains 681 active sources, 251 feature IDs, and 491 transforms. Its lexical inventory now records 22,189 `if`, 3,280 `else`, 2,776 `for`, 13,417 `return`, 2,479 `while`, and 1,899 `sizeof` occurrences. The count changes come from the enlarged active frontend contract, not from OS source changes.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Aggregate red/green | PASS | Return, assignment, conditional, and automatic-initializer tracers each failed at the old boundary before their implementation step. Disabling visited-type rewind also makes the measured 128 KiB chain fail at `/aggregate-rewind.c:603:2161`; restoring it passes. |
+| Focused frontend suite | PASS | The final `python -m unittest tests.test_toolchain_cupidc_frontend` run passes all 31 tests in 5.604 seconds. |
+| Active-source audit | PASS | The final regeneration completes in 31.7 seconds. The repository gate then replays `make check-bootstrap-audit` with no drift. |
+| Windows hosted Toolchain | PASS | The final `make -C toolchain test` rerun passes all 26 frontend modes and the existing core, CupidC, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts in 5.3 seconds from the current build directory. |
+| WSL cross-host Toolchain | PASS AFTER HARNESS CORRECTION | Fresh isolated GCC 13.3 and Clang 18.1 directories pass the complete strict Toolchain suite in 44.314 and 44.153 seconds. A base64 script transport replaced a CRLF-corrupted PowerShell stdin wrapper before the counted runs. |
+| Sanitizers | PASS | Stable GCC and Clang builds retain address and undefined-behavior sanitizers plus frame pointers. Both complete suites pass with leak detection and halt-on-error enabled in 97.988 and 97.595 seconds. All GCC executables load `libasan` and `libubsan`; all Clang executables contain the expected sanitizer symbols. |
+| Static analysis | PASS | Final-tree GCC `-fanalyzer` and Clang `--analyze` runs are clean for the frontend and contract in 219.9 seconds. |
+| Formal review | PASS AFTER CORRECTIONS | Standards review found parallel frontier expectations and misleading scalar helper names. Spec and semantic review found incomplete record conversions plus missing fixed-call, volatile, flexible-array, pointer-to-const, and rewind coverage. The final rereviews report no remaining standards, semantic, contract, or scope defect. |
+| Full repository gate | PASS | Final-tree `make test` runs 273 tests in 365.817 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 395.8 seconds. |
+| Boot gate | NOT RUN | This hosted frontend change alters no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate initializer lists, static-duration initialization, `switch` and `do`, static locals, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
