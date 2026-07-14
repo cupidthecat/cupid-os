@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6409 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 13 | 38304 |
-| `toolchain_core` | 20 | 36772 |
+| `toolchain_contract` | 13 | 38409 |
+| `toolchain_core` | 20 | 36947 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 154 |
@@ -98,7 +98,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 50823 |
+| `c.control` | 12 | 50855 |
 | `c.declaration` | 1 | 22 |
 | `c.declarator` | 4 | 1797 |
 | `c.expression` | 2 | 2038 |
@@ -106,9 +106,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.initializer` | 1 | 600 |
 | `c.output` | 1 | 245 |
 | `c.preprocessor` | 18 | 6424 |
-| `c.qualifier` | 2 | 7094 |
-| `c.storage` | 4 | 5742 |
-| `c.type` | 14 | 37803 |
+| `c.qualifier` | 2 | 7108 |
+| `c.storage` | 4 | 5745 |
+| `c.type` | 14 | 37806 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |

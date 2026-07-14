@@ -388,20 +388,27 @@ static const ctool_c_object_definition_t *find_object_definition(
   return NULL;
 }
 
-static int initializer_is_binding_address(
+static int initializer_is_binding_address_addend(
     const ctool_c_translation_unit_t *unit,
-    const ctool_c_initializer_t *initializer, const char *name) {
+    const ctool_c_initializer_t *initializer, const char *name,
+    ctool_i32 addend) {
   ctool_u32 binding = find_binding_index(unit, name);
   return initializer != NULL && binding != CTOOL_C_AST_NONE &&
                  initializer->kind == CTOOL_C_INITIALIZER_ADDRESS &&
                  initializer->address_kind ==
                      CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
                  initializer->address_reference == binding &&
-                 initializer->address_addend == 0 &&
+                 initializer->address_addend == addend &&
                  initializer->string_bytes.data == NULL &&
                  initializer->string_bytes.size == 0u
              ? 1
              : 0;
+}
+
+static int initializer_is_binding_address(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer, const char *name) {
+  return initializer_is_binding_address_addend(unit, initializer, name, 0);
 }
 
 static const ctool_c_block_binding_t *find_block_binding(
@@ -4568,8 +4575,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 30u, 726u,
        5374u, 107u, 45u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 282u,
-       10649u, 67901u, 1565u, 1108u, 0u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 284u,
+       10773u, 68625u, 1591u, 1131u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -6795,8 +6802,12 @@ static int run_file_scope_initializers(const char *host_root) {
       "static void callback(void) {}\n"
       "static int *target_pointer = &target;\n"
       "static int *array_pointer = numbers;\n"
-      "static const int *qualified_pointer = numbers;\n"
-      "static void *void_pointer = numbers;\n"
+      "static int *element_pointer = &numbers[1];\n"
+      "static int *one_past_pointer = &numbers[8 / 4];\n"
+      "extern int relocation_window[536870913];\n"
+      "static const int *qualified_pointer = "
+      "relocation_window + 536870911;\n"
+      "static void *void_pointer = &numbers[1];\n"
       "static void (*callback_pointer)(void) = callback;\n"
       "static const ops_t ops = {.name = \"ops\", .start = callback, .data = numbers};\n"
       "extern int imported;\n"
@@ -6811,7 +6822,12 @@ static int run_file_scope_initializers(const char *host_root) {
       "int explicit_then_tentative = 6;\n"
       "int explicit_then_tentative;\n"
       "int completed_tentative[];\n"
-      "int completed_tentative[4];\n";
+      "int completed_tentative[4];\n"
+      "static int *subtracted_pointer = &numbers[2] - 1;\n"
+      "static int *negative_pointer = &numbers[1] + -1;\n"
+      "static int *reordered_pointer = 1 + numbers;\n"
+      "static int *sizeof_pointer = numbers + "
+      "(sizeof(numbers + 1073741824) / sizeof(int));\n";
   static const char completed_internal_source[] =
       "static int values[2];\n"
       "static int values[];\n";
@@ -6882,12 +6898,6 @@ static int run_file_scope_initializers(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        3u, 20u,
        "static pointer initialization requires a supported address constant"},
-      {{"address arithmetic",
-        "static int values[2];\n"
-        "static int *pointer = values + 1;\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 23u,
-       "static pointer initialization requires a supported address constant"},
       {{"record member address",
         "struct item { int value; };\n"
         "static struct item item;\n"
@@ -6895,12 +6905,18 @@ static int run_file_scope_initializers(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        3u, 23u,
        "static pointer initialization requires a supported address constant"},
-      {{"array element address",
+      {{"runtime array element address",
         "static int values[2];\n"
-        "static int *pointer = &values[0];\n",
+        "extern int index;\n"
+        "static int *pointer = &values[index];\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 23u,
+       3u, 23u,
        "static pointer initialization requires a supported address constant"},
+      {{"array address addend overflow",
+        "extern int values[536870913];\n"
+        "static int *pointer = values + 536870912;\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+       2u, 30u, "static address addend exceeds the i386 relocation range"},
       {{"cast address",
         "static int target;\n"
         "static int *pointer = (int *)&target;\n",
@@ -6951,6 +6967,12 @@ static int run_file_scope_initializers(const char *host_root) {
   const ctool_c_object_definition_t *numbers_definition;
   const ctool_c_object_definition_t *target_pointer_definition;
   const ctool_c_object_definition_t *array_pointer_definition;
+  const ctool_c_object_definition_t *element_pointer_definition;
+  const ctool_c_object_definition_t *one_past_pointer_definition;
+  const ctool_c_object_definition_t *subtracted_pointer_definition;
+  const ctool_c_object_definition_t *negative_pointer_definition;
+  const ctool_c_object_definition_t *reordered_pointer_definition;
+  const ctool_c_object_definition_t *sizeof_pointer_definition;
   const ctool_c_object_definition_t *qualified_pointer_definition;
   const ctool_c_object_definition_t *void_pointer_definition;
   const ctool_c_object_definition_t *callback_pointer_definition;
@@ -7046,6 +7068,18 @@ static int run_file_scope_initializers(const char *host_root) {
       find_object_definition(&unit, "target_pointer");
   array_pointer_definition =
       find_object_definition(&unit, "array_pointer");
+  element_pointer_definition =
+      find_object_definition(&unit, "element_pointer");
+  one_past_pointer_definition =
+      find_object_definition(&unit, "one_past_pointer");
+  subtracted_pointer_definition =
+      find_object_definition(&unit, "subtracted_pointer");
+  negative_pointer_definition =
+      find_object_definition(&unit, "negative_pointer");
+  reordered_pointer_definition =
+      find_object_definition(&unit, "reordered_pointer");
+  sizeof_pointer_definition =
+      find_object_definition(&unit, "sizeof_pointer");
   qualified_pointer_definition =
       find_object_definition(&unit, "qualified_pointer");
   void_pointer_definition =
@@ -7066,8 +7100,8 @@ static int run_file_scope_initializers(const char *host_root) {
   completed_tentative_definition =
       find_object_definition(&unit, "completed_tentative");
   local_pointer_binding = find_block_binding(&unit, "local_pointer");
-  if (unit.object_definition_count != 23u ||
-      unit.initializer_count != 33u ||
+  if (unit.object_definition_count != 29u ||
+      unit.initializer_count != 39u ||
       unit.initializer_element_count != 9u ||
       find_object_definition(&unit, "declared_only") != NULL ||
       counter_definition == NULL || pending_definition == NULL ||
@@ -7077,6 +7111,12 @@ static int run_file_scope_initializers(const char *host_root) {
       external_value_definition == NULL || target_definition == NULL ||
       numbers_definition == NULL || target_pointer_definition == NULL ||
       array_pointer_definition == NULL ||
+      element_pointer_definition == NULL ||
+      one_past_pointer_definition == NULL ||
+      subtracted_pointer_definition == NULL ||
+      negative_pointer_definition == NULL ||
+      reordered_pointer_definition == NULL ||
+      sizeof_pointer_definition == NULL ||
       qualified_pointer_definition == NULL ||
       void_pointer_definition == NULL ||
       callback_pointer_definition == NULL || ops_definition == NULL ||
@@ -7248,15 +7288,40 @@ static int run_file_scope_initializers(const char *host_root) {
           &unit,
           initializer_node(&unit, array_pointer_definition->initializer),
           "numbers") == 0 ||
-      initializer_is_binding_address(
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit, element_pointer_definition->initializer),
+          "numbers", 4) == 0 ||
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit, one_past_pointer_definition->initializer),
+          "numbers", 8) == 0 ||
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit,
+                           subtracted_pointer_definition->initializer),
+          "numbers", 4) == 0 ||
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit, negative_pointer_definition->initializer),
+          "numbers", 0) == 0 ||
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit, reordered_pointer_definition->initializer),
+          "numbers", 4) == 0 ||
+      initializer_is_binding_address_addend(
+          &unit,
+          initializer_node(&unit, sizeof_pointer_definition->initializer),
+          "numbers", 4) == 0 ||
+      initializer_is_binding_address_addend(
           &unit,
           initializer_node(&unit,
                            qualified_pointer_definition->initializer),
-          "numbers") == 0 ||
-      initializer_is_binding_address(
+          "relocation_window", 2147483644) == 0 ||
+      initializer_is_binding_address_addend(
           &unit,
           initializer_node(&unit, void_pointer_definition->initializer),
-          "numbers") == 0 ||
+          "numbers", 4) == 0 ||
       initializer_is_binding_address(
           &unit,
           initializer_node(&unit, callback_pointer_definition->initializer),

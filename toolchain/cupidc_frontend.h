@@ -145,8 +145,8 @@ typedef struct {
    * ADDRESS with a STRING base: bytes of the static literal object,
    * including its terminator. */
   ctool_bytes_t string_bytes;
-  /* ADDRESS: semantic base and target-byte addend. The destination pointer
-   * type above retains the initializer conversion. */
+  /* ADDRESS: semantic base and signed i386 target-byte addend. The
+   * destination pointer type above retains the initializer conversion. */
   ctool_c_initializer_address_kind_t address_kind;
   /* STRING bases use AST_NONE. BINDING bases use a stable file-binding
    * index. */

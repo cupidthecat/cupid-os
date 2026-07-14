@@ -391,7 +391,8 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
   static const char *const symbol_names[] = {
       "",                "const_word",      "const_record",
       "local_data",      "local_zero",      "masked_zero",
-      "data_pointer",    "zero_pointer",    ".LC0",
+      "data_pointer",    "zero_pointer",    "array_data",
+      "array_second",    "array_offset",    ".LC0",
       "const_text",      "literal_pointer", "holder"};
   static const ctool_u8 expected_rodata[] = {
       0xd4u, 0xc3u, 0xb2u, 0xa1u, 0x78u, 0x79u, 0x00u,
@@ -400,7 +401,10 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_data[] = {
       0x07u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
       0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x09u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+      0x09u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x02u, 0x00u, 0x00u, 0x00u,
+      0x03u, 0x00u, 0x00u, 0x00u, 0x04u, 0x00u, 0x00u, 0x00u,
+      0x08u, 0x00u, 0x00u, 0x00u};
   const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
   const ctool_elf32_section_t *data = find_section(object, ".data");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
@@ -423,6 +427,12 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
       find_symbol(object, "data_pointer");
   const ctool_elf32_symbol_t *zero_pointer =
       find_symbol(object, "zero_pointer");
+  const ctool_elf32_symbol_t *array_data =
+      find_symbol(object, "array_data");
+  const ctool_elf32_symbol_t *array_second =
+      find_symbol(object, "array_second");
+  const ctool_elf32_symbol_t *array_offset =
+      find_symbol(object, "array_offset");
   const ctool_elf32_symbol_t *holder = find_symbol(object, "holder");
   const ctool_elf32_symbol_t *literal = find_symbol(object, ".LC0");
   ctool_u32 index;
@@ -430,8 +440,8 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
   if (object->file_type != CTOOL_ELF32_ET_REL || object->entry_point != 0u ||
       object->flags != 0u || object->program_header_count != 0u ||
       object->program_headers != (const ctool_elf32_program_header_t *)0 ||
-      object->section_count != 8u || object->symbol_count != 12u ||
-      object->relocation_count != 4u ||
+      object->section_count != 8u || object->symbol_count != 15u ||
+      object->relocation_count != 6u ||
       object->symbol_table_section_file_index != 5u) {
     (void)fprintf(stderr, "source-derived ELF32 inventory differs\n");
     return 0;
@@ -456,10 +466,10 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
       data == (const ctool_elf32_section_t *)0 ||
       data->type != CTOOL_ELF32_SHT_PROGBITS ||
       data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
-      data->alignment != 4u || data->entry_size != 0u || data->size != 24u ||
+      data->alignment != 4u || data->entry_size != 0u || data->size != 44u ||
       data->contents.size != (ctool_u32)sizeof(expected_data) ||
       memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
-      data->relocation_first != 0u || data->relocation_count != 4u ||
+      data->relocation_first != 0u || data->relocation_count != 6u ||
       bss == (const ctool_elf32_section_t *)0 ||
       bss->type != CTOOL_ELF32_SHT_NOBITS ||
       bss->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
@@ -471,7 +481,7 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
     return 0;
   }
 
-  for (index = 0u; index < 12u; index++) {
+  for (index = 0u; index < 15u; index++) {
     if (object->symbols[index].file_index != index ||
         string_equal(object->symbols[index].name, symbol_names[index]) == 0) {
       (void)fprintf(stderr,
@@ -501,16 +511,25 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
       !symbol_matches(zero_pointer, 7u, CTOOL_ELF32_BIND_LOCAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 12u, 4u) ||
-      !symbol_matches(literal, 8u, CTOOL_ELF32_BIND_LOCAL,
+      !symbol_matches(array_data, 8u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 24u, 12u) ||
+      !symbol_matches(array_second, 9u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 36u, 4u) ||
+      !symbol_matches(array_offset, 10u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 40u, 4u) ||
+      !symbol_matches(literal, 11u, CTOOL_ELF32_BIND_LOCAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 16u, 3u) ||
-      !symbol_matches(const_text, 9u, CTOOL_ELF32_BIND_GLOBAL,
+      !symbol_matches(const_text, 12u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 4u, 4u) ||
-      !symbol_matches(literal_pointer, 10u, CTOOL_ELF32_BIND_GLOBAL,
+      !symbol_matches(literal_pointer, 13u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 4u, 4u) ||
-      !symbol_matches(holder, 11u, CTOOL_ELF32_BIND_GLOBAL,
+      !symbol_matches(holder, 14u, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 16u, 8u)) {
     (void)fprintf(stderr, "source-derived symbol semantics differ\n");
@@ -559,7 +578,25 @@ static int validate_layout_object(const ctool_elf32_object_t *object) {
       object->relocations[3].symbol_file_index != local_data->file_index ||
       object->relocations[3].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[3].addend_known != CTOOL_TRUE ||
-      object->relocations[3].addend != 0) {
+      object->relocations[3].addend != 0 ||
+      object->relocations[4].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[4].entry_index != 4u ||
+      object->relocations[4].target_section_file_index != data->file_index ||
+      object->relocations[4].offset != 36u ||
+      object->relocations[4].symbol_file_index != array_data->file_index ||
+      object->relocations[4].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[4].addend_known != CTOOL_TRUE ||
+      object->relocations[4].addend != 4 ||
+      object->relocations[5].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[5].entry_index != 5u ||
+      object->relocations[5].target_section_file_index != data->file_index ||
+      object->relocations[5].offset != 40u ||
+      object->relocations[5].symbol_file_index != array_data->file_index ||
+      object->relocations[5].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[5].addend_known != CTOOL_TRUE ||
+      object->relocations[5].addend != 8) {
     (void)fprintf(stderr, "source-derived static relocations differ\n");
     return 0;
   }
@@ -597,7 +634,10 @@ static int run_static_data(const char *host_root) {
       "char *literal_pointer = \"hi\";\n"
       "static int *data_pointer = &local_data;\n"
       "static int *zero_pointer = &local_zero;\n"
-      "holder_t holder = {9, &local_data};\n";
+      "holder_t holder = {9, &local_data};\n"
+      "static int array_data[3] = {1, 2, 3};\n"
+      "static int *array_second = &array_data[1];\n"
+      "static int *array_offset = array_data + 2;\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -948,7 +988,7 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/source-derived-static-layout.c", layout_text,
                     &layout_unit) ||
-      layout_unit.object_definition_count != 10u ||
+      layout_unit.object_definition_count != 13u ||
       !take_unit_snapshot(&layout_unit, &layout_snapshot)) {
     (void)fprintf(stderr, "source-derived layout setup failed\n");
     goto cleanup;

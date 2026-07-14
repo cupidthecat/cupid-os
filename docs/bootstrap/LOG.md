@@ -2492,3 +2492,53 @@ The sanitizer builds repeated those commands in separate `gcc-sanitize` and `cla
 This increment transfers no production source cohort, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and code generator still own production C compilation, and the normal OS build does not consume these static-only objects. No kernel, user, assembly, or `TempleOS/` reference source changed.
 
 Issue #25 remains open. Function IR and machine-code lowering, `.text`, `R_386_PC32`, remaining static address forms, whole-translation-unit output, kernel integration, and staged self-hosting still belong there. No issue is ready to close from this increment.
+
+## 2026-07-14: CupidC checked static array address addends
+
+### Decision and representation
+
+The shared declaration frontend now preserves a checked binding-relative address while it parses a static initializer. The public `CTOOL_C_INITIALIZER_ADDRESS_BINDING` record still names the canonical binding and destination pointer type, but its signed i386 byte addend is no longer limited to zero. Array decay, address and dereference operators, the permitted pointer qualification conversions, and additive pointer arithmetic can carry the private address fact. Loads, calls, casts, member access, assignments, comparisons, updates, conditional expressions, and unrelated unary or binary operations clear it.
+
+Pointer addition and subtraction scale a represented integer constant expression by the referent's target layout. Both `pointer + integer` and `integer + pointer` are represented, and a later additive operation can extend the same address. The calculation keeps sign and magnitude separate until it has checked the final signed 32-bit relocation range, so the implementation never has to negate `INT32_MIN`. An out-of-range result reports the dedicated CupidC overflow diagnostic instead of becoming a wrapped relocation addend.
+
+Unevaluated operands needed one explicit boundary. `sizeof` and GNU expression alignment still type-check their operands, but they suppress static-address evaluation. An expression such as `numbers + (sizeof(numbers + 1073741824) / sizeof(int))` therefore keeps the valid outer addend without reporting overflow from the pointer expression inside `sizeof`.
+
+The existing object emitter needed no new relocation model. It already writes a binding address as an i386 `R_386_32` relocation with the signed addend stored in place. The object contract now proves direct-symbol array addresses with exact addends of four and eight bytes and verifies both the target bytes and the reader's relocation view.
+
+No user question was needed. C11 pointer arithmetic fixes element scaling, and ADR 0015 already fixes the i386 REL representation. The conservative propagation rules keep deferred forms out of the public initializer forest until they have their own source semantics and object contracts.
+
+### Active-source evidence and red-to-green sequence
+
+Three unchanged Doom initializers establish the immediate source requirement. `kernel/doom/src/g_game.c` takes `&mousearray[1]` and `&joyarray[1]`, each four bytes from its array binding because `boolean` is an unsigned integer. `kernel/doom/src/tables.c` initializes `finecosine` from `&finesine[FINEANGLES / 4]`, which is 8,192 bytes from `finesine` because the quotient is 2,048 and `fixed_t` is an integer.
+
+Preprocessing succeeds under `DOOM_TREE_I386` and exposes these declarations. The frontend still stops earlier at `typedef __builtin_va_list va_list;` in the forced compatibility header. This slice therefore claims the checked address forms and source-derived contracts, not complete Doom translation-unit parsing.
+
+- The first frontend and object tracers failed at the prior zero-addend boundary. The positive frontend cases now cover subscript addresses, constant-expression indexes, pointer-first and integer-first addition, subtraction, a negative integer operand, chaining, one-past addresses, and the unevaluated `sizeof` case.
+- A runtime array index retains the existing unsupported static-address diagnostic. An addend beyond the signed i386 range reports `static address addend exceeds the i386 relocation range` at the additive operator.
+- The first implementation also reported that overflow while type-checking the unevaluated operand of `sizeof`. Review exposed the leak, a focused regression reproduced it, and the suppression-depth correction made the regression green without relaxing evaluated overflow checks.
+- Spec review found that the first overflow negative reached the unsigned multiplication guard at `2^32` instead of the signed i386 limit. A large external array now keeps the pointer arithmetic valid: addend `0x7ffffffc` succeeds through qualification, while the next valid element requires `0x80000000` and fails at the signed limit. A separate object-to-`void` conversion retains addend four. Follow-up review found both gaps closed.
+- Clang analysis could not prove that the referent layout was initialized after a successful layout query. Explicit zero initialization made that contract visible without changing the success path. The resulting semantic initializer records changed the frontend self-parse inventory recorded below.
+- The first sanitizer launcher did not preserve its flag assignment across the PowerShell and WSL boundary. Inspection found no ASan or UBSan symbols, so the run was discarded. Base64-transported scripts preserved the exact compiler and linker flags for the accepted runs.
+- The strict frontend fixture now publishes 29 object definitions, 39 initializer records, and nine direct list edges. Its self-parse inventory is 284 definitions, 10,773 statements, 68,625 expressions, 1,591 block bindings, and 1,131 initializers.
+- The object fixture proves exact in-place addends of four and eight bytes, direct-symbol `R_386_32` relocations, reader-visible addends, and deterministic repeat emission.
+
+### Audit and verification
+
+The regenerated graph records 685 active sources, 251 feature IDs, and 495 transforms. It finds 483 lexical `goto` occurrences, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,489 `while`, 23,139 `if`, 3,375 `else`, 2,882 `for`, 14,013 `return`, and 2,007 `sizeof` occurrences. The active-source digest is `ce2717f76cb53aa2892107d96c36480280963bedefa1688ebde42d57216453a4`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC suites | PASS | Final-tree `python -m unittest tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_object -v` passes all 43 tests in 19.540 seconds. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain test` passes the complete strict Clang suite, including the updated frontend and static-object contracts and all 22 assembly demos. |
+| WSL cross-host Toolchain | PASS | Final-tree isolated strict suites pass under GCC 13.3 in 61 seconds and Clang 18.1 in 62 seconds. |
+| Sanitizers | PASS AFTER HARNESS CORRECTION | Final-tree GCC and Clang suites pass in 103 seconds each with address and undefined-behavior sanitizers, leak checks, frame pointers, and halt-on-error behavior enabled. Both frontend binaries expose sanitizer symbols. |
+| Static analysis | PASS AFTER INITIALIZATION | Clang's first pass found the layout-initialization proof gap described above. Final-tree GCC `-fanalyzer` is silent for the frontend and both affected contracts in 392 seconds. Clang analysis is silent for the same files in 84.4 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them in 46.8 seconds. |
+| Formal two-axis review | PASS AFTER TEST HARDENING | Standards review found only a stale digest before the final audit update. Spec review found the signed-boundary and conversion coverage gaps described above. Follow-up review reports no remaining Standards or Spec findings. |
+| Full repository gate | PASS | Final-tree `make test` passes all 285 tests in 491.023 seconds with one expected skip, reproduces the checked audit, and returns from Make in 524.4 seconds. |
+| Patch hygiene | PASS | `git diff --check` is clean, and the added Markdown contains no em or en dashes. |
+| Boot gate | NOT RUN | This hosted static-initializer slice changes no production compiler path, kernel object, disk image, boot path, or runtime behavior. |
+
+This increment transfers no production source cohort, ABI path, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and code generator still own production C compilation, and the normal OS build does not consume these objects. No kernel, application, assembly, or `TempleOS/` reference source changed.
+
+Issue #25 remains open. Member addresses, explicit address casts, addresses based on automatic or block-static objects, runtime offsets or subscripts, complete Doom parsing, function lowering, kernel integration, and staged self-hosting remain there. No issue is ready to close from this increment.
