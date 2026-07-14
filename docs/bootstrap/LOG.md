@@ -2617,3 +2617,53 @@ The regenerated graph records 688 active sources, 498 transforms, and 39 unreach
 GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. No production source cohort, linked artifact, or host dependency changes ownership here, and no kernel, application, assembly, or `TempleOS/` reference source changed.
 
 Issue #25 remains open. External-inline finalization, calls, and `R_386_PC32` are the next useful leaf-function gates, followed by local objects, stack allocation, broader statement bodies, pointers, wider and aggregate values, production integration, and staged self-hosting. No issue is ready to close from this step.
+
+## 2026-07-14: CupidC lowers direct calls into relocatable objects
+
+### Decision and active-source requirement
+
+The shared CupidC path now carries fixed direct function calls from the typed frontend through linear IR and into ELF32 objects. The public `CTOOL_C_IR_INSTRUCTION_CALL_DIRECT` record names the callee by its absolute file binding and retains the function type used to check the call. Its fixed input arity comes from that function type. A nonvoid call pushes one 32-bit result, while a `void` call leaves no value.
+
+The body subset now accepts one void expression statement in a void function and adds the implicit `RETURN_VOID` at the closing brace. This makes a void direct call reachable from valid source. A discarded nonvoid expression and a longer statement list remain unsupported rather than being silently dropped.
+
+The first source requirement comes from unchanged `kernel/core/syscall.c`. Its `syscall_getpid` wrapper returns `process_get_current_pid()`, a direct call with no arguments and a 32-bit integer result. The focused IR fixture keeps that source shape and location. Additional local and unresolved external fixtures cover arguments, local symbol resolution, and relocation publication without rewriting an OS source file to fit the hosted compiler.
+
+Arguments are lowered in source order to preserve the frontend's established evaluation rule. Immediately before the call, the emitter reverses only the completed argument slots for that call. Argument zero then sits at ESP before `CALL`, so the callee reads it at `[EBP + 8]`. The reversal uses register pairs and also handles an odd middle slot. The caller removes the arguments after the call, and a nonvoid result is pushed from EAX for later IR consumers. A nested three-argument object fixture proves that a call used as the middle argument does not disturb the outer call's earlier stack value.
+
+The shared x86 encoder writes each call through a symbol reference. The emitter publishes a local or unresolved external `STT_FUNC` symbol, records an i386 `R_386_PC32` relocation against the call displacement, and stores the REL addend `-4` in the displacement field. Relocation capacity is counted before allocation, including both static initializer relocations and call relocations, so the existing transactional output guarantee still applies.
+
+This slice accepts fixed, prototyped, nonvariadic direct calls whose arguments use 32-bit integer representations and whose result is `void` or a 32-bit integer. Indirect calls, variadic calls, wider and aggregate values, stack alignment at call sites, and calls that depend on later local-object lowering remain explicit boundaries. CupidLD linked-output proof also remains open; this contract reads the relocatable object back through the shared ELF reader and decoder. Direct AST-to-x86 call emission was rejected because it would bypass the public IR seam. Reversing frontend evaluation order was also rejected because it would change the compiler's existing language behavior merely to match cdecl stack layout.
+
+No user question was needed. The current frontend call record fixes the direct-callee shape, ADR 0016 fixes the typed IR seam, and the i386 cdecl and REL conventions fix the stack and relocation forms. ADR 0017 records the resulting public contract and its deferred cases.
+
+### Red-to-green sequence and corrections
+
+- The direct-call IR tracer first stopped at the old unsupported-expression boundary. The completed contract pins the zero-argument active wrapper, an unresolved two-argument call, and a local call by exact instruction kind, binding, function type, argument count, stack depth, source location, and order.
+- The object tracer first returned an internal failure when it reached a call instruction. The final fixture checks exact bytes, local and external function symbols, five `R_386_PC32` relocations with `-4` addends, decoded mnemonics, and deterministic repeat emission.
+- An independent preflight review asked for odd-arity and nested-call coverage. The three-argument fixture places a local call in the middle argument and verifies the complete byte stream, including stack reversal and caller cleanup.
+- The first Spec review found that the claimed void result could not be reached from valid source because IR body lowering rejected expression statements. A new void-call tracer failed at that exact boundary. The narrow body extension now lowers its argument, emits the void call, and returns implicitly. The object oracle proves four bytes of caller cleanup with no EAX result push. A discarded nonvoid expression statement and a variadic direct call provide useful negative boundaries.
+- The complete Toolchain suite found stale self-parse inventories after the implementation grew. The strict fixtures now record 29 definitions, 581 statements, 4,936 expressions, 63 block bindings, and 14 initializers for `cupidc_ir.c`; and 54 definitions, 1,213 statements, 9,157 expressions, 172 block bindings, and 79 initializers for `cupidc_emit.c`.
+- The first full repository run reached all 286 tests and found five stale lexical inventory guards. The checked audit supplied the exact new totals for `sizeof`, `for`, `goto`, `if`, and `return`. The void-call follow-up then changed four of those totals again. Regenerating the audit and updating only the exact `sizeof`, `goto`, `if`, and `return` expectations made the five focused guards and the final full run green without relaxing an assertion.
+- `python -m pytest` was unavailable because this Python 3.14 installation does not include pytest. The repository's supported `unittest` entry points and Make targets supplied the accepted evidence instead.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory includes 509 `goto`, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,490 `while`, 23,409 `if`, 3,382 `else`, 2,903 `for`, 14,263 `return`, and 2,089 `sizeof` occurrences. The active-source digest is `7217ab556fa254603f9487fef28cafd13a2d79781bc3c5f7d77c1e213f303c9c`.
+
+The WSL checks used GCC 13.3.0 and Clang 18.1.3 with fresh build directories outside the repository. Strict builds used the Toolchain Makefile's C11 warning policy. Sanitizer builds added address and undefined-behavior sanitizers, frame pointers, no recovery, leak detection, and halt-on-error behavior. GCC analysis used `-fanalyzer`; Clang used `--analyze`. Each analyzer checked `cupidc_ir.c`, `cupidc_emit.c`, and the three affected contracts separately.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC suites | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes both contracts in 14.825 seconds. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain test` passes the strict Clang suite, including the updated frontend, IR, and object contracts and all 22 assembly demos, and returns from Make in 8.8 seconds. |
+| WSL cross-host contracts | PASS | Fresh final-tree strict IR and object builds and runs pass under GCC 13.3.0 and Clang 18.1.3. Builds take 12.25 and 12.07 seconds respectively, and both contracts report `ok`. |
+| Sanitizers | PASS | Fresh final-tree GCC and Clang builds and runs of both contracts pass with address and undefined-behavior sanitizers and leak detection. Builds take 19.85 and 23.42 seconds respectively, and no sanitizer report appears. |
+| Static analysis | PASS | Final-tree GCC `-fanalyzer` and Clang analysis are silent for both changed implementation files and all three affected contracts. |
+| Formal two-axis review | PASS AFTER VOID-CALL AND EVIDENCE FIXES | Spec review found the unreachable void-call claim and Standards review found one reversed-stack wording error plus stale final-tree evidence. The reachable void body, exact IR and object checks, corrected cdecl wording, and current-tree reruns closed those findings. Final Spec and Standards reviews report no remaining findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both records in 42.2 seconds, and `make check-bootstrap-audit` reproduces them in 39.5 seconds. The five exact inventory guards pass in 118.517 seconds. |
+| Full repository gate | PASS AFTER INVENTORY UPDATE | The first run found the stale lexical guards described above. Final-tree `make test` passes all 286 tests in 480.692 seconds with one expected skip, reproduces the checked audit, and returns from Make in 531.0 seconds. |
+| Boot gate | NOT RUN | The new path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
+
+GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency, and it changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source.
+
+Issue #25 remains open. Indirect and variadic calls, call-site stack alignment, wider and aggregate arguments and results, local objects, stack allocation, broader statement lowering, linked call proof, production integration, and staged self-hosting remain there. No issue is ready to close from this step.

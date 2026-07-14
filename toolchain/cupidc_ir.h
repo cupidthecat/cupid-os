@@ -9,6 +9,7 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_LOAD,
   CTOOL_C_IR_INSTRUCTION_CONVERT,
   CTOOL_C_IR_INSTRUCTION_BINARY,
+  CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
   CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
   CTOOL_C_IR_INSTRUCTION_JUMP,
   CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
@@ -22,13 +23,14 @@ typedef struct {
    * CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the result type. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. BINARY retains the common
-   * operand type, and BRANCH_ZERO retains its consumed condition type. */
+   * operand type. CALL_DIRECT retains the function type. BRANCH_ZERO retains
+   * its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   ctool_c_conversion_kind_t conversion;
-  /* PARAMETER_ADDRESS uses an absolute frontend parameter index. Branches
-   * use a function-relative instruction index. Other instructions use
-   * CTOOL_C_AST_NONE. */
+  /* PARAMETER_ADDRESS uses an absolute frontend parameter index. CALL_DIRECT
+   * uses an absolute file-binding index. Branches use a function-relative
+   * instruction index. Other instructions use CTOOL_C_AST_NONE. */
   ctool_u32 reference;
   ctool_u64 integer_bits;
   ctool_c_pp_location_t location;
@@ -74,7 +76,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Each function owns a contiguous instruction slice and a typed abstract
  * stack that begins and ends empty. Branch targets are relative to that
  * slice, and every join has the same address/value stack shape on each
- * incoming path. Failure zeros the result, rewinds allocations made during
+ * incoming path. CALL_DIRECT consumes its fixed arguments after they have
+ * been evaluated in source order. Argument zero is deepest on the stack and
+ * the final argument is on top. The call pushes one result unless its result
+ * type is void. Failure zeros the result, rewinds allocations made during
  * the operation, and keeps its structured diagnostic in the job. */
 
 #endif

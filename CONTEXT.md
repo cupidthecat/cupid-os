@@ -53,7 +53,7 @@ The compiler for C and Cupid C source.
 _Avoid_: Cupid C when referring to the compiler
 
 **Linear IR**:
-The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from values, and its control-flow references stay relative to one function.
+The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from values. Branch targets stay relative to one function, while direct calls retain absolute file-binding identities.
 _Avoid_: AST, x86 bytecode, machine code
 
 **C mode**:

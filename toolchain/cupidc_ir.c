@@ -482,6 +482,118 @@ static ctool_status_t cir_lower_conditional(
   return status;
 }
 
+static ctool_status_t cir_lower_direct_call(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  const ctool_c_expression_t *callee;
+  const ctool_c_expression_t *identifier;
+  const ctool_c_binding_t *binding;
+  const ctool_c_type_node_t *pointer_type;
+  const ctool_c_type_node_t *function_type;
+  ctool_u32 callee_index;
+  ctool_u32 identifier_index;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 argument;
+  ctool_status_t status;
+  status = cir_expression_child(context, expression_index, expression, 0u,
+                                &callee_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  callee = &context->unit->expressions[callee_index];
+  if (callee->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      callee->conversion != CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) {
+    return cir_unsupported_expression(context, &expression->location);
+  }
+  if (callee->child_count != 1u) {
+    return cir_invalid_unit(context, &callee->location);
+  }
+  status = cir_expression_child(context, callee_index, callee, 0u,
+                                &identifier_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  identifier = &context->unit->expressions[identifier_index];
+  if (identifier->kind != CTOOL_C_EXPRESSION_IDENTIFIER) {
+    return cir_unsupported_expression(context, &expression->location);
+  }
+  if (identifier->child_count != 0u ||
+      identifier->reference >= context->unit->binding_count ||
+      identifier->type >= context->unit->graph.type_count ||
+      callee->type >= context->unit->graph.type_count) {
+    return cir_invalid_unit(context, &identifier->location);
+  }
+  binding = &context->unit->bindings[identifier->reference];
+  pointer_type = cir_unwrapped_type(context, callee->type);
+  function_type = cir_unwrapped_type(context, identifier->type);
+  if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
+      binding->type != identifier->type ||
+      pointer_type == (const ctool_c_type_node_t *)0 ||
+      pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+      pointer_type->referenced_type != identifier->type ||
+      function_type == (const ctool_c_type_node_t *)0 ||
+      function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->referenced_type != expression->type ||
+      function_type->first_parameter >
+          context->unit->graph.parameter_type_count ||
+      function_type->parameter_count >
+          context->unit->graph.parameter_type_count -
+              function_type->first_parameter ||
+      expression->child_count == 0u ||
+      expression->child_count - 1u != function_type->parameter_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (function_type->has_prototype == CTOOL_FALSE ||
+      function_type->variadic == CTOOL_TRUE ||
+      (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
+       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE)) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+        &expression->location,
+        "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+        "with 32-bit integer arguments and void or 32-bit integer results");
+  }
+  for (argument = 0u; argument < function_type->parameter_count; argument++) {
+    ctool_u32 child;
+    ctool_u32 parameter_type =
+        context->unit->graph
+            .parameter_types[function_type->first_parameter + argument];
+    if (parameter_type >= context->unit->graph.type_count ||
+        cir_type_is_i32_integer(context, parameter_type) == CTOOL_FALSE) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          &expression->location,
+          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "with 32-bit integer arguments and void or 32-bit integer results");
+    }
+    status = cir_expression_child(context, expression_index, expression,
+                                  argument + 1u, &child);
+    if (status == CTOOL_OK) {
+      status = cir_lower_expression(context, child, depth + 1u);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (context->stack_depth != base_depth + argument + 1u ||
+        context->stack[base_depth + argument].kind != CIR_STACK_VALUE ||
+        context->stack[base_depth + argument].type != parameter_type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  }
+  context->stack_depth = base_depth;
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_CALL_DIRECT, expression->type,
+      identifier->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, identifier->reference, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK ||
+      cir_type_is_void(context, expression->type) == CTOOL_TRUE) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, expression->type);
+}
+
 static ctool_status_t cir_lower_expression(cir_context_t *context,
                                            ctool_u32 expression_index,
                                            ctool_u32 depth) {
@@ -564,6 +676,13 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     return cir_lower_conditional(context, expression_index, expression,
                                  depth);
   }
+  if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+    if (expression->child_count == 0u) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    return cir_lower_direct_call(context, expression_index, expression,
+                                 depth);
+  }
   if (expression->kind == CTOOL_C_EXPRESSION_CAST) {
     return cir_unsupported_conversion(context, &expression->location);
   }
@@ -607,6 +726,34 @@ static ctool_status_t cir_lower_body(
     return cir_invalid_unit(context, &body->location);
   }
   statement = &context->unit->statements[statement_index];
+  if (statement->kind == CTOOL_C_STATEMENT_EXPRESSION) {
+    if (cir_type_is_void(context, context->function_result_type) ==
+            CTOOL_FALSE ||
+        statement->expression == CTOOL_C_AST_NONE) {
+      return cir_unsupported_statement(context, &statement->location);
+    }
+    if (statement->expression >= context->unit->expression_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (cir_type_is_void(
+            context,
+            context->unit->expressions[statement->expression].type) ==
+        CTOOL_FALSE) {
+      return cir_unsupported_statement(context, &statement->location);
+    }
+    status = cir_lower_expression(context, statement->expression, 0u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (context->stack_depth != 0u) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
+        &body->physical_location, (ctool_u32 *)0);
+  }
   if (statement->kind != CTOOL_C_STATEMENT_RETURN) {
     return cir_unsupported_statement(context, &statement->location);
   }

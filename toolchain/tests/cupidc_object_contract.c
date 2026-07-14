@@ -379,6 +379,33 @@ static int validate_function_object(ctool_job_t *job,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 idle_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0xc9u, 0xc3u};
+  static const ctool_u8 local_target_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x09u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 call_local_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 call_external_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u, 0x24u,
+      0x89u, 0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u,
+      0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 call_nested_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x50u, 0x8du, 0x85u, 0x10u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu,
+      0x4cu, 0x24u, 0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u,
+      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_u8 call_void_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0xc9u, 0xc3u};
   static const ctool_u32 helper_branch_targets[] = {65u, 70u};
   static const ctool_x86_mnemonic_t implemented_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
@@ -398,6 +425,36 @@ static int validate_function_object(ctool_job_t *job,
   static const ctool_x86_mnemonic_t idle_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t local_target_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t call_local_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t call_external_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t call_nested_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t call_void_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_instructions[] = {
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
@@ -416,15 +473,34 @@ static int validate_function_object(ctool_job_t *job,
   const ctool_elf32_symbol_t *signed_greater =
       find_symbol(object, "signed_greater");
   const ctool_elf32_symbol_t *idle = find_symbol(object, "idle");
+  const ctool_elf32_symbol_t *local_target =
+      find_symbol(object, "local_target");
+  const ctool_elf32_symbol_t *call_local = find_symbol(object, "call_local");
+  const ctool_elf32_symbol_t *call_external =
+      find_symbol(object, "call_external");
+  const ctool_elf32_symbol_t *call_nested =
+      find_symbol(object, "call_nested");
+  const ctool_elf32_symbol_t *call_void = find_symbol(object, "call_void");
+  const ctool_elf32_symbol_t *external_sum =
+      find_symbol(object, "external_sum");
+  const ctool_elf32_symbol_t *external_three =
+      find_symbol(object, "external_three");
+  const ctool_elf32_symbol_t *external_sink =
+      find_symbol(object, "external_sink");
   const ctool_elf32_symbol_t *function_data =
       find_symbol(object, "function_data");
   if (text == NULL || text->type != CTOOL_ELF32_SHT_PROGBITS ||
       text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
       text->alignment != 1u || text->contents.size == 0u ||
-      rel_text != NULL || object->relocation_count != 0u ||
+      rel_text == NULL || text->relocation_first != 0u ||
+      text->relocation_count != 5u || object->relocation_count != 5u ||
       data == NULL || data->contents.size != 4u ||
       implemented == NULL || helper == NULL || idle == NULL ||
-      signed_greater == NULL || function_data == NULL ||
+      signed_greater == NULL || local_target == NULL || call_local == NULL ||
+      call_external == NULL || call_nested == NULL || call_void == NULL ||
+      external_sum == NULL || external_three == NULL ||
+      external_sink == NULL ||
+      function_data == NULL ||
       !symbol_matches(implemented, implemented->file_index,
                       CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
@@ -446,6 +522,38 @@ static int validate_function_object(ctool_job_t *job,
                       implemented->size + helper->size +
                           signed_greater->size,
                       idle->size) ||
+      !symbol_matches(local_target, local_target->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 128u,
+                      11u) ||
+      !symbol_matches(call_local, call_local->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 139u,
+                      12u) ||
+      !symbol_matches(call_external, call_external->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 151u,
+                      51u) ||
+      !symbol_matches(call_nested, call_nested->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 202u,
+                      57u) ||
+      !symbol_matches(call_void, call_void->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 259u,
+                      24u) ||
+      !symbol_matches(external_sum, external_sum->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(external_three, external_three->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(external_sink, external_sink->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
       !symbol_matches(function_data, function_data->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
@@ -453,9 +561,112 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      implemented->size + helper->size + signed_greater->size + idle->size !=
-          text->contents.size) {
+      text->contents.size != 283u ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 143u ||
+      object->relocations[0].symbol_file_index != local_target->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != -4 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != text->file_index ||
+      object->relocations[1].offset != 191u ||
+      object->relocations[1].symbol_file_index != external_sum->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != -4 ||
+      object->relocations[2].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[2].entry_index != 2u ||
+      object->relocations[2].target_section_file_index != text->file_index ||
+      object->relocations[2].offset != 217u ||
+      object->relocations[2].symbol_file_index != call_local->file_index ||
+      object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[2].addend_known != CTOOL_TRUE ||
+      object->relocations[2].addend != -4 ||
+      object->relocations[3].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[3].entry_index != 3u ||
+      object->relocations[3].target_section_file_index != text->file_index ||
+      object->relocations[3].offset != 248u ||
+      object->relocations[3].symbol_file_index != external_three->file_index ||
+      object->relocations[3].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[3].addend_known != CTOOL_TRUE ||
+      object->relocations[3].addend != -4 ||
+      object->relocations[4].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[4].entry_index != 4u ||
+      object->relocations[4].target_section_file_index != text->file_index ||
+      object->relocations[4].offset != 274u ||
+      object->relocations[4].symbol_file_index != external_sink->file_index ||
+      object->relocations[4].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[4].addend_known != CTOOL_TRUE ||
+      object->relocations[4].addend != -4) {
     (void)fprintf(stderr, "function object structure differs\n");
+    (void)fprintf(stderr,
+                  "sections=%lu symbols=%lu relocations=%lu text=%lu "
+                  "text-first=%lu text-count=%lu rel-text=%lu\n",
+                  (unsigned long)object->section_count,
+                  (unsigned long)object->symbol_count,
+                  (unsigned long)object->relocation_count,
+                  text != NULL ? (unsigned long)text->contents.size : 0ul,
+                  text != NULL ? (unsigned long)text->relocation_first : 0ul,
+                  text != NULL ? (unsigned long)text->relocation_count : 0ul,
+                  rel_text != NULL
+                      ? (unsigned long)rel_text->relocation_count
+                      : 0ul);
+    if (local_target != NULL && call_local != NULL &&
+        call_external != NULL && call_nested != NULL && call_void != NULL &&
+        external_sum != NULL) {
+      (void)fprintf(stderr,
+                    "local=%lu/%lu call-local=%lu/%lu "
+                    "call-external=%lu/%lu call-nested=%lu/%lu "
+                    "call-void=%lu/%lu "
+                    "external=%lu/%lu\n",
+                    (unsigned long)local_target->value,
+                    (unsigned long)local_target->size,
+                    (unsigned long)call_local->value,
+                    (unsigned long)call_local->size,
+                    (unsigned long)call_external->value,
+                    (unsigned long)call_external->size,
+                    (unsigned long)call_nested->value,
+                    (unsigned long)call_nested->size,
+                    (unsigned long)call_void->value,
+                    (unsigned long)call_void->size,
+                    (unsigned long)external_sum->placement,
+                    (unsigned long)external_sum->file_index);
+    }
+    if (object->relocation_count >= 5u) {
+      (void)fprintf(stderr,
+                    "rel0=%lu/%lu/%ld/%lu rel1=%lu/%lu/%ld/%lu "
+                    "rel2=%lu/%lu/%ld/%lu rel3=%lu/%lu/%ld/%lu "
+                    "rel4=%lu/%lu/%ld/%lu\n",
+                    (unsigned long)object->relocations[0].offset,
+                    (unsigned long)object->relocations[0].type,
+                    (long)object->relocations[0].addend,
+                    (unsigned long)object->relocations[0].symbol_file_index,
+                    (unsigned long)object->relocations[1].offset,
+                    (unsigned long)object->relocations[1].type,
+                    (long)object->relocations[1].addend,
+                    (unsigned long)object->relocations[1].symbol_file_index,
+                    (unsigned long)object->relocations[2].offset,
+                    (unsigned long)object->relocations[2].type,
+                    (long)object->relocations[2].addend,
+                    (unsigned long)object->relocations[2].symbol_file_index,
+                    (unsigned long)object->relocations[3].offset,
+                    (unsigned long)object->relocations[3].type,
+                    (long)object->relocations[3].addend,
+                    (unsigned long)object->relocations[3].symbol_file_index,
+                    (unsigned long)object->relocations[4].offset,
+                    (unsigned long)object->relocations[4].type,
+                    (long)object->relocations[4].addend,
+                    (unsigned long)object->relocations[4].symbol_file_index);
+    }
     return 0;
   }
   return decode_function(
@@ -487,7 +698,40 @@ static int validate_function_object(ctool_job_t *job,
                                  sizeof(idle_instructions[0])),
                      idle_bytes, (ctool_u32)sizeof(idle_bytes),
                      (const ctool_u32 *)0, 0u,
-                     "idle")
+                     "idle") &&
+                 decode_function(
+                     job, text, local_target, local_target_instructions,
+                     (ctool_u32)(sizeof(local_target_instructions) /
+                                 sizeof(local_target_instructions[0])),
+                     local_target_bytes,
+                     (ctool_u32)sizeof(local_target_bytes),
+                     (const ctool_u32 *)0, 0u, "local_target") &&
+                 decode_function(
+                     job, text, call_local, call_local_instructions,
+                     (ctool_u32)(sizeof(call_local_instructions) /
+                                 sizeof(call_local_instructions[0])),
+                     call_local_bytes, (ctool_u32)sizeof(call_local_bytes),
+                     (const ctool_u32 *)0, 0u, "call_local") &&
+                 decode_function(
+                     job, text, call_external, call_external_instructions,
+                     (ctool_u32)(sizeof(call_external_instructions) /
+                                 sizeof(call_external_instructions[0])),
+                     call_external_bytes,
+                     (ctool_u32)sizeof(call_external_bytes),
+                     (const ctool_u32 *)0, 0u, "call_external") &&
+                 decode_function(
+                     job, text, call_nested, call_nested_instructions,
+                     (ctool_u32)(sizeof(call_nested_instructions) /
+                                 sizeof(call_nested_instructions[0])),
+                     call_nested_bytes,
+                     (ctool_u32)sizeof(call_nested_bytes),
+                     (const ctool_u32 *)0, 0u, "call_nested") &&
+                 decode_function(
+                     job, text, call_void, call_void_instructions,
+                     (ctool_u32)(sizeof(call_void_instructions) /
+                                 sizeof(call_void_instructions[0])),
+                     call_void_bytes, (ctool_u32)sizeof(call_void_bytes),
+                     (const ctool_u32 *)0, 0u, "call_void")
              ? 1
              : 0;
 }
@@ -862,7 +1106,19 @@ static int run_static_data(const char *host_root) {
       "  return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;\n"
       "}\n"
       "int signed_greater(int left, int right) { return left > right; }\n"
-      "static void idle(void) {}\n";
+      "static void idle(void) {}\n"
+      "static int local_target(void) { return 9; }\n"
+      "int call_local(void) { return local_target(); }\n"
+      "extern int external_sum(int left, int right);\n"
+      "int call_external(int left, int right) {\n"
+      "  return external_sum(left, right);\n"
+      "}\n"
+      "extern int external_three(int first, int second, int third);\n"
+      "int call_nested(int left, int middle, int right) {\n"
+      "  return external_three(left, call_local(), right);\n"
+      "}\n"
+      "extern void external_sink(int value);\n"
+      "void call_void(int value) { external_sink(value); }\n";
   static const char unsupported_function_text[] =
       "int unsupported(int value) { return value + 1; }\n";
   static const char external_inline_text[] =
@@ -1211,7 +1467,7 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/function-definition.c", function_text,
                     &function_unit) ||
-      function_unit.function_definition_count != 4u) {
+      function_unit.function_definition_count != 9u) {
     (void)fprintf(stderr, "function object fixture differs\n");
     goto cleanup;
   }

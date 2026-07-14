@@ -14,6 +14,9 @@ static const char active_helper[] =
     "  return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_call[] =
+    "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
+
 static int check_status(ctool_status_t actual, ctool_status_t expected,
                         const char *context) {
   if (actual == expected) {
@@ -31,6 +34,17 @@ static int string_equal(ctool_string_t actual, const char *expected) {
                   memcmp(actual.data, expected, expected_size) == 0)
              ? 1
              : 0;
+}
+
+static ctool_u32 find_binding(const ctool_c_translation_unit_t *unit,
+                              const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (string_equal(unit->bindings[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
 }
 
 static int arena_marks_equal(ctool_arena_mark_t left,
@@ -126,6 +140,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active overflow helper changed\n");
     return 0;
   }
+  path.text = ctool_string("/kernel/core/syscall.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active syscall source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_call) == NULL) {
+    (void)fprintf(stderr, "the active getpid wrapper changed\n");
+    return 0;
+  }
   return 1;
 }
 
@@ -141,6 +164,33 @@ static char *make_active_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_helper,
                  sizeof(active_helper));
+  }
+  return text;
+}
+
+static char *make_call_fixture(void) {
+  static const char prefix[] =
+      "typedef unsigned int uint32_t;\n"
+      "uint32_t process_get_current_pid(void);\n";
+  static const char suffix[] =
+      "\nint external_sum(int left, int right);\n"
+      "int forward_sum(int left, int right) {\n"
+      "  return external_sum(left, right);\n"
+      "}\n"
+      "static int local_target(void) { return 9; }\n"
+      "int call_local(void) { return local_target(); }\n"
+      "extern void external_sink(int value);\n"
+      "void call_void(int value) { external_sink(value); }\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_call) - 1u +
+                sizeof(suffix);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = 0u;
+    (void)memcpy(text + offset, prefix, sizeof(prefix) - 1u);
+    offset += sizeof(prefix) - 1u;
+    (void)memcpy(text + offset, active_call, sizeof(active_call) - 1u);
+    offset += sizeof(active_call) - 1u;
+    (void)memcpy(text + offset, suffix, sizeof(suffix));
   }
   return text;
 }
@@ -464,6 +514,212 @@ static int validate_inline_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int call_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_conversion_kind_t conversion,
+    ctool_u32 reference) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_NONE &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == 0u &&
+                 string_equal(instruction->location.path,
+                              "/active-direct-calls.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/active-direct-calls.c") != 0
+             ? 1
+             : 0;
+}
+
+static int validate_call_ir(const ctool_c_translation_unit_t *unit,
+                            const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *getpid_definition;
+  const ctool_c_function_definition_t *forward_definition;
+  const ctool_c_function_definition_t *local_definition;
+  const ctool_c_function_definition_t *caller_definition;
+  const ctool_c_function_definition_t *void_definition;
+  const ctool_c_type_node_t *getpid_type;
+  const ctool_c_type_node_t *forward_type;
+  const ctool_c_type_node_t *local_type;
+  const ctool_c_type_node_t *caller_type;
+  const ctool_c_type_node_t *void_type;
+  const ctool_c_type_node_t *external_type;
+  const ctool_c_type_node_t *sink_type;
+  const ctool_c_type_node_t *process_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 process_binding = find_binding(unit, "process_get_current_pid");
+  ctool_u32 external_binding = find_binding(unit, "external_sum");
+  ctool_u32 local_binding = find_binding(unit, "local_target");
+  ctool_u32 sink_binding = find_binding(unit, "external_sink");
+  ctool_u32 first_parameter;
+  ctool_u32 integer_type;
+  if (unit->function_definition_count != 5u || ir->function_count != 5u ||
+      ir->functions == NULL || ir->instruction_count != 16u ||
+      ir->instructions == NULL || process_binding == CTOOL_C_AST_NONE ||
+      external_binding == CTOOL_C_AST_NONE ||
+      local_binding == CTOOL_C_AST_NONE || sink_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "call IR inventory differs\n");
+    return 0;
+  }
+  getpid_definition = &unit->function_definitions[0];
+  forward_definition = &unit->function_definitions[1];
+  local_definition = &unit->function_definitions[2];
+  caller_definition = &unit->function_definitions[3];
+  void_definition = &unit->function_definitions[4];
+  if (getpid_definition->declared_type >= unit->graph.type_count ||
+      forward_definition->declared_type >= unit->graph.type_count ||
+      local_definition->declared_type >= unit->graph.type_count ||
+      caller_definition->declared_type >= unit->graph.type_count ||
+      void_definition->declared_type >= unit->graph.type_count ||
+      unit->bindings[process_binding].type >= unit->graph.type_count ||
+      unit->bindings[external_binding].type >= unit->graph.type_count ||
+      unit->bindings[sink_binding].type >= unit->graph.type_count) {
+    return 0;
+  }
+  getpid_type = &unit->graph.types[getpid_definition->declared_type];
+  forward_type = &unit->graph.types[forward_definition->declared_type];
+  local_type = &unit->graph.types[local_definition->declared_type];
+  caller_type = &unit->graph.types[caller_definition->declared_type];
+  void_type = &unit->graph.types[void_definition->declared_type];
+  process_type = &unit->graph.types[unit->bindings[process_binding].type];
+  external_type = &unit->graph.types[unit->bindings[external_binding].type];
+  sink_type = &unit->graph.types[unit->bindings[sink_binding].type];
+  if (getpid_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      process_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      forward_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      external_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      local_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      caller_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      void_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      sink_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      forward_type->parameter_count != 2u || unit->parameter_count < 2u ||
+      forward_type->first_parameter > unit->parameter_count - 2u ||
+      void_type->parameter_count != 1u ||
+      void_type->first_parameter >= unit->parameter_count ||
+      getpid_type->referenced_type != process_type->referenced_type ||
+      local_type->referenced_type != caller_type->referenced_type ||
+      void_type->referenced_type != sink_type->referenced_type) {
+    (void)fprintf(stderr, "call IR function types differ\n");
+    return 0;
+  }
+  first_parameter = forward_type->first_parameter;
+  integer_type = unit->parameters[first_parameter].type;
+  instructions = ir->instructions;
+  if (ir->functions[0].binding != getpid_definition->binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 2u ||
+      ir->functions[0].maximum_stack_depth != 1u ||
+      !call_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          getpid_type->referenced_type, unit->bindings[process_binding].type,
+          CTOOL_C_CONVERSION_NONE, process_binding) ||
+      !call_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          getpid_type->referenced_type, getpid_type->referenced_type,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+      ir->functions[1].binding != forward_definition->binding ||
+      ir->functions[1].first_instruction != 2u ||
+      ir->functions[1].instruction_count != 6u ||
+      ir->functions[1].maximum_stack_depth != 2u ||
+      !call_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          integer_type, CTOOL_C_TYPE_NONE, CTOOL_C_CONVERSION_NONE,
+          first_parameter) ||
+      !call_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_LOAD, integer_type,
+          integer_type, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+          CTOOL_C_AST_NONE) ||
+      !call_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unit->parameters[first_parameter + 1u].type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_CONVERSION_NONE, first_parameter + 1u) ||
+      !call_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_LOAD,
+          unit->parameters[first_parameter + 1u].type,
+          unit->parameters[first_parameter + 1u].type,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+      !call_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          forward_type->referenced_type,
+          unit->bindings[external_binding].type, CTOOL_C_CONVERSION_NONE,
+          external_binding) ||
+      !call_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          forward_type->referenced_type, forward_type->referenced_type,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+      ir->functions[2].binding != local_definition->binding ||
+      ir->functions[2].first_instruction != 8u ||
+      ir->functions[2].instruction_count != 2u ||
+      ir->functions[2].maximum_stack_depth != 1u ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[8].integer_bits != 9u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      ir->functions[3].binding != caller_definition->binding ||
+      ir->functions[3].first_instruction != 10u ||
+      ir->functions[3].instruction_count != 2u ||
+      ir->functions[3].maximum_stack_depth != 1u ||
+      !call_instruction_matches(
+          &instructions[10], CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          caller_type->referenced_type, local_definition->declared_type,
+          CTOOL_C_CONVERSION_NONE, local_binding) ||
+      !call_instruction_matches(
+          &instructions[11], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          caller_type->referenced_type, caller_type->referenced_type,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+      ir->functions[4].binding != void_definition->binding ||
+      ir->functions[4].first_instruction != 12u ||
+      ir->functions[4].instruction_count != 4u ||
+      ir->functions[4].maximum_stack_depth != 1u ||
+      !call_instruction_matches(
+          &instructions[12], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unit->parameters[void_type->first_parameter].type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_CONVERSION_NONE,
+          void_type->first_parameter) ||
+      !call_instruction_matches(
+          &instructions[13], CTOOL_C_IR_INSTRUCTION_LOAD,
+          unit->parameters[void_type->first_parameter].type,
+          unit->parameters[void_type->first_parameter].type,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+      !call_instruction_matches(
+          &instructions[14], CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          void_type->referenced_type, unit->bindings[sink_binding].type,
+          CTOOL_C_CONVERSION_NONE, sink_binding) ||
+      !call_instruction_matches(
+          &instructions[15], CTOOL_C_IR_INSTRUCTION_RETURN_VOID,
+          CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE)) {
+    ctool_u32 index;
+    (void)fprintf(stderr, "call IR instructions differ\n");
+    for (index = 0u; index < ir->function_count; index++) {
+      (void)fprintf(stderr,
+                    "function %lu: binding=%lu first=%lu count=%lu "
+                    "maximum=%lu\n",
+                    (unsigned long)index,
+                    (unsigned long)ir->functions[index].binding,
+                    (unsigned long)ir->functions[index].first_instruction,
+                    (unsigned long)ir->functions[index].instruction_count,
+                    (unsigned long)ir->functions[index].maximum_stack_depth);
+    }
+    for (index = 0u; index < ir->instruction_count; index++) {
+      (void)fprintf(stderr,
+                    "instruction %lu: kind=%lu type=%lu input=%lu "
+                    "operation=%lu conversion=%lu reference=%lu bits=%lu\n",
+                    (unsigned long)index,
+                    (unsigned long)instructions[index].kind,
+                    (unsigned long)instructions[index].type,
+                    (unsigned long)instructions[index].input_type,
+                    (unsigned long)instructions[index].operation,
+                    (unsigned long)instructions[index].conversion,
+                    (unsigned long)instructions[index].reference,
+                    (unsigned long)instructions[index].integer_bits);
+    }
+    return 0;
+  }
+  return 1;
+}
+
 static int run_active_leaf(const char *host_root) {
   static const char simple_source[] =
       "int answer(void) { return 42; }\n"
@@ -490,6 +746,17 @@ static int run_active_leaf(const char *host_root) {
       "unsigned int cast_value(int value) {\n"
       "  return (unsigned int)value;\n"
       "}\n";
+  static const char indirect_call_source[] =
+      "int (*indirect_call)(int);\n"
+      "int call_pointer(int value) { return indirect_call(value); }\n";
+  static const char wide_call_source[] =
+      "int wide_target(long long value);\n"
+      "int call_wide(void) { return wide_target(1); }\n";
+  static const char variadic_call_source[] =
+      "int variadic_target(int first, ...);\n"
+      "int call_variadic(void) { return variadic_target(1); }\n";
+  static const char value_statement_source[] =
+      "void discard_value(void) { 1; }\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -504,6 +771,11 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t extern_inline_unit;
   ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t call_unit;
+  ctool_c_translation_unit_t indirect_call_unit;
+  ctool_c_translation_unit_t wide_call_unit;
+  ctool_c_translation_unit_t variadic_call_unit;
+  ctool_c_translation_unit_t value_statement_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_function_definition_t invalid_definition;
   ctool_c_ir_unit_t ir;
@@ -511,6 +783,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_u32 diagnostic_count;
   uint64_t fingerprint;
   char *fixture = NULL;
+  char *call_fixture = NULL;
   int passed = 0;
 
   (void)memset(&active_unit, 0, sizeof(active_unit));
@@ -524,6 +797,25 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-cemit-add-overflows.c", fixture,
                     &active_unit)) {
     (void)fprintf(stderr, "active helper setup failed\n");
+    goto cleanup;
+  }
+
+  call_fixture = make_call_fixture();
+  if (call_fixture == NULL ||
+      !parse_source(job, "/active-direct-calls.c", call_fixture,
+                    &call_unit)) {
+    (void)fprintf(stderr, "active call setup failed\n");
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&call_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &call_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active direct call lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&call_unit) != fingerprint ||
+      !validate_call_ir(&call_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   fingerprint = unit_fingerprint(&active_unit);
@@ -624,6 +916,44 @@ static int run_active_leaf(const char *host_root) {
           "unsupported explicit conversion")) {
     goto cleanup;
   }
+  if (!parse_source(job, "/indirect-call.c", indirect_call_source,
+                    &indirect_call_unit) ||
+      !expect_ir_failure(
+          job, &indirect_call_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "indirect call")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-call.c", wide_call_source,
+                    &wide_call_unit) ||
+      !expect_ir_failure(
+          job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "with 32-bit integer arguments and void or 32-bit integer results",
+          "wide direct call")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/variadic-call.c", variadic_call_source,
+                    &variadic_call_unit) ||
+      !expect_ir_failure(
+          job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "with 32-bit integer arguments and void or 32-bit integer results",
+          "variadic direct call")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/value-statement.c", value_statement_source,
+                    &value_statement_unit) ||
+      !expect_ir_failure(
+          job, &value_statement_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "nonvoid expression statement")) {
+    goto cleanup;
+  }
   if (!parse_source(job, "/unsupported-abi.c", abi_source, &abi_unit) ||
       !expect_ir_failure(
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
@@ -664,6 +994,7 @@ cleanup:
     ctool_job_close(job);
   }
   free(fixture);
+  free(call_fixture);
   if (passed != 0) {
     (void)puts("active-leaf: ok");
     return 0;

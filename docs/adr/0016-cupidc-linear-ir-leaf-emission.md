@@ -31,3 +31,7 @@ The object contract emits static data and four leaf functions in one object. It 
 This transfers no production build ownership. GCC or Clang still builds the hosted modules and contracts, and the private in-kernel CupidC frontend and backend still produce every normal OS C object. No OS artifact or runtime ABI changed, so this increment has no boot claim.
 
 External-inline finalization, explicit casts, calls and `R_386_PC32`, local objects and stack allocation, assignments, general blocks and control statements, labels, pointers, 64-bit integers, floating and aggregate values, broader ABI work, production integration, and self-hosting remain open. Issue #25 stays open until those parts can carry unchanged active Toolchain functions and then normal OS C cohorts.
+
+## Extension
+
+ADR 0017 extends this interface with fixed direct calls, source-order argument evaluation, cdecl stack-slot placement, and local or external `R_386_PC32` relocations. The open call work above records the boundary when this first leaf decision was made. Indirect and variadic calls, 16-byte call-site alignment, and wider, floating, or aggregate call forms remain open.
