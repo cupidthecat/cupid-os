@@ -2667,3 +2667,57 @@ The WSL checks used GCC 13.3.0 and Clang 18.1.3 with fresh build directories out
 GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency, and it changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source.
 
 Issue #25 remains open. Indirect and variadic calls, call-site stack alignment, wider and aggregate arguments and results, local objects, stack allocation, broader statement lowering, linked call proof, production integration, and staged self-hosting remain there. No issue is ready to close from this step.
+
+## 2026-07-14: CupidC lowers active 32-bit integer addition
+
+### Decision and source requirement
+
+The shared CupidC path can lower and emit 32-bit integer addition. The source requirement is the unchanged `add2` function in `bin/cupidc_test3.cc`:
+
+```c
+int add2(int x, int y) {
+    return x + y;
+}
+```
+
+The declaration frontend already typed this expression as `CTOOL_C_EXPRESSION_OPERATOR_ADD`. The linear IR operation rejected it because the first leaf slice allowed only subtraction and greater-than comparison. `cir_lower_binary` now accepts the existing addition operation for matching represented 32-bit integer operands. No public AST, IR, x86, ELF32, or diagnostic record changed.
+
+The emitter uses the same abstract-stack convention as subtraction. It pops the right operand into ECX and the left operand into EAX, emits `ADD EAX, ECX` through `ctool_x86_encode`, and pushes the result for the following IR consumer. The shared x86 model already represented and encoded this instruction, so adding another encoder path or writing raw opcode bytes would have duplicated existing semantics.
+
+The focused IR fixture pins six instructions: both parameter addresses and loads, one typed `BINARY ADD`, and `RETURN_VALUE`. Its maximum abstract-stack depth is two. The object fixture adds a global `STT_FUNC` symbol for `add2`, pins all 33 function bytes, and decodes the exact instruction stream. The arithmetic bytes are `01 c8`, which encode `add eax, ecx`. The earlier unsupported-addition case became an unsupported-multiplication case so the contracts retain a useful expression boundary.
+
+No user question was needed. ADR 0016 already fixes the public typed IR seam, the frontend fixes operand order, and ADR 0007 keeps encoding behind the shared x86 operation. The existing ADR therefore records this as an extension instead of introducing a second decision for the same interface.
+
+### Red-to-green sequence and corrections
+
+- The IR and object contracts first failed with `CTD000005` at `return x + y`. That proved the missing capability at `ctool_c_lower_ir` and `ctool_c_emit_object` before the implementation changed.
+- The first unchanged-source guard accepted only LF bytes. It failed on the Windows working tree's CRLF checkout even though the source was unchanged. The final guard accepts either line-ending form for the same complete function text, so it protects the source shape without treating checkout line endings as language syntax.
+- Allowing the existing `ADD` operation made both focused contracts pass without changing the frontend, public IR layout, or x86 catalogue.
+- The complete Toolchain suite then caught stale self-parse inventories. The final contract records 29 definitions, 581 statements, 4,946 expressions, 63 block bindings, and 14 initializers for `cupidc_ir.c`; and 54 definitions, 1,216 statements, 9,185 expressions, 172 block bindings, and 79 initializers for `cupidc_emit.c`.
+- Regenerating the active-source audit changed the lexical counts contributed by the implementation and contracts. The exact `return`, `if`, `else`, `goto`, and `sizeof` guards were updated to the measured totals. No inventory assertion was removed or weakened.
+- Reviewing the generated ownership totals found two stale prose claims. The root README no longer lists GNU or LLVM `nm` as mandatory, and the bootstrap records distinguish CupidObj's 181 direct transforms from its Python-assisted JPEG output, for 182 code-producing outputs in total.
+- One manual unittest command named a nonexistent `BuildGraphAuditTests` class. The repository calls it `BuildGraphAuditCliTests`. The corrected exact audit test passed; the first result is not evidence of a product failure.
+- Standards and Spec review both found that the Windows build paragraph still grouped `llvm-nm` with required tools. It now names only Clang as required and calls `llvm-nm` an optional comparison oracle.
+- Standards review also found an unsigned parameter-count subtraction in the new IR validator without a preceding lower-bound check. The final validator rejects a count below two before it computes the remaining parameter slice.
+
+### Audit and verification
+
+The regenerated graph still records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. The lexical inventory contains 511 `goto`, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,490 `while`, 23,417 `if`, 3,383 `else`, 2,903 `for`, 14,269 `return`, and 2,095 `sizeof` occurrences. The active-source digest is `66d0a413b3fbf2fbb186783d310e8fdf0d9543c071ef0da8adf8851d40b73a2d`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | Both public contracts failed at the old unsupported-addition boundary before the implementation changed. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes both contracts in 12.722 seconds. The fixtures accept the unchanged `add2` shape and retain multiplication as a negative case. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the strict Clang suite, including the frontend, IR, object, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts plus all 22 assembly demos. |
+| WSL cross-host contracts | PASS | Fresh strict builds and runs pass under GCC 13.3.0 and Clang 18.1.3. Both IR and object selectors report `ok` under each compiler. |
+| Sanitizers | PASS | Fresh GCC and Clang builds of both contracts pass with address and undefined-behavior sanitizers, leak detection, and halt-on-error behavior enabled. |
+| Static analysis | PASS | Windows GCC 15.2 and Clang 22.1, plus WSL GCC 13.3 and Clang 18.1, report no diagnostics for both implementation files and all three affected C contracts. |
+| Formal two-axis review | PASS AFTER FIXES | Standards review found the unsigned slice check and stale Windows dependency wording. Spec review found the same README inconsistency. The bound guard and optional-oracle wording closed both findings, and both final reviews are clean. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, `make check-bootstrap-audit` reproduces them, and the corrected exact manifest test passes. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 480.579 seconds with one expected skip and returns from Make in 521.5 seconds. |
+| Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices, and the changed prose contains no em or en dashes. |
+| Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency. It changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source because it adds no production or user-facing behavior.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic local storage and stack allocation are the next source-driven lowering gate, followed by broader statements and expressions, remaining ABI work, production integration, and staged self-hosting. No issue is ready to close from this increment.

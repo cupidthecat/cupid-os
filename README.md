@@ -191,8 +191,9 @@ The design borrows from TempleOS (single address space, built-in compiler, bare 
 ## Building
 
 Linux image builds default to GCC for C compilation and require GCC with 32-bit
-support (including its native linker backend), binutils `nm`, Python 3, and GNU
-Make. QEMU is required only to run the image or execute emulator tests.
+support, its native linker backend, Python 3, and GNU Make. QEMU is required
+only to run the image or execute emulator tests. GNU or LLVM `nm` is optional
+comparison tooling because CupidDis supplies production kernel symbols.
 CupidASM assembles every active OS assembly input, while CupidLD and CupidObj
 perform every OS/user ELF link and object/binary transform. The GCC driver still
 links the temporary hosted Cupid tools:
@@ -202,9 +203,10 @@ sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
 ```
 
 Native Windows image builds default to Clang for C compilation. Install GNU
-Make, Python 3, and LLVM (`clang` and `llvm-nm`), then build from
+Make, Python 3, and LLVM with `clang`, then build from
 PowerShell or another native Windows shell. Install QEMU for runtime/tests.
-No standalone LLVM ELF-linker or `objcopy` command produces an OS/user artifact.
+`llvm-nm` is an optional comparison oracle. No standalone LLVM ELF-linker or
+`objcopy` command produces an OS/user artifact.
 Clang still needs its native linker backend to build the temporary hosted Cupid
 tools:
 
@@ -636,11 +638,12 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 ## Requirements
 
-- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts), its native linker backend, and binutils `nm`
-- Windows: LLVM (`clang`, its native linker backend, `llvm-nm`)
+- Linux: GCC with 32-bit support (gcc-multilib on 64-bit hosts) and its native linker backend
+- Windows: LLVM (`clang` and its native linker backend)
 - Python 3
 - GNU Make
 - QEMU (`qemu-system-i386`, runtime/testing only)
+- GNU `nm` or `llvm-nm` (optional comparison oracle)
 - NASM (optional, for `make nasm-assembly-oracle` parity checks)
 - mtools (`mcopy` and `mdir`) is optional for manual FAT16 image inspection and copying
 - DOOM WADs (optional): the build picks up `freedoom1.wad` /

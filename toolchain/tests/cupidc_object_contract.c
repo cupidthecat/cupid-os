@@ -406,6 +406,12 @@ static int validate_function_object(ctool_job_t *job,
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
       0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0xc9u, 0xc3u};
+  static const ctool_u8 add2_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
   static const ctool_u32 helper_branch_targets[] = {65u, 70u};
   static const ctool_x86_mnemonic_t implemented_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
@@ -455,6 +461,14 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t add2_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_instructions[] = {
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
@@ -481,6 +495,7 @@ static int validate_function_object(ctool_job_t *job,
   const ctool_elf32_symbol_t *call_nested =
       find_symbol(object, "call_nested");
   const ctool_elf32_symbol_t *call_void = find_symbol(object, "call_void");
+  const ctool_elf32_symbol_t *add2 = find_symbol(object, "add2");
   const ctool_elf32_symbol_t *external_sum =
       find_symbol(object, "external_sum");
   const ctool_elf32_symbol_t *external_three =
@@ -498,6 +513,7 @@ static int validate_function_object(ctool_job_t *job,
       implemented == NULL || helper == NULL || idle == NULL ||
       signed_greater == NULL || local_target == NULL || call_local == NULL ||
       call_external == NULL || call_nested == NULL || call_void == NULL ||
+      add2 == NULL ||
       external_sum == NULL || external_three == NULL ||
       external_sink == NULL ||
       function_data == NULL ||
@@ -542,6 +558,10 @@ static int validate_function_object(ctool_job_t *job,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 259u,
                       24u) ||
+      !symbol_matches(add2, add2->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 283u,
+                      33u) ||
       !symbol_matches(external_sum, external_sum->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
@@ -561,7 +581,7 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      text->contents.size != 283u ||
+      text->contents.size != 316u ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
@@ -731,7 +751,13 @@ static int validate_function_object(ctool_job_t *job,
                      (ctool_u32)(sizeof(call_void_instructions) /
                                  sizeof(call_void_instructions[0])),
                      call_void_bytes, (ctool_u32)sizeof(call_void_bytes),
-                     (const ctool_u32 *)0, 0u, "call_void")
+                     (const ctool_u32 *)0, 0u, "call_void") &&
+                 decode_function(
+                     job, text, add2, add2_instructions,
+                     (ctool_u32)(sizeof(add2_instructions) /
+                                 sizeof(add2_instructions[0])),
+                     add2_bytes, (ctool_u32)sizeof(add2_bytes),
+                     (const ctool_u32 *)0, 0u, "add2")
              ? 1
              : 0;
 }
@@ -1118,9 +1144,12 @@ static int run_static_data(const char *host_root) {
       "  return external_three(left, call_local(), right);\n"
       "}\n"
       "extern void external_sink(int value);\n"
-      "void call_void(int value) { external_sink(value); }\n";
+      "void call_void(int value) { external_sink(value); }\n"
+      "int add2(int x, int y) {\n"
+      "    return x + y;\n"
+      "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return value + 1; }\n";
+      "int unsupported(int value) { return value * 1; }\n";
   static const char external_inline_text[] =
       "inline int external_inline(void) { return 1; }\n";
   static const char layout_text[] =
@@ -1467,7 +1496,7 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/function-definition.c", function_text,
                     &function_unit) ||
-      function_unit.function_definition_count != 9u) {
+      function_unit.function_definition_count != 10u) {
     (void)fprintf(stderr, "function object fixture differs\n");
     goto cleanup;
   }

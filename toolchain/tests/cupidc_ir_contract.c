@@ -17,6 +17,11 @@ static const char active_helper[] =
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
+static const char active_addition[] =
+    "int add2(int x, int y) {\n"
+    "    return x + y;\n"
+    "}\n";
+
 static int check_status(ctool_status_t actual, ctool_status_t expected,
                         const char *context) {
   if (actual == expected) {
@@ -147,6 +152,19 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_call) == NULL) {
     (void)fprintf(stderr, "the active getpid wrapper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/bin/cupidc_test3.cc");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active addition source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_addition) == NULL &&
+       strstr((const char *)source.contents.data,
+              "int add2(int x, int y) {\r\n"
+              "    return x + y;\r\n"
+              "}\r\n") == NULL)) {
+    (void)fprintf(stderr, "the active add2 function changed\n");
     return 0;
   }
   return 1;
@@ -324,6 +342,7 @@ static int validate_active_ir(const ctool_c_translation_unit_t *unit,
   function_type = &unit->graph.types[definition->declared_type];
   if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->parameter_count != 2u ||
+      unit->parameter_count < 2u ||
       function_type->first_parameter > unit->parameter_count - 2u) {
     (void)fprintf(stderr, "active function type differs\n");
     return 0;
@@ -462,6 +481,72 @@ static int validate_simple_ir(const ctool_c_translation_unit_t *unit,
       conversion[3].type != result_type ||
       conversion[3].input_type != result_type) {
     (void)fprintf(stderr, "simple IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
+                                const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 first_parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 6u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "addition IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      unit->parameter_count < 2u ||
+      function_type->first_parameter > unit->parameter_count - 2u) {
+    (void)fprintf(stderr, "addition function type differs\n");
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  value_type = unit->parameters[first_parameter].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions + function->first_instruction;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 6u ||
+      function->maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != first_parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != value_type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != value_type ||
+      instructions[2].reference != first_parameter + 1u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != value_type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      !string_equal(instructions[4].location.path,
+                    "/active-cupidc-add2.c") ||
+      !string_equal(instructions[4].physical_location.path,
+                    "/active-cupidc-add2.c")) {
+    (void)fprintf(stderr, "addition IR instruction stream differs\n");
     return 0;
   }
   return 1;
@@ -731,7 +816,7 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int add_one(int value) { return value + 1; }\n";
+      "int multiply_one(int value) { return value * 1; }\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
   static const char inline_success_source[] =
@@ -763,6 +848,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t active_unit;
+  ctool_c_translation_unit_t addition_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
   ctool_c_translation_unit_t expression_unit;
@@ -787,6 +873,7 @@ static int run_active_leaf(const char *host_root) {
   int passed = 0;
 
   (void)memset(&active_unit, 0, sizeof(active_unit));
+  (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job)) {
@@ -797,6 +884,23 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-cemit-add-overflows.c", fixture,
                     &active_unit)) {
     (void)fprintf(stderr, "active helper setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/active-cupidc-add2.c", active_addition,
+                    &addition_unit)) {
+    (void)fprintf(stderr, "active addition setup failed\n");
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&addition_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &addition_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active addition lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&addition_unit) != fingerprint ||
+      !validate_addition_ir(&addition_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
 
