@@ -10008,6 +10008,48 @@ static ctool_status_t cfront_parse_static_initializer(
     cfront_context_t *context, ctool_u32 *object_type_io,
     ctool_u32 *initializer_out);
 
+static ctool_status_t cfront_record_initializer_member_at(
+    cfront_context_t *context, const ctool_c_type_node_t *record,
+    ctool_u32 member_offset, ctool_u32 *member_index_out,
+    ctool_c_record_member_t *member_out, ctool_bool *eligible_out) {
+  ctool_status_t status;
+  *eligible_out = CTOOL_FALSE;
+  if (record->first_member > context->members.count ||
+      record->member_count > context->members.count - record->first_member ||
+      member_offset >= record->member_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *member_index_out = record->first_member + member_offset;
+  status = cfront_vector_get(
+      &context->members, *member_index_out, member_out);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (member_out->is_bit_field == CTOOL_TRUE &&
+      member_out->name.size == 0u) {
+    return CTOOL_OK;
+  }
+  if (member_offset + 1u == record->member_count) {
+    ctool_c_type_node_t member_type;
+    ctool_u32 member_base;
+    ctool_u32 member_qualifiers;
+    status = cfront_underlying_type(
+        context, member_out->type, &member_base, &member_qualifiers,
+        &member_type);
+    (void)member_base;
+    (void)member_qualifiers;
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (member_type.kind == CTOOL_C_TYPE_ARRAY &&
+        member_type.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
+      return CTOOL_OK;
+    }
+  }
+  *eligible_out = CTOOL_TRUE;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_next_record_initializer_member(
     cfront_context_t *context, const ctool_c_type_node_t *record,
     ctool_u32 *member_cursor_io, ctool_u32 *member_index_out,
@@ -10020,40 +10062,107 @@ static ctool_status_t cfront_next_record_initializer_member(
   }
   while (*member_cursor_io < record->member_count) {
     ctool_u32 member_offset = *member_cursor_io;
-    ctool_u32 member_index = record->first_member + member_offset;
-    ctool_c_record_member_t member;
+    ctool_bool eligible = CTOOL_FALSE;
     ctool_status_t status;
     (*member_cursor_io)++;
-    status = cfront_vector_get(&context->members, member_index, &member);
+    status = cfront_record_initializer_member_at(
+        context, record, member_offset, member_index_out, member_out,
+        &eligible);
     if (status != CTOOL_OK) {
       return status;
     }
-    if (member.is_bit_field == CTOOL_TRUE && member.name.size == 0u) {
+    if (eligible == CTOOL_FALSE) {
       continue;
     }
-    if (member_offset + 1u == record->member_count) {
-      ctool_c_type_node_t member_type;
-      ctool_u32 member_base;
-      ctool_u32 member_qualifiers;
-      status = cfront_underlying_type(
-          context, member.type, &member_base, &member_qualifiers,
-          &member_type);
-      (void)member_base;
-      (void)member_qualifiers;
-      if (status != CTOOL_OK) {
-        return status;
-      }
-      if (member_type.kind == CTOOL_C_TYPE_ARRAY &&
-          member_type.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
-        continue;
-      }
-    }
-    *member_index_out = member_index;
-    *member_out = member;
     *found_out = CTOOL_TRUE;
     return CTOOL_OK;
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t cfront_record_promotes_initializer_member(
+    cfront_context_t *context, const ctool_c_type_node_t *record,
+    ctool_string_t name, ctool_bool *found_out) {
+  ctool_u32 stack_mark =
+      cfront_vector_mark(&context->temporary_indices);
+  ctool_u32 member_offset;
+  ctool_status_t status = CTOOL_OK;
+  *found_out = CTOOL_FALSE;
+  if (record->first_member > context->members.count ||
+      record->member_count > context->members.count - record->first_member) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  for (member_offset = 0u;
+       status == CTOOL_OK && member_offset < record->member_count;
+       member_offset++) {
+    ctool_u32 member_index = record->first_member + member_offset;
+    ctool_c_record_member_t member;
+    status = cfront_vector_get(&context->members, member_index, &member);
+    if (status == CTOOL_OK && member.name.size == 0u &&
+        member.anonymous == CTOOL_TRUE) {
+      status = cfront_vector_append(&context->temporary_indices,
+                                    &member_index, (ctool_u32 *)0);
+    }
+  }
+  while (status == CTOOL_OK &&
+         context->temporary_indices.count > stack_mark &&
+         *found_out == CTOOL_FALSE) {
+    ctool_u32 member_index;
+    ctool_c_record_member_t member;
+    ctool_c_type_node_t nested;
+    ctool_u32 nested_base = CTOOL_C_TYPE_NONE;
+    ctool_u32 nested_qualifiers = 0u;
+    status = cfront_vector_get(
+        &context->temporary_indices,
+        context->temporary_indices.count - 1u, &member_index);
+    if (status == CTOOL_OK) {
+      status = cfront_vector_rewind(
+          &context->temporary_indices,
+          context->temporary_indices.count - 1u);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_vector_get(
+          &context->members, member_index, &member);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, member.type, &nested_base, &nested_qualifiers, &nested);
+    }
+    (void)nested_base;
+    (void)nested_qualifiers;
+    if (status != CTOOL_OK || nested.kind != CTOOL_C_TYPE_RECORD ||
+        nested.record_complete == CTOOL_FALSE ||
+        nested.first_member > context->members.count ||
+        nested.member_count > context->members.count - nested.first_member) {
+      status = CTOOL_ERR_INTERNAL;
+      break;
+    }
+    for (member_offset = 0u;
+         status == CTOOL_OK && member_offset < nested.member_count;
+         member_offset++) {
+      ctool_u32 nested_index = nested.first_member + member_offset;
+      status = cfront_vector_get(
+          &context->members, nested_index, &member);
+      if (status == CTOOL_OK && member.name.size != 0u &&
+          cfront_string_equal(member.name, name) == CTOOL_TRUE) {
+        *found_out = CTOOL_TRUE;
+        break;
+      }
+      if (status == CTOOL_OK && member.name.size == 0u &&
+          member.anonymous == CTOOL_TRUE) {
+        status = cfront_vector_append(&context->temporary_indices,
+                                      &nested_index, (ctool_u32 *)0);
+      }
+    }
+  }
+  {
+    ctool_status_t rewind_status = cfront_vector_rewind(
+        &context->temporary_indices, stack_mark);
+    if (status == CTOOL_OK) {
+      status = rewind_status;
+    }
+  }
+  return status;
 }
 
 static ctool_status_t cfront_automatic_record_expression_compatible(
@@ -10100,7 +10209,8 @@ static ctool_status_t cfront_parse_aggregate_initializer(
   ctool_u32 aggregate_qualifiers;
   ctool_u32 pending_mark =
       cfront_vector_mark(&context->pending_initializer_elements);
-  ctool_u32 subobject_count = 0u;
+  ctool_u32 array_cursor = 0u;
+  ctool_u32 array_extent = 0u;
   ctool_u32 record_member_cursor = 0u;
   ctool_bool aggregate_full = CTOOL_FALSE;
   ctool_bool prepared_available =
@@ -10177,35 +10287,177 @@ static ctool_status_t cfront_parse_aggregate_initializer(
   while (status == CTOOL_OK &&
          (prepared_available == CTOOL_TRUE ||
           cfront_peek_is(context, "}") == CTOOL_FALSE) &&
-         (aggregate.kind != CTOOL_C_TYPE_ARRAY ||
-          aggregate.array_bound_kind != CTOOL_C_ARRAY_FIXED ||
-          subobject_count < aggregate.element_count)) {
+         (explicit_braces == CTOOL_TRUE ||
+          aggregate_full == CTOOL_FALSE)) {
     ctool_c_initializer_element_t edge;
     ctool_u32 child_type;
     ctool_u32 declared_child_type;
     ctool_u32 child_initializer = CTOOL_C_AST_NONE;
-    if (cfront_peek_is(context, ".") == CTOOL_TRUE ||
-        cfront_peek_is(context, "[") == CTOOL_TRUE) {
-      status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
-          cfront_peek(context),
-          static_storage == CTOOL_TRUE
-              ? "designated static initializers are outside this semantic "
-                "slice"
-              : "designated automatic initializers are outside this "
-                "semantic slice");
-      break;
-    }
-    if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
-      if (aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
-          subobject_count >= aggregate.element_count) {
+    const ctool_c_pp_token_t *clause_start = cfront_peek(context);
+    ctool_bool array_designator = CTOOL_FALSE;
+    ctool_bool record_designator = CTOOL_FALSE;
+    ctool_c_record_member_t designated_member;
+    aggregate_full = CTOOL_FALSE;
+    cfront_zero(&designated_member,
+                (ctool_u32)sizeof(designated_member));
+    if (cfront_peek_is(context, ".") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *designator = cfront_advance(context);
+      const ctool_c_pp_token_t *member_token = cfront_peek(context);
+      ctool_u32 member_offset;
+      ctool_bool found = CTOOL_FALSE;
+      if (aggregate.kind != CTOOL_C_TYPE_RECORD ||
+          aggregate.record_kind != CTOOL_C_RECORD_STRUCT) {
         status = cfront_emit_failure(
-            context, CTOOL_ERR_INPUT, initializer_diagnostic,
-            cfront_peek(context), array_excess_message);
+            context, CTOOL_ERR_INPUT, initializer_diagnostic, designator,
+            "member designator requires a structure initializer target");
         break;
       }
-      edge.subobject = subobject_count;
+      if (member_token == (const ctool_c_pp_token_t *)0 ||
+          member_token->kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, initializer_diagnostic, member_token,
+            "member designator requires an identifier");
+        break;
+      }
+      for (member_offset = 0u;
+           status == CTOOL_OK && member_offset < aggregate.member_count;
+           member_offset++) {
+        ctool_c_record_member_t member;
+        ctool_u32 member_index = CTOOL_C_AST_NONE;
+        ctool_bool eligible = CTOOL_FALSE;
+        status = cfront_record_initializer_member_at(
+            context, &aggregate, member_offset, &member_index, &member,
+            &eligible);
+        if (status == CTOOL_OK && member.name.size != 0u &&
+            cfront_string_equal(member.name, member_token->spelling) ==
+                CTOOL_TRUE) {
+          found = CTOOL_TRUE;
+          if (eligible == CTOOL_FALSE) {
+            status = cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, initializer_diagnostic,
+                member_token,
+                "flexible array member cannot be initialized");
+          } else {
+            designated_member = member;
+            edge.subobject = member_index;
+            record_member_cursor = member_offset + 1u;
+          }
+          break;
+        }
+      }
+      if (status != CTOOL_OK) {
+        if (found == CTOOL_FALSE) {
+          if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+              status == CTOOL_ERR_NO_MEMORY) {
+            status = cfront_storage_failure(context, status);
+          } else {
+            status = cfront_emit_failure(
+                context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+                member_token, "record initializer member is unavailable");
+          }
+        }
+        break;
+      }
+      if (found == CTOOL_FALSE) {
+        ctool_bool promoted = CTOOL_FALSE;
+        status = cfront_record_promotes_initializer_member(
+            context, &aggregate, member_token->spelling, &promoted);
+        if (status != CTOOL_OK) {
+          if (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+              status == CTOOL_ERR_NO_MEMORY) {
+            status = cfront_storage_failure(context, status);
+          } else {
+            status = cfront_emit_failure(
+                context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+                member_token,
+                "promoted initializer member traversal is invalid");
+          }
+        } else if (promoted == CTOOL_TRUE) {
+          status = cfront_emit_failure(
+              context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+              member_token,
+              "designators for promoted anonymous members are outside this "
+              "semantic slice");
+        } else {
+          status = cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, initializer_diagnostic, member_token,
+              "structure has no direct member with this name");
+        }
+        break;
+      }
+      (void)cfront_advance(context);
+      if (cfront_peek_is(context, ".") == CTOOL_TRUE ||
+          cfront_peek_is(context, "[") == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+            cfront_peek(context),
+            "initializer designator chains are outside this semantic slice");
+      } else {
+        status = cfront_expected(context, "=");
+      }
+      if (status != CTOOL_OK) {
+        break;
+      }
+      record_designator = CTOOL_TRUE;
+    }
+    if (cfront_peek_is(context, "[") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *designator = cfront_advance(context);
+      cfront_integer_t selected = {0ull, CFRONT_INTEGER_SIGNED_32};
+      if (aggregate.kind != CTOOL_C_TYPE_ARRAY) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, initializer_diagnostic, designator,
+            "array designator requires an array initializer target");
+        break;
+      }
+      status = cfront_parse_constant_conditional(context, &selected);
+      if (status == CTOOL_OK) {
+        status = cfront_expected(context, "]");
+      }
+      if (status == CTOOL_OK &&
+          (cfront_integer_negative(&selected) == CTOOL_TRUE ||
+           selected.bits >= CFRONT_U32_MAX)) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW,
+            designator,
+            "array designator is outside the supported 32-bit object range");
+      }
+      if (status == CTOOL_OK &&
+          aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+          selected.bits >= aggregate.element_count) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, initializer_diagnostic, designator,
+            "array designator exceeds the destination array bound");
+      }
+      if (status == CTOOL_OK &&
+          (cfront_peek_is(context, ".") == CTOOL_TRUE ||
+           cfront_peek_is(context, "[") == CTOOL_TRUE)) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+            cfront_peek(context),
+            "initializer designator chains are outside this semantic slice");
+      } else if (status == CTOOL_OK) {
+        status = cfront_expected(context, "=");
+      }
+      if (status != CTOOL_OK) {
+        break;
+      }
+      edge.subobject = (ctool_u32)selected.bits;
+      array_designator = CTOOL_TRUE;
+    }
+    if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
+      if (array_designator == CTOOL_FALSE) {
+        if (aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+            array_cursor >= aggregate.element_count) {
+          status = cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, initializer_diagnostic,
+              cfront_peek(context), array_excess_message);
+          break;
+        }
+        edge.subobject = array_cursor;
+      }
       child_type = aggregate.referenced_type;
+    } else if (record_designator == CTOOL_TRUE) {
+      child_type = designated_member.type;
     } else {
       ctool_c_record_member_t member;
       ctool_bool found = CTOOL_FALSE;
@@ -10223,6 +10475,33 @@ static ctool_status_t cfront_parse_aggregate_initializer(
         break;
       }
       child_type = member.type;
+    }
+    if (status == CTOOL_OK) {
+      ctool_u32 pending_index;
+      ctool_bool duplicate = CTOOL_FALSE;
+      for (pending_index = pending_mark;
+           status == CTOOL_OK &&
+           pending_index < context->pending_initializer_elements.count;
+           pending_index++) {
+        ctool_c_initializer_element_t previous;
+        status = cfront_vector_get(
+            &context->pending_initializer_elements, pending_index,
+            &previous);
+        if (status == CTOOL_OK &&
+            previous.subobject == edge.subobject) {
+          duplicate = CTOOL_TRUE;
+          status = cfront_emit_failure(
+              context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+              clause_start,
+              "overriding initialized subobjects await replacement semantics");
+        }
+      }
+      if (status != CTOOL_OK && duplicate == CTOOL_FALSE) {
+        status = cfront_storage_failure(context, status);
+      }
+    }
+    if (status != CTOOL_OK) {
+      break;
     }
     declared_child_type = child_type;
     {
@@ -10326,12 +10605,15 @@ static ctool_status_t cfront_parse_aggregate_initializer(
     if (status != CTOOL_OK) {
       break;
     }
-    subobject_count++;
-    if ((aggregate.kind == CTOOL_C_TYPE_ARRAY &&
-         aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
-         subobject_count >= aggregate.element_count)) {
-      aggregate_full = CTOOL_TRUE;
-      break;
+    if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
+      array_cursor = edge.subobject + 1u;
+      if (array_extent < array_cursor) {
+        array_extent = array_cursor;
+      }
+      if (aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+          array_cursor >= aggregate.element_count) {
+        aggregate_full = CTOOL_TRUE;
+      }
     }
     if (aggregate.kind == CTOOL_C_TYPE_RECORD) {
       ctool_u32 probe = record_member_cursor;
@@ -10351,10 +10633,20 @@ static ctool_status_t cfront_parse_aggregate_initializer(
       }
       if (found == CTOOL_FALSE) {
         aggregate_full = CTOOL_TRUE;
-        break;
       }
     }
+    if (explicit_braces == CTOOL_FALSE &&
+        aggregate_full == CTOOL_TRUE) {
+      break;
+    }
     if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
+      const ctool_c_pp_token_t *after_comma =
+          cfront_token(context, context->position + 1u);
+      if (explicit_braces == CTOOL_FALSE &&
+          (cfront_token_is(after_comma, ".") == CTOOL_TRUE ||
+           cfront_token_is(after_comma, "[") == CTOOL_TRUE)) {
+        break;
+      }
       (void)cfront_advance(context);
       if (cfront_peek_is(context, "}") == CTOOL_TRUE) {
         break;
@@ -10364,21 +10656,6 @@ static ctool_status_t cfront_parse_aggregate_initializer(
     }
   }
   if (status == CTOOL_OK && explicit_braces == CTOOL_TRUE) {
-    const ctool_c_pp_token_t *after_comma =
-        cfront_token(context, context->position + 1u);
-    if (aggregate_full == CTOOL_TRUE &&
-        cfront_peek_is(context, ",") == CTOOL_TRUE &&
-        (cfront_token_is(after_comma, ".") == CTOOL_TRUE ||
-         cfront_token_is(after_comma, "[") == CTOOL_TRUE)) {
-      status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
-          after_comma,
-          static_storage == CTOOL_TRUE
-              ? "designated static initializers are outside this semantic "
-                "slice"
-              : "designated automatic initializers are outside this semantic "
-                "slice");
-    }
     if (aggregate_full == CTOOL_TRUE &&
         status == CTOOL_OK &&
         cfront_peek_is(context, ",") == CTOOL_FALSE &&
@@ -10408,7 +10685,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
   if (status == CTOOL_OK && aggregate.kind == CTOOL_C_TYPE_ARRAY &&
       aggregate.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
     aggregate.array_bound_kind = CTOOL_C_ARRAY_FIXED;
-    aggregate.element_count = subobject_count;
+    aggregate.element_count = array_extent;
     status = cfront_type_append(context, &aggregate, object_type_io);
     if (status != CTOOL_OK) {
       status = cfront_storage_failure(context, status);
@@ -13314,7 +13591,6 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       ctool_u32 aggregate_base;
       ctool_u32 aggregate_qualifiers;
       ctool_u32 child_offset;
-      ctool_u32 record_member_cursor = 0u;
       status = cfront_underlying_type(
           context, initializer->type, &aggregate_base,
           &aggregate_qualifiers, &aggregate);
@@ -13350,20 +13626,46 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         const ctool_c_initializer_element_t *edge =
             &initializer_elements[initializer->first_element + child_offset];
         ctool_u32 child_type = CTOOL_C_TYPE_NONE;
-        if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
-          valid = edge->subobject == child_offset ? CTOOL_TRUE : CTOOL_FALSE;
-          child_type = aggregate.referenced_type;
-        } else {
-          ctool_c_record_member_t member;
-          ctool_u32 expected_member = CTOOL_C_AST_NONE;
-          ctool_bool found = CTOOL_FALSE;
-          status = cfront_next_record_initializer_member(
-              context, &aggregate, &record_member_cursor, &expected_member,
-              &member, &found);
-          valid = status == CTOOL_OK && found == CTOOL_TRUE &&
-                          edge->subobject == expected_member
+        ctool_u32 previous_offset;
+        for (previous_offset = 0u;
+             valid == CTOOL_TRUE && previous_offset < child_offset;
+             previous_offset++) {
+          const ctool_c_initializer_element_t *previous =
+              &initializer_elements[initializer->first_element +
+                                    previous_offset];
+          if (previous->subobject == edge->subobject) {
+            valid = CTOOL_FALSE;
+          }
+        }
+        if (valid == CTOOL_TRUE &&
+            aggregate.kind == CTOOL_C_TYPE_ARRAY) {
+          valid = edge->subobject < aggregate.element_count
                       ? CTOOL_TRUE
                       : CTOOL_FALSE;
+          child_type = aggregate.referenced_type;
+        } else if (valid == CTOOL_TRUE) {
+          ctool_c_record_member_t member;
+          ctool_u32 member_offset = CTOOL_C_AST_NONE;
+          ctool_u32 member_index = CTOOL_C_AST_NONE;
+          ctool_bool eligible = CTOOL_FALSE;
+          valid = edge->subobject >= aggregate.first_member
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+          if (valid == CTOOL_TRUE) {
+            member_offset = edge->subobject - aggregate.first_member;
+            valid = member_offset < aggregate.member_count
+                        ? CTOOL_TRUE
+                        : CTOOL_FALSE;
+          }
+          if (valid == CTOOL_TRUE) {
+            status = cfront_record_initializer_member_at(
+                context, &aggregate, member_offset, &member_index, &member,
+                &eligible);
+            valid = status == CTOOL_OK && eligible == CTOOL_TRUE &&
+                            member_index == edge->subobject
+                        ? CTOOL_TRUE
+                        : CTOOL_FALSE;
+          }
           if (valid == CTOOL_TRUE) {
             child_type = member.type;
           }

@@ -2329,3 +2329,57 @@ The first full repository run exposed one stale audit oracle: `test_build_graph_
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
 This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: CupidC direct designated initializer lists
+
+### Decision and representation
+
+The shared `ctool_c_parse` frontend now accepts direct C11 `.member =` and `[index] =` clauses in automatic and block-scope static array or structure initializer lists. The public initializer format did not need another table or node kind. Existing list edges already identify a direct array index or absolute structure-member index, so a designated clause uses the same edge as a positional clause. Edges remain in source order and every child initializer still precedes its parent.
+
+Array traversal now keeps two facts instead of overloading one counter. The cursor identifies the element that a following positional clause would initialize. The extent is the greatest selected index plus one and completes an unknown-bound array. This lets `{[4] = value, [1] = other}` retain selector order while completing the array at five elements. A structure designator moves the positional cursor to the member after the selected one. Named bit-fields are eligible, while unnamed bit-fields and a final flexible-array member are not.
+
+Brace elision follows the nearest explicit initializer list. An implicit child that reaches a comma followed by `.` or `[` returns without consuming either token, so the enclosing explicit list handles the designator. Without this rule, `int values[2][2] = {runtime, [1] = {runtime + 1}}` incorrectly attached the second selector to the first row.
+
+This slice is deliberately direct. Chained paths such as `[1][0]` and `.child.member` remain unsupported until one source designation can publish the required nested forest without losing ownership. A name promoted through an anonymous member receives an unsupported diagnostic instead of being mislabeled as an unknown member. Duplicate selectors also remain unsupported. Replacing an earlier edge would leave its initializer records unowned, while retaining both edges would postpone C's override and side-effect rules without a lowering contract. Freeze therefore requires every selector in one list to be unique, in range, eligible for initialization, and paired with the exact child type.
+
+No user question was needed. C11 fixes selector grammar, cursor movement, incomplete-array completion, and brace-elision scope. ADRs 0003 and 0014 already fix source-ordered direct edges, postorder initializer ownership, and transactional failure.
+
+### Red-to-green sequence and corrections
+
+- The first array tracer reached the old designated-initializer boundary. Direct array parsing made that case green, then the member tracer exposed the frozen forest's old positional-only selector check. Allowing any valid direct selector completed the first vertical slice.
+- Sparse high-then-low selectors forced a separate array extent. Using the last cursor would have completed an unknown-bound array at two elements instead of five.
+- A brace-elided array and structure pair first published 66 initializers and 55 edges instead of the expected 68 and 57. Returning a parent designator from the implicit child produced the correct two outer edges in both cases.
+- The positive strict-C11 contract now publishes 11 block bindings, 68 initializer records, and 57 direct edges. It covers sparse and out-of-order fixed arrays, high-then-low unknown-bound completion, a last-element rewind, positional continuation, direct structure members, named bit-fields, nested explicit lists, brace-elided parent designators, block-static structures and string addresses, and the exact sparse 134-byte table shape used by `cupidasm_kernel_elf_contract.c`.
+- Exact failures cover invalid target kinds, a missing or unknown member, a promoted anonymous member, negative, nonconstant, unrepresentable, and out-of-bound array indexes, missing punctuation, both chain forms, a duplicate selected subobject, a flexible-array member, and a static-duration target error. Every failure zeros its output, restores the arena, preserves the preprocessing tape and earlier successful unit, and permits same-job recovery.
+- A generated 256-element designated list runs under a measured output ceiling. The control unit succeeds, the larger forest reports the public storage-limit diagnostic with zero output and exact rollback, and the same constrained job recovers.
+- The two-axis semantic review identified the brace-elision ownership error, the promoted-anonymous-member diagnostic, and the need to enforce selector uniqueness during freeze. Each finding became a focused contract or invariant before the broader verification run.
+
+Two detached WSL launch attempts were discarded before verification. PowerShell expanded one shell loop before WSL received it, and WSL stopped background analyzer and Clang sanitizer jobs when their invoking process exited. Neither attempt produced complete evidence. Attached reruns used the same commands and completed cleanly.
+
+The first full repository gate reached all 283 tests but failed six active-source drift guards. The checked audit already held the new totals from the larger frontend, while the tests still expected the earlier `return`, `for`, `while`, `if`, `goto`, and `sizeof` counts. Updating those exact oracles also exposed and corrected the paired `else` total that the failed `if` assertion had masked. Six focused inventory and manifest tests then passed in 112.340 seconds before the complete clean rerun below.
+
+### Active-source evidence and migration boundary
+
+The regenerated audit still finds 600 designated initializer occurrences across 14 active files. Of those, 409 select members and 191 select array elements. The active set uses direct selectors, so this slice represents its selector grammar without claiming file-scope initialization, function or object address constants, static allocation, or relocation lowering. The source-derived hosted contract proves the block-static form independently; most kernel uses still need the later file-scope and address-constant work before their complete declarations can parse.
+
+All six unchanged hosted Toolchain source gates remain complete. The larger frontend now publishes 276 definitions, 10,330 statements, 65,628 expressions, 1,520 block bindings, and 1,082 initializers. The graph remains 682 active sources, 251 feature IDs, and 492 transforms. It records 402 lexical `goto` occurrences in 22 files, 60 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,486 `while`, 22,799 `if`, 3,344 `else`, 2,841 `for`, 13,801 `return`, and 1,939 `sizeof` occurrences. The active-source digest is `1024d2e452fdda005f6810f4baa03b61e60c60bdbef45cf87c41ed4bfa664dde`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Existing hosted baseline | PASS | Before the feature work, `make -C toolchain test` passed the complete strict Windows Clang suite. |
+| Designated initializer red and green | PASS | The final mode passes selector shape, cursor and extent behavior, automatic and static leaves, source-derived sparse data, exact failures, constrained output, rollback, ownership, and recovery. |
+| Focused frontend suite | PASS | `python -m unittest tests.test_toolchain_cupidc_frontend` passes all 41 tests in 7.824 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes every shared Toolchain contract and all 22 assembly demos. |
+| WSL cross-host Toolchain | PASS | Fresh isolated strict suites pass under GCC 13.3 in 69.33 seconds and Clang 18.1 in 68.71 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang Toolchain suites pass with address and undefined-behavior sanitizers, leak checks, frame pointers, and halt-on-error behavior enabled. The runs take about 148 and 150 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` are silent for both the frontend and its contract. The frontend runs take 343.18 and 59.32 seconds; the contract runs take 29.02 and 54.27 seconds. |
+| Active-source audit regeneration | PASS | `make bootstrap-audit` regenerates both checked outputs in 38.5 seconds with the counts and digest above. |
+| Active-source audit drift check | PASS | `make check-bootstrap-audit` reproduces the checked graph in 36.4 seconds. |
+| Focused inventory drift checks | PASS AFTER ORACLE UPDATE | Six inventory and manifest tests pass in 112.340 seconds with the regenerated audit totals. |
+| Formal two-axis review | PASS AFTER DOC FIXES | Standards review found two stale documentation claims, both corrected before a clean follow-up. It accepted the separate parser and freeze checks as appropriate for their different diagnostics and representations. Spec review found no missing behavior, scope creep, or suspicious semantics within this increment. |
+| Full repository gate | PASS AFTER ORACLE UPDATE | The first run found the stale drift guards above. The corrected `make test` rerun passes all 283 tests in 442.509 seconds with one expected skip, reproduces the checked audit, and returns from Make in 482.5 seconds. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
+
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for chained and overriding designators, promoted anonymous-member initialization, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.

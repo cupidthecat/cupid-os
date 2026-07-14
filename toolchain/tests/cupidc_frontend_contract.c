@@ -4532,8 +4532,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        1984u, 39u, 21u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 274u,
-       10112u, 64312u, 1488u, 1059u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 276u,
+       10330u, 65628u, 1520u, 1082u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -6018,20 +6018,6 @@ static int run_aggregate_initializers(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 27u, "static initializer list requires one value"},
-      {{"designated aggregate boundary",
-        "void bad(void) {\n"
-        "  static int values[2] = {[1] = 4};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 27u,
-       "designated static initializers are outside this semantic slice"},
-      {{"nested designated aggregate boundary",
-        "void bad(void) {\n"
-        "  static int values[1][2] = {{[1] = 4}};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 31u,
-       "designated static initializers are outside this semantic slice"},
       {{"runtime aggregate element",
         "void bad(int runtime) {\n"
         "  static int values[1] = {runtime};\n"
@@ -6089,6 +6075,470 @@ aggregate_cleanup:
   }
   if (failed == 0) {
     (void)printf("aggregate-initializers: ok\n");
+  }
+  return failed;
+}
+
+static int validate_designated_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 sparse_selectors[] = {4u, 1u, 2u};
+  static const ctool_u32 rewind_selectors[] = {5u, 0u};
+  static const ctool_u32 inferred_selectors[] = {4u, 1u};
+  static const ctool_u32 expected_selectors[] = {
+      0u, 1u, 2u, 3u, 4u, 5u, 6u, 16u, 18u, 20u, 26u,
+      27u, 28u, 40u, 42u, 44u, 52u, 56u, 62u, 63u, 66u, 67u,
+      68u, 72u, 76u, 80u, 128u, 129u, 130u, 131u, 132u, 133u};
+  static const ctool_u64 expected_values[] = {
+      0x7fu, 'E', 'L', 'F', 1u, 1u, 1u, 2u, 3u, 1u, 0xa0u,
+      0x01u, 0x34u, 0x34u, 0x20u, 1u, 1u, 0x80u, 0xa0u, 0x01u,
+      0xa0u, 0x01u, 6u, 6u, 5u, 4u, 0xb8u, 0x78u, 0x56u,
+      0x34u, 0x12u, 0xc3u};
+  static const char *const name_values[] = {".data", ".text"};
+  static const ctool_u32 name_selectors[] = {2u, 0u};
+  static const char *const automatic_arrays[] = {
+      "sparse", "rewind", "inferred"};
+  static const ctool_u32 automatic_bounds[] = {6u, 6u, 5u};
+  static const ctool_u32 *const automatic_selectors[] = {
+      sparse_selectors, rewind_selectors, inferred_selectors};
+  static const ctool_u32 automatic_counts[] = {3u, 2u, 2u};
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *root;
+  const ctool_c_initializer_t *child;
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *record;
+  const ctool_c_record_member_t *member;
+  ctool_u32 member_index;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 2u ||
+      unit->block_binding_count != 11u || unit->initializer_count != 68u ||
+      unit->initializer_element_count != 57u) {
+    (void)fprintf(stderr,
+                  "designated-initializers: public inventory differs: "
+                  "functions=%u bindings=%u initializers=%u edges=%u\n",
+                  unit->function_definition_count, unit->block_binding_count,
+                  unit->initializer_count,
+                  unit->initializer_element_count);
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(automatic_arrays); index++) {
+    ctool_u32 edge;
+    binding = find_block_binding(unit, automatic_arrays[index]);
+    root = binding == NULL ? NULL
+                           : initializer_node(unit, binding->initializer);
+    array = binding == NULL ? NULL
+                            : unwrapped_type_node(unit, binding->type);
+    if (binding == NULL || binding->storage != CTOOL_C_STORAGE_NONE ||
+        array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->element_count != automatic_bounds[index] || root == NULL ||
+        root->kind != CTOOL_C_INITIALIZER_LIST ||
+        root->type != binding->type ||
+        root->element_count != automatic_counts[index]) {
+      (void)fprintf(stderr,
+                    "designated-initializers: automatic array %u differs\n",
+                    index);
+      return 1;
+    }
+    for (edge = 0u; edge < automatic_counts[index]; edge++) {
+      child = initializer_list_child(
+          unit, root, edge, automatic_selectors[index][edge]);
+      if (child == NULL ||
+          child->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+          child->type != array->referenced_type ||
+          child->expression >= unit->expression_count) {
+        (void)fprintf(stderr,
+                      "designated-initializers: automatic selector differs\n");
+        return 1;
+      }
+    }
+  }
+
+  binding = find_block_binding(unit, "record");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 3u) {
+    (void)fprintf(stderr, "designated-initializers: record root differs\n");
+    return 1;
+  }
+  member = find_record_member(unit, record, "third", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 0u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      child->type != member->type) {
+    (void)fprintf(stderr,
+                  "designated-initializers: third member differs\n");
+    return 1;
+  }
+  member = find_record_member(unit, record, "first", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 1u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      child->type != member->type) {
+    (void)fprintf(stderr,
+                  "designated-initializers: first member differs\n");
+    return 1;
+  }
+  member = find_record_member(unit, record, "second", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 2u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      child->type != member->type) {
+    (void)fprintf(stderr,
+                  "designated-initializers: positional member differs\n");
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "nested");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = initializer_list_child(unit, root, 0u, 1u);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count != 2u || root == NULL || root->element_count != 1u ||
+      child == NULL || child->kind != CTOOL_C_INITIALIZER_LIST ||
+      child->element_count != 1u ||
+      initializer_list_child(unit, child, 0u, 2u) == NULL ||
+      initializer_list_child(unit, child, 0u, 2u)->kind !=
+          CTOOL_C_INITIALIZER_EXPRESSION) {
+    (void)fprintf(stderr,
+                  "designated-initializers: nested selectors differ\n");
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "bits");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  member = record == NULL ? NULL
+                          : find_record_member(unit, record, "flag",
+                                               &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 0u,
+                                                  member_index);
+  if (root == NULL || root->element_count != 1u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      child->type != member->type) {
+    (void)fprintf(stderr,
+                  "designated-initializers: named bit-field differs\n");
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "elided_array");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  child = initializer_list_child(unit, root, 0u, 0u);
+  if (root == NULL || root->element_count != 2u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_LIST || child->element_count != 1u ||
+      initializer_list_child(unit, child, 0u, 0u) == NULL ||
+      initializer_list_child(unit, child, 0u, 0u)->kind !=
+          CTOOL_C_INITIALIZER_EXPRESSION) {
+    (void)fprintf(stderr,
+                  "designated-initializers: elided array head differs\n");
+    return 1;
+  }
+  child = initializer_list_child(unit, root, 1u, 1u);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_LIST ||
+      child->element_count != 1u ||
+      initializer_list_child(unit, child, 0u, 0u) == NULL ||
+      initializer_list_child(unit, child, 0u, 0u)->kind !=
+          CTOOL_C_INITIALIZER_EXPRESSION) {
+    (void)fprintf(stderr,
+                  "designated-initializers: elided array tail differs\n");
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "elided_record");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  member = record == NULL ? NULL
+                          : find_record_member(unit, record, "first",
+                                               &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 0u,
+                                                  member_index);
+  if (root == NULL || root->element_count != 2u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_LIST || child->element_count != 1u) {
+    (void)fprintf(stderr,
+                  "designated-initializers: elided record head differs\n");
+    return 1;
+  }
+  member = find_record_member(unit, record, "second", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 1u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_LIST ||
+      child->element_count != 1u) {
+    (void)fprintf(stderr,
+                  "designated-initializers: elided record tail differs\n");
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "expected");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (binding == NULL || binding->storage != CTOOL_C_STORAGE_STATIC ||
+      array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count != 134u || root == NULL ||
+      root->element_count != ARRAY_COUNT(expected_selectors)) {
+    (void)fprintf(stderr,
+                  "designated-initializers: source-derived table differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(expected_selectors); index++) {
+    child = initializer_list_child(unit, root, index,
+                                   expected_selectors[index]);
+    if (child == NULL || child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+        child->type != array->referenced_type ||
+        child->integer_bits != expected_values[index]) {
+      (void)fprintf(stderr,
+                    "designated-initializers: source-derived byte %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+
+  binding = find_block_binding(unit, "static_record");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (binding == NULL || binding->storage != CTOOL_C_STORAGE_STATIC ||
+      record == NULL || root == NULL || root->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "designated-initializers: static record differs\n");
+    return 1;
+  }
+  member = find_record_member(unit, record, "second", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 0u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      child->integer_bits != 2ull) {
+    return 1;
+  }
+  member = find_record_member(unit, record, "third", &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(unit, root, 1u,
+                                                  member_index);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      child->integer_bits != 3ull) {
+    return 1;
+  }
+
+  binding = find_block_binding(unit, "names");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (binding == NULL || binding->storage != CTOOL_C_STORAGE_STATIC ||
+      array == NULL || root == NULL || root->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "designated-initializers: static addresses differ\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(name_selectors); index++) {
+    size_t size = strlen(name_values[index]) + 1u;
+    child = initializer_list_child(unit, root, index, name_selectors[index]);
+    if (child == NULL || child->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+        child->type != array->referenced_type ||
+        child->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+        child->string_bytes.data == NULL ||
+        child->string_bytes.size != size ||
+        memcmp(child->string_bytes.data, name_values[index], size) != 0) {
+      (void)fprintf(stderr,
+                    "designated-initializers: static address %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_aggregate_expression_initializer_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root,
+    ctool_bool designated);
+
+static int run_designated_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef struct { int first; int second; int third; } triple_t;\n"
+      "typedef struct { int first; int second; } pair_t;\n"
+      "typedef struct { pair_t first; pair_t second; } outer_t;\n"
+      "typedef struct { unsigned flag : 3; unsigned : 2; int tail; } bits_t;\n"
+      "void designated(int runtime) {\n"
+      "  int sparse[6] = {[4] = runtime, [1] = runtime + 1, 2};\n"
+      "  int rewind[6] = {[5] = runtime, [0] = runtime + 2};\n"
+      "  int inferred[] = {[4] = runtime, [1] = runtime + 3};\n"
+      "  triple_t record = {.third = runtime, .first = runtime + 1,\n"
+      "                     runtime + 2};\n"
+      "  int nested[2][3] = {[1] = {[2] = runtime}};\n"
+      "  bits_t bits = {.flag = 2};\n"
+      "  int elided_array[2][2] = {runtime, [1] = {runtime + 1}};\n"
+      "  outer_t elided_record = {runtime, .second = {runtime + 1}};\n"
+      "}\n"
+      "void designated_static(void) {\n"
+      "  static const unsigned char expected[134] = {\n"
+      "      [0] = 0x7fu, [1] = 'E', [2] = 'L', [3] = 'F', [4] = 1u,\n"
+      "      [5] = 1u, [6] = 1u,\n"
+      "      [16] = 2u, [18] = 3u, [20] = 1u,\n"
+      "      [26] = 0xa0u, [27] = 0x01u,\n"
+      "      [28] = 0x34u,\n"
+      "      [40] = 0x34u, [42] = 0x20u, [44] = 1u,\n"
+      "      [52] = 1u, [56] = 0x80u,\n"
+      "      [62] = 0xa0u, [63] = 0x01u,\n"
+      "      [66] = 0xa0u, [67] = 0x01u,\n"
+      "      [68] = 6u, [72] = 6u, [76] = 5u, [80] = 4u,\n"
+      "      [128] = 0xb8u, [129] = 0x78u, [130] = 0x56u,\n"
+      "      [131] = 0x34u, [132] = 0x12u, [133] = 0xc3u};\n"
+      "  static triple_t static_record = {.second = 2, .third = 3};\n"
+      "  static const char *names[4] = {[2] = \".data\", [0] = \".text\"};\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"member designator on array",
+        "void bad(void) {\n"
+        "  int values[2] = {.member = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 20u, "member designator requires a structure initializer target"},
+      {{"array designator on structure",
+        "typedef struct { int member; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {[0] = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 18u, "array designator requires an array initializer target"},
+      {{"missing member name",
+        "typedef struct { int member; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {. = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 20u, "member designator requires an identifier"},
+      {{"unknown member name",
+        "typedef struct { int member; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {.missing = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 19u, "structure has no direct member with this name"},
+      {{"promoted anonymous member",
+        "typedef struct { struct { int member; }; int tail; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {.member = 1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 19u,
+       "designators for promoted anonymous members are outside this semantic "
+       "slice"},
+      {{"negative array designator",
+        "void bad(void) {\n"
+        "  int values[2] = {[-1] = 1};\n"
+        "}\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+       2u, 20u,
+       "array designator is outside the supported 32-bit object range"},
+      {{"nonconstant array designator",
+        "void bad(int runtime) {\n"
+        "  int values[2] = {[runtime] = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 21u, "integer constant expression operand is unsupported"},
+      {{"largest array designator",
+        "void bad(void) {\n"
+        "  int values[] = {[4294967295u] = 1};\n"
+        "}\n",
+        CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
+       2u, 19u,
+       "array designator is outside the supported 32-bit object range"},
+      {{"fixed array bound",
+        "void bad(void) {\n"
+        "  int values[2] = {[2] = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 20u, "array designator exceeds the destination array bound"},
+      {{"missing array bracket",
+        "void bad(void) {\n"
+        "  int values[2] = {[1 = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 23u, "expected source token is missing"},
+      {{"missing designation equals",
+        "void bad(void) {\n"
+        "  int values[2] = {[1] 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       2u, 24u, "expected source token is missing"},
+      {{"member designator chain",
+        "typedef struct { int member; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {.member.next = 1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 25u,
+       "initializer designator chains are outside this semantic slice"},
+      {{"array designator chain",
+        "void bad(void) {\n"
+        "  int values[2][2] = {[1][0] = 1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 26u,
+       "initializer designator chains are outside this semantic slice"},
+      {{"duplicate array selector",
+        "void bad(void) {\n"
+        "  int values[2] = {[1] = 1, [0] = 2, 3};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 38u,
+       "overriding initialized subobjects await replacement semantics"},
+      {{"flexible member selector",
+        "typedef struct { int count; int values[]; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t item = {.values = {1}};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 19u, "flexible array member cannot be initialized"},
+      {{"static member designator on array",
+        "void bad(void) {\n"
+        "  static int values[2] = {.member = 1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 27u, "member designator requires a structure initializer target"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "designated-initializers", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/designated-initializers.c", source,
+                          &unit) != 0 ||
+      validate_designated_initializer_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/designated-initializer-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_designated_initializer_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_aggregate_expression_initializer_storage_limit(
+          &fixture, host_root, CTOOL_TRUE) != 0 ||
+      validate_designated_initializer_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("designated-initializers: ok\n");
   }
   return failed;
 }
@@ -6795,8 +7245,8 @@ static int validate_automatic_aggregate_initializer_unit(
   return 0;
 }
 
-static char *build_automatic_aggregate_initializer_limit_source(
-    ctool_bool initialized) {
+static char *build_aggregate_expression_initializer_limit_source(
+    ctool_bool initialized, ctool_bool designated) {
   const size_t capacity = 32768u;
   char *source = (char *)malloc(capacity);
   size_t used = 0u;
@@ -6819,9 +7269,14 @@ static char *build_automatic_aggregate_initializer_limit_source(
       return NULL;
     }
     for (index = 0u; index < 256u; index++) {
-      char value[16];
-      int written = snprintf(value, sizeof(value),
-                             index == 0u ? "item" : ", item");
+      char value[32];
+      int written = designated == CTOOL_TRUE
+                        ? snprintf(value, sizeof(value),
+                                   index == 0u ? "[%u] = item"
+                                               : ", [%u] = item",
+                                   (unsigned int)index)
+                        : snprintf(value, sizeof(value),
+                                   index == 0u ? "item" : ", item");
       if (written <= 0 || (size_t)written >= sizeof(value) ||
           append_scale_text(source, capacity, &used, value) != 0) {
         free(source);
@@ -6841,12 +7296,24 @@ static char *build_automatic_aggregate_initializer_limit_source(
   return source;
 }
 
-static int validate_automatic_aggregate_initializer_storage_limit(
-    frontend_fixture_t *fixture, const char *host_root) {
+static int validate_aggregate_expression_initializer_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root,
+    ctool_bool designated) {
+  const char *control_path =
+      designated == CTOOL_TRUE ? "/designated-limit-control.c"
+                               : "/automatic-aggregate-limit-control.c";
+  const char *success_path =
+      designated == CTOOL_TRUE ? "/designated-limit-success.c"
+                               : "/automatic-aggregate-limit-success.c";
+  const char *limit_path =
+      designated == CTOOL_TRUE ? "/designated-limit.c"
+                               : "/automatic-aggregate-limit.c";
   char *control_source =
-      build_automatic_aggregate_initializer_limit_source(CTOOL_FALSE);
+      build_aggregate_expression_initializer_limit_source(
+          CTOOL_FALSE, designated);
   char *aggregate_source =
-      build_automatic_aggregate_initializer_limit_source(CTOOL_TRUE);
+      build_aggregate_expression_initializer_limit_source(
+          CTOOL_TRUE, designated);
   ctool_c_translation_unit_t control_oracle;
   ctool_c_translation_unit_t aggregate_oracle;
   ctool_c_translation_unit_t control;
@@ -6867,10 +7334,10 @@ static int validate_automatic_aggregate_initializer_storage_limit(
   int failed = 1;
 
   if (control_source == NULL || aggregate_source == NULL ||
-      parse_valid_fixture(fixture, "/automatic-aggregate-limit-control.c",
-                          control_source, &control_oracle) != 0 ||
-      parse_valid_fixture(fixture, "/automatic-aggregate-limit-success.c",
-                          aggregate_source, &aggregate_oracle) != 0 ||
+      parse_valid_fixture(fixture, control_path, control_source,
+                          &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, success_path, aggregate_source,
+                          &aggregate_oracle) != 0 ||
       control_oracle.block_binding_count != 2u ||
       control_oracle.initializer_count != 2u ||
       control_oracle.initializer_element_count != 1u ||
@@ -6878,20 +7345,18 @@ static int validate_automatic_aggregate_initializer_storage_limit(
       aggregate_oracle.initializer_count != 259u ||
       aggregate_oracle.initializer_element_count != 257u ||
       aggregate_oracle.expression_count <= control_oracle.expression_count ||
-      preprocess_fixture(fixture, "/automatic-aggregate-limit-control.c",
-                         control_source, &control_tape) != 0 ||
-      preprocess_fixture(fixture, "/automatic-aggregate-limit.c",
-                         aggregate_source, &aggregate_tape) != 0) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: storage limit "
-                  "controls differ\n");
+      preprocess_fixture(fixture, control_path, control_source,
+                         &control_tape) != 0 ||
+      preprocess_fixture(fixture, limit_path, aggregate_source,
+                         &aggregate_tape) != 0) {
+    (void)fprintf(stderr, "%s: storage limit controls differ\n",
+                  fixture->mode);
     goto cleanup;
   }
   output_limit = scalar_initializer_unit_max_bytes(&control_oracle);
   if (output_limit == 0u || output_limit > 0xffffffffu / 4u) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: storage limit "
-                  "measurement differs\n");
+    (void)fprintf(stderr, "%s: storage limit measurement differs\n",
+                  fixture->mode);
     goto cleanup;
   }
   output_limit *= 4u;
@@ -6904,9 +7369,8 @@ static int validate_automatic_aggregate_initializer_storage_limit(
       (ctool_u64)aggregate_oracle.expression_count *
               sizeof(ctool_c_expression_t) <=
           output_limit) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: storage limit misses "
-                  "the new forest\n");
+    (void)fprintf(stderr, "%s: storage limit misses the new forest\n",
+                  fixture->mode);
     goto cleanup;
   }
   token_bytes = (size_t)aggregate_tape.token_count * sizeof(*snapshot);
@@ -6931,10 +7395,9 @@ static int validate_automatic_aggregate_initializer_storage_limit(
   if (status != CTOOL_OK || control.block_binding_count != 2u ||
       control.initializer_count != 2u ||
       control.initializer_element_count != 1u) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: limited control "
-                  "failed: %s/%u\n",
-                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)fprintf(stderr, "%s: limited control failed: %s/%u\n",
+                  fixture->mode, ctool_status_name(status),
+                  (unsigned int)output_limit);
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -6946,17 +7409,16 @@ static int validate_automatic_aggregate_initializer_storage_limit(
   if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
       ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
       diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
-      !string_equal(diagnostic->path, "/automatic-aggregate-limit.c") ||
+      !string_equal(diagnostic->path, limit_path) ||
       diagnostic->line == 0u || diagnostic->column == 0u ||
       !string_equal(diagnostic->message,
                     "declaration frontend storage limit exceeded") ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
       memcmp(snapshot, aggregate_tape.tokens, token_bytes) != 0 ||
       control.block_binding_count != 2u || control.initializer_count != 2u) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: limited rollback "
-                  "differs: %s/%u\n",
-                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)fprintf(stderr, "%s: limited rollback differs: %s/%u\n",
+                  fixture->mode, ctool_status_name(status),
+                  (unsigned int)output_limit);
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -6967,9 +7429,8 @@ static int validate_automatic_aggregate_initializer_storage_limit(
       recovered.initializer_count != 2u ||
       recovered.initializer_element_count != 1u ||
       ctool_job_diagnostic_count(job) != 1u) {
-    (void)fprintf(stderr,
-                  "automatic-aggregate-initializers: limited recovery "
-                  "differs\n");
+    (void)fprintf(stderr, "%s: limited recovery differs\n",
+                  fixture->mode);
     goto cleanup;
   }
   failed = 0;
@@ -7031,28 +7492,6 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
       "  return calls;\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"structure designator boundary",
-        "typedef struct { int left; int right; } pair_t;\n"
-        "void bad(void) {\n"
-        "  pair_t value = {.right = 1};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       3u, 19u,
-       "designated automatic initializers are outside this semantic slice"},
-      {{"array designator boundary",
-        "void bad(void) {\n"
-        "  int values[2] = {[1] = 2};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-        2u, 20u,
-        "designated automatic initializers are outside this semantic slice"},
-      {{"late array designator boundary",
-        "void bad(void) {\n"
-        "  int values[1] = {1, [0] = 2};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       2u, 23u,
-       "designated automatic initializers are outside this semantic slice"},
       {{"union list boundary",
         "typedef union { int integer; unsigned bits; } choice_t;\n"
         "void bad(void) {\n"
@@ -7150,8 +7589,8 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
       goto cleanup;
     }
   }
-  if (validate_automatic_aggregate_initializer_storage_limit(
-          &fixture, host_root) != 0 ||
+  if (validate_aggregate_expression_initializer_storage_limit(
+          &fixture, host_root, CTOOL_FALSE) != 0 ||
       validate_automatic_aggregate_initializer_unit(&unit) != 0) {
     goto cleanup;
   }
@@ -17498,6 +17937,7 @@ int main(int argc, char **argv) {
                    "function-bodies|block-bindings|scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
+                   "designated-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
@@ -17541,6 +17981,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "automatic-aggregate-initializers") == 0) {
     return run_automatic_aggregate_initializers(argv[2]);
+  }
+  if (strcmp(argv[1], "designated-initializers") == 0) {
+    return run_designated_initializers(argv[2]);
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
