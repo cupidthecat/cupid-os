@@ -2424,3 +2424,71 @@ The regenerated graph records 682 active sources, 251 feature IDs, 492 transform
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, ABI bytes, kernel object, disk image, or runtime behavior. |
 
 This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and its contract, while the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for the deferred address forms, static-data and relocation lowering, floating semantics, complete AST and IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-14: CupidC deterministic static object emission
+
+### Decision and representation
+
+The shared hosted toolchain now has one public object-emission seam: `ctool_c_emit_object`. It accepts an immutable frontend translation unit and writes a deterministic i386 ELF32 relocatable object through the shared ELF writer. This keeps parsing and object layout separate. It also gives future IR and function lowering one object-format boundary instead of letting each compiler stage build its own ELF tables.
+
+The first slice owns static storage only. Const-qualified definitions go to `.rodata`; writable definitions with a complete zero target image go to `.bss`; other writable definitions go to `.data`. Source order, target alignment, exact aggregate layout, bit-field placement, and zero padding determine each section offset. Tentative definitions use ordinary section-backed symbols rather than ELF common symbols, so their layout is explicit and repeatable.
+
+Canonical frontend bindings determine symbol identity. Defined objects and referenced unresolved object or function declarations receive ELF symbols with the expected binding and type. String literals receive local `.LCN` symbols. Address initializers use `R_386_32` relocations whose in-place word carries the addend. The writer still owns final ELF ordering, including the required local-symbol prefix. The emitter pre-indexes bindings so a reference does not depend on whether the target appears earlier or later in the translation unit.
+
+Emission is transactional from the caller's point of view. The emitter builds the complete object in private buffers, rewinds temporary arena storage on every exit, and appends to the caller only after the shared writer succeeds. A failed call preserves earlier caller bytes and retains a structured diagnostic when argument validation has succeeded. A limit reached by the final caller-buffer append receives a CupidC diagnostic. A limit reached inside the shared writer keeps its ELF32 diagnostic until the common diagnostic stack supports scoped replacement.
+
+Function definitions remain an explicit boundary. The emitter accepts function declarations as symbol and relocation targets but rejects any translation unit that contains a function body. Static bytes and relocations no longer need to wait for function IR, while the public API does not pretend to lower code that the frontend has not represented yet.
+
+No user question was needed. C11, the i386 ABI, and the existing shared ELF writer fix the representation choices in this slice. ADRs 0003 and 0014 already fix typed frontend ownership, and ADR 0015 records the new object boundary and its deferred work.
+
+### Red-to-green sequence and corrections
+
+- The first public contract required `.data`, `.bss`, external object and function symbols, one `R_386_32` relocation, and byte-for-byte repeatability. The implementation then added a source-derived fixture for const storage, target padding, adjacent bit-fields, string literals, local data and BSS addresses, arrays, and nested records.
+- The first caller-buffer limit case wrote part of the ELF object before failing. Serializing into a private full-object buffer and making one final append restored unchanged caller output, a CupidC limit diagnostic, arena rollback, and same-job recovery. A job limit reached inside the shared writer still keeps the writer's structured diagnostic, as noted above.
+- Early symbol publication followed writer order rather than frontend binding order. Binding pre-indexing separated source identity from the writer's local-before-global table layout and made forward references deterministic.
+- The active-source audit initially failed because the new hosted root changed the fixed profile count from ten to eleven. Adding the root to the preprocessor manifest was not enough: the build-graph audit had its own fixed profile oracle and deferred-contract list. Updating both records made the new artifact visible without claiming production ownership.
+- Review found that zero classification checked the unmasked integer stored for a bit-field. A three-bit field initialized with `{8}` therefore looked nonzero even though its target representation is zero. The classifier now applies the field-width mask before choosing `.bss` or `.data`, and the contract keeps that case as a regression.
+- Malformed translation-unit tests now cover definition bindings, initializer roots and types, runtime-only initializers, address bindings, alignment, list slices, string addresses, and child indexes. Every case fails cleanly instead of trusting private frontend invariants at the public seam.
+- `toolchain/cupidc_emit.c` parses completely through the unchanged hosted frontend gate. It publishes 30 definitions, 726 statements, 5,374 expressions, 107 block bindings, and 45 initializers. The established hosted Toolchain set now contains seven complete source gates.
+
+The source evidence remains deliberately bounded. The frontend contract parses unchanged prefixes from `kernel/gui/gui_themes.c` and `kernel/fs/ramfs.c`, while the object contract lowers a compact source-derived translation unit that exercises the same static-storage shapes. It does not claim that the complete kernel files already pass through object emission.
+
+Two-axis review found that `.bss` placement skipped the byte encoder and could therefore skip selector checks on an all-zero list. Initializer indexing now validates contiguous edge ownership, selector ranges, duplicate selectors, member eligibility, and exact child types before section selection. Three negatives isolate the fix: an out-of-range selector and a wrong child type both keep the `masked_zero` value at zero so the old path would still choose `.bss`, while a separate list repeats one selector. All three now fail at the public frozen-unit boundary.
+
+Clang analysis also could not prove that malformed-unit fixture allocations contained a first record. The contract now checks source counts and allocation arithmetic, reserves at least one zero-initialized record, and uses the measured byte counts consistently. Both analyzers are silent on the final contract. These changes harden test setup rather than relaxing an analyzer rule.
+
+### Audit and verification
+
+The regenerated graph records 685 active sources, 251 feature IDs, 495 transforms, and 39 accounted unreachable sources. It finds 600 direct designated initializers across 14 files, 483 lexical `goto` occurrences in 23 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,489 `while`, 23,120 `if`, 3,368 `else`, 2,882 `for`, 14,007 `return`, and 2,007 `sizeof` occurrences. The active-source digest is `53caf6233d660e4d598cdf83554e6b9983565b5892f9e13e5b1beeb2d1580cfd`.
+
+Windows evidence used `python -m unittest tests.test_toolchain_cupidc_object tests.test_toolchain_cupidc_frontend`, `make -C toolchain test`, `make bootstrap-audit`, `make check-bootstrap-audit`, and `make test` from the repository root. The cross-host runs used WSL2 Ubuntu, GNU Make 4.3, GCC 13.3.0, and Clang 18.1.3. The strict command pair for each compiler was:
+
+```bash
+for compiler in gcc clang; do
+  build_dir="build-cross-host-${compiler}-final-agent"
+  make --no-print-directory -s -C toolchain \
+    BUILD_DIR="$build_dir" CC="$compiler" clean
+  make --no-print-directory -s -C toolchain \
+    BUILD_DIR="$build_dir" CC="$compiler" \
+    "$build_dir/cupidc-object-contract"
+  "./toolchain/$build_dir/cupidc-object-contract" static-data .
+done
+```
+
+The sanitizer builds repeated those commands in separate `gcc-sanitize` and `clang-sanitize` directories with `-std=c11 -O1 -g -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion -fsanitize=address,undefined -fno-omit-frame-pointer`. Their runs set `ASAN_OPTIONS=halt_on_error=1:detect_leaks=1:strict_string_checks=1` and `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. GCC analysis compiled `cupidc_emit.c` and `tests/cupidc_object_contract.c` from `toolchain/` with the strict flags above at `-O2`, plus `-fanalyzer`. Clang analysis ran the same two source files with `clang --analyze -Itoolchain -std=c11 -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wsign-conversion` from the repository root.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC suites | PASS | Final-tree object and frontend runs pass one object test and all 42 frontend tests. The object contract covers deterministic bytes, sections, symbols, relocations, malformed frozen input, constrained output, rollback, and recovery. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain test` passes the complete strict Clang suite, including the new static-data mode and all 22 assembly demos. |
+| WSL cross-host contract | PASS | Fresh isolated strict builds and `static-data` runs pass under GCC 13.3.0 in 7.92 seconds and Clang 18.1.3 in 7.18 seconds. |
+| Sanitizers | PASS | Fresh isolated GCC and Clang object-contract runs pass with address and undefined-behavior sanitizers, leak detection, and halt-on-error behavior enabled. |
+| Static analysis | PASS AFTER FIXTURE HARDENING | GCC `-fanalyzer` and Clang analysis are silent for `cupidc_emit.c` and the final object contract. Clang's earlier zero-size fixture warnings drove the allocation checks described above. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them. The three manifest and drift checks pass in 102.281 seconds. |
+| Formal two-axis review | PASS AFTER BSS FIXES | Standards and Spec reviews both found the skipped BSS forest validation and the overstated limit-diagnostic wording. The validator, three distinct negative cases, and corrected ownership text pass follow-up review. |
+| Full repository gate | PASS AFTER ORACLE UPDATE | The first run reached all 285 tests and found two stale 652-source inventory guards. Updating those exact guards and the paired include totals made both focused checks pass. Final-tree `make test` passes all 285 tests in 422.056 seconds with one expected skip, reproduces the checked audit, and returns from Make in 455.2 seconds. |
+| Boot gate | NOT RUN | This is a hosted static-only object path. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
+
+This increment transfers no production source cohort, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and code generator still own production C compilation, and the normal OS build does not consume these static-only objects. No kernel, user, assembly, or `TempleOS/` reference source changed.
+
+Issue #25 remains open. Function IR and machine-code lowering, `.text`, `R_386_PC32`, remaining static address forms, whole-translation-unit output, kernel integration, and staged self-hosting still belong there. No issue is ready to close from this increment.

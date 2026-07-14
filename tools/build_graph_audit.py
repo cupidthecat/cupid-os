@@ -217,7 +217,7 @@ _C_PP_ACTIVE_COUNTS = {
     "DOOM_TREE_I386": 80,
     "USER_I386": 3,
     "CUPID_RUNTIME": 105,
-    "HOSTED_TOOLCHAIN_64": 10,
+    "HOSTED_TOOLCHAIN_64": 11,
     "HOSTED_KERNEL_BRIDGE_64": 1,
 }
 _C_PP_GENERATED_KERNEL_CASES = (
@@ -241,6 +241,7 @@ _C_PP_DEFERRED_HOSTED_CASES = (
     "/toolchain/tests/cupidasm_demos_contract.c",
     "/toolchain/tests/cupidasm_kernel_elf_contract.c",
     "/toolchain/tests/cupidc_frontend_contract.c",
+    "/toolchain/tests/cupidc_object_contract.c",
     "/toolchain/tests/cupidc_pp_contract.c",
     "/toolchain/tests/cupidc_type_contract.c",
     "/toolchain/tests/cupiddis_contract.c",

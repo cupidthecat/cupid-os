@@ -191,7 +191,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 13853)
+        self.assertEqual(feature["occurrences"], 14007)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -199,7 +199,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 2854)
+        self.assertEqual(feature["occurrences"], 2882)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -207,8 +207,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.while"
         )
-        self.assertEqual(feature["occurrences"], 2486)
-        self.assertEqual(len(feature["files"]), 249)
+        self.assertEqual(feature["occurrences"], 2489)
+        self.assertEqual(len(feature["files"]), 250)
 
     def test_active_do_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -216,8 +216,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.do"
         )
-        self.assertEqual(feature["occurrences"], 60)
-        self.assertEqual(len(feature["files"]), 36)
+        self.assertEqual(feature["occurrences"], 61)
+        self.assertEqual(len(feature["files"]), 37)
 
     def test_active_switch_label_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -234,10 +234,10 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 22907)
-        self.assertEqual(len(features["c.control.if"]["files"]), 357)
-        self.assertEqual(features["c.control.else"]["occurrences"], 3350)
-        self.assertEqual(len(features["c.control.else"]["files"]), 269)
+        self.assertEqual(features["c.control.if"]["occurrences"], 23120)
+        self.assertEqual(len(features["c.control.if"]["files"]), 359)
+        self.assertEqual(features["c.control.else"]["occurrences"], 3368)
+        self.assertEqual(len(features["c.control.else"]["files"]), 271)
 
     def test_active_goto_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -245,8 +245,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.goto"
         )
-        self.assertEqual(feature["occurrences"], 435)
-        self.assertEqual(len(feature["files"]), 22)
+        self.assertEqual(feature["occurrences"], 483)
+        self.assertEqual(len(feature["files"]), 23)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -276,7 +276,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "/kernel/cpu/cpu.h", 23, 5, "0x0b00000f"
             ),
         }
-        self.assertEqual(len(headers), 152)
+        self.assertEqual(len(headers), 153)
         self.assertEqual(len(failures), 5)
         expected_lines = []
         for header in headers:
@@ -287,7 +287,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tunsupported\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 147 5")
+        expected_lines.append("header-sweep: ok 148 5")
         result = subprocess.run(
             [
                 str(self.contract_path),

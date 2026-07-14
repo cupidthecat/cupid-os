@@ -1,0 +1,1234 @@
+#include "ctool.h"
+#include "ctool_host.h"
+#include "cupidc_emit.h"
+#include "cupidc_frontend.h"
+#include "cupidc_pp.h"
+#include "elf32.h"
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+  ctool_c_translation_unit_t unit;
+  ctool_c_binding_t *bindings;
+  ctool_c_object_definition_t *object_definitions;
+  ctool_c_initializer_t *initializers;
+} unit_snapshot_t;
+
+static int check_status(ctool_status_t actual, ctool_status_t expected,
+                        const char *context) {
+  if (actual == expected) {
+    return 1;
+  }
+  (void)fprintf(stderr, "%s: expected %s, got %s\n", context,
+                ctool_status_name(expected), ctool_status_name(actual));
+  return 0;
+}
+
+static int string_equal(ctool_string_t actual, const char *expected) {
+  size_t expected_size = strlen(expected);
+  return actual.size == (ctool_u32)expected_size &&
+                 (expected_size == 0u ||
+                  memcmp(actual.data, expected, expected_size) == 0)
+             ? 1
+             : 0;
+}
+
+static int arena_marks_equal(ctool_arena_mark_t left,
+                             ctool_arena_mark_t right) {
+  return left.owner == right.owner && left.block == right.block &&
+                 left.used == right.used &&
+                 left.generation == right.generation
+             ? 1
+             : 0;
+}
+
+static const ctool_elf32_section_t *find_section(
+    const ctool_elf32_object_t *object, const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < object->section_count; index++) {
+    if (string_equal(object->sections[index].name, name) != 0) {
+      return &object->sections[index];
+    }
+  }
+  return (const ctool_elf32_section_t *)0;
+}
+
+static const ctool_elf32_symbol_t *find_symbol(
+    const ctool_elf32_object_t *object, const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < object->symbol_count; index++) {
+    if (string_equal(object->symbols[index].name, name) != 0) {
+      return &object->symbols[index];
+    }
+  }
+  return (const ctool_elf32_symbol_t *)0;
+}
+
+static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
+                    ctool_job_config_t *config, ctool_job_t **job_out) {
+  ctool_status_t status = ctool_host_adapter_init(adapter, host_root);
+  if (!check_status(status, CTOOL_OK, "host adapter init")) {
+    return 0;
+  }
+  *config = ctool_host_job_config(adapter, ctool_default_limits());
+  status = ctool_job_open(config, job_out);
+  return check_status(status, CTOOL_OK, "job open");
+}
+
+static int parse_source(ctool_job_t *job, const char *path, const char *text,
+                        ctool_c_translation_unit_t *unit_out) {
+  ctool_source_t source;
+  ctool_c_pp_request_t pp_request;
+  ctool_c_pp_result_t tape;
+  ctool_c_parse_request_t parse_request;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  size_t text_size = strlen(text);
+
+  if (text_size > 0xffffffffu) {
+    (void)fprintf(stderr, "%s: source is too large for the contract\n", path);
+    return 0;
+  }
+  source.path.text = ctool_string(path);
+  source.contents = ctool_bytes(text, (ctool_u32)text_size);
+  (void)memset(&pp_request, 0, sizeof(pp_request));
+  pp_request.mode = CTOOL_C_PP_MODE_C11;
+  pp_request.gnu_extensions = CTOOL_FALSE;
+  pp_request.hosted_environment = CTOOL_FALSE;
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+  if (status != CTOOL_OK || tape.tokens == (const ctool_c_pp_token_t *)0 ||
+      tape.token_count == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "%s: preprocessing failed: %s\n", path,
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    return 0;
+  }
+
+  (void)memset(&parse_request, 0, sizeof(parse_request));
+  parse_request.mode = CTOOL_C_PP_MODE_C11;
+  parse_request.gnu_extensions = CTOOL_FALSE;
+  (void)memset(unit_out, 0xa5, sizeof(*unit_out));
+  status = ctool_c_parse(job, &tape, &parse_request, unit_out);
+  if (status != CTOOL_OK ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "%s: parsing failed: %s\n", path,
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    return 0;
+  }
+  return 1;
+}
+
+static int copy_array(const void *source, ctool_u32 count, size_t item_size,
+                      void **copy_out) {
+  size_t bytes;
+  void *copy;
+  *copy_out = NULL;
+  if (count == 0u) {
+    return 1;
+  }
+  if (item_size > SIZE_MAX / (size_t)count) {
+    return 0;
+  }
+  bytes = item_size * (size_t)count;
+  copy = malloc(bytes);
+  if (copy == NULL) {
+    return 0;
+  }
+  (void)memcpy(copy, source, bytes);
+  *copy_out = copy;
+  return 1;
+}
+
+static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
+                              unit_snapshot_t *snapshot) {
+  void *bindings = NULL;
+  void *object_definitions = NULL;
+  void *initializers = NULL;
+  (void)memset(snapshot, 0, sizeof(*snapshot));
+  snapshot->unit = *unit;
+  if (copy_array(unit->bindings, unit->binding_count,
+                 sizeof(*unit->bindings), &bindings) == 0 ||
+      copy_array(unit->object_definitions, unit->object_definition_count,
+                 sizeof(*unit->object_definitions), &object_definitions) == 0 ||
+      copy_array(unit->initializers, unit->initializer_count,
+                 sizeof(*unit->initializers), &initializers) == 0) {
+    free(initializers);
+    free(object_definitions);
+    free(bindings);
+    (void)memset(snapshot, 0, sizeof(*snapshot));
+    return 0;
+  }
+  snapshot->bindings = (ctool_c_binding_t *)bindings;
+  snapshot->object_definitions =
+      (ctool_c_object_definition_t *)object_definitions;
+  snapshot->initializers = (ctool_c_initializer_t *)initializers;
+  return 1;
+}
+
+static int unit_snapshot_matches(const unit_snapshot_t *snapshot,
+                                 const ctool_c_translation_unit_t *unit) {
+  return memcmp(&snapshot->unit, unit, sizeof(*unit)) == 0 &&
+                 (unit->binding_count == 0u ||
+                  memcmp(snapshot->bindings, unit->bindings,
+                         (size_t)unit->binding_count *
+                             sizeof(*unit->bindings)) == 0) &&
+                 (unit->object_definition_count == 0u ||
+                  memcmp(snapshot->object_definitions,
+                         unit->object_definitions,
+                         (size_t)unit->object_definition_count *
+                             sizeof(*unit->object_definitions)) == 0) &&
+                 (unit->initializer_count == 0u ||
+                  memcmp(snapshot->initializers, unit->initializers,
+                         (size_t)unit->initializer_count *
+                             sizeof(*unit->initializers)) == 0)
+             ? 1
+             : 0;
+}
+
+static void dispose_unit_snapshot(unit_snapshot_t *snapshot) {
+  free(snapshot->initializers);
+  free(snapshot->object_definitions);
+  free(snapshot->bindings);
+  (void)memset(snapshot, 0, sizeof(*snapshot));
+}
+
+static int expect_new_diagnostic(const ctool_job_t *job, ctool_u32 before,
+                                 ctool_u32 code,
+                                 const char *expected_message,
+                                 const char *context) {
+  const ctool_diagnostic_t *diagnostic;
+  if (ctool_job_diagnostic_count(job) != before + 1u) {
+    (void)fprintf(stderr, "%s: expected one diagnostic\n", context);
+    return 0;
+  }
+  diagnostic = ctool_job_diagnostic(job, before);
+  if (diagnostic == (const ctool_diagnostic_t *)0 ||
+      diagnostic->severity != CTOOL_DIAG_ERROR || diagnostic->code != code ||
+      diagnostic->message.size == 0u ||
+      (expected_message != NULL &&
+       string_equal(diagnostic->message, expected_message) == 0)) {
+    (void)fprintf(stderr, "%s: diagnostic differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_object_failure(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_buffer_t *output, ctool_status_t expected_status,
+    ctool_u32 expected_code, const char *expected_message,
+    const char *context) {
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  ctool_status_t status = ctool_c_emit_object(job, unit, output);
+  if (!check_status(status, expected_status, context) ||
+      ctool_buffer_view(output).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      !expect_new_diagnostic(job, diagnostic_count, expected_code,
+                             expected_message, context)) {
+    (void)fprintf(stderr, "%s: failure transaction differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int symbol_matches(const ctool_elf32_symbol_t *symbol,
+                          ctool_u32 file_index, ctool_u32 binding,
+                          ctool_u32 type,
+                          ctool_elf32_symbol_placement_t placement,
+                          ctool_u32 section_file_index, ctool_u32 value,
+                          ctool_u32 size) {
+  return symbol != (const ctool_elf32_symbol_t *)0 &&
+                 symbol->file_index == file_index &&
+                 symbol->binding == binding && symbol->type == type &&
+                 symbol->visibility == CTOOL_ELF32_VIS_DEFAULT &&
+                 symbol->placement == placement &&
+                 symbol->section_file_index == section_file_index &&
+                 symbol->value == value && symbol->size == size
+             ? 1
+             : 0;
+}
+
+static int validate_object(const ctool_elf32_object_t *object) {
+  static const char *const section_names[] = {
+      "", ".data", ".bss", ".rel.data", ".symtab", ".strtab", ".shstrtab"};
+  static const char *const symbol_names[] = {
+      "",           "local_word", "hidden_zero",     "imported",
+      "callback",   "message",    "common_zero",     "imported_pointer",
+      "hook"};
+  static const ctool_u8 expected_data[] = {
+      0x44u, 0x33u, 0x22u, 0x11u, 0x6fu, 0x6bu, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_data = find_section(object, ".rel.data");
+  const ctool_elf32_symbol_t *local_word = find_symbol(object, "local_word");
+  const ctool_elf32_symbol_t *hidden_zero =
+      find_symbol(object, "hidden_zero");
+  const ctool_elf32_symbol_t *imported = find_symbol(object, "imported");
+  const ctool_elf32_symbol_t *callback = find_symbol(object, "callback");
+  const ctool_elf32_symbol_t *message = find_symbol(object, "message");
+  const ctool_elf32_symbol_t *common_zero =
+      find_symbol(object, "common_zero");
+  const ctool_elf32_symbol_t *imported_pointer =
+      find_symbol(object, "imported_pointer");
+  const ctool_elf32_symbol_t *hook = find_symbol(object, "hook");
+  ctool_u32 index;
+
+  if (object->file_type != CTOOL_ELF32_ET_REL || object->entry_point != 0u ||
+      object->flags != 0u || object->program_header_count != 0u ||
+      object->program_headers != (const ctool_elf32_program_header_t *)0 ||
+      object->section_count != 7u || object->symbol_count != 9u ||
+      object->relocation_count != 2u) {
+    (void)fprintf(stderr, "ELF32 object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 7u; index++) {
+    if (object->sections[index].file_index != index ||
+        string_equal(object->sections[index].name, section_names[index]) == 0) {
+      (void)fprintf(stderr, "ELF32 section order differs at index %u\n", index);
+      return 0;
+    }
+  }
+  if (find_section(object, ".rodata") !=
+          (const ctool_elf32_section_t *)0 ||
+      data == (const ctool_elf32_section_t *)0 ||
+      data->type != CTOOL_ELF32_SHT_PROGBITS ||
+      data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      data->alignment != 4u || data->entry_size != 0u || data->size != 16u ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
+      data->relocation_first != 0u || data->relocation_count != 2u ||
+      bss == (const ctool_elf32_section_t *)0 ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      bss->alignment != 4u || bss->entry_size != 0u || bss->size != 8u ||
+      bss->contents.size != 0u || bss->relocation_count != 0u ||
+      rel_data == (const ctool_elf32_section_t *)0 ||
+      rel_data->file_index != 3u) {
+    (void)fprintf(stderr, "ELF32 static storage differs\n");
+    return 0;
+  }
+
+  for (index = 0u; index < 9u; index++) {
+    if (object->symbols[index].file_index != index ||
+        string_equal(object->symbols[index].name, symbol_names[index]) == 0) {
+      (void)fprintf(stderr, "ELF32 symbol order differs at index %u\n", index);
+      return 0;
+    }
+  }
+  if (!symbol_matches(local_word, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      !symbol_matches(hidden_zero, 2u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(imported, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
+                      0u) ||
+      !symbol_matches(callback, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
+                      0u) ||
+      !symbol_matches(message, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 4u, 4u) ||
+      !symbol_matches(common_zero, 6u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
+      !symbol_matches(imported_pointer, 7u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 4u) ||
+      !symbol_matches(hook, 8u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 12u, 4u)) {
+    (void)fprintf(stderr, "ELF32 symbol semantics differ\n");
+    return 0;
+  }
+  if (object->symbols[0].binding != CTOOL_ELF32_BIND_LOCAL ||
+      object->symbols[0].type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      object->symbols[0].placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      object->symbols[0].section_file_index != CTOOL_ELF32_NO_SECTION) {
+    (void)fprintf(stderr, "ELF32 null symbol differs\n");
+    return 0;
+  }
+
+  if (object->relocations[0].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != data->file_index ||
+      object->relocations[0].offset != 8u ||
+      object->relocations[0].symbol_file_index != imported->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != data->file_index ||
+      object->relocations[1].offset != 12u ||
+      object->relocations[1].symbol_file_index != callback->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != 0) {
+    (void)fprintf(stderr, "ELF32 static relocations differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_layout_object(const ctool_elf32_object_t *object) {
+  static const char *const section_names[] = {
+      "",          ".rodata", ".data",   ".bss",
+      ".rel.data", ".symtab", ".strtab", ".shstrtab"};
+  static const char *const symbol_names[] = {
+      "",                "const_word",      "const_record",
+      "local_data",      "local_zero",      "masked_zero",
+      "data_pointer",    "zero_pointer",    ".LC0",
+      "const_text",      "literal_pointer", "holder"};
+  static const ctool_u8 expected_rodata[] = {
+      0xd4u, 0xc3u, 0xb2u, 0xa1u, 0x78u, 0x79u, 0x00u,
+      0x00u, 0x5au, 0x8du, 0x00u, 0x00u, 0x44u, 0x33u,
+      0x22u, 0x11u, 0x68u, 0x69u, 0x00u};
+  static const ctool_u8 expected_data[] = {
+      0x07u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x09u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_data = find_section(object, ".rel.data");
+  const ctool_elf32_symbol_t *const_word =
+      find_symbol(object, "const_word");
+  const ctool_elf32_symbol_t *const_text =
+      find_symbol(object, "const_text");
+  const ctool_elf32_symbol_t *const_record =
+      find_symbol(object, "const_record");
+  const ctool_elf32_symbol_t *local_data =
+      find_symbol(object, "local_data");
+  const ctool_elf32_symbol_t *local_zero =
+      find_symbol(object, "local_zero");
+  const ctool_elf32_symbol_t *masked_zero =
+      find_symbol(object, "masked_zero");
+  const ctool_elf32_symbol_t *literal_pointer =
+      find_symbol(object, "literal_pointer");
+  const ctool_elf32_symbol_t *data_pointer =
+      find_symbol(object, "data_pointer");
+  const ctool_elf32_symbol_t *zero_pointer =
+      find_symbol(object, "zero_pointer");
+  const ctool_elf32_symbol_t *holder = find_symbol(object, "holder");
+  const ctool_elf32_symbol_t *literal = find_symbol(object, ".LC0");
+  ctool_u32 index;
+
+  if (object->file_type != CTOOL_ELF32_ET_REL || object->entry_point != 0u ||
+      object->flags != 0u || object->program_header_count != 0u ||
+      object->program_headers != (const ctool_elf32_program_header_t *)0 ||
+      object->section_count != 8u || object->symbol_count != 12u ||
+      object->relocation_count != 4u ||
+      object->symbol_table_section_file_index != 5u) {
+    (void)fprintf(stderr, "source-derived ELF32 inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (object->sections[index].file_index != index ||
+        string_equal(object->sections[index].name, section_names[index]) == 0) {
+      (void)fprintf(stderr,
+                    "source-derived section order differs at index %u\n",
+                    index);
+      return 0;
+    }
+  }
+  if (rodata == (const ctool_elf32_section_t *)0 ||
+      rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
+      rodata->flags != CTOOL_ELF32_SHF_ALLOC || rodata->alignment != 4u ||
+      rodata->entry_size != 0u || rodata->size != 19u ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      rodata->relocation_count != 0u ||
+      data == (const ctool_elf32_section_t *)0 ||
+      data->type != CTOOL_ELF32_SHT_PROGBITS ||
+      data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      data->alignment != 4u || data->entry_size != 0u || data->size != 24u ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
+      data->relocation_first != 0u || data->relocation_count != 4u ||
+      bss == (const ctool_elf32_section_t *)0 ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      bss->alignment != 4u || bss->entry_size != 0u || bss->size != 8u ||
+      bss->contents.size != 0u || bss->relocation_count != 0u ||
+      rel_data == (const ctool_elf32_section_t *)0 ||
+      rel_data->file_index != 4u) {
+    (void)fprintf(stderr, "source-derived static storage differs\n");
+    return 0;
+  }
+
+  for (index = 0u; index < 12u; index++) {
+    if (object->symbols[index].file_index != index ||
+        string_equal(object->symbols[index].name, symbol_names[index]) == 0) {
+      (void)fprintf(stderr,
+                    "source-derived symbol order differs at index %u\n",
+                    index);
+      return 0;
+    }
+  }
+  if (!symbol_matches(const_word, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 0u, 4u) ||
+      !symbol_matches(const_record, 2u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 8u, 8u) ||
+      !symbol_matches(local_data, 3u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      !symbol_matches(local_zero, 4u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(masked_zero, 5u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
+      !symbol_matches(data_pointer, 6u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 4u) ||
+      !symbol_matches(zero_pointer, 7u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 12u, 4u) ||
+      !symbol_matches(literal, 8u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 16u, 3u) ||
+      !symbol_matches(const_text, 9u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 4u, 4u) ||
+      !symbol_matches(literal_pointer, 10u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 4u, 4u) ||
+      !symbol_matches(holder, 11u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 16u, 8u)) {
+    (void)fprintf(stderr, "source-derived symbol semantics differ\n");
+    return 0;
+  }
+  if (object->symbols[0].binding != CTOOL_ELF32_BIND_LOCAL ||
+      object->symbols[0].type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      object->symbols[0].placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      object->symbols[0].section_file_index != CTOOL_ELF32_NO_SECTION) {
+    (void)fprintf(stderr, "source-derived null symbol differs\n");
+    return 0;
+  }
+
+  if (object->relocations[0].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != data->file_index ||
+      object->relocations[0].offset != 4u ||
+      object->relocations[0].symbol_file_index != literal->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != data->file_index ||
+      object->relocations[1].offset != 8u ||
+      object->relocations[1].symbol_file_index != local_data->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != 0 ||
+      object->relocations[2].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[2].entry_index != 2u ||
+      object->relocations[2].target_section_file_index != data->file_index ||
+      object->relocations[2].offset != 12u ||
+      object->relocations[2].symbol_file_index != local_zero->file_index ||
+      object->relocations[2].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[2].addend_known != CTOOL_TRUE ||
+      object->relocations[2].addend != 0 ||
+      object->relocations[3].relocation_section_file_index !=
+          rel_data->file_index ||
+      object->relocations[3].entry_index != 3u ||
+      object->relocations[3].target_section_file_index != data->file_index ||
+      object->relocations[3].offset != 20u ||
+      object->relocations[3].symbol_file_index != local_data->file_index ||
+      object->relocations[3].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[3].addend_known != CTOOL_TRUE ||
+      object->relocations[3].addend != 0) {
+    (void)fprintf(stderr, "source-derived static relocations differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_static_data(const char *host_root) {
+  static const char source_text[] =
+      "extern int imported;\n"
+      "extern void callback(void);\n"
+      "static unsigned local_word = 0x11223344u;\n"
+      "char message[4] = \"ok\";\n"
+      "static int hidden_zero;\n"
+      "int common_zero;\n"
+      "int *imported_pointer = &imported;\n"
+      "void (*hook)(void) = callback;\n";
+  static const char function_text[] =
+      "int implemented(void) { return 0; }\n";
+  static const char layout_text[] =
+      "typedef struct {\n"
+      "  unsigned char tag;\n"
+      "  unsigned low : 3;\n"
+      "  unsigned high : 5;\n"
+      "  unsigned value;\n"
+      "} const_record_t;\n"
+      "typedef struct { int count; int *pointer; } holder_t;\n"
+      "typedef struct { unsigned value : 3; } masked_t;\n"
+      "static const unsigned const_word = 0xa1b2c3d4u;\n"
+      "const char const_text[4] = \"xy\";\n"
+      "static const const_record_t const_record = {\n"
+      "    0x5a, 5u, 17u, 0x11223344u};\n"
+      "static int local_data = 7;\n"
+      "static int local_zero;\n"
+      "static masked_t masked_zero = {8u};\n"
+      "char *literal_pointer = \"hi\";\n"
+      "static int *data_pointer = &local_data;\n"
+      "static int *zero_pointer = &local_zero;\n"
+      "holder_t holder = {9, &local_data};\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t function_unit;
+  ctool_c_translation_unit_t layout_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_object_definition_t *invalid_definitions = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_binding_t *invalid_bindings = NULL;
+  ctool_c_initializer_t *invalid_layout_initializers = NULL;
+  ctool_c_initializer_element_t *invalid_elements = NULL;
+  unit_snapshot_t snapshot;
+  unit_snapshot_t layout_snapshot;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_bytes_t layout_bytes;
+  ctool_status_t status;
+  size_t invalid_binding_bytes;
+  size_t invalid_definition_bytes;
+  size_t invalid_initializer_bytes;
+  size_t invalid_layout_initializer_bytes;
+  size_t invalid_element_bytes;
+  ctool_u32 diagnostic_count;
+  ctool_u32 definition_index;
+  ctool_u32 duplicate_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 initializer_index;
+  ctool_u32 masked_child = CTOOL_C_AST_NONE;
+  ctool_u32 masked_edge = CTOOL_C_AST_NONE;
+  ctool_u32 masked_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 wrong_child_type = CTOOL_C_TYPE_NONE;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&function_unit, 0, sizeof(function_unit));
+  (void)memset(&layout_unit, 0, sizeof(layout_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
+  if (!open_job(host_root, &adapter, &config, &job)) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/static-data.c", source_text, &unit) ||
+      unit.object_definition_count == 0u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "static-data: source setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first static object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "first static emission contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "static object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "second static object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "static emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, limited);
+  if (!check_status(status, CTOOL_ERR_LIMIT, "limited static object") ||
+      ctool_buffer_view(limited).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      !expect_new_diagnostic(job, diagnostic_count, CTOOL_C_EMIT_DIAG_LIMIT,
+                             NULL, "limited static object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_view(first).size != expected_object_size ||
+      memcmp(ctool_buffer_view(first).data, expected_object,
+             (size_t)expected_object_size) != 0) {
+    (void)fprintf(stderr, "limited emission recovery contract differs\n");
+    goto cleanup;
+  }
+
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "second output rewind failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "post-limit static object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "emission did not recover after a limit\n");
+    goto cleanup;
+  }
+
+  if (unit.object_definition_count == 0u || unit.initializer_count == 0u ||
+      sizeof(*invalid_definitions) >
+          SIZE_MAX / (size_t)unit.object_definition_count ||
+      sizeof(*invalid_initializers) >
+          SIZE_MAX / (size_t)unit.initializer_count) {
+    (void)fprintf(stderr, "invalid-unit fixtures require parsed records\n");
+    goto cleanup;
+  }
+
+  invalid_definition_bytes =
+      (size_t)unit.object_definition_count * sizeof(*invalid_definitions);
+  invalid_initializer_bytes =
+      (size_t)unit.initializer_count * sizeof(*invalid_initializers);
+  invalid_definitions = (ctool_c_object_definition_t *)calloc(
+      1u,
+      invalid_definition_bytes < sizeof(*invalid_definitions)
+          ? sizeof(*invalid_definitions)
+          : invalid_definition_bytes);
+  if (invalid_definitions == NULL) {
+    (void)fprintf(stderr, "invalid-unit fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_definitions, unit.object_definitions,
+               invalid_definition_bytes);
+  invalid_definitions[0].binding = unit.binding_count;
+  invalid_unit = unit;
+  invalid_unit.object_definitions = invalid_definitions;
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &invalid_unit, second);
+  if (!check_status(status, CTOOL_ERR_INPUT, "invalid frozen unit") ||
+      ctool_buffer_view(second).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      !expect_new_diagnostic(job, diagnostic_count,
+                             CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+                             "CupidC object emission received an invalid "
+                             "translation unit",
+                             "invalid frozen unit") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "invalid frozen-unit contract differs\n");
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_definitions, unit.object_definitions,
+               invalid_definition_bytes);
+  invalid_definitions[0].initializer = unit.initializer_count;
+  invalid_unit = unit;
+  invalid_unit.object_definitions = invalid_definitions;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid initializer root") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  invalid_initializers = (ctool_c_initializer_t *)calloc(
+      1u,
+      invalid_initializer_bytes < sizeof(*invalid_initializers)
+          ? sizeof(*invalid_initializers)
+          : invalid_initializer_bytes);
+  if (invalid_initializers == NULL) {
+    (void)fprintf(stderr, "invalid-initializer fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               invalid_initializer_bytes);
+  invalid_initializers[0].type = unit.graph.type_count;
+  invalid_unit = unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid initializer type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_initializers, unit.initializers,
+               invalid_initializer_bytes);
+  invalid_initializers[0].kind = CTOOL_C_INITIALIZER_EXPRESSION;
+  invalid_initializers[0].expression = 0u;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_INITIALIZER,
+          "CupidC object emission requires static initializer values",
+          "runtime initializer boundary") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_initializers, unit.initializers,
+               invalid_initializer_bytes);
+  for (initializer_index = 0u; initializer_index < unit.initializer_count;
+       initializer_index++) {
+    if (invalid_initializers[initializer_index].kind ==
+            CTOOL_C_INITIALIZER_ADDRESS &&
+        invalid_initializers[initializer_index].address_kind ==
+            CTOOL_C_INITIALIZER_ADDRESS_BINDING) {
+      break;
+    }
+  }
+  if (initializer_index == unit.initializer_count) {
+    (void)fprintf(stderr, "binding-address fixture is absent\n");
+    goto cleanup;
+  }
+  invalid_initializers[initializer_index].address_reference =
+      unit.binding_count;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid address binding") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  invalid_binding_bytes =
+      (size_t)unit.binding_count * sizeof(*invalid_bindings);
+  invalid_bindings = (ctool_c_binding_t *)calloc(
+      1u,
+      invalid_binding_bytes < sizeof(*invalid_bindings)
+          ? sizeof(*invalid_bindings)
+          : invalid_binding_bytes);
+  if (invalid_bindings == NULL) {
+    (void)fprintf(stderr, "invalid-binding fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_bindings, unit.bindings, invalid_binding_bytes);
+  invalid_bindings[unit.object_definitions[0].binding].minimum_alignment = 6u;
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid object alignment") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "nonempty object output") ||
+      ctool_buffer_view(first).size != expected_object_size ||
+      memcmp(ctool_buffer_view(first).data, expected_object,
+             (size_t)expected_object_size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "nonempty output precondition differs\n");
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, (const ctool_c_translation_unit_t *)0,
+                               second);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT, "null frozen unit") ||
+      ctool_buffer_view(second).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "null unit precondition differs\n");
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, (ctool_buffer_t *)0);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT, "null output") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "null output precondition differs\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/function-definition.c", function_text,
+                    &function_unit) ||
+      function_unit.function_definition_count != 1u) {
+    (void)fprintf(stderr, "function boundary fixture differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &function_unit, second);
+  if (!check_status(status, CTOOL_ERR_UNSUPPORTED,
+                    "function definition boundary") ||
+      ctool_buffer_view(second).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      !expect_new_diagnostic(job, diagnostic_count,
+                             CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+                             "CupidC object emission does not yet support "
+                             "function definitions",
+                             "function definition boundary") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "function definition boundary differs\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/static-data.o");
+  object_source.contents = ctool_buffer_view(first);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read static object") ||
+      validate_object(&object) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/source-derived-static-layout.c", layout_text,
+                    &layout_unit) ||
+      layout_unit.object_definition_count != 10u ||
+      !take_unit_snapshot(&layout_unit, &layout_snapshot)) {
+    (void)fprintf(stderr, "source-derived layout setup failed\n");
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "source-derived output rewind failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &layout_unit, first);
+  layout_bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first source-derived object") ||
+      layout_bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    (void)fprintf(stderr, "first source-derived emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &layout_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "second source-derived object") ||
+      bytes.size != layout_bytes.size ||
+      memcmp(bytes.data, layout_bytes.data, (size_t)layout_bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    (void)fprintf(stderr, "source-derived emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/source-derived-static-layout.o");
+  object_source.contents = layout_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read source-derived static object") ||
+      validate_layout_object(&object) == 0 ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "malformed-layout output rewind failed\n");
+    goto cleanup;
+  }
+  invalid_layout_initializer_bytes =
+      (size_t)layout_unit.initializer_count *
+      sizeof(*invalid_layout_initializers);
+  invalid_element_bytes = (size_t)layout_unit.initializer_element_count *
+                          sizeof(*invalid_elements);
+  invalid_layout_initializers = (ctool_c_initializer_t *)calloc(
+      1u,
+      invalid_layout_initializer_bytes < sizeof(*invalid_layout_initializers)
+          ? sizeof(*invalid_layout_initializers)
+          : invalid_layout_initializer_bytes);
+  invalid_elements = (ctool_c_initializer_element_t *)calloc(
+      1u,
+      invalid_element_bytes < sizeof(*invalid_elements)
+          ? sizeof(*invalid_elements)
+          : invalid_element_bytes);
+  if (invalid_layout_initializers == NULL || invalid_elements == NULL) {
+    (void)fprintf(stderr, "malformed-layout fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_layout_initializers, layout_unit.initializers,
+               invalid_layout_initializer_bytes);
+  for (initializer_index = 0u;
+       initializer_index < layout_unit.initializer_count;
+       initializer_index++) {
+    if (invalid_layout_initializers[initializer_index].kind ==
+        CTOOL_C_INITIALIZER_LIST) {
+      break;
+    }
+  }
+  if (initializer_index == layout_unit.initializer_count) {
+    (void)fprintf(stderr, "list-initializer fixture is absent\n");
+    goto cleanup;
+  }
+  invalid_layout_initializers[initializer_index].first_element =
+      layout_unit.initializer_element_count + 1u;
+  invalid_unit = layout_unit;
+  invalid_unit.initializers = invalid_layout_initializers;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid initializer list slice") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_layout_initializers, layout_unit.initializers,
+               invalid_layout_initializer_bytes);
+  for (initializer_index = 0u;
+       initializer_index < layout_unit.initializer_count;
+       initializer_index++) {
+    if (invalid_layout_initializers[initializer_index].kind ==
+            CTOOL_C_INITIALIZER_ADDRESS &&
+        invalid_layout_initializers[initializer_index].address_kind ==
+            CTOOL_C_INITIALIZER_ADDRESS_STRING) {
+      break;
+    }
+  }
+  if (initializer_index == layout_unit.initializer_count) {
+    (void)fprintf(stderr, "string-address fixture is absent\n");
+    goto cleanup;
+  }
+  invalid_layout_initializers[initializer_index].string_bytes.data = NULL;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid string address") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_elements, layout_unit.initializer_elements,
+               invalid_element_bytes);
+  invalid_elements[0].initializer = layout_unit.initializer_count;
+  invalid_unit = layout_unit;
+  invalid_unit.initializer_elements = invalid_elements;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid initializer child") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  for (initializer_index = 0u;
+       initializer_index < layout_unit.initializer_count;
+       initializer_index++) {
+    if (layout_unit.initializers[initializer_index].kind ==
+            CTOOL_C_INITIALIZER_LIST &&
+        layout_unit.initializers[initializer_index].element_count >= 2u) {
+      duplicate_initializer = initializer_index;
+      break;
+    }
+  }
+  if (duplicate_initializer >= layout_unit.initializer_count) {
+    (void)fprintf(stderr, "duplicate-selector fixture is absent\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_elements, layout_unit.initializer_elements,
+               invalid_element_bytes);
+  masked_edge =
+      layout_unit.initializers[duplicate_initializer].first_element;
+  if (layout_unit.initializer_element_count < 2u ||
+      masked_edge > layout_unit.initializer_element_count - 2u) {
+    (void)fprintf(stderr, "duplicate-selector edges are absent\n");
+    goto cleanup;
+  }
+  invalid_elements[masked_edge + 1u].subobject =
+      invalid_elements[masked_edge].subobject;
+  invalid_unit = layout_unit;
+  invalid_unit.initializer_elements = invalid_elements;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "duplicate initializer selector") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  for (definition_index = 0u;
+       definition_index < layout_unit.object_definition_count;
+       definition_index++) {
+    const ctool_c_object_definition_t *definition =
+        &layout_unit.object_definitions[definition_index];
+    if (definition->binding < layout_unit.binding_count) {
+      const ctool_c_binding_t *binding =
+          &layout_unit.bindings[definition->binding];
+      if (string_equal(binding->name, "local_data") != 0) {
+        wrong_child_type = binding->type;
+      } else if (string_equal(binding->name, "masked_zero") != 0) {
+        masked_initializer = definition->initializer;
+      }
+    }
+  }
+  if (masked_initializer >= layout_unit.initializer_count ||
+      layout_unit.initializers[masked_initializer].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      layout_unit.initializers[masked_initializer].element_count == 0u) {
+    (void)fprintf(stderr, "BSS list fixture is absent\n");
+    goto cleanup;
+  }
+  masked_edge = layout_unit.initializers[masked_initializer].first_element;
+  if (masked_edge >= layout_unit.initializer_element_count) {
+    (void)fprintf(stderr, "BSS list edge fixture is absent\n");
+    goto cleanup;
+  }
+  masked_child = layout_unit.initializer_elements[masked_edge].initializer;
+  if (masked_child >= layout_unit.initializer_count ||
+      layout_unit.initializers[masked_child].kind !=
+          CTOOL_C_INITIALIZER_INTEGER) {
+    (void)fprintf(stderr, "BSS list child fixture is absent\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_layout_initializers, layout_unit.initializers,
+               invalid_layout_initializer_bytes);
+  invalid_layout_initializers[masked_child].integer_bits = 0u;
+  (void)memcpy(invalid_elements, layout_unit.initializer_elements,
+               invalid_element_bytes);
+  invalid_elements[masked_edge].subobject = layout_unit.graph.member_count;
+  invalid_unit = layout_unit;
+  invalid_unit.initializers = invalid_layout_initializers;
+  invalid_unit.initializer_elements = invalid_elements;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid BSS initializer subobject") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  if (wrong_child_type >= layout_unit.graph.type_count ||
+      wrong_child_type ==
+          layout_unit.initializers[masked_child].type) {
+    (void)fprintf(stderr, "wrong-child-type fixture is absent\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_layout_initializers, layout_unit.initializers,
+               invalid_layout_initializer_bytes);
+  invalid_layout_initializers[masked_child].type = wrong_child_type;
+  invalid_layout_initializers[masked_child].integer_bits = 0u;
+  invalid_unit = layout_unit;
+  invalid_unit.initializers = invalid_layout_initializers;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "wrong initializer child type") ||
+      unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
+    goto cleanup;
+  }
+
+  passed = 1;
+
+cleanup:
+  free(invalid_elements);
+  free(invalid_layout_initializers);
+  free(invalid_bindings);
+  free(invalid_initializers);
+  free(invalid_definitions);
+  free(expected_object);
+  dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("static-data: ok");
+    return 0;
+  }
+  return 1;
+}
+
+int main(int argc, char **argv) {
+  if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
+    return run_static_data(argv[2]);
+  }
+  (void)fprintf(stderr,
+                "usage: cupidc-object-contract static-data HOST_ROOT\n");
+  return 2;
+}
