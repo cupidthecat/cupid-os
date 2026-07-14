@@ -81,7 +81,7 @@ context_switch(process_t *old_proc, process_t *new_proc,
 6. Restore the target's interrupt policy only after the new stack and FPU state are active
 7. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
 
-The handoff is deliberately split across C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. Only a detached `READY` PCB is eligible on another CPU. PID 1 is the BSP fallback; an AP's first dispatch captures its PID-less bootstrap context so a terminated or blocked AP task can detach onto that CPU-local stack. This prevents both cross-CPU idle-stack sharing and transfer of a suspended caller's critical section. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
+The handoff spans C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. Only a detached `READY` PCB is eligible on another CPU. PID 1 is the BSP fallback; an AP's first dispatch captures its PID-less bootstrap context so a terminated or blocked AP task can detach onto that CPU-local stack. The captured context prevents cross-CPU idle-stack sharing. The split handoff also keeps the suspended caller's critical section from transferring to the selected process. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
 
 ### Interrupt entry and per-CPU state
 

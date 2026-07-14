@@ -6,7 +6,7 @@ This guide explains the current disk model and how to work with the FAT16 partit
 
 ## Quick Setup (Copy-Paste)
 
-If you just want a working HDD image fast:
+The shortest setup uses the portable host helper:
 
 ```bash
 # Build (or reuse) cupidos.img
@@ -19,7 +19,7 @@ python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid
 make run
 ```
 
-That's it. Read on for a detailed explanation of each step.
+The sections below explain the image layout and the manual alternatives.
 
 ---
 
@@ -111,7 +111,7 @@ This mounts the FAT16 partition directly from `cupidos.img`.
 
 ### 4. Add Files (Loop-Mount Path)
 
-Now copy files into it:
+Copy files into the mounted partition:
 
 ```bash
 # Simple text file
@@ -152,7 +152,7 @@ EOF
 sudo umount /mnt/cupidos
 ```
 
-Your `cupidos.img` now contains the updated FAT16 data.
+The copied files are stored in the FAT16 partition inside `cupidos.img`.
 
 ---
 

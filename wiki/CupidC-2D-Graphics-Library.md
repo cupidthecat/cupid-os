@@ -1,12 +1,12 @@
 # CupidC 2D Graphics Library (gfx2d)
 
-A software-rendered 2D graphics library for cupid-os, exposed as CupidC kernel bindings. Enables desktop development, app development, and retro-aesthetic visual effects.
+`gfx2d` is a software-rendered 2D graphics library exposed through CupidC kernel bindings. It supports desktop applications and retro-style visual effects.
 
 ---
 
 ## Overview
 
-The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bindings in `cupidc.c`. CupidC programs call `gfx2d_*` functions directly - no imports needed.
+The library lives in `kernel/gfx/gfx2d.c`, and `cupidc.c` registers its bindings. CupidC programs call `gfx2d_*` functions directly without imports.
 
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -16,7 +16,7 @@ The `gfx2d` library lives in `kernel/gfx/gfx2d.c` and is registered as CupidC bi
 
 ## Compiler Improvements (Required)
 
-These additions to the CupidC compiler enable cleaner graphics app code:
+Graphics programs rely on the following CupidC features:
 
 ### `unsigned` types
 ```c
@@ -234,7 +234,7 @@ int x = gfx2d_tween_bounce(tick % 120, 50, 400, 120);
 
 ### Particle System
 
-Lightweight particle effects with gravity and alpha fadeout.
+Particle effects support gravity and alpha fadeout.
 
 ```c
 int  gfx2d_particles_create();    // allocates system, returns handle
@@ -275,7 +275,7 @@ void gfx2d_flood_fill(int x, int y, unsigned int color);
 
 ### Fullscreen Mode
 
-Taking over the screen disables the desktop compositor/WM, giving you raw access.
+Fullscreen mode disables the desktop compositor and window manager, then gives the program direct access to the screen.
 
 ```c
 void gfx2d_fullscreen_enter();
@@ -390,9 +390,9 @@ kfree(bytes);
 ### CupidASM parity note
 
 Every `gfx2d_*` and image-codec function listed above is also bound from
-CupidASM (see `wiki/CupidASM-Assembler.md`), with the same names and
-calling convention. This includes the previously CupidC-only image
-slot (`gfx2d_image_load` / `_load_mem` / `_draw` / `_draw_scaled` /
+CupidASM (see `wiki/CupidASM-Assembler.md`) under the same names and calling
+convention. The bindings include the image slot (`gfx2d_image_load` /
+`_load_mem` / `_draw` / `_draw_scaled` /
 `_draw_transformed` / `_get_pixel` / `_width` / `_height` / `_free`),
 the thick-stroke shapes (`gfx2d_circle_thick`, `gfx2d_line_thick`,
 `gfx2d_tri`, `gfx2d_tri_fill_gradient`), the rounded / radial gradients,
@@ -421,7 +421,7 @@ the glyph helpers (`gfx2d_char` / `_char_scaled` / `_text_n` /
 
 **Supported format:** BITMAPINFOHEADER (Windows 3.x+), 24-bit uncompressed only. Max dimension: 8192x8192.
 
-**Example - Screenshot:**
+Screenshot example:
 ```c
 void main() {
     // Capture the framebuffer as a BMP
@@ -432,7 +432,7 @@ void main() {
 }
 ```
 
-**Example - Load and display:**
+Load and display example:
 ```c
 void main() {
     // Decode directly to screen
@@ -487,15 +487,15 @@ void draw_window(int x, int y, int w, int h, char *title) {
 
 ## Internal Design Notes
 
-- **Alpha blend formula:** `out = (src * a + dst * (255 - a)) / 255` per channel, integer only
-- **Gradient interpolation:** linear lerp per scanline, integer step
-- **Shadow:** 1-4 pass box blur of a solid rect at offset
-- **Plasma:** precomputed 256-entry sine LUT, two-frequency interference pattern
-- **Sprite pool:** max 32 handles, stored in kernel heap
-- **Surface pool:** max 8 handles, each consumes w*h*4 bytes heap
-- **Particle systems:** max 4 systems x 64 particles each, 8.8 fixed-point positions
-- **Clipping:** global clip rect checked in every pixel-write path
-- **Font LARGE:** same 8x8 glyphs as FONT_NORMAL, scaled 2x at draw time
-- **Blend modes:** applied in g2d_put() helper for all drawing operations
-- **Tweening:** pure integer math, no floating point
+- Alpha blending uses `out = (src * a + dst * (255 - a)) / 255` for each channel with integer arithmetic.
+- Gradient interpolation uses a linear interpolation step for each scanline.
+- Shadows apply one to four box-blur passes to an offset solid rectangle.
+- Plasma uses a precomputed 256-entry sine lookup table with a two-frequency interference pattern.
+- The sprite pool stores at most 32 handles in the kernel heap.
+- The surface pool stores at most eight handles. Each surface consumes `w*h*4` bytes of heap memory.
+- At most four particle systems may be active, with 64 particles per system and 8.8 fixed-point positions.
+- Every pixel-writing path checks the global clipping rectangle.
+- `FONT_LARGE` scales the same 8x8 glyphs as `FONT_NORMAL` by two at draw time.
+- The `g2d_put()` helper applies blend modes to drawing operations.
+- Tweening uses integer arithmetic without floating point.
 

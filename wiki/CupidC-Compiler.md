@@ -1,6 +1,6 @@
 # CupidC Compiler
 
-CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code and runs them with full ring-0 privileges - no VM, no interpreter, no restrictions. Inspired by TempleOS's HolyC, CupidC embodies cupid-os's philosophy of complete user empowerment.
+CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter.
 
 ---
 
@@ -31,7 +31,7 @@ CupidC is a HolyC-inspired C compiler built directly into the cupid-os kernel. I
 > cupidc program.cc
 ```
 
-Compiles the source to memory and executes immediately. No binary is saved to disk. Perfect for rapid development and testing.
+CupidC compiles the source into memory and executes it without saving a binary. This mode is useful for short edit-and-test cycles.
 
 ### AOT Mode - Compile to ELF Binary
 
@@ -180,9 +180,8 @@ declarations can use enum-derived bounds or bit flags.
 
 ### C Compatibility Tokens
 
-CupidC is still a small single-pass compiler, but it accepts several
-common C spellings so larger examples and demos do not fail during
-parsing:
+CupidC is a small single-pass compiler that accepts several common C spellings
+used by larger examples and demos:
 
 - storage/qualifier spellings: `extern`, `inline`, `register`, `restrict`, `const`, `volatile`
 - wide type spellings: `long`, `short`, `signed`, `unsigned`, `long long`
@@ -300,7 +299,7 @@ switch (cmd) {
 
 `break` and `continue` work inside `while`, `for`, `do-while` loops, and `switch` statements.
 
-**Break statement implementation**: CupidC supports multiple `break` statements per loop (up to 32 breaks per loop, 64 nested loop levels). The compiler maintains an array of break patch locations and patches them all when the loop ends.
+CupidC supports up to 32 `break` statements per loop and 64 nested loop levels. The compiler stores the break patch locations and resolves them when the loop ends.
 
 ### Functions
 
@@ -678,8 +677,9 @@ opaque `pci_device_t *` behind these index-based getters.
 
 ### SMP / LAPIC / paging / PMM
 
-> ⚠ These can deadlock or corrupt the kernel if misused. Wrap
-> in `bkl_lock`/`bkl_unlock` if you need atomicity vs. other CPUs.
+> Misusing these functions can deadlock or corrupt the kernel. Use
+> `bkl_lock` and `bkl_unlock` when the operation must be atomic with respect to
+> other CPUs.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -889,7 +889,7 @@ This pattern is used in commands like `rm` to handle multiple file arguments.
 
 ### Error Handling with VFS
 
-VFS functions return negative error codes on failure. Check return values and provide user-friendly error messages:
+VFS functions return negative error codes on failure. Check return values and report a specific error:
 
 ```c
 int fd = vfs_open(path, 0);
@@ -946,7 +946,7 @@ Common ANSI codes:
 
 ### Pipeline
 
-CupidC is a **single-pass** compiler - it lexes, parses, and emits x86 machine code in one pass through the source:
+CupidC is a **single-pass** compiler: it lexes, parses, and emits x86 machine code in one pass through the source.
 
 ```
 Source (.cc)
@@ -1073,7 +1073,7 @@ When the parser encounters a call to an undefined function, it emits a placehold
 
 ## User Programs (TempleOS-style)
 
-CupidC programs can be placed in `/bin/` or `/home/bin/` and the shell discovers them automatically - no kernel recompile needed. Just type the program name and it runs.
+The shell discovers CupidC programs in `/bin/` and `/home/bin/`. Programs added to `/home/bin/` can run without rebuilding the kernel.
 
 ### How It Works
 
@@ -1084,7 +1084,7 @@ When you type a command the shell doesn't recognize, it searches in order:
 3. `/home/bin/<cmd>` - ELF binary on disk
 4. `/home/bin/<cmd>.cc` - CupidC source on disk (JIT compiled)
 
-CupidC `.cc` files are JIT-compiled and run instantly. No build step.
+The shell JIT-compiles a discovered `.cc` file before running it.
 
 ### Example: `mv` (Move/Rename Files)
 
@@ -1187,10 +1187,10 @@ CupidC draws direct inspiration from TempleOS's HolyC:
 
 ## Shell REPL
 
-CupidOS now uses a TempleOS-style CupidC REPL directly at the normal shell prompt.
+The normal shell prompt includes a TempleOS-style CupidC REPL.
 The shell tries to compile each line as CupidC first and only falls back to normal
-command dispatch when REPL parsing or compilation fails. The north-star behavior
-is TempleOS's `ExeCmdLine()`, `LexStmt2Bin()`, and `CmdLinePmt()`.
+command dispatch when REPL parsing or compilation fails. TempleOS's
+`ExeCmdLine()`, `LexStmt2Bin()`, and `CmdLinePmt()` are the design references.
 
 ### Prompt behavior
 
@@ -1219,7 +1219,7 @@ Example:
 
 ### Fallback behavior
 
-These still resolve as shell commands because they are not valid CupidC REPL input:
+These inputs resolve as shell commands because they are not valid CupidC REPL input:
 
 ```text
 help

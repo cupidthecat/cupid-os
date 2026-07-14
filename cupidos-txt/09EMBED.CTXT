@@ -13,8 +13,8 @@ Verified against source on: 2026-07-10
 >style linkhover #0B3AA8
 >rule
 
-This repo folder is the source of truth for the shipped manual set.
-CupidOS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt, then
+The cupidos-txt/ directory is the canonical source for the shipped manuals.
+Cupid OS embeds every cupidos-txt/*.CTXT file into ramfs as /docs/*.ctxt, then
 renders them inside Notepad as live DolDoc-style manuals.
 
 >sprite /home/snail.bmp 64 64 | open:11CTXT.CTXT
@@ -36,9 +36,8 @@ Workflow:
 3) Open /docs/00INDEX.ctxt or any /docs/*.ctxt page in Notepad
 4) Press F2 to switch between source and rendered DolDoc view
 
-This is the TempleOS-style path. The document source stays readable as text,
-but rendered view gains live buttons, runnable CupidC, action links, trees,
-and inline BMP, PNG, or JPEG widgets.
+The source remains readable as text. Rendered view adds working buttons,
+runnable CupidC, action links, trees, and inline BMP, PNG, or JPEG widgets.
 >endtree
 
 >h2 Makefile Auto-Discovery
@@ -61,15 +60,13 @@ Makefile variable definitions:
   DEMO_ASM_SRCS := $(wildcard demos/*.asm)
   GOD_DD_SRCS   := $(wildcard god/*.DD)
 
-Adding a new .CTXT file to cupidos-txt/ is enough: the next build will pick
-it up automatically through docs_programs_gen.c.
-
-Adding a top-level .bmp, .png, .jpg, or .jpeg file is enough: the next build
-embeds it and the boot path installs it to /home with the same filename.
+The next build finds new .CTXT files in cupidos-txt/ through
+docs_programs_gen.c. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
+files, which the boot path installs under /home with their original names.
 JPEG files are normalized to baseline JPEG while embedding so progressive
 source files still load in the current in-kernel decoder.
 
-Adding a new .cc to bin/ is enough: bin_programs_gen.c handles it.
+bin_programs_gen.c likewise finds new .cc files under bin/.
 
 The god/*.DD files are wrapped by CupidObj pattern rules; they are available at
 runtime under /god/ for godspeak, oracle, and bible commands.
@@ -84,7 +81,7 @@ Current image model:
 - cupidos.img is a single HDD image.
 - /home is the persistent writable filesystem inside cupidos.img (homefs).
 
-Recommended target layout:
+Suggested target layout:
   /home/docs/00INDEX.CTXT
   /home/docs/01SHELL.CTXT
   ...
@@ -120,9 +117,9 @@ still applies as long as the filename keeps the .ctxt or .CTXT suffix.
 Goal:
 - Bundle small docs directly in kernel boot memory files.
 
-This is now mostly the legacy/manual approach.
-For shipped manuals, prefer the generated /docs/*.ctxt install path instead
-of hardcoding text blobs into kernel/fs/fs.c.
+This older approach remains available for manually bundled files. Shipped
+manuals should use the generated /docs/*.ctxt path instead of hardcoded text
+blobs in kernel/fs/fs.c.
 
 Tradeoff:
 - Always available at boot
@@ -145,7 +142,7 @@ Build-time generators:
 - kernel/util/demos_programs_gen.c
 
 Tradeoff:
-- Scales better than hardcoding large strings in kernel/fs/fs.c
+- Avoids hardcoded strings in kernel/fs/fs.c
 - Requires Makefile and kernel generation changes
 
 >button List /docs | shell:ls /docs

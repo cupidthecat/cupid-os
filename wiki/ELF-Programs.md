@@ -1,6 +1,6 @@
 # ELF Programs
 
-CupidOS supports loading and running static **ELF32 i386** executables. The current hosted examples are compiled to relocatable objects by GCC or Clang and linked by CupidLD. Programs run as kernel threads in ring 0 and access kernel services through a **syscall table** - a struct of function pointers passed to the program's `_start()` entry point.
+CupidOS loads and runs static **ELF32 i386** executables. The hosted examples are compiled to relocatable objects by GCC or Clang and linked by CupidLD. Programs run as ring-0 kernel threads and receive a **syscall table**, a struct of function pointers passed to `_start()`.
 
 ---
 
@@ -107,7 +107,7 @@ Hello from an ELF program!
 
 ### Memory Model
 
-CupidOS uses a **flat 512 MB identity-mapped** address space. ELF programs are loaded directly at the virtual addresses specified in their program headers - no address translation needed.
+CupidOS uses a **flat 512 MB identity-mapped** address space. The loader places ELF segments at the virtual addresses in their program headers without address translation.
 
 ```
 Physical / Virtual Memory (512 MB identity-mapped):
@@ -133,7 +133,7 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-This design is simple, fast (no mode switches), and gives programs full kernel access.
+Calls through the table do not require a privilege-mode switch, and the table exposes kernel services directly.
 
 ---
 
@@ -280,11 +280,10 @@ After calling `cupid_init(sys)`, you can use these wrapper functions directly (n
 
 ### Phase 4 / 5 - Networking + drivers (syscall table v3)
 
-Bumped to **`CUPID_SYSCALL_VERSION = 3`** in
-`kernel/core/syscall.h`. Layout is append-only - programs built against v2
-still work; new programs should check `sys->version >= 3` and
-`sys->table_size >= sizeof(<largest field they touch>)` before calling
-the new fields.
+`kernel/core/syscall.h` defines **`CUPID_SYSCALL_VERSION = 3`**. The layout is
+append-only, so programs built against version 2 remain compatible. A program
+that uses version 3 fields should check `sys->version >= 3` and
+`sys->table_size >= sizeof(<largest field it touches>)` before calling them.
 
 The kernel ships `_Static_assert` checks on the offsets of key fields
 (`memstats`, `net_get_ip`, `ipv4_send`, `sock_socket`, `blkdev_count`,
@@ -374,7 +373,7 @@ Ports are network byte order - wrap literals in `htons()`.
 
 #### SMP / paging / PMM / port I/O
 
-> ⚠ These can deadlock or corrupt the kernel if misused.
+> Misusing these functions can deadlock or corrupt the kernel.
 
 | Field | Signature |
 |---|---|
@@ -386,7 +385,7 @@ Ports are network byte order - wrap literals in `htons()`.
 | `pmm_free_page` | `void (*)(void *page)` |
 | `outb_io` / `inb_io` | raw 8-bit port I/O |
 
-Example - query the network interface and ping the gateway from an
+Example: query the network interface and ping the gateway from an
 ELF program:
 
 ```c
@@ -622,24 +621,24 @@ The BSS section (uninitialized global data) is handled implicitly: the loader `m
 
 ### Supported
 
-- ✅ ELF32 i386 static executables
-- ✅ Multiple PT_LOAD segments (.text, .data, .rodata, .bss)
-- ✅ BSS zero-initialization
-- ✅ External executables up to the two-MiB arena boundary
-- ✅ Full kernel API access (console, VFS, memory, process, shell)
-- ✅ Quiescent external-arena lease cleanup after exit, kill, or stack failure
+- ELF32 i386 static executables
+- Multiple `PT_LOAD` segments (`.text`, `.data`, `.rodata`, `.bss`)
+- BSS zero-initialization
+- External executables up to the two-MiB arena boundary
+- Kernel access for console, VFS, memory, process, and shell services
+- Quiescent external-arena lease cleanup after exit, kill, or stack failure
 
 ### Not Supported
 
-- ❌ Dynamic linking / shared libraries
-- ❌ Position-independent executables (PIE)
-- ❌ ELF relocations
-- ❌ Thread-local storage (TLS)
-- ❌ ELF64 (64-bit)
-- ❌ Non-i386 architectures
-- ❌ Command-line arguments (programs can't receive argc/argv)
-- ❌ Standard C library (no libc - use syscall table wrappers)
-- ❌ Multiple ordinary external ELF programs simultaneously (the complete fixed arena has one exclusive lease)
+- Dynamic linking and shared libraries
+- Position-independent executables (PIE)
+- ELF relocations
+- Thread-local storage (TLS)
+- ELF64 executables
+- Architectures other than i386
+- Command-line arguments (`argc` and `argv`)
+- The standard C library; programs use syscall-table wrappers instead
+- Multiple ordinary external ELF programs at the same time; the fixed arena has one exclusive lease
 
 ### Constraints
 

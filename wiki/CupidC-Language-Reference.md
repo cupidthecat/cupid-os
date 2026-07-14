@@ -1,9 +1,9 @@
 # CupidC Language Reference
 
-CupidC is a C-like language for cupid-os that compiles to x86 machine code via JIT compilation.
+CupidC is a C-like language for cupid-os. Its JIT compiler emits x86 machine code.
 
-It is intentionally small, but current CupidC accepts the common C/HolyC
-spellings used by the shipped programs: `U0/U8/U16/U32/I8/I16/I32`,
+The language accepts the common C and HolyC spellings used by the shipped
+programs: `U0/U8/U16/U32/I8/I16/I32`,
 `U64/I64`, `float`, `double`, `float4`, `double2`, `long`, `short`,
 `signed`, `unsigned`, `extern`, `inline`, `register`, `restrict`, labels,
 `goto`, and skipped `__attribute__((...))` decorations.
@@ -49,9 +49,9 @@ while (1) {
 }
 ```
 
-**Implementation**: CupidC supports multiple `break` statements per loop. The compiler
-maintains an array of break patch locations (up to 32 breaks per loop) and patches
-them all when the loop ends.
+CupidC supports multiple `break` statements per loop. The compiler maintains
+an array of up to 32 break patch locations per loop and patches them when the
+loop ends.
 
 ### Labels and Goto
 

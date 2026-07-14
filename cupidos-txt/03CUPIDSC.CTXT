@@ -17,8 +17,9 @@ Verified against source on: 2026-05-15
 >tree open What It Is
 CupidScript is CupidOS's shell-style scripting language.
 
-Source-verified from kernel/lang/cupidscript.h, kernel/lang/cupidscript_parse.c,
-cupidscript_runtime.c, and cupidscript_exec.c:
+The implementation is split across kernel/lang/cupidscript.h,
+kernel/lang/cupidscript_parse.c, cupidscript_runtime.c, and
+cupidscript_exec.c. It supports:
 - variables and assignments
 - if / then / elif / else / fi
 - while / do / done
@@ -97,7 +98,7 @@ Functions:
 
 >h2 Tests
 >tree open Tests
-Source-verified test operators in the executor:
+The executor implements these test operators:
 
 Unary:
 - -z STRING
@@ -150,8 +151,8 @@ The token set and executor support:
 - 2>&1
 - &
 
-That means shell-style pipelines and redirected scripts are first-class,
-not just interactive shell features.
+Scripts can use the same pipelines and redirections as interactive shell
+input.
 
 $! exposes the last background PID tracked by the script job table.
 >endtree
@@ -169,8 +170,7 @@ Loader search order for script files:
 2) VFS path
 3) direct FAT16 fallback
 
-That is why shipped scripts in /bin and persistent scripts under /home
-both work.
+This order covers shipped scripts in /bin and persistent scripts under /home.
 >endtree
 
 >h2 Practical Workflow
@@ -199,8 +199,8 @@ Current limits from kernel/lang/cupidscript.h:
 - MAX_ARGS = 16 (argv entries per parsed command)
 - MAX_SCRIPT_ARGS = 8 (stored script arguments in the runtime context)
 
-That is enough for practical in-OS automation, but the language remains small
-and direct by design.
+These are fixed runtime limits, not recommendations about script structure.
+Larger workloads require runtime support beyond these bounds.
 >endtree
 
 >h2 See Also

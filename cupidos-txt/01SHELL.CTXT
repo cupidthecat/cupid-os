@@ -19,7 +19,7 @@ Verified against source on: 2026-05-15
 >tree open Shell Features
 CupidOS uses one shell core in both text mode and the GUI Terminal app.
 
-Source-verified behavior:
+The shell implementation provides:
 - current working directory prompt (/home>)
 - TempleOS-style CupidC REPL at the normal prompt
 - prompt prints elapsed time and ans after successful REPL expressions
@@ -47,9 +47,9 @@ If a CupidC expression returns a value, the next prompt first prints timing and 
 If braces are still open, the shell switches to the continuation prompt:
   ..>
 
-This comes directly from the live REPL plumbing in kernel/lang/shell.c and
-kernel/lang/cupidc.c: the shell stages multi-line input until brace depth returns
-to zero, then calls repl_eval().
+kernel/lang/shell.c and kernel/lang/cupidc.c implement this flow. The shell
+stages multi-line input until brace depth returns to zero, then calls
+repl_eval().
 
 >button Reset REPL State | shell:reset
 >endtree
@@ -85,7 +85,7 @@ When you type a command, the shell resolves it in this order:
 
 >h2 Built-Ins
 >tree open Built-Ins
-Source-verified built-ins in kernel/lang/shell.c (commands[] table):
+The commands[] table in kernel/lang/shell.c defines these built-ins:
 
 Language / compiler:
 - cupid      run a .cup script
@@ -214,7 +214,7 @@ Host test for sshd:
 When Terminal is open, the shell writes into GUI text/color buffers instead of
 direct text mode output.
 
-Important behavior:
+Behavior:
 - shell wrap width tracks the current terminal window width
 - GUI mode still runs the same shell command dispatcher
 - the terminal app reads shell character/color buffers for redraw
@@ -233,7 +233,7 @@ F7 in Terminal or the text-mode shell runs:
 cc with no filename opens a dedicated line-oriented REPL:
   cc
 
-Behavior verified from kernel/lang/shell.c:
+kernel/lang/shell.c implements this session as follows:
 - prompt is cc> or ..> while braces are open
 - Ctrl+D exits when the current line is empty
 - .exit or exit leaves the session

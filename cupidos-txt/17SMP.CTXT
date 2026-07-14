@@ -35,29 +35,29 @@ Core files:
 >h2 Boot Order (Critical)
 >tree open Boot Order
 >box
-CRITICAL: LAPIC and IOAPIC must be live before any AP is released.
+LAPIC and IOAPIC must be live before any AP is released.
 The 8259 PIC must be fully masked before AP bringup so legacy IRQ
 lines do not collide with LAPIC vectors.
 >endbox
 
 Correct call sequence:
 
-  percpu_init_bsp()      -- initialise static per_cpu_t array/GDT, load BSP GS
-  lapic_init_bsp()       -- map LAPIC MMIO, software-enable, calibrate PIT-ch2
-  pic_mask_all()         -- OCW1=0xFF on both 8259s (all legacy lines masked)
-  ioapic_init_all(bsp_id) -- discover IOAPICs via MADT, build GSI table
-  keyboard_init()        -- install handler after the IOAPIC exists
-  bkl_init()             -- initialise ticket spinlock + per-CPU counters
-  smp_init()             -- parse MP/MADT, populate cpu_table[], write trampoline
-  smp_init_ipi()         -- wire IPI vectors 0xF0/0xF1/0xFE in IDT
-                         -- AP bringup loop:
+  percpu_init_bsp()       // initialise static per_cpu_t array/GDT, load BSP GS
+  lapic_init_bsp()        // map LAPIC MMIO, software-enable, calibrate PIT-ch2
+  pic_mask_all()          // OCW1=0xFF on both 8259s, all legacy lines masked
+  ioapic_init_all(bsp_id) // discover IOAPICs via MADT, build GSI table
+  keyboard_init()         // install handler after the IOAPIC exists
+  bkl_init()              // initialise ticket spinlock and per-CPU counters
+  smp_init()              // parse MP/MADT, populate cpu_table[], write trampoline
+  smp_init_ipi()          // wire IPI vectors 0xF0/0xF1/0xFE in IDT
+                          // AP bringup loop:
   for each AP:
       send INIT, wait 10 ms
-      send SIPI vector 0x08 twice       -- trampoline at 0x8000
+      send SIPI vector 0x08 twice       // trampoline at 0x8000
       wait up to 100 ms for cpus[i].online
 
 >box
-WARNING: reversing lapic_init_bsp and ioapic_init_all causes spurious
+Reversing lapic_init_bsp and ioapic_init_all causes spurious
 LAPIC vectors during the IOAPIC redirection table write and locks the
 BSP before APs are released. Do not reorder.
 >endbox
@@ -92,8 +92,8 @@ BSP before APs are released. Do not reorder.
 
   _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
 
-this_cpu() compiles to a single "mov eax, gs:[0]" -- the struct starts
-with a self-pointer so callers never need to know the linear address.
+this_cpu() compiles to a single "mov eax, gs:[0]". The struct starts with a
+self-pointer, so callers never need to know the linear address.
 
 >h3 GDT Layout
 
@@ -209,8 +209,8 @@ ioapic_route_isa(irq, vector) looks up isa_to_gsi[irq] before routing.
 >h3 8259 Masking
 
   pic_mask_all():
-      outb(0x21, 0xFF);   // master OCW1 -- all 8 lines masked
-      outb(0xA1, 0xFF);   // slave  OCW1 -- all 8 lines masked
+      outb(0x21, 0xFF);   // master OCW1, all 8 lines masked
+      outb(0xA1, 0xFF);   // slave OCW1, all 8 lines masked
 
 Called once after ioapic_init_all. The 8259 is never unmasked again.
 EOI no longer goes to the 8259; all EOI goes through lapic_write(0xB0, 0).
@@ -344,12 +344,12 @@ when the BKL is initialized.
 >h2 Scheduler Integration
 >tree open Scheduler Integration
 
-process_t gains two new fields:
+process_t contains two SMP fields:
 
   uint8_t  on_cpu;     // logical cpu_id currently executing this process
   uint8_t  last_cpu;   // logical cpu_id last time it ran
 
-current_pid moves from a global into per_cpu_t.current_pid. Each CPU reads
+per_cpu_t.current_pid stores the current PID for each CPU. Code reads
 this_cpu()->current_pid at offset 0x24; process_get_current_pid() therefore
 loads through the per-CPU pointer selected by GS.
 
@@ -398,9 +398,9 @@ linear address zero and turn the first per-CPU access into a recursive fault.
 
 >h3 Vectors
 
-  0xF0  Reschedule     -- consume a pre-published CPU-local pending request
-  0xF1  Cross-CPU call -- target runs fn(arg) atomically
-  0xFE  Panic          -- target halts and prints its CPU id
+  0xF0  Reschedule: consume a pre-published CPU-local pending request
+  0xF1  Cross-CPU call: target runs fn(arg) atomically
+  0xFE  Panic: target halts and prints its CPU id
 
 >h3 Reschedule handler skeleton
 
@@ -469,25 +469,24 @@ Expected final value: 40000.
 >h2 Known Limits
 >tree open Known Limits
 >box
-These are Tier 2 design constraints. Tier 3 work can address them.
+These constraints define the Tier 2 scope.
 >endbox
 
-  No CPU hotplug      -- cpu_table[] is frozen at boot
-  No NUMA awareness   -- single memory pool
-  No TLB shootdown    -- paging changes not propagated to other CPUs
-  No per-CPU runqueues -- BKL caps parallelism to one CPU in kernel
-  External IRQs on BSP -- IOAPIC affinity/migration is not implemented;
-                          every CPU still receives its LAPIC timer
-  No MWAIT idle       -- APs use HLT in idle loop
-  BKL serialisation   -- only one CPU in kernel at a time
-  Timer callback rates -- timer_channels currently dispatches every active
-                          callback on each channel-0 IRQ; requested callback
-                          frequencies and deferred block-cache flush work need
-                          a separate timer/work-queue design
+  CPU hotplug: cpu_table[] is frozen at boot
+  NUMA: one shared memory pool
+  TLB shootdown: paging changes do not propagate to other CPUs
+  Runqueues: the shared BKL runqueue limits kernel execution to one CPU
+  External IRQs: the BSP receives every IOAPIC interrupt; each CPU still
+                 receives its LAPIC timer
+  Idle instruction: APs use HLT instead of MWAIT
+  BKL serialisation: only one CPU runs in the kernel at a time
+  Timer callback rates: timer_channels dispatches every active callback on
+                        each channel-0 IRQ; requested callback frequencies
+                        and deferred block-cache flushes need a separate
+                        timer and work-queue design
 
-For workloads that are mostly user-space compute with occasional kernel
-calls the BKL overhead is acceptable. Replacing the BKL with fine-grained
-locks is the natural next step for Tier 3.
+The BKL mainly affects workloads that enter the kernel often. Tier 3 would
+need fine-grained locks to allow parallel kernel execution.
 >endtree
 
 >h2 Source File Index

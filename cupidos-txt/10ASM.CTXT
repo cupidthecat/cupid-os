@@ -131,8 +131,8 @@ Floating-point and SIMD coverage includes:
 - x87 (25): FLD, FSIN, FPATAN, F2XM1, FYL2X, and more
 - Register tokens: XMM0-7 and ST0-7
 
-Use the shipped demos under /demos as the real compatibility baseline.
-Recent coverage demos include include_helper.asm, jcc_aliases.asm,
+Use the shipped demos under /demos as the compatibility baseline.
+Coverage demos include include_helper.asm, jcc_aliases.asm,
 reserve_directives.asm, parity_priv.asm, and parity_gfx2d.asm.
 >endtree
 
@@ -183,11 +183,11 @@ memory size without storing zero bytes, and leaves its output empty when a
 malformed artifact is rejected. The loader accepts the historical adjacent
 1 MB code and data placement as one bounded 2 MB mapped span.
 
-This fixed-address compatibility format is intended for one loaded assembly
-image at a time. Distinct concurrent process placement belongs to CupidLD and
-the final loader rather than to the assembler language.
+This fixed-address compatibility format supports one loaded assembly image at
+a time. CupidLD and the final loader own distinct concurrent process
+placement; the assembler language does not.
 
-A checked smoke assembled the hello demo with cupidasm, loaded the result as a
+A smoke test assembled the hello demo with cupidasm, loaded the result as a
 process with exec, and completed without a kernel panic.
 >endtree
 
@@ -199,8 +199,8 @@ Useful inspection commands:
 - dis file.cc
 - cc -d file.cc
 
-This makes CupidASM fit naturally into the same inspectable source/binary flow
-as CupidC.
+CupidASM therefore uses the same source and binary inspection commands as
+CupidC.
 >endtree
 
 >h2 Demo Sources
@@ -238,7 +238,7 @@ For persistent copies, make sync-demos refreshes /home/demos in cupidos.img.
 
 >h2 Practical Workflow
 >tree open Practical Workflow
-Recommended loop:
+Workflow:
 1) inspect a shipped demo under /demos
 2) run it with as
 3) copy or create your own version under /home

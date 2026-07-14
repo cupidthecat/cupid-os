@@ -1,10 +1,10 @@
 # USB Host Controller Stack
 
-**CupidOS P4 - USB 1.1 + 2.0**
+CupidOS supports USB 1.1 and USB 2.0.
 
-CupidOS implements a full USB host controller stack supporting UHCI (USB 1.1) and EHCI (USB 2.0)
-host controllers. Three class drivers are provided: HID boot protocol (keyboard + mouse), Hub,
-and Mass Storage (BBB + SCSI). HID events are merged into the existing PS/2 event queue so the
+The USB host stack supports UHCI (USB 1.1) and EHCI (USB 2.0) controllers. It
+has class drivers for HID boot-protocol keyboards and mice, hubs, and mass
+storage through BBB and SCSI. HID events join the PS/2 event queue, so the
 shell sees a unified input stream. Mass storage registers as a block device (`usb0`, `usb1`, ...).
 
 ---
@@ -85,15 +85,15 @@ usb_init()
   └─► uhci_init_all()     ← second
 ```
 
-**Why order matters:** EHCI claims all ports on the PCI bus by writing `CONFIGFLAG = 1` to its
+EHCI must initialize first because it claims all ports on the PCI bus by writing `CONFIGFLAG = 1` to its
 operational register. After claiming, it inspects each port's `PORTSC.LINE_STATUS`. Ports with
 a low-speed or full-speed device (LS/FS detected by `D+`/`D−` line state) have their
 `PORTSC.PORT_OWNER` bit set, releasing them to the companion UHCI controller.
 
 If UHCI initialises first, it starts driving its ports before EHCI has a chance to claim them.
 This creates a port-ownership race: a high-speed device may be reset in full-speed mode,
-permanently capping it at USB 1.1 speeds for that boot session. The reversed init order
-(EHCI -> UHCI) is **not optional** - changing it breaks companion handoff.
+permanently capping it at USB 1.1 speeds for that boot session. Changing the
+EHCI-to-UHCI order breaks companion handoff.
 
 ---
 
@@ -609,16 +609,13 @@ FAT16 partition types detected: `0x04`, `0x06`, `0x0E`.
 
 ### Auto-mount status
 
-> **Not yet wired.** The FAT16 VFS implementation (`kernel/fs/fat16.c`) is currently a
-> single-instance driver hardcoded to the ATA block device. Mounting a second FAT16 volume
-> would require per-instance state throughout the driver.
->
-> **Current behaviour:** USB mass storage devices register as raw block devices (`usb0` etc.)
-> and MBR partitions are detected and logged. Direct block reads/writes work. FAT16
-> filesystem operations on USB drives are not available yet.
->
-> **Planned fix:** Refactor `fat16.c` to carry all state in a heap-allocated instance struct
-> passed through every VFS call, then wire `usb_msc_probe()` into `fat16_mount()`.
+> USB mass-storage devices register as raw block devices such as `usb0`, and
+> MBR partitions are detected and logged. Direct block reads and writes work,
+> but FAT16 filesystem operations on USB drives do not. The FAT16 VFS
+> implementation in `kernel/fs/fat16.c` is a single instance tied to the ATA
+> block device. Supporting a second volume requires moving its state into a
+> heap-allocated instance passed through each VFS call, then connecting
+> `usb_msc_probe()` to `fat16_mount()`.
 
 See [Filesystem.md](Filesystem.md) for the current FAT16 architecture.
 
@@ -706,7 +703,7 @@ qemu-system-i386 \
   -serial stdio
 ```
 
-> **Note on OHCI:** QEMU's `-device piix3-usb-uhci` emulates a UHCI controller. OHCI
+> QEMU's `-device piix3-usb-uhci` emulates a UHCI controller. OHCI
 > (used on VIA/SiS real hardware) is not emulated by the above flags and is not supported
 > by CupidOS.
 

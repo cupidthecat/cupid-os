@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through building cupid-os from source and running it in QEMU.
+This guide covers building cupid-os from source and running it in QEMU.
 
 ---
 
@@ -47,7 +47,7 @@ working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
 enable DirectSound.
 
 ### WSL (Windows Subsystem for Linux)
-Same as Ubuntu/Debian. For display, ensure an X server (VcXsrv, WSLg) is available for QEMU's graphical output.
+Install the same packages as on Ubuntu or Debian. QEMU's graphical output also requires an X server such as VcXsrv or WSLg.
 
 ---
 
@@ -127,14 +127,15 @@ The default login is `root` / `cupid`; change it in the guest with
 
 ## HDD Image Notes
 
-`make` now creates a single HDD image (`cupidos.img`) that already contains:
+`make` creates one HDD image, `cupidos.img`, containing:
+
 - MBR boot sector + Stage 2 + kernel area
 - FAT16 partition mounted as `/disk`
 - persistent `/home` data stored in `HOMEFS.SYS` on FAT16
 
 By default, FAT starts at LBA 16384 (offset `8388608` bytes).
 
-You no longer need a separate `test-disk.img`.
+The build does not use a separate `test-disk.img`.
 
 ---
 
@@ -173,7 +174,7 @@ When cupid-os boots, you'll see:
 
 ### Live Docs
 
-CupidOS ships a TempleOS-inspired DolDoc-like manual set inside the OS.
+CupidOS includes a TempleOS-inspired set of DolDoc-like manuals in the OS.
 
 Open **Notepad**, browse to `/docs/00INDEX.ctxt`, and press `F2` to switch
 between raw source and rendered view.

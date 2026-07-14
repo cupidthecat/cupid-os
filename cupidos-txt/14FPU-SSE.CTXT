@@ -15,8 +15,8 @@ Verified against source on: 2026-07-10
 
 >h2 Overview
 >tree open Overview
-CupidOS supports hardware x87 + SSE/SSE2 floating point end-to-end:
-kernel, language, assembler, libm, printf.
+CupidOS supports hardware x87 and SSE/SSE2 floating point in the kernel,
+language, assembler, libm, and printf.
 
   - Build: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
   - Init: `fpu_init()` is the first call in `kmain`; every AP calls the
@@ -36,10 +36,10 @@ kernel, language, assembler, libm, printf.
 
 >h2 CupidC FP Types
 >tree open CupidC FP Types
-  float    — 4 bytes, SSE scalar.
-  double   — 8 bytes, SSE scalar.
-  float4   — 16 bytes, SSE packed (4 floats).
-  double2  — 16 bytes, SSE packed (2 doubles).
+  float:   4 bytes, SSE scalar.
+  double:  8 bytes, SSE scalar.
+  float4:  16 bytes, SSE packed (4 floats).
+  double2: 16 bytes, SSE packed (2 doubles).
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
@@ -73,16 +73,15 @@ Composite:
   exp, log, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter.
 
 >box
-IMPORTANT: libm functions use a CupidC-internal ABI (result returned in
-XMM0, not ST(0) as System V would expect). Calling them from plain kernel
-C will NOT work with default GCC code. They are intended to be called from
-CupidC JIT'd code via the BIND_T table.
+libm functions use a CupidC-internal ABI and return results in XMM0 instead of
+ST(0), as System V expects. Default GCC code in the kernel cannot call these
+functions directly. CupidC JIT code reaches them through the BIND_T table.
 >endbox
 >endtree
 
 >h2 CupidASM Opcodes
 >tree open CupidASM Opcodes
-Phase B adds ~80 new opcodes:
+CupidASM supports about 80 FPU and SSE opcodes in these groups:
 
   FPU state control (FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR)
   SSE scalar  (23): MOVSS/SD, ADDSS/SD, and more.
@@ -124,7 +123,7 @@ Panics on corruption.
 the #XF handler panics with MXCSR dump.
 
 >box
-WARNING: Kernel reboot required after running `fp_drill`.
+Running `fp_drill` requires a kernel reboot afterward.
 >endbox
 >endtree
 

@@ -17,7 +17,7 @@ Verified against source on: 2026-05-15
 >tree open Help System
 help reads //help: lines directly from /bin/*.cc and /home/bin/*.cc.
 
-That means command source is also command documentation.
+Each command source file also carries its help text.
 
 Use:
   help
@@ -94,7 +94,8 @@ Command lookup order after built-ins:
 3) /home/bin/<cmd>
 4) /home/bin/<cmd>.cc
 
-This is the TempleOS-style source-first workflow for shipped and user programs.
+This lookup order supports source-first execution for shipped and user
+programs.
 >button ls /bin | shell:ls /bin
 >button ls /home/bin | shell:ls /home/bin
 >endtree
@@ -199,7 +200,7 @@ Host-to-guest SSH server:
 
 >h2 Process and Debug Commands
 >tree open Process and Debug Commands
-Process/debug tools currently shipped:
+The image includes these process and debug tools:
 - ps
 - kill
 - spawn
@@ -296,7 +297,7 @@ Compiler/language test programs currently embedded in /bin:
 - feature22_net_server     (P6 TCP server)
 - feature23_full_access    (binding sanity)
 - feature24_widetypes      (CupidC C-compat types/control flow)
-- fp_drill                 (FPU exception drill — reboots kernel!)
+- fp_drill                 (FPU exception drill; reboots kernel!)
 - dglibc_test
 - kbdsub_test
 - test
@@ -324,8 +325,8 @@ Command forms verified in the shell:
 Source-backed shell hotkey:
 - F7 in shell/Terminal -> godspeak
 
-Desktop/global app hotkeys are documented in the desktop docs; this page keeps
-the shell-facing command behavior only.
+The desktop docs cover global app hotkeys. This page covers shell command
+behavior.
 >endtree
 
 >h2 See Also

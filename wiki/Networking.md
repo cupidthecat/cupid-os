@@ -1,19 +1,18 @@
 # Networking Tier 4
 
-CupidOS P6 Networking Tier 4 adds a full TCP/IP stack to the kernel. The
-current branch layers TLS, HTTP/HTTPS tools, a browser, SSH/Telnet clients,
-and an SSH server on top of that stack. The implementation includes two NIC
-drivers (RTL8139 and Intel E1000), ARP, IPv4, ICMP, UDP, TCP, DHCP with static
-fallback, DNS A-record resolution, and a BSD-style socket API exposed to shell
-commands, CupidC, CupidASM, and user C programs.
+CupidOS includes an in-kernel TCP/IP stack with TLS, HTTP and HTTPS tools, a
+browser, SSH and Telnet clients, and an SSH server. Two NIC drivers, RTL8139
+and Intel E1000, share ARP, IPv4, ICMP, UDP, TCP, DHCP with static fallback,
+DNS A-record resolution, and a BSD-style socket API. Shell commands and
+programs written in CupidC, CupidASM, or C can use that API.
 
 Related pages: [USB](USB), [SMP](SMP)
 
-**Bindings exposed to scripts:**
+Language binding references:
 
 - CupidC: see [CupidC-Language-Reference § Networking](CupidC-Language-Reference#networking---nic-info)
 - CupidASM: see [CupidASM-Assembler § Networking](CupidASM-Assembler#networking---bsd-sockets)
-- Quick-start examples: [CUPIDOS.txt](../CUPIDOS.txt)
+- Quick-start examples: [Getting started](Getting-Started)
 
 ---
 
@@ -35,7 +34,7 @@ Related pages: [USB](USB), [SMP](SMP)
 | Listen-queue GC | 30 s timeout on half-open SYN-RCVD slots |
 | Test harness | `make test-net` - pexpect + scapy, both NICs, `tests/*.pcap` capture |
 
-New kernel files:
+Kernel files:
 
 ```
 kernel/network/net_if.h / net_if.c     NIC vtable, RX ring, registration, net_init
@@ -106,8 +105,7 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 
 ## Boot Flow
 
-`net_init()` is called from `kmain` after `sti` and PCI enumeration, in the
-same place USB was initialised in P4.
+`kmain` calls `net_init()` after `sti` and PCI enumeration.
 
 ```c
 void net_init(void) {
@@ -240,8 +238,8 @@ the idle/reschedule path.
 12. Install IRQ handler via `irq_install_handler(irq_line, rtl8139_irq)`
 13. Call `net_if_register(&nif)`
 
-> **Note** - The common IRQ dispatcher in CupidOS calls `lapic_eoi()` after
-> every handler returns. The RTL8139 IRQ handler must NOT call it directly;
+> The common IRQ dispatcher calls `lapic_eoi()` after
+> every handler returns. The RTL8139 IRQ handler must not call it directly;
 > only the NIC-side ISR (W1C) needs clearing inside the handler.
 
 ### RX drain loop
@@ -293,7 +291,7 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 | Class code | 0x020000 (Ethernet) |
 | BAR | BAR0 - 32-bit MMIO, 128 KB |
 
-> **MMIO mapping required** - BAR0 is above the kernel's identity-mapped
+> BAR0 is above the kernel's identity-mapped
 > region. Call `paging_map_mmio(bar0_phys, 128 * 1024)` before accessing any
 > register. Without this mapping, the first register read page-faults.
 
@@ -439,9 +437,9 @@ void ipv4_input(const uint8_t *frame, uint32_t len);
 
 ## ICMP (kernel/network/icmp.c)
 
-Only echo request -> echo reply is implemented.
+The kernel implements ICMP echo requests and replies.
 
-**Input (`icmp_input`):**
+`icmp_input` performs these steps:
 
 1. Verify type=8 (echo request), code=0
 2. Recompute checksum to verify
@@ -587,11 +585,9 @@ struct {
 ```
 
 `tcp_accept` scans the table and dequeues any slot with `in_use == 1` and
-`completed == 1`. Earlier builds enforced strict-FIFO dequeue from a
-single `lq_tail`, but a slow client at the head would stall every
-completed connection behind it. The any-slot policy lets accept return
-whichever handshake finishes first. A duplicate SYN from a peer already
-in the table is ignored so half-open entries can't be doubled up.
+`completed == 1`. It can return whichever handshake finishes first, so a slow
+client cannot stall completed connections behind it. A duplicate SYN from a
+peer already in the table is ignored so half-open entries cannot be duplicated.
 
 ### `tcp_tick` (called from `net_process_pending`)
 
@@ -799,10 +795,10 @@ The opaque TLS context attached to the socket is freed automatically by
 ### Blocking model
 
 `socket_accept`, `socket_connect`, `socket_recv`, and `socket_recvfrom` block
-by spinning: every 1000 `pause` iterations they call `schedule()` to yield,
-matching the BKL-yield design from P5. Timeout = 30 seconds -> `ETIMEDOUT_SOCK`.
+by spinning. Every 1000 `pause` iterations they call `schedule()` to yield.
+After 30 seconds, the operation returns `ETIMEDOUT_SOCK`.
 
-`socket_send` and `socket_sendto` do not block - they return the bytes written
+`socket_send` and `socket_sendto` do not block. They return the bytes written
 (which may be less than `len` if the TX buffer is full).
 
 ### Ephemeral port allocation
@@ -815,14 +811,14 @@ checked against the in-use port set before assignment.
 All `socket_t` mutations and all calls into `tcp_*` / `udp_*` are made under
 the big kernel lock (`bkl_lock` / `bkl_unlock`). `net_process_pending`
 (bottom-half) also runs under BKL via the `kernel_check_reschedule` path. This
-serialises TCP state machine transitions with RX-driven state changes. No
-fine-grained per-socket locks at Tier 4.
+serialises TCP state machine transitions with RX-driven state changes. The
+implementation does not use fine-grained per-socket locks.
 
 ---
 
 ## Shell Commands
 
-New commands added to `kernel/lang/shell.c`:
+Networking commands in `kernel/lang/shell.c`:
 
 ### `ifconfig`
 
@@ -983,10 +979,9 @@ Host-side test: `curl http://localhost:8080/` (with `-hostfwd=tcp::8080-:80`).
 
 ### `curl` and `wget` (in-OS)
 
-`/bin/curl.cc` and `/bin/wget.cc` are real HTTP/1.0 clients written
-entirely in CupidC against the bindings above. No new kernel hooks
-are involved - they exercise the public socket / VFS surface and
-prove it's complete enough for everyday networking work.
+`/bin/curl.cc` and `/bin/wget.cc` are HTTP/1.0 clients written in CupidC. They
+use the public socket and VFS bindings rather than application-specific kernel
+hooks.
 
 ```
 /> /bin/curl.cc http://example.com/
@@ -1126,8 +1121,8 @@ sudo tcpdump -i tap0 -n -vv
 
 ### Automated integration test (`make test-net`)
 
-Headless QEMU, scripted shell, host curl, scapy wire-format check -
-all in one command. ~30 s for both NICs.
+The target runs headless QEMU, drives the shell, calls host `curl`, and checks
+the wire format with Scapy. Testing both NICs takes about 30 seconds.
 
 ```bash
 make test-net          # rtl8139 + e1000

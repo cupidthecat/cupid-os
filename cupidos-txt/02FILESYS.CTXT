@@ -15,7 +15,7 @@ Verified against source on: 2026-07-10
 
 >h2 Mount Layout
 >tree open Mount Layout
-Source-verified mount flow from kernel/core/kernel.c:
+kernel/core/kernel.c mounts:
 
   /      -> ramfs
   /dev   -> devfs
@@ -25,11 +25,11 @@ Source-verified mount flow from kernel/core/kernel.c:
 If homefs mount fails, the kernel falls back to mounting raw FAT16 at /home.
 If no block device is available, /home is a non-persistent ramfs directory.
 
-This is the current storage architecture:
+The storage layers are:
 - /disk = raw FAT16 compatibility namespace
 - /home = homefs higher-level namespace over the same FAT16 backing store
 
-Older docs that described /home as direct FAT16 are stale.
+At /home, homefs replaces direct FAT16 access.
 
 >button mount | shell:mount
 >button ls / | shell:ls /
@@ -62,8 +62,8 @@ top-level image assets such as /home/snail.bmp, /home/test.png, and
 >tree open DEVFS
 /dev is a device mount managed by the VFS.
 
-It exists to separate device-facing paths from ordinary files and manuals.
-For day-to-day use you mostly notice it through:
+/dev keeps device-facing paths separate from ordinary files and manuals.
+Most users see it through:
 - the mount table
 - lower-level filesystem/device debugging
 >button ls /dev | shell:ls /dev
@@ -73,14 +73,14 @@ For day-to-day use you mostly notice it through:
 >tree open FAT16 Layer
 The kernel mounts a raw FAT16 filesystem on /disk.
 
-What the source supports today:
+The raw layer supports:
 - partition detection from the HDD image
 - open/read/write/delete
 - directory enumeration
 - persistence across boots through cupidos.img
 
-The architectural point: FAT16 is the storage substrate for /home via homefs,
-and the compatibility/diagnostics view at /disk.
+FAT16 backs homefs at /home and remains directly available for compatibility
+and diagnostics at /disk.
 
 >endtree
 
@@ -88,21 +88,18 @@ and the compatibility/diagnostics view at /disk.
 >tree open HomeFS
 homefs is implemented in kernel/fs/homefs.c.
 
-Source-verified behavior:
+homefs implements:
 - tree-based filesystem
 - nested directories
 - long names up to VFS limits
 - files and directories stored as nodes
 - persisted into one FAT16-hosted container file: HOMEFS.SYS
 
-Design goal:
-- keep FAT16 as a compatibility/storage backend
-- avoid exposing FAT16 naming/layout limitations directly at /home
+homefs keeps FAT16 as the compatibility and storage backend while hiding its
+naming and layout limits from /home.
 
-So user workflows should prefer:
-  /home
-not:
-  /disk
+Use /home for normal work. Reserve /disk for raw FAT16 compatibility and
+diagnostics.
 
 >button ls /home | shell:ls /home
 >button ls /home/bin | shell:ls /home/bin
@@ -149,13 +146,13 @@ Typical usage:
 >tree open Persistent Program Workflow
 Shell auto-discovery checks /home/bin directly.
 
-Recommended persistent workflow:
+Persistent workflow:
 1) create a file in /home/bin/<name>.cc
 2) run <name>
 3) the shell JIT-compiles it from /home/bin
 
-This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
-/home/bin/<cmd>.cc are part of the command search order.
+The command search order in kernel/lang/shell.c includes /home/bin/<cmd> and
+/home/bin/<cmd>.cc.
 >button ls /home/bin | shell:ls /home/bin
 >endtree
 
@@ -180,12 +177,12 @@ Use in-OS editing under /home for normal runtime work.
 >tree open Cache and Sync
 Disk writes go through the block cache.
 
-On SMP, cached reads, writes, flushes, and sync hold the big kernel lock for
-the shared cache metadata and cached ATA PIO transaction.  This also keeps a
-same-CPU timer interrupt from re-entering an in-flight command.  Raw exported
-block-device/ATA calls are outside that guard.  The current periodic flush is
-still dispatched from the generic timer path on every LAPIC tick; moving it to
-frequency-aware deferred work remains a performance and IRQ-latency task.
+On SMP, cached reads, writes, flushes, and sync hold the big kernel lock around
+shared cache metadata and the cached ATA PIO transaction. The lock also stops
+a timer interrupt on the same CPU from re-entering an in-flight command. Raw
+exported block-device and ATA calls remain outside this guard. The generic
+timer path still dispatches the periodic flush on every LAPIC tick. A later
+timer design needs to move that work into a frequency-aware deferred path.
 
 Useful commands:
 - sync       flush dirty data

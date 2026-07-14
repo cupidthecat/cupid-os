@@ -1,6 +1,6 @@
 # User Programs
 
-cupid-os supports TempleOS-style user programs - drop a `.cc` file into `/bin/` or `/home/bin/` and the shell discovers it automatically. No kernel recompile, no linking, no build step. Just write the source and type the command name.
+cupid-os discovers TempleOS-style `.cc` programs in `/bin/` and `/home/bin/`. The shell JIT-compiles the source when its command name is entered. A program placed in persistent `/home/bin/` does not require a kernel rebuild or a separate link step.
 
 ---
 
@@ -15,9 +15,9 @@ When you type a command the shell doesn't recognize as a built-in, it searches t
 | 3 | `/home/bin/<cmd>` | ELF/CUPD binary | homefs (persistent, backed by `/disk/HOMEFS.SYS`) |
 | 4 | `/home/bin/<cmd>.cc` | CupidC source | homefs (persistent, backed by `/disk/HOMEFS.SYS`) |
 
-CupidC `.cc` files are JIT-compiled and run instantly. ELF binaries are loaded and executed as kernel threads.
+The shell JIT-compiles CupidC `.cc` files and loads ELF binaries as kernel threads.
 
-Programs in `/bin/` (ramfs) are baked into the OS image at build time. Programs in `/home/bin/` live on persistent homefs and can be created, edited, and deployed at runtime - no reboot needed. `/home/bin` is created automatically on boot if it is missing.
+Programs in `/bin/` are embedded in the OS image and installed in ramfs at boot. Programs in `/home/bin/` live on persistent homefs and can be created or edited while the system is running. The boot process creates `/home/bin` if it is missing.
 
 ---
 
@@ -36,17 +36,18 @@ void main() {
 
 ### 2. Deploy It
 
-**Option A: Build-time (ramfs)**
+#### Build-time installation in ramfs
 
-Place the file in the `bin/` directory in the source tree. The Makefile auto-discovers all `bin/*.cc` files, embeds them into the kernel image through CupidObj, and generates the installation code automatically. When the OS boots, your program appears at `/bin/hello.cc`. Type `hello` in the shell and it runs.
+Place the file in the source tree's `bin/` directory. The Makefile discovers `bin/*.cc`, embeds each file in the kernel image through CupidObj, and generates the installation code. After boot, the example appears at `/bin/hello.cc` and runs under the command `hello`.
 
 To add a new build-time program:
+
 1. Create `bin/<name>.cc`
 2. Run `make`
 
-That's it - no need to edit `kernel.c`, the `Makefile`, or any other file.
+The program list does not need a corresponding edit in `kernel.c` or the Makefile.
 
-**Option B: Runtime (disk)**
+#### Runtime installation in homefs
 
 Use the `ed` editor to create the file on disk:
 
@@ -128,13 +129,13 @@ Every program should start with `//help:` comment lines. These are read by the `
 //help:   mv report.txt /tmp/
 ```
 
-The `help` command reads the source file itself to extract these lines - source IS the documentation.
+The `help` command reads these lines directly from the source file.
 
 ### Rules
 
 - Every program must have a `void main()` function
-- No `#include` needed - kernel bindings are pre-registered
-- Structs, classes, enums, arrays, floats, and many kernel bindings are available; keep source direct and single-file when possible
+- Kernel bindings are pre-registered, so programs do not need `#include` directives.
+- Structs, classes, enums, arrays, floats, and kernel bindings are available. The JIT path currently accepts one source file; multi-file compilation remains a toolchain gap.
 - Current JIT buffers allow up to 1 MB of code and 8 MB of data/string storage
 - Programs run in ring 0 with full kernel access
 
@@ -734,7 +735,7 @@ Feb 7, 2026  3:45 PM
 
 **Location:** `/bin/sync.cc`
 
-Flushes all dirty blocks from the block cache to disk, ensuring data is persisted.
+Flushes all dirty blocks from the block cache to disk so cached changes reach persistent storage.
 
 ```
 > sync
@@ -917,7 +918,7 @@ Triggers various crash scenarios for testing the kernel's error handling.
 
 **Location:** `/bin/ed.cc`
 
-A full POSIX-like `ed(1)` line editor, written entirely in CupidC (~900 lines). Supports 23+ commands including address parsing, regex search, substitution with backreferences, global commands, undo, marks, and file I/O through VFS.
+A POSIX-like `ed(1)` line editor written in CupidC. It supports more than 23 commands, including address parsing, regular-expression search, substitution with backreferences, global commands, undo, marks, and VFS file I/O.
 
 ```
 > ed myfile.txt
@@ -943,10 +944,10 @@ See also: [Ed Editor](Ed-Editor)
 
 ## Tips
 
-- **Keep files small.** Notepad has a 32 KB buffer. The CupidC compiler has a 256 KB source limit. Write compact code.
-- **No verbose comments.** Every byte counts on an embedded OS. Use short comments or none.
+- **Respect source limits.** Notepad has a 32 KB buffer, and the CupidC compiler accepts source files up to 256 KB.
+- **Keep useful comments.** If a real program reaches a tool limit, improve the toolchain or split the source at a natural module boundary rather than deleting documentation to save bytes.
 - **Test with `cupidc`.** Run `cupidc /bin/yourprog.cc` to JIT-compile and test before deploying.
-- **Use `println` for errors.** There's no stderr - just print error messages and `return`.
+- **Use `println` for errors.** CupidC programs do not have a separate standard-error stream.
 - **Structs are supported.** Define structs for structured data (max 32 structs, 16 fields each).
 - **Programs in `/home/bin/` persist across reboots** in homefs, whose backing container is `/disk/HOMEFS.SYS`. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
 

@@ -1,20 +1,21 @@
 # Floating Point in CupidOS
 
-CupidOS supports hardware x87 + SSE/SSE2 floating point end-to-end: kernel,
-language, assembler, libm, printf.
+CupidOS supports x87 and SSE/SSE2 floating point in the kernel, CupidC,
+CupidASM, libm, and `printf`.
 
 ## Overview
 
 - **Build**: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
 - **Init**: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
   and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
-- **Context switch**: `context_switch.asm` FXSAVEs the outgoing PCB's
-  `fp_state[512]` and FXRSTORs the incoming task's. Eager: no CR0.TS games.
+- **Context switch**: `context_switch.asm` uses FXSAVE on the outgoing PCB's
+  `fp_state[512]` and FXRSTOR on the incoming task. State switching is eager;
+  it does not use CR0.TS for lazy switching.
 - **PCB**: `process_t.fp_state` is 512 bytes at 16-byte alignment. Offset 80.
 - **Exceptions**: IDT vectors 7 (#NM), 16 (#MF), 19 (#XF) route to
   `fpu_nm_handler`/`fpu_mf_handler`/`fpu_xf_handler`, which call `panic_fpu`
-  with a serial dump of FSW/FCW/MXCSR. Should never fire under masked
-  MXCSR + eager switch.
+  with a serial dump of FSW/FCW/MXCSR. These handlers are not expected to fire
+  while MXCSR exceptions are masked and eager switching is active.
 
 ## CupidC FP types
 
@@ -52,15 +53,15 @@ sin, cos, tan, atan, atan2, fabs, floor, ceil, round, trunc, fmod, exp2,
 log2. Composite for exp, log, pow, asin, acos, sinh, cosh, tanh, cbrt,
 hypot, nextafter.
 
-**Important**: libm functions use a CupidC-internal ABI (result returned in
-XMM0, not ST(0) as System V would expect). Calling them from plain kernel
-C will NOT work with default GCC code. They are intended to be called from
-CupidC JIT'd code via the BIND_T table.
+libm functions use a CupidC-internal ABI that returns results in XMM0 rather
+than ST(0), as System V expects. Default GCC-generated kernel C cannot call
+them directly. CupidC JIT code calls them through the `BIND_T` table.
 
 ## CupidASM opcodes
 
-Phase B adds ~80 new opcodes: FPU state control (FXSAVE, FXRSTOR, FINIT,
-FNINIT, FWAIT, LDMXCSR, STMXCSR), SSE scalar (23: MOVSS/SD, ADDSS/SD, etc.),
+CupidASM implements about 80 floating-point opcodes: FPU state control
+(FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR), SSE scalar (23:
+MOVSS/SD, ADDSS/SD, etc.),
 SSE packed (24: MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, etc.), x87 (25: FLD,
 FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
 

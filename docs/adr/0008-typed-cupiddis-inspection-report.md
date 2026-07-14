@@ -41,8 +41,8 @@ Unknown or invalid instruction bytes render as data and make deterministic
 progress; a truncated tail renders once.  A relocation may annotate a decoded
 field, but raw decode never invents relocation ownership.
 
-This shape keeps the normal CLI convenient without making command-line text
-the architectural interface.  A fully normalized instruction document was
+The CLI renders familiar text, but command-line text is not the
+architectural interface.  A fully normalized instruction document was
 rejected because its arena cost scales with every byte of large kernel images.
 A text-only single call was rejected because future symbol, linker, and debug
 consumers would have to scrape presentation output.  Streaming means an output

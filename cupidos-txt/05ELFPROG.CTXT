@@ -15,7 +15,7 @@ Verified against source on: 2026-07-10
 
 >h2 Overview
 >tree open Overview
-This is the hosted-C/CupidLD ELF path, separate from CupidC source JIT.
+The hosted-C/CupidLD ELF path is separate from the CupidC source JIT.
 
 kernel/lang/exec.c currently supports:
 - ELF32 executables
@@ -45,7 +45,7 @@ the kernel.
 
 >h2 Loader Constraints
 >tree open Loader Constraints
-Source-verified loader checks from kernel/lang/exec.c:
+kernel/lang/exec.c applies these loader checks:
 - ELF32 only
 - little-endian
 - executable type required
@@ -105,7 +105,7 @@ user/cupid.h exposes wrappers around the syscall table for:
 - uptime/time queries
 - program execution
 
-This path is explicit and toolchain-friendly compared to CupidC's
+These wrappers expose the syscall table directly. CupidC instead uses
 pre-registered bindings.
 >endtree
 
@@ -118,9 +118,8 @@ Image ownership is transferred into the process before its PID is published.
 Ordinary external programs hold one generation-tagged exclusive arena lease;
 cleanup releases the lease but never frees the permanently reserved pages.
 
-That is classification, not isolation:
-- ELF programs are distinct in the process table
-- the system still runs in one shared ring-0 address space
+The process table classifies ELF programs separately, but all programs still
+run in one shared ring-0 address space.
 >button ps | shell:ps
 >endtree
 

@@ -15,9 +15,9 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS P6 Networking Tier 4 adds a full TCP/IP stack to the kernel.
-The current tree layers TLS, HTTP/HTTPS clients, browser, SSH/Telnet
-clients, and sshd on top of that stack.
+CupidOS P6 Networking Tier 4 implements a kernel TCP/IP stack. TLS,
+HTTP/HTTPS clients, the browser, SSH and Telnet clients, and sshd use that
+stack.
 
   NIC drivers   : RTL8139 (Realtek RTL8139), E1000 (Intel 82540EM)
   Protocols     : Ethernet, ARP, IPv4, ICMP echo reply, UDP, TCP
@@ -28,7 +28,7 @@ clients, and sshd on top of that stack.
   RX model      : NIC IRQ top-half -> 64-slot lockless ring -> idle bottom-half
   Apps          : curl, wget, browser, ssh, telnet, sshd, feature21-23
 
-New kernel files:
+Kernel network files:
   kernel/network/net_if.h / net_if.c  NIC vtable, RX ring, registration
   kernel/network/arp.h    / arp.c     ARP cache, blocking resolve
   kernel/network/ip.h     / ip.c      IPv4 parse, route, dispatch
@@ -52,16 +52,16 @@ Layer diagram (app at top, silicon at bottom):
   user / kernel code
     socket() bind() listen() accept() connect() send() recv() close()
     dns_resolve(name) -> ipv4
-  kernel/network/socket.c -- 32-slot socket_t table
+  kernel/network/socket.c: 32-slot socket_t table
     type, state, tx_buf/rx_buf, TCP state machine
   kernel/network/{tcp,udp,icmp}.c
     TCP state machine     UDP datagram     ICMP echo reply
-  kernel/network/ip.c -- IPv4 send + dispatch
+  kernel/network/ip.c: IPv4 send + dispatch
     ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send
     ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)
-  kernel/network/arp.c -- 16-entry LRU cache
+  kernel/network/arp.c: 16-entry LRU cache
     who-has / is-at    blocking resolve on cache miss (500 ms)
-  kernel/network/net_if.c -- unified NIC interface
+  kernel/network/net_if.c: unified NIC interface
     net_if_t vtable    lockless SPSC RX ring (64 slots)
   drivers/rtl8139.c          drivers/e1000.c
     PCI probe + init + register    IRQ top-half (enqueue frame)
@@ -98,10 +98,11 @@ Same call site as USB in P4.
 Startup order:
 
   1. PCI bus scan (already done by existing pci_init)
-  2. rtl8139_probe() -- searches vid/did 10EC:8139;
+  2. rtl8139_probe() searches vid/did 10EC:8139;
      if found: reset, init, register NIC, install IRQ handler
-  3. If no RTL8139: e1000_probe() -- searches 8086:100E; same sequence
-  4. dhcp_start() -- DISCOVER -> OFFER -> REQUEST -> ACK, up to ~3 s
+  3. If there is no RTL8139, e1000_probe() searches 8086:100E and follows
+     the same sequence
+  4. dhcp_start() runs DISCOVER -> OFFER -> REQUEST -> ACK for up to ~3 s
   5. Static fallback if no DHCP response:
      ipv4_addr = 10.0.2.15, mask /24, gw 10.0.2.2, dns 10.0.2.3
   6. net_process_pending wired into kernel_check_reschedule as bottom-half
@@ -172,7 +173,7 @@ kernel_check_reschedule idle/reschedule path.
   Vendor ID  : 0x10EC (Realtek)
   Device ID  : 0x8139
   Class code : 0x020000 (Ethernet)
-  BAR        : BAR0 -- 32-bit I/O space
+  BAR        : BAR0, 32-bit I/O space
 
 >h3 Key I/O Registers (offset from IO base)
 
@@ -192,22 +193,22 @@ kernel_check_reschedule idle/reschedule path.
 
   1. Enable PCI bus master and I/O decoding via PCI command register
   2. Read BAR0 lower bits to obtain IO base; verify not MMIO
-  3. outb(CONFIG1, 0)   -- power on, clear LWAKE/PMEn
-  4. outb(CMD, 0x10)    -- software reset; poll CMD bit 4 clear (~1 ms)
+  3. outb(CONFIG1, 0) powers on the device and clears LWAKE/PMEn
+  4. outb(CMD, 0x10) starts a software reset; poll CMD bit 4 clear (~1 ms)
   5. Allocate RX buffer: 8192 + 16 + 1500 = 9708 bytes via kmalloc;
      align to 16 bytes (raw ptr saved for kfree, same as UHCI pattern)
   6. Write RBSTART = physical address of aligned buffer
   7. Write RCR = 0x0000008F  (WRAP + AAP + APM + AM + AB)
   8. Write TCR = 0x03000700  (default IFG, MXDMA=1024, retry=8)
-  9. outb(CMD, 0x0C)    -- enable RE and TE
-  10. outw(IMR, 0x0005)  -- mask ROK (bit 0) + TOK (bit 2)
+  9. outb(CMD, 0x0C) enables RE and TE
+  10. outw(IMR, 0x0005) masks ROK (bit 0) and TOK (bit 2)
   11. Read MAC from IDR0-IDR5 into net_if_t.mac
   12. irq_install_handler(irq_line, rtl8139_irq)
   13. net_if_register(&nif)
 
 >box
 The common IRQ dispatcher calls lapic_eoi() after every handler returns.
-Do NOT call lapic_eoi() inside rtl8139_irq -- only clear the NIC ISR (W1C).
+rtl8139_irq must clear only the NIC ISR (W1C), without calling lapic_eoi().
 >endbox
 
 >h3 RX Drain Loop
@@ -247,7 +248,7 @@ Do NOT call lapic_eoi() inside rtl8139_irq -- only clear the NIC ISR (W1C).
   Vendor ID  : 0x8086 (Intel)
   Device ID  : 0x100E (82540EM)
   Class code : 0x020000 (Ethernet)
-  BAR        : BAR0 -- 32-bit MMIO, 128 KB
+  BAR        : BAR0, 32-bit MMIO, 128 KB
 
 >box
 MMIO mapping required. BAR0 is above the kernel identity-mapped region.
@@ -327,8 +328,8 @@ is evicted.
 
   int arp_resolve(uint32_t ip, uint8_t *mac_out);
 
-  Hit  -- copy cached MAC to mac_out, update last_used_tick, return 0
-  Miss -- send ARP who-has request (Ethernet broadcast, ARP opcode 1)
+  Hit: copy cached MAC to mac_out, update last_used_tick, return 0
+  Miss: send ARP who-has request (Ethernet broadcast, ARP opcode 1)
          spin: poll cache every 1 ms for up to 500 ms
          reply arrives: update cache, return 0
          timeout: return -1; caller drops outbound frame
@@ -468,20 +469,20 @@ Passive open (listen + accept):
   lq entry + ACK -> lq[].completed = true
   accept() -> dequeue completed lq entry -> new socket in ESTABLISHED
 
-Close -- active:
+Active close:
   ESTABLISHED -> [send FIN+ACK] -> FIN_WAIT_1
   FIN_WAIT_1 + ACK -> FIN_WAIT_2
   FIN_WAIT_2 + FIN -> [send ACK] -> TIME_WAIT (60 s) -> CLOSED
 
-Close -- passive:
+Passive close:
   ESTABLISHED + FIN received -> [send ACK] -> CLOSE_WAIT
   CLOSE_WAIT + close() -> [send FIN+ACK] -> LAST_ACK
   LAST_ACK + ACK -> CLOSED; socket freed
 
 >h3 Implementation Details
 
-  ISS            : two rdtsc() reads XOR'd with a scrambled salt
-                   (tcp_gen_iss) -- unguessable off-path
+  ISS            : tcp_gen_iss mixes two rdtsc() reads with a scrambled salt
+                   to reduce off-path prediction
   MSS            : fixed 1460 bytes (no negotiation)
   RTO            : 500 ms fixed; tcp_tick retransmits SYN if overdue
   TIME_WAIT      : 60 s (TCP_TIME_WAIT_MS)
@@ -489,8 +490,8 @@ Close -- passive:
                    overflow on a slow reader
                    triggers a dup-ACK (rcv_nxt unchanged) so the peer
                    retransmits when space frees up
-  Delayed ACK    : none -- every segment ACKed immediately
-  Nagle          : none -- tcp_send flushes immediately
+  Delayed ACK    : none; every segment is ACKed immediately
+  Nagle          : none; tcp_send flushes immediately
   Fast retransmit: not implemented (3 dup-ACK rule absent)
   SACK           : not implemented
 
@@ -531,18 +532,18 @@ first. Duplicate SYNs from a peer already in the queue are dropped.
 
   bool dhcp_start(net_if_t *nif);  // blocks up to ~3 s; true on success
 
-Classic UDP four-way handshake. All frames use broadcast Ethernet MAC
-(ff:ff:ff:ff:ff:ff) and broadcast IP (255.255.255.255) -- no IP yet,
-so ARP is bypassed entirely.
+The four-message UDP handshake uses the broadcast Ethernet MAC
+(ff:ff:ff:ff:ff:ff) and broadcast IP (255.255.255.255). The interface has no
+IP address yet, so the path bypasses ARP.
 
 >h3 Protocol Flow
 
-  1. DISCOVER -- op=1, XID from timer_get_uptime_ms(), chaddr=our MAC,
+  1. DISCOVER: op=1, XID from timer_get_uptime_ms(), chaddr=our MAC,
      options: DHCP type=DISCOVER + param-request (mask, router, dns)
-  2. OFFER    -- wait for op=2 matching XID;
+  2. OFFER: wait for op=2 matching XID;
      extract yiaddr + options (1=mask, 3=gw, 6=dns, 51=lease)
-  3. REQUEST  -- op=1, DHCP type=REQUEST, opt50=requested-IP, opt54=server-id
-  4. ACK      -- populate nif->ipv4_addr/mask/gateway/dns
+  3. REQUEST: op=1, DHCP type=REQUEST, opt50=requested-IP, opt54=server-id
+  4. ACK: populate nif->ipv4_addr/mask/gateway/dns
 
 >h3 Failure Handling
 
@@ -555,8 +556,9 @@ so ARP is bypassed entirely.
     nif->ipv4_dns     = 10.0.2.3
     KWARN("dhcp: fallback to static 10.0.2.15/24 gw 10.0.2.2 dns 10.0.2.3")
 
-These values match QEMU user-net defaults and work without any host config.
-Lease renewal is not implemented -- hobby OS reboots before lease expires.
+These values match QEMU user-net defaults and require no host configuration.
+Lease renewal is not implemented, so a long-running session can outlive its
+lease.
 >endtree
 
 >h2 DNS
@@ -651,7 +653,7 @@ with RX-driven state changes. No fine-grained per-socket locks at Tier 4.
 >h2 Shell Commands
 >tree open Shell Commands
 
-New commands in kernel/lang/shell.c, following the usb/pci/smp command pattern:
+The shell exposes these network commands through kernel/lang/shell.c:
 
   [ifconfig](shell:ifconfig)
     Prints MAC, IP/prefix, gateway, DNS, link state, rx/tx counts.
@@ -850,10 +852,10 @@ Boots with Intel E1000 NIC (no port forward).
 
   1. make run-net
   2. Wait for: net: if=rtl8139 ip=10.0.2.15
-  3. In guest shell: ifconfig    -- verify IP/gw/dns
-  4. In guest shell: feature21_net  -- expect [feature21] PASS (N bytes)
-  5. In guest shell: feature22_net_server  -- prints "listening on port 80"
-  6. On host: curl http://localhost:8080/  -- expect "Hello CupidOS"
+  3. In the guest shell, run ifconfig, then verify IP/gw/dns.
+  4. In the guest shell, run feature21_net, then expect [feature21] PASS (N bytes).
+  5. In the guest shell, run feature22_net_server, then expect "listening on port 80".
+  6. On the host, run curl http://localhost:8080/, then expect "Hello CupidOS".
   7. Guest prints: [feature22] PASS served N bytes in
 
 >h3 SSH Server
@@ -884,13 +886,11 @@ Run same feature tests.
   make test-net          # rtl8139 + e1000, ~30s
   make test-net-quick    # rtl8139 only
 
-tools/net_test.py spawns headless QEMU with -display none -serial
-stdio + filter-dump pcap, drives the shell over COM1 (existing
-keyboard.c serial-RX path), runs ifconfig / ping / arp / feature21
-/ feature22, and host-curls the forwarded port to verify the
-in-guest TCP server. tools/net_pcap.py then re-validates the
-captured frames at wire level (ARP req/reply pairing, full DHCP
-4-message exchange, ICMP echo, TCP handshake, IP checksums).
+tools/net_test.py starts headless QEMU with -display none, serial stdio, and a
+filter-dump pcap. It drives the shell over COM1 through keyboard.c, runs
+ifconfig, ping, arp, feature21, and feature22, then uses host curl against the
+forwarded port. tools/net_pcap.py checks the captured ARP pairs, four-message
+DHCP exchange, ICMP echo, TCP handshake, and IP checksums.
 
 Per-NIC checks:
   dhcp        ifconfig reports SLIRP-issued IP (10.0.2.15)
@@ -905,14 +905,14 @@ Pcaps land in tests/<nic>.pcap for Wireshark inspection.
 >h2 Known Limits
 >tree open Known Limits
 >box
-These are Tier 4 design constraints. Future work can address them.
+These constraints define the Tier 4 scope.
 >endbox
 
   IPv4 only           No IPv6
   No PMTUD            MSS fixed at 1460; > MTU outbound auto-fragments
   No TCP SACK         No congestion control, no Nagle, no fast retransmit
-  Stop-and-wait TX    Data retransmit is one-segment-in-flight, exp backoff
-                      (5 attempts) -- correct, but throughput is poor
+  Stop-and-wait TX    Data retransmit is one-segment-in-flight with exponential
+                      backoff (5 attempts), which limits throughput
   Single primary NIC  No multi-homing, no routing table
   32 socket slots     No dynamic expansion
   TLS scope           Client TLS is implemented for HTTPS tools/browser;

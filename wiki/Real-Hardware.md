@@ -1,6 +1,9 @@
 # Running CupidOS on Real Hardware
 
-CupidOS is a 32-bit x86 BIOS-boot OS. It boots on real hardware, but the hardware must look like an early-2000s PC: legacy BIOS, IDE/AHCI disk, VBE-capable GPU, PS/2 or USB HID input. This page walks through exactly what is needed and how to install.
+CupidOS is a 32-bit x86 BIOS-boot OS. Supported hardware resembles an
+early-2000s PC: a legacy BIOS, an IDE or AHCI disk, a VBE-capable GPU, and
+PS/2 or USB HID input. This page covers the hardware requirements and
+installation procedure.
 
 > **Warning:** The install procedure overwrites the target disk's first sectors and partition table. Any existing data on the target is lost. Double-check the device path before running `dd`.
 
@@ -41,7 +44,7 @@ cd cupid-os
 make HDD_MB=200
 ```
 
-Result: `cupidos.img` - a full 200 MB MBR disk image containing:
+The build produces `cupidos.img`, a 200 MB MBR disk image containing:
 
 ```
 LBA 0        MBR + Stage 1 bootloader
@@ -150,7 +153,7 @@ Always run `sync` before powering off, or you may lose writes that are still in 
 
 ## 7. Serial console (optional but recommended)
 
-The kernel logs every subsystem init and any panic to COM1 at 115200 8N1. On real hardware this is the fastest way to see what is happening during a silent hang.
+The kernel logs subsystem initialization and panics to COM1 at 115200 8N1. A serial connection can reveal where a silent boot stopped.
 
 1. Connect a USB-to-serial adapter from the target machine's COM1 header (or a PCI serial card) to the host.
 2. On the host:
@@ -163,7 +166,7 @@ The kernel logs every subsystem init and any panic to COM1 at 115200 8N1. On rea
 
 3. Power on the target. You should see boot messages, driver probes, ATA IDENTIFY output, and so on.
 
-If you ever get a silent boot, attach serial first and reboot - panics are printed there before the machine halts.
+For a silent boot, attach the serial connection and reboot. The kernel prints panic details there before halting.
 
 ---
 
@@ -173,10 +176,10 @@ CupidOS only drives two NICs:
 
 | Chip | PCI IDs | Notes |
 |------|---------|-------|
-| Realtek RTL8139 | `10ec:8139` | Cheapest option; common on PCI add-in cards. |
-| Intel E1000 / 82540-series | `8086:100e`, `8086:100f`, `8086:1004` | Common on Intel desktop boards 2000 - 2008. |
+| Realtek RTL8139 | `10ec:8139` | Common on PCI add-in cards. |
+| Intel E1000 / 82540-series | `8086:100e`, `8086:100f`, `8086:1004` | Common on Intel desktop boards from 2000 to 2008. |
 
-Check with `lspci -nn` on any live Linux on the same machine. If the NIC is anything else (Realtek RTL8169, Intel I210/I219/I225, Broadcom, etc.) there is no driver - networking will not come up.
+Check with `lspci -nn` from a live Linux system on the same machine. Other NICs, including the Realtek RTL8169, Intel I210/I219/I225, and Broadcom devices, do not have drivers in CupidOS, so networking will not start.
 
 At runtime:
 
@@ -193,7 +196,7 @@ DHCP has a static fallback configured at build time if your network has no DHCP 
 
 ## 9. SMP notes
 
-CupidOS discovers additional cores through the ACPI MADT (preferred) or the Intel MP table. On modern BIOSes ACPI is always present. No configuration is needed - boot, then run `ps` or `sysinfo` and you should see more than one CPU listed.
+CupidOS discovers additional cores through the ACPI MADT when available, then falls back to the Intel MP table. After boot, run `ps` or `sysinfo` to check that the system found more than one CPU.
 
 If only one CPU shows:
 - ACPI might be disabled in firmware - re-enable it.

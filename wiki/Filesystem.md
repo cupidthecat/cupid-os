@@ -1,6 +1,6 @@
 # Filesystem
 
-cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a unified file API across multiple filesystem types. The VFS enables a hierarchical directory structure (`/home`, `/disk`, `/dev`, `/tmp`, `/bin`) with RamFS for boot-time files, DevFS for devices, a raw FAT16 mount at `/disk`, and homefs at `/home`. Homefs persists its logical tree inside `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is only a mount-failure fallback.
+cupid-os uses a Linux-style **Virtual File System (VFS)** to expose one file API across several filesystem types. The directory tree contains RamFS boot files, DevFS devices, raw FAT16 at `/disk`, and homefs at `/home`. Homefs stores its logical tree in `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is a fallback used only when the homefs mount fails.
 
 ---
 
@@ -46,7 +46,7 @@ homefs  -> /home  (backed by /disk/HOMEFS.SYS)
 
 ## VFS Layer
 
-The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications - shell, notepad, program loader - use VFS calls exclusively.
+The VFS implementation is in `kernel/fs/vfs.c/h`. The shell, Notepad, and program loader access files through this API.
 
 ### Features
 
@@ -142,7 +142,7 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 ### VFS Helpers
 
-High-level convenience functions for common file I/O patterns. These wrap the low-level `vfs_open` / `vfs_read` / `vfs_write` / `vfs_close` sequence into single calls. Defined in `kernel/fs/vfs_helpers.c/h` and available as CupidC bindings.
+The helpers in `kernel/fs/vfs_helpers.c/h` wrap common `vfs_open`, `vfs_read`, `vfs_write`, and `vfs_close` sequences in single calls. They are also available as CupidC bindings.
 
 | Function | Description |
 |----------|-------------|
@@ -151,7 +151,7 @@ High-level convenience functions for common file I/O patterns. These wrap the lo
 | `vfs_read_text(path, buffer, max_size)` | Read file as null-terminated string. Reserves 1 byte for `\0`. Returns string length. |
 | `vfs_write_text(path, text)` | Write null-terminated string to file. Returns bytes written (excluding null). |
 
-**Error handling:** All functions return `>= 0` on success, negative VFS error codes on failure (e.g., `VFS_ENOENT`, `VFS_EIO`, `VFS_ENOSPC`). File descriptors are always properly closed, even on error paths.
+All helpers return `>= 0` on success and a negative VFS error code on failure, such as `VFS_ENOENT`, `VFS_EIO`, or `VFS_ENOSPC`. They close file descriptors on both success and error paths.
 
 **Example (CupidC):**
 ```c
@@ -253,12 +253,12 @@ The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driv
 
 | Feature | Status |
 |---------|--------|
-| Read files | ✅ via VFS |
-| List directory | ✅ via VFS readdir |
-| Delete files | ✅ via VFS unlink |
-| Write files | ⚠️ Fallback to `fat16_write_file()` |
-| Subdirectories | ❌ (root directory only) |
-| Long filenames | ❌ (8.3 format only) |
+| Read files | Supported through VFS |
+| List directory | Supported through VFS `readdir` |
+| Delete files | Supported through VFS `unlink` |
+| Write files | Falls back to `fat16_write_file()` |
+| Subdirectories | Not supported; root directory only |
+| Long filenames | Not supported; 8.3 format only |
 
 ### Filename Rules
 
@@ -299,7 +299,7 @@ exec("/home/hello", "hello")
 
 ### ELF32 Programs (Primary Format)
 
-ELF is the recommended binary format. The hosted examples are compiled to relocatable objects with GCC/Clang, linked with CupidLD, and receive a **syscall table** pointer as their first argument. See the full [ELF Programs](ELF-Programs) wiki page for compiling, API reference, and examples.
+ELF is the primary binary format. The hosted examples are compiled to relocatable objects with GCC or Clang, linked with CupidLD, and receive a **syscall table** pointer as their first argument. See [ELF Programs](ELF-Programs) for compilation instructions, the API reference, and examples.
 
 **Quick example:**
 
@@ -364,7 +364,7 @@ CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 
 ## Legacy Disk I/O Stack
 
-The VFS sits on top of the existing disk I/O stack, which remains unchanged.
+The VFS sits on top of the legacy disk I/O stack.
 
 ### Block Device Layer
 
@@ -401,12 +401,12 @@ The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE di
 
 | Feature | Status |
 |---------|--------|
-| PIO read | ✅ |
-| PIO write | ✅ |
-| Identify device | ✅ |
-| DMA | ❌ |
-| ATAPI/CD | ❌ |
-| Secondary channel | ❌ |
+| PIO read | Supported |
+| PIO write | Supported |
+| Identify device | Supported |
+| DMA | Not supported |
+| ATAPI/CD | Not supported |
+| Secondary channel | Not supported |
 
 ---
 

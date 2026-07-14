@@ -15,7 +15,7 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS P4 implements a full USB host controller stack with:
+CupidOS P4 implements these USB host controllers and class drivers:
 
   - USB 1.1 via UHCI (IO-port registers, BAR4)
   - USB 2.0 via EHCI (MMIO registers, BAR0)
@@ -38,8 +38,8 @@ Source files:
 >h2 Boot Order: EHCI Before UHCI
 >tree open Boot Order
 >box
-CRITICAL: EHCI MUST initialise before UHCI. Reversed order causes
-port-ownership races that permanently cap high-speed devices at USB 1.1.
+EHCI must initialise before UHCI. Reversing the order creates port ownership
+races that can cap high-speed devices at USB 1.1 for the boot session.
 >endbox
 
 Correct call sequence:
@@ -86,13 +86,13 @@ USB class codes used by pci_find_by_class():
   class=0x0C  subclass=0x03  prog_if=0x20 -> EHCI
   class=0x0C  subclass=0x03  prog_if=0x30 -> xHCI  (not supported)
 
-Bus master enable — Status bit preservation:
+Bus master enable and Status bit preservation:
 
   PCI Status register has R/WC (read/write-1-to-clear) bits. Naive
   read-modify-write that ORs Status would clear error flags. Correct:
 
 uint32_t v = pci_read32(bus, dev, fn, 0x04);
-// Mask Status (upper 16 bits) to zero before writing — safe for R/WC
+// Mask Status (upper 16 bits) to zero before writing; safe for R/WC
 v = (v & 0x0000FFFF) | PCI_CMD_BUS_MASTER;
 pci_write32(bus, dev, fn, 0x04, v);
 >endtree
@@ -173,9 +173,9 @@ Data structures:
   32-byte Transfer Descriptors (TDs) linked off skel_qh.
 
 >box
-CRITICAL: kmalloc returns pointers at +12 from 16-byte-aligned blocks
-(12-byte block header). UHCI TDs and QHs require 16-byte alignment.
-Manual alignment is applied with a raw backup pointer for kfree().
+kmalloc returns pointers at +12 from 16-byte-aligned blocks because of its
+12-byte block header. UHCI TDs and QHs require 16-byte alignment, so the
+driver aligns them manually and keeps the raw pointer for kfree().
 >endbox
 
 void *raw = kmalloc(sizeof(uhci_qh_t) + 15);
@@ -230,8 +230,8 @@ leg = read_ext_cap(base, usblegsup_off) & ~(1<<16);
 write_ext_cap(base, usblegsup_off, leg);
 
 >box
-CRITICAL: EHCI QHs and qTDs require 32-byte alignment.
-Same manual pattern as UHCI, with 31-byte padding and _raw pointer saved.
+EHCI QHs and qTDs require 32-byte alignment. The driver uses the UHCI
+alignment pattern with 31 bytes of padding and a saved _raw pointer.
 >endbox
 
 void *raw = kmalloc(sizeof(ehci_qh_t) + 31);
@@ -267,7 +267,7 @@ On probe:
 
 // Switch to boot protocol (avoid report descriptors)
 usb_control(dev, 0x21, SET_PROTOCOL, 0, iface, 0, NULL);
-// Disable idle reports — only send on state change
+// Disable idle reports; send only on state change
 usb_control(dev, 0x21, SET_IDLE,     0, iface, 0, NULL);
 
 Keyboard report format (8 bytes per interrupt poll):
@@ -293,8 +293,8 @@ Mouse report format (3 bytes per interrupt poll):
 
 Mouse processing:
   Inject via mouse_inject_event(dx, dy, buttons).
-  Shell and GUI window manager receive USB mouse events identically
-  to PS/2 mouse events — unified input stream.
+  Shell and GUI window manager receive USB and PS/2 mouse events through
+  the same input stream.
 >endtree
 
 >h2 Hub Driver
@@ -382,23 +382,23 @@ MBR parsing (sector 0):
   FAT16 types detected: 0x04, 0x06, 0x0E.
 
 >box
-Auto-mount status: NOT YET WIRED.
+USB mass-storage automount is not implemented.
 
 fat16.c is a single-instance driver hardcoded to ATA. Mounting a second
 FAT16 volume requires per-instance state refactoring throughout fat16.c.
 
-Current behaviour: USB mass storage = raw block device only.
+USB mass storage currently exposes a raw block device only.
 MBR partitions are detected and logged at enumeration time.
 FAT16 file operations on USB drives are not yet available.
 
-Planned fix: heap-allocate fat16 instance state and thread it through
+Remaining work: heap-allocate fat16 instance state and thread it through
 every VFS call. Wire usb_msc_probe() into fat16_mount().
 >endbox
 >endtree
 
 >h2 Shell Commands
 >tree open Shell Commands
-usb — list all enumerated devices
+usb: list all enumerated devices
 
 CupidOS> usb
 [0] addr=1  speed=HIGH  vid=8086 pid=1234  class=09 parent=root
@@ -409,7 +409,7 @@ CupidOS> usb
 Fields: device index, USB address, speed (LOW/FULL/HIGH), vendor ID,
 product ID, class code, parent (root = root port, number = hub index).
 
-usb hubs — show hub tree by depth
+usb hubs: show hub tree by depth
 
 CupidOS> usb hubs
 depth=0  addr=1  ports=4  (root hub via EHCI)
@@ -417,13 +417,14 @@ depth=0  addr=1  ports=4  (root hub via EHCI)
   depth=1  addr=3  port=2  speed=FULL  (HID mouse)
   depth=1  addr=4  port=3  speed=FULL  (mass storage)
 
-usb hc — show host controller boot summary
+usb hc: show host controller boot summary
 
 CupidOS> usb hc
 EHCI: BAR0=0xfebf0000 ports=4 BIOS_handoff=OK
 UHCI: IO=0xc080 ports=2 legacy_SMI=disabled
 
-Verifies that EHCI initialised before UHCI and BIOS handoff completed.
+This output confirms that EHCI initialised before UHCI and completed the BIOS
+handoff.
 >endtree
 
 >h2 QEMU Test Invocations
@@ -470,16 +471,16 @@ emulated and not supported by CupidOS.
 
 >h2 Known Limits
 >tree open Known Limits
-No OHCI:
-  VIA and SiS chipsets use OHCI. QEMU uses UHCI. Real OHCI hardware
-  is not supported.
+OHCI:
+  VIA and SiS chipsets use OHCI, while QEMU uses UHCI. CupidOS does not
+  support real OHCI hardware.
 
-No xHCI:
-  USB 3.x is out of scope for P4. Not planned.
+xHCI:
+  USB 3.x is outside the P4 scope and is not planned.
 
-No isochronous transfers:
-  Audio class, webcam, and video capture devices are unsupported.
-  Isochronous scheduling not implemented.
+Isochronous transfers:
+  CupidOS does not implement isochronous scheduling, so audio class,
+  webcam, and video capture devices are unsupported.
 
 BBB only (no UAS):
   USB Attached SCSI (UAS) is a USB 3.0 protocol. Not implemented.
@@ -488,7 +489,7 @@ Flat PCI bus 0 scan:
   PCI bridges are not traversed. Devices behind bridges are invisible
   to pci_find_by_class().
 
-No power management:
+Power management:
   USB suspend, resume, remote wakeup, and selective suspend are not
   implemented.
 

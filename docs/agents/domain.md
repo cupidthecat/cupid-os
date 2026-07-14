@@ -1,11 +1,11 @@
 # Domain docs
 
-Cupid OS is a single-context repository. Engineering skills should consume the repository's domain documentation as described below before exploring the codebase.
+Cupid OS is a single-context repository. Engineering skills should read the domain documents listed below before exploring the codebase.
 
-## Before exploring, read these
+## Read before exploring
 
-- **`CONTEXT.md`** at the repository root for the shared domain glossary and model.
-- **`docs/adr/`** for architectural decisions that touch the area about to be changed.
+- Read `CONTEXT.md` at the repository root for the shared domain glossary and model.
+- Read `docs/adr/` for architectural decisions that touch the area about to be changed.
 
 If either location does not exist, proceed silently. Do not flag its absence or suggest creating it preemptively. The `/domain-modeling` skill, reached through `/grill-with-docs` and `/improve-codebase-architecture`, creates these documents lazily when terminology or decisions are resolved.
 
@@ -22,9 +22,9 @@ Do not introduce `CONTEXT-MAP.md` or context-scoped `CONTEXT.md` files unless th
 
 ## Use the glossary's vocabulary
 
-When output names a domain concept in an issue title, refactor proposal, hypothesis, or test name, use the term defined in `CONTEXT.md`. Do not drift to synonyms the glossary explicitly avoids.
+When an issue title, refactor proposal, hypothesis, or test name refers to a domain concept, use the term defined in `CONTEXT.md`. Do not drift to synonyms that the glossary explicitly avoids.
 
-If a needed concept is absent, reconsider whether the language belongs to the project. If it exposes a real gap, note it for `/domain-modeling`.
+If the glossary lacks a needed concept, reconsider whether the language belongs to the project. If the missing term exposes a real gap, note it for `/domain-modeling`.
 
 ## Flag ADR conflicts
 

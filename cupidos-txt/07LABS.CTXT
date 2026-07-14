@@ -14,8 +14,8 @@ Verified against source on: 2026-05-15
 >rule
 >sprite /docs/image.bmp 64 64 | open:04CUPIDC.CTXT
 
-This file is a practical set of safe experiments to help you explore
-the shell, filesystems, scripting, and programs.
+These guided exercises cover the shell, filesystems, scripting, and programs.
+The Safety Notes identify commands that can destroy data or reboot the kernel.
 
 >h2 LAB 1: Orientation
 >tree open Lab
@@ -51,8 +51,8 @@ Practice shell output redirection.
 >button ls /bin | shell:ls /bin
 >button ls /tmp | shell:ls /tmp
 
-Goal:
-- Practice shell output redirection using > and >>.
+Check:
+- Use > to overwrite a file and >> to append to it.
 >endtree
 
 >h2 LAB 4: CupidScript Hello
@@ -89,8 +89,8 @@ Example script contents (create with ed /home/loop.cup):
 Run:
   cupid /home/loop.cup
 
-Goal:
-- Validate while loop and arithmetic expansion.
+Expected result:
+- The loop prints N=0 through N=4.
 >endtree
 
 >h2 LAB 6: First CupidC Command
@@ -108,8 +108,8 @@ Then run:
   hi
   hi one two three
 
-Goal:
-- Learn command auto-discovery from /home/bin.
+Expected result:
+- Typing hi finds /home/bin/hi.cc without an explicit compiler command.
 
 Quick REPL math:
 [Evaluate 6*7](repl:6*7;)
@@ -122,8 +122,8 @@ Observe scheduler and process list changes.
 >button ps | shell:ps
 >button yield | shell:yield
 
-Goal:
-- Observe scheduler and process list changes.
+Check:
+- Compare the process list before and after yielding the CPU.
 >endtree
 
 >h2 LAB 8: Memory/Debug Tools
@@ -133,8 +133,8 @@ Explore built-in diagnostics.
 >button memstats | shell:memstats
 >button logdump | shell:logdump
 
-Goal:
-- Explore built-in diagnostics.
+Check:
+- Read the memory statistics and current log output.
 >endtree
 
 >h2 LAB 9: FAT16 Cache/Flush
@@ -144,8 +144,8 @@ Understand block cache reporting and flush control.
 >button cachestats | shell:cachestats
 >button sync | shell:sync
 
-Goal:
-- Understand block cache reporting and flush control.
+Check:
+- Read the cache counters, then flush dirty blocks with sync.
 >endtree
 
 >h2 LAB 10: GUI Apps
@@ -156,8 +156,8 @@ Explore in-OS GUI app stack and CupidC graphics-heavy programs.
 >button fm | shell:fm
 >button gfxdemo | shell:gfxdemo
 
-Goal:
-- Explore in-OS GUI app stack and CupidC graphics-heavy programs.
+Check:
+- Open each app and confirm that it redraws and accepts input.
 >endtree
 
 >h2 LAB 11: Float and SIMD
@@ -226,7 +226,7 @@ Goal:
 1) Use crashtest only if you intentionally want to test panic paths.
 2) rm and rmdir are destructive for files/dirs.
 3) fp_drill unmasks FPU exceptions and will reboot the kernel.
-4) This OS intentionally has no privilege isolation; everything is powerful.
+4) This OS intentionally has no privilege isolation; every process has unrestricted hardware and memory access.
 >endtree
 
 >h2 See Also

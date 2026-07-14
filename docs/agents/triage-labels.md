@@ -1,6 +1,6 @@
 # Triage labels
 
-The engineering skills speak in terms of five canonical triage roles. This repository uses the same name for each role and its GitHub label.
+The engineering skills define five canonical triage roles. Each role has a same-named GitHub label in this repository.
 
 | Canonical role | GitHub label | Meaning |
 | --- | --- | --- |

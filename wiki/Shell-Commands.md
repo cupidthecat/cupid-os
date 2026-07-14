@@ -1,8 +1,8 @@
 # Shell Commands
 
-cupid-os provides shell commands through a mix of built-in functions and auto-discovered CupidC programs in `/bin/` and `/home/bin/`. The shell features command history (arrow up/down), context-aware tab completion for commands and paths, current working directory tracking, prompt display showing the CWD, pipes, redirects, and ANSI terminal color support.
+cupid-os shell commands come from built-in functions and discovered CupidC programs in `/bin/` and `/home/bin/`. The shell supports command history, context-aware completion for commands and paths, current-directory tracking, pipes, redirects, and ANSI terminal colors.
 
-Commands marked with _(CupidC)_ are user programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for how to write your own.
+Commands marked with _(CupidC)_ are programs in `/bin/` that are JIT-compiled when invoked. See [User Programs](User-Programs) for authoring instructions.
 
 ---
 
@@ -207,10 +207,10 @@ jobs -l                 # List with PIDs
 ```
 
 ### Tab Completion
-- Type a partial command name + Tab -> completes built-ins and discovered commands from `/bin` and `/home/bin`
-- Type a command followed by a path prefix + Tab -> completes files/directories relative to CWD or absolute paths
-- Directory prefixes such as `cupidasm /demos/` list matching entries and keep the editable prefix intact
-- Multiple matches -> lists all possibilities without consuming the current command line
+- Press Tab after a partial command name to complete built-ins and discovered commands from `/bin` and `/home/bin`.
+- Press Tab after a path prefix to complete files and directories relative to the current directory or an absolute path.
+- Directory prefixes such as `cupidasm /demos/` list matching entries and keep the editable prefix intact.
+- When several entries match, the shell lists them without consuming the current command line.
 
 ### Command History
 - **Up arrow** - Previous command
@@ -269,8 +269,8 @@ REPL notes:
 ```
 
 - Reset persistent REPL state with `reset`.
-- Forward-call patches now stay in the long-lived REPL compiler state, so a
-  later function definition can satisfy earlier REPL-defined callers.
+- Forward-call patches remain in the long-lived REPL compiler state, so a later
+  function definition can satisfy earlier REPL-defined callers.
 
 ---
 

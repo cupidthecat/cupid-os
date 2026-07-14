@@ -14,8 +14,8 @@ Verified against source on: 2026-05-15
 >rule
 
 >h2 What This Is
-.CTXT is still plain text, but Notepad render mode (kernel/gui/notepad.c) treats
-it as a bounded TempleOS-inspired DolDoc surface. Documents can contain
+.CTXT files are plain text. Notepad render mode (kernel/gui/notepad.c) treats
+them as a bounded, TempleOS-inspired DolDoc surface. Documents can contain
 executable CupidC, clickable actions, sprites, and collapsible widgets without
 leaving the manual.
 
@@ -24,7 +24,7 @@ on top of CupidOS's existing .CTXT pipeline.
 
 >box
 Press F2 in Notepad to switch between source and rendered view.
-Render mode is where widgets, sprites, links, and executable code come alive.
+Widgets, sprites, links, and executable code work in rendered view.
 >endbox
 
 >h2 Core DolDoc Features
@@ -43,8 +43,8 @@ Standalone button widgets:
 >endtree
 
 >tree open Executable Code Blocks
-TempleOS documents blur the line between docs and code. CupidOS .CTXT
-supports runnable CupidC blocks rendered directly inside Notepad.
+TempleOS documents can execute code. CupidOS .CTXT provides runnable CupidC
+blocks directly inside Notepad.
 
 Clicking the Run button in the code block header executes the snippet through
 the persistent CupidC REPL. Globals, structs, functions, and ans behave the
@@ -52,7 +52,8 @@ same way they do at the shell prompt.
 
 To write a runnable snippet, use >code ... >endcode. Note that every >code
 block registers itself as a REPL action, so only include runnable CupidC
-inside code blocks — not shell commands, pseudocode, or non-runnable text.
+inside code blocks. Keep shell commands, pseudocode, and non-runnable text
+outside them.
 
 For shell command examples or pseudocode, indent them 2 spaces as plain prose
 text instead of wrapping them in >code...>endcode.
@@ -84,11 +85,11 @@ Syntax:
   >img https://www.kaffeewiki.de/images/b/bd/Test.jpg 160 120
   >img https://host/path/photo.jpg 240 160 | web:https://host/
 
-Use explicit width and height for stable layout. Web image downloads are
-scheduled after the first paint through the kernel ctxtimgd worker service and
-stored in the volatile /ctxt-cache ramfs, so Notepad can keep repainting while
-network fetches run and no persistent /home writes are triggered. Regular
-HTTP/HTTPS markdown links stay links; only explicit image tags fetch pixels.
+Use explicit width and height for stable layout. After the first paint, the
+kernel ctxtimgd worker service schedules web image downloads and stores them
+in the volatile /ctxt-cache ramfs. Notepad continues repainting during network
+fetches, and the worker does not write to /home. Regular HTTP/HTTPS markdown
+links stay links; only explicit image tags fetch pixels.
 Add a | web: action only when the image itself should also be clickable.
 
 Top-level image files ending in .bmp, .png, .jpg, or .jpeg are embedded at
@@ -106,8 +107,8 @@ embedded at /docs/image.bmp for older examples.
   Visible lines go here.
   >endtree
 
-Always use >tree open Name (not just >tree Name) so the section is visible
-on file open. Closed trees require the user to click to expand them.
+Use >tree open Name so the section is visible when the file opens.
+The shorter >tree Name form starts closed and requires a click to expand.
 >endtree
 
 >h2 Syntax Reference
@@ -136,9 +137,9 @@ Supported block tags:
 - >sprite ... | action   clickable image widget
 
 >box
-Important: every >code...>endcode block registers itself as a clickable REPL
-action. Only use >code for actual runnable CupidC snippets, not for shell
-command examples or pseudocode — those should be indented as prose text.
+Every >code...>endcode block registers itself as a clickable REPL action.
+Use >code only for runnable CupidC snippets. Indent shell commands and
+pseudocode as prose text instead.
 >endbox
 
 Inline styling:
@@ -182,7 +183,7 @@ links can open files, open web pages, or run actions.
 
 >h2 Manuals Using DolDoc
 >tree open Every Shipped Manual
-Every manual under /docs/*.ctxt now uses the DolDoc-lite engine.
+Every manual under /docs/*.ctxt uses the DolDoc-lite engine.
 
 [00INDEX.CTXT - index](open:00INDEX.CTXT)
 [01SHELL.CTXT - shell](open:01SHELL.CTXT)

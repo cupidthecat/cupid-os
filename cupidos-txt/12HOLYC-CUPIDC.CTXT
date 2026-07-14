@@ -15,8 +15,8 @@ Verified against source on: 2026-05-15
 
 >h2 Purpose
 >tree open Purpose
-This page documents HolyC-inspired language features currently implemented in
-CupidC (kernel/lang/cupidc.c and related files), plus important behavior notes.
+This page documents the HolyC-inspired features implemented in CupidC
+(kernel/lang/cupidc.c and related files) and records their behavior.
 
 Try a quick REPL expression:
 [Evaluate 42](repl:U32 answer = 42; answer;)
@@ -45,9 +45,9 @@ Demo: bin/feature1_types.cc
 
 >h2 Feature 2: Top-Level Execution
 >tree open Feature 2: Top-Level Execution
-Main is no longer mandatory.
+main is optional.
 
-These both work:
+Both forms work:
   U32 x = 7;
   Print("x=%u\n", x);
 
@@ -146,9 +146,8 @@ Demo: bin/feature7_new_del.cc
 >tree open Feature 8: reg / noreg
 reg and noreg are accepted as storage hints.
 
-Current behavior:
-- Parsed and accepted.
-- Treated as semantic no-op hints in current compiler backend.
+The parser accepts both keywords as semantic no-op hints in the current
+compiler backend.
 
 Demo: bin/feature8_reg_noreg.cc
 [Run feature8_reg_noreg](shell:feature8_reg_noreg)
@@ -265,9 +264,11 @@ Useful commands:
 
 >h2 Practical Notes
 >tree open Practical Notes
-1) CupidC is intentionally small and kernel-integrated, not full GCC C.
-2) Keep programs simple, direct, and one-file where possible.
-3) For large programs, prefer incremental testing with small compile units.
+1) CupidC is kernel-integrated; C and GNU-extension coverage remains incomplete.
+2) Keep the source's natural modules and abstractions. When active code reaches
+   a compiler limit, extend CupidC instead of simplifying the program.
+3) Separate compilation and multi-file linking remain toolchain work. Focused
+   tests should isolate each new capability while that support is built.
 4) #pragma once is supported for include-guard patterns.
 5) __attribute__((...)) and common storage/width spellings are accepted
    mainly so imported examples parse cleanly.

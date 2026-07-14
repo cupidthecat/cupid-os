@@ -1,11 +1,9 @@
 # SMP Tier 2
 
-CupidOS P5 Tier 2 SMP adds symmetric multiprocessing support for up to 32
-logical CPUs. The design is deliberately conservative: a single shared
-runqueue under a **big kernel lock (BKL)**, per-CPU LAPIC timers, and all
-external IRQs routed through the BSP. This gives correct multiprocessor
-boot and scheduling without the complexity of lock-free per-CPU runqueues or
-full IRQ migration.
+CupidOS supports symmetric multiprocessing on up to 32 logical CPUs. It uses a
+single shared runqueue under a **big kernel lock (BKL)**, per-CPU LAPIC timers,
+and routes external IRQs through the BSP. The implementation does not use
+per-CPU runqueues or IRQ migration.
 
 Related pages: [USB](USB.md), [Swap](Swap.md)
 
@@ -58,7 +56,7 @@ for each AP:
     wait up to 100 ms for cpus[i].online
 ```
 
-> **Warning** - reversing `lapic_init_bsp` and `ioapic_init_all` causes
+> Reversing `lapic_init_bsp` and `ioapic_init_all` causes
 > spurious LAPIC vectors during the IOAPIC redirection table write and
 > locks the BSP before APs are released. Do not reorder.
 
@@ -94,8 +92,8 @@ typedef struct per_cpu_t {
 _Static_assert(sizeof(per_cpu_t) == 128, "per_cpu_t size mismatch");
 ```
 
-`this_cpu()` compiles to a single `mov eax, gs:[0]` - the struct starts
-with a self-pointer so callers never need to know the linear address.
+`this_cpu()` compiles to a single `mov eax, gs:[0]`. The struct starts with a
+self-pointer, so callers do not need its linear address.
 
 ### GDT layout
 
@@ -387,15 +385,15 @@ the outer `bkl_unlock()`.
 
 ## Scheduler Integration
 
-`process_t` gains two new fields:
+`process_t` contains two SMP ownership fields:
 
 ```c
 uint8_t  on_cpu;     // logical cpu_id currently executing this process
 uint8_t  last_cpu;   // logical cpu_id last time it ran (for NUMA hints)
 ```
 
-`current_pid` moves from a global variable into `per_cpu_t.current_pid`.
-Each CPU reads `this_cpu()->current_pid` to identify its own running
+`per_cpu_t.current_pid` stores the running process for each CPU. Each CPU reads
+`this_cpu()->current_pid` to identify its own running
 process. The field is at offset `0x24`; `process_get_current_pid()` loads it
 through the per-CPU pointer selected by `%gs`.
 
@@ -536,8 +534,7 @@ Run it and verify the final counter value matches 40000.
 For workloads that are mostly user-space compute with occasional kernel calls
 the BKL overhead is acceptable. Workloads with heavy concurrent kernel entry
 (e.g., many processes doing simultaneous disk I/O) will serialize at the BKL.
-Replacing the BKL with fine-grained locking is the natural next step for
-Tier 3.
+Fine-grained locking would be required to remove this serialization.
 
 ---
 

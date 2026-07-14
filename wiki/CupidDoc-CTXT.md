@@ -1,30 +1,30 @@
 # CupidDoc CTXT
 
-CupidOS now ships a stronger TempleOS-inspired DolDoc layer on top of `.ctxt`
-files in Notepad render mode. The implementation is still intentionally
-bounded, but it now behaves much more like a live document system instead of a
-static formatter.
+CupidOS renders `.ctxt` files in Notepad through a TempleOS-inspired subset of
+DolDoc. Documents can contain formatted text, executable actions, code blocks,
+widgets, and images.
 
-North-star references from the checked-in TempleOS source:
+The implementation uses these files from the checked-in TempleOS tree as
+design references:
 
 - `TempleOS/Doc/DolDocOverview.DD`
 - `TempleOS/Doc/Widget.DD`
 - `TempleOS/Demo/DolDoc/ClickCallBack.HC`
 - `TempleOS/Demo/DolDoc/MenuSprite.HC`
 
-## What Is Implemented
+## What is implemented
 
-- Rendered `.ctxt` pages still support headings, boxes, inline styles, and file links.
-- Markdown links can now trigger `open:`, `shell:`, or `repl:` actions inline.
+- Rendered `.ctxt` pages support headings, boxes, inline styles, and file links.
+- Markdown links can trigger `open:`, `shell:`, or `repl:` actions inline.
 - `>code` / `>endcode` creates a runnable CupidC code block.
 - Code blocks execute when you click the header `Run` button or the code body itself.
 - `>button` creates a clickable document button.
 - `>tree` / `>endtree` creates a collapsible widget section.
 - `>sprite` renders a BMP image inline in the document.
-- `>sprite ... | action` turns that sprite into a live widget, closer to TempleOS `MenuSprite.HC`.
+- `>sprite ... | action` attaches an action to the sprite, as in TempleOS `MenuSprite.HC`.
 - Notepad shows status feedback after document-triggered execution.
 
-## Action Model
+## Action model
 
 Buttons, markdown links, and code blocks use one of these prefixes:
 
@@ -77,8 +77,8 @@ This one starts collapsed.
 >endtree
 ```
 
-TempleOS tree widgets default to collapsed unless opened explicitly; `.CTXT`
-follows that same basic behavior.
+Like TempleOS tree widgets, `.CTXT` trees are collapsed unless explicitly
+opened.
 
 ### Sprite
 
@@ -89,17 +89,15 @@ follows that same basic behavior.
 >sprite /docs/image.bmp 96 96 | repl:6 * 7;
 ```
 
-Current sprite support is BMP-backed and renders inline inside the document.
-The in-OS manual set embeds `image.bmp` at `/docs/image.bmp` so examples work
-after boot.
+Sprites use BMP files and render inline. The in-OS manuals embed `image.bmp` at
+`/docs/image.bmp` for the examples.
 
 When an action suffix is present, the whole sprite becomes clickable.
 
-## Usage In The Shipped Manuals
+## Usage in the shipped manuals
 
-Every manual under `/docs/*.ctxt` now uses the DolDoc-lite engine. The table
-below shows which features each file exercises, so the engine is discoverable
-from any manual.
+Every manual under `/docs/*.ctxt` uses the DolDoc-lite renderer. This table
+records the features exercised by each file.
 
 | Manual                  | Trees | Code blocks | Buttons | Sprites | Inline links |
 |-------------------------|:-----:|:-----------:|:-------:|:-------:|:------------:|
@@ -117,13 +115,13 @@ from any manual.
 | `11CTXT.CTXT`           |   *   |      *      |    *    |    *    |      *       |
 | `12HOLYC-CUPIDC.CTXT`   |   *   |      *      |         |         |      *       |
 
-The sprite asset is `/docs/image.bmp`, installed at boot from the top-level
-`image.bmp` file via the Makefile and `kernel/util/docs_programs_gen.c`. The
-filesystem and embedding manuals now use that same asset too, so the examples
-exercise both live document rendering and the boot-time doc asset pipeline.
+The Makefile and `kernel/util/docs_programs_gen.c` install the top-level
+`image.bmp` file as `/docs/image.bmp` at boot. The filesystem and embedding
+manuals use the same asset, covering both document rendering and boot-time
+asset installation.
 
 ## Notes
 
-- Notepad remains the host for `.ctxt`; there is no separate DolDoc app.
-- This is a DolDoc-like subset, not full TempleOS `$...$` command coverage.
-- The implementation is source-readable on purpose: docs still stay clean in raw text form.
+- Notepad hosts `.ctxt` files; there is no separate DolDoc application.
+- CupidDoc implements a DolDoc-like subset rather than full TempleOS `$...$` command coverage.
+- The directives remain readable in raw source form.

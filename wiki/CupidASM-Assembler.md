@@ -1,6 +1,6 @@
 # CupidASM Assembler
 
-CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It assembles Intel-syntax `.asm` source files to native machine code and can either execute them immediately (JIT) or produce ELF32 binaries on disk (AOT). Like CupidC, JIT programs run in ring 0 with full kernel access - no restrictions.
+CupidASM is an x86-32 assembler built into the cupid-os kernel. It assembles Intel-syntax `.asm` files into native machine code for immediate execution (JIT) or writes ELF32 binaries to disk (AOT). JIT programs run in ring 0 and can call the kernel directly.
 
 ---
 
@@ -34,7 +34,7 @@ CupidASM is an x86-32 assembler built directly into the cupid-os kernel. It asse
 > as demos/hello.asm
 ```
 
-Assembles the source into memory at `0x01A00000` and executes immediately. No binary is saved.
+CupidASM assembles the source into memory at `0x01A00000` and executes it without saving a binary.
 
 You can also run `.asm` files directly with `./`:
 
@@ -501,7 +501,7 @@ Equ constants registered alongside: `IP_PROTO_ICMP`, `IP_PROTO_UDP`,
 
 ### SMP / LAPIC / paging / PMM
 
-> ⚠ Wrap shared-state work in `bkl_lock`/`bkl_unlock`.
+> Shared-state work must be protected with `bkl_lock` and `bkl_unlock`.
 
 | Function | Description |
 |---|---|
@@ -564,8 +564,7 @@ s16 stereo @ 22050 Hz, 16 slots.
 
 ### 2D Graphics (full parity with CupidC)
 
-CupidASM now exposes the complete `gfx2d_*` surface. New since the
-previous parity pass:
+CupidASM exposes the `gfx2d_*` surface, including:
 
 | Group | Functions |
 |---|---|
@@ -651,10 +650,10 @@ main:
 
 ## AOT Syscall Table (ELF Programs)
 
-> Syscall table version: **3** (since Phase 5 of Networking). The layout is
-> append-only - programs built against v2 still work and observe the new
-> larger `SYS_TABLE_SIZE`. `kernel/core/syscall.c` has `_Static_assert` guards
-> on the offsets below so a future field reorder fails to compile.
+> Syscall table version: **3**. The layout is append-only. Programs built
+> against version 2 still work and observe the larger `SYS_TABLE_SIZE`.
+> `kernel/core/syscall.c` has `_Static_assert` guards on the offsets below, so
+> reordering a field causes a compile-time failure.
 
 AOT-compiled programs receive a pointer to the syscall table at `[esp+4]` when executed. Use `SYS_*` constants (pre-defined as `equ` values) to call kernel functions indirectly:
 
@@ -791,7 +790,7 @@ Equ constants registered alongside (compile-time literals, no syscall):
 `IP_PROTO_ICMP`, `IP_PROTO_UDP`, `IP_PROTO_TCP`, `SOCK_TYPE_UDP`,
 `SOCK_TYPE_TCP`.
 
-Example - outbound TCP from AOT asm:
+Example: outbound TCP from AOT assembly:
 
 ```asm
 section .text
@@ -1044,10 +1043,10 @@ main:
 
 ## Tips
 
-- **Entry point**: Every program needs a `main:` or `_start:` label.
-- **Return from main**: Use `ret` to return control to the shell. Don't `hlt` - that stops the whole OS.
-- **Preserve registers**: If you call kernel functions, save `ecx` and `edx` first - they may be clobbered.
-- **Null-terminate strings**: All strings passed to `print` must end with `0`.
-- **Clean the stack**: After `call`, always `add esp, N` where N = number of bytes pushed as arguments.
-- **Forward references**: Labels can be referenced before they're defined - the assembler patches them automatically.
-- **Case insensitive**: Mnemonics and register names are case-insensitive (`MOV EAX, 1` works).
+- Every program needs a `main:` or `_start:` entry label.
+- Use `ret` to return from `main` to the shell. Do not use `hlt`, which stops the OS.
+- Save `ecx` and `edx` before calling kernel functions because the callee may clobber them.
+- End every string passed to `print` with a null byte.
+- After `call`, add the number of argument bytes back to `esp` with `add esp, N`.
+- Labels may be referenced before their definitions. CupidASM patches these forward references after parsing.
+- Mnemonics and register names are case-insensitive, so `MOV EAX, 1` is valid.

@@ -504,7 +504,7 @@ echo "Script started at epoch: $START"
 
 ### `$EPOCHSECONDS` Variable
 
-The special variable `$EPOCHSECONDS` expands to the current Unix timestamp (seconds since January 1, 1970) read from the hardware RTC. Unlike `$(date +epoch)`, it does not require command substitution - it expands inline like any other variable.
+The special variable `$EPOCHSECONDS` expands inline to the current Unix timestamp, measured in seconds since January 1, 1970 and read from the hardware RTC. It does not invoke command substitution.
 
 ```bash
 #!/bin/cupid
@@ -786,15 +786,17 @@ echo "First 5: ${NAME:0:5}"
 - No heredocs (`<<EOF`)
 - No process substitution (`<(cmd)`)
 
-### Removed Limitations (Now Implemented)
+<a id="removed-limitations-now-implemented"></a>
 
-The following features were previously listed as limitations and have since been implemented:
+### Implemented shell features
 
-- ~~No pipes (`|`)~~ -> Full pipeline support with `|` operator
-- ~~No I/O redirection (`>`, `<`, `>>`)~~ -> Output, input, append, and error redirection
-- ~~No command substitution~~ -> Both `$(cmd)` and `` `cmd` `` syntax
-- ~~No arrays or associative arrays~~ -> Regular arrays and `declare -A` associative arrays
-- ~~No background jobs (`&`)~~ -> Background execution with job table tracking
+CupidScript supports these shell features:
+
+- Pipelines with the `|` operator
+- Output, input, append, and error redirection
+- Command substitution with `$(cmd)` or backticks
+- Regular arrays and `declare -A` associative arrays
+- Background execution with job table tracking
 
 ---
 

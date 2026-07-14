@@ -22,9 +22,10 @@ filesystems at arbitrary mount points.
 >h2 Quick Start
 >tree open Quick Start
 1. Host-side: build a test ISO:
-   `make sync-iso` — generates `test_iso/hello.iso` via `mkisofs -R`
+   `make sync-iso` generates `test_iso/hello.iso` via `mkisofs -R`
    (or `genisoimage` / `xorrisofs`) from `test_iso/fixtures/` and
-   mcopies it to `/disk/hello.iso`.
+   writes it directly to the FAT16 disk image as `/hello.iso`. Cupid OS
+   exposes that file as `/disk/hello.iso`.
 
 2. Boot CupidOS (`make run`).
 
@@ -32,9 +33,9 @@ filesystems at arbitrary mount points.
 
 mount /disk/hello.iso /iso
 
-4. `ls /iso` — shows `readme.txt`, `long_named_file.txt`, `sub/`, `big.bin`.
+4. `ls /iso` shows `readme.txt`, `long_named_file.txt`, `sub/`, and `big.bin`.
 
-5. `cat /iso/readme.txt` — prints the content.
+5. `cat /iso/readme.txt` prints the content.
 
 6. `umount /iso` when done.
 

@@ -1,6 +1,6 @@
 # Desktop Environment
 
-cupid-os features a complete graphical desktop environment built on VBE 640x480 32-bit true color. It includes a window manager, desktop shell with taskbar and icons, a mouse-driven GUI terminal, and a notepad application.
+cupid-os has a graphical desktop built on a 640x480, 32-bit VBE framebuffer. It includes a window manager, a taskbar and desktop icons, a mouse-driven terminal, and Notepad.
 
 ---
 
@@ -117,7 +117,8 @@ Click the taskbar clock to open a 440x320 pixel calendar popup centered on scree
 └────────────────────────────────────┘
 ```
 
-**Features:**
+The calendar shows:
+
 - Current day highlighted with colored background
 - Month/year header with `<` and `>` navigation arrows
 - Full date line (e.g., "Thursday, February 6, 2026")
@@ -125,7 +126,8 @@ Click the taskbar clock to open a 440x320 pixel calendar popup centered on scree
 - Handles leap years and all month lengths correctly
 - Uses Zeller's congruence for weekday calculation
 
-**Close the popup:**
+Close the popup in either of these ways:
+
 - Click outside the calendar area
 - Press Escape
 
@@ -159,9 +161,8 @@ The terminal application runs the shell inside a graphical window:
 
 ### Scrollback
 
-The shell character buffer is 500 rows tall - long-running output
-(e.g. `curl http://example.com/`) stays in the buffer and you can
-review it after the fact:
+The shell character buffer is 500 rows tall. Output from a long-running command
+such as `curl http://example.com/` remains available for review:
 
 | Input | Action |
 |---|---|
@@ -173,7 +174,7 @@ review it after the fact:
 | **Enter** | resets scroll to bottom (so you see the new prompt + output) |
 
 When the buffer fills (cursor reaches row 499), the oldest row is
-discarded - there's no infinite history.
+discarded, so scrollback is finite.
 
 Mouse wheel routing lives in `kernel/gui/desktop.c`: when the focused
 window's title is `"Terminal"`, `mouse.scroll_z` is forwarded to
@@ -201,12 +202,12 @@ so the desktop event loop keeps repainting while an SSH shell is active.
 
 ### How It Works
 
-1. Shell writes to a **character buffer** (80x50) instead of VGA text memory
-2. **ANSI escape sequences** are parsed and stripped from the output stream
-3. A **parallel color buffer** stores per-character foreground/background VGA color indices
-4. Terminal app **renders** each character using its individual color, mapped to the Mode 13h palette
-5. Keyboard events are **forwarded** from the desktop event loop to the shell
-6. Shell has a **dual output mode**: text (VGA) or GUI (character buffer)
+1. The shell writes to an 80x50 character buffer instead of VGA text memory.
+2. The terminal parses ANSI escape sequences and removes them from the output stream.
+3. A parallel color buffer stores each character's foreground and background VGA color indices.
+4. The terminal renders each character in its stored color, mapped to the Mode 13h palette.
+5. The desktop event loop forwards keyboard events to the shell.
+6. The shell can write to VGA text mode or the GUI character buffer.
 
 ### Color Rendering
 

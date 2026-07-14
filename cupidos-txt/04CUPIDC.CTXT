@@ -22,7 +22,7 @@ Source files: kernel/lang/cupidc.c, kernel/lang/cupidc_lex.c,
               kernel/lang/cupidc_parse.c, kernel/lang/cupidc_string.c,
               kernel/lang/cupidc_elf.c
 
-Three modes:
+CupidC has three modes:
 1) JIT run:
    cupidc file.cc
 2) AOT to ELF:
@@ -44,8 +44,8 @@ Use:
 or:
   int main() { ... return 0; }
 
-Top-level statements (HolyC feature) also work without a main function.
-If both exist, top-level statements run first, then main() is called.
+The HolyC-style top-level statement form does not require a main function.
+When both forms appear, top-level statements run before main().
 >endtree
 
 >h2 Command-Line Arguments
@@ -77,8 +77,8 @@ Save as /home/bin/hello.cc, then run:
   hello
 >endtree
 
->h2 Language Features (Current)
->tree open Language Features (Current)
+>h2 Language Features
+>tree open Language Features
 Supported core features include:
 - int, char, void, pointers
 - sized types: U0, U8, U16, U32, I8, I16, I32, U64, I64, Bool
@@ -103,11 +103,11 @@ Supported core features include:
 - arithmetic and logical operators
 - #pragma once
 
-Known practical constraints:
-- It is not full GCC C.
-- Keep code simple and direct.
-- Preprocessor/macros are not a normal workflow.
-- One-file program style is the easiest path.
+Current toolchain gaps:
+- C and GNU-extension coverage is incomplete.
+- Macro preprocessing and unsupported-form diagnostics remain incomplete.
+- The in-OS command compiles one translation unit per invocation; separate
+  compilation and multi-file linking still need toolchain support.
 >endtree
 
 >h2 C Compatibility Notes
@@ -159,7 +159,7 @@ with f-variants): sqrt, sin, cos, tan, atan, atan2, exp, exp2, log,
 log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter,
 fabs, floor, ceil, round, trunc, fmod.
 
-printf now supports %f, %e, %g, and precision forms like %.3f.
+printf supports %f, %e, %g, and precision forms like %.3f.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
@@ -240,7 +240,7 @@ Desktop app source metadata:
 - //app: Simple Name
 - //app: label="Name"; desc="Description"; icon=app; x=120; y=80;
 
-This registers launchable desktop icons when /bin .cc files are scanned.
+During the /bin .cc scan, this metadata creates launchable desktop icons.
 >endtree
 
 >h2 Windowed App Bindings
@@ -321,7 +321,8 @@ Desktop background control:
 >h2 Error Handling Tips
 >tree open Error Handling Tips
 - CupidC fails fast and reports line-oriented compiler errors.
-- If behavior is odd, reduce code to a tiny repro and re-add features.
+- If behavior is unclear, reduce the program to a small reproduction, then
+  restore one feature at a time.
 - Keep stack usage modest.
 - Prefer kmalloc for large buffers.
 >endtree

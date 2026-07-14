@@ -1,6 +1,6 @@
 # cupid-os Wiki
 
-Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system written in C and x86 Assembly, combining clean design with nostalgic aesthetics. It runs entirely in ring 0 with no security boundaries - inspired by TempleOS and OsakaOS.
+**cupid-os** is a 32-bit operating system written in C and x86 assembly. Its ring-0 execution model and desktop draw on TempleOS and OsakaOS. The system does not isolate programs from the kernel.
 
 ---
 
@@ -16,7 +16,7 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
 | [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
 | [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
-| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | Full API reference for the hardware-accelerated 2D graphics library |
+| [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | API reference for the software-rendered 2D graphics library |
 | [User Programs](User-Programs) | Writing and deploying CupidC programs in /bin/ and /home/bin/ |
 | [Ed Editor](Ed-Editor) | How to use the built-in ed(1) line editor |
 | [Desktop Environment](Desktop-Environment) | VBE 640x480 32bpp graphics, window manager, mouse, terminal app |
@@ -80,14 +80,14 @@ Welcome to the **cupid-os** wiki! cupid-os is a modern, 32-bit operating system 
 
 ## Philosophy
 
-cupid-os embraces complete user empowerment:
+cupid-os deliberately exposes the machine to programs:
 
-- **No security boundaries** - all code runs in ring 0
-- **Direct hardware access** - no abstraction hiding the metal
-- **Full memory visibility** - no virtual memory restrictions
-- **Transparency** - every byte of the system is inspectable
+- All code runs in ring 0 without a security boundary between applications and the kernel.
+- Programs can access hardware directly.
+- Programs share the flat address space and can inspect kernel memory.
+- The source includes the operating system, desktop, languages, and build tools.
 
-This makes cupid-os ideal for learning how computers really work at the lowest level.
+This model is useful for operating-system experiments and low-level study, but it is not safe for untrusted code.
 
 ---
 

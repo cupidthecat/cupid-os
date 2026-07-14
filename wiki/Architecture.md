@@ -1,6 +1,6 @@
 # Architecture
 
-cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-bit x86. Every component - kernel, drivers, shell, applications - runs in the same flat memory space with full hardware access.
+cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-bit x86. The kernel, drivers, shell, and applications all run in the same flat memory space with full hardware access.
 
 ---
 
@@ -120,7 +120,7 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-Module dependency direction (top depends on bottom, no cycles):
+The module dependencies run from top to bottom and contain no cycles:
 
 ```
 gui      → gfx, lang, fs, mm, core
@@ -217,7 +217,7 @@ cupid-os uses **deferred preemptive multitasking**:
    - Store ESP into old process PCB
    - Load new process ESP and jump to new EIP
 
-This avoids the complexity and stack corruption risks of switching inside interrupt handlers.
+Deferring the switch keeps context changes out of interrupt handlers, where a switch could corrupt the active stack.
 
 ---
 
