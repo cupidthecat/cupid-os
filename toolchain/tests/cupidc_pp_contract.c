@@ -143,7 +143,7 @@ static const active_expected_profile_t active_expected_profiles[] = {
      20u, 9u, 1u},
     {"USER_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 3u, 1u, 6u,
      0u},
-    {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE, 104u,
+    {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE, 105u,
      0u, 0u, 0u},
     {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      10u, 1u, 1u, 0u},
@@ -5547,7 +5547,7 @@ static int validate_active_manifest(const char *mode) {
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
       kind_counts[ACTIVE_ROW_PROFILE] != 7u ||
-      kind_counts[ACTIVE_ROW_CASE] != 356u ||
+      kind_counts[ACTIVE_ROW_CASE] != 357u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
@@ -5769,7 +5769,7 @@ static int run_one_active_case(const char *mode, const char *host_root,
 
 static int run_active_corpus(const char *mode, const char *host_root,
                              ctool_bool generated) {
-  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 356u;
+  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 357u;
   ctool_u32 executed_count = 0u;
   ctool_u32 row_index;
 

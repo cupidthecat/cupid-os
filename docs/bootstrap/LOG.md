@@ -2197,3 +2197,42 @@ The active non-Doom header frontier remains 147/152 at GNU inline assembly. This
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
 This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating and null-pointer semantics, comma expressions, computed goto and GNU label addresses, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: production CupidC do-loop continue target
+
+### Bug and implementation decision
+
+The private in-kernel CupidC emitter used the body address as the `continue` target for every `do` loop. That is not C's post-test behavior. A `continue` must reach the condition before another iteration begins. The bug skipped the condition whenever the body executed `continue`.
+
+The condition address is not known when the emitter starts the body because the condition follows the body in source. The fix places a two-jump trampoline before the body. Normal entry jumps over the trampoline. A `continue` jumps to the trampoline, and its second jump is patched to the condition after the body has been emitted. A true condition still jumps directly to the body. This keeps the existing break patching and avoids another pending-patch table in the already large compiler state.
+
+No C or Cupid source was rewritten to avoid the compiler bug. The shared typed frontend is also unchanged: its `DO` node still records source meaning, and later IR remains responsible for choosing the condition as the `continue` target.
+
+The private emitter still uses one depth stack for loops and switches. Because of that older design, a `continue` inside a `switch` nested in a loop can select the switch slot instead of the enclosing loop. This increment does not claim complete nested control-flow semantics. That limitation stays with issue #25.
+
+### Runtime regression and corrections
+
+The new active `/bin/feature25.cc` program counts both body executions and condition calls. Its first iteration executes `continue`; the condition function has a visible side effect. The old emitter produced `[feature25] FAIL body=2 condition=1`, proving that it returned to the body before checking the condition. With the trampoline, the same in-OS JIT path produces `[feature25] PASS body=2 condition=2` and then reports JIT completion.
+
+The first proposed smoke name contained an underscore, which the GUI keyboard harness cannot type. The fixture was renamed to `feature25.cc` rather than broadening an unrelated input harness. The first complete repository run then found two stale source-count checks and one related summary string still pinned to 651 C-family inputs. They were updated to the generated count of 652, the focused checks passed, and the full gate was rerun from the final tree.
+
+Adding this active Cupid program changes the checked inventory without transferring ownership. The graph now contains 682 active sources, 251 feature IDs, and 492 transforms. It includes 127 Cupid C files, 105 active Cupid program roots, 432 declared artifacts, and 425 final-link objects. CupidObj owns 182 transforms. The control inventory now records 60 `do`, 2,486 `while`, 22,604 `if`, 3,317 `else`, and 13,675 `return` occurrences. The SHA-256 digest of `active-build.json` is `c6ce88109988dc6dfd2b554de8578000ccb1cfefe318df4fbc74b8c505a1fd14`.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Runtime red case | EXPECTED FAIL | The old image ran `/bin/feature25.cc` and reported `body=2 condition=1` before normal JIT completion. |
+| Strict kernel compile | PASS | `make kernel/lang/cupidc_parse.o` accepts the production change under the repository's warning-as-error i386 flags. |
+| Active manifest checks | PASS | Two focused source-cohort and drift tests pass in 103.326 seconds. |
+| CupidC preprocessor suite | PASS | All 39 tests pass in 5.579 seconds with the 357-root manifest and 105-root Cupid profile. |
+| CupidC frontend suite | PASS AFTER COUNT UPDATES | All 39 tests pass in 7.551 seconds after the active control-flow file counts were updated. |
+| Source contract checks | PASS AFTER FULL-GATE CORRECTION | The two include and line-directive checks pass in 71.514 seconds with 652 C-family inputs. |
+| Active-source audit | PASS | Regeneration completes in 34.8 seconds, and `make check-bootstrap-audit` reproduces the checked files in 38.1 seconds. |
+| OS build | PASS | Final-tree `make -j4` rebuilds the image in 11.8 seconds. |
+| Targeted boot/runtime smoke | PASS | `/bin/feature25.cc` reports the exact pass marker and JIT completion in 23.6 seconds. |
+| General JIT smoke | PASS | `/bin/ls.cc` runs successfully on the same image in 19.3 seconds. |
+| Full repository gate | PASS AFTER STALE ORACLES | The first run exposed only the two stale 651-source expectations. The corrected `make test` runs all 281 tests in 449.296 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 483.8 seconds. |
+| Formal two-axis review | PASS | Standards and Spec reviews report zero findings against fixed point `a44560f`. |
+
+This increment corrects production CupidC code generation but does not change the build owner of the compiler or retire a host dependency. GCC or Clang still compiles the private compiler into the kernel. The active regression is embedded by CupidObj and compiled on demand by CupidC, just like the other `bin/*.cc` programs. Issue #25 remains open for the nested switch/loop `continue` limitation, automatic aggregate initializer lists, remaining C and ABI semantics, object lowering, kernel integration, and staged self-hosting. The next source-driven shared frontend slice is automatic aggregate initializer lists; the first known unchanged blocker is `toolchain/cupidc_frontend.c:838`. No issue is ready to close from this increment.

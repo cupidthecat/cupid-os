@@ -5145,16 +5145,25 @@ static void cc_parse_statement(cc_state_t *cc) {
   case CC_TOK_DO: {
     /* do { body } while (cond); */
     cc_next(cc);
+    /* The condition follows the body in source, so its code address is not
+     * known when a continue inside the body is emitted. Enter the body by
+     * jumping over a small trampoline. Continue targets the trampoline,
+     * whose jump is patched to the condition once the body is complete. */
+    uint32_t body_entry_patch = emit_jmp_placeholder(cc);
+    uint32_t continue_target = cc->code_pos;
+    uint32_t condition_patch = emit_jmp_placeholder(cc);
     uint32_t loop_start = cc->code_pos;
+    patch_jump(cc, body_entry_patch);
     int old_depth = cc->loop_depth;
     if (cc->loop_depth < CC_MAX_BREAKS) {
       cc->break_counts[cc->loop_depth] = 0;
-      cc->continue_targets[cc->loop_depth] = loop_start;
+      cc->continue_targets[cc->loop_depth] = continue_target;
       cc->loop_depth++;
     }
     cc_parse_statement(cc);
     cc_expect(cc, CC_TOK_WHILE);
     cc_expect(cc, CC_TOK_LPAREN);
+    patch_jump(cc, condition_patch);
     cc_parse_expression(cc, 1);
     cc_expect(cc, CC_TOK_RPAREN);
     cc_expect(cc, CC_TOK_SEMICOLON);

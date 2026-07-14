@@ -1364,7 +1364,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 651)
+            self.assertEqual(contract["source_files"], 652)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1385,7 +1385,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 651 source files; max conditional depth 0",
+                "0 numeric markers; 652 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2273,7 +2273,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 651)
+            self.assertEqual(contract["source_files"], 652)
             self.assertEqual(contract["include_occurrences"], 2315)
             self.assertEqual(contract["direct_quoted_occurrences"], 2112)
             self.assertEqual(contract["direct_angle_occurrences"], 203)
@@ -2836,12 +2836,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_COMPAT_I386": 6,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
-                "CUPID_RUNTIME": 104,
+                "CUPID_RUNTIME": 105,
                 "HOSTED_TOOLCHAIN_64": 10,
                 "HOSTED_KERNEL_BRIDGE_64": 1,
             },
         )
-        self.assertEqual(len(active), 356)
+        self.assertEqual(len(active), 357)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.c"),
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
@@ -3415,9 +3415,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 356,
+                    "tracked_translation_units": 357,
                     "generated_translation_units": 4,
-                    "total_translation_units": 360,
+                    "total_translation_units": 361,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 17,
@@ -3439,7 +3439,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_COMPAT_I386", 6, 0),
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
-                    ("CUPID_RUNTIME", 104, 0),
+                    ("CUPID_RUNTIME", 105, 0),
                     ("HOSTED_TOOLCHAIN_64", 10, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 1, 0),
                 ],
@@ -3447,9 +3447,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 681,
+                    "active_sources": 682,
                     "features": 251,
-                    "transforms": 491,
+                    "transforms": 492,
                     "unreachable_sources": 39,
                 },
             )
@@ -3554,7 +3554,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertEqual(transform["tools"], ["host_c_compiler"])
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "356 tracked + 4 generated",
+                "357 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

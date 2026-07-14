@@ -6,9 +6,9 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 681
+- Active source inputs: 682
 - Unreachable source-like files: 39
-- Reachable output transforms: 491
+- Reachable output transforms: 492
 - Distinct feature requirements: 251
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -22,7 +22,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `assembly` | 26 |
 | `c` | 267 |
 | `c_header` | 262 |
-| `cupid_c` | 126 |
+| `cupid_c` | 127 |
 
 ## Source cohorts
 
@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 302 |
 | `cupid_asm_demo` | 22 | 1463 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
-| `cupid_c_program` | 104 | 18443 |
+| `cupid_c_program` | 105 | 18480 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6678 |
-| `cupidc` | 7 | 13072 |
+| `cupidc` | 7 | 13081 |
 | `cupiddis` | 5 | 2670 |
 | `doom_port` | 7 | 2638 |
 | `driver` | 22 | 3774 |
@@ -67,7 +67,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 438 | 20 |
+| `.` | `all` | 439 | 20 |
 | `user` | `all` | 8 | 1 |
 | `toolchain` | `all` | 45 | 2 |
 
@@ -78,7 +78,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_assembler` | 4 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
-| `cupid_object` | 181 |
+| `cupid_object` | 182 |
 | `host_c_compiler` | 289 |
 | `host_python` | 8 |
 | `make` | 5 |
@@ -98,7 +98,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 738 |
 | `asm.relocation` | 1 | 12 |
-| `c.control` | 12 | 49729 |
+| `c.control` | 12 | 49736 |
 | `c.declaration` | 1 | 22 |
 | `c.declarator` | 4 | 1760 |
 | `c.expression` | 2 | 1954 |
@@ -108,9 +108,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.preprocessor` | 18 | 6404 |
 | `c.qualifier` | 2 | 6713 |
 | `c.storage` | 4 | 5622 |
-| `c.type` | 14 | 37388 |
+| `c.type` | 14 | 37394 |
 | `cupid_c.declaration` | 1 | 2 |
-| `cupid_c.delivery` | 2 | 128 |
+| `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
@@ -146,10 +146,10 @@ It is also a declared Make prerequisite.
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 14 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 3 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 522 |
-| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 624 |
+| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 625 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 128 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 129 |
 
 ## Source-cohort migration order
 
@@ -160,7 +160,7 @@ It is also a declared Make prerequisite.
 | 3 | `kernel_and_drivers` | 276 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 190 | Preserve upstream behavior under a deliberate compatibility mode. |
 | 5 | `user_programs` | 4 | Migrate the remaining separate host-C compilation path to CupidC and stage its CupidLD outputs deliberately. |
-| 6 | `embedded_cupid_sources` | 150 | Keep runtime CupidC/CupidASM regression corpora active through the host migration. |
+| 6 | `embedded_cupid_sources` | 151 | Keep runtime CupidC/CupidASM regression corpora active through the host migration. |
 
 ## Unreachable source classification
 
@@ -220,13 +220,13 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 
 | Contract | Status | Detail |
 | --- | --- | --- |
-| `bootstrap_artifact_coverage` | `pass` | 424 linked objects; 431 declared artifacts; 0 missing |
+| `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 101 conditional expressions (97 #if, 4 #elif); 21 normalized expressions; 22 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2315 C include operands (2112 quoted, 203 angle, 0 pp-token); 651 source files; max conditional depth 2 |
-| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 651 source files; max conditional depth 0 |
+| `c_preprocessor_include_operands` | `pass` | 2315 C include operands (2112 quoted, 203 angle, 0 pp-token); 652 source files; max conditional depth 2 |
+| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 652 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
-| `c_preprocessor_translation_units` | `pass` | 356 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=104, HOSTED_TOOLCHAIN_64=10, HOSTED_KERNEL_BRIDGE_64=1); 22 include-only, 2 non-root headers; 17 hosted deferred (17 external, 0 hermetic) |
+| `c_preprocessor_translation_units` | `pass` | 357 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=10, HOSTED_KERNEL_BRIDGE_64=1); 22 include-only, 2 non-root headers; 17 hosted deferred (17 external, 0 hermetic) |
 
 ## Interpretation limits
 

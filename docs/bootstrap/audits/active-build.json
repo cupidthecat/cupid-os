@@ -964,6 +964,20 @@
       },
       {
         "inputs": [
+          "bin/feature25.cc",
+          "toolchain/build/cupidobj.exe"
+        ],
+        "operation": "wrap_binary_as_elf32_relocatable",
+        "output": "bin/feature25.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap $< -o $@"
+        ],
+        "tools": [
+          "cupid_object"
+        ]
+      },
+      {
+        "inputs": [
           "bin/feature2_top_level.cc",
           "toolchain/build/cupidobj.exe"
         ],
@@ -5381,6 +5395,7 @@
           "bin/feature22_net_server.o",
           "bin/feature23_full_access.o",
           "bin/feature24_widetypes.o",
+          "bin/feature25.o",
           "bin/feature2_top_level.o",
           "bin/feature3_class.o",
           "bin/feature4_forward_calls.o",
@@ -5819,6 +5834,7 @@
           "bin/feature22_net_server.o",
           "bin/feature23_full_access.o",
           "bin/feature24_widetypes.o",
+          "bin/feature25.o",
           "bin/feature2_top_level.o",
           "bin/feature3_class.o",
           "bin/feature4_forward_calls.o",
@@ -7095,6 +7111,7 @@
           "bin/feature22_net_server.cc",
           "bin/feature23_full_access.cc",
           "bin/feature24_widetypes.cc",
+          "bin/feature25.cc",
           "bin/feature2_top_level.cc",
           "bin/feature3_class.cc",
           "bin/feature4_forward_calls.cc",
@@ -7578,8 +7595,8 @@
   },
   "contracts": {
     "bootstrap_artifact_coverage": {
-      "declared_artifacts": 431,
-      "linked_objects": 424,
+      "declared_artifacts": 432,
+      "linked_objects": 425,
       "missing_link_inputs": [],
       "status": "pass"
     },
@@ -8491,7 +8508,7 @@
       "max_conditional_depth": 2,
       "ordinary_marker_occurrences": 2315,
       "pp_token_operand_occurrences": 0,
-      "source_files": 651,
+      "source_files": 652,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -8504,7 +8521,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 651,
+      "source_files": 652,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -9008,7 +9025,7 @@
           "macro_actions": [],
           "mode": "CTOOL_C_PP_MODE_CUPID",
           "name": "CUPID_RUNTIME",
-          "tracked_translation_units": 104
+          "tracked_translation_units": 105
         },
         {
           "forced_includes": [],
@@ -9058,8 +9075,8 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 360,
-      "tracked_translation_units": 356
+      "total_translation_units": 361,
+      "tracked_translation_units": 357
     }
   },
   "features": [
@@ -12979,6 +12996,7 @@
         "bin/ctxt.cc",
         "bin/curl.cc",
         "bin/ed.cc",
+        "bin/feature25.cc",
         "bin/find.cc",
         "bin/fm.cc",
         "bin/godsong.cc",
@@ -13097,7 +13115,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 918
+      "occurrences": 919
     },
     {
       "category": "control",
@@ -13178,6 +13196,11 @@
       "category": "control",
       "examples": [
         {
+          "line": 16,
+          "path": "bin/feature25.cc",
+          "text": "do {"
+        },
+        {
           "line": 135,
           "path": "drivers/rtc.c",
           "text": "do {"
@@ -13186,14 +13209,10 @@
           "line": 193,
           "path": "drivers/rtc.c",
           "text": "do {"
-        },
-        {
-          "line": 359,
-          "path": "kernel/audio/ac97.c",
-          "text": "do {"
         }
       ],
       "files": [
+        "bin/feature25.cc",
         "drivers/rtc.c",
         "kernel/audio/ac97.c",
         "kernel/core/assert.h",
@@ -13231,7 +13250,7 @@
         "toolchain/tests/cupidc_type_contract.c"
       ],
       "id": "c.control.do",
-      "occurrences": 59
+      "occurrences": 60
     },
     {
       "category": "control",
@@ -13297,6 +13316,7 @@
         "bin/feature20_smp.cc",
         "bin/feature21_net.cc",
         "bin/feature23_full_access.cc",
+        "bin/feature25.cc",
         "bin/feature2_top_level.cc",
         "bin/feature3_class.cc",
         "bin/feature4_forward_calls.cc",
@@ -13523,7 +13543,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3316
+      "occurrences": 3317
     },
     {
       "category": "control",
@@ -13907,6 +13927,7 @@
         "bin/feature22_net_server.cc",
         "bin/feature23_full_access.cc",
         "bin/feature24_widetypes.cc",
+        "bin/feature25.cc",
         "bin/feature2_top_level.cc",
         "bin/feature3_class.cc",
         "bin/feature4_forward_calls.cc",
@@ -14209,7 +14230,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 22602
+      "occurrences": 22604
     },
     {
       "category": "control",
@@ -14276,6 +14297,7 @@
         "bin/feature21_net.cc",
         "bin/feature22_net_server.cc",
         "bin/feature24_widetypes.cc",
+        "bin/feature25.cc",
         "bin/feature3_class.cc",
         "bin/feature4_forward_calls.cc",
         "bin/find.cc",
@@ -14559,7 +14581,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 13674
+      "occurrences": 13675
     },
     {
       "category": "control",
@@ -14705,6 +14727,7 @@
         "bin/feature19_usb.cc",
         "bin/feature20_smp.cc",
         "bin/feature23_full_access.cc",
+        "bin/feature25.cc",
         "bin/find.cc",
         "bin/fm.cc",
         "bin/fontswitch.cc",
@@ -14919,7 +14942,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2485
+      "occurrences": 2486
     },
     {
       "category": "declaration",
@@ -19747,6 +19770,7 @@
         "bin/feature19_usb.cc",
         "bin/feature1_types.cc",
         "bin/feature24_widetypes.cc",
+        "bin/feature25.cc",
         "bin/find.cc",
         "bin/fm.cc",
         "bin/fontswitch.cc",
@@ -20184,7 +20208,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18637
+      "occurrences": 18642
     },
     {
       "category": "type",
@@ -21089,6 +21113,7 @@
         "bin/feature19_usb.cc",
         "bin/feature1_types.cc",
         "bin/feature24_widetypes.cc",
+        "bin/feature25.cc",
         "bin/feature2_top_level.cc",
         "bin/feature3_class.cc",
         "bin/feature4_forward_calls.cc",
@@ -21587,7 +21612,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 9042
+      "occurrences": 9043
     },
     {
       "category": "declaration",
@@ -21714,6 +21739,7 @@
         "bin/feature22_net_server.cc",
         "bin/feature23_full_access.cc",
         "bin/feature24_widetypes.cc",
+        "bin/feature25.cc",
         "bin/feature2_top_level.cc",
         "bin/feature3_class.cc",
         "bin/feature4_forward_calls.cc",
@@ -21779,7 +21805,7 @@
         "bin/yield.cc"
       ],
       "id": "cupid_c.delivery.embedded_source",
-      "occurrences": 126
+      "occurrences": 127
     },
     {
       "category": "directive",
@@ -22197,7 +22223,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "88d5ee47265029056ef8596412a202a282067e69b55a9610c3c7146954e89b0e",
+    "active_source_digest": "ed149613a669ab63071dd1b67a67f340309fab93036f7df8529d439bd2babb3c",
     "control_files": [
       {
         "path": "Makefile",
@@ -22214,7 +22240,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "56824c50dd8042b3f6b1cf13dc671f25dc5fe262a6f29c09b4be8fbaa4f79ff9"
+      "sha256": "131f65463e6e7e3f847dfa6a20cb17552f1333ead5219efb6d468f421d18bafa"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -22641,7 +22667,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 624,
+        "source_count": 625,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -22750,7 +22776,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 128,
+        "source_count": 129,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -22901,7 +22927,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 150
+        "source_count": 151
       }
     ]
   },
@@ -24786,6 +24812,35 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
       "sha256": "5bb7dcfd297af5ce658a6b06fff65ef8ea0156e061bc21399e20898bf7f555a7"
+    },
+    {
+      "build_owners": [
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_program",
+      "features": [
+        "c.control.continue",
+        "c.control.do",
+        "c.control.else",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_source"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 37,
+      "origin": "tracked",
+      "path": "bin/feature25.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "a72a636eba4d725476b42ba63f19ed46328aa0146aeff978f499ed26427c6cb5"
     },
     {
       "build_owners": [
@@ -41428,12 +41483,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "c",
-      "lines": 7362,
+      "lines": 7371,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "f4436b67d0b5454447dfb06fec743f34f59b8f465fc06973fecfe31c3c6889dd"
+      "sha256": "855a2acfa7465d82e38d3dd1ab46959ade9862d4b87a5b9ad1b486a5812dc309"
     },
     {
       "build_owners": [
@@ -46041,7 +46096,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "e4bbd4040d830db08b791dd6eb49309d575fe78eaa3a7682189ed220eb420d50"
+      "sha256": "386e7236b45fd3d4cbd2831d3f6d25dc2a36aa481d7286f5b2e2fa5c08a0fb05"
     },
     {
       "build_owners": [
@@ -46478,9 +46533,9 @@
     }
   ],
   "summary": {
-    "active_sources": 681,
+    "active_sources": 682,
     "features": 251,
-    "transforms": 491,
+    "transforms": 492,
     "unreachable_sources": 39
   },
   "supplemental_builds": [
