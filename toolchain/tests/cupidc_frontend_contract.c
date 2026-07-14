@@ -4532,10 +4532,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        1984u, 39u, 21u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_ERR_UNSUPPORTED, 12914u, 38u,
-       CTOOL_C_PARSE_DIAG_EXPRESSION,
-       "integer null pointer conversion is outside this expression slice",
-       0u, 0u, 0u, 0u, 0u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 274u,
+       10112u, 64312u, 1488u, 1059u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -5127,6 +5125,8 @@ static char *build_static_initializer_depth_source(ctool_u32 depth) {
 
 static int validate_static_initializer_unit(
     const ctool_c_translation_unit_t *unit);
+static int validate_static_pointer_initializer_unit(
+    const ctool_c_translation_unit_t *unit);
 
 static int run_static_initializers(const char *host_root) {
   static const char source[] =
@@ -5163,6 +5163,22 @@ static int run_static_initializers(const char *host_root) {
       "int second_static(void) {\n"
       "  static int folded = 11;\n"
       "  return folded;\n"
+      "}\n";
+  static const char pointer_source[] =
+      "typedef int callback_t(void);\n"
+      "typedef struct { int *pointer; callback_t *callback; } holder_t;\n"
+      "void static_nulls(void) {\n"
+      "  static int *literal = 0;\n"
+      "  static int *arithmetic = 1 - 1;\n"
+      "  static int *unsigned_wrap = 0u - 1u + 1u;\n"
+      "  static int *logical = 0 && (1 / 0);\n"
+      "  static int *conditional = 1 ? 0 : (1 / 0);\n"
+      "  static int *void_cast = (void *)(1 - 1);\n"
+      "  static int *qualified_void_cast = (void * const)0;\n"
+      "  static callback_t *function = (void *)0;\n"
+      "  static int *braced = {{0},};\n"
+      "  static int *array[2] = {0, (void *)0};\n"
+      "  static holder_t holder = {0, (void *)0};\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"pending static object shadows enumerator",
@@ -5342,9 +5358,36 @@ static int run_static_initializers(const char *host_root) {
        2u, 23u,
        "floating arithmetic static initialization is outside this "
        "constant-data slice"},
-      {{"null pointer constant boundary",
+      {{"nonzero static pointer integer",
         "void bad(void) {\n"
-        "  static int *pointer = 0;\n"
+        "  static int *pointer = 1;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u,
+       "static pointer initializer requires a null pointer constant"},
+      {{"typed static address constant boundary",
+        "void bad(void) {\n"
+        "  static int *pointer = (int *)0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u, "static pointer initialization awaits address constants"},
+      {{"void static address constant boundary",
+        "void bad(void) {\n"
+        "  static int *pointer = (void *)1;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 25u, "static pointer initialization awaits address constants"},
+      {{"call prevents static null constant",
+        "int make(void);\n"
+        "void bad(void) {\n"
+        "  static int *pointer = 0 && make();\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 25u,
+       "static pointer initializer requires a null pointer constant"},
+      {{"atomic cast is not a static null constant",
+        "void bad(void) {\n"
+        "  static int *pointer = (void * _Atomic)0;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 25u, "static pointer initialization awaits address constants"},
@@ -5368,6 +5411,7 @@ static int run_static_initializers(const char *host_root) {
        2u, 20u, "array element count must be nonzero"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t pointer_unit;
   ctool_c_translation_unit_t depth_unit;
   char *depth_success = NULL;
   char *depth_failure = NULL;
@@ -5382,7 +5426,10 @@ static int run_static_initializers(const char *host_root) {
   fixture.parse_request.gnu_extensions = CTOOL_FALSE;
   if (parse_valid_fixture(&fixture, "/static-initializers.c", source,
                           &unit) == 0 &&
-      validate_static_initializer_unit(&unit) == 0) {
+      validate_static_initializer_unit(&unit) == 0 &&
+      parse_valid_fixture(&fixture, "/static-pointer-initializers.c",
+                          pointer_source, &pointer_unit) == 0 &&
+      validate_static_pointer_initializer_unit(&pointer_unit) == 0) {
     for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
       const frontend_exact_failure_case_t *test_case =
           &failure_cases[index];
@@ -5390,7 +5437,8 @@ static int run_static_initializers(const char *host_root) {
               &fixture, &test_case->failure,
               "/static-initializer-failure.c", test_case->line,
               test_case->column, test_case->message) != 0 ||
-          validate_static_initializer_unit(&unit) != 0) {
+          validate_static_initializer_unit(&unit) != 0 ||
+          validate_static_pointer_initializer_unit(&pointer_unit) != 0) {
         goto cleanup;
       }
     }
@@ -6222,8 +6270,8 @@ static int validate_automatic_aggregate_initializer_unit(
   ctool_bool saw_postfix_increment = CTOOL_FALSE;
   ctool_u32 index;
 
-  if (unit->block_binding_count != 19u || unit->initializer_count != 63u ||
-      unit->initializer_element_count != 44u ||
+  if (unit->block_binding_count != 20u || unit->initializer_count != 66u ||
+      unit->initializer_element_count != 46u ||
       unit->function_definition_count != 3u ||
       incoming_parameter == CTOOL_C_AST_NONE ||
       runtime_binding_index == CTOOL_C_AST_NONE ||
@@ -6296,8 +6344,8 @@ static int validate_automatic_aggregate_initializer_unit(
       return 1;
     }
   }
-  if (expression_initializers != 35u || string_initializers != 4u ||
-      list_initializers != 24u) {
+  if (expression_initializers != 37u || string_initializers != 4u ||
+      list_initializers != 25u) {
     (void)fprintf(stderr,
                   "automatic-aggregate-initializers: initializer forest "
                   "differs\n");
@@ -6652,6 +6700,26 @@ static int validate_automatic_aggregate_initializer_unit(
                   "member differs\n");
     return 1;
   }
+  root = automatic_aggregate_root(unit, "explicit_pointer", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 1u,
+                                       record->first_member + 1u);
+  terminal = automatic_aggregate_expression_leaf(
+      unit, child,
+      record == NULL ? CTOOL_C_TYPE_NONE
+                     : unit->graph.members[record->first_member + 1u].type);
+  if (record == NULL || record->member_count != 2u || terminal == NULL ||
+      terminal->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      terminal->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+      terminal->type !=
+          unit->graph.members[record->first_member + 1u].type) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: explicit pointer "
+                  "member differs\n");
+    return 1;
+  }
   root = automatic_aggregate_root(unit, "omitted_pointer", &binding);
   record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
   child = record == NULL
@@ -6959,6 +7027,7 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
       "  pair_t trailing = {14, 15u,};\n"
       "  flexible_t flexible = {runtime};\n"
       "  pointer_tail_t omitted_pointer = {0};\n"
+      "  pointer_tail_t explicit_pointer = {0, 0};\n"
       "  return calls;\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
@@ -7041,14 +7110,6 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        2u, 18u, "string initializer is too long for character array"},
-      {{"explicit null pointer leaf",
-        "typedef struct { int *pointer; int tail; } pointer_t;\n"
-        "void bad(void) {\n"
-        "  pointer_t value = {0};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       3u, 22u,
-       "integer null pointer conversion is outside this expression slice"},
       {{"nested incomplete array element",
         "typedef int row_t[];\n"
         "void bad(void) {\n"
@@ -8370,6 +8431,80 @@ static int validate_static_initializer_unit(
       (void)fprintf(stderr,
                     "static-initializers: binding %u lost object identity\n",
                     index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_static_pointer_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const scalar_names[] = {
+      "literal", "arithmetic", "unsigned_wrap", "logical", "conditional",
+      "void_cast", "qualified_void_cast", "function", "braced"};
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *root;
+  const ctool_c_initializer_t *child;
+  const ctool_c_type_node_t *type;
+  ctool_u32 index;
+  if (unit->block_binding_count != 11u || unit->initializer_count != 15u ||
+      unit->initializer_element_count != 4u ||
+      unit->function_definition_count != 1u || unit->expression_count != 0u ||
+      unit->expression_child_count != 0u) {
+    (void)fprintf(stderr,
+                  "static-initializers: pointer inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(scalar_names); index++) {
+    binding = find_block_binding(unit, scalar_names[index]);
+    root = binding == NULL ? NULL
+                           : initializer_node(unit, binding->initializer);
+    if (binding == NULL || binding->storage != CTOOL_C_STORAGE_STATIC ||
+        root == NULL || root->kind != CTOOL_C_INITIALIZER_ZERO ||
+        root->type != binding->type || root->expression != CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr,
+                    "static-initializers: pointer scalar %u differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  binding = find_block_binding(unit, "array");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  type = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (type == NULL || type->kind != CTOOL_C_TYPE_ARRAY ||
+      type->element_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "static-initializers: pointer array differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    child = initializer_list_child(unit, root, index, index);
+    if (child == NULL || child->kind != CTOOL_C_INITIALIZER_ZERO ||
+        child->type != type->referenced_type) {
+      (void)fprintf(stderr,
+                    "static-initializers: pointer array leaf differs\n");
+      return 1;
+    }
+  }
+  binding = find_block_binding(unit, "holder");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  type = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (type == NULL || type->kind != CTOOL_C_TYPE_RECORD ||
+      type->member_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "static-initializers: pointer record differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    ctool_u32 member = type->first_member + index;
+    child = initializer_list_child(unit, root, index, member);
+    if (member >= unit->graph.member_count || child == NULL ||
+        child->kind != CTOOL_C_INITIALIZER_ZERO ||
+        child->type != unit->graph.members[member].type) {
+      (void)fprintf(stderr,
+                    "static-initializers: pointer record leaf differs\n");
       return 1;
     }
   }
@@ -11990,7 +12125,19 @@ static int validate_pointer_comparison_unit(
       {"equal_mixed_atomic", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
       {"relate_mixed_atomic", CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL},
       {"compare_void_call", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
-      {"compare_void_nested", CTOOL_C_EXPRESSION_OPERATOR_EQUAL}};
+      {"compare_void_nested", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_literal", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_reverse", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_arithmetic", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_unsigned_wrap", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_enum", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_character", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_sizeof", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_logical", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_null_conditional", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_void_null", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"equal_function_void_null", CTOOL_C_EXPRESSION_OPERATOR_EQUAL},
+      {"compare_void_skipped_call", CTOOL_C_EXPRESSION_OPERATOR_EQUAL}};
   static const struct {
     const char *name;
     ctool_u32 object_child;
@@ -11999,16 +12146,38 @@ static int validate_pointer_comparison_unit(
       {"unequal_void_reverse", 1u},
       {"equal_atomic_void", 0u},
       {"compare_void_call", 0u},
-      {"compare_void_nested", 0u}};
+      {"compare_void_nested", 0u},
+      {"compare_void_skipped_call", 0u}};
   static const char *const return_conversion_functions[] = {
       "object_to_void", "void_to_object", "qualified_object_to_void",
       "qualified_void_to_object", "incomplete_to_void",
       "void_to_incomplete", "return_void_call", "return_void_nested"};
+  static const struct {
+    const char *name;
+    ctool_u32 null_child;
+  } null_comparison_functions[] = {
+      {"equal_null_literal", 1u},
+      {"equal_null_reverse", 0u},
+      {"equal_null_arithmetic", 1u},
+      {"equal_null_unsigned_wrap", 1u},
+      {"equal_null_enum", 1u},
+      {"equal_null_character", 1u},
+      {"equal_null_sizeof", 1u},
+      {"equal_null_logical", 1u},
+      {"equal_null_conditional", 1u},
+      {"equal_void_null", 1u},
+      {"equal_function_void_null", 1u}};
+  static const char *const null_return_conversion_functions[] = {
+      "return_null_literal", "return_integer_cast_null", "return_void_null",
+      "return_typedef_void_null", "return_qualified_void_null",
+      "return_function_null", "return_incomplete_null",
+      "return_atomic_null"};
 
   ctool_u32 index;
   if (unit->function_definition_count !=
       ARRAY_COUNT(comparison_cases) +
-          ARRAY_COUNT(return_conversion_functions) + 3u) {
+          ARRAY_COUNT(return_conversion_functions) +
+          ARRAY_COUNT(null_return_conversion_functions) + 6u) {
     (void)fprintf(stderr,
                   "pointer-comparisons: function inventory differs\n");
     return 1;
@@ -12026,6 +12195,41 @@ static int validate_pointer_comparison_unit(
             CTOOL_C_TYPE_SIGNED_INT) {
       (void)fprintf(stderr,
                     "pointer-comparisons: comparison %u differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(null_comparison_functions); index++) {
+    ctool_u32 root =
+        pointer_return_root(unit, null_comparison_functions[index].name);
+    const ctool_c_expression_t *comparison =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    ctool_u32 pointer_child =
+        comparison == NULL ? CTOOL_C_AST_NONE
+                           : expression_child(
+                                 unit, comparison,
+                                 1u - null_comparison_functions[index]
+                                          .null_child);
+    ctool_u32 null_child =
+        comparison == NULL ? CTOOL_C_AST_NONE
+                           : expression_child(
+                                 unit, comparison,
+                                 null_comparison_functions[index].null_child);
+    const ctool_c_expression_t *conversion =
+        null_child < unit->expression_count
+            ? &unit->expressions[null_child]
+            : NULL;
+    ctool_u32 source_child =
+        conversion == NULL ? CTOOL_C_AST_NONE
+                           : expression_child(unit, conversion, 0u);
+    if (pointer_child >= unit->expression_count || conversion == NULL ||
+        conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        conversion->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+        conversion->child_count != 1u ||
+        conversion->type != unit->expressions[pointer_child].type ||
+        source_child >= unit->expression_count) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: null conversion %u differs\n",
                     (unsigned int)index);
       return 1;
     }
@@ -12116,6 +12320,26 @@ static int validate_pointer_comparison_unit(
                       (unsigned int)index);
         return 1;
       }
+    }
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(null_return_conversion_functions); index++) {
+    const ctool_c_statement_t *statement = find_single_return_statement(
+        unit, null_return_conversion_functions[index]);
+    ctool_u32 expected_type = pointer_function_result_type(
+        unit, null_return_conversion_functions[index]);
+    ctool_u32 root = statement == NULL ? CTOOL_C_AST_NONE
+                                       : statement->expression;
+    const ctool_c_expression_t *conversion =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    if (conversion == NULL ||
+        conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        conversion->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+        conversion->child_count != 1u || conversion->type != expected_type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: null return %u differs\n",
+                    (unsigned int)index);
+      return 1;
     }
   }
   {
@@ -12285,14 +12509,74 @@ static int validate_pointer_comparison_unit(
       return 1;
     }
   }
+  {
+    const ctool_c_block_binding_t *binding =
+        find_block_binding(unit, "converted_null");
+    ctool_u32 initializer = block_initializer_expression(unit, binding);
+    const ctool_c_expression_t *conversion =
+        initializer < unit->expression_count
+            ? &unit->expressions[initializer]
+            : NULL;
+    if (binding == NULL || conversion == NULL ||
+        conversion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        conversion->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+        conversion->type != binding->type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: null initializer differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_statement_t *statement =
+        pointer_expression_statement(unit, "assign_null");
+    const ctool_c_expression_t *assignment =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    ctool_u32 right = assignment == NULL
+                          ? CTOOL_C_AST_NONE
+                          : expression_child(unit, assignment, 1u);
+    if (assignment == NULL || right >= unit->expression_count ||
+        unit->expressions[right].kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        unit->expressions[right].conversion !=
+            CTOOL_C_CONVERSION_NULL_POINTER ||
+        unit->expressions[right].type != assignment->type) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: null assignment differs\n");
+      return 1;
+    }
+  }
+  {
+    const ctool_c_statement_t *statement =
+        pointer_expression_statement(unit, "pass_null");
+    const ctool_c_expression_t *call =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    ctool_u32 argument =
+        call == NULL ? CTOOL_C_AST_NONE : expression_child(unit, call, 1u);
+    if (call == NULL || call->kind != CTOOL_C_EXPRESSION_CALL ||
+        argument >= unit->expression_count ||
+        unit->expressions[argument].kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        unit->expressions[argument].conversion !=
+            CTOOL_C_CONVERSION_NULL_POINTER) {
+      (void)fprintf(stderr,
+                    "pointer-comparisons: null call argument differs\n");
+      return 1;
+    }
+  }
   return 0;
 }
 
 static int run_pointer_comparisons(const char *host_root) {
-  static const char source[] =
+  static const char source_prefix[] =
       "struct item { int value; };\n"
       "struct pending;\n"
       "typedef int callback_t(void);\n"
+      "typedef void *void_pointer_t;\n"
+      "enum { NULL_ENUM = 3 - 3 };\n"
       "int equal_object(int *left, int *right) { return left == right; }\n"
       "int unequal_qualified(const int *left, volatile int *right) { return left != right; }\n"
       "int less_object(struct item *left, const struct item *right) { return left < right; }\n"
@@ -12317,7 +12601,20 @@ static int run_pointer_comparisons(const char *host_root) {
       "int relate_mixed_atomic(volatile _Atomic int *left, int *right) { return left >= right; }\n"
       "int make_integer(void);\n"
       "int compare_void_call(int *pointer) { return pointer == (void *)make_integer(); }\n"
-      "int compare_void_nested(int *pointer, int value) { return pointer == (void *)(value + 1); }\n"
+      "int compare_void_nested(int *pointer, int value) { return pointer == (void *)(value + 1); }\n";
+  static const char source_suffix[] =
+      "int equal_null_literal(int *pointer) { return pointer == 0; }\n"
+      "int equal_null_reverse(int *pointer) { return 0 == pointer; }\n"
+      "int equal_null_arithmetic(int *pointer) { return pointer == 1 - 1; }\n"
+      "int equal_null_unsigned_wrap(int *pointer) { return pointer == (0u - 1u + 1u); }\n"
+      "int equal_null_enum(int *pointer) { return pointer == NULL_ENUM; }\n"
+      "int equal_null_character(int *pointer) { return pointer == '\\0'; }\n"
+      "int equal_null_sizeof(int *pointer) { return pointer == (sizeof(char) - 1u); }\n"
+      "int equal_null_logical(int *pointer) { return pointer == (0 && (1 / 0)); }\n"
+      "int equal_null_conditional(int *pointer) { return pointer == (1 ? 0 : (1 / 0)); }\n"
+      "int equal_void_null(int *pointer) { return pointer == (void *)0; }\n"
+      "int equal_function_void_null(callback_t *pointer) { return pointer == (void *)0; }\n"
+      "int compare_void_skipped_call(int *pointer) { return pointer == (void *)(0 && make_integer()); }\n"
       "void *object_to_void(int *value) { return value; }\n"
       "int *void_to_object(void *value) { return value; }\n"
       "const void *qualified_object_to_void(const int *value) { return value; }\n"
@@ -12326,10 +12623,22 @@ static int run_pointer_comparisons(const char *host_root) {
       "struct pending *void_to_incomplete(void *value) { return value; }\n"
       "int *return_void_call(void) { return (void *)make_integer(); }\n"
       "int *return_void_nested(int value) { return (void *)(value + 1); }\n"
+      "int *return_null_literal(void) { return 0; }\n"
+      "int *return_integer_cast_null(void) { return (_Bool)0; }\n"
+      "int *return_void_null(void) { return (void *)0; }\n"
+      "int *return_typedef_void_null(void) { return (void_pointer_t)0; }\n"
+      "int *return_qualified_void_null(void) { return (void * const)0; }\n"
+      "callback_t *return_function_null(void) { return (void *)0; }\n"
+      "struct pending *return_incomplete_null(void) { return 0; }\n"
+      "_Atomic int *return_atomic_null(void) { return (void *)0; }\n"
       "void consume_void(void *value);\n"
+      "void consume_pointer(int *value);\n"
       "void pass_object(int *value) { consume_void(value); }\n"
+      "void pass_null(void) { consume_pointer(0); }\n"
       "void initialize_object(int *value) { void *converted_object = value; }\n"
-      "void assign_object(void *destination, int *value) { destination = value; }\n";
+      "void initialize_null(void) { int *converted_null = 0; }\n"
+      "void assign_object(void *destination, int *value) { destination = value; }\n"
+      "void assign_null(int *destination) { destination = 0; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"incompatible pointer equality",
         "int bad(int *left, long *right) { return left == right; }\n",
@@ -12361,21 +12670,6 @@ static int run_pointer_comparisons(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "pointer equality requires compatible pointers, an object and void pointer pair, or a null pointer constant"},
-      {{"object and void-cast null equality",
-        "int bad(int *pointer) { return pointer == (void *)0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
-      {{"function and void-cast null equality",
-        "typedef int callback_t(void); int bad(callback_t *pointer) { return pointer == (void *)0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
-      {{"null pointer constant boundary",
-        "int bad(int *pointer) { return pointer == 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "pointer and integer comparison awaits null pointer constant semantics"},
       {{"nonzero integer constant",
         "int bad(int *pointer) { return pointer == 1; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -12408,19 +12702,19 @@ static int run_pointer_comparisons(const char *host_root) {
        "pointer equality requires a pointer and a null pointer constant"},
       {{"unevaluated call null boundary",
         "int make_integer(void); int bad(int *pointer) { return pointer == (0 && make_integer()); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "pointer and integer comparison awaits null pointer constant semantics"},
+       "pointer equality requires a pointer and a null pointer constant"},
       {{"evaluated logical object",
         "int bad(int *pointer, int value) { return pointer == (value && 0); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "pointer equality requires a pointer and a null pointer constant"},
-      {{"void-cast unevaluated call null boundary",
-        "int make_integer(void); int bad(int *pointer) { return pointer == (void *)(0 && make_integer()); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {{"selected invalid arithmetic",
+        "int bad(int *pointer) { return pointer == (0 ? 0 : (1 / 0)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
+       "pointer equality requires a pointer and a null pointer constant"},
       {{"relational pointer and integer",
         "int bad(int *pointer) { return pointer < 0; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -12470,21 +12764,6 @@ static int run_pointer_comparisons(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_TYPE_DIAG_INVALID_TYPE},
        0u, 0u,
        "atomic qualified type requires a supported scalar, pointer, or enum type"},
-      {{"void-cast null to function pointer",
-        "typedef int callback_t(void); callback_t *bad(void) { return (void *)0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
-      {{"void-cast null to object pointer",
-        "int *bad(void) { return (void *)0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
-      {{"void-cast null to atomic pointer",
-        "_Atomic int *bad(void) { return (void *)0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "void-cast null pointer constant conversion is outside this expression slice"},
       {{"initializer qualifier discard",
         "void bad(const int *value) { void *converted = value; }\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -12495,39 +12774,53 @@ static int run_pointer_comparisons(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "return expression is not convertible to function result type"},
-      {{"return null pointer conversion boundary",
-        "int *bad(void) { return 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer null pointer conversion is outside this expression slice"},
-      {{"initializer null pointer conversion boundary",
-        "void bad(void) { int *value = 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer null pointer conversion is outside this expression slice"},
-      {{"assignment null pointer conversion boundary",
-        "void bad(int *value) { value = 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer null pointer conversion is outside this expression slice"},
-      {{"call null pointer conversion boundary",
-        "void consume(int *value); void bad(void) { consume(0); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer null pointer conversion is outside this expression slice"},
       {{"nonzero integer pointer return",
         "int *bad(void) { return 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"qualified void cast is not a null pointer constant",
+        "typedef int callback_t(void); callback_t *bad(void) { return (const void *)0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic void pointer cast is not a null pointer constant",
+        "typedef int callback_t(void); callback_t *bad(void) { return (void * _Atomic)0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"atomic integer cast is not a null pointer constant",
+        "int *bad(void) { return (_Atomic int)0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"nonzero void cast is not a null pointer constant",
+        "typedef int callback_t(void); callback_t *bad(void) { return (void *)1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "return expression is not convertible to function result type"},
+      {{"typed null is not a null pointer constant",
+        "long *bad(void) { return (int *)0; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "return expression is not convertible to function result type"},
   };
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  char *source = NULL;
   ctool_u32 index;
   int failed = 1;
 
+  source = (char *)malloc(sizeof(source_prefix) + sizeof(source_suffix) - 1u);
+  if (source == NULL) {
+    return 1;
+  }
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
   if (begin_frontend_fixture(&fixture, "pointer-comparisons", host_root,
                              16u * 1024u * 1024u) != 0) {
+    free(source);
     return 1;
   }
   fixture.pp_request.gnu_extensions = CTOOL_FALSE;
@@ -12550,6 +12843,7 @@ static int run_pointer_comparisons(const char *host_root) {
   if (finish_frontend_fixture(&fixture) != 0) {
     failed = 1;
   }
+  free(source);
   if (failed == 0) {
     (void)printf("pointer-comparisons: ok\n");
   }
@@ -16143,6 +16437,40 @@ static int validate_conditional_unit(
                   "conditional-expressions: void conditional differs\n");
     return 1;
   }
+  {
+    static const struct {
+      const char *name;
+      ctool_u32 null_child;
+    } null_cases[] = {{"null_choice", 2u},
+                      {"null_choice_reverse", 1u},
+                      {"nested_null_choice", 2u},
+                      {"void_null_choice", 2u},
+                      {"function_null_choice", 2u}};
+    ctool_u32 index;
+    for (index = 0u; index < ARRAY_COUNT(null_cases); index++) {
+      if (conditional_shape(unit, null_cases[index].name,
+                            CTOOL_C_TYPE_POINTER, &root) != 0) {
+        (void)fprintf(stderr,
+                      "conditional-expressions: null shape %u differs\n",
+                      (unsigned int)index);
+        return 1;
+      }
+      expression = &unit->expressions[root];
+      when_zero = expression_child(unit, expression,
+                                   null_cases[index].null_child);
+      if (when_zero >= unit->expression_count ||
+          unit->expressions[when_zero].kind !=
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          unit->expressions[when_zero].conversion !=
+              CTOOL_C_CONVERSION_NULL_POINTER ||
+          unit->expressions[when_zero].type != expression->type) {
+        (void)fprintf(stderr,
+                      "conditional-expressions: null arm %u differs\n",
+                      (unsigned int)index);
+        return 1;
+      }
+    }
+  }
   return 0;
 }
 
@@ -16263,6 +16591,11 @@ static int run_conditional_expressions(const char *host_root) {
       "callback_t *function_choice(int condition) { return condition ? callback_one : callback_two; }\n"
       "const volatile int *qualified_choice(int condition, const int *left, volatile int *right) { return condition ? left : right; }\n"
       "const volatile void *void_choice(int condition, const int *object, volatile void *other) { return condition ? object : other; }\n"
+      "int *null_choice(int condition, int *pointer) { return condition ? pointer : 0; }\n"
+      "int *null_choice_reverse(int condition, int *pointer) { return condition ? 0 : pointer; }\n"
+      "int *nested_null_choice(int condition, int *pointer) { return condition ? pointer : (1 ? 0 : 1); }\n"
+      "int *void_null_choice(int condition, int *pointer) { return condition ? pointer : (void *)0; }\n"
+      "callback_t *function_null_choice(int condition) { return condition ? callback_one : (void *)0; }\n"
       "void void_choice_values(int condition) { condition ? (void)0 : (void)0; }\n";
   static const char constant_source[] =
       "enum conditional_values {\n"
@@ -16311,11 +16644,6 @@ static int run_conditional_expressions(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 55u,
        "address operator requires an object lvalue or function designator"},
-      {{"conditional null pointer boundary",
-        "int *bad(int condition, int *pointer) { return condition ? pointer : 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 58u,
-       "conditional pointer and integer operands await null pointer constant semantics"},
       {{"conditional nonzero pointer integer",
         "int *bad(int condition, int *pointer) { return condition ? pointer : 1; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -16326,11 +16654,6 @@ static int run_conditional_expressions(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 58u,
        "conditional pointer and integer operands require a null pointer constant"},
-      {{"conditional selected nested zero",
-        "int *bad(int condition, int *pointer) { return condition ? pointer : (1 ? 0 : 1); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 58u,
-       "conditional pointer and integer operands await null pointer constant semantics"},
       {{"conditional floating arms",
         "void bad(int condition, double left, double right) { condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},

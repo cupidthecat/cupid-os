@@ -296,7 +296,9 @@ typedef enum {
   CTOOL_C_CONVERSION_ASSIGNMENT,
   /* Object pointer converted to or from a qualified or unqualified void
    * pointer for equality or assignment conversion. */
-  CTOOL_C_CONVERSION_POINTER
+  CTOOL_C_CONVERSION_POINTER,
+  /* C11 null pointer constant converted to its destination pointer type. */
+  CTOOL_C_CONVERSION_NULL_POINTER
 } ctool_c_conversion_kind_t;
 
 typedef struct {
@@ -448,7 +450,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * whole-object record expressions, narrow character-array strings, and
  * recursive nondesignated array or structure lists whose leaves retain
  * runtime scalar or compatible record-valued assignment expressions;
- * block-scope static objects with implicit zero,
+ * block-scope static objects with implicit or explicit pointer zero,
  * target-converted integer constants, narrow character-array strings,
  * direct narrow-string address constants, and matching recursive lists.
  * Lists retain explicit subobjects in postorder, apply brace elision, leave
@@ -463,7 +465,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * increment/decrement, right-associative C11 conditional values including
  * same-record results, fixed-argument prototyped calls; and explicit lvalue,
  * array, function, qualification, integer promotion, usual-arithmetic, and
- * assignment conversions. Block bindings use
+ * assignment and null-pointer conversions. Block bindings use
  * lexical scope, share the outer function-body scope with definition
  * parameters, and retain stable public indices after their scopes close. Lvalue
  * conversion removes top-level const, volatile, and atomic qualification while
@@ -492,8 +494,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * File-scope object initializers, designated and union lists, address
  * constants other than direct narrow strings, floating constants,
  * static-data allocation, and relocation lowering remain pending. Comma
- * expressions, pointer null-pointer-constant conversions, floating arithmetic
- * and non-void conversions,
+ * expressions, floating arithmetic and non-void conversions,
  * universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than

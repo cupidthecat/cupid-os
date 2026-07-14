@@ -2282,3 +2282,50 @@ The regenerated graph remains 682 active sources, 251 feature IDs, 492 transform
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
 This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, null-pointer and floating semantics, non-string address constants, file-scope initialization, static-data and relocation lowering, complete IR and code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-13: C11 null pointer constants in the shared CupidC frontend
+
+### Decision and representation
+
+The shared frontend now recognizes a represented C11 integer constant expression whose target value is zero as a null pointer constant. The same expression cast to a non-atomic pointer to unqualified `void` also qualifies. Runtime expression values carry private form, value-validity, and target-value metadata while they are parsed. The public AST remains a typed runtime tree rather than a folded constant tree.
+
+Keeping form and value validity separate matters for selected evaluation. `0 && (1 / 0)` has a valid zero result because the invalid division is skipped. `0 && make()` is not an integer constant expression because its syntax still contains a call. Likewise, `1 ? 0 : (1 / 0)` selects a valid zero while `0 ? 0 : (1 / 0)` does not produce a valid constant value. Integer promotions, usual arithmetic conversions, integer casts, comparisons, bitwise operations, logical short circuit, and conditional selection carry the metadata through the represented grammar.
+
+A literal-only shortcut was rejected because active source already needed `{0}`, and the next source-driven steps would immediately need arithmetic, enumerators, casts, and folded layout queries. The earlier iterative AST disqualifier walk was also removed. It could prove that some expressions were not constants, but it could not represent exact target values or distinguish an invalid selected operation from an invalid operation in a skipped branch. The private metadata follows parsing decisions directly and leaves the immutable AST interface unchanged.
+
+Runtime conversions now use `CTOOL_C_CONVERSION_NULL_POINTER` with the destination pointer type. The assignment-conversion path supplies it for returns, fixed arguments, automatic initializers, and assignments. Pointer equality and conditional pointer results use the same representation when a null operand needs the other pointer's type. Static explicit nulls use destination-typed `CTOOL_C_INITIALIZER_ZERO` records instead, and their temporary expression and child records are rewound. Explicit static null children are valid in array and structure lists; omitted subobjects still have no edge and remain implicitly zero. Automatic initializer forests continue to reject `ZERO` records.
+
+Two atomic holes appeared during negative testing. `(void * _Atomic)0` was first accepted because the check considered the referent but missed atomic qualification on the pointer wrapper. `(_Atomic int)0` also retained integer-constant-expression status. The final checks include both wrapper and base-node qualification, so neither form qualifies. Casts to `const void *`, typed object pointers, and nonzero `void *` values also remain outside the null-pointer-constant definition.
+
+The diagnostic boundary is accurate but still broad for one class of static failures. A selected invalid arithmetic operation such as `1 / 0` in a pointer initializer currently reports that the initializer requires a null pointer constant instead of naming the arithmetic fault. The operation is rejected correctly; a more specific constant-expression diagnostic remains future work.
+
+No user question was needed. C11 fixes the null-pointer-constant definition and conversion contexts, while ADRs 0003, 0013, and 0014 already fix the target integer model, typed postorder AST, initializer forest, and transactional ownership rules.
+
+### Contracts and hosted-source progress
+
+The pointer contract covers zero-valued literals, arithmetic, unsigned wrap, enumerators, character constants, folded `sizeof`, logical and conditional selected evaluation, exact `void *` casts, function and incomplete-object pointers, atomic referents, typedef spellings, and top-level pointer qualification. It checks both operand orders and exact destination types across comparisons, returns, fixed calls, automatic initialization, and assignments. Negative cases cover nonzero values, lvalue-converted objects, calls, assignments, updates, calls in skipped logical operands, selected invalid arithmetic, qualified or atomic `void` casts, atomic integer casts, typed object-pointer casts, and relational pointer/integer comparisons.
+
+The focused automatic aggregate unit now contains 20 block bindings, 66 initializers, and 46 direct edges after adding an explicit pointer member. Its runtime leaf ends in a destination-typed null conversion. The separate static pointer unit contains 11 bindings, 15 initializers, and four edges. Every explicit scalar, array, and structure null is a `ZERO` record, and the temporary expression tape is empty after parsing.
+
+The source-driven result closes the sixth established hosted Toolchain gate without changing `toolchain/cupidc_frontend.c` to suit the parser. That unchanged source now publishes 274 definitions, 10,112 statements, 64,312 expressions, 1,488 block bindings, and 1,059 initializers. All six tracked shared Toolchain sources parse completely.
+
+Regenerating the active build graph keeps 682 active sources, 251 feature IDs, 492 transforms, 39 accounted unreachable source-like files, 432 declared artifacts, and 425 final-link objects. It records 399 lexical `goto` occurrences in 22 files, 60 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,485 `while`, 22,726 `if`, 3,336 `else`, 2,831 `for`, 13,770 `return`, and 1,937 `sizeof` occurrences. The SHA-256 digest of `active-build.json` is `9ff9040f219bac81c5b50154a09967d2fa956609d43ff84fa0569246367971ae`.
+
+The first full repository run exposed one stale audit oracle: `test_build_graph_audit.py` still expected 1,934 `sizeof` occurrences. The corrected focused drift test passed, and the next full run passed all 282 tests before the final audit check correctly reported that the tracked oracle change had made the generated graph stale. Regenerating both checked audit files and rerunning the gate produced the final clean result below. Neither failure came from the frontend implementation.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Null-pointer red and green | PASS AFTER ATOMIC FIXES | Focused comparison, conditional, automatic aggregate, static initializer, and aggregate-value modes pass exact public shape and useful negative diagnostics. The two atomic cases failed before their qualification checks were corrected. |
+| Focused frontend suite | PASS | Final-tree `python -m unittest tests.test_toolchain_cupidc_frontend` passes all 40 tests in 10.087 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including all frontend modes and 22 unchanged assembly demos. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC 13.3 and Clang 18.1 strict suites both pass. Their combined wall time is 75.9 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang suites pass with address and undefined-behavior sanitizers, leak checks, frame pointers, and halt-on-error behavior enabled. Their combined wall time is 160.1 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` are silent for both the frontend and its contract. |
+| Active-source audit | PASS AFTER ORACLE UPDATE | The corrected focused drift test passes in 103.620 seconds. `make bootstrap-audit` regenerates the graph in 34.6 seconds, and `make check-bootstrap-audit` reproduces it in 38.9 seconds. |
+| Formal two-axis review | PASS AFTER LOG FIX | Standards review found only the missing dated log entry. Spec review found no implementation mismatch. |
+| Full repository gate | PASS AFTER STALE ORACLE | Final-tree `make test` runs all 282 tests in 440.744 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 478.1 seconds. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
+
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
